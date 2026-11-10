@@ -156,40 +156,6 @@ Result<int> edit_table(xpp::Session &s, int index, const TableEdit &edit)
   return table.n;
 }
 
-void new_lookup_com(xpp::Session &s, int i)
-{
-  /* the Tables items of an imported button sequence (kbs.h): the questions the registry's table.* commands take as arguments are asked here, then the command's own function runs */
-  const int index=select_table(s);
-  if(index==-1)return;
-  if(i==1){
-    xpp::ok_or_show(view_table(s,index));
-    return;
-  }
-  TABULAR &table=s.tables[index];
-  TableEdit edit;
-  if(table.flag==1){
-    std::string file=table.filename;
-    if(file_selector("Load table",file,"*.tab")==0)return;
-    edit.file=file;
-  }
-  else if(table.flag==2){
-    int autoeval=table.autoeval,npts=table.n;
-    double xlo=table.xlo,xhi=table.xhi;
-    std::string formula=table.filename;
-    new_int("Auto-evaluate? (1/0)",&autoeval);
-    new_int("NPts: ",&npts);
-    new_float(s,"Xlo: ",&xlo);
-    new_float(s,"Xhi: ",&xhi);
-    new_string_of("Formula :",formula,XPP_FIELD_EXPRESSION);
-    edit.auto_evaluate=autoeval!=0;
-    edit.points=npts;
-    edit.x_min=xlo;
-    edit.x_max=xhi;
-    edit.formula=formula;
-  }
-  xpp::ok_or_show(edit_table(s,index,edit));
-}
-
 namespace {
 
 /* a table's value at a point and the slope of its interpolation there
@@ -440,39 +406,6 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
 int get_lookup_len(const xpp::Session &s, int i)
 {
   return s.tables[i].n;
-}
-
-/*   network stuff  
-     
-table name <type> ... arguments ...
-           conv   npts  weight variable_name klo khi end_cond
-           sparse npts  variable filename
-           
-      name(0 ... npts-1)
-
-conv:
-        name(i) = sum(k=klo,khi) weight(k-klo)*variable(i+k) 
-        with end_cond = zero means skip if off end
-                      = periodic means wrap around
-        
-sparse:
-       need a file with the structure:
-       ncon i_1 w_1 ... i_ncon w_ncon
-for npts lines
- name(i) = sum(j=1,ncon_i) w_j name(i_j)
-
-*/
-
-int select_table(const xpp::Session &s)
-{
- std::vector<std::string> names;
- for(int i=0;i<s.ntable;i++)names.push_back(s.tables[i].name);
- const int j=pick_from_list("table","Table",names);
- if(j<0){
-   command_error("table","Not a valid table");
-   return -1;
- }
- return j;
 }
 
 } // namespace xpp

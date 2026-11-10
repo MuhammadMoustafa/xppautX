@@ -51,7 +51,6 @@ void init_x11(Session &s);
 void init_picture(Session &s);
 void scale_dxdy(const Session &s, float x, float y, double *i, double *j);
 void scale_to_screen(const Session &s, float x, float y, int *i, int *j);
-void scale_to_real(Session &s, int i, int j, float *x, float *y);
 void init_all_graph(Session &s);
 void set_extra_graphs(Session &s);
 void reset_graph(Session &s);

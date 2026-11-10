@@ -37,8 +37,6 @@
 namespace xpp {
 
 
-#define PARAM 1
-#define IC 2
 
 
 
@@ -139,42 +137,6 @@ xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend)
  if(failure)return std::unexpected(std::move(*failure));
  if(!film)return std::unexpected(film.error());
  return s.data_store.rows;
-}
-
-int set_up_periodic(xpp::Session &s, int *ipar, int *ivar, double *sect, int *ishow)
-{
- static const char *const n[]={"Freq. Par.","*1Sect. Var","Section","Show(Y/N)"};
- std::array<std::string, 4> values;
- int status,i;
- static const char *const yn[]={"N","Y"};
- values[0] = s.model().upar_names[*ipar];
- values[1] = s.model().uvar_names[*ivar];
- values[2] = xpp::format("{:g}", *sect);
- values[3] = yn[*ishow];
- 
- static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(1),XPP_FIELD_NUMBER,XPP_FIELD_TEXT};
- status=do_string_box_of(4,1,"Periodic BCs",n,values,kinds);
- if(status!=0){
-               i=find_user_name(s.model(),PARAM,values[0].c_str());
-	       if(i>-1)
-		 *ipar=i;
-	       else {
-		 command_error("boundary_value", "No such parameter");
-		 return(0);
-	       }
-	       i=find_user_name(s.model(),IC,values[1].c_str());
-	       if(i>-1)
-		 *ivar=i;
-	       else {
-		 command_error("boundary_value", "No such variable");
-		 return(0);
-	       }
-	       *sect=atof(values[2].c_str());
-	       if(values[3][0]=='Y'||values[3][0]=='y')*ishow=1;
-	       else *ishow=0;
-	       return(1);
-	     }
-  return(0);
 }
 
 namespace {
@@ -279,25 +241,6 @@ xpp::Result<int> bvp_solve_range(xpp::Session &s, const ShootRange *given)
  return do_sh_range(s,ystart.data(),yend.data());
 }
 
-void find_bvp_com(xpp::Session &s, int com)
-{
- /* the Boundary value items of an imported button sequence (kbs.h): the questions the registry's boundary_value.* commands take as arguments are asked here */
- switch(com){
- case 0:
-   if(set_up_sh_range(s)!=0)xpp::ok_or_show(bvp_solve_range(s));
-   break;
- case 3:{
-   int ipar=0,ivar=0,ishow=0;
-   double sect=0.0;
-   if(s.model().nupar==0||set_up_periodic(s,&ipar,&ivar,&sect,&ishow)==0)break;
-   xpp::ok_or_show(bvp_solve_periodic(s,ipar,ivar,sect,ishow!=0));
-   break;}
- default:
-   xpp::ok_or_show(bvp_solve(s,com==2));
-   break;
- }
-}
-
 xpp::Result<> last_shot(xpp::Session &s, int flag)
 {
  int i;
@@ -316,50 +259,6 @@ xpp::Result<> last_shot(xpp::Session &s, int flag)
 }
  return integrate(s,&s.data_store.current_time,x,s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start)
    .transform([](int){});
-}
-
-int set_up_sh_range(xpp::Session &s)
-{
-static const char *const n[]={"*2Range over","Steps","Start","End",
-		     "Cycle color(Y/N)",
-		       "Side(0/1)", "Movie(Y/N)" };
- std::array<std::string, 7> values;
- int status,i;
- static const char *const yn[]={"N","Y"};
- values[0] = s.shoot_range.item;
- values[1] = xpp::format("{}", s.shoot_range.steps);
- values[2] = xpp::format("{:g}", s.shoot_range.plow);
- values[3] = xpp::format("{:g}", s.shoot_range.phigh);
- values[4] = yn[s.shoot_range.cycle];
- values[5] = xpp::format("{}", s.shoot_range.side);
- values[6] = yn[s.shoot_range.movie];
-
- static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
-                           XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
- status=do_string_box_of(7,1,"Range Shoot",n,values,kinds);
- if(status!=0){
-   s.shoot_range.item=values[0];
-   i=find_user_name(s.model(),PARAM,s.shoot_range.item);
-   if(i<0){
-        command_error("boundary_value", "No such parameter");
-       return(0);
-     }
-   
-   s.shoot_range.steps=atoi(values[1].c_str());
-   if(s.shoot_range.steps<=0)s.shoot_range.steps=10;
-   s.shoot_range.plow=atof(values[2].c_str());
-   s.shoot_range.phigh=atof(values[3].c_str());
-   if(values[4][0]=='Y'||values[4][0]=='y')s.shoot_range.cycle=1;
-   else s.shoot_range.cycle=0;
- if(values[6][0]=='Y'||values[6][0]=='y')s.shoot_range.movie=1;
-   else s.shoot_range.movie=0;
-
-   s.shoot_range.side=atoi(values[5].c_str());
-
- return(1);
- }
-
- return(0);
 }
 
 xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, double eps, int maxit, int n, int ishow, int iper, int ipar, int ivar, double sect)

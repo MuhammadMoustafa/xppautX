@@ -117,10 +117,5 @@ int numerics_settings_set_all(Session &s, std::span<const NumericsValue> values,
 /* field `key`'s value now as JSON text (a number, true or false, or a choice's quoted word); empty for no such field */
 std::string numerics_settings_json_value(const Session &s, std::string_view key);
 
-/* the Numerics menu's question for s's field `key` (not method, which the
-   menu picks from its list): its label, the value now, and the answer
-   set as numerics_settings_set sets it, a refusal shown with err_msg.
-   True when set; false when cancelled or refused. */
-bool numerics_settings_ask(Session &s, std::string_view key);
 
 } // namespace xpp

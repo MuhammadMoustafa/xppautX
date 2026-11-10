@@ -280,9 +280,8 @@ struct Session {
   AnimationState animation;
   /* the animation's frames as the events' text (ani_data.cpp) */
   AniShown ani_shown;
-  /* the model's buttons (@ button=name:keys; userbut.cpp) */
-  int nuserbut=0;
-  std::array<USERBUT,USERBUTMAX> userbut{};
+  /* the model's buttons (userbut.h) */
+  std::vector<UserButton> user_buttons;
 
   /* File > Open model's or Reload's model to load once the command that
      asked for it has returned (model_switch.h) */

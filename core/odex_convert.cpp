@@ -1216,10 +1216,6 @@ private:
         add_expanded(*row, key, value, settings, true);
         continue;
       }
-      if (row && row->odex == "buttons" && !xpp::is_button_sequence(value)) {
-        option_note(xpp::format("@ {}={} in the .ode: no button of xppautX runs that command sequence, dropped", key, value), "option");
-        continue;
-      }
       const bool slider = row && xpp::xppaut_slider_option(*row);
       if (row && (row->curve_field != CurveField::none || !row->dropped.empty())) {
         option_note(xpp::format("{}={} in the .ode's set {}: a set does not hold the curves of a graph, so it is dropped", key, value, set.name), "set-value");
@@ -1468,6 +1464,7 @@ private:
     std::string key, value;
   };
   std::vector<FlatOption> flat_;
+  std::vector<std::string> buttons_; /* the .ode's `@ but=name:keys` values, in order */
   std::set<std::string> dropped_; /* the warnings of dropped options already said */
 
   std::string options_block()
@@ -1475,6 +1472,7 @@ private:
     const bool map = disc(m_) != 0;
     std::vector<OptionEntry> entries;
     curves_ = {};
+    buttons_.clear();
     flat_.clear();
     dropped_.clear();
     for (const xpp::Model::OptionLine &line : m_.options) collect_options(line, map, entries);
@@ -1483,6 +1481,10 @@ private:
       for (const FlatOption &f : flat_) add_expanded(*f.row, f.key, f.value, entries, false);
     if (const std::string list = curves_.list(); !list.empty()) {
       const OptionRow &row = xpp::curves_option();
+      entries.push_back({xpp::odex_key(row, 0), list, &row});
+    }
+    if (const std::string list = buttons_list(); !list.empty()) {
+      const OptionRow &row = xpp::buttons_option();
       entries.push_back({xpp::odex_key(row, 0), list, &row});
     }
     /* an option XPPAUT's default for which is not ours (the colormap: jet, ours is viridis) is written out when the .ode does not
@@ -1523,6 +1525,23 @@ private:
     return block.empty() ? std::string() : prefix + block;
   }
 
+  /* the .ode's buttons as the `buttons` list of our own: one for each command, the first label (XPPAUT keeps one button for each), a key
+     sequence no command of ours runs dropped, said */
+  std::string buttons_list()
+  {
+    std::vector<xpp::UserButton> buttons;
+    for (const std::string &spec : buttons_) {
+      const std::size_t colon = spec.find(':');
+      const std::string_view command = colon == std::string::npos ? std::string_view() : xpp::xppaut_button_command(std::string_view(spec).substr(colon + 1));
+      if (command.empty()) {
+        option_note(xpp::format("@ but={} in the .ode: no command of xppautX does what those keys do, so the button is dropped", spec), "option");
+        continue;
+      }
+      if (std::ranges::none_of(buttons, [&](const xpp::UserButton &b) { return b.command == command; })) buttons.push_back({spec.substr(0, colon), std::string(command)});
+    }
+    return buttons.empty() ? std::string() : xpp::buttons_text(buttons);
+  }
+
   static std::vector<GroupItem> group_items(const std::vector<OptionEntry> &entries)
   {
     std::vector<GroupItem> out;
@@ -1560,6 +1579,10 @@ private:
         continue;
       }
       if (row && row->in_statement) continue;
+      if (row && row->name == "BUT") {
+        buttons_.push_back(value);
+        continue;
+      }
       if (row && !row->dropped.empty()) {
         if (dropped_.insert(std::string(row->dropped)).second) option_note(xpp::format("@ {}={} in the .ode: {}", key, value, row->dropped), "option");
         continue;
@@ -1635,7 +1658,8 @@ private:
     if (const std::optional<double> total = imported_total(row, value)) return print_number(*total);
     switch (row.kind) {
     case OptionKind::sliders:
-    case OptionKind::curves: return value;
+    case OptionKind::curves:
+    case OptionKind::buttons: return value;
     case OptionKind::path:
     case OptionKind::text: {
       std::string text = value;

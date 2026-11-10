@@ -213,11 +213,11 @@ you wrote (`1/30`) alone while the value is unchanged.
   | `diagram` | `variable`, `x_min`, `x_max`, `y_min`, `y_max` |
   | `plot` | `colormap`; `axes.kind` (`2` or `3`), `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max` (the one pair of limits: a 2D plot's window, a 3D plot's box), `axes.z_min`, `axes.z_max` (the 3D box), `axes.phi`, `axes.theta` (the 3D view); `curves` (a list of at most 8 curves, each `{ x, y, z }`, a variable's name or `t`; the first holds the axes' variables, a model opens one graph and every curve is drawn in it); `line.draw`, `line.dash`, `line.width`, `line.marker`, `line.marker_size`; `nullclines.mesh`, `nullclines.draw`; `direction_field.grid`, `direction_field.draw`; `color_by.enabled`, `color_by.via`, `color_by.low`, `color_by.high` |
   | `analysis` | `histogram.low`, `histogram.high`, `histogram.bins`, `histogram.column`; `histogram2.low`, `histogram2.high`, `histogram2.bins`, `histogram2.column`; `spectrum.column`, `spectrum.column2`, `spectrum.width`, `spectrum.window` |
-  | `interface` | `sliders`, `buttons` (and `animation`, written directly in `options`, outside any group) |
+  | `interface` | `sliders` (a list of `{ name, low, high, step }`), `buttons` (a list of `{ label: "AUTO", command: autox.open }`: a quoted label and the registry command it runs; an empty label, a command no registry row has and two buttons of one label are errors at their line) (and `animation`, written directly in `options`, outside any group) |
   | `output` | `data_file`, `picture_file`, `nullclines_file`, `after_run`, `after_run_file` (`picture_file` is the picture a batch run writes of the graph, its extension, `.pdf` or `.svg`, picking the format, empty for none: an unknown extension is an error at its line, and a run per set names it after the set like `data_file`, `<set>.svg`; a path is named from the model's folder, a path outside it is a question, and its extension picks the data format; with `after_run_file` the analysis `after_run` names is written there and `data_file` keeps the trajectory, without it the analysis replaces the table `data_file` is written from, as XPPAUT's batch run does) |
 
   Older group names and older keys are errors, as is a key of another group. A key
-  twice (but for `fold` and `buttons`, which name one thing each) is an error at
+  twice (but for `fold` and `coupling`, which name one thing each) is an error at
   the key. XPPAUT's words (`total`, `nout`, `meth`, `xlo`, `dfgrid`, `postprocess`,
   `rangeover`, `histbins`, ...) are import names only: a `.ode` or `.set` says them, a
   `.odex` never does, and `--convert` writes the key. A number that stood for a choice
@@ -249,7 +249,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   `"foreground"`, a quoted CSS color name or `"#rrggbb"` (`#rrggbbaa` with alpha, drawn by the page,
   SVG and PDF), and every color is double quoted, including names; a name is read and written back as hex): `\"` and `\\`
   are its only escapes, a path is written with `/` on every system, and a
-  path outside the model's folder is a question the user answers (W175, W286). Only `data_file`, `picture_file`, `nullclines_file`, `after_run_file` are paths, and `buttons` (a button, `buttons: "quit:fq"`) a text. Every
+  path outside the model's folder is a question the user answers (W175, W286). Only `data_file`, `picture_file`, `nullclines_file`, `after_run_file` are paths, and the `coupling` items (`"variable = formula"`) texts. Every
   writer of options (the converter, Save values) writes them so.
   Continuation numbers use the same ranges as the autoX form, protocol and session reader:
   `min_step_size`, `max_step_size`, `parameter_tolerance`, `state_tolerance` and `special_point_tolerance` are positive; `min_step_size <= max_step_size`,

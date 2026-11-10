@@ -105,28 +105,6 @@ Result<> transpose_data(xpp::Session &s, std::string_view first_column, int colu
   return {};
 }
 
-void do_transpose(xpp::Session &s)
-{
- static const char *const n[]={"*0Column 1","NCols","ColSkip","Row 1","NRows","RowSkip"};
- std::array<std::string, 6> values;
- values[0] = s.adjoint.transpose.firstcol;
- values[1] = xpp::format("{:d}", s.adjoint.transpose.ncol);
- values[2] = xpp::format("{:d}", s.adjoint.transpose.colskip);
- values[3] = xpp::format("{:d}", s.adjoint.transpose.row0);
- values[4] = xpp::format("{:d}", s.adjoint.transpose.nrow);
- values[5] = xpp::format("{:d}", s.adjoint.transpose.rowskip);
- static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
-                           XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- if(do_string_box_of(6,1,"Transpose Data",n,values,kinds)==0)return;
- xpp::TypedFields f(s);
- const int columns=f.integer(n[1],values[1]),column_skip=f.integer(n[2],values[2]),first_row=f.integer(n[3],values[3]),
-           rows=f.integer(n[4],values[4]),row_skip=f.integer(n[5],values[5]);
- if(f.error()){
-   command_error("transpose",*f.error());
-   return;
- }
- ok_or_show(transpose_data(s,values[0],columns,column_skip,first_row,rows,row_skip));
-}
  
 void alloc_h_stuff(xpp::Session &s)
 {
@@ -151,53 +129,6 @@ void h_back(xpp::Session &s)
  AdjointState &a=s.adjoint;
  if(a.h_here)new_browse_dat(s,a.h_function.view(s.data_store),a.h_rows);
 }
-/*  Here is how to do the range over adjoints and h functions
-    unfortunately, h functions are always computed even if you dont want them 
-    they will just be zeros
-
-    Step 1. Compute a singel orbit, adjoint, and H function (to load the 
-    program with the correct right-hand sides for H function. Or just load in
-    set file where it was done
-    Step 2.  Set transient to some reasonable number to assure convergence 
-    onto the limit cycle as you change parameters and total to be at least
-    2 periods beyond the transient
-    Step 3. Se up Poincare map - period - stop on section. This lets you
-    get the period
-    Step 4. In numerics averaging - click on adjrange
-    Step 5. Initconds range over the parameter. It should find the periodic
-    orbit, adjoint, and H function and save. Files are of the form
-    orbit.parname_parvalue.dat etc
-*/
-void make_adj_com(xpp::Session &s, int com)
-{
-/* the Adjoint items of an imported button sequence (kbs.h): the questions the registry's adjoint.*  commands take as arguments are asked here, then the command's own function runs */
-static const char *const key="nmaohpr";
- switch(key[com]){
- case 'n': 
-   xpp::ok_or_show(new_adjoint(s));
-   break;
- case 'm':
-   if(ask_couplings(s))xpp::ok_or_show(new_h_fun(s,true));
-   break;
- case 'a':
-   xpp::ok_or_show(load_adjoint(s));
-   break;
- case 'o':
-   data_back(s);
-   break;
- case 'h':
-   xpp::ok_or_show(load_interaction(s));
-   break;
- case 'p':
-   if(ask_adjoint_parameters(s))xpp::ok_or_show(set_adjoint_parameters(s,s.adjoint.maxit,s.adjoint.err));
-   break;
- case 'r':
-   s.integrator.adj_range=1;
-   break;
- 
- }
-}
-
 Result<> load_adjoint(xpp::Session &s)
 {
  return show_derived(s,s.adjoint.adjoint_here,"adjoint","No adjoint computed yet: compute one first",adj_back);
@@ -215,20 +146,6 @@ Result<> set_adjoint_parameters(xpp::Session &s, int max_iterates, double tolera
   s.adjoint.maxit=max_iterates;
   s.adjoint.err=tolerance;
   return {};
-}
-
-bool ask_adjoint_parameters(xpp::Session &s)
-{
-  new_int("Maximum iterates :",&s.adjoint.maxit);
-  new_float(s,"Adjoint error tolerance :",&s.adjoint.err);
-  return true;
-}
-
-bool ask_couplings(xpp::Session &s)
-{
- for(int i=0;i<s.model().node;i++)
-   new_string_of(xpp::format("Coupling for {} eqn:",s.model().uvar_names[i]),s.adjoint.coup_string[i],XPP_FIELD_EXPRESSION);
- return true;
 }
 
 Result<> new_h_fun(xpp::Session &s, bool compile, const std::vector<std::string> *couplings)
@@ -550,19 +467,6 @@ Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range)
   s.data_store.rows=s.adjoint.liap_i;
   refresh_data(s,s.data_store.rows);
   return LyapunovResult{s.adjoint.liap_i>0?static_cast<double>(largest):0.0,done.runs};
-}
-
-void do_liapunov(xpp::Session &s)
-{
-  int over_range=0;
-  new_int("Range over parameters?(0/1)",&over_range);
-  if(over_range==1&&set_up_range(s)==0)return;
-  const auto z=lyapunov_exponent(s,over_range==1);
-  if(!z){
-    xpp::show_error(z.error());
-    return;
-  }
-  if(over_range!=1)bottom_msg(0,xpp::format("Maximal exponent is {:g}",z->exponent));
 }
 
 void alloc_liap(xpp::Session &s, int n)

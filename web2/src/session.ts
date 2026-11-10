@@ -984,11 +984,6 @@ export class Session {
     this.send({cmd: 'recording.close'});
   }
 
-  /** an `@ button` of the ODE file */
-  userButton(index: number): void {
-    this.send({cmd: 'button.run', index});
-  }
-
   /* ---- data table (docs/ui-v2.md T10, docs/protocol.md "The data table") ---- */
 
   openTable(): void {

@@ -124,7 +124,6 @@ public:
     /* exactly out.size() finite numbers */
     bool reals(std::string_view key, std::span<double> out);
     bool texts(std::string_view key, std::vector<std::string> &out, std::size_t max);
-    bool words(std::string_view key, std::vector<std::string> &out, std::size_t max);
 
     /* the members whose keys the reader does not know beforehand
        (parameters, variables): each marked read; the reader checks the
@@ -216,7 +215,6 @@ public:
     void name(std::string_view key, std::string_view text);
     void reals(std::string_view key, std::span<const double> v);
     void texts(std::string_view key, std::span<const std::string> v);
-    void words(std::string_view key, std::span<const std::string> v);
     void begin(std::string_view key);
     void end();
     /* a statement of the file, `keyword {`, its entries nested and `}` (session, preferences) */

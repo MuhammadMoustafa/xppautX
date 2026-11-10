@@ -1,72 +1,77 @@
 #include "userbut.h"
-#include "session.h"
-#include "xpp_log.h"
 
-#include <string>
-#include "kbs.h"
+#include <algorithm>
 #include <iterator>
+
+#include "command_def.h"
+#include "odex_block.h"
+#include "odex.h"
+#include "session.h"
+#include "xpp_io.h"
 
 namespace xpp {
 
-
-
-
 namespace {
 
-/* Split "name:keys" into its two parts. */
-void get_button_info(std::string_view s, std::string &bname, std::string &sc)
-{
-  bname.clear();
-  sc.clear();
-  bool after_colon = false;
-  for (char c : s) {
-    if (c == ':') {
-      after_colon = true;
-    } else if (after_colon) {
-      sc.push_back(c);
-    } else {
-      bname.push_back(c);
-    }
-  }
-}
-
-int find_kbs(const std::string &sc)
-{
-  int i = 0;
-  while (true) {
-    if (sc == kbs[i].seq) return kbs[i].com;
-    i++;
-    if (kbs[i].com == 0) return -1;
-  }
-}
+/* XPPAUT's menu key sequences (its kbs list, import only) that a command of ours runs; the others (a mouse click, a question XPPAUT
+   asked in a window of its own) have none */
+struct KeyCommand {
+  std::string_view keys, command;
+};
+constexpr KeyCommand key_commands[] = {
+  {"ig", "run.initial"}, {"il", "run.last"}, {"io", "run.old"}, {"is", "run.shift"}, {"ir", "run.range"}, {"i2", "run.double_range"},
+  {"c", "run.continue"}, {"sg", "equilibrium.find"}, {"sr", "equilibrium.range"},
+  {"nn", "nullcline.compute"}, {"nr", "nullcline.redraw"}, {"ns", "nullcline.export"},
+  {"dd", "direction_field.compute"}, {"df", "direction_field.flow"}, {"dn", "direction_field.clear"}, {"dc", "direction_field.colorize"},
+  {"ww", "window.set_bounds"}, {"wf", "window.fit"}, {"mc", "window.new"}, {"mk", "window.close_extra"}, {"md", "window.close"}, {"mb", "window.send_to_bottom"}, {"r", "window.redraw"}, {"e", "window.clear"}, {"x", "plot.variable_vs_time"},
+  {"kc", "kinescope.capture"}, {"kr", "kinescope.reset"}, {"kp", "kinescope.play"}, {"ka", "kinescope.autoplay"}, {"ks", "kinescope.export_gif"},
+  {"ga", "plot.add_curve"}, {"gd", "plot.delete_curve"}, {"gr", "plot.delete_all_curves"}, {"ge", "plot.edit_curve"},
+  {"p", "value.set_parameters"}, {"fa", "autox.open"}, {"fc", "calculator.evaluate"}, {"fs", "session.export_info"},
+  {"fr", "session.import_xppaut_state"}, {"fq", "session.quit"}, {"ft", "data.transpose"}, {"fg", "set.apply"}};
 
 } // namespace
 
-bool is_button_sequence(std::string_view spec)
+std::vector<UserButton> read_buttons(odex::Block &file)
 {
-  std::string bname, sc;
-  get_button_info(spec, bname, sc);
-  return !sc.empty() && find_kbs(sc) != -1;
+  std::vector<odex::Block> items;
+  file.groups("buttons", items, odex::max_file_tokens);
+  std::vector<UserButton> buttons;
+  for (odex::Block &g : items) {
+    for (const std::string_view key : {"label", "command"})
+      if (!g.has(key)) g.fail(xpp::format("a button requires {}", key));
+    UserButton button;
+    g.text("label", button.label);
+    if (button.label.empty()) g.fail(*g.member("label"), "a button's label is not empty");
+    g.word("command", button.command);
+    if (!command::find(button.command)) g.fail(*g.member("command"), xpp::format("`{}` is no command of xppautX", button.command));
+    if (std::ranges::any_of(buttons, [&](const UserButton &b) { return b.label == button.label; }))
+      g.fail(*g.member("label"), xpp::format("two buttons are labelled \"{}\"", button.label));
+    g.done();
+    buttons.push_back(std::move(button));
+  }
+  return buttons;
 }
 
-const char *add_user_button(xpp::Session &s, std::string_view spec, bool apply)
+std::string buttons_text(const std::vector<UserButton> &buttons)
 {
-  std::string bname, sc;
-  get_button_info(spec, bname, sc);
-  if (bname.empty() || sc.empty()) return "must be a name and a command sequence, name:keys";
-  int z = find_kbs(sc);
-  if (z == -1) return "names a command sequence that no button runs";
-  if (s.nuserbut >= USERBUTMAX) return "is one button too many";
-  if (!apply) return nullptr;
-  /* Don't add buttons with the same functionality twice. */
-  for (int i = 0; i < s.nuserbut; i++) {
-    if (s.userbut[i].com == z) return nullptr;
-  }
-  s.userbut[s.nuserbut].com = z;
-  s.userbut[s.nuserbut].bname = bname;
-  xpp::log(XPP_LOG_INFO, " added button({})  -- {} {}\n", s.nuserbut, s.userbut[s.nuserbut].bname,
-           s.userbut[s.nuserbut].com);
-  s.nuserbut++;
+  std::string text = "[";
+  for (const UserButton &b : buttons) text += xpp::format("{} {{ label: {}, command: {} }}", text.size() > 1 ? "," : "", odex::quote_string(b.label), b.command);
+  return text + (buttons.empty() ? "]" : " ]");
+}
+
+std::string_view xppaut_button_command(std::string_view keys)
+{
+  const auto at = std::ranges::find(key_commands, keys, &KeyCommand::keys);
+  return at == std::end(key_commands) ? std::string_view() : at->command;
+}
+
+const char *add_xppaut_button(Session &s, std::string_view spec, bool apply)
+{
+  const std::size_t colon = spec.find(':');
+  if (colon == std::string_view::npos || colon == 0 || colon + 1 == spec.size()) return "must be a name and a command sequence, name:keys";
+  const std::string_view command = xppaut_button_command(spec.substr(colon + 1));
+  if (command.empty() || std::ranges::any_of(s.user_buttons, [&](const UserButton &b) { return b.command == command; })) return nullptr;
+  if (apply) s.user_buttons.push_back({std::string(spec.substr(0, colon)), std::string(command)});
   return nullptr;
 }
 

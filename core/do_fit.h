@@ -26,7 +26,6 @@ struct FitInfo {
 };
 
 void print_fit_info(const Session &s);
-int get_fit_params(Session &s);
 
 
 /* a fit that ran: it converged, stopped at its iteration limit, or was cancelled */
@@ -44,9 +43,6 @@ struct FitOutcome {
   FitResult result;
   std::vector<std::pair<std::string, double>> parameters;
 };
-/* the fit of the data file s.fit.file as s.fit's settings say, the fitted quantities set to the last iterate
-   (the settings' lists are get_fit_params's questions, or the command's arguments), or why it failed */
-Result<FitOutcome> test_fit(Session &s);
 Result<FitOutcome> test_fit(Session &s, FitInfo fit);
 
 /* the fit's pieces return why they failed (a data file, a singular

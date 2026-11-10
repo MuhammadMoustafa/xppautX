@@ -1884,7 +1884,7 @@ def check_session_commands():
         initial, _ = col(lambda e: e.get('ev') == 'done')
         hello = next(e for e in initial if e.get('ev') == 'hello')
         check('W528: the model makes the button, and hello names every event stream the commands take',
-              hello.get('userbuttons') == ['Go'] and 'recording.player' in hello.get('features', []) and 'features' in hello, str(hello.get('userbuttons')))
+              hello.get('userbuttons') == [{'label': 'Go', 'command': 'run.initial'}] and 'recording.player' in hello.get('features', []) and 'features' in hello, str(hello.get('userbuttons')))
 
         def call(answers=(), **command):
             """the done of a command, answering its asks with `answers` (keys or fields), and every event up to it"""
@@ -4457,6 +4457,38 @@ def check_import_only_options():
 
 
 check_import_only_options()
+
+
+def check_buttons():
+    """W663: a button is a quoted label and a registry command; XPPAUT's name:keys is read on import only and converted; a bad button is
+    an error at its line, nothing applied; there is no limit on how many a model has."""
+    with tempfile.TemporaryDirectory(prefix='xppbuttons') as run:
+        with open(os.path.join(run, 'b.ode'), 'w', encoding='utf-8') as source:
+            source.write("x'=-x\n@ total=1,dt=.1,but=Go:ig,but=Auto:fa,but=Again:ig,but=Mouse:im,but=Nokeys:zz\ndone\n")
+        converted = subprocess.run([os.path.abspath(args.server), '--convert', 'b.ode'], cwd=run, capture_output=True, text=True, timeout=60 * SLOW)
+        with open(os.path.join(run, 'b.odex'), encoding='utf-8') as source:
+            text = source.read()
+        check('W663: --convert turns but=name:keys into the command those keys ran, one button for a command, and says what it drops',
+              converted.returncode == 0 and 'buttons: [ { label: "Go", command: run.initial }, { label: "Auto", command: autox.open } ]' in text
+              and '@ but=Mouse:im' in converted.stderr and '@ but=Nokeys:zz' in converted.stderr, converted.stderr + text)
+        many = ', '.join('{ label: "b%d", command: run.initial }' % k if k == 0 else '{ label: "b%d", command: run.last }' % k for k in range(1, 30))
+        for name, buttons, line, why in (
+                ('nocommand', '[ { label: "A", command: nosuch.command } ]', 3, 'nosuch.command'),
+                ('nolabel', '[ { label: "", command: run.initial } ]', 3, 'label'),
+                ('twice', '[ { label: "A", command: run.initial }, { label: "A", command: run.last } ]', 3, 'two buttons are labelled'),
+                ('letters', '"AUTO:fa"', 3, 'list of buttons')):
+            with open(os.path.join(run, name + '.odex'), 'w', encoding='utf-8') as source:
+                source.write("version 4\nx' = -x\noptions { interface: { buttons: %s } }\n" % buttons)
+            refused = subprocess.run([os.path.abspath(args.server), name + '.odex', '--check'], cwd=run, capture_output=True, text=True, timeout=60 * SLOW)
+            check('W663: a bad button (%s) is refused at its line, naming it' % name,
+                  why in refused.stdout + refused.stderr and refused.returncode != 0 and '"line":%d' % line in refused.stdout.replace(' ', ''), refused.stdout + refused.stderr)
+        with open(os.path.join(run, 'many.odex'), 'w', encoding='utf-8') as source:
+            source.write("version 4\nx' = -x\noptions { interface: { buttons: [ { label: \"Go\", command: run.initial }, %s ] } }\n" % many.replace('b0', 'Go0'))
+        accepted = subprocess.run([os.path.abspath(args.server), 'many.odex', '--check'], cwd=run, capture_output=True, text=True, timeout=60 * SLOW)
+        check('W663: thirty buttons are no limit', accepted.returncode == 0, accepted.stdout + accepted.stderr)
+
+
+check_buttons()
 
 
 check_options_panels()
@@ -9179,6 +9211,12 @@ def check_session_file():
             indent = state_rows[k - 1][:len(state_rows[k - 1]) - len(state_rows[k - 1].lstrip())]
             return before + '\n' + indent + '%s: [%s]' % (key, value) + rest[rest.index(']') + 1:]
 
+        def with_options_list(key, value):
+            """session.odex's text with the options row `key: [...]` (a list on one line) set to `key: value`"""
+            changed, n = re.subn(r'%s: \[[^\]]*\]' % key, '%s: %s' % (key, value), state_text, count=1)
+            assert n == 1, key
+            return changed
+
         def with_block(key, new_rows, indent='  '):
             """session.odex's text with the group or list `key` (at the session's depth) replaced by new_rows (lines)"""
             k = line_starting(key + ':', depth=1)
@@ -9186,7 +9224,7 @@ def check_session_file():
             return '\n'.join(state_rows[:k - 1] + [indent + r for r in new_rows] + state_rows[end + 1:])
 
         marks_line = line_starting('marks:', depth=1)
-        sliders_line = line_starting('sliders:', depth=1)
+        sliders_line = line_with('sliders: [')  # W663: the sliders are an options row, written with the buttons under interface
         nullclines_line = line_starting('nullclines:', depth=1)
         added_line = line_starting('added_columns:', depth=1)
         session_line = line_starting('session {')
@@ -9227,10 +9265,12 @@ def check_session_file():
         curve_x = line_starting('x:', line_starting('windows:'))
         high_line = line_with('boundary_value.range_high:')
         damages = [
-            ('badslider', edited(lambda text: with_value('name', 'nonsense', sliders_line)),
-             ('badslider.snapx/session.odex:%d:' % (sliders_line + 2), 'nonsense')),
-            ('badsliderrange', edited(lambda text: with_value('high', '-2', sliders_line)),
-             ('badsliderrange.snapx/session.odex:%d:' % (sliders_line + 4), 'slider range -1 -2')),
+            ('badslider', edited(lambda text: with_options_list('sliders', '[ { name: nonsense, low: 0, high: 1, step: 0 } ]')),
+             ('badslider.snapx/session.odex:%d:' % sliders_line, 'nonsense')),
+            ('badsliderrange', edited(lambda text: with_options_list('sliders', '[ { name: iapp, low: -1, high: -2, step: 0 } ]')),
+             ('badsliderrange.snapx/session.odex:%d:' % sliders_line, 'slider range -1 -2')),
+            ('badbutton', edited(lambda text: with_options_list('buttons', '[ { label: "A", command: nosuch.command } ]')),
+             ('badbutton.snapx/session.odex:%d:' % sliders_line, 'nosuch.command')),
             ('nannullcline', edited(lambda text: with_list('x_segments', 'nan, 0, 0, 0', nullclines_line)),
              ('nannullcline.snapx/session.odex:%d:' % line_starting('x_segments:', nullclines_line), 'nan')),
             ('badnullcline', edited(lambda text: with_list('x_segments', '0, 0, 0, 0, 0', nullclines_line)),
@@ -9248,7 +9288,7 @@ def check_session_file():
             ('lastmarks', edited(lambda text: '\n'.join(state_rows[:marks_line] + ['    more: 1,'] + state_rows[marks_line:])),
              ('lastmarks.snapx/session.odex:%d:' % (marks_line + 1), '`more` is not a setting')),
             ('lastset', edited(lambda text: with_text('boundary_value.range_high: 1', 'boundary_value.range_high: 1e999')),
-             ('lastset.snapx/session.odex:%d:' % high_line, 'found `1e999`')),
+             ('lastset.snapx/session.odex:%d:' % high_line, '`1e999` is not a number')),
             # W662: a session of the older layout (its moved settings still groups of the session statement) is refused at that line
             ('oldgroup', edited(lambda text: with_line(session_line + 1, '  bvp_range: { item: iapp },\n' + state_rows[session_line])),
              ('oldgroup.snapx/session.odex:%d:' % (session_line + 1), '`bvp_range` is not a setting')),

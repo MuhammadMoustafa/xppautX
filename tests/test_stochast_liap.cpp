@@ -15,7 +15,8 @@
 #include "numerics.h"
 #include "xpp_batch.h"
 #include "load_eqn.h"
-#include "menudrive.h"
+#include "command_registry.h"
+#include "xpp_ui.h"
 
 #include <cmath>
 
@@ -25,7 +26,7 @@ int main(void)
     char *argv[] = {arg0, arg1, NULL};
     CHECK(load_args(2, argv, 1).has_value());
     xpp::batch_start(xpp::client_session());
-    run_the_commands(xpp::client_session(), xpp::M_IG); /* Initialconds/Go, as --silent's script runs it */
+    CHECK(xpp::command::run_button(xpp::client_session(), "{\"cmd\":\"run.initial\"}", xpp::command_place())); /* Initialconds/Go, as --silent's script runs it */
 
     CHECK(xpp::client_session().data_store.rows > 100);
 

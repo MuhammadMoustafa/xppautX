@@ -174,9 +174,6 @@ void j_bottom_msg(int, std::string_view msg, std::string_view chapter, std::stri
     send_buf(b);
 }
 
-void j_message_box(std::string_view msg) { send_simple(xpp::events::SESSION_MESSAGE, "box", msg); }
-void j_kill_message_box(void) { send_simple(xpp::events::SESSION_MESSAGE, "box", ""); }
-
 namespace {
 
 /* a field's kind as the protocol names it (docs/protocol.md "Asks", `kinds`) */
@@ -222,37 +219,6 @@ int j_dialog(std::string_view title, std::string_view name, std::string &value, 
     return 1;
 }
 
-int j_text_dialog(xpp::LabelLook &look)
-{
-    std::string b;
-    const int id = ask_begin(b, "text");
-    BUF_LIT(b, ",\"title\":\"Text\",\"value\":");
-    buf_str(b, look.text);
-    buf_format(b, ",\"size\":{:d},\"style\":", look.size);
-    buf_str(b, xpp::text_style_word(look.style));
-    buf_format(b, ",\"color\":{}", xpp::quoted_color(look.color));
-    if (!ask_wait(b, id)) return 0;
-    get_string(answer.c_str(), "value", look.text);
-    std::string color_word, style_word;
-    const std::optional<xpp::Color> color = get_string(answer.c_str(), "color", color_word) ? xpp::parse_color(color_word) : std::nullopt;
-    const std::optional<xpp::TextStyle> style = get_string(answer.c_str(), "style", style_word) ? xpp::parse_text_style(style_word) : std::nullopt;
-    if (!get_whole(answer.c_str(), "size", look.size)) {
-        j_command_error("text", "the size of a text is a whole number");
-        return 0;
-    }
-    if (!style) {
-        j_command_error("text", xpp::format("\"{}\" is not a text style", style_word));
-        return 0;
-    }
-    if (!color) {
-        j_command_error("text", "the color of a text is #rrggbb, #rrggbbaa, a CSS color name or foreground");
-        return 0;
-    }
-    look.style = *style;
-    look.color = *color;
-    return 1;
-}
-
 int j_new_string(std::string_view name, std::string &value, int kind)
 {
     return j_dialog("", name, value, "Ok", "Cancel", kind);
@@ -277,27 +243,6 @@ int j_choose(std::string_view title, std::string_view q, std::span<const std::st
     const int index = get_int(answer.c_str(), "index", -1);
     if (k.empty() && index >= 0 && static_cast<std::size_t>(index) < choices.size()) return MENU_UNKEYED + index;
     return static_cast<unsigned char>(k[0]);
-}
-
-int j_checklist(std::string_view title, const char *const *names, int *flags, int n)
-{
-    std::string b;
-    int i, id = ask_begin(b, "checklist");
-    const char *arr;
-    BUF_LIT(b, ",\"title\":");
-    buf_str(b, title);
-    BUF_LIT(b, ",\"names\":");
-    buf_str_array(b, names, n);
-    BUF_LIT(b, ",\"flags\":[");
-    for (i = 0; i < n; i++) buf_format(b, "{}{:d}", i ? "," : "", flags[i]);
-    BUF_LIT(b, "]");
-    if (!ask_wait(b, id)) return 0;
-    arr = js_find(answer.c_str(), "flags");
-    for (i = 0; i < n; i++) {
-        const char *e = js_elem(arr, i);
-        if (e) flags[i] = js_num(e, flags[i]) != 0;
-    }
-    return 1;
 }
 
 const char *ask_answer(void) { return answer.c_str(); }
@@ -370,12 +315,6 @@ int form(std::string_view title, const char *const *names, std::span<std::string
 
 } // namespace
 
-int j_string_box(int, int, std::string_view title, const char *const *names, std::span<std::string> values,
-                 const int *kinds)
-{
-    return form(title, names, values, kinds, XPP_FIELD_TEXT);
-}
-
 int j_typed_form(std::string_view title, std::span<FormField> fields)
 {
     std::vector<const char *> names;
@@ -389,12 +328,6 @@ int j_typed_form(std::string_view title, std::span<FormField> fields)
     if (!form(title, names.data(), values, kinds.data(), XPP_FIELD_TEXT, {}, {}, fields)) return 0;
     for (size_t i = 0; i < fields.size(); i++) fields[i].value = values[i];
     return 1;
-}
-
-int j_grid_box(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
-               const char *const *names, std::span<std::string> values, const int *kinds)
-{
-    return form(title, names, values, kinds, XPP_FIELD_TEXT, columns, rows);
 }
 
 /* the file selector lists a folder; an answer with "cd" goes into a folder
@@ -504,64 +437,6 @@ void answer_point(xpp::Session &s, unsigned long win, int k, int *x, int *y)
         get_draw_area(s);
         *x = data_to_pixel(get_num(answer.c_str(), dx[k], 0), s.plot_windows.current->xlo, s.plot_windows.current->xhi, s.drawing.d_left, s.drawing.d_right);
         *y = data_to_pixel(get_num(answer.c_str(), dy[k], 0), s.plot_windows.current->ylo, s.plot_windows.current->yhi, s.drawing.d_bottom, s.drawing.d_top);
-    }
-}
-
-int mouse_ask(xpp::Session &s, unsigned long win, const char *kind, int flag, std::span<int> v)
-{
-    std::string b;
-    int id = ask_begin(b, kind);
-    BUF_LIT(b,",\"win\":");buf_str(b,xpp::window_name(s,win));buf_format(b,",\"flag\":{}",flag);
-    if (!ask_wait(b, id)) return 0;
-    for (size_t i = 0; i < v.size() / 2; i++) answer_point(s, win, static_cast<int>(i), &v[2 * i], &v[2 * i + 1]);
-    return 1;
-}
-
-int j_get_mouse_xy(xpp::Session &s, int *x, int *y)
-{
-    std::array<int, 2> v;
-    if (!mouse_ask(s, s.plot_windows.draw_win, "mouse", 0, v)) return 0;
-    *x = v[0];
-    *y = v[1];
-    return 1;
-}
-
-int j_rubber_band(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
-{
-    std::array<int, 4> v;
-    if (!mouse_ask(s, s.plot_windows.draw_win, "rubber", flag, v)) return 0;
-    *i1 = v[0]; *j1 = v[1]; *i2 = v[2]; *j2 = v[3];
-    return 1;
-}
-
-
-
-
-
-/* one pointer event of a drag in window win: 1 down, 2 move, 3 up; 0 when
-   a key or Cancel ends the drag */
-int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y)
-{
-    std::string b;
-    std::string what;
-    int id = ask_begin(b, "drag");
-    BUF_LIT(b,",\"win\":");buf_str(b,xpp::window_name(s,win));
-    if (!ask_wait(b, id) || !get_string(answer.c_str(), "what", what)) return 0;
-    answer_point(s, win, 0, x, y);
-    return what == "down" ? 1 : what == "move" ? 2 : what == "up" ? 3 : 0;
-}
-
-void j_q_calc(xpp::Session &s)
-{
-    std::string expr;
-    double z;
-    std::string result = "Formula:";
-    /* the X11 calculator shows the answer in its window: here in the prompt */
-    while (new_string_of(result, expr, XPP_FIELD_EXPRESSION)) {
-        if (do_calc(s, expr, &z) != -1) {
-            result = xpp::format("{:.200} = {:.16g}   Formula:", expr, z);
-            send_simple(xpp::events::SESSION_MESSAGE, "calc", result.c_str());
-        }
     }
 }
 

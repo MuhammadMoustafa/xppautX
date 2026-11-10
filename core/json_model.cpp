@@ -22,7 +22,6 @@
 #include "graphics.h"
 #include "graf_par.h"
 #include "nullcline.h"
-#include "menudrive.h"
 #include "userbut.h"
 #include "plot_data.h"
 #include "phase_data.h"

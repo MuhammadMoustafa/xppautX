@@ -1,7 +1,7 @@
 /* The tool resource's registry rows (W528): the calculator, a comment of the model's source that has an action, and a
    button of the model (an `@ button`). Each calls what the File menu's item and the page's button call. */
 #include "command_def.h"
-#include "menudrive.h"
+#include "command_registry.h"
 #include "session.h"
 #include "typed_values.h"
 #include "xpp_util.h"
@@ -31,8 +31,11 @@ Result<std::string> run_source_action(Session &s, const Command &command, const 
 Result<std::string> run_user_button(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     const long long index = args.get<long long>("index");
-    if (index >= s.nuserbut) return fail(command.name, xpp::format("The model has no button {} ({} buttons)", index, s.nuserbut), place);
-    run_the_commands(s, static_cast<MenuCommand>(s.userbut[static_cast<std::size_t>(index)].com));
+    if (static_cast<std::size_t>(index) >= s.user_buttons.size())
+        return fail(command.name, xpp::format("The model has no button {} ({} buttons)", index, s.user_buttons.size()), place);
+    std::string line = "{\"cmd\":";
+    json_append_string(line, s.user_buttons[static_cast<std::size_t>(index)].command);
+    if (const Result<> ran = run_button(s, line + '}', place); !ran) return std::unexpected<Error>(ran.error());
     return ResultObject().boolean("ran", true).done();
 }
 
@@ -66,7 +69,7 @@ constexpr std::array ROWS = {
             "Run the action of an active comment of the model's source (a `{par=value,...}` block): comment `index` of session.get_source's list.",
             RAN_RESULTS, RAN_EVENTS, true, run_source_action},
     Command{"button.run", INDEX_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Panels, "Run model button", "",
-            "Press a button of the model (an `@ button=name:keys` line), counted from 0 in the order the model gives them.", RAN_RESULTS,
+            "Press a button of the model: run the command it names, counted from 0 in the order the model gives them.", RAN_RESULTS,
             RAN_EVENTS, true, run_user_button}};
 
 } // namespace

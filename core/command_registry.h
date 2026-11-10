@@ -24,10 +24,7 @@ Result<std::string> tokenize(const char *line, const Place &place);
    as JSON; an error retains the command/recording's original place. */
 Result<std::string> run(Session &s, const char *line, const Place &place, bool paths_allowed);
 bool is_step(const char *line);
-/* Imported/model-defined XPPAUT buttons use the same handlers. */
-Result<> window_button(Session &s,int button,const Place &place);
-Result<> nullcline_button(Session &s,int button,const Place &place);
-Result<> dirfield_button(Session &s,int button,const Place &place);
+/* a command line run as a button of the model runs it (button.run) */
 Result<> run_button(Session &s,const std::string &line,const Place &place);
 Result<> check_shape(const char *line,const Place &place);
 /* One terminal event, using the common error renderer. Invalid ids are

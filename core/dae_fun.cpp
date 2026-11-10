@@ -304,15 +304,4 @@ Result<double> set_dae_guess(xpp::Session &s, int i, std::string_view formula)
   return z;
 }
 
-void get_new_guesses(xpp::Session &s)
-{
-  xpp::Model &m=s.model();
-  for(int i=0;i<m.nsvar;i++){
-    const std::string name=xpp::format("Initial {}({:g}):",m.svars[i].name,s.dae.svar_last[i]);
-    std::string formula=m.svars[i].rhs;
-    new_string_of(name.c_str(),formula,XPP_FIELD_EXPRESSION);
-    if(!xpp::ok_or_show(set_dae_guess(s,i,formula)))return;
-  }
-}
-
 } // namespace xpp

@@ -319,7 +319,7 @@ options {
   },
   diagram: { variable: SmV, x_min: -80, x_max: 310, y_min: -90, y_max: 20 },
   plot: { axes.x_min: 0, axes.x_max: 400.0, axes.y_min: -90, axes.y_max: 50, curves: [ { y: SmV } ] },
-  interface: { buttons: "fit:wf", buttons: "int:ig", buttons: "intl:il", buttons: "auto:fa" },
+  interface: { buttons: [ { label: "fit", command: window.fit }, { label: "int", command: run.initial }, { label: "intl", command: run.last }, { label: "auto", command: autox.open } ] },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

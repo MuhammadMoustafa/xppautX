@@ -1,6 +1,6 @@
 /* The kinescope's registry rows (W527): the frames the client keeps (capture, reset), playing them back and
    saving them as files or one animated GIF. The captured pictures live in the front end; each handler is the
-   core function the Kinescope menu's keys call too (commands.cpp's do_movie_com). */
+   core function the Kinescope menu's items call. */
 #include "command_def.h"
 #include "image_format.h"
 #include "kinescope.h"

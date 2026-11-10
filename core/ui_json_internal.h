@@ -356,10 +356,6 @@ class ArgumentCheck {
     bool before_;
 };
 int js_number(const char *v, double *out);
-/* a JSON number at v that is a whole number an int holds, into *out; 0 for anything else */
-int js_whole(const char *v, int *out);
-/* key of obj, when present, as js_whole: true when absent (out untouched) or read, false when it is not a whole number */
-bool get_whole(const char *obj, const char *key, int &out);
 bool get_string(const char *obj, const char *key, std::string &out);
 double get_num(const char *obj, const char *key, double def);
 int get_int(const char *obj, const char *key, double def); /* get_num cut to an int */
@@ -372,9 +368,6 @@ int ask_begin(std::string &b, const char *kind);
 int ask_wait(std::string &b, int id);
 const char *ask_answer(void); /* the answer ask_wait() took */
 void answer_point(xpp::Session &s, unsigned long win, int k, int *x, int *y);
-/* the answer's points into v, x and y by turns (v.size() / 2 of them) */
-int mouse_ask(xpp::Session &s, unsigned long win, const char *kind, int flag, std::span<int> v);
-int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y);
 
 /* an error as an event: `ev` ("message", or "error" for a model that does
    not load) with its what and its place, the fields every error event
@@ -389,29 +382,17 @@ xpp::Place j_command_place(void);
 void j_command_error(std::string_view command, std::string what);
 void j_ping(void);
 void j_bottom_msg(int line, std::string_view msg, std::string_view chapter, std::string_view anchor);
-void j_message_box(std::string_view msg);
-void j_kill_message_box(void);
 int j_dialog(std::string_view title, std::string_view name, std::string &value, std::string_view ok,
              std::string_view cancel, int kind);
 int j_new_string(std::string_view name, std::string &value, int kind);
-/* the text dialog (ask kind `text`): look is the start and the answer; 0 when cancelled */
-int j_text_dialog(xpp::LabelLook &look);
 int j_choose(std::string_view title, std::string_view q, std::span<const std::string> choices, std::string_view keys,
              char yes_key);
 
-int j_checklist(std::string_view title, const char *const *names, int *flags, int n);
-int j_string_box(int row, int col, std::string_view title, const char *const *names, std::span<std::string> values,
-                 const int *kinds);
 int j_typed_form(std::string_view title, std::span<FormField> fields);
-int j_grid_box(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
-               const char *const *names, std::span<std::string> values, const int *kinds);
 int j_file_selector(std::string_view title, std::string &file, std::string_view wild, const char *mode);
-int j_get_mouse_xy(xpp::Session &s, int *x, int *y);
-int j_rubber_band(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
 int j_check_abort(void);
 int j_progress_begin(void);
 void j_progress(std::int64_t nit, std::int64_t icount, int cwidth);
-void j_q_calc(xpp::Session &s);
 
 /* XppUi.front_end_command (json_registry.cpp): the registry commands this front end answers itself */
 xpp::Result<std::string> front_end_command(xpp::Session &s, const xpp::command::Command &command, const xpp::command::Arguments &args,
@@ -427,7 +408,6 @@ xpp::Result<std::string> events_subscribe(xpp::Session &s, const xpp::command::A
 xpp::Result<std::string> events_unsubscribe(xpp::Session &s, const xpp::command::Arguments &args);
 void send_state_if_dirty(void);
 void j_state_dirty(void);
-void j_state_dirty_i(int i);
 void j_state_dirty_is(int i, const char *s);
 void data_update(xpp::Session &s); /* at a command's end */
 void j_data_changed(int i);
@@ -457,8 +437,6 @@ void j_clear_screens(xpp::Session &s);
 void j_reset_graphics(xpp::Session &s);
 void j_create_plot_window(xpp::Session &s);
 void j_destroy_plot_window(xpp::Session &s);
-void j_cput_text(xpp::Session &s);
-void j_scroll_window(xpp::Session &s);
 
 /* the frames of the kinescope (film >= 0), or the animation's or array plot's window */
 std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h); /* empty: cancelled */

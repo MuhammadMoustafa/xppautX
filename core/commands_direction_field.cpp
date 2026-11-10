@@ -62,18 +62,3 @@ constexpr std::array ROWS={
 }
 std::span<const Command> direction_field_commands(){return ROWS;}
 }
-
-namespace xpp::command {
-Result<> dirfield_button(Session &s,int button,const Place &place)
-{
-    constexpr std::array names={"direction_field.compute","direction_field.flow","direction_field.clear","direction_field.colorize","direction_field.compute"};
-    if(button<0||static_cast<std::size_t>(button)>=names.size())return fail("dirfield button","Unknown imported direction field button",place);
-    std::string line="{\"cmd\":";json_append_string(line,names[button]);
-    if(button!=2){
-        int grid=s.nullclines.df_grid;new_int("Grid:",&grid);
-        line+=xpp::format(",\"grid\":{}",grid);
-        if(button==0||button==4)line+=xpp::format(",\"scaled\":{}",button==4);
-    }
-    return run_button(s,line+'}',place);
-}
-}

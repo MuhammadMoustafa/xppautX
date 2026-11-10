@@ -68,6 +68,11 @@ std::string option_value_schema(const OptionRow &row)
            "\"name\": {\"type\": \"string\"}, \"low\": {\"type\": \"number\"}, \"high\": {\"type\": \"number\"}, "
            "\"step\": {\"type\": \"number\", \"minimum\": 0}}}";
     break;
+  case OptionKind::buttons:
+    out += "\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, "
+           "\"required\": [\"label\", \"command\"], \"properties\": {"
+           "\"label\": {\"type\": \"string\", \"minLength\": 1}, \"command\": {\"type\": \"string\", \"pattern\": " + quoted(bare_pattern) + "}}}";
+    break;
   case OptionKind::curves:
     out += "\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, "
            "\"properties\": {\"x\": {\"type\": \"string\"}, \"y\": {\"type\": \"string\"}, \"z\": {\"type\": \"string\"}}}";

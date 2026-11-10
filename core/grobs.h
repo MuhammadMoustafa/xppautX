@@ -77,9 +77,6 @@ auto find_annotation(List &list, int id) -> decltype(list.data())
     return at != list.end() && at->id == id ? &*at : nullptr;
 }
 
-int select_marker_type(int *type);
-int get_marker_info(Session &s);
-int get_markers_info(Session &s);
 
 /* What a text label looks like: its text and size (fancy_text_abs's 0 to
    LABEL_SIZE_MAX), its style (text_style.h) and its color. The page draws style and
@@ -132,13 +129,8 @@ void arrow_head(Session &s, double xs, double ys, double xe, double ye, double s
 /* forgets the text labels and graphic objects (Text,etc) of window w */
 void destroy_labels_and_grobs(Session &s, XppWinId w);
 void draw_label(Session &s, XppWinId w);
-void add_marker(Session &s);
-void add_markers(Session &s);
 /* the markers of Add Markers on the active graph's data (the first curve's rows, `number` of them from row
    `start`, `skip` apart), shape `type`, color and size: how many were added */
 Result<int> add_data_markers(Session &s, const MarkInfo &markers);
-void add_pntarr(Session &s, int type);
-void edit_object_com(Session &s, int com);
-void do_gr_objs_com(Session &s, int com);
 
 } // namespace xpp

@@ -182,39 +182,6 @@ xpp::Result<> vector_restore(xpp::Session &s)
   return xpp::end_picture(s);
 }
 
-void new_parameter(xpp::Session &s)
-{
-  int done,index;
-  double z;
-  std::string name;
-  while(1){
-    name.clear();
-    done=new_string_of("Parameter:",name,XPP_FIELD_NAME_IN(2));
-    if(name.empty()||done==0){redo_stuff(s); return;}
-    if(strncasecmp(name.data(),"DEFAULT",7  )==0){
-      set_default_params(s);
-      continue;
-    }
-
-    else {
-      index=find_user_name(s.model(),PARAMBOX,name.data());
-      if(index>=0){
-	get_val(s,s.model().upar_names[index],&z);
-	done=new_float(s,xpp::format("{} :",name),&z);
-	if(done==0){
-	  set_val(s,s.model().upar_names[index],z);
-	  ui.param_box_set(index,xpp::format("{:.16g}",z).c_str());
-	  ui.param_box_redraw(index);
-	}
-        if(done==-1){
-         redo_stuff(s);
-	  return;
-	}
-      }
-    }
-  }
-}
-
 void   set_default_params(xpp::Session &s, std::optional<int> only)
  {
  for(int i=0;i<s.model().nupar;i++){
@@ -236,24 +203,6 @@ void   set_default_ics(xpp::Session &s, std::optional<int> only)
   for(int i=0;i<s.model().node+s.model().nmarkov;i++)
     if(!only || *only==i)s.last_ic[i]=s.model().default_ic[i];
    redraw_ics();
-}
-
-void man_ic(xpp::Session &s)
-{
-  int done,index=0;
-  double z;
-  while(1){
-    z=s.last_ic[index];
-    done=new_float(s,xpp::format("{} :",s.model().uvar_names[index]),&z);
-    if(done==0){
-      s.last_ic[index]=z;
-      ui.ic_box_set(index,xpp::format("{:.16g}",z).c_str());
-      ui.ic_box_redraw(index);
-      index++;
-      if(index>=s.model().node+s.model().nmarkov)return;
-    }
-    if(done==-1)return;
-  }
 }
 
 /* the data columns of variables `variables` (1 is the first variable) plotted: curves against time, a phase

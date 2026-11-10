@@ -257,12 +257,6 @@ bool Block::texts(std::string_view key, std::vector<std::string> &out, std::size
     return m && read_list(*doc_, *m, out, max, true, [](const Value &v) { return v.text; });
 }
 
-bool Block::words(std::string_view key, std::vector<std::string> &out, std::size_t max)
-{
-    const Member *m = take(key);
-    return m && read_list(*doc_, *m, out, max, false, [](const Value &v) { return v.text; });
-}
-
 std::vector<const Member *> Block::members()
 {
     std::vector<const Member *> all;
@@ -410,18 +404,6 @@ void Out::texts(std::string_view key, std::span<const std::string> v)
     for (std::size_t k = 0; k < v.size(); k++) {
         put(k == 0 ? "" : ", ");
         quote(v[k]);
-    }
-    put("],\n");
-}
-
-void Out::words(std::string_view key, std::span<const std::string> v)
-{
-    entry(key);
-    put("[");
-    for (std::size_t k = 0; k < v.size(); k++) {
-        if (!is_bare_word(v[k]) && !bad_) bad_ = xpp::format("`{}` cannot be written as a word", v[k]);
-        put(k == 0 ? "" : ", ");
-        put(v[k]);
     }
     put("],\n");
 }

@@ -58,12 +58,8 @@ void h_back(Session &s);
    as rows of the table: each column becomes a row. Every one is in the data, else the error; the settings are kept
    for the next one. */
 Result<> transpose_data(Session &s, std::string_view first_column, int columns, int column_skip, int first_row, int rows, int row_skip);
-/* the key's form: its answers read and checked, then transpose_data, its error shown */
-void do_transpose(Session &s);
 void alloc_h_stuff(Session &s);
 void data_back(Session &s);
-/* the Adjoint menu's items (an imported button sequence's), asking for what the adjoint.*  commands take as arguments */
-void make_adj_com(Session &s, int com);
 /* the adjoint of the stored orbit; the H function for the couplings of s.adjoint.coup_string, compiled first when
    `compile` (else the formulas of the last time are used again, as a range of adjoints does) */
 Result<> new_adjoint(Session &s);
@@ -74,9 +70,6 @@ Result<> load_adjoint(Session &s);
 Result<> load_interaction(Session &s);
 /* the adjoint's iterations and tolerance, or why they are not ones it takes */
 Result<> set_adjoint_parameters(Session &s, int max_iterates, double tolerance);
-bool ask_adjoint_parameters(Session &s);
-/* asks for the coupling of each differential equation (s.adjoint.coup_string) */
-bool ask_couplings(Session &s);
 /* the maximal Liapunov exponent of the stored orbit or, with `over_range`, of the run at each value of the Range
    settings' sweep (kept in the data table, the exponent given the largest one): the exponent, and the runs */
 struct LyapunovResult {
@@ -84,7 +77,6 @@ struct LyapunovResult {
   int runs;
 };
 Result<LyapunovResult> lyapunov_exponent(Session &s, bool over_range);
-void do_liapunov(Session &s);
 void do_this_liaprun(Session &s, int i, double p);
 
 /* adjoints and the maximal Liapunov exponent return why they failed; the

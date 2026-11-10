@@ -22,7 +22,8 @@
 #include "browse.h"
 #include "integrate.h"
 #include "xpp_batch.h"
-#include "menudrive.h"
+#include "command_registry.h"
+#include "xpp_ui.h"
 
 #include <cmath>
 #include <vector>
@@ -40,7 +41,7 @@ std::vector<double> samples(const char *model)
     char *argv[] = {arg0, path.data(), nullptr};
     CHECK(load_args(2, argv, 1).has_value());
     xpp::batch_start(xpp::client_session());
-    run_the_commands(xpp::client_session(), xpp::M_IG);
+    CHECK(xpp::command::run_button(xpp::client_session(), "{\"cmd\":\"run.initial\"}", xpp::command_place()));
     xpp::Session &s = xpp::client_session();
     int col = -1;
     find_variable(s, "sample", &col);

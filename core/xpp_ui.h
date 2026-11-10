@@ -45,9 +45,7 @@ struct XppMenu; /* menus.h */
 /* Save permissions on a command: a stable answer, independent of disk state. */
 enum { SAVE_ASK = 0, SAVE_REPLACE = 1, SAVE_DECLINE = -1 };
 
-/* What a prompt's field takes (T31): new_string_of, get_dialog_of and
-   do_string_box_of name it, new_int and new_float say it themselves, and
-   a front end checks the text while it is typed (docs/protocol.md "Asks",
+/* What a prompt's field takes (T31): a front end checks the text while it is typed (docs/protocol.md "Asks",
    `kinds`). Every other prompt's fields are text. */
 enum {
     XPP_FIELD_TEXT = 0,
@@ -82,7 +80,6 @@ struct FormField {
     double real = 0;
     Color color;
 
-    static FormField color_field(std::string name, const Color &value);
     static FormField boolean(std::string name, bool value);
     static FormField choice(std::string name, std::vector<std::string> choices, std::size_t selected);
     static FormField real_number(std::string name, double value, std::optional<double> min = std::nullopt,
@@ -154,9 +151,6 @@ struct XppJoinedJob {
 void err_reading(std::string_view path, std::string_view msg, int line = 0);
 void ping(void);
 void bottom_msg(int line, std::string_view msg, std::string_view chapter = {}, std::string_view anchor = {});
-void MessageBox(std::string_view m);
-void KillMessageBox(void);
-int new_int(std::string_view name, int *value);
 int TwoChoice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key);
 /* A question with several answers, one key each (keys[i] answers
    choices[i]); the chosen key, 0 when none. The last choice is what no
@@ -174,10 +168,6 @@ enum class QuestionPolicy { User, Terminal, Suggested, None };
    Scripted answers belong to the command; independent output guards never use them. */
 QuestionPolicy answer_policy(bool terminal, bool scripted);
 int menu_choose(const struct XppMenu *m, int def);
-/* A choice among names (named sets, tables, frozen curves): the
-   first PICK_LETTERS lettered a to z ("a: name"), the rest picked from the
-   list by their index; the chosen name's index, -1 for none */
-int pick_from_list(std::string_view id, std::string_view title, std::span<const std::string> names);
 int my_abort(void);
 int get_command_width(void);
 void plot_command(std::int64_t nit, std::int64_t icount, int cwidth);
@@ -219,29 +209,16 @@ typedef struct XppUi {
     files::WriteFolders *(*write_folders)(void); /* the active front end supplies its session owner */
     void (*ping)(void);
     void (*bottom_msg)(int line, std::string_view msg, std::string_view chapter, std::string_view anchor);
-    void (*message_box)(std::string_view msg);
-    void (*kill_message_box)(void);
 
     /* prompts */
     QuestionPolicy (*question_policy)(bool independent);
     int (*new_string)(std::string_view name, std::string &value, int kind);
     int (*choose)(std::string_view title, std::string_view question, std::span<const std::string> choices,
                   std::string_view keys, char yes_key);
-    /* toggle a set of flags (1/0) by name; flags are edited in place and
-       restored on cancel. Returns 1 for done, 0 for cancel. */
-    int (*checklist)(std::string_view title, const char *const *names, int *flags, int n);
-    /* kinds: one XPP_FIELD_* per field, or NULL (all text) */
-    int (*string_box)(int row, int col, std::string_view title, const char *const *names,
-                      std::span<std::string> values, const int *kinds);
     /* a typed form (ask_form): every field by its kind, choices and range;
        the answers go back into fields' value; 0 on cancel */
     int (*typed_form)(std::string_view title, std::span<FormField> fields);
-    /* string_box laid out as a grid: the first columns.size() * rows.size()
-       fields are its cells, row by row; the rest are plain fields below it */
-    int (*grid_box)(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
-                    const char *const *names, std::span<std::string> values, const int *kinds);
     int (*file_selector)(std::string_view title, std::string &file, std::string_view wild, const char *mode);
-    int (*get_mouse_xy)(Session &s, int *x, int *y);
 
     /* long-running loops poll these */
     int (*check_abort)(void);
@@ -253,10 +230,6 @@ typedef struct XppUi {
     void (*redraw_params)(void);
     /* parameter i now has text value s; redraw that one entry */
     void (*param_box_set)(int i, const char *s);
-    void (*param_box_redraw)(int i);
-    /* the same for initial condition i */
-    void (*ic_box_set)(int i, const char *s);
-    void (*ic_box_redraw)(int i);
     void (*redraw_ics)(void);
     void (*redraw_all)(Session &s);
     void (*redraw_bcs)(void);
@@ -284,9 +257,6 @@ typedef struct XppUi {
     void (*tool_window_closed)(Session &s, std::string_view name, std::string_view kind); /* the animation or array plot window destroyed */
     void (*redraw_diagram_for_client)(Session &s); /* the autoX diagram sent to the client again, from its first point */
     void (*lower_plot_window)(void);   /* put the active one at the bottom */
-    /* Text,etc (T)ext: ask for a label, place it with the mouse, draw it
-       and add_label() it */
-    void (*cput_text)(Session &s);
     void (*get_draw_size)(Session &s, unsigned int *w, unsigned int *h);
     void (*blank_draw_window)(Session &s);
     Result<> (*film_clip)(Session &s); /* a frame, or why it was not captured */
@@ -298,12 +268,6 @@ typedef struct XppUi {
     Result<int> (*movie_save)(Session &s, std::string_view basename, int fmat);
     Result<> (*movie_make_anigif)(Session &s, std::string_view file); /* the frames as one animated GIF */
 
-    /* mouse interaction in the plot window. rubber_band returns 1 and the
-       corners in pixels when the user drew a box (flag RUBBOX) or line
-       (RUBLINE), 0 when cancelled. scroll_window lets the user drag the
-       view until a key is pressed (calling update_view). */
-    int (*rubber_band)(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
-    void (*scroll_window)(Session &s);
 
     /* raw drawing primitives used by graphics.c when the plot format is
        the screen (PS and SVG are handled in graphics.c itself); no front
@@ -360,9 +324,6 @@ typedef struct XppUi {
        beyond what they call back (do_calc, the ODE source in Model).
        Headless: they do nothing. */
     void (*make_txtview)(Session &s); /* File/Prt src: source and active comments */
-    void (*q_calc)(Session &s);       /* File/Calculator: evaluate formulas */
-    /* File/recorD: start recording the session's steps, or stop and save
-       the recording (W59a, json_record.cpp) */
     /* File/plaY recording, or Open model of a .recx: the recording's model
        loaded from it, ready to play its steps (an empty path: ask for the file;
        W59b, json_player.cpp) */
@@ -389,9 +350,6 @@ extern XppUi ui;
 
 void set_ui(const XppUi *ui); /* copies; missing entries keep defaults */
 
-/* the historical names of the calls that act on a Session's windows or
-   data: the Session is the caller's, passed to the front end (W47d6) */
-int GetMouseXY(Session &s, int *x, int *y);
 void rows_stored(Session &s, int nrows);
 void redraw_all(Session &s);
 void drw_all_scrns(Session &s);
@@ -400,7 +358,6 @@ void clear_draw_window(Session &s);
 void reset_graphics(Session &s);
 void destroy_a_pop(Session &s);
 void kill_all_pops(Session &s);
-void cput_text(Session &s);
 void reset_film(Session &s);
 void draw_one_array_plot(Session &s, std::string_view bob);
 void make_autox(Session &s, std::string_view wname, std::string_view iname);
@@ -410,36 +367,22 @@ void autox_jobs(const XppAutoxJobs &jobs);
 void autox_joined(const std::vector<XppJoinedJob> &jobs);
 void autox_live_drop(Session &s);
 void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
-int rubber_band(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
-void scroll_window(Session &s);
 void make_my_aplot(Session &s, std::string_view name);
 void new_vcr(Session &s);
 void redraw_the_graph(Session &s);
 void make_txtview(Session &s);
-void q_calc(Session &s);
 void play_recording(Session &s, std::string_view path);
 bool recording_in_progress(void);
 bool save_recording(Session &s);
 
-/* new_float: a number, or %formula worked out in s (0 on OK, -1 on
-   cancel or an empty answer) */
-int new_float(Session &s, std::string_view name, double *value);
 
-/* new_string / new_string_of: one line of text (kind: XPP_FIELD_*), value
+/* new_string: one line of text (kind: XPP_FIELD_*), value
    the default shown and, on OK, what was typed. 0 on cancel. */
 int new_string(std::string_view name, std::string &value);
-int new_string_of(std::string_view name, std::string &value, int kind);
-/* a form of values.size() fields named names[i], each kinds[i]
-   (XPP_FIELD_*; NULL all text), every value of any length; 0 on cancel */
-int do_string_box_of(int row, int col, std::string_view title, const char *const *names,
-                     std::span<std::string> values, const int *kinds);
 /* a form of typed fields (FormField): every answer is checked by its kind,
    whole, before any is used. 0 on cancel or when an answer is bad (the error,
    naming the field, is shown with `title` as the command) */
 int ask_form(Session &s, std::string_view title, std::span<FormField> fields);
-/* do_string_box_of laid out as a grid (XppUi::grid_box) */
-int do_grid_box_of(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
-                   const char *const *names, std::span<std::string> values, const int *kinds);
 /* a file name (base name or path, what the user picked) matching wild;
    0 on cancel or an empty name. mode ("read" or "write") is a registry command's own file_mode; null takes it from the title's first word
    (xpp::files::ask_mode), for the dialogs no row owns */

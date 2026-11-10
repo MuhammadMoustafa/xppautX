@@ -119,14 +119,6 @@ int do_calc(xpp::Session &s, std::string_view temp, double *z)
   set_named(s,w->name,w->value);
   return 0;
 }
-double TypedFields::number(std::string_view field, const std::string &text)
-{
-  if(error_)return 0;
-  const Result<double> r=typed_number(s_,text,field);
-  if(r)return *r;
-  fail(field,r.error().what);
-  return 0;
-}
 
 /* the fault of v outside min..max, or nothing */
 static std::optional<std::string> out_of_range(double v, std::optional<double> min, std::optional<double> max)

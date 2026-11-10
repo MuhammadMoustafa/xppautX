@@ -42,7 +42,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#include "menudrive.h"
 #include "delay_handle.h"
 #include <algorithm>
 #include <array>
@@ -396,7 +395,6 @@ xpp::Result<std::string> session_get_source(xpp::Session &s)
     }
     return xpp::command::ResultObject().text("source", source).raw("equations", list + ']').done();
 }
-void j_state_dirty_i(int) { session.state_dirty = 1; }
 void j_state_dirty_is(int, const char *) { session.state_dirty = 1; }
 
 /* ---- values ---------------------------------------------------------------- */

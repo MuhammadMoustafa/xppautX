@@ -32,6 +32,8 @@ namespace odex { class Block; }
 /* Shared preset/session reader. Before model compilation, check_names is false;
    the .odex loader checks names against declarations instead. */
 std::vector<XppSlider> read_sliders(const Model &m, odex::Block &file, bool check_names = true);
+/* the sliders as the options block holds the list: `[ { name: iapp, low: 0, high: 1, step: 0 }, ... ]` */
+std::string sliders_text(const std::vector<XppSlider> &sliders);
 
 namespace option_limit {
 /* Ten million history samples allow large histories without int-sized requests. */
@@ -155,7 +157,7 @@ inline constexpr std::array<std::string_view, 2> model_groups{option_group::diag
    bare word (a variable's, a parameter's, a name), one of the row's
    choices (option_choices), a path or a text, both in double quotes, a color
    (always in double quotes) */
-enum class OptionKind { number, whole, name, choice, path, text, sliders, curves };
+enum class OptionKind { number, whole, name, choice, path, text, sliders, curves, buttons };
 
 /* which of a curve's options an XPPAUT row (xp, yp, zp, nplot and their numbered ones) is: the converter writes them as the `curves` list */
 enum class CurveField { none, x, y, z, count };
@@ -354,6 +356,8 @@ bool set_holds(const OptionRow &row);
    checked and read as columns, without one only the shape of the list */
 std::vector<PlotCurve> read_starting_curves(const Session *s, odex::Block &file);
 
+/* the `buttons` row (a list of buttons: userbut.h) */
+const OptionRow &buttons_option();
 /* the starting graph's `curves` row */
 const OptionRow &curves_option();
 /* the slider presets' row (`sliders`, a list) */
@@ -365,7 +369,7 @@ bool xppaut_slider_option(const OptionRow &row);
 /* whether a .odex writes row's value text in double quotes: a path, a text or a color */
 bool option_written_quoted(const OptionRow &row);
 /* the items of row's value text: it as one, or for a repeatable row each line of its list (none for an empty one) */
-std::vector<std::string> option_items(const OptionRow &row, std::string_view text);
+std::vector<std::string> option_item_lines(const OptionRow &row, std::string_view text);
 /* the values a .odex writes for row's value text, each as the options block holds it (quoted as the row's kind says): one, or for
    a repeatable row one for each line of its list (none for an empty one), each written under the row's key */
 std::vector<std::string> option_values(const OptionRow &row, std::string_view text);

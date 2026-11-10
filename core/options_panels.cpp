@@ -31,6 +31,7 @@ std::string_view kind_word(OptionKind kind)
     case OptionKind::text: return "text";
     case OptionKind::sliders: return "sliders";
     case OptionKind::curves: return "curves";
+    case OptionKind::buttons: return "buttons";
     }
     return {};
 }
@@ -97,7 +98,7 @@ bool option_in_panel(const OptionRow &row)
     const bool has_member = row.real || row.whole || row.boolean || row.index || row.text || row.show;
     /* a list of names of the model's sets is a check list; the other lists (the torus's folds, the H function's coupling) have no field in the page yet */
     const bool list = row.repeatable && !row.names_sets;
-    return !row.odex.empty() && has_member && !list && row.kind != OptionKind::sliders && row.kind != OptionKind::curves;
+    return !row.odex.empty() && has_member && !list && row.kind != OptionKind::sliders && row.kind != OptionKind::curves && row.kind != OptionKind::buttons;
 }
 
 std::string options_table_json(Session &s)

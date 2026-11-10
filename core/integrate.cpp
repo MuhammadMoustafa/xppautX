@@ -74,7 +74,6 @@
 #include <utility>
 #include <string_view>
 #include <vector>
-#include "menudrive.h"
 #include "arrayplot.h"
 #include "xpp_job.h"
 #include "phase_data.h"
@@ -202,34 +201,6 @@ void init_range(xpp::Session &s)
  s.integrator.range.steps2=20;
  s.integrator.range.movie=0;
  init_monte_carlo(s);
-}
-
-int set_up_eq_range(xpp::Session &s)
-{
- std::array<xpp::FormField,8> fields={
-   xpp::FormField{.name="*2Range over",.kind=XPP_FIELD_NAME_IN(2),.value=s.integrator.eq_range.item},
-   xpp::FormField{.name="Steps",.kind=XPP_FIELD_INTEGER,.value=xpp::format("{}",s.integrator.eq_range.steps),.min=1},
-   xpp::FormField::real_number("Start",s.integrator.eq_range.plow),
-   xpp::FormField::real_number("End",s.integrator.eq_range.phigh),
-   xpp::FormField::boolean("Shoot",s.integrator.eq_range.shoot),
-   xpp::FormField{.name="Stability col",.kind=XPP_FIELD_INTEGER,.value=xpp::format("{}",s.integrator.eq_range.col)},
-   xpp::FormField::boolean("Movie",s.integrator.eq_range.movie),
-   xpp::FormField::boolean("Monte Carlo",s.integrator.eq_range.mc)};
- if(!xpp::ask_form(s,"Range Equilibria",fields))return 0;
- s.integrator.eq_range.item=fields[0].value;
- if(find_user_name(s.model(),PARAM,s.integrator.eq_range.item)<0){
-   command_error("range",xpp::format("No such parameter {}",s.integrator.eq_range.item));
-   return 0;
- }
- s.integrator.eq_range.steps=fields[1].whole;
- s.integrator.eq_range.plow=fields[2].real;
- s.integrator.eq_range.phigh=fields[3].real;
- s.integrator.eq_range.shoot=fields[4].flag;
- s.integrator.eq_range.col=fields[5].whole;
- if(s.integrator.eq_range.col<=1||s.integrator.eq_range.col>(s.model().neq+1))s.integrator.eq_range.col=-1;
- s.integrator.eq_range.movie=fields[6].flag;
- s.integrator.eq_range.mc=fields[7].flag;
- return 1;
 }
 
 Result<std::int64_t> sweep_run_count(const Session &s, int steps, int steps2)
@@ -365,38 +336,6 @@ void init_monte_carlo(xpp::Session &s)
   s.integrator.fixptguess.xhi.assign(s.model().node,10);
   s.integrator.fixptlist.flag=0;
   s.integrator.fixptlist.n=0;
-}
-
-void monte_carlo(xpp::Session &s)
-{
-  const bool append=TwoChoice("YES","NO","Append?","yn")=='y';
-  const bool ishoot=TwoChoice("YES","NO","Shoot?","yn")=='y';
-  int i=0,done=0;
-  double z;
-  new_int("# Guesses:",&s.integrator.fixptguess.n);
-  new_float(s,"Tolerance:",&s.integrator.fixptguess.tol);
-  while(1){
-    z=s.integrator.fixptguess.xlo[i];
-    done=new_float(s,xpp::format("{}_lo :",s.model().uvar_names[i]),&z);
-    if(done==0)
-      s.integrator.fixptguess.xlo[i]=z;
-    if(done==-1)break;
-    z=s.integrator.fixptguess.xhi[i];
-    done=new_float(s,xpp::format("{}_hi :",s.model().uvar_names[i]),&z);
-    if(done==0)
-      s.integrator.fixptguess.xhi[i]=z;
-    if(done==-1)break;
-    i++;
-    if(i>=s.model().node)
-      break;
-  }
-  std::string line=xpp::format("{{\"cmd\":\"equilibrium.search\",\"append\":{},\"shoot\":{},\"guesses\":{},\"tolerance\":{},\"bounds\":{{",append,ishoot,s.integrator.fixptguess.n,s.integrator.fixptguess.tol);
-  for(int j=0;j<s.model().node;++j){
-    if(j)line+=',';
-    json_append_string(line,s.model().uvar_names[j]);
-    line+=xpp::format(":[{},{}]",s.integrator.fixptguess.xlo[j],s.integrator.fixptguess.xhi[j]);
-  }
-  ok_or_show(command::run_button(s,line+"}}",command_place()));
 }
 
 xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse,int ishoot)
@@ -1134,31 +1073,6 @@ Result<> write_equilibrium(xpp::Session &s, const char *name, int shoot, bool co
   return {};
 }
   
-void find_equilib_com(Session &s,int com)
-{
- std::string line;
- if(com==0){
-   line="{\"cmd\":\"equilibrium.find\"}";
- }else if(com==1){
-   const int ix=s.plot_windows.current->xv[0]-1,iy=s.plot_windows.current->yv[0]-1;
-   if(!phase_plane_states(s,*s.plot_windows.current)){
-     command_error("equilibrium.guess","Not in a usable 2D plane");return;
-   }
-   int px,py;float x,y;
-   if(!GetMouseXY(s,&px,&py))return;
-   scale_to_real(s,px,py,&x,&y);
-   line="{\"cmd\":\"equilibrium.guess\",\"coordinates\":{";
-   json_append_string(line,s.model().uvar_names[ix]);line+=xpp::format(":{},",x);
-   json_append_string(line,s.model().uvar_names[iy]);line+=xpp::format(":{}}}",y);
- }else if(com==2){
-   if(!set_up_eq_range(s))return;
-   const auto &r=s.integrator.eq_range;
-   line="{\"cmd\":\"equilibrium.range\",\"parameter\":";json_append_string(line,r.item);
-   line+=xpp::format(",\"start\":{},\"end\":{},\"steps\":{},\"shoot\":{},\"stability_column\":{},\"movie\":{},\"monte_carlo\":{}}}",r.plow,r.phigh,r.steps,r.shoot!=0,r.col<0?0:r.col,r.movie!=0,r.mc!=0);
- }else if(com==3){monte_carlo(s);return;}
- if(!line.empty())ok_or_show(command::run_button(s,line,command_place()));
-}
-
 int write_this_run(xpp::Session &s, const char *file, int i)
 {
   if(!s.integrator.suppress_out){
@@ -1330,95 +1244,6 @@ xpp::Result<bool> run_from_manifold(xpp::Session &s, int index)
   if(auto allowed=run_allowed(s,"shoot"); !allowed)return std::unexpected(allowed.error());
   set_initial_data(s,std::span(s.manifolds.ic[static_cast<std::size_t>(index-1)]).first(static_cast<std::size_t>(s.model().node)));
   return run_from(s,RunFrom::old);
-}
-
-void do_init_data(xpp::Session &s, int com)
-{
-  /* XPPAUT's Initialconds items as an imported button sequence runs them (kbs.h): the questions a command takes as arguments are asked here, then the command's own function runs */
-  const auto run=[&](xpp::Result<bool> result){xpp::ok_or_show(result);};
-  switch(com){
-  case M_ID:
-    get_new_guesses(s);
-    break;
-  case M_IR:
-  case M_I2:
-    if(com==M_IR)s.integrator.range.rtype=RANGE_SINGLE;
-    if((com==M_IR?set_up_range(s):set_up_range2(s))==0)break;
-    xpp::ok_or_show(run_range(s,com==M_IR?0:1,nullptr));
-    break;
-  case M_IS:
-  case M_IL:{
-    const bool ask=xpp::solver_info(s.numerics.method).traits.integral_history&&s.integrator.my_start==0&&s.numerics.inflag;
-    const bool reset=ask&&TwoChoice("No","Yes","Reset integrals?","ny")=='y';
-    run(run_from(s,com==M_IS?RunFrom::shift:RunFrom::last,reset));
-    break;}
-  case M_IO:
-    run(run_from(s,RunFrom::old));
-    break;
-  case M_IM:
-  case M_II:{
-    const xpp::Result<Plane> plane=window_plane(s,s.plot_windows.active);
-    if(!plane){xpp::show_error(plane.error());break;}
-    if(com==M_IM){
-      MessageBox("Click on initial data");
-      int im,jm;
-      float xm,ym;
-      if(GetMouseXY(s,&im,&jm)){
-        scale_to_real(s,im,jm,&xm,&ym);
-        KillMessageBox();
-        const std::pair<double,double> click{static_cast<double>(xm),static_cast<double>(ym)};
-        xpp::ok_or_show(run_from_clicks(s,*plane,std::span(&click,1),false));
-      }
-      else KillMessageBox();
-      break;
-    }
-    /* mice: a run from every click until Escape */
-    MessageBox("Click on initial data -- ESC to quit");
-    reset_run_state(s);
-    if(!xpp::ok_or_show(run_allowed(s,"initial conditions"))){KillMessageBox();break;}
-    clear_for_run(s);
-    s.integrator.suppress_bounds=1;
-    for(;;){
-      int im,jm;
-      float xm,ym;
-      if(GetMouseXY(s,&im,&jm)==0)break;
-      scale_to_real(s,im,jm,&xm,&ym);
-      if(!xpp::ok_or_show(run_from_click(s,*plane,static_cast<double>(xm),static_cast<double>(ym))))break;
-    }
-    KillMessageBox();
-    s.integrator.suppress_bounds=0;
-    break;}
-  case M_IN:
-    man_ic(s);
-    run(run_from(s,RunFrom::old));
-    break;
-  case M_IU:
-    if(form_ic(s)==0)break;
-    run(run_from(s,RunFrom::old));
-    break;
-  case M_IH:{
-    if(s.manifolds.ic_flag==0){
-      command_error("initialconds","No shooting data available");
-      break;
-    }
-    int si=1;
-    new_int(xpp::format("Which? (1-{})",s.manifolds.count),&si);
-    run(run_from_manifold(s,si));
-    break;}
-  case M_IF:{
-    std::string icfile;
-    if(!file_selector("Read initial data",icfile,"*.dat"))break;
-    /* the initial-conditions file, all of it or nothing (W125) */
-    if(xpp::ok_or_show(load_xppaut_values(s,ValueFile::initial_conditions,icfile)))run(run_from(s,RunFrom::old));
-    break;}
-  case M_IB:
-    run(run_from(s,RunFrom::backward));
-    break;
-  case M_IG:
-  default:
-    run(run_from(s,RunFrom::initial));
-    break;
-  }
 }
 
 void run_now(xpp::Session &s)
@@ -1659,37 +1484,6 @@ xpp::Result<std::vector<int>> set_ic_array(xpp::Session &s, std::string_view nam
   for(std::size_t k=0;k<indices.size();k++)s.last_ic[static_cast<std::size_t>(indices[k])]=values[k];
   redraw_ics();
   return indices;
-}
-
-int set_array_ic(xpp::Session &s)
-{
-  std::string variable;
-  if(new_string("Variable: ",variable)==0)return 0;
-  std::string text=variable,base,formula;
-  int j1,j2,array;
-  search_array(text.data(),base,&j1,&j2,&array);
-  if(array==1){
-    formula=array_ic_for(s.integrator.array_ics,base.c_str(),j1,j2).formula;
-    new_string_of("Formula:",formula,XPP_FIELD_EXPRESSION);
-    xpp::ok_or_show(set_ic_formula(s,variable,formula));
-    return 1;
-  }
-  if(find_user_name(s.model(),ICBOX,variable)<0)return 0;
-  int size=1;
-  new_int("Number elements:",&size);
-  new_string_of("u=F(t-i0):",formula,XPP_FIELD_EXPRESSION);
-  xpp::ok_or_show(set_ic_array(s,variable,size,formula));
-  return 1;
-}
-
-int form_ic(xpp::Session &s)
-{
-  int ans;
-  while(1){
-    ans=set_array_ic(s);
-    if(ans==0)break;
-  }
-  return 1;
 }
 
 void set_initial_data(xpp::Session &s, std::span<const double> state)

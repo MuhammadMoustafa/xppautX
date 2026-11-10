@@ -412,10 +412,6 @@ constexpr std::array RENAME_EVENTS = {xpp::events::WINDOW_RENAMED, xpp::events::
 constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 /* XPPAUT's imported button sequences MC, MK, MD, MB, MA, MM, MS, by button number */
-constexpr std::array BUTTON_COMMANDS = {"window.new", "window.close_extra", "window.close", "window.send_to_bottom",
-                                        "window.set_redraw_mode", "window.set_redraw_mode", "window.set_simultaneous_plot"};
-constexpr int BUTTON_REDRAW_AUTO = 4, BUTTON_REDRAW_MANUAL = 5, BUTTON_SIMULTANEOUS = 6;
-
 constexpr std::array ROWS = {
     Command{"window.set_bounds", BOUNDS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Set bounds", "Plot/View",
             "Set the view's bounds; a bound left out keeps the view's.", BOUNDS_RESULTS, PLOT_EVENTS, true, set_bounds},
@@ -481,20 +477,5 @@ Result<std::optional<int>> optional_graph_of_command(Session &s, const Command &
 }
 
 std::span<const Command> window_commands() { return ROWS; }
-
-Result<> window_button(Session &s, int button, const Place &place)
-{
-    if (button < 0 || static_cast<std::size_t>(button) >= BUTTON_COMMANDS.size())
-        return fail("window button", "Unknown imported window button", place);
-    std::string line = "{\"cmd\":";
-    json_append_string(line, BUTTON_COMMANDS[static_cast<std::size_t>(button)]);
-    if (button == BUTTON_REDRAW_AUTO) line += ",\"mode\":\"auto\"";
-    else if (button == BUTTON_REDRAW_MANUAL) line += ",\"mode\":\"manual\"";
-    if (button == BUTTON_SIMULTANEOUS) line += s.plot_windows.simul ? ",\"enabled\":false" : ",\"enabled\":true";
-    line += '}';
-    const Result<std::string> result = run(s, line.c_str(), place, false);
-    if (!result) return std::unexpected<Error>(result.error());
-    return {};
-}
 
 } // namespace xpp::command

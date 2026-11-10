@@ -13,7 +13,8 @@
 #include "xpp_batch.h"
 #include "session.h"
 #include "storage.h"
-#include "menudrive.h"
+#include "command_registry.h"
+#include "xpp_ui.h"
 
 #include <cmath>
 #include <cstdio>
@@ -40,7 +41,7 @@ static int run_fftcon(double k[5], double kc[5], double m[3], double mc[3])
                     NULL};
     if (!load_args(2, argv, 1)) return 0;
     xpp::batch_start(xpp::client_session());
-    run_the_commands(xpp::client_session(), xpp::M_IG);
+    CHECK(xpp::command::run_button(xpp::client_session(), "{\"cmd\":\"run.initial\"}", xpp::command_place()));
     const xpp::DataStore &d = xpp::client_session().data_store;
     if (d.rows < 2) return 0;
     auto at = [&d](int col) { return static_cast<double>(d.col[col][1]); }; /* t=1 */

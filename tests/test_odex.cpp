@@ -20,7 +20,7 @@
 #include "storage.h"
 #include "xpp_util.h"
 #include "typed_values.h"
-#include "menudrive.h"
+#include "command_registry.h"
 #include "solver.h"
 #include "tabular.h"
 
@@ -869,7 +869,7 @@ int main(void)
     char *argv[] = {arg0, model, nullptr};
     CHECK(load_args(2, argv, 1).has_value());
     xpp::batch_start(xpp::client_session());
-    run_the_commands(xpp::client_session(), xpp::M_IG);
+    CHECK(xpp::command::run_button(xpp::client_session(), "{\"cmd\":\"run.initial\"}", xpp::command_place()));
     const xpp::DataStore &d = xpp::client_session().data_store;
     CHECK(d.rows > 0);
     if (d.rows > 0) {
@@ -894,7 +894,7 @@ int main(void)
       s.numerics.cv_bandlower=width;
       s.numerics.cv_bandupper=width;
       xpp::batch_start(s);
-      run_the_commands(s,xpp::M_IG);
+      CHECK(xpp::command::run_button(s, "{\"cmd\":\"run.initial\"}", xpp::command_place()));
       const xpp::DataStore &d=s.data_store;
       CHECK(d.rows>0);
       if(d.rows==0)return std::array<double,2>{};

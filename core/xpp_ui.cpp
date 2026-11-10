@@ -93,7 +93,6 @@ static void hl_save_decision(int, bool) {}
 static void hl_save_result(std::string_view, bool) {}
 static files::WriteFolders *hl_write_folders() { return nullptr; }
 static void hl_void(void) {}
-static void hl_str(std::string_view) {}
 static void hl_int(int) {}
 static void hl_bottom_msg(int, std::string_view msg, std::string_view, std::string_view) { log(XPP_LOG_INFO, "{}\n", msg); }
 static int hl_autox_points_held(Session &s) { return diagram_count(s.diagram); }
@@ -122,16 +121,7 @@ static int hl_choose(std::string_view, std::string_view question, std::span<cons
             return static_cast<unsigned char>(keys[i]);
     return 0;
 }
-static int hl_string_box(int, int, std::string_view, const char *const *, std::span<std::string>, const int *)
-{
-    return 0;
-}
 static int hl_typed_form(std::string_view, std::span<FormField>)
-{
-    return 0;
-}
-static int hl_grid_box(std::string_view, std::span<const char *const>, std::span<const char *const>,
-                       const char *const *, std::span<std::string>, const int *)
 {
     return 0;
 }
@@ -140,7 +130,6 @@ static int hl_file_selector(std::string_view, std::string &, std::string_view, c
     return 0;
 }
 
-static int hl_get_mouse_xy(Session &, int *, int *) { return 0; }
 static int hl_check_abort(void) { return KEY_NONE; }
 static void hl_progress(std::int64_t, std::int64_t, int) {}
 static void hl_get_draw_size(Session &s, unsigned int *w, unsigned int *h)
@@ -155,10 +144,6 @@ static void hl_autox_make_window(Session &, std::string_view, std::string_view) 
 static void hl_autox_diagram(Session &, int, const XppDiagPoint *) {}
 static int hl_autox_grab_event(Session &, int *, int *) { return 27; }
 static int hl_autox_check_abort(int *iflag) { *iflag = 0; return 0; }
-static int hl_autox_rubber(Session &, int *, int *, int *, int *, int)
-{
-    return 0;
-}
 static void hl_show_eq_box(Session &, int cp, int cm, int rp, int rm, int im, double *y,
                            double *ev, int n)
 {
@@ -170,10 +155,6 @@ static void hl_show_eq_box(Session &, int cp, int cm, int rp, int rm, int im, do
     }
 }
 static void hl_param_box_set(int, const char *) {}
-static int hl_checklist(std::string_view, const char *const *, int *, int)
-{
-    return 0;
-}
 static Result<int> hl_ani_go(Session &, const AniExport &) { return 0; }
 static Result<bool> hl_aplot_gif(Session &, std::string_view) { return false; }
 static Result<int> hl_movie_save(Session &, std::string_view, int) { return 0; }
@@ -198,26 +179,17 @@ XppUi ui = {
     .write_folders = hl_write_folders,
     .ping = hl_void,
     .bottom_msg = hl_bottom_msg,
-    .message_box = hl_str,
-    .kill_message_box = hl_void,
     .question_policy = hl_question_policy,
     .new_string = hl_new_string,
     .choose = hl_choose,
-    .checklist = hl_checklist,
-    .string_box = hl_string_box,
     .typed_form = hl_typed_form,
-    .grid_box = hl_grid_box,
     .file_selector = hl_file_selector,
-    .get_mouse_xy = hl_get_mouse_xy,
     .check_abort = hl_check_abort,
     .progress_begin = hl_no,
     .progress = hl_progress,
     .flush = hl_void,
     .redraw_params = hl_void,
     .param_box_set = hl_param_box_set,
-    .param_box_redraw = hl_int,
-    .ic_box_set = hl_param_box_set,
-    .ic_box_redraw = hl_int,
     .redraw_ics = hl_void,
     .redraw_all = hl_s,
     .redraw_bcs = hl_void,
@@ -239,7 +211,6 @@ XppUi ui = {
     .tool_window_closed = hl_s_str_str,
     .redraw_diagram_for_client = hl_s,
     .lower_plot_window = hl_void,
-    .cput_text = hl_s,
     .get_draw_size = hl_get_draw_size,
     .blank_draw_window = hl_s,
     .film_clip = hl_film_clip,
@@ -248,8 +219,6 @@ XppUi ui = {
     .movie_autox_play = hl_s,
     .movie_save = hl_movie_save,
     .movie_make_anigif = hl_movie_make_anigif,
-    .rubber_band = hl_autox_rubber,
-    .scroll_window = hl_s,
     .aplot_make = hl_s_str,
     .aplot_redraw = hl_s,
     .aplot_reset_axes = hl_s,
@@ -273,7 +242,6 @@ XppUi ui = {
     .init_txtview = hl_void,
     .show_eq_box = hl_show_eq_box,
     .make_txtview = hl_s,
-    .q_calc = hl_s,
     .play_recording = hl_play_recording,
     .recording = hl_recording,
     .save_recording = hl_save_recording,
@@ -326,8 +294,6 @@ void command_error(std::string_view command, std::string_view what)
 }
 void ping(void) { ui.ping(); }
 void bottom_msg(int line, std::string_view msg, std::string_view chapter, std::string_view anchor) { ui.bottom_msg(line, msg, chapter, anchor); }
-void MessageBox(std::string_view m) { ui.message_box(m); }
-void KillMessageBox(void) { ui.kill_message_box(); }
 static int question_string(std::string_view name, std::string &value, int kind)
 {
     switch (ui.question_policy(false)) {
@@ -344,7 +310,6 @@ static int question_string(std::string_view name, std::string &value, int kind)
     return 0;
 }
 int new_string(std::string_view name, std::string &value) { return question_string(name, value, XPP_FIELD_TEXT); }
-int new_string_of(std::string_view name, std::string &value, int kind) { return question_string(name, value, kind); }
 int Choose(std::string_view title, std::string_view question, std::span<const std::string> choices,
            std::string_view keys, char yes_key)
 {
@@ -389,11 +354,6 @@ static int question_fields(const char *const *names, std::span<std::string> valu
     std::copy(answered.begin(), answered.end(), values.begin());
     return 1;
 }
-int do_string_box_of(int row, int col, std::string_view title, const char *const *names,
-                     std::span<std::string> values, const int *kinds)
-{
-    return question_fields(names, values, kinds, [&] { return ui.string_box(row, col, title, names, values, kinds); });
-}
 FormField FormField::boolean(std::string name, bool value)
 {
     return FormField{.name = std::move(name), .kind = XPP_FIELD_BOOLEAN, .value = value ? "true" : "false"};
@@ -403,10 +363,6 @@ FormField FormField::choice(std::string name, std::vector<std::string> choices, 
     std::string value = selected < choices.size() ? choices[selected] : std::string();
     return FormField{.name = std::move(name), .kind = XPP_FIELD_CHOICE, .value = std::move(value),
                      .choices = std::move(choices)};
-}
-FormField FormField::color_field(std::string name, const Color &value)
-{
-    return FormField{.name = std::move(name), .kind = XPP_FIELD_COLOR, .value = print_color(value)};
 }
 FormField FormField::real_number(std::string name, double value, std::optional<double> min, std::optional<double> max)
 {
@@ -441,18 +397,12 @@ int ask_form(Session &s, std::string_view title, std::span<FormField> fields)
     }
     return 1;
 }
-int do_grid_box_of(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
-                   const char *const *names, std::span<std::string> values, const int *kinds)
-{
-    return question_fields(names, values, kinds, [&] { return ui.grid_box(title, columns, rows, names, values, kinds); });
-}
 int file_selector(std::string_view title, std::string &file, std::string_view wild, const char *mode)
 {
     const auto policy = ui.question_policy(false);
     if (policy == QuestionPolicy::User) return ui.file_selector(title, file, wild, mode);
     return question_string(title, file, XPP_FIELD_FILE);
 }
-int GetMouseXY(Session &s, int *x, int *y) { return ui.get_mouse_xy(s, x, y); }
 int menu_choose(const struct XppMenu *m, int def)
 {
   std::vector<std::string> choices;
@@ -462,26 +412,6 @@ int menu_choose(const struct XppMenu *m, int def)
                    def >= 0 && static_cast<std::size_t>(def) < keys.size() ? keys[static_cast<std::size_t>(def)] : '\0');
 }
 
-int pick_from_list(std::string_view id, std::string_view title, std::span<const std::string> names)
-{
-  constexpr std::size_t PICK_LETTERS = 26; /* a to z; a name past them has no key (menus.h MENU_UNKEYED) */
-  std::vector<std::string> labels;
-  std::string keys;
-  for (std::size_t i = 0; i < names.size(); i++) {
-    if (i < PICK_LETTERS) {
-      keys += static_cast<char>('a' + i);
-      labels.push_back(xpp::format("{}: {}", keys.back(), names[i]));
-    } else {
-      labels.push_back(names[i]);
-    }
-  }
-  std::vector<const char *> items;
-  for (const std::string &l : labels) items.push_back(l.c_str());
-  const std::string name(id), head(title);
-  /* no hints: a list's items have none */
-  const XppMenu m = {name.c_str(), head.c_str(), static_cast<int>(items.size()), items.data(), keys.c_str()};
-  return menu_index(&m, menu_choose(&m, 0));
-}
 /* the running job's checkpoint (xpp_job.h): Escape as soon as the job is
    cancelled, else the front end's own poll at most every 50 ms; its Escape
    (or Abort button) cancels the job, so later checks need no poll */
@@ -506,7 +436,6 @@ void drw_all_scrns(Session &s) { ui.redraw_screens(s); }
 void clr_all_scrns(Session &s) { ui.clear_screens(s); }
 void clear_draw_window(Session &s) { ui.clear_draw_window(s); }
 void reset_graphics(Session &s) { ui.reset_graphics(s); }
-void cput_text(Session &s) { ui.cput_text(s); }
 void reset_film(Session &s) { ui.reset_film(s); }
 void draw_one_array_plot(Session &s, std::string_view bob) { ui.aplot_draw_one(s, bob); }
 void make_autox(Session &s, std::string_view wname, std::string_view iname) { ui.autox_make_window(s, wname, iname); }
@@ -541,16 +470,10 @@ void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y
     ui.show_eq_box(s, cp, cm, rp, rm, im, y, ev, n);
 }
 void bye_bye(void) { ui.exit_program(); }
-int rubber_band(Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
-{
-    return ui.rubber_band(s, i1, j1, i2, j2, flag);
-}
-void scroll_window(Session &s) { ui.scroll_window(s); }
 void make_my_aplot(Session &s, std::string_view name) { ui.aplot_make(s, name); }
 void new_vcr(Session &s) { ui.new_vcr(s); }
 void redraw_the_graph(Session &s) { ui.redraw_graph(s); }
 void make_txtview(Session &s) { ui.make_txtview(s); }
-void q_calc(Session &s) { ui.q_calc(s); }
 void play_recording(Session &s, std::string_view path) { ui.play_recording(s, path); }
 bool recording_in_progress(void) { return ui.recording(); }
 bool save_recording(Session &s) { return ui.save_recording(s); }
@@ -561,47 +484,5 @@ bool save_recording(Session &s) { return ui.save_recording(s); }
    at W25: call xpp::log(XPP_LOG_INFO, ...)
    directly (see xpp_log.h). A
    real error uses err_msg()/xpp::log(..., XPP_LOG_ERROR/WARN) instead. */
-
-/* the question's name as a sentence's subject: "Total :" is Total */
-static std::string field_name(std::string_view name)
-{
-    std::string_view n = trim_blanks(name);
-    while (n.ends_with(':')) n = trim_blanks(n.substr(0, n.size() - 1));
-    return std::string(n);
-}
-
-/* a typed number a field refuses: the answer is not taken, its name and the text said */
-static int refused_answer(std::string_view name, std::string_view what, std::string_view typed)
-{
-    show_error(Error{"answer", xpp::format("{}: \"{}\" is not {}", field_name(name), trim_blanks(typed), what), {}, ""});
-    return -1;
-}
-
-int new_int(std::string_view name, int *value)
-{
-    std::string svalue = xpp::format("{}", *value);
-    if (new_string_of(name, svalue, XPP_FIELD_INTEGER) == 0 || svalue.empty()) return -1;
-    int v;
-    if (!parse_int(trim_blanks(svalue), v)) return refused_answer(name, "a whole number", svalue);
-    *value = v;
-    return 0;
-}
-
-int new_float(Session &s, std::string_view name, double *value)
-{
-    std::string tvalue = xpp::format("{:.16g}", *value);
-    if (new_string_of(name, tvalue, XPP_FIELD_FORMULA) == 0 || tvalue.empty()) return -1;
-
-    const std::string_view typed = trim_blanks(tvalue);
-    if (typed.starts_with('%')) {
-        double newz;
-        if (xpp::do_calc(s, typed.substr(1), &newz) != -1) *value = newz;
-        return 0;
-    }
-    double v;
-    if (!parse_number(typed, v)) return refused_answer(name, "a number", tvalue);
-    *value = v;
-    return 0;
-}
 
 } // namespace xpp

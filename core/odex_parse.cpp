@@ -12,6 +12,7 @@
 #include "xpp_io.h"
 #include "model_files.h"
 #include "model_options.h"
+#include "userbut.h"
 #include "load_eqn.h"
 #include "model.h"
 #include "odex_block.h"
@@ -885,20 +886,22 @@ private:
     const auto [first, fresh] = keys.emplace(group + "/" + o.name, key.pos.line);
     if (!fresh && !row->repeatable)
       fail(key.pos, xpp::format("`{}` is given twice (the first is at line {})", o.name, first->second));
-    if (row->kind == OptionKind::sliders || row->kind == OptionKind::curves) {
+    if (row->kind == OptionKind::sliders || row->kind == OptionKind::curves || row->kind == OptionKind::buttons) {
       const bool curves = row->kind == OptionKind::curves;
       o.value_pos = peek().pos;
       const std::size_t begin = peek().begin;
       const Value value = setting_value(0);
-      if (value.kind != Value::Kind::list) fail(o.value_pos, curves ? "curves takes a list of curves" : "sliders takes a list of presets");
+      if (value.kind != Value::Kind::list)
+        fail(o.value_pos, curves ? "curves takes a list of curves" : row->kind == OptionKind::buttons ? "buttons takes a list of buttons" : "sliders takes a list of presets");
       o.value = std::string(src_.substr(begin, toks_[i_ - 1].end - begin));
       Value root;
       root.kind = Value::Kind::group;
-      root.members.push_back({curves ? "curves" : "sliders", key.pos.line, key.pos.col, value});
+      root.members.push_back({std::string(row->odex), key.pos.line, key.pos.col, value});
       const Document doc("options", out_.files[file_], std::string(src_));
-      Block block(doc, root, false, curves ? "plot" : "interface");
+      Block block(doc, root, false, std::string(row->group));
       try { /* validates the list */
         if (curves) static_cast<void>(read_starting_curves(nullptr, block));
+        else if (row->kind == OptionKind::buttons) static_cast<void>(read_buttons(block));
         else static_cast<void>(read_sliders(*model_, block, false));
       }
       catch (ReadFailed &e) { throw std::move(e.error); }

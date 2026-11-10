@@ -29,7 +29,6 @@ void de_space(char *s);
 const char *eq_stability(int cp, int rp, int im);
 
 
-void man_ic(Session &s);
 /* a slider names a parameter (*type PARAMBOX) or a variable (ICBOX) of
    m, *index its index; 0 if neither */
 int find_par_or_var(const Model &m, std::string_view name, int *type, int *index);
@@ -38,8 +37,6 @@ int find_par_or_var(const Model &m, std::string_view name, int *type, int *index
 std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider, bool check_names = true);
 /* the least and greatest of s's data column index, widened when equal */
 void get_max(const Session &s, int index, double *vmin, double *vmax);
-/* the values behind the parameter and IC boxes and the sliders of s */
-void new_parameter(Session &s);
 /* every parameter (or only entry `only`) back to the model's value, the tables redone once */
 void set_default_params(Session &s, std::optional<int> only = std::nullopt);
 void set_default_ics(Session &s, std::optional<int> only = std::nullopt);

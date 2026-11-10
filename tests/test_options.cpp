@@ -15,6 +15,9 @@
 #include "solver.h"
 #include "model.h"
 #include "numerics_settings.h"
+#include "command_def.h"
+#include "command_registry.h"
+#include "userbut.h"
 #include "model_options.h"
 #include "lunch-new.h"
 #include "session_settings.h"
@@ -169,7 +172,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
 bool left_out(const xpp::OptionRow &r)
 {
     /* run_set names a set of the model: a generated value never is one (W666), its own check is modecheck's */
-    return xpp::option_name(r) == "interface.buttons" || xpp::option_name(r) == "output.run_set" || r.kind == xpp::OptionKind::sliders || r.kind == xpp::OptionKind::curves || r.expand
+    return xpp::option_name(r) == "interface.buttons" || r.name == "BUT" || xpp::option_name(r) == "output.run_set" || r.kind == xpp::OptionKind::sliders || r.kind == xpp::OptionKind::curves || r.expand
            || r.curve_field != xpp::CurveField::none || !r.dropped.empty() || r.in_statement;
 }
 
@@ -491,8 +494,26 @@ int main(void)
         CHECK(!xpp::option_problem(*s, "total", "5", true).has_value());
         CHECK(!xpp::option_problem(*s, "integration.total_time", "5", false).has_value() && xpp::option_problem(*s, "total_time", "5", false).has_value());
         CHECK(xpp::option_problem(*s, "meth", "e", false).has_value() && !xpp::option_problem(*s, "integration.method", "euler", false).has_value());
-        /* W656: the picture-print userbut is gone: its sequence is no button, an error, while XPPAUT's BUT of a known one reads */
-        CHECK(xpp::option_problem(*s, "interface.buttons", "pdf:gp", false).has_value() && !xpp::option_problem(*s, "interface.buttons", "quit:fq", false).has_value());
+        /* W663: a button is a label and a registry command in our own syntax; XPPAUT's BUT (name:keys) is read on import only, a sequence no command of ours runs is dropped there */
+        CHECK(!xpp::option_problem(*s, "interface.buttons", "[ { label: \"Go\", command: run.initial } ]", false).has_value());
+        CHECK(xpp::option_problem(*s, "interface.buttons", "[ { label: \"Go\", command: nosuch.command } ]", false).has_value());
+        CHECK(xpp::option_problem(*s, "interface.buttons", "[ { label: \"\", command: run.initial } ]", false).has_value());
+        CHECK(xpp::option_problem(*s, "interface.buttons", "[ { label: \"Go\", command: run.initial }, { label: \"Go\", command: run.last } ]", false).has_value());
+        CHECK(!xpp::option_problem(*s, "but", "quit:fq", true).has_value() && !xpp::option_problem(*s, "but", "pdf:gp", true).has_value() && xpp::option_problem(*s, "but", "nokeys", true).has_value());
+        /* every key sequence XPPAUT's buttons took (one to three letters) that has a command of ours has a registered one */
+        std::size_t mapped = 0;
+        std::string keys;
+        for (char a = 'a'; a <= 'z'; ++a)
+            for (int length = 1; length <= 3; ++length)
+                for (char b = (length > 1 ? 'a' : 'z'); b <= 'z'; ++b)
+                    for (char c = (length > 2 ? 'a' : 'z'); c <= 'z'; ++c) {
+                        keys = std::string(1, a) + (length > 1 ? std::string(1, b) : std::string()) + (length > 2 ? std::string(1, c) : std::string());
+                        const std::string_view command = xpp::xppaut_button_command(keys);
+                        if (command.empty()) continue;
+                        ++mapped;
+                        CHECK(xpp::command::find(command));
+                    }
+        CHECK(mapped > 30);
         CHECK(!xpp::option_problem(*s, "integration.method", "euler", false).has_value());
         /* an XPPAUT choice's letter, number or yes/no is a foreign file's, never our own */
         CHECK(!xpp::option_problem(*s, "meth", "e", true).has_value() && xpp::option_problem(*s, "integration.method", "1", false).has_value());

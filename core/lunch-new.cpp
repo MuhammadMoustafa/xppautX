@@ -605,14 +605,6 @@ Result<bool> write_info(xpp::Session &s, const std::string &filename, bool confi
   return true;
 }
 
-void file_inf(xpp::Session &s)
-{
-  std::string filename=xpp::files::output_name(s.model().this_file,".pars");
-  ping();
-  if(!file_selector("Save info",filename,"*.pars*"))return;
-  xpp::ok_or_show(write_info(s,filename,false));
-}
-
 void do_info(const xpp::Session &s, FILE *fp)
 {
   xpp::print(fp,"File: {} \n\n Equations... \n",s.model().this_file);
@@ -640,14 +632,6 @@ void do_info(const xpp::Session &s, FILE *fp)
   for(int i=0;i<s.model().node+s.model().nmarkov;i++)xpp::print(fp,"{}={:.16g}\n",s.model().uvar_names[i],s.last_ic[i]);
   xpp::print(fp,"\n\n Parameters ...\n");
   put_parameters(s,fp,"");
-}
-
-void import_xppaut_state_command(xpp::Session &s)
-{
-  std::string filename=xpp::files::output_name(s.model().this_file,".set");
-  ping();
-  if(!file_selector("Import XPPAUT session state",filename,"*.set"))return;
-  if(const Result<std::vector<std::string>> r=import_xppaut_state(s,filename,true);!r)show_error(r.error());
 }
 
 Result<std::vector<double>> read_parameter_file(const xpp::Model &m, std::string_view path)

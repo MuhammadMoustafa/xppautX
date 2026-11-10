@@ -80,7 +80,8 @@ export interface HelloEvent {
   point_types: PointType[];
   /** every file format's name as written, lowercase (csv, csv.gz, pdf): a choice that is one is labelled by it */
   file_formats: string[];
-  userbuttons: string[];
+  /** the model's buttons: a label and the registry command each runs */
+  userbuttons: {label: string; command: string}[];
   /** the color scales the core has, by name (the array plot's choice) */
   colormaps: string[];
   /** the model file's own values, in the order of `state`'s pars and ics (what `default` restores) */

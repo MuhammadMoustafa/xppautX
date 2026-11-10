@@ -42,7 +42,6 @@
 #include "menus.h"
 #include "mykeydef.h"
 #include "userbut.h"
-#include "menudrive.h"
 #include "xpp_session.h"
 #include "xpp_globals.h"
 #include "model_switch.h"
@@ -589,26 +588,17 @@ XppUi make_json_ui(void)
     };
     u.ping = j_ping;
     u.bottom_msg = j_bottom_msg;
-    u.message_box = j_message_box;
-    u.kill_message_box = j_kill_message_box;
     u.question_policy = j_question_policy;
     u.new_string = j_new_string;
     u.choose = j_choose;
-    u.checklist = j_checklist;
-    u.string_box = j_string_box;
     u.typed_form = j_typed_form;
-    u.grid_box = j_grid_box;
     u.file_selector = j_file_selector;
-    u.get_mouse_xy = j_get_mouse_xy;
     u.check_abort = j_check_abort;
     u.progress_begin = j_progress_begin;
     u.progress = j_progress;
     u.flush = json_flush;
     u.redraw_params = j_state_dirty;
     u.param_box_set = j_state_dirty_is;
-    u.param_box_redraw = j_state_dirty_i;
-    u.ic_box_set = j_state_dirty_is;
-    u.ic_box_redraw = j_state_dirty_i;
     u.redraw_ics = j_state_dirty;
     u.redraw_all = j_redraw_all;
     u.redraw_bcs = j_state_dirty;
@@ -630,7 +620,6 @@ XppUi make_json_ui(void)
     u.tool_window_closed = j_tool_window_closed;
     u.redraw_diagram_for_client = auto_redraw_for_client;
     u.lower_plot_window = j_void;
-    u.cput_text = j_cput_text;
     u.get_draw_size = j_get_draw_size;
     u.blank_draw_window = j_blank_draw_window;
     u.film_clip = j_film_clip;
@@ -639,8 +628,6 @@ XppUi make_json_ui(void)
     u.movie_autox_play = j_movie_autox_play;
     u.movie_save = j_movie_save;
     u.movie_make_anigif = j_movie_make_anigif;
-    u.rubber_band = j_rubber_band;
-    u.scroll_window = j_scroll_window;
     u.aplot_make = j_aplot_make;
     u.aplot_redraw = j_aplot_redraw;
     u.aplot_reset_axes = j_aplot_redraw;
@@ -663,7 +650,6 @@ XppUi make_json_ui(void)
     u.init_txtview = j_void;
     u.show_eq_box = j_show_eq_box;
     u.make_txtview = j_make_txtview;
-    u.q_calc = j_q_calc;
     u.play_recording = j_play_recording;
     u.recording = j_recording;
     u.save_recording = j_save_recording;
@@ -1275,11 +1261,15 @@ void send_hello(xpp::Session &s)
         buf_str(b, xpp::format("{} {}", static_cast<int>(solver.id), solver.name).c_str());
     }
     BUF_LIT(b, "]]");
-    /* @ button name:keys lines of the ODE file (button.run, by index) */
+    /* the model's buttons, a label and the command each runs (button.run, by index) */
     BUF_LIT(b, ",\"userbuttons\":[");
-    for (i = 0; i < s.nuserbut; i++) {
-        if (i) BUF_LIT(b, ",");
-        buf_str(b, s.userbut[i].bname);
+    for (const xpp::UserButton &button : s.user_buttons) {
+        if (&button != s.user_buttons.data()) BUF_LIT(b, ",");
+        BUF_LIT(b, "{\"label\":");
+        buf_str(b, button.label);
+        BUF_LIT(b, ",\"command\":");
+        buf_str(b, button.command);
+        BUF_LIT(b, "}");
     }
     /* the model file's values, what `default` restores, in state's order */
     BUF_LIT(b, "],\"defaults\":{\"pars\":[");

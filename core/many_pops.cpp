@@ -293,13 +293,6 @@ void dump_ps(xpp::Session &s, int i)
     xpp::ok_or_show(vector_restore(s));
 }
 
-void   redo_stuff(xpp::Session &s)
-    {
-      evaluate_derived(s);
-   xpp::re_evaluate_kernels(s);
-	  xpp::ok_or_show(redo_all_fun_tables(s));
-        evaluate_derived(s);
-}
 ActiveGraph::ActiveGraph(Session &s,int index):s_(s),previous_(s.plot_windows.active),selected_(s.selected_window)
 {
     if(index!=previous_)make_active(s_,index,1);

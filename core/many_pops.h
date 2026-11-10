@@ -54,7 +54,6 @@ std::string window_name(const Session &s, XppWinId handle);
 std::string_view fixed_window_name(XppWinId handle);
 std::string window_name_problem(std::string_view name);
 std::string window_name_problem(const Session &s, std::string_view name, std::string_view replacing = {});
-void redo_stuff(Session &s);
 /* The session s's plot windows: which are open (set_active_windows), the
    active one (make_active), the plot window (its graph's index) whose
    window is w (graph_of; 0, the main one, when none in use is), and the

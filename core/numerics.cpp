@@ -10,7 +10,6 @@
 #include <strings.h>
 #include <array>
 
-#include "menudrive.h"
 #include "menus.h"
 #include <stdlib.h> 
 #include <stdio.h>
@@ -82,106 +81,6 @@ Result<> set_numerics_extras(xpp::Session &s, const NumericsExtras &extras)
   return {};
 }
 
-/* The Numerics items run.configure and boundary_value.configure also take as arguments (Total, Start time, Transient,
-   Dt, Method, Store every, Bounds, Delay, bndVal): the keys ask for them, then set them as the commands do
-   (numerics_settings_set_all's owner) */
-static void ask_configured_numerics(xpp::Session &s, char ch)
-{
-   switch(ch){
-		case 't':
-			 numerics_settings_ask(s,"total_time");
-			break;
-		case 's':
-			 numerics_settings_ask(s,"start_time");
-			break;
-		case 'r':
-			 numerics_settings_ask(s,"store_from");
-			break;
-		case 'd':
-			 numerics_settings_ask(s,"dt");
-			break;
-		case 'v':
-		         numerics_settings_ask(s,"bvp_max_iterates");
-		         numerics_settings_ask(s,"bvp_tolerance");
-		         numerics_settings_ask(s,"bvp_epsilon");
-		         break;
-		case 'o':
-			 numerics_settings_ask(s,"store_every");
-			break;
-		case 'b':
-			 numerics_settings_ask(s,"state_limit");
-			break;
-		case 'm':
-		       {
-			 /* the method picked, refused as `set num` refuses it */
-			 const xpp::Place place=command_place();
-			 std::string why;
-			 if(numerics_settings_set(s,"method",xpp::solver_info(chosen_method(s)).key,why,&place)!=0){
-			   show_error(Error{"numerics",why,place});
-			   break;
-			 }
-			const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
-			/* the settings the method reads, in the table's order */
-			if(traits.relative_tolerance)numerics_settings_ask(s,"relative_tolerance");
-			if(traits.min_step)numerics_settings_ask(s,"min_step");
-			if(traits.max_step)numerics_settings_ask(s,"max_step");
-			if(traits.absolute_tolerance)numerics_settings_ask(s,"absolute_tolerance");
-		       if(traits.newton){
-			 numerics_settings_ask(s,"eul_tol");
-			 numerics_settings_ask(s,"eul_iter");
-		       }
-		       {
-			 NumericsExtras extras;
-			 if(traits.integral_history){
-			   int tmp=s.numerics.max_points;
-			   new_int("MaxPoints:",&tmp);
-			   extras.max_points=tmp;
-			 }
-			 if(traits.banded){
-			   int banded=s.numerics.cv_bandflag;
-			   new_int("Banded system(0/1)?",&banded);
-			   extras.banded=banded!=0;
-			   if(banded){
-			     int lower=s.numerics.cv_bandlower,upper=s.numerics.cv_bandupper;
-			     new_int("Lower band:",&lower);
-			     new_int("Upper band:",&upper);
-			     extras.band_lower=lower;
-			     extras.band_upper=upper;
-			   }
-			 }
-			 xpp::ok_or_show(set_numerics_extras(s,extras));
-		       }
-		       }
-			break;
-		case 'e':
-			 /* delay */
-                        if(s.model().ndelays==0)break;
-			numerics_settings_ask(s,"delay");
-                        {
-                          NumericsExtras extras;
-                          double real=s.delay.alpha_max,imaginary=s.delay.omega_max;
-                          int grid=s.delay.grid;
-                          new_float(s,"real guess :",&real);
-                          new_float(s,"imag guess :",&imaginary);
-                          new_int("DelayGrid :",&grid);
-                          extras.delay_real_guess=real;
-                          extras.delay_imaginary_guess=imaginary;
-                          extras.delay_grid=grid;
-                          xpp::ok_or_show(set_numerics_extras(s,extras));
-                        }
-
-			
-			break;
-	}
-}
-
-void quick_num(xpp::Session &s, int com)
-{
-  static const char *const key="tsrdnviobec";
-  if(com>=0&&com<11)
-    get_num_par(s,key[com]);
-}
-
 void dt_changed(xpp::Session &s)
 {
   chk_delay(s);
@@ -199,20 +98,7 @@ void set_total(xpp::Session &s, double total)
   s.numerics.total_time=n*fabs(s.numerics.delta_t);
 }
 
-void  get_num_par(xpp::Session &s, char ch)
-{
-   switch(ch){
-               case 't': ask_configured_numerics(s,'t'); break;
-               case 's': ask_configured_numerics(s,'s'); break;
-               case 'r': ask_configured_numerics(s,'r'); break;
-               case 'd': ask_configured_numerics(s,'d'); break;
-               case 'v': ask_configured_numerics(s,'v'); break;
-               case 'o': ask_configured_numerics(s,'o'); break;
-               case 'b': ask_configured_numerics(s,'b'); break;
-               case 'm': ask_configured_numerics(s,'m'); break;
-               case 'e': ask_configured_numerics(s,'e'); break;
-}  /* End num switch */
-	   } 
+ 
 
 void chk_delay(xpp::Session &s)
 {
@@ -311,50 +197,6 @@ Result<> set_poincare_map(xpp::Session &s, PoincareMap map, std::optional<int> v
  return {};
 }
 
-void get_pmap_pars_com(xpp::Session &s, int l)
-{
- /* the Poincare map items of an imported button sequence (kbs.h): the questions the registry's poincare_map.set takes as arguments are asked here, then the command's own function runs */
- static const char *const mkey="nsmp";
- char ch;
- int i1=s.numerics.poincare_variable;
-
- ch=mkey[l];
-
- PoincareMap map=PoincareMap::none;
- if(ch=='s')map=PoincareMap::section;
- if(ch=='m')map=PoincareMap::max;
- if(ch=='p')map=PoincareMap::period;
-
- if(map==PoincareMap::none){
-   xpp::ok_or_show(set_poincare_map(s,map,{},{},{},{}));
-   return;
- }
-
- std::array<xpp::FormField,4> fields={
-   xpp::FormField{.name="*0Variable",.kind=XPP_FIELD_NAME_IN(0),.value=ind_to_sym(s,i1)},
-   xpp::FormField::real_number("Section",s.numerics.poincare_plane),
-   xpp::FormField::choice("Direction",std::vector<std::string>(section_sign_names.begin(),section_sign_names.end()),static_cast<std::size_t>(static_cast<int>(s.numerics.poincare_sign)+1)),
-   xpp::FormField::boolean("Stop on section",s.numerics.poincare_stop)};
- if(!xpp::ask_form(s,"Poincare map",fields)){
-   xpp::ok_or_show(set_poincare_map(s,map,{},{},{},{}));
-   return;
- }
- find_variable(s,fields[0].value.c_str(),&i1);
- const Result<> set=set_poincare_map(s,map,i1,fields[1].real,static_cast<SectionSign>(fields[2].whole-1),fields[3].flag);
- if(!set){
-   s.numerics.poincare_map=PoincareMap::none; /* no section is better than one of the variable before */
-   xpp::show_error(set.error());
- }
-}
-
-int chosen_method(const xpp::Session &s)
-{
- const char ch = static_cast<char>(menu_choose(&menu_method,s.numerics.method));
- for(int i=0;i<menu_method.n;i++)
-   if(ch==menu_method.keys[i])return i;
- return s.numerics.method;
-}
-
 void user_set_color_par(xpp::Session &s, int flag,const char *via,double lo,double hi)
 {
   int ivar;
@@ -433,27 +275,6 @@ Result<> set_color_coding(xpp::Session &s, ColorBy by, int variable, std::option
   graph.color_scale=high-low;
   if(graph.color_scale==0.0)graph.color_scale=1.0;
   return {};
-}
-
-void set_col_par_com(xpp::Session &s, int i)
-{
-  /* the Color code items of an imported button sequence (kbs.h): the questions the registry's plot.set_color_coding takes as arguments are asked here, then the command's own function runs */
-  const GRAPH &graph=*s.plot_windows.current;
-  const ColorBy by=static_cast<ColorBy>(i);
-  int variable=graph.ColorValue;
-  if(by==ColorBy::variable){
-    std::string name=ind_to_sym(s,variable);
-    new_string_of("Color via:",name,XPP_FIELD_NAME_IN(0));
-    find_variable(s,name.c_str(),&variable);
-  }
-  std::optional<std::pair<double,double>> limits;
-  if(by!=ColorBy::none&&TwoChoice("(O)ptimize","(C)hoose","Color","oc")=='c'){
-    double low=graph.min_scale,high=graph.min_scale+graph.color_scale;
-    new_float(s,"Min :",&low);
-    new_float(s,"Max :",&high);
-    limits=std::pair{low,high};
-  }
-  xpp::ok_or_show(set_color_coding(s,by,variable,limits));
 }
 
 void do_meth(xpp::Session &s)

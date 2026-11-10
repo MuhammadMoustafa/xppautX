@@ -26,19 +26,12 @@ consteval int menu_count(size_t items, size_t keys)
 
 /* (X)tra is defined but not shown: the menu has 6 entries */
 
-static const char *const meth_items[]={"(D)iscrete","(E)uler","(M)od. Euler",
-  "(R)unge-Kutta","(A)dams","(G)ear","(V)olterra","(B)ackEul",
-  "(Q)ualst.RK4","(S)tiff","(C)Vode","DoPri(5)","DoPri(8)3",
-  "Rosen(2)3","sYmplectic"};
-
 /* (F)reeze and (C)olormap open the next two menus instead of a command */
 /* (E)dit opens menu_text_edit */
 /* Save data (browse_data.cpp data_write): what it writes; the format
    comes next, from the data formats' registry (data_formats.h) */
 static const char *const save_what_items[]={"The data table","What the plot shows"};
 const XppMenu menu_save_what = XPP_MENU("save_what", "Save data", save_what_items, "tp");
-/* sets METHOD directly */
-const XppMenu menu_method = XPP_MENU("method", "Method", meth_items, "demragvbqsc582y");
 
 int menu_index(const XppMenu *m, int ch)
 {

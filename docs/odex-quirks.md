@@ -407,3 +407,13 @@ In a 3D plot XPPAUT's `XLO`, `XHI`, `YLO` and `YHI` zoom into the projected pict
 page fits the picture to its box; the converter drops the four options of a 3D `.ode` without a warning. In a 2D plot
 they are the window, the same quantity as `XMIN`..`YMAX` (which XPPAUT sets with them, `XLO` winning), and import onto
 `axes.x_min`..`axes.y_max`.
+
+## `@ but=name:keys` is a label and a command (W663)
+
+XPPAUT's button runs the menu keys written after the colon (`but=AUTO:fa` is File, Auto) through its own key switch, at most 20 of them. A
+`.odex` button is `{ label: "AUTO", command: autox.open }`, a label and the registry command that does what those keys did, any number of
+them. The converter maps the key sequences that have such a command (Initialconds go, last, old, shift, range and 2 range, Continue, Sing
+pts go and range, Nullcline new, restore and save, Direction field's four, Window set and fit, Redraw, Erase, X vs t, Kinescope's five, Graphic
+add, delete, remove all and edit, new Parameter, and File's Auto, Calculator, info, XPPAUT state import, Quit, Transpose and Apply set). A sequence
+with no command of ours (a mouse click, a question XPPAUT asked in a window of its own) is dropped with a warning naming the line; two
+buttons for one command keep the first, as XPPAUT's own reader does ([W663 / #736](https://github.com/MuhammadMoustafa/xppautX/issues/736)).

@@ -41,8 +41,6 @@ Result<double> typed_number(Session &s, std::string_view typed, std::string_view
 class TypedFields {
  public:
   explicit TypedFields(Session &s) : s_(s) {}
-  /* typed_number's reading of `text`; 0 after a fault */
-  double number(std::string_view field, const std::string &text);
   /* a whole number (parse_int), within min..max where given; 0 after a fault */
   int integer(std::string_view field, const std::string &text, std::optional<double> min = std::nullopt,
               std::optional<double> max = std::nullopt);

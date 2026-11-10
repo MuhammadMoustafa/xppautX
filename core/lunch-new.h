@@ -56,10 +56,6 @@ Result<> load_xppaut_values(Session &s, ValueFile kind, std::string_view fn);
    nothing. */
 Result<std::string> load_value_file(Session &s, ValueFile kind, std::string file);
 
-/* File > Import XPPAUT session state (asks for the file), the session s's info file
-   (File > Save info) */
-void import_xppaut_state_command(Session &s);
-void file_inf(Session &s);
 /* the simulation information written to filename (Save info): false when declined; confirm replaces an existing file without asking */
 Result<bool> write_info(Session &s, const std::string &filename, bool confirm);
 void do_info(const Session &s, FILE *fp);

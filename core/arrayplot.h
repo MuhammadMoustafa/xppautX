@@ -37,8 +37,6 @@ void close_aplot_files(xpp::Session &s, bool complete);
 void optimize_aplot(xpp::Session &s, int *plist);
 void fit_aplot(xpp::Session &s);
 void scale_aplot(const xpp::Session &s, APLOT *ap, double *zmax, double *zmin);
-/* the Edit and Print keys: their forms asked, then array_plot.configure's or write_aplot_pdf's work */
-void editaplot(xpp::Session &s, APLOT *ap);
 /* the array plot ready to be written: open, configured and (needs_data) with data to show, else why not (`where` names the command) */
 xpp::Result<> aplot_ready(const xpp::Session &s, const std::string &where, bool needs_data = true);
 /* the array plot as a PDF picture into `file` (its labels are the plot's xtitle, ytitle and bottom): false when

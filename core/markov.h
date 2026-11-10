@@ -32,8 +32,6 @@ void compile_all_markov(Session &s);
 int compile_markov(Session &s, int index, int j, int k);
 void update_markov(Session &s, double *x, double t, double dt);
 double new_state(Session &s, double old, int index, double dt);
-/* the Stochastic menu's items (an imported button sequence's), asking for what the analysis commands take as arguments */
-void  do_stochast_com(Session &s, int i);
 /* the seed the next run starts from (the Session's random numbers seeded with it at once), or why it is not one */
 Result<> set_random_seed(Session &s, int seed);
 /* the mean or the variance of the stochastic runs in the browser, or why there are none */

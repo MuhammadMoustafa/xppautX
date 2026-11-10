@@ -16,7 +16,7 @@ options {
   continuation: { parameter_min: 0, parameter_max: 6, step_size: -0.001, max_step_size: .01 },
   diagram: { variable: V },
   plot: { curves: [ { x: V, y: X } ], axes.x_min: -3, axes.x_max: 3, axes.y_min: -3, axes.y_max: 6 },
-  interface: { buttons: "AUTO:fa" },
+  interface: { buttons: [ { label: "AUTO", command: autox.open } ] },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

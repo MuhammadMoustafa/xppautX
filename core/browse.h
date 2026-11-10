@@ -81,8 +81,6 @@ struct DataSaved {
 };
 Result<DataSaved> save_data_file(const Session &s, std::optional<DataTarget> target, std::string_view format,
                                  std::string_view name);
-/* Save data for a key's menu: its error shown */
-void data_write(const Session &s, std::optional<DataTarget> target, std::string_view format, std::string_view name);
 /* the data table's Load: name (asked for when empty) read as format (by its
    extension when empty, else .dat) into s's stored columns, in order; the file and rows loaded (no file when the
    user cancelled the file's question), or why not */

@@ -108,29 +108,3 @@ constexpr std::array ROWS={
 }
 std::span<const Command> nullcline_commands(){return ROWS;}
 }
-
-namespace xpp::command {
-Result<> nullcline_button(Session &s,int button,const Place &place)
-{
-    constexpr std::array names={"nullcline.compute","nullcline.redraw","nullcline.set_redraw_mode","nullcline.set_redraw_mode",
-        "nullcline.export","nullcline.freeze","nullcline.delete_frozen","nullcline.range_freeze","nullcline.animate"};
-    if(button<0||static_cast<std::size_t>(button)>=names.size())return fail("nullcline button","Unknown imported nullcline button",place);
-    std::string line="{\"cmd\":";json_append_string(line,names[button]);
-    if(button==2||button==3)line+=xpp::format(",\"enabled\":{}",button==2);
-    if(button==4){
-        std::string file=s.nullclines.file;
-        if(!file_selector("Save nullclines",file,"*.dat"))return {};
-        line+=",\"file\":";json_append_string(line,file);
-    }
-    if(button==7){
-        auto range=s.nullcline_state.range;
-        if(!new_string("Parameter",range.rv))return {};
-        if(new_float(s,"Start",&range.xlo)==-1||new_float(s,"End",&range.xhi)==-1)return {};
-        new_int("Steps",&range.nstep);
-        line+=",\"parameter\":";json_append_string(line,range.rv);
-        line+=xpp::format(",\"start\":{},\"end\":{},\"steps\":{}",range.xlo,range.xhi,range.nstep);
-    }
-    if(button==8){int delay=s.nullcline_state.animation_delay_ms;new_int("Delay (msec)",&delay);line+=xpp::format(",\"delay_ms\":{}",delay);}
-    return run_button(s,line+'}',place);
-}
-}

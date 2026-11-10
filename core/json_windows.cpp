@@ -154,52 +154,6 @@ void j_destroy_plot_window(xpp::Session &s)
     send_window(xpp::events::WINDOW_SELECTED,xpp::window_name(s,main.w),main.x11Wid,main.x11Hgt);
 }
 
-void j_cput_text(xpp::Session &s)
-{
-    int x, y;
-    j_message_box("Place text with mouse");
-    const bool placed = j_get_mouse_xy(s, &x, &y);
-    j_kill_message_box();
-    xpp::LabelLook look;
-    if (!placed || !j_text_dialog(look)) return;
-    if (const std::string problem = xpp::label_problem(look); !problem.empty()) {
-        j_command_error("text", problem);
-        return;
-    }
-    float xd, yd;
-    scale_to_real(s, x, y, &xd, &yd);
-    if (add_label(s, look, s.plot_windows.draw_win, xd, yd) < 0) j_command_error("text", xpp::format("a session has at most {} texts", xpp::ANNOTATION_LIST_MAX));
-}
-
-/* Window/zoom Scroll: drag the plot (rubber.c x11_scroll_window) */
-void j_scroll_window(xpp::Session &s)
-{
-    int i, j, t, state = 0;
-    float x, y, x0 = 0, y0 = 0, dx = 0, dy = 0;
-    float xlo = s.plot_windows.current->xlo, ylo = s.plot_windows.current->ylo, xhi = s.plot_windows.current->xhi, yhi = s.plot_windows.current->yhi;
-    send_simple(xpp::events::SESSION_MESSAGE, "box", "Drag the plot to scroll it; any key ends");
-    while ((t = ask_drag(s, s.plot_windows.draw_win, &i, &j)) != 0) {
-        if (t == 1 && state == 0) {
-            scale_to_real(s,i, j, &x0, &y0);
-            state = 1;
-        } else if (t == 2 && state == 1) {
-            scale_to_real(s,i, j, &x, &y);
-            dx = -(x - x0) / 2;
-            dy = -(y - y0) / 2;
-            update_view(s,xlo + dx, xhi + dx, ylo + dy, yhi + dy);
-        } else if (t == 3) {
-            state = 0;
-            xlo += dx;
-            xhi += dx;
-            ylo += dy;
-            yhi += dy;
-            dx = dy = 0;
-        }
-        json_flush();
-    }
-    j_kill_message_box();
-}
-
 /* ---- pixels -------------------------------------------------------------------
    Only the client has the rendered picture: it draws the window from the
    data events. Frame and GIF writers ask for it: {"kind":"pixels","win":W}

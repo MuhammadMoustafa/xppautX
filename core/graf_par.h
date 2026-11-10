@@ -13,8 +13,6 @@
 namespace xpp {
 struct Session; /* session.h */
 
-#define RUBBOX 0
-
 #define REAL_SMALL 1.e-6
 
 #define MAXBIFCRV 100
@@ -61,9 +59,6 @@ void set_colormap(Session &s, Colormap colormap);
 void dump_ps(Session &s, int i);
 
 struct DataTable; /* data_formats.h */
-/* The plot windows' commands and views, on the session s: its active
-   plot window (plot_windows.current) and the window drawn in (draw_win) */
-void change_view_com(Session &s, int com);
 /* The flags a graph's axes and grtype imply (ThreeDFlag, TimeFlag): the one
    rule, for the active window and for each extra window of a model */
 void check_flags(GRAPH &g);
@@ -86,10 +81,6 @@ AxesView axes_view(const Session &s, int ind);
 Result<> set_axes_view(Session &s, int ind, bool three, const AxesView &view);
 /* A 2D guess sets two differential states; time and auxiliary axes cannot seed an equilibrium. */
 bool phase_plane_states(const Session &s, const GRAPH &g);
-/* The axes dialog of the active plot window: its curve ind's variables, limits and labels in
-   columns (X, Y, and Z when three, with the 3D view's window and parameters), read whole and
-   applied all or nothing; false when cancelled or when a field is refused (shown) */
-bool axes_dialog(Session &s, int ind, bool three);
 /* the 3D view's parameters, in 3D params and in the axes dialog of a 3D plot: the perspective flag, the
    z plane and view, the angles, and the movie (made when `movie`: `yes` is what the form's Movie answer
    was, `vary` theta or phi, the angle it starts at and steps by, and how many steps) */
@@ -114,19 +105,14 @@ struct AxesOrigin {
 AxesOrigin axes_origin(const Session &s);
 /* the active window's axes as these, redrawn */
 Result<> set_axes_origin(Session &s, const AxesOrigin &axes);
-void axes_opts(Session &s);
 void corner_cube(Session &s, double *xlo, double *xhi, double *ylo, double *yhi);
 void fit_window(Session &s);
-void user_window(Session &s);
-void xi_vs_t(Session &s);
 /* the active window plots the data column `name` against time, its view fitted to the data (or the run's
    time span before there is any) */
 Result<> variable_vs_time(Session &s, std::string_view name);
 void movie_rot(Session &s, double start, double increment, int nclip, int angle);
-void get_3d_par_com(Session &s);
 /* the active window's view set to these bounds (and its curves' ranges, for a 2D plot), redrawn */
 void update_view(Session &s, double xlo, double xhi, double ylo, double yhi);
-void window_zoom_com(Session &s, int c);
 /* Window/zoom's In and Out on the active window, in plot coordinates: the view becomes the box x1..x2, y1..y2
    (x1 below x2, y1 below y2); Out makes the current view fill that box; Out by makes it `factor` times
    as wide and high about the point (cx, cy) */
@@ -158,14 +144,9 @@ void delete_all_curves(Session &s);
    #101) written to `filename`: false when the user declined to replace the file */
 Result<bool> write_plot_picture(Session &s, int fmt, std::string_view filename);
 void default_window(Session &s);
-void add_a_curve_com(Session &s, int c);
-void export_graf_data(Session &s);
-/* the frozen curves of s (Freeze) and their key */
-void freeze_com(Session &s, int c);
 /* the key of the frozen curves (Freeze > Key): drawn or not, at the plot coordinates `at` when given; redrawn */
 void set_frozen_legend(Session &s, bool visible, std::optional<std::pair<double,double>> at);
 void draw_freeze_key(Session &s);
-void key_frz_com(Session &s, int c);
 void delete_frz_crv(Session &s, int i);
 void kill_frz(Session &s);
 /* a frozen curve's color, line style, legend text and name (the Edit Freeze form's), and the most bytes the
@@ -194,9 +175,7 @@ Result<int> import_bifurcation(Session &s, std::string_view filename);
 void autox_freeze_it(Session &s);
 /* curve `ind` of the active window frozen in its window: the slot it took */
 Result<int> freeze_curve(Session &s, int ind);
-void edit_frz_crv(Session &s, int i);
 void draw_freeze(Session &s, XppWinId w);
-int get_frz_index(Session &s, XppWinId w);
 /* What the current plot window shows, for Save data (browse_data.cpp): its
    curves (numbered 1.. in order) and then its frozen curves, one row per
    point, as the columns curve, x, y and, in 3D, z */

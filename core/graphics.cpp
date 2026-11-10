@@ -171,20 +171,6 @@ void scale_to_screen(const xpp::Session &s, float x, float y, int *i, int *j)  /
   *j=static_cast<int>((y-s.drawing.y_min)*dy)+s.drawing.d_bottom;
 }
 
-void scale_to_real(xpp::Session &s, int i, int j, float *x, float *y)  /* Not needed except for X */
-{
-  int i1,j1;
-  float x1,y1;
-  get_draw_area(s);
-  i1=i-s.drawing.d_left;
-  j1=j-s.drawing.d_bottom;
-  x1=static_cast<float>(i1);
-  y1=static_cast<float>(j1);
-  *x=(s.plot_windows.current->xhi-s.plot_windows.current->xlo)*x1/static_cast<float>(s.drawing.d_right-s.drawing.d_left)+s.plot_windows.current->xlo;
-  *y=(s.plot_windows.current->yhi-s.plot_windows.current->ylo)*y1/static_cast<float>(s.drawing.d_top-s.drawing.d_bottom)+s.plot_windows.current->ylo;
-  
- }
-
 void reset_all_line_type(xpp::Session &s)
 {
 	int j,k;

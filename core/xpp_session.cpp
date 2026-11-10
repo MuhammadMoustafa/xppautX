@@ -560,20 +560,6 @@ std::optional<std::string> data_wrong(const xpp::Session &s, const xpp::DataTabl
 }
 
 
-void write_sliders(xpp::odex::Out &out, const xpp::Session &s)
-{
-    out.begin_list("sliders");
-    for (const xpp::XppSlider &slider : s.sliders) {
-        out.begin_item();
-        out.name("name", slider.var);
-        out.real("low", slider.lo);
-        out.real("high", slider.hi);
-        out.real("step", slider.step);
-        out.end_item();
-    }
-    out.end_list();
-}
-
 /* a session file, read whole: every member, before any is applied */
 struct SessionRead {
     xpp::Settings set;
@@ -582,7 +568,6 @@ struct SessionRead {
     std::optional<xpp::DataTable> data;
     RandomRead random;
     MarksRead marks;
-    std::vector<xpp::XppSlider> sliders;
     xpp::NullclineState nullclines;
 };
 
@@ -606,7 +591,6 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
         xpp::odex::Block session = file->block(true, "the session");
         xpp::snapx::read_manifest(session);
         r.set = xpp::read_settings(s, *file, session);
-        r.sliders = xpp::read_sliders(s.model(), session);
         {
             xpp::odex::Block nullclines = *session.group("nullclines");
             r.nullclines = xpp::read_nullclines(s.model(), nullclines);
@@ -683,7 +667,6 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
     }
 
     apply_marks(s, std::move(r.marks));
-    s.sliders=std::move(r.sliders);
     s.nullcline_state=std::move(r.nullclines);
     s.numerics.null_here=s.nullcline_state.num_x_n||s.nullcline_state.num_y_n||s.nullcline_state.frozen_started;
 
@@ -702,7 +685,7 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
 }
 
 /* the state file of s: the settings' version, par and init lines and options block, then the session statement
-   whose groups are the manifest, the settings, the sliders, the random state, the nullclines, autoX's state, the
+   whose groups are the manifest, the settings, the random state, the nullclines, autoX's state, the
    windows and the marks; the error when it cannot be written */
 xpp::Result<std::string> state_text(xpp::Session &s, const xpp::snapx::Manifest &man)
 {
@@ -713,7 +696,6 @@ xpp::Result<std::string> state_text(xpp::Session &s, const xpp::snapx::Manifest 
     out.begin_statement("session");
     xpp::snapx::write_manifest(out, man);
     xpp::write_settings(out, s, settings);
-    write_sliders(out, s);
     write_random(out, s);
     xpp::write_nullclines(out, s);
     xpp::snapx::autox_members::write_state(out, s);

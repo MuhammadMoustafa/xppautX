@@ -223,21 +223,6 @@ Result<> new_2d_hist(xpp::Session &s, const HIST_INFO *given)
   return {};
 }
 
-bool ask_histogram_2d(xpp::Session &s)
-{
-  HIST_INFO &info=s.histogram.info;
-  if(!xpp::ok_or_show(need_data_for_2d(s)))return false;
-  if(!ask_column(s,info.col,"Variable 1 "))return false;
-  new_int("Number of bins ",&info.nbins);
-  new_float(s,"Low ",&info.xlo);
-  new_float(s,"Hi ",&info.xhi);
-  if(!xpp::ok_or_show(histogram_range_ok("histogram",info.nbins,info.xlo,info.xhi)))return false;
-  if(!ask_column(s,info.col2,"Variable 2 "))return false;
-  new_int("Number of bins ",&info.nbins2);
-  new_float(s,"Low ",&info.ylo);
-  new_float(s,"Hi ",&info.yhi);
-  return true;
-}
   
 xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int col, int col2, const char *condition, int which)
 {
@@ -341,20 +326,6 @@ Result<ColumnStatistics> column_mean(xpp::Session &s, std::optional<int> column)
  /* rounding may take a variance of constant data just below 0 */
  const double variance=std::max(0.0,sum2/static_cast<double>(s.data_store.rows)-mean*mean);
  return ColumnStatistics{mean,variance};
-}
-
-bool ask_column(const xpp::Session &s, int &col, const char *prompt)
-{
- std::string variable=ind_to_sym(s,col);
- new_string_of(prompt,variable,XPP_FIELD_NAME_IN(0));
- int found=-1;
- find_variable(s,variable.c_str(),&found);
- if(found<0){
-   command_error("mean", "No such variable...");
-   return false;
- }
- col=found;
- return true;
 }
 
 Result<int> compute_power(xpp::Session &s, std::optional<int> column)
@@ -575,18 +546,6 @@ Result<int> just_sd(Session &s, int flag)
   return compute_sd(s,flag);
 }
 
-bool ask_spectral_density(xpp::Session &s)
-{
-  HistogramState &h=s.histogram;
-  new_int("(0) PSDx, (1) PSDxy, (2) COHxy:",&h.spec_type);
-  
-  if(!ask_column(s,h.spec_col,"Variable "))return false;
-  if(h.spec_type>0)
-      if(!ask_column(s,h.spec_col2,"Variable 2 "))return false;
-  new_int("Window length ",&h.spec_wid);
-  new_int("0:sqr 1:par 2:ham 3:bart 4:han ",&h.spec_win);
-  return true;
-}
  
 Result<int> just_fourier(xpp::Session &s, int flag, std::optional<int> column)
 {
@@ -643,14 +602,6 @@ Result<int> compute_correl(xpp::Session &s, const HIST_INFO *given)
   return s.histogram.hist_len;
 }
 
-bool ask_cross_correlation(xpp::Session &s)
-{
-  HIST_INFO &info=s.histogram.info;
-  new_int("Number of bins ",&info.nbins);
-  new_int("(0)Direct or (1) FFT ", &info.fftc);
-  return ask_column(s,info.col,"Variable 1 ")&&ask_column(s,info.col2,"Variable 2 ");
-}
-
 Result<int> compute_stacor(xpp::Session &s, const HIST_INFO *given)
 {
   HIST_INFO info=given?*given:s.histogram.info;
@@ -659,16 +610,6 @@ Result<int> compute_stacor(xpp::Session &s, const HIST_INFO *given)
   if(auto made=new_hist(s,info.nbins,info.xlo,info.xhi,info.col,0,info.cond.c_str(),1);!made)return std::unexpected(made.error());
   s.histogram.info=info;
   return s.histogram.hist_len;
-}
-
-bool ask_autocorrelation(xpp::Session &s)
-{
-  HIST_INFO &info=s.histogram.info;
-  new_int("Number of bins ",&info.nbins);
-  new_float(s,"Low ",&info.xlo);
-  new_float(s,"Hi ",&info.xhi);
-  if(!xpp::ok_or_show(histogram_range_ok("correlation",info.nbins,info.xlo,info.xhi)))return false;
-  return ask_column(s,info.col,"Variable ");
 }
 
 namespace {
@@ -712,18 +653,6 @@ Result<HistogramCounts> compute_hist(xpp::Session &s, const HIST_INFO *given)
   if(auto made=new_hist(s,info.nbins,info.xlo,info.xhi,info.col,0,info.cond.c_str(),0);!made)return std::unexpected(made.error());
   s.histogram.info=info;
   return HistogramCounts{info.nbins,counted(s)};
-}
-
-bool ask_histogram(xpp::Session &s)
-{
-  HIST_INFO &info=s.histogram.info;
-  new_int("Number of bins ",&info.nbins);
-  new_float(s,"Low ",&info.xlo);
-  new_float(s,"Hi ",&info.xhi);
-  if(!xpp::ok_or_show(histogram_range_ok("histogram",info.nbins,info.xlo,info.xhi)))return false;
-  if(!ask_column(s,info.col,"Variable "))return false;
-  new_string_of("Condition ",info.cond,XPP_FIELD_EXPRESSION);
-  return true;
 }
 
 /* experimental -- does it work */

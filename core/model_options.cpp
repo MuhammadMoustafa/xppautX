@@ -572,7 +572,6 @@ constexpr OptionRow rows[] = {
    .xppaut_names = {"RANGE"}, .once = true,
    .boolean = member([](auto &s) -> auto & { return s.integrator.range.write_files; }),
    .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
-  /* ---- autoX ---- */
   {.group = option_group::sweep, .kind = OptionKind::name, .odex = "second_variable", .help = "The parameter or variable the second sweep of a two-variable range varies.", .once = true,
    .text = member([](auto &s) -> auto & { return s.integrator.range.item2; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * { return range_item_into(s, s.integrator.range.item2, v, true); },
@@ -585,6 +584,7 @@ constexpr OptionRow rows[] = {
   {.group = option_group::sweep, .kind = OptionKind::choice, .odex = "cycle_color", .help = "Whether each run of the sweep is drawn in the next color.",
    .index = choice_member([](auto &s) -> auto & { return s.integrator.range.cycle; }),
    .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
+  /* ---- autoX ---- */
   {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "mesh_intervals", .help = "How many mesh intervals a periodic orbit or boundary value solution has.",
    .xppaut_names = {"NTST"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state.options.ntst; }), .autox_numeric = AUTOX_NUM_MESH_INTERVALS},
@@ -889,7 +889,6 @@ constexpr OptionRow rows[] = {
    .whole = member([](auto &s) -> auto & { return s.histogram.spec_wid; }), .rule = OptionRule::whole_positive, .maximum = option_limit::spectrum_samples},
   {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "spectrum.window", .help = "The window the spectrum's segments are weighted with.", .xppaut_names = {"SPECWIN"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.histogram.spec_win; })},
-  /* XPPAUT's picture color and font size (import only): an export is the panel as shown, in color at the page's size */
   {.group = option_group::analysis, .kind = OptionKind::name, .odex = "transpose.first_column", .help = "The first data column Transpose takes.", .once = true,
    .text = member([](auto &s) -> auto & { return s.adjoint.transpose.firstcol; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * { return column_name_into(s, s.adjoint.transpose.firstcol, v); },
@@ -905,14 +904,15 @@ constexpr OptionRow rows[] = {
    .whole = member([](auto &s) -> auto & { return s.adjoint.transpose.nrow; }), .rule = OptionRule::whole_positive, .maximum = option_limit::matrix_side, .saved = true, .wide = true},
   {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "transpose.row_skip", .help = "Transpose takes every this many rows of the stored data.",
    .whole = member([](auto &s) -> auto & { return s.adjoint.transpose.rowskip; }), .saved = true, .wide = true},
+  /* XPPAUT's picture color and font size (import only): an export is the panel as shown, in color at the page's size */
   {.name = "PS_COLOR", .dropped = picture_as_shown},
   {.name = "PS_FSIZE", .dropped = picture_as_shown},
-  {.group = option_group::interface, .kind = OptionKind::sliders, .odex = "sliders", .help = "The sliders the window offers: a parameter or variable each, with its range.", .once = true},
-  {.group = option_group::interface, .kind = OptionKind::text, .odex = "buttons", .help = "The buttons of the window, each running a command or a set.",.xppaut_names = {"BUT"}, 
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return add_user_button(s, v.text, v.apply);
-   },
-   .repeatable = true},
+  {.group = option_group::interface, .kind = OptionKind::sliders, .odex = "sliders", .help = "The sliders the window offers: a parameter or variable each, with its range.", .once = true,
+   .show = [](const Session &s) { return sliders_text(s.sliders); }, .saved = true},
+  {.group = option_group::interface, .kind = OptionKind::buttons, .odex = "buttons", .help = "The buttons of the window: a label and the command each runs.", .once = true,
+   .show = [](const Session &s) { return buttons_text(s.user_buttons); }, .saved = true},
+  /* XPPAUT's button (import only): `name:keys`, the letters of its menu keys, is a button running the command of ours that does what they did */
+  {.name = "BUT", .parse = [](Session &s, const OptionValue &v) -> const char * { return add_xppaut_button(s, v.text, v.apply); }, .repeatable = true},
   {.group = option_group::interface, .kind = OptionKind::path, .odex = "animation", .help = "The animation file the window plays beside a run.", .once = true,
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      if (!files::name_ok(v.text) || !files::has_extension(v.text, ".anix")) return "must be an .anix base name";
@@ -1402,6 +1402,11 @@ const OptionRow &curves_option()
   return *std::ranges::find(rows, OptionKind::curves, &OptionRow::kind);
 }
 
+const OptionRow &buttons_option()
+{
+  return *std::ranges::find(rows, OptionKind::buttons, &OptionRow::kind);
+}
+
 const OptionRow &slider_presets_option()
 {
   return *std::ranges::find(rows, OptionKind::sliders, &OptionRow::kind);
@@ -1417,7 +1422,7 @@ bool option_written_quoted(const OptionRow &row)
   return row.kind == OptionKind::path || row.kind == OptionKind::text;
 }
 
-std::vector<std::string> option_items(const OptionRow &row, std::string_view text)
+std::vector<std::string> option_item_lines(const OptionRow &row, std::string_view text)
 {
   std::vector<std::string> items;
   if (row.repeatable) {
@@ -1430,7 +1435,7 @@ std::vector<std::string> option_items(const OptionRow &row, std::string_view tex
 
 std::vector<std::string> option_values(const OptionRow &row, std::string_view text)
 {
-  std::vector<std::string> values = option_items(row, text);
+  std::vector<std::string> values = option_item_lines(row, text);
   if (option_written_quoted(row))
     for (std::string &value : values) value = odex::quote_string(value);
   return values;
@@ -1536,6 +1541,12 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
     if (!sliders) return sliders.error().what;
     if (apply) s.sliders = *sliders;
   }
+  else if (row->kind == OptionKind::buttons) {
+    const auto buttons = odex::read_block("options", s.model().this_file, "buttons: " + text, false,
+      [&](odex::Block &block) { return read_buttons(block); });
+    if (!buttons) return buttons.error().what;
+    if (apply) s.user_buttons = *buttons;
+  }
   else if (row->parse) {
     why = row->parse(s, v);
   }
@@ -1581,6 +1592,16 @@ std::vector<XppSlider> read_sliders(const Model &m, xpp::odex::Block &file, bool
     return sliders;
 }
 
+
+std::string sliders_text(const std::vector<XppSlider> &sliders)
+{
+    std::string text = "[";
+    for (const XppSlider &slider : sliders)
+        text += xpp::format("{} {{ name: {}, low: {}, high: {}, step: {} }}", text.size() > 1 ? "," : "",
+                            odex::is_bare_word(slider.var) ? slider.var : odex::quote_string(slider.var), odex::print_number(slider.lo),
+                            odex::print_number(slider.hi), odex::print_number(slider.step));
+    return text + (sliders.empty() ? "]" : " ]");
+}
 
 std::vector<PlotCurve> read_starting_curves(const Session *s, xpp::odex::Block &file)
 {

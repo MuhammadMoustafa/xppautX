@@ -65,9 +65,6 @@ struct TableEdit {
 };
 /* table index edited: its points, now evaluated or read, or why it could not be */
 Result<int> edit_table(Session &s, int index, const TableEdit &edit);
-/* the Tables menu's items (an imported button sequence's), asking for what the table.* commands take */
-void new_lookup_com(Session &s, int i);
-int select_table(const Session &s);
 /* the session s's table index is called name; every table back to none
    (a load's start) */
 void set_table_name(Session &s, std::string_view name, int index);

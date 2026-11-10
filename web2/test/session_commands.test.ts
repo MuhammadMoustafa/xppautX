@@ -37,10 +37,8 @@ test('opening a model, a recent model, an example and the source use the session
   session.openExample('lecar.odex');
   session.selectTextTab('source');
   session.runAction(4);
-  session.userButton(1);
   assert.deepEqual(sent, [{cmd: 'session.open_model'}, {cmd: 'session.open_model', recent: 2},
-    {cmd: 'session.open_model', example: 'lecar.odex'}, {cmd: 'session.get_source'}, {cmd: 'source.run_action', index: 4},
-    {cmd: 'button.run', index: 1}]);
+    {cmd: 'session.open_model', example: 'lecar.odex'}, {cmd: 'session.get_source'}, {cmd: 'source.run_action', index: 4}]);
 });
 
 test('the keymap is replaced in its parts, and leaving is session.quit with its save', () => {

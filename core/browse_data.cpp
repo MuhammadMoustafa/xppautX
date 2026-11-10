@@ -778,11 +778,6 @@ Result<DataSaved> save_data_file(const xpp::Session &s, std::optional<DataTarget
  return DataSaved{fil,*written?t.rows():0};
 }
 
-void data_write(const xpp::Session &s, std::optional<DataTarget> target, std::string_view format, std::string_view name)
-{
- ok_or_show(save_data_file(s,target,format,name));
-}
-
 void fit_data_block(xpp::Session &s)
 {
  const DATA_VIEW &b=s.data.view;

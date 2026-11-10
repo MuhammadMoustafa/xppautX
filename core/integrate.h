@@ -94,7 +94,6 @@ DenseEvent dense_event(Session &s, double from, double until, double step_from, 
    protocol's `equilibrium` `write`) */
 Result<> write_equilibrium(Session &s, const char *name, int shoot, bool confirm);
 void init_range(Session &s);
-int set_up_eq_range(Session &s);
 /* Continue (W213), the one way to extend the trajectory: to the time `until`, or for `extra` more,
    either rounded up to the output grid (Dt times Store every N steps) and appending rows at that
    stride; the end reached is the state's time */
@@ -112,17 +111,12 @@ Result<> resolve_range_items(const Session &s, RangeVars &range, bool two);
 int set_up_range(Session &s);
 int set_up_range2(Session &s);
 void init_monte_carlo(Session &s);
-void monte_carlo(Session &s);
 
 void swap_color(Session &s, Color *col, int rorw);
 void set_cycle(Session &s, int flag, int *icol);
 int do_range(Session &s, double *x, int flag);
-void find_equilib_com(Session &s, int com);
 Result<int> equilibrium_range(Session &s);
 int write_this_run(Session &s, const char *file, int i);
-/* XPPAUT's Initialconds items as an imported button sequence runs them (kbs.h), asking what the registry's
-   run.*, initial_conditions.* commands take as arguments */
-void do_init_data(Session &s, int com);
 void run_now(Session &s);
 
 /* the runs, the one core each front end's command calls (docs/protocol.md "run"). Every one returns whether
@@ -168,8 +162,6 @@ void arr_ic_start(Session &s);
 Result<std::vector<int>> set_ic_formula(Session &s, std::string_view variable, std::string_view formula);
 /* `size` states from `name` on set to the formula, its t the element's offset from the first (initial_conditions.set_by_array_formula) */
 Result<std::vector<int>> set_ic_array(Session &s, std::string_view name, int size, std::string_view formula);
-int set_array_ic(Session &s);
-int form_ic(Session &s);
 /* Node-only states preserve Markov initial data; full states replace both.
    Any other length is a programming error, rejected before writing. */
 void set_initial_data(Session &s, std::span<const double> state);

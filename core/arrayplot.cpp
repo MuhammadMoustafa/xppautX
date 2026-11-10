@@ -185,38 +185,6 @@ std::string get_root(std::string_view s, int *num)
 }
 
 
-/* the Edit key: the form asked, then array_plot.configure given what it said */
-void editaplot(xpp::Session &s, APLOT *ap)
-{
-  const char *n[]={"*0Column 1","NCols","Row 1","NRows","RowSkip",
-  "Zmin","Zmax","Autoplot(0/1)","ColSkip"};
- std::array<std::string, 9> values;
- values[0] = ap->name;
- values[1] = xpp::format("{:d}", ap->nacross);
- values[2] = xpp::format("{:d}", ap->nstart);
- values[3] = xpp::format("{:d}", ap->ndown);
- values[4] = xpp::format("{:d}", ap->nskip);
- values[5] = xpp::format("{:g}", ap->zmin);
- values[6] = xpp::format("{:g}", ap->zmax);
- values[7] = xpp::format("{:d}", s.array_plot.auto_redraw);
-values[8] = xpp::format("{:d}", ap->ncskip);
- static const int kinds[]={XPP_FIELD_NAME_IN(0),xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER,
-                           xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_NUMBER,xpp::XPP_FIELD_NUMBER,xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER};
- if(xpp::do_string_box_of(9,1,"Edit arrayplot",n,values,kinds)==0)return;
- /* every field read before any is set */
- xpp::TypedFields f(s);
- const int nacross=f.integer(n[1],values[1]),nstart=f.integer(n[2],values[2]),ndown=f.integer(n[3],values[3]);
- const int nskip=f.integer(n[4],values[4]);
- const double zmin=f.real(n[5],values[5]),zmax=f.real(n[6],values[6]);
- const int auto_redraw=f.integer(n[7],values[7]),ncskip=f.integer(n[8],values[8]);
- if(f.error()){
-   xpp::command_error("array plot",*f.error());
-   return;
- }
- xpp::ok_or_show(xpp::command::run_button(s,xpp::command::ResultObject().text("cmd","array_plot.configure").text("first_column",values[0])
-   .integer("columns",nacross).integer("first_row",nstart).integer("rows",ndown).integer("row_skip",nskip).real("z_min",zmin).real("z_max",zmax)
-   .boolean("auto_redraw",auto_redraw!=0).integer("column_skip",ncskip).done(),xpp::command_place()));
-}
 void close_aplot_files(xpp::Session &s, bool complete)
 {
   if(s.array_plot.still==0){

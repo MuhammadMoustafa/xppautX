@@ -293,26 +293,6 @@ std::string numerics_settings_json_value(const xpp::Session &s, std::string_view
     return text;
 }
 
-bool numerics_settings_ask(xpp::Session &s, std::string_view key)
-{
-    const OptionRow *f = numerics_option(key);
-    if (!f) return false;
-    const std::string prompt = xpp::format("{} :", f->label);
-    std::string text;
-    if (f->whole) {
-        text = xpp::format("{}", f->whole(s));
-        if (new_string_of(prompt.c_str(), text, XPP_FIELD_INTEGER) == 0 || text.empty()) return false;
-    } else {
-        double v = value_of(s, *f);
-        if (new_float(s, prompt.c_str(), &v) != 0) return false;
-        text = xpp::number(v);
-    }
-    std::string why;
-    if (numerics_settings_set(s, key, text, why) == 0) return true;
-    command_error("numerics", why);
-    return false;
-}
-
 std::vector<const OptionRow *> saved_settings()
 {
     std::vector<const OptionRow *> rows;
@@ -390,7 +370,7 @@ std::optional<std::string> value_problem(xpp::Session &s, const OptionRow &row, 
 std::optional<std::string> setting_problem(xpp::Session &s, const OptionRow &row, std::string_view text)
 {
     if (!row.repeatable) return value_problem(s, row, text);
-    for (const std::string &item : option_items(row, text))
+    for (const std::string &item : option_item_lines(row, text))
         if (const auto why = value_problem(s, row, item)) return why;
     return std::nullopt;
 }
@@ -400,7 +380,7 @@ void setting_write(xpp::Session &s, const OptionRow &row, std::string_view text)
     if (row.repeatable) {
         assert(row.reset != nullptr);
         row.reset(s);
-        for (const std::string &item : option_items(row, text)) set_option(s, option_name(row), item, true, nullptr);
+        for (const std::string &item : option_item_lines(row, text)) set_option(s, option_name(row), item, true, nullptr);
         return;
     }
     if (by_option(row)) return set_option(s, option_name(row), text, true, nullptr);

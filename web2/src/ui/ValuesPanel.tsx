@@ -283,14 +283,14 @@ function NumericsRows({group}: {group: OptionGroup}) {
 function UserButtonsBlock() {
   const session = useSession();
   const busy = !useMay()({cmd: 'button.run'});
-  const names = useStore(s => s.hello?.userbuttons ?? []);
-  if (!names.length) return null;
+  const buttons = useStore(s => s.hello?.userbuttons ?? []);
+  if (!buttons.length) return null;
   return (
     <section class="value-group" aria-label="Buttons">
       <div class="value-list value-buttons">
-        {names.map((name, i) => (
-          <button key={i} onClick={() => session.userButton(i)} disabled={busy}
-            title={busy ? BUSY_TITLE : 'A button defined in the ODE file'}>{name}</button>
+        {buttons.map((button, i) => (
+          <button key={i} onClick={() => session.registryAction(button.command)} disabled={busy}
+            title={busy ? BUSY_TITLE : `A button of the model: runs ${button.command}`}>{button.label}</button>
         ))}
       </div>
     </section>
