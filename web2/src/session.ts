@@ -31,7 +31,7 @@ import {planRequest} from './store/table';
 import {continuePlan, steadyRun} from './store/steady';
 import type {DockTab} from './store/dock';
 import type {TextTab} from './store/text';
-import {PopOuts, type ViewKey} from './popout';
+import {PopOuts, popOutRequest, type ViewKey} from './popout';
 import {fieldKey, valueCommands, type ValueSet} from './store/values';
 import {autoxSettingsCommands, commandSettings, type AutoxSettingsPatch} from './store/autoxSettings';
 
@@ -102,6 +102,8 @@ export class Session {
   private otherProtocol = false;
   /** commands whose completion has not arrived yet */
   private donesOwed = 0;
+  /** W622: the page's opening checked for an update (once a page, not at each model's hello; a pop-out never: its main window does) */
+  private updateChecked = false;
   /** a planned dialogue (T21: the axis dialog, autoX settings save and load):
       the asks its commands open are answered by these steps in order, until
       the commands' dones */
@@ -221,10 +223,13 @@ export class Session {
          direction fields and marks; values as base64 float32, which a long
          run needs */
       this.send({cmd: 'events.subscribe', events: ev.features, encoding: 'f32'});
-      /* W622: the opening's check for a newer release, when the core says one is due (preference on, none today) */
-      this.send({cmd: 'update.due'});
-      /* and an installer's file an earlier download kept (Later) is offered again until it is installed */
-      this.send({cmd: 'update.pending'});
+      if (!this.updateChecked && popOutRequest(globalThis.location?.hash ?? '') === null) {
+        this.updateChecked = true;
+        /* W622: the opening's check for a newer release, when the core says one is due (preference on, none today) */
+        this.send({cmd: 'update.due'});
+        /* and an installer's file an earlier download kept (Later) is offered again until it is installed */
+        this.send({cmd: 'update.pending'});
+      }
     } else if (ev.ev === 'kinescope.film') {
       this.onFilm(ev);
     } else if (ev.ev === 'ask') {
