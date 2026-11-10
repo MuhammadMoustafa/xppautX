@@ -13,7 +13,7 @@ inline constexpr std::array RUN_RANGE_ARGUMENTS = {
     set_by(Argument{"variable", Type::model_name, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::either}, "variable"),
     set_by(Argument{"start", Type::real, false}, "low"),
     set_by(Argument{"end", Type::real, false}, "high"),
-    set_by(Argument{"steps", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1)}, "steps"),
+    set_by(Argument{"steps", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_RANGE_STEPS)}, "steps"),
     set_by(Argument{"reset_storage", Type::boolean, false}, "reset"),
     set_by(Argument{"use_old_ic", Type::boolean, false}, "old_ic"),
     Argument{"cycle_color", Type::boolean, false},

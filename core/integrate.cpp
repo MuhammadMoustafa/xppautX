@@ -243,6 +243,15 @@ int set_up_eq_range(xpp::Session &s)
  return 1;
 }
 
+Result<std::int64_t> sweep_run_count(const Session &s, int steps, int steps2)
+{
+  /* both counts are int, so their product fits 64 bits: the check is on the runs, the sweep's indices being int */
+  const std::int64_t runs=(static_cast<std::int64_t>(steps)+1)*(static_cast<std::int64_t>(steps2)+1);
+  if(runs<=MAX_RANGE_RUNS)return runs;
+  return std::unexpected(Error{"Range",format("Range: a sweep of {} runs (steps = {}, steps2 = {}) is more than the {} a sweep takes; fewer steps on either axis",
+                                              runs,steps,steps2,MAX_RANGE_RUNS),settings_place(s.model(),{"sweep.steps"})});
+}
+
 namespace {
 /* what a range varies: item a parameter (PARAM) or else a variable (IC), and its index */
 xpp::Result<> find_range_item(const xpp::Session &s, const std::string &item, int *type, int *index)
@@ -825,12 +834,15 @@ xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const TakeFra
  cycle=s.integrator.range.cycle;
  dpar=(phigh-plow)/static_cast<double>(nit);
 
+nit2=0;
+if(s.integrator.range.rtype==RANGE_INDEPENDENT)nit2=s.integrator.range.steps2;
+ /* refused before anything below changes the Session; autoX's count (flag 2) is its diagram's, capped by its points limit */
+ if(flag!=2)
+   if(const Result<std::int64_t> count=sweep_run_count(s,nit,nit2); !count)return std::unexpected(count.error());
  get_ic(s,2,x);
  s.data_store.rows=0;
  s.numerics.storflag=true;
  s.numerics.pauser=false;
-nit2=0;
-if(s.integrator.range.rtype==RANGE_INDEPENDENT)nit2=s.integrator.range.steps2;
 if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
  alloc_liap(s,nit); /* make space */
  if(s.integrator.range.rtype!=RANGE_SINGLE){
@@ -849,7 +861,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
    autox_get_info(s, &nit,parn);
    nit2=0;
  }
- const int runs=(nit+1)*(nit2+1);
+ const std::int64_t runs=(static_cast<std::int64_t>(nit)+1)*(nit2+1); /* at most MAX_RANGE_RUNS for a range (sweep_run_count) */
  const std::size_t run_count=runs>0?static_cast<std::size_t>(runs):0; /* autoX's range over an empty diagram has none */
  RangeRuns plan;
  plan.type=itype;plan.type2=itype2;plan.index=ivar;plan.index2=ivar2;

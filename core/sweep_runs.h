@@ -15,6 +15,7 @@
 
    sweep_runs.cpp. */
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -33,7 +34,7 @@ std::string sweep_serial_reason(const Session &s);
 
 /* says, at INFO, that the runs of the sweep named (Range, Range Equilibria, Range Shoot) go one after another though the
    thread setting gave more than one thread, and why, when there is more than one run */
-void say_sweep_serial(const Session &s, std::string_view sweep, long runs, std::string_view why);
+void say_sweep_serial(const Session &s, std::string_view sweep, std::int64_t runs, std::string_view why);
 
 /* a worker for a sweep's runs: a Session of s's Model with the numerics, the parser's constants and variables, the
    tables, the global flags and the initial data s has now, room for `rows` rows, its own solver and generator. s is

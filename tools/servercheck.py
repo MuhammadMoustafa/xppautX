@@ -3796,6 +3796,24 @@ with tempfile.TemporaryDirectory(prefix='xppw678') as long_folder:
               and not any(e.get('ev') == 'job.stopped' for e in evs), str(errs)[:300])
     finally:
         stop_server(p, r, snd)
+    # W682: a two-parameter sweep whose runs ((steps1+1) x (steps2+1), 2500100001 here) pass an int's range is refused
+    # before it starts, naming its steps and the most runs a sweep takes (the product used to overflow int: it counted
+    # -1794867295 runs, and the sweep ended having run none, without a word)
+    sweep_model = os.path.join(long_folder, 'sweep.odex')
+    with open(sweep_model, 'w') as f:
+        f.write(versioned("x'=-a*x+b\ninit x=1\npar a=1,b=1\noptions { integration: { method: euler, dt: 1, total_time: 1 } }\n"))
+    p, r, snd, col, _ = launch_server(ode=sweep_model)
+    try:
+        col(lambda e: e.get('ev') == 'done')
+        snd(cmd='run.double_range', variable1='a', start1=0, end1=1, variable2='b', start2=0, end2=1,
+            steps1=50000, steps2=50000, vary='independently')
+        evs, _ = col(lambda e: e.get('ev') == 'done', timeout=60 * SLOW)
+        errs = [e.get('error', '') for e in evs if e.get('error')]
+        check('W682: a sweep of 2500100001 runs (past 2^31) is refused before it starts, naming its steps and the most runs',
+              any('2500100001' in x and '2147483647' in x and 'steps = 50000' in x and 'steps2 = 50000' in x for x in errs)
+              and not any(e.get('ev') == 'job.stopped' for e in evs), str(errs)[:300])
+    finally:
+        stop_server(p, r, snd)
 
 send(cmd='equilibrium.find')
 evs, _ = collect(is_done)

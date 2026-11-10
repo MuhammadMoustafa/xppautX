@@ -4,6 +4,7 @@
 #include "xpp_math.h"
 #include <functional>
 #include <array>
+#include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <limits>
@@ -205,6 +206,15 @@ struct RangeVars {
   double plow, phigh, plow2, phigh2;
   int rtype;
 };
+
+/* The most steps one axis of a sweep takes: steps+1 runs fit an int, the largest a single range (and a steps argument) takes.
+   The most runs a sweep makes: a run's number, its indices and its seed are int, so a sweep's runs (steps+1 times steps2+1)
+   must fit one (W682: the product overflowed int at 2^31). */
+inline constexpr int MAX_RANGE_STEPS = std::numeric_limits<int>::max() - 1;
+inline constexpr std::int64_t MAX_RANGE_RUNS = std::numeric_limits<int>::max();
+/* A sweep's run count for steps and steps2 (steps2 0 for a single range), refused before the sweep starts when it is past
+   MAX_RANGE_RUNS, naming the steps and the setting they came from (W682). */
+Result<std::int64_t> sweep_run_count(const Session &s, int steps, int steps2);
 
 /* the right-hand side the solvers step, rhs(t, y, ydot, neq): a function
    of the Session it is bound to (the load binds my_rhs to its Session), so

@@ -124,6 +124,9 @@ Result<std::string> run_double_range_handler(Session &s, const Command &, const 
     if (const auto files = args.optional<bool>("write_each_run_to_file")) range.write_files = *files;
     if (const Result<> items = resolve_range_items(s, range, true); !items) return std::unexpected<Error>(items.error());
     if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
+    /* refused before the settings are applied: the command changes nothing when its runs are too many (W682) */
+    if (const Result<std::int64_t> runs = sweep_run_count(s, range.steps, range.rtype == RANGE_INDEPENDENT ? range.steps2 : 0); !runs)
+        return std::unexpected<Error>(runs.error());
     s.integrator.range = range;
     RangeProgress done;
     const Result<int> swept = run_range(s, 1, &done);
@@ -273,8 +276,8 @@ constexpr std::array DOUBLE_RANGE_ARGUMENTS = {
     Argument{"variable2", Type::model_name, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::either},
     Argument{"start2", Type::real, false},
     Argument{"end2", Type::real, false},
-    Argument{"steps1", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1)},
-    Argument{"steps2", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1)},
+    Argument{"steps1", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_RANGE_STEPS)},
+    Argument{"steps2", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_RANGE_STEPS)},
     Argument{"vary", Type::choice, false, MAX_TEXT_BYTES, VARY_CHOICES},
     Argument{"reset_storage", Type::boolean, false},
     Argument{"use_old_ic", Type::boolean, false},

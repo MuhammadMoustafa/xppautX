@@ -29,7 +29,7 @@ std::string sweep_serial_reason(const Session &s)
     return {};
 }
 
-void say_sweep_serial(const Session &s, std::string_view sweep, long runs, std::string_view why)
+void say_sweep_serial(const Session &s, std::string_view sweep, std::int64_t runs, std::string_view why)
 {
     if (runs > 1 && s.thread_budget() > 1)
         log(XPP_LOG_INFO, "{}: the {} runs go one after another, not on {} threads: {}\n", sweep, runs, s.thread_budget(), why);
