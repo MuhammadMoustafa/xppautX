@@ -2086,6 +2086,15 @@ panel, `""` for none), `label` its last part as words, `kind` one of `number`, `
 the model's sets: its value, in `options.get` and `options.configure`, is the checked names, one per line in the model's order, `""` for none, and a
 value given replaces the whole list (the `.odex` repeats the key, one name each); the page shows the model's sets as a check list.
 
+**Model features** (W649, core/model_features.h): `hello.model_features` is the one list of what a model has that some settings and commands need,
+`[{name, present, needs}]` in a fixed order: `delays` (a model with delay terms), `boundary_conditions` (a model that wrote boundary conditions),
+`integral_terms` (integral equations) and `formula_tables` (a `table`), each `needs` the reason a row for it is not for a model without it
+("needs a model with delays"). A settings row (`hello.options[].rows[]`) and a command row (`hello.commands[]`) may carry `needs`, a feature's name. The
+page leaves such a row out of a settings panel, and such a command out of its menu (a menu left with no entry goes too), and Search commands lists
+the command greyed with the reason; the numerics event and `set` take no setting of a feature the model lacks, and running a command of one is an
+error saying which command needs what ("Run › Boundary values › Solve needs a model with boundary conditions"). A file of ours still holds the
+values of every setting, so a model with a feature added keeps its values.
+
 **`options.get`** (`group`, and `window` for the plot group's graph) answers `{group, values, unavailable}`: each row of the group the
 session's method and model use, its value as text (a boolean `true` or `false`, a choice its name, a color as the core writes it), and
 the choices the model cannot have, by row and name, with why. **`options.configure`** (`group`, `values`: a map of keys to texts, `window`)

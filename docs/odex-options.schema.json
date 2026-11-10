@@ -30,7 +30,7 @@
         "jacobian.band_upper": {"type": "integer", "minimum": 0, "maximum": 100000, "title": "Jacobian band upper", "description": "The diagonals above the main one that a banded Jacobian keeps."},
         "jacobian.band_lower": {"type": "integer", "minimum": 0, "maximum": 100000, "title": "Jacobian band lower", "description": "The diagonals below the main one that a banded Jacobian keeps."},
         "delay.max_delay": {"type": "number", "minimum": 0, "title": "Maximal delay", "description": "The longest delay a model uses; it sets how much history is kept."},
-        "delay.history_points": {"type": "integer", "minimum": 1, "maximum": 10000000, "title": "Delay history points", "description": "How many past points of the history a delay model keeps."},
+        "delay.history_points": {"type": "integer", "minimum": 1, "maximum": 10000000, "title": "Delay history points", "description": "How many past points of the history the Volterra method keeps for an integral equation."},
         "delay.real_guess": {"type": "number", "title": "Delay real guess", "description": "The largest real part the search for a delay equilibrium's eigenvalues looks for."},
         "delay.imaginary_guess": {"type": "number", "title": "Delay imaginary guess", "description": "The largest imaginary part the search for a delay equilibrium's eigenvalues looks for."},
         "delay.grid": {"type": "integer", "minimum": 1, "title": "Delay grid", "description": "How many points a side the grid of a delay equilibrium's eigenvalue search has."},

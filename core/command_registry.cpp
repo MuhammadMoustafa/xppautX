@@ -186,6 +186,10 @@ void append_command(std::string &out, const Command &command)
     }
     out += ",\"action\":";
     json_append_string(out, *command.action ? command.action : command.kind == XPP_KIND_SETTING ? "Apply" : command.label);
+    if (command.needs != Feature::none) {
+        out += ",\"needs\":";
+        json_append_string(out, feature_info(command.needs).name);
+    }
     if (*command.panel) {
         out += ",\"panel\":";
         json_append_string(out, command.panel);
@@ -376,6 +380,7 @@ Result<std::string> run(Session &s, const char *line, const Place &place, bool p
     if (!command) return fail("command", "Unknown registry command", place);
     Result<Arguments> args = validate(&s, *command, line, place, paths_allowed);
     if (!args) return std::unexpected<Error>(args.error());
+    if (!has_feature(s, command->needs)) return fail(command->name, xpp::format("{} {}", full_name(*command), feature_info(command->needs).needs), place);
     if (args->has(FILE_PICKER_KEY)) {
         const Argument *file_arg = picker_argument(*command);
         std::string file = args->get<std::string>(file_arg->name);

@@ -1230,6 +1230,8 @@ void send_hello(xpp::Session &s)
     BUF_LIT(b,",\"aplot\":");buf_str(b,xpp::window_name(s,WIN_APLOT));BUF_LIT(b,",\"data\":");buf_str(b,std::string(xpp::DATA_WINDOW));BUF_LIT(b,"}");
     BUF_LIT(b, ",\"options\":");
     b += xpp::options_table_json(s);
+    BUF_LIT(b, ",\"model_features\":");
+    b += xpp::model_features_json(s);
     buf_commands(b);
     buf_point_types(b);
     buf_file_formats(b);

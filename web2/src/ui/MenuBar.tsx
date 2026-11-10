@@ -98,7 +98,7 @@ export function MenuBar() {
     disabled={!may({cmd: node.row.id})} onClick={() => {close(); session.registryAction(node.row!.id);}}>
     {node.name} {keyChip(effectiveKeys(info, node.row))}</button></li>}
     : {menu: true, el: <li key={node.name}><details><summary>{node.name}</summary><ul role="menu">{withRules(node.children.map(entry))}</ul></details></li>};
-  const tree = menuTree(registryRows(hello));
+  const tree = menuTree(registryRows(hello), hello);
   const order = ['File', 'Run', 'Analysis', 'Plot', 'Data', 'autoX', 'Windows', 'Help'];
   const windowNodes = tree.find(node => node.name === 'Windows')?.children ?? [];
   const newWindows = windowNodes.filter(node => node.row?.id === 'window.new' || node.row?.id === 'autox.new_view')

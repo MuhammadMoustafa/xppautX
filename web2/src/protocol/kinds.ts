@@ -42,6 +42,8 @@ export interface CommandKind {
   /** its full name everywhere else: the menu path and the label, derived by the core */
   name?: string;
   menu_path?: string;
+  /** the model feature it is for (hello.model_features) */
+  needs?: string;
   /** the option group whose generated panel opens in place of this command's own form (core Command::panel) */
   panel?: string;
   action?: string;
@@ -62,6 +64,8 @@ export interface CommandRow {
   file_wild?: string;
   /** the groups above the label in the menu bar (`File/Sets`), none for a row with no menu place */
   menu_path?: string;
+  /** the model feature it is for (hello.model_features): without it the menu leaves it out and Search commands lists it greyed */
+  needs?: string;
   /** the option group whose panel opens in place of a form */
   panel?: string;
   /** the action's text in a form's footer, named for what it does (the row's own, never Run or OK) */

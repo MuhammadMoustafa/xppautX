@@ -20,6 +20,7 @@
 #include "data_event.h"
 #include "model.h"
 #include "model_files.h"
+#include "model_features.h"
 #include "model_options.h"
 #include "json_number.h"
 #include "numerics.h"
@@ -52,7 +53,6 @@ bool uses(const xpp::Session &s, const OptionRow &f, int method)
     case OptionUse::min_step: return t.min_step;
     case OptionUse::max_step: return t.max_step;
     case OptionUse::newton: return t.newton;
-    case OptionUse::delays: return s.model().ndelays > 0;
     case OptionUse::integral_history: return t.integral_history;
     }
     return true;
@@ -62,7 +62,7 @@ bool uses(const xpp::Session &s, const OptionRow &f, int method)
 bool used(const xpp::Session &s, const OptionRow &f) { return uses(s, f, s.numerics.method); }
 
 /* whether field f is one of s's model's: the delay of a model with no delays is not */
-bool used_or_hidden(const xpp::Session &s, const OptionRow &f) { return f.use != OptionUse::delays || used(s, f); }
+bool of_the_model(const xpp::Session &s, const OptionRow &f) { return xpp::has_feature(s, f.needs); }
 
 double value_of(const xpp::Session &s, const OptionRow &f)
 {
@@ -136,7 +136,7 @@ std::string event_text(const xpp::Session &s)
     std::string o = xpp::events::open(xpp::events::RUN_NUMERICS) + ",\"fields\":[";
     bool first = true;
     for (const OptionRow &f : fields()) {
-        if (f.use == OptionUse::delays && !used(s, f)) continue; /* no delays: no field */
+        if (!of_the_model(s, f)) continue; /* a feature the model lacks: no field */
         o += xpp::format("{}{{\"key\":\"{}\",\"label\":", first ? "" : ",", f.key);
         first = false;
         xpp::json_append_string(o, f.label);
@@ -217,7 +217,7 @@ int numerics_settings_check(xpp::Session &s, std::string_view key, std::string_v
 {
     const OptionRow *f = numerics_option(key);
     double v = 0;
-    if (!f || (f->use == OptionUse::delays && !used(s, *f))) {
+    if (!f || !of_the_model(s, *f)) {
         why = xpp::format("no numerics setting {}", key);
         return -1;
     }
@@ -235,7 +235,7 @@ int check_values(Session &s, std::span<const NumericsValue> values, std::vector<
     for (const NumericsValue &given : values) {
         const OptionRow *field = numerics_option(given.key);
         double value = 0;
-        if (!field || (field->use == OptionUse::delays && !used(s, *field))) {
+        if (!field || !of_the_model(s, *field)) {
             why = xpp::format("no numerics setting {}", given.key);
             return -1;
         }
@@ -330,7 +330,9 @@ const OptionRow *saved_setting(std::string_view name)
 
 bool setting_applies(const xpp::Session &s, const OptionRow &row, int method)
 {
-    if (!row.key.empty()) return used_or_hidden(s, row);
+    /* the files hold every setting of a model but the delays of one without delays (the format's own rule: a session of a model with no
+       boundary conditions still holds its bvp_ keys) */
+    if (!row.key.empty()) return row.needs != xpp::Feature::delays || of_the_model(s, row);
     return uses(s, row, method);
 }
 

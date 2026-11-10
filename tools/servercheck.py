@@ -3209,6 +3209,51 @@ def check_registry_labels(table):
 check_registry_labels([c for c in hello.get('commands', []) if 'arguments' in c])
 
 
+# W649 (#722): what a model has that some settings and commands need is one list, computed once in the core and sent in hello; a row
+# (an option's or a command's) names the feature it needs, and a command whose feature the model lacks is refused with the reason
+FEATURE_MODELS = {'lecar.odex': [], 'dde.odex': ['delays'], 'dumbbvp.odex': ['boundary_conditions'], 'voltex1.odex': ['integral_terms'],
+                  'clustor.odex': ['formula_tables']}
+
+
+def check_model_features():
+    for model, present in FEATURE_MODELS.items():
+        p, r, snd, col, _ = launch_server(ode=os.path.join('examples', 'ode', model))
+        try:
+            initial, _ = col(is_done)
+            hello_here = next(e for e in initial if e.get('ev') == 'hello')
+            got = [f['name'] for f in hello_here['model_features'] if f['present']]
+            check('W649: %s has the features %s' % (model, present), got == present, str(hello_here['model_features']))
+            snd(cmd='events.subscribe', events=['run.numerics'])
+            evs, _ = col(is_done)
+            keys = {f['key'] for e in evs if e.get('ev') == 'run.numerics' for f in e['fields']}
+            check('W649: %s\'s numerics hold the delay and boundary value settings exactly when the model has the feature' % model,
+                  ('delay' in keys) == ('delays' in present) and ('bvp_tolerance' in keys) == ('boundary_conditions' in present), str(sorted(keys)))
+            snd(cmd='boundary_value.solve', show=False)
+            evs, _ = col(is_done)
+            done = next(e for e in reversed(evs) if e.get('ev') == 'done')
+            reason = 'Run \u203a Boundary values \u203a Solve needs a model with boundary conditions'
+            check('W649: %s: Solve a boundary value problem %s' % (model, 'runs' if 'boundary_conditions' in present else 'is refused with the reason'),
+                  (reason not in done.get('error', '')) if 'boundary_conditions' in present else (done.get('status') == 'error' and reason in done.get('error', '')), str(done))
+            if 'boundary_conditions' in present:
+                snd(cmd='boundary_value.configure', max_iterates=7, tolerance=1e-7, epsilon=1e-5)
+                evs, _ = col(is_done)
+                done = next(e for e in reversed(evs) if e.get('ev') == 'done')
+                check('W521: boundary_value.configure sets the shooting numerics together',
+                      done.get('result', {}).get('settings') == {'bvp_max_iterates': 7, 'bvp_tolerance': 1e-7, 'bvp_epsilon': 1e-5}, str(done))
+        finally:
+            stop_server(p, r, snd)
+    needs = {c['cmd']: c.get('needs') for c in hello.get('commands', []) if c.get('needs')}
+    check('W649: the boundary value and table commands name their feature, one list for hello and the rows',
+          needs == {'boundary_value.solve': 'boundary_conditions', 'boundary_value.solve_range': 'boundary_conditions', 'boundary_value.configure': 'boundary_conditions',
+                    'table.edit': 'formula_tables', 'table.show': 'formula_tables'}, str(needs))
+    option_needs = sorted({row.get('needs') for group in hello.get('options', []) for row in group['rows'] if row.get('needs')})
+    check('W649: the option rows name only features hello lists', set(option_needs) <= {f['name'] for f in hello['model_features']}
+          and option_needs == ['boundary_conditions', 'delays', 'integral_terms'], str(option_needs))
+
+
+check_model_features()
+
+
 # W636 (#708): nothing writes a command's name again. In web2/src no string a control shows is a row's label (the
 # few that are the same words for another thing are named here, each with its reason), and no menu path the manual
 # names (`File > Sets`, `File/Save session`) is one that no row has. A name on the page comes from the row.
@@ -11749,8 +11794,8 @@ def check_run_registry():
         got = ok('initial_conditions.import reads the file of the model folder', {'cmd': 'initial_conditions.import', 'file': 'start.ic'}, {'file': 'start.ic', 'applied': None})
         check('W521: initial_conditions.import applied the values', got.get('applied', {}).get('V') == -0.2 and got['applied'].get('W') == 0.1, str(got))
         done, _ = call(cmd='boundary_value.configure', max_iterates=7, tolerance=1e-7, epsilon=1e-5)
-        check('W521: boundary_value.configure sets the shooting numerics together',
-              done.get('result', {}).get('settings') == {'bvp_max_iterates': 7, 'bvp_tolerance': 1e-7, 'bvp_epsilon': 1e-5}, str(done))
+        check('W649: boundary_value.configure on a model with no boundary conditions is refused with the reason (W521: dumbbvp sets them together)',
+              done.get('status') == 'error' and 'needs a model with boundary conditions' in done.get('error', ''), str(done))
         refused('boundary_value.configure with no iterations', {'cmd': 'boundary_value.configure', 'max_iterates': 0}, 'max_iterates')
         refused('boundary_value.solve without show', {'cmd': 'boundary_value.solve'}, 'show')
         refused('boundary_value.solve_periodic with a name that is no parameter', {'cmd': 'boundary_value.solve_periodic', 'frequency_parameter': 'v', 'section_variable': 'v', 'section': 0, 'show': False}, 'parameter')

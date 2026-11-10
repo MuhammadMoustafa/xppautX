@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {registryRows, menuTree, paletteRows} from '../src/ui/navigation';
+import {registryRows, menuTree, paletteRows, featureLack} from '../src/ui/navigation';
 import {argumentSpec, argumentNames, argumentProblem, commandValues, formValues, argumentControl, blankArgument} from '../src/ui/argumentFields';
 import {REGISTRY_HELLO} from './hello';
 import {initialState} from '../src/store/state';
@@ -13,7 +13,7 @@ test('W517: every registry command with a menu place appears exactly once in the
     if (n.row) {found.push(n.row.id); assert.equal(path.join('/'), n.row.menu_path); assert.equal(n.name, n.row.label);}
     walk(n.children, [...path, n.name]);
   });
-  walk(menuTree(rows), []);
+  walk(menuTree(rows, REGISTRY_HELLO), []);
   const placed = rows.filter(r => r.menu_path);
   assert.deepEqual(found.sort(), placed.map(r => r.id).sort());
   assert.ok(placed.length > 150);
@@ -33,8 +33,17 @@ test('W647: the window (its __xppCloseWindow bound) has no Quit; a browser has i
 });
 test('W636: a row with no menu place has a label but no place in the tree, and a row is shown by its label', () => {
   const bare = {...rows[0], id: 'x.bare', menu_path: '', label: 'Bare'};
-  assert.deepEqual(menuTree([bare]), []);
-  assert.deepEqual(menuTree([{...bare, menu_path: 'File/Sets'}]).map(n => [n.name, n.children.map(c => c.name), n.children[0].children.map(c => c.name)]), [['File', ['Sets'], ['Bare']]]);
+  assert.deepEqual(menuTree([bare], REGISTRY_HELLO), []);
+  assert.deepEqual(menuTree([{...bare, menu_path: 'File/Sets'}], REGISTRY_HELLO).map(n => [n.name, n.children.map(c => c.name), n.children[0].children.map(c => c.name)]), [['File', ['Sets'], ['Bare']]]);
+});
+test('W649: a row that needs a feature the model lacks has no place in the menu tree, and its reason is the feature\'s', () => {
+  const needing = {...rows[0], id: 'x.needs', menu_path: 'Run/Boundary values', label: 'Solve', needs: 'boundary_conditions'};
+  const hello = (present: boolean) => ({...REGISTRY_HELLO, model_features: [{name: 'boundary_conditions', present, needs: 'needs a model with boundary conditions'}]});
+  assert.deepEqual(menuTree([needing], hello(false)), []);
+  assert.equal(menuTree([needing], hello(true))[0].children[0].children[0].row?.id, 'x.needs');
+  assert.equal(featureLack(hello(false), 'boundary_conditions'), 'needs a model with boundary conditions');
+  assert.equal(featureLack(hello(true), 'boundary_conditions'), null);
+  assert.equal(featureLack(hello(false), undefined), null);
 });
 test('W517: palette matches each word in names, menu places and descriptions', () => {
   assert.ok(paletteRows(rows, 'session save').some(r => r.id === 'session.save'));

@@ -11,6 +11,7 @@ import {Control, FormRow, focusFirstError, useFeedback, type Feedback} from './F
 import {useSession, useStore} from './context';
 import {Dialog} from './Dialog';
 import {useDark} from './theme';
+import {featureLack} from './navigation';
 
 /** the one registry command that holds a group's settings; the output group's has the file dialog's picker besides (core commands_options.cpp) */
 const OUTPUT_GROUP = 'output';
@@ -43,7 +44,9 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
   const unavailable = stored?.unavailable ?? {};
   const names = [...new Set([...(lists[0] ?? []), ...(lists[3] ?? [])])];
   const sets = useStore(s => s.core?.sets ?? []).map(set => set.name);
-  const rows = sections ? group.rows.filter(row => sections.includes(row.section)) : group.rows;
+  const hello = useStore(s => s.hello);
+  /* a row for a feature the model lacks is not shown (hello.model_features) */
+  const rows = (sections ? group.rows.filter(row => sections.includes(row.section)) : group.rows).filter(row => !featureLack(hello, row.needs));
   const shown = (row: OptionRow) => drafts[row.key] ?? values?.[row.key] ?? '';
   const used = (row: OptionRow) => values !== null && row.key in values;
   const changed = rows.filter(row => row.key in drafts && drafts[row.key] !== values?.[row.key]);

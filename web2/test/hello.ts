@@ -99,6 +99,7 @@ export const HELLO: HelloEvent = {
   point_types: POINT_TYPES,
   file_formats: FILE_FORMATS,
   autox_run: {kinds: ['equilibrium', 'periodic'], current: ['equilibrium'], rows: []},
+  model_features: [],
   state_inspection: {tail_intervals: 10}, protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: [],
   output_names: {csv: 'lecar.csv', curves: 'lecar-curves.csv'},
   continue: {grid_tolerance: 1e-6},

@@ -181,6 +181,8 @@ const S = expr => cdp.eval(`(() => { const s = __xpp.state(), w = ${ACTIVE}; ret
 /* a command's name as the page shows it: the row's label from hello (W636), never a copy written here */
 const labelsOf = ids => S(`${JSON.stringify(ids)}.map(id => s.hello.commands.find(c => c.cmd === id).label)`);
 const labelOf = async id => (await labelsOf([id]))[0];
+/* its full name (W650): the menu path and the label, as Search commands, the status line and a recording's steps show it */
+const nameOf = id => S(`s.hello.commands.find(c => c.cmd === ${JSON.stringify(id)}).name`);
 /* Reads acknowledge the component callbacks, CSS transitions and the
    ResizeObserver delivery before measuring geometry or drawing data. */
 const rawP = () => cdp.eval('__xpp.plot()');
@@ -866,7 +868,7 @@ async function dataTable(want, dir) {
     if (t) labels.add(t);
     await key('Tab');
   }
-  const expect = ['Back to Values', ...await labelsOf(['data.load']), ...(await labelsOf(['data.export'])).map(l => l + ' ▾'), ...await labelsOf(['data.find']),
+  const expect = ['Back to Values', ...await labelsOf(['data.load']), ...(await S(`[s.hello.commands.find(c => c.cmd === 'data.export').menu_path.split('/').pop() + ' ▾']`)), ...await labelsOf(['data.find']),
     'Rows ▾', 'Columns ▾', ...[...labels].filter(l => /^Use row \d+ as initial conditions$/.test(l))];
   check('every control of the table panel (the menus, and the row button) is reachable by Tab', expect.length === 7 && expect.every(l => labels.has(l)), JSON.stringify([[...labels], expect]));
 
@@ -879,10 +881,10 @@ async function dataTable(want, dir) {
     JSON.stringify(await menuLabels('Rows')) === JSON.stringify(await labelsOf(['data.set_slice_start', 'data.set_slice_end', 'data.restore_full_slice']))
     && JSON.stringify(await menuLabels('Columns')) === JSON.stringify(await labelsOf(['data.add_column', 'data.replace_column', 'data.delete_column', 'data.undo_replace', 'data.tabulate_column', 'data.transpose'])),
     JSON.stringify([await menuLabels('Rows'), await menuLabels('Columns')]));
-  check('W648: Edit table left the table toolbar and is reachable in Analysis > Tables',
+  check('W648: Edit table left the table toolbar; it is Analysis > Tables > Edit, and lecar has no table (W649: no entry)',
     !await cdp.eval(`!!document.querySelector('.table-tools [data-command="table.edit"]')`)
     && await cdp.eval(`__xpp.state().hello.commands.find(c => c.cmd === 'table.edit').menu_path`) === 'Analysis/Tables'
-    && await cdp.eval(`!![...document.querySelectorAll('.app-menu [data-command="table.edit"]')].length`));
+    && !await cdp.eval(`!![...document.querySelectorAll('.app-menu [data-command="table.edit"]')].length`));
   /* a wide panel (widened here by its column's variable) shows the groups as buttons, More holding the rest */
   await cdp.eval(`document.querySelector('.shell').style.setProperty('--values-col', '52rem')`);
   const wideForm = await until(`getComputedStyle(document.querySelector('.table-wide')).display !== 'none'`, 'wide toolbar');
@@ -2754,8 +2756,8 @@ async function busyKeys() {
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
     + 'and data (Initialconds, Sing pts...) are disabled, Parameters and Load (settings, W106) are not',
-    running && ui.status === `Running ${await labelOf('run.initial')}… Esc stops` && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.load
-    && ['run.initial', 'equilibrium.find', 'boundary_value.solve', 'session.save'].every(id => ui.off.includes(id)) && !ui.off.includes('value.set_parameters') && !ui.off.includes('run.configure'), JSON.stringify(ui));
+    running && ui.status === `Running ${await nameOf('run.initial')}… Esc stops` && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.load
+    && ['run.initial', 'equilibrium.find', 'run.shoot', 'session.save'].every(id => ui.off.includes(id)) && !ui.off.includes('value.set_parameters') && !ui.off.includes('run.configure'), JSON.stringify(ui));
   check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File, and the menus holding a view: Nullcline, Dir.field, Kinescope, Graphic stuff), New window and Stop stay enabled',
     ui.viewItems && !ui.newWindow && !ui.stop, JSON.stringify(ui));
   /* A window.new sent during the run is queued by the core and creates
@@ -2914,7 +2916,7 @@ async function recordCheck(dir) {
   const file = path.join(dir, 'web.recx');
   const lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split(/\r?\n/) : [];
   const at = lines.indexOf('@steps');
-  const initialLabel = await labelOf('run.initial');
+  const initialLabel = await nameOf('run.initial');
   check('record: web.recx holds the model and the step, its note above it, the button named',
     lines[0] === 'version 4' && lines[1] === 'session {' && lines.includes('@file lecar.odex') && at > 0
     && lines[at + 1] === '# First run.' && lines[at + 2] === '# It settles.'
@@ -3233,7 +3235,10 @@ async function optionsCheck() {
   /* a choice's label: a file format as written (W653), any other capitalised */
   const formats = await S('s.hello.file_formats');
   const label = name => formats.includes(name) ? name : name.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
-  for (const g of groups) {
+  /* W649: a row for a feature the model lacks is not in a panel */
+  const lacking = new Set(await S(`s.hello.model_features.filter(f => !f.present).map(f => f.name)`));
+  for (const whole of groups) {
+    const g = {...whole, rows: whole.rows.filter(r => !lacking.has(r.needs))};
     await cdp.eval(`__xpp.openOptions(${JSON.stringify(g.group)})`);
     await requireUntil(`s.optionsPanel?.group === ${JSON.stringify(g.group)} && s.optionValues[${JSON.stringify(g.group)}]`, `the ${g.group} panel's values`);
     await rendered();
@@ -3417,6 +3422,13 @@ async function menuShots() {
       fs.writeFileSync(path.join(dir, `menu-${name}-${size}.png`), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
     }
     await cdp.eval(`(() => { for (const d of document.querySelectorAll('.app-menu details')) d.open = false; if (document.querySelector('.app-menu.open')) document.querySelector('.menu-toggle').click(); })()`);
+    /* W649: a command the model cannot use, greyed in Search commands with its reason */
+    await clickRegistry('command_palette.open');
+    await until('s.drawerOpen', 'palette');
+    await cdp.eval(`(() => {const q = document.querySelector('#command-search'); q.value = 'boundary'; q.dispatchEvent(new Event('input', {bubbles: true}));})()`);
+    await rendered();
+    fs.writeFileSync(path.join(dir, `palette-boundary-${size}.png`), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+    await key('Escape');
   }
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
@@ -3632,7 +3644,10 @@ async function dialogsCheck() {
 
 async function navigationCheck() {
   await desktopMetrics();
-  const rows = await S('s.hello.commands.filter(c => c.arguments !== undefined)');
+  /* W649: a command for a feature the model lacks has no menu entry (featuresCheck looks at those) */
+  const lacking = new Set(await S(`s.hello.model_features.filter(f => !f.present).map(f => f.name)`));
+  const everyRow = await S('s.hello.commands.filter(c => c.arguments !== undefined)');
+  const rows = everyRow.filter(c => !lacking.has(c.needs));
   check('W517: eight page menus in the specified order', await cdp.eval(`JSON.stringify([...document.querySelectorAll('.app-menu > details > summary')].map(n => n.textContent)) === JSON.stringify(['File','Run','Analysis','Plot','Data','autoX','Windows','Help'])`));
   const ids = await cdp.eval(`[...document.querySelectorAll('.app-menu [data-command]')].map(b => b.dataset.command).sort()`);
   check('W517: one menu item per registry row with a menu place (W637: the rest are a view\'s controls and the palette\'s)',
@@ -3678,7 +3693,7 @@ async function navigationCheck() {
   await clickRegistry('command_palette.open');
   check('W642: the menu bar entry, the dialog and its Help item say Search commands',
     await cdp.eval(`document.querySelector('.menu-search').textContent.trim() === 'Search commands' && document.querySelector('.command-palette h2').textContent.trim() === 'Search commands' && document.querySelector('.command-palette [data-command="command_palette.open"]').textContent.includes('Search commands')`));
-  check('W517: palette contains every registry command', await until(`s.drawerOpen && document.querySelectorAll('.command-palette [data-command]').length === ${rows.length}`, 'palette'));
+  check('W517: palette contains every registry command', await until(`s.drawerOpen && document.querySelectorAll('.command-palette [data-command]').length === ${everyRow.length}`, 'palette'));
   /* W650: inside its menu a command is its short label, outside it (Search commands) its full name, both from hello's row */
   const exportPdf = await S(`s.hello.commands.find(c => c.cmd === 'plot.export_pdf')`);
   check('W650: the row has a short label and a full name made of its menu path and label',
@@ -3705,6 +3720,37 @@ async function navigationCheck() {
 /* W634: one top menu open at a time; pointing at another title opens it while one is open; Left and
    Right move between the top menus, Up and Down through the open one's entries; Escape closes it and
    returns the focus to its title; a window's submenu closes its sibling and not Windows. */
+/* W649 (#722): what a model has decides what the page shows. `has` is the features the model has, `lacks` the ones it does not: a settings row, a menu
+   entry (and a menu whose entries all go) for a feature it lacks are not there, and Search commands lists the command greyed with the reason. */
+async function featuresCheck(has, lacks) {
+  await desktopMetrics();
+  const feature = {boundary_conditions: ['boundary_value.solve', 'Boundary values', 'boundary_value.max_iterates'], formula_tables: ['table.edit', 'Tables', null],
+    delays: [null, null, 'delay.max_delay'], integral_terms: [null, null, 'delay.history_points']};
+  const model = await S('s.hello.model_features.filter(f => f.present).map(f => f.name)');
+  check(`W649: the model has the features ${JSON.stringify(has)}`, JSON.stringify(model) === JSON.stringify(has), JSON.stringify(model));
+  await clickRegistry('run.configure');
+  await until(`!!document.querySelector('[data-options-panel]')`, 'integration panel');
+  const rowsShown = await cdp.eval(`[...document.querySelectorAll('[data-options-panel] [data-argument]')].map(e => e.dataset.argument)`);
+  await key('Escape');
+  await clickRegistry('command_palette.open');
+  await until('s.drawerOpen', 'palette');
+  for (const [name, [command, menu, row]] of Object.entries(feature)) {
+    const present = has.includes(name);
+    if (command) {
+      const inMenu = await cdp.eval(`!!document.querySelector('.app-menu [data-command="${command}"]')`);
+      const palette = await cdp.eval(`(() => { const b = document.querySelector('.command-palette [data-command="${command}"]'); return b && {disabled: b.disabled, title: b.title}; })()`);
+      const reason = await S(`s.hello.model_features.find(f => f.name === '${name}').needs`);
+      check(`W649: ${command} (${name}) is ${present ? 'in the menu and runnable' : 'not in the menu, and in Search commands greyed with its reason'}`,
+        present ? inMenu && palette && !palette.disabled : !inMenu && palette && palette.disabled && palette.title === reason, JSON.stringify({inMenu, palette, reason}));
+    }
+    /* Run > Boundary values keeps Solve periodic orbit, which no boundary condition is needed for */
+    if (menu && !present && menu !== 'Boundary values') check(`W649: no ${menu} menu is left when its entries are all for a feature the model lacks`,
+      await cdp.eval(`![...document.querySelectorAll('.app-menu summary')].some(n => n.textContent.trim() === ${JSON.stringify(menu)})`));
+    if (row) check(`W649: the settings row ${row} (${name}) is ${present ? 'shown' : 'not shown'}`, rowsShown.includes(row) === present, JSON.stringify(rowsShown));
+  }
+  await key('Escape');
+}
+
 /* W637 (#709): the menus by task. From 48rem a submenu flies out beside its title (a › at its right, one open at a
    time), on a phone it unfolds inside the drawer; a line separates a level's commands from its submenus; the header
    has no Tools menu; Right opens a submenu from its title and Left goes back to it. State and the DOM, never pixels. */
@@ -6664,6 +6710,9 @@ async function main() {
     if (run('autoxviews')) await session(ODE, autoxViews);
     if (run('navigation')) await session(ODE, navigationCheck);
     if (run('navigation')) await session(ODE, menusByTaskCheck);
+    if (run('navigation')) await session(ODE, () => featuresCheck([], ['boundary_conditions', 'formula_tables', 'delays', 'integral_terms']));
+    if (run('navigation')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), () => featuresCheck(['boundary_conditions'], ['formula_tables', 'delays', 'integral_terms']));
+    if (run('navigation')) await session(path.join(top, 'examples/ode/clustor.odex'), () => featuresCheck(['formula_tables'], ['boundary_conditions', 'delays', 'integral_terms']));
     if (run('options')) await session(ODE, optionsCheck);
     if (run('dialogs')) await session(ODE, dialogsCheck, ['command:1: Total time must be a number of at least 0']);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots, ['command:1: Total time must be a number of at least 0']); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */

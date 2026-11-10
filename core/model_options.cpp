@@ -350,15 +350,15 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.numerics.delay; }),
    /* no delays kept */
    .reset = [](Session &s) { s.numerics.delay = 0; },
-   .key = "delay", .label = "Maximal delay", .rule = OptionRule::nonnegative, .use = OptionUse::delays, .saved = true, .applied = chk_delay},
-  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "delay.history_points", .help = "How many past points of the history a delay model keeps.", .xppaut_names = {"VMAXPTS"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.numerics.max_points; }), .rule = OptionRule::whole_positive, .maximum = option_limit::history_points, .use = OptionUse::integral_history, .saved = true},
+   .key = "delay", .label = "Maximal delay", .rule = OptionRule::nonnegative, .needs = Feature::delays, .saved = true, .applied = chk_delay},
+  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "delay.history_points", .help = "How many past points of the history the Volterra method keeps for an integral equation.", .xppaut_names = {"VMAXPTS"}, .once = true,
+   .whole = member([](auto &s) -> auto & { return s.numerics.max_points; }), .rule = OptionRule::whole_positive, .maximum = option_limit::history_points, .use = OptionUse::integral_history, .needs = Feature::integral_terms, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .odex = "delay.real_guess", .help = "The largest real part the search for a delay equilibrium's eigenvalues looks for.", .once = true,
-   .real = member([](auto &s) -> auto & { return s.delay.alpha_max; }), .use = OptionUse::delays},
+   .real = member([](auto &s) -> auto & { return s.delay.alpha_max; }), .needs = Feature::delays},
   {.group = option_group::integration, .kind = OptionKind::number, .odex = "delay.imaginary_guess", .help = "The largest imaginary part the search for a delay equilibrium's eigenvalues looks for.", .once = true,
-   .real = member([](auto &s) -> auto & { return s.delay.omega_max; }), .use = OptionUse::delays},
+   .real = member([](auto &s) -> auto & { return s.delay.omega_max; }), .needs = Feature::delays},
   {.group = option_group::integration, .kind = OptionKind::whole, .odex = "delay.grid", .help = "How many points a side the grid of a delay equilibrium's eigenvalue search has.", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.delay.grid; }), .rule = OptionRule::whole_positive, .use = OptionUse::delays},
+   .whole = member([](auto &s) -> auto & { return s.delay.grid; }), .rule = OptionRule::whole_positive, .needs = Feature::delays},
   {.group = option_group::integration, .kind = OptionKind::number, .odex = "euler.tolerance", .help = "The Newton tolerance of the implicit Euler method.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.eul_tol; }),
    /* XPPAUT's */
@@ -373,17 +373,17 @@ constexpr OptionRow rows[] = {
    .whole = member([](auto &s) -> auto & { return s.numerics.bvp_max_iterates; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.bvp_max_iterates = 20; },
-   .key = "bvp_max_iterates", .label = "BVP maximum iterates", .rule = OptionRule::whole_positive, .saved = true},
+   .key = "bvp_max_iterates", .label = "BVP maximum iterates", .rule = OptionRule::whole_positive, .needs = Feature::boundary_conditions, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .odex = "boundary_value.tolerance", .help = "The tolerance a boundary value solve stops at.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.bvp_tolerance; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.bvp_tolerance = 1e-5; },
-   .key = "bvp_tolerance", .label = "BVP tolerance", .rule = OptionRule::positive, .saved = true},
+   .key = "bvp_tolerance", .label = "BVP tolerance", .rule = OptionRule::positive, .needs = Feature::boundary_conditions, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .odex = "boundary_value.epsilon", .help = "The step that differences the boundary value problem's Jacobian.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.bvp_epsilon; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.bvp_epsilon = 1e-5; },
-   .key = "bvp_epsilon", .label = "BVP epsilon", .rule = OptionRule::positive, .saved = true},
+   .key = "bvp_epsilon", .label = "BVP epsilon", .rule = OptionRule::positive, .needs = Feature::boundary_conditions, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .odex = "torus.period", .help = "The period of the variables that live on a circle or torus.", .xppaut_names = {"TOR_PER"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.torus_period; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {

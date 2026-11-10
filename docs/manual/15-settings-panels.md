@@ -43,7 +43,7 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 ### Delay
 
 - **Max delay** (`delay.max_delay`): The longest delay a model uses; it sets how much history is kept.
-- **History points** (`delay.history_points`): How many past points of the history a delay model keeps.
+- **History points** (`delay.history_points`): How many past points of the history the Volterra method keeps for an integral equation.
 - **Real guess** (`delay.real_guess`): The largest real part the search for a delay equilibrium's eigenvalues looks for.
 - **Imaginary guess** (`delay.imaginary_guess`): The largest imaginary part the search for a delay equilibrium's eigenvalues looks for.
 - **Grid** (`delay.grid`): How many points a side the grid of a delay equilibrium's eigenvalue search has.

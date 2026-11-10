@@ -10,6 +10,7 @@
 
 #include <array>
 #include "colormap.h"
+#include "model_features.h"
 #include <cstddef>
 #include <functional>
 #include <type_traits>
@@ -95,7 +96,7 @@ constexpr ChoiceMember choice_member(F)
 enum class OptionRule { any, nonzero, positive, nonnegative, whole_positive, whole_at_least_two, method, choice };
 /* which methods use a numerics setting (xpp::SolverTraits), so a front end
    can say the others do not */
-enum class OptionUse { always, relative_tolerance, absolute_tolerance, min_step, max_step, newton, delays, integral_history };
+enum class OptionUse { always, relative_tolerance, absolute_tolerance, min_step, max_step, newton, integral_history };
 
 /* the source of the value set_option is applying: whether it may set an
    option another source (or an earlier line of its own, mask) set */
@@ -238,6 +239,8 @@ struct OptionRow {
   int autox_numeric = -1;
   int maximum = 0; /* 0: no allocation-sized upper bound; otherwise inclusive */
   OptionUse use = OptionUse::always;
+  /* the model feature the row is for (model_features.h): a model without it has no such setting, and the panels do not show it */
+  Feature needs = Feature::none;
   /* OptionRule::choice: the names of the values 0, 1, ..., and why a
      model cannot have value i ("" when it can) */
   std::span<const std::string_view> choices;

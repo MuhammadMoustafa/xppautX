@@ -9,6 +9,7 @@
 
 #include "json_number.h"
 #include "model.h"
+#include "model_features.h"
 #include "model_options.h"
 #include "numerics_settings.h"
 #include "session.h"
@@ -72,6 +73,7 @@ std::string row_json(const Session &fresh, bool model_loaded, const OptionRow &r
     add_string(out, "label", panel_label(row));
     add_string(out, "kind", row.names_sets ? "sets" : kind_word(row.kind));
     add_string(out, "help", row.help);
+    if (row.needs != Feature::none) add_string(out, "needs", feature_info(row.needs).name);
     add_string(out, "default", model_loaded ? setting_text(fresh, row) : std::string());
     if (row.boolean) out += ",\"boolean\":true";
     else if (row.kind == OptionKind::choice) {

@@ -11,6 +11,11 @@ export function registryRows(hello: HelloEvent | null): CommandRow[] {
     default_keys: row.default_keys ?? [],
   }));
 }
+/** why a row that needs `feature` is not for this model ("needs a model with delays"), null when it is, or when it needs none */
+export function featureLack(hello: HelloEvent | null, feature: string | undefined): string | null {
+  const found = feature ? hello?.model_features.find(f => f.name === feature) : undefined;
+  return found && !found.present ? found.needs : null;
+}
 /** the registry row of command `id`: its label, description and menu place are what every control for it shows */
 export function commandRow(hello: HelloEvent | null, id: string): CommandRow | undefined {
   return registryRows(hello).find(row => row.id === id);
@@ -20,10 +25,10 @@ export function toolbarRow(hello: HelloEvent | null, window: string, id: string)
   return commandRow(hello, toolbarCommand(window, id));
 }
 export interface MenuNode {name: string; children: MenuNode[]; row?: CommandRow}
-export function menuTree(rows: CommandRow[]): MenuNode[] {
+export function menuTree(rows: CommandRow[], hello: HelloEvent | null): MenuNode[] {
   const tree: MenuNode[] = [];
   for (const row of rows) {
-    if (!row.menu_path) continue;
+    if (!row.menu_path || featureLack(hello, row.needs)) continue;
     let children = tree;
     for (const name of row.menu_path.split('/')) {
       let node = children.find(node => node.name === name && !node.row);

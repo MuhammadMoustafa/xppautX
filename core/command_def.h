@@ -12,6 +12,7 @@
 #include "command_category.h"
 #include "event_registry.h"
 #include "json_number.h"
+#include "model_features.h"
 #include "xpp_error.h"
 #include "xpp_io.h"
 #include <array>
@@ -230,6 +231,9 @@ struct Command {
     /* the text of the action in the command's form (a footer button named for what it does: "Save set"); "" takes the default, "Apply" for
        a setting and the label for the rest (command_registry.cpp), never Run or OK */
     const char *action = "";
+    /* the model feature the command is for (model_features.h): a model without it does not show the command in its menu, Search commands
+       lists it greyed with the reason, and running it is an error saying so */
+    Feature needs = Feature::none;
 };
 
 /* The one file picked for a command; optional paths (Open model) have their own startup picker. */

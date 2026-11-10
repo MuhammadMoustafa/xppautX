@@ -73,6 +73,8 @@ export interface HelloEvent {
   lists: string[][];
   /** every settings panel, built from the option table (core/options_panels.h): one per group, its rows in the table's order */
   options: OptionGroup[];
+  /** what the model has that some settings and commands need (core/model_features.h): `needs` is why a row for it is not for a model without it */
+  model_features: ModelFeature[];
   model_names: string[];
   /** every point type: its name (the only input), its label and its mark (core/autox_codes.h's one table) */
   point_types: PointType[];
@@ -94,6 +96,8 @@ export interface OptionRow {
   /** the section's title in the panel */
   section_label: string;
   label: string;
+  /** the model feature the row is for (a ModelFeature's name): the page leaves it out for a model without it */
+  needs?: string;
   kind: 'number' | 'whole' | 'name' | 'choice' | 'path' | 'text' | 'sets';
   help: string;
   /** the value a fresh session of the model holds, as text */
@@ -105,6 +109,13 @@ export interface OptionRow {
   maximum?: number;
   /** the number must be above this */
   exclusiveMinimum?: number;
+}
+
+/** hello.model_features: one feature of the model and whether this model has it */
+export interface ModelFeature {
+  name: string;
+  present: boolean;
+  needs: string;
 }
 
 /** one panel: an option group, titled by its label */
