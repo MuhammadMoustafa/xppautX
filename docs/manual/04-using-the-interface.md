@@ -337,9 +337,9 @@ job first, then closes; **Stop** itself keeps the view and whatever
 partial result it has (an interrupted autoX branch ending on its last
 point, ready to Grab and continue).
 
-While a computation runs (an integration, a range, Sing pts, a
+While a computation runs (an integration, a range, an equilibrium search, a
 boundary value problem, an autoX run), the status bar says what
-(`Running Go… Esc stops`). What you can do meanwhile depends on what an
+by its full name (`Run › Run from initial… Esc stops`). What you can do meanwhile depends on what an
 action is; every button and menu item has one of five kinds:
 
 | Kind | Examples | During a computation |

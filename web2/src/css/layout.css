@@ -118,10 +118,13 @@ h1, h2 { margin: 0; }
 /* from 48rem a submenu flies out beside its title, one open at a time (the menu bar's exclusive toggle), with a › at its right */
 @media (min-width: 48rem) {
   .app-menu details details{ position: relative; }
-  .app-menu details details > summary{ list-style: none; display: flex; justify-content: space-between; gap: 1rem; padding-inline: calc(var(--space-3) + 1px); /* level with the commands' text (their padding and border) */ }
+  /* a submenu's title is a row like the commands beside it: their height, their text inset, their highlight when pointed at, and
+     kept while its submenu is open, so the open submenu shows which row it came from */
+  .app-menu details details > summary{ list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: var(--target); border-radius: .375rem; padding-inline: calc(var(--space-3) + 1px); /* level with the commands' text (their padding and border) */ }
+  .app-menu details details > summary:hover, .app-menu details details[open] > summary{ background: var(--surface-2); }
   .app-menu details details > summary::-webkit-details-marker{ display: none; }
   .app-menu details details > summary::after{ content: '\203A'; }
-  .app-menu details details > ul{ position: absolute; top: -.35rem; left: 100%; min-width: 15rem; z-index: var(--z-menu); background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
+  .app-menu details details > ul{ position: absolute; top: calc(-.35rem - 1px); left: calc(100% + .35rem + 1px); /* past the menu's padding and border: beside the menu, its first row level with its title */ min-width: 15rem; z-index: var(--z-menu); background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
 }
 
 /* from 48rem the values panel is a right column (R3, R6), the plot first beside it; wider, the column is wider */

@@ -354,7 +354,7 @@ function leaveAsk(state: AppState): AskEvent | null {
     key but Escape does nothing then, so the line says which one does) */
 export function busyText(running: string | null, asking: boolean): string {
   if (asking) return 'Working…';
-  return `${running ? `Running ${running}` : 'Working'}… Esc stops`;
+  return `${running ?? 'Working'}… Esc stops`;
 }
 
 /* the name of what an answer or a command starts, for the status line

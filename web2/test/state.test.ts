@@ -107,7 +107,7 @@ test('W68: the status line names what runs (the menu item answered) and that Esc
   assert.equal(busyText(s.running, s.ask !== null), 'Working…');
   s = reduce(s, {type: 'sent', cmd: {cmd: 'answer', id: 3, key: 'g'}});
   assert.equal(s.running, 'Go');
-  assert.equal(busyText(s.running, s.ask !== null), 'Running Go… Esc stops');
+  assert.equal(busyText(s.running, s.ask !== null), 'Go… Esc stops');
   assert.equal(busyText(null, false), 'Working… Esc stops');
   assert.equal(ev(s, {ev: 'done', status: 'ok'}).running, null);
 });

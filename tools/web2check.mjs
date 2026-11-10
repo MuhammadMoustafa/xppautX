@@ -2756,7 +2756,7 @@ async function busyKeys() {
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
     + 'and data (Initialconds, Sing pts...) are disabled, Parameters and Load (settings, W106) are not',
-    running && ui.status === `Running ${await nameOf('run.initial')}… Esc stops` && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.load
+    running && ui.status === `${await nameOf('run.initial')}… Esc stops` && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.load
     && ['run.initial', 'equilibrium.find', 'run.shoot', 'session.save'].every(id => ui.off.includes(id)) && !ui.off.includes('value.set_parameters') && !ui.off.includes('run.configure'), JSON.stringify(ui));
   check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File, and the menus holding a view: Nullcline, Dir.field, Kinescope, Graphic stuff), New window and Stop stay enabled',
     ui.viewItems && !ui.newWindow && !ui.stop, JSON.stringify(ui));
