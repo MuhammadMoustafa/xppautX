@@ -126,6 +126,8 @@ export interface AppState {
   plots: PlotsState;
   /** every window of the core, with whether it is shown (the `windows` event) */
   windows: WindowListEntry[];
+  /** the views in windows of their own, by `kind:name` (popout.ts): their tabs say so */
+  popouts: readonly string[];
   /** how many whole series arrived (a full series event, or the end of a live run): tests wait on it */
   seriesCount: number;
   /** how many appends (rows of a running integration) went into a series */
@@ -231,6 +233,7 @@ export type Action =
   | {type: 'panels'; panels: Partial<Panels>}
   | {type: 'values'; action: ValuesAction}
   | {type: 'dockPanel'; open: boolean}
+  | {type: 'popout'; key: string; out: boolean}
   | {type: 'table'; action: TableAction}
   | {type: 'text'; action: TextAction}
   | {type: 'files'; action: FilesAction}
@@ -281,6 +284,7 @@ export const initialState: AppState = {
   text: initialText,
   files: initialFiles,
   windows: [],
+  popouts: [],
   diagram: initialDiagram,
   autoxSettings: initialAutoxSettings,
   autoxScript: initialAutoxScript,
@@ -712,6 +716,9 @@ function reduceAction(state: AppState, action: Action): AppState {
       return {...state, values: reduceValues(state.values, action.action)};
     case 'dockPanel':
       return action.open === state.dockOpen ? state : {...state, dockOpen: action.open};
+    case 'popout':
+      return state.popouts.includes(action.key) === action.out ? state
+        : {...state, popouts: action.out ? [...state.popouts, action.key] : state.popouts.filter(k => k !== action.key)};
     case 'table':
       return {...state, table: reduceTable(state.table, action.action)};
     case 'text':

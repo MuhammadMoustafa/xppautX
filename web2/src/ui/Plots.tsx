@@ -1,3 +1,4 @@
+import type {ComponentChildren} from 'preact';
 import {CommandButton, CommandLabel, useCommandLabel} from './CommandButton';
 /* The plot windows (docs/ui-v2.md T6): one PlotView per core window, the one
    selected shown, each with its own zoom; the tabs that pick one are ui/ViewTabs.tsx's. */
@@ -5,6 +6,8 @@ import {PLOT_KEYS_HELP} from '../plot/plotKeys';
 import {useMay, useMayMain, useSession, useStore} from './context';
 import {Plot3DView} from './Plot3DView';
 import {PlotView} from './PlotView';
+import {PoppedOut} from './PoppedOut';
+import {viewKeyText} from '../popout';
 import {choiceLabel} from '../store/fieldKinds';
 
 /** the Kinescope's own controls (docs/ui-v2.md T15): the core's menu
@@ -41,9 +44,18 @@ function KinescopeBar() {
   );
 }
 
+/** one graph window: its 3-D or its 2-D view (the plots column's and a pop-out's) */
+export function GraphView({win, dark, shown, tabbed, windowRow}: {win: string; dark: boolean; shown: boolean; tabbed: boolean; windowRow: ComponentChildren}) {
+  const three = useStore(s => s.plots.windows.find(w => w.win === win)?.info?.three);
+  return three
+    ? <Plot3DView win={win} dark={dark} shown={shown} tabbed={tabbed} windowRow={windowRow} />
+    : <PlotView win={win} dark={dark} shown={shown} tabbed={tabbed} windowRow={windowRow} />;
+}
+
 export function Plots({dark}: {dark: boolean}) {
   const session = useSession();
   const all = useStore(s => s.plots.windows);
+  const popouts = useStore(s => s.popouts);
   const active = useStore(s => s.plots.active);
   /* a hidden graph (window.hide) has no tab until it is shown again; the active one always has */
   const hidden = useStore(s => s.windows.filter(w => w.kind === 'graph' && !w.shown).map(w => w.name).join('\n')).split('\n');
@@ -85,10 +97,9 @@ export function Plots({dark}: {dark: boolean}) {
     <div class="plots">
       {shownWins.map(win => {
         const shown = win === active || shownWins.length === 1;
-        const three = windows.find(w => w.win === win)?.info?.three;
-        return three
-          ? <Plot3DView key={win} win={win} dark={dark} shown={shown} tabbed={tabbed} windowRow={shown ? windowRow : null} />
-          : <PlotView key={win} win={win} dark={dark} shown={shown} tabbed={tabbed} windowRow={shown ? windowRow : null} />;
+        /* a graph in a window of its own (popout.ts) is not drawn here too: its tab says where it is */
+        if (popouts.includes(viewKeyText({kind: 'graph', name: win}))) return shown ? <PoppedOut key={win} view={{kind: 'graph', name: win}} /> : null;
+        return <GraphView key={win} win={win} dark={dark} shown={shown} tabbed={tabbed} windowRow={shown ? windowRow : null} />;
       })}
       <p id="plot-keys-help" class="visually-hidden">{PLOT_KEYS_HELP}</p>
     </div>

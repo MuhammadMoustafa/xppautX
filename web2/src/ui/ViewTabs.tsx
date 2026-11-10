@@ -11,6 +11,7 @@ import {CommandButton, CommandLabel} from './CommandButton';
 import {ContextMenu} from './ContextMenu';
 import {ShownName} from './CutText';
 import {useDropDown} from './SetsRow';
+import {viewKeyText, type ViewKey} from '../popout';
 
 /** the views shown as tabs: the graph windows (a hidden one has none until shown again; the active one always has), then autoX's */
 interface ViewTab {kind: 'graph' | 'autox'; name: string; index: number}
@@ -35,6 +36,7 @@ export function ViewTabs() {
   const autoxShown = useStore(s => s.diagram.open && s.diagram.shown);
   const list = useRef<HTMLDivElement>(null);
   const add = useDropDown();
+  const popouts = useStore(s => s.popouts);
   /* a tab pick is a view: it works during a run too, only an open question waits (W95) */
   const tabOff = !may({cmd: 'window.select', window: active});
   const windowOff = !may({cmd: 'window.new'});
@@ -62,7 +64,13 @@ export function ViewTabs() {
     setRenaming(null);
   };
 
-  const pick = (tab: ViewTab) => tab.kind === 'autox' ? session.selectAutoxView(tab.index) : session.selectWindow(tab.name);
+  const viewOf = (tab: ViewTab): ViewKey => ({kind: tab.kind, name: tab.name});
+  /* a tab whose view is in its own window brings that window forward as well */
+  const pick = (tab: ViewTab) => {
+    if (tab.kind === 'autox') session.selectAutoxView(tab.index);
+    else session.selectWindow(tab.name);
+    if (popouts.includes(viewKeyText(viewOf(tab)))) void session.popouts.show(viewOf(tab));
+  };
   const onKeyDown = (e: KeyboardEvent) => {
     const i = tabs.findIndex(t => t.name === active);
     if (e.key === 'F2') {
@@ -95,14 +103,21 @@ export function ViewTabs() {
           const off = tabOff && tab.name !== active && !autoxShown;
           /* the main graph stays: the core refuses to close window 1 */
           const closable = tab.kind === 'autox' || tab.index > 0;
+          const out = popouts.includes(viewKeyText(viewOf(tab)));
+          const kindWords = tab.kind === 'autox' ? 'autoX view' : 'graph';
           return (
-            <span key={slot(tab)} class={'view-tab' + (tab.name === active ? ' active' : '')} data-view-kind={tab.kind}>
+            <span key={slot(tab)} class={'view-tab' + (tab.name === active ? ' active' : '') + (out ? ' out' : '')} data-view-kind={tab.kind}>
               <button id={id(tab)} class="plot-tab" role="tab" aria-selected={tab.name === active} tabIndex={tab.name === active ? 0 : -1}
                 disabled={off} title={off ? BUSY_TITLE : undefined} onClick={() => pick(tab)} onDblClick={() => startRename(tab.name)}
                 onContextMenu={e => { e.preventDefault(); setMenu({name: tab.name, x: e.clientX, y: e.clientY}); }}>
                 {tab.kind === 'autox' ? <span class="view-tab-kind">autoX · </span> : null}
                 <span class="plot-tab-title"><ShownName name={tab.name} copy={false} /></span>
+                {out && <span class="view-tab-out" title="In a window of its own">
+                  <span aria-hidden="true">⧉</span><span class="visually-hidden"> (in a window of its own)</span></span>}
               </button>
+              <button class="view-tab-popout" aria-label={`${out ? 'Pop in' : 'Pop out'} ${kindWords} ${tab.name}`}
+                title={out ? 'Bring this view back into its tab' : 'Open this view in a window of its own'}
+                onClick={() => out ? session.popouts.popIn(viewOf(tab)) : void session.popouts.show(viewOf(tab))}>{out ? '⇲' : '⇱'}</button>
               {closable && <button class="view-tab-close" aria-label={`Close ${tab.kind === 'autox' ? 'autoX view' : 'graph'} ${tab.name}`}
                 title={tab.kind === 'autox' ? 'Done with this view: a running continuation is stopped first' : 'Close this graph'}
                 disabled={tab.kind === 'graph' && windowOff}
@@ -111,8 +126,14 @@ export function ViewTabs() {
           );
         })}
       </div>
-      {menu && <ContextMenu x={menu.x} y={menu.y} label={`View ${menu.name}`} close={() => setMenu(null)}
-        items={[{label: 'Rename', off: !may({cmd: 'window.rename'}), run: () => startRename(menu.name)}]} />}
+      {menu && (() => {
+        const tab = tabs.find(t => t.name === menu.name);
+        const view = tab && viewOf(tab);
+        const out = !!view && popouts.includes(viewKeyText(view));
+        return <ContextMenu x={menu.x} y={menu.y} label={`View ${menu.name}`} close={() => setMenu(null)}
+          items={[{label: 'Rename', off: !may({cmd: 'window.rename'}), run: () => startRename(menu.name)},
+            {label: out ? 'Pop in' : 'Pop out', off: !view, run: () => view && (out ? session.popouts.popIn(view) : void session.popouts.show(view))}]} />;
+      })()}
       <details class="view-add" ref={add}>
         <summary aria-label="New view" title="A new graph or autoX view">＋</summary>
         <ul role="menu" onClick={() => {if (add.current) add.current.open = false;}}>

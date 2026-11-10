@@ -130,14 +130,24 @@ const DEVTOOLS_FETCH_TIMEOUT_MS = 1000; /* a hung local DevTools endpoint must n
 /* null until the endpoint answers: a browser still starting refuses or stalls the
    request, which waitFor then asks again (macos-ui's Chrome, 2026-10-03) */
 async function devtoolsPage(port, accepts) {
-  let list;
+  return (await devtoolsPages(port))?.find(t => !accepts || accepts(t));
+}
+
+/* every page the browser has open (a window.open's too), null until the endpoint answers */
+export async function devtoolsPages(port) {
   try {
-    list = await (await fetch(`http://127.0.0.1:${port}/json/list`,
+    const list = await (await fetch(`http://127.0.0.1:${port}/json/list`,
       {signal: AbortSignal.timeout(DEVTOOLS_FETCH_TIMEOUT_MS)})).json();
+    return list.filter(t => t.type === 'page');
   } catch {
     return null;
   }
-  return list.find(t => t.type === 'page' && (!accepts || accepts(t)));
+}
+
+/* a page the browser opened by itself (the page's window.open) whose target `accepts`, connected; null when none shows up */
+export async function popupPage(port, accepts) {
+  const page = await waitFor(() => devtoolsPage(port, accepts));
+  return page ? connectPage(page) : null;
 }
 
 async function connectPage(page) {
@@ -326,7 +336,7 @@ export async function startBrowser(browser, profile) {
     }
   };
 
-  return {proc, cdp, downloads, waitForExit: () => waitForExit(proc), cleanup};
+  return {proc, cdp, port, downloads, waitForExit: () => waitForExit(proc), cleanup};
 }
 
 /* The environment of a program under test: its per-user settings folder (the keymap, XPP_CONFIG_DIR) is in

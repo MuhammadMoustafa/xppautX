@@ -118,6 +118,16 @@ forward by itself when XPP waits for a click or a key in it (grabbing a point in
 one open at a time under the header, so the plot and the menu bar stay whole beside it. Its **×** hides it; the header's Table, Model and Help
 buttons (and the matching menu entries) show it on their tab. The animation and the array plot open as panels over the page.
 
+**A view in a window of its own.** Every view tab (a graph, an autoX view) has a **Pop out** button (⇱) beside its ×, and the dock has
+one for the tab it shows; it opens that one view alone in a window of its own, live, from the same session: what a run
+draws or a value changes is seen in both, and a command given in the window runs as from the main one. In the app the window is
+a second window of the operating system, which you resize and snap beside the main one; in a browser it is another browser tab
+at the page's own address. The view's tab then says so (a ⧉ mark and slanted words), and its place in the main window says
+where it went; choosing the tab brings the window to the front. The window's **Pop in** (or its close button, or ⇲ on the tab)
+closes it and puts the view back in its tab, and closing the main window closes the others. The Table is one view of the session, so
+it is in one place at a time: popping it out takes it out of the dock. A browser may ask to allow pop-ups for the page the
+first time. A window of the app that does not close this way (a page that did not load) closes with its close button.
+
 Keys go to the view you are looking at: with the autoX tab in front, `a`,
 `n`, `r`, `g`, `d`, `c`, `u`, `p` and `f` are autoX's own keys, as they are
 in XPPAUT's autoX window. `Window/Bottom` (raise a plot window) does

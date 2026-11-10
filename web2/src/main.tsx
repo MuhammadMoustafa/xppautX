@@ -17,6 +17,8 @@ import {installBrowserLeave, installDesktopHooks} from './desktop';
 import {Session} from './session';
 import {installTestHook} from './testhook';
 import {App} from './ui/App';
+import {PopOutApp} from './ui/PopOut';
+import {popOutRequest} from './popout';
 import {savedPanels} from './store/panels';
 import {savedTheme} from './ui/theme';
 
@@ -25,6 +27,18 @@ session.store.dispatch({type: 'theme', theme: savedTheme()});
 session.store.dispatch({type: 'panels', panels: savedPanels()});
 installTestHook(session);
 installDesktopHooks(session);
-installBrowserLeave();
-render(<App session={session} />, document.getElementById('app')!);
-session.start();
+/* a view in a window of its own (popout.ts, W645): the same page, at the address with the view named */
+const popOut = popOutRequest(location.hash);
+if (typeof popOut === 'string') {
+  document.getElementById('app')!.textContent = popOut;
+} else if (popOut) {
+  session.popouts.startPopOut(popOut);
+  render(<PopOutApp session={session} view={popOut} />, document.getElementById('app')!);
+  session.start();
+} else {
+  /* the pop-outs close with the main window; a pop-out never says it is leaving: the main window's page does */
+  session.popouts.startMain();
+  installBrowserLeave();
+  render(<App session={session} />, document.getElementById('app')!);
+  session.start();
+}

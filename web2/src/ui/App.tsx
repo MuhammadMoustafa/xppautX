@@ -51,7 +51,7 @@ function LoadError({e}: {e: LoadErrorEvent}) {
 }
 
 /* what is wrong with the connection, in words, or nothing */
-function Banner() {
+export function Banner() {
   const connected = useStore(s => s.connected);
   const exited = useStore(s => s.exited);
   const hello = useStore(s => s.hello);

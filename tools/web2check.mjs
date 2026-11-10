@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only options,fieldhelp,dock,viewtabs,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
+     [--only popout,options,fieldhelp,dock,viewtabs,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -93,7 +93,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {findBrowser, installPerfObserver, waitFor, waitForExit, startBrowser, startServer, startWebView2, stopServer} from './cdp.mjs';
+import {devtoolsPages, findBrowser, installPerfObserver, popupPage, waitFor, waitForExit, startBrowser, startServer, startWebView2, stopServer} from './cdp.mjs';
 
 const top = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const opt = {bin: `xppautX${process.platform === 'win32' ? '.exe' : ''}`};
@@ -172,6 +172,7 @@ function outputDat(ode = ODE) {
 
 let cdp;
 let downloads; /* shared downloads folder for all sections (set by main) */
+let browserPort; /* the browser's DevTools port, for the pages it opens by itself (a pop-out) */
 /* in page expressions: `s` is the store's state, `w` its active plot window
    (store/plots.ts: series, viewport) */
 const ACTIVE = 's.plots.windows.find(x => x.win === s.plots.active) || {}';
@@ -3549,7 +3550,7 @@ async function viewTabsCheck() {
   await cdp.eval(`(() => { const t = [...document.querySelectorAll('.view-tabs [role=tab]')].find(b => b.textContent.trim() === 'Tab graph renamed');
     t.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: ${again.x}, clientY: ${again.y}})); })()`);
   await rendered();
-  check('W685: the tab\'s context menu has Rename', await cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].map(b => b.textContent).join() === 'Rename'`));
+  check('W685, W645: the tab\'s context menu has Rename and Pop out', await cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].map(b => b.textContent).join() === 'Rename,Pop out'`));
   await cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].find(b => b.textContent === 'Rename').click()`);
   check('W685: Rename in the menu edits the tab name', await until(`document.querySelector('.view-tab-rename input')?.value === 'Tab graph renamed'`, 'menu rename'));
   await key('Escape');
@@ -3692,6 +3693,101 @@ async function settingsShots() {
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
+/* ---- a view in a window of its own (W645: popout.ts, ui/PopOut.tsx) ---------------------------------------------------- */
+
+/* a pop-out's page, as a second browser page of the same session: what it holds is read through its own connection */
+const popOutAddress = key => `#popout=${encodeURIComponent(key)}`;
+const popOutPages = async key => (await devtoolsPages(browserPort)).filter(t => t.url.includes(popOutAddress(key)));
+/* a real click on the page's element (a script's own click carries no user activation, and a browser blocks the window it opens) */
+async function clickElement(selector) {
+  const box = await cdp.eval(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; const b = e.getBoundingClientRect(); return {x: b.left + b.width / 2, y: b.top + b.height / 2}; })()`);
+  if (!box) throw new Error(`no ${selector} to click`);
+  await click(box.x, box.y);
+}
+/* the second page's own `until`: `s` is its state */
+const untilOn = (page, expr, what, ms = 15000 * SLOW) => waitFor(() => page.eval(`(() => { const s = __xpp.state(); return ${expr}; })()`).catch(() => false), ms);
+/* pops `key` out by clicking `selector` in the main window, and gives the pop-out's page once it is up and connected */
+async function popOut(selector, key) {
+  await clickElement(selector);
+  const page = await popupPage(browserPort, t => t.url.includes(popOutAddress(key)));
+  if (!page) throw new Error(`no pop-out page for ${key}`);
+  if (!await untilOn(page, '!!s.hello && s.connected', 'the pop-out connected')) throw new Error(`the pop-out of ${key} never connected`);
+  return page;
+}
+
+async function popOutCheck() {
+  await until('s.hello && !s.busy', 'hello');
+  const want = outputDat();
+  check('W645: a fresh session has no view out', await S('s.popouts.length === 0 && !document.querySelector(".view-tab.out, .dock-tab.out")'));
+  const mainSearch = await cdp.eval('location.search');
+
+  /* the Table, from the dock */
+  await cdp.eval(`document.querySelector('.dock [data-dock-tab=table]').click()`);
+  await requireUntil('s.table.open', 'the table open in the dock');
+  const table = await popOut('.dock-popout', 'dock:table');
+  check('W645: Pop out of the dock\'s Table opens a page at the page\'s own address (its token) with the view in the fragment only',
+    await table.eval('location.search') === mainSearch && (await table.eval('location.hash')) === popOutAddress('dock:table'),
+    JSON.stringify([mainSearch, await table.eval('location.search'), await table.eval('location.hash')]));
+  check('W645: the pop-out shows that one view alone: the Table, no menu bar, no view tabs, no dock tabs',
+    await table.eval(`(() => !!document.querySelector('.popout-shell[data-popout-kind=dock] #dock[data-tab=table]')
+      && !document.querySelector('.app-menu, .view-tabs, .dock-tabs, .title-bar'))()`));
+  check('W645: the main window\'s Table tab says it is in its own window, and the dock is back on Values (the core\'s one table block is the pop-out\'s)',
+    await until(`s.popouts.includes('dock:table') && !s.table.open`, 'marked')
+    && await cdp.eval(`(() => { const t = document.querySelector('.dock [data-dock-tab=table]'); return t.classList.contains('out') && !!t.querySelector('.view-tab-out') && document.querySelector('#dock').dataset.tab === 'values'; })()`));
+  check('W645: the pop-out opened its Table (its own page state)', await untilOn(table, 's.table.open'));
+
+  /* a change in the main window is seen in the pop-out: the run's rows */
+  check('W645: before the run the pop-out\'s table has no rows', await untilOn(table, '!s.table.page || s.table.page.rows === 0'));
+  check('W645: a run in the main window fills the pop-out\'s table live', await integrate(601, 60000 * SLOW)
+    && await untilOn(table, 's.table.page && s.table.page.rows === 601 && s.table.page.data.length > 0', 'rows', 30000 * SLOW));
+  const first = await table.eval('__xpp.state().table.page.data[0]');
+  check('W645: the pop-out\'s first row is the run\'s first row, as output.dat has it',
+    !!first && first.slice(0, 3).every((v, i) => Math.abs(v - want[0][i]) <= 1e-6 * Math.max(1, Math.abs(want[0][i])) ), JSON.stringify([first, want[0]]));
+
+  /* a command from the pop-out runs as from the main window: one session */
+  const mark = await S('__xpp.sentCount()');
+  await table.eval(`__xpp.send({cmd: 'window.new', name: 'from the pop-out'})`);
+  check('W645: a command sent from the pop-out runs in the one session (the main window gets the new graph)',
+    await until(`s.plots.windows.some(x => x.win === 'from the pop-out')`, 'the new graph', 30000 * SLOW) && (await S('__xpp.sentFrom(' + mark + ').length')) === 0,
+    JSON.stringify(await S('s.plots.windows.map(x => x.win)')));
+  await S(`__xpp.send({cmd: 'window.select', window: 'graph_1'})`);
+  await requireUntil(`s.plots.active === 'graph_1'`, 'graph_1 selected again');
+
+  /* choosing the tab brings the window forward: no second window */
+  const before = (await popOutPages('dock:table')).length;
+  await clickElement('.dock [data-dock-tab=table]');
+  await rendered();
+  check('W645: choosing the out Table tab reaches the window it has: no second window, the dock stays on Values',
+    before === 1 && (await popOutPages('dock:table')).length === 1 && await S('s.popouts.length === 1 && !s.table.open'));
+
+  /* Pop in, in the pop-out */
+  await table.eval(`document.querySelector('.popout-in').click()`);
+  check('W645: Pop in closes the pop-out and the Table tab returns (no mark)',
+    await waitFor(async () => (await popOutPages('dock:table')).length === 0)
+    && await until(`!s.popouts.includes('dock:table')`, 'back')
+    && await cdp.eval(`!document.querySelector('.dock-tab.out')`));
+  table.ws.close();
+
+  /* a graph, from its tab */
+  const graph = await popOut('.view-tab-popout[aria-label="Pop out graph graph_1"]', 'graph:graph_1');
+  check('W645: the graph\'s tab says it is out, and its place in the main window says where it went',
+    await until(`s.popouts.includes('graph:graph_1')`, 'marked')
+    && await cdp.eval(`!!document.querySelector('.view-tab.out [role=tab] .view-tab-out, .view-tab.out .view-tab-out') && !!document.querySelector('.popped-out') && !document.querySelector('.plot-view:not([hidden])')`));
+  check('W645: the pop-out draws that graph, live, from the one session',
+    await untilOn(graph, '!!document.querySelector(".popout-shell[data-popout-kind=graph] .plot-view") && !!__xpp.plot("graph_1") && __xpp.plot("graph_1").curves[0].points > 0', 'drawn', 30000 * SLOW));
+  const rows = await integrate(601, 60000 * SLOW);
+  check('W645: a run in the main window redraws the pop-out\'s graph', rows
+    && await untilOn(graph, '__xpp.plot("graph_1").curves[0].points === 601', 'redrawn', 30000 * SLOW));
+
+  /* the main window closing closes the pop-outs: a reload is the page going away */
+  await reloadPage();
+  check('W645: the main window going away closes its pop-outs',
+    await waitFor(async () => (await popOutPages('graph:graph_1')).length === 0) && await S('s.popouts.length === 0 && !document.querySelector(".view-tab.out")'));
+  graph.ws.close();
+  check('W645: a pop-out going away never makes the session leave: the main window still works',
+    await S('!!s.hello && s.connected') && await integrate(601, 60000 * SLOW));
+}
+
 /* The dock's and the view tabs' pictures for the UI review (W644; with --only shots and XPP_SHOTS=folder): the dock with each of its tabs, then the
    view tabs with a graph and an autoX view, at 1280 wide light, 1440 dark, 768 and 390. Never a check: it writes files only. */
 async function dockShots() {
@@ -3735,6 +3831,54 @@ async function dockShots() {
     await until('!s.diagram.shown', 'the graph shown again');
   }
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
+/* The pop-outs' pictures for the UI review (W645; with --only shots (or popoutshots alone) and XPP_SHOTS=folder): the main window and the pop-out of the Table, of a graph and of an
+   autoX view, each pair taken together (the two browser windows side by side), at 1280 wide light, 1440 dark, 768 and 390. Never a check: it writes files only. */
+async function popOutShots() {
+  const dir = process.env.XPP_SHOTS;
+  if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(dir, {recursive: true});
+  await until('s.hello && !s.busy', 'hello');
+  check('W645 shots: integrate for the views', await integrate(601, 30000));
+  await openAutoxAtFixedPoint();
+  await requireUntil('s.diagram.open', 'autoX open');
+  const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['768', 768, 1024, 'light'], ['390', 390, 844, 'light']];
+  /* a headless page that is not in front paints no frame: its picture is taken once it is */
+  const shot = async (page, name) => await page.send('Page.bringToFront') && fs.writeFileSync(path.join(dir, name + '.png'), Buffer.from((await page.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+  const size = async (page, [, width, height, scheme]) => {
+    await page.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+    await page.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+  };
+  const views = [['graph', 'graph:graph_1', '.view-tab-popout[aria-label="Pop out graph graph_1"]'],
+    ['autox', 'autox:diagram_1', '.view-tab-popout[aria-label="Pop out autoX view diagram_1"]'],
+    ['table', 'dock:table', '.dock-popout']];
+  for (const [name, key, button] of views) {
+    await size(cdp, sizes[0]);
+    if (name === 'table') {
+      await cdp.eval(`document.querySelector('#view-tab-graph-graph_1').click()`);
+      await cdp.eval(`document.querySelector('.dock [data-dock-tab=table]').click()`);
+      await requireUntil('s.table.open', 'table open');
+    }
+    const page = await popOut(button, key);
+    await requireUntil(`s.popouts.includes(${JSON.stringify(key)})`, 'marked out');
+    if (name === 'graph') { /* its tab in front: its place says where it went */
+      await clickElement('#view-tab-graph-graph_1');
+      await requireUntil('!s.diagram.shown', 'the graph tab in front');
+    }
+    for (const sz of sizes) {
+      await size(cdp, sz);
+      await size(page, sz);
+      await rendered();
+      await page.eval(`new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))`); /* the pop-out's layout after its resize */
+      await shot(cdp, `popout-${name}-main-${sz[0]}`);
+      await shot(page, `popout-${name}-window-${sz[0]}`);
+    }
+    await size(cdp, sizes[0]);
+    await page.eval(`document.querySelector('.popout-in').click()`);
+    await requireUntil(`!s.popouts.includes(${JSON.stringify(key)})`, 'popped in');
+    page.ws.close();
+  }
 }
 
 /* The menus' pictures for the UI review (W650; with --only shots and XPP_SHOTS=folder): each top menu open, and two submenus open, at 1280 wide light, 1440
@@ -6992,6 +7136,7 @@ async function main() {
   const b = opt.webview2 ? null : await startBrowser(browser, profile);
   cdp = b?.cdp;
   downloads = b?.downloads;
+  browserPort = b?.port;
   try {
     if (!opt.webview2) {
       await cdp.send('Page.enable');
@@ -7022,7 +7167,7 @@ async function main() {
       await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     }
     /* every section name run() is asked about: an --only that names none of them ran nothing, which is a failure, never "all passed" */
-    const asked = new Set(['shots']);
+    const asked = new Set(['shots', 'popoutshots']);
     const run = name => { asked.add(name); return !opt.only || opt.only.split(',').includes(name); };
     if (run('desktop')) await session(ODE, async (dir) => {
       await desktop(want);
@@ -7061,6 +7206,7 @@ async function main() {
     if (run('dock')) await session(ODE, dockCheck);
     if (run('viewtabs')) await session(ODE, viewTabsCheck);
     if (run('autox')) await session(AB_ODE, autoxScriptCheck);
+    if (run('popout')) await session(ODE, popOutCheck);
     if (run('dialogs')) await session(ODE, dialogsCheck, ['command:1: Total time must be a number of at least 0']);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots, ['command:1: Total time must be a number of at least 0']); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, fieldHelpShots);
@@ -7068,6 +7214,7 @@ async function main() {
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, dockShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, renameShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(AB_ODE, autoxScriptShots);
+    if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'popoutshots')) await session(ODE, popOutShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, tableShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('windows')) await session(ODE, windows);
     if (run('annotations')) await session(ODE, marks);

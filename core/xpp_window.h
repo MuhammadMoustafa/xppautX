@@ -20,6 +20,10 @@
    window closes; after an error it stays, showing the page's log, until it
    is closed.
 
+   A view the page pops out (W645) gets a second window of its own in the same
+   process, made on the UI thread that runs the first: the page's
+   __xppPopOut call (xpp_window.cpp). Closing the main window closes them.
+
    On Linux the window is a library of its own (libxppwindow.so, W13e):
    these functions load it (xpp_window_loader.cpp) and call it through the
    C table of xpp_window_plugin.h. */

@@ -279,6 +279,21 @@ files for the browser's Load, `--anifile`. The page runs on the same machine
   with a focused "Choose file…" (Enter) and Cancel (Esc); it never opens by
   itself. The core's listing (`dirs`, `files`, `cd`) stays in the protocol
   but the page no longer shows it (maintainer, 2026-09-29).
+- **A view in a window of its own (W645, #717; maintainer 2026-11-07/08: "the popped out has pop in", "something that can be resized
+  and snapped in the OS, in the browser another tab")**: web2/src/popout.ts, ui/PopOut.tsx. The pop-out is the same page at the
+  main page's own address (its token, no new one) with `#popout=<kind>:<name>` in the fragment, which the server never sees, `kind`
+  `graph`, `autox` or `dock` (a dock tab's id): one more client of the one session (the server already streams to 16 pages),
+  showing that view alone under a header with Pop in; hotkeys, asks, errors and notifications are the main page's, so a command
+  from it runs as from the main window. The pages tell each other (a view out, back, the main page going away) over a
+  BroadcastChannel of the origin, which carries only a view's `kind:name`. Browser: `window.open(address, a name per view)`, so a
+  second Pop out of one view reaches the window it has (a same-address navigation is a fragment one: no reload). Desktop: the
+  main window binds `__xppPopOut(key, title)` (core/xpp_window.cpp: a second webview made on the UI thread that runs the first,
+  which GTK's main context, Windows' message loop and Cocoa's one NSApplication loop each serve; Linux is tested, Windows and
+  macOS written by reading); the key is checked (unreserved characters and %XX, at most 4096 bytes), at most 8 windows are open, and
+  a pop-out is bound with `__xppFileDialog` (as the main window's) and `__xppClosePopOut` (itself only), never `__xppCloseWindow` or
+  `__xppPopOut`. The OS close box asks the page to Pop in (`__xppPopIn`); the main window's closing destroys its pop-outs.
+  The core keeps one table block for its client, so the Table is in one place at a time: popping it out takes it out of the
+  dock (the dock shows Values) and opening the Table again brings the window forward.
 - **The desktop window (W88, maintainer 2026-09-28: "the browse dialog
   looks strange, why not the OS one")** has no browser around the page, so
   none of the above applies there: a `file` ask opens the operating

@@ -79,6 +79,8 @@ import {AutoxScript} from './AutoxScript';
 import {AutoxOutput, AutoxStatus} from './AutoxStatus';
 import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
+import {PoppedOut} from './PoppedOut';
+import {viewKeyText} from '../popout';
 import {toolbarRow} from './navigation';
 import {SetsRow} from './SetsRow';
 import {AxisTitle, FitButton, PickBar, PickOverlay, pickSink} from './PlotView';
@@ -547,6 +549,13 @@ function Readout() {
   );
 }
 
+/** view `view`'s pane, or a note that it is in a window of its own (popout.ts) */
+function DiagramPaneOrNote({view, dark}: {view: number; dark: boolean}) {
+  const name = useStore(s => viewOf(s, view).name);
+  const out = useStore(s => s.popouts.includes(viewKeyText({kind: 'autox', name})));
+  return out ? <PoppedOut view={{kind: 'autox', name}} /> : <DiagramPane view={view} dark={dark} />;
+}
+
 function AutoxPanel({dark}: {dark: boolean}) {
   const session = useSession();
   /* a button that opens the page's own form works during a run too (its edits wait); the others
@@ -596,7 +605,7 @@ function AutoxPanel({dark}: {dark: boolean}) {
         {grabbing && <GrabBar />}
         {pick && <PickBar pick={pick} />}
         <div class="autox-views" data-views={views}>
-          {Array.from({length: views}, (_, k) => <DiagramPane key={k} view={k} dark={dark} />)}
+          {Array.from({length: views}, (_, k) => <DiagramPaneOrNote key={k} view={k} dark={dark} />)}
         </div>
         <Readout />
       </div>
@@ -610,6 +619,20 @@ function AutoxPanel({dark}: {dark: boolean}) {
       <AutoxStatus />
       <p id="autox-keys-help" class="visually-hidden">{KEYS_HELP}</p>
       <p id="grab-keys-help" class="visually-hidden">{GRAB_HELP}</p>
+    </section>
+  );
+}
+
+/** one autoX view alone, in a pop-out's window: its pane and the readout, in the panel's own frame */
+export function AutoxPopOut({name, dark}: {name: string; dark: boolean}) {
+  const view = useStore(s => s.diagram.views.findIndex(v => v.name === name));
+  if (view < 0) return null;
+  return (
+    <section class="autox-panel" aria-label={`autoX view ${name}`}>
+      <div class="autox-view">
+        <div class="autox-views" data-views="1"><DiagramPane view={view} dark={dark} /></div>
+        <Readout />
+      </div>
     </section>
   );
 }

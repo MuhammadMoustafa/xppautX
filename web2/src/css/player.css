@@ -87,7 +87,6 @@ html.player-docked .shell { padding-top: var(--player-dock-h, 0); } /* the shell
 .player-editor { padding: var(--space-3); border-top: 1px solid var(--border); margin-top: var(--space-2); display: flex; flex-direction: column; gap: var(--space-2); }
 .player-editor label { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-xs); }
 .player-editor textarea { width: 100%; min-height: 3.2em; resize: vertical; font: inherit; font-size: var(--text-sm); }
-.player-editor-row { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .player-hint { font-size: var(--text-xs); color: var(--ok); }
 @media (max-width: 47.99rem) {
   .player-caption { font-size: 1.2rem; }

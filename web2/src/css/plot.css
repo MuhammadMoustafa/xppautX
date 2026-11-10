@@ -51,10 +51,13 @@
 .view-tabs .plot-tabs { flex: 0 1 auto; flex-wrap: nowrap; overflow-x: auto; }
 .view-tab { display: inline-flex; align-items: center; flex: none; }
 .view-tab-kind { color: var(--fg-muted); white-space: pre; }
-.view-tab .view-tab-close { min-width: 1.5rem; padding-inline: var(--space-1); }
+.view-tab .view-tab-close, .view-tab .view-tab-popout { min-width: 1.5rem; padding-inline: var(--space-1); }
 /* a view's name edited in its tab (W685, ViewTabs.tsx ViewRename) */
 .view-tab-rename { display: inline-flex; margin: 0; }
 .view-tab-rename input { width: 10rem; min-width: 0; }
+/* a view in a window of its own (W645): its tab carries the mark and its words are slanted */
+.view-tab-out { margin-inline-start: var(--space-1); color: var(--accent); }
+.view-tab.out .plot-tab-title, .dock-tab.out { font-style: italic; }
 .view-add { position: relative; }
 .view-tabs .view-add > summary { list-style: none; cursor: pointer; min-height: var(--target); min-width: var(--target); display: inline-flex; align-items: center; justify-content: center; font-size: 1.25rem; }
 .view-add > ul { position: absolute; z-index: var(--z-menu); left: 0; margin: 0; padding: var(--space-1); list-style: none; display: grid; gap: var(--space-1); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }

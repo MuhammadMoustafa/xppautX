@@ -30,6 +30,7 @@ import {planRequest} from './store/table';
 import {continuePlan, steadyRun} from './store/steady';
 import type {DockTab} from './store/dock';
 import type {TextTab} from './store/text';
+import {PopOuts, type ViewKey} from './popout';
 import {fieldKey, valueCommands, type ValueSet} from './store/values';
 import {autoxSettingsCommands, commandSettings, type AutoxSettingsPatch} from './store/autoxSettings';
 
@@ -81,8 +82,13 @@ const DIAGRAM_HOLD_MS = 200;
 /** the commands of the player's Play, Pause and Step buttons */
 const PLAYER_CONTROLS = {start: 'recording.play', pause: 'recording.pause', step: 'recording.step'} as const;
 
+/** the table, as a pop-out names it */
+const TABLE_VIEW: ViewKey = {kind: 'dock', name: 'table'};
+
 export class Session {
   readonly store: Store<AppState, Action>;
+  /** the views in windows of their own (popout.ts) */
+  readonly popouts: PopOuts;
   private otherProtocol = false;
   /** commands whose completion has not arrived yet */
   private donesOwed = 0;
@@ -152,6 +158,7 @@ export class Session {
   /** files: the model's folder over HTTP (none in unit tests) */
   constructor(private readonly transport: Transport, private readonly files: FilesApi | null = null) {
     this.store = createStore(reduce, initialState);
+    this.popouts = new PopOuts(this.store);
   }
 
   start(): void {
@@ -999,6 +1006,11 @@ export class Session {
   /* ---- data table (docs/ui-v2.md T10, docs/protocol.md "The data table") ---- */
 
   openTable(): void {
+    /* the core keeps one table block, which the pop-out has: this page opening it too would take it over */
+    if (this.popouts.isOut(TABLE_VIEW)) {
+      void this.popouts.show(TABLE_VIEW);
+      return;
+    }
     this.store.dispatch({type: 'table', action: {type: 'open', open: true}});
   }
 
@@ -1009,6 +1021,12 @@ export class Session {
 
   /** the right dock's tab `tab` shown, the dock too (Values closes the panel that was open) */
   selectDockTab(tab: DockTab): void {
+    /* a tab in a window of its own brings that window forward; Values stays the dock's fallback, so it is also shown */
+    const view: ViewKey = {kind: 'dock', name: tab};
+    if (this.popouts.isOut(view)) {
+      void this.popouts.show(view);
+      if (tab !== 'values') return;
+    }
     const {table, text, help} = this.store.getState();
     if (tab === 'table') this.openTable();
     else if (tab === 'text') this.openText();
@@ -1020,6 +1038,13 @@ export class Session {
       this.store.dispatch({type: 'panels', panels: {dockHidden: false}});
     }
     this.store.dispatch({type: 'dockPanel', open: true});
+  }
+
+  /** the dock tab `tab` into a window of its own; the dock shows Values again, so the panel (the table's block, which
+      the core keeps one of, the manual's place) is the pop-out's alone */
+  popOutDockTab(tab: DockTab): void {
+    if (tab !== 'values') this.selectDockTab('values');
+    void this.popouts.show({kind: 'dock', name: tab});
   }
 
   /** the dock's ×: the panel that was open closed, and the dock hidden (the column, kept per viewer) or, `asSheet` (a phone), its sheet shut;

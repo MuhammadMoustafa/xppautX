@@ -160,3 +160,15 @@ h1, h2 { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* ---- a view in a window of its own (ui/PopOut.tsx, popout.ts, W645): the header with Pop in, then the view alone ---- */
+.popout-shell { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+.popout-head { flex: none; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border-bottom: 1px solid var(--border); background: var(--surface); }
+.popout-head h1 { margin: 0; font-size: var(--text-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.popout-body { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: var(--space-2); overflow: auto; }
+.popout-body > .plots { flex: 1; }
+.popout-shell .popout-dock { position: static; transform: none; visibility: visible; box-shadow: none; border-left: none; flex: 1; }
+/* in the place of a view that is in its own window */
+.popped-out { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px dashed var(--border); border-radius: var(--radius); color: var(--fg-muted); }
+.popped-out p { margin: 0; }
+.popped-out-actions, .player-editor-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }

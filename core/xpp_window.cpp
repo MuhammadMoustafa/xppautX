@@ -112,6 +112,14 @@ struct Placement {
     return {area_x + (area_width - width) / 2, area_y + (area_height - height) / 2, width, height};
 }
 
+/* A view in a window of its own (W645): the page's pop-out, the same page
+   as the main window's at its address with `#popout=<key>`, showing that one
+   view. `key` is what the page named it, kept to find the window again. */
+struct PopOut {
+    std::string key;
+    webview_t view;
+};
+
 /* after the window closed, how long the core has to exit on its own */
 constexpr auto EXIT_GRACE = std::chrono::seconds(10);
 
@@ -128,6 +136,7 @@ struct State {
     bool session_started = false; /* a document to open is opened, not the model to load */
     std::string launch_document;  /* the file the launch's open-documents event named */
 #endif
+    std::vector<PopOut> popouts; /* the views in windows of their own: the UI thread's only */
     std::promise<void> done;   /* the window has closed and let go */
     std::shared_future<void> done_f = done.get_future().share();
 };
@@ -173,6 +182,27 @@ void terminate_cb(webview_t w, void *) { webview_terminate(w); }
     return true;
 }
 
+/* A native window's close box, on the UI thread (Windows' WM_CLOSE, GTK's
+   delete-event, Cocoa's windowShouldClose:): a pop-out's asks its page to pop
+   in, which closes it (web2's __xppPopIn, then __xppClosePopOut; a page
+   without the hook is closed at once); the main window's is the leave
+   question. True when the page was asked and the window stays. */
+[[maybe_unused]] bool close_asking(void *native)
+{
+    for (const PopOut &p : st->popouts) {
+        if (webview_get_window(p.view) != native) continue;
+        webview_eval(p.view, "window.__xppPopIn ? window.__xppPopIn() : window.__xppClosePopOut()");
+        return true;
+    }
+    /* a window that is neither (a pop-out already taken off the list, being destroyed) just closes */
+    webview_t main_view;
+    {
+        std::lock_guard<std::mutex> lk(st->mu);
+        main_view = st->view;
+    }
+    return main_view && webview_get_window(main_view) == native && quit_asking();
+}
+
 /* __xppCloseWindow (W110): the leave question's Don't save in the window,
    which closes as before W59d: window_closed sends the plain quit, which
    ends even a computation that never reaches a checkpoint (EXIT_GRACE).
@@ -198,6 +228,8 @@ void window_closed(webview_t w)
         st->view = nullptr;
         by_core = st->core_closing;
     }
+    for (const PopOut &p : st->popouts) webview_destroy(p.view); /* the main window's closing closes its pop-outs */
+    st->popouts.clear();
     webview_destroy(w);
     if (!by_core) {
         static constexpr std::string_view quit = "{\"cmd\":\"session.quit\",\"save\":false}";
@@ -341,7 +373,7 @@ WNDPROC webview_proc; /* the library's own window procedure */
 
 LRESULT CALLBACK close_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-    if (msg == WM_CLOSE && quit_asking()) return 0;
+    if (msg == WM_CLOSE && close_asking(hwnd)) return 0;
     return CallWindowProcW(webview_proc, hwnd, msg, wp, lp);
 }
 
@@ -358,6 +390,26 @@ void prepare_window(webview_t w)
 
     webview_proc = reinterpret_cast<WNDPROC>(
         SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(close_proc)));
+}
+
+/* a pop-out: the same close box and icon as the main window's (webview_proc is the library's one window
+   procedure, already kept by prepare_window), no maximizing and no place of ours: the system's */
+void prepare_popout(webview_t w)
+{
+    HWND hwnd = static_cast<HWND>(webview_get_window(w));
+    if (!hwnd) return;
+    HANDLE icon = LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(32512), IMAGE_ICON,
+                             GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
+    if (icon) SendMessageW(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(icon));
+    SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(close_proc));
+}
+
+/* a pop-out brought to the front, restored when minimized */
+void raise_window(void *native)
+{
+    HWND hwnd = static_cast<HWND>(native);
+    if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+    SetForegroundWindow(hwnd);
 }
 
 /* fit_in on the monitor the window opened on (the library sized it, frame
@@ -410,7 +462,7 @@ void place_window(webview_t w)
 constexpr unsigned long TERMINATE_CANCEL = 0; /* NSTerminateCancel */
 
 /* -windowShouldClose: (called from Cocoa: nothing may throw) */
-BOOL window_should_close(id, SEL, id) { return quit_asking() ? static_cast<BOOL>(NO) : static_cast<BOOL>(YES); }
+BOOL window_should_close(id, SEL, id window) { return close_asking(window) ? static_cast<BOOL>(NO) : static_cast<BOOL>(YES); }
 
 /* -applicationShouldTerminate: never terminates the application itself
    (its exit() would run the core's atexit handlers on the window's
@@ -427,6 +479,17 @@ unsigned long application_should_terminate(id, SEL, id)
         if (w) webview_terminate(w);
     }
     return TERMINATE_CANCEL;
+}
+
+/* a pop-out: the window delegate's windowShouldClose: (prepare_window added it to the library's class) is its close box;
+   nothing to set up, and no place of ours: the system's */
+void prepare_popout(webview_t) {}
+
+/* a pop-out brought to the front (untested: written without a Mac) */
+void raise_window(void *native)
+{
+    msg<void>(msg(cls("NSApplication"), "sharedApplication"), "activateIgnoringOtherApps:", static_cast<BOOL>(YES));
+    msg<void>(static_cast<id>(native), "makeKeyAndOrderFront:", static_cast<id>(nullptr));
 }
 
 /* the method on the library's class name (a no-op when it has none) */
@@ -617,6 +680,8 @@ void watch_for_documents()
 #if GTK_MAJOR_VERSION >= 4
 void prepare_window(webview_t) {} /* webkitgtk-6.0 (GTK 4): nothing to set up */
 void place_window(webview_t) {} /* nor a work area or a window position */
+void prepare_popout(webview_t) {} /* nor a close box of its own: a pop-out closes by its page's Pop in */
+void raise_window(void *native) { gtk_window_present(GTK_WINDOW(native)); }
 /* nor gtk_dialog_run: web2 shows its own file dialog */
 constexpr bool HAS_FILE_DIALOG = false;
 std::optional<std::string> pick_file(void *, const FileDialog &) { return std::nullopt; }
@@ -695,7 +760,7 @@ void set_window_icon(GtkWindow *win)
 }
 
 /* the close box: the question first (quit_asking) */
-gboolean on_delete(GtkWidget *, GdkEvent *, gpointer) { return quit_asking() ? TRUE : FALSE; }
+gboolean on_delete(GtkWidget *window, GdkEvent *, gpointer) { return close_asking(window) ? TRUE : FALSE; }
 
 void prepare_window(webview_t w)
 {
@@ -704,6 +769,11 @@ void prepare_window(webview_t w)
     g_signal_connect(win, "delete-event", G_CALLBACK(on_delete), nullptr);
     set_window_icon(GTK_WINDOW(win));
 }
+
+/* a pop-out: the main window's icon and close box, no maximizing and no place of ours: the window manager's */
+void prepare_popout(webview_t w) { prepare_window(w); }
+
+void raise_window(void *native) { gtk_window_present(GTK_WINDOW(native)); }
 
 /* fit_in on the primary monitor's work area (GTK sizes in logical pixels,
    so the scaling is already in the area); on Wayland the compositor
@@ -809,6 +879,112 @@ void open_about_link_cb(const char *id, const char *request, void *arg)
     open_url_cb(id, request, arg, host->open_about_link, "About", "About");
 }
 
+/* ---- pop-outs (W645) ----------------------------------------------------
+   The page's "Pop out" on a view (a graph, an autoX view, a dock tab) calls
+   __xppPopOut(key, title), bound in the main window only: a second native
+   window in this process, on the UI thread that runs the main one (a
+   webview is one window with its own engine; the library counts windows
+   process-wide and runs one loop per thread, which serves every window made
+   on it: GTK's main context, Windows' message loop, Cocoa's one NSApplication
+   loop). Its page is the main window's at the same tokened address with
+   `#popout=<key>` (a fragment never reaches the server), bound with no more
+   than __xppFileDialog (as in the main window: the same picker, the same
+   authorisation of a save) and __xppClosePopOut (this window alone: the
+   main window's __xppCloseWindow ends the session, a pop-out's never can).
+   The key is the page's own percent-encoded name of the view; a tampered
+   page can only ask for a window on our own address with a fragment made of
+   unreserved characters, and no more than MAX_POPOUTS of them. */
+constexpr int POPOUT_WIDTH = 900, POPOUT_HEIGHT = 640; /* the restored size; the system resizes and places it */
+constexpr size_t MAX_POPOUTS = 8; /* each is an event stream of the 16 the server holds, beside the main window's and a browser's */
+constexpr size_t POPOUT_KEY_MAX = 4096; /* a name of 1024 bytes, every one percent-encoded, and its kind */
+constexpr size_t POPOUT_TITLE_MAX = 2048; /* a name of 1024 bytes and a few words, escaped in JSON */
+constexpr std::string_view POPOUT_FRAGMENT = "#popout=";
+
+/* a key is encodeURIComponent's output: unreserved characters and %XX only */
+bool popout_key_ok(const std::string &key)
+{
+    if (key.empty() || key.size() > POPOUT_KEY_MAX) return false;
+    return std::all_of(key.begin(), key.end(), [](unsigned char c) { return std::isalnum(c) || std::strchr("%-_.~", c); });
+}
+
+/* __xppClosePopOut: this window is closed, on the UI thread, out of the library's own callback; the page that
+   called it gets no reply (it is going), and the destruction is queued on the main window's loop behind whatever
+   this window still has queued (webview_destroy inside the window's own callback would free what the library
+   still uses). Called from the library: nothing may throw. */
+void destroy_popout_cb(webview_t, void *arg)
+{
+    webview_t popout = static_cast<webview_t>(arg);
+    auto &list = st->popouts;
+    auto it = std::find_if(list.begin(), list.end(), [popout](const PopOut &p) { return p.view == popout; });
+    if (it == list.end()) return;
+    list.erase(it);
+    webview_destroy(popout);
+}
+
+void close_popout_cb(const char *, const char *, void *arg)
+{
+    webview_t main_view;
+    {
+        std::lock_guard<std::mutex> lk(st->mu);
+        main_view = st->view;
+    }
+    if (main_view) webview_dispatch(main_view, destroy_popout_cb, arg);
+}
+
+/* the pop-out's window, the page loading in it; NULL with why */
+webview_t open_popout_view(const std::string &key, const std::string &title, std::string &why)
+{
+    int code = 0;
+    std::string detail;
+    webview_t w = xpp::webview_create(false, nullptr, code, detail);
+    if (!w) {
+        why = xpp::webview_error_message(code, detail);
+        return nullptr;
+    }
+    webview_set_title(w, title.c_str());
+    webview_set_size(w, POPOUT_WIDTH, POPOUT_HEIGHT, WEBVIEW_HINT_NONE);
+    prepare_popout(w);
+    if (HAS_FILE_DIALOG) webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
+    webview_bind(w, "__xppClosePopOut", close_popout_cb, w);
+    webview_navigate(w, (std::string(host->http_url()) + std::string(POPOUT_FRAGMENT) + key).c_str());
+    return w;
+}
+
+/* __xppPopOut(key, title): the view's window opened, or brought to the front when it is open already; rejects with
+   why when it cannot be. On the UI thread; called from the library: nothing may throw. */
+void popout_cb(const char *id, const char *request, void *arg)
+{
+    webview_t w = static_cast<webview_t>(arg);
+    int status = 0;
+    std::string reply = "null";
+    try {
+        const std::string input = request ? request : "";
+        const std::string key = xpp::webview_json_value(input, "", 0);
+        std::string title = xpp::webview_json_value(input, "", 1);
+        std::string why;
+        auto &list = st->popouts;
+        auto open = std::find_if(list.begin(), list.end(), [&key](const PopOut &p) { return p.key == key; });
+        if (!popout_key_ok(key) || title.size() > POPOUT_TITLE_MAX) {
+            why = "the view's name is not one a window can be made for";
+        } else if (open != list.end()) {
+            raise_window(webview_get_window(open->view));
+        } else if (list.size() >= MAX_POPOUTS) {
+            why = std::to_string(MAX_POPOUTS) + " views are in windows of their own already: pop one in first";
+        } else {
+            webview_t popout = open_popout_view(key, title.empty() ? "xppautX" : title, why);
+            if (popout) list.push_back({key, popout});
+        }
+        if (!why.empty()) {
+            status = 1;
+            reply = xpp::webview_json_quote(why);
+        }
+    } catch (const std::exception &e) {
+        status = 1;
+        reply = xpp::webview_json_quote(e.what());
+    }
+    webview_return(w, id, status, reply.c_str());
+}
+
 /* the window, on the thread that runs it; NULL when it cannot open, with
    why in st->error_msg */
 webview_t open_view()
@@ -832,6 +1008,7 @@ webview_t open_view()
     /* before the page loads, so it is there from its first script */
     if (HAS_FILE_DIALOG) webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
     webview_bind(w, "__xppCloseWindow", close_window_cb, w);
+    webview_bind(w, "__xppPopOut", popout_cb, w);
     webview_bind(w, "__xppOpenRelease", open_release_cb, w);
     webview_bind(w, "__xppOpenAboutLink", open_about_link_cb, w);
     /* the token stays out of sight: the web view has no address bar */
