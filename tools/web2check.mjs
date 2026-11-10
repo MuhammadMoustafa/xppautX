@@ -5308,8 +5308,11 @@ async function nativeFiles(dir) {
 /* ---- animation (docs/ui-v2.md T13) ---------------------------------------------- */
 
 /* the frame the store holds, the one drawn (__xpp.ani()), and the slider, once the core is idle */
+/* the frame is shown once its drawing is the stored frame's: the same row and every primitive (a Load replaces a frame 0 by
+   another frame 0, and a slow runner read the old drawing before the next animation frame redrew it: macOS, 2026-11-10) */
 const aniShown = pos => until(`!s.busy && s.ani.frame && s.ani.frame.pos === ${pos} && __xpp.ani()
-  && __xpp.ani().pos === ${pos} && +document.querySelector('.ani-slider').value === ${pos}`, `frame ${pos}`);
+  && __xpp.ani().pos === ${pos} && __xpp.ani().prims === s.ani.frame.prims.length
+  && +document.querySelector('.ani-slider').value === ${pos}`, `frame ${pos}`);
 const focusStage = () => cdp.eval(`document.querySelector('.ani-stage').focus()`);
 
 async function animation() {
