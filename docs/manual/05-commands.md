@@ -31,7 +31,7 @@ A command checks all its values before applying them. A refusal leaves the
 settings, values, windows and files unchanged. While recording, a command
 refused before computation adds no step and keeps the pending note for the
 next successful step. A computation that has started reports its own stop
-and keeps its partial results (W534, #599).
+and keeps its partial results.
 
 **Help > Search commands** (Ctrl/Cmd+Shift+P), or **Search commands** at the top of the menu bar,
 searches every word in command names, menu paths and descriptions. Pick a
@@ -150,135 +150,134 @@ Liapunov exponent, a saved boundary-value point, and autoX toggle states
 appear in the status bar. They do not open an error dialog. If the
 kinescope fills, the command reports one error; frames already captured
 remain available. A script or `--silent` run exits 1 if any error occurred,
-including an output file it could not write; a successful fit exits 0
-(W133).
+including an output file it could not write; a successful fit exits 0.
 
 In xppautX every command is invoked from the menu, Search commands or a key you bind to it (XPPAUT's letter keys are not kept). Usually most commands can be aborted by pressing the `Esc` key. Once one of these is chosen, the program begins to calculate and draw the trajectories. If you want to stop prematurely, press the `Esc` key and the integration will stop.
 
 **In web2**, the main menu and every one of these commands and hotkeys
 are unchanged; see [Using the interface](04-using-the-interface.md) for
 the menu panel, the values panel (parameters, ICs, sliders), where dialogs
-and prompts appear, and how Stop (the status bar) replaces the X11
+and prompts appear, and how Stop (the status bar) replaces XPPAUT's
 window-specific Abort/Esc behaviour for a long-running command described
 below.
 
-### (I)nitial conds
+### Initial conds
 
-**In xppautX these are also commands** (W521): `run.initial` (Go), `run.last`, `run.old`, `run.shift`, `run.backward`, `run.range`, `run.double_range`, `initial_conditions.set_dae_guess`, `run.shoot`, `run.from_point` (Mouse), `run.from_every_point` (mIce), `initial_conditions.set` (New), `initial_conditions.import` (File) and `initial_conditions.set_by_formula`, `run.continue` (Continue), `run.configure` (the Numerics items Total, Start time, Transient, Dt, Method, Store every, Bounds, Delay, and the method's own Volterra points, CVODE band and delay guesses) and `boundary_value.*` (Bndry val). Each takes its answers as named arguments and a left-out one keeps the session's current setting; see [the protocol](../protocol.md). The menu and its keys ask as XPPAUT's do and call the same code; the commands set the initial values only (New, File and formUla in the menu also run). The XPPAUT menu follows, for reference. The choices are:
-- **(R)ange**: This lets you integrate multiple times with the results shown in the graphics window. Pressing this option produces a new window with several boxes to fill in. First choose the quantity you want to range over. It can be a parameter or a variable. The integrator will be called and this quantity will be changed at the beginning of each integration. Then choose the starting and ending value and the number of steps. With **Reset storage** on, **Write each run to its own file (Y/N)** saves each completed integration before its rows are cleared (W349, [#410](https://github.com/MuhammadMoustafa/xppautX/issues/410)). This setting defaults to N and also appears in the double-range form. Files are named `<model>_0000.dat`, `<model>_0001.dat`, and so on (the run's number, four digits, before the extension), in the model's folder; double ranges number all runs consecutively. A built-in `--silent` range uses its output file (`out=` / `--outfile`, otherwise `output.dat`) as the base instead. Existing files use the normal replacement question and answer policy. With Reset storage off this setting has no effect, since all runs stay in storage. If you choose not to reset, each integration is appended to storage. Most likely, storage will be exceeded and the integration will overwrite or stop. The option to use last initial conditions will automatically use the final result of the previous integration as initial dat for the next integration. Otherwise, the current ICs will be used at each step (except of course for the variable through which you are ranging.) If you choose `Yes` in the `Movie` item, then after each integration, XPP will take a snapshot of the picture. You can then replay this series of snapshots back using the Kinescope. When you are happy with the parameters, simply press the OK button. Otherwise, press the Cancel button to abort. Assuming that you have accepted, the program will compute the trajectories and plot them storing none of them or all of them. If you press `Esc` it will abort the current trajectory and move on to the next. Pressing the `/ ` key will abort the whole process.
-  **Runs on several threads (W434, [#496](https://github.com/MuhammadMoustafa/xppautX/issues/496)).** With **Use old I.C.s** on, every run starts from the same initial data, so the runs do not depend on one another and xppautX computes them side by side, on as many threads as the thread count says (autoX's Threads setting, [the autoX chapter](09-autox.md): automatic is all the physical cores here), for a model that is compiled and whose right-hand side is pure (no delays, networks, DAE, Markov variables, function tables that are rebuilt or integral equations; a noise term is fine). What comes out is the same whatever the thread count: the runs are joined in order, so the data, the files, the messages and the drawing are those of the runs one after another, to the last bit. A sweep that cannot run side by side runs its runs one after another and, when more than one thread was asked for, says why in the log at `--verbose`: **Use old I.C.s** off (each run starts where the last ended), a model that is interpreted or not pure, a range that follows autoX's diagram. Range Equilibria and Range Shoot go one after another by their nature (each search or shot starts from the one before) and say so. Each run has a seed of its own, the next in a stream from the seed set for the next run, so a run's noise is its own whatever ran before it or at the same time; the data table's seed is the run's, and Go with that seed reproduces that run (Stochastic's New seed).
-- **(2)par range**: is similar to range integration but allows you to range over two items. The `Crv(1) Array(2)` item determines how the range is done. If you choose `Crv` then the two paramaters are varied in concert, $`[a(i),b(i)]`$ for $`i=0,\ldots,N`$. The more useful `Array` varies them independently as $`[a(i),b(j)]`$ for $`i=0,\ldots,N`$ and $`j=0,\ldots,M.`$
-- **(L)ast**: This uses the end result of the most recent integration as the starting point of the curret integration.
-- **(O)ld**: This uses the most recent initial data as the current initial data. It is essentially the same as Go.
-- **(G)o**: which uses the initial data in the IC window and the current numerics parameters to solve the equation. The output is drawn in the current selected graphics window and the data are saved for later use. The solution continues until either the user aborts by pressing `Esc`, the integration is complete, or storage runs out.
-- **(M)ouse**: allows you to specify the values with the mouse. Click at the desired spot.
-- **(S)hift**: This is like Last except that the stating time is shifted to the current integration time. This is irrelevant for autonomous systems but is useful for nonautonomous ODEs.
-- **(N)ew**: This prompts you at the command line for each initial condition. Press `Return` to accept the value presented.
-- **s(H)oot**: allows you to use initial data that was produced when you last searched for an equilibrium. When a rest state has a single positive or negative eigenvalue, then XPP will ask if you want to approximate the invariant manifold. If you choose `yes` to this, then the initial data that were used to compute the trajectories are remembered. Thus, when you choose this option, you will be asked for a number 1-4. This number is the order in which the invariant trajectories were computed. Note if the invariant set is a stable manifold, then you should integrate backwards in time.
-- **(F)ile**: prompts you for a file name which has the initial data as a sequence of numerical values.
-- **form(U)la**: allows you to set all the initial data as a formula. This is good for systems that represent chains of many ODEs. When prompted for the variable, type in `u[2..10]` for example to set the variables `u2,u3, ..., u10` and then put in a formula using the index `[j]`. Note you must use `[j]` and not `j` by itself. For example `sin([j]*2*pi/10)`. Repeat this for different variables hitting enter twice to begin the integration.
-- **M(I)ce**: allows you to choose multiple points with the mouse. Click Esc when done.
-- **(D)AE guess**: lets you choose a guess for the algebraic variables of the DAE.
-- **(B)ackward**: is the same as “Go” but the integration is run backwards in time.
+**In xppautX these are also commands**: `run.initial` (Go), `run.last`, `run.old`, `run.shift`, `run.backward`, `run.range`, `run.double_range`, `initial_conditions.set_dae_guess`, `run.shoot`, `run.from_point` (Mouse), `run.from_every_point` (Mice), `initial_conditions.set` (New), `initial_conditions.import` (File) and `initial_conditions.set_by_formula`, `run.continue` (Continue), `run.configure` (the Numerics items Total, Start time, Transient, Dt, Method, Store every, Bounds, Delay, and the method's own Volterra points, CVODE band and delay guesses) and `boundary_value.*` (Bndry val). Each takes its answers as named arguments and a left-out one keeps the session's current setting; see [the protocol](../protocol.md). The menu and its keys ask as XPPAUT's do and call the same code; the commands set the initial values only (New, File and Formula in the menu also run). The XPPAUT menu follows, for reference. The choices are:
+- **Range**: This lets you integrate multiple times with the results shown in the graphics window. Pressing this option produces a new window with several boxes to fill in. First choose the quantity you want to range over. It can be a parameter or a variable. The integrator will be called and this quantity will be changed at the beginning of each integration. Then choose the starting and ending value and the number of steps. With **Reset storage** on, **Write each run to its own file (Y/N)** saves each completed integration before its rows are cleared. This setting defaults to N and also appears in the double-range form. Files are named `<model>_0000.dat`, `<model>_0001.dat`, and so on (the run's number, four digits, before the extension), in the model's folder; double ranges number all runs consecutively. A built-in `--silent` range uses its output file (`out=` / `--outfile`, otherwise `output.dat`) as the base instead. Existing files use the normal replacement question and answer policy. With Reset storage off this setting has no effect, since all runs stay in storage. If you choose not to reset, each integration is appended to storage. Most likely, storage will be exceeded and the integration will overwrite or stop. The option to use last initial conditions will automatically use the final result of the previous integration as initial dat for the next integration. Otherwise, the current ICs will be used at each step (except of course for the variable through which you are ranging.) If you choose `Yes` in the `Movie` item, then after each integration, XPP will take a snapshot of the picture. You can then replay this series of snapshots back using the Kinescope. When you are happy with the parameters, simply press the OK button. Otherwise, press the Cancel button to abort. Assuming that you have accepted, the program will compute the trajectories and plot them storing none of them or all of them. If you press `Esc` it will abort the current trajectory and move on to the next. Pressing the `/ ` key will abort the whole process.
+  **Runs on several threads.** With **Use old I.C.s** on, every run starts from the same initial data, so the runs do not depend on one another and xppautX computes them side by side, on as many threads as the thread count says (autoX's Threads setting, [the autoX chapter](09-autox.md): automatic is all the physical cores here), for a model that is compiled and whose right-hand side is pure (no delays, networks, DAE, Markov variables, function tables that are rebuilt or integral equations; a noise term is fine). What comes out is the same whatever the thread count: the runs are joined in order, so the data, the files, the messages and the drawing are those of the runs one after another, to the last bit. A sweep that cannot run side by side runs its runs one after another and, when more than one thread was asked for, says why in the log at `--verbose`: **Use old I.C.s** off (each run starts where the last ended), a model that is interpreted or not pure, a range that follows autoX's diagram. Range Equilibria and Range Shoot go one after another by their nature (each search or shot starts from the one before) and say so. Each run has a seed of its own, the next in a stream from the seed set for the next run, so a run's noise is its own whatever ran before it or at the same time; the data table's seed is the run's, and Go with that seed reproduces that run (Stochastic's New seed).
+- **2par range**: is similar to range integration but allows you to range over two items. The `Crv(1) Array(2)` item determines how the range is done. If you choose `Crv` then the two paramaters are varied in concert, $`[a(i),b(i)]`$ for $`i=0,\ldots,N`$. The more useful `Array` varies them independently as $`[a(i),b(j)]`$ for $`i=0,\ldots,N`$ and $`j=0,\ldots,M.`$
+- **Last**: This uses the end result of the most recent integration as the starting point of the curret integration.
+- **Old**: This uses the most recent initial data as the current initial data. It is essentially the same as Go.
+- **Go**: which uses the initial data in the IC window and the current numerics parameters to solve the equation. The output is drawn in the current selected graphics window and the data are saved for later use. The solution continues until either the user aborts by pressing `Esc`, the integration is complete, or storage runs out.
+- **Mouse**: allows you to specify the values with the mouse. Click at the desired spot.
+- **Shift**: This is like Last except that the stating time is shifted to the current integration time. This is irrelevant for autonomous systems but is useful for nonautonomous ODEs.
+- **New**: This prompts you at the command line for each initial condition. Press `Return` to accept the value presented.
+- **Shoot**: allows you to use initial data that was produced when you last searched for an equilibrium. When a rest state has a single positive or negative eigenvalue, then XPP will ask if you want to approximate the invariant manifold. If you choose `yes` to this, then the initial data that were used to compute the trajectories are remembered. Thus, when you choose this option, you will be asked for a number 1-4. This number is the order in which the invariant trajectories were computed. Note if the invariant set is a stable manifold, then you should integrate backwards in time.
+- **File**: prompts you for a file name which has the initial data as a sequence of numerical values.
+- **Formula**: allows you to set all the initial data as a formula. This is good for systems that represent chains of many ODEs. When prompted for the variable, type in `u[2..10]` for example to set the variables `u2,u3, ..., u10` and then put in a formula using the index `[j]`. Note you must use `[j]` and not `j` by itself. For example `sin([j]*2*pi/10)`. Repeat this for different variables hitting enter twice to begin the integration.
+- **MIce**: allows you to choose multiple points with the mouse. Click Esc when done.
+- **DAE guess**: lets you choose a guess for the algebraic variables of the DAE.
+- **Backward**: is the same as “Go” but the integration is run backwards in time.
 
-### (C)ontinue
+### Continue
 
 This allows you to continue integrating appending the data to the current curve. In web2 it takes the toolbar's **For another** duration or **Until time** (Alt+Enter, or the Continue button) and asks nothing; the end is rounded up to the output grid (Dt times Store every N steps). Without a toolbar (a script's key `c`) it continues for another Total.
 
-### (N)ullclines
+### Nullclines
 
 This option allows you to draw the nullclines of systems. They are most useful for two-dimensional models, but XPP lets you draw them for any model. The constraints are the same as in the direction fields option above. The menu has 4 items.
-- **(N)ew**: draws a new set of nullclines.
-- **(R)estore**: restores the most recently computed set.
-- **(A)uto**: turns on a flag that makes XPP redraw them every time it is necessary because some other window obscured them.
-- **(M)anual**: turns this flag off so that you must restore them manually. The X-axis nullcline is blue and the Y-axis nullcline is red.
-- **(F)reeze**: allows you to freeze and play back multiple nullclines
-  - **(F)reeze**: freezes the current nullclines
-  - **(D)elete all**: deletes all frozen nullclines
-  - **(R)ange**: lets you vary a parameter through some range, computes the nullclines and stores them
-  - **(A)nimate**: redraws all the frozen nullclines erasing the screen between each one. The user specifies a delay between drawing.
-- **(S)ave**: saves the nullclines into a file. They can then be plotted using other software. **NOTE:** The way that XPP computes nullclines (by computing zero contours of a two-variable function) means that the nullclines are composed of a series of small line segments. This means that if you try to plot them as a continuous curve, your plotting program will produce garbage. Thus, you should plot them as points and not draw line segments between them. The data file produced has 4 columns. The first two are the “x” nullcline and the second two are the “y” nullcline. Data is as follows:
+- **New**: draws a new set of nullclines.
+- **Restore**: restores the most recently computed set.
+- **Auto**: turns on a flag that makes XPP redraw them every time it is necessary because some other window obscured them.
+- **Manual**: turns this flag off so that you must restore them manually. The X-axis nullcline is blue and the Y-axis nullcline is red.
+- **Freeze**: allows you to freeze and play back multiple nullclines
+  - **Freeze**: freezes the current nullclines
+  - **Delete all**: deletes all frozen nullclines
+  - **Range**: lets you vary a parameter through some range, computes the nullclines and stores them
+  - **Animate**: redraws all the frozen nullclines erasing the screen between each one. The user specifies a delay between drawing.
+- **Save**: saves the nullclines into a file. They can then be plotted using other software. **NOTE:** The way that XPP computes nullclines (by computing zero contours of a two-variable function) means that the nullclines are composed of a series of small line segments. This means that if you try to plot them as a continuous curve, your plotting program will produce garbage. Thus, you should plot them as points and not draw line segments between them. The data file produced has 4 columns. The first two are the “x” nullcline and the second two are the “y” nullcline. Data is as follows:
 - xnx1 xny1 ynx1 yny1     xnx2 xny2 ynx2 yny2     ...
 - There are an even number of entries. The “x” nullcline consists of segments `(xnx1,xny1),(xnx2,xny2)` between pairs of points. Similarly for the “y” nullcline.
 
-### (D)irection Field/Flow
+### Direction Field/Flow
 
 This option is best used for two-dimensional systems however, it can be applied to any system. The current graphics view must be a two-d plot in which both variables are different and neither is the time variable, T. There are five items.
-- **(D)irection fields**: Choosing the direction field option will prompt you for a grid size. The two dimensional plane is broken into a grid of the size specified and lines are drawn at each point specifying the direction of the flow at that point. The length of the line gives the magnitude. If the system is more than two-dimensional, the other variables will be held at the values in the initial conditions window.
-- **(F)low**: Choosing the flow, you will be prompted for a grid size and trajectories started at each point on the grid will be integrated according to the numerical parameters. Any given trajectory can be aborted by pressing `Esc` and the whole process stopped by pressing `/`. The remaining variables if in more than two-dimensions are initialized with the values in the IC window.
-- **(N)o Dir Field**: turns off redrawing of direction fields when you click on (Redraw). Erasing the screen automatically turns this off.
-- **(C)olorize**: This draws a grid of filled rectangles on the screen whose color is coded by the velocity or some other quantity. (See the Numerics Colorize menu item).
-- **(S)caled Dir. Fld**: is the same as (D)irection field but the lengths are all scaled to 1 so only directional information is given.
+- **Direction fields**: Choosing the direction field option will prompt you for a grid size. The two dimensional plane is broken into a grid of the size specified and lines are drawn at each point specifying the direction of the flow at that point. The length of the line gives the magnitude. If the system is more than two-dimensional, the other variables will be held at the values in the initial conditions window.
+- **Flow**: Choosing the flow, you will be prompted for a grid size and trajectories started at each point on the grid will be integrated according to the numerical parameters. Any given trajectory can be aborted by pressing `Esc` and the whole process stopped by pressing `/`. The remaining variables if in more than two-dimensions are initialized with the values in the IC window.
+- **No Dir Field**: turns off redrawing of direction fields when you click on (Redraw). Erasing the screen automatically turns this off.
+- **Colorize**: This draws a grid of filled rectangles on the screen whose color is coded by the velocity or some other quantity. (See the Numerics Colorize menu item).
+- **Scaled Dir. Fld**: is the same as Direction field but the lengths are all scaled to 1 so only directional information is given.
 
-### (W)indow
+### Window
 
 allows you to rewindow the current graph. Pressing this presents another menu with the choices:
-- **(W)indow**: A parameter box pops up prompting you for the values. Press OK or CANCEL when done.
-- **(Z)oom in**: Use the mouse to expand a region by clicking, dragging and releasing. The view in the rectangle will be expanded to the whole window.
-- **Zoom (O)ut**: As above but the whole window will be shrunk into the rectangle.
-- **(F)it**: The most common command will automatically fit the window so the entire curve is contained within it. For three-D stuff the window data will be scaled to fit into a cube and the cube scaled to fit in the window. Use this often.
+- **Window**: A parameter box pops up prompting you for the values. Press OK or CANCEL when done.
+- **Zoom in**: Use the mouse to expand a region by clicking, dragging and releasing. The view in the rectangle will be expanded to the whole window.
+- **Zoom Out**: As above but the whole window will be shrunk into the rectangle.
+- **Fit**: The most common command will automatically fit the window so the entire curve is contained within it. For three-D stuff the window data will be scaled to fit into a cube and the cube scaled to fit in the window. Use this often.
 
-### ph(A)se space
+### phase space
 
-In xppautX this is also a command (W525): `plot.set_torus` (a `mode` of `all`, `none` or `choose`, the `variables` to choose and the `period`; a left-out one keeps the session's setting; see [the protocol](../protocol.md)).
+In xppautX this is also a command: `plot.set_torus` (a `mode` of `all`, `none` or `choose`, the `variables` to choose and the `period`; a left-out one keeps the session's setting; see [the protocol](../protocol.md)).
 
-XPP allows for periodic domains so that you can solve equations on a torus or cylinder. You will be prompted to make (A)ll variables periodic, (N)o variables periodic or (C)hoose the ones you want. You will be asked for the period which is the same for all periodic variables (if they must be different, rescale them) Choose them by clicking the appropriate names from the list presented to you. An `X` will appear next to the selected ones. Clicking toggles the `X`. Type `Esc` when done or CANCEL or DONE. XPP mods your variables by this period and is smart enough when plotting to not join the two ends.
+XPP allows for periodic domains so that you can solve equations on a torus or cylinder. You will be prompted to make All variables periodic, No variables periodic or Choose the ones you want. You will be asked for the period which is the same for all periodic variables (if they must be different, rescale them) Choose them by clicking the appropriate names from the list presented to you. An `X` will appear next to the selected ones. Clicking toggles the `X`. Type `Esc` when done or CANCEL or DONE. XPP mods your variables by this period and is smart enough when plotting to not join the two ends.
 
-### (K)inescope
+### Kinescope
 
 This allows you to capture the active window and play it back. Another menu pops up with the choices:
-- **(C)apture**: which takes a snapshot of the currently active window
-- **(R)eset**: which deletes all the snapshots
-- **(P)layback**: which cycles thru the pictures each time you click the left mouse button and stops if you click the middle.
-- **(A)utoplay**: continuously plays back snapshots. You tell it how many cycles and how much time between frames in milliseconds.
-- **(S)ave**: Save each frame as a GIF, with a file dialog for each destination; Cancel writes no new frame
-- **(M)ake anigif**: Create an animated gif from the frames. A file dialog offers `<model>.gif`.
+- **Capture**: which takes a snapshot of the currently active window
+- **Reset**: which deletes all the snapshots
+- **Playback**: which cycles thru the pictures each time you click the left mouse button and stops if you click the middle.
+- **Autoplay**: continuously plays back snapshots. You tell it how many cycles and how much time between frames in milliseconds.
+- **Save**: Save each frame as a GIF, with a file dialog for each destination; Cancel writes no new frame
+- **Make anigif**: Create an animated gif from the frames. A file dialog offers `<model>.gif`.
 
 **In web2** a snapshot is data (the series, marks and viewport of the
 active plot window, docs/ui-v2.md T15), not a bitmap: reloading the
 page loses captured frames (they live in the client). Make anigif asks for its destination, then the core
 writes the GIF itself, asking the page for each frame's
 pixels, so the picture is only ever as good as what's on screen, not a
-copy of an X11 pixmap.
+copy of XPPAUT's pixmap.
 
-### (G)raphic stuff
+### Graphic stuff
 
-This induces a popup menu with several choices. Each choice of this menu, Axes (**(V)iew axes**: 2D and 3D), **(3)D view**, **rU**elle plot, **(X)** variable vs time and **marker(S)** is also a command that takes its values as arguments (`plot.add_curve`, `plot.freeze_curve`, `plot.set_2d`, ...: docs/protocol.md "Plot settings"), so a script or the page sets a plot's curves, axes and exports without the forms; a value left out stays what the plot has, and a value outside its range (a width of 0, a rUelle shift below 0, markers past the stored rows, a frozen curve's key over 19 characters or name over 9) is refused with the reason instead of being cut or read past.
-- **(A)dd curve**: This lets you add another curve to the picture. A form will appear asking you for the variables on each axis and the curve's look: its **Color** (any color, with its alpha: `#rrggbb` or `#rrggbbaa`, a CSS color name or `foreground`), **Draw** (`line`, `points` or `both`), **Dash** (`solid`, `dashed`, `dotted` or `dash_dot`), **Width**, **Marker** (`circle`, `square`, `triangle`, `diamond`, `cross`, `plus` or `star`) and **Marker size** (pixels). All subsequent integrations and restorations will include the new graph. Add as many curves as needed, within available memory (W376, #438).
-- **(D)elete last**: Will remove most recent curve from the added list.
-- **(R)emove all**: Deletes all curves but the first.
-- **(E)dit curve**: You will be asked for th curve to edit. The first is 0, the second 1, etc. You will get a parameter box like the add curve option.
-- **(P)DF**: This will ask you for a file name and write a PDF of the current window, one page of 640 by 400 points in Helvetica (nothing is embedded; the same plot is the same file). Nullclines, text, labels, frozen curves and all graphs will be plotted in the colors, the alpha and the styles they have on the screen. The file is the graph as the panel shows it: always in color, the axes' text at the panel's size (12, from the page's `--plot-font`), with no form to ask either (W656, #729). **S(V)G** is the same picture as an SVG.
-- **(F)reeze**: This will create a permanent curve in the window. Usually, when you reintegrate the equations or load in some new data, the current curve will be replace by the new data. Freeze prevents this. Frozen curves grow with what you add, within available memory (W376, #438).
-  - **(F)reeze** : This freezes the current curve 0 for the current plotting window. It will not be plotted in other windows. If you change the axes from 2 to 3 dimensions and it was frozen as a 2D curve (and *vice versa* ) then it will also not be plotted. It is better to create another window to work in 3 dimensions so this is avoided. A form pops up that asks you for the color and the style (as **(A)dd curve** does) as well as the key name and the curve name. The curve name is for easy reference and should be a few characters. The key name is what will be printed on the graph if a key is present.
-  - **(D)elete**: This gives you a choice of available curves to delete.
-  - **(E)dit**: This lets you edit a named curve; the key, name, color and style can be altered.
-  - **(R)emove all**: This gets rid of all of the frozen curves in the current window.
-  - **(K)ey**: This turns the key on or off. If you turn it on, then you can position it with the mouse on the graph. The key consists of a line followed by some text describing the line. Only about 15 characters are permitted.
-  - **(B)if.diag**: will prompt you for a filename and then using the current view, draw the diagram. The file must be of the same format as is produced by the `Write pts` option in the autoX menus. (see autoX below.) The diagram is colored according to whether the points are stable/unstable fixed points or periodics. The diagram is “frozen” and there can only be one diagram at a time.
-  - **(C)lr. BD**: clears out the current bifurcation diagram.
-  - **(O)n freeze**: Toggles a flag that automatically freezes the curves as you integrate them.
-- **a(X)es opts**: This puts up a window which allows you to tell XPP where you want the axes to be drawn, whether you want them, and what fontsize to make the axes labels of the PDF and SVG pictures.
-- **exp(O)rt**: saves what the plot shows: this is the data table's Save data with *What the plot shows* already chosen (see [(W)rite: Save data](07-data-table.md#write-save-data)). It asks the format (XPP's `.dat`, CSV, compressed CSV or NumPy's `.npz`) and the file, and writes the window's curves and then its frozen curves as one table with the columns `curve`, `x`, `y` (and `z` in 3D), one row per point (in `.npz`, one array per curve). It replaces XPP's old XY export (the first curve's x followed by every curve's y on each row, in `%g`): a table with a curve column holds every curve in full, frozen curves and 3D plots included.
-- **(C)olormap**: This lets you choose a different color scale by its name from the list: XPPAUT's seven (`jet`, `periodic`, `hot`, `cool`, `blue_red`, `gray`, `cubehelix`) and `viridis` (the default of a model of ours; a `.ode` is converted with `jet`, its own), `plasma`, `inferno`, `magma`, `cividis`, `coolwarm`, `rdbu`, `seismic`, `twilight`, `hsv`, `turbo`, `greys`, `blues`, `reds`, `greens`, `oranges` and `purples`. Each is 256 colors (third_party/colormaps/README.md says where they come from and under which licences). The array plot, the color-coded orbit (Numerics, Color by value), the animation's colors and the pictures use it; the array plot's Color map choice changes it too.
+This induces a popup menu with several choices. Each choice of this menu, Axes (**View axes**: 2D and 3D), **3D view**, Ruelle plot, **(X)** variable vs time and **Markers** is also a command that takes its values as arguments (`plot.add_curve`, `plot.freeze_curve`, `plot.set_2d`, ...: docs/protocol.md "Plot settings"), so a script or the page sets a plot's curves, axes and exports without the forms; a value left out stays what the plot has, and a value outside its range (a width of 0, a Ruelle shift below 0, markers past the stored rows, a frozen curve's key over 19 characters or name over 9) is refused with the reason instead of being cut or read past.
+- **Add curve**: This lets you add another curve to the picture. A form will appear asking you for the variables on each axis and the curve's look: its **Color** (any color, with its alpha: `#rrggbb` or `#rrggbbaa`, a CSS color name or `foreground`), **Draw** (`line`, `points` or `both`), **Dash** (`solid`, `dashed`, `dotted` or `dash_dot`), **Width**, **Marker** (`circle`, `square`, `triangle`, `diamond`, `cross`, `plus` or `star`) and **Marker size** (pixels). All subsequent integrations and restorations will include the new graph. Add as many curves as needed, within available memory.
+- **Delete last**: Will remove most recent curve from the added list.
+- **Remove all**: Deletes all curves but the first.
+- **Edit curve**: You will be asked for th curve to edit. The first is 0, the second 1, etc. You will get a parameter box like the add curve option.
+- **PDF**: This will ask you for a file name and write a PDF of the current window, one page of 640 by 400 points in Helvetica (nothing is embedded; the same plot is the same file). Nullclines, text, labels, frozen curves and all graphs will be plotted in the colors, the alpha and the styles they have on the screen. The file is the graph as the panel shows it: always in color, the axes' text at the panel's size (12, from the page's `--plot-font`), with no form to ask either. **SVG** is the same picture as an SVG.
+- **Freeze**: This will create a permanent curve in the window. Usually, when you reintegrate the equations or load in some new data, the current curve will be replace by the new data. Freeze prevents this. Frozen curves grow with what you add, within available memory.
+  - **Freeze** : This freezes the current curve 0 for the current plotting window. It will not be plotted in other windows. If you change the axes from 2 to 3 dimensions and it was frozen as a 2D curve (and *vice versa* ) then it will also not be plotted. It is better to create another window to work in 3 dimensions so this is avoided. A form pops up that asks you for the color and the style (as **Add curve** does) as well as the key name and the curve name. The curve name is for easy reference and should be a few characters. The key name is what will be printed on the graph if a key is present.
+  - **Delete**: This gives you a choice of available curves to delete.
+  - **Edit**: This lets you edit a named curve; the key, name, color and style can be altered.
+  - **Remove all**: This gets rid of all of the frozen curves in the current window.
+  - **Key**: This turns the key on or off. If you turn it on, then you can position it with the mouse on the graph. The key consists of a line followed by some text describing the line. Only about 15 characters are permitted.
+  - **Bif.diag**: will prompt you for a filename and then using the current view, draw the diagram. The file must be of the same format as is produced by the `Write pts` option in the autoX menus. (see autoX below.) The diagram is colored according to whether the points are stable/unstable fixed points or periodics. The diagram is “frozen” and there can only be one diagram at a time.
+  - **Clr. BD**: clears out the current bifurcation diagram.
+  - **On freeze**: Toggles a flag that automatically freezes the curves as you integrate them.
+- **Axes opts**: This puts up a window which allows you to tell XPP where you want the axes to be drawn, whether you want them, and what fontsize to make the axes labels of the PDF and SVG pictures.
+- **Export**: saves what the plot shows: this is the data table's Save data with *What the plot shows* already chosen (see [Write: Save data](07-data-table.md#write-save-data)). It asks the format (XPP's `.dat`, CSV, compressed CSV or NumPy's `.npz`) and the file, and writes the window's curves and then its frozen curves as one table with the columns `curve`, `x`, `y` (and `z` in 3D), one row per point (in `.npz`, one array per curve). It replaces XPP's old XY export (the first curve's x followed by every curve's y on each row, in `%g`): a table with a curve column holds every curve in full, frozen curves and 3D plots included.
+- **Colormap**: This lets you choose a different color scale by its name from the list: XPPAUT's seven (`jet`, `periodic`, `hot`, `cool`, `blue_red`, `gray`, `cubehelix`) and `viridis` (the default of a model of ours; a `.ode` is converted with `jet`, its own), `plasma`, `inferno`, `magma`, `cividis`, `coolwarm`, `rdbu`, `seismic`, `twilight`, `hsv`, `turbo`, `greys`, `blues`, `reds`, `greens`, `oranges` and `purples`. Each is 256 colors (third_party/colormaps/README.md says where they come from and under which licences). The array plot, the color-coded orbit (Numerics, Color by value), the animation's colors and the pictures use it; the array plot's Color map choice changes it too.
 
-### n(U)merics
+### numerics
 
 This is so important that a section is devoted to it. See below.
 
-### (F)ile
+### File
 
 This brings up a menu with several options. Type `Esc` to abort.
-- **(P)rt src**: The Model panel's Source tab (title bar, Model): brings up a window with the source code for the ODE file. If you click on `Action` it brings up the active comments so you can make little tutorials.
-- **(R) Import XPPAUT session state**: This imports a `.set` file that XPPAUT wrote (xppautX never writes one: **sa(V)e session** holds everything a set file did and more). It applies the numerics, the parameters, the initial values, the delays, the boundary conditions, the coupling, the run position, the active window's graphics, Transpose, the array plot, the torus and the range settings, all together; nothing is written beside the file, and one message names what it changed. For one section only (the parameters, the initial values, or the numerics a set may hold), use **Load values from file**, which takes a `.set`, `.par` or `.ic` of XPPAUT's or an `.odex`'s defaults and sets by scope. The `.set` file is very tightly connected to the ODE file it was written for, so you should not import one from a different problem. It must end with the equations XPPAUT writes after its last value (`RHS etc ...`, not read), and every named value must have the open model's expected name and every setting its expected label. A file is read whole and checked before anything is taken from it: the first mismatch or bad value is an error naming the file, line, column and the line as written, and nothing changes. One message names what was changed.
-- **(A)uto**: This brings up the autoX window. See below for a description of this.
-- **(C)alculator**: This pops up a little window. Type formulae in the command line involving your variables and the results are displayed in the popup. Click on Quit or type `Esc` to exit.
-- **(S)ave info**: This is like `(P)rt info` but saves the info to a file. It is human readable.
-- **(Q)uit**: Asks "Quit xppautX? Save this session first?", the one
+- **Prt src**: The Model panel's Source tab (title bar, Model): brings up a window with the source code for the ODE file. If you click on `Action` it brings up the active comments so you can make little tutorials.
+- **(R) Import XPPAUT session state**: This imports a `.set` file that XPPAUT wrote (xppautX never writes one: **Save session** holds everything a set file did and more). It applies the numerics, the parameters, the initial values, the delays, the boundary conditions, the coupling, the run position, the active window's graphics, Transpose, the array plot, the torus and the range settings, all together; nothing is written beside the file, and one message names what it changed. For one section only (the parameters, the initial values, or the numerics a set may hold), use **Load values from file**, which takes a `.set`, `.par` or `.ic` of XPPAUT's or an `.odex`'s defaults and sets by scope. The `.set` file is very tightly connected to the ODE file it was written for, so you should not import one from a different problem. It must end with the equations XPPAUT writes after its last value (`RHS etc ...`, not read), and every named value must have the open model's expected name and every setting its expected label. A file is read whole and checked before anything is taken from it: the first mismatch or bad value is an error naming the file, line, column and the line as written, and nothing changes. One message names what was changed.
+- **Auto**: This brings up the autoX window. See below for a description of this.
+- **Calculator**: This pops up a little window. Type formulae in the command line involving your variables and the results are displayed in the popup. Click on Quit or type `Esc` to exit.
+- **Save info**: This is like `Prt info` but saves the info to a file. It is human readable.
+- **Quit**: Asks "Quit xppautX? Save this session first?", the one
   question every way of leaving a session asks (the desktop window's
-  close box too; **open (M)odel** and **r(E)load**
+  close box too; **open Model** and **Reload**
   ask it in their own words): **Save session** (`S`) writes the session
-  first, as **sa(V)e session** does (to its remembered file with no question,
+  first, as **Save session** does (to its remembered file with no question,
   else it asks for a name), then quits; **Don't save** (`D`)
   quits; **Cancel** (`Esc`) keeps working. A recording in progress is saved
   with the session (its name is asked as **Stop** asks it). The desktop
@@ -287,10 +286,10 @@ This brings up a menu with several options. Type `Esc` to abort.
   the browser,
   closing the tab does not end xppautX (the browser asks whether to leave
   the page): File/Quit is the way to end it there.
-- **(T)ranspose** (the Data panel's Transpose button): This is not a very good place to put this but I stuck it here just to get it into the program. The point of this routine is to allow one to transpose chunks of the output. For example, if you are solving the discretization of some spatial problem and find a steady state, there is no way to plot the steady state as a function of the index of the discrete system. This routine lets you do that. The idea is to take something that looks like:
+- **Transpose** (the Data panel's Transpose button): This is not a very good place to put this but I stuck it here just to get it into the program. The point of this routine is to allow one to transpose chunks of the output. For example, if you are solving the discretization of some spatial problem and find a steady state, there is no way to plot the steady state as a function of the index of the discrete system. This routine lets you do that. The idea is to take something that looks like:
 - t1  x11  x21  x31 ... xm1      t2  x12  x22  x32 ... xm2     ...     tn  x1n  x2n  x3n ... xmn
 - and transpose some subset of it. You are prompted for 6 items. They are the name of the first column you want to index, the number of columns (`ncols` and amount you want to skip across columns, ` colskip` (so that `colskip = 2` would be every other column. You must also provide the starting row `j1`, the number of rows, ` nrows` and the row skip, `rowskip.` the The storage array is temporarily replaced by a new array that has `M=ncols` rows and `nrows+1` columns (since the data is transposed, the rows and columns are as well; confusing ain’t it). The form of the array is:
-- 1  x(i1,j1) x(i1,j2) x(i1,j3) ...     2  x(i2,j1) x(i2,j2) x(i2,j3) ...     ...     M  x(iM,j1) x(iM,j2) x(iM,j3) ...
+- 1  x(i1,j1) x(i1,j2) x(i1,j3) ...     2  x(i2,j1) x(i2,j2) x(i2,j3) ...     ...     M  x(im,j1) x(im,j2) x(im,j3) ...
 - where `i2=i1+colskip, i3=i1+2*colskip, ...` and `i1` is the index corresponding to the name of the first column you provide. Similarly, `j2=j1+rowskip, ...`. As a brief example, suppose that you solve a system of equations of the form: ``` math x_j' = f(x_{j-1},x_j,x_{j+1},I_j) ``` where $`j=1,\dots,20.`$ Click on transpose and choose `x1` as the first column, `colskip=1, ncols=20` and say `row1=350, nrows=1,rowskip=1` then a new array will be produced. The first column is the index from 1 to 20 and the second is `xj(350)` where 350 is the index and not the actual value of time. By plotting the second column versus the first you get a “spatial profile.”
 
   In xppautX every column and row it reads must be in the data (XPPAUT read past the end and clamped), and it makes at most one fewer rows than the model has columns; a request that does not fit is an error naming what reaches too far. The command is `data.transpose` (`first_column`, `columns`, `column_skip`, `first_row`, `rows`, `row_skip`: a left-out one keeps its last value, and the first row is 0).
@@ -302,11 +301,11 @@ This brings up a menu with several options. Type `Esc` to abort.
 - **Export values (I)** (File > Sets > **Export values…**, and the sets row of each section for its own kind): Writes the current values of a scope as a set of another `.odex` file, which you name: a new file gets the first line `# Saved from model.odex at time`; in a file that exists the set is added, and a set of that name there asks before its part is replaced. Use it for a library of regimes that models `import`.
 - **Rename set (Z)** and **Delete set (F)** (File > Sets > **Rename** and **Delete**): Rename or remove one of the sets the model file itself writes, in the file (the rest of it kept). A set an import brought is read-only. Delete asks first.
 
-**In xppautX these are also commands** (W526): `set.apply` (Apply set), `set.save_new` and `set.save_into` (Save values: a new set, or a set's part), `set.save_defaults`, `set.export`, `set.rename`, `set.delete`, `set.restore_defaults`, `set.list_file_contents` and `set.load_file`; each takes the scope by name and the plot settings' graph by its `window`, and ends with a `done` result. A command saves what it is given (it asks nothing the menu asked: the set, the scope and the graph are its arguments); the menu's picks call the same functions.
-- **open (M)odel**: A `.ode` converts and saves as `.odex` beside it,
+**In xppautX these are also commands**: `set.apply` (Apply set), `set.save_new` and `set.save_into` (Save values: a new set, or a set's part), `set.save_defaults`, `set.export`, `set.rename`, `set.delete`, `set.restore_defaults`, `set.list_file_contents` and `set.load_file`; each takes the scope by name and the plot settings' graph by its `window`, and ends with a `done` result. A command saves what it is given (it asks nothing the menu asked: the set, the scope and the graph are its arguments); the menu's picks call the same functions.
+- **open Model**: A `.ode` converts and saves as `.odex` beside it,
   which becomes the open model (see [.odex](02-ode-files.md#odex)).
   Asks for a `.ode` or `.odex` file (or a `.snapx`
-  session file, which opens that session: **opeN session** below; or a `.recx`
+  session file, which opens that session: **Open session** below; or a `.recx`
   recording, which opens in the player), then
   whether to save this session first (**Save session** writes a session
   file, **Don't save**; Escape keeps the current model), and loads it in
@@ -315,13 +314,13 @@ This brings up a menu with several options. Type `Esc` to abort.
   start it, from its own folder. A file that cannot be loaded changes
   nothing: an error says so and the current model goes on (see
   [Opening another model](01-introduction.md#starting-it)).
-- **r(E)load**: Reads the model's file again (edit it in your editor, then
+- **Reload**: Reads the model's file again (edit it in your editor, then
   Reload), after asking whether to save this session first, as **open
-  (M)odel** does (its data and diagram go, which shows as an unsaved
+  Model** does (its data and diagram go, which shows as an unsaved
   change; the session file it was saved to stays, so Ctrl+S saves there). Parameters, initial data, numerics and autoX settings keep their values by name;
   what the file adds comes with the file's values, and what it drops is
   left out. A file that no longer loads changes nothing.
-- **sa(V)e session** (Ctrl+S): writes one session file, `name.snapx`, to
+- **Save session** (Ctrl+S): writes one session file, `name.snapx`, to
   continue later exactly where you are. The session remembers the file it
   was opened from or last saved to and saves there again with no question
   (the file is replaced); the first save, with no file yet, asks for a name
@@ -333,24 +332,24 @@ This brings up a menu with several options. Type `Esc` to abort.
   whether to leave it out (**Leave it out**: Go computes it again).
 - **save session as (W)** (Ctrl+Shift+S): always asks for the file name, and
   asks before replacing a file that exists; the session then remembers it
-  for **sa(V)e session**.
+  for **Save session**.
 - **save a copy of the session (B)**: asks for a file name (and before
   replacing a file that exists) and writes the session there as **save
   session as** does, but the session keeps the file it had, and the
   unsaved-changes dot as it was; Ctrl+S still saves to the first file.
   It has no default key; pin it or give it one in the keymap.
-- **ope(N) session**: Asks for a `.snapx` file, then whether to save this
-  session first (as **open (M)odel**), loads the model saved in it, from the file alone however
+- **Open session**: Asks for a `.snapx` file, then whether to save this
+  session first (as **open Model**), loads the model saved in it, from the file alone however
   the `.ode` has changed since, and restores the session as it was saved.
   A session file without its model (saved before this version), or with
   a part missing or damaged, is refused with an error naming the part and
   its line, and the current session stays as it was. See
   [session files](01-introduction.md#starting-it).
-- **recor(D)**: Starts recording what you do, step by step; press it
+- **Record**: Starts recording what you do, step by step; press it
   again (or **Stop** on the red recording bar the page shows, or
   **Record** in the title bar to start) to stop, and it asks for a file
   name and writes one plain text file, `name.recx`, next to the model: the
-  session as it was when you pressed Record (what **sa(V)e session**
+  session as it was when you pressed Record (what **Save session**
   writes, without the data table: the values, numerics, windows and autoX's
   diagram, so a recording begun in the middle of your work plays back
   from exactly there), the model itself and every file the session read while recording (a set, a
@@ -369,8 +368,8 @@ This brings up a menu with several options. Type `Esc` to abort.
   does not. A recording holds no data: playing it back computes everything
   again. A key a running command reads itself (`/` ending a range, `Esc`
   stopping the animation's **Go**) is recorded with where it came.
-- **pla(Y) recording**: Asks for a `.recx` file (or use **Play a
-  recording** in the title bar, or **open (M)odel** on a `.recx`), then
+- **Play recording**: Asks for a `.recx` file (or use **Play a
+  recording** in the title bar, or **open Model** on a `.recx`), then
   whether to save this session first, and loads the session the
   recording began from (its model, values, windows and diagram, from the
   recording itself; a file without it is refused with an error). Its steps then play back exactly as they were
@@ -397,11 +396,11 @@ This brings up a menu with several options. Type `Esc` to abort.
   does not answer) stops the player with an error; the question is then
   yours to answer.
 
-### (P)arameters
+### Parameters
 
 Type the name of a parameter to change and enter its value. Repeat for more parameters. Hit `Enter` a few times to exit. Type `default` to get back the values when you started XPP. Use this if you don’t want to mess with the mouse.
 
-### (E)rase
+### Erase
 
 erases the contents of the active window, redraws the axes, deletes all text in the window, and sets the redraw flag to Manual.
 
@@ -452,7 +451,7 @@ numbers or Makewindow key sequences. The core validates these same commands
 for the page, the server and recordings; each ends with a `done` result.
 See the [generated command reference](../protocol.md#typed-command-registry-w353-stage-1).
 
-### (T)ext, etc
+### Text, etc
 
 allows you to write text to the display in a variety of sizes and in two different fonts. You can also add other symbols to your graph.
 - **Text**: In xppautX you first click where the text goes, then one dialog asks for the text, its size, its style (normal, bold, italic, bold italic) and its color (any color, with its alpha: the picker, the opacity slider and the text box give the color as `#rrggbb` or `#rrggbbaa`, and a PDF or SVG draws it too). Double-click a text on the plot to change its text, size, style or color (the same form as **Edit** in the annotation list); move it by dragging it, and delete it from the annotation list. Style and color are drawn by the page; the PostScript and SVG output draw the text as XPPAUT's did. A session file saves the texts with their size, style and color. There are five sizes (0-4): 0-8pt, 1-12pt, 2-14pt, 3-18pt, 4-24pt. Text also has several escape sequences:
@@ -469,58 +468,58 @@ allows you to write text to the display in a variety of sizes and in two differe
   - **Move**: lets you move the object to another location without changing any of its properties. Choose the object with the mouse by clicking near it. You will then be prompted as to whether you want to move the item that XPP selected. If you answer `yes` use the mouse to reposition it.
   - **Change**: lets you change the properties: for text, the text itself, size, and font can be change; for arrows and pointers, only the size of the arrow head can be changed. As above, select the object with the mouse and then edit the properties.
   - **Delete**: deletes the object that you select with the mouse.
-- **(D)elete All**: Deletes all the objects in the current window.
+- **Delete All**: Deletes all the objects in the current window.
 - **No fixed number, and an id for each**: a session holds as many texts, arrows, pointers and markers as you add (up to 100000 of each; XPPAUT stopped at 50 texts and 400 arrows, pointers and markers and dropped the next without a word). Each one has an id that stays its own until it is deleted, and is saved with the session. From a script, `--server` or a recording the `annotation` command lists, adds, edits, moves and deletes any of them by id, in the plot's coordinates, with no click needed ([protocol](../protocol.md#annotations)); Edit above does the same through the same functions. The diamond marker is drawn centred on its point (XPPAUT's was drawn off to one side of it).
-- **marker(S)**: This is similar to the Marker command, but allows you to automatically mark a number of points along a computed trajectory. You use the data table to move the desired starting point of the list to the top line of the browser. Then click on the (Text) (markerS) command and choose a size and color. Then tell XPP how many markers and how many browser lines to jump between markers. (Thus, 10 would put a marker at every 10th data point)..
+- **Markers**: This is similar to the Marker command, but allows you to automatically mark a number of points along a computed trajectory. You use the data table to move the desired starting point of the list to the top line of the browser. Then click on the (Text) (markers) command and choose a size and color. Then tell XPP how many markers and how many browser lines to jump between markers. (Thus, 10 would put a marker at every 10th data point)..
 
-### (S)ing pts
+### Sing pts
 
 This allows you to calculate equilibria for a discrete or continuous system. The program also attempts to determine stability for delay-differential equations (see below in the numerics section.) There are three options.
-- **(G)o**: begins the calculation using the values in the initial data box as a first guess. Newton’s method is applied. If a value is found XPP tries to find the eigenvalues. The search asks nothing: three settings decide what it shows, and all are off by default. **Print eigenvalues** writes them to the console. **Draw invariant sets** approximates the unstable or stable manifolds of a saddle with a single real positive or real negative eigenvalue and draws them; **Draw strong sets** does the same for the strong manifolds of a saddle with more than one real eigenvalue of one sign. Each branch is drawn whole from the saddle, whatever `store_from` says. The settings are kept in the session file and set with `equilibrium.configure` (see the analysis commands below). The calculation will continue until either a variable goes out of bounds or you press `Esc`. If `Esc` is pressed, the other branch is computed. (Unstable manifolds are yellow and computed first followed by the stable manifolds in color turquoise.) The program continues to find any other invariant sets until it has gotten them all. These are not stored, however, the initial data needed to create them are and can be accessed with the `Initial Conds` ` sHoot` command. Once an equilibrium is computed a window appears with info on the value of the point and its stability. The top of the window tells you the number of complex eigenvalues with positive,`(c+)`, negative `(c-)`, zero `(im)` real parts and the number of real positive `(r+)` and real negative `(r-)` eigenvalues. If the equation is a difference equation, then the symbols correspond the numbers of real or complex eigenvalues outside `(+)` the unit circle or inside `(-)` This window remains and can be iconified.
-- **(M)ouse**: This is as above but you can specify the initial guess by clicking the mouse. Only the two variables in the two-D window will reflect the mouse values. This is most useful for 2D systems.
-- **(R)ange**: This allows you to find a set of equilibria over a range of parameters. A parameter box will prompt you for the parameter, starting and ending values, number of steps. Additionally, two other items are requested. Column for stability will record the stability of the equilibrium point in the specified column (Use column number greater than 1). If you elect to shoot at each, the invariant manifolds will be drawn for each equilibrium computed. The stability can be read as a decimal number of the form `u.s ` where `s` is the number of stable and `u` the number of unstable eigenvalues. So `2.03` means 3 eigenvalues with negative real parts (or in the unit circle) and 2 with positive real parts (outside the unit circle.) For delay equations, if a root is found, its real part is included in this column rather than the stability summary since there are infinitely many possible eigenvalues. The result of a range calculation is saved in the data array and replaces what ever was there. The value of the parameter is in the time column, the equilibria in the remaining columns and the stability info in whatever column you have specified. `Esc` aborts one step and `/` aborts the whole procedure. As with the initial data/range option, you can also make a movie. This is useful mainly for systems where invariant sets are to be computed.
+- **Go**: begins the calculation using the values in the initial data box as a first guess. Newton’s method is applied. If a value is found XPP tries to find the eigenvalues. The search asks nothing: three settings decide what it shows, and all are off by default. **Print eigenvalues** writes them to the console. **Draw invariant sets** approximates the unstable or stable manifolds of a saddle with a single real positive or real negative eigenvalue and draws them; **Draw strong sets** does the same for the strong manifolds of a saddle with more than one real eigenvalue of one sign. Each branch is drawn whole from the saddle, whatever `store_from` says. The settings are kept in the session file and set with `equilibrium.configure` (see the analysis commands below). The calculation will continue until either a variable goes out of bounds or you press `Esc`. If `Esc` is pressed, the other branch is computed. (Unstable manifolds are yellow and computed first followed by the stable manifolds in color turquoise.) The program continues to find any other invariant sets until it has gotten them all. These are not stored, however, the initial data needed to create them are and can be accessed with the `Initial Conds` `Shoot` command. Once an equilibrium is computed a window appears with info on the value of the point and its stability. The top of the window tells you the number of complex eigenvalues with positive,`(c+)`, negative `(c-)`, zero `(im)` real parts and the number of real positive `(r+)` and real negative `(r-)` eigenvalues. If the equation is a difference equation, then the symbols correspond the numbers of real or complex eigenvalues outside `(+)` the unit circle or inside `(-)` This window remains and can be iconified.
+- **Mouse**: This is as above but you can specify the initial guess by clicking the mouse. Only the two variables in the two-D window will reflect the mouse values. This is most useful for 2D systems.
+- **Range**: This allows you to find a set of equilibria over a range of parameters. A parameter box will prompt you for the parameter, starting and ending values, number of steps. Additionally, two other items are requested. Column for stability will record the stability of the equilibrium point in the specified column (Use column number greater than 1). If you elect to shoot at each, the invariant manifolds will be drawn for each equilibrium computed. The stability can be read as a decimal number of the form `u.s ` where `s` is the number of stable and `u` the number of unstable eigenvalues. So `2.03` means 3 eigenvalues with negative real parts (or in the unit circle) and 2 with positive real parts (outside the unit circle.) For delay equations, if a root is found, its real part is included in this column rather than the stability summary since there are infinitely many possible eigenvalues. The result of a range calculation is saved in the data array and replaces what ever was there. The value of the parameter is in the time column, the equilibria in the remaining columns and the stability info in whatever column you have specified. `Esc` aborts one step and `/` aborts the whole procedure. As with the initial data/range option, you can also make a movie. This is useful mainly for systems where invariant sets are to be computed.
 
-### (V)iew axes
+### View axes
 
-**One axis dialog.** Click an axis name on a plot (or choose 2D or 3D here) and one dialog opens, with a column per axis: X and Y, and Z on a 3D plot, each with its **Variable**, **Min**, **Max** and **Label**. On a 3D plot the same dialog also holds the view window (XLo, XHi, YLo, YHi) and what 3D params sets: Persp, ZPlane, ZView, Theta, Phi and the rotation movie, so a 3D plot is set from the plot itself. Tab moves through the fields and Enter in any field applies; Esc cancels. The whole dialog is applied or none of it: a variable that does not exist, a number that is not one, or a Min that is not below its Max is an error naming the field, and nothing of what you typed is applied (W225, #279).
+**One axis dialog.** Click an axis name on a plot (or choose 2D or 3D here) and one dialog opens, with a column per axis: X and Y, and Z on a 3D plot, each with its **Variable**, **Min**, **Max** and **Label**. On a 3D plot the same dialog also holds the view window (XLo, XHi, YLo, YHi) and what 3D params sets: Persp, ZPlane, ZView, Theta, Phi and the rotation movie, so a 3D plot is set from the plot itself. Tab moves through the fields and Enter in any field applies; Esc cancels. The whole dialog is applied or none of it: a variable that does not exist, a number that is not one, or a Min that is not below its Max is an error naming the field, and nothing of what you typed is applied.
 
-This selects one of different types of graphs: a 2D box or a 3D Box; brings up a threed window; or lets you create animations of your simulation. If you select the 2D curve, you will be asked for limits as in the window command as well as the variables to place on the axes and the labels for the axes. 3D is more complicated. You will be asked for the 3 variables for the 3 axes, their max and min values and 4 more numbers, `XLO`, etc. XPP first scales the data to fit into a cube with corners (-1,-1,-1) and (1,1,1). Rotation of this cube is performed and then projected into the two-D window. `XLO`, etc define the scales of this projection and are thus unrelated to the values of your data. You are also asked for labels of the axes. Use the `(F)it ` option if you don’t know whats going on.
-- (A)rray plots introduce a new window that lets the user plot many variables at once as a function of time with color coded values. The point is to let one plot, e.g., an array of voltages, `V1, V2, ..., VN` across the horizontal as time varies in the vertical dimension. For example, suppose you have discretized some PDE and want to see the evolution in space and time of the variables. Then use this plotting option. You will be prompted for the first column name of the “array”, then number of columns, the first row, then number of rows, and the number of rows to skip. For example, if the discretized PDE variables are `u0,u1, ... ,u50`, then type in ` u0` for the first element and `51` for the number of columns. If you want rows 200 through 800 only every 4th time unit, you would put 200 for the first row, 201 as the number of rows, and 4 as the skip value. You can also set the column skip as well. This is useful if you have defined a series of variables with the array blocks. If the array block is for a two-component system, then plot every 2, so you would put 2 in this entry. The `Print` button asks you for a file name and top and bottom labels and a render style. The render styles are:
+This selects one of different types of graphs: a 2D box or a 3D Box; brings up a threed window; or lets you create animations of your simulation. If you select the 2D curve, you will be asked for limits as in the window command as well as the variables to place on the axes and the labels for the axes. 3D is more complicated. You will be asked for the 3 variables for the 3 axes, their max and min values and 4 more numbers, `XLO`, etc. XPP first scales the data to fit into a cube with corners (-1,-1,-1) and (1,1,1). Rotation of this cube is performed and then projected into the two-D window. `XLO`, etc define the scales of this projection and are thus unrelated to the values of your data. You are also asked for labels of the axes. Use the `Fit ` option if you don’t know whats going on.
+- Array plots introduce a new window that lets the user plot many variables at once as a function of time with color coded values. The point is to let one plot, e.g., an array of voltages, `V1, V2, ..., VN` across the horizontal as time varies in the vertical dimension. For example, suppose you have discretized some PDE and want to see the evolution in space and time of the variables. Then use this plotting option. You will be prompted for the first column name of the “array”, then number of columns, the first row, then number of rows, and the number of rows to skip. For example, if the discretized PDE variables are `u0,u1, ... ,u50`, then type in ` u0` for the first element and `51` for the number of columns. If you want rows 200 through 800 only every 4th time unit, you would put 200 for the first row, 201 as the number of rows, and 4 as the skip value. You can also set the column skip as well. This is useful if you have defined a series of variables with the array blocks. If the array block is for a two-component system, then plot every 2, so you would put 2 in this entry. The `Print` button asks you for a file name and top and bottom labels and a render style. The render styles are:
   - **-1**: Grey scale
   - **0**: Blue-red
   - **1**: Red-Yellow-Green-Blue-Violet
   - **2**: Like 1 but periodic
-- Render must be a whole number from -1 through 2. Malformed or out-of-range text reports an error before the filename ask; no picture is written (W177, #229).
+- Render must be a whole number from -1 through 2. Malformed or out-of-range text reports an error before the filename ask; no picture is written.
 - Array plot `Range` writes still GIFs or one movie, according to `Still(1/0)`. A movie replaces its destination only after the range finishes; Stop, a failed integration or a cancelled picture leaves an existing movie untouched.
 - The `Style` button does nothing yet. The `Edit` button lets you change ranges and arrays to plot. The `Redraw` button is obvious.
 - Since the animation option requires learning lots of new stuff, see [Creating Animations](10-animations.md) for a description of the animation language and what you can do with it.
 
 The plot's Graphic stuff > Freeze > Import diagram reads a six-column `.dat` or `.csv` table: x, low, high, type, branch and two-parameter flag. A CSV header is skipped. The richer autoX Export > CSV has a different layout.
 
-### (X)i vs t
+### Xi vs t
 
 This chooses a certain 2D view and prompts you for the variable name. The window is automatically fitted and the data plotted. It is a shortcut to choosing a view and windowing it.
 
-### (R)estore
+### Restore
 
 redraws the most recent data in the browser in accordance with the graphics parameters of the active window.
 
-### (3)d params
+### 3d params
 
 This lets you choose rotations of the axes and perspective planes. Play with this to see. You must be have a 3D view in the active graph to use this.
 - There is another selection: `Movie`. If you choose ` Yes` for this, then after you click `Ok`, you will be prompted for some additional parameters. There are two angles you can vary, ` theta` and `phi`. Choose one, give an initial value, an increment, and the number of rotations you want to perform. XPP will then use the `Kinescope` to take successive snapshots of the screen after performing each rotation. You can then play these back from the Kinescope or save them as an animated gif.
 
-### (B)ndry val
+### Bndry val
 
 This solves boundary value problems by numerical shooting. There are 4 choices.
-- **(S)how**: This shows the successive results of the shooting and erases the screen at the end and redraws the last solution. The program uses the currently selected numerical integration method, the current starting point, `T0` as the left end time and `T0+TEND` as the right end. Thus, if the interval of interest is `(2.5,6)` then set `T0=2.5` and ` TEND=3.5` in the numerics menu.
-- **(N)o show**: This is as above but will not show successive solutions.
-- **(R)ange**: This allows you to range over a parameter keeping starting or ending values of each of the variables. A window will appear asking you for the parameter, the start, end, and steps. You will also be asked if you want to cycle `color`, which means that the results of each successful solution to the BVP will appear in different colors. Finally the box labeled`side` tells the program whether to save the initial `(0)` or final`(1)` values of the solution. As the program progresses, you will see the current parameter in the info window under the main screen. You can abort the current step by pressing `Esc` and the whole process by pressing `/`. As in the `Initialconds Range` option, you can also choose `Movie`. Then, as before, after each solution is computed, a snapshot is take. Thus, you can playback the solutions as a function of the range parameter.
-- **(P)eriodic**: Periodic boundary conditions can be solved thru the usual methods, but one then must write an addition equation for the frequency parameter. This option eliminates that need so that a 2-D autonomous system need not be suspended into a 3D one. You will be asked for the name of the adjustable parameter for frequency. You will also be asked for the section variable and section. This is an additional condition that must be satisfied, namely, $`x(0)=x_0`$ where $`x`$ is the section variable and $`x_0`$ is the section. Type `yes` if you want the progress shown.
+- **Show**: This shows the successive results of the shooting and erases the screen at the end and redraws the last solution. The program uses the currently selected numerical integration method, the current starting point, `T0` as the left end time and `T0+TEND` as the right end. Thus, if the interval of interest is `(2.5,6)` then set `T0=2.5` and ` TEND=3.5` in the numerics menu.
+- **No show**: This is as above but will not show successive solutions.
+- **Range**: This allows you to range over a parameter keeping starting or ending values of each of the variables. A window will appear asking you for the parameter, the start, end, and steps. You will also be asked if you want to cycle `color`, which means that the results of each successful solution to the BVP will appear in different colors. Finally the box labeled`side` tells the program whether to save the initial `(0)` or final`(1)` values of the solution. As the program progresses, you will see the current parameter in the info window under the main screen. You can abort the current step by pressing `Esc` and the whole process by pressing `/`. As in the `Initialconds Range` option, you can also choose `Movie`. Then, as before, after each solution is computed, a snapshot is take. Thus, you can playback the solutions as a function of the range parameter.
+- **Periodic**: Periodic boundary conditions can be solved thru the usual methods, but one then must write an addition equation for the frequency parameter. This option eliminates that need so that a 2-D autonomous system need not be suspended into a 3D one. You will be asked for the name of the adjustable parameter for frequency. You will also be asked for the section variable and section. This is an additional condition that must be satisfied, namely, $`x(0)=x_0`$ where $`x`$ is the section variable and $`x_0`$ is the section. Type `yes` if you want the progress shown.
 
-### Analysis commands (W522)
+### Analysis commands
 
-The S, N and D menus and the Numerics items sIng pt and Nullcline mesh ask as before, then run the typed commands.
+The S, N and D menus and the Numerics items Sing pt and Nullcline mesh ask as before, then run the typed commands.
 Through the protocol each command takes its values as arguments; optional arguments left out
 keep the session's current settings.
 The Values panel's equilibrium and nullcline mesh settings use the same commands.
@@ -532,9 +531,9 @@ The Values panel's equilibrium and nullcline mesh settings use the same commands
 or NumPy data. It does not create separate frozen-pair files. Analysis exports ask before
 replacing an existing file; `confirm` true answers that question in advance.
 The equilibrium result's Import button uses `initial_conditions.set_from_equilibrium`. With `equilibrium.export`,
-`shoot` true also writes manifolds as `<file-stem>-eigenN-stable.dat` or `<file-stem>-eigenN-unstable.dat`.
+`shoot` true also writes manifolds as `<file-stem>-eigen<n>-stable.dat` or `<file-stem>-eigen<n>-unstable.dat`.
 
-### Kinescope, animation and array plot commands (W527)
+### Kinescope, animation and array plot commands
 
 The Kinescope menu, the Animation window's buttons and the Array plot window's buttons ask as before
 (a file, a form), then run typed commands; through the protocol each takes its values as arguments,

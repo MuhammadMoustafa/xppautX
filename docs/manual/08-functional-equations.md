@@ -8,7 +8,7 @@ that I could not convert to ODES. (If $`K`$ is a convolution with a sum of power
 ``` math
 u(t)=f(t)+\int_{\max(t-T,0)}^t K(t,s,u(s))ds
 ```
-where `T=DT*MaxPoints`, the latter being a parameter that you set in the numerics menu. The default is 4000. Thus, one assumes that the kernel function decays for large $`t`$ and so the tail will be small. As `MaxPoints` is a parameter, you can always make it larger at the price of taking longer to evaluate right-hand sides. Let us consider the following equation:
+where `T=DT*vmaxpts`, the latter being a parameter that you set in the numerics menu. The default is 4000. Thus, one assumes that the kernel function decays for large $`t`$ and so the tail will be small. As `vmaxpts` is a parameter, you can always make it larger at the price of taking longer to evaluate right-hand sides. Let us consider the following equation:
 ``` math
 u(t) = \sin(t)+\frac{1}{2}(\cos(t)-\exp(t)-t\exp(t))+\int_0^t
 (t-s)\exp(-(t-s))u(s)ds
@@ -41,7 +41,7 @@ Note that the “mu” must be a number between 0 and 1. If “mu” is greater 
 
 ## Warning
 
-If you have parameters in your definition of the kernel and you change them, then you will have to go into the numerics menu and recompute the kernels by calling the Method command which automatically recomputes the kernels. Alternatively, turn on the AutoEval flag and it will be done automatically.
+If you have parameters in your definition of the kernel and you change them, then you will have to go into the numerics menu and recompute the kernels by calling the Method command which automatically recomputes the kernels. Alternatively, turn on the auto evaluate flag and it will be done automatically.
 
 I close this section with an example of a pair of coupled oscillators in an infinite bath which has diffusion and passive decay. The equations are:
 ``` math

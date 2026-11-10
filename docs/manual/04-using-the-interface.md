@@ -1,16 +1,11 @@
 # Using the interface
 
-Upstream XPPAUT's interface was a set of X11 windows: a main window with
-its own menu, and separate windows for parameters, initial data, the
-data table, autoX, and so on, each independently resizeable and
-iconifiable. This fork (xppautX) replaced that with **web2**, a single
-responsive page served by the program itself and opened in your browser.
-It is the same XPPAUT underneath: the same menus, the same single-letter
-hotkeys, the same numerics ([The main commands](05-commands.md),
-[Numerical parameters](06-numerical-parameters.md)). This chapter covers
-what looks and behaves differently from the X11 windows the rest of this
-manual otherwise describes; where a feature has no web2 equivalent yet,
-it says so plainly instead of describing the old window.
+xppautX is one responsive page, served by the program itself and shown in
+its own window or in your browser. It is the same XPPAUT numerics underneath
+([The main commands](05-commands.md), [Numerical parameters](06-numerical-parameters.md)),
+with the commands in a menu bar grouped by task. This chapter covers the page: its layout,
+panels, plots, dialogs and files. What differs from XPPAUT, area by area, is in
+[xppautx-vs-xppaut.md](../xppautx-vs-xppaut.md).
 
 ## Starting xppautX
 
@@ -48,7 +43,7 @@ checks rather than interactive use:
   xppautX directly (docs/protocol.md is the contract). `xppautX run.recx --silent`
   plays a recording without an interface, from its saved snapshot, and
   reproduces each recorded interruption at its exact row or autoX point
-  (docs/protocol.md "Playing a recording without an interface", W144).
+  (docs/protocol.md "Playing a recording without an interface").
   Plain-name output files remain in the launch folder. Existing files ask
   the terminal for confirmation within 60 seconds; EOF or timeout stops
   playback with exit 1. `--yes` replaces them without asking.
@@ -112,18 +107,18 @@ Input boxes are never shortened.
 
 The plot, autoX, the animation, an array plot, the data table, the
 equations and the ODE source are **tabs** above the plot area, not
-separate windows (docs/front-end-gaps.md "Different on purpose"). A tab
-comes forward by itself when its window opens in X11 terms, or when XPP
+separate windows (see [xppautx-vs-xppaut.md](../xppautx-vs-xppaut.md)). A tab
+comes forward by itself when it opens, or when XPP
 waits for a click or a key in it (grabbing a point in autoX, for example).
 Keys go to the tab you are looking at: with the autoX tab in front, `a`,
 `n`, `r`, `g`, `d`, `c`, `u`, `p` and `f` are autoX's own keys, as they are
-in the X11 autoX window. `Window/Bottom` (raise a plot window) does
+in XPPAUT's autoX window. `Window/Bottom` (raise a plot window) does
 nothing: tabs replace stacking, and there is nothing to iconify or
 resize — a tab always fills the space it has.
 
 The equilibrium box, which upstream XPP keeps as its own small window,
 appears at the top of the right-hand panel, next to the initial
-conditions it can import into (`(I)nitial conds` `s(H)oot`, see
+conditions it can import into (`Initial conds` `shoot`, see
 [The main commands](05-commands.md)).
 
 ## The values panel
@@ -147,12 +142,12 @@ beside the plot (a sheet on a phone):
   and the edit is taken at once but applied when that computation ends —
   the run in progress keeps the values it started with, the next one
   uses yours. There is nothing pending to send: the value shown is the
-  value. There is no `Ok`/`Cancel` for the whole box, as in the
-  X11 windows; `Escape` puts back the value that was there. Each changed
+  value. There is no `Ok`/`Cancel` for the whole box, as in
+  XPPAUT; `Escape` puts back the value that was there. Each changed
   field has a reset button whose tooltip shows the ODE file's value, and
   there is no undo: reset (one field, or the section's **Restore defaults**) is the way back.
 - A parameter or initial condition takes a number or a `%formula`,
-  exactly as the X11 boxes did (see "Formulas as values", below):
+  exactly as XPPAUT's boxes did (see "Formulas as values", below):
   `%2*pi`; a boundary condition or delay takes an expression. Anything
   else (letters in a parameter box) is refused, not sent: see "What a box
   accepts", below.
@@ -161,8 +156,8 @@ beside the plot (a sheet on a phone):
   An unknown, duplicate or missing name reports the file, line and name;
   nothing changes on an error. Initial-condition files (`.ic`) keep one
   value per differential equation in model order; too few or too many
-  values report the file and line and change nothing (W310, #369).
-- **The sets row** (W323) is under the heading of Parameters, States and Numerics, of each graph's plot settings, of autoX's
+  values report the file and line and change nothing.
+- **The sets row** is under the heading of Parameters, States and Numerics, of each graph's plot settings, of autoX's
   panel and of the Range and Histogram dialogs, and acts on that section's kind only (a graph's on its own graph; in a
   graph's toolbar the row is folded into one **Sets ▾** drop-down, where the list of sets is called **Apply**):
   **Sets** lists the named sets that hold the section's kind (a set an import brought is marked with its file) and a pick
@@ -171,7 +166,7 @@ beside the plot (a sheet on a phone):
   and keeps the set's other parts), *As defaults…* (the `par` or `init` lines, or the group in the `options` block) or
   *Export…* into another `.odex`; (when the panel is narrower than 24 rem, **Load from file…** and **Restore defaults** are behind a **⋯**) **Load from file…** offers the parts of an `.odex` (its defaults and each set) or of an
   XPPAUT file (`.par`, `.ic`, `.set`) that hold the kind and loads the one you choose; **Restore defaults** puts the
-  section's values back from the model file, as the X11 Parameter window's Default button did (a setting returns to the
+  section's values back from the model file, as XPPAUT's Default button did (a setting returns to the
   built-in value with the model's `options` block over it), through the core's `set.restore_defaults` command
   (scope `parameters`, `initial`, `integration`, ...), which redoes the tables once. A field's own reset is the same
   command for that field. **File > Sets** has the same operations for everything or one section (it asks the scope,
@@ -183,8 +178,8 @@ beside the plot (a sheet on a phone):
   nothing: if one is refused none is applied, and the error shows on
   that value's field.
 - **The checkboxes** next to the variables pick what **x vs t**,
-  **Phase** and **Array** plot, like `xvst`, `pp` and `arry` in X11.
-- **Sliders** sit in the Parameters section, with **Add slider**, any number of them (the X11 main
+  **Phase** and **Array** plot, like XPPAUT's `xvst`, `pp` and `arry`.
+- **Sliders** sit in the Parameters section, with **Add slider**, any number of them (XPPAUT's main
   window had three), including the ones an ODE file sets with `@ s1=...`;
   each is added or edited with a dialog (searchable variable, min, max,
   step/precision), not the small binding window upstream describes.
@@ -199,25 +194,25 @@ beside the plot (a sheet on a phone):
   ([Numerical parameters](06-numerical-parameters.md)): Total time, Start
   time, Transient time, Dt, the nullcline mesh, the equilibrium (Sing pt)
   controls, Store every N steps, Bounds, the Method (a list), the Jacobian (a list:
-  difference or exact, W260) and the method's tolerances and
+  difference or exact) and the method's tolerances and
   step limits, the maximal delay (delay equations only) and the boundary
   value controls. A field the current method does not use is greyed. They
   are settings like the others: editable during a run, for the next one.
   A value the program does not take is refused on the field with its
   reason (`Dt must be a number other than 0`).
 - **Table** opens the Table ([The Data Table](07-data-table.md)),
-  **Equations** lists the equations (the X11 equation-listing window).
+  **Equations** lists the equations (XPPAUT's equation listing).
 
 Slider definitions (name, Min, Max and Step) are part of the session and
 return when you open its `.snapx`. Open model replaces them with the new
 model's `@ s1`, `slo1`, `shi1` presets (likewise 2 and 3). Current and frozen
-nullclines also return from a saved session (W135, #187).
+nullclines also return from a saved session.
 
 Sections can be collapsed and their state saved to and loaded from a settings file.
 
 ## Plots and axes
 
-Each plot window from X11 (a phase plane in xy mode, a time plot in
+Each plot window (a phase plane in xy mode, a time plot in
 aligned mode) is a tab, starting at the window's own axes
 (`Viewaxes`), keeping its own zoom while tabs switch, and all done
 without a round trip to the core: drag a box to zoom, the wheel zooms
@@ -249,7 +244,7 @@ plot windows: they grow as you add them, within available memory. The ICs
 axes and reports an error for a larger selection. Curve colors repeat
 through the plot palette. Session files and recording snapshots preserve
 these counts and deleted slots. Closing a plot removes its frozen curves
-along with its labels and markers (W376, #438).
+along with its labels and markers.
 
 Nullclines, direction fields, equilibria (Sing pts), Text/etc labels and
 markers, and frozen curves all draw on the same plot from data the core
@@ -257,8 +252,8 @@ sends (docs/ui-v2.md sections 2 and 3), not as separate drawing
 operations, so they scale and theme with the rest of the page.
 
 3D plots are XPP's curves-in-a-box, projected and rotated in the browser
-with the window's angles; rotate by dragging or the keys that rotated the
-X11 window.
+with the window's angles; rotate by dragging or the keys that rotated
+XPPAUT's window.
 
 ## The autoX view
 
@@ -270,7 +265,7 @@ See [Creating Animations](10-animations.md#the-animation-view).
 
 ## Dialogs and prompts
 
-Every dialog and every question the core asks is one shell (W641): a title with the description under it, a ? that opens the manual's section,
+Every dialog and every question the core asks is one shell: a title with the description under it, a ? that opens the manual's section,
 and a × (Escape and a click outside do the same, so there is no Cancel button); the footer holds the one action, named for what it does
 ("Apply", "Save", "Add slider"; never Run or OK) beside a count of the fields left to fix. A form is about 36 rem wide, a list or a table 52
 rem; below 48 rem a dialog is a full-screen sheet with the title and × on top and the action at the bottom. A field's label is left of it in a
@@ -280,10 +275,10 @@ more, a switch for a yes/no, a picker (that also takes a dropped file) for a fil
 formula. An error shows once you leave the field or press the action, says the rule and the value ("Must be a number above 0; got -0.05"),
 and the action is never disabled: pressed with errors it moves the focus to the first. A required field is marked with an asterisk.
 
-Every X11 pop-up menu, string box, form, yes/no and file selector is now
+Every XPPAUT pop-up menu, string box, form, yes/no and file selector is now
 a dialog: `role=dialog`, focus moves to its first field, Tab cycles
 inside it, Escape cancels, and focus returns to where it was. A form
-field that picked from a fixed X11 list (`*n` in the protocol) is now a
+field that picked from a fixed list (`*n` in the protocol) is now a
 proper select; a mouse-driven prompt (pick a point, drag a box, drag the
 plot) is a mode of the plot itself, with an instruction bar and Cancel,
 answered by clicking, tapping or the keyboard (arrows move a crosshair or
@@ -298,7 +293,7 @@ Every box checks what you type as you type it, by what it asks for:
 |---|---|---|
 | a whole number | digits, with a sign | autoX's Max steps and Mesh intervals, a range's Steps, the animation's frame skip |
 | a number | `1e-3`, `-0.5`, `.5` | a window's limits, slider Min, Max and Step, autoX's Step size, Mark values |
-| a number or %formula | a number, or `%` and a formula | parameters, initial conditions, nUmerics' Total, Dt, ... |
+| a number or %formula | a number, or `%` and a formula | parameters, initial conditions, Numerics' Total, Dt, ... |
 | an expression | a formula, its brackets matched | boundary conditions, delays, a column's formula, the calculator |
 | a name | one of the model's names (it suggests them) | Xi vs t, the data table's Replace and Tabulate |
 | a file name | a name only: no folder, no leading dot, none of `\ / : * ? " < > \|` | Save's file name, the frames' base name |
@@ -376,7 +371,7 @@ The desktop's operating-system save dialog asks before replacing an
 existing file. Accepting that dialog authorizes only the chosen path for
 that prompt; the core does not ask again. Frozen nullcline destinations
 ask separately before replacement. Values Save and table/plot CSV buttons
-use this same desktop picker (W177, #229). A recording keeps the dialog's answer, so replay uses
+use this same desktop picker. A recording keeps the dialog's answer, so replay uses
 the same decision even if the file now exists.
 
 In a browser, the save picker chooses where the finished file will be
@@ -392,10 +387,10 @@ shows one error and keeps the old file. An empty export says
 This also applies to autoX's Save diagram and the session written
 beside an imported XPPAUT `.set`. Declining the last keeps the imported values
 applied, without changing the session file. Scripts can put `replace:1` on
-the saving command to authorize it, or `replace:-1` to decline it (W129).
+the saving command to authorize it, or `replace:-1` to decline it.
 
 Files (PDF/SVG, GIF, `.dat`, tables, kinescope frames) are
-written next to the ODE file, by the program, exactly as in X11. The
+written next to the ODE file, by the program, exactly as XPPAUT does. The
 browser never silently downloads anything on its own.
 
 - **Open** (Import XPPAUT session state, Load diagram, the browser's Load, ...): the page
@@ -431,11 +426,11 @@ command. A save onto an existing file asks "File Exists! Overwrite?" in
 the page, as before, rather than in the dialog. File > Open model… uses
 the same dialog.
 
-Two differences from X11 worth knowing:
+Two differences from XPPAUT worth knowing:
 
 - Pictures saved as GIF or PPM (kinescope, animation frames, array plots)
   are written by xppautX itself, but from pixels the browser drew, not a
-  copy of an X11 pixmap, and their colors are rounded to 216 shades (the
+  copy of XPPAUT's pixmap, and their colors are rounded to 216 shades (the
   GIF format takes 256 colors, and a browser smooths its lines).
 - Kinescope frames live in the page as data (not bitmaps): reloading the
   page loses them.
@@ -452,7 +447,7 @@ The title bar's Help button (or F1) opens this manual in the page's Help view. I
 
 What xppautX prints — including autoX's table (`Output`, in the autoX
 view) — goes to **Messages** at the bottom of the page, quiet by default
-(warnings and errors); `--verbose`/`--debug` raise the level (core/xpp_log.h).
+(warnings and errors); `--verbose`/`--debug` raise the level.
 The terminal that started it gets only what the page cannot show: the
 warnings and errors, since the page may be closed, and the browser's
 address; with `--verbose` or `--debug`, or the preferences' `log_file`, everything
@@ -469,7 +464,7 @@ the color of its kind when it was stored).
 
 You can enter a formula instead of a plain number in the values panel and
 in the prompts that ask for one number (the "number or %formula" boxes
-above: nUmerics' Total, Dt, ...): the first character must be `%`, e.g.
+above: Numerics' Total, Dt, ...): the first character must be `%`, e.g.
 `%2*pi` or `%sin(1.5)`; it is evaluated and converted to a number when
 the field takes effect. A form's number fields (a window's limits, autoX's
 Numerics) take plain numbers only.
@@ -487,12 +482,11 @@ Defaults use the model's base: `lecar.csv`, `lecar.pdf`, `lecar.svg`,
 same type adds its purpose, such as `lecar-curves.csv`, `lecar-array.pdf`
 or `lecar-eigen1-stable.dat`. Kinescope and animation PPM sequences ask
 once, then number the frames `_0000`, `_0001`, etc. before its extension (the
-run file rule, W673); an existing file still needs its own replacement decision (W177, #229). Kinescope
+run file rule); an existing file still needs its own replacement decision. Kinescope
 Make Anigif saves all captured frames into one GIF. The browser delivers
 every committed output, capturing its bytes before answering the next
-export prompt even when both picker destinations use the same basename
-(W177, #229). Typed browser names stay in the model's folder;
-the desktop's save dialog can choose a destination on disk. (W130, #182)
+export prompt even when both picker destinations use the same basename. Typed browser names stay in the model's folder;
+the desktop's save dialog can choose a destination on disk.
 
 ### Check for updates
 
@@ -511,8 +505,6 @@ builds described from a release tag compare that base version.
 Closing a pending check lets you immediately try again. Failures show their
 actual source: the program version or the API answer, with its line when
 known. The desktop binding accepts only a release tag page, and reports a
-failed system browser opener (W176, [#228](https://github.com/MuhammadMoustafa/xppautX/issues/228)).
+failed system browser opener.
 
-W13c ([#126](https://github.com/MuhammadMoustafa/xppautX/issues/126)).
-
-Writes into a missing folder ask **Create the folder <folder>?**. A model path outside its folder first asks for outside-path approval, then asks separately to create the folder. No answer refuses; `--yes` accepts and prints the answer, and `--check` asks nothing and creates nothing. Existing folders are not asked again. Links on the way are refused and new folders are private (0700 on POSIX). Permission denied names the folder and the requesting source or command, says it needs administrator rights and to choose another place; the program never elevates itself. The desktop save dialog retries in the writable model folder, or Documents, after this error. (W303, [#361](https://github.com/MuhammadMoustafa/xppautX/issues/361)).
+Writes into a missing folder ask **Create the folder <folder>?**. A model path outside its folder first asks for outside-path approval, then asks separately to create the folder. No answer refuses; `--yes` accepts and prints the answer, and `--check` asks nothing and creates nothing. Existing folders are not asked again. Links on the way are refused and new folders are private (0700 on POSIX). Permission denied names the folder and the requesting source or command, says it needs administrator rights and to choose another place; the program never elevates itself. The desktop save dialog retries in the writable model folder, or Documents, after this error..

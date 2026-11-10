@@ -16,9 +16,9 @@ file, line and column where known (`--silent` uses the console).
 and prints one JSON object; `.odex` checking reports only errors and what the compiler warns of, and one
 information line when the model's states fall into several independent
 subsystems (states no equation links, which the implicit solvers then factor
-one subsystem at a time: W433).
+one subsystem at a time).
 Exit 0 means clean or information alone, 1 warnings, 2 an error.
-See [Checking a .ode](../odex.md#checking-a-ode) for the format (W75, #123).
+See [Checking a .ode](../odex.md#checking-a-ode) for the format.
 
 Reserved names ask for a new name, offering the converter's suggestion;
 `--silent` takes it. Cancelling keeps the model before and writes nothing.
@@ -102,8 +102,8 @@ You could optionally include initial data by adding either of the following sets
 
 or
 
-    v(0)=.25
-    w(0)=.3
+    v0=.25
+    w0=.3
 
 As you have probably guessed, comments have the form:
 
@@ -445,7 +445,7 @@ with $`(x(0)=1,y(0)=0)`$ would be written as:
     # dae_ex1.ode
     x'=-x
     0= x+y-1 
-    x(0)=1
+    x0=1
     solv y=0
     aux yy=y
     done
@@ -459,7 +459,7 @@ with $`x(0)=-(1+e),x'(0)=1.`$ Note that the function $`x+exp(x)`$ has no closed 
     # dae_ex2.ode
     x'=xp
     0= xp+exp(xp)+x
-    x(0)=-3.7182
+    x0=-3.7182
     solv xp=1
     aux xdot=xp
     done
@@ -481,7 +481,7 @@ with $`w(0)=0,v(0)=1.`$ Note that the algebraic equation has multiple roots for 
     @ NEWT_ITER=1000,NEWT_TOL=1e-3,JAC_EPS=1e-5,METH=qualrk
     done
 
-The important numerical parameters for the DAEs are the maximum iterates, the tolerance for Newton’s method, and the epsilon value for computing the Jacobian. These are found in the numerics menu under the menu item SingPt Control.
+The important numerical parameters for the DAEs are the maximum iterates, the tolerance for Newton’s method, and the epsilon value for computing the Jacobian. These are found in the numerics menu under the menu item Sing pt control.
 
 At every step the algebraic variables are solved by Newton’s method, starting from their last values. A solution is accepted only where the algebraic equations hold within the Newton tolerance, and only on the branch the run has followed: the sign of the determinant of the equations’ Jacobian (with respect to the algebraic variables) must stay the one it had at the last solution, at every Newton iterate. A sign change means the solution reached a singular point, a fold, past which that branch does not continue. When no solution is accepted (a fold, a singular Jacobian, Newton not converging within the maximum iterates or its update leaving the bounds) the integration stops, the rows computed so far are kept, and one error says the time of the last solution and why: “No solution of the algebraic equations past t=…: …”.
 
@@ -573,7 +573,7 @@ The “global” declaration allows you to set some conditions and then if these
 
 The `condition` is any combination of variables such that if it is zero, then the desired event has occurred. `sign` is either 1,-1, or 0. A sign of 1 means that if the condition goes from less than zero to greater than zero, the event has occurred. A sign of -1 means that if the condition *decreases* through zero that event has occurred. Finally, a sign of 0, means that any crossing of zero signals an event. Each time the condition is met, events occur. There can be up to 20 events per condition and they are delimited by braces and separated by semicolons. Events are always of the form: `variable=formula` where `variable` is one of the differential equation variables or parameters and formula is some formula involving the variables. All formulae are first evaluated and then the variables are updated. Some examples are shown below. **WARNING!** The global flags are *ignored* by the adams integrator. Use GEAR, EULER, RUNGE-KUTTA, BACKWARD EULER, MODIFIED EULER, STIFF, QUALITY-RK, DORMAND-PRINCE, ROSENBROCK or CVODE. There is one special event that you can put into the list of events: `out_put=val` if `val>0` then the current value of all variables etc is stored. This allows you to, for example, get faster more accurate Poincare maps.
 
-*Note.* You will sometimes get the rather obscure message that the program is “Working too hard.” This is a diagnostic that one of two things is occurring. First, due to round-off, sometimes the extrapolation to zero for the condition is actually not zero but is instead some very small number. Thus XPP checks for the definition of this which is called `s ` and if it is less than a user defined value of `smin` (changed in the numerics menu under “sIng pt ctrl”) then it is treated as zero. The console reports this number when the error message occurs so that you can change `smin` to be larger, say 1e-13, to avoid this message.
+*Note.* You will sometimes get the rather obscure message that the program is “Working too hard.” This is a diagnostic that one of two things is occurring. First, due to round-off, sometimes the extrapolation to zero for the condition is actually not zero but is instead some very small number. Thus XPP checks for the definition of this which is called `s ` and if it is less than a user defined value of `smin` (changed in the numerics menu under “Sing pt ctrl”) then it is treated as zero. The console reports this number when the error message occurs so that you can change `smin` to be larger, say 1e-13, to avoid this message.
 
 The second situation that causes this to arise is that the time step `DT` is too large and the same condition is occuring twice in that step. Since the interpolation is linear, this means you should try to take smaller steps; otherwise numerical errors will accumulate.
 
@@ -642,7 +642,7 @@ A `.odex` (what a `.ode` is converted to) spells these options in full words, th
 
   In xppautX these colors (SMC, UMC, XNC, YNC, and SEC, UEC, SPC, UPC of autoX's diagram) are the user's preferences, in File > Preferences, not a model's: a `.ode` that sets one is converted without it, with no note.
 
-- BUT=s1:s2 defines a user button. You can use this many times in the same ODE file. The first string is the name of the button.The second is the set of key stroke short cuts. For example: ` BUT=mouse:im` will put a button on the main window labeled `mouse` and when you press it, it will act as though you had clicked ` InitConds Mouse`.
+- BUT=s1:s2 defines a user button. You can use this many times in the same ODE file. The first string is the name of the button.The second is the set of key stroke short cuts. For example: ` BUT=mouse:im` will put a button on the main window labeled `mouse` and when you press it, it will act as though you had clicked ` Initial conds Mouse`.
 
 The remaining options can be set from within the program. They are
 
@@ -698,7 +698,7 @@ The remaining options can be set from within the program. They are
 
 - XLO=value,YLO=value,XHI=value,YHI=value set the limits for two-dimensional plots (defaults are 0,-2,20,2 respectively.) Note that for three-dimensional plots, the plot is scaled to a cube with vertices that are $`\pm1`$ and this cube is rotated and projected onto the plane so setting these to $`\pm2`$ works well for 3D plots.
 
-  In xppautX XLO, XHI, YLO and YHI are the limits `axes.x_min` to `axes.y_max` of a 2D plot (winning over XMIN to YMAX), and are dropped for a 3D plot, whose picture fits its box (W654).
+  In xppautX XLO, XHI, YLO and YHI are the limits `axes.x_min` to `axes.y_max` of a 2D plot (winning over XMIN to YMAX), and are dropped for a 3D plot, whose picture fits its box.
 
 - XMAX=value, XMIN=value, YMAX=value, YMIN=value, ZMAX=value, ZMIN=value set the scaling for three-d plots.
 
@@ -776,8 +776,8 @@ where `wgt` and `index` are tables with at least `npts * ncon` entries. The arra
 Thus one can make complicated types of couplings. The following is a randomly coupled network with 5 random connections of random strength:
 
     # junk2.ode
-    table w % 255 0 255 .4*ran(1)
-    table ind % 255 0 255 flr(51*ran(1))
+    table w % 255 0 255 .4*ran1
+    table ind % 255 0 255 flr(51*ran1)
     special bob=sparse(51,5,w,ind,v0)
     v[0..50]'=-v[j]+f(k*bob([j])-thr-c*delay(v[j],tau))
     par k=3,thr=1,beta=1,c=2.5,tau=5
@@ -824,7 +824,7 @@ The command
 
     special z=gill(0,rxnlist)
 
-sets up a list of reactions to implement the gillespie method. (The 0 is superfluous at this point and serves as a place-holder for implementing faster approximations) The reactions are a set of fixed variable that you include. The vector `z` returns the following information: $`z(0)`$ returns the time to the next reaction; $`z(1,\ldots,m)`$ returns a 0 or 1 according as to whether that reaction took place. Here is an example from Gillespie
+sets up a list of reactions to implement the gillespie method. (The 0 is superfluous at this point and serves as a place-holder for implementing faster approximations) The reactions are a set of fixed variable that you include. The vector `z` returns the following information: $`z0`$ returns the time to the next reaction; $`z(1,\ldots,m)`$ returns a 0 or 1 according as to whether that reaction took place. Here is an example from Gillespie
 
     # gillesp_bruss.ode
     # gillespie algorithm for brusselator
@@ -841,9 +841,9 @@ sets up a list of reactions to implement the gillespie method. (The 0 is superfl
     r3=c3*y1*y2*(y1-1)/2
     r4=c4*y1
     special z=gill(0,r{1-4})
-    tr'=tr+z(0)
-    y1'=y1+z(1)-z(2)+z(3)-z(4)
-    y2'=y2+z(2)-z(3)
+    tr'=tr+z0
+    y1'=y1+z1-z2+z3-z4
+    y2'=y2+z2-z3
     @ bound=100000000,meth=discrete,total=1000000,njmp=1000
     @ xp=y1,yp=y2
     @ xlo=0,ylo=0,xhi=10000,yhi=10000
@@ -898,7 +898,7 @@ These are mainly self-explanatory. The nonobvious ones are:
 
 - **`mod(arg1,arg2)`**: is `arg1` modulo `arg2`.
 
-- **`if(<exp1>)then(<exp2>)else(<exp3>)`**: evaluates ` ` If it is nonzero it evaluates to otherwise it is . E.g. `if(x>1)then(ln(x))else(x-1)` will lead to `ln(2)` if `x=2` and `-1 if x=0.`
+- **`if(<exp1>)then(<exp2>)else(<exp3>)`**: evaluates ` ` If it is nonzero it evaluates to otherwise it is . E.g. `if(x>1)then(ln(x))else(x-1)` will lead to `ln2` if `x=2` and `-1 if x=0.`
 
 - **`delay(<var>,<exp>)`**: returns variable `<var>` delayed by the result of evaluating `<exp>`. In order to use the delay you must inform the program of the maximal possible delay so it can allocate storage. (See the section on the NUMERICS menus.)
 
@@ -920,7 +920,7 @@ These are mainly self-explanatory. The nonobvious ones are:
 
 The parser in this distribution is a great improvement over the old style parser. The parser distinguishes between the old style and the new style by whether or not the first line of the file contains a number. If the first line is a number, then the old style parser is used. Otherwise, the new style is used.
 
-### Settings groups in .odex (W317)
+### Settings groups in .odex
 
 The options block groups settings by their work: `integration`, `poincare`,
 `equilibria`, `continuation`, `diagram`, `plot`, `sweep`, `analysis`,
@@ -929,4 +929,4 @@ Slider presets are an `interface` list, for example
 `options { interface: { sliders: [ { name: v, low: -1, high: 1 } ] } }`;
 the list has no three-slider limit. The page displays all presets.
 The converter writes these groups from XPPAUT options; old .odex group names
-and numbered slider keys are errors ([#377](https://github.com/MuhammadMoustafa/xppautX/issues/377)).
+and numbered slider keys are errors.

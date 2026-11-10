@@ -3,21 +3,14 @@
 **Credit.** This manual is G. Bard Ermentrout's XPPAUT documentation, in
 his words: the notes, the examples and the first-person asides are his.
 xppautX changed only what the program changed: the interface chapters are
-rewritten for web2, and chapter 1 is being rewritten for xppautX
-(docs/roadmap.md W12c). XPPAUT and its manual are copyright Bard Ermentrout.
+rewritten for the page xppautX shows, and chapter 1 is rewritten for xppautX.
+XPPAUT and its manual are copyright Bard Ermentrout.
 
-XPP's manual, converted from the original LaTeX (`docs/upstream/xpp_doc.tex`,
-`docs/upstream/xpp_sum.tex`) to Markdown (docs/roadmap.md W12). The model
-language, numerics and autoX chapters are kept faithful to the original; the
-chapters about windows, the mouse and keystrokes are rewritten for the
-current front end, **web2** (the page `xppautX model.ode` opens). Where an
-X11 feature has no web2 equivalent yet, the relevant chapter says so
-instead of describing the old window.
-
-A task that changes the UI updates the matching section here, the same way
-it updates docs/protocol.md (see AGENTS.md). web2's own Help view (planned,
-docs/roadmap.md W12b) will search these files and link menu items and
-dialogs straight to the sections below.
+The model language, numerics and autoX chapters are kept faithful to the
+original; the chapters about windows, the mouse and keystrokes describe the
+page `xppautX model.ode` opens. Where XPPAUT differs from xppautX the
+differences are listed once, by area, in
+[xppautx-vs-xppaut.md](../xppautx-vs-xppaut.md).
 
 ## Chapters
 
@@ -39,8 +32,7 @@ dialogs straight to the sections below.
 
 ## Menus and dialogs → sections
 
-Which part of web2 each section documents, for the Help view (W12b) to
-link from a menu item or dialog to its section here.
+Which part of the page each section documents; the Help view links a menu item or dialog to its section here.
 
 | web2 | Section |
 |---|---|
@@ -54,28 +46,28 @@ link from a menu item or dialog to its section here.
 | File dialogs (Open/Save, Add file…) | [Using the interface: saving pictures and files](04-using-the-interface.md#saving-pictures-and-files) |
 | Messages panel, `--verbose`/`--debug`/`--logfile` | [Using the interface: the log](04-using-the-interface.md#the-log) |
 | A `%formula` field | [Using the interface: formulas as values](04-using-the-interface.md#formulas-as-values) |
-| Main menu — Initialconds | [The main commands: (I)nitial conds](05-commands.md#initial-conds) |
-| Main menu — Continue | [The main commands: (C)ontinue](05-commands.md#continue) |
-| Main menu — Nullclines | [The main commands: (N)ullclines](05-commands.md#nullclines) |
-| Main menu — Dir.field/Flow | [The main commands: (D)irection Field/Flow](05-commands.md#direction-fieldflow) |
-| Main menu — Window/zoom | [The main commands: (W)indow](05-commands.md#window) |
-| Main menu — Phase space | [The main commands: ph(A)se space](05-commands.md#phase-space) |
-| Main menu — Kinescope | [The main commands: (K)inescope](05-commands.md#kinescope) |
-| Main menu — Graphic stuff | [The main commands: (G)raphic stuff](05-commands.md#graphic-stuff) |
-| Main menu — Numerics | [The main commands: n(U)merics](05-commands.md#numerics), [Numerical parameters](06-numerical-parameters.md) |
-| Main menu — File | [The main commands: (F)ile](05-commands.md#file) |
-| Main menu — Parameters | [The main commands: (P)arameters](05-commands.md#parameters) |
-| Main menu — Erase | [The main commands: (E)rase](05-commands.md#erase) |
+| Main menu — Initialconds | [The main commands: Initial conds](05-commands.md#initial-conds) |
+| Main menu — Continue | [The main commands: Continue](05-commands.md#continue) |
+| Main menu — Nullclines | [The main commands: Nullclines](05-commands.md#nullclines) |
+| Main menu — Dir.field/Flow | [The main commands: Direction Field/Flow](05-commands.md#direction-fieldflow) |
+| Main menu — Window/zoom | [The main commands: Window](05-commands.md#window) |
+| Main menu — Phase space | [The main commands: phase space](05-commands.md#phase-space) |
+| Main menu — Kinescope | [The main commands: Kinescope](05-commands.md#kinescope) |
+| Main menu — Graphic stuff | [The main commands: Graphic stuff](05-commands.md#graphic-stuff) |
+| Main menu — Numerics | [The main commands: numerics](05-commands.md#numerics), [Numerical parameters](06-numerical-parameters.md) |
+| Main menu — File | [The main commands: File](05-commands.md#file) |
+| Main menu — Parameters | [The main commands: Parameters](05-commands.md#parameters) |
+| Main menu — Erase | [The main commands: Erase](05-commands.md#erase) |
 | Named windows | [The main commands: named plot windows](05-commands.md#named-plot-windows) |
-| Main menu — Text,etc | [The main commands: (T)ext, etc](05-commands.md#text-etc) |
-| Main menu — Sing pts | [The main commands: (S)ing pts](05-commands.md#sing-pts) |
-| Main menu — Viewaxes | [The main commands: (V)iew axes](05-commands.md#view-axes) |
-| Main menu — Xi vs t | [The main commands: (X)i vs t](05-commands.md#xi-vs-t) |
-| Main menu — Restore | [The main commands: (R)estore](05-commands.md#restore) |
-| Main menu — 3d params | [The main commands: (3)d params](05-commands.md#3d-params) |
-| Main menu — Bndry val | [The main commands: (B)ndry val](05-commands.md#bndry-val) |
-| Numerics — Total/Start/Transient/Dt/Bounds/Method/Delay/... | [Numerical parameters](06-numerical-parameters.md) (one section per item, e.g. [(T)otal](06-numerical-parameters.md#total), [(M)ethod](06-numerical-parameters.md#method)) |
-| Numerics — Poincaré map | [Numerical parameters: (P)oincare map](06-numerical-parameters.md#poincare-map) |
-| Numerics — Averaging | [Numerical parameters: (A)veraging](06-numerical-parameters.md#averaging) |
+| Main menu — Text,etc | [The main commands: Text, etc](05-commands.md#text-etc) |
+| Main menu — Sing pts | [The main commands: Sing pts](05-commands.md#sing-pts) |
+| Main menu — Viewaxes | [The main commands: View axes](05-commands.md#view-axes) |
+| Main menu — Xi vs t | [The main commands: Xi vs t](05-commands.md#xi-vs-t) |
+| Main menu — Restore | [The main commands: Restore](05-commands.md#restore) |
+| Main menu — 3d params | [The main commands: 3d params](05-commands.md#3d-params) |
+| Main menu — Bndry val | [The main commands: Bndry val](05-commands.md#bndry-val) |
+| Numerics — Total/Start/Transient/Dt/Bounds/Method/Delay/... | [Numerical parameters](06-numerical-parameters.md) (one section per item, e.g. [Total](06-numerical-parameters.md#total), [Method](06-numerical-parameters.md#method)) |
+| Numerics — Poincaré map | [Numerical parameters: Poincare map](06-numerical-parameters.md#poincare-map) |
+| Numerics — Averaging | [Numerical parameters: Averaging](06-numerical-parameters.md#averaging) |
 | Table — Find/Get/Replace/Unreplace/First/Last/Table/Restore/Write/Load/Addcol/Delcol | [The Data Table](07-data-table.md) (one section per button) |
 | autoX — Parameter, Axes, Numerics, User, Run, Grab, Abort, File | [autoX interface](09-autox.md): [Choosing parameters](09-autox.md#choosing-parameters), [Diagram axes](09-autox.md#diagram-axes), [Numerical parameters](09-autox.md#numerical-parameters), [User functions](09-autox.md#user-functions), [Running](09-autox.md#running), [Grabbing](09-autox.md#grabbing), [Aborting](09-autox.md#aborting), [Saving diagrams](09-autox.md#saving-diagrams) |

@@ -69,7 +69,7 @@
 - `!name=...` defines a named quantity whose value depends on other numbers and parameters, but not variables, as these named quantities are only computed when you change parameters.
 - `wiener` defines a set of Wiener processes.
 - `ou <name> tau=<value> sigma=<value>` (`.odex` only) defines an Ornstein-Uhlenbeck process, advanced once a step like a Wiener parameter (see the ODE files chapter).
-- `table` reads in a function in the form of a table or you can define it within the ODE file; the file version of a table starts with three numbers, the number of values, the low, and the high, followed by the y-values. The x values are equally spaced from low to high. Tables are treated as functions of one variable with a linear interpolation as the default. If you want a cubic spline then the initial number in the file should have an `s` in front of it and if you want piecewise constant then put an `i` in front of the number. The function form of the table uses `%` followed by three numbers as with the file format and then a formula using the independent variable `t`. So `table s % 51 -25 25 exp(-abs(t))/2` will produce a tabular function such that `s(5)` would return $`\exp(-5)/2.`$ Other values are interpolated. Tables are very useful for networks.
+- `table` reads in a function in the form of a table or you can define it within the ODE file; the file version of a table starts with three numbers, the number of values, the low, and the high, followed by the y-values. The x values are equally spaced from low to high. Tables are treated as functions of one variable with a linear interpolation as the default. If you want a cubic spline then the initial number in the file should have an `s` in front of it and if you want piecewise constant then put an `i` in front of the number. The function form of the table uses `%` followed by three numbers as with the file format and then a formula using the independent variable `t`. So `table s % 51 -25 25 exp(-abs(t))/2` will produce a tabular function such that `s5` would return $`\exp(-5)/2.`$ Other values are interpolated. Tables are very useful for networks.
 - While rather clumsy in notation, you can initialize a delay equation via `x(0)=f(t)` to set the values of $`x`$ for $`-\tau\le t<0.`$ Delay initial data is zero by default.
 - The `global` declaration includes two special quantities. Inside the braces, if you type `arret=value`, the integration will stop if the `value` is not zero. This way you can stop an integration if a particular event happens. The other declaration is `out_put=value` which will override the `transient` (see the numerics menu) and allow you to plot (when `value` is nonzero), but only when the events occur.
 - In the `global` declaration the `sign` is `{0,1,-1}`. 0 means the condition must be met exactly at the point it was checked. It is a good way to set initial conditions as expressions, e.g. `global 0 t {x=sin(1)}`.
@@ -212,7 +212,7 @@ where `name` is one of the following and `value` is either an integer, floating 
 
 - DWCOLOR=`rrggbb` sets the color of the drawing window and the browser numerical displays
 
-- BACKIMAGE=`file.xbm` sets the back image. The format is the not generally readily found X11-bitmap format. On the mac, you can use some unix tools like gimp, xv, or ImageMagick.
+- BACKIMAGE=`file.xbm` sets the back image. The format is the not generally readily found bitmap format (`.xbm`). On the mac, you can use some unix tools like gimp, xv, or ImageMagick.
 
 - SMALLFONT=`fontname` where `fontname` is some font available to your X-server. This sets the “small” font which is used in the data table and in some other windows.
 
@@ -371,7 +371,7 @@ These are mainly self-explanatory. The nonobvious ones are:
 
 - **`max(arg1,arg2)`**: produces the maximum of the two arguments and `min` is the minimum of them.
 
-- **`if(<exp1>)then(<exp2>)else(<exp3>)`**: evaluates ` ` If it is nonzero it evaluates to otherwise it is . E.g. `if(x>1)then(ln(x))else(x-1)` will lead to `ln(2)` if `x=2` and `-1 if x=0.`
+- **`if(<exp1>)then(<exp2>)else(<exp3>)`**: evaluates ` ` If it is nonzero it evaluates to otherwise it is . E.g. `if(x>1)then(ln(x))else(x-1)` will lead to `ln2` if `x=2` and `-1 if x=0.`
 
 - **`delay(<var>,<exp>)`**: returns variable `<var>` delayed by the result of evaluating `<exp>`. In order to use the delay you must inform the program of the maximal possible delay so it can allocate storage.
 
@@ -393,7 +393,7 @@ These are mainly self-explanatory. The nonobvious ones are:
 
 - **`set(<var>,int,value)`**: is a weird little function that will assign the variable `<var> ` shifted by `int ` the value `value`. It would be used for example to reset some random variable in a `global` statement. Since *all* XPP functions return values, this needs an assignment and will retun `value`. For example:
 
-      global 1 t-t0 {u=set(x0,50*ran(1),3.14159}
+      global 1 t-t0 {u=set(x0,50*ran1,3.14159}
 
   will pick a random index `int` and assign `shift(x0,int)` the value 3.14159. Weird, but I needed it for a problem, so there it is.
 
@@ -410,7 +410,7 @@ xppautX adds its own front-end flags ahead of xpp's original ones (see
 
 The recording starts from its saved snapshot and plays without an interface;
 exit 0 means every step played cleanly, exit 1 means a failure. Recorded
-interruptions stop at the exact row or autoX point (W144, #196). Plain-name
+interruptions stop at the exact row or autoX point. Plain-name
 outputs remain in the current folder. Existing files ask the terminal
 `NAME exists. Replace it? [no] (60 s)`; EOF or timeout stops playback with
 exit 1 without replacing the file. Piped input can answer; `--yes`
@@ -421,15 +421,15 @@ ones below that predate this ordering). Many of them provide an API:
 other programs or scripts can interact with `xppautX --silent` in a batch
 mode, useful for processing many files or runs.
 
-X11 command-line options are removed. Word options require two dashes;
-old single-dash words stop and name the new spelling (W156, #208).
+XPPAUT's windowing command-line options are removed. Word options require two dashes;
+old single-dash words stop and name the new spelling.
 
 **Flags that still work**, because they are about the model, the batch
-run or the files, not the X11 windows:
+run or the files, not the windowing:
 
 - **--silent**: Runs XPP's integrators without opening the front end. The result of the integration is saved to a file called `output.dat` (see `--outfile`) but this can be changed. The length of integration, methods, Poincare sections, etc, are all specified in the `@` lines of the model (or a file it includes) or in the internal options. When you run a range integration in silent mode, if the parameter `RANGERESET` is `yes` (the default) then a new output file will be opened for each integration: ranging over 50 values gives 50 output files named `output_0000.dat`, `output_0001.dat`, etc. (the run's number, four digits, before the extension) If you have set `RANGERESET=no`, then only one file is produced.
 - **--convert**: Converts `.ode` to `.odex` beside the model; terminal name questions read a line from a console or pipe, with a 60-second deadline.
-- **--check**: Validates `.ode` or `.odex` in memory and prints JSON diagnostics; writes nothing, opens no window. Exit 0 clean/info, 1 warnings, 2 error (W75, #123).
+- **--check**: Validates `.ode` or `.odex` in memory and prints JSON diagnostics; writes nothing, opens no window. Exit 0 clean/info, 1 warnings, 2 error.
 - **-y, --yes**: Answers every terminal question yes and prints each answer taken: accepts suggested conversion names and replaces existing files (silent recording outputs, a different `.odex`).
 - **--newseed**: uses the machine time to re-seed the random number generator.
 - **--outfile *filename***: sends output to this file (default `output.dat`). The first column is time, the rest are the ordered variables, e.g. (`lecar.out`, variables `V`, `W`):

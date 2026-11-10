@@ -15,7 +15,7 @@ PAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'docs', 'm
 INTRO = """# The settings panels
 
 Every group of settings has one panel, titled by the group's name, and its rows are in the order of the option table
-(`core/model_options.cpp`), the one source of a setting's key, label, choices, default, limits and help line. A dotted key
+(the option table), the one source of a setting's key, label, choices, default, limits and help line. A dotted key
 (`step.min`) is a titled section inside the panel. The same keys are the `options` block of a `.odex`, the `help` of the program and
 the manual below. Each panel opens from the menu entry of its task: Integration from Run > Settings, Poincare from Run > Poincare map,
 Sweep from Run > Over a range > One parameter (beside its Run button), Equilibria from Analysis > Equilibria, Analysis inside the

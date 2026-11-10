@@ -33,6 +33,8 @@
 #   - web2's CSS has one rule per thing: no repeated declaration block or selector
 #     in one media condition, no breakpoint off docs/ui-v2.md's list, no bare
 #     z-index (tools/csscheck.sh, W638)
+#   - the manual names only what a user sees: no card number, source path or
+#     letter mnemonic in docs/manual (tools/manualcheck.sh, W643)
 #   - one spelling, color, in code and text alike (tools/colorcheck.sh, W669)
 #   - no dead declaration: an unused macro, type or field, a declaration
 #     with no definition or repeated in a second header, #if 0, commented-
@@ -196,6 +198,12 @@ if ! sh tools/csscheck.sh --check web2/src > build/csscheck.out 2>&1; then
   exit 1
 fi
 tail -1 build/csscheck.out
+if ! sh tools/manualcheck.sh --check > build/manualcheck.out 2>&1; then
+  tail -40 build/manualcheck.out
+  echo "MANUAL CHECK FAILED"
+  exit 1
+fi
+tail -1 build/manualcheck.out
 if ! sh tools/colorcheck.sh --check > build/colorcheck.out 2>&1; then
   tail -40 build/colorcheck.out
   echo "COLOR CHECK FAILED"

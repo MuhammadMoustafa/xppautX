@@ -37,11 +37,11 @@ This is a very straightforward model and so the equation file is pretty simple:
 
     # define the right-hand sides
     v'= gl*(vl-v)+gk*w*(vk-v)+gca*minf(v)*(vca-v)+i
-    w'= phi*lamw(v)*(winf(V)-w)
+    w'= phi*lamw(v)*(winfv-w)
 
     # some initial conditions -- not necessary but for completeness
-    v(0)=.05
-    w(0)=0
+    v0=.05
+    w0=0
 
     # Done!!
     d
@@ -70,8 +70,8 @@ Suppose you want to keep track of the calcium current as an auxiliary variable. 
     aux ica=gca*minf(v)*(v-vca)
 
     # some initial conditions -- not necessary but for completeness
-    v(0)=.05
-    w(0)=0
+    v0=.05
+    w0=0
 
     # Done!!
     d
@@ -102,8 +102,8 @@ Note that we are wasting computational time since we compute $`I_{Ca}`$ twice; o
     aux ica=icaf
 
     # some initial conditions -- not necessary but for completeness
-    v(0)=.05
-    w(0)=0
+    v0=.05
+    w0=0
 
     # Done!!
     d
@@ -133,14 +133,14 @@ When $`a=0,b\ne0`$ the voltage at $`x=1`$ is held at 0. When $`a\ne0,b=0`$ there
     vx'=v/lam2
 
     # The initial data
-    v(0)=1
-    vx(0)=0
+    v0=1
+    vx0=0
 
     # and finally, boundary conditions
-    # First we want V(0)-V0=0
+    # First we want V0-V0=0
     b v-v0
     #
-    # We also want aV(1)+bVX(1)=0
+    # We also want aV1+bVX1=0
     b a*v'+b*vx'
     # Note that the primes tell XPP to evaluate at the right endpoint
     d
@@ -163,7 +163,7 @@ where $`f(u)=1/(1+\exp(-u))`$ and $`a,b,\tau`$ are nonnegative parameters. Here 
     f(x)=1/(1+exp(-x))
     # define the right-hand sides; delaying x by tau
     dx/dt = -x + f(a*x-b*delay(x,tau)+p)
-    x(0)=1
+    x0=1
     # done
     d
 

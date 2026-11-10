@@ -9,11 +9,10 @@ stochastic equations, with the bifurcation program autoX built in. It
 handles up to 5000 differential equations, has solvers for stiff and
 delay systems, computes equilibria, invariant sets, nullclines and
 Poincaré maps, and post-processes data with histograms, FFTs and a
-curve fitter. **xppautX** is XPPAUT with its X11 interface (Xlib menus and
-windows) replaced by a browser front end, **web2**
-([Using the interface](04-using-the-interface.md)): the same menus,
-sub-menus and single-letter hotkeys, running without an X server, on
-Linux, macOS and Windows. The numerics — the parser, the solvers, autoX —
+curve fitter. **xppautX** is XPPAUT with a new interface, a page shown in its own window
+or in a browser ([Using the interface](04-using-the-interface.md)), running on
+Linux, macOS and Windows; what differs from XPPAUT is listed in
+[xppautx-vs-xppaut.md](../xppautx-vs-xppaut.md). The numerics — the parser, the solvers, autoX —
 are XPPAUT's own code, unchanged: every example model's output is
 compared against a saved checksum (`tools/verify.sh`) so a refactor
 cannot silently change a result.
@@ -34,7 +33,7 @@ only where the interface changed (see `docs/manual/README.md`'s
 Each [release](https://github.com/MuhammadMoustafa/xppautX/releases) has
 an installer per platform (a .msi for Windows, or a .zip where you cannot install, a .deb or .tar.gz for Linux,
 a .dmg for macOS). Install it and run the
-program on a model — nothing else needs installing, no X server, no
+program on a model — nothing else needs installing, no
 Node:
 
 ```bash
@@ -194,7 +193,7 @@ File > Sets > Import XPPAUT session state applies a `.set` XPPAUT wrote, whole a
 Import diagram reads a foreign XPPAUT `.auto` into the model open.
 
 The recording player offers speeds from 0.25× to 8×. These bounds come from
-the core, so the page and protocol use the same range (W121b, #172).
+the core, so the page and protocol use the same range.
 
 `--server` is for a front end that embeds xppautX instead of opening a
 browser tab (the VS Code extension, a test script); the protocol itself
@@ -229,12 +228,12 @@ identifies the equation. The model's `compile` option (an `integration` setting,
 `options`) runs every equation in the interpreter instead; a change applies when the model next loads.
 Compilation happens once per load and can speed up integration and autoX; the gain depends on the model.
 
-Word options require two dashes; single letters use one (`-h`). Old single-dash words stop and name their new spelling. X11 options are removed and report ?no such option?. XPPAUT's `--setfile`, `--parfile` and `--icfile` are not options here (W665, #738): a `.set`, `.par` or `.ic` file XPPAUT wrote is converted once, `xppautX --convert model.ode --statefile FILE`, into the model's `.odex` as its default values and numerics (File > Sets > Import XPPAUT session state does the same in a running session).
+Word options require two dashes; single letters use one (`-h`). Old single-dash words stop and name their new spelling. XPPAUT's windowing options are removed and report ?no such option?. XPPAUT's `--setfile`, `--parfile` and `--icfile` are not options here: a `.set`, `.par` or `.ic` file XPPAUT wrote is converted once, `xppautX --convert model.ode --statefile FILE`, into the model's `.odex` as its default values and numerics (File > Sets > Import XPPAUT session state does the same in a running session).
 
 xppautX's own options (`--browser`, `--server`,
 `--port`, `--no-open` with `--browser`, `--version`, `--help`, `--verbose`, `--debug`)
 must come first; every
-supported model option (`core/comline.cpp`) uses two dashes and can
+supported model option uses two dashes and can
 follow in any order. The options below control the model and its run.
 
 | Option | Does |
@@ -256,8 +255,8 @@ An unrecognized option stops with ?no such option? and its name; `--help` prints
 
 ## What is different from XPPAUT
 
-web2 keeps every menu, sub-menu and hotkey, but the interaction is a
-browser page, not X11 widgets: dialogs, the values panel, plots, the
+Every command is in the menu bar, and the interaction is a
+page: dialogs, the values panel, plots, the
 data table, animations and the autoX view all work differently in
 detail. [Using the interface](04-using-the-interface.md) describes the
 current front end; [docs/front-end-gaps.md](../front-end-gaps.md) is the

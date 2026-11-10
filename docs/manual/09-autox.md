@@ -14,7 +14,7 @@ closes autoX; File autoX opens it again (the diagram stays the session's).
 **Hide autoX** hides every view and **Show autoX** brings them back with their
 axes and zoom: they are `window.hide` and `window.show` of each view, so a
 script does the same. Scripts use `window.rename`, `window.select` and
-`window.close` with the same quoted name (W353).
+`window.close` with the same quoted name.
 
 Before a run, autoX checks the start. Initial conditions for a steady-state
 run whose largest equation residual is above `state_tolerance` are first refined by
@@ -30,11 +30,11 @@ bound, **`step_size`** must point inward. The two parameters must differ. A peri
 Hopf point or a periodic orbit; two-parameter starts need a supported special
 point. The start norm must lie within **`norm_min`/`norm_max`**, whose defaults are
 0 and 1e100. Tighten these to end a branch when its norm leaves your interval.
-Errors name the value and bound and how to fix the start (W495, #559).
+Errors name the value and bound and how to fix the start.
 
 ## The autoX view
 
-**In web2**, autoX opens as its own view (`ui/AutoxView.tsx`), a full-screen
+**In web2**, autoX opens as its own view, a full-screen
 sheet at every width, over the main menu, the plot and the main status bar
 (Hide autoX, or Escape, hides it and shows the page again; "Show autoX" brings it
 back). It has:
@@ -61,9 +61,9 @@ back). It has:
   job the join dropped as a repeat go with their curves. A click shows or hides
   all of an entry's curves, a double click renames it and changes its
   color, and hovering over it highlights all of them;
-- a **stability circle** (`ui/AutoxInfo.tsx`) below it, and a **status
-  strip** (`ui/AutoxStatus.tsx`) along the window's bottom edge, in place of
-  the small square and info windows of the X11 autoX window, from the
+- a **stability circle** below it, and a **status
+  strip** along the window's bottom edge, in place of
+  the small square and info windows of XPPAUT's autoX window, from the
   `autox.info` event, in order of importance: branch, point, type, label,
   then what the diagram's axes show (the x axis's quantity, then the y
   axis's: the main parameter then the plotted variable, Norm or the
@@ -92,7 +92,7 @@ back). It has:
   only status line on screen while autoX is shown, so it also carries the
   core's last message and the connection state when it is not simply
   connected, as the main window's status bar does;
-- an **axis dialog** (`ui/AutoxAxes.tsx`), opened by clicking an axis name
+- an **axis dialog**, opened by clicking an axis name
   next to the diagram, for Axes' projections (Maximum, Maximum and
   minimum, Norm, Average, Period, Frequency, Two parameter, the labels
   of the projections' names) and their ranges below — usable during a
@@ -116,7 +116,7 @@ back). It has:
   written in the window and in browser mode): the header, a row for every
   labelled point (the special ones and the plain ones Numerics' `output_every`
   prints every `output_every` points) and why the branch stopped, one line each;
-- Numerics as a dialog in place of the X11 Numerics window: every field
+- Numerics as a dialog in place of XPPAUT's Numerics window: every field
   is named by its setting ("Max steps"), with autoX's own name (NMX) and its
   help in the tooltip, and a message beside it when its value is not one
   autoX takes, worded as the core refuses it (OK waits until every value
@@ -126,7 +126,7 @@ back). It has:
   nearest point (see "Points and labels" below for what grabbing does);
 - **Clear** hides the branches computed so far behind a key entry
   ("Earlier branches") instead of blanking the window until a redraw (autoX
-  has no reDraw button any more: the diagram is always current); which
+  has no Redraw button any more: the diagram is always current); which
   branches are hidden and whether they are shown is the core's, sent as
   `autoxview`; it also
   sends the autoX window's own Clear key, which redraws the axes; and
@@ -144,7 +144,7 @@ where you click or type differs, as above.
 
 Before you can use autoX, you must prepare your system for it. You must start your bifurcation analysis from either a fixed point of your model, a periodic orbit, or a solution to a boundary value problem. autoX seems to work best when you start from a steady state, but I have had success starting at periodic orbits. If you want to start at a steady state, find one and integrate so that the system is at rest. If you want to start at a periodic orbit, first integrate until the transient has died away, then set the total integration time to a little more than one cycle and integrate again. Start **Periodic** from the current state: autoX takes the stored orbit up to the time it first returns to its first row, found between stored rows, as its cycle and that time as its initial period (XPPAUT takes the total integration time); with several cycles stored, the first is taken. There are several ways to obtain the cycle; the boundary value solver is usually best, but ordinary integration often works. A Periodic, Bdry Value or homoclinic start needs at least two stored integration rows; otherwise it says "Integrate first" with the number of rows stored. A Periodic start also stops, and says so, when the stored orbit never returns near its first row, which a total time of less than one period, or one that still holds the transient, gives: integrate a little over one period from the settled state and start again.
 
-For discrete dynamical systems, I have added the capability of continuation of $`n-`$periodic orbits by having autoX find fixed points of $`F^n(x).`$ To do this, just set the parameter **nOut** in the XPP numerics menu to the desired period. The example `del_log.ode` has set this up for a period 7 orbit.
+For discrete dynamical systems, I have added the capability of continuation of $`n-`$periodic orbits by having autoX find fixed points of $`F^n(x).`$ To do this, just set the parameter **nout** in the XPP numerics menu to the desired period. The example `del_log.ode` has set this up for a period 7 orbit.
 
 For the example file `lecar.ode` the parameter of interest is `iapp` and this has been set at a negative value so that the system has a stable rest state. The variables have been initialized to their rest states as well. Once you have prepared the problem as such, you are ready to run.
 
@@ -162,7 +162,7 @@ Each computed branch keeps every model parameter's value once. Its points
 keep the continued values and period. Grab and restart from a label restore
 the complete branch values, including parameters held constant during that
 branch, even if you changed them for a later run. Save session and its
-diagram exports keep these values too ([W339, #400](https://github.com/MuhammadMoustafa/xppautX/issues/400)).
+diagram exports keep these values too.
 An imported XPPAUT diagram can only supply the parameters its foreign file
 recorded; parameters absent from it take the importing model's values.
 
@@ -170,27 +170,27 @@ recorded; parameters absent from it take the importing model's values.
 
 Next, you should tell autoX the axes and the main bifurcation parameters. Click on “Axes” and 6 choices appear:
 
-### (H)i
+### Hi
 
 This plots the maximum of the chosen variable.
 
-### (N)orm
+### Norm
 
 This plots the $`L_2`$ norm of the solution.
 
-### h(I)-lo
+### hi-lo
 
 This plots both the max and min of the chosen variable (convenient for periodic orbits.)
 
-### (P)eriod
+### Period
 
 Plot the period versus a parameter
 
-### (T)wo par
+### Two par
 
 Plot the second parameter versus the primary parameter for two-parameter continuations.
 
-### (Z)oom
+### Zoom
 
 Use the mous to zoom in on a region.
 
@@ -202,11 +202,11 @@ Use the plot parameters from the last 1-parameter plot.
 
 Use plot parameters from last 2-parameter plot.
 
-### (F)requency
+### Frequency
 
 Plot Frequency vesus parameter.
 
-### (A)verage
+### Average
 
 Plot the average of a variable versus the parameter.
 
@@ -235,7 +235,7 @@ Once you press `OK` the axes will be redrawn and labeled. For the present model,
 There is one bifurcation diagram, but you can look at it through any
 number of views at once, each with its own axes: the voltage against the
 current beside the two-parameter curve of current against a conductance,
-say, while you follow a limit point in two parameters. Axes' **new (V)iew**
+say, while you follow a limit point in two parameters. Axes' **new View**
 (key `v`) opens another view with the axes of the one you are in; change
 its axes as usual. The views sit side by side and wrap to a new row when
 the window is narrow; each has a title saying what it plots and, while
@@ -258,7 +258,7 @@ as they were when you open it.
 
 Next, set the NUMERICAL parameters. Each setting has one name, the same in
 the Numerics dialog, a model's `continuation` options, the session file,
-the protocol and this manual (W531); the dialog shows it with its
+the protocol and this manual; the dialog shows it with its
 underscores as spaces and a capital first letter. autoX's own name for it
 (NTST, DS, MXBF ...) is only a search word: it is the note on a field's hover
 and in the table below, and is read on import only (an XPPAUT `.ode` file's
@@ -268,7 +268,7 @@ page checks each value as you type (a message beside the field, OK disabled
 until all are good) and the core checks them again when they arrive. Model
 options and session files use the same continuation rules. Invalid values are
 refused before application; autoX never repairs step limits or tolerances during
-a run (W494):
+a run:
 
 | Setting (autoX's name) | What it does | Valid values |
 |---|---|---|
@@ -297,7 +297,7 @@ a run (W494):
 Below the three groups the dialog has a fourth, **Computer**, with one choice,
 **Threads**: how many threads autoX uses to compute a periodic orbit or a
 boundary value problem, and how many a sweep (Initial conds Range, its two-parameter form,
-Stochastic Compute, the Lyapunov range) uses to compute its runs side by side (W434; see
+Stochastic Compute, the Lyapunov range) uses to compute its runs side by side (see
 Range in [the commands](05-commands.md)); one setting for both, since they never compute at the same time. A sweep with *Automatic* uses
 all the physical cores, autoX's collocation at most 4. *Automatic* (the default; the number it gives is
 shown) is the computer's physical cores, at most 4, and on a processor with
@@ -367,8 +367,7 @@ and use **Add a value** and **Remove** to edit the list. There is no nine-mark
 storage limit. The legacy **User** action asks how many marks you want, then
 shows exactly that many fields; enter zero for none. Sent commands, recordings
 and session files share a 65,536-mark input allocation budget. A bad value or
-Cancel leaves all marks unchanged. Sessions save and restore the complete list
-(W331, [#392](https://github.com/MuhammadMoustafa/xppautX/issues/392)). Each legacy field takes the form:
+Cancel leaves all marks unchanged. Sessions save and restore the complete list. Each legacy field takes the form:
 
         <parameter>=<value>
 
@@ -491,7 +490,7 @@ or torus curve), **R2** (1:2 on a flip or torus curve), **R3** (1:3) and **R4**
 the remaining multiplier crosses +1/-1 on fold/flip curves; the continued
 Floquet angle crosses 0, pi, 2 pi/3 or pi/2 on torus curves. Each zero is
 located and saved with its label. Detection is enabled by default; Numerics'
-named special-point booleans disable individual types (W400, #462).
+named special-point booleans disable individual types.
 
 ### BT, CP, ZH and GH on equilibrium curves
 
@@ -507,7 +506,7 @@ In **Numerics**, **Curve special points** enables each type, or
 **Detect all** changes all eight equilibrium and cycle types together. All start enabled; these booleans
 are saved in the session. Turning detection off keeps continuation running.
 On a fold curve the auxiliary period is the starting PAR(11), as in AUTO-07p;
-it is not an oscillation period of the fold. (W364, [#426](https://github.com/MuhammadMoustafa/xppautX/issues/426))
+it is not an oscillation period of the fold.
 
 ### Branch point (BP)
 
@@ -721,7 +720,7 @@ Compute two-parameter family of torus bifurcations or extend the branch or compu
 
 Any calculation can be gracefully stopped by clicking on the “Abort” key. This produces a new end point from which you can continue. Note that if there are many branches, you may have to press “Abort” several times.
 
-`Clear` just erases the screen and `reDraw` redraws it.
+`Clear` just erases the screen and `Redraw` redraws it.
 
 ## Saving diagrams
 
@@ -789,24 +788,24 @@ seed new integrations away from the autoX window.
 Turns off (or back on) redrawing the diagram as autoX computes it, for a
 faster run when you only want the end result; a message confirms which.
 
-### auto raNge
+### auto Range
 
 Runs autoX again over the branch marked with `S` and `E` (Grabbing,
 below), one run per marked point; asks for confirmation first if none is
 marked.
 
-### sElect 2par pt
+### Select 2par pt
 
 In a two-parameter plot, marks the current mouse position as the point
 autoX continues from next, the way clicking a diagram point does.
 
-### draw laBled
+### draw labeled
 
 Cycles a three-way toggle for drawing every labeled orbit on the phase
 plane: off, on without erasing between orbits, on erasing first; a
 message names the new state.
 
-### lOad branch
+### Load branch
 
 Puts the branch marked with `S` and `E` into the Data Table, one row
 per diagram point.
@@ -881,9 +880,9 @@ and the integral condition. XPP has a defined function for the projection bounda
     b f(xe,ye)
     b g(xe,ye)
     # project off the fixed point from unstable manifold
-    b hom_bcs(0)
+    b hom_bcs0
     # project onto the stable manifold
-    b hom_bcs(1)
+    b hom_bcs1
     par per=8.1,a=0
     init x=.1,y=.1
     @ total=1.01,meth=8,dt=.001
@@ -944,8 +943,8 @@ is constant along solutions when $`a=0.5,c=0.`$) We will use this as a starting 
     b f(uright,upright)
     b g(uright,upright)
     # projection conditions 
-    b hom_bcs(0)
-    b hom_bcs(1)
+    b hom_bcs0
+    b hom_bcs1
     # parameters
     par per=6.67,a=.5
     # initial data
@@ -960,7 +959,7 @@ is constant along solutions when $`a=0.5,c=0.`$) We will use this as a starting 
 
 I have added a few autoX numerical settings so that I don’t have to set them later. Run XPP with this ODE file and integrate the equations. We will now continue this approximate heteroclinic in the parameter `per`. Fire up autoX (File autoX) and click on Axes Hi. Put `c` on the y-axis and make ` Xmin=0,Xmax=60,Ymin=-2,Ymax=2`. Then click OK. As above, we will also keep solutions at particular values of `per` by clicking on ` Usr period` `3`, choosing `per=20,per=40,per=60`, and then OK. Now we are ready to run. Click on Run Homoclinic. When the dialog box comes up set the following: `Left Eq: ULEFT, Right Eq: URIGHT, NUnstable:1, NStable:1` and then click OK. You should see a nice straight line go across the screen. Grab the point labeled ` per=40` and then click on File Import Orbit. Look at it in the XPP main window and freeze it. Now in the autoX window, click on Axes Hi and change the Main Parm to `a` and `Xmax=1`. Click OK and then click on Numerics to get the autoX Numerics dialog. Change ` Dsmax=0.1, Par Max=1` and click OK. Now click on Usr Period 4 and make the four user functions `a=.75,a=.9,a=.25,a=.1` and click OK. Now click on Run and watch a line drawn across the screen. This is the velocity, $`c`$ as a function of the threshold, $`a`$. Click on Grab and looking at the bottom of the screen, wait until you see `per=40` and then click on Enter. Now, open the Numerics dialog box and change `Ds=-.02` to go the other direction. Click on Run and you should see the rest of the line drawn across the screen. Click on Grab and move to the point labeled `a=0.25` Click on File Import Orbit and plot this in the main XPP window.
 
-### Hopf curves at zero frequency (W363, #425)
+### Hopf curves at zero frequency
 
 Two-parameter ODE Hopf continuation uses the reduced `2n+2` system and can
 continue through zero frequency (a Bogdanov-Takens point) onto a neutral-saddle
@@ -973,7 +972,7 @@ Saved sessions carry the reduced Hopf restart layout. An older session with
 the previous `3n+2` Hopf solution layout is refused with the solution member's
 file name and line; recompute that curve before saving it in the new format.
 
-### Maps (W404, #466)
+### Maps
 
 For a discrete model, autoX continues fixed points and labels a flip (multiplier -1) **PD** and a Neimark-Sacker bifurcation (a complex pair crossing the unit circle) **TR**. Continue their two-parameter curves, or a fold curve, with the same Run choices as for other labelled points. Map curves detect **R1?R4**, **LPD** (fold-flip), **LTR** (fold-torus), **PTR** (flip-torus) and **TTR** (torus-torus). Each codimension-two label is enabled by default and can be disabled individually in Special points. Session files retain these labels.
 
@@ -981,4 +980,4 @@ A periodic autoX run that fails to converge reports a singular reduced
 linear system with its smallest pivot and the threshold, as a steady-state
 run does. A zero pivot that prevents a solve is an error with the same
 values. A short saved solution is refused at load, naming its label and
-file line (W498, #562).
+file line.

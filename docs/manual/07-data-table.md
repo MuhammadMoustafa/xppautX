@@ -5,9 +5,9 @@ them to a file and otherwise manipulate them; it is a very primitive
 spread sheet. Once you have computed a trajectory, use the Data Table to
 look at the data.
 
-**In web2** the DB is the **Table** (`ui/TableView.tsx`): a virtualized
+**In web2** the DB is the **Table**: a virtualized
 table, so there is no window to iconify, resize or "shake" to make the
-data show up (all known bugs of the X11 DB window). It opens from the header's **Table**
+data show up (all known problems of XPPAUT's data window). It opens from the header's **Table**
 button in the right column, in the place of the Values panel, under the header:
 the plot stays whole beside it, so a selected row and its point can be seen together.
 **Back to Values** returns the Values panel as it was; on a phone the table is a full-screen sheet
@@ -27,13 +27,13 @@ has room for it; where it has not, it is cut with a dotted underline and its who
 the tip (click to copy). The remaining commands are described
 separately below; the keyboard shortcut to invoke each is in parentheses.
 
-**In xppautX these are also commands** (W526): `data.find`, `data.replace_column`, `data.undo_replace`, `data.tabulate_column`, `data.set_slice_start` (First), `data.set_slice_end` (Last), `data.restore_full_slice`, `data.add_column`, `data.delete_column`, `data.load`, `data.export` (Write), `data.transpose` (File, Transpose), `browser.postprocess` and `data.page` (the block of the table the page shows). Getting a row as the initial conditions is `initial_conditions.set_from_data_row`. A command is given the column or the formula as arguments and ends with a `done` result; the buttons' forms call the same functions.
+**In xppautX these are also commands**: `data.find`, `data.replace_column`, `data.undo_replace`, `data.tabulate_column`, `data.set_slice_start` (First), `data.set_slice_end` (Last), `data.restore_full_slice`, `data.add_column`, `data.delete_column`, `data.load`, `data.export` (Write), `data.transpose` (File, Transpose), `browser.postprocess` and `data.page` (the block of the table the page shows). Getting a row as the initial conditions is `initial_conditions.set_from_data_row`. A command is given the column or the formula as arguments and ends with a `done` result; the buttons' forms call the same functions.
 
-### (F)ind
+### Find
 
 This pops up a window and asks for a variable and a value. It then looks through the data until it comes to the closest value to the specified that the variable takes. It only moves down the file so that you can find successive values by starting at the top.
 
-### (G)et
+### Get
 
 This makes the selected row of data the initial conditions for a new run (in web2, the button "Use row N as initial conditions" on the status line, or Enter on the grid).
 
@@ -43,7 +43,7 @@ This pops up a window asking you for a column to replace. Then it prompts you fo
 - **@VARIABLE**: replaces the column with the numerical derivative of the variable. You cannot use this within a formula, but once the column is replaced, it can be treated as any other column.
 - **&VARIABLE**: replaces the column with the numerical integral. Note that successive applications of the derivative and then the integral will result in the original plus a constant.
 
-### (U)nreplace
+### Unreplace
 
 This undoes the most recent replacement.
 
@@ -55,15 +55,15 @@ This marks the selected row as the first row kept for saving and tabulating (not
 
 This marks the selected row as the last row kept, itself included (nothing is shown). A row before the first row kept is refused.
 
-### (T)able
+### Table
 
 This lets you save data in a tabulated format that can then be used by XPP as a function or inputs. You must use the ` First` and `Last` keys to mark the desired data you want to save. You are then prompted for the column name, the minimum and maximum you want your independent variable to range and the file name. The result is a table file of the format shown in the section on tables.
 
-### (R)estore: All rows
+### Restore: All rows
 
 keeps all the data again, from the first row to the last, and replots it in the selected graph.
 
-### (W)rite: Save data
+### Write: Save data
 
 Saves numbers to a file in the working directory (see [Using the interface](04-using-the-interface.md#saving-pictures-and-files) for how the browser gets it). It asks three things in turn:
 
@@ -85,14 +85,14 @@ Saves numbers to a file in the working directory (see [Using the interface](04-u
    - **NumPy arrays (.npz)**: NumPy's own format (`numpy.load`), a zip of one float64 array per column named after it (`T`, `x`, ...); for what the plot shows, one array per curve (`curve1`, `curve2`, ...) of one row per point and the columns x, y (and z).
 3. **The file's name**, suggested as `data` or `curves` with the format's extension.
 
-### (L)oad
+### Load
 
 Loads a data file into the table for graphing: its columns fill T and the columns after it in order (more columns than the table has are left out). The format is the file's extension: `.csv`, `.csv.gz` and `.npz` as Save data writes them (a CSV's header row, when it has one, is skipped; an `.npz` array of two dimensions gives one column per column), anything else is read as XPP's `.dat`. A malformed number or a row with a different number of fields refuses the whole table.
 
-### (A)ddcol
+### Addcol
 
 This allows you to add an additional column to the data table. You are prompted for the name you want to give the column and for the formula. It is computed at once from the stored data, and again every time you run the model afresh, as though it were another auxiliary variable. Unlike a real auxiliary variable, though, it is not one of your model's own quantities: you cannot use its name in another formula (an Addcol's own or one of the model's), and it is lost as soon as you reload the model (revert, or open another one).
 
-### (D)elcol
+### Delcol
 
 Delete a column created with `Addcol` by entering its name. Time and model columns are protected. If a plot uses that column, change its axes first. Remaining added columns keep their names, values and formulas and recompute on the next run. Added column names cannot be used in other formulas.
