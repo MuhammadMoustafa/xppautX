@@ -3251,7 +3251,7 @@ async function optionsCheck() {
         choices: rows.map(r => radios(r).length ? radios(r).map(o => o.dataset.choice) : [...r.querySelectorAll('select option')].map(o => o.value).filter(Boolean)),
         checkbox: rows.map(r => !!r.querySelector('.switch input[type=checkbox]')),
         color: rows.map(r => !!r.querySelector('[data-color-field]')),
-        values: rows.map(r => r.querySelector('.check-list') ? [...r.querySelectorAll('.check-list input:checked')].map(i => i.dataset.choice).join('\\n')
+        values: rows.map(r => r.querySelector('.checklist') ? [...r.querySelectorAll('.checklist input:checked')].map(i => i.dataset.choice).join('\\n')
           : radios(r).length ? radios(r).find(o => o.getAttribute('aria-checked') === 'true')?.dataset.choice : r.querySelector('select')?.value ?? (r.querySelector('.switch input') ? String(r.querySelector('.switch input').checked)
           : r.querySelector('[data-color-text]')?.value ?? r.querySelector('input:not([type=checkbox])')?.value))};
     })()`);
@@ -3306,10 +3306,10 @@ async function optionsCheck() {
   await rendered();
   const sets = await S('s.core.sets.map(x => x.name)');
   check('W672: the run_set row lists the model\'s sets, each with a checkbox, none checked', sets.length >= 2
-    && JSON.stringify(await cdp.eval(`[...document.querySelectorAll('[data-argument="run_set"] .check-list input')].map(i => [i.dataset.choice, i.checked])`)) === JSON.stringify(sets.map(n => [n, false])));
+    && JSON.stringify(await cdp.eval(`[...document.querySelectorAll('[data-argument="run_set"] .checklist input')].map(i => [i.dataset.choice, i.checked])`)) === JSON.stringify(sets.map(n => [n, false])));
   const setMark = await S('__xpp.sentCount()');
   for (const name of [...sets].reverse()) {
-    await cdp.eval(`document.querySelector('[data-argument="run_set"] .check-list input[data-choice=' + JSON.stringify(${JSON.stringify(name)}) + ']').click()`);
+    await cdp.eval(`document.querySelector('[data-argument="run_set"] .checklist input[data-choice=' + JSON.stringify(${JSON.stringify(name)}) + ']').click()`);
     await rendered();
   }
   await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
@@ -3319,7 +3319,7 @@ async function optionsCheck() {
   await requireUntil(`s.optionsPanel?.group === 'output' && s.optionValues.output`, 'the Output panel again for run_set');
   check('W672: and the core holds exactly those run_set values', await S(`s.optionValues.output.values.run_set === ${JSON.stringify(sets.join('\n'))}`), JSON.stringify(await S('s.optionValues.output.values.run_set')));
   for (const name of sets) {
-    await cdp.eval(`document.querySelector('[data-argument="run_set"] .check-list input[data-choice=' + JSON.stringify(${JSON.stringify(name)}) + ']').click()`);
+    await cdp.eval(`document.querySelector('[data-argument="run_set"] .checklist input[data-choice=' + JSON.stringify(${JSON.stringify(name)}) + ']').click()`);
     await rendered();
   }
   await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);

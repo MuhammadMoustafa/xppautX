@@ -183,8 +183,6 @@
 .seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border: 1px solid var(--field-border); border-radius: 0.5rem; width: fit-content; max-width: 100%; }
 .seg-item { border: 0; border-radius: 0.375rem; background: transparent; padding: 0.375rem 0.75rem; min-height: 2rem; }
 .seg-item.on { background: var(--accent); color: var(--accent-fg, #fff); }
-.check-list { display: flex; flex-direction: column; gap: 0.25rem; }
-.check-item { display: flex; align-items: center; gap: 0.5rem; min-height: 2rem; }
 .switch { display: inline-flex; align-items: center; min-height: 2.375rem; cursor: pointer; }
 .switch input { position: absolute; opacity: 0; width: 2.25rem; height: 1.25rem; margin: 0; }
 .switch i { width: 2.25rem; height: 1.25rem; border-radius: 1rem; background: color-mix(in srgb, var(--fg) 25%, transparent); position: relative; transition: background 0.1s; }

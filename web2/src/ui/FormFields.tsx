@@ -85,8 +85,8 @@ export function Control({spec, value, onChange, onBlur, label, id, disabled, dar
     /* the checked names are the text, a name a line, in the order of the choices (the model's sets) */
     const checked = value.split('\n');
     if (!spec.choices.length) return <span class="value-hint" id={id}>The model has no sets.</span>;
-    return <div class="check-list" role="group" aria-label={label} id={id}>
-      {spec.choices.map(name => <label key={name} class="check-item"><input type="checkbox" checked={checked.includes(name)} disabled={disabled} data-choice={name}
+    return <div class="checklist" role="group" aria-label={label} id={id}>
+      {spec.choices.map(name => <label key={name}><input type="checkbox" checked={checked.includes(name)} disabled={disabled} data-choice={name}
         onChange={e => onChange(spec.choices.filter(n => n === name ? e.currentTarget.checked : checked.includes(n)).join('\n'))} /><span>{name}</span></label>)}
     </div>;
   }
