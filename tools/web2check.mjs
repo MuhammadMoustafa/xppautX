@@ -6710,9 +6710,9 @@ async function main() {
     if (run('autoxviews')) await session(ODE, autoxViews);
     if (run('navigation')) await session(ODE, navigationCheck);
     if (run('navigation')) await session(ODE, menusByTaskCheck);
-    if (run('navigation')) await session(ODE, () => featuresCheck([], ['boundary_conditions', 'formula_tables', 'delays', 'integral_terms']));
-    if (run('navigation')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), () => featuresCheck(['boundary_conditions'], ['formula_tables', 'delays', 'integral_terms']));
-    if (run('navigation')) await session(path.join(top, 'examples/ode/clustor.odex'), () => featuresCheck(['formula_tables'], ['boundary_conditions', 'delays', 'integral_terms']));
+    if (run('navigation')) await session(ODE, () => featuresCheck(['parameters'], ['boundary_conditions', 'formula_tables', 'delays', 'integral_terms']));
+    if (run('navigation')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), () => featuresCheck(['parameters', 'boundary_conditions'], ['formula_tables', 'delays', 'integral_terms']));
+    if (run('navigation')) await session(path.join(top, 'examples/ode/clustor.odex'), () => featuresCheck(['parameters', 'formula_tables'], ['boundary_conditions', 'delays', 'integral_terms']));
     if (run('options')) await session(ODE, optionsCheck);
     if (run('dialogs')) await session(ODE, dialogsCheck, ['command:1: Total time must be a number of at least 0']);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots, ['command:1: Total time must be a number of at least 0']); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
