@@ -2901,15 +2901,28 @@ def check_options_panels():
         release = 'https://github.com/MuhammadMoustafa/xppautX/releases/download/v0.1.0/'
         digest = 'sha256:' + '0' * 64
         for what, args, why in [
-                ('an address outside this project\'s release downloads', dict(url='https://evil.example/x.zip', name='x.zip', size=10, digest=digest), 'release download address'),
-                ('a plain http address', dict(url=release.replace('https', 'http') + 'x.zip', name='x.zip', size=10, digest=digest), 'release download address'),
-                ('a name that leaves the folder', dict(url=release + 'x.zip', name='../x.zip', size=10, digest=digest), 'plain file name'),
-                ('a size of zero', dict(url=release + 'x.zip', name='x.zip', size=0, digest=digest), 'at least 1'),
-                ('a size beyond the most a release file has', dict(url=release + 'x.zip', name='x.zip', size=10**12, digest=digest), 'at most'),
-                ('a digest that is not sha256', dict(url=release + 'x.zip', name='x.zip', size=10, digest='md5:' + '0' * 32), 'sha256 digest'),
-                ('an upper-case digest', dict(url=release + 'x.zip', name='x.zip', size=10, digest='sha256:' + 'A' * 64), 'sha256 digest')]:
+                ('an address outside this project\'s release downloads', dict(url='https://evil.example/x.zip', name='x.zip', size=10, digest=digest, version='0.1.0'), 'release download address'),
+                ('a plain http address', dict(url=release.replace('https', 'http') + 'x.zip', name='x.zip', size=10, digest=digest, version='0.1.0'), 'release download address'),
+                ('a name that leaves the folder', dict(url=release + 'x.zip', name='../x.zip', size=10, digest=digest, version='0.1.0'), 'plain file name'),
+                ('a size of zero', dict(url=release + 'x.zip', name='x.zip', size=0, digest=digest, version='0.1.0'), 'at least 1'),
+                ('a size beyond the most a release file has', dict(url=release + 'x.zip', name='x.zip', size=10**12, digest=digest, version='0.1.0'), 'at most'),
+                ('a digest that is not sha256', dict(url=release + 'x.zip', name='x.zip', size=10, digest='md5:' + '0' * 32, version='0.1.0'), 'sha256 digest'),
+                ('an upper-case digest', dict(url=release + 'x.zip', name='x.zip', size=10, digest='sha256:' + 'A' * 64, version='0.1.0'), 'sha256 digest')]:
             done = call(cmd='update.download', **args)
             check('W622: update.download refuses ' + what, done.get('status') == 'error' and why in done.get('error', ''), str(done))
+        # W622 stage 3 and 4: a file that does not fit how this program was installed is refused before any connection (a build from a source checkout, a
+        # file of another kind), and the restart and the installer start only from the window or the browser page; nothing here reaches the network
+        done = call(cmd='update.download', url=release + 'x.zip', name='x.zip', size=10, digest=digest, version='0.1.0')
+        check('W622: update.download refuses a file this installation does not take', done.get('status') == 'error' and 'installation' in done.get('error', ''), str(done))
+        done = call(cmd='update.download', url=release + 'x.zip', name='x.zip', size=10, digest=digest)
+        check('W622: update.download needs the version', done.get('status') == 'error' and 'version' in done.get('error', ''), str(done))
+        done = call(cmd='update.download', url=release + 'x.zip', name='x.zip', size=10, digest=digest, version='../0.1.0')
+        check('W622: update.download refuses a version that is not a tag text', done.get('status') == 'error', str(done))
+        for name in ('update.restart', 'update.install'):
+            done = call(cmd=name)
+            check('W622: ' + name + ' is refused with no page', done.get('status') == 'error' and 'window and the browser page' in done.get('error', ''), str(done))
+        check('W622: no kept update at a start with none', call(cmd='update.pending')['result'] == {'pending': False})
+        check('W622: discarding what is not kept is fine', call(cmd='update.discard')['result'] == {'discarded': True})
         # W672: run_set is a sets row: its value is the checked names a line, a value given replaces the list, nothing else takes a line break
         done = call(cmd='options.configure', group='output', values={'run_set': 'pp\nvvst'})
         check('W672: run_set takes the checked sets a line each', done.get('status') == 'ok', str(done))

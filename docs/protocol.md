@@ -444,7 +444,11 @@ common overwrite question applies. They return a placed error if the output coul
 | `events.unsubscribe` | `events`: required list (plot.series, plot.shown, nullcline.curves, direction_field.field, plot.marks, animation.frame, autox.info, autox.settings, autox.script_runs, run.numerics, window.list, recording.player) [of choice, at most 256] | `v` / panels | Unsubscribe from events | `unsubscribed`: `list[text]` | `session.state`, `done` | Stop sending the data events named. |
 | `update.due` | none | `c` / tools | Update check due | `due`: `boolean` | `session.state`, `done` | Whether the check for a newer release is due now: the preference is on and none began today (UTC). When it is, the check is recorded as begun. The page asks once when it opens. |
 | `update.report_failure` | `reason`: required text (max 1024 bytes) | `c` / tools | Update check failed | `logged`: `boolean` | `session.state`, `done` | The page's check for a newer release failed: the log says why at INFO; nothing is shown. |
-| `update.download` | `url`: required text (max 1024 bytes), `name`: required text (max 1024 bytes), `size`: required integer [at least 1, at most 536870912], `digest`: required text (max 1024 bytes) | `x` / tools | Download update | `downloaded`: `boolean`, `bytes`: `integer`, `file`: `text` | `job.computing`, `job.progress`, `job.stopped`, `session.state`, `done` | Download a release file the release list named, from GitHub's file hosts only, over the system's HTTPS: no more than its size, refused if its size or sha256 digest differs, into a folder the program makes and removes. Progress comes as job.progress; Stop ends it. |
+| `update.download` | `url`: required text (max 1024 bytes), `name`: required text (max 1024 bytes), `size`: required integer [at least 1, at most 536870912], `digest`: required text (max 1024 bytes), `version`: required text (max 1024 bytes) | `x` / tools | Download update | `downloaded`: `boolean`, `bytes`: `integer`, `ready`: `text` | `job.computing`, `job.progress`, `job.stopped`, `session.state`, `done` | Download the release file the release list named for this installation, from GitHub's file hosts only, over the system's HTTPS: no more than its size, refused if its size or sha256 digest differs, into a folder the program makes and removes. Then a portable copy's program is swapped in (ready: restart) or an installer's file is kept (ready: install). Progress comes as job.progress; Stop ends it. |
+| `update.pending` | none | `c` / tools | Kept update | `pending`: `boolean`, `version`: `text` | `session.state`, `done` | Whether an update's installer file was kept by an earlier download (Later): it is checked again against its recorded size and sha256 and offered only when it still is that file; one that is not is removed and the log says why. The page asks once when it opens. |
+| `update.discard` | none | `c` / tools | Discard kept update | `discarded`: `boolean` | `session.state`, `done` | Remove the kept installer file: the page found it is not newer than this program. |
+| `update.restart` | none | `d` / tools | Restart to update | `restarting`: `boolean` | `done` | After a portable copy was updated: ask the leave question Quit asks, then start the new program, reopening the model or session saved, and quit. Only the window and the browser page restart. |
+| `update.install` | none | `d` / tools | Install update and quit | `restarting`: `boolean` | `done` | After a download that kept an installer's file: ask the leave question Quit asks, hand the checked file to the system's installer (msiexec for an .msi, the software installer for a .deb: no shell, no sudo) and quit. |
 <!-- registry:end -->
 
 ## Startup
@@ -1636,7 +1640,7 @@ sections below.
 <!-- events:start -->
 | Event | Fields | Sent with | Meaning |
 |---|---|---|---|
-| `hello` | `protocol`, `features`, `title`, `file`, `output_names`, `commands`, `lists`, `userbuttons`, `keymap`, `about`, `quit`, `window_names` | always | The first event, and again after Open model or Reload loaded a model in its place. |
+| `hello` | `protocol`, `features`, `title`, `file`, `output_names`, `commands`, `lists`, `userbuttons`, `keymap`, `about`, `update`, `quit`, `window_names` | always | The first event, and again after Open model or Reload loaded a model in its place. |
 | `done` | `job`, `id`, `status`, `result`, `error`, `file`, `line`, `col`, `source`, `field` | always | A command's end: every command sends one, with its result when status is ok. |
 | `ask` | `job`, `id`, `kind` | always | A question the running command asks; answer it with its `answer`. |
 | `exit` | `code` | always | The process ended (said by the host in browser mode). |
@@ -3029,8 +3033,8 @@ status-bar notice, and a failure is sent as `update.report_failure` (`reason`), 
 `--silent` and `--server` have no page and never check.
 
 `update.download` (`url`, `name`, `size`, `digest`: a file of the release list's `assets`, its `browser_download_url`, `name`,
-`size` and `digest`) downloads the file in the core (core/xpp_update.h, core/xpp_https.h) and answers
-`{"downloaded":true,"bytes":N,"file":PATH}`. It is a computation: `job.progress` (`n` bytes of `of`) while it runs, and Stop ends
+`size` and `digest`; `version`: the release's tag without the `v`) downloads the file in the core (core/xpp_update.h,
+core/xpp_https.h), prepares it as below and answers `{"downloaded":true,"bytes":N,"ready":"restart"|"install"}`. It is a computation: `job.progress` (`n` bytes of `of`) while it runs, and Stop ends
 it (`job.stopped`, `downloaded` false, nothing kept). It is refused, before any connection, for a `url` that is not this
 project's release download path on github.com (`https://github.com/MuhammadMoustafa/xppautX/releases/download/<tag>/<file>`, one
 tag and one file in a plain alphabet), a `name` that is not a plain file name, a `size` of 0 or beyond 512 MiB, and a `digest` that
@@ -3040,7 +3044,26 @@ checked before it is asked for: https, port 443, no user name, and only GitHub's
 only, never past `size`, and a download that ends with another size or another sha256 is refused saying which, leaving nothing.
 The system's own HTTPS does the work (WinHTTP; libcurl, `libcurl.so.4`, loaded at the first download on Linux, an error naming it
 when it is missing; none on macOS yet): certificates are always verified, and a connection that gives no data for 30 seconds ends.
-The checked file waits in a folder the program made and removes when a newer download replaces it and when the program ends.
+The download is in a folder the program makes for it and removes when the command ends.
+
+How an update is installed follows how xppautX was installed, told from where it runs and its version
+(core/xpp_install.h, `hello.update`: `install`, `asset_suffix`, `why`). `install` is one of `portable` (a Linux .tar.gz or
+Windows .zip unpacked in a folder xppautX can write), `msi` (Windows, the program in `%ProgramFiles%\xppautX`), `deb` (Linux,
+in `/usr/bin`) and `release_page` (a build from a source checkout, macOS, a folder xppautX cannot write: `why` says which; the
+page's Update only opens the release page). `asset_suffix` is the end of the name of the release file that fits ("-linux-x64.tar.gz");
+the page takes that one from the release list and `update.download` refuses any other. For `portable` the checked archive is
+read whole by the core's tar or zip reader (plain relative names, no link, device or extended-header member, sizes bounded by the
+archive's and the limits, no name twice), its digest is checked again, and only its one program, `<folder>/xppautX[.exe]`, is
+written beside the running one and renamed into place (Windows renames the running program to `.old` first; the next start
+removes it): `ready` is `restart`. For `msi` and `deb` the checked file moves to the folder `update` beside the preferences with a
+four-line record (version, name, size, sha256) and `ready` is `install`. `update.pending` answers `{"pending":true,"version":V}` when
+such a file is kept and still is its record (size and sha256 checked again; one that is not is removed and logged), and
+`update.discard` removes it (the page does when V is not newer than this program). `update.restart` and `update.install`
+are commands of the idle core (not while a computation runs): both ask the leave question Quit asks and do nothing if it is
+cancelled (`{"restarting":false}`); `update.restart` then starts the program again, with the session saved or the model open
+as its one argument (and `--browser` in the browser), and quits; `update.install` hands the checked kept file to `msiexec /i`
+(Windows) or `xdg-open` (Linux: the system's software installer asks for the password; xppautX never runs sudo) and quits. Both
+are refused in a recording's replay and with no page (`--server`, `--silent`).
 
 ### About links (W224, #278)
 

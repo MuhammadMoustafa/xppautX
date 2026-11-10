@@ -46,6 +46,10 @@ struct ReleaseFile {
 /* why url cannot be asked for, or nothing: `first` is the address the release list named, which must be this project's
    release download path; any later one must be a file host */
 std::optional<std::string> url_problem(std::string_view url, bool first);
+/* why a file of this name, size and digest (as the release list gives them) cannot be taken, or nothing */
+std::optional<std::string> content_problem(std::string_view name, unsigned long long size, std::string_view digest);
+/* the 64 hex digits of a digest content_problem accepted */
+std::string_view digest_value(std::string_view digest);
 /* why this file cannot be downloaded (a bad name, size, digest or address), or nothing */
 std::optional<std::string> file_problem(const ReleaseFile &file);
 
@@ -64,13 +68,5 @@ struct Downloaded {
 /* downloads `file` into `folder` and checks it; an error says what failed (the address, the host, the size, the digest,
    the connection) and leaves nothing in the folder */
 Result<Downloaded> download(const ReleaseFile &file, std::string_view folder, const Transport &transport, const Progress &progress);
-
-/* the checked file waiting to be installed: the one the last successful download_staged left (a newer one replaces it), "" when
-   none. It lives in a folder of ours (files::make_temp_dir) that is removed when it is replaced and when the program ends, so
-   it outlives a model switch and nothing else. */
-std::string staged_file();
-/* download() into a fresh folder of ours; success makes the file the staged one, any failure or a stop leaves the staged one as it was
-   and removes the new folder */
-Result<Downloaded> download_staged(const ReleaseFile &file, const Transport &transport, const Progress &progress);
 
 } // namespace xpp::update

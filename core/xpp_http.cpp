@@ -29,6 +29,7 @@
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_mem.h"
+#include "xpp_process.h"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -64,13 +65,11 @@ typedef SOCKET sock_t;
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <signal.h>
-#include <spawn.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <unistd.h>
-extern char **environ; /* posix_spawnp passes the environment on */
 typedef int sock_t;
 #define INVALID_SOCKET (-1)
 #define close_sock close
@@ -1170,31 +1169,17 @@ bool open_in_browser(const std::string &url)
     constexpr INT_PTR SHELL_ERROR_MAX = 32; /* ShellExecute returns an error code up to 32, success above it */
     return reinterpret_cast<INT_PTR>(ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > SHELL_ERROR_MAX;
 #else
-    /* No shell: the URL is one argv entry of the opener, whatever characters it holds. */
+    /* No shell: the URL is one argv entry of the opener, whatever characters it holds (xpp_process.h). */
 #ifdef __APPLE__
-    std::vector<const char *> argv{"open"};
+    std::vector<std::string> argv{"open"};
 #else
-    std::vector<const char *> argv{"xdg-open"};
+    std::vector<std::string> argv{"xdg-open"};
 #endif
     /* WSL: rundll32.exe takes the URL as one command-line argument and starts the Windows default browser
        with no command interpreter (cmd.exe /c start would parse & ^ % in it); it exits 0 when it started */
     if (getenv("WSL_DISTRO_NAME")) argv = {"rundll32.exe", "url.dll,FileProtocolHandler"};
-    argv.push_back(url.c_str());
-    argv.push_back(nullptr);
-    posix_spawn_file_actions_t actions;
-    if (posix_spawn_file_actions_init(&actions) != 0) return false;
-    /* the opener's output stays out of ours, as the old >/dev/null 2>&1 did */
-    bool ok = posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0) == 0 &&
-              posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, "/dev/null", O_WRONLY, 0) == 0 &&
-              posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0) == 0;
-    pid_t child = 0;
-    ok = ok && posix_spawnp(&child, argv[0], &actions, nullptr, const_cast<char *const *>(argv.data()), environ) == 0;
-    posix_spawn_file_actions_destroy(&actions);
-    if (!ok) return false;
-    int status = 0;
-    while (waitpid(child, &status, 0) < 0)
-        if (errno != EINTR) return false;
-    return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+    argv.push_back(url);
+    return xpp::process::spawn(argv, xpp::process::Wait::until_it_ends).has_value();
 #endif
 }
 

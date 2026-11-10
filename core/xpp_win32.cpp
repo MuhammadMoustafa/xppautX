@@ -227,14 +227,55 @@ std::string documents_folder()
     return path.data();
 }
 
-std::string program_folder()
+std::string executable_path()
 {
     std::array<char, MAX_PATH> exe; /* GetModuleFileNameA writes it */
     const DWORD n = GetModuleFileNameA(nullptr, exe.data(), static_cast<DWORD>(exe.size()));
     if (n == 0 || n >= exe.size()) return std::string(); /* n == size: cut short */
-    const std::string_view path(exe.data(), n);
-    const std::size_t slash = path.find_last_of('\\');
-    return slash == std::string_view::npos ? std::string() : std::string(path.substr(0, slash));
+    return std::string(exe.data(), n);
+}
+
+/* one argument as CommandLineToArgvW and the C runtime read it back: in quotes, a quote preceded by a backslash, the
+   backslashes before a quote (or the closing quote) doubled */
+static std::string quote_argument(const std::string &arg)
+{
+    std::string out = "\"";
+    std::size_t slashes = 0;
+    for (const char c : arg) {
+        if (c == '\\') {
+            slashes++;
+            continue;
+        }
+        if (c == '"') out.append(slashes * 2 + 1, '\\');
+        else out.append(slashes, '\\');
+        slashes = 0;
+        out += c;
+    }
+    out.append(slashes * 2, '\\');
+    return out + "\"";
+}
+
+Result<> run_process(std::span<const std::string> argv, bool wait)
+{
+    constexpr std::string_view WHERE = "start a program";
+    if (argv.empty() || argv.front().empty()) return fail(std::string(WHERE), "no program is named", Place{std::string(WHERE)});
+    const Place place{argv.front()};
+    std::string line;
+    for (const std::string &a : argv) line += (line.empty() ? "" : " ") + quote_argument(a);
+    std::vector<char> command(line.begin(), line.end());
+    command.push_back('\0'); /* CreateProcessA may write into its command line */
+    STARTUPINFOA startup{};
+    startup.cb = sizeof startup;
+    PROCESS_INFORMATION child{};
+    /* lpApplicationName is the program itself: no search of the working folder or the path */
+    if (!CreateProcessA(argv.front().c_str(), command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup, &child))
+        return fail(std::string(WHERE), "the program could not be started (Windows error " + std::to_string(GetLastError()) + ")", place);
+    CloseHandle(child.hThread);
+    DWORD status = 0;
+    const bool ended = wait && WaitForSingleObject(child.hProcess, INFINITE) == WAIT_OBJECT_0 && GetExitCodeProcess(child.hProcess, &status);
+    CloseHandle(child.hProcess);
+    if (wait && (!ended || status != 0)) return fail(std::string(WHERE), "the program did not end with status 0", place);
+    return {};
 }
 
 bool process_gone(unsigned long pid)

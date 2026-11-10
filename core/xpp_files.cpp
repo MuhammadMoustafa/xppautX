@@ -326,6 +326,16 @@ int replace_file(std::string_view from, std::string_view to)
     return rename_over(std::string(from).c_str(), std::string(to).c_str());
 }
 
+bool make_executable(std::string_view path)
+{
+#ifdef _WIN32
+    return exists(path);
+#else
+    constexpr mode_t PROGRAM_MODE = 0755; /* what the packages install a program with */
+    return chmod(std::string(path).c_str(), PROGRAM_MODE) == 0;
+#endif
+}
+
 const char *status_text(int status)
 {
     switch (status) {

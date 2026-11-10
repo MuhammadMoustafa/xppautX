@@ -12,6 +12,8 @@
 #include <string_view>
 #include <vector>
 
+#include "xpp_error.h"
+
 namespace xpp::zip {
 
 /* bytes as one gzip member (deflated, no name, time stamp 0: the same
@@ -46,6 +48,22 @@ bool is_zip(std::string_view bytes);
 /* the file entries of a zip archive (folders left out), in the archive's
    order, or nothing when it is not one or an entry cannot be read */
 std::optional<std::vector<Entry>> read_zip(std::string_view zip);
+
+/* the rule for a name an archive gives a file it holds, applied before the name is used for anything (W622: the
+   program a downloaded archive carries): a plain relative path of at most ENTRY_NAME_BYTES, "/" between names, none of
+   them empty, "." or "..", and no backslash, drive colon, control character or leading "/" (a folder's trailing "/" is
+   the caller's to remove) */
+inline constexpr std::size_t ENTRY_NAME_BYTES = 255;
+bool entry_name_ok(std::string_view name);
+
+/* the file entries of a tar archive (ustar or GNU, as `tar -c` writes it), the members of a .tar.gz after gunzip
+   (read_tar_gz: `file` is its name, for an error's place). A tar is read whole and checked before anything is
+   returned: every header's checksum, every name by entry_name_ok, a size that fits the bytes that follow it, the
+   sum of the sizes, the member count and a name twice; a member that is neither a file nor a folder (a link,
+   a device, an extended header, a sparse or very large file) is refused, never skipped, so what it does not say
+   cannot be applied. The error names the member. */
+Result<std::vector<Entry>> read_tar(std::string_view tar, std::string_view file);
+Result<std::vector<Entry>> read_tar_gz(std::string_view gz, std::string_view file);
 
 } // namespace xpp::zip
 

@@ -96,6 +96,9 @@ const char *ask_mode(std::string_view title);
    writer (core/xpp_io.h) calls this for its own temp-then-rename commit
    instead of duplicating it. */
 int replace_file(std::string_view from, std::string_view to);
+/* gives the file path the execute permission of a program (owner all, others read and execute: mode 755; Windows has no such
+   bit and this is true when the file is there); false when it cannot */
+bool make_executable(std::string_view path);
 
 struct FileEntry {
     std::string name;
@@ -256,6 +259,8 @@ inline constexpr const char *CONFIG_DIR_ENV = "XPP_CONFIG_DIR";
    the command line. Inside a macOS .app (the executable in Contents/MacOS)
    it is the bundle's Contents/Resources. Empty when the system does not say. */
 std::string program_dir();
+/* the running program's full path, "" when the system will not say */
+std::string program_file();
 /* the file or folder `name` in the folder dir, with the platform's separator */
 std::string join(std::string_view dir, std::string_view name);
 /* path and its missing parents as folders, mode 0700 (POSIX); false when

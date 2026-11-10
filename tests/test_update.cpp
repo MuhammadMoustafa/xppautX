@@ -177,23 +177,6 @@ void check_download()
     CHECK(stopped && stopped->stopped && stopped->path.empty() && stopped->bytes >= 10 && nothing_left(dir));
 }
 
-void check_staged()
-{
-    CHECK(xpp::update::staged_file().empty());
-    Server bad = normal("not the file");
-    CHECK(!xpp::update::download_staged(good(), bad.transport(), progress_always));
-    CHECK(xpp::update::staged_file().empty());
-    Server s = normal();
-    const auto first = xpp::update::download_staged(good(), s.transport(), progress_always);
-    CHECK(first && xpp::update::staged_file() == first->path && std::filesystem::exists(first->path));
-    const std::string earlier = first->path;
-    /* a failed or stopped download leaves the staged file as it was; a newer one replaces it and its folder goes */
-    CHECK(!xpp::update::download_staged(good(), bad.transport(), progress_always));
-    CHECK(xpp::update::staged_file() == earlier && std::filesystem::exists(earlier));
-    const auto second = xpp::update::download_staged(good(), s.transport(), progress_always);
-    CHECK(second && second->path != earlier && xpp::update::staged_file() == second->path && !std::filesystem::exists(earlier));
-}
-
 } // namespace
 
 int main()
@@ -201,6 +184,5 @@ int main()
     check_addresses();
     check_files();
     check_download();
-    check_staged();
     TEST_REPORT("update");
 }

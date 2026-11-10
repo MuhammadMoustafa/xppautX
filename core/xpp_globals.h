@@ -10,6 +10,8 @@
 
 struct XppProgram {
     int interactive = 0; /* a front end is up (0: --silent, headless) */
+    /* where the page is shown: no page (--silent, --server), the desktop window or the user's browser (W622: a restart opens the same) */
+    enum class Page { none, window, browser } page = Page::none;
     float version_major = 0, version_minor = 0; /* XPPAUT's version, for titles */
 };
 extern XppProgram program;

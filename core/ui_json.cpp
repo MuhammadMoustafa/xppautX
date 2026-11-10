@@ -19,6 +19,7 @@
 #include "ui_json.h"
 #include "json_files.h"
 #include "xpp_about.h"
+#include "xpp_install.h"
 #include "xpp_keymap.h"
 #include "form_ode.h"
 #include "xpp_batch.h"
@@ -1168,6 +1169,15 @@ void send_hello(xpp::Session &s)
         BUF_LIT(b, "]");
     }
     BUF_LIT(b, "]");
+    /* how a newer release is installed over this program, and which release file fits (xpp_install.h) */
+    const xpp::update::Plan update = xpp::update::running_plan();
+    BUF_LIT(b, ",\"update\":{\"install\":");
+    buf_str(b, std::string(xpp::update::install_name(update.install)));
+    BUF_LIT(b, ",\"asset_suffix\":");
+    buf_str(b, update.asset_suffix);
+    BUF_LIT(b, ",\"why\":");
+    buf_str(b, update.why);
+    BUF_LIT(b, "}");
     /* File > Quit's question, as the core asks it (model_switch.h): the
        page asks the same itself while a computation runs (W110) */
     BUF_LIT(b, ",\"quit\":{\"question\":");

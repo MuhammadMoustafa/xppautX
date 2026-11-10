@@ -2,7 +2,6 @@
 #include "xpp_update.h"
 
 #include <algorithm>
-#include <memory>
 
 #include "xpp_files.h"
 #include "xpp_io.h"
@@ -46,17 +45,6 @@ std::optional<std::string_view> digest_hex(std::string_view digest)
     return hex;
 }
 
-/* the staged download's folder, with the file in it (held for the life of the program: see staged_file) */
-struct Staged {
-    TempDir folder;
-    std::string file;
-};
-std::unique_ptr<Staged> &staged()
-{
-    static std::unique_ptr<Staged> slot;
-    return slot;
-}
-
 } // namespace
 
 std::optional<std::string> url_problem(std::string_view url, bool first)
@@ -77,14 +65,22 @@ std::optional<std::string> url_problem(std::string_view url, bool first)
     return std::nullopt;
 }
 
+std::optional<std::string> content_problem(std::string_view name, unsigned long long size, std::string_view digest)
+{
+    if (!files::name_ok(name)) return xpp::format("\"{}\" is not a plain file name", name);
+    if (size == 0 || size > MAX_DOWNLOAD_BYTES)
+        return xpp::format("the release list gives a size of {} bytes: a release file is from 1 to {}", size, MAX_DOWNLOAD_BYTES);
+    if (!digest_hex(digest)) return xpp::format("\"{}\" is not a sha256 digest (sha256: and 64 lowercase hex digits)", digest);
+    return std::nullopt;
+}
+
 std::optional<std::string> file_problem(const ReleaseFile &file)
 {
-    if (!files::name_ok(file.name)) return xpp::format("\"{}\" is not a plain file name", file.name);
-    if (file.size == 0 || file.size > MAX_DOWNLOAD_BYTES)
-        return xpp::format("the release list gives a size of {} bytes: a release file is from 1 to {}", file.size, MAX_DOWNLOAD_BYTES);
-    if (!digest_hex(file.digest)) return xpp::format("\"{}\" is not a sha256 digest (sha256: and 64 lowercase hex digits)", file.digest);
+    if (const auto why = content_problem(file.name, file.size, file.digest)) return why;
     return url_problem(file.url, true);
 }
+
+std::string_view digest_value(std::string_view digest) { return digest.substr(DIGEST_PREFIX.size()); }
 
 Result<Downloaded> download(const ReleaseFile &file, std::string_view folder, const Transport &transport, const Progress &progress)
 {
@@ -127,19 +123,6 @@ Result<Downloaded> download(const ReleaseFile &file, std::string_view folder, co
         return Downloaded{path, false, got};
     }
     return fail(std::string(WHERE), xpp::format("more than {} redirects", MAX_REDIRECTS), Place{file.url});
-}
-
-std::string staged_file() { return staged() ? staged()->file : std::string(); }
-
-Result<Downloaded> download_staged(const ReleaseFile &file, const Transport &transport, const Progress &progress)
-{
-    auto next = std::make_unique<Staged>();
-    if (next->folder.path().empty()) return fail(std::string(WHERE), "a folder for the download could not be made");
-    Result<Downloaded> done = download(file, next->folder.path(), transport, progress);
-    if (!done || done->stopped) return done;
-    next->file = done->path;
-    staged() = std::move(next); /* the earlier staged file's folder goes with the old value */
-    return done;
 }
 
 } // namespace xpp::update

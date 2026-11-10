@@ -39,6 +39,7 @@
 #include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "xpp_log.h"
+#include "xpp_install.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
 #include "ui_json.h"
@@ -294,6 +295,8 @@ int main(int argc, char **argv)
        included: cleaning up in a signal handler or from another thread is
        neither safe nor needed (W573: --silent used to skip this) */
     xpp::files::cleanup_stale_temp_dirs();
+    /* the program an update swapped out at the last run, which Windows could not remove while it ran */
+    xpp::update::remove_replaced_program();
     const bool recording_batch = cl.silent && xpp::files::has_extension(cl.model_file, xpp::recx::extension);
     if (cl.silent && !recording_batch) {
         if (xpp_saved_file_name(cl.model_file)) {
@@ -311,13 +314,17 @@ int main(int argc, char **argv)
     if (recording_batch) interface = xpp::Interface::server;
     if (interface != xpp::Interface::server) {
         const bool browser = interface == xpp::Interface::browser;
+        program.page = browser ? XppProgram::Page::browser : XppProgram::Page::window;
         /* the window navigates to the address itself: shown nowhere */
         if (!xpp::http::start(cl.port.value_or(xpp::http::DEFAULT_PORT), browser, browser && !cl.no_open)) return 1;
         /* the autoX window's Output panel shows autoX's table from the log */
         xpp::log_set_autox_echo(1);
     }
     /* the window runs the session itself; when it cannot open, the browser */
-    if (interface == xpp::Interface::window && !xpp::window::run(run_session)) xpp::http::show(true);
+    if (interface == xpp::Interface::window && !xpp::window::run(run_session)) {
+        program.page = XppProgram::Page::browser;
+        xpp::http::show(true);
+    }
     run_session();
     return 0;
 }

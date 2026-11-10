@@ -39,10 +39,11 @@ std::string temp_folder();
 /* %APPDATA%, the per-user roaming folder, without a trailing backslash; empty
    when it is not set (xpp_files_dir.cpp's config_dir) */
 std::string app_data_folder();
-/* the folder of the running program (GetModuleFileNameA, the narrow API the
-   rest of the core's paths use), without a trailing backslash; empty when
-   it cannot be had (xpp_files_dir.cpp's program_dir) */
-std::string program_folder();
+/* the running program's full path (GetModuleFileNameA), empty when it cannot be had (xpp_files_dir.cpp's program_file) */
+std::string executable_path();
+/* xpp_process.h's spawn: CreateProcess with the arguments quoted as the C runtime reads them back, no shell, the child's
+   streams the null device; argv[0] is the program's path (no search of the working folder) */
+Result<> run_process(std::span<const std::string> argv, bool wait);
 /* xpp_https.h's request through WinHTTP (the system's own client and certificate store): TLS verified, no redirect
    followed, a body that stalls ends the request. Written by reading, built by Windows CI (W622). */
 Result<https::Reply> https_get(std::string_view url, const https::Chunk &chunk);

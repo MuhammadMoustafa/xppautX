@@ -5,12 +5,14 @@
 #include "xpp_zip.h"
 
 #include <cstdint>
+#include <algorithm>
 #include <cstring>
 #include <new>
 #include <set>
 #include <limits>
 
 #include "miniz.h"
+#include "xpp_io.h"
 #include "xpp_mem.h"
 
 namespace xpp::zip {
@@ -219,6 +221,114 @@ std::optional<std::vector<Entry>> read_zip(std::string_view zip)
     mz_zip_reader_end(&z);
     if (oom) xpp::out_of_memory("reading a zip archive");
     return out;
+}
+
+} // namespace xpp::zip
+
+namespace xpp::zip {
+
+bool entry_name_ok(std::string_view name)
+{
+    if (name.empty() || name.size() > ENTRY_NAME_BYTES || name.front() == '/') return false;
+    if (std::ranges::any_of(name, [](char c) { return static_cast<unsigned char>(c) < ' ' || c == 0x7f || c == '\\' || c == ':'; })) return false;
+    std::size_t at = 0;
+    while (at <= name.size()) {
+        const std::size_t slash = std::min(name.find('/', at), name.size());
+        const std::string_view part = name.substr(at, slash - at);
+        if (part.empty() || part == "." || part == "..") return false;
+        at = slash + 1;
+    }
+    return true;
+}
+
+namespace {
+
+/* the tar header's layout (POSIX ustar; GNU's header has the same fields) */
+constexpr std::size_t TAR_BLOCK = 512;
+constexpr std::size_t TAR_NAME_AT = 0, TAR_NAME_BYTES = 100, TAR_SIZE_AT = 124, TAR_SIZE_BYTES = 12, TAR_SUM_AT = 148, TAR_SUM_BYTES = 8,
+                      TAR_TYPE_AT = 156, TAR_PREFIX_AT = 345, TAR_PREFIX_BYTES = 155;
+/* a size of up to 11 octal digits (8 GiB) is all the format's plain field holds; larger ones use a binary form we refuse */
+constexpr std::size_t TAR_OCTAL_DIGITS = 11;
+
+/* the NUL-terminated text of a header's field */
+std::string_view tar_text(std::string_view block, std::size_t at, std::size_t bytes)
+{
+    const std::string_view field = block.substr(at, bytes);
+    return field.substr(0, field.find('\0'));
+}
+
+/* an octal number the field holds (digits, then spaces or NULs), or nothing */
+std::optional<unsigned long long> tar_octal(std::string_view block, std::size_t at, std::size_t bytes)
+{
+    std::string_view field = block.substr(at, bytes);
+    while (!field.empty() && (field.back() == ' ' || field.back() == '\0')) field.remove_suffix(1);
+    while (!field.empty() && field.front() == ' ') field.remove_prefix(1);
+    if (field.empty() || field.size() > TAR_OCTAL_DIGITS) return std::nullopt;
+    unsigned long long n = 0;
+    for (const char c : field) {
+        if (c < '0' || c > '7') return std::nullopt;
+        n = n * 8 + static_cast<unsigned>(c - '0');
+    }
+    return n;
+}
+
+bool tar_zero_block(std::string_view block) { return std::ranges::all_of(block, [](char c) { return c == 0; }); }
+
+} // namespace
+
+Result<std::vector<Entry>> read_tar(std::string_view tar, std::string_view file)
+{
+    const auto refuse = [&](std::string what) { return fail("tar archive", std::move(what), Place{std::string(file)}); };
+    if (tar.size() > archive_bytes_limit) return refuse("the archive is larger than the limit");
+    std::vector<Entry> entries;
+    std::set<std::string> names;
+    std::size_t at = 0, total = 0;
+    while (true) {
+        if (tar.size() - at < TAR_BLOCK) return refuse("the archive ends inside a header (no end marker)");
+        const std::string_view block = tar.substr(at, TAR_BLOCK);
+        at += TAR_BLOCK;
+        if (tar_zero_block(block)) {
+            if (!std::ranges::all_of(tar.substr(at), [](char c) { return c == 0; })) return refuse("data follows the end marker");
+            return entries;
+        }
+        /* the checksum is the sum of the header's bytes with its own field read as spaces */
+        unsigned long long sum = 0;
+        for (std::size_t i = 0; i < TAR_BLOCK; i++)
+            sum += (i >= TAR_SUM_AT && i < TAR_SUM_AT + TAR_SUM_BYTES) ? ' ' : static_cast<unsigned char>(block[i]);
+        const auto want = tar_octal(block, TAR_SUM_AT, TAR_SUM_BYTES);
+        if (!want || *want != sum) return refuse("a header's checksum is wrong");
+        std::string name(tar_text(block, TAR_NAME_AT, TAR_NAME_BYTES));
+        if (const std::string_view prefix = tar_text(block, TAR_PREFIX_AT, TAR_PREFIX_BYTES); !prefix.empty()) name = std::string(prefix) + "/" + name;
+        const char type = block[TAR_TYPE_AT];
+        const bool folder = type == '5';
+        if (folder && name.ends_with('/')) name.pop_back();
+        if (!entry_name_ok(name)) return refuse(xpp::format("the member name \"{}\" is not a plain relative path", name));
+        if (type != '0' && type != '\0' && !folder)
+            return refuse(xpp::format("\"{}\" is not a file or a folder (type {}): links, devices and extended headers are refused", name, static_cast<int>(type)));
+        const auto size = tar_octal(block, TAR_SIZE_AT, TAR_SIZE_BYTES);
+        if (!size) return refuse(xpp::format("the size of \"{}\" is not a plain octal number", name));
+        if (folder) {
+            if (*size != 0) return refuse(xpp::format("the folder \"{}\" has data", name));
+            continue;
+        }
+        /* the bytes of the member, padded to a block, must be in the archive: a size larger than it says is refused here,
+           before anything is allocated for it */
+        if (*size > tar.size() - at || *size > archive_bytes_limit - total) return refuse(xpp::format("\"{}\" is larger than the archive holds or the limit", name));
+        if (entries.size() >= archive_entries_limit) return refuse("the archive holds too many members");
+        if (!names.insert(name).second) return refuse(xpp::format("\"{}\" is in the archive twice", name));
+        total += static_cast<std::size_t>(*size);
+        entries.push_back(Entry{std::move(name), std::string(tar.substr(at, static_cast<std::size_t>(*size)))});
+        const std::size_t padded = (static_cast<std::size_t>(*size) + TAR_BLOCK - 1) / TAR_BLOCK * TAR_BLOCK;
+        at += std::min(padded, tar.size() - at);
+    }
+}
+
+Result<std::vector<Entry>> read_tar_gz(std::string_view gz, std::string_view file)
+{
+    bool over = false;
+    const std::optional<std::string> tar = gunzip(gz, archive_bytes_limit, &over);
+    if (!tar) return fail("tar archive", over ? "the archive expands past the limit" : "it is not a gzip file, or it is damaged", Place{std::string(file)});
+    return read_tar(*tar, file);
 }
 
 } // namespace xpp::zip

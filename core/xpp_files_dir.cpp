@@ -35,7 +35,7 @@ namespace xpp::files {
 #ifndef _WIN32
 namespace {
 /* the room program_dir gives the system to write the executable's path in: PATH_MAX on Linux and macOS (4096 and
-   1024); a longer one is no folder this program can be installed in (Windows: xpp_win32's program_folder) */
+   1024); a longer one is no folder this program can be installed in (Windows: xpp_win32's executable_path) */
 constexpr std::size_t PATH_BUFFER_BYTES = 4096;
 } // namespace
 #endif
@@ -81,27 +81,35 @@ std::string config_dir()
     return join(base, APP);
 }
 
-std::string program_dir()
+std::string program_file()
 {
-    std::string exe_folder;
 #ifdef _WIN32
-    exe_folder = xpp::win32::program_folder();
+    return xpp::win32::executable_path();
 #elif defined(__APPLE__)
     std::string exe(PATH_BUFFER_BYTES, '\0');
     std::uint32_t size = static_cast<std::uint32_t>(exe.size());
-    if (_NSGetExecutablePath(exe.data(), &size) != 0) return {}; /* too long for the buffer: no folder */
+    if (_NSGetExecutablePath(exe.data(), &size) != 0) return {}; /* too long for the buffer: no path */
     exe.resize(std::strlen(exe.c_str()));
-    exe_folder = split_path(exe).first;
-    /* the .app bundle's layout: the executable in Contents/MacOS, the files it ships in Contents/Resources */
-    const std::string contents = split_path(exe_folder).first;
-    if (split_path(exe_folder).second == "MacOS" && split_path(contents).second == "Contents")
-        return join(contents, "Resources");
+    return exe;
 #else
     std::string exe(PATH_BUFFER_BYTES, '\0');
     const ssize_t n = readlink("/proc/self/exe", exe.data(), exe.size());
     if (n <= 0 || static_cast<std::size_t>(n) == exe.size()) return {}; /* an unreadable or cut-short link */
     exe.resize(static_cast<std::size_t>(n));
-    exe_folder = split_path(exe).first;
+    return exe;
+#endif
+}
+
+std::string program_dir()
+{
+    const std::string exe = program_file();
+    if (exe.empty()) return {};
+    const std::string exe_folder = split_path(exe).first;
+#ifdef __APPLE__
+    /* the .app bundle's layout: the executable in Contents/MacOS, the files it ships in Contents/Resources */
+    const std::string contents = split_path(exe_folder).first;
+    if (split_path(exe_folder).second == "MacOS" && split_path(contents).second == "Contents")
+        return join(contents, "Resources");
 #endif
     return exe_folder;
 }
