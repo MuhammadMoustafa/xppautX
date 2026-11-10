@@ -330,6 +330,17 @@ int main(void)
         CHECK(read_raw(tf.c_str()) == "42 answer" TEXT_NL);
     }
 
+    /* write_line: the line as it is, with one newline */
+    {
+        TempFile tf("test_io_write_line.tmp");
+        xpp::Writer w(tf.c_str());
+        CHECK(static_cast<bool>(w));
+        CHECK(w.write_line("a {} b"));
+        CHECK(w.write_line(""));
+        CHECK(w.commit());
+        CHECK(read_raw(tf.c_str()) == "a {} b" TEXT_NL TEXT_NL);
+    }
+
     /* W129: rename over a directory fails with an error value, preserving
        its contents. The temporary file beside it is discarded. */
     {

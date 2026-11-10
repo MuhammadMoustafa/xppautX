@@ -563,6 +563,8 @@ public:
         FILE *fp = file();
         return fp && std::fwrite(bytes.data(), 1, bytes.size(), fp) == bytes.size();
     }
+    /* a line and its newline as they are, with no format per line (files of millions of lines) */
+    bool write_line(std::string_view line) noexcept { return write(line) && write("\n"); }
     Result<> commit() noexcept;
     const std::string &path() const noexcept { return path_; }
     void abort() noexcept;

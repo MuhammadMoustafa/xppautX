@@ -496,6 +496,11 @@ void check_renumbered_lines()
     CHECK(xpp::autox_renumbered_line("   2     2        Eigenvalue  2  -2.061182E+00  0.000000E+00",branch,label)==" 102"+std::string("     2        Eigenvalue  2  -2.061182E+00  0.000000E+00"));
     CHECK(xpp::autox_renumbered_line("   2     2 NOTE:Retrying step",branch,label)==" 102     2 NOTE:Retrying step");
     CHECK(xpp::autox_renumbered_line("  BR    PT  IT",branch,label)=="  BR    PT  IT");
+    const std::function<int(int)> to=[](int value){return value==1?7:value==2?-3:value==3?123456:value==4?-12345:value;};
+    CHECK(xpp::autox_renumbered_line("   1     2   4      8.7E-02",to,label)=="   7     2   4      8.7E-02"); /* the branch in four columns, whatever its width */
+    CHECK(xpp::autox_renumbered_line("   2     2   4      8.7E-02",to,label)=="  -3     2   4      8.7E-02");
+    CHECK(xpp::autox_renumbered_line("   3     2   4      8.7E-02",to,label)=="123456     2   4      8.7E-02");
+    CHECK(xpp::autox_renumbered_line("   4     2   4      8.7E-02",to,label)=="-12345     2   4      8.7E-02");
     CHECK(xpp::autox_renumbered_line("   2     9, NOTE:No convergence using minimum step size",branch,label)==" 102     9, NOTE:No convergence using minimum step size");
 }
 

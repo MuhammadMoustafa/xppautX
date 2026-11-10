@@ -414,7 +414,11 @@ std::string autox_renumbered_line(std::string_view line, const std::function<int
       return autox_point_row_key(moved,point->first,line.substr(mark_at,mark_width).substr(0,line.substr(mark_at,mark_width).find_last_not_of(' ')+1),
                                  label(static_cast<int>(number->first)))+std::string(line.substr(number->second));
   /* any other line that begins with a branch and a point: the branch alone, in its four columns */
-  return xpp::format("{:4}",moved)+std::string(line.substr(first->second));
+  const std::string digits=std::to_string(moved); /* "{:4}" without a format call: this is nearly every line of a job's .d, millions of them */
+  std::string out(digits.size()<4?4-digits.size():0,' ');
+  out+=digits;
+  out+=line.substr(first->second);
+  return out;
 }
 
 std::string autox_branch_row_key(long branch, long point, long type, long label)

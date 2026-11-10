@@ -93,6 +93,17 @@ namespace {
 
 /* ---- lines -------------------------------------------------------- */
 
+
+/* one character, without the stream's lock per character (a line of a large file is read a character at a time) */
+int get_char(std::FILE *fp) noexcept
+{
+#ifdef _WIN32
+    return _getc_nolock(fp);
+#else
+    return getc_unlocked(fp);
+#endif
+}
+
 /* Reads one line via fgetc, growing `line` without limit; strips a
    trailing \r so \n and \r\n both end a line. Returns false only at a
    real end of file (nothing at all was read) so an unterminated final
@@ -102,7 +113,7 @@ bool read_line(std::FILE *fp, std::string &line)
     line.clear();
     int c;
     bool any = false;
-    while ((c = std::fgetc(fp)) != EOF) {
+    while ((c = get_char(fp)) != EOF) {
         any = true;
         if (c == '\n') break;
         line.push_back(static_cast<char>(c));

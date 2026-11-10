@@ -101,16 +101,16 @@ Result<> renumber_file(const AutoxRun &run, const std::string &path, RunFile kin
     bool keeping=true; /* the rows of the solution whose header was last read */
     while(const auto line=in.next()){
       line_number++;
-      const std::string text(*line);
       if(rows_left>0){ /* a solution's rows are copied as they are, or left out with their header */
         rows_left--;
-        if(keeping)out.print("{}\n",text);
+        if(keeping)out.write_line(*line);
         continue;
       }
       if(kind==RunFile::diagnostics){
-        out.print("{}\n",autox_renumbered_line(text,branch,label));
+        out.write_line(autox_renumbered_line(*line,branch,label));
         continue;
       }
+      const std::string text(*line);
       if(kind==RunFile::solutions){
         TokenReader fields=TokenReader::of_text(text);
         AutoxSolutionHeader header;
@@ -125,7 +125,7 @@ Result<> renumber_file(const AutoxRun &run, const std::string &path, RunFile kin
       }
       const std::optional<Key> key=read_branch_row_key(text);
       if(!key||key->field[0]==0||key->end>=text.size()){ /* a header or a column title */
-        out.print("{}\n",text);
+        out.write_line(text);
         continue;
       }
       const long moved=r.branch(static_cast<int>(key->field[0]));
