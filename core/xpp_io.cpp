@@ -93,9 +93,33 @@ namespace {
 
 /* ---- lines -------------------------------------------------------- */
 
+/* The stream is locked once per line and read without the lock per character (W681: a job's .d of millions of lines
+   spent most of its renumbering in fgetc's per-character lock). */
+class StreamLock {
+public:
+    explicit StreamLock(std::FILE *fp) noexcept : fp_(fp)
+    {
+#ifdef _WIN32
+        _lock_file(fp_);
+#else
+        flockfile(fp_);
+#endif
+    }
+    ~StreamLock()
+    {
+#ifdef _WIN32
+        _unlock_file(fp_);
+#else
+        funlockfile(fp_);
+#endif
+    }
+    StreamLock(const StreamLock &) = delete;
+    StreamLock &operator=(const StreamLock &) = delete;
+private:
+    std::FILE *fp_;
+};
 
-/* one character, without the stream's lock per character (a line of a large file is read a character at a time) */
-int get_char(std::FILE *fp) noexcept
+int get_char_locked(std::FILE *fp) noexcept
 {
 #ifdef _WIN32
     return _getc_nolock(fp);
@@ -104,7 +128,7 @@ int get_char(std::FILE *fp) noexcept
 #endif
 }
 
-/* Reads one line via fgetc, growing `line` without limit; strips a
+/* Reads one line a character at a time, growing `line` without limit; strips a
    trailing \r so \n and \r\n both end a line. Returns false only at a
    real end of file (nothing at all was read) so an unterminated final
    line still comes back once, not twice. */
@@ -113,7 +137,8 @@ bool read_line(std::FILE *fp, std::string &line)
     line.clear();
     int c;
     bool any = false;
-    while ((c = get_char(fp)) != EOF) {
+    const StreamLock held(fp);
+    while ((c = get_char_locked(fp)) != EOF) {
         any = true;
         if (c == '\n') break;
         line.push_back(static_cast<char>(c));
