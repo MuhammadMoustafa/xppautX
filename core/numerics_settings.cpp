@@ -310,10 +310,11 @@ const OptionRow *saved_setting(std::string_view name)
 
 bool setting_applies(const xpp::Session &s, const OptionRow &row, int method)
 {
-    /* the files hold every setting of a model but the delays of one without delays (the format's own rule: a session of a model with no
-       boundary conditions still holds its bvp_ keys) */
-    if (!row.key.empty()) return row.needs != xpp::Feature::delays || of_the_model(s, row);
-    return uses(s, row, method);
+    /* the files hold every setting of a model but those of what it has none of: the delays of one without delays, the parameter a range
+       varies of one without parameters (the format's own rule: a session of a model with no boundary conditions still holds its bvp_ keys) */
+    const bool held = (row.needs != xpp::Feature::delays && row.needs != xpp::Feature::parameters) || of_the_model(s, row);
+    if (!row.key.empty()) return held;
+    return held && uses(s, row, method);
 }
 
 std::string setting_text(const xpp::Session &s, const OptionRow &row)

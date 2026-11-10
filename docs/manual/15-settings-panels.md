@@ -1,12 +1,12 @@
 # The settings panels
 
 Every group of settings has one panel, titled by the group's name, and its rows are in the order of the option table
-(`core/model_options.cpp`), the one source of a setting's key, label, choices, default, limits and help line. A dotted key
+(the option table), the one source of a setting's key, label, choices, default, limits and help line. A dotted key
 (`step.min`) is a titled section inside the panel. The same keys are the `options` block of a `.odex`, the `help` of the program and
-the manual below. Each panel opens from the menu entry of its task: Integration from Run > Run settings, Poincare from Run > Poincare map,
-Sweep from Run > Over a range > Run over a range (beside its Run button), Equilibria from Analysis > Equilibria, Analysis inside the
+the manual below. Each panel opens from the menu entry of its task: Integration from Run > Settings, Poincare from Run > Poincare map,
+Sweep from Run > Over a range > One parameter (beside its Run button), Equilibria from Analysis > Equilibria, Analysis inside the
 histogram and spectrum commands' forms, Continuation from autoX > Numerics, Diagram from autoX > Axes (it changes the open view; the model's
-values only start a new one), Plot from Plot > Axes > Axes options (it changes the active graph), Export inside the picture export
+values only start a new one), Plot from Plot > Axes > Options (it changes the active graph), Export inside the picture export
 commands' forms and Output from File > Output, where each path has a Choose file button. The thread count and the log are File > Preferences. Values > Numerics shows the Integration rows beside the plot, each change applying at once.
 Apply sets the changed rows together, all or nothing, as one undo step. The values of a panel come from the core when the running command
 ends; the interface group (sliders, buttons, animation) has its own editors.
@@ -43,7 +43,7 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 ### Delay
 
 - **Max delay** (`delay.max_delay`): The longest delay a model uses; it sets how much history is kept. From an XPPAUT .ode: DELAY.
-- **History points** (`delay.history_points`): How many past points of the history a delay model keeps. From an XPPAUT .ode: VMAXPTS.
+- **History points** (`delay.history_points`): How many past points of the history the Volterra method keeps for an integral equation. From an XPPAUT .ode: VMAXPTS.
 - **Real guess** (`delay.real_guess`): The largest real part the search for a delay equilibrium's eigenvalues looks for.
 - **Imaginary guess** (`delay.imaginary_guess`): The largest imaginary part the search for a delay equilibrium's eigenvalues looks for.
 - **Grid** (`delay.grid`): How many points a side the grid of a delay equilibrium's eigenvalue search has.
