@@ -136,8 +136,8 @@ bool autox_same_point(const AutoxPointId &a, const AutoxPointId &b, double epss)
    range of a state over the start's orbit. A cycle near a Hopf point is smaller than the unit EPSS * (1 + |state|)
    (ode_motoneuron6c's at -49: 0.052 of a unit of 0.005 times the rule's 8), so two different cycles of it are
    within the rule, and a located point of the branch that was no return counted as one; the cycles it is told
-   apart by are the same cycle only when they agree to a small fraction of the cycle's own size. A steady state has no size
-   (infinite: the unit is as before) */
+   apart by are the same cycle only when they agree to a small fraction of the cycle's own size. A steady state, and a cycle of no size
+   (a Hopf point's), keep the unit as before (infinite) */
 struct AutoxBranchStart {
     AutoxPointId point;
     bool left = false;

@@ -188,7 +188,7 @@ void autox_branch_stored(iap_type &iap, std::ptrdiff_t ntot, double epss, const 
             const std::size_t n = states.size() / 2;
             double size = 0;
             for (std::size_t i = 0; i < n; ++i) size = std::max(size, states[i] - states[n + i]);
-            iap.run->branch_start->orbit_size = size;
+            if (size > 0) iap.run->branch_start->orbit_size = size; /* a cycle of no size (a Hopf point's) has no unit of its own */
         }
     } else if (iap.run->branch_start && gap_from_start(*iap.run->branch_start, id, epss) > autox_same_point_factor)
         iap.run->branch_start->left = true;
