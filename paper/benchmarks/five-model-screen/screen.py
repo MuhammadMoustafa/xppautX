@@ -2,7 +2,7 @@
 """Matched Linux headless screen. Timings include process startup, load, solve and output.
 Run on an ext4 filesystem; --output can point at the paper folder after timing.
 """
-import argparse, csv, gzip, hashlib, itertools, json, math, os
+import argparse, csv, ctypes, gzip, hashlib, itertools, json, math, os
 from pathlib import Path
 import shutil, statistics, subprocess, tempfile, time, threading
 
@@ -122,6 +122,11 @@ def equivalent_shifts(pending,before,at,after):
     span=hi[0]-lo[0]
     return [(col,error/abs((hi[col]-lo[col])/span) if span and hi[col]!=lo[col] else math.inf) for col,error in pending]
 
+def stored(text):
+    """A written value as the single-precision number the store holds: xppautX writes the shortest text that reads back as that
+    number (W613: 0.05), XPPAUT its nine significant digits (0.050000001), so the two texts differ where the numbers do not."""
+    return ctypes.c_float(float(text)).value
+
 def compare(a,b):
     result=dict(same_shape=True,time_grid_equal=True,exact_values=True,max_abs_error=0.,max_scaled_error=0.,outside_tolerance=0,values=0)
     window=[None,None];pending=[];shifts=[]  # the two rows before the current one, and the previous row's outside values
@@ -129,7 +134,7 @@ def compare(a,b):
     with gzip.open(a,'rt') as fa,gzip.open(b,'rt') as fb:
         for row,(la,lb) in enumerate(itertools.zip_longest(fa,fb),1):
             if la is None or lb is None:result['same_shape']=False;break
-            va=[float(v) for v in la.split()];vb=[float(v) for v in lb.split()]
+            va=[stored(v) for v in la.split()];vb=[stored(v) for v in lb.split()]
             if len(va)!=len(vb):result['same_shape']=False;break
             if va[0]!=vb[0]:result['time_grid_equal']=False
             if pending:shifts+=equivalent_shifts(pending,window[0],window[1],va);pending=[]

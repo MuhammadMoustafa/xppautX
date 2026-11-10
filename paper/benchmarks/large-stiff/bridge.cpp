@@ -7,6 +7,7 @@
 #include "expr_native.h"
 #include "cvdense.h"
 #include "cvband.h"
+#include "xpp_math.h"
 #include <valgrind/callgrind.h>
 #include <algorithm>
 #include <cmath>
@@ -148,7 +149,7 @@ extern "C" int study_legacy(void *p,const char *solver,double tol,double total,i
         std::unique_ptr<xpp::cvode_solver::CVodeMemRec,decltype(&xpp::cvode_solver::CVodeFree)> owned(memory,xpp::cvode_solver::CVodeFree);
         const bool band=std::string(solver)=="legacy-band";
         if(band) xpp::cvode_solver::CVBand(memory,s.band,s.band,nullptr,nullptr);
-        else xpp::cvode_solver::CVDense(memory,nullptr,nullptr);
+        else xpp::cvode_solver::CVDense(memory,nullptr,nullptr,{}); // no independent subsystems: the whole matrix, the legacy adapter's dense LU (W435)
         const bool cache=std::getenv("W378_CACHE_PROFILE")!=nullptr;
         if(cache) {
             if(band) throw std::runtime_error("cache profiling requires legacy dense");
@@ -180,9 +181,10 @@ extern "C" int study_legacy(void *p,const char *solver,double tol,double total,i
 }
 extern "C" void study_free(void *p) { delete static_cast<Study *>(p); }
 // The retained CVODE is C++ (W511): --wrap names its factorizations by their mangled symbols.
-extern "C" int __real__ZN3xpp12cvode_solver11DenseFactorEPNS0_11DenseMatRecEPi(xpp::cvode_solver::DenseMatRec *,int *);
-extern "C" int __wrap__ZN3xpp12cvode_solver11DenseFactorEPNS0_11DenseMatRecEPi(xpp::cvode_solver::DenseMatRec *a,int *p) {
-    return factor_event("legacy-dense",[&]{return __real__ZN3xpp12cvode_solver11DenseFactorEPNS0_11DenseMatRecEPi(a,p);});
+// CVDense factors through xpp::BlockLu::factor since W433 (the dense matrix's LU, a whole matrix here: no independent subsystems).
+extern "C" void __real__ZN3xpp7BlockLu6factorEPdiiSt4spanIKSt6vectorIiSaIiEELm18446744073709551615EEPib(xpp::BlockLu *,double *,int,int,std::span<const std::vector<int>>,int *,bool);
+extern "C" void __wrap__ZN3xpp7BlockLu6factorEPdiiSt4spanIKSt6vectorIiSaIiEELm18446744073709551615EEPib(xpp::BlockLu *lu,double *a,int lda,int n,std::span<const std::vector<int>> blocks,int *info,bool transposed) {
+    factor_event("legacy-dense",[&]{__real__ZN3xpp7BlockLu6factorEPdiiSt4spanIKSt6vectorIiSaIiEELm18446744073709551615EEPib(lu,a,lda,n,blocks,info,transposed); return *info;});
 }
 extern "C" int __real__ZN3xpp12cvode_solver10BandFactorEPNS0_10BandMatRecEPi(xpp::cvode_solver::BandMatRec *,int *);
 extern "C" int __wrap__ZN3xpp12cvode_solver10BandFactorEPNS0_10BandMatRecEPi(xpp::cvode_solver::BandMatRec *a,int *p) {

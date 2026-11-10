@@ -18,7 +18,7 @@ from types import SimpleNamespace
 
 from autoxcompare import completed
 import test_final_report
-from xppclient import Checker, Server, open_auto, whole_series
+from xppclient import Checker, Server, open_autox, whole_series
 
 ROOT = Path(__file__).resolve().parent.parent
 BENCH = ROOT / 'paper/benchmarks'
@@ -112,7 +112,7 @@ def auto_case(a, check):
         step(s)
         step(s, cmd='events.subscribe', events=[], diagram=True)
         step(s, cmd='preferences.configure', threads=1)
-        open_auto(s)
+        open_autox(s)
         numerics(s, max_steps=AUTO_POINTS)
         _, _, _, points = hopf_xppautx.run(s, 's', limit=LIMIT)
         check('auto/steady driver', len(points) == AUTO_POINTS, points)
@@ -132,7 +132,7 @@ def modeldb_auto_case(a, check):
         for command in driver.INTEGRATE:
             events = completed(s, dict(cmd=command))
             check('modeldb-auto/' + command, any(e.get('ev') == 'job.computing' for e in events))
-        open_auto(s)
+        open_autox(s)
         driver.numerics(s, max_steps=AUTO_POINTS)
         _, _, _, points = driver.run(s, 's', limit=LIMIT)
         check('modeldb-auto/steady driver', len(points) == AUTO_POINTS, points)

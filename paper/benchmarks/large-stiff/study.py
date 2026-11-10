@@ -93,10 +93,10 @@ def run(worker, model, solver, tol, folder, *, measure=False, factors=False, cpu
         env['W378_FACTOR_LOG'] = str(folder/'factors.jsonl')
     if callgrind:
         env['W378_CACHE_PROFILE'] = '1'
-        # Toggle only DenseFactor and its descendants; cache simulation is separate
+        # Toggle only BlockLu::factor and its descendants; cache simulation is separate
         # from the ordinary time/RSS series. Symbols remain in the study build.
         argv = ['valgrind', '--tool=callgrind', '--cache-sim=yes', '--collect-atstart=no', '--instr-atstart=no',
-                '--toggle-collect=xpp::cvode_solver::DenseFactor(*', '--callgrind-out-file='+str(folder/'callgrind.out')] + argv
+                '--toggle-collect=xpp::BlockLu::factor(*', '--callgrind-out-file='+str(folder/'callgrind.out')] + argv
     if cpu is not None:
         argv = ['taskset', '-c', str(cpu)] + argv
     if measure:

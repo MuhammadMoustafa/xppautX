@@ -112,11 +112,6 @@ def main():
         sys.exit('refusing Terman runs: terman-criteria.json must be written before the first run')
     criteria = json.loads(CRITERIA.read_text())
     save(a.out / 'criteria.json', criteria)
-    names = Odex(BENCH / 'five-model-screen/models/episodic.odex').states
-    saved = stage0(a, criteria, names)
-    if a.readouts_only:
-        save(a.out / 'completion.json', dict(saved_arrays=len(saved), convergence_run=False))
-        return
     # Restage the same archive/SET using the current converter and the existing
     # label-repair owner, before any trajectory is run.
     a.study = 'screen'
@@ -124,6 +119,11 @@ def main():
     a.check = False
     source = next(p for p in stage(a, 'screen') if p.stem == 'episodic')
     a.check = old_check
+    names = Odex(source.with_suffix('.odex')).states  # the staged, freshly converted model (the git-ignored models/ of the screen kit is stale)
+    saved = stage0(a, criteria, names)
+    if a.readouts_only:
+        save(a.out / 'completion.json', dict(saved_arrays=len(saved), convergence_run=False))
+        return
     runs, read = {}, {}
     tolerances = [10.0 ** -k for k in range(3, 10)]
     configurations = [('tol-%.0e' % tol, dict(Tolerance=tol), None, 0) for tol in tolerances]
@@ -162,7 +162,7 @@ def main():
     import numpy as np
     from driver import load
     from scipy_integrate import run_dop853
-    model, numerics = load(source.with_suffix('.odex'), source.parent / 'episodic.ode.set')
+    model, numerics = load(source.with_suffix('.odex'))
     times = np.arange(0, 1999, .4)
     rows, _ = run_dop853(model, numerics, times)
     reference = readouts(rows, names, criteria)

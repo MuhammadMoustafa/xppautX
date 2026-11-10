@@ -21,7 +21,7 @@ import autoxcompare as comparison
 import auto_reference as reference
 from comparison_measure import RunClock, process_cpu
 from odex_model import Odex
-from xppclient import Server, open_auto
+from xppclient import Server, open_autox
 from integration import convert, same_key
 
 # This is the original digest algorithm, not a second interpretation of W269.

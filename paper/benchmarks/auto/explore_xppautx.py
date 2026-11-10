@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[2] / 'tools'))
-from xppclient import Server, is_done, open_auto
+from xppclient import Server, is_done, open_autox
 from autoxcompare import ensure_completed  # noqa: E402
 
 def step(s, timeout=60, **c):
@@ -46,7 +46,7 @@ def main():
         step(s, cmd='equilibrium.configure', print_eigenvalues=False, draw_strong_sets=False)
         step(s, cmd='equilibrium.find')
         step(s, cmd='initial_conditions.set_from_equilibrium')
-        open_auto(s)
+        open_autox(s)
         print(numerics(s, parameter_max=float(parmax), parameter_min=float(parmin), norm_min=-200,
                        norm_max=200, max_step_size=float(dsmax), max_steps=int(nmax)))
         evs, _ = step(s, cmd='autox.run', kind='equilibrium', timeout=600)

@@ -16,7 +16,7 @@ if cg:
 d = ac.read_description(ac.BASE / (name + '.json'))
 if os.environ.get('NMAX'):  # e.g. mu26 control: NMAX=15 shortens the 'cycles' run
     for r in d['runs']:
-        if r['name'] == 'cycles': r['auto']['nmax'] = int(os.environ['NMAX'])
+        if r['name'] == 'cycles': r['autox']['max_steps'] = int(os.environ['NMAX'])
 t = time.monotonic(); ac.compute(binary, d, threads)
 print(name, 'threads', threads, 'seconds %.2f' % (time.monotonic() - t))
 if cg: os.unlink(binary)

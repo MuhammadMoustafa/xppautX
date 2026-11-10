@@ -17,7 +17,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / 'auto'))
 sys.path.insert(0, str(HERE.parents[2] / 'tools'))
-from xppclient import Server, open_auto  # noqa: E402
+from xppclient import Server, open_autox  # noqa: E402
 from explore_xppautx import step, numerics  # noqa: E402
 from hopf_xppautx import run, cpu_seconds  # noqa: E402  W246's AUTO run and its CPU time
 
@@ -63,7 +63,7 @@ def _measure(s, threads, jacobian, limit):
     s.send(cmd='events.subscribe', events=[], diagram=True)
     step(s)
     if threads is not None:
-        _ok(step(s, cmd='session.set_threads', **({'automatic': True} if threads == 0 else {'threads': threads}))[0], 'threads')
+        _ok(step(s, cmd='preferences.configure', **({'automatic': True} if threads == 0 else {'threads': threads}))[0], 'threads')
     if jacobian is not None:
         _ok(step(s, cmd='set', kind='num', name='jacobian', text=jacobian)[0], 'jacobian')
     out = {}
@@ -71,7 +71,7 @@ def _measure(s, threads, jacobian, limit):
     for command in INTEGRATE:
         step(s, cmd=command, timeout=limit)
     out['integrate'] = {'wall': time.perf_counter() - t0, 'cpu': cpu_seconds(s.proc) - c0}
-    open_auto(s)
+    open_autox(s)
     for name, key in (('steady', 's'), ('periodic', 'p')):
         if key == 'p':
             k, x = rightmost_hb(out['steady']['labels'])

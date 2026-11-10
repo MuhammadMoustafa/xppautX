@@ -12,7 +12,7 @@ import hashlib, json, sys, time
 from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[2] / 'tools'))
-from xppclient import Server, is_done, open_auto  # noqa: E402
+from xppclient import Server, is_done, open_autox  # noqa: E402
 from explore_xppautx import step, labels, ensure_completed  # noqa: E402
 
 RUN_LIMIT = 3600  # s: a run still going after this has hung
@@ -87,10 +87,10 @@ def _measure(s, threads, jacobian, limit, ready, go, out):
     s.send(cmd='events.subscribe', events=[], diagram=True)
     step(s)
     if threads is not None:
-        step(s, cmd='session.set_threads', **({'automatic': True} if threads == 0 else {'threads': threads}))
+        step(s, cmd='preferences.configure', **({'automatic': True} if threads == 0 else {'threads': threads}))
     if jacobian is not None:
         step(s, cmd='set', kind='num', name='jacobian', text=jacobian)
-    open_auto(s)
+    open_autox(s)
     if ready:  # W248: all concurrent runs are set up; start together
         Path(ready).write_text('ready')
         while not Path(go).exists():

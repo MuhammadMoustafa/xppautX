@@ -1103,7 +1103,7 @@ def extra_runs(final):
     """W592's and W591's saved runs (final/extra-runs/w592 and w591): the studies' own summaries and the memory rows."""
     base = final / 'extra-runs'
     return dict(threads=read(base / 'w592/threads/summary.json'), jobs=read(base / 'w592/jobs/summary.json'),
-                auto=read(base / 'w592/auto-concurrent/summary.json'), integration_memory=read(base / 'w591/integration.json'),
+                autox=read(base / 'w592/auto-concurrent/summary.json'), integration_memory=read(base / 'w591/integration.json'),
                 continuation_memory=read(base / 'w591/continuation.json'))
 
 
@@ -1119,7 +1119,7 @@ def threads_text(rows):
             f'The saved diagram is byte for byte the same at every thread count and repetition in {same} of {len(rows)} workloads.\n\n' + '\n'.join(table) + '\n\n')
 
 
-def jobs_text(jobs, auto):
+def jobs_text(jobs, autox):
     """W592 part 2: N different jobs started together as separate processes under one HOME, against the same jobs one after another."""
     table = ['| Jobs | N | Together (s) | One after another (s) | Throughput gain | Every result equals its run alone |', '|---|---|---|---|---|---|']
     for r in jobs['rows']:
@@ -1224,7 +1224,7 @@ def main():
     (out / 'figures/paper/README.md').write_text('# Paper figures\n\nEach figure is a PNG (300 dpi) with an SVG copy.\n\n' + ''.join(
         f'## {v["key"]}.png\n\n{v.get("caption") or v["title"] + " (provisional caption)"}\n\n' for v in charts if v['set'] == 'paper')
         + continuation_agreement_text(data) + large_stiff_text(data['large_stiff'])
-        + threads_text(data['extra']['threads']) + jobs_text(data['extra']['jobs'], data['extra']['auto'])
+        + threads_text(data['extra']['threads']) + jobs_text(data['extra']['jobs'], data['extra']['autox'])
         + memory_text(data['extra']['integration_memory'], data['extra']['continuation_memory']))
     page(data, charts, out)
     print(json.dumps(data['coverage'], indent=2))
