@@ -51,7 +51,7 @@
 .view-tabs .plot-tabs { flex: 0 1 auto; flex-wrap: nowrap; overflow-x: auto; }
 .view-tab { display: inline-flex; align-items: center; flex: none; }
 .view-tab-kind { color: var(--fg-muted); white-space: pre; }
-.view-tab .view-tab-close, .view-tab .view-tab-popout { min-width: 1.5rem; padding-inline: var(--space-1); }
+.view-tab .view-tab-close { min-width: 1.5rem; padding-inline: var(--space-1); }
 /* a view's name edited in its tab (W685, ViewTabs.tsx ViewRename) */
 .view-tab-rename { display: inline-flex; margin: 0; }
 .view-tab-rename input { width: 10rem; min-width: 0; }

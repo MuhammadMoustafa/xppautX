@@ -3715,6 +3715,13 @@ async function popOut(selector, key) {
   if (!await untilOn(page, '!!s.hello && s.connected', 'the pop-out connected')) throw new Error(`the pop-out of ${key} never connected`);
   return page;
 }
+/* pops a view out from its tab's context menu (Rename, Pop out: the order W685's check holds), as the page offers it */
+async function popOutTab(tab, key) {
+  await cdp.eval(`(() => { const t = document.querySelector(${JSON.stringify(tab)}); const b = t.getBoundingClientRect();
+    t.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: b.left + 4, clientY: b.bottom})); })()`);
+  await requireUntil(`!!document.querySelector('.quick-menu[role=menu]')`, 'the tab\'s menu');
+  return popOut('.quick-menu[role=menu] [role=menuitem]:nth-child(2)', key);
+}
 
 async function popOutCheck() {
   await until('s.hello && !s.busy', 'hello');
@@ -3770,7 +3777,7 @@ async function popOutCheck() {
   table.ws.close();
 
   /* a graph, from its tab */
-  const graph = await popOut('.view-tab-popout[aria-label="Pop out graph graph_1"]', 'graph:graph_1');
+  const graph = await popOutTab('#view-tab-graph-graph_1', 'graph:graph_1');
   check('W645: the graph\'s tab says it is out, and its place in the main window says where it went',
     await until(`s.popouts.includes('graph:graph_1')`, 'marked')
     && await cdp.eval(`!!document.querySelector('.view-tab.out [role=tab] .view-tab-out, .view-tab.out .view-tab-out') && !!document.querySelector('.popped-out') && !document.querySelector('.plot-view:not([hidden])')`));
@@ -3851,8 +3858,8 @@ async function popOutShots() {
     await page.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
     await page.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
   };
-  const views = [['graph', 'graph:graph_1', '.view-tab-popout[aria-label="Pop out graph graph_1"]'],
-    ['autox', 'autox:diagram_1', '.view-tab-popout[aria-label="Pop out autoX view diagram_1"]'],
+  const views = [['graph', 'graph:graph_1', '#view-tab-graph-graph_1'],
+    ['autox', 'autox:diagram_1', '#view-tab-autox-diagram_1'],
     ['table', 'dock:table', '.dock-popout']];
   for (const [name, key, button] of views) {
     await size(cdp, sizes[0]);
@@ -3861,7 +3868,7 @@ async function popOutShots() {
       await cdp.eval(`document.querySelector('.dock [data-dock-tab=table]').click()`);
       await requireUntil('s.table.open', 'table open');
     }
-    const page = await popOut(button, key);
+    const page = name === 'table' ? await popOut(button, key) : await popOutTab(button, key);
     await requireUntil(`s.popouts.includes(${JSON.stringify(key)})`, 'marked out');
     if (name === 'graph') { /* its tab in front: its place says where it went */
       await clickElement('#view-tab-graph-graph_1');

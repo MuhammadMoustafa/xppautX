@@ -104,7 +104,6 @@ export function ViewTabs() {
           /* the main graph stays: the core refuses to close window 1 */
           const closable = tab.kind === 'autox' || tab.index > 0;
           const out = popouts.includes(viewKeyText(viewOf(tab)));
-          const kindWords = tab.kind === 'autox' ? 'autoX view' : 'graph';
           return (
             <span key={slot(tab)} class={'view-tab' + (tab.name === active ? ' active' : '') + (out ? ' out' : '')} data-view-kind={tab.kind}>
               <button id={id(tab)} class="plot-tab" role="tab" aria-selected={tab.name === active} tabIndex={tab.name === active ? 0 : -1}
@@ -115,9 +114,6 @@ export function ViewTabs() {
                 {out && <span class="view-tab-out" title="In a window of its own">
                   <span aria-hidden="true">⧉</span><span class="visually-hidden"> (in a window of its own)</span></span>}
               </button>
-              <button class="view-tab-popout" aria-label={`${out ? 'Pop in' : 'Pop out'} ${kindWords} ${tab.name}`}
-                title={out ? 'Bring this view back into its tab' : 'Open this view in a window of its own'}
-                onClick={() => out ? session.popouts.popIn(viewOf(tab)) : void session.popouts.show(viewOf(tab))}>{out ? '⇲' : '⇱'}</button>
               {closable && <button class="view-tab-close" aria-label={`Close ${tab.kind === 'autox' ? 'autoX view' : 'graph'} ${tab.name}`}
                 title={tab.kind === 'autox' ? 'Done with this view: a running continuation is stopped first' : 'Close this graph'}
                 disabled={tab.kind === 'graph' && windowOff}
