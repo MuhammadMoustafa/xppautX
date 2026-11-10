@@ -1106,8 +1106,8 @@ def section_sessiondiagram():
     check('sessiondiagram: Save diagram writes d1.snapx, a zip of the files listed, the model and its animation in it',
           list(got) == ['session.odex', 'model/lecar.odex', 'model/ml.anix', 'autox/diagram.csv', 'autox/solutions.s'], str(list(got)))
     state = got.get('session.odex', '')
-    check('sessiondiagram: session.odex names lecar.odex and its animation, and lecar.odex is in the file byte for byte',
-          '\nsession {\n  model: "lecar.odex",\n  animation: "ml.anix",\n  data: false,\n' in state
+    check('sessiondiagram: session.odex names lecar.odex, its animation once (an option, W663), and lecar.odex is in the file byte for byte',
+          '\nsession {\n  model: "lecar.odex",\n  data: false,\n' in state and state.count('animation: "ml.anix"') == 1
           and got.get('model/lecar.odex') == open(LECAR).read(), state[:300])
     check('sessiondiagram: session.odex has the numerics, the parameters and the axes of autoX',
           all(re.search(r'(^|\n)\s+%s: ' % k, state) for k in ('mesh_intervals', 'step_size', 'plot', 'xmin')) and state.startswith('version 4\npar '),
