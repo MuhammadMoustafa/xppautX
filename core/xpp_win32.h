@@ -8,6 +8,8 @@
 #include <string>
 #include <optional>
 
+#include "xpp_https.h"
+
 namespace xpp::win32 {
 // Count processor-core records of the highest EfficiencyClass (performance cores).
 std::optional<unsigned> processor_core_count();
@@ -41,6 +43,9 @@ std::string app_data_folder();
    rest of the core's paths use), without a trailing backslash; empty when
    it cannot be had (xpp_files_dir.cpp's program_dir) */
 std::string program_folder();
+/* xpp_https.h's request through WinHTTP (the system's own client and certificate store): TLS verified, no redirect
+   followed, a body that stalls ends the request. Written by reading, built by Windows CI (W622). */
+Result<https::Reply> https_get(std::string_view url, const https::Chunk &chunk);
 /* The system Documents folder, including redirected folders; empty when unavailable. */
 std::string documents_folder();
 /* xppautX links -mwindows (a GUI-subsystem exe: no console pops up when

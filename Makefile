@@ -66,7 +66,7 @@ LDSTATIC = -static
 # it with no console window (xpp_win32.cpp's xpp::win32::attach_console()
 # reattaches to a real one for the command-line modes; --server's pipes are
 # untouched, W13b)
-NETLIBS  = -lpthread -lws2_32 -mwindows
+NETLIBS  = -lpthread -lws2_32 -lwinhttp -mwindows
 WINDRES ?= windres
 # the core's thread is the main one: the 8 MB stack Linux and macOS give it
 # (a PE gets 2 MB), so a file's expression nested to the parser's limit

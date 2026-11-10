@@ -18,6 +18,7 @@ core/xpp_cpu.cpp 1 the const physical core count built once per process from CPU
 core/xpp_files.cpp 4 the files module's cache and the HTTP reader's hooks (process-wide, thread-shared)
 core/xpp_files_dir.cpp 1 the file selector's current folder (process-wide, like the working directory)
 core/xpp_http.cpp 15 the HTTP server's threads, sockets and locks (process-wide)
+core/xpp_https.cpp 1 libcurl, loaded at the first download and kept for the life of the program (a library handle is the process's, like the window library's)
 core/xpp_inbox.cpp 9 the input queues the reader threads fill (process-wide, thread-shared)
 core/xpp_io.cpp 1 the temp-file name counter (process-wide)
 core/xpp_job.cpp 22 the job's state the reader threads set (atomics) and its pacing clocks, the one clock read a stored row's throttles share among them (W122), and the jobs of a recorded stopped autoX run armed with the stop between jobs (W606): process-wide, one job at a time
@@ -25,3 +26,4 @@ core/xpp_log.cpp 6 the log threshold, AUTO's echo, the per-thread capture and th
 core/xpp_window.cpp 2 the desktop window's web view and its thread (process-wide, one window)
 core/xpp_window_loader.cpp 2 the window library loaded once (process-wide)
 core/commands_autox.cpp 3 the registry rows of autox.run and autox.configure_numerics: their Numerics arguments are built once at start-up from the option table's continuation rows (the keys and shapes have no second list), const and never written
+core/xpp_update.cpp 1 the staged update's folder and file: one at a time, outliving a model switch (a Session is replaced by it) and removed at exit; the install step reads it

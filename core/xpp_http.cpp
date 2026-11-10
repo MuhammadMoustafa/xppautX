@@ -20,6 +20,7 @@
 #endif
 #include "xpp_http.h"
 #include "event_registry.h"
+#include "xpp_update.h"
 #include "xpp_about.h"
 #include "xpp_assets.h"
 #include "xpp_inbox.h"
@@ -1275,7 +1276,7 @@ namespace xpp::http {
 
 xpp::Result<> open_release_page(std::string_view url)
 {
-    constexpr std::string_view PREFIX = "https://github.com/MuhammadMoustafa/xppautX/releases/tag/";
+    constexpr std::string_view PREFIX = xpp::update::RELEASE_TAG_PREFIX;
     constexpr size_t URL_LIMIT = 256; /* a release tag page needs no long query or fragment */
     const auto refused = [] {
         return xpp::fail("update check", "release URL refused", xpp::Place{"Check for updates", 1});

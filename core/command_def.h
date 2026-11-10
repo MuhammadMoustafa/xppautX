@@ -310,6 +310,7 @@ std::span<const Command> keymap_commands();
 std::span<const Command> options_commands();
 std::span<const Command> events_commands();
 std::span<const Command> tool_commands();
+std::span<const Command> update_commands();
 
 /* the handler of a command the front end answers itself (xpp::ui.front_end_command): the row names the command, its arguments and its result */
 Result<std::string> front_end(Session &s, const Command &command, const Arguments &args, const Place &place);

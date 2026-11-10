@@ -213,7 +213,7 @@ export class Session {
          run needs */
       this.send({cmd: 'events.subscribe', events: ev.features, encoding: 'f32'});
       /* W622: the opening's check for a newer release, when the core says one is due (preference on, none today) */
-      this.send({cmd: 'updates.due'});
+      this.send({cmd: 'update.due'});
     } else if (ev.ev === 'kinescope.film') {
       this.onFilm(ev);
     } else if (ev.ev === 'ask') {
@@ -266,7 +266,7 @@ export class Session {
         const {threads, automatic, ...rest} = ev.result as {threads: number; automatic: boolean} & Record<string, string>; /* the log's and the colors' */
         this.store.dispatch({type: 'commandForm', form: {id: 'preferences.configure', values: {...(automatic ? {automatic: true} : {threads}), ...rest}, fixed: []}});
       }
-      /* `updates.due` answered: when it is due the check runs; a newer release is a quiet notice, a failure only a log line */
+      /* `update.due` answered: when it is due the check runs; a newer release is a quiet notice, a failure only a log line */
       if (ev.status === 'ok' && ev.result?.due === true) void this.automaticUpdateCheck();
       /* `options.get` answered: the group's values for every editor of its rows; a group's settings applied: its values again, as the core holds them */
       if (ev.status === 'ok' && typeof ev.result?.group === 'string') {
@@ -379,7 +379,7 @@ export class Session {
       const found = await checkUpdates(this.store.getState().hello?.about ?? []);
       if (found.version) this.store.dispatch({type: 'updateNotice', text: `xppautX ${found.version} is available`});
     } catch (e) {
-      this.send({cmd: 'updates.report_failure', reason: e instanceof Error ? e.message : String(e)});
+      this.send({cmd: 'update.report_failure', reason: e instanceof Error ? e.message : String(e)});
     }
   }
 

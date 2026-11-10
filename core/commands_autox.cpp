@@ -167,24 +167,6 @@ Result<std::string> preferences_now(const Session &s)
 
 Result<std::string> get_preferences(Session &s, const Command &, const Arguments &, const Place &) { return preferences_now(s); }
 
-/* the page's opening asks whether to check for a newer release now (W622): a recording's replay leaves the user's preferences alone, so it never is */
-Result<std::string> updates_due(Session &, const Command &, const Arguments &, const Place &)
-{
-    ResultObject result;
-    if (files::serving_reads()) return result.boolean("due", false).done();
-    const Result<bool> due = prefs::update_check_due();
-    /* a bad preferences file is shown by the commands that use it; here the check is simply not made */
-    if (!due) xpp::log(XPP_LOG_INFO, "{}\n", due.error().text());
-    return result.boolean("due", due.value_or(false)).done();
-}
-
-/* the page's opening check for a newer release failed (W622): shown nowhere, the log tells it at INFO */
-Result<std::string> updates_report_failure(Session &, const Command &, const Arguments &args, const Place &)
-{
-    xpp::log(XPP_LOG_INFO, "The check for a newer release failed: {}\n", args.get<std::string>("reason"));
-    return ResultObject().boolean("logged", true).done();
-}
-
 /* the program's preferences: the thread count autoX and sweeps use, and what the log shows and the file it goes to (kept in
    preferences.odex; the log applies from the next start, and --verbose and --debug win over it; a color applies to what is drawn or computed after it) */
 Result<std::string> configure_preferences(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -841,9 +823,6 @@ constexpr auto RESULT_THREADS = []<std::size_t... I>(std::index_sequence<I...>) 
     return std::array{ResultField{"threads", "integer"}, ResultField{"automatic", "boolean"}, ResultField{"log_level", "choice"}, ResultField{"log_file", "text"}, ResultField{"check_for_updates", "boolean"},
                       ResultField{prefs::COLOR_KEYS[I].key.data(), "text"}...};
 }(std::make_index_sequence<prefs::COLOR_KEYS.size()>{});
-constexpr std::array RESULT_UPDATES_DUE = {ResultField{"due", "boolean"}};
-constexpr std::array UPDATES_FAILURE_ARGUMENTS = {Argument{.name = "reason", .type = Type::text, .required = true, .description = "Why the check failed, as the page tells it."}};
-constexpr std::array RESULT_LOGGED = {ResultField{"logged", "boolean"}};
 constexpr std::array RESULT_HIDDEN = {ResultField{"hidden_points", "integer"}};
 constexpr std::array RESULT_REDRAWN = {ResultField{"redrawn", "boolean"}};
 constexpr std::array RESULT_PICK = {ResultField{"x", "real"}, ResultField{"y", "real"}};
@@ -900,11 +879,6 @@ const std::array ROWS = {
             "The program's preferences as they stand: the thread count and whether it is automatic, the log level and the log file.", RESULT_THREADS, EVENTS_BROWSER, false, get_preferences, {}, {}},
     Command{"preferences.configure", THREADS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Preferences", "File",
             "Set the program's preferences, kept in its preferences file: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and the file it goes to (empty: the terminal), and the colors the diagram, the nullclines and the manifolds are drawn with, and whether the window and the page look for a newer release when they open; the log applies from the next start.", RESULT_THREADS, EVENTS_SETTINGS, true, configure_preferences, THREADS_GROUPS, {}},
-    Command{"updates.due", {}, XPP_KIND_CONTROL, CommandCategory::Analysis, "Update check due", "",
-            "Whether the check for a newer release is due now: the preference is on and none began today (UTC). When it is, the check is recorded as begun. The page asks once when it opens.",
-            RESULT_UPDATES_DUE, EVENTS_BROWSER, false, updates_due, {}, {}},
-    Command{"updates.report_failure", UPDATES_FAILURE_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Analysis, "Update check failed", "",
-            "The page's check for a newer release failed: the log says why at INFO; nothing is shown.", RESULT_LOGGED, EVENTS_BROWSER, false, updates_report_failure, {}, {}},
     Command{"autox.import_diagram", FILE_REQUIRED, XPP_KIND_DATA, CommandCategory::Analysis, "Import XPPAUT diagram", "autoX/File",
             "Import an XPPAUT diagram (.auto) into the open model.", RESULT_IMPORTED, EVENTS_RUN, true, import_diagram, {}, {}},
     Command{"autox.reset_diagram", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Reset diagram", "autoX/File",

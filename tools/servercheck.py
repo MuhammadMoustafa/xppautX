@@ -2888,14 +2888,28 @@ def check_options_panels():
         check('W622: preferences.get gives check_for_updates, on by default', call(cmd='preferences.get')['result'].get('check_for_updates') is True)
         call(cmd='preferences.configure', check_for_updates=False)
         check('W622: preferences.configure switches the opening check off', call(cmd='preferences.get')['result'].get('check_for_updates') is False)
-        check('W622: with the switch off no check is due', call(cmd='updates.due')['result'] == {'due': False})
+        check('W622: with the switch off no check is due', call(cmd='update.due')['result'] == {'due': False})
         call(cmd='preferences.configure', check_for_updates=True)
-        first = call(cmd='updates.due')
-        second = call(cmd='updates.due')
+        first = call(cmd='update.due')
+        second = call(cmd='update.due')
         check('W622: with the switch on a check is due once, the second asking the same day is not',
               first.get('result') == {'due': True} and second.get('result') == {'due': False}, str(first) + str(second))
-        check('W622: a failed check is only logged', call(cmd='updates.report_failure', reason='GitHub returned HTTP 503').get('status') == 'ok')
-        check('W622: a failure needs its reason', call(cmd='updates.report_failure').get('status') == 'error')
+        check('W622: a failed check is only logged', call(cmd='update.report_failure', reason='GitHub returned HTTP 503').get('status') == 'ok')
+        check('W622: a failure needs its reason', call(cmd='update.report_failure').get('status') == 'error')
+        # W622: update.download refuses a file the release list could not have named, before any connection is made (the transport and the
+        # checks of the size and the digest are unit-tested with a stub, tests/test_update.cpp: no check reaches the network)
+        release = 'https://github.com/MuhammadMoustafa/xppautX/releases/download/v0.1.0/'
+        digest = 'sha256:' + '0' * 64
+        for what, args, why in [
+                ('an address outside this project\'s release downloads', dict(url='https://evil.example/x.zip', name='x.zip', size=10, digest=digest), 'release download address'),
+                ('a plain http address', dict(url=release.replace('https', 'http') + 'x.zip', name='x.zip', size=10, digest=digest), 'release download address'),
+                ('a name that leaves the folder', dict(url=release + 'x.zip', name='../x.zip', size=10, digest=digest), 'plain file name'),
+                ('a size of zero', dict(url=release + 'x.zip', name='x.zip', size=0, digest=digest), 'at least 1'),
+                ('a size beyond the most a release file has', dict(url=release + 'x.zip', name='x.zip', size=10**12, digest=digest), 'at most'),
+                ('a digest that is not sha256', dict(url=release + 'x.zip', name='x.zip', size=10, digest='md5:' + '0' * 32), 'sha256 digest'),
+                ('an upper-case digest', dict(url=release + 'x.zip', name='x.zip', size=10, digest='sha256:' + 'A' * 64), 'sha256 digest')]:
+            done = call(cmd='update.download', **args)
+            check('W622: update.download refuses ' + what, done.get('status') == 'error' and why in done.get('error', ''), str(done))
         # W672: run_set is a sets row: its value is the checked names a line, a value given replaces the list, nothing else takes a line break
         done = call(cmd='options.configure', group='output', values={'run_set': 'pp\nvvst'})
         check('W672: run_set takes the checked sets a line each', done.get('status') == 'ok', str(done))
