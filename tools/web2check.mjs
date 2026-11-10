@@ -137,6 +137,7 @@ let failures = 0, flaky = 0;
 let record = null;
 /* the xppautX the section running drives (sessionAttempt), for a check that it exited */
 let sessionServer = null;
+let sessionDirectory = null; /* the folder of the running session's program: its model and its xpp-config */
 function copyModel(source, destination) {
   fs.copyFileSync(source, destination);
   for (const name of fs.readdirSync(path.dirname(source)))
@@ -6176,7 +6177,7 @@ async function startScreenCheck() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-start-'));
   const gone = path.join(dir, 'gone.odex');
   fs.mkdirSync(path.join(dir, 'xpp-config'));
-  fs.writeFileSync(path.join(dir, 'xpp-config', 'preferences.odex'), `version 4\npreferences {\n  recent_models: [${[ODE, gone].map(p => JSON.stringify(p)).join(', ')}],\n}\n`);
+  fs.writeFileSync(path.join(dir, 'xpp-config', 'preferences.odex'), `version 4\npreferences {\n  check_for_updates: false,\n  recent_models: [${[ODE, gone].map(p => JSON.stringify(p)).join(', ')}],\n}\n`);
   const server = await startServer(bin, dir, []);
   try {
     await cdp.eval('window.__left = true').catch(() => {});
@@ -6375,8 +6376,56 @@ async function warningFlashCheck() {
   }
 }
 
+/* W622: the check at opening: the preference's own form turns it on; the page then asks the core whether one is due,
+   checks, and shows a newer release as a quiet notice (never a dialog); a day's second opening and a failed check show nothing */
+async function openingCheck() {
+  const reopen = async () => {
+    const href = await cdp.eval('location.href');
+    await cdp.eval('window.__left = true').catch(() => {});
+    await cdp.send('Page.navigate', {url: href});
+    await until('!window.__left && s.hello && s.core && !s.busy', 'the reopened page', 60000);
+  };
+  const setAnswer = answer => cdp.eval(`sessionStorage.setItem('__updateAnswer', ${JSON.stringify(JSON.stringify(answer))}); true`);
+  /* the core has answered the page's own question once a command sent after it is done (the core takes them in order) */
+  const settled = async () => {
+    await cdp.eval(`__xpp.send({cmd: 'preferences.configure', log_level: 'warn'})`);
+    await until(`!s.busy && __xpp.sent().some(c => c.cmd === 'preferences.configure')`, 'the core answered');
+  };
+  const newer = {tag_name: 'v999.0.0', html_url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v999.0.0'};
+  /* the preferences file as a first opening finds it: the check on, none made yet (the core reads the file at each use) */
+  const prefsFile = path.join(sessionDirectory, 'xpp-config', 'preferences.odex');
+  const writePrefs = on => fs.writeFileSync(prefsFile, `version 4\npreferences {\n  check_for_updates: ${on},\n}\n`);
+  await clickRegistry('preferences.configure');
+  check('updates: the Preferences form has the check_for_updates switch',
+    await cdp.eval(`document.querySelector('[data-argument=check_for_updates]') !== null`));
+  await key('Escape');
+  /* a failed check shows nothing and says so in the log at INFO (the page's log, in browser mode) */
+  await setAnswer('http'); writePrefs(true);
+  await reopen();
+  check('updates: a failed check at opening shows no notice, dialog or error, and the log says why at INFO',
+    await until(`window.__updateRequests === 1 && __xpp.log().some(l => l.text.includes('The check for a newer release failed: GitHub returned HTTP 503'))`, 'the INFO line')
+    && await cdp.eval(`!document.querySelector('[data-update-notice]') && !document.querySelector('[data-update-dialog]') && !document.querySelector('.error-dialog')`)
+    && !(await S(`s.toasts.length`)));
+  await setAnswer(newer); writePrefs(true);
+  await reopen();
+  check('updates: a newer release found at opening is a quiet notice in the status bar, not a dialog',
+    await until(`window.__updateRequests === 1 && document.querySelector('[data-update-notice]')?.textContent.includes('999.0.0')`, 'the notice')
+    && await cdp.eval(`!document.querySelector('[data-update-dialog]') && !document.querySelector('.error-dialog')`));
+  await cdp.eval(`document.querySelector('[data-update-notice]').click(); true`);
+  check('updates: the notice opens the update dialog',
+    await until(`document.querySelector('[data-update-dialog]') !== null`, 'the dialog'));
+  await cdp.eval(`document.querySelector('[data-update-dialog] .dialog-close').click(); true`);
+  await reopen(); await settled();
+  check('updates: a second opening the same day does not check again',
+    await cdp.eval(`window.__updateRequests === 0 && !document.querySelector('[data-update-notice]')`));
+  writePrefs(false);
+  await reopen(); await settled();
+  check('updates: with the switch off no check is made at opening', await cdp.eval('window.__updateRequests === 0'));
+  await cdp.eval(`sessionStorage.removeItem('__updateAnswer'); true`);
+}
+
 async function updatesCheck() {
-  check('updates: no startup request', await cdp.eval('window.__updateRequests === 0'));
+  check('updates: no startup request while the preference is off', await cdp.eval('window.__updateRequests === 0'));
   if (opt.webview2) {
     const refusal = `async () => {
       if (typeof window.__xppOpenRelease !== 'function') return false;
@@ -6403,6 +6452,7 @@ async function updatesCheck() {
       finally { window.__xppOpenRelease = binding; }
     })()`));
   }
+  await openingCheck();
   const close = () => cdp.eval("document.querySelector('[data-update-dialog] .dialog-close').click()");
   const run = async (answer, text) => {
     await cdp.eval(`window.__updateAnswer = ${JSON.stringify(answer)}; window.__xppCheckUpdates(); true`);
@@ -6498,7 +6548,8 @@ async function sessionAttempt(ode, fn, expected, attempts) {
   copyModel(ode, path.join(dir, path.basename(ode)));
   let server;
   try {
-    server = sessionServer = await (opt.webview2 ? startWebView2 : startServer)(bin, dir, [path.basename(ode)]);
+    sessionDirectory = dir;
+    server = sessionServer = await (opt.webview2 ? startWebView2 : startServer)(bin, dir, [path.basename(ode), ...(fn === updatesCheck ? ["--verbose"] : [])]);
   } catch (e) {
     fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
     record = null;
@@ -6511,6 +6562,7 @@ async function sessionAttempt(ode, fn, expected, attempts) {
     }
     if (fn === updatesCheck) await cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: `
       window.__updateRequests = 0;
+      try { const kept = sessionStorage.getItem('__updateAnswer'); if (kept) window.__updateAnswer = JSON.parse(kept); } catch {}
       const originalFetch = window.fetch;
       window.fetch = async (url, options) => {
         /* W234: a pre-release build asks the list, a stable one releases/latest; a single release answer is wrapped in a list */

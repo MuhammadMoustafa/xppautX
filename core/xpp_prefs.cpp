@@ -12,6 +12,7 @@
 #include "xpp_files.h"
 #include "xpp_cpu.h"
 #include "xpp_io.h"
+#include "xpp_util.h"
 
 namespace xpp::prefs {
 
@@ -42,6 +43,18 @@ std::optional<std::string> recent_problem(std::span<const std::string> before, s
     return std::nullopt;
 }
 
+/* why `text` is not a time as utc_now writes it (2026-11-10T14:03:00Z), or nothing */
+std::optional<std::string> stamp_problem(std::string_view text)
+{
+    constexpr std::string_view SHAPE = "dddd-dd-ddTdd:dd:ddZ";
+    bool fits = text.size() == SHAPE.size();
+    for (std::size_t i = 0; fits && i < SHAPE.size(); i++)
+        fits = SHAPE[i] == 'd' ? (text[i] >= '0' && text[i] <= '9') : text[i] == SHAPE[i];
+    if (fits) return std::nullopt;
+    return xpp::format("\"{}\" is not a time like 2026-11-10T14:03:00Z", text);
+}
+
+using TextProblem = std::optional<std::string> (*)(std::string_view);
 using CountProblem = std::optional<std::string> (*)(long long);
 
 /* why `a` cannot be the next approval after `before`, or nothing; which: "model" or "path" */
@@ -99,12 +112,13 @@ public:
     }
     /* a color, when the file names one */
     void color(std::string_view key, Color &out) { block_.color(key, out); }
-    /* an absolute path, when the file names one */
-    void path(std::string_view key, std::string &out)
+    void flag(std::string_view key, bool &out) { block_.flag(key, out); }
+    /* a text the file names, when it names one: problem says why it cannot be kept (an absolute path, a time) */
+    void text(std::string_view key, std::string &out, TextProblem problem)
     {
         std::string got;
         if (!block_.text(key, got)) return;
-        if (const auto why = path_problem(got)) block_.fail(block_.member(key)->value, *why);
+        if (const auto why = problem(got)) block_.fail(block_.member(key)->value, *why);
         out = std::move(got);
     }
 
@@ -140,10 +154,11 @@ public:
     }
     void level(std::string_view key, const XppLogLevel &value) { out.word(key, log_level_names[static_cast<std::size_t>(value)]); }
     void color(std::string_view key, const Color &value) { out.color(key, value); }
-    void path(std::string_view key, const std::string &value)
+    void flag(std::string_view key, const bool &value) { out.flag(key, value); }
+    void text(std::string_view key, const std::string &value, TextProblem problem)
     {
         if (value.empty()) return;
-        if (const auto why = path_problem(value); why && !bad_) bad_ = *why;
+        if (const auto why = problem(value); why && !bad_) bad_ = *why;
         out.text(key, value);
     }
     void count(std::string_view key, const unsigned &value, std::string_view automatic, CountProblem problem)
@@ -180,8 +195,10 @@ template <class IO, class P> void describe(IO &io, P &p)
     io.paths("recent_models", p.recent_models, MAX_RECENT_MODELS, recent_problem);
     io.count("threads", p.threads, THREADS_AUTO_WORD, threads_problem);
     io.level("log_level", p.log_level);
-    io.path("log_file", p.log_file);
+    io.text("log_file", p.log_file, path_problem);
     for (const ColorKey &c : COLOR_KEYS) io.color(c.key, p.colors.*c.member);
+    io.flag("check_for_updates", p.check_for_updates);
+    io.text("last_update_check", p.last_update_check, stamp_problem);
     io.approvals("outside_paths", p.outside_paths, MAX_OUTSIDE_APPROVALS);
 }
 
@@ -248,6 +265,19 @@ Result<bool> outside_path_approved(std::string_view model, std::string_view path
 Result<> approve_outside_path(std::string_view model, std::string_view path)
 {
     return update_prefs([&](Preferences &p) { remember_newest(p.outside_paths, OutsideApproval{std::string(model), std::string(path)}, MAX_OUTSIDE_APPROVALS); });
+}
+
+Result<bool> update_check_due()
+{
+    const Result<Preferences> p = load_prefs();
+    if (!p) return std::unexpected(p.error());
+    /* a day is the UTC date, the first ten characters of the time */
+    const std::string now = utc_now();
+    constexpr std::size_t DATE_CHARS = 10;
+    if (!p->check_for_updates || p->last_update_check.substr(0, DATE_CHARS) == now.substr(0, DATE_CHARS)) return false;
+    const Result<> saved = update_prefs([&](Preferences &q) { q.last_update_check = now; });
+    if (!saved) return std::unexpected(saved.error());
+    return true;
 }
 
 Result<> update_prefs(const std::function<void(Preferences &)> &change)

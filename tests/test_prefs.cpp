@@ -121,6 +121,32 @@ void check_outside_paths()
     CHECK(!xpp::prefs::serialize_prefs(bad));
 }
 
+/* W622: the opening's update check: its switch and the time of the last one */
+void check_update_check()
+{
+    CHECK(parse("").value().check_for_updates && parse("").value().last_update_check.empty());
+    const auto off = parse("check_for_updates: false,\nlast_update_check: \"2026-11-10T14:03:00Z\",\n");
+    CHECK(off && !off->check_for_updates && off->last_update_check == "2026-11-10T14:03:00Z");
+    for (const Bad &t : std::vector<Bad>{{"a switch that is not a boolean", "check_for_updates: 3,\n", 1, "check_for_updates"},
+                                         {"a time of another shape", "last_update_check: \"yesterday\",\n", 1, "yesterday"},
+                                         {"a date without its time", "last_update_check: \"2026-11-10\",\n", 1, "2026-11-10"}}) {
+        const auto r = parse(t.text);
+        CHECK(!r);
+        if (!r) continue;
+        if (r.error().place.line != t.line + 2 || r.error().what.find(t.value) == std::string::npos) {
+            printf("bad update check %s: %s\n", t.what, r.error().text().c_str());
+            CHECK(false);
+        }
+    }
+    xpp::prefs::Preferences p;
+    p.check_for_updates = false;
+    p.last_update_check = "2026-11-10T14:03:00Z";
+    const auto back = xpp::prefs::parse_prefs(*xpp::prefs::serialize_prefs(p), FILE_LABEL);
+    CHECK(back && !back->check_for_updates && back->last_update_check == p.last_update_check);
+    p.last_update_check = "soon";
+    CHECK(!xpp::prefs::serialize_prefs(p));
+}
+
 void check_good_files()
 {
     /* an empty file, or one with no recent models, is the defaults */
@@ -282,6 +308,7 @@ int main(void)
 {
     check_bad_files();
     check_outside_paths();
+    check_update_check();
     check_good_files();
     check_threads();
     check_log();

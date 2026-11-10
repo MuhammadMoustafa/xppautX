@@ -113,7 +113,7 @@ function compare(a: Version, b: Version): number {
   return Math.sign(a.pre.length - b.pre.length);
 }
 
-export type UpdateResult = {text: string; url?: string};
+export type UpdateResult = {text: string; url?: string; version?: string};
 
 export async function checkUpdates(about: AboutLine[], signal?: AbortSignal): Promise<UpdateResult> {
   // hello.about's first line is the version (core/xpp_about.cpp): a release tag (v0.1.0), a pre-release tag
@@ -147,7 +147,7 @@ export async function checkUpdates(about: AboutLine[], signal?: AbortSignal): Pr
       if (!latest || compare(v, latest) > 0) { latest = v; latestUrl = url; }
     }
     return compare(latest!, current) > 0
-      ? {text: `xppautX ${latest!.text} is available. Nothing is downloaded or installed by xppautX.`, url: latestUrl}
+      ? {text: `xppautX ${latest!.text} is available. Nothing is downloaded or installed by xppautX.`, url: latestUrl, version: latest!.text}
       : {text: `xppautX ${current.text} is the latest`};
   } catch (e) { throw e instanceof UpdateError ? e : located(e, api); }
 }

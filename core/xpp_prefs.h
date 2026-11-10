@@ -108,6 +108,10 @@ struct Preferences {
     XppLogLevel log_level = XPP_LOG_WARN;
     std::string log_file;
     Colors colors;
+    /* whether a newer release is looked for when the window or the browser page opens, at most once a day (W622) */
+    bool check_for_updates = true;
+    /* when the last such check began (utc_now's text, "" for never): the day it gives is the day the next check waits for */
+    std::string last_update_check;
     /* newest first, none twice */
     std::vector<OutsideApproval> outside_paths;
 };
@@ -121,6 +125,10 @@ Result<Preferences> parse_prefs(std::string_view text, std::string file);
 /* the file's text for these preferences (parse of it gives them back), or
    the error for a value that cannot be written */
 Result<std::string> serialize_prefs(const Preferences &p);
+
+/* whether the opening's check for a newer release is due now (the preference is on and none began today, UTC); when it is,
+   the check is recorded as begun, so a failed one waits for tomorrow too. A bad preferences file is the error. */
+Result<bool> update_check_due();
 
 /* the config folder's preferences.odex ("" when there is no config folder) */
 std::string prefs_path();

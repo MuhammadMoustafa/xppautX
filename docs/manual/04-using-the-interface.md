@@ -510,9 +510,13 @@ the desktop's save dialog can choose a destination on disk.
 
 ### Check for updates
 
+xppautX also looks for a newer release when the window or the browser page opens, at most once a day, unless
+the **Check for updates** switch of Preferences is off (`check_for_updates` in `preferences.odex`). A newer release shows as a
+quiet notice in the status bar, "xppautX X.Y.Z is available", never a dialog; clicking it opens the dialog below. A check
+that fails shows nothing and is told in the log at INFO. `--silent` and `--server` never check.
+
 Help > Check for updates (in the window's Help menu or the page's Help view)
-asks GitHub for the latest xppautX release, only when you choose it. There
-is no startup or background check. A newer release shows its version and
+asks GitHub for the latest xppautX release whenever you choose it. A newer release shows its version and
 **Open the release page** / **Close**. The release page opens in your system
 browser (a new tab in browser mode), where you choose whether to download.
 xppautX downloads and installs nothing. A current or newer installed version

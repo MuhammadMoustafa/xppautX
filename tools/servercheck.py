@@ -2884,6 +2884,18 @@ def check_options_panels():
         call(cmd='preferences.configure', x_nullcline_color=kept['x_nullcline_color'], unstable_manifold_color=kept['unstable_manifold_color'])  # the preferences file is shared by the later servers: back to what it held
         check('W616: a log level is one of the words', call(cmd='preferences.configure', log_level='loud').get('status') == 'error')
         call(cmd='preferences.configure', log_level='warn')  # the preferences file is shared by every server this check starts: back to the default
+        # W622: the opening's update check: the switch is a preference, the core decides once a day whether it is due and records it
+        check('W622: preferences.get gives check_for_updates, on by default', call(cmd='preferences.get')['result'].get('check_for_updates') is True)
+        call(cmd='preferences.configure', check_for_updates=False)
+        check('W622: preferences.configure switches the opening check off', call(cmd='preferences.get')['result'].get('check_for_updates') is False)
+        check('W622: with the switch off no check is due', call(cmd='updates.due')['result'] == {'due': False})
+        call(cmd='preferences.configure', check_for_updates=True)
+        first = call(cmd='updates.due')
+        second = call(cmd='updates.due')
+        check('W622: with the switch on a check is due once, the second asking the same day is not',
+              first.get('result') == {'due': True} and second.get('result') == {'due': False}, str(first) + str(second))
+        check('W622: a failed check is only logged', call(cmd='updates.report_failure', reason='GitHub returned HTTP 503').get('status') == 'ok')
+        check('W622: a failure needs its reason', call(cmd='updates.report_failure').get('status') == 'error')
         # W672: run_set is a sets row: its value is the checked names a line, a value given replaces the list, nothing else takes a line break
         done = call(cmd='options.configure', group='output', values={'run_set': 'pp\nvvst'})
         check('W672: run_set takes the checked sets a line each', done.get('status') == 'ok', str(done))

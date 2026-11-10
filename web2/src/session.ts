@@ -23,6 +23,7 @@ import {
 } from './store/files';
 import {createStore, type Store} from './store/store';
 import {initialState, LEAVE_ASK, noDone, reduce, type Action, type AppState, type ValuesFileOffer, type ValuesPart} from './store/state';
+import {checkUpdates} from './help/updates';
 import {closeDesktopWindow} from './desktop';
 import {stepTarget} from './store/ani';
 import {snapshotWindow} from './store/kinescope';
@@ -211,6 +212,8 @@ export class Session {
          direction fields and marks; values as base64 float32, which a long
          run needs */
       this.send({cmd: 'events.subscribe', events: ev.features, encoding: 'f32'});
+      /* W622: the opening's check for a newer release, when the core says one is due (preference on, none today) */
+      this.send({cmd: 'updates.due'});
     } else if (ev.ev === 'kinescope.film') {
       this.onFilm(ev);
     } else if (ev.ev === 'ask') {
@@ -263,6 +266,8 @@ export class Session {
         const {threads, automatic, ...rest} = ev.result as {threads: number; automatic: boolean} & Record<string, string>; /* the log's and the colors' */
         this.store.dispatch({type: 'commandForm', form: {id: 'preferences.configure', values: {...(automatic ? {automatic: true} : {threads}), ...rest}, fixed: []}});
       }
+      /* `updates.due` answered: when it is due the check runs; a newer release is a quiet notice, a failure only a log line */
+      if (ev.status === 'ok' && ev.result?.due === true) void this.automaticUpdateCheck();
       /* `options.get` answered: the group's values for every editor of its rows; a group's settings applied: its values again, as the core holds them */
       if (ev.status === 'ok' && typeof ev.result?.group === 'string') {
         if (ev.result.values) this.store.dispatch({type: 'optionValues', group: ev.result.group, values: {values: ev.result.values as Record<string, string>,
@@ -366,6 +371,16 @@ export class Session {
     } else if (row.panel && !row.arguments?.some(a => a.option) && !row.panel.endsWith('+')) this.openOptions(panelSpec(row.panel)!.group);
     else if (row.arguments?.length) this.store.dispatch({type: 'commandForm', form: {id, values, fixed}});
     else this.send({cmd: id});
+  }
+
+  /** the opening's check (W622): never a dialog; an answer that fails is told to the core's log at INFO and shown nowhere */
+  private async automaticUpdateCheck(): Promise<void> {
+    try {
+      const found = await checkUpdates(this.store.getState().hello?.about ?? []);
+      if (found.version) this.store.dispatch({type: 'updateNotice', text: `xppautX ${found.version} is available`});
+    } catch (e) {
+      this.send({cmd: 'updates.report_failure', reason: e instanceof Error ? e.message : String(e)});
+    }
   }
 
   /** File > Preferences was chosen and its values are on the way */

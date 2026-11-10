@@ -342,7 +342,12 @@ export async function startBrowser(browser, profile) {
 /* The environment of a program under test: its per-user settings folder (the keymap, XPP_CONFIG_DIR) is in
    its own `dir`, so a check that changes a key never touches the real file */
 function configEnv(dir) {
-  return {...process.env, XPP_CONFIG_DIR: path.join(dir, 'xpp-config')};
+  const config = path.join(dir, 'xpp-config');
+  /* W622: the page checks for a newer release when it opens; no check reaches the network, so the preference starts off (the
+     updates section turns it on, with fetch stubbed) */
+  fs.mkdirSync(config, {recursive: true});
+  fs.writeFileSync(path.join(config, 'preferences.odex'), 'version 4\npreferences {\n  check_for_updates: false,\n}\n');
+  return {...process.env, XPP_CONFIG_DIR: config};
 }
 
 /* xppautX in browser mode (--browser, not its desktop window) in `dir` with `args` (the model and its options);

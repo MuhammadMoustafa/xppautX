@@ -28,7 +28,8 @@ test('W106: a parameter or numerics edit during a computation is sent at once an
   const {s, sent, ev} = session();
   ev(HELLO);
   ev({ev: 'session.state', sliders: [], pars: [['iapp', 0.05]], ics: [], bcs: []});
-  ev({ev: 'done', status: 'ok'});
+  ev({ev: 'done', status: 'ok'}); /* the subscription's */
+  ev({ev: 'done', status: 'ok', result: {due: false}}); /* W622: the opening's update question's */
   s.send({cmd: 'run.initial'});
   ev({ev: 'job.computing'});
   sent.length = 0;
@@ -64,4 +65,24 @@ test('W106: an autoX settings edit during a run is sent at once, shown until its
   assert.equal(shownSettings(s.store.getState().autoxSettings)!.numerics.max_steps, 25);
   ev({ev: 'done', status: 'ok'});
   assert.equal(shownSettings(s.store.getState().autoxSettings)!.numerics.max_steps, 25);
+});
+
+test('W622: the opening asks whether an update check is due; a due one that fails tells the core, shows nothing', async () => {
+  const {sent, ev, s} = session();
+  ev({...HELLO, about: [[{text: 'xppautX v0.1.0'}]]});
+  assert.deepEqual(sent.map(c => c.cmd), ['events.subscribe', 'updates.due'], 'the question follows the subscription');
+  const fetched: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (url: string) => { fetched.push(url); return new Response('unavailable', {status: 503}); }) as typeof fetch;
+  try {
+    ev({ev: 'done', status: 'ok', result: {due: false}});
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.deepEqual(fetched, [], 'not due: no request');
+    ev({ev: 'done', status: 'ok', result: {due: true}});
+    for (let i = 0; i < 50 && !sent.some(c => c.cmd === 'updates.report_failure'); i++) await new Promise(resolve => setTimeout(resolve, 0));
+  } finally { globalThis.fetch = original; }
+  assert.equal(fetched.length, 1);
+  assert.ok(sent.some(c => c.cmd === 'updates.report_failure' && String(c.reason).includes('HTTP 503')), 'the core is told why at INFO');
+  assert.equal(s.store.getState().updateNotice, null);
+  assert.equal(s.store.getState().toasts.length, 0, 'nothing is shown');
 });

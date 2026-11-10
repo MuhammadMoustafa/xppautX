@@ -84,6 +84,7 @@ h1, h2 { margin: 0; }
 @keyframes status-flash { from { opacity: 0.45; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .status-flash { animation-duration: 0.01s; } }
 .status-message { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.update-notice { flex: none; white-space: nowrap; }
 .status-dot { flex: none; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--fg-muted); }
 .status-dot.up { background: var(--ok); }
 .status-dot.busy { background: var(--warn); }

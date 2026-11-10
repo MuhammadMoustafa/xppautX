@@ -120,6 +120,8 @@ export interface AppState {
   box: string;
   progress: {n: number; of: number} | null;
   bottom: string;
+  /** the newer release the opening's check found (W622), shown as a quiet notice in the status bar; null until one is found */
+  updateNotice: string | null;
   bottomHelp: {chapter: string; anchor: string} | null;
   title: string;
   /** the plot windows, each with its series and zoom, and the active one (store/plots.ts) */
@@ -229,6 +231,7 @@ export type Action =
   | {type: 'keymapUi'; action: KeymapAction}
   /** the page's own line in the status bar (a key that cannot act now says why) */
   | {type: 'bottom'; text: string}
+  | {type: 'updateNotice'; text: string | null}
   | {type: 'theme'; theme: Theme}
   | {type: 'panels'; panels: Partial<Panels>}
   | {type: 'values'; action: ValuesAction}
@@ -262,6 +265,7 @@ export const initialState: AppState = {
   box: '',
   progress: null,
   bottom: '',
+  updateNotice: null,
   bottomHelp: null,
   title: '',
   plots: initialPlots,
@@ -688,6 +692,8 @@ function reduceAction(state: AppState, action: Action): AppState {
       return {...state, toasts: state.toasts.filter(t => t.id !== action.id)};
     case 'bottom':
       return {...state, bottom: action.text, bottomHelp: null};
+    case 'updateNotice':
+      return {...state, updateNotice: action.text};
     case 'steadyEdit':
       return {...state, steadyEdit: action.edit};
     case 'keymapUi': {

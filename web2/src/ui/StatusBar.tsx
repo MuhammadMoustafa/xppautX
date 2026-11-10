@@ -4,6 +4,7 @@
 import {busyText} from '../store/state';
 import {useSession, useStore} from './context';
 import {CommandLabel} from './CommandButton';
+import {requestUpdateCheck} from '../help/updates';
 import {HelpButton} from './HelpButton';
 import {Messages} from './Messages';
 
@@ -24,6 +25,7 @@ export function StatusBar() {
   const bottom = useStore(s => s.bottom);
   const help = useStore(s => s.bottomHelp);
   const flash = useStore(s => s.flash);
+  const update = useStore(s => s.updateNotice);
   const rows = useStore(s => s.core?.rows ?? 0);
   const status = connectionText(connected, exited) ?? (stopping ? 'Stopping…' : busy ? busyText(running, asking) : 'Ready');
   const dot = exited !== null ? 'down' : !connected ? '' : busy ? 'busy' : 'up';
@@ -34,6 +36,9 @@ export function StatusBar() {
       <span class={`status-dot ${dot}`} aria-hidden="true" />
       <span role="status" data-testid="status">{status}</span>
       <span class="status-message">{bottom} {help && <HelpButton target={help} label=".odex models" />}</span>
+      {/* W622: the opening's check found a newer release: a quiet notice, never a dialog; the button shows it in the update dialog */}
+      {update && <button class="small update-notice" data-update-notice onClick={requestUpdateCheck}
+        title="A newer release is out: show it">{update}</button>}
       <Messages />
       <span class="muted rows">{rows} rows</span>
       {/* W83: a fixed-width slot the bar always keeps (css/layout.css .status-run), so
