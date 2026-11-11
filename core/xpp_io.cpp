@@ -404,7 +404,15 @@ bool TokenReader::skip_line() noexcept
 {
     if (!state_ || !state_->has_input()) return false;
     int c;
-    while ((c = state_->get()) != EOF)
+    if (state_->text_mode) {
+        while ((c = state_->get()) != EOF)
+            if (c == '\n') return true;
+        return false;
+    }
+    /* a file is locked once and read without the lock per character (as read_line does): autoX's label search skips
+       every line of a session's solutions this way, megabytes after a few runs (W701) */
+    const StreamLock held(state_->fp());
+    while ((c = get_char_locked(state_->fp())) != EOF)
         if (c == '\n') return true;
     return false;
 }
