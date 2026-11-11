@@ -159,6 +159,9 @@ struct Generator {
     /* the function being written: the pure calls already made at its top
        level, by their C text, each held in a temporary (pure_call) */
     std::unordered_map<std::string, Node> calls_made;
+    /* the right-hand side's programs whose function the one right-hand-side
+       function calls (rhs_value), each with its symbol */
+    std::map<const Program *, std::string> called;
     /* an index over calls_made, so a variable's write finds the calls that
        may read it without scanning them all (W559): each call's text by
        the variables it names as v[k] or reaches through a pure user
@@ -542,18 +545,34 @@ struct Generator {
         }
     }
 
+    /* The right-hand side's program p's value in the function being
+       written: the function already compiled for it (W703: called when it has
+       a sum, whose run is long beside the call, and so not written and
+       compiled twice), else p written inline, so a math call
+       two programs make on the same values is made once. A call is a
+       statement, as an effect is: it forgets the calls made. A program
+       that is not dynamic reads no R. */
+    Result<Node> rhs_value(const Program &p)
+    {
+        const auto function = called.find(&p);
+        if (function == called.end()) return value(p.rpn, 0, false);
+        forget_calls();
+        return statement(xpp::format("{}(c,v,S,0)", function->second));
+    }
+
     /* One C function, name, for the right-hand side in its order: each
        fixed program's value written into its variable, first and on, as
        fixed_values (my_rhs.cpp) sets them one by one (W468), then, when
        the caller gives o, each equation's value into o[i], as
        equation_values does (W469); so a math call two of them make on the
        same values is made once. Writing a variable forgets the calls whose
-       text may read it (forget_calls_reading); nothing reads o. */
+       text may read it (forget_calls_reading); nothing reads o. The
+       programs in called are called, not written (rhs_value). */
     Result<> rhs(std::span<const Program> fixed, int first, std::span<const Program> equations, std::string_view name)
     {
         begin();
         for (size_t i = 0; i < fixed.size(); ++i) {
-            const auto result = value(fixed[i].rpn, 0, false);
+            const auto result = rhs_value(fixed[i]);
             if (!result) return std::unexpected(result.error());
             const int variable = first + static_cast<int>(i);
             out.push_back(xpp::format("v[{}]={};", variable, result->text));
@@ -561,7 +580,7 @@ struct Generator {
         }
         if (!equations.empty()) out.push_back("if(!o)return;");
         for (size_t i = 0; i < equations.size(); ++i) {
-            const auto result = value(equations[i].rpn, 0, false);
+            const auto result = rhs_value(equations[i]);
             if (!result) return std::unexpected(result.error());
             out.push_back(xpp::format("o[{}]={};", i, result->text));
         }
@@ -847,6 +866,7 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
         }
         entry.code->array_pure=entry.user_index<0 && g.array_pure;
         if (entry.user_index<0) entry.code->native_reads.assign(g.variable_reads.begin(),g.variable_reads.end());
+        if (g.loops>0 && entry.user_index<0) g.called.emplace(entry.code,entry.symbol);
         emitted.push_back(&entry);
     }
     /* the fixed variables and the equations once more, as one function
