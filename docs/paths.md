@@ -27,6 +27,7 @@ Checkouts: the Ubuntu machine's is `/home/muhammad/muhammad/git_repos/xppautX`
 | The kit: drivers, report script, how to run | `paper/benchmarks/comparison/` (`run.py`, `final_report.py`, `README.md`) |
 | The rerun plan (local) | `paper/benchmarks/rerun-plan.md` |
 | **The frozen final run (local, Ubuntu)** | `~/xppautx-comparison/final/` (one folder per study: `screen`, `continuation`, `python`, `scaling`, `large-stiff`, ...; `status.json`) |
+| **W617's final run (local, Ubuntu)** | `~/xppautx-comparison/w617-final/` (composed: `status.json` maps each study to its attempt folder in `~/xppautx-comparison/w617/` and `w617-rerun/` (continuation, large-stiff), `<study>/attempt-001` links to it; `extra-runs/`: w591 = the frozen rows with xppautX's rerun on its binary, W594, the rest linked to `final/`); binary `~/xppautx-comparison/build/xppautX-5975912bc81b/xppautX`; report `paper/benchmarks/results/report-w617/report.html` (main checkout) |
 | The binaries it ran (local, Ubuntu) | `~/xppautx-comparison/build/` (`xppautX-<commit>`, `xppaut-8.0`, `auto-07p`) |
 | **The latest report (local)** | `paper/benchmarks/results/report-20261102/report.html` (W589; its data `data/report.json`, figures `figures/paper/`, `figures/appendix/`) |
 | Earlier reports (local) | `paper/benchmarks/results/report-<date>/` |

@@ -135,10 +135,10 @@ class GateAgreement(unittest.TestCase):
         self.assertIn('XPPAUT 8.0 on every paired run (2)', title)
         self.assertIn('AUTO-07p on 1 of 2 paired runs', title)
 
-    @unittest.skipUnless((Path.home() / 'xppautx-comparison/w617/status.json').exists(),
+    @unittest.skipUnless((Path.home() / 'xppautx-comparison/w617-final/status.json').exists(),
                          'the W617 run data is local; synthetic gate projections run on every machine')
     def test_every_frozen_cell_matches_its_gate(self):
-        data = compute(Path.home() / 'xppautx-comparison/w617')
+        data = compute(Path.home() / 'xppautx-comparison/w617-final')
         cells, gates = data['agreement'], data['gates']
         self.assertEqual(len(cells), 292)
         for cell in cells:
