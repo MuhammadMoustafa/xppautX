@@ -23,6 +23,9 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
   a yes. Codex is a full pool, not a fallback: a card goes to the pool with room,
   and a proposal that names no Codex card says why (maintainer, 2026-10-31: a
   batch of eight Claude cards was started with Codex at 20% of its week).
+  Cards the coordinator opens from its own findings start at once, the limits
+  read and a note of what started where in place of the proposal (maintainer,
+  2026-11-10: "the cards you open start them").
   (skills: task-board, task-ladder)
 - Pack cards when it saves time (maintainer, 2026-10-14): ready cards that
   suit one agent (small, the same files or area, the same gates) go to one
