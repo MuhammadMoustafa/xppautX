@@ -1,11 +1,11 @@
 #!/usr/bin/env -S uv run --locked python
 """W589: offline W583 comparison report and paper figures, computed once.
 
-uv run --locked python paper/benchmarks/comparison/final_report.py --final ~/xppautx-comparison/final --out DIR
+uv run --locked python paper/benchmarks/comparison/final_report.py --final ~/xppautx-comparison/w617-units --out DIR
 
 Readers consolidate report-20261031/scripts/{load,tables,labels}.py and
 report-20261101/scripts/w557_load.py. No historical report is imported.
-Only reads the frozen series; never runs a benchmark. Times are whole-process
+Only reads a run.py results folder (per-unit records, W699); never runs a benchmark. Times are whole-process
 wall seconds (continuation: one branch run), excluding repetition zero.
 """
 import argparse
@@ -24,8 +24,8 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
 import continuation
-from common import save
-from integration import effective_numerics, screen
+from common import DONE, STUDIES, done_attempts, save
+from integration import SCALING_CASES, effective_numerics, scaling_costs, screen
 
 # Okabe-Ito colours; identities stay fixed across every renderer and panel.
 COLORS = {'xppautx': '#0072B2', 'xppaut': '#D55E00', 'auto07p': '#CC79A7', 'python': '#009E73'}
@@ -122,22 +122,33 @@ def method_of(study, workload, engine=''):
     raise ValueError('no method encoded by study/workload: ' + study + '/' + workload)
 
 
-def summary_rows(folder, study):
+def pooled(folders, name):
+    # A study's rows: its units' own files, one after another (a unit has its own folder, W699).
+    return [row for f in folders if (f / name).exists() for row in read(f / name)]
+
+
+def found(folders, pattern):
+    # (a unit's folder, a path in it) for every match, in unit order.
+    return [(f, p) for f in folders for p in sorted(f.glob(pattern))]
+
+
+def summary_rows(folders, study):
     """Headline rows only, as the historical load_csv; sweeps have their own JSON."""
-    runs = read(folder / 'runs.json')
+    runs = pooled(folders, 'runs.json')
     samples = defaultdict(list)
     for r in runs:
         if r['repetition'] > 0 and r.get('equal_work') and r.get('wall_seconds') is not None:
             samples[(r['workload'], r['engine'], r['row'])].append(r['wall_seconds'])
     out = []
     methods = {}
-    for r in read(folder / 'summary.json'):
+    for r in pooled(folders, 'summary.json'):
         if r.get('sweep') or r['row'] != 'run':
             continue
         times = samples[(r['workload'], r['engine'], r['row'])]
         if study in INTEGRATION and study != 'python':
             if r['workload'] not in methods:
-                methods[r['workload']] = effective_numerics(folder / 'models' / (r['workload'] + '.odex')).method
+                model = next(f for f in folders if (f / 'models' / (r['workload'] + '.odex')).exists()) / 'models' / (r['workload'] + '.odex')
+                methods[r['workload']] = effective_numerics(model).method
             method = methods[r['workload']]
         else:
             method = method_of(study, r['workload'], r['engine'])
@@ -150,51 +161,55 @@ def summary_rows(folder, study):
     return out
 
 
-def exceptions(folders):
-    """The ten historical groups, derived from records (not a list of reasons)."""
+def exceptions(folders, final):
+    """The ten historical groups, derived from records (not a list of reasons); a source is named from the results folder."""
     result = []
 
     def add(study, workloads, programs, reasons, sources):
         result.append(dict(study=study, workloads=workloads, programs=programs,
                            reason='; '.join(dict.fromkeys(reasons)), sources=sources))
 
-    p = folders['python']
-    for path in sorted((p / 'diverged').glob('*.json')):
+    def source(path):
+        return str(path.relative_to(final))
+
+    for _, path in found(folders['python'], 'diverged/*.json'):
         d = read(path)
         add('python', [d['workload']], list(d['last_log_line']),
-            [d['note'], *[k + ': ' + v for k, v in d['last_log_line'].items()]], [str(path.relative_to(p))])
-    for path in sorted((p / 'ladder').glob('*.json')):
+            [d['note'], *[k + ': ' + v for k, v in d['last_log_line'].items()]], [source(path)])
+    for _, path in found(folders['python'], 'ladder/*.json'):
         d = read(path)
         if d['never']:
-            add('python', [d['workload']], d['never'], [d['note']], [str(path.relative_to(p))])
-    paths = sorted((folders['scaling'] / 'models').glob('*/unavailable.json'))
-    add('scaling', [p.parent.name for p in paths], ['xppaut'],
-        [read(p)['xppaut'] for p in paths], [str(p.relative_to(folders['scaling'])) for p in paths])
+            add('python', [d['workload']], d['never'], [d['note']], [source(path)])
+    paths = [p for _, p in found(folders['scaling'], 'models/*/unavailable.json')]
+    add('scaling', [p.parent.name for p in paths], ['xppaut'], [read(p)['xppaut'] for p in paths], [source(p) for p in paths])
     c = folders['continuation']
-    paths = sorted(c.glob('*/*/pilot-xppaut-not-gated.json'))
-    add('continuation', [str(p.parent.relative_to(c)) + '/' + r['name'] for p in paths
-                         for r in read(p.parent / 'description.json')['runs']], ['xppaut'],
-        [read(p)['reason'] for p in paths], [str(p.relative_to(c)) for p in paths])
-    paths = sorted(c.glob('*/*/pilot-xppaut-unsupported.json'))
-    add('continuation', [str(p.parent.relative_to(c)) + '/' + r['name'] for p in paths
+
+    def workload_of(f, path):
+        return str(path.parent.relative_to(f))  # the unit's name and mode
+
+    paths = found(c, '*/*/pilot-xppaut-not-gated.json')
+    add('continuation', [workload_of(f, p) + '/' + r['name'] for f, p in paths for r in read(p.parent / 'description.json')['runs']],
+        ['xppaut'], [read(p)['reason'] for _, p in paths], [source(p) for _, p in paths])
+    paths = found(c, '*/*/pilot-xppaut-unsupported.json')
+    add('continuation', [workload_of(f, p) + '/' + r['name'] for f, p in paths
                          for r in read(p.parent / 'description.json')['runs'] if r['kind'] == 'homoclinic'],
-        ['xppaut'], [read(p)['reason'] for p in paths], [str(p.relative_to(c)) for p in paths])
+        ['xppaut'], [read(p)['reason'] for _, p in paths], [source(p) for _, p in paths])
     # Missing cycle-fold runs are visible in the saved reference; the tracked
     # driver owns and documents the refusal reason (the historical report did
     # the same, rather than pretending an omitted pilot had a failure message).
-    paths = sorted(c.glob('ode_mu26_blocked/*/pilot-xppaut/reference.json'))
+    paths = found(c, 'ode_mu26_blocked/*/pilot-xppaut/reference.json')
     omitted = []
-    for path in paths:
+    for f, path in paths:
         d = read(path.parent.parent / 'description.json')
         present = {r['name'] for r in read(path)['runs']}
-        omitted += [str(path.parent.parent.relative_to(c)) + '/' + r['name'] for r in d['runs']
+        omitted += [workload_of(f, path.parent) + '/' + r['name'] for r in d['runs']
                     if r['name'].startswith('lpc_') and r['name'] not in present]
     reason = next(line.strip().strip('"') for line in (HERE / 'continuation.py').read_text().splitlines() if 'past 600 s each' in line)
     add('continuation', omitted, ['xppaut'], [reason],
-        [str(p.relative_to(c)) for p in paths] + ['comparison/continuation.py: description_for'])
-    skips = [(p, r) for p in sorted(c.glob('*/*/description.json')) for r in read(p)['runs'] if r.get('skip')]
-    add('continuation', [str(p.parent.relative_to(c)) + '/' + r['name'] for p, r in skips],
-        ['xppautx', 'xppaut'], [r['skip'] for _, r in skips], [str(p.relative_to(c)) for p, _ in skips])
+        [source(p) for _, p in paths] + ['comparison/continuation.py: description_for'])
+    skips = [(f, p, r) for f, p in found(c, '*/*/description.json') for r in read(p)['runs'] if r.get('skip')]
+    add('continuation', [workload_of(f, p) + '/' + r['name'] for f, p, r in skips],
+        ['xppautx', 'xppaut'], [r['skip'] for _, _, r in skips], [source(p) for _, p, _ in skips])
     if len(result) != UNEQUAL_GROUPS or any(not e['workloads'] or not e['reason'] for e in result):
         raise ValueError('frozen series no longer matches the ten historical unequal-work groups')
     return result
@@ -311,11 +326,21 @@ def agreement(folder):
     return cells, gates
 
 
+def agreements(folders):
+    # agreement() of each continuation unit: a gate is named from its unit's folder (workload/mode/file), which is unique.
+    cells, gates = [], {}
+    for folder in folders:
+        more_cells, more_gates = agreement(folder)
+        cells += more_cells
+        gates.update(more_gates)
+    return cells, gates
+
+
 def compute(final):
-    status = read(final / 'status.json')
-    folders = {s: Path(v['out']) for s, v in status['studies'].items()}
-    unequal = exceptions(folders)
-    rows = [r for s, p in folders.items() if s not in ('terman', 'large-stiff') for r in summary_rows(p, s)]
+    studies = {s: done_attempts(final, s) for s in STUDIES}  # {study: {unit: its done attempt's folder}}
+    folders = {s: list(units.values()) for s, units in studies.items()}
+    unequal = exceptions(folders, final)
+    rows = [r for s, fs in folders.items() if s not in ('terman', 'large-stiff') for r in summary_rows(fs, s)]
     groups = defaultdict(list)
     for r in rows:
         groups[(r['study'], r['workload'], r['method'])].append(r)
@@ -325,7 +350,7 @@ def compute(final):
             methods = ('fd',) if e['study'] == 'continuation' else (method_of(e['study'], w),)
             for m in methods:
                 groups.setdefault((e['study'], w, m), [])
-    labels, gates = agreement(folders['continuation'])
+    labels, gates = agreements(folders['continuation'])
     for cell in labels:
         groups.setdefault(('continuation', cell['workload'], cell['method']), [])
     label_keys = {(c['workload'], c['method'], c['program']) for c in labels}
@@ -356,7 +381,7 @@ def compute(final):
     matched = equal_work_matches(overview)
     curves = []
     for study in INTEGRATION:
-        for path in sorted((folders[study] / 'work-precision').glob('*.json')):
+        for _, path in found(folders[study], 'work-precision/*.json'):
             d = read(path)
             baseline = next(r for r in overview if r['study'] == study and r['workload'] == d['workload'])['cells']['xppautx']['row']
             target, base = baseline['error'], baseline['time']
@@ -370,20 +395,20 @@ def compute(final):
                                                         low=p['low'] / baseline['high'], high=p['high'] / baseline['low']) for p in pts]
                                        if target and target > 0 else []))
     large = []
-    with (folders['large-stiff'] / 'results/summary.csv').open(newline='') as stream:
+    with (studies['large-stiff']['measure'] / 'summary.csv').open(newline='') as stream:
         for r in csv.DictReader(stream):
             large.append({k: (v if k in ('family', 'solver') else float(v)) for k, v in r.items()})
     # Audit includes ready rows and excluded/untimed samples, without rendering
     # pilot/warm-up wall times as performance measurements.
-    audit = {s: read(p / 'summary.json') for s, p in folders.items() if (p / 'summary.json').exists()}
-    terman = {name: read(folders['terman'] / (name + '.json')) for name in ('acceptance', 'convergence', 'saved-readouts')}
+    audit = {s: pooled(fs, 'summary.json') for s, fs in folders.items() if s not in ('terman', 'large-stiff') and any((f / 'summary.json').exists() for f in fs)}
+    terman = {name: read(studies['terman']['episodic'] / (name + '.json')) for name in ('acceptance', 'convergence', 'saved-readouts')}
     inventory = [dict(study=r['study'], workload=r['workload'], model=r['model'], method=r['method']) for r in overview]
     inventory += [dict(study='large-stiff', workload=r['family'] + str(int(r['n'])), model=r['family'], method=r['solver']) for r in large]
     inventory.append(dict(study='terman', workload='episodic', model='episodic', method='acceptance'))
     return dict(screen_tolerance=dict(atol=screen.ATOL, rtol=screen.RTOL, timing_fraction=screen.TIMING_FRACTION),
-                status=status, inventory=inventory, overview=overview, rows=rows, matched=matched, curves=curves, unequal=unequal,
+                units={s: {u: read(f.parent / DONE) for u, f in units.items()} for s, units in studies.items()}, inventory=inventory, overview=overview, rows=rows, matched=matched, curves=curves, unequal=unequal,
                 agreement=labels, large_stiff=large, audit=audit, terman=terman,
-                gates=gates, scaling_cost=read(folders['scaling'] / 'cost-per-time.json'))
+                gates=gates, scaling_cost=scaling_costs(pooled(folders['scaling'], 'runs.json'), json.loads(SCALING_CASES.read_text())))
 
 
 def equal_work_matches(overview):

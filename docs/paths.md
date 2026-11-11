@@ -24,10 +24,10 @@ Checkouts: the Ubuntu machine's is `/home/muhammad/muhammad/git_repos/xppautX`
 
 | What | Path |
 |---|---|
-| The kit: drivers, report script, how to run | `paper/benchmarks/comparison/` (`run.py`, `final_report.py`, `README.md`) |
+| The kit: drivers, report script, how to run | `paper/benchmarks/comparison/` (`run.py`, `final_report.py`, `watch.py`, `README.md`); a results folder is per unit: `<study>/<unit>/attempt-NNN/` and `done.json` (W699) |
 | The rerun plan (local) | `paper/benchmarks/rerun-plan.md` |
-| **The frozen final run (local, Ubuntu)** | `~/xppautx-comparison/final/` (one folder per study: `screen`, `continuation`, `python`, `scaling`, `large-stiff`, ...; `status.json`) |
-| **W617's final run (local, Ubuntu)** | `~/xppautx-comparison/w617-final/` (composed: `status.json` maps each study to its attempt folder in `~/xppautx-comparison/w617/` and `w617-rerun/` (continuation, large-stiff), `<study>/attempt-001` links to it; `extra-runs/`: w591 = the frozen rows with xppautX's rerun on its binary, W594, the rest linked to `final/`); binary `~/xppautx-comparison/build/xppautX-5975912bc81b/xppautX`; report `paper/benchmarks/results/report-w617/report.html` (main checkout) |
+| **The frozen final run (local, Ubuntu)** | `~/xppautx-comparison/final/` (the old per-study layout: one folder per study with `attempt-001` and `status.json`; its committed report stays, the report script no longer reads this layout) |
+| **W617's final run (local, Ubuntu)** | `~/xppautx-comparison/w617-units/` (the same data in the per-unit layout `<study>/<unit>/attempt-001` with `done.json`, symlinks into the folders below, converted once by a script that is not kept; what `tools/test_final_report.py` and `final_report.py --final` read; `extra-runs/` and `overlays/` as in `w617-final/`); `~/xppautx-comparison/w617-final/` (composed: `status.json` maps each study to its attempt folder in `~/xppautx-comparison/w617/` and `w617-rerun/` (continuation, large-stiff); `extra-runs/`: w591 = the frozen rows with xppautX's rerun on its binary, W594, the rest linked to `final/`); binary `~/xppautx-comparison/build/xppautX-5975912bc81b/xppautX`; report `paper/benchmarks/results/report-w617/report.html` (main checkout) |
 | The binaries it ran (local, Ubuntu) | `~/xppautx-comparison/build/` (`xppautX-<commit>`, `xppaut-8.0`, `auto-07p`) |
 | **The latest report (local)** | `paper/benchmarks/results/report-20261102/report.html` (W589; its data `data/report.json`, figures `figures/paper/`, `figures/appendix/`) |
 | Earlier reports (local) | `paper/benchmarks/results/report-<date>/` |

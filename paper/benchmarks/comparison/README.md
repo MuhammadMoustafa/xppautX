@@ -3,12 +3,14 @@
 From the checkout root:
 
 ```sh
-uv run --locked python paper/benchmarks/comparison/final_report.py --final ~/xppautx-comparison/final --out paper/benchmarks/results/report-20261102
+uv run --locked python paper/benchmarks/comparison/final_report.py --final ~/xppautx-comparison/w617-units --out paper/benchmarks/results/report-w617
 uv run --locked python tools/test_final_report.py
 ```
 
 W589 (#654) reads the W583 frozen series without changing it or running a
-benchmark. It reads the study folders named by `status.json` directly. The
+benchmark. It reads the per-unit records of a run.py results folder directly
+(`<study>/<unit>/done.json` names the attempt each unit's data is in; no composed
+folder). The
 output must be outside the input tree. The HTML inlines the supplied Plotly
 3.3.1 (MIT; notice and license beside the script), data and scripts; the copied
 overlay PNGs are its companion assets. No git-ignored report or extra package
@@ -65,3 +67,30 @@ The tracked continuation owner documents the 600 s cycle-fold omission.
 Historical issues/candidates are retained in `final_report_history.json`, with
 recorded issue titles/status from `docs/roadmap.md`. Pilot-only setup/inherited
 descriptions remain labelled as untimed evidence; no timing is inferred.
+
+# Running the comparison (W699)
+
+```sh
+uv run --locked python paper/benchmarks/comparison/run.py --out OUT --xppautx X --xppaut P --auto-dir A --worker W [--reuse EARLIER] [--study S] [--only UNITS] [--plan]
+uv run --locked python paper/benchmarks/comparison/watch.py OUT
+```
+
+One workload is the unit, each run on its own, one after another: `OUT/<study>/<unit>/attempt-NNN/` (the driver's output for that
+workload alone), `attempt-NNN.log`, `.machine.json`, `.failure.json` and, once an attempt finished, `done.json` (attempt, binaries,
+commit, the rows' reuse keys). The units of a study are what its driver prints for `--list` (a model; a model and method; a size
+and duration; a continuation description, P1's fixed step apart; Terman's `episodic`; large-stiff's `pilot`, `measure`, `cache`).
+Drivers take `--only UNIT` (a unit's name, or its model's), `--list` and `--plan`.
+
+- **Plan first.** Before any timed unit run.py plans every unit: the driver's `--plan --reuse <the unit's newest attempt, else the
+  same unit of --reuse's folder>` writes `plan.json` (what is imported, what would run, by the rows' own keys of W452 and W575),
+  nothing timed. A plan that raises stops the run, so a reuse-path bug shows in minutes; `--plan` alone does only this.
+- **Resume.** The same command again: a unit with a done record and a plan that runs nothing is skipped; a unit a driver fix
+  changed runs again in the same folder (a new attempt importing its unchanged rows). No folder-wide signature: the keys decide.
+- **A failure is a unit's.** Its attempt keeps `attempt-NNN.failure.json`; the run goes on; the end lists every failed unit and
+  exits non-zero. A study's set-up failing (Terman's convergence for the Terman network and its python methods, large-stiff's
+  `pilot` for `measure` and `cache`) fails those units only.
+- **The protocol is unchanged**: repetition order inside a workload, warm-ups, drift checks, `comparison-setup.sh --ready` before
+  each timed unit. Large-stiff's drift calibration brackets all of `measure`'s cases, so `measure` stays one unit (isolating its
+  cases would change what the drift covers); `pilot` and `measure` are separate, so a measurement fix never repeats the pilot.
+- The planned limits: T1's and T2's sized modes (`adaptive-repeat-N`, `adaptive-sized`) are planned from their first mode, so
+  their plan runs the pilots again on a resume.

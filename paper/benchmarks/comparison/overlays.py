@@ -22,7 +22,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from common import TOOLS, save  # puts tools/ on sys.path
+from common import TOOLS, done_attempts, save  # puts tools/ on sys.path
 import autoxcompare
 from odex_model import Odex
 
@@ -206,11 +206,11 @@ def integration_jobs(series, only=None, extra=None):
     """(study, workload label, xppautX's output, [(program, output)]) of every trajectory the series kept, and skip notes."""
     jobs, skipped = [], []
     for study in (*STUDIES, 'python'):
-        runs = series / study / 'attempt-001' / 'runs'
-        if not runs.is_dir():
+        workloads = sorted(p for f in done_attempts(series, study).values() if (f / 'runs').is_dir() for p in (f / 'runs').iterdir())
+        if not workloads:
             skipped.append((study, 'no runs folder'))
             continue
-        for folder in sorted(runs.iterdir()):
+        for folder in workloads:
             run = folder / '0'
             base = run / 'xppautx' / 'run' / 'output.dat'
             if not base.exists():
@@ -229,8 +229,7 @@ def integration_jobs(series, only=None, extra=None):
             else:
                 skipped.append((study + '/' + folder.name, 'no other program ran it'))
         if study == 'python':  # the ladder's finest rung: every program at the tolerance of the last rung
-            ladder = series / study / 'attempt-001' / 'ladder'
-            for folder in sorted(p for p in ladder.iterdir() if p.is_dir()) if ladder.is_dir() else []:
+            for folder in sorted(p for f in done_attempts(series, study).values() if (f / 'ladder').is_dir() for p in (f / 'ladder').iterdir() if p.is_dir()):
                 rungs = sorted((r for r in folder.iterdir() if r.is_dir() and r.name != 'reference'), key=lambda r: float(r.name))
                 if not rungs:
                     continue
@@ -241,14 +240,14 @@ def integration_jobs(series, only=None, extra=None):
                     jobs.append(('python-ladder', '%s@tolerance-%s' % (folder.name, finest.name), base, found))
                 else:
                     skipped.append(('python-ladder/' + folder.name, 'no complete finest rung'))
-    terman = series / 'terman' / 'attempt-001' / 'convergence'
+    terman = done_attempts(series, 'terman')['episodic'] / 'convergence'
     for folder in sorted(terman.iterdir()) if terman.is_dir() else []:
         base, other = folder / 'xppautx' / 'output.dat', folder / 'xppaut' / 'output.dat'
         if base.exists() and other.exists():
             jobs.append(('terman', folder.name, base, [('xppaut', other)]))
         else:
             skipped.append(('terman/' + folder.name, 'xppautX or XPPAUT output.dat missing'))
-    stiff = series / 'large-stiff' / 'attempt-001' / 'results' / 'runs'
+    stiff = done_attempts(series, 'large-stiff')['measure'] / 'runs'
     for folder in sorted(stiff.iterdir()) if stiff.is_dir() else []:
         base = folder / '0-klu' / 'trajectory.dat'
         found = [(s, folder / ('0-' + s) / 'trajectory.dat') for s in ('gmres', 'legacy-band', 'legacy-dense')
@@ -271,7 +270,7 @@ def integration(series, out, manifest, skipped, only, extra=None):
             entry['figure'] = str(figure.relative_to(out))
             manifest.append(entry)
             print('integration', entry['workload'], 'alone', flush=True)
-        stopped = study == 'python' and (series / 'python/attempt-001/diverged' / (workload + '.json')).exists()
+        stopped = study == 'python' and any((f / 'diverged' / (workload + '.json')).exists() for f in done_attempts(series, 'python').values())
         for program, path in others:
             entry = dict(study=study, workload='%s/%s' % (study, workload), kind='integration')
             figure = out / 'integration' / study / ('%s__%s.png' % (safe(workload), program))
@@ -416,8 +415,8 @@ def usable(ref):
     return ref is not None and 'unavailable' not in ref and len(ref.get('curve', [])) >= 2
 
 
-def continuation(attempt, out, manifest, skipped, extra=None):
-    for wdir in sorted(p for p in attempt.iterdir() if p.is_dir() and p.name != 'models'):
+def continuation(series, out, manifest, skipped, extra=None):
+    for wdir in sorted(p for f in done_attempts(series, 'continuation').values() for p in f.iterdir() if p.is_dir() and p.name != 'models'):
         for mdir in sorted(p for p in wdir.iterdir() if (p / 'description.json').exists()):
             label = '%s/%s' % (wdir.name, mdir.name)
             desc = json.loads((mdir / 'description.json').read_text())
@@ -469,8 +468,7 @@ def continuation(attempt, out, manifest, skipped, extra=None):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--series', type=Path, required=True, help='the series folder holding the integration studies (screen, modeldb, ...)')
-    p.add_argument('--continuation', type=Path, required=True, help="the continuation attempt folder")
+    p.add_argument('--series', type=Path, required=True, help='the results folder: <study>/<unit>/ with each unit\'s done record (run.py)')
     p.add_argument('--out', type=Path, required=True)
     p.add_argument('--extra', type=Path, help="extra_runs.py's folder: untimed reruns that supply the data a program has none of in the series")
     p.add_argument('--only', help='comma-separated integration studies (screen, python, terman, large-stiff, ...) or "continuation"')
@@ -481,7 +479,7 @@ def main():
     if only is None or only - {'continuation'}:
         integration(a.series.resolve(), a.out.resolve(), manifest, skipped, only, extra)
     if only is None or 'continuation' in only:
-        continuation(a.continuation.resolve(), a.out.resolve(), manifest, skipped, extra)
+        continuation(a.series.resolve(), a.out.resolve(), manifest, skipped, extra)
     save(a.out / 'manifest.json', dict(figures=manifest, skipped=skipped))
     print('%d figures, %d skipped' % (len(manifest), len(skipped)))
     for s in skipped:

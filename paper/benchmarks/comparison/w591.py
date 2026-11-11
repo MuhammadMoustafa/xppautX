@@ -2,7 +2,7 @@
 """W591 (#657): peak resident memory of each program on the comparison's workloads, untimed.
 
     w591.py integration --final F --out O   # every integration row of the frozen series: its run and its one-step (ready) row
-    ... --programs xppautx   # only these programs' rows (W594: xppautX alone on a newer binary; F's status.json names each study's attempt)
+    ... --programs xppautx   # only these programs' rows (W594: xppautX alone on a newer binary; F is a results folder, run.py's)
     w591.py continuation --xppautx X --xppaut P --auto-dir A --out O   # each timed continuation workload, the three programs
 
 The integration rows are the frozen series' own: each row's folder keeps the inputs and command.json the timed run used, so the same
@@ -28,7 +28,7 @@ import subprocess
 import sys
 import tempfile
 
-from common import REPO, environment, save, short_home
+from common import REPO, done_attempts, environment, save, short_home
 from comparison_measure import run_foreground
 import auto_reference as reference
 import autoxcompare as comparison
@@ -68,17 +68,16 @@ def replay(row, scratch):
         shutil.rmtree(folder)
 
 
-def attempt(final, study):
-    """The folder of the study's attempt that status.json names (a composed folder maps each study to its real attempt)."""
-    return Path(json.loads((final / 'status.json').read_text())['studies'][study]['out'])
+def pooled_summary(units):
+    return [r for f in units for r in json.loads((f / 'summary.json').read_text())]
 
 
 def rows(final, programs):
     found = []
     for study in STUDIES:
-        base = attempt(final, study)
-        timed = {(r['workload'], r['engine']): r.get('wall_seconds_mean') for r in json.loads((base / 'summary.json').read_text()) if r['row'] == 'run' and not r.get('sweep')}
-        for workload in sorted((base / 'runs').iterdir()):
+        units = done_attempts(final, study).values()
+        timed = {(r['workload'], r['engine']): r.get('wall_seconds_mean') for r in pooled_summary(units) if r['row'] == 'run' and not r.get('sweep')}
+        for workload in sorted(p for f in units for p in (f / 'runs').iterdir()):
             rep = workload / '1'
             if not rep.is_dir():
                 continue  # the python study's diverged runs have only a warm-up: no timed row (their data is extra-runs/python)
@@ -172,13 +171,13 @@ def foreign_peak(a, d, program, inputs, scratch):
 
 
 def workloads(final):
-    base = attempt(final, 'continuation')
+    units = list(done_attempts(final, 'continuation').values())
     timed = {}
-    for r in json.loads((base / 'summary.json').read_text()):
+    for r in pooled_summary(units):
         if r['row'] == 'run' and r['wall_seconds_mean']:
             key = (r['workload'].split('/')[0], r['workload'].split('/')[1], {'xppautx-fd-1-none': 'xppautx', 'xppaut-fd': 'xppaut', 'auto07p-fd-1': 'auto07p'}.get(r['engine']))
             timed[key] = timed.get(key, 0) + r['wall_seconds_mean']
-    for done in sorted(base.glob('*/*/completion.json')):
+    for done in sorted(p for f in units for p in f.glob('*/*/completion.json')):
         if json.loads(done.read_text())['timed']:
             folder = done.parent
             d = json.loads((folder / 'window.json').read_text().replace(OLD_ROOT, NEW_ROOT))['description']

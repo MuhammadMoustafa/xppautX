@@ -6,6 +6,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'paper/benchmarks/comparison'))
+from common import done_attempts
 from final_report import (compute, continuation_finding, equal_work_matches, gate_cell, interpolate, jobs_text, memory_ratios, memory_text,
                           normalized_view, profile, profile_spec, threads_text)
 
@@ -135,10 +136,11 @@ class GateAgreement(unittest.TestCase):
         self.assertIn('XPPAUT 8.0 on every paired run (2)', title)
         self.assertIn('AUTO-07p on 1 of 2 paired runs', title)
 
-    @unittest.skipUnless((Path.home() / 'xppautx-comparison/w617-final/status.json').exists(),
+    @unittest.skipUnless((Path.home() / 'xppautx-comparison/w617-units/terman').exists(),
                          'the W617 run data is local; synthetic gate projections run on every machine')
     def test_every_frozen_cell_matches_its_gate(self):
-        data = compute(Path.home() / 'xppautx-comparison/w617-final')
+        root = Path.home() / 'xppautx-comparison/w617-units'
+        data = compute(root)
         cells, gates = data['agreement'], data['gates']
         self.assertEqual(len(cells), 292)
         for cell in cells:
@@ -147,8 +149,8 @@ class GateAgreement(unittest.TestCase):
                     self.assertTrue(cell['reason'])
                     if cell['gate_source'] is None:
                         continue  # no pilot gate exists for this program/Jacobian group
-                    base = Path.home() / 'xppautx-comparison/final/continuation/attempt-001'
-                    folder = base.joinpath(*cell['workload'].split('/')[:2])
+                    name_mode = cell['workload'].split('/')[:2]
+                    folder = next(f.joinpath(*name_mode) for f in done_attempts(root, 'continuation').values() if f.joinpath(*name_mode).is_dir())
                     description = json.loads((folder / 'description.json').read_text())
                     run = cell['workload'].rsplit('/', 1)[1]
                     dr = next(r for r in description['runs'] if r['name'] == run)

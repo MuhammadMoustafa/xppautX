@@ -22,12 +22,11 @@ import tempfile
 import time
 from types import SimpleNamespace
 
-from common import BENCH, REPO, before_series, environment, physical_cores, save, sha, short_home, wait_until_ready
+from common import BENCH, REPO, before_series, done_attempts, environment, physical_cores, save, sha, short_home, wait_until_ready
 from continuation import aggregate, native
 from integration import convert
 
 FROZEN = Path.home() / 'xppautx-comparison/final'
-SERIES = FROZEN / 'continuation/attempt-001'
 OLD_ROOT, NEW_ROOT = '/home/muhammad/xppautx-comparison/w583-final-2/', str(FROZEN) + '/'  # the series moved its folder after it ran
 # The continuation workloads with enough work per mesh interval to gain: workload, mode folder, target runs (None: every run).
 THREAD_WORKLOADS = (('P1', 'adaptive', ['periodic']), ('P1', 'fixed', ['periodic']), ('P2', 'adaptive', ['periodic']),
@@ -48,7 +47,8 @@ def cores_of(a):
 
 
 def thread_description(name, mode):
-    text = (SERIES / name / mode / 'window.json').read_text().replace(OLD_ROOT, NEW_ROOT)
+    unit = name + '-fixed' if mode == 'fixed' else name  # P1's fixed step is a unit of its own
+    text = (done_attempts(FROZEN, 'continuation')[unit] / name / mode / 'window.json').read_text().replace(OLD_ROOT, NEW_ROOT)
     return json.loads(text)['description']
 
 

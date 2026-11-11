@@ -2,7 +2,7 @@
 """W555: the runs the W354 series left without data, repeated untimed for the plots (overlays.py --extra).
 
     extra_runs.py integration --series S --out O --xppautx X --xppaut P   # Izhikevich 2004 (XPPAUT, short HOME) and the python study's diverging runs
-    extra_runs.py lpc --attempt A --out O --xppaut P                      # XPPAUT on ode_mu26_blocked's full description
+    extra_runs.py lpc --series S --out O --xppaut P                      # XPPAUT on ode_mu26_blocked's full description
 
 Each run goes through the series' own functions (integration.launch, auto_reference.reference), in a short scratch folder, and
 with common.short_home() as its HOME: XPPAUT 8.0's AUTO file name is a 200-character array that a long HOME overflows (docs/xppaut-findings.md finding 75).
@@ -17,7 +17,7 @@ import tempfile
 import time
 from types import SimpleNamespace
 
-from common import save
+from common import done_attempts, save
 import auto_reference as reference
 from integration import launch
 
@@ -47,9 +47,9 @@ def integration(a):
     a.cores = [0]
     try:
         for name in IZHIKEVICH_2004:
-            rerun(a, 'izhikevich', name, ('xppaut',), a.series / 'izhikevich/attempt-001/runs' / name / '0/xppaut/run', scratch)
+            rerun(a, 'izhikevich', name, ('xppaut',), done_attempts(a.series, 'izhikevich')[name] / 'runs' / name / '0/xppaut/run', scratch)
         for name in DIVERGING:
-            rerun(a, 'python', name, PROGRAMS, a.series / 'python/attempt-001/runs' / name / '0/xppautx/run', scratch)
+            rerun(a, 'python', name, PROGRAMS, done_attempts(a.series, 'python')[name] / 'runs' / name / '0/xppautx/run', scratch)
     finally:
         shutil.rmtree(scratch)
 
@@ -57,7 +57,7 @@ def integration(a):
 def lpc(a):
     from continuation import start_values
     from odex_model import Odex
-    mdir = a.attempt / LPC_WORKLOAD[0] / LPC_WORKLOAD[1]
+    mdir = done_attempts(a.series, 'continuation')[LPC_WORKLOAD[0]] / LPC_WORKLOAD[0] / LPC_WORKLOAD[1]
     d = json.loads((mdir / 'description.json').read_text())
     odex = Odex(Path(d['model']))
     eqs = reference.Equations(odex, d.get('parameters', {}))
@@ -83,8 +83,7 @@ def main():
     p.add_argument('--out', type=Path, required=True)
     p.add_argument('--xppaut', type=Path, required=True)
     p.add_argument('--xppautx', type=Path)
-    p.add_argument('--series', type=Path, help='the series folder of the integration studies')
-    p.add_argument('--attempt', type=Path, help="the continuation attempt folder")
+    p.add_argument('--series', type=Path, help='the results folder (run.py: <study>/<unit>/)')
     p.add_argument('--limit', type=int, default=3 * 3600, help='lpc: seconds one XPPAUT run may take before it is given up')
     p.add_argument('--scratch', type=Path, default=Path('/tmp/w555'), help='a short folder for the runs')
     a = p.parse_args()

@@ -161,16 +161,27 @@ Integration has no thread rows. Continuation has 1/2/4/auto for xppautX,
 settled exact rows. Physical cores come from that study's machine record,
 one CPU per socket/core pair. No SMT sibling is used as another core.
 
-Each study gets `STUDY/attempt-NNN/` with its own `machine.json`, provenance,
-input hashes, raw outputs, `runs.json`, numerical gates and summaries. The
-root `status.json` records commands, failures and completed studies. A failed
-study does not erase another's results or prevent the later studies running.
-Repeat the same command to resume; add `--study continuation` (or any study
-name printed by `--help`) to retry one study only. A retry gets a new attempt;
-completed studies are retained. Another tip, binary, driver or selection
-requires another `--out`. The runner calls `--record` for every study and
-`--ready` before every timed series. Readiness refusal is a failure to resolve,
-with no automatic sleep/retry. Run in the foreground of tmux; no concurrent runs.
+One workload is the unit (W699: a model, a model and method, a size and
+duration, a continuation description; Terman's convergence is one unit and
+large-stiff has three: `pilot`, `measure`, `cache`). Each gets
+`STUDY/UNIT/attempt-NNN/` with its own provenance, input hashes, raw outputs,
+`runs.json`, numerical gates and summaries, beside `attempt-NNN.log`,
+`attempt-NNN.machine.json` and, once an attempt finished, `done.json` (the
+attempt, the binaries, the commit and the rows' reuse keys). Units run one after
+another. A unit that fails leaves `attempt-NNN.failure.json` (the exit code and the
+log's tail) and the run goes on; the end lists every failed unit and exits non-zero.
+A unit whose set-up unit failed (Terman's convergence for the Terman network,
+large-stiff's pilot for its measurement) fails alone.
+Before any timed unit the runner plans every unit (`--plan`, which runs nothing
+timed: each driver's own `--plan` says what the unit's newest attempt, or the
+same unit of `--reuse`'s folder, supplies and what would run, by the rows' keys),
+so a bug in the reuse path stops the run in minutes. Repeat the same command to
+resume: a unit whose done record exists and whose plan runs nothing is skipped; a
+unit whose key a driver fix changed runs again in the same folder, importing the
+rows whose keys did not change; `--study` and `--only` (unit names) select what
+runs. The runner calls `--record` for every timed unit and `--ready` before it.
+Readiness refusal is a failure to resolve, with no automatic sleep/retry. Run in
+the foreground of tmux; no concurrent runs. `watch.py ROOT` shows the units' state.
 
 `summary.json` and `summary.csv` use five successes and sample SD (`ddof=1`);
 partial or numerically unequal rows get no timing summary. Warm-ups are kept

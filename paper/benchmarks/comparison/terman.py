@@ -9,8 +9,8 @@ import sys
 import math
 import statistics
 
-from common import BENCH, HERE, initialize, parser, save, sha
-from integration import PYTHON, convert, launch, setfile_patch, stage, variant
+from common import BENCH, HERE, executable_sha, initialize, measure_sha, parser, plan_unit_key, save, sha
+from integration import PYTHON, convert, engine_argv, launch, setfile_patch, stage, variant
 from odex_model import Odex
 
 CRITERIA = HERE / 'terman-criteria.json'
@@ -108,6 +108,17 @@ def main():
     p.add_argument('--readouts-only', action='store_true')
     a = p.parse_args()
     initialize(a)
+    if a.list:
+        print(json.dumps(['episodic']))  # one unit: the convergence study is one claim about one network (W699)
+        return
+    # What the study depended on, for a run to be imported whole (W699): both programs, the predeclared criteria, the code that stages,
+    # launches and reads a run.
+    key = dict(xppautx=executable_sha(a, 'xppautx'), xppaut=executable_sha(a, 'xppaut'), criteria=sha(CRITERIA),
+               measure=measure_sha(engine_argv, launch, variant, setfile_patch, readouts, compare), check=a.check)
+    save(a.out / 'unit-key.json', key)
+    if a.plan:
+        plan_unit_key(a, 'episodic', key)
+        return
     if not CRITERIA.exists():
         sys.exit('refusing Terman runs: terman-criteria.json must be written before the first run')
     criteria = json.loads(CRITERIA.read_text())

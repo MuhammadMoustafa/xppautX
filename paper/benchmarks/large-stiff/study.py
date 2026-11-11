@@ -25,6 +25,9 @@ PILOT_SHIFT_LIMIT = 0.05  # output steps. Chosen 2026-10-20 after the ring-3000 
 # that a time shift of 0.016 output steps explains: a loose solver may be that far from the reference in time; pilot sanity only, never TARGET.
 LOOSE_TOL = 1e-5  # 1e-4 failed the unchanged loose limit on the 200-state ring
 REPEATS = 5  # section 4, excluded warm-up then five fresh processes
+SMOKE_SIZES = [50, 200]  # the pilot's untimed smoke run, both families
+PILOT_SIZES = [1000, 2000, 3000, 5000]  # the measured size ladder, calibrated by the pilot
+UNITS = ('pilot', 'measure', 'cache')  # W699: each its own unit of the comparison run; measure and cache need the pilot's folder
 ROWS = 101  # common nominal times, including both ends
 CACHE_FACTORIZATIONS = 3  # matches bridge.cpp; stop the run at this setup count
 THREAD_ENV = dict(LC_ALL='C', OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1',
@@ -352,7 +355,7 @@ def summarize(root):
 def main():
     global REPEATS
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('mode', choices=['check', 'measure', 'cache', 'summarize'])
+    ap.add_argument('mode', choices=['check', 'pilot', 'measure', 'cache', 'summarize'])
     ap.add_argument('--worker', type=Path, default=Path('build/w378/worker'))
     ap.add_argument('--out', type=Path, required=True)
     ap.add_argument('--sizes', nargs='+', type=int)
@@ -364,22 +367,31 @@ def main():
     a = ap.parse_args()
     REPEATS = a.repeats  # read by measure and summarize
     if a.mode == 'check':
-        prepare(a, a.sizes or [50, 200])
+        prepare(a, a.sizes or SMOKE_SIZES)
+    elif a.mode == 'pilot':
+        # The set-up of the measurement (W699's first unit): the smoke sizes, then the size ladder that calibrates each solver.
+        base = a.out.resolve()
+        base.mkdir()
+        for folder, sizes in (('check', SMOKE_SIZES), ('pilot', PILOT_SIZES)):
+            a.out = base / folder
+            prepare(a, sizes)
     elif a.mode == 'measure':
         if a.allow_no_klu or not a.machine_record or not a.pilot:
             ap.error('measure requires --machine-record and --pilot, and forbids --allow-no-klu')
-        a.sizes = a.sizes or [1000, 2000, 3000, 5000]
+        a.sizes = a.sizes or PILOT_SIZES
         measure(a)
     elif a.mode == 'summarize':
         summarize(a.out.resolve())
     else:
+        if not a.pilot:
+            ap.error('cache requires --pilot')
         wait_until_ready()
         root = a.out.resolve()
-        gate = json.loads((root/'pilot/correctness.json').read_text())
+        gate = json.loads((a.pilot/'correctness.json').read_text())
         summaries=[]
         for case in gate['cases']:
             if case['n'] == max(c['n'] for c in gate['cases']):
-                model=root/'pilot/models'/Path(case['model']).name
+                model=a.pilot/'models'/Path(case['model']).name
                 result=run(a.worker.resolve(), model, 'legacy-dense', case['solvers']['legacy-dense']['tolerance'],
                            root/'cache'/case['family'], cpu=a.cpu, callgrind=True)
                 summaries.append(dict(family=case['family'], n=case['n'], **result['cache']))

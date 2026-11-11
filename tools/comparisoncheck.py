@@ -17,6 +17,7 @@ import unittest
 from types import SimpleNamespace
 
 from autoxcompare import completed
+import test_comparison_units
 import test_final_report
 from xppclient import Checker, Server, open_autox, whole_series
 
@@ -82,7 +83,7 @@ def scaling_case(a, check):
 
 def continuation_case(a, check):
     args = SimpleNamespace(**(vars(a) | dict(out=a.out / 'continuation', only='V1-tstauto_simplefold',
-                                          check=True, plan=False, pilots=False)))
+                                          check=True, plan=False, pilots=False, list=False)))
     args.out.mkdir()
     name, description, _, _ = next(continuation.workloads(args))
     for events in (True, False):
@@ -180,9 +181,9 @@ def main():
     for path in sources:
         ast.parse(path.read_text(), filename=str(path))
     check('tracked Python syntax (%d files)' % len(sources), True)
-    suite = unittest.defaultTestLoader.loadTestsFromModule(test_final_report)
+    suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromModule(m) for m in (test_final_report, test_comparison_units))
     result = unittest.TextTestRunner().run(suite)
-    check('final report analytical/gate tests (%d tests)' % result.testsRun, result.wasSuccessful())
+    check('final report and unit-isolation tests (%d tests)' % result.testsRun, result.wasSuccessful())
     with tempfile.TemporaryDirectory(prefix='w543-smoke-') as scratch:
         args = SimpleNamespace(out=Path(scratch), xppautx=options.server.resolve(),
                                xppaut=options.comparison_build / 'xppaut-8.0/xppaut',

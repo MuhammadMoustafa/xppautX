@@ -65,7 +65,9 @@ def parser(description):
     p.add_argument('--only', help='comma-separated workload names')
     p.add_argument('--repeats', type=int, default=REPEATS, help='counted repetitions after the warm-up (W460: one first, the rest later with --reuse)')
     p.add_argument('--stop-on-failure', action='store_true', help='stop at the first workload that fails or is refused, so it can be looked at')
-    p.add_argument('--reuse', type=Path, help='an earlier attempt of this study: the rows of a program whose executable, measurement code and input files are unchanged are imported, not run again')
+    p.add_argument('--reuse', type=Path, help='an earlier attempt of this workload: the rows of a program whose executable, measurement code and input files are unchanged are imported, not run again')
+    p.add_argument('--list', action='store_true', help='print the names of the study\'s workloads (its units, W699) as JSON and stop; runs nothing')
+    p.add_argument('--plan', action='store_true', help='with --reuse: write plan.json, which rows the earlier attempt supplies and which would run, decided by the same keys the run uses; no timing')
     return p
 
 
@@ -83,9 +85,10 @@ def initialize(a):
          binaries={str(b): sha(b) for b in (a.xppautx, a.xppaut)}, cores=a.cores,
          protocol='one warm-up, five fresh processes (one when the warm-up exceeds LONG_RUN_SECONDS), rotating order, sample SD; checks untimed',
          adapter='registry command adapter; no protocol change during a series'))
-    if not a.check and subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=no'], cwd=REPO, text=True).strip():
+    a.timed = not (a.check or a.plan or a.list)  # a listing and a plan time nothing
+    if a.timed and subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=no'], cwd=REPO, text=True).strip():
         raise RuntimeError('comparison requires a clean tracked checkout')
-    if not a.check and ('microsoft' in platform.release().lower() or sys.platform != 'linux'):
+    if a.timed and ('microsoft' in platform.release().lower() or sys.platform != 'linux'):
         raise RuntimeError('Timing runs only on the Ubuntu comparison machine, never on the laptop')
 
 
@@ -125,7 +128,7 @@ def wait_until_ready():
 
 
 def before_series(a):
-    if not a.check:
+    if a.timed:
         wait_until_ready()
 
 
@@ -345,8 +348,14 @@ def mark_reused(a, rec):
     return rec
 
 
-def selected(a, name):
-    return not a.only or name in a.only.split(',')
+def selected(a, name, stem=None):
+    # --only names workloads; a workload's stem (its model, before the method or duration the name adds) selects all of its workloads.
+    return not a.only or name in a.only.split(',') or stem in a.only.split(',')
+
+
+def wanted(a, stem):
+    # Whether any workload of this model is selected, so a unit's run stages only its own model (W699).
+    return not a.only or any(n == stem or n.startswith(stem + '-') for n in a.only.split(','))
 
 
 # W454 (#517): the tracked code a row's measurement depends on, as of the current tree or of an earlier commit.
@@ -382,3 +391,37 @@ def reachable_sha(text, roots):
         seen.append(name)
         stack += [n.id for n in ast.walk(top[name]) if isinstance(n, ast.Name) and n.id in top]
     return tree_sha((name, ast.get_source_segment(text, top[name]).encode()) for name in seen)
+
+
+# W699 (#774): a unit is one workload (a study's own name for it: a model, a model and method, a size and duration, a
+# continuation description). run.py gives each its own folder <results>/<study>/<unit>/ holding its attempts
+# (attempt-NNN: the driver's output, written for that one workload) and, once an attempt finished, done.json. A driver's
+# `--plan` says what an earlier attempt of the unit supplies; the keys are the rows' own (W452, W575), so a unit's done record
+# matches while its plan runs nothing.
+STUDIES = ('terman', 'screen', 'modeldb', 'research', 'izhikevich', 'python', 'continuation', 'scaling', 'large-stiff')  # settled order
+DONE = 'done.json'
+PLAN = 'plan.json'
+
+
+def done_attempts(root, study):
+    # {unit: the attempt folder its done record names} of every finished unit of a study, in name order.
+    found = {}
+    for record in sorted((Path(root) / study).glob('*/' + DONE)):
+        found[record.parent.name] = record.parent / json.loads(record.read_text())['attempt']
+    return found
+
+
+def write_plan(a, name, would_run, imported):
+    # would_run: one reason per row (or step) the earlier attempt does not supply; imported: how many it does.
+    for why in would_run:
+        progress(a, 'plan: %s: runs: %s' % (name, why))
+    progress(a, 'plan: %s: %d imported, %d would run' % (name, imported, len(would_run)))
+    save(a.out / PLAN, dict(workload=name, would_run=would_run, imported=imported))
+
+
+def plan_unit_key(a, name, key):
+    # A unit with no per-row keys (Terman's convergence, large-stiff's set-up) is imported whole when its recorded key is the one
+    # now; `--plan` writes the plan, a run records the key (unit-key.json) for the next.
+    earlier = a.reuse / 'unit-key.json' if a.reuse else None
+    same = earlier is not None and earlier.exists() and json.loads(earlier.read_text()) == json.loads(json.dumps(key))
+    write_plan(a, name, [] if same else ['the earlier attempt\'s unit key differs or is missing'], int(same))

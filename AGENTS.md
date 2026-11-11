@@ -66,7 +66,8 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
   bug or improvement it finds is fixed on its own card, reviewed and merged, then the
   comparison binary is rebuilt (tools/comparison-setup.sh --build) and every xppautX
   run repeated; a program whose code, options and inputs did not change is not rerun
-  (W452). No heavy job of any kind runs while a timed series runs. Every issue and
+  (W452), and the unit of a rerun is one workload (W699: a driver fix reruns only the
+  workloads whose keys it changes, in the same results folder, never a new one). No heavy job of any kind runs while a timed series runs. Every issue and
   fix found goes into the final report's "Issues found and fixes made" (make_report.py's
   SERIES_CARDS) (maintainer, 2026-10-20/21).
 - Every issue a run finds is resolved (maintainer, 2026-11-11): a comparison, timed or check run that

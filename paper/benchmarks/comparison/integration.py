@@ -11,10 +11,11 @@ import shutil
 import statistics
 import subprocess
 import sys
+import traceback
 
 from common import (BENCH, INPUT_SUFFIXES, HERE, LONG_RUN_REASON, LONG_RUN_SECONDS, REPO, TOOLS, before_series, progress, command, derived_key, earlier_context, environment,
                     initialize, inputs_sha, is_long, link_tree, mark_reused, measure_sha, module, parser, repetitions, required_repetitions,
-                    reuse_key, rotation, save, selected, sha, short_home, summarize)
+                    reuse_key, rotation, save, selected, sha, short_home, summarize, wanted, write_plan)
 
 screen = module('screen', BENCH / 'five-model-screen/screen.py')
 scaling = module('scaling', BENCH / 'size-scaling/scaling.py')
@@ -64,8 +65,10 @@ def stage(a, study):
         bundle = a.out / 'screen-staging'
         shutil.copytree(BENCH / 'five-model-screen/sources', bundle / 'sources')
         cases = screen.CASES + (screen.EXTRA_CASES if study == 'screen' else [])
-        if a.check:
-            cases = [c for c in cases if selected(a, c['name'])] if a.only else [next(c for c in cases if c['name'] == 'kuramot100')]
+        if a.only:
+            cases = [c for c in cases if wanted(a, c['name'])]  # a unit stages its own model only (W699)
+        elif a.check:
+            cases = [next(c for c in cases if c['name'] == 'kuramot100')]
         screen.prepare(bundle, a.xppautx, a.xppaut, cases)
         shutil.copytree(bundle / 'models', dest, dirs_exist_ok=True)
         if study == 'screen':
@@ -84,7 +87,10 @@ def stage(a, study):
             raise ValueError('expected all 28 Izhikevich sources')
     elif study == 'python':
         paths = [*sorted((REPO / 'examples/ode').glob('izh_*.ode')), REPO / 'examples/ode/mu26.ode', REPO / 'examples/ode/ma23.ode']
-        paths = [p for p in paths if selected(a, p.stem)] if a.check and a.only else [] if a.check else paths
+    if a.only:
+        paths = [p for p in paths if wanted(a, p.stem)]
+    elif a.check and study == 'python':
+        paths = []
     for path in paths:
         shutil.copy2(path, dest / path.name)
         convert(a, dest / path.name)
@@ -344,19 +350,18 @@ def import_rows(a, found, name, engine, rep):
     return imported
 
 
-def reuse_whole(a, name, model, ready, records):
-    # A workload an earlier attempt finished (done/) with every program unchanged: its records, runs, ladder, work-precision
-    # and dt-sweep rows and gates are imported as they were. Programs unchanged: each engine's program hash and measurement
-    # hash equal, the model and ready inputs equal (the ladder's and sweeps' inputs derive from them), the command line equal.
+def whole_reusable(a, name, model, ready):
+    # (marker, None) when an earlier attempt finished this workload (done/) with every program unchanged, else (None, why).
+    # Programs unchanged: each engine's program hash and measurement hash equal, the model and ready inputs equal (the ladder's
+    # and sweeps' inputs derive from them), the command line equal.
     marker = a.reuse / 'done' / (name + '.json')
     if not marker.exists():
-        return False
+        return None, 'no earlier finished run'
     marker = json.loads(marker.read_text())
     for label, built in ((name, model), (name + '-ready', ready)):
         earlier = a.reuse / 'inputs' / label
         if not earlier.is_dir() or inputs_sha(earlier) != inputs_sha(built.parent):
-            progress(a, '%s: not reused whole: the input %s differs' % (name, label))
-            return False
+            return None, 'the input %s differs' % label
     sample = {}
     for r in marker['records']:
         sample.setdefault(r['engine'], r)
@@ -364,8 +369,19 @@ def reuse_whole(a, name, model, ready, records):
         key = current_key(a, engine, model)
         have = earlier_key(a, rec, key, model.name)
         if not same_key(have, key, inputs=False):
-            progress(a, '%s: not reused whole: %s differs in %s' % (name, engine, ', '.join(k for k in key if k != 'inputs' and (have is None or have.get(k) != key[k])) or 'its command line'))
-            return False
+            return None, '%s differs in %s' % (engine, ', '.join(k for k in key if k != 'inputs' and (have is None or have.get(k) != key[k])) or 'its command line')
+    return marker, None
+
+
+def reuse_whole(a, name, model, ready, records):
+    # A workload an earlier attempt finished: its records, runs, ladder, work-precision and dt-sweep rows and gates are imported
+    # as they were.
+    marker, why = whole_reusable(a, name, model, ready)
+    if not marker:
+        if (a.reuse / 'done' / (name + '.json')).exists():
+            progress(a, '%s: not reused whole: %s' % (name, why))
+        return False
+    sample = {r['engine'] for r in marker['records']}
     workloads = {r['workload'] for r in marker['records']}
     imported = []
     for r in marker['records']:
@@ -396,7 +412,10 @@ def reuse_whole(a, name, model, ready, records):
 def series(a, source, name, records, *args, **kwargs):
     start = len(records)
     allowed = _series(a, source, name, records, *args, **kwargs)
-    if allowed and not a.check and len(records) > start and not (a.out / 'done' / (name + '.json')).exists():
+    # A workload whose runs were valid but whose programs did not agree is a finished result too (a later run with the same keys
+    # would only repeat it); one that crashed is not.
+    finished = allowed or all(r['valid'] for r in records[start:])
+    if finished and a.timed and len(records) > start and not (a.out / 'done' / (name + '.json')).exists():
         save(a.out / 'done' / (name + '.json'), dict(records=records[start:]))
     return allowed
 
@@ -551,28 +570,63 @@ def dt_sweep(a, name, records, build, rungs, chosen, engines):
                 'fixed tolerance %g (the study\'s own), dt = %g * factor; rows_written is what each run wrote' % (tolerance, base))
 
 
-def _series(a, source, name, records, method=None, native_only=False, horizon=None):
-    terman_acceptance = None
+def builder(a, source, method, horizon):
+    # (build, terman_acceptance, terman_out): one workload's input maker. The Terman network is timed only at the tolerance its
+    # convergence study chose (--terman: that unit's attempt).
+    terman_acceptance, terman_out = None, None
     if source.stem == 'episodic' and not a.check:
         criteria = HERE / 'terman-criteria.json'
         if not criteria.exists():
             raise RuntimeError('refusing to time Terman without predeclared terman-criteria.json')
-        parent_status = json.loads((a.out.parents[1] / 'status.json').read_text())
-        terman_out = Path(parent_status['studies']['terman']['out'])
+        if not a.terman:
+            raise RuntimeError('the Terman network is timed after its convergence study: pass --terman')
+        terman_out = a.terman
         terman_acceptance = json.loads((terman_out / 'acceptance.json').read_text())
         if not terman_acceptance['passed'] or terman_acceptance.get('check_only'):
             raise RuntimeError('refusing to time Terman: convergence has not passed')
+
     def build(label, tolerance, ready=False, full=False, step=None):
         path = variant(a, source, label, ready=ready, method=method, total=None if ready else horizon, tolerance=tolerance, full=full, step=step)
         if terman_acceptance and tolerance is None:
             setfile_patch(path.parent / 'episodic.ode.set', {'Tolerance': terman_acceptance['chosen_tolerance']})
             convert(a, path)  # xppautX's .odex takes the patched SET
         return path
+    return build, terman_acceptance, terman_out
 
+
+def study_engines(a, native_only):
+    return ['xppautx'] if native_only else ['xppautx', 'xppaut'] + (['python'] if a.study == 'python' else [])
+
+
+def plan_series(a, source, name, method, native_only):
+    # --plan: what an earlier attempt of this workload supplies and what would run, by the keys the run uses (nothing is run).
+    if not a.reuse:
+        return write_plan(a, name, ['no earlier attempt'], 0)
+    build, _, _ = builder(a, source, method, None)
+    model, ready = build(name, None), build(name + '-ready', None, ready=True)
+    marker, why = whole_reusable(a, name, model, ready)
+    if marker:
+        return write_plan(a, name, [], len(marker['records']))
+    if a.study == 'python' and method in LADDER_METHODS:
+        return write_plan(a, name, ['not reused whole (%s), and a ladder\'s inputs follow its pilots' % why], 0)
+    imported, would_run = 0, []
+    rows = dict(zip(('run', 'ready'), (model, ready)))
+    for engine in study_engines(a, native_only):
+        for rep in repetitions(a):
+            found, why = importable(a, name, engine, rep, rows)
+            if found:
+                imported += len(found)
+            elif not (rep > 1 and any(r.get('repetitions_reason') for r in earlier_rows(a).values() if r['workload'] == name and r['engine'] == engine)):
+                would_run.append('%s repetition %d: %s' % (engine, rep, why))  # a long run has only one counted repetition (W452)
+    write_plan(a, name, would_run, imported)
+
+
+def _series(a, source, name, records, method=None, native_only=False, horizon=None):
+    build, terman_acceptance, terman_out = builder(a, source, method, horizon)
     model, ready = build(name, None), build(name + '-ready', None, ready=True)
     if a.reuse and reuse_whole(a, name, model, ready, records):
         return True
-    engines = ['xppautx'] if native_only else ['xppautx', 'xppaut'] + (['python'] if a.study == 'python' else [])
+    engines = study_engines(a, native_only)
     # By default one input for every program; a ladder method gives each program the tolerance at which it reaches the reference.
     inputs = {e: (model, ready) for e in engines}
     by_ladder = a.study == 'python' and method in LADDER_METHODS
@@ -723,80 +777,83 @@ def _series(a, source, name, records, method=None, native_only=False, horizon=No
     return allowed
 
 
-def large_stiff(a):
-    kit = BENCH / 'large-stiff'
+SCALING_CASES = BENCH / 'size-scaling/cases-ubuntu-20261020.json'
+
+
+def scaling_workloads(a):
+    # (case, duration, steps, name) of the size-scaling study's selected workloads: a case at one duration is one (W699).
+    cases = json.loads(SCALING_CASES.read_text())
     if a.check:
-        argv = [sys.executable, str(kit / 'study.py'), 'check', '--worker', str(a.worker), '--sizes', '50', '--allow-no-klu', '--out', str(a.out / 'check')]
-        subprocess.run(argv, cwd=REPO, check=True)
-        return
-    before_series(a)
-    subprocess.run([sys.executable, str(kit / 'study.py'), 'check', '--worker', str(a.worker), '--sizes', '50', '200', '--out', str(a.out / 'check')], cwd=REPO, check=True)
-    subprocess.run([sys.executable, str(kit / 'study.py'), 'check', '--worker', str(a.worker), '--sizes', '1000', '2000', '3000', '5000', '--out', str(a.out / 'pilot')], cwd=REPO, check=True)
-    for mode in ('measure', 'cache', 'summarize'):
-        argv = [sys.executable, str(kit / 'study.py'), mode, '--worker', str(a.worker), '--cpu', str(a.cores[0]), '--out', str(a.out / 'results'), '--repeats', str(a.repeats)]
-        if mode == 'measure':
-            argv += ['--pilot', str(a.out / 'pilot'), '--machine-record', str(a.out / 'machine.json')]
-        subprocess.run(argv, cwd=REPO, check=True)
+        cases = [cases[0]]
+    return [(c, duration, steps, c['name'] + '-' + duration) for c in cases for duration, steps in c['steps'].items()
+            if selected(a, c['name'] + '-' + duration, c['name'])]
+
+
+def stage_scaling(a, c, duration, steps, name):
+    folder = a.out / 'models' / name
+    folder.mkdir(parents=True)
+    path = folder / (name + '.ode')
+    scaling.write_model(path, c['family'], c['size'], min(steps, 2) if a.check else steps, c['rows'])
+    convert(a, path)
+    # XPPAUT cannot load models above its 5000-state ceiling.
+    # Those rows retain xppautX data and an explicit unavailable row.
+    if not c.get('legacy', True):
+        save(folder / 'unavailable.json', dict(xppaut='XPPAUT 8.0 exceeds its 5000-state model limit'))
+    return path
+
+
+def study_workloads(a, paths):
+    # (source, method, name) of the other studies' selected workloads: the python study runs each model at every method.
+    for path in paths:
+        methods = [None]
+        if a.study == 'python':
+            from driver import METHODS
+            odex = Odex(path.with_suffix('.odex'))
+            methods = ['discrete'] if odex.discrete else [m for m in METHODS if m != 'discrete']
+            if a.check:
+                methods = ['runge_kutta', *LADDER_METHODS]  # the ladder runs once, untimed
+        for method in methods:
+            name = path.stem + ('-' + method if method else '')
+            if selected(a, name, path.stem):
+                yield path, method, name
 
 
 def main():
     p = parser(__doc__)
-    p.add_argument('--study', choices=('screen', 'modeldb', 'research', 'izhikevich', 'python', 'scaling', 'large-stiff'), required=True)
-    p.add_argument('--worker', type=Path)
+    p.add_argument('--study', choices=('screen', 'modeldb', 'research', 'izhikevich', 'python', 'scaling'), required=True)
+    p.add_argument('--terman', type=Path, help='the Terman convergence unit\'s attempt folder: the network is timed at the tolerance it chose')
     a = p.parse_args()
     initialize(a)
-    if a.study == 'large-stiff':
-        large_stiff(a)
-        return
     records, passed, driver_failures = [], True, []
     if a.study == 'scaling':
-        cases = json.loads((BENCH / 'size-scaling/cases-ubuntu-20261020.json').read_text())
-        if a.check:
-            cases = [cases[0]]
-        for c in cases:
-            if not selected(a, c['name']):
-                continue
-            for duration, steps in c['steps'].items():
-                folder = a.out / 'models' / (c['name'] + '-' + duration)
-                folder.mkdir(parents=True)
-                path = folder / (c['name'] + '-' + duration + '.ode')
-                scaling.write_model(path, c['family'], c['size'], min(steps, 2) if a.check else steps, c['rows'])
-                convert(a, path)
-                # XPPAUT cannot load models above its 5000-state ceiling.
-                # Those rows retain xppautX data and an explicit unavailable row.
-                if not c.get('legacy', True):
-                    save(folder / 'unavailable.json', dict(xppaut='XPPAUT 8.0 exceeds its 5000-state model limit'))
-                ok = series(a, path, path.stem, records, native_only=not c.get('legacy', True))
-                passed &= ok
-                if a.stop_on_failure and not ok:
-                    stop_here(a, records, driver_failures, path.stem, 'not equal work, see the log above')
-        save(a.out / 'cost-per-time.json', scaling_costs(records, cases))
+        todo = [(name, c, duration, steps) for c, duration, steps, name in scaling_workloads(a)]
     else:
-        for path in stage(a, a.study):
-            if not selected(a, path.stem):
+        todo = [(name, path, method) for path, method, name in study_workloads(a, stage(a, a.study))]
+    if a.list:
+        print(json.dumps([t[0] for t in todo]))
+        return
+    for name, *what in todo:
+        try:
+            progress(a, 'WORKLOAD %s' % name)
+            if a.study == 'scaling':
+                c, duration, steps = what
+                source, method, native_only = stage_scaling(a, c, duration, steps, name), None, not c.get('legacy', True)
+            else:
+                (source, method), native_only = what, False
+            if a.plan:
+                plan_series(a, source, name, method, native_only)
                 continue
-            methods = [None]
-            if a.study == 'python':
-                from driver import METHODS
-                odex = Odex(path.with_suffix('.odex'))
-                methods = ['discrete'] if odex.discrete else [m for m in METHODS if m != 'discrete']
-                if a.check:
-                    methods = ['runge_kutta', *LADDER_METHODS]  # the ladder runs once, untimed
-            for method in methods:
-                name = path.stem + ('-' + method if method else '')
-                try:
-                    progress(a, 'WORKLOAD %s' % name)
-                    ok = series(a, path, name, records, method)
-                    passed &= ok
-                    if a.stop_on_failure and not ok:
-                        stop_here(a, records, driver_failures, name, 'not equal work, see the log above')
-                except Exception as e:
-                    progress(a, 'FAILED %s: %s' % (name, e))
-                    save(a.out / 'failures' / (name + '.json'), dict(error=str(e), type=type(e).__name__))
-                    driver_failures.append(name)
-                    passed = False
-                    if a.stop_on_failure:
-                        stop_here(a, records, driver_failures, name, '%s: %s' % (type(e).__name__, e))
+            ok = series(a, source, name, records, method, native_only)
+            passed &= ok
+            if a.stop_on_failure and not ok:
+                stop_here(a, records, driver_failures, name, 'not equal work, see the log above')
+        except Exception as e:
+            progress(a, 'FAILED %s: %s' % (name, e))
+            save(a.out / 'failures' / (name + '.json'), dict(error=str(e), type=type(e).__name__, traceback=traceback.format_exc()))
+            driver_failures.append(name)
+            passed = False
+            if a.stop_on_failure:
+                stop_here(a, records, driver_failures, name, '%s: %s' % (type(e).__name__, e))
     summarize(records, a.out)
     save(a.out / 'completion.json', dict(passed=passed, check=a.check, rows=len(records), driver_failures=driver_failures))
     if driver_failures or a.check and not passed:

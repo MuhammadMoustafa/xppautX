@@ -16,7 +16,7 @@ from types import SimpleNamespace
 
 from common import (BENCH, REPO, TOOLS, before_series, command, derived_program_sha, earlier_context, environment, executable_sha,
                     initialize, link_tree, mark_reused, measure_sha, progress, module, parser, reachable_sha, repetitions, rotation,
-                    save, selected, sha, short_home, summarize, tracked_text, tree_sha)
+                    save, selected, sha, short_home, summarize, tracked_text, tree_sha, write_plan)
 import autoxcompare as comparison
 import auto_reference as reference
 from comparison_measure import RunClock, process_cpu
@@ -73,6 +73,8 @@ def closure(d, targets):
 
 
 def workloads(a):
+    # (unit, description, target runs, timed) of the selected workloads; a unit is one of them (W699). P1 has its adaptive step
+    # and its fixed step, each its own unit.
     models = a.out / 'models'
     models.mkdir()
     py = models / 'PY_S1Bf.ode'
@@ -98,7 +100,10 @@ def workloads(a):
         "DS < 0, where stpnps orients the start's phase-condition derivative by the eigen-cycle whatever the sign of DS and the branch-point test's "
         "determinant changes sign: docs/xppaut-findings.md finding 86, docs/auto07p-findings.md finding 8); a DS > 0 run, which would isolate the orientation, was not made.")
     d['differences'] = [dict(reference=suffix, run='periodic', side='reference', type='BP', index=1, cause=p1_cause) for suffix in ('.xppaut', '.auto07p')]
-    result = [('P1', d, ['periodic'], True), ('E1', closure(d, ['steady']), ['steady'], True)]
+    fixed = copy.deepcopy(d)
+    for r in fixed['runs']:
+        r['autox'].update(min_step_size=abs(r['autox']['step_size']), max_step_size=abs(r['autox']['step_size']), step_adapt_every=0, max_steps=FIXED_POINT_BUDGET)
+    result = [('P1', d, ['periodic'], True), ('P1-fixed', fixed, ['periodic'], True), ('E1', closure(d, ['steady']), ['steady'], True)]
     mdb = description('ode_motoneuron6c')
     p2 = closure(mdb, ['periodic'])
     # A common parameter-bound window on the ascending cycles, before the
@@ -150,6 +155,10 @@ def workloads(a):
         for r in fixed['runs']:
             r['autox'].update(min_step_size=abs(r['autox']['step_size']), max_step_size=abs(r['autox']['step_size']), step_adapt_every=0)
         result.append(('V1-fixed', fixed, ['steady'], False))
+    if a.list:
+        for name, *_ in result:
+            yield name, None, None, None
+        return
     for name, d, targets, timed in result:
         if not selected(a, name):
             continue
@@ -178,7 +187,7 @@ def workloads(a):
                 for r in d['runs']:
                     r['autox']['max_steps'] = SMOKE_POINTS
             d.pop('differences', None)
-        if name in ('P1', 'E1'):
+        if name in ('P1', 'P1-fixed', 'E1'):
             o = Odex(REPO / d['model'])
             d['parameters'] = dict(o.pars)
             d['initial_conditions'] = dict(o.inits)
@@ -754,22 +763,33 @@ def reusable_pilot(a, name, mode, program, key):
 
 def plan_reuse(a, name, mode, d, targets, timed, initial, start, phase):
     # --plan (a dry run): what an earlier attempt would supply of this workload and what would run, decided by the same
-    # keys and checks the series uses. Nothing but xppautX's pilot has run.
+    # keys and checks the series uses. Nothing but xppautX's pilot has run. The plan (common.write_plan) lists what would run.
+    imported, would_run = 0, []
     for program in ('xppaut', 'auto07p'):
         rd = copy.deepcopy(d)
         key = row_key(a, program, rd, start, dict(label='pilot-' + program, measured=timed), a.cores[:1])  # as a series measures it
-        earlier, why = reusable_pilot(a, name, mode, program, key)
+        earlier, why = reusable_pilot(a, name, mode, program, key) if a.reuse else (None, 'no --reuse')
         phase('plan: %s pilot %s' % (program, 'imported' if earlier else 'runs: ' + why))
-    sized = earlier_mode_file(a, name, mode, 'window.json')
+        imported += bool(earlier)
+        if not earlier:
+            would_run.append('%s pilot: %s' % (program, why))
+    if not a.measures or not timed:
+        return write_plan(a, name + '/' + mode, would_run, imported)  # no row is measured: the workload ends after its pilots
+    if not a.measures or not timed:
+        return write_plan(a, name + '/' + mode, would_run, imported)  # no row is measured: the workload ends after its pilots
+    sized = earlier_mode_file(a, name, mode, 'window.json') if a.reuse else None
     count = sized['branch_repetitions'] if name in ('E1', 'T1') and sized else 1
     run_d = repeats_description(d, targets, count)
     for label, program, threads, events, jac in variants(name, timed, False):
         cpus = a.cores[:initial['threads_auto'] if threads == 'auto' else threads]
         row = dict(label=label, threads=threads, jacobian=jac, events=events, measured=True)
         key = row_key(a, program, run_d, start, row, cpus, HAND_WRITTEN if jac == 'exact' and name in ('P1', 'E1') else None)
-        found = [reusable_row(a, name, mode, rep, label, program, key, row, cpus) for rep in range(a.repeats + 1)]
+        found = [reusable_row(a, name, mode, rep, label, program, key, row, cpus) if a.reuse else (None, 'no --reuse') for rep in repetitions(a)]
         reasons = sorted({why for recs, why in found if not recs})
-        phase('plan: row %s: %d of %d repetitions imported%s' % (label, sum(1 for recs, _ in found if recs), a.repeats + 1, '; runs: ' + '; '.join(reasons) if reasons else ''))
+        phase('plan: row %s: %d of %d repetitions imported%s' % (label, sum(1 for recs, _ in found if recs), len(found), '; runs: ' + '; '.join(reasons) if reasons else ''))
+        imported += sum(1 for recs, _ in found if recs)
+        would_run += ['row %s: %s' % (label, why) for why in reasons]
+    write_plan(a, name + '/' + mode, would_run, imported)
 
 
 def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repetitions=1):
@@ -1013,39 +1033,33 @@ def stop_here(a, records, failed, driver_failures, name, why):
 
 def main():
     p = parser(__doc__)
-    p.add_argument('--plan', action='store_true', help='with --reuse and --only: print which rows an earlier attempt supplies and which would run (xppautX\'s pilot only); the full descriptions, no timing')
     p.add_argument('--pilots', action='store_true', help='with --only: the full descriptions\' pilots and gates, the converged and exact pilots included, untimed, then stop (W457)')
     a = p.parse_args()
+    a.measures = not a.check  # whether a run times rows: a plan, like a pilots run, forces a.check without being one
     if a.plan or a.pilots:
         a.check = True
     initialize(a)
+    if a.list:
+        print(json.dumps([name for name, *_ in workloads(a)]))
+        return
     records, failed, driver_failures = [], [], []
-    for name, d, targets, timed in workloads(a):
+    for unit, d, targets, timed in workloads(a):
+        name, mode = ('P1', 'fixed') if unit == 'P1-fixed' else (unit, 'adaptive')
         try:
-            progress(a, 'WORKLOAD %s' % name)
-            ok = workload(a, name, d, targets, timed, records)
-            if not ok:
-                failed.append(name)
+            progress(a, 'WORKLOAD %s' % unit)
+            if not workload(a, name, d, targets, timed, records, mode):
+                failed.append(unit)
                 if a.stop_on_failure:
-                    stop_here(a, records, failed, driver_failures, name, 'not equal work, see the differences above')
-            if name == 'P1' and (a.plan or not a.check):
-                fixed = copy.deepcopy(d)
-                for r in fixed['runs']:
-                    r['autox'].update(min_step_size=abs(r['autox']['step_size']), max_step_size=abs(r['autox']['step_size']), step_adapt_every=0, max_steps=FIXED_POINT_BUDGET)
-                progress(a, 'WORKLOAD %s fixed step' % name)
-                if not workload(a, name, fixed, targets, timed, records, 'fixed'):
-                    failed.append(name + '-fixed')
-                    if a.stop_on_failure:
-                        stop_here(a, records, failed, driver_failures, name + '-fixed', 'not equal work, see the differences above')
+                    stop_here(a, records, failed, driver_failures, unit, 'not equal work, see the differences above')
         except Exception as e:
-            failed.append(name)
-            driver_failures.append(name)
+            failed.append(unit)
+            driver_failures.append(unit)
             save(a.out / name / 'failure.json', dict(error=str(e), type=type(e).__name__, traceback=traceback.format_exc()))
-            progress(a, 'FAILED %s: %s' % (name, e))
+            progress(a, 'FAILED %s: %s' % (unit, e))
             if a.stop_on_failure:
-                stop_here(a, records, failed, driver_failures, name, '%s: %s' % (type(e).__name__, e))
+                stop_here(a, records, failed, driver_failures, unit, '%s: %s' % (type(e).__name__, e))
     save(a.out / 'completion.json', dict(check=a.check, failed_gates=failed, driver_failures=driver_failures, measured_rows=len(records)))
-    # A refused workload means missing measurements: the study is not complete (it was recorded as complete before).
+    # A refused workload means missing measurements: the unit is not done.
     if failed:
         sys.exit('refused or failed workloads: ' + ', '.join(failed))
 
