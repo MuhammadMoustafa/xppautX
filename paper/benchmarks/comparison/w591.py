@@ -2,6 +2,7 @@
 """W591 (#657): peak resident memory of each program on the comparison's workloads, untimed.
 
     w591.py integration --final F --out O   # every integration row of the frozen series: its run and its one-step (ready) row
+    ... --programs xppautx   # only these programs' rows (W594: xppautX alone on a newer binary; F's status.json names each study's attempt)
     w591.py continuation --xppautx X --xppaut P --auto-dir A --out O   # each timed continuation workload, the three programs
 
 The integration rows are the frozen series' own: each row's folder keeps the inputs and command.json the timed run used, so the same
@@ -67,16 +68,21 @@ def replay(row, scratch):
         shutil.rmtree(folder)
 
 
-def rows(final):
+def attempt(final, study):
+    """The folder of the study's attempt that status.json names (a composed folder maps each study to its real attempt)."""
+    return Path(json.loads((final / 'status.json').read_text())['studies'][study]['out'])
+
+
+def rows(final, programs):
     found = []
     for study in STUDIES:
-        base = final / study / 'attempt-001'
+        base = attempt(final, study)
         timed = {(r['workload'], r['engine']): r.get('wall_seconds_mean') for r in json.loads((base / 'summary.json').read_text()) if r['row'] == 'run' and not r.get('sweep')}
         for workload in sorted((base / 'runs').iterdir()):
             rep = workload / '1'
             if not rep.is_dir():
                 continue  # the python study's diverged runs have only a warm-up: no timed row (their data is extra-runs/python)
-            for engine in sorted(p for p in rep.iterdir() if (p / 'run').is_dir()):
+            for engine in sorted(p for p in rep.iterdir() if (p / 'run').is_dir() and p.name in programs):
                 for kind in ('ready', 'run'):
                     if (engine / kind / 'command.json').exists():
                         found.append(dict(study=study, workload=workload.name, program=engine.name, row=kind, folder=str(engine / kind),
@@ -86,7 +92,7 @@ def rows(final):
 
 def integration(a):
     scratch = Path(tempfile.mkdtemp(prefix='w591-scratch-'))
-    todo = rows(a.final)
+    todo = rows(a.final, a.programs)
     todo.sort(key=lambda r: -(r['timed_wall'] or 0))  # the long ones first, so they overlap the short ones
 
     def one(row):
@@ -166,7 +172,7 @@ def foreign_peak(a, d, program, inputs, scratch):
 
 
 def workloads(final):
-    base = final / 'continuation/attempt-001'
+    base = attempt(final, 'continuation')
     timed = {}
     for r in json.loads((base / 'summary.json').read_text()):
         if r['row'] == 'run' and r['wall_seconds_mean']:
@@ -191,7 +197,8 @@ def continuation(a):
     earlier = a.out / 'continuation.json'
     if earlier.exists():  # a stopped run goes on from its saved rows
         results, startup = json.loads(earlier.read_text())['rows'], json.loads(earlier.read_text())['startup']
-    a.auto_dir, a.xppaut = a.auto_dir.resolve(), a.xppaut.resolve()
+    a.auto_dir, a.xppaut = (x and x.resolve() for x in (a.auto_dir, a.xppaut))  # xppautX alone needs neither
+    chosen = [p for p in ('xppautx', 'xppaut', 'auto07p') if p in a.programs]  # the continuation study has no Python row
 
     def inputs(folder, d):
         odex = Odex(Path(d['model']))
@@ -202,12 +209,12 @@ def continuation(a):
         d = copy.deepcopy(one[1])
         for r in d['runs']:
             r['autox']['max_steps'] = START_POINTS  # XPPAUT 8.0 never ends a run with NMX 1; five points compute next to nothing
-        for program in () if startup else ('xppautx', 'xppaut', 'auto07p'):
+        for program in () if startup else chosen:
             startup[program] = [xppautx_peak(a, d)[0] if program == 'xppautx' else foreign_peak(a, d, program, inputs(one[0], d), scratch) for _ in range(2)]
             print('startup', program, startup[program], flush=True)
         for folder, d, timed in found:
             name, mode = folder.parent.name, folder.name
-            for program in ('xppautx', 'xppaut', 'auto07p'):
+            for program in chosen:
                 row = dict(workload=name, mode=mode, program=program)
                 if any(r['workload'] == name and r['mode'] == mode and r['program'] == program for r in results):
                     continue
@@ -231,6 +238,7 @@ def main():
     p.add_argument('part', choices=('integration', 'continuation'))
     p.add_argument('--final', type=Path, default=Path.home() / 'xppautx-comparison/final')
     p.add_argument('--out', type=Path, required=True)
+    p.add_argument('--programs', nargs='+', choices=('xppautx', 'xppaut', 'auto07p', 'python'), default=('xppautx', 'xppaut', 'auto07p', 'python'))
     p.add_argument('--xppautx', type=Path)
     p.add_argument('--xppaut', type=Path)
     p.add_argument('--auto-dir', type=Path)
