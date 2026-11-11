@@ -188,7 +188,7 @@ export function Plot3DView({win, dark, shown, tabbed, windowRow}: Props) {
         {hovered !== null && model && <span class="trace-tooltip" role="tooltip">{model.curves[hovered]?.label}</span>}
         {noCurves && (
           <div class="plot-empty">
-            <p>{busy ? 'Integrating…' : 'No trajectory yet.'}</p>
+            <p>{busy ? 'Working…' : 'No trajectory yet.'}</p>
             {!busy && <p>Choose a run action above the plot.</p>}
           </div>
         )}

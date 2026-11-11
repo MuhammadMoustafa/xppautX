@@ -500,7 +500,7 @@ export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
         {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}
         {empty && (
           <div class="plot-empty">
-            <p>{busy ? 'Integratingâ€¦' : erased ? 'Erased: Redraw (R) draws the data again.' : 'No trajectory yet.'}</p>
+            <p>{busy ? 'Working…' : erased ? 'Erased: Redraw (R) draws the data again.' : 'No trajectory yet.'}</p>
             {!busy && !erased && <p>Choose a run action above the plot.</p>}
           </div>
         )}
