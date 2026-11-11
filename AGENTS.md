@@ -304,7 +304,7 @@ keeps (every point's parameters, states and eigenvalues, exact) byte for
 byte (CRs removed) with the shared `.diagram.csv` baseline, naming the first differing point
 and both lines; skipped models have explicit reasons. `--only MODEL,...`
 selects descriptions. Use `--update` only for an intended numerical change;
-it prints the models changed. verify.sh runs it after examples_check;
+it prints the models changed. verify.sh runs it in its second round, with examples_check and odexcheck;
 every platform's core CI job uploads differences as `auto-diagrams-<platform>`.
 The coordinator's checks after a wave of autoX cards (not verify.sh's):
 `tools/autox-profile/diagram_diff.py` with a `LINALG=lapack` build (every description against the

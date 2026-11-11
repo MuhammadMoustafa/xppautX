@@ -6,6 +6,9 @@
 # It also runs the checks about the source (tools/sourcecheck.sh: the LTO
 # type check among them) and checks that a failed allocation is loud.
 # The sanitizer build (tools/asancheck.sh) is slower and runs apart, in CI.
+# Every check after the unit tests runs side by side (tools/side_by_side.sh, at
+# most JOBS busy at once); a failed one is named with the tail of its log, and the
+# exit status is non-zero if any failed.
 # Usage: tools/verify.sh [--clean-warnings] [--no-source-checks]
 #   --no-source-checks  skip tools/sourcecheck.sh (encoding, script modes,
 #                       stdoutcheck, formatcheck, the LTO type check): CI's
@@ -84,135 +87,42 @@ else
   echo "UNIT TESTS FAILED"
   exit 1
 fi
+# the checks, side by side (tools/side_by_side.sh: a log each in build/check-NAME.log,
+# the verdicts at the end). The machine's bound holds (W289, W418): at most JOBS
+# processes busy at once. Round one is the checks that run one process at a time,
+# JOBS of them at once, longest first; round two is the checks that fill JOBS
+# themselves (the compiles of sourcecheck, the models of examples, odexcheck and
+# autoxcompare), one at a time. Nothing they write is shared: each has its own log,
+# build folder (golden-differ, auto-differ, lto, deadcode) or mktemp folder, and
+# the servers take port 0. A differing golden output is kept in build/golden-differ
+# (CI uploads it); the examples still run after a golden failure, so one run says
+# both.
+rm -rf build/golden-differ build/auto-differ
+fail=0
+tools/side_by_side.sh --prefix build/check- --jobs "$JOBS" \
+  autoxcheck uv run --locked python tools/autoxcheck.py -- \
+  servercheck uv run --locked python tools/servercheck.py -- \
+  webcheck uv run --locked python tools/webcheck.py -- \
+  goldencheck uv run --locked python tools/goldencheck.py --keep build/golden-differ -- \
+  modecheck sh tools/modecheck.sh -- \
+  steadycheck uv run --locked python tools/steadycheck.py -- \
+  spikecheck uv run --locked python tools/spikecheck.py -- \
+  livestatecheck uv run --locked python tools/livestatecheck.py -- \
+  associatecheck sh tools/associatecheck.sh -- \
+  checkcheck uv run --locked python tools/checkcheck.py -- \
+  embedcheck uv run --locked python tools/embedcheck.py --build-dir build/obj -- \
+  manualcheck uv run --locked python tools/manualcheck.py -- \
+  unsafecheck sh tools/unsafecheck.sh --check || fail=1
 # checks about the source, not the build: once per push in CI (its
 # `source` job, tools/sourcecheck.sh), every time in the local gate
-if [ $source_checks -eq 1 ] && ! sh tools/sourcecheck.sh; then
-  exit 1
-fi
-if uv run --locked python tools/servercheck.py > build/servercheck.log 2>&1; then
-  echo "server protocol ok: $(grep -c '^PASS' build/servercheck.log) checks"
-else
-  grep -v '^PASS' build/servercheck.log
-  echo "SERVER CHECK FAILED"
-  exit 1
-fi
-if uv run --locked python tools/steadycheck.py > build/steadycheck.log 2>&1; then
-  echo "steady and continuation ok: $(grep -c '^PASS' build/steadycheck.log) checks"
-else
-  grep -v '^PASS' build/steadycheck.log
-  echo "STEADY CHECK FAILED"
-  exit 1
-fi
-if uv run --locked python tools/spikecheck.py > build/spikecheck.log 2>&1; then
-  echo "firing behaviours ok: $(grep -c '^PASS' build/spikecheck.log) checks"
-else
-  grep -v '^PASS' build/spikecheck.log
-  echo "SPIKE CHECK FAILED"
-  exit 1
-fi
-if uv run --locked python tools/livestatecheck.py > build/livestatecheck.log 2>&1; then
-  echo "live state and rates ok: $(grep -c '^PASS' build/livestatecheck.log) checks"
-else
-  grep -v '^PASS' build/livestatecheck.log
-  echo "LIVE STATE CHECK FAILED"
-  exit 1
-fi
-if uv run --locked python tools/webcheck.py > build/webcheck.log 2>&1; then
-  echo "web front end ok: $(grep -c '^PASS' build/webcheck.log) checks"
-else
-  grep -v '^PASS' build/webcheck.log
-  echo "WEB CHECK FAILED"
-  exit 1
-fi
-if sh tools/modecheck.sh > build/modecheck.log 2>&1; then
-  echo "command-line modes ok: $(grep -c '^PASS' build/modecheck.log) checks"
-else
-  grep -v '^PASS' build/modecheck.log
-  echo "MODE CHECK FAILED"
-  exit 1
-fi
-if sh tools/associatecheck.sh > build/associatecheck.log 2>&1; then
-  tail -1 build/associatecheck.log
-else
-  cat build/associatecheck.log
-  echo "ASSOCIATE CHECK FAILED"
-  exit 1
-fi
-if uv run --locked python tools/autoxcheck.py > build/autoxcheck.log 2>&1; then
-  echo "autoX checks ok: $(grep -c '^PASS' build/autoxcheck.log) checks"
-else
-  grep -v '^PASS' build/autoxcheck.log
-  echo "autoX CHECK FAILED"
-  exit 1
-fi
-# a differing output is kept in build/golden-differ (CI uploads it); the
-# examples still run after a golden failure, so one run says both
-rm -rf build/golden-differ
-golden_failed=0
-if uv run --locked python tools/goldencheck.py --keep build/golden-differ > build/goldencheck.log 2>&1; then
-  echo "golden outputs ok: $(grep -c '^PASS' build/goldencheck.log) files"
-else
-  grep -v '^PASS' build/goldencheck.log
-  echo "GOLDEN CHECK FAILED"
-  golden_failed=1
-fi
-# every example's output against tests/examples.md5: the numerics
-if tools/examples_check.sh > build/examples.log 2>&1; then
-  tail -1 build/examples.log
-else
-  tail -20 build/examples.log
-  echo "EXAMPLES CHECK FAILED"
-  exit 1
-fi
-if uv run --locked python tools/autoxcompare.py --keep build/auto-differ > build/autoxcompare.log 2>&1; then
-  tail -3 build/autoxcompare.log
-else
-  cat build/autoxcompare.log
-  echo "autoX BASELINE CHECK FAILED"
-  exit 1
-fi
-[ "$golden_failed" -eq 0 ] || exit 1
-# every example converted to .odex and run: the same md5 (W74, docs/odex.md)
-if sh tools/odexcheck.sh > build/odexcheck.log 2>&1; then
-  tail -1 build/odexcheck.log
-else
-  tail -20 build/odexcheck.log
-  echo "ODEX CHECK FAILED"
-  exit 1
-fi
-# W75: quirk findings and the --check JSON/no-write contract
-if uv run --locked python tools/checkcheck.py > build/checkcheck.log 2>&1; then
-  tail -1 build/checkcheck.log
-else
-  tail -20 build/checkcheck.log
-  echo "CHECK CHECK FAILED"
-  exit 1
-fi
-# W178: the embedding generators leave no partial target and name the file that failed
-if uv run --locked python tools/embedcheck.py --build-dir build/obj > build/embedcheck.log 2>&1; then
-  tail -1 build/embedcheck.log
-else
-  tail -20 build/embedcheck.log
-  echo "EMBED CHECK FAILED"
-  exit 1
-fi
-# every whole model the manual shows still loads, and every command-line
-# option it names is real (W81)
-if uv run --locked python tools/manualcheck.py > build/manualcheck.log 2>&1; then
-  tail -1 build/manualcheck.log
-else
-  cat build/manualcheck.log
-  echo "MANUAL CHECK FAILED"
-  exit 1
-fi
+set --
+if [ $source_checks -eq 1 ]; then set -- sourcecheck sh tools/sourcecheck.sh --; fi
+tools/side_by_side.sh --prefix build/check- --jobs 1 "$@" \
+  examples tools/examples_check.sh -- \
+  odexcheck sh tools/odexcheck.sh -- \
+  autoxcompare uv run --locked python tools/autoxcompare.py --keep build/auto-differ || fail=1
+grep '^unsafe C idioms:' build/check-unsafecheck.log
 # the conversion of the core to C++ (CLAUDE.md, "C and C++")
 echo "C++: $(( $(ls core/*.cpp 2>/dev/null | wc -l) )) / $(( $(ls core/*.c core/*.cpp 2>/dev/null | wc -l) )) sources"
-# the move from C++ to safe C++ (CLAUDE.md, "C and C++"; the W29 cards)
-if sh tools/unsafecheck.sh --check > build/unsafecheck.log 2>&1; then
-  grep '^unsafe C idioms:' build/unsafecheck.log
-else
-  cat build/unsafecheck.log
-  echo "UNSAFECHECK FAILED"
-  exit 1
-fi
+[ $fail -eq 0 ] || exit 1
 if [ $clean_warnings -eq 1 ]; then tools/warnings.sh; fi
