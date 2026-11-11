@@ -84,6 +84,11 @@ CORE_SYSLIBS = -ldl
 LDSTATIC =
 NETLIBS  = -lpthread
 MAINSTACK =
+# Linux: libstdc++ and libgcc linked in, so the dynamic loader binds no
+# libstdc++ symbols at start (about 1.8 M instructions of a 15 M run, W700);
+# the window library keeps its own shared libstdc++, and a sanitizer or
+# valgrind build keeps the shared one (its link line is its own)
+LDRUNTIME = $(if $(findstring Linux,$(shell uname -s)),-static-libstdc++ -static-libgcc)
 endif
 
 # clang (Apple's on macOS; MSYS2's CLANG64 toolchain on Windows, W23:
@@ -465,7 +470,7 @@ $(BUILDDIR)/corelib.stamp: FORCE | $(BUILDDIR)
 	@echo '$(CORE_OBJECTS)' > $@.tmp; if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
 
 xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
-	$(LINK_X) $(LDSTATIC) $(MAINSTACK) $(RELEASE_LD) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(CORE_SYSLIBS) $(NETLIBS) $(WINDOW_LIBS) $(LINALG_LIBS)
+	$(LINK_X) $(LDSTATIC) $(LDRUNTIME) $(MAINSTACK) $(RELEASE_LD) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(CORE_SYSLIBS) $(NETLIBS) $(WINDOW_LIBS) $(LINALG_LIBS)
 
 # macOS: xppautX.app, a bundle Finder and LaunchServices know as the .ode
 # opener (tools/associate/Info.plist.in's CFBundleDocumentTypes), from the
