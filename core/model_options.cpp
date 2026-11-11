@@ -1168,17 +1168,44 @@ constexpr bool grouped_rows_unnamed()
 static_assert(grouped_rows_unnamed(), "a row with a .odex key is named by its group and key, not a name of its own");
 static_assert(rows_in_order(), "the option table runs in option_groups order, a group's sections each in one run");
 
-/* the length of row's name that name starts with (and the digit after a
+/* the length of a name of n characters at the start of name, plus the digit
+   after it for a numbered row (index), once name is known to start with it */
+std::size_t with_digit(const OptionRow &row, std::size_t n, std::string_view name, int &index)
+{
+  if (!row.first_digit) return n;
+  if (name.size() <= n) return 0;
+  const char d = name[n];
+  if (d < row.first_digit || d > row.last_digit) return 0;
+  index = d - '0';
+  return n + 1;
+}
+
+/* the length of row's name n that name starts with (and the digit after a
    numbered one), 0 when it does not */
 std::size_t match_length(const OptionRow &row, std::string_view n, std::string_view name, int &index)
 {
   if (n.empty() || name.size() < n.size() || !equal_ignoring_case(name.substr(0, n.size()), n)) return 0;
-  if (!row.first_digit) return n.size();
-  if (name.size() <= n.size()) return 0;
-  const char d = name[n.size()];
-  if (d < row.first_digit || d > row.last_digit) return 0;
-  index = d - '0';
-  return n.size() + 1;
+  return with_digit(row, n.size(), name, index);
+}
+
+/* match_length of row's own name (option_name), compared in its parts so a
+   lookup over the whole table builds no string */
+std::size_t own_match_length(const OptionRow &row, std::string_view name, int &index)
+{
+  if (row.odex.empty()) return match_length(row, row.name, name, index);
+  const std::size_t g = row.group.size(), n = g + 1 + row.odex.size();
+  if (name.size() < n || name[g] != '.' || !equal_ignoring_case(name.substr(0, g), row.group) ||
+      !equal_ignoring_case(name.substr(g + 1, row.odex.size()), row.odex))
+    return 0;
+  return with_digit(row, n, name, index);
+}
+
+/* whether name is row's own name (option_name) exactly */
+bool is_own_name(const OptionRow &row, std::string_view name)
+{
+  if (row.odex.empty()) return row.name == name;
+  const std::size_t g = row.group.size();
+  return name.size() == g + 1 + row.odex.size() && name.substr(0, g) == row.group && name[g] == '.' && name.substr(g + 1) == row.odex;
 }
 
 } // namespace
@@ -1206,7 +1233,7 @@ bool OptionSource::may(const Session &s, const OptionRow &row) const
 
 const OptionRow &once_option(std::string_view name)
 {
-  return *std::ranges::find_if(rows, [name](const OptionRow &r) { return r.once && option_name(r) == name; });
+  return *std::ranges::find_if(rows, [name](const OptionRow &r) { return r.once && is_own_name(r, name); });
 }
 
 /* the pairs of settings that keep an order (model_options.h), named by their rows */
@@ -1275,9 +1302,16 @@ const OptionRow *find_option(std::string_view name, int &index, bool xppaut_name
   const OptionRow *best = nullptr;
   std::size_t best_length = 0;
   for (const OptionRow &row : rows) {
-    const std::string own = option_name(row);
-    for (std::string_view n : {std::string_view(own), xppaut_names ? row.xppaut_names[0] : "", xppaut_names ? row.xppaut_names[1] : ""}) {
-      int i = 0;
+    int i = 0;
+    const std::size_t own = own_match_length(row, name, i);
+    if (own > best_length) {
+      best = &row;
+      best_length = own;
+      index = i;
+    }
+    if (!xppaut_names) continue;
+    for (std::string_view n : row.xppaut_names) {
+      i = 0;
       const std::size_t length = match_length(row, n, name, i);
       if (length > best_length) {
         best = &row;
