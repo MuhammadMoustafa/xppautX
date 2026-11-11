@@ -111,12 +111,14 @@ export function closeMenuBar(focus: boolean): boolean {
   return true;
 }
 
-/** the open panels, the last opened on top: Escape closes the topmost (escape) */
-const panels: {close: () => void}[] = [];
+/** the open panels, the last opened on top: Escape closes the topmost one shown as a panel now (escape) */
+const panels: {close: () => void; shown: () => boolean}[] = [];
 
-/** A panel that is open registers how it closes; the returned function removes it again (an effect's cleanup). */
-export function openPanel(close: () => void): () => void {
-  const entry = {close};
+/** A panel that is open registers how it closes, and when it is shown as a panel Escape may close (by default always;
+    the Values dock tab only as the phone's sheet, asked at the press since the page may have been resized); the returned
+    function removes it again (an effect's cleanup). */
+export function openPanel(close: () => void, shown: () => boolean = () => true): () => void {
+  const entry = {close, shown};
   panels.push(entry);
   return () => {
     const at = panels.indexOf(entry);
@@ -143,7 +145,7 @@ function escape(session: Session, target: Element | null): boolean {
     session.typeKey('Escape');
     return true;
   }
-  const top = panels[panels.length - 1];
+  const top = [...panels].reverse().find(p => p.shown());
   if (top && !target?.closest?.('[data-own-escape]')) { top.close(); return true; }
   if (busy) { session.abort(); return true; }
   return false;

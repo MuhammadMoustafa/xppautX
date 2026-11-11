@@ -317,7 +317,7 @@ export function ValuesPanel() {
     /* Escape closes the sheet through hotkeys.ts's one owner (openPanel); a box with an edit to drop
        keeps its Escape (Field's data-own-escape, UX-001). As the dock's column (a wide page) Values is no sheet
        to close, so Escape goes on to what is under it: the run's stop */
-    return window.matchMedia(DOCK_SHEET_WIDTH).matches ? openPanel(close) : undefined;
+    return openPanel(close, () => window.matchMedia(DOCK_SHEET_WIDTH).matches);
   }, [open]);
 
   return (

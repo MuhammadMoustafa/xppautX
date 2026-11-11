@@ -3329,6 +3329,8 @@ async function optionsCheck() {
   await cdp.eval(`__xpp.openOptions('output')`);
   await requireUntil(`s.optionsPanel?.group === 'output' && s.optionValues.output`, 'the Output panel again for run_set');
   check('W672: and the core holds exactly those run_set values', await S(`s.optionValues.output.values.run_set === ${JSON.stringify(sets.join('\n'))}`), JSON.stringify(await S('s.optionValues.output.values.run_set')));
+  /* the boxes show the core's values before they are clicked: a click on a box not yet drawn from them is lost (macOS CI, 42949222214) */
+  await requireUntil(`[...document.querySelectorAll('[data-argument="run_set"] .checklist input')].every(i => i.checked)`, 'every set checked in the panel again');
   for (const name of sets) {
     await cdp.eval(`document.querySelector('[data-argument="run_set"] .checklist input[data-choice=' + JSON.stringify(${JSON.stringify(name)}) + ']').click()`);
     await rendered();
