@@ -263,7 +263,8 @@ test('errors wait in one error dialog until OK; a warning flashes the status, no
 test("the page's leave question (W110): worded by hello, kept over the run's done, replaced by a core question", () => {
   const quit = {question: 'Quit xppautX? Save this session first?',
     recording: 'Quit xppautX? Save this session, and the recording in progress, first?',
-    choices: ['Save session', "Don't save"], keys: 'sd'};
+    choices: ['Save session', "Don't save"], keys: 'sd',
+    restart: {question: 'Restart?', recording: 'Restart, recording?'}, install: {question: 'Install?', recording: 'Install, recording?'}};
   assert.equal(reduce(initialState, {type: 'leave', open: true}).ask, null, 'no hello, no question');
   let s = ev(READY, {...HELLO, quit});
   s = reduce(ev(s, {ev: 'job.computing'}), {type: 'leave', open: true});
@@ -276,6 +277,8 @@ test("the page's leave question (W110): worded by hello, kept over the run's don
   assert.equal(ev(s, {ev: 'ask', id: 7, kind: 'file'}).ask?.id, 7, "a question of the core's replaces it");
   const rec = ev(s, {ev: 'session.state', sliders: [], pars: [], ics: [], recording: {steps: 1, note: ''}});
   assert.equal(reduce(rec, {type: 'leave', open: true}).ask?.question, quit.recording, 'naming the recording in progress');
+  assert.equal(reduce(ev(READY, {...HELLO, quit}), {type: 'leave', open: true, then: 'update.restart'}).ask?.question, quit.restart.question, "an update's restart words its own question");
+  assert.equal(reduce(rec, {type: 'leave', open: true, then: 'update.install'}).ask?.question, quit.install.recording, "an install's, naming the recording");
   assert.equal(noDone({cmd: 'session.quit', save: false}), true, 'the plain quit has no done');
   assert.equal(noDone({cmd: 'session.quit', save: true}), false, 'the quit that saves is a command of its own');
   assert.equal(noDone({cmd: 'session.quit'}), false, 'the quit that asks too');

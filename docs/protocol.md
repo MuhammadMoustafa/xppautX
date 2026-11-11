@@ -453,7 +453,7 @@ common overwrite question applies. They return a placed error if the output coul
 
 ## Startup
 
-1. `hello`: protocol version (4), `about` (Help > About xppautX's lines, from core/xpp_about.cpp: an array of lines, each an array of parts `{"text":...}`, with `"url"` too when the part is a link (`https:` or `mailto:`); the first line's text is `xppautX <version>`; a blank line is `[]`), `quit` (File > Quit's question as the core asks it, W110: `question`, `recording` (the question while a recording is in progress), `choices` (`["Save session","Don't save"]`) and `keys` (`sd`), for a client that asks it itself while a command runs: `quit` with `save` below), window title, the three main menus
+1. `hello`: protocol version (4), `about` (Help > About xppautX's lines, from core/xpp_about.cpp: an array of lines, each an array of parts `{"text":...}`, with `"url"` too when the part is a link (`https:` or `mailto:`); the first line's text is `xppautX <version>`; a blank line is `[]`), `quit` (File > Quit's question as the core asks it, W110: `question`, `recording` (the question while a recording is in progress), `restart` and `install` (an update's own leave questions, W691: each `question` and `recording`, the words the core asks `update.restart` and `update.install` with while idle), `choices` (`["Save session","Don't save"]`) and `keys` (`sd`), for a client that asks it itself while a command runs: `quit` with `save` below), window title, the three main menus
    every command's kind and
    whether it is a step (`commands`): see "Action kinds"; the limits the
    core keeps to (`limits`) and the initial window names (`window_names`): see

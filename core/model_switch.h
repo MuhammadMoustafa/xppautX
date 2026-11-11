@@ -78,9 +78,11 @@ namespace xpp {
 inline constexpr const char *LEAVE_SAVE = "Save session";
 inline constexpr const char *LEAVE_DONT_SAVE = "Don't save";
 inline constexpr const char *LEAVE_KEYS = "sd";
-/* "Quit xppautX? Save this session first?", naming the recording in
-   progress when recording */
-const char *quit_question(bool recording);
+/* What the leave question is asked for: Quit, or an update's restart or install (W691) */
+enum class Leave { quit, restart, install };
+/* The question for `leave`: "Quit xppautX? Save this session first?", "Restart xppautX to use the new version? Save this session
+   first?", "Install the update and quit xppautX? Save this session first?"; naming the recording in progress when recording */
+std::string leave_question(Leave leave, bool recording);
 
 /* what a command asked to load: file with the command line command_line
    (the program's name first), in the folder dir ("" the working one) */

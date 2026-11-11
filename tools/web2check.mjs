@@ -6493,8 +6493,8 @@ async function switchDuringRunCheck() {
   await offer('restart');
   await until(`!!document.querySelector('[data-update-restart]')`, 'the restart offer while running');
   await cdp.eval(`document.querySelector('[data-update-restart]').click(); true`);
-  check('updates during a run: Restart now asks Quit\'s question, the run going on, nothing sent',
-    await until(`s.ask && s.ask.id === -1 && s.ask.question === '${QUIT_Q}' && s.computing`, 'the leave question', 20000 * SLOW)
+  check('updates during a run: Restart now asks the restart question hello words, the run going on, nothing sent',
+    await until(`s.ask && s.ask.id === -1 && s.ask.question === s.hello.quit.restart.question && s.ask.question !== '${QUIT_Q}' && s.computing`, 'the leave question', 20000 * SLOW)
     && (await cdp.eval('__xpp.sentCount()')) === sentMark, JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentMark})`)));
   if (process.env.XPP_SHOTS) await shotSizes(process.env.XPP_SHOTS, 'leave-running', 'restart');
   await key('Escape');
@@ -6509,7 +6509,8 @@ async function switchDuringRunCheck() {
   await offer('install');
   await until(`!!document.querySelector('[data-update-restart]')`, 'the install offer while running');
   await cdp.eval(`document.querySelector('[data-update-restart]').click(); true`);
-  await until(`s.ask && s.ask.id === -1`, 'the question for install');
+  check('updates during a run: Install and restart asks the install question hello words',
+    await until(`s.ask && s.ask.id === -1 && s.ask.question === s.hello.quit.install.question && s.ask.question !== s.hello.quit.restart.question`, 'the question for install'));
   await key('s');
   check('updates during a run: Save session sends update.install with save true (the core stops the run, saves, then installs)',
     await until(`window.__heldUpdates.length === 2`, 'sent') && (await held())[1] === '{"cmd":"update.install","save":true}' && !(await S('!!s.ask')),

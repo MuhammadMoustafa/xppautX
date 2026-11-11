@@ -157,7 +157,7 @@ bool xpp_session_leave_saved(xpp::Session &s, bool save, bool with_recording)
 void xpp_quit(xpp::Session &s, bool saving)
 {
   const bool recording=xpp::recording_in_progress();
-  if(saving?xpp_session_leave_saved(s,true,recording):xpp_session_may_leave(s,xpp::quit_question(recording),recording))xpp::bye_bye();
+  if(saving?xpp_session_leave_saved(s,true,recording):xpp_session_may_leave(s,xpp::leave_question(xpp::Leave::quit,recording),recording))xpp::bye_bye();
 }
 
 xpp::Result<bool> xpp_model_reload(xpp::Session &s)
@@ -189,10 +189,10 @@ ModelRequest open_request(const Session &s, std::string dir, std::string file)
   return req;
 }
 
-const char *quit_question(bool recording)
+std::string leave_question(Leave leave, bool recording)
 {
-  return recording?"Quit xppautX? Save this session, and the recording in progress, first?"
-                  :"Quit xppautX? Save this session first?";
+  static constexpr const char *HEADS[]={"Quit xppautX?","Restart xppautX to use the new version?","Install the update and quit xppautX?"};
+  return xpp::format("{} {}",HEADS[static_cast<int>(leave)],recording?"Save this session, and the recording in progress, first?":"Save this session first?");
 }
 
 ModelRequest saved_request(const Session &s, std::string dir, SavedFile f)

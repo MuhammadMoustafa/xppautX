@@ -29,6 +29,12 @@ export interface AutoxRunTable {
   rows: {point: string; family: string; kinds: string[]; switch: string[]}[];
 }
 
+/** one leave question's wording: the plain one and the one naming the recording in progress (core/model_switch.h leave_question) */
+export interface LeaveQuestion {
+  question: string;
+  recording: string;
+}
+
 export interface HelloEvent {
   ev: 'hello';
   protocol: number;
@@ -52,8 +58,8 @@ export interface HelloEvent {
   update: {install: 'portable' | 'msi' | 'deb' | 'release_page'; asset_suffix: string; why: string};
   /** File > Quit's question as the core asks it (W59d), for the page's own while a computation runs
       (W110, store/state.ts LEAVE_ASK): the question, the one naming the recording in progress, the
-      answers and their keys */
-  quit: {question: string; recording: string; choices: string[]; keys: string};
+      answers and their keys; `restart` and `install` are an update's own questions, asked the same way (W691) */
+  quit: {question: string; recording: string; choices: string[]; keys: string; restart: LeaveQuestion; install: LeaveQuestion};
   /** the user's keymap as the core read it (W211, store/keymap.ts) */
   keymap: KeymapInfo;
   /** autoX's Run: the kinds, the kinds a start from the current state takes, and one row for each start point type (core/autox_run.h) */

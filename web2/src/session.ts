@@ -22,7 +22,7 @@ import {
   answerName, keepBothName, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type RunRecord, type Upload,
 } from './store/files';
 import {createStore, type Store} from './store/store';
-import {initialState, LEAVE_ASK, noDone, reduce, type Action, type AppState, type ValuesFileOffer, type ValuesPart} from './store/state';
+import {initialState, LEAVE_ASK, noDone, type LeaveThen, reduce, type Action, type AppState, type ValuesFileOffer, type ValuesPart} from './store/state';
 import {checkUpdates, newerThanRunning, RELEASE_PREFIX, type UpdateResult} from './help/updates';
 import {closeDesktopWindow} from './desktop';
 import {stepTarget} from './store/ani';
@@ -85,9 +85,6 @@ const PLAYER_CONTROLS = {start: 'recording.play', pause: 'recording.pause', step
 
 /** the table, as a pop-out names it */
 const TABLE_VIEW: ViewKey = {kind: 'dock', name: 'table'};
-
-/** the command the page's leave question's answer goes with: Quit, or an update's restart or install (W689) */
-type LeaveThen = 'session.quit' | 'update.restart' | 'update.install';
 
 /** an update's restart or install given its save: the leave question's answer, which may go while a computation runs (the core
     stops it, then runs the command, W689) */
@@ -576,7 +573,7 @@ export class Session {
       update.restart / update.install, W689) */
   private leaveQuestion(then: LeaveThen): void {
     this.leaveThen = then;
-    this.store.dispatch({type: 'leave', open: true});
+    this.store.dispatch({type: 'leave', open: true, then});
   }
 
   /* the page's leave question answered: Save session stops the run, saves

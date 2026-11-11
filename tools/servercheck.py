@@ -9698,6 +9698,12 @@ def check_quit():
               and quit.get('keys') == ask.get('keys')
               and quit.get('recording') == 'Quit xppautX? Save this session, and the recording in progress, first?',
               str(quit))
+        check("hello carries an update's own leave questions (W691: the core's update.restart / update.install ask these same words idle)",
+              quit.get('restart') == {'question': 'Restart xppautX to use the new version? Save this session first?',
+                                      'recording': 'Restart xppautX to use the new version? Save this session, and the recording in progress, first?'}
+              and quit.get('install') == {'question': 'Install the update and quit xppautX? Save this session first?',
+                                          'recording': 'Install the update and quit xppautX? Save this session, and the recording in progress, first?'},
+              str(quit))
         if ask and is_ask(ask):
             snd(cmd='answer', id=ask['id'], ok=0)
         col(is_done)

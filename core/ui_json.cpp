@@ -86,6 +86,15 @@ namespace {
 /* the job.stopped event: {"ev":"job.stopped","at":AT}: where the running job was when it was
    cancelled (docs/protocol.md "stopped"). A script replays the
    interruption from AT. */
+/* "question":Q,"recording":R of one leave question (model_switch.h), in hello's `quit` */
+void buf_leave_question(std::string &b, xpp::Leave leave)
+{
+    BUF_LIT(b, "\"question\":");
+    buf_str(b, xpp::leave_question(leave, false));
+    BUF_LIT(b, ",\"recording\":");
+    buf_str(b, xpp::leave_question(leave, true));
+}
+
 void send_stopped(void)
 {
     std::string b;
@@ -1187,11 +1196,13 @@ void send_hello(xpp::Session &s)
     BUF_LIT(b, "}");
     /* File > Quit's question, as the core asks it (model_switch.h): the
        page asks the same itself while a computation runs (W110) */
-    BUF_LIT(b, ",\"quit\":{\"question\":");
-    buf_str(b, xpp::quit_question(false));
-    BUF_LIT(b, ",\"recording\":");
-    buf_str(b, xpp::quit_question(true));
-    BUF_LIT(b, ",\"choices\":[");
+    BUF_LIT(b, ",\"quit\":{");
+    buf_leave_question(b, xpp::Leave::quit);
+    BUF_LIT(b, ",\"restart\":{");
+    buf_leave_question(b, xpp::Leave::restart);
+    BUF_LIT(b, "},\"install\":{");
+    buf_leave_question(b, xpp::Leave::install);
+    BUF_LIT(b, "},\"choices\":[");
     buf_str(b, xpp::LEAVE_SAVE);
     BUF_LIT(b, ",");
     buf_str(b, xpp::LEAVE_DONT_SAVE);

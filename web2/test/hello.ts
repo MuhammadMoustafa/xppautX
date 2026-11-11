@@ -104,7 +104,8 @@ export const HELLO: HelloEvent = {
   output_names: {csv: 'lecar.csv', curves: 'lecar-curves.csv'},
   continue: {grid_tolerance: 1e-6},
   steady: {max_decimals: 15, default_decimals: 9, default_hold: 1},
-  quit: {question: 'Quit?', recording: 'Quit and stop recording?', choices: ['Save session', "Don't save"], keys: 'sd'},
+  quit: {question: 'Quit?', recording: 'Quit and stop recording?', choices: ['Save session', "Don't save"], keys: 'sd',
+    restart: {question: 'Restart?', recording: 'Restart and stop recording?'}, install: {question: 'Install?', recording: 'Install and stop recording?'}},
   model_names: [], lists: [], options: [], userbuttons: [], defaults: {pars: [], ics: []},
   /* no keymap.json: every command with the table's keys (core/xpp_keymap.cpp effective_json) */
   keymap: {

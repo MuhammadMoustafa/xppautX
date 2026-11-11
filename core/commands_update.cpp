@@ -108,12 +108,11 @@ Result<std::string> switch_program(Session &s, const Command &command, const Arg
     if (!installer && plan.install != update::Install::portable)
         return fail(command.name, xpp::format("only a portable copy restarts into an update; this one is updated {}", plan.install == update::Install::release_page ? "from the release page: " + plan.why : "by its installer (update.install)"), place);
     const bool recording = recording_in_progress();
-    const std::string question = installer ? "Install the update and quit xppautX? Save this session first?" : "Restart xppautX to use the new version? Save this session first?";
     ResultObject result;
     /* save given: the page already asked the leave question (during a run, W689), so its answer goes as session.quit's does */
     const std::optional<bool> save = args.optional<bool>("save");
     const bool may_leave = save ? xpp_session_leave_saved(s, *save, recording)
-                                : xpp_session_may_leave(s, recording ? question + " (the recording in progress is saved too)" : question, recording);
+                                : xpp_session_may_leave(s, leave_question(installer ? Leave::install : Leave::restart, recording), recording);
     if (!may_leave) return result.boolean("restarting", false).done();
     const std::string reopen = reopen_target(s);
     const Result<> started = installer ? update::start_installer(plan) : update::start_new_program(reopen, program.page == XppProgram::Page::browser);

@@ -251,7 +251,7 @@ export type Action =
   | {type: 'help'; action: HelpAction}
   | {type: 'player'; action: PlayerAction}
   /** the page's own leave question (LEAVE_ASK) opened or closed */
-  | {type: 'leave'; open: boolean};
+  | {type: 'leave'; open: boolean; then?: LeaveThen};
 
 export const initialState: AppState = {
   connected: false,
@@ -358,11 +358,15 @@ export function noDone(cmd: Command): boolean {
     a question of the core's replaces it. */
 export const LEAVE_ASK = -1;
 
+/** the command the page's leave question's answer goes with: Quit, or an update's restart or install (W689); it picks the question's wording */
+export type LeaveThen = 'session.quit' | 'update.restart' | 'update.install';
+
 /** the leave question, as the core would ask it now (null before hello) */
-function leaveAsk(state: AppState): AskEvent | null {
+function leaveAsk(state: AppState, then: LeaveThen): AskEvent | null {
   const q = state.hello?.quit;
   if (!q) return null;
-  return {ev: 'ask', id: LEAVE_ASK, kind: 'choice', title: '', question: state.core?.recording ? q.recording : q.question,
+  const words = then === 'update.restart' ? q.restart : then === 'update.install' ? q.install : q;
+  return {ev: 'ask', id: LEAVE_ASK, kind: 'choice', title: '', question: state.core?.recording ? words.recording : words.question,
     choices: q.choices, keys: q.keys};
 }
 
@@ -672,7 +676,7 @@ function reduceAction(state: AppState, action: Action): AppState {
       return state.busy ? {...state, stopping: true} : state;
     case 'leave': {
       if (!action.open) return state.ask?.id === LEAVE_ASK ? {...state, ask: null} : state;
-      const ask = leaveAsk(state);
+      const ask = leaveAsk(state, action.then ?? 'session.quit');
       return ask ? {...state, ask} : state;
     }
     case 'viewport':
