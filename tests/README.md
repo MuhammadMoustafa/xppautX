@@ -18,7 +18,7 @@ about fifty lines, no dependency.
     build/obj/tests/test_all --reverse       every test, from the last
 
 To add one, drop a `test_<thing>.cpp` in here whose body is
-`TEST_CASE("test_<thing>") { ... TEST_REPORT("thing"); }` — the Makefile picks it
+`TEST_CASE("test_<thing>") { ... TEST_REPORT("thing"); }`: the Makefile picks it
 up from a wildcard and the test registers itself, so there is no list to keep in
 step.
 
