@@ -44,7 +44,7 @@ double column_var(int col, int n, double mean)
 
 } // namespace
 
-int main(void)
+TEST_CASE("test_stochast_rng")
 {
     char arg0[] = "test_stochast_rng", arg1[] = "tools/models/stoch_rng.odex";
     char *argv[] = {arg0, arg1, NULL};

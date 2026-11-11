@@ -9,7 +9,7 @@
 
 #include <cstring>
 
-int main(void)
+TEST_CASE("test_stochast_seed")
 {
     double a[50], b[50], c[50];
     xpp::Random r;

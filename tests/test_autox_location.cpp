@@ -113,7 +113,7 @@ double touching(iap_type *, rap_type *, double *, integer *, bool *chng,
 }
 }
 
-int main()
+TEST_CASE("test_autox_location")
 {
     // W545: the crossing rule. The slope across the end of the search over the slope across the step: about 1
     // for a crossing, grown (a jump, noise) or shrunk (a zero of higher order) by more than the factor otherwise.

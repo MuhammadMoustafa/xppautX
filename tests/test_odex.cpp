@@ -227,7 +227,7 @@ double constant(const char *name)
 
 } // namespace
 
-int main(void)
+TEST_CASE("test_odex")
 {
   xpp::batch_options.yes = true; /* Conversion fixtures accept the UI owner's suggested names. */
   /* --check wins over --yes for every question kind, without changing entries. */

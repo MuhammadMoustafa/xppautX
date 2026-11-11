@@ -22,7 +22,7 @@ bool has(const std::string &s, const char *part) { return s.find(part) != std::s
 
 } /* namespace */
 
-int main()
+TEST_CASE("test_window_hint")
 {
     /* the whole line, on Ubuntu */
     CHECK_STR(msg("PRETTY_NAME=\"Ubuntu 22.04.4 LTS\"\nNAME=\"Ubuntu\"\nID=ubuntu\nID_LIKE=debian\n", MISSING).c_str(),

@@ -84,7 +84,7 @@ void check_glyphs()
 
 } // namespace
 
-int main(void)
+TEST_CASE("test_labels")
 {
     check_problems();
     check_styles();

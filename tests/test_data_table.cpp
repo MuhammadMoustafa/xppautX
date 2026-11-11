@@ -11,7 +11,7 @@
 #include "xpp_batch.h"
 #include <string>
 
-int main()
+TEST_CASE("test_data_table")
 {
     char name[] = "test_data_table", path[] = "examples/ode/lecar.odex";
     char *argv[] = {name, path, nullptr};

@@ -52,7 +52,7 @@ static int run_fftcon(double k[5], double kc[5], double m[3], double mc[3])
     return 1;
 }
 
-int main(void)
+TEST_CASE("test_fftcon")
 {
     /* --- fftcon: the periodic (k) and zero-padded (m) network
        convolutions vs. the matching conv/conv0 network (kc, mc) on the

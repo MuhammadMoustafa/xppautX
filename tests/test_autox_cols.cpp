@@ -26,7 +26,7 @@ static void load_model(void)
     xpp::client_session().autox_state.parameter_layout.model_parameters=3;
 }
 
-int main(void)
+TEST_CASE("test_autox_cols")
 {
     std::string out;
     load_model();

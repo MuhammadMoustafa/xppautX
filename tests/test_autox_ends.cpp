@@ -18,7 +18,7 @@ xpp::AutoxPointId point(xpp::AutoxPointKind kind, std::vector<double> parameters
 
 } // namespace
 
-int main()
+TEST_CASE("test_autox_ends")
 {
     /* the trend counter the period and the amplitude watches share: one more when the series goes on the same way, else 0 */
     CHECK(xpp::autox_trend_run(2, 1.0, 2.0, true) == 3);

@@ -9,7 +9,7 @@
 #include <array>
 #include <cmath>
 
-int main()
+TEST_CASE("test_numerical_fixes")
 {
     char *argv[] = {const_cast<char *>("test_numerical_fixes"),
                    const_cast<char *>("tools/models/stops/stiff_singular.odex"), nullptr};

@@ -8,7 +8,7 @@
 
 /* the seeds a sweep gives its runs, and the ordered executor that computes the runs on threads (W434): what the
    sweep's results depend on is the order the runs are taken in and the seed each has, never the thread count */
-int main()
+TEST_CASE("test_sweep_runs")
 {
     const std::vector<int> seeds = xpp::seed_stream(7, 5);
     CHECK(seeds.size() == 5 && seeds[0] == 7);

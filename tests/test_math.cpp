@@ -21,7 +21,7 @@ static bool same(double got, std::uint64_t want_bits)
     return std::bit_cast<std::uint64_t>(got) == want_bits;
 }
 
-int main(void)
+TEST_CASE("test_math")
 {
     const double nan = std::numeric_limits<double>::quiet_NaN();
     CHECK(std::isnan(xpp::bessel_i(nan, 1.0)));

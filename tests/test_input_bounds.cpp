@@ -21,7 +21,7 @@ void fail_growth(bool fail)
 }
 }
 
-int main()
+TEST_CASE("test_input_bounds")
 {
     char name[]="test_input_bounds", file[]="tools/models/input_bounds.odex";
     char *argv[]={name,file,nullptr};

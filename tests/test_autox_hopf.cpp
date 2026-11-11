@@ -17,7 +17,7 @@
 #include <cmath>
 #include <vector>
 
-int main() {
+TEST_CASE("test_autox_hopf") {
     xpp::TempDir temp;
     std::string model = temp.path() + "/hopf.odex";
     auto writer = xpp::Writer::binary(model);

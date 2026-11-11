@@ -79,7 +79,7 @@ void check_statistics(const char *model, double dt)
 
 } // namespace
 
-int main(void)
+TEST_CASE("test_ou_noise")
 {
     check_statistics("tools/models/ou_small_dt.odex", 0.05);
     check_statistics("tools/models/ou_large_dt.odex", 1.0);

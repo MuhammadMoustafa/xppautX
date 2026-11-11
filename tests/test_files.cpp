@@ -72,7 +72,7 @@ void keep(std::string_view line) { last_event = line; }
 
 } // namespace
 
-int main()
+TEST_CASE("test_files")
 {
     /* SHA-256 against FIPS 180-4's examples */
     CHECK_STR(sha_of("", 0).c_str(), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");

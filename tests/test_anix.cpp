@@ -21,7 +21,7 @@ xpp::Loaded open_model(const std::string &model)
 }
 }
 
-int main()
+TEST_CASE("test_anix")
 {
     xpp::ani_data_init([](std::string_view) {});
     xpp::LineReader cases("tests/animations/imports.tsv");

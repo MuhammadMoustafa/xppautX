@@ -946,12 +946,11 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
 // Meshes below and above W325's worker threshold for this two-state, Ncol=4 fixture.
 constexpr long serial_mesh = 17;
 constexpr long worker_mesh = 64;
-std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool impure=false,
-                                        const std::string &benchmark={}, bool exact=false, long mesh=serial_mesh)
+std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool impure=false, bool exact=false, long mesh=serial_mesh)
 {
     xpp::TempDir tmp;
-    const std::string file=benchmark.empty()?tmp.file("hopf.ode"):benchmark;
-    if (benchmark.empty()) CHECK(write_file(file,
+    const std::string file=tmp.file("hopf.ode");
+    CHECK(write_file(file,
         "par mu=-0.1,w=1\n!frequency=w\nsquare(q)=q*q\nr=square(x)+square(y)\n"
         "x'=mu*x-frequency*y-x*r"+std::string(impure?"+0*shift(x,0)":"")+"\n"
         "y'=frequency*x+mu*y-y*r\ninit x=0,y=0\n"
@@ -986,8 +985,7 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
     AutoxRun run;
     run.session=&s;
     xpp::AutoxParallel::select_run(run,s.model().node,s.autox_state.bifur.ntst,s.autox_state.bifur.ncol);
-    if (compiled && !impure) CHECK(run.collocation && (!benchmark.empty()
-        || run.collocation->threads()==(mesh==serial_mesh?1:threads)));
+    if (compiled && !impure) CHECK(run.collocation && run.collocation->threads()==(mesh==serial_mesh?1:threads));
     else CHECK(!run.collocation && !xpp::autox_parallel_ready(s));
     return s.diagram.points;
 }
@@ -1032,20 +1030,20 @@ void check_collocation()
     CHECK(same_diagram(serial,collocation_run(4,true,true)));
     // Above it, the setubv/conpar workers keep the whole diagram and leave the
     // parser's state alone.
-    const auto large=collocation_run(1,true,false,{},false,worker_mesh);
+    const auto large=collocation_run(1,true,false,false,worker_mesh);
     const auto constants=xpp::client_session().parser.constants;
     const auto variables=xpp::client_session().parser.variables;
     for (unsigned threads:{2u,3u,4u}) {
-        CHECK(same_diagram(large,collocation_run(threads,true,false,{},false,worker_mesh)));
+        CHECK(same_diagram(large,collocation_run(threads,true,false,false,worker_mesh)));
         CHECK(same_vector(constants,xpp::client_session().parser.constants));
         CHECK(same_vector(variables,xpp::client_session().parser.variables));
     }
     /* W260: the exact Jacobian (autoX's JAC=1), computed on the workers
        from their own constants: the same bits on every count */
-    const auto large_exact=collocation_run(1,true,false,{},true,worker_mesh);
+    const auto large_exact=collocation_run(1,true,false,true,worker_mesh);
     CHECK(!same_diagram(large,large_exact));
     for (unsigned threads:{2u,4u})
-        CHECK(same_diagram(large_exact,collocation_run(threads,true,false,{},true,worker_mesh)));
+        CHECK(same_diagram(large_exact,collocation_run(threads,true,false,true,worker_mesh)));
 
     // Failures are values observed after every worker has finished. A failed
     // dispatch must leave the persistent pool usable for the next call.
@@ -1114,7 +1112,7 @@ void check_pool_reuse()
     }
     xpp::AutoxParallel pool(3);
     pool.prepare(run,2,2);
-    xpp::job::begin(1);
+    xpp::job::begin(0);
     CHECK(!xpp::job::cancelled());
     pool.intervals(9,[&](long begin,long,AutoxRun &worker){
         if(begin>0)worker.jacobian_failure=xpp::Error{"exact jacobian","injected"};
@@ -1213,22 +1211,8 @@ void check_brbd_tree()
 
 } // namespace
 
-int main(int argc,char **argv)
+TEST_CASE("test_session_autox")
 {
-    if (argc==3) {
-        xpp::TokenReader count=xpp::TokenReader::of_text(argv[2]);
-        int requested=0;
-        const bool valid=count.read(requested) && count.at_end() && requested>=1
-            && requested<=static_cast<int>(xpp::AutoxParallel::max_threads);
-        CHECK(valid);
-        if (!valid) TEST_REPORT("autoX benchmark");
-        const unsigned threads=static_cast<unsigned>(requested);
-        const auto points=collocation_run(threads,true,false,argv[1]);
-        const auto &m=xpp::client_session().model();
-        CHECK(write_file("build/w247-diagram-"+std::to_string(threads)+".csv",
-              xpp::snapx::autox_members::diagram_csv(points,m.nupar,{m.uvar_names.data(),static_cast<size_t>(m.node)})));
-        TEST_REPORT("autoX benchmark");
-    }
     check_collocation_purity();
     check_collocation();
     check_brbd_tree();

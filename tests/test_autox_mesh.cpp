@@ -4,7 +4,7 @@
 #include <array>
 #include <cmath>
 
-int main()
+TEST_CASE("test_autox_mesh")
 {
     iap_type iap{};
     rap_type rap{};

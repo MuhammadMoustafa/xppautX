@@ -278,7 +278,7 @@ void check_kept()
 
 } // namespace
 
-int main()
+TEST_CASE("test_install")
 {
     check_names();
     check_tar();

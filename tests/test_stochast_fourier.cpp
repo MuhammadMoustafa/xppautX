@@ -39,7 +39,7 @@ static double relerr(double got, double want)
     return std::fabs(got - want) / scale;
 }
 
-int main(void)
+TEST_CASE("test_stochast_fourier")
 {
     char *argv[] = {const_cast<char *>("test_stochast_fourier"),
                      const_cast<char *>("tools/models/stochast_fourier_test.odex"), NULL};

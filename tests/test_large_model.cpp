@@ -51,7 +51,7 @@ int lines_of(const std::string &path)
 }
 }
 
-int main(void)
+TEST_CASE("test_large_model")
 {
     xpp::TempDir temp;
     CHECK(!temp.path().empty());

@@ -16,7 +16,7 @@
 #include <cmath>
 #include <string>
 
-int main()
+TEST_CASE("test_analysis")
 {
     char name[] = "test_analysis", path[] = "examples/ode/lecar.odex";
     char *argv[] = {name, path, nullptr};

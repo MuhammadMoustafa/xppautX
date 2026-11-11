@@ -51,7 +51,7 @@ bool ok(int field, double v)
 
 } // namespace
 
-int main()
+TEST_CASE("test_autox_settings")
 {
     std::string num_why;
     std::string why;

@@ -24,7 +24,7 @@ std::string error(const std::string &text)
 
 } // namespace
 
-int main()
+TEST_CASE("test_autox_script")
 {
     const xpp::Result<xpp::AutoxScript> script = xpp::autox_script_read(good, "a.autox");
     CHECK(script.has_value());

@@ -15,7 +15,7 @@ xpp::Color rgba(int r, int g, int b, int a = 255)
 }
 } // namespace
 
-int main(void)
+TEST_CASE("test_color")
 {
     /* a color is written #rrggbb (#rrggbbaa when not opaque) or foreground, read also by a CSS name in any case */
     CHECK(xpp::parse_color("#d62839") == rgba(0xd6, 0x28, 0x39));

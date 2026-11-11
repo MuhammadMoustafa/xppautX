@@ -392,7 +392,7 @@ in a one-shot `.recx --silent` subprocess.
 `tools/deadcode.sh` (W24; sourcecheck runs it with `--check`, about a
 minute) builds every object at -O0 with -ffunction-sections
 -fdata-sections -fno-common into build/deadcode (`make deadcode`), links
-xppautX from the objects, the Linux window library and each unit test
+xppautX from the objects, the Linux window library and the unit-test program
 with --gc-sections, and lists by file the functions and file-scope data
 no link keeps (reached through a pointer table counts as reached). A
 function only a unit test reaches is listed too. `--check` fails on

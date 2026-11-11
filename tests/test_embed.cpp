@@ -4,7 +4,7 @@
 #include "../tools/embed_data.h"
 #include <sstream>
 
-int main()
+TEST_CASE("test_embed")
 {
     xpp::TempDir scratch;
     CHECK(!scratch.path().empty());

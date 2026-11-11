@@ -100,7 +100,7 @@ std::string read_raw(const char *path)
 
 } // namespace
 
-int main(void)
+TEST_CASE("test_io")
 {
     /* xpp::format: unbounded, std::format syntax, compile-time checked */
     CHECK_STR(xpp::format("{} and {}", 1, "two").c_str(), "1 and two");

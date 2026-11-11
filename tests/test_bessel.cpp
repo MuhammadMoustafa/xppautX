@@ -52,7 +52,7 @@ constexpr Reference references[] = {
 };
 } // namespace
 
-int main()
+TEST_CASE("test_bessel")
 {
     // Fold actual bits so UCRT/clang and CI can also compare sample results.
     std::uint64_t fingerprint = 0;

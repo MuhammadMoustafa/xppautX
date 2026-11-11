@@ -13,7 +13,7 @@
 #include <array>
 #include <cmath>
 
-int main()
+TEST_CASE("test_autox_fold")
 {
     xpp::TempDir temp;
     std::string path = temp.path() + "/fold.odex";

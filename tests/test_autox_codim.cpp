@@ -15,7 +15,7 @@
 #include <algorithm>
 #include <cmath>
 
-int main()
+TEST_CASE("test_autox_codim")
 {
     xpp::TempDir temp;
     std::string path=temp.path()+"/bautin.odex";

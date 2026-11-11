@@ -4,13 +4,31 @@
 make test
 ```
 
-Each `test_*.cpp` (C++, like the core: W109f) is a program that links `libxppcore.a`, checks pure core code
-and prints one summary line; `tools/verify.sh` runs them before the
-end-to-end checks. The framework is `xpptest.h`: `CHECK`, `CHECK_STR` and
-`TEST_REPORT`, about thirty lines, no dependency.
+Each `test_*.cpp` (C++, like the core: W109f) is one named test of one program,
+`test_all` (W693: 79 programs, each linked with the whole core, took minutes to
+link under a sanitizer or on Windows): it checks pure core code and prints one
+summary line, and `tests/test_main.cpp` runs every test in one process, in the
+order of their names. `tools/verify.sh` runs them before the end-to-end checks.
+The framework is `xpptest.h`: `TEST_CASE`, `CHECK`, `CHECK_STR` and `TEST_REPORT`,
+about fifty lines, no dependency.
 
-To add one, drop a `test_<thing>.cpp` in here â€” the Makefile picks it up from a
-wildcard, so there is no list to keep in step.
+    build/obj/tests/test_all                 every test
+    build/obj/tests/test_all test_odex ...   these tests only
+    build/obj/tests/test_all --list          their names
+    build/obj/tests/test_all --reverse       every test, from the last
+
+To add one, drop a `test_<thing>.cpp` in here whose body is
+`TEST_CASE("test_<thing>") { ... TEST_REPORT("thing"); }` — the Makefile picks it
+up from a wildcard and the test registers itself, so there is no list to keep in
+step.
+
+No test depends on another: it runs alone, and in either order of the whole list
+(checked at W693). Between tests the program restores what they all share (the
+session list's one session, the working folder, the input, the error count,
+`xpp::ui`, the batch options, the program's description). A test restores what
+only it changes (an environment variable, a cancel number counted from
+`xpp::job::begin(0)`'s), and one that needs a process of its own is a separate
+program, with its reason in the Makefile (none yet).
 
 ## What belongs here
 

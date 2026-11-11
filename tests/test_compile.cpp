@@ -135,7 +135,7 @@ void same_rhs(xpp::Session &s)
     s.parser.constants=constants;
 }
 
-int main()
+TEST_CASE("test_compile")
 {
     auto model=std::make_unique<xpp::Model>();
     auto session=std::make_unique<xpp::Session>(*model);

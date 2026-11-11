@@ -22,7 +22,7 @@ static double calc(const std::string &expr, int *ok)
     return *ok ? xpp::evaluate(xpp::client_session(), command.data()) : 0.0;
 }
 
-int main(void)
+TEST_CASE("test_names")
 {
     const std::string p200 = std::string(199, 'p') + "1", q1000(1000, 'q'), v200(200, 'v');
     std::string out, name;

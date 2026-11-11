@@ -294,7 +294,7 @@ void check_library_arrays(xpp::Session &s)
 
 } // namespace
 
-int main()
+TEST_CASE("test_autox_views")
 {
     char name[] = "test_autox_views";
     char file[] = "examples/ode/lecar.odex";

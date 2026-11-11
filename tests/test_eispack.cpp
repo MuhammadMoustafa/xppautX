@@ -119,7 +119,7 @@ bool same_bits(const std::vector<doublereal> &x, const std::vector<doublereal> &
 
 } // namespace
 
-int main()
+TEST_CASE("test_eispack")
 {
     std::array<std::vector<doublereal>, cases> reference;
     for (int c = 0; c < cases; ++c) {

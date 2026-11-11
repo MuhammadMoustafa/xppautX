@@ -63,11 +63,7 @@ bool write_file(const char *path, const std::string &text)
 bool answer_with(const std::string &text)
 {
     const char *answers = "build/test_options_answers.txt";
-#ifdef _WIN32
-    const char *none = "NUL";
-#else
-    const char *none = "/dev/null";
-#endif
+    const char *none = test_null_device();
     /* the file being read cannot be replaced on Windows: let go of it first */
     return std::freopen(none, "r", stdin) != nullptr && write_file(answers, text) && std::freopen(answers, "r", stdin) != nullptr;
 }
@@ -192,7 +188,7 @@ static xpp::Result<> check_args(int argc, char **argv)
     return {};
 }
 
-int main(void)
+TEST_CASE("test_options")
 {
     /* W132: all public names, set labels, legacy keys, case and persisted ids. */
     const auto owned_model = std::make_unique<xpp::Model>();

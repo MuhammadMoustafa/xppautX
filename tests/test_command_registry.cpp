@@ -78,7 +78,7 @@ std::string text_form(const std::string &words)
 
 } // namespace
 
-int main()
+TEST_CASE("test_command_registry")
 {
     char name[] = "test_command_registry", path[] = "examples/ode/lecar.odex";
     char *argv[] = {name, path, nullptr};

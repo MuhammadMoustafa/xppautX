@@ -40,7 +40,7 @@ mkdir -p build || exit 1
 if [ $skip_build -eq 1 ]; then
   echo "tsan build skipped (--skip-build): using $bdir as-is"
 else
-  if ! "$make" -j"$JOBS" BUILDDIR="$bdir" TSAN=1 "$@" asan-link "$bdir/tests/test_session_autox" "$bdir/tests/test_eispack" "$bdir/tests/test_sweep_runs" > "$log-build.log" 2>&1; then
+  if ! "$make" -j"$JOBS" BUILDDIR="$bdir" TSAN=1 "$@" asan-link "$bdir/tests/test_all" > "$log-build.log" 2>&1; then
     grep -E ' error:' "$log-build.log" | head -20
     echo "TSAN BUILD FAILED"
     exit 1
@@ -68,9 +68,9 @@ run_check() {
 run_check servercheck $python tools/servercheck.py --server "$bin" &
 run_check webcheck $python tools/webcheck.py --bin "$bin" &
 wait
-run_check autox_threads "$bdir/tests/test_session_autox"
-run_check eispack_threads "$bdir/tests/test_eispack"
-run_check sweep_runs "$bdir/tests/test_sweep_runs"
+run_check autox_threads "$bdir/tests/test_all" test_session_autox
+run_check eispack_threads "$bdir/tests/test_all" test_eispack
+run_check sweep_runs "$bdir/tests/test_all" test_sweep_runs
 for name in servercheck webcheck autox_threads eispack_threads sweep_runs; do
   cat "$log-$name.verdict"
   grep -q ' FAILED$' "$log-$name.verdict" && fail=1

@@ -42,7 +42,7 @@ std::string text_of(const xpp::recx::Recording &r)
 
 } // namespace
 
-int main()
+TEST_CASE("test_recx")
 {
     xpp::recx::Recording r = sample();
     CHECK(r.files.size() == 1);

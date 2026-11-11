@@ -4,7 +4,7 @@
 #include <bit>
 #include <cstdint>
 
-int main()
+TEST_CASE("test_tcc")
 {
     const std::string source =
         "extern double host_exp(double);\n"

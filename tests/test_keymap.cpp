@@ -218,7 +218,7 @@ void check_file(const std::string &dir)
 
 } // namespace
 
-int main(void)
+TEST_CASE("test_keymap")
 {
     check_table();
     check_keys();

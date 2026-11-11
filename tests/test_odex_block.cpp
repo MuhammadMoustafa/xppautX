@@ -27,7 +27,7 @@ template <class F> std::string error_of(std::string_view text, F read, bool comp
 
 } // namespace
 
-int main()
+TEST_CASE("test_odex_block")
 {
     using namespace xpp::odex;
 

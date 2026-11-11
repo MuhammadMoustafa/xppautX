@@ -23,7 +23,7 @@
 
 #include <cmath>
 
-int main(void)
+TEST_CASE("test_stochast_runs")
 {
     char arg0[] = "test_stochast_runs", arg1[] = "tools/models/stoch_runs.odex";
     char *argv[] = {arg0, arg1, NULL};

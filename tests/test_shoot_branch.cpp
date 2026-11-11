@@ -12,7 +12,7 @@
 #include <utility>
 #include <variant>
 
-int main()
+TEST_CASE("test_shoot_branch")
 {
     auto line = xpp::parse_command_line({"test_shoot_branch", "tools/models/saddle_manifolds_transient.odex", "--convert"});
     CHECK(line.has_value());

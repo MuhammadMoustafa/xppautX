@@ -55,7 +55,7 @@ void check_file(const std::string &dir)
 
 } // namespace
 
-int main(void)
+TEST_CASE("test_recent")
 {
     xpp::TempDir temp;
     CHECK(!temp.path().empty());

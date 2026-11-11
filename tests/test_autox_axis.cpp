@@ -6,7 +6,7 @@
 #include "autox_axis.h"
 #include "autox_state.h"
 
-int main()
+TEST_CASE("test_autox_axis")
 {
     using xpp::AutoxAxis;
     /* P10 (the model's tenth parameter) is not the period T (autoX's slot 10) */

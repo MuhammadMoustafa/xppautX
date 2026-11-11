@@ -413,7 +413,7 @@ jobs:
         run: |
           make -j"$(sysctl -n hw.ncpu)" xppautx
           ./xppautX --help | head -5
-      - name: "Unit tests (C and C++ objects linked with clang++)"
+      - name: "Unit tests (one program, linked with clang++)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make test
       - name: Smoke test (headless)
@@ -570,21 +570,21 @@ jobs:
       - name: Build the X11-free binaries natively
         id: build
         run: mingw32-make -j4 xppautx
-      - name: "Unit tests (C and C++ objects linked with g++), test binaries linked in parallel"
+      - name: "Unit tests (one program, linked with g++)"
         id: unittests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: mingw32-make -j4 test
-      # a test that crashed (exit above 1: a check that fails exits 1) is run
-      # again under gdb for its backtrace
+      # a crash of the unit-test program (exit above 1: a failing test exits 1)
+      # is run again under gdb for its backtrace
       - name: Backtrace of a crashed unit test
         if: ${{ !cancelled() && steps.unittests.outcome == 'failure' }}
         run: |
-          for t in build/obj/tests/test_*.exe; do
-            st=0; "./$t" > /dev/null 2>&1 || st=$?
-            [ "$st" -gt 1 ] || continue
+          t=build/obj/tests/test_all.exe
+          st=0; "./$t" > /dev/null 2>&1 || st=$?
+          if [ "$st" -gt 1 ]; then
             echo "== $t exited $st"
             gdb -batch -ex run -ex bt -ex quit "./$t" 2>&1 | tail -40
-          done
+          fi
       - name: Headless run matches Linux (ignoring line ends)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
@@ -753,7 +753,7 @@ jobs:
         run: |
           clang --version | head -1
           mingw32-make -j4 build/clang/xppautX.exe BUILDDIR=build/clang CC=clang CXX=clang++
-      - name: "Unit tests (linked with clang++ and libc++, test binaries linked in parallel)"
+      - name: "Unit tests (one program, linked with clang++ and libc++)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: mingw32-make -j4 test BUILDDIR=build/clang CC=clang CXX=clang++
       - name: Headless run matches Linux (ignoring line ends)

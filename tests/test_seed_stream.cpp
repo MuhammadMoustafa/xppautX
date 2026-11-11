@@ -12,7 +12,7 @@
 #include <cstring>
 #include <random>
 
-int main(void)
+TEST_CASE("test_seed_stream")
 {
     /* A Windows literal must load identically with libc++ and libstdc++;
        a round-trip alone cannot detect implementation-defined streams. */

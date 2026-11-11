@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <vector>
 
-int main() {
+TEST_CASE("test_autox_groups") {
     constexpr int n = 6;
     xpp::TempDir temp;
     /* a ring of neighbours: each equation reads three states, so the columns fall in fewer groups than states */

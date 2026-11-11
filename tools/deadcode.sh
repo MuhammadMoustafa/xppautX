@@ -2,7 +2,7 @@
 # Code nothing reaches (W24): `make deadcode` builds every object at -O0
 # with -ffunction-sections -fdata-sections -fno-common into build/deadcode
 # and links xppautX from the objects themselves, the Linux window library
-# and every unit test with --gc-sections; the linker's --print-gc-sections
+# and the unit-test program with --gc-sections; the linker's --print-gc-sections
 # says which of our functions and file-scope data it dropped. A symbol is
 # live if any of those links keeps it: gc-sections follows every
 # relocation, so a function reached only through a table of pointers (the

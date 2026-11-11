@@ -15,7 +15,7 @@
 #include <optional>
 #include <string>
 
-int main(void)
+TEST_CASE("test_load")
 {
     char arg0[] = "test_load";
     char good[] = "tools/models/stoch_liap.odex";

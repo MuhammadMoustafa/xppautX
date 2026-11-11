@@ -453,7 +453,7 @@ void check_ge_verbosity()
     }
 }
 
-int main()
+TEST_CASE("test_autox_numerics")
 {
     check_ge_verbosity();
     size_t case_index = 0;

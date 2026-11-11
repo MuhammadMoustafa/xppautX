@@ -333,7 +333,7 @@ void check_autox_func(const char *path, double u0, double u1, int store_every = 
 
 } // namespace
 
-int main()
+TEST_CASE("test_exact_jacobian")
 {
     check_operations();
     check_model("examples/ode/lecar.odex", false);   /* an equilibrium model: user functions, a fixed variable */

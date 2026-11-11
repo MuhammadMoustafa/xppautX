@@ -20,7 +20,7 @@
 
 #include <cmath>
 
-int main(void)
+TEST_CASE("test_stochast_liap")
 {
     char arg0[] = "test_stochast_liap", arg1[] = "tools/models/stoch_liap.odex";
     char *argv[] = {arg0, arg1, NULL};

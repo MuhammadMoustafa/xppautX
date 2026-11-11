@@ -31,7 +31,7 @@ bool has(const std::string &s, const char *part) { return s.find(part) != std::s
 
 } // namespace
 
-int main()
+TEST_CASE("test_autox_errors")
 {
     const xpp::Error file_error=xpp::files::open_error("autoX", "missing/fort.3");
     try {

@@ -1,5 +1,8 @@
-/* The whole test framework: a counter and two macros. Each test file has a
-   main() that ends with TEST_REPORT, and `make test` runs them all.
+/* The whole test framework: a counter and a few macros. Each test file is one
+   named test of the single program tests/test_main.cpp: TEST_CASE("test_x")
+   { ... } ending with TEST_REPORT, and `make test` runs them all in one
+   process (names on the command line run some, --list lists them, --reverse
+   runs them from the last: no test depends on another, tests/README.md).
 
    These are unit tests over libxppcore, for pure code whose breakage an
    end-to-end run would report as a puzzling difference somewhere else. The
@@ -11,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int tests_run, tests_failed;
+[[maybe_unused]] static int tests_run, tests_failed; /* per test file: its own counts */
 
 /* stdout unbuffered: a test that crashes keeps every FAIL line it printed
    before, which a pipe's buffer (CI's log) would otherwise lose with it */
@@ -27,7 +30,28 @@ static inline int test_setenv(const char *name, const char *value)
 #endif
 }
 
-#define CHECK(cond) do {                                                  \
+/* the registry of tests/test_main.cpp */
+struct TestRegistration {
+    TestRegistration(const char *name, int (*run)());
+};
+
+/* a test: its name (its file's), then its body, which returns 0 when it passed (TEST_REPORT) */
+#define TEST_CASE(name)                                                   \
+    static int test_case_run();                                           \
+    static const TestRegistration test_case_registration(name, test_case_run); \
+    static int test_case_run()
+
+/* the file that reads as empty and takes what is written to it */
+static inline const char *test_null_device()
+{
+#ifdef _WIN32
+    return "NUL";
+#else
+    return "/dev/null";
+#endif
+}
+
+#define CHECK(cond) do {                                                \
     tests_run++;                                                          \
     if (!(cond)) {                                                        \
         tests_failed++;                                                   \

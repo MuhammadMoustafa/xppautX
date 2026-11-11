@@ -77,7 +77,7 @@ const std::string model =
 
 } // namespace
 
-int main()
+TEST_CASE("test_odex_write")
 {
     using namespace xpp::odex;
 

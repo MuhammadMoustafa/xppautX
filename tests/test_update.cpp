@@ -179,7 +179,7 @@ void check_download()
 
 } // namespace
 
-int main()
+TEST_CASE("test_update")
 {
     check_addresses();
     check_files();

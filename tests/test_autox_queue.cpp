@@ -30,7 +30,7 @@ AutoxBufferedPoint stored(AutoxPointKind kind, int branch, int number, int label
 
 } // namespace
 
-int main()
+TEST_CASE("test_autox_queue")
 {
     /* the join order: the generation first, then the path; a root's is its index */
     const xpp::AutoxJobKey plus{{0}}, minus{{1}};

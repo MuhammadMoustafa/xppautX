@@ -136,7 +136,7 @@ std::vector<double> npy_doubles(const std::string &npy, std::size_t at)
 
 } // namespace
 
-int main(void)
+TEST_CASE("test_data_formats")
 {
     /* ---- the registry */
     CHECK(xpp::data_formats().size() == 4);

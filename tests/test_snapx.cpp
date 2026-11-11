@@ -369,7 +369,7 @@ void check_plot_limits(const xpp::TempDir &tmp)
 
 } // namespace
 
-int main(void)
+TEST_CASE("test_snapx")
 {
     check_manifest();
     check_list_memory();

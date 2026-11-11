@@ -61,7 +61,7 @@ CSTD     = -std=gnu99
 CXXSTD   = -std=gnu++23
 EXE      = .exe
 # the system libraries core/ itself calls, linked into every program the core
-# library is (xppautX and each unit test): WinHTTP, for xpp_win32.cpp's update
+# library is (xppautX and the unit-test program): WinHTTP, for xpp_win32.cpp's update
 # check (W622)
 CORE_SYSLIBS = -lwinhttp
 LDSTATIC = -static
@@ -477,38 +477,39 @@ app: xppautx assets/icon.icns
 
 # unit tests over libxppcore, for pure code that an end-to-end run would only
 # report as a puzzling difference somewhere else. tests/README.md says more.
-# a test is C++ (tests/test_x.cpp)
+# a test is C++ (tests/test_x.cpp) and one named test of one program, linked
+# once with the whole core (W693: 79 programs took minutes under a sanitizer);
+# the program runs every test, or the ones it is given by name
 TEST_SOURCES := $(wildcard tests/test_*.cpp)
 TEST_OBJECTS := $(patsubst tests/%,$(BUILDDIR)/tests/%.o,$(basename $(TEST_SOURCES)))
-TEST_BINS := $(TEST_OBJECTS:.o=$(EXE))
-# what runs each test (tools/valgrindcheck.sh: valgrind)
+TEST_BIN := $(BUILDDIR)/tests/test_all$(EXE)
+# what runs the program (tools/valgrindcheck.sh: valgrind)
 TEST_RUNNER ?=
 LINK_TESTS := $(call link,$(CORE_SOURCES) $(TEST_SOURCES))
 .SECONDARY: $(TEST_OBJECTS)
 
-test: $(TEST_BINS)
-	@fail=0; for t in $(TEST_BINS); do $(TEST_RUNNER) $$t || { st=$$?; echo "FAIL $$t exited $$st"; fail=1; }; done; \
-	  if [ $$fail -eq 0 ]; then echo "unit tests: all passed"; \
-	  else echo "unit tests: FAILURES"; exit 1; fi
+test: $(TEST_BIN)
+	@if $(TEST_RUNNER) $(TEST_BIN); then echo "unit tests: all passed"; \
+	  else st=$$?; echo "FAIL $(TEST_BIN) exited $$st"; echo "unit tests: FAILURES"; exit 1; fi
 
 # linked like xppautX: statically on Windows outside a sanitizer build, so a
 # test never runs against another libstdc++-6.dll found on PATH (W159's push:
 # windows-core's test_lunch, the one test calling std::filesystem's
 # create_directory, met an older DLL and died at startup, 0xc0000139)
-# W409: a test program links the whole core's -g information, ~270 MB each
-# on Windows, 57 times. The linker drops the DWARF but keeps the symbol
+# W409: the program links the whole core's -g information, ~270 MB on
+# Windows. The linker drops the DWARF but keeps the symbol
 # table, so a crash or a failing test still shows function names; `make
 # TEST_LDDEBUG= test` links them whole for a debugger. A sanitizer or
 # valgrind build keeps it: their reports name source lines.
 TEST_LDDEBUG ?= $(if $(or $(SANITIZE),$(VALGRIND)),,-Wl,-S)
-$(TEST_BINS): %$(EXE): %.o $(CORELIB)
-	$(LINK_TESTS) $(if $(SANITIZE),$(SANITIZE),$(LDSTATIC)) $(MAINSTACK) $(TEST_LDDEBUG) -o $@ $< $(CORELIB) -lm $(CORE_SYSLIBS)
+$(TEST_BIN): $(TEST_OBJECTS) $(CORELIB)
+	$(LINK_TESTS) $(if $(SANITIZE),$(SANITIZE),$(LDSTATIC)) $(MAINSTACK) $(TEST_LDDEBUG) -o $@ $(TEST_OBJECTS) $(CORELIB) -lm $(CORE_SYSLIBS)
 
 # Code nothing reaches (tools/deadcode.sh reads what this leaves; Linux):
 # every function and datum in a section of its own, at -O0 (no inlining),
 # into build/deadcode; xppautX
 # linked from the objects themselves (the archive would hide a file nothing
-# reaches), the window library and every unit test linked with
+# reaches), the window library and the unit-test program linked with
 # --gc-sections, the first two printing what they drop.
 DEADCODE_GC := -Wl,--gc-sections -Wl,--print-gc-sections
 .PHONY: deadcode deadcode-link
@@ -517,7 +518,7 @@ deadcode:
 deadcode-link: $(CORE_OBJECTS) $(SERVER_OBJECTS) $(TEST_OBJECTS) $(CORELIB) $(WINDOW_LIB_OBJECTS)
 	@rm -f $(BUILDDIR)/gc-*.log
 	@$(LINK_X) $(DEADCODE_GC) -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(CORE_SYSLIBS) $(NETLIBS) $(WINDOW_LIBS) 2> $(BUILDDIR)/gc-xppautX.log || { cat $(BUILDDIR)/gc-xppautX.log; exit 1; }
-	@for t in $(TEST_OBJECTS); do $(LINK_TESTS) -Wl,--gc-sections -o $${t%.o}$(EXE) $$t $(CORELIB) -lm $(CORE_SYSLIBS) || exit 1; done
+	@$(LINK_TESTS) -Wl,--gc-sections -o $(TEST_BIN) $(TEST_OBJECTS) $(CORELIB) -lm $(CORE_SYSLIBS)
 ifeq ($(WINDOW_EMBED),1)
 	@$(CXX) -shared -Wl,-z,defs -Wl,--version-script=$(WINDOW_LIB_DIR)/exports.map $(DEADCODE_GC) -o $(WINDOW_LIB_DIR)/libxppwindow-gc.so $(WINDOW_LIB_OBJECTS) $(WINDOW_LIB_LIBS) -lpthread 2> $(BUILDDIR)/gc-window.log || { cat $(BUILDDIR)/gc-window.log; exit 1; }
 endif

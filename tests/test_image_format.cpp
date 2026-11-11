@@ -37,7 +37,7 @@ bool has(const std::string &text, const std::string &part) { return text.find(pa
 
 } // namespace
 
-int main(void)
+TEST_CASE("test_image_format")
 {
     CHECK(xpp::n_image_formats == 4);
 

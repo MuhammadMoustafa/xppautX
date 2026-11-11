@@ -136,7 +136,7 @@ void check_singular()
 
 } // namespace
 
-int main()
+TEST_CASE("test_subsystems")
 {
     check_components();
     check_models();

@@ -47,7 +47,7 @@ int plain_kind(long itp) { return static_cast<int>(itp % 10); }
 
 }
 
-int main()
+TEST_CASE("test_autox_codes")
 {
     /* problems: each supported code maps to its type and back; the rest are refused */
     for (const ProblemCase &c : problems) {

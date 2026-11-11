@@ -27,7 +27,7 @@ std::vector<std::size_t> slow(const std::vector<double> &speeds, double ratio)
 
 } // namespace
 
-int main()
+TEST_CASE("test_autox_global")
 {
     /* a period that grows over five points in a row, to twice the shortest */
     xpp::AutoxPeriodWatch watch;

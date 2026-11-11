@@ -16,7 +16,7 @@
 #include <cmath>
 #include <string>
 
-int main()
+TEST_CASE("test_autox_limits")
 {
     char name[]="test_autox_limits";
     char file[]="tools/models/autox_limits.odex";

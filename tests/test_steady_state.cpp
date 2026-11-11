@@ -3,7 +3,7 @@
 #include <array>
 #include <limits>
 
-int main()
+TEST_CASE("test_steady_state")
 {
     xpp::SteadyStateMonitor monitor({9,1,10});
     std::array<double,2> state{1.0000000001,2};

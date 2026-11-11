@@ -55,7 +55,7 @@ bool near(double a, double b) { return std::fabs(a - b) < 1e-12; }
 
 } // namespace
 
-int main()
+TEST_CASE("test_autox_stability")
 {
     // W369: all 24 orders, conjugate signs, and small real-part noise in
     // a conservative system must select the same physical frequency.

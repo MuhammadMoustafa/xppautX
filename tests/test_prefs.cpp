@@ -304,7 +304,7 @@ void check_file()
 
 } // namespace
 
-int main(void)
+TEST_CASE("test_prefs")
 {
     check_bad_files();
     check_outside_paths();

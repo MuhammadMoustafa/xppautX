@@ -15,7 +15,7 @@
 #include <array>
 #include <string>
 
-int main()
+TEST_CASE("test_plot")
 {
     char name[] = "test_plot", path[] = "examples/ode/lecar.odex";
     char *argv[] = {name, path, nullptr};

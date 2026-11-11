@@ -8,7 +8,7 @@
 #include <limits>
 #include <string>
 
-int main(void)
+TEST_CASE("test_json_number")
 {
     const double inf = std::numeric_limits<double>::infinity();
     const double nan = std::numeric_limits<double>::quiet_NaN();

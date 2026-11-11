@@ -15,7 +15,7 @@
 #include <filesystem>
 #include <string>
 
-int main(void)
+TEST_CASE("test_examples")
 {
     const std::string program = xpp::files::program_dir();
     CHECK(!program.empty() && xpp::files::is_dir(program));
@@ -28,15 +28,12 @@ int main(void)
     xpp::TempDir temp;
     CHECK(!temp.path().empty());
     const std::string config = temp.path() + "/config";
-#ifdef _WIN32
-    CHECK(_putenv_s(xpp::files::CONFIG_DIR_ENV, config.c_str()) == 0);
-#else
-    CHECK(setenv(xpp::files::CONFIG_DIR_ENV, config.c_str(), 1) == 0);
-#endif
+    CHECK(test_setenv(xpp::files::CONFIG_DIR_ENV, config.c_str()) == 0);
     for (const char *name : {"lecar.odex", "../lecar.odex", "..", "", "/etc/passwd", "C:\\x.odex", "a/b.odex", "lecar.ode"}) {
         const xpp::Result<std::string> copied = xpp::examples::install(name);
         CHECK(!copied && copied.error().what.find("not one of the bundled examples") != std::string::npos);
     }
     CHECK(!std::filesystem::exists(config)); /* a refused name made nothing */
+    CHECK(test_setenv(xpp::files::CONFIG_DIR_ENV, nullptr) == 0);
     TEST_REPORT("examples");
 }

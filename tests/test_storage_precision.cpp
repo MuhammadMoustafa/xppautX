@@ -119,7 +119,7 @@ void check_run()
 
 } // namespace
 
-int main()
+TEST_CASE("test_storage_precision")
 {
     check_column();
     check_conversion();

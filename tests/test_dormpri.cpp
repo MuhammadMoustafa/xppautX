@@ -10,7 +10,7 @@
 #include <array>
 #include <cmath>
 
-int main()
+TEST_CASE("test_dormpri")
 {
     char name[]="test_dormpri", file[]="tools/models/w377-dense.odex";
     char *argv[]={name,file,nullptr};

@@ -29,7 +29,7 @@ xpp::AutoxStopAt inside()
 
 } // namespace
 
-int main()
+TEST_CASE("test_autox_stop")
 {
     xpp::client_session().model().size_parameters(1);
     xpp::client_session().model().upar_names[0] = "iapp";

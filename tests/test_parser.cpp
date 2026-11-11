@@ -25,7 +25,7 @@ static int close_to(double a, double b)
     return fabs(a - b) < 1e-9;
 }
 
-int main(void)
+TEST_CASE("test_parser")
 {
     int ok;
     xpp::init_rpn(xpp::client_session());

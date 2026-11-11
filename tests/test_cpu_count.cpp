@@ -5,7 +5,7 @@
 #include <thread>
 #include <algorithm>
 
-int main()
+TEST_CASE("test_cpu_count")
 {
     const auto cpus = xpp::cpu::cpu_list("0-3,8-11\n");
     CHECK(cpus && *cpus == std::vector<unsigned>({0,1,2,3,8,9,10,11}));

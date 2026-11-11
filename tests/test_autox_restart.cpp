@@ -321,7 +321,7 @@ void branch_point_direction(xpp::Session &s) {
 }
 } // namespace
 
-int main() {
+TEST_CASE("test_autox_restart") {
     char name[] = "test_autox_restart";
     char model[] = "examples/ode/lecar.odex";
     char *argv[] = {name, model, nullptr};

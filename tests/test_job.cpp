@@ -7,18 +7,25 @@
 #include "xpp_job.h"
 
 #include <atomic>
+#include <chrono>
 #include <thread>
 
-int main(void)
+TEST_CASE("test_job")
 {
     CHECK(!xpp::job::running());
     CHECK(!xpp::job::cancelled()); /* no job, nothing to cancel */
 
+    /* the numbers below are counted from one no cancel so far covers: a cancel never goes back, and a test
+       that ran before this one in the program (an autoX run's stop) has cancelled some */
+    xpp::job::begin(0);
+    const unsigned long base = xpp::job::number();
+    xpp::job::end();
+
     /* an Abort cancels the running job */
-    xpp::job::begin(5);
+    xpp::job::begin(base + 5);
     CHECK(xpp::job::running());
     CHECK(!xpp::job::cancelled());
-    xpp::job::cancel(6);
+    xpp::job::cancel(base + 6);
     CHECK(xpp::job::cancelled());
     /* nested jobs are one job */
     xpp::job::begin(0);
@@ -30,24 +37,24 @@ int main(void)
     CHECK(!xpp::job::cancelled());
 
     /* a command that came before the Abort but begins after it */
-    xpp::job::begin(6);
+    xpp::job::begin(base + 6);
     CHECK(xpp::job::cancelled());
     xpp::job::end();
     /* ... but not one sent after it */
-    xpp::job::begin(7);
+    xpp::job::begin(base + 7);
     CHECK(!xpp::job::cancelled());
     xpp::job::end();
 
     /* a cancel never goes back: an older Abort changes nothing */
-    xpp::job::cancel(3);
-    xpp::job::begin(8);
+    xpp::job::cancel(base + 3);
+    xpp::job::begin(base + 8);
     CHECK(!xpp::job::cancelled());
     /* a prompt answered after an Abort: the answer is the last word */
-    xpp::job::cancel(9);
+    xpp::job::cancel(base + 9);
     CHECK(xpp::job::cancelled());
-    xpp::job::resume(10);
+    xpp::job::resume(base + 10);
     CHECK(!xpp::job::cancelled());
-    xpp::job::cancel(11);
+    xpp::job::cancel(base + 11);
     CHECK(xpp::job::cancelled());
     xpp::job::end();
 
@@ -71,7 +78,7 @@ int main(void)
     CHECK(!xpp::job::running());
 
     /* where a job got to: the last report, reset when a job begins */
-    xpp::job::begin(20);
+    xpp::job::begin(base + 20);
     CHECK(xpp::job::progress().what == xpp::job::Reported::nothing);
     xpp::job::report_rows(10, 0.5);
     CHECK(xpp::job::progress().what == xpp::job::Reported::rows && xpp::job::progress().rows == 10 &&
@@ -80,7 +87,7 @@ int main(void)
     CHECK(xpp::job::progress().rows == 10); /* still there after the job */
 
     /* a download reports the bytes it has and the file's size */
-    xpp::job::begin(19);
+    xpp::job::begin(base + 19);
     xpp::job::report_bytes(65536, 2966051);
     CHECK(xpp::job::progress().what == xpp::job::Reported::bytes && xpp::job::progress().bytes == 65536 &&
           xpp::job::progress().size == 2966051);
@@ -90,7 +97,7 @@ int main(void)
        and cancels it when the row counter reaches it, not before */
     xpp::job::stop_at_rows(3);
     CHECK(xpp::job::stop_armed());
-    xpp::job::begin(21);
+    xpp::job::begin(base + 21);
     CHECK(xpp::job::progress().what == xpp::job::Reported::nothing);
     xpp::job::report_rows(2, 0.1);
     CHECK(!xpp::job::cancelled());
@@ -101,7 +108,7 @@ int main(void)
 
     /* autoX: a stop at point P of branch B is reached when P-1 of B is stored
        (the cancelled run then ends B with point P, an end point) */
-    xpp::job::begin(22);
+    xpp::job::begin(base + 22);
     xpp::job::stop_at_point(2, 5);
     xpp::job::report_point(1, 4);
     CHECK(!xpp::job::cancelled());
@@ -115,7 +122,7 @@ int main(void)
 
     /* a stop the job never reached is still armed at its end (a script then
        fails), and gone after it */
-    xpp::job::begin(23);
+    xpp::job::begin(base + 23);
     xpp::job::stop_at_rows(100);
     xpp::job::report_rows(5, 1.0);
     CHECK(xpp::job::stop_armed());
@@ -127,7 +134,7 @@ int main(void)
        until every job ended so, gone at the job's end; the run reports them for the stopped event */
     xpp::job::stop_jobs({{{0}, xpp::job::JobState::stopped, 12}, {{1, 5}, xpp::job::JobState::never_started, 0}});
     CHECK(xpp::job::stop_armed() && xpp::job::armed_jobs() && xpp::job::armed_jobs()->size() == 2);
-    xpp::job::begin(24);
+    xpp::job::begin(base + 24);
     CHECK(xpp::job::armed_jobs()->at(0).key == std::vector<long>{0} && xpp::job::armed_jobs()->at(0).point == 12);
     CHECK(!xpp::job::cancelled());
     xpp::job::jobs_reached();
@@ -138,7 +145,7 @@ int main(void)
     CHECK(xpp::job::stop_armed());
     xpp::job::end();
     CHECK(!xpp::job::stop_armed() && !xpp::job::armed_jobs());
-    xpp::job::begin(25);
+    xpp::job::begin(base + 25);
     CHECK(xpp::job::progress().jobs.empty()); /* a new job starts with none reported */
     xpp::job::end();
 
@@ -180,9 +187,14 @@ int main(void)
         upload.join();
     }
 
-    /* the poll throttle lets the first poll through (the 50 ms after it
-       would make a flaky test) */
-    CHECK(xpp::job::poll_due());
+    /* the poll throttle lets a poll through once its interval has passed (a computation that ran
+       before this test polled at most that long ago): wait for the condition, not for a time */
+    bool due = false;
+    for (int polls = 0; !due && polls < 1000; polls++) {
+        due = xpp::job::poll_due();
+        if (!due) std::this_thread::sleep_for(std::chrono::milliseconds(1)); /* only paces the poll */
+    }
+    CHECK(due);
 
     TEST_REPORT("job cancel");
 }

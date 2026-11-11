@@ -44,7 +44,7 @@ static void check_time_first_model()
     CHECK(s.marks_shown.windows[0].eqs.empty());
 }
 
-int main()
+TEST_CASE("test_headless_graphs")
 {
     char name[] = "test_headless_graphs";
     char path[] = "tools/models/curves3.odex";

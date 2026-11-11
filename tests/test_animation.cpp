@@ -21,7 +21,7 @@ void put(const char *path, const std::string &text)
 }
 }
 
-int main()
+TEST_CASE("test_animation")
 {
     xpp::XppUi test_ui{};
     test_ui.err_msg = [](const xpp::Error &e) { throw e; };

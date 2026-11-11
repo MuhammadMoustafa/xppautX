@@ -120,7 +120,7 @@ std::string set_error(xpp::Session &s, const char *path, const std::string &text
 
 } // namespace
 
-int main(void)
+TEST_CASE("test_lunch")
 {
     xpp::XppUi test_ui{};
     test_ui.save_replace = [](bool) -> int { return xpp::SAVE_REPLACE; };
