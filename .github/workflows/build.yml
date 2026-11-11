@@ -685,8 +685,11 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ccache-windows-ucrt-gcc-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-windows-ucrt-gcc-
+          key: ccache-windows-ucrt-ui-${{ github.run_id }}-${{ github.run_attempt }}
+          # its own first: built from Git Bash on the PATH, not the MSYS2 shell, so the core job's objects never hit here (0 of 243 in run 42955421613)
+          restore-keys: |
+            ccache-windows-ucrt-ui-
+            ccache-windows-ucrt-gcc-
       - name: Count this run's compiler cache hits only
         run: ccache --zero-stats
       - name: Build xppautX.exe
@@ -704,6 +707,13 @@ jobs:
       - name: Compiler cache hit rate
         if: ${{ always() }}
         run: ccache --show-stats
+      - name: Save the compiler cache
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-windows-ucrt-ui-${{ github.run_id }}-${{ github.run_attempt }}
 
   # MSYS2's CLANG64 toolchain (W23: clang, libc++, lld, compiler-rt), a
   # second compiler on Windows beside windows-core's UCRT64 gcc (gcc 16), which
