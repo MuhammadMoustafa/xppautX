@@ -69,6 +69,11 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
   (W452). No heavy job of any kind runs while a timed series runs. Every issue and
   fix found goes into the final report's "Issues found and fixes made" (make_report.py's
   SERIES_CARDS) (maintainer, 2026-10-20/21).
+- Every issue a run finds is resolved (maintainer, 2026-11-11): a comparison, timed or check run that
+  turns up a problem of ours (a wrong number, a slowdown against the frozen run or another program,
+  a memory growth, a driver bug) gets its card at once and is worked to a fix, never left as a finding;
+  the affected workloads are then rerun. Only a measured cause outside xppautX (XPPAUT's or AUTO-07p's
+  own, the machine) closes a card without a fix, and it says so with the evidence.
 - Before any merge, push or report to the maintainer: the background-task
   register holds no finished work.
 
