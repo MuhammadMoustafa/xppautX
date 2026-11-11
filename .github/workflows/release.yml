@@ -20,6 +20,8 @@ permissions:
 # of a branch, where the Makefile and package_release.sh use git describe
 env:
   XPP_VERSION: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
+  # a release is a clean build: the Makefile's ccache stays off, whatever a runner image has installed (W692)
+  CCACHE: ''
 
 jobs:
   linux:

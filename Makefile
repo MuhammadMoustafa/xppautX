@@ -91,20 +91,21 @@ endif
 CLANG := $(if $(findstring clang,$(shell $(CC) --version 2>/dev/null)),1)
 
 # W411: a compiler cache shared by every worktree and clone of this user,
-# used when ccache is found; CCACHE= turns it off (CI and release builds
-# have none). Prefixing CC and CXX here covers every compile and link at
+# used when ccache is found; CCACHE= turns it off (release.yml sets it empty;
+# CI's builds install ccache and keep its folder, W692). Prefixing CC and CXX here covers every compile and link at
 # once; the guard keeps a sub-make, which inherits the prefixed value, from
 # adding it twice. A hit across paths needs no more than this: sources are
 # named relative to the checkout, CCACHE_BASEDIR maps the few absolute
 # paths, and CCACHE_NOHASHDIR leaves the build folder out of the key (the
 # only difference: -g's comp_dir names the first builder's folder). The cap
-# travels with the Makefile, not in a per-user ccache.conf.
+# travels with the Makefile, not in a per-user ccache.conf; CI's own cap in
+# the environment wins (?=).
 # Timing runs (tools/heavy.sh --alone) set CCACHE_DISABLE=1.
 CCACHE ?= $(if $(shell command -v ccache 2>/dev/null),ccache)
 ifneq ($(strip $(CCACHE)),)
 export CCACHE_BASEDIR := $(CURDIR)
 export CCACHE_NOHASHDIR := 1
-export CCACHE_MAXSIZE := 15G
+export CCACHE_MAXSIZE ?= 15G
 override CC := $(if $(findstring $(CCACHE),$(CC)),$(CC),$(CCACHE) $(CC))
 override CXX := $(if $(findstring $(CCACHE),$(CXX)),$(CXX),$(CCACHE) $(CXX))
 endif

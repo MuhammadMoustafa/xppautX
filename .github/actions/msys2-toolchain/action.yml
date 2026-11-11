@@ -78,6 +78,7 @@ runs:
           toolchain:p
           make:p
           python:p
+          ccache:p
     - name: Archive the installed ${{ inputs.msystem }} tree for the cache (cache miss)
       if: steps.cache.outputs.cache-hit != 'true'
       shell: pwsh

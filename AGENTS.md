@@ -227,11 +227,21 @@ timed study:
   worktree already did. There is one cache per side, the user's own
   (WSL's `~/.cache/ccache`, and Windows', shared by UCRT and clang64);
   its cap (15 GB) travels with the Makefile
-  (`CCACHE_MAXSIZE`), so nobody writes a ccache.conf.
+  (`CCACHE_MAXSIZE`, which an environment value overrides: CI's), so
+  nobody writes a ccache.conf.
   Paths do not matter (sources are relative, `CCACHE_BASEDIR`,
   `CCACHE_NOHASHDIR`), at the price that -g's recorded build folder is the
-  first builder's. `make CCACHE=` builds without it (CI and release have
-  no ccache, so they do); `tools/heavy.sh --alone` sets
+  first builder's. CI keeps one too (W692, #768): build.yml's builds
+  install ccache (apt, brew, MSYS2's `ccache:p`), restore the latest
+  `ccache-<job>-` cache of actions/cache into `build/ccache`, and save a
+  fresh one under a run key at the job's end, even after a failed check,
+  printing `ccache -s` (the run's own hit rate: the stats are zeroed after
+  the restore); caps 400 MB a plain build, 600 MB the source and sanitizer
+  jobs, eight saved caches (~4 GB, under GitHub's 10 GB repo limit with room
+  for a second branch's), a `-ui` job restoring its `-core` job's and a
+  sanitizer matrix saving from its first shard only. release.yml sets
+  `CCACHE=` (empty) and builds clean, as does `make CCACHE=`;
+  `tools/heavy.sh --alone` sets
   `CCACHE_DISABLE=1` (wslrun.sh forwards it), so a timing or profiling
   series never meets a hit. `ccache -s` shows the hit rate, `ccache -C`
   clears the cache (the maintainer's call: it is every agent's).
