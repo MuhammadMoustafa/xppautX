@@ -40,7 +40,9 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
   const feedback = own ?? made;
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const values = stored?.values ?? null;
-  useEffect(() => setDrafts({}), [values]);
+  /* the core's values that differ from those shown replace the edits; an answer that changes nothing (a second options.get, as
+     reopening the panel just after Apply sends) keeps them (macOS CI 42959548937: a click between the two answers was lost) */
+  useEffect(() => setDrafts({}), [JSON.stringify(values)]);
   const unavailable = stored?.unavailable ?? {};
   const names = [...new Set([...(lists[0] ?? []), ...(lists[3] ?? [])])];
   const sets = useStore(s => s.core?.sets ?? []).map(set => set.name);
