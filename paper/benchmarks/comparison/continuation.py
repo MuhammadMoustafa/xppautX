@@ -607,8 +607,9 @@ def description_sha(d, engine):
     d.pop('differences', None)
     for r in d['runs']:
         r.pop('start_refined', None)
-        if 'auto' in r:
-            r['autox'] = {reference.AUTO_NAMES.get(k, k): v for k, v in r['autox'].items()}
+        for key in ('auto', 'autox'):  # 'auto' in a description written before W599 renamed it
+            if key in r:
+                r['autox'] = {reference.AUTO_NAMES.get(k, k): v for k, v in r.pop(key).items()}
     return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()
 
 

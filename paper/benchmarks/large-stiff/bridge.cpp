@@ -184,7 +184,7 @@ extern "C" void study_free(void *p) { delete static_cast<Study *>(p); }
 // CVDense factors through xpp::BlockLu::factor since W433 (the dense matrix's LU, a whole matrix here: no independent subsystems).
 extern "C" void __real__ZN3xpp7BlockLu6factorEPdiiSt4spanIKSt6vectorIiSaIiEELm18446744073709551615EEPib(xpp::BlockLu *,double *,int,int,std::span<const std::vector<int>>,int *,bool);
 extern "C" void __wrap__ZN3xpp7BlockLu6factorEPdiiSt4spanIKSt6vectorIiSaIiEELm18446744073709551615EEPib(xpp::BlockLu *lu,double *a,int lda,int n,std::span<const std::vector<int>> blocks,int *info,bool transposed) {
-    factor_event("legacy-dense",[&]{__real__ZN3xpp7BlockLu6factorEPdiiSt4spanIKSt6vectorIiSaIiEELm18446744073709551615EEPib(lu,a,lda,n,blocks,info,transposed); return *info;});
+    factor_event("legacy-dense",[&]{__real__ZN3xpp7BlockLu6factorEPdiiSt4spanIKSt6vectorIiSaIiEELm18446744073709551615EEPib(lu,a,lda,n,blocks,info,transposed); return *info != -1 ? 1 : 0;}); // CVDense's own reading of the LU's info: 0 when complete (as DenseFactor returned)
 }
 extern "C" int __real__ZN3xpp12cvode_solver10BandFactorEPNS0_10BandMatRecEPi(xpp::cvode_solver::BandMatRec *,int *);
 extern "C" int __wrap__ZN3xpp12cvode_solver10BandFactorEPNS0_10BandMatRecEPi(xpp::cvode_solver::BandMatRec *a,int *p) {
