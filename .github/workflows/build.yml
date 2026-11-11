@@ -422,9 +422,6 @@ jobs:
           cd /tmp && "$GITHUB_WORKSPACE/xppautX" "$GITHUB_WORKSPACE/examples/ode/lecar.odex" --silent
           test "$(wc -l < output.dat)" -eq 601
           echo "md5 on this platform: $(md5 -q output.dat) (linux baseline 58fed7a175a635010b7698da91dc4e4c)"
-      - name: Server protocol and web front end
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: uv run --locked python tools/servercheck.py && uv run --locked python tools/steadycheck.py && uv run --locked python tools/spikecheck.py && uv run --locked python tools/livestatecheck.py && uv run --locked python tools/webcheck.py
       - name: Command-line modes (--help, --browser, --no-open)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh
@@ -445,14 +442,25 @@ jobs:
           pkill -f 'xppautX.app/Contents/MacOS/xppautX' || true
           tail -n 20 "$log"
           grep -q 'macOS asked to open .*/examples/ode/lecar.odex' "$log" && grep -q 'Used [0-9]* constants' "$log"
-      - name: "autoX over the protocol (tolerant of libm's last-digit ULP differences, autoxcheck.py's lines_close)"
+      # The checks of one binary that touch disjoint parts of it run side by side
+      # (tools/side_by_side.sh, W694: a log each, the verdicts at the end, the job
+      # fails if any did): the protocol and the front end over HTTP, autoX, every
+      # example against tests/examples.md5 (one baseline for every platform, W235;
+      # a crash or timeout fails too) and autoX's diagrams against the shared
+      # numerical baseline (1 and auto threads, W299). The artifacts below read
+      # the files they leave, not a step's outcome.
+      - name: "Protocol, web, autoX, every example and autoX diagrams (run side by side)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: uv run --locked python tools/autoxcheck.py
-      # compares strictly with tests/examples.md5 (one baseline for every
-      # platform, W235); a crash or timeout fails too (tools/examples_check.sh)
-      - name: "Every example: no crash, output md5s against tests/examples.md5"
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: tools/examples_check.sh --write examples.macos.md5 --keep examples-differ
+        run: |
+          tools/side_by_side.sh --prefix build/check- \
+            servercheck uv run --locked python tools/servercheck.py -- \
+            steadycheck uv run --locked python tools/steadycheck.py -- \
+            spikecheck uv run --locked python tools/spikecheck.py -- \
+            livestatecheck uv run --locked python tools/livestatecheck.py -- \
+            webcheck uv run --locked python tools/webcheck.py -- \
+            autoxcheck uv run --locked python tools/autoxcheck.py -- \
+            examples tools/examples_check.sh --write examples.macos.md5 --keep examples-differ -- \
+            autoxcompare uv run --locked python tools/autoxcompare.py --server ./xppautX --keep auto-differ
       # what this run computed, kept as an artifact when a model differs
       - name: Upload the examples' md5s (only when a model differs from the baseline)
         if: ${{ !cancelled() && hashFiles('examples-differ/**') != '' }}
@@ -464,9 +472,6 @@ jobs:
             examples.macos.md5
             examples-differ/
           if-no-files-found: ignore
-      - name: autoX diagrams against the shared numerical baseline (1 and auto threads)
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: uv run --locked python tools/autoxcompare.py --server ./xppautX --keep auto-differ
       - name: Upload the differing autoX diagrams
         if: ${{ !cancelled() && hashFiles('auto-differ/**') != '' }}
         uses: actions/upload-artifact@v7
@@ -586,22 +591,31 @@ jobs:
           top=$PWD
           cd "$(mktemp -d)" && "$top/xppautX.exe" "$top/examples/ode/lecar.odex" --silent
           test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = 58fed7a175a635010b7698da91dc4e4c
-      - name: Server protocol and web front end
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: uv run --locked python tools/servercheck.py --server ./xppautX.exe && uv run --locked python tools/steadycheck.py --server ./xppautX.exe && uv run --locked python tools/spikecheck.py --server ./xppautX.exe && uv run --locked python tools/livestatecheck.py --server ./xppautX.exe && uv run --locked python tools/webcheck.py --bin ./xppautX.exe
       - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh xppautX.exe
-      - name: "autoX over the protocol (tolerant of libm's last-digit ULP differences, autoxcheck.py's lines_close)"
+      # The checks of one binary that touch disjoint parts of it run side by side
+      # (tools/side_by_side.sh, W694: a log each, the verdicts at the end, the job
+      # fails if any did): the protocol and the front end over HTTP, autoX, every
+      # example (Linux's tests/examples.md5, no baseline of its own since W159: the
+      # numbers are the same on every CPU and system, xpp::math; a crash, a timeout
+      # or a differing md5 fails; output.dat's CRs are removed before hashing) and
+      # autoX's diagrams against the shared numerical baseline (1 and auto
+      # threads, W299). The artifacts below read the files they leave, not a
+      # step's outcome.
+      - name: "Protocol, web, autoX, every example and autoX diagrams (run side by side)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: uv run --locked python tools/autoxcheck.py --server ./xppautX.exe
-      # Linux's tests/examples.md5, no baseline of its own since W159: the
-      # numbers are the same on every CPU and system (xpp::math); a crash,
-      # a timeout or a differing md5 fails; output.dat's CRs are removed
-      # before hashing (tools/examples_check.sh)
-      - name: "Every example: no crash, output md5s against tests/examples.md5"
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: tools/examples_check.sh --bin xppautX.exe --write examples.windows.md5 --keep examples-differ
+        run: |
+          bin=./xppautX.exe
+          tools/side_by_side.sh --prefix build/check- \
+            servercheck uv run --locked python tools/servercheck.py --server "$bin" -- \
+            steadycheck uv run --locked python tools/steadycheck.py --server "$bin" -- \
+            spikecheck uv run --locked python tools/spikecheck.py --server "$bin" -- \
+            livestatecheck uv run --locked python tools/livestatecheck.py --server "$bin" -- \
+            webcheck uv run --locked python tools/webcheck.py --bin "$bin" -- \
+            autoxcheck uv run --locked python tools/autoxcheck.py --server "$bin" -- \
+            examples tools/examples_check.sh --bin "$bin" --write examples.windows.md5 --keep examples-differ -- \
+            autoxcompare uv run --locked python tools/autoxcompare.py --server "$bin" --keep auto-differ
       # what this run computed, for reading a difference
       - name: Upload the examples' md5s (only when a model differs from the baseline)
         if: ${{ !cancelled() && hashFiles('examples-differ/**') != '' }}
@@ -613,11 +627,6 @@ jobs:
             examples.windows.md5
             examples-differ/
           if-no-files-found: ignore
-      - name: autoX diagrams against the shared numerical baseline (1 and auto threads)
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        # uv is a Windows program: outside the MSYS2 shell, whose PATH holds only its own tools
-        shell: pwsh
-        run: uv run --locked python tools/autoxcompare.py --server ./xppautX.exe --keep auto-differ
       - name: Upload the differing autoX diagrams
         if: ${{ !cancelled() && hashFiles('auto-differ/**') != '' }}
         uses: actions/upload-artifact@v7
@@ -746,39 +755,25 @@ jobs:
       - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh build/clang/xppautX.exe
-      # servercheck+webcheck, autoxcheck and examples_check ran one after
-      # another (32+90+88s); they touch disjoint parts of the binary (the
-      # protocol, autoX, every .ode model) so nothing stops them running side
-      # by side instead (W41), each logged to its own file, verdicts printed
-      # once all are done (the pattern tools/asancheck.sh's run_check uses)
-      - name: "Server protocol, web front end, autoX and every example (run side by side)"
+      # The checks of one binary that touch disjoint parts of it run side by side
+      # (tools/side_by_side.sh, W41, W694: a log each, the verdicts at the end, the
+      # job fails if any did): the protocol and the front end over HTTP, autoX,
+      # every example (Linux's tests/examples.md5, no baseline of its own since
+      # W159) and autoX's diagrams against the shared numerical baseline (1 and
+      # auto threads, W299). The artifacts below read the files they leave.
+      - name: "Protocol, web, autoX, every example and autoX diagrams (run side by side)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           bin=build/clang/xppautX.exe
-          run_check() {
-            name=$1; shift
-            if "$@" > "$name.log" 2>&1; then
-              echo "$name ok" > "$name.verdict"
-            else
-              tail -40 "$name.log"
-              echo "$name FAILED" > "$name.verdict"
-            fi
-          }
-          run_check servercheck uv run --locked python tools/servercheck.py --server "$bin" &
-          run_check steadycheck uv run --locked python tools/steadycheck.py --server "$bin" &
-          run_check spikecheck uv run --locked python tools/spikecheck.py --server "$bin" &
-          run_check livestatecheck uv run --locked python tools/livestatecheck.py --server "$bin" &
-          run_check webcheck uv run --locked python tools/webcheck.py --bin "$bin" &
-          run_check autoxcheck uv run --locked python tools/autoxcheck.py --server "$bin" &
-          # Linux's tests/examples.md5, no baseline of its own since W159
-          run_check examples tools/examples_check.sh --bin "$bin" --write examples.windows-clang.md5 --keep examples-differ &
-          wait
-          fail=0
-          for name in servercheck steadycheck spikecheck livestatecheck webcheck autoxcheck examples; do
-            cat "$name.verdict"
-            grep -q FAILED "$name.verdict" && fail=1
-          done
-          exit $fail
+          tools/side_by_side.sh --prefix build/check- \
+            servercheck uv run --locked python tools/servercheck.py --server "$bin" -- \
+            steadycheck uv run --locked python tools/steadycheck.py --server "$bin" -- \
+            spikecheck uv run --locked python tools/spikecheck.py --server "$bin" -- \
+            livestatecheck uv run --locked python tools/livestatecheck.py --server "$bin" -- \
+            webcheck uv run --locked python tools/webcheck.py --bin "$bin" -- \
+            autoxcheck uv run --locked python tools/autoxcheck.py --server "$bin" -- \
+            examples tools/examples_check.sh --bin "$bin" --write examples.windows-clang.md5 --keep examples-differ -- \
+            autoxcompare uv run --locked python tools/autoxcompare.py --server "$bin" --keep auto-differ
       - name: Upload the examples' md5s (only when a model differs from the baseline)
         if: ${{ !cancelled() && hashFiles('examples-differ/**') != '' }}
         uses: actions/upload-artifact@v7
@@ -789,14 +784,6 @@ jobs:
             examples.windows-clang.md5
             examples-differ/
           if-no-files-found: ignore
-      - name: autoX diagrams against the shared numerical baseline (1 and auto threads)
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        # uv is a Windows program: outside the MSYS2 shell, whose PATH holds only its own tools;
-        # the dynamically linked clang build finds its runtime on clang64/bin
-        shell: pwsh
-        run: |
-          $env:PATH = "C:\msys64\clang64\bin;$env:PATH"
-          uv run --locked python tools/autoxcompare.py --server ./build/clang/xppautX.exe --keep auto-differ
       - name: Upload the differing autoX diagrams
         if: ${{ !cancelled() && hashFiles('auto-differ/**') != '' }}
         uses: actions/upload-artifact@v7

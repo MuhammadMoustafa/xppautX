@@ -482,8 +482,8 @@ there), about 9 minutes:
 `--only LIST` (W41) runs only some of the script's phases:
 build,smoke,examples,unittests, then any of servercheck,webcheck,autoxcheck
 (or the `checks` alias for all three; whichever of these are named run
-side by side, `run_check` printing "NAME finished after Ns" as each
-finishes) -- `autoxcheck=SECTION+SECTION...` (the names
+side by side through `tools/side_by_side.sh` (W694: a log each, "NAME finished after Ns" as each
+finishes, then the verdicts; windows-core, macos-core and windows-clang run their checks the same way)) -- `autoxcheck=SECTION+SECTION...` (the names
 `tools/autoxcheck.py --list` prints) narrows autoxcheck to just those
 sections. `autoxcheck-shard=INDEX/COUNT` partitions autoX's own section list
 round-robin (one-based), so new sections are included automatically;

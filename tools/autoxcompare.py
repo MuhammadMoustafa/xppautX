@@ -2,7 +2,8 @@
 """W299/#357: one autoX numerical baseline for every platform.
 
 Descriptions use W306's run vocabulary, not recorded keys. Only execute_run
-translates it to today's menus. Each model runs serially at 1 and auto threads.
+translates it to today's menus. Every model runs at 1 and at auto threads, JOBS models at
+once (tools/jobs.sh) at 1 thread and half as many at auto; the report is in description order.
 No elapsed-time assertion: completion is done; TIMEOUT is only a hang guard.
 """
 import argparse
@@ -17,6 +18,7 @@ import re
 import sys
 import time
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 
@@ -1199,6 +1201,84 @@ def difference(name, want, got):
         b[i].decode() if i < len(b) else '(end of diagram)')
 
 
+class Report:
+    """What one model said at one thread setting, kept to be replayed in description order: models run side by
+    side (JOBS at a time), and a line printed when it was made would come in the order they finish."""
+
+    def __init__(self):
+        self.lines = []  # (text,) a line to print, or (name, ok, detail) a check
+        self.data = b''  # the diagram this run stored; b'' when it failed
+        self.points = 0
+
+    def say(self, text):
+        self.lines.append((text,))
+
+    def check(self, name, ok, detail=''):
+        self.lines.append((name, ok, detail))
+
+    def replay(self, check):
+        for line in self.lines:
+            if len(line) == 1:
+                print(line[0])
+            else:
+                check(*line)
+
+
+def run_pass(binary, name, d, threads, first, refs, args):
+    """One model at one thread setting: a worker's whole job, its output a Report. `first` is the diagram the
+    1-thread pass stored (--update compares the auto-thread one with it)."""
+    report = Report()
+    path = BASE / (name + '.diagram.csv')
+    try:
+        data, count, autox_count, ranges = compute(binary, d, threads)
+        report.data, report.points = data, count
+        if args.update:
+            if threads == 'auto':
+                same = first == data
+                report.check(name + ': 1 and auto threads agree', same, difference(name, first, data) if not same else '')
+                if same:
+                    old = path.read_bytes().replace(b'\r', b'') if path.exists() else b''
+                    if old != data:
+                        path.write_bytes(data)
+                        report.say('UPDATE %s: %d points' % (name, count))
+        else:
+            want = path.read_bytes().replace(b'\r', b'') if path.exists() else b''
+            same = want == data
+            report.check('%s threads=%s (%d points, auto=%d)' % (name, threads, count, autox_count),
+                         same, difference(name, want, data) if not same else '')
+            if 'same_diagram_as' in d:  # W596: follow_all_branches's diagram is the runs in turn
+                other = (BASE / (d['same_diagram_as'] + '.diagram.csv')).read_bytes().replace(b'\r', b'')
+                report.check('%s threads=%s equals %s, byte for byte' % (name, threads, d['same_diagram_as']), other == data,
+                             difference(name, other, data) if other != data else '')
+            if not same and args.keep:
+                args.keep.mkdir(parents=True, exist_ok=True)
+                (args.keep / ('%s.threads-%s.diagram.csv' % (name, threads))).write_bytes(data)
+                (args.keep / (name + '.expected.diagram.csv')).write_bytes(want)
+            if threads == 1 and refs:
+                diffs, measures = compare_references(name, d, data, ranges, refs)
+                report.check('%s against %s (%d quantities)' % (name, ' and '.join(
+                             REFERENCES[x] for x in refs), len(measures)), not diffs, '\n'.join(diffs))
+                for m in measures if args.measures else ():
+                    report.say('MEASURE %s %s %s %s %s difference %.3g tolerance %.3g' % ((name,) + m))
+                if args.table:
+                    report.say('TABLE ' + table_row(name, d, stored_rows(data, ranges), refs, measures, diffs))
+    except (OSError, ValueError, RuntimeError, StopIteration, KeyError) as e:
+        report.check('%s threads=%s' % (name, threads), False, str(e))
+    return report
+
+
+def description_notes(name, d):
+    """The lines a description gives before its model's results: what it skips, and why"""
+    if 'skip' in d:
+        return ['SKIP %s: %s' % (name, d['skip'])]
+    notes = []
+    for suffix, field in REFERENCE_SKIPS.items():
+        if field in d:
+            status = 'PENDING' if 'pending' in d[field].lower() else 'SKIP'
+            notes.append('%s %s %s: %s' % (status, name, REFERENCES[suffix], d[field]))
+    return notes + ['SKIP %s/%s: %s' % (name, r['name'], r['skip']) for r in d['runs'] if 'skip' in r]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--server', '--bin', default=None)
@@ -1235,65 +1315,31 @@ def main():
     except (ValueError, OSError) as e:
         print('FAIL descriptions: ' + str(e))
         return 1
-    durations = {1: 0.0, 'auto': 0.0}
+    # JOBS is tools/jobs.sh's: how many models run at once. The 1-thread pass runs JOBS at a time; the auto pass
+    # gives each model up to four threads (autoX's most), so it runs half as many models rather than JOBS times
+    # four threads on JOBS cores. The diagrams are byte for byte the same at any thread count: only the time changes.
+    jobs = max(1, int(os.environ.get('JOBS', '4')))
+    wall = {}
+    first = {}
     skipped = points = 0
-    for name in selected:
-        d = descriptions[name]
-        if 'skip' in d:
-            skipped += 1
-            print('SKIP %s: %s' % (name, d['skip']))
-            continue
-        for suffix, field in REFERENCE_SKIPS.items():
-            if field in d:
-                status = 'PENDING' if 'pending' in d[field].lower() else 'SKIP'
-                print('%s %s %s: %s' % (status, name, REFERENCES[suffix], d[field]))
-        for r in d['runs']:
-            if 'skip' in r:
-                print('SKIP %s/%s: %s' % (name, r['name'], r['skip']))
-        path = BASE / (name + '.diagram.csv')
-        computed = {}
-        for threads in durations:
-            began = time.monotonic()
-            try:
-                data, count, autox_count, ranges = compute(binary, d, threads)
-                computed[threads] = data
-                points += count
-                if args.update:
-                    if threads == 'auto':
-                        same = computed.get(1) == data
-                        check(name + ': 1 and auto threads agree', same,
-                              difference(name, computed.get(1, b''), data) if not same else '')
-                        if same:
-                            old = path.read_bytes().replace(b'\r', b'') if path.exists() else b''
-                            if old != data:
-                                path.write_bytes(data)
-                                print('UPDATE %s: %d points' % (name, count))
-                else:
-                    want = path.read_bytes().replace(b'\r', b'') if path.exists() else b''
-                    same = want == data
-                    check('%s threads=%s (%d points, auto=%d)' % (name, threads, count, autox_count),
-                          same, difference(name, want, data) if not same else '')
-                    if 'same_diagram_as' in d:  # W596: follow_all_branches's diagram is the runs in turn
-                        other = (BASE / (d['same_diagram_as'] + '.diagram.csv')).read_bytes().replace(b'\r', b'')
-                        check('%s threads=%s equals %s, byte for byte' % (name, threads, d['same_diagram_as']), other == data,
-                              difference(name, other, data) if other != data else '')
-                    if not same and args.keep:
-                        args.keep.mkdir(parents=True, exist_ok=True)
-                        (args.keep / ('%s.threads-%s.diagram.csv' % (name, threads))).write_bytes(data)
-                        (args.keep / (name + '.expected.diagram.csv')).write_bytes(want)
-                    if threads == 1 and references[name]:
-                        diffs, measures = compare_references(name, d, data, ranges, references[name])
-                        check('%s against %s (%d quantities)' % (name, ' and '.join(
-                              REFERENCES[x] for x in references[name]), len(measures)), not diffs, '\n'.join(diffs))
-                        for m in measures if args.measures else ():
-                            print('MEASURE %s %s %s %s %s difference %.3g tolerance %.3g' % ((name,) + m))
-                        if args.table:
-                            print('TABLE ' + table_row(name, d, stored_rows(data, ranges), references[name], measures, diffs))
-            except (OSError, ValueError, RuntimeError, StopIteration, KeyError) as e:
-                check('%s threads=%s' % (name, threads), False, str(e))
-            finally:
-                durations[threads] += time.monotonic() - began
-    print('perf: autoX 1 thread %.3fs; auto threads %.3fs' % (durations[1], durations['auto']))
+    for threads, width in ((1, jobs), ('auto', max(1, jobs // 2))):
+        began = time.monotonic()
+        with ThreadPoolExecutor(max_workers=width) as pool:
+            futures = {name: pool.submit(run_pass, binary, name, descriptions[name], threads, first.get(name, b''),
+                                         references[name], args)
+                       for name in selected if 'skip' not in descriptions[name]}
+            for name in selected:  # description order, whichever model finishes first
+                if threads == 1:
+                    skipped += 'skip' in descriptions[name]
+                    for note in description_notes(name, descriptions[name]):
+                        print(note)
+                if name in futures:
+                    report = futures[name].result()
+                    report.replay(check)
+                    points += report.points
+                    first[name] = report.data
+        wall[threads] = time.monotonic() - began
+    print('perf: autoX 1 thread %.3fs; auto threads %.3fs' % (wall[1], wall['auto']))
     print('autoX %s: %d models, %d skipped, %d points, %d checks, %d failures' %
           ('FAILED' if check.failures else 'ok', len(selected), skipped, points, check.checks, check.failures))
     return int(bool(check.failures))

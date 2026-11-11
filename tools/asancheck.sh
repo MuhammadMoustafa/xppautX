@@ -159,21 +159,9 @@ fi
 # platform whose combined "checks" is still too slow for one CI job
 # splits them across shards, W41) or together as the "checks" alias
 # (Linux and macOS CI's whole-script run); whichever of these are
-# requested run side by side, each logged to its own file, their waits
-# doubled for a machine sharing sanitized servers. Prints "NAME finished
-# after Ns" as each one exits (not just its final verdict), so a job log
-# shows which one is the long pole without needing to look at the .log
-# files afterwards.
-run_check() {
-  name=$1; shift
-  t0=$(date +%s)
-  if XPP_CHECK_SLOW=${XPP_CHECK_SLOW:-2} "$@" > "$log-$name.log" 2>&1; then
-    echo "$name ok: $(grep -c '^PASS' "$log-$name.log") checks" > "$log-$name.verdict"
-  else
-    { grep -v '^PASS' "$log-$name.log" | head -30; echo "$name FAILED"; } > "$log-$name.verdict"
-  fi
-  echo "$name finished after $(( $(date +%s) - t0 ))s"
-}
+# requested run side by side (tools/side_by_side.sh: a log each, "NAME
+# finished after Ns" as each exits, the verdicts at the end), their waits
+# doubled for a machine sharing sanitized servers.
 # autoX owns the section list and its round-robin partitions (W180).
 # Explicit section selections remain for local iteration.
 want=""
@@ -190,18 +178,17 @@ for tok in $only; do
 done
 IFS=$old_ifs
 if [ -n "$want" ]; then
+  set --
+  sep=
   for name in $want; do
     case $name in
-      servercheck) run_check servercheck $python tools/servercheck.py --server "$bin" & ;;
-      webcheck) run_check webcheck $python tools/webcheck.py --bin "$bin" & ;;
-      autoxcheck) run_check autoxcheck $python tools/autoxcheck.py --server "$bin" $autosections & ;;
+      servercheck) set -- "$@" $sep servercheck $python tools/servercheck.py --server "$bin" ;;
+      webcheck) set -- "$@" $sep webcheck $python tools/webcheck.py --bin "$bin" ;;
+      autoxcheck) set -- "$@" $sep autoxcheck $python tools/autoxcheck.py --server "$bin" $autosections ;;
     esac
+    sep=--
   done
-  wait
-  for name in $want; do
-    cat "$log-$name.verdict"
-    grep -q ' FAILED$' "$log-$name.verdict" && fail=1
-  done
+  XPP_CHECK_SLOW=${XPP_CHECK_SLOW:-2} tools/side_by_side.sh --prefix "$log-" "$@" || fail=1
 fi
 
 for f in "$stderrs"/*; do
