@@ -2,16 +2,13 @@
    one width (the splitter's), one × that hides it. From 48rem it is a column beside the plot; under that a full-screen sheet with
    the same tabs and the same ×. The panels are the tabs' contents, each its own component; which one shows is store/dock.ts's. */
 import type {ComponentChildren} from 'preact';
-import {DOCK_TABS, dockTab, type DockTab} from '../store/dock';
+import {DOCK_SHEET_WIDTH, DOCK_TABS, dockTab, type DockTab} from '../store/dock';
 import {useSession, useStore} from './context';
 import {viewKeyText, type ViewKey} from '../popout';
 import {HelpView} from './Help';
 import {TableView} from './TableView';
 import {TextViews} from './TextViews';
 import {ValuesPanel} from './ValuesPanel';
-
-/** the dock is a sheet below 48rem (css/layout.css's phone breakpoint, docs/ui-v2.md R3) */
-const NARROW = '(max-width: 47.99rem)';
 
 /** the id of each tab's panel */
 const PANEL: Record<DockTab, string> = {values: 'values-panel', table: 'table-panel', text: 'text-panel', help: 'help-panel'};
@@ -64,7 +61,7 @@ export function Dock() {
   const sheet = useStore(s => s.dockOpen || dockTab(s) !== 'values');
   return (
     <aside id="dock" class={'dock' + (sheet ? ' open' : '')} data-tab={tab} aria-label="Dock">
-      <DockHead onClose={() => session.hideDock(window.matchMedia(NARROW).matches)} tabs={DOCK_TABS.map(t => (
+      <DockHead onClose={() => session.hideDock(window.matchMedia(DOCK_SHEET_WIDTH).matches)} tabs={DOCK_TABS.map(t => (
         <button key={t.id} id={`dock-tab-${t.id}`} class={'dock-tab' + (isOut(t.id) ? ' out' : '')} role="tab" aria-selected={tab === t.id}
           aria-controls={PANEL[t.id]} data-dock-tab={t.id} onClick={() => session.selectDockTab(t.id)}>
           {t.label}

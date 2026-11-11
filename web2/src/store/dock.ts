@@ -5,6 +5,9 @@
 
 export type DockTab = 'values' | 'table' | 'text' | 'help';
 
+/** the dock is a sheet over the page below 48rem, a column beside it from there (css/layout.css's phone breakpoint, docs/ui-v2.md R3) */
+export const DOCK_SHEET_WIDTH = '(max-width: 47.99rem)';
+
 /** the tabs in the order the dock shows them, with the words on them */
 export const DOCK_TABS: readonly {id: DockTab; label: string}[] = [
   {id: 'values', label: 'Values'}, {id: 'table', label: 'Table'}, {id: 'text', label: 'Model'}, {id: 'help', label: 'Help'},

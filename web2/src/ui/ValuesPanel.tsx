@@ -38,6 +38,7 @@ import {ShownName, ShownNumber} from './CutText';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
 import {readPref, writePref} from '../store/prefs';
+import {DOCK_SHEET_WIDTH} from '../store/dock';
 
 const NUMBER_HINT = fieldMessage(FORMULA_HINT);
 
@@ -314,8 +315,9 @@ export function ValuesPanel() {
     if (!open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
     /* Escape closes the sheet through hotkeys.ts's one owner (openPanel); a box with an edit to drop
-       keeps its Escape (Field's data-own-escape, UX-001) */
-    return openPanel(close);
+       keeps its Escape (Field's data-own-escape, UX-001). As the dock's column (a wide page) Values is no sheet
+       to close, so Escape goes on to what is under it: the run's stop */
+    return window.matchMedia(DOCK_SHEET_WIDTH).matches ? openPanel(close) : undefined;
   }, [open]);
 
   return (
