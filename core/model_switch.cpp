@@ -191,8 +191,10 @@ ModelRequest open_request(const Session &s, std::string dir, std::string file)
 
 std::string leave_question(Leave leave, bool recording)
 {
-  static constexpr const char *HEADS[]={"Quit xppautX?","Restart xppautX to use the new version?","Install the update and quit xppautX?"};
-  return xpp::format("{} {}",HEADS[static_cast<int>(leave)],recording?"Save this session, and the recording in progress, first?":"Save this session first?");
+  const std::string_view head=leave==Leave::restart?"Restart xppautX to use the new version?"
+                             :leave==Leave::install?"Install the update and quit xppautX?"
+                                                    :"Quit xppautX?";
+  return xpp::format("{} {}",head,recording?"Save this session, and the recording in progress, first?":"Save this session first?");
 }
 
 ModelRequest saved_request(const Session &s, std::string dir, SavedFile f)

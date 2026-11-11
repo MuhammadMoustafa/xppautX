@@ -86,15 +86,6 @@ namespace {
 /* the job.stopped event: {"ev":"job.stopped","at":AT}: where the running job was when it was
    cancelled (docs/protocol.md "stopped"). A script replays the
    interruption from AT. */
-/* "question":Q,"recording":R of one leave question (model_switch.h), in hello's `quit` */
-void buf_leave_question(std::string &b, xpp::Leave leave)
-{
-    BUF_LIT(b, "\"question\":");
-    buf_str(b, xpp::leave_question(leave, false));
-    BUF_LIT(b, ",\"recording\":");
-    buf_str(b, xpp::leave_question(leave, true));
-}
-
 void send_stopped(void)
 {
     std::string b;
@@ -103,6 +94,15 @@ void send_stopped(void)
     buf_stopped_at(b);
     BUF_LIT(b, "}");
     send_buf(b);
+}
+
+/* "question":Q,"recording":R of one leave question (model_switch.h), in hello's `quit` */
+void buf_leave_question(std::string &b, xpp::Leave leave)
+{
+    BUF_LIT(b, "\"question\":");
+    buf_str(b, xpp::leave_question(leave, false));
+    BUF_LIT(b, ",\"recording\":");
+    buf_str(b, xpp::leave_question(leave, true));
 }
 
 } // namespace
