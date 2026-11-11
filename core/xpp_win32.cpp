@@ -235,10 +235,12 @@ std::string executable_path()
     return std::string(exe.data(), n);
 }
 
-/* one argument as CommandLineToArgvW and the C runtime read it back: in quotes, a quote preceded by a backslash, the
-   backslashes before a quote (or the closing quote) doubled */
+/* one argument as CommandLineToArgvW and the C runtime read it back: as written when it holds no blank or quote (a
+   program with a parser of its own, msiexec, refuses an option in quotes: "/i" ends it with 1639, an invalid command
+   line), else in quotes, a quote preceded by a backslash, the backslashes before a quote (or the closing quote) doubled */
 static std::string quote_argument(const std::string &arg)
 {
+    if (!arg.empty() && arg.find_first_of(" \t\n\v\"") == std::string::npos) return arg;
     std::string out = "\"";
     std::size_t slashes = 0;
     for (const char c : arg) {
