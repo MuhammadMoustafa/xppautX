@@ -354,6 +354,57 @@ void sgesl(double *a, int lda, int n, int *ipvt, double *b)
     }
 }
 
+/* sgefa on a column-major matrix (a[j*lda+i] is M(i,j), CVODE's layout), in
+   place: each element gets the same product in the same step k, so the bits
+   are sgefa's of the transposed copy, without the copy. A zero in the pivot
+   row skips its column (saxpy), as sgefa's sparse path does and its dense
+   path (no zero) makes no difference to. */
+void sgefa_columns(double *a, int lda, int n, int *ipvt, int *info)
+{
+    *info = -1;
+    for (int k = 0; k < n - 1; k++) {
+        double *const column_k = a + static_cast<std::size_t>(k) * lda;
+        const int l = largest_magnitude(&column_k[k], n - k, 1) + k;
+        ipvt[k] = l;
+        if (column_k[l] == 0.0) {
+            *info = k;
+            continue;
+        }
+        if (l != k) std::swap(column_k[l], column_k[k]);
+        sscal(n - k - 1, -1.0 / column_k[k], column_k + k + 1, 1);
+        for (int j = k + 1; j < n; j++) {
+            double *const column_j = a + static_cast<std::size_t>(j) * lda;
+            const double t = column_j[l];
+            if (l != k) {
+                column_j[l] = column_j[k];
+                column_j[k] = t;
+            }
+            saxpy(n - k - 1, t, column_k + k + 1, 1, column_j + k + 1, 1);
+        }
+    }
+    ipvt[n - 1] = n - 1;
+    if (a[static_cast<std::size_t>(n - 1) * lda + n - 1] == 0.0) *info = n - 1;
+}
+
+/* sgesl for sgefa_columns' factors, in sgesl's order */
+void sgesl_columns(const double *a, int lda, int n, const int *ipvt, double *b)
+{
+    for (int k = 0; k < n - 1; k++) {
+        const int l = ipvt[k];
+        const double t = b[l];
+        if (l != k) {
+            b[l] = b[k];
+            b[k] = t;
+        }
+        saxpy(n - k - 1, t, a + static_cast<std::size_t>(k) * lda + k + 1, 1, b + k + 1, 1);
+    }
+    for (int k = n - 1; k >= 0; k--) {
+        const double *const column_k = a + static_cast<std::size_t>(k) * lda;
+        b[k] = b[k] / column_k[k];
+        saxpy(k, -b[k], column_k, 1, b, 1);
+    }
+}
+
 int sgefa_det_sign(const double *a, int lda, int n, const int *ipvt)
 {
     /* det = the product of U's diagonal, negated once per row swap */
@@ -373,20 +424,16 @@ void BlockLu::factor(double *a, int lda, int n, std::span<const std::vector<int>
     for (const auto &block : blocks) covered += block.size();
     split_ = blocks.size() > 1 && covered == static_cast<std::size_t>(n);
     pivots_.resize(static_cast<std::size_t>(n));
-    in_place_ = !split_ && !transposed;
-    if (in_place_) {
-        sgefa(a, lda, n, pivots_.data(), info);
+    transposed_ = transposed;
+    if (!split_) {
+        /* one block covers the matrix: factored where it lies */
+        if (transposed) sgefa_columns(a, lda, n, pivots_.data(), info);
+        else sgefa(a, lda, n, pivots_.data(), info);
         return;
     }
-    if (split_) {
-        blocks_ = blocks;
-    } else if (whole_.size() != 1 || whole_[0].size() != static_cast<std::size_t>(n)) {
-        /* a column-major matrix is sgefa's transpose, so it is gathered (O(n^2) against the factorization's O(n^3)) */
-        whole_.assign(1, std::vector<int>(static_cast<std::size_t>(n)));
-        std::iota(whole_[0].begin(), whole_[0].end(), 0);
-    }
+    blocks_ = blocks;
     std::size_t cells = 0, widest = 0;
-    for (const auto &block : this->blocks()) {
+    for (const auto &block : blocks_) {
         cells += block.size() * block.size();
         widest = std::max(widest, block.size());
     }
@@ -395,7 +442,7 @@ void BlockLu::factor(double *a, int lda, int n, std::span<const std::vector<int>
     *info = -1;
     double *block_lu = lu_.data();
     int *block_pivots = pivots_.data();
-    for (const auto &block : this->blocks()) {
+    for (const auto &block : blocks_) {
         const std::size_t m = block.size();
         for (std::size_t i = 0; i < m; i++)
             for (std::size_t j = 0; j < m; j++) {
@@ -418,13 +465,15 @@ void BlockLu::factor(double *a, int lda, int n, std::span<const std::vector<int>
 
 void BlockLu::solve(double *a, int lda, double *b)
 {
-    if (in_place_) {
-        sgesl(a, lda, static_cast<int>(pivots_.size()), pivots_.data(), b);
+    if (!split_) {
+        const int n = static_cast<int>(pivots_.size());
+        if (transposed_) sgesl_columns(a, lda, n, pivots_.data(), b);
+        else sgesl(a, lda, n, pivots_.data(), b);
         return;
     }
     double *block_lu = lu_.data();
     int *block_pivots = pivots_.data();
-    for (const auto &block : blocks()) {
+    for (const auto &block : blocks_) {
         const std::size_t m = block.size();
         for (std::size_t i = 0; i < m; i++) rhs_[i] = b[block[i]];
         sgesl(block_lu, static_cast<int>(m), static_cast<int>(m), block_pivots, rhs_.data());

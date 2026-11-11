@@ -146,6 +146,7 @@ TEST_CASE("test_subsystems")
     check_block_lu({{0, 5, 6}, {1, 2}, {3}, {4, 7}}, 8, true, random);
     check_block_lu({{0, 1, 2}}, 3, true, random);  /* one block: the whole matrix, column-major */
     check_block_lu({{0, 1, 2}}, 3, false, random); /* and in place */
+    check_block_lu({{0, 1, 2, 3, 4, 5, 6, 7}}, 8, true, random); /* a larger one, with interchanges */
     check_singular();
     TEST_REPORT("subsystems");
 }

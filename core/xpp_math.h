@@ -230,6 +230,9 @@ std::vector<int> seed_stream(int seed, std::size_t n);
 int largest_magnitude(const double *x, int n, int stride = 1);
 void sgefa(double *a, int lda, int n, int *ipvt, int *info);
 void sgesl(double *a, int lda, int n, int *ipvt, double *b);
+/* the same on a column-major matrix (a[j*lda+i] is M(i,j)), in place, the same bits */
+void sgefa_columns(double *a, int lda, int n, int *ipvt, int *info);
+void sgesl_columns(const double *a, int lda, int n, const int *ipvt, double *b);
 int sgefa_det_sign(const double *a, int lda, int n, const int *ipvt);
 
 /* BlockLu: sgefa/sgesl for a matrix that is block diagonal under a
@@ -251,9 +254,10 @@ int sgefa_det_sign(const double *a, int lda, int n, const int *ipvt);
    singular matrix whose info the caller ignores) stays in its block where
    sgefa and sgesl spread it into every column. With fewer
    than two blocks, or blocks that do not cover n indices, factor() is sgefa
-   in place and solve() sgesl, so `a` must stay as factor() left it until
+   (sgefa_columns when transposed) in place and solve() sgesl, so `a` must stay as factor() left it until
    the solves are done. `transposed`: a holds the matrix's transpose (column-major,
-   CVODE's DenseMatRec), each block gathered the right way round. The
+   CVODE's DenseMatRec): a split's blocks are gathered the right way round,
+   a whole matrix is factored where it lies. The
    buffers are sized by the first factor() and kept. */
 class BlockLu {
 public:
@@ -261,10 +265,8 @@ public:
     void solve(double *a, int lda, double *b);
 
 private:
-    std::span<const std::vector<int>> blocks() const { return split_ ? blocks_ : std::span<const std::vector<int>>(whole_); }
-    std::vector<std::vector<int>> whole_; /* the one block of every index, for a transposed matrix with no split */
     std::span<const std::vector<int>> blocks_; /* the caller's, when split_ */
-    bool split_ = false, in_place_ = false;
+    bool split_ = false, transposed_ = false;
     std::vector<double> lu_, rhs_;
     std::vector<int> pivots_;
 };
