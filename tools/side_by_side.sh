@@ -6,7 +6,7 @@
 # Usage: tools/side_by_side.sh [--prefix PREFIX] [--jobs N] NAME COMMAND [ARGS...] [-- NAME COMMAND ...]
 #   --prefix PREFIX  each check's log is PREFIX<name>.log (default build/side-by-side-)
 #   --jobs N         at most N checks run at once, started in the order given
-#                    (a check starts when the oldest running one has ended);
+#                    (the next starts as soon as any running one has ended);
 #                    default: all at once
 # Prints "NAME finished after Ns" as each one exits (the long pole shows in a
 # job's log), then "NAME ok" ("NAME ok: N checks" counting the log's ^PASS lines)
@@ -41,9 +41,16 @@ run_check() {
   echo "$name finished after $(( $(date +%s) - t0 ))s"
 }
 
+# --jobs: a slot is a line in a pipe; a check takes one before it starts and gives
+# it back when it ends, so the next starts as soon as any one has ended
+if [ "$jobs" -gt 0 ]; then
+  slots=$(mktemp -u "${TMPDIR:-/tmp}/side-by-side.XXXXXX") && mkfifo "$slots" || exit 1
+  exec 3<>"$slots"
+  rm -f "$slots"
+  i=0
+  while [ $i -lt "$jobs" ]; do echo >&3; i=$((i + 1)); done
+fi
 names=
-pids=
-running=0
 while [ $# -gt 0 ]; do
   name=$1; shift
   n=0
@@ -53,11 +60,7 @@ while [ $# -gt 0 ]; do
   done
   [ "$n" -gt 0 ] || { echo "side_by_side.sh: $name has no command"; exit 2; }
   names="$names $name"
-  if [ "$jobs" -gt 0 ] && [ $running -ge "$jobs" ]; then
-    first=${pids%% *}; pids=${pids#"$first"}; pids=${pids# }
-    wait "$first"
-    running=$((running - 1))
-  fi
+  [ "$jobs" -gt 0 ] && read -r _ <&3
   # the group's first n words are the command: rotate them behind the rest, then drop the rest
   (
     i=0
@@ -65,9 +68,8 @@ while [ $# -gt 0 ]; do
     drop=$(( $# - n ))
     while [ $drop -gt 0 ]; do shift; drop=$((drop - 1)); done
     run_check "$name" "$@"
+    [ "$jobs" -gt 0 ] && echo >&3
   ) &
-  pids=${pids:+$pids }$!
-  running=$((running + 1))
   i=0
   while [ $i -lt $n ]; do shift; i=$((i + 1)); done
   [ $# -gt 0 ] && shift
