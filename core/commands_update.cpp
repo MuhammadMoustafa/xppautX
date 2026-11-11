@@ -54,13 +54,17 @@ Result<std::string> download(Session &, const Command &command, const Arguments 
     if (folder.path().empty()) return fail(command.name, "a folder for the download could not be made", place);
     const Result<update::Downloaded> done = update::download(
         file, folder.path(), https::get, [](unsigned long long got, unsigned long long of) {
+            job::report_bytes(got, of);
             xpp::ui.progress(static_cast<std::int64_t>(of), static_cast<std::int64_t>(got), 0);
             return !job::cancelled();
         });
     if (!done) return fail(command.name, done.error().what, done.error().place.file.empty() ? place : done.error().place);
     ResultObject result;
     result.boolean("downloaded", !done->stopped).integer("bytes", static_cast<long long>(done->bytes));
-    if (done->stopped) return result.done();
+    if (done->stopped) {
+        xpp::log(XPP_LOG_INFO, "The download of \"{}\" stopped at {} of {} bytes\n", file.name, done->bytes, file.size);
+        return result.done();
+    }
     const Result<update::Ready> ready = update::prepare(plan, file, args.get<std::string>("version"), done->path);
     if (!ready) return fail(command.name, ready.error().what, ready.error().place.file.empty() ? place : ready.error().place);
     return result.text("ready", update::ready_name(*ready)).done();

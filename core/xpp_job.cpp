@@ -135,6 +135,13 @@ void report_frame(int frame)
     if (stop == Stop::frame && frame == stop_count) stop_reached();
 }
 
+void report_bytes(unsigned long long bytes, unsigned long long size)
+{
+    reported.what = Reported::bytes;
+    reported.bytes = bytes;
+    reported.size = size;
+}
+
 Progress progress() { return reported; }
 
 void stop_at_rows(long rows) { arm(Stop::rows, rows); }

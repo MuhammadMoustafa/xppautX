@@ -522,6 +522,8 @@ void buf_stopped_at(std::string &b)
         BUF_LIT(b, "}");
     } else if (p.what == xpp::job::Reported::frame) {
         buf_format(b, "{{\"what\":\"ani\",\"frame\":{:d}}}", p.frame);
+    } else if (p.what == xpp::job::Reported::bytes) {
+        buf_format(b, "{{\"what\":\"download\",\"bytes\":{:d},\"size\":{:d}}}", p.bytes, p.size);
     } else {
         BUF_LIT(b, "{\"what\":\"other\"}");
     }

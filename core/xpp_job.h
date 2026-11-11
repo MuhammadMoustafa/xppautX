@@ -145,7 +145,8 @@ enum class Reported {
     nothing, /* no integration, no autoX, no animation */
     rows,    /* an integration's rows and t */
     point,   /* autoX's branch and point */
-    frame    /* the animation's frames */
+    frame,   /* the animation's frames */
+    bytes    /* a download's bytes */
 };
 
 struct Progress {
@@ -154,6 +155,7 @@ struct Progress {
     double t = 0;                      /* the time of the last row stored */
     int branch = 0, point = 0;         /* the last point autoX stored */
     int frame = 0;                     /* the animation's frames shown */
+    unsigned long long bytes = 0, size = 0; /* a download's bytes received and the file's size */
     std::vector<BranchJob> jobs;       /* how each of an autoX run's branch jobs ended (report_jobs), in queue order */
 };
 
@@ -174,6 +176,9 @@ void report_jobs(std::vector<BranchJob> jobs);
 /* The animation's Go has shown `frame` frames (from 1). A stop at frame F
    is reached when frame F has been shown. */
 void report_frame(int frame);
+
+/* A download has received `bytes` of the file's `size`. No stop is armed at a count of bytes: a recording's replay downloads nothing. */
+void report_bytes(unsigned long long bytes, unsigned long long size);
 
 /* the running (or, between jobs, the last) job's progress */
 Progress progress();

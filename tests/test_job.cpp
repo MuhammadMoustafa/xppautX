@@ -79,6 +79,13 @@ int main(void)
     xpp::job::end();
     CHECK(xpp::job::progress().rows == 10); /* still there after the job */
 
+    /* a download reports the bytes it has and the file's size */
+    xpp::job::begin(19);
+    xpp::job::report_bytes(65536, 2966051);
+    CHECK(xpp::job::progress().what == xpp::job::Reported::bytes && xpp::job::progress().bytes == 65536 &&
+          xpp::job::progress().size == 2966051);
+    xpp::job::end();
+
     /* a replayed interruption: a stop armed between jobs is the next job's,
        and cancels it when the row counter reaches it, not before */
     xpp::job::stop_at_rows(3);
