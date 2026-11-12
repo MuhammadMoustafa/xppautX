@@ -57,32 +57,43 @@ namespace math {
    instructions (third_party/core-math/README.md): the same bits, much
    faster than the plain copy. Whether the CPU has it is the compiler
    runtime's own table, read for free. */
+#define XPP_CR_UNARY(F) F(exp) F(log) F(log10) F(sin) F(cos) F(tan) F(asin) F(acos) F(atan) \
+    F(sinh) F(cosh) F(tanh) F(erf) F(erfc) F(lgamma)
+#define XPP_CR_BINARY(F) F(pow) F(atan2) F(hypot)
+
+/* name(x) picks the copy per call; resolve(f) is, for a pointer to one of
+   them, the copy itself with the CPU asked once, for code that calls the
+   function through a pointer (the model's native code): no check and no
+   thunk in each call. */
 #ifdef XPP_CORE_MATH_FMA
-#define XPP_CR_PICK(name, ...) (__builtin_cpu_supports("fma") ? cr_##name##_fma(__VA_ARGS__) : cr_##name(__VA_ARGS__))
+#define XPP_CR_HAS_FMA __builtin_cpu_supports("fma")
+#define XPP_CR_COPY(name) (XPP_CR_HAS_FMA ? cr_##name##_fma : cr_##name)
 #else
-#define XPP_CR_PICK(name, ...) cr_##name(__VA_ARGS__)
+#define XPP_CR_COPY(name) cr_##name
 #endif
+#define XPP_CR_DEFINE1(name) inline double name(double x) { return XPP_CR_COPY(name)(x); }
+#define XPP_CR_DEFINE2(name) inline double name(double x, double y) { return XPP_CR_COPY(name)(x, y); }
+XPP_CR_UNARY(XPP_CR_DEFINE1)
+XPP_CR_BINARY(XPP_CR_DEFINE2)
+#undef XPP_CR_DEFINE1
+#undef XPP_CR_DEFINE2
 
-inline double exp(double x) { return XPP_CR_PICK(exp, x); }
-inline double log(double x) { return XPP_CR_PICK(log, x); }
-inline double log10(double x) { return XPP_CR_PICK(log10, x); }
-inline double pow(double x, double y) { return XPP_CR_PICK(pow, x, y); }
-inline double sin(double x) { return XPP_CR_PICK(sin, x); }
-inline double cos(double x) { return XPP_CR_PICK(cos, x); }
-inline double tan(double x) { return XPP_CR_PICK(tan, x); }
-inline double asin(double x) { return XPP_CR_PICK(asin, x); }
-inline double acos(double x) { return XPP_CR_PICK(acos, x); }
-inline double atan(double x) { return XPP_CR_PICK(atan, x); }
-inline double atan2(double y, double x) { return XPP_CR_PICK(atan2, y, x); }
-inline double sinh(double x) { return XPP_CR_PICK(sinh, x); }
-inline double cosh(double x) { return XPP_CR_PICK(cosh, x); }
-inline double tanh(double x) { return XPP_CR_PICK(tanh, x); }
-inline double hypot(double x, double y) { return XPP_CR_PICK(hypot, x, y); }
-inline double erf(double x) { return XPP_CR_PICK(erf, x); }
-inline double erfc(double x) { return XPP_CR_PICK(erfc, x); }
-inline double lgamma(double x) { return XPP_CR_PICK(lgamma, x); }
-
-#undef XPP_CR_PICK
+#define XPP_CR_RESOLVE1(name) if (f == static_cast<double (*)(double)>(name)) return reinterpret_cast<const void *>(XPP_CR_COPY(name));
+#define XPP_CR_RESOLVE2(name) if (f == static_cast<double (*)(double, double)>(name)) return reinterpret_cast<const void *>(XPP_CR_COPY(name));
+inline const void *resolve(double (*f)(double)) {
+    XPP_CR_UNARY(XPP_CR_RESOLVE1)
+    return reinterpret_cast<const void *>(f);
+}
+inline const void *resolve(double (*f)(double, double)) {
+    XPP_CR_BINARY(XPP_CR_RESOLVE2)
+    return reinterpret_cast<const void *>(f);
+}
+#undef XPP_CR_RESOLVE1
+#undef XPP_CR_RESOLVE2
+#undef XPP_CR_COPY
+#undef XPP_CR_HAS_FMA
+#undef XPP_CR_UNARY
+#undef XPP_CR_BINARY
 
 /* ---- a model's x^n for a small whole n: multiplied out (W471) ----
 

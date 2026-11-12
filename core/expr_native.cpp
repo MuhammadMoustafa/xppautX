@@ -689,12 +689,12 @@ struct Generator {
         for (int i:unary) {
             names.push_back(xpp::format("f1_{}",i));
             declarations+=xpp::format("extern double f1_{}(double);\n",i);
-            addresses.push_back(reinterpret_cast<const void *>(expr::fun1[i]));
+            addresses.push_back(xpp::math::resolve(expr::fun1[i]));
         }
         for (int i:binary) {
             names.push_back(xpp::format("f2_{}",i));
             declarations+=xpp::format("extern double f2_{}(double,double);\n",i);
-            addresses.push_back(reinterpret_cast<const void *>(expr::fun2[i]));
+            addresses.push_back(xpp::math::resolve(expr::fun2[i]));
         }
         for (size_t i=0;i<used.size();++i) {
             if (!used[i]) continue;
