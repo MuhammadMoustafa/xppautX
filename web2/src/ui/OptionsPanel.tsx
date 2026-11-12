@@ -4,7 +4,7 @@
    `options.get` and go out as one `options.configure` (or `output.configure`), all or nothing, of the rows changed; Apply closes the panel, as a command form's Run does. A field is the same
    one every command form has (Field, ColorField, a select), in the form's own markup; useOptionRows is the one place a row is turned into
    a field: a panel of its own, the settings part of a command's form and Values' Numerics all use it. */
-import {useEffect, useState} from 'preact/hooks';
+import {useEffect, useLayoutEffect, useState} from 'preact/hooks';
 import type {OptionGroup, OptionRow} from '../protocol/types';
 import {choiceLabel, ruleMessage, specOfOption} from '../store/fieldKinds';
 import {Control, FormRow, focusFirstError, useFeedback, type Feedback} from './FormFields';
@@ -41,8 +41,9 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const values = stored?.values ?? null;
   /* the core's values that differ from those shown replace the edits; an answer that changes nothing (a second options.get, as
-     reopening the panel just after Apply sends) keeps them (macOS CI 42959548937: a click between the two answers was lost) */
-  useEffect(() => setDrafts({}), [JSON.stringify(values)]);
+     reopening the panel just after Apply sends) keeps them (macOS CI 42959548937: a click between the two answers was lost); reset before the
+     browser takes input, never in an effect run after paint, where a click on the boxes just drawn is wiped (macOS CI 43150345945) */
+  useLayoutEffect(() => setDrafts({}), [JSON.stringify(values)]);
   const unavailable = stored?.unavailable ?? {};
   const names = [...new Set([...(lists[0] ?? []), ...(lists[3] ?? [])])];
   const sets = useStore(s => s.core?.sets ?? []).map(set => set.name);
