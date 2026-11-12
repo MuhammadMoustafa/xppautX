@@ -6,6 +6,7 @@
 #include "xpp_error.h"
 #include "model_files.h"
 #include "comline.h"
+#include "xpp_prefs.h"
 
 namespace xpp {
 struct Session; /* session.h */
@@ -24,7 +25,7 @@ void json_ui_push_open(const char *path);
    the built-in script its options make (core/json_silent.cpp) through
    this front end, its events going nowhere; exits 0 when the script
    ends, 1 when the model does not load */
-int json_ui_silent(CommandLine cl);
+int json_ui_silent(CommandLine cl, const Result<prefs::Preferences> *read_prefs);
 
 /* the command line run at once, as if the client had sent it; the
    Session it ended in: the client's, or the one a model it loaded (a

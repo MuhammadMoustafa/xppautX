@@ -558,10 +558,10 @@ Result<double> autox_settings_num_parse(int i, std::string_view text)
     return v;
 }
 
-void preferences_load(Session &s)
+void preferences_load(Session &s, const Result<prefs::Preferences> *read)
 {
     if (files::serving_reads()) return;
-    const Result<prefs::Preferences> p = prefs::load_prefs();
+    const Result<prefs::Preferences> p = read ? *read : prefs::load_prefs();
     if (p) {
         s.threads = p->threads;
         s.colors = p->colors;

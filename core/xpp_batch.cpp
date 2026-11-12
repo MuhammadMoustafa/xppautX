@@ -53,7 +53,7 @@ XppBatchOptions batch_options;
 /* everything both the batch run and an interactive front end do: options,
    the ODE file, numerics set-up. batch forces XPPBatch. */
 static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
-                            const std::function<void(Session &)> &read)
+                            const std::function<void(Session &)> &read, const Result<prefs::Preferences> *read_prefs)
 {
     xpp::Model &m = s.model();
     program.interactive = 0;
@@ -83,7 +83,7 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
     if (s.autox_state.script.script)
         if (const Result<> checked = autox_script_check(s, *s.autox_state.script.script); !checked) model_failed(checked.error());
     init_autox_win(s);
-    preferences_load(s);
+    preferences_load(s, read_prefs);
     if (disc(m)) {
         const auto picked = pick_method(m, "Discrete", Load::place());
         if (!picked) model_failed(picked.error());
@@ -184,7 +184,7 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
 Loaded load_in(const CommandLine &cl, int batch, const SavedModel *saved,
                const std::function<std::optional<Error>(Session &)> &check,
                const std::function<void(Session &)> &read, bool commit,
-               const std::vector<std::string> &outside_paths = {})
+               const std::vector<std::string> &outside_paths = {}, const Result<prefs::Preferences> *read_prefs = nullptr)
 {
     return in_model([&](Session &s) {
         Model &m = s.model();
@@ -193,7 +193,7 @@ Loaded load_in(const CommandLine &cl, int batch, const SavedModel *saved,
             m.saved_in = saved->in;
             m.files = saved->files;
         }
-        load_and_set_up(s, cl, batch, read);
+        load_and_set_up(s, cl, batch, read, read_prefs);
         if (check)
             if (std::optional<Error> wrong = check(s)) model_failed(std::move(*wrong));
     }, commit);
@@ -202,7 +202,7 @@ Loaded load_in(const CommandLine &cl, int batch, const SavedModel *saved,
 } // namespace
 
 Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
-                  const std::function<std::optional<Error>(Session &)> &check)
+                  const std::function<std::optional<Error>(Session &)> &check, const Result<prefs::Preferences> *read_prefs)
 {
     auto resolved = animation_command_line(std::move(cl));
     if (resolved) resolved = script_command_line(std::move(*resolved));
@@ -242,7 +242,7 @@ Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
                 cl.model_file = converted;
             }
         }
-        if (loaded) loaded = load_in(cl, batch, saved, check, load_eqn, true, outside_paths);
+        if (loaded) loaded = load_in(cl, batch, saved, check, load_eqn, true, outside_paths, read_prefs);
     }
     /* the one place a model that does not load is written to the log */
     if (!loaded) {

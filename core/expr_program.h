@@ -77,6 +77,7 @@ struct Program {
     std::vector<int> native_reads; /* variables read by this code and its user functions */
     bool array_pure = false; /* native code only uses c/v and immutable lookup tables */
     double (*native)(double *, double *, Session *, const int *) = nullptr;
+    bool in_rhs = false; /* compiled only inside the model's one right-hand side function (W708): no native of its own */
 };
 
 /* Derivatives compile_model compiled (W260, expr_derivative.h): the

@@ -3,6 +3,7 @@
 #include "xpp_error.h"
 #include "model_files.h"
 #include "comline.h"
+#include "xpp_prefs.h"
 
 #include <expected>
 #include <functional>
@@ -47,7 +48,8 @@ using Loaded = std::expected<Session *, Error>;
    as a model that does not load does. What is wrong is written to the
    log here (Error::text()), once. */
 Loaded load_model(CommandLine cl, int batch, const SavedModel *saved = nullptr,
-                  const std::function<std::optional<Error>(Session &)> &check = {});
+                  const std::function<std::optional<Error>(Session &)> &check = {},
+                  const Result<prefs::Preferences> *read_prefs = nullptr);
 /* Import and validate in a temporary Model and Session, using the shared
    setup. Never commits; the converter alone supplies the .ode reader. */
 /* A loaded model compiled (compile_model, W260's exact Jacobian when the

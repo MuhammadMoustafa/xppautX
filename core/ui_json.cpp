@@ -1093,11 +1093,11 @@ void json_ui_install(bool silent)
     install(silent);
 }
 
-int json_ui_silent(CommandLine cl)
+int json_ui_silent(CommandLine cl, const Result<prefs::Preferences> *read_prefs)
 {
     /* the model loads as with no interface at all: a model that does not
        load exits 1, its reason logged */
-    const xpp::Loaded loaded = xpp::load_model(std::move(cl), 1);
+    const xpp::Loaded loaded = xpp::load_model(std::move(cl), 1, nullptr, {}, read_prefs);
     if (!loaded) exit(1);
     xpp::Session &s = **loaded;
     xpp::batch_start(s);

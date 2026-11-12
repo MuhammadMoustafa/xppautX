@@ -770,7 +770,7 @@ std::string rhs_impurity(const Session &s)
     for (int i=0;i<m.node+m.fix_var;++i) {
         const auto &p=m.programs[i];
         const int available=i<m.node?m.node+m.fix_var:i;
-        if (!p.native) return "a right-hand side that is not compiled";
+        if (!p.native && !p.in_rhs) return "a right-hand side that is not compiled";
         if (!p.array_pure) return "a right-hand side that uses shifts, random numbers or sums over an index";
         if (!std::all_of(p.native_reads.begin(),p.native_reads.end(),[&](int v){return v<=available;}))
             return "a fixed variable that reads one after it";
@@ -792,7 +792,7 @@ std::string subsystem_joined_by(const Session &s)
 Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelProgram> &entries)
 {
     Model &m=s.model();
-    for (const auto &entry:entries) { entry.code->native=nullptr; entry.code->array_pure=false; entry.code->native_reads.clear(); }
+    for (const auto &entry:entries) { entry.code->native=nullptr; entry.code->in_rhs=false; entry.code->array_pure=false; entry.code->native_reads.clear(); }
     m.native_rhs=nullptr;
     m.native_equations=false;
     m.native_program.reset();
@@ -845,8 +845,10 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     }
     for (int i=0;i<m.nfun;++i) if (g.allowed[i]) g.source+=bodies[i];
     std::vector<const ModelProgram *> emitted;
+    std::vector<std::pair<size_t,size_t>> written; /* each emitted program's text in g.source */
     for (const auto &entry:entries) {
         g.place=entry.place;
+        const size_t text_begin=g.source.size();
         if (entry.user_index>=0) {
             const int i=entry.user_index;
             if (i>=m.nfun || !g.allowed[i]) continue;
@@ -868,6 +870,7 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
         if (entry.user_index<0) entry.code->native_reads.assign(g.variable_reads.begin(),g.variable_reads.end());
         if (g.loops>0 && entry.user_index<0) g.called.emplace(entry.code,entry.symbol);
         emitted.push_back(&entry);
+        written.emplace_back(text_begin,g.source.size());
     }
     /* the fixed variables and the equations once more, as one function
        (W468, W469): the fixed variables when each compiled alone, the
@@ -892,8 +895,24 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
             rhs=equations=false;
         }
     }
-    if (emitted.empty()) return warnings;
-    auto compiled=g.build(emitted.front()->place);
+    /* W708: when p_rhs writes the equations, an equation's own function is
+       not compiled: nothing calls it in a run with p_rhs but a Markov
+       variable's or an integral equation's evaluation (they keep theirs),
+       and the interpreter serves any other caller of evaluate; one with a
+       sum is called by p_rhs and keeps its own. */
+    const size_t compiled_count=emitted.size();
+    std::vector<Program *> in_rhs;
+    if (equations && m.nmarkov==0 && m.nkernel==0) {
+        for (size_t k=emitted.size();k-->0;) {
+            Program *code=emitted[k]->code;
+            if (code<m.programs.data() || code>=m.programs.data()+m.node || g.called.contains(code)) continue;
+            g.source.erase(written[k].first,written[k].second-written[k].first);
+            in_rhs.push_back(code);
+            emitted.erase(emitted.begin()+static_cast<std::ptrdiff_t>(k));
+        }
+    }
+    if (emitted.empty() && !rhs) return warnings;
+    auto compiled=g.build(entries.front().place);
     if (!compiled) {g.place=compiled.error().place;return g.refuse("TinyCC: "+compiled.error().what);}
     std::vector<decltype(Program::native)> functions;
     for (const auto *entry:emitted) {
@@ -911,7 +930,8 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     m.native_rhs=native_rhs;
     m.native_equations=equations;
     for (size_t i=0;i<emitted.size();++i) emitted[i]->code->native=functions[i];
-    log(XPP_LOG_INFO,"Compiled {} of {} programs\n",emitted.size(),entries.size());
+    for (Program *code:in_rhs) code->in_rhs=true;
+    log(XPP_LOG_INFO,"Compiled {} of {} programs\n",compiled_count,entries.size());
     return warnings;
 }
 

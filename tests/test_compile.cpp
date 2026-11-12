@@ -353,7 +353,9 @@ TEST_CASE("test_compile")
             for (size_t i=0;i<t.parser.variables.size();++i) t.parser.variables[i]+=0.01*static_cast<double>(round*(i%5));
             for (const auto &entry:xpp::model_programs(t.model())) {
                 kinds.insert(entry.symbol.substr(0,entry.symbol.find_first_of("0123456789")));
-                CHECK(entry.code->native!=nullptr);
+                CHECK(entry.code->native!=nullptr || entry.code->in_rhs);
+                /* an equation only p_rhs compiles (W708) is checked by same_rhs below */
+                if (entry.code->in_rhs) continue;
                 if (entry.user_index<0) same_both_ways(t,*entry.code);
                 else {
                     /* A raw caller exercises the native function's argument-stack

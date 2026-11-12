@@ -129,7 +129,11 @@ static std::string usage_tail()
 
 /* the session: load the model and serve it until Quit (the core exits);
    on the main thread (on macOS beside the window's: xpp_window.h) */
-static xpp::CommandLine startup;
+/* what the start read once: the command line and the preferences (the first load takes both; a reload reads them again) */
+static struct {
+    xpp::CommandLine line;
+    xpp::Result<xpp::prefs::Preferences> prefs;
+} startup;
 
 static void run_session(void)
 {
@@ -137,11 +141,11 @@ static void run_session(void)
     xpp::text_metrics.small_width = 7; xpp::text_metrics.small_height = 13;
     xpp::text_metrics.big_width = 9; xpp::text_metrics.big_height = 15;
 
-    const bool silent = startup.silent;
+    const bool silent = startup.line.silent;
     xpp::json_ui_install(silent);
     /* what the command line says, changed below only where a file in its place
        or the system adds an argument: then the changed arguments are read again */
-    std::vector<std::string> args = startup.arguments;
+    std::vector<std::string> args = startup.line.arguments;
     bool changed = false;
 #ifdef __APPLE__
     /* a document Finder or `open` gave xppautX.app when it launched it (an
@@ -165,8 +169,8 @@ static void run_session(void)
     std::optional<SavedFile> saved;
     std::optional<xpp::RecordingLaunch> recording; /* a .recx: its model starts the session, the player opens it after */
     std::string opened; /* the model file the user opened, as an absolute path: the newest recent one */
-    const std::string &model_file = changed ? args.back() : startup.model_file;
-    const size_t i = changed ? args.size() - 1 : static_cast<size_t>(startup.model_argument);
+    const std::string &model_file = changed ? args.back() : startup.line.model_file;
+    const size_t i = changed ? args.size() - 1 : static_cast<size_t>(startup.line.model_argument);
     if (!model_file.empty()) {
         if (xpp::files::has_extension(model_file, xpp::recx::extension)) {
             recording = xpp::json_ui_recording_launch(model_file);
@@ -190,7 +194,7 @@ static void run_session(void)
         std::erase(args, "--silent");
         changed = true;
     }
-    xpp::CommandLine cl = startup;
+    xpp::CommandLine cl = startup.line;
     if (changed) {
         xpp::Result<xpp::CommandLine> reread = xpp::parse_command_line(std::move(args));
         if (!reread) {
@@ -203,7 +207,7 @@ static void run_session(void)
     std::function<std::optional<xpp::Error>(xpp::Session &)> check;
     if (saved) check = [&saved](xpp::Session &fresh) { return xpp_saved_check(fresh, *saved); };
     const xpp::Loaded loaded = xpp::load_model(std::move(cl), 0,
-                                               saved ? &saved->model : recording ? &recording->saved : nullptr, check);
+                                               saved ? &saved->model : recording ? &recording->saved : nullptr, check, &startup.prefs);
     if (!loaded && !silent && xpp::is_no_model(loaded.error())) {
         /* no file named: the start screen, whose Open model is File > Open model's */
         xpp::json_ui_start_screen();
@@ -219,7 +223,7 @@ static void run_session(void)
         const xpp::Model &m = (**loaded).model();
         const auto noted = xpp::recent::note(opened.empty() ? xpp::files::absolute(m.this_file, m.load_dir) : opened);
         /* a preferences file that cannot be read was said once already, with what it costs (preferences_load) */
-        if (!noted && xpp::prefs::load_prefs()) xpp::log(XPP_LOG_WARN, "{}\n", noted.error().text());
+        if (!noted && startup.prefs) xpp::log(XPP_LOG_WARN, "{}\n", noted.error().text());
     }
     /* the session the load made, the program's until the redraw (a protocol
        command chooses its own, ui_json.cpp handle_line) */
@@ -247,11 +251,12 @@ int main(int argc, char **argv)
         xpp::log(XPP_LOG_ERROR, "{}\n", parsed.error().text());
         return 2;
     }
-    startup = std::move(*parsed);
-    const xpp::CommandLine &cl = startup;
+    startup.line = std::move(*parsed);
+    startup.prefs = xpp::prefs::load_prefs();
+    const xpp::CommandLine &cl = startup.line;
     {
         /* what the log shows and where it goes: the command line's, else the preferences' (a bad file is said by the load, preferences_load) */
-        const xpp::Result<xpp::prefs::Preferences> kept = xpp::prefs::load_prefs();
+        const xpp::Result<xpp::prefs::Preferences> &kept = startup.prefs;
         xpp::log_set_threshold(cl.log_threshold.value_or(kept ? kept->log_level : XPP_LOG_WARN));
         if (kept && !kept->log_file.empty() && !xpp::log_open_file(kept->log_file))
             xpp::log(XPP_LOG_WARN, "{}\n", xpp::files::write_error("log_file", kept->log_file).text());
@@ -305,7 +310,7 @@ int main(int argc, char **argv)
                                 xpp::Place{cl.model_file}}.text());
             return 2;
         }
-        return xpp::json_ui_silent(startup);
+        return xpp::json_ui_silent(startup.line, &startup.prefs);
     }
     /* a build without a window is browser mode (--no-open needs --browser: comline.cpp) */
     xpp::Interface interface = cl.interface.value_or(xpp::Interface::window);

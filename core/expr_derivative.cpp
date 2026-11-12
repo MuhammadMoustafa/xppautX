@@ -187,7 +187,7 @@ private:
         const auto entry = entries_.find(&p);
         if (entry == entries_.end()) return refuse(last_place(), "reads a program the model does not hold");
         const Place &where = entry->second->place;
-        if (!p.native) return refuse(where, "was not compiled, so it has no exact Jacobian");
+        if (!p.native && !p.in_rhs) return refuse(where, "was not compiled, so it has no exact Jacobian");
         places_.push_back(where);
         const std::size_t program = places_.size() - 1;
         made_by(program);
