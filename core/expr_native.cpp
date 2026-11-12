@@ -192,10 +192,10 @@ struct Generator {
 
     std::string signature(int i, bool user, std::string_view name={}) const
     {
-        std::string text = "double " + (user ? xpp::format("u{}",i) : std::string(name)) + "(double *c,double *v,void *S";
+        std::string text = "double " + (user ? xpp::concat("u", i) : std::string(name)) + "(double *c,double *v,void *S";
         if (!user) text+=",const int *R";
         if (user)
-            for (int a = 0; a < s.model().narg_fun[i]; ++a) text += xpp::format(",double a{}", a);
+            for (int a = 0; a < s.model().narg_fun[i]; ++a) text += xpp::concat(",double a", a);
         return text + ")";
     }
 
@@ -213,8 +213,8 @@ struct Generator {
        written to a temporary. */
     Node statement(std::string value)
     {
-        Node t{xpp::format("t{}", temps++), true};
-        out.push_back(xpp::format("{}={};", t.text, value));
+        Node t{xpp::concat("t", temps++), true};
+        out.push_back(xpp::concat(t.text, "=", value, ";"));
         return t;
     }
     void flush(std::vector<Node> &stack, size_t from)
@@ -236,7 +236,7 @@ struct Generator {
     {
         const auto [slot, added] = literal_slot.emplace(std::bit_cast<std::uint64_t>(x), numbers.size());
         if (added) numbers.push_back(x);
-        return {xpp::format("N[{}]", slot->second), true, false, math::is_integer_power(x) ? static_cast<int>(x) : 0};
+        return {xpp::concat("N[", slot->second, "]"), true, false, math::is_integer_power(x) ? static_cast<int>(x) : 0};
     }
 
     /* The call text of a math function (a table's fun1/fun2: pure, they
@@ -282,13 +282,13 @@ struct Generator {
         const std::vector<std::string> branches(out.begin() + static_cast<std::ptrdiff_t>(f.mark), out.end());
         out.resize(f.mark);
         flush(stack, outer_base);
-        const std::string result = xpp::format("t{}", temps++);
+        const std::string result = xpp::concat("t", temps++);
         const auto split = branches.begin() + static_cast<std::ptrdiff_t>(f.then_mark - f.mark);
         out.push_back(xpp::format("if({}==0.0){{", f.cond.text));
         out.insert(out.end(), split, branches.end());
-        out.push_back(xpp::format("{}={};}}else{{", result, other.text));
+        out.push_back(xpp::concat(result, "=", other.text, ";}else{"));
         out.insert(out.end(), branches.begin(), split);
-        out.push_back(xpp::format("{}={};}}", result, f.then_value.text));
+        out.push_back(xpp::concat(result, "=", f.then_value.text, ";}"));
         stack.push_back({result, true});
     }
 
@@ -335,7 +335,7 @@ struct Generator {
                 impure = true;
                 forget_calls();
                 const int n = loops++;
-                const Node total{xpp::format("t{}", temps++), true};
+                const Node total{xpp::concat("t", temps++), true};
                 /* lo, hi and ix are int: the assignments truncate the bounds and
                    widen the index as the interpreter's casts do */
                 out.push_back(xpp::format("lo{0}={1};hi{0}={2};{3}=0.0;if(lo{0}<=hi{0}){{for(ix{0}=lo{0};;ix{0}++){{c[{4}]=ix{0};",
@@ -344,16 +344,16 @@ struct Generator {
                 auto value = sequence(code, k, user, index);
                 --depth;
                 if (!value) return value;
-                out.push_back(xpp::format("{0}={0}+{1};if(ix{2}==hi{2})break;}}}}", total.text, value->text, n));
+                out.push_back(xpp::concat(total.text, "=", total.text, "+", value->text, ";if(ix", n, "==hi", n, ")break;}}"));
                 stack.push_back(total);
             } else if (op == ENDDELAY || op == ENDSHIFT || op == ENDISHIFT) {
                 const Node first = pop(), second = pop();
                 if (op == ENDISHIFT) {
-                    stack.push_back({xpp::format("{}({},{})", helper(Helper::IShift), first.text, second.text), false, first.mut || second.mut});
+                    stack.push_back({xpp::concat(helper(Helper::IShift), "(", first.text, ",", second.text, ")"), false, first.mut || second.mut});
                 } else if (op == ENDSHIFT) {
-                    stack.push_back({xpp::format("{}(S,{},{})", helper(Helper::Shift), first.text, second.text), false, true});
+                    stack.push_back({xpp::concat(helper(Helper::Shift), "(S,", first.text, ",", second.text, ")"), false, true});
                 } else {
-                    stack.push_back(effect(stack, lower(), xpp::format("{}(S,{},{})", helper(Helper::Delay), first.text, second.text)));
+                    stack.push_back(effect(stack, lower(), xpp::concat(helper(Helper::Delay), "(S,", first.text, ",", second.text, ")")));
                 }
             } else if (op == ENDDELSHFT) {
                 const Node tau = pop(), shift = pop(), variable = pop();
@@ -387,7 +387,7 @@ struct Generator {
             } else if (type == FUN1TYPE) {
                 unary.insert(in);
                 const Node x = pop();
-                stack.push_back(pure_call(xpp::format("f1_{}({})", in, x.text), x.mut, frames.empty()));
+                stack.push_back(pure_call(xpp::concat("f1_", in, "(", x.text, ")"), x.mut, frames.empty()));
             } else if (type == FUN2TYPE) {
                 const Node right = pop(), left = pop();
                 std::string text;
@@ -399,11 +399,11 @@ struct Generator {
                 else if (in == expr::SUBTRACT || in == expr::IEEE_DIVIDE) text = "(" + left.text + (in == expr::SUBTRACT ? "-" : "/") + right.text + ")";
                 else if (in == expr::DIVIDE) {
                     /* the guarded division: a zero divisor becomes N[0] */
-                    if (right.atom) text = xpp::format("({}/({}==0.0?N[0]:{}))", left.text, right.text, right.text);
-                    else text = xpp::format("dv({},{})", left.text, right.text);
+                    if (right.atom) text = xpp::concat("(", left.text, "/(", right.text, "==0.0?N[0]:", right.text, "))");
+                    else text = xpp::concat("dv(", left.text, ",", right.text, ")");
                 } else {
                     binary.insert(in);
-                    stack.push_back(pure_call(xpp::format("f2_{}({},{})", in, left.text, right.text), left.mut || right.mut, frames.empty()));
+                    stack.push_back(pure_call(xpp::concat("f2_", in, "(", left.text, ",", right.text, ")"), left.mut || right.mut, frames.empty()));
                     continue;
                 }
                 stack.push_back({std::move(text), false, left.mut || right.mut});
@@ -424,7 +424,7 @@ struct Generator {
                 if (arguments.size() == static_cast<size_t>(i.count) && !inline_text[in].empty()) {
                     text = with_arguments(inline_text[in], arguments);
                 } else {
-                    text = xpp::format("u{}(c,v,S", in);
+                    text = xpp::concat("u", in, "(c,v,S");
                     for (size_t a = first; a < stack.size(); ++a) text += "," + stack[a].text;
                     text += ")";
                 }
@@ -435,12 +435,12 @@ struct Generator {
                 }
                 stack.push_back(pure_function[in] ? Node{std::move(text), false, true} : effect(stack, lower(), std::move(text)));
             } else if (type == KERTYPE) {
-                stack.push_back({xpp::format("{}(S,{})", helper(Helper::Kernel), in), false});
+                stack.push_back({xpp::concat(helper(Helper::Kernel), "(S,", in, ")"), false});
             } else {
                 /* a lookup table, network or vectorizer: the arrays the helpers index are the interpreter's own */
                 const Node x = pop();
                 const Helper h = type == TABTYPE ? Helper::Table : type == NETTYPE ? Helper::Network : Helper::Vector;
-                stack.push_back({xpp::format("{}(S,{},{})", helper(h), x.text, in), false, type != TABTYPE || x.mut});
+                stack.push_back({xpp::concat(helper(h), "(S,", x.text, ",", in, ")"), false, type != TABTYPE || x.mut});
             }
         }
         return pop();
@@ -473,13 +473,13 @@ struct Generator {
     void write(std::string_view head, std::string_view tail)
     {
         std::string declarations;
-        for (int i = 0; i < temps; ++i) declarations += xpp::format("{}t{}", i ? "," : "double ", i);
+        for (int i = 0; i < temps; ++i) declarations += xpp::concat(i ? "," : "double ", "t", i);
         if (temps) declarations += ";";
-        for (int i = 0; i < loops; ++i) declarations += xpp::format("{1}lo{0},hi{0},ix{0}", i, i ? "," : "int ");
+        for (int i = 0; i < loops; ++i) declarations += xpp::concat(i ? "," : "int ", "lo", i, ",hi", i, ",ix", i);
         if (loops) declarations += ";";
-        source += xpp::format("{}{{{}", head, declarations);
+        source += xpp::concat(head, "{", declarations);
         for (const std::string &statement : out) source += statement;
-        source += xpp::format("{}}}\n", tail);
+        source += xpp::concat(tail, "}\n");
     }
 
     /* One C function for a program (an equation's, or user function index's). */
@@ -488,7 +488,7 @@ struct Generator {
         begin();
         const auto result = value(p, index, user);
         if (!result) return std::unexpected(result.error());
-        write(signature(index, user, name), xpp::format("return {};", result->text));
+        write(signature(index, user, name), xpp::concat("return ", result->text, ";"));
         if (user) {
             pure_function[index] = !impure;
             if (!impure && out.empty() && temps == 0 && loops == 0 && result->text.size() <= MAX_INLINE_TEXT) inline_text[index] = result->text;

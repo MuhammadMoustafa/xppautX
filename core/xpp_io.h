@@ -156,6 +156,20 @@ inline void append_integer(std::string &out, T v)
     out.append(buf.data(), r.ptr);
 }
 
+/* The parts joined into one string: text as it is, an integer as its digits
+   (what "{}" gives), with no format string to parse: for the text a loop writes
+   thousands of times (generated code), where xpp::format's scan is the cost. */
+template <class... Parts>
+std::string concat(const Parts &...parts)
+{
+    std::string out;
+    ([&] {
+        if constexpr (std::is_integral_v<Parts>) append_integer(out, parts);
+        else out.append(std::string_view(parts));
+    }(), ...);
+    return out;
+}
+
 /* Checked stream positions. Positions returned by tell_stream are opaque:
    seek_stream uses an absolute seek, including on Windows text streams. */
 Result<> seek_stream(FILE *file, long position, std::string_view path);
