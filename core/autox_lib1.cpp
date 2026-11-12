@@ -134,8 +134,9 @@ struct Locating {
 };
 
 /* A failed location must leave the converged point and the data its next
-   test/step consumes intact. Scratch factorizations matter too: fnlpbv uses
-   solvbv with ifst=0. Only allocate these owned copies after a sign change. */
+   test/step consumes intact. The factorization matters too: fnlpbv uses
+   solvbv with ifst=0. It is not copied (megabytes: a and c of solvbv's work) but made again, on a restore, from
+   the inputs solvbv kept of it (AutoxRun::refactor). Only allocate these owned copies after a sign change. */
 struct LocationState {
   struct Array {
     std::span<double> target;
@@ -144,20 +145,20 @@ struct LocationState {
     void restore() const { std::copy(values.begin(), values.end(), target.begin()); }
   };
   std::vector<Array> arrays;
-  double dsold, det, tivp;
+  double dsold, det, tivp, pivot;
   integer nit, nins, isp;
   xpp::AutoxStability::Values stability;
   std::vector<double> codim_left;
-  decltype(AutoxRun::solvbv) solvbv;
+  std::function<void()> refactor;
   decltype(AutoxRun::homcont) homcont;
 
   LocationState(const iap_type &iap, const rap_type &rap,
                 std::initializer_list<std::span<double>> data)
-    : dsold(rap.dsold), det(rap.det), tivp(rap.tivp),
+    : dsold(rap.dsold), det(rap.det), tivp(rap.tivp), pivot(iap.run->solvbv.pivot),
       nit(iap.nit), nins(iap.nins), isp(iap.isp),
       stability(iap.run->stability.computed),
       codim_left(iap.run->codim.previous_left),
-      solvbv(iap.run->solvbv), homcont(iap.run->homcont)
+      refactor(iap.run->refactor), homcont(iap.run->homcont)
   {
     arrays.reserve(data.size());
     for (auto a : data) arrays.emplace_back(a);
@@ -172,8 +173,15 @@ struct LocationState {
     iap.isp = isp;
     iap.run->stability.computed = stability;
     iap.run->codim.previous_left = codim_left;
-    iap.run->solvbv = solvbv;
     iap.run->homcont = homcont;
+    // the trial steps made their own, and solvbv keeps the inputs of the last one: put back the ones of the
+    // converged point's, and make that factorization again from them (the call keeps its inputs again as it runs)
+    if (refactor) {
+      iap.run->refactor = refactor;
+      const auto again = std::move(iap.run->refactor);
+      again();
+    }
+    iap.run->solvbv.pivot = pivot;
   }
 };
 

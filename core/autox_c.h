@@ -473,6 +473,8 @@ double autox_parameter_value(const AutoxRun &run, integer slot,
 /* the constants the run evaluates on: its own copies when it has them (a
    collocation worker, a job run at once with others), else the Session's parser */
 std::span<const double> autox_constants(const AutoxRun &run);
+/* the constants and variables the run's evaluations leave their last values in (the same two vectors as above) */
+std::pair<std::vector<double> &,std::vector<double> &> autox_rhs_values(AutoxRun &run);
 /* the model's parameters, as the run holds them, into autoX's par (the model's part of it): a start's */
 void autox_fill_parameters(const AutoxRun &run, double *par);
 /* autoX's checkpoint (xpp::byeautox_), for a run on the main thread; a job's

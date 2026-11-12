@@ -138,6 +138,12 @@ std::span<const double> autox_constants(const AutoxRun &run)
   return run.pure_rhs?std::span<const double>(run.rhs_constants):std::span<const double>(run.session->parser.constants);
 }
 
+std::pair<std::vector<double> &,std::vector<double> &> autox_rhs_values(AutoxRun &run)
+{
+  if(run.pure_rhs)return {run.rhs_constants,run.rhs_variables};
+  return {run.session->parser.constants,run.session->parser.variables};
+}
+
 void autox_checkpoint(const AutoxRun &run, int *iflag)
 {
   if(run.on_thread)*iflag=xpp::job::cancelled()?1:0;

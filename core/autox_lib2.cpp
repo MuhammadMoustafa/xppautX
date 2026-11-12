@@ -80,6 +80,40 @@ void SolvbvWork::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+namespace {
+/* What a factorization (solvbv with ifst = 1) is made from: the iterate, the previous solution and its tangent, the
+   mesh, the parameters, the step and the problem's functions. Run again on a copy of them it gives the same
+   matrices bit for bit (the assembly is deterministic, at any thread count), so a failed location (autox_lib1.cpp's
+   LocationState) keeps these, kilobytes, and not the factored matrices, megabytes. The outputs of the run (dups, fa,
+   fc, p0, p1) go to scratch; what the run changes besides the matrices, the model's last evaluated values, HomCont's
+   state, the determinant, the pivot and the time of an evolution, is put back. */
+std::function<void()> remember_factorization(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal rds, integer nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *thl, doublereal *thu)
+{
+  const auto copy = [](const doublereal *p, std::size_t n) { return std::vector<doublereal>(p, p + n); };
+  const std::size_t nu = xpp::size_product(ndxloc, iap->ndim, iap->ncol), np = iap->run->parameter_count;
+  return [=, par = copy(par, np), ups = copy(ups, nu), uoldps = copy(uoldps, nu), udotps = copy(udotps, nu),
+          upoldp = copy(upoldp, nu), dtm = copy(dtm, ndxloc), rlcur = copy(rlcur, np), rlold = copy(rlold, np),
+          rldot = copy(rldot, np), homcont = iap->run->homcont]() mutable {
+    AutoxRun &run = *iap->run;
+    std::vector<doublereal> dups(nu), fa(nu), fc(xpp::size_sum(iap->nbc, iap->nint, 1)),
+        p0(xpp::size_product(iap->ndim, iap->ndim)), p1(p0.size());
+    auto [constants, variables] = autox_rhs_values(run);
+    const auto kept_constants = constants, kept_variables = variables;
+    const auto kept_homcont = std::exchange(run.homcont, homcont);
+    const doublereal det = rap->det, tivp = rap->tivp, pivot = run.solvbv.pivot;
+    integer ifst = 1, ndx = ndxloc, nllv_now = nllv;
+    doublereal rds_now = rds;
+    solvbv(&ifst, iap, rap, par.data(), icp, funi, bcni, icni, &rds_now, &nllv_now, rlcur.data(), rlold.data(),
+           rldot.data(), &ndx, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), dtm.data(),
+           fa.data(), fc.data(), p0.data(), p1.data(), thl, thu);
+    constants = kept_constants;
+    variables = kept_variables;
+    run.homcont = kept_homcont;
+    rap->det = det, rap->tivp = tivp, run.solvbv.pivot = pivot;
+  };
+}
+} // namespace
+
 int 
 solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *rds, integer *nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, doublereal *thl, doublereal *thu)
 {
@@ -110,6 +144,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   if (*ifst == 1) {
     /* the arrays are sized in one place, SolvbvWork::resize */
     iap->run->solvbv.resize(iap->ndim, iap->ncol, iap->ntst, iap->nbc, iap->nint, iap->nfpr);
+    iap->run->refactor = remember_factorization(iap, rap, par, icp, funi, bcni, icni, *rds, *nllv, rlcur, rlold, rldot, *ndxloc, ups, uoldps, udotps, upoldp, dtm, thl, thu);
   }
 
   auto &ft = iap->run->solvbv.ft;

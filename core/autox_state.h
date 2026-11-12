@@ -410,6 +410,10 @@ struct AutoxRun {
      *ifst == 1 sizes them, later ones reuse what it
      factored (autox_lib2.cpp) */
   SolvbvWork solvbv;
+  /* makes solvbv's last factorization (ifst = 1) again, from the inputs it was made from, which solvbv keeps in it
+     (autox_lib2.cpp): kilobytes where the factored matrices are megabytes, for a failed location's restore
+     (autox_lib1.cpp's LocationState). Empty before the first. */
+  std::function<void()> refactor;
   /* the homoclinic continuation's (HomCont's) common blocks
      (autox_lib5.cpp): its settings, the projections, the equilibria's
      eigenvalues and vectors, and their previous values */
