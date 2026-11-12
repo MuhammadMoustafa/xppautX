@@ -177,8 +177,7 @@ struct LocationState {
     // the trial steps made their own, and solvbv keeps the inputs of the last one: put back the ones of the
     // converged point's, and make that factorization again from them (the call keeps its inputs again as it runs)
     if (refactor) {
-      iap.run->refactor = refactor;
-      const auto again = std::move(iap.run->refactor);
+      auto again = refactor; /* a copy: the call may write its inputs, and a later restore needs them as they were */
       again();
     }
     iap.run->solvbv.pivot = pivot;
