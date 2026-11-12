@@ -512,6 +512,32 @@ TEST_LDDEBUG ?= $(if $(or $(SANITIZE),$(VALGRIND)),,-Wl,-S)
 $(TEST_BIN): $(TEST_OBJECTS) $(CORELIB)
 	$(LINK_TESTS) $(if $(SANITIZE),$(SANITIZE),$(LDSTATIC)) $(MAINSTACK) $(TEST_LDDEBUG) -o $@ $(TEST_OBJECTS) $(CORELIB) -lm $(CORE_SYSLIBS)
 
+# W706 spike (not in `all`, `xppautx` or `test`): MIR (third_party/mir, master dc2c763,
+# unmodified, as in README.md there) compiles a model's generated right-hand
+# side beside TinyCC and the two are compared bit for bit
+# (tools/mir-spike/mir_spike.cpp, fixtures in tests/mir-spike/).
+# Each MIR source is one object of its own, built like miniz: its warnings
+# are not ours (-w: vendored C), nor is LTO; no contraction, as for TinyCC.
+MIR_DIR = third_party/mir
+MIR_BUILD = $(BUILDDIR)/mir
+MIR_OBJECTS = $(MIR_BUILD)/mir.o $(MIR_BUILD)/mir-gen.o $(MIR_BUILD)/c2mir.o
+MIR_SPIKE = $(BUILDDIR)/mir_spike$(EXE)
+MIR_FIXTURES = $(basename $(wildcard tests/mir-spike/*.manifest))
+$(MIR_BUILD):
+	mkdir -p $@
+$(MIR_BUILD)/mir.o: $(MIR_DIR)/mir.c $(wildcard $(MIR_DIR)/*.h $(MIR_DIR)/mir-*.c) $(BUILDDIR)/toolchain.stamp Makefile | $(MIR_BUILD)
+	$(CC) -std=gnu11 $(call NOLTO,$(OPT)) $(FPFLAGS) -DNDEBUG $(if $(CLANG),,-Wno-psabi) -w -I$(MIR_DIR) -c $< -o $@
+$(MIR_BUILD)/mir-gen.o: $(MIR_DIR)/mir-gen.c $(wildcard $(MIR_DIR)/*.h $(MIR_DIR)/mir-gen-*.c) $(BUILDDIR)/toolchain.stamp Makefile | $(MIR_BUILD)
+	$(CC) -std=gnu11 $(call NOLTO,$(OPT)) $(FPFLAGS) -DNDEBUG $(if $(CLANG),,-Wno-psabi) -w -I$(MIR_DIR) -c $< -o $@
+$(MIR_BUILD)/c2mir.o: $(MIR_DIR)/c2mir/c2mir.c $(wildcard $(MIR_DIR)/*.h $(MIR_DIR)/c2mir/*.h $(MIR_DIR)/c2mir/*/*) $(BUILDDIR)/toolchain.stamp Makefile | $(MIR_BUILD)
+	$(CC) -std=gnu11 $(call NOLTO,$(OPT)) $(FPFLAGS) -DNDEBUG $(if $(CLANG),,-Wno-psabi) -w -I$(MIR_DIR) -c $< -o $@
+$(MIR_SPIKE): tools/mir-spike/mir_spike.cpp tools/mir-spike/xpp_mir.cpp tools/mir-spike/xpp_mir.h $(MIR_OBJECTS) $(CORELIB)
+	$(CXX) $(call NOLTO,$(CXXFLAGS)) -I$(MIR_DIR) $(LDSTATIC) $(MAINSTACK) -o $@ tools/mir-spike/mir_spike.cpp tools/mir-spike/xpp_mir.cpp $(MIR_OBJECTS) $(CORELIB) -lm $(CORE_SYSLIBS) $(LINALG_LIBS)
+.PHONY: mirspike
+mirspike: $(MIR_SPIKE)
+	$(MIR_SPIKE) --level 1 $(MIR_FIXTURES)
+	$(MIR_SPIKE) --level 2 $(MIR_FIXTURES)
+
 # Code nothing reaches (tools/deadcode.sh reads what this leaves; Linux):
 # every function and datum in a section of its own, at -O0 (no inlining),
 # into build/deadcode; xppautX

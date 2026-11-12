@@ -161,3 +161,52 @@ table and the externals before `tcc::Program::compile` in `Generator::build`) ap
 `XPP_DUMP_NATIVE=<dir> ./xppautX <model> --silent` (motoneuron6c writes its output.dat beside the model),
 link the harness against `build/obj/libxppcore.a`, run the study's `run.py` with the backends `tcc`, `gcc`,
 `clang` through `tools/heavy.sh --alone`. The scratch build and harness are not kept in the repository.
+
+## W706 Spike: MIR on the generated model code, Linux results
+
+Card W706 Spike: MIR compiles the model code on every platform (#781), this study's card A. Vendored MIR at master
+commit `dc2c763` (2026-10-23; MIT; `third_party/mir`, every file upstream's, unedited; its
+[XPPAUTX.md](../../third_party/mir/XPPAUTX.md) records source and checksum), an adapter of ours with the shape of
+`xpp::tcc::Program` (`tools/mir-spike/xpp_mir.{h,cpp}`) and `make mirspike` (not in `all`, `xppautx` or `test`): it
+compiles the C text xppautX hands TinyCC, recorded as fixtures in `tests/mir-spike/` (mu26, mu26's `p_rhs` alone,
+ma23, W246's PY_S1Bf_bench, an Izhikevich neuron; `p_rhs`, the equations and the user functions, with the literal
+table `N[]` and the externals through the same table of correctly rounded functions), with both compilers, calls
+`p_rhs` on 40 states of each model's own run and compares every output (`ydot` and the fixed variables) bit for bit.
+W472's models were run from a scratch copy too: 10 of them have a `p_rhs` and no network or table helper (amari and
+kuramot100 need a Session), 11 fixtures with mu26's `p_rhs` alone.
+
+**Why a commit and not v1.0.0.** The release (2024-05-27) is unusable at its default level 2: on mu26 and ma23 it
+aborts (`mir-gen.c`: `try_spilled_reg_mem: Assertion 'n < 2' failed`; with upstream's `-DNDEBUG` "stack smashing
+detected"). The function reloads a spilled register that is an operand of an instruction into a stack array of
+`MAX_INSN_RELOAD_MEM_OPS` = 2 slots; the instruction is `dmul r, r, r`, one spilled register in all three operands,
+so a third write goes past the array. It needs register pressure, which the whole right-hand side function (W469) has
+and W472's per-equation functions did not. Upstream fixed it on 2026-08-18 (PR #468, the array is 3 and guarded); no
+release has it, so the vendored version is the master commit. Upstream issue #475, a related `op_nums` overflow, is
+still open; nothing here hits it. A scratch copy of v1.0.0 with the array at 3 had already given the results below.
+
+Linux x86-64 (gcc 15.2, `-O2`, MIR built as upstream does, `-DNDEBUG`):
+
+* Bit-identity: every output of every state equal to TinyCC's on all 11 fixtures, at levels 1 and 2 (no failure at
+  either; the Makefile runs every fixture at both).
+* Instructions (callgrind, one call, 40 states, collected on the call only; the correctly rounded math, the same
+  for both, is the rest): the model code of mu26's whole `p_rhs` 103 240 (TinyCC) against 50 240 (MIR level 2), 0.49x,
+  2581 against 1256 per call, and a whole call 240 236 against 185 636, 0.77x (6006 against 4641 per call); ma23
+  31 800 against 16 040, 0.50x (a whole call 65 229 against 48 709, 0.75x); PY_S1Bf_bench 0.51x; izh_2003_rs 0.55x.
+  Level 1: the whole call is 1.11x TinyCC's, no gain. These confirm W472's 0.48 on today's code.
+* Compile time in the process (a loaded machine, so an indication): TinyCC 0.2-2 ms, MIR level 1 3-71 ms (mu26's
+  whole text 71 ms, `p_rhs` alone 22 ms), level 2 3-82 ms.
+* Size: MIR's three objects 808 KB of text (c2mir 328, mir-gen 270, mir 211, v1.0.0's sizes) against libtcc.o's 306 KB.
+* Trust boundary: c2mir runs with `no_prepro_p`, so no `#include` reaches the file system (the adapter's check
+  refuses one, a syntax error and an unresolved symbol, as `test_tcc` does for TinyCC); imports resolve only through
+  the symbol table the caller passes; code memory is MIR's own `mmap` (`PROT_EXEC` pages flipped to RWX and back with
+  `mprotect` while code is written; on macOS arm64 `MAP_JIT` with `pthread_jit_write_protect_np`, on Windows
+  `VirtualAlloc` and `VirtualProtect`), never a file or a library the model names. MIR calls its error function for
+  an internal error: it must not return, so the adapter `longjmp`s back out of MIR (the context is then left, a
+  leak on that path). c2mir counts an error only when it has a stream to print it to: with no `message_file` a
+  syntax error is a success (found by the adapter's own check); the adapter gives it a temporary file.
+* The other platforms are the card's second half, run by CI on the branch (build.yml's `macos-core`,
+  `windows-core` and `windows-clang`, a `make mirspike` step each). macOS x64 is built only by release.yml and is
+  not covered.
+
+What this changes in the recommendation: MIR level 2 is 0.49-0.55x on the model code on every fixture and bit-identical
+on all of them, mu26 and ma23 included, at the master commit; card B can start from it (the release is not usable).
