@@ -651,7 +651,7 @@ Result<std::string> load_branch_into_data(Session &s, const Command &command, co
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
     if (const Result<> marked = mark_stretch(s, command, args, place); !marked) return std::unexpected<Error>(marked.error());
     const AutoxDiagramMark &mark = s.autox_state.diagram_mark;
-    load_data_with_branch(s, mark.start_branch, mark.start_point, mark.end_point);
+    if (const Result<> loaded = load_data_with_branch(s, mark.start_branch, mark.start_point, mark.end_point); !loaded) return std::unexpected<Error>(loaded.error());
     return xpp::format("{{\"rows_loaded\":{}}}", s.data_store.rows);
 }
 

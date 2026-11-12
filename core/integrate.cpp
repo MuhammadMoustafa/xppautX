@@ -722,6 +722,13 @@ void compute_run(xpp::Session &x, double *state, const RangeRuns &r, int i, int 
     for(int e=0;e<x.model().neq;e++)x.data_store.col[1+e][x.data_store.rows]=state[e];
     x.data_store.rows++;
   }
+  /* the rows of earlier runs and the first one may fill the store (reset storage off): the integration stores only where there is room */
+  if(x.data_store.rows==x.data_store.max_rows)
+    if(const xpp::Result<> grown=stor_full(x);!grown){
+      o.setup_error=grown.error();
+      o.setup_failed=true;
+      return;
+    }
   const int rows_before=x.data_store.rows;
   o.run=integrate(x,&t,state,x.numerics.total_time,x.numerics.delta_t,1,x.numerics.store_every,&x.integrator.my_start);
   o.stored=x.data_store.rows-rows_before;
@@ -1662,6 +1669,7 @@ Result<> run_to_steady_state(Session &s, SteadyStateSettings settings)
   } restore{s,s.numerics.total_time,s.numerics.store_every};
   s.numerics.total_time=std::floor(settings.maximum/interval)*interval;
   s.numerics.store_every=1;
+  if(const Result<> room=s.data_store.fit(s.model().neq+1,DataStore::start_rows);!room)return std::unexpected(room.error()); /* it thins at start_rows */
   s.integrator.steady.emplace(settings);
   s.integrator.steady_result=SteadyStateResult{"failed",settings.decimals};
   s.integrator.last_time=s.numerics.start_time;

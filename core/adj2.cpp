@@ -460,6 +460,7 @@ Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range)
   /* done the range */
   double largest=-std::numeric_limits<double>::infinity();
   const std::size_t points=s.adjoint.liap[0].size();
+  if(const xpp::Result<> room=s.data_store.fit(s.model().neq+1,static_cast<int>(points)+1);!room)return std::unexpected(room.error());
   for(std::size_t i=0;i<points;i++){
     s.data_store.col[0][i]=s.adjoint.liap[0][i];
     s.data_store.col[1][i]=s.adjoint.liap[1][i];

@@ -164,7 +164,8 @@ struct DataStore {
      data table keeps it as col), so it is made once, with this room. */
   static constexpr int ADDED_COLUMNS = 1000;
 
-  /* The rows the store starts with at a load: the length of a run of 5000 steps, enough for the usual run, and
+  /* The most rows the store starts with at a load (fewer when one run stores fewer: a large model pays a page in every
+     column for rows it never writes), the length of a run of 5000 steps, and
      the store grows from there when a run or the data loaded is longer. A steady run (run.steady) keeps at most
      this many, thinning when it reaches them, so its memory does not grow with its length. */
   static constexpr int start_rows = 5000;

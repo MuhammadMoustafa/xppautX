@@ -55,7 +55,7 @@ xpp::Result<> write_pts(xpp::Session &s, const std::optional<std::string> &file)
 /* the name the dialog of export `what` ("allinfo", "initdata", "diagram") suggests, with extension (".dat") */
 std::string diagram_default_file(const xpp::Session &s, std::string_view what, std::string_view extension);
 /* the points of branch ibr from pts to pte into the data table */
-void load_data_with_branch(xpp::Session &s, int ibr, int pts, int pte);
+xpp::Result<> load_data_with_branch(xpp::Session &s, int ibr, int pts, int pte);
 /* the diagram as a picture, in image_format.h's IMAGE_FORMAT_PS or
    IMAGE_FORMAT_SVG (W53, issue #101; GIF has no vector picture to draw
    here) */

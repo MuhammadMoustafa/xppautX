@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include "model.h"
+#include "solver.h"
 #include "session.h"
 #include "ode_read.h"
 #include "nullcline.h"
@@ -165,7 +166,11 @@ void set_all_vals(xpp::Session &s)
    s.plot_settings.timplot=1;
  else 
    s.plot_settings.timplot=0;
- s.data_store.allocate(DataStore::start_rows,s.model().neq+1,s.numerics.storage_precision);
+ /* room for one run's rows, at most start_rows: an untouched row costs a page in every column of a large model */
+ const NumericsSettings &n=s.numerics;
+ const std::int64_t run_steps=xpp::step_count(s,xpp::solver_info(n.method),n.delta_t,n.total_time).value_or(DataStore::start_rows);
+ const std::int64_t run_rows=run_steps/std::max(n.store_every,1)+2;
+ s.data_store.allocate(static_cast<int>(std::min<std::int64_t>(DataStore::start_rows,run_rows)),s.model().neq+1,n.storage_precision);
  if(s.plot_settings.axes>=5)s.plot_settings.plot_3d=1;
  xpp::chk_delay(s); /* check for delay allocation */
  xpp::alloc_h_stuff(s);

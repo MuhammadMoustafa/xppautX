@@ -281,7 +281,7 @@ xpp::Result<> write_info_out(xpp::Session &s, const std::optional<std::string> &
   });
 }
 
-void load_data_with_branch(xpp::Session &s, int ibr,int pts,int pte)
+xpp::Result<> load_data_with_branch(xpp::Session &s, int ibr,int pts,int pte)
 {
    int i,j,pt;
   xpp::AutoxAxis icp1;
@@ -296,7 +296,8 @@ void load_data_with_branch(xpp::Session &s, int ibr,int pts,int pte)
     last=i;
   }
   nrows=last-first+1;
-  if(diagram_count(s.diagram)<2)return;
+  if(diagram_count(s.diagram)<2)return {};
+  if(const xpp::Result<> room=s.data_store.fit(s.model().neq+1,nrows+1);!room)return room;
   j=0;
  for(xpp::DIAGRAM &point:s.diagram.points){
    xpp::DIAGRAM *d=&point;
@@ -316,6 +317,7 @@ void load_data_with_branch(xpp::Session &s, int ibr,int pts,int pte)
  }
  s.data_store.rows=nrows;
  refresh_data(s,nrows);
+ return {};
 }
 xpp::Result<> write_init_data_file(xpp::Session &s, const std::optional<std::string> &file)
 {

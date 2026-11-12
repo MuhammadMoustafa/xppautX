@@ -215,9 +215,10 @@ Result<> new_2d_hist(xpp::Session &s, const HIST_INFO *given)
   HIST_INFO info=given?*given:s.histogram.info;
   if(auto first=histogram_range_ok("histogram",info.nbins,info.xlo,info.xhi);!first)return first;
   if(auto second=histogram_range_ok("histogram",info.nbins2,info.ylo,info.yhi);!second)return second;
-  /* the bins are rows of the data table, which has room for max_rows less one */
-  if(static_cast<long long>(info.nbins)*info.nbins2>=s.data_store.max_rows)
-    return fail("histogram",xpp::format("{} by {} bins is {} rows: the data table has room for {}; use fewer bins",info.nbins,info.nbins2,static_cast<long long>(info.nbins)*info.nbins2,s.data_store.max_rows-1),command_place());
+  /* the bins are rows of the data table, which a histogram fills up to what a load starts it with */
+  if(static_cast<long long>(info.nbins)*info.nbins2>=DataStore::start_rows)
+    return fail("histogram",xpp::format("{} by {} bins is {} rows: the data table has room for {}; use fewer bins",info.nbins,info.nbins2,static_cast<long long>(info.nbins)*info.nbins2,DataStore::start_rows-1),command_place());
+  if(const xpp::Result<> room=s.data_store.fit(s.model().neq+1,info.nbins*info.nbins2+1);!room)return std::unexpected(room.error());
   s.histogram.info=info;
   twod_hist(s);
   return {};
@@ -232,6 +233,7 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
   double z,y;
   double dz;
   int length=nbins+1;
+  if(const xpp::Result<> room=s.data_store.fit(s.model().neq+1,length+1);!room)return std::unexpected(room.error());
   if(length>=s.data_store.max_rows)
     length=s.data_store.max_rows-1;
   dz=(zhi-zlo)/static_cast<double>((length-1));

@@ -118,9 +118,7 @@ Result<int> view_table(xpp::Session &s, int index)
 {
   const TABULAR &table=s.tables[index];
   if(table.flag==0)return fail("table",xpp::format("{} is not defined yet: it has no values to show",table.name),table_place(s,index));
-  /* the data table has room for max_rows less one rows */
-  if(table.n>=s.data_store.max_rows)
-    return fail("table",xpp::format("{} has {} points: the data table has room for {}",table.name,table.n,s.data_store.max_rows-1),table_place(s,index));
+  if(const xpp::Result<> room=s.data_store.fit(s.model().neq+1,table.n+1);!room)return std::unexpected(room.error());
   for(int i=0;i<table.n;i++){
     s.data_store.col[0][i]=table.xlo+i*table.dx;
     s.data_store.col[1][i]=table.y[i];
