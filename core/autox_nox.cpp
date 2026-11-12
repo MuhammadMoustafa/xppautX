@@ -257,7 +257,7 @@ void close_autox(xpp::Session &s, AutoxRun &run, int flg) /* labels compatible w
     std::optional<AutoxSolutionIndex> &held=s.autox_state.solutions_index;
     if(!added)held.reset();
     else if(replaces)held=std::move(*added);
-    else if(held){ /* no index yet: the older solutions are indexed when a restart first needs them */
+    else if(held){ /* with no index yet, the older solutions are indexed when a restart first needs them */
       for(AutoxSolutionRecord &record:held->records)record.position+=added->bytes;
       added->records.insert(added->records.end(),held->records.begin(),held->records.end());
       added->bytes+=held->bytes;
