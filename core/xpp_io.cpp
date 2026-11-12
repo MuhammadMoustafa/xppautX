@@ -44,13 +44,6 @@ xpp::Result<long> xpp::tell_stream(FILE *file, std::string_view path)
     return position;
 }
 
-xpp::Result<> xpp::rewind_stream(FILE *file, std::string_view path)
-{
-    auto result = seek_stream(file, 0, path);
-    if (result) std::clearerr(file);
-    return result;
-}
-
 /* A reader reads the stream of: owned when it opened the file itself
    (closed with the reader), attached when it was handed one; with
    neither, the lines are text's, from pos on (LineReader::of_text) */

@@ -313,7 +313,6 @@ void read_autox_restart_header(iap_type *iap, const rap_type *rap,
                               integer *ntst, integer *ncol);
 int findlb(iap_type *iap, const rap_type *rap, integer irs, integer *nfpr, bool *found);
 void readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par);
-int skip3(FILE *fp3, integer *nskip, bool *eof3);
 doublereal rinpr(iap_type *iap, const integer *ndim1, const integer *ndxloc, doublereal *ups, doublereal *vps, doublereal *dtm, doublereal *thu);
 doublereal rnrmsq(iap_type *iap, integer *ndim1, integer *ndxloc, doublereal *ups, doublereal *dtm, doublereal *thu);
 doublereal rintg(iap_type *iap, integer *ndxloc, integer ic, doublereal *ups, doublereal *dtm);

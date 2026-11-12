@@ -44,6 +44,24 @@ std::string autox_point_row_key(long branch, long point, std::string_view mark, 
 std::string autox_renumbered_line(std::string_view line, const std::function<int(int)> &branch, const std::function<int(int)> &label);
 std::string autox_branch_row_key(long branch, long point, long type, long label);
 bool read_autox_solution_header(TokenReader &reader, AutoxSolutionHeader &h, long parameters);
+/* Where each solution of a fort.8/.s file starts, found by one pass over it and kept: autoX's start label is looked up here
+   (findlb, newlab, move_to_label) instead of by reading every solution of the session's accumulated .s file again for each run (W705).
+   A record is a header line: its position in the file as tell_stream gives it, and the header fields the start needs. */
+struct AutoxSolutionRecord {
+    long position{}, ibr{}, lab{}, nfpr{};
+    AutoxPointCode itp;
+};
+struct AutoxSolutionIndex {
+    std::vector<AutoxSolutionRecord> records; /* in file order: the newest run's first, as close_autox prepends */
+    long bytes{};                              /* the file's length */
+    long max_branch{}, max_label{};            /* the largest of the records', 0 for none */
+};
+/* the index of the file at `path` (one pass; a header that cannot be read ends it, as it ends autoX's search); parameters: the layout's size */
+Result<AutoxSolutionIndex> autox_index_solutions(const std::string &path, long parameters);
+/* the session's .s file's index, made on first use and kept up to date by close_autox, a loaded session and a cleared diagram */
+Result<const AutoxSolutionIndex *> autox_session_solutions(Session &s);
+/* the index of the run's fort.3: the session's, when the run restarts from it, else its own file's, made on first use; a failure stops the run */
+const AutoxSolutionIndex &autox_run_solutions(AutoxRun &run);
 // Read a collocation payload into the formulation's explicit target columns.
 // tm selects orbit rows (which carry a time); null selects tangent rows.
 // A line-bounded source retains the old wrapped-line skips. The callback
@@ -280,7 +298,7 @@ Result<> import_autox(Session &s, const std::optional<std::string> &file);
 inline constexpr int xppaut_parameter_prefix = 8;
 /* Foreign XPPAUT import: validate whole, then replace; errors belong to the caller. */
 Result<> import_autox_file(Session &s, FILE *fp, const std::string &file);
-int move_to_label(const Session &s, int mylab, int *nrow, int *ndim, FILE *fp);
+int move_to_label(Session &s, int mylab, int *nrow, int *ndim, FILE *fp);
 /* the solution labelled `label` in a fort.8 or .s file (its header line and its rows, as written, each with its newline), for
    a restart of another run (autox_jobs.cpp); none when the file has no such label or is damaged. parameters: the layout's size */
 std::optional<std::string> autox_solution_block(const std::string &path, int label, long parameters);

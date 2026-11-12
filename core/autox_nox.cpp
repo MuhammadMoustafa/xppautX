@@ -248,13 +248,30 @@ void close_autox(xpp::Session &s, AutoxRun &run, int flg) /* labels compatible w
   };
   keep(run.fort7,".b");
   keep(run.fort9,".d");
-  keep(run.fort8,".s");
+  /* the session's solutions index follows the file: the run's records come first, as its bytes do, the older ones after them */
+  if(xpp::files::exists(run.fort8)){
+    auto added=autox_index_solutions(run.fort8,static_cast<long>(run.parameter_count));
+    if(!added)xpp::log(XPP_LOG_ERROR,"{}\n",added.error().text());
+    const bool replaces=flg==0||!xpp::files::exists(autox_solutions_file(s));
+    keep(run.fort8,".s");
+    std::optional<AutoxSolutionIndex> &held=s.autox_state.solutions_index;
+    if(!added)held.reset();
+    else if(replaces)held=std::move(*added);
+    else if(held){ /* no index yet: the older solutions are indexed when a restart first needs them */
+      for(AutoxSolutionRecord &record:held->records)record.position+=added->bytes;
+      added->records.insert(added->records.end(),held->records.begin(),held->records.end());
+      added->bytes+=held->bytes;
+      added->max_branch=std::max(added->max_branch,held->max_branch);
+      added->max_label=std::max(added->max_label,held->max_label);
+      held=std::move(*added);
+    }
+  }
 
     xpp::files::remove(run.fort8.c_str());
 
     xpp::files::remove(run.fort7.c_str());
     xpp::files::remove(run.fort9.c_str());
-    xpp::files::remove(run.fort3.c_str());
+    if(!run.fort3_is_session)xpp::files::remove(run.fort3.c_str());
 
 }
 
@@ -304,8 +321,9 @@ xpp::Result<> open_autox(xpp::Session &s, AutoxRun &run, int flg) /* compatible 
   run.fort8=run.folder->file("fort.8");
   run.fort9=run.folder->file("fort.9");
 
-  if(flg==1){
-    xpp::files::copy((s.autox_state.file+".s").c_str(),run.fort3.c_str());
+  if(flg==1&&run.params.irs>0){ /* a restart (gogoautox's) reads the session's solutions where they are, never writes them: no copy for every run */
+    run.fort3=autox_solutions_file(s);
+    run.fort3_is_session=true;
   }
   return {};
 }
@@ -1183,7 +1201,10 @@ static void forget_autox_diagram(xpp::Session &s, bool remove_solutions)
   s.autox_state.diagram_mark.state=0;
   xpp::files::remove(s.autox_state.file+".b");
   xpp::files::remove(s.autox_state.file+".d");
-  if(remove_solutions)xpp::files::remove(s.autox_state.file+".s");
+  if(remove_solutions){
+    xpp::files::remove(s.autox_state.file+".s");
+    s.autox_state.solutions_index.reset();
+  }
 }
 
 int yes_reset_autox(xpp::Session &s)
@@ -1621,21 +1642,21 @@ Result<> check_autox_solutions(std::string_view text, std::string file, int vari
     return {};
 }
 
-int move_to_label(const Session &s, int mylab, int *nrow, int *ndim, FILE *fp)
+int move_to_label(Session &s, int mylab, int *nrow, int *ndim, FILE *fp)
 {
-  AutoxSolutionHeader h;
+  const auto index=autox_session_solutions(s);
+  if(!index)return 0;
+  const auto found=std::find_if((*index)->records.begin(),(*index)->records.end(),[&](const AutoxSolutionRecord &r){return r.lab==mylab;});
+  if(found==(*index)->records.end())return 0;
+  const std::string path=autox_solutions_file(s);
+  if(!seek_stream(fp,found->position,path))return 0;
   TokenReader tr = TokenReader::attach(fp);
-  while (read_autox_solution_header(tr, h, s.autox_state.parameter_layout.size())) {
-    tr.skip_line();
-    if (mylab == h.lab) {
-      *nrow = static_cast<int>(h.ntpl);
-      *ndim = static_cast<int>(h.nar) - 1;
-      return 1;
-    }
-    for (long i = 0; i < h.nskip; i++)
-      if (!tr.skip_line()) return 0;
-  }
-  return 0;
+  AutoxSolutionHeader h;
+  if(!read_autox_solution_header(tr,h,s.autox_state.parameter_layout.size())||h.lab!=mylab)return 0; /* the file is not the one indexed */
+  tr.skip_line();
+  *nrow = static_cast<int>(h.ntpl);
+  *ndim = static_cast<int>(h.nar) - 1;
+  return 1;
 }
 
 std::optional<std::string> autox_solution_block(const std::string &path, int label, long parameters)
@@ -1655,6 +1676,57 @@ std::optional<std::string> autox_solution_block(const std::string &path, int lab
     if(header.lab==label)return block;
   }
   return std::nullopt;
+}
+
+Result<AutoxSolutionIndex> autox_index_solutions(const std::string &path, long parameters)
+{
+  UniqueFile file=xpp::open_read(path.c_str());
+  if(!file)return std::unexpected(xpp::files::open_error("autoX",path));
+  TokenReader reader=TokenReader::attach(file.get());
+  AutoxSolutionIndex index;
+  while(true){
+    const auto position=tell_stream(file.get(),path);
+    if(!position)return std::unexpected(position.error());
+    AutoxSolutionHeader header;
+    if(!read_autox_solution_header(reader,header,parameters))break; /* the end of the file, or a line that is no header: where autoX's own search stops */
+    index.records.push_back({*position,header.ibr,header.lab,header.nfpr,header.itp});
+    index.max_branch=std::max(index.max_branch,header.ibr);
+    index.max_label=std::max(index.max_label,header.lab);
+    reader.skip_line();
+    bool whole=true; /* a solution cut short by the end of the file is the last */
+    for(long row=0;row<header.nskip&&whole;row++)whole=reader.skip_line();
+    if(!whole)break;
+  }
+  if(std::fseek(file.get(),0,SEEK_END)!=0)return std::unexpected(xpp::files::open_error("autoX",path));
+  const auto bytes=tell_stream(file.get(),path);
+  if(!bytes)return std::unexpected(bytes.error());
+  index.bytes=*bytes;
+  return index;
+}
+
+Result<const AutoxSolutionIndex *> autox_session_solutions(Session &s)
+{
+  if(!s.autox_state.solutions_index){
+    auto index=autox_index_solutions(autox_solutions_file(s),static_cast<long>(s.autox_state.parameter_layout.size()));
+    if(!index)return std::unexpected(index.error());
+    s.autox_state.solutions_index=std::move(*index);
+  }
+  return &*s.autox_state.solutions_index;
+}
+
+const AutoxSolutionIndex &autox_run_solutions(AutoxRun &run)
+{
+  if(run.fort3_is_session){
+    const auto index=autox_session_solutions(*run.session);
+    if(!index)autox_fail(index.error());
+    return **index;
+  }
+  if(!run.fort3_index){
+    auto index=autox_index_solutions(run.fort3,static_cast<long>(run.parameter_count));
+    if(!index)autox_fail(index.error());
+    run.fort3_index=std::move(*index);
+  }
+  return *run.fort3_index;
 }
 
 void get_a_row(double *u, double *t, int n, FILE *fp)

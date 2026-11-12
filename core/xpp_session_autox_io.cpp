@@ -163,6 +163,7 @@ Result<> restore_members(Session &s, Members m)
         xpp::Writer w = xpp::Writer::binary(solutions_path);
         if (!w || !w.write(m.solutions) || !w.commit())
             return xpp::fail("session autoX", "autoX's restart solutions cannot be written", Place{solutions_path});
+        s.autox_state.solutions_index.reset(); /* the file is another one */
         if (!s.autox_state.bifur.exist) do_autox_win(s);
     }
     std::string why;

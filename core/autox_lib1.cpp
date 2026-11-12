@@ -4189,12 +4189,11 @@ int
 newlab(iap_type *iap, rap_type *rap)
 {
 
-  integer mlab, ibrs;
+  integer mlab;
 
-  integer labrs, nskip, lab, ibr, mbr, irs, isw;
+  integer lab, ibr, mbr, irs, isw;
   xpp::AutoxProblem ips;
   xpp::AutoxPointCode itp;
-  bool eof3;
 
   /* Determine a suitable label when restarting. */
 
@@ -4208,34 +4207,11 @@ newlab(iap_type *iap, rap_type *rap)
   /* a job's fort.3 holds only the point it restarts from, numbered as the job that found it numbers (autox_jobs.cpp):
      a job numbers from the diagram's, as every job does */
   if (!iap->run->job) {
-  if (auto r=xpp::rewind_stream(iap->run->fp3, xpp::autox_fort_path(*iap->run, 3)); !r)
-    xpp::autox_fail(r.error());
-  xpp::TokenReader tr = xpp::TokenReader::attach(iap->run->fp3);
-
- L1:
-  {
-    xpp::AutoxSolutionHeader header;
-    if (!xpp::read_autox_solution_header(tr, header, iap->run->parameter_count)) goto L2;
-    ibrs = header.ibr;
-    labrs = header.lab;
-    nskip = header.nskip;
-  }
-  /*go to the end of the line*/
-  tr.skip_line();
-
-  if (ibrs > mbr) {
-    mbr = ibrs;
-  }
-  if (labrs > mlab) {
-    mlab = labrs;
-  }
-  skip3(iap->run->fp3, &nskip, &eof3);
-  if (! eof3) {
-    goto L1;
-  }
+    const xpp::AutoxSolutionIndex &solutions = xpp::autox_run_solutions(*iap->run);
+    mbr = static_cast<integer>(solutions.max_branch);
+    mlab = static_cast<integer>(solutions.max_label);
   }
 
- L2:
   /* A fresh run has an empty fort.3, but the diagram may retain older
      branches. Their labels must still identify their own restart solution. */
   for(const auto &point:iap->run->session->diagram.points){
@@ -4291,61 +4267,27 @@ int
 findlb(iap_type *iap, const rap_type *rap, 
        integer irs, integer *nfpr, bool *found)
 {
-  integer labrs, nskip, ibr, isw;
-  xpp::AutoxPointKind itpst;
-  xpp::AutoxPointCode itp;
-  bool eof3;
-  long line_start;
-
   /* Locates restart point with label IRS and determines type. */
   /* If the label can not be located on unit 3 then FOUND will be .FALSE. */
 
   *found = false;
-  if (auto r=xpp::rewind_stream(iap->run->fp3, xpp::autox_fort_path(*iap->run, 3)); !r)
-    xpp::autox_fail(r.error());
-  xpp::TokenReader tr = xpp::TokenReader::attach(iap->run->fp3);
-  isw = iap->isw;
-
-  while(1) {
-    /* where this label line starts: readlb() reads it again from here */
-    const auto position=xpp::tell_stream(iap->run->fp3, xpp::autox_fort_path(*iap->run, 3));
-    if (!position) xpp::autox_fail(position.error());
-    line_start = *position;
-    xpp::AutoxSolutionHeader header;
-    if (!xpp::read_autox_solution_header(tr, header, iap->run->parameter_count)) break;
-    ibr = header.ibr;
-    itp = header.itp;
-    labrs = header.lab;
-    *nfpr = header.nfpr;
-    nskip = header.nskip;
-    /*go to the end of the line*/
-    tr.skip_line();
-    iap->itp = itp;
-    iap->ibr = ibr;
-    if (labrs == irs) {
-      *found = true;
-      if (f2c::abs(isw) == 2) {
-	itpst = xpp::autox_point_start_of(itp);
-	iap->itpst = itpst;
-      } else {
-        itpst = xpp::AutoxPointKind::Regular;
-	iap->itpst = itpst;
-      }
-      /* Back to the start of the line with an absolute seek. The old
-	 backward walk with fseek(fp3,-2,SEEK_CUR) is undefined on a text
-	 stream in the Windows C runtime (CRLF translation): it left the
-	 stream mid-line, so readlb() parsed garbage for nar and wrote
-	 that many values past the end of u, corrupting the heap. */
-      if (auto r=xpp::seek_stream(iap->run->fp3, line_start, xpp::autox_fort_path(*iap->run, 3)); !r)
-        xpp::autox_fail(r.error());
-      return 0;
-    } else {
-      skip3(iap->run->fp3, &nskip, &eof3);
-      if (eof3) {
-	break;
-      }
-    }
+  const xpp::AutoxSolutionIndex &solutions = xpp::autox_run_solutions(*iap->run);
+  const std::string path = xpp::autox_fort_path(*iap->run, 3);
+  /* the records before the label set what a search that reads them sets: the last one's, when the label is not there */
+  for (const xpp::AutoxSolutionRecord &record : solutions.records) {
+    *nfpr = static_cast<integer>(record.nfpr);
+    iap->itp = record.itp;
+    iap->ibr = static_cast<integer>(record.ibr);
+    if (record.lab != irs) continue;
+    *found = true;
+    iap->itpst = f2c::abs(iap->isw) == 2 ? xpp::autox_point_start_of(record.itp) : xpp::AutoxPointKind::Regular;
+    /* readlb() reads the label line again from its start */
+    if (auto r=xpp::seek_stream(iap->run->fp3, record.position, path); !r)
+      xpp::autox_fail(r.error());
+    return 0;
   }
+  if (auto r=xpp::seek_stream(iap->run->fp3, solutions.bytes, path); !r) /* readlb() finds the end of the file, as after the search */
+    xpp::autox_fail(r.error());
   return 0;
 } 
 
@@ -4385,27 +4327,6 @@ readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
   }
   autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->run, par), "the parameter values");
 } /* readlb_ */
-
-int 
-skip3(FILE *fp3, integer *nskip, bool *eof3)
-{
-
-  integer i;
-
-  /* Skips the specified number of lines on unit 3. */
-
-  *eof3 = false;
-  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
-  for (i = 0; i < *nskip; ++i) {
-    /* NOTE from Randy:  I am not 100% happy with this.  I am
-       not sure if this properly simulates the Fortran behavior */
-    if (!tr.skip_line()) { /* end of file before the line's \n */
-      *eof3 = true;
-      return 0;
-    }
-  }
-  return 0;
-} /* skip3_ */
 
 doublereal 
 rinpr(iap_type *iap, const integer *ndim1, const integer *ndxloc, doublereal *ups, doublereal *vps, doublereal *dtm, doublereal *thu)

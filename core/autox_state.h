@@ -138,6 +138,8 @@ struct AutoxState {
   /* the advanced numerics */
   xpp::ADVAUTOX advanced{};
   AutoxParameterLayout parameter_layout;
+  /* where the solutions of the session's .s file start (autox_nox.h); none until a restart needs it, reset when the file is replaced */
+  std::optional<xpp::AutoxSolutionIndex> solutions_index;
   // autoX's augmented formulations allocate up to eight state copies (init's thu).
   static constexpr int state_copies = 8;
   // A foreign XPPAUT .auto alone carries its old selected-parameter mapping.
@@ -316,6 +318,10 @@ struct AutoxRun {
      before fp8, which is closed before the folder is removed. */
   std::optional<xpp::TempDir> folder;
   std::string fort3,fort7,fort8,fort9;
+  /* a restart reads the session's own .s file as fort.3 (nothing is copied, the file is only read): close_autox must not remove it */
+  bool fort3_is_session=false;
+  /* where the solutions of fort.3 start, when it is the run's own file (the session's is the Session's solutions_index) */
+  std::optional<xpp::AutoxSolutionIndex> fort3_index;
   /* the fort.3/7/9 files open during a run (gogoautox.cpp's RunUnits) */
   FILE *fp3=nullptr,*fp7=nullptr,*fp9=nullptr;
   /* fort.8, opened when a run writes its first label (autox_lib1.cpp) and

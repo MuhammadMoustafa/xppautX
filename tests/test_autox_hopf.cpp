@@ -88,7 +88,8 @@ TEST_CASE("test_autox_hopf") {
         CHECK(xpp::autox_hopf_curve_kind(u[4]) == (x > 0 ? xpp::autox_neutral_saddle_curve : xpp::autox_hopf_curve));
     }
     // Start at a stored one-parameter HB: construct only the reduced layout.
-    run.fp3 = xpp::files::open_stream(temp.path() + "/fort.3", "w+");
+    run.fort3 = temp.path() + "/fort.3";
+    run.fp3 = xpp::files::open_stream(run.fort3, "w+");
     run.fp9 = xpp::files::open_stream(temp.path() + "/fort.9", "w+");
     CHECK(run.fp3 && run.fp9);
     par[icp[0]] = -.25;
@@ -97,7 +98,7 @@ TEST_CASE("test_autox_hopf") {
     xpp::print(run.fp3, "1 1 3 1 1 1 1 3 2 0 0 {}\n0 -0.5 0\n", run.parameter_count);
     for (double value : par) xpp::print(run.fp3, "{} ", value);
     xpp::print(run.fp3, "\n");
-    CHECK(xpp::rewind_stream(run.fp3, "fort.3").has_value());
+    CHECK(xpp::seek_stream(run.fp3, 0, run.fort3).has_value());
     iap.irs = 1;
     iap.isw = 2;
     u.fill(0.);

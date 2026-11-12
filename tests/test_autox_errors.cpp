@@ -66,7 +66,7 @@ TEST_CASE("test_autox_errors")
         xpp::print(positions.get(), "first\nsecond\n");
         const auto end=xpp::tell_stream(positions.get(), path);
         CHECK(end && *end > 0);
-        CHECK(xpp::rewind_stream(positions.get(), path).has_value());
+        CHECK(xpp::seek_stream(positions.get(), 0, path).has_value());
         auto reader=xpp::LineReader::attach(positions.get());
         CHECK(reader.next() == "first");
         const auto second=xpp::tell_stream(positions.get(), path);
@@ -77,7 +77,7 @@ TEST_CASE("test_autox_errors")
         CHECK(reader.next() == "second");
         const auto bad_seek=xpp::seek_stream(positions.get(), -1, path);
         CHECK(!bad_seek && bad_seek.error().place.file == path);
-        CHECK(xpp::rewind_stream(positions.get(), path).has_value() && !std::feof(positions.get()));
+        CHECK(xpp::seek_stream(positions.get(), 0, path).has_value() && !std::feof(positions.get()));
     }
     CHECK(xpp::files::remove("build/test_autox_positions.txt") == 0);
 

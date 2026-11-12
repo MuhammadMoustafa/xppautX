@@ -41,10 +41,11 @@ void formulation(xpp::Session &s, decltype(&stpnpl) restart,
     run.session = &s;
     run.parameter_count = s.autox_state.parameter_layout.size();
     run.fp3 = file.get();
+    run.fort3 = path;
     std::string text = solution(run.parameter_count, bvp);
     if (truncated) text.resize(text.find_last_of(' '));
     xpp::print(file.get(), "{}", text);
-    CHECK(xpp::rewind_stream(file.get(), path).has_value());
+    CHECK(xpp::seek_stream(file.get(), 0, path).has_value());
     iap_type iap{};
     iap.run = &run;
     iap.ndim = dimension;
@@ -117,11 +118,12 @@ void algebraic(xpp::Session &s, bool truncated) {
     run.session = &s;
     run.parameter_count = s.autox_state.parameter_layout.size();
     run.fp3 = file.get();
+    run.fort3 = path;
     std::string text = xpp::format("3 1 5 7 1 1 1 3 2 0 0 {}\n0 2 3\n", run.parameter_count);
     for (long k = 0; k < run.parameter_count - (truncated ? 1 : 0); ++k)
         text += xpp::format("{} ", k + .125);
     xpp::print(file.get(), "{}\n", text);
-    CHECK(xpp::rewind_stream(file.get(), path).has_value());
+    CHECK(xpp::seek_stream(file.get(), 0, path).has_value());
     iap_type iap{};
     iap.run = &run;
     iap.ndim = 2;
@@ -181,7 +183,7 @@ void user_zero_text(xpp::Session &s) {
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  nullptr, nullptr, nullptr, marks) == .75);
     CHECK(changed == true);
-    CHECK(xpp::rewind_stream(file.get(), path).has_value());
+    CHECK(xpp::seek_stream(file.get(), 0, path).has_value());
     auto reader = xpp::LineReader::attach(file.get());
     CHECK(reader.next() == "   3 10001        User Func.   0     7.500000E-01");
     CHECK(reader.next() == "   3 10001        User Func.   0   7.500000E-01");
@@ -221,7 +223,7 @@ void point_files(xpp::Session &s, int count, bool collocation) {
     } else {
         CHECK(wrtsp8(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data(), tangent.data(), &direction) == 0);
     }
-    CHECK(xpp::rewind_stream(run.fp8.get(), solution_path).has_value());
+    CHECK(xpp::seek_stream(run.fp8.get(), 0, solution_path).has_value());
     auto solutions = xpp::TokenReader::attach(run.fp8.get());
     xpp::AutoxSolutionHeader header;
     CHECK(xpp::read_autox_solution_header(solutions, header, run.parameter_count));
@@ -241,7 +243,7 @@ void point_files(xpp::Session &s, int count, bool collocation) {
     for (integer point : {static_cast<integer>(count), -static_cast<integer>(count)})
         CHECK(wrline(&iap, &rap, par.data(), icp.data(), icp.data(), &iap.ibr,
                      &point, &iap.lab, &current, values.data()) == 0);
-    CHECK(xpp::rewind_stream(diagram.get(), diagram_path).has_value());
+    CHECK(xpp::seek_stream(diagram.get(), 0, diagram_path).has_value());
     auto lines = xpp::LineReader::attach(diagram.get());
     for (int sign : {1, -1}) {
         const auto line = lines.next();
@@ -288,6 +290,8 @@ void branch_point_direction(xpp::Session &s) {
         iap.itp = {xpp::AutoxPointKind::End, xpp::AutoxPointKind::Regular};
         CHECK(wrtsp8(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data(), tangent.data(), rldot.data()) == 0);
         run.fp3 = run.fp8.get();
+        run.fort3 = path;
+        CHECK(std::fflush(run.fp8.get()) == 0); /* findlb reads the file by its path */
         iap.irs = 7;
         bool found = false;
         integer free = 0;

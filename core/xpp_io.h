@@ -157,11 +157,9 @@ inline void append_integer(std::string &out, T v)
 }
 
 /* Checked stream positions. Positions returned by tell_stream are opaque:
-   seek_stream uses an absolute seek, including on Windows text streams.
-   rewind_stream also clears EOF/error indicators, as rewind does. */
+   seek_stream uses an absolute seek, including on Windows text streams. */
 Result<> seek_stream(FILE *file, long position, std::string_view path);
 Result<long> tell_stream(FILE *file, std::string_view path);
-Result<> rewind_stream(FILE *file, std::string_view path);
 
 /* An entry of a C table other files read as NUL-terminated text (char *)
    whose text a std::string keeps: store takes text and entry points at
