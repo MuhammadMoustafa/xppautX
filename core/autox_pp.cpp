@@ -155,14 +155,13 @@ double autox_parameter_value(const AutoxRun &run, integer slot,
   return parameters[slot];
 }
 
-int func(AutoxRun &run, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, integer ijac, double *f, double *dfdu, double *dfdp)
+/* The Session's own evaluation, with the tables, the networks and the maps
+   (a run that is not pure_rhs); apart from func so that the collocation
+   workers' call, which is the hot one, is a small function. */
+namespace {
+[[gnu::noinline]] void serial_func(AutoxRun &run, integer ndim, const double *u, const integer *icp, integer nfpr, std::span<const double> parameters, integer ijac, double *f, double *dfdu, double *dfdp)
 {
    xpp::Session &s=*run.session;
-   const auto parameters=s.autox_state.parameter_layout.parameters(par);
-   if (run.pure_rhs) {
-     worker_func(s,run,ndim,u,icp,nfpr,parameters,ijac,f,dfdu,dfdp);
-     return 0;
-   }
    const bool exact=ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT;
    int i,j;
    /* the right-hand side and the Jacobian only read the point */
@@ -181,7 +180,7 @@ int func(AutoxRun &run, integer ndim, const double *u, const integer *icp, integ
    else if(ijac==1){
      xpp::jacobian(s,0.0,x,f,ndim,s.numerics.equilibria.jacobian_step,{xpp::JacobianLayout::ColumnMajor},dfdu);
    }
-   if(!xpp::solver_info(s.numerics.method).traits.discrete||s.numerics.store_every==1)return 0;
+   if(!xpp::solver_info(s.numerics.method).traits.discrete||s.numerics.store_every==1)return;
    /* the map applied store_every times: its exact Jacobian is the product
       of each step's, and each step adds its own dependence on the
       parameters to what the steps before passed on */
@@ -208,10 +207,23 @@ int func(AutoxRun &run, integer ndim, const double *u, const integer *icp, integ
      if(ijac<2)continue;
      for(integer p=0;p<nfpr;p++)chain(n,step.data(),dfdp+icp[p]*ndim,step_p.data()+icp[p]*ndim,scratch.data());
    }
+}
+}
 
+int func(AutoxRun &run, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, integer ijac, double *f, double *dfdu, double *dfdp)
+{
+   xpp::Session &s=*run.session;
+   const auto parameters=s.autox_state.parameter_layout.parameters(par);
+   if (run.pure_rhs) worker_func(s,run,ndim,u,icp,nfpr,parameters,ijac,f,dfdu,dfdp);
+   else serial_func(run,ndim,u,icp,nfpr,parameters,ijac,f,dfdu,dfdp);
    return 0;
-
 } /* func_ */
+
+void func_again(AutoxRun &run, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, double *f)
+{
+   if(run.pure_rhs)pure_rhs(*run.session,u,f,run.rhs_constants.data(),run.rhs_variables.data());
+   else func(run,ndim,u,icp,nfpr,par,0,f,nullptr,nullptr);
+}
 
 void autox_fill_parameters(const AutoxRun &run, double *par)
 {

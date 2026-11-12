@@ -490,6 +490,11 @@ void autox_checkpoint(const AutoxRun &run, int *iflag);
 int func(AutoxRun &run, integer ndim, const doublereal *u, const integer *icp, integer nfpr,
 	 const doublereal *par, integer ijac,
 	 doublereal *f, doublereal *dfdu, doublereal *dfdp);
+/* f at u, right after a func call at the same par and icp (the differences
+   in the states: funi's): the constants func put in are current, so a
+   collocation worker's run only evaluates the right-hand side */
+void func_again(AutoxRun &run, integer ndim, const doublereal *u, const integer *icp, integer nfpr,
+	 const doublereal *par, doublereal *f);
 int stpnt(AutoxRun &run, integer ndim, doublereal t,
 	  doublereal *u, doublereal *par);
 int bcnd(AutoxRun &run, integer ndim, const doublereal *par, const integer *icp, integer nbc,

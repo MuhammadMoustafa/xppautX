@@ -2654,7 +2654,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   f1zz.resize(ndim);
   f2zz.resize(ndim);
 
-  const auto evaluate = [&](const doublereal *uu, doublereal *ff) { func(*iap->run, ndim, uu, icp, nfpr, par, 0, ff, dfdu, dfdp); };
+  const auto evaluate = [&](const doublereal *uu, doublereal *ff) { func_again(*iap->run, ndim, uu, icp, nfpr, par, ff); };
   const xpp::DifferenceGroups *groups = xpp::autox_jacobian::state_groups(iap, ndim);
   ep = groups ? xpp::autox_jacobian::central_grouped(ndim, u, f, *groups, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(), evaluate, dfdu, dfdu_dim1)
               : xpp::autox_jacobian::central(ndim, ndim, u, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(), evaluate, dfdu, dfdu_dim1);
