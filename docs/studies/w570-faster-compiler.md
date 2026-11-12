@@ -212,3 +212,108 @@ Linux x86-64 (gcc 15.2, `-O2`, MIR built as upstream does, `-DNDEBUG`):
 
 What this changes in the recommendation: MIR level 2 is 0.49-0.55x on the model code on every fixture and bit-identical
 on all of them, mu26 and ma23 included, at the master commit; card B can start from it (the release is not usable).
+
+## W711 Spike: the Generator emits MIR's IR directly, without c2mir (#786), Linux results
+
+Card W711 (#786), after W706. The maintainer's decision: take from MIR only what we need; no compiler of our own,
+TinyCC untouched. W706 sent the C text that `core/expr_native.cpp`'s Generator writes for TinyCC through c2mir, MIR's
+C front end (334 KB of the 848 KB of MIR's text, and 30-40% of the compile time). Here the same walk of the
+model's RPN also writes expression trees and statements (`core/expr_ir.h`), and `tools/mir-spike/xpp_mir_ir.cpp`
+builds the module through MIR's API (`MIR_new_module`, `MIR_new_proto_arr`, `MIR_new_import`, `MIR_new_func_arr`,
+`MIR_new_insn`, `MIR_new_call_insn`, `MIR_load_module`, `MIR_link`, `MIR_gen` through
+`MIR_set_gen_interface`). Only `mir.c` and `mir-gen.c` (vendored, unedited) are linked into it; `make mirspike` fails
+when an object of the new path names c2mir. W706's path is kept beside it for the comparison.
+
+**What it covers.** `p_rhs` of mu26, ma23, Izhikevich's 2003 regular-spiking neuron and mu26's `p_rhs` alone: the
+fixed variables and the equations, with arithmetic, the correctly rounded math functions, the XPP guarded division,
+conditional expressions, integer powers, the interpreter's table/network/kernel helpers as calls, and user functions
+inlined as the C does. Not lowered, and said so by `RhsIr::unsupported` (the spike skips them): a sum (a loop), a
+conditional that runs statements (if/else), a call of a user function that is not inlined (PY_S1Bf_bench), a call of
+the function compiled for an equation that has a sum (wcring, kuramot100), a network's operands. The other
+programs (user functions, one function per equation, derived quantities, the exact Jacobian's functions) stay with
+TinyCC in the core.
+
+**The design, and what was not done.** One walk, two outputs: every `Node` of the Generator carries, beside its C
+text, the index of the same value in `RhsIr::nodes`, and `statement`/`effect`/`join`/`rhs` push the statements beside
+their text (`Generator::trees`; off, every `ir_` call does nothing, and the text and the md5s of all 216 examples are
+unchanged). `xpp::rhs_ir(Session&)` returns the trees of `p_rhs` and compiles no C. Numbers are the literals' values
+(MIR double operands, or the table `N` in the C), indices are indices, and every function the code calls is a row of
+`RhsIr::callees` (name and address from our tables): the only imports. Rejected: (1) reading the emitted C text back
+into MIR (a front end of our own, and it takes text); (2) one tree as the single representation with the C writer as
+a second emitter of it: the better end state, but the Generator's call reuse (`calls_made`, `call_readers`) and
+inlining work on the text, so it would rewrite them; card B can do it if TinyCC retires, until then the text path is
+byte-identical. The price of the choice is two outputs kept in step in the Generator until TinyCC goes.
+
+**Bit-identity.** `p_rhs` outputs (`ydot` and the fixed variables) compared with TinyCC's on the 40 states of each
+model's run and four of ours (all 0, all NaN, all -0.0, all 1: every division guard and condition, NaN included; two
+NaNs compare equal, as which one an operation passes on is the CPU's by operand order): 0 differences in both
+paths, levels 1 and 2, on 4 of 5 fixtures (PY_S1Bf_bench has no direct path). Operations are the C's, in its order:
+`(right + left)` for add and multiply as the text has them, the guarded division as a branch on `divisor != 0`
+(`dbne`: NaN is not 0, as in C), a condition as the same. MIR's x86-64 and aarch64 generators have no FMA pattern
+(none in `mir-gen-x86_64.c`), and the build keeps `-ffp-contract=off`; the comparison would show a fused operation as
+a difference. One finding on the way: a condition written as `deq` then `bf` costs a compare, a flag and a test (62
+of them in mu26, 28% more instructions than c2mir's code); `dbne` on the doubles (ucomisd, jp, jne) matched it.
+
+**Per call** (callgrind, instructions, `p_rhs` on 40 states, per call = total / 40; the correctly rounded math, the
+same for all, is the difference between "model code" and "whole call"):
+
+| model | | TinyCC | c2mir L1 | direct L1 | c2mir L2 | direct L2 |
+|---|---|---|---|---|---|---|
+| mu26 | model code | 2581 | 3261 | 1995 | 1256 | 1275 |
+| | whole call | 6034 | 6674 | 5240 | 4669 | 4520 |
+| ma23 | model code | 795 | 958 | 606 | 401 | 394 |
+| | whole call | 1640 | 1784 | 1378 | 1227 | 1166 |
+| izh_2003_rs | model code | 77 | 116 | 69 | 42 | 46 |
+| | whole call | 89 | 127 | 80 | 53 | 57 |
+
+At level 2 the direct code is as good as c2mir's (0.49x TinyCC's model code on mu26 and 0.50x on ma23, 0.60x on the
+tiny izh; the whole call 0.75x, 0.71x, 0.64x). At level 1, where c2mir was a loss (1.1x TinyCC's whole call), the
+direct code is a gain (0.87x, 0.84x, 0.90x). The first version, with each load into a register of its own and a `deq`
+for each condition, was 1.3x c2mir's at level 2; MIR folds a memory operand into the instruction only when the IR
+has it there, as c2mir's does.
+
+**Compile time** (best of 7 in one process, a loaded machine, so an indication; ms; "walk" is `rhs_ir`: the trees of
+every program of the model, the text included, an upper bound of building the trees of `p_rhs`; c2mir is the whole
+text, except mu26_rhs, which is `p_rhs` alone; direct is `p_rhs` alone):
+
+| model | level | TinyCC | c2mir (front, generate) | direct (lower, generate) | walk |
+|---|---|---|---|---|---|
+| izh_2003_rs | 1 / 2 | 0.20 / 0.20 | 1.47 (0.62, 0.84) / 1.51 (0.65, 0.84) | 0.36 (0.06, 0.31) / 0.38 (0.06, 0.32) | 0.04 |
+| ma23 | 1 / 2 | 0.36 / 0.40 | 10.09 (3.35, 6.73) / 11.61 (3.51, 7.92) | 1.83 (0.14, 1.69) / 2.53 (0.14, 2.39) | 0.23 |
+| mu26 | 1 / 2 | 0.96 / 0.99 | 37.69 (12.12, 25.45) / 44.13 (12.91, 30.95) | 6.27 (0.38, 5.82) / 10.44 (0.35, 10.06) | 0.70 |
+| mu26_rhs | 1 / 2 | 0.35 / 0.37 | 12.46 (2.87, 9.31) / 15.88 (2.77, 12.57) | 6.00 (0.36, 5.64) / 9.81 (0.34, 9.40) | 0.76 |
+
+Building the IR is 0.04-0.8 ms and the lowering through the API 3% of the direct compile on mu26 (6% on ma23, 16% on
+the tiny izh): MIR's own optimizer and code generator are the rest, and c2mir's front end was 30-40% of c2mir's. On the same `p_rhs` (mu26_rhs) direct is
+1.6x faster than c2mir at level 2; against TinyCC it is 25x slower (9.8 ms against 0.37). The extra ~9 ms of mu26 at
+level 2 is paid back after about 19 000 calls (4700 RK4 steps) at the 1500 instructions saved per call, at about 3
+instructions per ns (an assumption); ma23's ~2 ms after about 13 000 calls (3300 steps); a short run on a small
+model loses.
+
+**Size** (text bytes of the objects, `-O2 -g`): the direct path 511 KB: `mir.o` 212, `mir-gen.o` 269, the adapter 14
+and the lowering 16; c2mir adds 337 (`c2mir.o` 334 and its adapter 3): 849 KB with it; `libtcc.o` is 306 KB. The
+lowering is 190 lines, the Generator's changes about 200 (the helper prototypes are now made from their shape,
+`prototype()`, one source).
+
+**Trust boundary.** The new path takes no C text and no file: its input is `RhsIr`, built from the validated RPN
+(`expr_decode.h`) by the Generator, every name an index, every number a double, every callee a row of our table.
+Imports resolve only through that table (the same `resolve` as the c2mir path; an unresolved import fails the link).
+What an input can still reach: any function in our callee table (the math and helper functions a model may name
+anyway); `c[k]` and `v[k]` for the indices the parser accepted (as the C path: no bound is checked in the code); a
+model's size (the number of nodes, and MIR's superlinear optimization time at level 2, which the C path has too); a
+tree deeper than 4096 is refused (the lowering recurses on it: a hostile deep expression cannot exhaust the host's
+stack), and a copy of an inlined user function is bounded by the 512 characters of its text. MIR is not a sandbox:
+its code memory is its own `mmap`, RWX only while code is written, and an internal error `longjmp`s out of MIR (the
+lowering keeps its state outside that frame, so no destructor is skipped; the context leaks on that path).
+
+**Recommendation for card B: adopt MIR this way, at level 2, for `p_rhs`, with TinyCC kept for the rest.** It gains
+0.64-0.75x of TinyCC's whole `p_rhs` call (0.5x of the model code) bit-identically, for 511 KB of text (+205 KB over
+TinyCC's 306 KB, the two together until TinyCC retires) and 0.4-10 ms of compile time per right-hand side against
+0.2-1 ms: a loss for short runs, a gain from some thousands of steps. Costs: the second output of the Generator
+kept in step until TinyCC retires (the trees now carry every construct but sums, if/else statements and
+user-function calls, which card B lowers next: a loop is two labels and an int register each; a user function is a
+function of its own with the arguments; the exact Jacobian's derivative functions are a plain list of statements and
+the cheapest next target), the level choice (level 1 is a gain on the whole call but 6 ms of compile on mu26), an
+adapter (`xpp_mir.cpp` shared state and error handling; `xpp_mir_ir.cpp`) in `core/`, the `MAP_JIT` and entitlement
+question on macOS (W706's open item), and a decision on when to compile (a short run may stay interpreted or on
+TinyCC first). Not adopting MIR is the alternative if most runs are short: TinyCC's 0.2-1 ms is invisible there.
