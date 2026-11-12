@@ -90,10 +90,13 @@ namespace {
 std::function<void()> remember_factorization(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal rds, integer nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *thl, doublereal *thu)
 {
   const auto copy = [](const doublereal *p, std::size_t n) { return std::vector<doublereal>(p, p + n); };
-  const std::size_t nu = xpp::size_product(ndxloc, iap->ndim, iap->ncol), np = iap->run->parameter_count;
+  /* each array as long as solvbv reads it: the continued parameters' values (rl*) are nfpr long, the mesh's
+     intervals (dtm) ntst, a solution ndxloc rows of ndim * ncol */
+  const std::size_t nu = xpp::size_product(ndxloc, iap->ndim, iap->ncol), np = iap->run->parameter_count,
+                    nfpr = static_cast<std::size_t>(iap->nfpr), ntst = static_cast<std::size_t>(iap->ntst);
   return [=, par = copy(par, np), ups = copy(ups, nu), uoldps = copy(uoldps, nu), udotps = copy(udotps, nu),
-          upoldp = copy(upoldp, nu), dtm = copy(dtm, ndxloc), rlcur = copy(rlcur, np), rlold = copy(rlold, np),
-          rldot = copy(rldot, np), homcont = iap->run->homcont]() mutable {
+          upoldp = copy(upoldp, nu), dtm = copy(dtm, ntst), rlcur = copy(rlcur, nfpr), rlold = copy(rlold, nfpr),
+          rldot = copy(rldot, nfpr), homcont = iap->run->homcont]() mutable {
     AutoxRun &run = *iap->run;
     std::vector<doublereal> dups(nu), fa(nu), fc(xpp::size_sum(iap->nbc, iap->nint, 1)),
         p0(xpp::size_product(iap->ndim, iap->ndim)), p1(p0.size());
