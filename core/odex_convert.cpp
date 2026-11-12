@@ -1355,6 +1355,13 @@ private:
      after it */
   size_t done_line()
   {
+    if (done_line_) return *done_line_;
+    done_line_ = find_done_line();
+    return *done_line_;
+  }
+
+  size_t find_done_line()
+  {
     const std::vector<std::string> &lines = lines_of(m_.this_file);
     for (size_t n = 0; n < lines.size(); n++) {
       const std::string t = std::string(xpp::trim_blanks(lines[n]));
@@ -1778,6 +1785,7 @@ private:
   std::vector<size_t> option_notes_;
   std::map<std::string, std::vector<std::string>> file_lines_;
   std::map<std::string, size_t> written_;
+  std::optional<size_t> done_line_; /* done_line()'s answer: the file does not change during a conversion */
   std::vector<Diagnostic> &diagnostics_;
   DeclinedRename declined_;
   Place place_;

@@ -903,13 +903,21 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     const size_t compiled_count=emitted.size();
     std::vector<Program *> in_rhs;
     if (equations && m.nmarkov==0 && m.nkernel==0) {
-        for (size_t k=emitted.size();k-->0;) {
+        /* one pass over the ranges, in order: erasing each moved the rest of the source and of the list every time */
+        std::string kept;
+        kept.reserve(g.source.size());
+        std::vector<const ModelProgram *> still;
+        size_t from=0;
+        for (size_t k=0;k<emitted.size();++k) {
             Program *code=emitted[k]->code;
-            if (code<m.programs.data() || code>=m.programs.data()+m.node || g.called.contains(code)) continue;
-            g.source.erase(written[k].first,written[k].second-written[k].first);
+            if (code<m.programs.data() || code>=m.programs.data()+m.node || g.called.contains(code)) {still.push_back(emitted[k]);continue;}
+            kept.append(g.source,from,written[k].first-from);
+            from=written[k].second;
             in_rhs.push_back(code);
-            emitted.erase(emitted.begin()+static_cast<std::ptrdiff_t>(k));
         }
+        kept.append(g.source,from,std::string::npos);
+        g.source=std::move(kept);
+        emitted=std::move(still);
     }
     if (emitted.empty() && !rhs) return warnings;
     auto compiled=g.build(entries.front().place);
@@ -1004,18 +1012,16 @@ std::vector<std::vector<int>> equation_reads(const Model &m)
     /* the states each fixed variable and equation reads; a fixed variable
        reads only those before it (Model::rhs_impurity), so one pass in order */
     std::vector<std::vector<int>> reads(static_cast<size_t>(programs));
-    std::vector<char> read(static_cast<size_t>(n));
     for (int p=n;p<programs+n;p++) {
         const int q=p<programs?p:p-programs; /* the fixed variables, then the equations */
-        std::fill(read.begin(),read.end(),0);
+        std::vector<int> &mine=reads[static_cast<size_t>(q)]; /* sorted below: work in the size of what is read, never of n */
         for (const int v:m.programs[static_cast<size_t>(q)].native_reads) {
-            if (v>=1 && v<=n) read[static_cast<size_t>(v-1)]=1;
-            else if (v>n && v<=programs)
-                for (const int k:reads[static_cast<size_t>(v-1)]) read[static_cast<size_t>(k)]=1;
+            if (v>=1 && v<=n) mine.push_back(v-1);
+            else if (v>n && v<=programs) mine.insert(mine.end(),reads[static_cast<size_t>(v-1)].begin(),reads[static_cast<size_t>(v-1)].end());
         }
-        if (q<n) read[static_cast<size_t>(q)]=1; /* a map's f(x)-x reads its own state */
-        for (int k=0;k<n;k++)
-            if (read[static_cast<size_t>(k)]) reads[static_cast<size_t>(q)].push_back(k);
+        if (q<n) mine.push_back(q); /* a map's f(x)-x reads its own state */
+        std::ranges::sort(mine);
+        mine.erase(std::unique(mine.begin(),mine.end()),mine.end());
     }
     reads.resize(static_cast<size_t>(n));
     return reads;
