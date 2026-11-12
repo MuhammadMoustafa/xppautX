@@ -516,11 +516,16 @@ $(TEST_BIN): $(TEST_OBJECTS) $(CORELIB)
 # unmodified, as in README.md there) compiles a model's generated right-hand
 # side beside TinyCC and the two are compared bit for bit
 # (tools/mir-spike/mir_spike.cpp, fixtures in tests/mir-spike/).
+# W711: a second way into MIR, the Generator's trees (core/expr_ir.h) built through MIR's
+# API (xpp_mir_ir.cpp): it links mir.o and mir-gen.o only, no c2mir (the target checks
+# that no object of it names c2mir), and is compared too.
 # Each MIR source is one object of its own, built like miniz: its warnings
 # are not ours (-w: vendored C), nor is LTO; no contraction, as for TinyCC.
 MIR_DIR = third_party/mir
 MIR_BUILD = $(BUILDDIR)/mir
-MIR_OBJECTS = $(MIR_BUILD)/mir.o $(MIR_BUILD)/mir-gen.o $(MIR_BUILD)/c2mir.o
+MIR_CORE_OBJECTS = $(MIR_BUILD)/mir.o $(MIR_BUILD)/mir-gen.o
+MIR_ADAPTER_OBJECTS = $(MIR_BUILD)/xpp_mir.o $(MIR_BUILD)/xpp_mir_ir.o
+MIR_C2MIR_OBJECTS = $(MIR_BUILD)/c2mir.o $(MIR_BUILD)/xpp_mir_c.o
 MIR_SPIKE = $(BUILDDIR)/mir_spike$(EXE)
 MIR_FIXTURES = $(basename $(wildcard tests/mir-spike/*.manifest))
 $(MIR_BUILD):
@@ -531,10 +536,14 @@ $(MIR_BUILD)/mir-gen.o: $(MIR_DIR)/mir-gen.c $(wildcard $(MIR_DIR)/*.h $(MIR_DIR
 	$(CC) -std=gnu11 $(call NOLTO,$(OPT)) $(FPFLAGS) -DNDEBUG $(if $(CLANG),,-Wno-psabi) -w -I$(MIR_DIR) -c $< -o $@
 $(MIR_BUILD)/c2mir.o: $(MIR_DIR)/c2mir/c2mir.c $(wildcard $(MIR_DIR)/*.h $(MIR_DIR)/c2mir/*.h $(MIR_DIR)/c2mir/*/*) $(BUILDDIR)/toolchain.stamp Makefile | $(MIR_BUILD)
 	$(CC) -std=gnu11 $(call NOLTO,$(OPT)) $(FPFLAGS) -DNDEBUG $(if $(CLANG),,-Wno-psabi) -w -I$(MIR_DIR) -c $< -o $@
-$(MIR_SPIKE): tools/mir-spike/mir_spike.cpp tools/mir-spike/xpp_mir.cpp tools/mir-spike/xpp_mir.h $(MIR_OBJECTS) $(CORELIB)
-	$(CXX) $(call NOLTO,$(CXXFLAGS)) -I$(MIR_DIR) $(LDSTATIC) $(MAINSTACK) -o $@ tools/mir-spike/mir_spike.cpp tools/mir-spike/xpp_mir.cpp $(MIR_OBJECTS) $(CORELIB) -lm $(CORE_SYSLIBS) $(LINALG_LIBS)
+$(MIR_ADAPTER_OBJECTS) $(MIR_BUILD)/xpp_mir_c.o: $(MIR_BUILD)/%.o: tools/mir-spike/%.cpp $(wildcard tools/mir-spike/*.h) core/expr_ir.h $(BUILDDIR)/toolchain.stamp | $(MIR_BUILD)
+	$(CXX) $(call NOLTO,$(CXXFLAGS)) -I$(MIR_DIR) -MMD -MP -MF $(@:.o=.cpp.d) -c $< -o $@
+-include $(wildcard $(MIR_BUILD)/*.cpp.d)
+$(MIR_SPIKE): tools/mir-spike/mir_spike.cpp $(MIR_CORE_OBJECTS) $(MIR_ADAPTER_OBJECTS) $(MIR_C2MIR_OBJECTS) $(CORELIB)
+	$(CXX) $(call NOLTO,$(CXXFLAGS)) -I$(MIR_DIR) $(LDSTATIC) $(MAINSTACK) -o $@ tools/mir-spike/mir_spike.cpp $(MIR_ADAPTER_OBJECTS) $(MIR_C2MIR_OBJECTS) $(MIR_CORE_OBJECTS) $(CORELIB) -lm $(CORE_SYSLIBS) $(LINALG_LIBS)
 .PHONY: mirspike
 mirspike: $(MIR_SPIKE)
+	@if command -v nm >/dev/null && nm $(MIR_BUILD)/xpp_mir.o $(MIR_BUILD)/xpp_mir_ir.o | grep -qi c2mir; then echo "FAIL: the direct path names c2mir"; exit 1; fi
 	$(MIR_SPIKE) --level 1 $(MIR_FIXTURES)
 	$(MIR_SPIKE) --level 2 $(MIR_FIXTURES)
 

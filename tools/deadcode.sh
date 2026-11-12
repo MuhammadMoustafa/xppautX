@@ -30,7 +30,7 @@ cd "$(dirname "$0")/.." || exit 1
 # What stays although no Linux link reaches it: "file symbol|reason", the
 # symbol as reported (C++ names demangled, without their parameters), or
 # "file *|reason" for a whole file.
-ALLOW=""
+ALLOW="core/expr_native.cpp xpp::rhs_ir|W711 spike: only tools/mir-spike calls it, until the card that adopts MIR (or drops it) decides"
 
 check=0
 build=1

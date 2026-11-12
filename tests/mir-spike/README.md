@@ -13,4 +13,10 @@ committed): a fixture records what the generator wrote on 2026-11-11, so a later
 change it. A model that needs a Session helper `p_rhs` calls (networks, tables) has no fixture: the spike has no
 Session.
 
+A manifest's `model` line (W711) names the model the text was made from, from the repository's root, for the direct
+path: `mir_spike` loads it (an `.ode` from a scratch copy), has the Generator write the trees of `p_rhs`
+(`xpp::rhs_ir`) and builds MIR's IR from them through its API, with no C text, then compares it with TinyCC too. A
+fixture with no `model` line (PY_S1Bf_bench: its `p_rhs` calls a user function the direct path does not lower yet)
+is compared as W706 did. Every comparison also runs four states of ours: all zero, all NaN, all -0.0 and all 1.
+
 `mu26_rhs` is mu26's text with only `p_rhs` kept (the equations and user functions cut out).

@@ -3,6 +3,7 @@
 #include "expr_native.h"
 #include "expr_decode.h"
 #include "expr_derivative.h"
+#include "expr_ir.h"
 #include "expr_program.h"
 #include "jacobian.h"
 #include "session.h"
@@ -34,6 +35,7 @@ struct Node {
     bool atom = false; /* a name, subscript or literal: may be repeated in the C */
     bool mut = false;  /* reads state a later statement may change (a variable, the sum's index) */
     int power = 0;     /* a literal whole n INTEGER_POWER multiplies out (math::is_integer_power), else 0 */
+    int ir = -1;       /* the same value as an expr_ir.h node, when the Generator writes them (Generator::trees) */
 };
 
 /* A conditional being read: cond is the tested value, base the stack depth
@@ -50,30 +52,50 @@ struct Frame {
 constexpr int MAX_SUM_DEPTH = 16;
 
 /* The interpreter's own helpers the generated code calls, as C names and
-   prototypes: the code does the same operations in the same order and
+   what they take (the Session, doubles, an int, in that order; the prototype
+   is made from it): the code does the same operations in the same order and
    these do the arithmetic, so the results are the interpreter's, bit for
-   bit. The first argument of each is the Session. */
+   bit. */
 enum class Helper : size_t { Table, TableSlope, Network, Vector, Kernel, Delay, DelayShift, Shift, IShift, Set, Uniform, Poisson, Normal, Argument, FunctionEnd, Count };
 struct HelperText {
-    std::string_view name, prototype;
+    std::string_view name;
+    bool session;
+    int doubles;
+    bool index;
 };
 constexpr std::array<HelperText, static_cast<size_t>(Helper::Count)> helper_text{{
-    {"h_tab", "double h_tab(void*,double,int)"},
-    {"h_tabs", "double h_tabs(void*,double,int)"},
-    {"h_net", "double h_net(void*,double,int)"},
-    {"h_vec", "double h_vec(void*,double,int)"},
-    {"h_ker", "double h_ker(void*,int)"},
-    {"h_del", "double h_del(void*,double,double)"},
-    {"h_dsh", "double h_dsh(void*,double,double,double)"},
-    {"h_sft", "double h_sft(void*,double,double)"},
-    {"h_ish", "double h_ish(double,double)"},
-    {"h_set", "double h_set(void*,double,double,double)"},
-    {"h_ru", "double h_ru(void*,double)"},
-    {"h_rp", "double h_rp(void*,double)"},
-    {"h_rn", "double h_rn(void*,double,double)"},
-    {"h_arg", "double h_arg(void*,int)"},
-    {"h_end", "double h_end(void*,double,int)"},
+    {"h_tab", true, 1, true},
+    {"h_tabs", true, 1, true},
+    {"h_net", true, 1, true},
+    {"h_vec", true, 1, true},
+    {"h_ker", true, 0, true},
+    {"h_del", true, 2, false},
+    {"h_dsh", true, 3, false},
+    {"h_sft", true, 2, false},
+    {"h_ish", false, 2, false},
+    {"h_set", true, 3, false},
+    {"h_ru", true, 1, false},
+    {"h_rp", true, 1, false},
+    {"h_rn", true, 2, false},
+    {"h_arg", true, 0, true},
+    {"h_end", true, 1, true},
 }};
+
+/* the C prototype of a helper, the one its definition below has */
+std::string prototype(const HelperText &h)
+{
+    std::string text = xpp::format("double {}(", h.name);
+    bool first = true;
+    const auto add = [&](std::string_view type) {
+        text += (first ? "" : ",");
+        text += type;
+        first = false;
+    };
+    if (h.session) add("void*");
+    for (int i = 0; i < h.doubles; ++i) add("double");
+    if (h.index) add("int");
+    return text + ")";
+}
 
 /* The helpers with exactly the C prototypes above, so the generated code
    calls each through its own type; S is the Session the native function
@@ -185,6 +207,71 @@ struct Generator {
     std::vector<char> allowed; /* user functions with a fully compiled dependency graph */
     std::unordered_map<int, int> number_slot; /* a derivative graph's number: its N[] */
 
+    /* W711: when `trees`, the same walk also writes expr_ir.h's nodes and statements (every Node's `ir`, ir_out
+       beside out), for the right-hand side function; else every ir_ call below does nothing and gives -1. */
+    bool trees = false;
+    RhsIr ir;
+    std::vector<IrStatement> ir_out; /* the function being written */
+    std::string ir_refusal;          /* why the function being written has no trees */
+    std::vector<int> inline_ir;      /* a user function's body as nodes, -1 when it is not inlined */
+
+    int ir_node(IrNode n)
+    {
+        if (!trees) return -1;
+        ir.nodes.push_back(n);
+        return static_cast<int>(ir.nodes.size()) - 1;
+    }
+    int ir_op(IrOp op, int a = -1, int b = -1, int c = -1, int index = 0)
+    {
+        IrNode n;
+        n.op = op;
+        n.index = index;
+        n.args = {a, b, c};
+        return ir_node(n);
+    }
+    int ir_number(double x)
+    {
+        IrNode n;
+        n.number = x;
+        return ir_node(n);
+    }
+    int ir_call(const IrCallee &callee, std::initializer_list<int> args, int index = 0)
+    {
+        if (!trees) return -1;
+        auto found = std::find_if(ir.callees.begin(), ir.callees.end(), [&](const IrCallee &c) { return c.name == callee.name; });
+        if (found == ir.callees.end()) found = ir.callees.insert(ir.callees.end(), callee);
+        IrNode n;
+        n.op = IrOp::Call;
+        n.index = index;
+        n.callee = static_cast<int>(found - ir.callees.begin());
+        std::copy(args.begin(), args.end(), n.args.begin());
+        return ir_node(n);
+    }
+    int ir_helper(Helper h, std::initializer_list<int> args, int index = 0)
+    {
+        const HelperText &t = helper_text[static_cast<size_t>(h)];
+        return ir_call({std::string(t.name), helper_address(h), t.session, t.doubles, t.index}, args, index);
+    }
+    int ir_math(bool binary, int i, std::initializer_list<int> args)
+    {
+        const void *address = binary ? xpp::math::resolve(expr::fun2[static_cast<size_t>(i)]) : xpp::math::resolve(expr::fun1[static_cast<size_t>(i)]);
+        return ir_call({xpp::format("f{}_{}", binary ? 2 : 1, i), address, false, binary ? 2 : 1, false}, args);
+    }
+    void ir_refuse(std::string why)
+    {
+        if (trees && ir_refusal.empty()) ir_refusal = std::move(why);
+    }
+    /* a copy of the inlined body at node `body`, each argument node replaced by the call's own */
+    int ir_instantiate(int body, const std::vector<int> &arguments)
+    {
+        if (!trees) return -1;
+        IrNode n = ir.nodes[static_cast<size_t>(body)];
+        if (n.op == IrOp::Argument) return arguments.at(static_cast<size_t>(n.index));
+        for (int &a : n.args)
+            if (a >= 0) a = ir_instantiate(a, arguments);
+        return ir_node(n);
+    }
+
     std::unexpected<Error> refuse(std::string reason) const
     {
         return fail("compile", "not compiled: " + reason + "; running the interpreter", place);
@@ -211,23 +298,28 @@ struct Generator {
        so the generated code does it as a statement of its own, in order,
        and what the stack holds that a statement may change is first
        written to a temporary. */
-    Node statement(std::string value)
+    Node statement(std::string value, int value_ir = -1)
     {
-        Node t{xpp::concat("t", temps++), true};
-        out.push_back(xpp::concat(t.text, "=", value, ";"));
+        const int k = temps;
+        Node t{xpp::format("t{}", temps++), true};
+        out.push_back(xpp::format("{}={};", t.text, value));
+        if (trees) {
+            ir_out.push_back({IrStatement::Kind::Temporary, k, value_ir});
+            t.ir = ir_op(IrOp::Temporary, -1, -1, -1, k);
+        }
         return t;
     }
     void flush(std::vector<Node> &stack, size_t from)
     {
         for (size_t i = from; i < stack.size(); ++i)
-            if (stack[i].mut) stack[i] = statement(std::move(stack[i].text));
+            if (stack[i].mut) stack[i] = statement(std::move(stack[i].text), stack[i].ir);
     }
-    Node effect(std::vector<Node> &stack, size_t from, std::string call)
+    Node effect(std::vector<Node> &stack, size_t from, std::string call, int call_ir)
     {
         flush(stack, from);
         impure = true;
         forget_calls();
-        return statement(std::move(call));
+        return statement(std::move(call), call_ir);
     }
 
     /* A literal's N[] slot: the same value, the same slot, so two writings
@@ -236,7 +328,7 @@ struct Generator {
     {
         const auto [slot, added] = literal_slot.emplace(std::bit_cast<std::uint64_t>(x), numbers.size());
         if (added) numbers.push_back(x);
-        return {xpp::concat("N[", slot->second, "]"), true, false, math::is_integer_power(x) ? static_cast<int>(x) : 0};
+        return {xpp::format("N[{}]", slot->second), true, false, math::is_integer_power(x) ? static_cast<int>(x) : 0, ir_number(x)};
     }
 
     /* The call text of a math function (a table's fun1/fun2: pure, they
@@ -248,12 +340,12 @@ struct Generator {
        made once instead of twice. A state-changing statement forgets the
        calls made (effect, a sum), since their text may read what it
        changes. */
-    Node pure_call(std::string text, bool mut, bool top)
+    Node pure_call(std::string text, bool mut, bool top, int call_ir)
     {
-        if (depth > 0) return {std::move(text), false, mut};
+        if (depth > 0) return {std::move(text), false, mut, 0, call_ir};
         if (const auto made = calls_made.find(text); made != calls_made.end()) return made->second;
-        if (!top) return {std::move(text), false, mut};
-        Node t = statement(text);
+        if (!top) return {std::move(text), false, mut, 0, call_ir};
+        Node t = statement(text, call_ir);
         t.mut = false; /* a value of the state at its statement: never rewritten */
         index_call(text);
         calls_made.emplace(std::move(text), t);
@@ -265,8 +357,8 @@ struct Generator {
        temporary, so x and each square are computed once */
     Node integer_power(const Node &x, int n)
     {
-        const Node a = x.atom ? x : statement(x.text);
-        return math::power_by_squaring(a, n, [&](const Node &p, const Node &q) { return statement("(" + p.text + "*" + q.text + ")"); });
+        const Node a = x.atom ? x : statement(x.text, x.ir);
+        return math::power_by_squaring(a, n, [&](const Node &p, const Node &q) { return statement("(" + p.text + "*" + q.text + ")", ir_op(IrOp::Multiply, p.ir, q.ir)); });
     }
 
     /* The two branches met (other is the else value, already off the
@@ -276,9 +368,10 @@ struct Generator {
     {
         if (out.size() == f.mark) {
             stack.push_back({xpp::format("({}==0.0?{}:{})", f.cond.text, other.text, f.then_value.text), false,
-                             f.cond.mut || other.mut || f.then_value.mut});
+                             f.cond.mut || other.mut || f.then_value.mut, 0, ir_op(IrOp::Select, f.cond.ir, other.ir, f.then_value.ir)});
             return;
         }
+        ir_refuse("a conditional that runs statements");
         const std::vector<std::string> branches(out.begin() + static_cast<std::ptrdiff_t>(f.mark), out.end());
         out.resize(f.mark);
         flush(stack, outer_base);
@@ -330,6 +423,7 @@ struct Generator {
                 stack.push_back(literal(expr::CURRENT_INDEX));
             } else if (op == SUMSYM) {
                 if (depth >= MAX_SUM_DEPTH) return refuse("sums nested too deep");
+                ir_refuse("a sum");
                 const Node high = pop(), low = pop();
                 flush(stack, lower());
                 impure = true;
@@ -349,45 +443,55 @@ struct Generator {
             } else if (op == ENDDELAY || op == ENDSHIFT || op == ENDISHIFT) {
                 const Node first = pop(), second = pop();
                 if (op == ENDISHIFT) {
-                    stack.push_back({xpp::concat(helper(Helper::IShift), "(", first.text, ",", second.text, ")"), false, first.mut || second.mut});
+                    stack.push_back({xpp::format("{}({},{})", helper(Helper::IShift), first.text, second.text), false, first.mut || second.mut, 0,
+                                     ir_helper(Helper::IShift, {first.ir, second.ir})});
                 } else if (op == ENDSHIFT) {
-                    stack.push_back({xpp::concat(helper(Helper::Shift), "(S,", first.text, ",", second.text, ")"), false, true});
+                    stack.push_back({xpp::format("{}(S,{},{})", helper(Helper::Shift), first.text, second.text), false, true, 0,
+                                     ir_helper(Helper::Shift, {first.ir, second.ir})});
                 } else {
-                    stack.push_back(effect(stack, lower(), xpp::concat(helper(Helper::Delay), "(S,", first.text, ",", second.text, ")")));
+                    stack.push_back(effect(stack, lower(), xpp::format("{}(S,{},{})", helper(Helper::Delay), first.text, second.text),
+                                           ir_helper(Helper::Delay, {first.ir, second.ir})));
                 }
             } else if (op == ENDDELSHFT) {
                 const Node tau = pop(), shift = pop(), variable = pop();
-                stack.push_back(effect(stack, lower(), xpp::format("{}(S,{},{},{})", helper(Helper::DelayShift), tau.text, shift.text, variable.text)));
+                stack.push_back(effect(stack, lower(), xpp::format("{}(S,{},{},{})", helper(Helper::DelayShift), tau.text, shift.text, variable.text),
+                                       ir_helper(Helper::DelayShift, {tau.ir, shift.ir, variable.ir})));
             } else if (op == ENDSET) {
                 const Node value = pop(), shift = pop(), variable = pop();
-                stack.push_back(effect(stack, lower(), xpp::format("{}(S,{},{},{})", helper(Helper::Set), shift.text, variable.text, value.text)));
+                stack.push_back(effect(stack, lower(), xpp::format("{}(S,{},{},{})", helper(Helper::Set), shift.text, variable.text, value.text),
+                                       ir_helper(Helper::Set, {shift.ir, variable.ir, value.ir})));
             } else if (op == RANDUNI || op == RANDPOI) {
                 const Node x = pop();
-                stack.push_back(effect(stack, lower(), xpp::format("{}(S,{})", helper(op == RANDUNI ? Helper::Uniform : Helper::Poisson), x.text)));
+                stack.push_back(effect(stack, lower(), xpp::format("{}(S,{})", helper(op == RANDUNI ? Helper::Uniform : Helper::Poisson), x.text),
+                                       ir_helper(op == RANDUNI ? Helper::Uniform : Helper::Poisson, {x.ir})));
             } else if (op == RANDNORM) {
                 const Node sd = pop(), mean = pop();
-                stack.push_back(effect(stack, lower(), xpp::format("{}(S,{},{})", helper(Helper::Normal), mean.text, sd.text)));
+                stack.push_back(effect(stack, lower(), xpp::format("{}(S,{},{})", helper(Helper::Normal), mean.text, sd.text),
+                                       ir_helper(Helper::Normal, {mean.ir, sd.ir})));
             } else if (type == SVARTYPE || type == SCONTYPE) {
                 /* the variable or constant a delay, shift or set names, as the number the interpreter pushes */
-                stack.push_back({xpp::format("{}.0", type == SCONTYPE ? COM(CONTYPE, in) : COM(VARTYPE, in)), true});
+                const int named = type == SCONTYPE ? COM(CONTYPE, in) : COM(VARTYPE, in);
+                stack.push_back({xpp::format("{}.0", named), true, false, 0, ir_number(named)});
             } else if (type == CONTYPE || type == VARTYPE) {
                 if (dynamic && i.pc<2) {
                     if (type!=VARTYPE) return refuse("an invalid network operand");
                     /* The network changes these tokens during each pair evaluation.
                        do_shift bounds the selected variable just as the interpreter
                        does for a computed index; no model name enters C. */
+                    ir_refuse("a network's operands");
                     stack.push_back({xpp::format("{}(S,0,R[{}])",helper(Helper::Shift),i.pc),false,true});
                 } else {
                     if (type == VARTYPE) variable_reads.insert(in);
                     if (type == CONTYPE && in == expr::SUM_INDEX && depth == 0) array_pure = false;
-                    stack.push_back({(type == CONTYPE ? "c[" : "v[") + std::to_string(in) + "]", true, type == VARTYPE || in == expr::SUM_INDEX});
+                    stack.push_back({(type == CONTYPE ? "c[" : "v[") + std::to_string(in) + "]", true, type == VARTYPE || in == expr::SUM_INDEX, 0,
+                                     ir_op(type == CONTYPE ? IrOp::Constant : IrOp::Variable, -1, -1, -1, in)});
                 }
             } else if (type == USTACKTYPE) {
-                stack.push_back({"a" + std::to_string(in), true});
+                stack.push_back({"a" + std::to_string(in), true, false, 0, ir_op(IrOp::Argument, -1, -1, -1, in)});
             } else if (type == FUN1TYPE) {
                 unary.insert(in);
                 const Node x = pop();
-                stack.push_back(pure_call(xpp::concat("f1_", in, "(", x.text, ")"), x.mut, frames.empty()));
+                stack.push_back(pure_call(xpp::format("f1_{}({})", in, x.text), x.mut, frames.empty(), ir_math(false, in, {x.ir})));
             } else if (type == FUN2TYPE) {
                 const Node right = pop(), left = pop();
                 std::string text;
@@ -395,18 +499,25 @@ struct Generator {
                     stack.push_back(integer_power(left, right.power));
                     continue;
                 }
-                if (in == expr::ADD || in == expr::MULTIPLY) text = "(" + right.text + (in == expr::ADD ? "+" : "*") + left.text + ")";
-                else if (in == expr::SUBTRACT || in == expr::IEEE_DIVIDE) text = "(" + left.text + (in == expr::SUBTRACT ? "-" : "/") + right.text + ")";
-                else if (in == expr::DIVIDE) {
+                int tree = -1;
+                if (in == expr::ADD || in == expr::MULTIPLY) {
+                    text = "(" + right.text + (in == expr::ADD ? "+" : "*") + left.text + ")";
+                    tree = ir_op(in == expr::ADD ? IrOp::Add : IrOp::Multiply, right.ir, left.ir);
+                } else if (in == expr::SUBTRACT || in == expr::IEEE_DIVIDE) {
+                    text = "(" + left.text + (in == expr::SUBTRACT ? "-" : "/") + right.text + ")";
+                    tree = ir_op(in == expr::SUBTRACT ? IrOp::Subtract : IrOp::Divide, left.ir, right.ir);
+                } else if (in == expr::DIVIDE) {
                     /* the guarded division: a zero divisor becomes N[0] */
-                    if (right.atom) text = xpp::concat("(", left.text, "/(", right.text, "==0.0?N[0]:", right.text, "))");
-                    else text = xpp::concat("dv(", left.text, ",", right.text, ")");
+                    if (right.atom) text = xpp::format("({}/({}==0.0?N[0]:{}))", left.text, right.text, right.text);
+                    else text = xpp::format("dv({},{})", left.text, right.text);
+                    tree = ir_op(IrOp::GuardedDivide, left.ir, right.ir);
                 } else {
                     binary.insert(in);
-                    stack.push_back(pure_call(xpp::concat("f2_", in, "(", left.text, ",", right.text, ")"), left.mut || right.mut, frames.empty()));
+                    stack.push_back(pure_call(xpp::format("f2_{}({},{})", in, left.text, right.text), left.mut || right.mut, frames.empty(),
+                                              ir_math(true, in, {left.ir, right.ir})));
                     continue;
                 }
-                stack.push_back({std::move(text), false, left.mut || right.mut});
+                stack.push_back({std::move(text), false, left.mut || right.mut, 0, tree});
             } else if (type == UFUNTYPE) {
                 if (!allowed.empty() && !allowed[in]) return refuse("calls a refused user function");
                 if (user) calls[index].insert(in);
@@ -415,16 +526,21 @@ struct Generator {
                 /* inlined: each argument once, a name as it is, an expression in a temporary that
                    the same expression shares (pure_call; only where a statement may be written) */
                 std::vector<std::string> arguments;
+                std::vector<int> argument_ir;
                 if (!inline_text[in].empty())
                     for (size_t a = first; a < stack.size(); ++a) {
-                        const Node argument = stack[a].atom ? stack[a] : pure_call(stack[a].text, stack[a].mut, frames.empty());
+                        const Node argument = stack[a].atom ? stack[a] : pure_call(stack[a].text, stack[a].mut, frames.empty(), stack[a].ir);
                         if (!argument.atom) { arguments.clear(); break; }
                         arguments.push_back(argument.text);
+                        argument_ir.push_back(argument.ir);
                     }
+                int tree = -1;
                 if (arguments.size() == static_cast<size_t>(i.count) && !inline_text[in].empty()) {
                     text = with_arguments(inline_text[in], arguments);
+                    tree = ir_instantiate(inline_ir[in], argument_ir);
                 } else {
-                    text = xpp::concat("u", in, "(c,v,S");
+                    ir_refuse("a call of a user function");
+                    text = xpp::format("u{}(c,v,S", in);
                     for (size_t a = first; a < stack.size(); ++a) text += "," + stack[a].text;
                     text += ")";
                 }
@@ -433,14 +549,14 @@ struct Generator {
                     if (!array_pure_function[in]) array_pure = false;
                     variable_reads.insert(function_reads[in].begin(),function_reads[in].end());
                 }
-                stack.push_back(pure_function[in] ? Node{std::move(text), false, true} : effect(stack, lower(), std::move(text)));
+                stack.push_back(pure_function[in] ? Node{std::move(text), false, true, 0, tree} : effect(stack, lower(), std::move(text), tree));
             } else if (type == KERTYPE) {
-                stack.push_back({xpp::concat(helper(Helper::Kernel), "(S,", in, ")"), false});
+                stack.push_back({xpp::format("{}(S,{})", helper(Helper::Kernel), in), false, false, 0, ir_helper(Helper::Kernel, {}, in)});
             } else {
                 /* a lookup table, network or vectorizer: the arrays the helpers index are the interpreter's own */
                 const Node x = pop();
                 const Helper h = type == TABTYPE ? Helper::Table : type == NETTYPE ? Helper::Network : Helper::Vector;
-                stack.push_back({xpp::concat(helper(h), "(S,", x.text, ",", in, ")"), false, type != TABTYPE || x.mut});
+                stack.push_back({xpp::format("{}(S,{},{})", helper(h), x.text, in), false, type != TABTYPE || x.mut, 0, ir_helper(h, {x.ir}, in)});
             }
         }
         return pop();
@@ -450,6 +566,8 @@ struct Generator {
     void begin()
     {
         out.clear();
+        ir_out.clear();
+        ir_refusal.clear();
         forget_calls();
         temps = loops = depth = 0;
         impure = false;
@@ -491,7 +609,10 @@ struct Generator {
         write(signature(index, user, name), xpp::concat("return ", result->text, ";"));
         if (user) {
             pure_function[index] = !impure;
-            if (!impure && out.empty() && temps == 0 && loops == 0 && result->text.size() <= MAX_INLINE_TEXT) inline_text[index] = result->text;
+            if (!impure && out.empty() && temps == 0 && loops == 0 && result->text.size() <= MAX_INLINE_TEXT) {
+                inline_text[index] = result->text;
+                if (trees) inline_ir[index] = result->ir;
+            }
         }
         return {};
     }
@@ -557,6 +678,7 @@ struct Generator {
         const auto function = called.find(&p);
         if (function == called.end()) return value(p.rpn, 0, false);
         forget_calls();
+        ir_refuse("a call of a compiled equation");
         return statement(xpp::format("{}(c,v,S,0)", function->second));
     }
 
@@ -576,13 +698,24 @@ struct Generator {
             if (!result) return std::unexpected(result.error());
             const int variable = first + static_cast<int>(i);
             out.push_back(xpp::format("v[{}]={};", variable, result->text));
+            if (trees) ir_out.push_back({IrStatement::Kind::Variable, variable, result->ir});
             forget_calls_reading(variable);
         }
-        if (!equations.empty()) out.push_back("if(!o)return;");
+        if (!equations.empty()) {
+            out.push_back("if(!o)return;");
+            if (trees) ir_out.push_back({IrStatement::Kind::ReturnWithoutOutput, 0, -1});
+        }
         for (size_t i = 0; i < equations.size(); ++i) {
             const auto result = rhs_value(equations[i]);
             if (!result) return std::unexpected(result.error());
             out.push_back(xpp::format("o[{}]={};", i, result->text));
+            if (trees) ir_out.push_back({IrStatement::Kind::Output, static_cast<int>(i), result->ir});
+        }
+        if (trees) {
+            ir.statements = std::move(ir_out);
+            ir.temporaries = temps;
+            ir.zero_divisor = numbers[0];
+            ir.unsupported = ir_refusal;
         }
         write(xpp::format("void {}(double *c,double *v,void *S,double *o)", name), "");
         return {};
@@ -699,7 +832,7 @@ struct Generator {
         for (size_t i=0;i<used.size();++i) {
             if (!used[i]) continue;
             names.emplace_back(helper_text[i].name);
-            declarations+=xpp::format("extern {};\n",helper_text[i].prototype);
+            declarations+=xpp::format("extern {};\n",prototype(helper_text[i]));
             addresses.push_back(helper_address(static_cast<Helper>(i)));
         }
         for (size_t i=0;i<names.size();++i) symbols.push_back({names[i].c_str(),addresses[i]});
@@ -789,7 +922,8 @@ std::string subsystem_joined_by(const Session &s)
     return rhs_impurity(s);
 }
 
-Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelProgram> &entries)
+/* ir, when given (W711), receives the right-hand side function p_rhs as expr_ir.h's trees, written beside its text */
+Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelProgram> &entries, RhsIr *ir = nullptr)
 {
     Model &m=s.model();
     for (const auto &entry:entries) { entry.code->native=nullptr; entry.code->in_rhs=false; entry.code->array_pure=false; entry.code->native_reads.clear(); }
@@ -798,11 +932,13 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     m.native_program.reset();
     if (!s.numerics.compile || entries.empty()) return {};
     Generator g{s};
+    g.trees=ir!=nullptr;
     std::vector<Error> warnings;
     if (m.nfun<0 || static_cast<size_t>(m.nfun)>m.ufun_programs.size()) return g.refuse("an out-of-range function count");
     g.calls.resize(static_cast<size_t>(m.nfun));
     g.pure_function.assign(static_cast<size_t>(m.nfun),0);
     g.inline_text.assign(static_cast<size_t>(m.nfun),std::string());
+    g.inline_ir.assign(static_cast<size_t>(m.nfun),-1);
     g.array_pure_function.assign(static_cast<size_t>(m.nfun),0);
     g.function_reads.resize(static_cast<size_t>(m.nfun));
     std::vector<std::string> bodies(static_cast<size_t>(m.nfun));
@@ -918,6 +1054,10 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
         kept.append(g.source,from,std::string::npos);
         g.source=std::move(kept);
         emitted=std::move(still);
+    }
+    if (ir) { /* the trees are the result: no C is compiled */
+        *ir=std::move(g.ir);
+        return warnings;
     }
     if (emitted.empty() && !rhs) return warnings;
     auto compiled=g.build(entries.front().place);
@@ -1060,13 +1200,23 @@ std::string describe_subsystems(const Session &s)
     return m.subsystems.size() > SHOWN ? text + ", ..." : text;
 }
 
+namespace {
+/* the model's programs, each with its stack sized, for compile_programs */
+std::vector<ModelProgram> sized_programs(Session &s)
+{
+    Model &m=s.model();
+    auto entries=model_programs(m);
+    for(const auto &entry:entries)
+        size_expr_stack(s,entry.code->rpn,entry.user_index<0?-1:m.narg_fun[entry.user_index]);
+    return entries;
+}
+}
+
 Result<std::vector<Error>> compile_model(Session &s)
 {
     Model &m=s.model();
     m.compile_pending=false;
-    const auto entries=model_programs(m);
-    for(const auto &entry:entries)
-        size_expr_stack(s,entry.code->rpn,entry.user_index<0?-1:m.narg_fun[entry.user_index]);
+    const auto entries=sized_programs(s);
     auto compiled=compile_programs(s,entries);
     m.rhs_impurity=rhs_impurity(s);
     m.subsystem_joined_by=subsystem_joined_by(s);
@@ -1089,6 +1239,17 @@ void ensure_compiled(Session &s)
     const auto compiled=compile_model(s);
     if (!compiled) log(XPP_LOG_WARN,"{}\n",compiled.error().text());
     else for (const Error &warning:*compiled) log(XPP_LOG_WARN,"{}\n",warning.text());
+}
+
+Result<RhsIr> rhs_ir(Session &s)
+{
+    RhsIr ir;
+    const auto entries=sized_programs(s);
+    auto compiled=compile_programs(s,entries,&ir);
+    if (!compiled) return std::unexpected(compiled.error());
+    if (ir.statements.empty() && ir.unsupported.empty())
+        return fail("compile","the model has no right-hand side function to write as trees",entries.empty()?Place{}:entries.front().place);
+    return ir;
 }
 
 bool ensure_exact_jacobian(Session &s)
