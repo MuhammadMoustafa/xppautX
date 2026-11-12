@@ -416,6 +416,13 @@ jobs:
       - name: "Unit tests (one program, linked with clang++)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make test
+      # W706 spike (docs/studies/w570-faster-compiler.md): MIR (third_party/mir) compiles the
+      # model fixtures in tests/mir-spike/ beside TinyCC and every output is compared bit for
+      # bit; a build error of MIR, a crash in its executable memory, a refusal to compile or
+      # a difference fails the step. It never gates the other steps of the job.
+      - name: "MIR spike (W706): compile, run and bit-compare the fixtures"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: make mirspike
       - name: Smoke test (headless)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
@@ -585,6 +592,13 @@ jobs:
             echo "== $t exited $st"
             gdb -batch -ex run -ex bt -ex quit "./$t" 2>&1 | tail -40
           fi
+      # W706 spike (docs/studies/w570-faster-compiler.md): MIR (third_party/mir) compiles the
+      # model fixtures in tests/mir-spike/ beside TinyCC and every output is compared bit for
+      # bit; a build error of MIR, a crash in its executable memory, a refusal to compile or
+      # a difference fails the step. It never gates the other steps of the job.
+      - name: "MIR spike (W706): compile, run and bit-compare the fixtures"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: mingw32-make -j4 mirspike
       - name: Headless run matches Linux (ignoring line ends)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
@@ -756,6 +770,13 @@ jobs:
       - name: "Unit tests (one program, linked with clang++ and libc++)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: mingw32-make -j4 test BUILDDIR=build/clang CC=clang CXX=clang++
+      # W706 spike (docs/studies/w570-faster-compiler.md): MIR (third_party/mir) compiles the
+      # model fixtures in tests/mir-spike/ beside TinyCC and every output is compared bit for
+      # bit; a build error of MIR, a crash in its executable memory, a refusal to compile or
+      # a difference fails the step. It never gates the other steps of the job.
+      - name: "MIR spike (W706): compile, run and bit-compare the fixtures"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: mingw32-make -j4 mirspike BUILDDIR=build/clang CC=clang CXX=clang++
       - name: Headless run matches Linux (ignoring line ends)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
