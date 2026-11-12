@@ -1063,6 +1063,7 @@ std::string describe_subsystems(const Session &s)
 Result<std::vector<Error>> compile_model(Session &s)
 {
     Model &m=s.model();
+    m.compile_pending=false;
     const auto entries=model_programs(m);
     for(const auto &entry:entries)
         size_expr_stack(s,entry.code->rpn,entry.user_index<0?-1:m.narg_fun[entry.user_index]);
@@ -1082,8 +1083,17 @@ Result<std::vector<Error>> compile_model(Session &s)
     return compiled;
 }
 
+void ensure_compiled(Session &s)
+{
+    if (!s.model().compile_pending) return;
+    const auto compiled=compile_model(s);
+    if (!compiled) log(XPP_LOG_WARN,"{}\n",compiled.error().text());
+    else for (const Error &warning:*compiled) log(XPP_LOG_WARN,"{}\n",warning.text());
+}
+
 bool ensure_exact_jacobian(Session &s)
 {
+    ensure_compiled(s); /* its derivatives need the programs compiled; compiling makes a new Jacobian, so before the reference */
     ExactJacobian &j=s.model().jacobian;
     if (!j.tried) {
         Place requested=std::move(j.requested);

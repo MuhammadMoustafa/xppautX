@@ -34,6 +34,10 @@ std::string describe_subsystems(const Session &s);
 bool has_subsystems(const Session &s);
 /* Refuse unsupported programs independently; unit/compiler failures return an error. */
 Result<std::vector<Error>> compile_model(Session &s);
+/* Run compile_model when the load left it pending (Model::compile_pending), showing what it warns of with its place; the start of every
+   computation (a command of kind compute) and of the exact Jacobian's making call it, on the core thread before any worker reads the code
+   (TinyCC has static state and is not thread-safe). A reload or Open model loads a new Model, pending again. */
+void ensure_compiled(Session &s);
 /* The model's exact Jacobian (W260), made on its first need (the model's
    own @ jacobian=exact at load, or the numerics being set to exact), never
    otherwise: true when it has one, else Model::jacobian.unavailable says

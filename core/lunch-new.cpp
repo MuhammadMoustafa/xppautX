@@ -600,6 +600,7 @@ Result<bool> write_info(xpp::Session &s, const std::string &filename, bool confi
   if(!opened)return std::unexpected(opened.error());
   if(!w)return false;
   redraw_params();
+  ensure_compiled(s); /* the info names the model's subsystems, found by compiling */
   do_info(s,w.file());
   if(const Result<> saved=xpp::commit_save(w);!saved)return std::unexpected(saved.error());
   return true;

@@ -6,6 +6,7 @@
 #include "command_registry.h"
 #include "command_def.h"
 #include "event_registry.h"
+#include "expr_native.h"
 #include "json_error.h"
 #include "json_number.h"
 #include "json_reader.h"
@@ -392,6 +393,8 @@ Result<std::string> run(Session &s, const char *line, const Place &place, bool p
         if (!file_selector(full_name(*command), file, command->file_wild, command->file_mode)) return std::string("{\"cancelled\":true}");
         args->add(file_arg->name, Scalar{std::move(file)});
     }
+    /* a computation reads the model's compiled code, made on its first one (W713) */
+    if (command->kind == XPP_KIND_COMPUTE) ensure_compiled(s);
     Result<std::string> result = command->execute(s, *command, *args, place);
     if (!result) return std::unexpected<Error>(with_source_line(result.error()));
     return result;

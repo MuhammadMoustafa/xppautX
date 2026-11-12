@@ -150,6 +150,9 @@ struct Model {
   bool native_equations=false;
   /* compile_model: why the right-hand side is not pure, or "" when every program is native and Session-independent (autoX's workers and a sweep's runs on threads need it) */
   std::string rhs_impurity="the model is not compiled";
+  /* W713: the model is loaded but compile_model has not run: the first computation's start runs it (ensure_compiled), so a model that is
+     only opened costs no compile; until then every program is interpreted */
+  bool compile_pending=false;
   /* the exact Jacobian compile_model made, or why there is none (W260) */
   ExactJacobian jacobian;
   /* The independent subsystems (W433, compile_model): the connected

@@ -168,7 +168,9 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
     }
     m.saved_copies.reset(); /* the load's readers are done with them */
     xpp_session_mark_clean(load.session()); /* what it loaded is not a change */
-    const auto compiled=compile_loaded(load.session());
+    /* the compile waits for the first computation (W713), except for a model that asks for the exact Jacobian: its absence is the load's error */
+    if (load.session().numerics.jacobian!=JACOBIAN_EXACT) m.compile_pending=true;
+    const auto compiled=m.compile_pending?Result<std::vector<Error>>(std::vector<Error>()):compile_loaded(load.session());
     if (!compiled) {
         program = program_before;
         return std::unexpected(compiled.error());
