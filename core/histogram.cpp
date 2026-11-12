@@ -232,10 +232,8 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
   int cond=0,flag=1;
   double z,y;
   double dz;
-  int length=nbins+1;
+  const int length=nbins+1;
   if(const xpp::Result<> room=s.data_store.fit(s.model().neq+1,length+1);!room)return std::unexpected(room.error());
-  if(length>=s.data_store.max_rows)
-    length=s.data_store.max_rows-1;
   dz=(zhi-zlo)/static_cast<double>((length-1));
   if(which==0&&strlen(condition)>0){
     /* a condition that does not compile is the command's error, nothing is made */
