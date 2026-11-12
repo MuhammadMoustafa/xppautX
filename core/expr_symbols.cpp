@@ -257,13 +257,12 @@ int ParserState::symbol_prefix(const char *source, int &length) const
   sync_symbols();
   int token = nsym;
   length = 0;
-  /* the names a longer prefix matches come at or after the first name the
-     shorter one reaches, so one search for the first character serves every
-     length and the entry only moves forward */
+  /* the first name a longer prefix reaches is at or after the shorter one's,
+     and is usually the same name: searched again only when it falls short */
   auto entry = names_.lower_bound(std::string_view(source, 1));
   for (size_t n = 1; source[n - 1] != '\0'; ++n) {
     const std::string_view prefix(source, n);
-    while (entry != names_.end() && std::string_view(entry->first) < prefix) ++entry;
+    if (entry != names_.end() && std::string_view(entry->first) < prefix) entry = names_.lower_bound(prefix);
     if (entry == names_.end() || !entry->first.starts_with(prefix)) break;
     if (entry->first.size() == n) {
       token = *entry->second.begin(); // the original scan chose the first equal name
