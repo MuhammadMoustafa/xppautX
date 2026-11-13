@@ -33,6 +33,12 @@
 
 namespace xpp {
 
+/* A complex number as two doubles, real part then imaginary: was FortranComplex (f2c's
+   doublecomplex, autoX) and del_stab.h's COMPLEX, the same pair. Each operation keeps its own formula. */
+struct ComplexPair {
+  double r, i;
+};
+
 /* A numerical result may be accepted only when every component is finite. */
 bool all_finite(std::span<const double> values);
 

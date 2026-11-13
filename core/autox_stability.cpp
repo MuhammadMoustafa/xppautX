@@ -56,10 +56,10 @@ double autox_hopf_axis_tolerance(Matrix<const double> jacobian, size_t n)
         ? conservative_axis_tolerance : 0;
 }
 
-std::optional<FortranComplex> autox_hopf_pair(std::span<const FortranComplex> spectrum,
+std::optional<xpp::ComplexPair> autox_hopf_pair(std::span<const xpp::ComplexPair> spectrum,
                                           double tolerance)
 {
-    const auto distance = [tolerance](const FortranComplex &value) {
+    const auto distance = [tolerance](const xpp::ComplexPair &value) {
         return std::abs(value.r) < tolerance ? 0 : std::abs(value.r);
     };
     double nearest = std::numeric_limits<double>::infinity(), scale = 0;
@@ -71,10 +71,10 @@ std::optional<FortranComplex> autox_hopf_pair(std::span<const FortranComplex> sp
     // eigensolvers. Use n machine epsilons at the spectrum's scale as a tie,
     // in addition to AUTO-07p's conservative near-axis band.
     const double real_part_roundoff = spectrum.size() * std::numeric_limits<double>::epsilon() * scale;
-    const auto rank = [](const FortranComplex &value) {
+    const auto rank = [](const xpp::ComplexPair &value) {
         return std::tuple{std::abs(value.i), value.r, -value.i};
     };
-    std::optional<FortranComplex> selected;
+    std::optional<xpp::ComplexPair> selected;
     for (const auto &value : spectrum) {
         if (value.i != 0 && distance(value) <= nearest + real_part_roundoff &&
             (!selected || rank(value) < rank(*selected)))
@@ -110,7 +110,7 @@ bool autox_stability_step_failed(AutoxStability &st, int br, int pt)
 }
 
 void autox_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *par, std::ptrdiff_t *icp,
-    FUNI_TYPE((*problem_function)), double *u, double *uold, double *f, double *dfdu, double *dfdp)
+    ProblemFunction problem_function, double *u, double *uold, double *f, double *dfdu, double *dfdp)
 {
     (*problem_function)(&iap, &rap, iap.ndim, u, uold, icp, par, BOTH_JACOBIANS, f, dfdu, dfdp);
     bool chng;
@@ -125,7 +125,7 @@ void autox_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *
     par[xpp::autox_unknown::period] = saved_period;
 }
 
-void autox_cycle_multipliers(const iap_type &iap, const double *p0, const double *p1, FortranComplex *ev, bool deflate)
+void autox_cycle_multipliers(const iap_type &iap, const double *p0, const double *p1, xpp::ComplexPair *ev, bool deflate)
 {
     auto &w=iap.run->codim;
     const int dimension=static_cast<int>(iap.ndim), n=static_cast<int>(iap.ndm);
@@ -152,7 +152,7 @@ void autox_cycle_multipliers(const iap_type &iap, const double *p0, const double
 void autox_stability_multipliers_restored(AutoxStability &st, const iap_type &iap, double *p0, double *p1)
 {
     std::ptrdiff_t ndim = iap.ndim, iid = iap.iid;
-    std::vector<FortranComplex> ev(ndim);
+    std::vector<xpp::ComplexPair> ev(ndim);
     if (iap.isw==2) {
         autox_cycle_multipliers(iap,p0,p1,ev.data(),false);
         ndim=iap.ndm;

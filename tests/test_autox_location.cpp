@@ -49,7 +49,7 @@ int retry_line(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, co
     return 0;
 }
 double target(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
-             FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
+             ProblemFunction, std::ptrdiff_t *, double *, double *, double *, double *,
              double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
@@ -65,7 +65,7 @@ int initial_boundary(const iap_type *, const rap_type *, std::ptrdiff_t, double 
 }
 // A noisy test claims a sign change but has no zero on this straight branch.
 double noisy(iap_type *iap, rap_type *, double *, std::ptrdiff_t *, bool *chng,
-             FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
+             ProblemFunction, std::ptrdiff_t *, double *, double *, double *, double *,
              double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
@@ -74,14 +74,14 @@ double noisy(iap_type *iap, rap_type *, double *, std::ptrdiff_t *, bool *chng,
 }
 // W545 (#610): tests on the straight branch u = par (the test is a function of u alone).
 double two_zeros(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
-                 FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
+                 ProblemFunction, std::ptrdiff_t *, double *, double *, double *, double *,
                  double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
     return (u[0] - 0.4) * (u[0] - 0.7);
 }
 double jump(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
-            FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
+            ProblemFunction, std::ptrdiff_t *, double *, double *, double *, double *,
             double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
@@ -89,7 +89,7 @@ double jump(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
 }
 // cells of width 0.02 alternate in sign: every sample's sign is that of its cell, none is a crossing
 double noise(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
-             FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
+             ProblemFunction, std::ptrdiff_t *, double *, double *, double *, double *,
              double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
@@ -97,7 +97,7 @@ double noise(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
 }
 // W580 (#645): a flat zero of odd order crosses (henon_rot_th's branch point is a cubic)
 double cubic(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
-             FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
+             ProblemFunction, std::ptrdiff_t *, double *, double *, double *, double *,
              double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
@@ -105,7 +105,7 @@ double cubic(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
 }
 // a double zero at the step's end, its sample there at the test's noise (1e-4 below 0): a touching
 double touching(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
-                FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
+                ProblemFunction, std::ptrdiff_t *, double *, double *, double *, double *,
                 double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;

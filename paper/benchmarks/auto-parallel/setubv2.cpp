@@ -11,8 +11,8 @@ namespace {
    which are input and output are markered as such*/
 struct setubv_parallel_arglist {
   integer ndim, ncol, nbc, nint, ncb, nrc, nra, nca, na; /*scalar input */
-  FUNI_TYPE((*funi)); /*scalar input*/
-  ICNI_TYPE((*icni)); /*scalar input*/
+  ProblemFunction funi; /*scalar input*/
+  IntegralFunction icni; /*scalar input*/
   integer ndxloc; /*scalar input*/
   iap_type *iap; /*array input size: NIAP*/
   rap_type *rap; /*array input size: NRAP*/
@@ -38,7 +38,7 @@ struct setubv_parallel_arglist {
   doublereal *thu; /*array input size: ndim * 8 */
   doublereal *thl; /*array input size: NPARX */ 
   doublereal *rldot; /*array input size: NPARX */ 
-  BCNI_TYPE((*bcni));
+  BoundaryFunction bcni;
 };
 
 /* setubv's steps (the original AUTO also ran them on pthreads or MPI
@@ -48,13 +48,13 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
 		       doublereal *rlold, doublereal rds);
 void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol,
 					 integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca,
-					 FUNI_TYPE((*funi)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par,
+					 ProblemFunction funi, IntegralFunction icni, integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par,
 					 integer *icp, doublereal *aa, doublereal *bb,
 					 doublereal *cc, doublereal *dd, doublereal *fa, doublereal *fc, doublereal *ups,
 					 doublereal *uoldps, doublereal *udotps,
 					 doublereal *upoldp, doublereal *dtm,
 					 doublereal *wp, doublereal *wt, doublereal *wi,
-					 doublereal *thu, doublereal *thl, doublereal *rldot, BCNI_TYPE((*bcni)),
+					 doublereal *thu, doublereal *thl, doublereal *rldot, BoundaryFunction bcni,
 					 setubv_parallel_arglist *data);
 
 void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
@@ -302,7 +302,7 @@ void setubv_default_wrapper(const setubv_parallel_arglist &data)
 
 int 
 setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
-       FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
+       ProblemFunction funi, BoundaryFunction bcni, IntegralFunction icni, integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
        doublereal rds, doublereal *aa, doublereal *bb, doublereal *cc, doublereal *dd, doublereal *fa, doublereal *fc, doublereal *rlcur, 
        doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, 
        doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
@@ -580,14 +580,14 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
 /* Fill in a setubv_parallel_arglist for the individual variables */
 void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol, 
 					 integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
-					 FUNI_TYPE((*funi)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, 
+					 ProblemFunction funi, IntegralFunction icni, integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, 
 					 integer *icp, doublereal *aa, doublereal *bb, 
 					 doublereal *cc, doublereal *dd, doublereal *fa, doublereal *fc, doublereal *ups, 
 					 doublereal *uoldps, doublereal *udotps, 
 					 doublereal *upoldp, doublereal *dtm, 
 					 doublereal *wp, doublereal *wt, doublereal *wi,
 					 doublereal *thu, doublereal *thl,
-					 doublereal *rldot, BCNI_TYPE((*bcni)), setubv_parallel_arglist *data) {
+					 doublereal *rldot, BoundaryFunction bcni, setubv_parallel_arglist *data) {
   data->ndim   = ndim;
   data->ncol   = ncol;
   data->nbc    = nbc;

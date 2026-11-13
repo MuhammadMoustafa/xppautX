@@ -107,39 +107,39 @@ typedef struct {
 /*This is the type for all functions which can be used as "problem_function" the function
   which evaluates the right hand side of the equations and generates
   the Jacobian*/
-#define FUNI_TYPE(X) int X(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
+using ProblemFunction = int (*)(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 
 /*This is the type for all functions which can be used as "boundary_function" the function
   which evaluates the boundary conditions */
-#define BCNI_TYPE(X) int X(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc)
+using BoundaryFunction = int (*)(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc);
 
 /*This is the type for all functions which can be used as "integral_function" the function
   which evaluates kernel of the integral constraints */
-#define ICNI_TYPE(X) int X(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint)
+using IntegralFunction = int (*)(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint);
 
 /*This is the type for all functions which can be used as additional
   output functions for algebraic problems */
-#define PVLI_TYPE_AE(X) int X(iap_type *iap, rap_type *rap, double *u, double *par)
+using OutputParametersAlgebraic = int (*)(iap_type *iap, rap_type *rap, double *u, double *par);
 
 /*This is the type for all functions which can be used as additional
   output functions for BVPs */
-#define PVLI_TYPE_BVP(X) int X(iap_type *iap, rap_type *rap, std::ptrdiff_t *icp, double *dtm, std::ptrdiff_t *ndxloc, double *ups, std::ptrdiff_t *ndim, double *p0, double *p1, double *par)
+using OutputParametersBoundary = int (*)(iap_type *iap, rap_type *rap, std::ptrdiff_t *icp, double *dtm, std::ptrdiff_t *ndxloc, double *ups, std::ptrdiff_t *ndim, double *p0, double *p1, double *par);
 
 /* This is the type for all functions that can be used at starting points
    for algebraic problems */
-#define STPNT_TYPE_AE(X) int X(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u)
+using UserStartAlgebraic = int (*)(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u);
 
 /* This is the type for all functions that can be used at starting points
    for BVPs */
-#define STPNT_TYPE_BVP(X) int X(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsrs, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu)
+using UserStartBoundary = int (*)(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsrs, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu);
 
 /*This is the type for all functions which can be used to detect
   special points for algebraic problems */
-#define FNCS_TYPE_AE(X) double X(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
+using AlgebraicTestFunction = double (*)(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks);
 
 /*This is the type for all functions which can be used to detect
   special points for BVPS */
-#define FNCS_TYPE_BVP(X) double X(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *p0, double *p1, FortranComplex *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
+using BoundaryTestFunction = double (*)(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *p0, double *p1, xpp::ComplexPair *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks);
 
 /* W419 (#481): what a test function returns where its test does not apply
    at a point (a Floquet test on a planar orbit, an inaccurate trivial
@@ -219,18 +219,18 @@ enum class AutoxSolver { Algebraic, BoundaryValue };
 
 /* autobv_function_list: the earlier name of this table */
 struct boundary_function_table {
-  FUNI_TYPE((*problem_function));
-  BCNI_TYPE((*boundary_function));
-  ICNI_TYPE((*integral_function));
-  STPNT_TYPE_BVP((*user_start));
-  PVLI_TYPE_BVP((*pvli));
+  ProblemFunction problem_function;
+  BoundaryFunction boundary_function;
+  IntegralFunction integral_function;
+  UserStartBoundary user_start;
+  OutputParametersBoundary pvli;
 };
 
 /* autoae_function_list: the earlier name of this table */
 struct algebraic_function_table {
-  FUNI_TYPE((*problem_function));
-  STPNT_TYPE_AE((*user_start));
-  PVLI_TYPE_AE((*pvli));
+  ProblemFunction problem_function;
+  UserStartAlgebraic user_start;
+  OutputParametersAlgebraic pvli;
 };
 
 /* a run's problem functions (gogoautox.cpp problem_functions): the driver's
@@ -247,34 +247,34 @@ void size_run_scratch(const iap_type &iap);
 int check_dimensions(iap_type *iap);
 int continue_algebraic_problem(iap_type *iap, rap_type *rap, double *par, 
 std::ptrdiff_t *icp, 
-FUNI_TYPE((*problem_function)), 
-STPNT_TYPE_AE((*user_start)), 
-PVLI_TYPE_AE((*pvli)), 
+ProblemFunction problem_function, 
+UserStartAlgebraic user_start, 
+OutputParametersAlgebraic pvli, 
 double *thl, double *thu, std::span<const AutoxMark> marks);
 
-int continue_boundary_problem(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), STPNT_TYPE_BVP((*user_start)), PVLI_TYPE_BVP((*pvli)), double *thl, double *thu, std::span<const AutoxMark> marks);
+int continue_boundary_problem(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, UserStartBoundary user_start, OutputParametersBoundary pvli, double *thl, double *thu, std::span<const AutoxMark> marks);
 int initialize_constants(iap_type *iap, rap_type *rap, std::ptrdiff_t *icp, double *par);
-int control_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), STPNT_TYPE_AE((*user_start)), PVLI_TYPE_AE((*pvli)), double *thl, double *thu, std::span<const AutoxMark> marks);
-STPNT_TYPE_AE(user_start_algebraic);
-STPNT_TYPE_AE(algebraic_start);
-int start_direction_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu);
-int second_point_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rds, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu);
+int control_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, UserStartAlgebraic user_start, OutputParametersAlgebraic pvli, double *thl, double *thu, std::span<const AutoxMark> marks);
+int user_start_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u);
+int algebraic_start(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u);
+int start_direction_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu);
+int second_point_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, double *rds, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu);
 int extrapolate_algebraic(iap_type *iap, rap_type *rap, double *rds, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot);
-int solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rds, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu);
-int locate_special_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, AutoxTestSample &q, double *thl, double *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept = nullptr);
+int solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, double *rds, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu);
+int locate_special_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, AlgebraicTestFunction fncs, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, AutoxTestSample &q, double *thl, double *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept = nullptr);
 int mueller_root(double *q0, double *q1, double *q, double *s0, double *s1, double *s, double *rds);
-FNCS_TYPE_AE(branch_point_test_algebraic);
-FNCS_TYPE_AE(fold_test_algebraic);
-FNCS_TYPE_AE(hopf_test_algebraic);
-FNCS_TYPE_AE(bogdanov_takens_test_algebraic);
-FNCS_TYPE_AE(resonance_test_algebraic);
-FNCS_TYPE_AE(cusp_test_algebraic);
-FNCS_TYPE_AE(generalized_hopf_test_algebraic);
-FNCS_TYPE_AE(user_zero_test_algebraic);
-FNCS_TYPE_AE(closed_test_algebraic);
+double branch_point_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks);
+double fold_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks);
+double hopf_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks);
+double bogdanov_takens_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks);
+double resonance_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks);
+double cusp_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks);
+double generalized_hopf_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks);
+double user_zero_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks);
+double closed_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks);
 int store_branching_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *m1aaloc, double *aa, double *stud, double *stu, double *stla, double *stld, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *udot, double *dfdu, double *dfdp, double *thl, double *thu);
 int retrieve_branching_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rds, double *stud, double *stu, double *stla, double *stld, double *rlcur, double *rlold, double *rldot, double *u, double *udot);
-int second_branch_point(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *rds, double *thl, double *thu);
+int second_branch_point(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *rds, double *thl, double *thu);
 int write_header(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *thl, double *thu);
 int write_headings(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t iunit, std::ptrdiff_t *n1, std::ptrdiff_t *n2);
 int store_diagram_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rlcur, double *u, const double *udot, const double *rldot);
@@ -323,39 +323,39 @@ double component_norm(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t *ic,
 double component_maximum(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t *i__, double *ups);
 double component_minimum(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t *i__, double *ups);
 int scale_direction(iap_type *iap, std::ptrdiff_t *icp, std::ptrdiff_t *ndxloc, double *dvps, double *rld, double *dtm, double *thl, double *thu);
-int control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), STPNT_TYPE_BVP((*user_start)), PVLI_TYPE_BVP((*pvli)), double *thl, double *thu, std::span<const AutoxMark> marks);
-int extrapolate_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *thl, double *thu);
-int predict_boundary_null_space(iap_type *iap, rap_type *rap, FUNI_TYPE((*problem_function)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps);
-int store_derivative(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *upoldp);
-int step_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), PVLI_TYPE_BVP((*pvli)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *tm, double *dtm, double *p0, double *p1, double *thl, double *thu);
-int restart_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), STPNT_TYPE_BVP((*user_start)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, double *tm, double *dtm, FortranComplex *ev, std::ptrdiff_t *nodir, double *thl, double *thu);
-STPNT_TYPE_BVP(boundary_start);
-STPNT_TYPE_BVP(user_start_boundary);
+int control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, UserStartBoundary user_start, OutputParametersBoundary pvli, double *thl, double *thu, std::span<const AutoxMark> marks);
+int extrapolate_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *thl, double *thu);
+int predict_boundary_null_space(iap_type *iap, rap_type *rap, ProblemFunction problem_function, double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps);
+int store_derivative(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *upoldp);
+int step_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, OutputParametersBoundary pvli, double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *tm, double *dtm, double *p0, double *p1, double *thl, double *thu);
+int restart_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, UserStartBoundary user_start, double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, double *tm, double *dtm, xpp::ComplexPair *ev, std::ptrdiff_t *nodir, double *thl, double *thu);
+int boundary_start(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsrs, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu);
+int user_start_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsrs, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu);
 int initialize_rotations(iap_type *iap, std::ptrdiff_t *ntst, std::ptrdiff_t *ndxloc, double *ups, double *par);
-int start_direction_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *rlcur, double *rlold, double *rldot, std::ptrdiff_t ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dtm, std::ptrdiff_t iperp, double *p0, double *p1, double *thl, double *thu);
-int locate_special_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), PVLI_TYPE_BVP((*pvli)), AutoxTestSample &q, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *tm, double *dtm, double *p0, double *p1, FortranComplex *ev, double *thl, double *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept = nullptr);
-FNCS_TYPE_BVP(fold_test_boundary);
-FNCS_TYPE_BVP(branch_point_test_boundary);
-FNCS_TYPE_BVP(secondary_bifurcation_test_boundary);
+int start_direction_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dtm, std::ptrdiff_t iperp, double *p0, double *p1, double *thl, double *thu);
+int locate_special_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, BoundaryTestFunction fncs, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, OutputParametersBoundary pvli, AutoxTestSample &q, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *tm, double *dtm, double *p0, double *p1, xpp::ComplexPair *ev, double *thl, double *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept = nullptr);
+double fold_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *p0, double *p1, xpp::ComplexPair *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks);
+double branch_point_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *p0, double *p1, xpp::ComplexPair *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks);
+double secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *p0, double *p1, xpp::ComplexPair *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks);
 // Moves the multiplier nearest a fold or period-doubling curve's imposed +1/-1
 // (or the conjugate pair it has split into) next to the neutral one at [0];
 // returns how many multipliers now lead the rest.
-std::size_t autox_cycle_place_imposed(xpp::AutoxPointKind start, std::span<FortranComplex> spectrum);
+std::size_t autox_cycle_place_imposed(xpp::AutoxPointKind start, std::span<xpp::ComplexPair> spectrum);
 // Cycle-curve part of secondary_bifurcation_test_boundary, using its ordered original Floquet spectrum.
 double autox_cycle_test(const iap_type &iap, const rap_type &rap, const double *par,
-                       std::span<const FortranComplex> spectrum, bool *changed);
-FNCS_TYPE_BVP(user_zero_test_boundary);
-FNCS_TYPE_BVP(closed_test_boundary);
-int secondary_bifurcation_type(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FortranComplex *ev);
+                       std::span<const xpp::ComplexPair> spectrum, bool *changed);
+double user_zero_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *p0, double *p1, xpp::ComplexPair *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks);
+double closed_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *p0, double *p1, xpp::ComplexPair *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks);
+int secondary_bifurcation_type(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, xpp::ComplexPair *ev);
 int store_diagram_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *tm, double *dtm, double *thl, double *thu);
 int write_solution_restart(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *tm, double *dtm);
 int write_solution_extra(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rlcur, std::ptrdiff_t *ndxloc, double *ups, double *tm, double *dtm, double *thl, double *thu);
-PVLI_TYPE_AE(output_parameters_algebraic);
-PVLI_TYPE_BVP(output_parameters_boundary);
+int output_parameters_algebraic(iap_type *iap, rap_type *rap, double *u, double *par);
+int output_parameters_boundary(iap_type *iap, rap_type *rap, std::ptrdiff_t *icp, double *dtm, std::ptrdiff_t *ndxloc, double *ups, std::ptrdiff_t *ndim, double *p0, double *p1, double *par);
 /* autox_lib2.cpp */
-int solve_boundary(std::ptrdiff_t *ifst, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *rds, std::ptrdiff_t *nllv, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *fa, double *fc, double *p0, double *p1, double *thl, double *thu);
+int solve_boundary(std::ptrdiff_t *ifst, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *rds, std::ptrdiff_t *nllv, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *fa, double *fc, double *p0, double *p1, double *thl, double *thu);
 int transpose_right_hand_side(double *ff, double *fa, std::ptrdiff_t *ntst, std::ptrdiff_t *nrow, std::ptrdiff_t *ndxloc);
-int build_right_hand_side(std::ptrdiff_t *ndim, xpp::AutoxProblem *ips, std::ptrdiff_t *na, std::ptrdiff_t *ncol, std::ptrdiff_t *nbc, std::ptrdiff_t *nint, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), std::ptrdiff_t *ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rds, double *fa, double *fc, double *rlcur, double *rlold, double *rldot, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, double *dtm, double *thl, double *thu, double *p0, double *p1);
+int build_right_hand_side(std::ptrdiff_t *ndim, xpp::AutoxProblem *ips, std::ptrdiff_t *na, std::ptrdiff_t *ncol, std::ptrdiff_t *nbc, std::ptrdiff_t *nint, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, std::ptrdiff_t *ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rds, double *fa, double *fc, double *rlcur, double *rlold, double *rldot, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, double *dtm, double *thl, double *thu, double *p0, double *p1);
 int solve_bordered_block_diagonal(AutoxRun &run, FILE *fp9, double *fa, double *fc, double *p0, double *p1, std::ptrdiff_t *ifst, std::ptrdiff_t *idb, std::ptrdiff_t *nllv, double *det, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nbc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc);
 int zero_right_hand_side(double *fa, double *fc, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nrc);
 int condense_right_hand_side(std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *fa, double *fc, std::ptrdiff_t *irf, std::ptrdiff_t *icf);
@@ -364,80 +364,80 @@ int copy_right_hand_side(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t
 int solve_end_system(AutoxRun &run, FILE *fp9, double *e, double *cc, double *c2, double *d, double *fc, std::ptrdiff_t *ifst, std::ptrdiff_t *na, std::ptrdiff_t *nrc, std::ptrdiff_t *nov, std::ptrdiff_t *ncb, std::ptrdiff_t *idb, std::ptrdiff_t *nllv, double *fcc, double *p0, double *p1, double *det, double *a1, double *a2, double *faa, double *bb);
 int print_system(FILE *fp9, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc, double *a, double *b, double *c, double *d, double *fa, double *fc);
 /* autox_lib3.cpp */
-FUNI_TYPE(fold_equations);
+int fold_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int fold_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp);
-STPNT_TYPE_AE(fold_starting_data);
-FUNI_TYPE(optimization_single_equations);
-STPNT_TYPE_AE(optimization_single_starting_data);
-FUNI_TYPE(optimization_multi_equations);
+int fold_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u);
+int optimization_single_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
+int optimization_single_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u);
+int optimization_multi_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int optimization_multi_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp);
-STPNT_TYPE_AE(optimization_multi_starting_data);
-FUNI_TYPE(discrete_map_equations);
-FUNI_TYPE(time_integration_equations);
-FUNI_TYPE(hopf_equations);
+int optimization_multi_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u);
+int discrete_map_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
+int time_integration_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
+int hopf_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int hopf_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp);
-STPNT_TYPE_AE(hopf_starting_data);
-FUNI_TYPE(hopf_wave_equations);
+int hopf_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u);
+int hopf_wave_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int hopf_wave_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp);
-STPNT_TYPE_AE(hopf_wave_starting_data);
-FUNI_TYPE(periodic_equations);
-BCNI_TYPE(periodic_boundary_conditions);
-ICNI_TYPE(periodic_integral_conditions);
+int hopf_wave_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u);
+int periodic_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
+int periodic_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc);
+int periodic_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint);
 int period_doubling_restart(const iap_type *iap, const rap_type *rap, std::ptrdiff_t *ndim, std::ptrdiff_t *ntst, std::ptrdiff_t *ncol, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *tm, double *par);
-STPNT_TYPE_BVP(periodic_starting_data);
-FUNI_TYPE(wave_steady_equations);
+int periodic_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsrs, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu);
+int wave_steady_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int wave_steady_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp, std::ptrdiff_t ndm, double *dfu, double *dfp);
-FUNI_TYPE(wave_train_equations);
+int wave_train_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int wave_train_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu);
-FUNI_TYPE(parabolic_stationary_equations);
+int parabolic_stationary_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int parabolic_stationary_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp, std::ptrdiff_t ndm, double *dfu, double *dfp);
-FUNI_TYPE(parabolic_evolution_equations);
+int parabolic_evolution_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int parabolic_evolution_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp, std::ptrdiff_t ndm, double *dfu, double *dfp);
-ICNI_TYPE(parabolic_evolution_integral_conditions);
-FUNI_TYPE(periodic_fold_equations);
+int parabolic_evolution_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint);
+int periodic_fold_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int periodic_fold_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp);
-BCNI_TYPE(periodic_fold_boundary_conditions);
-ICNI_TYPE(periodic_fold_integral_conditions);
+int periodic_fold_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc);
+int periodic_fold_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint);
 int periodic_fold_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu);
-FUNI_TYPE(period_doubling_equations);
+int period_doubling_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int period_doubling_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp);
-BCNI_TYPE(period_doubling_boundary_conditions);
-ICNI_TYPE(period_doubling_integral_conditions);
+int period_doubling_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc);
+int period_doubling_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint);
 int period_doubling_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu);
-FUNI_TYPE(torus_equations);
+int torus_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int torus_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp);
 int torus_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0,const  double *u1, double *f, std::ptrdiff_t ijac, double *dbc);
-ICNI_TYPE(torus_integral_conditions);
+int torus_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint);
 int torus_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu);
-FUNI_TYPE(periodic_optimization_equations);
+int periodic_optimization_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int periodic_optimization_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const double *upold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp);
-BCNI_TYPE(periodic_optimization_boundary_conditions);
-ICNI_TYPE(periodic_optimization_integral_conditions);
+int periodic_optimization_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc);
+int periodic_optimization_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint);
 int periodic_optimization_integral_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, std::ptrdiff_t nnt0, const double *u, const double *uold, const double *udot, const double *upold, double *fi, double *dint, std::ptrdiff_t ndmt, double *dfdu, double *dfdp);
-STPNT_TYPE_BVP(periodic_optimization_starting_data);
-FUNI_TYPE(boundary_fold_equations);
+int periodic_optimization_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsrs, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu);
+int boundary_fold_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int boundary_fold_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp);
-BCNI_TYPE(boundary_fold_boundary_conditions);
+int boundary_fold_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc);
 int boundary_fold_boundary_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, std::ptrdiff_t nbc0, const double *u0, const double *u1, double *f, double *dbc);
-ICNI_TYPE(boundary_fold_integral_conditions);
+int boundary_fold_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint);
 int boundary_fold_integral_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, std::ptrdiff_t nnt0, const double *u, const double *uold, const double *udot, const double *upold, double *f, double *dint);
-STPNT_TYPE_BVP(boundary_fold_starting_data);
-FUNI_TYPE(problem_function);
-BCNI_TYPE(boundary_function);
-ICNI_TYPE(integral_function);
+int boundary_fold_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsrs, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu);
+int problem_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
+int boundary_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc);
+int integral_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint);
 int objective_interface(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 /* autox_lib5.cpp */
-FUNI_TYPE(homoclinic_equations);
+int homoclinic_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp);
 int homoclinic_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp);
-BCNI_TYPE(homoclinic_boundary_conditions);
+int homoclinic_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc);
 int homoclinic_boundary_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, std::ptrdiff_t nbc0, const double *u0, const double *u1, double *fb, double *dbc, bool save_basis);
-ICNI_TYPE(homoclinic_integral_conditions);
+int homoclinic_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint);
 int homoclinic_integral_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, std::ptrdiff_t nnt0, const double *u, const double *uold, const double *udot, const double *upold, double *fi, double *dint);
 int homoclinic_read_constants(iap_type *iap, std::ptrdiff_t *icp, double *par);
 int homoclinic_preprocess(AutoxRun &run, std::ptrdiff_t *ndx, std::ptrdiff_t *ntsr, std::ptrdiff_t *nar, std::ptrdiff_t *ndim, std::ptrdiff_t *ncolrs, double *ups, double *udotps, double *tm, double *par);
 int homoclinic_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu);
 int homoclinic_start_point(iap_type *iap, std::ptrdiff_t *icp, double *u, double *par, double *t);
-PVLI_TYPE_BVP(homoclinic_output_parameters);
+int homoclinic_output_parameters(iap_type *iap, rap_type *rap, std::ptrdiff_t *icp, double *dtm, std::ptrdiff_t *ndxloc, double *ups, std::ptrdiff_t *ndim, double *p0, double *p1, double *par);
 double homoclinic_degeneracy_condition(const iap_type *iap, std::ptrdiff_t is, double *rr, double *ri, double *v, double *vt, const std::ptrdiff_t *icp, double *par);
 int homoclinic_eigen(const iap_type *iap, std::ptrdiff_t isign, std::ptrdiff_t itrans, double *rr, double *ri, double *vret, double *xequib, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t *ndm);
 int homoclinic_projection(const iap_type *iap, double *bound, double *xequib, const std::ptrdiff_t *icp, double *par, xpp::HomcontManifold manifold, xpp::HomcontEndpoint endpoint, bool transpose, std::ptrdiff_t *ndm, bool save_basis);
@@ -457,7 +457,7 @@ int user_output_parameters(std::ptrdiff_t ndim, const double *u, double *par);
 int condense_parameters(AutoxRun &run, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *ncb, double *b, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *d, std::ptrdiff_t *irf, std::ptrdiff_t *icf);
 /* setubv2.cpp */
 int setup_boundary_system(std::ptrdiff_t ndim, xpp::AutoxProblem ips, std::ptrdiff_t na, std::ptrdiff_t ncol, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t ncb, std::ptrdiff_t nrc, std::ptrdiff_t nra, std::ptrdiff_t nca, 
-	   FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), std::ptrdiff_t ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
+	   ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, std::ptrdiff_t ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
 	   double rds, xpp::Matrix3<double> aa, xpp::Matrix3<double> bb, xpp::Matrix3<double> cc, xpp::Matrix<double> dd, double *fa, double *fc, double *rlcur, 
 	   double *rlold, double *rldot, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, 
 	   double *dtm, double *thl, double *thu, double *p0, double *p1);

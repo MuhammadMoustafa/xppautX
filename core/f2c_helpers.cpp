@@ -31,4 +31,4 @@ double complex_magnitude(double real, double imag) {
 } // namespace
 
 /* z_abs: f2c's libF77 z_abs, the magnitude of a double complex */
-double complex_magnitude_of(const FortranComplex *z) { return (complex_magnitude(z->r, z->i)); }
+double complex_magnitude_of(const xpp::ComplexPair *z) { return (complex_magnitude(z->r, z->i)); }

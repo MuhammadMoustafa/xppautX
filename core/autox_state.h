@@ -251,7 +251,8 @@ struct Session; /* session.h */
    (autox_lib2.cpp, where the Fortran's NAX, M1AA ... macros were); the four
    matrices setup_boundary_system fills are handed out as bounded views, made again for each
    call, so none outlives a resize or a copy of the work. */
-struct SolvbvWork {
+/* was SolvbvWork: the work arrays of AUTO-07p's solvebv.f90 (SOLVBV) */
+struct SolveBoundaryWork {
   double pivot=NAN; /* the last reduced linear solve, for a BVP no-convergence diagnostic */
   std::vector<double> a,b,c,d,a1,a2,s1,s2,bb,cc,c2,dd,faa,fcfc;
   std::vector<double> ft,e,fcc,sol,xe;
@@ -409,7 +410,7 @@ struct AutoxRun {
   /* solve_boundary's matrices, kept from one call to the next: a call with
      *ifst == 1 sizes them, later ones reuse what it
      factored (autox_lib2.cpp) */
-  SolvbvWork solve_boundary_work;
+  SolveBoundaryWork solve_boundary_work;
   /* makes solve_boundary's last factorization (ifst = 1) again, from the inputs it was made from, which solve_boundary keeps in it
      (autox_lib2.cpp): kilobytes where the factored matrices are megabytes, for a failed location's restore
      (autox_lib1.cpp's LocationState). Empty before the first. */

@@ -52,7 +52,7 @@ double complete_eliminate_row(std::ptrdiff_t n, std::ptrdiff_t leading, double *
    Gear uses unbalanced Householder reduction and fixed 1e-10 QR instead. */
 /* eig: eigenvalues of autoX's Jacobian through rg, as complex numbers */
 int 
-autox_eigenvalues(iap_type *iap, std::ptrdiff_t *ndim, std::ptrdiff_t *m1a, double *a, FortranComplex *ev, std::ptrdiff_t *ier)
+autox_eigenvalues(iap_type *iap, std::ptrdiff_t *ndim, std::ptrdiff_t *m1a, double *a, xpp::ComplexPair *ev, std::ptrdiff_t *ier)
 {
   std::ptrdiff_t matz, ntop, ntot, i;
 
@@ -380,7 +380,7 @@ gauss_eliminate(FILE *fp9, std::ptrdiff_t iid, std::ptrdiff_t n, std::ptrdiff_t 
    Ordinary real_general_eigen or a matrix inverse followed by QR changes these operations. */
 /* flowkm: Floquet multipliers by the deflated circuit pencil method: floquet.f90:64 */
 int 
-floquet_multipliers(FILE *fp9, std::ptrdiff_t *ndim, double *c0, double *c1, std::ptrdiff_t *iid, double *rwork, FortranComplex *ev, bool deflate)
+floquet_multipliers(FILE *fp9, std::ptrdiff_t *ndim, double *c0, double *c1, std::ptrdiff_t *iid, double *rwork, xpp::ComplexPair *ev, bool deflate)
 {
     
   std::ptrdiff_t c0_dim1, c1_dim1, rwork_dim1;

@@ -263,14 +263,14 @@ double lyapunov(iap_type &iap, rap_type &rap, double *par, std::ptrdiff_t *icp,
 }
 }
 
-std::size_t autox_cycle_place_imposed(xpp::AutoxPointKind start, std::span<FortranComplex> spectrum)
+std::size_t autox_cycle_place_imposed(xpp::AutoxPointKind start, std::span<xpp::ComplexPair> spectrum)
 {
     // At a resonance roundoff splits the double +1/-1 into a conjugate pair:
     // that pair goes there whole (W405; AUTO-07p's PVSPBV takes reals only).
     const double imposed=imposed_multiplier(start);
-    const auto distance=[imposed](const FortranComplex &m) { return xpp::math::hypot(m.r-imposed,m.i); };
+    const auto distance=[imposed](const xpp::ComplexPair &m) { return xpp::math::hypot(m.r-imposed,m.i); };
     auto nearest=std::min_element(spectrum.begin()+1,spectrum.end(),
-        [&](const FortranComplex &a, const FortranComplex &b) { return distance(a)<distance(b); });
+        [&](const xpp::ComplexPair &a, const xpp::ComplexPair &b) { return distance(a)<distance(b); });
     if (nearest->i<0 && nearest-1>spectrum.begin()) --nearest; // a+bi precedes a-bi
     const std::ptrdiff_t width=nearest->i!=0 && nearest+1<spectrum.end() ? 2 : 1;
     std::rotate(spectrum.begin()+1,nearest,nearest+width);
@@ -278,7 +278,7 @@ std::size_t autox_cycle_place_imposed(xpp::AutoxPointKind start, std::span<Fortr
 }
 
 double autox_cycle_test(const iap_type &iap, const rap_type &rap, const double *par,
-                       std::span<const FortranComplex> spectrum, bool *changed)
+                       std::span<const xpp::ComplexPair> spectrum, bool *changed)
 {
     const auto start=iap.itpst;
     const double angle=par[xpp::autox_unknown::torus_angle];
@@ -314,7 +314,7 @@ double autox_cycle_test(const iap_type &iap, const rap_type &rap, const double *
 
 // The tests read dfdu as solve_algebraic left it, the converged point's Jacobian (W421).
 /* fnbtae: autoX's own special-point test function (AUTO-07p has no such routine) */
-FNCS_TYPE_AE(bogdanov_takens_test_algebraic)
+double bogdanov_takens_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
     *chng=true;
     if (iap->itpst==xpp::AutoxPointKind::Hopf) return u[2*iap->ndm];
@@ -323,7 +323,7 @@ FNCS_TYPE_AE(bogdanov_takens_test_algebraic)
 }
 
 /* fncpae: autoX's own special-point test function (AUTO-07p has no such routine) */
-FNCS_TYPE_AE(cusp_test_algebraic)
+double cusp_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
     *chng=true;
     left_null(*iap,dfdu,iap->ndim);
@@ -334,7 +334,7 @@ FNCS_TYPE_AE(cusp_test_algebraic)
 }
 
 /* fnghae: autoX's own special-point test function (AUTO-07p has no such routine) */
-FNCS_TYPE_AE(generalized_hopf_test_algebraic)
+double generalized_hopf_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
     *chng=u[2*iap->ndm]>0 && iap->itp.kind!=xpp::AutoxPointKind::BogdanovTakens;
     if (!*chng) return autox_test_not_applicable;
@@ -346,7 +346,7 @@ FNCS_TYPE_AE(generalized_hopf_test_algebraic)
 // Maps use the same double-eigenvalue test as equilibrium folds, with
 // A-I (fold) or A+I (flip); a torus curve tests its continued angle.
 /* fnrnae: autoX's own special-point test function (AUTO-07p has no such routine) */
-FNCS_TYPE_AE(resonance_test_algebraic)
+double resonance_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
     auto &w=iap->run->codim;
     if (iap->itpst==xpp::AutoxPointKind::NeimarkSacker) {

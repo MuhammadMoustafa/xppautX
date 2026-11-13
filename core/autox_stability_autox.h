@@ -13,17 +13,17 @@ namespace xpp {
    roundoff also choose the lowest frequency. Remaining
    ties prefer the negative real part and positive imaginary representative. */
 double autox_hopf_axis_tolerance(Matrix<const double> jacobian, size_t dimension);
-std::optional<FortranComplex> autox_hopf_pair(std::span<const FortranComplex> spectrum,
+std::optional<xpp::ComplexPair> autox_hopf_pair(std::span<const xpp::ComplexPair> spectrum,
                                           double axis_tolerance);
 
 /* No retained record for a restored equilibrium: refresh its Jacobian and
    reuse autoX's eigenvalue calculation, without changing point parameters. */
 void autox_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *par, std::ptrdiff_t *icp,
-    FUNI_TYPE((*problem_function)), double *u, double *uold, double *f, double *dfdu, double *dfdp);
+    ProblemFunction problem_function, double *u, double *uold, double *f, double *dfdu, double *dfdp);
 
 /* Original orbit pencil extracted from an augmented cycle-curve system.
    Uses the existing partial-pivot LU to choose independent equation rows. */
-void autox_cycle_multipliers(const iap_type &iap, const double *p0, const double *p1, FortranComplex *ev, bool deflate);
+void autox_cycle_multipliers(const iap_type &iap, const double *p0, const double *p1, xpp::ComplexPair *ev, bool deflate);
 
 /* The full generalized spectrum of a restored solution's circuit pencil;
    no assumption of a trivial +1 multiplier (the orbit can have collapsed). */

@@ -44,7 +44,7 @@ void AutoxAssemblyScratch::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std:
   ubc1.resize(ndim);
 }
 
-void SolvbvWork::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t ntst, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t nfpr)
+void SolveBoundaryWork::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t ntst, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t nfpr)
 {
   const std::size_t nrow = xpp::size_product(ndim,ncol);
   const std::size_t nclm = xpp::size_sum(nrow,ndim), nrc = xpp::size_sum(nbc,nint,1), nodes = xpp::size_sum(ntst,1);
@@ -87,7 +87,7 @@ namespace {
    LocationState) keeps these, kilobytes, and not the factored matrices, megabytes. The outputs of the run (dups, fa,
    fc, p0, p1) go to scratch; what the run changes besides the matrices, the model's last evaluated values, HomCont's
    state, the determinant, the pivot and the time of an evolution, is put back. */
-std::function<void()> remember_factorization(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double rds, std::ptrdiff_t nllv, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *thl, double *thu)
+std::function<void()> remember_factorization(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double rds, std::ptrdiff_t nllv, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *thl, double *thu)
 {
   const auto copy = [](const double *p, std::size_t n) { return std::vector<double>(p, p + n); };
   /* each array as long as solve_boundary reads it: the continued parameters' values (rl*) are nfpr long, the mesh's
@@ -119,7 +119,7 @@ std::function<void()> remember_factorization(iap_type *iap, rap_type *rap, doubl
 
 /* solvbv: AUTO-07p solvebv.f90:26: the Newton solve of the collocation system */
 int 
-solve_boundary(std::ptrdiff_t *ifst, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *rds, std::ptrdiff_t *nllv, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *fa, double *fc, double *p0, double *p1, double *thl, double *thu)
+solve_boundary(std::ptrdiff_t *ifst, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *rds, std::ptrdiff_t *nllv, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *fa, double *fc, double *p0, double *p1, double *thl, double *thu)
 {
 
   std::ptrdiff_t ndim;
@@ -146,7 +146,7 @@ solve_boundary(std::ptrdiff_t *ifst, iap_type *iap, rap_type *rap, double *par, 
   */
 
   if (*ifst == 1) {
-    /* the arrays are sized in one place, SolvbvWork::resize */
+    /* the arrays are sized in one place, SolveBoundaryWork::resize */
     iap->run->solve_boundary_work.resize(iap->ndim, iap->ncol, iap->ntst, iap->nbc, iap->nint, iap->nfpr);
     iap->run->refactor = remember_factorization(iap, rap, par, icp, problem_function, boundary_function, integral_function, *rds, *nllv, rlcur, rlold, rldot, *ndxloc, ups, uoldps, udotps, upoldp, dtm, thl, thu);
   }
@@ -218,7 +218,7 @@ transpose_right_hand_side(double *ff, double *fa, std::ptrdiff_t *ntst, std::ptr
 
 /* setrhs: builds the collocation system's blocks and right-hand side (XPPAUT 8.0 autlib2.c:520) */
 int 
-build_right_hand_side(std::ptrdiff_t *ndim, xpp::AutoxProblem *ips, std::ptrdiff_t *na, std::ptrdiff_t *ncol, std::ptrdiff_t *nbc, std::ptrdiff_t *nint, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), std::ptrdiff_t *ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rds, double *fa, double *fc, double *rlcur, double *rlold, double *rldot, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, double *dtm, double *thl, double *thu, double *p0, double *p1)
+build_right_hand_side(std::ptrdiff_t *ndim, xpp::AutoxProblem *ips, std::ptrdiff_t *na, std::ptrdiff_t *ncol, std::ptrdiff_t *nbc, std::ptrdiff_t *nint, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, std::ptrdiff_t *ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rds, double *fa, double *fc, double *rlcur, double *rlold, double *rldot, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, double *dtm, double *thl, double *thu, double *p0, double *p1)
 {
   std::ptrdiff_t ups_dim1, dups_dim1, uoldps_dim1, 
     udotps_dim1, upoldp_dim1, 
@@ -706,7 +706,7 @@ int
 solve_bordered_block_diagonal(AutoxRun &run, FILE *fp9, double *fa, double *fc, double *p0, double *p1, std::ptrdiff_t *ifst, std::ptrdiff_t *idb, std::ptrdiff_t *nllv, double *det, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nbc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc)
 {
   /* the matrices and index arrays solve_boundary sized and kept in run.solve_boundary_work */
-  SolvbvWork &work = run.solve_boundary_work;
+  SolveBoundaryWork &work = run.solve_boundary_work;
   double *a = work.a.data(), *b = work.b.data(), *c = work.c.data(), *d = work.d.data();
   std::ptrdiff_t *irf = work.irf.data(), *icf = work.icf.data();
   const CondensedBlocks blocks{work.a1.data(), work.a2.data(), work.s1.data(), work.s2.data(), work.bb.data(),

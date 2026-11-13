@@ -120,27 +120,27 @@ if(i==0&&okroot&&s.delay.alpha_max>0)
 }
 
 /* cdif: complex difference (XPPAUT del_stab.c) */
-COMPLEX complex_subtract(COMPLEX z, COMPLEX w)
+ComplexPair complex_subtract(ComplexPair z, ComplexPair w)
 {
-   COMPLEX sum;
+   ComplexPair sum;
   sum.r=z.r-w.r;
   sum.i=z.i-w.i;
   return sum;
  }
 
 /* cmlt: complex product (XPPAUT del_stab.c) */
-COMPLEX complex_multiply(COMPLEX z, COMPLEX w)
+ComplexPair complex_multiply(ComplexPair z, ComplexPair w)
 {
-   COMPLEX sum;
+   ComplexPair sum;
   sum.r=z.r*w.r-z.i*w.i;
   sum.i=z.r*w.i+z.i*w.r;
   return sum;
 }
 
 /* cdivv: complex quotient (XPPAUT del_stab.c) */
-COMPLEX complex_divide(COMPLEX z, COMPLEX w)
+ComplexPair complex_divide(ComplexPair z, ComplexPair w)
 {
-  COMPLEX sum;
+  ComplexPair sum;
   double amp=w.r*w.r+w.i*w.i;
   sum.r=(z.r*w.r+z.i*w.i)/amp;
   sum.i=(z.i*w.r-z.r*w.i)/amp;
@@ -148,18 +148,18 @@ COMPLEX complex_divide(COMPLEX z, COMPLEX w)
 }
 
 /* cexp2: complex exponential (XPPAUT del_stab.c) */
-COMPLEX complex_exponential(COMPLEX z)
+ComplexPair complex_exponential(ComplexPair z)
 {
-  COMPLEX sum;
+  ComplexPair sum;
   double ex=xpp::math::exp(z.r);
   sum.r=ex*xpp::math::cos(z.i);
   sum.i=ex*xpp::math::sin(z.i);
   return sum;
 }
 
-void switch_rows(COMPLEX *z, int i1, int i2, int n)
+void switch_rows(ComplexPair *z, int i1, int i2, int n)
 {
-  COMPLEX zt;
+  ComplexPair zt;
   int j;
   for(j=0;j<n;j++){
     zt=Z(i1,j);
@@ -169,26 +169,26 @@ void switch_rows(COMPLEX *z, int i1, int i2, int n)
 }
 
 /* rtoc: builds a complex from its parts (XPPAUT del_stab.c) */
-COMPLEX make_complex(double x, double y)
+ComplexPair make_complex(double x, double y)
 {
-  COMPLEX sum;
+  ComplexPair sum;
   sum.i=y;
   sum.r=x;
   return sum;
 }
 
 /* c_abs: sqrt(re^2+im^2) of a del_stab complex (not the overflow-safe cabs: different bits) */
-double complex_modulus(COMPLEX z)
+double complex_modulus(ComplexPair z)
 {
  return(sqrt(z.i*z.i+z.r*z.r));
 }
 
 /* cdeterm: determinant of a complex matrix (XPPAUT del_stab.c) */
-COMPLEX complex_determinant(COMPLEX *z, int n)
+ComplexPair complex_determinant(ComplexPair *z, int n)
 {
   int i,j,imax=0,k;
   double q,qmax;
-  COMPLEX sign=make_complex(1.0,0.0),mult,sum,zd;
+  ComplexPair sign=make_complex(1.0,0.0),mult,sum,zd;
   for(j=0;j<n;j++){
     qmax=0.0;
     for(i=j;i<n;i++){
@@ -216,10 +216,10 @@ COMPLEX complex_determinant(COMPLEX *z, int n)
 }
 	 
 /* make_z: fills the delay system's characteristic matrix at lambda (del_stab.cpp) */
-void fill_characteristic_matrix(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambda)
+void fill_characteristic_matrix(ComplexPair *z, double *delay, int n, int m, double *coef, ComplexPair lambda)
 {
   int i,j,k,km;
-  COMPLEX temp,eld;
+  ComplexPair temp,eld;
   
  for(j=0;j<n;j++)
     for(i=0;i<n;i++){
@@ -239,8 +239,8 @@ void fill_characteristic_matrix(COMPLEX *z, double *delay, int n, int m, double 
 
 NewtonRun find_positive_root(xpp::Session &s, double *coef, double *delay, int n, int m, double rad, double err, double eps, double big, int maxit, double *rr)
 {
-  COMPLEX lambda,lambdap;
-  COMPLEX det,detp;
+  ComplexPair lambda,lambdap;
+  ComplexPair det,detp;
   double jac[4];
   double xl,yl,r,xlp,ylp;
 
@@ -250,7 +250,7 @@ NewtonRun find_positive_root(xpp::Session &s, double *coef, double *delay, int n
     lambda.r=s.delay.alpha_max;
     lambda.i=s.delay.omega_max;
 
-   std::vector<COMPLEX> z(static_cast<size_t>(n)*n);
+   std::vector<ComplexPair> z(static_cast<size_t>(n)*n);
 
   /* now Newtons Method for maxit times */
   for(k=0;k<maxit;k++){
@@ -311,13 +311,13 @@ void process_root(double real, double im)
 {
   xpp::log(XPP_LOG_INFO, "Root: {:g} + I {:g} \n",real,im);
 }
-double get_arg(double *delay, double *coef, int m, int n, COMPLEX lambda)
+double get_arg(double *delay, double *coef, int m, int n, ComplexPair lambda)
 {
   int i,j,k,km;
-  COMPLEX temp,eld;
+  ComplexPair temp,eld;
   double arg;
   if(m==0)return(0);  /* no delays so don't use this! */
-  std::vector<COMPLEX> z(static_cast<size_t>(n)*n);
+  std::vector<ComplexPair> z(static_cast<size_t>(n)*n);
   for(j=0;j<n;j++)
     for(i=0;i<n;i++){
       if(i==j)temp=lambda;
@@ -373,7 +373,7 @@ int plot_args(double *coef, double *delay, int n, int m, int npts, double almax,
 {
   int i;
   int sign=0;
-  COMPLEX lambda;
+  ComplexPair lambda;
   double x,y,arg,oldarg=0.0;
   double ds;  /* steplength */
   /* first the contour from i wmax -- -i wmax */

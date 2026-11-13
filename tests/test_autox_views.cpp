@@ -1,7 +1,7 @@
 /* W334 (#395): autoX's points and work arrays are owned data, and what is
    borrowed is a bounded view made when it is used. Checked here: the
    column-major views index as ARRAY2D/ARRAY3D do and refuse storage that is
-   too short; SolvbvWork states its dimensions once and its views follow a
+   too short; SolveBoundaryWork states its dimensions once and its views follow a
    resize, a copy and a move; a diagram's points own their arrays through
    moves, copies and a restore; the work arrays of a library copy
    independently. */
@@ -65,7 +65,7 @@ void check_layout()
 /* the arrays solve_boundary keeps: sizes from one function, views bounded by them */
 void check_solvbv_work()
 {
-    SolvbvWork w;
+    SolveBoundaryWork w;
     for (long ndim : {1L, 2L, 3L, 2L, 1L}) { /* repeated resizes, up and down */
         const long ncol = 4, ntst = 5, nbc = ndim, nint = 1, parameters = 6;
         const long nrow = ndim * ncol, nclm = nrow + ndim, nrc = nbc + nint + 1, nfpr = 2;
@@ -103,10 +103,10 @@ void check_solvbv_work()
     /* a copy (LocationState keeps one) and a move own their storage */
     w.resize(2, 3, 4, 2, 0, 5);
     w.a_matrix(8, 6, 4)(0, 0, 0) = 7;
-    SolvbvWork copy = w;
+    SolveBoundaryWork copy = w;
     copy.a_matrix(8, 6, 4)(0, 0, 0) = 8;
     CHECK(w.a_matrix(8, 6, 4)(0, 0, 0) == 7 && copy.a_matrix(8, 6, 4)(0, 0, 0) == 8);
-    SolvbvWork moved = std::move(copy);
+    SolveBoundaryWork moved = std::move(copy);
     CHECK(moved.a_matrix(8, 6, 4)(0, 0, 0) == 8);
     w = moved; /* the restore path: assignment, then fresh views */
     CHECK(w.a_matrix(8, 6, 4)(0, 0, 0) == 8);

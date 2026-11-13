@@ -82,7 +82,7 @@ double power_by_squaring(double x, std::ptrdiff_t n)
 }
 
 /* the special point a test function locates, for a note */
-const char *located_kind(FNCS_TYPE_AE((*fncs)))
+const char *located_kind(AlgebraicTestFunction fncs)
 {
   if (fncs == branch_point_test_algebraic) return "a branch point (BP)";
   if (fncs == fold_test_algebraic) return "a fold (LP)";
@@ -94,7 +94,7 @@ const char *located_kind(FNCS_TYPE_AE((*fncs)))
   if (fncs == user_zero_test_algebraic) return "a user zero (UZ)";
   return "a special point";
 }
-const char *located_kind(FNCS_TYPE_BVP((*fncs)), const iap_type &iap)
+const char *located_kind(BoundaryTestFunction fncs, const iap_type &iap)
 {
   if (fncs == fold_test_boundary) return "a fold (LP)";
   if (fncs == branch_point_test_boundary) return "a branch point (BP)";
@@ -371,9 +371,9 @@ double location_step(const rap_type &rap, double rds, bool singular) {
 /* the multipliers of a cycle, restored with the rest of a failed location's state */
 struct LocationStateWithMultipliers {
   LocationState state;
-  FortranComplex *target;
-  std::vector<FortranComplex> ev;
-  LocationStateWithMultipliers(LocationState s, FortranComplex *e, std::size_t n)
+  xpp::ComplexPair *target;
+  std::vector<xpp::ComplexPair> ev;
+  LocationStateWithMultipliers(LocationState s, xpp::ComplexPair *e, std::size_t n)
     : state(std::move(s)), target(e), ev(e, e + n) {}
   void restore(iap_type &iap, rap_type &rap) const {
     state.restore(iap, rap);
@@ -942,9 +942,9 @@ check_dimensions(iap_type *iap)
 /* autoae: AUTO-07p ae.f90:19 AUTOAE: the driver for algebraic problems */
 int continue_algebraic_problem(iap_type *iap, rap_type *rap, double *par, 
 	   std::ptrdiff_t *icp, 
-	   FUNI_TYPE((*problem_function)),
-	   STPNT_TYPE_AE((*user_start)),
-	   PVLI_TYPE_AE((*pvli)),
+	   ProblemFunction problem_function,
+	   UserStartAlgebraic user_start,
+	   OutputParametersAlgebraic pvli,
 	   double *thl, double *thu, std::span<const AutoxMark> marks)
 
 {
@@ -956,7 +956,7 @@ int continue_algebraic_problem(iap_type *iap, rap_type *rap, double *par,
 
 /* autobv: AUTO-07p bvp.f90:22 AUTOBV: the driver for boundary value problems */
 int 
-continue_boundary_problem(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), STPNT_TYPE_BVP((*user_start)), PVLI_TYPE_BVP((*pvli)), double *thl, double *thu, std::span<const AutoxMark> marks)
+continue_boundary_problem(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, UserStartBoundary user_start, OutputParametersBoundary pvli, double *thl, double *thu, std::span<const AutoxMark> marks)
 {
 
   /* THIS IS THE ENTRY ROUTINE FOR GENERAL BOUNDARY VALUE PROBLEMS. */
@@ -1366,7 +1366,7 @@ static void perpendicular_null_direction(iap_type *iap, std::ptrdiff_t *icp, std
    stored direction missing or made for another parameter ends the run saying so. */
 /* stpswae: the branch-switch step of algebraic problems */
 static void
-switch_branch_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *u, double *du, double *udot, double *rldot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
+switch_branch_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *u, double *du, double *udot, double *rldot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
 {
   const auto &stored = iap->run->restart_direction;
   const std::string where = xpp::format("restart label {} in {}", iap->irs, xpp::autox_fort_path(*iap->run, 3));
@@ -1407,7 +1407,7 @@ switch_branch_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_
 
 /* cnrlae: AUTO-07p ae.f90:41: controls the bifurcation analysis of algebraic problems */
 int 
-control_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), STPNT_TYPE_AE((*user_start)), PVLI_TYPE_AE((*pvli)), double *thl, double *thu, std::span<const AutoxMark> marks)
+control_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, UserStartAlgebraic user_start, OutputParametersAlgebraic pvli, double *thl, double *thu, std::span<const AutoxMark> marks)
 {
 
   std::ptrdiff_t nbfc;
@@ -1819,7 +1819,7 @@ algebraic_start(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
    with its Jacobian and this direction before the step to the second point). */
 /* stdirae: algebraic problems' start direction */
 int 
-start_direction_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
+start_direction_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
 {
   xpp::autox_stability_step_start(iap->run->stability,
       iap->ibr, iap->ntot + (iap->run->locating ? 1 : 0));
@@ -1899,7 +1899,7 @@ start_direction_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdif
 
 /* stprae: AUTO-07p ae.f90:271: finds the second point on the initial branch */
 int 
-second_point_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rds, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
+second_point_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, double *rds, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
 {
   const std::ptrdiff_t ndim = iap->ndim;
 
@@ -1958,7 +1958,7 @@ extrapolate_algebraic(iap_type *iap, rap_type *rap, double *rds, double *rlcur, 
 
 /* solvae: AUTO-07p ae.f90:435: main predictor-corrector loop (Newton) of algebraic problems */
 int 
-solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rds, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
+solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, double *rds, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
 {
   double pivot = NAN; /* the last linear solve's smallest pivot (xpp::gauss_eliminate) */
   std::ptrdiff_t aa_dim1;
@@ -2207,7 +2207,7 @@ solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
 
 /* lcspae: AUTO-07p ae.f90:624: secant method locating special points (algebraic) */
 int 
-locate_special_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, AutoxTestSample &q, double *thl, double *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept)
+locate_special_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, AlgebraicTestFunction fncs, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, AutoxTestSample &q, double *thl, double *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept)
 {
   /* This subroutine uses the secant method to accurately locate special */
   /* points (branch points, folds, Hopf bifurcations, user zeroes). */
@@ -2276,7 +2276,7 @@ mueller_root(double *q0, double *q1, double *q, double *s0, double *s1, double *
 
 /* fnbpae: special-point test function */
 double 
-branch_point_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
+branch_point_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
   double ret_val;
 
@@ -2303,7 +2303,7 @@ branch_point_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrd
 
 /* fnlpae: special-point test function */
 double 
-fold_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
+fold_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
   std::ptrdiff_t aa_dim1;
   double ret_val;
@@ -2367,14 +2367,14 @@ fold_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
 
 /* fnhbae: special-point test function */
 double 
-hopf_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
+hopf_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
   double ret_val;
 
   std::ptrdiff_t ndim;
   double rmax;
   std::ptrdiff_t nins, ntop, ntot;
-  FortranComplex ztmp;
+  xpp::ComplexPair ztmp;
   std::ptrdiff_t nins1, i, j;
   std::ptrdiff_t ntotp1;
 
@@ -2385,7 +2385,7 @@ hopf_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
   double rev;
   std::ptrdiff_t isw;
 
-  std::vector<FortranComplex> ev(iap->ndim);
+  std::vector<xpp::ComplexPair> ev(iap->ndim);
 
   ndim = iap->ndim;
   ndm = iap->ndm;
@@ -2415,7 +2415,7 @@ hopf_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
     for (i = 0; i < ndm; ++i) {
       if (ev[i].r != -1. || ev[i].i != 0.) {
 	/* log(1 + ev) */
-	FortranComplex in;
+	xpp::ComplexPair in;
 	in.r = ev[i].r + 1., in.i = ev[i].i;
 	ev[i].i = xpp::math::atan2(in.i, in.r);
 	ev[i].r = xpp::math::log(complex_magnitude_of(&in));
@@ -2479,7 +2479,7 @@ hopf_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
     for (i=forced;i<ndm;++i) if (ev[i].r<=axis_tolerance) ++nins1;
     ret_val=ndm>forced ? ev[forced].r : autox_test_not_applicable;
     if (map) {
-      std::optional<FortranComplex> selected;
+      std::optional<xpp::ComplexPair> selected;
       for (i=forced;i<ndm;++i)
         if ((forced || ev[i].i!=0.) && (!selected || std::abs(ev[i].r)<std::abs(selected->r))) selected=ev[i];
       auto &kind=iap->run->codim.map_kind;
@@ -2565,14 +2565,14 @@ double user_zero(const iap_type &iap, const double *par,
 
 /* fnuzae: special-point test function */
 double
-user_zero_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
+user_zero_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
   return user_zero(*iap, par, icp, chng, marks, algebraic_user_zero_width);
 } /* fnuzae_ */
 
 /* fnclosedae: special-point test function */
 double
-closed_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
+closed_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
   return closed_test(*iap, par, icp, chng);
 } /* fnclosedae_ */
@@ -2674,7 +2674,7 @@ retrieve_branching_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_
 
 /* swprc: controls the second point on a bifurcating branch: XPPAUT 8.0 autlib1.c:2244 */
 int 
-second_branch_point(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *rds, double *thl, double *thu)
+second_branch_point(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *rds, double *thl, double *thu)
 {
   double pivot = NAN; /* the last linear solve's smallest pivot (xpp::gauss_eliminate) */
   // Internal switches can reuse BR/PT for a different branch point. Point
@@ -4626,7 +4626,7 @@ scale_direction(iap_type *iap, std::ptrdiff_t *icp, std::ptrdiff_t *ndxloc, doub
 
 /* cnrlbv: AUTO-07p bvp.f90:79: controls the computation of solution branches */
 int 
-control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), STPNT_TYPE_BVP((*user_start)), PVLI_TYPE_BVP((*pvli)), double *thl, double *thu, std::span<const AutoxMark> marks)
+control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, UserStartBoundary user_start, OutputParametersBoundary pvli, double *thl, double *thu, std::span<const AutoxMark> marks)
 {
   std::ptrdiff_t iads, ndim, ncol;
   std::ptrdiff_t ntot, ntst, nuzr, i, j;
@@ -4663,7 +4663,7 @@ control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp,
   std::vector<double> fc(xpp::size_sum(iap->nbc, iap->nint, 1));
   std::vector<double> p0(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<double> p1(xpp::size_product(iap->ndim, iap->ndim));
-  std::vector<FortranComplex> ev(iap->ndim);
+  std::vector<xpp::ComplexPair> ev(iap->ndim);
   if (iap->isw==2 && xpp::problem_has_orbit_multipliers(iap->ips)) iap->run->codim.prepare_cycle(iap->ndim,iap->ndm);
   std::vector<AutoxTestSample> uzr(iap->nuzr);
 
@@ -4896,7 +4896,7 @@ control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp,
 
 /* contbv: AUTO-07p bvp.f90:365: new rates of change from the two latest points, then the current point becomes the old one */
 int 
-extrapolate_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *thl, double *thu)
+extrapolate_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *thl, double *thu)
 {
   std::ptrdiff_t ups_dim1, udotps_dim1, uoldps_dim1;
 
@@ -4952,7 +4952,7 @@ extrapolate_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *
 
 /* extrbv: XPPAUT 8.0 autlib1.c:5414: initial approximation to the next solution by the null space of the Jacobian */
 int 
-predict_boundary_null_space(iap_type *iap, rap_type *rap, FUNI_TYPE((*problem_function)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps)
+predict_boundary_null_space(iap_type *iap, rap_type *rap, ProblemFunction problem_function, double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps)
 {
   xpp::autox_stability_step_start(iap->run->stability,
       iap->ibr, iap->ntot + (iap->run->locating ? 1 : 0));
@@ -4991,7 +4991,7 @@ predict_boundary_null_space(iap_type *iap, rap_type *rap, FUNI_TYPE((*problem_fu
 
 /* stupbv: AUTO-07p bvp.f90:428: stores U-prime in UPOLDP */
 int 
-store_derivative(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *upoldp)
+store_derivative(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *upoldp)
 {
   std::ptrdiff_t ups_dim1, uoldps_dim1, upoldp_dim1;
 
@@ -5067,7 +5067,7 @@ store_derivative(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp,
 
 /* stepbv: AUTO-07p bvp.f90:464: controls Newton's solve for the next point on a branch (BVP) */
 int 
-step_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), PVLI_TYPE_BVP((*pvli)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *tm, double *dtm, double *p0, double *p1, double *thl, double *thu)
+step_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, OutputParametersBoundary pvli, double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *tm, double *dtm, double *p0, double *p1, double *thl, double *thu)
 {
   std::ptrdiff_t ups_dim1, uoldps_dim1, udotps_dim1, fa_dim1;
 
@@ -5324,7 +5324,7 @@ step_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FU
 
 /* rsptbv: AUTO-07p bvp.f90:750: restarts a branch at the point labelled IRS */
 int 
-restart_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), STPNT_TYPE_BVP((*user_start)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, double *tm, double *dtm, FortranComplex *ev, std::ptrdiff_t *nodir, double *thl, double *thu)
+restart_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, UserStartBoundary user_start, double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, double *tm, double *dtm, xpp::ComplexPair *ev, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
   std::ptrdiff_t ups_dim1, uoldps_dim1;
 
@@ -5669,7 +5669,7 @@ initialize_rotations(iap_type *iap, std::ptrdiff_t *ntst, std::ptrdiff_t *ndxloc
 
 /* stdrbv: AUTO-07p bvp.f90:999: direction vector to start a branch when none is given (BVP) */
 int 
-start_direction_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *rlcur, double *rlold, double *rldot, std::ptrdiff_t ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dtm, std::ptrdiff_t iperp, double *p0, double *p1, double *thl, double *thu)
+start_direction_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dtm, std::ptrdiff_t iperp, double *p0, double *p1, double *thl, double *thu)
 {
   std::ptrdiff_t udotps_dim1, fa_dim1;
 
@@ -5781,7 +5781,7 @@ start_direction_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff
 
 /* lcspbv: AUTO-07p bvp.f90:1230: secant method locating folds, branch points, user zeros (BVP) */
 int 
-locate_special_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), PVLI_TYPE_BVP((*pvli)), AutoxTestSample &q, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *tm, double *dtm, double *p0, double *p1, FortranComplex *ev, double *thl, double *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept)
+locate_special_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, BoundaryTestFunction fncs, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, OutputParametersBoundary pvli, AutoxTestSample &q, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *tm, double *dtm, double *p0, double *p1, xpp::ComplexPair *ev, double *thl, double *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept)
 {
   /* This subroutine uses the Secant method to accurately locate folds */
   /* branch points, and zero(es) of user parameter values. */
@@ -5826,7 +5826,7 @@ locate_special_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_
 
 /* fnlpbv: special-point test function */
 double 
-fold_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *p0, double *p1, FortranComplex *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
+fold_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *p0, double *p1, xpp::ComplexPair *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
 {
   std::ptrdiff_t udotps_dim1, fa_dim1;
   double ret_val;
@@ -5893,7 +5893,7 @@ fold_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *ic
 
 /* fnbpbv: special-point test function */
 double 
-branch_point_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *p0, double *p1, FortranComplex *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
+branch_point_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *p0, double *p1, xpp::ComplexPair *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
 {
   double ret_val;
 
@@ -5957,7 +5957,7 @@ branch_point_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdi
 
 /* fnspbv: special-point test function */
 double 
-secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *p0, double *p1, FortranComplex *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
+secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *p0, double *p1, xpp::ComplexPair *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
 {
   double ret_val;
 
@@ -6001,7 +6001,7 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, s
   xpp::autox_stability_computed(iap->run->stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndim)},xpp::AUTOX_STABILITY_PERIODIC);
   amin = autox_rlarge;
   for (j = 0; j < ndim; ++j) {
-    FortranComplex tmp;
+    xpp::ComplexPair tmp;
     tmp.r = ev[j].r - 1., tmp.i = ev[j].i;
     azm1 = complex_magnitude_of(&tmp);
     if (azm1 <= amin) {
@@ -6042,7 +6042,7 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, s
    */
 
   {
-    FortranComplex tmp;
+    xpp::ComplexPair tmp;
     tmp.r = ev[0].r - 1., tmp.i = ev[0].i;
     amin = complex_magnitude_of(&tmp);
   }
@@ -6136,21 +6136,21 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, s
 
 /* fnuzbv: special-point test function */
 double 
-user_zero_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *p0, double *p1, FortranComplex *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
+user_zero_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *p0, double *p1, xpp::ComplexPair *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
 {
   return user_zero(*iap, par, icp, chng, marks, boundary_user_zero_width);
 } /* fnuzbv_ */
 
 /* fnclosedbv: special-point test function */
 double
-closed_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *p0, double *p1, FortranComplex *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
+closed_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, double *p0, double *p1, xpp::ComplexPair *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
 {
   return closed_test(*iap, par, icp, chng);
 } /* fnclosedbv_ */
 
 /* tpspbv: XPPAUT 8.0 autlib1.c:6885: type of a secondary periodic bifurcation */
 int 
-secondary_bifurcation_type(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FortranComplex *ev)
+secondary_bifurcation_type(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, xpp::ComplexPair *ev)
 {
 
   double amin;
@@ -6179,7 +6179,7 @@ secondary_bifurcation_type(iap_type *iap, rap_type *rap, double *par, std::ptrdi
   loc = 1;
   amin = autox_rlarge;
   for (i = 0; i < ndim; ++i) {
-    FortranComplex tmp;
+    xpp::ComplexPair tmp;
     tmp.r = ev[i].r - 1., tmp.i = ev[i].i;
     azm1 = complex_magnitude_of(&tmp);
     if (azm1 <= amin) {
@@ -6703,7 +6703,7 @@ write_solution_extra(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *
   return 0;
 } /* wrtbv9_ */
 
-/* pvlsae: output hook of algebraic problems (PVLI_TYPE_AE) */
+/* pvlsae: output hook of algebraic problems (OutputParametersAlgebraic) */
 int 
 output_parameters_algebraic(iap_type *iap, rap_type *rap, double *u, double *par)
 {
@@ -6723,7 +6723,7 @@ output_parameters_algebraic(iap_type *iap, rap_type *rap, double *u, double *par
   return 0;
 } /* pvlsae_ */
 
-/* pvlsbv: output hook of boundary value problems (PVLI_TYPE_BVP) */
+/* pvlsbv: output hook of boundary value problems (OutputParametersBoundary) */
 int 
 output_parameters_boundary(iap_type *iap, rap_type *rap, std::ptrdiff_t *icp, double *dtm, std::ptrdiff_t *ndxloc, double *ups, std::ptrdiff_t *ndim, double *p0, double *p1, double *par)
 {

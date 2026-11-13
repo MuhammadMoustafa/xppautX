@@ -11,8 +11,8 @@ namespace {
    which are input and output are markered as such*/
 struct setubv_parallel_arglist {
   std::ptrdiff_t ndim, ncol, nbc, nint, ncb, nrc, nra, nca, na; /*scalar input */
-  FUNI_TYPE((*problem_function)); /*scalar input*/
-  ICNI_TYPE((*integral_function)); /*scalar input*/
+  ProblemFunction problem_function; /*scalar input*/
+  IntegralFunction integral_function; /*scalar input*/
   std::ptrdiff_t ndxloc; /*scalar input*/
   iap_type *iap; /*array input size: NIAP*/
   rap_type *rap; /*array input size: NRAP*/
@@ -38,7 +38,7 @@ struct setubv_parallel_arglist {
   double *thu; /*array input size: ndim * 8 */
   double *thl; /* parameter_count entries */
   double *rldot; /* parameter_count entries */
-  BCNI_TYPE((*boundary_function));
+  BoundaryFunction boundary_function;
   bool jacobian = true;
 };
 
@@ -48,13 +48,13 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, double *dups, double
 		       double *rlold, double rds);
 void setubv_parallel_arglist_constructor(std::ptrdiff_t ndim, std::ptrdiff_t na, std::ptrdiff_t ncol,
 					 std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t ncb, std::ptrdiff_t nrc, std::ptrdiff_t nra, std::ptrdiff_t nca,
-					 FUNI_TYPE((*problem_function)), ICNI_TYPE((*integral_function)), std::ptrdiff_t ndxloc, iap_type *iap, rap_type *rap, double *par,
+					 ProblemFunction problem_function, IntegralFunction integral_function, std::ptrdiff_t ndxloc, iap_type *iap, rap_type *rap, double *par,
 					 std::ptrdiff_t *icp, xpp::Matrix3<double> aa, xpp::Matrix3<double> bb,
 					 xpp::Matrix3<double> cc, xpp::Matrix<double> dd, double *fa, double *fc, double *ups,
 					 double *uoldps, double *udotps,
 					 double *upoldp, double *dtm,
 					 double *wp, double *wt, double *wi,
-					 double *thu, double *thl, double *rldot, BCNI_TYPE((*boundary_function)),
+					 double *thu, double *thl, double *rldot, BoundaryFunction boundary_function,
 					 setubv_parallel_arglist *data);
 
 void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
@@ -291,7 +291,7 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 /* setubv: XPPAUT's AUTO's SETUBV (solvebv.f90:293): the collocation system's blocks */
 int 
 setup_boundary_system(std::ptrdiff_t ndim, xpp::AutoxProblem ips, std::ptrdiff_t na, std::ptrdiff_t ncol, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t ncb, std::ptrdiff_t nrc, std::ptrdiff_t nra, std::ptrdiff_t nca, 
-       FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), std::ptrdiff_t ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
+       ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, std::ptrdiff_t ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
        double rds, xpp::Matrix3<double> aa, xpp::Matrix3<double> bb, xpp::Matrix3<double> cc, xpp::Matrix<double> dd, double *fa, double *fc, double *rlcur, 
        double *rlold, double *rldot, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, 
        double *dtm, double *thl, double *thu, double *p0, double *p1)
@@ -479,14 +479,14 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, double *dups, double
 /* Fill in a setubv_parallel_arglist for the individual variables */
 void setubv_parallel_arglist_constructor(std::ptrdiff_t ndim, std::ptrdiff_t na, std::ptrdiff_t ncol, 
 					 std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t ncb, std::ptrdiff_t nrc, std::ptrdiff_t nra, std::ptrdiff_t nca, 
-					 FUNI_TYPE((*problem_function)), ICNI_TYPE((*integral_function)), std::ptrdiff_t ndxloc, iap_type *iap, rap_type *rap, double *par, 
+					 ProblemFunction problem_function, IntegralFunction integral_function, std::ptrdiff_t ndxloc, iap_type *iap, rap_type *rap, double *par, 
 					 std::ptrdiff_t *icp, xpp::Matrix3<double> aa, xpp::Matrix3<double> bb, 
 					 xpp::Matrix3<double> cc, xpp::Matrix<double> dd, double *fa, double *fc, double *ups, 
 					 double *uoldps, double *udotps, 
 					 double *upoldp, double *dtm, 
 					 double *wp, double *wt, double *wi,
 					 double *thu, double *thl,
-					 double *rldot, BCNI_TYPE((*boundary_function)), setubv_parallel_arglist *data) {
+					 double *rldot, BoundaryFunction boundary_function, setubv_parallel_arglist *data) {
   data->ndim   = ndim;
   data->ncol   = ncol;
   data->nbc    = nbc;

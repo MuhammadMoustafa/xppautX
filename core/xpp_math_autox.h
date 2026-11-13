@@ -34,10 +34,10 @@ inline constexpr std::ptrdiff_t autox_householder_left = 1;         // Household
    hessenberg_reduce_householder/hessenberg_transform_orthogonal: Householder reduction and basis, caller's leading dimension;
    hessenberg_quasi_triangular: ordered real Schur basis with the caller's convergence tolerance.
    BLAS/rotation helpers retain stride, scaling and summation order. */
-int autox_eigenvalues(iap_type *iap, std::ptrdiff_t *ndim, std::ptrdiff_t *m1a, double *a, FortranComplex *ev, std::ptrdiff_t *ier);
+int autox_eigenvalues(iap_type *iap, std::ptrdiff_t *ndim, std::ptrdiff_t *m1a, double *a, xpp::ComplexPair *ev, std::ptrdiff_t *ier);
 int matrix_null_vector(FILE *fp9, std::ptrdiff_t n, std::ptrdiff_t m, std::ptrdiff_t k, double *a, double *u);
 double gauss_eliminate(FILE *fp9, std::ptrdiff_t iid, std::ptrdiff_t n, std::ptrdiff_t m1a, double *a, std::ptrdiff_t nrhs, std::ptrdiff_t ndxloc, double *u, std::ptrdiff_t m1f, double *f, double *det);
-int floquet_multipliers(FILE *fp9, std::ptrdiff_t *ndim, double *c0, double *c1, std::ptrdiff_t *iid, double *rwork, FortranComplex *ev, bool deflate);
+int floquet_multipliers(FILE *fp9, std::ptrdiff_t *ndim, double *c0, double *c1, std::ptrdiff_t *iid, double *rwork, xpp::ComplexPair *ev, bool deflate);
 int householder_compute(std::ptrdiff_t *k, std::ptrdiff_t *j, std::ptrdiff_t *n, double *x, std::ptrdiff_t *incx, double *beta, double *v);
 int householder_apply(std::ptrdiff_t *k, std::ptrdiff_t *j, std::ptrdiff_t *n, std::ptrdiff_t *q, double *beta, double *v, std::ptrdiff_t *job, double *a, std::ptrdiff_t *lda);
 int homoclinic_eigen_ordered(const iap_type *iap, std::ptrdiff_t *isign, std::ptrdiff_t *itrans, double *rr, double *ri, double *vret, double *xequib, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t *ndm, double *dfdu, double *dfdp, double *zz);

@@ -2,27 +2,24 @@
 
 #include "equilibria.h"
 #include "xpp_error.h"
+#include "xpp_math.h" /* xpp::ComplexPair */
 
 namespace xpp {
 
 struct Session; /* session.h */
 
-struct COMPLEX {
-  double r,i;
-};
-
 /* del_stab.cpp */
-COMPLEX complex_subtract(COMPLEX z, COMPLEX w);
-COMPLEX complex_multiply(COMPLEX z, COMPLEX w);
-COMPLEX complex_divide(COMPLEX z, COMPLEX w);
-COMPLEX complex_exponential(COMPLEX z);
-void switch_rows(COMPLEX *z, int i1, int i2, int n);
-COMPLEX make_complex(double x, double y);
-double complex_modulus(COMPLEX z);
-COMPLEX complex_determinant(COMPLEX *z, int n);
-void fill_characteristic_matrix(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambda);
+ComplexPair complex_subtract(ComplexPair z, ComplexPair w);
+ComplexPair complex_multiply(ComplexPair z, ComplexPair w);
+ComplexPair complex_divide(ComplexPair z, ComplexPair w);
+ComplexPair complex_exponential(ComplexPair z);
+void switch_rows(ComplexPair *z, int i1, int i2, int n);
+ComplexPair make_complex(double x, double y);
+double complex_modulus(ComplexPair z);
+ComplexPair complex_determinant(ComplexPair *z, int n);
+void fill_characteristic_matrix(ComplexPair *z, double *delay, int n, int m, double *coef, ComplexPair lambda);
 void process_root(double real, double im);
-double get_arg(double *delay, double *coef, int m, int n, COMPLEX lambda);
+double get_arg(double *delay, double *coef, int m, int n, ComplexPair lambda);
 int test_sign(double old, double newval);
 int plot_args(double *coef, double *delay, int n, int m, int npts, double almax, double wmax);
 

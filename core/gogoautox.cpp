@@ -44,16 +44,13 @@ struct RunUnits {
   RunUnits &operator=(const RunUnits &)=delete;
 };
 
-using AeStart = STPNT_TYPE_AE((*));
-using BvStart = STPNT_TYPE_BVP((*));
-using BvValues = PVLI_TYPE_BVP((*));
 
-problem_function_table algebraic(FUNI_TYPE((*problem_function)), AeStart start)
+problem_function_table algebraic(ProblemFunction problem_function, UserStartAlgebraic start)
 {
   return {AutoxSolver::Algebraic, {}, {problem_function, start, output_parameters_algebraic}};
 }
 
-problem_function_table boundary(FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), BvStart start, BvValues values = output_parameters_boundary)
+problem_function_table boundary(ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, UserStartBoundary start, OutputParametersBoundary values = output_parameters_boundary)
 {
   return {AutoxSolver::BoundaryValue, {problem_function, boundary_function, integral_function, start, values}, {}};
 }
@@ -67,8 +64,8 @@ std::optional<problem_function_table> one_parameter(const iap_type &iap)
   using xpp::AutoxPointKind;
   const bool restart = iap.irs > 0;
   const bool two = std::abs(iap.isw) == 2;
-  const auto ae = [&](FUNI_TYPE((*problem_function))) { return algebraic(problem_function, restart ? algebraic_start : user_start_algebraic); };
-  const auto bv = [&](FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function))) {
+  const auto ae = [&](ProblemFunction problem_function) { return algebraic(problem_function, restart ? algebraic_start : user_start_algebraic); };
+  const auto bv = [&](ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function) {
     return boundary(problem_function, boundary_function, integral_function, restart ? boundary_start : user_start_boundary);
   };
   switch (iap.ips) {

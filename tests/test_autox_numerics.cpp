@@ -184,7 +184,7 @@ std::uint64_t floquet(bool deflate, bool infinite)
     std::array<double, n*n> b{-1.,0.,0., 0.,-1.,0., 0.,0.,-1.};
     if (infinite) b[0] = 0.;
     std::array<double, n*n> work{};
-    std::array<FortranComplex, n> ev{};
+    std::array<xpp::ComplexPair, n> ev{};
     std::ptrdiff_t dim = n, diagnostic = 4;
     xpp::UniqueFile log(std::tmpfile());
     CHECK(log);
@@ -402,7 +402,7 @@ void homcont()
     // Retain the independent root adapter and invalid-leading-dimension checks.
     for (std::ptrdiff_t leading : {n,n-1}) {
         a = {2.,0.,0., 0.,-1.,2., 0.,-2.,-1.};
-        std::array<FortranComplex,n> ev{};
+        std::array<xpp::ComplexPair,n> ev{};
         std::ptrdiff_t error = -1;
         const auto message = failure([&] { xpp::autox_eigenvalues(&iap,&dim,&leading,a.data(),ev.data(),&error); });
         CHECK((leading == n) == message.empty());

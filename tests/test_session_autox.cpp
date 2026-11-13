@@ -1186,7 +1186,7 @@ void check_brbd_tree()
         run.parameter_count=ncb;
         run.collocation=std::make_unique<xpp::AutoxParallel>(threads);
         run.collocation->prepare(run,nov,nbc);
-        SolvbvWork &work=run.solve_boundary_work;
+        SolveBoundaryWork &work=run.solve_boundary_work;
         work.resize(nov,ncol,ntst,nbc,nint,ncb);
         std::copy(a.begin(),a.end(),work.a.begin());
         std::copy(b.begin(),b.end(),work.b.begin());

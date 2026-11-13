@@ -20,7 +20,7 @@ namespace {
 
 constexpr int N = 2;
 
-/* re/im pairs, as autoX's FortranComplex array */
+/* re/im pairs, as autoX's ComplexPair array */
 const double EIG[2 * N] = {-0.5, 0.25, -2.0, 0.0};  /* lambda */
 const double MULT[2 * N] = {1.0, 0.0, 0.3, -0.4};   /* Floquet multipliers */
 const double LAB_R[N] = {0.9, 0.9}, LAB_I[N] = {0.4, -0.4}; /* a label's stored values */
@@ -62,11 +62,11 @@ TEST_CASE("test_autox_stability")
     const std::array<double, 16> conservative = {0, -1, 0, 0, 1, 0, 0, 0,
                                                0, 0, 0, -4, 0, 0, 4, 0};
     const xpp::Matrix<const double> jacobian(conservative, 4, 4);
-    const std::array<FortranComplex, 4> spectrum = {{{1e-16, 1}, {1e-16, -1},
+    const std::array<xpp::ComplexPair, 4> spectrum = {{{1e-16, 1}, {1e-16, -1},
                                                  {-1e-17, 4}, {-1e-17, -4}}};
     std::array<int, 4> order = {0, 1, 2, 3};
     do {
-        std::array<FortranComplex, 4> shuffled;
+        std::array<xpp::ComplexPair, 4> shuffled;
         for (size_t k = 0; k < order.size(); ++k) shuffled[k] = spectrum[order[k]];
         const auto pair = xpp::autox_hopf_pair(shuffled, xpp::autox_hopf_axis_tolerance(jacobian, 4));
         CHECK(pair && pair->r == 1e-16 && pair->i == 1);
@@ -76,10 +76,10 @@ TEST_CASE("test_autox_stability")
     } while (std::next_permutation(order.begin(), order.end()));
     const std::array<double, 16> dissipative = {1, 0, 0, 0, 0, 1, 0, 0,
                                               0, 0, 1, 0, 0, 0, 0, 1};
-    const std::array<FortranComplex, 4> separated = {{{-.3, 1}, {-.3, -1}, {-.1, 4}, {-.1, -4}}};
+    const std::array<xpp::ComplexPair, 4> separated = {{{-.3, 1}, {-.3, -1}, {-.1, 4}, {-.1, -4}}};
     const auto closest = xpp::autox_hopf_pair(separated, xpp::autox_hopf_axis_tolerance(xpp::Matrix<const double>(dissipative, 4, 4), 4));
     CHECK(closest && closest->r == -.1 && closest->i == 4);
-    const std::array<FortranComplex, 2> real_only = {{{-1, 0}, {2, 0}}};
+    const std::array<xpp::ComplexPair, 2> real_only = {{{-1, 0}, {2, 0}}};
     CHECK(!xpp::autox_hopf_pair(real_only, 0));
     xpp::AutoxStability st;
     double r[N], i[N];

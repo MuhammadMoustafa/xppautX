@@ -167,8 +167,8 @@ AUTO's two-letter codes name the problem kind a function belongs to (AUTO-07p's 
 | `stpnus` | `user_start_algebraic` | start of an algebraic problem straight from the user's values |
 | `stpnbv` | `boundary_start` | start of a boundary value problem from the user's start or a restart (autox_lib1.cpp) |
 | `stpnub` | `user_start_boundary` | start of a boundary value problem from the user's values |
-| `pvlsae` | `output_parameters_algebraic` | output hook of algebraic problems (PVLI_TYPE_AE) |
-| `pvlsbv` | `output_parameters_boundary` | output hook of boundary value problems (PVLI_TYPE_BVP) |
+| `pvlsae` | `output_parameters_algebraic` | output hook of algebraic problems (type `OutputParametersAlgebraic`) |
+| `pvlsbv` | `output_parameters_boundary` | output hook of boundary value problems (type `OutputParametersBoundary`) |
 | `init` | `initialize_run` | AUTO's INIT: reads the constants and generates the starting data (autlib1.c:417 for init1) |
 | `init1` | `initialize_constants` | general initialization, redefinition of constants, check and perturb step size and limits: XPPAUT 8.0 autlib1.c:417 |
 | `chdim` | `check_dimensions` | checks dimensions: XPPAUT 8.0 autlib1.c:360 |
@@ -180,6 +180,7 @@ AUTO's two-letter codes name the problem kind a function belongs to (AUTO-07p's 
 |---|---|---|
 | `solvae` | `solve_algebraic` | AUTO ae.f90:435: main predictor-corrector loop (Newton) of algebraic problems |
 | `solvbv` | `solve_boundary` | AUTO solvebv.f90:26: the Newton solve of the collocation system |
+| `SolvbvWork` | `SolveBoundaryWork` | the work arrays of solve_boundary (AUTO-07p solvebv.f90, W721) |
 | `stepbv` | `step_boundary` | AUTO bvp.f90:464: controls Newton's solve for the next point on a branch (BVP) |
 | `stdrbv` | `start_direction_boundary` | AUTO bvp.f90:999: direction vector to start a branch when none is given (BVP) |
 | `stdirae` | `start_direction_algebraic` | algebraic problems' start direction (autox_lib1.cpp:1812) |
@@ -381,8 +382,8 @@ AUTO's two-letter codes name the problem kind a function belongs to (AUTO-07p's 
 
 - **`iap_type` and `rap_type` fields keep their names.** They are AUTO-07p's documented constants and integer/real parameter arrays (`ndim`, `ips`, `irs`, `ilp`, `ntst`, `ncol`, `isw`, `itp`, `rl0`, `rl1`, `a0`, `a1`, `epsl`, `epsu`, `epss`, `ds`, `dsmin`, `dsmax`, ...), named in AUTO-07p's manual, in fort.7/fort.8 and in the diagram's columns (rule 3). The `?` fields of the first inventory (`iad`, `iads`, `nbc0`, `nnt0`, `nwtn`, `nit`, `nins`, `ipos`) are settled by AUTO-07p's own documentation in the same way: they are AUTO's names, so they stay. The brief of this stage fixed this.
 - **The common blocks** (`blhom`, `blhmp`, `blhmu`, `bcnn`, `blhma`, `bleig`, `blhme`, `beyn`) are Fortran common-block names, not documented constants: renamed in section 6; their fields are already readable.
-- **The f2c types** are gone: `integer` is `std::ptrdiff_t`, `doublereal` is `double` and `real` (float, used once: EISPACK's `cuthi / n`) is `float`, in every file that took them from autox_f2c.h (CVODE's own `integer` and `real` of llnltyps.h are another pair and stay until W34). f2c's `doublecomplex` is a plain `{r, i}` pair that the code reads and writes member by member; `std::complex<double>` would make every one of about 60 uses go through `.real()` and `.imag()` for no gain, so it stays a struct under a readable name, `FortranComplex` (autox_f2c.h); del_stab.h's `COMPLEX` is the same pair under a second name and is left for the card that merges the two complex helpers' families (their arithmetic differs, section 9). `f2c::abs`, `f2c::min` and `f2c::max` are not `std::`'s (they keep -0.0 and a NaN's sign where `std::fabs` clears it, and pick the other operand of an unordered pair: autox_f2c.h) and stay.
-- **The function-pointer macros** (`FUNI_TYPE`, `BCNI_TYPE`, ..., autox_c.h) are not renamed here: they are declarations, not names of numerical routines (see section 10).
+- **The f2c types** are gone: `integer` is `std::ptrdiff_t`, `doublereal` is `double` and `real` (float, used once: EISPACK's `cuthi / n`) is `float`, in every file that took them from autox_f2c.h (CVODE's own `integer` and `real` of llnltyps.h are another pair and stay until W34). f2c's `doublecomplex` is a plain `{r, i}` pair that the code reads and writes member by member; `std::complex<double>` would make every one of about 60 uses go through `.real()` and `.imag()` for no gain, so it stays a struct under a name that says what it is, `ComplexPair` (xpp_math.h, W721); del_stab.h's `COMPLEX` was the same pair under a second name and is merged into it, each helper keeping its own formula (the helpers' families differ in arithmetic, section 9). `f2c::abs`, `f2c::min` and `f2c::max` are not `std::`'s (they keep -0.0 and a NaN's sign where `std::fabs` clears it, and pick the other operand of an unordered pair: autox_f2c.h) and stay.
+- **The function-pointer macros** of autox_c.h became named function-pointer types in W721 (rule 5's remainder): `FUNI_TYPE` is `ProblemFunction`, `BCNI_TYPE` `BoundaryFunction`, `ICNI_TYPE` `IntegralFunction`, `PVLI_TYPE_AE` `OutputParametersAlgebraic`, `PVLI_TYPE_BVP` `OutputParametersBoundary`, `STPNT_TYPE_AE` `UserStartAlgebraic`, `STPNT_TYPE_BVP` `UserStartBoundary`, `FNCS_TYPE_AE` `AlgebraicTestFunction`, `FNCS_TYPE_BVP` `BoundaryTestFunction`; each is a `using` of a C++ function-pointer type, and a parameter reads `ProblemFunction problem_function`.
 
 ## 9. Duplicates and look-alikes (the old section 8, decided from the code)
 
@@ -402,4 +403,4 @@ AUTO's two-letter codes name the problem kind a function belongs to (AUTO-07p's 
 
 ## 10. Left for a later run of this card
 
-`gear`, `stiff` and `adaptive` (section 7) are also user-facing method names and ordinary words all over core: renaming them by word would touch strings and settings, so they keep their names until a card renames the functions with a compiler's help. The function-pointer macros of autox_c.h and the f2c types are the last pack (see the final report of the run).
+`gear`, `stiff` and `adaptive` (section 7) are also user-facing method names and ordinary words all over core: renaming them by word would touch strings and settings, so they keep their names until a card renames the functions with a compiler's help. The function-pointer macros and the complex pair were the last pack of W390's remainder, done in W721 (#799); `SolvbvWork` became `SolveBoundaryWork` there too.

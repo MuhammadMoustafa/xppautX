@@ -94,7 +94,7 @@ TEST_CASE("test_autox_errors")
     iap.ndim = 2;
     std::ptrdiff_t ndim = 2, leading = 1, ier = 0;
     std::array<double, 4> matrix{};
-    std::array<FortranComplex, 2> spectrum{};
+    std::array<xpp::ComplexPair, 2> spectrum{};
     CHECK(has(failure([&] { xpp::autox_eigenvalues(&iap, &ndim, &leading, matrix.data(), spectrum.data(), &ier); }),
               "EISPACK routine RG"));
     CHECK(ier == 1);
