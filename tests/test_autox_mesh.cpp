@@ -8,7 +8,7 @@ TEST_CASE("test_autox_mesh")
 {
     iap_type iap{};
     rap_type rap{};
-    integer ndim = 1, intervals = 4, columns = 1, leading = 5, periodic = 0;
+    std::ptrdiff_t ndim = 1, intervals = 4, columns = 1, leading = 5, periodic = 0;
     iap.ndim = ndim;
     std::array<double, 5> times{0., .25, .5, .75, 1.};
     std::array<double, 5> widths{.25, .25, .25, .25, 0.};
@@ -21,13 +21,13 @@ TEST_CASE("test_autox_mesh")
     CHECK(std::abs(density[2] - std::sqrt(1.6)) < 1e-14);
     CHECK(density[2] == density[3]);
     CHECK((monitor[3] - monitor[2]) / widths[2] != density[2]);
-    integer new_intervals = 7;
+    std::ptrdiff_t new_intervals = 7;
     std::array<double, 8> mesh{};
     redistribute_mesh(&iap, &rap, &leading, values.data(), &intervals, &columns,
            times.data(), widths.data(), &new_intervals, mesh.data(), &periodic);
     CHECK(mesh.front() == times.front());
     CHECK(mesh.back() == times.back());
-    for (integer j = 1; j <= new_intervals; ++j) CHECK(mesh[j] > mesh[j - 1]);
+    for (std::ptrdiff_t j = 1; j <= new_intervals; ++j) CHECK(mesh[j] > mesh[j - 1]);
     // A constant solution has no derivatives. Its monitor is the interval
     // index, so the density must account for nonuniform interval widths.
     values.fill(0.);
@@ -35,14 +35,14 @@ TEST_CASE("test_autox_mesh")
     widths = {.125, .25, .125, .5, 0.};
     equidistribution_function(&iap, &rap, &intervals, &ndim, &columns, widths.data(), &leading,
          values.data(), monitor.data(), density, &periodic);
-    for (integer j = 0; j < intervals; ++j) {
+    for (std::ptrdiff_t j = 0; j < intervals; ++j) {
         CHECK(monitor[j] == j);
         CHECK(density[j] == 1. / widths[j]);
     }
     new_intervals = intervals;
     redistribute_mesh(&iap, &rap, &leading, values.data(), &intervals, &columns,
            times.data(), widths.data(), &new_intervals, mesh.data(), &periodic);
-    for (integer j = 0; j <= intervals; ++j) CHECK(mesh[j] == times[j]);
+    for (std::ptrdiff_t j = 0; j <= intervals; ++j) CHECK(mesh[j] == times[j]);
     // Wave trains (IPS 12) use the same periodic derivative extension as IPS 2.
     // Two collocation columns: endpoint values are zero; midpoint values
     // give exact second derivatives [4,8,-4,-8] on the four intervals.

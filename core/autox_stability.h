@@ -41,7 +41,7 @@ enum AutoxStabilityKind {
 };
 
 /* autoX computed the stability of point pt of branch br (either sign):
-   values.size()/2 values, values[2k] + i values[2k+1] (autoX's doublecomplex array).
+   values.size()/2 values, values[2k] + i values[2k+1] (autoX's FortranComplex array).
    kind AUTOX_STABILITY_STEADY: eigenvalues lambda, kept as e^lambda (inside
    the unit circle is stable, as for multipliers); AUTOX_STABILITY_PERIODIC:
    Floquet multipliers, kept as they are. */

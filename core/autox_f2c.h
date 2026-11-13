@@ -12,17 +12,15 @@
 
 /* autoX's dimensions and linear indices must have pointer width on Windows
    too, where long remains 32 bits. Allocation extents use checked size_t. */
-typedef std::ptrdiff_t integer;
-typedef float real;
-typedef double doublereal;
-typedef struct { doublereal r, i; } doublecomplex;
+/* f2c's double complex, as the Fortran stores it: real part then imaginary part */
+struct FortranComplex { double r, i; };
 
 
 #define ARRAY2D(array,i,j) array[(i) + (j) * array ## _dim1]
 #define ARRAY3D(array,i,j,k) array[(i) + ((j)  + (k) * array ## _dim2) * array ## _dim1]
 
 /* f2c's libF77 helpers (f2c_helpers.cpp) */
-double complex_magnitude_of(const doublecomplex *z);
+double complex_magnitude_of(const FortranComplex *z);
 
 /* f2c's abs/fabs/min/max macros, as functions (W33c): the macros broke
    every C++ standard header included after this one. Same types (the

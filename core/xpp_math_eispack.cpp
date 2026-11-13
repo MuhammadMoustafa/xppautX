@@ -21,11 +21,11 @@ namespace xpp {
 
 /* Table of constant values */
 
-constexpr doublereal c_b81 = 0.;
-constexpr doublereal c_b170 = 1.;
-constexpr integer c__1 = 1;
-constexpr integer c__2 = 2;
-constexpr doublereal c_b367 = -1.;
+constexpr double c_b81 = 0.;
+constexpr double c_b170 = 1.;
+constexpr std::ptrdiff_t c__1 = 1;
+constexpr std::ptrdiff_t c__2 = 2;
+constexpr double c_b367 = -1.;
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -37,14 +37,14 @@ constexpr doublereal c_b367 = -1.;
    differs from gear's Householder reduction; preserve root and vector order. */
 /* Subroutine */ int 
 /* rg: EISPACK rg: eigenvalues (and vectors) of a real general matrix */
-real_general_eigen(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer matz, doublereal *z__, integer *iv1, doublereal *fv1, integer *ierr)
+real_general_eigen(std::ptrdiff_t nm, std::ptrdiff_t n, double *a, double *wr, double *wi, std::ptrdiff_t matz, double *z__, std::ptrdiff_t *iv1, double *fv1, std::ptrdiff_t *ierr)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, z_dim1, z_offset;
+    std::ptrdiff_t a_dim1, a_offset, z_dim1, z_offset;
 
     /* Local variables */
 
-    integer is1, is2;
+    std::ptrdiff_t is1, is2;
 
 /*     THIS SUBROUTINE CALLS THE RECOMMENDED SEQUENCE OF */
 /*     SUBROUTINES FROM THE EIGENSYSTEM SUBROUTINE PACKAGE (EISPACK) */
@@ -143,21 +143,21 @@ L50:
    merging these QR paths would change converged roots and failure status. */
 /* hqr: EISPACK's shifted QR on a Hessenberg matrix, eigenvalues only */
 /* Subroutine */ int 
-hessenberg_qr_values(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doublereal *wr, doublereal *wi, integer *ierr)
+hessenberg_qr_values(std::ptrdiff_t *nm, std::ptrdiff_t *n, std::ptrdiff_t *low, std::ptrdiff_t *igh, double *h__, double *wr, double *wi, std::ptrdiff_t *ierr)
 {
     /* System generated locals */
-    integer h_dim1, h_offset, i__1, i__2, i__3;
-    doublereal d__1, d__2;
+    std::ptrdiff_t h_dim1, h_offset, i__1, i__2, i__3;
+    double d__1, d__2;
 
     /* Local variables */
-    doublereal norm;
-    integer i__, j, k, l = 0, m = 0;
-    doublereal p = 0, q = 0, r__ = 0, s, t, w, x, y;
-    integer na, en, ll, mm;
-    doublereal zz;
+    double norm;
+    std::ptrdiff_t i__, j, k, l = 0, m = 0;
+    double p = 0, q = 0, r__ = 0, s, t, w, x, y;
+    std::ptrdiff_t na, en, ll, mm;
+    double zz;
     bool notlas;
-    integer mp2, itn, its, enm2;
-    doublereal tst1, tst2;
+    std::ptrdiff_t mp2, itn, its, enm2;
+    double tst1, tst2;
 
 /*     THIS SUBROUTINE IS A TRANSLATION OF THE ALGOL PROCEDURE HQR, */
 /*     NUM. MATH. 14, 219-231(1970) BY MARTIN, PETERS, AND WILKINSON. */
@@ -499,24 +499,24 @@ L1001:
    gear's fixed-tolerance hessenberg_qr_values does not supply these transformations. */
 /* Subroutine */ int 
 /* hqr2: EISPACK hqr2: eigenvalues and vectors of a Hessenberg matrix */
-hessenberg_qr_vectors(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doublereal *wr, doublereal *wi, doublereal *z__, integer *ierr)
+hessenberg_qr_vectors(std::ptrdiff_t *nm, std::ptrdiff_t *n, std::ptrdiff_t *low, std::ptrdiff_t *igh, double *h__, double *wr, double *wi, double *z__, std::ptrdiff_t *ierr)
 {
     /* System generated locals */
-    integer h_dim1, h_offset, z_dim1, z_offset, i__1, i__2, i__3;
-    doublereal d__1, d__2, d__3, d__4;
+    std::ptrdiff_t h_dim1, h_offset, z_dim1, z_offset, i__1, i__2, i__3;
+    double d__1, d__2, d__3, d__4;
 
     /* Local variables */
 
-    doublereal norm;
-    integer i__, j, k, l = 0, m = 0;
-    doublereal p = 0, q, r__ = 0, s = 0, t, w, x, y;
-    integer na, ii, en, jj;
-    doublereal ra, sa;
-    integer ll, mm, nn;
-    doublereal vi, vr, zz;
+    double norm;
+    std::ptrdiff_t i__, j, k, l = 0, m = 0;
+    double p = 0, q, r__ = 0, s = 0, t, w, x, y;
+    std::ptrdiff_t na, ii, en, jj;
+    double ra, sa;
+    std::ptrdiff_t ll, mm, nn;
+    double vi, vr, zz;
     bool notlas;
-    integer mp2, itn, its, enm2;
-    doublereal tst1, tst2;
+    std::ptrdiff_t mp2, itn, its, enm2;
+    double tst1, tst2;
 
 /*     THIS SUBROUTINE IS A TRANSLATION OF THE ALGOL PROCEDURE HQR2, */
 /*     NUM. MATH. 16, 181-204(1970) BY PETERS AND WILKINSON. */
@@ -1193,13 +1193,13 @@ L1001:
    (and thus rounding); sharing those quotients would change eigenvectors. */
 /* Subroutine */ int 
 /* cdiv: EISPACK cdiv: complex division by the scaled Smith form (xpp_math_eispack.cpp) */
-complex_divide_scaled(const doublereal *ar, const doublereal *ai, const doublereal *br, const doublereal *bi, doublereal *cr, doublereal *ci)
+complex_divide_scaled(const double *ar, const double *ai, const double *br, const double *bi, double *cr, double *ci)
 {
     /* System generated locals */
-    doublereal d__1, d__2;
+    double d__1, d__2;
 
     /* Local variables */
-    doublereal s, ais, bis, ars, brs;
+    double s, ais, bis, ars, brs;
 
 /*     COMPLEX DIVISION, (CR,CI) = (AR,AI)/(BR,BI) */
 
@@ -1222,18 +1222,18 @@ complex_divide_scaled(const doublereal *ar, const doublereal *ai, const doublere
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* balanc: EISPACK balanc */
-balance_matrix(integer *nm, integer *n, doublereal *a, integer *low, integer *igh, doublereal *scale)
+balance_matrix(std::ptrdiff_t *nm, std::ptrdiff_t *n, double *a, std::ptrdiff_t *low, std::ptrdiff_t *igh, double *scale)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, i__1, i__2;
-    doublereal d__1;
+    std::ptrdiff_t a_dim1, a_offset, i__1, i__2;
+    double d__1;
 
     /* Local variables */
-    integer iexc;
-    doublereal c__, f, g;
-    integer i__, j, k, l, m;
-    doublereal r__, s, radix, b2;
-    integer jj;
+    std::ptrdiff_t iexc;
+    double c__, f, g;
+    std::ptrdiff_t i__, j, k, l, m;
+    double r__, s, radix, b2;
+    std::ptrdiff_t jj;
     bool noconv;
 
 /*     THIS SUBROUTINE IS A TRANSLATION OF THE ALGOL PROCEDURE BALANCE, */
@@ -1305,7 +1305,7 @@ balance_matrix(integer *nm, integer *n, doublereal *a, integer *low, integer *ig
 /*     .......... IN-LINE PROCEDURE FOR ROW AND */
 /*                COLUMN EXCHANGE .......... */
 L20:
-    scale[m] = static_cast<doublereal>(j);
+    scale[m] = static_cast<double>(j);
     if (j == m) {
 	goto L50;
     }
@@ -1479,15 +1479,15 @@ L280:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* balbak: EISPACK balbak */
-balance_back_transform(integer *nm, integer *n, integer *low, integer *igh, doublereal *scale, integer *m, doublereal *z__)
+balance_back_transform(std::ptrdiff_t *nm, std::ptrdiff_t *n, std::ptrdiff_t *low, std::ptrdiff_t *igh, double *scale, std::ptrdiff_t *m, double *z__)
 {
     /* System generated locals */
-    integer z_dim1, z_offset, i__1, i__2;
+    std::ptrdiff_t z_dim1, z_offset, i__1, i__2;
 
     /* Local variables */
-    integer i__, j, k;
-    doublereal s;
-    integer ii;
+    std::ptrdiff_t i__, j, k;
+    double s;
+    std::ptrdiff_t ii;
 
 /*     THIS SUBROUTINE IS A TRANSLATION OF THE ALGOL PROCEDURE BALBAK, */
 /*     NUM. MATH. 13, 293-304(1969) BY PARLETT AND REINSCH. */
@@ -1568,7 +1568,7 @@ L120:
 	if (i__ < *low) {
 	    i__ = *low - ii;
 	}
-	k = static_cast<integer>(scale[i__]);
+	k = static_cast<std::ptrdiff_t>(scale[i__]);
 	if (k == i__) {
 	    goto L140;
 	}
@@ -1593,16 +1593,16 @@ L200:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* elmhes: EISPACK elmhes: Hessenberg reduction by elimination */
-hessenberg_reduce_elimination(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, integer *int__)
+hessenberg_reduce_elimination(std::ptrdiff_t *nm, std::ptrdiff_t *n, std::ptrdiff_t *low, std::ptrdiff_t *igh, double *a, std::ptrdiff_t *int__)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, i__1, i__2, i__3;
-    doublereal d__1;
+    std::ptrdiff_t a_dim1, a_offset, i__1, i__2, i__3;
+    double d__1;
 
     /* Local variables */
-    integer i__, j, m;
-    doublereal x, y;
-    integer la, mm1, kp1, mp1;
+    std::ptrdiff_t i__, j, m;
+    double x, y;
+    std::ptrdiff_t la, mm1, kp1, mp1;
 
 /*     THIS SUBROUTINE IS A TRANSLATION OF THE ALGOL PROCEDURE ELMHES, */
 /*     NUM. MATH. 12, 349-368(1968) BY MARTIN AND WILKINSON. */
@@ -1739,13 +1739,13 @@ L200:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* eltran: EISPACK eltran: elmhes's accumulated transform */
-hessenberg_transform_elimination(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, integer *int__, doublereal *z__)
+hessenberg_transform_elimination(std::ptrdiff_t *nm, std::ptrdiff_t *n, std::ptrdiff_t *low, std::ptrdiff_t *igh, double *a, std::ptrdiff_t *int__, double *z__)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, z_dim1, z_offset, i__1, i__2;
+    std::ptrdiff_t a_dim1, a_offset, z_dim1, z_offset, i__1, i__2;
 
     /* Local variables */
-    integer i__, j, kl, mm, mp, mp1;
+    std::ptrdiff_t i__, j, kl, mm, mp, mp1;
 
 /*     THIS SUBROUTINE IS A TRANSLATION OF THE ALGOL PROCEDURE ELMTRANS, 
 */
@@ -1857,20 +1857,20 @@ L200:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* qzhes: EISPACK qzhes: first QZ step */
-qz_reduce_hessenberg(integer nm, integer n, doublereal *a, doublereal *b, bool matz, doublereal *z__)
+qz_reduce_hessenberg(std::ptrdiff_t nm, std::ptrdiff_t n, double *a, double *b, bool matz, double *z__)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, b_dim1, b_offset, z_dim1, z_offset, i__1, i__2, 
+    std::ptrdiff_t a_dim1, a_offset, b_dim1, b_offset, z_dim1, z_offset, i__1, i__2, 
 	    i__3;
-    doublereal d__1, d__2;
+    double d__1, d__2;
 
     /* Local variables */
-    integer i__, j, k, l;
-    doublereal r__, s, t;
-    integer l1;
-    doublereal u1, u2, v1, v2;
-    integer lb, nk1, nm1, nm2;
-    doublereal rho;
+    std::ptrdiff_t i__, j, k, l;
+    double r__, s, t;
+    std::ptrdiff_t l1;
+    double u1, u2, v1, v2;
+    std::ptrdiff_t lb, nk1, nm1, nm2;
+    double rho;
 
 /*     THIS SUBROUTINE IS THE FIRST STEP OF THE QZ ALGORITHM */
 /*     FOR SOLVING GENERALIZED MATRIX EIGENVALUE PROBLEMS, */
@@ -2143,33 +2143,33 @@ L170:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* qzit: EISPACK qzit */
-qz_iterate(integer nm, integer n, doublereal *a, doublereal *b, doublereal eps1, bool matz, doublereal *z__, integer *ierr)
+qz_iterate(std::ptrdiff_t nm, std::ptrdiff_t n, double *a, double *b, double eps1, bool matz, double *z__, std::ptrdiff_t *ierr)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, b_dim1, b_offset, z_dim1, z_offset, i__1, i__2, 
+    std::ptrdiff_t a_dim1, a_offset, b_dim1, b_offset, z_dim1, z_offset, i__1, i__2, 
 	    i__3;
-    doublereal d__1, d__2, d__3;
+    double d__1, d__2, d__3;
 
     /* Local variables */
-    doublereal epsa, epsb;
-    integer i__, j, k, l;
-    doublereal r__, s, t, anorm, bnorm;
-    integer enorn;
-    doublereal a1, a2, a3 = 0;
-    integer k1, k2, l1;
-    doublereal u1, u2, u3, v1, v2, v3, a11, a12, a21, a22, a33, a34, 
+    double epsa, epsb;
+    std::ptrdiff_t i__, j, k, l;
+    double r__, s, t, anorm, bnorm;
+    std::ptrdiff_t enorn;
+    double a1, a2, a3 = 0;
+    std::ptrdiff_t k1, k2, l1;
+    double u1, u2, u3, v1, v2, v3, a11, a12, a21, a22, a33, a34, 
 	    a43, a44, b11, b12, b22, b33;
-    integer na, ld;
-    doublereal b34, b44;
-    integer en;
-    doublereal ep;
-    integer ll;
-    doublereal sh;
+    std::ptrdiff_t na, ld;
+    double b34, b44;
+    std::ptrdiff_t en;
+    double ep;
+    std::ptrdiff_t ll;
+    double sh;
 
     bool notlas;
-    integer km1, lm1;
-    doublereal ani, bni;
-    integer ish, itn, its, enm2, lor1;
+    std::ptrdiff_t km1, lm1;
+    double ani, bni;
+    std::ptrdiff_t ish, itn, its, enm2, lor1;
 
 /*     THIS SUBROUTINE IS THE SECOND STEP OF THE QZ ALGORITHM */
 /*     FOR SOLVING GENERALIZED MATRIX EIGENVALUE PROBLEMS, */
@@ -2671,26 +2671,26 @@ L1001:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int
 /* qzval: EISPACK qzval */
-qz_eigenvalues(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr, doublereal *alfi, doublereal *beta, bool matz, doublereal *z__)
+qz_eigenvalues(std::ptrdiff_t nm, std::ptrdiff_t n, double *a, double *b, double *alfr, double *alfi, double *beta, bool matz, double *z__)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, b_dim1, b_offset, z_dim1, z_offset, i__1, i__2;
-    doublereal d__1, d__2, d__3, d__4;
+    std::ptrdiff_t a_dim1, a_offset, b_dim1, b_offset, z_dim1, z_offset, i__1, i__2;
+    double d__1, d__2, d__3, d__4;
 
     /* Local variables */
-    doublereal epsb, c__, d__, e;
-    integer i__, j;
-    doublereal r__, s, t, a1, a2, u1, u2, v1, v2, a11, a12, a21, a22, 
+    double epsb, c__, d__, e;
+    std::ptrdiff_t i__, j;
+    double r__, s, t, a1, a2, u1, u2, v1, v2, a11, a12, a21, a22, 
 	    b11, b12, b22, di, ei;
-    integer na;
-    doublereal an, bn;
-    integer en;
-    doublereal cq, dr;
-    integer nn;
-    doublereal cz, ti, tr, a1i, a2i, a11i, a12i, a22i, a11r, a12r, 
+    std::ptrdiff_t na;
+    double an, bn;
+    std::ptrdiff_t en;
+    double cq, dr;
+    std::ptrdiff_t nn;
+    double cz, ti, tr, a1i, a2i, a11i, a12i, a22i, a11r, a12r, 
 	    a22r, sqi, ssi;
-    integer isw;
-    doublereal sqr, szi, ssr, szr;
+    std::ptrdiff_t isw;
+    double sqr, szi, ssr, szr;
 
 /*     THIS SUBROUTINE IS THE THIRD STEP OF THE QZ ALGORITHM */
 /*     FOR SOLVING GENERALIZED MATRIX EIGENVALUE PROBLEMS, */
@@ -3057,14 +3057,14 @@ L510:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* epslon: EISPACK epslon: the rounding unit */
-doublereal 
-machine_epsilon(doublereal x)
+double 
+machine_epsilon(double x)
 {
     /* System generated locals */
-    doublereal ret_val, d__1;
+    double ret_val, d__1;
 
     /* Local variables */
-    doublereal a, b, c__, eps;
+    double a, b, c__, eps;
 
 /*     ESTIMATE UNIT ROUNDOFF IN QUANTITIES OF SIZE X. */
 
@@ -3107,26 +3107,26 @@ L10:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* dnrm2: BLAS level 1 nrm2 */
-doublereal 
-euclidean_norm(const integer *n, const doublereal *dx, const integer *incx)
+double 
+euclidean_norm(const std::ptrdiff_t *n, const double *dx, const std::ptrdiff_t *incx)
 {
     /* Initialized data */
 
-    const doublereal zero = 0.;
-    const doublereal one = 1.;
-    const doublereal cutlo = 8.232e-11;
-    const doublereal cuthi = 1.304e19;
+    const double zero = 0.;
+    const double one = 1.;
+    const double cutlo = 8.232e-11;
+    const double cuthi = 1.304e19;
 
     /* Format strings */
 
     /* System generated locals */
-    integer i__1, i__2;
-    doublereal ret_val, d__1;
+    std::ptrdiff_t i__1, i__2;
+    double ret_val, d__1;
 
     /* Local variables */
-    doublereal xmax = 0;
-    integer next, i__, j, nn;
-    doublereal hitest, sum;
+    double xmax = 0;
+    std::ptrdiff_t next, i__, j, nn;
+    double hitest, sum;
 
     /* Parameter adjustments */
     --dx;
@@ -3258,7 +3258,7 @@ L75:
 /*     FOR COMPLEX      SET HITEST = CUTHI/(2*N) */
 
 L85:
-    hitest = cuthi / static_cast<real>(*n);
+    hitest = cuthi / static_cast<float>(*n);
 
 /*                   PHASE 3.  SUM IS MID-RANGE.  NO SCALING. */
 
@@ -3294,17 +3294,17 @@ L300:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* ddot: BLAS level 1 dot */
-doublereal 
-dot_product(const integer *n, const doublereal *dx, const integer *incx, const doublereal *dy, const integer *incy)
+double 
+dot_product(const std::ptrdiff_t *n, const double *dx, const std::ptrdiff_t *incx, const double *dy, const std::ptrdiff_t *incy)
 {
     /* System generated locals */
-    integer i__1;
-    doublereal ret_val;
+    std::ptrdiff_t i__1;
+    double ret_val;
 
     /* Local variables */
-    integer i__, m;
-    doublereal dtemp;
-    integer ix, iy, mp1;
+    std::ptrdiff_t i__, m;
+    double dtemp;
+    std::ptrdiff_t ix, iy, mp1;
 
 /*     FORMS THE DOT PRODUCT OF TWO VECTORS. */
 /*     USES UNROLLED LOOPS FOR INCREMENTS EQUAL TO ONE. */
@@ -3383,15 +3383,15 @@ L60:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* drot: BLAS level 1 rot */
-rotate_plane(const integer *n, doublereal *dx, const integer *incx, doublereal *dy, const integer *incy, const doublereal *c__, const doublereal *s)
+rotate_plane(const std::ptrdiff_t *n, double *dx, const std::ptrdiff_t *incx, double *dy, const std::ptrdiff_t *incy, const double *c__, const double *s)
 {
     /* System generated locals */
-    integer i__1;
+    std::ptrdiff_t i__1;
 
     /* Local variables */
-    integer i__;
-    doublereal dtemp;
-    integer ix, iy;
+    std::ptrdiff_t i__;
+    double dtemp;
+    std::ptrdiff_t ix, iy;
 
 /*     APPLIES A PLANE ROTATION. */
 /*     JACK DONGARRA, LINPACK, 3/11/78. */
@@ -3447,15 +3447,15 @@ L20:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* dswap: BLAS level 1 swap */
-swap_vectors(const integer *n, doublereal *dx, const integer *incx, doublereal *dy, const integer *incy)
+swap_vectors(const std::ptrdiff_t *n, double *dx, const std::ptrdiff_t *incx, double *dy, const std::ptrdiff_t *incy)
 {
     /* System generated locals */
-    integer i__1;
+    std::ptrdiff_t i__1;
 
     /* Local variables */
-    integer i__, m;
-    doublereal dtemp;
-    integer ix, iy, mp1;
+    std::ptrdiff_t i__, m;
+    double dtemp;
+    std::ptrdiff_t ix, iy, mp1;
 
 /*     INTERCHANGES TWO VECTORS. */
 /*     USES UNROLLED LOOPS FOR INCREMENTS EQUAL ONE. */
@@ -3536,13 +3536,13 @@ L40:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* dgemc: copies an M by N matrix, transposed when TRANS is true: eispack.c:3773 */
-copy_matrix_transposed(integer *m, integer *n, doublereal *a, integer *lda, doublereal *b, integer *ldb, bool *trans)
+copy_matrix_transposed(std::ptrdiff_t *m, std::ptrdiff_t *n, double *a, std::ptrdiff_t *lda, double *b, std::ptrdiff_t *ldb, bool *trans)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, b_dim1, b_offset, i__1, i__2;
+    std::ptrdiff_t a_dim1, a_offset, b_dim1, b_offset, i__1, i__2;
 
     /* Local variables */
-    integer i__, j, mm, mmp1;
+    std::ptrdiff_t i__, j, mm, mmp1;
 
 /*  This subroutine copies a double precision real */
 /*  M by N matrix stored in A to double precision real B. */
@@ -3640,7 +3640,7 @@ L199:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* xerbla: BLAS error handler */
-blas_error(const char *srname, integer *info, integer srname_len)
+blas_error(const char *srname, std::ptrdiff_t *info, std::ptrdiff_t srname_len)
 {
     /* Format strings */
 
@@ -3690,7 +3690,7 @@ blas_error(const char *srname, integer *info, integer srname_len)
 /* ----------------------------------------------------------------------- */
 /* lsame: BLAS: case-insensitive letter compare */
 bool 
-same_letter(const char *ca, const char *cb, integer ca_len, integer cb_len)
+same_letter(const char *ca, const char *cb, std::ptrdiff_t ca_len, std::ptrdiff_t cb_len)
 {
     /* System generated locals */
     bool ret_val;
@@ -3786,19 +3786,19 @@ same_letter(const char *ca, const char *cb, integer ca_len, integer cb_len)
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* dgemm: BLAS level 3 gemm */
-matrix_multiply(const char *transa, const char *transb, integer *m, integer *n, integer *k, doublereal *alpha, doublereal *a, integer *lda, doublereal *b, integer *ldb, doublereal *beta, doublereal *c__, integer *ldc, integer transa_len, integer transb_len)
+matrix_multiply(const char *transa, const char *transb, std::ptrdiff_t *m, std::ptrdiff_t *n, std::ptrdiff_t *k, double *alpha, double *a, std::ptrdiff_t *lda, double *b, std::ptrdiff_t *ldb, double *beta, double *c__, std::ptrdiff_t *ldc, std::ptrdiff_t transa_len, std::ptrdiff_t transb_len)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, b_dim1, b_offset, c_dim1, c_offset, i__1, i__2, 
+    std::ptrdiff_t a_dim1, a_offset, b_dim1, b_offset, c_dim1, c_offset, i__1, i__2, 
 	    i__3;
 
     /* Local variables */
-    integer info;
+    std::ptrdiff_t info;
     bool nota, notb;
-    doublereal temp;
-    integer i__, j, l;
+    double temp;
+    std::ptrdiff_t i__, j, l;
 
-    integer nrowa, nrowb;
+    std::ptrdiff_t nrowa, nrowb;
 
 /*     .. Scalar Arguments .. */
 /*     .. Array Arguments .. */
@@ -4191,17 +4191,17 @@ matrix_multiply(const char *transa, const char *transb, integer *m, integer *n, 
    is relative and negative tol absolute; preserve singular_value_decomposition_detailed's rotations and order. */
 /* Subroutine */ int 
 /* ezsvd: Demmel-Kahan SVD, easy-to-use front of ndsvd with defaults: eispack.c:4440 */
-singular_value_decomposition(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, doublereal *e, doublereal *u, integer *ldu, doublereal *v, integer *ldv, doublereal *work, integer *job, integer *info, doublereal *tol)
+singular_value_decomposition(double *x, std::ptrdiff_t *ldx, std::ptrdiff_t *n, std::ptrdiff_t *p, double *s, double *e, double *u, std::ptrdiff_t *ldu, double *v, std::ptrdiff_t *ldv, double *work, std::ptrdiff_t *job, std::ptrdiff_t *info, double *tol)
 {
     /* System generated locals */
-    integer x_dim1, x_offset, u_dim1, u_offset, v_dim1, v_offset;
+    std::ptrdiff_t x_dim1, x_offset, u_dim1, u_offset, v_dim1, v_offset;
 
     /* Local variables */
-    integer idbg, skip, iidir, ifull;
+    std::ptrdiff_t idbg, skip, iidir, ifull;
 
-    integer kount, kount1, kount2, limshf;
-    doublereal maxsin;
-    integer maxitr;
+    std::ptrdiff_t kount, kount1, kount2, limshf;
+    double maxsin;
+    std::ptrdiff_t maxitr;
 
 /*     new svd by J. Demmel, W. Kahan */
 /*     finds singular values of bidiagonal matrices with guaranteed high 
@@ -4268,11 +4268,11 @@ singular_value_decomposition(doublereal *x, integer *ldx, integer *n, integer *p
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* ndrotg: faster drotg, g unchanged on return, cs and sn with -sn*f+cs*g = 0: eispack.c:4519 */
-givens_rotation(doublereal *f, doublereal *g, doublereal *cs, doublereal *sn)
+givens_rotation(double *f, double *g, double *cs, double *sn)
 {
 
     /* Local variables */
-    doublereal t, tt;
+    double t, tt;
 
 /*     faster version of drotg, except g unchanged on return */
 /*     cs, sn returned so that -sn*f+cs*g = 0 */
@@ -4323,53 +4323,53 @@ o */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* ndsvd: LINPACK SVD modified by Demmel and Kahan for relative accuracy, every parameter given: eispack.c:4574 */
-singular_value_decomposition_detailed(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, doublereal *e, doublereal *u, integer *ldu, doublereal *v, integer *ldv, doublereal *work, integer *job, integer *info, integer *maxitr, doublereal *tol, integer *idbg, integer *ifull, integer *kount, integer *kount1, integer *kount2, integer *skip, integer *limshf, doublereal *maxsin, integer *iidir)
+singular_value_decomposition_detailed(double *x, std::ptrdiff_t *ldx, std::ptrdiff_t *n, std::ptrdiff_t *p, double *s, double *e, double *u, std::ptrdiff_t *ldu, double *v, std::ptrdiff_t *ldv, double *work, std::ptrdiff_t *job, std::ptrdiff_t *info, std::ptrdiff_t *maxitr, double *tol, std::ptrdiff_t *idbg, std::ptrdiff_t *ifull, std::ptrdiff_t *kount, std::ptrdiff_t *kount1, std::ptrdiff_t *kount2, std::ptrdiff_t *skip, std::ptrdiff_t *limshf, double *maxsin, std::ptrdiff_t *iidir)
 {
     /* System generated locals */
-    integer x_dim1, x_offset, u_dim1, u_offset, v_dim1, v_offset, i__1, i__2, 
+    std::ptrdiff_t x_dim1, x_offset, u_dim1, u_offset, v_dim1, v_offset, i__1, i__2, 
 	    i__3;
-    doublereal d__1, d__2, d__3, d__4;
+    double d__1, d__2, d__3, d__4;
 
     /* Local variables */
-    doublereal abse;
+    double abse;
 
-    integer idir = 0;
-    doublereal abss;
+    std::ptrdiff_t idir = 0;
+    double abss;
 
-    integer oldm, jobu;
-    doublereal cosl;
-    integer iter;
-    doublereal temp, smin, smax, cosr, sinl, sinr;
+    std::ptrdiff_t oldm, jobu;
+    double cosl;
+    std::ptrdiff_t iter;
+    double temp, smin, smax, cosr, sinl, sinr;
 
-    doublereal test;
+    double test;
 
-    integer nctp1, nrtp1;
-    doublereal f, g;
-    integer i__, j, k, l, m;
-    doublereal t;
+    std::ptrdiff_t nctp1, nrtp1;
+    double f, g;
+    std::ptrdiff_t i__, j, k, l, m;
+    double t;
 
-    doublereal oldcs;
-    integer oldll, iisub;
-    doublereal shift, oldsn = 0, sigmn;
-    integer minnp, maxit;
-    doublereal sminl;
+    double oldcs;
+    std::ptrdiff_t oldll, iisub;
+    double shift, oldsn = 0, sigmn;
+    std::ptrdiff_t minnp, maxit;
+    double sminl;
 
-    doublereal sigmx;
+    double sigmx;
     bool wantu, wantv;
-    doublereal gg = 0, lambda;
-    integer oldacc;
-    doublereal cs;
-    integer ll, mm;
-    doublereal sm;
-    integer lu;
-    doublereal sn, mu;
+    double gg = 0, lambda;
+    std::ptrdiff_t oldacc;
+    double cs;
+    std::ptrdiff_t ll, mm;
+    double sm;
+    std::ptrdiff_t lu;
+    double sn, mu;
 
-    doublereal thresh;
+    double thresh;
 
-    integer lm1, lp1, lll, nct, ncu;
-    doublereal sll;
-    integer nrt;
-    doublereal emm1, smm1;
+    std::ptrdiff_t lm1, lp1, lll, nct, ncu;
+    double sll;
+    std::ptrdiff_t nrt;
+    double emm1, smm1;
 
     /* Fortran I/O blocks */
 
@@ -5516,17 +5516,17 @@ L996:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* prse: debug routine to print s and e: eispack.c:5862 */
-print_bidiagonal(const integer *ll, const integer *m, const integer *nrow, const integer *ncol, const doublereal *s, const doublereal *e)
+print_bidiagonal(const std::ptrdiff_t *ll, const std::ptrdiff_t *m, const std::ptrdiff_t *nrow, const std::ptrdiff_t *ncol, const double *s, const double *e)
 {
     /* Format strings */
 
     /* System generated locals */
-    integer i__1;
+    std::ptrdiff_t i__1;
 
     /* Builtin functions */
 
     /* Local variables */
-    integer i__;
+    std::ptrdiff_t i__;
 
     /* Fortran I/O blocks */
 
@@ -5556,20 +5556,20 @@ print_bidiagonal(const integer *ll, const integer *m, const integer *nrow, const
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* sig22: SVD of the 2x2 upper triangular matrix [[a,b],[0,c]]: eispack.c:5903 */
-singular_values_2x2(doublereal *a, doublereal *b, doublereal *c__, doublereal *smallest_singular_value_2x2, doublereal *sigmax, doublereal *snr, doublereal *csr, doublereal *snl, doublereal *csl)
+singular_values_2x2(double *a, double *b, double *c__, double *smallest_singular_value_2x2, double *sigmax, double *snr, double *csr, double *snl, double *csl)
 {
     /* System generated locals */
-    doublereal d__1, d__2;
+    double d__1, d__2;
 
     /* Local variables */
-    doublereal absa, absb, absc, acmn, acmx, sgna, sgnb, sgnc, cosl, 
+    double absa, absb, absc, acmn, acmx, sgna, sgnb, sgnc, cosl, 
 	    sinl, cosr, temp, sinr, temp1 = 0, temp2 = 0, temp3, sgnmn, sgnmx, ac, ca;
-    integer ia;
-    doublereal absbac;
-    integer ib;
-    doublereal as = 0, at, au = 0;
+    std::ptrdiff_t ia;
+    double absbac;
+    std::ptrdiff_t ib;
+    double as = 0, at, au = 0;
 
-    doublereal bac = 0;
+    double bac = 0;
 
 /*     compute the singular value decomposition of the 2 by 2 */
 /*     upper triangular matrix [[a,b];[0,c]] */
@@ -5809,14 +5809,14 @@ y */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* sigmin: smallest singular value of the 2x2 matrix ((a,b),(0,c)): eispack.c:6158 */
-doublereal 
-smallest_singular_value_2x2(doublereal *a, doublereal *b, doublereal *c__)
+double 
+smallest_singular_value_2x2(double *a, double *b, double *c__)
 {
     /* System generated locals */
-    doublereal ret_val, d__1, d__2;
+    double ret_val, d__1, d__2;
 
     /* Local variables */
-    doublereal acmn, acmx, aa, ab, ac, as, at, au;
+    double acmn, acmx, aa, ab, ac, as, at, au;
 
 /*     compute smallest singular value of 2 by 2 matrix ((a,b);(0,c)) */
 /*     answer is accurate to a few ulps if final answer */
@@ -5868,13 +5868,13 @@ smallest_singular_value_2x2(doublereal *a, doublereal *b, doublereal *c__)
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* sndrtg: ndrotg's variant with sign(f)=sign(cs), sign(g)=sign(sn): eispack.c:6216 */
-rotation_matching_signs(doublereal *f, doublereal *g, doublereal *cs, doublereal *sn)
+rotation_matching_signs(double *f, double *g, double *cs, double *sn)
 {
     /* System generated locals */
-    doublereal d__1;
+    double d__1;
 
     /* Local variables */
-    doublereal t, tt;
+    double t, tt;
 
 /*     version of givens_rotation, in which sign(f)=sign(cs),sign(g)=sign(sn) */
 /*     cs, sn returned so that -sn*f+cs*g = 0 */
@@ -5917,18 +5917,18 @@ rotation_matching_signs(doublereal *f, doublereal *g, doublereal *cs, doublereal
    This basis and convergence policy are not real_general_eigen's eigenvector calculation. */
 /* Subroutine */ int 
 /* hqr3lc: HQR3 reduces an upper Hessenberg matrix to quasi-triangular form by unitary similarity (hqr3_loc.f: XPPAUT 8.0 eispack.c:6257) */
-hessenberg_quasi_triangular(doublereal *a, doublereal *v, integer *n, integer *nlow, integer *nup, doublereal *eps, doublereal *er, doublereal *ei, integer *type__, integer *na, integer *nv, integer *imfd)
+hessenberg_quasi_triangular(double *a, double *v, std::ptrdiff_t *n, std::ptrdiff_t *nlow, std::ptrdiff_t *nup, double *eps, double *er, double *ei, std::ptrdiff_t *type__, std::ptrdiff_t *na, std::ptrdiff_t *nv, std::ptrdiff_t *imfd)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, v_dim1, v_offset, i__1;
-    doublereal d__1, d__2, d__3;
+    std::ptrdiff_t a_dim1, a_offset, v_dim1, v_offset, i__1;
+    double d__1, d__2, d__3;
 
     /* Local variables */
     bool fail;
-    integer i__, l;
-    doublereal p, q, r__, s, t, w, x, y, z__, e1, e2;
+    std::ptrdiff_t i__, l;
+    double p, q, r__, s, t, w, x, y, z__, e1, e2;
 
-    integer nl, it, mu, nu;
+    std::ptrdiff_t nl, it, mu, nu;
 /* HQR3 REDUCES THE UPPER HESSENBERG MATRIX A TO QUASI- */
 /* TRIANGULAR FORM BY UNITARY SIMILARITY TRANSFORMATIONS. */
 /* THE EIGENVALUES OF A, WHICH ARE CONTAINED IN THE 1X1 */
@@ -6315,16 +6315,16 @@ L310:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-split(doublereal *a, doublereal *v, integer *n, integer *l, doublereal *e1, doublereal *e2, integer *na, integer *nv)
+split(double *a, double *v, std::ptrdiff_t *n, std::ptrdiff_t *l, double *e1, double *e2, std::ptrdiff_t *na, std::ptrdiff_t *nv)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, v_dim1, v_offset, i__1;
-    doublereal d__1, d__2;
+    std::ptrdiff_t a_dim1, a_offset, v_dim1, v_offset, i__1;
+    double d__1, d__2;
 
     /* Local variables */
-    integer i__, j;
-    doublereal p, q, r__, t, u, w, x, y, z__;
-    integer l1;
+    std::ptrdiff_t i__, j;
+    double p, q, r__, t, u, w, x, y, z__;
+    std::ptrdiff_t l1;
 
 /* GIVEN THE UPPER HESSENBERG MATRIX A WITH A 2X2 BLOCK */
 /* STARTING AT A(L,L), SPLIT DETERMINES IF THE */
@@ -6458,16 +6458,16 @@ L80:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* exchng: exchanges consecutive 1x1 or 2x2 diagonal blocks of an upper Hessenberg matrix with their eigenvalues, accumulating the transform: XPPAUT 8.0 eispack.c:6804 */
-exchange_diagonal_blocks(doublereal *a, doublereal *v, integer *n, integer *l, const integer *b1, const integer *b2, doublereal *eps, bool *fail, integer *na, integer *nv)
+exchange_diagonal_blocks(double *a, double *v, std::ptrdiff_t *n, std::ptrdiff_t *l, const std::ptrdiff_t *b1, const std::ptrdiff_t *b2, double *eps, bool *fail, std::ptrdiff_t *na, std::ptrdiff_t *nv)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, v_dim1, v_offset, i__1;
-    doublereal d__1, d__2, d__3;
+    std::ptrdiff_t a_dim1, a_offset, v_dim1, v_offset, i__1;
+    double d__1, d__2, d__3;
 
     /* Local variables */
-    integer i__, j, m;
-    doublereal p, q, r__, s, w, x, y, z__;
-    integer l1, it;
+    std::ptrdiff_t i__, j, m;
+    double p, q, r__, s, w, x, y, z__;
+    std::ptrdiff_t l1, it;
 
 /* GIVEN THE UPPER HESSENBERG MATRIX A WITH CONSECUTIVE */
 /* B1XB1 AND B2XB2 DIAGONAL BLOCKS (B1,B2 .LE. 2) */
@@ -6630,17 +6630,17 @@ L90:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* qrstep: one implicit QR step on rows and columns nl..nu of an upper Hessenberg matrix: eispack.c:6977 */
-implicit_qr_step(doublereal *a, doublereal *v, doublereal *p, doublereal *q, doublereal *r__, integer *nl, integer *nu, integer *n, integer *na, integer *nv)
+implicit_qr_step(double *a, double *v, double *p, double *q, double *r__, std::ptrdiff_t *nl, std::ptrdiff_t *nu, std::ptrdiff_t *n, std::ptrdiff_t *na, std::ptrdiff_t *nv)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, v_dim1, v_offset, i__1, i__2;
-    doublereal d__1, d__2, d__3;
+    std::ptrdiff_t a_dim1, a_offset, v_dim1, v_offset, i__1, i__2;
+    double d__1, d__2, d__3;
 
     /* Local variables */
     bool last;
-    integer i__, j, k;
-    doublereal s, x = 0, y, z__;
-    integer nl2, nl3, num1;
+    std::ptrdiff_t i__, j, k;
+    double s, x = 0, y, z__;
+    std::ptrdiff_t nl2, nl3, num1;
 
 /* QRSTEP PERFORMS ONE IMPLICIT QR STEP ON THE */
 /* UPPER HESSENBERG MATRIX A.  THE SHIFT IS DETERMINED */
@@ -6792,17 +6792,17 @@ L130:
    inner sums rather than silently imposing gear's IEEE special-value policy. */
 /* orthes: EISPACK's Householder reduction to Hessenberg form */
 /* Subroutine */ int 
-hessenberg_reduce_householder(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doublereal *ort)
+hessenberg_reduce_householder(std::ptrdiff_t *nm, std::ptrdiff_t *n, std::ptrdiff_t *low, std::ptrdiff_t *igh, double *a, double *ort)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, i__1, i__2, i__3;
-    doublereal d__1;
+    std::ptrdiff_t a_dim1, a_offset, i__1, i__2, i__3;
+    double d__1;
 
     /* Local variables */
-    doublereal f, g, h__;
-    integer i__, j, m;
-    doublereal scale;
-    integer la, ii, jj, mp, kp1;
+    double f, g, h__;
+    std::ptrdiff_t i__, j, m;
+    double scale;
+    std::ptrdiff_t la, ii, jj, mp, kp1;
 
 /*     this subroutine is a translation of the algol procedure hessenberg_reduce_householder, */
 /*     num. math. 12, 349-368(1968) by martin and wilkinson. */
@@ -6948,14 +6948,14 @@ L200:
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
 /* ortran: EISPACK ortran: orthes's accumulated transform */
-hessenberg_transform_orthogonal(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doublereal *ort, doublereal *z__)
+hessenberg_transform_orthogonal(std::ptrdiff_t *nm, std::ptrdiff_t *n, std::ptrdiff_t *low, std::ptrdiff_t *igh, double *a, double *ort, double *z__)
 {
     /* System generated locals */
-    integer a_dim1, a_offset, z_dim1, z_offset, i__1, i__2, i__3;
+    std::ptrdiff_t a_dim1, a_offset, z_dim1, z_offset, i__1, i__2, i__3;
 
     /* Local variables */
-    doublereal g;
-    integer i__, j, kl, mm, mp, mp1;
+    double g;
+    std::ptrdiff_t i__, j, kl, mm, mp, mp1;
 
 /*     this subroutine is a translation of the algol procedure ortrans, */
 /*     num. math. 16, 181-204(1970) by peters and wilkinson. */

@@ -16,7 +16,7 @@ import numpy as np
 
 import dop853_coefficients as K
 
-# core/stiff.cpp: QualRK's step control (Numerical Recipes' rkqs) and its limit on steps between two output times
+# core/stiff.cpp: QualRK's step control (Numerical Recipes' cash_karp_adaptive_step) and its limit on steps between two output times
 SAFETY, PGROW, PSHRNK, ERRCON, TINY, MAXSTP = 0.9, -0.2, -0.25, 1.89e-4, 1.0e-30, 100000
 # core/stiff.cpp: a rejected step is shortened to no less than this fraction, an accepted one lengthened to at most this multiple
 SHRINK_LIMIT, GROW_LIMIT = 0.1, 5.0
@@ -155,7 +155,7 @@ def backward_euler_step(rhs, t, y, dt, numerics):
 
 # ---- QualRK: core/stiff.cpp's adaptive Cash-Karp step ----
 
-def rkck(rhs, y, dydx, x, h):
+def cash_karp_step(rhs, y, dydx, x, h):
     """One Cash-Karp step: the new state and the error estimate."""
     a2, a3, a4, a5, a6 = 0.2, 0.3, 0.6, 1.0, 0.875
     b21 = 0.2
@@ -176,11 +176,11 @@ def rkck(rhs, y, dydx, x, h):
     return yout, yerr
 
 
-def rkqs(rhs, y, dydx, x, htry, eps, yscal):
-    """core/stiff.cpp rkqs: a step of at most htry that meets the tolerance: (x, y, the step taken's successor)."""
+def cash_karp_adaptive_step(rhs, y, dydx, x, htry, eps, yscal):
+    """core/stiff.cpp cash_karp_adaptive_step: a step of at most htry that meets the tolerance: (x, y, the step taken's successor)."""
     h = htry
     while True:
-        ytemp, yerr = rkck(rhs, y, dydx, x, h)
+        ytemp, yerr = cash_karp_step(rhs, y, dydx, x, h)
         errmax = float(np.max(np.abs(yerr / yscal))) / eps
         if errmax > 1.0:
             htemp = SAFETY * h * errmax ** PSHRNK
@@ -193,7 +193,7 @@ def rkqs(rhs, y, dydx, x, htry, eps, yscal):
 
 
 def qualrk_advance(rhs, t, y, hguess, tout, numerics):
-    """core/stiff.cpp gadaptive: from t to tout in steps of its own choosing: (tout, y, the next step to try)."""
+    """core/stiff.cpp adaptive_integration_without_flags: from t to tout in steps of its own choosing: (tout, y, the next step to try)."""
     x1, x2 = t, tout
     x, h = x1, sign(hguess, x2 - x1)
     for _ in range(MAXSTP):
@@ -201,7 +201,7 @@ def qualrk_advance(rhs, t, y, hguess, tout, numerics):
         yscal = np.abs(y) + np.abs(dydx * h) + TINY
         if (x + h - x2) * (x + h - x1) > 0.0:
             h = x2 - x
-        x, y, hnext = rkqs(rhs, y, dydx, x, h, numerics.relative_tolerance, yscal)
+        x, y, hnext = cash_karp_adaptive_step(rhs, y, dydx, x, h, numerics.relative_tolerance, yscal)
         if (x - x2) * (x2 - x1) >= 0.0:
             return x2, y, sign(hnext, x2 - x1)
         if abs(hnext) <= numerics.min_step:
@@ -226,11 +226,11 @@ def combine(terms, f):
 
 
 def coefficients(prefix, row, columns):
-    """K.<prefix><row><column> with the column, for each column: dopcor's names (a31..., d41...)."""
+    """K.<prefix><row><column> with the column, for each column: dormand_prince_853_correct's names (a31..., d41...)."""
     return [(getattr(K, '%s%d%d' % (prefix, row, c)), c) for c in columns]
 
 
-# dopcor's stages 3 to 12: (the node, the earlier stages it combines); a stage's state is y + h*(the sum of a*f)
+# dormand_prince_853_correct's stages 3 to 12: (the node, the earlier stages it combines); a stage's state is y + h*(the sum of a*f)
 STAGES = {3: (K.c3, [1, 2]), 4: (K.c4, [1, 3]), 5: (K.c5, [1, 3, 4]), 6: (K.c6, [1, 4, 5]), 7: (K.c7, [1, 4, 5, 6]),
           8: (K.c8, [1, 4, 5, 6, 7]), 9: (K.c9, [1, 4, 5, 6, 7, 8]), 10: (K.c10, [1, 4, 5, 6, 7, 8, 9]),
           11: (K.c11, [1, 4, 5, 6, 7, 8, 9, 10])}
@@ -238,7 +238,7 @@ LAST_STAGE = [1, 4, 5, 6, 7, 8, 9, 10, 11]  # stage 12, at the end of the step
 # the stages 14 to 16 evaluated for the dense output once a step is accepted, the same way
 EXTRA_STAGES = {14: (K.c14, [1, 7, 8, 9, 10, 11, 12, 13]), 15: (K.c15, [1, 6, 7, 8, 11, 12, 13, 14]),
                 16: (K.c16, [1, 6, 7, 8, 9, 13, 14, 15])}
-# the new state's weights (dopcor's k4 before the step is accepted), the two error estimates' terms
+# the new state's weights (dormand_prince_853_correct's k4 before the step is accepted), the two error estimates' terms
 WEIGHTS = [(K.b1, 1)] + [(getattr(K, 'b%d' % i), i) for i in range(6, 13)]
 ERROR_TERMS = [(K.er1, 1)] + [(getattr(K, 'er%d' % i), i) for i in range(6, 13)]
 # the dense polynomial's terms 5 to 8 are rows 4 to 7 of d, from the stages 1, 6..12 and, once the extra stages are in, 13..16
@@ -246,8 +246,8 @@ DENSE_ROWS = (4, 5, 6, 7)
 DENSE_STAGES, DENSE_EXTRA_STAGES = [1, 6, 7, 8, 9, 10, 11, 12], [13, 14, 15, 16]
 
 
-def hinit(rhs, x, y, posneg, f0, hmax, atol, rtol):
-    """core/dormpri.cpp hinit: the first step, from the size of y and its derivative and an Euler step's second difference."""
+def dormand_prince_initial_step(rhs, x, y, posneg, f0, hmax, atol, rtol):
+    """core/dormpri.cpp dormand_prince_initial_step: the first step, from the size of y and its derivative and an Euler step's second difference."""
     iord = 8
     sk = atol + rtol * np.abs(y)
     sqr = f0 / sk
@@ -289,7 +289,7 @@ def bracketed_root(f, a, b, fa, fb):
 
 
 class Dop853:
-    """core/dormpri.cpp's dop853 and its Solver: Dormand-Prince 8(5,3) one accepted step at a time (dopcor), the
+    """core/dormpri.cpp's dop853 and its Solver: Dormand-Prince 8(5,3) one accepted step at a time (dormand_prince_853_correct), the
     step's end kept as the internal state (FSAL: the derivative there starts the next step), the output times
     sampled from the step's dense polynomial, and an event's crossing found in that polynomial (core/integrate.cpp
     dense_event). Stiffness detection, which only logs, is not carried."""
@@ -304,7 +304,7 @@ class Dop853:
         self.returned, self.returned_time = None, None
 
     def step(self, xend):
-        """dopcor: one accepted step from the internal state: sets endpoint, internal_time and the dense polynomial."""
+        """dormand_prince_853_correct: one accepted step from the internal state: sets endpoint, internal_time and the dense polynomial."""
         rhs, num = self.model.rhs, self.numerics
         x, y = self.internal_time, self.endpoint
         posneg = sign(1.0, xend - x)
@@ -315,7 +315,7 @@ class Dop853:
             facold, h, f = self.facold, self.next_h, self.f
         else:
             facold, f = 1.0E-4, {1: rhs(x, y)}
-            h = hinit(rhs, x, y, posneg, f[1], hmax, num.absolute_tolerance, num.relative_tolerance)
+            h = dormand_prince_initial_step(rhs, x, y, posneg, f[1], hmax, num.absolute_tolerance, num.relative_tolerance)
         reject = last = False
         while True:
             if self.attempts >= DOPRI_RUN_ATTEMPTS:

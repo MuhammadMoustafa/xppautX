@@ -45,8 +45,8 @@ int with_workspace(Call call)
 
 namespace xpp {
 
-int real_general_eigen(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer matz, doublereal *z__,
-       integer * /*iv1*/, doublereal * /*fv1*/, integer *ierr)
+int real_general_eigen(std::ptrdiff_t nm, std::ptrdiff_t n, double *a, double *wr, double *wi, std::ptrdiff_t matz, double *z__,
+       std::ptrdiff_t * /*iv1*/, double * /*fv1*/, std::ptrdiff_t *ierr)
 {
     const int order = static_cast<int>(n), lda = static_cast<int>(nm);
     const int one = 1;
@@ -60,19 +60,19 @@ int real_general_eigen(integer nm, integer n, doublereal *a, doublereal *wr, dou
     return 0;
 }
 
-int qz_reduce_hessenberg(integer, integer, doublereal *, doublereal *, bool, doublereal *)
+int qz_reduce_hessenberg(std::ptrdiff_t, std::ptrdiff_t, double *, double *, bool, double *)
 {
     return 0;
 }
 
-int qz_iterate(integer, integer, doublereal *, doublereal *, doublereal, bool, doublereal *, integer *ierr)
+int qz_iterate(std::ptrdiff_t, std::ptrdiff_t, double *, double *, double, bool, double *, std::ptrdiff_t *ierr)
 {
     *ierr = 0;
     return 0;
 }
 
-int qz_eigenvalues(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr, doublereal *alfi, doublereal *beta,
-          bool, doublereal *)
+int qz_eigenvalues(std::ptrdiff_t nm, std::ptrdiff_t n, double *a, double *b, double *alfr, double *alfi, double *beta,
+          bool, double *)
 {
     const int order = static_cast<int>(n), ld = static_cast<int>(nm), one = 1;
     double unused = 0;

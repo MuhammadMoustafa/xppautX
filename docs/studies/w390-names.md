@@ -350,7 +350,7 @@ AUTO's two-letter codes name the problem kind a function belongs to (AUTO-07p's 
 | `blhme` | `homoclinic_eigen_check` | common block BLHME: vrprev, ieigc |
 | `beyn` | `beyn_workspace` | Beyn's projection method's workspace |
 
-## 7. Integrators and equilibria (not renamed in this stage: see section 10)
+## 7. Integrators and equilibria (renamed except the three whose names are everyday words: `gear`, `stiff`, `adaptive`)
 
 | Current | Final name | Meaning and source |
 |---|---|---|
@@ -381,7 +381,7 @@ AUTO's two-letter codes name the problem kind a function belongs to (AUTO-07p's 
 
 - **`iap_type` and `rap_type` fields keep their names.** They are AUTO-07p's documented constants and integer/real parameter arrays (`ndim`, `ips`, `irs`, `ilp`, `ntst`, `ncol`, `isw`, `itp`, `rl0`, `rl1`, `a0`, `a1`, `epsl`, `epsu`, `epss`, `ds`, `dsmin`, `dsmax`, ...), named in AUTO-07p's manual, in fort.7/fort.8 and in the diagram's columns (rule 3). The `?` fields of the first inventory (`iad`, `iads`, `nbc0`, `nnt0`, `nwtn`, `nit`, `nins`, `ipos`) are settled by AUTO-07p's own documentation in the same way: they are AUTO's names, so they stay. The brief of this stage fixed this.
 - **The common blocks** (`blhom`, `blhmp`, `blhmu`, `bcnn`, `blhma`, `bleig`, `blhme`, `beyn`) are Fortran common-block names, not documented constants: renamed in section 6; their fields are already readable.
-- **The f2c types** `integer`, `real`, `doublereal`, `doublecomplex` become `std::ptrdiff_t`, `float`, `double` directly in the last pack of this stage; `f2c::abs`, `f2c::min` and `f2c::max` are not `std::`'s (they keep -0.0 and a NaN's sign where `std::fabs` clears it, and pick the other operand of an unordered pair: autox_f2c.h), so the three functions stay, with a name that says it (`fortran::`).
+- **The f2c types** are gone: `integer` is `std::ptrdiff_t`, `doublereal` is `double` and `real` (float, used once: EISPACK's `cuthi / n`) is `float`, in every file that took them from autox_f2c.h (CVODE's own `integer` and `real` of llnltyps.h are another pair and stay until W34). f2c's `doublecomplex` is a plain `{r, i}` pair that the code reads and writes member by member; `std::complex<double>` would make every one of about 60 uses go through `.real()` and `.imag()` for no gain, so it stays a struct under a readable name, `FortranComplex` (autox_f2c.h); del_stab.h's `COMPLEX` is the same pair under a second name and is left for the card that merges the two complex helpers' families (their arithmetic differs, section 9). `f2c::abs`, `f2c::min` and `f2c::max` are not `std::`'s (they keep -0.0 and a NaN's sign where `std::fabs` clears it, and pick the other operand of an unordered pair: autox_f2c.h) and stay.
 - **The function-pointer macros** (`FUNI_TYPE`, `BCNI_TYPE`, ..., autox_c.h) are not renamed here: they are declarations, not names of numerical routines (see section 10).
 
 ## 9. Duplicates and look-alikes (the old section 8, decided from the code)
@@ -402,4 +402,4 @@ AUTO's two-letter codes name the problem kind a function belongs to (AUTO-07p's 
 
 ## 10. Left for a later run of this card
 
-The sections the run that settled this file did not rename are listed at its end by the final report: integrators and equilibria (section 7 above, its names settled here), the function-pointer macros of autox_c.h, and anything the report names as not finished.
+`gear`, `stiff` and `adaptive` (section 7) are also user-facing method names and ordinary words all over core: renaming them by word would touch strings and settings, so they keep their names until a card renames the functions with a compiler's help. The function-pointer macros of autox_c.h and the f2c types are the last pack (see the final report of the run).

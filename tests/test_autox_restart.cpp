@@ -57,13 +57,13 @@ void formulation(xpp::Session &s, decltype(&periodic_fold_starting_data) restart
     iap.ips = xpp::AutoxProblem::Periodic;
     iap.isw = 2;
     rap_type rap{};
-    std::array<integer, 4> icp = {10, 11, 10, 11};
+    std::array<std::ptrdiff_t, 4> icp = {10, 11, 10, 11};
     std::vector<double> par(run.parameter_count, canary);
     std::vector<double> ups(3 * dimension * 2, canary);
     std::vector<double> tangent(ups.size(), canary), old(ups.size(), canary);
     std::array<double, 4> current{}, direction{};
     std::array<double, 3> tm{}, dtm{}, thl{}, thu{};
-    integer ntst = 0, ncol = 0, stride = 3, nodir = -2;
+    std::ptrdiff_t ntst = 0, ncol = 0, stride = 3, nodir = -2;
     std::string failed;
     try {
         CHECK(restart(&iap, &rap, par.data(), icp.data(), &ntst, &ncol,
@@ -130,7 +130,7 @@ void algebraic(xpp::Session &s, bool truncated) {
     iap.irs = 7;
     rap_type rap{};
     bool found = 0;
-    integer free = 0;
+    std::ptrdiff_t free = 0;
     find_restart_label(&iap, &rap, 7, &free, &found);
     CHECK(found && free == 1);
     std::array<double, 2> u{};
@@ -166,7 +166,7 @@ void user_zero_text(xpp::Session &s) {
     iap.ntot = 10000;
     iap.nfpr = 1;
     rap_type rap{};
-    integer icp[] = {xpp::autox_unknown::period};
+    std::ptrdiff_t icp[] = {xpp::autox_unknown::period};
     const AutoxMark marks[] = {{-xpp::autox_unknown::period, .125}};
     std::vector<double> par(run.parameter_count);
     par[xpp::autox_unknown::period] = .875;
@@ -211,12 +211,12 @@ void point_files(xpp::Session &s, int count, bool collocation) {
     iap.ntst = collocation ? 1 : 0;
     iap.ncol = collocation ? 2 : 0;
     rap_type rap{};
-    std::array<integer, 1> icp = {s.autox_state.parameter_layout.solver_index(0)};
+    std::array<std::ptrdiff_t, 1> icp = {s.autox_state.parameter_layout.solver_index(0)};
     std::vector<double> par(run.parameter_count);
     std::array<double, 4> values = {2., 3., 4., 5.}, tangent = {.5, .5, .5, .5};
     std::array<double, 2> times = {0., 1.};
     double current = .25, direction = 1., interval = 1.;
-    integer stride = 2;
+    std::ptrdiff_t stride = 2;
     if (collocation) {
         CHECK(write_solution_restart(&iap, &rap, par.data(), icp.data(), &direction, &stride,
                       values.data(), tangent.data(), times.data(), &interval) == 0);
@@ -240,7 +240,7 @@ void point_files(xpp::Session &s, int count, bool collocation) {
     run.fp7 = diagram.get();
     run.fp9 = diagnostic.get();
     // Both signs matter: fort.7 uses the sign to encode stability.
-    for (integer point : {static_cast<integer>(count), -static_cast<integer>(count)})
+    for (std::ptrdiff_t point : {static_cast<std::ptrdiff_t>(count), -static_cast<std::ptrdiff_t>(count)})
         CHECK(write_diagram_line(&iap, &rap, par.data(), icp.data(), icp.data(), &iap.ibr,
                      &point, &iap.lab, &current, values.data()) == 0);
     CHECK(xpp::seek_stream(diagram.get(), 0, diagram_path).has_value());
@@ -280,7 +280,7 @@ void branch_point_direction(xpp::Session &s) {
         iap.isw = 1;
         iap.itp = {branch_point ? xpp::AutoxPointKind::BranchPoint : xpp::AutoxPointKind::End, xpp::AutoxPointKind::Regular};
         rap_type rap{};
-        std::array<integer, 1> icp = {s.autox_state.parameter_layout.solver_index(0)};
+        std::array<std::ptrdiff_t, 1> icp = {s.autox_state.parameter_layout.solver_index(0)};
         std::vector<double> par(run.parameter_count);
         std::array<double, 2> values = {2., 3.}, tangent = {.6, -.8};
         std::array<double, 1> rldot = {.25};
@@ -294,7 +294,7 @@ void branch_point_direction(xpp::Session &s) {
         CHECK(std::fflush(run.fp8.get()) == 0); /* find_restart_label reads the file by its path */
         iap.irs = 7;
         bool found = false;
-        integer free = 0;
+        std::ptrdiff_t free = 0;
         find_restart_label(&iap, &rap, 7, &free, &found);
         CHECK(found);
         xpp::AutoxSolutionHeader header;

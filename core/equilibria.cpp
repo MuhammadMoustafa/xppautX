@@ -71,13 +71,13 @@ xpp::Result<SingStatus> find_equilibrium(EquilibriumModel &model, Equilibrium &q
  q.b=q.eval+2*n;
  q.bp=q.b+n;
  double *ework=q.bp+n;
- if(auto r=rooter(model,x,err,eps,big,q.work,q.run,maxit,n);!r)return std::unexpected(r.error());
+ if(auto r=newton_iterate(model,x,err,eps,big,q.work,q.run,maxit,n);!r)return std::unexpected(r.error());
  *ierr=q.run.end==NewtonEnd::converged?0:1;
  if(*ierr!=0)
  {
   std::copy(q.old_x.begin(),q.old_x.end(),x);
   if(!ghost)return SingStatus::no_root;
-  getjac(model,x,q.oldwork,eps,q.work,n); /* oldwork is free until the copy below: getjac's scratch */
+  numerical_jacobian(model,x,q.oldwork,eps,q.work,n); /* oldwork is free until the copy below: numerical_jacobian's scratch */
  }
  std::copy(q.work,q.work+n*n,q.oldwork);
 /* Transpose for Eigen        */
@@ -554,7 +554,8 @@ xpp::Result<> get_evec(xpp::Session &s, double *a, double *anew, double *b, doub
      return {};
   }
 
-void getjac(EquilibriumModel &model, double *x, double *y, double eps, double *dermat, int n)
+/* getjac: XPPAUT 8.0 gear.c:996: Jacobian by differencing */
+void numerical_jacobian(EquilibriumModel &model, double *x, double *y, double eps, double *dermat, int n)
 {
   const bool discrete=model.discrete();
   model.rhs(x,y);
@@ -596,7 +597,7 @@ void newton(EquilibriumModel &model, double *x, double err, double eps, double b
      return;
    }
 
-  getjac(model,x,y,eps,dermat,n);
+  numerical_jacobian(model,x,y,eps,dermat,n);
   if(model.failed())
   {
    stop(NewtonEnd::step_error);
@@ -619,7 +620,7 @@ void newton(EquilibriumModel &model, double *x, double err, double eps, double b
   run.change=r;
   if(r<err)
   {
-     getjac(model,x,y,eps,dermat,n);
+     numerical_jacobian(model,x,y,eps,dermat,n);
      if(model.discrete())
      for(i=0;i<n;i++)dermat[i*(n+1)]+=1.0;
      run.iterations=iter+1;
@@ -640,7 +641,8 @@ void newton(EquilibriumModel &model, double *x, double err, double eps, double b
 }
 }
 
-xpp::Result<> rooter(EquilibriumModel &model, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
+/* rooter: XPPAUT 8.0 gear.c:1058: Newton iteration for a root, with a pivoted LU */
+xpp::Result<> newton_iterate(EquilibriumModel &model, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
 {
  const std::vector<double> start(x,x+n);
  try {
@@ -656,10 +658,10 @@ xpp::Result<> rooter(EquilibriumModel &model, double *x, double err, double eps,
  return {};
 }
 
-xpp::Result<> rooter(xpp::Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
+xpp::Result<> newton_iterate(xpp::Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
 {
  const auto model=session_equilibrium_model(s,n);
- return rooter(*model,x,err,eps,big,work,run,maxit,n);
+ return newton_iterate(*model,x,err,eps,big,work,run,maxit,n);
 }
 
 namespace {

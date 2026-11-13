@@ -18,8 +18,8 @@
 #include "diagram.h"
 
 namespace {
-int line(const iap_type *, const rap_type *, integer, const double *u,
-         const double *, const integer *icp, double *par, integer,
+int line(const iap_type *, const rap_type *, std::ptrdiff_t, const double *u,
+         const double *, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t,
          double *f, double *dfdu, double *dfdp)
 {
     f[0] = u[0] - par[icp[0]];
@@ -27,8 +27,8 @@ int line(const iap_type *, const rap_type *, integer, const double *u,
     dfdp[icp[0]] = -1;
     return 0;
 }
-int nonfinite_line(const iap_type *, const rap_type *, integer, const double *,
-         const double *, const integer *icp, double *, integer,
+int nonfinite_line(const iap_type *, const rap_type *, std::ptrdiff_t, const double *,
+         const double *, const std::ptrdiff_t *icp, double *, std::ptrdiff_t,
          double *f, double *dfdu, double *dfdp)
 {
     // Finite, nonsingular Jacobian with a nonfinite Newton right-hand side.
@@ -38,8 +38,8 @@ int nonfinite_line(const iap_type *, const rap_type *, integer, const double *,
     return 0;
 }
 // Reject a long prediction so SOLVAE must halve the location step.
-int retry_line(const iap_type *iap, const rap_type *rap, integer ndim, const double *u,
-         const double *uold, const integer *icp, double *par, integer ijac,
+int retry_line(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u,
+         const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac,
          double *f, double *dfdu, double *dfdp)
 {
     line(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp);
@@ -48,24 +48,24 @@ int retry_line(const iap_type *iap, const rap_type *rap, integer ndim, const dou
         f[0] = std::numeric_limits<double>::quiet_NaN();
     return 0;
 }
-double target(iap_type *, rap_type *, double *, integer *, bool *chng,
-             FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
+double target(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
+             FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
              double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
     return u[0] - 0.4; // special point on the straight branch
 }
-int initial_boundary(const iap_type *, const rap_type *, integer, double *,
-                     const integer *, integer, const double *u0, const double *,
-                     double *f, integer, double *dbc)
+int initial_boundary(const iap_type *, const rap_type *, std::ptrdiff_t, double *,
+                     const std::ptrdiff_t *, std::ptrdiff_t, const double *u0, const double *,
+                     double *f, std::ptrdiff_t, double *dbc)
 {
     f[0] = u0[0];
     dbc[0] = 1;
     return 0;
 }
 // A noisy test claims a sign change but has no zero on this straight branch.
-double noisy(iap_type *iap, rap_type *, double *, integer *, bool *chng,
-             FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
+double noisy(iap_type *iap, rap_type *, double *, std::ptrdiff_t *, bool *chng,
+             FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
              double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
@@ -73,39 +73,39 @@ double noisy(iap_type *iap, rap_type *, double *, integer *, bool *chng,
     return 1;
 }
 // W545 (#610): tests on the straight branch u = par (the test is a function of u alone).
-double two_zeros(iap_type *, rap_type *, double *, integer *, bool *chng,
-                 FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
+double two_zeros(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
+                 FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
                  double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
     return (u[0] - 0.4) * (u[0] - 0.7);
 }
-double jump(iap_type *, rap_type *, double *, integer *, bool *chng,
-            FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
+double jump(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
+            FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
             double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
     return u[0] < 0.4 ? -1 : 1;
 }
 // cells of width 0.02 alternate in sign: every sample's sign is that of its cell, none is a crossing
-double noise(iap_type *, rap_type *, double *, integer *, bool *chng,
-             FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
+double noise(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
+             FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
              double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
     return static_cast<long>(std::floor(u[0] / 0.02)) % 2 == 0 ? 1e-3 : -1e-3;
 }
 // W580 (#645): a flat zero of odd order crosses (henon_rot_th's branch point is a cubic)
-double cubic(iap_type *, rap_type *, double *, integer *, bool *chng,
-             FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
+double cubic(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
+             FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
              double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
     return std::pow(u[0] - 0.4, 3);
 }
 // a double zero at the step's end, its sample there at the test's noise (1e-4 below 0): a touching
-double touching(iap_type *, rap_type *, double *, integer *, bool *chng,
-                FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
+double touching(iap_type *, rap_type *, double *, std::ptrdiff_t *, bool *chng,
+                FUNI_TYPE((*)), std::ptrdiff_t *, double *, double *, double *, double *,
                 double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
@@ -166,7 +166,7 @@ TEST_CASE("test_autox_location")
     rap.epsl = rap.epsu = 1e-8;
     rap.epss = 1e-6;
     rap.det = 7;
-    integer icp = 0, stride = 2;
+    std::ptrdiff_t icp = 0, stride = 2;
     const AutoxMark mark{0, 0};
     double rlcur = 1, rlold = 0, rldot = 1;
     double u = 1, uold = 0, udot = 1, f = 0, dfdu = 1;
@@ -316,7 +316,7 @@ TEST_CASE("test_autox_location")
     iap.ips = xpp::AutoxProblem::BoundaryValue;
     iap.ntst = iap.nbc = iap.nwtn = 1;
     iap.ncol = 2;
-    integer mesh_stride = 2;
+    std::ptrdiff_t mesh_stride = 2;
     std::array<double, 4> mesh{1, 1, 1, 0}, old{}, tangent{1, 1, 1, 0};
     std::array<double, 4> dups{}, upold{}, fa{};
     std::array<double, 2> fc{}, tm{0, 1}, dtm{1, 0};
@@ -338,7 +338,7 @@ TEST_CASE("test_autox_location")
 
     // The final storage seam refuses nonfinite state, parameter and norm
     // independently, before filling even the initial diagram placeholder.
-    std::array<integer, 4> slots{};
+    std::array<std::ptrdiff_t, 4> slots{};
     const double infinity = std::numeric_limits<double>::infinity();
     for (int field = 0; field < 3; ++field) {
         double norm = field == 2 ? infinity : 1;

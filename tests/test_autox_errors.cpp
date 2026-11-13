@@ -92,32 +92,32 @@ TEST_CASE("test_autox_errors")
 
     /* RG rejects a leading dimension smaller than the matrix dimension. */
     iap.ndim = 2;
-    integer ndim = 2, leading = 1, ier = 0;
+    std::ptrdiff_t ndim = 2, leading = 1, ier = 0;
     std::array<double, 4> matrix{};
-    std::array<doublecomplex, 2> spectrum{};
+    std::array<FortranComplex, 2> spectrum{};
     CHECK(has(failure([&] { xpp::autox_eigenvalues(&iap, &ndim, &leading, matrix.data(), spectrum.data(), &ier); }),
               "EISPACK routine RG"));
     CHECK(ier == 1);
 
     /* collocation_point_positions: collocation weights exist for Ncol up to 7 */
-    std::array<doublereal, 8> zm{};
+    std::array<double, 8> zm{};
     CHECK(has(failure([&] { collocation_point_positions(8, zm.data()); }), "collocation_points is 8"));
     CHECK(failure([&] { collocation_point_positions(4, zm.data()); }).empty());
 
     /* gauss_eliminate: a singular system (the second row twice the first) */
-    std::array<doublereal, 4> a{1, 2, 2, 4};
-    std::array<doublereal, 2> u{}, f{1, 1};
-    doublereal det = 0;
+    std::array<double, 4> a{1, 2, 2, 4};
+    std::array<double, 2> u{}, f{1, 1};
+    double det = 0;
     CHECK(has(failure([&] { xpp::gauss_eliminate(nullptr, 0, 2, 2, a.data(), 1, 2, u.data(), 2, f.data(), &det); }), "division by zero"));
-    std::array<doublereal, 4> b{2, 0, 0, 4};
+    std::array<double, 4> b{2, 0, 0, 4};
     f = {2, 4};
     CHECK(failure([&] { xpp::gauss_eliminate(nullptr, 0, 2, 2, b.data(), 1, 2, u.data(), 2, f.data(), &det); }).empty());
     CHECK(u[0] == 1 && u[1] == 1);
 
     /* householder_compute, householder_apply: Householder arguments out of range */
-    std::array<doublereal, 4> x{1, 2, 3, 4}, v{};
-    doublereal beta = 0;
-    integer k = 0, j = 2, n = 2, q = 2, incx = 1, job = 1, lda = 2;
+    std::array<double, 4> x{1, 2, 3, 4}, v{};
+    double beta = 0;
+    std::ptrdiff_t k = 0, j = 2, n = 2, q = 2, incx = 1, job = 1, lda = 2;
     CHECK(has(failure([&] { xpp::householder_compute(&k, &j, &n, x.data(), &incx, &beta, v.data()); }), "K in DHHPR"));
     k = 1, j = 3;
     CHECK(has(failure([&] { xpp::householder_compute(&k, &j, &n, x.data(), &incx, &beta, v.data()); }), "J in DHHPR"));
@@ -133,9 +133,9 @@ TEST_CASE("test_autox_errors")
     CHECK(has(failure([&] { xpp::householder_apply(&k, &j, &n, &q, &beta, v.data(), &job, x.data(), &lda); }), "J in DHHAP"));
 
     /* matrix_multiply's argument check (blas_error): a negative row count */
-    integer m = -1, nn = 2, kk = 2, ld = 2;
-    doublereal one = 1, zero = 0;
-    std::array<doublereal, 4> c{};
+    std::ptrdiff_t m = -1, nn = 2, kk = 2, ld = 2;
+    double one = 1, zero = 0;
+    std::array<double, 4> c{};
     const std::string blas =
         failure([&] { xpp::matrix_multiply("N", "N", &m, &nn, &kk, &one, a.data(), &ld, b.data(), &ld, &zero, c.data(), &ld, 1, 1); });
     CHECK(has(blas, "DGEMM") && has(blas, "parameter number 3"));

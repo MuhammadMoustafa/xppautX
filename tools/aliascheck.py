@@ -24,7 +24,6 @@ ALLOW = {
     ("xpp_http.cpp", "dup2"): "platform shim: Windows _dup2",
     ("xpp_http.cpp", "write"): "platform shim: Windows _write",
     ("xpp_http.cpp", "read"): "platform shim: Windows _read",
-    ("autox_f2c.h", "doublecomplex"): "f2c's complex struct: a real type, not a second name",
 }
 
 BUILTIN = re.compile(r"^(unsigned |signed |long |short |const )*(int|char|float|double|long|short|bool|size_t|void)\b[\s\w*]*$")

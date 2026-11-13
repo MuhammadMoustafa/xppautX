@@ -15,88 +15,88 @@
 
 namespace {
 
-constexpr integer order = 5;
+constexpr std::ptrdiff_t order = 5;
 constexpr unsigned threads = 4;
 constexpr int rounds = 200;
 
 /* a fixed pseudo-random matrix in [-1, 1), column by column (a seed
    picks the input: a different one between calls disturbs any state kept) */
-std::vector<doublereal> matrix(std::uint64_t seed, bool upper = false)
+std::vector<double> matrix(std::uint64_t seed, bool upper = false)
 {
-    std::vector<doublereal> a(static_cast<size_t>(order * order));
+    std::vector<double> a(static_cast<size_t>(order * order));
     for (auto &x : a) {
         seed = seed * 6364136223846793005ull + 1442695040888963407ull;
-        x = static_cast<doublereal>(static_cast<std::int64_t>(seed >> 11)) / 4503599627370496.0 - 1.0;
+        x = static_cast<double>(static_cast<std::int64_t>(seed >> 11)) / 4503599627370496.0 - 1.0;
     }
     if (upper)
-        for (integer j = 0; j < order; ++j) {
-            for (integer i = j + 1; i < order; ++i) a[static_cast<size_t>(i + j * order)] = 0.;
+        for (std::ptrdiff_t j = 0; j < order; ++j) {
+            for (std::ptrdiff_t i = j + 1; i < order; ++i) a[static_cast<size_t>(i + j * order)] = 0.;
             a[static_cast<size_t>(j + j * order)] += 3.;
         }
     return a;
 }
 
-void keep(std::vector<doublereal> &out, const std::vector<doublereal> &v) { out.insert(out.end(), v.begin(), v.end()); }
+void keep(std::vector<double> &out, const std::vector<double> &v) { out.insert(out.end(), v.begin(), v.end()); }
 
-std::vector<doublereal> run_rg(std::uint64_t seed, integer matz)
+std::vector<double> run_rg(std::uint64_t seed, std::ptrdiff_t matz)
 {
     auto a = matrix(seed);
-    std::vector<doublereal> wr(order), wi(order), z(order * order), fv(order);
-    std::vector<integer> iv(order);
-    integer ierr = -1;
+    std::vector<double> wr(order), wi(order), z(order * order), fv(order);
+    std::vector<std::ptrdiff_t> iv(order);
+    std::ptrdiff_t ierr = -1;
     xpp::real_general_eigen(order, order, a.data(), wr.data(), wi.data(), matz, z.data(), iv.data(), fv.data(), &ierr);
-    std::vector<doublereal> out{static_cast<doublereal>(ierr)};
+    std::vector<double> out{static_cast<double>(ierr)};
     keep(out, wr); keep(out, wi); keep(out, z);
     return out;
 }
 
 /* the homoclinic code's way (autox_lib5.cpp): Hessenberg basis, then the real Schur form
    with the stable (imfd -1) or unstable (1) eigenvalues first */
-std::vector<doublereal> run_schur(std::uint64_t seed, integer imfd)
+std::vector<double> run_schur(std::uint64_t seed, std::ptrdiff_t imfd)
 {
     auto a = matrix(seed);
-    std::vector<doublereal> ort(order), v(order * order), er(order), ei(order);
-    std::vector<integer> type(order);
-    integer n = order, one = 1, nm = order, na = order, nv = order, mfd = imfd;
-    doublereal eps = 1e-8;
+    std::vector<double> ort(order), v(order * order), er(order), ei(order);
+    std::vector<std::ptrdiff_t> type(order);
+    std::ptrdiff_t n = order, one = 1, nm = order, na = order, nv = order, mfd = imfd;
+    double eps = 1e-8;
     xpp::hessenberg_reduce_householder(&nm, &n, &one, &n, a.data(), ort.data());
     xpp::hessenberg_transform_orthogonal(&nm, &n, &one, &n, a.data(), ort.data(), v.data());
-    for (integer i = 2; i < order; ++i)
-        for (integer j = 0; j < i - 1; ++j) a[static_cast<size_t>(i + j * order)] = 0.;
+    for (std::ptrdiff_t i = 2; i < order; ++i)
+        for (std::ptrdiff_t j = 0; j < i - 1; ++j) a[static_cast<size_t>(i + j * order)] = 0.;
     const int status = xpp::hessenberg_quasi_triangular(a.data(), v.data(), &n, &one, &n, &eps, er.data(), ei.data(), type.data(), &na, &nv, &mfd);
-    std::vector<doublereal> out{static_cast<doublereal>(status)};
+    std::vector<double> out{static_cast<double>(status)};
     keep(out, a); keep(out, v); keep(out, er); keep(out, ei);
-    for (integer t : type) out.push_back(static_cast<doublereal>(t));
+    for (std::ptrdiff_t t : type) out.push_back(static_cast<double>(t));
     return out;
 }
 
-std::vector<doublereal> run_svd(std::uint64_t seed)
+std::vector<double> run_svd(std::uint64_t seed)
 {
     auto x = matrix(seed);
-    std::vector<doublereal> s(order + 1), e(order + 1), u(order * order), v(order * order), work(order + 1);
-    integer ldx = order, n = order, p = order, ldu = 1, ldv = order, job = 1, info = -1;
-    doublereal tol = 1e-16;
+    std::vector<double> s(order + 1), e(order + 1), u(order * order), v(order * order), work(order + 1);
+    std::ptrdiff_t ldx = order, n = order, p = order, ldu = 1, ldv = order, job = 1, info = -1;
+    double tol = 1e-16;
     xpp::singular_value_decomposition(x.data(), &ldx, &n, &p, s.data(), e.data(), u.data(), &ldu, v.data(), &ldv, work.data(), &job, &info, &tol);
-    std::vector<doublereal> out{static_cast<doublereal>(info)};
+    std::vector<double> out{static_cast<double>(info)};
     keep(out, s); keep(out, e); keep(out, v);
     return out;
 }
 
-std::vector<doublereal> run_qz(std::uint64_t seed)
+std::vector<double> run_qz(std::uint64_t seed)
 {
     auto a = matrix(seed), b = matrix(seed + 1, true);
-    std::vector<doublereal> z(order * order), ar(order), ai(order), beta(order);
-    integer ierr = -1;
+    std::vector<double> z(order * order), ar(order), ai(order), beta(order);
+    std::ptrdiff_t ierr = -1;
     xpp::qz_reduce_hessenberg(order, order, a.data(), b.data(), 0, z.data());
     xpp::qz_iterate(order, order, a.data(), b.data(), 1e-10, 0, z.data(), &ierr);
     xpp::qz_eigenvalues(order, order, a.data(), b.data(), ar.data(), ai.data(), beta.data(), 0, z.data());
-    std::vector<doublereal> out{static_cast<doublereal>(ierr)};
+    std::vector<double> out{static_cast<double>(ierr)};
     keep(out, a); keep(out, b); keep(out, ar); keep(out, ai); keep(out, beta);
     return out;
 }
 
 constexpr int cases = 7;
-std::vector<doublereal> run_case(int which, std::uint64_t seed)
+std::vector<double> run_case(int which, std::uint64_t seed)
 {
     switch (which) {
     case 0: return run_rg(seed, 0);
@@ -109,7 +109,7 @@ std::vector<doublereal> run_case(int which, std::uint64_t seed)
     }
 }
 
-bool same_bits(const std::vector<doublereal> &x, const std::vector<doublereal> &y)
+bool same_bits(const std::vector<double> &x, const std::vector<double> &y)
 {
     if (x.size() != y.size()) return false;
     for (size_t i = 0; i < x.size(); ++i)
@@ -121,7 +121,7 @@ bool same_bits(const std::vector<doublereal> &x, const std::vector<doublereal> &
 
 TEST_CASE("test_eispack")
 {
-    std::array<std::vector<doublereal>, cases> reference;
+    std::array<std::vector<double>, cases> reference;
     for (int c = 0; c < cases; ++c) {
         reference[static_cast<size_t>(c)] = run_case(c, 100 + static_cast<std::uint64_t>(c));
         CHECK(!reference[static_cast<size_t>(c)].empty());

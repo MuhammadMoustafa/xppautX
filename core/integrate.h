@@ -294,11 +294,11 @@ struct IntegratorState {
      section crossing that stops the run); empty when it ran to its end */
   std::string stop_note;
   /* the step Rosenbrock's last advance ended with, its next one's first
-     (odesol2.cpp rosen) */
+     (odesol2.cpp rosenbrock_steps) */
   double rosen_htry = 0;
   /* the global flags' states (flags.cpp) */
   std::vector<FlagState> flags; /* the model's flags (compile_flags) */
-  /* the LU of the Jacobian Gear factored last, by independent subsystem (gear.cpp ggear) */
+  /* the LU of the Jacobian Gear factored last, by independent subsystem (gear.cpp gear_step) */
   xpp::BlockLu gear_lu;
   /* the array initial values in use */
   ArrayIcs array_ics;

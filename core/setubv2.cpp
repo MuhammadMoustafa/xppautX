@@ -10,62 +10,62 @@ namespace {
    Those values which are arrays and those
    which are input and output are markered as such*/
 struct setubv_parallel_arglist {
-  integer ndim, ncol, nbc, nint, ncb, nrc, nra, nca, na; /*scalar input */
+  std::ptrdiff_t ndim, ncol, nbc, nint, ncb, nrc, nra, nca, na; /*scalar input */
   FUNI_TYPE((*problem_function)); /*scalar input*/
   ICNI_TYPE((*integral_function)); /*scalar input*/
-  integer ndxloc; /*scalar input*/
+  std::ptrdiff_t ndxloc; /*scalar input*/
   iap_type *iap; /*array input size: NIAP*/
   rap_type *rap; /*array input size: NRAP*/
-  doublereal  *par; /* two parameter_count halves */
-  integer *icp; /* two parameter_count halves */
-  xpp::Matrix3<doublereal> aa; /*output (but must be initialized to 0) nca X nra X na */
-  xpp::Matrix3<doublereal> bb; /*output (but must be initialized to 0) ncb X nra X na */
-  xpp::Matrix3<doublereal> cc; /*output (but must be initialized to 0) nca X nrc X na */
-  xpp::Matrix<doublereal> dd; /*output (but must be initialized to 0) ncb X nrc */
-  doublereal *fa; /*array output (but must be initialized to 0) size: *nra X *na */
-  doublereal *fc; /*array output (but must be initialized to 0) size: *nrc */
-  doublereal *ups; /*array input size: *ndxloc X (*ndim X *ncol) */
-  doublereal *uoldps; /*array input size: *ndxloc X (*ndim X *ncol) */
-  doublereal *udotps; /*array input size: *ndxloc X (*ndim X *ncol) */
-  doublereal *upoldp; /*array input size: *ndxloc X (*ndim X *ncol) */
-  doublereal *dtm; /*array input size: *na */
-  integer loop_start; /*scalar input*/
-  integer loop_end; /*scalar input*/  
-  integer loop_offset; /*scalar input*/
-  doublereal *wp; /*array input size: MCL2*MCL1 */
-  doublereal *wt; /*array input size: MCL2*MCL1 */
-  doublereal *wi; /*array input size: MCL2*MCL1??? Not sure of this one yet */
-  doublereal *thu; /*array input size: ndim * 8 */
-  doublereal *thl; /* parameter_count entries */
-  doublereal *rldot; /* parameter_count entries */
+  double  *par; /* two parameter_count halves */
+  std::ptrdiff_t *icp; /* two parameter_count halves */
+  xpp::Matrix3<double> aa; /*output (but must be initialized to 0) nca X nra X na */
+  xpp::Matrix3<double> bb; /*output (but must be initialized to 0) ncb X nra X na */
+  xpp::Matrix3<double> cc; /*output (but must be initialized to 0) nca X nrc X na */
+  xpp::Matrix<double> dd; /*output (but must be initialized to 0) ncb X nrc */
+  double *fa; /*array output (but must be initialized to 0) size: *nra X *na */
+  double *fc; /*array output (but must be initialized to 0) size: *nrc */
+  double *ups; /*array input size: *ndxloc X (*ndim X *ncol) */
+  double *uoldps; /*array input size: *ndxloc X (*ndim X *ncol) */
+  double *udotps; /*array input size: *ndxloc X (*ndim X *ncol) */
+  double *upoldp; /*array input size: *ndxloc X (*ndim X *ncol) */
+  double *dtm; /*array input size: *na */
+  std::ptrdiff_t loop_start; /*scalar input*/
+  std::ptrdiff_t loop_end; /*scalar input*/  
+  std::ptrdiff_t loop_offset; /*scalar input*/
+  double *wp; /*array input size: MCL2*MCL1 */
+  double *wt; /*array input size: MCL2*MCL1 */
+  double *wi; /*array input size: MCL2*MCL1??? Not sure of this one yet */
+  double *thu; /*array input size: ndim * 8 */
+  double *thl; /* parameter_count entries */
+  double *rldot; /* parameter_count entries */
   BCNI_TYPE((*boundary_function));
   bool jacobian = true;
 };
 
 /* setup_boundary_system's steps (the original autoX also ran them on pthreads or MPI
    workers). */
-void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, doublereal *rlcur,
-		       doublereal *rlold, doublereal rds);
-void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol,
-					 integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca,
-					 FUNI_TYPE((*problem_function)), ICNI_TYPE((*integral_function)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par,
-					 integer *icp, xpp::Matrix3<doublereal> aa, xpp::Matrix3<doublereal> bb,
-					 xpp::Matrix3<doublereal> cc, xpp::Matrix<doublereal> dd, doublereal *fa, doublereal *fc, doublereal *ups,
-					 doublereal *uoldps, doublereal *udotps,
-					 doublereal *upoldp, doublereal *dtm,
-					 doublereal *wp, doublereal *wt, doublereal *wi,
-					 doublereal *thu, doublereal *thl, doublereal *rldot, BCNI_TYPE((*boundary_function)),
+void setubv_make_fc_dd(const setubv_parallel_arglist &larg, double *dups, double *rlcur,
+		       double *rlold, double rds);
+void setubv_parallel_arglist_constructor(std::ptrdiff_t ndim, std::ptrdiff_t na, std::ptrdiff_t ncol,
+					 std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t ncb, std::ptrdiff_t nrc, std::ptrdiff_t nra, std::ptrdiff_t nca,
+					 FUNI_TYPE((*problem_function)), ICNI_TYPE((*integral_function)), std::ptrdiff_t ndxloc, iap_type *iap, rap_type *rap, double *par,
+					 std::ptrdiff_t *icp, xpp::Matrix3<double> aa, xpp::Matrix3<double> bb,
+					 xpp::Matrix3<double> cc, xpp::Matrix<double> dd, double *fa, double *fc, double *ups,
+					 double *uoldps, double *udotps,
+					 double *upoldp, double *dtm,
+					 double *wp, double *wt, double *wi,
+					 double *thu, double *thl, double *rldot, BCNI_TYPE((*boundary_function)),
 					 setubv_parallel_arglist *data);
 
 void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
 {
-  integer i,j,k,l,l1,ib,ic,jj,jp1,ic1,ib1;
-  doublereal dt,ddt;
-  doublereal *ups=larg->ups,*uoldps=larg->uoldps,*wp=larg->wp,*wt=larg->wt;
-  const xpp::Matrix3<doublereal> aa=larg->aa,bb=larg->bb;
-  const integer ups_dim1=larg->ndxloc,uoldps_dim1=larg->ndxloc;
-  const integer dfdu_dim1=larg->ndim,dfdp_dim1=larg->ndim;
-  const integer wploc_dim1=larg->ncol+1,wp_dim1=larg->ncol+1,wt_dim1=larg->ncol+1;
+  std::ptrdiff_t i,j,k,l,l1,ib,ic,jj,jp1,ic1,ib1;
+  double dt,ddt;
+  double *ups=larg->ups,*uoldps=larg->uoldps,*wp=larg->wp,*wt=larg->wt;
+  const xpp::Matrix3<double> aa=larg->aa,bb=larg->bb;
+  const std::ptrdiff_t ups_dim1=larg->ndxloc,uoldps_dim1=larg->ndxloc;
+  const std::ptrdiff_t dfdu_dim1=larg->ndim,dfdp_dim1=larg->ndim;
+  const std::ptrdiff_t wploc_dim1=larg->ncol+1,wp_dim1=larg->ncol+1,wt_dim1=larg->ncol+1;
   auto &dfdp = larg->iap->run->assembly.dfdp;
   auto &dfdu = larg->iap->run->assembly.dfdu;
   auto &uold = larg->iap->run->assembly.uold;
@@ -111,12 +111,12 @@ void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
 
       ic1 = ic * (larg->ndim);
       // FUNI already supplied the residual before differentiating.
-      const integer fa_dim1 = larg->nra;
-      doublereal *fa = larg->fa;
+      const std::ptrdiff_t fa_dim1 = larg->nra;
+      double *fa = larg->fa;
       for (i = 0; i < larg->ndim; ++i) {
         ARRAY2D(fa, ic1 + i, jj) = f[i] - ARRAY2D(wploc, larg->ncol, ic) * ARRAY2D(ups, jp1 + larg->loop_offset, i);
         for (k = 0; k < larg->ncol; ++k) {
-          const integer k1 = k * larg->ndim + i;
+          const std::ptrdiff_t k1 = k * larg->ndim + i;
           ARRAY2D(fa, ic1 + i, jj) -= ARRAY2D(wploc, k, ic) * ARRAY2D(ups, j + larg->loop_offset, k1);
         }
       }
@@ -169,23 +169,23 @@ void dispatch_mesh(const setubv_parallel_arglist *larg,
 
 void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 {
-  integer ups_dim1,
+  std::ptrdiff_t ups_dim1,
     uoldps_dim1, udotps_dim1, upoldp_dim1,
     dbc_dim1, dicd_dim1;
 
-  integer i, j, k, m;
-  integer k1;
-  integer i1,j1;
+  std::ptrdiff_t i, j, k, m;
+  std::ptrdiff_t k1;
+  std::ptrdiff_t i1,j1;
 
-  integer jj;
-  integer jp1;
+  std::ptrdiff_t jj;
+  std::ptrdiff_t jp1;
 
-  doublereal *ups = larg->ups;
-  doublereal *upoldp = larg->upoldp;
-  doublereal *udotps = larg->udotps;
-  doublereal *uoldps = larg->uoldps;
+  double *ups = larg->ups;
+  double *upoldp = larg->upoldp;
+  double *udotps = larg->udotps;
+  double *uoldps = larg->uoldps;
 
-  const xpp::Matrix3<doublereal> cc = larg->cc;
+  const xpp::Matrix3<double> cc = larg->cc;
 
   auto &dicd = larg->iap->run->assembly.dicd;
   auto &ficd = larg->iap->run->assembly.ficd;
@@ -290,14 +290,14 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 
 /* setubv: AUTO's SETUBV (solvebv.f90:293): the collocation system's blocks */
 int 
-setup_boundary_system(integer ndim, xpp::AutoxProblem ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
-       FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
-       doublereal rds, xpp::Matrix3<doublereal> aa, xpp::Matrix3<doublereal> bb, xpp::Matrix3<doublereal> cc, xpp::Matrix<doublereal> dd, doublereal *fa, doublereal *fc, doublereal *rlcur, 
-       doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, 
-       doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
+setup_boundary_system(std::ptrdiff_t ndim, xpp::AutoxProblem ips, std::ptrdiff_t na, std::ptrdiff_t ncol, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t ncb, std::ptrdiff_t nrc, std::ptrdiff_t nra, std::ptrdiff_t nca, 
+       FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), std::ptrdiff_t ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
+       double rds, xpp::Matrix3<double> aa, xpp::Matrix3<double> bb, xpp::Matrix3<double> cc, xpp::Matrix<double> dd, double *fa, double *fc, double *rlcur, 
+       double *rlold, double *rldot, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, 
+       double *dtm, double *thl, double *thu, double *p0, double *p1)
 {
   iap->run->assembly.resize(ndim, ncol, nbc, nint, iap->run->parameter_count);
-  integer i, j, k;
+  std::ptrdiff_t i, j, k;
 
   auto &wi = iap->run->assembly.wi;
   auto &wp = iap->run->assembly.wp;
@@ -369,33 +369,33 @@ setup_boundary_system(integer ndim, xpp::AutoxProblem ips, integer na, integer n
 
 namespace {
 
-void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, doublereal *rlcur, 
-	     doublereal *rlold, doublereal rds) {
-  integer i,j,jj,jp1,k,i1,m,j1;
-  doublereal rlsum;
+void setubv_make_fc_dd(const setubv_parallel_arglist &larg, double *dups, double *rlcur, 
+	     double *rlold, double rds) {
+  std::ptrdiff_t i,j,jj,jp1,k,i1,m,j1;
+  double rlsum;
 
-  integer dups_dim1 = larg.ndxloc;
+  std::ptrdiff_t dups_dim1 = larg.ndxloc;
   
-  const xpp::Matrix<doublereal> dd = larg.dd;
+  const xpp::Matrix<double> dd = larg.dd;
 
-  doublereal *ups = larg.ups;
-  integer ups_dim1 = larg.ndxloc;
+  double *ups = larg.ups;
+  std::ptrdiff_t ups_dim1 = larg.ndxloc;
 
-  doublereal *uoldps = larg.uoldps;
-  integer uoldps_dim1 = larg.ndxloc;
+  double *uoldps = larg.uoldps;
+  std::ptrdiff_t uoldps_dim1 = larg.ndxloc;
   
-  doublereal *udotps = larg.udotps;
-  integer udotps_dim1 = larg.ndxloc;
+  double *udotps = larg.udotps;
+  std::ptrdiff_t udotps_dim1 = larg.ndxloc;
   
-  doublereal *upoldp = larg.upoldp;
-  integer upoldp_dim1 = larg.ndxloc;
+  double *upoldp = larg.upoldp;
+  std::ptrdiff_t upoldp_dim1 = larg.ndxloc;
   
-  integer dbc_dim1 = larg.nbc;
+  std::ptrdiff_t dbc_dim1 = larg.nbc;
   auto &dbc = larg.iap->run->assembly.dbc;
   auto &fbc = larg.iap->run->assembly.fbc;
   auto &ubc0 = larg.iap->run->assembly.ubc0;
   auto &ubc1 = larg.iap->run->assembly.ubc1;
-  integer dicd_dim1 = larg.nint;
+  std::ptrdiff_t dicd_dim1 = larg.nint;
   auto &dicd = larg.iap->run->assembly.dicd;
   auto &ficd = larg.iap->run->assembly.ficd;
   auto &uic = larg.iap->run->assembly.uic;
@@ -477,16 +477,16 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
 }
 
 /* Fill in a setubv_parallel_arglist for the individual variables */
-void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol, 
-					 integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
-					 FUNI_TYPE((*problem_function)), ICNI_TYPE((*integral_function)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, 
-					 integer *icp, xpp::Matrix3<doublereal> aa, xpp::Matrix3<doublereal> bb, 
-					 xpp::Matrix3<doublereal> cc, xpp::Matrix<doublereal> dd, doublereal *fa, doublereal *fc, doublereal *ups, 
-					 doublereal *uoldps, doublereal *udotps, 
-					 doublereal *upoldp, doublereal *dtm, 
-					 doublereal *wp, doublereal *wt, doublereal *wi,
-					 doublereal *thu, doublereal *thl,
-					 doublereal *rldot, BCNI_TYPE((*boundary_function)), setubv_parallel_arglist *data) {
+void setubv_parallel_arglist_constructor(std::ptrdiff_t ndim, std::ptrdiff_t na, std::ptrdiff_t ncol, 
+					 std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t ncb, std::ptrdiff_t nrc, std::ptrdiff_t nra, std::ptrdiff_t nca, 
+					 FUNI_TYPE((*problem_function)), ICNI_TYPE((*integral_function)), std::ptrdiff_t ndxloc, iap_type *iap, rap_type *rap, double *par, 
+					 std::ptrdiff_t *icp, xpp::Matrix3<double> aa, xpp::Matrix3<double> bb, 
+					 xpp::Matrix3<double> cc, xpp::Matrix<double> dd, double *fa, double *fc, double *ups, 
+					 double *uoldps, double *udotps, 
+					 double *upoldp, double *dtm, 
+					 double *wp, double *wt, double *wi,
+					 double *thu, double *thl,
+					 double *rldot, BCNI_TYPE((*boundary_function)), setubv_parallel_arglist *data) {
   data->ndim   = ndim;
   data->ncol   = ncol;
   data->nbc    = nbc;

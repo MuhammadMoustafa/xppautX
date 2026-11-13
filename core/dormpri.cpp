@@ -50,14 +50,17 @@ constexpr long DOPRI_NSTIFF = 1;
 constexpr double DOP853_FAC1 = 0.333, DOP853_FAC2 = 6.0, DOP853_BETA = 0.0;
 constexpr double DOPRI5_FAC1 = 0.2, DOPRI5_FAC2 = 10.0, DOPRI5_BETA = 0.04;
 
-static void dprhs(xpp::Session &s, unsigned n, double t, double *y, double *f)
+/* dprhs: the right-hand side of the DOPRI code */
+/* dprhs: the right-hand side of the DOPRI code */
+static void dormand_prince_right_hand_side(xpp::Session &s, unsigned n, double t, double *y, double *f)
 {
  my_rhs(s,t,y,f,n);
 
 }
 
 /* the initial step size of a method of order iord (both methods') */
-static double hinit (xpp::Session &s, unsigned n, double x, double* y,
+/* hinit: Hairer's initial step size */
+static double dormand_prince_initial_step (xpp::Session &s, unsigned n, double x, double* y,
 	      double posneg, double* f0, double* f1, double* yy1, int iord,
 	      double hmax, double atoli, double rtoli)
 {
@@ -87,7 +90,7 @@ static double hinit (xpp::Session &s, unsigned n, double x, double* y,
   /* perform an explicit Euler step */
   for (i = 0; i < n; i++)
     yy1[i] = y[i] + h * f0[i];
-  dprhs (s, n, x+h, yy1, f1);
+  dormand_prince_right_hand_side (s, n, x+h, yy1, f1);
 
   /* estimate the second derivative of the solution */
   der2 = 0.0;
@@ -109,7 +112,7 @@ static double hinit (xpp::Session &s, unsigned n, double x, double* y,
 
   return xpp::transfer_sign (h, posneg);
 
-} /* hinit */
+} /* dormand_prince_initial_step */
 
 /* where a call's attempts start: k1 = f(x, y) and Hairer's initial step
    for a fresh run, else the step the run's last call chose */
@@ -117,10 +120,10 @@ static double dp_first_step (xpp::Session &s, unsigned n, double x, double *y, d
 			     double hmax, double atoli, double rtoli, DpRun &r)
 {
   double h = 0.0;
-  if (!r.resume) dprhs (s, n, x, y, r.k1);
+  if (!r.resume) dormand_prince_right_hand_side (s, n, x, y, r.k1);
   else h = r.next_h;
   if (h == 0.0)
-    h = hinit (s, n, x, y, posneg, r.k1, r.k2, r.k3, iord, hmax, atoli, rtoli);
+    h = dormand_prince_initial_step (s, n, x, y, posneg, r.k1, r.k2, r.k3, iord, hmax, atoli, rtoli);
   return h;
 }
 
@@ -170,7 +173,8 @@ static int dp_accepted (DpRun &r, double x, double h, double hnew, double hmax, 
 }
 
 /* core integrator */
-static int dopcor (xpp::Session &s, unsigned n, double x, double* y, double xend,
+/* dopcor: Hairer's DOP853 core */
+static int dormand_prince_853_correct (xpp::Session &s, unsigned n, double x, double* y, double xend,
 		   double hmax, double rtoli, double atoli, DpRun &r)
 {
   constexpr double safe = DOPRI_SAFE, fac1 = DOP853_FAC1, fac2 = DOP853_FAC2, beta = DOP853_BETA;
@@ -390,44 +394,44 @@ static int dopcor (xpp::Session &s, unsigned n, double x, double* y, double xend
     /* the twelve stages */
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * a21 * r.k1[i];
-    dprhs (s, n, x+c2*h, r.yy1, r.k2);
+    dormand_prince_right_hand_side (s, n, x+c2*h, r.yy1, r.k2);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a31*r.k1[i] + a32*r.k2[i]);
-    dprhs (s, n, x+c3*h, r.yy1, r.k3);
+    dormand_prince_right_hand_side (s, n, x+c3*h, r.yy1, r.k3);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a41*r.k1[i] + a43*r.k3[i]);
-    dprhs (s, n, x+c4*h, r.yy1, r.k4);
+    dormand_prince_right_hand_side (s, n, x+c4*h, r.yy1, r.k4);
     for (i = 0; i <n; i++)
       r.yy1[i] = y[i] + h * (a51*r.k1[i] + a53*r.k3[i] + a54*r.k4[i]);
-    dprhs (s, n, x+c5*h, r.yy1, r.k5);
+    dormand_prince_right_hand_side (s, n, x+c5*h, r.yy1, r.k5);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a61*r.k1[i] + a64*r.k4[i] + a65*r.k5[i]);
-    dprhs (s, n, x+c6*h, r.yy1, r.k6);
+    dormand_prince_right_hand_side (s, n, x+c6*h, r.yy1, r.k6);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a71*r.k1[i] + a74*r.k4[i] + a75*r.k5[i] + a76*r.k6[i]);
-    dprhs (s, n, x+c7*h, r.yy1, r.k7);
+    dormand_prince_right_hand_side (s, n, x+c7*h, r.yy1, r.k7);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a81*r.k1[i] + a84*r.k4[i] + a85*r.k5[i] + a86*r.k6[i] +
 			  a87*r.k7[i]);
-    dprhs (s, n, x+c8*h, r.yy1, r.k8);
+    dormand_prince_right_hand_side (s, n, x+c8*h, r.yy1, r.k8);
     for (i = 0; i <n; i++)
       r.yy1[i] = y[i] + h * (a91*r.k1[i] + a94*r.k4[i] + a95*r.k5[i] + a96*r.k6[i] +
 			  a97*r.k7[i] + a98*r.k8[i]);
-    dprhs (s, n, x+c9*h, r.yy1, r.k9);
+    dormand_prince_right_hand_side (s, n, x+c9*h, r.yy1, r.k9);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a101*r.k1[i] + a104*r.k4[i] + a105*r.k5[i] + a106*r.k6[i] +
 			  a107*r.k7[i] + a108*r.k8[i] + a109*r.k9[i]);
-    dprhs (s, n, x+c10*h, r.yy1, r.k10);
+    dormand_prince_right_hand_side (s, n, x+c10*h, r.yy1, r.k10);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a111*r.k1[i] + a114*r.k4[i] + a115*r.k5[i] + a116*r.k6[i] +
 			  a117*r.k7[i] + a118*r.k8[i] + a119*r.k9[i] + a1110*r.k10[i]);
-    dprhs (s, n, x+c11*h, r.yy1, r.k2);
+    dormand_prince_right_hand_side (s, n, x+c11*h, r.yy1, r.k2);
     xph = x + h;
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a121*r.k1[i] + a124*r.k4[i] + a125*r.k5[i] + a126*r.k6[i] +
 			  a127*r.k7[i] + a128*r.k8[i] + a129*r.k9[i] +
 			  a1210*r.k10[i] + a1211*r.k2[i]);
-    dprhs (s, n, xph, r.yy1, r.k3);
+    dormand_prince_right_hand_side (s, n, xph, r.yy1, r.k3);
     for (i = 0; i < n; i++)
     {
       r.k4[i] = b1*r.k1[i] + b6*r.k6[i] + b7*r.k7[i] + b8*r.k8[i] + b9*r.k9[i] +
@@ -468,7 +472,7 @@ static int dopcor (xpp::Session &s, unsigned n, double x, double* y, double xend
 
       facold = std::max(1.0E-4, err);
       r.naccpt++;
-      dprhs (s, n, xph, r.k5, r.k4);
+      dormand_prince_right_hand_side (s, n, xph, r.k5, r.k4);
       
       /* stiffness detection */
       if (!(r.naccpt % DOPRI_NSTIFF) || (iasti > 0))
@@ -527,17 +531,17 @@ static int dopcor (xpp::Session &s, unsigned n, double x, double* y, double xend
 	  r.yy1[i] = y[i] + h * (a141*r.k1[i] + a147*r.k7[i] + a148*r.k8[i] +
 			      a149*r.k9[i] + a1410*r.k10[i] + a1411*r.k2[i] +
 			      a1412*r.k3[i] + a1413*r.k4[i]);
-	dprhs (s, n, x+c14*h, r.yy1, r.k10);
+	dormand_prince_right_hand_side (s, n, x+c14*h, r.yy1, r.k10);
 	for (i = 0; i < n; i++)
 	  r.yy1[i] = y[i] + h * (a151*r.k1[i] + a156*r.k6[i] + a157*r.k7[i] + a158*r.k8[i] +
 			      a1511*r.k2[i] + a1512*r.k3[i] + a1513*r.k4[i] +
 			      a1514*r.k10[i]);
-	dprhs (s, n, x+c15*h, r.yy1, r.k2);
+	dormand_prince_right_hand_side (s, n, x+c15*h, r.yy1, r.k2);
 	for (i = 0; i < n; i++)
 	  r.yy1[i] = y[i] + h * (a161*r.k1[i] + a166*r.k6[i] + a167*r.k7[i] + a168*r.k8[i] +
 			      a169*r.k9[i] + a1613*r.k4[i] + a1614*r.k10[i] +
 			      a1615*r.k2[i]);
-	dprhs (s, n, x+c16*h, r.yy1, r.k3);
+	dormand_prince_right_hand_side (s, n, x+c16*h, r.yy1, r.k3);
 
 	/* final preparation */
 	for (i = 0; i < n; i++)
@@ -568,10 +572,11 @@ static int dopcor (xpp::Session &s, unsigned n, double x, double* y, double xend
     last = 0;
   }
 
-} /* dopcor */
+} /* dormand_prince_853_correct */
 
 /* core integrator */
-static int dopcor5 (xpp::Session &s, unsigned n, double x, double* y, double xend,
+/* dopcor5: Hairer's DOPRI5 core */
+static int dormand_prince_5_correct (xpp::Session &s, unsigned n, double x, double* y, double xend,
 		   double hmax, double rtoli, double atoli, DpRun &r)
 {
   constexpr double safe = DOPRI_SAFE, fac1 = DOPRI5_FAC1, fac2 = DOPRI5_FAC2, beta = DOPRI5_BETA;
@@ -627,23 +632,23 @@ static int dopcor5 (xpp::Session &s, unsigned n, double x, double* y, double xen
     /* the first 6 stages */
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * a21 * r.k1[i];
-    dprhs (s, n, x+c2*h, r.yy1, r.k2);
+    dormand_prince_right_hand_side (s, n, x+c2*h, r.yy1, r.k2);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a31*r.k1[i] + a32*r.k2[i]);
-    dprhs (s, n, x+c3*h, r.yy1, r.k3);
+    dormand_prince_right_hand_side (s, n, x+c3*h, r.yy1, r.k3);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a41*r.k1[i] + a42*r.k2[i] + a43*r.k3[i]);
-    dprhs (s, n, x+c4*h, r.yy1, r.k4);
+    dormand_prince_right_hand_side (s, n, x+c4*h, r.yy1, r.k4);
     for (i = 0; i <n; i++)
       r.yy1[i] = y[i] + h * (a51*r.k1[i] + a52*r.k2[i] + a53*r.k3[i] + a54*r.k4[i]);
-    dprhs (s, n, x+c5*h, r.yy1, r.k5);
+    dormand_prince_right_hand_side (s, n, x+c5*h, r.yy1, r.k5);
     for (i = 0; i < n; i++)
       r.ysti[i] = y[i] + h * (a61*r.k1[i] + a62*r.k2[i] + a63*r.k3[i] + a64*r.k4[i] + a65*r.k5[i]);
     xph = x + h;
-    dprhs (s, n, xph, r.ysti, r.k6);
+    dormand_prince_right_hand_side (s, n, xph, r.ysti, r.k6);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a71*r.k1[i] + a73*r.k3[i] + a74*r.k4[i] + a75*r.k5[i] + a76*r.k6[i]);
-    dprhs (s, n, xph, r.yy1, r.k2);
+    dormand_prince_right_hand_side (s, n, xph, r.yy1, r.k2);
     for (i = 0; i < n; i++)
 	{
 	  r.rcont5[i] = h * (d1*r.k1[i] + d3*r.k3[i] + d4*r.k4[i] + d5*r.k5[i] + d6*r.k6[i] + d7*r.k2[i]);
@@ -735,11 +740,11 @@ static int dopcor5 (xpp::Session &s, unsigned n, double x, double* y, double xen
     last = 0;
   }
 
-} /* dopcor5 */
+} /* dormand_prince_5_correct */
 
 /* One run of DOP853 (eighth) or DOPRI5 from x to xend, its vectors carved
    from work: the dense output coefficients (eight or five of n), then the
-   stage vectors; returns dopcor's code */
+   stage vectors; returns dormand_prince_853_correct's code */
 static int dormand_prince(xpp::Session &s, unsigned n, double x, double *y, double xend, double rtol, double atol,
                           double hmax, bool eighth, double *work, DpRun &r)
 {
@@ -748,8 +753,8 @@ static int dormand_prince(xpp::Session &s, unsigned n, double x, double *y, doub
   const unsigned coefficients = eighth ? 8 : 5, stage_vectors = eighth ? 11 : 8;
   for (unsigned i = 0; i < 8; i++) *rcont[i] = i < coefficients ? work + i * n : nullptr;
   for (unsigned i = 0; i < 11; i++) *stages[i] = i < stage_vectors ? work + (coefficients + i) * n : nullptr;
-  if (eighth) return dopcor (s, n, x, y, xend, hmax, rtol, atol, r);
-  return dopcor5 (s, n, x, y, xend, hmax, rtol, atol, r);
+  if (eighth) return dormand_prince_853_correct (s, n, x, y, xend, hmax, rtol, atol, r);
+  return dormand_prince_5_correct (s, n, x, y, xend, hmax, rtol, atol, r);
 }
 
 namespace xpp {
@@ -799,7 +804,7 @@ private:
         const double end=s.delay.flag?step.tout:internal_time_+direction*horizon_steps*fabs(num.max_step);
         const int status=dormand_prince(s,n,internal_time_,endpoint_.data(),end,num.relative_tolerance,num.absolute_tolerance,
                                         num.max_step,info().traits.eighth_order,work_.data(),run_);
-        /* dopcor fails when its attempts run out (-2) or its step falls
+        /* dormand_prince_853_correct fails when its attempts run out (-2) or its step falls
            below the rounding limit (-3) */
         if(status==-2)
           return stopped(xpp::format("more than {} step attempts (accepted and rejected) in the run",DOPRI_RUN_ATTEMPTS),run_.xout,-1,

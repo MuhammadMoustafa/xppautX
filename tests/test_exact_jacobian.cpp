@@ -304,15 +304,15 @@ void check_autox_func(const char *path, double u0, double u1, int store_every = 
     CHECK(xpp::ensure_exact_jacobian(s));
     s.numerics.jacobian = xpp::JACOBIAN_EXACT;
     s.numerics.store_every = store_every;
-    constexpr integer n = 2;
+    constexpr std::ptrdiff_t n = 2;
     AutoxRun run;
     run.session = &s;
     run.parameter_count = s.autox_state.parameter_layout.size();
-    const integer continued=s.autox_state.parameter_layout.solver_index(0);
+    const std::ptrdiff_t continued=s.autox_state.parameter_layout.solver_index(0);
     std::vector<double> par(run.parameter_count, 0.0);
     for (int k = 0; k < s.model().nupar; ++k) par[s.autox_state.parameter_layout.solver_index(k)] = s.parser.constants[static_cast<std::size_t>(s.model().upar_con[k])];
     par[xpp::autox_unknown::period] = 6.3;
-    const integer icp[2] = {continued, xpp::autox_unknown::period};
+    const std::ptrdiff_t icp[2] = {continued, xpp::autox_unknown::period};
     const double u[n] = {u0, u1};
     double f[n], dfdu[n * n];
     std::vector<double> dfdp(n * run.parameter_count);
@@ -320,13 +320,13 @@ void check_autox_func(const char *path, double u0, double u1, int store_every = 
     user_right_hand_side(run, n, u, icp, 2, par.data(), 2, f, dfdu, dfdp.data());
     double worst = 0, fp[n], fm[n];
     std::vector<double> unused(n * run.parameter_count);
-    for (integer j = 0; j < n; ++j) {
+    for (std::ptrdiff_t j = 0; j < n; ++j) {
         double up[n] = {u[0], u[1]}, um[n] = {u[0], u[1]};
         up[j] += 1e-6;
         um[j] -= 1e-6;
         user_right_hand_side(run, n, up, icp, 2, par.data(), 0, fp, unused.data(), unused.data());
         user_right_hand_side(run, n, um, icp, 2, par.data(), 0, fm, unused.data(), unused.data());
-        for (integer i = 0; i < n; ++i) {
+        for (std::ptrdiff_t i = 0; i < n; ++i) {
             const double d = (fp[i] - fm[i]) / 2e-6;
             worst = std::max(worst, std::fabs(dfdu[i + j * n] - d) / std::max(1.0, std::fabs(d)));
         }
@@ -335,7 +335,7 @@ void check_autox_func(const char *path, double u0, double u1, int store_every = 
     user_right_hand_side(run, n, u, icp, 2, par.data(), 0, fp, unused.data(), unused.data());
     par[continued] -= 2e-6;
     user_right_hand_side(run, n, u, icp, 2, par.data(), 0, fm, unused.data(), unused.data());
-    for (integer i = 0; i < n; ++i) {
+    for (std::ptrdiff_t i = 0; i < n; ++i) {
         const double d = (fp[i] - fm[i]) / 2e-6;
         worst = std::max(worst, std::fabs(dfdp[continued*n+i] - d) / std::max(1.0, std::fabs(d)));
     }

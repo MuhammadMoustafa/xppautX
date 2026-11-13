@@ -59,12 +59,12 @@ std::optional<std::string> autox_diagram_full(std::size_t points)
   return autox_diagram_limit_message();
 }
 
-[[noreturn]] void autox_nonfinite(const iap_type &iap, integer point)
+[[noreturn]] void autox_nonfinite(const iap_type &iap, std::ptrdiff_t point)
 {
   autox_fail(xpp::format("Branch {} point {}: nonfinite autoX solution", iap.ibr, point));
 }
 
-void autox_check_start_parameters(const iap_type &iap, const rap_type &rap, const double *par, const integer *icp)
+void autox_check_start_parameters(const iap_type &iap, const rap_type &rap, const double *par, const std::ptrdiff_t *icp)
 {
   const Session &s=*iap.run->session;
   const int k=s.autox_state.parameter_layout.model_index(static_cast<int>(icp[0]));
@@ -87,7 +87,7 @@ void autox_check_start_norm(const iap_type &iap, const rap_type &rap, double nor
    from the run's own parameters, as Sing pts refines an equilibrium, when its
    residual is above EPSU; u is the refined start, or the start as given when
    Newton does not converge (then the run is refused). */
-void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, double *u, const double *par, const integer *icp)
+void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, double *u, const double *par, const std::ptrdiff_t *icp)
 {
   if(iap.irs!=0 || iap.ips!=AutoxProblem::SteadyState)return;
   Session &s=*iap.run->session;
@@ -108,7 +108,7 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
   std::vector<double> start(u,u+n);
   std::vector<double> work(static_cast<std::size_t>(n*n+2*n));
   xpp::NewtonRun newton;
-  if(auto r=xpp::rooter(s,u,eq.newton_tolerance,eq.jacobian_step,eq.search_limit,work.data(),newton,eq.max_iterations,n);!r)
+  if(auto r=xpp::newton_iterate(s,u,eq.newton_tolerance,eq.jacobian_step,eq.search_limit,work.data(),newton,eq.max_iterations,n);!r)
     autox_fail(r.error());
   if(newton.end!=xpp::NewtonEnd::converged){
     std::copy(start.begin(),start.end(),u);
@@ -219,7 +219,7 @@ bool autox_start_points_away(double value, double rl0, double rl1, double ds)
   return (value<=rl0 && ds<0) || (value>=rl1 && ds>0);
 }
 
-void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int lab, double *a, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> u0, std::span<const double> ubar)
+void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t ibrs, double *par,std::ptrdiff_t *icp,int lab, double *a, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> u0, std::span<const double> ubar)
 {
   xpp::Session &s=*iap->run->session;
   int icp1=icp[0],icp2=icp[1],icp3=icp[2],icp4=icp[3];

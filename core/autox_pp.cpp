@@ -43,13 +43,13 @@ namespace {
    collocation worker's failure is merged into its run's, and the job
    cancelled, by its caller when the workers are done
    (autox_parallel.cpp: a job's cancel is read by the main thread). */
-void exact_derivatives(const xpp::Session &s, AutoxRun &run, const double *c, integer ndim, const double *u, const double *f, const integer *icp, integer nfpr, integer ijac, double *dfdu, double *dfdp)
+void exact_derivatives(const xpp::Session &s, AutoxRun &run, const double *c, std::ptrdiff_t ndim, const double *u, const double *f, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, std::ptrdiff_t ijac, double *dfdu, double *dfdp)
 {
   const int n=static_cast<int>(ndim);
   try {
     xpp::exact_jacobian(s,run.jacobian_scratch,c,0.0,u,f,n,{xpp::JacobianLayout::ColumnMajor},dfdu);
     if(ijac<2)return;
-    for(integer i=0;i<nfpr;i++){
+    for(std::ptrdiff_t i=0;i<nfpr;i++){
       double *column=dfdp+icp[i]*ndim;
       const int k=s.autox_state.parameter_layout.model_index(static_cast<int>(icp[i]));
       if(k>=0)xpp::exact_constant_derivative(s,run.jacobian_scratch,c,s.model().upar_con[k],0.0,u,f,n,column);
@@ -64,7 +64,7 @@ void exact_derivatives(const xpp::Session &s, AutoxRun &run, const double *c, in
     }
     std::fill_n(dfdu,n*n,0.0);
     for(int i=0;i<n;i++)dfdu[i*n+i]=1;
-    if(ijac>=2)for(integer i=0;i<nfpr;i++)std::fill_n(dfdp+icp[i]*ndim,n,0.0);
+    if(ijac>=2)for(std::ptrdiff_t i=0;i<nfpr;i++)std::fill_n(dfdp+icp[i]*ndim,n,0.0);
     if(!run.owner)xpp::job::cancel_current();
   }
 }
@@ -85,12 +85,12 @@ void chain(int n, const double *b, double *column, const double *add, double *t)
    autoX changes them between calls (a Newton step, and problem_function's differences
    with respect to a parameter, which perturb par itself), and setup_boundary_system hands
    every collocation point its own copy of par, so every call compares. */
-bool continued_constants(const xpp::Session &s, double *constants, const integer *icp, integer count, std::span<const double> parameters)
+bool continued_constants(const xpp::Session &s, double *constants, const std::ptrdiff_t *icp, std::ptrdiff_t count, std::span<const double> parameters)
 {
   const auto &layout=s.autox_state.parameter_layout;
   const int *constant_index=s.model().upar_con.data();
   bool changed=false;
-  for(integer i=0;i<count;i++){
+  for(std::ptrdiff_t i=0;i<count;i++){
     const int k=layout.model_index(static_cast<int>(icp[i]));
     if(k<0)continue;
     double &constant=constants[constant_index[k]];
@@ -110,14 +110,14 @@ bool continued_constants(const xpp::Session &s, double *constants, const integer
    are worked out again only when a continued parameter actually changed,
    including either side of its difference. With no function table, nothing
    else depends on a parameter. */
-void pure_values(const xpp::Session &s, double *c, double *v, const double *u, const integer *icp, integer nfpr, std::span<const double> parameters, double *f)
+void pure_values(const xpp::Session &s, double *c, double *v, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, std::span<const double> parameters, double *f)
 {
   if(continued_constants(s,c,icp,nfpr,parameters))
     xpp::evaluate_derived_pure(s,c,v);
   pure_rhs(s,u,f,c,v);
 }
 
-void worker_func(const xpp::Session &s, AutoxRun &worker, integer ndim, const double *u, const integer *icp, integer nfpr, std::span<const double> parameters, integer ijac, double *f, double *dfdu, double *dfdp)
+void worker_func(const xpp::Session &s, AutoxRun &worker, std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, std::span<const double> parameters, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
   double *c=worker.rhs_constants.data();
   pure_values(s,c,worker.rhs_variables.data(),u,icp,nfpr,parameters,f);
@@ -128,7 +128,7 @@ void worker_func(const xpp::Session &s, AutoxRun &worker, integer ndim, const do
 
 /* The problem defined functions that run the model (autox_c.h's C++
    section): autoX calls them with the run, which holds its Session. */
-bool autox_model_parameter(const xpp::Session &s, integer slot)
+bool autox_model_parameter(const xpp::Session &s, std::ptrdiff_t slot)
 {
   return s.autox_state.parameter_layout.model_index(static_cast<int>(slot))>=0;
 }
@@ -151,8 +151,8 @@ void autox_checkpoint(const AutoxRun &run, int *iflag)
   if(run.dropped||run.stopped_alone)*iflag=1;
 }
 
-double autox_parameter_value(const AutoxRun &run, integer slot,
-                           std::span<const integer> free, std::span<const double> parameters)
+double autox_parameter_value(const AutoxRun &run, std::ptrdiff_t slot,
+                           std::span<const std::ptrdiff_t> free, std::span<const double> parameters)
 {
   const xpp::Session &s=*run.session;
   const int k=s.autox_state.parameter_layout.model_index(static_cast<int>(slot));
@@ -165,7 +165,7 @@ double autox_parameter_value(const AutoxRun &run, integer slot,
    (a run that is not pure_rhs); apart from user_right_hand_side so that the collocation
    workers' call, which is the hot one, is a small function. */
 namespace {
-[[gnu::noinline]] void serial_func(AutoxRun &run, integer ndim, const double *u, const integer *icp, integer nfpr, std::span<const double> parameters, integer ijac, double *f, double *dfdu, double *dfdp)
+[[gnu::noinline]] void serial_func(AutoxRun &run, std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, std::span<const double> parameters, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
    xpp::Session &s=*run.session;
    const bool exact=ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT;
@@ -211,13 +211,13 @@ namespace {
      const int n=static_cast<int>(ndim);
      for(int k=0;k<n;k++)chain(n,step.data(),dfdu+k*ndim,nullptr,scratch.data());
      if(ijac<2)continue;
-     for(integer p=0;p<nfpr;p++)chain(n,step.data(),dfdp+icp[p]*ndim,step_p.data()+icp[p]*ndim,scratch.data());
+     for(std::ptrdiff_t p=0;p<nfpr;p++)chain(n,step.data(),dfdp+icp[p]*ndim,step_p.data()+icp[p]*ndim,scratch.data());
    }
 }
 }
 
 /* func: AUTO's user routine FUNC (user_c.f90:102) */
-int user_right_hand_side(AutoxRun &run, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, integer ijac, double *f, double *dfdu, double *dfdp)
+int user_right_hand_side(AutoxRun &run, std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, const double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
    xpp::Session &s=*run.session;
    const auto parameters=s.autox_state.parameter_layout.parameters(par);
@@ -226,7 +226,7 @@ int user_right_hand_side(AutoxRun &run, integer ndim, const double *u, const int
    return 0;
 } /* func_ */
 
-void func_again(AutoxRun &run, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, double *f)
+void func_again(AutoxRun &run, std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, const double *par, double *f)
 {
    if(run.pure_rhs)pure_rhs(*run.session,u,f,run.rhs_constants.data(),run.rhs_variables.data());
    else user_right_hand_side(run,ndim,u,icp,nfpr,par,0,f,nullptr,nullptr);
@@ -241,7 +241,7 @@ void autox_fill_parameters(const AutoxRun &run, double *par)
 }
 
 /* stpnt: AUTO's user routine STPNT (user_c.f90:115): the starting solution */
-int user_start(AutoxRun &run, integer ndim, doublereal t, doublereal *u, doublereal *par)
+int user_start(AutoxRun &run, std::ptrdiff_t ndim, double t, double *u, double *par)
 {
   xpp::Session &s=*run.session;
   int i;
@@ -282,7 +282,7 @@ int user_start(AutoxRun &run, integer ndim, doublereal t, doublereal *u, doubler
 } /* stpnt_ */
 
 /* bcnd: AUTO's user routine BCND (user_c.f90:127) */
-int user_boundary_conditions(AutoxRun &run, integer ndim, const double *par, const integer *icp, integer nbc, const double *u0, const double *u1, integer ijac, double *fb, double *dbc)
+int user_boundary_conditions(AutoxRun &run, std::ptrdiff_t ndim, const double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, std::ptrdiff_t ijac, double *fb, double *dbc)
 {
  xpp::Session &s=*run.session;
 /* Hooks to the XPP bc parser!! */
@@ -304,18 +304,18 @@ int user_boundary_conditions(AutoxRun &run, integer ndim, const double *par, con
 /* autoX's user routines that xppautX does not supply: stubs, with
    autox_c.h's prototypes (which autoX calls them through) */
 /* icnd: AUTO's user routine ICND (user_c.f90:140) */
-int user_integral_conditions(integer ndim, const doublereal *par, const integer *icp, integer nint,
-	 const doublereal *u, const doublereal *uold, const doublereal *udot,
-	 const doublereal *upold, integer ijac,
-	 doublereal *fi, doublereal *dint)
+int user_integral_conditions(std::ptrdiff_t ndim, const double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint,
+	 const double *u, const double *uold, const double *udot,
+	 const double *upold, std::ptrdiff_t ijac,
+	 double *fi, double *dint)
 {
     return 0;
 } /* icnd_ */
 
 /* fopt: AUTO's user routine FOPT (user_c.f90:154): the objective of an optimization */
-int user_objective(integer ndim, const doublereal *u, const integer *icp,
-	 const doublereal *par, integer ijac,
-	 doublereal *fs, doublereal *dfdu, doublereal *dfdp)
+int user_objective(std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp,
+	 const double *par, std::ptrdiff_t ijac,
+	 double *fs, double *dfdu, double *dfdp)
 {
     return 0;
 } /* fopt_ */
@@ -324,8 +324,8 @@ int user_objective(integer ndim, const doublereal *u, const integer *icp,
     -2 
 */
 /* pvls: AUTO's user routine PVLS, additional output parameter values */
-int user_output_parameters (integer ndim, const doublereal *u,
-          doublereal *par)
+int user_output_parameters (std::ptrdiff_t ndim, const double *u,
+          double *par)
 {
   return 0;
 }

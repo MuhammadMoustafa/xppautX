@@ -631,7 +631,7 @@ CODE_LINE_RES = [re.compile(p) for p in [
     r"^(?:if|for|while|switch)\s*\(.*\)\s*[{;]?.*$",
     r"^(?:return\b[^.]*|break|continue);\s*$",
     r"^(?:[{}];?|\}\s*else\s*\{?|else\s*\{?|else)$",
-    r"^(?:static\s+|extern\s+|const\s+)*(?:int|double|float|char|long|void|FILE|integer|doublereal|unsigned|short)\b[\w\s*,\[\]=.()+-]*[;{]\s*$",
+    r"^(?:static\s+|extern\s+|const\s+)*(?:int|double|float|char|long|void|FILE|unsigned|short)\b[\w\s*,\[\]=.()+-]*[;{]\s*$",
     r"^#\s*(?:include|define|if|ifdef|ifndef|endif|else)\b",
     r"^case\s+[\w']+\s*:.*$",
     r"^(?:printf|fprintf|plintf|sprintf|xpp_log|xpp::log)\s*\(",

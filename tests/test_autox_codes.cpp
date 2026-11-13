@@ -1,7 +1,7 @@
 /* autox_codes: autoX's problem (IPS) and point (ITP) codes as types (W329,
    #390). Every supported problem and point kind round-trips through its
-   integer, the signed and composite forms of ITP included, an unknown
-   integer is refused, and the predicates give exactly what the integer
+   std::ptrdiff_t, the signed and composite forms of ITP included, an unknown
+   std::ptrdiff_t is refused, and the predicates give exactly what the std::ptrdiff_t
    expressions they replaced gave. */
 #include "xpptest.h"
 #include "autox_codes.h"

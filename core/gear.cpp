@@ -32,7 +32,8 @@ constexpr double pertst[7][2][3]={{{2,3,1},{2,12,1}},
 			{{17.15,1,.008267},{70.08,87.97,.07407}},
 			{{1,1,1},{87.97,1,.0139}}};
 
-static double sqr2(double z)
+/* sqr2: XPPAUT 8.0 gear.c:1136: z*z */
+static double square_of(double z)
 {
 return(z*z);
 }
@@ -40,13 +41,14 @@ return(z*z);
 int gear(xpp::Session &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
   if(s.model().flag_count()==0)
-    return(ggear(s, n,t, tout,y, hmin, hmax,eps,
+    return(gear_step(s, n,t, tout,y, hmin, hmax,eps,
 	  mf,error,kflag,jstart,work,iwork));
   return(one_flag_step_gear(s,n,t, tout,y, hmin, 
 		   hmax,eps,mf,error,kflag,jstart,work,iwork));
 }
 
-int ggear(xpp::Session &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
+/* ggear: one Gear step */
+int gear_step(xpp::Session &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
   double deltat=0.0,hnew=0.0,hold=0.0,h=0.0,racum=0.0,told=0.0,r=0.0,d=0.0;
   double *a,pr1,pr2,pr3,r1;
@@ -222,9 +224,9 @@ L150:
     enq3=.5/static_cast<double>(nq+2);
     enq1=.5/static_cast<double>(nq);
     pepsh=eps;
-    eup=sqr2(pertst[nq-1][0][1]*pepsh);
-    e=sqr2(pertst[nq-1][0][0]*pepsh);
-    edwn=sqr2(pertst[nq-1][0][2]*pepsh);
+    eup=square_of(pertst[nq-1][0][1]*pepsh);
+    e=square_of(pertst[nq-1][0][0]*pepsh);
+    edwn=square_of(pertst[nq-1][0][2]*pepsh);
     if(edwn==0.0)goto L850;
     bnd=eps*enq3/static_cast<double>(n);
 
@@ -304,7 +306,7 @@ L560:
 
      d=0.0;
      for(i=0;i<n;i++)
-     d+=sqr2(error[i]/ymax[i]);
+     d+=square_of(error[i]/ymax[i]);
      iweval=0;
      if(d>e)goto L610;
      if(k>=3)
@@ -336,7 +338,7 @@ L620:
     {
      d=0.0;
      for(i=0;i<n;i++)
-     d+=sqr2((error[i]-save10[i])/ymax[i]);
+     d+=square_of((error[i]-save10[i])/ymax[i]);
      pr3=1.4*xpp::math::pow(d/eup,enq3);
     }
     pr1=1.0e20;
@@ -344,7 +346,7 @@ L620:
     {
      d=0.0;
      for(i=0;i<n;i++)
-     d+=sqr2(ytable[k-1][i]/ymax[i]);
+     d+=square_of(ytable[k-1][i]/ymax[i]);
      pr1=1.3*xpp::math::pow(d/edwn,enq1);
     }
     if(pr2<=pr3)goto L720;

@@ -33,11 +33,11 @@ TEST_CASE("test_autox_codim")
     iap.run=&run; iap.ndm=2; iap.ndim=6; iap.nfpr=2; iap.isw=2; iap.ips=xpp::AutoxProblem::SteadyState;
     iap.itpst=xpp::AutoxPointKind::Hopf;
     rap_type rap{};
-    std::array<integer,2> icp{s.autox_state.parameter_layout.solver_index(0),s.autox_state.parameter_layout.solver_index(1)};
+    std::array<std::ptrdiff_t,2> icp{s.autox_state.parameter_layout.solver_index(0),s.autox_state.parameter_layout.solver_index(1)};
     std::vector<double> par(run.parameter_count),dp(6*run.parameter_count);
     std::array<double,6> u{0,0,1,0,1,1},rhs{},old=u;
     std::array<double,36> jac{};
-    integer stride=7;
+    std::ptrdiff_t stride=7;
     bool enabled;
     // The test reads the Jacobian solve_algebraic computed at the converged point (W421).
     const auto lyapunov=[&]() {
@@ -88,7 +88,7 @@ TEST_CASE("test_autox_codim")
     // remaining multiplier crossing +1 (fold) or -1 (flip).
     iap.ndm=3; iap.ndim=6; rap.epss=1e-5;
     reaction_session.autox_state.special_points.fill(true);
-    std::array<doublecomplex,3> multipliers={{{1,0},{1,0},{.9,0}}};
+    std::array<FortranComplex,3> multipliers={{{1,0},{1,0},{.9,0}}};
     iap.itpst=xpp::AutoxPointKind::CycleFold;
     CHECK(autox_cycle_test(iap,rap,par.data(),multipliers,&enabled)<0 && enabled);
     multipliers[2].r=1.1;
@@ -104,7 +104,7 @@ TEST_CASE("test_autox_codim")
     // 1:2 resonance roundoff splits the double -1 into a conjugate pair, which
     // goes there whole and is still tested (AUTO-07p's test gives 0 there, a
     // zero its location accepts).
-    std::array<doublecomplex,4> placed={{{1,0},{.47,0},{-.9,0},{-1,0}}};
+    std::array<FortranComplex,4> placed={{{1,0},{.47,0},{-.9,0},{-1,0}}};
     CHECK(autox_cycle_place_imposed(iap.itpst,placed)==2);
     CHECK(placed[1].r==-1 && placed[2].r==.47 && placed[3].r==-.9);
     placed={{{1,0},{.47,0},{-1.0000359,2.2e-4},{-1.0000359,-2.2e-4}}};

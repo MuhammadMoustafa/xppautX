@@ -181,9 +181,9 @@ struct AssemblyProbe : AutoxRun {
     bool change_parameters = false;
 };
 
-int probe_function(const iap_type *iap, const rap_type *, integer,
-                   const double *, const double *, const integer *, double *par,
-                   integer ijac, double *f, double *dfdu, double *dfdp)
+int probe_function(const iap_type *iap, const rap_type *, std::ptrdiff_t,
+                   const double *, const double *, const std::ptrdiff_t *, double *par,
+                   std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
     auto &probe = static_cast<AssemblyProbe &>(*iap->run);
     ++probe.evaluations;
@@ -193,9 +193,9 @@ int probe_function(const iap_type *iap, const rap_type *, integer,
     return 0;
 }
 
-int probe_boundary(const iap_type *iap, const rap_type *, integer, double *par,
-                   const integer *, integer, const double *u0, const double *u1,
-                   double *f, integer, double *dbc)
+int probe_boundary(const iap_type *iap, const rap_type *, std::ptrdiff_t, double *par,
+                   const std::ptrdiff_t *, std::ptrdiff_t, const double *u0, const double *u1,
+                   double *f, std::ptrdiff_t, double *dbc)
 {
     auto &probe = static_cast<AssemblyProbe &>(*iap->run);
     ++probe.boundaries;
@@ -217,7 +217,7 @@ void check_assembly_passes(xpp::Session &s)
     iap.ntst = 2;
     iap.ips = xpp::AutoxProblem::Periodic;
     rap_type rap{};
-    integer fresh = 1, nullity = 0, stride = 3, icp = 0;
+    std::ptrdiff_t fresh = 1, nullity = 0, stride = 3, icp = 0;
     double par = .25, current = par, old = par, tangent = 0, ds = .1, p0 = 0, p1 = 0;
     std::array<double, 6> ups{.5, .5, .5, .5, .5, .5}, previous = ups, udot{1, 1, 1, 1, 1, 1}, upold{}, dups{}, fa{};
     std::array<double, 2> dtm{.5, .5}, fc{};

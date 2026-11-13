@@ -37,7 +37,7 @@ struct AbmWork {
   }
 };
 
-int abmpc(xpp::Session &s, double *y, double *t, double dt, int neq, const AbmWork &w);
+int adams_bashforth_moulton(xpp::Session &s, double *y, double *t, double dt, int neq, const AbmWork &w);
 }
 
 constexpr double symp_b[]={7/24.,.75,-1./24};
@@ -46,8 +46,8 @@ constexpr double symp_B[]={2/3.,-2./3.,1.0};
 namespace {
 /* nt steps of a fixed-step method, storing the delays after each: its
    plain step, or, when the model has flags, the step that also checks
-   them (flags.cpp's one_flag_steps). discrete, euler, mod_euler and
-   rung_kut differ only in step(dtt), one step of length dtt. */
+   them (flags.cpp's one_flag_steps). discrete, euler, modified_euler_steps and
+   runge_kutta_fixed differ only in step(dtt), one step of length dtt. */
 template <class Step>
 int fixed_steps(xpp::Session &s, double *y, int nt, int neq, double *tim, int *istart, double dt, Step step)
 {
@@ -64,7 +64,8 @@ int fixed_steps(xpp::Session &s, double *y, int nt, int neq, double *tim, int *i
 
 /* my first symplectic integrator */
 
-int symplect3(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+/* symplect3: third-order symplectic step (odesol2.cpp) */
+int symplectic_third_order(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  if(s.model().flag_count()==0){ 
    for(int i=0;i<nt;i++){
@@ -263,7 +264,8 @@ int euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, i
 
 /* Modified Euler  */
 
-int mod_euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+/* mod_euler: modified Euler (odesol2.cpp) */
+int modified_euler_steps(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  double *yval[2];
 
@@ -275,7 +277,8 @@ int mod_euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int ne
 
 /*  Runge Kutta    */
 
-int rung_kut(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+/* rung_kut: fixed-step Runge-Kutta (odesol2.cpp) */
+int runge_kutta_fixed(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  double *yval[3];
 
@@ -309,7 +312,7 @@ n20:
  s.integrator.rhs(x0,y,w.y_p[3],neq);
  for(k=1;k<4;k++)
  {
-  rung_kut(s,y,&x0,dt,1,neq,&irk,work1);
+  runge_kutta_fixed(s,y,&x0,dt,1,neq,&irk,work1);
   stor_delay(s,y);
   for(i=0;i<neq;i++)w.y_s[3-k][i]=y[i];
   s.integrator.rhs(x0,y,w.y_p[3-k],neq);
@@ -342,7 +345,7 @@ n400:
   if(istpst==nstep) goto n450;
   for(n=istpst+1;n<nstep+1;n++) {
     set_wieners(s,dt,y,x0);
-   abmpc(s,y,&x0,dt,neq,w);
+   adams_bashforth_moulton(s,y,&x0,dt,neq,w);
    stor_delay(s,y);
    if(xpp::job::cancelled())break;
  }
@@ -359,7 +362,8 @@ n1000:
 }
 
 namespace {
-int abmpc(xpp::Session &s, double *y, double *t, double dt, int neq, const AbmWork &w)
+/* abmpc: Adams-Bashforth-Moulton predictor-corrector (odesol2.cpp) */
+int adams_bashforth_moulton(xpp::Session &s, double *y, double *t, double dt, int neq, const AbmWork &w)
 {
  double x1,x0=*t;
  int i,k;
@@ -389,15 +393,16 @@ int abmpc(xpp::Session &s, double *y, double *t, double dt, int neq, const AbmWo
 }
 } // namespace
 
-/* this is rosen  - rosenbock step 
+/* this is rosenbrock_steps  - rosenbock step 
     This uses banded routines as well */
-int rb23(xpp::Session &s, double *y,double *tstart,double tfinal,
+/* rb23: XPPAUT 8.0 odesol2.c:470: Rosenbrock step, flag-aware (rosen without flags) */
+int rosenbrock_driver(xpp::Session &s, double *y,double *tstart,double tfinal,
  int *istart,int n,double *work,int *ierr)
 {
 int out =-1;
  if(s.model().flag_count()==0)
  {
-   out = rosen(s,y,tstart,tfinal,istart,n,work,ierr);
+   out = rosenbrock_steps(s,y,tstart,tfinal,istart,n,work,ierr);
  }
  else
  {
@@ -406,7 +411,8 @@ int out =-1;
  return(out);
 }
  
-int rosen(xpp::Session &s, double *y,double *tstart,double tfinal,
+/* rosen: XPPAUT 8.0 odesol2.c:485: Rosenbrock step, banded routines as well */
+int rosenbrock_steps(xpp::Session &s, double *y,double *tstart,double tfinal,
 int *istart,int n,double *work,int *ierr)
 {
  double &htry=s.integrator.rosen_htry; /* the step the last call ended with */
@@ -545,7 +551,7 @@ int *istart,int n,double *work,int *ierr)
 }
 
  /* this assumes that yp is already computed; scal is the solver's factor
-    (Backward Euler's -dt/2, rb23's 1) */
+    (Backward Euler's -dt/2, rosenbrock_driver's 1) */
 void get_the_jac(xpp::Session &s, double t,double *y,double *yp,
 	    double *dfdy,int neq,double eps,double scal)
 {

@@ -107,7 +107,7 @@ TEST_CASE("test_input_bounds")
     CHECK(xpp::get_delay(s,0,0)==3);
 
     CHECK(xpp::size_product(65536,65536)==4294967296ULL);
-    CHECK(sizeof(integer)>=8);
+    CHECK(sizeof(std::ptrdiff_t)>=8);
     SolvbvWork work;
     bool overflow=false;
     try{work.resize(std::numeric_limits<std::ptrdiff_t>::max(),2,2,1,1,1);}

@@ -678,7 +678,7 @@ void check_branch_parameters()
     mark_iap.nfpr=1;
     rap_type mark_rap{};
     std::vector<double> parameters(mark_lib.parameter_count);
-    std::array<integer,1> free={s.autox_state.parameter_layout.solver_index(0)};
+    std::array<std::ptrdiff_t,1> free={s.autox_state.parameter_layout.solver_index(0)};
     std::array<AutoxMark,1> mark={AutoxMark{static_cast<int>(s.autox_state.parameter_layout.solver_index(1)),0.5}};
     bool changed=false;
     const auto mark_value=[&]{
@@ -1129,8 +1129,8 @@ void check_pool_reuse()
    more than the eight chunks, so chunks of one, two and more blocks meet. */
 void check_brbd_tree()
 {
-    constexpr integer nov=3, ncol=2, ntst=13, nbc=3, nint=1, ncb=nint+1;
-    constexpr integer nra=nov*ncol, nca=nra+nov, nrc=nbc+nint+1;
+    constexpr std::ptrdiff_t nov=3, ncol=2, ntst=13, nbc=3, nint=1, ncb=nint+1;
+    constexpr std::ptrdiff_t nra=nov*ncol, nca=nra+nov, nrc=nbc+nint+1;
     std::uint64_t state=474;
     const auto next=[&]{
         state=state*6364136223846793005ULL+1442695040888963407ULL;
@@ -1139,9 +1139,9 @@ void check_brbd_tree()
     std::vector<double> a(nca*nra*ntst),b(ncb*nra*ntst),c(nca*nrc*ntst,0.),d(ncb*nrc),fa(nra*ntst),fc(nrc),fa2(nra*ntst),fc2(nrc);
     for (auto &v:a) v=next();
     for (auto &v:b) v=next();
-    for (integer i=0;i<ntst;++i)
-        for (integer ir=0;ir<nrc;++ir)
-            for (integer j=0;j<nca;++j) {
+    for (std::ptrdiff_t i=0;i<ntst;++i)
+        for (std::ptrdiff_t ir=0;ir<nrc;++ir)
+            for (std::ptrdiff_t j=0;j<nca;++j) {
                 // boundary conditions hold x(0) and x(ntst) only
                 const bool bc_column=(i==0 && j<nov) || (i==ntst-1 && j>=nra);
                 if (ir>=nbc || bc_column) c[j+(ir+i*nrc)*nca]=next();
@@ -1156,23 +1156,23 @@ void check_brbd_tree()
        values per block, then x(ntst) and the parameters) against the rhs */
     const auto residual=[&](const std::vector<double> &u,const std::vector<double> &w,
                             const std::vector<double> &rhs,const std::vector<double> &rhsc){
-        const auto value=[&](integer i,integer j){
+        const auto value=[&](std::ptrdiff_t i,std::ptrdiff_t j){
             if (j<nra) return u[j+i*nra];
             return i+1<ntst ? u[j-nra+(i+1)*nra] : w[j-nra];
         };
         double worst=0;
-        for (integer i=0;i<ntst;++i)
-            for (integer r=0;r<nra;++r) {
+        for (std::ptrdiff_t i=0;i<ntst;++i)
+            for (std::ptrdiff_t r=0;r<nra;++r) {
                 double sm=-rhs[r+i*nra];
-                for (integer j=0;j<nca;++j) sm+=a[j+(r+i*nra)*nca]*value(i,j);
-                for (integer k=0;k<ncb;++k) sm+=b[k+(r+i*nra)*ncb]*w[nov+k];
+                for (std::ptrdiff_t j=0;j<nca;++j) sm+=a[j+(r+i*nra)*nca]*value(i,j);
+                for (std::ptrdiff_t k=0;k<ncb;++k) sm+=b[k+(r+i*nra)*ncb]*w[nov+k];
                 worst=std::max(worst,std::fabs(sm));
             }
-        for (integer ir=0;ir<nrc;++ir) {
+        for (std::ptrdiff_t ir=0;ir<nrc;++ir) {
             double sm=-rhsc[ir];
-            for (integer i=0;i<ntst;++i)
-                for (integer j=0;j<nca;++j) sm+=c[j+(ir+i*nrc)*nca]*value(i,j);
-            for (integer k=0;k<ncb;++k) sm+=d[k+ir*ncb]*w[nov+k];
+            for (std::ptrdiff_t i=0;i<ntst;++i)
+                for (std::ptrdiff_t j=0;j<nca;++j) sm+=c[j+(ir+i*nrc)*nca]*value(i,j);
+            for (std::ptrdiff_t k=0;k<ncb;++k) sm+=d[k+ir*ncb]*w[nov+k];
             worst=std::max(worst,std::fabs(sm));
         }
         return worst;
@@ -1194,7 +1194,7 @@ void check_brbd_tree()
         std::copy(d.begin(),d.end(),work.d.begin());
         std::vector<double> u(fa),w(fc),p0(nov*nov),p1(nov*nov);
         u.resize(work.ft.size());
-        integer ifst=1,idb=0,nllv=0,nov_=nov,na=ntst,nbc_=nbc,nra_=nra,nca_=nca,ncb_=ncb,nrc_=nrc;
+        std::ptrdiff_t ifst=1,idb=0,nllv=0,nov_=nov,na=ntst,nbc_=nbc,nra_=nra,nca_=nca,ncb_=ncb,nrc_=nrc;
         double det=0;
         solve_bordered_block_diagonal(run,nullptr,u.data(),w.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
         CHECK(residual(u,w,fa,fc)<1e-10);

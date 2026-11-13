@@ -1,14 +1,14 @@
 #pragma once
 
 /* What a stored autoX point continued in (W330, #391): a tagged value, not an
-   integer that means a model parameter below the model's size and an autoX
+   std::ptrdiff_t that means a model parameter below the model's size and an autoX
    unknown above it. An axis is a model parameter (its Model index), or one
    of autoX's own numerical unknowns (its slot in autox_unknowns.h: the period
    or truncation interval, ...). Growing or reordering the model's parameters
    never rewrites a stored axis: a parameter's identity is its Model index
    and an unknown's is its slot.
 
-   The integer exists only at the files' boundary (diagram.csv's icp columns,
+   The std::ptrdiff_t exists only at the files' boundary (diagram.csv's icp columns,
    an imported XPPAUT diagram): a model parameter k is k, an unknown slot is
    model_parameters + slot, autox_unknown::block_size slots at most; autox_axis_encode
    and autox_axis_decode are that boundary and the only place the sum is made.

@@ -36,7 +36,7 @@ public:
 std::unique_ptr<EquilibriumModel> session_equilibrium_model(Session &s, int n);
 
 /* how Newton's method for an equilibrium ended: the way it converged, or what stopped it (a failed
-   evaluation of the right-hand side is rooter's error, not an end) */
+   evaluation of the right-hand side is newton_iterate's error, not an end) */
 enum class NewtonEnd { converged, singular_jacobian, left_box, max_iterates, cancelled, step_error };
 struct NewtonRun {
   NewtonEnd end = NewtonEnd::converged;
@@ -73,13 +73,13 @@ Result<EquilibriumNear> equilibrium_near(const Session &s, EquilibriumModel &mod
 
 Result<> do_sing_info(Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
 void pr_evec(Session &s, double *x, double *ev, int n, int pr, double eval,int type);
-void getjac(EquilibriumModel &model, double *x, double *y, double eps, double *dermat, int n);
+void numerical_jacobian(EquilibriumModel &model, double *x, double *y, double eps, double *dermat, int n);
 /* the variable whose equation f (n values) is furthest from zero: the equation an error about it names */
 int worst_residual(const double *f, int n);
 /* (a failed exact Jacobian is its error, the point back where it was) */
-Result<> rooter(EquilibriumModel &model, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n);
+Result<> newton_iterate(EquilibriumModel &model, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n);
 /* the same on the Session's own evaluation */
-Result<> rooter(Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n);
+Result<> newton_iterate(Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n);
 
 /* Sing pts: the equilibrium Newton finds from x (Could not converge,
    no eigenvalues: an error), its stability (stabinfo) and, when asked,

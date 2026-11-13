@@ -121,24 +121,24 @@ class Derivatives {
     iap_type &iap;
     rap_type &rap;
     double *par;
-    integer *icp;
+    std::ptrdiff_t *icp;
     const double *u;
     xpp::AutoxCodim &w;
-    const integer n;
+    const std::ptrdiff_t n;
     double h;
 
     void value(std::span<const double> direction, double distance, std::vector<double> &out)
     {
-        for (integer i=0; i<n; ++i) w.x[i]=u[i]+distance*direction[i];
+        for (std::ptrdiff_t i=0; i<n; ++i) w.x[i]=u[i]+distance*direction[i];
         double unused=0;
         problem_function(&iap, &rap, n, w.x.data(), w.x.data(), icp, par, 0, out.data(), &unused, &unused);
     }
 public:
-    Derivatives(iap_type &i, rap_type &r, double *p, integer *indices, const double *state)
+    Derivatives(iap_type &i, rap_type &r, double *p, std::ptrdiff_t *indices, const double *state)
         : iap(i), rap(r), par(p), icp(indices), u(state), w(i.run->codim), n(i.ndm)
     {
         double scale=0;
-        for (integer j=0; j<n; ++j) scale=std::max(scale,std::abs(u[j]));
+        for (std::ptrdiff_t j=0; j<n; ++j) scale=std::max(scale,std::abs(u[j]));
         // Balance roundoff against the truncation error of second differences.
         h=xpp::math::pow(std::numeric_limits<double>::epsilon(),1./3)*(1+scale);
     }
@@ -150,14 +150,14 @@ public:
         // before dividing by h^2: a multilinear derivative has no constant term.
         double unused=0;
         problem_function(&iap,&rap,n,u,u,icp,par,0,w.work.data(),&unused,&unused);
-        for (integer i=0; i<n; ++i) out[i]=(w.plus[i]+w.minus[i]-2*w.work[i])/(h*h);
+        for (std::ptrdiff_t i=0; i<n; ++i) out[i]=(w.plus[i]+w.minus[i]-2*w.work[i])/(h*h);
     }
     double mixed(std::span<const double> p, std::span<const double> q, std::span<const double> r)
     {
         // Four corners give p.B(q,r), with no Jacobian differencing.
         double result=0;
         for (double signq : {-1.,1.}) for (double signr : {-1.,1.}) {
-            for (integer i=0; i<n; ++i) w.work[i]=signq*q[i]+signr*r[i];
+            for (std::ptrdiff_t i=0; i<n; ++i) w.work[i]=signq*q[i]+signr*r[i];
             value(w.work,h,w.plus);
             result+=signq*signr*dot(p,w.plus);
         }
@@ -176,12 +176,12 @@ public:
     }
 };
 
-void left_null(iap_type &iap, const double *aa, integer stride)
+void left_null(iap_type &iap, const double *aa, std::ptrdiff_t stride)
 {
     auto &w=iap.run->codim;
-    const integer n=iap.ndm;
+    const std::ptrdiff_t n=iap.ndm;
     // The fold's eigenvector block is exactly the user's Jacobian.
-    for (integer j=0; j<n; ++j) for (integer i=0; i<n; ++i)
+    for (std::ptrdiff_t j=0; j<n; ++j) for (std::ptrdiff_t i=0; i<n; ++i)
         w.matrix[i+n*j]=aa[n+j+stride*(n+i)];
     xpp::matrix_null_vector(iap.run->fp9,n,n,1,w.matrix.data(),w.left.data());
     double length=std::sqrt(dot(w.left,w.left));
@@ -190,32 +190,32 @@ void left_null(iap_type &iap, const double *aa, integer stride)
     w.previous_left=w.left;
 }
 
-double lyapunov(iap_type &iap, rap_type &rap, double *par, integer *icp,
-                const double *u, const double *aa, integer stride)
+double lyapunov(iap_type &iap, rap_type &rap, double *par, std::ptrdiff_t *icp,
+                const double *u, const double *aa, std::ptrdiff_t stride)
 {
     auto &w=iap.run->codim;
-    const integer n=iap.ndm, m=2*n;
+    const std::ptrdiff_t n=iap.ndm, m=2*n;
     const double omega=std::sqrt(u[2*n]);
-    for (integer i=0; i<n; ++i) {
+    for (std::ptrdiff_t i=0; i<n; ++i) {
         w.qr[i]=u[n+i];
         w.qi[i]=0;
-        for (integer j=0; j<n; ++j) w.qi[i]-=aa[i+stride*j]*u[n+j]/omega;
+        for (std::ptrdiff_t j=0; j<n; ++j) w.qi[i]-=aa[i+stride*j]*u[n+j]/omega;
     }
     const double phase=xpp::math::atan2(-2*dot(w.qr,w.qi),dot(w.qr,w.qr)-dot(w.qi,w.qi))/2;
     const double cosine=xpp::math::cos(phase), sine=xpp::math::sin(phase);
-    for (integer i=0; i<n; ++i) {
+    for (std::ptrdiff_t i=0; i<n; ++i) {
         const double real=w.qr[i];
         w.qr[i]=cosine*real-sine*w.qi[i];
         w.qi[i]=sine*real+cosine*w.qi[i];
     }
     const double length=std::sqrt(dot(w.qr,w.qr)+dot(w.qi,w.qi));
-    for (integer i=0; i<n; ++i) { w.qr[i]/=length; w.qi[i]/=length; }
+    for (std::ptrdiff_t i=0; i<n; ++i) { w.qr[i]/=length; w.qi[i]/=length; }
     std::fill(w.matrix.begin(),w.matrix.end(),0.);
-    for (integer j=0; j<n; ++j) for (integer i=0; i<n; ++i) {
+    for (std::ptrdiff_t j=0; j<n; ++j) for (std::ptrdiff_t i=0; i<n; ++i) {
         w.matrix[i+m*j]=aa[j+stride*i];
         w.matrix[n+i+m*(n+j)]=aa[j+stride*i];
     }
-    for (integer i=0; i<n; ++i) {
+    for (std::ptrdiff_t i=0; i<n; ++i) {
         w.matrix[i+m*(n+i)]=-omega;
         w.matrix[n+i+m*i]=omega;
     }
@@ -225,52 +225,52 @@ double lyapunov(iap_type &iap, rap_type &rap, double *par, integer *icp,
     const double beta=dot({w.solution.data()+n,static_cast<size_t>(n)},w.qr)
         -dot({w.solution.data(),static_cast<size_t>(n)},w.qi);
     const double norm=alpha*alpha+beta*beta;
-    for (integer i=0; i<n; ++i) {
+    for (std::ptrdiff_t i=0; i<n; ++i) {
         w.pr[i]=(alpha*w.solution[i]+beta*w.solution[n+i])/norm;
         w.pi[i]=(alpha*w.solution[n+i]-beta*w.solution[i])/norm;
     }
     Derivatives derivatives(iap,rap,par,icp,u);
     derivatives.quadratic(w.qr,w.a);
     derivatives.quadratic(w.qi,w.b);
-    for (integer i=0; i<n; ++i) w.c[i]=w.qr[i]+w.qi[i];
+    for (std::ptrdiff_t i=0; i<n; ++i) w.c[i]=w.qr[i]+w.qi[i];
     derivatives.quadratic(w.c,w.c);
-    for (integer i=0; i<n; ++i) w.c[i]=(w.c[i]-w.a[i]-w.b[i])/2;
-    for (integer j=0; j<n; ++j) for (integer i=0; i<n; ++i) w.matrix[i+n*j]=aa[i+stride*j];
-    for (integer i=0; i<n; ++i) w.rhs[i]=w.a[i]+w.b[i];
+    for (std::ptrdiff_t i=0; i<n; ++i) w.c[i]=(w.c[i]-w.a[i]-w.b[i])/2;
+    for (std::ptrdiff_t j=0; j<n; ++j) for (std::ptrdiff_t i=0; i<n; ++i) w.matrix[i+n*j]=aa[i+stride*j];
+    for (std::ptrdiff_t i=0; i<n; ++i) w.rhs[i]=w.a[i]+w.b[i];
     double determinant;
     xpp::gauss_eliminate(iap.run->fp9,iap.iid,n,n,w.matrix.data(),1,n,w.r.data(),n,w.rhs.data(),&determinant);
     std::fill(w.matrix.begin(),w.matrix.end(),0.);
-    for (integer j=0; j<n; ++j) for (integer i=0; i<n; ++i) {
+    for (std::ptrdiff_t j=0; j<n; ++j) for (std::ptrdiff_t i=0; i<n; ++i) {
         w.matrix[i+m*j]=-aa[i+stride*j];
         w.matrix[n+i+m*(n+j)]=-aa[i+stride*j];
     }
-    for (integer i=0; i<n; ++i) {
+    for (std::ptrdiff_t i=0; i<n; ++i) {
         w.matrix[i+m*(n+i)]=-2*omega;
         w.matrix[n+i+m*i]=2*omega;
         w.rhs[i]=w.a[i]-w.b[i]; w.rhs[n+i]=2*w.c[i];
     }
     xpp::gauss_eliminate(iap.run->fp9,iap.iid,m,m,w.matrix.data(),1,m,w.solution.data(),m,w.rhs.data(),&determinant);
-    for (integer i=0; i<n; ++i) { w.sr[i]=w.solution[i]; w.si[i]=w.solution[n+i]; }
+    for (std::ptrdiff_t i=0; i<n; ++i) { w.sr[i]=w.solution[i]; w.si[i]=w.solution[n+i]; }
     const double sigma=derivatives.mixed(w.pr,w.qr,w.r)+derivatives.mixed(w.pi,w.qi,w.r);
     const double delta=derivatives.mixed(w.pr,w.qr,w.sr)+derivatives.mixed(w.pr,w.qi,w.si)
         +derivatives.mixed(w.pi,w.qr,w.si)-derivatives.mixed(w.pi,w.qi,w.sr);
     double gamma=2*(derivatives.cubic(w.pr,w.qr)+derivatives.cubic(w.pi,w.qi))/3;
-    for (integer i=0; i<n; ++i) { w.a[i]=w.pr[i]+w.pi[i]; w.b[i]=w.qr[i]+w.qi[i]; }
+    for (std::ptrdiff_t i=0; i<n; ++i) { w.a[i]=w.pr[i]+w.pi[i]; w.b[i]=w.qr[i]+w.qi[i]; }
     gamma+=derivatives.cubic(w.a,w.b)/6;
-    for (integer i=0; i<n; ++i) { w.a[i]=w.pr[i]-w.pi[i]; w.b[i]=w.qr[i]-w.qi[i]; }
+    for (std::ptrdiff_t i=0; i<n; ++i) { w.a[i]=w.pr[i]-w.pi[i]; w.b[i]=w.qr[i]-w.qi[i]; }
     gamma+=derivatives.cubic(w.a,w.b)/6;
     return (gamma-2*sigma+delta)/(2*omega);
 }
 }
 
-std::size_t autox_cycle_place_imposed(xpp::AutoxPointKind start, std::span<doublecomplex> spectrum)
+std::size_t autox_cycle_place_imposed(xpp::AutoxPointKind start, std::span<FortranComplex> spectrum)
 {
     // At a resonance roundoff splits the double +1/-1 into a conjugate pair:
     // that pair goes there whole (W405; AUTO-07p's PVSPBV takes reals only).
     const double imposed=imposed_multiplier(start);
-    const auto distance=[imposed](const doublecomplex &m) { return xpp::math::hypot(m.r-imposed,m.i); };
+    const auto distance=[imposed](const FortranComplex &m) { return xpp::math::hypot(m.r-imposed,m.i); };
     auto nearest=std::min_element(spectrum.begin()+1,spectrum.end(),
-        [&](const doublecomplex &a, const doublecomplex &b) { return distance(a)<distance(b); });
+        [&](const FortranComplex &a, const FortranComplex &b) { return distance(a)<distance(b); });
     if (nearest->i<0 && nearest-1>spectrum.begin()) --nearest; // a+bi precedes a-bi
     const std::ptrdiff_t width=nearest->i!=0 && nearest+1<spectrum.end() ? 2 : 1;
     std::rotate(spectrum.begin()+1,nearest,nearest+width);
@@ -278,7 +278,7 @@ std::size_t autox_cycle_place_imposed(xpp::AutoxPointKind start, std::span<doubl
 }
 
 double autox_cycle_test(const iap_type &iap, const rap_type &rap, const double *par,
-                       std::span<const doublecomplex> spectrum, bool *changed)
+                       std::span<const FortranComplex> spectrum, bool *changed)
 {
     const auto start=iap.itpst;
     const double angle=par[xpp::autox_unknown::torus_angle];

@@ -465,7 +465,7 @@ void one_flag_steps(xpp::Session &s, double *y, int neq, double *tim, int *istar
 int one_flag_step_gear(xpp::Session &s, int neq, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
   flag_loop(s,y,neq,t,jstart,0,[&](double){
-    xpp::ggear(s,neq,t,tout,y, hmin,hmax,eps,mf,error,kflag,jstart,work,iwork);
+    xpp::gear_step(s,neq,t,tout,y, hmin,hmax,eps,mf,error,kflag,jstart,work,iwork);
     return *kflag>=0; },
     &tout,[&]{ *jstart=0; /* for gear always reset  */ });
   return 0;
@@ -475,7 +475,7 @@ int one_flag_step_rosen(xpp::Session &s, double *y,double *tstart,double tfinal,
 int *istart,int n,double *work,int *ierr)
 {
   FlagEnd end=flag_loop(s,y,n,tstart,istart,0,[&](double){
-    return xpp::rosen(s,y,tstart,tfinal,istart,n,work,ierr)!=-1; },&tfinal);
+    return xpp::rosenbrock_steps(s,y,tstart,tfinal,istart,n,work,ierr)!=-1; },&tfinal);
   if(end!=FlagEnd::too_hard)return 0;
   *ierr=-2;
   return 1;
@@ -493,7 +493,7 @@ int one_flag_step_cvode(xpp::Session &s, xpp::CvodeRun &run, int *command, doubl
 int one_flag_step_adap(xpp::Session &s, double *y, int neq, double *t, double tout, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
 {
   flag_loop(s,y,neq,t,jstart,0,[&](double){
-    xpp::gadaptive(s,y,neq,t,tout,eps,hguess,hmin,work,ier,epjac,iflag,jstart);
+    xpp::adaptive_integration_without_flags(s,y,neq,t,tout,eps,hguess,hmin,work,ier,epjac,iflag,jstart);
     return *ier==0; },&tout);
   return 0;
 }

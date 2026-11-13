@@ -22,19 +22,19 @@
 
 /* fnho: AUTO's equations of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
-homoclinic_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+homoclinic_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
   return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, homoclinic_function);
 } /* fnho_ */
 
 /* ffho: AUTO's function evaluation of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
-homoclinic_function(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
+homoclinic_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
 {
-  integer dfdu_dim1;
+  std::ptrdiff_t dfdu_dim1;
 
-  integer i, j;
-  doublereal dum1;
+  std::ptrdiff_t i, j;
+  double dum1;
 
   dfdu_dim1 = ndm;
     
@@ -73,20 +73,20 @@ homoclinic_function(const iap_type *iap, const rap_type *rap, integer ndim, cons
 
 /* bcho: AUTO's boundary conditions of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
-homoclinic_boundary_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
+homoclinic_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc)
 {
-  integer dbc_dim1;
+  std::ptrdiff_t dbc_dim1;
 
-  integer nfpr;
+  std::ptrdiff_t nfpr;
 
-  doublereal ep;
-  integer nbc0;
+  double ep;
+  std::ptrdiff_t nbc0;
 
-  std::vector<doublereal> ff1(iap->nbc);
-  std::vector<doublereal> ff2(iap->nbc);
-  std::vector<doublereal> uu1(iap->ndim);
-  std::vector<doublereal> uu2(iap->ndim);
-  std::vector<doublereal> dfu(xpp::size_product(iap->nbc, xpp::size_sum(xpp::size_product(2, iap->ndim), iap->run->parameter_count)));
+  std::vector<double> ff1(iap->nbc);
+  std::vector<double> ff2(iap->nbc);
+  std::vector<double> uu1(iap->ndim);
+  std::vector<double> uu2(iap->ndim);
+  std::vector<double> dfu(xpp::size_product(iap->nbc, xpp::size_sum(xpp::size_product(2, iap->ndim), iap->run->parameter_count)));
 
 /* Generates the boundary conditions for homoclinic bifurcation analysis 
 */
@@ -109,19 +109,19 @@ homoclinic_boundary_conditions(const iap_type *iap, const rap_type *rap, integer
 
   ep = xpp::autox_jacobian::central(
       ndim, nbc, u0, uu1.data(), uu2.data(), ff1.data(), ff2.data(),
-      [&](const doublereal *uu, doublereal *ff) { homoclinic_boundary_function(iap, rap, ndim, par, icp, nbc, nbc0, uu, u1, ff, dfu.data(), false); },
+      [&](const double *uu, double *ff) { homoclinic_boundary_function(iap, rap, ndim, par, icp, nbc, nbc0, uu, u1, ff, dfu.data(), false); },
       dbc, dbc_dim1);
 
   /* Derivatives with respect to U1. */
 
   ep = xpp::autox_jacobian::central(
       ndim, nbc, u1, uu1.data(), uu2.data(), ff1.data(), ff2.data(),
-      [&](const doublereal *uu, doublereal *ff) { homoclinic_boundary_function(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu, ff, dfu.data(), false); },
+      [&](const double *uu, double *ff) { homoclinic_boundary_function(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu, ff, dfu.data(), false); },
       dbc + ndim * dbc_dim1, dbc_dim1);
 
   xpp::autox_jacobian::forward_parameters(
       nfpr, nbc, icp, ep, par,
-      [&](doublereal *ff) { homoclinic_boundary_function(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1 , ff, dfu.data(), false); },
+      [&](double *ff) { homoclinic_boundary_function(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1 , ff, dfu.data(), false); },
       f, ff2.data(), dbc, dbc_dim1, ndim * 2);
 
   return 0;
@@ -129,21 +129,21 @@ homoclinic_boundary_conditions(const iap_type *iap, const rap_type *rap, integer
 
 /* fbho: AUTO's boundary function evaluation of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
-homoclinic_boundary_function(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, integer nbc0, const doublereal *u0, const doublereal *u1, doublereal *fb, doublereal *dbc, bool save_basis)
+homoclinic_boundary_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, std::ptrdiff_t nbc0, const double *u0, const double *u1, double *fb, double *dbc, bool save_basis)
 {
 
-  integer ieig;
+  std::ptrdiff_t ieig;
 
-  integer i, j, k;
+  std::ptrdiff_t i, j, k;
 
-  integer ineig;
+  std::ptrdiff_t ineig;
 
-  integer jb;
-  integer ip;
-  integer kp;
+  std::ptrdiff_t jb;
+  std::ptrdiff_t ip;
+  std::ptrdiff_t kp;
 
-  integer ijc = 0, ndm;
-  doublereal dum, dum1, dum2;
+  std::ptrdiff_t ijc = 0, ndm;
+  double dum, dum1, dum2;
 
     /* I am not 100% sure if this is supposed to be iap->ndm or iap->ndim,
        but it appears from looking at the code that it should be iap->ndm.
@@ -154,15 +154,15 @@ homoclinic_boundary_function(const iap_type *iap, const rap_type *rap, integer n
        also depend on these arrays, and more importantly the algorithm,
        having N X.  So, they all need to be changed at once.
     */
-  std::vector<doublereal> f(iap->ndm);
-  std::vector<doublereal> bound(xpp::size_product(iap->ndm, iap->ndm));
-  std::vector<doublereal> fj(iap->ndm);
-  std::vector<doublereal> ri(iap->ndm);
-  std::vector<doublereal> rr(iap->ndm);
-  std::vector<doublereal> vr(xpp::size_product(iap->ndm, iap->ndm));
-  std::vector<doublereal> vt(xpp::size_product(iap->ndm, iap->ndm));
-  std::vector<doublereal> xequib1(iap->ndm);
-  std::vector<doublereal> xequib2(iap->ndm);
+  std::vector<double> f(iap->ndm);
+  std::vector<double> bound(xpp::size_product(iap->ndm, iap->ndm));
+  std::vector<double> fj(iap->ndm);
+  std::vector<double> ri(iap->ndm);
+  std::vector<double> rr(iap->ndm);
+  std::vector<double> vr(xpp::size_product(iap->ndm, iap->ndm));
+  std::vector<double> vt(xpp::size_product(iap->ndm, iap->ndm));
+  std::vector<double> xequib1(iap->ndm);
+  std::vector<double> xequib2(iap->ndm);
 
   /* Generates the boundary conditions for homoclinic orbits. */
 
@@ -400,36 +400,36 @@ t=1 */
 
 /* icho: AUTO's integral conditions of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
-homoclinic_integral_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
+homoclinic_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint)
 {
   homoclinic_integral_function(iap, rap, ndim, par, icp, nint, iap->nnt0, u, uold, udot, upold, f, dint);
   if (ijac == 0) return 0;
   /* The phase conditions are linear: their derivatives are exact (AUTO-07p ICHO). */
-  const integer ndm = iap->ndm;
-  for (integer entry = 0; entry < nint * (ndim + iap->run->parameter_count); ++entry) dint[entry] = 0.;
-  integer row = 0;
+  const std::ptrdiff_t ndm = iap->ndm;
+  for (std::ptrdiff_t entry = 0; entry < nint * (ndim + iap->run->parameter_count); ++entry) dint[entry] = 0.;
+  std::ptrdiff_t row = 0;
   if (iap->run->homcont.homoclinic_constants.nrev == 0) {
-    for (integer i = 0; i < ndm; ++i) dint[row + i*nint] = upold[i];
+    for (std::ptrdiff_t i = 0; i < ndm; ++i) dint[row + i*nint] = upold[i];
     ++row;
   }
   if (iap->run->homcont.homoclinic_constants.itwist == 1) {
-    for (integer i = 0; i < ndm; ++i) dint[row + (ndm + i)*nint] = uold[ndm + i];
+    for (std::ptrdiff_t i = 0; i < ndm; ++i) dint[row + (ndm + i)*nint] = uold[ndm + i];
   }
   return 0;
 } /* icho_ */
 
 /* fiho: AUTO's integral function evaluation of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
-homoclinic_integral_function(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, integer nnt0, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *fi, doublereal *dint)
+homoclinic_integral_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, std::ptrdiff_t nnt0, const double *u, const double *uold, const double *udot, const double *upold, double *fi, double *dint)
 {
 
-  integer ijac = 0;
+  std::ptrdiff_t ijac = 0;
 
-  integer i, jb;
-  integer ndm;
-  doublereal dum;
+  std::ptrdiff_t i, jb;
+  std::ptrdiff_t ndm;
+  double dum;
 
-  std::vector<doublereal> fj(iap->ndim);
+  std::vector<double> fj(iap->ndim);
   /* Generates the integral conditions for homoclinic orbits. */
 
   ndm = iap->ndm;
@@ -471,10 +471,10 @@ homoclinic_integral_function(const iap_type *iap, const rap_type *rap, integer n
 
 /* inho: XPPAUT 8.0 autlib5.c:833: reads HomCont's constants from fort.11, sets IAP's re-defined constants */
 int 
-homoclinic_read_constants(iap_type *iap, integer *icp, doublereal *par)
+homoclinic_read_constants(iap_type *iap, std::ptrdiff_t *icp, double *par)
 {
 
-  integer ndim, nint, nuzr, i, nfree, icorr, nbc, ndm, isw;
+  std::ptrdiff_t ndim, nint, nuzr, i, nfree, icorr, nbc, ndm, isw;
 
   /* Allocate memory for global structures. */
 
@@ -606,17 +606,17 @@ homoclinic_read_constants(iap_type *iap, integer *icp, doublereal *par)
 
 /* preho: AUTO homcont.f90:1320: special homoclinic orbit preprocessing */
 int 
-homoclinic_preprocess(AutoxRun &run, integer *ndx, integer *ntsr, integer *nar, integer *ndim, integer *ncolrs, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *par)
+homoclinic_preprocess(AutoxRun &run, std::ptrdiff_t *ndx, std::ptrdiff_t *ntsr, std::ptrdiff_t *nar, std::ptrdiff_t *ndim, std::ptrdiff_t *ncolrs, double *ups, double *udotps, double *tm, double *par)
 {
-  integer ups_dim1, udotps_dim1;
+  std::ptrdiff_t ups_dim1, udotps_dim1;
 
-  integer jmin;
-  doublereal upsi;
-  integer i, j, k;
-  doublereal tmmin;
-  integer k1, k2, ii;
-  doublereal upsmin;
-  integer ist;
+  std::ptrdiff_t jmin;
+  double upsi;
+  std::ptrdiff_t i, j, k;
+  double tmmin;
+  std::ptrdiff_t k1, k2, ii;
+  double upsmin;
+  std::ptrdiff_t ist;
 
 /* Preprocesses (perturbs) restart data to enable */
 /* initial computation of the adjoint variable */
@@ -709,28 +709,28 @@ homoclinic_preprocess(AutoxRun &run, integer *ndx, integer *ntsr, integer *nar, 
 
 /* stpnho: AUTO's starting data of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
-homoclinic_starting_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
+homoclinic_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
   return autox_uniform_start(iap, rap, par, icp, ntsr, ncolrs, rlcur, *ndxloc, ups, tm, nodir,
-      [&](doublereal *state, doublereal &time) { homoclinic_start_point(iap, icp, state, par, &time); });
+      [&](double *state, double &time) { homoclinic_start_point(iap, icp, state, par, &time); });
 } /* stpnho_ */
 
 /* stpho: XPPAUT 8.0 autlib5.c:1191: a starting point for homoclinic continuation (ISTART 2 calls STPNHO, 3 sets up the homotopy) */
 int 
-homoclinic_start_point(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t)
+homoclinic_start_point(iap_type *iap, std::ptrdiff_t *icp, double *u, double *par, double *t)
 {
 
-  integer i, j;
+  std::ptrdiff_t i, j;
 
-  integer ip;
-  integer kp;
-  integer ndm;
+  std::ptrdiff_t ip;
+  std::ptrdiff_t kp;
+  std::ptrdiff_t ndm;
 
-  std::vector<doublereal> ri(iap->ndm);
-  std::vector<doublereal> rr(iap->ndm);
-  std::vector<doublereal> vr(xpp::size_product(iap->ndm, iap->ndm));
-  std::vector<doublereal> vt(xpp::size_product(iap->ndm, iap->ndm));
-  std::vector<doublereal> xequib(iap->ndm);
+  std::vector<double> ri(iap->ndm);
+  std::vector<double> rr(iap->ndm);
+  std::vector<double> vr(xpp::size_product(iap->ndm, iap->ndm));
+  std::vector<double> vt(xpp::size_product(iap->ndm, iap->ndm));
+  std::vector<double> xequib(iap->ndm);
 
   /* Generates a starting point for homoclinic continuation */
   /* If ISTART=2 it calls STPNHO. */
@@ -826,14 +826,14 @@ homoclinic_start_point(iap_type *iap, integer *icp, doublereal *u, doublereal *p
 
 /* pvlsho: HomCont's PVLS: eigenvalues and degeneracy parameters (autlib5.c:1331) */
 int 
-homoclinic_output_parameters(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndxloc, doublereal *ups, integer *ndim, doublereal *p0, doublereal *p1, doublereal *par)
+homoclinic_output_parameters(iap_type *iap, rap_type *rap, std::ptrdiff_t *icp, double *dtm, std::ptrdiff_t *ndxloc, double *ups, std::ptrdiff_t *ndim, double *p0, double *p1, double *par)
 {
 
-  integer i, j;
+  std::ptrdiff_t i, j;
 
-  doublereal orient;
+  double orient;
 
-  integer iid, ndm;
+  std::ptrdiff_t iid, ndm;
 
   iid = iap->iid;
   ndm = iap->ndm;
@@ -887,18 +887,18 @@ homoclinic_output_parameters(iap_type *iap, rap_type *rap, integer *icp, doubler
 } /* pvlsho_ */
 
 /* psiho: AUTO homcont.f90:1795: the degenerate homoclinic conditions PSI(IS)=0 */
-doublereal 
-homoclinic_degeneracy_condition(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublereal *v, doublereal *vt, const integer *icp, doublereal *par)
+double 
+homoclinic_degeneracy_condition(const iap_type *iap, std::ptrdiff_t is, double *rr, double *ri, double *v, double *vt, const std::ptrdiff_t *icp, double *par)
 {
-  doublereal ret_val;
+  double ret_val;
 
-  integer i, j;
-  doublereal droot, s1, s2, f0norm, f1norm, u0norm, u1norm;
-  integer ndm;
-  doublereal dum1, dum2;
+  std::ptrdiff_t i, j;
+  double droot, s1, s2, f0norm, f1norm, u0norm, u1norm;
+  std::ptrdiff_t ndm;
+  double dum1, dum2;
 
-  std::vector<doublereal> f0(iap->ndm);
-  std::vector<doublereal> f1(iap->ndm);
+  std::vector<double> f0(iap->ndm);
+  std::vector<double> f1(iap->ndm);
 
 /* The conditions for degenerate homoclinic orbits are given by PSI(IS)=0.
  */
@@ -989,11 +989,11 @@ homoclinic_degeneracy_condition(const iap_type *iap, integer is, doublereal *rr,
  L2:
   if (f2c::abs(ri[-1 + iap->run->homcont.homoclinic_constants.nstab]) > iap->run->homcont.homoclinic_zero_threshold.compzero) {
     /* Computing 2nd power */
-    doublereal tmp= ri[-1 + iap->run->homcont.homoclinic_constants.nstab] - ri[-1 + iap->run->homcont.homoclinic_constants.nstab - 1];
+    double tmp= ri[-1 + iap->run->homcont.homoclinic_constants.nstab] - ri[-1 + iap->run->homcont.homoclinic_constants.nstab - 1];
     ret_val = -(tmp * tmp);
   } else {
     /* Computing 2nd power */
-    doublereal tmp = rr[-1 + iap->run->homcont.homoclinic_constants.nstab] - rr[-1 + iap->run->homcont.homoclinic_constants.nstab - 1];
+    double tmp = rr[-1 + iap->run->homcont.homoclinic_constants.nstab] - rr[-1 + iap->run->homcont.homoclinic_constants.nstab - 1];
     ret_val = tmp * tmp;
   }
   return ret_val;
@@ -1004,11 +1004,11 @@ homoclinic_degeneracy_condition(const iap_type *iap, integer is, doublereal *rr,
  L3:
   if (f2c::abs(ri[iap->run->homcont.homoclinic_constants.nstab]) > iap->run->homcont.homoclinic_zero_threshold.compzero) {
     /* Computing 2nd power */
-    doublereal tmp = ri[iap->run->homcont.homoclinic_constants.nstab] - ri[iap->run->homcont.homoclinic_constants.nstab + 1];
+    double tmp = ri[iap->run->homcont.homoclinic_constants.nstab] - ri[iap->run->homcont.homoclinic_constants.nstab + 1];
     ret_val = -(tmp * tmp);
   } else {
     /* Computing 2nd power */
-    doublereal tmp = rr[iap->run->homcont.homoclinic_constants.nstab] - rr[iap->run->homcont.homoclinic_constants.nstab + 1];
+    double tmp = rr[iap->run->homcont.homoclinic_constants.nstab] - rr[iap->run->homcont.homoclinic_constants.nstab + 1];
     ret_val = tmp * tmp;
   }
   return ret_val;
@@ -1119,12 +1119,12 @@ homoclinic_degeneracy_condition(const iap_type *iap, integer is, doublereal *rr,
 
 /* eighi: interface to eigho with its workspace (autlib5.c:1655) */
 int 
-homoclinic_eigen(const iap_type *iap, integer isign, integer itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm)
+homoclinic_eigen(const iap_type *iap, std::ptrdiff_t isign, std::ptrdiff_t itrans, double *rr, double *ri, double *vret, double *xequib, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t *ndm)
 {
 
-  std::vector<doublereal> dfdp(xpp::size_product(*ndm, iap->run->parameter_count));
-  std::vector<doublereal> dfdu(xpp::size_product(*ndm, *ndm));
-  std::vector<doublereal> zz(xpp::size_product(*ndm, *ndm));
+  std::vector<double> dfdp(xpp::size_product(*ndm, iap->run->parameter_count));
+  std::vector<double> dfdu(xpp::size_product(*ndm, *ndm));
+  std::vector<double> zz(xpp::size_product(*ndm, *ndm));
 
   xpp::homoclinic_eigen_ordered(iap, &isign, &itrans, rr, ri, vret, xequib, icp, par, ndm, dfdu.data(), dfdp.data(), zz.data());
 
@@ -1133,11 +1133,11 @@ homoclinic_eigen(const iap_type *iap, integer isign, integer itrans, doublereal 
 
 /* prjcti: interface to prjctn with its workspace (autlib5.c:443) */
 int 
-homoclinic_projection(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, xpp::HomcontManifold manifold, xpp::HomcontEndpoint endpoint, bool transpose, integer *ndm, bool save_basis)
+homoclinic_projection(const iap_type *iap, double *bound, double *xequib, const std::ptrdiff_t *icp, double *par, xpp::HomcontManifold manifold, xpp::HomcontEndpoint endpoint, bool transpose, std::ptrdiff_t *ndm, bool save_basis)
 {
   
-  std::vector<doublereal> dfdp(xpp::size_product(*ndm, iap->run->parameter_count));
-  std::vector<doublereal> dfdu(xpp::size_product(*ndm, *ndm));
+  std::vector<double> dfdp(xpp::size_product(*ndm, iap->run->parameter_count));
+  std::vector<double> dfdu(xpp::size_product(*ndm, *ndm));
   
   xpp::homoclinic_projection_conditions(iap, bound, xequib, icp, par, manifold, endpoint, transpose, *ndm, dfdu.data(), dfdp.data(), save_basis);
   

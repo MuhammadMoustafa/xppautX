@@ -40,7 +40,7 @@ TEST_CASE("test_autox_hopf") {
     iap.ips = xpp::AutoxProblem::SteadyState;
     iap.itpst = xpp::AutoxPointKind::Hopf;
     rap_type rap{};
-    std::array<integer, 2> icp{s.autox_state.parameter_layout.solver_index(0), s.autox_state.parameter_layout.solver_index(1)};
+    std::array<std::ptrdiff_t, 2> icp{s.autox_state.parameter_layout.solver_index(0), s.autox_state.parameter_layout.solver_index(1)};
     std::vector<double> par(run.parameter_count), dp(6 * run.parameter_count);
     par[icp[0]] = -.25;
     std::array<double, 6> u{-.5, 0., 1., 0., 1., 0.}, old = u, f{}, minus{}, plus{};

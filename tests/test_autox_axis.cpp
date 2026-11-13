@@ -1,6 +1,6 @@
 /* autox_axis: a stored autoX axis is a tagged value (W330, #391). A model
    parameter and an autoX unknown with the same number are different axes,
-   the period is not parameter 10, and the file's integer is made and read
+   the period is not parameter 10, and the file's std::ptrdiff_t is made and read
    only by autox_axis_encode / autox_axis_decode, a bad one refused. */
 #include "xpptest.h"
 #include "autox_axis.h"

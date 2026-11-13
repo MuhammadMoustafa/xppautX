@@ -103,7 +103,7 @@ void jacobian(Session &s, double t, const double *x, const double *f0, int n, do
    run stops there. The exact Jacobian's functions below throw it, with
    the equation's line, the variable, the time and the state; the
    computation that asked catches it where it ends and returns its error
-   (Solver::advance, the equilibria's rooter, the adjoint, autoX's user_right_hand_side as
+   (Solver::advance, the equilibria's newton_iterate, the adjoint, autoX's user_right_hand_side as
    an AutoxFailed, which a collocation worker's caller rethrows). No
    difference is taken instead. */
 struct JacobianFailed {

@@ -46,7 +46,8 @@ namespace xpp {
 #define PGROW2 -0.2
 #define PSHRNK2 -0.25
 #define ERRCON2 1.89e-4
-void jacobn(xpp::Session &s, double x, double *y, double *dfdx, double *dermat, double eps, double *work, int n)
+/* jacobn: stiff's numerical Jacobian */
+void stiff_numerical_jacobian(xpp::Session &s, double x, double *y, double *dfdx, double *dermat, double eps, double *work, int n)
 {
  s.integrator.rhs(x,y,work,n);
  xpp::jacobian(s,x,y,work,n,eps,{xpp::JacobianLayout::RowMajor},dermat,dfdx);
@@ -55,13 +56,14 @@ void jacobn(xpp::Session &s, double x, double *y, double *dfdx, double *dermat, 
 int adaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
 {
   if(s.model().flag_count()==0)
-    return(gadaptive(s,ystart,nvar,xs,x2,eps,
+    return(adaptive_integration_without_flags(s,ystart,nvar,xs,x2,eps,
 		     hguess,hmin,work,ier,epjac,iflag,jstart));
   return(one_flag_step_adap(s,ystart,nvar,xs,x2,eps,hguess,
 			    hmin,work,ier,epjac,iflag,jstart));
 }
    
-int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
+/* gadaptive: adaptive's call when NFlags == 0 (stiff.c:94) */
+int adaptive_integration_without_flags(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
 {
   double h1=*hguess;
   int nstp,i;
@@ -87,7 +89,7 @@ int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, 
     if(xpp::solver_info(iflag).traits.stiff_step)
       stiff(s,y,dydx,nvar,&x,h,eps,yscal,&hdid,&hnext,work2,epjac,ier);
     else
-      rkqs(s,y,dydx,nvar,&x,h,eps,yscal,&hdid,&hnext,work2,ier); 
+      cash_karp_adaptive_step(s,y,dydx,nvar,&x,h,eps,yscal,&hdid,&hnext,work2,ier); 
     if(*ier!=0){
       return -1;
     }
@@ -101,7 +103,7 @@ int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, 
     if (fabs(hnext) <= hmin) {
       /* the variable whose error estimate in the step just taken is the
          largest: stiff's err (after its matrix, derivatives and saved
-         state in work2), or rkqs's yerr (work2's first) */
+         state in work2), or cash_karp_adaptive_step's yerr (work2's first) */
       const double *err=xpp::solver_info(iflag).traits.stiff_step?work2+2*nvar*nvar+2*nvar:work2;
       s.solver_work.stop={x,hnext,xpp::largest_magnitude(err,nvar),0};
       *ier=ADAPTIVE_BELOW_MIN_STEP;
@@ -144,7 +146,7 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 		ysav[i]=y[i];
 		dysav[i]=dydx[i];
 	}
-	jacobn(s,xsav,ysav,dfdx,dfdy,epjac,work2,n);
+	stiff_numerical_jacobian(s,xsav,ysav,dfdx,dfdy,epjac,work2,n);
 	h=htry;
 	for (jtry=1;jtry<=ADAPTIVE_MAX_TRIES;jtry++) {
 		for (j=0;j<n;j++) {
@@ -207,7 +209,8 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 	return -1;
 }
 
-int rkqs(xpp::Session &s, double *y, double *dydx, int n, double *x, double htry, double eps, double *yscal, double *hdid, double *hnext, double *work, int *ier)
+/* rkqs: Numerical Recipes' quality-controlled Cash-Karp step */
+int cash_karp_adaptive_step(xpp::Session &s, double *y, double *dydx, int n, double *x, double htry, double eps, double *yscal, double *hdid, double *hnext, double *work, int *ier)
 {
   int i;
   double errmax,h,htemp,xnew,*yerr,*ytemp;
@@ -218,7 +221,7 @@ int rkqs(xpp::Session &s, double *y, double *dydx, int n, double *x, double htry
   h=htry;
   *ier=0;
   for (;;) {
-    rkck(s,y,dydx,n,*x,h,ytemp,yerr,work2);
+    cash_karp_step(s,y,dydx,n,*x,h,ytemp,yerr,work2);
     errmax=0.0;
     for (i=0;i<n;i++) errmax=std::max(fabs(yerr[i]/yscal[i]),errmax);
     errmax /= eps;
@@ -244,7 +247,8 @@ int rkqs(xpp::Session &s, double *y, double *dydx, int n, double *x, double htry
 }
 
 /* This takes one step of Cash-Karp RK method */
-void rkck(xpp::Session &s, double *y, double *dydx, int n, double x, double h, double *yout, double *yerr, double *work)
+/* rkck: Numerical Recipes' Cash-Karp Runge-Kutta step */
+void cash_karp_step(xpp::Session &s, double *y, double *dydx, int n, double x, double h, double *yout, double *yerr, double *work)
 {
   int i;
   static constexpr double a2=0.2,a3=0.3,a4=0.6,a5=1.0,a6=0.875,b21=0.2,

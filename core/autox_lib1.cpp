@@ -21,13 +21,13 @@
 
 namespace {
 struct AutoxPointOutputContext {
-  integer ndim;
+  std::ptrdiff_t ndim;
   xpp::AutoxProblem ips;
-  integer isw, iplt, nmx, npr, ndm;
+  std::ptrdiff_t isw, iplt, nmx, npr, ndm;
   xpp::AutoxPointCode itp;
   xpp::AutoxPointKind itpst;
-  integer ibr;
-  doublereal rl0, rl1, a0, a1;
+  std::ptrdiff_t ibr;
+  double rl0, rl1, a0, a1;
 };
 AutoxPointOutputContext point_output_context(const iap_type &iap, const rap_type &rap) {
   return {iap.ndim, iap.ips, iap.isw, iap.iplt, iap.nmx, iap.npr,
@@ -35,8 +35,8 @@ AutoxPointOutputContext point_output_context(const iap_type &iap, const rap_type
 }
 
 struct AutoxIntegralContext {
-  integer ndim, ntst, ncol;
-  std::span<const doublereal> weights;
+  std::ptrdiff_t ndim, ntst, ncol;
+  std::span<const double> weights;
 };
 AutoxIntegralContext integral_context(const iap_type &iap) {
   auto &weights = iap.run->scratch.integral_weights;
@@ -70,7 +70,7 @@ bool jacobian_failed(const iap_type *iap) { return iap->run->jacobian_failure.ha
 bool stop_asked(const iap_type *iap) { return autox_cancelled(*iap->run) || jacobian_failed(iap); }
 
 /* x^n (n >= 1) by repeated squaring, in f2c's pow_di order (its bits) */
-double power_by_squaring(double x, integer n)
+double power_by_squaring(double x, std::ptrdiff_t n)
 {
   double power = 1;
   for (auto u = static_cast<std::size_t>(n);;) {
@@ -115,7 +115,7 @@ const char *located_kind(FNCS_TYPE_BVP((*fncs)), const iap_type &iap)
 /* locate_special_algebraic/locate_special_boundary gave a special point up: the branch goes on without it
    (AUTO-07p's NOTE: Possible special point); why is null when ITMX
    iterations did not reach it */
-void special_point_lost(const iap_type &iap, integer ibr, integer ntot, const char *kind, const char *why)
+void special_point_lost(const iap_type &iap, std::ptrdiff_t ibr, std::ptrdiff_t ntot, const char *kind, const char *why)
 {
   xpp::autox_stop_note(*iap.run,
                       xpp::format("Br {} Pt {}: {} between points {} and {} was not located ({}); it is missing from the diagram",
@@ -146,7 +146,7 @@ struct LocationState {
   };
   std::vector<Array> arrays;
   double dsold, det, tivp, pivot;
-  integer nit, nins, isp;
+  std::ptrdiff_t nit, nins, isp;
   xpp::AutoxStability::Values stability;
   std::vector<double> codim_left;
   std::function<void()> refactor;
@@ -190,7 +190,7 @@ template<class Function> struct LocationTest {
   Function function;
   AutoxTestSample &sample;
   xpp::AutoxPointKind kind;
-  std::optional<integer> user_index;
+  std::optional<std::ptrdiff_t> user_index;
   /* W604: set for the hidden test of a branch's return to its start (autox_ends.h): a crossing it locates is kept
      only when this says the states there are the start's */
   const std::function<bool()> *accept = nullptr;
@@ -222,11 +222,11 @@ bool start_is_tested(const iap_type &iap, xpp::AutoxPointKind label) {
 /* W604: an orbit as the same-point rule sees it, store_diagram_boundary's u_high then its u_low: each of the model's variables'
    maximum, then each one's minimum over the orbit. Phase-free, so a family that closes on itself in another phase
    matches its start */
-std::vector<double> orbit_extremes(iap_type &iap, integer ndxloc, doublereal *ups) {
+std::vector<double> orbit_extremes(iap_type &iap, std::ptrdiff_t ndxloc, double *ups) {
   const std::size_t node = static_cast<std::size_t>(iap.run->session->model().node);
   std::vector<double> extremes(2 * node);
   for (std::size_t k = 0; k < node; ++k) {
-    integer variable = static_cast<integer>(k) + 1;
+    std::ptrdiff_t variable = static_cast<std::ptrdiff_t>(k) + 1;
     extremes[k] = component_maximum(&iap, &ndxloc, &variable, ups);
     extremes[node + k] = component_minimum(&iap, &ndxloc, &variable, ups);
   }
@@ -319,7 +319,7 @@ void locate_tests(iap_type &iap, rap_type &rap,
 // the second step (each starts at 0, AUTO-07p's TEST): its two points and
 // every point of a location between them read their own Jacobian, so a
 // fold there is located where it is (the Bautin normal form's, to 1e-9).
-constexpr integer hopf_start_steps = 2;
+constexpr std::ptrdiff_t hopf_start_steps = 2;
 
 // The arclength within which a location takes a zero as found: EPSS
 // relative to the geometric mean of DS and DSMAX (AUTO-07p LCSPAE/LCSPBV).
@@ -371,9 +371,9 @@ double location_step(const rap_type &rap, double rds, bool singular) {
 /* the multipliers of a cycle, restored with the rest of a failed location's state */
 struct LocationStateWithMultipliers {
   LocationState state;
-  doublecomplex *target;
-  std::vector<doublecomplex> ev;
-  LocationStateWithMultipliers(LocationState s, doublecomplex *e, std::size_t n)
+  FortranComplex *target;
+  std::vector<FortranComplex> ev;
+  LocationStateWithMultipliers(LocationState s, FortranComplex *e, std::size_t n)
     : state(std::move(s)), target(e), ev(e, e + n) {}
   void restore(iap_type &iap, rap_type &rap) const {
     state.restore(iap, rap);
@@ -384,7 +384,7 @@ struct LocationStateWithMultipliers {
 /* locate_special_algebraic/locate_special_boundary met a bracket of a test (a sign change between two samples)
    that a smooth crossing does not explain (W545): the branch goes on without
    the point, and says so once. */
-void special_point_rejected(const iap_type &iap, integer ibr, integer ntot, const char *kind, double parameter,
+void special_point_rejected(const iap_type &iap, std::ptrdiff_t ibr, std::ptrdiff_t ntot, const char *kind, double parameter,
                             const std::string &why)
 {
   xpp::autox_stop_note(*iap.run,
@@ -424,9 +424,9 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample,
                           Evaluate evaluate, Advance advance, Snapshot snapshot, TorusSingular torus_singular)
 {
   stepped = false;
-  const integer iid = iap.iid;
-  const integer itmx = iap.itmx;
-  const integer ibr = iap.ibr;
+  const std::ptrdiff_t iid = iap.iid;
+  const std::ptrdiff_t itmx = iap.itmx;
+  const std::ptrdiff_t ibr = iap.ibr;
   const double ds = rap.ds;
   const double dsmax = rap.dsmax;
   const double epss = rap.epss;
@@ -439,7 +439,7 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample,
   double &q = sample.value;
   bool chng;
   double q1 = evaluate(chng);
-  const integer ntot = iap.ntot;
+  const std::ptrdiff_t ntot = iap.ntot;
   const double q1_measured = q1;
   if (!location_sign_change(iap, rap, q0, q1, dstest, chng, user_zero)) {
     q = q1;
@@ -472,7 +472,7 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample,
   auto saved = snapshot();
   const bool singular = torus_singular();
   const char *why = nullptr; /* why the point was given up; null: ITMX */
-  integer iterations = 0;
+  std::ptrdiff_t iterations = 0;
   double rds, s;
 
   /* One trial point: false when the search must go on without the point (why says so), and
@@ -668,24 +668,24 @@ FILE *fort8(AutoxRun &run)
 } // namespace
 
 /* init: AUTO's INIT: reads the constants and generates the starting data (autlib1.c:417 for init1) */
-int initialize_run(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, std::span<AutoxMark> marks)
+int initialize_run(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *thl, std::vector<double> &thu_vec, std::span<AutoxMark> marks)
 {
-  integer nbif;
-  integer iads, ndim, nicp, ncol, mxbf;
-  doublereal epsl;
-  integer nfpr, nins, iplt, nint, jtmp;
-  doublereal epsu, epss;
-  integer itmx, itnw, ntot, ipos, nwtn;
-  doublereal tivp;
-  integer ntst, iuzr;
-  integer nuzr, i;
-  doublereal dsold, dsmin, dsmax, a0, a1;
-  integer istop;
+  std::ptrdiff_t nbif;
+  std::ptrdiff_t iads, ndim, nicp, ncol, mxbf;
+  double epsl;
+  std::ptrdiff_t nfpr, nins, iplt, nint, jtmp;
+  double epsu, epss;
+  std::ptrdiff_t itmx, itnw, ntot, ipos, nwtn;
+  double tivp;
+  std::ptrdiff_t ntst, iuzr;
+  std::ptrdiff_t nuzr, i;
+  double dsold, dsmin, dsmax, a0, a1;
+  std::ptrdiff_t istop;
   xpp::AutoxPointKind itpst;
-  doublereal ds, rl0, rl1;
-  integer iad, jac, lab, nbc, iid, ibr, ndm;
-  doublereal det;
-  integer ilp, nit, isp, irs, npr, isw, nmx, nbc0, nnt0;
+  double ds, rl0, rl1;
+  std::ptrdiff_t iad, jac, lab, nbc, iid, ibr, ndm;
+  double det;
+  std::ptrdiff_t ilp, nit, isp, irs, npr, isw, nmx, nbc0, nnt0;
   xpp::AutoxProblem ips;
   xpp::AutoxPointCode itp;
 
@@ -755,7 +755,7 @@ int initialize_run(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
   for (const AutoxRunWeight &weight : iap->run->params.weights)
     thl[weight.index]=weight.value;
     
-  nuzr=static_cast<integer>(iap->run->params.marks.size());
+  nuzr=static_cast<std::ptrdiff_t>(iap->run->params.marks.size());
   std::copy(iap->run->params.marks.begin(),iap->run->params.marks.end(),marks.begin());
 
   iap->ndim = ndim;
@@ -920,7 +920,7 @@ int initialize_run(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
 int 
 check_dimensions(iap_type *iap)
 {
-  integer npar;
+  std::ptrdiff_t npar;
 
 /* Check dimensions. */
 
@@ -940,12 +940,12 @@ check_dimensions(iap_type *iap)
 /* ----------------------------------------------------------------------- */
 
 /* autoae: AUTO-07p ae.f90:19 AUTOAE: the driver for algebraic problems */
-int continue_algebraic_problem(iap_type *iap, rap_type *rap, doublereal *par, 
-	   integer *icp, 
+int continue_algebraic_problem(iap_type *iap, rap_type *rap, double *par, 
+	   std::ptrdiff_t *icp, 
 	   FUNI_TYPE((*problem_function)),
 	   STPNT_TYPE_AE((*user_start)),
 	   PVLI_TYPE_AE((*pvli)),
-	   doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks)
+	   double *thl, double *thu, std::span<const AutoxMark> marks)
 
 {
   /* This is the entry subroutine for algebraic systems. */
@@ -956,7 +956,7 @@ int continue_algebraic_problem(iap_type *iap, rap_type *rap, doublereal *par,
 
 /* autobv: AUTO-07p bvp.f90:22 AUTOBV: the driver for boundary value problems */
 int 
-continue_boundary_problem(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), STPNT_TYPE_BVP((*user_start)), PVLI_TYPE_BVP((*pvli)), doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks)
+continue_boundary_problem(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), STPNT_TYPE_BVP((*user_start)), PVLI_TYPE_BVP((*pvli)), double *thl, double *thu, std::span<const AutoxMark> marks)
 {
 
   /* THIS IS THE ENTRY ROUTINE FOR GENERAL BOUNDARY VALUE PROBLEMS. */
@@ -967,21 +967,21 @@ continue_boundary_problem(iap_type *iap, rap_type *rap, doublereal *par, integer
 
 /* init1: general initialization, redefinition of constants, check and perturb step size and limits: XPPAUT 8.0 autlib1.c:417 */
 int 
-initialize_constants(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
+initialize_constants(iap_type *iap, rap_type *rap, std::ptrdiff_t *icp, double *par)
 {
 
-  integer ndim, ncol, nicp;
+  std::ptrdiff_t ndim, ncol, nicp;
 
-  integer nneg, nfpr, nint, jtmp, nuzr, i;
-  doublereal dsmin, dsmax, fc;
-  integer ic, jc;
-  doublereal ds;
-  integer nxploc, jac, nbc, ndm, ilp, isp, irs,
+  std::ptrdiff_t nneg, nfpr, nint, jtmp, nuzr, i;
+  double dsmin, dsmax, fc;
+  std::ptrdiff_t ic, jc;
+  double ds;
+  std::ptrdiff_t nxploc, jac, nbc, ndm, ilp, isp, irs,
     isw, nmx;
   xpp::AutoxProblem ips;
   xpp::AutoxPointCode itp;
 
-  std::vector<integer> ict(iap->run->parameter_count);
+  std::vector<std::ptrdiff_t> ict(iap->run->parameter_count);
 
   /* General initialization. Redefinition of constants. */
 
@@ -1322,14 +1322,14 @@ rt */
 /* The direction (PAR(ICP(1))-dot, U-dot) of the other branch at a branch point: the unit vector
    in the 2-d nullspace of the Jacobian perpendicular to the known branch's direction (udot, rldot).
    It is written to du (ndim + 1 values); dfdu and dfdp are the Jacobian at the point. */
-static void perpendicular_null_direction(iap_type *iap, integer *icp, integer *m1aaloc, doublereal *aa, doublereal *du, const doublereal *rldot, const doublereal *udot, const doublereal *dfdu, const doublereal *dfdp, const doublereal *thl, const doublereal *thu)
+static void perpendicular_null_direction(iap_type *iap, std::ptrdiff_t *icp, std::ptrdiff_t *m1aaloc, double *aa, double *du, const double *rldot, const double *udot, const double *dfdu, const double *dfdp, const double *thl, const double *thu)
 {
-  const integer ndim = iap->ndim;
-  integer i, j;
-  doublereal sc;
-  doublereal ss;
+  const std::ptrdiff_t ndim = iap->ndim;
+  std::ptrdiff_t i, j;
+  double sc;
+  double ss;
 
-  integer aa_dim1 = *m1aaloc;
+  std::ptrdiff_t aa_dim1 = *m1aaloc;
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
@@ -1366,16 +1366,16 @@ static void perpendicular_null_direction(iap_type *iap, integer *icp, integer *m
    stored direction missing or made for another parameter ends the run saying so. */
 /* stpswae: the branch-switch step of algebraic problems (autox_lib1.cpp:1363) */
 static void
-switch_branch_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *u, doublereal *du, doublereal *udot, doublereal *rldot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
+switch_branch_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *u, double *du, double *udot, double *rldot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
 {
   const auto &stored = iap->run->restart_direction;
   const std::string where = xpp::format("restart label {} in {}", iap->irs, xpp::autox_fort_path(*iap->run, 3));
-  const integer ndim = iap->ndim;
+  const std::ptrdiff_t ndim = iap->ndim;
   if (!stored)
     xpp::autox_fail(xpp::format("autoX: {} keeps no direction of its branch, so the branch cannot be switched there: only a branch point of an equilibrium run stores it", where));
   if (stored->parameter != icp[0] || stored->udot.size() != static_cast<std::size_t>(ndim)) {
     const xpp::Session &session = *iap->run->session;
-    const auto named = [&session](integer solver_index) {
+    const auto named = [&session](std::ptrdiff_t solver_index) {
       const int k = session.autox_state.parameter_layout.model_index(static_cast<int>(solver_index));
       return k < 0 ? xpp::format("autoX's parameter {}", solver_index) : xpp::format("\"{}\"", session.model().upar_names[static_cast<std::size_t>(k)]);
     };
@@ -1383,74 +1383,74 @@ switch_branch_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *
                                                   named(stored->parameter), stored->udot.size(), named(icp[0]), ndim), xpp::command_place()});
   }
 
-  std::vector<doublereal> uold(u, u + ndim);
+  std::vector<double> uold(u, u + ndim);
   (*problem_function)(iap, rap, ndim, u, uold.data(), icp, par, 2, f, dfdu, dfdp);
   std::copy(stored->udot.begin(), stored->udot.end(), udot);
   rldot[0] = stored->rldot;
   perpendicular_null_direction(iap, icp, m1aaloc, aa, du, rldot, udot, dfdu, dfdp, thl, thu);
 
   /* the sign: PAR(ICP(1))-dot positive, or the first state that moves when that is zero */
-  doublereal lead = du[ndim];
+  double lead = du[ndim];
   if (f2c::abs(lead) / (1. + f2c::abs(rlcur[0])) <= rap->epsl) {
-    for (integer i = 0; i < ndim; ++i) {
+    for (std::ptrdiff_t i = 0; i < ndim; ++i) {
       if (f2c::abs(du[i]) / (1. + f2c::abs(u[i])) > rap->epsu) {
         lead = du[i];
         break;
       }
     }
   }
-  const doublereal sign = lead < 0. ? -1. : 1.;
-  for (integer i = 0; i < ndim; ++i)
+  const double sign = lead < 0. ? -1. : 1.;
+  for (std::ptrdiff_t i = 0; i < ndim; ++i)
     udot[i] = sign * du[i];
   rldot[0] = sign * du[ndim];
 }
 
 /* cnrlae: AUTO ae.f90:41: controls the bifurcation analysis of algebraic problems */
 int 
-control_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), STPNT_TYPE_AE((*user_start)), PVLI_TYPE_AE((*pvli)), doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks)
+control_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), STPNT_TYPE_AE((*user_start)), PVLI_TYPE_AE((*pvli)), double *thl, double *thu, std::span<const AutoxMark> marks)
 {
 
-  integer nbfc;
-  integer nbif, iads;
-  integer mxbf;
+  std::ptrdiff_t nbfc;
+  std::ptrdiff_t nbif, iads;
+  std::ptrdiff_t mxbf;
 
-  std::vector<doublereal> stla;
-  std::vector<doublereal> stld;
-  integer nins;
-  integer ipos;
-  integer ntot, nuzr;
-  integer i;
-  doublereal dsold;
+  std::vector<double> stla;
+  std::vector<double> stld;
+  std::ptrdiff_t nins;
+  std::ptrdiff_t ipos;
+  std::ptrdiff_t ntot, nuzr;
+  std::ptrdiff_t i;
+  double dsold;
 
-  std::vector<doublereal> rlold(iap->run->parameter_count);
-  std::vector<doublereal> rldot(iap->run->parameter_count);
-  std::vector<doublereal> rlcur(iap->run->parameter_count);
-  integer istop;
+  std::vector<double> rlold(iap->run->parameter_count);
+  std::vector<double> rldot(iap->run->parameter_count);
+  std::vector<double> rlcur(iap->run->parameter_count);
+  std::ptrdiff_t istop;
   xpp::AutoxPointKind itpst;
 
-  doublereal ds;
+  double ds;
 
-  integer lab, ibr;
-  doublereal rds;
+  std::ptrdiff_t lab, ibr;
+  double rds;
   AutoxTestSample rbp, rev, rlp, closing;
   xpp::AutoxProblem ips;
-  integer irs, isp;
-  integer nit;
+  std::ptrdiff_t irs, isp;
+  std::ptrdiff_t nit;
   xpp::AutoxPointCode itp;
 
-  integer aa_first_dimension = iap->ndim + 1;
+  std::ptrdiff_t aa_first_dimension = iap->ndim + 1;
 
-  std::vector<doublereal> dfdp(xpp::size_product(iap->ndim, iap->run->parameter_count));
-  std::vector<doublereal> dfdu(xpp::size_product(iap->ndim, iap->ndim));
-  std::vector<doublereal> uold(iap->ndim);
-  std::vector<doublereal> udot(iap->ndim);
-  std::vector<doublereal> stud;
-  std::vector<doublereal> f(iap->ndim);
-  std::vector<doublereal> u(iap->ndim);
-  std::vector<doublereal> aa(xpp::size_product(xpp::size_sum(iap->ndim, 1), xpp::size_sum(iap->ndim, 1)));
-  std::vector<doublereal> du(xpp::size_sum(iap->ndim, 1));
-  std::vector<doublereal> rhs(xpp::size_sum(iap->ndim, 1));
-  std::vector<doublereal> stu;
+  std::vector<double> dfdp(xpp::size_product(iap->ndim, iap->run->parameter_count));
+  std::vector<double> dfdu(xpp::size_product(iap->ndim, iap->ndim));
+  std::vector<double> uold(iap->ndim);
+  std::vector<double> udot(iap->ndim);
+  std::vector<double> stud;
+  std::vector<double> f(iap->ndim);
+  std::vector<double> u(iap->ndim);
+  std::vector<double> aa(xpp::size_product(xpp::size_sum(iap->ndim, 1), xpp::size_sum(iap->ndim, 1)));
+  std::vector<double> du(xpp::size_sum(iap->ndim, 1));
+  std::vector<double> rhs(xpp::size_sum(iap->ndim, 1));
+  std::vector<double> stu;
   std::vector<AutoxTestSample> uzr(iap->nuzr);
     
   /* Controls the bifurcation analysis of algebraic problems */
@@ -1508,11 +1508,11 @@ control_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, F
   using Tests = std::vector<LocationTest<decltype(&user_zero_test_algebraic)>>;
   /* W604: whether a crossing of the start's parameter value is the start (autox_ends.h) */
   const std::function<bool()> closes = [&] {
-    return xpp::autox_branch_closes(*iap, rap->epss, par, icp, std::span<const doublereal>(u.data(), static_cast<std::size_t>(iap->ndim)));
+    return xpp::autox_branch_closes(*iap, rap->epss, par, icp, std::span<const double>(u.data(), static_cast<std::size_t>(iap->ndim)));
   };
   const auto tests_at_point = [&](bool with_branch_point) {
     Tests tests;
-    for (integer index = 0; index < nuzr; ++index)
+    for (std::ptrdiff_t index = 0; index < nuzr; ++index)
       tests.push_back({user_zero_test_algebraic, uzr[index], xpp::AutoxPointKind::UserZero, index});
     if (iap->ilp == 1) tests.push_back({fold_test_algebraic, rlp, xpp::AutoxPointKind::Fold, {}});
     if (with_branch_point && isp != 0 && (iap->isw!=2 || ips==xpp::AutoxProblem::DiscreteMap)) tests.push_back({branch_point_test_algebraic, rbp, xpp::AutoxPointKind::BranchPoint, {}});
@@ -1568,15 +1568,15 @@ control_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, F
   /* The determinant of the Newton matrix the step from the start would have (solve_algebraic's: its last row,
      2 thu (u - uold) / rds, is 2 thu udot for a step along udot), the branch point test's value at the start. */
   const auto start_determinant = [&] {
-    const integer ndim = iap->ndim, ld = aa_first_dimension;
-    std::vector<doublereal> matrix(aa.size()), rhs_unused(ndim + 1), solution(ndim + 1);
-    for (integer i = 0; i < ndim; ++i) {
+    const std::ptrdiff_t ndim = iap->ndim, ld = aa_first_dimension;
+    std::vector<double> matrix(aa.size()), rhs_unused(ndim + 1), solution(ndim + 1);
+    for (std::ptrdiff_t i = 0; i < ndim; ++i) {
       matrix[i + ndim * ld] = dfdp[icp[0] * ndim + i];
-      for (integer k = 0; k < ndim; ++k) matrix[i + k * ld] = dfdu[k * ndim + i];
+      for (std::ptrdiff_t k = 0; k < ndim; ++k) matrix[i + k * ld] = dfdu[k * ndim + i];
     }
-    for (integer k = 0; k < ndim; ++k) matrix[ndim + k * ld] = thu[k] * 2. * udot[k];
+    for (std::ptrdiff_t k = 0; k < ndim; ++k) matrix[ndim + k * ld] = thu[k] * 2. * udot[k];
     matrix[ndim + ndim * ld] = thl[icp[0]] * 2. * rldot[0];
-    doublereal det;
+    double det;
     xpp::gauss_eliminate(iap->run->fp9, iap->iid, ndim + 1, ld, matrix.data(), 1, ndim + 1, solution.data(), ndim + 1, rhs_unused.data(), &det);
     return det;
   };
@@ -1588,7 +1588,7 @@ control_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, F
   const auto seed_tests = [&](bool at_start) {
     const auto stability = iap->run->stability.computed;
     const double period = par[xpp::autox_unknown::period];
-    const doublereal det = rap->det;
+    const double det = rap->det;
     if (at_start) rap->det = start_determinant();
     auto tests = tests_at_point(at_start);
     sample_tests(*iap, tests, tests.size(), evaluate_test);
@@ -1601,7 +1601,7 @@ control_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, F
   const xpp::AutoxPointKind start_kind = iap->itp.kind; // what the restart label was (user_start read it)
   xpp::autox_check_start_parameters(*iap,*rap,par,icp);
   xpp::autox_check_start_equilibrium(*iap,*rap,u.data(),par,icp);
-  constexpr integer stride=1; // The algebraic state is contiguous.
+  constexpr std::ptrdiff_t stride=1; // The algebraic state is contiguous.
   xpp::autox_check_start_norm(*iap,*rap,xpp::euclidean_norm(&iap->ndm,u.data(),&stride));
   (*pvli)(iap, rap, u.data(), par);
 
@@ -1785,9 +1785,9 @@ control_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, F
 
 /* stpnus: start of an algebraic problem straight from the user's values */
 int 
-user_start_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
+user_start_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u)
 {
-  integer ndim;
+  std::ptrdiff_t ndim;
 
   /* Gets the starting data from user supplied STPNT */
 
@@ -1800,12 +1800,12 @@ user_start_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp
 
 /* stpnae: start of an algebraic problem from the user's start (autox_lib1.cpp) */
 int 
-algebraic_start(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
+algebraic_start(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u)
 {
   bool found;
-  integer nfprs;
+  std::ptrdiff_t nfprs;
 
-  integer irs;
+  std::ptrdiff_t irs;
 
   /* Gets the starting data from unit 3 */
 
@@ -1819,22 +1819,22 @@ algebraic_start(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, dou
    with its Jacobian and this direction before the step to the second point). */
 /* stdirae: algebraic problems' start direction (autox_lib1.cpp:1812) */
 int 
-start_direction_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
+start_direction_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
 {
   xpp::autox_stability_step_start(iap->run->stability,
       iap->ibr, iap->ntot + (iap->run->locating ? 1 : 0));
 
-  integer aa_dim1;
+  std::ptrdiff_t aa_dim1;
 
-  integer ndim;
+  std::ptrdiff_t ndim;
 
-  doublereal sign;
-  integer i, k;
+  double sign;
+  std::ptrdiff_t i, k;
 
-  doublereal sc;
-  doublereal ss;
+  double sc;
+  double ss;
 
-  integer iid;
+  std::ptrdiff_t iid;
 
 /* Finds the direction at the first point of the initial solution branch. */
 
@@ -1863,7 +1863,7 @@ start_direction_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer
   ARRAY2D(aa, ndim, ndim) = 0.;
 
   if (iid >= 3) {
-    integer tmp = ndim + 1;
+    std::ptrdiff_t tmp = ndim + 1;
     write_jacobian(iap, &tmp, m1aaloc, aa, rhs);
   }
   xpp::matrix_null_vector(iap->run->fp9, ndim + 1, *m1aaloc, 1, aa, du);
@@ -1899,13 +1899,13 @@ start_direction_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer
 
 /* stprae: AUTO ae.f90:271: finds the second point on the initial branch */
 int 
-second_point_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), doublereal *rds, integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
+second_point_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rds, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
 {
-  const integer ndim = iap->ndim;
+  const std::ptrdiff_t ndim = iap->ndim;
 
 /* Set initial approximations to the second point on the branch */
 
-  for (integer i = 0; i < ndim; ++i) {
+  for (std::ptrdiff_t i = 0; i < ndim; ++i) {
     u[i] = uold[i] + *rds * udot[i];
   }
   rlcur[0] = rlold[0] + *rds * rldot[0];
@@ -1919,13 +1919,13 @@ second_point_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *i
 
 /* contae: XPPAUT 8.0 autlib1.c:1298: initial approximation to the next solution by extrapolating the two preceding points */
 int 
-extrapolate_algebraic(iap_type *iap, rap_type *rap, doublereal *rds, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot)
+extrapolate_algebraic(iap_type *iap, rap_type *rap, double *rds, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot)
 {
   xpp::autox_stability_step_start(iap->run->stability,
       iap->ibr, iap->ntot + (iap->run->locating ? 1 : 0));
 
-  integer ndim, i;
-  doublereal dsold;
+  std::ptrdiff_t ndim, i;
+  double dsold;
   xpp::AutoxProblem ips;
 
 /* This subroutine determines an initial approximation to the next */
@@ -1958,33 +1958,33 @@ extrapolate_algebraic(iap_type *iap, rap_type *rap, doublereal *rds, doublereal 
 
 /* solvae: AUTO ae.f90:435: main predictor-corrector loop (Newton) of algebraic problems */
 int 
-solve_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), doublereal *rds, integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
+solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rds, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
 {
   double pivot = NAN; /* the last linear solve's smallest pivot (xpp::gauss_eliminate) */
-  integer aa_dim1;
+  std::ptrdiff_t aa_dim1;
 
-  integer iads, ndim;
-  doublereal drlm;
-  integer ndmr;
-  doublereal epsl, epsu, dumx;
-  integer ntop, itnw, ntot, i, k;
-  doublereal dsold, dsmin;
+  std::ptrdiff_t iads, ndim;
+  double drlm;
+  std::ptrdiff_t ndmr;
+  double epsl, epsu, dumx;
+  std::ptrdiff_t ntop, itnw, ntot, i, k;
+  double dsold, dsmin;
 
-  doublereal rdrlm, rdumx;
-  integer istop;
+  double rdrlm, rdumx;
+  std::ptrdiff_t istop;
   bool nonfinite = false;
 
-  doublereal au;
-  doublereal delref=0.0, ss, delmax;
+  double au;
+  double delref=0.0, ss, delmax;
 
-  integer iid;
-  doublereal dds;
-  integer ibr;
-  doublereal det, adu;
-  integer nit, mxt;
-  doublereal umx;
-  integer nit1;
-  integer &last_ntop=iap->run->solvae_ntop;
+  std::ptrdiff_t iid;
+  double dds;
+  std::ptrdiff_t ibr;
+  double det, adu;
+  std::ptrdiff_t nit, mxt;
+  double umx;
+  std::ptrdiff_t nit1;
+  std::ptrdiff_t &last_ntop=iap->run->solvae_ntop;
 
 /* This is the subroutine for computing solution branches. It solves */
 /* the equations for finding the next point on the branch at distance DS 
@@ -2072,7 +2072,7 @@ solve_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUN
        : */
 
     if (iid >= 5) {
-      integer tmp = ndim + 1;
+      std::ptrdiff_t tmp = ndim + 1;
       write_jacobian(iap, &tmp, m1aaloc, aa, rhs);
     }
 
@@ -2207,7 +2207,7 @@ solve_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUN
 
 /* lcspae: AUTO ae.f90:624: secant method locating special points (algebraic) */
 int 
-locate_special_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*problem_function)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, AutoxTestSample &q, doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept)
+locate_special_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, AutoxTestSample &q, double *thl, double *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept)
 {
   /* This subroutine uses the secant method to accurately locate special */
   /* points (branch points, folds, Hopf bifurcations, user zeroes). */
@@ -2246,7 +2246,7 @@ locate_special_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer 
 
 /* mueller: AUTO support.f90:31: Mueller's method with bracketing */
 int 
-mueller_root(doublereal *q0, doublereal *q1, doublereal *q, doublereal *s0, doublereal *s1, doublereal *s, doublereal *rds)
+mueller_root(double *q0, double *q1, double *q, double *s0, double *s1, double *s, double *rds)
 {
   // W356 (#418), reimplementation of AUTO-07p MUELLER,
   // support.f90:31-61: use zero for a nonpositive discriminant and
@@ -2275,13 +2275,13 @@ mueller_root(doublereal *q0, doublereal *q1, doublereal *q, doublereal *s0, doub
 } /* mueller_ */
 
 /* fnbpae: special-point test function */
-doublereal 
-branch_point_test_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*problem_function)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, std::span<const AutoxMark> marks)
+double 
+branch_point_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
-  doublereal ret_val;
+  double ret_val;
 
-  integer ntop, ntot, iid, ibr;
-  doublereal det;
+  std::ptrdiff_t ntop, ntot, iid, ibr;
+  double det;
 
   iid = iap->iid;
   ibr = iap->ibr;
@@ -2302,18 +2302,18 @@ branch_point_test_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integ
 } /* fnbpae_ */
 
 /* fnlpae: special-point test function */
-doublereal 
-fold_test_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*problem_function)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, std::span<const AutoxMark> marks)
+double 
+fold_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
-  integer aa_dim1;
-  doublereal ret_val;
+  std::ptrdiff_t aa_dim1;
+  double ret_val;
 
-  integer ndim, ntop, ntot, i, k;
+  std::ptrdiff_t ndim, ntop, ntot, i, k;
 
-  integer iid, ibr;
-  doublereal det;
+  std::ptrdiff_t iid, ibr;
+  double det;
 
-  std::vector<doublereal> ud(xpp::size_sum(iap->ndim, 1));
+  std::vector<double> ud(xpp::size_sum(iap->ndim, 1));
 
   aa_dim1 = *m1aaloc;
 
@@ -2343,7 +2343,7 @@ fold_test_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp,
      past a fold (W423, docs/xppaut-findings.md 72) */
   xpp::gauss_eliminate(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud.data(), ndim + 1, rhs, &det);
   {
-    integer tmp = ndim + 1;
+    std::ptrdiff_t tmp = ndim + 1;
     normalize_vector(&tmp, ud.data());
   }
   /* W609 (#676): the null vector points along the step just taken (u - uold over its signed length), not along the
@@ -2366,26 +2366,26 @@ fold_test_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp,
 } /* fnlpae_ */
 
 /* fnhbae: special-point test function */
-doublereal 
-hopf_test_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*problem_function)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, std::span<const AutoxMark> marks)
+double 
+hopf_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
-  doublereal ret_val;
+  double ret_val;
 
-  integer ndim;
-  doublereal rmax;
-  integer nins, ntop, ntot;
-  doublecomplex ztmp;
-  integer nins1, i, j;
-  integer ntotp1;
+  std::ptrdiff_t ndim;
+  double rmax;
+  std::ptrdiff_t nins, ntop, ntot;
+  FortranComplex ztmp;
+  std::ptrdiff_t nins1, i, j;
+  std::ptrdiff_t ntotp1;
 
-  doublereal rp;
+  double rp;
 
-  integer iid, ibr, ndm, ier, loc=0;
+  std::ptrdiff_t iid, ibr, ndm, ier, loc=0;
   xpp::AutoxProblem ips;
-  doublereal rev;
-  integer isw;
+  double rev;
+  std::ptrdiff_t isw;
 
-  std::vector<doublecomplex> ev(iap->ndim);
+  std::vector<FortranComplex> ev(iap->ndim);
 
   ndim = iap->ndim;
   ndm = iap->ndm;
@@ -2409,13 +2409,13 @@ hopf_test_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp,
       xpp::Matrix<const double>({dfdu,static_cast<size_t>(ndim*ndm)},ndim,ndm),ndm);
   // EISPACK overwrites its matrix: dfdu stays the converged point's Jacobian
   // for the tests after this one and store_branching_data (W421; AUTO-07p PVLSAE's copy).
-  std::vector<doublereal> jacobian(dfdu, dfdu + static_cast<size_t>(ndim*ndm));
+  std::vector<double> jacobian(dfdu, dfdu + static_cast<size_t>(ndim*ndm));
   xpp::autox_eigenvalues(iap, &ndm, &ndim, jacobian.data(), ev.data(), &ier);
   if (ips == xpp::AutoxProblem::DiscreteMap) {
     for (i = 0; i < ndm; ++i) {
       if (ev[i].r != -1. || ev[i].i != 0.) {
 	/* log(1 + ev) */
-	doublecomplex in;
+	FortranComplex in;
 	in.r = ev[i].r + 1., in.i = ev[i].i;
 	ev[i].i = xpp::math::atan2(in.i, in.r);
 	ev[i].r = xpp::math::log(complex_magnitude_of(&in));
@@ -2472,14 +2472,14 @@ hopf_test_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp,
   const bool map=ips==xpp::AutoxProblem::DiscreteMap;
   if (map || codim_curve) {
     // AUTO-07p STABEQ: omit the imposed zero/+1/-1, or the imposed pair.
-    const integer forced=isw!=2 ? 0 :
+    const std::ptrdiff_t forced=isw!=2 ? 0 :
         (iap->itpst==xpp::AutoxPointKind::Hopf || iap->itpst==xpp::AutoxPointKind::NeimarkSacker ? 2 : 1);
     std::stable_sort(ev.begin(),ev.begin()+ndm,[](const auto &a,const auto &b) { return std::abs(a.r)<std::abs(b.r); });
     nins1=forced;
     for (i=forced;i<ndm;++i) if (ev[i].r<=axis_tolerance) ++nins1;
     ret_val=ndm>forced ? ev[forced].r : autox_test_not_applicable;
     if (map) {
-      std::optional<doublecomplex> selected;
+      std::optional<FortranComplex> selected;
       for (i=forced;i<ndm;++i)
         if ((forced || ev[i].i!=0.) && (!selected || std::abs(ev[i].r)<std::abs(selected->r))) selected=ev[i];
       auto &kind=iap->run->codim.map_kind;
@@ -2496,8 +2496,8 @@ hopf_test_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp,
   if (!map) {
     nins = iap->nins;
     // AUTO-07p FNHBEQ equilibrium.f90:624-629: a plain HB changes a pair.
-    constexpr integer hopf_stability_change = 2; // one complex conjugate pair
-    const integer required_change=isw==2 && iap->itpst==xpp::AutoxPointKind::Hopf ? 1 : hopf_stability_change;
+    constexpr std::ptrdiff_t hopf_stability_change = 2; // one complex conjugate pair
+    const std::ptrdiff_t required_change=isw==2 && iap->itpst==xpp::AutoxPointKind::Hopf ? 1 : hopf_stability_change;
     if (f2c::abs(nins1 - nins) >= required_change) *chng = true;
     if (isw==2 && (iap->isp==0 || iap->isp==3 ||
         !xpp::autox_codim_enabled(iap->run->session->autox_state.special_points,xpp::AutoxPointKind::ZeroHopf) ||
@@ -2533,23 +2533,23 @@ hopf_test_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp,
 
 namespace {
 // IID 3 starts detailed scalar-test diagnostics in autoX.
-constexpr integer user_zero_diagnostic_level = 3;
+constexpr std::ptrdiff_t user_zero_diagnostic_level = 3;
 // Preserve the two original diagnostic column widths.
 constexpr int algebraic_user_zero_width = 16;
 constexpr int boundary_user_zero_width = 14;
 
 /* W604: the hidden test of a branch's return to its start: the continuation parameter less the start's, which
    applies once the start is stored (autox_ends.h) */
-doublereal closed_test(const iap_type &iap, const doublereal *par, const integer *icp, bool *chng) {
+double closed_test(const iap_type &iap, const double *par, const std::ptrdiff_t *icp, bool *chng) {
   *chng = iap.run->branch_start.has_value();
   return *chng ? par[icp[0]] - iap.run->branch_start->point.parameters[0] : autox_test_not_applicable;
 }
 
-doublereal user_zero(const iap_type &iap, const doublereal *par,
-                     const integer *icp, bool *chng,
+double user_zero(const iap_type &iap, const double *par,
+                     const std::ptrdiff_t *icp, bool *chng,
                      std::span<const AutoxMark> marks, int width) {
-  const integer iuzr = iap.iuzr;
-  const doublereal value = autox_parameter_value(
+  const std::ptrdiff_t iuzr = iap.iuzr;
+  const double value = autox_parameter_value(
       *iap.run, f2c::abs(marks[iuzr].parameter),
       {icp, static_cast<std::size_t>(iap.nfpr)},
       {par, static_cast<std::size_t>(iap.run->parameter_count)}) - marks[iuzr].value;
@@ -2564,15 +2564,15 @@ doublereal user_zero(const iap_type &iap, const doublereal *par,
 } // namespace
 
 /* fnuzae: special-point test function */
-doublereal
-user_zero_test_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*problem_function)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, std::span<const AutoxMark> marks)
+double
+user_zero_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
   return user_zero(*iap, par, icp, chng, marks, algebraic_user_zero_width);
 } /* fnuzae_ */
 
 /* fnclosedae: special-point test function */
-doublereal
-closed_test_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*problem_function)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, std::span<const AutoxMark> marks)
+double
+closed_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *rlold, double *rldot, double *u, double *uold, double *udot, double *rhs, double *dfdu, double *dfdp, std::span<const AutoxMark> marks)
 {
   return closed_test(*iap, par, icp, chng);
 } /* fnclosedae_ */
@@ -2585,11 +2585,11 @@ closed_test_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 
 /* stbif: AUTO ae.f90:799: stores the branching data (STU, STUD) */
 int 
-store_branching_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aaloc, doublereal *aa, doublereal *stud, doublereal *stu, doublereal *stla, doublereal *stld, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *udot, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
+store_branching_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *m1aaloc, double *aa, double *stud, double *stu, double *stla, double *stld, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *udot, double *dfdu, double *dfdp, double *thl, double *thu)
 {
-  integer nbif, ndim;
+  std::ptrdiff_t nbif, ndim;
 
-  integer i;
+  std::ptrdiff_t i;
 
   /* Stores branching data in the following arrays : */
   /*        STU    ( the solution vector U ) */
@@ -2617,12 +2617,12 @@ store_branching_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp
 
 /* swpnt: AUTO/XPPAUT autlib1.c:2166: retrieves the branching data U, U-dot, PAR(ICP(1)) */
 int 
-retrieve_branching_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *stud, doublereal *stu, doublereal *stla, doublereal *stld, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *udot)
+retrieve_branching_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rds, double *stud, double *stu, double *stla, double *stld, double *rlcur, double *rlold, double *rldot, double *u, double *udot)
 {
 
-  integer nbif, ndim, mxbf, ipos, i, i1;
-  doublereal ds;
-  integer isw;
+  std::ptrdiff_t nbif, ndim, mxbf, ipos, i, i1;
+  double ds;
+  std::ptrdiff_t isw;
 
   /* This subroutine retrieves the branching data U, U-dot, PAR(ICP(1)), */
   /* PAR(ICP(1))-dot. If this initialization corresponds to the computation */
@@ -2674,37 +2674,37 @@ retrieve_branching_data(iap_type *iap, rap_type *rap, doublereal *par, integer *
 
 /* swprc: controls the second point on a bifurcating branch: XPPAUT 8.0 autlib1.c:2244 */
 int 
-second_branch_point(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *rds, doublereal *thl, doublereal *thu)
+second_branch_point(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *rds, double *thl, double *thu)
 {
   double pivot = NAN; /* the last linear solve's smallest pivot (xpp::gauss_eliminate) */
   // Internal switches can reuse BR/PT for a different branch point. Point
   // zero means no proven record; on failure refresh the restored Jacobian.
   xpp::autox_stability_step_start(iap->run->stability, iap->ibr, 0);
 
-  integer aa_dim1;
+  std::ptrdiff_t aa_dim1;
 
-  integer iads, ndim;
-  doublereal drlm;
-  integer ndmr;
-  doublereal epsl, epsu, dumx;
-  integer ntop, itnw, ntot, i, k;
-  doublereal dsold, dsmin;
+  std::ptrdiff_t iads, ndim;
+  double drlm;
+  std::ptrdiff_t ndmr;
+  double epsl, epsu, dumx;
+  std::ptrdiff_t ntop, itnw, ntot, i, k;
+  double dsold, dsmin;
 
-  doublereal rdrlm, rdumx;
-  integer istop;
+  double rdrlm, rdumx;
+  std::ptrdiff_t istop;
   bool nonfinite = false;
 
-  doublereal au;
-  doublereal ss;
+  double au;
+  double ss;
 
-  integer iid;
-  doublereal adu;
-  integer ibr;
-  doublereal det;
-  integer nit, mxt;
-  doublereal umx, rlm1;
+  std::ptrdiff_t iid;
+  double adu;
+  std::ptrdiff_t ibr;
+  double det;
+  std::ptrdiff_t nit, mxt;
+  double umx, rlm1;
 
-  std::vector<doublereal> u1(xpp::size_sum(iap->ndim, 1));
+  std::vector<double> u1(xpp::size_sum(iap->ndim, 1));
 
   /* Controls the computation of the second point on a bifurcating branch. */
 /* This point is required to lie in a hyper-plane at distance DS from the */
@@ -2787,7 +2787,7 @@ second_branch_point(iap_type *iap, rap_type *rap, doublereal *par, integer *icp,
        : */
 
     if (iid >= 5) {
-      integer tmp = ndim + 1;
+      std::ptrdiff_t tmp = ndim + 1;
       write_jacobian(iap, &tmp, m1aaloc, aa, rhs);
     }
     pivot = xpp::gauss_eliminate(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
@@ -2905,15 +2905,15 @@ failed_step:
 
 /* sthd: AUTO io.f90:561: writes the user-defined constants on unit 7, preceded by 0 */
 int 
-write_header(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, doublereal *thu)
+write_header(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *thl, double *thu)
 {
-  integer ndim, ncol, mxbf, nicp;
-  doublereal epsl;
-  integer nfpr, iplt, nint;
-  doublereal epsu, epss;
-  integer jtmp, itmx, itnw, nwtn, ntst, nuzr, i;
-  doublereal dsmin, dsmax, a0, a1, ds, rl0, rl1;
-  integer iad, jac, nbc, iid, ilp, isp, irs, npr, isw, nmx;
+  std::ptrdiff_t ndim, ncol, mxbf, nicp;
+  double epsl;
+  std::ptrdiff_t nfpr, iplt, nint;
+  double epsu, epss;
+  std::ptrdiff_t jtmp, itmx, itnw, nwtn, ntst, nuzr, i;
+  double dsmin, dsmax, a0, a1, ds, rl0, rl1;
+  std::ptrdiff_t iad, jac, nbc, iid, ilp, isp, irs, npr, isw, nmx;
   xpp::AutoxProblem ips;
 
   /* Write the values of the user defined parameters on unit 7. */
@@ -3002,12 +3002,12 @@ write_header(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, double
 
 /* headng: AUTO io.f90:964: writes the column headings */
 int 
-write_headings(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iunit, integer *n1, integer *n2)
+write_headings(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t iunit, std::ptrdiff_t *n1, std::ptrdiff_t *n2)
 {
-  integer iplt, i, j;
+  std::ptrdiff_t iplt, i, j;
   /* The fixed-width column headings printed below. */
   std::array<std::string, autox_heading_columns> col;
-  integer ndm;
+  std::ptrdiff_t ndm;
   xpp::AutoxProblem ips;
 
   /* Prints headings above columns on unit 6 and 7. */
@@ -3114,16 +3114,16 @@ write_headings(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, inte
 
 /* stplae: AUTO ae.f90:870: stores the bifurcation diagram on unit 7 (algebraic) */
 int 
-store_diagram_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rlcur, doublereal *u, const doublereal *udot, const doublereal *rldot)
+store_diagram_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rlcur, double *u, const double *udot, const double *rldot)
 {
 
-  integer labw, nins, ntot, i;
+  std::ptrdiff_t labw, nins, ntot, i;
 
-  integer istop, ntots;
-  doublereal ss;
+  std::ptrdiff_t istop, ntots;
+  double ss;
 
-  integer iab, lab;
-  doublereal amp;
+  std::ptrdiff_t iab, lab;
+  double amp;
 
   int iflag=0;
   xpp::AutoxStopAt stop_at = {0}; /* xppautX: T23 */
@@ -3163,7 +3163,7 @@ store_diagram_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *
   iap->ntot = ntot;
 
   output_parameters_algebraic(iap, rap, u, par);
-  xpp::autox_branch_stored(*iap, ntot, rap->epss, par, icp, std::span<const doublereal>(u, static_cast<std::size_t>(iap->ndim)), false);
+  xpp::autox_branch_stored(*iap, ntot, rap->epss, par, icp, std::span<const double>(u, static_cast<std::size_t>(iap->ndim)), false);
 
 /* ITP is set to 4 every NPR steps along a branch, and the entire */
 /* solution is written on unit 8. */
@@ -3266,14 +3266,14 @@ store_diagram_algebraic(iap_type *iap, rap_type *rap, doublereal *par, integer *
 
 /* wrline: AUTO io.f90:1090: one line of output on units 6 and 7 */
 int 
-write_diagram_line(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu, integer *ibr, integer *ntot, integer *lab, doublereal *vaxis, doublereal *u)
+write_diagram_line(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *icu, std::ptrdiff_t *ibr, std::ptrdiff_t *ntot, std::ptrdiff_t *lab, double *vaxis, double *u)
 {
 
-  integer nicp, i;
+  std::ptrdiff_t nicp, i;
 
-  integer n1, n2;
+  std::ptrdiff_t n1, n2;
 
-  integer nt, ndm, lb;
+  std::ptrdiff_t nt, ndm, lb;
   xpp::AutoxPointCode itp;
   lb=*lab;
   if(iap->run->restart_flag&&(lb!=0)){
@@ -3401,7 +3401,7 @@ write_diagram_line(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
 } /* wrline_ */
 
 /* Values in autoX's solution-file rows: autox_solution_columns to a row, each row indented. */
-static void print_solution_row_values(FILE *fp, std::span<const doublereal> values)
+static void print_solution_row_values(FILE *fp, std::span<const double> values)
 {
   xpp::print(fp,"    ");
   for (std::size_t i = 0; i < values.size(); ++i) {
@@ -3412,19 +3412,19 @@ static void print_solution_row_values(FILE *fp, std::span<const doublereal> valu
   xpp::print(fp,"\n");
 }
 
-static integer solution_row_count(integer values)
+static std::ptrdiff_t solution_row_count(std::ptrdiff_t values)
 {
   return (values - 1) / autox_solution_columns + 1;
 }
 
 /* wrtsp8: AUTO ae.f90:989: restart information on special points, plotting points, on unit 8 */
 int 
-write_special_point_restart(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab, doublereal *rlcur, doublereal *u, const doublereal *udot, const doublereal *rldot)
+write_special_point_restart(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *lab, double *rlcur, double *u, const double *udot, const double *rldot)
 {
-  integer ndim, nfpr, ntpl, jtmp, ntot, i;
-  doublereal t;
-  integer nrowpr, ibr;
-  integer nar, isw;
+  std::ptrdiff_t ndim, nfpr, ntpl, jtmp, ntot, i;
+  double t;
+  std::ptrdiff_t nrowpr, ibr;
+  std::ptrdiff_t nar, isw;
   xpp::AutoxPointCode itp;
 
   FILE *const fp8=fort8(*iap->run);
@@ -3480,11 +3480,11 @@ write_special_point_restart(iap_type *iap, rap_type *rap, doublereal *par, integ
 
 /* wrjac: AUTO ae.f90:1053: writes the Jacobian */
 int 
-write_jacobian(iap_type *iap, integer *n, integer *m1aaloc, doublereal *aa, doublereal *rhs)
+write_jacobian(iap_type *iap, std::ptrdiff_t *n, std::ptrdiff_t *m1aaloc, double *aa, double *rhs)
 {
-  integer aa_dim1;
+  std::ptrdiff_t aa_dim1;
 
-  integer i, j;
+  std::ptrdiff_t i, j;
 
   aa_dim1 = *m1aaloc;
     
@@ -3514,11 +3514,11 @@ write_jacobian(iap_type *iap, integer *n, integer *m1aaloc, doublereal *aa, doub
 
 /* msh: AUTO mesh.f90:19: a uniform mesh on [0,1] */
 int 
-uniform_mesh(const iap_type *iap, const rap_type *rap, doublereal *tm)
+uniform_mesh(const iap_type *iap, const rap_type *rap, double *tm)
 {
 
-  integer ntst, j;
-  doublereal dt;
+  std::ptrdiff_t ntst, j;
+  double dt;
 
 /* Generates a uniform mesh on [0,1]. */
 
@@ -3535,20 +3535,20 @@ uniform_mesh(const iap_type *iap, const rap_type *rap, doublereal *tm)
 
 /* genwts: AUTO mesh.f90:35: weights of the collocation method for the value and the first derivative */
 int 
-collocation_weights(const integer ncol, const integer n1, doublereal *wt, doublereal *wp)
+collocation_weights(const std::ptrdiff_t ncol, const std::ptrdiff_t n1, double *wt, double *wp)
 {
-  integer wt_dim1, wp_dim1;
+  std::ptrdiff_t wt_dim1, wp_dim1;
 
-  doublereal d;
-  integer i, k, l;
-  doublereal p, denom;
+  double d;
+  std::ptrdiff_t i, k, l;
+  double p, denom;
 
-  integer ib, ic;
-  doublereal sum;
-  integer ncp1;
+  std::ptrdiff_t ib, ic;
+  double sum;
+  std::ptrdiff_t ncp1;
 
-  std::vector<doublereal> xm(xpp::size_sum(ncol, 1));
-  std::vector<doublereal> zm(ncol);
+  std::vector<double> xm(xpp::size_sum(ncol, 1));
+  std::vector<double> zm(ncol);
 
 /* Generates weights of the collocation method. The user selected */
 /* number of collocation points (ncol) must be one of { 2,...,7 }. */
@@ -3610,9 +3610,9 @@ collocation_weights(const integer ncol, const integer n1, doublereal *wt, double
 
 /* cpnts: AUTO mesh.f90:85: the collocation points on [0,1] */
 int 
-collocation_point_positions(const integer ncol, doublereal *zm)
+collocation_point_positions(const std::ptrdiff_t ncol, double *zm)
 {
-  doublereal c, r, c1, c2, c3;
+  double c, r, c1, c2, c3;
 
   /* Generates the collocation points with respect to [0,1]. */
   if (ncol > 7) {
@@ -3691,11 +3691,11 @@ collocation_point_positions(const integer ncol, doublereal *zm)
 
 /* cntdif: AUTO mesh.f90:135: central difference coefficients for the Nth derivative at uniform points */
 int 
-central_difference_coefficients(integer *n, doublereal *d)
+central_difference_coefficients(std::ptrdiff_t *n, double *d)
 {
 
-  integer i, k, k1;
-  doublereal sc;
+  std::ptrdiff_t i, k, k1;
+  double sc;
 
   /* Generates the coefficients of the central difference formula for */
   /* Nth derivative at uniformly spaced points */
@@ -3718,9 +3718,9 @@ central_difference_coefficients(integer *n, doublereal *d)
 
   /* Scale to [0,1]  : */
 
-  integer n_to_n = 1; /* n^n, exact */
+  std::ptrdiff_t n_to_n = 1; /* n^n, exact */
   for (i = 0; i < *n; ++i) n_to_n *= *n;
-  sc = static_cast<doublereal>(n_to_n);
+  sc = static_cast<double>(n_to_n);
   for (i = 0; i < *n + 1; ++i) {
     d[i] = sc * d[i];
   }
@@ -3730,9 +3730,9 @@ central_difference_coefficients(integer *n, doublereal *d)
 
 /* wint: AUTO mesh.f90:160: integration weights from interpolation at NCOL+1 equally spaced points */
 int 
-integration_weights(const integer n, doublereal *wi)
+integration_weights(const std::ptrdiff_t n, double *wi)
 {
-  doublereal c;
+  double c;
 
   /* Generates the weights for the integration formula based on polynomial */
   /* interpolation at N equally spaced points in [0,1]. */
@@ -3810,12 +3810,12 @@ integration_weights(const integer n, doublereal *wi)
 
 /* adptds: AUTO mesh.f90:224: adapts the step along the branch to the previous step's Newton iterations (IADS > 0) */
 int 
-adapt_step(iap_type *iap, rap_type *rap, doublereal *rds)
+adapt_step(iap_type *iap, rap_type *rap, double *rds)
 {
-  doublereal ards;
-  integer ntop, itnw, ntot;
-  doublereal dsmax;
-  integer n1, ibr, nit;
+  double ards;
+  std::ptrdiff_t ntop, itnw, ntot;
+  double dsmax;
+  std::ptrdiff_t n1, ibr, nit;
 
 /* The stepsize along the branch of solutions is adapted depending on the 
 */
@@ -3859,21 +3859,21 @@ adapt_step(iap_type *iap, rap_type *rap, doublereal *rds)
 
 /* adapt: AUTO mesh.f90:259: adapts the mesh so EQDF's increase is equidistributed; interpolates UPS and VPS */
 int 
-adapt_mesh(iap_type *iap, rap_type *rap, integer *nold, integer *ncold, integer *nnew, integer *ncnew, doublereal *tm, doublereal *dtm, integer *ndxloc, doublereal *ups, doublereal *vps)
+adapt_mesh(iap_type *iap, rap_type *rap, std::ptrdiff_t *nold, std::ptrdiff_t *ncold, std::ptrdiff_t *nnew, std::ptrdiff_t *ncnew, double *tm, double *dtm, std::ptrdiff_t *ndxloc, double *ups, double *vps)
 {
-  integer ups_dim1, vps_dim1;
+  std::ptrdiff_t ups_dim1, vps_dim1;
 
-  integer ndim, iper;
-  integer i, j, noldp1, nnewp1;
+  std::ptrdiff_t ndim, iper;
+  std::ptrdiff_t i, j, noldp1, nnewp1;
 
-  integer nrwnew;
-  integer isw;
+  std::ptrdiff_t nrwnew;
+  std::ptrdiff_t isw;
   xpp::AutoxProblem ips;
 
-  std::vector<doublereal> uint(xpp::size_product(*ndxloc, xpp::size_product(iap->ndim, iap->ncol)));
-  std::vector<doublereal> tint(*ndxloc);
-  std::vector<doublereal> tm2(*ndxloc);
-  std::vector<integer> itm(*ndxloc);
+  std::vector<double> uint(xpp::size_product(*ndxloc, xpp::size_product(iap->ndim, iap->ncol)));
+  std::vector<double> tint(*ndxloc);
+  std::vector<double> tm2(*ndxloc);
+  std::vector<std::ptrdiff_t> itm(*ndxloc);
 
   /* Adapts the distribution of the mesh points so that the increase of the */
   /* monotone function EQDF becomes approximately equidistributed over the */
@@ -3942,20 +3942,20 @@ adapt_mesh(iap_type *iap, rap_type *rap, integer *nold, integer *ncold, integer 
 
 /* interp: AUTO mesh.f90:354: interpolant on the new mesh (not tabular.cpp's interp) */
 int 
-interpolate_mesh(iap_type *iap, rap_type *rap, integer *ndim, integer *n, integer *nc, doublereal *tm, integer *ndxloc, doublereal *ups, integer *n1, integer *nc1, doublereal *tm1, doublereal *ups1, doublereal *tm2, integer *itm1)
+interpolate_mesh(iap_type *iap, rap_type *rap, std::ptrdiff_t *ndim, std::ptrdiff_t *n, std::ptrdiff_t *nc, double *tm, std::ptrdiff_t *ndxloc, double *ups, std::ptrdiff_t *n1, std::ptrdiff_t *nc1, double *tm1, double *ups1, double *tm2, std::ptrdiff_t *itm1)
 {
-  integer ups_dim1, ups1_dim1;
+  std::ptrdiff_t ups_dim1, ups1_dim1;
 
-  doublereal d;
-  integer i, j, k, l;
-  doublereal z__;
-  integer j1, k1, l1;
-  doublereal ri;
+  double d;
+  std::ptrdiff_t i, j, k, l;
+  double z__;
+  std::ptrdiff_t j1, k1, l1;
+  double ri;
 
-  integer n1m1, ncp1;
+  std::ptrdiff_t n1m1, ncp1;
 
-  std::vector<doublereal> w(xpp::size_sum(*nc, 1));
-  std::vector<doublereal> x(xpp::size_sum(*nc, 1));
+  std::vector<double> w(xpp::size_sum(*nc, 1));
+  std::vector<double> x(xpp::size_sum(*nc, 1));
 
 /* Finds interpolant (TM(.) , UPS(.) ) on new mesh TM1. */
 
@@ -3966,7 +3966,7 @@ interpolate_mesh(iap_type *iap, rap_type *rap, integer *ndim, integer *n, intege
   n1m1 = *n1 - 1;
 
   for (i = 0; i < *nc1; ++i) {
-    ri = static_cast<doublereal>(i);
+    ri = static_cast<double>(i);
     d = ri / *nc1;
     for (j1 = 0; j1 < n1m1; ++j1) {
       tm2[j1] = tm1[j1] + d * (tm1[j1 + 1] - tm1[j1]);
@@ -4000,19 +4000,19 @@ interpolate_mesh(iap_type *iap, rap_type *rap, integer *ndim, integer *n, intege
 
 /* newmsh: AUTO mesh.f90:395: redistributes the mesh according to EQDF */
 int 
-redistribute_mesh(iap_type *iap, rap_type *rap, integer *ndxloc, doublereal *ups, integer *nold, integer *ncold, doublereal *tmold, doublereal *dtmold, integer *nnew, doublereal *tmnew, integer *iper)
+redistribute_mesh(iap_type *iap, rap_type *rap, std::ptrdiff_t *ndxloc, double *ups, std::ptrdiff_t *nold, std::ptrdiff_t *ncold, double *tmold, double *dtmold, std::ptrdiff_t *nnew, double *tmnew, std::ptrdiff_t *iper)
 {
 
-  integer ndim;
+  std::ptrdiff_t ndim;
 
-  integer j;
-  integer j1, noldp1, nnewp1;
-  doublereal dal;
+  std::ptrdiff_t j;
+  std::ptrdiff_t j1, noldp1, nnewp1;
+  double dal;
 
-  std::vector<doublereal> uneq(xpp::size_sum(*nnew, 1));
-  std::vector<doublereal> eqf(xpp::size_sum(*nold, 1));
-  std::vector<doublereal> density(*nold);
-  std::vector<integer> ial(xpp::size_sum(*nnew, 1));
+  std::vector<double> uneq(xpp::size_sum(*nnew, 1));
+  std::vector<double> eqf(xpp::size_sum(*nold, 1));
+  std::vector<double> density(*nold);
+  std::vector<std::ptrdiff_t> ial(xpp::size_sum(*nnew, 1));
 
   /* Redistributes the mesh according to the function EQDF. */
 
@@ -4041,8 +4041,8 @@ redistribute_mesh(iap_type *iap, rap_type *rap, integer *ndxloc, doublereal *ups
   tmnew[0] = tmold[0];
   for (j1 = 1; j1 < *nnew; ++j1) {
     j = ial[j1];
-    const doublereal left = uneq[j1] - eqf[j - 1];
-    const doublereal right = eqf[j] - uneq[j1];
+    const double left = uneq[j1] - eqf[j - 1];
+    const double right = eqf[j] - uneq[j1];
     tmnew[j1] = left <= right ? tmold[j - 1] + left / density[j - 1]
                              : tmold[j] - right / density[j - 1];
   }
@@ -4053,10 +4053,10 @@ redistribute_mesh(iap_type *iap, rap_type *rap, integer *ndxloc, doublereal *ups
 
 /* ordr: XPPAUT 8.0 autlib1.c:3816: index of the old-mesh interval each new point lies in */
 int 
-order_mesh_points(iap_type *iap, rap_type *rap, integer *n, doublereal *tm, integer *n1, doublereal *tm1, integer *itm1)
+order_mesh_points(iap_type *iap, rap_type *rap, std::ptrdiff_t *n, double *tm, std::ptrdiff_t *n1, double *tm1, std::ptrdiff_t *itm1)
 {
 
-  integer j, k0, j1, k1=0;
+  std::ptrdiff_t j, k0, j1, k1=0;
 
   /* TM and TM1 are two ascending arrays with values in [0,1]. On exit the 
 */
@@ -4081,12 +4081,12 @@ order_mesh_points(iap_type *iap, rap_type *rap, integer *n, doublereal *tm, inte
 
 /* intwts: AUTO mesh.f90:451: weights for Lagrange interpolation */
 int 
-lagrange_weights(iap_type *iap, rap_type *rap, integer *n, doublereal *z__, doublereal *x, doublereal *wts)
+lagrange_weights(iap_type *iap, rap_type *rap, std::ptrdiff_t *n, double *z__, double *x, double *wts)
 {
 
-  integer k;
-  doublereal p, denom;
-  integer ib;
+  std::ptrdiff_t k;
+  double p, denom;
+  std::ptrdiff_t ib;
 
   /* Generates weights for Lagrange interpolation. */
 
@@ -4107,21 +4107,21 @@ lagrange_weights(iap_type *iap, rap_type *rap, integer *n, doublereal *z__, doub
 
 /* eqdf: AUTO mesh.f90:480: the monotone function whose increase the mesh equidistributes */
 int 
-equidistribution_function(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, doublereal *dtm, integer *ndxloc, doublereal *ups, doublereal *eqf, std::span<doublereal> density, integer *iper)
+equidistribution_function(iap_type *iap, rap_type *rap, std::ptrdiff_t *ntst, std::ptrdiff_t *ndim, std::ptrdiff_t *ncol, double *dtm, std::ptrdiff_t *ndxloc, double *ups, double *eqf, std::span<double> density, std::ptrdiff_t *iper)
 {
-  integer ups_dim1;
+  std::ptrdiff_t ups_dim1;
 
-  doublereal dtav, e;
-  integer i, j, k;
+  double dtav, e;
+  std::ptrdiff_t i, j, k;
   bool small;
-  integer k1;
-  doublereal sc;
+  std::ptrdiff_t k1;
+  double sc;
 
-  integer jp1;
-  doublereal pwr;
+  std::ptrdiff_t jp1;
+  double pwr;
 
-  std::vector<doublereal> hd(xpp::size_product(xpp::size_sum(*ntst, 1), xpp::size_product(*ndim, *ncol)));
-  std::vector<doublereal> wh(xpp::size_sum(*ncol, 1));
+  std::vector<double> hd(xpp::size_product(xpp::size_sum(*ntst, 1), xpp::size_product(*ndim, *ncol)));
+  std::vector<double> wh(xpp::size_sum(*ncol, 1));
 
   /* Compute approximation to NCOL-th derivative : */
   ups_dim1 = *ndxloc;
@@ -4149,7 +4149,7 @@ equidistribution_function(iap_type *iap, rap_type *rap, integer *ntst, integer *
 
   if (small) {
     for (i = 0; i < *ntst + 1; ++i) {
-      eqf[i] = static_cast<doublereal>(i);
+      eqf[i] = static_cast<double>(i);
     }
     for (j = 0; j < *ntst; ++j) density[j] = 1. / dtm[j];
     return 0;
@@ -4187,7 +4187,7 @@ equidistribution_function(iap_type *iap, rap_type *rap, integer *ntst, integer *
   for (j = 0; j < *ntst; ++j) {
     e = 0.;
     for (i = 0; i < *ndim; ++i) {
-      doublereal tmp = f2c::abs(hd[j + i * (*ntst + 1)]);
+      double tmp = f2c::abs(hd[j + i * (*ntst + 1)]);
       e += xpp::math::pow(tmp, pwr);
     }
     density[j] = e;
@@ -4204,11 +4204,11 @@ equidistribution_function(iap_type *iap, rap_type *rap, integer *ntst, integer *
 
 /* nrmlz: AUTO support.f90:273: scales V to discrete L2 norm 1 */
 int 
-normalize_vector(integer *ndim, doublereal *v)
+normalize_vector(std::ptrdiff_t *ndim, double *v)
 {
-  doublereal c;
-  integer i;
-  doublereal ss;
+  double c;
+  std::ptrdiff_t i;
+  double ss;
 
   /* Scale the vector V so that its discrete L2-norm becomes 1. */
 
@@ -4225,10 +4225,10 @@ normalize_vector(integer *ndim, doublereal *v)
 } /* nrmlz_ */
 
 /* pi: r times pi (autox_lib1.cpp) */
-doublereal 
-multiple_of_pi(doublereal r)
+double 
+multiple_of_pi(double r)
 {
-  doublereal ret_val;
+  double ret_val;
 
   ret_val = r * 4. * xpp::math::atan(1.);
 
@@ -4240,9 +4240,9 @@ int
 new_restart_label(iap_type *iap, rap_type *rap)
 {
 
-  integer mlab;
+  std::ptrdiff_t mlab;
 
-  integer lab, ibr, mbr, irs, isw;
+  std::ptrdiff_t lab, ibr, mbr, irs, isw;
   xpp::AutoxProblem ips;
   xpp::AutoxPointCode itp;
 
@@ -4259,15 +4259,15 @@ new_restart_label(iap_type *iap, rap_type *rap)
      a job numbers from the diagram's, as every job does */
   if (!iap->run->job) {
     const xpp::AutoxSolutionIndex &solutions = xpp::autox_run_solutions(*iap->run);
-    mbr = static_cast<integer>(solutions.max_branch);
-    mlab = static_cast<integer>(solutions.max_label);
+    mbr = static_cast<std::ptrdiff_t>(solutions.max_branch);
+    mlab = static_cast<std::ptrdiff_t>(solutions.max_label);
   }
 
   /* A fresh run has an empty fort.3, but the diagram may retain older
      branches. Their labels must still identify their own restart solution. */
   for(const auto &point:iap->run->session->diagram.points){
-    mbr=std::max(mbr,static_cast<integer>(f2c::abs(point.ibr)));
-    mlab=std::max(mlab,static_cast<integer>(point.lab));
+    mbr=std::max(mbr,static_cast<std::ptrdiff_t>(f2c::abs(point.ibr)));
+    mlab=std::max(mlab,static_cast<std::ptrdiff_t>(point.lab));
   }
   lab = mlab;
   iap->lab = lab;
@@ -4299,8 +4299,8 @@ void autox_restart_read(const iap_type *iap, bool ok, std::string_view what)
 
 void read_autox_restart_header(iap_type *iap, const rap_type *rap,
                               xpp::TokenReader &reader, xpp::AutoxSolutionHeader &header,
-                              integer *ntst, integer *ncol) {
-  integer free;
+                              std::ptrdiff_t *ntst, std::ptrdiff_t *ncol) {
+  std::ptrdiff_t free;
   bool found;
   find_restart_label(iap, rap, iap->irs, &free, &found);
   if (!found) autox_restart_label_missing(iap);
@@ -4317,7 +4317,7 @@ void read_autox_restart_header(iap_type *iap, const rap_type *rap,
 /* findlb: AUTO io.f90:1212: finds the restart label in the solution file */
 int 
 find_restart_label(iap_type *iap, const rap_type *rap, 
-       integer irs, integer *nfpr, bool *found)
+       std::ptrdiff_t irs, std::ptrdiff_t *nfpr, bool *found)
 {
   /* Locates restart point with label IRS and determines type. */
   /* If the label can not be located on unit 3 then FOUND will be .FALSE. */
@@ -4327,9 +4327,9 @@ find_restart_label(iap_type *iap, const rap_type *rap,
   const std::string path = xpp::autox_fort_path(*iap->run, 3);
   /* the records before the label set what a search that reads them sets: the last one's, when the label is not there */
   for (const xpp::AutoxSolutionRecord &record : solutions.records) {
-    *nfpr = static_cast<integer>(record.nfpr);
+    *nfpr = static_cast<std::ptrdiff_t>(record.nfpr);
     iap->itp = record.itp;
-    iap->ibr = static_cast<integer>(record.ibr);
+    iap->ibr = static_cast<std::ptrdiff_t>(record.ibr);
     if (record.lab != irs) continue;
     *found = true;
     iap->itpst = f2c::abs(iap->isw) == 2 ? xpp::autox_point_start_of(record.itp) : xpp::AutoxPointKind::Regular;
@@ -4347,16 +4347,16 @@ find_restart_label(iap_type *iap, const rap_type *rap,
    find_restart_label() found (read again from its start); a short read ends the run. */
 /* readlb: AUTO io.f90:1398: reads the solution at the restart label */
 void
-read_restart_label(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
+read_restart_label(const iap_type *iap, const rap_type *rap, double *u, double *par)
 {
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->run->fp3);
   xpp::AutoxSolutionHeader header;
   autox_restart_read(iap, xpp::read_autox_solution_header(tr, header, iap->run->parameter_count), "its header");
-  const integer ndim = header.nar - 1;
+  const std::ptrdiff_t ndim = header.nar - 1;
   if (ndim > iap->ndim)
     xpp::autox_fail(xpp::format("autoX: the restart data of label {} in {} has {} variables, the model {}", iap->irs,
                                xpp::autox_fort_path(*iap->run, 3), ndim, iap->ndim));
-  doublereal time;
+  double time;
   autox_restart_read(iap, xpp::read_autox_solution_rows(tr, ndim, 0, 0, 1, 0, ndim, u, &time, false, 0, {}),
                     "the solution");
   iap->run->restart_direction.reset();
@@ -4382,17 +4382,17 @@ read_restart_label(const iap_type *iap, const rap_type *rap, doublereal *u, doub
 } /* readlb_ */
 
 /* rinpr: XPPAUT 8.0 autlib1.c:4622: L2 inner product of UPS and VPS, the first NDIM1 components */
-doublereal 
-mesh_inner_product(iap_type *iap, const integer *ndim1, const integer *ndxloc, doublereal *ups, doublereal *vps, doublereal *dtm, doublereal *thu)
+double 
+mesh_inner_product(iap_type *iap, const std::ptrdiff_t *ndim1, const std::ptrdiff_t *ndxloc, double *ups, double *vps, double *dtm, double *thu)
 {
-  integer ups_dim1, vps_dim1;
-  doublereal ret_val;
+  std::ptrdiff_t ups_dim1, vps_dim1;
+  double ret_val;
 
-  integer i, j, k;
-  doublereal s;
-  integer k1;
-  doublereal sj;
-  integer jp1;
+  std::ptrdiff_t i, j, k;
+  double s;
+  std::ptrdiff_t k1;
+  double sj;
+  std::ptrdiff_t jp1;
 
   /* Computes the L2 inner product of UPS and VPS. */
   /* (Using the first NDIM1 components only.) */
@@ -4422,10 +4422,10 @@ mesh_inner_product(iap_type *iap, const integer *ndim1, const integer *ndxloc, d
 } /* rinpr_ */
 
 /* rnrmsq: AUTO mesh.f90:554: norm-squared of UPS, the first NDIM1 components */
-doublereal 
-norm_squared(iap_type *iap, integer *ndim1, integer *ndxloc, doublereal *ups, doublereal *dtm, doublereal *thu)
+double 
+norm_squared(iap_type *iap, std::ptrdiff_t *ndim1, std::ptrdiff_t *ndxloc, double *ups, double *dtm, double *thu)
 {
-  doublereal ret_val;
+  double ret_val;
 
 /* Finds the norm of UPS (first NDIM1 components are included only). */
 
@@ -4435,17 +4435,17 @@ norm_squared(iap_type *iap, integer *ndim1, integer *ndxloc, doublereal *ups, do
 } /* rnrmsq_ */
 
 /* rintg: AUTO mesh.f90:641: integral of the IC'th component of UPS */
-doublereal 
-integral_of_component(iap_type *iap, integer *ndxloc, integer ic, doublereal *ups, doublereal *dtm)
+double 
+integral_of_component(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t ic, double *ups, double *dtm)
 {
-  integer ups_dim1;
-  doublereal ret_val;
+  std::ptrdiff_t ups_dim1;
+  double ret_val;
 
-  integer j, k;
-  doublereal s;
-  integer k1;
-  doublereal sj;
-  integer jp1;
+  std::ptrdiff_t j, k;
+  double s;
+  std::ptrdiff_t k1;
+  double sj;
+  std::ptrdiff_t jp1;
 
   /* Computes the integral of the IC'th component of UPS. */
 
@@ -4470,17 +4470,17 @@ integral_of_component(iap_type *iap, integer *ndxloc, integer ic, doublereal *up
 } /* rintg_ */
 
 /* rnrm2: AUTO mesh.f90:711: L2 norm of the IC'th component of UPS */
-doublereal 
-component_norm(iap_type *iap, integer *ndxloc, integer *ic, doublereal *ups, doublereal *dtm)
+double 
+component_norm(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t *ic, double *ups, double *dtm)
 {
-  integer ups_dim1;
-  doublereal ret_val;
+  std::ptrdiff_t ups_dim1;
+  double ret_val;
 
-  integer j, k;
-  doublereal s;
-  integer k1;
-  doublereal sj;
-  integer jp1;
+  std::ptrdiff_t j, k;
+  double s;
+  std::ptrdiff_t k1;
+  double sj;
+  std::ptrdiff_t jp1;
 
   /* Computes the L2-norm of the IC'th component of UPS. */
 
@@ -4507,13 +4507,13 @@ component_norm(iap_type *iap, integer *ndxloc, integer *ic, doublereal *ups, dou
 } /* rnrm2_ */
 
 /* rmxups: AUTO mesh.f90:781: maximum of the I'th component of UPS */
-doublereal 
-component_maximum(iap_type *iap, integer *ndxloc, integer *i, doublereal *ups)
+double 
+component_maximum(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t *i, double *ups)
 {
-  integer ups_dim1;
-  doublereal ret_val;
+  std::ptrdiff_t ups_dim1;
+  double ret_val;
 
-  integer ndim, ncol, ntst, j, k, k1;
+  std::ptrdiff_t ndim, ncol, ntst, j, k, k1;
 
   /* Computes the maximum of the I'th component of UPS. */
 
@@ -4541,13 +4541,13 @@ component_maximum(iap_type *iap, integer *ndxloc, integer *i, doublereal *ups)
 } /* rmxups_ */
 
 /* rmnups: AUTO mesh.f90:852: minimum of the I'th component of UPS */
-doublereal 
-component_minimum(iap_type *iap, integer *ndxloc, integer *i, doublereal *ups)
+double 
+component_minimum(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t *i, double *ups)
 {
-  integer ups_dim1;
-  doublereal ret_val;
+  std::ptrdiff_t ups_dim1;
+  double ret_val;
 
-  integer ndim, ncol, ntst, j, k, k1;
+  std::ptrdiff_t ndim, ncol, ntst, j, k, k1;
 
   /* Computes the minimum of the I'th component of UPS. */
 
@@ -4576,12 +4576,12 @@ component_minimum(iap_type *iap, integer *ndxloc, integer *i, doublereal *ups)
 
 /* scaleb: AUTO mesh.f90:903: scales (DVPS,RLD) to norm 1 */
 int 
-scale_direction(iap_type *iap, integer *icp, integer *ndxloc, doublereal *dvps, doublereal *rld, doublereal *dtm, doublereal *thl, doublereal *thu)
+scale_direction(iap_type *iap, std::ptrdiff_t *icp, std::ptrdiff_t *ndxloc, double *dvps, double *rld, double *dtm, double *thl, double *thu)
 {
-  integer dvps_dim1;
+  std::ptrdiff_t dvps_dim1;
 
-  integer ndim, ncol, nfpr, nrow, ntst, i, j;
-  doublereal sc, ss;
+  std::ptrdiff_t ndim, ncol, nfpr, nrow, ntst, i, j;
+  double sc, ss;
 
 /* Scales the vector (DVPS,RLD) so its norm becomes 1. */
 
@@ -4626,44 +4626,44 @@ scale_direction(iap_type *iap, integer *icp, integer *ndxloc, doublereal *dvps, 
 
 /* cnrlbv: AUTO bvp.f90:79: controls the computation of solution branches */
 int 
-control_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), STPNT_TYPE_BVP((*user_start)), PVLI_TYPE_BVP((*pvli)), doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks)
+control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), STPNT_TYPE_BVP((*user_start)), PVLI_TYPE_BVP((*pvli)), double *thl, double *thu, std::span<const AutoxMark> marks)
 {
-  integer iads, ndim, ncol;
-  integer ntot, ntst, nuzr, i, j;
-  doublereal dsold;
-  integer nodir = 0;
+  std::ptrdiff_t iads, ndim, ncol;
+  std::ptrdiff_t ntot, ntst, nuzr, i, j;
+  double dsold;
+  std::ptrdiff_t nodir = 0;
   iap->run->hopf_start = user_start == periodic_starting_data || user_start == wave_train_starting_data;
-  std::vector<doublereal> rlold(iap->run->parameter_count);
-  std::vector<doublereal> rldot(iap->run->parameter_count);
-  std::vector<doublereal> rlcur(iap->run->parameter_count);
-  integer nitps, istop;
+  std::vector<double> rlold(iap->run->parameter_count);
+  std::vector<double> rldot(iap->run->parameter_count);
+  std::vector<double> rlcur(iap->run->parameter_count);
+  std::ptrdiff_t nitps, istop;
   xpp::AutoxPointKind itpst;
-  doublereal ds;
+  double ds;
   AutoxTestSample bp1;
   AutoxTestSample sp1;
-  integer iad;
-  integer ilp, isp, irs;
+  std::ptrdiff_t iad;
+  std::ptrdiff_t ilp, isp, irs;
   xpp::AutoxProblem ips;
-  doublereal rds;
+  double rds;
   AutoxTestSample rlp;
   AutoxTestSample closing;
-  integer isw;
+  std::ptrdiff_t isw;
   xpp::AutoxPointCode itp;
     
-  integer ntst_plus_one=iap->ntst + 1;
+  std::ptrdiff_t ntst_plus_one=iap->ntst + 1;
 
-  std::vector<doublereal> ups(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
-  std::vector<doublereal> upoldp(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
-  std::vector<doublereal> uoldps(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
-  std::vector<doublereal> udotps(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
-  std::vector<doublereal> dups(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
-  std::vector<doublereal> fa(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
-  std::vector<doublereal> dtm(xpp::size_sum(iap->ntst, 1));
-  std::vector<doublereal> tm(xpp::size_sum(iap->ntst, 1));
-  std::vector<doublereal> fc(xpp::size_sum(iap->nbc, iap->nint, 1));
-  std::vector<doublereal> p0(xpp::size_product(iap->ndim, iap->ndim));
-  std::vector<doublereal> p1(xpp::size_product(iap->ndim, iap->ndim));
-  std::vector<doublecomplex> ev(iap->ndim);
+  std::vector<double> ups(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
+  std::vector<double> upoldp(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
+  std::vector<double> uoldps(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
+  std::vector<double> udotps(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
+  std::vector<double> dups(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
+  std::vector<double> fa(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
+  std::vector<double> dtm(xpp::size_sum(iap->ntst, 1));
+  std::vector<double> tm(xpp::size_sum(iap->ntst, 1));
+  std::vector<double> fc(xpp::size_sum(iap->nbc, iap->nint, 1));
+  std::vector<double> p0(xpp::size_product(iap->ndim, iap->ndim));
+  std::vector<double> p1(xpp::size_product(iap->ndim, iap->ndim));
+  std::vector<FortranComplex> ev(iap->ndim);
   if (iap->isw==2 && xpp::problem_has_orbit_multipliers(iap->ips)) iap->run->codim.prepare_cycle(iap->ndim,iap->ndm);
   std::vector<AutoxTestSample> uzr(iap->nuzr);
 
@@ -4711,7 +4711,7 @@ control_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FU
   };
   const auto tests_at_point = [&] {
     Tests tests;
-    for (integer index = 0; index < nuzr; ++index)
+    for (std::ptrdiff_t index = 0; index < nuzr; ++index)
       tests.push_back({user_zero_test_boundary, uzr[index], xpp::AutoxPointKind::UserZero, index});
     if (ilp == 1) tests.push_back({fold_test_boundary, rlp, xpp::AutoxPointKind::CycleFold, {}});
     if (isp >= 2) tests.push_back({branch_point_test_boundary, bp1, xpp::AutoxPointKind::CycleBranch, {}});
@@ -4738,11 +4738,11 @@ control_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FU
     const auto tangent_ps = udotps;
     const auto multipliers = ev;
     const auto stability = iap->run->stability.computed;
-    const integer saved_isp = iap->isp, saved_nins = iap->nins;
-    const doublereal saved_det = rap->det;
+    const std::ptrdiff_t saved_isp = iap->isp, saved_nins = iap->nins;
+    const double saved_det = rap->det;
     const auto homcont = iap->run->homcont; // a homoclinic run's boundary evaluations advance its projection state
-    integer refactor = 1, tangent = -1;
-    doublereal no_step = 0.;
+    std::ptrdiff_t refactor = 1, tangent = -1;
+    double no_step = 0.;
     solve_boundary(&refactor, iap, rap, par, icp, problem_function, boundary_function, integral_function, &no_step, &tangent,
            rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), dups.data(), uoldps.data(),
            udotps.data(), upoldp.data(), dtm.data(), fa.data(), fc.data(), p0.data(), p1.data(), thl, thu);
@@ -4896,14 +4896,14 @@ control_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FU
 
 /* contbv: AUTO bvp.f90:365: new rates of change from the two latest points, then the current point becomes the old one */
 int 
-extrapolate_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), doublereal *rds, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *thl, doublereal *thu)
+extrapolate_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *thl, double *thu)
 {
-  integer ups_dim1, udotps_dim1, uoldps_dim1;
+  std::ptrdiff_t ups_dim1, udotps_dim1, uoldps_dim1;
 
-  integer ndim, ncol, nfpr, nrow, ntst, i, j;
-  doublereal dsold;
+  std::ptrdiff_t ndim, ncol, nfpr, nrow, ntst, i, j;
+  double dsold;
 
-  doublereal dds;
+  double dds;
 
   /* Determines an initial approximation to the next solution point, */
   /* by a computation of the null space of the Jacobian. */
@@ -4952,14 +4952,14 @@ extrapolate_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp
 
 /* extrbv: XPPAUT 8.0 autlib1.c:5414: initial approximation to the next solution by the null space of the Jacobian */
 int 
-predict_boundary_null_space(iap_type *iap, rap_type *rap, FUNI_TYPE((*problem_function)), doublereal *rds, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps)
+predict_boundary_null_space(iap_type *iap, rap_type *rap, FUNI_TYPE((*problem_function)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps)
 {
   xpp::autox_stability_step_start(iap->run->stability,
       iap->ibr, iap->ntot + (iap->run->locating ? 1 : 0));
 
-  integer ups_dim1, udotps_dim1, uoldps_dim1;
+  std::ptrdiff_t ups_dim1, udotps_dim1, uoldps_dim1;
 
-  integer ndim, ncol, nfpr, nrow, ntst, i, j;
+  std::ptrdiff_t ndim, ncol, nfpr, nrow, ntst, i, j;
 
   /* Determines an initial approximation to the next solution by */
   /* a computation of the null space of the Jacobian. */
@@ -4991,21 +4991,21 @@ predict_boundary_null_space(iap_type *iap, rap_type *rap, FUNI_TYPE((*problem_fu
 
 /* stupbv: AUTO bvp.f90:428: stores U-prime in UPOLDP */
 int 
-store_derivative(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *upoldp)
+store_derivative(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *upoldp)
 {
-  integer ups_dim1, uoldps_dim1, upoldp_dim1;
+  std::ptrdiff_t ups_dim1, uoldps_dim1, upoldp_dim1;
 
-  integer ndim, ncol;
-  integer nfpr, ntst;
-  integer i, j, k;
-  integer n1;
+  std::ptrdiff_t ndim, ncol;
+  std::ptrdiff_t nfpr, ntst;
+  std::ptrdiff_t i, j, k;
+  std::ptrdiff_t n1;
   xpp::AutoxProblem ips;
 
-  std::vector<doublereal> dfdp(xpp::size_product(iap->ndim, iap->run->parameter_count));
-  std::vector<doublereal> dfdu(xpp::size_product(iap->ndim, iap->ndim));
-  std::vector<doublereal> uold(iap->ndim);
-  std::vector<doublereal> f(iap->ndim);
-  std::vector<doublereal> u(iap->ndim);
+  std::vector<double> dfdp(xpp::size_product(iap->ndim, iap->run->parameter_count));
+  std::vector<double> dfdu(xpp::size_product(iap->ndim, iap->ndim));
+  std::vector<double> uold(iap->ndim);
+  std::vector<double> f(iap->ndim);
+  std::vector<double> u(iap->ndim);
 
 /* Stores U-prime (derivative with respect to T) in UPOLDP. */
 
@@ -5067,34 +5067,34 @@ store_derivative(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FU
 
 /* stepbv: AUTO bvp.f90:464: controls Newton's solve for the next point on a branch (BVP) */
 int 
-step_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), PVLI_TYPE_BVP((*pvli)), doublereal *rds, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *tm, doublereal *dtm, doublereal *p0, doublereal *p1, doublereal *thl, doublereal *thu)
+step_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), PVLI_TYPE_BVP((*pvli)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *tm, double *dtm, double *p0, double *p1, double *thl, double *thu)
 {
-  integer ups_dim1, uoldps_dim1, udotps_dim1, fa_dim1;
+  std::ptrdiff_t ups_dim1, uoldps_dim1, udotps_dim1, fa_dim1;
 
-  integer iads;
-  doublereal adrl;
+  std::ptrdiff_t iads;
+  double adrl;
   bool done;
-  integer ndim, ncol;
-  doublereal epsl, rdrl;
-  integer nfpr, ifst;
-  doublereal epsu;
-  integer ntop, itnw, nllv;
-  doublereal dumx;
-  integer ntot, nrow=0, nwtn, ntst, i, j;
-  doublereal dsold, dsmin;
-  integer nitps;
-  doublereal rdumx;
-  integer istop;
+  std::ptrdiff_t ndim, ncol;
+  double epsl, rdrl;
+  std::ptrdiff_t nfpr, ifst;
+  double epsu;
+  std::ptrdiff_t ntop, itnw, nllv;
+  double dumx;
+  std::ptrdiff_t ntot, nrow=0, nwtn, ntst, i, j;
+  double dsold, dsmin;
+  std::ptrdiff_t nitps;
+  double rdumx;
+  std::ptrdiff_t istop;
   bool nonfinite = false;
-  doublereal au;
+  double au;
 
-  doublereal delref=0.0, delmax;
+  double delref=0.0, delmax;
 
-  integer iid;
-  doublereal adu;
-  integer ibr, mxt;
-  doublereal umx;
-  integer nit1;
+  std::ptrdiff_t iid;
+  double adu;
+  std::ptrdiff_t ibr, mxt;
+  double umx;
+  std::ptrdiff_t nit1;
 
   /* Controls the solution of the nonlinear equations (by Newton's method) 
 */
@@ -5217,8 +5217,8 @@ step_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_
     rdumx = dumx / (umx + 1.);
     if (done && rdumx < epsu) {
       if (iap->run->hopf_start && iap->ntot <= hopf_start_steps && (iap->ilp == 1 || iap->isp != 0)) {
-        integer refactor = 1, tangent = -1;
-        doublereal no_step = 0.;
+        std::ptrdiff_t refactor = 1, tangent = -1;
+        double no_step = 0.;
         solve_boundary(&refactor, iap, rap, par, icp, problem_function, boundary_function, integral_function, &no_step, &tangent,
                rlcur, rlold, rldot, ndxloc, ups, dups, uoldps, udotps, upoldp, dtm,
                fa, fc, p0, p1, thl, thu);
@@ -5306,7 +5306,7 @@ step_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_
     // A failed location can restore an unstored solution. Rebuild its
     // circuit pencil at zero step, without applying Newton increments;
     // the trial's pencil (and floquet_multipliers's in-place transforms) is not its own.
-    integer fresh = 1, nullity = 0;
+    std::ptrdiff_t fresh = 1, nullity = 0;
     double zero_step = 0;
     solve_boundary(&fresh, iap, rap, par, icp, problem_function, boundary_function, integral_function, &zero_step, &nullity,
            rlcur, rlold, rldot, ndxloc, ups, dups, uoldps, udotps, upoldp,
@@ -5324,17 +5324,17 @@ step_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_
 
 /* rsptbv: AUTO bvp.f90:750: restarts a branch at the point labelled IRS */
 int 
-restart_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), STPNT_TYPE_BVP((*user_start)), doublereal *rds, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *tm, doublereal *dtm, doublecomplex *ev, integer *nodir, doublereal *thl, doublereal *thu)
+restart_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), STPNT_TYPE_BVP((*user_start)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, double *tm, double *dtm, FortranComplex *ev, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
-  integer ups_dim1, uoldps_dim1;
+  std::ptrdiff_t ups_dim1, uoldps_dim1;
 
-  integer ndim, ncol, nfpr, ntst, i, j;
+  std::ptrdiff_t ndim, ncol, nfpr, ntst, i, j;
 
-  integer ntsrs;
+  std::ptrdiff_t ntsrs;
 
-  integer ncolrs;
+  std::ptrdiff_t ncolrs;
 
-  integer ntst_fort8,ncol_fort8,junk;
+  std::ptrdiff_t ntst_fort8,ncol_fort8,junk;
 
   /* Restarts computation of a branch of solutions at point labelled IRS. */
   /* The output written on unit 8 by a previous run is now expected as */
@@ -5372,8 +5372,8 @@ restart_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FU
   }
 
   {
-    integer ntst_used,ncol_used;
-    integer ndxloc_orig=*ndxloc;
+    std::ptrdiff_t ntst_used,ncol_used;
+    std::ptrdiff_t ndxloc_orig=*ndxloc;
 
     /* use the bigger of the size defined in fort.2 and the one defined in fort.8 */
     if(ntst_fort8 > ntst)
@@ -5387,11 +5387,11 @@ restart_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FU
       ncol_used=ncol;
       
     *ndxloc=(ntst_used + 1)*4;
-    std::vector<doublereal> ups_new(xpp::size_product(*ndxloc, xpp::size_product(iap->ndim, ncol_used)));
-    std::vector<doublereal> upoldp_new(xpp::size_product(*ndxloc, xpp::size_product(iap->ndim, ncol_used)));
-    std::vector<doublereal> udotps_new(xpp::size_product(*ndxloc, xpp::size_product(iap->ndim, ncol_used)));
-    std::vector<doublereal> tm_new(*ndxloc);
-    std::vector<doublereal> dtm_new(*ndxloc);
+    std::vector<double> ups_new(xpp::size_product(*ndxloc, xpp::size_product(iap->ndim, ncol_used)));
+    std::vector<double> upoldp_new(xpp::size_product(*ndxloc, xpp::size_product(iap->ndim, ncol_used)));
+    std::vector<double> udotps_new(xpp::size_product(*ndxloc, xpp::size_product(iap->ndim, ncol_used)));
+    std::vector<double> tm_new(*ndxloc);
+    std::vector<double> dtm_new(*ndxloc);
 
     /*initialize arrays*/
     for(i=0;i<*ndxloc;i++) {
@@ -5462,20 +5462,20 @@ restart_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FU
 
 /* stpnbv: start of a boundary value problem from the user's start or a restart (autox_lib1.cpp) */
 int 
-boundary_start(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsrs, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
+boundary_start(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsrs, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
 
-  integer ndim, nars;
-  integer nfpr;
+  std::ptrdiff_t ndim, nars;
+  std::ptrdiff_t nfpr;
 
-  integer i;
+  std::ptrdiff_t i;
 
-  std::vector<integer> icprs(iap->run->parameter_count);
+  std::vector<std::ptrdiff_t> icprs(iap->run->parameter_count);
 
-  integer nfprs, nskip1, nskip2;
+  std::ptrdiff_t nfprs, nskip1, nskip2;
   xpp::AutoxPointCode itprs;
 
-  integer ndimrd, ndimrs, isw;
+  std::ptrdiff_t ndimrd, ndimrs, isw;
   xpp::AutoxProblem ips;
 
   /* This subroutine locates and retrieves the information required to */
@@ -5560,64 +5560,64 @@ boundary_start(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, inte
   return 0;
 } /* stpnbv_ */
 
-int autox_uniform_start(iap_type *iap, rap_type *rap, doublereal *par,
-                       integer *icp, integer *ntsr, integer *ncolrs,
-                       doublereal *rlcur, integer ndxloc, doublereal *ups,
-                       doublereal *tm, integer *nodir,
-                       const std::function<void(doublereal *, doublereal &)> &evaluate) {
-  const integer ndim = iap->ndim, ntst = iap->ntst, ncol = iap->ncol, nfpr = iap->nfpr;
-  std::vector<doublereal> u(ndim);
+int autox_uniform_start(iap_type *iap, rap_type *rap, double *par,
+                       std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs,
+                       double *rlcur, std::ptrdiff_t ndxloc, double *ups,
+                       double *tm, std::ptrdiff_t *nodir,
+                       const std::function<void(double *, double &)> &evaluate) {
+  const std::ptrdiff_t ndim = iap->ndim, ntst = iap->ntst, ncol = iap->ncol, nfpr = iap->nfpr;
+  std::vector<double> u(ndim);
   uniform_mesh(iap, rap, tm);
-  const doublereal dt = 1. / (ntst * ncol);
-  for (integer j = 0; j < ntst + 1; ++j) {
-    const integer ncol1 = j == ntst ? 1 : ncol;
-    for (integer i = 0; i < ncol1; ++i) {
-      doublereal time = tm[j] + i * dt;
-      const integer k1 = i * ndim, k2 = (i + 1) * ndim;
+  const double dt = 1. / (ntst * ncol);
+  for (std::ptrdiff_t j = 0; j < ntst + 1; ++j) {
+    const std::ptrdiff_t ncol1 = j == ntst ? 1 : ncol;
+    for (std::ptrdiff_t i = 0; i < ncol1; ++i) {
+      double time = tm[j] + i * dt;
+      const std::ptrdiff_t k1 = i * ndim, k2 = (i + 1) * ndim;
       evaluate(u.data(), time);
-      for (integer k = k1; k < k2; ++k) ups[j + k * ndxloc] = u[k - k1];
+      for (std::ptrdiff_t k = k1; k < k2; ++k) ups[j + k * ndxloc] = u[k - k1];
     }
   }
   *ntsr = ntst;
   *ncolrs = ncol;
   iap->ibr = 1;
   iap->lab = 0;
-  for (integer i = 0; i < nfpr; ++i) rlcur[i] = par[icp[i]];
+  for (std::ptrdiff_t i = 0; i < nfpr; ++i) rlcur[i] = par[icp[i]];
   *nodir = 1;
   return 0;
 }
 
-void autox_hopf_mesh(const iap_type *iap, const rap_type *rap, integer ndxloc,
-                    doublereal *ups, doublereal *udotps, doublereal *upoldp,
-                    doublereal *tm, doublereal *dtm, doublereal *rldot,
-                    const doublereal *u, const doublereal *rnllv, doublereal tpi) {
-  const integer ndim = iap->ndim, ntst = iap->ntst, ncol = iap->ncol;
+void autox_hopf_mesh(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndxloc,
+                    double *ups, double *udotps, double *upoldp,
+                    double *tm, double *dtm, double *rldot,
+                    const double *u, const double *rnllv, double tpi) {
+  const std::ptrdiff_t ndim = iap->ndim, ntst = iap->ntst, ncol = iap->ncol;
   // W458 (#521): the first cycle is the equilibrium plus DS times the
   // eigen-cycle udotps, so its time derivative, the next point's phase
   // condition, points along upoldp times the sign of DS. Oriented so, the
   // phase condition (and the determinant in BP's test) keeps its sign
   // from the first point to the second; with DS < 0 it flipped, a BP between
   // the second and third point that is not there (motoneuron6c's cycles).
-  const doublereal orientation = std::copysign(1., rap->ds);
+  const double orientation = std::copysign(1., rap->ds);
   uniform_mesh(iap, rap, tm);
-  const doublereal dt = 1. / ntst;
-  for (integer j = 0; j < ntst + 1; ++j) {
-    const doublereal time = tm[j];
-    const doublereal sine = xpp::math::sin(tpi * time);
-    const doublereal cosine = xpp::math::cos(tpi * time);
-    for (integer k = 0; k < ndim; ++k) {
+  const double dt = 1. / ntst;
+  for (std::ptrdiff_t j = 0; j < ntst + 1; ++j) {
+    const double time = tm[j];
+    const double sine = xpp::math::sin(tpi * time);
+    const double cosine = xpp::math::cos(tpi * time);
+    for (std::ptrdiff_t k = 0; k < ndim; ++k) {
       udotps[j + k * ndxloc] = sine * rnllv[k] + cosine * rnllv[ndim + k];
       upoldp[j + k * ndxloc] = orientation * (cosine * rnllv[k] - sine * rnllv[ndim + k]);
       ups[j + k * ndxloc] = u[k];
     }
   }
-  for (integer i = 0; i < ncol - 1; ++i) {
-    for (integer j = 0; j < ntst; ++j) {
-      const doublereal time = tm[j] + (i + 1) * (tm[j + 1] - tm[j]) / ncol;
-      const doublereal sine = xpp::math::sin(tpi * time);
-      const doublereal cosine = xpp::math::cos(tpi * time);
-      for (integer k = 0; k < ndim; ++k) {
-        const integer k1 = (i + 1) * ndim + k;
+  for (std::ptrdiff_t i = 0; i < ncol - 1; ++i) {
+    for (std::ptrdiff_t j = 0; j < ntst; ++j) {
+      const double time = tm[j] + (i + 1) * (tm[j + 1] - tm[j]) / ncol;
+      const double sine = xpp::math::sin(tpi * time);
+      const double cosine = xpp::math::cos(tpi * time);
+      for (std::ptrdiff_t k = 0; k < ndim; ++k) {
+        const std::ptrdiff_t k1 = (i + 1) * ndim + k;
         udotps[j + k1 * ndxloc] = sine * rnllv[k] + cosine * rnllv[ndim + k];
         upoldp[j + k1 * ndxloc] = orientation * (cosine * rnllv[k] - sine * rnllv[ndim + k]);
         ups[j + k1 * ndxloc] = u[k];
@@ -5626,26 +5626,26 @@ void autox_hopf_mesh(const iap_type *iap, const rap_type *rap, integer ndxloc,
   }
   rldot[0] = 0.;
   rldot[1] = 0.;
-  for (integer i = 0; i < ntst; ++i) dtm[i] = dt;
+  for (std::ptrdiff_t i = 0; i < ntst; ++i) dtm[i] = dt;
 }
 
 /* stpnub: start of a boundary value problem from the user's values */
 int
-user_start_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsrs, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
+user_start_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsrs, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
   return autox_uniform_start(iap, rap, par, icp, ntsrs, ncolrs, rlcur, *ndxloc, ups, tm, nodir,
-      [&](doublereal *state, doublereal &time) { user_start(*iap->run, iap->ndim, time, state, par); });
+      [&](double *state, double &time) { user_start(*iap->run, iap->ndim, time, state, par); });
 } /* stpnub_ */
 
 /* setrtn: AUTO bvp.f90:975: initialization for rotations */
 int 
-initialize_rotations(iap_type *iap, integer *ntst, integer *ndxloc, doublereal *ups, doublereal *par)
+initialize_rotations(iap_type *iap, std::ptrdiff_t *ntst, std::ptrdiff_t *ndxloc, double *ups, double *par)
 {
-  integer ups_dim1;
+  std::ptrdiff_t ups_dim1;
 
-  integer i;
+  std::ptrdiff_t i;
 
-  integer nbc;
+  std::ptrdiff_t nbc;
 
   /* Initialization for rotations */
 
@@ -5656,8 +5656,8 @@ initialize_rotations(iap_type *iap, integer *ntst, integer *ndxloc, doublereal *
 
   iap->run->rotations.irtn = 0;
   for (i = 0; i < nbc; ++i) {
-    doublereal tmp = (ARRAY2D(ups, *ntst, i) - ARRAY2D(ups, 0, i)) / multiple_of_pi(2.0);
-    iap->run->rotations.nrtn[i] = static_cast<integer>(tmp >= 0. ? floor(tmp + .5) : -floor(.5 - tmp)); /* the nearest whole number */
+    double tmp = (ARRAY2D(ups, *ntst, i) - ARRAY2D(ups, 0, i)) / multiple_of_pi(2.0);
+    iap->run->rotations.nrtn[i] = static_cast<std::ptrdiff_t>(tmp >= 0. ? floor(tmp + .5) : -floor(.5 - tmp)); /* the nearest whole number */
 
     if (iap->run->rotations.nrtn[i] != 0) {
       iap->run->rotations.irtn = 1;
@@ -5669,18 +5669,18 @@ initialize_rotations(iap_type *iap, integer *ntst, integer *ndxloc, doublereal *
 
 /* stdrbv: AUTO bvp.f90:999: direction vector to start a branch when none is given (BVP) */
 int 
-start_direction_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dtm, integer iperp, doublereal *p0, doublereal *p1, doublereal *thl, doublereal *thu)
+start_direction_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *rlcur, double *rlold, double *rldot, std::ptrdiff_t ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dtm, std::ptrdiff_t iperp, double *p0, double *p1, double *thl, double *thu)
 {
-  integer udotps_dim1, fa_dim1;
+  std::ptrdiff_t udotps_dim1, fa_dim1;
 
   /* Builtin Local */
 
     /* variables functions */
-  integer ndim, ncol, nfpr, ifst, nllv;
-  doublereal rdsz;
-  integer nrow, ntst, i, j;
+  std::ptrdiff_t ndim, ncol, nfpr, ifst, nllv;
+  double rdsz;
+  std::ptrdiff_t nrow, ntst, i, j;
 
-  integer iid;
+  std::ptrdiff_t iid;
 
 /* Generates a direction vector (UDOTPS,RLDOT) that is needed to start */
 /* the computation of a branch when no direction vector is given. */
@@ -5740,9 +5740,9 @@ start_direction_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer 
 
   // AUTO-07p STDRBV: a constant first parameter carries only roundoff.
   // On cycle curves orient by the first significant free parameter instead.
-  integer direction=0;
+  std::ptrdiff_t direction=0;
   if (iap->isw==2 && xpp::problem_has_orbit_multipliers(iap->ips)) {
-    for (integer k=0;k<nfpr;++k)
+    for (std::ptrdiff_t k=0;k<nfpr;++k)
       if (std::abs(rldot[k])/(1+std::abs(rlcur[k]))>rap->epsl) {
         direction=k;
         break;
@@ -5781,7 +5781,7 @@ start_direction_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer 
 
 /* lcspbv: AUTO bvp.f90:1230: secant method locating folds, branch points, user zeros (BVP) */
 int 
-locate_special_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), PVLI_TYPE_BVP((*pvli)), AutoxTestSample &q, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *tm, doublereal *dtm, doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept)
+locate_special_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), PVLI_TYPE_BVP((*pvli)), AutoxTestSample &q, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *tm, double *dtm, double *p0, double *p1, FortranComplex *ev, double *thl, double *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept)
 {
   /* This subroutine uses the Secant method to accurately locate folds */
   /* branch points, and zero(es) of user parameter values. */
@@ -5825,17 +5825,17 @@ locate_special_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *
 } /* lcspbv_ */
 
 /* fnlpbv: special-point test function */
-doublereal 
-fold_test_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks)
+double 
+fold_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *p0, double *p1, FortranComplex *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
 {
-  integer udotps_dim1, fa_dim1;
-  doublereal ret_val;
+  std::ptrdiff_t udotps_dim1, fa_dim1;
+  double ret_val;
 
-  integer ndim, ncol, nfpr, ifst, nllv, ntop;
-  doublereal rdsz;
-  integer ntot, ntst, i, j;
+  std::ptrdiff_t ndim, ncol, nfpr, ifst, nllv, ntop;
+  double rdsz;
+  std::ptrdiff_t ntot, ntst, i, j;
 
-  integer iid, ibr;
+  std::ptrdiff_t iid, ibr;
 
 /* RETURNS A QUANTITY THAT CHANGES SIGN AT A LIMIT POINT (BVP) */
 
@@ -5892,22 +5892,22 @@ fold_test_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
 } /* fnlpbv_ */
 
 /* fnbpbv: special-point test function */
-doublereal 
-branch_point_test_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks)
+double 
+branch_point_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *p0, double *p1, FortranComplex *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
 {
-  doublereal ret_val;
+  double ret_val;
 
-  integer ndim, ntop, ntot;
-  doublereal f;
-  integer i;
-  doublereal u;
+  std::ptrdiff_t ndim, ntop, ntot;
+  double f;
+  std::ptrdiff_t i;
+  double u;
 
-  integer iid;
-  doublereal det;
-  integer ibr;
-  doublereal det0;
+  std::ptrdiff_t iid;
+  double det;
+  std::ptrdiff_t ibr;
+  double det0;
 
-  std::vector<doublereal> pp(xpp::size_product(iap->ndim, iap->ndim));
+  std::vector<double> pp(xpp::size_product(iap->ndim, iap->ndim));
 
   ndim = iap->ndim;
   iid = iap->iid;
@@ -5956,21 +5956,21 @@ branch_point_test_boundary(iap_type *iap, rap_type *rap, doublereal *par, intege
 } /* fnbpbv_ */
 
 /* fnspbv: special-point test function */
-doublereal 
-secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks)
+double 
+secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *p0, double *p1, FortranComplex *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
 {
-  doublereal ret_val;
+  double ret_val;
 
-  doublereal amin;
-  integer ndim, nins, ntop, ntot;
-  integer nins1=0;
-  doublereal d;
-  integer i, j;
+  double amin;
+  std::ptrdiff_t ndim, nins, ntop, ntot;
+  std::ptrdiff_t nins1=0;
+  double d;
+  std::ptrdiff_t i, j;
 
-  integer iid,ibr,loc=0,isp,isw;
-  doublereal azm1;
+  std::ptrdiff_t iid,ibr,loc=0,isp,isw;
+  double azm1;
 
-  std::vector<doublereal> wrk(xpp::size_product(iap->ndim, iap->ndim));
+  std::vector<double> wrk(xpp::size_product(iap->ndim, iap->ndim));
 
   /* This function returns a quantity that changes sign when a complex */
   /* pair of eigenvalues of the linearized Poincare map moves in or out */
@@ -6001,7 +6001,7 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, doublereal *pa
   xpp::autox_stability_computed(iap->run->stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndim)},xpp::AUTOX_STABILITY_PERIODIC);
   amin = autox_rlarge;
   for (j = 0; j < ndim; ++j) {
-    doublecomplex tmp;
+    FortranComplex tmp;
     tmp.r = ev[j].r - 1., tmp.i = ev[j].i;
     azm1 = complex_magnitude_of(&tmp);
     if (azm1 <= amin) {
@@ -6012,22 +6012,22 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, doublereal *pa
   // Preserve conjugate adjacency when moving the neutral multiplier.
   if (loc != 0) std::rotate(ev, ev + loc, ev + loc + 1);
 
-  integer first=1;
+  std::ptrdiff_t first=1;
   if (isw==2 && (iap->itpst==xpp::AutoxPointKind::CycleFold ||
                  iap->itpst==xpp::AutoxPointKind::PeriodDoubling))
-    first=static_cast<integer>(autox_cycle_place_imposed(iap->itpst,{ev,static_cast<std::size_t>(ndim)}));
+    first=static_cast<std::ptrdiff_t>(autox_cycle_place_imposed(iap->itpst,{ev,static_cast<std::size_t>(ndim)}));
   // W356 (#418): AUTO-07p periodic.f90:1960-1983, insertion by
   // conjugate blocks. Keep both computed values, including their order.
   for (i = first+1; i < ndim; ++i) {
     const auto value = ev[i];
     if (value.i < 0) continue;
-    const integer width = value.i > 0 && i + 1 < ndim ? 2 : 1;
+    const std::ptrdiff_t width = value.i > 0 && i + 1 < ndim ? 2 : 1;
     const auto partner = width == 2 ? ev[i + 1] : value;
     const double distance = std::abs(complex_magnitude_of(&ev[i]) - 1);
-    integer position = i;
+    std::ptrdiff_t position = i;
     for (;;) {
       if (position <= first) break;
-      integer previous = position - 1;
+      std::ptrdiff_t previous = position - 1;
       if (ev[previous].i < 0 && previous > first) --previous;
       if (std::abs(complex_magnitude_of(&ev[previous]) - 1) <= distance) break;
       std::move_backward(ev + previous, ev + position, ev + position + width);
@@ -6042,7 +6042,7 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, doublereal *pa
    */
 
   {
-    doublecomplex tmp;
+    FortranComplex tmp;
     tmp.r = ev[0].r - 1., tmp.i = ev[0].i;
     amin = complex_magnitude_of(&tmp);
   }
@@ -6135,33 +6135,33 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, doublereal *pa
 } /* fnspbv_ */
 
 /* fnuzbv: special-point test function */
-doublereal 
-user_zero_test_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks)
+double 
+user_zero_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *p0, double *p1, FortranComplex *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
 {
   return user_zero(*iap, par, icp, chng, marks, boundary_user_zero_width);
 } /* fnuzbv_ */
 
 /* fnclosedbv: special-point test function */
-doublereal
-closed_test_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks)
+double
+closed_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, bool *chng, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *p0, double *p1, FortranComplex *ev, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dups, double *tm, double *dtm, double *thl, double *thu, std::span<const AutoxMark> marks)
 {
   return closed_test(*iap, par, icp, chng);
 } /* fnclosedbv_ */
 
 /* tpspbv: XPPAUT 8.0 autlib1.c:6885: type of a secondary periodic bifurcation */
 int 
-secondary_bifurcation_type(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomplex *ev)
+secondary_bifurcation_type(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FortranComplex *ev)
 {
 
-  doublereal amin;
-  integer ndim;
-  doublereal epss, d;
-  integer i;
+  double amin;
+  std::ptrdiff_t ndim;
+  double epss, d;
+  std::ptrdiff_t i;
   xpp::AutoxPointKind itpst;
-  doublereal ad;
-  integer loc, loc1;
+  double ad;
+  std::ptrdiff_t loc, loc1;
   xpp::AutoxPointCode itp;
-  doublereal azm1;
+  double azm1;
 
   /* Determines type of secondary periodic bifurcation. */
 
@@ -6179,7 +6179,7 @@ secondary_bifurcation_type(iap_type *iap, rap_type *rap, doublereal *par, intege
   loc = 1;
   amin = autox_rlarge;
   for (i = 0; i < ndim; ++i) {
-    doublecomplex tmp;
+    FortranComplex tmp;
     tmp.r = ev[i].r - 1., tmp.i = ev[i].i;
     azm1 = complex_magnitude_of(&tmp);
     if (azm1 <= amin) {
@@ -6233,23 +6233,23 @@ secondary_bifurcation_type(iap_type *iap, rap_type *rap, doublereal *par, intege
 
 /* stplbv: AUTO bvp.f90:1475: writes the bifurcation diagram on unit 7 (BVP) */
 int 
-store_diagram_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu)
+store_diagram_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *tm, double *dtm, double *thl, double *thu)
 {
-  integer labw, ibrs, nins, itmp, jtmp, ntot;
+  std::ptrdiff_t labw, ibrs, nins, itmp, jtmp, ntot;
   int iflag=0;
   xpp::AutoxStopAt stop_at = {0}; /* xppautX: T23 */
-  integer i;
+  std::ptrdiff_t i;
   std::vector<double> u_high(iap->ndim);
   std::vector<double> u_low(iap->ndim);
   std::vector<double> u_0(iap->ndim);
   std::vector<double> u_bar(iap->ndim);
 
-  integer istop, n2, ntots;
+  std::ptrdiff_t istop, n2, ntots;
 
-  integer lab;
-  doublereal amp;
+  std::ptrdiff_t lab;
+  double amp;
 
-  std::array<doublereal, autox_diagram_columns> umx;
+  std::array<double, autox_diagram_columns> umx;
 
   /* Writes the bifurcation diagram on unit 7 (Differential Equations) */
   /* (Also controls the writing of complete solutions on unit 8). */
@@ -6300,8 +6300,8 @@ store_diagram_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *i
   /* Check whether limits of the bifurcation diagram have been reached : */
 
   const auto orbit_norm = [&] {
-    doublereal norm = 0;
-    integer iab = f2c::abs(context.iplt);
+    double norm = 0;
+    std::ptrdiff_t iab = f2c::abs(context.iplt);
     if (iab == 0 || iab > context.ndm * 3) {
       norm = sqrt(norm_squared(iap, &context.ndm, ndxloc, ups, dtm, thu));
     }
@@ -6312,7 +6312,7 @@ store_diagram_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *i
       norm = integral_of_component(iap, ndxloc, iab - context.ndm, ups, dtm);
     }
     if (context.iplt > (context.ndm * 2) && iab <= context.ndm * 3) {
-      integer tmp = iab - (context.ndm * 2);
+      std::ptrdiff_t tmp = iab - (context.ndm * 2);
       norm = component_norm(iap, ndxloc, &tmp, ups, dtm);
     }
     if (context.iplt < 0 && iab <= context.ndm) {
@@ -6366,10 +6366,10 @@ store_diagram_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *i
 
   /* compute max, min, etc of solutions   This is correct!! */
   for (std::size_t k=0;k<node;k++){
-    itmp=static_cast<integer>(k)+1;
+    itmp=static_cast<std::ptrdiff_t>(k)+1;
     u_high[k]=extremes[k];
     u_low[k]=extremes[node+k];
-    u_0[k]=ups[static_cast<integer>(k)*(*ndxloc)];
+    u_0[k]=ups[static_cast<std::ptrdiff_t>(k)*(*ndxloc)];
     u_bar[k]=integral_of_component(iap, ndxloc, itmp, ups, dtm);
   }
   xpp::autox_branch_stored(*iap, ntot, rap->epss, par, icp, extremes, true); /* W604: what the branch closes on */
@@ -6398,7 +6398,7 @@ store_diagram_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *i
      imaginary pair ends at that Hopf point (autox_ends.h), stored as one coherent point: its parameter where the
      squared amplitude reaches zero, the equilibrium there as its orbit, extremes, mean and norm, and the period
      2 pi over the pair's frequency; a special point the last step located keeps its label */
-  if (context.ips == xpp::AutoxProblem::Periodic && f2c::abs(context.isw) != 2 && context.ndm == static_cast<integer>(node)) {
+  if (context.ips == xpp::AutoxProblem::Periodic && f2c::abs(context.isw) != 2 && context.ndm == static_cast<std::ptrdiff_t>(node)) {
     xpp::AutoxStop &stop = iap->run->stop;
     const double amplitude = xpp::autox_orbit_amplitude({u_high.data(), node}, {u_low.data(), node}, {u_bar.data(), node});
     const bool shrunk = xpp::autox_amplitude_watch_add(stop.amplitude_watch, amplitude, par[icp[0]], ntot == 1);
@@ -6474,15 +6474,15 @@ store_diagram_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *i
 
 /* wrtbv8: AUTO bvp.f90:1622: plotting and restart data on unit 8 */
 int 
-write_solution_restart(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *dtm)
+write_solution_restart(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *tm, double *dtm)
 {
-  integer ups_dim1, udotps_dim1;
+  std::ptrdiff_t ups_dim1, udotps_dim1;
 
-  integer ndim, ncol, nfpr, ntpl, jtmp, ntot, ntst, i, j, k;
-  doublereal t;
-  integer k1, k2;
-  doublereal rn;
-  integer nrowpr, lab, ibr, nar, nrd, isw;
+  std::ptrdiff_t ndim, ncol, nfpr, ntpl, jtmp, ntot, ntst, i, j, k;
+  double t;
+  std::ptrdiff_t k1, k2;
+  double rn;
+  std::ptrdiff_t nrowpr, lab, ibr, nar, nrd, isw;
   xpp::AutoxPointCode itp;
 
   FILE *const fp8=fort8(*iap->run);
@@ -6626,18 +6626,18 @@ write_solution_restart(iap_type *iap, rap_type *rap, doublereal *par, integer *i
 
 /* wrtbv9: AUTO bvp.f90:1803: additional output on unit 9 */
 int 
-write_solution_extra(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rlcur, integer *ndxloc, doublereal *ups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu)
+write_solution_extra(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rlcur, std::ptrdiff_t *ndxloc, double *ups, double *tm, double *dtm, double *thl, double *thu)
 {
   
-  integer ups_dim1;
+  std::ptrdiff_t ups_dim1;
 
-  integer ndim, ncol, iplt, mtot, ntot, ntst, i, j, k;
-  doublereal t;
-  integer k1, nitps, k2;
-  doublereal rn;
+  std::ptrdiff_t ndim, ncol, iplt, mtot, ntot, ntst, i, j, k;
+  double t;
+  std::ptrdiff_t k1, nitps, k2;
+  double rn;
   
-  integer iab, iid, ibr, ndm;
-  doublereal amp=0.0;
+  std::ptrdiff_t iab, iid, ibr, ndm;
+  double amp=0.0;
   
   /* Writes additional output on unit 9. */
 
@@ -6705,10 +6705,10 @@ write_solution_extra(iap_type *iap, rap_type *rap, doublereal *par, integer *icp
 
 /* pvlsae: output hook of algebraic problems (PVLI_TYPE_AE) */
 int 
-output_parameters_algebraic(iap_type *iap, rap_type *rap, doublereal *u, doublereal *par)
+output_parameters_algebraic(iap_type *iap, rap_type *rap, double *u, double *par)
 {
 
-  integer ndm;
+  std::ptrdiff_t ndm;
 
   ndm = iap->ndm;
   if (iap->itpst == xpp::AutoxPointKind::Hopf && iap->ndim == 2 * ndm + 2) {
@@ -6725,9 +6725,9 @@ output_parameters_algebraic(iap_type *iap, rap_type *rap, doublereal *u, doubler
 
 /* pvlsbv: output hook of boundary value problems (PVLI_TYPE_BVP) */
 int 
-output_parameters_boundary(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndxloc, doublereal *ups, integer *ndim, doublereal *p0, doublereal *p1, doublereal *par)
+output_parameters_boundary(iap_type *iap, rap_type *rap, std::ptrdiff_t *icp, double *dtm, std::ptrdiff_t *ndxloc, double *ups, std::ptrdiff_t *ndim, double *p0, double *p1, double *par)
 {
-  integer ndm;
+  std::ptrdiff_t ndm;
 
   ndm = iap->jac;
   user_output_parameters(ndm, ups, par);

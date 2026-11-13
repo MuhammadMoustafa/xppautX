@@ -55,7 +55,7 @@ constexpr std::array expected{
     0xa13b817f19765a9eULL, // Schur dense, unstable: work, status, vectors, roots, types
 };
 
-constexpr integer n = 3; // Small matrices allow every overwritten element to be compared.
+constexpr std::ptrdiff_t n = 3; // Small matrices allow every overwritten element to be compared.
 
 constexpr std::uint64_t fnv_offset_basis = 14695981039346656037ULL; // FNV-1a's specified 64-bit seed.
 constexpr std::uint64_t fnv_prime = 1099511628211ULL; // FNV-1a's specified 64-bit prime.
@@ -92,7 +92,7 @@ template <class F> std::string failure(F call)
     return {};
 }
 
-std::uint64_t solve(std::vector<double> input, integer rhs, bool expect_failure = false)
+std::uint64_t solve(std::vector<double> input, std::ptrdiff_t rhs, bool expect_failure = false)
 {
     std::uint64_t digest = fnv_offset_basis;
     auto a = input;
@@ -114,7 +114,7 @@ std::uint64_t solve(std::vector<double> input, integer rhs, bool expect_failure 
     return digest;
 }
 
-std::uint64_t null_vector(std::vector<double> a, integer nullity)
+std::uint64_t null_vector(std::vector<double> a, std::ptrdiff_t nullity)
 {
     std::uint64_t digest = fnv_offset_basis;
     std::array<double, n> u{};
@@ -127,28 +127,28 @@ std::uint64_t null_vector(std::vector<double> a, integer nullity)
     return digest;
 }
 
-std::uint64_t roots(std::vector<double> input, integer vectors)
+std::uint64_t roots(std::vector<double> input, std::ptrdiff_t vectors)
 {
     std::uint64_t digest = fnv_offset_basis;
     /* Padded leading dimension exercises the interface gear's solver lacks. */
-    constexpr integer ld = n + 1;
+    constexpr std::ptrdiff_t ld = n + 1;
     std::array<double, ld*n> a{}, z{};
-    for (integer j = 0; j < n; ++j)
-        for (integer i = 0; i < n; ++i) a[i+j*ld] = input[i+j*n];
+    for (std::ptrdiff_t j = 0; j < n; ++j)
+        for (std::ptrdiff_t i = 0; i < n; ++i) a[i+j*ld] = input[i+j*n];
     std::array<double, n> wr{}, wi{}, work{};
-    std::array<integer, n> piv{};
-    integer status = -1;
+    std::array<std::ptrdiff_t, n> piv{};
+    std::ptrdiff_t status = -1;
     xpp::real_general_eigen(ld, n, a.data(), wr.data(), wi.data(), vectors, z.data(), piv.data(), work.data(), &status);
     CHECK(status == 0); fold(digest, status);
     fold(digest, a); fold(digest, wr); fold(digest, wi); fold(digest, z); fold(digest, work);
     fold(digest, piv);
     if (vectors) {
         /* EISPACK packs a conjugate pair as consecutive real/imaginary columns. */
-        for (integer j = 0; j < n; ++j) {
+        for (std::ptrdiff_t j = 0; j < n; ++j) {
             if (wi[j] < 0.) continue;
-            for (integer i = 0; i < n; ++i) {
+            for (std::ptrdiff_t i = 0; i < n; ++i) {
                 double real = 0., imag = 0.;
-                for (integer k = 0; k < n; ++k) {
+                for (std::ptrdiff_t k = 0; k < n; ++k) {
                     real += input[i+k*n] * z[k+j*ld];
                     if (wi[j] > 0.) imag += input[i+k*n] * z[k+(j+1)*ld];
                 }
@@ -166,7 +166,7 @@ std::uint64_t svd(std::vector<double> a)
     std::uint64_t digest = fnv_offset_basis;
     std::array<double, n+1> s{}, e{}, work{};
     std::array<double, n*n> u{}, v{};
-    integer ld = n, rows = n, cols = n, job = 11, status = -1;
+    std::ptrdiff_t ld = n, rows = n, cols = n, job = 11, status = -1;
     double tol = 1e-14; // SVD's documented relative tolerance above machine precision.
     xpp::singular_value_decomposition(a.data(), &ld, &rows, &cols, s.data(), e.data(), u.data(), &ld, v.data(), &ld, work.data(), &job, &status, &tol);
     CHECK(status == 0); fold(digest, status);
@@ -184,34 +184,34 @@ std::uint64_t floquet(bool deflate, bool infinite)
     std::array<double, n*n> b{-1.,0.,0., 0.,-1.,0., 0.,0.,-1.};
     if (infinite) b[0] = 0.;
     std::array<double, n*n> work{};
-    std::array<doublecomplex, n> ev{};
-    integer dim = n, diagnostic = 4;
+    std::array<FortranComplex, n> ev{};
+    std::ptrdiff_t dim = n, diagnostic = 4;
     xpp::UniqueFile log(std::tmpfile());
     CHECK(log);
     if (!log) return digest;
     fold(digest, xpp::floquet_multipliers(log.get(), &dim, a.data(), b.data(), &diagnostic, work.data(), ev.data(), deflate));
     fold(digest, a); fold(digest, b); fold(digest, work);
-    for (integer i = 0; i < n; ++i) {
+    for (std::ptrdiff_t i = 0; i < n; ++i) {
         fold(digest, ev[i].r); fold(digest, ev[i].i);
     }
     fold(digest, contents(log.get()));
     return digest;
 }
 
-std::uint64_t schur(std::vector<double> a, integer manifold)
+std::uint64_t schur(std::vector<double> a, std::ptrdiff_t manifold)
 {
     std::uint64_t digest = fnv_offset_basis;
     std::array<double, n> ort{}, er{}, ei{};
     std::array<double, n*n> v{};
-    std::array<integer, n> type{};
-    integer dim = n, low = 1;
+    std::array<std::ptrdiff_t, n> type{};
+    std::ptrdiff_t dim = n, low = 1;
     double eps = 1e-13; // HomCont's component-zero tolerance.
     xpp::hessenberg_reduce_householder(&dim, &dim, &low, &dim, a.data(), ort.data());
     fold(digest, a); fold(digest, ort);
     xpp::hessenberg_transform_orthogonal(&dim, &dim, &low, &dim, a.data(), ort.data(), v.data());
     fold(digest, v);
-    for (integer i = 2; i < n; ++i)
-        for (integer j = 0; j < i-1; ++j) a[i+j*n] = 0.;
+    for (std::ptrdiff_t i = 2; i < n; ++i)
+        for (std::ptrdiff_t j = 0; j < i-1; ++j) a[i+j*n] = 0.;
     fold(digest, xpp::hessenberg_quasi_triangular(a.data(), v.data(), &dim, &low, &dim, &eps, er.data(), ei.data(), type.data(), &dim, &dim, &manifold));
     fold(digest, a); fold(digest, v); fold(digest, er); fold(digest, ei); fold(digest, type);
     return digest;
@@ -224,7 +224,7 @@ std::uint64_t qz_vectors()
     std::array<double,n*n> b{3.,0.,0., .25,2.,0., -.5,.75,1.};
     std::array<double,n*n> z{};
     std::array<double,n> ar{}, ai{}, beta{};
-    integer error=-1;
+    std::ptrdiff_t error=-1;
     fold(digest, xpp::qz_reduce_hessenberg(n,n,a.data(),b.data(),1,z.data()));
     fold(digest, a); fold(digest, b); fold(digest, z);
     fold(digest, xpp::qz_iterate(n,n,a.data(),b.data(),0.,1,z.data(),&error));
@@ -265,14 +265,14 @@ std::uint64_t scalar_helpers()
 std::uint64_t blas_helpers()
 {
     std::uint64_t digest = fnv_offset_basis;
-    for (integer stride : {1,2}) { // Legacy euclidean_norm/scale_vector require positive increments.
-        integer count=n;
+    for (std::ptrdiff_t stride : {1,2}) { // Legacy euclidean_norm/scale_vector require positive increments.
+        std::ptrdiff_t count=n;
         std::array<double,9> x{1.,-4.,.5,2.,-3.,.25,7.,1.,-2.}, y=x;
         const double norm=xpp::euclidean_norm(&count,x.data(),&stride);
         fold(digest, norm);
         const double dot=xpp::dot_product(&count,x.data(),&stride,y.data(),&stride);
         fold(digest, dot);
-        fold(digest, static_cast<integer>(xpp::largest_magnitude(x.data(),static_cast<int>(count),static_cast<int>(stride))+1)); // Fortran's 1-based index
+        fold(digest, static_cast<std::ptrdiff_t>(xpp::largest_magnitude(x.data(),static_cast<int>(count),static_cast<int>(stride))+1)); // Fortran's 1-based index
         double scale=-.3, c=.6, s=.8;
         xpp::scale_vector(static_cast<int>(count),scale,x.data(),static_cast<int>(stride));
         fold(digest, 0); // the retired dscal's return value, kept so the digest is unchanged
@@ -286,7 +286,7 @@ std::uint64_t blas_helpers()
         fold(digest, x); fold(digest, y);
     }
     for (const char *ta : {"n","T"}) for (const char *tb : {"N","t"}) {
-        integer dim=n;
+        std::ptrdiff_t dim=n;
         std::array<double,n*n> a{1.,-4.,.5,2.,-3.,.25,7.,1.,-2.}, b=a, c=a;
         double alpha=.3, beta=-.7;
         fold(digest, xpp::matrix_multiply(ta,tb,&dim,&dim,&dim,&alpha,a.data(),&dim,b.data(),&dim,&beta,c.data(),&dim,1,1));
@@ -295,7 +295,7 @@ std::uint64_t blas_helpers()
             fold(digest, xpp::copy_matrix_transposed(&dim,&dim,a.data(),&dim,c.data(),&dim,&transpose));
             fold(digest, c);
         }
-        fold(digest, static_cast<integer>(xpp::same_letter(ta,tb,1,1)));
+        fold(digest, static_cast<std::ptrdiff_t>(xpp::same_letter(ta,tb,1,1)));
     }
     return digest;
 }
@@ -319,7 +319,7 @@ void homcont()
     run.parameter_count = session.autox_state.parameter_layout.size();
     iap_type iap{};
     iap.run = &run; iap.ndim = n; iap.ndm = n; iap.nfpr = 2;
-    std::array<integer, 2> icp{session.autox_state.parameter_layout.solver_index(0),
+    std::array<std::ptrdiff_t, 2> icp{session.autox_state.parameter_layout.solver_index(0),
                                session.autox_state.parameter_layout.solver_index(1)};
     std::vector<double> par(run.parameter_count), dfdp(n*run.parameter_count);
     std::array<double,n> equilibrium{}, rr{}, ri{};
@@ -328,7 +328,7 @@ void homcont()
     CHECK(log);
     if (!log) return;
     run.fp9 = log.get();
-    integer dim = n;
+    std::ptrdiff_t dim = n;
     constexpr double tolerance = 1e-12; // Analytic invariant-subspace identities on a small, well-conditioned matrix.
     for (bool reverse : {false,true}) for (double shift : {0.,2.}) {
         par[xpp::autox_unknown::period] = reverse ? -1. : 1.;
@@ -343,13 +343,13 @@ void homcont()
             // Actual boundary/adjoint calls use one manifold per endpoint/transpose slot.
             const bool stable = (endpoint == xpp::HomcontEndpoint::left) == transpose;
             const auto manifold = stable ? xpp::HomcontManifold::stable : xpp::HomcontManifold::unstable;
-            const integer count = stable ? run.homcont.homoclinic_constants.nstab : run.homcont.homoclinic_constants.nunstab;
-            const integer first = stable ? 0 : n-count;
+            const std::ptrdiff_t count = stable ? run.homcont.homoclinic_constants.nstab : run.homcont.homoclinic_constants.nunstab;
+            const std::ptrdiff_t first = stable ? 0 : n-count;
             const bool pair = stable != reverse;
             for (double p : {.2,.3}) {
                 par[icp[0]] = p;
                 CHECK(xpp::homoclinic_projection_conditions(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),true) == 0);
-                for (integer row=first; row<first+count; ++row) {
+                for (std::ptrdiff_t row=first; row<first+count; ++row) {
                     const double x=bound[row], y=bound[row+n], z=bound[row+2*n];
                     CHECK(std::isfinite(x) && std::isfinite(y) && std::isfinite(z));
                     CHECK(x*x+y*y+z*z > .1);
@@ -361,7 +361,7 @@ void homcont()
                 }
                 if (count == 2) {
                     double aa=0., bb=0., ab=0.;
-                    for (integer col=0; col<n; ++col) {
+                    for (std::ptrdiff_t col=0; col<n; ++col) {
                         const double a0=bound[first+col*n], b0=bound[first+1+col*n];
                         aa+=a0*a0; bb+=b0*b0; ab+=a0*b0;
                     }
@@ -375,23 +375,23 @@ void homcont()
                 CHECK(run.homcont.beyn_workspace.cprev == saved && run.homcont.beyn_workspace.iflag == flags);
                 par[icp[0]] = p;
                 CHECK(xpp::homoclinic_projection_conditions(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),false) == 0);
-                for (integer row=first; row<first+count; ++row)
-                    for (integer col=0; col<n; ++col) CHECK(std::abs(bound[row+col*n]-original[row+col*n]) < tolerance);
+                for (std::ptrdiff_t row=first; row<first+count; ++row)
+                    for (std::ptrdiff_t col=0; col<n; ++col) CHECK(std::abs(bound[row+col*n]-original[row+col*n]) < tolerance);
             }
         }
         // The real root has a unit eigenvector; the complex pair's shared
         // real part is orthogonal to it in the uncoupled block (p=0).
         par[icp[0]] = 0.;
-        for (integer transpose : {1,2}) {
-            integer endpoint = 1;
+        for (std::ptrdiff_t transpose : {1,2}) {
+            std::ptrdiff_t endpoint = 1;
             CHECK(xpp::homoclinic_eigen_ordered(&iap,&endpoint,&transpose,rr.data(),ri.data(),vectors.data(),equilibrium.data(),icp.data(),par.data(),&dim,a.data(),dfdp.data(),zz.data()) == 0);
             CHECK(rr[0] <= rr[1] && rr[1] <= rr[2]);
-            const integer real = reverse ? 0 : 2;
+            const std::ptrdiff_t real = reverse ? 0 : 2;
             CHECK(std::abs(vectors[real]-1.) < tolerance);
             CHECK(std::abs(rr[real]-(reverse ? -1.-shift : 1.+shift)) < tolerance);
             // The pair's unit vector (0,1,-+i)/sqrt(2), turned so that its largest
             // component is real (LAPACK DGEEV): a real part of length 1/sqrt(2) on an axis.
-            for (integer row : {(real+1)%n, (real+2)%n}) {
+            for (std::ptrdiff_t row : {(real+1)%n, (real+2)%n}) {
                 const double x=vectors[row], y=vectors[row+n], z=vectors[row+2*n];
                 CHECK(std::abs(x) < tolerance);
                 CHECK(std::abs(std::max(std::abs(y),std::abs(z))-std::sqrt(.5)) < tolerance);
@@ -400,10 +400,10 @@ void homcont()
         }
     }
     // Retain the independent root adapter and invalid-leading-dimension checks.
-    for (integer leading : {n,n-1}) {
+    for (std::ptrdiff_t leading : {n,n-1}) {
         a = {2.,0.,0., 0.,-1.,2., 0.,-2.,-1.};
-        std::array<doublecomplex,n> ev{};
-        integer error = -1;
+        std::array<FortranComplex,n> ev{};
+        std::ptrdiff_t error = -1;
         const auto message = failure([&] { xpp::autox_eigenvalues(&iap,&dim,&leading,a.data(),ev.data(),&error); });
         CHECK((leading == n) == message.empty());
         CHECK(error == (leading == n ? 0 : 1));
@@ -427,7 +427,7 @@ void homcont()
     std::vector<double> derivative(n+run.parameter_count, 99.);
     CHECK(homoclinic_integral_conditions(&iap,&rap,n,par.data(),icp.data(),1,state.data(),old.data(),tangent.data(),tangent.data(),phase.data(),1,derivative.data()) == 0);
     CHECK(phase[0] == 4.625);
-    for (integer column=0; column<n+run.parameter_count; ++column)
+    for (std::ptrdiff_t column=0; column<n+run.parameter_count; ++column)
         CHECK(derivative[column] == (column<n ? tangent[column] : 0.));
     run.fp9 = nullptr;
 }
@@ -438,7 +438,7 @@ void check_ge_verbosity()
     // IID changes only diagnostics, including a pivot smaller than RSMALL.
     std::array<double, 4> quiet_matrix{}, quiet_rhs{}, quiet_solution{};
     double quiet_det = 0;
-    for (integer iid : {0, 1, 3, 4}) {
+    for (std::ptrdiff_t iid : {0, 1, 3, 4}) {
         std::array<double, 4> matrix{2e-32, 0, 0, 1e-32}, rhs{1, 2}, solution{};
         double det = 0;
         xpp::UniqueFile log(std::tmpfile());
@@ -471,7 +471,7 @@ TEST_CASE("test_autox_numerics")
     CHECK(solve({1.,2.,3., 2.,4.,6., 0.,1.,1.},1,true) == expected[case_index++]);
     CHECK(null_vector(singular,2) == expected[case_index++]);
     CHECK(null_vector({1.,0.,0., 0.,1e-32,0., 0.,0.,0.},1) == expected[case_index++]); // NLVC's tiny-pivot diagnostic.
-    for (integer vectors : {0,1})
+    for (std::ptrdiff_t vectors : {0,1})
         for (const auto &matrix : {pivot,singular,conjugate,dense})
             CHECK(roots(matrix,vectors) == expected[case_index++]);
     CHECK(svd(pivot) == expected[case_index++]);
@@ -483,7 +483,7 @@ TEST_CASE("test_autox_numerics")
     CHECK(qz_vectors() == expected[case_index++]);
     CHECK(scalar_helpers() == expected[case_index++]);
     CHECK(blas_helpers() == expected[case_index++]);
-    for (integer manifold : {-1,1}) {
+    for (std::ptrdiff_t manifold : {-1,1}) {
         CHECK(schur(conjugate,manifold) == expected[case_index++]);
         CHECK(schur(dense,manifold) == expected[case_index++]);
     }

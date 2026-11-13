@@ -178,7 +178,8 @@ static void row_stored(xpp::Session &s)
   rows_stored(s,s.data_store.rows);
 }
 /* the state x of the Session's solver work copied into u from v (its node ODEs) */
-static void mswtch(const xpp::Session &s, double *u, const double *v)
+/* mswtch: XPPAUT 8.0 integrate.c:81: MSWTCH(u,v) is a memcpy of the node values */
+static void copy_state(const xpp::Session &s, double *u, const double *v)
 {
   memcpy(u,v,s.solver_work.xpv.node*sizeof(double));
 }
@@ -1541,7 +1542,7 @@ xpp::Result<> ode_int(xpp::Session &s, double *y, double *t, int *istart, int is
    if(!counted)return std::unexpected(counted.error());
    per_advance=*counted;
  }
- mswtch(s,s.solver_work.xpv.x,y);
+ copy_state(s,s.solver_work.xpv.x,y);
  evaluate_derived(s);
  solver.begin(istart);
  xpp::SolverStep step{.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=istart};
@@ -1554,7 +1555,7 @@ xpp::Result<> ode_int(xpp::Session &s, double *y, double *t, int *istart, int is
    step.hguess=&dt;
  }
  xpp::Result<> r=solver.advance(step);
- mswtch(s,y,s.solver_work.xpv.x);
+ copy_state(s,y,s.solver_work.xpv.x);
  if(!r){
    ping();
    return r;
@@ -1769,7 +1770,7 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
  int cwidth=0;
  /* new poincare map stuff */
 
-mswtch(s,s.solver_work.xpv.x,x);
+copy_state(s,s.solver_work.xpv.x,x);
 
 if(program.interactive&&front_end) cwidth=get_command_width();
 
@@ -1782,10 +1783,10 @@ if(program.interactive&&front_end) cwidth=get_command_width();
  nit=(*steps+store_every-1)/store_every;
  if(nit==0)return(rval);
  one_flag_step(s,s.solver_work.xpv.x,s.solver_work.xpv.x,&iflagstart,*t,&tnew,nodes,&sss);
- mswtch(s,x,s.solver_work.xpv.x);
+ copy_state(s,x,s.solver_work.xpv.x);
  extra(s,x,*t,s.model().node,s.model().neq); /* Note this takes care of initializing Markov variables */
  if(s.integrator.step_error)return take_step_error(s);
-  mswtch(s,s.solver_work.xpv.x,x);
+  copy_state(s,s.solver_work.xpv.x,x);
  if(s.integrator.steady)s.integrator.steady->begin(std::span(x,static_cast<std::size_t>(s.model().node+s.model().nmarkov)),*t);
  xv[0]=*t;
  for(ieqn=1;ieqn<=s.model().neq;ieqn++)xv[ieqn]=x[ieqn-1];
@@ -1819,10 +1820,10 @@ if(program.interactive&&front_end) cwidth=get_command_width();
 	   if(!solver.traits().fixed_step){
 	     /* on to the next output time, in steps of the method's own */
 	     tout=tzero+dt*(icount+1);
-	     mswtch(s,s.solver_work.xpv.x,x);
+	     copy_state(s,s.solver_work.xpv.x,x);
 	     xpp::Result<> r=solver.advance({.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=start,
 						 .tout=tout,.hguess=&hguess,.sections=true});
-	     mswtch(s,x,s.solver_work.xpv.x);
+	     copy_state(s,x,s.solver_work.xpv.x);
 	     if(!solver.traits().dense_output||*t==tout)stor_delay(s,x);
 	     if(s.integrator.step_error){
 	       s.integrator.last_time=*t;
@@ -1836,10 +1837,10 @@ if(program.interactive&&front_end) cwidth=get_command_width();
 	   }
 	   else{
 	     /* store_every steps of dt */
-	     mswtch(s,s.solver_work.xpv.x,x);
+	     copy_state(s,s.solver_work.xpv.x,x);
 	     xpp::Result<> r=solver.advance({.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=start,
 						 .dt=dt,.steps=store_every});
-	     mswtch(s,x,s.solver_work.xpv.x);
+	     copy_state(s,x,s.solver_work.xpv.x);
 	     if(!r){
 	       if(front_end)ping();
 	       s.integrator.last_time=*t;

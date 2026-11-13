@@ -105,7 +105,7 @@ public:
 private:
   std::vector<double> work_;
   std::vector<double> error_; /* gear's error estimates, one per variable */
-  std::array<int,8> iwork_{}; /* its step's order and counters (ggear) */
+  std::array<int,8> iwork_{}; /* its step's order and counters (gear_step) */
 };
 
 /* stiff.cpp's adaptive Runge-Kutta (QualRK) and its stiff method */
@@ -166,7 +166,7 @@ public:
   Result<> step_by(const SolverStep &s) override
   {
     int kflag=0;
-    rb23(session_,s.y,s.t,s.tout,s.start,s.neq,work_.data(),&kflag);
+    rosenbrock_driver(session_,s.y,s.t,s.tout,s.start,s.neq,work_.data(),&kflag);
     const SolverWork::Stop &stop=session_.solver_work.stop;
     if(kflag<0)
       return stopped(xpp::format("the step size fell to the rounding limit {} with the error still above the tolerance",stop.h),
@@ -231,8 +231,8 @@ constexpr SolverTraits rel_abs_banded{.relative_tolerance=true,.absolute_toleran
 constexpr std::array<SolverInfo,method::COUNT> registry{{
   {method::DISCRETE,"Discrete","Discrete","discrete",map,fixed_step<discrete,standard_work>},
   {method::EULER,"Euler","Euler","euler",steps,fixed_step<euler,standard_work>},
-  {method::MOD_EULER,"Mod. Euler","Mod. Euler","modified_euler",steps,fixed_step<mod_euler,standard_work>},
-  {method::RK4,"Runge-Kutta","Runge-Kutta","runge_kutta",steps,fixed_step<rung_kut,standard_work>},
+  {method::MOD_EULER,"Mod. Euler","Mod. Euler","modified_euler",steps,fixed_step<modified_euler_steps,standard_work>},
+  {method::RK4,"Runge-Kutta","Runge-Kutta","runge_kutta",steps,fixed_step<runge_kutta_fixed,standard_work>},
   {method::ADAMS,"Adams","Adams","adams",steps,fixed_step<adams,standard_work>},
   {method::GEAR,"Gear","Gear","gear",gear_steps,start_gear},
   {method::VOLTERRA,"Volterra","Volterra","volterra",integral_steps,fixed_step<volterra,implicit_work>},
@@ -243,7 +243,7 @@ constexpr std::array<SolverInfo,method::COUNT> registry{{
   {method::DP5,"DoPri5","DorPrin5","dopri5",rel_abs,start_dormand_prince},
   {method::DP83,"DoPri8(3)","DorPri8(3)","dopri8",rel_abs_eighth,start_dormand_prince},
   {method::RB23,"Rosenbrock","Rosenbrock","rosenbrock",rel_abs_banded,start_rosenbrock},
-  {method::SYMPLECT,"Symplectic","Symplectic","symplectic",paired_steps,fixed_step<symplect3,standard_work>},
+  {method::SYMPLECT,"Symplectic","Symplectic","symplectic",paired_steps,fixed_step<symplectic_third_order,standard_work>},
 }};
 
 constexpr bool in_method_order()

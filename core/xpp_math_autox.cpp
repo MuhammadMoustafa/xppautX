@@ -12,15 +12,15 @@ namespace xpp {
 namespace {
 /* Complete-pivot search shared by gauss_eliminate and matrix_null_vector. Retain row-then-column scan,
    strict > ties and the zero initial magnitude, including all-zero/NaN input. */
-void complete_pivot(integer n, integer leading, const double *a,
-                    const std::vector<integer> &ir, const std::vector<integer> &ic,
-                    integer first, integer &ipiv, integer &jpiv, double &piv)
+void complete_pivot(std::ptrdiff_t n, std::ptrdiff_t leading, const double *a,
+                    const std::vector<std::ptrdiff_t> &ir, const std::vector<std::ptrdiff_t> &ic,
+                    std::ptrdiff_t first, std::ptrdiff_t &ipiv, std::ptrdiff_t &jpiv, double &piv)
 {
     ipiv = first;
     jpiv = first;
     piv = 0.;
-    for (integer i = first; i < n; ++i) {
-        for (integer j = first; j < n; ++j) {
+    for (std::ptrdiff_t i = first; i < n; ++i) {
+        for (std::ptrdiff_t j = first; j < n; ++j) {
             const double p = f2c::abs(a[ir[i] + ic[j] * leading]);
             if (p > piv) {
                 piv = p;
@@ -34,13 +34,13 @@ void complete_pivot(integer n, integer leading, const double *a,
 /* One trailing row, shared without reordering gauss_eliminate's subsequent RHS updates.
    The ratio is computed once, columns updated in permutation order, and zero
    multipliers skip every update exactly as in both pre-W337 routines. */
-double complete_eliminate_row(integer n, integer leading, double *a,
-                              const std::vector<integer> &ir, const std::vector<integer> &ic,
-                              integer first, integer row)
+double complete_eliminate_row(std::ptrdiff_t n, std::ptrdiff_t leading, double *a,
+                              const std::vector<std::ptrdiff_t> &ir, const std::vector<std::ptrdiff_t> &ic,
+                              std::ptrdiff_t first, std::ptrdiff_t row)
 {
     const double rm = a[ir[row] + ic[first] * leading] / a[ir[first] + ic[first] * leading];
     if (rm != 0.) {
-        for (integer i = first + 1; i < n; ++i)
+        for (std::ptrdiff_t i = first + 1; i < n; ++i)
             a[ir[row] + ic[i] * leading] -= rm * a[ir[first] + ic[i] * leading];
     }
     return rm;
@@ -52,17 +52,17 @@ double complete_eliminate_row(integer n, integer leading, double *a,
    Gear uses unbalanced Householder reduction and fixed 1e-10 QR instead. */
 /* eig: eigenvalues of autoX's Jacobian through rg, as complex numbers (xpp_math_autox.cpp:54) */
 int 
-autox_eigenvalues(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev, integer *ier)
+autox_eigenvalues(iap_type *iap, std::ptrdiff_t *ndim, std::ptrdiff_t *m1a, double *a, FortranComplex *ev, std::ptrdiff_t *ier)
 {
-  integer matz, ntop, ntot, i;
+  std::ptrdiff_t matz, ntop, ntot, i;
 
-  integer ibr;
+  std::ptrdiff_t ibr;
 
-  std::vector<doublereal> z__(xpp::size_product(iap->ndim, iap->ndim));
-  std::vector<doublereal> wi(iap->ndim);
-  std::vector<doublereal> wr(iap->ndim);
-  std::vector<doublereal> fv1(iap->ndim);
-  std::vector<integer> iv1(iap->ndim);
+  std::vector<double> z__(xpp::size_product(iap->ndim, iap->ndim));
+  std::vector<double> wi(iap->ndim);
+  std::vector<double> wr(iap->ndim);
+  std::vector<double> fv1(iap->ndim);
+  std::vector<std::ptrdiff_t> iv1(iap->ndim);
 
   /* This subroutine uses the EISPACK subroutine RG to compute the */
   /* eigenvalues of the general real matrix A. */
@@ -100,19 +100,19 @@ autox_eigenvalues(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, dou
    NLVC's free components, singular divisions and diagnostics separately. */
 /* nlvc: finds a null vector of a singular matrix whose null space is k-dimensional: AUTO-07p support.f90:230 */
 int 
-matrix_null_vector(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u)
+matrix_null_vector(FILE *fp9, std::ptrdiff_t n, std::ptrdiff_t m, std::ptrdiff_t k, double *a, double *u)
 {
-  integer a_dim1;
+  std::ptrdiff_t a_dim1;
 
-  integer ipiv, jpiv, i, j, l;
-  integer i1, jj, kk;
-  doublereal sm;
-  integer ip1, nmk;
-  doublereal piv;
-  integer jjp1;
+  std::ptrdiff_t ipiv, jpiv, i, j, l;
+  std::ptrdiff_t i1, jj, kk;
+  double sm;
+  std::ptrdiff_t ip1, nmk;
+  double piv;
+  std::ptrdiff_t jjp1;
 
-  std::vector<integer> ir(n);
-  std::vector<integer> ic(n);
+  std::vector<std::ptrdiff_t> ir(n);
+  std::vector<std::ptrdiff_t> ic(n);
 
 /* Finds a null-vector of a singular matrix A. */
 /* The null space of A is assumed to be K-dimensional. */
@@ -192,22 +192,22 @@ matrix_null_vector(FILE *fp9, integer n, integer m, integer k, doublereal *a, do
    Returns the smallest pivot magnitude: below autox_rsmall, A is singular. */
 /* ge: Gaussian elimination with complete pivoting, determinant and pivot log (AUTO's GE, xpp_math_autox.cpp) */
 double
-gauss_eliminate(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublereal *u, integer m1f, doublereal *f, doublereal *det)
+gauss_eliminate(FILE *fp9, std::ptrdiff_t iid, std::ptrdiff_t n, std::ptrdiff_t m1a, double *a, std::ptrdiff_t nrhs, std::ptrdiff_t ndxloc, double *u, std::ptrdiff_t m1f, double *f, double *det)
 {
-  const auto at = [&](integer i, integer j) -> double & { return a[i + j * m1a]; };
-  const auto rhs = [&](integer i, integer k) -> double & { return f[i + k * m1f]; };
-  std::vector<integer> ir(n), ic(n);
-  for (integer i = 0; i < n; ++i) {
+  const auto at = [&](std::ptrdiff_t i, std::ptrdiff_t j) -> double & { return a[i + j * m1a]; };
+  const auto rhs = [&](std::ptrdiff_t i, std::ptrdiff_t k) -> double & { return f[i + k * m1f]; };
+  std::vector<std::ptrdiff_t> ir(n), ic(n);
+  for (std::ptrdiff_t i = 0; i < n; ++i) {
     ir[i] = i;
     ic[i] = i;
   }
   std::vector<double> rm(n), col_max(n);
 
   /* The first pivot: the whole matrix, row by row. */
-  integer ipiv = 0, jpiv = 0;
+  std::ptrdiff_t ipiv = 0, jpiv = 0;
   double piv = 0.;
-  for (integer i = 0; i < n; ++i)
-    for (integer j = 0; j < n; ++j) {
+  for (std::ptrdiff_t i = 0; i < n; ++i)
+    for (std::ptrdiff_t j = 0; j < n; ++j) {
       const double p = std::fabs(at(i, j));
       if (p > piv) {
         piv = p;
@@ -218,7 +218,7 @@ gauss_eliminate(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, i
 
   *det = 1.;
   double smallest = std::numeric_limits<double>::infinity();
-  integer jj = 0;
+  std::ptrdiff_t jj = 0;
   for (; jj < n - 1; ++jj) {
     smallest = std::min(smallest, piv);
     *det *= at(ipiv, jpiv);
@@ -233,33 +233,33 @@ gauss_eliminate(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, i
       xpp::print(fp9, "         NOTE:Pivot {:3} < {:10.3E}, in GE\n", jj, autox_rsmall);
 
     if (ipiv != jj) {
-      for (integer c = 0; c < n; ++c) std::swap(at(jj, c), at(ipiv, c));
+      for (std::ptrdiff_t c = 0; c < n; ++c) std::swap(at(jj, c), at(ipiv, c));
       std::swap(ir[jj], ir[ipiv]);
     }
     if (jpiv != jj) {
-      for (integer r = 0; r < n; ++r) std::swap(at(r, jj), at(r, jpiv));
+      for (std::ptrdiff_t r = 0; r < n; ++r) std::swap(at(r, jj), at(r, jpiv));
       std::swap(ic[jj], ic[jpiv]);
     }
 
     const double pivot = at(jj, jj);
-    for (integer l = jj + 1; l < n; ++l) rm[l] = at(l, jj) / pivot;
-    for (integer irh = 0; irh < nrhs; ++irh) {
+    for (std::ptrdiff_t l = jj + 1; l < n; ++l) rm[l] = at(l, jj) / pivot;
+    for (std::ptrdiff_t irh = 0; irh < nrhs; ++irh) {
       const double top = rhs(ir[jj], irh);
-      for (integer l = jj + 1; l < n; ++l)
+      for (std::ptrdiff_t l = jj + 1; l < n; ++l)
         if (rm[l] != 0.) rhs(ir[l], irh) -= rm[l] * top;
     }
 
     /* The trailing block, column by column, each column's largest |a| on the
        way (four running maxima, for the vector unit; a maximum is exact). */
-    const integer height = n - jj - 1;
+    const std::ptrdiff_t height = n - jj - 1;
     const double *__restrict mult = &rm[jj + 1];
-    for (integer c = jj + 1; c < n; ++c) {
+    for (std::ptrdiff_t c = jj + 1; c < n; ++c) {
       double *__restrict col = &at(jj + 1, c);
       const double top = at(jj, c);
       std::array<double, 4> best{};
-      integer l = 0;
+      std::ptrdiff_t l = 0;
       for (; l + 4 <= height; l += 4)
-        for (integer k = 0; k < 4; ++k) {
+        for (std::ptrdiff_t k = 0; k < 4; ++k) {
           const double updated = col[l + k] - mult[l + k] * top;
           const double v = mult[l + k] != 0. ? updated : col[l + k];
           col[l + k] = v;
@@ -283,13 +283,13 @@ gauss_eliminate(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, i
     ipiv = jj + 1;
     jpiv = jj + 1;
     piv = 0.;
-    for (integer c = jj + 1; c < n; ++c)
+    for (std::ptrdiff_t c = jj + 1; c < n; ++c)
       if (piv < col_max[c]) piv = col_max[c];
     if (piv > 0.) {
-      integer best_row = n;
-      for (integer c = jj + 1; c < n; ++c) {
+      std::ptrdiff_t best_row = n;
+      for (std::ptrdiff_t c = jj + 1; c < n; ++c) {
         if (col_max[c] != piv) continue;
-        integer r = jj + 1;
+        std::ptrdiff_t r = jj + 1;
         while (std::fabs(at(r, c)) != piv) ++r;
         if (r < best_row) {
           best_row = r;
@@ -311,14 +311,14 @@ gauss_eliminate(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, i
   if (at(n - 1, n - 1) == 0)
     xpp::autox_fail(xpp::format("division by zero: the linear system of a Newton step is singular (smallest pivot {} < {})",smallest,autox_rsmall));
   std::vector<double> y(n);
-  for (integer irh = 0; irh < nrhs; ++irh) {
+  for (std::ptrdiff_t irh = 0; irh < nrhs; ++irh) {
     y[n - 1] = rhs(ir[n - 1], irh) / at(n - 1, n - 1);
-    for (integer i = n - 2; i >= 0; --i) {
+    for (std::ptrdiff_t i = n - 2; i >= 0; --i) {
       double sm = 0.;
-      for (integer j = i + 1; j < n; ++j) sm += at(i, j) * y[j];
+      for (std::ptrdiff_t j = i + 1; j < n; ++j) sm += at(i, j) * y[j];
       y[i] = (rhs(ir[i], irh) - sm) / at(i, i);
     }
-    for (integer j = 0; j < n; ++j) u[ic[j] + irh * ndxloc] = y[j];
+    for (std::ptrdiff_t j = 0; j < n; ++j) u[ic[j] + irh * ndxloc] = y[j];
   }
   return smallest;
 }
@@ -380,35 +380,35 @@ gauss_eliminate(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, i
    Ordinary real_general_eigen or a matrix inverse followed by QR changes these operations. */
 /* flowkm: Floquet multipliers by the deflated circuit pencil method: floquet.f90:64 */
 int 
-floquet_multipliers(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *rwork, doublecomplex *ev, bool deflate)
+floquet_multipliers(FILE *fp9, std::ptrdiff_t *ndim, double *c0, double *c1, std::ptrdiff_t *iid, double *rwork, FortranComplex *ev, bool deflate)
 {
     
-  integer c0_dim1, c1_dim1, rwork_dim1;
+  std::ptrdiff_t c0_dim1, c1_dim1, rwork_dim1;
 
-  doublereal beta;
-  std::array<doublereal, 1> svdu;
+  double beta;
+  std::array<double, 1> svdu;
 
-  integer i, j;
+  std::ptrdiff_t i, j;
 
   bool infev;
 
-  doublereal const__;
+  double const__;
 
-  integer ndimm1;
-  doublereal nrmc0x, nrmc1x;
-  integer svdinf;
-  integer qzierr;
-  std::array<doublereal, 1> qzz;
+  std::ptrdiff_t ndimm1;
+  double nrmc0x, nrmc1x;
+  std::ptrdiff_t svdinf;
+  std::ptrdiff_t qzierr;
+  std::array<double, 1> qzz;
 
-  std::vector<doublereal> svde(*ndim);
-  std::vector<doublereal> svds(xpp::size_sum(*ndim, 1));
-  std::vector<doublereal> svdv(xpp::size_product(*ndim, *ndim));
-  std::vector<doublereal> v(*ndim);
-  std::vector<doublereal> x(*ndim);
-  std::vector<doublereal> qzalfi(*ndim);
-  std::vector<doublereal> qzbeta(*ndim);
-  std::vector<doublereal> qzalfr(*ndim);
-  std::vector<doublereal> svdwrk(*ndim);
+  std::vector<double> svde(*ndim);
+  std::vector<double> svds(xpp::size_sum(*ndim, 1));
+  std::vector<double> svdv(xpp::size_product(*ndim, *ndim));
+  std::vector<double> v(*ndim);
+  std::vector<double> x(*ndim);
+  std::vector<double> qzalfi(*ndim);
+  std::vector<double> qzbeta(*ndim);
+  std::vector<double> qzalfr(*ndim);
+  std::vector<double> svdwrk(*ndim);
 
   /*  Subroutine to compute Floquet multipliers via the "deflated circuit */
   /*  pencil" method. This routine is called by the autoX routine FNSPBV */
@@ -496,8 +496,8 @@ floquet_multipliers(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, in
   {
     /* This is here since I don't want to change the calling sequence of the
        BLAS routines. */
-    integer tmp = 1;
-    doublereal tmp_tol = autox_svd_tolerance;
+    std::ptrdiff_t tmp = 1;
+    double tmp_tol = autox_svd_tolerance;
     singular_value_decomposition(rwork, ndim, ndim, ndim, svds.data(), svde.data(), svdu.data(), &tmp, 
 	  svdv.data(), ndim, svdwrk.data(), &tmp, &svdinf, &tmp_tol);
   }
@@ -513,8 +513,8 @@ floquet_multipliers(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, in
   {          
     /* This is here since I don't want to change the calling sequence of the
        BLAS routines. */
-    doublereal tmp1 = 1.0;
-    doublereal tmp0 = 0.0;
+    double tmp1 = 1.0;
+    double tmp0 = 0.0;
     bool tmp_false = false;
 
     matrix_multiply("n", "n", ndim, ndim, ndim, &tmp1, c0, ndim, svdv.data(), 
@@ -531,7 +531,7 @@ floquet_multipliers(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, in
   {
     /* This is here since I don't want to change the calling sequence of the
        BLAS routines. */
-    integer tmp = 1;
+    std::ptrdiff_t tmp = 1;
     nrmc0x = euclidean_norm(ndim, &ARRAY2D(c0, 0, (*ndim - 1)), &tmp);
     nrmc1x = euclidean_norm(ndim, &ARRAY2D(c1, 0, (*ndim - 1)), &tmp);
   }
@@ -541,8 +541,8 @@ floquet_multipliers(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, in
   {
     /* This is here since I don't want to change the calling sequence of the
        BLAS routines. */
-    integer tmp = 1;
-    integer tmp_left = autox_householder_left; 
+    std::ptrdiff_t tmp = 1;
+    std::ptrdiff_t tmp_left = autox_householder_left; 
     householder_compute(&tmp, ndim, ndim, x.data(), &tmp, &beta, v.data());
     householder_apply(&tmp, ndim, ndim, ndim, &beta, v.data(), &tmp_left, c0, ndim);
     householder_apply(&tmp, ndim, ndim, ndim, &beta, v.data(), &tmp_left, c1, ndim);
@@ -608,7 +608,7 @@ floquet_multipliers(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, in
 
 eigenvalues:
   ndimm1 = deflate ? *ndim - 1 : *ndim;
-  const integer offset = deflate ? 1 : 0;
+  const std::ptrdiff_t offset = deflate ? 1 : 0;
 
   /*  reduce the generalized eigenvalue problem to a simpler form */
   /*   (C0BarDef,C1BarDef) = (upper hessenberg, upper triangular) */
@@ -668,15 +668,15 @@ eigenvalues:
 
 /* dhhpr: computes a Householder plane rotation (Golub-van Loan Alg. 3.3-1): floquet.f90:311 */
 int 
-householder_compute(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublereal *beta, doublereal *v)
+householder_compute(std::ptrdiff_t *k, std::ptrdiff_t *j, std::ptrdiff_t *n, double *x, std::ptrdiff_t *incx, double *beta, double *v)
 {
 
-  integer iend, jmkp1;
+  std::ptrdiff_t iend, jmkp1;
 
-  integer i, l;
-  doublereal m, alpha;
+  std::ptrdiff_t i, l;
+  double m, alpha;
 
-  integer istart;
+  std::ptrdiff_t istart;
 
   /*     IMPLICIT UNDEFINED (A-Z,a-z) */
   /*     .. Scalar Arguments .. */
@@ -789,7 +789,7 @@ householder_compute(integer *k, integer *j, integer *n, doublereal *x, integer *
   {
     /* This is here since I don't want to change the calling sequence of the
        BLAS routines. */
-    integer tmp = 1;
+    std::ptrdiff_t tmp = 1;
     alpha = euclidean_norm(&jmkp1, &v[-1 + *k], &tmp);
   }
   /*  beta := 1/(alpha(alpha + |V_k|)) */
@@ -810,13 +810,13 @@ householder_compute(integer *k, integer *j, integer *n, doublereal *x, integer *
 
 /* dhhap: applies a Householder plane rotation defined by v and beta to a matrix: AUTO-07p floquet.f90:448 */
 int 
-householder_apply(integer *k, integer *j, integer *n, integer *q, doublereal *beta, doublereal *v, integer *job, doublereal *a, integer *lda)
+householder_apply(std::ptrdiff_t *k, std::ptrdiff_t *j, std::ptrdiff_t *n, std::ptrdiff_t *q, double *beta, double *v, std::ptrdiff_t *job, double *a, std::ptrdiff_t *lda)
 {
-  integer a_dim1;
+  std::ptrdiff_t a_dim1;
 
-  integer jmkp1;
-  doublereal s;
-  integer col, row;
+  std::ptrdiff_t jmkp1;
+  double s;
+  std::ptrdiff_t col, row;
 
   /*     IMPLICIT LOGICAL (A-Z) */
   /*     .. Scalar Arguments .. */
@@ -933,7 +933,7 @@ on.*/
       {
 	/* This is here since I don't want to change the calling sequence of the
 	   BLAS routines. */
-	integer tmp = 1;
+	std::ptrdiff_t tmp = 1;
 	s = *beta * dot_product(&jmkp1, &v[-1 + *k], &tmp, &ARRAY2D(a, -1 + *k, col), &tmp);
       }
       for (row = *k - 1; row < *j; ++row) {
@@ -945,7 +945,7 @@ on.*/
       {
 	/* This is here since I don't want to change the calling sequence of the
 	   BLAS routines. */
-	integer tmp = 1;
+	std::ptrdiff_t tmp = 1;
 	s = *beta * dot_product(&jmkp1, &v[-1 + *k], &tmp, &ARRAY2D(a, row, (*k - 1)), lda);
       }
       for (col = *k - 1; col < *j; ++col) {
@@ -967,22 +967,22 @@ on.*/
    Gear computes no vectors; its fixed-tolerance QR cannot replace this path. */
 /* eigho: DGEEV eigenvalues/vectors of HomCont's linearization, ordered by real part: homcont.f90:2005 */
 int 
-homoclinic_eigen_ordered(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm, doublereal *dfdu, doublereal *dfdp, doublereal *zz)
+homoclinic_eigen_ordered(const iap_type *iap, std::ptrdiff_t *isign, std::ptrdiff_t *itrans, double *rr, double *ri, double *vret, double *xequib, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t *ndm, double *dfdu, double *dfdp, double *zz)
 {
-  integer dfdu_dim1, zz_dim1;
+  std::ptrdiff_t dfdu_dim1, zz_dim1;
 
-  integer i, j, k, ifail;
-  doublereal vdot;
+  std::ptrdiff_t i, j, k, ifail;
+  double vdot;
 
-  std::vector<doublereal> f(*ndm);
-  std::vector<doublereal> ridum(*ndm);
-  std::vector<doublereal> vidum(xpp::size_product(*ndm, *ndm));
-  std::vector<doublereal> rrdum(*ndm);
-  std::vector<doublereal> vrdum(xpp::size_product(*ndm, *ndm));
-  std::vector<doublereal> vi(xpp::size_product(*ndm, *ndm));
-  std::vector<doublereal> vr(xpp::size_product(*ndm, *ndm));
-  std::vector<doublereal> fv1(*ndm);
-  std::vector<integer> iv1(*ndm);
+  std::vector<double> f(*ndm);
+  std::vector<double> ridum(*ndm);
+  std::vector<double> vidum(xpp::size_product(*ndm, *ndm));
+  std::vector<double> rrdum(*ndm);
+  std::vector<double> vrdum(xpp::size_product(*ndm, *ndm));
+  std::vector<double> vi(xpp::size_product(*ndm, *ndm));
+  std::vector<double> vr(xpp::size_product(*ndm, *ndm));
+  std::vector<double> fv1(*ndm);
+  std::vector<std::ptrdiff_t> iv1(*ndm);
 
   /* Uses EISPACK routine RG to calculate the eigenvalues/eigenvectors */
   /* of the linearization matrix a (obtained from DFHO) and orders them */
@@ -1024,7 +1024,7 @@ homoclinic_eigen_ordered(const iap_type *iap, integer *isign, integer *itrans, d
   }
 
   if (par[xpp::autox_unknown::period] < 0.) {
-    for (integer entry = 0; entry < *ndm * *ndm; ++entry) dfdu[entry] = -dfdu[entry];
+    for (std::ptrdiff_t entry = 0; entry < *ndm * *ndm; ++entry) dfdu[entry] = -dfdu[entry];
   }
 
   /* EISPACK call for eigenvalues and eigenvectors */
@@ -1082,8 +1082,8 @@ homoclinic_eigen_ordered(const iap_type *iap, integer *isign, integer *itrans, d
      unit length, a complex one turned so that its largest component is real;
      the first call makes each one's largest real component positive. */
   for (j = 0; j < *ndm; ++j) {
-    const integer stride = 1;
-    doublereal *re = vr.data()+j*(*ndm), *im = vi.data()+j*(*ndm);
+    const std::ptrdiff_t stride = 1;
+    double *re = vr.data()+j*(*ndm), *im = vi.data()+j*(*ndm);
     const double length = xpp::math::hypot(euclidean_norm(ndm, re, &stride), euclidean_norm(ndm, im, &stride));
     if (length > 0.) {
       for (i = 0; i < *ndm; ++i) {
@@ -1092,14 +1092,14 @@ homoclinic_eigen_ordered(const iap_type *iap, integer *isign, integer *itrans, d
       }
     }
     if (ri[j] != 0. && length > 0.) {
-      integer largest = 0;
+      std::ptrdiff_t largest = 0;
       for (i = 1; i < *ndm; ++i)
         if (re[i]*re[i] + im[i]*im[i] > re[largest]*re[largest] + im[largest]*im[largest]) largest = i;
       const double f = re[largest], g = im[largest], r = xpp::math::hypot(f, g);
       for (i = 0; i < *ndm; ++i) re[i] = (re[i]*f + im[i]*g) / r;
     }
     if (iap->run->homcont.homoclinic_eigen_check.ieigc[*itrans - 1] == 0) {
-      const integer largest = xpp::largest_magnitude(re, static_cast<int>(*ndm), static_cast<int>(stride));
+      const std::ptrdiff_t largest = xpp::largest_magnitude(re, static_cast<int>(*ndm), static_cast<int>(stride));
       if (re[largest] < 0.)
         for (i = 0; i < *ndm; ++i) re[i] = -re[i];
     }
@@ -1120,7 +1120,7 @@ homoclinic_eigen_ordered(const iap_type *iap, integer *isign, integer *itrans, d
   for (i = 0; i < *ndm; ++i) {
     vdot = 0.;
     {
-      integer tmp;
+      std::ptrdiff_t tmp;
       tmp = *ndm;
       for (j = 0; j < tmp; ++j) {
 	vdot += vr[j + i * tmp] * iap->run->homcont.homoclinic_eigen_check.vrprev[*itrans + (j * 2 + i * tmp * 2) - 1];
@@ -1150,43 +1150,43 @@ homoclinic_eigen_ordered(const iap_type *iap, integer *isign, integer *itrans, d
 // W365: AUTO-07p's fixed-dimensional invariant subspaces and Beyn transport,
 // reimplemented using our ordered real Schur and complete-pivot solve owners.
 /* prjctn: NUNSTAB (or NSTAB) projection boundary conditions onto the unstable (stable) manifold of an equilibrium: AUTO-07p homcont.f90:2151 */
-int homoclinic_projection_conditions(const iap_type *iap, double *bound, double *xequib, const integer *icp,
+int homoclinic_projection_conditions(const iap_type *iap, double *bound, double *xequib, const std::ptrdiff_t *icp,
            double *par, HomcontManifold manifold, HomcontEndpoint endpoint,
-           bool transpose, integer n, double *dfdu, double *dfdp, bool save_basis)
+           bool transpose, std::ptrdiff_t n, double *dfdu, double *dfdp, bool save_basis)
 {
     const bool stable = manifold == HomcontManifold::stable;
-    const integer count = stable ? iap->run->homcont.homoclinic_constants.nstab : iap->run->homcont.homoclinic_constants.nunstab;
+    const std::ptrdiff_t count = stable ? iap->run->homcont.homoclinic_constants.nstab : iap->run->homcont.homoclinic_constants.nunstab;
     if (n <= 0 || count < 0 || count > n) xpp::autox_fail("Invalid HomCont projection dimension");
-    const integer first = stable ? 0 : n - count; // Preserve HomCont's boundary row layout.
-    const integer slot = (endpoint == HomcontEndpoint::left ? 0 : 1) + (transpose ? 0 : 2);
+    const std::ptrdiff_t first = stable ? 0 : n - count; // Preserve HomCont's boundary row layout.
+    const std::ptrdiff_t slot = (endpoint == HomcontEndpoint::left ? 0 : 1) + (transpose ? 0 : 2);
     auto &history = iap->run->homcont.beyn_workspace;
     double *previous = history.cprev.data() + slot * n * n;
     std::vector<double> f(n), a(xpp::size_product(n,n)), basis(a.size()), work(n), er(n), ei(n);
-    std::vector<integer> types(n);
+    std::vector<std::ptrdiff_t> types(n);
     user_right_hand_side(*iap->run, n, xequib, icp, iap->nfpr, par, 1, f.data(), dfdu, dfdp);
     const double direction = par[xpp::autox_unknown::period] < 0. ? -1. : 1.;
-    for (integer j = 0; j < n; ++j)
-        for (integer i = 0; i < n; ++i)
+    for (std::ptrdiff_t j = 0; j < n; ++j)
+        for (std::ptrdiff_t i = 0; i < n; ++i)
             a[i+j*n] = direction * dfdu[transpose ? j+i*n : i+j*n];
 
-    integer low = 1;
+    std::ptrdiff_t low = 1;
     hessenberg_reduce_householder(&n, &n, &low, &n, a.data(), work.data());
     hessenberg_transform_orthogonal(&n, &n, &low, &n, a.data(), work.data(), basis.data());
-    for (integer j = 0; j < n; ++j)
-        for (integer i = j+2; i < n; ++i) a[i+j*n] = 0.;
+    for (std::ptrdiff_t j = 0; j < n; ++j)
+        for (std::ptrdiff_t i = j+2; i < n; ++i) a[i+j*n] = 0.;
     double eps = std::numeric_limits<double>::epsilon();
-    integer order = stable ? -1 : 1;
+    std::ptrdiff_t order = stable ? -1 : 1;
     hessenberg_quasi_triangular(a.data(), basis.data(), &n, &low, &n, &eps, er.data(), ei.data(), types.data(), &n, &n, &order);
     for (const auto type : types)
         if (type < 0) xpp::autox_fail("HomCont Schur decomposition did not converge");
     // Ordered Schur columns select exactly the requested number of lowest or
     // highest real parts, including when one crosses zero (AUTO-07p PRJCTN).
-    for (integer i = 0; i < count; ++i)
-        for (integer j = 0; j < n; ++j) bound[first+i+j*n] = basis[j+i*n];
+    for (std::ptrdiff_t i = 0; i < count; ++i)
+        for (std::ptrdiff_t j = 0; j < n; ++j) bound[first+i+j*n] = basis[j+i*n];
 
     const auto keep = [&] {
-        for (integer i = 0; i < count; ++i)
-            for (integer j = 0; j < n; ++j) previous[first+i+j*n] = bound[first+i+j*n];
+        for (std::ptrdiff_t i = 0; i < count; ++i)
+            for (std::ptrdiff_t j = 0; j < n; ++j) previous[first+i+j*n] = bound[first+i+j*n];
     };
     // The first call's basis becomes the previous one as it is (AUTO-07p PRJCTN).
     if (history.iflag[slot] == 0) {
@@ -1197,18 +1197,18 @@ int homoclinic_projection_conditions(const iap_type *iap, double *bound, double 
     if (count == 0) return 0;
     // Beyn's normalisation: (P^T V) D = P^T P; the boundary rows are (V D)^T.
     std::vector<double> overlap(xpp::size_product(count,count)), gram(overlap.size()), transport(overlap.size());
-    for (integer j = 0; j < count; ++j)
-        for (integer i = 0; i < count; ++i)
-            for (integer k = 0; k < n; ++k) {
+    for (std::ptrdiff_t j = 0; j < count; ++j)
+        for (std::ptrdiff_t i = 0; i < count; ++i)
+            for (std::ptrdiff_t k = 0; k < n; ++k) {
                 overlap[i+j*count] += previous[first+i+k*n] * basis[k+j*n];
                 gram[i+j*count] += previous[first+i+k*n] * previous[first+j+k*n];
             }
     double det = 0.;
     gauss_eliminate(iap->run->fp9, iap->iid, count, count, overlap.data(), count, count, transport.data(), count, gram.data(), &det);
-    for (integer i = 0; i < count; ++i)
-        for (integer j = 0; j < n; ++j) {
+    for (std::ptrdiff_t i = 0; i < count; ++i)
+        for (std::ptrdiff_t j = 0; j < n; ++j) {
             double value = 0.;
-            for (integer k = 0; k < count; ++k) value += basis[j+k*n] * transport[k+i*count];
+            for (std::ptrdiff_t k = 0; k < count; ++k) value += basis[j+k*n] * transport[k+i*count];
             bound[first+i+j*n] = value;
         }
     // A finite-difference evaluation (save_basis false) uses the previous basis

@@ -34,8 +34,8 @@ TEST_CASE("test_autox_fold")
     CHECK(xpp::ensure_exact_jacobian(s));
     iap.jac = 1;
     rap_type rap{};
-    const integer a = s.autox_state.parameter_layout.solver_index(0);
-    const integer b = s.autox_state.parameter_layout.solver_index(1);
+    const std::ptrdiff_t a = s.autox_state.parameter_layout.solver_index(0);
+    const std::ptrdiff_t b = s.autox_state.parameter_layout.solver_index(1);
     std::vector<double> par(run.parameter_count), dp(4 * run.parameter_count);
     par[a] = 2; par[b] = 3;
     par[xpp::autox_unknown::period] = 2;
@@ -43,7 +43,7 @@ TEST_CASE("test_autox_fold")
     std::array<double, 4> u{1, 2, 0.3, -0.4}, f{};
     std::array<double, 16> jac{};
     for (bool variable : {true, false}) {
-        std::array<integer, 4> icp{a, b,
+        std::array<std::ptrdiff_t, 4> icp{a, b,
             variable ? xpp::autox_unknown::period : xpp::autox_unknown::fold_norm,
             xpp::autox_unknown::fold_beta};
         periodic_fold_equations(&iap, &rap, 4, u.data(), u.data(), icp.data(), par.data(), 2,
@@ -69,7 +69,7 @@ TEST_CASE("test_autox_fold")
     // W437: the phase hyperplane passes through the previous computed orbit,
     // even when its discrete u_old dot u_old' is nonzero (-1 here).
     run.rotations.nrtn.assign(2, 0);
-    const std::array<integer,4> phase_icp{a,b,xpp::autox_unknown::period,xpp::autox_unknown::fold_beta};
+    const std::array<std::ptrdiff_t,4> phase_icp{a,b,xpp::autox_unknown::period,xpp::autox_unknown::fold_beta};
     const auto phase_old=u;
     const std::array<double,4> time_derivative{3,-2,0,0};
     periodic_integral_conditions(&iap,&rap,2,par.data(),phase_icp.data(),1,u.data(),phase_old.data(),
@@ -111,7 +111,7 @@ TEST_CASE("test_autox_fold")
     worker.pure_rhs = true;
     worker.rhs_constants = derived.parser.constants;
     worker.rhs_variables = derived.parser.variables;
-    const std::array<integer,2> slots{derived.autox_state.parameter_layout.solver_index(0),
+    const std::array<std::ptrdiff_t,2> slots{derived.autox_state.parameter_layout.solver_index(0),
                                      derived.autox_state.parameter_layout.solver_index(1)};
     par.assign(worker.parameter_count, 0.);
     double state=1, value=0, unused=0;

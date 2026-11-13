@@ -19,20 +19,20 @@
 #include <vector>
 
 namespace xpp {
-int eispack_real_general_eigen(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer matz, doublereal *z__,
-               integer *iv1, doublereal *fv1, integer *ierr);
-int eispack_qz_reduce_hessenberg(integer nm, integer n, doublereal *a, doublereal *b, bool matz, doublereal *z__);
-int eispack_qz_iterate(integer nm, integer n, doublereal *a, doublereal *b, doublereal eps1, bool matz, doublereal *z__,
-                 integer *ierr);
-int eispack_qz_eigenvalues(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr, doublereal *alfi,
-                  doublereal *beta, bool matz, doublereal *z__);
+int eispack_real_general_eigen(std::ptrdiff_t nm, std::ptrdiff_t n, double *a, double *wr, double *wi, std::ptrdiff_t matz, double *z__,
+               std::ptrdiff_t *iv1, double *fv1, std::ptrdiff_t *ierr);
+int eispack_qz_reduce_hessenberg(std::ptrdiff_t nm, std::ptrdiff_t n, double *a, double *b, bool matz, double *z__);
+int eispack_qz_iterate(std::ptrdiff_t nm, std::ptrdiff_t n, double *a, double *b, double eps1, bool matz, double *z__,
+                 std::ptrdiff_t *ierr);
+int eispack_qz_eigenvalues(std::ptrdiff_t nm, std::ptrdiff_t n, double *a, double *b, double *alfr, double *alfi,
+                  double *beta, bool matz, double *z__);
 }
 
 namespace {
 
-constexpr doublereal QZ_EPS1 = 0;  // floquet_multipliers's QZEPS1 (autox_lib4.cpp): EISPACK's own default tolerance
+constexpr double QZ_EPS1 = 0;  // floquet_multipliers's QZEPS1 (autox_lib4.cpp): EISPACK's own default tolerance
 
-void print(const char *library, integer ierr, const std::vector<std::vector<doublereal>> &columns)
+void print(const char *library, std::ptrdiff_t ierr, const std::vector<std::vector<double>> &columns)
 {
     std::printf("%s %ld", library, static_cast<long>(ierr));
     for (std::size_t i = 0; i < columns.front().size(); ++i)
@@ -40,9 +40,9 @@ void print(const char *library, integer ierr, const std::vector<std::vector<doub
     std::printf("\n");
 }
 
-std::vector<doublereal> numbers(std::istringstream &in, std::size_t count)
+std::vector<double> numbers(std::istringstream &in, std::size_t count)
 {
-    std::vector<doublereal> v(count);
+    std::vector<double> v(count);
     std::string token;
     for (auto &x : v) {
         in >> token;
@@ -68,23 +68,23 @@ int main(int argc, char **argv)
         in >> kind >> nm >> n;
         const std::size_t size = static_cast<std::size_t>(n * n);
         std::printf("%s %ld %ld\n", kind.c_str(), nm, n);
-        std::vector<integer> iv(static_cast<std::size_t>(n));
-        std::vector<doublereal> fv(static_cast<std::size_t>(n)), z(size);
+        std::vector<std::ptrdiff_t> iv(static_cast<std::size_t>(n));
+        std::vector<double> fv(static_cast<std::size_t>(n)), z(size);
         if (kind == "rg") {
             in >> matz;
-            const std::vector<doublereal> a = numbers(in, size);
+            const std::vector<double> a = numbers(in, size);
             for (int library = 0; library < 2; ++library) {
-                std::vector<doublereal> m = a, wr(static_cast<std::size_t>(n)), wi(static_cast<std::size_t>(n));
-                integer ierr = 0;
+                std::vector<double> m = a, wr(static_cast<std::size_t>(n)), wi(static_cast<std::size_t>(n));
+                std::ptrdiff_t ierr = 0;
                 (library ? xpp::real_general_eigen : xpp::eispack_real_general_eigen)(n, n, m.data(), wr.data(), wi.data(), 0, z.data(), iv.data(), fv.data(), &ierr);
                 print(library ? "lapack" : "eispack", ierr, {wr, wi});
             }
         } else {
-            const std::vector<doublereal> a = numbers(in, size), b = numbers(in, size);
+            const std::vector<double> a = numbers(in, size), b = numbers(in, size);
             for (int library = 0; library < 2; ++library) {
-                std::vector<doublereal> ma = a, mb = b, ar(static_cast<std::size_t>(n)), ai(static_cast<std::size_t>(n)),
+                std::vector<double> ma = a, mb = b, ar(static_cast<std::size_t>(n)), ai(static_cast<std::size_t>(n)),
                     be(static_cast<std::size_t>(n));
-                integer ierr = 0;
+                std::ptrdiff_t ierr = 0;
                 (library ? xpp::qz_reduce_hessenberg : xpp::eispack_qz_reduce_hessenberg)(n, n, ma.data(), mb.data(), FALSE_, z.data());
                 (library ? xpp::qz_iterate : xpp::eispack_qz_iterate)(n, n, ma.data(), mb.data(), QZ_EPS1, FALSE_, z.data(), &ierr);
                 (library ? xpp::qz_eigenvalues : xpp::eispack_qz_eigenvalues)(n, n, ma.data(), mb.data(), ar.data(), ai.data(), be.data(), FALSE_,

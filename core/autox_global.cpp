@@ -105,9 +105,9 @@ public:
 
 private:
     AutoxRun &run_;
-    integer ndm_, nfpr_;
+    std::ptrdiff_t ndm_, nfpr_;
     std::vector<double> par_;
-    std::vector<integer> icp_;
+    std::vector<std::ptrdiff_t> icp_;
 };
 
 double distance(std::span<const double> a, std::span<const double> b)

@@ -184,7 +184,7 @@ Result<std::optional<std::vector<double>>> refined_equilibrium_start(Session &s)
   iap.nfpr=1;
   rap_type rap{};
   rap.epsu=state.bifur.epsu;
-  std::vector<integer> icp{state.parameter_layout.solver_index(state.axes().icp1)};
+  std::vector<std::ptrdiff_t> icp{state.parameter_layout.solver_index(state.axes().icp1)};
   std::vector<double> par(static_cast<std::size_t>(probe.parameter_count));
   autox_fill_parameters(probe,par.data());
   std::vector<double> u(s.last_ic.begin(),s.last_ic.begin()+static_cast<std::ptrdiff_t>(n));

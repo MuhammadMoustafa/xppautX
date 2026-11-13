@@ -20,7 +20,7 @@ namespace {
 
 constexpr int N = 2;
 
-/* re/im pairs, as autoX's doublecomplex array */
+/* re/im pairs, as autoX's FortranComplex array */
 const double EIG[2 * N] = {-0.5, 0.25, -2.0, 0.0};  /* lambda */
 const double MULT[2 * N] = {1.0, 0.0, 0.3, -0.4};   /* Floquet multipliers */
 const double LAB_R[N] = {0.9, 0.9}, LAB_I[N] = {0.4, -0.4}; /* a label's stored values */
@@ -33,8 +33,8 @@ bool all_zero(const double *r, const double *i)
 }
 
 // Finite, nonsingular derivatives, but a residual that Newton cannot reduce.
-int no_convergence(const iap_type *, const rap_type *, integer, const double *u,
-                   const double *, const integer *icp, double *, integer,
+int no_convergence(const iap_type *, const rap_type *, std::ptrdiff_t, const double *u,
+                   const double *, const std::ptrdiff_t *icp, double *, std::ptrdiff_t,
                    double *f, double *dfdu, double *dfdp)
 {
     f[0] = 1;
@@ -42,9 +42,9 @@ int no_convergence(const iap_type *, const rap_type *, integer, const double *u,
     dfdp[icp[0]] = -1;
     return 0;
 }
-int boundary(const iap_type *, const rap_type *, integer, double *,
-             const integer *, integer, const double *u0, const double *,
-             double *f, integer, double *dbc)
+int boundary(const iap_type *, const rap_type *, std::ptrdiff_t, double *,
+             const std::ptrdiff_t *, std::ptrdiff_t, const double *u0, const double *,
+             double *f, std::ptrdiff_t, double *dbc)
 {
     f[0] = u0[0];
     dbc[0] = 1;
@@ -62,11 +62,11 @@ TEST_CASE("test_autox_stability")
     const std::array<double, 16> conservative = {0, -1, 0, 0, 1, 0, 0, 0,
                                                0, 0, 0, -4, 0, 0, 4, 0};
     const xpp::Matrix<const double> jacobian(conservative, 4, 4);
-    const std::array<doublecomplex, 4> spectrum = {{{1e-16, 1}, {1e-16, -1},
+    const std::array<FortranComplex, 4> spectrum = {{{1e-16, 1}, {1e-16, -1},
                                                  {-1e-17, 4}, {-1e-17, -4}}};
     std::array<int, 4> order = {0, 1, 2, 3};
     do {
-        std::array<doublecomplex, 4> shuffled;
+        std::array<FortranComplex, 4> shuffled;
         for (size_t k = 0; k < order.size(); ++k) shuffled[k] = spectrum[order[k]];
         const auto pair = xpp::autox_hopf_pair(shuffled, xpp::autox_hopf_axis_tolerance(jacobian, 4));
         CHECK(pair && pair->r == 1e-16 && pair->i == 1);
@@ -76,10 +76,10 @@ TEST_CASE("test_autox_stability")
     } while (std::next_permutation(order.begin(), order.end()));
     const std::array<double, 16> dissipative = {1, 0, 0, 0, 0, 1, 0, 0,
                                               0, 0, 1, 0, 0, 0, 0, 1};
-    const std::array<doublecomplex, 4> separated = {{{-.3, 1}, {-.3, -1}, {-.1, 4}, {-.1, -4}}};
+    const std::array<FortranComplex, 4> separated = {{{-.3, 1}, {-.3, -1}, {-.1, 4}, {-.1, -4}}};
     const auto closest = xpp::autox_hopf_pair(separated, xpp::autox_hopf_axis_tolerance(xpp::Matrix<const double>(dissipative, 4, 4), 4));
     CHECK(closest && closest->r == -.1 && closest->i == 4);
-    const std::array<doublecomplex, 2> real_only = {{{-1, 0}, {2, 0}}};
+    const std::array<FortranComplex, 2> real_only = {{{-1, 0}, {2, 0}}};
     CHECK(!xpp::autox_hopf_pair(real_only, 0));
     xpp::AutoxStability st;
     double r[N], i[N];
@@ -203,7 +203,7 @@ TEST_CASE("test_autox_stability")
     rap.ds = rap.dsold = rap.dsmax = 1;
     rap.dsmin = 0.2;
     rap.epsl = rap.epsu = 1e-8;
-    integer icp = 0, stride = 2;
+    std::ptrdiff_t icp = 0, stride = 2;
     double rlcur = 2, rlold = 1, rldot = 1;
     double u = 2, uold = 1, udot = 1, f = 0, dfdu = 1, thu = 1, ds = 1;
     std::array<double, 4> aa{};
@@ -329,7 +329,7 @@ TEST_CASE("test_autox_stability")
     mesh = solution;
     old = solution;
     rlold = rlcur;
-    integer fresh = 1, nullity = 0;
+    std::ptrdiff_t fresh = 1, nullity = 0;
     double zero_step = 0;
     solve_boundary(&fresh, &iap, &rap, par.data(), &icp, no_convergence, boundary,
            nullptr, &zero_step, &nullity, &rlcur, &rlold, &rldot, &stride,

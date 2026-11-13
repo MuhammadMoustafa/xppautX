@@ -38,7 +38,7 @@ void forget(AutoxStability::Values &v)
 }
 
 /* FUNI request for state and parameter Jacobians. */
-constexpr integer BOTH_JACOBIANS = 2;
+constexpr std::ptrdiff_t BOTH_JACOBIANS = 2;
 
 } // namespace
 
@@ -56,10 +56,10 @@ double autox_hopf_axis_tolerance(Matrix<const double> jacobian, size_t n)
         ? conservative_axis_tolerance : 0;
 }
 
-std::optional<doublecomplex> autox_hopf_pair(std::span<const doublecomplex> spectrum,
+std::optional<FortranComplex> autox_hopf_pair(std::span<const FortranComplex> spectrum,
                                           double tolerance)
 {
-    const auto distance = [tolerance](const doublecomplex &value) {
+    const auto distance = [tolerance](const FortranComplex &value) {
         return std::abs(value.r) < tolerance ? 0 : std::abs(value.r);
     };
     double nearest = std::numeric_limits<double>::infinity(), scale = 0;
@@ -71,10 +71,10 @@ std::optional<doublecomplex> autox_hopf_pair(std::span<const doublecomplex> spec
     // eigensolvers. Use n machine epsilons at the spectrum's scale as a tie,
     // in addition to AUTO-07p's conservative near-axis band.
     const double real_part_roundoff = spectrum.size() * std::numeric_limits<double>::epsilon() * scale;
-    const auto rank = [](const doublecomplex &value) {
+    const auto rank = [](const FortranComplex &value) {
         return std::tuple{std::abs(value.i), value.r, -value.i};
     };
-    std::optional<doublecomplex> selected;
+    std::optional<FortranComplex> selected;
     for (const auto &value : spectrum) {
         if (value.i != 0 && distance(value) <= nearest + real_part_roundoff &&
             (!selected || rank(value) < rank(*selected)))
@@ -109,7 +109,7 @@ bool autox_stability_step_failed(AutoxStability &st, int br, int pt)
     return st.computed.pt != 0;
 }
 
-void autox_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *par, integer *icp,
+void autox_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *par, std::ptrdiff_t *icp,
     FUNI_TYPE((*problem_function)), double *u, double *uold, double *f, double *dfdu, double *dfdp)
 {
     (*problem_function)(&iap, &rap, iap.ndim, u, uold, icp, par, BOTH_JACOBIANS, f, dfdu, dfdp);
@@ -125,7 +125,7 @@ void autox_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *
     par[xpp::autox_unknown::period] = saved_period;
 }
 
-void autox_cycle_multipliers(const iap_type &iap, const double *p0, const double *p1, doublecomplex *ev, bool deflate)
+void autox_cycle_multipliers(const iap_type &iap, const double *p0, const double *p1, FortranComplex *ev, bool deflate)
 {
     auto &w=iap.run->codim;
     const int dimension=static_cast<int>(iap.ndim), n=static_cast<int>(iap.ndm);
@@ -145,14 +145,14 @@ void autox_cycle_multipliers(const iap_type &iap, const double *p0, const double
         w.cycle_p0[i+n*j]=p0[w.cycle_rows[i]+dimension*(offset+j)];
         w.cycle_p1[i+n*j]=p1[w.cycle_rows[i]+dimension*(offset+j)];
     }
-    integer original=iap.ndm, iid=iap.iid;
+    std::ptrdiff_t original=iap.ndm, iid=iap.iid;
     floquet_multipliers(iap.run->fp9,&original,w.cycle_p0.data(),w.cycle_p1.data(),&iid,w.cycle_matrix.data(),ev,deflate);
 }
 
 void autox_stability_multipliers_restored(AutoxStability &st, const iap_type &iap, double *p0, double *p1)
 {
-    integer ndim = iap.ndim, iid = iap.iid;
-    std::vector<doublecomplex> ev(ndim);
+    std::ptrdiff_t ndim = iap.ndim, iid = iap.iid;
+    std::vector<FortranComplex> ev(ndim);
     if (iap.isw==2) {
         autox_cycle_multipliers(iap,p0,p1,ev.data(),false);
         ndim=iap.ndm;

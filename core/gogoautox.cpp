@@ -210,10 +210,10 @@ void run_autox_problem(AutoxRun &run)
 {
   xpp::Session &s=*run.session;
   run.parameter_count = s.autox_state.parameter_layout.size();
-  std::vector<integer> icp(xpp::size_product(2, run.parameter_count));
-  std::vector<doublereal> par(xpp::size_product(2, run.parameter_count));
-  std::vector<doublereal> thl(run.parameter_count);
-  std::vector<doublereal> thu;
+  std::vector<std::ptrdiff_t> icp(xpp::size_product(2, run.parameter_count));
+  std::vector<double> par(xpp::size_product(2, run.parameter_count));
+  std::vector<double> thl(run.parameter_count);
+  std::vector<double> thu;
   std::vector<AutoxMark> marks(run.params.marks.size());
   iap_type iap;
   rap_type rap;

@@ -44,7 +44,7 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
  for(i=0;i<n;i++)old_x[i]=x[i];
  std::vector<double> work(kmem);
  NewtonRun run;
- if(auto r=rooter(s,x,err,eps,big,work.data(),run,maxit,n);!r)return r;
+ if(auto r=newton_iterate(s,x,err,eps,big,work.data(),run,maxit,n);!r)return r;
  *ierr=run.end==NewtonEnd::converged?0:1;
  if(*ierr!=0)
    {

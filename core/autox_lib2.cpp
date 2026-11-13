@@ -87,9 +87,9 @@ namespace {
    LocationState) keeps these, kilobytes, and not the factored matrices, megabytes. The outputs of the run (dups, fa,
    fc, p0, p1) go to scratch; what the run changes besides the matrices, the model's last evaluated values, HomCont's
    state, the determinant, the pivot and the time of an evolution, is put back. */
-std::function<void()> remember_factorization(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), doublereal rds, integer nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *thl, doublereal *thu)
+std::function<void()> remember_factorization(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double rds, std::ptrdiff_t nllv, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *thl, double *thu)
 {
-  const auto copy = [](const doublereal *p, std::size_t n) { return std::vector<doublereal>(p, p + n); };
+  const auto copy = [](const double *p, std::size_t n) { return std::vector<double>(p, p + n); };
   /* each array as long as solve_boundary reads it: the continued parameters' values (rl*) are nfpr long, the mesh's
      intervals (dtm) ntst, a solution ndxloc rows of ndim * ncol */
   const std::size_t nu = xpp::size_product(ndxloc, iap->ndim, iap->ncol), np = iap->run->parameter_count,
@@ -98,14 +98,14 @@ std::function<void()> remember_factorization(iap_type *iap, rap_type *rap, doubl
           upoldp = copy(upoldp, nu), dtm = copy(dtm, ntst), rlcur = copy(rlcur, nfpr), rlold = copy(rlold, nfpr),
           rldot = copy(rldot, nfpr), homcont = iap->run->homcont]() mutable {
     AutoxRun &run = *iap->run;
-    std::vector<doublereal> dups(nu), fa(nu), fc(xpp::size_sum(iap->nbc, iap->nint, 1)),
+    std::vector<double> dups(nu), fa(nu), fc(xpp::size_sum(iap->nbc, iap->nint, 1)),
         p0(xpp::size_product(iap->ndim, iap->ndim)), p1(p0.size());
     auto [constants, variables] = autox_rhs_values(run);
     const auto kept_constants = constants, kept_variables = variables;
     const auto kept_homcont = std::exchange(run.homcont, homcont);
-    const doublereal det = rap->det, tivp = rap->tivp, pivot = run.solve_boundary_work.pivot;
-    integer ifst = 1, ndx = ndxloc, nllv_now = nllv;
-    doublereal rds_now = rds;
+    const double det = rap->det, tivp = rap->tivp, pivot = run.solve_boundary_work.pivot;
+    std::ptrdiff_t ifst = 1, ndx = ndxloc, nllv_now = nllv;
+    double rds_now = rds;
     solve_boundary(&ifst, iap, rap, par.data(), icp, problem_function, boundary_function, integral_function, &rds_now, &nllv_now, rlcur.data(), rlold.data(),
            rldot.data(), &ndx, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), dtm.data(),
            fa.data(), fc.data(), p0.data(), p1.data(), thl, thu);
@@ -119,16 +119,16 @@ std::function<void()> remember_factorization(iap_type *iap, rap_type *rap, doubl
 
 /* solvbv: AUTO solvebv.f90:26: the Newton solve of the collocation system */
 int 
-solve_boundary(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), doublereal *rds, integer *nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, doublereal *thl, doublereal *thu)
+solve_boundary(std::ptrdiff_t *ifst, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *rds, std::ptrdiff_t *nllv, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *fa, double *fc, double *p0, double *p1, double *thl, double *thu)
 {
 
-  integer ndim;
-  integer ncol, nclm, nfpr, nint, nrow, ntst;
+  std::ptrdiff_t ndim;
+  std::ptrdiff_t ncol, nclm, nfpr, nint, nrow, ntst;
 
-  integer nbc, iid;
-  doublereal det;
+  std::ptrdiff_t nbc, iid;
+  double det;
   xpp::AutoxProblem ips;
-  integer nrc;
+  std::ptrdiff_t nrc;
 
   /* Sets up and solves the linear equations for one Newton/Chord iteration 
    */
@@ -198,11 +198,11 @@ solve_boundary(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, int
 
 /* faft: copies ff(j,i) into fa(i,j) (autox_lib2.cpp:199) */
 int 
-transpose_right_hand_side(doublereal *ff, doublereal *fa, integer *ntst, integer *nrow, integer *ndxloc)
+transpose_right_hand_side(double *ff, double *fa, std::ptrdiff_t *ntst, std::ptrdiff_t *nrow, std::ptrdiff_t *ndxloc)
 {
-  integer fa_dim1, ff_dim1;
+  std::ptrdiff_t fa_dim1, ff_dim1;
 
-  integer i, j;
+  std::ptrdiff_t i, j;
 
   ff_dim1 = *nrow;
   fa_dim1 = *ndxloc;
@@ -218,22 +218,22 @@ transpose_right_hand_side(doublereal *ff, doublereal *fa, integer *ntst, integer
 
 /* setrhs: builds the collocation system's blocks and right-hand side (autox_lib2.cpp:218; XPPAUT 8.0 autlib2.c:520) */
 int 
-build_right_hand_side(integer *ndim, xpp::AutoxProblem *ips, integer *na, integer *ncol, integer *nbc, integer *nint, integer *ncb, integer *nrc, integer *nra, integer *nca, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), integer *ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *fa, doublereal *fc, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
+build_right_hand_side(std::ptrdiff_t *ndim, xpp::AutoxProblem *ips, std::ptrdiff_t *na, std::ptrdiff_t *ncol, std::ptrdiff_t *nbc, std::ptrdiff_t *nint, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), std::ptrdiff_t *ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rds, double *fa, double *fc, double *rlcur, double *rlold, double *rldot, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, double *dtm, double *thl, double *thu, double *p0, double *p1)
 {
-  integer ups_dim1, dups_dim1, uoldps_dim1, 
+  std::ptrdiff_t ups_dim1, dups_dim1, uoldps_dim1, 
     udotps_dim1, upoldp_dim1, 
     fa_dim1, wt_dim1, wp_dim1, wploc_dim1;
 
-  integer i, j, k, l, m;
-  integer i1, j1, k1, l1;
+  std::ptrdiff_t i, j, k, l, m;
+  std::ptrdiff_t i1, j1, k1, l1;
 
-  doublereal rlsum;
-  integer ib, ic, jj;
-  integer ic1;
+  double rlsum;
+  std::ptrdiff_t ib, ic, jj;
+  std::ptrdiff_t ic1;
 
-  integer jp1;
-  integer ncp1;
-  doublereal dt,ddt;
+  std::ptrdiff_t jp1;
+  std::ptrdiff_t ncp1;
+  double dt,ddt;
 
   iap->run->assembly.resize(iap->ndim, iap->ncol, iap->nbc, iap->nint, iap->run->parameter_count);
   auto &dicd = iap->run->assembly.dicd;
@@ -410,43 +410,43 @@ constexpr std::size_t solve_chunks = std::size_t{1} << solve_chunk_levels;
 // A chunk's own subtree goes to its leaves.
 constexpr int whole_subtree = std::numeric_limits<int>::max();
 
-struct BlockRange { integer lo, hi; };
-using RangeWork = std::function<void(integer lo, integer mid, integer hi)>;
+struct BlockRange { std::ptrdiff_t lo, hi; };
+using RangeWork = std::function<void(std::ptrdiff_t lo, std::ptrdiff_t mid, std::ptrdiff_t hi)>;
 
 /* AUTO-07p's MID=(LO+HI)/2: where lo..hi splits */
-integer bisect(integer lo, integer hi) { return lo + (hi - lo) / 2; }
+std::ptrdiff_t bisect(std::ptrdiff_t lo, std::ptrdiff_t hi) { return lo + (hi - lo) / 2; }
 
 /* Calls work(lo,mid,hi) for the merges of lo..hi's bisection tree down to
    levels below it, children before their parent (up) or after it (down). */
-void tree_up(integer lo, integer hi, int levels, const RangeWork &work)
+void tree_up(std::ptrdiff_t lo, std::ptrdiff_t hi, int levels, const RangeWork &work)
 {
   if (lo >= hi || levels == 0) return;
-  const integer mid = bisect(lo, hi);
+  const std::ptrdiff_t mid = bisect(lo, hi);
   tree_up(lo, mid, levels - 1, work);
   tree_up(mid + 1, hi, levels - 1, work);
   work(lo, mid, hi);
 }
 
-void tree_down(integer lo, integer hi, int levels, const RangeWork &work)
+void tree_down(std::ptrdiff_t lo, std::ptrdiff_t hi, int levels, const RangeWork &work)
 {
   if (lo >= hi || levels == 0) return;
-  const integer mid = bisect(lo, hi);
+  const std::ptrdiff_t mid = bisect(lo, hi);
   work(lo, mid, hi);
   tree_down(mid + 1, hi, levels - 1, work);
   tree_down(lo, mid, levels - 1, work);
 }
 
-void chunk_ranges(integer lo, integer hi, int levels, std::array<BlockRange, solve_chunks> &chunks, std::size_t &count)
+void chunk_ranges(std::ptrdiff_t lo, std::ptrdiff_t hi, int levels, std::array<BlockRange, solve_chunks> &chunks, std::size_t &count)
 {
   if (lo >= hi || levels == 0) { chunks[count++] = {lo, hi}; return; }
-  const integer mid = bisect(lo, hi);
+  const std::ptrdiff_t mid = bisect(lo, hi);
   chunk_ranges(lo, mid, levels - 1, chunks, count);
   chunk_ranges(mid + 1, hi, levels - 1, chunks, count);
 }
 
 /* Runs work on n independent blocks, on the collocation workers when there
    are some; the result does not depend on how they are shared. */
-void for_blocks(AutoxRun &run, integer n, const std::function<void(integer begin, integer end)> &work)
+void for_blocks(AutoxRun &run, std::ptrdiff_t n, const std::function<void(std::ptrdiff_t begin, std::ptrdiff_t end)> &work)
 {
   if (run.collocation && run.collocation->threads() > 1)
     run.collocation->intervals(n, [&](std::ptrdiff_t begin, std::ptrdiff_t end, AutoxRun &) { work(begin, end); });
@@ -454,28 +454,28 @@ void for_blocks(AutoxRun &run, integer n, const std::function<void(integer begin
 }
 
 /* Runs walk on each chunk of blocks 0..na-1, a chunk on one thread. */
-void for_chunks(AutoxRun &run, integer na, const std::function<void(integer lo, integer hi)> &walk)
+void for_chunks(AutoxRun &run, std::ptrdiff_t na, const std::function<void(std::ptrdiff_t lo, std::ptrdiff_t hi)> &walk)
 {
   std::array<BlockRange, solve_chunks> chunks{};
   std::size_t count = 0;
   chunk_ranges(0, na - 1, solve_chunk_levels, chunks, count);
-  for_blocks(run, static_cast<integer>(count), [&](integer begin, integer end) {
-    for (integer k = begin; k < end; ++k) walk(chunks[k].lo, chunks[k].hi);
+  for_blocks(run, static_cast<std::ptrdiff_t>(count), [&](std::ptrdiff_t begin, std::ptrdiff_t end) {
+    for (std::ptrdiff_t k = begin; k < end; ++k) walk(chunks[k].lo, chunks[k].hi);
   });
 }
 
 /* The chunks' merges, then the merges above them on the caller. */
-void reduce_tree(AutoxRun &run, integer na, const RangeWork &merge)
+void reduce_tree(AutoxRun &run, std::ptrdiff_t na, const RangeWork &merge)
 {
-  for_chunks(run, na, [&](integer lo, integer hi) { tree_up(lo, hi, whole_subtree, merge); });
+  for_chunks(run, na, [&](std::ptrdiff_t lo, std::ptrdiff_t hi) { tree_up(lo, hi, whole_subtree, merge); });
   tree_up(0, na - 1, solve_chunk_levels, merge);
 }
 
 /* The back substitution: the same tree from the root down. */
-void backsubstitute_tree(AutoxRun &run, integer na, const RangeWork &solve)
+void backsubstitute_tree(AutoxRun &run, std::ptrdiff_t na, const RangeWork &solve)
 {
   tree_down(0, na - 1, solve_chunk_levels, solve);
-  for_chunks(run, na, [&](integer lo, integer hi) { tree_down(lo, hi, whole_subtree, solve); });
+  for_chunks(run, na, [&](std::ptrdiff_t lo, std::ptrdiff_t hi) { tree_down(lo, hi, whole_subtree, solve); });
 }
 
 /* The condensed system copy_condensed_system builds, by block slot: nov x nov blocks
@@ -486,53 +486,53 @@ void backsubstitute_tree(AutoxRun &run, integer na, const RangeWork &solve)
    conditions' d and fc, so that no two chunks write the same numbers. */
 struct CondensedBlocks {
   double *a1, *a2, *s1, *s2, *bb, *cc, *c2, *dd, *faa, *fcfc;
-  integer *ipr, *icf2;
-  integer nov, ncb, nrc, nbc;
-  double *square(double *m, integer slot) const { return m + slot * nov * nov; }
-  double *border(integer slot) const { return bb + slot * nov * ncb; }
-  double *conditions(double *m, integer slot) const { return m + slot * nov * nrc; }
+  std::ptrdiff_t *ipr, *icf2;
+  std::ptrdiff_t nov, ncb, nrc, nbc;
+  double *square(double *m, std::ptrdiff_t slot) const { return m + slot * nov * nov; }
+  double *border(std::ptrdiff_t slot) const { return bb + slot * nov * ncb; }
+  double *conditions(double *m, std::ptrdiff_t slot) const { return m + slot * nov * nrc; }
 };
 
 /* AUTO-07p's REDBLK in AUTO2000's arithmetic: eliminates x(mid+1) from
    the rows of lo..mid (slot mid) and mid+1..hi (slot hi) with complete
    pivoting over both, rows swapped physically, columns through icf2. */
-void reduce_merge(const CondensedBlocks &m, integer lo, integer mid, integer hi)
+void reduce_merge(const CondensedBlocks &m, std::ptrdiff_t lo, std::ptrdiff_t mid, std::ptrdiff_t hi)
 {
-  const integer nov = m.nov, ncb = m.ncb, nrc = m.nrc;
+  const std::ptrdiff_t nov = m.nov, ncb = m.ncb, nrc = m.nrc;
   double *s1l = m.square(m.s1, mid), *a2l = m.square(m.a2, mid), *s2l = m.square(m.s2, mid), *bbl = m.border(mid);
   double *a11 = m.square(m.a1, lo), *a12 = m.square(m.a1, mid + 1), *a22 = m.square(m.a2, hi), *bbr = m.border(hi);
   double *cc1 = m.conditions(m.cc, lo), *cc2 = m.conditions(m.cc, mid + 1), *cc3 = m.conditions(m.c2, hi);
   const double *c2l = m.conditions(m.c2, mid);
   double *ddr = m.dd + hi * ncb * nrc;
   const double *ddl = m.dd + mid * ncb * nrc;
-  integer *perm = m.icf2 + mid * nov, *ipr = m.ipr + mid * nov;
+  std::ptrdiff_t *perm = m.icf2 + mid * nov, *ipr = m.ipr + mid * nov;
   // every array here has the leading dimension nov: (i, j) at i + j*nov
-  const auto at = [nov](double *block, integer row, integer column) -> double & { return block[row + column * nov]; };
+  const auto at = [nov](double *block, std::ptrdiff_t row, std::ptrdiff_t column) -> double & { return block[row + column * nov]; };
 
   /* x(lo)'s columns of lo..mid's rows move to s1; a11 gathers those of
      mid+1..hi's, the merged range's coupling to x(lo) */
-  for (integer k = 0; k < nov * nov; ++k) {
+  for (std::ptrdiff_t k = 0; k < nov * nov; ++k) {
     s1l[k] = a11[k];
     a11[k] = 0.;
     s2l[k] = 0.;
   }
-  for (integer k = 0; k < nov * nrc; ++k) cc2[k] += c2l[k];
-  for (integer ir = m.nbc; ir < nrc; ++ir)
-    for (integer l = 0; l < ncb; ++l) ddr[l + ir * ncb] += ddl[l + ir * ncb];
-  for (integer k = 0; k < nov; ++k) perm[k] = k;
+  for (std::ptrdiff_t k = 0; k < nov * nrc; ++k) cc2[k] += c2l[k];
+  for (std::ptrdiff_t ir = m.nbc; ir < nrc; ++ir)
+    for (std::ptrdiff_t l = 0; l < ncb; ++l) ddr[l + ir * ncb] += ddl[l + ir * ncb];
+  for (std::ptrdiff_t k = 0; k < nov; ++k) perm[k] = k;
 
-  for (integer ic = 0; ic < nov; ++ic) {
+  for (std::ptrdiff_t ic = 0; ic < nov; ++ic) {
     double piv1 = 0.;
-    integer ipiv1 = ic, jpiv1 = ic;
-    for (integer k1 = ic; k1 < nov; ++k1)
-      for (integer k2 = ic; k2 < nov; ++k2) {
+    std::ptrdiff_t ipiv1 = ic, jpiv1 = ic;
+    for (std::ptrdiff_t k1 = ic; k1 < nov; ++k1)
+      for (std::ptrdiff_t k2 = ic; k2 < nov; ++k2) {
         const double tpiv = std::fabs(at(a2l, k1, perm[k2]));
         if (piv1 < tpiv) { piv1 = tpiv; ipiv1 = k1; jpiv1 = k2; }
       }
     double piv2 = 0.;
-    integer ipiv2 = 0, jpiv2 = ic;
-    for (integer k1 = 0; k1 < nov; ++k1)
-      for (integer k2 = ic; k2 < nov; ++k2) {
+    std::ptrdiff_t ipiv2 = 0, jpiv2 = ic;
+    for (std::ptrdiff_t k1 = 0; k1 < nov; ++k1)
+      for (std::ptrdiff_t k2 = ic; k2 < nov; ++k2) {
         const double tpiv = std::fabs(at(a12, k1, perm[k2]));
         if (piv2 < tpiv) { piv2 = tpiv; ipiv2 = k1; jpiv2 = k2; }
       }
@@ -540,97 +540,97 @@ void reduce_merge(const CondensedBlocks &m, integer lo, integer mid, integer hi)
     if (piv1 >= piv2) {
       ipr[ic] = ipiv1;
       std::swap(perm[ic], perm[jpiv1]);
-      for (integer l = 0; l < nov; ++l) {
+      for (std::ptrdiff_t l = 0; l < nov; ++l) {
         std::swap(at(s1l, ic, l), at(s1l, ipiv1, l));
         if (l >= ic) std::swap(at(a2l, ic, perm[l]), at(a2l, ipiv1, perm[l]));
         std::swap(at(s2l, ic, l), at(s2l, ipiv1, l));
       }
-      for (integer l = 0; l < ncb; ++l) std::swap(at(bbl, ic, l), at(bbl, ipiv1, l));
+      for (std::ptrdiff_t l = 0; l < ncb; ++l) std::swap(at(bbl, ic, l), at(bbl, ipiv1, l));
     } else {
       ipr[ic] = nov + ipiv2;
       std::swap(perm[ic], perm[jpiv2]);
-      for (integer l = 0; l < nov; ++l) {
+      for (std::ptrdiff_t l = 0; l < nov; ++l) {
         if (l >= ic) std::swap(at(a2l, ic, perm[l]), at(a12, ipiv2, perm[l]));
         std::swap(at(s2l, ic, l), at(a22, ipiv2, l));
         std::swap(at(s1l, ic, l), at(a11, ipiv2, l));
       }
-      for (integer l = 0; l < ncb; ++l) std::swap(at(bbl, ic, l), at(bbr, ipiv2, l));
+      for (std::ptrdiff_t l = 0; l < ncb; ++l) std::swap(at(bbl, ic, l), at(bbr, ipiv2, l));
     }
 
-    const integer pc = perm[ic];
+    const std::ptrdiff_t pc = perm[ic];
     const double pivot = at(a2l, ic, pc);
-    for (integer ir = ic + 1; ir < nov; ++ir) {
+    for (std::ptrdiff_t ir = ic + 1; ir < nov; ++ir) {
       const double rm = at(a2l, ir, pc) / pivot;
       at(a2l, ir, pc) = rm;
       if (rm == 0.) continue;
-      for (integer l = ic + 1; l < nov; ++l) at(a2l, ir, perm[l]) -= rm * at(a2l, ic, perm[l]);
-      for (integer l = 0; l < nov; ++l) {
+      for (std::ptrdiff_t l = ic + 1; l < nov; ++l) at(a2l, ir, perm[l]) -= rm * at(a2l, ic, perm[l]);
+      for (std::ptrdiff_t l = 0; l < nov; ++l) {
         at(s1l, ir, l) -= rm * at(s1l, ic, l);
         at(s2l, ir, l) -= rm * at(s2l, ic, l);
       }
-      for (integer l = 0; l < ncb; ++l) at(bbl, ir, l) -= rm * at(bbl, ic, l);
+      for (std::ptrdiff_t l = 0; l < ncb; ++l) at(bbl, ir, l) -= rm * at(bbl, ic, l);
     }
-    for (integer ir = 0; ir < nov; ++ir) {
+    for (std::ptrdiff_t ir = 0; ir < nov; ++ir) {
       const double rm = at(a12, ir, pc) / pivot;
       at(a12, ir, pc) = rm;
       if (rm == 0.) continue;
-      for (integer l = ic + 1; l < nov; ++l) at(a12, ir, perm[l]) -= rm * at(a2l, ic, perm[l]);
-      for (integer l = 0; l < nov; ++l) {
+      for (std::ptrdiff_t l = ic + 1; l < nov; ++l) at(a12, ir, perm[l]) -= rm * at(a2l, ic, perm[l]);
+      for (std::ptrdiff_t l = 0; l < nov; ++l) {
         at(a11, ir, l) -= rm * at(s1l, ic, l);
         at(a22, ir, l) -= rm * at(s2l, ic, l);
       }
-      for (integer l = 0; l < ncb; ++l) at(bbr, ir, l) -= rm * at(bbl, ic, l);
+      for (std::ptrdiff_t l = 0; l < ncb; ++l) at(bbr, ir, l) -= rm * at(bbl, ic, l);
     }
-    for (integer ir = m.nbc; ir < nrc; ++ir) {
+    for (std::ptrdiff_t ir = m.nbc; ir < nrc; ++ir) {
       const double rm = at(cc2, pc, ir) / pivot;
       at(cc2, pc, ir) = rm;
       if (rm == 0.) continue;
-      for (integer l = ic + 1; l < nov; ++l) at(cc2, perm[l], ir) -= rm * at(a2l, ic, perm[l]);
-      for (integer l = 0; l < nov; ++l) {
+      for (std::ptrdiff_t l = ic + 1; l < nov; ++l) at(cc2, perm[l], ir) -= rm * at(a2l, ic, perm[l]);
+      for (std::ptrdiff_t l = 0; l < nov; ++l) {
         at(cc1, l, ir) -= rm * at(s1l, ic, l);
         at(cc3, l, ir) -= rm * at(s2l, ic, l);
       }
-      for (integer l = 0; l < ncb; ++l) ddr[l + ir * ncb] -= rm * at(bbl, ic, l);
+      for (std::ptrdiff_t l = 0; l < ncb; ++l) ddr[l + ir * ncb] -= rm * at(bbl, ic, l);
     }
   }
 }
 
 /* AUTO-07p's REDRHSBLK: the right-hand side through reduce_merge's pivots and multipliers. */
-void redrhs_merge(const CondensedBlocks &m, integer mid, integer hi)
+void redrhs_merge(const CondensedBlocks &m, std::ptrdiff_t mid, std::ptrdiff_t hi)
 {
-  const integer nov = m.nov, nrc = m.nrc;
+  const std::ptrdiff_t nov = m.nov, nrc = m.nrc;
   const double *a2l = m.square(m.a2, mid), *a12 = m.square(m.a1, mid + 1), *cc2 = m.conditions(m.cc, mid + 1);
   double *faal = m.faa + mid * nov, *faar = m.faa + hi * nov, *fcr = m.fcfc + hi * nrc;
   const double *fcl = m.fcfc + mid * nrc;
-  const integer *perm = m.icf2 + mid * nov, *ipr = m.ipr + mid * nov;
-  for (integer ir = m.nbc; ir < nrc; ++ir) fcr[ir] += fcl[ir];
-  for (integer ic = 0; ic < nov; ++ic) {
-    const integer p = ipr[ic];
+  const std::ptrdiff_t *perm = m.icf2 + mid * nov, *ipr = m.ipr + mid * nov;
+  for (std::ptrdiff_t ir = m.nbc; ir < nrc; ++ir) fcr[ir] += fcl[ir];
+  for (std::ptrdiff_t ic = 0; ic < nov; ++ic) {
+    const std::ptrdiff_t p = ipr[ic];
     std::swap(faal[ic], p < nov ? faal[p] : faar[p - nov]);
-    const integer pc = perm[ic];
-    for (integer ir = ic + 1; ir < nov; ++ir) faal[ir] -= a2l[ir + pc * nov] * faal[ic];
-    for (integer ir = 0; ir < nov; ++ir) faar[ir] -= a12[ir + pc * nov] * faal[ic];
-    for (integer ir = m.nbc; ir < nrc; ++ir) fcr[ir] -= cc2[pc + ir * nov] * faal[ic];
+    const std::ptrdiff_t pc = perm[ic];
+    for (std::ptrdiff_t ir = ic + 1; ir < nov; ++ir) faal[ir] -= a2l[ir + pc * nov] * faal[ic];
+    for (std::ptrdiff_t ir = 0; ir < nov; ++ir) faar[ir] -= a12[ir + pc * nov] * faal[ic];
+    for (std::ptrdiff_t ir = m.nbc; ir < nrc; ++ir) fcr[ir] -= cc2[pc + ir * nov] * faal[ic];
   }
 }
 
 /* AUTO-07p's BCKSUB1: x(mid+1) from slot mid's rows, x(lo), x(hi+1) and the parameters. */
-void bcksub_merge(const CondensedBlocks &m, const double *parameters, double *sol, integer lo, integer mid, integer hi)
+void bcksub_merge(const CondensedBlocks &m, const double *parameters, double *sol, std::ptrdiff_t lo, std::ptrdiff_t mid, std::ptrdiff_t hi)
 {
-  const integer nov = m.nov, ncb = m.ncb;
+  const std::ptrdiff_t nov = m.nov, ncb = m.ncb;
   const double *s1 = m.square(m.s1, mid), *s2 = m.square(m.s2, mid), *a2 = m.square(m.a2, mid), *bb = m.border(mid);
   const double *faa = m.faa + mid * nov, *left = sol + lo * nov, *right = sol + (hi + 1) * nov;
   double *x = sol + (mid + 1) * nov;
-  const integer *perm = m.icf2 + mid * nov;
-  for (integer k = nov - 1; k >= 0; --k) {
+  const std::ptrdiff_t *perm = m.icf2 + mid * nov;
+  for (std::ptrdiff_t k = nov - 1; k >= 0; --k) {
     double sm = 0.;
-    for (integer l = 0; l < nov; ++l) {
+    for (std::ptrdiff_t l = 0; l < nov; ++l) {
       sm += left[l] * s1[k + l * nov];
       sm += right[l] * s2[k + l * nov];
     }
-    for (integer l = 0; l < ncb; ++l) sm += parameters[l] * bb[k + l * nov];
-    for (integer l = k + 1; l < nov; ++l) sm += x[perm[l]] * a2[k + perm[l] * nov];
-    const integer pk = perm[k];
+    for (std::ptrdiff_t l = 0; l < ncb; ++l) sm += parameters[l] * bb[k + l * nov];
+    for (std::ptrdiff_t l = k + 1; l < nov; ++l) sm += x[perm[l]] * a2[k + perm[l] * nov];
+    const std::ptrdiff_t pk = perm[k];
     x[pk] = (faa[k] - sm) / a2[k + pk * nov];
   }
 }
@@ -638,77 +638,77 @@ void bcksub_merge(const CondensedBlocks &m, const double *parameters, double *so
 /* The reduction of the blocks; what it subtracts from the conditions' d is
    gathered by range and added once, at the root. */
 /* reduce: AUTO solvebv.f90:1031: reduces the non-overlapping, then overlapping, pieces of the condensation tree */
-void reduce_condensation(AutoxRun &run, const CondensedBlocks &m, integer na, double *d)
+void reduce_condensation(AutoxRun &run, const CondensedBlocks &m, std::ptrdiff_t na, double *d)
 {
   std::fill_n(m.dd, na * m.ncb * m.nrc, 0.);
-  reduce_tree(run, na, [&](integer lo, integer mid, integer hi) { reduce_merge(m, lo, mid, hi); });
+  reduce_tree(run, na, [&](std::ptrdiff_t lo, std::ptrdiff_t mid, std::ptrdiff_t hi) { reduce_merge(m, lo, mid, hi); });
   const double *root = m.dd + (na - 1) * m.ncb * m.nrc;
-  for (integer ir = m.nbc; ir < m.nrc; ++ir)
-    for (integer l = 0; l < m.ncb; ++l) d[l + ir * m.ncb] += root[l + ir * m.ncb];
+  for (std::ptrdiff_t ir = m.nbc; ir < m.nrc; ++ir)
+    for (std::ptrdiff_t l = 0; l < m.ncb; ++l) d[l + ir * m.ncb] += root[l + ir * m.ncb];
 }
 
 /* The right-hand side through the same tree; fc's share added at the root. */
 /* redrhs: reduction of the right-hand side in the condensation tree (autox_lib2.cpp) */
-void reduce_right_hand_side(AutoxRun &run, const CondensedBlocks &m, integer na, double *fc)
+void reduce_right_hand_side(AutoxRun &run, const CondensedBlocks &m, std::ptrdiff_t na, double *fc)
 {
   std::fill_n(m.fcfc, na * m.nrc, 0.);
-  reduce_tree(run, na, [&](integer, integer mid, integer hi) { redrhs_merge(m, mid, hi); });
+  reduce_tree(run, na, [&](std::ptrdiff_t, std::ptrdiff_t mid, std::ptrdiff_t hi) { redrhs_merge(m, mid, hi); });
   const double *root = m.fcfc + (na - 1) * m.nrc;
-  for (integer ir = m.nbc; ir < m.nrc; ++ir) fc[ir] += root[ir];
+  for (std::ptrdiff_t ir = m.nbc; ir < m.nrc; ++ir) fc[ir] += root[ir];
 }
 
 /* x(0) and x(na) from solve_end_system's solution fcc (and fc = fcc after x(0)),
    then every other x(k) down the tree, into sol (nov x (na+1)). */
 /* bcksub: AUTO solvebv.f90:1510: back substitution */
-void back_substitute(AutoxRun &run, const CondensedBlocks &m, integer na, const double *fc, const double *fcc, double *sol)
+void back_substitute(AutoxRun &run, const CondensedBlocks &m, std::ptrdiff_t na, const double *fc, const double *fcc, double *sol)
 {
-  for (integer l = 0; l < m.nov; ++l) {
+  for (std::ptrdiff_t l = 0; l < m.nov; ++l) {
     sol[l] = fcc[l];
     sol[l + na * m.nov] = fc[l];
   }
-  backsubstitute_tree(run, na, [&](integer lo, integer mid, integer hi) { bcksub_merge(m, fc + m.nov, sol, lo, mid, hi); });
+  backsubstitute_tree(run, na, [&](std::ptrdiff_t lo, std::ptrdiff_t mid, std::ptrdiff_t hi) { bcksub_merge(m, fc + m.nov, sol, lo, mid, hi); });
 }
 
 /* Determine the local variables by backsubstitution, blocks begin..end-1:
    no communication, so the blocks are shared among the workers. */
 /* infpar: XPPAUT 8.0 autlib2.c:2414: the local variables by back substitution after the parameters */
-void determine_local_variables(const doublereal *a, const doublereal *b, doublereal *fa, const doublereal *sol, const doublereal *fc, integer begin, integer end, integer nov, integer nra, integer nca, integer ncb, const integer *irf, const integer *icf)
+void determine_local_variables(const double *a, const double *b, double *fa, const double *sol, const double *fc, std::ptrdiff_t begin, std::ptrdiff_t end, std::ptrdiff_t nov, std::ptrdiff_t nra, std::ptrdiff_t nca, std::ptrdiff_t ncb, const std::ptrdiff_t *irf, const std::ptrdiff_t *icf)
 {
-  const integer irf_dim1 = nra, fa_dim1 = nra, icf_dim1 = nca, a_dim1 = nca, a_dim2 = nra, b_dim1 = ncb, b_dim2 = nra;
-  const integer nram = nra - nov;
-  std::vector<doublereal> x(nra);
-  for (integer i = begin; i < end; ++i) {
-    const doublereal *left = sol + i * nov, *right = sol + (i + 1) * nov;
-    for (integer ir = nram - 1; ir >= 0; --ir) {
-      doublereal sm = 0.;
-      const integer irfir = ARRAY2D(irf, ir, i) - 1;
-      for (integer j = 0; j < nov; ++j) {
+  const std::ptrdiff_t irf_dim1 = nra, fa_dim1 = nra, icf_dim1 = nca, a_dim1 = nca, a_dim2 = nra, b_dim1 = ncb, b_dim2 = nra;
+  const std::ptrdiff_t nram = nra - nov;
+  std::vector<double> x(nra);
+  for (std::ptrdiff_t i = begin; i < end; ++i) {
+    const double *left = sol + i * nov, *right = sol + (i + 1) * nov;
+    for (std::ptrdiff_t ir = nram - 1; ir >= 0; --ir) {
+      double sm = 0.;
+      const std::ptrdiff_t irfir = ARRAY2D(irf, ir, i) - 1;
+      for (std::ptrdiff_t j = 0; j < nov; ++j) {
         sm += ARRAY3D(a, j, irfir, i) * left[j];
         sm += ARRAY3D(a, nra + j, irfir, i) * right[j];
       }
-      for (integer j = 0; j < ncb; ++j) sm += ARRAY3D(b, j, irfir, i) * fc[nov + j];
-      for (integer j = ir + 1; j < nram; ++j) {
-        const integer icfj1 = ARRAY2D(icf, j + nov, i) - 1;
+      for (std::ptrdiff_t j = 0; j < ncb; ++j) sm += ARRAY3D(b, j, irfir, i) * fc[nov + j];
+      for (std::ptrdiff_t j = ir + 1; j < nram; ++j) {
+        const std::ptrdiff_t icfj1 = ARRAY2D(icf, j + nov, i) - 1;
         sm += ARRAY3D(a, icfj1, irfir, i) * x[icfj1];
       }
-      const integer icfnovpir = ARRAY2D(icf, nov + ir, i) - 1;
+      const std::ptrdiff_t icfnovpir = ARRAY2D(icf, nov + ir, i) - 1;
       x[icfnovpir] = (ARRAY2D(fa, irfir, i) - sm) / ARRAY3D(a, icfnovpir, irfir, i);
     }
     /* Copy x(i) and the local variables into fa */
-    for (integer j = 0; j < nov; ++j) ARRAY2D(fa, j, i) = left[j];
-    for (integer j = nov; j < nra; ++j) ARRAY2D(fa, j, i) = x[j];
+    for (std::ptrdiff_t j = 0; j < nov; ++j) ARRAY2D(fa, j, i) = left[j];
+    for (std::ptrdiff_t j = nov; j < nra; ++j) ARRAY2D(fa, j, i) = x[j];
   }
 }
 } // namespace
 
 /* brbd: AUTO solvebv.f90:544: solves linear systems with the bordered almost-block-diagonal profile */
 int 
-solve_bordered_block_diagonal(AutoxRun &run, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc)
+solve_bordered_block_diagonal(AutoxRun &run, FILE *fp9, double *fa, double *fc, double *p0, double *p1, std::ptrdiff_t *ifst, std::ptrdiff_t *idb, std::ptrdiff_t *nllv, double *det, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nbc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc)
 {
   /* the matrices and index arrays solve_boundary sized and kept in run.solve_boundary_work */
   SolvbvWork &work = run.solve_boundary_work;
-  doublereal *a = work.a.data(), *b = work.b.data(), *c = work.c.data(), *d = work.d.data();
-  integer *irf = work.irf.data(), *icf = work.icf.data();
+  double *a = work.a.data(), *b = work.b.data(), *c = work.c.data(), *d = work.d.data();
+  std::ptrdiff_t *irf = work.irf.data(), *icf = work.icf.data();
   const CondensedBlocks blocks{work.a1.data(), work.a2.data(), work.s1.data(), work.s2.data(), work.bb.data(),
     work.cc.data(), work.c2.data(), work.dd.data(), work.faa.data(), work.fcfc.data(),
     work.ipr.data(), work.icf2.data(), *nov, *ncb, *nrc, *nbc};
@@ -741,7 +741,7 @@ solve_bordered_block_diagonal(AutoxRun &run, FILE *fp9, doublereal *fa, doublere
 
   back_substitute(run, blocks, *na, fc, work.fcc.data(), work.sol.data());
 
-  for_blocks(run, *na, [&](integer begin, integer end) {
+  for_blocks(run, *na, [&](std::ptrdiff_t begin, std::ptrdiff_t end) {
     determine_local_variables(a, b, fa, work.sol.data(), fc, begin, end, *nov, *nra, *nca, *ncb, irf, icf);
   });
 
@@ -750,11 +750,11 @@ solve_bordered_block_diagonal(AutoxRun &run, FILE *fp9, doublereal *fa, doublere
 
 /* setzero: zeroes the right-hand side blocks (autox_lib2.cpp:744) */
 int 
-zero_right_hand_side(doublereal *fa, doublereal *fc, integer *na, integer *nra, integer *nrc)
+zero_right_hand_side(double *fa, double *fc, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nrc)
 {
-  integer fa_dim1;
+  std::ptrdiff_t fa_dim1;
 
-  integer i, j;
+  std::ptrdiff_t i, j;
 
   fa_dim1 = *nra;
     
@@ -773,11 +773,11 @@ zero_right_hand_side(doublereal *fa, doublereal *fc, integer *na, integer *nra, 
 
 /* conrhs: AUTO solvebv.f90:931 CONRHS: condensation of the right-hand side */
 int 
-condense_right_hand_side(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *nbc, integer *nrc, doublereal *c, doublereal *fa, doublereal *fc, integer *irf, integer *icf)
+condense_right_hand_side(std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *fa, double *fc, std::ptrdiff_t *irf, std::ptrdiff_t *icf)
 {
-  integer icf_dim1, irf_dim1, a_dim1, a_dim2, c_dim1, c_dim2, fa_dim1;
+  std::ptrdiff_t icf_dim1, irf_dim1, a_dim1, a_dim2, c_dim1, c_dim2, fa_dim1;
 
-  integer i, icfic, irfir, m2, ic, ir, irfirp, ir1, nex,
+  std::ptrdiff_t i, icfic, irfir, m2, ic, ir, irfirp, ir1, nex,
     irp;
 
   irf_dim1 = *nra;
@@ -822,12 +822,12 @@ condense_right_hand_side(integer *nov, integer *na, integer *nra, integer *nca, 
 
 /* copycp: AUTO solvebv.f90:970: copies the condensed system CONPAR made into workspace */
 int 
-copy_condensed_system(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *c2, integer *irf)
+copy_condensed_system(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *ncb, double *b, std::ptrdiff_t *nrc, double *c, double *a1, double *a2, double *bb, double *cc, double *c2, std::ptrdiff_t *irf)
 {
-  integer irf_dim1, a_dim1, a_dim2, b_dim1, b_dim2, c_dim1, c_dim2, a1_dim1, a1_dim2,
+  std::ptrdiff_t irf_dim1, a_dim1, a_dim2, b_dim1, b_dim2, c_dim1, c_dim2, a1_dim1, a1_dim2,
     a2_dim1, a2_dim2, bb_dim1, bb_dim2, cc_dim1, cc_dim2, c2_dim1, c2_dim2;
 
-  integer i, irfir, ic, ir, ic1;
+  std::ptrdiff_t i, irfir, ic, ir, ic1;
 
 /* Copies the condensed sytem generated by CONPAR into workspace: the
    conditions' columns of x(i) to cc and of x(i+1) to c2, by block, as
@@ -879,11 +879,11 @@ copy_condensed_system(integer *na, integer *nov, integer *nra, integer *nca, dou
 
 /* cpyrhs: AUTO solvebv.f90:1009: copies the right-hand side */
 int 
-copy_right_hand_side(integer *na, integer *nov, integer *nra, doublereal *faa, doublereal *fa, integer *irf)
+copy_right_hand_side(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *nra, double *faa, double *fa, std::ptrdiff_t *irf)
 {
-  integer irf_dim1, fa_dim1, faa_dim1;
+  std::ptrdiff_t irf_dim1, fa_dim1, faa_dim1;
 
-  integer i, irfir, ir;
+  std::ptrdiff_t i, irfir, ir;
 
 /*     **Copy the RHS */
   faa_dim1 = *nov;
@@ -902,19 +902,19 @@ copy_right_hand_side(integer *na, integer *nov, integer *nra, doublereal *faa, d
 
 /* dimrge: AUTO solvebv.f90:1408: assembles and solves the small end system from the first and last blocks, the boundary rows and the integral rows */
 int 
-solve_end_system(AutoxRun &run, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *a1, doublereal *a2, doublereal *faa, doublereal *bb)
+solve_end_system(AutoxRun &run, FILE *fp9, double *e, double *cc, double *c2, double *d, double *fc, std::ptrdiff_t *ifst, std::ptrdiff_t *na, std::ptrdiff_t *nrc, std::ptrdiff_t *nov, std::ptrdiff_t *ncb, std::ptrdiff_t *idb, std::ptrdiff_t *nllv, double *fcc, double *p0, double *p1, double *det, double *a1, double *a2, double *faa, double *bb)
 {
 
-  integer e_dim1, cc_dim1, cc_dim2, c2_dim1, c2_dim2, d_dim1, 
+  std::ptrdiff_t e_dim1, cc_dim1, cc_dim2, c2_dim1, c2_dim2, d_dim1, 
     p0_dim1, p1_dim1, a1_dim1, a1_dim2, 
     faa_dim1, a2_dim1, a2_dim2, bb_dim1, 
     bb_dim2;
 
-  integer i, j, k;
+  std::ptrdiff_t i, j, k;
 
-  integer novpi, novpj, k1, k2;
+  std::ptrdiff_t novpi, novpj, k1, k2;
 
-  integer novpj2, kc, kr, ncrloc;
+  std::ptrdiff_t novpj2, kc, kr, ncrloc;
 
   auto &xe = run.solve_boundary_work.xe;
 
@@ -1050,13 +1050,13 @@ solve_end_system(AutoxRun &run, FILE *fp9, doublereal *e, doublereal *cc, double
 
 /* print1: prints the blocks of the condensed system (autox_lib2.cpp:1039; AUTO solvebv.f90:1697) */
 int 
-print_system(FILE *fp9, integer *nov, integer *na, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc)
+print_system(FILE *fp9, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc, double *a, double *b, double *c, double *d, double *fa, double *fc)
 {
 
-  integer a_dim1, a_dim2, b_dim1, b_dim2, c_dim1, 
+  std::ptrdiff_t a_dim1, a_dim2, b_dim1, b_dim2, c_dim1, 
     c_dim2, d_dim1, fa_dim1;
 
-  integer i, ic, ir;
+  std::ptrdiff_t i, ic, ir;
 
   fa_dim1 = *nra;
   a_dim1 = *nca;
