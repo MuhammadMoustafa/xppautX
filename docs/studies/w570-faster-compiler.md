@@ -345,11 +345,16 @@ the Makefile's TinyCC block and c2mir are gone.
 from the callee table, the same `xpp::math::resolve` addresses) and MIR's link gets no resolver, so a name outside the
 table cannot resolve (no global of ours for it). (2) Module functions (user functions, equations the right-hand side
 calls) are forward-declared by name when first called; a call of a name the module lacks is an error at the
-model's place. (3) The error path: MIR's error function has no user data, so it records its text in one file-scope
-struct and `longjmp`s back to the compile; the frames between hold only trivial locals (every scratch string and
-vector is a member of the state outside), and `recover` finishes the open function and module and frees the context,
-so a compile that fails inside MIR leaks nothing (the unit test makes MIR refuse a repeated name, a missing
-function and a tree nested too deep, and `asancheck`'s unit-test phase runs it under LeakSanitizer).
+model's place. (3) The error paths: what we find wrong while building (a call of a function the module lacks, a tree nested
+too deep) sets a reason and builds nothing further, and MIR is finished as usual; an error of MIR's own (memory
+exhausted, a bug of ours: its error function has no user data) records its text in one file-scope struct and
+`longjmp`s back to the compile, the frames between holding only trivial locals (every scratch string and vector is a
+member of the state outside). MIR's heap is kept in a list (`Arena`, through `MIR_init2`'s allocator), so such a
+compile frees every block without MIR's help (MIR cannot be finished in the middle of a function: finishing it
+read a freed string and crashed in the first version of this code); a failure while it links or generates finishes
+it normally. Left behind, only on an error inside MIR while it builds: the code reservation's 128 MB of address
+space (no memory). The unit test makes MIR refuse a repeated name (the error inside MIR), and refuses a missing
+function and a tree too deep; `asancheck`'s unit-test phase runs it under LeakSanitizer.
 (4) The levels are a named constant per kind of function with their measurements as the reason (below). (5) Rejected:
 a second representation or a C writer kept beside the trees (the card is to have one); lazy generation of the cold
 functions (`MIR_set_lazy_gen_interface`: MIR's lazy generation has no lock, and autoX's collocation workers call the

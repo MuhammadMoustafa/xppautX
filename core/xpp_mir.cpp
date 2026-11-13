@@ -6,7 +6,11 @@
 #include "xpp_mir.h"
 #include <array>
 #include <csetjmp>
+#include <algorithm>
+#include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <new>
 #include <cstdarg>
 #include <string>
 #include <unordered_map>
@@ -63,13 +67,75 @@ void generate(MIR_context_t ctx, MIR_item_t item)
 }
 } // namespace
 
+/* MIR's heap, kept in a list so that a compile MIR failed inside (its state unknown, so it cannot be
+   finished) frees every block it holds without MIR's help. Each block is a header and the bytes MIR sees,
+   aligned as malloc's are. MIR_alloc's callbacks must not throw: an allocation that fails is nullptr, which MIR
+   reports as its own error. */
+struct Arena {
+    struct alignas(16) Block {
+        Block *previous, *next;
+        size_t size;
+    };
+    static constexpr size_t HEADER = sizeof(Block);
+    Block *last = nullptr;
+
+    static Arena &of(void *self) { return *static_cast<Arena *>(self); }
+    static void *allocate(size_t size, void *self) noexcept
+    {
+        Arena &arena = of(self);
+        void *memory = ::operator new(HEADER + size, std::nothrow);
+        if (memory == nullptr) return nullptr;
+        Block *block = static_cast<Block *>(memory);
+        *block = {arena.last, nullptr, size};
+        if (arena.last) arena.last->next = block;
+        arena.last = block;
+        return static_cast<char *>(memory) + HEADER;
+    }
+    static void *allocate_zeroed(size_t count, size_t size, void *self) noexcept
+    {
+        if (size != 0 && count > (SIZE_MAX - HEADER) / size) return nullptr;
+        void *memory = allocate(count * size, self);
+        if (memory != nullptr) std::memset(memory, 0, count * size);
+        return memory;
+    }
+    static void release(void *memory, void *self) noexcept
+    {
+        if (memory == nullptr) return;
+        Arena &arena = of(self);
+        Block *block = reinterpret_cast<Block *>(static_cast<char *>(memory) - HEADER);
+        if (block->previous) block->previous->next = block->next;
+        if (block->next) block->next->previous = block->previous;
+        else arena.last = block->previous;
+        ::operator delete(block);
+    }
+    static void *reallocate(void *memory, size_t old_size, size_t new_size, void *self) noexcept
+    {
+        void *grown = allocate(new_size, self);
+        if (grown == nullptr || memory == nullptr) return grown;
+        std::memcpy(grown, memory, std::min(old_size, new_size));
+        release(memory, self);
+        return grown;
+    }
+    void release_all() noexcept
+    {
+        while (last != nullptr) release(reinterpret_cast<char *>(last) + HEADER, this);
+    }
+};
+
 struct Program::State {
+    Arena arena;
+    MIR_alloc alloc{&Arena::allocate, &Arena::allocate_zeroed, &Arena::reallocate, &Arena::release, &arena};
     MIR_context_t context = nullptr;
     bool generator = false;
     std::unordered_map<std::string, void *> functions;
     Place place;
 
-    ~State() { finish(); }
+    ~State()
+    {
+        finish();
+        arena.release_all();
+    }
+    /* a context MIR is not in the middle of building: its own finish frees it, code memory included */
     void finish()
     {
         if (!context) return;
@@ -77,6 +143,14 @@ struct Program::State {
         context = nullptr;
         if (generator) MIR_gen_finish(finished);
         MIR_finish(finished);
+    }
+    /* the context of a compile that failed inside MIR: its heap is freed here, MIR's state being unknown (the
+       code memory it reserved, address space only until generation, is the one thing left) */
+    void abandon()
+    {
+        context = nullptr;
+        generator = false;
+        arena.release_all();
     }
 };
 
@@ -109,6 +183,7 @@ struct Lowering {
     std::string name; /* the name being made for MIR, which copies it: a member, since a jump out of MIR skips a local's destructor */
     std::vector<MIR_op_t> operands; /* the call being assembled: a stack, a nested call's arguments above it */
     int registers = 0;
+    std::string failure; /* why the module cannot be built, when it cannot: found by us, so MIR is finished normally */
 
     MIR_reg_t fresh(MIR_type_t type)
     {
@@ -147,17 +222,20 @@ struct Lowering {
 
     /* the callee's prototype, and its import or forward declaration, made when first called: the module needs
        no item for a function it never calls */
-    void declare(int index)
+    bool declare(int index)
     {
         const size_t k = static_cast<size_t>(index);
-        if (protos[k]) return;
+        if (protos[k]) return true;
         const IrCallee &target = ir.callees[k];
         parameters.clear();
         parameter_names.clear();
         const IrFunction *module_function = nullptr;
         if (target.address == nullptr) {
             const auto found = function_named.find(target.name);
-            if (found == function_named.end()) raised(MIR_undeclared_op_ref_error, "a call of an undefined function %s", target.name.c_str());
+            if (found == function_named.end()) {
+                failure = "a call of an undefined function " + target.name;
+                return false;
+            }
             module_function = found->second;
             parameter(MIR_T_P);
             parameter(MIR_T_P);
@@ -174,6 +252,7 @@ struct Lowering {
         MIR_type_t result = MIR_T_D;
         protos[k] = MIR_new_proto_arr(ctx, name.c_str(), 1, &result, parameters.size(), parameters.data());
         targets[k] = module_function ? MIR_new_forward(ctx, target.name.c_str()) : MIR_new_import(ctx, target.name.c_str());
+        return true;
     }
 
     /* The value of a node as an operand of an instruction, as c2mir's own code has them: a constant or a
@@ -181,7 +260,11 @@ struct Lowering {
        instruction that uses it; the others are a register. The instructions that compute it are emitted here. */
     MIR_op_t operand(int node, int depth)
     {
-        if (depth > MAX_TREE_DEPTH) raised(MIR_wrong_param_value_error, "an expression nested deeper than %d", MAX_TREE_DEPTH);
+        if (!failure.empty()) return number(0.0);
+        if (depth > MAX_TREE_DEPTH) {
+            failure = xpp::format("an expression nested deeper than {}", MAX_TREE_DEPTH);
+            return number(0.0);
+        }
         const IrNode &n = ir.nodes[static_cast<size_t>(node)];
         switch (n.op) {
         case IrOp::Number: return number(n.number);
@@ -244,7 +327,7 @@ struct Lowering {
     }
     MIR_op_t call(const IrNode &n, int depth)
     {
-        declare(n.callee);
+        if (!declare(n.callee)) return number(0.0);
         const IrCallee &target = ir.callees[static_cast<size_t>(n.callee)];
         const size_t k = static_cast<size_t>(n.callee);
         const MIR_reg_t r = fresh(MIR_T_D);
@@ -346,8 +429,8 @@ struct Lowering {
         name_parameters();
         const bool returns = f.kind == IrFunction::Kind::User || f.kind == IrFunction::Kind::Equation;
         MIR_type_t result = MIR_T_D;
+        function_open = true; /* MIR makes the function current before it can refuse its name */
         item = MIR_new_func_arr(ctx, f.name.c_str(), returns ? 1 : 0, &result, parameters.size(), parameters.data());
-        function_open = true;
         const MIR_func_t machine = item->u.func;
         c = MIR_reg(ctx, "c", machine);
         v = MIR_reg(ctx, "v", machine);
@@ -379,7 +462,7 @@ struct Lowering {
 
     void build()
     {
-        ctx = MIR_init();
+        ctx = MIR_init2(&state.alloc, nullptr);
         state.context = ctx;
         MIR_set_error_func(ctx, raised);
         for (const IrFunction &f : ir.functions) {
@@ -391,11 +474,12 @@ struct Lowering {
         targets.assign(ir.callees.size(), nullptr);
         for (const IrCallee &callee : ir.callees)
             if (callee.address != nullptr) MIR_load_external(ctx, callee.name.c_str(), const_cast<void *>(callee.address));
-        const MIR_module_t built = MIR_new_module(ctx, "model");
         module_open = true;
+        const MIR_module_t built = MIR_new_module(ctx, "model");
         for (const IrFunction &f : ir.functions) lower(f);
         MIR_finish_module(ctx);
         module_open = false;
+        if (!failure.empty()) return;
         MIR_load_module(ctx, built);
         MIR_gen_init(ctx);
         state.generator = true;
@@ -404,19 +488,12 @@ struct Lowering {
             if (it->item_type == MIR_func_item) state.functions.emplace(it->u.func->name, it->addr);
     }
 
-    /* after a jump out of MIR: finish what MIR left open and free the context; if that fails too the context
-       is left (the one path that leaks, and only on an internal error of MIR's) */
+    /* after a jump out of MIR: with no function or module open MIR is finished as usual (it was linking or
+       generating); else its state is unknown and its heap is freed without it */
     void recover()
     {
-        const MIR_context_t finished = ctx;
-        if (finished == nullptr) return;
-        if (setjmp(escape.exit) != 0) {
-            state.context = nullptr;
-            return;
-        }
-        if (function_open) MIR_finish_func(finished);
-        if (module_open) MIR_finish_module(finished);
-        state.finish();
+        if (function_open || module_open) state.abandon();
+        else state.finish();
     }
 };
 
@@ -446,6 +523,7 @@ Result<std::unique_ptr<Program>> Program::compile(const IrModule &module, Place 
         lowering.recover();
         return fail("MIR", message, program->state_->place);
     }
+    if (!lowering.failure.empty()) return fail("MIR", lowering.failure, program->state_->place);
     return program;
 }
 
