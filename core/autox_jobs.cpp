@@ -4,6 +4,7 @@
 #include <atomic>
 #include <deque>
 #include "autox_jobs.h"
+#include "expr_native.h"
 #include "autox_queue.h"
 #include "session.h"
 #include "autox_data.h"
@@ -716,7 +717,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
      time, each from the constants the run began with, which are the Session's again when the run ends */
   Queue q(s);
   const AutoxState &state=s.autox_state;
-  q.isolated=autox_parallel_ready(s);
+  q.isolated=native_ready(s)&&autox_parallel_ready(s); /* the jobs on threads call the native code: built first (W715) */
   q.constants=s.parser.constants;
   q.variables=s.parser.variables;
   q.epss=state.bifur.epss;

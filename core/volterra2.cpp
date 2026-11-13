@@ -163,7 +163,7 @@ enum class Keep { never, always, same_window };
 Keep keep_formula(const xpp::Session &s, const KERNEL &kernel)
 {
   const xpp::Program &f=kernel.formula;
-  if(!f.native||!f.array_pure)return Keep::never;
+  if(!f.compiled||!f.array_pure)return Keep::never;
   const int nvar=s.model().fix_var+s.model().node+s.model().nmarkov;
   Keep keep=Keep::always;
   for(const int v:f.native_reads){

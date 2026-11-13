@@ -69,7 +69,7 @@
 #include <vector>
 
 namespace xpp {
-/* A program the Model holds: its RPN and the function compile_model made
+/* A program the Model holds: its RPN and the function translate_model made
    from it (none: interpreted). The function's last argument is the RPN,
    whose first two operands a network rewrites for each pair. */
 struct Program {
@@ -77,18 +77,18 @@ struct Program {
     std::vector<int> native_reads; /* variables read by this code and its user functions */
     bool array_pure = false; /* native code only uses c/v and immutable lookup tables */
     double (*native)(double *, double *, Session *, const int *) = nullptr;
+    bool compiled = false; /* translate_model made native code for it (W715): `native` once build_native built the model's code */
     bool in_rhs = false; /* compiled only inside the model's one right-hand side function (W708): no native of its own */
 };
 
-/* Derivatives compile_model compiled (W260, expr_derivative.h): the
+/* Derivatives compile_jacobian compiled (W260, expr_derivative.h): the
    function writes the value of entry k into out[k], from the constants c
    and the variables v (v[0] the time, v[1..] the state; only these are
-   read) and the Session S (its tables, only read), its temporaries into
-   w (ExactJacobian::workspace doubles). Entry k is d f_rows[k] / d x of
+   read) and the Session S (its tables, only read). Entry k is d f_rows[k] / d x of
    column columns[k] (a state's index from 0) in the state Jacobian, and
    of the column's own variable in the others (columns empty). */
 struct JacobianProgram {
-    void (*function)(const double *c, const double *v, void *S, double *w, double *out) = nullptr;
+    void (*function)(const double *c, const double *v, void *S, double *out) = nullptr;
     std::vector<int> rows, columns;
 };
 
@@ -99,7 +99,6 @@ struct ExactJacobian {
     std::unique_ptr<mir::Program> code;
     JacobianProgram states, time;
     std::vector<std::pair<int, JacobianProgram>> by_constant;
-    int workspace = 0;
     /* why there is none, when states.function is null */
     std::string unavailable;
     /* where the model's own @ jacobian=exact is, for the error when there

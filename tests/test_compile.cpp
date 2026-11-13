@@ -108,10 +108,10 @@ void same_rhs(xpp::Session &s)
         const auto native_constants=s.parser.constants;
         const std::string native_random=s.random.save();
         s.numerics.compile=false;
-        CHECK(xpp::compile_model(s).has_value());
+        CHECK(compile_model(s).has_value());
         run(ydot);
         s.numerics.compile=true;
-        CHECK(xpp::compile_model(s).has_value());
+        CHECK(compile_model(s).has_value());
         CHECK(same(native_variables,s.parser.variables));
         CHECK(same(native_constants,s.parser.constants));
         CHECK(native_random==s.random.save());
@@ -237,7 +237,7 @@ TEST_CASE("test_compile")
     expression("shift(t,-1)");
     expression("shift(t,"+std::to_string(s.parser.variables.size())+")");
     expression("shift(t,"+std::to_string(s.parser.variables.size()+1)+")");
-    auto compiled=xpp::compile_model(s);
+    auto compiled=compile_model(s);
     if (!compiled) printf("%s\n",compiled.error().text().c_str());
     CHECK(compiled.has_value());
     CHECK(m.native_program!=nullptr);
@@ -263,11 +263,11 @@ TEST_CASE("test_compile")
     }
     /* Refusal is local, keeps a source warning, and propagates to callers. */
     m.programs[0].rpn=nested_sums(16,ENDEXP);
-    CHECK(xpp::compile_model(s).has_value());
+    CHECK(compile_model(s).has_value());
     m.programs[0].rpn=nested_sums(17,ENDEXP);
     {
         xpp::LogCapture messages;
-        const auto refused=xpp::compile_model(s);
+        const auto refused=compile_model(s);
         CHECK(refused.has_value());
         CHECK(refused && refused->size()==1);
         if (refused && !refused->empty()) {
@@ -285,24 +285,39 @@ TEST_CASE("test_compile")
     for (const auto &invalid:std::vector<std::vector<int>>{{COM(CONTYPE,static_cast<int>(s.parser.constants.size())),ENDEXP},
          {COM(VARTYPE,static_cast<int>(s.parser.variables.size())),ENDEXP},{COM(FUN1TYPE,26),ENDEXP},{MYIF,999999,ENDEXP},{NUMSYM,0}}) {
         m.programs[0].rpn=invalid;
-        CHECK(xpp::compile_model(s).has_value());
+        CHECK(compile_model(s).has_value());
         CHECK(m.programs[0].native==nullptr);
         CHECK(m.programs[1].native!=nullptr);
     }
     const auto function=m.ufun_programs[0].rpn;
     m.ufun_programs[0].rpn={COM(USTACKTYPE,0),COM(USTACKTYPE,1),COM(UFUNTYPE,0),2,ENDFUN,2,ENDEXP};
-    CHECK(xpp::compile_model(s).has_value());
+    CHECK(compile_model(s).has_value());
     CHECK(m.ufun_programs[0].native==nullptr);
     CHECK(m.ufun_programs[1].native==nullptr); /* g calls f */
     CHECK(m.ufun_programs[2].native!=nullptr);
     m.ufun_programs[0].rpn=function;
+    /* W715: translate_model leaves the code pending and the programs interpreted, their purity known; the
+       interpreter's INTERPRETED_OPS_PER_NODE-th operation a node builds it, or a run on threads (native_ready) */
+    CHECK(xpp::translate_model(s).has_value());
+    CHECK(m.native_pending.has_value() && !m.native_program && m.native_rhs==nullptr);
+    CHECK(m.programs[1].compiled && m.programs[1].native==nullptr);
+    CHECK(!pure_rhs_ready(s));
+    CHECK(m.native_pending->build_at==s.parser.interpreted_ops+xpp::INTERPRETED_OPS_PER_NODE*static_cast<std::int64_t>(m.native_pending->ir.nodes.size()));
+    s.parser.interpreted_ops=m.native_pending->build_at-1;
+    xpp::build_native_when_due(s);
+    CHECK(m.native_pending.has_value());
+    s.parser.interpreted_ops++;
+    xpp::build_native_when_due(s);
+    CHECK(!m.native_pending && m.native_program && m.programs[1].native!=nullptr);
+    CHECK(xpp::translate_model(s).has_value() && m.native_pending.has_value() && !m.native_program);
+    CHECK(xpp::native_ready(s)==m.rhs_impurity.empty() && !m.native_pending && m.native_program);
     s.numerics.compile=false;
     m.programs[0].rpn=number(0.1);
-    CHECK(xpp::compile_model(s).has_value());
+    CHECK(compile_model(s).has_value());
     CHECK(!m.native_program);
     CHECK(xpp::evaluate(s,m.programs[0])==0.1);
     s.numerics.compile=true;
-    CHECK(xpp::compile_model(s).has_value());
+    CHECK(compile_model(s).has_value());
     /* z0 to z3 as fixed variables and x' after them, compiled as one function (W468,
        W469): a math call is made once across them, except across what changes its argument (a fixed variable
        written, read by name, by a user function or by a shift; a set; a draw) or what may
@@ -322,7 +337,7 @@ TEST_CASE("test_compile")
          {"ran(1)+tanh(x)+normal(0,1)", "ran(1)+tanh(x)", "tanh(x)+ran(1)", "normal(0,1)*tanh(x)", "tanh(x)"}}) {
         count=0;
         for (const char *text:fixed) expression(text);
-        CHECK(xpp::compile_model(s).has_value());
+        CHECK(compile_model(s).has_value());
         for (const double x:{-0.0,1.0,-2.5,1e200,std::numeric_limits<double>::infinity(),std::bit_cast<double>(std::uint64_t{0x7ff8000000001234})}) {
             for (size_t i=0;i<s.parser.variables.size();++i) s.parser.variables[i]=0.5*static_cast<double>(i%7)-1.0;
             s.parser.variables[1]=x;
@@ -347,6 +362,7 @@ TEST_CASE("test_compile")
         auto loaded=load_args(2,argv,1);
         CHECK(loaded.has_value());
         if (!loaded) continue;
+        xpp::build_native(**loaded); /* the load translates; every program's code is checked here */
         xpp::Session &t=xpp::client_session();
         CHECK(t.model().native_program!=nullptr);
         for (int round=0;round<2;++round) {

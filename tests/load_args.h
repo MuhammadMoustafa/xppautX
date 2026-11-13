@@ -8,6 +8,14 @@
 #include <string>
 #include <vector>
 
+/* translate_model then build_native, for a test that reads the code at once (W715: a computation builds it when due) */
+inline xpp::Result<std::vector<xpp::Error>> compile_model(xpp::Session &s)
+{
+    auto translated = xpp::translate_model(s);
+    xpp::build_native(s);
+    return translated;
+}
+
 inline xpp::Loaded load_args(int argc, char **argv, int batch, const xpp::SavedModel *saved = nullptr)
 {
     xpp::Result<xpp::CommandLine> cl = xpp::parse_command_line(std::vector<std::string>(argv, argv + argc));

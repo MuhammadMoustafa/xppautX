@@ -12,6 +12,7 @@
 #include "tabular.h"
 #include "volterra2.h"
 #include "xpp_mir.h"
+#include "my_rhs.h"
 #include "xpp_util.h"
 #include "xpp_io.h"
 #include "xpp_math.h"
@@ -683,9 +684,10 @@ struct Generator {
 
     /* One function, name, writing the value of terms[k] into o[k]
        (W260): each node of the graph they need once, in the graph's order
-       (a node's arguments first), into the workspace w, of which it uses
-       the first `workspace` doubles. */
-    void derivatives(const expr::Symbolic &g, std::span<const expr::Term> terms, std::string_view name, int &workspace)
+       (a node's arguments first), each a temporary (W715: in a register,
+       which halves the instructions MIR compiles against a workspace array
+       it loaded and stored). */
+    void derivatives(const expr::Symbolic &g, std::span<const expr::Term> terms, std::string_view name)
     {
         std::vector<char> needed(g.size(), 0);
         std::vector<int> pending;
@@ -700,14 +702,14 @@ struct Generator {
         }
         begin();
         std::unordered_map<int, int> slot;
-        /* a graph node's value as an operand: a leaf as itself, any other as the workspace slot it was written to */
+        /* a graph node's value as an operand: a leaf as itself, any other as the temporary it was written to */
         auto operand = [&](int id) {
             const expr::Symbolic::Node &n = g.node({id});
             switch (n.op) {
             case expr::Symbolic::Op::Number: return number(n.number);
             case expr::Symbolic::Op::Constant: return op(IrOp::Constant, -1, -1, -1, n.index);
             case expr::Symbolic::Op::Variable: return op(IrOp::Variable, -1, -1, -1, n.index);
-            default: return op(IrOp::Workspace, -1, -1, -1, slot.at(id));
+            default: return op(IrOp::Temporary, -1, -1, -1, slot.at(id));
             }
         };
         for (size_t id = 0; id < g.size(); ++id) {
@@ -753,12 +755,11 @@ struct Generator {
                 value = helper_call(n.op == expr::Symbolic::Op::Table ? Helper::Table : Helper::TableSlope, {operand(n.args[0])}, n.index);
                 break;
             }
-            const int k = static_cast<int>(slot.size());
+            const int k = temps++;
             slot.emplace(static_cast<int>(id), k);
-            out.push_back({IrStatement::Kind::Workspace, k, value});
+            out.push_back({IrStatement::Kind::Temporary, k, value});
         }
         for (size_t k = 0; k < terms.size(); ++k) out.push_back({IrStatement::Kind::Output, static_cast<int>(k), operand(terms[k].id)});
-        workspace = std::max(workspace, static_cast<int>(slot.size()));
         ir.functions.push_back(finish(IrFunction::Kind::Jacobian, std::string(name), -1));
     }
 
@@ -827,13 +828,13 @@ std::string rhs_impurity(const Session &s)
     for (int i=0;i<m.node+m.fix_var;++i) {
         const auto &p=m.programs[i];
         const int available=i<m.node?m.node+m.fix_var:i;
-        if (!p.native && !p.in_rhs) return "a right-hand side that is not compiled";
+        if (!p.compiled && !p.in_rhs) return "a right-hand side that is not compiled";
         if (!p.array_pure) return "a right-hand side that uses shifts, random numbers or sums over an index";
         if (!std::all_of(p.native_reads.begin(),p.native_reads.end(),[&](int v){return v<=available;}))
             return "a fixed variable that reads one after it";
     }
     for (const auto &d:m.derived)
-        if (!d.form.native || !d.form.array_pure || !d.form.native_reads.empty()) return "a derived parameter that is not compiled or reads variables";
+        if (!d.form.compiled || !d.form.array_pure || !d.form.native_reads.empty()) return "a derived parameter that is not compiled or reads variables";
     return "";
 }
 
@@ -849,10 +850,11 @@ std::string subsystem_joined_by(const Session &s)
 Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelProgram> &entries)
 {
     Model &m=s.model();
-    for (const auto &entry:entries) { entry.code->native=nullptr; entry.code->in_rhs=false; entry.code->array_pure=false; entry.code->native_reads.clear(); }
+    for (const auto &entry:entries) { entry.code->native=nullptr; entry.code->compiled=false; entry.code->in_rhs=false; entry.code->array_pure=false; entry.code->native_reads.clear(); }
     m.native_rhs=nullptr;
     m.native_equations=false;
     m.native_program.reset();
+    m.native_pending.reset();
     if (!s.numerics.compile || entries.empty()) return {};
     Generator g{s};
     std::vector<Error> warnings;
@@ -951,16 +953,21 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
        not compiled: nothing calls it in a run with p_rhs but a Markov
        variable's or an integral equation's evaluation (they keep theirs),
        and the interpreter serves any other caller of evaluate; one with a
-       sum is called by p_rhs and keeps its own. */
+       sum is called by p_rhs and keeps its own. W715: a fixed variable's
+       likewise when p_rhs computes the fixed variables: every evaluation of
+       them goes through fixed_values (my_rhs.cpp), which calls p_rhs. */
     const size_t compiled_count=emitted.size();
     std::vector<Program *> in_rhs;
-    if (equations && m.nmarkov==0 && m.nkernel==0) {
+    const Program *const first_equation=m.programs.data(),*const first_fixed=first_equation+m.node,*const fixed_end=first_fixed+m.fix_var;
+    const bool equations_in_rhs=equations && m.nmarkov==0 && m.nkernel==0;
+    if (equations_in_rhs || rhs) {
         /* one pass, in order: erasing each moved the rest of the functions and of the list every time */
         std::vector<char> dropped(g.ir.functions.size(),0);
         std::vector<const ModelProgram *> still;
         for (size_t k=0;k<emitted.size();++k) {
             Program *code=emitted[k]->code;
-            if (code<m.programs.data() || code>=m.programs.data()+m.node || g.called.contains(code)) {still.push_back(emitted[k]);continue;}
+            const bool in_p_rhs=(equations_in_rhs && code>=first_equation && code<first_fixed) || (rhs && code>=first_fixed && code<fixed_end);
+            if (!in_p_rhs || g.called.contains(code)) {still.push_back(emitted[k]);continue;}
             dropped[function_of[k]]=1;
             in_rhs.push_back(code);
         }
@@ -971,28 +978,65 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
         emitted=std::move(still);
     }
     if (emitted.empty() && !rhs) return warnings;
-    auto compiled=g.build(entries.front().place);
-    if (!compiled) {g.place=compiled.error().place;return g.refuse("MIR: "+compiled.error().what);}
-    std::vector<decltype(Program::native)> functions;
-    for (const auto *entry:emitted) {
-        auto address=(*compiled)->function(entry->symbol);
-        if (!address) {g.place=address.error().place;return g.refuse("MIR: "+address.error().what);}
-        functions.push_back(reinterpret_cast<decltype(Program::native)>(*address));
-    }
-    decltype(Model::native_rhs) native_rhs=nullptr;
-    if (rhs) {
-        auto address=(*compiled)->function(rhs_symbol);
-        if (!address) {g.place=address.error().place;return g.refuse("MIR: "+address.error().what);}
-        native_rhs=reinterpret_cast<decltype(Model::native_rhs)>(*address);
-    }
-    m.native_program=std::move(*compiled);
-    m.native_rhs=native_rhs;
-    m.native_equations=equations;
-    for (size_t i=0;i<emitted.size();++i) emitted[i]->code->native=functions[i];
+    Model::NativePending &pending=m.native_pending.emplace();
+    pending.ir=std::move(g.ir);
+    for (const auto *entry:emitted) entry->code->compiled=true;
+    if (rhs) pending.rhs_symbol=rhs_symbol;
+    pending.equations=equations;
+    pending.place=entries.front().place;
+    pending.build_at=s.parser.interpreted_ops+INTERPRETED_OPS_PER_NODE*static_cast<std::int64_t>(pending.ir.nodes.size());
     for (Program *code:in_rhs) code->in_rhs=true;
     log(XPP_LOG_INFO,"Compiled {} of {} programs\n",compiled_count,entries.size());
     return warnings;
 }
+
+}
+
+void build_native(Session &s)
+{
+    Model &m=s.model();
+    if (!m.native_pending) return;
+    const Model::NativePending pending=std::move(*m.native_pending);
+    m.native_pending.reset();
+    /* the programs by their names again, not by pointers kept since the translation: a vector of them may have
+       grown (a derived parameter added, the browser's column), and a program edited since (dae_fun.cpp's guess)
+       is no longer compiled */
+    const auto entries=model_programs(m);
+    const auto interpreted=[&](const Error &error) {
+        log(XPP_LOG_WARN,"{}\n",Error{"MIR",error.what,error.place}.text());
+        for (const auto &entry:entries) {entry.code->compiled=false;entry.code->native=nullptr;}
+        m.rhs_impurity="MIR: "+error.what;
+    };
+    auto compiled=mir::Program::compile(pending.ir,pending.place);
+    if (!compiled) return interpreted(compiled.error());
+    for (const auto &entry:entries) {
+        if (!entry.code->compiled) continue;
+        auto address=(*compiled)->function(entry.symbol);
+        if (!address) return interpreted(address.error());
+        entry.code->native=reinterpret_cast<decltype(Program::native)>(*address);
+    }
+    if (!pending.rhs_symbol.empty()) {
+        auto address=(*compiled)->function(pending.rhs_symbol);
+        if (!address) return interpreted(address.error());
+        m.native_rhs=reinterpret_cast<decltype(Model::native_rhs)>(*address);
+    }
+    m.native_equations=pending.equations;
+    m.native_program=std::move(*compiled);
+    log(XPP_LOG_INFO,"Built the native code after {} interpreted operations\n",s.parser.interpreted_ops);
+}
+
+void build_native_when_due(Session &s)
+{
+    if (s.parser.interpreted_ops>=s.model().native_pending->build_at) build_native(s);
+}
+
+bool native_ready(Session &s)
+{
+    build_native(s);
+    return pure_rhs_ready(s);
+}
+
+namespace {
 
 /* The model's exact Jacobian (W260): its derivatives (expr_derivative.h)
    compiled by MIR as a program of their own, one function for the
@@ -1029,10 +1073,10 @@ ExactJacobian compile_jacobian(Session &s, const std::vector<ModelProgram> &entr
         }
     }
     Generator g{s};
-    g.derivatives(derived->graph, states, "j_states", j.workspace);
-    g.derivatives(derived->graph, time, "j_time", j.workspace);
+    g.derivatives(derived->graph, states, "j_states");
+    g.derivatives(derived->graph, time, "j_time");
     for (auto &[k, column] : by_constant) {
-        g.derivatives(derived->graph, column.first, xpp::format("j_c{}", k), j.workspace);
+        g.derivatives(derived->graph, column.first, xpp::format("j_c{}", k));
         j.by_constant.emplace_back(k, JacobianProgram{nullptr, std::move(column.second), {}});
     }
     const Place place = entries.empty() ? Place{} : entries.front().place;
@@ -1123,7 +1167,7 @@ std::vector<ModelProgram> sized_programs(Session &s)
 }
 }
 
-Result<std::vector<Error>> compile_model(Session &s)
+Result<std::vector<Error>> translate_model(Session &s)
 {
     Model &m=s.model();
     m.compile_pending=false;
@@ -1147,7 +1191,7 @@ Result<std::vector<Error>> compile_model(Session &s)
 void ensure_compiled(Session &s)
 {
     if (!s.model().compile_pending) return;
-    const auto compiled=compile_model(s);
+    const auto compiled=translate_model(s);
     if (!compiled) log(XPP_LOG_WARN,"{}\n",compiled.error().text());
     else for (const Error &warning:*compiled) log(XPP_LOG_WARN,"{}\n",warning.text());
 }

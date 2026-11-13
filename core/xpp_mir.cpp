@@ -37,9 +37,9 @@ constexpr size_t MESSAGE_MAX = 512;
    measurement (W714, docs/studies/w570-faster-compiler.md): 2 for what runs at every step, the right-hand
    side, the equations and the user functions it calls (level 1 costs 2-11% more instructions than level 2 over
    a full run of mu26, ma23 and kuramot100, level 0 more than TinyCC's code did); 1 for the exact Jacobian, a
-   long straight line whose level 2 compile costs 443 M instructions on mu26 against 173 M at level 1 for 5%
-   fewer in the run, so level 1 is the cheaper of the two over a whole run (1309 M against 1535 M, and level 0
-   1406 M). */
+   long straight line of its values in registers (W715): on mu26 its level 2 compile costs 56 M cycles against
+   level 1's 33 M and gains nothing in the run (1351 M instructions against 1248 M over 400 time units), and
+   level 0's compile saves 24 M only to lose them in the run (1250 M), and more over a longer one. */
 constexpr std::array<unsigned, 4> LEVEL{2, 2, 2, 1};
 
 /* MIR reports an error through a function that must not return and has no user data: `raised` (ours
@@ -170,7 +170,7 @@ struct Lowering {
     std::vector<MIR_item_t> protos, targets; /* by callee, made at its first call: its prototype and its import or forward */
     /* the function being lowered */
     MIR_item_t item = nullptr;
-    MIR_reg_t c = 0, v = 0, session = 0, rpn = 0, output = 0, workspace = 0; /* the pointers a kind has */
+    MIR_reg_t c = 0, v = 0, session = 0, rpn = 0, output = 0; /* the pointers a kind has */
     std::vector<MIR_reg_t> arguments, temporaries;
     struct Loop {
         MIR_reg_t low = 0, high = 0, counter = 0;
@@ -273,7 +273,6 @@ struct Lowering {
         case IrOp::Number: return number(n.number);
         case IrOp::Constant: return slot(c, n.index);
         case IrOp::Variable: return slot(v, n.index);
-        case IrOp::Workspace: return slot(workspace, n.index);
         case IrOp::Temporary: return reg(temporaries[static_cast<size_t>(n.index)]);
         case IrOp::Argument: return reg(arguments[static_cast<size_t>(n.index)]);
         case IrOp::LoopCounter: {
@@ -363,7 +362,6 @@ struct Lowering {
         case IrStatement::Kind::Variable: store(slot(v, s.index), operand(s.value, 0)); break;
         case IrStatement::Kind::Constant: store(slot(c, s.index), operand(s.value, 0)); break;
         case IrStatement::Kind::Output: store(slot(output, s.index), operand(s.value, 0)); break;
-        case IrStatement::Kind::Workspace: store(slot(workspace, s.index), operand(s.value, 0)); break;
         case IrStatement::Kind::ReturnWithoutOutput: jump(MIR_BEQ, finish, reg(output), MIR_new_int_op(ctx, 0)); break;
         case IrStatement::Kind::LoopBegin: {
             /* the bounds are ints, as the interpreter's casts make them; the loop runs from low to high
@@ -423,7 +421,6 @@ struct Lowering {
         parameter(MIR_T_P, "v");
         parameter(MIR_T_P, "S");
         if (f.kind == IrFunction::Kind::Equation) parameter(MIR_T_P, "R");
-        if (f.kind == IrFunction::Kind::Jacobian) parameter(MIR_T_P, "w");
         if (f.kind == IrFunction::Kind::Rhs || f.kind == IrFunction::Kind::Jacobian) parameter(MIR_T_P, "o");
         for (int a = 0; a < f.doubles; ++a) {
             name = xpp::format("a{}", a);
@@ -439,7 +436,6 @@ struct Lowering {
         v = MIR_reg(ctx, "v", machine);
         session = MIR_reg(ctx, "S", machine);
         if (f.kind == IrFunction::Kind::Equation) rpn = MIR_reg(ctx, "R", machine);
-        if (f.kind == IrFunction::Kind::Jacobian) workspace = MIR_reg(ctx, "w", machine);
         if (f.kind == IrFunction::Kind::Rhs || f.kind == IrFunction::Kind::Jacobian) output = MIR_reg(ctx, "o", machine);
         arguments.clear();
         for (int a = 0; a < f.doubles; ++a) {

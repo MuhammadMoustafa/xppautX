@@ -37,6 +37,7 @@
 #include "expr_program.h"
 
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <map>
@@ -139,7 +140,7 @@ struct Model {
   std::vector<Program> programs;
   /* W258: executable code has exactly this Model's lifetime. */
   std::unique_ptr<mir::Program> native_program;
-  /* compile_model: the right-hand side in its order as one function: the
+  /* translate_model: the right-hand side in its order as one function: the
      fixed variables' values into the variables v (W468), then, given ydot
      and when native_equations, the equations' into ydot (W469); none when
      a fixed variable is interpreted, or when there is none and
@@ -148,14 +149,27 @@ struct Model {
   /* native_rhs writes the equations: each is native, and no network or DAE
      runs between them and the fixed variables */
   bool native_equations=false;
-  /* compile_model: why the right-hand side is not pure, or "" when every program is native and Session-independent (autoX's workers and a sweep's runs on threads need it) */
+  /* translate_model: why the right-hand side is not pure, or "" when every program is native (compiled, built or not) and Session-independent
+     (autoX's workers and a sweep's runs on threads need it, built: native_ready) */
   std::string rhs_impurity="the model is not compiled";
-  /* W713: the model is loaded but compile_model has not run: the first computation's start runs it (ensure_compiled), so a model that is
+  /* W713: the model is loaded but translate_model has not run: the first computation's start runs it (ensure_compiled), so a model that is
      only opened costs no compile; until then every program is interpreted */
   bool compile_pending=false;
-  /* the exact Jacobian compile_model made, or why there is none (W260) */
+  /* W715: the native code translate_model found, as MIR's input, until build_native builds it: when the
+     interpreter has done as much work as the compile would cost (my_rhs checks at each right-hand side,
+     build_native_when_due), or before a run on threads (native_ready). The interpreter serves until then, bit
+     for bit the same, so a short run pays no compile. */
+  struct NativePending {
+    IrModule ir;            /* the functions of the programs with Program::compiled (model_programs names them) */
+    std::string rhs_symbol; /* the right-hand side's function (native_rhs), "" when there is none */
+    bool equations=false;   /* native_equations once built */
+    Place place;            /* where MIR's error is reported */
+    std::int64_t build_at=0; /* the Session's ParserState::interpreted_ops at which the build is due */
+  };
+  std::optional<NativePending> native_pending;
+  /* the exact Jacobian compile_jacobian made, or why there is none (W260) */
   ExactJacobian jacobian;
-  /* The independent subsystems (W433, compile_model): the connected
+  /* The independent subsystems (W433, translate_model): the connected
      components of "an equation reads a state" (through the fixed
      variables, functions and tables), each one's states ascending, the
      components by their least state: the Jacobian is block diagonal under

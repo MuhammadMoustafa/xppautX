@@ -46,6 +46,7 @@
 #include "numerics.h"
 #include "numerics_settings.h"
 #include "my_rhs.h" /* extra */
+#include "expr_native.h"
 #include "sweep_runs.h"
 #include "volterra2.h"
 #include <stdlib.h> 
@@ -825,6 +826,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
  const unsigned budget=s.thread_budget();
  unsigned threads=1;
  if(runs>1&&budget>1){
+   xpp::native_ready(s); /* runs side by side call the model's native code */
    const std::string why=flag==2?"the runs follow autoX's diagram"
      :!plan.fresh?"\"Use old I.C.s\" is off, so each run starts where the last ended"
      :xpp::sweep_serial_reason(s);

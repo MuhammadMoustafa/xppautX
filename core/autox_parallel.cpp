@@ -2,6 +2,7 @@
 #include "session.h"
 #include "autox_c.h"
 #include "my_rhs.h"
+#include "expr_native.h"
 #include "solver.h"
 #include "xpp_cpu.h"
 #include "xpp_job.h"
@@ -65,7 +66,7 @@ bool autox_parallel_ready(const Session &s) {
 
 void AutoxParallel::select_run(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_t ntst, std::ptrdiff_t ncol) {
     const Session &s = *source.session;
-    if (!autox_parallel_ready(s)) {
+    if (!native_ready(*source.session) || !autox_parallel_ready(s)) {
         source.collocation.reset();
         return;
     }

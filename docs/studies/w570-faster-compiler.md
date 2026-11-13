@@ -446,3 +446,111 @@ guard themselves), and the sanitizer jobs (`linux-sanitizers`, `windows-clang-sa
 called, under a lock, or interpret a run's first N steps while the core compiles. (2) The exact Jacobian's cap of a
 million values is some fifteen seconds of compile. (3) MIR's generated code is the same on x86-64 and arm64 only by the
 md5s (checked on x86-64 here, on arm64 by CI).
+
+## W715 MIR's compile cost: short runs and exact-Jacobian runs no slower than with TinyCC (#790), Linux results
+
+Card W715 (#790), after W714, which found MIR's compile 10 to 20 times TinyCC's. The maintainer's order
+(2026-11-13): no run may be slower than it was with TinyCC. Measured on the same machine as the W714 section
+(`perf stat -e instructions:u`, whole process, millions of instructions; the TinyCC program is commit 006ac0d8,
+W714's parent, built in a scratch worktree; "tiny" is the model with `total_time` one step).
+
+**Where the compile's instructions go** (callgrind of lecar's, ma23's and mu26's one-step runs, and a scratch
+harness compiling synthetic modules through `xpp::mir::Program::compile`). W714 took the cost for a fixed 0.5 M
+per function; it is not: it is some 20 thousand instructions for each MIR instruction at level 2 (ma23's `p_rhs`,
+833 instructions, 10.5 M cycles; mu26's, 2756, 55 M; a function of 4 instructions 0.1 M), 12.7 thousand at
+level 1 (the old exact Jacobian of mu26, 9163 instructions, 116 M), plus 0.8 M for each module (`MIR_gen_init`
+sorts the x86-64 pattern table each time, 0.5 M; `MIR_init` 0.2 M). No pass dominates: register allocation about
+20%, SSA, GVN and dead-store elimination 15%, MIR's `simplify` making a temporary register for every memory
+operand we write (`new_temp_reg`, string-named and hashed) 18%, our arena and malloc 17%, the rest spread over
+thirty functions. Nothing in MIR is cheap enough for TinyCC's whole compile of lecar (about 1 M instructions for
+11 programs): MIR's fixed cost per module alone is 0.8 M. So the only ways to a short run no slower than TinyCC's
+are to compile less and to compile later.
+
+**What changed.** (1) The compile is in two steps: `translate_model` at the first computation (W713's point)
+runs the Generator, decides every program's purity, the subsystems and the difference groups, and leaves MIR's
+input in `Model::native_pending`; `build_native` builds it when the interpreter has done as much work as the
+build would cost: `ParserState::interpreted_ops` counts the interpreter's operations, and the build is due at
+`INTERPRETED_OPS_PER_NODE` (500) operations for each node of the module, checked by `my_rhs` at each interpreted
+right-hand side. Until then every program is interpreted, bit for bit the same (the interpreter is the project's
+reference and `test_compile` proves each program equal to it). A run on threads (a sweep, autoX's collocation
+workers, autoX's jobs) calls `native_ready` before it starts, which builds at once on the core thread, so no
+worker ever meets a pending build or a compile (MIR is not thread-safe). A run of a model that asks for the
+exact Jacobian still builds the Jacobian when the option is set (its absence is the load's error), and the
+programs when due. (2) A fixed variable's own function is not compiled when `p_rhs` computes the fixed
+variables, as W708 did for the equations: every evaluation of them goes through `fixed_values` (`my_rhs.cpp`),
+which calls `p_rhs` (the shooting's `do_bc` now does too, through `fix_only`, instead of its own loop). mu26
+compiles 157 functions instead of 236. (3) The exact Jacobian keeps each value of its derivative graph in a
+register (an `IrStatement::Kind::Temporary`) instead of the workspace array it stored and loaded: `IrOp::Workspace`,
+the `w` parameter and `ExactJacobian::workspace` are gone; mu26's `j_states` is 3815 MIR instructions instead of
+9163 and compiles in 33 M cycles instead of 116 M at level 1. Its level stays 1: level 2's compile is 56 M for
+no gain in the run (1351 M against 1248 M over 400 time units), level 0's compile saves 24 M and its code loses
+them in the same run (1250 M).
+
+**Why operations and not evaluations.** A first version built the code at the thousandth interpreted right-hand
+side. The cost of an interpreted evaluation varies a thousandfold between models: lecar's 183-operation
+right-hand side costs 2.8 thousand instructions interpreted (0.6 thousand native), mu26's 2756-operation one
+60 thousand, kuramot100's 6.5 million (its 100 sums of 100 terms each run `eval_rpn` once a term; native 3.4
+million), so a thousand interpreted evaluations of kuramot100 cost 6.5 G instructions, 24% of its run, while a
+thousand of lecar cost 3 M. Counting the interpreter's operations instead makes the deferred work proportional
+to the compile it defers, for every model: the build comes after 129 thousand operations for lecar (some 700
+evaluations), 2 million for kuramot100 (some 15). The threshold is the ski-rental trade: a run that stops before
+it has paid less than the compile would have cost, and one that goes on has paid at most half the compile again
+(mu26's 400 time units: 2454 M, W714's 2455 M; at 1000 operations a node 2496 M).
+
+**Results** (millions of instructions; W714 is the branch's parent, remeasured today where it differs from the
+W714 section):
+
+| run | TinyCC | W714 | W715 | W715 against TinyCC |
+|---|---|---|---|---|
+| lecar `--silent` (601 rows, nullclines) | 14.0 | 22.8 | 24.0 | 1.71 |
+| lecar tiny | 9.2 | 18.4 | 19.6 | 2.13 |
+| ma23 tiny | 11.2 | 48.9 | 12.3 | 1.10 |
+| mu26 tiny | 35.0 | 190.3 | 45.4 | 1.30 |
+| kuramot100 tiny | 40.3 | 233.5 | 57.0 | 1.41 |
+| mu26 exact Jacobian, backward Euler, 400 time units | 1081 | 1309 | 1236 | 1.14 |
+| mu26 exact Jacobian, tiny | 51.0 | 369.1 | 173.8 | 3.4 |
+| mu26, 400 time units | 2705 | 2455 | 2454 | 0.91 |
+| ma23, 1000 time units | 4256 | 3505 | 3507 | 0.82 |
+| kuramot100 | 30353 | 27576 | 27617 | 0.91 |
+
+The long runs keep W714's gain. The one-step runs of ma23, mu26 and kuramot100 cost a quarter to a fifth of
+W714's, but not TinyCC's: what is left is the translation (the Generator: ma23 1.5 M, mu26 6.7 M of its 257
+programs) and the interpreter, which costs more than TinyCC's compile plus TinyCC's code for mu26 (an
+interpreted one-step run, `compile: false`, is 54 M against TinyCC's 35 M with its compile) and for kuramot100
+(52.6 M interpreted against 40.3 M). lecar's two runs are longer than W714's: its nullclines evaluate the
+right-hand side 4000 times, past the threshold, so the run pays 700 interpreted evaluations and then the
+compile; the compile it pays (13 functions, 10 M) cannot reach TinyCC's 1 M in MIR. The exact-Jacobian run pays
+the Jacobian's 33 M cycles and the programs' 130 M of compile against TinyCC's 16 M, and its code is only 4%
+faster than TinyCC's (1005 M against 1048 M: the run is the Newton iterations' right-hand sides, not the
+Jacobian), so it stays 14% over.
+
+**Provably not reachable on this card, with the numbers.** lecar's two runs, kuramot100's one step and the
+exact-Jacobian runs cannot reach TinyCC's instructions by any policy of when to compile: lecar's run needs the
+code (4000 evaluations) and MIR's compile of its 13 functions costs ten times TinyCC's whole compile; a one-step
+run of kuramot100 or mu26 is slower interpreted than TinyCC's compile and code together, and MIR's compile of
+`p_rhs` alone (kuramot100 7 M cycles plus its 100 sum functions, mu26 55 M) is more than the gap. Closing them
+needs a compile that is both cheaper than MIR's by an order of magnitude and off the run's thread: a design
+decision (a background compile thread while the interpreter serves, which this card's brief put last, since
+threads add risk; or a second, cheaper back end for the first build). What this card settled: the deferral and
+its threshold, the fixed variables' functions, the Jacobian's registers.
+
+**Rejected.** A build at the thousandth evaluation (above: kuramot100 24% slower). MIR's lazy generation
+(`MIR_set_lazy_gen_interface`) for the cold functions: its link still simplifies every function and makes a
+thunk for each, the first call generates on whatever thread makes it (a worker's would race), and the saving is
+the cold functions' generation only (lecar's four bridges 1.8 M cycles). Dropping the bridges (the functions the
+interpreter calls a user function through): a refused program that calls one would run slower than before.
+Level 0 for every function: lecar's compile 7.4 M against 10.8 M, the long runs 10 to 36% slower (W714's
+table). Loading each `c[k]` and `v[k]` once a function into a register instead of a memory operand at each use
+(MIR's `simplify` and GVN do it, at 18% of the compile): a `set` or a helper writes the arrays behind the
+cached register, and the interpreter reads them fresh, so bit-identity would rest on an analysis of every
+call, for a fifth of the compile. Keeping one MIR context for the process to pay `MIR_gen_init`'s 0.6 M once: a
+global, for 0.6 M of lecar's 24 M.
+
+**Trust boundary.** Nothing new crosses one: the Generator's input is the validated RPN as before, the pending
+module is the Generator's own trees, and the build runs on the core thread only. `interpreted_ops` is a 64-bit
+count; a model cannot make it overflow.
+
+**Checks.** `make -j4 xppautx test` (79 unit tests, `test_compile` with the deferral and `native_ready`),
+`tools/examples_check.sh` (216 models, 215 md5s unchanged), `tools/autoxcompare.py`, `tools/goldencheck.py`,
+`tools/odexcheck.sh`, `tools/servercheck.py`, `tools/sourcecheck.sh`, `tools/asancheck.sh --only
+build,smoke,examples,unittests`; the counts are in the card's report.

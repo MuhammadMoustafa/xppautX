@@ -73,7 +73,7 @@ struct Fixture {
     {
         rpn.push_back(ENDEXP);
         model->programs[0].rpn = std::move(rpn);
-        CHECK(xpp::compile_model(*session).has_value());
+        CHECK(compile_model(*session).has_value());
         return xpp::ensure_exact_jacobian(*session);
     }
 

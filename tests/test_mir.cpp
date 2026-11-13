@@ -47,10 +47,10 @@ TEST_CASE("test_mir")
 {
     const xpp::Place place{"model.ode", 3, 0, "x' = f(x)"};
     double (*unary)(double) = &xpp::math::exp;
-    double c[4] = {0.5, 3.0, 7.0, 0.0}, v[4] = {0.25, -2.0, 0.0, 0.0}, o[3] = {0, 0, 0}, w[8] = {};
+    double c[4] = {0.5, 3.0, 7.0, 0.0}, v[4] = {0.25, -2.0, 0.0, 0.0}, o[3] = {0, 0, 0};
 
     /* a module of every construct: a user function of two arguments called by an equation, a sum, an if
-       statement, the guarded division, a select, the Jacobian's workspace */
+       statement, the guarded division, a select, a Jacobian function with a temporary */
     IrModule m;
     m.zero_divisor = 2.23e-15;
     m.callees.push_back({"f1_0", reinterpret_cast<const void *>(unary), false, 1, false}); /* 0: exp */
@@ -98,14 +98,15 @@ TEST_CASE("test_mir")
         f.statements.push_back({IrStatement::Kind::Output, 1, op(m, IrOp::Select, op(m, IrOp::Constant, -1, -1, -1, 2), number(m, 1), number(m, 2))});
         m.functions.push_back(f);
     }
-    /* j: w[0] = v[1] * v[1]; o[0] = w[0] - c[0] */
+    /* j: t0 = v[1] * v[1]; o[0] = t0 - c[0] */
     {
         IrFunction f;
         f.kind = IrFunction::Kind::Jacobian;
         f.name = "j";
+        f.temporaries = 1;
         const int v1 = op(m, IrOp::Variable, -1, -1, -1, 1);
-        f.statements.push_back({IrStatement::Kind::Workspace, 0, op(m, IrOp::Multiply, v1, v1)});
-        f.statements.push_back({IrStatement::Kind::Output, 0, op(m, IrOp::Subtract, op(m, IrOp::Workspace, -1, -1, -1, 0), op(m, IrOp::Constant, -1, -1, -1, 0))});
+        f.statements.push_back({IrStatement::Kind::Temporary, 0, op(m, IrOp::Multiply, v1, v1)});
+        f.statements.push_back({IrStatement::Kind::Output, 0, op(m, IrOp::Subtract, op(m, IrOp::Temporary, -1, -1, -1, 0), op(m, IrOp::Constant, -1, -1, -1, 0))});
         m.functions.push_back(f);
     }
 
@@ -126,8 +127,8 @@ TEST_CASE("test_mir")
             const double total = ((3.0 * 1.0 + 0.0) + 3.0 * 2.0) + 3.0 * 3.0;
             CHECK(same(o[0], (total + 0.25) * 1.25 / 0.25));
             CHECK(o[1] == 2.0); /* c[2] is 7, not 0: the select takes its third operand */
-            auto derivative = reinterpret_cast<void (*)(double *, double *, void *, double *, double *)>(*jacobian);
-            xpp::mir::call(derivative, c, v, nullptr, w, o);
+            auto derivative = reinterpret_cast<void (*)(double *, double *, void *, double *)>(*jacobian);
+            xpp::mir::call(derivative, c, v, nullptr, o);
             CHECK(same(o[0], 4.0 - 0.5));
         }
         CHECK(!(*program)->function("absent"));

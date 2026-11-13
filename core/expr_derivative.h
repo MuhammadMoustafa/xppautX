@@ -5,7 +5,7 @@
    right-hand side is differentiated there by the chain rule, with respect
    to the time, the state variables and the constants, through the fixed
    variables, the derived parameters and the user functions, each of them
-   read in place. compile_model (expr_native.cpp) writes the derivatives
+   read in place. translate_model (expr_native.cpp) writes the derivatives
    as C, so they cost about what the right-hand side costs. C++ only. */
 #include "expr_native.h"
 #include "expr_program.h"
@@ -123,7 +123,7 @@ struct ModelDerivatives {
 /* The derivatives of the Session's model, or why it has none: a model
    with Markov variables, delays, integral equations, algebraic equations
    or random numbers, an operation with no derivative, a function table,
-   a program compile_model did not compile (programs: model_programs'),
+   a program translate_model did not compile (programs: model_programs'),
    or a model too large (the place the reason is at). */
 Result<ModelDerivatives> differentiate_model(const xpp::Session &s, std::span<const ModelProgram> programs);
 

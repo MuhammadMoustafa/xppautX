@@ -215,8 +215,11 @@ with `--verbose` or `--debug`. What the log shows and where it goes are yours, n
 
 ### Command-line options
 
-Core equations and user functions compile when the first computation starts, using the
-built-in MIR compiler. Parameters and variables are read at each evaluation, and
+Core equations and user functions compile with the built-in MIR compiler: they are
+translated when the first computation starts, and the code is built once the interpreter
+has done as much work as the build would cost, so a short run never pays for a compile
+it would not recoup (the log says when the code was built). A run on several threads
+(a sweep, autoX's collocation) builds it before it starts. Parameters and variables are read at each evaluation, and
 compiled execution preserves the interpreter's numerical operations. The whole
 expression language compiles (tables, networks, vectorizers, kernels, sums,
 delays and shifts, `set`, `@` and random draws), the compiled code calling the

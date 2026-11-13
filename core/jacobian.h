@@ -25,7 +25,7 @@ struct DifferenceGroups {
 
 // Compiled derivative evaluation storage; autoX workers each own one.
 struct JacobianScratch {
-  std::vector<double> point, workspace, values;
+  std::vector<double> point, values;
   /* the model's difference groups, made on the first difference Jacobian */
   std::optional<DifferenceGroups> groups;
 };
@@ -39,7 +39,7 @@ const DifferenceGroups *difference_groups(const Model &m, JacobianScratch &scrat
 
 /* How the model's Jacobian is formed, the numerics' `jacobian` (W260):
    by forward differences, XPPAUT's (the default: a model gives XPPAUT's
-   numbers), or exactly, from the derivatives compile_model made of the
+   numbers), or exactly, from the derivatives translate_model made of the
    model's right-hand sides (Model::jacobian). Their names, by value, are
    what the `jacobian` option and `set num` take. */
 constexpr int JACOBIAN_DIFFERENCE = 0, JACOBIAN_EXACT = 1;

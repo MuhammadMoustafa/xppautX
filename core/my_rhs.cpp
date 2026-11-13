@@ -6,6 +6,7 @@
 #include "simplenet.h"
 #include "form_ode.h"
 #include "model.h"
+#include "expr_native.h"
 #include "xpp_globals.h"
 
 namespace {
@@ -20,16 +21,18 @@ void state_values(const xpp::Model &m, double t, const double *y, int node, int 
 
 /* The fixed variables into the variables v, from the constants c (the
    Session s's, or autoX's own copies): by the one native function
-   compile_model made for the right-hand side (W468), else each program in
-   order. */
+   translate_model made for the right-hand side (W468), else each program in
+   order. Both read the values v holds, whatever node states the caller set
+   (W715: a fixed variable's own function is not compiled when p_rhs
+   computes it, so this is the one way to evaluate them). */
 template <class Set, class Evaluate>
-void fixed_values(const xpp::Model &m, int node, double *c, double *v, xpp::Session *s, Set &&set, Evaluate &&evaluate)
+void fixed_values(const xpp::Model &m, double *c, double *v, xpp::Session *s, Set &&set, Evaluate &&evaluate)
 {
-  if (node==m.node && m.native_rhs) {
+  if (m.native_rhs) {
     xpp::mir::call(m.native_rhs,c,v,s,nullptr);
     return;
   }
-  for (int i=node;i<node+m.fix_var;++i) set(i+1,evaluate(m.programs[i]));
+  for (int i=m.node;i<m.node+m.fix_var;++i) set(i+1,evaluate(m.programs[i]));
 }
 
 template <class Evaluate>
@@ -51,7 +54,7 @@ void rhs_order(const xpp::Model &m, double t, const double *y, double *ydot, dou
     xpp::mir::call(m.native_rhs,c,v,s,ydot);
     return;
   }
-  fixed_values(m,m.node,c,v,s,set,evaluate);
+  fixed_values(m,c,v,s,set,evaluate);
   between();
   equation_values(m,ydot,evaluate);
 }
@@ -65,7 +68,7 @@ void extra(xpp::Session &s, double *y__y, double t, int nod, int neq)
   if(nod>=neq)return;
   const auto set=[&](int index,double value){setvar(s,index,value);};
   state_values(m,t,y__y,nod,nmark,set);
-  fixed_values(m,nod,s.parser.constants.data(),s.parser.variables.data(),&s,set,
+  fixed_values(m,s.parser.constants.data(),s.parser.variables.data(),&s,set,
                [&](const xpp::Program &p){return xpp::evaluate(s,p);});
   /* I dont think this is generally needed  */
 
@@ -83,6 +86,7 @@ void set_fix_rhs(xpp::Session &s, double t, double *y)
 
 int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
 {
+  if (s.model().native_pending) xpp::build_native_when_due(s);
   rhs_order(s.model(),t,y,ydot,s.parser.constants.data(),s.parser.variables.data(),&s,
             [&](int i,double value){setvar(s,i,value);},
             [&](const xpp::Program &p){return xpp::evaluate(s,p);},
@@ -93,7 +97,7 @@ int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
 
 bool pure_rhs_ready(const xpp::Session &s)
 {
-  return s.model().rhs_impurity.empty() && s.integrator.rhs.function==my_rhs;
+  return s.model().rhs_impurity.empty() && !s.model().native_pending && s.integrator.rhs.function==my_rhs;
 }
 
 void pure_rhs(const xpp::Session &s, const double *y, double *ydot, double *c, double *v)
@@ -112,7 +116,7 @@ void update_based_on_current(xpp::Session &s)
 void fix_only(xpp::Session &s)
 {
   const xpp::Model &m=s.model();
-  fixed_values(m,m.node,s.parser.constants.data(),s.parser.variables.data(),&s,
+  fixed_values(m,s.parser.constants.data(),s.parser.variables.data(),&s,
                [&](int i,double value){setvar(s,i,value);},
                [&](const xpp::Program &p){return xpp::evaluate(s,p);});
 }

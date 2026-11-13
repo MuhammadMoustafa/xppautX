@@ -21,6 +21,7 @@
    share expr_internal.h; the rest of the core uses this header. */
 
 #include <array>
+#include <cstdint>
 #include <map>
 #include <numbers>
 #include <optional>
@@ -85,7 +86,7 @@ double evaluate(Session &s, const int *program);
 struct Program;
 double evaluate(Session &s, const Program &program);
 /* A native program's value from the caller's own arrays, with s only read:
-   for a program compile_model proved array_pure (it reads c, v and the
+   for a program translate_model proved array_pure (it reads c, v and the
    immutable lookup tables, never s's stacks), so autoX's collocation workers
    share s const (expr_eval.cpp). */
 double evaluate_pure(const Session &s, const Program &program, double *constants, double *variables);
@@ -194,6 +195,9 @@ struct ParserState {
     if (symbols.size() < static_cast<size_t>(nsym) + 3) symbols.resize(2 * symbols.size());
   }
   ExprStack stack;
+  /* the operations eval_rpn has run (W715): the interpreted work so far, against which the model's native
+     code is built when the compile is cheaper (Model::NativePending::build_at) */
+  std::int64_t interpreted_ops = 0;
   /* the Model builder's count of variables read (in_vars) and the named
      auxiliary variables (naux of aux_names) (form_ode.cpp) */
   struct {

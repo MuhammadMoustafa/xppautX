@@ -104,6 +104,7 @@ TEST_CASE("test_autox_fold")
     argv[1] = path.data();
     CHECK(load_args(2, argv, 1).has_value());
     auto &derived = xpp::client_session();
+    CHECK(xpp::native_ready(derived)); /* a worker calls the native code: built before it starts (W715) */
     AutoxRun worker;
     worker.session = &derived;
     worker.parameter_count = derived.autox_state.parameter_layout.size();

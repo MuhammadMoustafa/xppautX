@@ -52,7 +52,7 @@ Loaded load_model(CommandLine cl, int batch, const SavedModel *saved = nullptr,
                   const Result<prefs::Preferences> *read_prefs = nullptr);
 /* Import and validate in a temporary Model and Session, using the shared
    setup. Never commits; the converter alone supplies the .ode reader. */
-/* A loaded model compiled (compile_model, W260's exact Jacobian when the
+/* A loaded model translated (translate_model, W260's exact Jacobian when the
    numerics ask for it): the warnings the compiler gave, each with its place,
    or the error of a model that asks for an exact Jacobian it has none of.
    A load logs the warnings; --check reports them. */

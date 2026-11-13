@@ -52,7 +52,7 @@ double eval_rpn(const int *equat, xpp::Session &s)
 
   while((i=*equat++)!=ENDEXP)
   {
-
+   ++p.interpreted_ops;
    switch(i)
    {
    case NUMSYM:

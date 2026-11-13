@@ -13,10 +13,10 @@ void extra(xpp::Session &s, double *y__y, double t, int nod, int neq);
 void set_fix_rhs(xpp::Session &s, double t, double *y);
 /* ydot, the right-hand side at t, y (neq values): the solvers' */
 int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq);
-/* the Session's right-hand side is the model's own (my_rhs) and compile_model proved it pure (Model::rhs_impurity): a run on
+/* the Session's right-hand side is the model's own (my_rhs) and translate_model proved it pure (Model::rhs_impurity): a run on
    a copy of the Session's state gives the Session's numbers (autoX's collocation workers, a sweep's runs) */
 bool pure_rhs_ready(const xpp::Session &s);
-/* autoX only, after compile_model proved this path uses only its arrays. */
+/* autoX only, after translate_model proved this path uses only its arrays. */
 void pure_rhs(const xpp::Session &s, const double *y, double *ydot, double *c, double *v);
 /* the fixed quantities and networks from the variables as they are */
 void update_based_on_current(xpp::Session &s);

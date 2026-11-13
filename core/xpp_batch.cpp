@@ -102,7 +102,7 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
 
 Result<std::vector<Error>> compile_loaded(Session &s)
 {
-    auto compiled=compile_model(s);
+    auto compiled=translate_model(s);
     if (!compiled) compiled=std::vector<Error>{compiled.error()};
     /* the exact Jacobian a model asks for is known to exist only now
        (W260): none is an error at the @ line, not a quiet difference */

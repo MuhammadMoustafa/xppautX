@@ -29,7 +29,6 @@ enum class IrOp : unsigned char {
     Temporary,     /* the value a statement stored in temporary `index` */
     Argument,      /* a user function's double argument `index` */
     LoopCounter,   /* the integer counter of loop `index`, as a double */
-    Workspace,     /* w[index], the exact Jacobian's workspace */
     Operand,       /* (double)R[index], a network pair formula's operand */
     Add,           /* args[0] + args[1], in that order */
     Subtract,
@@ -55,7 +54,6 @@ struct IrStatement {
         Variable,             /* v[index] = value */
         Constant,             /* c[index] = value */
         Output,               /* o[index] = value */
-        Workspace,            /* w[index] = value */
         ReturnWithoutOutput,  /* the equations are written only when the caller gives an output array */
         LoopBegin,            /* loop `index` opens: slot = 0, its counter runs from value to other (integers, the bounds truncated) */
         LoopEnd,              /* loop `index` closes: slot = slot + value, then the next counter or the end */
@@ -74,7 +72,7 @@ struct IrFunction {
        User      double (c, v, S, a0, a1, ...)
        Equation  double (c, v, S, R)   R the program's RPN, a network pair formula reads its operands
        Rhs       void   (c, v, S, o)
-       Jacobian  void   (c, v, S, w, o) */
+       Jacobian  void   (c, v, S, o)   the exact Jacobian's derivatives (W260), at its own level */
     enum class Kind : unsigned char { User, Equation, Rhs, Jacobian } kind = Kind::Equation;
     std::string name;
     int doubles = 0; /* a User function's arguments */

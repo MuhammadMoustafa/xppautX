@@ -27,15 +27,13 @@ std::span<const double> entries(const Session &s, JacobianScratch &scratch, cons
 {
   const Model &m = s.model();
   auto &v = scratch.point;
-  auto &w = scratch.workspace;
   v.resize(xpp::size_sum(m.node, 1));
-  w.resize(m.jacobian.workspace);
   if (scratch.values.size() < p.rows.size()) scratch.values.resize(p.rows.size());
   const std::span<double> out(scratch.values.data(), p.rows.size());
   v[0] = t;
   std::copy_n(x, m.node, v.begin() + 1);
   /* the helpers only read the Session (its tables) */
-  mir::call(p.function, c, v.data(), const_cast<Session *>(&s), w.data(), out.data());
+  mir::call(p.function, c, v.data(), const_cast<Session *>(&s), out.data());
   for (size_t k = 0; k < out.size(); k++) {
     const int row = p.rows[k];
     if (std::isfinite(out[k]) || row >= n || !std::isfinite(f[row])) continue;

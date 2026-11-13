@@ -104,9 +104,9 @@ namespace {
 /* The graph of a model's values and derivatives holds at most this many
    nodes and derivative terms together: about 25 times what the largest
    example with one needs (clustor, 38152 values), and past it the
-   generated code would take MIR some fifteen seconds to compile (15 us
-   a value at level 1, measured on mu26) and its workspace megabytes. A model past it
-   has no exact Jacobian. */
+   generated code would take MIR some five seconds to compile (5 us
+   a value at level 1, measured on mu26, W715). A model past it has no exact
+   Jacobian. */
 constexpr std::size_t MAX_JACOBIAN_NODES = 1000000;
 /* The program instructions read in all, user functions read again at
    each call: ten for each node allowed (a call with arguments seen before
@@ -187,7 +187,7 @@ private:
         const auto entry = entries_.find(&p);
         if (entry == entries_.end()) return refuse(last_place(), "reads a program the model does not hold");
         const Place &where = entry->second->place;
-        if (!p.native && !p.in_rhs) return refuse(where, "was not compiled, so it has no exact Jacobian");
+        if (!p.compiled && !p.in_rhs) return refuse(where, "was not compiled, so it has no exact Jacobian");
         places_.push_back(where);
         const std::size_t program = places_.size() - 1;
         made_by(program);

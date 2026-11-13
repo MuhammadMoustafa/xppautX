@@ -295,6 +295,7 @@ Result<double> set_dae_guess(xpp::Session &s, int i, std::string_view formula)
   var.rhs=formula;
   /* a guess edited at run time no longer has its load-time native code */
   var.form.native=nullptr;
+  var.form.compiled=false;
   int n;
   add_expr(s,var.rhs,var.form.rpn,&n);
   var.form.rpn.resize(std::max(100, n+2), 0);

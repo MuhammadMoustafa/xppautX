@@ -640,7 +640,7 @@ void check_directions_stopped(unsigned threads)
     /* the steady state at p0 = 0.05, so the start needs no Newton refinement */
     s.last_ic[0]=0.06282240276322631;
     s.last_ic[1]=0.2931712128950587;
-    CHECK(xpp::autox_parallel_ready(s));
+    CHECK(xpp::native_ready(s) && xpp::autox_parallel_ready(s));
     int (*const polled)(int *)=xpp::ui.autox_check_abort;
     jobs_wanted=threads>1?2:1;
     abort_polls=0;
@@ -961,7 +961,7 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
     /* the equations compile at load; an interpreted run recompiles them so */
     if (!compiled) {
         s.numerics.compile=false;
-        CHECK(xpp::compile_model(s).has_value());
+        CHECK(compile_model(s).has_value());
     }
     CHECK(s.model().rhs_impurity.empty()==(compiled && !impure));
     s.autox_state.dir=tmp.path();
@@ -1012,7 +1012,7 @@ void check_collocation_purity()
     }
     CHECK(load("tools/models/compile_derived.odex"));
     auto &s=xpp::client_session();
-    CHECK(s.model().rhs_impurity.empty() && xpp::autox_parallel_ready(s));
+    CHECK(s.model().rhs_impurity.empty() && xpp::native_ready(s) && xpp::autox_parallel_ready(s));
     s.numerics.method=xpp::method::DISCRETE;
     s.numerics.store_every=2;
     CHECK(!xpp::autox_parallel_ready(s));
