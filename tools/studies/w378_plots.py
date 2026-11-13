@@ -263,7 +263,7 @@ def main():
     plot_speedup(rows, sizes, a.out)
     plot_memory(rows, sizes, a.out)
     for name in ('w378-time.png', 'w378-speedup.png', 'w378-memory.png'):
-        print(f'wrote {a.out/name} ({(a.out/name).stat().st_size} bytes)')
+        print(f'wrote {a.out/name} ({(a.out/name).stat().st_size} bytes)', file=sys.stderr)
     if a.tables:
         print_tables(rows, sizes, a.data)
 
