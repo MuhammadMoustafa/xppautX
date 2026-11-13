@@ -19,7 +19,7 @@ std::optional<doublecomplex> autox_hopf_pair(std::span<const doublecomplex> spec
 /* No retained record for a restored equilibrium: refresh its Jacobian and
    reuse autoX's eigenvalue calculation, without changing point parameters. */
 void autox_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *par, integer *icp,
-    FUNI_TYPE((*funi)), double *u, double *uold, double *f, double *dfdu, double *dfdp);
+    FUNI_TYPE((*problem_function)), double *u, double *uold, double *f, double *dfdu, double *dfdp);
 
 /* Original orbit pencil extracted from an augmented cycle-curve system.
    Uses the existing partial-pivot LU to choose independent equation rows. */

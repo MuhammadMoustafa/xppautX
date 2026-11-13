@@ -5,7 +5,7 @@
 #include <utility>
 
 namespace {
-/* This structure contains all of the input data for the conpar routine
+/* This structure contains all of the input data for the condense_parameters routine
    Those values which are arrays and those
    which are input and output are markered as such*/
 struct conpar_parallel_arglist {
@@ -155,7 +155,7 @@ conpar_default_wrapper(AutoxRun &run, integer *nov, integer *na, integer *nra, i
       conpar_process(&data);
       return;
     }
-    auto &dlog = run.solvbv.dlog;
+    auto &dlog = run.solve_boundary_work.dlog;
     dlog.resize(*na);
     const auto terms = xpp::size_product(*nra - *nov, *nrc - *nbc, *ncb);
     for (auto &interval : dlog) {
@@ -176,8 +176,9 @@ conpar_default_wrapper(AutoxRun &run, integer *nov, integer *na, integer *nra, i
 }
 } // namespace
 
+/* conpar: AUTO's CONPAR (solvebv.f90:777): condensation of the system by eliminating the local variables */
 int 
-conpar(AutoxRun &run, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
+condense_parameters(AutoxRun &run, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
 {
   /* Aliases for the dimensions of the arrays */
   integer icf_dim1, irf_dim1;

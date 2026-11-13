@@ -134,12 +134,12 @@ TEST_CASE("test_autox_location")
     // MUELLER's quadratic through (-1,2), (0,1), (1,2) has no
     // real zero. AUTO-07p sets the radical to zero instead of sqrt(-1).
     double q0 = 2, q1 = 1, value = 2, s0 = -1, s1 = 0, abscissa = 1, step = 0;
-    CHECK(mueller(&q0, &q1, &value, &s0, &s1, &abscissa, &step) == 0);
+    CHECK(mueller_root(&q0, &q1, &value, &s0, &s1, &abscissa, &step) == 0);
     CHECK(std::isfinite(step) && step == -2);
     CHECK(q0 == 2 && q1 == 2 && s0 == -1 && s1 == 1);
     // The same formula must also handle an exactly linear interpolant.
     q0 = -1; q1 = 0; value = 1; s0 = -1; s1 = 0; abscissa = 1;
-    CHECK(mueller(&q0, &q1, &value, &s0, &s1, &abscissa, &step) == 0);
+    CHECK(mueller_root(&q0, &q1, &value, &s0, &s1, &abscissa, &step) == 0);
     CHECK(step == -1);
 
     char name[] = "test_autox_location";
@@ -182,7 +182,7 @@ TEST_CASE("test_autox_location")
     const auto initial_aa = aa;
     const auto initial_rhs = rhs;
     const auto initial_du = du;
-    CHECK(lcspae(&iap, &rap, par.data(), &icp, noisy, line, &stride, aa.data(),
+    CHECK(locate_special_algebraic(&iap, &rap, par.data(), &icp, noisy, line, &stride, aa.data(),
                  rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(), &uold, &udot,
                  &f, &dfdu, dfdp.data(), q, thl.data(), &thu, std::span(&mark, 1), dstest, stepped) == 0);
     CHECK(iap.istop == 0 && iap.itp == xpp::AutoxPointCode{} && iap.nit == 3 && iap.nins == 1);
@@ -200,7 +200,7 @@ TEST_CASE("test_autox_location")
     thu = 0; // arclength measures only the parameter on u=par
     q = AutoxTestSample{-0.4};
     dstest = rap.dsold;
-    CHECK(lcspae(&iap, &rap, par.data(), &icp, target, retry_line, &stride, aa.data(),
+    CHECK(locate_special_algebraic(&iap, &rap, par.data(), &icp, target, retry_line, &stride, aa.data(),
                  rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(), &uold, &udot,
                  &f, &dfdu, dfdp.data(), q, thl.data(), &thu, std::span(&mark, 1), dstest, stepped) == 0);
     CHECK(iap.istop == 0 && iap.itp.kind == xpp::AutoxPointKind::Pending);
@@ -225,7 +225,7 @@ TEST_CASE("test_autox_location")
         stepped = false;
     };
     const auto locate = [&](auto &test, AutoxTestSample &sample) {
-        return lcspae(&iap, &rap, par.data(), &icp, test, line, &stride, aa.data(),
+        return locate_special_algebraic(&iap, &rap, par.data(), &icp, test, line, &stride, aa.data(),
                       rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(), &uold, &udot,
                       &f, &dfdu, dfdp.data(), sample, thl.data(), &thu, std::span(&mark, 1), dstest, stepped);
     };
@@ -241,8 +241,8 @@ TEST_CASE("test_autox_location")
         CHECK(std::abs(sample.value + 0.0225) < 1e-9 && sample.offset && std::abs(*sample.offset - 0.15) < 1e-4);
         iap.itp = xpp::AutoxPointCode{};
         double rds = 0.4;
-        contae(&iap, &rap, &rds, &rlcur, &rlold, &rldot, &u, &uold, &udot);
-        solvae(&iap, &rap, par.data(), &icp, line, &rds, &stride, aa.data(), rhs.data(), &rlcur, &rlold,
+        extrapolate_algebraic(&iap, &rap, &rds, &rlcur, &rlold, &rldot, &u, &uold, &udot);
+        solve_algebraic(&iap, &rap, par.data(), &icp, line, &rds, &stride, aa.data(), rhs.data(), &rlcur, &rlold,
                &rldot, &u, du.data(), &uold, &udot, &f, &dfdu, dfdp.data(), thl.data(), &thu);
         CHECK(std::abs(u - 0.8) < 1e-5);
         dstest = rap.dsold;
@@ -301,7 +301,7 @@ TEST_CASE("test_autox_location")
     const auto count = s.diagram.points.size();
     std::string error;
     try {
-        solvae(&iap, &rap, par.data(), &icp, nonfinite_line, &ds, &stride,
+        solve_algebraic(&iap, &rap, par.data(), &icp, nonfinite_line, &ds, &stride,
                aa.data(), rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(),
                &uold, &udot, &f, &dfdu, dfdp.data(), thl.data(), &thu);
     } catch (const xpp::AutoxFailed &e) { error = e.error.what; }
@@ -325,7 +325,7 @@ TEST_CASE("test_autox_location")
     rlold = par[0] = 0;
     error.clear();
     try {
-        stepbv(&iap, &rap, par.data(), &icp, nonfinite_line, initial_boundary,
+        step_boundary(&iap, &rap, par.data(), &icp, nonfinite_line, initial_boundary,
                nullptr, nullptr, &ds, &rlcur, &rlold, &rldot, &mesh_stride,
                mesh.data(), dups.data(), old.data(), tangent.data(), upold.data(),
                fa.data(), fc.data(), tm.data(), dtm.data(), &p0, &p1,

@@ -6,13 +6,13 @@
 #include "xpp_job.h" /* xppautX: cancel */
 
 namespace {
-/* This structure contains all of the input data for the setubv routine
+/* This structure contains all of the input data for the setup_boundary_system routine
    Those values which are arrays and those
    which are input and output are markered as such*/
 struct setubv_parallel_arglist {
   integer ndim, ncol, nbc, nint, ncb, nrc, nra, nca, na; /*scalar input */
-  FUNI_TYPE((*funi)); /*scalar input*/
-  ICNI_TYPE((*icni)); /*scalar input*/
+  FUNI_TYPE((*problem_function)); /*scalar input*/
+  ICNI_TYPE((*integral_function)); /*scalar input*/
   integer ndxloc; /*scalar input*/
   iap_type *iap; /*array input size: NIAP*/
   rap_type *rap; /*array input size: NRAP*/
@@ -38,23 +38,23 @@ struct setubv_parallel_arglist {
   doublereal *thu; /*array input size: ndim * 8 */
   doublereal *thl; /* parameter_count entries */
   doublereal *rldot; /* parameter_count entries */
-  BCNI_TYPE((*bcni));
+  BCNI_TYPE((*boundary_function));
   bool jacobian = true;
 };
 
-/* setubv's steps (the original autoX also ran them on pthreads or MPI
+/* setup_boundary_system's steps (the original autoX also ran them on pthreads or MPI
    workers). */
 void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, doublereal *rlcur,
 		       doublereal *rlold, doublereal rds);
 void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol,
 					 integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca,
-					 FUNI_TYPE((*funi)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par,
+					 FUNI_TYPE((*problem_function)), ICNI_TYPE((*integral_function)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par,
 					 integer *icp, xpp::Matrix3<doublereal> aa, xpp::Matrix3<doublereal> bb,
 					 xpp::Matrix3<doublereal> cc, xpp::Matrix<doublereal> dd, doublereal *fa, doublereal *fc, doublereal *ups,
 					 doublereal *uoldps, doublereal *udotps,
 					 doublereal *upoldp, doublereal *dtm,
 					 doublereal *wp, doublereal *wt, doublereal *wi,
-					 doublereal *thu, doublereal *thl, doublereal *rldot, BCNI_TYPE((*bcni)),
+					 doublereal *thu, doublereal *thl, doublereal *rldot, BCNI_TYPE((*boundary_function)),
 					 setubv_parallel_arglist *data);
 
 void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
@@ -107,7 +107,7 @@ void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
       for (i = 0; i < larg->iap->run->parameter_count; ++i) {
 	prm[i] = larg->par[i];
       }
-      (*(larg->funi))(larg->iap, larg->rap, larg->ndim, u.data(), uold.data(), larg->icp, prm.data(), larg->jacobian ? 2 : 0, f.data(), dfdu.data(), dfdp.data());
+      (*(larg->problem_function))(larg->iap, larg->rap, larg->ndim, u.data(), uold.data(), larg->icp, prm.data(), larg->jacobian ? 2 : 0, f.data(), dfdu.data(), dfdp.data());
 
       ic1 = ic * (larg->ndim);
       // FUNI already supplied the residual before differentiating.
@@ -216,7 +216,7 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
       ubc1[i] = ARRAY2D(ups, larg->na, i);
     }
     
-    (*(larg->bcni))(larg->iap, larg->rap, larg->ndim, larg->par, 
+    (*(larg->boundary_function))(larg->iap, larg->rap, larg->ndim, larg->par, 
 	    larg->icp, larg->nbc, ubc0.data(), ubc1.data(), fbc.data(), 2, dbc.data());
     for (i = 0; i < larg->nbc; ++i) {
       for (k = 0; k < larg->ndim; ++k) {
@@ -255,7 +255,7 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 	  uip[i] = ARRAY2D(upoldp, j1 + larg->loop_offset, i1);
 	}
 	
-	(*(larg->icni))(larg->iap, larg->rap, larg->ndim, larg->par, 
+	(*(larg->integral_function))(larg->iap, larg->rap, larg->ndim, larg->par, 
 		larg->icp, larg->nint, 
 		uic.data(), uio.data(), uid.data(), uip.data(), ficd.data(), 2, dicd.data());
 
@@ -288,9 +288,10 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 
 } // namespace
 
+/* setubv: AUTO's SETUBV (solvebv.f90:293): the collocation system's blocks */
 int 
-setubv(integer ndim, xpp::AutoxProblem ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
-       FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
+setup_boundary_system(integer ndim, xpp::AutoxProblem ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
+       FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
        doublereal rds, xpp::Matrix3<doublereal> aa, xpp::Matrix3<doublereal> bb, xpp::Matrix3<doublereal> cc, xpp::Matrix<doublereal> dd, doublereal *fa, doublereal *fc, doublereal *rlcur, 
        doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, 
        doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
@@ -343,10 +344,10 @@ setubv(integer ndim, xpp::AutoxProblem ips, integer na, integer ncol, integer nb
   {
     setubv_parallel_arglist arglist;
     setubv_parallel_arglist_constructor(ndim, na, ncol, nbc, nint, ncb, 
-					nrc, nra, nca, funi, icni, ndxloc, iap, rap, 
+					nrc, nra, nca, problem_function, integral_function, ndxloc, iap, rap, 
 					par, icp, aa, bb, cc, dd, fa, fc, ups, 
 					uoldps, udotps, upoldp, dtm, wp.data(), wt.data(), wi.data(), 
-					thu, thl, rldot, bcni, &arglist);
+					thu, thl, rldot, boundary_function, &arglist);
   
     auto &residual_parameters = iap->run->assembly.residual_parameters;
     std::copy_n(par, iap->run->parameter_count, residual_parameters.begin());
@@ -409,7 +410,7 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
       ubc1[i] = ARRAY2D(ups, larg.na, i);
     }
     
-    (*(larg.bcni))(larg.iap, larg.rap, larg.ndim, larg.par, 
+    (*(larg.boundary_function))(larg.iap, larg.rap, larg.ndim, larg.par, 
 		   larg.icp, larg.nbc, ubc0.data(), ubc1.data(), fbc.data(), 2, dbc.data());
     for (i = 0; i < larg.nbc; ++i) {
       larg.fc[i] = -fbc[i];
@@ -447,7 +448,7 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
 	  uip[i] = ARRAY2D(upoldp, j1, i1);
 	}
 	
-	(*(larg.icni))(larg.iap, larg.rap, larg.ndim, larg.par, 
+	(*(larg.integral_function))(larg.iap, larg.rap, larg.ndim, larg.par, 
 		larg.icp, larg.nint, 
 		uic.data(), uio.data(), uid.data(), uip.data(), ficd.data(), 2, dicd.data());
 	
@@ -471,21 +472,21 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
     rlsum += larg.thl[larg.icp[i]] * (rlcur[i] - rlold[i]) * larg.rldot[i];
   }
 
-  larg.fc[larg.nrc-1] = rds - rinpr(larg.iap, &(larg.ndim), &(larg.ndxloc), larg.udotps, dups, larg.dtm, larg.thu) - rlsum;
+  larg.fc[larg.nrc-1] = rds - mesh_inner_product(larg.iap, &(larg.ndim), &(larg.ndxloc), larg.udotps, dups, larg.dtm, larg.thu) - rlsum;
 
 }
 
 /* Fill in a setubv_parallel_arglist for the individual variables */
 void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol, 
 					 integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
-					 FUNI_TYPE((*funi)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, 
+					 FUNI_TYPE((*problem_function)), ICNI_TYPE((*integral_function)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, 
 					 integer *icp, xpp::Matrix3<doublereal> aa, xpp::Matrix3<doublereal> bb, 
 					 xpp::Matrix3<doublereal> cc, xpp::Matrix<doublereal> dd, doublereal *fa, doublereal *fc, doublereal *ups, 
 					 doublereal *uoldps, doublereal *udotps, 
 					 doublereal *upoldp, doublereal *dtm, 
 					 doublereal *wp, doublereal *wt, doublereal *wi,
 					 doublereal *thu, doublereal *thl,
-					 doublereal *rldot, BCNI_TYPE((*bcni)), setubv_parallel_arglist *data) {
+					 doublereal *rldot, BCNI_TYPE((*boundary_function)), setubv_parallel_arglist *data) {
   data->ndim   = ndim;
   data->ncol   = ncol;
   data->nbc    = nbc;
@@ -495,8 +496,8 @@ void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol,
   data->nra    = nra;
   data->nca    = nca;
   data->na     = na;
-  data->funi   = funi;
-  data->icni   = icni;
+  data->problem_function   = problem_function;
+  data->integral_function   = integral_function;
   data->ndxloc = ndxloc;
   data->iap    = iap;
   data->rap    = rap;
@@ -522,6 +523,6 @@ void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol,
   data->thu    = thu;
   data->thl    = thl;
   data->rldot  = rldot;
-  data->bcni   = bcni;
+  data->boundary_function   = boundary_function;
 }  
 } // namespace

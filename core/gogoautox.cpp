@@ -48,33 +48,33 @@ using AeStart = STPNT_TYPE_AE((*));
 using BvStart = STPNT_TYPE_BVP((*));
 using BvValues = PVLI_TYPE_BVP((*));
 
-function_list algebraic(FUNI_TYPE((*funi)), AeStart start)
+problem_function_table algebraic(FUNI_TYPE((*problem_function)), AeStart start)
 {
-  return {AutoxSolver::Algebraic, {}, {funi, start, pvlsae}};
+  return {AutoxSolver::Algebraic, {}, {problem_function, start, output_parameters_algebraic}};
 }
 
-function_list boundary(FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), BvStart start, BvValues values = pvlsbv)
+problem_function_table boundary(FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), BvStart start, BvValues values = output_parameters_boundary)
 {
-  return {AutoxSolver::BoundaryValue, {funi, bcni, icni, start, values}, {}};
+  return {AutoxSolver::BoundaryValue, {problem_function, boundary_function, integral_function, start, values}, {}};
 }
 
 /* a one-parameter continuation's functions (abs(ISW) != 2, and the
    problems that have no other): the start from scratch (IRS 0) or from a
    label of the restart file */
-std::optional<function_list> one_parameter(const iap_type &iap)
+std::optional<problem_function_table> one_parameter(const iap_type &iap)
 {
   using xpp::AutoxProblem;
   using xpp::AutoxPointKind;
   const bool restart = iap.irs > 0;
   const bool two = std::abs(iap.isw) == 2;
-  const auto ae = [&](FUNI_TYPE((*funi))) { return algebraic(funi, restart ? stpnae : stpnus); };
-  const auto bv = [&](FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni))) {
-    return boundary(funi, bcni, icni, restart ? stpnbv : stpnub);
+  const auto ae = [&](FUNI_TYPE((*problem_function))) { return algebraic(problem_function, restart ? algebraic_start : user_start_algebraic); };
+  const auto bv = [&](FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function))) {
+    return boundary(problem_function, boundary_function, integral_function, restart ? boundary_start : user_start_boundary);
   };
   switch (iap.ips) {
   case AutoxProblem::Algebraic:
   case AutoxProblem::SteadyState:
-    if (!two) return ae(funi);
+    if (!two) return ae(problem_function);
     break;
   case AutoxProblem::WaveSteady: /* spatially homogeneous solutions */
     if (!two) return ae(fnws);
@@ -95,24 +95,24 @@ std::optional<function_list> one_parameter(const iap_type &iap)
     return bv(fnwp, bcps, icps);
   case AutoxProblem::BoundaryValue:
   case AutoxProblem::FloquetBoundaryValue:
-    if (!two) return bv(funi, bcni, icni);
+    if (!two) return bv(problem_function, boundary_function, integral_function);
     break;
   case AutoxProblem::Homoclinic:
-    if (!two) return boundary(fnho, bcho, icho, restart ? stpnbv : stpnho, pvlsho);
+    if (!two) return boundary(fnho, bcho, icho, restart ? boundary_start : stpnho, pvlsho);
     break;
   case AutoxProblem::ParabolicPeriodicEvolution:
     return bv(fnpe, bcps, icpe);
   case AutoxProblem::PeriodicOptimization:
-    if (std::abs(iap.isw) == 1) return boundary(fnpo, bcpo, icpo, iap.nfpr < 6 ? stpnpo : stpnbv);
+    if (std::abs(iap.isw) == 1) return boundary(fnpo, bcpo, icpo, iap.nfpr < 6 ? stpnpo : boundary_start);
     break;
   case AutoxProblem::ParabolicUserEvolution:
-    return bv(fnpe, bcni, icpe);
+    return bv(fnpe, boundary_function, icpe);
   case AutoxProblem::ParabolicUserSteady:
-    return bv(fnsp, bcni, icpe);
+    return bv(fnsp, boundary_function, icpe);
   case AutoxProblem::AlgebraicOptimization: {
     const bool from_fold = iap.itp.kind == AutoxPointKind::Fold;
-    if (iap.nfpr + (from_fold || !restart ? 1 : 0) == 2) return algebraic(fnc1, restart ? stpnae : stpnc1);
-    return algebraic(fnc2, from_fold ? stpnc2 : stpnae);
+    if (iap.nfpr + (from_fold || !restart ? 1 : 0) == 2) return algebraic(fnc1, restart ? algebraic_start : stpnc1);
+    return algebraic(fnc2, from_fold ? stpnc2 : algebraic_start);
   }
   }
   return std::nullopt;
@@ -125,7 +125,7 @@ std::optional<function_list> one_parameter(const iap_type &iap)
 struct TwoParameterRow {
   bool (*problem)(xpp::AutoxProblem);
   std::array<xpp::AutoxPointKind, 2> kinds; /* the second Regular for one kind */
-  function_list (*start)();
+  problem_function_table (*start)();
 };
 
 constexpr std::array<TwoParameterRow, 9> two_parameter_rows = {{
@@ -153,7 +153,7 @@ constexpr std::array<TwoParameterRow, 9> two_parameter_rows = {{
    {xpp::AutoxPointKind::CycleFold, xpp::AutoxPointKind::CycleBranch}, [] { return boundary(fnbl, bcbl, icbl, stpnbl); }},
 }};
 
-std::optional<function_list> two_parameter(const iap_type &iap)
+std::optional<problem_function_table> two_parameter(const iap_type &iap)
 {
   if (std::abs(iap.isw) != 2) return std::nullopt;
   for (const TwoParameterRow &row : two_parameter_rows) {
@@ -165,9 +165,9 @@ std::optional<function_list> two_parameter(const iap_type &iap)
     };
     if (any([&](xpp::AutoxPointKind k) { return iap.itp.is(k); })) return row.start();
     if (any([&](xpp::AutoxPointKind k) { return iap.itp.started_from(k); })) {
-      function_list list = row.start();
-      if (list.solver == AutoxSolver::Algebraic) list.aelist.stpnt = stpnae;
-      else list.bvlist.stpnt = stpnbv;
+      problem_function_table list = row.start();
+      if (list.solver == AutoxSolver::Algebraic) list.aelist.user_start = algebraic_start;
+      else list.bvlist.user_start = boundary_start;
       return list;
     }
   }
@@ -175,7 +175,7 @@ std::optional<function_list> two_parameter(const iap_type &iap)
 }
 
 /* the run's problem functions; a combination autoX has none for is an error */
-function_list problem_functions(const iap_type &iap)
+problem_function_table problem_functions(const iap_type &iap)
 {
   const auto named = [](xpp::AutoxPointCode c) {
     const std::string_view name = xpp::autox_point_kind_name(c.kind);
@@ -205,7 +205,8 @@ function_list problem_functions(const iap_type &iap)
 
 /* one autoX run: the problem's functions, then the continuation; a failure
    is thrown as xpp::AutoxFailed (autox_state.h), which do_autox shows */
-void go_go_autox(AutoxRun &run)
+/* go_go_autox: gogoautox.cpp: builds the problem's function table and runs it */
+void run_autox_problem(AutoxRun &run)
 {
   xpp::Session &s=*run.session;
   run.parameter_count = s.autox_state.parameter_layout.size();
@@ -219,18 +220,18 @@ void go_go_autox(AutoxRun &run)
   RunUnits units(run, run.params.irs > 0);
   iap.run = &run;
 
-  init(&iap, &rap, par.data(), icp.data(), thl.data(), thu, marks);
+  initialize_run(&iap, &rap, par.data(), icp.data(), thl.data(), thu, marks);
 
   /* the restart label, and the type of its point */
   if (iap.irs > 0) {
     bool found = false;
-    findlb(&iap, &rap, iap.irs, &(iap.nfpr), &found);
+    find_restart_label(&iap, &rap, iap.irs, &(iap.nfpr), &found);
     if (!found)
       xpp::autox_fail(xpp::format("autoX: restart label {} is not in {}", iap.irs, xpp::autox_fort_path(run, 3)));
   }
-  const function_list list = problem_functions(iap);
-  init1(&iap, &rap, icp.data(), par.data());
-  chdim(&iap);
+  const problem_function_table list = problem_functions(iap);
+  initialize_constants(&iap, &rap, icp.data(), par.data());
+  check_dimensions(&iap);
   if (list.solver == AutoxSolver::BoundaryValue)
     xpp::AutoxParallel::select_run(run, iap.ndim, iap.ntst, iap.ncol);
   else run.collocation.reset();
@@ -240,9 +241,9 @@ void go_go_autox(AutoxRun &run)
   size_run_scratch(iap);
 
   if (list.solver == AutoxSolver::Algebraic)
-    autoae(&iap, &rap, par.data(), icp.data(), list.aelist.funi, list.aelist.stpnt, list.aelist.pvli, thl.data(), thu.data(),
+    continue_algebraic_problem(&iap, &rap, par.data(), icp.data(), list.aelist.problem_function, list.aelist.user_start, list.aelist.pvli, thl.data(), thu.data(),
            marks);
   else
-    autobv(&iap, &rap, par.data(), icp.data(), list.bvlist.funi, list.bvlist.bcni,
-           list.bvlist.icni, list.bvlist.stpnt, list.bvlist.pvli, thl.data(), thu.data(), marks);
+    continue_boundary_problem(&iap, &rap, par.data(), icp.data(), list.bvlist.problem_function, list.bvlist.boundary_function,
+           list.bvlist.integral_function, list.bvlist.user_start, list.bvlist.pvli, thl.data(), thu.data(), marks);
 }

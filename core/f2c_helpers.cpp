@@ -8,6 +8,7 @@
 namespace {
 
 /* cabs.c: |real + i imag| without overflow in the squares */
+/* f__cabs: |re + i im| without overflow in the squares (f2c cabs.c) */
 double complex_magnitude(double real, double imag) {
   double temp;
 
@@ -29,4 +30,5 @@ double complex_magnitude(double real, double imag) {
 }
 } // namespace
 
+/* z_abs: f2c's libF77 z_abs, the magnitude of a double complex */
 double complex_magnitude_of(const doublecomplex *z) { return (complex_magnitude(z->r, z->i)); }

@@ -99,7 +99,7 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
     iap.run->stop.start_refined=true;
     return;
   }
-  func(*iap.run,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr); // the residual of the start, at the run's parameters
+  user_right_hand_side(*iap.run,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr); // the residual of the start, at the run's parameters
   const int worst=xpp::worst_residual(residual.data(),n);
   const double start_value=std::abs(residual[worst]);
   if(std::isfinite(start_value) && start_value<=rap.epsu)return;
@@ -118,7 +118,7 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
         why,name,xpp::number(start_value),xpp::number(rap.epsu),xpp::named_settings(s,{"equilibria.newton_tolerance","equilibria.jacobian_step", "equilibria.search_limit","equilibria.max_iterations"})),model_place(s.model(),name)});
   }
 
-  func(*iap.run,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr);
+  user_right_hand_side(*iap.run,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr);
   const double refined=std::abs(residual[xpp::worst_residual(residual.data(),n)]);
   iap.run->stop.start_refined=true;
   xpp::log(XPP_LOG_INFO,"autoX start is not a steady state: equation \"{}\" had the largest residual |f(x,p)| = {}; Newton's method refined it to {} before the run\n",s.model().uvar_names[worst],xpp::number(start_value),xpp::number(refined));

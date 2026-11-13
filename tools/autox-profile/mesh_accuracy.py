@@ -108,7 +108,7 @@ def main():
         results = {}
         for folder in args.folders:
             rows = [row for line in (folder / 'modeldb.newton.jsonl').read_text().splitlines()
-                    if (row := json.loads(line))['event'] == 'stplbv']
+                    if (row := json.loads(line))['event'] == 'store_diagram_boundary']
             results[folder.name] = []
             for parameter in args.at:
                 row = min(rows, key=lambda r: abs(r['parameter'] - parameter))

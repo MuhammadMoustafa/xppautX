@@ -276,7 +276,7 @@ constexpr std::optional<AutoxPointCode> autox_point_decode(long itp, bool allow_
 }
 
 /* the kind abs(ITP) < 10 names as a start: UZ's 4 is the start Output, MX's 9 End
-   (autox_lib1.cpp findlb: itpst = abs(itp)) */
+   (autox_lib1.cpp find_restart_label: itpst = abs(itp)) */
 constexpr AutoxPointKind autox_point_start_of(AutoxPointCode c)
 {
     if (c.start != AutoxPointKind::Regular) return c.start;

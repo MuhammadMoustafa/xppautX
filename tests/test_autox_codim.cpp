@@ -39,10 +39,10 @@ TEST_CASE("test_autox_codim")
     std::array<double,36> jac{};
     integer stride=7;
     bool enabled;
-    // The test reads the Jacobian solvae computed at the converged point (W421).
+    // The test reads the Jacobian solve_algebraic computed at the converged point (W421).
     const auto lyapunov=[&]() {
         fnhb(&iap,&rap,iap.ndim,u.data(),old.data(),icp.data(),par.data(),2,rhs.data(),jac.data(),dp.data());
-        return fnghae(&iap,&rap,par.data(),icp.data(),&enabled,fnhb,&stride,nullptr,
+        return generalized_hopf_test_algebraic(&iap,&rap,par.data(),icp.data(),&enabled,fnhb,&stride,nullptr,
             nullptr,nullptr,nullptr,u.data(),old.data(),nullptr,rhs.data(),jac.data(),dp.data(),{});
     };
     const auto coefficient=[&](double b) {
@@ -113,11 +113,11 @@ TEST_CASE("test_autox_codim")
     const double split=autox_cycle_test(iap,rap,par.data(),placed,&enabled);
     CHECK(std::abs(split-(xpp::math::hypot(placed[2].r,placed[2].i)-1))<1e-15 && split>0 && enabled);
     // A torus curve's 1:1 resonance is its angle 0 modulo 2pi, from either side.
-    for (double angle:{-1e-3,1e-3,pi(2.)-1e-3,pi(2.)+1e-3}) CHECK(xpp::autox_torus_near_one_to_one(angle));
-    for (double angle:{pi(.5),pi(2./3),pi(1.),pi(4./3),pi(1.5)}) CHECK(!xpp::autox_torus_near_one_to_one(angle));
+    for (double angle:{-1e-3,1e-3,multiple_of_pi(2.)-1e-3,multiple_of_pi(2.)+1e-3}) CHECK(xpp::autox_torus_near_one_to_one(angle));
+    for (double angle:{multiple_of_pi(.5),multiple_of_pi(2./3),multiple_of_pi(1.),multiple_of_pi(4./3),multiple_of_pi(1.5)}) CHECK(!xpp::autox_torus_near_one_to_one(angle));
     // W419: its equations are singular at 1:1 and 1:2, where sin(theta) = 0.
-    for (double angle:{-1e-3,pi(1.)-1e-3,pi(1.)+1e-3,pi(3.)}) CHECK(xpp::autox_torus_singular(angle));
-    for (double angle:{pi(.5),pi(2./3),pi(4./3),pi(1.5)}) CHECK(!xpp::autox_torus_singular(angle));
+    for (double angle:{-1e-3,multiple_of_pi(1.)-1e-3,multiple_of_pi(1.)+1e-3,multiple_of_pi(3.)}) CHECK(xpp::autox_torus_singular(angle));
+    for (double angle:{multiple_of_pi(.5),multiple_of_pi(2./3),multiple_of_pi(4./3),multiple_of_pi(1.5)}) CHECK(!xpp::autox_torus_singular(angle));
     iap.itpst=xpp::AutoxPointKind::NeimarkSacker;
     const auto torus_test=[&](double angle) {
         par[xpp::autox_unknown::torus_angle]=angle;
@@ -131,24 +131,24 @@ TEST_CASE("test_autox_codim")
         {1.5,xpp::AutoxPointKind::Resonance4},{2.,xpp::AutoxPointKind::Resonance1},
         {3.,xpp::AutoxPointKind::Resonance2}}};
     for (const auto &[root,kind]:roots) {
-        const double before=torus_test(pi(root)-1e-4);
-        CHECK(before*torus_test(pi(root)+1e-4)<0 && enabled);
-        CHECK(xpp::autox_cycle_resonance_kind(iap.itpst,pi(root)+1e-4)==kind);
+        const double before=torus_test(multiple_of_pi(root)-1e-4);
+        CHECK(before*torus_test(multiple_of_pi(root)+1e-4)<0 && enabled);
+        CHECK(xpp::autox_cycle_resonance_kind(iap.itpst,multiple_of_pi(root)+1e-4)==kind);
     }
     // From 0 to pi the test is AUTO-07p's polynomial, bit for bit.
-    for (double angle:{1e-3,.7,pi(.5)+.1,2.5,pi(1.)})
-        CHECK(torus_test(angle)==angle*(angle-pi(.5))*(angle-pi(2./3))*(angle-pi(1.)));
+    for (double angle:{1e-3,.7,multiple_of_pi(.5)+.1,2.5,multiple_of_pi(1.)})
+        CHECK(torus_test(angle)==angle*(angle-multiple_of_pi(.5))*(angle-multiple_of_pi(2./3))*(angle-multiple_of_pi(1.)));
     // A disabled root is removed, so it cannot hide a later enabled root.
     const auto r4=std::find(xpp::autox_codim_kinds.begin(),xpp::autox_codim_kinds.end(),xpp::AutoxPointKind::Resonance4);
     reaction_session.autox_state.special_points[static_cast<std::size_t>(r4-xpp::autox_codim_kinds.begin())]=false;
-    par[xpp::autox_unknown::torus_angle]=pi(.5);
+    par[xpp::autox_unknown::torus_angle]=multiple_of_pi(.5);
     CHECK(autox_cycle_test(iap,rap,par.data(),multipliers,&enabled)!=0 && enabled);
     // Without 1:1 and 1:2 the folded angle's turns at 0 and pi change no sign.
     for (auto kind:{xpp::AutoxPointKind::Resonance1,xpp::AutoxPointKind::Resonance2})
         reaction_session.autox_state.special_points[static_cast<std::size_t>(
             std::find(xpp::autox_codim_kinds.begin(),xpp::autox_codim_kinds.end(),kind)-xpp::autox_codim_kinds.begin())]=false;
     for (double turn:{0.,1.,2.,3.})
-        CHECK(torus_test(pi(turn)-1e-4)*torus_test(pi(turn)+1e-4)>0 && enabled);
+        CHECK(torus_test(multiple_of_pi(turn)-1e-4)*torus_test(multiple_of_pi(turn)+1e-4)>0 && enabled);
     reaction_session.autox_state.special_points.fill(false);
     CHECK(!autox_test_applies(autox_cycle_test(iap,rap,par.data(),multipliers,&enabled)) && !enabled);
     // A mixed augmented pencil with exact original multipliers {1,-1,-2}.
@@ -166,13 +166,13 @@ TEST_CASE("test_autox_codim")
     std::sort(real.begin(),real.end());
     CHECK(std::abs(real[0]+2)<1e-10 && std::abs(real[1]+1)<1e-10 && std::abs(real[2]-1)<1e-10);
     // Map secondary labels distinguish real +1/-1 crossings from pairs.
-    CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::Regular,pi(1.),1e-4)==xpp::AutoxPointKind::PeriodDoubling);
-    CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::Regular,pi(.5),1e-4)==xpp::AutoxPointKind::NeimarkSacker);
-    CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::Fold,pi(1.),1e-4)==xpp::AutoxPointKind::FoldFlip);
-    CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::Fold,pi(.5),1e-4)==xpp::AutoxPointKind::FoldNeimarkSacker);
+    CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::Regular,multiple_of_pi(1.),1e-4)==xpp::AutoxPointKind::PeriodDoubling);
+    CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::Regular,multiple_of_pi(.5),1e-4)==xpp::AutoxPointKind::NeimarkSacker);
+    CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::Fold,multiple_of_pi(1.),1e-4)==xpp::AutoxPointKind::FoldFlip);
+    CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::Fold,multiple_of_pi(.5),1e-4)==xpp::AutoxPointKind::FoldNeimarkSacker);
     CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::PeriodDoubling,0.,1e-4)==xpp::AutoxPointKind::FoldFlip);
-    CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::PeriodDoubling,pi(.5),1e-4)==xpp::AutoxPointKind::FlipNeimarkSacker);
-    CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::NeimarkSacker,pi(.5),1e-4)==xpp::AutoxPointKind::DoubleNeimarkSacker);
+    CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::PeriodDoubling,multiple_of_pi(.5),1e-4)==xpp::AutoxPointKind::FlipNeimarkSacker);
+    CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::NeimarkSacker,multiple_of_pi(.5),1e-4)==xpp::AutoxPointKind::DoubleNeimarkSacker);
     CHECK(xpp::autox_map_secondary_kind(xpp::AutoxPointKind::NeimarkSacker,0.,1e-4)==xpp::AutoxPointKind::FoldNeimarkSacker);
     // Henon's exact unit-circle pair satisfies A^2-2*cos(theta)*A+I=0.
     std::string map_path="tools/models/henon_rot.odex";

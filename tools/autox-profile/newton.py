@@ -1,7 +1,7 @@
 # W412 (#474): gdb breakpoints, no measuring code in the program.
 # profile.py --tool newton uses the same ModelDB workload and 20-point cut.
-# solvbv includes fold-direction solves as in tables.py; only calls whose
-# caller is stepbv are Newton corrections. setubv counts actual assemblies.
+# solve_boundary includes fold-direction solves as in tables.py; only calls whose
+# caller is step_boundary are Newton corrections. setup_boundary_system counts actual assemblies.
 # The special-point tests' returns are events of their own (TESTS), with
 # whether the test may start a search (*chng): the last one before a search's
 # first solve is the test that started it.
@@ -10,7 +10,7 @@ from gdb_memory import doubles
 
 out = open(os.environ['NEWTON_OUT'], 'w', buffering=1)
 PERIOD_INDEX = 10  # autoX's PAR(11), zero-based in the C++ arrays.
-TESTS = {'fnuzbv': 'uz', 'fnlpbv': 'fold', 'fnbpbv': 'bp', 'fnspbv': 'sp'}
+TESTS = {'user_zero_test_boundary': 'uz', 'fold_test_boundary': 'fold', 'branch_point_test_boundary': 'bp', 'secondary_bifurcation_test_boundary': 'sp'}
 
 
 def value(expression):
@@ -25,13 +25,13 @@ class Trace(gdb.Breakpoint):
     def stop(self):
         # Fail closed: an unreadable counter must never look like zero work.
         row = {'event': self.function}
-        if self.function == 'setubv':
+        if self.function == 'setup_boundary_system':
             row['ntot'] = int(value('iap->ntot'))
         else:
             for field in ('ntot', 'nit', 'ntst', 'ncol', 'ndim'):
                 row[field] = int(value('iap->' + field))
             row['dsold'] = float(value('rap->dsold'))
-            if self.function == 'solvbv':
+            if self.function == 'solve_boundary':
                 row['ds'] = float(value('*rds'))
                 parent = gdb.newest_frame().older()
                 row.update(ifst=int(value('*ifst')), nllv=int(value('*nllv')),
@@ -40,7 +40,7 @@ class Trace(gdb.Breakpoint):
             if self.function in TESTS:
                 TestReturn({**row, 'event': TESTS[self.function]}, int(value('chng')))
                 return False
-            if self.function == 'stplbv':
+            if self.function == 'store_diagram_boundary':
                 row['parameter'] = float(value('par[icp[0]]'))
                 row['period'] = float(value('par[%d]' % PERIOD_INDEX))
                 row['tm'] = doubles(int(value('tm')), row['ntst'] + 1)
@@ -61,6 +61,6 @@ class TestReturn(gdb.FinishBreakpoint):
         return False
 
 
-for function in ('solvbv', 'setubv', 'stplbv', *TESTS):
+for function in ('solve_boundary', 'setup_boundary_system', 'store_diagram_boundary', *TESTS):
     Trace(function)
 gdb.execute('run')

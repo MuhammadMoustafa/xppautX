@@ -4,7 +4,7 @@
    period grows without bound, autoX's MX or step limit with no word on why,
    ends on a saddle-node on an invariant circle (SNIC), a homoclinic orbit to
    a saddle or a heteroclinic cycle between saddles. Nothing here changes
-   what autoX computes: stplbv hands each periodic point's period to the
+   what autoX computes: store_diagram_boundary hands each periodic point's period to the
    watch below, and when the period has grown for a run of points while the
    orbit lingers where the vector field all but vanishes, the equilibria the
    orbit lingers near are searched (equilibria.h's equilibrium_near), their

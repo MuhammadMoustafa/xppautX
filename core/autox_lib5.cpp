@@ -40,11 +40,11 @@ ffho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   if (iap->run->homcont.blhom.itwist == 0) {
     /*        *Evaluate the R.-H. sides */
-    funi(iap, rap, ndm, u, uold, icp, par, 0,
+    problem_function(iap, rap, ndm, u, uold, icp, par, 0,
 	 f, dfdu, dfdp);
   } else {
     /*        *Adjoint variational equations for normal vector */
-    funi(iap, rap, ndm, u, uold, icp, par, 1,
+    problem_function(iap, rap, ndm, u, uold, icp, par, 1,
 	 f, dfdu, dfdp);
     /*        *Set F = - (Df)^T u */
     for (j = 0; j < ndm; ++j) {
@@ -177,7 +177,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   if (iap->run->homcont.blhom.iequib == 0 || iap->run->homcont.blhom.iequib == -1) {
-    pvls(ndm, u0, par);
+    user_output_parameters(ndm, u0, par);
   }
   /*              write(9,*) 'Xequib:' */
   for (i = 0; i < ndm; ++i) {
@@ -253,7 +253,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     /*        *NDM initial conditions for the equilibrium if IEQUIB=1,2,-2
      */
     if (iap->run->homcont.blhom.iequib != 0 && iap->run->homcont.blhom.iequib != -1) {
-      func(*iap->run, ndm, xequib1.data(), icp, iap->nfpr, par, 0, f.data(), &dum1, &dum2);
+      user_right_hand_side(*iap->run, ndm, xequib1.data(), icp, iap->nfpr, par, 0, f.data(), &dum1, &dum2);
       for (i = 0; i < ndm; ++i) {
 	fb[-1 + jb] = f[i];
 	++jb;
@@ -261,7 +261,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       /*        *NDM extra initial conditions for the equilibrium if IEQ
 		UIB=-2 */
       if (iap->run->homcont.blhom.iequib == -2) {
-	func(*iap->run, ndm, xequib2.data(), icp, iap->nfpr, par, 0, f.data(), &dum1, &dum2);
+	user_right_hand_side(*iap->run, ndm, xequib2.data(), icp, iap->nfpr, par, 0, f.data(), &dum1, &dum2);
 	for (i = 0; i < ndm; ++i) {
 	  fb[-1 + jb] = f[i];
 	  ++jb;
@@ -362,7 +362,7 @@ t=1 */
     /*        *NDM initial conditions for the equilibrium if IEQUIB=1,2,-2
  */
     if (iap->run->homcont.blhom.iequib != 0 && iap->run->homcont.blhom.iequib != -1) {
-      func(*iap->run, ndm, xequib1.data(), icp, iap->nfpr, par, 0, f.data(), &dum1, &dum2);
+      user_right_hand_side(*iap->run, ndm, xequib1.data(), icp, iap->nfpr, par, 0, f.data(), &dum1, &dum2);
       for (i = 0; i < ndm; ++i) {
 	fb[-1 + jb] = f[i];
 	++jb;
@@ -370,7 +370,7 @@ t=1 */
       /*        *NDM extra initial conditions for the equilibrium if IEQ
 		UIB=-2 */
       if (iap->run->homcont.blhom.iequib == -2) {
-	func(*iap->run, ndm, xequib2.data(), icp, iap->nfpr, par, 0, f.data(), &dum1, &dum2)
+	user_right_hand_side(*iap->run, ndm, xequib2.data(), icp, iap->nfpr, par, 0, f.data(), &dum1, &dum2)
 	  ;
 	for (i = 0; i < ndm; ++i) {
 	  fb[-1 + jb] = f[i];
@@ -383,7 +383,7 @@ t=1 */
   /*      write(9,*) NBCN,NBC */
   /* *user defined extra boundary conditions */
   if (iap->run->homcont.bcnn.nbcn > 0) {
-    bcnd(*iap->run, ndim, par, icp, iap->run->homcont.bcnn.nbcn, u0, u1, ijc, fj.data(), dbc);
+    user_boundary_conditions(*iap->run, ndim, par, icp, iap->run->homcont.bcnn.nbcn, u0, u1, ijc, fj.data(), dbc);
     for (k = 0; k < iap->run->homcont.bcnn.nbcn; ++k) {
       fb[-1 + jb] = fj[k];
       /*            write(9,*),fb(jb),par(30) */
@@ -454,7 +454,7 @@ fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* User-defined integral constraints */
 
   if (jb < nint) {
-    icnd(ndm, par, icp, nint, u, uold, udot, 
+    user_integral_conditions(ndm, par, icp, nint, u, uold, udot, 
 	 upold, ijac, fj.data(), dint);
     for (i = 0; i < nint - jb; ++i) {
       fi[i + jb] = fj[i];
@@ -730,7 +730,7 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
 
   /* Initialize parameters */
 
-  stpnt(*iap->run, ndm, *t, u, par);
+  user_start(*iap->run, ndm, *t, u, par);
 
   /* Initialize solution and additional parameters */
 
@@ -759,7 +759,7 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
  L3:
   /*     *Starting solutions using homotopy */
 
-  pvls(ndm, u, par);
+  user_output_parameters(ndm, u, par);
   for (i = 0; i < ndm; ++i) {
     xequib[i] = par[i + xpp::autox_unknown::homoclinic_equilibrium_start];
   }
@@ -827,7 +827,7 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
   iid = iap->iid;
   ndm = iap->ndm;
 
-  pvlsbv(iap, rap, icp, dtm, ndxloc, ups, ndim, 
+  output_parameters_boundary(iap, rap, icp, dtm, ndxloc, ups, ndim, 
 	 p0, p1, par);
 
   /*      *Compute eigenvalues */
@@ -905,8 +905,8 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 
   ndm = iap->ndm;
 
-  func(*iap->run, ndm, iap->run->homcont.blhmu.pu0.data(), icp, iap->nfpr, par, 0, f0.data(), &dum1, &dum2);
-  func(*iap->run, ndm, iap->run->homcont.blhmu.pu1.data(), icp, iap->nfpr, par, 0, f1.data(), &dum1, &dum2);
+  user_right_hand_side(*iap->run, ndm, iap->run->homcont.blhmu.pu0.data(), icp, iap->nfpr, par, 0, f0.data(), &dum1, &dum2);
+  user_right_hand_side(*iap->run, ndm, iap->run->homcont.blhmu.pu1.data(), icp, iap->nfpr, par, 0, f1.data(), &dum1, &dum2);
 
   ret_val = 0.;
 

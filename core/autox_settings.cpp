@@ -7,7 +7,7 @@
    The same fields the autoX window's forms write (autox_nox.cpp autox_num_par,
    autox_plot_par, autox_per_par), with every value checked
    first: autoX takes some values badly (Ncol above 7 exits the program,
-   autox_lib1.cpp cpnts), and a form typed into by hand could always send them. */
+   autox_lib1.cpp collocation_point_positions), and a form typed into by hand could always send them. */
 #include <cmath>
 #include <climits>
 #include <cstring>

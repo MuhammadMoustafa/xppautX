@@ -1,4 +1,4 @@
-/* W560 (#625): funi's difference Jacobian by column groups (jacobian.h's
+/* W560 (#625): problem_function's difference Jacobian by column groups (jacobian.h's
    DifferenceGroups) is the same bits as one column at a time; W564 (#629): so is the fold
    system's, and a difference step restores the parameter itself. */
 #include "load_args.h"
@@ -50,13 +50,13 @@ TEST_CASE("test_autox_groups") {
     std::array<double, n * n> grouped{}, columns{};
     std::vector<double> dp(n * run.parameter_count);
 
-    funi(&iap, &rap, n, u.data(), u.data(), icp.data(), par.data(), 2, f.data(), grouped.data(), dp.data());
+    problem_function(&iap, &rap, n, u.data(), u.data(), icp.data(), par.data(), 2, f.data(), grouped.data(), dp.data());
     const xpp::DifferenceGroups *groups = xpp::difference_groups(s.model(), run.jacobian_scratch, n);
     CHECK(groups != nullptr && groups->groups.size() + 1 < n);
     /* no groups: every column on its own */
     run.jacobian_scratch.groups = xpp::DifferenceGroups{};
     CHECK(xpp::difference_groups(s.model(), run.jacobian_scratch, n) == nullptr);
-    funi(&iap, &rap, n, u.data(), u.data(), icp.data(), par.data(), 2, f_columns.data(), columns.data(), dp.data());
+    problem_function(&iap, &rap, n, u.data(), u.data(), icp.data(), par.data(), 2, f_columns.data(), columns.data(), dp.data());
     int differ = 0;
     for (int i = 0; i < n * n; ++i) differ += std::bit_cast<std::uint64_t>(grouped[i]) != std::bit_cast<std::uint64_t>(columns[i]);
     for (int i = 0; i < n; ++i) differ += std::bit_cast<std::uint64_t>(f[i]) != std::bit_cast<std::uint64_t>(f_columns[i]);

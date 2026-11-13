@@ -682,7 +682,7 @@ void check_branch_parameters()
     std::array<AutoxMark,1> mark={AutoxMark{static_cast<int>(s.autox_state.parameter_layout.solver_index(1)),0.5}};
     bool changed=false;
     const auto mark_value=[&]{
-        return fnuzae(&mark_iap,&mark_rap,parameters.data(),free.data(),&changed,nullptr,nullptr,
+        return user_zero_test_algebraic(&mark_iap,&mark_rap,parameters.data(),free.data(),&changed,nullptr,nullptr,
                       nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,mark);
     };
     CHECK(mark_value()==1.5 && changed==true);
@@ -1028,7 +1028,7 @@ void check_collocation()
     // Below W325's threshold every count stays serial (collocation_run checks the pool).
     CHECK(same_diagram(serial,collocation_run(4,true)));
     CHECK(same_diagram(serial,collocation_run(4,true,true)));
-    // Above it, the setubv/conpar workers keep the whole diagram and leave the
+    // Above it, the setup_boundary_system/condense_parameters workers keep the whole diagram and leave the
     // parser's state alone.
     const auto large=collocation_run(1,true,false,false,worker_mesh);
     const auto constants=xpp::client_session().parser.constants;
@@ -1122,7 +1122,7 @@ void check_pool_reuse()
     run.jacobian_failure.reset();
 }
 
-/* W474: brbd reduces the condensed blocks in a tree whose shape NTST alone
+/* W474: solve_bordered_block_diagonal reduces the condensed blocks in a tree whose shape NTST alone
    fixes, so a solve gives the same bits on every thread count; the
    solution, a refactored one and one through the kept factors (ifst=0)
    alike, satisfies the system it was given. NTST 13 is no power of two and
@@ -1186,7 +1186,7 @@ void check_brbd_tree()
         run.parameter_count=ncb;
         run.collocation=std::make_unique<xpp::AutoxParallel>(threads);
         run.collocation->prepare(run,nov,nbc);
-        SolvbvWork &work=run.solvbv;
+        SolvbvWork &work=run.solve_boundary_work;
         work.resize(nov,ncol,ntst,nbc,nint,ncb);
         std::copy(a.begin(),a.end(),work.a.begin());
         std::copy(b.begin(),b.end(),work.b.begin());
@@ -1196,12 +1196,12 @@ void check_brbd_tree()
         u.resize(work.ft.size());
         integer ifst=1,idb=0,nllv=0,nov_=nov,na=ntst,nbc_=nbc,nra_=nra,nca_=nca,ncb_=ncb,nrc_=nrc;
         double det=0;
-        brbd(run,nullptr,u.data(),w.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
+        solve_bordered_block_diagonal(run,nullptr,u.data(),w.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
         CHECK(residual(u,w,fa,fc)<1e-10);
         std::vector<double> u2(fa2),w2(fc2);
         u2.resize(work.ft.size());
         ifst=0;
-        brbd(run,nullptr,u2.data(),w2.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
+        solve_bordered_block_diagonal(run,nullptr,u2.data(),w2.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
         CHECK(residual(u2,w2,fa2,fc2)<1e-10);
         if (threads==1) { first_fa=u; first_fc=w; second_fa=u2; second_fc=w2; first_det=det; }
         else CHECK(same_vector(first_fa,u) && same_vector(first_fc,w) && same_vector(second_fa,u2)

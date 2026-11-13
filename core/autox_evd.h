@@ -45,7 +45,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
 
 /* the autoX run's own parameters (run) from its settings (st.bifur,
    the active view's parameters, the Mark values), for ndim variables;
-   exact: func gives the model's exact Jacobian (JAC=1, W260) */
+   exact: user_right_hand_side gives the model's exact Jacobian (JAC=1, W260) */
 void init_autox(const AutoxState &st, XAUTOX &run, int ndim, bool exact);
 
 } // namespace xpp

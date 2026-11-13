@@ -4,7 +4,7 @@
    diagram as data", `autoxinfo` `stop`): a parameter or norm limit, the
    point count, the user's Stop, a Mark value set to stop, or no
    convergence. autoX itself only labels the end EP or MX; autox_lib1.cpp's
-   stplae and stplbv, which decide that the branch ends, report the point
+   store_diagram_algebraic and store_diagram_boundary, which decide that the branch ends, report the point
    here, and the places that write fort.9's "No convergence" NOTEs say
    which one it was. Nothing here changes what autoX computes: it only
    records and reports.
@@ -97,7 +97,7 @@ struct AutoxStop {
    convergence" in its words, with the settings */
 void autox_stop_noconv(AutoxStop &st, const AutoxNoConvergence &noconv);
 
-/* the point at which stplae/stplbv end a branch, and what they saw */
+/* the point at which store_diagram_algebraic/store_diagram_boundary end a branch, and what they saw */
 struct AutoxStopAt {
     long br, pt;      /* autoX's branch and point number (ibr, ntot) */
     long ipar;        /* autoX's index of the continuation parameter, icp[0] */

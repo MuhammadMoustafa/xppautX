@@ -1,6 +1,6 @@
 #include "autox_unknowns.h"
 /* Why autoX ended a branch (autox_stop.h, docs/ui-v2.md T23): the reason
-   stplae/stplbv saw, in words, for autoX's Output and the autoxinfo event. */
+   store_diagram_algebraic/store_diagram_boundary saw, in words, for autoX's Output and the autoxinfo event. */
 #include <cmath>
 #include <cstdlib>
 #include <string>

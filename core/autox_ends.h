@@ -5,7 +5,7 @@
    Reaches a Hopf: a branch of cycles whose amplitude falls back to about zero at an equilibrium with a purely
    imaginary pair of eigenvalues ends there (point type hopf_end) and says why, where autoX goes on past the Hopf
    point, along the same family back, to the step limit. Like W518's global ends nothing here changes what autoX
-   computes: stplbv hands each cycle's extremes to the watch below.
+   computes: store_diagram_boundary hands each cycle's extremes to the watch below.
 
    Branch closed: a branch that comes back to its own start (an isola of equilibria, a closed family of cycles)
    ends there (point type branch_closed). The start is kept (AutoxRun::branch_start); a hidden user zero at its
@@ -152,7 +152,7 @@ void autox_branch_stored(iap_type &iap, std::ptrdiff_t ntot, double epss, const 
 
 /* Whether the point just computed is the branch's start by the rule (the hidden test's accept): the branch has left
    the start and is back within the rule's factor of the start's closing units of it (AutoxBranchStart). When it is, the gap is kept in the run's stop
-   (AutoxStop::closure_gap) and stplae/stplbv end the branch */
+   (AutoxStop::closure_gap) and store_diagram_algebraic/store_diagram_boundary end the branch */
 bool autox_branch_closes(iap_type &iap, double epss, const double *par, const std::ptrdiff_t *icp, std::span<const double> states);
 
 /* the stop's words for a branch that closed on itself: gap is autox_point_gap between the crossing and the start */

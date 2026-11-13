@@ -118,7 +118,7 @@ TEST_CASE("test_autox_fold")
     for (const auto &[first,second] : {std::pair{2.,3.},std::pair{-2.,3.},std::pair{2.,4.},
                                       std::pair{0.,4.},std::pair{-0.,4.},std::pair{-0.,4.},std::pair{2.,3.}}) {
         par[slots[0]]=first; par[slots[1]]=second;
-        func(worker,1,&state,slots.data(),2,par.data(),0,&value,&unused,&unused);
+        user_right_hand_side(worker,1,&state,slots.data(),2,par.data(),0,&value,&unused,&unused);
         CHECK(value==first*second && std::signbit(value)==std::signbit(first*second));
     }
     TEST_REPORT("autoX fold blocks");

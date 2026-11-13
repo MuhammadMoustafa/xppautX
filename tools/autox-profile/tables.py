@@ -20,11 +20,11 @@ KINDS = [
      lambda o, f: f.startswith('cr_') or 'libm.so' in o),
     ('model right-hand side (compiled code, interpreter)',
      lambda o, f: (o == '???' and f.startswith('0x')) or f.startswith(('pure_rhs', 'xpp::evaluate', 'my_rhs'))),
-    ('conpar (condensation of parameters)', lambda o, f: f.startswith('(anonymous namespace)::conpar_process')),
-    ('Jacobian and residual assembly (setubv, setrhs, icps, fnps, funi, func)',
-     lambda o, f: re.match(ANON + r'(setubv|setrhs|icps|fnps|funi|func|continued_constants|stpnt|bcps|icf)', f)),
-    ('block linear solve (reduce, infpar, conrhs, bcksub, dimrge, brbd, ge, matrix_null_vector)',
-     lambda o, f: re.match(r'(reduce|infpar|conrhs|bcksub|dimrge|rhsrge|cpyrhs|brbd|ge|matrix_null_vector|copycp|solvbv)\(', f.removeprefix('xpp::'))),
+    ('condense_parameters (condensation of parameters)', lambda o, f: f.startswith('(anonymous namespace)::conpar_process')),
+    ('Jacobian and residual assembly (setup_boundary_system, build_right_hand_side, icps, fnps, problem_function, user_right_hand_side)',
+     lambda o, f: re.match(ANON + r'(setup_boundary_system|build_right_hand_side|icps|fnps|problem_function|user_right_hand_side|continued_constants|user_start|bcps|icf)', f)),
+    ('block linear solve (reduce_condensation, determine_local_variables, condense_right_hand_side, back_substitute, solve_end_system, solve_bordered_block_diagonal, gauss_eliminate, matrix_null_vector)',
+     lambda o, f: re.match(r'(reduce_condensation|determine_local_variables|condense_right_hand_side|back_substitute|solve_end_system|rhsrge|copy_right_hand_side|solve_bordered_block_diagonal|gauss_eliminate|matrix_null_vector|copy_condensed_system|solve_boundary)\(', f.removeprefix('xpp::'))),
     ('eigenvalue routines (EISPACK, floquet_multipliers)',
      lambda o, f: re.match(r'(hessenberg_qr_values|hessenberg_qr_vectors|hessenberg_reduce_householder|balance_matrix|balance_back_transform|hessenberg_reduce_elimination|hessenberg_transform_elimination|qz_iterate|qz_reduce_hessenberg|qz_eigenvalues|qzvec|rg|rgg|eig|floquet_multipliers|cdiv|csroot|hessenberg_transform_orthogonal|comqr|cbal|corth|comqr2|htribk|ch|cg)\(', f.removeprefix('xpp::'))),
     ('allocation and zeroing (malloc, free, new, memset, memcpy)',
@@ -34,14 +34,14 @@ KINDS = [
 ]
 
 COUNTS = [  # what a point costs in routines: the callee's name prefix
-    ('solvbv (Newton iterations of a BVP/periodic point)', 'solvbv('),
-    ('setubv (Jacobian builds)', 'setubv('),
-    ('setrhs (residual only, modified Newton)', 'setrhs('),
-    ('funi (right-hand side with or without derivatives)', 'funi('),
-    ('func (the model, one evaluation)', 'func('),
-    ('ge (dense solves)', 'ge('),
+    ('solve_boundary (Newton iterations of a BVP/periodic point)', 'solve_boundary('),
+    ('setup_boundary_system (Jacobian builds)', 'setup_boundary_system('),
+    ('build_right_hand_side (residual only, modified Newton)', 'build_right_hand_side('),
+    ('problem_function (right-hand side with or without derivatives)', 'problem_function('),
+    ('user_right_hand_side (the model, one evaluation)', 'user_right_hand_side('),
+    ('gauss_eliminate (dense solves)', 'gauss_eliminate('),
     ('floquet_multipliers (multipliers)', 'floquet_multipliers('),
-    ('solvae (Newton iterations of an equilibrium point)', 'solvae('),
+    ('solve_algebraic (Newton iterations of an equilibrium point)', 'solve_algebraic('),
     ('malloc', 'malloc'),
     ('operator new', 'operator new(unsigned long)'),
 ]
@@ -108,11 +108,11 @@ def calls_of(profile, prefix):
 
 
 INCLUSIVE = [  # the routines whose whole cost (with everything they call) a stage 3 card can target
-    'solvbv(', 'setubv(', '(anonymous namespace)::setubv_make_aa_bb', '(anonymous namespace)::setubv_make_fa',
-    'setrhs(', '(anonymous namespace)::conpar_process', 'reduce(', 'stepbv(', 'funi(', 'func(', 'ge(', 'floquet_multipliers(',
-    'pvlsbv(', 'brbd(',
+    'solve_boundary(', 'setup_boundary_system(', '(anonymous namespace)::setubv_make_aa_bb', '(anonymous namespace)::setubv_make_fa',
+    'build_right_hand_side(', '(anonymous namespace)::conpar_process', 'reduce_condensation(', 'step_boundary(', 'problem_function(', 'user_right_hand_side(', 'gauss_eliminate(', 'floquet_multipliers(',
+    'output_parameters_boundary(', 'solve_bordered_block_diagonal(',
 ]
-CALLEES = ['funi(', 'func(', 'ge(', 'malloc', 'memset', '__memset_avx2_unaligned_erms']  # whose callers are listed
+CALLEES = ['problem_function(', 'user_right_hand_side(', 'gauss_eliminate(', 'malloc', 'memset', '__memset_avx2_unaligned_erms']  # whose callers are listed
 
 
 def inclusive(prof, prefix):
@@ -190,14 +190,14 @@ def compare(a, b):
     return '\n'.join(lines)
 
 
-SUMMARY_KINDS = ['math', 'model right-hand side', 'conpar', 'Jacobian and residual', 'block linear', 'eigenvalue', 'allocation']
+SUMMARY_KINDS = ['math', 'model right-hand side', 'condense_parameters', 'Jacobian and residual', 'block linear', 'eigenvalue', 'allocation']
 
 
 def summary(out):
     """one row per workload and phase: points, instructions per point, the share of each kind of
     routine, and the routines called per point"""
     lines = ['| workload, phase | points | M instr per point | ' + ' | '.join(SUMMARY_KINDS) +
-             ' | solvbv | setubv | setrhs | funi | func | malloc |', '|---|---:|---:|' + '---:|' * (len(SUMMARY_KINDS) + 6)]
+             ' | solve_boundary | setup_boundary_system | build_right_hand_side | problem_function | func | malloc |', '|---|---:|---:|' + '---:|' * (len(SUMMARY_KINDS) + 6)]
     for cg in sorted(out.glob('*.cg')):
         workload, phase = cg.name[:-3].rsplit('.', 1)
         if phase == 'setup':
@@ -209,7 +209,7 @@ def summary(out):
         for fn, c in prof['self'].items():
             share[kind_of(prof, fn)] += c
         cells = [f"{100 * sum(c for k, c in share.items() if k.startswith(key)) / total:.0f}%" for key in SUMMARY_KINDS]
-        counts = [f'{calls_of(prof, pre) / n:.1f}' for pre in ('solvbv(', 'setubv(', 'setrhs(', 'funi(', 'func(', 'malloc')]
+        counts = [f'{calls_of(prof, pre) / n:.1f}' for pre in ('solve_boundary(', 'setup_boundary_system(', 'build_right_hand_side(', 'problem_function(', 'user_right_hand_side(', 'malloc')]
         lines.append(f'| {workload}, {phase} | {n} | {total / n / 1e6:.2f} | ' + ' | '.join(cells) + ' | ' + ' | '.join(counts) + ' |')
     return '\n'.join(lines)
 

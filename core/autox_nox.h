@@ -45,7 +45,7 @@ std::string autox_renumbered_line(std::string_view line, const std::function<int
 std::string autox_branch_row_key(long branch, long point, long type, long label);
 bool read_autox_solution_header(TokenReader &reader, AutoxSolutionHeader &h, long parameters);
 /* Where each solution of a fort.8/.s file starts, found by one pass over it and kept: autoX's start label is looked up here
-   (findlb, newlab, move_to_label) instead of by reading every solution of the session's accumulated .s file again for each run (W705).
+   (find_restart_label, new_restart_label, move_to_label) instead of by reading every solution of the session's accumulated .s file again for each run (W705).
    A record is a header line: its position in the file as tell_stream gives it, and the header fields the start needs. */
 struct AutoxSolutionRecord {
     long position{}, ibr{}, lab{}, nfpr{};

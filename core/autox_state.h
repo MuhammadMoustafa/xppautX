@@ -151,13 +151,13 @@ struct AutoxState {
   bool follow_all_branches=true;
   // AUTO-07p enables codimension-two detection by default.
   std::array<bool, xpp::autox_codim_kinds.size()> special_points=all_special_points();
-  /* a homoclinic orbit's left and right equilibria (autox_pp.cpp's stpnt),
+  /* a homoclinic orbit's left and right equilibria (autox_pp.cpp's user_start),
      and whether a homoclinic run is on */
   std::vector<double> homo_l,homo_r;
   HomoclinicRun homo_flag=HomoclinicRun::None;
   /* which of them the equilibrium window's Import saves next (xpp_util.cpp eq_import) */
   HomoclinicSide homo_side=HomoclinicSide::Left;
-  /* a run that starts from an orbit, its period new (autox_pp.cpp's stpnt);
+  /* a run that starts from an orbit, its period new (autox_pp.cpp's user_start);
      false: from the steady state of the initial conditions */
   bool new_period_flag=false;
   /* the stored orbit's first return a periodic start found (autox_run.cpp); a homoclinic start takes the whole orbit
@@ -245,11 +245,11 @@ namespace xpp {
 struct Session; /* session.h */
 }
 
-/* solvbv's matrices and index arrays, kept from one call to the next: a
+/* solve_boundary's matrices and index arrays, kept from one call to the next: a
    call with *ifst == 1 sizes them with resize, later ones reuse
    what it factored (autox_lib2.cpp). resize states every dimension once
    (autox_lib2.cpp, where the Fortran's NAX, M1AA ... macros were); the four
-   matrices setubv fills are handed out as bounded views, made again for each
+   matrices setup_boundary_system fills are handed out as bounded views, made again for each
    call, so none outlives a resize or a copy of the work. */
 struct SolvbvWork {
   double pivot=NAN; /* the last reduced linear solve, for a BVP no-convergence diagnostic */
@@ -270,8 +270,8 @@ struct SolvbvWork {
 };
 
 /* The direction of the branch an equilibrium's branch point lies on, as
-   wrtsp8 stores it with the point (AUTO-07p's UDOT): the free parameter
-   it was computed for, PAR(ICP(1))-dot and U-dot. readlb reads it; cnrlae's
+   write_special_point_restart stores it with the point (AUTO-07p's UDOT): the free parameter
+   it was computed for, PAR(ICP(1))-dot and U-dot. read_restart_label reads it; control_algebraic's
    switch at the point continues along the null vector perpendicular to it. */
 struct AutoxRestartDirection {
   int parameter=0;
@@ -297,14 +297,14 @@ struct AutoxRun {
   /* a collocation worker's: the run it works for; null for a run itself */
   AutoxRun *owner=nullptr;
   /* the run's parameters, filled from the model and settings by do_autox
-     (set_autox) before go_go_autox (gogoautox.cpp) reads them */
+     (set_autox) before run_autox_problem (gogoautox.cpp) reads them */
   XAUTOX params{};
   std::ptrdiff_t parameter_count=0;
   /* the label the continuation started from (Auto.irs), for its first
      point: do_autox sets it, addbif takes it (autox_run_from_take) */
   int run_from=0;
   /* the label a follow-up run (a restart) continues from, 0 for none:
-     autox_lib1.cpp's wrtsp8 sets it, do_autox reads it when the run ends */
+     autox_lib1.cpp's write_special_point_restart sets it, do_autox reads it when the run ends */
   int restart_label=0;
   /* why this run's branches ended and the stability values of its points
      (autox_stop.h, autox_stability.h); do_autox merges the stop into the
@@ -368,29 +368,29 @@ struct AutoxRun {
   /* called by addbif with the number of points the job holds each time it holds one more (on the job's thread), so the
      queue can see how the branch leaves its start (autox_jobs.cpp); none for an ordinary run */
   std::function<void(std::size_t)> point_stored;
-  /* the largest branch and label autoX's newlab found before this run's own: its numbers start above them
-     (autox_lib1.cpp newlab); the join of jobs renumbers by them */
+  /* the largest branch and label autoX's new_restart_label found before this run's own: its numbers start above them
+     (autox_lib1.cpp new_restart_label); the join of jobs renumbers by them */
   int base_branch=0,base_label=0;
   AutoxGlobalScratch scratch{};
   AutoxAssemblyScratch assembly;
   xpp::JacobianScratch jacobian_scratch;
   AutoxGlobalRotations rotations{};
-  /* while stepbv solves a Newton step (autox_lib1.cpp). A cancelled job
-     then stops the collocation setup early (setubv2.cpp), solvbv skips
-     the solve and stepbv returns to the last converged point. Other
-     solves, such as stdrbv's starting direction and the location of a
-     special point (lcspae, lcspbv), always run to the end. */
+  /* while step_boundary solves a Newton step (autox_lib1.cpp). A cancelled job
+     then stops the collocation setup early (setubv2.cpp), solve_boundary skips
+     the solve and step_boundary returns to the last converged point. Other
+     solves, such as start_direction_boundary's starting direction and the location of a
+     special point (locate_special_algebraic, locate_special_boundary), always run to the end. */
   bool setubv_stop=false;
   /* from init's "Generating starting data" (a restart that switches
      branch) until the run writes its first label, which becomes the
      follow-up run's restart label (autox_lib1.cpp) */
   bool restart_flag=false;
-  /* the direction readlb found stored with the restart label; none for a label that has no direction (autox_lib1.cpp) */
+  /* the direction read_restart_label found stored with the restart label; none for a label that has no direction (autox_lib1.cpp) */
   std::optional<AutoxRestartDirection> restart_direction;
-  /* while lcspae/lcspbv locate a special point: their solves run to
+  /* while locate_special_algebraic/locate_special_boundary locate a special point: their solves run to
      the end (autox_lib1.cpp's Locating) */
   bool locating=false;
-  /* the branch of cycles cnrlbv continues started at a Hopf point: its
+  /* the branch of cycles control_boundary continues started at a Hopf point: its
      first steps' tests read the converged point's Jacobian (autox_lib1.cpp) */
   bool hopf_start=false;
   /* the branch's first point as the same-point rule sees it, and whether the branch has left it (autox_ends.h,
@@ -398,19 +398,19 @@ struct AutoxRun {
      the point is stored, empty before it */
   std::optional<xpp::AutoxBranchStart> branch_start;
   /* the exact Jacobian's failure (W275): a derivative not finite where the
-     right-hand side is, recorded by func (autox_pp.cpp) on its own AutoxRun (a
+     right-hand side is, recorded by user_right_hand_side (autox_pp.cpp) on its own AutoxRun (a
      collocation worker's, merged into its run's by the caller when the
      workers are done) and ended as a Stop ends a run, so the last
      converged point is stored as an end point to restart from; do_autox
      (autox_nox.cpp) shows it with the action that switches to differences */
   std::optional<xpp::Error> jacobian_failure;
-  /* solvae's last ntop (its output's paging) */
+  /* solve_algebraic's last ntop (its output's paging) */
   std::ptrdiff_t solvae_ntop=0;
-  /* solvbv's matrices, kept from one call to the next: a call with
+  /* solve_boundary's matrices, kept from one call to the next: a call with
      *ifst == 1 sizes them, later ones reuse what it
      factored (autox_lib2.cpp) */
-  SolvbvWork solvbv;
-  /* makes solvbv's last factorization (ifst = 1) again, from the inputs it was made from, which solvbv keeps in it
+  SolvbvWork solve_boundary_work;
+  /* makes solve_boundary's last factorization (ifst = 1) again, from the inputs it was made from, which solve_boundary keeps in it
      (autox_lib2.cpp): kilobytes where the factored matrices are megabytes, for a failed location's restore
      (autox_lib1.cpp's LocationState). Empty before the first. */
   std::function<void()> refactor;

@@ -168,7 +168,7 @@ TEST_CASE("test_autox_codes")
             CHECK(code->started_from(kind) == (magnitude / 10 == k));
         }
         const auto start = xpp::autox_point_start_of(*code);
-        CHECK(static_cast<long>(start) == (magnitude < 10 ? magnitude : magnitude / 10)); /* findlb's itpst */
+        CHECK(static_cast<long>(start) == (magnitude < 10 ? magnitude : magnitude / 10)); /* find_restart_label's itpst */
     }
 
     /* the type names the diagram's type column and the files show */

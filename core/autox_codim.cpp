@@ -24,7 +24,7 @@ double imposed_multiplier(xpp::AutoxPointKind start)
 // there): exp(+-i*theta) is the same pair at theta and at 2*pi - theta.
 double folded_angle(double angle)
 {
-    return std::abs(std::remainder(angle,pi(2.)));
+    return std::abs(std::remainder(angle,multiple_of_pi(2.)));
 }
 
 // W419 (#481): AUTO-07p's polynomial theta*(theta-pi/2)*(theta-2pi/3)*(theta-pi)
@@ -36,13 +36,13 @@ double folded_angle(double angle)
 double resonance_test(const std::array<bool,xpp::autox_codim_kinds.size()> &enabled, double angle, bool *changed)
 {
     int turns=0; // the nearest whole number of turns, its low bits (remquo)
-    const double wrapped=std::remquo(angle,pi(2.),&turns);
+    const double wrapped=std::remquo(angle,multiple_of_pi(2.),&turns);
     const double folded=std::abs(wrapped);
     double test=1.;
     *changed=false;
     for (std::size_t i=0;i<resonance_angles.size();++i)
         if (xpp::autox_codim_enabled(enabled,resonance_kinds[i])) {
-            test*=folded-pi(resonance_angles[i]);
+            test*=folded-multiple_of_pi(resonance_angles[i]);
             *changed=true;
         }
     if (!*changed) return autox_test_not_applicable;
@@ -75,7 +75,7 @@ void AutoxCodim::prepare_cycle(std::size_t dimension, std::size_t original)
 
 AutoxPointKind autox_map_secondary_kind(AutoxPointKind start, double angle, double tolerance)
 {
-    const bool flip=std::abs(angle-pi(1.))<=std::sqrt(tolerance);
+    const bool flip=std::abs(angle-multiple_of_pi(1.))<=std::sqrt(tolerance);
     const bool torus=!flip && angle>std::sqrt(tolerance);
     if (start==AutoxPointKind::Regular) return flip ? AutoxPointKind::PeriodDoubling : torus ? AutoxPointKind::NeimarkSacker : AutoxPointKind::Regular;
     if (start==AutoxPointKind::Fold) return flip ? AutoxPointKind::FoldFlip : torus ? AutoxPointKind::FoldNeimarkSacker : AutoxPointKind::Regular;
@@ -104,7 +104,7 @@ AutoxPointKind autox_cycle_resonance_kind(AutoxPointKind start, double angle)
     const double folded=folded_angle(angle);
     std::size_t nearest=0;
     for (std::size_t i=1;i<resonance_angles.size();++i)
-        if (std::abs(folded-pi(resonance_angles[i]))<std::abs(folded-pi(resonance_angles[nearest]))) nearest=i;
+        if (std::abs(folded-multiple_of_pi(resonance_angles[i]))<std::abs(folded-multiple_of_pi(resonance_angles[nearest]))) nearest=i;
     return resonance_kinds[nearest];
 }
 }
@@ -131,7 +131,7 @@ class Derivatives {
     {
         for (integer i=0; i<n; ++i) w.x[i]=u[i]+distance*direction[i];
         double unused=0;
-        funi(&iap, &rap, n, w.x.data(), w.x.data(), icp, par, 0, out.data(), &unused, &unused);
+        problem_function(&iap, &rap, n, w.x.data(), w.x.data(), icp, par, 0, out.data(), &unused, &unused);
     }
 public:
     Derivatives(iap_type &i, rap_type &r, double *p, integer *indices, const double *state)
@@ -149,7 +149,7 @@ public:
         // The corrected equilibrium still has a Newton residual. Remove it
         // before dividing by h^2: a multilinear derivative has no constant term.
         double unused=0;
-        funi(&iap,&rap,n,u,u,icp,par,0,w.work.data(),&unused,&unused);
+        problem_function(&iap,&rap,n,u,u,icp,par,0,w.work.data(),&unused,&unused);
         for (integer i=0; i<n; ++i) out[i]=(w.plus[i]+w.minus[i]-2*w.work[i])/(h*h);
     }
     double mixed(std::span<const double> p, std::span<const double> q, std::span<const double> r)
@@ -312,8 +312,9 @@ double autox_cycle_test(const iap_type &iap, const rap_type &rap, const double *
     return std::sqrt(xpp::math::hypot(fixed.r,fixed.i)*xpp::math::hypot(remaining.r,remaining.i))-1;
 }
 
-// The tests read dfdu as solvae left it, the converged point's Jacobian (W421).
-FNCS_TYPE_AE(fnbtae)
+// The tests read dfdu as solve_algebraic left it, the converged point's Jacobian (W421).
+/* fnbtae: autoX's own special-point test function (AUTO-07p has no such routine) */
+FNCS_TYPE_AE(bogdanov_takens_test_algebraic)
 {
     *chng=true;
     if (iap->itpst==xpp::AutoxPointKind::Hopf) return u[2*iap->ndm];
@@ -321,7 +322,8 @@ FNCS_TYPE_AE(fnbtae)
     return dot({u+iap->ndm,static_cast<size_t>(iap->ndm)},iap->run->codim.left);
 }
 
-FNCS_TYPE_AE(fncpae)
+/* fncpae: autoX's own special-point test function (AUTO-07p has no such routine) */
+FNCS_TYPE_AE(cusp_test_algebraic)
 {
     *chng=true;
     left_null(*iap,dfdu,iap->ndim);
@@ -331,7 +333,8 @@ FNCS_TYPE_AE(fncpae)
     return dot(w.left,w.a);
 }
 
-FNCS_TYPE_AE(fnghae)
+/* fnghae: autoX's own special-point test function (AUTO-07p has no such routine) */
+FNCS_TYPE_AE(generalized_hopf_test_algebraic)
 {
     *chng=u[2*iap->ndm]>0 && iap->itp.kind!=xpp::AutoxPointKind::BogdanovTakens;
     if (!*chng) return autox_test_not_applicable;
@@ -342,7 +345,8 @@ FNCS_TYPE_AE(fnghae)
 
 // Maps use the same double-eigenvalue test as equilibrium folds, with
 // A-I (fold) or A+I (flip); a torus curve tests its continued angle.
-FNCS_TYPE_AE(fnrnae)
+/* fnrnae: autoX's own special-point test function (AUTO-07p has no such routine) */
+FNCS_TYPE_AE(resonance_test_algebraic)
 {
     auto &w=iap->run->codim;
     if (iap->itpst==xpp::AutoxPointKind::NeimarkSacker) {

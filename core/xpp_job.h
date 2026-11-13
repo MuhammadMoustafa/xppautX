@@ -167,7 +167,7 @@ void report_rows(long rows, double t);
 /* autoX stored point `point` (> 0) of branch `branch` (> 0). A stop at point
    P is reached here when P-1 is stored: autoX's next solve sees the cancel
    and ends the branch on point P, an end point (EP) repeating P-1, which is
-   how every cancelled autoX run ends (autox_lib1.cpp stplae, stplbv). */
+   how every cancelled autoX run ends (autox_lib1.cpp store_diagram_algebraic, store_diagram_boundary). */
 void report_point(int branch, int point);
 
 /* An autoX run of branch jobs ended with these: what a stopped run is replayed from (stop_jobs). Main thread. */

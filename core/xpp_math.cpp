@@ -539,6 +539,7 @@ void band_solve(double *a, double *b, int ml, int mr, int n)
 /* Fortran, with a fixed convergence tolerance                         */
 
 /* sign (xpp_math) and transfer_sign (f2c's libF77): FORTRAN's SIGN(a,b) */
+/* d_sign: FORTRAN SIGN(a,b): |a| with the sign of b, -0 counts as positive (f2c d_sign; one with xpp_math's sign) */
 double transfer_sign(double a, double b)
 {
     const double magnitude = a >= 0 ? a : -a;

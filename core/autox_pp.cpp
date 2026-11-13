@@ -9,7 +9,7 @@
 #include <vector>
 #include <stdlib.h>
 #include "autox_f2c.h"
-#include "autox_c.h" /* func, stpnt, bcnd */
+#include "autox_c.h" /* user_right_hand_side, user_start, user_boundary_conditions */
 #include "session.h"
 #include "odesol2.h"
 #include "autox_nox.h"
@@ -82,8 +82,8 @@ void chain(int n, const double *b, double *column, const double *add, double *t)
 }
 
 /* Puts the continued parameters into the constants; true when one changed.
-   autoX changes them between calls (a Newton step, and funi's differences
-   with respect to a parameter, which perturb par itself), and setubv hands
+   autoX changes them between calls (a Newton step, and problem_function's differences
+   with respect to a parameter, which perturb par itself), and setup_boundary_system hands
    every collocation point its own copy of par, so every call compares. */
 bool continued_constants(const xpp::Session &s, double *constants, const integer *icp, integer count, std::span<const double> parameters)
 {
@@ -162,7 +162,7 @@ double autox_parameter_value(const AutoxRun &run, integer slot,
 }
 
 /* The Session's own evaluation, with the tables, the networks and the maps
-   (a run that is not pure_rhs); apart from func so that the collocation
+   (a run that is not pure_rhs); apart from user_right_hand_side so that the collocation
    workers' call, which is the hot one, is a small function. */
 namespace {
 [[gnu::noinline]] void serial_func(AutoxRun &run, integer ndim, const double *u, const integer *icp, integer nfpr, std::span<const double> parameters, integer ijac, double *f, double *dfdu, double *dfdp)
@@ -216,7 +216,8 @@ namespace {
 }
 }
 
-int func(AutoxRun &run, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, integer ijac, double *f, double *dfdu, double *dfdp)
+/* func: AUTO's user routine FUNC (user_c.f90:102) */
+int user_right_hand_side(AutoxRun &run, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, integer ijac, double *f, double *dfdu, double *dfdp)
 {
    xpp::Session &s=*run.session;
    const auto parameters=s.autox_state.parameter_layout.parameters(par);
@@ -228,7 +229,7 @@ int func(AutoxRun &run, integer ndim, const double *u, const integer *icp, integ
 void func_again(AutoxRun &run, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, double *f)
 {
    if(run.pure_rhs)pure_rhs(*run.session,u,f,run.rhs_constants.data(),run.rhs_variables.data());
-   else func(run,ndim,u,icp,nfpr,par,0,f,nullptr,nullptr);
+   else user_right_hand_side(run,ndim,u,icp,nfpr,par,0,f,nullptr,nullptr);
 }
 
 void autox_fill_parameters(const AutoxRun &run, double *par)
@@ -239,7 +240,8 @@ void autox_fill_parameters(const AutoxRun &run, double *par)
   for(int k=0;k<s.model().nupar;k++)parameters[k]=constants[s.model().upar_con[k]];
 }
 
-int stpnt(AutoxRun &run, integer ndim, doublereal t, doublereal *u, doublereal *par)
+/* stpnt: AUTO's user routine STPNT (user_c.f90:115): the starting solution */
+int user_start(AutoxRun &run, integer ndim, doublereal t, doublereal *u, doublereal *par)
 {
   xpp::Session &s=*run.session;
   int i;
@@ -279,7 +281,8 @@ int stpnt(AutoxRun &run, integer ndim, doublereal t, doublereal *u, doublereal *
 
 } /* stpnt_ */
 
-int bcnd(AutoxRun &run, integer ndim, const double *par, const integer *icp, integer nbc, const double *u0, const double *u1, integer ijac, double *fb, double *dbc)
+/* bcnd: AUTO's user routine BCND (user_c.f90:127) */
+int user_boundary_conditions(AutoxRun &run, integer ndim, const double *par, const integer *icp, integer nbc, const double *u0, const double *u1, integer ijac, double *fb, double *dbc)
 {
  xpp::Session &s=*run.session;
 /* Hooks to the XPP bc parser!! */
@@ -300,7 +303,8 @@ int bcnd(AutoxRun &run, integer ndim, const double *par, const integer *icp, int
 
 /* autoX's user routines that xppautX does not supply: stubs, with
    autox_c.h's prototypes (which autoX calls them through) */
-int icnd(integer ndim, const doublereal *par, const integer *icp, integer nint,
+/* icnd: AUTO's user routine ICND (user_c.f90:140) */
+int user_integral_conditions(integer ndim, const doublereal *par, const integer *icp, integer nint,
 	 const doublereal *u, const doublereal *uold, const doublereal *udot,
 	 const doublereal *upold, integer ijac,
 	 doublereal *fi, doublereal *dint)
@@ -308,7 +312,8 @@ int icnd(integer ndim, const doublereal *par, const integer *icp, integer nint,
     return 0;
 } /* icnd_ */
 
-int fopt(integer ndim, const doublereal *u, const integer *icp,
+/* fopt: AUTO's user routine FOPT (user_c.f90:154): the objective of an optimization */
+int user_objective(integer ndim, const doublereal *u, const integer *icp,
 	 const doublereal *par, integer ijac,
 	 doublereal *fs, doublereal *dfdu, doublereal *dfdp)
 {
@@ -318,7 +323,8 @@ int fopt(integer ndim, const doublereal *u, const integer *icp,
 /*  Not sure what to do here; I think  do nothing  since IEQUIB is always
     -2 
 */
-int pvls (integer ndim, const doublereal *u,
+/* pvls: AUTO's user routine PVLS, additional output parameter values */
+int user_output_parameters (integer ndim, const doublereal *u,
           doublereal *par)
 {
   return 0;

@@ -1192,6 +1192,7 @@ L1001:
    before products and sums. del_stab and std::complex use different orders
    (and thus rounding); sharing those quotients would change eigenvectors. */
 /* Subroutine */ int 
+/* cdiv: EISPACK cdiv: complex division by the scaled Smith form (xpp_math_eispack.cpp) */
 complex_divide_scaled(const doublereal *ar, const doublereal *ai, const doublereal *br, const doublereal *bi, doublereal *cr, doublereal *ci)
 {
     /* System generated locals */

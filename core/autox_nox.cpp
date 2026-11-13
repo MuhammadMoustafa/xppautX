@@ -97,8 +97,8 @@ static void autox_set_pars_from(xpp::Session &s, const double *par)
     }
 }
 
-/* do_autox's cleanup after go_go_autox(): a run that diverges can leave
-   autoX's own working copy of a continuation parameter (autox_pp.cpp's func,
+/* do_autox's cleanup after run_autox_problem(): a run that diverges can leave
+   autoX's own working copy of a continuation parameter (autox_pp.cpp's user_right_hand_side,
    synced into constants[] every RHS call) not finite. Restore what the
    run started from instead of leaving -nan in the model (QA SCI-001). */
 void autox_restore_finite_pars(xpp::Session &s, const double *before)
@@ -349,7 +349,7 @@ static AutoxStabilityKind run_stability_kind(const xpp::Session &s, xpp::AutoxPr
 }
 
 /* what a stored point is, for autox_stability.h: one-parameter periodic
-   orbits have a negative branch (autox_lib1.cpp stplbv) */
+   orbits have a negative branch (autox_lib1.cpp store_diagram_boundary) */
 static AutoxStabilityKind point_stability_kind(const DIAGRAM *d)
 {
   if(d->flag2!=no_calculation)return AUTOX_STABILITY_OTHER;
@@ -449,7 +449,7 @@ AutoxDepth::AutoxDepth(Session &s) : depth(s.autox_state.depth) { if(depth++==0)
 std::optional<xpp::Error> autox_numerics(AutoxRun &run)
 {
   try {
-    go_go_autox(run); /* this complets the initialization and calls the
+    run_autox_problem(run); /* this complets the initialization and calls the
                          main routines
                       */
   } catch (const xpp::AutoxFailed &e) {

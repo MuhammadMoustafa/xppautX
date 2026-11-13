@@ -65,6 +65,7 @@ double hom_bcs(double x)
 
 /*  logical stuff  */
 
+/* dnot: not x as 1 or 0 */
 double logical_not(double x)
 {
  return(static_cast<double>(x==0.0));
@@ -77,10 +78,12 @@ double dor(double x, double y)
 {
  return(static_cast<double>(x||y));
 }
+/* dge: x >= y as 1 or 0 */
 double greater_equal(double x, double y)
 {
  return(static_cast<double>(x>=y));
 }
+/* dle: x <= y as 1 or 0, the expression language's operator (expr_functions.cpp) */
 double less_equal(double x, double y)
 {
  return(static_cast<double>(x<=y));
@@ -89,6 +92,7 @@ double deq(double x, double y)
 {
  return(static_cast<double>(x==y));
 }
+/* dne: x != y as 1 or 0 */
 double not_equal(double x, double y)
 {
  return(static_cast<double>(x!=y));
@@ -97,6 +101,7 @@ double dgt(double x, double y)
 {
  return(static_cast<double>(x>y));
 }
+/* dlt: x < y as 1 or 0 */
 double less_than(double x, double y)
 {
  return(static_cast<double>(x<y));

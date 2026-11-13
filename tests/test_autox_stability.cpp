@@ -197,7 +197,7 @@ TEST_CASE("test_autox_stability")
     iap.ibr = 1;
     iap.ntot = 5;
     iap.ndim = iap.ndm = iap.nfpr = 1;
-    iap.itnw = 4; // adptds reduces failed steps only when ITNW is at least 3.
+    iap.itnw = 4; // adapt_step reduces failed steps only when ITNW is at least 3.
     iap.iads = 1;
     rap_type rap{};
     rap.ds = rap.dsold = rap.dsmax = 1;
@@ -225,14 +225,14 @@ TEST_CASE("test_autox_stability")
         double expected_r[N], expected_i[N];
         CHECK(xpp::autox_stability_for(actual, 1, 5, expected_r, expected_i) == 1);
         if (switching) {
-            // swpnt supplies the branch point as both u and uold.
+            // retrieve_branching_data supplies the branch point as both u and uold.
             uold = rlold = 2;
-            swprc(&iap, &rap, par.data(), &icp, no_convergence, &stride,
+            second_branch_point(&iap, &rap, par.data(), &icp, no_convergence, &stride,
                 aa.data(), rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(),
                 &uold, &udot, &f, &dfdu, dfdp.data(), &ds, thl.data(), &thu);
         } else {
-            contae(&iap, &rap, &ds, &rlcur, &rlold, &rldot, &u, &uold, &udot);
-            solvae(&iap, &rap, par.data(), &icp, no_convergence, &ds, &stride,
+            extrapolate_algebraic(&iap, &rap, &ds, &rlcur, &rlold, &rldot, &u, &uold, &udot);
+            solve_algebraic(&iap, &rap, par.data(), &icp, no_convergence, &ds, &stride,
                 aa.data(), rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(),
                 &uold, &udot, &f, &dfdu, dfdp.data(), thl.data(), &thu);
         }
@@ -250,27 +250,27 @@ TEST_CASE("test_autox_stability")
     u = rlcur = par[0] = 2;
     uold = rlold = 1;
     udot = rldot = 1;
-    contae(&iap, &rap, &ds, &rlcur, &rlold, &rldot, &u, &uold, &udot);
-    solvae(&iap, &rap, par.data(), &icp, no_convergence, &ds, &stride,
+    extrapolate_algebraic(&iap, &rap, &ds, &rlcur, &rlold, &rldot, &u, &uold, &udot);
+    solve_algebraic(&iap, &rap, par.data(), &icp, no_convergence, &ds, &stride,
         aa.data(), rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(),
         &uold, &udot, &f, &dfdu, dfdp.data(), thl.data(), &thu);
     CHECK(iap.istop == 1 && ds < rap.dsmin && u == 2 && par[0] == 2);
     CHECK(xpp::autox_stability_for(actual, 1, 6, std::span(r, 1), std::span(i, 1)) == 1 && near(r[0], std::exp(3.0)) && i[0] == 0);
     run.locating = false;
 
-    // stprae's successful seed is unstored: the following contae sees
+    // second_point_algebraic's successful seed is unstored: the following extrapolate_algebraic sees
     // NTOT=1 again, but its u is no longer the restart label's solution.
     xpp::autox_stability_run_start(actual, xpp::AUTOX_STABILITY_STEADY, 1,
         xpp::AUTOX_STABILITY_STEADY, xpp::AutoxPointCode{xpp::AutoxPointKind::Hopf}, LAB_R, LAB_I);
-    xpp::autox_stability_step_start(actual, 1, 1); // stprae consumed the label.
+    xpp::autox_stability_step_start(actual, 1, 1); // second_point_algebraic consumed the label.
     iap.ntot = 1;
     iap.istop = 0;
     ds = rap.dsold = 1;
     u = rlcur = par[0] = 2; // the converged seed, with a different Jacobian.
     uold = rlold = 1;
     udot = rldot = 1;
-    contae(&iap, &rap, &ds, &rlcur, &rlold, &rldot, &u, &uold, &udot);
-    solvae(&iap, &rap, par.data(), &icp, no_convergence, &ds, &stride,
+    extrapolate_algebraic(&iap, &rap, &ds, &rlcur, &rlold, &rldot, &u, &uold, &udot);
+    solve_algebraic(&iap, &rap, par.data(), &icp, no_convergence, &ds, &stride,
         aa.data(), rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(),
         &uold, &udot, &f, &dfdu, dfdp.data(), thl.data(), &thu);
     CHECK(iap.istop == 1 && ds < rap.dsmin && u == 2 && par[0] == 2);
@@ -287,7 +287,7 @@ TEST_CASE("test_autox_stability")
     u = rlcur = par[0] = 2;
     udot = rldot = 1;
     const double saved_period = par[10];
-    swprc(&iap, &rap, par.data(), &icp, no_convergence, &stride,
+    second_branch_point(&iap, &rap, par.data(), &icp, no_convergence, &stride,
         aa.data(), rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(),
         &uold, &udot, &f, &dfdu, dfdp.data(), &ds, thl.data(), &thu);
     CHECK(iap.istop == 1 && ds < rap.dsmin && u == 2 && par[0] == 2 && par[10] == saved_period);
@@ -308,9 +308,9 @@ TEST_CASE("test_autox_stability")
     xpp::autox_stability_run_start(actual, xpp::AUTOX_STABILITY_PERIODIC, 1,
         xpp::AUTOX_STABILITY_NONE, xpp::AutoxPointCode{}, {}, {});
     xpp::autox_stability_computed(actual, 1, 5, MULT, xpp::AUTOX_STABILITY_PERIODIC);
-    extrbv(&iap, &rap, no_convergence, &ds, &rlcur, &rlold, &rldot,
+    predict_boundary_null_space(&iap, &rap, no_convergence, &ds, &rlcur, &rlold, &rldot,
            &stride, mesh.data(), old.data(), tangent.data());
-    stepbv(&iap, &rap, par.data(), &icp, no_convergence, boundary, nullptr, nullptr,
+    step_boundary(&iap, &rap, par.data(), &icp, no_convergence, boundary, nullptr, nullptr,
            &ds, &rlcur, &rlold, &rldot, &stride, mesh.data(), dups.data(), old.data(),
            tangent.data(), upold.data(), fa.data(), fc.data(), tm.data(), dtm.data(),
            &p0, &p1, thl.data(), &thu);
@@ -331,7 +331,7 @@ TEST_CASE("test_autox_stability")
     rlold = rlcur;
     integer fresh = 1, nullity = 0;
     double zero_step = 0;
-    solvbv(&fresh, &iap, &rap, par.data(), &icp, no_convergence, boundary,
+    solve_boundary(&fresh, &iap, &rap, par.data(), &icp, no_convergence, boundary,
            nullptr, &zero_step, &nullity, &rlcur, &rlold, &rldot, &stride,
            mesh.data(), dups.data(), old.data(), tangent.data(), upold.data(),
            dtm.data(), fa.data(), fc.data(), &p0, &p1, thl.data(), &thu);
@@ -342,9 +342,9 @@ TEST_CASE("test_autox_stability")
     // This reference is not retained for the attempted endpoint.
     xpp::autox_stability_run_start(actual, xpp::AUTOX_STABILITY_PERIODIC, 1,
         xpp::AUTOX_STABILITY_NONE, xpp::AutoxPointCode{}, {}, {});
-    extrbv(&iap, &rap, no_convergence, &ds, &rlcur, &rlold, &rldot,
+    predict_boundary_null_space(&iap, &rap, no_convergence, &ds, &rlcur, &rlold, &rldot,
            &stride, mesh.data(), old.data(), tangent.data());
-    stepbv(&iap, &rap, par.data(), &icp, no_convergence, boundary, nullptr, nullptr,
+    step_boundary(&iap, &rap, par.data(), &icp, no_convergence, boundary, nullptr, nullptr,
            &ds, &rlcur, &rlold, &rldot, &stride, mesh.data(), dups.data(), old.data(),
            tangent.data(), upold.data(), fa.data(), fc.data(), tm.data(), dtm.data(),
            &p0, &p1, thl.data(), &thu);

@@ -81,14 +81,14 @@ TEST_CASE("test_autox_errors")
     }
     CHECK(xpp::files::remove("build/test_autox_positions.txt") == 0);
 
-    /* chdim: more free parameters than autoX's arrays hold */
+    /* check_dimensions: more free parameters than autoX's arrays hold */
     iap_type iap{};
     iap.run = &run;
     iap.run->parameter_count = xpp::client_session().autox_state.parameter_layout.size();
     iap.nfpr = iap.run->parameter_count + 1;
-    CHECK(has(failure([&] { chdim(&iap); }), "free parameters"));
+    CHECK(has(failure([&] { check_dimensions(&iap); }), "free parameters"));
     iap.nfpr = 2;
-    CHECK(failure([&] { chdim(&iap); }).empty());
+    CHECK(failure([&] { check_dimensions(&iap); }).empty());
 
     /* RG rejects a leading dimension smaller than the matrix dimension. */
     iap.ndim = 2;
@@ -99,10 +99,10 @@ TEST_CASE("test_autox_errors")
               "EISPACK routine RG"));
     CHECK(ier == 1);
 
-    /* cpnts: collocation weights exist for Ncol up to 7 */
+    /* collocation_point_positions: collocation weights exist for Ncol up to 7 */
     std::array<doublereal, 8> zm{};
-    CHECK(has(failure([&] { cpnts(8, zm.data()); }), "collocation_points is 8"));
-    CHECK(failure([&] { cpnts(4, zm.data()); }).empty());
+    CHECK(has(failure([&] { collocation_point_positions(8, zm.data()); }), "collocation_points is 8"));
+    CHECK(failure([&] { collocation_point_positions(4, zm.data()); }).empty());
 
     /* gauss_eliminate: a singular system (the second row twice the first) */
     std::array<doublereal, 4> a{1, 2, 2, 4};

@@ -29,8 +29,8 @@ void AutoxAssemblyScratch::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std:
     wi.resize(xpp::size_sum(ncol, 1));
     wp.resize(xpp::size_product(ncol, xpp::size_sum(ncol, 1)));
     wt.resize(xpp::size_product(ncol, xpp::size_sum(ncol, 1)));
-    wint(ncol + 1, wi.data());
-    genwts(ncol, ncol + 1, wt.data(), wp.data());
+    integration_weights(ncol + 1, wi.data());
+    collocation_weights(ncol, ncol + 1, wt.data(), wp.data());
   }
   dicd.resize(xpp::size_product(nint, xpp::size_sum(ndim, parameters)));
   ficd.resize(nint);
@@ -81,16 +81,16 @@ void SolvbvWork::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t
 /* ----------------------------------------------------------------------- */
 
 namespace {
-/* What a factorization (solvbv with ifst = 1) is made from: the iterate, the previous solution and its tangent, the
+/* What a factorization (solve_boundary with ifst = 1) is made from: the iterate, the previous solution and its tangent, the
    mesh, the parameters, the step and the problem's functions. Run again on a copy of them it gives the same
    matrices bit for bit (the assembly is deterministic, at any thread count), so a failed location (autox_lib1.cpp's
    LocationState) keeps these, kilobytes, and not the factored matrices, megabytes. The outputs of the run (dups, fa,
    fc, p0, p1) go to scratch; what the run changes besides the matrices, the model's last evaluated values, HomCont's
    state, the determinant, the pivot and the time of an evolution, is put back. */
-std::function<void()> remember_factorization(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal rds, integer nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *thl, doublereal *thu)
+std::function<void()> remember_factorization(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), doublereal rds, integer nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *thl, doublereal *thu)
 {
   const auto copy = [](const doublereal *p, std::size_t n) { return std::vector<doublereal>(p, p + n); };
-  /* each array as long as solvbv reads it: the continued parameters' values (rl*) are nfpr long, the mesh's
+  /* each array as long as solve_boundary reads it: the continued parameters' values (rl*) are nfpr long, the mesh's
      intervals (dtm) ntst, a solution ndxloc rows of ndim * ncol */
   const std::size_t nu = xpp::size_product(ndxloc, iap->ndim, iap->ncol), np = iap->run->parameter_count,
                     nfpr = static_cast<std::size_t>(iap->nfpr), ntst = static_cast<std::size_t>(iap->ntst);
@@ -103,22 +103,23 @@ std::function<void()> remember_factorization(iap_type *iap, rap_type *rap, doubl
     auto [constants, variables] = autox_rhs_values(run);
     const auto kept_constants = constants, kept_variables = variables;
     const auto kept_homcont = std::exchange(run.homcont, homcont);
-    const doublereal det = rap->det, tivp = rap->tivp, pivot = run.solvbv.pivot;
+    const doublereal det = rap->det, tivp = rap->tivp, pivot = run.solve_boundary_work.pivot;
     integer ifst = 1, ndx = ndxloc, nllv_now = nllv;
     doublereal rds_now = rds;
-    solvbv(&ifst, iap, rap, par.data(), icp, funi, bcni, icni, &rds_now, &nllv_now, rlcur.data(), rlold.data(),
+    solve_boundary(&ifst, iap, rap, par.data(), icp, problem_function, boundary_function, integral_function, &rds_now, &nllv_now, rlcur.data(), rlold.data(),
            rldot.data(), &ndx, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), dtm.data(),
            fa.data(), fc.data(), p0.data(), p1.data(), thl, thu);
     constants = kept_constants;
     variables = kept_variables;
     run.homcont = kept_homcont;
-    rap->det = det, rap->tivp = tivp, run.solvbv.pivot = pivot;
+    rap->det = det, rap->tivp = tivp, run.solve_boundary_work.pivot = pivot;
   };
 }
 } // namespace
 
+/* solvbv: AUTO solvebv.f90:26: the Newton solve of the collocation system */
 int 
-solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *rds, integer *nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, doublereal *thl, doublereal *thu)
+solve_boundary(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), doublereal *rds, integer *nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, doublereal *thl, doublereal *thu)
 {
 
   integer ndim;
@@ -134,23 +135,23 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 
   /* Most of the required memory is allocated below */
   /* This is an interesting section of code.  The main point
-     is that setubv and conpar only get called when ifst
+     is that setup_boundary_system and condense_parameters only get called when ifst
      is 1.  This is a optimization since you can solve
      the system using the previously factored jacobian.
      One thing to watch out for is that two seperate calls
      of solvbv_ talk to each other through these arrays,
      so it is only safe to get rid of them when ifst is
-     1 (since their entries will then be recreated in conpar
-     and setubv).
+     1 (since their entries will then be recreated in condense_parameters
+     and setup_boundary_system).
   */
 
   if (*ifst == 1) {
     /* the arrays are sized in one place, SolvbvWork::resize */
-    iap->run->solvbv.resize(iap->ndim, iap->ncol, iap->ntst, iap->nbc, iap->nint, iap->nfpr);
-    iap->run->refactor = remember_factorization(iap, rap, par, icp, funi, bcni, icni, *rds, *nllv, rlcur, rlold, rldot, *ndxloc, ups, uoldps, udotps, upoldp, dtm, thl, thu);
+    iap->run->solve_boundary_work.resize(iap->ndim, iap->ncol, iap->ntst, iap->nbc, iap->nint, iap->nfpr);
+    iap->run->refactor = remember_factorization(iap, rap, par, icp, problem_function, boundary_function, integral_function, *rds, *nllv, rlcur, rlold, rldot, *ndxloc, ups, uoldps, udotps, upoldp, dtm, thl, thu);
   }
 
-  auto &ft = iap->run->solvbv.ft;
+  auto &ft = iap->run->solve_boundary_work.ft;
 
   ndim = iap->ndim;
   ips = iap->ips;
@@ -169,16 +170,16 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   }
   
   if (*ifst == 1) {
-    setubv(ndim, ips, ntst, ncol, nbc, nint, nfpr, nrc, nrow, nclm,
-	   funi, bcni, icni, *ndxloc, iap, rap, par, icp, 
-	   *rds, iap->run->solvbv.a_matrix(nclm, nrow, ntst), iap->run->solvbv.b_matrix(nfpr, nrow, ntst), iap->run->solvbv.c_matrix(nclm, nrc, ntst), iap->run->solvbv.d_matrix(nfpr, nrc), ft.data(), fc, rlcur, 
+    setup_boundary_system(ndim, ips, ntst, ncol, nbc, nint, nfpr, nrc, nrow, nclm,
+	   problem_function, boundary_function, integral_function, *ndxloc, iap, rap, par, icp, 
+	   *rds, iap->run->solve_boundary_work.a_matrix(nclm, nrow, ntst), iap->run->solve_boundary_work.b_matrix(nfpr, nrow, ntst), iap->run->solve_boundary_work.c_matrix(nclm, nrc, ntst), iap->run->solve_boundary_work.d_matrix(nfpr, nrc), ft.data(), fc, rlcur, 
 	   rlold, rldot, ups, uoldps, udotps, upoldp, dups, 
 	   dtm, thl, thu, p0, p1);
   } else if (*nllv >= 0 || ips == xpp::AutoxProblem::Homoclinic) {
     // A cycle fold uses a fixed RHS. HomCont still needs the boundary
     // evaluations that advance its projection continuity state.
-    setrhs(&ndim, &ips, &ntst, &ncol, &nbc, &nint, &
-	   nfpr, &nrc, &nrow, &nclm, funi, bcni, icni,
+    build_right_hand_side(&ndim, &ips, &ntst, &ncol, &nbc, &nint, &
+	   nfpr, &nrc, &nrow, &nclm, problem_function, boundary_function, integral_function,
 	   ndxloc, iap, rap, par, icp, rds, ft.data(), fc, rlcur, 
 	   rlold, rldot, ups, uoldps, udotps, upoldp, dups, dtm, thl, 
 	   thu, p0, p1);
@@ -186,17 +187,18 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 
   if (iap->run->setubv_stop && autox_cancelled(*iap->run)) return 0; /* xppautX: cancel */
 
-  brbd(*iap->run, iap->run->fp9, ft.data(), fc, p0, p1,
+  solve_bordered_block_diagonal(*iap->run, iap->run->fp9, ft.data(), fc, p0, p1,
        ifst, &iid, nllv, &det, &ndim, &ntst, &nbc, &nrow, &nclm, &nfpr, &nrc);
   
-  faft(ft.data(), fa, &ntst, &nrow, ndxloc);
+  transpose_right_hand_side(ft.data(), fa, &ntst, &nrow, ndxloc);
 
   rap->det = det;
   return 0;
 } /* solvbv_ */
 
+/* faft: copies ff(j,i) into fa(i,j) (autox_lib2.cpp:199) */
 int 
-faft(doublereal *ff, doublereal *fa, integer *ntst, integer *nrow, integer *ndxloc)
+transpose_right_hand_side(doublereal *ff, doublereal *fa, integer *ntst, integer *nrow, integer *ndxloc)
 {
   integer fa_dim1, ff_dim1;
 
@@ -214,8 +216,9 @@ faft(doublereal *ff, doublereal *fa, integer *ntst, integer *nrow, integer *ndxl
   return 0;
 } /* faft_ */
 
+/* setrhs: builds the collocation system's blocks and right-hand side (autox_lib2.cpp:218; XPPAUT 8.0 autlib2.c:520) */
 int 
-setrhs(integer *ndim, xpp::AutoxProblem *ips, integer *na, integer *ncol, integer *nbc, integer *nint, integer *ncb, integer *nrc, integer *nra, integer *nca, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer *ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *fa, doublereal *fc, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
+build_right_hand_side(integer *ndim, xpp::AutoxProblem *ips, integer *na, integer *ncol, integer *nbc, integer *nint, integer *ncb, integer *nrc, integer *nra, integer *nca, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), integer *ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *fa, doublereal *fc, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
 {
   integer ups_dim1, dups_dim1, uoldps_dim1, 
     udotps_dim1, upoldp_dim1, 
@@ -305,7 +308,7 @@ setrhs(integer *ndim, xpp::AutoxProblem *ips, integer *na, integer *ncol, intege
 	prm[i] = par[i];
       }
       /* The residual reads only f: no Jacobian (docs/xppaut-findings.md #39). */
-      (*funi)(iap, rap, *ndim, u.data(), uold.data(), icp, prm.data(), 0, f.data(), 
+      (*problem_function)(iap, rap, *ndim, u.data(), uold.data(), icp, prm.data(), 0, f.data(), 
 	      dfdu.data(), dfdp.data());
       ic1 = ic * *ndim;
       for (i = 0; i < *ndim; ++i) {
@@ -329,7 +332,7 @@ setrhs(integer *ndim, xpp::AutoxProblem *ips, integer *na, integer *ncol, intege
       ubc0[i] = ARRAY2D(ups, 0, i);
       ubc1[i] = ARRAY2D(ups, *na, i);
     }
-    (*bcni)(iap, rap, *ndim, par, icp, *nbc, ubc0.data(), ubc1.data(), 
+    (*boundary_function)(iap, rap, *ndim, par, icp, *nbc, ubc0.data(), ubc1.data(), 
 	    fbc.data(), 2, dbc.data());
     for (i = 0; i < *nbc; ++i) {
       fc[i] = -fbc[i];
@@ -362,7 +365,7 @@ setrhs(integer *ndim, xpp::AutoxProblem *ips, integer *na, integer *ncol, intege
 	  uid[i] = ARRAY2D(udotps, j1, i1);
 	  uip[i] = ARRAY2D(upoldp, j1, i1);
 	}
-	(*icni)(iap, rap, *ndim, par, icp, *nint, uic.data(), 
+	(*integral_function)(iap, rap, *ndim, par, icp, *nint, uic.data(), 
 		uio.data(), uid.data(), uip.data(), ficd.data(), 2, dicd.data());
 	for (m = 0; m < *nint; ++m) {
 	  fc[*nbc + m] -= dtm[j] * wi[k] * ficd[m];
@@ -377,7 +380,7 @@ setrhs(integer *ndim, xpp::AutoxProblem *ips, integer *na, integer *ncol, intege
     rlsum += thl[icp[i]] * (rlcur[i] - rlold[i]) * rldot[i];
   }
 
-  fc[-1 + *nrc] = *rds - rinpr(iap, ndim, ndxloc, udotps, 
+  fc[-1 + *nrc] = *rds - mesh_inner_product(iap, ndim, ndxloc, udotps, 
 			       dups, dtm, thu) - rlsum;
 
   return 0;
@@ -475,7 +478,7 @@ void backsubstitute_tree(AutoxRun &run, integer na, const RangeWork &solve)
   for_chunks(run, na, [&](integer lo, integer hi) { tree_down(lo, hi, whole_subtree, solve); });
 }
 
-/* The condensed system copycp builds, by block slot: nov x nov blocks
+/* The condensed system copy_condensed_system builds, by block slot: nov x nov blocks
    (a1, a2, s1, s2: row + column*nov), nov x ncb (bb), the conditions'
    columns nov x nrc (cc: x(k), c2: x(k+1)), ncb x nrc (dd), the right-hand
    sides (faa: nov, fcfc: nrc), the row pivots and column order (ipr, icf2:
@@ -634,7 +637,8 @@ void bcksub_merge(const CondensedBlocks &m, const double *parameters, double *so
 
 /* The reduction of the blocks; what it subtracts from the conditions' d is
    gathered by range and added once, at the root. */
-void reduce(AutoxRun &run, const CondensedBlocks &m, integer na, double *d)
+/* reduce: AUTO solvebv.f90:1031: reduces the non-overlapping, then overlapping, pieces of the condensation tree */
+void reduce_condensation(AutoxRun &run, const CondensedBlocks &m, integer na, double *d)
 {
   std::fill_n(m.dd, na * m.ncb * m.nrc, 0.);
   reduce_tree(run, na, [&](integer lo, integer mid, integer hi) { reduce_merge(m, lo, mid, hi); });
@@ -644,7 +648,8 @@ void reduce(AutoxRun &run, const CondensedBlocks &m, integer na, double *d)
 }
 
 /* The right-hand side through the same tree; fc's share added at the root. */
-void redrhs(AutoxRun &run, const CondensedBlocks &m, integer na, double *fc)
+/* redrhs: reduction of the right-hand side in the condensation tree (autox_lib2.cpp) */
+void reduce_right_hand_side(AutoxRun &run, const CondensedBlocks &m, integer na, double *fc)
 {
   std::fill_n(m.fcfc, na * m.nrc, 0.);
   reduce_tree(run, na, [&](integer, integer mid, integer hi) { redrhs_merge(m, mid, hi); });
@@ -652,9 +657,10 @@ void redrhs(AutoxRun &run, const CondensedBlocks &m, integer na, double *fc)
   for (integer ir = m.nbc; ir < m.nrc; ++ir) fc[ir] += root[ir];
 }
 
-/* x(0) and x(na) from dimrge's solution fcc (and fc = fcc after x(0)),
+/* x(0) and x(na) from solve_end_system's solution fcc (and fc = fcc after x(0)),
    then every other x(k) down the tree, into sol (nov x (na+1)). */
-void bcksub(AutoxRun &run, const CondensedBlocks &m, integer na, const double *fc, const double *fcc, double *sol)
+/* bcksub: AUTO solvebv.f90:1510: back substitution */
+void back_substitute(AutoxRun &run, const CondensedBlocks &m, integer na, const double *fc, const double *fcc, double *sol)
 {
   for (integer l = 0; l < m.nov; ++l) {
     sol[l] = fcc[l];
@@ -665,7 +671,8 @@ void bcksub(AutoxRun &run, const CondensedBlocks &m, integer na, const double *f
 
 /* Determine the local variables by backsubstitution, blocks begin..end-1:
    no communication, so the blocks are shared among the workers. */
-void infpar(const doublereal *a, const doublereal *b, doublereal *fa, const doublereal *sol, const doublereal *fc, integer begin, integer end, integer nov, integer nra, integer nca, integer ncb, const integer *irf, const integer *icf)
+/* infpar: XPPAUT 8.0 autlib2.c:2414: the local variables by back substitution after the parameters */
+void determine_local_variables(const doublereal *a, const doublereal *b, doublereal *fa, const doublereal *sol, const doublereal *fc, integer begin, integer end, integer nov, integer nra, integer nca, integer ncb, const integer *irf, const integer *icf)
 {
   const integer irf_dim1 = nra, fa_dim1 = nra, icf_dim1 = nca, a_dim1 = nca, a_dim2 = nra, b_dim1 = ncb, b_dim2 = nra;
   const integer nram = nra - nov;
@@ -694,11 +701,12 @@ void infpar(const doublereal *a, const doublereal *b, doublereal *fa, const doub
 }
 } // namespace
 
+/* brbd: AUTO solvebv.f90:544: solves linear systems with the bordered almost-block-diagonal profile */
 int 
-brbd(AutoxRun &run, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc)
+solve_bordered_block_diagonal(AutoxRun &run, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc)
 {
-  /* the matrices and index arrays solvbv sized and kept in run.solvbv */
-  SolvbvWork &work = run.solvbv;
+  /* the matrices and index arrays solve_boundary sized and kept in run.solve_boundary_work */
+  SolvbvWork &work = run.solve_boundary_work;
   doublereal *a = work.a.data(), *b = work.b.data(), *c = work.c.data(), *d = work.d.data();
   integer *irf = work.irf.data(), *icf = work.icf.data();
   const CondensedBlocks blocks{work.a1.data(), work.a2.data(), work.s1.data(), work.s2.data(), work.bb.data(),
@@ -706,42 +714,43 @@ brbd(AutoxRun &run, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, d
     work.ipr.data(), work.icf2.data(), *nov, *ncb, *nrc, *nbc};
 
   if (*idb > 4) {
-    print1(fp9, nov, na, nra, nca, ncb, nrc, a, b, c, d, fa, fc);
+    print_system(fp9, nov, na, nra, nca, ncb, nrc, a, b, c, d, fa, fc);
   }
   if (*ifst == 1) {
-    conpar(run, nov, na, nra, nca, a, ncb, b, nbc, nrc, c, d, irf, icf);
-    copycp(na, nov, nra, nca, a, ncb, b, nrc, c, blocks.a1, blocks.a2, blocks.bb, blocks.cc, blocks.c2, irf);
+    condense_parameters(run, nov, na, nra, nca, a, ncb, b, nbc, nrc, c, d, irf, icf);
+    copy_condensed_system(na, nov, nra, nca, a, ncb, b, nrc, c, blocks.a1, blocks.a2, blocks.bb, blocks.cc, blocks.c2, irf);
   }
 
   if (*nllv == 0) {
-    conrhs(nov, na, nra, nca, a, nbc, nrc, c, fa, fc, irf, icf);
+    condense_right_hand_side(nov, na, nra, nca, a, nbc, nrc, c, fa, fc, irf, icf);
   } else {
-    setzero(fa, fc, na, nra, nrc);
+    zero_right_hand_side(fa, fc, na, nra, nrc);
   }
-  cpyrhs(na, nov, nra, blocks.faa, fa, irf);
+  copy_right_hand_side(na, nov, nra, blocks.faa, fa, irf);
 
   if (*ifst == 1) {
-    reduce(run, blocks, *na, d);
+    reduce_condensation(run, blocks, *na, d);
   }
   if (*nllv == 0) {
-    redrhs(run, blocks, *na, fc);
+    reduce_right_hand_side(run, blocks, *na, fc);
   }
 
-  dimrge(run, fp9, work.e.data(), blocks.cc, blocks.c2, d, fc, ifst, na,
+  solve_end_system(run, fp9, work.e.data(), blocks.cc, blocks.c2, d, fc, ifst, na,
 	 nrc, nov, ncb, idb, nllv, work.fcc.data(), p0, p1, det, blocks.a1, blocks.a2,
 	 blocks.faa, blocks.bb);
 
-  bcksub(run, blocks, *na, fc, work.fcc.data(), work.sol.data());
+  back_substitute(run, blocks, *na, fc, work.fcc.data(), work.sol.data());
 
   for_blocks(run, *na, [&](integer begin, integer end) {
-    infpar(a, b, fa, work.sol.data(), fc, begin, end, *nov, *nra, *nca, *ncb, irf, icf);
+    determine_local_variables(a, b, fa, work.sol.data(), fc, begin, end, *nov, *nra, *nca, *ncb, irf, icf);
   });
 
   return 0;
 } /* brbd_ */
 
+/* setzero: zeroes the right-hand side blocks (autox_lib2.cpp:744) */
 int 
-setzero(doublereal *fa, doublereal *fc, integer *na, integer *nra, integer *nrc)
+zero_right_hand_side(doublereal *fa, doublereal *fc, integer *na, integer *nra, integer *nrc)
 {
   integer fa_dim1;
 
@@ -762,8 +771,9 @@ setzero(doublereal *fa, doublereal *fc, integer *na, integer *nra, integer *nrc)
   return 0;
 } /* setzero_ */
 
+/* conrhs: AUTO solvebv.f90:931 CONRHS: condensation of the right-hand side */
 int 
-conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *nbc, integer *nrc, doublereal *c, doublereal *fa, doublereal *fc, integer *irf, integer *icf)
+condense_right_hand_side(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *nbc, integer *nrc, doublereal *c, doublereal *fa, doublereal *fc, integer *irf, integer *icf)
 {
   integer icf_dim1, irf_dim1, a_dim1, a_dim2, c_dim1, c_dim2, fa_dim1;
 
@@ -810,8 +820,9 @@ conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, int
   return 0;
 } /* conrhs_ */
 
+/* copycp: AUTO solvebv.f90:970: copies the condensed system CONPAR made into workspace */
 int 
-copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *c2, integer *irf)
+copy_condensed_system(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *c2, integer *irf)
 {
   integer irf_dim1, a_dim1, a_dim2, b_dim1, b_dim2, c_dim1, c_dim2, a1_dim1, a1_dim2,
     a2_dim1, a2_dim2, bb_dim1, bb_dim2, cc_dim1, cc_dim2, c2_dim1, c2_dim2;
@@ -866,8 +877,9 @@ copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, int
   return 0;
 } /* copycp_ */
 
+/* cpyrhs: AUTO solvebv.f90:1009: copies the right-hand side */
 int 
-cpyrhs(integer *na, integer *nov, integer *nra, doublereal *faa, doublereal *fa, integer *irf)
+copy_right_hand_side(integer *na, integer *nov, integer *nra, doublereal *faa, doublereal *fa, integer *irf)
 {
   integer irf_dim1, fa_dim1, faa_dim1;
 
@@ -888,8 +900,9 @@ cpyrhs(integer *na, integer *nov, integer *nra, doublereal *faa, doublereal *fa,
   return 0;
 } /* cpyrhs_ */
 
+/* dimrge: AUTO solvebv.f90:1408: assembles and solves the small end system from the first and last blocks, the boundary rows and the integral rows */
 int 
-dimrge(AutoxRun &run, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *a1, doublereal *a2, doublereal *faa, doublereal *bb)
+solve_end_system(AutoxRun &run, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *a1, doublereal *a2, doublereal *faa, doublereal *bb)
 {
 
   integer e_dim1, cc_dim1, cc_dim2, c2_dim1, c2_dim2, d_dim1, 
@@ -903,7 +916,7 @@ dimrge(AutoxRun &run, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, 
 
   integer novpj2, kc, kr, ncrloc;
 
-  auto &xe = run.solvbv.xe;
+  auto &xe = run.solve_boundary_work.xe;
 
   faa_dim1 = *nov;
   a2_dim1 = *nov;
@@ -990,9 +1003,9 @@ dimrge(AutoxRun &run, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, 
   }
 
   /* Solve for FCC */
-  run.solvbv.pivot=NAN;
+  run.solve_boundary_work.pivot=NAN;
   if (*nllv == 0) {
-    run.solvbv.pivot=xpp::gauss_eliminate(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
+    run.solve_boundary_work.pivot=xpp::gauss_eliminate(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   } else if (*nllv > 0) {
     xpp::matrix_null_vector(fp9, ncrloc, ncrloc, *nllv, e, fcc);
@@ -1001,7 +1014,7 @@ dimrge(AutoxRun &run, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, 
       xe[i] = 0.;
     }
     xe[-1 + ncrloc] = 1.;
-    run.solvbv.pivot=xpp::gauss_eliminate(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
+    run.solve_boundary_work.pivot=xpp::gauss_eliminate(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   }
   if (*idb >= 4) {
@@ -1035,8 +1048,9 @@ dimrge(AutoxRun &run, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, 
   return 0;
 } /* dimrge_ */
 
+/* print1: prints the blocks of the condensed system (autox_lib2.cpp:1039; AUTO solvebv.f90:1697) */
 int 
-print1(FILE *fp9, integer *nov, integer *na, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc)
+print_system(FILE *fp9, integer *nov, integer *na, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc)
 {
 
   integer a_dim1, a_dim2, b_dim1, b_dim2, c_dim1, 

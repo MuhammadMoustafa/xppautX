@@ -38,7 +38,7 @@ namespace xpp {
 namespace {
 
 /* How a job's branch and label numbers move to follow the jobs before it: a number above what the diagram and fort.3
-   held when the jobs started (the base newlab counts from, AutoxRun::base_branch) is a number the job made, and shifts
+   held when the jobs started (the base new_restart_label counts from, AutoxRun::base_branch) is a number the job made, and shifts
    by offset. */
 struct Renumber {
   int base_branch=0,base_label=0;

@@ -289,8 +289,8 @@ void check_model(const char *path, bool map, bool forward = true)
     if (forward) CHECK(worst < 1e-5);
 }
 
-/* autoX's func with ijac 2 (JAC=1): dfdu and the continuation parameters'
-   dfdp columns, exactly, against central differences of func itself; a
+/* autoX's user_right_hand_side with ijac 2 (JAC=1): dfdu and the continuation parameters'
+   dfdp columns, exactly, against central differences of user_right_hand_side itself; a
    parameter of autoX's own (the period, 10) has a column of 0; a map
    applied store_every times, through the chain rule */
 void check_autox_func(const char *path, double u0, double u1, int store_every = 1)
@@ -317,29 +317,29 @@ void check_autox_func(const char *path, double u0, double u1, int store_every = 
     double f[n], dfdu[n * n];
     std::vector<double> dfdp(n * run.parameter_count);
     std::fill_n(dfdp.data(), n * run.parameter_count, -1.0);
-    func(run, n, u, icp, 2, par.data(), 2, f, dfdu, dfdp.data());
+    user_right_hand_side(run, n, u, icp, 2, par.data(), 2, f, dfdu, dfdp.data());
     double worst = 0, fp[n], fm[n];
     std::vector<double> unused(n * run.parameter_count);
     for (integer j = 0; j < n; ++j) {
         double up[n] = {u[0], u[1]}, um[n] = {u[0], u[1]};
         up[j] += 1e-6;
         um[j] -= 1e-6;
-        func(run, n, up, icp, 2, par.data(), 0, fp, unused.data(), unused.data());
-        func(run, n, um, icp, 2, par.data(), 0, fm, unused.data(), unused.data());
+        user_right_hand_side(run, n, up, icp, 2, par.data(), 0, fp, unused.data(), unused.data());
+        user_right_hand_side(run, n, um, icp, 2, par.data(), 0, fm, unused.data(), unused.data());
         for (integer i = 0; i < n; ++i) {
             const double d = (fp[i] - fm[i]) / 2e-6;
             worst = std::max(worst, std::fabs(dfdu[i + j * n] - d) / std::max(1.0, std::fabs(d)));
         }
     }
     par[continued] += 1e-6;
-    func(run, n, u, icp, 2, par.data(), 0, fp, unused.data(), unused.data());
+    user_right_hand_side(run, n, u, icp, 2, par.data(), 0, fp, unused.data(), unused.data());
     par[continued] -= 2e-6;
-    func(run, n, u, icp, 2, par.data(), 0, fm, unused.data(), unused.data());
+    user_right_hand_side(run, n, u, icp, 2, par.data(), 0, fm, unused.data(), unused.data());
     for (integer i = 0; i < n; ++i) {
         const double d = (fp[i] - fm[i]) / 2e-6;
         worst = std::max(worst, std::fabs(dfdp[continued*n+i] - d) / std::max(1.0, std::fabs(d)));
     }
-    std::printf("%s: autoX's func, exact against central differences, largest difference %.3g\n", path, worst);
+    std::printf("%s: autoX's user_right_hand_side, exact against central differences, largest difference %.3g\n", path, worst);
     CHECK(worst < 1e-7);
     CHECK(dfdp[xpp::autox_unknown::period * n] == 0 && dfdp[xpp::autox_unknown::period * n + 1] == 0);
 }

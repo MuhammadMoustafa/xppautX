@@ -1,5 +1,5 @@
 /* The model's Jacobian by forward differences: one owner (W255) of what
-   gear.cpp, odesol2.cpp, stiff.cpp, del_stab.cpp and autoX's func each
+   gear.cpp, odesol2.cpp, stiff.cpp, del_stab.cpp and autoX's user_right_hand_side each
    wrote for themselves; or the exact one, from the model's compiled
    derivatives (W260). */
 #include "jacobian.h"

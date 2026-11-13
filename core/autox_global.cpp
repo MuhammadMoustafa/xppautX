@@ -88,12 +88,12 @@ std::vector<std::size_t> autox_slow_points(std::span<const double> speeds, doubl
 
 namespace {
 
-/* the model on a run's own constants (AutoxRun::pure_rhs): autoX's func at the parameters, and the Jacobian from them */
+/* the model on a run's own constants (AutoxRun::pure_rhs): autoX's user_right_hand_side at the parameters, and the Jacobian from them */
 class RunEquilibriumModel final : public EquilibriumModel {
 public:
     RunEquilibriumModel(const iap_type &iap, const double *par, const std::ptrdiff_t *icp)
         : run_(*iap.run), ndm_(iap.ndm), nfpr_(iap.nfpr), par_(par, par + iap.run->parameter_count), icp_(icp, icp + iap.nfpr) {}
-    void rhs(const double *x, double *f) override { func(run_, ndm_, x, icp_.data(), nfpr_, par_.data(), 0, f, nullptr, nullptr); }
+    void rhs(const double *x, double *f) override { user_right_hand_side(run_, ndm_, x, icp_.data(), nfpr_, par_.data(), 0, f, nullptr, nullptr); }
     void jacobian(const double *x, const double *f0, double eps, const JacobianForm &form, double *out) override
     {
         /* the constants are par's: the rhs at x just set them */
@@ -210,7 +210,7 @@ std::unique_ptr<EquilibriumModel> autox_equilibrium_model(const iap_type &iap, c
 void autox_evaluate_at(const iap_type &iap, const double *par, const std::ptrdiff_t *icp, std::span<const double> x,
                        std::span<double> f)
 {
-    func(*iap.run, iap.ndm, x.data(), icp, iap.nfpr, par, 0, f.data(), nullptr, nullptr);
+    user_right_hand_side(*iap.run, iap.ndm, x.data(), icp, iap.nfpr, par, 0, f.data(), nullptr, nullptr);
 }
 
 namespace {

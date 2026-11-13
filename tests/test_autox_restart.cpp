@@ -131,13 +131,13 @@ void algebraic(xpp::Session &s, bool truncated) {
     rap_type rap{};
     bool found = 0;
     integer free = 0;
-    findlb(&iap, &rap, 7, &free, &found);
+    find_restart_label(&iap, &rap, 7, &free, &found);
     CHECK(found && free == 1);
     std::array<double, 2> u{};
     std::vector<double> par(run.parameter_count, canary);
     std::string failed;
     try {
-        readlb(&iap, &rap, u.data(), par.data());
+        read_restart_label(&iap, &rap, u.data(), par.data());
     } catch (const xpp::AutoxFailed &e) {
         failed = e.error.what;
     }
@@ -171,13 +171,13 @@ void user_zero_text(xpp::Session &s) {
     std::vector<double> par(run.parameter_count);
     par[xpp::autox_unknown::period] = .875;
     bool changed = 0;
-    CHECK(fnuzae(&iap, &rap, par.data(), icp, &changed,
+    CHECK(user_zero_test_algebraic(&iap, &rap, par.data(), icp, &changed,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  marks) == .75);
     CHECK(changed == true);
     changed = 0;
-    CHECK(fnuzbv(&iap, &rap, par.data(), icp, &changed,
+    CHECK(user_zero_test_boundary(&iap, &rap, par.data(), icp, &changed,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
@@ -218,10 +218,10 @@ void point_files(xpp::Session &s, int count, bool collocation) {
     double current = .25, direction = 1., interval = 1.;
     integer stride = 2;
     if (collocation) {
-        CHECK(wrtbv8(&iap, &rap, par.data(), icp.data(), &direction, &stride,
+        CHECK(write_solution_restart(&iap, &rap, par.data(), icp.data(), &direction, &stride,
                       values.data(), tangent.data(), times.data(), &interval) == 0);
     } else {
-        CHECK(wrtsp8(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data(), tangent.data(), &direction) == 0);
+        CHECK(write_special_point_restart(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data(), tangent.data(), &direction) == 0);
     }
     CHECK(xpp::seek_stream(run.fp8.get(), 0, solution_path).has_value());
     auto solutions = xpp::TokenReader::attach(run.fp8.get());
@@ -241,7 +241,7 @@ void point_files(xpp::Session &s, int count, bool collocation) {
     run.fp9 = diagnostic.get();
     // Both signs matter: fort.7 uses the sign to encode stability.
     for (integer point : {static_cast<integer>(count), -static_cast<integer>(count)})
-        CHECK(wrline(&iap, &rap, par.data(), icp.data(), icp.data(), &iap.ibr,
+        CHECK(write_diagram_line(&iap, &rap, par.data(), icp.data(), icp.data(), &iap.ibr,
                      &point, &iap.lab, &current, values.data()) == 0);
     CHECK(xpp::seek_stream(diagram.get(), 0, diagram_path).has_value());
     auto lines = xpp::LineReader::attach(diagram.get());
@@ -259,13 +259,13 @@ void point_files(xpp::Session &s, int count, bool collocation) {
     run.session = nullptr;
 }
 // W563 (#628): a branch point keeps the direction of its branch (AUTO-07p's NTST=1 record), a regular
-// point none; the header counts every row, so a label after the record is found, and readlb gives the
+// point none; the header counts every row, so a label after the record is found, and read_restart_label gives the
 // direction back exactly as written.
 void branch_point_direction(xpp::Session &s) {
     for (bool branch_point : {true, false}) {
         xpp::TempDir temp;
         const std::string path = temp.path() + "/fort.8";
-        AutoxRun run;  // wrtsp8 writes the session's own fort.8
+        AutoxRun run;  // write_special_point_restart writes the session's own fort.8
         run.session = &s;
         run.parameter_count = s.autox_state.parameter_layout.size();
         run.fp8.reset(xpp::files::open_stream(path, "w+"));
@@ -285,17 +285,17 @@ void branch_point_direction(xpp::Session &s) {
         std::array<double, 2> values = {2., 3.}, tangent = {.6, -.8};
         std::array<double, 1> rldot = {.25};
         double current = .5;
-        CHECK(wrtsp8(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data(), tangent.data(), rldot.data()) == 0);
+        CHECK(write_special_point_restart(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data(), tangent.data(), rldot.data()) == 0);
         iap.lab = 8;
         iap.itp = {xpp::AutoxPointKind::End, xpp::AutoxPointKind::Regular};
-        CHECK(wrtsp8(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data(), tangent.data(), rldot.data()) == 0);
+        CHECK(write_special_point_restart(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data(), tangent.data(), rldot.data()) == 0);
         run.fp3 = run.fp8.get();
         run.fort3 = path;
-        CHECK(std::fflush(run.fp8.get()) == 0); /* findlb reads the file by its path */
+        CHECK(std::fflush(run.fp8.get()) == 0); /* find_restart_label reads the file by its path */
         iap.irs = 7;
         bool found = false;
         integer free = 0;
-        findlb(&iap, &rap, 7, &free, &found);
+        find_restart_label(&iap, &rap, 7, &free, &found);
         CHECK(found);
         xpp::AutoxSolutionHeader header;
         {
@@ -306,7 +306,7 @@ void branch_point_direction(xpp::Session &s) {
         CHECK(xpp::seek_stream(run.fp3, 0, path).has_value());
         std::array<double, 2> u{};
         std::vector<double> restored(run.parameter_count, canary);
-        readlb(&iap, &rap, u.data(), restored.data());
+        read_restart_label(&iap, &rap, u.data(), restored.data());
         CHECK(u == values && restored[icp[0]] == current);
         CHECK(run.restart_direction.has_value() == branch_point);
         if (branch_point) {
@@ -315,7 +315,7 @@ void branch_point_direction(xpp::Session &s) {
         }
         // the next label is found past the record: nrowpr counted every row of it
         bool next = false;
-        findlb(&iap, &rap, 8, &free, &next);
+        find_restart_label(&iap, &rap, 8, &free, &next);
         CHECK(next);
         run.fp3 = nullptr;
         run.fp8.reset();

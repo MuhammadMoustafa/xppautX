@@ -30,7 +30,7 @@ struct OptionRow; /* model_options.h */
 
 /* 10000 intervals far exceed shipped meshes while bounding autoX's mesh-sized matrices. */
 inline constexpr int autox_max_mesh_intervals = 10000;
-/* autoX's collocation coefficients support only orders 2 through 7 (autox_lib1.cpp cpnts). */
+/* autoX's collocation coefficients support only orders 2 through 7 (autox_lib1.cpp collocation_point_positions). */
 inline constexpr int autox_min_collocation_points = 2;
 inline constexpr int autox_max_collocation_points = 7;
 

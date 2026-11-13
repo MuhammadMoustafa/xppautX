@@ -1007,7 +1007,7 @@ homoclinic_eigen_ordered(const iap_type *iap, integer *isign, integer *itrans, d
     
   ifail = 0;
 
-  func(*iap->run, *ndm, xequib, icp, iap->nfpr, par, 1, f.data(), dfdu, 
+  user_right_hand_side(*iap->run, *ndm, xequib, icp, iap->nfpr, par, 1, f.data(), dfdu, 
        dfdp);
 
   if (*itrans == 1) {
@@ -1163,7 +1163,7 @@ int homoclinic_projection_conditions(const iap_type *iap, double *bound, double 
     double *previous = history.cprev.data() + slot * n * n;
     std::vector<double> f(n), a(xpp::size_product(n,n)), basis(a.size()), work(n), er(n), ei(n);
     std::vector<integer> types(n);
-    func(*iap->run, n, xequib, icp, iap->nfpr, par, 1, f.data(), dfdu, dfdp);
+    user_right_hand_side(*iap->run, n, xequib, icp, iap->nfpr, par, 1, f.data(), dfdu, dfdp);
     const double direction = par[xpp::autox_unknown::period] < 0. ? -1. : 1.;
     for (integer j = 0; j < n; ++j)
         for (integer i = 0; i < n; ++i)

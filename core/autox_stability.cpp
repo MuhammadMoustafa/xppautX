@@ -110,15 +110,15 @@ bool autox_stability_step_failed(AutoxStability &st, int br, int pt)
 }
 
 void autox_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *par, integer *icp,
-    FUNI_TYPE((*funi)), double *u, double *uold, double *f, double *dfdu, double *dfdp)
+    FUNI_TYPE((*problem_function)), double *u, double *uold, double *f, double *dfdu, double *dfdp)
 {
-    (*funi)(&iap, &rap, iap.ndim, u, uold, icp, par, BOTH_JACOBIANS, f, dfdu, dfdp);
+    (*problem_function)(&iap, &rap, iap.ndim, u, uold, icp, par, BOTH_JACOBIANS, f, dfdu, dfdp);
     bool chng;
     const auto saved_nins = iap.nins;
     const auto saved_period = par[xpp::autox_unknown::period];
-    // fnhbae's uniform FNCS interface has unused arguments: the eigenvalue
+    // hopf_test_algebraic's uniform FNCS interface has unused arguments: the eigenvalue
     // calculation itself consumes only the context, parameters and Jacobian.
-    fnhbae(&iap, &rap, par, nullptr, &chng, nullptr, nullptr, nullptr,
+    hopf_test_algebraic(&iap, &rap, par, nullptr, &chng, nullptr, nullptr, nullptr,
            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
            dfdu, nullptr, {});
     iap.nins = saved_nins;

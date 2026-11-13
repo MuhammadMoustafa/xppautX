@@ -62,7 +62,7 @@ void check_layout()
     CHECK(!refused([&] { xpp::Matrix3<double> empty(std::span<double>(), 0, 3, 4); }));
 }
 
-/* the arrays solvbv keeps: sizes from one function, views bounded by them */
+/* the arrays solve_boundary keeps: sizes from one function, views bounded by them */
 void check_solvbv_work()
 {
     SolvbvWork w;
@@ -223,7 +223,7 @@ void check_assembly_passes(xpp::Session &s)
     std::array<double, 2> dtm{.5, .5}, fc{};
     double thl = 1, thu = 1;
     const auto solve = [&] {
-        solvbv(&fresh, &iap, &rap, &par, &icp, probe_function, probe_boundary,
+        solve_boundary(&fresh, &iap, &rap, &par, &icp, probe_function, probe_boundary,
                nullptr, &ds, &nullity, &current, &old, &tangent, &stride,
                ups.data(), dups.data(), previous.data(), udot.data(), upold.data(),
                dtm.data(), fa.data(), fc.data(), &p0, &p1, &thl, &thu);

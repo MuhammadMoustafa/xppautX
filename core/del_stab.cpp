@@ -119,6 +119,7 @@ if(i==0&&okroot&&s.delay.alpha_max>0)
  return {};
 }
 
+/* cdif: complex difference (XPPAUT del_stab.c) */
 COMPLEX complex_subtract(COMPLEX z, COMPLEX w)
 {
    COMPLEX sum;
@@ -127,6 +128,7 @@ COMPLEX complex_subtract(COMPLEX z, COMPLEX w)
   return sum;
  }
 
+/* cmlt: complex product (XPPAUT del_stab.c) */
 COMPLEX complex_multiply(COMPLEX z, COMPLEX w)
 {
    COMPLEX sum;
@@ -135,6 +137,7 @@ COMPLEX complex_multiply(COMPLEX z, COMPLEX w)
   return sum;
 }
 
+/* cdivv: complex quotient (XPPAUT del_stab.c) */
 COMPLEX complex_divide(COMPLEX z, COMPLEX w)
 {
   COMPLEX sum;
@@ -144,6 +147,7 @@ COMPLEX complex_divide(COMPLEX z, COMPLEX w)
   return sum;
 }
 
+/* cexp2: complex exponential (XPPAUT del_stab.c) */
 COMPLEX complex_exponential(COMPLEX z)
 {
   COMPLEX sum;
@@ -164,6 +168,7 @@ void switch_rows(COMPLEX *z, int i1, int i2, int n)
   }
 }
 
+/* rtoc: builds a complex from its parts (XPPAUT del_stab.c) */
 COMPLEX make_complex(double x, double y)
 {
   COMPLEX sum;
@@ -172,11 +177,13 @@ COMPLEX make_complex(double x, double y)
   return sum;
 }
 
+/* c_abs: sqrt(re^2+im^2) of a del_stab complex (not the overflow-safe cabs: different bits) */
 double complex_modulus(COMPLEX z)
 {
  return(sqrt(z.i*z.i+z.r*z.r));
 }
 
+/* cdeterm: determinant of a complex matrix (XPPAUT del_stab.c) */
 COMPLEX complex_determinant(COMPLEX *z, int n)
 {
   int i,j,imax=0,k;
@@ -208,6 +215,7 @@ COMPLEX complex_determinant(COMPLEX *z, int n)
   return sum;
 }
 	 
+/* make_z: fills the delay system's characteristic matrix at lambda (del_stab.cpp) */
 void fill_characteristic_matrix(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambda)
 {
   int i,j,k,km;

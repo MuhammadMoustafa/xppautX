@@ -1,4 +1,4 @@
-/* autox_stop: why autoX ended a branch, from what stplae/stplbv saw at its
+/* autox_stop: why autoX ended a branch, from what store_diagram_algebraic/store_diagram_boundary saw at its
    last point (docs/ui-v2.md T23). tools/servercheck.py runs autoX into each
    limit through the protocol; this checks the order the reasons are tried
    in and their words. */
