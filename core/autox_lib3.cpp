@@ -26,14 +26,16 @@ constexpr doublereal torus_initial_amplitude = 1e-4;
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnlp: AUTO's equations of the problem kind fold (toolboxae.f90:304 STPNLP: continuation of folds) */
 int 
-fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+fold_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  return xpp::autox_jacobian::curve(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, false, fflp);
+  return xpp::autox_jacobian::curve(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, false, fold_function);
 } /* fnlp_ */
 
+/* fflp: AUTO's function evaluation of the problem kind fold (toolboxae.f90:304 STPNLP: continuation of folds) */
 int 
-fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
+fold_function(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1;
   
@@ -46,7 +48,7 @@ fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   par[icp[1]] = u[-1 + ndim];
   if (ips == xpp::AutoxProblem::DiscreteMap) {
-    fnds(iap, rap, ndm, u, uold, icp, par, ijac, f, dfdu, dfdp);
+    discrete_map_equations(iap, rap, ndm, u, uold, icp, par, ijac, f, dfdu, dfdp);
   } else {
     problem_function(iap, rap, ndm, u, uold, icp, par, ijac, f, dfdu, dfdp);
   }
@@ -67,12 +69,13 @@ fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fflp_ */
 
+/* stpnlp: AUTO's starting data of the problem kind fold (toolboxae.f90:304 STPNLP: continuation of folds) */
 int 
-stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
+fold_starting_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
 {
   integer ndim;
 
-  doublereal uold = 0.; /* problem_function/fnds take it, unread */
+  doublereal uold = 0.; /* problem_function/discrete_map_equations take it, unread */
   integer nfpr1;
   integer i;
   bool found;
@@ -93,7 +96,7 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   read_restart_label(iap, rap, u, par);
 
   if (ips == xpp::AutoxProblem::DiscreteMap) {
-    fnds(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
+    discrete_map_equations(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
 	 iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data());
   } else {
     problem_function(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
@@ -117,8 +120,9 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnc1: AUTO's equations of the problem kind optimization_single (optimization.f90:114 FNC1: optimization of algebraic systems (one parameter)) */
 int 
-fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+optimization_single_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1, dfdp_dim1;
 
@@ -170,8 +174,9 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnc1_ */
 
+/* stpnc1: AUTO's starting data of the problem kind optimization_single (optimization.f90:114 FNC1: optimization of algebraic systems (one parameter)) */
 int 
-stpnc1(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
+optimization_single_starting_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
 {
   integer ndim;
 
@@ -196,8 +201,9 @@ stpnc1(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   return 0;
 } /* stpnc1_ */
 
+/* fnc2: AUTO's equations of the problem kind optimization_multi (optimization.f90:191 FNC2: optimization of algebraic systems (more than one parameter)) */
 int 
-fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+optimization_multi_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1, dfdp_dim1;
 
@@ -214,7 +220,7 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the function. */
 
-  ffc2(iap, rap, ndim, u, uold, icp, par, f, ndm, 
+  optimization_multi_function(iap, rap, ndim, u, uold, icp, par, f, ndm, 
        iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data());
 
   if (ijac == 0) {
@@ -225,7 +231,7 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   xpp::autox_jacobian::central(
       ndim, ndim, u, iap->run->scratch.uu1.data(), iap->run->scratch.uu2.data(), iap->run->scratch.ff1.data(), iap->run->scratch.ff2.data(),
-      [&](const doublereal *uu, doublereal *ff) { ffc2(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
+      [&](const doublereal *uu, doublereal *ff) { optimization_multi_function(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
       dfdu, dfdu_dim1);
 
   for (i = 0; i < ndim; ++i) {
@@ -236,8 +242,9 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnc2_ */
 
+/* ffc2: AUTO's function evaluation of the problem kind optimization_multi (optimization.f90:191 FNC2: optimization of algebraic systems (more than one parameter)) */
 int 
-ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
+optimization_multi_function(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1, dfdp_dim1;
 
@@ -289,13 +296,14 @@ ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffc2_ */
 
+/* stpnc2: AUTO's starting data of the problem kind optimization_multi (optimization.f90:191 FNC2: optimization of algebraic systems (more than one parameter)) */
 int 
-stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
+optimization_multi_starting_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
 {
 
   integer ndim;
 
-  doublereal uold = 0.; /* problem_function/fnds take it, unread */
+  doublereal uold = 0.; /* problem_function/discrete_map_equations take it, unread */
   integer nfpr;
   integer i, j;
   bool found;
@@ -362,8 +370,9 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnds: AUTO's equations of the problem kind discrete_map (maps.f90:62 FNDS: continuing fixed points of a map) */
 int 
-fnds(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+discrete_map_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1;
 
@@ -396,8 +405,9 @@ fnds(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnti: AUTO's equations of the problem kind time_integration (timeint.f90:37 FNTI: time integration) */
 int 
-fnti(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+time_integration_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1, dfdp_dim1;
 
@@ -433,7 +443,7 @@ fnti(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   }
 
   return 0;
-} /* fnti */
+} /* time_integration_equations */
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -441,14 +451,16 @@ fnti(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnhb: AUTO's equations of the problem kind hopf (equilibrium.f90:67 FNHB: 2-parameter continuation of Hopf points in ODEs and maps) */
 int 
-fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+hopf_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  return xpp::autox_jacobian::curve(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, true, ffhb);
+  return xpp::autox_jacobian::curve(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, true, hopf_function);
 } /* fnhb_ */
 
+/* ffhb: AUTO's function evaluation of the problem kind hopf (equilibrium.f90:67 FNHB: 2-parameter continuation of Hopf points in ODEs and maps) */
 int 
-ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
+hopf_function(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   // AUTO-07p equilibrium.f90:190-258, Kuznetsov (10.80), reimplemented:
   // State = [equilibrium, real vector, omega^2, second parameter].
@@ -456,7 +468,7 @@ ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   // reimplemented from maps.f90 FFNSX (Kuznetsov 10.83).
   par[icp[1]] = u[ndim - 1];
   const bool map=iap->ips==xpp::AutoxProblem::DiscreteMap;
-  if (map) fnds(iap, rap, ndm, u, uold, icp, par, ijac, f, dfdu, dfdp);
+  if (map) discrete_map_equations(iap, rap, ndm, u, uold, icp, par, ijac, f, dfdu, dfdp);
   else problem_function(iap, rap, ndm, u, uold, icp, par, ijac, f, dfdu, dfdp);
   const xpp::Matrix<double> blocks({dfdu, static_cast<size_t>(ndm * ndim)}, ndm, ndim);
   const double kappa = u[2 * ndm];
@@ -485,8 +497,9 @@ ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffhb_ */
 
+/* stpnhb: AUTO's starting data of the problem kind hopf (equilibrium.f90:67 FNHB: 2-parameter continuation of Hopf points in ODEs and maps) */
 int 
-stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
+hopf_starting_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
 {
   // AUTO-07p equilibrium.f90:278-323: a unit null vector of A^2+kappa I.
   integer free = 0;
@@ -500,7 +513,7 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   u[iap->ndim - 1] = par[icp[1]];
   std::vector<double> old(iap->ndim), residual(iap->ndim);
   std::vector<double> blocks(xpp::size_product(n, iap->ndim)), parameters(xpp::size_product(n, iap->run->parameter_count));
-  ffhb(iap, rap, iap->ndim, u, old.data(), icp, par, 2, residual.data(), n, blocks.data(), parameters.data());
+  hopf_function(iap, rap, iap->ndim, u, old.data(), icp, par, 2, residual.data(), n, blocks.data(), parameters.data());
   integer size = n;
   // The Hopf pair gives a two-dimensional kernel. NLVC chooses its phase;
   // subsequent correctors use the previous vector's symmetric condition.
@@ -515,14 +528,16 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnhw: AUTO's equations of the problem kind hopf_wave (parabolic.f90:234 FNHW: 2-parameter continuation of Hopf points in waves) */
 int 
-fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+hopf_wave_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, xpp::autox_jacobian::principal_parameter_count, ffhw);
+  return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, xpp::autox_jacobian::principal_parameter_count, hopf_wave_function);
 } /* fnhw_ */
 
+/* ffhw: AUTO's function evaluation of the problem kind hopf_wave (parabolic.f90:234 FNHW: 2-parameter continuation of Hopf points in waves) */
 int 
-ffhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
+hopf_wave_function(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1;
 
@@ -539,7 +554,7 @@ ffhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   rom = u[-1 + ndim - 1];
   par[icp[1]] = u[-1 + ndim];
   ijac = 1;
-  fnws(iap, rap, ndm, u, uold, icp, par, ijac, f, 
+  wave_steady_equations(iap, rap, ndm, u, uold, icp, par, ijac, f, 
        dfdu, dfdp);
 
   for (i = 0; i < ndm; ++i) {
@@ -566,8 +581,9 @@ ffhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffhw_ */
 
+/* stpnhw: AUTO's starting data of the problem kind hopf_wave (parabolic.f90:234 FNHW: 2-parameter continuation of Hopf points in waves) */
 int 
-stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
+hopf_wave_starting_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
 {
   integer ijac, ndim;
 
@@ -603,7 +619,7 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   ijac = 1;
   period = par[xpp::autox_unknown::period];
   rom = period / multiple_of_pi(2.0);
-  fnws(iap, rap, ndm, u, &uold, icp, par, ijac, f.data(), dfu.data(), 
+  wave_steady_equations(iap, rap, ndm, u, &uold, icp, par, ijac, f.data(), dfu.data(), 
        dfp.data());
 
   ndm2 = ndm * 2;
@@ -649,8 +665,9 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnps: AUTO's equations of the problem kind periodic (periodic.f90:352 STPNPS: continuation of periodic solutions) */
 int 
-fnps(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+periodic_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1, dfdp_dim1;
 
@@ -706,8 +723,9 @@ fnps(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnps_ */
 
+/* bcps: AUTO's boundary conditions of the problem kind periodic (periodic.f90:352 STPNPS: continuation of periodic solutions) */
 int 
-bcps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
+periodic_boundary_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
   integer dbc_dim1;
 
@@ -748,8 +766,9 @@ bcps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* bcps_ */
 
+/* icps: AUTO's integral conditions of the problem kind periodic (periodic.f90:352 STPNPS: continuation of periodic solutions) */
 int 
-icps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
+periodic_integral_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
   integer dint_dim1;
 
@@ -832,8 +851,9 @@ period_doubling_restart(const iap_type *iap, const rap_type *rap, integer *ndim,
   return 0;
 } /* pdble_ */
 
+/* stpnps: AUTO's starting data of the problem kind periodic (periodic.f90:352 STPNPS: continuation of periodic solutions) */
 int 
-stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
+periodic_starting_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
 
   integer ndim;
@@ -920,8 +940,9 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnws: AUTO's equations of the problem kind wave_steady (parabolic.f90:110 FNWS: spatially homogeneous solutions of parabolic systems, to find travelling-wave bifurcations (IPS 11)) */
 int 
-fnws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+wave_steady_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
 
   integer ndm, ndm2;
@@ -935,14 +956,15 @@ fnws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ndm2 = ndm / 2;
-  ffws(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ndm2, iap->run->scratch.dfu.data(), 
+  wave_steady_function(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ndm2, iap->run->scratch.dfu.data(), 
        iap->run->scratch.dfp.data());
 
   return 0;
 } /* fnws_ */
 
+/* ffws: AUTO's function evaluation of the problem kind wave_steady (parabolic.f90:110 FNWS: spatially homogeneous solutions of parabolic systems, to find travelling-wave bifurcations (IPS 11)) */
 int 
-ffws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp, integer ndm, doublereal *dfu, doublereal *dfp)
+wave_steady_function(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp, integer ndm, doublereal *dfu, doublereal *dfp)
 {
   integer dfdu_dim1, dfdp_dim1, dfu_dim1, dfp_dim1;
 
@@ -1008,8 +1030,9 @@ ffws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffws_ */
 
+/* fnwp: AUTO's equations of the problem kind wave_train (XPPAUT 8.0 autlib3.c:1018: continuation of travelling waves (IPS 12)) */
 int 
-fnwp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+wave_train_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1, dfdp_dim1;
 
@@ -1025,7 +1048,7 @@ fnwp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     
   if (icp[1] == xpp::autox_unknown::period) {
     /*          **Variable wave length */
-    fnws(iap, rap, ndim, u, uold, icp, par, ijac, f, 
+    wave_steady_equations(iap, rap, ndim, u, uold, icp, par, ijac, f, 
 	 dfdu, dfdp);
     period = par[xpp::autox_unknown::period];
     for (i = 0; i < ndim; ++i) {
@@ -1045,7 +1068,7 @@ fnwp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     }
   } else {
     /*          **Fixed wave length */
-    fnws(iap, rap, ndim, u, uold, icp, par, ijac, f, 
+    wave_steady_equations(iap, rap, ndim, u, uold, icp, par, ijac, f, 
 	 dfdu, dfdp);
     period = par[xpp::autox_unknown::period];
     for (i = 0; i < ndim; ++i) {
@@ -1069,8 +1092,9 @@ fnwp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnwp_ */
 
+/* stpnwp: AUTO's starting data of the problem kind wave_train (XPPAUT 8.0 autlib3.c:1018: continuation of travelling waves (IPS 12)) */
 int 
-stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
+wave_train_starting_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
 
   integer ndim;
@@ -1130,7 +1154,7 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     smat[ndim + i + (ndim + i) * (ndim*2)] = rimhb;
   }
 
-  fnws(iap, rap, ndim, u.data(), &uold, icp, par, 1, f.data(), dfu.data(), dfp.data());
+  wave_steady_equations(iap, rap, ndim, u.data(), &uold, icp, par, 1, f.data(), dfu.data(), dfp.data());
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
@@ -1160,14 +1184,16 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnsp: AUTO's equations of the problem kind parabolic_stationary (autox_lib3.cpp:1157: parabolic PDEs, stationary states) */
 int 
-fnsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+parabolic_stationary_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  return xpp::autox_jacobian::supplied(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ffsp);
+  return xpp::autox_jacobian::supplied(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, parabolic_stationary_function);
 } /* fnsp_ */
 
+/* ffsp: AUTO's function evaluation of the problem kind parabolic_stationary (autox_lib3.cpp:1157: parabolic PDEs, stationary states) */
 int 
-ffsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp, integer ndm, doublereal *dfu, doublereal *dfp)
+parabolic_stationary_function(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp, integer ndm, doublereal *dfu, doublereal *dfp)
 {
   integer dfdu_dim1, dfdp_dim1, dfu_dim1, dfp_dim1;
 
@@ -1220,14 +1246,16 @@ ffsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnpe: AUTO's equations of the problem kind parabolic_evolution (parabolic.f90:389 FNPE: one implicit Euler time step; autox_lib3.cpp:1217: time evolution of parabolic PDEs) */
 int 
-fnpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+parabolic_evolution_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  return xpp::autox_jacobian::supplied(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ffpe);
+  return xpp::autox_jacobian::supplied(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, parabolic_evolution_function);
 } /* fnpe_ */
 
+/* ffpe: AUTO's function evaluation of the problem kind parabolic_evolution (parabolic.f90:389 FNPE: one implicit Euler time step; autox_lib3.cpp:1217: time evolution of parabolic PDEs) */
 int 
-ffpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp, integer ndm, doublereal *dfu, doublereal *dfp)
+parabolic_evolution_function(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp, integer ndm, doublereal *dfu, doublereal *dfp)
 {
   integer dfdu_dim1, dfdp_dim1, dfu_dim1;
 
@@ -1277,8 +1305,9 @@ ffpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffpe_ */
 
+/* icpe: AUTO's integral conditions of the problem kind parabolic_evolution (parabolic.f90:389 FNPE: one implicit Euler time step; autox_lib3.cpp:1217: time evolution of parabolic PDEs) */
 int 
-icpe(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
+parabolic_evolution_integral_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
 
   /* Dummy integral condition subroutine for parabolic systems. */
@@ -1292,15 +1321,16 @@ icpe(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnpl: AUTO's equations of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
 int 
-fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+periodic_fold_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   // FNPLF's block structure (AUTO-07p periodic.f90:427-507): only
   // the derivatives of the variational equations need second differences.
   const integer n = iap->ndm;
   auto &scratch = iap->run->scratch;
   const auto evaluate = [&](const double *state, double *value, integer derivatives) {
-    ffpl(iap, rap, ndim, state, uold, icp, par, derivatives, value, n,
+    periodic_fold_function(iap, rap, ndim, state, uold, icp, par, derivatives, value, n,
          scratch.dfu.data(), scratch.dfp.data());
   };
   evaluate(u, f, ijac == 0 ? 1 : 2);
@@ -1358,8 +1388,9 @@ fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnpl_ */
 
+/* ffpl: AUTO's function evaluation of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
 int
-ffpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
+periodic_fold_function(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1, dfdp_dim1;
 
@@ -1394,8 +1425,9 @@ ffpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffpl_ */
 
+/* bcpl: AUTO's boundary conditions of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
 int 
-bcpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
+periodic_fold_boundary_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
   integer dbc_dim1;
   integer jtmp, i, j, nn, ndm;
@@ -1438,8 +1470,9 @@ bcpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* bcpl_ */
 
+/* icpl: AUTO's integral conditions of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
 int 
-icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
+periodic_fold_integral_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
   integer dint_dim1;
 
@@ -1451,7 +1484,7 @@ icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   
   ndm = iap->ndm;
 
-  icps(iap, rap, ndm, par, icp, nint, u, uold, udot, upold, f, 0, nullptr);
+  periodic_integral_conditions(iap, rap, ndm, par, icp, nint, u, uold, udot, upold, f, 0, nullptr);
   f[1] = 0.;
   /* Computing 2nd power */
   f[2] = par[xpp::autox_unknown::fold_beta] * par[xpp::autox_unknown::fold_beta] - par[xpp::autox_unknown::fold_norm];
@@ -1492,8 +1525,9 @@ icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* icpl_ */
 
+/* stpnpl: AUTO's starting data of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
 int 
-stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
+periodic_fold_starting_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
 
   integer ups_dim1, udotps_dim1;
@@ -1588,14 +1622,16 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnpd: AUTO's equations of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
 int 
-fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+period_doubling_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, ffpd);
+  return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, period_doubling_function);
 } /* fnpd_ */
 
+/* ffpd: AUTO's function evaluation of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
 int 
-ffpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
+period_doubling_function(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1;
 
@@ -1619,8 +1655,9 @@ ffpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffpd_ */
 
+/* bcpd: AUTO's boundary conditions of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
 int 
-bcpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
+period_doubling_boundary_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
   integer dbc_dim1;
 
@@ -1671,8 +1708,9 @@ bcpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* bcpd_ */
 
+/* icpd: AUTO's integral conditions of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
 int 
-icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
+period_doubling_integral_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
   integer dint_dim1;
 
@@ -1682,7 +1720,7 @@ icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   
   ndm = iap->ndm;
 
-  icps(iap, rap, ndm, par, icp, nint, u, uold, udot, upold, f, 0, nullptr);
+  periodic_integral_conditions(iap, rap, ndm, par, icp, nint, u, uold, udot, upold, f, 0, nullptr);
   f[1] = -par[xpp::autox_unknown::doubling_norm];
 
   for (i = 0; i < ndm; ++i) {
@@ -1715,8 +1753,9 @@ icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* icpd_ */
 
+/* stpnpd: AUTO's starting data of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
 int 
-stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
+period_doubling_starting_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
 
   integer ups_dim1, udotps_dim1;
@@ -1793,14 +1832,16 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fntr: AUTO's equations of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
 int 
-fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+torus_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, fftr);
+  return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, torus_function);
 } /* fntr_ */
 
+/* fftr: AUTO's function evaluation of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
 int 
-fftr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
+torus_function(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1;
 
@@ -1829,8 +1870,9 @@ fftr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fftr_ */
 
+/* bctr: AUTO's boundary conditions of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
 int 
-bctr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
+torus_boundary_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
   integer dbc_dim1;
 
@@ -1893,8 +1935,9 @@ bctr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* bctr_ */
 
+/* ictr: AUTO's integral conditions of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
 int 
-ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
+torus_integral_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
   integer dint_dim1;
 
@@ -1905,7 +1948,7 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   ndm = iap->ndm;
   ndm2 = ndm * 2;
 
-  icps(iap, rap, ndm, par, icp, nint, u, uold, udot, upold, f, 0, nullptr);
+  periodic_integral_conditions(iap, rap, ndm, par, icp, nint, u, uold, udot, upold, f, 0, nullptr);
   f[1] = 0.;
   f[2] = -par[xpp::autox_unknown::torus_norm];
 
@@ -1943,8 +1986,9 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* ictr_ */
 
+/* stpntr: AUTO's starting data of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
 int 
-stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
+torus_starting_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
 
   integer ups_dim1, udotps_dim1;
@@ -2023,8 +2067,9 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnpo: AUTO's equations of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
 int 
-fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+periodic_optimization_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1, dfdp_dim1;
 
@@ -2054,7 +2099,7 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the function. */
 
-  ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, f,
+  periodic_optimization_function(iap, rap, ndim, u, uold, upold.data(), icp, par, f,
        ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data());
 
   if (ijac == 0) {
@@ -2065,19 +2110,20 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   ep = xpp::autox_jacobian::central(
       ndim, ndim, u, iap->run->scratch.uu1.data(), iap->run->scratch.uu2.data(), iap->run->scratch.ff1.data(), iap->run->scratch.ff2.data(),
-      [&](const doublereal *uu, doublereal *ff) { ffpo(iap, rap, ndim, uu, uold, upold.data(), icp, par, ff, ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
+      [&](const doublereal *uu, doublereal *ff) { periodic_optimization_function(iap, rap, ndim, uu, uold, upold.data(), icp, par, ff, ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
       dfdu, dfdu_dim1);
 
   xpp::autox_jacobian::forward_parameters(
       nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, ff, ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
+      [&](doublereal *ff) { periodic_optimization_function(iap, rap, ndim, u, uold, upold.data(), icp, par, ff, ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
       f, iap->run->scratch.ff1.data(), dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnpo_ */
 
+/* ffpo: AUTO's function evaluation of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
 int 
-ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const doublereal *upold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
+periodic_optimization_function(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const doublereal *upold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1, dfdp_dim1;
 
@@ -2118,8 +2164,9 @@ ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffpo_ */
 
+/* bcpo: AUTO's boundary conditions of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
 int 
-bcpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
+periodic_optimization_boundary_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
   integer dbc_dim1;
 
@@ -2163,8 +2210,9 @@ bcpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* bcpo_ */
 
+/* icpo: AUTO's integral conditions of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
 int 
-icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
+periodic_optimization_integral_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
   integer dint_dim1;
 
@@ -2188,7 +2236,7 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   /* Generate the function. */
 
-  fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, 
+  periodic_optimization_integral_function(iap, rap, ndim, par, icp, nint, nnt0, u, uold, 
        udot, upold, f, dnt.data(), ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data());
 
   if (ijac == 0) {
@@ -2199,19 +2247,20 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   ep = xpp::autox_jacobian::central(
       ndim, nint, u, iap->run->scratch.uu1.data(), iap->run->scratch.uu2.data(), f1.data(), f2.data(),
-      [&](const doublereal *uu, doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, uu, uold, udot, upold, ff, dnt.data(), ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
+      [&](const doublereal *uu, doublereal *ff) { periodic_optimization_integral_function(iap, rap, ndim, par, icp, nint, nnt0, uu, uold, udot, upold, ff, dnt.data(), ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
       dint, dint_dim1);
 
   xpp::autox_jacobian::forward_parameters(
       nfpr, nint, icp, ep, par,
-      [&](doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff, dnt.data(), ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
+      [&](doublereal *ff) { periodic_optimization_integral_function(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff, dnt.data(), ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
       f, f1.data(), dint, dint_dim1, ndim);
 
   return 0;
 } /* icpo_ */
 
+/* fipo: AUTO's integral function evaluation of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
 int 
-fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, integer nnt0, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *fi, doublereal *dint, integer ndmt, doublereal *dfdu, doublereal *dfdp)
+periodic_optimization_integral_function(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, integer nnt0, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *fi, doublereal *dint, integer ndmt, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdp_dim1;
 
@@ -2229,7 +2278,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   ndm = iap->ndm;
   nfpr = iap->nfpr;
 
-  icps(iap, rap, ndm, par, icp, nint, u, uold, udot, upold, fi, 0, nullptr);
+  periodic_integral_conditions(iap, rap, ndm, par, icp, nint, u, uold, udot, upold, fi, 0, nullptr);
 
   for (i = 0; i < iap->run->parameter_count; ++i) {
     dfp[i] = 0.;
@@ -2270,8 +2319,9 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* fipo_ */
 
+/* stpnpo: AUTO's starting data of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
 int 
-stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
+periodic_optimization_starting_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
 
   integer ups_dim1;
@@ -2378,14 +2428,16 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* fnbl: AUTO's equations of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
-fnbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
+boundary_fold_equations(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, ffbl);
+  return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, boundary_fold_function);
 } /* fnbl_ */
 
+/* ffbl: AUTO's function evaluation of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
-ffbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
+boundary_fold_function(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1, dfdp_dim1;
 
@@ -2415,8 +2467,9 @@ ffbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffbl_ */
 
+/* bcbl: AUTO's boundary conditions of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
-bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
+boundary_fold_boundary_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
   integer dbc_dim1;
 
@@ -2441,7 +2494,7 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   /* Generate the function. */
 
-  fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1, f, dfu.data());
+  boundary_fold_boundary_function(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1, f, dfu.data());
 
   if (ijac == 0) {
     return 0;
@@ -2451,26 +2504,27 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   ep = xpp::autox_jacobian::central(
       ndim, nbc, u0, uu1.data(), uu2.data(), ff1.data(), ff2.data(),
-      [&](const doublereal *uu, doublereal *ff) { fbbl(iap, rap, ndim, par, icp, nbc, nbc0, uu, u1, ff, dfu.data()); },
+      [&](const doublereal *uu, doublereal *ff) { boundary_fold_boundary_function(iap, rap, ndim, par, icp, nbc, nbc0, uu, u1, ff, dfu.data()); },
       dbc, dbc_dim1);
 
   /* Derivatives with respect to U1. */
 
   ep = xpp::autox_jacobian::central(
       ndim, nbc, u1, uu1.data(), uu2.data(), ff1.data(), ff2.data(),
-      [&](const doublereal *uu, doublereal *ff) { fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu, ff, dfu.data()); },
+      [&](const doublereal *uu, doublereal *ff) { boundary_fold_boundary_function(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu, ff, dfu.data()); },
       dbc + ndim * dbc_dim1, dbc_dim1);
 
   xpp::autox_jacobian::forward_parameters(
       nfpr, nbc, icp, ep, par,
-      [&](doublereal *ff) { fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1, ff, dfu.data()); },
+      [&](doublereal *ff) { boundary_fold_boundary_function(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1, ff, dfu.data()); },
       f, ff2.data(), dbc, dbc_dim1, ndim * 2);
 
   return 0;
 } /* bcbl_ */
 
+/* fbbl: AUTO's boundary function evaluation of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
-fbbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, integer nbc0, const doublereal *u0, const doublereal *u1, doublereal *f, doublereal *dbc)
+boundary_fold_boundary_function(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, integer nbc0, const doublereal *u0, const doublereal *u1, doublereal *f, doublereal *dbc)
 {
   integer dbc_dim1;
 
@@ -2500,14 +2554,16 @@ fbbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* fbbl_ */
 
+/* icbl: AUTO's integral conditions of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
-icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
+boundary_fold_integral_conditions(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
-  return xpp::autox_jacobian::integral(iap, rap, ndim, par, icp, nint, u, uold, udot, upold, f, ijac, dint, fibl);
+  return xpp::autox_jacobian::integral(iap, rap, ndim, par, icp, nint, u, uold, udot, upold, f, ijac, dint, boundary_fold_integral_function);
 } /* icbl_ */
 
+/* fibl: AUTO's integral function evaluation of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
-fibl(const iap_type *iap, const rap_type *rap, const integer ndim, doublereal *par, const integer *icp, integer nint, integer nnt0, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, doublereal *dint)
+boundary_fold_integral_function(const iap_type *iap, const rap_type *rap, const integer ndim, doublereal *par, const integer *icp, integer nint, integer nnt0, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, doublereal *dint)
 {
   integer dint_dim1;
 
@@ -2549,8 +2605,9 @@ fibl(const iap_type *iap, const rap_type *rap, const integer ndim, doublereal *p
   return 0;
 } /* fibl_ */
 
+/* stpnbl: AUTO's starting data of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
-stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
+boundary_fold_starting_data(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
 
   integer ndim;

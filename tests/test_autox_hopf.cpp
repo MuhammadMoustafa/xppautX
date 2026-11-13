@@ -45,7 +45,7 @@ TEST_CASE("test_autox_hopf") {
     par[icp[0]] = -.25;
     std::array<double, 6> u{-.5, 0., 1., 0., 1., 0.}, old = u, f{}, minus{}, plus{};
     std::array<double, 36> jac{}, full{};
-    fnhb(&iap, &rap, 6, u.data(), old.data(), icp.data(), par.data(), 2, f.data(), jac.data(), dp.data());
+    hopf_equations(&iap, &rap, 6, u.data(), old.data(), icp.data(), par.data(), 2, f.data(), jac.data(), dp.data());
     // A=[[0,1],[-1,0]], v=(1,0), kappa=1 is an exact Hopf solution.
     for (double value : f) CHECK(std::abs(value) < 1e-8);
     CHECK(std::abs(jac[1] + 1) < 1e-8 && std::abs(jac[6] - 1) < 1e-8);
@@ -57,20 +57,20 @@ TEST_CASE("test_autox_hopf") {
     // Independent full central Jacobian at a non-solution, including phase
     // and both parameter derivatives, so zero residuals cannot hide mistakes.
     u = {-.4, .1, .8, .6, 1.2, .15};
-    fnhb(&iap, &rap, 6, u.data(), old.data(), icp.data(), par.data(), 2, f.data(), jac.data(), dp.data());
+    hopf_equations(&iap, &rap, 6, u.data(), old.data(), icp.data(), par.data(), 2, f.data(), jac.data(), dp.data());
     constexpr double step = 1e-4; // larger than the inner RHS difference step
     for (int col = 0; col < 7; ++col) {
         auto state = u;
         if (col < 6) state[col] -= step;
         else par[icp[0]] -= step;
-        fnhb(&iap, &rap, 6, state.data(), old.data(), icp.data(), par.data(), 0, minus.data(), full.data(), dp.data());
+        hopf_equations(&iap, &rap, 6, state.data(), old.data(), icp.data(), par.data(), 0, minus.data(), full.data(), dp.data());
         state = u;
         if (col < 6) state[col] += step;
         else par[icp[0]] += 2 * step;
-        fnhb(&iap, &rap, 6, state.data(), old.data(), icp.data(), par.data(), 0, plus.data(), full.data(), dp.data());
+        hopf_equations(&iap, &rap, 6, state.data(), old.data(), icp.data(), par.data(), 0, plus.data(), full.data(), dp.data());
         if (col == 6) par[icp[0]] -= step;
         // Recompute after residual-only calls, which may use parameter scratch.
-        fnhb(&iap, &rap, 6, u.data(), old.data(), icp.data(), par.data(), 2, f.data(), jac.data(), dp.data());
+        hopf_equations(&iap, &rap, 6, u.data(), old.data(), icp.data(), par.data(), 2, f.data(), jac.data(), dp.data());
         for (int row = 0; row < 6; ++row) {
             const double expected = (plus[row] - minus[row]) / (2 * step);
             CHECK(std::abs(expected - (col < 6 ? jac[row + col * 6] : dp[row + icp[0] * 6])) < 3e-4);
@@ -81,7 +81,7 @@ TEST_CASE("test_autox_hopf") {
     for (double x : {-.5, 0., .5}) {
         u = {x, 0., 1., 0., -2*x, 0.};
         par[icp[0]] = -x*x;
-        fnhb(&iap, &rap, 6, u.data(), old.data(), icp.data(), par.data(), 2, f.data(), jac.data(), dp.data());
+        hopf_equations(&iap, &rap, 6, u.data(), old.data(), icp.data(), par.data(), 2, f.data(), jac.data(), dp.data());
         for (double value : f) CHECK(std::abs(value) < 1e-8);
         output_parameters_algebraic(&iap, &rap, u.data(), par.data());
         CHECK(std::abs(par[xpp::autox_unknown::period] - multiple_of_pi(2.)) < 1e-10);
@@ -102,9 +102,9 @@ TEST_CASE("test_autox_hopf") {
     iap.irs = 1;
     iap.isw = 2;
     u.fill(0.);
-    CHECK(stpnhb(&iap, &rap, par.data(), icp.data(), u.data()) == 0);
+    CHECK(hopf_starting_data(&iap, &rap, par.data(), icp.data(), u.data()) == 0);
     old = u;
-    fnhb(&iap, &rap, 6, u.data(), old.data(), icp.data(), par.data(), 2, f.data(), jac.data(), dp.data());
+    hopf_equations(&iap, &rap, 6, u.data(), old.data(), icp.data(), par.data(), 2, f.data(), jac.data(), dp.data());
     for (double value : f) CHECK(std::abs(value) < 1e-8);
     CHECK(u[4] == 1 && u[5] == 0);
     xpp::UniqueFile restart(run.fp3), diagnostics(run.fp9);

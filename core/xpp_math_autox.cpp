@@ -1098,7 +1098,7 @@ homoclinic_eigen_ordered(const iap_type *iap, integer *isign, integer *itrans, d
       const double f = re[largest], g = im[largest], r = xpp::math::hypot(f, g);
       for (i = 0; i < *ndm; ++i) re[i] = (re[i]*f + im[i]*g) / r;
     }
-    if (iap->run->homcont.blhme.ieigc[*itrans - 1] == 0) {
+    if (iap->run->homcont.homoclinic_eigen_check.ieigc[*itrans - 1] == 0) {
       const integer largest = xpp::largest_magnitude(re, static_cast<int>(*ndm), static_cast<int>(stride));
       if (re[largest] < 0.)
         for (i = 0; i < *ndm; ++i) re[i] = -re[i];
@@ -1109,13 +1109,13 @@ homoclinic_eigen_ordered(const iap_type *iap, integer *isign, integer *itrans, d
   /* commensurate with that of the corresponding eigenvector */
   /* from the previous call with the same value of ISIGN */
 
-  if (iap->run->homcont.blhme.ieigc[*itrans - 1] == 0) {
+  if (iap->run->homcont.homoclinic_eigen_check.ieigc[*itrans - 1] == 0) {
     for (j = 0; j < *ndm; ++j) {
       for (i = 0; i < *ndm; ++i) {
-	iap->run->homcont.blhme.vrprev[*itrans + (i * 2 + j * (*ndm) * 2) - 1] = vr[i + j * (*ndm)];
+	iap->run->homcont.homoclinic_eigen_check.vrprev[*itrans + (i * 2 + j * (*ndm) * 2) - 1] = vr[i + j * (*ndm)];
       }
     }
-    iap->run->homcont.blhme.ieigc[*itrans - 1] = 1;
+    iap->run->homcont.homoclinic_eigen_check.ieigc[*itrans - 1] = 1;
   }
   for (i = 0; i < *ndm; ++i) {
     vdot = 0.;
@@ -1123,7 +1123,7 @@ homoclinic_eigen_ordered(const iap_type *iap, integer *isign, integer *itrans, d
       integer tmp;
       tmp = *ndm;
       for (j = 0; j < tmp; ++j) {
-	vdot += vr[j + i * tmp] * iap->run->homcont.blhme.vrprev[*itrans + (j * 2 + i * tmp * 2) - 1];
+	vdot += vr[j + i * tmp] * iap->run->homcont.homoclinic_eigen_check.vrprev[*itrans + (j * 2 + i * tmp * 2) - 1];
       }
     }
     if (vdot < 0.) {
@@ -1133,7 +1133,7 @@ homoclinic_eigen_ordered(const iap_type *iap, integer *isign, integer *itrans, d
       }
     }
     for (j = 0; j < *ndm; ++j) {
-      iap->run->homcont.blhme.vrprev[*itrans + (j * 2 + i * (*ndm) * 2) - 1] = vr[j + i * (*ndm)];
+      iap->run->homcont.homoclinic_eigen_check.vrprev[*itrans + (j * 2 + i * (*ndm) * 2) - 1] = vr[j + i * (*ndm)];
     }
   }
 
@@ -1155,11 +1155,11 @@ int homoclinic_projection_conditions(const iap_type *iap, double *bound, double 
            bool transpose, integer n, double *dfdu, double *dfdp, bool save_basis)
 {
     const bool stable = manifold == HomcontManifold::stable;
-    const integer count = stable ? iap->run->homcont.blhom.nstab : iap->run->homcont.blhom.nunstab;
+    const integer count = stable ? iap->run->homcont.homoclinic_constants.nstab : iap->run->homcont.homoclinic_constants.nunstab;
     if (n <= 0 || count < 0 || count > n) xpp::autox_fail("Invalid HomCont projection dimension");
     const integer first = stable ? 0 : n - count; // Preserve HomCont's boundary row layout.
     const integer slot = (endpoint == HomcontEndpoint::left ? 0 : 1) + (transpose ? 0 : 2);
-    auto &history = iap->run->homcont.beyn;
+    auto &history = iap->run->homcont.beyn_workspace;
     double *previous = history.cprev.data() + slot * n * n;
     std::vector<double> f(n), a(xpp::size_product(n,n)), basis(a.size()), work(n), er(n), ei(n);
     std::vector<integer> types(n);

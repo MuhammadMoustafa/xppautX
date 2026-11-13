@@ -30,7 +30,7 @@ std::string solution(long parameters, bool bvp) {
     return text + "\n";
 }
 
-void formulation(xpp::Session &s, decltype(&stpnpl) restart,
+void formulation(xpp::Session &s, decltype(&periodic_fold_starting_data) restart,
                  long dimension, long free, bool bvp, bool torus,
                  bool optimization, bool truncated) {
     xpp::TempDir temp;
@@ -107,7 +107,7 @@ void formulation(xpp::Session &s, decltype(&stpnpl) restart,
         }
     }
     CHECK(direction[0] == (optimization ? 0. : .75));
-    if (!bvp && !optimization) CHECK(direction[2] == (torus ? 0. : restart == stpnpl ? -.5 : 0.));
+    if (!bvp && !optimization) CHECK(direction[2] == (torus ? 0. : restart == periodic_fold_starting_data ? -.5 : 0.));
 }
 
 void algebraic(xpp::Session &s, bool truncated) {
@@ -334,11 +334,11 @@ TEST_CASE("test_autox_restart") {
     xpp::init_autox_win(s);
     // Directly cover each audit-named augmented fort.8 formulation.
     for (bool truncated : {false, true}) {
-        formulation(s, stpnpl, 4, 4, false, false, false, truncated);
-        formulation(s, stpnpd, 4, 3, false, false, false, truncated);
-        formulation(s, stpntr, 6, 4, false, true, false, truncated);
-        formulation(s, stpnbl, 4, 2, true, false, false, truncated);
-        formulation(s, stpnpo, 4, 4, false, false, true, truncated);
+        formulation(s, periodic_fold_starting_data, 4, 4, false, false, false, truncated);
+        formulation(s, period_doubling_starting_data, 4, 3, false, false, false, truncated);
+        formulation(s, torus_starting_data, 6, 4, false, true, false, truncated);
+        formulation(s, boundary_fold_starting_data, 4, 2, true, false, false, truncated);
+        formulation(s, periodic_optimization_starting_data, 4, 4, false, false, true, truncated);
         algebraic(s, truncated);
     }
     user_zero_text(s);

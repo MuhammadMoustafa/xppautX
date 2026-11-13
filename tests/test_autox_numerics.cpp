@@ -333,17 +333,17 @@ void homcont()
     for (bool reverse : {false,true}) for (double shift : {0.,2.}) {
         par[xpp::autox_unknown::period] = reverse ? -1. : 1.;
         par[icp[1]] = shift;
-        run.homcont.blhom.nstab = reverse ? 1 : 2;
-        run.homcont.blhom.nunstab = reverse ? 2 : 1;
-        run.homcont.blhme.ieigc.assign(2,0);
-        run.homcont.blhme.vrprev.assign(2*n*n,0.);
-        run.homcont.beyn.iflag.assign(4,0);
-        run.homcont.beyn.cprev.assign(4*n*n,0.);
+        run.homcont.homoclinic_constants.nstab = reverse ? 1 : 2;
+        run.homcont.homoclinic_constants.nunstab = reverse ? 2 : 1;
+        run.homcont.homoclinic_eigen_check.ieigc.assign(2,0);
+        run.homcont.homoclinic_eigen_check.vrprev.assign(2*n*n,0.);
+        run.homcont.beyn_workspace.iflag.assign(4,0);
+        run.homcont.beyn_workspace.cprev.assign(4*n*n,0.);
         for (bool transpose : {true,false}) for (auto endpoint : {xpp::HomcontEndpoint::left,xpp::HomcontEndpoint::right}) {
             // Actual boundary/adjoint calls use one manifold per endpoint/transpose slot.
             const bool stable = (endpoint == xpp::HomcontEndpoint::left) == transpose;
             const auto manifold = stable ? xpp::HomcontManifold::stable : xpp::HomcontManifold::unstable;
-            const integer count = stable ? run.homcont.blhom.nstab : run.homcont.blhom.nunstab;
+            const integer count = stable ? run.homcont.homoclinic_constants.nstab : run.homcont.homoclinic_constants.nunstab;
             const integer first = stable ? 0 : n-count;
             const bool pair = stable != reverse;
             for (double p : {.2,.3}) {
@@ -367,12 +367,12 @@ void homcont()
                     }
                     CHECK(aa*bb-ab*ab > .1); // The two boundary rows span a plane.
                 }
-                const auto saved = run.homcont.beyn.cprev;
-                const auto flags = run.homcont.beyn.iflag;
+                const auto saved = run.homcont.beyn_workspace.cprev;
+                const auto flags = run.homcont.beyn_workspace.iflag;
                 const auto original = bound;
                 par[icp[0]] += autox_hmach;
                 CHECK(xpp::homoclinic_projection_conditions(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),false) == 0);
-                CHECK(run.homcont.beyn.cprev == saved && run.homcont.beyn.iflag == flags);
+                CHECK(run.homcont.beyn_workspace.cprev == saved && run.homcont.beyn_workspace.iflag == flags);
                 par[icp[0]] = p;
                 CHECK(xpp::homoclinic_projection_conditions(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),false) == 0);
                 for (integer row=first; row<first+count; ++row)
@@ -418,14 +418,14 @@ void homcont()
         }
     }
     // The phase row has exact linear derivatives in states and zero parameter derivatives.
-    run.homcont.blhom.nrev = 0;
-    run.homcont.blhom.itwist = 0;
+    run.homcont.homoclinic_constants.nrev = 0;
+    run.homcont.homoclinic_constants.itwist = 0;
     iap.nint = 1;
     rap_type rap{};
     const std::array<double,n> old{1.,2.,3.}, state{1.5,1.,5.}, tangent{.25,-.5,2.};
     std::array<double,1> phase{};
     std::vector<double> derivative(n+run.parameter_count, 99.);
-    CHECK(icho(&iap,&rap,n,par.data(),icp.data(),1,state.data(),old.data(),tangent.data(),tangent.data(),phase.data(),1,derivative.data()) == 0);
+    CHECK(homoclinic_integral_conditions(&iap,&rap,n,par.data(),icp.data(),1,state.data(),old.data(),tangent.data(),tangent.data(),phase.data(),1,derivative.data()) == 0);
     CHECK(phase[0] == 4.625);
     for (integer column=0; column<n+run.parameter_count; ++column)
         CHECK(derivative[column] == (column<n ? tangent[column] : 0.));

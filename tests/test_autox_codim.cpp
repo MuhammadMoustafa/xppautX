@@ -41,8 +41,8 @@ TEST_CASE("test_autox_codim")
     bool enabled;
     // The test reads the Jacobian solve_algebraic computed at the converged point (W421).
     const auto lyapunov=[&]() {
-        fnhb(&iap,&rap,iap.ndim,u.data(),old.data(),icp.data(),par.data(),2,rhs.data(),jac.data(),dp.data());
-        return generalized_hopf_test_algebraic(&iap,&rap,par.data(),icp.data(),&enabled,fnhb,&stride,nullptr,
+        hopf_equations(&iap,&rap,iap.ndim,u.data(),old.data(),icp.data(),par.data(),2,rhs.data(),jac.data(),dp.data());
+        return generalized_hopf_test_algebraic(&iap,&rap,par.data(),icp.data(),&enabled,hopf_equations,&stride,nullptr,
             nullptr,nullptr,nullptr,u.data(),old.data(),nullptr,rhs.data(),jac.data(),dp.data(),{});
     };
     const auto coefficient=[&](double b) {
@@ -192,7 +192,7 @@ TEST_CASE("test_autox_codim")
     const double fixed=std::sqrt(2.5)-1.;
     mp[icp[0]]=1.5;
     std::array<double,10> state={fixed,fixed,0,0,1,0,0,0,xpp::math::acos(-fixed),1}, previous=state;
-    fnhb(&iap,&rap,10,state.data(),previous.data(),icp.data(),mp.data(),2,mr.data(),mj.data(),mdp.data());
+    hopf_equations(&iap,&rap,10,state.data(),previous.data(),icp.data(),mp.data(),2,mr.data(),mj.data(),mdp.data());
     for (double value:mr) CHECK(std::abs(value)<1e-6);
     // An independent central difference checks every augmented Jacobian column.
     constexpr double perturbation=1e-4; // larger than the model's inner difference step
@@ -200,8 +200,8 @@ TEST_CASE("test_autox_codim")
         auto low=state,high=state;
         low[column]-=perturbation; high[column]+=perturbation;
         std::array<double,10> fm{},fp{};
-        fnhb(&iap,&rap,10,low.data(),previous.data(),icp.data(),mp.data(),0,fm.data(),nullptr,nullptr);
-        fnhb(&iap,&rap,10,high.data(),previous.data(),icp.data(),mp.data(),0,fp.data(),nullptr,nullptr);
+        hopf_equations(&iap,&rap,10,low.data(),previous.data(),icp.data(),mp.data(),0,fm.data(),nullptr,nullptr);
+        hopf_equations(&iap,&rap,10,high.data(),previous.data(),icp.data(),mp.data(),0,fp.data(),nullptr,nullptr);
         for (int row=0;row<10;++row) {
             const double numeric=(fp[row]-fm[row])/(2*perturbation);
             CHECK(std::abs(mj[row+10*column]-numeric)<2e-5);
@@ -210,7 +210,7 @@ TEST_CASE("test_autox_codim")
     iap.itpst=xpp::AutoxPointKind::PeriodDoubling; iap.ndim=9;
     mp[icp[0]]=0.;
     std::array<double,9> flip={0,0,0,0,1/std::sqrt(2.),-1/std::sqrt(2.),0,0,-1};
-    fnlp(&iap,&rap,9,flip.data(),flip.data(),icp.data(),mp.data(),2,mr.data(),mj.data(),mdp.data());
+    fold_equations(&iap,&rap,9,flip.data(),flip.data(),icp.data(),mp.data(),2,mr.data(),mj.data(),mdp.data());
     for (int row=0;row<9;++row) CHECK(std::abs(mr[row])<1e-6);
     CHECK(std::abs(mj[4+9*4]-1.)<1e-6 && std::abs(mj[0]+1.)<1e-6);
     // W407 (#469): the torus phase condition compares the eigenfunction with the previous point's.
@@ -223,7 +223,7 @@ TEST_CASE("test_autox_codim")
     const std::array<double,6> tuold{0,0,1,0.5,0,1}, tupold{};
     const std::array<double,6> tu{0,0,0.5,0.25,0.75,-0.5};
     const auto condition=[&](const std::array<double,6> &at,std::array<double,3> &fv,std::vector<double> *dint) {
-        return ictr(&ti,&rap,6,tpar.data(),nullptr,3,at.data(),tuold.data(),nullptr,tupold.data(),fv.data(),
+        return torus_integral_conditions(&ti,&rap,6,tpar.data(),nullptr,3,at.data(),tuold.data(),nullptr,tupold.data(),fv.data(),
             dint?1:0,dint?dint->data():nullptr);
     };
     std::array<double,3> tf{};

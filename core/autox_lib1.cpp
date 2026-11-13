@@ -1072,7 +1072,7 @@ initialize_constants(iap_type *iap, rap_type *rap, integer *icp, doublereal *par
   } else if (ips == xpp::AutoxProblem::Homoclinic && f2c::abs(isw) == 1) {
     /*        ** Homoclinic bifurcation analysis */
     /*        Redefine autoX constants for homoclinic orbits */
-    inho(iap, icp, par);
+    homoclinic_read_constants(iap, icp, par);
     ndim = iap->ndim;
     nbc = iap->nbc;
     nint = iap->nint;
@@ -4632,7 +4632,7 @@ control_boundary(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FU
   integer ntot, ntst, nuzr, i, j;
   doublereal dsold;
   integer nodir = 0;
-  iap->run->hopf_start = user_start == stpnps || user_start == stpnwp;
+  iap->run->hopf_start = user_start == periodic_starting_data || user_start == wave_train_starting_data;
   std::vector<doublereal> rlold(iap->run->parameter_count);
   std::vector<doublereal> rldot(iap->run->parameter_count);
   std::vector<doublereal> rlcur(iap->run->parameter_count);
@@ -5532,7 +5532,7 @@ boundary_start(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, inte
   /* continuation */
 
   if (ips == xpp::AutoxProblem::Homoclinic) {
-    preho(*iap->run, ndxloc, ntsrs, &ndimrd, &ndim, ncolrs, ups, udotps, tm, par);
+    homoclinic_preprocess(*iap->run, ndxloc, ntsrs, &ndimrd, &ndim, ncolrs, ups, udotps, tm, par);
 
     /* Special case : Preprocess restart data in case of branch switching 
      */

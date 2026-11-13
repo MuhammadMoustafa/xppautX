@@ -418,14 +418,14 @@ struct AutoxRun {
      (autox_lib5.cpp): its settings, the projections, the equilibria's
      eigenvalues and vectors, and their previous values */
   struct {
-    struct { std::ptrdiff_t itwist,istart,iequib,nfixed,npsi,nunstab,nstab,nrev; } blhom{};
-    struct { std::vector<std::ptrdiff_t> ipsi,ifixed,irev; } blhmp;
-    struct { std::vector<double> pu0,pu1; } blhmu;
-    struct { std::ptrdiff_t nbcn; } bcnn{};
-    struct { double compzero; } blhma{};
-    struct { std::vector<double> rr,ri,v,vt,xequib; std::ptrdiff_t ineig=0; } bleig;
-    struct { std::vector<double> vrprev; std::vector<std::ptrdiff_t> ieigc; } blhme;
-    struct { std::vector<double> cprev; std::vector<std::ptrdiff_t> iflag; } beyn;
+    struct { std::ptrdiff_t itwist,istart,iequib,nfixed,npsi,nunstab,nstab,nrev; } homoclinic_constants{};  // blhom: common block BLHOM: HomCont's constants (autox_state.h)
+    struct { std::vector<std::ptrdiff_t> ipsi,ifixed,irev; } homoclinic_indices;  // blhmp: common block BLHMP: ipsi, ifixed, irev
+    struct { std::vector<double> pu0,pu1; } homoclinic_endpoints;  // blhmu: common block BLHMU: pu0, pu1, the orbit's end values
+    struct { std::ptrdiff_t nbcn; } boundary_condition_count{};  // bcnn: common block BCNN
+    struct { double compzero; } homoclinic_zero_threshold{};  // blhma: common block BLHMA: compzero
+    struct { std::vector<double> rr,ri,v,vt,xequib; std::ptrdiff_t ineig=0; } homoclinic_eigen_workspace;  // bleig: common block BLEIG: rr, ri, v, vt, xequib, ineig
+    struct { std::vector<double> vrprev; std::vector<std::ptrdiff_t> ieigc; } homoclinic_eigen_check;  // blhme: common block BLHME: vrprev, ieigc
+    struct { std::vector<double> cprev; std::vector<std::ptrdiff_t> iflag; } beyn_workspace;  // beyn: Beyn's projection method's workspace
   } homcont;
 };
 

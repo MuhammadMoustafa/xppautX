@@ -81,10 +81,10 @@ TEST_CASE("test_autox_groups") {
     const auto columns_of = xpp::autox_jacobian::fold_columns(*xpp::autox_jacobian::state_groups(&iap, n), n, ndim, w.data(),
                                                              xpp::autox_jacobian::central_step(ndim, w.data()));
     CHECK(columns_of.groups.size() < n + 1);
-    fnlp(&iap, &rap, ndim, w.data(), w.data(), icp2.data(), par.data(), 2, g.data(), fold_grouped.data(), gp.data());
+    fold_equations(&iap, &rap, ndim, w.data(), w.data(), icp2.data(), par.data(), 2, g.data(), fold_grouped.data(), gp.data());
     CHECK(par[icp2[0]] == tiny && par[icp2[1]] == w[ndim - 1]);
     run.jacobian_scratch.groups = xpp::DifferenceGroups{};
-    fnlp(&iap, &rap, ndim, w.data(), w.data(), icp2.data(), par.data(), 2, g_columns.data(), fold_single.data(), gp_columns.data());
+    fold_equations(&iap, &rap, ndim, w.data(), w.data(), icp2.data(), par.data(), 2, g_columns.data(), fold_single.data(), gp_columns.data());
     differ = 0;
     for (int i = 0; i < ndim * ndim; ++i) differ += std::bit_cast<std::uint64_t>(fold_grouped[i]) != std::bit_cast<std::uint64_t>(fold_single[i]);
     for (int i = 0; i < ndim; ++i) differ += std::bit_cast<std::uint64_t>(g[i]) != std::bit_cast<std::uint64_t>(g_columns[i]);

@@ -77,42 +77,42 @@ std::optional<problem_function_table> one_parameter(const iap_type &iap)
     if (!two) return ae(problem_function);
     break;
   case AutoxProblem::WaveSteady: /* spatially homogeneous solutions */
-    if (!two) return ae(fnws);
+    if (!two) return ae(wave_steady_equations);
     break;
   case AutoxProblem::DiscreteMap: /* fixed points */
-    if (!two) return ae(fnds);
+    if (!two) return ae(discrete_map_equations);
     break;
   case AutoxProblem::TimeIntegration:
-    return ae(fnti);
+    return ae(time_integration_equations);
   case AutoxProblem::Periodic:
     if (two) break;
     if (iap.itp.is(AutoxPointKind::Hopf) || iap.itp.started_from(AutoxPointKind::Hopf))
-      return boundary(fnps, bcps, icps, stpnps);
-    return bv(fnps, bcps, icps);
+      return boundary(periodic_equations, periodic_boundary_conditions, periodic_integral_conditions, periodic_starting_data);
+    return bv(periodic_equations, periodic_boundary_conditions, periodic_integral_conditions);
   case AutoxProblem::WavePeriodic: /* wave trains of parabolic systems */
     if (two) break;
-    if (iap.itp.is(AutoxPointKind::Hopf)) return boundary(fnwp, bcps, icps, stpnwp);
-    return bv(fnwp, bcps, icps);
+    if (iap.itp.is(AutoxPointKind::Hopf)) return boundary(wave_train_equations, periodic_boundary_conditions, periodic_integral_conditions, wave_train_starting_data);
+    return bv(wave_train_equations, periodic_boundary_conditions, periodic_integral_conditions);
   case AutoxProblem::BoundaryValue:
   case AutoxProblem::FloquetBoundaryValue:
     if (!two) return bv(problem_function, boundary_function, integral_function);
     break;
   case AutoxProblem::Homoclinic:
-    if (!two) return boundary(fnho, bcho, icho, restart ? boundary_start : stpnho, pvlsho);
+    if (!two) return boundary(homoclinic_equations, homoclinic_boundary_conditions, homoclinic_integral_conditions, restart ? boundary_start : homoclinic_starting_data, homoclinic_output_parameters);
     break;
   case AutoxProblem::ParabolicPeriodicEvolution:
-    return bv(fnpe, bcps, icpe);
+    return bv(parabolic_evolution_equations, periodic_boundary_conditions, parabolic_evolution_integral_conditions);
   case AutoxProblem::PeriodicOptimization:
-    if (std::abs(iap.isw) == 1) return boundary(fnpo, bcpo, icpo, iap.nfpr < 6 ? stpnpo : boundary_start);
+    if (std::abs(iap.isw) == 1) return boundary(periodic_optimization_equations, periodic_optimization_boundary_conditions, periodic_optimization_integral_conditions, iap.nfpr < 6 ? periodic_optimization_starting_data : boundary_start);
     break;
   case AutoxProblem::ParabolicUserEvolution:
-    return bv(fnpe, boundary_function, icpe);
+    return bv(parabolic_evolution_equations, boundary_function, parabolic_evolution_integral_conditions);
   case AutoxProblem::ParabolicUserSteady:
-    return bv(fnsp, boundary_function, icpe);
+    return bv(parabolic_stationary_equations, boundary_function, parabolic_evolution_integral_conditions);
   case AutoxProblem::AlgebraicOptimization: {
     const bool from_fold = iap.itp.kind == AutoxPointKind::Fold;
-    if (iap.nfpr + (from_fold || !restart ? 1 : 0) == 2) return algebraic(fnc1, restart ? algebraic_start : stpnc1);
-    return algebraic(fnc2, from_fold ? stpnc2 : algebraic_start);
+    if (iap.nfpr + (from_fold || !restart ? 1 : 0) == 2) return algebraic(optimization_single_equations, restart ? algebraic_start : optimization_single_starting_data);
+    return algebraic(optimization_multi_equations, from_fold ? optimization_multi_starting_data : algebraic_start);
   }
   }
   return std::nullopt;
@@ -131,26 +131,26 @@ struct TwoParameterRow {
 constexpr std::array<TwoParameterRow, 9> two_parameter_rows = {{
   /* folds of algebraic problems */
   {xpp::problem_at_most_steady, {xpp::AutoxPointKind::BranchPoint, xpp::AutoxPointKind::Fold},
-   [] { return algebraic(fnlp, stpnlp); }},
+   [] { return algebraic(fold_equations, fold_starting_data); }},
   {[](xpp::AutoxProblem p) { return p == xpp::AutoxProblem::DiscreteMap; },
-   {xpp::AutoxPointKind::PeriodDoubling, xpp::AutoxPointKind::Regular}, [] { return algebraic(fnlp, stpnlp); }},
+   {xpp::AutoxPointKind::PeriodDoubling, xpp::AutoxPointKind::Regular}, [] { return algebraic(fold_equations, fold_starting_data); }},
   /* Hopf bifurcations of ODEs, waves and maps (a map's is its torus) */
   {[](xpp::AutoxProblem p) { return p == xpp::AutoxProblem::Algebraic || p == xpp::AutoxProblem::SteadyState; },
-   {xpp::AutoxPointKind::Hopf, xpp::AutoxPointKind::Regular}, [] { return algebraic(fnhb, stpnhb); }},
+   {xpp::AutoxPointKind::Hopf, xpp::AutoxPointKind::Regular}, [] { return algebraic(hopf_equations, hopf_starting_data); }},
   {[](xpp::AutoxProblem p) { return p == xpp::AutoxProblem::WaveSteady; },
-   {xpp::AutoxPointKind::Hopf, xpp::AutoxPointKind::Regular}, [] { return algebraic(fnhw, stpnhw); }},
+   {xpp::AutoxPointKind::Hopf, xpp::AutoxPointKind::Regular}, [] { return algebraic(hopf_wave_equations, hopf_wave_starting_data); }},
   {[](xpp::AutoxProblem p) { return p == xpp::AutoxProblem::DiscreteMap; },
-   {xpp::AutoxPointKind::NeimarkSacker, xpp::AutoxPointKind::Regular}, [] { return algebraic(fnhb, stpnhb); }},
+   {xpp::AutoxPointKind::NeimarkSacker, xpp::AutoxPointKind::Regular}, [] { return algebraic(hopf_equations, hopf_starting_data); }},
   /* folds, period doublings and tori of periodic orbits */
   {[](xpp::AutoxProblem p) { return p == xpp::AutoxProblem::Periodic; },
-   {xpp::AutoxPointKind::CycleFold, xpp::AutoxPointKind::CycleBranch}, [] { return boundary(fnpl, bcpl, icpl, stpnpl); }},
+   {xpp::AutoxPointKind::CycleFold, xpp::AutoxPointKind::CycleBranch}, [] { return boundary(periodic_fold_equations, periodic_fold_boundary_conditions, periodic_fold_integral_conditions, periodic_fold_starting_data); }},
   {[](xpp::AutoxProblem p) { return p == xpp::AutoxProblem::Periodic; },
-   {xpp::AutoxPointKind::PeriodDoubling, xpp::AutoxPointKind::Regular}, [] { return boundary(fnpd, bcpd, icpd, stpnpd); }},
+   {xpp::AutoxPointKind::PeriodDoubling, xpp::AutoxPointKind::Regular}, [] { return boundary(period_doubling_equations, period_doubling_boundary_conditions, period_doubling_integral_conditions, period_doubling_starting_data); }},
   {[](xpp::AutoxProblem p) { return p == xpp::AutoxProblem::Periodic; },
-   {xpp::AutoxPointKind::NeimarkSacker, xpp::AutoxPointKind::Regular}, [] { return boundary(fntr, bctr, ictr, stpntr); }},
+   {xpp::AutoxPointKind::NeimarkSacker, xpp::AutoxPointKind::Regular}, [] { return boundary(torus_equations, torus_boundary_conditions, torus_integral_conditions, torus_starting_data); }},
   /* folds of boundary value problems */
   {[](xpp::AutoxProblem p) { return p == xpp::AutoxProblem::BoundaryValue; },
-   {xpp::AutoxPointKind::CycleFold, xpp::AutoxPointKind::CycleBranch}, [] { return boundary(fnbl, bcbl, icbl, stpnbl); }},
+   {xpp::AutoxPointKind::CycleFold, xpp::AutoxPointKind::CycleBranch}, [] { return boundary(boundary_fold_equations, boundary_fold_boundary_conditions, boundary_fold_integral_conditions, boundary_fold_starting_data); }},
 }};
 
 std::optional<problem_function_table> two_parameter(const iap_type &iap)

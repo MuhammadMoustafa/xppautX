@@ -46,7 +46,7 @@ TEST_CASE("test_autox_fold")
         std::array<integer, 4> icp{a, b,
             variable ? xpp::autox_unknown::period : xpp::autox_unknown::fold_norm,
             xpp::autox_unknown::fold_beta};
-        fnpl(&iap, &rap, 4, u.data(), u.data(), icp.data(), par.data(), 2,
+        periodic_fold_equations(&iap, &rap, 4, u.data(), u.data(), icp.data(), par.data(), 2,
              f.data(), jac.data(), dp.data());
         // T*f = (10,14); T*A*v = (0.2,-1.4).
         const std::array<double,4> expected_f{10,14,variable ? 2.7 : 0.2,variable ? 2.1 : -0.9};
@@ -72,27 +72,27 @@ TEST_CASE("test_autox_fold")
     const std::array<integer,4> phase_icp{a,b,xpp::autox_unknown::period,xpp::autox_unknown::fold_beta};
     const auto phase_old=u;
     const std::array<double,4> time_derivative{3,-2,0,0};
-    icps(&iap,&rap,2,par.data(),phase_icp.data(),1,u.data(),phase_old.data(),
+    periodic_integral_conditions(&iap,&rap,2,par.data(),phase_icp.data(),1,u.data(),phase_old.data(),
          u.data(),time_derivative.data(),f.data(),1,dp.data());
     CHECK(f[0]==0 && dp[0]==3 && dp[1]==-2);
     u[0]+=0.25;
-    icps(&iap,&rap,2,par.data(),phase_icp.data(),1,u.data(),phase_old.data(),
+    periodic_integral_conditions(&iap,&rap,2,par.data(),phase_icp.data(),1,u.data(),phase_old.data(),
          u.data(),time_derivative.data(),f.data(),0,nullptr);
     CHECK(f[0]==0.75);
     run.rotations.nrtn[0]=1;
-    icps(&iap,&rap,2,par.data(),phase_icp.data(),1,u.data(),phase_old.data(),
+    periodic_integral_conditions(&iap,&rap,2,par.data(),phase_icp.data(),1,u.data(),phase_old.data(),
          u.data(),time_derivative.data(),f.data(),1,dp.data());
     CHECK(f[0]==0 && dp[0]==0 && dp[1]==-2);
     run.rotations.nrtn[0]=0;
     u=phase_old;
-    icpl(&iap,&rap,4,par.data(),phase_icp.data(),3,u.data(),phase_old.data(),
+    periodic_fold_integral_conditions(&iap,&rap,4,par.data(),phase_icp.data(),3,u.data(),phase_old.data(),
          u.data(),time_derivative.data(),f.data(),0,nullptr);
     CHECK(f[0]==0);
-    icpd(&iap,&rap,4,par.data(),phase_icp.data(),2,u.data(),phase_old.data(),
+    period_doubling_integral_conditions(&iap,&rap,4,par.data(),phase_icp.data(),2,u.data(),phase_old.data(),
          u.data(),time_derivative.data(),f.data(),0,nullptr);
     CHECK(f[0]==0);
     const std::array<double,6> torus{1,2,0.3,-0.4,0.5,-0.6};
-    ictr(&iap,&rap,6,par.data(),phase_icp.data(),3,torus.data(),torus.data(),
+    torus_integral_conditions(&iap,&rap,6,par.data(),phase_icp.data(),3,torus.data(),torus.data(),
          torus.data(),time_derivative.data(),f.data(),0,nullptr);
     CHECK(f[0]==0);
 
