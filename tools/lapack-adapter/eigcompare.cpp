@@ -85,9 +85,9 @@ int main(int argc, char **argv)
                 std::vector<double> ma = a, mb = b, ar(static_cast<std::size_t>(n)), ai(static_cast<std::size_t>(n)),
                     be(static_cast<std::size_t>(n));
                 std::ptrdiff_t ierr = 0;
-                (library ? xpp::qz_reduce_hessenberg : xpp::eispack_qz_reduce_hessenberg)(n, n, ma.data(), mb.data(), FALSE_, z.data());
-                (library ? xpp::qz_iterate : xpp::eispack_qz_iterate)(n, n, ma.data(), mb.data(), QZ_EPS1, FALSE_, z.data(), &ierr);
-                (library ? xpp::qz_eigenvalues : xpp::eispack_qz_eigenvalues)(n, n, ma.data(), mb.data(), ar.data(), ai.data(), be.data(), FALSE_,
+                (library ? xpp::qz_reduce_hessenberg : xpp::eispack_qz_reduce_hessenberg)(n, n, ma.data(), mb.data(), false, z.data());
+                (library ? xpp::qz_iterate : xpp::eispack_qz_iterate)(n, n, ma.data(), mb.data(), QZ_EPS1, false, z.data(), &ierr);
+                (library ? xpp::qz_eigenvalues : xpp::eispack_qz_eigenvalues)(n, n, ma.data(), mb.data(), ar.data(), ai.data(), be.data(), false,
                                                    z.data());
                 print(library ? "lapack" : "eispack", ierr, {ar, ai, be});
             }
