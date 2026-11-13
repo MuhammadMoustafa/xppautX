@@ -12,7 +12,7 @@
 inline xpp::Result<std::vector<xpp::Error>> compile_model(xpp::Session &s)
 {
     auto translated = xpp::translate_model(s);
-    xpp::build_native(s);
+    xpp::build_native(s, true);
     return translated;
 }
 

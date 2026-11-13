@@ -195,9 +195,6 @@ struct ParserState {
     if (symbols.size() < static_cast<size_t>(nsym) + 3) symbols.resize(2 * symbols.size());
   }
   ExprStack stack;
-  /* the operations eval_rpn has run (W715): the interpreted work so far, against which the model's native
-     code is built when the compile is cheaper (Model::NativePending::build_at) */
-  std::int64_t interpreted_ops = 0;
   /* the Model builder's count of variables read (in_vars) and the named
      auxiliary variables (naux of aux_names) (form_ode.cpp) */
   struct {

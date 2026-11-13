@@ -296,21 +296,17 @@ TEST_CASE("test_compile")
     CHECK(m.ufun_programs[1].native==nullptr); /* g calls f */
     CHECK(m.ufun_programs[2].native!=nullptr);
     m.ufun_programs[0].rpn=function;
-    /* W715: translate_model leaves the code pending and the programs interpreted, their purity known; the
-       interpreter's INTERPRETED_OPS_PER_NODE-th operation a node builds it, or a run on threads (native_ready) */
+    /* W715: translate_model starts the compile on its thread and leaves the programs interpreted, their purity
+       known; the core thread takes the code once the thread is done (my_rhs), or waits for it (native_ready) */
     CHECK(xpp::translate_model(s).has_value());
-    CHECK(m.native_pending.has_value() && !m.native_program && m.native_rhs==nullptr);
+    CHECK(m.native_build && !m.native_program && m.native_rhs==nullptr);
     CHECK(m.programs[1].compiled && m.programs[1].native==nullptr);
     CHECK(!pure_rhs_ready(s));
-    CHECK(m.native_pending->build_at==s.parser.interpreted_ops+xpp::INTERPRETED_OPS_PER_NODE*static_cast<std::int64_t>(m.native_pending->ir.nodes.size()));
-    s.parser.interpreted_ops=m.native_pending->build_at-1;
-    xpp::build_native_when_due(s);
-    CHECK(m.native_pending.has_value());
-    s.parser.interpreted_ops++;
-    xpp::build_native_when_due(s);
-    CHECK(!m.native_pending && m.native_program && m.programs[1].native!=nullptr);
-    CHECK(xpp::translate_model(s).has_value() && m.native_pending.has_value() && !m.native_program);
-    CHECK(xpp::native_ready(s)==m.rhs_impurity.empty() && !m.native_pending && m.native_program);
+    m.native_build->finished.wait(false); /* the thread's own end, then the take a right-hand side would make */
+    xpp::build_native(s,false);
+    CHECK(!m.native_build && m.native_program && m.programs[1].native!=nullptr);
+    CHECK(xpp::translate_model(s).has_value() && m.native_build && !m.native_program);
+    CHECK(xpp::native_ready(s)==m.rhs_impurity.empty() && !m.native_build && m.native_program);
     s.numerics.compile=false;
     m.programs[0].rpn=number(0.1);
     CHECK(compile_model(s).has_value());
@@ -362,7 +358,7 @@ TEST_CASE("test_compile")
         auto loaded=load_args(2,argv,1);
         CHECK(loaded.has_value());
         if (!loaded) continue;
-        xpp::build_native(**loaded); /* the load translates; every program's code is checked here */
+        xpp::build_native(**loaded,true); /* the load translates; every program's code is checked here */
         xpp::Session &t=xpp::client_session();
         CHECK(t.model().native_program!=nullptr);
         for (int round=0;round<2;++round) {

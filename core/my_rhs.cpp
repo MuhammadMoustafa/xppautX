@@ -86,7 +86,7 @@ void set_fix_rhs(xpp::Session &s, double t, double *y)
 
 int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
 {
-  if (s.model().native_pending) xpp::build_native_when_due(s);
+  if (s.model().native_build) xpp::build_native(s,false); /* the finished code taken here, never mid-evaluation (W715) */
   rhs_order(s.model(),t,y,ydot,s.parser.constants.data(),s.parser.variables.data(),&s,
             [&](int i,double value){setvar(s,i,value);},
             [&](const xpp::Program &p){return xpp::evaluate(s,p);},
@@ -97,7 +97,7 @@ int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
 
 bool pure_rhs_ready(const xpp::Session &s)
 {
-  return s.model().rhs_impurity.empty() && !s.model().native_pending && s.integrator.rhs.function==my_rhs;
+  return s.model().rhs_impurity.empty() && !s.model().native_build && s.integrator.rhs.function==my_rhs;
 }
 
 void pure_rhs(const xpp::Session &s, const double *y, double *ydot, double *c, double *v)

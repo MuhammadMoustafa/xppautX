@@ -12,6 +12,7 @@
 #include <cstring>
 #include <new>
 #include <cstdarg>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -43,14 +44,17 @@ constexpr size_t MESSAGE_MAX = 512;
 constexpr std::array<unsigned, 4> LEVEL{2, 2, 2, 1};
 
 /* MIR reports an error through a function that must not return and has no user data: `raised` (ours
-   and MIR's both) records the text and jumps back to the compile that called MIR (`run`). One compile at a
-   time, on the core thread. */
+   and MIR's both) records the text and jumps back to the compile that called MIR (`run`): the thread's own, since
+   a compile runs on the model's build thread (W715) or on the core thread (the exact Jacobian). */
 struct Escape {
-    std::jmp_buf exit;
-    std::array<char, MESSAGE_MAX> text;
+    std::jmp_buf exit{};
+    std::array<char, MESSAGE_MAX> text{};
     const std::unordered_map<std::string, unsigned> *levels = nullptr; /* by function, for `generate` */
 };
-Escape escape;
+constinit thread_local Escape escape{};
+/* One compile at a time: MIR's generator sorts its static pattern table at each MIR_gen_init
+   (mir-gen-x86_64.c patterns_init), so two contexts may not generate at once. */
+std::mutex compiling;
 
 /* MIR's error function; ours report through it too, with the kind of MIR's closest to what is wrong */
 void MIR_NO_RETURN raised(MIR_error_type_t, const char *format, ...)
@@ -516,6 +520,7 @@ Program::~Program() = default;
 Result<std::unique_ptr<Program>> Program::compile(const IrModule &module, Place place)
 {
     auto program = std::unique_ptr<Program>(new Program(std::move(place)));
+    const std::lock_guard lock(compiling);
     Lowering lowering{module, *program->state_};
     if (const char *failed = run(lowering)) {
         const std::string message = failed;

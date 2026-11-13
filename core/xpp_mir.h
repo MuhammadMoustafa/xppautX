@@ -12,8 +12,9 @@ namespace xpp::mir {
    MIT) through its API. MIR is not a sandbox: only trusted code belongs here, which is why the input is the
    Generator's trees and never text: every name an index, every number a double, every call a row of the
    module's callee table, resolved only through it. The returned addresses live until the Program is destroyed;
-   callers cast them to the function's signature (IrFunction::Kind). Not thread-safe (MIR's error function has no
-   user data): compile on the core thread, one at a time. */
+   callers cast them to the function's signature (IrFunction::Kind). A compile may run on any thread (the model's
+   build thread, W715; the core thread for the exact Jacobian): its state is its own and compiles take turns on a
+   mutex, since MIR's generator sorts a static table at each MIR_gen_init. */
 class Program {
 public:
     /* the module's functions compiled, each at the optimization level of its kind; an error of ours or MIR's is

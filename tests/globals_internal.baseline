@@ -23,7 +23,7 @@ core/xpp_inbox.cpp 9 the input queues the reader threads fill (process-wide, thr
 core/xpp_io.cpp 1 the temp-file name counter (process-wide)
 core/xpp_job.cpp 22 the job's state the reader threads set (atomics) and its pacing clocks, the one clock read a stored row's throttles share among them (W122), and the jobs of a recorded stopped autoX run armed with the stop between jobs (W606): process-wide, one job at a time
 core/xpp_log.cpp 6 the log threshold, AUTO's echo, the per-thread capture and the per-thread holds of a job's autoX table and warnings (W596), and the empty object whose destructor writes what it keeps at exit (process-wide, AGENTS.md; W140)
-core/xpp_mir.cpp 1 the compile in progress's escape (one struct): MIR's error function has no user data, so it records the text and jumps back to the compile that called MIR; one compile at a time, on the core thread
+core/xpp_mir.cpp 2 the compile in progress's escape (one struct, the thread's own): MIR's error function has no user data, so it records the text and jumps back to the compile that called MIR; and the mutex compiles take turns on, since MIR's generator sorts a static table at each MIR_gen_init (W715)
 core/xpp_window.cpp 2 the desktop window's web view and its thread (process-wide, one window)
 core/xpp_window_loader.cpp 2 the window library loaded once (process-wide)
 core/commands_autox.cpp 3 the registry rows of autox.run and autox.configure_numerics: their Numerics arguments are built once at start-up from the option table's continuation rows (the keys and shapes have no second list), const and never written

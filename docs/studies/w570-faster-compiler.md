@@ -554,3 +554,59 @@ count; a model cannot make it overflow.
 `tools/examples_check.sh` (216 models, 215 md5s unchanged), `tools/autoxcompare.py`, `tools/goldencheck.py`,
 `tools/odexcheck.sh`, `tools/servercheck.py`, `tools/sourcecheck.sh`, `tools/asancheck.sh --only
 build,smoke,examples,unittests`; the counts are in the card's report.
+
+### Second part: the compile on a thread of its own (2026-11-13)
+
+The maintainer's order after the first part: fix the rest, by the background compile the first part named.
+Measured in wall time now (`perf stat -r 30`, elapsed, and the process's user instructions, which count both
+threads; TinyCC is 006ac0d8 built in a scratch worktree, on this machine today).
+
+**What changed.** `translate_model` starts MIR's compile on a thread of the Model's own (`Model::NativeBuild`:
+the thread, the `IrModule` it alone reads, its result and an atomic `finished` flag) and the run goes on in the
+interpreter; `my_rhs` takes the finished Program at the start of a right-hand side on the core thread
+(`build_native`, never mid-evaluation), and a run on threads (sweeps, autoX's workers and jobs) waits for it
+first (`native_ready`). The thread is detached and shares the build with the Model: when the Model goes first (a reload, a quit
+while it compiles) the thread finishes on its own and its result goes with the build (the session list is never
+destroyed, so a joinable thread would be a thread leak at exit, which ThreadSanitizer reported); a run cancelled
+while it compiles leaves it to finish, and the next right-hand side takes the code; `native_ready` waits on the
+atomic flag (`std::atomic::wait`), never busily. MIR's error
+escape (xpp_mir.cpp) is the thread's own (`thread_local`), and compiles take turns on a mutex, since MIR's
+generator sorts its static pattern table at each `MIR_gen_init` (mir-gen-x86_64.c `patterns_init`); the exact
+Jacobian a model asks for at load compiles on the core thread before the programs' thread starts, so the run's
+first step never waits behind the programs' compile (36 ms for mu26's one step when it did). The first part's
+threshold (`interpreted_ops`, 500 operations a node) is gone, and with it the count in `eval_rpn`'s loop: the
+compile costs the run nothing but the interpreter's slower evaluations while it lasts.
+
+**Results** (ms elapsed; instructions in millions, the thread's included):
+
+| run | TinyCC ms | W715 ms | ratio | TinyCC M | W715 M |
+|---|---|---|---|---|---|
+| lecar `--silent` | 4.67 | 5.38 | 1.15 | 14.0 | 39.7 |
+| lecar tiny | 4.13 | 4.53 | 1.10 | 9.2 | 24.4 |
+| ma23 tiny | 4.53 | 4.14 | 0.91 | 11.2 | 13.3 |
+| mu26 tiny | 7.19 | 7.58 | 1.05 | 35.0 | 51.4 |
+| kuramot100 tiny | 7.47 | 7.86 | 1.05 | 40.3 | 74.7 |
+| mu26 exact Jacobian tiny | 8.72 | 21.7 | 2.5 | 51.0 | 175 |
+| mu26 exact Jacobian, 400 time units | 92.1 | 92.9 | 1.01 | 1081 | 1310 |
+| mu26, 400 time units | 220 | 201 | 0.91 | 2705 | 2583 |
+| ma23, 1000 time units | 336 | 269 | 0.80 | 4256 | 3555 |
+| kuramot100 | 3197 | 2572 | 0.80 | 30353 | 27823 |
+
+The long runs keep their gain. What is left over TinyCC is no longer a compile the run waits for; it is the
+interpreter's evaluations during the compile window and the translation: lecar's whole run and nullclines (7 M
+native) fit inside its 2.5 ms compile, so the run is interpreted end to end (11 M), 1.1 ms over TinyCC's
+compile-and-native; mu26's one step costs 20 M interpreted against 10 M native plus TinyCC's 7 M compile, and
+its translation 6.7 M (0.4 ms over); kuramot100's one step interprets its sums (52 M against 40 M with TinyCC's
+compile and code); the exact Jacobian's 33 M cycles compile on the core thread (10 ms: the run cannot start
+without it, and a difference Jacobian meanwhile would change the numbers), against TinyCC's 16 M instructions
+for the same, and the run's first 500 evaluations are interpreted while `p_rhs` compiles (the 400 time units
+within 1% of TinyCC, 92.9 against 92.1 ms, the noise of the measurement).
+**Not reachable with MIR, with the numbers:** lecar needs its code within TinyCC's 0.3 ms and MIR's compile is
+2.5 ms of a thread; the exact-Jacobian run needs a Jacobian compile of some 3 ms and MIR's level 1 is 10 ms
+(level 0 saves 6 ms of compile and loses them in the run over 400 time units); the one-step runs of mu26 and
+kuramot100 need the interpreter within 10% of native code plus a compile. Each is MIR's compile speed or the
+interpreter's, not a policy; a cheaper first-tier back end would be the next design.
+
+**Trust boundary.** The thread reads the Generator's trees it owns and writes its own result; the core thread
+reads them after `finished` (release/acquire) and the join. Nothing of a model reaches the thread but those
+trees. `tsancheck` runs servercheck and webcheck under ThreadSanitizer with the thread in every model's run.

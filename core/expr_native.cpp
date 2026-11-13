@@ -24,8 +24,10 @@
 #include <span>
 #include <unordered_map>
 #include <string_view>
+#include <thread>
 #include <algorithm>
 #include "xpp_log.h"
+#include "xpp_mem.h"
 #include "xpp_globals.h"
 
 namespace xpp {
@@ -854,7 +856,7 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     m.native_rhs=nullptr;
     m.native_equations=false;
     m.native_program.reset();
-    m.native_pending.reset();
+    m.native_build.reset();
     if (!s.numerics.compile || entries.empty()) return {};
     Generator g{s};
     std::vector<Error> warnings;
@@ -978,26 +980,42 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
         emitted=std::move(still);
     }
     if (emitted.empty() && !rhs) return warnings;
-    Model::NativePending &pending=m.native_pending.emplace();
-    pending.ir=std::move(g.ir);
     for (const auto *entry:emitted) entry->code->compiled=true;
-    if (rhs) pending.rhs_symbol=rhs_symbol;
-    pending.equations=equations;
-    pending.place=entries.front().place;
-    pending.build_at=s.parser.interpreted_ops+INTERPRETED_OPS_PER_NODE*static_cast<std::int64_t>(pending.ir.nodes.size());
     for (Program *code:in_rhs) code->in_rhs=true;
+    m.native_build=std::make_shared<Model::NativeBuild>();
+    Model::NativeBuild &build=*m.native_build;
+    build.ir=std::move(g.ir);
+    build.place=entries.front().place;
+    if (rhs) build.rhs_symbol=rhs_symbol;
+    build.equations=equations;
     log(XPP_LOG_INFO,"Compiled {} of {} programs\n",compiled_count,entries.size());
     return warnings;
 }
 
+/* the build's thread, detached: it reads the module the build holds and writes only the build's result, then
+   says so; an allocation it cannot make ends the program as one on the core thread would, since no exception
+   may leave a thread */
+void start_build(std::shared_ptr<Model::NativeBuild> build)
+{
+    std::thread([build=std::move(build)]() noexcept {
+        try {
+            build->result=mir::Program::compile(build->ir,build->place);
+        } catch (const std::bad_alloc &) {
+            out_of_memory("the model's native code");
+        }
+        build->finished.store(true,std::memory_order_release);
+        build->finished.notify_all();
+    }).detach();
 }
 
-void build_native(Session &s)
+}
+
+void build_native(Session &s, bool wait)
 {
     Model &m=s.model();
-    if (!m.native_pending) return;
-    const Model::NativePending pending=std::move(*m.native_pending);
-    m.native_pending.reset();
+    if (!m.native_build || (!wait && !m.native_build->finished.load(std::memory_order_acquire))) return;
+    const std::shared_ptr<Model::NativeBuild> build=std::move(m.native_build);
+    build->finished.wait(false,std::memory_order_acquire); /* blocks until the thread notifies; no busy wait */
     /* the programs by their names again, not by pointers kept since the translation: a vector of them may have
        grown (a derived parameter added, the browser's column), and a program edited since (dae_fun.cpp's guess)
        is no longer compiled */
@@ -1007,7 +1025,7 @@ void build_native(Session &s)
         for (const auto &entry:entries) {entry.code->compiled=false;entry.code->native=nullptr;}
         m.rhs_impurity="MIR: "+error.what;
     };
-    auto compiled=mir::Program::compile(pending.ir,pending.place);
+    Result<std::unique_ptr<mir::Program>> &compiled=build->result;
     if (!compiled) return interpreted(compiled.error());
     for (const auto &entry:entries) {
         if (!entry.code->compiled) continue;
@@ -1015,24 +1033,19 @@ void build_native(Session &s)
         if (!address) return interpreted(address.error());
         entry.code->native=reinterpret_cast<decltype(Program::native)>(*address);
     }
-    if (!pending.rhs_symbol.empty()) {
-        auto address=(*compiled)->function(pending.rhs_symbol);
+    if (!build->rhs_symbol.empty()) {
+        auto address=(*compiled)->function(build->rhs_symbol);
         if (!address) return interpreted(address.error());
         m.native_rhs=reinterpret_cast<decltype(Model::native_rhs)>(*address);
     }
-    m.native_equations=pending.equations;
+    m.native_equations=build->equations;
     m.native_program=std::move(*compiled);
-    log(XPP_LOG_INFO,"Built the native code after {} interpreted operations\n",s.parser.interpreted_ops);
-}
-
-void build_native_when_due(Session &s)
-{
-    if (s.parser.interpreted_ops>=s.model().native_pending->build_at) build_native(s);
+    log(XPP_LOG_INFO,"The native code is in use ({})\n",wait?"waited for":"built while the run went on");
 }
 
 bool native_ready(Session &s)
 {
-    build_native(s);
+    build_native(s,true);
     return pure_rhs_ready(s);
 }
 
@@ -1184,7 +1197,10 @@ Result<std::vector<Error>> translate_model(Session &s)
     Place requested=std::move(m.jacobian.requested);
     m.jacobian=ExactJacobian{};
     m.jacobian.requested=std::move(requested);
+    /* the exact Jacobian a model asks for compiles on this thread first: compiles take turns (xpp_mir.h), and the
+       run needs the Jacobian before its first step, the programs only once they are built */
     if (s.numerics.jacobian==JACOBIAN_EXACT) ensure_exact_jacobian(s);
+    if (m.native_build) start_build(m.native_build);
     return compiled;
 }
 

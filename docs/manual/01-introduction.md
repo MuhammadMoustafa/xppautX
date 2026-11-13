@@ -216,10 +216,11 @@ with `--verbose` or `--debug`. What the log shows and where it goes are yours, n
 ### Command-line options
 
 Core equations and user functions compile with the built-in MIR compiler: they are
-translated when the first computation starts, and the code is built once the interpreter
-has done as much work as the build would cost, so a short run never pays for a compile
-it would not recoup (the log says when the code was built). A run on several threads
-(a sweep, autoX's collocation) builds it before it starts. Parameters and variables are read at each evaluation, and
+translated when the first computation starts, and the code is built on a thread of its
+own while the run goes on in the interpreter, which gives the same values bit for bit;
+the run switches to the code at the start of a right-hand side once it is built, so a
+short run never waits for a compile (the log says when the code came into use). A run on
+several threads (a sweep, autoX's collocation) waits for it before it starts. Parameters and variables are read at each evaluation, and
 compiled execution preserves the interpreter's numerical operations. The whole
 expression language compiles (tables, networks, vectorizers, kernels, sums,
 delays and shifts, `set`, `@` and random draws), the compiled code calling the

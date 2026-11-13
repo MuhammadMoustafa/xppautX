@@ -37,6 +37,7 @@
 #include "expr_program.h"
 
 #include <array>
+#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -155,18 +156,22 @@ struct Model {
   /* W713: the model is loaded but translate_model has not run: the first computation's start runs it (ensure_compiled), so a model that is
      only opened costs no compile; until then every program is interpreted */
   bool compile_pending=false;
-  /* W715: the native code translate_model found, as MIR's input, until build_native builds it: when the
-     interpreter has done as much work as the compile would cost (my_rhs checks at each right-hand side,
-     build_native_when_due), or before a run on threads (native_ready). The interpreter serves until then, bit
-     for bit the same, so a short run pays no compile. */
-  struct NativePending {
-    IrModule ir;            /* the functions of the programs with Program::compiled (model_programs names them) */
+  /* W715: MIR compiles the native code translate_model found on a thread of its own, from the IrModule the
+     build holds, while the run goes on interpreted, bit for bit the same; the core thread takes the finished
+     Program at the start of a right-hand side (my_rhs, build_native), never mid-evaluation, or waits for it
+     before a run on threads (native_ready). The functions of the programs with Program::compiled are named by
+     model_programs. The thread is detached and holds the build with the Model (a shared_ptr each): when the
+     Model goes first (a reload, a quit while it compiles) the thread finishes on its own and its result goes
+     with the build; the session list is never destroyed, so no thread is left to join at exit. */
+  struct NativeBuild {
+    IrModule ir;            /* the thread's alone once started */
+    Place place;            /* where MIR's error is reported */
     std::string rhs_symbol; /* the right-hand side's function (native_rhs), "" when there is none */
     bool equations=false;   /* native_equations once built */
-    Place place;            /* where MIR's error is reported */
-    std::int64_t build_at=0; /* the Session's ParserState::interpreted_ops at which the build is due */
+    std::atomic<bool> finished{false}; /* set by the thread once `result` is written; waited on with atomic wait */
+    Result<std::unique_ptr<mir::Program>> result;
   };
-  std::optional<NativePending> native_pending;
+  std::shared_ptr<NativeBuild> native_build;
   /* the exact Jacobian compile_jacobian made, or why there is none (W260) */
   ExactJacobian jacobian;
   /* The independent subsystems (W433, translate_model): the connected
