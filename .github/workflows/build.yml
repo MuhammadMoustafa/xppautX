@@ -422,6 +422,8 @@ jobs:
           cd /tmp && "$GITHUB_WORKSPACE/xppautX" "$GITHUB_WORKSPACE/examples/ode/lecar.odex" --silent
           test "$(wc -l < output.dat)" -eq 601
           echo "md5 on this platform: $(md5 -q output.dat) (linux baseline 58fed7a175a635010b7698da91dc4e4c)"
+          # the md5 is the same interpreted or compiled: the log says MIR compiled the model (W714)
+          "$GITHUB_WORKSPACE/xppautX" "$GITHUB_WORKSPACE/examples/ode/lecar.odex" --silent --verbose 2>&1 | grep "Compiled 11 of 11 programs"
       - name: Command-line modes (--help, --browser, --no-open)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh
@@ -591,6 +593,7 @@ jobs:
           top=$PWD
           cd "$(mktemp -d)" && "$top/xppautX.exe" "$top/examples/ode/lecar.odex" --silent
           test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = 58fed7a175a635010b7698da91dc4e4c
+          "$top/xppautX.exe" "$top/examples/ode/lecar.odex" --silent --verbose 2>&1 | grep "Compiled 11 of 11 programs"
       - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh xppautX.exe
@@ -762,6 +765,7 @@ jobs:
           top=$PWD
           cd "$(mktemp -d)" && "$top/build/clang/xppautX.exe" "$top/examples/ode/lecar.odex" --silent
           test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = 58fed7a175a635010b7698da91dc4e4c
+          "$top/build/clang/xppautX.exe" "$top/examples/ode/lecar.odex" --silent --verbose 2>&1 | grep "Compiled 11 of 11 programs"
       - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh build/clang/xppautX.exe

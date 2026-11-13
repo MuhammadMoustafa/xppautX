@@ -70,6 +70,8 @@ else
   exit 1
 fi
 tmp=$(mktemp -d)
+# the md5 is the same interpreted or compiled: the log says the model's code ran native (W714: MIR)
+( cd "$tmp" && "$OLDPWD/xppautX" "$OLDPWD/examples/ode/lecar.odex" --silent --verbose 2>&1 >/dev/null | grep -q "Compiled 11 of 11 programs" ) || { echo "HEADLESS --silent: lecar was not compiled"; exit 1; }
 ( cd "$tmp" && "$OLDPWD/xppautX" "$OLDPWD/examples/ode/lecar.odex" --silent >/dev/null 2>&1 )
 sum=$(md5sum "$tmp/output.dat" 2>/dev/null | cut -d' ' -f1)
 rows=$(wc -l < "$tmp/output.dat" 2>/dev/null || echo 0)
