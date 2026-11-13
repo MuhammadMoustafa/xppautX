@@ -738,7 +738,9 @@ work as "Review: ...".
 
 Models are named by family, never by version (maintainer, 2026-10-01), so
 a newer one is used the day it ships: a Claude agent's `model:` is the bare
-alias (haiku, sonnet, opus). Codex agents are a second pool (luna, sol;
+alias (haiku, sonnet, opus). Fable is never used, for a card, a review or
+any other agent, unless the maintainer names it for that work (maintainer,
+2026-11-13: W715 and W717 went to Fable off the ladder). Codex agents are a second pool (luna, sol;
 never astra, which is token hungry, maintainer, 2026-10-01); Codex has no
 aliases, so the newest listed model of a family is found with the
 task-board skill's `codex_model.py <family>`. Which model and effort runs a
