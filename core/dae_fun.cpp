@@ -293,9 +293,7 @@ Result<double> set_dae_guess(xpp::Session &s, int i, std::string_view formula)
   if(const Result<> compiled=compile_formula(s,formula);!compiled)
     return xpp::fail("initial guess",xpp::format("{}: illegal formula {}: {}",var.name,formula,compiled.error().what),command_place());
   var.rhs=formula;
-  /* a guess edited at run time no longer has its load-time native code */
-  var.form.native=nullptr;
-  var.form.compiled=false;
+  var.form.forget_code(); /* a guess edited at run time no longer has its load-time code */
   int n;
   add_expr(s,var.rhs,var.form.rpn,&n);
   var.form.rpn.resize(std::max(100, n+2), 0);

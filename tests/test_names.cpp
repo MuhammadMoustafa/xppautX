@@ -19,7 +19,7 @@ static double calc(const std::string &expr, int *ok)
     std::vector<int> command;
     int length = 0;
     *ok = (xpp::add_expr(xpp::client_session(), expr, command, &length) == 0);
-    return *ok ? xpp::evaluate(xpp::client_session(), command.data()) : 0.0;
+    return *ok ? xpp::evaluate(xpp::client_session(), command) : 0.0;
 }
 
 TEST_CASE("test_names")

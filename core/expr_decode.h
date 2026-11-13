@@ -7,10 +7,10 @@
    value domain to run: Generator::sequence (C text, expr_native.cpp) and
    the differentiator's Reader (a Symbolic term, expr_derivative.cpp). A
    walker checks no structure of its own, only what its domain refuses.
-   The interpreter (expr_eval.cpp) keeps its own loop over the ints: it
-   runs every right-hand side at every step, and a program it runs was
-   checked when it was compiled, so decoding there would cost a pass
-   per evaluation. C++ only, the expression engine's own (expr.h). */
+   The interpreter (expr_eval.cpp) is the third walker: it decodes a
+   program once, at its first evaluation, into the instructions it then
+   runs at every step (Program::ops, W717). C++ only, the expression
+   engine's own (expr.h). */
 #include "expr_program.h"
 
 #include <cstddef>

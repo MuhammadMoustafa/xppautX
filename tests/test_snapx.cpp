@@ -145,7 +145,7 @@ void check_saved_animation(const xpp::TempDir &tmp)
     CHECK(write_file("motion.anix", "model: \"animated.odex\"\nline { x1: near(0,.05,tol=.1), y1: 0, x2: x, y2: 1 }\n"));
     CHECK(load("animated.odex"));
     CHECK(xpp::client_session().animation.ncom == 1);
-    CHECK(xpp::evaluate(xpp::client_session(), xpp::client_session().animation.commands.front().x1.data()) == 1);
+    CHECK(xpp::evaluate(xpp::client_session(), xpp::client_session().animation.commands.front().x1) == 1);
     xpp::snapx::Manifest manifest;
     auto entries = xpp_saved_entries(xpp::client_session(), manifest);
     CHECK(entries.has_value());

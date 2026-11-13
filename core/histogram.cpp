@@ -228,7 +228,7 @@ Result<> new_2d_hist(xpp::Session &s, const HIST_INFO *given)
 xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int col, int col2, const char *condition, int which)
 {
   int i,j,index;
-  std::vector<int> command;
+  Program command;
   int cond=0,flag=1;
   double z,y;
   double dz;
@@ -237,7 +237,7 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
   dz=(zhi-zlo)/static_cast<double>((length-1));
   if(which==0&&strlen(condition)>0){
     /* a condition that does not compile is the command's error, nothing is made */
-    if(add_expr(s,condition,command,&i)){
+    if(add_expr(s,condition,command.rpn,&i)){
       s.parser.ncon=s.model().ncon_start;
       s.parser.nsym=s.model().nsym_start;
       return xpp::fail("histogram",xpp::format("The condition \"{}\" is not a formula",condition),command_place());
@@ -265,7 +265,7 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
 	  for(j=0;j<s.model().node+1;j++)setvar(s,j,static_cast<double>(s.data_store.col[j][i]));
 	  for(j=0;j<s.model().nmarkov;j++)
 	    setvar(s,j+s.model().node+1+s.model().fix_var,static_cast<double>(s.data_store.col[j+s.model().node+1][i]));
-	  z=evaluate(s,command.data());
+	  z=evaluate(s,command);
 	  if(fabs(z)>0.0)flag=1;
 	  else flag=0;
 	}

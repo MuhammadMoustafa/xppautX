@@ -100,7 +100,7 @@ void put_bc_text(std::vector<char> &text, std::string_view string)
 void set_bc(xpp::Model &m, int i, std::string_view string)
 {
   xpp::Model::BoundaryCondition &b=m.bcs[i];
-  b.com.clear();
+  b.com=Program{};
   b.string.assign(256,'\0');
   b.name.assign(10,'\0');
   put_bc_text(b.string,string);

@@ -60,46 +60,158 @@
 #include "expr.h"
 #include "xpp_error.h"
 #include "xpp_mir.h"
+#include "expr_ir.h"
 
 #include <array>
+#include <atomic>
 #include <bit>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+namespace xpp::expr {
+using Fun1 = double (*)(double);
+using Fun2 = double (*)(double, double);
+
+/* a value of a Symbolic graph (expr_derivative.h): its node's index */
+class Symbolic;
+struct Term {
+    int id = -1;
+    friend bool operator==(Term, Term) = default;
+};
+
+/* The interpreter's instruction (expr_eval.cpp, W717): the RPN decoded once
+   (expr_decode.h checked it), so that running a program reads no instruction
+   twice: every operand is an index or a value here, every built-in function
+   its address, and every jump the index of the instruction it goes to. */
+enum class OpKind : unsigned char {
+    Number,        /* push number (NUMSYM, INDXCOM, and SVARTYPE's or SCONTYPE's COM as a double) */
+    Constant,      /* push constants[a] */
+    Variable,      /* push variables[a] */
+    Argument,      /* push argument a of the user function running (count: the stack's depth here, for ArgumentAt) */
+    ArgumentAt,    /* push the value a below the top: argument of a user function whose body is inlined */
+    Add,           /* FUN2TYPE's + - * / (the .ode division: a zero divisor is ZERO_DIVISOR) and IEEE_DIVIDE */
+    Subtract,
+    Multiply,
+    Divide,
+    IeeeDivide,
+    AddNumber,     /* the same with their right operand number, constants[a] or variables[a] pushed first: one
+                      instruction for the two, the operation as written */
+    SubtractNumber,
+    MultiplyNumber,
+    DivideNumber,
+    IeeeDivideNumber,
+    AddConstant,
+    SubtractConstant,
+    MultiplyConstant,
+    DivideConstant,
+    IeeeDivideConstant,
+    AddVariable,
+    SubtractVariable,
+    MultiplyVariable,
+    DivideVariable,
+    IeeeDivideVariable,
+    Fun1,          /* pop x, push fun1(x) */
+    Fun2,          /* pop y then x, push fun2(x,y) */
+    Call,          /* user function a with count arguments (UFUNTYPE) */
+    Drop,          /* an inlined user function's end: its value replaces its a arguments beneath it (ENDFUN) */
+    If,            /* pop x; when x is 0 go to instruction a (MYIF) */
+    Then,          /* go to instruction a (MYTHEN) */
+    Sum,           /* pop high then low; run the instructions that follow, to their Return, for each index; go to a (SUMSYM) */
+    Delay,         /* ENDDELAY ... RANDNORM as expr_program.h describes them */
+    DelayShift,
+    Shift,
+    IShift,
+    Set,
+    Table,         /* pop x, push table a at x; likewise network a, vectorizer a */
+    Network,
+    Vector,
+    Kernel,        /* push kernel a's integral */
+    RandomUniform,
+    RandomPoisson,
+    RandomNormal,
+    Return         /* the program's, or a sum's body's, value is the top (ENDEXP, ENDSUM) */
+};
+struct Op {
+    OpKind kind = OpKind::Return;
+    int a = 0;
+    union {
+        double number = 0; /* Number */
+        Fun1 fun1;         /* Fun1 */
+        Fun2 fun2;         /* Fun2 */
+        int count;         /* Call: its argument count; Argument: the stack's depth */
+    };
+};
+}
+
 namespace xpp {
-/* A program the Model holds: its RPN and the function translate_model made
-   from it (none: interpreted). The function's last argument is the RPN,
-   whose first two operands a network rewrites for each pair. */
+/* A program the Model holds: its RPN, the interpreter's form of it, and the
+   function translate_model made from it (none: interpreted). The function's
+   last argument is the RPN, whose first two operands a network rewrites for
+   each pair (and the first two instructions of `ops` with them). */
 struct Program {
     std::vector<int> rpn;
+    /* the RPN decoded for the interpreter (expr_eval.cpp), made at the first evaluation, on the core thread, the
+       only one that interprets (a run on threads calls native code: native_ready); remade after the RPN is
+       rewritten (forget_code) */
+    mutable std::vector<expr::Op> ops;
     std::vector<int> native_reads; /* variables read by this code and its user functions */
     bool array_pure = false; /* native code only uses c/v and immutable lookup tables */
     double (*native)(double *, double *, Session *, const int *) = nullptr;
     bool compiled = false; /* translate_model made native code for it (W715): `native` once build_native built the model's code */
     bool in_rhs = false; /* compiled only inside the model's one right-hand side function (W708): no native of its own */
+    /* the RPN was rewritten at run time (a user function redefined, a DAE guess edited): neither the native code
+       nor the interpreter's form holds any more */
+    void forget_code() { native = nullptr; compiled = false; ops.clear(); }
 };
 
-/* Derivatives compile_jacobian compiled (W260, expr_derivative.h): the
-   function writes the value of entry k into out[k], from the constants c
-   and the variables v (v[0] the time, v[1..] the state; only these are
-   read) and the Session S (its tables, only read). Entry k is d f_rows[k] / d x of
-   column columns[k] (a state's index from 0) in the state Jacobian, and
-   of the column's own variable in the others (columns empty). */
+/* A module MIR compiles on a thread of its own (W715; the programs' translate_model found native, or the exact
+   Jacobian's derivatives), from the IrModule the build holds, while the run goes on interpreted, bit for bit
+   the same. The thread starts once the interpreter has done the work of a short run (`due`, against
+   ParserState::interpreted_ops: W717, so a short run never pays for a thread), or at once for a run on threads
+   (native_ready); the core thread takes the finished Program at the start of a right-hand side
+   (my_rhs, build_native), never mid-evaluation. The thread is detached and holds the build with the Model (a
+   shared_ptr each): when the Model goes first (a reload, a quit while it compiles) the thread finishes on its own
+   and its result goes with the build. */
+struct NativeBuild {
+    IrModule ir;            /* the thread's alone once started */
+    Place place;            /* where MIR's error is reported */
+    std::string rhs_symbol; /* the programs' build: the right-hand side's function (native_rhs), "" when there is none */
+    bool equations = false; /* the programs' build: native_equations once built */
+    std::uint64_t due = 0;  /* the interpreted_ops count the thread starts at */
+    bool started = false;
+    std::atomic<bool> finished{false}; /* set by the thread once `result` is written; waited on with atomic wait */
+    Result<std::unique_ptr<mir::Program>> result;
+};
+
+/* Derivatives of the exact Jacobian (W260, expr_derivative.h): entry k is
+   d f_rows[k] / d x of column columns[k] (a state's index from 0) in the
+   state Jacobian, and of the column's own variable in the others (columns
+   empty). Its value is terms[k] of the Jacobian's graph, which
+   evaluate_derivatives (expr.h) computes through `nodes` (the graph's
+   nodes the entries need, in their order) until MIR's code is built:
+   then `function` writes entry k into out[k], from the constants c and
+   the variables v (v[0] the time, v[1..] the state; only these are read)
+   and the Session S (its tables, only read), bit for bit the same. */
 struct JacobianProgram {
     void (*function)(const double *c, const double *v, void *S, double *out) = nullptr;
     std::vector<int> rows, columns;
+    std::vector<expr::Term> terms;
+    std::vector<int> nodes;
 };
 
 /* The model's exact Jacobian (W260): with respect to the state, the time
    and each constant that a right-hand side depends on (by_constant, by
    the constant's index, ascending), or why the model has none. */
 struct ExactJacobian {
+    std::shared_ptr<expr::Symbolic> graph; /* the derivatives' values (expr_derivative.h), when the model has them */
+    std::shared_ptr<NativeBuild> build;  /* MIR's compile of them, until taken (build_native) */
     std::unique_ptr<mir::Program> code;
     JacobianProgram states, time;
     std::vector<std::pair<int, JacobianProgram>> by_constant;
-    /* why there is none, when states.function is null */
+    /* why there is none, when there is no graph */
     std::string unavailable;
     /* where the model's own @ jacobian=exact is, for the error when there
        is none */
@@ -107,7 +219,7 @@ struct ExactJacobian {
     /* made, or tried and failed: ensure_exact_jacobian (expr_native.h)
        makes it on first need */
     bool tried = false;
-    bool available() const { return states.function != nullptr; }
+    bool available() const { return graph != nullptr; }
 };
 }
 
@@ -157,8 +269,6 @@ constexpr double CURRENT_INDEX = 0;
 /* the built-in functions FUN1TYPE and FUN2TYPE call, by index
    (expr_functions.cpp), FUN1_COUNT and FUN2_COUNT of them */
 constexpr std::size_t FUN1_COUNT = 26, FUN2_COUNT = 24;
-using Fun1 = double (*)(double);
-using Fun2 = double (*)(double, double);
 extern const std::array<Fun1, FUN1_COUNT> fun1;
 extern const std::array<Fun2, FUN2_COUNT> fun2;
 /* the FUN2TYPE indices of + - * / (an .ode model's guarded division),

@@ -440,16 +440,16 @@ void forget_formula_symbols(xpp::Session &s)
 
 Result<> compute_added_column(xpp::Session &s, const std::string &formula, int col_index, int nrows)
 {
-  std::vector<int> com;
+  Program com;
   int length=0;
-  if(xpp::add_expr(s,formula,com,&length)){
+  if(xpp::add_expr(s,formula,com.rpn,&length)){
     forget_formula_symbols(s);
     return fail("data","Bad Formula .... ",command_place());
   }
   RowValues row(s);
   for(int i=0;i<nrows;i++){
     row.set(s.data_store.col,i);
-    s.data_store.col[col_index][i]=xpp::evaluate(s,com.data());
+    s.data_store.col[col_index][i]=xpp::evaluate(s,com);
   }
   forget_formula_symbols(s);
   return {};
@@ -511,7 +511,7 @@ Result<> replace_data_column(xpp::Session &s, std::string_view column, std::stri
  const ColumnTable dat=s.data.view.data;
  const int n=s.data.view.maxrow;
  std::string form(formula);
- std::vector<int> com;
+ Program com;
  int i;
  int intflag=0;
  int dif_var=-1;
@@ -552,7 +552,7 @@ if(dif_var<0){
 /*  first compile formula ... */
 
  if(dif_var<0&&seq==Sequence::none){
-   if(xpp::add_expr(s,form,com,&i)){
+   if(xpp::add_expr(s,form,com.rpn,&i)){
      s.parser.ncon=s.model().ncon_start;
      s.parser.nsym=s.model().nsym_start;
      return fail("data",xpp::format("Illegal formula: \"{}\"",form),here);
@@ -584,11 +584,11 @@ if(dif_var<0){
 	   row.set(dat,i);
 	   if(intflag)
 	     {
-	       sum+=xpp::evaluate(s,com.data());
+	       sum+=xpp::evaluate(s,com);
 	       dat[s.data.replaced_col][i]=sum*dt;
 	     }
 	   else 
-	     dat[s.data.replaced_col][i]=xpp::evaluate(s,com.data());
+	     dat[s.data.replaced_col][i]=xpp::evaluate(s,com);
 	 }
        else 
 	 {

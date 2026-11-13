@@ -159,10 +159,10 @@ Result<> new_h_fun(xpp::Session &s, bool compile, const std::vector<std::string>
     return fail("adjoint","incompatible data and adjoint",command_place());
  if(compile){
    const auto &given=couplings?*couplings:a.coup_string;
-   std::vector<std::vector<int>> compiled(static_cast<std::size_t>(s.model().node));
+   std::vector<Program> compiled(static_cast<std::size_t>(s.model().node));
    for(int i=0;i<s.model().node;++i){
      int count=0;
-     if(add_expr(s,given[static_cast<std::size_t>(i)],compiled[static_cast<std::size_t>(i)],&count)){
+     if(add_expr(s,given[static_cast<std::size_t>(i)],compiled[static_cast<std::size_t>(i)].rpn,&count)){
        s.parser.nsym=s.model().nsym_start;
        s.parser.ncon=s.model().ncon_start;
        return fail("adjoint",xpp::format("Illegal formula {}",given[static_cast<std::size_t>(i)]),command_place());
@@ -217,7 +217,7 @@ Result<> make_h(xpp::Session &s, ColumnTable orb, ColumnTable adj, ColumnTable h
 
        for(int i=0;i<node;i++){
 	
-	 z=evaluate(s,s.adjoint.coup_fun[i].data());
+	 z=evaluate(s,s.adjoint.coup_fun[i]);
 	
 	 sum=s.data_store.round(sum+s.data_store.round(s.data_store.round(z)*adj[i+1][k]));
        }

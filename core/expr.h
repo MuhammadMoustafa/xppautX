@@ -80,16 +80,24 @@ int add_ufun_new(Session &s, int index, std::string_view rhs, std::span<const st
    1 (said why) when it did not (expr_compile.cpp) */
 int add_expr(Session &s, std::string_view expr, std::vector<int> &command, int *length = nullptr);
 /* program's value, run on s's stacks: the right-hand side, every step
-   (expr_eval.cpp) */
-double evaluate(Session &s, const int *program);
-/* Model-backed programs dispatch to their native function when enabled. */
+   (expr_eval.cpp). A Program runs its native function when it has one,
+   else its instructions, decoded from its RPN once; a program held only
+   as RPN (an expression entered once) is decoded for the evaluation. */
 struct Program;
 double evaluate(Session &s, const Program &program);
+double evaluate(Session &s, std::span<const int> program);
 /* A native program's value from the caller's own arrays, with s only read:
    for a program translate_model proved array_pure (it reads c, v and the
    immutable lookup tables, never s's stacks), so autoX's collocation workers
    share s const (expr_eval.cpp). */
 double evaluate_pure(const Session &s, const Program &program, double *constants, double *variables);
+/* The exact Jacobian's entries of p (expr_program.h JacobianProgram) into out, evaluated from their graph
+   (its nodes' values kept in `values`, p's own in it), from the constants c and the variables v, with s only
+   read (its tables): what p's native function computes once built, bit for bit the same (expr_eval.cpp). */
+struct JacobianProgram;
+namespace expr { class Symbolic; }
+void evaluate_derivatives(const Session &s, const expr::Symbolic &graph, const JacobianProgram &p, const double *c, const double *v,
+                          std::vector<double> &values, std::span<double> out);
 /* name as the symbol table keeps it: blanks removed, upper case */
 std::string converted(std::string_view name);
 /* name (as converted makes it) is a built-in symbol, the symbol table's
@@ -195,6 +203,10 @@ struct ParserState {
     if (symbols.size() < static_cast<size_t>(nsym) + 3) symbols.resize(2 * symbols.size());
   }
   ExprStack stack;
+  /* how many instructions the interpreter has run (a program's count at each evaluation, a sum's body's at
+     each index, a called function's at each call): what says when a native build is due (expr_native.cpp
+     NativeBuild) */
+  std::uint64_t interpreted_ops = 0;
   /* the Model builder's count of variables read (in_vars) and the named
      auxiliary variables (naux of aux_names) (form_ode.cpp) */
   struct {

@@ -626,6 +626,7 @@ int add_ufun_new(xpp::Session &s, int index, std::string_view rhs, std::span<con
   int end;
   int narg=static_cast<int>(args.size());
   m.ufun_programs[index].rpn.clear();
+  m.ufun_programs[index].forget_code();
   set_ufun_def(m,index,"");
   m.ufun_args[index].assign(args.begin(),args.end());
   set_ufun_arg_names(s,index);

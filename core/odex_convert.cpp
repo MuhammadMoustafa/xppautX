@@ -849,7 +849,7 @@ private:
       return std::nullopt;
     }
     prog.push_back(ENDEXP);
-    return evaluate(s_,prog.data());
+    return evaluate(s_,prog);
   }
 
   /* a leaf's value: a number, or a constant of the model's */

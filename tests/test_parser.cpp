@@ -17,7 +17,7 @@ static double calc(std::string_view expr, int *ok)
     int length = 0;
     *ok = (xpp::add_expr(xpp::client_session(), expr, command, &length) == 0);
     if (!*ok) return 0.0;
-    return xpp::evaluate(xpp::client_session(), command.data());
+    return xpp::evaluate(xpp::client_session(), command);
 }
 
 static int close_to(double a, double b)

@@ -318,6 +318,25 @@ Gradient scaled(Symbolic &g, const Gradient &a, Term factor)
 
 } // namespace
 
+std::vector<int> needed_nodes(const Symbolic &g, std::span<const Term> terms)
+{
+    std::vector<char> needed(g.size(), 0);
+    std::vector<int> pending;
+    for (const Term t : terms) pending.push_back(t.id);
+    while (!pending.empty()) {
+        const int id = pending.back();
+        pending.pop_back();
+        if (needed[static_cast<std::size_t>(id)]) continue;
+        needed[static_cast<std::size_t>(id)] = 1;
+        for (int a : g.node({id}).args)
+            if (a >= 0) pending.push_back(a);
+    }
+    std::vector<int> nodes;
+    for (std::size_t id = 0; id < g.size(); ++id)
+        if (needed[id]) nodes.push_back(static_cast<int>(id));
+    return nodes;
+}
+
 Result<ModelDerivatives> differentiate_model(const Session &s, std::span<const ModelProgram> programs)
 {
     const Model &m = s.model();

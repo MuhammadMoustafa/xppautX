@@ -26,6 +26,7 @@ struct DifferenceGroups {
 // Compiled derivative evaluation storage; autoX workers each own one.
 struct JacobianScratch {
   std::vector<double> point, values;
+  std::vector<double> graph; /* the exact Jacobian's graph's values while it is interpreted (evaluate_derivatives) */
   /* the model's difference groups, made on the first difference Jacobian */
   std::optional<DifferenceGroups> groups;
 };

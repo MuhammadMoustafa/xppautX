@@ -7472,11 +7472,11 @@ def check_jacobian_setting():
                                  cwd=model_dir, timeout=60 * SLOW)
             return out.stderr if out.returncode == 0 else 'exit %d: %s' % (out.returncode, out.stderr[-300:])
         log = load_log()
-        check('W260: a model loaded with the default setting has not compiled an exact Jacobian',
-              'Compiled ' in log and 'Compiled the exact Jacobian' not in log, log[-300:])
+        check('W260: a model loaded with the default setting has not made an exact Jacobian',
+              'Compiled ' in log and 'Made the exact Jacobian' not in log, log[-300:])
         with open(smooth, 'a') as f:
             f.write('options { integration: { jacobian.kind: exact } }\n')
-        check('W260: its own jacobian.kind: exact compiles it at load', 'Compiled the exact Jacobian' in load_log())
+        check('W260: its own jacobian.kind: exact makes it at load (its derivatives, compiled when the run is long: W717)', 'Made the exact Jacobian' in load_log())
         # Reload keeps the setting; a model with no exact Jacobian says so and takes difference
         lines = []
         p, r, snd, col, _ = launch_server(ode=smooth, log=lines)

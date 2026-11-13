@@ -247,10 +247,11 @@ std::string read_ani_line(xpp::LineReader &fp, bool &eof, int &lines, Place &pla
 }
 
 /* an expression compiled for evaluate(); false when it does not parse */
-bool compile_expr(xpp::Session &s, const char *x, std::vector<int> &c)
+bool compile_expr(xpp::Session &s, const char *x, xpp::Program &c)
 {
     int n;
-    if (xpp::add_expr(s,x, c, &n) == 1) return false;
+    c = xpp::Program{};
+    if (xpp::add_expr(s,x, c.rpn, &n) == 1) return false;
     return true;
 }
 
@@ -283,7 +284,7 @@ bool named_ani_color(std::string &s, xpp::Color &color)
 int add_ani_color(xpp::Session &s, AniCom &a, std::string &col)
 {
     if (named_ani_color(col, a.color)) {
-        a.col_expr.clear();
+        a.col_expr = xpp::Program{};
         return 0;
     }
     return compile_expr(s, col.c_str(), a.col_expr) ? 0 : -1;
@@ -600,7 +601,7 @@ void do_grab_tasks(xpp::Session &s, int which) /* which=1 for start, 2 for end *
     if (i < 0 || i >= static_cast<int>(s.animation.grabs.size())) return; /*  no legal grab point */
     if (which != 1 && which != 2) return;
     for (GrabEvent &e : (which == 1 ? s.animation.grabs[i].start : s.animation.grabs[i].end).events)
-        xpp::set_val(s,e.lhs.c_str(), xpp::evaluate(s,e.rhs.data()));
+        xpp::set_val(s,e.lhs.c_str(), xpp::evaluate(s,e.rhs));
 }
 
 /* a command is known by its first two letters */
@@ -735,16 +736,16 @@ bool animation_memory(std::size_t &used, const AnimationState &animation,
         if (!snapx::account_memory(used, 1, sizeof(AniCom) + a.text.size()) ||
             !snapx::account_memory(used, a.c.n, 2 * sizeof(double) + sizeof(Color))) return false;
         for (const auto *program : {&a.x1, &a.y1, &a.x2, &a.y2, &a.who, &a.col_expr})
-            if (!snapx::account_memory(used, program->size(), sizeof(int))) return false;
+            if (!snapx::account_memory(used, program->rpn.size(), sizeof(int))) return false;
     }
     for (std::size_t i = grabs_before; i < animation.grabs.size(); ++i) {
         const auto &grab = animation.grabs[i];
         if (!snapx::account_memory(used, 1, sizeof(AniGrab)) ||
-            !snapx::account_memory(used, grab.x.size() + grab.y.size(), sizeof(int))) return false;
+            !snapx::account_memory(used, grab.x.rpn.size() + grab.y.rpn.size(), sizeof(int))) return false;
         for (const auto *task : {&grab.start, &grab.end})
             for (const auto &event : task->events)
                 if (!snapx::account_memory(used, 1, sizeof(GrabEvent) + event.lhs.size()) ||
-                    !snapx::account_memory(used, event.rhs.size(), sizeof(int))) return false;
+                    !snapx::account_memory(used, event.rhs.rpn.size(), sizeof(int))) return false;
     }
     return true;
 }
@@ -886,8 +887,8 @@ void set_from_init_data(xpp::Session &s)
 void eval_ani_color(xpp::Session &s, int j)
 {
     AniCom &a = s.animation.commands[j];
-    if (!a.col_expr.empty()) {
-        double z = xpp::evaluate(s,a.col_expr.data());
+    if (!a.col_expr.rpn.empty()) {
+        double z = xpp::evaluate(s,a.col_expr);
         if (z > 1) z = 1.0;
         if (z < 0) z = 0.0;
         a.zcol = z;
@@ -897,8 +898,8 @@ void eval_ani_color(xpp::Session &s, int j)
 void eval_ani_com(xpp::Session &s, int j)
 {
     AniCom &a = s.animation.commands[j];
-    a.zx1 = xpp::evaluate(s,a.x1.data());
-    a.zy1 = xpp::evaluate(s,a.y1.data());
+    a.zx1 = xpp::evaluate(s,a.x1);
+    a.zy1 = xpp::evaluate(s,a.y1);
 
     switch (a.type) {
     case LINE:
@@ -908,19 +909,19 @@ void eval_ani_com(xpp::Session &s, int j)
     case FELLIP:
     case AXNULL:
     case AYNULL:
-        a.zx2 = xpp::evaluate(s,a.x2.data());
-        a.zy2 = xpp::evaluate(s,a.y2.data());
+        a.zx2 = xpp::evaluate(s,a.x2);
+        a.zy2 = xpp::evaluate(s,a.y2);
         break;
     case CIRC:
     case FCIRC:
-        a.zrad = xpp::evaluate(s,a.x2.data());
+        a.zrad = xpp::evaluate(s,a.x2);
         break;
     case VTEXT:
-        a.zval = xpp::evaluate(s,a.x2.data());
+        a.zval = xpp::evaluate(s,a.x2);
         break;
     }
 
-    if (a.type == AXNULL || a.type == AYNULL) a.zval = xpp::evaluate(s,a.who.data());
+    if (a.type == AXNULL || a.type == AYNULL) a.zval = xpp::evaluate(s,a.who);
 }
 
 void set_ani_font_stuff(xpp::Session &s, int size, int font, const xpp::Color &color) { pen_font(s, size, font, color); }
@@ -928,7 +929,7 @@ void set_ani_font_stuff(xpp::Session &s, int size, int font, const xpp::Color &c
 void set_ani_col(xpp::Session &s, int j)
 {
     const AniCom &a=s.animation.commands[j];
-    const xpp::Color color=a.col_expr.empty()?a.color:xpp::ramp_color(s.ramp(),a.zcol);
+    const xpp::Color color=a.col_expr.rpn.empty()?a.color:xpp::ramp_color(s.ramp(),a.zcol);
     pen_color(s, color);
     s.animation.last_color = color;
     s.animation.pen.dash = a.dash;
@@ -1040,8 +1041,8 @@ void draw_grab_points(xpp::Session &s)
 {
     pen_color(s, xpp::foreground_color);
     for (AniGrab &g : s.animation.grabs) {
-        const double xc = xpp::evaluate(s,g.x.data());
-        const double yc = xpp::evaluate(s,g.y.data());
+        const double xc = xpp::evaluate(s,g.x);
+        const double yc = xpp::evaluate(s,g.y);
         g.zx = xc;
         g.zy = yc;
         const double z = g.tol;
@@ -1079,7 +1080,7 @@ public:
         if (required) fail(st_.pos, xpp::format("{} needs the expression {}", st_.name, key));
         return nullptr;
     }
-    void compile(std::string_view key, std::vector<int> &out)
+    void compile(std::string_view key, xpp::Program &out)
     {
         const auto &e = *expression(key);
         const std::string text = odex::engine_text(e);
@@ -1364,8 +1365,8 @@ Result<std::string> convert_animation(Session &s, std::string_view text, const s
         out += xpp::format("options {{ speed: {}, bounds: {{ x: [{}, {}], y: [{}, {}] }} }}\n",
                            animation.speed, odex::print_number(animation.xlo), odex::print_number(animation.xhi),
                            odex::print_number(animation.ylo), odex::print_number(animation.yhi));
-        auto expression = [&](const std::vector<int> &p) { return odex::print(odex::program_expression(s, p)); };
-        auto color = [&](const AniCom &a) { return a.col_expr.empty() ? quoted_color(a.color) : expression(a.col_expr); };
+        auto expression = [&](const xpp::Program &p) { return odex::print(odex::program_expression(s, p.rpn)); };
+        auto color = [&](const AniCom &a) { return a.col_expr.rpn.empty() ? quoted_color(a.color) : expression(a.col_expr); };
         int size = s.animation.pen.size, font = s.animation.pen.font;
         std::string text_color = quoted_color(foreground_color);
         bool permanent = false;
@@ -1595,7 +1596,7 @@ void render_ani(xpp::Session &s)
         if (type != SETTEXT && flag == TRANSIENT) eval_ani_com(s, i);
         if ((type == TEXT || type == VTEXT) && s.animation.commands[i].own_text_style) {
             const auto &a = s.animation.commands[i];
-            set_ani_font_stuff(s, a.tsize, a.tfont, a.col_expr.empty() ? a.tcolor : ramp_color(s.ramp(), a.zcol));
+            set_ani_font_stuff(s, a.tsize, a.tfont, a.col_expr.rpn.empty() ? a.tcolor : ramp_color(s.ramp(), a.zcol));
         }
         switch (type) {
         case AXNULL:

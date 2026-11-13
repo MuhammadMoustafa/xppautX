@@ -32,8 +32,9 @@ std::span<const double> entries(const Session &s, JacobianScratch &scratch, cons
   const std::span<double> out(scratch.values.data(), p.rows.size());
   v[0] = t;
   std::copy_n(x, m.node, v.begin() + 1);
-  /* the helpers only read the Session (its tables) */
-  mir::call(p.function, c, v.data(), const_cast<Session *>(&s), out.data());
+  /* the helpers only read the Session (its tables); until MIR's code is built, the graph (W717) */
+  if (p.function) mir::call(p.function, c, v.data(), const_cast<Session *>(&s), out.data());
+  else evaluate_derivatives(s, *m.jacobian.graph, p, c, v.data(), scratch.graph, out);
   for (size_t k = 0; k < out.size(); k++) {
     const int row = p.rows[k];
     if (std::isfinite(out[k]) || row >= n || !std::isfinite(f[row])) continue;

@@ -4,6 +4,7 @@
 #include "load_eqn.h"
 #include "odex.h"
 #include "line_style.h"
+#include "expr_program.h"
 #include <string>
 #include <vector>
 
@@ -52,8 +53,8 @@ struct AniCom {
     /* the color of the command: fixed (a named color, or none: the foreground), or the color of
        the color map at the value of the compiled expression (col_expr, empty when fixed) */
     Color color = foreground_color;
-    std::vector<int> col_expr;
-    std::vector<int> x1, y1, x2, y2, who;
+    Program col_expr;
+    Program x1, y1, x2, y2, who;
     std::string text; /* text and vtext's string */
     double zcol = 0, zx1 = 0, zy1 = 0, zx2 = 0, zy2 = 0, zrad = 0, zval = 0;
     double zthick = 0;
@@ -75,7 +76,7 @@ constexpr double GRAB_TOLERANCE = .02;
 /* tasks have the form {name1=formula1;name2=formula2;...} */
 struct GrabEvent {
     std::string lhs;
-    std::vector<int> rhs;
+    Program rhs;
 };
 
 struct GrabTask {
@@ -85,7 +86,7 @@ struct GrabTask {
 
 struct AniGrab {
     double zx = 0, zy = 0, tol = 0;
-    std::vector<int> x, y;
+    Program x, y;
     GrabTask start, end;
 };
 

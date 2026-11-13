@@ -23,7 +23,9 @@
 #include "xpp_math.h"
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -68,13 +70,24 @@ struct Fixture {
         model->programs[1].rpn = zero;
     }
 
-    /* x' = rpn (ENDEXP added), compiled with its exact Jacobian */
+    /* x' = rpn (ENDEXP added), compiled with its exact Jacobian: its derivatives evaluated from their graph
+       until MIR's code is built (W717), bit for bit what the code then computes */
     bool compile(std::vector<int> rpn)
     {
         rpn.push_back(ENDEXP);
         model->programs[0].rpn = std::move(rpn);
         CHECK(compile_model(*session).has_value());
-        return xpp::ensure_exact_jacobian(*session);
+        if (!xpp::ensure_exact_jacobian(*session)) return false;
+        xpp::Session &s = *session;
+        CHECK(model->jacobian.build && !model->jacobian.states.function);
+        const double point[2] = {0.3, 0.7}, fxy[2] = {f(0, 0.3, 0.7), 0};
+        double interpreted[4], compiled[4];
+        xpp::exact_jacobian(s, s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, interpreted);
+        xpp::build_native(s, true);
+        CHECK(!model->jacobian.build && model->jacobian.states.function);
+        xpp::exact_jacobian(s, s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, compiled);
+        for (int k = 0; k < 4; ++k) CHECK(std::bit_cast<std::uint64_t>(interpreted[k]) == std::bit_cast<std::uint64_t>(compiled[k]));
+        return true;
     }
 
     /* x' at (t, x, y) */

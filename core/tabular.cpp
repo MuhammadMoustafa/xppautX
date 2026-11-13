@@ -232,9 +232,9 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int index, int n, double xlo, doub
   
   double dx;
   double oldt;
-  std::vector<int> command;
+  Program command;
   int ncold=s.parser.ncon,nsym=s.parser.nsym;
-  if(add_expr(s,formula,command,&i)){
+  if(add_expr(s,formula,command.rpn,&i)){
     s.parser.ncon=ncold;
     s.parser.nsym=nsym;
     return xpp::fail("table",xpp::format("Illegal formula {}",formula),table_place(s,index));
@@ -243,7 +243,7 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int index, int n, double xlo, doub
   dx=(xhi-xlo)/(static_cast<double>(n-1));
   for(i=0;i<n;i++){
     setvar(s,0,dx*i+xlo);
-    y[i]=evaluate(s,command.data());
+    y[i]=evaluate(s,command);
     if (s.integrator.step_error) {
       setvar(s,0,oldt);
       s.parser.ncon=ncold;

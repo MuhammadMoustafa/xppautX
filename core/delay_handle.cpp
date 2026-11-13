@@ -177,7 +177,7 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
 
  /* del_form's per-node formula buffers are std::vectors: every return
     path below frees them. */
- std::vector<std::vector<int>> del_form(s.model().node);
+ std::vector<Program> del_form(s.model().node);
  /* Allocation proves the ratio and all history indices representable. */
  if(!s.delay.flag)return xpp::fail("delay","Delay history is not allocated",model_place(s.model(),"delay"));
  const double ratio=big/fabs(s.numerics.delta_t);
@@ -187,7 +187,7 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
  s.parser.ncon=s.model().ncon_start;
  s.parser.nsym=s.model().nsym_start;
  for(i=0;i<(s.model().node );i++){
-	 if(add_expr(s,s.delay_string[i],del_form[i],&len)){
+	 if(add_expr(s,s.delay_string[i],del_form[i].rpn,&len)){
 		 s.parser.ncon=s.model().ncon_start;
 		s.parser.nsym=s.model().nsym_start;
 		return xpp::fail("delay",xpp::format("Illegal delay expression {} for {}",s.delay_string[i],s.model().uvar_names[i]),
@@ -203,7 +203,7 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
 	t=s.numerics.start_time-fabs(s.numerics.delta_t)*row;
 	set_val(s,"t",t);
 	for(j=0;j<(s.model().node );j++)
-		y[j]=evaluate(s,del_form[j].data());
+		y[j]=evaluate(s,del_form[j]);
 	stor_delay(s,y.data());
   }
    s.parser.ncon=s.model().ncon_start;

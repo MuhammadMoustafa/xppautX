@@ -610,3 +610,114 @@ interpreter's, not a policy; a cheaper first-tier back end would be the next des
 **Trust boundary.** The thread reads the Generator's trees it owns and writes its own result; the core thread
 reads them after `finished` (release/acquire) and the join. Nothing of a model reaches the thread but those
 trees. `tsancheck` runs servercheck and webcheck under ThreadSanitizer with the thread in every model's run.
+
+## W717 Short runs as fast as with TinyCC: a first tier before MIR's code (#792), Linux results
+
+Card W717 (#792), after W715. The maintainer's decision (2026-11-13): two permanent tiers, the RPN interpreter
+(the reference every compiled result is checked against, the programs MIR does not compile, and the start of
+every run) and MIR (long runs); no third back end. The card makes the interpreter faster, bit for bit the same,
+and keeps the core thread free of what the run does not need before it starts. Measured on the Ubuntu machine
+(`perf stat -r 40` elapsed for the short runs, `-r 5` for the long ones; the TinyCC program is 006ac0d8 built in
+a scratch worktree; master is dc1e4f9e, W715 with its review commit, whose exit waits for the compile thread;
+"tiny" is the model with `total_time` one step).
+
+**Where the interpreter's time went** (callgrind, master's `eval_rpn` on lecar `--silent`: 17.3 M of the core
+thread's 30.6 M instructions, 10.7 M of them in the nullclines' 4000 evaluations). About 15 instructions an RPN
+operation: the `switch` on the raw instruction, a sparse set of values (`COM(FUN2TYPE,0)` is 20000000, `NUMSYM`
+987) that the compiler dispatches by a chain of compares, 5 M; the loop and the second `switch` on the type after
+the division and remainder by `MAXTYPE`, 4 M; the pushes and pops through the stack array, 2 M; a C++ call of
+`eval_rpn` for every user function call, with its arguments copied to the argument stack (lecar's right-hand side
+calls minf, ninf, lamn and ode_divisor: 20200 nested calls in the run), 3 M; nothing in symbol lookups or
+ParserState reloads (both hoisted already). The same picture on mu26's and kuramot100's one steps (their
+`eval_rpn` 18 M and 42 M of the core thread's 46 M and 57 M), kuramot100's sums adding an `eval_rpn` call for
+each of their 10000 terms a right-hand side.
+
+**What changed.**
+1. The interpreter runs a decoded form of the RPN (`Program::ops`, `expr::Op`: an instruction kind, an index and
+   a value or a function's address, 16 bytes), made once per program at its first evaluation by expr_decode.h's
+   decoder (the checker the Generator and the differentiator already use) and kept by the Program; the RPN stays
+   the source (what the compiler writes, what is saved, translated and differentiated), and `forget_code` drops
+   the form with the native code where an RPN is rewritten at run time (a DAE guess, a user function redefined),
+   as does a translation. Dispatch is one dense `switch` with no range check, the stack top a pointer in a
+   register. An operand and the + - * / that takes it as its right operand are one instruction
+   (`AddConstant`, `MultiplyVariable`, `SubtractNumber`, ...: the same IEEE operation on the same operands in the
+   same order; never where a jump lands on the operation). A user function's call is inlined: its instructions are
+   copied into the caller's at decode time, its arguments stay on the value stack and are read by their depth
+   (`ArgumentAt`), `Drop` ends it; a function being decoded up the chain of calls (a recursion) stays a call, and
+   so does one with native code (the bridge). A sum's body still runs by a recursive call of the loop (one per
+   index), as before. The step-error and nesting-depth checks a call makes are not made for an inlined body, as
+   the native code makes none either (test_compile's bit-for-bit checks hold). lecar's evaluations now cost
+   9.5 M instead of 17.3 M on the whole run, about 7 instructions an instruction; mu26's one step interpreted
+   (option `compile: false`) 40 M instead of 54 M, kuramot100's 38 M instead of 53 M, ma23's 9.2 M instead of
+   10.7 M.
+2. The exit no longer waits for a compile on its thread (W715's review commit made it wait, so that static
+   destruction would not destroy the mutex compiles take turns on under the running compile: macOS aborted at the
+   exit of a short run): the mutex is never destroyed instead (`compiling` is made with `new` and kept for the
+   process's life), and a thread still compiling at exit ends with the process, having touched nothing else that
+   is destroyed. With the wait every short run paid its whole compile: mu26's one step 21.6 ms, kuramot100's
+   32 ms, the exact-Jacobian one step 38 ms.
+3. The compile's thread starts once the interpreter has done the work of a short run after the translation
+   (`NativeBuild::due`: a million interpreted instructions, counted per evaluation, sum index and call in
+   `ParserState::interpreted_ops`; a step of mu26 is 0.8 M, lecar's whole run with its nullclines 1 M), not at
+   the translation: a thread's start and its end with the process cost a short run 0.25 ms (measured with
+   `XPP_EXP_START`, an experiment: lecar's one step 4.30 to 4.55 ms, mu26's 7.41 to 7.65; a microbenchmark puts
+   it on the memory the thread touches, 0.02 ms for a thread that touches none), which a one-step run would feel
+   and a long run does not (its code comes a millisecond later). A due point proportional to the compile's cost
+   (the ski-rental trade, tried first) made mu26's 400 time units 18% slower waiting for a compile the thread
+   would have made in the first 2%, so it is a constant.
+4. The exact Jacobian is evaluated from its derivatives' graph (`evaluate_derivatives`: the Symbolic graph's
+   nodes the entries need, in the graph's order, each operation as the Generator writes it, a Select's both
+   values computed) until MIR has compiled it as a build of its own (`ExactJacobian::build`, the same
+   NativeBuild, due by the same count), bit for bit the same (test_exact_jacobian checks every built-in's
+   derivatives interpreted against compiled; mu26's 400 time units with the exact Jacobian give TinyCC's
+   output.dat). Its compile was on the core thread before the run, 141 M instructions for mu26 (12 ms).
+5. The translation (the Generator: mu26 6.6 M instructions, kuramot100 4.2 M, lecar 0.3 M) stays on the core
+   thread: what it decides is consumed at the first step of an implicit solver, which the run cannot start
+   without: the states each equation reads give the difference Jacobian's groups (made at the first Jacobian and
+   kept) and the independent subsystems the solvers factor block by block (`lu.factor(..., m.subsystems)` at
+   every factorization), and the purity decides both and the runs on threads. Measured, it costs mu26's one step
+   nothing: 7.41 ms with it against 7.47 with `compile: false`, since the groups it enables save more right-hand
+   sides than it costs. Making the translation itself cheaper (its node keys are strings, hashed and allocated
+   per node: a third of it) is the follow-up if a model needs it.
+
+**Results** (ms elapsed; user instructions in millions, the thread's included):
+
+| run | TinyCC ms | master ms | W717 ms | W717 against TinyCC | TinyCC M | master M | W717 M |
+|---|---|---|---|---|---|---|---|
+| lecar `--silent` (601 rows, nullclines, direction field) | 4.91 | 6.10 | 5.24 | 1.07 | 14.2 | 40.1 | 20.9 |
+| lecar tiny | 4.38 | 5.68 | 4.34 | 0.99 | 9.0 | 28.5 | 12.8 |
+| ma23 tiny | 4.77 | 8.93 | 4.35 | 0.91 | 11.1 | 40.5 | 10.6 |
+| mu26 tiny | 7.53 | 21.61 | 7.46 | 0.99 | 34.8 | 161.1 | 37.3 |
+| kuramot100 tiny | 7.94 | 32.08 | 7.07 | 0.89 | 40.3 | 261.6 | 41.6 |
+| mu26 exact Jacobian tiny | 9.14 | 37.88 | 7.53 | 0.82 | 51.0 | 290.0 | 35.7 |
+| mu26 exact Jacobian, 400 time units | 93.3 | 97.4 | 93.5 | 1.00 | 1080 | 1313 | 1409 |
+| mu26, 400 time units | 222.6 | 205.9 | 213.7 | 0.96 | 2705 | 2582 | 2565 |
+| ma23, 1000 time units | 340.0 | 275.5 | 280.3 | 0.82 | 4256 | 3554 | 3577 |
+| kuramot100 | 3225 | 2603 | 2598 | 0.81 | 30353 | 27821 | 27751 |
+
+`autoxcompare` (85 models, 31482 points byte for byte): master 65.7 s at 1 thread and 41.3 s at automatic
+threads, W717 70.2 s and 41.0 s (a second W717 run 65.6 s and 45.3 s: the noise of the measurement). The long
+runs keep W714's gain over TinyCC; mu26's and ma23's few percent over master are the compile's thread starting a
+millisecond later (ma23's instructions 0.6% more).
+
+**Not reached: lecar's whole run**, 5.24 ms against TinyCC's 4.91 (W715: 5.38). What is left is the interpreter
+against native code on the nullclines and the direction field, computed after the run, which in TinyCC's build
+were native (its compile of lecar was 0.3 ms) and here are interpreted: the whole run is a million interpreted
+instructions, 9.5 M machine instructions, against the native code's 2.5 M, and MIR's compile (10 M instructions
+on its thread, 2.5 ms) cannot be ready in time whatever the due point (the run's own 601 steps are 0.5 ms). An
+interpreter dispatches each instruction in about 5 machine instructions and native code in none: lecar's gap is
+that dispatch, 0.3 ms, and closes only with code generated within TinyCC's 0.3 ms. The other short runs are at
+or under TinyCC's time because their one step is one evaluation of a large right-hand side, where the fixed
+costs (the load, the translation) dominate and the interpreter's share is small.
+
+**Trust boundary.** Nothing new crosses one: the decoded form is made from the RPN the decoder checked (every
+operand's range, every jump, every stack depth), by the core thread; a program that does not decode (one
+evaluated before what it names exists) stops the integration with the reason instead of running. The Jacobian's
+graph is the differentiator's own, evaluated on the thread that asks (its scratch per caller). The compile
+threads read the Generator's trees they own and write their own result, as in W715; `tsancheck` passes.
+
+**Checks.** `make -j4 xppautx test` (79 unit tests: test_compile with the deferred build and the decoded form,
+test_exact_jacobian interpreted against compiled), `tools/examples_check.sh` (216 models, 215 md5s unchanged),
+`tools/autoxcompare.py` (85 models, 225 checks), `tools/goldencheck.py`, `tools/odexcheck.sh` (8 models),
+`tools/servercheck.py` (3086 checks), `tools/sourcecheck.sh`, `tools/asancheck.sh --only
+build,smoke,examples,unittests`, `tools/tsancheck.sh`.

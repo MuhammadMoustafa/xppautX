@@ -32,8 +32,8 @@
 
 namespace xpp {
 namespace {
-struct Node {
-    int ir = -1;       /* the value, an expr_ir.h node */
+struct Tree {
+    int ir = -1;       /* the value, an expr_ir.h node: a tree on the lowering's stack */
     bool mut = false;  /* reads state a later statement may change (a variable, the sum's index) */
     int power = 0;     /* a literal whole n INTEGER_POWER multiplies out (math::is_integer_power), else 0 */
 };
@@ -42,7 +42,7 @@ struct Node {
    under the branches, mark and then_mark the statements written so far at
    the MYIF and at the MYTHEN. */
 struct Frame {
-    Node cond, then_value;
+    Tree cond, then_value;
     size_t base;
     size_t mark = 0, then_mark = 0;
 };
@@ -148,7 +148,7 @@ struct Generator {
     std::vector<int> inline_body;    /* a user function's body as a node, -1 when it is called */
     /* the function being written: the pure calls already made at its top
        level, by their node, each held in a temporary (pure_call) */
-    std::unordered_map<int, Node> calls_made;
+    std::unordered_map<int, Tree> calls_made;
     /* the right-hand side's programs whose function the one right-hand-side
        function calls (rhs_value), each with its symbol */
     std::map<const Program *, std::string> called;
@@ -249,7 +249,7 @@ struct Generator {
     {
         return call(callee({xpp::concat("u", function), nullptr, false, s.model().narg_fun[function], false}, function), args);
     }
-    bool atom(const Node &n) const
+    bool atom(const Tree &n) const
     {
         switch (ir.nodes[static_cast<size_t>(n.ir)].op) {
         case IrOp::Number: case IrOp::Constant: case IrOp::Variable: case IrOp::Temporary: case IrOp::Argument: return true;
@@ -287,18 +287,18 @@ struct Generator {
        so the generated code does it as a statement of its own, in order,
        and what the stack holds that a statement may change is first
        written to a temporary. */
-    Node statement(int value)
+    Tree statement(int value)
     {
         const int k = temps++;
         out.push_back({IrStatement::Kind::Temporary, k, value});
         return {op(IrOp::Temporary, -1, -1, -1, k), false, 0};
     }
-    void flush(std::vector<Node> &stack, size_t from)
+    void flush(std::vector<Tree> &stack, size_t from)
     {
         for (size_t i = from; i < stack.size(); ++i)
             if (stack[i].mut) stack[i] = statement(stack[i].ir);
     }
-    Node effect(std::vector<Node> &stack, size_t from, int call_node)
+    Tree effect(std::vector<Tree> &stack, size_t from, int call_node)
     {
         flush(stack, from);
         impure = true;
@@ -308,7 +308,7 @@ struct Generator {
 
     /* A literal: the same value, the same node, so two writings of one
        expression are one. */
-    Node literal(double x)
+    Tree literal(double x)
     {
         return {number(x), false, math::is_integer_power(x) ? static_cast<int>(x) : 0};
     }
@@ -322,12 +322,12 @@ struct Generator {
        made once instead of twice. A state-changing statement forgets the
        calls made (effect, a sum), since they may read what it
        changes. */
-    Node pure_call(int tree, bool mut, bool top)
+    Tree pure_call(int tree, bool mut, bool top)
     {
         if (depth > 0) return {tree, mut, 0};
         if (const auto made = calls_made.find(tree); made != calls_made.end()) return made->second;
         if (!top) return {tree, mut, 0};
-        Node t = statement(tree);
+        Tree t = statement(tree);
         index_call(tree);
         calls_made.emplace(tree, t);
         return t;
@@ -336,16 +336,16 @@ struct Generator {
     /* x^n for a literal whole n (INTEGER_POWER), multiplied out as the
        interpreter does (math::power_by_squaring), each product a
        temporary, so x and each square are computed once */
-    Node integer_power(const Node &x, int n)
+    Tree integer_power(const Tree &x, int n)
     {
-        const Node a = atom(x) ? x : statement(x.ir);
-        return math::power_by_squaring(a, n, [&](const Node &p, const Node &q) { return statement(op(IrOp::Multiply, p.ir, q.ir)); });
+        const Tree a = atom(x) ? x : statement(x.ir);
+        return math::power_by_squaring(a, n, [&](const Tree &p, const Tree &q) { return statement(op(IrOp::Multiply, p.ir, q.ir)); });
     }
 
     /* The two branches met (other is the else value, already off the
        stack): a conditional expression when neither wrote a statement,
        else an if with a temporary for the value. */
-    void join(std::vector<Node> &stack, const Frame &f, const Node &other, size_t outer_base)
+    void join(std::vector<Tree> &stack, const Frame &f, const Tree &other, size_t outer_base)
     {
         if (out.size() == f.mark) {
             stack.push_back({op(IrOp::Select, f.cond.ir, other.ir, f.then_value.ir), f.cond.mut || other.mut || f.then_value.mut, 0});
@@ -374,26 +374,26 @@ struct Generator {
        instructions are expr_decode.h's, already checked: only what the
        code cannot be written for is refused here. k ends after the terminator.
        Iterative; only a sum's body is a recursion, MAX_SUM_DEPTH deep. */
-    Result<Node> sequence(const std::vector<expr::Instr> &code, size_t &k, bool user, int index)
+    Result<Tree> sequence(const std::vector<expr::Instr> &code, size_t &k, bool user, int index)
     {
-        std::vector<Node> stack;
+        std::vector<Tree> stack;
         std::vector<Frame> frames;
         auto lower = [&] { return frames.empty() ? size_t{0} : frames.back().base; };
-        auto pop = [&] { Node n = std::move(stack.back()); stack.pop_back(); return n; };
+        auto pop = [&] { Tree n = std::move(stack.back()); stack.pop_back(); return n; };
         while (k < code.size()) {
             const expr::Instr &i = code[k++];
             const int op_code = i.op, type = i.type, in = i.in;
             if (op_code == expr::JOIN) {
                 const Frame f = std::move(frames.back());
                 frames.pop_back();
-                const Node other = pop();
+                const Tree other = pop();
                 join(stack, f, other, lower());
             } else if (op_code == ENDSUM) {
                 return pop();
             } else if (op_code == NUMSYM) {
                 stack.push_back(literal(i.number));
             } else if (op_code == MYIF) {
-                Node cond = pop();
+                Tree cond = pop();
                 frames.push_back({std::move(cond), {}, stack.size()});
                 frames.back().mark = out.size();
             } else if (op_code == MYTHEN) {
@@ -404,7 +404,7 @@ struct Generator {
                 stack.push_back(literal(expr::CURRENT_INDEX));
             } else if (op_code == SUMSYM) {
                 if (depth >= MAX_SUM_DEPTH) return refuse("sums nested too deep");
-                const Node high = pop(), low = pop();
+                const Tree high = pop(), low = pop();
                 flush(stack, lower());
                 impure = true;
                 forget_calls();
@@ -420,7 +420,7 @@ struct Generator {
                 out.push_back({IrStatement::Kind::LoopEnd, n, value->ir, -1, total});
                 stack.push_back({op(IrOp::Temporary, -1, -1, -1, total), false, 0});
             } else if (op_code == ENDDELAY || op_code == ENDSHIFT || op_code == ENDISHIFT) {
-                const Node first = pop(), second = pop();
+                const Tree first = pop(), second = pop();
                 if (op_code == ENDISHIFT) {
                     stack.push_back({helper(Helper::IShift, {first.ir, second.ir}), first.mut || second.mut, 0});
                 } else if (op_code == ENDSHIFT) {
@@ -429,16 +429,16 @@ struct Generator {
                     stack.push_back(effect(stack, lower(), helper(Helper::Delay, {first.ir, second.ir})));
                 }
             } else if (op_code == ENDDELSHFT) {
-                const Node tau = pop(), shift = pop(), variable = pop();
+                const Tree tau = pop(), shift = pop(), variable = pop();
                 stack.push_back(effect(stack, lower(), helper(Helper::DelayShift, {tau.ir, shift.ir, variable.ir})));
             } else if (op_code == ENDSET) {
-                const Node value = pop(), shift = pop(), variable = pop();
+                const Tree value = pop(), shift = pop(), variable = pop();
                 stack.push_back(effect(stack, lower(), helper(Helper::Set, {shift.ir, variable.ir, value.ir})));
             } else if (op_code == RANDUNI || op_code == RANDPOI) {
-                const Node x = pop();
+                const Tree x = pop();
                 stack.push_back(effect(stack, lower(), helper(op_code == RANDUNI ? Helper::Uniform : Helper::Poisson, {x.ir})));
             } else if (op_code == RANDNORM) {
-                const Node sd = pop(), mean = pop();
+                const Tree sd = pop(), mean = pop();
                 stack.push_back(effect(stack, lower(), helper(Helper::Normal, {mean.ir, sd.ir})));
             } else if (type == SVARTYPE || type == SCONTYPE) {
                 /* the variable or constant a delay, shift or set names, as the number the interpreter pushes */
@@ -459,10 +459,10 @@ struct Generator {
             } else if (type == USTACKTYPE) {
                 stack.push_back({op(IrOp::Argument, -1, -1, -1, in), false, 0});
             } else if (type == FUN1TYPE) {
-                const Node x = pop();
+                const Tree x = pop();
                 stack.push_back(pure_call(math_call(false, in, {x.ir}), x.mut, frames.empty()));
             } else if (type == FUN2TYPE) {
-                const Node right = pop(), left = pop();
+                const Tree right = pop(), left = pop();
                 if (in == expr::INTEGER_POWER && right.power) {
                     stack.push_back(integer_power(left, right.power));
                     continue;
@@ -491,7 +491,7 @@ struct Generator {
                 bool inlined = inline_body[in] >= 0;
                 if (inlined)
                     for (size_t a = first; a < stack.size(); ++a) {
-                        const Node argument = atom(stack[a]) ? stack[a] : pure_call(stack[a].ir, stack[a].mut, frames.empty());
+                        const Tree argument = atom(stack[a]) ? stack[a] : pure_call(stack[a].ir, stack[a].mut, frames.empty());
                         if (!atom(argument)) { inlined = false; break; }
                         arguments.push_back(argument.ir);
                     }
@@ -508,12 +508,12 @@ struct Generator {
                     if (!array_pure_function[in]) array_pure = false;
                     variable_reads.insert(function_reads[in].begin(),function_reads[in].end());
                 }
-                stack.push_back(pure_function[in] ? Node{tree, true, 0} : effect(stack, lower(), tree));
+                stack.push_back(pure_function[in] ? Tree{tree, true, 0} : effect(stack, lower(), tree));
             } else if (type == KERTYPE) {
                 stack.push_back({helper(Helper::Kernel, {}, in), false, 0});
             } else {
                 /* a lookup table, network or vectorizer: the arrays the helpers index are the interpreter's own */
-                const Node x = pop();
+                const Tree x = pop();
                 const Helper h = type == TABTYPE ? Helper::Table : type == NETTYPE ? Helper::Network : Helper::Vector;
                 stack.push_back({helper(h, {x.ir}, in), type != TABTYPE || x.mut, 0});
             }
@@ -535,7 +535,7 @@ struct Generator {
 
     /* Program p's value in the function being written, its statements
        appended to out. */
-    Result<Node> value(const std::vector<int> &p, int index, bool user)
+    Result<Tree> value(const std::vector<int> &p, int index, bool user)
     {
         if (p.empty()) return refuse("an invalid program length");
         const auto code = expr::decode(s, p, user ? s.model().narg_fun[index] : -1);
@@ -581,7 +581,7 @@ struct Generator {
         begin();
         std::vector<int> arguments;
         for (int a = 0; a < s.model().narg_fun[index]; ++a) arguments.push_back(helper(Helper::Argument, {}, a));
-        const Node z = statement(user_call(index, arguments));
+        const Tree z = statement(user_call(index, arguments));
         return finish(IrFunction::Kind::Equation, std::move(name), helper(Helper::FunctionEnd, {z.ir}, s.model().narg_fun[index]));
     }
 
@@ -649,7 +649,7 @@ struct Generator {
        two programs make on the same values is made once. A call is a
        statement, as an effect is: it forgets the calls made. A program
        that is not dynamic reads no R. */
-    Result<Node> rhs_value(const Program &p)
+    Result<Tree> rhs_value(const Program &p)
     {
         const auto function = called.find(&p);
         if (function == called.end()) return value(p.rpn, 0, false);
@@ -685,23 +685,12 @@ struct Generator {
     }
 
     /* One function, name, writing the value of terms[k] into o[k]
-       (W260): each node of the graph they need once, in the graph's order
-       (a node's arguments first), each a temporary (W715: in a register,
-       which halves the instructions MIR compiles against a workspace array
-       it loaded and stored). */
-    void derivatives(const expr::Symbolic &g, std::span<const expr::Term> terms, std::string_view name)
+       (W260): each node of the graph they need (nodes, in the graph's
+       order, a node's arguments first) once, each a temporary (W715: in a
+       register, which halves the instructions MIR compiles against a
+       workspace array it loaded and stored). */
+    void derivatives(const expr::Symbolic &g, std::span<const int> nodes, std::span<const expr::Term> terms, std::string_view name)
     {
-        std::vector<char> needed(g.size(), 0);
-        std::vector<int> pending;
-        for (const expr::Term t : terms) pending.push_back(t.id);
-        while (!pending.empty()) {
-            const int id = pending.back();
-            pending.pop_back();
-            if (needed[static_cast<size_t>(id)]) continue;
-            needed[static_cast<size_t>(id)] = 1;
-            for (int a : g.node({id}).args)
-                if (a >= 0) pending.push_back(a);
-        }
         begin();
         std::unordered_map<int, int> slot;
         /* a graph node's value as an operand: a leaf as itself, any other as the temporary it was written to */
@@ -714,9 +703,8 @@ struct Generator {
             default: return op(IrOp::Temporary, -1, -1, -1, slot.at(id));
             }
         };
-        for (size_t id = 0; id < g.size(); ++id) {
-            if (!needed[id]) continue;
-            const expr::Symbolic::Node &n = g.node({static_cast<int>(id)});
+        for (const int id : nodes) {
+            const expr::Symbolic::Node &n = g.node({id});
             int value = -1;
             switch (n.op) {
             case expr::Symbolic::Op::Number:
@@ -738,7 +726,7 @@ struct Generator {
                     /* x^n multiplied out as the interpreter does, each product a temporary */
                     if (const expr::Symbolic::Node &e = g.node({n.args[1]});
                         e.op == expr::Symbolic::Op::Number && math::is_integer_power(e.number)) {
-                        value = math::power_by_squaring(Node{x, false, 0}, static_cast<int>(e.number), [&](const Node &p, const Node &q) {
+                        value = math::power_by_squaring(Tree{x, false, 0}, static_cast<int>(e.number), [&](const Tree &p, const Tree &q) {
                             return statement(op(IrOp::Multiply, p.ir, q.ir));
                         }).ir;
                         break;
@@ -758,18 +746,13 @@ struct Generator {
                 break;
             }
             const int k = temps++;
-            slot.emplace(static_cast<int>(id), k);
+            slot.emplace(id, k);
             out.push_back({IrStatement::Kind::Temporary, k, value});
         }
         for (size_t k = 0; k < terms.size(); ++k) out.push_back({IrStatement::Kind::Output, static_cast<int>(k), operand(terms[k].id)});
         ir.functions.push_back(finish(IrFunction::Kind::Jacobian, std::string(name), -1));
     }
 
-    /* the functions written so far compiled by MIR; its errors at place */
-    Result<std::unique_ptr<mir::Program>> build(const Place &place) const
-    {
-        return mir::Program::compile(ir, place);
-    }
 };
 }
 
@@ -849,10 +832,30 @@ std::string subsystem_joined_by(const Session &s)
     return rhs_impurity(s);
 }
 
+/* A build of module ir, due once the interpreter has done the work of a short run after the translation: a
+   compile on its thread costs the run nothing but the thread's start and its end with the process, about
+   0.25 ms (W717, measured: the memory the compile touches), which a run of a few milliseconds would feel and a
+   long one does not; a million interpreted instructions is a step of a large model (mu26's 0.8 M), or a small
+   model's whole run with its nullclines (lecar's 1 M), and a longer run pays at most their interpretation
+   (some 8 M instructions, a millisecond) before its code is on its way. A build that waits for the compile at
+   the thread's cost (ParserState::interpreted_ops counted against the compile's cost, the ski-rental trade)
+   was measured and rejected: mu26's 400 time units lost 18% waiting for a compile the thread would have made
+   in the first 2%. */
+constexpr std::uint64_t INTERPRETED_OPS_BEFORE_BUILD=1000000;
+std::shared_ptr<NativeBuild> pending_build(const Session &s, IrModule ir, Place place)
+{
+    auto build=std::make_shared<NativeBuild>();
+    build->ir=std::move(ir);
+    build->place=std::move(place);
+    build->due=s.parser.interpreted_ops+INTERPRETED_OPS_BEFORE_BUILD;
+    return build;
+}
+
 Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelProgram> &entries)
 {
     Model &m=s.model();
-    for (const auto &entry:entries) { entry.code->native=nullptr; entry.code->compiled=false; entry.code->in_rhs=false; entry.code->array_pure=false; entry.code->native_reads.clear(); }
+    /* every program from its RPN again: no code of before, native or the interpreter's (a test rewrites RPN and translates) */
+    for (const auto &entry:entries) { entry.code->forget_code(); entry.code->in_rhs=false; entry.code->array_pure=false; entry.code->native_reads.clear(); }
     m.native_rhs=nullptr;
     m.native_equations=false;
     m.native_program.reset();
@@ -982,22 +985,20 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     if (emitted.empty() && !rhs) return warnings;
     for (const auto *entry:emitted) entry->code->compiled=true;
     for (Program *code:in_rhs) code->in_rhs=true;
-    m.native_build=std::make_shared<Model::NativeBuild>();
-    Model::NativeBuild &build=*m.native_build;
-    build.ir=std::move(g.ir);
-    build.place=entries.front().place;
-    if (rhs) build.rhs_symbol=rhs_symbol;
-    build.equations=equations;
-    log(XPP_LOG_INFO,"Compiled {} of {} programs\n",compiled_count,entries.size());
+    m.native_build=pending_build(s,std::move(g.ir),entries.front().place);
+    if (rhs) m.native_build->rhs_symbol=rhs_symbol;
+    m.native_build->equations=equations;
+    log(XPP_LOG_INFO,"Compiled {} of {} programs ({} nodes)\n",compiled_count,entries.size(),m.native_build->ir.nodes.size());
     return warnings;
 }
 
 /* the build's thread, detached: it reads the module the build holds and writes only the build's result, then
    says so; an allocation it cannot make ends the program as one on the core thread would, since no exception
-   may leave a thread */
-void start_build(std::shared_ptr<Model::NativeBuild> build)
+   may leave a thread. A run that ends first leaves it to end with the process (xpp_mir.cpp `compiling`). */
+void start_build(const Session &s, std::shared_ptr<NativeBuild> build)
 {
-    mir::background_started();
+    build->started=true;
+    log(XPP_LOG_INFO,"MIR compiles {} nodes on a thread, after {} interpreted instructions\n",build->ir.nodes.size(),s.parser.interpreted_ops);
     std::thread([build=std::move(build)]() mutable noexcept {
         try {
             build->result=mir::Program::compile(build->ir,build->place);
@@ -1006,19 +1007,32 @@ void start_build(std::shared_ptr<Model::NativeBuild> build)
         }
         build->finished.store(true,std::memory_order_release);
         build->finished.notify_all();
-        build.reset(); /* the compiled code goes here when the Model went first: before the exit may go on */
-        mir::background_ended();
+        build.reset(); /* the compiled code goes here when the Model went first */
     }).detach();
 }
 
+/* The build once its thread is done, with its result: started when it is due (now, when waiting) and taken when
+   it has finished (waited for, when waiting), else null. Taken, it is no longer pending. */
+std::shared_ptr<NativeBuild> taken(Session &s, std::shared_ptr<NativeBuild> &pending, bool wait)
+{
+    if (!pending) return nullptr;
+    if (!pending->started) {
+        if (!wait && s.parser.interpreted_ops<pending->due) return nullptr;
+        start_build(s,pending);
+    }
+    if (!wait && !pending->finished.load(std::memory_order_acquire)) return nullptr;
+    const std::shared_ptr<NativeBuild> build=std::move(pending);
+    build->finished.wait(false,std::memory_order_acquire); /* blocks until the thread notifies; no busy wait */
+    return build;
 }
 
-void build_native(Session &s, bool wait)
+/* the programs' code taken from their build (build_native) */
+void take_programs(Session &s, bool wait)
 {
     Model &m=s.model();
-    if (!m.native_build || (!wait && !m.native_build->finished.load(std::memory_order_acquire))) return;
-    const std::shared_ptr<Model::NativeBuild> build=std::move(m.native_build);
-    build->finished.wait(false,std::memory_order_acquire); /* blocks until the thread notifies; no busy wait */
+    const std::shared_ptr<NativeBuild> build=taken(s,m.native_build,wait);
+    if (!build) return;
+    Result<std::unique_ptr<mir::Program>> &compiled=build->result;
     /* the programs by their names again, not by pointers kept since the translation: a vector of them may have
        grown (a derived parameter added, the browser's column), and a program edited since (dae_fun.cpp's guess)
        is no longer compiled */
@@ -1028,7 +1042,6 @@ void build_native(Session &s, bool wait)
         for (const auto &entry:entries) {entry.code->compiled=false;entry.code->native=nullptr;}
         m.rhs_impurity="MIR: "+error.what;
     };
-    Result<std::unique_ptr<mir::Program>> &compiled=build->result;
     if (!compiled) return interpreted(compiled.error());
     for (const auto &entry:entries) {
         if (!entry.code->compiled) continue;
@@ -1046,6 +1059,42 @@ void build_native(Session &s, bool wait)
     log(XPP_LOG_INFO,"The native code is in use ({})\n",wait?"waited for":"built while the run went on");
 }
 
+/* the exact Jacobian's functions taken from their build (build_native): until then, and after a failure of MIR's
+   (logged), its derivatives are evaluated from their graph, bit for bit the same */
+void take_jacobian(Session &s, bool wait)
+{
+    ExactJacobian &j=s.model().jacobian;
+    const std::shared_ptr<NativeBuild> build=taken(s,j.build,wait);
+    if (!build) return;
+    Result<std::unique_ptr<mir::Program>> &compiled=build->result;
+    const auto interpreted=[&](const Error &error) {
+        log(XPP_LOG_WARN,"{}\n",Error{"MIR",error.what,error.place}.text());
+        j.states.function=nullptr;
+        j.time.function=nullptr;
+        for (auto &[k,column]:j.by_constant) column.function=nullptr;
+    };
+    if (!compiled) return interpreted(compiled.error());
+    const auto function=[&](const std::string &name, JacobianProgram &p) {
+        const auto address=(*compiled)->function(name);
+        if (address) p.function=reinterpret_cast<decltype(JacobianProgram::function)>(*address);
+        else interpreted(address.error());
+        return address.has_value();
+    };
+    for (auto &[k,column]:j.by_constant)
+        if (!function(xpp::format("j_c{}",k),column)) return;
+    if (!function("j_time",j.time) || !function("j_states",j.states)) return;
+    j.code=std::move(*compiled);
+    log(XPP_LOG_INFO,"The exact Jacobian's native code is in use\n");
+}
+
+}
+
+void build_native(Session &s, bool wait)
+{
+    take_programs(s,wait);
+    take_jacobian(s,wait);
+}
+
 bool native_ready(Session &s)
 {
     build_native(s,true);
@@ -1054,11 +1103,12 @@ bool native_ready(Session &s)
 
 namespace {
 
-/* The model's exact Jacobian (W260): its derivatives (expr_derivative.h)
-   compiled by MIR as a program of their own, one function for the
+/* The model's exact Jacobian (W260): its derivatives (expr_derivative.h),
+   evaluated from their graph until MIR has compiled them as a program of
+   their own (a build like the programs', W717), one function for the
    state's columns, one for the time's and one for each constant's that a
    right-hand side depends on; or why there is none. */
-ExactJacobian compile_jacobian(Session &s, const std::vector<ModelProgram> &entries)
+ExactJacobian make_jacobian(Session &s, const std::vector<ModelProgram> &entries)
 {
     ExactJacobian j;
     if (!s.numerics.compile) {
@@ -1089,29 +1139,21 @@ ExactJacobian compile_jacobian(Session &s, const std::vector<ModelProgram> &entr
         }
     }
     Generator g{s};
-    g.derivatives(derived->graph, states, "j_states");
-    g.derivatives(derived->graph, time, "j_time");
-    for (auto &[k, column] : by_constant) {
-        g.derivatives(derived->graph, column.first, xpp::format("j_c{}", k));
-        j.by_constant.emplace_back(k, JacobianProgram{nullptr, std::move(column.second), {}});
-    }
-    const Place place = entries.empty() ? Place{} : entries.front().place;
-    auto compiled = g.build(place);
-    if (!compiled) {
-        j.unavailable = "MIR: " + compiled.error().what;
-        return j;
-    }
-    auto function = [&](const std::string &name, JacobianProgram &p) -> bool {
-        const auto address = (*compiled)->function(name);
-        if (address) p.function = reinterpret_cast<decltype(JacobianProgram::function)>(*address);
-        else j.unavailable = "MIR: " + address.error().what;
-        return address.has_value();
+    const expr::Symbolic &graph = derived->graph;
+    const auto program = [&](JacobianProgram &p, std::vector<expr::Term> terms, std::string_view name) {
+        p.terms = std::move(terms);
+        p.nodes = expr::needed_nodes(graph, p.terms);
+        g.derivatives(graph, p.nodes, p.terms, name);
     };
-    for (auto &[k, column] : j.by_constant)
-        if (!function(xpp::format("j_c{}", k), column)) return j;
-    if (!function("j_time", j.time) || !function("j_states", j.states)) return j;
-    j.code = std::move(*compiled);
-    log(XPP_LOG_INFO, "Compiled the exact Jacobian: {} values, {} derivatives\n", derived->graph.size(), derived->entries.size());
+    program(j.states, std::move(states), "j_states");
+    program(j.time, std::move(time), "j_time");
+    for (auto &[k, column] : by_constant) {
+        j.by_constant.emplace_back(k, JacobianProgram{nullptr, std::move(column.second), {}});
+        program(j.by_constant.back().second, std::move(column.first), xpp::format("j_c{}", k));
+    }
+    j.build = pending_build(s, std::move(g.ir), entries.empty() ? Place{} : entries.front().place);
+    j.graph = std::make_shared<expr::Symbolic>(std::move(derived->graph));
+    log(XPP_LOG_INFO, "Made the exact Jacobian: {} values, {} derivatives ({} nodes to compile)\n", j.graph->size(), derived->entries.size(), j.build->ir.nodes.size());
     return j;
 }
 
@@ -1200,10 +1242,9 @@ Result<std::vector<Error>> translate_model(Session &s)
     Place requested=std::move(m.jacobian.requested);
     m.jacobian=ExactJacobian{};
     m.jacobian.requested=std::move(requested);
-    /* the exact Jacobian a model asks for compiles on this thread first: compiles take turns (xpp_mir.h), and the
-       run needs the Jacobian before its first step, the programs only once they are built */
+    /* the exact Jacobian a model asks for is made now (its derivatives: the run evaluates them from the first
+       step); its compile and the programs' start on their threads when due (build_native) */
     if (s.numerics.jacobian==JACOBIAN_EXACT) ensure_exact_jacobian(s);
-    if (m.native_build) start_build(m.native_build);
     return compiled;
 }
 
@@ -1221,7 +1262,7 @@ bool ensure_exact_jacobian(Session &s)
     ExactJacobian &j=s.model().jacobian;
     if (!j.tried) {
         Place requested=std::move(j.requested);
-        j=compile_jacobian(s,model_programs(s.model()));
+        j=make_jacobian(s,model_programs(s.model()));
         j.requested=std::move(requested);
         j.tried=true;
     }

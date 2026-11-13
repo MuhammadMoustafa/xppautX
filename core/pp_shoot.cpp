@@ -56,18 +56,18 @@ void do_bc(xpp::Session &s, double *y__0, double t0, double *y__1, double t1, do
  }
   fix_only(s);
 
-  for(i=0;i<n;i++)f[i]=evaluate(s,s.bcs[i].com.data());
+  for(i=0;i<n;i++)f[i]=evaluate(s,s.bcs[i].com);
 }
 
 xpp::Result<> compile_bvp(xpp::Session &s)
 {
- std::vector<std::vector<int>> compiled(static_cast<std::size_t>(s.model().node));
+ std::vector<Program> compiled(static_cast<std::size_t>(s.model().node));
  const int before_ncon=s.parser.ncon,before_nsym=s.parser.nsym;
  s.parser.ncon=s.model().ncon_start;
  s.parser.nsym=s.model().nsym_start;
  for(int i=0;i<s.model().node;i++){
    int length=0;
-   if(add_expr(s,s.bcs[static_cast<std::size_t>(i)].string.data(),compiled[static_cast<std::size_t>(i)],&length)){
+   if(add_expr(s,s.bcs[static_cast<std::size_t>(i)].string.data(),compiled[static_cast<std::size_t>(i)].rpn,&length)){
      s.parser.ncon=before_ncon;
      s.parser.nsym=before_nsym;
      return fail("boundary",xpp::format("Bad syntax in boundary condition {}: {}",i+1,s.bcs[static_cast<std::size_t>(i)].string.data()),model_place(s.model(),odex::Statement::Kind::Boundary,i));

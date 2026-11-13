@@ -259,7 +259,7 @@ TEST_CASE("test_compile")
     }
     for (int i=first_outside;i<first_outside+3;++i) {
         CHECK(xpp::evaluate(s,m.programs[i])==0.0);
-        CHECK(xpp::evaluate(s,m.programs[i].rpn.data())==0.0);
+        CHECK(xpp::evaluate(s,m.programs[i].rpn)==0.0);
     }
     /* Refusal is local, keeps a source warning, and propagates to callers. */
     m.programs[0].rpn=nested_sums(16,ENDEXP);
@@ -296,12 +296,18 @@ TEST_CASE("test_compile")
     CHECK(m.ufun_programs[1].native==nullptr); /* g calls f */
     CHECK(m.ufun_programs[2].native!=nullptr);
     m.ufun_programs[0].rpn=function;
-    /* W715: translate_model starts the compile on its thread and leaves the programs interpreted, their purity
-       known; the core thread takes the code once the thread is done (my_rhs), or waits for it (native_ready) */
+    /* W715: translate_model leaves the programs interpreted, their purity known, and the compile on its thread
+       starts when it is due (W717: when the interpreter has done as much work as the compile costs); the core
+       thread takes the code once the thread is done (my_rhs), or waits for it (native_ready) */
     CHECK(xpp::translate_model(s).has_value());
-    CHECK(m.native_build && !m.native_program && m.native_rhs==nullptr);
+    CHECK(m.native_build && !m.native_build->started && !m.native_program && m.native_rhs==nullptr);
     CHECK(m.programs[1].compiled && m.programs[1].native==nullptr);
     CHECK(!pure_rhs_ready(s));
+    xpp::build_native(s,false); /* not due: nothing starts */
+    CHECK(m.native_build && !m.native_build->started);
+    s.parser.interpreted_ops=m.native_build->due;
+    xpp::build_native(s,false); /* due: the thread starts, the code is not taken before it is done */
+    CHECK(m.native_build && m.native_build->started);
     m.native_build->finished.wait(false); /* the thread's own end, then the take a right-hand side would make */
     xpp::build_native(s,false);
     CHECK(!m.native_build && m.native_program && m.programs[1].native!=nullptr);

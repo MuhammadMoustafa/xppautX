@@ -710,6 +710,11 @@ void evaluate_network(xpp::Session &s, int ind)
   const auto applied=[&](int unit,int source,int){
     net.f.rpn[1]=net.root+unit;
     net.f.rpn[0]=net.root2+source;
+    /* the interpreter's instructions of the two operands with them (Program::ops is made at the first evaluation) */
+    if(!net.f.ops.empty()){
+      net.f.ops[0].a=net.f.rpn[0]%MAXTYPE;
+      net.f.ops[1].a=net.f.rpn[1]%MAXTYPE;
+    }
     return evaluate(s,net.f);
   };
   const auto plain=[y](int,int source,int){ return y[source]; };

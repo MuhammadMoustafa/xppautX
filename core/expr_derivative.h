@@ -24,12 +24,6 @@ struct Session;
 
 namespace xpp::expr {
 
-/* a value of a Symbolic graph: its node's index */
-struct Term {
-    int id = -1;
-    friend bool operator==(Term, Term) = default;
-};
-
 /* A graph of values, each node once: a node asked for again is the one
    made before (so a derivative that reuses a value, exp's, computes it
    once), and identities are taken as it is built (x+0 is x, x*1 is x,
@@ -119,6 +113,10 @@ struct ModelDerivatives {
     Symbolic graph;
     std::vector<Entry> entries;
 };
+
+/* the nodes of g that the values terms need, each once, in the graph's
+   order (a node's arguments before it): what evaluates them walks these */
+std::vector<int> needed_nodes(const Symbolic &g, std::span<const Term> terms);
 
 /* The derivatives of the Session's model, or why it has none: a model
    with Markov variables, delays, integral equations, algebraic equations

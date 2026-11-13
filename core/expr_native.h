@@ -36,9 +36,11 @@ bool has_subsystems(const Session &s);
    what is native (Program::compiled, Model::rhs_impurity, the subsystems) and start MIR's compile of them on a
    thread (Model::native_build); a failure is the error. */
 Result<std::vector<Error>> translate_model(Session &s);
-/* Take the code Model::native_build made and give every program its function: waits for the thread when `wait`,
-   else only when it has finished (my_rhs, at the start of a right-hand side). A failure of the compile is logged
-   and leaves the programs interpreted (Model::rhs_impurity says so). On the core thread. */
+/* The native builds (Model::native_build, the exact Jacobian's): a build due starts its thread (now, when `wait`),
+   and the code a thread made goes to its programs (every program its function, the Jacobian's its), waited for
+   when `wait`, else only when it has finished (my_rhs, at the start of a right-hand side). A failure of the
+   compile is logged and leaves them interpreted (Model::rhs_impurity says so for the programs). On the core
+   thread. */
 void build_native(Session &s, bool wait);
 /* for a run about to call the native code on threads: wait for the code; true when the right-hand side is pure and native */
 bool native_ready(Session &s);

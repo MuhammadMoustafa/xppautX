@@ -86,12 +86,13 @@ void set_fix_rhs(xpp::Session &s, double t, double *y)
 
 int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
 {
-  if (s.model().native_build) xpp::build_native(s,false); /* the finished code taken here, never mid-evaluation (W715) */
-  rhs_order(s.model(),t,y,ydot,s.parser.constants.data(),s.parser.variables.data(),&s,
+  const xpp::Model &m=s.model();
+  if (m.native_build || m.jacobian.build) xpp::build_native(s,false); /* a build due starts, finished code is taken: here, never mid-evaluation (W715) */
+  rhs_order(m,t,y,ydot,s.parser.constants.data(),s.parser.variables.data(),&s,
             [&](int i,double value){setvar(s,i,value);},
             [&](const xpp::Program &p){return xpp::evaluate(s,p);},
             [&]{xpp::eval_all_nets(s);xpp::do_daes(s);});
-  if(neq>s.model().node) vec_rhs(t,y,ydot,neq);
+  if(neq>m.node) vec_rhs(t,y,ydot,neq);
   return 1;
 }
 

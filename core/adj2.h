@@ -5,6 +5,7 @@
 #include <span>
 #include <string>
 #include <vector>
+#include "expr_program.h"
 
 #include "storage.h"
 #include "xpp_error.h"
@@ -31,7 +32,7 @@ struct AdjointState {
   int maxit = 20;
   /* each equation's coupling for the H function: its formula and the
      formula compiled */
-  std::vector<std::vector<int>> coup_fun;
+  std::vector<Program> coup_fun;
   std::vector<std::string> coup_string;
   /* Transpose's settings: the first column and its name, how many and
      the skip; the first row, how many and the skip */
