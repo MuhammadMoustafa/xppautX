@@ -84,8 +84,8 @@ test('W517: widget selection uses the actual registry wire types, including name
 
 test('W323: the active graph a form fills in goes with the scopes all and plot only', () => {
   const args = [arg('choice'), arg('window')].map((a, i) => ({...a, name: ['scope', 'window'][i]}));
-  assert.deepEqual(formValues(args, {scope: 'parameters', window: 'graph_1'}), {scope: 'parameters'});
-  assert.deepEqual(formValues(args, {scope: 'plot', window: 'graph_1'}), {scope: 'plot', window: 'graph_1'});
-  assert.deepEqual(formValues(args, {scope: 'all', window: 'graph_1'}), {scope: 'all', window: 'graph_1'});
-  assert.deepEqual(formValues([args[1]], {window: 'graph_1'}), {window: 'graph_1'});
+  assert.deepEqual(formValues(args, {scope: 'parameters', window: 'main'}), {scope: 'parameters'});
+  assert.deepEqual(formValues(args, {scope: 'plot', window: 'main'}), {scope: 'plot', window: 'main'});
+  assert.deepEqual(formValues(args, {scope: 'all', window: 'main'}), {scope: 'all', window: 'main'});
+  assert.deepEqual(formValues([args[1]], {window: 'main'}), {window: 'main'});
 });

@@ -207,7 +207,7 @@ def run_pictures(home):
         run_and_go(s)
         s.send(cmd='nullcline.compute')
         s.collect(is_done)
-        s.send(cmd='annotation.add_text', window='graph_1', x=0.1, y=0.9, text='\\1a\\0 label', text_size=3, color='#1c7ed6cc')
+        s.send(cmd='annotation.add_text', window='main', x=0.1, y=0.9, text='\\1a\\0 label', text_size=3, color='#1c7ed6cc')
         s.collect(is_done)
         # Graphic stuff/Freeze/Freeze, its form: color, how it is drawn, dash, width, marker and its size, key and name
         s.send(cmd='plot.freeze_curve', color='#7048e8b0', draw='both', dash='dotted', width=2, marker='cross', marker_size=3, key='first run', name='frz1')

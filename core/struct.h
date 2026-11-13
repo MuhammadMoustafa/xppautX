@@ -15,8 +15,8 @@ inline constexpr int plot_axes = 3;
 inline constexpr int main_plot_width=640, main_plot_height=480;
 inline constexpr int extra_plot_width=450, extra_plot_height=350;
 
-// The main graph starts with the first default name.
-inline constexpr const char *initial_graph_name="graph_1";
+// The main graph's default name: it is pinned first and never closes (W696). Added graphs are graph_1, graph_2, ...
+inline constexpr const char *initial_graph_name="main";
 
 struct GRAPH {
                std::string name = initial_graph_name;

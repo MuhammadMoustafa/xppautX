@@ -13,6 +13,9 @@ import {ShownName} from './CutText';
 import {useDropDown} from './SetsRow';
 import {viewKeyText, type ViewKey} from '../popout';
 
+/** the main graph's tab says why it stays (W696) */
+const MAIN_PINNED = 'The main graph: always open';
+
 /** the views shown as tabs: the graph windows (a hidden one has none until shown again; the active one always has), then autoX's */
 interface ViewTab {kind: 'graph' | 'autox'; name: string; index: number}
 
@@ -22,8 +25,8 @@ export function useViewTabs(): {tabs: ViewTab[]; active: string} {
   const hidden = useStore(s => s.windows.filter(w => w.kind === 'graph' && !w.shown).map(w => w.name).join('\n')).split('\n');
   const diagram = useStore(s => s.diagram);
   const graphs = all.filter(w => w.win === plotsActive || !hidden.includes(w.win)).map(w => w.win);
-  /* before the first `plots` or `series`: window 1, empty */
-  const named = graphs.length ? graphs : ['graph_1'];
+  /* before the first `plots` or `series`: the main graph, empty */
+  const named = graphs.length ? graphs : ['main'];
   const tabs: ViewTab[] = named.map((name, index) => ({kind: 'graph', name, index}));
   if (diagram.open) diagram.views.forEach((v, index) => tabs.push({kind: 'autox', name: v.name, index}));
   return {tabs, active: diagram.open && diagram.shown ? diagram.views[diagram.active].name : plotsActive};
@@ -33,6 +36,8 @@ export function ViewTabs() {
   const session = useSession();
   const may = useMay();
   const {tabs, active} = useViewTabs();
+  /* the main graph is the first graph window the core lists (its index 0): pinned first, it never closes (W696) */
+  const mainName = useStore(s => s.windows.find(w => w.kind === 'graph')?.name);
   const autoxShown = useStore(s => s.diagram.open && s.diagram.shown);
   const list = useRef<HTMLDivElement>(null);
   const add = useDropDown();
@@ -101,20 +106,20 @@ export function ViewTabs() {
           if (tab.name === renaming) return <ViewRename key={slot(tab)} name={tab.name} done={endRename} />;
           /* leaving the autoX view always works (it cancels the grab or pick waiting on it, session.selectWindow) */
           const off = tabOff && tab.name !== active && !autoxShown;
-          /* the main graph stays: the core refuses to close window 1 */
-          const closable = tab.kind === 'autox' || tab.index > 0;
+          /* the main graph has no × (the core refuses to close it), and its tab says why it stays (W696) */
+          const pinned = tab.kind === 'graph' && tab.name === mainName;
           const out = popouts.includes(viewKeyText(viewOf(tab)));
           return (
             <span key={slot(tab)} class={'view-tab' + (tab.name === active ? ' active' : '') + (out ? ' out' : '')} data-view-kind={tab.kind}>
               <button id={id(tab)} class="plot-tab" role="tab" aria-selected={tab.name === active} tabIndex={tab.name === active ? 0 : -1}
-                disabled={off} title={off ? BUSY_TITLE : undefined} onClick={() => pick(tab)} onDblClick={() => startRename(tab.name)}
+                disabled={off} title={off ? BUSY_TITLE : pinned ? MAIN_PINNED : undefined} aria-description={pinned ? MAIN_PINNED : undefined} onClick={() => pick(tab)} onDblClick={() => startRename(tab.name)}
                 onContextMenu={e => { e.preventDefault(); setMenu({name: tab.name, x: e.clientX, y: e.clientY}); }}>
                 {tab.kind === 'autox' ? <span class="view-tab-kind">autoX · </span> : null}
                 <span class="plot-tab-title"><ShownName name={tab.name} copy={false} /></span>
                 {out && <span class="view-tab-out" title="In a window of its own">
                   <span aria-hidden="true">⧉</span><span class="visually-hidden"> (in a window of its own)</span></span>}
               </button>
-              {closable && <button class="view-tab-close" aria-label={`Close ${tab.kind === 'autox' ? 'autoX view' : 'graph'} ${tab.name}`}
+              {!pinned && <button class="view-tab-close" aria-label={`Close ${tab.kind === 'autox' ? 'autoX view' : 'graph'} ${tab.name}`}
                 title={tab.kind === 'autox' ? 'Done with this view: a running continuation is stopped first' : 'Close this graph'}
                 disabled={tab.kind === 'graph' && windowOff}
                 onClick={() => tab.kind === 'autox' ? session.closeAutox(tab.index) : session.closeWindow(tab.name)}>×</button>}

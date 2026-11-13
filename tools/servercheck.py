@@ -1366,17 +1366,17 @@ def check_registry():
             {'cmd': 'window.rename'}, {'cmd': 'window.select'},
             {'cmd': 'window.new', 'name': ''}, {'cmd': 'window.new', 'name': ' leading'},
             {'cmd': 'window.new', 'name': 'trailing '}, {'cmd': 'window.new', 'name': 'x' * 1025},
-            {'cmd': 'window.new', 'name': 'graph_1'}, {'cmd': 'window.new', 'name': None},
+            {'cmd': 'window.new', 'name': 'main'}, {'cmd': 'window.new', 'name': None},
             {'cmd': 'window.select', 'window': 1}, {'cmd': 'window.select', 'window': 'Graph_1'},
             {'cmd': 'window.select', 'window': 'missing'},
             {'cmd':'window.rename','window':'missing','name':'new'},
-            {'cmd':'window.rename','window':'graph_1'},
+            {'cmd':'window.rename','window':'main'},
             {'cmd':'window.close','window':'missing'},
             {'cmd':'window.send_to_bottom','window':'missing'},
             {'cmd':'window.set_redraw_mode','window':'missing','mode':'auto'},
             {'cmd':'window.close_extra','extra':True},
-            {'cmd':'window.set_simultaneous_plot'}, {'cmd': 'window.close', 'window': 'graph_1'},
-            {'cmd': 'window.rename', 'window': 'graph_1', 'name': 'bad\nname'},
+            {'cmd':'window.set_simultaneous_plot'}, {'cmd': 'window.close', 'window': 'main'},
+            {'cmd': 'window.rename', 'window': 'main', 'name': 'bad\nname'},
             {'cmd': 'window.set_redraw_mode', 'mode': 1}, {'cmd': 'window.set_redraw_mode', 'mode': 'invalid'},
             {'cmd': 'window.set_simultaneous_plot', 'enabled': 1},
             {'cmd': 'window.set_simultaneous_plot', 'enabled': 'true'},
@@ -1390,10 +1390,10 @@ def check_registry():
         ]:
             request(bad, False)
         result, _ = request({'cmd': 'window.new'})
-        check('registry: next default graph name', result == {'window': 'graph_2'})
+        check('registry: next default graph name', result == {'window': 'graph_1'})
         result, _ = request({'cmd': 'window.new', 'name': 'phase plane'})
         check('registry: create preserves user text', result == {'window': 'phase plane'})
-        request({'cmd': 'window.rename', 'window': 'phase plane', 'name': 'graph_1'}, False)
+        request({'cmd': 'window.rename', 'window': 'phase plane', 'name': 'main'}, False)
         result, evs = request({'cmd': 'window.rename', 'window': 'phase plane', 'name': 'Phase "plane"'})
         check('registry: rename reports exact old and new names', result == {'window': 'phase plane', 'new_name': 'Phase "plane"'} and
               any(e.get('ev') == 'window.renamed' and e.get('new_name') == 'Phase "plane"' for e in evs))
@@ -1415,7 +1415,7 @@ def check_registry():
         result, _ = request({'cmd': 'window.list'})
         shown = {w['name']: w['shown'] for w in result['windows']}
         check('window.hide: the session file keeps hidden windows (a graph and the data table)',
-              shown.get('Phase "plane"') is False and shown.get('data') is False and shown.get('graph_1') is True, str(shown))
+              shown.get('Phase "plane"') is False and shown.get('data') is False and shown.get('main') is True, str(shown))
         request({'cmd': 'window.show', 'window': 'Phase "plane"'})
         request({'cmd': 'window.show', 'window': 'data'})
         request({'cmd': 'window.select', 'window': 'phase plane'}, False)
@@ -1429,11 +1429,11 @@ def check_registry():
         check('registry: omitted target is the selected named graph', result == {'window': 'Phase "plane"', 'closed': True})
         result, _ = request({'cmd': 'window.close_extra'})
         check('registry: close all reports count', result == {'closed_count': 1})
-        request({'cmd': 'window.select', 'window': 'graph_2'}, False)
+        request({'cmd': 'window.select', 'window': 'graph_1'}, False)
         snd(cmd='autox.open')
         col(lambda e: e.get('ev') == 'done')
         request({'cmd':'window.new','name':'diagram_1'},False)
-        request({'cmd':'window.rename','window':'diagram_1','name':'graph_1'},False)
+        request({'cmd':'window.rename','window':'diagram_1','name':'main'},False)
         request({'cmd':'window.send_to_bottom','window':'diagram_1'},False)
         request({'cmd':'window.set_redraw_mode','window':'diagram_1','mode':'manual'},False)
         request({'cmd': 'window.rename', 'window': 'diagram_1', 'name': 'Bifurcation diagram'})
@@ -1450,10 +1450,15 @@ def check_registry():
         result, _ = request({'cmd': 'window.list'})
         listed = {w['name']: w for w in result['windows']}
         check('window.list: every window with its kind and whether it is shown',
-              listed['kept'] == {'name': 'kept', 'kind': 'graph', 'shown': False} and listed['graph_1']['shown'] is True and
+              listed['kept'] == {'name': 'kept', 'kind': 'graph', 'shown': False} and listed['main']['shown'] is True and
               listed['data'] == {'name': 'data', 'kind': 'data', 'shown': True}, str(result))
         result, _ = request({'cmd': 'window.show', 'window': 'kept'})
         check('window.show: the window comes back', result == {'window': 'kept', 'shown': True})
+        # W696: the main graph is always open and pinned, so hiding it is refused and changes nothing
+        _, evs = request({'cmd': 'window.hide', 'window': 'main'}, False)
+        check('W696: window.hide on the main graph is refused with its reason', 'The main graph is always shown' in json.dumps(evs), str(evs)[-500:])
+        result, _ = request({'cmd': 'window.list'})
+        check('W696: the refused hide changes nothing: the main graph is still shown', {w['name']: w for w in result['windows']}['main']['shown'] is True, str(result))
         snd(cmd='annotation.list', window='kept')
         evs, _ = col(lambda e: e.get('ev') == 'done')
         check('window.hide and show keep what the window holds (its text)', any('note' in json.dumps(e) for e in evs if e.get('ev') == 'done'), str(evs)[-500:])
@@ -1485,7 +1490,7 @@ def check_registry():
         check('window.close of a graph that holds nothing asks nothing', result == {'window': 'empty', 'closed': True})
         # W523: the view's operations, in plot coordinates
         bounds = lambda x0, x1, y0, y1: {'x_min': x0, 'x_max': x1, 'y_min': y0, 'y_max': y1}
-        result, _ = request({'cmd': 'window.set_bounds', 'window': 'graph_1', 'x_min': 0, 'x_max': 10, 'y_min': -1, 'y_max': 1})
+        result, _ = request({'cmd': 'window.set_bounds', 'window': 'main', 'x_min': 0, 'x_max': 10, 'y_min': -1, 'y_max': 1})
         check('window.set_bounds sets the view and reports it', result == bounds(0, 10, -1, 1), str(result))
         result, _ = request({'cmd': 'window.set_bounds', 'x_max': 20})
         check('window.set_bounds keeps a bound left out', result == bounds(0, 20, -1, 1), str(result))
@@ -1518,9 +1523,9 @@ def check_registry():
         result, _ = request({'cmd': 'window.set_display', 'x_range': []})
         check('window.set_display with [] returns an axis to the window own', result == {'x_range': [], 'y_range': []}, str(result))
         result, _ = request({'cmd': 'window.redraw'})
-        check('window.redraw reports the window', result == {'window': 'graph_1', 'redrawn': True}, str(result))
+        check('window.redraw reports the window', result == {'window': 'main', 'redrawn': True}, str(result))
         result, _ = request({'cmd': 'window.clear'})
-        check('window.clear reports the window', result == {'window': 'graph_1', 'cleared': True}, str(result))
+        check('window.clear reports the window', result == {'window': 'main', 'cleared': True}, str(result))
         result, _ = request({'cmd': 'annotation.add_text', 'text': 'first', 'x': 1, 'y': 2, 'text_size': 3, 'style': 'bold', 'color': '#ff0000'})
         check('annotation.add_text reports the id', 'id' in result, str(result))
         note = result['id']
@@ -1543,7 +1548,7 @@ def check_registry():
         # W524: the plot's settings (curves, frozen curves, axes, exports) by name, in plot coordinates
         snd(cmd='events.subscribe', events=['plot.shown', 'plot.marks']); col(lambda e: e.get('ev') == 'done')
         request({'cmd': 'run.initial'})
-        main_plot = lambda evs: next((w for e in evs if e.get('ev') == 'plot.shown' for w in e['windows'] if w['win'] == 'graph_1'), None)
+        main_plot = lambda evs: next((w for e in evs if e.get('ev') == 'plot.shown' for w in e['windows'] if w['win'] == 'main'), None)
         result, evs = request({'cmd': 'plot.add_curve', 'x': 't', 'y': 'w', 'color': 'red', 'draw': 'both', 'dash': 'dashed', 'width': 2,
                                'marker': 'star', 'marker_size': 4})
         check('plot.add_curve reports the curve, and its columns and style reach the plot',
@@ -1693,8 +1698,8 @@ def check_registry():
             {'cmd':'autox','op':'view','close':0},
             {'cmd':'autox','op':'close'},
             {'cmd':'window.close'},
-            {'cmd':'window.close','window':'graph_2'},
-            {'cmd':'display','window':'graph_1','x':[0,1]},
+            {'cmd':'window.close','window':'graph_1'},
+            {'cmd':'display','window':'main','x':[0,1]},
             {'cmd':'redraw'},
             {'cmd':'annotation','op':'list'},
             {'cmd':'key','menu':'main','item':'erase'},
@@ -1760,7 +1765,7 @@ def check_registry():
         snd(cmd='recording.start'); col(lambda e: e.get('ev') == 'done')
         request({'cmd': 'window.new', 'name': 'Recorded graph'})
         request({'cmd': 'window.rename', 'window': 'Recorded graph', 'name': 'Recorded phase plane'})
-        request({'cmd': 'window.select', 'window': 'graph_1'})
+        request({'cmd': 'window.select', 'window': 'main'})
         request({'cmd': 'window.close', 'window': 'Recorded phase plane'})
         snd(cmd='recording.stop', file='named.recx'); col(lambda e: e.get('ev') == 'done')
         with open(os.path.join(folder, 'named.recx'), encoding='utf-8') as f: text = f.read()
@@ -2303,8 +2308,8 @@ def check_data_value_set():
         good(sets, 'set.apply applies the parameters of a set', {'applied': 'pa', 'scope': 'parameters'}, cmd='set.apply', name='pa', scope='parameters')
         check('W526: ... the state has them', dict(last_state(sets(cmd='session.get_state')[0])['pars'])['a'] == 10)
         for words, command in (('the model has no set nosuch', dict(name='nosuch', scope='all')), ('Invalid choice "bogus"', dict(name='pa', scope='bogus')),
-                               ('Missing argument "scope"', dict(name='pa')), ('Unknown window "graph_9"', dict(name='pa', scope='all', window='graph_9')),
-                               ('a graph is a target of scope all or plot', dict(name='pa', scope='parameters', window='graph_1'))):
+                               ('Missing argument "scope"', dict(name='pa')), ('Unknown window "graph_8"', dict(name='pa', scope='all', window='graph_8')),
+                               ('a graph is a target of scope all or plot', dict(name='pa', scope='parameters', window='main'))):
             refused(sets, 'set.apply', words, cmd='set.apply', **command)
         good(sets, 'set.save_new writes a new set into the file', {'name': 's1', 'saved': True}, cmd='set.save_new', name='s1', scope='parameters')
         check('W526: ... the file has it', 'set "s1" {' in text())
@@ -2652,7 +2657,7 @@ def check_atomic_commands():
                 return max(low, min(high, 2))
             if kind == 'choice': return argument['choices'][0]
             if kind == 'name': return 'iapp' if argument.get('names') == 'parameter' else 'v'
-            if kind == 'window': return 'graph_1'
+            if kind == 'window': return 'main'
             if kind == 'new_name': return 'atomic candidate'
             if kind == 'color': return 'red'
             if kind == 'list[real, 2]': return [0, 1]
@@ -2747,7 +2752,7 @@ def check_atomic_commands():
         refused(dict(cmd='autox.run', kind='equilibrium', decimals=4, hold=1, maximum=1, parameter_min=10, parameter_max=1))
         call(cmd='window.new', name='second graph')
         call(cmd='window.select', window='diagram_2')
-        refused(dict(cmd='plot.set_2d', window='graph_1', x_min=0, x_max=1, y_min=1, y_max=0))
+        refused(dict(cmd='plot.set_2d', window='main', x_min=0, x_max=1, y_min=1, y_max=0))
         selection, _ = call(cmd='window.set_redraw_mode', mode='auto')
         check('W534: a refused graph edit preserves the selected autoX window', selection.get('status') == 'error', selection)
         refused(dict(cmd='autox.configure_numerics', max_steps=17, parameter_min=10, parameter_max=1))
@@ -3148,8 +3153,8 @@ check('W529: session.state says what the window plots (the title bar), which no 
 BARE_EVENTS = ('hello', 'done', 'ask', 'exit')
 check('W529: every event has a dotted resource.event name (hello, done, ask and exit are the protocol\'s own)',
       all('.' in e['ev'] or e['ev'] in BARE_EVENTS for e in evs), str(sorted({e['ev'] for e in evs if '.' not in e['ev']})))
-check('window 1 is created', any(e.get('ev') == 'window.created' and e.get('win') == 'graph_1' for e in evs))
-send(cmd='size', window='graph_1', w=800, h=600)
+check('window 1 is created', any(e.get('ev') == 'window.created' and e.get('win') == 'main' for e in evs))
+send(cmd='size', window='main', w=800, h=600)
 evs, _ = collect(is_done)
 check('size is no command any more (removed in protocol 2): state, then a done with the unknown-command error',
       [e.get('ev') for e in evs] == ['session.state', 'done'] and 'Unknown command' in evs[-1].get('error', ''),
@@ -3363,7 +3368,7 @@ check_names_from_rows([c for c in hello.get('commands', []) if 'arguments' in c]
 def check_hello_shared():
     check('W118: hello gives the limits (64 MB uploads, 2000 rows and 500 columns a browser block) and the window ids',
           hello.get('limits') == {'upload': 64 << 20, 'data_rows': 2000, 'data_cols': 500}
-          and hello.get('window_names') == {'main':'graph_1','autox':'diagram_1','ani':'animation','aplot':'array_plot_1','data':'data'},
+          and hello.get('window_names') == {'main':'main','autox':'diagram_1','ani':'animation','aplot':'array_plot_1','data':'data'},
           str(hello.get('limits')) + str(hello.get('window_names')))
     check('W653: hello names every file format as written, lowercase (the data formats, then the pictures)',
           hello.get('file_formats') == ['dat', 'csv', 'csv.gz', 'npz', 'pdf', 'svg', 'gif', 'ppm'], str(hello.get('file_formats')))
@@ -3387,7 +3392,7 @@ check('W118: File/Import XPPAUT session state of a file that is not there: the e
 send(cmd='events.subscribe', events=['plot.series'])
 evs, _ = collect(is_done)
 ser = [e for e in evs if e.get('ev') == 'plot.series']
-check('asking for the series data sends the plot at once', len(ser) == 1 and ser[0]['win'] == 'graph_1' and ser[0]['rows'] == 0
+check('asking for the series data sends the plot at once', len(ser) == 1 and ser[0]['win'] == 'main' and ser[0]['rows'] == 0
       and len(ser[0]['curves']) == 1, str(ser)[:300])
 send(cmd='run.initial')
 evs, _ = collect(is_done, timeout=30 * SLOW)
@@ -3933,7 +3938,7 @@ collect(is_done)
 
 send(cmd='window.new')
 evs, _ = collect(lambda e: e.get('ev') == 'window.created', timeout=5 * SLOW)
-check('Makewindow/Create opens window 2', any(e.get('ev') == 'window.created' and e.get('win') == 'graph_2' for e in evs))
+check('Makewindow/Create opens window 2', any(e.get('ev') == 'window.created' and e.get('win') == 'graph_1' for e in evs))
 collect(is_done)
 
 
@@ -4026,7 +4031,7 @@ check('T32: array range arguments retain named booleans and tags',any(a['name']=
 
 send(cmd='window.close', window='array_plot_1')
 collect(is_done)
-send(cmd='window.select', window='graph_1')
+send(cmd='window.select', window='main')
 evs, _ = collect(is_done)
 send(cmd='session.get_state')
 evs, st = collect(is_state)
@@ -4315,7 +4320,7 @@ def check_plot_windows():
         pl = plots(evs)
         w1 = pl[0]['windows'][0] if pl and pl[0]['windows'] else {}
         check('plots at once: window 1, active, its title, axes and curves',
-              len(pl) == 1 and pl[0]['active'] == 'graph_1' and wins(pl[0]) == ['graph_1'] and w1.get('title') == 'graph_1'
+              len(pl) == 1 and pl[0]['active'] == 'main' and wins(pl[0]) == ['main'] and w1.get('title') == 'main'
               and w1.get('three') == 0 and w1.get('xlo') == -0.6 and w1.get('yhi') == 1.2
               and w1.get('curves') and w1['curves'][0]['x'] == 1 and 'theta' in w1 and 'zmax' in w1.get('box', {}),
               str(pl)[:400])
@@ -4324,49 +4329,49 @@ def check_plot_windows():
         evs = after({'cmd':'window.new'})
         pl, ser = plots(evs), full(evs)
         check('Makewindow/Create: plots has windows 1 and 2, 2 active',
-              len(pl) == 1 and wins(pl[0]) == ['graph_1', 'graph_2'] and pl[0]['active'] == 'graph_2', str(pl)[:300])
-        check('the new window gets its own series, with the data', [e['win'] for e in ser] == ['graph_2']
+              len(pl) == 1 and wins(pl[0]) == ['main', 'graph_1'] and pl[0]['active'] == 'graph_1', str(pl)[:300])
+        check('the new window gets its own series, with the data', [e['win'] for e in ser] == ['graph_1']
               and ser[0]['rows'] == 20001, str([(e['win'], e['rows']) for e in ser]))
         evs = after({'cmd':'plot.variable_vs_time','variable':'V'})
         pl, ser = plots(evs), full(evs)
         cur = {w['win']: (w['curves'][0]['x'], w['curves'][0]['y']) for w in pl[0]['windows']} if pl else {}
         check('Xi vs t in window 2: its curves change, window 1 keeps its own',
-              cur == {'graph_1': (1, 2), 'graph_2': (0, 1)} and [w['title'] for w in pl[0]['windows']] == ['graph_1', 'graph_2'],
+              cur == {'main': (1, 2), 'graph_1': (0, 1)} and [w['title'] for w in pl[0]['windows']] == ['main', 'graph_1'],
               str(pl)[:400])
-        check('... and only window 2 gets a new series', [e['win'] for e in ser] == ['graph_2']
+        check('... and only window 2 gets a new series', [e['win'] for e in ser] == ['graph_1']
               and [c['name'] for c in ser[0]['columns']] == ['T', 'V'], str([(e['win'], e['rows']) for e in ser]))
-        evs = after({'cmd': 'window.select', 'window': 'graph_1'})
+        evs = after({'cmd': 'window.select', 'window': 'main'})
         pl = plots(evs)
         check('selecting window 1 (click) makes it active in plots, and sends no series',
-              len(pl) == 1 and pl[0]['active'] == 'graph_1' and not full(evs), str(pl)[:200])
+              len(pl) == 1 and pl[0]['active'] == 'main' and not full(evs), str(pl)[:200])
         evs = after({'cmd': 'run.initial'})
         ser = [e for e in evs if e.get('ev') == 'plot.series']
         apps = [e for e in ser if e.get('op') == 'append']
-        check('a run appends to the active window only', len(apps) >= 3 and all(e['win'] == 'graph_1' for e in apps),
+        check('a run appends to the active window only', len(apps) >= 3 and all(e['win'] == 'main' for e in apps),
               str([(e['win'], e.get('op')) for e in ser])[:300])
         check('... and ends with the whole series of each window, the active one first (its end, then the full series of window 2)',
-              [e['win'] for e in full(evs)] == ['graph_1', 'graph_2'] and all(e['rows'] == 20001 for e in full(evs)),
+              [e['win'] for e in full(evs)] == ['main', 'graph_1'] and all(e['rows'] == 20001 for e in full(evs)),
               str([(e['win'], e['rows']) for e in full(evs)]))
-        after({'cmd': 'window.select', 'window': 'graph_2'})
+        after({'cmd': 'window.select', 'window': 'graph_1'})
         evs = after({'cmd':'window.close'})
         pl = plots(evs)
         check('Makewindow/Destroy of window 2: plots has window 1 only, active',
-              len(pl) == 1 and wins(pl[0]) == ['graph_1'] and pl[0]['active'] == 'graph_1' and not full(evs), str(pl)[:300])
+              len(pl) == 1 and wins(pl[0]) == ['main'] and pl[0]['active'] == 'main' and not full(evs), str(pl)[:300])
         after({'cmd':'window.new'})
         evs = after({'cmd':'window.new'})
-        check('two more windows', plots(evs) and wins(plots(evs)[0]) == ['graph_1', 'graph_2', 'graph_3'], str(plots(evs))[:200])
+        check('two more windows', plots(evs) and wins(plots(evs)[0]) == ['main', 'graph_1', 'graph_2'], str(plots(evs))[:200])
         evs = after({'cmd':'window.close_extra'})
         pl = plots(evs)
-        check('Makewindow/Kill all leaves window 1', len(pl) == 1 and wins(pl[0]) == ['graph_1'] and pl[0]['active'] == 'graph_1',
+        check('Makewindow/Kill all leaves window 1', len(pl) == 1 and wins(pl[0]) == ['main'] and pl[0]['active'] == 'main',
               str(pl)[:300])
         evs = after({'cmd':'window.new'})
-        check('a window made again gets its series again', [e['win'] for e in full(evs)] == ['graph_2'],
+        check('a window made again gets its series again', [e['win'] for e in full(evs)] == ['graph_1'],
               str([(e['win'], e['rows']) for e in full(evs)]))
         evs = after({'cmd': 'window.redraw'})
         check('a redraw sends neither plots nor series', not plots(evs) and not full(evs))
         after({'cmd': 'events.unsubscribe', 'events': ['plot.shown']})
         evs = after({'cmd': 'events.subscribe', 'events': ['plot.series']})
-        check('without plots in the list: series only', not plots(evs) and [e['win'] for e in full(evs)] == ['graph_2', 'graph_1'],
+        check('without plots in the list: series only', not plots(evs) and [e['win'] for e in full(evs)] == ['graph_1', 'main'],
               str([(e['ev'], e.get('win')) for e in evs if e.get('ev') in ('plot.shown', 'plot.series')]))
     finally:
         stop_server(proc4, run4, send4)
@@ -4387,7 +4392,7 @@ def check_model_plot_windows():
         plots = next((e for e in events if e.get('ev') == 'plot.shown'), {})
         windows = plots.get('windows', [])
         check('W619: a model opens one graph, with its three curves in it',
-              [w['win'] for w in windows] == ['graph_1'] and plots.get('active') == 'graph_1' and len(windows[0]['curves']) == 3
+              [w['win'] for w in windows] == ['main'] and plots.get('active') == 'main' and len(windows[0]['curves']) == 3
               and [(c['x'], c['y']) for c in windows[0]['curves']] == [(1, 2), (2, 1), (0, 2)], str(plots)[:400])
         send(cmd='run.initial')
         events, _ = collect(is_done)
@@ -4426,7 +4431,7 @@ def check_model_plot_windows():
                 plots = next((e for e in reversed(events) if e.get('ev') == 'plot.shown'), {})
                 windows = plots.get('windows', [])
                 check('W322: a session that saved %d graph%s reopens exactly %d, each with its three curves' % (count, 's' * (count > 1), count),
-                      [w['win'] for w in windows] == ['graph_%d' % (k + 1) for k in range(count)] and all(len(w['curves']) == 3 for w in windows),
+                      [w['win'] for w in windows] == ['main'] + ['graph_%d' % k for k in range(1, count)] and all(len(w['curves']) == 3 for w in windows),
                       str(plots)[:400])
             finally:
                 stop_server(proc, run, send)
@@ -4444,7 +4449,7 @@ def check_model_plot_windows():
             with open(os.path.join(run, name + '.odex'), encoding='utf-8') as source:
                 text = source.read()
             if extra:
-                check('W619: several starting graphs import with one warning that curves 2 to N join graph_1',
+                check('W619: several starting graphs import with one warning that curves 2 to N join main',
                       converted.returncode == 0 and converted.stderr.count('xppautX opens one graph') == 1
                       and 'curves: [ { x: x, y: y }, { x: y, y: x }, { x: t, y: y } ]' in text, converted.stderr + text)
             result = subprocess.run([os.path.abspath(args.server), name + '.odex', '--silent'], cwd=run,
@@ -4749,13 +4754,13 @@ def check_values_protocol():
         evs = after(cmd='run.initial')
         check('a later Go runs with the slid value, no erase event', not pics(evs) and len(full(evs)) == 1, str(pics(evs)))
         evs = after(cmd='window.clear')
-        check('Erase: one erase event for the active window, no series', pics(evs) == [('plot.cleared', 'graph_1')] and not full(evs),
+        check('Erase: one erase event for the active window, no series', pics(evs) == [('plot.cleared', 'main')] and not full(evs),
               str(pics(evs)))
         evs = after(cmd='window.redraw')
-        check('Redraw: one redraw event for the active window, no series', pics(evs) == [('plot.redrawn', 'graph_1')] and not full(evs),
+        check('Redraw: one redraw event for the active window, no series', pics(evs) == [('plot.redrawn', 'main')] and not full(evs),
               str(pics(evs)))
         evs = after(cmd='window.redraw')
-        check('window.redraw again: one redraw event, no erase', pics(evs) == [('plot.redrawn', 'graph_1')], str(pics(evs)))
+        check('window.redraw again: one redraw event, no erase', pics(evs) == [('plot.redrawn', 'main')], str(pics(evs)))
     finally:
         stop_server(pv, rv, sndv)
 
@@ -5140,7 +5145,7 @@ def check_apply_restore():
         evs = run(cmd='set.apply', name='mix', scope='plot')
         v = view()
         check('W319: scope plot applies only the plot settings, to the active graph',
-              not errs(evs) and v[4] == {'graph_1': (-3, 3)} and v[0]['a'] == 10, str(v))
+              not errs(evs) and v[4] == {'main': (-3, 3)} and v[0]['a'] == 10, str(v))
         # restore a field, a section, then everything
         run(cmd='set.restore_defaults', scope='integration', field='dt')
         v = view()
@@ -5158,17 +5163,17 @@ def check_apply_restore():
         run(cmd='set.apply', name='mix', scope='all')
         v = view()
         check('W319: scope all applies parameters, states, numerics and plot',
-              v[0]['a'] == 5 and v[1]['x'] == 0.9 and v[2] == 0.1 and v[4] == {'graph_1': (-3, 3)}, str(v))
+              v[0]['a'] == 5 and v[1]['x'] == 0.9 and v[2] == 0.1 and v[4] == {'main': (-3, 3)}, str(v))
         evs = run(cmd='set.restore_defaults', scope='all')
         check('W319: restoring all gives every default back', not errs(evs) and view() == start, str(view()))
         # a failure changes nothing and says why
         before = view()
         for bad, text in ((dict(cmd='set.apply', name='nosuch', scope='all'), 'the model has no set nosuch'),
                           (dict(cmd='set.apply', name='mix', scope='bogus'), 'Invalid choice "bogus" for scope'),
-                          (dict(cmd='set.apply', name='mix', scope='all', window='graph_5'), 'Unknown window "graph_5"'),
+                          (dict(cmd='set.apply', name='mix', scope='all', window='graph_4'), 'Unknown window "graph_4"'),
                           (dict(cmd='set.apply', name='mix', scope='all', window=1e300), 'must be text'),
                           (dict(cmd='set.restore_defaults', scope='plot', window='graph_0'), 'Unknown window "graph_0"'),
-                          (dict(cmd='set.apply', name='mix', scope='parameters', window='graph_1'), 'a graph is a target of scope all or plot'),
+                          (dict(cmd='set.apply', name='mix', scope='parameters', window='main'), 'a graph is a target of scope all or plot'),
                           (dict(cmd='set.apply', name='mix'), 'Missing argument "scope"'),
                           (dict(cmd='set.restore_defaults', scope='all', field='a'), 'restoring all takes no field'),
                           (dict(cmd='set.restore_defaults', scope='parameters', field='nosuch'), 'the model has no parameter nosuch'),
@@ -5180,15 +5185,15 @@ def check_apply_restore():
         snd(cmd='window.new')
         col(is_done)
         v = view()
-        check('W319: Makewindow/Create made window 2 active', v[5] == 'graph_2' and sorted(v[4]) == ['graph_1', 'graph_2'], str(v))
-        x2 = v[4]['graph_2']
-        evs = run(cmd='set.apply', name='mix', scope='plot', window='graph_1')
+        check('W319: Makewindow/Create made window 2 active', v[5] == 'graph_1' and sorted(v[4]) == ['graph_1', 'main'], str(v))
+        x2 = v[4]['graph_1']
+        evs = run(cmd='set.apply', name='mix', scope='plot', window='main')
         v = view()
         check('W319: win names the target graph: window 1 changes, window 2 and the active graph stay',
-              not errs(evs) and v[4]['graph_1'] == (-3, 3) and v[4]['graph_2'] == x2 and v[5] == 'graph_2', str(v))
-        evs = run(cmd='set.restore_defaults', scope='plot', window='graph_1')
+              not errs(evs) and v[4]['main'] == (-3, 3) and v[4]['graph_1'] == x2 and v[5] == 'graph_1', str(v))
+        evs = run(cmd='set.restore_defaults', scope='plot', window='main')
         v = view()
-        check('W319: restore names its target graph too', not errs(evs) and v[4]['graph_1'] == start[4]['graph_1'] and v[4]['graph_2'] == x2 and v[5] == 'graph_2', str(v))
+        check('W319: restore names its target graph too', not errs(evs) and v[4]['main'] == start[4]['main'] and v[4]['graph_1'] == x2 and v[5] == 'graph_1', str(v))
         # a recording of both replays to the same end
         run(cmd='recording.start')
         run(cmd='set.apply', name='pa', scope='parameters')
@@ -5350,7 +5355,7 @@ def check_save_values():
                          (dict(cmd='set.save_into', name='nosuch', scope='parameters'), 'no set nosuch'),
                          (dict(cmd='set.save_new', name='bad name', scope='parameters'), 'not a valid name'),
                          (dict(cmd='set.save_new', name='s9', scope='bogus'), 'Invalid choice "bogus" for scope'),
-                         (dict(cmd='set.save_new', name='s9', scope='plot', window='graph_7'), 'Unknown window'),
+                         (dict(cmd='set.save_new', name='s9', scope='plot', window='graph_6'), 'Unknown window'),
                          (dict(cmd='set.save_new', name='s9', scope='parameters', state='next'), 'Invalid choice "next" for state'),
                          (dict(cmd='set.save_new', name='s9', scope='initial', state='last'), 'no run has reached a state'),
                          (dict(cmd='set.rename', **{'from': 'shared'}, to='mine'), 'read-only'),
@@ -5462,7 +5467,7 @@ def check_phase_data():
         evs = after({'cmd': 'events.subscribe', 'events': ['nullcline.curves', 'direction_field.field']})
         nc, df = of(evs, 'nullcline.curves'), of(evs, 'direction_field.field')
         check('data sends both at once, empty, for window 1',
-              len(nc) == 1 and len(df) == 1 and nc[0]['win'] == 'graph_1' and nc[0]['x'] == [] and nc[0]['frozen'] == []
+              len(nc) == 1 and len(df) == 1 and nc[0]['win'] == 'main' and nc[0]['x'] == [] and nc[0]['frozen'] == []
               and df[0]['grid'] == [] and df[0]['flows'] == [] and not of(evs, 'plot.series'), str(evs)[:300])
 
         evs = after({'cmd': 'nullcline.compute'})
@@ -5561,14 +5566,14 @@ def check_view():
 
     try:
         pl, msg, view = view_keys(-100, 100, -100, 100)
-        w = pl and next((x for x in pl['windows'] if x['win'] == 'graph_1'), None)
+        w = pl and next((x for x in pl['windows'] if x['win'] == 'main'), None)
         check('Window/Window sets the axes of the window: plots reflects them',
               msg is None and axes(w) == (-100, 100, -100, 100), str(w))
         check('... and state.view matches, for the active window',
-              view is not None and view['win'] == 'graph_1' and axes(view) == (-100, 100, -100, 100), str(view))
+              view is not None and view['win'] == 'main' and axes(view) == (-100, 100, -100, 100), str(view))
 
         # the command the page's "Use this view" button used to send is gone
-        send6(cmd='view', window='graph_1', xlo=-1, xhi=1, ylo=-1, yhi=1)
+        send6(cmd='view', window='main', xlo=-1, xhi=1, ylo=-1, yhi=1)
         evs, _ = collect6(is_done)
         msg5 = next((e.get('error') for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e), None)
         check('the view command is gone: an unknown command', msg5 is not None and 'Unknown command' in msg5, str(msg5))
@@ -5630,14 +5635,14 @@ def check_view3d():
 
     try:
         pl, msg, view = turn(10, -20)
-        w = pl and next((x for x in pl['windows'] if x['win'] == 'graph_1'), None)
+        w = pl and next((x for x in pl['windows'] if x['win'] == 'main'), None)
         check('3d-params sets the angles of the window: plots reflects them',
               msg is None and w is not None and (w['theta'], w['phi']) == (10, -20), str(w))
         check('... and state.view.theta/phi matches, for the active window',
-              view is not None and view['win'] == 'graph_1' and angles(view) == (10, -20), str(view))
+              view is not None and view['win'] == 'main' and angles(view) == (10, -20), str(view))
 
         # the command the page used to send is gone
-        send7(cmd='view3d', window='graph_1', theta=0, phi=0)
+        send7(cmd='view3d', window='main', theta=0, phi=0)
         evs, _ = collect7(is_done)
         msg2 = next((e.get('error') for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e), None)
         check('the view3d command is gone: an unknown command', msg2 is not None and 'Unknown command' in msg2, str(msg2))
@@ -5674,7 +5679,7 @@ def check_marks():
         evs = after({'cmd': 'events.subscribe', 'events': ['plot.marks', 'plot.shown', 'plot.series']})
         m = marks_of(evs)
         check('data sends marks at once, empty, for window 1',
-              m is not None and m['win'] == 'graph_1' and m['equilibria'] == [] and m['text'] == [] and m['arrows'] == []
+              m is not None and m['win'] == 'main' and m['equilibria'] == [] and m['text'] == [] and m['arrows'] == []
               and m['markers'] == [] and m['frozen'] == [], str(of(evs, 'plot.marks'))[:300])
         curve = of(evs, 'plot.shown')[0]['windows'][0]['curves'][0]
 
@@ -5708,7 +5713,7 @@ def check_marks():
         def ann(op, **fields):
             cmd = {'cmd': 'annotation.' + op, **fields}
             if 'id' in cmd: cmd['annotation_id'] = cmd.pop('id')
-            if op in ('add_text', 'add_arrow', 'add_pointer', 'add_marker', 'list', 'delete_all'): cmd.setdefault('window', 'graph_1')
+            if op in ('add_text', 'add_arrow', 'add_pointer', 'add_marker', 'list', 'delete_all'): cmd.setdefault('window', 'main')
             evs = after(cmd)
             return evs, marks_of(evs), [e.get('error', '') for e in of(evs, 'done') if e.get('status') == 'error']
         _, m, errs = ann(op='edit', id=tid, color='#0000ff')
@@ -5739,7 +5744,7 @@ def check_marks():
                 ('an id that is not a number', dict(op='delete', id='a'), 'must be a whole number'),
                 ('an add with no position', dict(op='add_text', text='a'), 'Missing argument "x"'),
                 ('an add with no text', dict(op='add_text', x=0, y=0), 'Missing argument "text"'),
-                ('a window it has not', dict(op='list', window='graph_9'), 'Unknown window')]:
+                ('a window it has not', dict(op='list', window='graph_8'), 'Unknown window')]:
             evs, m, errs = ann(**fields)
             check('W227: annotation refuses %s, naming it, and changes nothing' % what,
                   m is None and len(errs) == 1 and want in errs[0], str((m, errs))[:300])
@@ -5781,7 +5786,7 @@ def check_marks():
         evs, _, errs = ann(op='list')
         ls = [result_of(evs)]
         check('W513: annotation list sends every text, arrow and marker of the window with its id',
-              len(ls) == 1 and ls[0].get('window') == 'graph_1' and [x['id'] for x in ls[0]['text']] == [tid]
+              len(ls) == 1 and ls[0].get('window') == 'main' and [x['id'] for x in ls[0]['text']] == [tid]
               and [x['id'] for x in ls[0]['arrows']] == [pid] and [x['id'] for x in ls[0]['markers']] == [kid]
               and ls[0]['arrows'][0]['kind'] == 'pointer' and ls[0]['markers'][0]['shape'] == 'diamond' and not errs, str(ls)[:300])
         _, m, errs = ann(op='move', id=pid, new_x=0.3, new_y=0.4)
@@ -6103,7 +6108,7 @@ def check_fit_retained_runs():
             snd(cmd='window.fit'); evs,_=col(is_done)
             snd(cmd='events.subscribe', events=['plot.series', 'plot.shown'])
             evs, _ = col(is_done)
-            w = next((x for e in evs if e.get('ev') == 'plot.shown' for x in e['windows'] if x['win'] == 'graph_1'), {})
+            w = next((x for e in evs if e.get('ev') == 'plot.shown' for x in e['windows'] if x['win'] == 'main'), {})
             box = w.get('box', {})
             grown = 7.3  # the first run ends near e^2, far past the live run's 1.1
             check('Fit includes a retained run that extends past the live one (%dD)' % dims,
@@ -7204,7 +7209,7 @@ def check_refused_during_run():
               [e.get('ev') for e in evs].count('job.computing') == 1, str([e.get('ev') for e in evs]))
         snd(cmd='equilibrium.find')  # a computation
         snd(cmd='run.continue')  # Continue: a computation
-        snd(cmd='window.set_display', window='graph_1', x_range=[0, 50])  # a view: kept for after the run
+        snd(cmd='window.set_display', window='main', x_range=[0, 50])  # a view: kept for after the run
         snd(cmd='data.page', **{'from_row': 0, 'count': 1})  # only reads: answered during the run
         evs, rows = col(lambda e: e.get('ev') == 'data.updated')
         during = [e for e in evs if e.get('ev') in ('ask', 'session.message')]
@@ -7224,7 +7229,7 @@ def check_refused_during_run():
         snd(cmd='events.subscribe', events=['plot.shown'])
         evs, _ = col(is_done)
         plots = [x for x in evs if x.get('ev') == 'plot.shown']
-        w1 = plots and next((w for w in plots[-1]['windows'] if w['win'] == 'graph_1'), None)
+        w1 = plots and next((w for w in plots[-1]['windows'] if w['win'] == 'main'), None)
         check('W95: a view command sent during a run runs after it (display: the zoom shown)',
               not any(x.get('ev') == 'session.message' for x in after[2]) and w1 and w1.get('zoom', {}).get('x') == [0, 50],
               str(w1 and w1.get('zoom')))
@@ -7260,7 +7265,7 @@ def check_busy_flood():
         snd(cmd='run.initial')
         col(lambda e: e.get('ev') == 'job.progress', timeout=30 * SLOW)
         for i in range(flood):  # a view command: kept for after the run
-            snd(cmd='window.set_display', window='graph_1', x_range=[0, 50], id=i)
+            snd(cmd='window.set_display', window='main', x_range=[0, 50], id=i)
         evs, last = col(lambda e: e.get('ev') in ('session.message', 'done') and ('(id %d)' % (flood - 1)) in e.get('error', ''))
         busy = [e for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error', '').startswith('Busy:')]
         ids = [int(re.search(r'\(id (\d+)\)', e['error']).group(1)) for e in busy]
@@ -7281,7 +7286,7 @@ def check_busy_flood():
         check('W389: the queue drains: every line it held ran with its own done', done == MAX_PENDING_LINES, str(done))
         snd(cmd='session.get_state')
         evs, e = col(lambda x: x.get('ev') == 'session.state')
-        snd(cmd='window.set_display', window='graph_1', x_range=[0, 40], id=flood)
+        snd(cmd='window.set_display', window='main', x_range=[0, 40], id=flood)
         evs, e = col(is_done)
         check('W389: afterwards the session takes commands again (no Busy)',
               e is not None and not any(str(x.get('error', '')).startswith('Busy:') for x in evs), str(evs)[-200:])
@@ -8153,7 +8158,7 @@ def check_display_state():
 
     runs_of = lambda evs: [e for e in evs if e.get('ev') == 'plot.runs']
     added = lambda evs: [x for e in runs_of(evs) for x in e['add']]
-    win1 = lambda evs: [w for e in evs if e.get('ev') == 'plot.shown' for w in e['windows'] if w['win'] == 'graph_1']
+    win1 = lambda evs: [w for e in evs if e.get('ev') == 'plot.shown' for w in e['windows'] if w['win'] == 'main']
     full = whole_series
     try:
         col(is_done)
@@ -8193,17 +8198,17 @@ def check_display_state():
               len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 0 and runs_of(evs)[0]['erased'] == 0
               and not added(evs), str(runs_of(evs)))
 
-        evs = after(cmd='window.set_display', window='graph_1', x_range=[0, 10], y_range=[-0.5, 0.5], show_earlier_runs=False)
+        evs = after(cmd='window.set_display', window='main', x_range=[0, 10], y_range=[-0.5, 0.5], show_earlier_runs=False)
         w = win1(evs)
         check('display: a zoom and the runs toggle are held by the window and sent in plots',
               w and w[-1]['zoom'] == {'x': [0, 10], 'y': [-0.5, 0.5]} and w[-1]['runs'] == 0, str(w))
-        evs = after(cmd='window.set_display', window='graph_1', x_range=[])
+        evs = after(cmd='window.set_display', window='main', x_range=[])
         w = win1(evs)
         check('display: null returns one axis to the window own axes', w and w[-1]['zoom'] == {'x': None, 'y': [-0.5, 0.5]}, str(w))
-        evs = after(cmd='window.set_display', window='graph_1', x_range=[5, 1])
+        evs = after(cmd='window.set_display', window='main', x_range=[5, 1])
         check('display: a range with low not below high is refused, the zoom unchanged',
               any((e.get('ev') == 'done' and e.get('status') == 'error') or (e.get('ev') in ('session.message', 'done') and 'error' in e) for e in evs) and not win1(evs), str(evs)[:200])
-        evs = after(cmd='window.set_display', window='graph_7', x_range=[0, 1])
+        evs = after(cmd='window.set_display', window='graph_6', x_range=[0, 1])
         check('display: an unknown window is refused',
               any(e.get('ev') == 'done' and e.get('status') == 'error' for e in evs), str(evs)[:200])
         evs = after(cmd='window.set_bounds',x_min=-1,x_max=1,y_min=-1,y_max=1)
@@ -8430,7 +8435,7 @@ def check_export_elements():
                   and any(kind == 'text' for kind, _, _ in actual), str(counts))
             # each arrow is a path with a dot at its head
             check('W346: ' + fmt + ' holds all 25 requested field arrows', counts['dot', '#000000'] == 25, str(counts))
-        annotations = go + [dict(cmd='annotation.add_text',window='graph_1',x=.2,y=.4,text='W346label'),
+        annotations = go + [dict(cmd='annotation.add_text',window='main',x=.2,y=.4,text='W346label'),
             dict(cmd='plot.freeze_curve',color='#ffcd00',draw='line',dash='solid',width=1,marker='circle',marker_size=3,key='W346frozen',name='frz1')]
         for fmt in ('pdf','svg'): annotations.append(dict(cmd='plot.export_'+fmt,file='annotated.'+fmt))
         result = run_commands(binary, model, annotations, root)
@@ -9007,7 +9012,7 @@ def check_plot_limits():
             command(cmd='session.open_model', file='limits.snapx')
             all_data = command(cmd='events.subscribe', events=['plot.shown', 'plot.series', 'plot.marks'])
             plots = next((e for e in reversed(all_data) if e.get('ev') == 'plot.shown'), {})
-            frozen = next((e.get('frozen', []) for e in all_data if e.get('ev') == 'plot.marks' and e.get('win') == 'graph_1'), [])
+            frozen = next((e.get('frozen', []) for e in all_data if e.get('ev') == 'plot.marks' and e.get('win') == 'main'), [])
             check('W376: archive reload restores 27 windows with 13 curves each',
                   len(plots.get('windows', [])) == 27 and all(len(w.get('curves', [])) == 13 for w in plots['windows']))
             check('W376: archive reload restores every frozen curve and its data',
@@ -9068,15 +9073,15 @@ def check_session_file():
         answered(snd, col, (), cmd='value.set_parameters', values={'phi': 0.4})
         answered(snd, col, (), cmd='initial_conditions.set', values={'V': -0.3})
         answered(snd, col, (), cmd='run.initial')
-        answered(snd, col, (), cmd='window.set_display', window='graph_1', x_range=[0, 50], y_range=[-0.5, 0.3], show_earlier_runs=False)
+        answered(snd, col, (), cmd='window.set_display', window='main', x_range=[0, 50], y_range=[-0.5, 0.3], show_earlier_runs=False)
         answered(snd, col, (), cmd='autox.set_display', x_range=[0.05, 0.3])
         # W50: a second view of the diagram, the norm, with a zoom of its own; the first active again
         answered(snd, col, (), cmd='autox.new_view')
         answered(snd, col, (), cmd='autox.configure_axes', **{'view': 'diagram_2', 'plot_type': 'norm', 'fit': True})
         answered(snd, col, (), cmd='autox.set_display', view='diagram_2', y_range=[0, 0.5])
         answered(snd, col, (), cmd='window.select', window='diagram_1')
-        answered(snd, col, (), cmd='annotation.add_text', window='graph_1', x=10, y=.1, text='here', text_size=2, style='italic', color='#ffcd00')
-        answered(snd, col, (), cmd='plot.freeze_curve', window='graph_1', color='#ffcd00', draw='line', dash='dashed', width=2, marker='square', marker_size=4, key='first', name='frz1')
+        answered(snd, col, (), cmd='annotation.add_text', window='main', x=10, y=.1, text='here', text_size=2, style='italic', color='#ffcd00')
+        answered(snd, col, (), cmd='plot.freeze_curve', window='main', color='#ffcd00', draw='line', dash='dashed', width=2, marker='square', marker_size=4, key='first', name='frz1')
         answered(snd, col, (), cmd='window.new')
         # W145: an added browser column is saved with the session and comes back computed
         answered(snd, col, (), cmd='data.add_column', name='VW', formula='v*w')
@@ -9098,7 +9103,7 @@ def check_session_file():
         check('W135: the saved nullclines contain a current curve and one frozen pair',
               saved['nullcline.curves'] and saved['nullcline.curves'].get('x') and len(saved['nullcline.curves'].get('frozen', [])) == 1,
               str(saved['nullcline.curves'] and [len(saved['nullcline.curves'].get('x', [])), len(saved['nullcline.curves'].get('frozen', []))]))
-        marks1 = [no_t(last('plot.marks', win=w)) for w in ('graph_1', 'graph_2')]
+        marks1 = [no_t(last('plot.marks', win=w)) for w in ('main', 'graph_1')]
         diagram1 = rebuild_diagram(allev, [])
         view1 = rebuild_diagram(allev, [], 1)
         snap = os.path.join(r, 's1.snapx')
@@ -9181,7 +9186,7 @@ def check_session_file():
                          if e.get('ev') == 'data.updated'), None)
         check('W145: open session: the added column VW is back, computed as before the save',
               browser1 is not None and browser2 == browser1, '%s\n    %s' % (str(browser1)[:200], str(browser2)[:200]))
-        m2 = [no_t(last('plot.marks', win=w)) for w in ('graph_1', 'graph_2')]
+        m2 = [no_t(last('plot.marks', win=w)) for w in ('main', 'graph_1')]
         strip = lambda m: m and dict(m, equilibria=[])
         check('open session: the labels and frozen curves are the saved ones (not Sing pts\' symbols)',
               [strip(m) for m in marks1] == [strip(m) for m in m2], str(m2)[:300])
@@ -9303,7 +9308,7 @@ def check_session_file():
 
         def label_marks(**over):
             """the marks group with one label (its fields over the defaults); the label's lines are 5 (window) to 12 (text) below marks:"""
-            f = dict(id='0', window='"graph_1"', x='0.5', y='0.5', size='2', font='0', style='normal', color='"foreground"', text='"hi"')
+            f = dict(id='0', window='"main"', x='0.5', y='0.5', size='2', font='0', style='normal', color='"foreground"', text='"hi"')
             f.update(over)
             rows = ['marks: {', '  next_annotation_id: 1,', '  labels: [', '    {'] + ['      %s: %s,' % (k, f[k]) for k in ('id', 'window', 'x', 'y', 'size', 'font', 'style', 'color', 'text')]
             rows += ['    },', '  ],', '  arrows_and_markers: [],', '  freeze_each_run: 0,', '  frozen_curves: [],', '},']
@@ -9311,7 +9316,7 @@ def check_session_file():
 
         def mark_marks(**over):
             """the marks group with one arrow or marker; its lines are 6 (window) to 13 below marks:"""
-            f = dict(id='0', window='"graph_1"', type='0', color='"foreground"', size='1', x_start='0', y_start='0', x_end='1', y_end='1')
+            f = dict(id='0', window='"main"', type='0', color='"foreground"', size='1', x_start='0', y_start='0', x_end='1', y_end='1')
             f.update(over)
             rows = ['marks: {', '  next_annotation_id: 1,', '  labels: [],', '  arrows_and_markers: [', '    {'] + ['      %s: %s,' % (k, f[k]) for k in
                                                                        ('id', 'window', 'type', 'color', 'size', 'x_start', 'y_start', 'x_end', 'y_end')]
@@ -9892,7 +9897,7 @@ def check_recording():
         snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         stopped = [e['at'] for e in evs if e.get('ev') == 'job.stopped']
-        run(cmd='window.set_display', window='graph_1', x_range=[0, 50])
+        run(cmd='window.set_display', window='main', x_range=[0, 50])
         st = last_state(run(cmd='value.set_parameters', values={'iapp': 0.1}))
         check('record: state counts the steps taken', st and st['recording']['steps'] == 6, str(st and st.get('recording')))
         evs = run(cmd='recording.stop', file='mine')
@@ -9921,7 +9926,7 @@ def check_recording():
               len(s) > 3 and s[3].get('cmd') == {'cmd': 'run.initial'} and stopped and s[3].get('abort') == stopped[0]
               and stopped[0]['what'] == 'integrate', str(s[3:4]) + str(stopped))
         check('record: a zoom is a view step with its command; a set a step of its own',
-              s[4:6] == [{'step': 'Zoom window graph_1', 'cmd': {'cmd': 'window.set_display', 'window': 'graph_1', 'x_range': [0, 50]}, 'view': True},
+              s[4:6] == [{'step': 'Zoom window main', 'cmd': {'cmd': 'window.set_display', 'window': 'main', 'x_range': [0, 50]}, 'view': True},
                          {'step': 'Set iapp = 0.1', 'cmd': {'cmd': 'value.set_parameters', 'values': {'iapp': 0.1}}}]
               and len(s) == 6, str(s[4:]))
         check('record: the fingerprint is the files\' and steps\' SHA-256', written == got and len(got) == 64, '%s %s' % (written, got))

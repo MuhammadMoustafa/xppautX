@@ -63,7 +63,7 @@ export interface PlotsState {
   active: string;
 }
 
-export const initialPlots: PlotsState = {windows: [], active: 'graph_1'};
+export const initialPlots: PlotsState = {windows: [], active: 'main'};
 
 /** a window the store has not heard anything about yet (exported for tests) */
 export function blank(win: string): PlotWindow {

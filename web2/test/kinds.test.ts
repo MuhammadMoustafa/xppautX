@@ -40,7 +40,7 @@ test('W95: controls, views and settings run during a computation; questions allo
 test('W95: computing from the core\'s event to the command\'s done; a command the page sends marks nothing', () => {
   const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
   let s = ev(initialState, HELLO);
-  s = reduce(s, {type: 'sent', cmd: {cmd: 'display', win: 'graph_1', x: null}});
+  s = reduce(s, {type: 'sent', cmd: {cmd: 'display', win: 'main', x: null}});
   assert.equal(s.busy, true);
   assert.equal(s.computing, false);
   s = ev(ev(s, {ev: 'done', status: 'ok'}), {ev: 'job.computing'});

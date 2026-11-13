@@ -277,7 +277,7 @@ for name, valid in [('help', True), ('unknown', False)]:
 for command, expected in [
     ({'cmd':'window.new','name':'HTTP phase plane'}, {'window':'HTTP phase plane'}),
     ({'cmd':'window.rename','window':'HTTP phase plane','name':'Phase "plane"'}, {'window':'HTTP phase plane','new_name':'Phase "plane"'}),
-    ({'cmd':'window.select','window':'graph_1'}, {'window':'graph_1'}),
+    ({'cmd':'window.select','window':'main'}, {'window':'main'}),
     ({'cmd':'window.close','window':'Phase "plane"'}, {'window':'Phase "plane"','closed':True}),
 ]:
     check('named window HTTP request accepted', post(dict(command,id='named HTTP')) == 204)

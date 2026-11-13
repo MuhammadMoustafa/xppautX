@@ -2262,7 +2262,7 @@ def section_memory():
 
 # ---- sessiondata: a session's stored rows come back in the main window's plot ----
 
-def series_of(evs, win='graph_1'):
+def series_of(evs, win='main'):
     """the last full series event of window win (the curves' rows), or None"""
     full = whole_series(evs, win)
     return full[-1] if full else None

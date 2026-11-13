@@ -69,7 +69,7 @@ not kept; bind the command you want to a key in the editor instead.
 **Windows** begins with **New graph** and **New autoX view**. It also lists all
 windows, hidden ones included, under **Graphs**, **autoX views** and **Others**.
 A tick means the window is shown. Each named window offers **Bring to front**,
-**Rename**, **Hide** or **Show**, and **Destroy**. Destroying a graph that holds
+**Rename**, **Hide** or **Show**, and **Destroy**; the main graph has no Hide (it is always shown) and no Destroy. Destroying a graph that holds
 annotations or frozen curves asks before discarding them. The main graph and
 browser cannot be destroyed. Window references always use their exact names.
 
@@ -414,10 +414,10 @@ keeping the graph reachable in a short or narrow workspace.
 The main graph stays open. Select a graph by its named tab. Click or
 double-click its name to rename it. Names can contain spaces and are shown
 exactly as written; a duplicate, empty name or surrounding space is an
-error. Graph defaults are `graph_1`, `graph_2`, ...; autoX views similarly
+error. The first graph is `main`, pinned first and never closed; graph defaults are `graph_1`, `graph_2`, ...; autoX views similarly
 use `diagram_1`, `diagram_2`, ... and can be renamed in their headers.
 
-Every window can be hidden: `window.hide` takes it off the screen and keeps
+Every window but the main graph can be hidden: `window.hide` takes it off the screen and keeps
 everything it holds (curves, zoom, texts, arrows, markers, a diagram) and
 `window.show` brings it back as it was. This holds for graphs, autoX views
 and the three windows with a name of their own: the data table

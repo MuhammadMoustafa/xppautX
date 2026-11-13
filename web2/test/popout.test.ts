@@ -4,7 +4,7 @@ import {popOutRequest, viewKeyText, viewLabel} from '../src/popout';
 import {initialState, reduce} from '../src/store/state';
 
 test('a pop-out address names its view: kind and name, in the fragment', () => {
-  assert.deepEqual(popOutRequest('#popout=graph%3Agraph_1'), {kind: 'graph', name: 'graph_1'});
+  assert.deepEqual(popOutRequest('#popout=graph%3Amain'), {kind: 'graph', name: 'main'});
   assert.deepEqual(popOutRequest(`#popout=${encodeURIComponent('autox:phase plane: 2')}`), {kind: 'autox', name: 'phase plane: 2'});
   assert.deepEqual(popOutRequest('#popout=dock%3Atable'), {kind: 'dock', name: 'table'});
   assert.equal(popOutRequest(''), null);

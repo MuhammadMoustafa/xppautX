@@ -36,8 +36,8 @@ once, and keeps any other command for after the one that asked. See
 ## Typed command registry (W353, stage 1)
 
 The core registry owns `help`, window and annotation management, equilibria, nullclines and direction fields. Every graph and
-autoX view has a unique, case-sensitive name. Defaults are `graph_1`,
-`graph_2`, ... and `diagram_1`, ...; user names, including spaces, are
+autoX view has a unique, case-sensitive name. The first graph is `main`: pinned first, it never closes. Defaults are `main`,
+`graph_1`, ... and `diagram_1`, ...; user names, including spaces, are
 shown and referenced exactly as written. Names are nonempty, have no
 leading or trailing space or control character, and take at most 1024
 UTF-8 bytes. A closed name may be reused. An unknown name is an error.
@@ -84,9 +84,8 @@ has `status: "stopped"`. Invalid or unreadable ids are not echoed. A line that
 names no registry command (the protocol's own `set`, `file` and `answer`, or no command at all) ends with a `done`
 too: `status` `ok` with `{}`, or `error` with the line's place.
 
-`window.hide` and `window.show` keep a window and everything in it (a
-graph's curves, zoom, texts, arrows, markers; a diagram view's axes and
-zoom); `window.list` gives every open window as `{name, kind, shown}`, and
+`window.hide` and `window.show` keep a window and everything in it (a graph's curves, zoom, texts, arrows, markers; a diagram view's axes and
+zoom); the main graph is always shown, so `window.hide` on it is refused. `window.list` gives every open window as `{name, kind, shown}`, and
 the same list is the `window.list` event. They hold for every kind: graphs and
 autoX views, and the data table, animation and array plot, whose names are
 fixed, `data`, `animation` and `array_plot_1`, and reserved (no graph or
@@ -353,7 +352,7 @@ common overwrite question applies. They return a placed error if the output coul
 | `window.set_display` | `window`: optional window (max 1024 bytes), `x_range`: optional list [of real, at most 2], `y_range`: optional list [of real, at most 2], `show_earlier_runs`: optional boolean, `keep_replaced_run`: optional boolean | `v` / plot | Set display | `x_range`: `list of 2 real, or []`, `y_range`: `list of 2 real, or []` | `plot.shown`, `session.state`, `done` | Set what the page shows of a graph: the x and y ranges ([] for the window's own), the earlier runs, keeping a replaced run. |
 | `window.select` | `window`: required window (max 1024 bytes) | `v` / plot | Select window | `window`: `window` | `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Bring an open window to front and select it. |
 | `window.rename` | `window`: required window (max 1024 bytes), `name`: required new_name (max 1024 bytes) | `v` / plot | Rename window | `window`: `window`, `new_name`: `text` | `window.renamed`, `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Rename an open graph or diagram view. |
-| `window.hide` | `window`: optional window (max 1024 bytes) | `v` / plot | Hide window | `window`: `window`, `shown`: `boolean` | `session.state`, `done` | Hide a window: it keeps everything it holds and comes back with window.show. |
+| `window.hide` | `window`: optional window (max 1024 bytes) | `v` / plot | Hide window | `window`: `window`, `shown`: `boolean` | `session.state`, `done` | Hide a window: it keeps everything it holds and comes back with window.show. The main graph is always shown, so it cannot be hidden. |
 | `window.show` | `window`: optional window (max 1024 bytes) | `v` / plot | Show window | `window`: `window`, `shown`: `boolean` | `session.state`, `done` | Show a hidden window exactly as it was. |
 | `window.close` | `window`: optional window (max 1024 bytes), `confirm`: optional boolean | `v` / plot | Close window | `window`: `window`, `closed`: `boolean` | `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Destroy a window and what it holds (a graph that holds texts, arrows, markers or frozen curves needs confirm true, or the page's answer); the main graph and the data table stay; destroying an autoX view keeps the diagram. |
 | `window.list` | none | `v` / plot | List windows | `windows`: `list of {name, kind, shown}` | `session.state`, `done` | List every window with its name, kind and whether it is shown. |
@@ -1430,7 +1429,7 @@ par iapp=0.1
 {"step":"Run → Initial","cmd":{"cmd":"run.initial"}}
 {"step":"Run → Configure","cmd":{"cmd":"run.configure","total_time":1e7}}
 {"step":"Run → Initial","cmd":{"cmd":"run.initial"},"abort":{"what":"integrate","rows":2193,"t":219.2}}
-{"step":"Zoom window 1","cmd":{"cmd":"display","window":"graph_1","x":[0,50]},"view":true}
+{"step":"Zoom window 1","cmd":{"cmd":"display","window":"main","x":[0,50]},"view":true}
 
 fingerprint: 5f0c...(64 hex digits)
 ```
@@ -2226,7 +2225,7 @@ keeps the event whose `win` is the active one (`plots.active` or
 `state.win`).
 
 ```
-{"ev":"plot.series","win":"graph_1","rows":601,"three":0,"xlabel":"","ylabel":"","zlabel":"",
+{"ev":"plot.series","win":"main","rows":601,"three":0,"xlabel":"","ylabel":"","zlabel":"",
  "curves":[{"x":1,"y":2,"z":1,"color":"foreground","draw":"line","dash":"solid","width":1,"marker":"circle","marker_size":3}],"shift":[0,0,0],
  "columns":[{"col":0,"name":"T","data":[0,0.0500000007,...]},
             {"col":1,"name":"V","data":[-0.143999994,...]},
@@ -2266,12 +2265,12 @@ where the last run ended, or stopped.
 or 3D view); its text is compared with the last one sent.
 
 ```
-{"ev":"plot.shown","active":"graph_2","windows":[
- {"win":"graph_1","title":"graph_1","three":0,"xlo":-0.6,"xhi":1.2,"ylo":-0.25,"yhi":1.2,
+{"ev":"plot.shown","active":"graph_1","windows":[
+ {"win":"main","title":"main","three":0,"xlo":-0.6,"xhi":1.2,"ylo":-0.25,"yhi":1.2,
   "box":{"xmin":-0.6,"xmax":1.2,"ymin":-0.25,"ymax":1.2,"zmin":-12,"zmax":12},
   "theta":45,"phi":45,"persp":0,"zplane":-1000,"zview":1000,
   "curves":[{"x":1,"y":2,"z":1,"color":"foreground","draw":"line","dash":"solid","width":1,"marker":"circle","marker_size":3}],"shift":[0,0,0]},
- {"win":"graph_2","title":"graph_2",...}]}
+ {"win":"graph_1","title":"graph_1",...}]}
 ```
 
 | field | meaning |
@@ -2302,7 +2301,7 @@ nothing), and for every window once after `events.subscribe`. The active window'
 comes first.
 
 ```
-{"ev":"nullcline.curves","win":"graph_1","xname":"V","yname":"W","xcolor":"#f06400","ycolor":"#00e100",
+{"ev":"nullcline.curves","win":"main","xname":"V","yname":"W","xcolor":"#f06400","ycolor":"#00e100",
  "x":[-0.596100688,0.475000024,-0.600000024,0.503065467,...],"y":[...],
  "frozen":[{"x":[...],"y":[...]}]}
 ```
@@ -2315,7 +2314,7 @@ comes first.
 | `frozen` | the frozen nullclines (Nullcline/Freeze) the window shows, the same colors, each set's `x` and `y` as above |
 
 ```
-{"ev":"direction_field.field","win":"graph_1","scaled":1,"color":"foreground","n":17,"du":0.1125,"dv":0.090625,
+{"ev":"direction_field.field","win":"main","scaled":1,"color":"foreground","n":17,"du":0.1125,"dv":0.090625,
  "grid":[-0.600000024,-0.25,0.305723518,0.952120364,...],"speed":[0.0421,...],
  "flows":[{"color":"foreground","x":[-0.600000024,-0.59258616,...,null,...],"y":[...]}]}
 ```
@@ -2348,7 +2347,7 @@ of a command when the window's marks differ from the last ones sent, and
 for every window once after `events.subscribe`; the active window's first.
 
 ```
-{"ev":"plot.marks","win":"graph_1",
+{"ev":"plot.marks","win":"main",
  "equilibria":[{"x":-0.1425351775676935,"y":0.034048992272573395,"type":"saddle","symbol":"triangle"}],
  "text":[{"x":-0.298305094,"y":0.498503745,"text":"\\1a\\0-point 6","size":3,"font":0}],
  "arrows":[{"kind":"pointer","x1":0.1,"y1":0.2,"x2":0.6,"y2":0.8,"size":0.2,"color":"#c8c800"}],
@@ -2384,7 +2383,7 @@ range, ...), the rows it stores go out as they come for
 the active window, at most about once a display frame (60 times a second):
 
 ```
-{"ev":"plot.series","op":"append","win":"graph_1","from":1200,"rows":2400,
+{"ev":"plot.series","op":"append","win":"main","from":1200,"rows":2400,
  "columns":[{"col":0,"data":[...]},{"col":1,"data":[...]},{"col":2,"data":[...]}]}
 ```
 
@@ -2404,7 +2403,7 @@ appended ends, before its `session.state` and `done`, with the rows stored since
 the last append (one more append) and then
 
 ```
-{"ev":"plot.series","op":"end","win":"graph_1","rows":20001,"version":7}
+{"ev":"plot.series","op":"end","win":"main","rows":20001,"version":7}
 ```
 
 instead of the whole series again (a million rows are tens of MB): the
@@ -2592,7 +2591,7 @@ the earlier runs of all windows together: a window keeping a run drops its
 own oldest ones first, never its newest.
 
 ```
-{"ev":"plot.runs","win":"graph_1","erased":0,"clear":0,"drop":0,"keep":0,"enc":"f32","add":[
+{"ev":"plot.runs","win":"main","erased":0,"clear":0,"drop":0,"keep":0,"enc":"f32","add":[
  {"rows":601,"three":0,"curves":[...],"shift":[0,0,0],
   "columns":[{"col":0,"name":"T","data":[...]},{"col":2,"name":"W","data":[...]}]}]}
 ```
@@ -2615,7 +2614,7 @@ earlier runs are drawn) and `freeze` (1, the default: a trajectory a new run
 replaces is kept as an earlier run until Erase; 0: it is dropped, and only the
 current run is drawn). Other axes or curves of the window (Viewaxes,
 Window/Zoom, Fit, Xi vs t) drop the zoom. `window.set_display` sets them:
-`{"cmd":"display","window":"graph_1","x":[0,10],"y":null,"runs":false,"freeze":true}` (a missing key
+`{"cmd":"display","window":"main","x":[0,10],"y":null,"runs":false,"freeze":true}` (a missing key
 is left as it is).
 
 **`autox.view`** (with `autox.info`): `{"ev":"autox.view","earlier":n,"show":0,

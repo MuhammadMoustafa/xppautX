@@ -96,7 +96,7 @@ test('the app state: player and press events, state.player, the banner dismissed
   assert.equal(s.player.dismissed, false);
   s = reduce(s, {type: 'event', ev: press(0, 'cmd', 0)});
   assert.equal(s.player.running, 0);
-  const st = {ev: 'session.state', sliders: [], pars: [], ics: [], rows: 0, menu: 0, win: 'graph_1',
+  const st = {ev: 'session.state', sliders: [], pars: [], ics: [], rows: 0, menu: 0, win: 'main',
     player: {step: 1, running: -1, playing: true, speed: 2, fast: false, intact: false}} as unknown as StateEvent;
   s = reduce(s, {type: 'event', ev: st});
   assert.equal(s.player.running, -1);

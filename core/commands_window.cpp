@@ -252,6 +252,8 @@ Result<std::string> set_shown(Session &s, const Command &command, const Argument
     const std::string name = target_name(s, args);
     const auto target = find_window(s, name);
     if (!target) return unknown_window(command, name, place);
+    /* the main graph is always open and pinned, so it is always shown (W696): hiding it is refused as closing it is */
+    if (hidden && target->kind == WindowKind::graph && target->index == 0) return fail(command.name, "The main graph is always shown", place);
     set_window_hidden(s, *target, hidden);
     return window_result(name) + xpp::format(",\"shown\":{}}}", !hidden);
 }
@@ -447,7 +449,7 @@ constexpr std::array ROWS = {
     Command{"window.rename", RENAME_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Rename window", "",
             "Rename an open graph or diagram view.", RENAME_RESULTS, RENAME_EVENTS, true, rename_window},
     Command{"window.hide", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Hide window", "",
-            "Hide a window: it keeps everything it holds and comes back with window.show.", SHOWN_RESULTS, STATE_EVENTS, true, hide_window},
+            "Hide a window: it keeps everything it holds and comes back with window.show. The main graph is always shown, so it cannot be hidden.", SHOWN_RESULTS, STATE_EVENTS, true, hide_window},
     Command{"window.show", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Show window", "",
             "Show a hidden window exactly as it was.", SHOWN_RESULTS, STATE_EVENTS, true, show_window},
     Command{"window.close", DESTROY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Close window", "",

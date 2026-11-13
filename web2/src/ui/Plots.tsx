@@ -67,7 +67,7 @@ export function Plots({dark}: {dark: boolean}) {
   const redrawModeLabel = useCommandLabel('window.set_redraw_mode');
   const windowOff = !may({cmd:'window.new'}); /* Makewindow */
   /* before the first `plots` or `series`: window 1, empty */
-  const shownWins = windows.length ? windows.map(w => w.win) : ['graph_1'];
+  const shownWins = windows.length ? windows.map(w => w.win) : ['main'];
   const tabbed = windows.length > 1;
 
   /* the window row (the tabs, the name, New window, Window options, Capture) is drawn in the header of the

@@ -177,7 +177,7 @@ TEST_CASE("test_command_registry")
     }
     /* a window and a new window name (W353's) */
     {
-        CHECK(check(&s, cmd("\"window\":\"graph_1\",\"new\":\"phase plane\"")).has_value());
+        CHECK(check(&s, cmd("\"window\":\"main\",\"new\":\"phase plane\"")).has_value());
         CHECK(refused(&s, cmd("\"window\":\"nowhere\""), "Unknown window \"nowhere\""));
         CHECK(refused(&s, cmd("\"new\":\"\""), ""));
     }

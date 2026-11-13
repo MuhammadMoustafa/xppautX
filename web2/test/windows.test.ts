@@ -14,11 +14,11 @@ function connected() {
 test('page window actions send registry commands and exact names', () => {
   const {session,sent}=connected();
   session.newWindow();
-  session.renameWindow('graph_1','Phase "plane"');
+  session.renameWindow('main','Phase "plane"');
   session.selectWindow('Phase "plane"');
   assert.deepEqual(sent.slice(0,2),[
     {cmd:'window.new'},
-    {cmd:'window.rename',window:'graph_1',name:'Phase "plane"'},
+    {cmd:'window.rename',window:'main',name:'Phase "plane"'},
   ]);
   assert.ok(sent.every(c=>c.cmd!=='click'));
 });
@@ -37,7 +37,7 @@ test('Hide autoX and Show autoX are window.hide and window.show of every view, a
   session.showAutox(false);
   assert.deepEqual(sent,[{cmd:'window.hide',window:'Diagram A'},{cmd:'window.hide',window:'Diagram B'}]);
   const list = (shown: boolean) => ({ev:'window.list' as const,windows:[
-    {name:'graph_1',kind:'graph' as const,shown:true},
+    {name:'main',kind:'graph' as const,shown:true},
     {name:'Diagram A',kind:'diagram' as const,shown},{name:'Diagram B',kind:'diagram' as const,shown}]});
   session.store.dispatch({type:'event',ev:list(false)});
   assert.equal(session.store.getState().diagram.shown,false);

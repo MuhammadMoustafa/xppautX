@@ -299,7 +299,7 @@ void check_plot_limits(const xpp::TempDir &tmp)
     CHECK(file.has_value());
     if(!file)return;
     CHECK(!xpp_saved_check(s,*file));
-    CHECK(file->members.at("session.odex").find("name: \"graph_8\",") == std::string::npos);
+    CHECK(file->members.at("session.odex").find("name: \"graph_7\",") == std::string::npos);
     CHECK(file->members.at("session.odex").find("slot: 5,") == std::string::npos);
     /* A scalar posing as a list, sparse hostile indices, and dishonest point
        counts fail at their member line, without changing any current state. */
@@ -315,8 +315,8 @@ void check_plot_limits(const xpp::TempDir &tmp)
         CHECK(s.plot_windows.active==windows-1 && s.plot_windows.count==windows-1);
         CHECK(s.frozen_curves.curve.size()==frozen && !s.frozen_curves.curve[5].use);
     };
-    bad("session.odex","name: \"graph_1\"","name: \"\"");
-    bad("session.odex","active: \"graph_107\"","active: \"graph_8\"");
+    bad("session.odex","name: \"main\"","name: \"\"");
+    bad("session.odex","active: \"graph_106\"","active: \"graph_7\"");
     const std::string &window_text=file->members.at("session.odex");
     const auto curve_begin=window_text.find("curves: [");
     const auto curve_end=window_text.find(']',curve_begin);
@@ -355,7 +355,7 @@ void check_plot_limits(const xpp::TempDir &tmp)
     xpp::batch_start(restored);
     CHECK(xpp_saved_restore(restored,*disk));
     CHECK(restored.plot_windows.graph.size()==windows-1 && restored.plot_windows.count==windows-1);
-    CHECK(restored.plot_windows.active==windows-2 && restored.plot_windows.graph[7].name=="graph_9");
+    CHECK(restored.plot_windows.active==windows-2 && restored.plot_windows.graph[7].name=="graph_8");
     CHECK(restored.plot_windows.current->nvars==curves && restored.plot_windows.current->yv.back()==curves);
     CHECK(restored.frozen_curves.curve.size()==frozen && !restored.frozen_curves.curve[5].use);
     const auto again=xpp_session_snapshot(restored);

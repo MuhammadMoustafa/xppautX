@@ -121,7 +121,7 @@
 
 /* ---- text views (docs/ui-v2.md T16): equations, source, equilibrium; ---- */
 /* the dock's Model tab (R6) */
-.text-tab, .view-tab-close, .view-add > summary { border-color: transparent; background: none; color: var(--fg-muted); }
+.text-tab, .view-add > summary { border-color: transparent; background: none; color: var(--fg-muted); }
 .text-tab.active { color: var(--fg); background: var(--surface-2); border-color: var(--border); }
 .text-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3); }
 .text-empty { color: var(--fg-muted); }

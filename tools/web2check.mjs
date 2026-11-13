@@ -415,7 +415,7 @@ async function desktop(want) {
   check("a double click goes back to the core's window", await until('w.viewport.x === null && w.viewport.y === null', 'reset'));
   /* W65: the zoom shown is the core's: every change went to it as a display command, the last one back to its own axes */
   check('the zoom went to the core (window.set_display commands), the last one the reset',
-    await until(`(() => { const d = __xpp.sent().filter(c => c.cmd === 'window.set_display' && c.window === 'graph_1');
+    await until(`(() => { const d = __xpp.sent().filter(c => c.cmd === 'window.set_display' && c.window === 'main');
       return d.length >= 3 && d.some(c => c.x_range && c.x_range.length === 2 && c.x_range[1] - c.x_range[0] < ${width(z1.x)}) && d[d.length - 1].x_range.length === 0 && d[d.length - 1].y_range.length === 0; })()`,
       'display commands'));
   await mouse('mouseMoved', 5, 5);
@@ -1141,7 +1141,7 @@ async function phasePlane() {
   check('... drawn, "Flow" in the legend, the field still there', v && v.label === 'Flow' && v.count === 72 && v.drawn > 72
     && (await layer('dfield'))?.drawn === 289, JSON.stringify(v));
 
-  await cdp.eval(`__xpp.send({cmd: 'window.clear', window: 'graph_1'})`); /* Erase */
+  await cdp.eval(`__xpp.send({cmd: 'window.clear', window: 'main'})`); /* Erase */
   check('Erase clears them: nothing in the store, nothing drawn, no legend entries',
     await until('!s.busy && w.nullclines && w.nullclines.x.length === 0 && w.dfield && w.dfield.n === 0 && w.dfield.flows.length === 0', 'erase')
     && (await P()).layers.length === 0 && await cdp.eval(`document.querySelectorAll('.legend-item.layer').length === 0`));
@@ -1316,8 +1316,8 @@ async function windows() {
   check('W517: New graph and New autoX view precede window groups', await cdp.eval(`(() => {const d=document.querySelector('[data-top-menu=Windows]'); return [...d.querySelectorAll(':scope > ul > li > button')].slice(0,2).map(b=>b.dataset.command).join() === 'window.new,autox.new_view' && d.textContent.includes('Graphs') && d.textContent.includes('autoX views') && d.textContent.includes('Others');})()`));
   await menuRun('autox.new_view');
   check('W517: New autoX view opens autoX when none exists',await until('s.diagram.open && s.diagram.shown && !s.busy','new autoX view'));
-  await cdp.eval(`(() => {const d=[...document.querySelectorAll('[data-window-menu]')].find(d=>d.dataset.windowMenu==='graph_1'); d.querySelector('[data-window-action="window.select"]').click();})()`);
-  check('W517: Bring to front shows a graph over autoX',await until(`s.plots.active === 'graph_1' && !s.diagram.shown && !s.busy`,'graph in front'));
+  await cdp.eval(`(() => {const d=[...document.querySelectorAll('[data-window-menu]')].find(d=>d.dataset.windowMenu==='main'); d.querySelector('[data-window-action="window.select"]').click();})()`);
+  check('W517: Bring to front shows a graph over autoX',await until(`s.plots.active === 'main' && !s.diagram.shown && !s.busy`,'graph in front'));
 
 }
 
@@ -1809,7 +1809,7 @@ async function autoxView(dir) {
     return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest(sel); };
     return {menu: at('.app-menu'), tabs: at('.view-tabs'), bar: getComputedStyle(document.querySelector('.status-bar')).display !== 'none'}; })()`);
   check('T26, W644: the menu bar and the view tabs stay visible, the main status bar gives way to the autoX strip', behind.menu && behind.tabs && !behind.bar, JSON.stringify(behind));
-  await cdp.eval(`document.querySelector('#view-tab-graph-graph_1').click()`);
+  await cdp.eval(`document.querySelector('#view-tab-graph-main').click()`);
   await until('!s.diagram.shown && s.diagram.open', 'auto back desktop');
   const front = await cdp.eval(`(() => { const at = sel => { const r = document.querySelector(sel).getBoundingClientRect();
     return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest(sel); };
@@ -2162,12 +2162,12 @@ async function autoxView(dir) {
   check("390x844: the sheet's targets are at least 44 px", small.length === 0, JSON.stringify(small));
   const plotW = (await autoxArea()).w;
   check("390x844: the diagram fills the sheet's width", plotW > 250 && plotW <= 390, String(plotW));
-  await touch('touchStart', [await center('#view-tab-graph-graph_1')]);
+  await touch('touchStart', [await center('#view-tab-graph-main')]);
   await touch('touchEnd', []);
   check('Back hides the sheet, autoX stays open', await until('!s.diagram.shown && s.diagram.open', 'auto back')
     && await cdp.eval(`!document.querySelector('.autox-panel') && !!document.querySelector('[data-view-kind=autox]')`));
   check('T21, W644: the focus stays on the tab that was picked, outside the autoX view (the keys typed next are the main window\'s)',
-    await until(`document.activeElement.id === 'view-tab-graph-graph_1' && !document.activeElement.closest('.autox-panel')`, 'tab focus after the pick'));
+    await until(`document.activeElement.id === 'view-tab-graph-main' && !document.activeElement.closest('.autox-panel')`, 'tab focus after the pick'));
   const show = await center('[data-view-kind=autox] .plot-tab');
   await touch('touchStart', [show]);
   await touch('touchEnd', []);
@@ -2575,7 +2575,7 @@ async function reopenedSessionPlot(dir) {
       'session opened', 30000 * SLOW)
     && !(await S('__xpp.log().some(l => l.kind === "error")')),
     JSON.stringify(await S('[__xpp.log().filter(l => l.kind === "error").map(l => l.text), s.diagram.open, s.diagram.shown]')));
-  const back = await center('#view-tab-graph-graph_1');
+  const back = await center('#view-tab-graph-main');
   await click(back.x, back.y);
   await until('!s.diagram.shown', 'back');
   check('W102: after Back the store holds the 601 rows',
@@ -2605,7 +2605,7 @@ async function lostF() {
   await openAutoxAtFixedPoint();
 
   /* sequence 2 first half: Back at once, F in the main window */
-  const back = await center('#view-tab-graph-graph_1'); /* a real click, as the window gets: the focus is on the button that then goes */
+  const back = await center('#view-tab-graph-main'); /* a real click, as the window gets: the focus is on the button that then goes */
   await click(back.x, back.y);
   await until('!s.diagram.shown && s.diagram.open && !s.busy', 'back');
   const menuShown = () => cdp.eval(`(() => { const r = document.querySelector('.app-menu').getBoundingClientRect(); return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.app-menu'); })()`);
@@ -2624,7 +2624,7 @@ async function lostF() {
   await cdp.eval(`document.querySelector('.autox-host').focus()`);
   await menuRun('autox.grab');
   await until("s.ask && s.ask.kind === 'grab'", 'grab 0');
-  const back2 = await center('#view-tab-graph-graph_1');
+  const back2 = await center('#view-tab-graph-main');
   await click(back2.x, back2.y);
   await until('!s.diagram.shown', 'back during grab');
   check('lostF: Back during a grab cancels it: no ask stays open behind the main window',
@@ -2816,8 +2816,8 @@ async function busyKeys() {
   check('W95: the view clicked during the run ran after it: window 2 exists',
     await until('!s.busy && !s.ask && s.plots.windows.length === 2', 'new window after the run', 10000),
     JSON.stringify(await S('[s.busy, s.ask, s.plots.windows.length]')));
-  await cdp.eval(`[...document.querySelectorAll('.plot-tab')].find(b => b.id === 'view-tab-graph-graph_1').click()`);
-  await until(`!s.busy && s.plots.active === 'graph_1'`, 'window 1 again');
+  await cdp.eval(`[...document.querySelectorAll('.plot-tab')].find(b => b.id === 'view-tab-graph-main').click()`);
+  await until(`!s.busy && s.plots.active === 'main'`, 'window 1 again');
   /* the wedge case: keys work after the run (Total back to 20: 401 rows), and the next
      run uses the slider's edit */
   await focusPlot();
@@ -2958,7 +2958,7 @@ async function playerCheck(dir) {
   await until(`s.core.recording.note === 'The cell fires once.' && !s.busy`, 'note');
   await cdp.eval(`document.querySelector('.run-toolbar button.primary').click()`);
   await until(`s.core.recording.steps === 1 && !s.busy`, 'integrated', 20000);
-  await cdp.eval(`__xpp.send({cmd: 'window.clear', window: 'graph_1'})`);
+  await cdp.eval(`__xpp.send({cmd: 'window.clear', window: 'main'})`);
   await until(`s.core.recording.steps === 2 && !s.busy`, 'erased');
   await cdp.eval(`document.querySelector('.recbar .rec-stop').click()`);
   await until(`s.ask && s.ask.kind === 'file'`, 'file ask');
@@ -3395,15 +3395,21 @@ async function dockCheck() {
   /* the views: tabs above the plot, named, with ＋ and × */
   await cdp.eval(`document.querySelector('.dock-collapse').click()`);
   check('W644: the view tabs are a row above the plot, by window name, with a ＋', await cdp.eval(`(() => { const t = [...document.querySelectorAll('.view-tabs [role=tab]')].map(e => e.textContent.trim());
-    return t.join() === 'graph_1' && !!document.querySelector('.view-add > summary') && document.querySelector('.view-tabs').getBoundingClientRect().bottom <= document.querySelector('#main').getBoundingClientRect().top + 1; })()`));
+    return t.join() === 'main' && !!document.querySelector('.view-add > summary') && document.querySelector('.view-tabs').getBoundingClientRect().bottom <= document.querySelector('#main').getBoundingClientRect().top + 1; })()`));
   await cdp.eval(`document.querySelector('.view-add > summary').click(); document.querySelector('.view-add [data-command="window.new"]').click()`);
   check('W644: ＋ makes a new graph, which is a tab in front, named in the title bar',
     await until(`!s.busy && s.plots.windows.length === 2 && document.querySelectorAll('.view-tabs [role=tab]').length === 2`, 'second graph')
     && await cdp.eval(`document.querySelector('.title-bar .file').textContent === __xpp.state().plots.active && document.querySelector('.view-tab.active').textContent.includes(__xpp.state().plots.active)`));
+  check('W696: the added graph comes after the main graph, which has no ×, and the added one its × (graph_1)',
+    await cdp.eval(`(() => { const tabs = [...document.querySelectorAll('.view-tabs .view-tab')];
+      return tabs.length === 2 && tabs[0].querySelector('.plot-tab').textContent.trim() === 'main' && !tabs[0].querySelector('.view-tab-close')
+        && tabs[1].querySelector('.plot-tab').textContent.trim() === 'graph_1' && !!tabs[1].querySelector('.view-tab-close'); })()`));
   await cdp.eval(`document.querySelector('.view-tab:not([data-view-kind=autox]) .plot-tab[aria-selected=false]').click()`);
-  check('W644: a tab picks its window; the title bar names it', await until(`!s.busy && document.querySelector('.title-bar .file').textContent === 'graph_1'`, 'graph_1'));
+  check('W644: a tab picks its window; the title bar names it', await until(`!s.busy && document.querySelector('.title-bar .file').textContent === 'main'`, 'main'));
   await cdp.eval(`document.querySelector('.view-tab .view-tab-close').click()`);
   check('W644: a graph tab\'s x closes that graph; the main graph has no x', await until('!s.busy && s.plots.windows.length === 1', 'closed') && await cdp.eval(`document.querySelectorAll('.view-tab-close').length === 0`));
+  check('W696: the main graph\'s tab says it is always open (its tooltip and aria), and has no ×',
+    await cdp.eval(`(() => { const b = document.querySelector('.view-tab .plot-tab'); return b.textContent.trim() === 'main' && b.title === 'The main graph: always open' && b.getAttribute('aria-description') === 'The main graph: always open' && !b.parentElement.querySelector('.view-tab-close'); })()`));
   await openAutoxPanel();
   check('W644: autoX is a tab, in front, named in the title bar, the dock hidden beside it for Values',
     await cdp.eval(`document.querySelector('.view-tab[data-view-kind=autox] .plot-tab').getAttribute('aria-selected') === 'true' && document.querySelector('.title-bar .file').textContent === 'diagram_1'`)
@@ -3412,7 +3418,7 @@ async function dockCheck() {
   check('W644: beside autoX the dock shows Table', await until('s.table.open', 'table') && !!(await boxes()).dock);
   await cdp.eval(`document.querySelector('.dock-close').click()`);
   check('W644: its x there closes the panel only (the dock stays the user\'s)', await until('!s.table.open', 'closed') && !(await S('s.panels.dockHidden')));
-  await cdp.eval(`document.querySelector('#view-tab-graph-graph_1').click()`);
+  await cdp.eval(`document.querySelector('#view-tab-graph-main').click()`);
   check('W644: the graph tab brings back the plot, the status bar and the dock', await until('!s.diagram.shown', 'graph') && !!(await boxes()).dock && !!(await boxes()).status);
   /* a phone: the dock is a sheet with the same tabs and x, no Back */
   await metrics({width: 390, height: 844, deviceScaleFactor: 1, mobile: false});
@@ -3760,8 +3766,8 @@ async function popOutCheck() {
   check('W645: a command sent from the pop-out runs in the one session (the main window gets the new graph)',
     await until(`s.plots.windows.some(x => x.win === 'from the pop-out')`, 'the new graph', 30000 * SLOW) && (await S('__xpp.sentFrom(' + mark + ').length')) === 0,
     JSON.stringify(await S('s.plots.windows.map(x => x.win)')));
-  await S(`__xpp.send({cmd: 'window.select', window: 'graph_1'})`);
-  await requireUntil(`s.plots.active === 'graph_1'`, 'graph_1 selected again');
+  await S(`__xpp.send({cmd: 'window.select', window: 'main'})`);
+  await requireUntil(`s.plots.active === 'main'`, 'main selected again');
 
   /* choosing the tab brings the window forward: no second window */
   const before = (await popOutPages('dock:table')).length;
@@ -3779,23 +3785,64 @@ async function popOutCheck() {
   table.ws.close();
 
   /* a graph, from its tab */
-  const graph = await popOutTab('#view-tab-graph-graph_1', 'graph:graph_1');
+  const graph = await popOutTab('#view-tab-graph-main', 'graph:main');
   check('W645: the graph\'s tab says it is out, and its place in the main window says where it went',
-    await until(`s.popouts.includes('graph:graph_1')`, 'marked')
+    await until(`s.popouts.includes('graph:main')`, 'marked')
     && await cdp.eval(`!!document.querySelector('.view-tab.out [role=tab] .view-tab-out, .view-tab.out .view-tab-out') && !!document.querySelector('.popped-out') && !document.querySelector('.plot-view:not([hidden])')`));
   check('W645: the pop-out draws that graph, live, from the one session',
-    await untilOn(graph, '!!document.querySelector(".popout-shell[data-popout-kind=graph] .plot-view") && !!__xpp.plot("graph_1") && __xpp.plot("graph_1").curves[0].points > 0', 'drawn', 30000 * SLOW));
+    await untilOn(graph, '!!document.querySelector(".popout-shell[data-popout-kind=graph] .plot-view") && !!__xpp.plot("main") && __xpp.plot("main").curves[0].points > 0', 'drawn', 30000 * SLOW));
   const rows = await integrate(601, 60000 * SLOW);
   check('W645: a run in the main window redraws the pop-out\'s graph', rows
-    && await untilOn(graph, '__xpp.plot("graph_1").curves[0].points === 601', 'redrawn', 30000 * SLOW));
+    && await untilOn(graph, '__xpp.plot("main").curves[0].points === 601', 'redrawn', 30000 * SLOW));
 
   /* the main window closing closes the pop-outs: a reload is the page going away */
   await reloadPage();
   check('W645: the main window going away closes its pop-outs',
-    await waitFor(async () => (await popOutPages('graph:graph_1')).length === 0) && await S('s.popouts.length === 0 && !document.querySelector(".view-tab.out")'));
+    await waitFor(async () => (await popOutPages('graph:main')).length === 0) && await S('s.popouts.length === 0 && !document.querySelector(".view-tab.out")'));
   graph.ws.close();
   check('W645: a pop-out going away never makes the session leave: the main window still works',
     await S('!!s.hello && s.connected') && await integrate(601, 60000 * SLOW));
+}
+
+/* The main tab's three looks for the maintainer's choice (W696; with --only shots and XPP_SHOTS=folder): the main graph
+   and one added graph, each look (plain, a divider after main, a tint on main when it is not active) at 1280 and 390 wide,
+   light and dark: a picture of the whole page per look and width, and the tab bar's rectangle for a crop of it, main active
+   and main not active. Never a check: it writes files only; the crops are cut by a script of the caller's. */
+async function mainLookShots() {
+  const dir = path.join(process.env.XPP_SHOTS, 'looks');
+  fs.mkdirSync(dir, {recursive: true});
+  await until('s.hello && !s.busy', 'hello');
+  check('W696 looks: integrate for the table', await integrate(601, 30000));
+  await menuRun('window.new');
+  await requireUntil('!s.busy && s.plots.windows.length === 2', 'a second graph');
+  const looks = {a: null, b: 'border-right: 1px solid var(--border);', c: 'background: var(--surface-2);'};
+  const shot = async file => fs.writeFileSync(path.join(dir, file + '.png'), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+  const rects = {};
+  for (const [look, css] of Object.entries(looks)) {
+    /* the look on main's tab only; (c) tints it only while it is not active, the active highlight is the one shown then */
+    await cdp.eval(`(() => { const t = document.querySelector('.view-tabs .view-tab'); const css = ${JSON.stringify(css)};
+      t.setAttribute('style', css && !t.classList.contains('active') ? css : css && '${look}' === 'b' ? css : ''); })()`);
+    for (const [size, width, height] of [['1280', 1280, 860], ['390', 390, 844]]) {
+      for (const scheme of ['light', 'dark']) {
+        await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+        await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+        await rendered();
+        for (const state of ['active', 'inactive']) {
+          await cdp.eval(`document.querySelector('#view-tab-graph-${state === 'active' ? 'main' : 'graph_1'}').click()`);
+          await until(`s.plots.active === '${state === 'active' ? 'main' : 'graph_1'}' && !s.busy`, state);
+          await rendered();
+          /* the tab bar's own box for the crop, and its look refreshed for the state */
+          await cdp.eval(`(() => { const t = document.querySelector('.view-tabs .view-tab'); const css = ${JSON.stringify(css)};
+            t.setAttribute('style', css && !t.classList.contains('active') ? css : css && '${look}' === 'b' ? css : ''); })()`);
+          const box = await cdp.eval(`(() => { const r = document.querySelector('.view-tabs').getBoundingClientRect(); return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
+          const name = `look-${look}-${size}-${scheme}`;
+          await shot(state === 'active' ? name : name + '-inactive');
+          rects[`${look}-${size}-${scheme}-${state}`] = box;
+        }
+      }
+    }
+  }
+  fs.writeFileSync(path.join(dir, 'rects.json'), JSON.stringify(rects, null, 1));
 }
 
 /* The dock's and the view tabs' pictures for the UI review (W644; with --only shots and XPP_SHOTS=folder): the dock with each of its tabs, then the
@@ -3811,13 +3858,15 @@ async function dockShots() {
   await openAutoxAtFixedPoint();
   await requireUntil('s.diagram.open', 'autoX open');
   const shot = async name => fs.writeFileSync(path.join(dir, name + '.png'), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
-  const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['768', 768, 1024, 'light'], ['390', 390, 844, 'light']];
+  /* docs/ui-v2.md R3's widths: narrow (390), medium (768), wide (1280), each light and dark (W696) */
+  const sizes = [['1280-light', 1280, 860, 'light'], ['1280-dark', 1280, 860, 'dark'], ['768-light', 768, 1024, 'light'], ['768-dark', 768, 1024, 'dark'],
+    ['390-light', 390, 844, 'light'], ['390-dark', 390, 844, 'dark']];
   for (const [size, width, height, scheme] of sizes) {
     await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
     await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
     await rendered();
     /* the graph first: the dock's tabs over it */
-    await cdp.eval(`document.querySelector('#view-tab-graph-graph_1')?.click()`);
+    await cdp.eval(`document.querySelector('#view-tab-graph-main')?.click()`);
     await until(`!s.diagram.shown`, 'the graph shown').catch(() => {});
     for (const tab of ['values', 'table', 'text', 'help']) {
       if (tab === 'values') await clickRegistry('values.open');
@@ -3837,7 +3886,7 @@ async function dockShots() {
     await rendered();
     await shot(`views-add-menu-${size}`);
     await cdp.eval(`document.querySelector('.view-add').open = false`);
-    await cdp.eval(`document.querySelector('#view-tab-graph-graph_1').click()`);
+    await cdp.eval(`document.querySelector('#view-tab-graph-main').click()`);
     await until('!s.diagram.shown', 'the graph shown again');
   }
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
@@ -3860,20 +3909,20 @@ async function popOutShots() {
     await page.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
     await page.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
   };
-  const views = [['graph', 'graph:graph_1', '#view-tab-graph-graph_1'],
+  const views = [['graph', 'graph:main', '#view-tab-graph-main'],
     ['autox', 'autox:diagram_1', '#view-tab-autox-diagram_1'],
     ['table', 'dock:table', '.dock-popout']];
   for (const [name, key, button] of views) {
     await size(cdp, sizes[0]);
     if (name === 'table') {
-      await cdp.eval(`document.querySelector('#view-tab-graph-graph_1').click()`);
+      await cdp.eval(`document.querySelector('#view-tab-graph-main').click()`);
       await cdp.eval(`document.querySelector('.dock [data-dock-tab=table]').click()`);
       await requireUntil('s.table.open', 'table open');
     }
     const page = name === 'table' ? await popOut(button, key) : await popOutTab(button, key);
     await requireUntil(`s.popouts.includes(${JSON.stringify(key)})`, 'marked out');
     if (name === 'graph') { /* its tab in front: its place says where it went */
-      await clickElement('#view-tab-graph-graph_1');
+      await clickElement('#view-tab-graph-main');
       await requireUntil('!s.diagram.shown', 'the graph tab in front');
     }
     for (const sz of sizes) {
@@ -4357,7 +4406,7 @@ async function menuBarCheck() {
   await menuRun('window.new', {name: 'Second graph'});
   check('W634: a second graph gives two window submenus', await until(`!s.busy && s.windows.some(w => w.name === 'Second graph')`, 'second graph'));
   await press('[data-top-menu=Windows] > summary');
-  await press('[data-window-menu="graph_1"] > summary');
+  await press('[data-window-menu="main"] > summary');
   await press('[data-window-menu="Second graph"] > summary');
   const submenus = await cdp.eval(`[...document.querySelectorAll('[data-window-menu][open]')].map(d => d.dataset.windowMenu)`);
   check('W634: a window submenu opened after another closes it, Windows stays open',
@@ -4651,12 +4700,12 @@ async function runsCheck(dir) {
 
   /* Erase blanks the picture, Redraw draws the current data again */
   await focusPlot();
-  await cdp.eval(`__xpp.send({cmd: 'window.clear', window: 'graph_1'})`);
+  await cdp.eval(`__xpp.send({cmd: 'window.clear', window: 'main'})`);
   check('runs: Erase clears the picture and the shown runs',
     await until('!s.busy && w.history.erased && w.history.runs.length === 0 && __xpp.plot().curves[0].points === 0 && __xpp.plot().runs.count === 0', 'erase'),
     JSON.stringify(await S('w.history')));
   await focusPlot();
-  await cdp.eval(`__xpp.send({cmd: 'window.redraw', window: 'graph_1'})`);
+  await cdp.eval(`__xpp.send({cmd: 'window.redraw', window: 'main'})`);
   check('runs: Redraw shows the current data again',
     await until('!s.busy && !w.history.erased && __xpp.plot().curves[0].points === 601', 'redraw'), JSON.stringify(await S('w.history')));
 
@@ -7193,7 +7242,7 @@ async function layoutCheck(dir) {
   const nPts = await DS('d.points.x.length');
   await dialogOverEverything(`document.querySelector('.autox-panel [data-auto-trace]').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))`,
     '.autox-panel .u-over', 'the autoX view');
-  await cdp.eval(`document.querySelector('#view-tab-graph-graph_1').click()`);
+  await cdp.eval(`document.querySelector('#view-tab-graph-main').click()`);
   check('layout: a graph tab hides the view, the autoX tab stays', await until('!s.diagram.shown && s.diagram.open', 'auto back')
     && await cdp.eval(`!!document.querySelector('[data-view-kind=autox]')`));
   for (const h of [900, 560]) {
@@ -7239,7 +7288,7 @@ async function layoutCheck(dir) {
   await cdp.eval(`document.querySelector('[data-view-kind=autox] .plot-tab').click()`);
   check('layout: Show autoX brings the view back with its diagram',
     await until(`s.diagram.shown && dv.points.x.length === ${nPts} && !s.busy`, 'auto show after open', 30000));
-  await cdp.eval(`document.querySelector('#view-tab-graph-graph_1').click()`);
+  await cdp.eval(`document.querySelector('#view-tab-graph-main').click()`);
   await until('!s.diagram.shown && s.diagram.open', 'back after open');
   await rendered();
   const L = await layoutRects();
@@ -7404,6 +7453,7 @@ async function main() {
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, fieldHelpShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, menuShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, dockShots);
+    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, mainLookShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, renameShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(AB_ODE, autoxScriptShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'popoutshots')) await session(ODE, popOutShots);

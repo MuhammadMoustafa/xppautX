@@ -44,14 +44,19 @@
   background: none;
   color: var(--fg-muted);
 }
-.plot-tab[aria-selected='true'], .dock-tab[aria-selected='true'] { color: var(--fg); border-bottom-color: var(--accent); background: var(--surface); }
+.plot-tab[aria-selected='true'], .dock-tab[aria-selected='true'], .view-tab.active { color: var(--fg); border-bottom-color: var(--accent); background: var(--surface); }
 .plot-tab-num { font-weight: 600; }
 /* the view tabs above the plot (W644, ui/ViewTabs.tsx): the strip, each tab with its ×, and ＋ */
 .view-tabs { grid-area: tabs; display: flex; align-items: flex-end; gap: var(--space-1); min-width: 0; padding: 0 var(--space-3); border-bottom: 1px solid var(--border); background: var(--surface); }
 .view-tabs .plot-tabs { flex: 0 1 auto; flex-wrap: nowrap; overflow-x: auto; }
-.view-tab { display: inline-flex; align-items: center; flex: none; }
+.view-tab { display: inline-flex; align-items: center; flex: none; color: var(--fg-muted); border-bottom: 2px solid transparent; border-radius: 0.375rem 0.375rem 0 0; }
+/* the tab underline is the whole tab's (its pin or × included): the button draws none (W696) */
+.view-tabs .plot-tab, .view-tabs .plot-tab[aria-selected='true'] { border-bottom: 0; background: none; }
 .view-tab-kind { color: var(--fg-muted); white-space: pre; }
-.view-tab .view-tab-close { min-width: 1.5rem; padding-inline: var(--space-1); }
+.view-tab-close { min-width: 1.5rem; padding-inline: var(--space-1); display: inline-flex; align-items: center; justify-content: center; border-color: transparent; background: none; color: var(--fg-muted); }
+/* a tab's × shows on the active tab and on hover or focus (its button stays focusable), as in VS Code (W696) */
+.view-tab .view-tab-close { opacity: 0; pointer-events: none; }
+.view-tab.active .view-tab-close, .view-tab:hover .view-tab-close, .view-tab:focus-within .view-tab-close { opacity: 1; pointer-events: auto; }
 /* a view's name edited in its tab (W685, ViewTabs.tsx ViewRename) */
 .view-tab-rename { display: inline-flex; margin: 0; }
 .view-tab-rename input { width: 10rem; min-width: 0; }

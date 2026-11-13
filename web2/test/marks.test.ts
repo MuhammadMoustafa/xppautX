@@ -18,7 +18,7 @@ const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never}
 const f32 = (v: number[]) => Buffer.from(new Float32Array(v).buffer).toString('base64');
 
 const MARKS: MarksEvent = {
-  ev: 'plot.marks', win: 'graph_1',
+  ev: 'plot.marks', win: 'main',
   equilibria: [{x: -0.14, y: 0.03, type: 'saddle', symbol: 'triangle'}, {x: 0.3, y: 0.2, type: 'stable', symbol: 'circle'}],
   text: [{id: 4, x: 0.1, y: 0.5, text: '\\1a\\0-point', source: '\\1a\\0-point', size: 3, font: 0, style: 'bold', color: '#c8c800'}],
   arrows: [{id: 5, kind: 'pointer', x1: 0, y1: 0, x2: 1, y2: 0, size: 0.2, color: '#c8c800'}],
@@ -77,11 +77,11 @@ test('marks decoded: stability, text runs, arrows, markers, frozen curves from J
 
 test('the store keeps each window its marks; an empty event clears them', () => {
   let s = ev(READY, MARKS);
-  s = ev(s, {...MARKS, win: 'graph_2', equilibria: []});
-  assert.equal(windowOf(s.plots, 'graph_1')?.marks?.equilibria.length, 2);
-  assert.equal(windowOf(s.plots, 'graph_2')?.marks?.equilibria.length, 0);
-  s = ev(s, {ev: 'plot.marks', win: 'graph_1', equilibria: [], text: [], arrows: [], markers: [], frozen: []});
-  assert.equal(markCount(windowOf(s.plots, 'graph_1')?.marks ?? null), 0);
+  s = ev(s, {...MARKS, win: 'graph_1', equilibria: []});
+  assert.equal(windowOf(s.plots, 'main')?.marks?.equilibria.length, 2);
+  assert.equal(windowOf(s.plots, 'graph_1')?.marks?.equilibria.length, 0);
+  s = ev(s, {ev: 'plot.marks', win: 'main', equilibria: [], text: [], arrows: [], markers: [], frozen: []});
+  assert.equal(markCount(windowOf(s.plots, 'main')?.marks ?? null), 0);
 });
 
 test('layers: one per kind, named for the legend, and one per frozen curve by its key', () => {
@@ -182,7 +182,7 @@ test('text sizes 0-4 in pixels, out of range clamped', () => {
 
 test('W376: more than 26 frozen curves remain in the store and legend', () => {
   const frozen = Array.from({length: 32}, (_, i) => ({...MARKS.frozen[0], name: `curve${i}`, key: `key${i}`}));
-  const marks = marksFromEvent({...MARKS, win: 'graph_30', frozen});
+  const marks = marksFromEvent({...MARKS, win: 'graph_29', frozen});
   assert.equal(marks.frozen.length, 32);
   assert.equal(marks.frozen[31].label, 'key31');
   assert.equal(marks.frozen[31].xs.length, 3);

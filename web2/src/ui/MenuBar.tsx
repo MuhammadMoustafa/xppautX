@@ -33,6 +33,8 @@ export function MenuBar() {
   const drawer = useStore(s => s.menuOpen);
   const may = useMay();
   const windows = useStore(s => s.windows);
+  /* the main graph is the first graph window: always open, so its Hide is off (W696) */
+  const mainName = windows.find(w => w.kind === 'graph')?.name;
   const bar = useRef<HTMLElement>(null);
   const closeDrawer = () => session.store.dispatch({type: 'menu', open: false});
   const close = (focus = true) => {closeMenuBar(focus); closeDrawer();};
@@ -110,8 +112,8 @@ export function MenuBar() {
       {windows.filter(w => i === 0 ? w.kind === 'graph' : i === 1 ? w.kind === 'diagram' : !['graph','diagram'].includes(w.kind)).map(w => <li key={w.name}>
         <details data-window-menu={w.name}><summary>{w.shown ? '✓ ' : ''}{w.name}</summary><ul>
           {['window.select', 'window.rename', w.shown ? 'window.hide' : 'window.show', 'window.close'].map(id => <li key={id}>
-            <button data-window-action={id} disabled={id === 'window.rename' && !['graph','diagram'].includes(w.kind) || id === 'window.close' && w.kind === 'data'}
-              title={id === 'window.rename' && !['graph','diagram'].includes(w.kind) ? 'This tool window keeps its role name' : id === 'window.close' && w.kind === 'data' ? 'The data table stays open; Hide keeps it out of view' : undefined} onClick={() => {close(); if (id === 'window.rename') session.registryAction(id, {window: w.name});
+            <button data-window-action={id} disabled={id === 'window.rename' && !(['graph','diagram'].includes(w.kind)) || id === 'window.close' && w.kind === 'data' || id === 'window.hide' && w.name === mainName}
+              title={id === 'window.rename' && !['graph','diagram'].includes(w.kind) ? 'This tool window keeps its role name' : id === 'window.close' && w.kind === 'data' ? 'The data table stays open; Hide keeps it out of view' : id === 'window.hide' && w.name === mainName ? 'The main graph is always shown' : undefined} onClick={() => {close(); if (id === 'window.rename') session.registryAction(id, {window: w.name});
               else {if (id === 'window.select') session.send({cmd: 'window.show', window: w.name}); session.send({cmd: id, window: w.name});}}}>{commandRow(hello, id)?.label}</button>
           </li>)}
         </ul></details>

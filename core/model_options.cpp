@@ -53,7 +53,7 @@ constexpr std::string_view log_level_is_the_users = "what the log shows is the u
 constexpr std::string_view picture_as_shown = "an exported picture is the graph as the panel shows it, so its color and font size are not settings and the option is dropped";
 constexpr std::string_view log_file_is_the_users = "where the log goes is the user's, not a model's (the preferences' log_file), so the option is dropped";
 /* what a .ode's several starting graphs (multiwin, simplot, xlo2 to yhi8) become: one warning */
-constexpr std::string_view several_graphs = "xppautX opens one graph, so curves 2 to N join graph_1 and the options of several starting graphs are dropped: several graphs are a session's (window.new)";
+constexpr std::string_view several_graphs = "xppautX opens one graph, so curves 2 to N join main and the options of several starting graphs are dropped: several graphs are a session's (window.new)";
 
 /* a 3D box side's default: wide enough for most models' variables */
 constexpr double box_side = 12;

@@ -429,8 +429,8 @@ formula, a second `session`):
           sliders: [ { name: iapp, low: -1, high: 2, step: 0.01 } ],
           random: { seed: 12345678, wiener: [], ou: [], generator: "..." },
           autox: { settings: { ... }, views: [ { name: "diagram_1", ... } ], active: "diagram_1" },
-          windows: [ { name: "graph_1", curves: [ { x: V, y: W, ... } ], ... } ],
-          active: "graph_1",
+          windows: [ { name: "main", curves: [ { x: V, y: W, ... } ], ... } ],
+          active: "main",
           marks: { ... },
         }
 
