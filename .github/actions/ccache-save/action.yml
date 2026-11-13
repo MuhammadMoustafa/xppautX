@@ -1,0 +1,43 @@
+name: Save the compiler cache (W692, W716)
+description: >-
+  Saves $CCACHE_DIR under the key prefix plus the run id, then deletes the
+  older caches of that prefix on this branch, so a job keeps one cache per
+  branch (W716: every run used to add one and never delete the restored one;
+  three pushes left 25 caches, the repository's 10 GB limit was passed and
+  GitHub evicted master's). Runs only when the workflow's CCACHE_SAVE is
+  'true' (build.yml's env, master only: a ci/** branch restores master's
+  caches and adds none), even after a failed check: the objects the build
+  made are good either way. Never fails the job. Needs `actions: write` for
+  the prune and GH_TOKEN, given by the caller.
+inputs:
+  prefix:
+    description: "Key prefix of this job's cache, e.g. ccache-linux-core-gcc- (no other job's key starts with it)"
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Save the cache
+      id: save
+      if: ${{ always() && env.CCACHE_SAVE == 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ inputs.prefix }}${{ github.run_id }}-${{ github.run_attempt }}
+    # only after the save worked (else the old one is all there is), only this
+    # prefix on this ref, never the key just saved; a failed delete is logged
+    - name: Delete this branch's older caches of the prefix
+      if: ${{ always() && steps.save.outcome == 'success' }}
+      shell: bash
+      env:
+        GH_REPO: ${{ github.repository }}
+        PREFIX: ${{ inputs.prefix }}
+        NEW_KEY: ${{ inputs.prefix }}${{ github.run_id }}-${{ github.run_attempt }}
+        REF: ${{ github.ref }}
+      run: |
+        keys=$(gh cache list --key "$PREFIX" --ref "$REF" --limit 100 --json key --jq '.[].key') || { echo "::warning::could not list the caches of $PREFIX"; exit 0; }
+        for k in $keys; do
+          [ "$k" = "$NEW_KEY" ] && continue
+          case "$k" in "$PREFIX"*) ;; *) continue ;; esac
+          gh cache delete "$k" || echo "::warning::could not delete cache $k"
+        done

@@ -239,13 +239,19 @@ timed study:
   `CCACHE_NOHASHDIR`), at the price that -g's recorded build folder is the
   first builder's. CI keeps one too (W692, #768): build.yml's builds
   install ccache (apt, brew, MSYS2's `ccache:p`), restore the latest
-  `ccache-<job>-` cache of actions/cache into `build/ccache`, and save a
-  fresh one under a run key at the job's end, even after a failed check,
-  printing `ccache -s` (the run's own hit rate: the stats are zeroed after
-  the restore); caps 400 MB a plain build, 600 MB the source and sanitizer
-  jobs, eight saved caches (~4 GB, under GitHub's 10 GB repo limit with room
-  for a second branch's), a `-ui` job restoring its `-core` job's and a
-  sanitizer matrix saving from its first shard only. release.yml sets
+  `ccache-<job>-` cache into `build/ccache` (`.github/actions/ccache-restore`)
+  and, only on master (`CCACHE_SAVE`, one env line in build.yml), save a fresh
+  one under a run key at the job's end, even after a failed check, then delete
+  the job's older caches of its prefix on that ref (`.github/actions/ccache-save`,
+  `actions: write`; W716: every run used to add a cache, three pushes passed the
+  10 GB limit and GitHub evicted master's), printing `ccache -s` (the run's own
+  hit rate: the stats are zeroed after the restore). A ci/** branch restores
+  master's caches and saves none. Each cap fits one job's whole build, so ccache
+  never cleans up mid-run (1000 MB source, linux-core and linux-ui; 900 linux
+  sanitizers; 800 windows-core; 700 macos sanitizers; 500 macos-core, macos-ui,
+  windows-ui, windows-clang sanitizers; 400 windows-clang): the saved ones sum to
+  6.3 GB, with the toolchain and apt caches under 8 GB. A `-ui` job restores its
+  `-core` job's and a sanitizer matrix saves from its first shard only. release.yml sets
   `CCACHE=` (empty) and builds clean, as does `make CCACHE=`;
   `tools/heavy.sh --alone` sets
   `CCACHE_DISABLE=1` (wslrun.sh forwards it), so a timing or profiling

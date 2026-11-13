@@ -1,0 +1,29 @@
+name: Restore the compiler cache (W692, W716)
+description: >-
+  Restores the newest ccache of a key prefix into $CCACHE_DIR (this branch's,
+  else the default branch's: restore-keys reach master's caches from a ci/**
+  branch) and zeroes ccache's statistics, so the job's `ccache -s` shows this
+  run's own hits. Written once for every job, like ccache-save, which saves.
+inputs:
+  prefix:
+    description: "Key prefix of the cache to restore, e.g. ccache-linux-core-gcc-"
+    required: true
+  also:
+    description: "A second prefix tried when the first has no cache (windows-ui falls back to the core job's)"
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Restore the cache
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        # the run id makes the key never exist: a restore always goes by the prefixes
+        key: ${{ inputs.prefix }}${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          ${{ inputs.prefix }}
+          ${{ inputs.also }}
+    - name: Count this run's compiler cache hits only
+      shell: bash
+      run: ccache --zero-stats

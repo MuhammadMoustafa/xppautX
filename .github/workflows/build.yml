@@ -53,6 +53,18 @@ concurrency:
 # the job still fails if any step did. Setup steps (checkout, toolchain,
 # build) keep the default condition: a failed build stops its job's
 # checks, which test the build (`steps.build.outcome`).
+# W716: only master saves compiler caches. A ci/** branch and a pull request
+# restore master's (restore-keys reach the default branch's caches) and add
+# none, so a spike's pushes never evict them from the repository's 10 GB; to
+# test the saving on a branch, temporarily set this to true.
+env:
+  CCACHE_SAVE: ${{ github.ref == 'refs/heads/master' }}
+
+# actions: write lets .github/actions/ccache-save delete the job's older caches
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   # the source, not a build: encoding, script modes, stdoutcheck,
   # formatcheck, the LTO type check and the warning count
@@ -64,7 +76,8 @@ jobs:
     runs-on: ubuntu-26.04
     env:
       CCACHE_DIR: ${{ github.workspace }}/build/ccache
-      CCACHE_MAXSIZE: 600M
+      # source: 815 compiles over several flag sets, 44 cleanups at 600M in run 43154967684 (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
+      CCACHE_MAXSIZE: 1000M
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6.4.3
@@ -91,27 +104,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y -o Dir::Cache::Archives="$HOME/apt-cache" libwebkit2gtk-4.1-dev ccache
           sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
-      - name: Restore the compiler cache (W692)
-        uses: actions/cache/restore@v6
+      - name: Restore the compiler cache (W692, W716)
+        uses: ./.github/actions/ccache-restore
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-source-gcc-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-source-gcc-
-      - name: Count this run's compiler cache hits only
-        run: ccache --zero-stats
+          prefix: ccache-source-gcc-
       - name: "Source checks: encoding, script modes, stdout, formats, LTO types, dead code, warning count"
         run: tools/sourcecheck.sh --warnings
       - name: Compiler cache hit rate
         if: ${{ always() }}
         run: ccache --show-stats
       # saved even when a check failed or the run was cancelled: the objects the build made are good either way
-      - name: Save the compiler cache
+      - name: Save the compiler cache, delete the older ones (W716)
         if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: ./.github/actions/ccache-save
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-source-gcc-${{ github.run_id }}-${{ github.run_attempt }}
+          prefix: ccache-source-gcc-
       - name: "New front end: dist/ built from src/, types, unit tests"
         if: ${{ !cancelled() && steps.node.outcome == 'success' }}
         run: cd web2 && npm ci && npm run check && npm run typecheck && npm test
@@ -122,7 +131,8 @@ jobs:
     runs-on: ubuntu-26.04
     env:
       CCACHE_DIR: ${{ github.workspace }}/build/ccache
-      CCACHE_MAXSIZE: 400M
+      # linux-core: 325 compiles, 123 cleanups at 400M in run 43154967684; gcc -g objects about 2 MB each (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
+      CCACHE_MAXSIZE: 1000M
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6.4.3
@@ -151,14 +161,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y -o Dir::Cache::Archives="$HOME/apt-cache" libwebkit2gtk-4.1-dev ccache
           sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
-      - name: Restore the compiler cache (W692)
-        uses: actions/cache/restore@v6
+      - name: Restore the compiler cache (W692, W716)
+        uses: ./.github/actions/ccache-restore
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-linux-core-gcc-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-linux-core-gcc-
-      - name: Count this run's compiler cache hits only
-        run: ccache --zero-stats
+          prefix: ccache-linux-core-gcc-
       # everything verify.sh checks but the source checks (the source job's);
       # one step: verify.sh runs every check itself and reports each
       - name: Build, smoke test, protocol, modes, autoX, examples, metrics
@@ -208,13 +214,13 @@ jobs:
         if: ${{ always() }}
         run: ccache --show-stats
       # saved even when a check failed or the run was cancelled: the objects the build made are good either way
-      - name: Save the compiler cache
+      - name: Save the compiler cache, delete the older ones (W716)
         if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: ./.github/actions/ccache-save
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-linux-core-gcc-${{ github.run_id }}-${{ github.run_attempt }}
+          prefix: ccache-linux-core-gcc-
 
   # The new front end driven through a headless browser (docs/ui-v2.md):
   # its own job beside linux-core's verify.sh, so the two run in parallel
@@ -227,7 +233,8 @@ jobs:
     runs-on: ubuntu-26.04
     env:
       CCACHE_DIR: ${{ github.workspace }}/build/ccache
-      CCACHE_MAXSIZE: 400M
+      # linux-ui restores linux-core's cache and saves none: the cap keeps the restored objects (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
+      CCACHE_MAXSIZE: 1000M
     steps:
       - uses: actions/checkout@v7
         # the release tags: git describe gives the build the version the
@@ -249,14 +256,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y -o Dir::Cache::Archives="$HOME/apt-cache" libwebkit2gtk-4.1-dev ccache
           sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
-      - name: Restore the compiler cache (W692)
-        uses: actions/cache/restore@v6
+      - name: Restore the compiler cache (W692, W716)
+        uses: ./.github/actions/ccache-restore
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-linux-core-gcc-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-linux-core-gcc-
-      - name: Count this run's compiler cache hits only
-        run: ccache --zero-stats
+          prefix: ccache-linux-core-gcc-
       - name: Build xppautX
         id: build
         run: make -j"$(nproc)" xppautx
@@ -282,7 +285,8 @@ jobs:
     runs-on: ubuntu-26.04
     env:
       CCACHE_DIR: ${{ github.workspace }}/build/ccache
-      CCACHE_MAXSIZE: 600M
+      # linux-sanitizers: 241-321 compiles per shard, 39-49 cleanups at 600M (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
+      CCACHE_MAXSIZE: 900M
     strategy:
       fail-fast: false
       matrix:
@@ -304,14 +308,10 @@ jobs:
           enable-cache: true
       - name: ccache
         run: sudo apt-get update && sudo apt-get install -y ccache
-      - name: Restore the compiler cache (W692)
-        uses: actions/cache/restore@v6
+      - name: Restore the compiler cache (W692, W716)
+        uses: ./.github/actions/ccache-restore
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-linux-asan-gcc-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-linux-asan-gcc-
-      - name: Count this run's compiler cache hits only
-        run: ccache --zero-stats
+          prefix: ccache-linux-asan-gcc-
       # gcc's ASan cannot map its shadow memory with the 32 bits of mmap
       # randomness recent runner kernels use
       - name: Allow ASan's memory layout
@@ -330,13 +330,13 @@ jobs:
         if: ${{ always() }}
         run: ccache --show-stats
       # saved even when a check failed or the run was cancelled: the objects the build made are good either way
-      - name: Save the compiler cache
+      - name: Save the compiler cache, delete the older ones (W716)
         if: ${{ always() && matrix.shard == 'smoke-examples-unit' }}
-        continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: ./.github/actions/ccache-save
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-linux-asan-gcc-${{ github.run_id }}-${{ github.run_attempt }}
+          prefix: ccache-linux-asan-gcc-
 
   # AddressSanitizer + UBSan (Apple clang) over the same checks as
   # linux-sanitizers, without LeakSanitizer: unsupported on Apple Silicon
@@ -348,7 +348,8 @@ jobs:
     runs-on: macos-latest
     env:
       CCACHE_DIR: ${{ github.workspace }}/build/ccache
-      CCACHE_MAXSIZE: 600M
+      # macos-sanitizers: 2 cleanups at 600M, so a little room (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
+      CCACHE_MAXSIZE: 700M
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6.4.3
@@ -356,27 +357,23 @@ jobs:
           enable-cache: true
       - name: ccache
         run: brew install ccache
-      - name: Restore the compiler cache (W692)
-        uses: actions/cache/restore@v6
+      - name: Restore the compiler cache (W692, W716)
+        uses: ./.github/actions/ccache-restore
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-macos-asan-clang-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-macos-asan-clang-
-      - name: Count this run's compiler cache hits only
-        run: ccache --zero-stats
+          prefix: ccache-macos-asan-clang-
       - name: "Sanitizers: no error report (no leak detection on macOS)"
         run: tools/asancheck.sh --no-leaks
       - name: Compiler cache hit rate
         if: ${{ always() }}
         run: ccache --show-stats
       # saved even when a check failed or the run was cancelled: the objects the build made are good either way
-      - name: Save the compiler cache
+      - name: Save the compiler cache, delete the older ones (W716)
         if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: ./.github/actions/ccache-save
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-macos-asan-clang-${{ github.run_id }}-${{ github.run_attempt }}
+          prefix: ccache-macos-asan-clang-
       - name: Upload sanitizer reports
         if: ${{ failure() }}
         uses: actions/upload-artifact@v7
@@ -392,7 +389,8 @@ jobs:
     runs-on: macos-latest
     env:
       CCACHE_DIR: ${{ github.workspace }}/build/ccache
-      CCACHE_MAXSIZE: 400M
+      # macos-core: 2 cleanups at 400M, so a little room (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
+      CCACHE_MAXSIZE: 500M
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6.4.3
@@ -400,14 +398,10 @@ jobs:
           enable-cache: true
       - name: ccache
         run: brew install ccache
-      - name: Restore the compiler cache (W692)
-        uses: actions/cache/restore@v6
+      - name: Restore the compiler cache (W692, W716)
+        uses: ./.github/actions/ccache-restore
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-macos-core-clang-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-macos-core-clang-
-      - name: Count this run's compiler cache hits only
-        run: ccache --zero-stats
+          prefix: ccache-macos-core-clang-
       - name: "Build xppautX (WKWebView window on, the Darwin default since W13d)"
         id: build
         run: |
@@ -492,13 +486,13 @@ jobs:
         if: ${{ always() }}
         run: ccache --show-stats
       # saved even when a check failed or the run was cancelled: the objects the build made are good either way
-      - name: Save the compiler cache
+      - name: Save the compiler cache, delete the older ones (W716)
         if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: ./.github/actions/ccache-save
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-macos-core-clang-${{ github.run_id }}-${{ github.run_attempt }}
+          prefix: ccache-macos-core-clang-
 
   # web2check against the macOS build, beside macos-core (as linux-ui and
   # windows-ui are beside theirs): its own build, the runner's Google
@@ -509,7 +503,8 @@ jobs:
     runs-on: macos-latest
     env:
       CCACHE_DIR: ${{ github.workspace }}/build/ccache
-      CCACHE_MAXSIZE: 400M
+      # macos-ui restores macos-core's cache and saves none (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
+      CCACHE_MAXSIZE: 500M
     steps:
       - uses: actions/checkout@v7
         # the release tags: git describe gives the build the version the
@@ -518,14 +513,10 @@ jobs:
           fetch-depth: 0
       - name: ccache
         run: brew install ccache
-      - name: Restore the compiler cache (W692)
-        uses: actions/cache/restore@v6
+      - name: Restore the compiler cache (W692, W716)
+        uses: ./.github/actions/ccache-restore
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-macos-core-clang-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-macos-core-clang-
-      - name: Count this run's compiler cache hits only
-        run: ccache --zero-stats
+          prefix: ccache-macos-core-clang-
       - name: Build xppautX
         id: build
         run: make -j"$(sysctl -n hw.ncpu)" xppautx
@@ -548,7 +539,8 @@ jobs:
     runs-on: windows-latest
     env:
       CCACHE_DIR: ${{ github.workspace }}/build/ccache
-      CCACHE_MAXSIZE: 400M
+      # windows-core: 323 compiles, 62 cleanups at 400M (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
+      CCACHE_MAXSIZE: 800M
     defaults:
       run:
         shell: msys2 {0}
@@ -561,14 +553,10 @@ jobs:
         with:
           msystem: UCRT64
           packages-file: .github/msys2-ucrt64-packages.txt
-      - name: Restore the compiler cache (W692)
-        uses: actions/cache/restore@v6
+      - name: Restore the compiler cache (W692, W716)
+        uses: ./.github/actions/ccache-restore
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-windows-ucrt-gcc-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-windows-ucrt-gcc-
-      - name: Count this run's compiler cache hits only
-        run: ccache --zero-stats
+          prefix: ccache-windows-ucrt-gcc-
       - name: Build the X11-free binaries natively
         id: build
         run: mingw32-make -j4 xppautx
@@ -648,13 +636,13 @@ jobs:
         if: ${{ always() }}
         run: ccache --show-stats
       # saved even when a check failed or the run was cancelled: the objects the build made are good either way
-      - name: Save the compiler cache
+      - name: Save the compiler cache, delete the older ones (W716)
         if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: ./.github/actions/ccache-save
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-windows-ucrt-gcc-${{ github.run_id }}-${{ github.run_attempt }}
+          prefix: ccache-windows-ucrt-gcc-
 
   # web2check against the Windows build, beside windows-core (as
   # linux-ui is beside linux-core): its own build, the runner's Chrome
@@ -666,7 +654,8 @@ jobs:
     runs-on: windows-latest
     env:
       CCACHE_DIR: ${{ github.workspace }}/build/ccache
-      CCACHE_MAXSIZE: 400M
+      # windows-ui: 243 compiles, 20 cleanups at 400M (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
+      CCACHE_MAXSIZE: 500M
     defaults:
       run:
         shell: bash
@@ -684,17 +673,12 @@ jobs:
           packages-file: .github/msys2-ucrt64-packages.txt
       - name: Put the UCRT64 toolchain on the PATH
         run: echo 'C:\msys64\ucrt64\bin' >> "$GITHUB_PATH"
-      - name: Restore the compiler cache (W692)
-        uses: actions/cache/restore@v6
+      # its own first: built from Git Bash on the PATH, not the MSYS2 shell, so the core job's objects never hit here (0 of 243 in run 42955421613)
+      - name: Restore the compiler cache (W692, W716)
+        uses: ./.github/actions/ccache-restore
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-windows-ucrt-ui-${{ github.run_id }}-${{ github.run_attempt }}
-          # its own first: built from Git Bash on the PATH, not the MSYS2 shell, so the core job's objects never hit here (0 of 243 in run 42955421613)
-          restore-keys: |
-            ccache-windows-ucrt-ui-
-            ccache-windows-ucrt-gcc-
-      - name: Count this run's compiler cache hits only
-        run: ccache --zero-stats
+          prefix: ccache-windows-ucrt-ui-
+          also: ccache-windows-ucrt-gcc-
       - name: Build xppautX.exe
         id: build
         run: mingw32-make -j4 xppautx
@@ -710,13 +694,13 @@ jobs:
       - name: Compiler cache hit rate
         if: ${{ always() }}
         run: ccache --show-stats
-      - name: Save the compiler cache
+      - name: Save the compiler cache, delete the older ones (W716)
         if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: ./.github/actions/ccache-save
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-windows-ucrt-ui-${{ github.run_id }}-${{ github.run_attempt }}
+          prefix: ccache-windows-ucrt-ui-
 
   # MSYS2's CLANG64 toolchain (W23: clang, libc++, lld, compiler-rt), a
   # second compiler on Windows beside windows-core's UCRT64 gcc (gcc 16), which
@@ -730,6 +714,7 @@ jobs:
     runs-on: windows-latest
     env:
       CCACHE_DIR: ${{ github.workspace }}/build/ccache
+      # windows-clang: 0.3 of 0.4 GB used, no cleanup (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
       CCACHE_MAXSIZE: 400M
     defaults:
       run:
@@ -743,14 +728,10 @@ jobs:
         with:
           msystem: CLANG64
           packages-file: .github/msys2-clang64-packages.txt
-      - name: Restore the compiler cache (W692)
-        uses: actions/cache/restore@v6
+      - name: Restore the compiler cache (W692, W716)
+        uses: ./.github/actions/ccache-restore
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-windows-clang-core-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-windows-clang-core-
-      - name: Count this run's compiler cache hits only
-        run: ccache --zero-stats
+          prefix: ccache-windows-clang-core-
       - name: "Build xppautX with clang (WERROR default)"
         id: build
         run: |
@@ -809,13 +790,13 @@ jobs:
         if: ${{ always() }}
         run: ccache --show-stats
       # saved even when a check failed or the run was cancelled: the objects the build made are good either way
-      - name: Save the compiler cache
+      - name: Save the compiler cache, delete the older ones (W716)
         if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: ./.github/actions/ccache-save
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-windows-clang-core-${{ github.run_id }}-${{ github.run_attempt }}
+          prefix: ccache-windows-clang-core-
 
   # windows-clang's sanitizer run, a job of its own so it runs beside
   # windows-clang's checks instead of after them (W36). W41 first split
@@ -834,7 +815,8 @@ jobs:
     runs-on: windows-latest
     env:
       CCACHE_DIR: ${{ github.workspace }}/build/ccache
-      CCACHE_MAXSIZE: 600M
+      # windows-clang-sanitizers: 0.3 of 0.6 GB used; 0.5 leaves room (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
+      CCACHE_MAXSIZE: 500M
     defaults:
       run:
         shell: msys2 {0}
@@ -863,14 +845,10 @@ jobs:
         with:
           msystem: CLANG64
           packages-file: .github/msys2-clang64-packages.txt
-      - name: Restore the compiler cache (W692)
-        uses: actions/cache/restore@v6
+      - name: Restore the compiler cache (W692, W716)
+        uses: ./.github/actions/ccache-restore
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-windows-clang-asan-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-windows-clang-asan-
-      - name: Count this run's compiler cache hits only
-        run: ccache --zero-stats
+          prefix: ccache-windows-clang-asan-
       - name: "Sanitizers (ASan + UBSan, no leaks): ${{ matrix.shard }}"
         id: asan
         run: MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan --only ${{ matrix.only }} CC=clang CXX=clang++
@@ -888,10 +866,10 @@ jobs:
         if: ${{ always() }}
         run: ccache --show-stats
       # saved even when a check failed or the run was cancelled: the objects the build made are good either way
-      - name: Save the compiler cache
+      - name: Save the compiler cache, delete the older ones (W716)
         if: ${{ always() && matrix.shard == 'examples' }}
-        continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: ./.github/actions/ccache-save
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-windows-clang-asan-${{ github.run_id }}-${{ github.run_attempt }}
+          prefix: ccache-windows-clang-asan-
