@@ -14,7 +14,7 @@ import {useDropDown} from './SetsRow';
 import {viewKeyText, type ViewKey} from '../popout';
 
 /** the main graph's tab says why it stays (W696) */
-const MAIN_PINNED = 'The main graph: always open';
+const MAIN_TITLE = 'The main graph: always open';
 
 /** the views shown as tabs: the graph windows (a hidden one has none until shown again; the active one always has), then autoX's */
 interface ViewTab {kind: 'graph' | 'autox'; name: string; index: number}
@@ -107,19 +107,19 @@ export function ViewTabs() {
           /* leaving the autoX view always works (it cancels the grab or pick waiting on it, session.selectWindow) */
           const off = tabOff && tab.name !== active && !autoxShown;
           /* the main graph has no × (the core refuses to close it), and its tab says why it stays (W696) */
-          const pinned = tab.kind === 'graph' && tab.name === mainName;
+          const isMain = tab.kind === 'graph' && tab.name === mainName;
           const out = popouts.includes(viewKeyText(viewOf(tab)));
           return (
             <span key={slot(tab)} class={'view-tab' + (tab.name === active ? ' active' : '') + (out ? ' out' : '')} data-view-kind={tab.kind}>
               <button id={id(tab)} class="plot-tab" role="tab" aria-selected={tab.name === active} tabIndex={tab.name === active ? 0 : -1}
-                disabled={off} title={off ? BUSY_TITLE : pinned ? MAIN_PINNED : undefined} aria-description={pinned ? MAIN_PINNED : undefined} onClick={() => pick(tab)} onDblClick={() => startRename(tab.name)}
+                disabled={off} title={off ? BUSY_TITLE : isMain ? MAIN_TITLE : undefined} aria-description={isMain ? MAIN_TITLE : undefined} onClick={() => pick(tab)} onDblClick={() => startRename(tab.name)}
                 onContextMenu={e => { e.preventDefault(); setMenu({name: tab.name, x: e.clientX, y: e.clientY}); }}>
                 {tab.kind === 'autox' ? <span class="view-tab-kind">autoX · </span> : null}
                 <span class="plot-tab-title"><ShownName name={tab.name} copy={false} /></span>
                 {out && <span class="view-tab-out" title="In a window of its own">
                   <span aria-hidden="true">⧉</span><span class="visually-hidden"> (in a window of its own)</span></span>}
               </button>
-              {!pinned && <button class="view-tab-close" aria-label={`Close ${tab.kind === 'autox' ? 'autoX view' : 'graph'} ${tab.name}`}
+              {!isMain && <button class="view-tab-close" aria-label={`Close ${tab.kind === 'autox' ? 'autoX view' : 'graph'} ${tab.name}`}
                 title={tab.kind === 'autox' ? 'Done with this view: a running continuation is stopped first' : 'Close this graph'}
                 disabled={tab.kind === 'graph' && windowOff}
                 onClick={() => tab.kind === 'autox' ? session.closeAutox(tab.index) : session.closeWindow(tab.name)}>×</button>}
