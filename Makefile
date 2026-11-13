@@ -282,11 +282,15 @@ $(BUILDDIR)/xpp_zip.o: CXXFLAGS += $(MINIZ_DEFS) -isystem $(MINIZ_DIR)
 # like miniz: their warnings are not ours (-w: vendored C), nor is LTO; no contraction of a*b+c, and no
 # assertions (-DNDEBUG, as upstream builds). The adapter includes MIR's headers as a system header.
 MIR_DIR = third_party/mir
+# Under a sanitizer, MIR's hash (mir-hash.h mir_get_key_part) reads keys with unaligned 32- and 64-bit loads on
+# purpose on the targets that allow them (its MIR_HASH_UNALIGNED_ACCESS: x86-64, arm64); UBSan's alignment check
+# is off for MIR's two objects only, which keep every other check (CI 43359955234, windows-clang-sanitizers)
+MIR_CFLAGS = -std=gnu11 $(call NOLTO,$(OPT)) $(FPFLAGS) -DNDEBUG $(if $(CLANG),,-Wno-psabi) $(if $(SANITIZE),-fno-sanitize=alignment) -w -I$(MIR_DIR)
 CORE_OBJECTS += $(BUILDDIR)/mir.o $(BUILDDIR)/mir-gen.o
 $(BUILDDIR)/mir.o: $(MIR_DIR)/mir.c $(wildcard $(MIR_DIR)/*.h $(MIR_DIR)/mir-*.c) $(BUILDDIR)/toolchain.stamp Makefile | $(BUILDDIR)
-	$(CC) -std=gnu11 $(call NOLTO,$(OPT)) $(FPFLAGS) -DNDEBUG $(if $(CLANG),,-Wno-psabi) -w -I$(MIR_DIR) -c $< -o $@
+	$(CC) $(MIR_CFLAGS) -c $< -o $@
 $(BUILDDIR)/mir-gen.o: $(MIR_DIR)/mir-gen.c $(wildcard $(MIR_DIR)/*.h $(MIR_DIR)/mir-gen-*.c) $(BUILDDIR)/toolchain.stamp Makefile | $(BUILDDIR)
-	$(CC) -std=gnu11 $(call NOLTO,$(OPT)) $(FPFLAGS) -DNDEBUG $(if $(CLANG),,-Wno-psabi) -w -I$(MIR_DIR) -c $< -o $@
+	$(CC) $(MIR_CFLAGS) -c $< -o $@
 $(BUILDDIR)/xpp_mir.o: CXXFLAGS += -isystem $(MIR_DIR)
 # vendored third_party/core-math (xpp_math's exp, log, sin, ...: correctly
 # rounded, so the same bits on every CPU and system), one C object per
