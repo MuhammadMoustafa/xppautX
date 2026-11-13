@@ -22,9 +22,12 @@
 namespace xpp::mir {
 
 namespace {
-/* a tree deeper than this is refused: the lowering recurses on it (a frame is about 100 bytes), so a hostile
-   deep expression cannot exhaust the host's stack */
-constexpr int MAX_TREE_DEPTH = 4096;
+/* A tree deeper than this is refused: the lowering recurses on it, so a hostile deep expression cannot exhaust
+   the host's stack (8 MB on every platform, Makefile's MAINSTACK). The parser's own limit is 256 levels
+   (odex_parse.cpp max_expression_depth, long operator chains included) and an inlined user function adds at
+   most its 64 nodes at a call; a level costs about 0.7 KB of stack, 5 KB under AddressSanitizer, so 1024 fits
+   all of them. */
+constexpr int MAX_TREE_DEPTH = 1024;
 constexpr int DOUBLE_BYTES = 8;
 constexpr int INT_BYTES = 4;
 /* what one diagnostic is cut to */

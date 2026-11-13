@@ -420,7 +420,7 @@ them), and the card is recommended below.
 a function of the trees only. (a) No text, name or path of the model enters MIR: every index comes from the validated
 RPN, every number is a double; callee names are ours (`f1_N`, `f2_N`, `h_*`, `uN`, `p_eqN`). (b) A callee resolves
 only through the table: an unknown name fails the compile with an error at the model's place, never a lookup in the
-process. (c) A tree nested deeper than 4096 is refused by the lowering's recursion guard; the Generator's own walks
+process. (c) A tree nested deeper than 1024 is refused by the lowering's recursion guard (the parser's own limit is 256 levels; a level costs 0.7 KB of stack, 5 KB under AddressSanitizer, against the core thread's 8 MB); the Generator's own walks
 are iterative (a sum nests at most 16 deep), an inlined copy is bounded by 64 nodes, a call with the wrong number of
 arguments is refused. (d) Executable memory is MIR's own mapping (`PROT_EXEC`, writable only while code is written;
 `MAP_JIT` with `pthread_jit_write_protect_np` on arm64 macOS; `VirtualAlloc` on Windows); no file or library is
