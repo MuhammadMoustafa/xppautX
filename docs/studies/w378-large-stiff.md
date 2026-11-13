@@ -485,4 +485,4 @@ In the memory plot, band, KLU and GMRES overlap, because their memory is nearly 
 
 The evidence has these limits: two banded families (half-bandwidths 1 and 4), one machine, a 17% drift over the series, a tolerance split on the ring, and no measured fixed-cost baseline.
 
-The decision is the maintainer's to make.
+**Decision (maintainer, 2026-11-13): A, neither.** The banded solver stays; no KLU or GMRES is vendored. Revisit only with a non-banded network that needs a sparse solve, measured first.
