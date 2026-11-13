@@ -176,7 +176,7 @@ conpar_default_wrapper(AutoxRun &run, std::ptrdiff_t *nov, std::ptrdiff_t *na, s
 }
 } // namespace
 
-/* conpar: AUTO's CONPAR (solvebv.f90:777): condensation of the system by eliminating the local variables */
+/* conpar: XPPAUT's AUTO's CONPAR (solvebv.f90:777): condensation of the system by eliminating the local variables */
 int 
 condense_parameters(AutoxRun &run, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *ncb, double *b, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *d, std::ptrdiff_t *irf, std::ptrdiff_t *icf)
 {

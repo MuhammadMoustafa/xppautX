@@ -216,7 +216,7 @@ namespace {
 }
 }
 
-/* func: AUTO's user routine FUNC (user_c.f90:102) */
+/* func: XPPAUT's AUTO's user routine FUNC (user_c.f90:102) */
 int user_right_hand_side(AutoxRun &run, std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, const double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
    xpp::Session &s=*run.session;
@@ -240,7 +240,7 @@ void autox_fill_parameters(const AutoxRun &run, double *par)
   for(int k=0;k<s.model().nupar;k++)parameters[k]=constants[s.model().upar_con[k]];
 }
 
-/* stpnt: AUTO's user routine STPNT (user_c.f90:115): the starting solution */
+/* stpnt: XPPAUT's AUTO's user routine STPNT (user_c.f90:115): the starting solution */
 int user_start(AutoxRun &run, std::ptrdiff_t ndim, double t, double *u, double *par)
 {
   xpp::Session &s=*run.session;
@@ -281,7 +281,7 @@ int user_start(AutoxRun &run, std::ptrdiff_t ndim, double t, double *u, double *
 
 } /* stpnt_ */
 
-/* bcnd: AUTO's user routine BCND (user_c.f90:127) */
+/* bcnd: XPPAUT's AUTO's user routine BCND (user_c.f90:127) */
 int user_boundary_conditions(AutoxRun &run, std::ptrdiff_t ndim, const double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, std::ptrdiff_t ijac, double *fb, double *dbc)
 {
  xpp::Session &s=*run.session;
@@ -303,7 +303,7 @@ int user_boundary_conditions(AutoxRun &run, std::ptrdiff_t ndim, const double *p
 
 /* autoX's user routines that xppautX does not supply: stubs, with
    autox_c.h's prototypes (which autoX calls them through) */
-/* icnd: AUTO's user routine ICND (user_c.f90:140) */
+/* icnd: XPPAUT's AUTO's user routine ICND (user_c.f90:140) */
 int user_integral_conditions(std::ptrdiff_t ndim, const double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint,
 	 const double *u, const double *uold, const double *udot,
 	 const double *upold, std::ptrdiff_t ijac,
@@ -312,7 +312,7 @@ int user_integral_conditions(std::ptrdiff_t ndim, const double *par, const std::
     return 0;
 } /* icnd_ */
 
-/* fopt: AUTO's user routine FOPT (user_c.f90:154): the objective of an optimization */
+/* fopt: XPPAUT's AUTO's user routine FOPT (user_c.f90:154): the objective of an optimization */
 int user_objective(std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp,
 	 const double *par, std::ptrdiff_t ijac,
 	 double *fs, double *dfdu, double *dfdp)
@@ -323,7 +323,7 @@ int user_objective(std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *i
 /*  Not sure what to do here; I think  do nothing  since IEQUIB is always
     -2 
 */
-/* pvls: AUTO's user routine PVLS, additional output parameter values */
+/* pvls: XPPAUT's AUTO's user routine PVLS, additional output parameter values */
 int user_output_parameters (std::ptrdiff_t ndim, const double *u,
           double *par)
 {

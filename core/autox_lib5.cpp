@@ -20,14 +20,14 @@
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnho: AUTO's equations of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
+/* fnho: XPPAUT's AUTO's equations of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
 homoclinic_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
   return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, homoclinic_function);
 } /* fnho_ */
 
-/* ffho: AUTO's function evaluation of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
+/* ffho: XPPAUT's AUTO's function evaluation of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
 homoclinic_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
 {
@@ -71,7 +71,7 @@ homoclinic_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndi
   return 0;
 } /* ffho_ */
 
-/* bcho: AUTO's boundary conditions of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
+/* bcho: XPPAUT's AUTO's boundary conditions of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
 homoclinic_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc)
 {
@@ -127,7 +127,7 @@ homoclinic_boundary_conditions(const iap_type *iap, const rap_type *rap, std::pt
   return 0;
 } /* bcho_ */
 
-/* fbho: AUTO's boundary function evaluation of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
+/* fbho: XPPAUT's AUTO's boundary function evaluation of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
 homoclinic_boundary_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, std::ptrdiff_t nbc0, const double *u0, const double *u1, double *fb, double *dbc, bool save_basis)
 {
@@ -398,7 +398,7 @@ t=1 */
   return 0;
 } /* fbho_ */
 
-/* icho: AUTO's integral conditions of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
+/* icho: XPPAUT's AUTO's integral conditions of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
 homoclinic_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint)
 {
@@ -418,7 +418,7 @@ homoclinic_integral_conditions(const iap_type *iap, const rap_type *rap, std::pt
   return 0;
 } /* icho_ */
 
-/* fiho: AUTO's integral function evaluation of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
+/* fiho: XPPAUT's AUTO's integral function evaluation of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
 homoclinic_integral_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, std::ptrdiff_t nnt0, const double *u, const double *uold, const double *udot, const double *upold, double *fi, double *dint)
 {
@@ -604,7 +604,7 @@ homoclinic_read_constants(iap_type *iap, std::ptrdiff_t *icp, double *par)
   return 0;
 } /* inho_ */
 
-/* preho: AUTO homcont.f90:1320: special homoclinic orbit preprocessing */
+/* preho: AUTO-07p homcont.f90:1320: special homoclinic orbit preprocessing */
 int 
 homoclinic_preprocess(AutoxRun &run, std::ptrdiff_t *ndx, std::ptrdiff_t *ntsr, std::ptrdiff_t *nar, std::ptrdiff_t *ndim, std::ptrdiff_t *ncolrs, double *ups, double *udotps, double *tm, double *par)
 {
@@ -707,7 +707,7 @@ homoclinic_preprocess(AutoxRun &run, std::ptrdiff_t *ndx, std::ptrdiff_t *ntsr, 
   return 0;
 } /* preho_ */
 
-/* stpnho: AUTO's starting data of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
+/* stpnho: XPPAUT's AUTO's starting data of the problem kind homoclinic (homcont.f90: HomCont's homoclinic problem (IPS 9)) */
 int 
 homoclinic_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
@@ -886,7 +886,7 @@ homoclinic_output_parameters(iap_type *iap, rap_type *rap, std::ptrdiff_t *icp, 
 
 } /* pvlsho_ */
 
-/* psiho: AUTO homcont.f90:1795: the degenerate homoclinic conditions PSI(IS)=0 */
+/* psiho: AUTO-07p homcont.f90:1795: the degenerate homoclinic conditions PSI(IS)=0 */
 double 
 homoclinic_degeneracy_condition(const iap_type *iap, std::ptrdiff_t is, double *rr, double *ri, double *v, double *vt, const std::ptrdiff_t *icp, double *par)
 {

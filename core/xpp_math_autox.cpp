@@ -50,7 +50,7 @@ double complete_eliminate_row(std::ptrdiff_t n, std::ptrdiff_t leading, double *
 /* W337: autoX eigenvalues: balanced EISPACK real_general_eigen (elementary Hessenberg reduction,
    machine-precision QR), no eigenvectors; preserve branch diagnostics.
    Gear uses unbalanced Householder reduction and fixed 1e-10 QR instead. */
-/* eig: eigenvalues of autoX's Jacobian through rg, as complex numbers (xpp_math_autox.cpp:54) */
+/* eig: eigenvalues of autoX's Jacobian through rg, as complex numbers */
 int 
 autox_eigenvalues(iap_type *iap, std::ptrdiff_t *ndim, std::ptrdiff_t *m1a, double *a, FortranComplex *ev, std::ptrdiff_t *ier)
 {
@@ -190,7 +190,7 @@ matrix_null_vector(FILE *fp9, std::ptrdiff_t n, std::ptrdiff_t m, std::ptrdiff_t
    The searches use std::fabs: it differs from f2c::abs only at -0 and NaN,
    which never win a strict > against a magnitude >= 0.
    Returns the smallest pivot magnitude: below autox_rsmall, A is singular. */
-/* ge: Gaussian elimination with complete pivoting, determinant and pivot log (AUTO's GE, xpp_math_autox.cpp) */
+/* ge: Gaussian elimination with complete pivoting, determinant and pivot log (XPPAUT's AUTO's GE, xpp_math_autox.cpp) */
 double
 gauss_eliminate(FILE *fp9, std::ptrdiff_t iid, std::ptrdiff_t n, std::ptrdiff_t m1a, double *a, std::ptrdiff_t nrhs, std::ptrdiff_t ndxloc, double *u, std::ptrdiff_t m1f, double *f, double *det)
 {

@@ -667,7 +667,7 @@ FILE *fort8(AutoxRun &run)
 }
 } // namespace
 
-/* init: AUTO's INIT: reads the constants and generates the starting data (autlib1.c:417 for init1) */
+/* init: XPPAUT's AUTO's INIT: reads the constants and generates the starting data (autlib1.c:417 for init1) */
 int initialize_run(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *thl, std::vector<double> &thu_vec, std::span<AutoxMark> marks)
 {
   std::ptrdiff_t nbif;
@@ -1364,7 +1364,7 @@ static void perpendicular_null_direction(iap_type *iap, std::ptrdiff_t *icp, std
    perpendicular to the direction the point keeps with it (write_special_point_restart). Scaled and signed as AUTO-07p
    does: PAR(ICP(1))-dot positive, or, when it is zero, the first state that moves positive. A
    stored direction missing or made for another parameter ends the run saying so. */
-/* stpswae: the branch-switch step of algebraic problems (autox_lib1.cpp:1363) */
+/* stpswae: the branch-switch step of algebraic problems */
 static void
 switch_branch_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *u, double *du, double *udot, double *rldot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
 {
@@ -1405,7 +1405,7 @@ switch_branch_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_
   rldot[0] = sign * du[ndim];
 }
 
-/* cnrlae: AUTO ae.f90:41: controls the bifurcation analysis of algebraic problems */
+/* cnrlae: AUTO-07p ae.f90:41: controls the bifurcation analysis of algebraic problems */
 int 
 control_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), STPNT_TYPE_AE((*user_start)), PVLI_TYPE_AE((*pvli)), double *thl, double *thu, std::span<const AutoxMark> marks)
 {
@@ -1817,7 +1817,7 @@ algebraic_start(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
 
 /* The direction of the branch at its starting point (W572 splits it from second_point_algebraic: control_algebraic tests the start
    with its Jacobian and this direction before the step to the second point). */
-/* stdirae: algebraic problems' start direction (autox_lib1.cpp:1812) */
+/* stdirae: algebraic problems' start direction */
 int 
 start_direction_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
 {
@@ -1897,7 +1897,7 @@ start_direction_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdif
 
 /* Finds the second point on the initial solution branch, from the direction start_direction_algebraic found. */
 
-/* stprae: AUTO ae.f90:271: finds the second point on the initial branch */
+/* stprae: AUTO-07p ae.f90:271: finds the second point on the initial branch */
 int 
 second_point_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rds, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
 {
@@ -1956,7 +1956,7 @@ extrapolate_algebraic(iap_type *iap, rap_type *rap, double *rds, double *rlcur, 
   return 0;
 } /* contae_ */
 
-/* solvae: AUTO ae.f90:435: main predictor-corrector loop (Newton) of algebraic problems */
+/* solvae: AUTO-07p ae.f90:435: main predictor-corrector loop (Newton) of algebraic problems */
 int 
 solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rds, std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
 {
@@ -2205,7 +2205,7 @@ solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* lcspae: AUTO ae.f90:624: secant method locating special points (algebraic) */
+/* lcspae: AUTO-07p ae.f90:624: secant method locating special points (algebraic) */
 int 
 locate_special_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*problem_function)), std::ptrdiff_t *m1aaloc, double *aa, double *rhs, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *uold, double *udot, double *f, double *dfdu, double *dfdp, AutoxTestSample &q, double *thl, double *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept)
 {
@@ -2244,7 +2244,7 @@ locate_special_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff
   return 0;
 } /* lcspae_ */
 
-/* mueller: AUTO support.f90:31: Mueller's method with bracketing */
+/* mueller: AUTO-07p support.f90:31: Mueller's method with bracketing */
 int 
 mueller_root(double *q0, double *q1, double *q, double *s0, double *s1, double *s, double *rds)
 {
@@ -2583,7 +2583,7 @@ closed_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* stbif: AUTO ae.f90:799: stores the branching data (STU, STUD) */
+/* stbif: AUTO-07p ae.f90:799: stores the branching data (STU, STUD) */
 int 
 store_branching_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *m1aaloc, double *aa, double *stud, double *stu, double *stla, double *stld, double *rlcur, double *rlold, double *rldot, double *u, double *du, double *udot, double *dfdu, double *dfdp, double *thl, double *thu)
 {
@@ -2615,7 +2615,7 @@ store_branching_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *
   return 0;
 } /* stbif_ */
 
-/* swpnt: AUTO/XPPAUT autlib1.c:2166: retrieves the branching data U, U-dot, PAR(ICP(1)) */
+/* swpnt: XPPAUT's AUTO autlib1.c:2166: retrieves the branching data U, U-dot, PAR(ICP(1)) */
 int 
 retrieve_branching_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rds, double *stud, double *stu, double *stla, double *stld, double *rlcur, double *rlold, double *rldot, double *u, double *udot)
 {
@@ -2903,7 +2903,7 @@ failed_step:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* sthd: AUTO io.f90:561: writes the user-defined constants on unit 7, preceded by 0 */
+/* sthd: AUTO-07p io.f90:561: writes the user-defined constants on unit 7, preceded by 0 */
 int 
 write_header(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *thl, double *thu)
 {
@@ -3000,7 +3000,7 @@ write_header(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, dou
   return 0;
 } /* sthd_ */
 
-/* headng: AUTO io.f90:964: writes the column headings */
+/* headng: AUTO-07p io.f90:964: writes the column headings */
 int 
 write_headings(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t iunit, std::ptrdiff_t *n1, std::ptrdiff_t *n2)
 {
@@ -3112,7 +3112,7 @@ write_headings(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, s
   return 0;
 } /* headng_ */
 
-/* stplae: AUTO ae.f90:870: stores the bifurcation diagram on unit 7 (algebraic) */
+/* stplae: AUTO-07p ae.f90:870: stores the bifurcation diagram on unit 7 (algebraic) */
 int 
 store_diagram_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rlcur, double *u, const double *udot, const double *rldot)
 {
@@ -3264,7 +3264,7 @@ store_diagram_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_
   return 0;
 } /* stplae_ */
 
-/* wrline: AUTO io.f90:1090: one line of output on units 6 and 7 */
+/* wrline: AUTO-07p io.f90:1090: one line of output on units 6 and 7 */
 int 
 write_diagram_line(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *icu, std::ptrdiff_t *ibr, std::ptrdiff_t *ntot, std::ptrdiff_t *lab, double *vaxis, double *u)
 {
@@ -3417,7 +3417,7 @@ static std::ptrdiff_t solution_row_count(std::ptrdiff_t values)
   return (values - 1) / autox_solution_columns + 1;
 }
 
-/* wrtsp8: AUTO ae.f90:989: restart information on special points, plotting points, on unit 8 */
+/* wrtsp8: AUTO-07p ae.f90:989: restart information on special points, plotting points, on unit 8 */
 int 
 write_special_point_restart(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *lab, double *rlcur, double *u, const double *udot, const double *rldot)
 {
@@ -3478,7 +3478,7 @@ write_special_point_restart(iap_type *iap, rap_type *rap, double *par, std::ptrd
   return 0;
 } /* wrtsp8_ */
 
-/* wrjac: AUTO ae.f90:1053: writes the Jacobian */
+/* wrjac: AUTO-07p ae.f90:1053: writes the Jacobian */
 int 
 write_jacobian(iap_type *iap, std::ptrdiff_t *n, std::ptrdiff_t *m1aaloc, double *aa, double *rhs)
 {
@@ -3512,7 +3512,7 @@ write_jacobian(iap_type *iap, std::ptrdiff_t *n, std::ptrdiff_t *m1aaloc, double
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* msh: AUTO mesh.f90:19: a uniform mesh on [0,1] */
+/* msh: AUTO-07p mesh.f90:19: a uniform mesh on [0,1] */
 int 
 uniform_mesh(const iap_type *iap, const rap_type *rap, double *tm)
 {
@@ -3533,7 +3533,7 @@ uniform_mesh(const iap_type *iap, const rap_type *rap, double *tm)
   return 0;
 } /* msh_ */
 
-/* genwts: AUTO mesh.f90:35: weights of the collocation method for the value and the first derivative */
+/* genwts: AUTO-07p mesh.f90:35: weights of the collocation method for the value and the first derivative */
 int 
 collocation_weights(const std::ptrdiff_t ncol, const std::ptrdiff_t n1, double *wt, double *wp)
 {
@@ -3608,7 +3608,7 @@ collocation_weights(const std::ptrdiff_t ncol, const std::ptrdiff_t n1, double *
   return 0;
 } /* genwts_ */
 
-/* cpnts: AUTO mesh.f90:85: the collocation points on [0,1] */
+/* cpnts: AUTO-07p mesh.f90:85: the collocation points on [0,1] */
 int 
 collocation_point_positions(const std::ptrdiff_t ncol, double *zm)
 {
@@ -3689,7 +3689,7 @@ collocation_point_positions(const std::ptrdiff_t ncol, double *zm)
   return 0;
 } /* cpnts_ */
 
-/* cntdif: AUTO mesh.f90:135: central difference coefficients for the Nth derivative at uniform points */
+/* cntdif: AUTO-07p mesh.f90:135: central difference coefficients for the Nth derivative at uniform points */
 int 
 central_difference_coefficients(std::ptrdiff_t *n, double *d)
 {
@@ -3728,7 +3728,7 @@ central_difference_coefficients(std::ptrdiff_t *n, double *d)
   return 0;
 } /* cntdif_ */
 
-/* wint: AUTO mesh.f90:160: integration weights from interpolation at NCOL+1 equally spaced points */
+/* wint: AUTO-07p mesh.f90:160: integration weights from interpolation at NCOL+1 equally spaced points */
 int 
 integration_weights(const std::ptrdiff_t n, double *wi)
 {
@@ -3808,7 +3808,7 @@ integration_weights(const std::ptrdiff_t n, double *wi)
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* adptds: AUTO mesh.f90:224: adapts the step along the branch to the previous step's Newton iterations (IADS > 0) */
+/* adptds: AUTO-07p mesh.f90:224: adapts the step along the branch to the previous step's Newton iterations (IADS > 0) */
 int 
 adapt_step(iap_type *iap, rap_type *rap, double *rds)
 {
@@ -3857,7 +3857,7 @@ adapt_step(iap_type *iap, rap_type *rap, double *rds)
   return 0;
 } /* adptds_ */
 
-/* adapt: AUTO mesh.f90:259: adapts the mesh so EQDF's increase is equidistributed; interpolates UPS and VPS */
+/* adapt: AUTO-07p mesh.f90:259: adapts the mesh so EQDF's increase is equidistributed; interpolates UPS and VPS */
 int 
 adapt_mesh(iap_type *iap, rap_type *rap, std::ptrdiff_t *nold, std::ptrdiff_t *ncold, std::ptrdiff_t *nnew, std::ptrdiff_t *ncnew, double *tm, double *dtm, std::ptrdiff_t *ndxloc, double *ups, double *vps)
 {
@@ -3940,7 +3940,7 @@ adapt_mesh(iap_type *iap, rap_type *rap, std::ptrdiff_t *nold, std::ptrdiff_t *n
   return 0;
 } /* adapt_ */
 
-/* interp: AUTO mesh.f90:354: interpolant on the new mesh (not tabular.cpp's interp) */
+/* interp: AUTO-07p mesh.f90:354: interpolant on the new mesh (not tabular.cpp's interp) */
 int 
 interpolate_mesh(iap_type *iap, rap_type *rap, std::ptrdiff_t *ndim, std::ptrdiff_t *n, std::ptrdiff_t *nc, double *tm, std::ptrdiff_t *ndxloc, double *ups, std::ptrdiff_t *n1, std::ptrdiff_t *nc1, double *tm1, double *ups1, double *tm2, std::ptrdiff_t *itm1)
 {
@@ -3998,7 +3998,7 @@ interpolate_mesh(iap_type *iap, rap_type *rap, std::ptrdiff_t *ndim, std::ptrdif
   return 0;
 } /* interp_ */
 
-/* newmsh: AUTO mesh.f90:395: redistributes the mesh according to EQDF */
+/* newmsh: AUTO-07p mesh.f90:395: redistributes the mesh according to EQDF */
 int 
 redistribute_mesh(iap_type *iap, rap_type *rap, std::ptrdiff_t *ndxloc, double *ups, std::ptrdiff_t *nold, std::ptrdiff_t *ncold, double *tmold, double *dtmold, std::ptrdiff_t *nnew, double *tmnew, std::ptrdiff_t *iper)
 {
@@ -4079,7 +4079,7 @@ order_mesh_points(iap_type *iap, rap_type *rap, std::ptrdiff_t *n, double *tm, s
   return 0;
 } /* ordr_ */
 
-/* intwts: AUTO mesh.f90:451: weights for Lagrange interpolation */
+/* intwts: AUTO-07p mesh.f90:451: weights for Lagrange interpolation */
 int 
 lagrange_weights(iap_type *iap, rap_type *rap, std::ptrdiff_t *n, double *z__, double *x, double *wts)
 {
@@ -4105,7 +4105,7 @@ lagrange_weights(iap_type *iap, rap_type *rap, std::ptrdiff_t *n, double *z__, d
   return 0;
 } /* intwts_ */
 
-/* eqdf: AUTO mesh.f90:480: the monotone function whose increase the mesh equidistributes */
+/* eqdf: AUTO-07p mesh.f90:480: the monotone function whose increase the mesh equidistributes */
 int 
 equidistribution_function(iap_type *iap, rap_type *rap, std::ptrdiff_t *ntst, std::ptrdiff_t *ndim, std::ptrdiff_t *ncol, double *dtm, std::ptrdiff_t *ndxloc, double *ups, double *eqf, std::span<double> density, std::ptrdiff_t *iper)
 {
@@ -4202,7 +4202,7 @@ equidistribution_function(iap_type *iap, rap_type *rap, std::ptrdiff_t *ntst, st
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* nrmlz: AUTO support.f90:273: scales V to discrete L2 norm 1 */
+/* nrmlz: AUTO-07p support.f90:273: scales V to discrete L2 norm 1 */
 int 
 normalize_vector(std::ptrdiff_t *ndim, double *v)
 {
@@ -4235,7 +4235,7 @@ multiple_of_pi(double r)
   return ret_val;
 } /* pi */
 
-/* newlab: AUTO io.f90:1159: a suitable label when restarting */
+/* newlab: AUTO-07p io.f90:1159: a suitable label when restarting */
 int 
 new_restart_label(iap_type *iap, rap_type *rap)
 {
@@ -4314,7 +4314,7 @@ void read_autox_restart_header(iap_type *iap, const rap_type *rap,
   iap->ibr = header.ibr;
 }
 
-/* findlb: AUTO io.f90:1212: finds the restart label in the solution file */
+/* findlb: AUTO-07p io.f90:1212: finds the restart label in the solution file */
 int 
 find_restart_label(iap_type *iap, const rap_type *rap, 
        std::ptrdiff_t irs, std::ptrdiff_t *nfpr, bool *found)
@@ -4345,7 +4345,7 @@ find_restart_label(iap_type *iap, const rap_type *rap,
 
 /* Reads the restart data of an algebraic problem from the label line
    find_restart_label() found (read again from its start); a short read ends the run. */
-/* readlb: AUTO io.f90:1398: reads the solution at the restart label */
+/* readlb: AUTO-07p io.f90:1398: reads the solution at the restart label */
 void
 read_restart_label(const iap_type *iap, const rap_type *rap, double *u, double *par)
 {
@@ -4421,7 +4421,7 @@ mesh_inner_product(iap_type *iap, const std::ptrdiff_t *ndim1, const std::ptrdif
   return ret_val;
 } /* rinpr_ */
 
-/* rnrmsq: AUTO mesh.f90:554: norm-squared of UPS, the first NDIM1 components */
+/* rnrmsq: AUTO-07p mesh.f90:554: norm-squared of UPS, the first NDIM1 components */
 double 
 norm_squared(iap_type *iap, std::ptrdiff_t *ndim1, std::ptrdiff_t *ndxloc, double *ups, double *dtm, double *thu)
 {
@@ -4434,7 +4434,7 @@ norm_squared(iap_type *iap, std::ptrdiff_t *ndim1, std::ptrdiff_t *ndxloc, doubl
   return ret_val;
 } /* rnrmsq_ */
 
-/* rintg: AUTO mesh.f90:641: integral of the IC'th component of UPS */
+/* rintg: AUTO-07p mesh.f90:641: integral of the IC'th component of UPS */
 double 
 integral_of_component(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t ic, double *ups, double *dtm)
 {
@@ -4469,7 +4469,7 @@ integral_of_component(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t ic, 
   return ret_val;
 } /* rintg_ */
 
-/* rnrm2: AUTO mesh.f90:711: L2 norm of the IC'th component of UPS */
+/* rnrm2: AUTO-07p mesh.f90:711: L2 norm of the IC'th component of UPS */
 double 
 component_norm(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t *ic, double *ups, double *dtm)
 {
@@ -4506,7 +4506,7 @@ component_norm(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t *ic, double
   return ret_val;
 } /* rnrm2_ */
 
-/* rmxups: AUTO mesh.f90:781: maximum of the I'th component of UPS */
+/* rmxups: AUTO-07p mesh.f90:781: maximum of the I'th component of UPS */
 double 
 component_maximum(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t *i, double *ups)
 {
@@ -4540,7 +4540,7 @@ component_maximum(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t *i, doub
   return ret_val;
 } /* rmxups_ */
 
-/* rmnups: AUTO mesh.f90:852: minimum of the I'th component of UPS */
+/* rmnups: AUTO-07p mesh.f90:852: minimum of the I'th component of UPS */
 double 
 component_minimum(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t *i, double *ups)
 {
@@ -4574,7 +4574,7 @@ component_minimum(iap_type *iap, std::ptrdiff_t *ndxloc, std::ptrdiff_t *i, doub
   return ret_val;
 } /* rmnups_ */
 
-/* scaleb: AUTO mesh.f90:903: scales (DVPS,RLD) to norm 1 */
+/* scaleb: AUTO-07p mesh.f90:903: scales (DVPS,RLD) to norm 1 */
 int 
 scale_direction(iap_type *iap, std::ptrdiff_t *icp, std::ptrdiff_t *ndxloc, double *dvps, double *rld, double *dtm, double *thl, double *thu)
 {
@@ -4624,7 +4624,7 @@ scale_direction(iap_type *iap, std::ptrdiff_t *icp, std::ptrdiff_t *ndxloc, doub
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* cnrlbv: AUTO bvp.f90:79: controls the computation of solution branches */
+/* cnrlbv: AUTO-07p bvp.f90:79: controls the computation of solution branches */
 int 
 control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), STPNT_TYPE_BVP((*user_start)), PVLI_TYPE_BVP((*pvli)), double *thl, double *thu, std::span<const AutoxMark> marks)
 {
@@ -4894,7 +4894,7 @@ control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp,
 
 } /* cnrlbv_ */
 
-/* contbv: AUTO bvp.f90:365: new rates of change from the two latest points, then the current point becomes the old one */
+/* contbv: AUTO-07p bvp.f90:365: new rates of change from the two latest points, then the current point becomes the old one */
 int 
 extrapolate_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *thl, double *thu)
 {
@@ -4989,7 +4989,7 @@ predict_boundary_null_space(iap_type *iap, rap_type *rap, FUNI_TYPE((*problem_fu
   return 0;
 } /* extrbv_ */
 
-/* stupbv: AUTO bvp.f90:428: stores U-prime in UPOLDP */
+/* stupbv: AUTO-07p bvp.f90:428: stores U-prime in UPOLDP */
 int 
 store_derivative(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *upoldp)
 {
@@ -5065,7 +5065,7 @@ store_derivative(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp,
   return 0;
 } /* stupbv_ */
 
-/* stepbv: AUTO bvp.f90:464: controls Newton's solve for the next point on a branch (BVP) */
+/* stepbv: AUTO-07p bvp.f90:464: controls Newton's solve for the next point on a branch (BVP) */
 int 
 step_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), PVLI_TYPE_BVP((*pvli)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *tm, double *dtm, double *p0, double *p1, double *thl, double *thu)
 {
@@ -5322,7 +5322,7 @@ step_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FU
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* rsptbv: AUTO bvp.f90:750: restarts a branch at the point labelled IRS */
+/* rsptbv: AUTO-07p bvp.f90:750: restarts a branch at the point labelled IRS */
 int 
 restart_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), STPNT_TYPE_BVP((*user_start)), double *rds, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, double *tm, double *dtm, FortranComplex *ev, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
@@ -5637,7 +5637,7 @@ user_start_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
       [&](double *state, double &time) { user_start(*iap->run, iap->ndim, time, state, par); });
 } /* stpnub_ */
 
-/* setrtn: AUTO bvp.f90:975: initialization for rotations */
+/* setrtn: AUTO-07p bvp.f90:975: initialization for rotations */
 int 
 initialize_rotations(iap_type *iap, std::ptrdiff_t *ntst, std::ptrdiff_t *ndxloc, double *ups, double *par)
 {
@@ -5667,7 +5667,7 @@ initialize_rotations(iap_type *iap, std::ptrdiff_t *ntst, std::ptrdiff_t *ndxloc
   return 0;
 } /* setrtn_ */
 
-/* stdrbv: AUTO bvp.f90:999: direction vector to start a branch when none is given (BVP) */
+/* stdrbv: AUTO-07p bvp.f90:999: direction vector to start a branch when none is given (BVP) */
 int 
 start_direction_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *rlcur, double *rlold, double *rldot, std::ptrdiff_t ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *dtm, std::ptrdiff_t iperp, double *p0, double *p1, double *thl, double *thu)
 {
@@ -5779,7 +5779,7 @@ start_direction_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* lcspbv: AUTO bvp.f90:1230: secant method locating folds, branch points, user zeros (BVP) */
+/* lcspbv: AUTO-07p bvp.f90:1230: secant method locating folds, branch points, user zeros (BVP) */
 int 
 locate_special_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), PVLI_TYPE_BVP((*pvli)), AutoxTestSample &q, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *fa, double *fc, double *tm, double *dtm, double *p0, double *p1, FortranComplex *ev, double *thl, double *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept)
 {
@@ -6231,7 +6231,7 @@ secondary_bifurcation_type(iap_type *iap, rap_type *rap, double *par, std::ptrdi
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* stplbv: AUTO bvp.f90:1475: writes the bifurcation diagram on unit 7 (BVP) */
+/* stplbv: AUTO-07p bvp.f90:1475: writes the bifurcation diagram on unit 7 (BVP) */
 int 
 store_diagram_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *tm, double *dtm, double *thl, double *thu)
 {
@@ -6472,7 +6472,7 @@ store_diagram_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t
   return 0;
 } /* stplbv_ */
 
-/* wrtbv8: AUTO bvp.f90:1622: plotting and restart data on unit 8 */
+/* wrtbv8: AUTO-07p bvp.f90:1622: plotting and restart data on unit 8 */
 int 
 write_solution_restart(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *tm, double *dtm)
 {
@@ -6624,7 +6624,7 @@ write_solution_restart(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t
   return 0;
 } /* wrtbv8_ */
 
-/* wrtbv9: AUTO bvp.f90:1803: additional output on unit 9 */
+/* wrtbv9: AUTO-07p bvp.f90:1803: additional output on unit 9 */
 int 
 write_solution_extra(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rlcur, std::ptrdiff_t *ndxloc, double *ups, double *tm, double *dtm, double *thl, double *thu)
 {

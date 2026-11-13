@@ -288,7 +288,7 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 
 } // namespace
 
-/* setubv: AUTO's SETUBV (solvebv.f90:293): the collocation system's blocks */
+/* setubv: XPPAUT's AUTO's SETUBV (solvebv.f90:293): the collocation system's blocks */
 int 
 setup_boundary_system(std::ptrdiff_t ndim, xpp::AutoxProblem ips, std::ptrdiff_t na, std::ptrdiff_t ncol, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t ncb, std::ptrdiff_t nrc, std::ptrdiff_t nra, std::ptrdiff_t nca, 
        FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), std::ptrdiff_t ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 

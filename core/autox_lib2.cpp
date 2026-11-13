@@ -117,7 +117,7 @@ std::function<void()> remember_factorization(iap_type *iap, rap_type *rap, doubl
 }
 } // namespace
 
-/* solvbv: AUTO solvebv.f90:26: the Newton solve of the collocation system */
+/* solvbv: AUTO-07p solvebv.f90:26: the Newton solve of the collocation system */
 int 
 solve_boundary(std::ptrdiff_t *ifst, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), double *rds, std::ptrdiff_t *nllv, double *rlcur, double *rlold, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *dups, double *uoldps, double *udotps, double *upoldp, double *dtm, double *fa, double *fc, double *p0, double *p1, double *thl, double *thu)
 {
@@ -196,7 +196,7 @@ solve_boundary(std::ptrdiff_t *ifst, iap_type *iap, rap_type *rap, double *par, 
   return 0;
 } /* solvbv_ */
 
-/* faft: copies ff(j,i) into fa(i,j) (autox_lib2.cpp:199) */
+/* faft: copies ff(j,i) into fa(i,j) */
 int 
 transpose_right_hand_side(double *ff, double *fa, std::ptrdiff_t *ntst, std::ptrdiff_t *nrow, std::ptrdiff_t *ndxloc)
 {
@@ -216,7 +216,7 @@ transpose_right_hand_side(double *ff, double *fa, std::ptrdiff_t *ntst, std::ptr
   return 0;
 } /* faft_ */
 
-/* setrhs: builds the collocation system's blocks and right-hand side (autox_lib2.cpp:218; XPPAUT 8.0 autlib2.c:520) */
+/* setrhs: builds the collocation system's blocks and right-hand side (XPPAUT 8.0 autlib2.c:520) */
 int 
 build_right_hand_side(std::ptrdiff_t *ndim, xpp::AutoxProblem *ips, std::ptrdiff_t *na, std::ptrdiff_t *ncol, std::ptrdiff_t *nbc, std::ptrdiff_t *nint, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, FUNI_TYPE((*problem_function)), BCNI_TYPE((*boundary_function)), ICNI_TYPE((*integral_function)), std::ptrdiff_t *ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rds, double *fa, double *fc, double *rlcur, double *rlold, double *rldot, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, double *dtm, double *thl, double *thu, double *p0, double *p1)
 {
@@ -637,7 +637,7 @@ void bcksub_merge(const CondensedBlocks &m, const double *parameters, double *so
 
 /* The reduction of the blocks; what it subtracts from the conditions' d is
    gathered by range and added once, at the root. */
-/* reduce: AUTO solvebv.f90:1031: reduces the non-overlapping, then overlapping, pieces of the condensation tree */
+/* reduce: AUTO-07p solvebv.f90:1031: reduces the non-overlapping, then overlapping, pieces of the condensation tree */
 void reduce_condensation(AutoxRun &run, const CondensedBlocks &m, std::ptrdiff_t na, double *d)
 {
   std::fill_n(m.dd, na * m.ncb * m.nrc, 0.);
@@ -659,7 +659,7 @@ void reduce_right_hand_side(AutoxRun &run, const CondensedBlocks &m, std::ptrdif
 
 /* x(0) and x(na) from solve_end_system's solution fcc (and fc = fcc after x(0)),
    then every other x(k) down the tree, into sol (nov x (na+1)). */
-/* bcksub: AUTO solvebv.f90:1510: back substitution */
+/* bcksub: AUTO-07p solvebv.f90:1510: back substitution */
 void back_substitute(AutoxRun &run, const CondensedBlocks &m, std::ptrdiff_t na, const double *fc, const double *fcc, double *sol)
 {
   for (std::ptrdiff_t l = 0; l < m.nov; ++l) {
@@ -701,7 +701,7 @@ void determine_local_variables(const double *a, const double *b, double *fa, con
 }
 } // namespace
 
-/* brbd: AUTO solvebv.f90:544: solves linear systems with the bordered almost-block-diagonal profile */
+/* brbd: AUTO-07p solvebv.f90:544: solves linear systems with the bordered almost-block-diagonal profile */
 int 
 solve_bordered_block_diagonal(AutoxRun &run, FILE *fp9, double *fa, double *fc, double *p0, double *p1, std::ptrdiff_t *ifst, std::ptrdiff_t *idb, std::ptrdiff_t *nllv, double *det, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nbc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc)
 {
@@ -748,7 +748,7 @@ solve_bordered_block_diagonal(AutoxRun &run, FILE *fp9, double *fa, double *fc, 
   return 0;
 } /* brbd_ */
 
-/* setzero: zeroes the right-hand side blocks (autox_lib2.cpp:744) */
+/* setzero: zeroes the right-hand side blocks */
 int 
 zero_right_hand_side(double *fa, double *fc, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nrc)
 {
@@ -771,7 +771,7 @@ zero_right_hand_side(double *fa, double *fc, std::ptrdiff_t *na, std::ptrdiff_t 
   return 0;
 } /* setzero_ */
 
-/* conrhs: AUTO solvebv.f90:931 CONRHS: condensation of the right-hand side */
+/* conrhs: AUTO-07p solvebv.f90:931 CONRHS: condensation of the right-hand side */
 int 
 condense_right_hand_side(std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *fa, double *fc, std::ptrdiff_t *irf, std::ptrdiff_t *icf)
 {
@@ -820,7 +820,7 @@ condense_right_hand_side(std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t
   return 0;
 } /* conrhs_ */
 
-/* copycp: AUTO solvebv.f90:970: copies the condensed system CONPAR made into workspace */
+/* copycp: AUTO-07p solvebv.f90:970: copies the condensed system CONPAR made into workspace */
 int 
 copy_condensed_system(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *ncb, double *b, std::ptrdiff_t *nrc, double *c, double *a1, double *a2, double *bb, double *cc, double *c2, std::ptrdiff_t *irf)
 {
@@ -877,7 +877,7 @@ copy_condensed_system(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *n
   return 0;
 } /* copycp_ */
 
-/* cpyrhs: AUTO solvebv.f90:1009: copies the right-hand side */
+/* cpyrhs: AUTO-07p solvebv.f90:1009: copies the right-hand side */
 int 
 copy_right_hand_side(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *nra, double *faa, double *fa, std::ptrdiff_t *irf)
 {
@@ -900,7 +900,7 @@ copy_right_hand_side(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *nr
   return 0;
 } /* cpyrhs_ */
 
-/* dimrge: AUTO solvebv.f90:1408: assembles and solves the small end system from the first and last blocks, the boundary rows and the integral rows */
+/* dimrge: AUTO-07p solvebv.f90:1408: assembles and solves the small end system from the first and last blocks, the boundary rows and the integral rows */
 int 
 solve_end_system(AutoxRun &run, FILE *fp9, double *e, double *cc, double *c2, double *d, double *fc, std::ptrdiff_t *ifst, std::ptrdiff_t *na, std::ptrdiff_t *nrc, std::ptrdiff_t *nov, std::ptrdiff_t *ncb, std::ptrdiff_t *idb, std::ptrdiff_t *nllv, double *fcc, double *p0, double *p1, double *det, double *a1, double *a2, double *faa, double *bb)
 {
@@ -1048,7 +1048,7 @@ solve_end_system(AutoxRun &run, FILE *fp9, double *e, double *cc, double *c2, do
   return 0;
 } /* dimrge_ */
 
-/* print1: prints the blocks of the condensed system (autox_lib2.cpp:1039; AUTO solvebv.f90:1697) */
+/* print1: prints the blocks of the condensed system (AUTO-07p solvebv.f90:1697) */
 int 
 print_system(FILE *fp9, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc, double *a, double *b, double *c, double *d, double *fa, double *fc)
 {

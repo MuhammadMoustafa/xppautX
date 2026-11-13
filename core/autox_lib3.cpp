@@ -26,14 +26,14 @@ constexpr double torus_initial_amplitude = 1e-4;
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnlp: AUTO's equations of the problem kind fold (toolboxae.f90:304 STPNLP: continuation of folds) */
+/* fnlp: XPPAUT's AUTO's equations of the problem kind fold (toolboxae.f90:304 STPNLP: continuation of folds) */
 int 
 fold_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
   return xpp::autox_jacobian::curve(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, false, fold_function);
 } /* fnlp_ */
 
-/* fflp: AUTO's function evaluation of the problem kind fold (toolboxae.f90:304 STPNLP: continuation of folds) */
+/* fflp: XPPAUT's AUTO's function evaluation of the problem kind fold (toolboxae.f90:304 STPNLP: continuation of folds) */
 int 
 fold_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
 {
@@ -69,7 +69,7 @@ fold_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, con
   return 0;
 } /* fflp_ */
 
-/* stpnlp: AUTO's starting data of the problem kind fold (toolboxae.f90:304 STPNLP: continuation of folds) */
+/* stpnlp: XPPAUT's AUTO's starting data of the problem kind fold (toolboxae.f90:304 STPNLP: continuation of folds) */
 int 
 fold_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u)
 {
@@ -120,7 +120,7 @@ fold_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *ic
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnc1: AUTO's equations of the problem kind optimization_single (optimization.f90:114 FNC1: optimization of algebraic systems (one parameter)) */
+/* fnc1: XPPAUT's AUTO's equations of the problem kind optimization_single (optimization.f90:114 FNC1: optimization of algebraic systems (one parameter)) */
 int 
 optimization_single_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
@@ -174,7 +174,7 @@ optimization_single_equations(const iap_type *iap, const rap_type *rap, std::ptr
   return 0;
 } /* fnc1_ */
 
-/* stpnc1: AUTO's starting data of the problem kind optimization_single (optimization.f90:114 FNC1: optimization of algebraic systems (one parameter)) */
+/* stpnc1: XPPAUT's AUTO's starting data of the problem kind optimization_single (optimization.f90:114 FNC1: optimization of algebraic systems (one parameter)) */
 int 
 optimization_single_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u)
 {
@@ -201,7 +201,7 @@ optimization_single_starting_data(iap_type *iap, rap_type *rap, double *par, std
   return 0;
 } /* stpnc1_ */
 
-/* fnc2: AUTO's equations of the problem kind optimization_multi (optimization.f90:191 FNC2: optimization of algebraic systems (more than one parameter)) */
+/* fnc2: XPPAUT's AUTO's equations of the problem kind optimization_multi (optimization.f90:191 FNC2: optimization of algebraic systems (more than one parameter)) */
 int 
 optimization_multi_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
@@ -242,7 +242,7 @@ optimization_multi_equations(const iap_type *iap, const rap_type *rap, std::ptrd
   return 0;
 } /* fnc2_ */
 
-/* ffc2: AUTO's function evaluation of the problem kind optimization_multi (optimization.f90:191 FNC2: optimization of algebraic systems (more than one parameter)) */
+/* ffc2: XPPAUT's AUTO's function evaluation of the problem kind optimization_multi (optimization.f90:191 FNC2: optimization of algebraic systems (more than one parameter)) */
 int 
 optimization_multi_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
 {
@@ -296,7 +296,7 @@ optimization_multi_function(const iap_type *iap, const rap_type *rap, std::ptrdi
   return 0;
 } /* ffc2_ */
 
-/* stpnc2: AUTO's starting data of the problem kind optimization_multi (optimization.f90:191 FNC2: optimization of algebraic systems (more than one parameter)) */
+/* stpnc2: XPPAUT's AUTO's starting data of the problem kind optimization_multi (optimization.f90:191 FNC2: optimization of algebraic systems (more than one parameter)) */
 int 
 optimization_multi_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u)
 {
@@ -370,7 +370,7 @@ optimization_multi_starting_data(iap_type *iap, rap_type *rap, double *par, std:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnds: AUTO's equations of the problem kind discrete_map (maps.f90:62 FNDS: continuing fixed points of a map) */
+/* fnds: XPPAUT's AUTO's equations of the problem kind discrete_map (maps.f90:62 FNDS: continuing fixed points of a map) */
 int 
 discrete_map_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
@@ -405,7 +405,7 @@ discrete_map_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnti: AUTO's equations of the problem kind time_integration (timeint.f90:37 FNTI: time integration) */
+/* fnti: XPPAUT's AUTO's equations of the problem kind time_integration (timeint.f90:37 FNTI: time integration) */
 int 
 time_integration_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
@@ -451,14 +451,14 @@ time_integration_equations(const iap_type *iap, const rap_type *rap, std::ptrdif
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnhb: AUTO's equations of the problem kind hopf (equilibrium.f90:67 FNHB: 2-parameter continuation of Hopf points in ODEs and maps) */
+/* fnhb: XPPAUT's AUTO's equations of the problem kind hopf (equilibrium.f90:67 FNHB: 2-parameter continuation of Hopf points in ODEs and maps) */
 int 
 hopf_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
   return xpp::autox_jacobian::curve(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, true, hopf_function);
 } /* fnhb_ */
 
-/* ffhb: AUTO's function evaluation of the problem kind hopf (equilibrium.f90:67 FNHB: 2-parameter continuation of Hopf points in ODEs and maps) */
+/* ffhb: XPPAUT's AUTO's function evaluation of the problem kind hopf (equilibrium.f90:67 FNHB: 2-parameter continuation of Hopf points in ODEs and maps) */
 int 
 hopf_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
 {
@@ -497,7 +497,7 @@ hopf_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, con
   return 0;
 } /* ffhb_ */
 
-/* stpnhb: AUTO's starting data of the problem kind hopf (equilibrium.f90:67 FNHB: 2-parameter continuation of Hopf points in ODEs and maps) */
+/* stpnhb: XPPAUT's AUTO's starting data of the problem kind hopf (equilibrium.f90:67 FNHB: 2-parameter continuation of Hopf points in ODEs and maps) */
 int 
 hopf_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u)
 {
@@ -528,14 +528,14 @@ hopf_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *ic
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnhw: AUTO's equations of the problem kind hopf_wave (parabolic.f90:234 FNHW: 2-parameter continuation of Hopf points in waves) */
+/* fnhw: XPPAUT's AUTO's equations of the problem kind hopf_wave (parabolic.f90:234 FNHW: 2-parameter continuation of Hopf points in waves) */
 int 
 hopf_wave_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
   return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, xpp::autox_jacobian::principal_parameter_count, hopf_wave_function);
 } /* fnhw_ */
 
-/* ffhw: AUTO's function evaluation of the problem kind hopf_wave (parabolic.f90:234 FNHW: 2-parameter continuation of Hopf points in waves) */
+/* ffhw: XPPAUT's AUTO's function evaluation of the problem kind hopf_wave (parabolic.f90:234 FNHW: 2-parameter continuation of Hopf points in waves) */
 int 
 hopf_wave_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
 {
@@ -581,7 +581,7 @@ hopf_wave_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim
   return 0;
 } /* ffhw_ */
 
-/* stpnhw: AUTO's starting data of the problem kind hopf_wave (parabolic.f90:234 FNHW: 2-parameter continuation of Hopf points in waves) */
+/* stpnhw: XPPAUT's AUTO's starting data of the problem kind hopf_wave (parabolic.f90:234 FNHW: 2-parameter continuation of Hopf points in waves) */
 int 
 hopf_wave_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *u)
 {
@@ -665,7 +665,7 @@ hopf_wave_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnps: AUTO's equations of the problem kind periodic (periodic.f90:352 STPNPS: continuation of periodic solutions) */
+/* fnps: XPPAUT's AUTO's equations of the problem kind periodic (periodic.f90:352 STPNPS: continuation of periodic solutions) */
 int 
 periodic_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
@@ -723,7 +723,7 @@ periodic_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim
   return 0;
 } /* fnps_ */
 
-/* bcps: AUTO's boundary conditions of the problem kind periodic (periodic.f90:352 STPNPS: continuation of periodic solutions) */
+/* bcps: XPPAUT's AUTO's boundary conditions of the problem kind periodic (periodic.f90:352 STPNPS: continuation of periodic solutions) */
 int 
 periodic_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc)
 {
@@ -766,7 +766,7 @@ periodic_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrd
   return 0;
 } /* bcps_ */
 
-/* icps: AUTO's integral conditions of the problem kind periodic (periodic.f90:352 STPNPS: continuation of periodic solutions) */
+/* icps: XPPAUT's AUTO's integral conditions of the problem kind periodic (periodic.f90:352 STPNPS: continuation of periodic solutions) */
 int 
 periodic_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint)
 {
@@ -805,7 +805,7 @@ periodic_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrd
   return 0;
 } /* icps_ */
 
-/* pdble: AUTO periodic.f90:321: preprocesses restart data for switching branches at a period doubling */
+/* pdble: AUTO-07p periodic.f90:321: preprocesses restart data for switching branches at a period doubling */
 int 
 period_doubling_restart(const iap_type *iap, const rap_type *rap, std::ptrdiff_t *ndim, std::ptrdiff_t *ntst, std::ptrdiff_t *ncol, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *tm, double *par)
 {
@@ -851,7 +851,7 @@ period_doubling_restart(const iap_type *iap, const rap_type *rap, std::ptrdiff_t
   return 0;
 } /* pdble_ */
 
-/* stpnps: AUTO's starting data of the problem kind periodic (periodic.f90:352 STPNPS: continuation of periodic solutions) */
+/* stpnps: XPPAUT's AUTO's starting data of the problem kind periodic (periodic.f90:352 STPNPS: continuation of periodic solutions) */
 int 
 periodic_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
@@ -940,7 +940,7 @@ periodic_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnws: AUTO's equations of the problem kind wave_steady (parabolic.f90:110 FNWS: spatially homogeneous solutions of parabolic systems, to find travelling-wave bifurcations (IPS 11)) */
+/* fnws: XPPAUT's AUTO's equations of the problem kind wave_steady (parabolic.f90:110 FNWS: spatially homogeneous solutions of parabolic systems, to find travelling-wave bifurcations (IPS 11)) */
 int 
 wave_steady_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
@@ -962,7 +962,7 @@ wave_steady_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t n
   return 0;
 } /* fnws_ */
 
-/* ffws: AUTO's function evaluation of the problem kind wave_steady (parabolic.f90:110 FNWS: spatially homogeneous solutions of parabolic systems, to find travelling-wave bifurcations (IPS 11)) */
+/* ffws: XPPAUT's AUTO's function evaluation of the problem kind wave_steady (parabolic.f90:110 FNWS: spatially homogeneous solutions of parabolic systems, to find travelling-wave bifurcations (IPS 11)) */
 int 
 wave_steady_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp, std::ptrdiff_t ndm, double *dfu, double *dfp)
 {
@@ -1030,7 +1030,7 @@ wave_steady_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t nd
   return 0;
 } /* ffws_ */
 
-/* fnwp: AUTO's equations of the problem kind wave_train (XPPAUT 8.0 autlib3.c:1018: continuation of travelling waves (IPS 12)) */
+/* fnwp: XPPAUT's AUTO's equations of the problem kind wave_train (XPPAUT 8.0 autlib3.c:1018: continuation of travelling waves (IPS 12)) */
 int 
 wave_train_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
@@ -1092,7 +1092,7 @@ wave_train_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t nd
   return 0;
 } /* fnwp_ */
 
-/* stpnwp: AUTO's starting data of the problem kind wave_train (XPPAUT 8.0 autlib3.c:1018: continuation of travelling waves (IPS 12)) */
+/* stpnwp: XPPAUT's AUTO's starting data of the problem kind wave_train (XPPAUT 8.0 autlib3.c:1018: continuation of travelling waves (IPS 12)) */
 int 
 wave_train_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
@@ -1184,14 +1184,14 @@ wave_train_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnsp: AUTO's equations of the problem kind parabolic_stationary (autox_lib3.cpp:1157: parabolic PDEs, stationary states) */
+/* fnsp: XPPAUT's AUTO's equations of the problem kind parabolic_stationary (parabolic PDEs, stationary states) */
 int 
 parabolic_stationary_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
   return xpp::autox_jacobian::supplied(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, parabolic_stationary_function);
 } /* fnsp_ */
 
-/* ffsp: AUTO's function evaluation of the problem kind parabolic_stationary (autox_lib3.cpp:1157: parabolic PDEs, stationary states) */
+/* ffsp: XPPAUT's AUTO's function evaluation of the problem kind parabolic_stationary (parabolic PDEs, stationary states) */
 int 
 parabolic_stationary_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp, std::ptrdiff_t ndm, double *dfu, double *dfp)
 {
@@ -1246,14 +1246,14 @@ parabolic_stationary_function(const iap_type *iap, const rap_type *rap, std::ptr
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnpe: AUTO's equations of the problem kind parabolic_evolution (parabolic.f90:389 FNPE: one implicit Euler time step; autox_lib3.cpp:1217: time evolution of parabolic PDEs) */
+/* fnpe: XPPAUT's AUTO's equations of the problem kind parabolic_evolution (parabolic.f90:389 FNPE: one implicit Euler time step; autox_lib3.cpp:1217: time evolution of parabolic PDEs) */
 int 
 parabolic_evolution_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
   return xpp::autox_jacobian::supplied(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, parabolic_evolution_function);
 } /* fnpe_ */
 
-/* ffpe: AUTO's function evaluation of the problem kind parabolic_evolution (parabolic.f90:389 FNPE: one implicit Euler time step; autox_lib3.cpp:1217: time evolution of parabolic PDEs) */
+/* ffpe: XPPAUT's AUTO's function evaluation of the problem kind parabolic_evolution (parabolic.f90:389 FNPE: one implicit Euler time step; autox_lib3.cpp:1217: time evolution of parabolic PDEs) */
 int 
 parabolic_evolution_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp, std::ptrdiff_t ndm, double *dfu, double *dfp)
 {
@@ -1305,7 +1305,7 @@ parabolic_evolution_function(const iap_type *iap, const rap_type *rap, std::ptrd
   return 0;
 } /* ffpe_ */
 
-/* icpe: AUTO's integral conditions of the problem kind parabolic_evolution (parabolic.f90:389 FNPE: one implicit Euler time step; autox_lib3.cpp:1217: time evolution of parabolic PDEs) */
+/* icpe: XPPAUT's AUTO's integral conditions of the problem kind parabolic_evolution (parabolic.f90:389 FNPE: one implicit Euler time step; autox_lib3.cpp:1217: time evolution of parabolic PDEs) */
 int 
 parabolic_evolution_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint)
 {
@@ -1321,7 +1321,7 @@ parabolic_evolution_integral_conditions(const iap_type *iap, const rap_type *rap
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnpl: AUTO's equations of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
+/* fnpl: XPPAUT's AUTO's equations of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
 int 
 periodic_fold_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
@@ -1388,7 +1388,7 @@ periodic_fold_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t
   return 0;
 } /* fnpl_ */
 
-/* ffpl: AUTO's function evaluation of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
+/* ffpl: XPPAUT's AUTO's function evaluation of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
 int
 periodic_fold_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
 {
@@ -1425,7 +1425,7 @@ periodic_fold_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t 
   return 0;
 } /* ffpl_ */
 
-/* bcpl: AUTO's boundary conditions of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
+/* bcpl: XPPAUT's AUTO's boundary conditions of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
 int 
 periodic_fold_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc)
 {
@@ -1470,7 +1470,7 @@ periodic_fold_boundary_conditions(const iap_type *iap, const rap_type *rap, std:
   return 0;
 } /* bcpl_ */
 
-/* icpl: AUTO's integral conditions of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
+/* icpl: XPPAUT's AUTO's integral conditions of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
 int 
 periodic_fold_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint)
 {
@@ -1525,7 +1525,7 @@ periodic_fold_integral_conditions(const iap_type *iap, const rap_type *rap, std:
   return 0;
 } /* icpl_ */
 
-/* stpnpl: AUTO's starting data of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
+/* stpnpl: XPPAUT's AUTO's starting data of the problem kind periodic_fold (periodic.f90:631 STPNPL: 2-parameter continuation of folds of periodic solutions) */
 int 
 periodic_fold_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
@@ -1622,14 +1622,14 @@ periodic_fold_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrd
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnpd: AUTO's equations of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
+/* fnpd: XPPAUT's AUTO's equations of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
 int 
 period_doubling_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
   return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, period_doubling_function);
 } /* fnpd_ */
 
-/* ffpd: AUTO's function evaluation of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
+/* ffpd: XPPAUT's AUTO's function evaluation of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
 int 
 period_doubling_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
 {
@@ -1655,7 +1655,7 @@ period_doubling_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_
   return 0;
 } /* ffpd_ */
 
-/* bcpd: AUTO's boundary conditions of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
+/* bcpd: XPPAUT's AUTO's boundary conditions of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
 int 
 period_doubling_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc)
 {
@@ -1708,7 +1708,7 @@ period_doubling_boundary_conditions(const iap_type *iap, const rap_type *rap, st
   return 0;
 } /* bcpd_ */
 
-/* icpd: AUTO's integral conditions of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
+/* icpd: XPPAUT's AUTO's integral conditions of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
 int 
 period_doubling_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint)
 {
@@ -1753,7 +1753,7 @@ period_doubling_integral_conditions(const iap_type *iap, const rap_type *rap, st
   return 0;
 } /* icpd_ */
 
-/* stpnpd: AUTO's starting data of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
+/* stpnpd: XPPAUT's AUTO's starting data of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
 int 
 period_doubling_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
@@ -1832,14 +1832,14 @@ period_doubling_starting_data(iap_type *iap, rap_type *rap, double *par, std::pt
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fntr: AUTO's equations of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
+/* fntr: XPPAUT's AUTO's equations of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
 int 
 torus_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
   return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, torus_function);
 } /* fntr_ */
 
-/* fftr: AUTO's function evaluation of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
+/* fftr: XPPAUT's AUTO's function evaluation of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
 int 
 torus_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
 {
@@ -1870,7 +1870,7 @@ torus_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, co
   return 0;
 } /* fftr_ */
 
-/* bctr: AUTO's boundary conditions of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
+/* bctr: XPPAUT's AUTO's boundary conditions of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
 int 
 torus_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc)
 {
@@ -1935,7 +1935,7 @@ torus_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff
   return 0;
 } /* bctr_ */
 
-/* ictr: AUTO's integral conditions of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
+/* ictr: XPPAUT's AUTO's integral conditions of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
 int 
 torus_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint)
 {
@@ -1986,7 +1986,7 @@ torus_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff
   return 0;
 } /* ictr_ */
 
-/* stpntr: AUTO's starting data of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
+/* stpntr: XPPAUT's AUTO's starting data of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
 int 
 torus_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
@@ -2067,7 +2067,7 @@ torus_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnpo: AUTO's equations of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
+/* fnpo: XPPAUT's AUTO's equations of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
 int 
 periodic_optimization_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
@@ -2121,7 +2121,7 @@ periodic_optimization_equations(const iap_type *iap, const rap_type *rap, std::p
   return 0;
 } /* fnpo_ */
 
-/* ffpo: AUTO's function evaluation of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
+/* ffpo: XPPAUT's AUTO's function evaluation of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
 int 
 periodic_optimization_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const double *upold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
 {
@@ -2164,7 +2164,7 @@ periodic_optimization_function(const iap_type *iap, const rap_type *rap, std::pt
   return 0;
 } /* ffpo_ */
 
-/* bcpo: AUTO's boundary conditions of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
+/* bcpo: XPPAUT's AUTO's boundary conditions of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
 int 
 periodic_optimization_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc)
 {
@@ -2210,7 +2210,7 @@ periodic_optimization_boundary_conditions(const iap_type *iap, const rap_type *r
   return 0;
 } /* bcpo_ */
 
-/* icpo: AUTO's integral conditions of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
+/* icpo: XPPAUT's AUTO's integral conditions of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
 int 
 periodic_optimization_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint)
 {
@@ -2258,7 +2258,7 @@ periodic_optimization_integral_conditions(const iap_type *iap, const rap_type *r
   return 0;
 } /* icpo_ */
 
-/* fipo: AUTO's integral function evaluation of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
+/* fipo: XPPAUT's AUTO's integral function evaluation of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
 int 
 periodic_optimization_integral_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, std::ptrdiff_t nnt0, const double *u, const double *uold, const double *udot, const double *upold, double *fi, double *dint, std::ptrdiff_t ndmt, double *dfdu, double *dfdp)
 {
@@ -2319,7 +2319,7 @@ periodic_optimization_integral_function(const iap_type *iap, const rap_type *rap
   return 0;
 } /* fipo_ */
 
-/* stpnpo: AUTO's starting data of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
+/* stpnpo: XPPAUT's AUTO's starting data of the problem kind periodic_optimization (optimization.f90:370,612: optimization of periodic solutions) */
 int 
 periodic_optimization_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
@@ -2428,14 +2428,14 @@ periodic_optimization_starting_data(iap_type *iap, rap_type *rap, double *par, s
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* fnbl: AUTO's equations of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
+/* fnbl: XPPAUT's AUTO's equations of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
 boundary_fold_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
   return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, boundary_fold_function);
 } /* fnbl_ */
 
-/* ffbl: AUTO's function evaluation of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
+/* ffbl: XPPAUT's AUTO's function evaluation of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
 boundary_fold_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
 {
@@ -2467,7 +2467,7 @@ boundary_fold_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t 
   return 0;
 } /* ffbl_ */
 
-/* bcbl: AUTO's boundary conditions of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
+/* bcbl: XPPAUT's AUTO's boundary conditions of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
 boundary_fold_boundary_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc)
 {
@@ -2522,7 +2522,7 @@ boundary_fold_boundary_conditions(const iap_type *iap, const rap_type *rap, std:
   return 0;
 } /* bcbl_ */
 
-/* fbbl: AUTO's boundary function evaluation of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
+/* fbbl: XPPAUT's AUTO's boundary function evaluation of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
 boundary_fold_boundary_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, std::ptrdiff_t nbc0, const double *u0, const double *u1, double *f, double *dbc)
 {
@@ -2554,14 +2554,14 @@ boundary_fold_boundary_function(const iap_type *iap, const rap_type *rap, std::p
   return 0;
 } /* fbbl_ */
 
-/* icbl: AUTO's integral conditions of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
+/* icbl: XPPAUT's AUTO's integral conditions of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
 boundary_fold_integral_conditions(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint)
 {
   return xpp::autox_jacobian::integral(iap, rap, ndim, par, icp, nint, u, uold, udot, upold, f, ijac, dint, boundary_fold_integral_function);
 } /* icbl_ */
 
-/* fibl: AUTO's integral function evaluation of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
+/* fibl: XPPAUT's AUTO's integral function evaluation of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
 boundary_fold_integral_function(const iap_type *iap, const rap_type *rap, const std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, std::ptrdiff_t nnt0, const double *u, const double *uold, const double *udot, const double *upold, double *f, double *dint)
 {
@@ -2605,7 +2605,7 @@ boundary_fold_integral_function(const iap_type *iap, const rap_type *rap, const 
   return 0;
 } /* fibl_ */
 
-/* stpnbl: AUTO's starting data of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
+/* stpnbl: XPPAUT's AUTO's starting data of the problem kind boundary_fold (toolboxbv.f90:839 STPNBL: 2-parameter continuation of folds of a BVP) */
 int 
 boundary_fold_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, std::ptrdiff_t *ntsr, std::ptrdiff_t *ncolrs, double *rlcur, double *rldot, std::ptrdiff_t *ndxloc, double *ups, double *udotps, double *upoldp, double *tm, double *dtm, std::ptrdiff_t *nodir, double *thl, double *thu)
 {
@@ -2671,7 +2671,7 @@ boundary_fold_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrd
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/* funi: AUTO's FUNI (interfaces.f90:60): the interface to the user's right-hand side */
+/* funi: XPPAUT's AUTO's FUNI (interfaces.f90:60): the interface to the user's right-hand side */
 int 
 problem_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
@@ -2734,7 +2734,7 @@ problem_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, 
   return 0;
 } /* problem_function */
 
-/* bcni: AUTO's BCNI (interfaces.f90:141): the interface to the user's boundary conditions */
+/* bcni: XPPAUT's AUTO's BCNI (interfaces.f90:141): the interface to the user's boundary conditions */
 int 
 boundary_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nbc, const double *u0, const double *u1, double *f, std::ptrdiff_t ijac, double *dbc)
 {
@@ -2794,7 +2794,7 @@ boundary_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim,
   return 0;
 } /* boundary_function */
 
-/* icni: AUTO's ICNI (interfaces.f90:236): the interface to the user's integral conditions */
+/* icni: XPPAUT's AUTO's ICNI (interfaces.f90:236): the interface to the user's integral conditions */
 int 
 integral_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, double *par, const std::ptrdiff_t *icp, std::ptrdiff_t nint, const double *u, const double *uold, const double *udot, const double *upold, double *f, std::ptrdiff_t ijac, double *dint)
 {
