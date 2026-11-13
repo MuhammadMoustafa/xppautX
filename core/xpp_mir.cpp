@@ -5,6 +5,8 @@
    MIR's environment by us and found only there. */
 #include "xpp_mir.h"
 #include <array>
+#include <atomic>
+#include <cstdlib>
 #include <csetjmp>
 #include <algorithm>
 #include <cstdint>
@@ -17,6 +19,7 @@
 #include <unordered_map>
 #include <vector>
 #include "xpp_io.h"
+#include "xpp_log.h"
 #include "mir.h"
 #include "mir-gen.h"
 
@@ -55,6 +58,15 @@ constinit thread_local Escape escape{};
 /* One compile at a time: MIR's generator sorts its static pattern table at each MIR_gen_init
    (mir-gen-x86_64.c patterns_init), so two contexts may not generate at once. */
 std::mutex compiling;
+/* The compiles running on threads of their own (W715): the program's exit waits for them, since static destruction
+   would otherwise destroy what a compile uses (`compiling`) under it (macOS CI 43443622373: SIGABRT at the exit of
+   a short run, which ends before its compile). */
+std::atomic<int> in_background{0};
+
+void wait_for_background_compiles()
+{
+    for (int running = in_background.load(); running != 0; running = in_background.load()) in_background.wait(running);
+}
 
 /* MIR's error function; ours report through it too, with the kind of MIR's closest to what is wrong */
 void MIR_NO_RETURN raised(MIR_error_type_t, const char *format, ...)
@@ -516,6 +528,20 @@ Program::Program(Place place) : state_(std::make_unique<State>())
 }
 
 Program::~Program() = default;
+
+void background_started()
+{
+    /* registered at the first one, after every static object was made, so it runs before any is destroyed */
+    static const bool waits_at_exit = std::atexit(wait_for_background_compiles) == 0;
+    if (!waits_at_exit) log(XPP_LOG_WARN, "the exit cannot wait for a compile on its thread\n");
+    in_background.fetch_add(1);
+}
+
+void background_ended()
+{
+    in_background.fetch_sub(1);
+    in_background.notify_all();
+}
 
 Result<std::unique_ptr<Program>> Program::compile(const IrModule &module, Place place)
 {

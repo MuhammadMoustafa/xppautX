@@ -997,7 +997,8 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
    may leave a thread */
 void start_build(std::shared_ptr<Model::NativeBuild> build)
 {
-    std::thread([build=std::move(build)]() noexcept {
+    mir::background_started();
+    std::thread([build=std::move(build)]() mutable noexcept {
         try {
             build->result=mir::Program::compile(build->ir,build->place);
         } catch (const std::bad_alloc &) {
@@ -1005,6 +1006,8 @@ void start_build(std::shared_ptr<Model::NativeBuild> build)
         }
         build->finished.store(true,std::memory_order_release);
         build->finished.notify_all();
+        build.reset(); /* the compiled code goes here when the Model went first: before the exit may go on */
+        mir::background_ended();
     }).detach();
 }
 

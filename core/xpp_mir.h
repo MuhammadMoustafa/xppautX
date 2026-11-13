@@ -33,6 +33,11 @@ private:
     std::unique_ptr<State> state_;
 };
 
+/* A compile on a thread of its own (W715) says when it starts, on the thread that starts it, and when it ends, as
+   the last thing it does (after the build it held is released): the program's exit waits until none runs. */
+void background_started();
+void background_ended();
+
 /* A call of a function MIR compiled; every call into the native code goes through here. clang's
    -fsanitize=function (the sanitizer builds) reads the 8 bytes in front of a callee for its type signature,
    which generated code does not have, and in front of a function that opens MIR's code region on Windows those
