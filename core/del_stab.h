@@ -12,15 +12,15 @@ struct COMPLEX {
 };
 
 /* del_stab.cpp */
-COMPLEX cdif(COMPLEX z, COMPLEX w);
-COMPLEX cmlt(COMPLEX z, COMPLEX w);
-COMPLEX cdivv(COMPLEX z, COMPLEX w);
-COMPLEX cexp2(COMPLEX z);
+COMPLEX complex_subtract(COMPLEX z, COMPLEX w);
+COMPLEX complex_multiply(COMPLEX z, COMPLEX w);
+COMPLEX complex_divide(COMPLEX z, COMPLEX w);
+COMPLEX complex_exponential(COMPLEX z);
 void switch_rows(COMPLEX *z, int i1, int i2, int n);
-COMPLEX rtoc(double x, double y);
-double c_abs(COMPLEX z);
-COMPLEX cdeterm(COMPLEX *z, int n);
-void make_z(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambda);
+COMPLEX make_complex(double x, double y);
+double complex_modulus(COMPLEX z);
+COMPLEX complex_determinant(COMPLEX *z, int n);
+void fill_characteristic_matrix(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambda);
 void process_root(double real, double im);
 double get_arg(double *delay, double *coef, int m, int n, COMPLEX lambda);
 int test_sign(double old, double newval);

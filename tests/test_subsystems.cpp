@@ -1,7 +1,7 @@
 /* The independent subsystems (W433): the connected components of the
    states' dependency graph a load finds (Model::subsystems), what joins
    every state into one, and BlockLu, which factors a block-diagonal matrix
-   block by block, bit for bit as sgefa and sgesl do the whole matrix. */
+   block by block, bit for bit as lu_factor and lu_solve do the whole matrix. */
 #include "load_args.h"
 #include "xpptest.h"
 #include "model.h"
@@ -86,7 +86,7 @@ bool same_bits(const std::vector<double> &a, const std::vector<double> &b)
     return true;
 }
 
-/* BlockLu's solve against sgefa's and sgesl's of the whole matrix: the same bits */
+/* BlockLu's solve against lu_factor's and lu_solve's of the whole matrix: the same bits */
 void check_block_lu(const Blocks &blocks, int n, bool transposed, std::mt19937_64 &random)
 {
     const std::vector<double> a = block_diagonal(blocks, n, random);
@@ -95,9 +95,9 @@ void check_block_lu(const Blocks &blocks, int n, bool transposed, std::mt19937_6
     std::vector<double> full = a, whole_solution = b;
     std::vector<int> pivots(static_cast<std::size_t>(n));
     int info;
-    xpp::sgefa(full.data(), n, n, pivots.data(), &info);
+    xpp::lu_factor(full.data(), n, n, pivots.data(), &info);
     CHECK(info == -1);
-    xpp::sgesl(full.data(), n, n, pivots.data(), whole_solution.data());
+    xpp::lu_solve(full.data(), n, n, pivots.data(), whole_solution.data());
     /* the matrix as BlockLu is given it: its transpose when the layout is column-major */
     std::vector<double> given = a;
     if (transposed)
@@ -112,7 +112,7 @@ void check_block_lu(const Blocks &blocks, int n, bool transposed, std::mt19937_6
     CHECK(same_bits(whole_solution, block_solution));
     /* a second right-hand side from the same factors */
     std::vector<double> again = whole_solution;
-    xpp::sgesl(full.data(), n, n, pivots.data(), again.data());
+    xpp::lu_solve(full.data(), n, n, pivots.data(), again.data());
     block_solution = whole_solution;
     lu.solve(given.data(), n, block_solution.data());
     CHECK(same_bits(again, block_solution));
@@ -120,7 +120,7 @@ void check_block_lu(const Blocks &blocks, int n, bool transposed, std::mt19937_6
 
 void check_singular()
 {
-    /* a zero pivot in a block is the last zero pivot sgefa finds, by its index in the whole matrix */
+    /* a zero pivot in a block is the last zero pivot lu_factor finds, by its index in the whole matrix */
     const Blocks blocks{{0, 2}, {1, 3}};
     std::vector<double> a(16, 0.0);
     a[0] = 1;  a[2] = 2;  a[8] = 2;  a[10] = 4; /* rows 0 and 2: {{1,2},{2,4}} singular */
@@ -128,7 +128,7 @@ void check_singular()
     std::vector<double> full = a;
     std::vector<int> pivots(4);
     int info, block_info;
-    xpp::sgefa(full.data(), 4, 4, pivots.data(), &info);
+    xpp::lu_factor(full.data(), 4, 4, pivots.data(), &info);
     xpp::BlockLu lu;
     lu.factor(a.data(), 4, 4, blocks, &block_info);
     CHECK(info != -1 && block_info == info);

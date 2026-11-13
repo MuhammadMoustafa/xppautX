@@ -445,8 +445,8 @@ numerical, keep" for a translated-Fortran/CVODE routine whose repeated
 shape is the original source's own; merge into the owner rather than add
 an entry. Heuristic and line-based (not a real C++ parser), so it cannot
 see two implementations of the same algorithm written differently
-(sgefa/sgesl vs. ge() vs. bandfac/bandsol, the three LU solves; gear.cpp's
-eigen() vs. autox_lib1.cpp's eig()): those were found by hand for the W30
+(lu_factor/lu_solve vs. gauss_eliminate() vs. band_factor/band_solve, the three LU solves; gear.cpp's
+eigen() vs. autox_lib1.cpp's autox_eigenvalues()): those were found by hand for the W30
 audit note, not by this script.
 
 `tools/aliascheck.sh` (W113; sourcecheck runs it with `--check`, a

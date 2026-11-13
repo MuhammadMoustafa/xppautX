@@ -254,13 +254,13 @@ int solve_dae(xpp::Session &s)
 	jac[j*n+i]=(fnew[j]-f[j])/del;
       y[i]=yold;
     }
-    xpp::sgefa(jac,n,n,s.dae.iwork.data(),&info);
+    xpp::lu_factor(jac,n,n,s.dae.iwork.data(),&info);
     if(info!=-1){
       for(i=0;i<n;i++)
 	setvar(s,m.svars[i].index,ynew[i]);
       return DAE_SINGULAR;
     }
-    sign=xpp::sgefa_det_sign(jac,n,n,s.dae.iwork.data());
+    sign=xpp::lu_determinant_sign(jac,n,n,s.dae.iwork.data());
     if(run&&run->jac_sign!=0&&sign!=run->jac_sign){
       /* Newton has crossed where the Jacobian is singular: no solution
 	 near the last one continues its branch */
@@ -268,7 +268,7 @@ int solve_dae(xpp::Session &s)
 	setvar(s,m.svars[i].index,s.dae.svar_last[i]);
       return DAE_FOLD;
     }
-    xpp::sgesl(jac,n,n,s.dae.iwork.data(),errvec); /* get x=J^(-1) f */
+    xpp::lu_solve(jac,n,n,s.dae.iwork.data(),errvec); /* get x=J^(-1) f */
     err=0.0;
     for(i=0;i<n;i++){
       y[i]-=errvec[i];

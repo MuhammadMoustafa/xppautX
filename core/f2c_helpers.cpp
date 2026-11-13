@@ -1,5 +1,5 @@
 /* f2c runtime helpers used by the autoX and EISPACK code (originally f2c's
-   libF77 support files cabs.c, d_sign.c and z_abs.c); the one-use ones
+   libF77 support files cabs.c and z_abs.c; d_sign.c is xpp::transfer_sign); the one-use ones
    went into their callers (W491). */
 
 #include <cmath>
@@ -8,7 +8,7 @@
 namespace {
 
 /* cabs.c: |real + i imag| without overflow in the squares */
-double f__cabs(double real, double imag) {
+double complex_magnitude(double real, double imag) {
   double temp;
 
   if (real < 0)
@@ -29,10 +29,4 @@ double f__cabs(double real, double imag) {
 }
 } // namespace
 
-double d_sign(doublereal a, doublereal b) {
-  double x;
-  x = (a >= 0 ? a : -a);
-  return (b >= 0 ? x : -x);
-}
-
-double z_abs(const doublecomplex *z) { return (f__cabs(z->r, z->i)); }
+double complex_magnitude_of(const doublecomplex *z) { return (complex_magnitude(z->r, z->i)); }

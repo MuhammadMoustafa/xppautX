@@ -52,7 +52,7 @@ inline constexpr std::string_view JACOBIAN_KEY = "jacobian";
 /* How the Jacobian is stored: d f_row / d x_col is out[row*n+col]
    (RowMajor) or out[row+n*col] (ColumnMajor); Banded, with `lower` and
    `upper` diagonals and mt = lower+upper+1, is out[row*mt+(col-row)+lower]
-   (the layout bandfac wants), the rest of the band zero. */
+   (the layout band_factor wants), the rest of the band zero. */
 enum class JacobianLayout { RowMajor, ColumnMajor, Banded };
 
 struct JacobianForm {

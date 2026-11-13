@@ -77,8 +77,8 @@ def rk4_step(rhs, t, y, dt):
     return t2, y0 + dt * k / 6.00
 
 
-def sgefa(a):
-    """LINPACK's LU of the square array a, in place, with partial pivoting (core/xpp_math.cpp sgefa): (pivots, info),
+def lu_factor(a):
+    """LINPACK's LU of the square array a, in place, with partial pivoting (core/xpp_math.cpp lu_factor): (pivots, info),
     info -1 when it succeeded, else the index of a zero pivot."""
     n = len(a)
     ipvt, info = [0] * n, -1
@@ -100,8 +100,8 @@ def sgefa(a):
     return ipvt, info
 
 
-def sgesl(a, ipvt, b):
-    """Solves a x = b with sgefa's factors, x replacing b (core/xpp_math.cpp sgesl)."""
+def lu_solve(a, ipvt, b):
+    """Solves a x = b with lu_factor's factors, x replacing b (core/xpp_math.cpp lu_solve)."""
     n = len(a)
     for k in range(n - 1):
         l = ipvt[k]
@@ -140,10 +140,10 @@ def backward_euler_step(rhs, t, y, dt, numerics):
         err1 = total(np.abs(errvec))
         jac = jacobian(rhs, t, yg, yp, numerics.jacobian_step) * (-.5 * dt)
         jac[np.diag_indices_from(jac)] += 1.0
-        ipvt, info = sgefa(jac)
+        ipvt, info = lu_factor(jac)
         if info != -1:
             raise IntegrationError('BackEul: Singular Jacobian')
-        sgesl(jac, ipvt, errvec)
+        lu_solve(jac, ipvt, errvec)
         err = total(np.abs(errvec))
         yg = yg - errvec
         if err < numerics.eul_tol or err1 < numerics.eul_tol:

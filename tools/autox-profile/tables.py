@@ -23,10 +23,10 @@ KINDS = [
     ('conpar (condensation of parameters)', lambda o, f: f.startswith('(anonymous namespace)::conpar_process')),
     ('Jacobian and residual assembly (setubv, setrhs, icps, fnps, funi, func)',
      lambda o, f: re.match(ANON + r'(setubv|setrhs|icps|fnps|funi|func|continued_constants|stpnt|bcps|icf)', f)),
-    ('block linear solve (reduce, infpar, conrhs, bcksub, dimrge, brbd, ge, nlvc)',
-     lambda o, f: re.match(r'(reduce|infpar|conrhs|bcksub|dimrge|rhsrge|cpyrhs|brbd|ge|nlvc|copycp|solvbv)\(', f.removeprefix('xpp::'))),
-    ('eigenvalue routines (EISPACK, flowkm)',
-     lambda o, f: re.match(r'(hqr|hqr2|orthes|balanc|balbak|elmhes|eltran|qzit|qzhes|qzval|qzvec|rg|rgg|eig|flowkm|cdiv|csroot|ortran|comqr|cbal|corth|comqr2|htribk|ch|cg)\(', f.removeprefix('xpp::'))),
+    ('block linear solve (reduce, infpar, conrhs, bcksub, dimrge, brbd, ge, matrix_null_vector)',
+     lambda o, f: re.match(r'(reduce|infpar|conrhs|bcksub|dimrge|rhsrge|cpyrhs|brbd|ge|matrix_null_vector|copycp|solvbv)\(', f.removeprefix('xpp::'))),
+    ('eigenvalue routines (EISPACK, floquet_multipliers)',
+     lambda o, f: re.match(r'(hessenberg_qr_values|hessenberg_qr_vectors|hessenberg_reduce_householder|balance_matrix|balance_back_transform|hessenberg_reduce_elimination|hessenberg_transform_elimination|qz_iterate|qz_reduce_hessenberg|qz_eigenvalues|qzvec|rg|rgg|eig|floquet_multipliers|cdiv|csroot|hessenberg_transform_orthogonal|comqr|cbal|corth|comqr2|htribk|ch|cg)\(', f.removeprefix('xpp::'))),
     ('allocation and zeroing (malloc, free, new, memset, memcpy)',
      lambda o, f: re.match(r'(malloc|free|calloc|realloc|_int_|operator new|operator delete|__memset|__memcpy|__memmove|memset|memcpy|memmove|cfree|__libc_|unlink_chunk|tcache)', f)),
     ('output, files, session (formatting, compression)',
@@ -40,7 +40,7 @@ COUNTS = [  # what a point costs in routines: the callee's name prefix
     ('funi (right-hand side with or without derivatives)', 'funi('),
     ('func (the model, one evaluation)', 'func('),
     ('ge (dense solves)', 'ge('),
-    ('flowkm (multipliers)', 'flowkm('),
+    ('floquet_multipliers (multipliers)', 'floquet_multipliers('),
     ('solvae (Newton iterations of an equilibrium point)', 'solvae('),
     ('malloc', 'malloc'),
     ('operator new', 'operator new(unsigned long)'),
@@ -109,7 +109,7 @@ def calls_of(profile, prefix):
 
 INCLUSIVE = [  # the routines whose whole cost (with everything they call) a stage 3 card can target
     'solvbv(', 'setubv(', '(anonymous namespace)::setubv_make_aa_bb', '(anonymous namespace)::setubv_make_fa',
-    'setrhs(', '(anonymous namespace)::conpar_process', 'reduce(', 'stepbv(', 'funi(', 'func(', 'ge(', 'flowkm(',
+    'setrhs(', '(anonymous namespace)::conpar_process', 'reduce(', 'stepbv(', 'funi(', 'func(', 'ge(', 'floquet_multipliers(',
     'pvlsbv(', 'brbd(',
 ]
 CALLEES = ['funi(', 'func(', 'ge(', 'malloc', 'memset', '__memset_avx2_unaligned_erms']  # whose callers are listed

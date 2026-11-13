@@ -32,11 +32,12 @@ constexpr doublereal c_b367 = -1.;
 /*          Eigenvalue solver from EISPACK */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
-/* W337: Balanced general eigenproblem: balanc -> elmhes -> hqr (roots only),
-   or eltran -> hqr2 -> balbak (vectors). Elementary pivoted reduction
+/* W337: Balanced general eigenproblem: balance_matrix -> hessenberg_reduce_elimination -> hessenberg_qr_values (roots only),
+   or hessenberg_transform_elimination -> hessenberg_qr_vectors -> balance_back_transform (vectors). Elementary pivoted reduction
    differs from gear's Householder reduction; preserve root and vector order. */
 /* Subroutine */ int 
-rg(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer matz, doublereal *z__, integer *iv1, doublereal *fv1, integer *ierr)
+/* rg: EISPACK rg: eigenvalues (and vectors) of a real general matrix */
+real_general_eigen(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer matz, doublereal *z__, integer *iv1, doublereal *fv1, integer *ierr)
 {
     /* System generated locals */
     integer a_dim1, a_offset, z_dim1, z_offset;
@@ -113,23 +114,23 @@ rg(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer
     goto L50;
 
 L10:
-    balanc(&nm, &n, &a[a_offset], &is1, &is2, &fv1[1]);
-    elmhes(&nm, &n, &is1, &is2, &a[a_offset], &iv1[1]);
+    balance_matrix(&nm, &n, &a[a_offset], &is1, &is2, &fv1[1]);
+    hessenberg_reduce_elimination(&nm, &n, &is1, &is2, &a[a_offset], &iv1[1]);
     if (matz != 0) {
 	goto L20;
     }
 /*     .......... FIND EIGENVALUES ONLY .......... */
-    hqr(&nm, &n, &is1, &is2, &a[a_offset], &wr[1], &wi[1], ierr);
+    hessenberg_qr_values(&nm, &n, &is1, &is2, &a[a_offset], &wr[1], &wi[1], ierr);
     goto L50;
 /*     .......... FIND BOTH EIGENVALUES AND EIGENVECTORS .......... */
 L20:
-    eltran(&nm, &n, &is1, &is2, &a[a_offset], &iv1[1], &z__[z_offset]);
-    hqr2(&nm, &n, &is1, &is2, &a[a_offset], &wr[1], &wi[1], &z__[z_offset], 
+    hessenberg_transform_elimination(&nm, &n, &is1, &is2, &a[a_offset], &iv1[1], &z__[z_offset]);
+    hessenberg_qr_vectors(&nm, &n, &is1, &is2, &a[a_offset], &wr[1], &wi[1], &z__[z_offset], 
 	    ierr);
     if (*ierr != 0) {
 	goto L50;
     }
-    balbak(&nm, &n, &is1, &is2, &fv1[1], &n, &z__[z_offset]);
+    balance_back_transform(&nm, &n, &is1, &is2, &fv1[1], &n, &z__[z_offset]);
 L50:
     return 0;
 } /* rg_ */
@@ -140,8 +141,9 @@ L50:
    30*n shared iteration budget, exceptional shifts at iterations 10 and 20.
    Gear uses abs(subdiagonal) <= 1e-10*scale and 30 iterations per root;
    merging these QR paths would change converged roots and failure status. */
+/* hqr: EISPACK's shifted QR on a Hessenberg matrix, eigenvalues only */
 /* Subroutine */ int 
-hqr(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doublereal *wr, doublereal *wi, integer *ierr)
+hessenberg_qr_values(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doublereal *wr, doublereal *wi, integer *ierr)
 {
     /* System generated locals */
     integer h_dim1, h_offset, i__1, i__2, i__3;
@@ -372,7 +374,7 @@ L160:
 	r__ /= x;
 L170:
 	d__1 = sqrt(p * p + q * q + r__ * r__);
-	s = d_sign(d__1, p);
+	s = transfer_sign(d__1, p);
 	if (k == m) {
 	    goto L180;
 	}
@@ -461,7 +463,7 @@ L280:
 	goto L320;
     }
 /*     .......... REAL PAIR .......... */
-    zz = p + d_sign(zz, p);
+    zz = p + transfer_sign(zz, p);
     wr[na] = x + zz;
     wr[en] = wr[na];
     if (zz != 0.) {
@@ -491,12 +493,13 @@ L1001:
 /* ----------------------------------------------------------------------- */
 /* W337: Eigenvalues and packed real/conjugate vectors: machine-precision QR,
    30*n shared iterations, accumulated transformations and back substitution.
-   Unlike roots-only hqr, this writes shifted diagonals and rotates real
+   Unlike roots-only hessenberg_qr_values, this writes shifted diagonals and rotates real
    two-root blocks for vector back substitution, interleaving Z accumulation
    with the QR steps. Preserve that order and workspace as well as the roots;
-   gear's fixed-tolerance hqr does not supply these transformations. */
+   gear's fixed-tolerance hessenberg_qr_values does not supply these transformations. */
 /* Subroutine */ int 
-hqr2(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doublereal *wr, doublereal *wi, doublereal *z__, integer *ierr)
+/* hqr2: EISPACK hqr2: eigenvalues and vectors of a Hessenberg matrix */
+hessenberg_qr_vectors(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doublereal *wr, doublereal *wi, doublereal *z__, integer *ierr)
 {
     /* System generated locals */
     integer h_dim1, h_offset, z_dim1, z_offset, i__1, i__2, i__3;
@@ -750,7 +753,7 @@ L160:
 	r__ /= x;
 L170:
 	d__1 = sqrt(p * p + q * q + r__ * r__);
-	s = d_sign(d__1, p);
+	s = transfer_sign(d__1, p);
 	if (k == m) {
 	    goto L180;
 	}
@@ -860,7 +863,7 @@ L280:
 	goto L320;
     }
 /*     .......... REAL PAIR .......... */
-    zz = p + d_sign(zz, p);
+    zz = p + transfer_sign(zz, p);
     wr[na] = x + zz;
     wr[en] = wr[na];
     if (zz != 0.) {
@@ -1029,7 +1032,7 @@ L710:
 L720:
 	d__1 = -h__[na + en * h_dim1];
 	d__2 = h__[na + na * h_dim1] - p;
-	cdiv(&c_b81, &d__1, &d__2, &q, &h__[na + na * h_dim1], &h__[na + en *
+	complex_divide_scaled(&c_b81, &d__1, &d__2, &q, &h__[na + na * h_dim1], &h__[na + en *
 		 h_dim1]);
 L730:
 	h__[en + na * h_dim1] = 0.;
@@ -1067,7 +1070,7 @@ L770:
 	    }
 	    d__1 = -ra;
 	    d__2 = -sa;
-	    cdiv(&d__1, &d__2, &w, &q, &h__[i__ + na * h_dim1], &h__[i__ + 
+	    complex_divide_scaled(&d__1, &d__2, &w, &q, &h__[i__ + na * h_dim1], &h__[i__ + 
 		    en * h_dim1]);
 	    goto L790;
 /*     .......... SOLVE COMPLEX EQUATIONS .......... */
@@ -1090,7 +1093,7 @@ L783:
 L784:
 	    d__1 = x * r__ - zz * ra + q * sa;
 	    d__2 = x * s - zz * sa - q * ra;
-	    cdiv(&d__1, &d__2, &vr, &vi, &h__[i__ + na * h_dim1], &h__[i__ + 
+	    complex_divide_scaled(&d__1, &d__2, &vr, &vi, &h__[i__ + na * h_dim1], &h__[i__ + 
 		    en * h_dim1]);
 	    if (f2c::abs(x) <= f2c::abs(zz) + f2c::abs(q)) {
 		goto L785;
@@ -1103,7 +1106,7 @@ L784:
 L785:
 	    d__1 = -r__ - y * h__[i__ + na * h_dim1];
 	    d__2 = -s - y * h__[i__ + en * h_dim1];
-	    cdiv(&d__1, &d__2, &zz, &q, &h__[i__ + 1 + na * h_dim1], &h__[
+	    complex_divide_scaled(&d__1, &d__2, &zz, &q, &h__[i__ + 1 + na * h_dim1], &h__[
 		    i__ + 1 + en * h_dim1]);
 
 /*     .......... OVERFLOW CONTROL .......... */
@@ -1189,7 +1192,7 @@ L1001:
    before products and sums. del_stab and std::complex use different orders
    (and thus rounding); sharing those quotients would change eigenvectors. */
 /* Subroutine */ int 
-cdiv(const doublereal *ar, const doublereal *ai, const doublereal *br, const doublereal *bi, doublereal *cr, doublereal *ci)
+complex_divide_scaled(const doublereal *ar, const doublereal *ai, const doublereal *br, const doublereal *bi, doublereal *cr, doublereal *ci)
 {
     /* System generated locals */
     doublereal d__1, d__2;
@@ -1217,7 +1220,8 @@ cdiv(const doublereal *ar, const doublereal *ai, const doublereal *br, const dou
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-balanc(integer *nm, integer *n, doublereal *a, integer *low, integer *igh, doublereal *scale)
+/* balanc: EISPACK balanc */
+balance_matrix(integer *nm, integer *n, doublereal *a, integer *low, integer *igh, doublereal *scale)
 {
     /* System generated locals */
     integer a_dim1, a_offset, i__1, i__2;
@@ -1473,7 +1477,8 @@ L280:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-balbak(integer *nm, integer *n, integer *low, integer *igh, doublereal *scale, integer *m, doublereal *z__)
+/* balbak: EISPACK balbak */
+balance_back_transform(integer *nm, integer *n, integer *low, integer *igh, doublereal *scale, integer *m, doublereal *z__)
 {
     /* System generated locals */
     integer z_dim1, z_offset, i__1, i__2;
@@ -1586,7 +1591,8 @@ L200:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-elmhes(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, integer *int__)
+/* elmhes: EISPACK elmhes: Hessenberg reduction by elimination */
+hessenberg_reduce_elimination(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, integer *int__)
 {
     /* System generated locals */
     integer a_dim1, a_offset, i__1, i__2, i__3;
@@ -1731,7 +1737,8 @@ L200:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-eltran(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, integer *int__, doublereal *z__)
+/* eltran: EISPACK eltran: elmhes's accumulated transform */
+hessenberg_transform_elimination(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, integer *int__, doublereal *z__)
 {
     /* System generated locals */
     integer a_dim1, a_offset, z_dim1, z_offset, i__1, i__2;
@@ -1848,7 +1855,8 @@ L200:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-qzhes(integer nm, integer n, doublereal *a, doublereal *b, bool matz, doublereal *z__)
+/* qzhes: EISPACK qzhes: first QZ step */
+qz_reduce_hessenberg(integer nm, integer n, doublereal *a, doublereal *b, bool matz, doublereal *z__)
 {
     /* System generated locals */
     integer a_dim1, a_offset, b_dim1, b_offset, z_dim1, z_offset, i__1, i__2, 
@@ -1972,7 +1980,7 @@ L10:
 	}
 
 	d__1 = sqrt(r__);
-	r__ = d_sign(d__1, b[l + l * b_dim1]);
+	r__ = transfer_sign(d__1, b[l + l * b_dim1]);
 	b[l + l * b_dim1] += r__;
 	rho = r__ * b[l + l * b_dim1];
 
@@ -2053,7 +2061,7 @@ L100:
 	    u1 = a[l + k * a_dim1] / s;
 	    u2 = a[l1 + k * a_dim1] / s;
 	    d__1 = sqrt(u1 * u1 + u2 * u2);
-	    r__ = d_sign(d__1, u1);
+	    r__ = transfer_sign(d__1, u1);
 	    v1 = -(u1 + r__) / r__;
 	    v2 = -u2 / r__;
 	    u2 = v2 / v1;
@@ -2084,7 +2092,7 @@ L100:
 	    u1 = b[l1 + l1 * b_dim1] / s;
 	    u2 = b[l1 + l * b_dim1] / s;
 	    d__1 = sqrt(u1 * u1 + u2 * u2);
-	    r__ = d_sign(d__1, u1);
+	    r__ = transfer_sign(d__1, u1);
 	    v1 = -(u1 + r__) / r__;
 	    v2 = -u2 / r__;
 	    u2 = v2 / v1;
@@ -2133,7 +2141,8 @@ L170:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-qzit(integer nm, integer n, doublereal *a, doublereal *b, doublereal eps1, bool matz, doublereal *z__, integer *ierr)
+/* qzit: EISPACK qzit */
+qz_iterate(integer nm, integer n, doublereal *a, doublereal *b, doublereal eps1, bool matz, doublereal *z__, integer *ierr)
 {
     /* System generated locals */
     integer a_dim1, a_offset, b_dim1, b_offset, z_dim1, z_offset, i__1, i__2, 
@@ -2283,7 +2292,7 @@ qzit(integer nm, integer n, doublereal *a, doublereal *b, doublereal eps1, bool 
 	goto L50;
     }
 /*     .......... USE ROUNDOFF LEVEL IF EPS1 IS ZERO .......... */
-    ep = epslon(1.0);
+    ep = machine_epsilon(1.0);
 L50:
     epsa = ep * anorm;
     epsb = ep * bnorm;
@@ -2344,7 +2353,7 @@ L100:
     u1 = a[l + l * a_dim1] / s;
     u2 = a[l1 + l * a_dim1] / s;
     d__1 = sqrt(u1 * u1 + u2 * u2);
-    r__ = d_sign(d__1, u1);
+    r__ = transfer_sign(d__1, u1);
     v1 = -(u1 + r__) / r__;
     v2 = -u2 / r__;
     u2 = v2 / v1;
@@ -2489,7 +2498,7 @@ L170:
 	u1 = a1 / s;
 	u2 = a2 / s;
 	d__1 = sqrt(u1 * u1 + u2 * u2);
-	r__ = d_sign(d__1, u1);
+	r__ = transfer_sign(d__1, u1);
 	v1 = -(u1 + r__) / r__;
 	v2 = -u2 / r__;
 	u2 = v2 / v1;
@@ -2526,7 +2535,7 @@ L200:
 	u2 = a2 / s;
 	u3 = a3 / s;
 	d__1 = sqrt(u1 * u1 + u2 * u2 + u3 * u3);
-	r__ = d_sign(d__1, u1);
+	r__ = transfer_sign(d__1, u1);
 	v1 = -(u1 + r__) / r__;
 	v2 = -u2 / r__;
 	v3 = -u3 / r__;
@@ -2564,7 +2573,7 @@ L220:
 	u2 = b[k2 + k1 * b_dim1] / s;
 	u3 = b[k2 + k * b_dim1] / s;
 	d__1 = sqrt(u1 * u1 + u2 * u2 + u3 * u3);
-	r__ = d_sign(d__1, u1);
+	r__ = transfer_sign(d__1, u1);
 	v1 = -(u1 + r__) / r__;
 	v2 = -u2 / r__;
 	v3 = -u3 / r__;
@@ -2611,7 +2620,7 @@ L240:
 	u1 = b[k1 + k1 * b_dim1] / s;
 	u2 = b[k1 + k * b_dim1] / s;
 	d__1 = sqrt(u1 * u1 + u2 * u2);
-	r__ = d_sign(d__1, u1);
+	r__ = transfer_sign(d__1, u1);
 	v1 = -(u1 + r__) / r__;
 	v2 = -u2 / r__;
 	u2 = v2 / v1;
@@ -2660,7 +2669,8 @@ L1001:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int
-qzval(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr, doublereal *alfi, doublereal *beta, bool matz, doublereal *z__)
+/* qzval: EISPACK qzval */
+qz_eigenvalues(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr, doublereal *alfi, doublereal *beta, bool matz, doublereal *z__)
 {
     /* System generated locals */
     integer a_dim1, a_offset, b_dim1, b_offset, z_dim1, z_offset, i__1, i__2;
@@ -2832,7 +2842,7 @@ L431:
 /*     .......... TWO REAL ROOTS. */
 /*                ZERO BOTH A(EN,NA) AND B(EN,NA) .......... */
 	d__1 = sqrt(d__);
-	e += c__ + d_sign(d__1, c__);
+	e += c__ + transfer_sign(d__1, c__);
 	a11 -= e * b11;
 	a12 -= e * b12;
 	a22 -= e * b22;
@@ -2851,7 +2861,7 @@ L435:
 	u1 = a1 / s;
 	u2 = a2 / s;
 	d__1 = sqrt(u1 * u1 + u2 * u2);
-	r__ = d_sign(d__1, u1);
+	r__ = transfer_sign(d__1, u1);
 	v1 = -(u1 + r__) / r__;
 	v2 = -u2 / r__;
 	u2 = v2 / v1;
@@ -2901,7 +2911,7 @@ L460:
 	u1 = a1 / s;
 	u2 = a2 / s;
 	d__1 = sqrt(u1 * u1 + u2 * u2);
-	r__ = d_sign(d__1, u1);
+	r__ = transfer_sign(d__1, u1);
 	v1 = -(u1 + r__) / r__;
 	v2 = -u2 / r__;
 	u2 = v2 / v1;
@@ -3045,8 +3055,9 @@ L510:
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
+/* epslon: EISPACK epslon: the rounding unit */
 doublereal 
-epslon(doublereal x)
+machine_epsilon(doublereal x)
 {
     /* System generated locals */
     doublereal ret_val, d__1;
@@ -3094,8 +3105,9 @@ L10:
 /*  BLAS-1 routines needed in the computation of Floquet multipliers */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
+/* dnrm2: BLAS level 1 nrm2 */
 doublereal 
-dnrm2(const integer *n, const doublereal *dx, const integer *incx)
+euclidean_norm(const integer *n, const doublereal *dx, const integer *incx)
 {
     /* Initialized data */
 
@@ -3280,8 +3292,9 @@ L300:
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
+/* ddot: BLAS level 1 dot */
 doublereal 
-ddot(const integer *n, const doublereal *dx, const integer *incx, const doublereal *dy, const integer *incy)
+dot_product(const integer *n, const doublereal *dx, const integer *incx, const doublereal *dy, const integer *incy)
 {
     /* System generated locals */
     integer i__1;
@@ -3362,225 +3375,14 @@ L60:
     return ret_val;
 } /* ddot_ */
 
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-/* Subroutine */ int 
-dscal(const integer *n, const doublereal *da, doublereal *dx, const integer *incx)
-{
-    /* System generated locals */
-    integer i__1, i__2;
 
-    /* Local variables */
-    integer i__, m, nincx, mp1;
 
-/*     SCALES A VECTOR BY A CONSTANT. */
-/*     USES UNROLLED LOOPS FOR INCREMENT EQUAL TO ONE. */
-/*     JACK DONGARRA, LINPACK, 3/11/78. */
-
-    /* Parameter adjustments */
-    --dx;
-
-    /* Function Body */
-    if (*n <= 0) {
-	return 0;
-    }
-    if (*incx == 1) {
-	goto L20;
-    }
-
-/*        CODE FOR INCREMENT NOT EQUAL TO 1 */
-
-    nincx = *n * *incx;
-    i__1 = nincx;
-    i__2 = *incx;
-    for (i__ = 1; i__2 < 0 ? i__ >= i__1 : i__ <= i__1; i__ += i__2) {
-	dx[i__] = *da * dx[i__];
-/* L10: */
-    }
-    return 0;
-
-/*        CODE FOR INCREMENT EQUAL TO 1 */
-
-/*        CLEAN-UP LOOP */
-
-L20:
-    m = *n % 5;
-    if (m == 0) {
-	goto L40;
-    }
-    i__2 = m;
-    for (i__ = 1; i__ <= i__2; ++i__) {
-	dx[i__] = *da * dx[i__];
-/* L30: */
-    }
-    if (*n < 5) {
-	return 0;
-    }
-L40:
-    mp1 = m + 1;
-    i__2 = *n;
-    for (i__ = mp1; i__ <= i__2; i__ += 5) {
-	dx[i__] = *da * dx[i__];
-	dx[i__ + 1] = *da * dx[i__ + 1];
-	dx[i__ + 2] = *da * dx[i__ + 2];
-	dx[i__ + 3] = *da * dx[i__ + 3];
-	dx[i__ + 4] = *da * dx[i__ + 4];
-/* L50: */
-    }
-    return 0;
-} /* dscal_ */
-
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-integer 
-idamax(const integer *n, const doublereal *dx, const integer *incx)
-{
-    /* System generated locals */
-    integer ret_val, i__1;
-    doublereal d__1;
-
-    /* Local variables */
-    doublereal dmax__;
-    integer i__, ix;
-
-/*     FINDS THE INDEX OF ELEMENT HAVING MAX. ABSOLUTE VALUE. */
-/*     JACK DONGARRA, LINPACK, 3/11/78. */
-
-    /* Parameter adjustments */
-    --dx;
-
-    /* Function Body */
-    ret_val = 0;
-    if (*n < 1) {
-	return ret_val;
-    }
-    ret_val = 1;
-    if (*n == 1) {
-	return ret_val;
-    }
-    if (*incx == 1) {
-	goto L20;
-    }
-
-/*        CODE FOR INCREMENT NOT EQUAL TO 1 */
-
-    ix = 1;
-    dmax__ = f2c::abs(dx[1]);
-    ix += *incx;
-    i__1 = *n;
-    for (i__ = 2; i__ <= i__1; ++i__) {
-	if ((d__1 = dx[ix], f2c::abs(d__1)) <= dmax__) {
-	    goto L5;
-	}
-	ret_val = i__;
-	dmax__ = (d__1 = dx[ix], f2c::abs(d__1));
-L5:
-	ix += *incx;
-/* L10: */
-    }
-    return ret_val;
-
-/*        CODE FOR INCREMENT EQUAL TO 1 */
-
-L20:
-    dmax__ = f2c::abs(dx[1]);
-    i__1 = *n;
-    for (i__ = 2; i__ <= i__1; ++i__) {
-	if ((d__1 = dx[i__], f2c::abs(d__1)) <= dmax__) {
-	    goto L30;
-	}
-	ret_val = i__;
-	dmax__ = (d__1 = dx[i__], f2c::abs(d__1));
-L30:
-	;
-    }
-    return ret_val;
-} /* idamax_ */
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-daxpy(const integer *n, const doublereal *da, const doublereal *dx, const integer *incx, doublereal *dy, const integer *incy)
-{
-    /* System generated locals */
-    integer i__1;
-
-    /* Local variables */
-    integer i__, m, ix, iy, mp1;
-
-/*     CONSTANT TIMES A VECTOR PLUS A VECTOR. */
-/*     USES UNROLLED LOOPS FOR INCREMENTS EQUAL TO ONE. */
-/*     JACK DONGARRA, LINPACK, 3/11/78. */
-
-    /* Parameter adjustments */
-    --dy;
-    --dx;
-
-    /* Function Body */
-    if (*n <= 0) {
-	return 0;
-    }
-    if (*da == 0.) {
-	return 0;
-    }
-    if (*incx == 1 && *incy == 1) {
-	goto L20;
-    }
-
-/*        CODE FOR UNEQUAL INCREMENTS OR EQUAL INCREMENTS */
-/*          NOT EQUAL TO 1 */
-
-    ix = 1;
-    iy = 1;
-    if (*incx < 0) {
-	ix = (-(*n) + 1) * *incx + 1;
-    }
-    if (*incy < 0) {
-	iy = (-(*n) + 1) * *incy + 1;
-    }
-    i__1 = *n;
-    for (i__ = 1; i__ <= i__1; ++i__) {
-	dy[iy] += *da * dx[ix];
-	ix += *incx;
-	iy += *incy;
-/* L10: */
-    }
-    return 0;
-
-/*        CODE FOR BOTH INCREMENTS EQUAL TO 1 */
-
-/*        CLEAN-UP LOOP */
-
-L20:
-    m = *n % 4;
-    if (m == 0) {
-	goto L40;
-    }
-    i__1 = m;
-    for (i__ = 1; i__ <= i__1; ++i__) {
-	dy[i__] += *da * dx[i__];
-/* L30: */
-    }
-    if (*n < 4) {
-	return 0;
-    }
-L40:
-    mp1 = m + 1;
-    i__1 = *n;
-    for (i__ = mp1; i__ <= i__1; i__ += 4) {
-	dy[i__] += *da * dx[i__];
-	dy[i__ + 1] += *da * dx[i__ + 1];
-	dy[i__ + 2] += *da * dx[i__ + 2];
-	dy[i__ + 3] += *da * dx[i__ + 3];
-/* L50: */
-    }
-    return 0;
-} /* daxpy_ */
-
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-/* Subroutine */ int 
-drot(const integer *n, doublereal *dx, const integer *incx, doublereal *dy, const integer *incy, const doublereal *c__, const doublereal *s)
+/* drot: BLAS level 1 rot */
+rotate_plane(const integer *n, doublereal *dx, const integer *incx, doublereal *dy, const integer *incy, const doublereal *c__, const doublereal *s)
 {
     /* System generated locals */
     integer i__1;
@@ -3643,7 +3445,8 @@ L20:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-dswap(const integer *n, doublereal *dx, const integer *incx, doublereal *dy, const integer *incy)
+/* dswap: BLAS level 1 swap */
+swap_vectors(const integer *n, doublereal *dx, const integer *incx, doublereal *dy, const integer *incy)
 {
     /* System generated locals */
     integer i__1;
@@ -3731,7 +3534,8 @@ L40:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-dgemc(integer *m, integer *n, doublereal *a, integer *lda, doublereal *b, integer *ldb, bool *trans)
+/* dgemc: copies an M by N matrix, transposed when TRANS is true: eispack.c:3773 */
+copy_matrix_transposed(integer *m, integer *n, doublereal *a, integer *lda, doublereal *b, integer *ldb, bool *trans)
 {
     /* System generated locals */
     integer a_dim1, a_offset, b_dim1, b_offset, i__1, i__2;
@@ -3834,7 +3638,8 @@ L199:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-xerbla(const char *srname, integer *info, integer srname_len)
+/* xerbla: BLAS error handler */
+blas_error(const char *srname, integer *info, integer srname_len)
 {
     /* Format strings */
 
@@ -3882,8 +3687,9 @@ xerbla(const char *srname, integer *info, integer srname_len)
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
+/* lsame: BLAS: case-insensitive letter compare */
 bool 
-lsame(const char *ca, const char *cb, integer ca_len, integer cb_len)
+same_letter(const char *ca, const char *cb, integer ca_len, integer cb_len)
 {
     /* System generated locals */
     bool ret_val;
@@ -3978,7 +3784,8 @@ lsame(const char *ca, const char *cb, integer ca_len, integer cb_len)
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-dgemm(const char *transa, const char *transb, integer *m, integer *n, integer *k, doublereal *alpha, doublereal *a, integer *lda, doublereal *b, integer *ldb, doublereal *beta, doublereal *c__, integer *ldc, integer transa_len, integer transb_len)
+/* dgemm: BLAS level 3 gemm */
+matrix_multiply(const char *transa, const char *transb, integer *m, integer *n, integer *k, doublereal *alpha, doublereal *a, integer *lda, doublereal *b, integer *ldb, doublereal *beta, doublereal *c__, integer *ldc, integer transa_len, integer transb_len)
 {
     /* System generated locals */
     integer a_dim1, a_offset, b_dim1, b_offset, c_dim1, c_offset, i__1, i__2, 
@@ -4171,8 +3978,8 @@ dgemm(const char *transa, const char *transb, integer *m, integer *n, integer *k
     c__ -= c_offset;
 
     /* Function Body */
-    nota = lsame(transa, "N", 1L, 1L);
-    notb = lsame(transb, "N", 1L, 1L);
+    nota = same_letter(transa, "N", 1L, 1L);
+    notb = same_letter(transb, "N", 1L, 1L);
     if (nota) {
 	nrowa = *m;
     } else {
@@ -4187,10 +3994,10 @@ dgemm(const char *transa, const char *transb, integer *m, integer *n, integer *k
 /*     Test the input parameters. */
 
     info = 0;
-    if (! nota && ! lsame(transa, "C", 1L, 1L) && ! lsame(transa, "T", 1L, 
+    if (! nota && ! same_letter(transa, "C", 1L, 1L) && ! same_letter(transa, "T", 1L, 
 	    1L)) {
 	info = 1;
-    } else if (! notb && ! lsame(transb, "C", 1L, 1L) && ! lsame(transb, 
+    } else if (! notb && ! same_letter(transb, "C", 1L, 1L) && ! same_letter(transb, 
 	    "T", 1L, 1L)) {
 	info = 2;
     } else if (*m < 0) {
@@ -4207,7 +4014,7 @@ dgemm(const char *transa, const char *transb, integer *m, integer *n, integer *k
 	info = 13;
     }
     if (info != 0) {
-	xerbla("DGEMM ", &info, 6L);
+	blas_error("DGEMM ", &info, 6L);
 	return 0;
     }
 
@@ -4380,9 +4187,10 @@ dgemm(const char *transa, const char *transb, integer *m, integer *n, integer *k
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* W337: Demmel-Kahan SVD adapter: job selects left/right vectors, positive tol
-   is relative and negative tol absolute; preserve ndsvd's rotations and order. */
+   is relative and negative tol absolute; preserve singular_value_decomposition_detailed's rotations and order. */
 /* Subroutine */ int 
-ezsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, doublereal *e, doublereal *u, integer *ldu, doublereal *v, integer *ldv, doublereal *work, integer *job, integer *info, doublereal *tol)
+/* ezsvd: Demmel-Kahan SVD, easy-to-use front of ndsvd with defaults: eispack.c:4440 */
+singular_value_decomposition(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, doublereal *e, doublereal *u, integer *ldu, doublereal *v, integer *ldv, doublereal *work, integer *job, integer *info, doublereal *tol)
 {
     /* System generated locals */
     integer x_dim1, x_offset, u_dim1, u_offset, v_dim1, v_offset;
@@ -4399,8 +4207,8 @@ ezsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, double
 */
 /*     relative precision */
 
-/*     easy to use version of ndsvd ("hard to use" version, below) */
-/*     with defaults for some ndsvd parameters */
+/*     easy to use version of singular_value_decomposition_detailed ("hard to use" version, below) */
+/*     with defaults for some singular_value_decomposition_detailed parameters */
 
 /*     all parameters same as linpack dsvdc except for tol: */
 
@@ -4420,7 +4228,7 @@ ezsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, double
 /*        I have seen it go 3.5 times faster and 2 times slower at the */
 /*        extremes. */
 
-/*     defaults for ndsvd parameters (see ndsvd for more description of */
+/*     defaults for singular_value_decomposition_detailed parameters (see singular_value_decomposition_detailed for more description of */
 /*     these parameters) are: */
 
 /*     set to no debug output */
@@ -4449,7 +4257,7 @@ ezsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, double
 /*     maximum 30 QR sweeps per singular value */
     maxitr = 30;
 
-    ndsvd(&x[x_offset], ldx, n, p, &s[1], &e[1], &u[u_offset], ldu, &v[
+    singular_value_decomposition_detailed(&x[x_offset], ldx, n, p, &s[1], &e[1], &u[u_offset], ldu, &v[
 	    v_offset], ldv, &work[1], job, info, &maxitr, tol, &idbg, &ifull, 
 	    &kount, &kount1, &kount2, &skip, &limshf, &maxsin, &iidir);
     return 0;
@@ -4458,7 +4266,8 @@ ezsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, double
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-ndrotg(doublereal *f, doublereal *g, doublereal *cs, doublereal *sn)
+/* ndrotg: faster drotg, g unchanged on return, cs and sn with -sn*f+cs*g = 0: eispack.c:4519 */
+givens_rotation(doublereal *f, doublereal *g, doublereal *cs, doublereal *sn)
 {
 
     /* Local variables */
@@ -4512,7 +4321,8 @@ o */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-ndsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, doublereal *e, doublereal *u, integer *ldu, doublereal *v, integer *ldv, doublereal *work, integer *job, integer *info, integer *maxitr, doublereal *tol, integer *idbg, integer *ifull, integer *kount, integer *kount1, integer *kount2, integer *skip, integer *limshf, doublereal *maxsin, integer *iidir)
+/* ndsvd: LINPACK SVD modified by Demmel and Kahan for relative accuracy, every parameter given: eispack.c:4574 */
+singular_value_decomposition_detailed(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, doublereal *e, doublereal *u, integer *ldu, doublereal *v, integer *ldv, doublereal *work, integer *job, integer *info, integer *maxitr, doublereal *tol, integer *idbg, integer *ifull, integer *kount, integer *kount1, integer *kount2, integer *skip, integer *limshf, doublereal *maxsin, integer *iidir)
 {
     /* System generated locals */
     integer x_dim1, x_offset, u_dim1, u_offset, v_dim1, v_offset, i__1, i__2, 
@@ -4668,9 +4478,9 @@ ndsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, double
 /*                        a.ge.2    return the first min(n,p) singular */
 /*                                  vectors in u. */
 
-/*     blas daxpy,ddot,dscal,dswap,dnrm2,drotg */
+/*     blas add_multiple,dot_product,scale_vector,swap_vectors,euclidean_norm,drotg */
 /*     fortran dabs,dmax1,max0,min0,mod,dsqrt,dsign */
-/*     prse,ndrotg,sig22,sndrtg,sigmin */
+/*     print_bidiagonal,givens_rotation,singular_values_2x2,rotation_matching_signs,smallest_singular_value_2x2 */
 
 /*     internal variables */
 
@@ -4745,16 +4555,16 @@ ndsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, double
 /*           place the l-th diagonal in s(l). */
 
 	    i__2 = *n - l + 1;
-	    s[l] = dnrm2(&i__2, &x[l + l * x_dim1], &c__1);
+	    s[l] = euclidean_norm(&i__2, &x[l + l * x_dim1], &c__1);
 	    if (s[l] == 0. && *skip == 0) {
 		goto L10;
 	    }
 	    if (x[l + l * x_dim1] != 0.) {
-		s[l] = d_sign(s[l], x[l + l * x_dim1]);
+		s[l] = transfer_sign(s[l], x[l + l * x_dim1]);
 	    }
 	    i__2 = *n - l + 1;
 	    d__1 = 1. / s[l];
-	    dscal(&i__2, &d__1, &x[l + l * x_dim1], &c__1);
+	    scale_vector(static_cast<int>(i__2), d__1, &x[l + l * x_dim1], 1);
 	    x[l + l * x_dim1] += 1.;
 L10:
 	    s[l] = -s[l];
@@ -4774,11 +4584,11 @@ L20:
 /*              apply the transformation. */
 
 		i__3 = *n - l + 1;
-		t = -ddot(&i__3, &x[l + l * x_dim1], &c__1, &x[l + j * 
+		t = -dot_product(&i__3, &x[l + l * x_dim1], &c__1, &x[l + j * 
 			x_dim1], &c__1) / x[l + l * x_dim1];
 		i__3 = *n - l + 1;
-		daxpy(&i__3, &t, &x[l + l * x_dim1], &c__1, &x[l + j * 
-			x_dim1], &c__1);
+		add_multiple(static_cast<int>(i__3), t, &x[l + l * x_dim1], 1, &x[l + j * 
+			x_dim1], 1);
 L30:
 
 /*           place the l-th row of x into  e for the */
@@ -4810,16 +4620,16 @@ L70:
 /*           l-th super-diagonal in e(l). */
 
 	    i__2 = *p - l;
-	    e[l] = dnrm2(&i__2, &e[lp1], &c__1);
+	    e[l] = euclidean_norm(&i__2, &e[lp1], &c__1);
 	    if (e[l] == 0. && *skip == 0) {
 		goto L80;
 	    }
 	    if (e[lp1] != 0.) {
-		e[l] = d_sign(e[l], e[lp1]);
+		e[l] = transfer_sign(e[l], e[lp1]);
 	    }
 	    i__2 = *p - l;
 	    d__1 = 1. / e[l];
-	    dscal(&i__2, &d__1, &e[lp1], &c__1);
+	    scale_vector(static_cast<int>(i__2), d__1, &e[lp1], 1);
 	    e[lp1] += 1.;
 L80:
 	    e[l] = -e[l];
@@ -4837,16 +4647,14 @@ L80:
 	    i__2 = *p;
 	    for (j = lp1; j <= i__2; ++j) {
 		i__3 = *n - l;
-		daxpy(&i__3, &e[j], &x[lp1 + j * x_dim1], &c__1, &work[lp1], 
-			&c__1);
+		add_multiple(static_cast<int>(i__3), e[j], &x[lp1 + j * x_dim1], 1, &work[lp1], 1);
 /* L100: */
 	    }
 	    i__2 = *p;
 	    for (j = lp1; j <= i__2; ++j) {
 		i__3 = *n - l;
 		d__1 = -e[j] / e[lp1];
-		daxpy(&i__3, &d__1, &work[lp1], &c__1, &x[lp1 + j * x_dim1], 
-			&c__1);
+		add_multiple(static_cast<int>(i__3), d__1, &work[lp1], 1, &x[lp1 + j * x_dim1], 1);
 /* L110: */
 	    }
 L120:
@@ -4925,16 +4733,16 @@ L200:
 	    i__2 = ncu;
 	    for (j = lp1; j <= i__2; ++j) {
 		i__3 = *n - l + 1;
-		t = -ddot(&i__3, &u[l + l * u_dim1], &c__1, &u[l + j * 
+		t = -dot_product(&i__3, &u[l + l * u_dim1], &c__1, &u[l + j * 
 			u_dim1], &c__1) / u[l + l * u_dim1];
 		i__3 = *n - l + 1;
-		daxpy(&i__3, &t, &u[l + l * u_dim1], &c__1, &u[l + j * 
-			u_dim1], &c__1);
+		add_multiple(static_cast<int>(i__3), t, &u[l + l * u_dim1], 1, &u[l + j * 
+			u_dim1], 1);
 /* L210: */
 	    }
 L220:
 	    i__2 = *n - l + 1;
-	    dscal(&i__2, &c_b367, &u[l + l * u_dim1], &c__1);
+	    scale_vector(static_cast<int>(i__2), c_b367, &u[l + l * u_dim1], 1);
 	    u[l + l * u_dim1] += 1.;
 	    lm1 = l - 1;
 	    if (lm1 < 1) {
@@ -4979,11 +4787,11 @@ L300:
 	    i__2 = *p;
 	    for (j = lp1; j <= i__2; ++j) {
 		i__3 = *p - l;
-		t = -ddot(&i__3, &v[lp1 + l * v_dim1], &c__1, &v[lp1 + j * 
+		t = -dot_product(&i__3, &v[lp1 + l * v_dim1], &c__1, &v[lp1 + j * 
 			v_dim1], &c__1) / v[lp1 + l * v_dim1];
 		i__3 = *p - l;
-		daxpy(&i__3, &t, &v[lp1 + l * v_dim1], &c__1, &v[lp1 + j * 
-			v_dim1], &c__1);
+		add_multiple(static_cast<int>(i__3), t, &v[lp1 + l * v_dim1], 1, &v[lp1 + j * 
+			v_dim1], 1);
 /* L310: */
 	    }
 L320:
@@ -5073,7 +4881,7 @@ L999:
       xpp::log(XPP_LOG_DEBUG, "top of loop\n");
       xpp::log(XPP_LOG_DEBUG, "oldll,oldm,oldacc,m,iter,maxit,ifull,thresh={},{},{},{},{},{},{},{:f}\n",
 	     oldll,oldm,oldacc,oldacc,iter,maxit,(*ifull),thresh);
-	prse(&c__1, &mm, n, p, &s[1], &e[1]);
+	print_bidiagonal(&c__1, &mm, n, p, &s[1], &e[1]);
     }
 
 /*     check for being done */
@@ -5146,14 +4954,14 @@ L1003:
     if (ll == m - 1) {
 /*       after one step */
 	++(*kount1);
-/*       shift = sigmin(s(m-1),e(m-1),s(m)) */
+/*       shift = smallest_singular_value_2x2(s(m-1),e(m-1),s(m)) */
 /*       rotate, setting e(m-1)=0 and s(m)=+-shift */
 /*         f = 0.0d0 */
 /*         f = (abs(s(ll)) - shift)*(dsign(1.0d0,s(ll))+shift/s(ll)) 
 */
 /*       endif */
 /*       g=e(ll) */
-/*       call ndrotg(f,g,cs,sn) */
+/*       call givens_rotation(f,g,cs,sn) */
 /*       sg1=dsign(1.0d0,s(m)) */
 /*       sg2=dsign(1.0d0,cs) */
 /*       f = cs*s(ll) + sn*e(ll) */
@@ -5161,7 +4969,7 @@ L1003:
 /*         abss = cs*s(m) */
 /*         abse = -sn*s(ll) + cs*e(ll) */
 /*       endif */
-/*       call ndrotg(f,g,cs,sn) */
+/*       call givens_rotation(f,g,cs,sn) */
 /*       s(ll)=f */
 /*       e(ll) = 0.0d0 */
 /*       s(m) = shift * dsign(1.0d0,cs) * sg1 * sg2 */
@@ -5170,18 +4978,18 @@ L1003:
 /*         print *,'check shift=',-sn*abse+cs*abss */
 /*         print *,'check zero=',cs*abse+sn*abss */
 /*       endif */
-	sig22(&s[m - 1], &e[m - 1], &s[m], &sigmn, &sigmx, &sinr, &cosr, 
+	singular_values_2x2(&s[m - 1], &e[m - 1], &s[m], &sigmn, &sigmx, &sinr, &cosr, 
 	       &sinl, &cosl);
 	s[m - 1] = sigmx;
 	e[m - 1] = 0.;
 	s[m] = sigmn;
 	if (wantv) {
-	    drot(p, &v[ll * v_dim1 + 1], &c__1, &v[m * v_dim1 + 1], &c__1, &
+	    rotate_plane(p, &v[ll * v_dim1 + 1], &c__1, &v[m * v_dim1 + 1], &c__1, &
 		    cosr, &sinr);
 	}
 /*       if wantu and ll.eq.n, then rotation trivial */
 	if (wantu && ll < *n) {
-	    drot(n, &u[ll * u_dim1 + 1], &c__1, &u[m * u_dim1 + 1], &c__1, &
+	    rotate_plane(n, &u[ll * u_dim1 + 1], &c__1, &u[m * u_dim1 + 1], &c__1, &
 		    cosl, &sinl);
 	}
 	goto L999;
@@ -5339,7 +5147,7 @@ L1003:
 	if (*idbg > 0) {
 	        xpp::log(XPP_LOG_DEBUG, "smm1,emm1,sm={:f},{:f},{:f}\n",smm1,emm1,sm);
 	}
-	shift = sigmin(&smm1, &emm1, &sm);
+	shift = smallest_singular_value_2x2(&smm1, &emm1, &sm);
 	if (*idbg > 0) {
 	  xpp::log(XPP_LOG_DEBUG, "sigma-min of 2 by 2 corner={:f}\n",shift);
 	}
@@ -5397,7 +5205,7 @@ s case */
     ++(*kount);
     if (*idbg > 1) {
       xpp::log(XPP_LOG_DEBUG, "s,e before qr\n");
-	prse(&ll, &m, n, p, &s[1], &e[1]);
+	print_bidiagonal(&ll, &m, n, p, &s[1], &e[1]);
     }
 
 /*     if shift = 0, do simplified qr iteration */
@@ -5414,12 +5222,12 @@ s case */
 	    g = e[ll];
 	    i__1 = m - 1;
 	    for (k = ll; k <= i__1; ++k) {
-		ndrotg(&f, &g, &cs, &sn);
+		givens_rotation(&f, &g, &cs, &sn);
 /* Computing MAX */
 		d__1 = *maxsin, d__2 = f2c::abs(sn);
 		*maxsin = f2c::max(d__1,d__2);
 		if (wantv) {
-		    drot(p, &v[k * v_dim1 + 1], &c__1, &v[(k + 1) * v_dim1 + 
+		    rotate_plane(p, &v[k * v_dim1 + 1], &c__1, &v[(k + 1) * v_dim1 + 
 			    1], &c__1, &cs, &sn);
 		}
 		if (k != ll) {
@@ -5429,14 +5237,14 @@ s case */
 		temp = s[k + 1];
 		g = temp * sn;
 		gg = temp * cs;
-		ndrotg(&f, &g, &cs, &sn);
+		givens_rotation(&f, &g, &cs, &sn);
 /* Computing MAX */
 		d__1 = *maxsin, d__2 = f2c::abs(sn);
 		*maxsin = f2c::max(d__1,d__2);
 /*           if wantu and k.eq.n, then s(k+1)=0 so g=0 so cs=1
  and sn=0 */
 		if (wantu && k < *n) {
-		    drot(n, &u[k * u_dim1 + 1], &c__1, &u[(k + 1) * u_dim1 + 
+		    rotate_plane(n, &u[k * u_dim1 + 1], &c__1, &u[(k + 1) * u_dim1 + 
 			    1], &c__1, &cs, &sn);
 		}
 		s[k] = f;
@@ -5470,7 +5278,7 @@ s case */
 	    g = e[m - 1];
 	    i__1 = ll + 1;
 	    for (k = m; k >= i__1; --k) {
-		ndrotg(&f, &g, &cs, &sn);
+		givens_rotation(&f, &g, &cs, &sn);
 /* Computing MAX */
 		d__1 = *maxsin, d__2 = f2c::abs(sn);
 		*maxsin = f2c::max(d__1,d__2);
@@ -5479,7 +5287,7 @@ est for */
 /*           k.lt.n necessary */
 		if (wantu) {
 		    d__1 = -sn;
-		    drot(n, &u[(k - 1) * u_dim1 + 1], &c__1, &u[k * u_dim1 + 
+		    rotate_plane(n, &u[(k - 1) * u_dim1 + 1], &c__1, &u[k * u_dim1 + 
 			    1], &c__1, &cs, &d__1);
 		}
 		if (k != m) {
@@ -5489,13 +5297,13 @@ est for */
 		temp = s[k - 1];
 		g = sn * temp;
 		gg = cs * temp;
-		ndrotg(&f, &g, &cs, &sn);
+		givens_rotation(&f, &g, &cs, &sn);
 /* Computing MAX */
 		d__1 = *maxsin, d__2 = f2c::abs(sn);
 		*maxsin = f2c::max(d__1,d__2);
 		if (wantv) {
 		    d__1 = -sn;
-		    drot(p, &v[(k - 1) * v_dim1 + 1], &c__1, &v[k * v_dim1 + 
+		    rotate_plane(p, &v[(k - 1) * v_dim1 + 1], &c__1, &v[k * v_dim1 + 
 			    1], &c__1, &cs, &d__1);
 		}
 		s[k] = f;
@@ -5532,12 +5340,12 @@ est for */
 	    if (*idbg > 2) {
 	            xpp::log(XPP_LOG_DEBUG, "qr with nonzero shift, top to bottom\n");
 	    }
-	    f = ((d__1 = s[ll], f2c::abs(d__1)) - shift) * (d_sign(c_b170, s[ll])
+	    f = ((d__1 = s[ll], f2c::abs(d__1)) - shift) * (transfer_sign(c_b170, s[ll])
 		     + shift / s[ll]);
 	    g = e[ll];
 	    i__1 = m - 1;
 	    for (k = ll; k <= i__1; ++k) {
-		ndrotg(&f, &g, &cs, &sn);
+		givens_rotation(&f, &g, &cs, &sn);
 		if (k != ll) {
 		    e[k - 1] = f;
 		}
@@ -5546,10 +5354,10 @@ est for */
 		g = sn * s[k + 1];
 		s[k + 1] = cs * s[k + 1];
 		if (wantv) {
-		    drot(p, &v[k * v_dim1 + 1], &c__1, &v[(k + 1) * v_dim1 + 
+		    rotate_plane(p, &v[k * v_dim1 + 1], &c__1, &v[(k + 1) * v_dim1 + 
 			    1], &c__1, &cs, &sn);
 		}
-		ndrotg(&f, &g, &cs, &sn);
+		givens_rotation(&f, &g, &cs, &sn);
 		s[k] = f;
 		f = cs * e[k] + sn * s[k + 1];
 		s[k + 1] = -sn * e[k] + cs * s[k + 1];
@@ -5559,7 +5367,7 @@ est for */
 s zero */
 /*           shift, so test removed from original code */
 		if (wantu) {
-		    drot(n, &u[k * u_dim1 + 1], &c__1, &u[(k + 1) * u_dim1 + 
+		    rotate_plane(n, &u[k * u_dim1 + 1], &c__1, &u[(k + 1) * u_dim1 + 
 			    1], &c__1, &cs, &sn);
 		}
 /* L1008: */
@@ -5582,12 +5390,12 @@ s zero */
 	    if (*idbg > 2) {
 	            xpp::log(XPP_LOG_DEBUG, "qr with nonzero shift, bottom to top\n");
 	    }
-	    f = ((d__1 = s[m], f2c::abs(d__1)) - shift) * (d_sign(c_b170, s[m]) 
+	    f = ((d__1 = s[m], f2c::abs(d__1)) - shift) * (transfer_sign(c_b170, s[m]) 
 		    + shift / s[m]);
 	    g = e[m - 1];
 	    i__1 = ll + 1;
 	    for (k = m; k >= i__1; --k) {
-		ndrotg(&f, &g, &cs, &sn);
+		givens_rotation(&f, &g, &cs, &sn);
 		if (k != m) {
 		    e[k] = f;
 		}
@@ -5597,13 +5405,13 @@ s zero */
 		s[k - 1] = cs * s[k - 1];
 		if (wantu && k <= *n) {
 		    d__1 = -sn;
-		    drot(n, &u[(k - 1) * u_dim1 + 1], &c__1, &u[k * u_dim1 + 
+		    rotate_plane(n, &u[(k - 1) * u_dim1 + 1], &c__1, &u[k * u_dim1 + 
 			    1], &c__1, &cs, &d__1);
 		}
-		ndrotg(&f, &g, &cs, &sn);
+		givens_rotation(&f, &g, &cs, &sn);
 		if (wantv) {
 		    d__1 = -sn;
-		    drot(p, &v[(k - 1) * v_dim1 + 1], &c__1, &v[k * v_dim1 + 
+		    rotate_plane(p, &v[(k - 1) * v_dim1 + 1], &c__1, &v[k * v_dim1 + 
 			    1], &c__1, &cs, &d__1);
 		}
 		s[k] = f;
@@ -5634,7 +5442,7 @@ s zero */
 
     if (*idbg > 1) {
             xpp::log(XPP_LOG_DEBUG, "s,e after qr\n");
-	prse(&ll, &m, n, p, &s[1], &e[1]);
+	print_bidiagonal(&ll, &m, n, p, &s[1], &e[1]);
     }
 
 /*     qr iteration finished, go back to check convergence */
@@ -5649,7 +5457,7 @@ L998:
 	if (s[i__] < 0.) {
 	    s[i__] = -s[i__];
 	    if (wantv) {
-		dscal(p, &c_b367, &v[i__ * v_dim1 + 1], &c__1);
+		scale_vector(static_cast<int>(*p), c_b367, &v[i__ * v_dim1 + 1], 1);
 	    }
 	}
 /* L1010: */
@@ -5676,11 +5484,11 @@ L998:
 	    s[m + 1 - i__] = s[iisub];
 	    s[iisub] = temp;
 	    if (wantv) {
-		dswap(p, &v[(m + 1 - i__) * v_dim1 + 1], &c__1, &v[iisub * 
+		swap_vectors(p, &v[(m + 1 - i__) * v_dim1 + 1], &c__1, &v[iisub * 
 			v_dim1 + 1], &c__1);
 	    }
 	    if (wantu) {
-		dswap(n, &u[(m + 1 - i__) * u_dim1 + 1], &c__1, &u[iisub * 
+		swap_vectors(n, &u[(m + 1 - i__) * u_dim1 + 1], &c__1, &u[iisub * 
 			u_dim1 + 1], &c__1);
 	    }
 	}
@@ -5706,7 +5514,8 @@ L996:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-prse(const integer *ll, const integer *m, const integer *nrow, const integer *ncol, const doublereal *s, const doublereal *e)
+/* prse: debug routine to print s and e: eispack.c:5862 */
+print_bidiagonal(const integer *ll, const integer *m, const integer *nrow, const integer *ncol, const doublereal *s, const doublereal *e)
 {
     /* Format strings */
 
@@ -5745,7 +5554,8 @@ prse(const integer *ll, const integer *m, const integer *nrow, const integer *nc
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-sig22(doublereal *a, doublereal *b, doublereal *c__, doublereal *sigmin, doublereal *sigmax, doublereal *snr, doublereal *csr, doublereal *snl, doublereal *csl)
+/* sig22: SVD of the 2x2 upper triangular matrix [[a,b],[0,c]]: eispack.c:5903 */
+singular_values_2x2(doublereal *a, doublereal *b, doublereal *c__, doublereal *smallest_singular_value_2x2, doublereal *sigmax, doublereal *snr, doublereal *csr, doublereal *snl, doublereal *csl)
 {
     /* System generated locals */
     doublereal d__1, d__2;
@@ -5765,13 +5575,13 @@ sig22(doublereal *a, doublereal *b, doublereal *c__, doublereal *sigmin, doubler
 /*     inputs - */
 /*       a,b,c - real*8 - matrix entries */
 /*     outputs - */
-/*       sigmin - real*8 - +-smaller singular value */
+/*       smallest_singular_value_2x2 - real*8 - +-smaller singular value */
 /*       sigmax - real*8 - +-larger singular value */
 /*       snr, csr - real*8 - sin and cos of right rotation (see below) */
 /*       snl, csl - real*8 - sin and cos of left rotation (see below) */
 
 /*       [  csl  snl ]  * [ a b ] * [ csr  -snr ] = [ sigmax    0   ] */
-/*       [ -snl  csl ]    [ 0 c ]   [ snr   csr ]   [    0   sigmin ] */
+/*       [ -snl  csl ]    [ 0 c ]   [ snr   csr ]   [    0   smallest_singular_value_2x2 ] */
 
 /*     barring over/underflow all output quantities are correct to */
 /*     within a few units in their last places */
@@ -5782,9 +5592,9 @@ sig22(doublereal *a, doublereal *b, doublereal *c__, doublereal *sigmin, doubler
 /*     overflow is impossible unless the true value of sigmax exceeds */
 /*     OF (or does so within a few units in its last place) */
 
-/*     underflow cannot adversely effect sigmin,sigmax unless they are */
+/*     underflow cannot adversely effect smallest_singular_value_2x2,sigmax unless they are */
 /*     less than UF/eps for conventional underflow */
-/*     underflow cannot adversely effect sigmin,sigmax if underflow is */
+/*     underflow cannot adversely effect smallest_singular_value_2x2,sigmax if underflow is */
 /*     gradual and results normalized */
 
 /*     overflow is impossible in computing sinr, cosr, sinl, cosl */
@@ -5798,9 +5608,9 @@ sig22(doublereal *a, doublereal *b, doublereal *c__, doublereal *sigmin, doubler
     absa = f2c::abs(*a);
     absb = f2c::abs(*b);
     absc = f2c::abs(*c__);
-    sgna = d_sign(c_b170, *a);
-    sgnb = d_sign(c_b170, *b);
-    sgnc = d_sign(c_b170, *c__);
+    sgna = transfer_sign(c_b170, *a);
+    sgnb = transfer_sign(c_b170, *b);
+    sgnc = transfer_sign(c_b170, *c__);
     acmn = f2c::min(absa,absc);
     acmx = f2c::max(absa,absc);
 /*     bad underflow possible if acmx<UF/eps and standard underflow */
@@ -5812,7 +5622,7 @@ sig22(doublereal *a, doublereal *b, doublereal *c__, doublereal *sigmin, doubler
 	at /= acmx;
     }
 
-/*     compute sigmin, sigmax */
+/*     compute smallest_singular_value_2x2, sigmax */
 
     if (absb < acmx) {
 /*         fabs(bac) <= 1, underflow possible */
@@ -5831,23 +5641,23 @@ sig22(doublereal *a, doublereal *b, doublereal *c__, doublereal *sigmin, doubler
 	temp2 = sqrt(at * at + au);
 /*         1 <= temp <= sqrt(5) + sqrt(2) */
 	temp = temp1 + temp2;
-	*sigmin = acmn / temp;
-	*sigmin += *sigmin;
+	*smallest_singular_value_2x2 = acmn / temp;
+	*smallest_singular_value_2x2 += *smallest_singular_value_2x2;
 	*sigmax = acmx * (temp / 2.);
     } else {
 	if (absb == 0.) {
 /*             matrix identically zero */
-	    *sigmin = 0.;
+	    *smallest_singular_value_2x2 = 0.;
 	    *sigmax = 0.;
 	} else {
 /*             0 <= au <= 1, underflow possible */
 	    au = acmx / absb;
 	    if (au == 0.) {
 /*                 either au=0 exactly or underflows */
-/*                 sigmin only underflows if true value should
+/*                 smallest_singular_value_2x2 only underflows if true value should
  */
 /*                 overflow on product acmn*acmx impossible */
-		*sigmin = acmx * acmn / absb;
+		*smallest_singular_value_2x2 = acmx * acmn / absb;
 		*sigmax = absb;
 	    } else {
 /*                 1 <= as <= 2, underflow and roundoff harmle
@@ -5861,11 +5671,11 @@ ful */
 /* Computing 2nd power */
 		d__2 = at * au;
 		temp = sqrt(d__1 * d__1 + 1.) + sqrt(d__2 * d__2 + 1.);
-/*                 0 < sigmin <= 2 */
-		*sigmin = au + au;
-/*                 bad underflow possible only if true sigmin 
+/*                 0 < smallest_singular_value_2x2 <= 2 */
+		*smallest_singular_value_2x2 = au + au;
+/*                 bad underflow possible only if true smallest_singular_value_2x2 
 near UF */
-		*sigmin *= acmn / temp;
+		*smallest_singular_value_2x2 *= acmn / temp;
 		*sigmax = absb * (temp / 2.);
 	    }
 	}
@@ -5889,9 +5699,9 @@ near UF */
 		temp3 = absbac + sqrt(au + 4.);
 /*                 1/3 <= temp3 <= (1+sqrt(10))/2 */
 		temp3 /= absbac * temp3 + 2.;
-		sinr = d_sign(c_b170, *b);
-		cosr = d_sign(temp3, *a);
-		sinl = d_sign(temp3, *c__);
+		sinr = transfer_sign(c_b170, *b);
+		cosr = transfer_sign(temp3, *a);
+		sinl = transfer_sign(temp3, *c__);
 		cosl = sinr;
 		sgnmn = sgna * sgnb * sgnc;
 		sgnmx = sgnb;
@@ -5952,12 +5762,12 @@ eps */
 	    ia = 0;
 	} else {
 	    sinr = *b;
-/*             sigmin <= fabs(a)/sqrt(2), so no bad cancellation in
+/*             smallest_singular_value_2x2 <= fabs(a)/sqrt(2), so no bad cancellation in
  */
-/*             absa-sigmin; overflow extremely unlikely, and in an
+/*             absa-smallest_singular_value_2x2; overflow extremely unlikely, and in an
 y */
 /*             event only if sigmax overflows as well */
-	    cosr = (absa - *sigmin) * (d_sign(c_b170, *a) + *sigmin / *a);
+	    cosr = (absa - *smallest_singular_value_2x2) * (transfer_sign(c_b170, *a) + *smallest_singular_value_2x2 / *a);
 	    ia = 1;
 	}
 	if (absc == 0.) {
@@ -5966,12 +5776,12 @@ y */
 	    ib = 0;
 	} else {
 	    cosl = *b;
-/*             sigmin <= fabs(c)/sqrt(2), so no bad cancellation in
+/*             smallest_singular_value_2x2 <= fabs(c)/sqrt(2), so no bad cancellation in
  */
-/*             absc-sigmin; overflow extremely unlikely, and in an
+/*             absc-smallest_singular_value_2x2; overflow extremely unlikely, and in an
 y */
 /*             event only if sigmax overflows as well */
-	    sinl = (absc - *sigmin) * (d_sign(c_b170, *c__) + *sigmin / *c__);
+	    sinl = (absc - *smallest_singular_value_2x2) * (transfer_sign(c_b170, *c__) + *smallest_singular_value_2x2 / *c__);
 	    ib = 1;
 	}
 	if (ia == 0 && ib == 0) {
@@ -5988,17 +5798,18 @@ y */
 	    sgnmx = sgnb;
 	}
     }
-    *sigmin = sgnmn * *sigmin;
+    *smallest_singular_value_2x2 = sgnmn * *smallest_singular_value_2x2;
     *sigmax = sgnmx * *sigmax;
-    sndrtg(&cosr, &sinr, csr, snr);
-    sndrtg(&cosl, &sinl, csl, snl);
+    rotation_matching_signs(&cosr, &sinr, csr, snr);
+    rotation_matching_signs(&cosl, &sinl, csl, snl);
     return 0;
 } /* sig22_ */
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
+/* sigmin: smallest singular value of the 2x2 matrix ((a,b),(0,c)): eispack.c:6158 */
 doublereal 
-sigmin(doublereal *a, doublereal *b, doublereal *c__)
+smallest_singular_value_2x2(doublereal *a, doublereal *b, doublereal *c__)
 {
     /* System generated locals */
     doublereal ret_val, d__1, d__2;
@@ -6031,7 +5842,7 @@ sigmin(doublereal *a, doublereal *b, doublereal *c__)
 	    au = acmx / ab;
 	    if (au == 0.) {
 /*           possible harmful underflow */
-/*           if exponent range asymmetric, true sigmin may not
+/*           if exponent range asymmetric, true smallest_singular_value_2x2 may not
  */
 /*           underflow */
 		ret_val = acmn * acmx / ab;
@@ -6055,7 +5866,8 @@ sigmin(doublereal *a, doublereal *b, doublereal *c__)
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-sndrtg(doublereal *f, doublereal *g, doublereal *cs, doublereal *sn)
+/* sndrtg: ndrotg's variant with sign(f)=sign(cs), sign(g)=sign(sn): eispack.c:6216 */
+rotation_matching_signs(doublereal *f, doublereal *g, doublereal *cs, doublereal *sn)
 {
     /* System generated locals */
     doublereal d__1;
@@ -6063,7 +5875,7 @@ sndrtg(doublereal *f, doublereal *g, doublereal *cs, doublereal *sn)
     /* Local variables */
     doublereal t, tt;
 
-/*     version of ndrotg, in which sign(f)=sign(cs),sign(g)=sign(sn) */
+/*     version of givens_rotation, in which sign(f)=sign(cs),sign(g)=sign(sn) */
 /*     cs, sn returned so that -sn*f+cs*g = 0 */
 /*     and cs*f + sn*g = sqrt(f**2+g**2) */
     if (*f == 0. && *g == 0.) {
@@ -6074,16 +5886,16 @@ sndrtg(doublereal *f, doublereal *g, doublereal *cs, doublereal *sn)
 	    t = *g / *f;
 	    tt = sqrt(t * t + 1.);
 	    d__1 = 1. / tt;
-	    *cs = d_sign(d__1, *f);
+	    *cs = transfer_sign(d__1, *f);
 	    d__1 = t * *cs;
-	    *sn = d_sign(d__1, *g);
+	    *sn = transfer_sign(d__1, *g);
 	} else {
 	    t = *f / *g;
 	    tt = sqrt(t * t + 1.);
 	    d__1 = 1. / tt;
-	    *sn = d_sign(d__1, *g);
+	    *sn = transfer_sign(d__1, *g);
 	    d__1 = t * *sn;
-	    *cs = d_sign(d__1, *f);
+	    *cs = transfer_sign(d__1, *f);
 	}
     }
     return 0;
@@ -6097,13 +5909,14 @@ sndrtg(doublereal *f, doublereal *g, doublereal *cs, doublereal *sn)
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*  hqr3_loc.f orthes.f ortran.f   for computing triangular matrix */
+/*  hqr3_loc.f hessenberg_reduce_householder.f hessenberg_transform_orthogonal.f   for computing triangular matrix */
 
 /* W337: Ordered real Schur form and basis, caller eps controls block splitting,
-   preserving split/exchng/qrstep order and stable/unstable block selection.
-   This basis and convergence policy are not rg's eigenvector calculation. */
+   preserving split/exchange_diagonal_blocks/implicit_qr_step order and stable/unstable block selection.
+   This basis and convergence policy are not real_general_eigen's eigenvector calculation. */
 /* Subroutine */ int 
-hqr3lc(doublereal *a, doublereal *v, integer *n, integer *nlow, integer *nup, doublereal *eps, doublereal *er, doublereal *ei, integer *type__, integer *na, integer *nv, integer *imfd)
+/* hqr3lc: HQR3 reduces an upper Hessenberg matrix to quasi-triangular form by unitary similarity (hqr3_loc.f: XPPAUT 8.0 eispack.c:6257) */
+hessenberg_quasi_triangular(doublereal *a, doublereal *v, integer *n, integer *nlow, integer *nup, doublereal *eps, doublereal *er, doublereal *ei, integer *type__, integer *na, integer *nv, integer *imfd)
 {
     /* System generated locals */
     integer a_dim1, a_offset, v_dim1, v_offset, i__1;
@@ -6273,7 +6086,7 @@ L80:
     goto L80;
 L90:
 /* PERFORM A QR STEP BETWEEN NL AND NU. */
-    qrstep(&a[a_offset], &v[v_offset], &p, &q, &r__, &nl, &nu, n, na, nv);
+    implicit_qr_step(&a[a_offset], &v[v_offset], &p, &q, &r__, &nl, &nu, n, na, nv);
     goto L30;
 /* 2X2 BLOCK FOUND. */
 L100:
@@ -6323,7 +6136,7 @@ L110:
 	}
     }
 
-    exchng(&a[a_offset], &v[v_offset], n, &nl, &c__2, &c__2, eps, &fail, na, 
+    exchange_diagonal_blocks(&a[a_offset], &v[v_offset], n, &nl, &c__2, &c__2, eps, &fail, na, 
 	    nv);
     if (! fail) {
 	goto L120;
@@ -6353,7 +6166,7 @@ L130:
 	}
     }
 
-    exchng(&a[a_offset], &v[v_offset], n, &nl, &c__2, &c__1, eps, &fail, na, 
+    exchange_diagonal_blocks(&a[a_offset], &v[v_offset], n, &nl, &c__2, &c__1, eps, &fail, na, 
 	    nv);
     if (! fail) {
 	goto L140;
@@ -6404,7 +6217,7 @@ L180:
 	}
     }
 
-    exchng(&a[a_offset], &v[v_offset], n, &mu, &c__1, &c__2, eps, &fail, na, 
+    exchange_diagonal_blocks(&a[a_offset], &v[v_offset], n, &mu, &c__1, &c__2, eps, &fail, na, 
 	    nv);
     if (! fail) {
 	goto L190;
@@ -6430,7 +6243,7 @@ L200:
 	}
     }
 
-    exchng(&a[a_offset], &v[v_offset], n, &mu, &c__1, &c__1, eps, &fail, na, 
+    exchange_diagonal_blocks(&a[a_offset], &v[v_offset], n, &mu, &c__1, &c__1, eps, &fail, na, 
 	    nv);
     ++mu;
 L210:
@@ -6643,7 +6456,8 @@ L80:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-exchng(doublereal *a, doublereal *v, integer *n, integer *l, const integer *b1, const integer *b2, doublereal *eps, bool *fail, integer *na, integer *nv)
+/* exchng: exchanges consecutive 1x1 or 2x2 diagonal blocks of an upper Hessenberg matrix with their eigenvalues, accumulating the transform: XPPAUT 8.0 eispack.c:6804 */
+exchange_diagonal_blocks(doublereal *a, doublereal *v, integer *n, integer *l, const integer *b1, const integer *b2, doublereal *eps, bool *fail, integer *na, integer *nv)
 {
     /* System generated locals */
     integer a_dim1, a_offset, v_dim1, v_offset, i__1;
@@ -6747,7 +6561,7 @@ L40:
     q = 1.;
     r__ = 1.;
     i__1 = *l + 2;
-    qrstep(&a[a_offset], &v[v_offset], &p, &q, &r__, l, &i__1, n, na, nv);
+    implicit_qr_step(&a[a_offset], &v[v_offset], &p, &q, &r__, l, &i__1, n, na, nv);
     it = 0;
 L50:
     ++it;
@@ -6761,7 +6575,7 @@ L60:
     q = a[*l + 1 + *l * a_dim1];
     r__ = 0.;
     i__1 = *l + 2;
-    qrstep(&a[a_offset], &v[v_offset], &p, &q, &r__, l, &i__1, n, na, nv);
+    implicit_qr_step(&a[a_offset], &v[v_offset], &p, &q, &r__, l, &i__1, n, na, nv);
     if ((d__1 = a[*l + 2 + (*l + 1) * a_dim1], f2c::abs(d__1)) > *eps * ((d__2 = a[
 	    *l + 1 + (*l + 1) * a_dim1], f2c::abs(d__2)) + (d__3 = a[*l + 2 + (*l 
 	    + 2) * a_dim1], f2c::abs(d__3)))) {
@@ -6781,7 +6595,7 @@ L70:
     p = 1.;
     q = 1.;
     r__ = 1.;
-    qrstep(&a[a_offset], &v[v_offset], &p, &q, &r__, l, &m, n, na, nv);
+    implicit_qr_step(&a[a_offset], &v[v_offset], &p, &q, &r__, l, &m, n, na, nv);
     it = 0;
 L80:
     ++it;
@@ -6801,7 +6615,7 @@ L90:
     p /= s;
     q /= s;
     r__ /= s;
-    qrstep(&a[a_offset], &v[v_offset], &p, &q, &r__, l, &m, n, na, nv);
+    implicit_qr_step(&a[a_offset], &v[v_offset], &p, &q, &r__, l, &m, n, na, nv);
     if ((d__1 = a[m - 1 + (m - 2) * a_dim1], f2c::abs(d__1)) > *eps * ((d__2 = a[m 
 	    - 1 + (m - 1) * a_dim1], f2c::abs(d__2)) + (d__3 = a[m - 2 + (m - 2) * 
 	    a_dim1], f2c::abs(d__3)))) {
@@ -6814,7 +6628,8 @@ L90:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-qrstep(doublereal *a, doublereal *v, doublereal *p, doublereal *q, doublereal *r__, integer *nl, integer *nu, integer *n, integer *na, integer *nv)
+/* qrstep: one implicit QR step on rows and columns nl..nu of an upper Hessenberg matrix: eispack.c:6977 */
+implicit_qr_step(doublereal *a, doublereal *v, doublereal *p, doublereal *q, doublereal *r__, integer *nl, integer *nu, integer *n, integer *na, integer *nv)
 {
     /* System generated locals */
     integer a_dim1, a_offset, v_dim1, v_offset, i__1, i__2;
@@ -6974,8 +6789,9 @@ L130:
    f2c abs/SIGN semantics. Gear's overload uses fabs/sign (which clear -0
    and treat NaNs differently). Retain these scalar operations and reversed
    inner sums rather than silently imposing gear's IEEE special-value policy. */
+/* orthes: EISPACK's Householder reduction to Hessenberg form */
 /* Subroutine */ int 
-orthes(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doublereal *ort)
+hessenberg_reduce_householder(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doublereal *ort)
 {
     /* System generated locals */
     integer a_dim1, a_offset, i__1, i__2, i__3;
@@ -6987,7 +6803,7 @@ orthes(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doubl
     doublereal scale;
     integer la, ii, jj, mp, kp1;
 
-/*     this subroutine is a translation of the algol procedure orthes, */
+/*     this subroutine is a translation of the algol procedure hessenberg_reduce_householder, */
 /*     num. math. 12, 349-368(1968) by martin and wilkinson. */
 /*     handbook for auto. comp., vol.ii-linear algebra, 339-358(1971). */
 
@@ -7005,7 +6821,7 @@ orthes(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doubl
 /*        n is the order of the matrix. */
 
 /*        low and igh are integers determined by the balancing */
-/*          subroutine  balanc.  if  balanc  has not been used, */
+/*          subroutine  balance_matrix.  if  balance_matrix  has not been used, */
 /*          set low=1, igh=n. */
 
 /*        a contains the input matrix. */
@@ -7069,7 +6885,7 @@ orthes(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doubl
 	}
 
 	d__1 = sqrt(h__);
-	g = -d_sign(d__1, ort[m]);
+	g = -transfer_sign(d__1, ort[m]);
 	h__ -= ort[m] * g;
 	ort[m] -= g;
 /*     .......... form (i-(u*ut)/h) * a .......... */
@@ -7130,7 +6946,8 @@ L200:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-ortran(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doublereal *ort, doublereal *z__)
+/* ortran: EISPACK ortran: orthes's accumulated transform */
+hessenberg_transform_orthogonal(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doublereal *ort, doublereal *z__)
 {
     /* System generated locals */
     integer a_dim1, a_offset, z_dim1, z_offset, i__1, i__2, i__3;
@@ -7145,7 +6962,7 @@ ortran(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doubl
 
 /*     this subroutine accumulates the orthogonal similarity */
 /*     transformations used in the reduction of a real general */
-/*     matrix to upper hessenberg form by  orthes. */
+/*     matrix to upper hessenberg form by  hessenberg_reduce_householder. */
 
 /*     on input */
 
@@ -7156,21 +6973,21 @@ ortran(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doubl
 /*        n is the order of the matrix. */
 
 /*        low and igh are integers determined by the balancing */
-/*          subroutine  balanc.  if  balanc  has not been used, */
+/*          subroutine  balance_matrix.  if  balance_matrix  has not been used, */
 /*          set low=1, igh=n. */
 
 /*        a contains information about the orthogonal trans- */
-/*          formations used in the reduction by  orthes */
+/*          formations used in the reduction by  hessenberg_reduce_householder */
 /*          in its strict lower triangle. */
 
 /*        ort contains further information about the trans- */
-/*          formations used in the reduction by  orthes. */
+/*          formations used in the reduction by  hessenberg_reduce_householder. */
 /*          only elements low through igh are used. */
 
 /*     on output */
 
 /*        z contains the transformation matrix produced in the */
-/*          reduction by  orthes. */
+/*          reduction by  hessenberg_reduce_householder. */
 
 /*        ort has been altered. */
 
@@ -7235,7 +7052,7 @@ ortran(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doubl
 /* L110: */
 		g += ort[i__] * z__[i__ + j * z_dim1];
 	    }
-/*     .......... divisor below is negative of h formed in orthes.
+/*     .......... divisor below is negative of h formed in hessenberg_reduce_householder.
  */
 /*                double division avoids possible underflow ......
 .... */

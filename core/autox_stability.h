@@ -6,7 +6,7 @@
    saves in sessions (xpp_session_autox.h) and the stability circle shows (autox_data.h).
 
    autoX computes them in its stability check (autox_lib1.cpp: stbif for a
-   steady state, fnspbv's flowkm for an orbit) for the point it is about to
+   steady state, fnspbv's floquet_multipliers for an orbit) for the point it is about to
    store, and hands them here with autox_stability_computed(). When the point
    is stored (autox_evd.cpp addbif) autox_stability_for() gives its values only
    if they are that point's; otherwise the point was "not computed". autoX

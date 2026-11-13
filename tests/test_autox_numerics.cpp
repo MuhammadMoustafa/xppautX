@@ -47,7 +47,7 @@ constexpr std::array expected{
     0x796d55cf896e1128ULL, // Floquet deflation: status, pencil, work, multipliers, fort.9
     0x9b121411143fd27eULL, // Floquet infinite multiplier: status, pencil, work, multipliers, fort.9
     0x75d8add69a35b7ecULL, // QZ stages: statuses, error, pencil, vectors, alpha real/imaginary, beta
-    0x60e747649c920116ULL, // SVD rotations, sig22/sigmin, epslon, complex division: statuses and outputs
+    0x60e747649c920116ULL, // SVD rotations, singular_values_2x2/smallest_singular_value_2x2, machine_epsilon, complex division: statuses and outputs
     0x656ad85266cca367ULL, // BLAS strides/transposes: norms, dot, pivot, statuses, vectors, matrices
     0xe93b1d3f1a696b09ULL, // Schur conjugate, stable: work, status, vectors, roots, types
     0xdd349a10d75201e4ULL, // Schur dense, stable: work, status, vectors, roots, types
@@ -101,7 +101,7 @@ std::uint64_t solve(std::vector<double> input, integer rhs, bool expect_failure 
     xpp::UniqueFile log(std::tmpfile());
     CHECK(log);
     if (!log) return digest;
-    const auto error = failure([&] { xpp::ge(log.get(), xpp::autox_ge_pivot_iid, n, n, a.data(), rhs, n, u.data(), n, f.data(), &det); });
+    const auto error = failure([&] { xpp::gauss_eliminate(log.get(), xpp::autox_ge_pivot_iid, n, n, a.data(), rhs, n, u.data(), n, f.data(), &det); });
     // W498 adds the pivot diagnostic; keep the numerical digest and verify the new detail separately.
     if(expect_failure)CHECK(error.ends_with(" (smallest pivot 0 < 1e-30)"));
     fold(digest, error.substr(0,error.find(" (smallest pivot")));
@@ -121,7 +121,7 @@ std::uint64_t null_vector(std::vector<double> a, integer nullity)
     xpp::UniqueFile log(std::tmpfile());
     CHECK(log);
     if (!log) return digest;
-    fold(digest, xpp::nlvc(log.get(), n, n, nullity, a.data(), u.data()));
+    fold(digest, xpp::matrix_null_vector(log.get(), n, n, nullity, a.data(), u.data()));
     fold(digest, a); fold(digest, u);
     fold(digest, contents(log.get()));
     return digest;
@@ -138,7 +138,7 @@ std::uint64_t roots(std::vector<double> input, integer vectors)
     std::array<double, n> wr{}, wi{}, work{};
     std::array<integer, n> piv{};
     integer status = -1;
-    xpp::rg(ld, n, a.data(), wr.data(), wi.data(), vectors, z.data(), piv.data(), work.data(), &status);
+    xpp::real_general_eigen(ld, n, a.data(), wr.data(), wi.data(), vectors, z.data(), piv.data(), work.data(), &status);
     CHECK(status == 0); fold(digest, status);
     fold(digest, a); fold(digest, wr); fold(digest, wi); fold(digest, z); fold(digest, work);
     fold(digest, piv);
@@ -168,7 +168,7 @@ std::uint64_t svd(std::vector<double> a)
     std::array<double, n*n> u{}, v{};
     integer ld = n, rows = n, cols = n, job = 11, status = -1;
     double tol = 1e-14; // SVD's documented relative tolerance above machine precision.
-    xpp::ezsvd(a.data(), &ld, &rows, &cols, s.data(), e.data(), u.data(), &ld, v.data(), &ld, work.data(), &job, &status, &tol);
+    xpp::singular_value_decomposition(a.data(), &ld, &rows, &cols, s.data(), e.data(), u.data(), &ld, v.data(), &ld, work.data(), &job, &status, &tol);
     CHECK(status == 0); fold(digest, status);
     fold(digest, a); fold(digest, s); fold(digest, e); fold(digest, u); fold(digest, v); fold(digest, work);
     return digest;
@@ -189,7 +189,7 @@ std::uint64_t floquet(bool deflate, bool infinite)
     xpp::UniqueFile log(std::tmpfile());
     CHECK(log);
     if (!log) return digest;
-    fold(digest, xpp::flowkm(log.get(), &dim, a.data(), b.data(), &diagnostic, work.data(), ev.data(), deflate));
+    fold(digest, xpp::floquet_multipliers(log.get(), &dim, a.data(), b.data(), &diagnostic, work.data(), ev.data(), deflate));
     fold(digest, a); fold(digest, b); fold(digest, work);
     for (integer i = 0; i < n; ++i) {
         fold(digest, ev[i].r); fold(digest, ev[i].i);
@@ -206,13 +206,13 @@ std::uint64_t schur(std::vector<double> a, integer manifold)
     std::array<integer, n> type{};
     integer dim = n, low = 1;
     double eps = 1e-13; // HomCont's component-zero tolerance.
-    xpp::orthes(&dim, &dim, &low, &dim, a.data(), ort.data());
+    xpp::hessenberg_reduce_householder(&dim, &dim, &low, &dim, a.data(), ort.data());
     fold(digest, a); fold(digest, ort);
-    xpp::ortran(&dim, &dim, &low, &dim, a.data(), ort.data(), v.data());
+    xpp::hessenberg_transform_orthogonal(&dim, &dim, &low, &dim, a.data(), ort.data(), v.data());
     fold(digest, v);
     for (integer i = 2; i < n; ++i)
         for (integer j = 0; j < i-1; ++j) a[i+j*n] = 0.;
-    fold(digest, xpp::hqr3lc(a.data(), v.data(), &dim, &low, &dim, &eps, er.data(), ei.data(), type.data(), &dim, &dim, &manifold));
+    fold(digest, xpp::hessenberg_quasi_triangular(a.data(), v.data(), &dim, &low, &dim, &eps, er.data(), ei.data(), type.data(), &dim, &dim, &manifold));
     fold(digest, a); fold(digest, v); fold(digest, er); fold(digest, ei); fold(digest, type);
     return digest;
 }
@@ -225,12 +225,12 @@ std::uint64_t qz_vectors()
     std::array<double,n*n> z{};
     std::array<double,n> ar{}, ai{}, beta{};
     integer error=-1;
-    fold(digest, xpp::qzhes(n,n,a.data(),b.data(),1,z.data()));
+    fold(digest, xpp::qz_reduce_hessenberg(n,n,a.data(),b.data(),1,z.data()));
     fold(digest, a); fold(digest, b); fold(digest, z);
-    fold(digest, xpp::qzit(n,n,a.data(),b.data(),0.,1,z.data(),&error));
+    fold(digest, xpp::qz_iterate(n,n,a.data(),b.data(),0.,1,z.data(),&error));
     CHECK(error == 0); fold(digest, error);
     fold(digest, a); fold(digest, b); fold(digest, z);
-    fold(digest, xpp::qzval(n,n,a.data(),b.data(),ar.data(),ai.data(),beta.data(),1,z.data()));
+    fold(digest, xpp::qz_eigenvalues(n,n,a.data(),b.data(),ar.data(),ai.data(),beta.data(),1,z.data()));
     fold(digest, a); fold(digest, b); fold(digest, z);
     fold(digest, ar); fold(digest, ai); fold(digest, beta);
     return digest;
@@ -243,21 +243,21 @@ std::uint64_t scalar_helpers()
        scales, so a shortcut cannot hide behind composite eigenvalue tests. */
     for (double f : {0.,-0.,1e-100,-3.,1e100}) for (double g : {0.,2.,-1e-100,1e100}) {
         double c=0., s=0.;
-        fold(digest, xpp::ndrotg(&f,&g,&c,&s));
+        fold(digest, xpp::givens_rotation(&f,&g,&c,&s));
         fold(digest, f); fold(digest, g); fold(digest, c); fold(digest, s);
-        fold(digest, xpp::sndrtg(&f,&g,&c,&s));
+        fold(digest, xpp::rotation_matching_signs(&f,&g,&c,&s));
         fold(digest, c); fold(digest, s);
         double h=.75;
         std::array<double,6> out{};
-        fold(digest, xpp::sig22(&f,&g,&h,&out[0],&out[1],&out[2],&out[3],&out[4],&out[5]));
+        fold(digest, xpp::singular_values_2x2(&f,&g,&h,&out[0],&out[1],&out[2],&out[3],&out[4],&out[5]));
         fold(digest, out);
-        const double small=xpp::sigmin(&f,&g,&h);
+        const double small=xpp::smallest_singular_value_2x2(&f,&g,&h);
         fold(digest, small);
-        const double eps=xpp::epslon(f);
+        const double eps=xpp::machine_epsilon(f);
         fold(digest, eps);
     }
     double ar=1e200, ai=-3e199, br=2e200, bi=7e199, cr=0., ci=0.;
-    xpp::cdiv(&ar,&ai,&br,&bi,&cr,&ci);
+    xpp::complex_divide_scaled(&ar,&ai,&br,&bi,&cr,&ci);
     fold(digest, cr); fold(digest, ci);
     return digest;
 }
@@ -265,35 +265,37 @@ std::uint64_t scalar_helpers()
 std::uint64_t blas_helpers()
 {
     std::uint64_t digest = fnv_offset_basis;
-    for (integer stride : {1,2}) { // Legacy dnrm2/dscal require positive increments.
+    for (integer stride : {1,2}) { // Legacy euclidean_norm/scale_vector require positive increments.
         integer count=n;
         std::array<double,9> x{1.,-4.,.5,2.,-3.,.25,7.,1.,-2.}, y=x;
-        const double norm=xpp::dnrm2(&count,x.data(),&stride);
+        const double norm=xpp::euclidean_norm(&count,x.data(),&stride);
         fold(digest, norm);
-        const double dot=xpp::ddot(&count,x.data(),&stride,y.data(),&stride);
+        const double dot=xpp::dot_product(&count,x.data(),&stride,y.data(),&stride);
         fold(digest, dot);
-        fold(digest, xpp::idamax(&count,x.data(),&stride));
+        fold(digest, static_cast<integer>(xpp::largest_magnitude(x.data(),static_cast<int>(count),static_cast<int>(stride))+1)); // Fortran's 1-based index
         double scale=-.3, c=.6, s=.8;
-        fold(digest, xpp::dscal(&count,&scale,x.data(),&stride));
+        xpp::scale_vector(static_cast<int>(count),scale,x.data(),static_cast<int>(stride));
+        fold(digest, 0); // the retired dscal's return value, kept so the digest is unchanged
         fold(digest, x);
-        fold(digest, xpp::daxpy(&count,&scale,x.data(),&stride,y.data(),&stride));
+        xpp::add_multiple(static_cast<int>(count),scale,x.data(),static_cast<int>(stride),y.data(),static_cast<int>(stride));
+        fold(digest, 0); // the retired daxpy's return value
         fold(digest, y);
-        fold(digest, xpp::drot(&count,x.data(),&stride,y.data(),&stride,&c,&s));
+        fold(digest, xpp::rotate_plane(&count,x.data(),&stride,y.data(),&stride,&c,&s));
         fold(digest, x); fold(digest, y);
-        fold(digest, xpp::dswap(&count,x.data(),&stride,y.data(),&stride));
+        fold(digest, xpp::swap_vectors(&count,x.data(),&stride,y.data(),&stride));
         fold(digest, x); fold(digest, y);
     }
     for (const char *ta : {"n","T"}) for (const char *tb : {"N","t"}) {
         integer dim=n;
         std::array<double,n*n> a{1.,-4.,.5,2.,-3.,.25,7.,1.,-2.}, b=a, c=a;
         double alpha=.3, beta=-.7;
-        fold(digest, xpp::dgemm(ta,tb,&dim,&dim,&dim,&alpha,a.data(),&dim,b.data(),&dim,&beta,c.data(),&dim,1,1));
+        fold(digest, xpp::matrix_multiply(ta,tb,&dim,&dim,&dim,&alpha,a.data(),&dim,b.data(),&dim,&beta,c.data(),&dim,1,1));
         fold(digest, c);
         for (bool transpose : {false,true}) {
-            fold(digest, xpp::dgemc(&dim,&dim,a.data(),&dim,c.data(),&dim,&transpose));
+            fold(digest, xpp::copy_matrix_transposed(&dim,&dim,a.data(),&dim,c.data(),&dim,&transpose));
             fold(digest, c);
         }
-        fold(digest, static_cast<integer>(xpp::lsame(ta,tb,1,1)));
+        fold(digest, static_cast<integer>(xpp::same_letter(ta,tb,1,1)));
     }
     return digest;
 }
@@ -346,7 +348,7 @@ void homcont()
             const bool pair = stable != reverse;
             for (double p : {.2,.3}) {
                 par[icp[0]] = p;
-                CHECK(xpp::prjctn(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),true) == 0);
+                CHECK(xpp::homoclinic_projection_conditions(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),true) == 0);
                 for (integer row=first; row<first+count; ++row) {
                     const double x=bound[row], y=bound[row+n], z=bound[row+2*n];
                     CHECK(std::isfinite(x) && std::isfinite(y) && std::isfinite(z));
@@ -369,10 +371,10 @@ void homcont()
                 const auto flags = run.homcont.beyn.iflag;
                 const auto original = bound;
                 par[icp[0]] += autox_hmach;
-                CHECK(xpp::prjctn(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),false) == 0);
+                CHECK(xpp::homoclinic_projection_conditions(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),false) == 0);
                 CHECK(run.homcont.beyn.cprev == saved && run.homcont.beyn.iflag == flags);
                 par[icp[0]] = p;
-                CHECK(xpp::prjctn(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),false) == 0);
+                CHECK(xpp::homoclinic_projection_conditions(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),false) == 0);
                 for (integer row=first; row<first+count; ++row)
                     for (integer col=0; col<n; ++col) CHECK(std::abs(bound[row+col*n]-original[row+col*n]) < tolerance);
             }
@@ -382,7 +384,7 @@ void homcont()
         par[icp[0]] = 0.;
         for (integer transpose : {1,2}) {
             integer endpoint = 1;
-            CHECK(xpp::eigho(&iap,&endpoint,&transpose,rr.data(),ri.data(),vectors.data(),equilibrium.data(),icp.data(),par.data(),&dim,a.data(),dfdp.data(),zz.data()) == 0);
+            CHECK(xpp::homoclinic_eigen_ordered(&iap,&endpoint,&transpose,rr.data(),ri.data(),vectors.data(),equilibrium.data(),icp.data(),par.data(),&dim,a.data(),dfdp.data(),zz.data()) == 0);
             CHECK(rr[0] <= rr[1] && rr[1] <= rr[2]);
             const integer real = reverse ? 0 : 2;
             CHECK(std::abs(vectors[real]-1.) < tolerance);
@@ -402,7 +404,7 @@ void homcont()
         a = {2.,0.,0., 0.,-1.,2., 0.,-2.,-1.};
         std::array<doublecomplex,n> ev{};
         integer error = -1;
-        const auto message = failure([&] { xpp::eig(&iap,&dim,&leading,a.data(),ev.data(),&error); });
+        const auto message = failure([&] { xpp::autox_eigenvalues(&iap,&dim,&leading,a.data(),ev.data(),&error); });
         CHECK((leading == n) == message.empty());
         CHECK(error == (leading == n ? 0 : 1));
         if (leading == n) {
@@ -442,7 +444,7 @@ void check_ge_verbosity()
         xpp::UniqueFile log(std::tmpfile());
         CHECK(log);
         if (!log) continue;
-        xpp::ge(log.get(), iid, 2, 2, matrix.data(), 1, 2, solution.data(), 2, rhs.data(), &det);
+        xpp::gauss_eliminate(log.get(), iid, 2, 2, matrix.data(), 1, 2, solution.data(), 2, rhs.data(), &det);
         const auto text = contents(log.get());
         CHECK((text.find("Pivots in GE") != std::string::npos) == (iid >= xpp::autox_ge_pivot_iid));
         CHECK((text.find("NOTE:Pivot") != std::string::npos) == (iid >= xpp::autox_ge_note_iid));

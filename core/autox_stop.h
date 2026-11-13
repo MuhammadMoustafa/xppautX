@@ -56,7 +56,7 @@ enum AutoxStopWhy {
 /* a "No convergence" NOTE: which one (an AUTOX_STOP_NOCONV_*), the step
    size then, and the settings that gave up: Dsmin and the Newton
    iterations' ITNW, EPSL, EPSU (0 and NAN where a solver has none); the
-   last linear solve's smallest pivot magnitude (xpp::ge; NAN: not known),
+   last linear solve's smallest pivot magnitude (xpp::gauss_eliminate; NAN: not known),
    which says a singular system when below autox_rsmall */
 struct AutoxNoConvergence {
     int why = AUTOX_STOP_NOCONV;

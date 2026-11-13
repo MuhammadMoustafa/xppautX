@@ -1113,7 +1113,7 @@ eighi(const iap_type *iap, integer isign, integer itrans, doublereal *rr, double
   std::vector<doublereal> dfdu(xpp::size_product(*ndm, *ndm));
   std::vector<doublereal> zz(xpp::size_product(*ndm, *ndm));
 
-  xpp::eigho(iap, &isign, &itrans, rr, ri, vret, xequib, icp, par, ndm, dfdu.data(), dfdp.data(), zz.data());
+  xpp::homoclinic_eigen_ordered(iap, &isign, &itrans, rr, ri, vret, xequib, icp, par, ndm, dfdu.data(), dfdp.data(), zz.data());
 
   return 0;
 } /* eighi */
@@ -1125,7 +1125,7 @@ prjcti(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer
   std::vector<doublereal> dfdp(xpp::size_product(*ndm, iap->run->parameter_count));
   std::vector<doublereal> dfdu(xpp::size_product(*ndm, *ndm));
   
-  xpp::prjctn(iap, bound, xequib, icp, par, manifold, endpoint, transpose, *ndm, dfdu.data(), dfdp.data(), save_basis);
+  xpp::homoclinic_projection_conditions(iap, bound, xequib, icp, par, manifold, endpoint, transpose, *ndm, dfdu.data(), dfdp.data(), save_basis);
   
   return 0;
 } /* prjcti */

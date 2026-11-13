@@ -111,9 +111,9 @@ AUTO's two-letter codes name the problem kind a function belongs to (AUTO-07p's 
 | `sigmin` | `smallest_singular_value_2x2` | smallest singular value of the 2x2 matrix ((a,b),(0,c)): eispack.c:6158 |
 | `dnrm2` | `euclidean_norm` | BLAS level 1 nrm2 |
 | `ddot` | `dot_product` | BLAS level 1 dot |
-| `dscal` | `scale_vector` | BLAS level 1 scal; one with sscal |
-| `idamax` | `largest_magnitude_index` | BLAS level 1 iamax |
-| `daxpy` | `add_multiple` | BLAS level 1 axpy; one with saxpy |
+| `dscal` | merged into `scale_vector` | BLAS level 1 scal; one with sscal |
+| `idamax` | merged into `largest_magnitude` (callers add 1) | BLAS level 1 iamax |
+| `daxpy` | merged into `add_multiple` | BLAS level 1 axpy; one with saxpy |
 | `drot` | `rotate_plane` | BLAS level 1 rot |
 | `dswap` | `swap_vectors` | BLAS level 1 swap |
 | `dgemc` | `copy_matrix_transposed` | copies an M by N matrix, transposed when TRANS is true: eispack.c:3773 |
@@ -123,7 +123,7 @@ AUTO's two-letter codes name the problem kind a function belongs to (AUTO-07p's 
 
 | Current | Final name | Meaning and source |
 |---|---|---|
-| `d_sign` | `transfer_sign` | FORTRAN SIGN(a,b): |a| with the sign of b, -0 counts as positive (f2c d_sign; one with xpp_math's sign) |
+| `d_sign` (and xpp_math's `sign`) | merged into `transfer_sign` | FORTRAN SIGN(a,b): |a| with the sign of b, -0 counts as positive (f2c d_sign; one with xpp_math's sign) |
 | `f__cabs` | `complex_magnitude` | |re + i im| without overflow in the squares (f2c cabs.c) |
 | `z_abs` | `complex_magnitude_of` | magnitude of an f2c complex (f2c z_abs) |
 | `cdeterm` | `complex_determinant` | determinant of a complex matrix (XPPAUT del_stab.c) |

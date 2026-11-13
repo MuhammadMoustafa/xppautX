@@ -57,8 +57,8 @@ core/xpp_math_eispack.cpp *block*|numerical, keep: EISPACK reduction/QR/QZ and S
 # The tool compares normalised text, so it cannot see two implementations
 # of the same algorithm written differently. The W30 audit found by hand
 # three LU solves and two eigenvalue routines; W32a moved LINPACK's
-# sgefa/sgesl, the banded bandfac/bandsol and the equilibria's eigenvalues
-# into core/xpp_math.cpp. W337 moves autoX's complete-pivot ge/nlvc and
+# lu_factor/lu_solve (LINPACK's sgefa/sgesl), the banded band_factor/band_solve and the equilibria's eigenvalues
+# into core/xpp_math.cpp. W337 moves autoX's complete-pivot gauss_eliminate/matrix_null_vector and
 # EISPACK into xpp_math_autox.cpp/xpp_math_eispack.cpp without substituting
 # algorithms: pivot, reduction, convergence and eigenvector semantics differ.
 # Nothing above allowlists those differing LU/eigen variants themselves.

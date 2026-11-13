@@ -22,8 +22,7 @@ typedef struct { doublereal r, i; } doublecomplex;
 #define ARRAY3D(array,i,j,k) array[(i) + ((j)  + (k) * array ## _dim2) * array ## _dim1]
 
 /* f2c's libF77 helpers (f2c_helpers.cpp) */
-double d_sign(doublereal a, doublereal b);
-double z_abs(const doublecomplex *z);
+double complex_magnitude_of(const doublecomplex *z);
 
 /* f2c's abs/fabs/min/max macros, as functions (W33c): the macros broke
    every C++ standard header included after this one. Same types (the

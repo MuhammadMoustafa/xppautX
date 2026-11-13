@@ -450,12 +450,12 @@ sigma  weights on nvars
     covar[j+j*npars]=alpha[j+j*npars]*(1+(*alambda));
     oneda[j]=beta[j];
   }
-  xpp::sgefa(covar,npars,npars,ipivot,&ierr);
+  xpp::lu_factor(covar,npars,npars,ipivot,&ierr);
     if(ierr!=-1)
       return xpp::fail("fit",xpp::format("Singular matrix encountered: with lambda = {}, the parameter {} (column {} of {}) does not change the fit independently of the ones before it",
                        xpp::number(*alambda),fit_parameter_name(s,ipar[ierr]),ierr+1,npars),command_place());
   
-  xpp::sgesl(covar,npars,npars,ipivot,oneda);
+  xpp::lu_solve(covar,npars,npars,ipivot,oneda);
   for(j=0;j<npars;j++){
     da[j]=oneda[j];
   }
@@ -465,7 +465,7 @@ sigma  weights on nvars
     for(j=0;j<npars;j++){
       for(k=0;k<npars;k++)oneda[k]=0.0;
       oneda[j]=1.0;
-      xpp::sgesl(alpha,npars,npars,ipivot,oneda);
+      xpp::lu_solve(alpha,npars,npars,ipivot,oneda);
       for(k=0;k<npars;k++)covar[j+k*npars]=oneda[k];
     }
     return {};

@@ -101,7 +101,7 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
   if (ips==xpp::AutoxProblem::DiscreteMap && iap->itp.is(xpp::AutoxPointKind::PeriodDoubling))
     for (integer k=0;k<ndm;++k) iap->run->scratch.dfu[k+ndm*k]+=2.;
-  xpp::nlvc(iap->run->fp9, ndm, ndm, 1, iap->run->scratch.dfu.data(), v.data());
+  xpp::matrix_null_vector(iap->run->fp9, ndm, ndm, 1, iap->run->scratch.dfu.data(), v.data());
   nrmlz(&ndm, v.data());
   for (i = 0; i < ndm; ++i) {
     u[ndm + i] = v[i];
@@ -338,7 +338,7 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
       dd[ndm + i * ndim] = iap->run->scratch.dfp[(icp[1]) * ndm + i];
     }
     dd[ndm + ndm * ndim] = dp[icp[1]];
-    xpp::nlvc(iap->run->fp9, ndm + 1, ndim, 1, dd.data(), v.data());
+    xpp::matrix_null_vector(iap->run->fp9, ndm + 1, ndim, 1, dd.data(), v.data());
     {
       integer tmp = ndm + 1;
       nrmlz(&tmp, v.data());
@@ -504,7 +504,7 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer size = n;
   // The Hopf pair gives a two-dimensional kernel. NLVC chooses its phase;
   // subsequent correctors use the previous vector's symmetric condition.
-  xpp::nlvc(iap->run->fp9, n, n, 2, blocks.data() + n * n, u + n);
+  xpp::matrix_null_vector(iap->run->fp9, n, n, 2, blocks.data() + n * n, u + n);
   nrmlz(&size, u + n);
   return 0;
 } /* stpnhb_ */
@@ -629,7 +629,7 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
   {
     integer tmp=(ndim*2);
-    xpp::nlvc(iap->run->fp9, ndm2, tmp, 2, smat.data(), v.data());
+    xpp::matrix_null_vector(iap->run->fp9, ndm2, tmp, 2, smat.data(), v.data());
   }
   nrmlz(&ndm2, v.data());
 
@@ -897,7 +897,7 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   {
     integer tmp=(ndim*2);
-    xpp::nlvc(iap->run->fp9, ndim2, tmp, 2, smat.data(), rnllv.data());
+    xpp::matrix_null_vector(iap->run->fp9, ndim2, tmp, 2, smat.data(), rnllv.data());
   }
   nrmlz(&ndim2, rnllv.data());
 
@@ -1138,7 +1138,7 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     }
   }
 
-  xpp::nlvc(iap->run->fp9, ndim2, ndim*2, 2, smat.data(), rnllv.data());
+  xpp::matrix_null_vector(iap->run->fp9, ndim2, ndim*2, 2, smat.data(), rnllv.data());
   nrmlz(&ndim2, rnllv.data());
 
   /* Generate the (initially uniform) mesh. */

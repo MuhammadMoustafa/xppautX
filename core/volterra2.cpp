@@ -429,14 +429,14 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
    
    for(i=0;i<s.model().node;i++)
      jac[n1*i]-=1.0;
-   xpp::sgefa(jac,s.model().node,s.model().node,ipivot,&info);
+   xpp::lu_factor(jac,s.model().node,s.model().node,ipivot,&info);
    if(info!=-1)
      {
        s.solver_work.stop={t,dt,info,iter};
        return(NEWTON_SINGULAR);
      }
    err=0.0;
-   xpp::sgesl(jac,s.model().node,s.model().node,ipivot,errvec);
+   xpp::lu_solve(jac,s.model().node,s.model().node,ipivot,errvec);
    for(i=0;i<s.model().node;i++){
 	err=std::max(err,fabs(errvec[i]));
 	yg[i]-=errvec[i];

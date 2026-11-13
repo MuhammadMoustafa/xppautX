@@ -146,8 +146,8 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
       if(s.numerics.cv_bandflag){
 	for(i=0;i<neq;i++)
 	  jac[i*mt+ml]+=1;
-	xpp::bandfac(jac,ml,mr,neq);
-        xpp::bandsol(jac,errvec,ml,mr,neq);
+	xpp::band_factor(jac,ml,mr,neq);
+        xpp::band_solve(jac,errvec,ml,mr,neq);
       }
       else {
       for(i=0;i<neq;i++)jac[i*neq+i]+=1.0;
@@ -467,8 +467,8 @@ int *istart,int n,double *work,int *ierr)
 	  for(i=0;i<n;i++)
 	 dfdy[i*mt+ml]+=1;
         
-	 xpp::bandfac(dfdy,ml,mr,n);
-	 xpp::bandsol(dfdy,k1,ml,mr,n);
+	 xpp::band_factor(dfdy,ml,mr,n);
+	 xpp::band_solve(dfdy,k1,ml,mr,n);
        }
        else{
 	  for(i=0;i<n;i++)
@@ -483,7 +483,7 @@ int *istart,int n,double *work,int *ierr)
        for(i=0;i<n;i++)
 	 k2[i]=f1[i]-k1[i];
        if(s.numerics.cv_bandflag)
-	 xpp::bandsol(dfdy,k2,ml,mr,n);
+	 xpp::band_solve(dfdy,k2,ml,mr,n);
        else
 	 lu.solve(dfdy,n,k2);
        for(i=0;i<n;i++){
@@ -495,7 +495,7 @@ int *istart,int n,double *work,int *ierr)
        for(i=0;i<n;i++)
 	 k3[i]=f2[i] - e32*(k2[i] - f1[i]) - 2*(k1[i] - f0[i]) + (h*d)*dfdt[i];
        if(s.numerics.cv_bandflag)
-	 xpp::bandsol(dfdy,k3,ml,mr,n);
+	 xpp::band_solve(dfdy,k3,ml,mr,n);
        else
 	 lu.solve(dfdy,n,k3);
        /*ninf=0;  This is not used anywhere?

@@ -65,7 +65,7 @@ double hom_bcs(double x)
 
 /*  logical stuff  */
 
-double dnot(double x)
+double logical_not(double x)
 {
  return(static_cast<double>(x==0.0));
 }
@@ -77,11 +77,11 @@ double dor(double x, double y)
 {
  return(static_cast<double>(x||y));
 }
-double dge(double x, double y)
+double greater_equal(double x, double y)
 {
  return(static_cast<double>(x>=y));
 }
-double dle(double x, double y)
+double less_equal(double x, double y)
 {
  return(static_cast<double>(x<=y));
 }
@@ -89,7 +89,7 @@ double deq(double x, double y)
 {
  return(static_cast<double>(x==y));
 }
-double dne(double x, double y)
+double not_equal(double x, double y)
 {
  return(static_cast<double>(x!=y));
 }
@@ -97,7 +97,7 @@ double dgt(double x, double y)
 {
  return(static_cast<double>(x>y));
 }
-double dlt(double x, double y)
+double less_than(double x, double y)
 {
  return(static_cast<double>(x<y));
 }
@@ -142,7 +142,7 @@ const std::array<Fun1,FUN1_COUNT> fun1={
   ::signum,
   ::floor,
   nullptr,   /* RANDOM_UNIFORM: RANDUNI, the evaluator's */
-  ::dnot,    /* 20 */
+  ::logical_not,    /* 20 */
   xpp::math::erf,
   xpp::math::erfc,
   ::hom_bcs,
@@ -164,11 +164,11 @@ const std::array<Fun2,FUN2_COUNT> fun2={
   ::dand,
   ::dor,     /* 10 */
   ::dgt,
-  ::dlt,
+  ::less_than,
   ::deq,
-  ::dge,
-  ::dle,     /* 15 */
-  ::dne,
+  ::greater_equal,
+  ::less_equal,     /* 15 */
+  ::not_equal,
   nullptr,   /* RANDOM_NORMAL: RANDNORM, the evaluator's */
   xpp::bessel_j,
   xpp::bessel_y,

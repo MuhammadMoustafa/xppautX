@@ -206,18 +206,18 @@ std::vector<int> seed_stream(int seed, std::size_t n);
 
 /* ---- linear algebra ----
 
-   sgefa/sgesl: LINPACK's dense LU factorisation with partial pivoting and
-   its solve. a is n x n, row i at a[i*lda]; sgefa factors it in place,
+   lu_factor/lu_solve: LINPACK's dense LU factorisation with partial pivoting and
+   its solve. a is n x n, row i at a[i*lda]; lu_factor factors it in place,
    the pivots in ipvt[n], *info -1 when it succeeded, else the (0-based)
-   index of a zero pivot; sgesl then solves A x = b, x replacing b.
-   sgefa_det_sign: the sign of the factored matrix's determinant (a and
-   ipvt as sgefa left them): 1, -1, or 0 when a pivot is zero.
+   index of a zero pivot; lu_solve then solves A x = b, x replacing b.
+   lu_determinant_sign: the sign of the factored matrix's determinant (a and
+   ipvt as lu_factor left them): 1, -1, or 0 when a pivot is zero.
 
-   bandfac/bandsol: the same for a banded matrix, without pivoting: ml
+   band_factor/band_solve: the same for a banded matrix, without pivoting: ml
    sub- and mr super-diagonals, row i at a[i*(ml+mr+1)], its diagonal at
-   a[i*(ml+mr+1)+ml]. bandfac returns 0, or -1-i when row i's pivot is 0.
+   a[i*(ml+mr+1)+ml]. band_factor returns 0, or -1-i when row i's pivot is 0.
 
-   eigenvalues: the eigenvalues of the n x n matrix a (overwritten),
+   real_eigenvalues: the eigenvalues of the n x n matrix a (overwritten),
    stored as pairs ev[2i] (real), ev[2i+1] (imaginary); work holds n
    doubles. *ierr is 0, or the index of an eigenvalue that did not converge
    in 30 iterations.
@@ -225,36 +225,41 @@ std::vector<int> seed_stream(int seed, std::size_t n);
    Their matrices keep LINPACK's pointer and dimensions (a 2-D layout a
    span would not describe); the solvers call them inside their steps. */
 /* the index of the first of x's n elements (every stride-th) whose
-   magnitude is the largest: LINPACK's isamax, sgefa's pivot search; -1 for
+   magnitude is the largest: LINPACK's isamax, lu_factor's pivot search; -1 for
    none */
 int largest_magnitude(const double *x, int n, int stride = 1);
-void sgefa(double *a, int lda, int n, int *ipvt, int *info);
-void sgesl(double *a, int lda, int n, int *ipvt, double *b);
+/* BLAS level 1: y[i] += a x[i] (add_multiple: LINPACK's saxpy, BLAS's daxpy) and x[i] *= a
+   (scale_vector: sscal, dscal) over n elements at strides incx and incy (a negative stride
+   starts from the far end, as in the BLAS) */
+void add_multiple(int n, double sa, const double *sx, int incx, double *sy, int incy);
+void scale_vector(int n, double sa, double *sx, int incx);
+void lu_factor(double *a, int lda, int n, int *ipvt, int *info);
+void lu_solve(double *a, int lda, int n, int *ipvt, double *b);
 /* the same on a column-major matrix (a[j*lda+i] is M(i,j)), in place, the same bits */
-void sgefa_columns(double *a, int lda, int n, int *ipvt, int *info);
-void sgesl_columns(const double *a, int lda, int n, const int *ipvt, double *b);
-int sgefa_det_sign(const double *a, int lda, int n, const int *ipvt);
+void lu_factor_columns(double *a, int lda, int n, int *ipvt, int *info);
+void lu_solve_columns(const double *a, int lda, int n, const int *ipvt, double *b);
+int lu_determinant_sign(const double *a, int lda, int n, const int *ipvt);
 
-/* BlockLu: sgefa/sgesl for a matrix that is block diagonal under a
+/* BlockLu: lu_factor/lu_solve for a matrix that is block diagonal under a
    partition of its n indices (a model's independent subsystems, W433,
    Model::subsystems: each block's indices ascending), block by block.
-   factor() gathers each block, factors it with sgefa, keeps the factors
-   and puts them back into a (as sgefa leaves them, so a caller that
+   factor() gathers each block, factors it with lu_factor, keeps the factors
+   and puts them back into a (as lu_factor leaves them, so a caller that
    scales the matrix again, Rosenbrock's retry, sees the same numbers);
-   solve() solves each block of b with sgesl. The entries outside the blocks
+   solve() solves each block of b with lu_solve. The entries outside the blocks
    are never read: they must be exactly 0, as a Jacobian's are where an
-   equation does not read a state. Then the result is bit for bit sgefa's and
-   sgesl's of the whole matrix, for finite values and up to the sign of a
+   equation does not read a state. Then the result is bit for bit lu_factor's and
+   lu_solve's of the whole matrix, for finite values and up to the sign of a
    zero: the elimination adds a zero multiple or skips a zero pivot-row
    entry, and the pivot search meets only zeros outside a block's own rows,
    so neither an interchange nor an update leaves the block; *info is the
-   last zero pivot's index, as sgefa's. Two deliberate differences: sgesl
+   last zero pivot's index, as lu_factor's. Two deliberate differences: lu_solve
    adds t*(+-0) across blocks, which turns a -0.0 of the solution into +0.0
    where this keeps -0.0; and a NaN or inf (a non-finite right-hand side, a
    singular matrix whose info the caller ignores) stays in its block where
-   sgefa and sgesl spread it into every column. With fewer
-   than two blocks, or blocks that do not cover n indices, factor() is sgefa
-   (sgefa_columns when transposed) in place and solve() sgesl, so `a` must stay as factor() left it until
+   lu_factor and lu_solve spread it into every column. With fewer
+   than two blocks, or blocks that do not cover n indices, factor() is lu_factor
+   (lu_factor_columns when transposed) in place and solve() lu_solve, so `a` must stay as factor() left it until
    the solves are done. `transposed`: a holds the matrix's transpose (column-major,
    CVODE's DenseMatRec): a split's blocks are gathered the right way round,
    a whole matrix is factored where it lies. The
@@ -270,9 +275,9 @@ private:
     std::vector<double> lu_, rhs_;
     std::vector<int> pivots_;
 };
-int bandfac(double *a, int ml, int mr, int n);
-void bandsol(double *a, double *b, int ml, int mr, int n);
-void eigenvalues(int n, double *a, double *ev, double *work, int *ierr);
+int band_factor(double *a, int ml, int mr, int n);
+void band_solve(double *a, double *b, int ml, int mr, int n);
+void real_eigenvalues(int n, double *a, double *ev, double *work, int *ierr);
 
 /* ---- column-major views (W334): the layout of autoX's Fortran arrays ----
    Matrix(i,j) is data[i + j*dim1] and Matrix3(i,j,k) data[i + (j + k*dim2)*dim1],
@@ -344,8 +349,8 @@ inline void subtract_scaled(double *__restrict target, const double *__restrict 
 double bracketed_root(const std::function<double(double)> &f, double a, double b, double fa, double fb);
 
 /* ---- small helpers ----
-   sign: Fortran's SIGN, |a| with the sign of b (b >= 0: +|a|). */
-double sign(double a, double b);
+   transfer_sign: Fortran's SIGN, |a| with the sign of b (b >= 0: +|a|; f2c's libF77 transfer_sign). */
+double transfer_sign(double a, double b);
 
 /* ---- special functions (the parser's besselj, bessely, besseli,
    besselis) ----

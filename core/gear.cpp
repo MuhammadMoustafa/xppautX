@@ -97,7 +97,7 @@ int ggear(xpp::Session &s, int n, double *t, double tout, double *y, double hmin
 
   }
   deltat=tout-*t;
-   if(*jstart==0)h=xpp::sign(hmin,deltat);
+   if(*jstart==0)h=xpp::transfer_sign(hmin,deltat);
   if(fabs(deltat)<hmin)
   {
     return(-1);

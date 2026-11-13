@@ -139,14 +139,14 @@ void autox_cycle_multipliers(const iap_type &iap, const double *p0, const double
         for (int j=0;j<n;++j) w.cycle_matrix[i*dimension+j]=p1[i+dimension*(offset+j)];
     }
     int info;
-    sgefa(w.cycle_matrix.data(),dimension,dimension,w.cycle_pivots.data(),&info);
+    lu_factor(w.cycle_matrix.data(),dimension,dimension,w.cycle_pivots.data(),&info);
     for (int i=0;i<n;++i) std::swap(w.cycle_rows[i],w.cycle_rows[w.cycle_pivots[i]]);
     for (int j=0;j<n;++j) for (int i=0;i<n;++i) {
         w.cycle_p0[i+n*j]=p0[w.cycle_rows[i]+dimension*(offset+j)];
         w.cycle_p1[i+n*j]=p1[w.cycle_rows[i]+dimension*(offset+j)];
     }
     integer original=iap.ndm, iid=iap.iid;
-    flowkm(iap.run->fp9,&original,w.cycle_p0.data(),w.cycle_p1.data(),&iid,w.cycle_matrix.data(),ev,deflate);
+    floquet_multipliers(iap.run->fp9,&original,w.cycle_p0.data(),w.cycle_p1.data(),&iid,w.cycle_matrix.data(),ev,deflate);
 }
 
 void autox_stability_multipliers_restored(AutoxStability &st, const iap_type &iap, double *p0, double *p1)
@@ -156,7 +156,7 @@ void autox_stability_multipliers_restored(AutoxStability &st, const iap_type &ia
     if (iap.isw==2) {
         autox_cycle_multipliers(iap,p0,p1,ev.data(),false);
         ndim=iap.ndm;
-    } else xpp::flowkm(iap.run->fp9, &ndim, p0, p1, &iid, nullptr, ev.data(), false);
+    } else xpp::floquet_multipliers(iap.run->fp9, &ndim, p0, p1, &iid, nullptr, ev.data(), false);
     autox_stability_computed(st, iap.ibr, iap.ntot + 1, {&ev[0].r, 2 * static_cast<std::size_t>(ndim)}, AUTOX_STABILITY_PERIODIC);
 }
 

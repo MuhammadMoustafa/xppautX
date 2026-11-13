@@ -252,29 +252,26 @@ bool Random::load(const std::string &state)
 }
 
 /* ------------------------------------------------------------------ */
-/* Dense LU (LINPACK's sgefa/sgesl, row-major)                          */
+/* Dense LU (LINPACK's lu_factor/lu_solve, row-major)                          */
 
-namespace {
-
-/* the BLAS-1 kernels sgefa/sgesl use, with their stride conventions */
-void saxpy(int n, double sa, const double *sx, int incx, double *sy, int incy)
+/* the BLAS-1 kernels lu_factor/lu_solve use, with their stride conventions
+   (LINPACK's saxpy and sscal, and EISPACK's daxpy and dscal: one copy) */
+void add_multiple(int n, double sa, const double *sx, int incx, double *sy, int incy)
 {
     if (n <= 0) return;
     if (sa == 0.0) return;
     int ix = 0, iy = 0;
-    if (incx < 0) ix = -n * incx;
-    if (incy < 0) iy = -n * incy;
+    if (incx < 0) ix = (1 - n) * incx;
+    if (incy < 0) iy = (1 - n) * incy;
     for (int i = 0; i < n; i++, ix += incx, iy += incy) sy[iy] = sy[iy] + sa * sx[ix];
 }
 
-void sscal(int n, double sa, double *sx, int incx)
+void scale_vector(int n, double sa, double *sx, int incx)
 {
     if (n <= 0) return;
     const int nincx = n * incx;
     for (int i = 0; i < nincx; i += incx) sx[i] *= sa;
 }
-
-} // namespace
 
 int largest_magnitude(const double *x, int n, int stride)
 {
@@ -291,7 +288,7 @@ int largest_magnitude(const double *x, int n, int stride)
 }
 
 /* LINPACK partial pivoting, first maximum in each column, negative stored
-   multipliers (autoX's ge instead searches the complete trailing matrix and
+   multipliers (autoX's gauss_eliminate instead searches the complete trailing matrix and
    accumulates a determinant and pivot log). LINPACK eliminates column by
    column, skipping a column whose pivot-row element t is zero; on this
    row-major block a column strides by lda. When the pivot row has no zero
@@ -301,7 +298,8 @@ int largest_magnitude(const double *x, int n, int stride)
    row (a model's Jacobian mostly is) keeps LINPACK's column sweep, which
    leaves its zero columns alone. Either way every element gets the same
    product added in the same step k, so the bits are LINPACK's. */
-void sgefa(double *a, int lda, int n, int *ipvt, int *info)
+/* sgefa: dense LU with partial pivoting in place (LINPACK sgefa) */
+void lu_factor(double *a, int lda, int n, int *ipvt, int *info)
 {
     *info = -1;
     for (int k = 0; k < n - 1; k++) {
@@ -316,7 +314,7 @@ void sgefa(double *a, int lda, int n, int *ipvt, int *info)
         if (l != k) std::swap(row_l[k], pivot_row[k]);
         const double t = -1.0 / pivot_row[k];
         double *const multipliers = a + (k + 1) * lda + k;
-        sscal(n - k - 1, t, multipliers, lda);
+        scale_vector(n - k - 1, t, multipliers, lda);
         if (l != k)
             for (int j = k + 1; j < n; j++) std::swap(row_l[j], pivot_row[j]);
         if (std::find(pivot_row + k + 1, pivot_row + n, 0.0) == pivot_row + n) {
@@ -325,18 +323,19 @@ void sgefa(double *a, int lda, int n, int *ipvt, int *info)
                 subtract_scaled(row + k + 1, pivot_row + k + 1, -row[k], n - k - 1);
             }
         } else {
-            for (int j = k + 1; j < n; j++) saxpy(n - k - 1, pivot_row[j], multipliers, lda, multipliers + (j - k), lda);
+            for (int j = k + 1; j < n; j++) add_multiple(n - k - 1, pivot_row[j], multipliers, lda, multipliers + (j - k), lda);
         }
     }
     ipvt[n - 1] = n - 1;
     if (a[(n - 1) * lda + n - 1] == 0.0) *info = n - 1;
 }
 
-/* Solve from sgefa's partial-pivot LU in LINPACK's order. Its column
+/* Solve from lu_factor's partial-pivot LU in LINPACK's order. Its column
    sweeps stay: the forward pass's updates are ordered after each
    interchange, and both passes skip a whole column where b's element is
    zero, which a row-by-row back substitution measured slower (W488). */
-void sgesl(double *a, int lda, int n, int *ipvt, double *b)
+/* sgesl: solve with sgefa's factors (LINPACK sgesl) */
+void lu_solve(double *a, int lda, int n, int *ipvt, double *b)
 {
     for (int k = 0; k < n - 1; k++) {
         const int l = ipvt[k];
@@ -345,21 +344,22 @@ void sgesl(double *a, int lda, int n, int *ipvt, double *b)
             b[l] = b[k];
             b[k] = t;
         }
-        saxpy(n - k - 1, t, a + lda * (k + 1) + k, lda, b + k + 1, 1);
+        add_multiple(n - k - 1, t, a + lda * (k + 1) + k, lda, b + k + 1, 1);
     }
     for (int k = n - 1; k >= 0; k--) {
         b[k] = b[k] / a[k * lda + k];
         const double t = -b[k];
-        saxpy(k, t, a + k, lda, b, 1);
+        add_multiple(k, t, a + k, lda, b, 1);
     }
 }
 
-/* sgefa on a column-major matrix (a[j*lda+i] is M(i,j), CVODE's layout), in
+/* lu_factor on a column-major matrix (a[j*lda+i] is M(i,j), CVODE's layout), in
    place: each element gets the same product in the same step k, so the bits
-   are sgefa's of the transposed copy, without the copy. A zero in the pivot
-   row skips its column (saxpy), as sgefa's sparse path does and its dense
+   are lu_factor's of the transposed copy, without the copy. A zero in the pivot
+   row skips its column (add_multiple), as lu_factor's sparse path does and its dense
    path (no zero) makes no difference to. */
-void sgefa_columns(double *a, int lda, int n, int *ipvt, int *info)
+/* sgefa_columns: sgefa for a transposed (column-major) block (xpp_math.cpp) */
+void lu_factor_columns(double *a, int lda, int n, int *ipvt, int *info)
 {
     *info = -1;
     for (int k = 0; k < n - 1; k++) {
@@ -371,7 +371,7 @@ void sgefa_columns(double *a, int lda, int n, int *ipvt, int *info)
             continue;
         }
         if (l != k) std::swap(column_k[l], column_k[k]);
-        sscal(n - k - 1, -1.0 / column_k[k], column_k + k + 1, 1);
+        scale_vector(n - k - 1, -1.0 / column_k[k], column_k + k + 1, 1);
         for (int j = k + 1; j < n; j++) {
             double *const column_j = a + static_cast<std::size_t>(j) * lda;
             const double t = column_j[l];
@@ -379,15 +379,16 @@ void sgefa_columns(double *a, int lda, int n, int *ipvt, int *info)
                 column_j[l] = column_j[k];
                 column_j[k] = t;
             }
-            saxpy(n - k - 1, t, column_k + k + 1, 1, column_j + k + 1, 1);
+            add_multiple(n - k - 1, t, column_k + k + 1, 1, column_j + k + 1, 1);
         }
     }
     ipvt[n - 1] = n - 1;
     if (a[static_cast<std::size_t>(n - 1) * lda + n - 1] == 0.0) *info = n - 1;
 }
 
-/* sgesl for sgefa_columns' factors, in sgesl's order */
-void sgesl_columns(const double *a, int lda, int n, const int *ipvt, double *b)
+/* lu_solve for lu_factor_columns' factors, in lu_solve's order */
+/* sgesl_columns: sgesl for a transposed block (xpp_math.cpp) */
+void lu_solve_columns(const double *a, int lda, int n, const int *ipvt, double *b)
 {
     for (int k = 0; k < n - 1; k++) {
         const int l = ipvt[k];
@@ -396,16 +397,17 @@ void sgesl_columns(const double *a, int lda, int n, const int *ipvt, double *b)
             b[l] = b[k];
             b[k] = t;
         }
-        saxpy(n - k - 1, t, a + static_cast<std::size_t>(k) * lda + k + 1, 1, b + k + 1, 1);
+        add_multiple(n - k - 1, t, a + static_cast<std::size_t>(k) * lda + k + 1, 1, b + k + 1, 1);
     }
     for (int k = n - 1; k >= 0; k--) {
         const double *const column_k = a + static_cast<std::size_t>(k) * lda;
         b[k] = b[k] / column_k[k];
-        saxpy(k, -b[k], column_k, 1, b, 1);
+        add_multiple(k, -b[k], column_k, 1, b, 1);
     }
 }
 
-int sgefa_det_sign(const double *a, int lda, int n, const int *ipvt)
+/* sgefa_det_sign: sign of the determinant from the pivots (xpp_math.cpp) */
+int lu_determinant_sign(const double *a, int lda, int n, const int *ipvt)
 {
     /* det = the product of U's diagonal, negated once per row swap */
     int sign = 1;
@@ -427,8 +429,8 @@ void BlockLu::factor(double *a, int lda, int n, std::span<const std::vector<int>
     transposed_ = transposed;
     if (!split_) {
         /* one block covers the matrix: factored where it lies */
-        if (transposed) sgefa_columns(a, lda, n, pivots_.data(), info);
-        else sgefa(a, lda, n, pivots_.data(), info);
+        if (transposed) lu_factor_columns(a, lda, n, pivots_.data(), info);
+        else lu_factor(a, lda, n, pivots_.data(), info);
         return;
     }
     blocks_ = blocks;
@@ -450,9 +452,9 @@ void BlockLu::factor(double *a, int lda, int n, std::span<const std::vector<int>
                 block_lu[i * m + j] = transposed ? a[col * static_cast<std::size_t>(lda) + row] : a[row * static_cast<std::size_t>(lda) + col];
             }
         int local;
-        sgefa(block_lu, static_cast<int>(m), static_cast<int>(m), block_pivots, &local);
+        lu_factor(block_lu, static_cast<int>(m), static_cast<int>(m), block_pivots, &local);
         if (local != -1) *info = std::max(*info, block[static_cast<std::size_t>(local)]);
-        /* a holds the factors, as after sgefa (a caller that scales it again, Rosenbrock's retry, reads them) */
+        /* a holds the factors, as after lu_factor (a caller that scales it again, Rosenbrock's retry, reads them) */
         for (std::size_t i = 0; i < m; i++)
             for (std::size_t j = 0; j < m; j++) {
                 const std::size_t row = static_cast<std::size_t>(block[i]), col = static_cast<std::size_t>(block[j]);
@@ -467,8 +469,8 @@ void BlockLu::solve(double *a, int lda, double *b)
 {
     if (!split_) {
         const int n = static_cast<int>(pivots_.size());
-        if (transposed_) sgesl_columns(a, lda, n, pivots_.data(), b);
-        else sgesl(a, lda, n, pivots_.data(), b);
+        if (transposed_) lu_solve_columns(a, lda, n, pivots_.data(), b);
+        else lu_solve(a, lda, n, pivots_.data(), b);
         return;
     }
     double *block_lu = lu_.data();
@@ -476,7 +478,7 @@ void BlockLu::solve(double *a, int lda, double *b)
     for (const auto &block : blocks_) {
         const std::size_t m = block.size();
         for (std::size_t i = 0; i < m; i++) rhs_[i] = b[block[i]];
-        sgesl(block_lu, static_cast<int>(m), static_cast<int>(m), block_pivots, rhs_.data());
+        lu_solve(block_lu, static_cast<int>(m), static_cast<int>(m), block_pivots, rhs_.data());
         for (std::size_t i = 0; i < m; i++) b[block[i]] = rhs_[i];
         block_lu += m * m;
         block_pivots += m;
@@ -488,7 +490,8 @@ void BlockLu::solve(double *a, int lda, double *b)
 
 /* Band LU without pivoting, in-place row updates; a zero diagonal returns
    -1-row. Neither dense pivot policy preserves this factorization's order. */
-int bandfac(double *a, int ml, int mr, int n)
+/* bandfac: banded LU without pivoting (xpp_math.cpp; not CVODE's pivoting gbfa) */
+int band_factor(double *a, int ml, int mr, int n)
 {
     const int n1 = n - 1, mt = ml + mr + 1;
     for (int row = 0; row < n; row++) {
@@ -514,7 +517,8 @@ int bandfac(double *a, int ml, int mr, int n)
 
 /* Forward/back substitution for the unpivoted band factors, preserving each
    band-limited sum's direction. */
-void bandsol(double *a, double *b, int ml, int mr, int n)
+/* bandsol: solve with bandfac's factors */
+void band_solve(double *a, double *b, int ml, int mr, int n)
 {
     const int mt = ml + mr + 1, n1 = n - 1;
     for (int i = 0; i < n; i++) {
@@ -530,14 +534,15 @@ void bandsol(double *a, double *b, int ml, int mr, int n)
 }
 
 /* ------------------------------------------------------------------ */
-/* Eigenvalues: EISPACK's orthes (Householder reduction to Hessenberg  */
-/* form) and hqr (shifted QR), column-major, 1-based loops as in the   */
+/* Eigenvalues: EISPACK's gear_hessenberg_reduce (Householder reduction to Hessenberg  */
+/* form) and gear_hessenberg_qr_values (shifted QR), column-major, 1-based loops as in the   */
 /* Fortran, with a fixed convergence tolerance                         */
 
-double sign(double a, double b)
+/* sign (xpp_math) and transfer_sign (f2c's libF77): FORTRAN's SIGN(a,b) */
+double transfer_sign(double a, double b)
 {
-    if (b >= 0.0) return std::fabs(a);
-    return -std::fabs(a);
+    const double magnitude = a >= 0 ? a : -a;
+    return b >= 0 ? magnitude : -magnitude;
 }
 
 namespace {
@@ -545,7 +550,8 @@ namespace {
 /* Gear Householder variant: fabs/sign scalar semantics, reversed inner sums,
    no eigenvector accumulation; autoX's leading-dimension overload retains
    f2c abs/SIGN semantics (notably -0 and NaN) in xpp_math_eispack.cpp. */
-void orthes(int n, int low, int igh, double *a, double *ort)
+/* orthes: EISPACK's Householder reduction to Hessenberg form, XPPAUT's (Gear's) variant */
+void gear_hessenberg_reduce(int n, int low, int igh, double *a, double *ort)
 {
     const int la = igh - 1;
     const int kp1 = low + 1;
@@ -562,7 +568,7 @@ void orthes(int n, int low, int igh, double *a, double *ort)
             ort[i - 1] = a[i - 1 + (m - 2) * n] / scale;
             h = h + ort[i - 1] * ort[i - 1];
         }
-        const double g = -sign(std::sqrt(h), ort[m - 1]);
+        const double g = -transfer_sign(std::sqrt(h), ort[m - 1]);
         h = h - ort[m - 1] * g;
         ort[m - 1] = ort[m - 1] - g;
         for (int j = m; j <= n; j++) {
@@ -588,13 +594,14 @@ void orthes(int n, int low, int igh, double *a, double *ort)
     }
 }
 
-/* EISPACK's hqr, labels kept from the Fortran (l60: next eigenvalue,
+/* EISPACK's gear_hessenberg_qr_values, labels kept from the Fortran (l60: next eigenvalue,
    l70: next iteration, l270: one root found, l280: two, l1000: no
    convergence) */
 /* Gear QR variant: fixed 1e-10 relative convergence, 30 iterations per root,
    eigenvalues only. EISPACK's floating-addition convergence and shared 30*n
    budget cannot replace this without changing roots and failure status. */
-void hqr(int n, int low, int igh, double *h, double *ev, int *ierr)
+/* hqr: EISPACK's shifted QR, XPPAUT's (Gear's) variant */
+void gear_hessenberg_qr_values(int n, int low, int igh, double *h, double *ev, int *ierr)
 {
     int i, j, k, l = 0, m = 0, en, ll, mm, na, its, mp2, enm2;
     double p = 0.0, q = 0.0, r = 0.0, s, t, w, x, y, zz, norm;
@@ -677,7 +684,7 @@ l130:
             q = q / x;
             r = r / x;
         }
-        s = sign(std::sqrt(p * p + q * q + r * r), p);
+        s = transfer_sign(std::sqrt(p * p + q * q + r * r), p);
         if (k != m)
             h[k - 1 + (k - 2) * n] = -s * x;
         else if (l != m)
@@ -720,7 +727,7 @@ l280:
     zz = std::sqrt(std::fabs(q));
     x = x + t;
     if (q < 0.0) goto l320;
-    zz = p + sign(zz, p);
+    zz = p + transfer_sign(zz, p);
     ev[(na - 1) * 2] = x + zz;
     ev[(en - 1) * 2] = ev[(na - 1) * 2];
     if (zz != 0.0) ev[(en - 1) * 2] = x - w / zz;
@@ -741,10 +748,11 @@ l1000:
 
 } // namespace
 
-void eigenvalues(int n, double *a, double *ev, double *work, int *ierr)
+/* eigenvalues: eigenvalues of a real matrix through orthes and hqr */
+void real_eigenvalues(int n, double *a, double *ev, double *work, int *ierr)
 {
-    orthes(n, 1, n, a, work);
-    hqr(n, 1, n, a, ev, ierr);
+    gear_hessenberg_reduce(n, 1, n, a, work);
+    gear_hessenberg_qr_values(n, 1, n, a, ev, ierr);
 }
 
 /* ------------------------------------------------------------------ */
@@ -873,7 +881,7 @@ void product_accumulate(double *__restrict c, std::ptrdiff_t ldc, const double *
        (c has no -0: +0 + -0 is +0, and a sum that starts at +0 or a nonzero
        value is never -0, x + -x being +0) unless a's factor is not finite
        (0*inf is NaN). With a finite, those terms are skipped, the others
-       added in the same order, as reference BLAS's dgemm skips a zero
+       added in the same order, as reference BLAS's matrix_multiply skips a zero
        b(k,j): a Jacobian is mostly zero. */
     bool finite=true;
     for(std::ptrdiff_t k=0;k<p;++k)

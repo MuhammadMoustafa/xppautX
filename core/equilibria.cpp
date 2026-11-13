@@ -88,7 +88,7 @@ xpp::Result<SingStatus> find_equilibrium(EquilibriumModel &model, Equilibrium &q
    q.work[i+j*n]=q.work[i*n+j];
    q.work[i*n+j]=temp;
   }
- xpp::eigenvalues(n,q.work,q.eval,ework,ierr);
+ xpp::real_eigenvalues(n,q.work,q.eval,ework,ierr);
  if(*ierr!=0)return SingStatus::no_eigenvalues;
  for(i=0;i<n;i++)
  {
@@ -494,7 +494,7 @@ xpp::Result<> get_evec(xpp::Session &s, double *a, double *anew, double *b, doub
     for(j=0;j<n;j++)
     anew[j*(1+n)]=anew[j*(1+n)]-eval-err*err*zz;
 
-    xpp::sgefa(anew,n,n,ipivot,&ierr);
+    xpp::lu_factor(anew,n,n,ipivot,&ierr);
     if(ierr!=-1)
       return xpp::fail("equilibrium",xpp::format("No eigenvector for the eigenvalue {}: the Jacobian shifted by it is singular ({})",
                        xpp::number(eval),named_settings(s,{"equilibria.newton_tolerance"})),settings_place(s.model(),{"equilibria.newton_tolerance"}));
@@ -507,7 +507,7 @@ xpp::Result<> get_evec(xpp::Session &s, double *a, double *anew, double *b, doub
      ierr=0;
      while(1)
      {
-      xpp::sgesl(anew,n,n,ipivot,b);
+      xpp::lu_solve(anew,n,n,ipivot,b);
       temp=fabs(b[0]);
       jmax=0;
 
@@ -602,14 +602,14 @@ void newton(EquilibriumModel &model, double *x, double err, double eps, double b
    stop(NewtonEnd::step_error);
    return;
   }
-  xpp::sgefa(dermat,n,n,ipivot.data(),&info);
+  xpp::lu_factor(dermat,n,n,ipivot.data(),&info);
   if(info!=-1)
   {
    stop(NewtonEnd::singular_jacobian);
    return;
   }
   for(i=0;i<n;i++)dely[i]=y[i];
-  xpp::sgesl(dermat,n,n,ipivot.data(),dely);
+  xpp::lu_solve(dermat,n,n,ipivot.data(),dely);
   r=0.0;
   for(i=0;i<n;i++)
   {

@@ -73,7 +73,7 @@ int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, 
   dydx=y+nvar;
   work2=dydx+nvar;
   x=x1;
-  h=xpp::sign(h1,x2-x1);
+  h=xpp::transfer_sign(h1,x2-x1);
   *ier=0;
   for (i=0;i<nvar;i++) y[i]=ystart[i];
   for(nstp=1;nstp<=ADAPTIVE_MAX_STEPS;nstp++){
@@ -94,7 +94,7 @@ int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, 
     if ((x-x2)*(x2-x1) >= 0.0) 
       {
 	for (i=0;i<nvar;i++) ystart[i]=y[i];
-        *hguess=xpp::sign(hnext,x2-x1);
+        *hguess=xpp::transfer_sign(hnext,x2-x1);
 	*xs=x2;
 	return 0;
       }

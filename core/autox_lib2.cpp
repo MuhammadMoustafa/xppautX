@@ -992,16 +992,16 @@ dimrge(AutoxRun &run, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, 
   /* Solve for FCC */
   run.solvbv.pivot=NAN;
   if (*nllv == 0) {
-    run.solvbv.pivot=xpp::ge(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
+    run.solvbv.pivot=xpp::gauss_eliminate(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   } else if (*nllv > 0) {
-    xpp::nlvc(fp9, ncrloc, ncrloc, *nllv, e, fcc);
+    xpp::matrix_null_vector(fp9, ncrloc, ncrloc, *nllv, e, fcc);
   } else {
     for (i = 0; i < ncrloc - 1; ++i) {
       xe[i] = 0.;
     }
     xe[-1 + ncrloc] = 1.;
-    run.solvbv.pivot=xpp::ge(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
+    run.solvbv.pivot=xpp::gauss_eliminate(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   }
   if (*idb >= 4) {

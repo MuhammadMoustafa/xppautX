@@ -2,7 +2,7 @@
 # per call, the matrices the program hands to EISPACK, so a reference can be computed outside
 # the program (tools/autox-profile/eig_accuracy.py). The program carries no code for this.
 #   rg NM N MATZ A...     eig / HomCont's eigenvectors: a general matrix (column-major, n columns of n)
-#   qz NM N A... B...     flowkm's deflated Floquet pencil, at qzhes: A x = lambda B x
+#   qz NM N A... B...     floquet_multipliers's deflated Floquet pencil, at qz_reduce_hessenberg: A x = lambda B x
 # Numbers are C99 hex floats (exact). A call that cannot be read is skipped.
 import gdb, os
 from gdb_memory import doubles
@@ -34,6 +34,6 @@ class Dump(gdb.Breakpoint):
         return False
 
 
-Dump('rg', 'rg')
-Dump('qzhes', 'qz')
+Dump('real_general_eigen', 'rg')
+Dump('qz_reduce_hessenberg', 'qz')
 gdb.execute('run')

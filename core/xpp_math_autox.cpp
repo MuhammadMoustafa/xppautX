@@ -10,7 +10,7 @@
 
 namespace xpp {
 namespace {
-/* Complete-pivot search shared by ge and nlvc. Retain row-then-column scan,
+/* Complete-pivot search shared by gauss_eliminate and matrix_null_vector. Retain row-then-column scan,
    strict > ties and the zero initial magnitude, including all-zero/NaN input. */
 void complete_pivot(integer n, integer leading, const double *a,
                     const std::vector<integer> &ir, const std::vector<integer> &ic,
@@ -31,7 +31,7 @@ void complete_pivot(integer n, integer leading, const double *a,
     }
 }
 
-/* One trailing row, shared without reordering ge's subsequent RHS updates.
+/* One trailing row, shared without reordering gauss_eliminate's subsequent RHS updates.
    The ratio is computed once, columns updated in permutation order, and zero
    multipliers skip every update exactly as in both pre-W337 routines. */
 double complete_eliminate_row(integer n, integer leading, double *a,
@@ -47,11 +47,12 @@ double complete_eliminate_row(integer n, integer leading, double *a,
 }
 } // namespace
 
-/* W337: autoX eigenvalues: balanced EISPACK rg (elementary Hessenberg reduction,
+/* W337: autoX eigenvalues: balanced EISPACK real_general_eigen (elementary Hessenberg reduction,
    machine-precision QR), no eigenvectors; preserve branch diagnostics.
    Gear uses unbalanced Householder reduction and fixed 1e-10 QR instead. */
+/* eig: eigenvalues of autoX's Jacobian through rg, as complex numbers (xpp_math_autox.cpp:54) */
 int 
-eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev, integer *ier)
+autox_eigenvalues(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev, integer *ier)
 {
   integer matz, ntop, ntot, i;
 
@@ -76,7 +77,7 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
   *ier = 0;
   matz = 0;
 
-  rg(*m1a, *ndim, a, wr.data(), wi.data(), matz, z__.data(), iv1.data(), fv1.data(), ier);
+  real_general_eigen(*m1a, *ndim, a, wr.data(), wi.data(), matz, z__.data(), iv1.data(), fv1.data(), ier);
 
   for (i = 0; i < *ndim; ++i) {
     ev[i].r = wr[i], ev[i].i = wi[i];
@@ -93,12 +94,13 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
   return 0;
 } /* eig_ */
 
-/* W337: Complete-pivot null vector: the same strict > search as ge, but only n-k
+/* W337: Complete-pivot null vector: the same strict > search as gauss_eliminate, but only n-k
    elimination stages and its own free-component/backsubstitution order.
-   Share only the exact pivot search and trailing-row updates with ge; retain
+   Share only the exact pivot search and trailing-row updates with gauss_eliminate; retain
    NLVC's free components, singular divisions and diagnostics separately. */
+/* nlvc: finds a null vector of a singular matrix whose null space is k-dimensional: AUTO-07p support.f90:230 */
 int 
-nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u)
+matrix_null_vector(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u)
 {
   integer a_dim1;
 
@@ -180,7 +182,7 @@ nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u)
    W337: the pivot is the largest |a| of the trailing block, ties to the
    smallest row, then the smallest column (autoX's row-then-column scan with a
    strict >); the determinant's product and sign order and the fort.9 pivot
-   lines are autoX's. LINPACK sgefa (partial pivoting) would change both.
+   lines are autoX's. LINPACK lu_factor (partial pivoting) would change both.
    W491: rows and columns of A are swapped in place, so the trailing update runs
    down contiguous columns and finds the next pivot in the same pass; every
    product, difference and pivot is autoX's, so the bits are the same. F keeps
@@ -188,8 +190,9 @@ nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u)
    The searches use std::fabs: it differs from f2c::abs only at -0 and NaN,
    which never win a strict > against a magnitude >= 0.
    Returns the smallest pivot magnitude: below autox_rsmall, A is singular. */
+/* ge: Gaussian elimination with complete pivoting, determinant and pivot log (AUTO's GE, xpp_math_autox.cpp) */
 double
-ge(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublereal *u, integer m1f, doublereal *f, doublereal *det)
+gauss_eliminate(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublereal *u, integer m1f, doublereal *f, doublereal *det)
 {
   const auto at = [&](integer i, integer j) -> double & { return a[i + j * m1a]; };
   const auto rhs = [&](integer i, integer k) -> double & { return f[i + k * m1f]; };
@@ -340,46 +343,44 @@ ge(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, integer nrhs, 
 /* ----------------------------------------------------------------------- */
 /*  Floquet helper routines retained from autox_lib4: */
 
-/*  subroutine flowkm : new routine to compute floquet multipliers */
-/*  subroutine dhhpr  : compute a Householder matrix */
-/*  subroutine dhhap  : appy a Householder matrix */
+/*  subroutine floquet_multipliers : new routine to compute floquet multipliers */
+/*  subroutine householder_compute  : compute a Householder matrix */
+/*  subroutine householder_apply  : appy a Householder matrix */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*  Required library routines (included in the file eispack.f) : */
 
-/* subroutine qzhes  : QZ reduction to Hessenberg form             (EISPACK)*/
-/* subroutine qzit   : QZ reduction to quasi-upper triangular form (EISPACK)*/
-/* subroutine qzval  : QZ calculation of eigenvalues               (EISPACK)*/
-/* function   epslon : machine constant routine                    (EISPACK)*/
+/* subroutine qz_reduce_hessenberg  : QZ reduction to Hessenberg form             (EISPACK)*/
+/* subroutine qz_iterate   : QZ reduction to quasi-upper triangular form (EISPACK)*/
+/* subroutine qz_eigenvalues  : QZ calculation of eigenvalues               (EISPACK)*/
+/* function   machine_epsilon : machine constant routine                    (EISPACK)*/
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
-/* function   dnrm2  : compute l2-norm of a vector                 (BLAS-1)*/
-/* function   ddot   : dot product of two vectors                  (BLAS-1)*/
-/* subroutine dscal  : scale a vector by a constant                (BLAS-1)*/
-/* function   idamax : find index of element with max abs value    (BLAS-1)*/
-/* subroutine daxpy  : constant times a vector plus a vector       (BLAS-1)*/
-/* subroutine drot   : apply a plane rotation                      (BLAS-1)*/
-/* subroutine dswap  : swap two vectors                            (BLAS-1)*/
+/* function   euclidean_norm  : compute l2-norm of a vector                 (BLAS-1)*/
+/* function   dot_product   : dot product of two vectors                  (BLAS-1)*/
+/* subroutine rotate_plane   : apply a plane rotation                      (BLAS-1)*/
+/* subroutine swap_vectors  : swap two vectors                            (BLAS-1)*/
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
-/*  subroutine dgemc  : matrix-matrix copy */
-/* subroutine xerbla : BLAS error handling routine                 (BLAS-2)*/
-/* function   lsame  : compare character strings                   (BLAS-2)*/
+/*  subroutine copy_matrix_transposed  : matrix-matrix copy */
+/* subroutine blas_error : BLAS error handling routine                 (BLAS-2)*/
+/* function   same_letter  : compare character strings                   (BLAS-2)*/
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
-/* subroutine dgemm  : matrix-matrix multiply                      (BLAS-3)*/
+/* subroutine matrix_multiply  : matrix-matrix multiply                      (BLAS-3)*/
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
-/*  subroutines ezsvd, ndrotg, ndsvd, prse, sig22, sigmin, sndrtg : */
+/*  subroutines singular_value_decomposition, givens_rotation, singular_value_decomposition_detailed, print_bidiagonal, singular_values_2x2, smallest_singular_value_2x2, rotation_matching_signs : */
 /*                      Demmel-Kahan svd routines */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
 /* W337: Floquet multipliers: Fairgrieve SVD deflation followed by generalized QZ,
    retaining reflector/rotation order, multiplier ratios and diagnostics.
-   Ordinary rg or a matrix inverse followed by QR changes these operations. */
+   Ordinary real_general_eigen or a matrix inverse followed by QR changes these operations. */
+/* flowkm: Floquet multipliers by the deflated circuit pencil method: floquet.f90:64 */
 int 
-flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *rwork, doublecomplex *ev, bool deflate)
+floquet_multipliers(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *rwork, doublecomplex *ev, bool deflate)
 {
     
   integer c0_dim1, c1_dim1, rwork_dim1;
@@ -497,7 +498,7 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
        BLAS routines. */
     integer tmp = 1;
     doublereal tmp_tol = autox_svd_tolerance;
-    ezsvd(rwork, ndim, ndim, ndim, svds.data(), svde.data(), svdu.data(), &tmp, 
+    singular_value_decomposition(rwork, ndim, ndim, ndim, svds.data(), svde.data(), svdu.data(), &tmp, 
 	  svdv.data(), ndim, svdwrk.data(), &tmp, &svdinf, &tmp_tol);
   }
   if (svdinf != 0) {
@@ -516,12 +517,12 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
     doublereal tmp0 = 0.0;
     bool tmp_false = false;
 
-    dgemm("n", "n", ndim, ndim, ndim, &tmp1, c0, ndim, svdv.data(), 
+    matrix_multiply("n", "n", ndim, ndim, ndim, &tmp1, c0, ndim, svdv.data(), 
 	  ndim, &tmp0, rwork, ndim, 1L, 1L);
-    dgemc(ndim, ndim, rwork, ndim, c0, ndim, &tmp_false);
-    dgemm("n", "n", ndim, ndim, ndim, &tmp1, c1, ndim, svdv.data(), 
+    copy_matrix_transposed(ndim, ndim, rwork, ndim, c0, ndim, &tmp_false);
+    matrix_multiply("n", "n", ndim, ndim, ndim, &tmp1, c1, ndim, svdv.data(), 
 	  ndim, &tmp0, rwork, ndim, 1L, 1L);
-    dgemc(ndim, ndim, rwork, ndim, c1, ndim, &tmp_false);
+    copy_matrix_transposed(ndim, ndim, rwork, ndim, c1, ndim, &tmp_false);
   }
   /*  Apply a Householder matrix (call it H2) based on */
   /*  (C0*X/||C0*X|| + C1*X/||C1*X||) / 2 */
@@ -531,8 +532,8 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
     /* This is here since I don't want to change the calling sequence of the
        BLAS routines. */
     integer tmp = 1;
-    nrmc0x = dnrm2(ndim, &ARRAY2D(c0, 0, (*ndim - 1)), &tmp);
-    nrmc1x = dnrm2(ndim, &ARRAY2D(c1, 0, (*ndim - 1)), &tmp);
+    nrmc0x = euclidean_norm(ndim, &ARRAY2D(c0, 0, (*ndim - 1)), &tmp);
+    nrmc1x = euclidean_norm(ndim, &ARRAY2D(c1, 0, (*ndim - 1)), &tmp);
   }
   for (i = 0; i < *ndim; ++i) {
     x[i] = (ARRAY2D(c0, i, (*ndim - 1)) / nrmc0x + ARRAY2D(c1, i, (*ndim - 1)) / nrmc1x) / 2.;
@@ -542,9 +543,9 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
        BLAS routines. */
     integer tmp = 1;
     integer tmp_left = autox_householder_left; 
-    dhhpr(&tmp, ndim, ndim, x.data(), &tmp, &beta, v.data());
-    dhhap(&tmp, ndim, ndim, ndim, &beta, v.data(), &tmp_left, c0, ndim);
-    dhhap(&tmp, ndim, ndim, ndim, &beta, v.data(), &tmp_left, c1, ndim);
+    householder_compute(&tmp, ndim, ndim, x.data(), &tmp, &beta, v.data());
+    householder_apply(&tmp, ndim, ndim, ndim, &beta, v.data(), &tmp_left, c0, ndim);
+    householder_apply(&tmp, ndim, ndim, ndim, &beta, v.data(), &tmp_left, c1, ndim);
   }
 
   /* Rescale so that (H2^T)*C0*(H1)(1,NDIM) ~= (H2^T)*C1*(H1)(1,NDIM) ~= 1.0
@@ -612,12 +613,12 @@ eigenvalues:
   /*  reduce the generalized eigenvalue problem to a simpler form */
   /*   (C0BarDef,C1BarDef) = (upper hessenberg, upper triangular) */
 
-  qzhes(*ndim, ndimm1, &c0[offset], &c1[offset], false , qzz.data());
+  qz_reduce_hessenberg(*ndim, ndimm1, &c0[offset], &c1[offset], false , qzz.data());
 
   /*  now reduce to an even simpler form */
   /*   (C0BarDef,C1BarDef) = (quasi-upper triangular, upper triangular) */
 
-  qzit(*ndim, ndimm1, &c0[offset], &c1[offset], autox_qzeps1, false ,
+  qz_iterate(*ndim, ndimm1, &c0[offset], &c1[offset], autox_qzeps1, false ,
        qzz.data(), &qzierr);
   if (qzierr != 0) {
     xpp::print(fp9," NOTE : Warning from subroutine FLOWKM : QZ routine returned QZIERR = {:4}        Floquet multiplier calculations may be wrong \n",qzierr);	
@@ -626,7 +627,7 @@ eigenvalues:
 
   /*  compute the generalized eigenvalues */
 
-  qzval(*ndim, ndimm1, &c0[offset], &c1[offset], qzalfr.data(), qzalfi.data(),
+  qz_eigenvalues(*ndim, ndimm1, &c0[offset], &c1[offset], qzalfr.data(), qzalfi.data(),
 	qzbeta.data(), false, qzz.data());
 
   /*  Pack the eigenvalues into complex form. */
@@ -665,8 +666,9 @@ eigenvalues:
 /*  Ref: Golub and van Loan, Matrix Calcualtions, */
 /*       First Edition, Pages 38-43 */
 
+/* dhhpr: computes a Householder plane rotation (Golub-van Loan Alg. 3.3-1): floquet.f90:311 */
 int 
-dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublereal *beta, doublereal *v)
+householder_compute(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublereal *beta, doublereal *v)
 {
 
   integer iend, jmkp1;
@@ -757,7 +759,7 @@ dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublere
 
   /*  Find M := max{ |x_k|, ... , |x_j| } */
 
-  m = f2c::abs(x[-1 + idamax(&jmkp1, &x[-1 + *k], incx)]);
+  m = f2c::abs(x[-1 + (xpp::largest_magnitude(&x[-1 + *k], static_cast<int>(jmkp1), static_cast<int>(*incx)) + 1)]);
 
   /*  alpha := 0 */
   /*  For i = k to j */
@@ -788,7 +790,7 @@ dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublere
     /* This is here since I don't want to change the calling sequence of the
        BLAS routines. */
     integer tmp = 1;
-    alpha = dnrm2(&jmkp1, &v[-1 + *k], &tmp);
+    alpha = euclidean_norm(&jmkp1, &v[-1 + *k], &tmp);
   }
   /*  beta := 1/(alpha(alpha + |V_k|)) */
 
@@ -796,7 +798,7 @@ dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublere
 
   /*  v_k := v_k + sign(v_k)*alpha */
 
-  v[-1 + *k] += d_sign(1.0, v[-1 + *k]) * alpha;
+  v[-1 + *k] += transfer_sign(1.0, v[-1 + *k]) * alpha;
 
   /*  Done ! */
 
@@ -806,8 +808,9 @@ dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublere
 
 } /* dhhpr_ */
 
+/* dhhap: applies a Householder plane rotation defined by v and beta to a matrix: AUTO-07p floquet.f90:448 */
 int 
-dhhap(integer *k, integer *j, integer *n, integer *q, doublereal *beta, doublereal *v, integer *job, doublereal *a, integer *lda)
+householder_apply(integer *k, integer *j, integer *n, integer *q, doublereal *beta, doublereal *v, integer *job, doublereal *a, integer *lda)
 {
   integer a_dim1;
 
@@ -931,7 +934,7 @@ on.*/
 	/* This is here since I don't want to change the calling sequence of the
 	   BLAS routines. */
 	integer tmp = 1;
-	s = *beta * ddot(&jmkp1, &v[-1 + *k], &tmp, &ARRAY2D(a, -1 + *k, col), &tmp);
+	s = *beta * dot_product(&jmkp1, &v[-1 + *k], &tmp, &ARRAY2D(a, -1 + *k, col), &tmp);
       }
       for (row = *k - 1; row < *j; ++row) {
 	ARRAY2D(a, row, col) -= s * v[row];
@@ -943,7 +946,7 @@ on.*/
 	/* This is here since I don't want to change the calling sequence of the
 	   BLAS routines. */
 	integer tmp = 1;
-	s = *beta * ddot(&jmkp1, &v[-1 + *k], &tmp, &ARRAY2D(a, row, (*k - 1)), lda);
+	s = *beta * dot_product(&jmkp1, &v[-1 + *k], &tmp, &ARRAY2D(a, row, (*k - 1)), lda);
       }
       for (col = *k - 1; col < *j; ++col) {
 	ARRAY2D(a, row, col) -= s * v[col];
@@ -959,11 +962,12 @@ on.*/
 
 } /* dhhap_ */
 
-/* W337: HomCont eigenvectors: rg with vectors, optional transpose, ascending real
+/* W337: HomCont eigenvectors: real_general_eigen with vectors, optional transpose, ascending real
    roots, conjugate-column unpacking and previous-vector sign continuity.
    Gear computes no vectors; its fixed-tolerance QR cannot replace this path. */
+/* eigho: DGEEV eigenvalues/vectors of HomCont's linearization, ordered by real part: homcont.f90:2005 */
 int 
-eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm, doublereal *dfdu, doublereal *dfdp, doublereal *zz)
+homoclinic_eigen_ordered(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm, doublereal *dfdu, doublereal *dfdp, doublereal *zz)
 {
   integer dfdu_dim1, zz_dim1;
 
@@ -1024,7 +1028,7 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
   }
 
   /* EISPACK call for eigenvalues and eigenvectors */
-  rg(*ndm, *ndm, dfdu, rr, ri, 1, zz, 
+  real_general_eigen(*ndm, *ndm, dfdu, rr, ri, 1, zz, 
      iv1.data(), fv1.data(), &ifail);
 
   if (ifail != 0) {
@@ -1080,7 +1084,7 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
   for (j = 0; j < *ndm; ++j) {
     const integer stride = 1;
     doublereal *re = vr.data()+j*(*ndm), *im = vi.data()+j*(*ndm);
-    const double length = xpp::math::hypot(dnrm2(ndm, re, &stride), dnrm2(ndm, im, &stride));
+    const double length = xpp::math::hypot(euclidean_norm(ndm, re, &stride), euclidean_norm(ndm, im, &stride));
     if (length > 0.) {
       for (i = 0; i < *ndm; ++i) {
         re[i] /= length;
@@ -1095,7 +1099,7 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
       for (i = 0; i < *ndm; ++i) re[i] = (re[i]*f + im[i]*g) / r;
     }
     if (iap->run->homcont.blhme.ieigc[*itrans - 1] == 0) {
-      const integer largest = idamax(ndm, re, &stride)-1;
+      const integer largest = xpp::largest_magnitude(re, static_cast<int>(*ndm), static_cast<int>(stride));
       if (re[largest] < 0.)
         for (i = 0; i < *ndm; ++i) re[i] = -re[i];
     }
@@ -1145,7 +1149,8 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
 
 // W365: AUTO-07p's fixed-dimensional invariant subspaces and Beyn transport,
 // reimplemented using our ordered real Schur and complete-pivot solve owners.
-int prjctn(const iap_type *iap, double *bound, double *xequib, const integer *icp,
+/* prjctn: NUNSTAB (or NSTAB) projection boundary conditions onto the unstable (stable) manifold of an equilibrium: AUTO-07p homcont.f90:2151 */
+int homoclinic_projection_conditions(const iap_type *iap, double *bound, double *xequib, const integer *icp,
            double *par, HomcontManifold manifold, HomcontEndpoint endpoint,
            bool transpose, integer n, double *dfdu, double *dfdp, bool save_basis)
 {
@@ -1165,13 +1170,13 @@ int prjctn(const iap_type *iap, double *bound, double *xequib, const integer *ic
             a[i+j*n] = direction * dfdu[transpose ? j+i*n : i+j*n];
 
     integer low = 1;
-    orthes(&n, &n, &low, &n, a.data(), work.data());
-    ortran(&n, &n, &low, &n, a.data(), work.data(), basis.data());
+    hessenberg_reduce_householder(&n, &n, &low, &n, a.data(), work.data());
+    hessenberg_transform_orthogonal(&n, &n, &low, &n, a.data(), work.data(), basis.data());
     for (integer j = 0; j < n; ++j)
         for (integer i = j+2; i < n; ++i) a[i+j*n] = 0.;
     double eps = std::numeric_limits<double>::epsilon();
     integer order = stable ? -1 : 1;
-    hqr3lc(a.data(), basis.data(), &n, &low, &n, &eps, er.data(), ei.data(), types.data(), &n, &n, &order);
+    hessenberg_quasi_triangular(a.data(), basis.data(), &n, &low, &n, &eps, er.data(), ei.data(), types.data(), &n, &n, &order);
     for (const auto type : types)
         if (type < 0) xpp::autox_fail("HomCont Schur decomposition did not converge");
     // Ordered Schur columns select exactly the requested number of lowest or
@@ -1199,7 +1204,7 @@ int prjctn(const iap_type *iap, double *bound, double *xequib, const integer *ic
                 gram[i+j*count] += previous[first+i+k*n] * previous[first+j+k*n];
             }
     double det = 0.;
-    ge(iap->run->fp9, iap->iid, count, count, overlap.data(), count, count, transport.data(), count, gram.data(), &det);
+    gauss_eliminate(iap->run->fp9, iap->iid, count, count, overlap.data(), count, count, transport.data(), count, gram.data(), &det);
     for (integer i = 0; i < count; ++i)
         for (integer j = 0; j < n; ++j) {
             double value = 0.;

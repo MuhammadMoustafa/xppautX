@@ -353,12 +353,12 @@ xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, 
      for(i=0;i<ntot;i++)jac[j+i*ntot]=(fdev[i]-f[i])/dev;
  }
 
-  xpp::sgefa(jac,ntot,ntot,ipvt,&info);
+  xpp::lu_factor(jac,ntot,ntot,ipvt,&info);
   if(info!=-1)
     return xpp::fail("boundary_value",xpp::format("Shoot: the Jacobian of the boundary conditions is singular at iterate {} (residual {})",niter,xpp::number(error)),
                      limits_place());
   for(i=0;i<ntot;i++)fdev[i]=f[i];
-  xpp::sgesl(jac,ntot,ntot,ipvt,fdev);
+  xpp::lu_solve(jac,ntot,ntot,ipvt,fdev);
   error=0.0;
   for(i=0;i<ntot;i++){
     y0[i]=y0[i]-fdev[i];

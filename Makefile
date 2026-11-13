@@ -376,7 +376,7 @@ $(BUILDDIR)/lapack/%.o: $(LAPACK_DIR)/% $(BUILDDIR)/toolchain.stamp
 CORE_OBJECTS += $(LAPACK_OBJECTS) $(BUILDDIR)/lapack_adapter.o
 $(BUILDDIR)/lapack_adapter.o: tools/lapack-adapter/lapack_adapter.cpp $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
 	$(CXX) $(call NOLTO,$(CXXFLAGS)) -c $< -o $@
-$(BUILDDIR)/xpp_math_eispack.o: CXXFLAGS += -Drg=eispack_rg -Dqzhes=eispack_qzhes -Dqzit=eispack_qzit -Dqzval=eispack_qzval
+$(BUILDDIR)/xpp_math_eispack.o: CXXFLAGS += -Dreal_general_eigen=eispack_real_general_eigen -Dqz_reduce_hessenberg=eispack_qz_reduce_hessenberg -Dqz_iterate=eispack_qz_iterate -Dqz_eigenvalues=eispack_qz_eigenvalues
 LINALG_LIBS = -lgfortran
 # the measuring tool of the comparison (tools/autox-profile/eig_accuracy.py): both libraries on dumped matrices
 $(BUILDDIR)/eigcompare$(EXE): tools/lapack-adapter/eigcompare.cpp $(BUILDDIR)/libxppcore.a

@@ -119,7 +119,7 @@ if(i==0&&okroot&&s.delay.alpha_max>0)
  return {};
 }
 
-COMPLEX cdif(COMPLEX z, COMPLEX w)
+COMPLEX complex_subtract(COMPLEX z, COMPLEX w)
 {
    COMPLEX sum;
   sum.r=z.r-w.r;
@@ -127,7 +127,7 @@ COMPLEX cdif(COMPLEX z, COMPLEX w)
   return sum;
  }
 
-COMPLEX cmlt(COMPLEX z, COMPLEX w)
+COMPLEX complex_multiply(COMPLEX z, COMPLEX w)
 {
    COMPLEX sum;
   sum.r=z.r*w.r-z.i*w.i;
@@ -135,7 +135,7 @@ COMPLEX cmlt(COMPLEX z, COMPLEX w)
   return sum;
 }
 
-COMPLEX cdivv(COMPLEX z, COMPLEX w)
+COMPLEX complex_divide(COMPLEX z, COMPLEX w)
 {
   COMPLEX sum;
   double amp=w.r*w.r+w.i*w.i;
@@ -144,7 +144,7 @@ COMPLEX cdivv(COMPLEX z, COMPLEX w)
   return sum;
 }
 
-COMPLEX cexp2(COMPLEX z)
+COMPLEX complex_exponential(COMPLEX z)
 {
   COMPLEX sum;
   double ex=xpp::math::exp(z.r);
@@ -164,7 +164,7 @@ void switch_rows(COMPLEX *z, int i1, int i2, int n)
   }
 }
 
-COMPLEX rtoc(double x, double y)
+COMPLEX make_complex(double x, double y)
 {
   COMPLEX sum;
   sum.i=y;
@@ -172,43 +172,43 @@ COMPLEX rtoc(double x, double y)
   return sum;
 }
 
-double c_abs(COMPLEX z)
+double complex_modulus(COMPLEX z)
 {
  return(sqrt(z.i*z.i+z.r*z.r));
 }
 
-COMPLEX cdeterm(COMPLEX *z, int n)
+COMPLEX complex_determinant(COMPLEX *z, int n)
 {
   int i,j,imax=0,k;
   double q,qmax;
-  COMPLEX sign=rtoc(1.0,0.0),mult,sum,zd;
+  COMPLEX sign=make_complex(1.0,0.0),mult,sum,zd;
   for(j=0;j<n;j++){
     qmax=0.0;
     for(i=j;i<n;i++){
-      q=c_abs(Z(i,j));
+      q=complex_modulus(Z(i,j));
       if(q>qmax){
 	qmax=q;
 	imax=i;
       }
     }
-    if(qmax==0.0)return(rtoc(0.0,0.0));
+    if(qmax==0.0)return(make_complex(0.0,0.0));
     switch_rows(z,imax,j,n);
-    if(imax>j)sign=cmlt(rtoc(-1.0,0.0),sign);
+    if(imax>j)sign=complex_multiply(make_complex(-1.0,0.0),sign);
     zd=Z(j,j);
     for(i=j+1;i<n;i++){
-      mult=cdivv(Z(i,j),zd);
+      mult=complex_divide(Z(i,j),zd);
       for(k=j+1;k<n;k++){
-	Z(i,k)=cdif(Z(i,k),cmlt(mult,Z(j,k)));
+	Z(i,k)=complex_subtract(Z(i,k),complex_multiply(mult,Z(j,k)));
       }
     }
   }
   sum=sign;
   for(j=0;j<n;j++)
-    sum=cmlt(sum,Z(j,j));
+    sum=complex_multiply(sum,Z(j,j));
   return sum;
 }
 	 
-void make_z(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambda)
+void fill_characteristic_matrix(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambda)
 {
   int i,j,k,km;
   COMPLEX temp,eld;
@@ -216,16 +216,16 @@ void make_z(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambd
  for(j=0;j<n;j++)
     for(i=0;i<n;i++){
       if(i==j)temp=lambda;
-      else temp=rtoc(0.0,0.0);
-      z[i+j*n]=cdif(temp,rtoc(coef[i+j*n],0.0)); /* initialize the array */
+      else temp=make_complex(0.0,0.0);
+      z[i+j*n]=complex_subtract(temp,make_complex(coef[i+j*n],0.0)); /* initialize the array */
     }
   for(k=0;k<m;k++){
     km=(k+1)*n*n;
-    temp=rtoc(-delay[k],0.0); /* convert delay to complex number */
-    eld=cexp2(cmlt(temp,lambda)); /* compute exp(-lambda*tau) */
+    temp=make_complex(-delay[k],0.0); /* convert delay to complex number */
+    eld=complex_exponential(complex_multiply(temp,lambda)); /* compute exp(-lambda*tau) */
     for(j=0;j<n;j++)
       for(i=0;i<n;i++)
-	z[i+j*n]=cdif(z[i+j*n],cmlt(eld,rtoc(coef[km+i+n*j],0.0)));
+	z[i+j*n]=complex_subtract(z[i+j*n],complex_multiply(eld,make_complex(coef[km+i+n*j],0.0)));
   }
 }
 
@@ -247,10 +247,10 @@ NewtonRun find_positive_root(xpp::Session &s, double *coef, double *delay, int n
   /* now Newtons Method for maxit times */
   for(k=0;k<maxit;k++){
 
-    make_z(z.data(),delay,n,m,coef,lambda);
-    det=cdeterm(z.data(),n);
+    fill_characteristic_matrix(z.data(),delay,n,m,coef,lambda);
+    det=complex_determinant(z.data(),n);
 
-    r=c_abs(det);
+    r=complex_modulus(det);
     if(r<err){ /* within the tolerance */
       process_root(lambda.r,lambda.i);
       s.delay.alpha_max=lambda.r;
@@ -263,16 +263,16 @@ NewtonRun find_positive_root(xpp::Session &s, double *coef, double *delay, int n
     /* compute the Jacobian */
     r=xpp::difference_step(eps,xl);
     xlp=xl+r;
-    lambdap=rtoc(xlp,yl);
-    make_z(z.data(),delay,n,m,coef,lambdap);
-    detp=cdeterm(z.data(),n);
+    lambdap=make_complex(xlp,yl);
+    fill_characteristic_matrix(z.data(),delay,n,m,coef,lambdap);
+    detp=complex_determinant(z.data(),n);
    jac[0]=(detp.r-det.r)/r;
    jac[2]=(detp.i-det.i)/r;
     r=xpp::difference_step(eps,yl);
     ylp=yl+r;
-    lambdap=rtoc(xl,ylp);
-    make_z(z.data(),delay,n,m,coef,lambdap);
-    detp=cdeterm(z.data(),n);
+    lambdap=make_complex(xl,ylp);
+    fill_characteristic_matrix(z.data(),delay,n,m,coef,lambdap);
+    detp=complex_determinant(z.data(),n);
     jac[1]=(detp.r-det.r)/r;
     jac[3]=(detp.i-det.i)/r;
     r=jac[0]*jac[3]-jac[1]*jac[2];
@@ -313,19 +313,19 @@ double get_arg(double *delay, double *coef, int m, int n, COMPLEX lambda)
   for(j=0;j<n;j++)
     for(i=0;i<n;i++){
       if(i==j)temp=lambda;
-      else temp=rtoc(0.0,0.0);
-      z[i+j*n]=cdif(temp,rtoc(coef[i+j*n],0.0)); /* initialize the array */
+      else temp=make_complex(0.0,0.0);
+      z[i+j*n]=complex_subtract(temp,make_complex(coef[i+j*n],0.0)); /* initialize the array */
     }
   for(k=0;k<m;k++){
     km=(k+1)*n*n;
-    temp=rtoc(-delay[k],0.0); /* convert delay to complex number */
-    eld=cexp2(cmlt(temp,lambda)); /* compute exp(-lambda*tau) */
+    temp=make_complex(-delay[k],0.0); /* convert delay to complex number */
+    eld=complex_exponential(complex_multiply(temp,lambda)); /* compute exp(-lambda*tau) */
     for(j=0;j<n;j++)
       for(i=0;i<n;i++)
-	z[i+j*n]=cdif(z[i+j*n],cmlt(eld,rtoc(coef[km+i+n*j],0.0)));
+	z[i+j*n]=complex_subtract(z[i+j*n],complex_multiply(eld,make_complex(coef[km+i+n*j],0.0)));
   }
   /*  the array is done  */
-  temp=cdeterm(z.data(),n);
+  temp=complex_determinant(z.data(),n);
   arg=xpp::math::atan2(temp.i,temp.r);
   return(arg);
 }   
@@ -373,7 +373,7 @@ int plot_args(double *coef, double *delay, int n, int m, int npts, double almax,
    x=0.0;
   for(i=0;i<npts;i++){
     y=wmax-i*ds;
-    lambda=rtoc(x,y);
+    lambda=make_complex(x,y);
     arg=get_arg(delay,coef,m,n,lambda);
     sign=sign+test_sign(oldarg,arg);
     oldarg=arg;
@@ -384,7 +384,7 @@ int plot_args(double *coef, double *delay, int n, int m, int npts, double almax,
   ds=almax/npts;
   for(i=0;i<npts;i++){
     x=i*ds;
-    lambda=rtoc(x,y);
+    lambda=make_complex(x,y);
     arg=get_arg(delay,coef,m,n,lambda);
        sign=sign+test_sign(oldarg,arg);
     oldarg=arg;
@@ -395,7 +395,7 @@ int plot_args(double *coef, double *delay, int n, int m, int npts, double almax,
  ds=2*wmax/npts;
   for(i=0;i<npts;i++){
     y=-wmax+i*ds;
-    lambda=rtoc(x,y);
+    lambda=make_complex(x,y);
     arg=get_arg(delay,coef,m,n,lambda);
       sign=sign+test_sign(oldarg,arg);
     oldarg=arg;
@@ -407,7 +407,7 @@ int plot_args(double *coef, double *delay, int n, int m, int npts, double almax,
   ds=almax/npts;
   for(i=0;i<npts;i++){
     x=almax-i*ds;
-    lambda=rtoc(x,y);
+    lambda=make_complex(x,y);
     arg=get_arg(delay,coef,m,n,lambda);
     sign=sign+test_sign(oldarg,arg);
     oldarg=arg;

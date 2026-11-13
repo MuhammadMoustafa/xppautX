@@ -1338,7 +1338,7 @@ static void perpendicular_null_direction(iap_type *iap, integer *icp, integer *m
   }
   ARRAY2D(aa, ndim, ndim) = rldot[0];
 
-  xpp::nlvc(iap->run->fp9, ndim + 1, *m1aaloc, 1, aa, du);
+  xpp::matrix_null_vector(iap->run->fp9, ndim + 1, *m1aaloc, 1, aa, du);
 
   ss = 0.;
   for (i = 0; i < ndim; ++i) {
@@ -1570,7 +1570,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     for (integer k = 0; k < ndim; ++k) matrix[ndim + k * ld] = thu[k] * 2. * udot[k];
     matrix[ndim + ndim * ld] = thl[icp[0]] * 2. * rldot[0];
     doublereal det;
-    xpp::ge(iap->run->fp9, iap->iid, ndim + 1, ld, matrix.data(), 1, ndim + 1, solution.data(), ndim + 1, rhs_unused.data(), &det);
+    xpp::gauss_eliminate(iap->run->fp9, iap->iid, ndim + 1, ld, matrix.data(), 1, ndim + 1, solution.data(), ndim + 1, rhs_unused.data(), &det);
     return det;
   };
 
@@ -1595,7 +1595,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   xpp::autox_check_start_parameters(*iap,*rap,par,icp);
   xpp::autox_check_start_equilibrium(*iap,*rap,u.data(),par,icp);
   constexpr integer stride=1; // The algebraic state is contiguous.
-  xpp::autox_check_start_norm(*iap,*rap,xpp::dnrm2(&iap->ndm,u.data(),&stride));
+  xpp::autox_check_start_norm(*iap,*rap,xpp::euclidean_norm(&iap->ndm,u.data(),&stride));
   (*pvli)(iap, rap, u.data(), par);
 
 /* Determine a suitable starting label and branch number */
@@ -1856,7 +1856,7 @@ stdirae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((
     integer tmp = ndim + 1;
     wrjac(iap, &tmp, m1aaloc, aa, rhs);
   }
-  xpp::nlvc(iap->run->fp9, ndim + 1, *m1aaloc, 1, aa, du);
+  xpp::matrix_null_vector(iap->run->fp9, ndim + 1, *m1aaloc, 1, aa, du);
 
   /* Scale and make sure that the PAR(ICP(1))-dot is positive. */
 
@@ -1947,7 +1947,7 @@ contae(iap_type *iap, rap_type *rap, doublereal *rds, doublereal *rlcur, doubler
 int 
 solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), doublereal *rds, integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
 {
-  double pivot = NAN; /* the last linear solve's smallest pivot (xpp::ge) */
+  double pivot = NAN; /* the last linear solve's smallest pivot (xpp::gauss_eliminate) */
   integer aa_dim1;
 
   integer iads, ndim;
@@ -2063,7 +2063,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       wrjac(iap, &tmp, m1aaloc, aa, rhs);
     }
 
-    pivot = xpp::ge(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
+    pivot = xpp::gauss_eliminate(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
        ndim + 1, rhs, &det);
     rap->det = det;
     drlm = du[ndim];
@@ -2324,7 +2324,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
      matrix's, whose last row is the arclength condition, as AUTO-07p's FNLPAE
      leaves AP%DET alone; the tangent row here changes sign when a step turns
      past a fold (W423, docs/xppaut-findings.md 72) */
-  xpp::ge(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud.data(), ndim + 1, rhs, &det);
+  xpp::gauss_eliminate(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud.data(), ndim + 1, rhs, &det);
   {
     integer tmp = ndim + 1;
     nrmlz(&tmp, ud.data());
@@ -2392,7 +2392,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   // EISPACK overwrites its matrix: dfdu stays the converged point's Jacobian
   // for the tests after this one and stbif (W421; AUTO-07p PVLSAE's copy).
   std::vector<doublereal> jacobian(dfdu, dfdu + static_cast<size_t>(ndim*ndm));
-  xpp::eig(iap, &ndm, &ndim, jacobian.data(), ev.data(), &ier);
+  xpp::autox_eigenvalues(iap, &ndm, &ndim, jacobian.data(), ev.data(), &ier);
   if (ips == xpp::AutoxProblem::DiscreteMap) {
     for (i = 0; i < ndm; ++i) {
       if (ev[i].r != -1. || ev[i].i != 0.) {
@@ -2400,13 +2400,13 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
 	doublecomplex in;
 	in.r = ev[i].r + 1., in.i = ev[i].i;
 	ev[i].i = xpp::math::atan2(in.i, in.r);
-	ev[i].r = xpp::math::log(z_abs(&in));
+	ev[i].r = xpp::math::log(complex_magnitude_of(&in));
       } else {
 	ev[i].r = -autox_rlarge, ev[i].i = 0.;
       }
     }
   }
-  /* xppautX: the point's eigenvalues (autox_stability.h; eig computed ndm) */
+  /* xppautX: the point's eigenvalues (autox_stability.h; autox_eigenvalues computed ndm) */
   xpp::autox_stability_computed(iap->run->stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndm)},xpp::AUTOX_STABILITY_STEADY);
   /* Order the eigenvalues by real part. */
 
@@ -2653,7 +2653,7 @@ swpnt(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *r
 int 
 swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *rds, doublereal *thl, doublereal *thu)
 {
-  double pivot = NAN; /* the last linear solve's smallest pivot (xpp::ge) */
+  double pivot = NAN; /* the last linear solve's smallest pivot (xpp::gauss_eliminate) */
   // Internal switches can reuse BR/PT for a different branch point. Point
   // zero means no proven record; on failure refresh the restored Jacobian.
   xpp::autox_stability_step_start(iap->run->stability, iap->ibr, 0);
@@ -2767,7 +2767,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
       integer tmp = ndim + 1;
       wrjac(iap, &tmp, m1aaloc, aa, rhs);
     }
-    pivot = xpp::ge(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
+    pivot = xpp::gauss_eliminate(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
        ndim + 1, rhs, &det);
     rap->det = det;
     drlm = du[ndim];
@@ -5247,7 +5247,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       iap->isp != 0 && !stop_asked(iap)) {
     // A failed location can restore an unstored solution. Rebuild its
     // circuit pencil at zero step, without applying Newton increments;
-    // the trial's pencil (and flowkm's in-place transforms) is not its own.
+    // the trial's pencil (and floquet_multipliers's in-place transforms) is not its own.
     integer fresh = 1, nullity = 0;
     double zero_step = 0;
     solvbv(&fresh, iap, rap, par, icp, funi, bcni, icni, &zero_step, &nullity,
@@ -5860,7 +5860,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   for (i = 0; i < ndim * ndim; ++i) {
     pp[i] = p1[i];
   }
-  xpp::ge(iap->run->fp9, iap->iid, ndim, ndim, pp.data(), 0, 1, &u, 1, &f, &det);
+  xpp::gauss_eliminate(iap->run->fp9, iap->iid, ndim, ndim, pp.data(), 0, 1, &u, 1, &f, &det);
   rap->det = det;
 
   /* Set the determinant of the normalized reduced system. */
@@ -5928,7 +5928,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   if (isw==2) {
     xpp::autox_cycle_multipliers(*iap,p0,p1,ev,true);
     ndim=iap->ndm;
-  } else xpp::flowkm(iap->run->fp9, &ndim, p0, p1, &iid, wrk.data(), ev, true);
+  } else xpp::floquet_multipliers(iap->run->fp9, &ndim, p0, p1, &iid, wrk.data(), ev, true);
   /* Find the multiplier closest to z=1. */
   /* xppautX: the orbit's Floquet multipliers (autox_stability.h) */
   xpp::autox_stability_computed(iap->run->stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndim)},xpp::AUTOX_STABILITY_PERIODIC);
@@ -5936,7 +5936,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   for (j = 0; j < ndim; ++j) {
     doublecomplex tmp;
     tmp.r = ev[j].r - 1., tmp.i = ev[j].i;
-    azm1 = z_abs(&tmp);
+    azm1 = complex_magnitude_of(&tmp);
     if (azm1 <= amin) {
       amin = azm1;
       loc = j;
@@ -5956,13 +5956,13 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
     if (value.i < 0) continue;
     const integer width = value.i > 0 && i + 1 < ndim ? 2 : 1;
     const auto partner = width == 2 ? ev[i + 1] : value;
-    const double distance = std::abs(z_abs(&ev[i]) - 1);
+    const double distance = std::abs(complex_magnitude_of(&ev[i]) - 1);
     integer position = i;
     for (;;) {
       if (position <= first) break;
       integer previous = position - 1;
       if (ev[previous].i < 0 && previous > first) --previous;
-      if (std::abs(z_abs(&ev[previous]) - 1) <= distance) break;
+      if (std::abs(complex_magnitude_of(&ev[previous]) - 1) <= distance) break;
       std::move_backward(ev + previous, ev + position, ev + position + width);
       position = previous;
     }
@@ -5977,7 +5977,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   {
     doublecomplex tmp;
     tmp.r = ev[0].r - 1., tmp.i = ev[0].i;
-    amin = z_abs(&tmp);
+    amin = complex_magnitude_of(&tmp);
   }
   if (amin > .05 && isp == 2) {
     if (iid >= 2) {
@@ -6021,7 +6021,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   constexpr double multiplier_stability_tolerance = 1e-5;
   nins1 = 1;
   for (i = 1; i < ndim; ++i)
-    if (z_abs(&ev[i]) <= 1 + multiplier_stability_tolerance) ++nins1;
+    if (complex_magnitude_of(&ev[i]) <= 1 + multiplier_stability_tolerance) ++nins1;
 
   // TPSPBV periodic.f90:2136-2140: no PD/TR in planar flows.
   if (iap->ndm <= 2) {
@@ -6033,7 +6033,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
 	/*            *Ignore if second multiplier is real positive */
 	d = autox_test_not_applicable;
       } else {
-	d = z_abs(&ev[1]) - 1.;
+	d = complex_magnitude_of(&ev[1]) - 1.;
       }
       if (isw == 2) {
         d=autox_cycle_test(*iap,*rap,par,{ev,static_cast<std::size_t>(ndim)},chng);
@@ -6111,7 +6111,7 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
   for (i = 0; i < ndim; ++i) {
     doublecomplex tmp;
     tmp.r = ev[i].r - 1., tmp.i = ev[i].i;
-    azm1 = z_abs(&tmp);
+    azm1 = complex_magnitude_of(&tmp);
     if (azm1 <= amin) {
       amin = azm1;
       loc = i;
@@ -6125,7 +6125,7 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
   amin = autox_rlarge;
   for (i = 0; i < ndim; ++i) {
     if (i != loc) {
-      d = z_abs(&ev[i]) - 1.;
+      d = complex_magnitude_of(&ev[i]) - 1.;
       ad = f2c::abs(d);
       if (ad <= amin) {
 	amin = ad;

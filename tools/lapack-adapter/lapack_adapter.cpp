@@ -1,10 +1,10 @@
 // W358 (#420): the comparison build LINALG=lapack. Gives autoX's eigenvalue code (autox_lib1's eig,
-// autox_lib5's eigenvectors for HomCont, autox_lib4's flowkm) LAPACK in place of EISPACK, through
+// autox_lib5's eigenvectors for HomCont, autox_lib4's floquet_multipliers) LAPACK in place of EISPACK, through
 // the four EISPACK entry points it calls, with their signatures (core/xpp_math.h):
-//   rg                    -> DGEEV   (eigenvalues, and eigenvectors when matz)
-//   qzhes, qzit           -> nothing (DGGEV reduces the pencil itself; qzit reports no error)
-//   qzval                 -> DGGEV   (generalized eigenvalues: alfr, alfi, beta)
-// The Makefile compiles core/xpp_math_eispack.cpp with these four names renamed (eispack_rg, ...), so the
+//   real_general_eigen                    -> DGEEV   (eigenvalues, and eigenvectors when matz)
+//   qz_reduce_hessenberg, qz_iterate           -> nothing (DGGEV reduces the pencil itself; qz_iterate reports no error)
+//   qz_eigenvalues                 -> DGGEV   (generalized eigenvalues: alfr, alfi, beta)
+// The Makefile compiles core/xpp_math_eispack.cpp with these four names renamed (eispack_real_general_eigen, ...), so the
 // rest of that file (the SVD and BLAS copies other code calls) stays, and links third_party/lapack
 // (Fortran, verbatim). Compiled only by `make LINALG=lapack BUILDDIR=<its own>`; the default
 // build and every release use EISPACK. Neither throws: a failure is a return code, as EISPACK's.
@@ -45,7 +45,7 @@ int with_workspace(Call call)
 
 namespace xpp {
 
-int rg(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer matz, doublereal *z__,
+int real_general_eigen(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer matz, doublereal *z__,
        integer * /*iv1*/, doublereal * /*fv1*/, integer *ierr)
 {
     const int order = static_cast<int>(n), lda = static_cast<int>(nm);
@@ -60,18 +60,18 @@ int rg(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, int
     return 0;
 }
 
-int qzhes(integer, integer, doublereal *, doublereal *, bool, doublereal *)
+int qz_reduce_hessenberg(integer, integer, doublereal *, doublereal *, bool, doublereal *)
 {
     return 0;
 }
 
-int qzit(integer, integer, doublereal *, doublereal *, doublereal, bool, doublereal *, integer *ierr)
+int qz_iterate(integer, integer, doublereal *, doublereal *, doublereal, bool, doublereal *, integer *ierr)
 {
     *ierr = 0;
     return 0;
 }
 
-int qzval(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr, doublereal *alfi, doublereal *beta,
+int qz_eigenvalues(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr, doublereal *alfi, doublereal *beta,
           bool, doublereal *)
 {
     const int order = static_cast<int>(n), ld = static_cast<int>(nm), one = 1;
@@ -79,7 +79,7 @@ int qzval(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr,
     const int info = with_workspace([&](double *work, const int *lwork, int *code) {
         dggev_("N", "N", &order, a, &ld, b, &ld, alfr, alfi, beta, &unused, &one, &unused, &one, work, lwork, code, 1, 1);
     });
-    if (info != 0) {  // EISPACK's QZIT returned its ierr to flowkm, which warns; qzval has no way to say it
+    if (info != 0) {  // EISPACK's QZIT returned its ierr to floquet_multipliers, which warns; qz_eigenvalues has no way to say it
         xpp::log(XPP_LOG_WARN, "DGGEV returned INFO = {}: the eigenvalues after the first {} are right", info, info);
     }
     return 0;

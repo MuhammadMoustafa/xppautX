@@ -82,7 +82,7 @@ static double hinit (xpp::Session &s, unsigned n, double x, double* y,
     h = sqrt (dny/dnf) * 0.01;
 
   h = std::min(hmax, h);
-  h = xpp::sign (h, posneg);
+  h = xpp::transfer_sign (h, posneg);
 
   /* perform an explicit Euler step */
   for (i = 0; i < n; i++)
@@ -107,7 +107,7 @@ static double hinit (xpp::Session &s, unsigned n, double x, double* y,
     h1 = xpp::math::pow(0.01/der12, 1.0/static_cast<double>(iord));
   h = std::min(std::min(hmax, h1), 100.0 * fabs(h));
 
-  return xpp::sign (h, posneg);
+  return xpp::transfer_sign (h, posneg);
 
 } /* hinit */
 
@@ -368,7 +368,7 @@ static int dopcor (xpp::Session &s, unsigned n, double x, double* y, double xend
   expo1 = 1.0/8.0 - beta * 0.2;
   facc1 = 1.0 / fac1;
   facc2 = 1.0 / fac2;
-  posneg = xpp::sign (1.0, xend-x);
+  posneg = xpp::transfer_sign (1.0, xend-x);
 
   /* initial preparations */
   last  = 0;
@@ -605,7 +605,7 @@ static int dopcor5 (xpp::Session &s, unsigned n, double x, double* y, double xen
   expo1 = 0.2 - beta * 0.75;
   facc1 = 1.0 / fac1;
   facc2 = 1.0 / fac2;
-  posneg = xpp::sign (1.0, xend-x);
+  posneg = xpp::transfer_sign (1.0, xend-x);
 
   /* initial preparations */
   last  = 0;
