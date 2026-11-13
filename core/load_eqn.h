@@ -59,7 +59,7 @@ struct NumericsSettings {
   method::Id method = method::DISCRETE;
   double min_step = 0, max_step = 0, relative_tolerance = 0, absolute_tolerance = 0, state_limit = 0, delay = 0;
   bool stop_at_limit = true;
-  /* the equations compiled at load (TinyCC, W258); false runs the interpreter (read when a model loads) */
+  /* the equations compiled at load (MIR, W258, W714); false runs the interpreter (read when a model loads) */
   bool compile = true;
   /* the Volterra equations' memory, in points */
   int max_points = 0;

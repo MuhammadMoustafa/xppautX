@@ -112,8 +112,8 @@ do_check() {
     printf 'program t\nend program t\n' | gfortran -x f95 - -o /dev/null 2>/dev/null \
       || { missing+=("a working gfortran (AUTO-07p)"); pkgs+=(gfortran); }
   fi
-  # libtcc is vendored (third_party/tinycc, built by xppautX's Makefile): gcc is all it needs
-  [ -f "$REPO/third_party/tinycc/libtcc.c" ] || missing+=("third_party/tinycc (this checkout is incomplete)")
+  # MIR is vendored (third_party/mir, built by xppautX's Makefile): gcc is all it needs
+  [ -f "$REPO/third_party/mir/mir.c" ] || missing+=("third_party/mir (this checkout is incomplete)")
   command -v uv >/dev/null 2>&1 || no_uv=1
   n=$(( ${#missing[@]} + no_uv ))
   if [ "$n" -gt 0 ]; then
@@ -272,7 +272,7 @@ rec = {
         "xppaut-8.0": {"commit": e["XPPAUT8_COMMIT"], "tree_sha256": e["XPPAUT8_TREE"]},
         "xppaut-master": {"commit": e["MASTER_COMMIT"], "tree_sha256": e["MASTER_TREE"]},
         "auto-07p": {"commit": e["AUTO_COMMIT"], "tree_sha256": e["AUTO_TREE"], "configure": e["AUTO_CONFIGURE"]},
-        "libtcc": "third_party/tinycc, vendored: its version is the xppautX commit's",
+        "mir": "third_party/mir, vendored: its version is the xppautX commit's",
     },
     "builds": {},
 }

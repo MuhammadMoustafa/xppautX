@@ -33,7 +33,7 @@ the paper draft remain local (`paper/benchmarks/.gitignore` is the list of what 
      (W238's command), AUTO-07p (configure `--enable-gui=no --enable-plaut=no
      --enable-plaut04=no`, as W269; built serially, its Makefile races under `-j`) under
      `~/xppautx-comparison/build` (`--root DIR` changes it). A build with the right stamp is
-     kept. libtcc is vendored in `third_party/tinycc` and is built with xppautX;
+     kept. MIR is vendored in `third_party/mir` and is built with xppautX;
    - `--record`: `~/xppautx-comparison/provenance/machine-<UTC>.json`: CPU model, online
      CPUs, `lscpu -e`, SMT, kernel, governor, scaling driver, turbo, memory, compilers, tool
      versions, uv's version and the installed Python modules' versions, the source commits and tree hashes. Copy it beside the results of every

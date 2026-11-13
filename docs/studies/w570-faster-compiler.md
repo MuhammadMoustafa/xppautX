@@ -317,3 +317,127 @@ the cheapest next target), the level choice (level 1 is a gain on the whole call
 adapter (`xpp_mir.cpp` shared state and error handling; `xpp_mir_ir.cpp`) in `core/`, the `MAP_JIT` and entitlement
 question on macOS (W706's open item), and a decision on when to compile (a short run may stay interpreted or on
 TinyCC first). Not adopting MIR is the alternative if most runs are short: TinyCC's 0.2-1 ms is invisible there.
+
+## W714 Adopt MIR for all native code and retire TinyCC (#789), Linux results
+
+Card W714 (#789), after W706 and W711. The maintainer's decision (2026-11-12): one compiler and one output of the
+Generator ("Unify always"), MIR for every program, TinyCC retired. Two commits of the card: the Generator and the
+adapter (this section's design and bit-identity), then the deletions and the measurements.
+
+**What changed.** `core/expr_native.cpp`'s Generator writes only `core/expr_ir.h`'s trees and flat statements for
+every program it compiled to C before: the right-hand side `p_rhs`, each equation, each user function (a function of
+its own, called, or its tree copied into the caller when it is one expression of at most 64 nodes: the same rule as
+the old 512 characters, which keeps bit-identity trivially, since the call and the copy do the same operations on
+the same values), the bridge the interpreter calls for a user function, the derived parameters, DAE, Markov,
+kernel, event and network programs, and the exact Jacobian's derivative functions with their workspace.
+A sum is a loop (statements `LoopBegin` and `LoopEnd` with an integer counter, the counter written to `c[SUM_INDEX]` as
+a double each time, the bounds truncated to 32-bit ints), an `if` that runs statements is `IfBegin`, `IfElse`, `IfEnd`,
+and a network pair formula's operands `(double)R[k]` a node of their own. One walk, one output: `C text` is gone
+(`write`, `signature`, `prototype`, `with_arguments`, the `dv` helper and the literal table `N[]`). What keyed on text
+now keys on the node: an expression is one node however often it is written (the Generator makes a node once, by
+its fields), so a math call made before is found by its node, and what a call may read (W559's index) is read from
+the node's tree, iteratively. `core/xpp_mir.{h,cpp}` (the W711 adapter moved into `core/`, one module: the c2mir path,
+`tools/mir-spike`, `tests/mir-spike` and `make mirspike` are deleted, `test_mir.cpp` takes `test_tcc.cpp`'s and
+`test_expr_ir.cpp`'s place) lowers the module through MIR's API; `third_party/tinycc`, `tools/tinycc`, `xpp_tcc.*`,
+the Makefile's TinyCC block and c2mir are gone.
+
+**Design points.** (1) Imports: every external callee is loaded into MIR's environment by us (`MIR_load_external`
+from the callee table, the same `xpp::math::resolve` addresses) and MIR's link gets no resolver, so a name outside the
+table cannot resolve (no global of ours for it). (2) Module functions (user functions, equations the right-hand side
+calls) are forward-declared by name when first called; a call of a name the module lacks is an error at the
+model's place. (3) The error path: MIR's error function has no user data, so it records its text in one file-scope
+struct and `longjmp`s back to the compile; the frames between hold only trivial locals (every scratch string and
+vector is a member of the state outside), and `recover` finishes the open function and module and frees the context,
+so a compile that fails inside MIR leaks nothing (the unit test makes MIR refuse a repeated name, a missing
+function and a tree nested too deep, and `asancheck`'s unit-test phase runs it under LeakSanitizer).
+(4) The levels are a named constant per kind of function with their measurements as the reason (below). (5) Rejected:
+a second representation or a C writer kept beside the trees (the card is to have one); lazy generation of the cold
+functions (`MIR_set_lazy_gen_interface`: MIR's lazy generation has no lock, and autoX's collocation workers call the
+native functions from up to four threads, so a first call from two at once would race; see the open items).
+
+**Bit-identity.** The interpreter is the reference of the whole project and TinyCC's code was proved equal to it, so
+the check is end to end and by function: all 216 examples' `output.dat` md5s unchanged (`tools/examples_check.sh`, the
+baseline made with TinyCC), `autoxcompare` 85 models, 31482 diagram points byte for byte (exact Jacobian
+included), goldencheck, odexcheck, 3086 protocol checks, and `test_compile`'s 24081 checks, which run each
+compiled program and the interpreter from the same state and compare every output bit, NaN payloads included, and
+what they leave behind. The compiled counts per model ("Compiled N of M programs") are equal to TinyCC's for all 165
+examples that log one (the same programs refuse for the same reasons). MIR fuses and reassociates nothing (no FMA
+pattern in either back end; the build keeps `-ffp-contract=off`), the operations are written in the C's order
+(`right + left` for add and multiply), the XPP division is a branch on `divisor != 0` (a NaN divisor is not 0), a
+conditional a branch on `cond != 0`. One difference of definition, not of result: a sum's bounds are truncated with
+`D2I` and sign-extended from 32 bits where C's `(int)` was the CPU's own conversion; they agree for every bound a
+sum can run (an out-of-range bound is undefined in the interpreter's own `static_cast<int>` too).
+
+**Levels** (`perf stat -e instructions:u`, whole process, instructions in millions; "tiny" is the
+same model with `total_time` one step, so tiny minus TinyCC's tiny is the compile difference; the best level
+of each kind found by the experiments below):
+
+| model | TinyCC full | L2 full | L1 all | L0 all | L2 tiny | TinyCC tiny |
+|---|---|---|---|---|---|---|
+| lecar | 14.3 | 22.6 | 22.2 | 20.6 | 17.9 | 9.2 |
+| mu26 | 2706 | 2455 | 2624 | 3121 | 186 | 36 |
+| ma23 | 4256 | 3505 | 3896 | 4763 | 47.4 | 11.4 |
+| kuramot100 | 30354 | 27576 | 28013 | 30216 | 227 | 41 |
+
+Rhs at level 1 against 2 (the other kinds at 2): mu26 2631 against 2455, ma23 3898 against 3505; the equations at level 1
+(kuramot100's sums): 28012 against 27576. So 2 for what runs every step. The exact Jacobian (mu26 with
+`jacobian.kind: exact`, backward Euler: the Jacobian is evaluated every step) at levels 0, 1, 2: whole run 1406, 1309,
+1535 M against TinyCC's 1082 M; its compile alone 125, 173, 443 M against TinyCC's 16 M for 1120 values; so level 1
+(mu26's 1120 values compile in 17 ms of wall time at level 1, TinyCC's in 1 ms).
+
+**Results** (this machine, Linux x86-64, gcc 15.2 `-O2`; instructions are user instructions, time the process's
+task-clock mean of 7 runs; before is the TinyCC build of the branch's parent):
+
+| | TinyCC | MIR | ratio |
+|---|---|---|---|
+| lecar, `--silent` (601 rows) | 14.3 M, 4.05 ms | 22.6 M, 5.52 ms | 1.58, +1.5 ms |
+| mu26, 400 time units | 2706 M, 222 ms | 2455 M, 207 ms | 0.91, 0.93 |
+| ma23, 1000 time units | 4256 M, 332 ms | 3505 M, 273 ms | 0.82, 0.82 |
+| kuramot100 | 30354 M, 3197 ms | 27576 M, 2616 ms | 0.91, 0.82 |
+| compile, lecar / ma23 / mu26 / kuramot100 (tiny minus TinyCC's tiny) | | +1.3 / +5.0 / +17.5 / +22 ms | |
+| `tools/examples_check.sh`, 216 models, wall | 7.0 s | 5.7 s | 0.81 |
+| stripped program | 13.02 MB | 13.25 MB | +0.23 MB |
+
+**The finding, and what was done.** MIR's code is faster (0.82-0.91 of the instructions of a whole run of the three
+models that run for thousands of steps, 0.5 of TinyCC's model code per W711), and its compile is 10 to 20 times
+TinyCC's (lecar's module of 11 programs 7.4 M instructions at level 0, 10.8 M at level 2; ma23's of about 60 functions
+41.5 M at level 2, most of it a fixed cost of about 0.5 M for each function, whatever its size). A run of a few hundred steps on a small
+model is therefore longer by the compile difference and no more (lecar's 601 rows: 22.6 M against 14.3 M, the
+difference 8.3 M is the compile's 8.7 M), and lecar's run is 36% longer in wall time (1.5 ms of 4); no level changes that
+much (level 0 saves 2 M of lecar's 8.7 M but loses 10% to 36% of the long runs). Not fixed on this card:
+the cure is to compile a function when it is first called, or the cold ones (the bridges, the fixed variables' and
+derived parameters' own functions, which the interpreter calls on a parameter change) after the run has shown it needs
+them, and MIR's lazy interface has no lock against the autoX workers; that is a design of its own (a lock around
+the first call, or the cold programs on a tier that compiles on the core thread when the interpreter first reaches
+them), and the card is recommended below.
+
+**Trust boundary (what was checked).** A model file a user was sent reaches the Generator; the code MIR compiles is
+a function of the trees only. (a) No text, name or path of the model enters MIR: every index comes from the validated
+RPN, every number is a double; callee names are ours (`f1_N`, `f2_N`, `h_*`, `uN`, `p_eqN`). (b) A callee resolves
+only through the table: an unknown name fails the compile with an error at the model's place, never a lookup in the
+process. (c) A tree nested deeper than 4096 is refused by the lowering's recursion guard; the Generator's own walks
+are iterative (a sum nests at most 16 deep), an inlined copy is bounded by 64 nodes, a call with the wrong number of
+arguments is refused. (d) Executable memory is MIR's own mapping (`PROT_EXEC`, writable only while code is written;
+`MAP_JIT` with `pthread_jit_write_protect_np` on arm64 macOS; `VirtualAlloc` on Windows); no file or library is
+named by a model. (e) A failure inside MIR leaves no state (unit test, and `asancheck`'s unit tests under
+LeakSanitizer). (f) What an attacker can still do: make a compile take long (a model's size is the compile time,
+15 us a value of the exact Jacobian, whose cap of a million values is now some fifteen seconds of compile) and make the compiled code read `c[k]` and `v[k]`
+at an index the parser let through, as TinyCC's did; MIR is not a sandbox, so a hostile *tree* (not reachable from
+the RPN decoder) could call any function of the callee table, which is the interpreter's own set of functions.
+
+**macOS and Windows.** MIR's own code allocator already does what Apple's rules want on arm64: `mmap` with `MAP_JIT`,
+`pthread_jit_write_protect_np` off while writing and on afterwards with `sys_icache_invalidate`, per thread (the compile
+and every write happen on the core thread; other threads only run the finished code). xppautX's macOS releases
+are unsigned (release.yml: Gatekeeper asks the user to allow them), so no hardened runtime applies and no
+entitlement is needed; a signed, hardened build needs `com.apple.security.cs.allow-jit` (third_party/mir/XPPAUTX.md says so).
+x86-64 macOS maps `PROT_EXEC` pages and `mprotect`s them writable, which unsigned binaries may. Windows: `VirtualAlloc`
+and `VirtualProtect` (W706's CI run built MIR with UCRT gcc and clang64 and ran it). Not run here, so for CI to confirm:
+the macos-core and macos-ui jobs' examples md5s (the whole of `examples_check` now runs native code through MIR on
+arm64), windows-core, windows-clang (clang 22: the adapter without an `extern "C"` wrapper around MIR's headers, which
+guard themselves), and the sanitizer jobs (`linux-sanitizers`, `windows-clang-sanitizers`, `macos-sanitizers` run
+`test_mir` and every model through MIR).
+
+**Open items.** (1) Compile cost: a fixed 0.5 M instructions per function at level 2; recommended card: compile the cold programs (and the Jacobian, which is already on first need) when first
+called, under a lock, or interpret a run's first N steps while the core compiles. (2) The exact Jacobian's cap of a
+million values is some fifteen seconds of compile. (3) MIR's generated code is the same on x86-64 and arm64 only by the
+md5s (checked on x86-64 here, on arm64 by CI).

@@ -26,10 +26,13 @@ constexpr int INT_BYTES = 4;
 /* what one diagnostic is cut to */
 constexpr size_t MESSAGE_MAX = 512;
 
-/* The optimization level of MIR's generator for each kind of function (IrFunction::Kind order): 2 where the
-   code runs for every step (the right-hand side, the equations of a model that has no single right-hand
-   side, the user functions they call), 1 for the exact Jacobian, a long straight line of one assignment
-   after another which level 2's optimizer takes seconds over for the same code (measured, W714). */
+/* The optimization level of MIR's generator for each kind of function (IrFunction::Kind order), chosen by
+   measurement (W714, docs/studies/w570-faster-compiler.md): 2 for what runs at every step, the right-hand
+   side, the equations and the user functions it calls (level 1 costs 2-11% more instructions than level 2 over
+   a full run of mu26, ma23 and kuramot100, level 0 more than TinyCC's code did); 1 for the exact Jacobian, a
+   long straight line whose level 2 compile costs 443 M instructions on mu26 against 173 M at level 1 for 5%
+   fewer in the run, so level 1 is the cheaper of the two over a whole run (1309 M against 1535 M, and level 0
+   1406 M). */
 constexpr std::array<unsigned, 4> LEVEL{2, 2, 2, 1};
 
 /* MIR reports an error through a function that must not return and has no user data: `raised` (ours

@@ -28,8 +28,8 @@
    header and hands none of it out; alloccheck reads core/ only. So does
    miniz (third_party/miniz, its own object, used only by xpp_zip.cpp):
    everything it produces comes back through callbacks into std::string.
-   TinyCC (third_party/tinycc, its own object, used only by xpp_tcc.cpp)
-   owns its allocations and executable pages until tcc_delete; the adapter's
+   MIR (third_party/mir, two objects of its own, used only by xpp_mir.cpp)
+   owns its allocations and executable pages until MIR_finish; the adapter's
    RAII state releases them, and returned function addresses are borrowed.
 
    make asan (build/asan, AddressSanitizer + UBSan) and tools/asancheck.sh

@@ -18,7 +18,7 @@ ALLOWED_WORDS = {
     "macOS": "Apple's name", "iPhone": "Apple's name", "iPad": "Apple's name", "WKWebView": "Apple's web view class",
     "WebKitGTK": "the web engine's name", "GitHub": "a site's name", "LinkedIn": "a site's name", "openSUSE": "a Linux distribution's name",
     "LaTeX": "the typesetting system's name", "NumPy": "the package's name", "PostScript": "the page language's name",
-    "ImageMagick": "a program's name", "TinyCC": "the compiler's name", "SemVer": "the versioning scheme's name",
+    "ImageMagick": "a program's name", "MIR": "the compiler's name", "SemVer": "the versioning scheme's name",
     "DoPri": "the integrator's name (Dormand-Prince)", "MiB": "the unit's symbol", "NaN": "the floating-point value's name",
     "MuhammadMoustafa": "the repository owner in a web address",
 }

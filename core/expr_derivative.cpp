@@ -104,8 +104,8 @@ namespace {
 /* The graph of a model's values and derivatives holds at most this many
    nodes and derivative terms together: about 25 times what the largest
    example with one needs (clustor, 38152 values), and past it the
-   generated C would take TinyCC seconds to compile and its workspace
-   megabytes. A model past it
+   generated code would take MIR some fifteen seconds to compile (15 us
+   a value at level 1, measured on mu26) and its workspace megabytes. A model past it
    has no exact Jacobian. */
 constexpr std::size_t MAX_JACOBIAN_NODES = 1000000;
 /* The program instructions read in all, user functions read again at

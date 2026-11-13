@@ -277,22 +277,6 @@ CORE_OBJECTS += $(BUILDDIR)/miniz.o
 $(BUILDDIR)/miniz.o: $(MINIZ_DIR)/miniz.c $(MINIZ_DIR)/miniz.h $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
 	$(CC) $(call NOLTO,$(OPT)) $(MINIZ_DEFS) -w -c $< -o $@
 $(BUILDDIR)/xpp_zip.o: CXXFLAGS += $(MINIZ_DEFS) -isystem $(MINIZ_DIR)
-# TinyCC is unmodified C, compiled as one source with its own configuration
-# and warning policy. Its predefs are ours (tools/tinycc/tccdefs.h, W700:
-# the generated C needs none of TinyCC's libc compatibility ones); they and
-# the generator stay in BUILDDIR.
-TINYCC_DIR = third_party/tinycc
-TINYCC_BUILD = $(BUILDDIR)/tinycc
-CORE_OBJECTS += $(BUILDDIR)/libtcc.o
-$(TINYCC_BUILD):
-	mkdir -p $@
-$(TINYCC_BUILD)/c2str$(EXE): $(TINYCC_DIR)/conftest.c $(BUILDDIR)/toolchain.stamp | $(TINYCC_BUILD)
-	$(CC) -std=gnu99 $(call NOLTO,$(OPT)) $(LDSTATIC) -w -DC2STR -o $@ $<
-$(TINYCC_BUILD)/tccdefs_.h: tools/tinycc/tccdefs.h $(TINYCC_BUILD)/c2str$(EXE)
-	$(TINYCC_BUILD)/c2str$(EXE) $< $@
-$(BUILDDIR)/libtcc.o: $(TINYCC_DIR)/libtcc.c tools/tinycc/config.h $(TINYCC_BUILD)/tccdefs_.h $(BUILDDIR)/toolchain.stamp Makefile
-	$(CC) -std=gnu99 $(call NOLTO,$(OPT)) $(FPFLAGS) -w -Itools/tinycc -I$(TINYCC_BUILD) -MMD -MP -c $< -o $@
--include $(BUILDDIR)/libtcc.d
 # MIR (third_party/mir, master commit dc2c763, upstream's files unedited, MIT) compiles the model's code
 # (core/xpp_mir.cpp, W714). Its two sources mir.c and mir-gen.c are one object each of the core library, built
 # like miniz: their warnings are not ours (-w: vendored C), nor is LTO; no contraction of a*b+c, and no
