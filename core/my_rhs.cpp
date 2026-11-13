@@ -26,7 +26,7 @@ template <class Set, class Evaluate>
 void fixed_values(const xpp::Model &m, int node, double *c, double *v, xpp::Session *s, Set &&set, Evaluate &&evaluate)
 {
   if (node==m.node && m.native_rhs) {
-    m.native_rhs(c,v,s,nullptr);
+    xpp::mir::call(m.native_rhs,c,v,s,nullptr);
     return;
   }
   for (int i=node;i<node+m.fix_var;++i) set(i+1,evaluate(m.programs[i]));
@@ -48,7 +48,7 @@ void rhs_order(const xpp::Model &m, double t, const double *y, double *ydot, dou
      and writes nothing they do (do_daes only records that no DAE failed) */
   if (m.native_equations) {
     between();
-    m.native_rhs(c,v,s,ydot);
+    xpp::mir::call(m.native_rhs,c,v,s,ydot);
     return;
   }
   fixed_values(m,m.node,c,v,s,set,evaluate);

@@ -118,16 +118,16 @@ TEST_CASE("test_mir")
         CHECK(rhs.has_value() && jacobian.has_value());
         if (rhs && jacobian) {
             auto run = reinterpret_cast<void (*)(double *, double *, void *, double *)>(*rhs);
-            run(c, v, nullptr, nullptr); /* no output array: only the fixed variable */
+            xpp::mir::call(run, c, v, nullptr, nullptr); /* no output array: only the fixed variable */
             CHECK(same(v[2], 0.5 / 2.23e-15));
             CHECK(o[0] == 0.0);
-            run(c, v, nullptr, o);
+            xpp::mir::call(run, c, v, nullptr, o);
             /* the sum is 3.0 * (1 + 2 + 3), nonzero: the else arm u0(v[0], total) = (total + v0) * 1.25 / v0 */
             const double total = ((3.0 * 1.0 + 0.0) + 3.0 * 2.0) + 3.0 * 3.0;
             CHECK(same(o[0], (total + 0.25) * 1.25 / 0.25));
             CHECK(o[1] == 2.0); /* c[2] is 7, not 0: the select takes its third operand */
             auto derivative = reinterpret_cast<void (*)(double *, double *, void *, double *, double *)>(*jacobian);
-            derivative(c, v, nullptr, w, o);
+            xpp::mir::call(derivative, c, v, nullptr, w, o);
             CHECK(same(o[0], 4.0 - 0.5));
         }
         CHECK(!(*program)->function("absent"));
@@ -171,7 +171,7 @@ TEST_CASE("test_mir")
     if (next) {
         auto address = (*next)->function("seven");
         CHECK(address.has_value());
-        if (address) CHECK(reinterpret_cast<double (*)(void *, void *, void *)>(*address)(nullptr, nullptr, nullptr) == 7.0);
+        if (address) CHECK(xpp::mir::call(reinterpret_cast<double (*)(void *, void *, void *)>(*address), nullptr, nullptr, nullptr) == 7.0);
     }
     TEST_REPORT("MIR");
 }

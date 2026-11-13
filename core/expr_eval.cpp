@@ -254,7 +254,7 @@ double eval_rpn(const int *equat, xpp::Session &s)
             st.ufun_depth++;
             const Program &function=s.model().ufun_programs[in];
             temx=function.native
-                ? function.native(p.constants.data(),p.variables.data(),&s,function.rpn.data())
+                ? mir::call(function.native,p.constants.data(),p.variables.data(),&s,function.rpn.data())
                 : eval_rpn(function.rpn.data(),s);
             st.ufun_depth--;
             restore();
@@ -284,7 +284,7 @@ double evaluate(xpp::Session &s, const int *program)
 double evaluate(Session &s, const Program &code)
 {
   if (code.native)
-    return code.native(s.parser.constants.data(),s.parser.variables.data(),&s,code.rpn.data());
+    return mir::call(code.native,s.parser.constants.data(),s.parser.variables.data(),&s,code.rpn.data());
   return evaluate(s,code.rpn.data());
 }
 
@@ -292,7 +292,7 @@ double evaluate_pure(const Session &s, const Program &code, double *constants, d
 {
   /* The native function's signature takes the Session for the general
      programs; an array_pure one never writes through it. */
-  return code.native(constants,variables,const_cast<Session *>(&s),code.rpn.data());
+  return mir::call(code.native,constants,variables,const_cast<Session *>(&s),code.rpn.data());
 }
 
 } // namespace xpp

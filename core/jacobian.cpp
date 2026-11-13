@@ -35,7 +35,7 @@ std::span<const double> entries(const Session &s, JacobianScratch &scratch, cons
   v[0] = t;
   std::copy_n(x, m.node, v.begin() + 1);
   /* the helpers only read the Session (its tables) */
-  p.function(c, v.data(), const_cast<Session *>(&s), w.data(), out.data());
+  mir::call(p.function, c, v.data(), const_cast<Session *>(&s), w.data(), out.data());
   for (size_t k = 0; k < out.size(); k++) {
     const int row = p.rows[k];
     if (std::isfinite(out[k]) || row >= n || !std::isfinite(f[row])) continue;

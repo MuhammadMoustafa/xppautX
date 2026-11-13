@@ -4,6 +4,7 @@
 #include "xpp_error.h"
 #include <memory>
 #include <string>
+#include <utility>
 
 namespace xpp::mir {
 
@@ -30,5 +31,19 @@ private:
     explicit Program(Place place);
     std::unique_ptr<State> state_;
 };
+
+/* A call of a function MIR compiled; every call into the native code goes through here. clang's
+   -fsanitize=function (the sanitizer builds) reads the 8 bytes in front of a callee for its type signature,
+   which generated code does not have, and in front of a function that opens MIR's code region on Windows those
+   bytes are not mapped (CI 43362785265: an access violation in each call); here the check is off, everywhere
+   else it stays. */
+template <typename Result, typename... Parameters, typename... Arguments>
+#if defined(__clang__)
+__attribute__((no_sanitize("function")))
+#endif
+inline Result call(Result (*function)(Parameters...), Arguments &&...arguments)
+{
+    return function(std::forward<Arguments>(arguments)...);
+}
 
 } // namespace xpp::mir
