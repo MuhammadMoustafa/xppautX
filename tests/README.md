@@ -43,10 +43,11 @@ whose outputs differ from Linux's: AGENTS.md says how CI makes those).
 
 ## What the tests pin
 
-`test_tcc.cpp` compiles arithmetic with an explicitly registered `xpp::math::exp`
-and compares its result bits with the native compiler's expression. It checks
-TinyCC syntax and relocation diagnostics, missing functions, unavailable
-standard headers, and a successful compilation after a failure (W254, #311).
+`test_mir.cpp` builds a module of every construct by hand (a user function called by an equation, a sum, an
+if statement, the guarded division, a select, the exact Jacobian's workspace) and compares the compiled results
+with the same operations done here, bit for bit. It checks that a call of a function the module lacks, a name
+MIR refuses and a tree nested too deep are errors at the model's place, that a missing function is an error, and
+that a compile after a failure succeeds (W254, #311; W714, #789).
 
 `test_bessel.cpp` compares J/Y orders 0, 1, 2 and 5 with John Burkardt's
 published TEST_VALUES tables (the source link is in the test). It allows

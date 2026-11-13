@@ -293,6 +293,17 @@ $(TINYCC_BUILD)/tccdefs_.h: tools/tinycc/tccdefs.h $(TINYCC_BUILD)/c2str$(EXE)
 $(BUILDDIR)/libtcc.o: $(TINYCC_DIR)/libtcc.c tools/tinycc/config.h $(TINYCC_BUILD)/tccdefs_.h $(BUILDDIR)/toolchain.stamp Makefile
 	$(CC) -std=gnu99 $(call NOLTO,$(OPT)) $(FPFLAGS) -w -Itools/tinycc -I$(TINYCC_BUILD) -MMD -MP -c $< -o $@
 -include $(BUILDDIR)/libtcc.d
+# MIR (third_party/mir, master commit dc2c763, upstream's files unedited, MIT) compiles the model's code
+# (core/xpp_mir.cpp, W714). Its two sources mir.c and mir-gen.c are one object each of the core library, built
+# like miniz: their warnings are not ours (-w: vendored C), nor is LTO; no contraction of a*b+c, and no
+# assertions (-DNDEBUG, as upstream builds). The adapter includes MIR's headers as a system header.
+MIR_DIR = third_party/mir
+CORE_OBJECTS += $(BUILDDIR)/mir.o $(BUILDDIR)/mir-gen.o
+$(BUILDDIR)/mir.o: $(MIR_DIR)/mir.c $(wildcard $(MIR_DIR)/*.h $(MIR_DIR)/mir-*.c) $(BUILDDIR)/toolchain.stamp Makefile | $(BUILDDIR)
+	$(CC) -std=gnu11 $(call NOLTO,$(OPT)) $(FPFLAGS) -DNDEBUG $(if $(CLANG),,-Wno-psabi) -w -I$(MIR_DIR) -c $< -o $@
+$(BUILDDIR)/mir-gen.o: $(MIR_DIR)/mir-gen.c $(wildcard $(MIR_DIR)/*.h $(MIR_DIR)/mir-gen-*.c) $(BUILDDIR)/toolchain.stamp Makefile | $(BUILDDIR)
+	$(CC) -std=gnu11 $(call NOLTO,$(OPT)) $(FPFLAGS) -DNDEBUG $(if $(CLANG),,-Wno-psabi) -w -I$(MIR_DIR) -c $< -o $@
+$(BUILDDIR)/xpp_mir.o: CXXFLAGS += -isystem $(MIR_DIR)
 # vendored third_party/core-math (xpp_math's exp, log, sin, ...: correctly
 # rounded, so the same bits on every CPU and system), one C object per
 # function in the core library, built like miniz: no warnings of ours, no
@@ -511,41 +522,6 @@ test: $(TEST_BIN)
 TEST_LDDEBUG ?= $(if $(or $(SANITIZE),$(VALGRIND)),,-Wl,-S)
 $(TEST_BIN): $(TEST_OBJECTS) $(CORELIB)
 	$(LINK_TESTS) $(if $(SANITIZE),$(SANITIZE),$(LDSTATIC)) $(MAINSTACK) $(TEST_LDDEBUG) -o $@ $(TEST_OBJECTS) $(CORELIB) -lm $(CORE_SYSLIBS)
-
-# W706 spike (not in `all`, `xppautx` or `test`): MIR (third_party/mir, master dc2c763,
-# unmodified, as in README.md there) compiles a model's generated right-hand
-# side beside TinyCC and the two are compared bit for bit
-# (tools/mir-spike/mir_spike.cpp, fixtures in tests/mir-spike/).
-# W711: a second way into MIR, the Generator's trees (core/expr_ir.h) built through MIR's
-# API (xpp_mir_ir.cpp): it links mir.o and mir-gen.o only, no c2mir (the target checks
-# that no object of it names c2mir), and is compared too.
-# Each MIR source is one object of its own, built like miniz: its warnings
-# are not ours (-w: vendored C), nor is LTO; no contraction, as for TinyCC.
-MIR_DIR = third_party/mir
-MIR_BUILD = $(BUILDDIR)/mir
-MIR_CORE_OBJECTS = $(MIR_BUILD)/mir.o $(MIR_BUILD)/mir-gen.o
-MIR_ADAPTER_OBJECTS = $(MIR_BUILD)/xpp_mir.o $(MIR_BUILD)/xpp_mir_ir.o
-MIR_C2MIR_OBJECTS = $(MIR_BUILD)/c2mir.o $(MIR_BUILD)/xpp_mir_c.o
-MIR_SPIKE = $(BUILDDIR)/mir_spike$(EXE)
-MIR_FIXTURES = $(basename $(wildcard tests/mir-spike/*.manifest))
-$(MIR_BUILD):
-	mkdir -p $@
-$(MIR_BUILD)/mir.o: $(MIR_DIR)/mir.c $(wildcard $(MIR_DIR)/*.h $(MIR_DIR)/mir-*.c) $(BUILDDIR)/toolchain.stamp Makefile | $(MIR_BUILD)
-	$(CC) -std=gnu11 $(call NOLTO,$(OPT)) $(FPFLAGS) -DNDEBUG $(if $(CLANG),,-Wno-psabi) -w -I$(MIR_DIR) -c $< -o $@
-$(MIR_BUILD)/mir-gen.o: $(MIR_DIR)/mir-gen.c $(wildcard $(MIR_DIR)/*.h $(MIR_DIR)/mir-gen-*.c) $(BUILDDIR)/toolchain.stamp Makefile | $(MIR_BUILD)
-	$(CC) -std=gnu11 $(call NOLTO,$(OPT)) $(FPFLAGS) -DNDEBUG $(if $(CLANG),,-Wno-psabi) -w -I$(MIR_DIR) -c $< -o $@
-$(MIR_BUILD)/c2mir.o: $(MIR_DIR)/c2mir/c2mir.c $(wildcard $(MIR_DIR)/*.h $(MIR_DIR)/c2mir/*.h $(MIR_DIR)/c2mir/*/*) $(BUILDDIR)/toolchain.stamp Makefile | $(MIR_BUILD)
-	$(CC) -std=gnu11 $(call NOLTO,$(OPT)) $(FPFLAGS) -DNDEBUG $(if $(CLANG),,-Wno-psabi) -w -I$(MIR_DIR) -c $< -o $@
-$(MIR_ADAPTER_OBJECTS) $(MIR_BUILD)/xpp_mir_c.o: $(MIR_BUILD)/%.o: tools/mir-spike/%.cpp $(wildcard tools/mir-spike/*.h) core/expr_ir.h $(BUILDDIR)/toolchain.stamp | $(MIR_BUILD)
-	$(CXX) $(call NOLTO,$(CXXFLAGS)) -I$(MIR_DIR) -MMD -MP -MF $(@:.o=.cpp.d) -c $< -o $@
--include $(wildcard $(MIR_BUILD)/*.cpp.d)
-$(MIR_SPIKE): tools/mir-spike/mir_spike.cpp $(MIR_CORE_OBJECTS) $(MIR_ADAPTER_OBJECTS) $(MIR_C2MIR_OBJECTS) $(CORELIB)
-	$(CXX) $(call NOLTO,$(CXXFLAGS)) -I$(MIR_DIR) $(LDSTATIC) $(MAINSTACK) -o $@ tools/mir-spike/mir_spike.cpp $(MIR_ADAPTER_OBJECTS) $(MIR_C2MIR_OBJECTS) $(MIR_CORE_OBJECTS) $(CORELIB) -lm $(CORE_SYSLIBS) $(LINALG_LIBS)
-.PHONY: mirspike
-mirspike: $(MIR_SPIKE)
-	@if command -v nm >/dev/null && nm $(MIR_BUILD)/xpp_mir.o $(MIR_BUILD)/xpp_mir_ir.o | grep -qi c2mir; then echo "FAIL: the direct path names c2mir"; exit 1; fi
-	$(MIR_SPIKE) --level 1 $(MIR_FIXTURES)
-	$(MIR_SPIKE) --level 2 $(MIR_FIXTURES)
 
 # Code nothing reaches (tools/deadcode.sh reads what this leaves; Linux):
 # every function and datum in a section of its own, at -O0 (no inlining),

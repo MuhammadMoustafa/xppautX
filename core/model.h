@@ -33,7 +33,7 @@
 #include "simplenet.h"
 #include "odex.h"
 #include "model_files.h"
-#include "xpp_tcc.h"
+#include "xpp_mir.h"
 #include "expr_program.h"
 
 #include <array>
@@ -138,7 +138,7 @@ struct Model {
   std::vector<std::string> formulas;
   std::vector<Program> programs;
   /* W258: executable code has exactly this Model's lifetime. */
-  std::unique_ptr<tcc::Program> native_program;
+  std::unique_ptr<mir::Program> native_program;
   /* compile_model: the right-hand side in its order as one function: the
      fixed variables' values into the variables v (W468), then, given ydot
      and when native_equations, the equations' into ydot (W469); none when

@@ -1,5 +1,4 @@
 #pragma once
-#include "expr_ir.h"
 #include "xpp_error.h"
 #include <vector>
 namespace xpp {
@@ -37,13 +36,8 @@ bool has_subsystems(const Session &s);
 Result<std::vector<Error>> compile_model(Session &s);
 /* Run compile_model when the load left it pending (Model::compile_pending), showing what it warns of with its place; the start of every
    computation (a command of kind compute) and of the exact Jacobian's making call it, on the core thread before any worker reads the code
-   (TinyCC has static state and is not thread-safe). A reload or Open model loads a new Model, pending again. */
+   (MIR keeps static state and is not thread-safe). A reload or Open model loads a new Model, pending again. */
 void ensure_compiled(Session &s);
-/* W711 spike: s's right-hand side function p_rhs as the Generator's trees (expr_ir.h) for a back end that takes
-   no C text. It walks the model's programs as compile_model does but compiles no C, so the model is left with no
-   native code (interpreted): the spike that calls it compiles nothing in the core. RhsIr::unsupported says
-   when the trees are not to be lowered. */
-Result<RhsIr> rhs_ir(Session &s);
 /* The model's exact Jacobian (W260), made on its first need (the model's
    own @ jacobian=exact at load, or the numerics being set to exact), never
    otherwise: true when it has one, else Model::jacobian.unavailable says

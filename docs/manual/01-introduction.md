@@ -215,8 +215,8 @@ with `--verbose` or `--debug`. What the log shows and where it goes are yours, n
 
 ### Command-line options
 
-Core equations and user functions compile when the model loads, using the
-built-in TinyCC. Parameters and variables are read at each evaluation, and
+Core equations and user functions compile when the first computation starts, using the
+built-in MIR compiler. Parameters and variables are read at each evaluation, and
 compiled execution preserves the interpreter's numerical operations. The whole
 expression language compiles (tables, networks, vectorizers, kernels, sums,
 delays and shifts, `set`, `@` and random draws), the compiled code calling the
@@ -226,7 +226,7 @@ Markov chains, DAEs and integral-equation kernels stay interpreted. A model
 with a recursive user function runs entirely in the interpreter; a warning
 identifies the equation. The model's `compile` option (an `integration` setting, `compile: false` in its
 `options`) runs every equation in the interpreter instead; a change applies when the model next loads.
-Compilation happens once per load and can speed up integration and autoX; the gain depends on the model.
+Compilation happens once per load and can speed up integration and autoX; the gain depends on the model, and a run of a few steps on a small model is shorter interpreted.
 
 Word options require two dashes; single letters use one (`-h`). Old single-dash words stop and name their new spelling. XPPAUT's windowing options are removed and report ?no such option?. XPPAUT's `--setfile`, `--parfile` and `--icfile` are not options here: a `.set`, `.par` or `.ic` file XPPAUT wrote is converted once, `xppautX --convert model.ode --statefile FILE`, into the model's `.odex` as its default values and numerics (File > Sets > Import XPPAUT session state does the same in a running session).
 

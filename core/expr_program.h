@@ -59,7 +59,7 @@
      ENDEXP     the end: the program's value is the stack's top */
 #include "expr.h"
 #include "xpp_error.h"
-#include "xpp_tcc.h"
+#include "xpp_mir.h"
 
 #include <array>
 #include <bit>
@@ -96,7 +96,7 @@ struct JacobianProgram {
    and each constant that a right-hand side depends on (by_constant, by
    the constant's index, ascending), or why the model has none. */
 struct ExactJacobian {
-    std::unique_ptr<tcc::Program> code;
+    std::unique_ptr<mir::Program> code;
     JacobianProgram states, time;
     std::vector<std::pair<int, JacobianProgram>> by_constant;
     int workspace = 0;
