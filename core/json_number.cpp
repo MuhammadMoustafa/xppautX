@@ -1,6 +1,6 @@
 /* The one JSON number writer (json_number.h). */
 #include "json_number.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include <array>
 #include <cmath>
 #include <cstdio>

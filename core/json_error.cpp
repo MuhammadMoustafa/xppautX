@@ -4,7 +4,7 @@
 #include <vector>
 #include "json_error.h"
 #include "event_registry.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_error.h"
 
 namespace xpp::json {

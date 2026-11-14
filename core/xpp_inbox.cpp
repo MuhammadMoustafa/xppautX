@@ -9,17 +9,15 @@
    enqueue happen as one step, so sequence order is queue order) and is
    never taken by the core; lock guards the queues and is held only briefly.
    Waiting is on a condition variable, never a polling loop. This file
-   includes no core header but the small APIs of xpp_log.h, xpp_io.h,
-   xpp_files.h and xpp_mem.h.
+   includes no core header but the small APIs of xpp_log.h and xpp_mem.h.
 
    Nothing here throws out of a thread (an allocation that fails ends the
    program: xpp::out_of_memory_now). */
 #include "xpp_inbox.h"
-#include "xpp_files.h"
 #include "xpp_log.h"
+#include "xpp_text.h"
 #include <cstdio>
 #include <cstdlib>
-#include "xpp_io.h"
 #include "xpp_mem.h"
 
 #include <cerrno>
@@ -37,7 +35,6 @@
 #include <time.h>
 #include <sys/types.h>
 #include <utility>
-#include "xpp_platform.h"
 
 namespace {
 
@@ -55,6 +52,7 @@ pthread_cond_t ready = PTHREAD_COND_INITIALIZER;
 struct Queues : std::array<std::deque<Item>, 2> {
     int save_ask = 0;
     std::string save_path; /* one native choice, consumed by its exact prompt */
+    std::string own_open_line; /* the line push_open pushed, until the command that reads it takes it */
     size_t normal_bytes = 0; /* the bytes of the normal queue's lines */
     size_t kept_lines = 0, kept_bytes = 0; /* the command loop's own (set_kept) */
 };
@@ -156,6 +154,30 @@ bool push(std::string_view line, std::string *reply) { return push_line(line, re
 
 void push_own(std::string_view line) { push_line(line, nullptr, true); }
 
+void push_open(const char *path) noexcept
+{
+    try {
+        std::string line = R"({"cmd":"session.open_model","file":)";
+        xpp::json_append_string(line, path);
+        line += '}';
+        pthread_mutex_lock(&lock);
+        queues.own_open_line = line;
+        pthread_mutex_unlock(&lock);
+        push_own(line);
+    } catch (...) {
+        xpp::out_of_memory("opening a model");
+    }
+}
+
+bool take_own_open(std::string_view line)
+{
+    pthread_mutex_lock(&lock);
+    const bool own = !queues.own_open_line.empty() && queues.own_open_line == line;
+    if (own) queues.own_open_line.clear();
+    pthread_mutex_unlock(&lock);
+    return own;
+}
+
 void authorize_save(std::string_view prompt, std::string_view path)
 {
     std::string choice(path);
@@ -222,78 +244,6 @@ Took next(From which, int wait_ms, std::string &line, unsigned long &seq, bool &
 }
 
 } // namespace xpp::inbox
-
-/* ---- the --server reader: stdin, line by line ---------------------------- */
-
-namespace {
-
-/* Bound allocation for command input; discard an oversized line through its newline
-   and enqueue one error. The longest line the queue could ever hold (W389: a longer
-   one would be refused as busy whatever the queue held), enough for a pixel answer. */
-constexpr size_t MAX_LINE = xpp::inbox::MAX_PENDING_BYTES;
-constexpr size_t CHUNK = 65536; /* Read stdin in bounded chunks rather than one syscall per byte. */
-
-void input_too_large()
-{
-    xpp::inbox::push(xpp::format(R"({{"input_error":"command exceeds the {} MB input limit"}})", MAX_LINE >> 20));
-}
-
-void read_stdin_lines()
-{
-    std::vector<char> buf;
-    size_t len = 0, scanned = 0;
-    bool skipping = false; /* inside an overlong line, until its newline */
-    for (;;) {
-        if (buf.size() - len < CHUNK) buf.resize(buf.size() * 2 + CHUNK);
-        long r = xpp::platform::read_input(buf.data() + len, buf.size() - len);
-        if (r <= 0) break;
-        len += static_cast<size_t>(r);
-        /* push every complete line; search only the bytes not searched yet */
-        char *base = buf.data(), *start = base, *nl;
-        while ((nl = static_cast<char *>(std::memchr(base + scanned, '\n', len - scanned))) != nullptr) {
-            size_t n = static_cast<size_t>(nl - start);
-            if (n > 0 && start[n - 1] == '\r') n--;
-            if (!skipping) {
-                if (n > MAX_LINE) input_too_large();
-                else xpp::inbox::push({start, n});
-            }
-            skipping = false;
-            start = nl + 1;
-            scanned = static_cast<size_t>(start - base);
-        }
-        if (start != base) {
-            len -= static_cast<size_t>(start - base);
-            std::memmove(base, start, len);
-        }
-        scanned = len;
-        if (len > MAX_LINE) {
-            if (!skipping) input_too_large();
-            skipping = true;
-            len = scanned = 0;
-        }
-    }
-}
-
-void *stdin_main(void *)
-{
-    try {
-        read_stdin_lines();
-    } catch (...) {
-        xpp::out_of_memory_now("reading stdin");
-    }
-    xpp::inbox::close();
-    return nullptr;
-}
-
-} // namespace
-
-bool xpp::inbox::start_stdin()
-{
-    pthread_t t;
-    if (pthread_create(&t, nullptr, stdin_main, nullptr) != 0) return false;
-    pthread_detach(t);
-    return true;
-}
 
 /* --silent's internal command source, pulled only when the core is ready. */
 namespace xpp::inbox {

@@ -9,7 +9,7 @@
    primitives of xpp_window_internal.h, implemented in xpp_window_win.cpp,
    xpp_window_linux.cpp and xpp_window_mac.cpp, so those headers never
    reach this file. Like xpp_http.cpp it includes no core header but small
-   APIs (xpp_http.h, xpp_inbox.h, xpp_log.h, ui_json.h), and it calls the core
+   APIs (xpp_http.h, xpp_inbox.h, xpp_log.h), and it calls the core
    through an XppWindowHost table (xpp_window_plugin.h).
 
    Built with XPP_WINDOW defined when the build has a web view (the
@@ -23,7 +23,6 @@
 #include "xpp_http.h"
 #include "xpp_inbox.h"
 #include "xpp_log.h"
-#include "ui_json.h"
 #include "xpp_webview.h"
 #include "xpp_window_hint.h"
 #include <array>
@@ -69,7 +68,7 @@ const XppWindowHost host_table = {XPP_WINDOW_HOST_VERSION,
                                   xpp::http::release,
                                   xpp::http::said_bye,
                                   [](const char *line, size_t n) { xpp::inbox::push({line, n}); },
-                                  xpp::json_ui_push_open,
+                                  xpp::inbox::push_open,
                                   xpp::log_message,
                                   xpp::http::open_release_page,
                                   xpp::http::open_about_link,

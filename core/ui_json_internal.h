@@ -145,9 +145,6 @@ struct ProtocolSession {
     /* the heavy data events the client subscribed to (event_streams.h's names, in its order) and whether their arrays go as float32 */
     std::array<bool, xpp::events::STREAMS.size()> subscribed{};
     bool subscribed_f32 = false;
-    /* the line json_ui_push_open pushed, until handle_line takes it: its path came from the operating system's own dialog */
-    std::mutex own_open_lock;
-    std::string own_open_line;
     std::vector<std::string> client_view_names;
     int client_views = 1; /* how many of them */
     int grab_key_after = 0;
@@ -310,6 +307,10 @@ void buf_key(std::string &b, std::span<const long> key);
 void buf_num(std::string &b, double v, int sig);
 
 void open_protocol_stdout(void); /* the protocol on the stdout of now */
+/* --server: start a thread that reads stdin, pushes its lines into the inbox (a '\r' before the newline is
+   dropped) and closes it at end of input or on a read error; an unterminated last line is dropped.
+   It never writes to stdout. false when the thread cannot start. */
+bool start_stdin();
 void out_line(const char *s, size_t n);
 /* whether an event line goes anywhere (not --silent): a state event nobody reads is not built */
 bool out_wanted();

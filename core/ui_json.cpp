@@ -415,16 +415,10 @@ xpp::Result<std::string> request_of(const char *line, const xpp::Place &place)
 }
 
 /* whether the registry line may give a path argument: --server's own input may (not the page or --silent's script), so may a replayed
-   recording and the one line json_ui_push_open pushed for a path the operating system's own dialog gave */
+   recording and the one line xpp::inbox::push_open pushed for a path the operating system's own dialog gave */
 bool paths_allowed(bool played, const char *line)
 {
-    {
-        const std::lock_guard<std::mutex> hold(session.own_open_lock);
-        if (!session.own_open_line.empty() && session.own_open_line == line) {
-            session.own_open_line.clear();
-            return true;
-        }
-    }
+    if (xpp::inbox::take_own_open(line)) return true;
     /* a recording's steps may open the files it holds: the player serves their reads from the recording, never the disk */
     return played || (!session.silent && !xpp::http::active());
 }
@@ -1052,24 +1046,6 @@ void json_ui_loop(void)
     }
 }
 
-void json_ui_push_open(const char *path)
-{
-    /* on the window's thread, called from C (Win32, GTK): nothing may throw */
-    try {
-        std::string b;
-        BUF_LIT(b, "{\"cmd\":\"session.open_model\",\"file\":");
-        buf_str(b, path);
-        BUF_LIT(b, "}");
-        {
-            const std::lock_guard<std::mutex> hold(session.own_open_lock);
-            session.own_open_line = b;
-        }
-        xpp::inbox::push_own(b);
-    } catch (...) {
-        xpp::out_of_memory("opening a model");
-    }
-}
-
 namespace {
 
 /* the front end: the XppUi table, the data modules' output, the input
@@ -1080,7 +1056,7 @@ void install(bool silent)
 {
     if (!silent && !xpp::http::active()) { /* browser mode has taken stdout and stderr */
         open_protocol_stdout();
-        if (!xpp::inbox::start_stdin()) {
+        if (!start_stdin()) {
             xpp::log(XPP_LOG_ERROR, "xppautX: cannot start the input thread\n");
             exit(1);
         }

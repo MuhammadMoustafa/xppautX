@@ -15,10 +15,6 @@ struct Session; /* session.h */
 #define JSON_UI_STR(x) JSON_UI_STR_(x)
 void json_ui_install(bool silent = false); /* protocol, or no interface */
 void json_ui_loop(void);           /* read and run commands until EOF */
-/* {"cmd":"session.open_model","file":path} into the inbox, which may give a path (the operating
-   system's own dialog gave it): the desktop window's File > Open model, from the window's thread */
-void json_ui_push_open(const char *path);
-
 /* xppautX model.ode --silent: load the model with no interface, then run
    the built-in script its options make (core/json_silent.cpp) through
    this front end, its events going nowhere; exits 0 when the script

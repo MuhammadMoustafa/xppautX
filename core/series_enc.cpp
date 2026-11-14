@@ -3,7 +3,7 @@
 #include "series_enc.h"
 #include "xpp_mem.h"
 #include "json_number.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "storage.h"
 
 #include <bit>

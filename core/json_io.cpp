@@ -12,6 +12,7 @@
 #include "xpp_mem.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
+#include <pthread.h>
 #include "xpp_io.h"
 #include "mykeydef.h"
 #include "json_reader.h"
@@ -323,6 +324,78 @@ int key_code(const char *k)
     for (const auto &n : named)
         if (strcmp(k, n.name) == 0) return n.code;
     return BADKEY;
+}
+
+/* ---- the --server reader: stdin, line by line (the front end's own input; the queue is xpp_inbox.h) ---- */
+
+namespace {
+
+/* Bound allocation for command input; discard an oversized line through its newline
+   and enqueue one error. The longest line the queue could ever hold (W389: a longer
+   one would be refused as busy whatever the queue held), enough for a pixel answer. */
+constexpr size_t MAX_LINE = xpp::inbox::MAX_PENDING_BYTES;
+constexpr size_t CHUNK = 65536; /* Read stdin in bounded chunks rather than one syscall per byte. */
+
+void input_too_large()
+{
+    xpp::inbox::push(xpp::format(R"({{"input_error":"command exceeds the {} MB input limit"}})", MAX_LINE >> 20));
+}
+
+void read_stdin_lines()
+{
+    std::vector<char> buf;
+    size_t len = 0, scanned = 0;
+    bool skipping = false; /* inside an overlong line, until its newline */
+    for (;;) {
+        if (buf.size() - len < CHUNK) buf.resize(buf.size() * 2 + CHUNK);
+        long r = xpp::platform::read_input(buf.data() + len, buf.size() - len);
+        if (r <= 0) break;
+        len += static_cast<size_t>(r);
+        /* push every complete line; search only the bytes not searched yet */
+        char *base = buf.data(), *start = base, *nl;
+        while ((nl = static_cast<char *>(std::memchr(base + scanned, '\n', len - scanned))) != nullptr) {
+            size_t n = static_cast<size_t>(nl - start);
+            if (n > 0 && start[n - 1] == '\r') n--;
+            if (!skipping) {
+                if (n > MAX_LINE) input_too_large();
+                else xpp::inbox::push({start, n});
+            }
+            skipping = false;
+            start = nl + 1;
+            scanned = static_cast<size_t>(start - base);
+        }
+        if (start != base) {
+            len -= static_cast<size_t>(start - base);
+            std::memmove(base, start, len);
+        }
+        scanned = len;
+        if (len > MAX_LINE) {
+            if (!skipping) input_too_large();
+            skipping = true;
+            len = scanned = 0;
+        }
+    }
+}
+
+void *stdin_main(void *)
+{
+    try {
+        read_stdin_lines();
+    } catch (...) {
+        xpp::out_of_memory_now("reading stdin");
+    }
+    xpp::inbox::close();
+    return nullptr;
+}
+
+} // namespace
+
+bool start_stdin()
+{
+    pthread_t t;
+    if (pthread_create(&t, nullptr, stdin_main, nullptr) != 0) return false;
+    pthread_detach(t);
+    return true;
 }
 
 } // namespace xpp::json

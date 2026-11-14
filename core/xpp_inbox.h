@@ -67,6 +67,12 @@ bool push(std::string_view line, std::string *reply = nullptr);
    asks to open): as push, but never refused, since it is one at a time
    and a refusal would lose it. */
 void push_own(std::string_view line);
+/* {"cmd":"session.open_model","file":path} as push_own, for a path the operating system's own dialog gave (the
+   desktop window's File > Open model, from the window's thread: nothing throws). The command that reads that
+   very line may take the path (take_own_open), which no line a client sends may. */
+void push_open(const char *path) noexcept;
+/* true once for the line push_open pushed, which is then forgotten */
+bool take_own_open(std::string_view line);
 /* Native UI only: a single-use grant for the path actually selected by the
    OS save picker, bound to the prompt id. JSON replies cannot mint it. */
 void authorize_save(std::string_view prompt, std::string_view path);
@@ -88,12 +94,6 @@ void set_hooks(Verdict (*cls)(const char *line, unsigned long seq), void (*busy)
 
 /* End of input: once both queues are drained, next() says Took::end. */
 void close();
-
-/* --server: start a thread that reads stdin, pushes its lines (a '\r'
-   before the newline is dropped) and closes the inbox at end of input or
-   on a read error; an unterminated last line is dropped, as before.
-   It never writes to stdout. false when the thread cannot start. */
-bool start_stdin();
 
 /* --silent's internal command list (json_silent.cpp). generated_advance
    asks next on the core's thread, after the preceding command or at its

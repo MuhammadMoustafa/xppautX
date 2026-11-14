@@ -4,7 +4,7 @@
    core module that is no part of the front end (xpp_keymap) reads JSON with
    it too, never with a second reader. */
 #include "json_reader.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_mem.h"
 #include <algorithm>
 #include <cctype>

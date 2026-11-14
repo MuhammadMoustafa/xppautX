@@ -26,7 +26,7 @@ typedef struct XppWindowHost {
     void (*http_release)(void);
     bool (*http_said_bye)(void);
     void (*inbox_push)(const char *line, size_t n);
-    /* File > Open model's file, as the protocol's open command (ui_json.h) */
+    /* File > Open model's file, as the protocol's open command (xpp_inbox.h push_open) */
     void (*open_model)(const char *path);
     /* Checked at the call site; formatted and delivered by the core. */
     void (*log_message)(XppLogLevel level, std::string_view fmt, std::format_args args) noexcept;

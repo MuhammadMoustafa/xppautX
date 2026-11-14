@@ -20,7 +20,6 @@
 #include "xpp_window_hint.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
-#include "ui_json.h"
 
 #include <cerrno>
 #include <cstdlib>
@@ -52,7 +51,7 @@ const XppWindowHost host = {XPP_WINDOW_HOST_VERSION,
                             xpp::http::release,
                             xpp::http::said_bye,
                             [](const char *line, size_t n) { xpp::inbox::push({line, n}); },
-                            xpp::json_ui_push_open,
+                            xpp::inbox::push_open,
                             xpp::log_message,
                                   xpp::http::open_release_page,
                                   xpp::http::open_about_link,
