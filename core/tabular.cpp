@@ -7,7 +7,6 @@
 #include "xpp_ui.h"
 
 #include "browse.h"
-#include "simplenet.h"
 
 #include "expr.h"
 #include "integrate.h"

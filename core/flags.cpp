@@ -86,43 +86,7 @@ global -1 u-.2 {m=.5*m}
 #define IC 2
 #define PARAM 1
 
-int split_events(const char *cond, const char *rest, std::vector<FlagEvent> &events)
-{
-  std::string temp,name;
-  events.clear();
-  for(const char *p=rest;*p;p++){
-    char ch=*p;
-    if(ch=='{'||ch==' ')continue;
-    if(ch=='}'||ch==';'){
-      if(static_cast<int>(events.size())==xpp::max_events){
-	xpp::log(XPP_LOG_WARN, " Too many events per flag \n");
-	return(1);
-      }
-      if(name.empty()){
-	xpp::log(XPP_LOG_WARN, " No event variable named for {} \n",temp);
-	return(1);
-      }
-      events.push_back({name,temp});
-      name.clear();
-      temp.clear();
-      if(ch=='}')break;
-      continue;
-    }
-    if(ch=='='){
-      name=temp;
-      temp.clear();
-      continue;
-    }
-    temp+=ch;
-  }
-  if(events.empty()){
-    xpp::log(XPP_LOG_WARN, " No events for condition {} \n",cond);
-    return(1);
-  }
-  return(0);
-}
-
-int add_global(xpp::Session &s, const char *cond, int sign, const std::vector<FlagEvent> &events)
+int add_global(xpp::Session &s, const char *cond, int sign, const std::vector<xpp::FlagEvent> &events)
 {
   xpp::Model &m=s.model();
   if(static_cast<int>(events.size())>xpp::max_events){

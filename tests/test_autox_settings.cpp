@@ -54,7 +54,7 @@ void load_model()
 bool ok(int field, double v)
 {
     std::string why;
-    return xpp::autox_settings_num_ok(field, v, why) != 0;
+    return xpp::autox_num_ok(field, v, why) != 0;
 }
 
 } // namespace
@@ -77,7 +77,7 @@ TEST_CASE("test_autox_settings")
     CHECK(ok(xpp::AUTOX_NUM_SWITCH_ONE_DIRECTION, 1) && ok(xpp::AUTOX_NUM_SUPPRESS_BRANCH_POINTS, 1) && !ok(xpp::AUTOX_NUM_SUPPRESS_BRANCH_POINTS, 2));
     CHECK(ok(xpp::AUTOX_NUM_OUTPUT_DETAIL, 5) && !ok(xpp::AUTOX_NUM_OUTPUT_DETAIL, 6));
     CHECK(!ok(xpp::AUTOX_NUM_MAX_STEPS, 3e9)); /* no int holds it */
-    xpp::autox_settings_num_ok(xpp::AUTOX_NUM_COLLOCATION_POINTS, 9, num_why);
+    xpp::autox_num_ok(xpp::AUTOX_NUM_COLLOCATION_POINTS, 9, num_why);
     CHECK_STR(num_why.c_str(), "collocation_points=9: Collocation points must be a whole number from 2 to 7");
     CHECK_STR(xpp::autox_settings_num_key(xpp::AUTOX_NUM_PARAMETER_MIN), "parameter_min");
     CHECK(xpp::autox_settings_num_key(xpp::AUTOX_NUM_N) == nullptr);

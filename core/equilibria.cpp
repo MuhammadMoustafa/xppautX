@@ -14,6 +14,7 @@
 #include "xpp_job.h"
 #include "model_place.h"
 #include "numerics_settings.h"
+#include "model_numerics.h"
 
 #include <stdlib.h>
 #include <math.h>

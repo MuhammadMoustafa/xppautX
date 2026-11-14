@@ -9,7 +9,7 @@
    Model and Session through xpp::load_model, and a load that fails leaves
    the ones before current, untouched, and says so. */
 
-#include "numerics_settings.h"
+#include "model_numerics.h"
 #include "autox_settings.h"
 #include "model_files.h"
 #include "xpp_session.h"

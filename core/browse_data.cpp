@@ -28,7 +28,7 @@
 #include "data_formats.h"
 #include "menus.h"
 #include "expr_program.h"
-#include "numerics_settings.h"
+#include "model_numerics.h"
 #include "session.h"
 #include "xpp_error.h"
 #include <algorithm>

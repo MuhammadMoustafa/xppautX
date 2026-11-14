@@ -18,7 +18,7 @@
 #include "typed_values.h"
 #include <limits>
 #include "expr.h"
-#include "flags.h"
+#include "model_declarations.h"
 #include "form_ode.h"
 #include "integrate.h"
 #include "markov.h"

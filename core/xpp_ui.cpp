@@ -20,7 +20,6 @@
 #include <string>
 #include <vector>
 #include "session.h"
-#include "diagram.h"
 #include <chrono>
 #include <cerrno>
 #include <memory>
@@ -76,7 +75,7 @@ static WriteFolders *hl_write_folders() { return nullptr; }
 static void hl_void(void) {}
 static void hl_int(int) {}
 static void hl_bottom_msg(int, std::string_view msg, std::string_view, std::string_view) { log(XPP_LOG_INFO, "{}\n", msg); }
-static int hl_autox_points_held(Session &s) { return diagram_count(*s.diagram); }
+static int hl_autox_points_held(Session &) { return 0; } /* no client holds a point */
 static void hl_autox_jobs(const XppAutoxJobs &) {}
 static void hl_autox_joined(const std::vector<XppJoinedJob> &) {}
 static void hl_autox_live_drop(Session &) {}

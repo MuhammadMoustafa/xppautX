@@ -2,25 +2,14 @@
 
 #include <array>
 #include "xpp_error.h"
+#include "model_analysis.h"
 
 #include <string>
 
 namespace xpp {
 
-/* which end of the interval Range shoot stores the solution's values at (ShootRange::side; a session keeps the number) */
-inline constexpr int SHOOT_SIDE_START = 0, SHOOT_SIDE_END = 1;
-inline constexpr std::array<const char *, 2> SHOOT_SIDE_NAMES = {"start", "end"};
-/* BVP's Range settings (pp_shoot.cpp) */
-struct ShootRange {
-  std::string item;
-  int steps = 10, side = SHOOT_SIDE_START, cycle = 0, movie = 0;
-  double plow = 0, phigh = 1;
-};
-
 struct Session; /* session.h */
 struct RunReport; /* integrate.h */
-struct ShootRange;
-
 
 void do_bc(Session &s, double *y__0, double t0, double *y__1, double t1, double *f, int n);
 /* the boundary conditions compiled, or the one that does not */

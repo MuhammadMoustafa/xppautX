@@ -20,7 +20,7 @@
 #include <string_view>
 #include "xpp_job.h"
 #include "model_place.h"
-#include "numerics_settings.h"
+#include "model_numerics.h"
 #include "xpp_error.h"
 #include "xpp_text.h"
 #include "xpp_mem.h"

@@ -4,6 +4,7 @@
 #include <span>
 #include <string>
 #include <vector>
+#include "model_declarations.h"
 
 
 namespace xpp {
@@ -23,16 +24,7 @@ int one_flag_step_cvode(xpp::Session &s, xpp::CvodeRun &run, int *command,double
 int one_flag_step_adap(xpp::Session &s, double *y, int neq, double *t, double tout, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart);
 int one_flag_step_backeul(xpp::Session &s, double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *errvec, double *jac, int *istart);
 
-/* one event of a flag: the name it sets, and its value's formula */
-struct FlagEvent {
-  std::string name,formula;
-};
-/* an .ode global's events, rest "{name=formula;name=formula;...}" (blanks
-   and braces dropped, each name the text before its event's last =): 0,
-   or 1 (said why, cond the flag's condition) when one names nothing,
-   there are none or too many */
-int split_events(const char *cond, const char *rest, std::vector<FlagEvent> &events);
 /* a flag: when cond crosses 0 in the direction sign, each event sets its
    name to its formula; 0, or 1 (said why) */
-int add_global(xpp::Session &s, const char *cond, int sign, const std::vector<FlagEvent> &events);
+int add_global(xpp::Session &s, const char *cond, int sign, const std::vector<xpp::FlagEvent> &events);
 

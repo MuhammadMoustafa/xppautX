@@ -11,8 +11,6 @@
 #include <vector>
 #include "model.h"
 #include "model_record.h"
-#include "solver.h"
-#include "autox_settings.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "session_values.h"
@@ -26,9 +24,11 @@
 #include "plot_settings.h"
 #include "plot_state.h"
 #include "load_eqn.h"
+#include "numerics_settings.h"
+#include "model_numerics.h"
+#include "solver.h"
 #include "value_undo.h"
 #include "form_ode.h"
-#include "numerics_settings.h"
 #include "odex.h"
 
 #include "numerics.h"

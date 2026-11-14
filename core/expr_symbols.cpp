@@ -5,7 +5,7 @@
    model's names as the load adds them. */
 #include "expr_internal.h"
 #include "expr.h"
-#include "numerics_settings.h"
+#include "model_numerics.h"
 #include "model.h"
 #include "model_record.h"
 #include "xpp_log.h"
@@ -14,7 +14,6 @@
 #include "tabular.h"
 #include "expr_program.h"
 #include "session.h"
-#include "volterra.h"
 #include "xpp_error.h"
 
 #include <cctype>

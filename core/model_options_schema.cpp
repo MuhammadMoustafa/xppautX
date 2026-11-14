@@ -3,7 +3,7 @@
    value and what it accepts. docs/odex-options.schema.json holds the
    output; tools/optionschema.sh checks it is current. */
 #include "model_options.h"
-#include "autox_settings.h"
+#include "model_autox_numerics.h"
 
 #include "xpp_text.h"
 
@@ -13,6 +13,7 @@
 #include <string_view>
 #include <vector>
 #include <array>
+#include <climits>
 #include <cstddef>
 #include <span>
 
@@ -37,6 +38,24 @@ bool all_digits(const std::string &w)
 
 } // namespace
 
+/* the bounds autoX accepts for Numerics field i (autox_num_rules), as JSON Schema keywords */
+static std::string autox_num_schema(int i)
+{
+  const AutoxNumRule &f = autox_num_rules[static_cast<std::size_t>(i)];
+  switch (f.rule) {
+  case AutoxRule::positive: return ", \"exclusiveMinimum\": 0";
+  case AutoxRule::range: {
+    std::string out;
+    if (f.lo != INT_MIN) out += ", \"minimum\": " + std::to_string(static_cast<long>(f.lo));
+    if (f.hi != INT_MAX) out += ", \"maximum\": " + std::to_string(static_cast<long>(f.hi));
+    return out;
+  }
+  case AutoxRule::nonzero:
+  case AutoxRule::any: break;
+  }
+  return {};
+}
+
 std::string option_limit_members(const OptionRow &row)
 {
   std::string out;
@@ -51,7 +70,7 @@ std::string option_limit_members(const OptionRow &row)
   case OptionRule::choice: break;
   }
   if (row.maximum) out += ", \"maximum\": " + std::to_string(row.maximum);
-  if (row.autox_numeric >= 0) out += autox_settings_num_schema(row.autox_numeric);
+  if (row.autox_numeric >= 0) out += autox_num_schema(row.autox_numeric);
   return out;
 }
 

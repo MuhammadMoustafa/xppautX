@@ -13,7 +13,6 @@
 #include "expr.h"
 #include "browse.h"
 #include "session_settings.h"
-#include "numerics_settings.h"
 #include "xpp_io.h"
 #include "xpp_path.h"
 #include "xpp_lines.h"
@@ -21,10 +20,12 @@
 #include "expr_native.h"
 #include <stdio.h>
 #include <time.h>
-#include "solver.h"
 #include "model_options.h"
+#include "numerics_settings.h"
+#include "model_numerics.h"
+#include "solver.h"
 #include "session.h"
-#include "pp_shoot.h"
+#include "model_analysis.h"
 #include "model_parts.h"
 #include "colormap.h"
 #include "line_style.h"

@@ -8,7 +8,6 @@
 #include "xpp_text.h"
 #include "model_place.h"
 #include "tabular.h"
-#include "volterra.h"
 
 #include <bit>
 #include <map>

@@ -14,13 +14,13 @@
 #include "expr_native.h"
 #include "form_ode.h"
 #include "ode_read.h"
-#include "integrate.h"
+#include "model_declarations.h"
+#include "solver.h"
 #include "load_eqn.h"
 #include "model_options.h"
 #include "model.h"
 #include "model_record.h"
 #include "model_files.h"
-#include "solver.h"
 #include "tabular.h"
 #include "model_load.h"
 #include "model_failed.h"
@@ -41,7 +41,6 @@
 #include "model_place.h"
 #include "model_parts.h"
 #include "simplenet.h"
-#include "volterra.h"
 #include "xpp_error.h"
 
 #include <algorithm>

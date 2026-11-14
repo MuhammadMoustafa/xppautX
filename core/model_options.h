@@ -255,7 +255,7 @@ struct OptionRow {
      the menu's label, what it accepts and which methods use it */
   std::string_view key, label;
   OptionRule rule = OptionRule::any;
-  /* autoX numeric rule index; the rule itself lives in autox_settings. */
+  /* autoX numeric rule index; the rules are model_autox_numerics.h's. */
   int autox_numeric = -1;
   int maximum = 0; /* 0: no allocation-sized upper bound; otherwise inclusive */
   OptionUse use = OptionUse::always;

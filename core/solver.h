@@ -16,17 +16,9 @@
 #include <utility>
 
 #include "xpp_error.h"
+#include "model_numerics.h"
 
 namespace xpp {
-
-/* the methods by number (numerics.method) */
-namespace method {
-enum Id : int {
-  DISCRETE, EULER, MOD_EULER, RK4, ADAMS, GEAR, VOLTERRA, BACKEUL,
-  RKQS, STIFF, CVODE, DP5, DP83, RB23, SYMPLECT,
-  COUNT
-};
-}
 
 /* what an implicit fixed step (backward Euler's, Volterra's) returns when
    its Newton iteration fails: the matrix is singular, or the iterations

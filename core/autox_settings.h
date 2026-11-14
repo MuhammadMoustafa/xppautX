@@ -8,6 +8,7 @@
 #include <string_view>
 #include <utility>
 #include "autox_codes.h"
+#include "model_autox_numerics.h"
 #include "xpp_error.h"
 namespace xpp { enum class AutoxProjection; }
 
@@ -27,34 +28,6 @@ namespace xpp {
 
 struct Session; /* session.h */
 struct OptionRow; /* model_options.h */
-
-/* 10000 intervals far exceed shipped meshes while bounding autoX's mesh-sized matrices. */
-inline constexpr int autox_max_mesh_intervals = 10000;
-/* autoX's collocation coefficients support only orders 2 through 7 (autox_lib1.cpp collocation_point_positions). */
-inline constexpr int autox_min_collocation_points = 2;
-inline constexpr int autox_max_collocation_points = 7;
-
-/* the Numerics fields in their order, each named for what it sets (W531);
-   autoX's own name for it (NTST, DS, MXBF, ...) is a search word in the
-   manual and the page's hover, never an input */
-enum {
-    AUTOX_NUM_MESH_INTERVALS, AUTOX_NUM_MAX_STEPS, AUTOX_NUM_OUTPUT_EVERY, AUTOX_NUM_COLLOCATION_POINTS,
-    AUTOX_NUM_STEP_SIZE, AUTOX_NUM_MIN_STEP_SIZE, AUTOX_NUM_MAX_STEP_SIZE,
-    AUTOX_NUM_PARAMETER_MIN, AUTOX_NUM_PARAMETER_MAX, AUTOX_NUM_NORM_MIN, AUTOX_NUM_NORM_MAX,
-    AUTOX_NUM_PARAMETER_TOLERANCE, AUTOX_NUM_STATE_TOLERANCE, AUTOX_NUM_SPECIAL_POINT_TOLERANCE,
-    AUTOX_NUM_MESH_ADAPT_EVERY, AUTOX_NUM_MAX_BRANCH_SWITCHES, AUTOX_NUM_SWITCH_ONE_DIRECTION, AUTOX_NUM_OUTPUT_DETAIL,
-    AUTOX_NUM_MAX_LOCATION_ITERATIONS, AUTOX_NUM_MAX_NEWTON_ITERATIONS, AUTOX_NUM_FULL_NEWTON_AFTER,
-    AUTOX_NUM_STEP_ADAPT_EVERY, AUTOX_NUM_SUPPRESS_BRANCH_POINTS, AUTOX_NUM_FOLLOW_ALL_BRANCHES,
-    AUTOX_NUM_N
-};
-
-/* what autoX's IID levels print, named by it (0 to 5 are autoX's own numbers, read on import only) */
-inline constexpr std::array<const char *, 6> autox_output_detail_names = {
-    "none", "little", "normal", "start_jacobian", "extensive", "debugging"};
-
-/* what a field holds: a whole number, a real, a boolean, or one of named choices
-   (stored in the settings' numbers as the index, 0 or 1 for a boolean) */
-enum class AutoxFieldShape { whole, real, boolean, choice };
 
 /* a Numerics field's key and shape are its row's in the option table (the continuation group, `autox_numeric` its index here): the one
    source, which the event, `set`, the files and the registry's autox.configure_numerics all read */
@@ -120,13 +93,6 @@ void autox_settings_reload(Session &s, const AutoxSettingsSet &kept);
    axes keys and `view`: applied, they give the view its axes back */
 AutoxSettingsSet autox_settings_view(const Session &s, int view);
 
-/* 1 when a value of field i is autoX's (an integer where the field is one,
-   in the field's range); why names the field and its range otherwise.
-   Pure: no model state. Nothing is thrown. */
-int autox_settings_num_ok(int i, double v, std::string &why);
-/* field i's bounds as JSON Schema keywords (", \"minimum\": 1", ...), for
-   the options schema: the same rule autox_settings_num_ok checks */
-std::string autox_settings_num_schema(int i);
 /* Check supplied numbers together, including ordering and signed step magnitude. */
 Result<> autox_settings_numbers_check(std::span<const double, AUTOX_NUM_N> num,
                                     std::span<const int, AUTOX_NUM_N> supplied);

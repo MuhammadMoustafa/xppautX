@@ -4,7 +4,7 @@
 #include "expr_program.h"
 #include "session.h"
 #include "expr.h"
-#include "numerics_settings.h"
+#include "model_numerics.h"
 #include "xpp_log.h"
 #include "my_rhs.h"
 #include "model.h"

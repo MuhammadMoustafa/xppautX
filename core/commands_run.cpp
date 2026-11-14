@@ -12,6 +12,7 @@
 #include "model_options.h"
 #include "numerics.h"
 #include "numerics_settings.h"
+#include "model_numerics.h"
 #include "solver.h"
 #include "value_undo.h"
 #include "xpp_text.h"

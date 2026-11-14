@@ -6,6 +6,7 @@
 #include "nullcline.h"
 #include "data_formats.h"
 #include "numerics_settings.h"
+#include "model_numerics.h"
 #include "model_options.h"
 #include "graf_par.h"
 #include "xpp_text.h"

@@ -1438,7 +1438,7 @@ xpp::Result<> import_autox_file(xpp::Session &s, std::string_view text, const st
           value=std::fabs(value);
         }
         std::string why;
-        if(!xpp::autox_settings_num_ok(field,value,why))lines.fail(why);
+        if(!xpp::autox_num_ok(field,value,why))lines.fail(why);
         settings.has_num[field]=1;
         locations[xpp::autox_settings_num_key(field)]=lines.line();
       }
@@ -1502,8 +1502,8 @@ bool read_autox_solution_header(TokenReader &reader, AutoxSolutionHeader &h, lon
     if (!itp) return false;
     h.itp = *itp;
     std::string why;
-    const bool collocation = h.ntst == 0 ? h.ncol == 0 : h.equilibrium_direction() || autox_settings_num_ok(AUTOX_NUM_COLLOCATION_POINTS, h.ncol, why);
-    const bool mesh = h.ntst == 0 || h.equilibrium_direction() || autox_settings_num_ok(AUTOX_NUM_MESH_INTERVALS, h.ntst, why);
+    const bool collocation = h.ntst == 0 ? h.ncol == 0 : h.equilibrium_direction() || autox_num_ok(AUTOX_NUM_COLLOCATION_POINTS, h.ncol, why);
+    const bool mesh = h.ntst == 0 || h.equilibrium_direction() || autox_num_ok(AUTOX_NUM_MESH_INTERVALS, h.ntst, why);
     return h.nfpr >= 0 && h.nfpr <= parameters && h.ntpl >= 1 && static_cast<std::size_t>(h.ntpl) <= autox_solution_values_limit / static_cast<std::size_t>(h.nar < 2 ? 2 : h.nar) && h.nar >= 2 && static_cast<std::size_t>(h.nar) <= autox_solution_values_limit
         && h.nskip >= h.ntpl && h.ntst >= 0 && h.ntst <= h.nskip
         && mesh && collocation && h.npar >= 0 && h.npar <= parameters && h.nfpr <= h.npar

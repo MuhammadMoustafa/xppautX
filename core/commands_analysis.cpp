@@ -24,7 +24,7 @@
 #include "event_registry.h"
 #include "command_category.h"
 #include "json_number.h"
-#include "numerics_settings.h"
+#include "model_numerics.h"
 #include "struct.h"
 #include "xpp_error.h"
 #include "xpp_text.h"

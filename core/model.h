@@ -28,7 +28,6 @@
 #include "xpp_error.h"
 #include "xpp_fs.h"
 #include "model_file_types.h"
-#include "volterra.h"
 #include "simplenet.h"
 #include "xpp_mir.h"
 #include "expr_program.h"

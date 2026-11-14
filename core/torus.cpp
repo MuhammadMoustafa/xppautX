@@ -1,7 +1,7 @@
 #include "session.h"
 #include "torus.h"
 #include "xpp_ui.h"
-#include "numerics_settings.h"
+#include "model_numerics.h"
 #include "xpp_text.h"
 
 #include <algorithm>

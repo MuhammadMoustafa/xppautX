@@ -27,7 +27,6 @@
 #include "adj2.h"
 #include "browse.h"
 #include "derived.h"
-#include "equilibria.h"
 #include "del_stab.h"
 #include "flags.h"
 #include "histogram.h"
@@ -36,6 +35,7 @@
 #include "dae_fun.h"
 #include "numerics.h"
 #include "numerics_settings.h"
+#include "model_numerics.h"
 #include "my_rhs.h" /* extra */
 #include "expr_native.h"
 #include "sweep_runs.h"
@@ -1312,26 +1312,6 @@ ArrayIc &array_ic_for(ArrayIcs &ics, const char *newic, int j1, int j2)
   }
   return ics.ics[ihot];
 }
-}
-
-std::vector<ArrayInitialValue> array_initial_values(const xpp::Model &m)
-{
-  std::vector<ArrayInitialValue> out;
-  if(m.array_ics.defined==0)return out;
-  int group=0;
-  for(const ArrayIc &ic : m.array_ics.ics){
-    if(ic.type!=2)continue;
-    group++;
-    for(int j=ic.j1;j<=ic.j2;j++){
-      ArrayInitialValue v;
-      subsk(ic.var,v.var,j,1);
-      subsk(ic.formula,v.formula,j,1);
-      v.j=j;
-      v.group=group;
-      out.push_back(std::move(v));
-    }
-  }
-  return out;
 }
 
 void evaluate_ar_ic(xpp::Session &s, const char *v, const char *f, int j1, int j2)

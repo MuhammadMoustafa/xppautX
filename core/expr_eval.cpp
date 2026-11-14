@@ -12,7 +12,6 @@
 #include "model_place.h"
 #include "integrate.h"
 #include "xpp_ui.h"
-#include "simplenet.h"
 #include "tabular.h"
 #include "volterra2.h"
 #include "session.h"

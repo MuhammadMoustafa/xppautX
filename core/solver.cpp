@@ -32,6 +32,7 @@
 #include "model.h"
 #include "model_place.h"
 #include "numerics_settings.h"
+#include "model_numerics.h"
 #include "xpp_math.h"
 
 namespace xpp {

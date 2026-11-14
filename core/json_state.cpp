@@ -28,6 +28,7 @@
 #include "autox_data.h"
 #include "autox_settings.h"
 #include "numerics_settings.h"
+#include "model_numerics.h"
 #include "axes2.h"
 #include <cmath>
 #include <strings.h>

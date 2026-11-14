@@ -26,6 +26,7 @@
 #include "model_options.h"
 #include "numerics.h"
 #include "numerics_settings.h"
+#include "model_numerics.h"
 #include "solver.h"
 #include "volterra2.h"
 #include "xpp_globals.h"

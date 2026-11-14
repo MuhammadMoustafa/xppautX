@@ -17,19 +17,17 @@
 #include "odex.h"
 #include "xpp_util.h"
 #include "session_values.h"
-#include "autox_settings.h"
+#include "model_autox_numerics.h"
 #include "browse.h"
 #include "data_formats.h"
 #include "colormap.h"
 #include "expr_native.h"
 #include "plot_state.h"
-#include "histogram.h"
-#include "jacobian.h"
 #include "model.h"
 #include "model_files.h"
 #include "numerics.h"
-#include "pp_shoot.h"
-#include "solver.h"
+#include "model_analysis.h"
+#include "histogram.h"
 #include "tabular.h"
 #include "typed_values.h"
 #include "userbut.h"
@@ -45,10 +43,8 @@
 #include "delay_handle.h" /* IWYU pragma: keep (the generic lambdas of the option table need DelayState complete) */
 #include "integrate.h"
 #include "plot_settings.h"
-#include "autox_codes.h"
 #include "expr_program.h"
 #include "line_style.h"
-#include "numerics_settings.h"
 #include "storage.h"
 
 namespace xpp {
@@ -187,7 +183,7 @@ constexpr std::array<std::string_view, 2> boolean_names{"false", "true"};
 constexpr std::array<std::string_view, 2> axes_names{"2", "3"};
 /* which end of the interval Range shoot stores (pp_shoot.h's SHOOT_SIDE_NAMES, as the words a row takes) */
 constexpr std::array<std::string_view, 2> shoot_side_names{SHOOT_SIDE_NAMES[0], SHOOT_SIDE_NAMES[1]};
-/* autoX's output detail levels, as the words the row takes (autox_settings.h's names) */
+/* autoX's output detail levels, as the words the row takes (model_autox_numerics.h's names) */
 constexpr std::array<std::string_view, autox_output_detail_names.size()> autox_output_detail_words = [] {
   std::array<std::string_view, autox_output_detail_names.size()> words;
   for (std::size_t i = 0; i < words.size(); ++i) words[i] = autox_output_detail_names[i];
@@ -1561,7 +1557,7 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   /* Check the row's shared numeric bounds before its parser can apply a value. */
   double x = 0;
   const char *refused = parse_number(text, x) ? rule_problem(row->rule, x, row->maximum) : nullptr;
-  if (std::string autox_why; row->autox_numeric >= 0 && parse_number(text, x) && !autox_settings_num_ok(row->autox_numeric, x, autox_why)) return autox_why;
+  if (std::string autox_why; row->autox_numeric >= 0 && parse_number(text, x) && !autox_num_ok(row->autox_numeric, x, autox_why)) return autox_why;
   if (row->zero_or_one && text != "0" && text != "1") why = "not 0 or 1";
   else if (row->once && !source.may(s, *row)) return std::nullopt;
   else if (refused) why = refused;

@@ -30,6 +30,7 @@
 #include "xpp_log.h"
 #include "equilibria.h"
 #include "numerics_settings.h"
+#include "model_numerics.h"
 #include "model.h"
 #include "autox_axis.h"
 #include "autox_stop.h"

@@ -15,6 +15,7 @@
 #include "model.h"
 #include "model_place.h"
 #include "numerics_settings.h"
+#include "model_numerics.h"
 #include "xpp_mem.h"
 #include "expr_program.h"
 #include "session.h"

@@ -13,7 +13,7 @@
 #include "model_place.h"
 #include "session.h"
 #include "integrate.h"
-#include "numerics_settings.h"
+#include "model_numerics.h"
 #include "xpp_text.h"
 #include "expr.h"
 #include "expr_native.h"

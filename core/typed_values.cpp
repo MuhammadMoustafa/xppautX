@@ -16,7 +16,7 @@
 #include "delay_handle.h"
 #include "form_ode.h"
 #include "session.h"
-#include "numerics_settings.h"
+#include "model_numerics.h"
 
 namespace xpp {
 

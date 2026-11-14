@@ -34,12 +34,14 @@ TESTS = 'tests'
 # module name -> (why these files belong together, stem patterns). A stem is a
 # file name without its extension; a module naming a stem exactly wins, else the first whose pattern matches.
 MODULES = {
-    'kernel': ('the innermost ring (Discussion #808): errors (the failure of a load among them, model_failed) and their log, memory, text formatting and the pure helpers on text (the JSON number writer and reader among them: text in, text out), a file of ours read as lines and numbers from the text it is given (xpp_lines: Lines and TokenReader, W731, W739), the text of a file name (xpp_path) and the FileSystem and Sink the inner rings read and write through (xpp_fs: an interface the kernel owns, the files module implements, W731), bytes in and bytes out (zip and gzip archives, SHA-256: W731 moved them here, they open no file), and math; it includes nothing outside itself (W726)', [
-        'xpp_error', 'model_failed', 'xpp_log', 'xpp_mem', 'xpp_text', 'xpp_lines', 'xpp_path', 'xpp_fs', 'xpp_zip', 'xpp_sha256', 'xpp_util', 'xpp_math', 'xpp_cpu', 'json_number', 'json_reader']),
+    'kernel': ('the innermost ring (Discussion #808): errors (the failure of a load among them, model_failed) and their log, memory, text formatting and the pure helpers on text (the JSON number writer and reader among them: text in, text out), a file of ours read as lines and numbers from the text it is given (xpp_lines: Lines and TokenReader, W731, W739), the text of a file name (xpp_path) and the FileSystem and Sink the inner rings read and write through (xpp_fs: an interface the kernel owns, the files module implements, W731), bytes in and bytes out (zip and gzip archives, SHA-256: W731 moved them here, they open no file), and math, and the ChangedEvent template (data_event: a sink and a text, pure); it includes nothing outside itself (W726)', [
+        'xpp_error', 'model_failed', 'xpp_log', 'xpp_mem', 'xpp_text', 'xpp_lines', 'xpp_path', 'xpp_fs', 'xpp_zip', 'xpp_sha256', 'xpp_util', 'xpp_math', 'xpp_cpu', 'json_number', 'json_reader', 'data_event']),
     'files': ('the file system, outside the kernel: the file handles (LineReader, Writer), folders, the log file, and the files command\'s result as the protocol shows it (json_files)', [
         'xpp_io', 'xpp_io_internal', 'xpp_files', 'xpp_files_dir', 'xpp_files_internal', 'xpp_files_win', 'xpp_files_posix',
         'xpp_files_linux', 'xpp_files_mac', 'xpp_fs_local', 'json_files']),
     'run control': ('the cancel token and progress a computation reports to, and the input queues of commands and cancels it sees, which the front ends and the platform fill (the stdin reader is the --server front end\'s own, json_io.cpp)', ['xpp_job', 'xpp_inbox']),
+    'domain values': ('the numerics settings, method ids and autoX codes a model, a run and the XppUi seam carry: pure types, including only the kernel (W736)', [
+        'model_numerics', 'autox_codes']),
     'styles': ('the colors, color scales, line styles and text styles a model, a run and a plot carry: pure types and their words, which include only the kernel (W733)', [
         'colormap', 'line_style', 'text_style']),
     'plot state': ('the data of the plot windows a Session holds, a model\'s options give and a run reads: pure structs and the window handle type, with no drawing (W733)', [
@@ -91,6 +93,7 @@ LEVELS = [
     ('kernel', 'kernel', 'pure helpers (errors, memory, text, math) that include nothing outside themselves'),
     ('run control', 'kernel', 'the cancel token and progress a computation reports to, owned inside, set by the front ends'),
     ('styles', 'kernel', 'the colors and styles a model, a run and a plot carry: pure types, including only the kernel, below the XppUi seam that passes them'),
+    ('domain values', 'kernel', 'the numerics settings, method ids and autoX codes a model, a run and the XppUi seam carry: pure types, including only the kernel, below the seam that passes them'),
     ('ui seam', 'kernel', 'the XppUi table core code calls the front end through, owned inside, implemented outside'),
     ('expressions', 'domain model', 'the formula compiler and its evaluators, which need no run'),
     ('plot state', 'domain model', 'pure data of the plot windows (GRAPH, the split, the drawing, the nullclines) that a model\'s options set and a run reads: no drawing; above the XppUi seam, which reads none of it (W738)'),
@@ -128,23 +131,23 @@ ALLOWLIST = {
     ('commands', 'files'): (5, 'W740'),
     ('export', 'files'): (7, 'W740'),
     ('expressions', 'analysis'): (2, 'W736'),
-    ('expressions', 'integrators'): (17, 'W736'),
-    ('expressions', 'model and loading'): (31, 'W736'),
+    ('expressions', 'integrators'): (11, 'W736'),
+    ('expressions', 'model and loading'): (25, 'W736'),
     ('expressions', 'session'): (12, 'W732'),
     ('files', 'platform'): (1, 'W737'),
-    ('integrators', 'analysis'): (11, 'W736'),
+    ('integrators', 'analysis'): (9, 'W736'),
     ('integrators', 'animation'): (1, 'W737'),
     ('integrators', 'autoX'): (1, 'W736'),
     ('integrators', 'commands'): (1, 'W737'),
     ('integrators', 'files'): (2, 'W740'),
     ('integrators', 'session'): (28, 'W732'),
-    ('model and loading', 'analysis'): (9, 'W736'),
+    ('model and loading', 'analysis'): (7, 'W736'),
     ('model and loading', 'animation'): (1, 'W737'),
-    ('model and loading', 'autoX'): (5, 'W736'),
+    ('model and loading', 'autoX'): (1, 'W736'),
     ('model and loading', 'commands'): (3, 'W737'),
     ('model and loading', 'export'): (2, 'W737'),
     ('model and loading', 'files'): (1, 'W740'),
-    ('model and loading', 'integrators'): (26, 'W736'),
+    ('model and loading', 'integrators'): (17, 'W736'),
     ('model and loading', 'session files'): (5, 'W737'),
     ('model and loading', 'session'): (19, 'W732'),
     ('plot', 'animation'): (1, 'W737'),
@@ -160,10 +163,9 @@ ALLOWLIST = {
     ('session', 'commands'): (1, 'W737'),
     ('session', 'export'): (3, 'W737'),
     ('session', 'session files'): (2, 'W737'),
-    ('ui seam', 'autoX'): (3, 'W736'),
     ('ui seam', 'commands'): (1, 'W737'),
     ('ui seam', 'expressions'): (3, 'W736'),
-    ('ui seam', 'integrators'): (3, 'W736'),
+    ('ui seam', 'integrators'): (2, 'W736'),
     ('ui seam', 'model and loading'): (2, 'W736'),
     ('ui seam', 'platform'): (1, 'W737'),
     ('ui seam', 'session'): (2, 'W732'),

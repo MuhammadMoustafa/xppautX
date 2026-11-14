@@ -5,9 +5,7 @@
 #include "session.h"
 #include "expr.h"
 #include "expr_program.h"
-#include "simplenet.h"
 #include "tabular.h"
-#include "volterra.h"
 
 namespace xpp::expr {
 

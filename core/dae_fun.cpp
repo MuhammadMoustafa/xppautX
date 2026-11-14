@@ -1,5 +1,6 @@
 
 #include "numerics_settings.h"
+#include "model_numerics.h"
 #include "integrate.h"
 #include "dae_fun.h"
 #include "expr.h"

@@ -4,7 +4,7 @@
 #include <limits>
 #include <span>
 #include <vector>
-#include "numerics_settings.h"
+#include "model_numerics.h"
 #include "xpp_error.h"
 #include "xpp_math.h"
 #include "xpp_mem.h"

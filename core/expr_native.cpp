@@ -7,7 +7,6 @@
 #include "expr_ir.h"
 #include "expr_program.h"
 #include "jacobian.h"
-#include "simplenet.h"
 #include "tabular.h"
 #include "volterra2.h"
 #include "xpp_mir.h"
@@ -41,9 +40,8 @@
 #include "model.h"
 #include "model_files.h"
 #include "model_place.h"
-#include "numerics_settings.h"
+#include "model_numerics.h"
 #include "odex.h"
-#include "volterra.h"
 
 namespace xpp {
 namespace {

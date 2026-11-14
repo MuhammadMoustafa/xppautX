@@ -76,7 +76,7 @@ struct VolterraState; /* volterra.h */
 struct FitInfo; /* do_fit.h */
 struct DaeState; /* dae_fun.h */
 struct NullclineState; /* nullcline.h */
-struct ShootRange; /* pp_shoot.h */
+struct ShootRange; /* model_analysis.h */
 struct MarkInfo; /* grobs.h */
 struct ManifoldShots; /* equilibria.h */
 struct DrawingState; /* graphics.h */

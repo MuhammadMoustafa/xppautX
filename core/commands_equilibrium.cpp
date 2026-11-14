@@ -7,6 +7,7 @@
 #include "many_pops.h"
 #include "graf_par.h"
 #include "numerics_settings.h"
+#include "model_numerics.h"
 #include "xpp_util.h"
 #include "session_values.h"
 #include "json_number.h"

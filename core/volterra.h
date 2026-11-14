@@ -1,26 +1,7 @@
 #pragma once
 
-#include "expr_program.h"
-#include "xpp_error.h"
-
-/* a kernel that is a convolution (KERNEL's flag) */
-#define CONV 2
-
 #include <string>
 #include <vector>
-
-/* An integral equation's kernel as the model declares it (expr_symbols.cpp
-   add_kernel; volterra2.cpp alloc_v_memory compiles it while the model
-   loads): K(t,t',u) with the constant mu, or a convolution kerexpr#expr
-   (flag CONV). xpp::Model's kernels hold them; the running integrals are
-   volterra2.cpp's. */
-struct KERNEL {
-  double mu=0.0;
-  xpp::Program formula,kerform; /* expr and kerexpr compiled */
-  xpp::Place where; /* the declaring line, including an anonymous inline kernel */
-  int flag=0;
-  std::string name,expr,kerexpr;
-};
 
 namespace xpp {
 

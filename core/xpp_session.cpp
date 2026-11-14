@@ -10,6 +10,7 @@
    (read_session), its errors at the line of the file ("name.snapx/session.odex:12"),
    before anything is applied (apply_session). */
 #include "numerics_settings.h"
+#include "model_numerics.h"
 #include "model_options.h"
 #include "xpp_session.h"
 #include "snapx.h"

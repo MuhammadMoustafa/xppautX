@@ -3,8 +3,6 @@
 #include <stdio.h>
 #include "model_options.h"
 #include "line_style.h"
-#include "numerics_settings.h"
-#include "solver.h"
 #include "odex_write.h"
 #include "xpp_error.h"
 

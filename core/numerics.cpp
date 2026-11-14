@@ -20,7 +20,7 @@
 #include "delay_handle.h"
 #include "model.h"
 #include "solver.h"
-#include "numerics_settings.h"
+#include "model_numerics.h"
 #include "xpp_io.h"
 #include "model_failed.h"
 #include "session.h"

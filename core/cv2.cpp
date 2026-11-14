@@ -13,7 +13,7 @@
                       /* prototypes for N_VNew, N_VFree                    */
 #include "cvband.h"
 #include "xpp_text.h"
-#include "numerics_settings.h"
+#include "model_numerics.h"
 #include <string>
 #include "model.h"
 #include "jacobian.h"

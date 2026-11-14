@@ -6,6 +6,7 @@
 #include <string_view>
 #include "storage.h"
 #include "xpp_error.h"
+#include "model_analysis.h"
 
 namespace xpp {
 
@@ -28,9 +29,6 @@ struct HIST_INFO {
   double ylo,yhi;
   std::string cond;
 };
-
-/* the spectra's words, by spec_type's number: the power spectral density of one column, the cross spectrum of two, their coherence */
-inline constexpr std::array<std::string_view, 3> spectrum_type_names{"spectral_density", "cross_spectral_density", "coherence"};
 
 /* what a batch run (--silent, a model's `output: { after_run }`) makes of its data once it has run: an analysis of the
    stored run, or the mean or the variance of the runs of a Compute (stochastic) sweep, which then are the data */

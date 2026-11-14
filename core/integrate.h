@@ -191,16 +191,6 @@ void send_output(Session &s, double *y, double t);
 Result<> stor_full(Session &s);
 int do_autox_range_go(Session &s, const RunReport &report);
 
-/* the model's array initial values (x[j1..j2](0)=formula, applied by
-   arr_ic_start when set_all_vals sets the model up), element by element:
-   each variable's name and formula with the index worked out, the index
-   j, and which of the model's array initial values it is (group, from 1) */
-struct ArrayInitialValue {
-  std::string var, formula;
-  int j = 0, group = 0;
-};
-std::vector<ArrayInitialValue> array_initial_values(const Model &m);
-
 /* Initialconds/Range's settings (integrate.cpp's, read by load_eqn.cpp's
    options): the one range over item (and item2 for the double range) */
 /* how many values a range varies (RangeVars::rtype): one, two together or two independently */
