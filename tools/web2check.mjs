@@ -3874,6 +3874,19 @@ async function splitViewAutoxCheck() {
   await requireUntil(`s.ask && s.ask.kind === 'grab' && s.diagram.grabbing`, 'grab');
   check('W720: while a point is grabbed the grab bar is an overlay row at the top of the plot area and "Point" is open',
     await until(`!!document.querySelector('.plots > .autox-panel .autox-host .autox-overlay-row .pick-bar[data-pick=grab]') && document.querySelector('.plots > .autox-panel details.autox-point')?.open === true`, 'overlay and point open'));
+  /* the grab bar is one line the height of the tab strip's row, and the open Point leaves the diagram its minimum, at every width, light and dark */
+  for (const [width, height] of [[1280, 800], [1024, 700], [768, 1024]])
+    for (const scheme of ['light', 'dark']) {
+      await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+      await metrics({width, height, deviceScaleFactor: 1, mobile: false});
+      const probe = () => cdp.eval(`(() => { const b = document.querySelector('.plots > .autox-panel .pick-bar'), t = document.querySelector('.group-strip .view-tab'), h = document.querySelector('.plots > .autox-panel .autox-host'), s = b.querySelector('span');
+        return {bar: b.getBoundingClientRect().height, row: t.getBoundingClientRect().height, host: h.clientHeight, min: parseFloat(getComputedStyle(h).minHeight), cut: s.scrollWidth > s.clientWidth, buttons: [...b.querySelectorAll('button')].every(x => x.getBoundingClientRect().right <= b.getBoundingClientRect().right + 1)}; })()`);
+      const got = await probe();
+      check(`W720: at ${width}x${height} ${scheme} the grab bar is one line, ${got.row}px like the tab strip's row, its words cut with an ellipsis and its buttons in view, and the diagram keeps its minimum with Point open`,
+        got.bar === got.row && got.buttons && got.host >= got.min - 1, JSON.stringify(got));
+    }
+  await cdp.send('Emulation.setEmulatedMedia', {features: []});
+  await desktopMetrics();
   await key('Escape');
   check('W720: after the grab "Point" closes again and the overlay is gone', await until(`!s.busy && !s.diagram.grabbing && !document.querySelector('.autox-overlay-row') && document.querySelector('.plots > .autox-panel details.autox-point')?.open === false`, 'closed'));
   await cdp.eval(`document.querySelector('.plots > .plot-view[data-group=first]').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))`);
@@ -3922,15 +3935,17 @@ async function splitViewAutoxShots() {
       await until(`!!__xpp.plot('main') && !!__xpp.diagram(0)`, 'drawn');
       await full(`split-diagram-${width}-${scheme}`);
     }
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 800, deviceScaleFactor: 1, mobile: false});
+  /* a point grabbed: the grab bar one line, Point open and capped, at each width, light and dark */
   await menuRun('autox.grab');
   await requireUntil(`s.ask && s.ask.kind === 'grab' && s.diagram.grabbing`, 'grab');
   await until(`document.querySelector('details.autox-point')?.open === true`, 'point open');
-  await rendered();
-  await full('split-diagram-grab-1280-dark');
-  await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: 'light'}]});
-  await rendered();
-  await full('split-diagram-grab-1280-light');
+  for (const [width, height] of [[1280, 800], [1024, 700], [768, 1024]])
+    for (const scheme of ['light', 'dark']) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: false});
+      await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+      await rendered();
+      await full(`split-diagram-point-${width}-${scheme}`);
+    }
   await key('Escape');
 }
 

@@ -209,6 +209,10 @@
   border-bottom: 1px solid var(--border);
 }
 .pick-bar span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+/* in a group of the split view (W720) the bar is one line the height of a tab strip's row: the instruction ellipsized, never wrapped, the buttons kept */
+.plots.split .pick-bar { flex-wrap: nowrap; height: var(--strip-row); padding-block: 0; }
+.plots.split .pick-bar span { overflow: hidden; overflow-wrap: normal; text-overflow: ellipsis; white-space: nowrap; }
+.plots.split .pick-bar button { flex: none; }
 .plot-host.picking .u-over { cursor: crosshair; }
 .plot-host.pick-drag .u-over { cursor: move; }
 .pick-overlay { position: absolute; pointer-events: none; z-index: var(--z-plot-overlay); overflow: visible; }

@@ -152,16 +152,19 @@ const GRAB_HELP = 'Arrow keys or square brackets step to the next or previous po
   + 'Home and End the first and the last, Tab and Shift+Tab the next and previous labelled point. Enter takes it, '
   + 'Escape cancels.';
 
-/** what a grab wants, with Take and Cancel; Escape anywhere cancels */
+const GRAB_TOUCH = 'Tap a point to take it.';
+const GRAB_MOUSE = 'Click a point to take it, or step with the arrow keys and Tab, then press Enter.';
+
+/** what a grab wants, with Take and Cancel; Escape anywhere cancels (in a group of the split view one line, the words in full as its tip) */
 function GrabBar() {
   const session = useSession();
   const waiting = useStore(s => s.ask?.kind !== 'grab');
   const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   return (
     <div class="pick-bar" data-pick="grab">
-      <span id="grab-instruction" role="status">
+      <span id="grab-instruction" role="status" title={touch ? GRAB_TOUCH : GRAB_MOUSE}>
         <b>Grab a point. </b>
-        {touch ? 'Tap a point to take it.' : 'Click a point to take it, or step with the arrow keys and Tab, then press Enter.'}
+        {touch ? GRAB_TOUCH : GRAB_MOUSE}
       </span>
       <button disabled={waiting} onClick={() => session.grabTake()}>Take</button>
       <button disabled={waiting} onClick={() => session.cancelPick()}>Cancel</button>

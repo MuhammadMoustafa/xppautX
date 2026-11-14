@@ -41,6 +41,10 @@
   --radius: 0.5rem;
   /* the smallest target: 44px on touch screens (WCAG 2.5.5), 2rem with a mouse */
   --target: 2rem;
+  /* the most of a diagram's pane that its open Point panel takes in a group of the split view (ui/AutoxView.tsx PointDisclosure) */
+  --point-share: 40%;
+  /* a tab strip's row: its tab (a target tall) and the tab's 2px underline; a bar in a group of the split view is as tall */
+  --strip-row: calc(var(--target) + 0.125rem);
 
 
   /* colors: text on --bg and --surface is at least 4.5:1, --fg-muted too */
