@@ -38,7 +38,6 @@
 #include "odex_block.h"
 #include "session.h"
 #include "struct.h"
-#include "xpp_io.h"
 
 namespace xpp {
 
@@ -377,7 +376,7 @@ void get_max_dfield(xpp::Session &s, double *y, double *ydot, double u0, double 
    drawn and recorded for the front end; dump, when only computed
    (write_dfield), gets each arrow instead of the screen. */
 void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, double dv, double dz,
-                 int inx, int iny, xpp::Writer *dump)
+                 int inx, int iny, xpp::Sink *dump)
 {
   const Computation computing;
   std::vector<double> y(s.model().neq),ydot(s.model().neq);
@@ -446,15 +445,15 @@ Result<int> export_nullclines(Session &s, const std::string &file, std::string_v
   const DataFormat *selected=format.empty()?data_format_of_file(file):data_format_named(format);
   if(!selected)selected=data_format_named(DATA_FORMAT_DAT);
   Result<> opened;
-  Writer writer=confirm?open_writer_replacing(file,selected->binary,&opened):open_writer_asking(file,selected->binary,&opened);
+  const std::unique_ptr<Sink> writer=confirm?open_sink_replacing(*s.model().fs,file,selected->binary,&opened):open_sink_asking(*s.model().fs,file,selected->binary,&opened);
   if(!opened)return std::unexpected(opened.error());
   if(!writer)return fail("nullcline.export","Output was not opened",command_place());
-  if(!selected->write(nullclines_table(s.nullcline_state->x_null.data(),s.nullcline_state->num_x_n,
-                                     s.nullcline_state->y_null.data(),s.nullcline_state->num_y_n),writer)){
-    abort_save(writer);
-    return fail("nullcline.export","Cannot write nullclines",command_place());
+  if(const Result<> written=selected->write(nullclines_table(s.nullcline_state->x_null.data(),s.nullcline_state->num_x_n,
+                                     s.nullcline_state->y_null.data(),s.nullcline_state->num_y_n),*writer);!written){
+    abort_save(*writer);
+    return fail("nullcline.export",xpp::format("Cannot write nullclines: {}",written.error().what),command_place());
   }
-  if(const auto saved=commit_save(writer);!saved)return std::unexpected(saved.error());
+  if(const auto saved=commit_save(*writer);!saved)return std::unexpected(saved.error());
   return s.nullcline_state->num_x_n+s.nullcline_state->num_y_n;
 }
 
@@ -575,7 +574,7 @@ bool dfield_shown(xpp::Session &s)
 }
 
 /* the current window's direction field, drawn, or into dump */
-void dfield_of_window(xpp::Session &s, xpp::Writer *dump)
+void dfield_of_window(xpp::Session &s, xpp::Sink *dump)
 {
   const int inx=s.plot_windows->current->xv[0]-1;
   const int iny=s.plot_windows->current->yv[0]-1;
@@ -607,13 +606,13 @@ Result<> write_dfield(xpp::Session &s, std::string_view name, bool confirm)
   const DrawingState drawn=*s.drawing;
   init_data_frame(s);
   Result<> opened;
-  Writer w=confirm?open_writer_replacing(name,false,&opened):open_writer_asking(name,false,&opened);
+  const std::unique_ptr<Sink> w=confirm?open_sink_replacing(*s.model().fs,name,false,&opened):open_sink_asking(*s.model().fs,name,false,&opened);
   if(!opened){*s.drawing=drawn;return opened;}
   if(!w){*s.drawing=drawn;return fail("direction_field.export","Output was not opened",command_place());}
-  dfield_of_window(s,&w);
+  dfield_of_window(s,w.get());
   *s.drawing=drawn;
-  if(s.integrator->step_error){abort_save(w);return take_step_error(s);}
-  return commit_save(w);
+  if(s.integrator->step_error){abort_save(*w);return take_step_error(s);}
+  return commit_save(*w);
 }
 
 Result<> draw_direction_field(xpp::Session &s, int c, int grid)

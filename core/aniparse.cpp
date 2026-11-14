@@ -5,9 +5,8 @@
    [0,1] x [0,1] by default, y up) and each primitive goes to ani_data.h
    (the "frame sinks" below), which keeps it in unit coordinates for a front
    end that draws it itself (docs/protocol.md "The animation as data"). */
-#include "xpp_io.h"
 #include "graf_par.h"
-#include "xpp_files.h"
+#include "xpp_fs.h"
 #include "xpp_zip.h"
 #include "xpp_path.h"
 #include "xpp_lines.h"
@@ -228,26 +227,26 @@ namespace {
    there) goes on with the next; the end of the line becomes a space and
    one more follows, as the parser has always seen it. eof once nothing is
    left to read. */
-std::string read_ani_line(xpp::LineReader &fp, bool &eof, int &lines, Place &place)
+std::string read_ani_line(xpp::Lines &fp, bool &eof, int &lines, Place &place)
 {
     std::string s;
     place.line = lines + 1;
     place.source.clear();
     for (;;) {
-        std::optional<std::string_view> line = fp.next();
-        if (!line) {
+        if (fp.at_end()) {
             eof = true;
             break;
         }
-        if (lines + 1 == place.line) place.source = *line;
+        const std::string_view line = fp.next();
+        if (lines + 1 == place.line) place.source = line;
         ++lines;
-        const size_t hat = line->find('\\');
+        const size_t hat = line.find('\\');
         if (hat == std::string_view::npos) {
-            s.append(*line);
+            s.append(line);
             s += ' ';
             break;
         }
-        s.append(line->substr(0, hat));
+        s.append(line.substr(0, hat));
     }
     s += ' ';
     return s;
@@ -554,7 +553,7 @@ int ani_grab_tasks(xpp::Session &s, xpp::TypedFields &f, const std::string &line
 }
 
 /* grab x;y;tol, then its start and end tasks on the next two lines */
-int add_grab_command(xpp::Session &s, AnimationState &animation, xpp::TypedFields &f, const std::string &xs, const std::string &ys, const std::string &ts, xpp::LineReader &fp, int &lines, Place &place)
+int add_grab_command(xpp::Session &s, AnimationState &animation, xpp::TypedFields &f, const std::string &xs, const std::string &ys, const std::string &ts, xpp::Lines &fp, int &lines, Place &place)
 {
     if (static_cast<int>(animation.grabs.size()) >= MAX_ANI_GRAB) {
         f.fail("grab", xpp::format("an animation has at most {} grabbables", MAX_ANI_GRAB));
@@ -643,7 +642,7 @@ bool read_args(xpp::Tokens &tokens, std::initializer_list<Arg> args)
 
 /*  The reader is an argument since the GRAB command reads in two
     additional lines */
-int parse_ani_string(xpp::Session &s, AnimationState &animation, xpp::TypedFields &f, std::string &text, xpp::LineReader &fp, int &lines, Place &place)
+int parse_ani_string(xpp::Session &s, AnimationState &animation, xpp::TypedFields &f, std::string &text, xpp::Lines &fp, int &lines, Place &place)
 {
     std::string x1, x2, x3, x4, col, thick;
     int type = COMNT;
@@ -759,7 +758,7 @@ bool animation_memory(std::size_t &used, const AnimationState &animation,
 
 /* Parse into a new value. No Session animation or displayed frame changes
    until the whole read succeeds, including the extra lines of each grab. */
-xpp::Result<AnimationState> load_ani_file(xpp::Session &s, xpp::LineReader &fp, const char *filename)
+xpp::Result<AnimationState> load_ani_file(xpp::Session &s, xpp::Lines &fp, const char *filename)
 {
     /* Keep window/options/runtime settings; only the parsed contents reset. */
     AnimationState animation = *s.animation;
@@ -820,22 +819,23 @@ xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_fil
             return xpp::fail("animation", xpp::format("cannot be read in full within the {} byte input limit", xpp::zip::archive_bytes_limit), Place{filename});
         bytes = std::move(*input);
     }
-    xpp::LineReader fp = xpp::LineReader::of_text(std::move(bytes));
     std::string text;
-    while (auto line = fp.next()) { text += *line; text += '\n'; }
+    for (const std::string_view line : xpp::split_lines(bytes)) { text += line; text += '\n'; }
     std::string native_file = filename;
     if (files::has_extension(filename, ".ani")) {
         auto converted = convert_animation(s, text, filename);
         if (!converted) return std::unexpected(converted.error());
         native_file = include_path(filename, files::output_name(filename, ".anix"));
-        if (files::serving_reads()) {
+        if (s.model().fs->serving_reads()) {
             /* A recording supplies the foreign input itself. Conversion is an
                import in memory; replay never creates an unrecorded disk file. */
             text = std::move(*converted);
         } else {
             auto written = odex::write_converted(*s.model().fs, filename, native_file, *converted);
             if (!written) return std::unexpected(written.error());
-            if (!read_bytes(native_file, text, zip::archive_bytes_limit)) return std::unexpected(files::open_error("animation", native_file));
+            auto converted_text = s.model().fs->read("animation", native_file, zip::archive_bytes_limit);
+            if (!converted_text) return std::unexpected(converted_text.error());
+            text = std::move(*converted_text);
         }
     }
     auto animation = read_animation(s, text, native_file);
@@ -1249,7 +1249,7 @@ void native_shape(Session &s, AnimationState &animation, const odex::Statement &
 Result<AnimationState> read_animation(Session &s, std::string_view text, const std::string &file)
 {
     if (files::has_extension(file, ".ani")) {
-        auto lines = LineReader::of_text(std::string(text));
+        Lines lines("animation", file, text);
         return load_ani_file(s, lines, file.c_str());
     }
     if (!files::has_extension(file, ".anix")) return fail_reading("animation", "expected an .anix animation", file);
@@ -1337,11 +1337,11 @@ void load_option_animation(Session &s)
     }
 }
 
-Result<std::string> animation_model(const std::string &file)
+Result<std::string> animation_model(FileSystem &fs, const std::string &file)
 {
-    std::string text;
-    UniqueFile input(files::open_read_within(file, files::split_path(file).first, {}));
-    if (!input || !read_bytes(input.get(), text, zip::archive_bytes_limit)) return std::unexpected(files::open_error("animation", file));
+    const std::optional<std::string> bytes = fs.read_within(file, files::split_path(file).first, {}, zip::archive_bytes_limit);
+    if (!bytes) return std::unexpected(files::open_error("animation", file));
+    const std::string &text = *bytes;
     const odex::Document doc("animation", file, text);
     try {
         std::string model;
@@ -1360,7 +1360,7 @@ Result<std::string> animation_model(const std::string &file)
 
 Result<std::string> convert_animation(Session &s, std::string_view text, const std::string &file)
 {
-    auto lines = LineReader::of_text(std::string(text));
+    Lines lines("animation", file, text);
     auto imported = load_ani_file(s, lines, file.c_str());
     if (!imported) return std::unexpected(imported.error());
     try {
@@ -1474,10 +1474,9 @@ int convert_animation_file(FileSystem &fs, const std::string &file, const std::s
     if (!line) { show_error(line.error()); return 1; }
     auto loaded = load_model(fs, std::move(*line), 1);
     if (!loaded) return 1;
-    std::string text;
-    UniqueFile input(files::open_read_within(file, files::split_path(file).first, {}));
-    if (!input || !read_bytes(input.get(), text, zip::archive_bytes_limit)) { show_error(files::open_error("animation", file)); return 1; }
-    auto native = convert_animation(**loaded, text, file);
+    const std::optional<std::string> text = fs.read_within(file, files::split_path(file).first, {}, zip::archive_bytes_limit);
+    if (!text) { show_error(files::open_error("animation", file)); return 1; }
+    auto native = convert_animation(**loaded, *text, file);
     if (!native) { show_error(native.error()); return 1; }
     const auto written = odex::write_converted(fs, file, include_path(file, files::output_name(file, ".anix")), *native);
     if (!written) { show_error(written.error()); return 1; }

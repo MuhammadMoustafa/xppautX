@@ -24,7 +24,7 @@
 #include <vector>
 #include <expected>
 
-namespace xpp { struct Session; enum class CommandCategory; }
+namespace xpp { struct Session; class FileSystem; enum class CommandCategory; }
 namespace xpp::command {
 
 /* Registry requests describe small operations; bulk data uses /files. */
@@ -335,7 +335,7 @@ std::span<const Command> animation_commands();
 std::span<const Command> array_plot_commands();
 
 /* the bytes of the file a command just wrote (the one the user named, in the model's folder) */
-Result<unsigned long long> file_size(std::string_view file, const Command &command, const Place &place);
+Result<unsigned long long> file_size(FileSystem &fs, std::string_view file, const Command &command, const Place &place);
 
 /* Check the line's arguments against the row and give them typed, or the
    first fault (all or nothing: a handler runs only on success). session

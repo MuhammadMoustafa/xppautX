@@ -2,9 +2,8 @@
    pointer, row/column bookkeeping and the file writer. The page
    displays it. */
 #include <limits>
-#include "xpp_io.h"
-#include "xpp_files.h"
 #include "xpp_path.h"
+#include "xpp_zip.h"
 #include "xpp_fs.h"
 #include "plot_state.h"
 #include <chrono>
@@ -119,10 +118,14 @@ std::vector<int> output_columns(const xpp::Session &s, const DATA_VIEW &b)
 
 } // namespace
 
-void write_mytable_data(xpp::Session &s, xpp::Writer &w)
+xpp::Result<> save_mytable_data(xpp::Session &s, xpp::Sink &w)
 {
   const DATA_VIEW &b=s.data->view;
-  xpp::data_format_named("dat")->write(data_table(s,b,output_columns(s,b)),w);
+  if(const Result<> written=xpp::data_format_named("dat")->write(data_table(s,b,output_columns(s,b)),w);!written){
+    abort_save(w);
+    return written;
+  }
+  return commit_save(w);
 }
 
 xpp::DataTable stored_data_table(const xpp::Session &s)
@@ -222,12 +225,12 @@ void init_data(xpp::Session &s)
 
 }
 
-Writer ask_output_writer(const Session &s, std::string_view title, std::string_view ext,
-                         std::string_view what, bool binary)
+std::unique_ptr<xpp::Sink> ask_output_sink(const Session &s, std::string_view title, std::string_view ext,
+                                           std::string_view what, bool binary)
 {
  std::string file=xpp::files::output_name(s.model().this_file,ext,what);
- if(!file_selector(title,file,xpp::format("*{}",ext)))return {};
- return open_writer_asking(file,binary);
+ if(!file_selector(title,file,xpp::format("*{}",ext)))return nullptr;
+ return open_sink_asking(*s.model().fs,file,binary);
 }
 
 bool save_ready(bool available)
@@ -243,27 +246,19 @@ namespace {
 /* the decisions before a save's destination is opened, shared by the Writer and the Sink: the destination's status, then
    the replace question (ask: whether it is still to be had: a command's, a dialog's, or the user's answer); true to go on,
    else the save was refused or declined and opened (when given) holds why */
-bool save_allowed(std::string_view fil, bool ask, bool independent, const Place &at, Result<> *opened)
+bool save_allowed(xpp::FileSystem &fs, std::string_view fil, bool ask, bool independent, const Place &at, Result<> *opened)
 {
  if(opened)*opened={};
- const int status=xpp::files::output_status(fil);
- if(status!=XPP_FILES_OK){
-   Error failure=status==XPP_FILES_IO ? xpp::files::write_error("save",fil)
-       : Error{"save",xpp::format("Cannot save {}: {}",fil,xpp::files::status_text(status)),command_place()};
-   if((!at.file.empty() || !at.source.empty()) && !xpp::files::serving_reads())failure.place=at;
-   const Result<> error=std::unexpected(std::move(failure));
-   /* A replay's path guard must stop the step before later commands run,
-      even when the basename was rejected before Writer could open it. */
-   xpp::files::write_path_ok(fil,true);
+ if(const Result<> status=fs.check_destination(fil,at);!status){
    ui.save_result(fil,false);
-   if(opened)*opened=error; else show_error(error.error());
+   if(opened)*opened=status; else show_error(status.error());
    return false;
  }
  int answer=ask?ui.save_replace(independent):SAVE_REPLACE;
  /* A native dialog or an explicit command already made the decision.
     Otherwise only an existing destination needs confirmation. */
  if(answer==SAVE_ASK){
-   const bool asked=xpp::files::exists(fil);
+   const bool asked=fs.exists(fil);
    answer=asked&&TwoChoice("Yes","No",xpp::format("{} exists. Replace it?",fil),"yn")!='y'
           ?SAVE_DECLINE:SAVE_REPLACE;
    ui.save_decision(answer,asked);
@@ -275,30 +270,14 @@ bool save_allowed(std::string_view fil, bool ask, bool independent, const Place 
  return true;
 }
 
-/* the destination could not be opened for writing, as failure says: shown, or given to opened */
-void open_failed(Error failure, std::string_view fil, const Place &at, Result<> *opened)
+std::unique_ptr<xpp::Sink> open_sink(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened, bool ask, bool independent, const Place &at)
 {
- if((!at.file.empty() || !at.source.empty()) && !xpp::files::serving_reads())failure.place=at;
- const Result<> error=std::unexpected(std::move(failure));
- ui.save_result(fil,false);
- if(opened)*opened=error;
- else show_error(error.error());
-}
-
-xpp::Writer open_writer(std::string_view fil, bool binary, Result<> *opened, bool ask, bool independent, const Place &at)
-{
- if(!save_allowed(fil,ask,independent,at,opened))return {};
- xpp::Writer w=binary?xpp::Writer::binary(fil):xpp::Writer(fil);
- if(!w)open_failed(xpp::files::write_error("save",fil),fil,at,opened);
- return w;
-}
-
-std::unique_ptr<xpp::Sink> open_sink(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened, bool ask)
-{
- if(!save_allowed(fil,ask,false,{},opened))return nullptr;
- Result<std::unique_ptr<xpp::Sink>> sink=fs.open_sink(fil,binary);
+ if(!save_allowed(fs,fil,ask,independent,at,opened))return nullptr;
+ Result<std::unique_ptr<xpp::Sink>> sink=fs.open_sink(fil,binary,at);
  if(!sink){
-   open_failed(std::move(sink.error()),fil,{},opened);
+   ui.save_result(fil,false);
+   if(opened)*opened=std::unexpected(std::move(sink.error()));
+   else show_error(sink.error());
    return nullptr;
  }
  return std::move(*sink);
@@ -317,40 +296,19 @@ Result<> saved(std::string_view path, Result<> result)
 
 } // namespace
 
-xpp::Writer open_writer_asking(std::string_view fil, bool binary, Result<> *opened, bool independent, const Place &at)
+std::unique_ptr<xpp::Sink> open_sink_asking(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened, bool independent, const Place &at)
 {
- return open_writer(fil,binary,opened,true,independent,at);
-}
-
-xpp::Writer open_writer_replacing(std::string_view fil, bool binary, Result<> *opened)
-{
- return open_writer(fil,binary,opened,false,false,{});
-}
-
-std::unique_ptr<xpp::Sink> open_sink_asking(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened)
-{
- return open_sink(fs,fil,binary,opened,true);
+ return open_sink(fs,fil,binary,opened,true,independent,at);
 }
 
 std::unique_ptr<xpp::Sink> open_sink_replacing(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened)
 {
- return open_sink(fs,fil,binary,opened,false);
-}
-
-Result<> commit_save(Writer &w)
-{
- return saved(w.path(),w.commit());
+ return open_sink(fs,fil,binary,opened,false,false,{});
 }
 
 Result<> commit_save(xpp::Sink &sink)
 {
  return saved(sink.path(),sink.commit());
-}
-
-void abort_save(Writer &w)
-{
- w.abort();
- ui.save_result(w.path(),false);
 }
 
 void abort_save(xpp::Sink &sink)
@@ -684,14 +642,14 @@ Result<std::size_t> tabulate_column(xpp::Session &s, std::string_view column, do
     return fail("Tabulate","Nothing to save: no rows are kept between First and Last",command_place());
   }
   Result<> opened;
-  xpp::Writer w=open_writer_asking(filename,false,&opened);
+  const std::unique_ptr<xpp::Sink> w=open_sink_asking(*s.model().fs,filename,false,&opened);
   if(!opened)return std::unexpected<Error>(opened.error());
   if(!w)return 0;
-  w.print("{}\n",npts);
-  w.print("{:g}\n{:g}\n",xlo,xhi);
+  w->print("{}\n",npts);
+  w->print("{:g}\n{:g}\n",xlo,xhi);
   for(int i=0;i<npts;i++)
-    w.print("{:10.10g}\n",static_cast<double>(b.data[col][i+b.istart]));
-  if(Result<> saved=commit_save(w);!saved)return std::unexpected<Error>(saved.error());
+    w->print("{:10.10g}\n",static_cast<double>(b.data[col][i+b.istart]));
+  if(Result<> saved=commit_save(*w);!saved)return std::unexpected<Error>(saved.error());
   ping();
   return static_cast<std::size_t>(npts);
 }
@@ -745,8 +703,10 @@ Result<DataLoaded> load_data_file(xpp::Session &s, std::string_view format, std:
  }
  if(!f)f=xpp::data_format_of_file(fil);
  if(!f||!f->read)f=xpp::data_format_named("dat"); /* any other name: XPP's own */
+ const Result<std::string> bytes=s.model().fs->read("load data",fil,xpp::zip::archive_bytes_limit);
+ if(!bytes)return std::unexpected<Error>(bytes.error());
  xpp::DataTable t;
- if(!f->read(fil.c_str(),t))
+ if(!f->read(*bytes,t))
    return fail("load data",xpp::format("Cannot read {} as {}{}",fil,f->title,t.error.empty()?"":": "+t.error),command_place());
  /*  The file's columns fill the stored ones in order: more columns than
      there are are left out, and every row is read, the store growing to fit. This data
@@ -787,14 +747,14 @@ Result<bool> write_table(const xpp::Session &s, xpp::DataTable &t, const xpp::Da
 {
  t.seed=s.numerics->last_seed;
  Result<> opened;
- xpp::Writer w=open_writer_asking(fil,f.binary,&opened,false,at);
+ const std::unique_ptr<xpp::Sink> w=open_sink_asking(*s.model().fs,fil,f.binary,&opened,false,at);
  if(!opened)return std::unexpected<Error>(opened.error());
  if(!w)return false;
- if(!f.write(t,w)){
-   abort_save(w);
+ if(!f.write(t,*w)){
+   abort_save(*w);
    return fail("save data",xpp::format("Cannot write {}",fil),command_place());
  }
- if(Result<> saved=commit_save(w);!saved)return std::unexpected<Error>(saved.error());
+ if(Result<> saved=commit_save(*w);!saved)return std::unexpected<Error>(saved.error());
  return true;
 }
 

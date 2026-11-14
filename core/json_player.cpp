@@ -31,6 +31,7 @@
 #include "recx.h"
 #include "xpp_http.h"
 #include "session.h"
+#include "model.h"
 #include "snapx.h"
 #include "xpp_files.h"
 #include "xpp_inbox.h"
@@ -635,7 +636,7 @@ xpp::Result<std::string> recording_seek(xpp::Session &s, long long step, std::op
     return xpp::format("{{\"step\":{}}}", from);
 }
 
-xpp::Result<std::string> recording_set_step_note(long long step, const std::string &text, bool confirm)
+xpp::Result<std::string> recording_set_step_note(xpp::Session &s, long long step, const std::string &text, bool confirm)
 {
     if (const xpp::Result<> open = need_player(); !open) return std::unexpected(open.error());
     if (step >= static_cast<long long>(player.steps.size()))
@@ -649,15 +650,18 @@ xpp::Result<std::string> recording_set_step_note(long long step, const std::stri
         return std::unexpected(file.error());
     }
     xpp::Result<> opened;
-    xpp::Writer w = confirm ? xpp::open_writer_replacing(player.path, false, &opened) : xpp::open_writer_asking(player.path, false, &opened);
+    const std::unique_ptr<xpp::Sink> w = confirm ? xpp::open_sink_replacing(*s.model().fs, player.path, false, &opened) : xpp::open_sink_asking(*s.model().fs, player.path, false, &opened);
     if (!opened) {
         return std::unexpected(opened.error());
     }
     if (!w) {
         return xpp::fail("recording.set_step_note", "The note was not saved: replacing the file was declined", xpp::command_place());
     }
-    w.write(*file);
-    if (const xpp::Result<> saved = xpp::commit_save(w); !saved) {
+    if (const xpp::Result<> written = w->write(*file); !written) {
+        xpp::abort_save(*w);
+        return std::unexpected(written.error());
+    }
+    if (const xpp::Result<> saved = xpp::commit_save(*w); !saved) {
         return std::unexpected(saved.error());
     }
     player.rec = std::move(candidate);

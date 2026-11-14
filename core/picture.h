@@ -6,6 +6,7 @@
    label's place. The writers (my_pdf.cpp, my_svg.cpp) only emit syntax for the items. */
 
 #include <array>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -13,7 +14,7 @@
 
 #include "colormap.h"
 #include "line_style.h"
-#include "xpp_io.h"
+#include "xpp_fs.h"
 
 namespace xpp {
 
@@ -82,7 +83,7 @@ struct Picture {
 struct PlotFileState {
     const ImageFormat *format = nullptr;
     Picture picture;
-    Writer writer;
+    std::unique_ptr<Sink> writer;
     Pen pen;
     Color text_color = foreground_color;
 };

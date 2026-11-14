@@ -1,7 +1,7 @@
 #pragma once
 
 #include "xpp_error.h"
-#include "xpp_io.h"
+#include "xpp_fs.h"
 #include "storage.h"
 #include "plot_state.h"
 #include <stdio.h>

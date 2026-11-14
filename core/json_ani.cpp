@@ -85,14 +85,14 @@ xpp::Result<int> ani_go(xpp::Session &s, const xpp::AniExport &out)
 {
     std::vector<double> y(static_cast<std::size_t>(s.model().node + s.model().nmarkov));
     const ColumnTable ss = s.data->view.data;
-    xpp::Writer gif; /* chosen GIF, when the animation is written as one */
+    std::unique_ptr<xpp::Sink> gif; /* chosen GIF, when the animation is written as one */
     xpp::Result<> outcome; /* ok until a frame cannot be written */
     int i, stop = 0, frame = 0, w, h;
     const bool writing = out.kind != xpp::AniExportKind::none;
     set_ani_perm(s);
     if (out.kind == xpp::AniExportKind::gif) {
         xpp::Result<> opened;
-        gif = xpp::open_writer_asking(out.file, true, &opened);
+        gif = xpp::open_sink_asking(*s.model().fs, out.file, true, &opened);
         if (!opened) return std::unexpected(opened.error());
         if (!gif) return xpp::fail("animation", xpp::format("\"{}\" exists and replacing it was declined: nothing was written", out.file), xpp::command_place());
     }
@@ -113,13 +113,16 @@ xpp::Result<int> ani_go(xpp::Session &s, const xpp::AniExport &out)
                 const std::string file=xpp::files::run_file_name(out.file,frame);
                 if (frame > 0) outcome = reset_save_decision();
                 if (outcome) {
-                    const xpp::Result<bool> saved=xpp::save_pixels(format,file.c_str(),rgb,w,h);
+                    const xpp::Result<bool> saved=xpp::save_pixels(*s.model().fs,format,file.c_str(),rgb,w,h);
                     if (!saved) outcome = std::unexpected(saved.error());
                     else if (!*saved) outcome = xpp::fail("animation", xpp::format("\"{}\" exists and replacing it was declined: {} frames written", file, frame), xpp::command_place());
                 }
                 if (!outcome) break;
                 frame++; /* counted once written */
-            } else xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(gif,rgb,w,h,frame++);
+            } else {
+                outcome = xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(*gif, rgb, w, h, frame++);
+                if (!outcome) break;
+            }
         } else frame++;
         xpp::job::report_frame(frame);
         stop = ani_wait(s, s.animation->speed * (writing ? ani_export_pace : 1));
@@ -131,11 +134,9 @@ xpp::Result<int> ani_go(xpp::Session &s, const xpp::AniExport &out)
         }
     }
     if (gif) {
-        if (!outcome) xpp::abort_save(gif);
-        else {
-            xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(gif);
-            outcome = xpp::commit_save(gif);
-        }
+        if (outcome) outcome = xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(*gif);
+        if (outcome) outcome = xpp::commit_save(*gif);
+        else xpp::abort_save(*gif);
     }
     send_ani_slider(s);
     if (!outcome) return std::unexpected(outcome.error());

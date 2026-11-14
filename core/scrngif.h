@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdio.h>
+#include <string>
 
 namespace xpp {
 
@@ -8,8 +8,8 @@ namespace xpp {
 #define FIRST_ANI_GIF 3
 #define NEXT_ANI_GIF 4
 
-/* scrngif.cpp: GIF encoding into a stream the caller owns */
-void end_ani_gif(FILE *fp);
-void gif_stuff_ppm(unsigned char *ppm, int w, int h, FILE *fp, int task);
+/* scrngif.cpp: GIF encoding, the bytes of one frame (or the end mark) appended to out */
+void end_ani_gif(std::string &out);
+void gif_stuff_ppm(unsigned char *ppm, int w, int h, std::string &out, int task);
 
 } // namespace xpp

@@ -13,7 +13,7 @@
    load_model; a Model keeps the reference it was loaded with (Model::fs) for the commands that read
    or write later. Never a global. Only what a caller needs is here: the inner rings read whole files
    (text or bytes), write through a Sink, and ask the questions a loader asks of the folders.
-   autoX's run files are streamed through Sinks as a run goes and copied into place in pieces when it ends (W739); streaming writers go through the Sink later (W740). */
+   autoX's run files are streamed through Sinks as a run goes and copied into place in pieces when it ends (W739); the writers and exporters stream through it too (W740). */
 
 #include <cstddef>
 #include <functional>
@@ -28,6 +28,7 @@
 
 #include "xpp_error.h"
 #include "xpp_lines.h"
+#include "xpp_text.h"
 
 namespace xpp {
 
@@ -52,8 +53,16 @@ struct WriteFolders {
 class Sink {
 public:
     virtual ~Sink() = default;
-    /* the bytes appended, or the error naming the file when the system refused */
+    /* the bytes appended, or the error naming the file when the system refused. A write that failed also
+       fails commit(), so a writer that formats row after row may leave each result to the commit */
     virtual Result<> write(std::string_view bytes) = 0;
+    /* text formatted as xpp::format does and appended, for a writer of many small pieces: its failure is the
+       commit's to report (see write), so it returns nothing */
+    template <class... Args>
+    void print(std::format_string<Args...> fmt, Args &&...args)
+    {
+        static_cast<void>(write(xpp::format(fmt, std::forward<Args>(args)...)));
+    }
     /* the file is complete: put it in place, or the error (naming the file) */
     virtual Result<> commit() = 0;
     /* the destination as it was, and the temporary file gone */
@@ -81,8 +90,12 @@ public:
     virtual PathCheck resolve_path(std::string_view path, std::string_view folder) = 0;
 
     /* a Sink for a file replaced at commit, in binary or text mode; the error (naming the file, with the
-       advice for a refused folder) when it cannot be opened */
-    virtual Result<std::unique_ptr<Sink>> open_sink(std::string_view path, bool binary) = 0;
+       advice for a refused folder, and `at` as its place when that names one and the file system is not serving
+       reads) when it cannot be opened */
+    virtual Result<std::unique_ptr<Sink>> open_sink(std::string_view path, bool binary, const Place &at) = 0;
+    /* nothing when path may be written (status OK); else the error naming the file and why (and `at` as its place
+       as above, else the command's), after the replay's path guard was told (write_path_ok) */
+    virtual Result<> check_destination(std::string_view path, const Place &at) = 0;
     /* path is a safe destination: a plain base name, and no link, folder or device already there */
     virtual bool destination_ok(std::string_view path) = 0;
 
@@ -90,6 +103,9 @@ public:
     virtual bool exists(std::string_view path) = 0;
     /* path names a folder */
     virtual bool is_dir(std::string_view path) = 0;
+    /* the length in bytes of the plain file at path (a command's file just written, read back), or the error
+       naming the file and why it cannot be opened */
+    virtual Result<unsigned long long> size_of(std::string_view path) = 0;
     /* a file can be created in the folder dir (probed), false for "" */
     virtual bool dir_writable(std::string_view dir) = 0;
     /* deletes the file path: 0 on success */
@@ -97,6 +113,17 @@ public:
     /* a scratch folder of its own (its path, "" when none could be made), and removing it with what it holds */
     virtual std::string make_temp_dir() = 0;
     virtual void remove_temp_dir(std::string_view dir) = 0;
+    /* the per-user settings folder's files (keymap.json): the path of `name` in it ("" when the system names no
+       folder), its whole text (nullopt when it is not there; an error when it cannot be read, is longer than
+       limit, or there is no folder), written whole (the folder made first, temp-then-rename), and removed (no
+       file is all defaults; an error when it stays). `where` is the Error's */
+    virtual std::string config_path(std::string_view name) = 0;
+    virtual Result<std::optional<std::string>> read_config(std::string_view where, std::string_view name, std::size_t limit) = 0;
+    virtual Result<> write_config(std::string_view where, std::string_view name, std::string_view bytes) = 0;
+    virtual Result<> remove_config(std::string_view where, std::string_view name) = 0;
+    /* a recording's replay supplies the files it reads (files::serve_reads): nothing is imported from or written to
+       the disk behind its back */
+    virtual bool serving_reads() = 0;
     /* path itself when it is absolute, else under the working folder */
     virtual std::string absolute(std::string_view path) = 0;
     /* the working folder ("" when it cannot be had), and moving it: 0 on success */
@@ -108,6 +135,17 @@ public:
    copy or a pass over a file never holds more than the other */
 inline constexpr std::size_t file_range_limit = 512u * 1024 * 1024;
 inline constexpr std::size_t file_chunk_bytes = 64u * 1024;
+
+/* the settings file `name` read and parsed, parse(text, path) giving the Result<T>; T{} (the defaults) when the
+   file is not there */
+template <class T, class Parse>
+Result<T> load_config(FileSystem &fs, std::string_view where, std::string_view name, std::size_t limit, Parse parse)
+{
+    const Result<std::optional<std::string>> text = fs.read_config(where, name, limit);
+    if (!text) return std::unexpected(text.error());
+    if (!*text) return T{};
+    return parse(**text, fs.config_path(name));
+}
 
 /* the file at path in pieces of at most file_chunk_bytes, each handed to piece(std::string_view) in order; the error when it
    cannot be read. Memory stays one piece, whatever the file's length */

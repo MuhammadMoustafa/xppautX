@@ -908,7 +908,7 @@ int read_bd(xpp::Session &s, const xpp::DataTable &table)
 
 Result<int> import_bifurcation(xpp::Session &s, std::string_view filename)
 {
-  xpp::Result<xpp::DataTable> read=xpp::read_data_table(std::string(filename).c_str());
+  xpp::Result<xpp::DataTable> read=xpp::read_data_table(*s.model().fs,filename);
   if (!read) return std::unexpected<Error>(read.error());
   const xpp::DataTable &table=*read;
   // autoX's Write pts has six columns: x, low, high, type, branch, two-parameter flag.

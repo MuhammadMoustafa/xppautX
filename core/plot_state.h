@@ -22,7 +22,7 @@
 #include "xpp_mem.h"
 #include "xpp_types.h"
 
-namespace xpp { class Writer; }
+namespace xpp { class Sink; }
 
 /* ---- arrayplot.h's: the array plot ---- */
 /* the array plot's settings */
@@ -290,7 +290,7 @@ struct MarksShown {
 struct ArrayPlotState {
   APLOT plot{};
   int range = 0, range_count = 0, still = 1, tag = 0, auto_redraw = 0;
-  std::unique_ptr<xpp::Writer> movie; /* open while a range movie is being written (a declared destructor: the Session destroys this where Writer is incomplete) */
+  std::unique_ptr<xpp::Sink> movie; /* open while a range movie is being written (a declared destructor: the Session destroys this where Sink is incomplete) */
   bool save_cancelled = false; /* stop later frame saves after a declined/failed frame */
   std::string range_stem;
   ArrayPlotState();

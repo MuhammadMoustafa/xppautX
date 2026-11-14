@@ -14,7 +14,7 @@
 #include <string_view>
 #include <vector>
 #include "xpp_error.h"
-namespace xpp { class Writer; }
+namespace xpp { class FileSystem; class Sink; }
 
 
 namespace xpp {
@@ -63,13 +63,14 @@ struct DataFormat {
     const char *title;     /* the Save data menu's item */
     const char *extension; /* with its dot: ".dat", ".csv.gz" */
     char key;              /* its key in that menu */
-    bool binary;           /* written byte for byte (xpp::Writer::binary) */
+    bool binary;           /* written byte for byte (a binary sink) */
     /* table into w (opened by the caller, binary or not as above, and
-       committed by it); false when it could not be written */
-    bool (*write)(const DataTable &table, xpp::Writer &w);
-    /* path's table; false (and table left empty) when it is not one of
+       committed by it), streamed as it is made where the format allows;
+       the error when it could not be written */
+    Result<> (*write)(const DataTable &table, xpp::Sink &w);
+    /* the table in bytes (a file's whole text, or its bytes); false (and table left empty) when it is not one of
        this format; nullptr for a format that is only written */
-    bool (*read)(const char *path, DataTable &table);
+    bool (*read)(std::string_view bytes, DataTable &table);
 };
 /* The format functions never throw: a failed allocation ends the program
    through xpp::out_of_memory (xpp_mem.h). */
@@ -82,8 +83,9 @@ std::span<const DataFormat> data_formats();
 const DataFormat *data_format_named(std::string_view id);
 /* the format whose extension path ends with (case ignored), or nullptr */
 const DataFormat *data_format_of_file(std::string_view path);
-/* The same registry reader, with a file/line error for command consumers. */
-Result<DataTable> read_data_table(const char *path);
+/* The same registry reader over the file at path, read through fs (at most zip::archive_bytes_limit bytes), with a
+   file/line error for command consumers. */
+Result<DataTable> read_data_table(FileSystem &fs, std::string_view path);
 
 /* NPZ's writer and reader on bytes in memory rather than a file: the
    session file's data.npz and frozen.npz (xpp_session.cpp, W57) */

@@ -12,7 +12,7 @@
 #include "session.h"
 #include "typed_values.h"
 #include "xpp_keymap.h"
-#include "xpp_files.h"
+#include "xpp_path.h"
 #include "xpp_path.h"
 #include "xpp_text.h"
 #include "model.h"

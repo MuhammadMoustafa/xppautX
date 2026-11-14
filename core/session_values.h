@@ -13,6 +13,7 @@
 namespace xpp {
 struct Session; /* session.h */
 struct Model;   /* model.h */
+class Sink;     /* xpp_fs.h */
 struct XppSlider;
 
 /* a slider names a parameter (*type PARAMBOX) or a variable (ICBOX) of
@@ -32,7 +33,7 @@ void eq_import(Session &s, double *y, int n);
    picked */
 Result<> do_txt_action(Session &s, std::string_view action);
 /* the model m's user functions, as lunch-new.cpp's file info writes them */
-void user_fun_info(const Model &m, FILE *fp);
+void user_fun_info(const Model &m, Sink &fp);
 /* the name of plotted column ind: T (0), a model variable, or (W77) a
    data column data_add_col added; browse_column_name (browse.h) owns
    the naming, this is just its name for a plotted column */

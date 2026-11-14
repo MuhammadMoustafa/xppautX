@@ -7,7 +7,7 @@
 #include "session.h"
 #include "autox_state.h"
 #include "model.h"
-#include "xpp_io.h"
+#include "xpp_fs.h"
 #include "xpp_zip.h"
 #include "xpp_lines.h"
 #include "autox_data.h"
@@ -62,12 +62,11 @@ Result<> add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, st
     const xpp::Model &m = s.model();
     if (!s.autox_state->diag_flag) return {};
     const std::string solutions_path = autox_solutions_file(s);
-    std::string solutions;
-    if (!xpp::read_bytes(solutions_path, solutions))
-        return xpp::fail("save session", "autoX's restart solutions cannot be read", xpp::Place{solutions_path});
+    Result<std::string> solutions = m.fs->read("save session", solutions_path, xpp::zip::archive_bytes_limit);
+    if (!solutions) return std::unexpected(solutions.error());
     const std::vector<std::string> vars(m.uvar_names.begin(), m.uvar_names.begin() + m.node);
     entries.push_back({named(prefix, diagram_member), diagram_csv(s.diagram->points, m.nupar, vars)});
-    entries.push_back({named(prefix, solutions_member), std::move(solutions)});
+    entries.push_back({named(prefix, solutions_member), std::move(*solutions)});
     return {};
 }
 
@@ -173,9 +172,10 @@ Result<> restore_members(Session &s, Members m)
     if (!m.points.empty()) {
         /* Write the restart file before applying any held state. */
         const std::string solutions_path = autox_solutions_file(s);
-        xpp::Writer w = xpp::Writer::binary(solutions_path);
-        if (!w || !w.write(m.solutions) || !w.commit())
-            return xpp::fail("session autoX", "autoX's restart solutions cannot be written", Place{solutions_path});
+        Result<std::unique_ptr<Sink>> sink = s.model().fs->open_sink(solutions_path, true, {});
+        if (!sink) return std::unexpected(sink.error());
+        if (const Result<> written = (*sink)->write(m.solutions); !written) return written;
+        if (const Result<> committed = (*sink)->commit(); !committed) return committed;
         s.autox_state->solutions_index.reset(); /* the file is another one */
         open_diagram_window(s);
     }

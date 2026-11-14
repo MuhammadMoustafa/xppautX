@@ -5,6 +5,7 @@
 #include "image_format.h"
 #include "kinescope.h"
 #include "session.h"
+#include "model.h"
 #include "xpp_path.h"
 #include "xpp_text.h"
 #include "xpp_ui.h"
@@ -72,7 +73,7 @@ Result<std::string> export_gif(Session &s, const Command &command, const Argumen
     if (const Result<> ready = need_frames(s, command, place); !ready) return std::unexpected<Error>(ready.error());
     const std::string &file = args.get<std::string>("file");
     if (const Result<> written = ui.movie_make_anigif(s, file); !written) return std::unexpected<Error>(written.error());
-    const Result<unsigned long long> size = file_size(file, command, place);
+    const Result<unsigned long long> size = file_size(*s.model().fs, file, command, place);
     if (!size) return std::unexpected<Error>(size.error());
     return ResultObject().text("file", file).integer("bytes_written", static_cast<long long>(*size)).done();
 }

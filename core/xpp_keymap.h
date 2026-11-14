@@ -23,6 +23,9 @@
 
 #include "xpp_error.h"
 
+namespace xpp {
+class FileSystem; /* xpp_fs.h */
+}
 namespace xpp::command {
 struct Command;
 }
@@ -82,14 +85,14 @@ std::string serialize(const Keymap &map);
 std::vector<std::string> effective_keys(const Keymap &map, const command::Command &row);
 
 /* the settings file's path, "" when the system names no config folder */
-std::string path();
+std::string path(FileSystem &fs);
 /* the file's keymap: all defaults when the file does not exist; the error
    when it cannot be read or is not a good keymap */
-Result<Keymap> load_keymap();
+Result<Keymap> load_keymap(FileSystem &fs);
 /* map written to the file (the folder made first): temp file, then rename */
-Result<> save(const Keymap &map);
+Result<> save(FileSystem &fs, const Keymap &map);
 /* the file removed (no file is all defaults); an error when it stays */
-Result<> reset();
+Result<> reset(FileSystem &fs);
 
 /* The `keymap` object of hello and of the `keymap` event: the load's result
    as the page keeps it (docs/protocol.md "Keymap"). A good load gives
@@ -97,7 +100,7 @@ Result<> reset();
    and the effective keymap of no user differences (the table's defaults,
    nothing pinned), marked by the error and never
    presented as the user's. */
-std::string effective_json(const Result<Keymap> &loaded);
+std::string effective_json(FileSystem &fs, const Result<Keymap> &loaded);
 
 } // namespace xpp::keymap
 

@@ -9,6 +9,7 @@
 #include "load_args.h"
 #include "model_text.h"
 #include "xpptest.h"
+#include "xpp_fs_local.h"
 #include "session.h"
 #include "model.h"
 #include "model_record.h"
@@ -100,9 +101,9 @@ TEST_CASE("test_large_model")
 
     const std::string table = temp.file("table.dat");
     {
-        xpp::Writer w(table);
-        write_mytable_data(s, w);
-        CHECK(w.commit().has_value());
+        xpp::LocalFileSystem fs;
+        const auto sink = fs.open_sink(table, false, {});
+        CHECK(sink && xpp::save_mytable_data(s, **sink).has_value());
     }
     CHECK(lines_of(table) == rows);
     TEST_REPORT("large model");

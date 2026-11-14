@@ -15,7 +15,6 @@
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_globals.h"
-#include "xpp_io.h"
 #include "xpp_path.h"
 #include "model_place.h"
 #include "integrate.h"
@@ -1043,12 +1042,12 @@ Result<> write_equilibrium(xpp::Session &s, const char *name, int shoot, bool co
   if(!found)return std::unexpected(found.error());
   if(ierr!=0)return fail("equilibrium.export","Could not compute equilibrium",command_place());
   Result<> opened;
-  Writer w=confirm?open_writer_replacing(name,false,&opened):open_writer_asking(name,false,&opened);
+  const std::unique_ptr<xpp::Sink> w=confirm?open_sink_replacing(*s.model().fs,name,false,&opened):open_sink_asking(*s.model().fs,name,false,&opened);
   if(!opened)return opened;
   if(!w)return fail("equilibrium.export","Output was not opened",command_place());
   for(int i=0;i<n;i++)
-    w.print("{:g} {:g} {:g}\n",x[i],er[i],em[i]);
-  if(const auto saved=commit_save(w);!saved)return saved;
+    w->print("{:g} {:g} {:g}\n",x[i],er[i],em[i]);
+  if(const auto saved=commit_save(*w);!saved)return saved;
   if(shoot)return save_batch_shoot(s,name,confirm,report);
   return {};
 }
@@ -1058,10 +1057,9 @@ int write_this_run(xpp::Session &s, const char *file, int i)
   if(!s.integrator->suppress_out){
   std::string outfile=xpp::files::run_file_name(file,i);
   if(!save_ready(s.data->view.iend>s.data->view.istart))return -1;
-  xpp::Writer w=xpp::open_writer_asking(outfile.c_str(),false,nullptr,false,s.output_place);
+  const std::unique_ptr<xpp::Sink> w=xpp::open_sink_asking(*s.model().fs,outfile,false,nullptr,false,s.output_place);
   if(!w)return -1;
-  write_mytable_data(s,w);
-  xpp::ok_or_show(xpp::commit_save(w));
+  xpp::ok_or_show(xpp::save_mytable_data(s,*w));
   }
   return(1);
 }

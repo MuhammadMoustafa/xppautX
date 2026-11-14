@@ -22,6 +22,7 @@
 
 namespace xpp {
 struct Session; /* session.h */
+class FileSystem; /* xpp_fs.h */
 }
 
 /* What File > Open model asks of the program's own services, below the
@@ -39,11 +40,11 @@ Result<> note(std::string_view model);
 namespace xpp::examples {
 /* The copy of the example `name` in the config folder's examples/, made
    (the folder too) after asking before replacing one that is there (the
-   Replace question of every save, browse.h open_writer_asking): its path,
+   Replace question of every save, browse.h open_sink_asking): its path,
    or "" when the user declined (nothing is changed). An error when `name` is
    not in list() (a path, "..", a link, a file that is not there are all
    that), when it cannot be read or when there is no config folder. */
-Result<std::string> install(std::string_view name);
+Result<std::string> install(FileSystem &fs, std::string_view name);
 } // namespace xpp::examples
 
 /* File > Open model (key m) and {"cmd":"open"}: path, or the file the

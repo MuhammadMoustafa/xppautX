@@ -176,12 +176,12 @@ Result<CommandLine> script_command_line(FileSystem &fs, CommandLine cl, std::opt
     return cl;
 }
 
-Result<CommandLine> animation_command_line(CommandLine cl)
+Result<CommandLine> animation_command_line(FileSystem &fs, CommandLine cl)
 {
     if (files::has_extension(cl.model_file, ".anix")) {
         /* a .anix opens its animation with the model it names: the animation is the load's own (ani_file) */
         const std::string animation = cl.model_file;
-        auto model = animation_model(animation);
+        auto model = animation_model(fs, animation);
         if (!model) return std::unexpected(model.error());
         cl.model_file = *model;
         cl.ani_file = animation;
@@ -257,7 +257,7 @@ Loaded load_in(FileSystem &fs, const CommandLine &cl, int batch, const SavedMode
 Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *saved,
                   const std::function<std::optional<Error>(Session &)> &check, const Result<prefs::Preferences> *read_prefs)
 {
-    auto resolved = animation_command_line(std::move(cl));
+    auto resolved = animation_command_line(fs, std::move(cl));
     std::optional<AutoxScript> script;
     if (resolved) resolved = script_command_line(fs, std::move(*resolved), script);
     if (!resolved) {
@@ -317,7 +317,7 @@ Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::functio
                        const std::function<std::optional<Error>(Session &)> &check,
                        const SavedModel *saved, const PathApprovals *approvals)
 {
-    const auto resolved = animation_command_line(cl);
+    const auto resolved = animation_command_line(fs, cl);
     Loaded inspected = resolved ? load_in(fs, *resolved, 1, saved, check, read, false, {}, nullptr, {}, approvals) : Loaded{std::unexpected(resolved.error())};
     if (!inspected) return std::unexpected(inspected.error());
     return {};

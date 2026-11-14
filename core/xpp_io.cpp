@@ -26,13 +26,10 @@
    The file half: line reader, token reader, writer (issue: W11 step 3,
    W7b). See xpp_io.h for the contract. */
 
-/* A reader reads the stream it opened itself (closed with the reader); with none, the lines
-   are text's, from pos on (LineReader::of_text) */
+/* A reader reads the stream it opened itself, closed with the reader */
 struct xpp::LineReader::State {
     xpp::UniqueFile owned;
     std::string line;
-    std::string text;
-    size_t pos = 0;
     std::FILE *fp() const noexcept { return owned.get(); }
 };
 
@@ -77,18 +74,6 @@ bool read_line(std::FILE *fp, std::string &line)
     }
     if (!any) return false;
     if (!line.empty() && line.back() == '\r') line.pop_back();
-    return true;
-}
-
-/* the next line of r's text, as read_line reads a file's */
-bool text_line(xpp::LineReader::State &r)
-{
-    if (r.pos >= r.text.size()) return false;
-    size_t nl = r.text.find('\n', r.pos);
-    if (nl == std::string::npos) nl = r.text.size();
-    r.line.assign(r.text, r.pos, nl - r.pos);
-    r.pos = nl + 1;
-    if (!r.line.empty() && r.line.back() == '\r') r.line.pop_back();
     return true;
 }
 
@@ -165,19 +150,11 @@ void LineReader::Free::operator()(State *s) const noexcept { delete s; }
 
 LineReader::LineReader(std::string_view path) noexcept : state_(opened_state<decltype(state_)>(path)) {}
 
-LineReader LineReader::of_text(std::string text) noexcept
-{
-    LineReader l;
-    l.state_ = new_state<decltype(l.state_)>();
-    if (l.state_) l.state_->text = std::move(text);
-    return l;
-}
-
 std::optional<std::string_view> LineReader::next()
 {
     if (!state_) return std::nullopt;
     State &r = *state_;
-    if (!(r.fp() ? read_line(r.fp(), r.line) : text_line(r))) return std::nullopt;
+    if (!read_line(r.fp(), r.line)) return std::nullopt;
     return std::string_view(r.line);
 }
 

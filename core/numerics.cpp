@@ -21,7 +21,6 @@
 #include "model.h"
 #include "solver.h"
 #include "model_numerics.h"
-#include "xpp_io.h"
 #include "model_failed.h"
 #include "session.h"
 #include "plot_state.h"
@@ -141,10 +140,9 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
 
   usual_integrate_stuff(s,x,report);
   {
-    xpp::Writer w=xpp::ask_output_writer(s,"Save orbit",".dat",xpp::format("orbit-{}",name));
+    const std::unique_ptr<xpp::Sink> w=xpp::ask_output_sink(s,"Save orbit",".dat",xpp::format("orbit-{}",name));
     if(w){
-      write_mytable_data(s,w);
-      if (!xpp::ok_or_show(xpp::commit_save(w))) { restore(); return; }
+      if (!xpp::ok_or_show(xpp::save_mytable_data(s,*w))) { restore(); return; }
     }
     else{
       restore();
@@ -153,10 +151,9 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
   }
   if(!xpp::ok_or_show(new_adjoint(s))){restore();return;}
   {
-    xpp::Writer w=xpp::ask_output_writer(s,"Save adjoint",".dat",xpp::format("adjoint-{}",name));
+    const std::unique_ptr<xpp::Sink> w=xpp::ask_output_sink(s,"Save adjoint",".dat",xpp::format("adjoint-{}",name));
     if(w){
-      write_mytable_data(s,w);
-      const bool saved=xpp::ok_or_show(xpp::commit_save(w));
+      const bool saved=xpp::ok_or_show(xpp::save_mytable_data(s,*w));
       data_back(s);
       if (!saved) { restore(); return; }
     }
@@ -164,10 +161,9 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
   }
   if(!xpp::ok_or_show(new_h_fun(s,false))){restore();return;}
   {
-    xpp::Writer w=xpp::ask_output_writer(s,"Save hfun",".dat",xpp::format("hfun-{}",name));
+    const std::unique_ptr<xpp::Sink> w=xpp::ask_output_sink(s,"Save hfun",".dat",xpp::format("hfun-{}",name));
     if(w){
-      write_mytable_data(s,w);
-      const bool saved=xpp::ok_or_show(xpp::commit_save(w));
+      const bool saved=xpp::ok_or_show(xpp::save_mytable_data(s,*w));
       data_back(s);
       if (!saved) { restore(); return; }
     }

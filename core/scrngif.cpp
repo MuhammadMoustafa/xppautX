@@ -1,6 +1,6 @@
 /* GIF encoding of an RGB picture (Kinescope's and the array plot's GIFs,
-   the animator's AniGif): one GIF, or the frames of an animated one, into
-   a stream the caller owns. tests/golden's kin_*.gif guard the bytes. */
+   the animator's AniGif): one GIF, or the frames of an animated one, appended
+   to the string the caller gives (one frame's bytes, which it writes to its sink). tests/golden's kin_*.gif guard the bytes. */
 #include "scrngif.h"
 #include "xpp_log.h"
 
@@ -21,7 +21,7 @@ namespace xpp {
   * LOOKUP type nodes; for a 256 color GIF, the number of LOOKUP
   * nodes will be <= noOfArrays, for a 128 color GIF the number of
   * LOOKUP nodes will be <= 2 * noOfArrays, etc.  */
-#define GifPutShort(i, fout)    {fputc(i&0xff, fout); fputc(i>>8, fout);}
+#define GifPutShort(i, fout)    {fout += static_cast<char>((i)&0xff); fout += static_cast<char>((i)>>8);}
 
 namespace {
 
@@ -119,58 +119,58 @@ void put_screen(const ColorMap &m, std::vector<unsigned char> &out, int cols, in
   }
 }
 
-void GifLoop(FILE *fout, unsigned int repeats)
+void GifLoop(std::string &fout, unsigned int repeats)
 {
 
-  fputc(0x21, fout);
-  fputc(0xFF, fout);
-  fputc(0x0B, fout);
-  fputs("NETSCAPE2.0", fout);
+  fout += static_cast<char>(0x21);
+  fout += static_cast<char>(0xFF);
+  fout += static_cast<char>(0x0B);
+  fout += "NETSCAPE2.0";
 
-  fputc(0x03, fout);
-  fputc(0x01, fout);
+  fout += static_cast<char>(0x03);
+  fout += static_cast<char>(0x01);
   GifPutShort(repeats, fout); /* repeat count */
 
-  fputc(0x00, fout); /* terminator */
+  fout += static_cast<char>(0x00); /* terminator */
 }
 
-void write_global_header(const ColorMap &m, int cols,int rows, FILE *dst)
+void write_global_header(const ColorMap &m, int cols,int rows, std::string &dst)
 {
   std::vector<unsigned char> out={'G','I','F','8','9','a'};
   put_screen(m,out,cols,rows,0x87);
-  fwrite(out.data(),out.size(),1,dst);
+  dst.append(reinterpret_cast<const char *>(out.data()),out.size());
   GifLoop(dst,GifFrameLoop);
 }
 
-void write_local_header(const ColorMap &m, int cols,int rows, FILE *fout,int colflag,int delay)
+void write_local_header(const ColorMap &m, int cols,int rows, std::string &fout,int colflag,int delay)
 {
   const std::array<GIFCOL,256> &gifcol=m.col;
-  fputc(0x21, fout);
-  fputc(0xF9, fout);
-  fputc(0x04, fout);
-  fputc(0x80, fout); /* flag ??? */
+  fout += static_cast<char>(0x21);
+  fout += static_cast<char>(0xF9);
+  fout += static_cast<char>(0x04);
+  fout += static_cast<char>(0x80); /* flag ??? */
   GifPutShort(delay,fout);
-  fputc(0x00, fout);
-  fputc(0x00,fout);
-  fputc(',',fout); /* image separator */
+  fout += static_cast<char>(0x00);
+  fout += static_cast<char>(0x00);
+  fout += static_cast<char>(','); /* image separator */
   GifPutShort(0,fout);
   GifPutShort(0,fout);
   GifPutShort(cols,fout);
   GifPutShort(rows,fout);
   if(colflag)
-    fputc(0x87,fout);
+    fout += static_cast<char>(0x87);
   else
-    fputc(0x07,fout);
+    fout += static_cast<char>(0x07);
   if(colflag){
     for(const GIFCOL &c:gifcol){
-      fputc(0xff&c.r,fout);
-      fputc(0xff&c.g,fout);
-      fputc(0xff&c.b,fout);
+      fout += static_cast<char>(0xff&c.r);
+      fout += static_cast<char>(0xff&c.g);
+      fout += static_cast<char>(0xff&c.b);
     }
   }
 }
 
-int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
+int GifEncode(std::string &fout, unsigned char *pixels, int depth, int siz)
 {
   Lzw z;
   GifTree *first = &z.root, *newNode, *curNode;
@@ -187,7 +187,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
   buffer[0] = 0x0;
 
   cc = (depth == 1) ? 0x4 : 1<<depth;
-  fputc((depth == 1) ? 2 : depth, fout); 
+  fout += static_cast<char>((depth == 1) ? 2 : depth); 
   eoi = cc+1;
   next = cc+2;
 
@@ -269,7 +269,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
     pos = AddCodeToBuffer(z, curNode->code, cLength, pos);
     if(pos-buffer>BLOKLEN) {
       buffer[-1] = BLOKLEN;
-      fwrite(buffer-1, 1, BLOKLEN+1, fout);
+      fout.append(reinterpret_cast<const char *>(buffer-1), BLOKLEN+1);
       buffer[0] = buffer[BLOKLEN];
       buffer[1] = buffer[BLOKLEN+1];
       buffer[2] = buffer[BLOKLEN+2];
@@ -286,7 +286,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
       pos = AddCodeToBuffer(z, cc, cLength, pos);
       if(pos-buffer>BLOKLEN) {
 	buffer[-1] = BLOKLEN;
-	fwrite(buffer-1, 1, BLOKLEN+1, fout);
+	fout.append(reinterpret_cast<const char *>(buffer-1), BLOKLEN+1);
 	buffer[0] = buffer[BLOKLEN];
 	buffer[1] = buffer[BLOKLEN+1];
 	buffer[2] = buffer[BLOKLEN+2];
@@ -301,7 +301,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
   pos = AddCodeToBuffer(z, curNode->code, cLength, pos);
   if(pos-buffer>BLOKLEN-3) {
     buffer[-1] = BLOKLEN-3;
-    fwrite(buffer-1, 1, BLOKLEN-2, fout);
+    fout.append(reinterpret_cast<const char *>(buffer-1), BLOKLEN-2);
     buffer[0] = buffer[BLOKLEN-3];
     buffer[1] = buffer[BLOKLEN-2];
     buffer[2] = buffer[BLOKLEN-1];
@@ -314,7 +314,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
   buffer[-1] = pos-buffer;
    pos = AddCodeToBuffer(z, 0x0,8,pos);
 
-  fwrite(buffer-1, pos-buffer+1, 1, fout);
+  fout.append(reinterpret_cast<const char *>(buffer-1), static_cast<size_t>(pos-buffer+1));
   return 1;
 
 }
@@ -373,7 +373,7 @@ unsigned char *AddCodeToBuffer(Lzw &z, int code, short n, unsigned char *buf)
   return buf;
 }
 
-void make_gif(const ColorMap &m, unsigned char *pixels,int cols,int rows,FILE *dst)
+void make_gif(const ColorMap &m, unsigned char *pixels,int cols,int rows,std::string &dst)
 {
   const int depth=8;
   std::vector<unsigned char> out={'G','I','F','8','7','a'};
@@ -384,24 +384,24 @@ void make_gif(const ColorMap &m, unsigned char *pixels,int cols,int rows,FILE *d
     static_cast<unsigned char>(0xff & rows),static_cast<unsigned char>((0xff00 & rows)/0x100),
     static_cast<unsigned char>(0x7&(depth-1))};
   out.insert(out.end(),image.begin(),image.end());
-  fwrite(out.data(),out.size(),1,dst);
+  dst.append(reinterpret_cast<const char *>(out.data()),out.size());
 
   /* header info done */
 
   GifEncode(dst,pixels,depth,rows*cols);
-  fputc(';',dst);
+  dst += ';';
 }
 
 } // namespace
 
-void end_ani_gif(FILE *fp)
+void end_ani_gif(std::string &fp)
 {
-  fputc(';',fp);
+  fp += ';';
 }
 
 /* encode the w x h RGB image ppm for task (scrngif.h): one GIF, the global
    color map, or the first/next frame of an animated GIF */
-void gif_stuff_ppm(unsigned char *ppm,int w,int h,FILE *fp,int task)
+void gif_stuff_ppm(unsigned char *ppm,int w,int h,std::string &fp,int task)
 {
  std::vector<unsigned char> pix(static_cast<size_t>(h)*w);
  unsigned char *pixels=pix.data();

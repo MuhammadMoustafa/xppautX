@@ -9,6 +9,7 @@
 #include "xpp_ui.h"
 #include "browse.h"
 #include "session.h"
+#include "model.h"
 #include "integrate.h"
 #include "event_registry.h"
 #include "command_category.h"
@@ -137,7 +138,7 @@ Result<std::string> export_gif(Session &s, const Command &command, const Argumen
     const Result<bool> written = ui.aplot_gif(s, file);
     if (!written) return std::unexpected<Error>(written.error());
     if (!*written) return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), place);
-    const Result<unsigned long long> size = file_size(file, command, place);
+    const Result<unsigned long long> size = file_size(*s.model().fs, file, command, place);
     if (!size) return std::unexpected<Error>(size.error());
     return ResultObject().text("file", file).integer("bytes_written", static_cast<long long>(*size)).done();
 }

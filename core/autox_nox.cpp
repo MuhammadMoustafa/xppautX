@@ -269,7 +269,7 @@ xpp::Result<> autox_finish_files(AutoxRun &run)
    run's lines first, the older runs' after them), as a whole or not at all; both are streamed, never held */
 static xpp::Result<> install_run_file(xpp::FileSystem &fs, const std::string &from, const std::string &dest, bool in_front)
 {
-  auto sink=fs.open_sink(dest,true);
+  auto sink=fs.open_sink(dest,true,{});
   if(!sink)return std::unexpected(sink.error());
   if(auto put=xpp::copy_into(fs,**sink,from);!put)return put;
   if(in_front&&fs.exists(dest))
@@ -478,7 +478,7 @@ static xpp::Result<> open_run_files(AutoxRun &run)
   xpp::FileSystem &fs=*run.session->model().fs;
   AutoxRun::Outputs &out=run.outputs;
   for(const auto &[path,sink]:{std::pair{&out.branches,&out.branches_sink},std::pair{&out.solutions,&out.solutions_sink},std::pair{&out.diagnostics,&out.diagnostics_sink}}){
-    auto opened=fs.open_sink(*path,true);
+    auto opened=fs.open_sink(*path,true,{});
     if(!opened)return std::unexpected(opened.error());
     *sink=std::move(*opened);
   }

@@ -249,7 +249,7 @@ void buf_recording(std::string &b);
 xpp::Result<std::string> recording_open(xpp::Session &s, const std::string &file, bool play);
 xpp::Result<std::string> recording_control(const std::string &op, std::optional<double> speed);
 xpp::Result<std::string> recording_seek(xpp::Session &s, long long step, std::optional<bool> play);
-xpp::Result<std::string> recording_set_step_note(long long step, const std::string &note, bool confirm);
+xpp::Result<std::string> recording_set_step_note(xpp::Session &s, long long step, const std::string &note, bool confirm);
 xpp::Result<std::string> recording_close();
 void j_play_recording(xpp::Session &s, std::string_view path); /* File/plaY recording, Open model of a .recx */
 /* a recording playing pauses (a quit's question is the user's to answer) */
@@ -484,11 +484,11 @@ void j_autox_refresh(xpp::Session &s);
 /* ---- json_keymap.cpp ---- */
 
 /* the user's keymap as the page keeps it: hello's `keymap` object (xpp_keymap.h) */
-std::string hello_keymap();
+std::string hello_keymap(const xpp::Model &m);
 /* the keymap commands: the user's keymap, replaced in the parts given, or reset */
-xpp::Result<std::string> keymap_get();
-xpp::Result<std::string> keymap_set(const xpp::command::Arguments &args);
-xpp::Result<std::string> keymap_reset();
+xpp::Result<std::string> keymap_get(xpp::Session &s);
+xpp::Result<std::string> keymap_set(xpp::Session &s, const xpp::command::Arguments &args);
+xpp::Result<std::string> keymap_reset(xpp::Session &s);
 
 /* ---- json_model.cpp ---- */
 

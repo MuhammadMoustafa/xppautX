@@ -9,7 +9,7 @@
 #include <variant>
 #include <vector>
 
-#include "xpp_io.h"
+#include "xpp_fs.h"
 #include "colormap.h"
 #include "line_style.h"
 #include "picture.h"
@@ -70,7 +70,7 @@ std::string points_of(const std::vector<std::array<double, 2>> &points, double d
     return list;
 }
 
-void marker(Writer &out, const PictureMarker &m)
+void marker(Sink &out, const PictureMarker &m)
 {
     const MarkerGlyph g = marker_glyph(m.pen.style.marker, m.pen.style.marker_size);
     Pen thin = m.pen; /* an outline and a stroke marker's lines are a point wide */
@@ -84,7 +84,7 @@ void marker(Writer &out, const PictureMarker &m)
                   num(m.y + line[1][1]), stroke(thin));
 }
 
-void text(Writer &out, const PictureText &t)
+void text(Sink &out, const PictureText &t)
 {
     const char *anchor = t.anchor == TextAnchor::start ? "start" : t.anchor == TextAnchor::middle ? "middle" : "end";
     std::string turn;
@@ -102,7 +102,7 @@ void text(Writer &out, const PictureText &t)
 
 } // namespace
 
-Result<> write_svg(const Picture &picture, Writer &out)
+Result<> write_svg(const Picture &picture, Sink &out)
 {
     out.print("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{0}\" height=\"{1}\" viewBox=\"0 0 {0} {1}\" font-family=\"sans-serif\">\n", picture_width,
               picture_height);
@@ -112,7 +112,7 @@ Result<> write_svg(const Picture &picture, Writer &out)
         else if (const auto *r = std::get_if<PictureRect>(&item))
             out.print("<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\"{}/>\n", num(r->x), num(r->y), num(r->w), num(r->h), paint("fill", r->color));
         else if (const auto *t = std::get_if<PictureText>(&item)) text(out, *t);
-        else out.write(std::get<PictureGroup>(item).begin ? "<g>\n" : "</g>\n");
+        else out.print("{}", std::get<PictureGroup>(item).begin ? "<g>\n" : "</g>\n");
     }
     out.print("</svg>\n");
     return {};

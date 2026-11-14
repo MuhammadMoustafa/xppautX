@@ -12,6 +12,8 @@ namespace xpp {
 
 struct Session; /* session.h */
 struct Model;   /* model.h */
+class Sink;     /* xpp_fs.h */
+
 
 /* ---- XPPAUT's files, imported and never written ----
    XPPAUT's set file (.set) is positional lines, a value and then its
@@ -56,6 +58,6 @@ Result<std::string> load_value_file(Session &s, ValueFile kind, std::string file
 
 /* the simulation information written to filename (Save info): false when declined; confirm replaces an existing file without asking */
 Result<bool> write_info(Session &s, const std::string &filename, bool confirm);
-void do_info(const Session &s, FILE *fp);
+void do_info(const Session &s, Sink &fp);
 
 } // namespace xpp

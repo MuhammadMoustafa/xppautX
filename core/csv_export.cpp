@@ -13,7 +13,6 @@
 #include "autox_axis.h"
 #include "autox_codes.h"
 #include "autox_nox.h"
-#include "xpp_io.h"
 #include <string>
 #include <cstddef>
 #include <deque>
@@ -35,18 +34,18 @@ const char *par_name(const xpp::Session &s, xpp::AutoxAxis icp)
    out std::abs here) */
 int unsigned_of(int v) { return v < 0 ? -v : v; }
 
-xpp::Result<bool> write_table(const xpp::DataTable &table, const char *filename)
+xpp::Result<bool> write_table(xpp::FileSystem &fs, const xpp::DataTable &table, const char *filename)
 {
     const xpp::DataFormat &csv = *xpp::data_format_named("csv");
     xpp::Result<> opened;
-    xpp::Writer w = xpp::open_writer_asking(filename, csv.binary, &opened);
+    const std::unique_ptr<xpp::Sink> w = xpp::open_sink_asking(fs, filename, csv.binary, &opened);
     if (!opened) return std::unexpected(opened.error());
     if (!w) return false;
-    if (!csv.write(table, w)) {
-        xpp::abort_save(w);
+    if (!csv.write(table, *w)) {
+        xpp::abort_save(*w);
         return xpp::fail_reading("CSV export", "cannot be written", filename);
     }
-    if (const xpp::Result<> saved = xpp::commit_save(w); !saved) return std::unexpected(saved.error());
+    if (const xpp::Result<> saved = xpp::commit_save(*w); !saved) return std::unexpected(saved.error());
     return true;
 }
 
@@ -81,7 +80,7 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
         for (int i = 0; i < m.node; i++) row.push_back(xpp::number(d->ulo[i]));
         for (std::size_t i = 0; i < row.size(); i++) table.fields[i].push_back(std::move(row[i]));
     }
-    return write_table(table, filename);
+    return write_table(*s.model().fs, table, filename);
 }
 
 xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const char *filename)
@@ -100,7 +99,7 @@ xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const ch
             for (std::size_t j = 0; j < row.size(); j++) table.fields[j].push_back(row[j]);
         }
     }
-    return write_table(table, filename);
+    return write_table(*s.model().fs, table, filename);
 }
 
 xpp::Result<bool> csv_export_diagram_pair(const xpp::Session &s, const char *filename)

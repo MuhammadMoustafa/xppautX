@@ -11,7 +11,8 @@
 namespace xpp {
 
 struct Session; /* session.h */
-class Writer;
+class FileSystem;
+class Sink;
 struct Picture; /* picture.h */
 
 /* PDF and SVG are vector pictures: what graphics.cpp's primitives draw while a plot is redrawn is
@@ -21,10 +22,10 @@ struct Picture; /* picture.h */
 struct ImageFormat {
     const char *name;      /* "PDF", "SVG", "GIF" */
     const char *extension; /* no dot: "pdf", "svg", "gif" */
-    Result<> (*write)(const Picture &picture, Writer &out) = nullptr; /* a vector picture's writer */
+    Result<> (*write)(const Picture &picture, Sink &out) = nullptr; /* a vector picture's writer */
     bool binary = false;   /* its file is bytes, not text */
-    void (*pixels)(Writer &w, std::span<const unsigned char> rgb, int width, int height, int frame) = nullptr;
-    void (*finish_movie)(Writer &w) = nullptr;
+    Result<> (*pixels)(Sink &w, std::span<const unsigned char> rgb, int width, int height, int frame) = nullptr;
+    Result<> (*finish_movie)(Sink &w) = nullptr;
 };
 
 /* the vector picture formats' names: the extensions output.picture_file takes */
@@ -48,7 +49,7 @@ Result<> begin_picture(Session &s, const ImageFormat &format, std::string_view f
 /* the picture ended: written and renamed into place, or why not */
 Result<> end_picture(Session &s);
 
-Result<bool> save_pixels(const ImageFormat &format, const char *filename, std::span<const unsigned char> rgb, int width, int height);
+Result<bool> save_pixels(FileSystem &fs, const ImageFormat &format, const char *filename, std::span<const unsigned char> rgb, int width, int height);
 
 /* the vector picture format a file's extension names (output.picture_file: .pdf or .svg), or nullptr */
 const ImageFormat *picture_format_of_file(std::string_view path);

@@ -6,8 +6,10 @@
    the first line that is wrong; read_lines turns that into the Result. The kernel's: it includes
    nothing outside it. */
 
+#include <cmath>
 #include <cstddef>
 #include <cstdio>
+#include <limits>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -199,5 +201,20 @@ auto read_lines(std::string where, std::string file, std::string_view text, F &&
     }
 }
 
+
+/* A foreign numeric record: the next line of lines, every field present, finite and no extra token (a
+   TokenReader's grammar, so columns printed flush against each other read as the format wrote them). */
+template<class... Values> void numbers(Lines &lines, Values &...values)
+{
+    auto reader = TokenReader::of_text(lines.next("a numeric record"));
+    const auto read = [&](auto &value) {
+        if (!reader.read(value) || !std::isfinite(static_cast<double>(value))) return false;
+        // Point branch/step numbers are interpreted by sign, including abs().
+        if constexpr (std::is_integral_v<std::remove_reference_t<decltype(value)>>)
+            if (value == std::numeric_limits<std::remove_reference_t<decltype(value)>>::min()) return false;
+        return true;
+    };
+    if (!(read(values) && ...) || !reader.at_end()) lines.fail("invalid or incomplete numeric record");
+}
 
 } // namespace xpp

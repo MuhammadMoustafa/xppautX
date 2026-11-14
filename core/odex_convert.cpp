@@ -2032,7 +2032,7 @@ Result<> write_conversion(FileSystem &fs, const std::string &out, std::string_vi
 {
   /* the sink's diagnostic is rendered once by the command that opened it. */
   xpp::LogCapture messages;
-  Result<std::unique_ptr<Sink>> sink = fs.open_sink(out, true);
+  Result<std::unique_ptr<Sink>> sink = fs.open_sink(out, true, {});
   if (!sink) {
     messages.clear();
     return std::unexpected(std::move(sink.error()));

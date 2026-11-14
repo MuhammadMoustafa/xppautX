@@ -5,6 +5,7 @@
 
 #include "xpp_files.h"
 #include "xpp_io.h"
+#include "xpp_ui.h"
 
 namespace xpp {
 
@@ -27,6 +28,14 @@ public:
 private:
     Writer w_;
 };
+
+/* failure at the place the caller named (a model line, a recording's step), unless reads are served: then the
+   system's own place stays */
+Error placed_at(Error failure, const Place &at)
+{
+    if ((!at.file.empty() || !at.source.empty()) && !files::serving_reads()) failure.place = at;
+    return failure;
+}
 
 } // namespace
 
@@ -55,21 +64,66 @@ PathCheck LocalFileSystem::resolve_path(std::string_view path, std::string_view 
     return files::resolve_path(path, folder);
 }
 
-Result<std::unique_ptr<Sink>> LocalFileSystem::open_sink(std::string_view path, bool binary)
+Result<std::unique_ptr<Sink>> LocalFileSystem::open_sink(std::string_view path, bool binary, const Place &at)
 {
     auto sink = std::make_unique<WriterSink>(binary ? Writer::binary(path) : Writer(path));
-    if (!sink->open()) return std::unexpected(files::write_error("save", path));
+    if (!sink->open()) return std::unexpected(placed_at(files::write_error("save", path), at));
     return std::unique_ptr<Sink>(std::move(sink));
+}
+
+Result<> LocalFileSystem::check_destination(std::string_view path, const Place &at)
+{
+    const int status = files::output_status(path);
+    if (status == XPP_FILES_OK) return {};
+    Error failure = status == XPP_FILES_IO ? files::write_error("save", path)
+                                           : Error{"save", xpp::format("Cannot save {}: {}", path, files::status_text(status)), command_place()};
+    /* A replay's path guard must stop the step before later commands run,
+       even when the basename was rejected before a Sink could open it. */
+    files::write_path_ok(path, true);
+    return std::unexpected(placed_at(std::move(failure), at));
 }
 
 bool LocalFileSystem::destination_ok(std::string_view path) { return files::output_status(path) == XPP_FILES_OK; }
 
 bool LocalFileSystem::exists(std::string_view path) { return files::exists(path); }
 bool LocalFileSystem::is_dir(std::string_view path) { return files::is_dir(path); }
+Result<unsigned long long> LocalFileSystem::size_of(std::string_view path)
+{
+    ::FILE *opened = nullptr;
+    unsigned long long size = 0;
+    const int status = files::open(path, opened, size);
+    const UniqueFile closer(opened);
+    if (status != XPP_FILES_OK) return std::unexpected(Error{"file size", files::status_text(status), Place{std::string(path)}});
+    return size;
+}
+
 bool LocalFileSystem::dir_writable(std::string_view dir) { return files::dir_writable(dir); }
 int LocalFileSystem::remove_file(std::string_view path) { return files::remove(path); }
 std::string LocalFileSystem::make_temp_dir() { return files::make_temp_dir(); }
 void LocalFileSystem::remove_temp_dir(std::string_view dir) { files::remove_temp_dir(dir); }
+std::string LocalFileSystem::config_path(std::string_view name) { return files::config_path(name); }
+
+Result<std::optional<std::string>> LocalFileSystem::read_config(std::string_view where, std::string_view name, std::size_t limit)
+{
+    return read_config_file(where, name, limit);
+}
+
+Result<> LocalFileSystem::write_config(std::string_view where, std::string_view name, std::string_view bytes)
+{
+    return write_config_file(where, name, bytes);
+}
+
+Result<> LocalFileSystem::remove_config(std::string_view where, std::string_view name)
+{
+    const std::string file = files::config_path(name);
+    if (file.empty()) return std::unexpected(no_config_folder(where, name));
+    if (files::exists(file) && files::remove(file) != 0)
+        return fail(std::string(where), "cannot be reset: the file cannot be removed", Place{file});
+    return {};
+}
+
+bool LocalFileSystem::serving_reads() { return files::serving_reads(); }
+
 std::string LocalFileSystem::absolute(std::string_view path) { return files::absolute(path); }
 std::string LocalFileSystem::working_dir() { return files::working_dir(); }
 int LocalFileSystem::change_dir(std::string_view path) { return files::change_dir(path); }

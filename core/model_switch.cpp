@@ -114,7 +114,7 @@ xpp::Result<bool> xpp_model_open(xpp::Session &s, const char *path)
 
 xpp::Result<bool> xpp_model_open_example(xpp::Session &s, std::string_view name)
 {
-  const xpp::Result<std::string> copy=xpp::examples::install(name);
+  const xpp::Result<std::string> copy=xpp::examples::install(*s.model().fs,name);
   if(!copy)return std::unexpected(copy.error());
   if(copy->empty())return false;
   xpp::bottom_msg(0,xpp::format("The example {} is copied to {}; this copy is opened, so the example stays as it was",name,*copy));

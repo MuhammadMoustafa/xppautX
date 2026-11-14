@@ -109,9 +109,6 @@ public:
     LineReader() noexcept = default;
     /* fopen(path, "r") through xpp::files::open_stream */
     explicit LineReader(std::string_view path) noexcept;
-    /* text's lines, as a file of those bytes gives them (a model's saved
-       file, model_files.h) */
-    static LineReader of_text(std::string text) noexcept;
     LineReader(const LineReader &) = delete;
     LineReader &operator=(const LineReader &) = delete;
     LineReader(LineReader &&o) noexcept = default;
@@ -244,21 +241,6 @@ Result<T> load_config_file(std::string_view where, std::string_view name, std::s
    and find the session as it was and the error at that line.
    Foreign formats (XPPAUT's .auto, a data file) are imports, read where
    they are converted. */
-
-/* A foreign numeric record: the next line of lines, every field present, finite and no extra token (a
-   TokenReader's grammar, so columns printed flush against each other read as the format wrote them). */
-template<class... Values> void numbers(Lines &lines, Values &...values)
-{
-    auto reader = TokenReader::of_text(lines.next("a numeric record"));
-    const auto read = [&](auto &value) {
-        if (!reader.read(value) || !std::isfinite(static_cast<double>(value))) return false;
-        // Point branch/step numbers are interpreted by sign, including abs().
-        if constexpr (std::is_integral_v<std::remove_reference_t<decltype(value)>>)
-            if (value == std::numeric_limits<std::remove_reference_t<decltype(value)>>::min()) return false;
-        return true;
-    };
-    if (!(read(values) && ...) || !reader.at_end()) lines.fail("invalid or incomplete numeric record");
-}
 
 /* the bytes of the file at path, read whole; the error when it cannot be read, or is longer than limit
    (its place the file, no line): a file a user may have been sent is read within a bound */

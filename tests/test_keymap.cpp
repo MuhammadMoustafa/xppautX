@@ -7,6 +7,7 @@
 #include "test_support.h"
 #include "command_def.h"
 #include "xpp_files.h"
+#include "xpp_fs_local.h"
 #include "xpp_io.h"
 #include "xpp_keymap.h"
 #include "format_version.h"
@@ -176,24 +177,25 @@ void check_good_files()
 
 void check_file(const std::string &dir)
 {
+    xpp::LocalFileSystem fs;
     CHECK(xpp::files::config_dir() == dir); /* the override names the folder */
-    const std::string file = xpp::keymap::path();
+    const std::string file = xpp::keymap::path(fs);
     CHECK(file == dir + std::string(1, std::filesystem::path::preferred_separator) + "keymap.json");
 
-    auto none = xpp::keymap::load_keymap(); /* no file: all defaults, not an error */
+    auto none = xpp::keymap::load_keymap(fs); /* no file: all defaults, not an error */
     CHECK(none && none->bindings.empty() && none->pinned.empty());
-    CHECK(xpp::keymap::reset().has_value()); /* nothing to remove is fine */
+    CHECK(xpp::keymap::reset(fs).has_value()); /* nothing to remove is fine */
 
     xpp::keymap::Keymap map;
     map.bindings["session.reload_model"] = {"Ctrl+B"};
     map.pinned = {"calculator.evaluate"};
-    const auto saved = xpp::keymap::save(map);
+    const auto saved = xpp::keymap::save(fs, map);
     if (!saved) std::fprintf(stderr, "save: %s\n", saved.error().text().c_str()); /* why, when it fails (W220) */
     CHECK(saved.has_value());
     CHECK(xpp::files::exists(file));
-    auto loaded = xpp::keymap::load_keymap();
+    auto loaded = xpp::keymap::load_keymap(fs);
     CHECK(loaded && loaded->bindings == map.bindings && loaded->pinned == map.pinned);
-    const std::string json = xpp::keymap::effective_json(loaded);
+    const std::string json = xpp::keymap::effective_json(fs, loaded);
     CHECK(json.starts_with("{\"ok\":true"));
     CHECK(json.find("{\"id\":\"session.reload_model\",\"keys\":[\"Ctrl+B\"],\"source\":\"user\"}") != std::string::npos);
     CHECK(json.find("{\"id\":\"session.open_model\",\"keys\":[\"Ctrl+O\"],\"source\":\"default\"}") != std::string::npos);
@@ -203,9 +205,9 @@ void check_file(const std::string &dir)
         xpp::Writer w = xpp::Writer::binary(file);
         CHECK(w && w.write(keymap_text("{\"bindings\": {\"session.reload_model\": [\"Ctrl+W\"]}}")) && w.commit().has_value());
     }
-    auto bad = xpp::keymap::load_keymap();
+    auto bad = xpp::keymap::load_keymap(fs);
     CHECK(!bad && bad.error().place.file == file && bad.error().place.line == 1);
-    const std::string marked = xpp::keymap::effective_json(bad);
+    const std::string marked = xpp::keymap::effective_json(fs, bad);
     CHECK(marked.starts_with("{\"ok\":false,\"error\":"));
     CHECK(marked.find("\"keys\":[\"Ctrl+W\"]") == std::string::npos);
     CHECK(marked.find("{\"id\":\"session.open_model\",\"keys\":[\"Ctrl+O\"],\"source\":\"default\"}") != std::string::npos);
@@ -214,11 +216,11 @@ void check_file(const std::string &dir)
         xpp::Writer w = xpp::Writer::binary(file);
         CHECK(w && w.write(std::string(xpp::keymap::MAX_FILE_BYTES * 2, ' ')) && w.commit().has_value());
     }
-    CHECK(!xpp::keymap::load_keymap());
+    CHECK(!xpp::keymap::load_keymap(fs));
 
-    CHECK(xpp::keymap::reset().has_value());
+    CHECK(xpp::keymap::reset(fs).has_value());
     CHECK(!xpp::files::exists(file));
-    CHECK(xpp::keymap::load_keymap().has_value());
+    CHECK(xpp::keymap::load_keymap(fs).has_value());
 }
 
 } // namespace
@@ -231,6 +233,7 @@ TEST_CASE("test_keymap")
     check_good_files();
 
     /* the config folder is made on the first save, with its missing parents */
+    xpp::LocalFileSystem fs;
     xpp::TempDir temp;
     CHECK(!temp.path().empty());
     const std::string dir = temp.path() + "/config/xppautX";
@@ -239,9 +242,9 @@ TEST_CASE("test_keymap")
     std::filesystem::remove_all(temp.path() + "/config");
     /* a relative override would follow the working folder: it is an error, never a guess */
     CHECK(set_config_dir("relative/folder"));
-    CHECK(xpp::files::config_dir().empty() && xpp::keymap::path().empty());
-    auto none = xpp::keymap::load_keymap();
-    CHECK(!none && none.error().what.find("XPP_CONFIG_DIR") != std::string::npos && !xpp::keymap::save({}));
+    CHECK(xpp::files::config_dir().empty() && xpp::keymap::path(fs).empty());
+    auto none = xpp::keymap::load_keymap(fs);
+    CHECK(!none && none.error().what.find("XPP_CONFIG_DIR") != std::string::npos && !xpp::keymap::save(fs, {}));
     set_config_dir(nullptr);
     TEST_REPORT("keymap");
 }

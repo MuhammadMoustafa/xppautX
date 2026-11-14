@@ -24,7 +24,8 @@
 #include <utility>
 
 #include "xpp_mem.h"
-#include "xpp_io.h"
+#include "xpp_fs.h"
+#include "xpp_lines.h"
 #include "xpp_zip.h"
 
 namespace xpp {
@@ -39,19 +40,9 @@ constexpr double nan_value = std::numeric_limits<double>::quiet_NaN();
    before it goes to the file */
 constexpr std::size_t chunk = 1 << 16;
 
-/* One budget for every data file read: zip::archive_bytes_limit, for the
-   file's bytes and for what a gzip or zip expands to. path's bytes into
-   out within it; else t.error says why. */
-bool read_data_bytes(const char *path, std::string &out, DataTable &t)
-{
-    if (read_bytes(path, out, zip::archive_bytes_limit)) return true;
-    t.error = xpp::format("it cannot be read, or is larger than {} bytes", zip::archive_bytes_limit);
-    return false;
-}
-
 /* ---- .dat ---- */
 
-bool write_dat(const DataTable &t, Writer &w)
+Result<> write_dat(const DataTable &t, Sink &w)
 {
     std::string text;
     const std::size_t n = t.rows();
@@ -62,21 +53,19 @@ bool write_dat(const DataTable &t, Writer &w)
         }
         text += '\n';
         if (text.size() >= chunk) {
-            if (!w.write(text)) return false;
+            if (const Result<> written = w.write(text); !written) return written;
             text.clear();
         }
     }
     return w.write(text);
 }
 
-bool read_dat(const char *path, DataTable &t)
+bool read_dat(std::string_view bytes, DataTable &t)
 {
-    LineReader reader(path);
-    if (!reader) return false;
     int line_number=0;
-    while (const auto line=reader.next()) {
+    for (const std::string_view line : split_lines(bytes)) {
         ++line_number;
-        Tokens tokens(*line);
+        Tokens tokens(line);
         std::vector<double> row;
         while (const auto token=tokens.next(" \t\r\n\v\f")) {
             double value;
@@ -128,9 +117,18 @@ void append_csv_field(std::string &o, std::string_view s)
     o += '"';
 }
 
-std::string csv_text(const DataTable &t)
+/* the CSV text of t handed to emit(const std::string &) in pieces of about `chunk` bytes, so a table of a million rows is
+   never text in memory at once; the first piece emit refuses ends it */
+template <class Emit>
+Result<> csv_pieces(const DataTable &t, Emit &&emit)
 {
     std::string o;
+    const auto flush = [&](bool last) -> Result<> {
+        if (!last && o.size() < chunk) return {};
+        const Result<> written = emit(o);
+        o.clear();
+        return written;
+    };
     if (t.seed) format_append(o, "# seed {}\n", *t.seed);
     const std::size_t width = t.fields.empty() ? t.columns.size() : t.fields.size();
     for (std::size_t j = 0; j < width; j++) {
@@ -148,8 +146,9 @@ std::string csv_text(const DataTable &t)
             else append_csv_field(o, t.fields[j][i]);
         }
         o += '\n';
+        if (const Result<> written = flush(false); !written) return written;
     }
-    return o;
+    return flush(true);
 }
 
 /* one line's fields, a quoted field unquoted */
@@ -231,20 +230,26 @@ bool parse_csv(std::string_view text, DataTable &t)
     return true;
 }
 
-bool write_csv(const DataTable &t, Writer &w) { return w.write(csv_text(t)); }
-
-bool read_csv(const char *path, DataTable &t)
+Result<> write_csv(const DataTable &t, Sink &w)
 {
-    std::string text;
-    return read_data_bytes(path, text, t) && parse_csv(text, t);
+    return csv_pieces(t, [&](const std::string &piece) { return w.write(piece); });
 }
 
-bool write_csv_gz(const DataTable &t, Writer &w) { return w.write(zip::gzip(csv_text(t))); }
+bool read_csv(std::string_view text, DataTable &t) { return parse_csv(text, t); }
 
-bool read_csv_gz(const char *path, DataTable &t)
+/* the compressor takes the text whole, so this one holds it, as it always did */
+Result<> write_csv_gz(const DataTable &t, Sink &w)
 {
-    std::string gz;
-    if (!read_data_bytes(path, gz, t)) return false;
+    std::string text;
+    csv_pieces(t, [&](const std::string &piece) {
+        text += piece;
+        return Result<>{};
+    });
+    return w.write(zip::gzip(text));
+}
+
+bool read_csv_gz(std::string_view gz, DataTable &t)
+{
     bool over = false;
     const std::optional<std::string> text = zip::gunzip(gz, zip::archive_bytes_limit, &over);
     if (over) t.error = xpp::format("it expands to more than {} bytes", zip::archive_bytes_limit);
@@ -307,7 +312,7 @@ std::string npz_of(const DataTable &t)
     return zip::make_zip(entries);
 }
 
-bool write_npz(const DataTable &t, Writer &w) { return w.write(npz_of(t)); }
+Result<> write_npz(const DataTable &t, Sink &w) { return w.write(npz_of(t)); }
 
 /* the value after "'key':" in a .npy header's dict, up to the next ',' or
    '}' outside parentheses */
@@ -458,11 +463,7 @@ bool parse_npz(std::string_view bytes, DataTable &t)
     return true;
 }
 
-bool read_npz(const char *path, DataTable &t)
-{
-    std::string bytes;
-    return read_data_bytes(path, bytes, t) && parse_npz(bytes, t);
-}
+bool read_npz(std::string_view bytes, DataTable &t) { return parse_npz(bytes, t); }
 
 /* F(args...), ending the program on a failed allocation (no exception
    leaves the core's formats) */
@@ -495,22 +496,22 @@ bool read_clean(Src src, DataTable &t)
 
 /* a format function as the registry holds it */
 template <auto F>
-bool guarded_write(const DataTable &t, Writer &w) noexcept
+Result<> guarded_write(const DataTable &t, Sink &w) noexcept
 {
     if (!t.fields.empty()) {
-        if (!t.columns.empty()) return false;
-        for (const auto &column : t.fields) if (column.size() != t.rows()) return false;
+        if (!t.columns.empty() || std::ranges::any_of(t.fields, [&](const auto &column) { return column.size() != t.rows(); }))
+            return std::unexpected(Error{"save data", "the table's columns do not agree", Place{w.path()}});
     }
     if constexpr (F != write_csv && F != write_csv_gz) {
-        if (!t.fields.empty()) return false; /* these formats store numbers only */
+        if (!t.fields.empty()) return std::unexpected(Error{"save data", "this format stores numbers only", Place{w.path()}}); 
     }
-    return guarded<F, const DataTable &, Writer &>("writing a data file", t, w);
+    return guarded<F, const DataTable &, Sink &>("writing a data file", t, w);
 }
 
 template <auto F>
-bool guarded_read(const char *path, DataTable &t) noexcept
+bool guarded_read(std::string_view bytes, DataTable &t) noexcept
 {
-    return guarded<read_clean<F, const char *>, const char *, DataTable &>("reading a data file", path, t);
+    return guarded<read_clean<F, std::string_view>, std::string_view, DataTable &>("reading a data file", bytes, t);
 }
 
 /* The registry: one line per format, in the Save data menu's order. */
@@ -567,14 +568,16 @@ const DataFormat *data_format_of_file(std::string_view path)
     return nullptr;
 }
 
-Result<DataTable> read_data_table(const char *path)
+Result<DataTable> read_data_table(FileSystem &fs, std::string_view path)
 {
     const DataFormat *format=data_format_of_file(path);
-    if (!format || !format->read) return fail_reading("data", "has no registered data format",path);
+    if (!format || !format->read) return fail_reading("data", "has no registered data format",std::string(path));
+    const Result<std::string> bytes=fs.read("data",path,zip::archive_bytes_limit);
+    if (!bytes) return std::unexpected(bytes.error());
     DataTable table;
-    if (!format->read(path,table))
+    if (!format->read(*bytes,table))
         return fail("data",table.error.empty() ? "cannot be read as a data table" : "cannot be read as a data table: " + table.error,
-                    Place{path,table.error_line});
+                    Place{std::string(path),table.error_line});
     return table;
 }
 

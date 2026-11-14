@@ -98,7 +98,7 @@ enum class RunFile { solutions, branches, diagnostics };
 Result<> renumber_file(FileSystem &fs, const AutoxRun &run, std::string &path, RunFile kind, const Renumber &r, const StoredPoints *stored)
 {
   if(r.identity()&&!stored)return {};
-  auto opened=fs.open_sink(path+".renumbered",true);
+  auto opened=fs.open_sink(path+".renumbered",true,{});
   if(!opened)return std::unexpected(opened.error());
   Sink &sink=**opened;
   std::string out;

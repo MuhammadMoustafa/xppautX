@@ -1,6 +1,5 @@
 /* The session's autoX state: its settings and views written and read, its diagram's members: see xpp_session_autox.h. */
 #include "xpp_session_autox.h"
-#include "xpp_io.h"
 #include "xpp_zip.h"
 #include "xpp_lines.h"
 #include "snapx.h"

@@ -214,9 +214,9 @@ void print_fit_info(const xpp::Session &s)
 }
 
 namespace {
-Result<DataTable> fit_data(const char *filename, int npts, int ndim, std::span<const int> icols)
+Result<DataTable> fit_data(xpp::FileSystem &fs, const char *filename, int npts, int ndim, std::span<const int> icols)
 {
-  xpp::Result<xpp::DataTable> read=xpp::read_data_table(filename);
+  xpp::Result<xpp::DataTable> read=xpp::read_data_table(fs,filename);
   if (!read) return std::unexpected(read.error());
   const xpp::DataTable &table=*read;
   if (table.columns.size() < static_cast<std::size_t>(ndim) || table.rows() < static_cast<std::size_t>(npts))
@@ -267,7 +267,7 @@ Result<FitOutcome> test_fit(Session &s, FitInfo fit)
  }
  if(fit.npts<2||fit.dim<2||fit.maxiter<1)
    return fail("fit",xpp::format("The fit needs at least 2 points (not {}), 2 columns (not {}) and 1 iteration (not {})",fit.npts,fit.dim,fit.maxiter),command_place());
-  auto data = fit_data(fit.file.c_str(),fit.npts,fit.dim,fit.icols);
+  auto data = fit_data(*s.model().fs,fit.file.c_str(),fit.npts,fit.dim,fit.icols);
   if (!data) return std::unexpected(data.error());
   *s.fit=std::move(fit);
   std::vector<double> initial(s.model().node);

@@ -15,7 +15,7 @@
 #include <variant>
 #include <vector>
 
-#include "xpp_io.h"
+#include "xpp_fs.h"
 #include "xpp_math.h"
 #include "colormap.h"
 #include "line_style.h"
@@ -221,7 +221,7 @@ private:
 
 } // namespace
 
-Result<> write_pdf(const Picture &picture, Writer &out)
+Result<> write_pdf(const Picture &picture, Sink &out)
 {
     Content content;
     for (const PictureItem &item : picture.items) {
@@ -234,29 +234,36 @@ Result<> write_pdf(const Picture &picture, Writer &out)
     for (const auto &[alpha, number] : content.alphas)
         states += xpp::format(" /G{0} << /CA {1} /ca {1} >>", number, num(alpha / 255.0, 3));
 
-    /* the objects, each as the file's bytes so far lets its offset be found */
-    std::vector<std::string> objects;
-    objects.push_back("<< /Type /Catalog /Pages 2 0 R >>");
-    objects.push_back("<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-    objects.push_back(xpp::format("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {} {}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> "
-                             "/ExtGState <<{} >> >> >>",
-                             picture_width, picture_height, states));
-    objects.push_back(xpp::format("<< /Length {} >>\nstream\n{}endstream", content.text.size(), content.text));
-    objects.push_back("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
-    objects.push_back("<< /Type /Font /Subtype /Type1 /BaseFont /Symbol >>");
-
-    std::string file = "%PDF-1.4\n";
+    /* the objects, each written as it is made, its offset the bytes written so far; the content stream, the
+       big one, goes out as it is, never copied into a second text */
     std::vector<std::size_t> offsets;
-    for (std::size_t i = 0; i < objects.size(); i++) {
-        offsets.push_back(file.size());
-        file += xpp::format("{} 0 obj\n{}\nendobj\n", i + 1, objects[i]);
-    }
-    const std::size_t xref = file.size();
-    file += xpp::format("xref\n0 {}\n0000000000 65535 f \n", objects.size() + 1);
-    for (const std::size_t offset : offsets) file += xpp::format("{:010} 00000 n \n", offset);
-    file += xpp::format("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{}\n%%EOF\n", objects.size() + 1, xref);
-    out.write(file);
-    return {};
+    std::size_t position = 0;
+    Result<> written;
+    const auto put = [&](std::string_view piece) {
+        position += piece.size();
+        if (written) written = out.write(piece);
+    };
+    const auto object = [&](std::string_view dictionary, std::string_view stream = {}, std::string_view end = {}) {
+        offsets.push_back(position);
+        put(xpp::format("{} 0 obj\n{}", offsets.size(), dictionary));
+        put(stream);
+        put(xpp::format("{}\nendobj\n", end));
+    };
+    put("%PDF-1.4\n");
+    object("<< /Type /Catalog /Pages 2 0 R >>");
+    object("<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+    object(xpp::format("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {} {}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> "
+                       "/ExtGState <<{} >> >> >>",
+                       picture_width, picture_height, states));
+    object(xpp::format("<< /Length {} >>\nstream\n", content.text.size()), content.text, "endstream");
+    object("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+    object("<< /Type /Font /Subtype /Type1 /BaseFont /Symbol >>");
+
+    const std::size_t xref = position;
+    put(xpp::format("xref\n0 {}\n0000000000 65535 f \n", offsets.size() + 1));
+    for (const std::size_t offset : offsets) put(xpp::format("{:010} 00000 n \n", offset));
+    put(xpp::format("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{}\n%%EOF\n", offsets.size() + 1, xref));
+    return written;
 }
 
 } // namespace xpp

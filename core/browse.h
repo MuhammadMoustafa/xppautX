@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stdio.h>
-#include "xpp_io.h"
 #include "xpp_fs.h"
 #include "data_formats.h"
 #include "storage.h"
@@ -39,44 +37,37 @@ ColumnTable get_table_data(Session &s);
 
 void data_get_mytable(Session &s, int row);
 
-/* A file the user named, opened for a write that replaces it only at
-   commit (Writer, binary: byte for byte), after asking whether to
-   replace it if it exists. A command or native dialog's answer supplies
+/* A file the user named, opened for a write that replaces it only at commit (a Sink of fs, binary: byte for byte),
+   after asking whether to replace it if it exists. A command or native dialog's answer supplies
    permission; only an existing target without a decision asks in core.
    Empty when declined or when opening fails. With opened, the caller
    receives the error to show; otherwise it is shown here, once.
-   independent resets the command decision for a derived destination. */
-Writer open_writer_asking(std::string_view fil, bool binary = false,
-                          Result<> *opened = nullptr, bool independent = false, const Place &at = {});
-/* The same for a file the user already chose to replace, as the path a
-   session was saved to: no question, the status checks and the temp-then-
-   rename write of open_writer_asking. */
-Writer open_writer_replacing(std::string_view fil, bool binary = false, Result<> *opened = nullptr);
-/* The same for the file system's Sink (xpp_fs.h): the status checks and the replace question of
-   open_writer_asking / open_writer_replacing, then fs's temp-then-rename sink; empty when declined or
-   when opening fails (opened as there). */
-std::unique_ptr<xpp::Sink> open_sink_asking(xpp::FileSystem &fs, std::string_view fil, bool binary = false, Result<> *opened = nullptr);
+   independent resets the command decision for a derived destination; at is the place of a failure, when it
+   names one (a model line). */
+std::unique_ptr<xpp::Sink> open_sink_asking(xpp::FileSystem &fs, std::string_view fil, bool binary = false, Result<> *opened = nullptr,
+                                            bool independent = false, const Place &at = {});
+/* The same for a file the user already chose to replace, as the path a session was saved to: no question, the
+   status checks and the temp-then-rename write of open_sink_asking. */
 std::unique_ptr<xpp::Sink> open_sink_replacing(xpp::FileSystem &fs, std::string_view fil, bool binary = false, Result<> *opened = nullptr);
 /* One precondition, before asking for a name. Empty saves report once. */
 bool save_ready(bool available);
-Writer ask_output_writer(const Session &s, std::string_view title, std::string_view ext,
-                         std::string_view what = {}, bool binary = false);
+std::unique_ptr<xpp::Sink> ask_output_sink(const Session &s, std::string_view title, std::string_view ext,
+                                           std::string_view what = {}, bool binary = false);
 /* Finish a user save: report its destination and whether commit succeeded.
    The command shows the returned error once (ok_or_show for void commands). */
-Result<> commit_save(Writer &writer);
 Result<> commit_save(xpp::Sink &sink);
 /* A serializer or picture capture stopped before commit: discard the
    temporary file and report that this destination was not saved. */
-void abort_save(Writer &writer);
 void abort_save(xpp::Sink &sink);
 /* The existing overwrite question, with Cancel (0). For an imported
    model, n opens the existing file instead of declining the write. */
 int file_replace_choice(bool open_existing = false);
 
-/* the stored rows First..Last as XPP's .dat (data_formats.h), only the
+/* the stored rows First..Last as XPP's .dat (data_formats.h) into w, only the
    columns of a batch run's "only" list (plotlist) when it has one: the
-   batch run's output.dat and the files written beside it */
-void write_mytable_data(Session &s, Writer &w);
+   batch run's output.dat and the files written beside it; committed (commit_save), or aborted
+   when the writing failed */
+Result<> save_mytable_data(Session &s, xpp::Sink &w);
 
 /* what Save data writes: the "table" (the rows First..Last of every column), the model's "output" (those rows of
    its output columns: its "only" list when it has one, as --silent's output.dat) or what the plot shows

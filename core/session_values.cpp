@@ -67,14 +67,14 @@ void  get_max(const xpp::Session &s, int index, double *vmin, double *vmax)
  }
 
 
-void user_fun_info(const xpp::Model &m, FILE *fp)
+void user_fun_info(const xpp::Model &m, xpp::Sink &fp)
 {
   for(int j=0;j<m.nfun;j++){
     std::string line=xpp::format("{}(",m.ufun_names[j]);
     for(int i=0;i<m.narg_fun[j];i++)
       line+=xpp::format("{}{}",m.ufun_args[j][i],i<m.narg_fun[j]-1?",":"");
     line+=xpp::format(") = {}\n",m.ufun_defs[j]);
-    fwrite(line.data(),1,line.size(),fp);
+    fp.print("{}",line);
   }
 }
 

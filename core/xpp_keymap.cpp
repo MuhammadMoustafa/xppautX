@@ -5,8 +5,7 @@
 #include "command_def.h"
 #include "json_error.h"
 #include "json_reader.h"
-#include "xpp_io.h"
-#include "xpp_files.h"
+#include "xpp_fs.h"
 #include "xpp_lines.h"
 
 #include <algorithm>
@@ -275,34 +274,27 @@ std::vector<std::string> effective_keys(const Keymap &map, const command::Comman
     return keys;
 }
 
-std::string path() { return files::config_path(FILE_NAME); }
+std::string path(FileSystem &fs) { return fs.config_path(FILE_NAME); }
 
-Result<Keymap> load_keymap()
+Result<Keymap> load_keymap(FileSystem &fs)
 {
-    const auto loaded = load_config_file<Keymap>(WHERE, FILE_NAME, MAX_FILE_BYTES, parse_keymap);
+    const auto loaded = load_config<Keymap>(fs, WHERE, FILE_NAME, MAX_FILE_BYTES, parse_keymap);
     if (!loaded) return loaded;
-    return parse_keymap(serialize(*loaded), path());
+    return parse_keymap(serialize(*loaded), path(fs));
 }
 
-Result<> save(const Keymap &map) { return write_config_file(WHERE, FILE_NAME, serialize(map)); }
+Result<> save(FileSystem &fs, const Keymap &map) { return fs.write_config(WHERE, FILE_NAME, serialize(map)); }
 
-Result<> reset()
-{
-    const std::string file = path();
-    if (file.empty()) return std::unexpected(no_config_folder(WHERE, FILE_NAME));
-    if (files::exists(file) && files::remove(file) != 0)
-        return fail(std::string(WHERE), "cannot be reset: the file cannot be removed", Place{file});
-    return {};
-}
+Result<> reset(FileSystem &fs) { return fs.remove_config(WHERE, FILE_NAME); }
 
-std::string effective_json(const Result<Keymap> &loaded)
+std::string effective_json(FileSystem &fs, const Result<Keymap> &loaded)
 {
     const Keymap defaults;
     const Keymap &map = loaded ? *loaded : defaults;
     std::string out = loaded ? "{\"ok\":true" : "{\"ok\":false";
     if (!loaded) json::append_error(out, loaded.error());
     out += ",\"path\":";
-    json_append_string(out, path());
+    json_append_string(out, path(fs));
     out += ",\"pinned\":[";
     append_strings(out, map.pinned, ",");
     out += "],\"reserved\":[";

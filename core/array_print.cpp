@@ -12,7 +12,7 @@
 #include "my_pdf.h"
 #include "picture.h"
 #include "session.h"
-#include "xpp_io.h"
+#include "model.h"
 #include "colormap.h"
 #include "line_style.h"
 #include "storage.h"
@@ -74,11 +74,11 @@ Result<bool> array_print(const Session &s, const ArrayPicture &a)
     add_text(p, scale_left + scale_width + number_gap, scale_top + scale_height, TextAnchor::start, 0, xpp::format("{:g}", a.zmin));
 
     Result<> opened;
-    Writer out = open_writer_asking(a.filename, true, &opened);
+    const std::unique_ptr<Sink> out = open_sink_asking(*s.model().fs, a.filename, true, &opened);
     if (!opened) return std::unexpected(opened.error());
     if (!out) return false;
-    if (const Result<> written = write_pdf(p, out); !written) return std::unexpected(written.error());
-    if (const Result<> committed = commit_save(out); !committed) return std::unexpected(committed.error());
+    if (const Result<> written = write_pdf(p, *out); !written) return std::unexpected(written.error());
+    if (const Result<> committed = commit_save(*out); !committed) return std::unexpected(committed.error());
     return true;
 }
 

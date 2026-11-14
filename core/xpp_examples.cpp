@@ -67,7 +67,7 @@ std::string json()
     return out + "}";
 }
 
-Result<std::string> install(std::string_view name)
+Result<std::string> install(FileSystem &fs, std::string_view name)
 {
     const Listing l = list();
     if (std::ranges::find(l.names, name) == l.names.end())
@@ -102,7 +102,7 @@ Result<std::string> install(std::string_view name)
             }
         }
     } catch (const Error &error) { return std::unexpected(error); }
-    std::vector<std::pair<Writer, const ModelFile *>> writes;
+    std::vector<std::pair<std::unique_ptr<Sink>, const ModelFile *>> writes;
     for (const auto &member : members) {
         const auto path = files::join(folder, member.name);
         /* An unchanged companion needs no second overwrite question. */
@@ -112,16 +112,16 @@ Result<std::string> install(std::string_view name)
             if (input && read_bytes(input.get(), prior, MAX_EXAMPLE_BYTES) && prior == member.bytes) continue;
         }
         Result<> opened;
-        Writer writer = open_writer_asking(path, true, &opened);
+        std::unique_ptr<Sink> writer = open_sink_asking(fs, path, true, &opened);
         if (!writer) return opened ? Result<std::string>(std::string()) : std::unexpected(opened.error());
         writes.emplace_back(std::move(writer), &member);
     }
     for (auto &[writer, member] : writes)
-        if (!writer.write(member->bytes))
-            return fail(std::string(WHERE), "cannot write the example member " + member->name, command_place());
+        if (const Result<> written = writer->write(member->bytes); !written)
+            return fail(std::string(WHERE), xpp::format("cannot write the example member {}: {}", member->name, written.error().what), command_place());
     /* Commit the companion before the model which names it. */
     for (auto it = writes.rbegin(); it != writes.rend(); ++it)
-        if (auto done = it->first.commit(); !done) return std::unexpected(done.error());
+        if (auto done = it->first->commit(); !done) return std::unexpected(done.error());
     return target;
 }
 

@@ -185,11 +185,11 @@ ArrayPlotState::~ArrayPlotState()=default;
 void close_aplot_files(xpp::Session &s, bool complete)
 {
   if(s.array_plot->still==0){
-    if(s.array_plot->movie&&*s.array_plot->movie){
+    if(s.array_plot->movie){
       if (!complete || s.array_plot->save_cancelled || xpp::job::cancelled()) xpp::abort_save(*s.array_plot->movie);
       else {
-        xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(*s.array_plot->movie);
-        xpp::ok_or_show(xpp::commit_save(*s.array_plot->movie));
+        const xpp::Result<> finished=xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(*s.array_plot->movie);
+        xpp::ok_or_show(finished?xpp::commit_save(*s.array_plot->movie):finished);
       }
     }
   }

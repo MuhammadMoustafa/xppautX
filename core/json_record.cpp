@@ -203,11 +203,14 @@ xpp::Result<std::optional<Saved>> stop(const xpp::Session &s, const std::string 
     const xpp::Result<std::string> text = recx::text(*recorder.rec);
     if (!text) return std::unexpected(text.error());
     xpp::Result<> opened;
-    xpp::Writer w = confirm ? open_writer_replacing(file, false, &opened) : open_writer_asking(file, false, &opened);
+    const std::unique_ptr<xpp::Sink> w = confirm ? open_sink_replacing(*s.model().fs, file, false, &opened) : open_sink_asking(*s.model().fs, file, false, &opened);
     if (!opened) return std::unexpected(opened.error());
     if (!w) return std::nullopt;
-    w.write(*text);
-    if (const xpp::Result<> saved = xpp::commit_save(w); !saved) return std::unexpected(saved.error());
+    if (const xpp::Result<> written = w->write(*text); !written) {
+        xpp::abort_save(*w);
+        return std::unexpected(written.error());
+    }
+    if (const xpp::Result<> saved = xpp::commit_save(*w); !saved) return std::unexpected(saved.error());
     const std::string done = xpp::format("Recorded {} steps in {}", steps.size(), file);
     xpp::log(XPP_LOG_INFO, "{}\n", done);
     bottom_msg(0, done);

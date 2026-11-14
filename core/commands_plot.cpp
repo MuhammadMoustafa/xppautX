@@ -14,12 +14,12 @@
 #include "numerics.h"
 #include "model_options.h"
 #include "typed_values.h"
-#include "xpp_io.h"
-#include "xpp_files.h"
+#include "xpp_fs.h"
 #include "xpp_util.h"
 #include "session_values.h"
 #include "model.h"
 #include "session.h"
+#include "model.h"
 #include "many_pops.h"
 #include "event_registry.h"
 #include "colormap.h"
@@ -195,7 +195,7 @@ Result<std::string> export_picture(Session &s, const Command &command, const Arg
     const Result<bool> written = write_plot_picture(s, format, file);
     if (!written) return std::unexpected<Error>(written.error());
     if (!*written) return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), place);
-    const Result<unsigned long long> size = file_size(file, command, place);
+    const Result<unsigned long long> size = file_size(*s.model().fs, file, command, place);
     if (!size) return std::unexpected<Error>(size.error());
     return ResultObject().text("file", file).integer("bytes_written", static_cast<long long>(*size)).done();
 }
@@ -499,14 +499,10 @@ constexpr std::array ROWS = {
 
 std::span<const Command> plot_commands() { return ROWS; }
 
-Result<unsigned long long> file_size(std::string_view file, const Command &command, const Place &place)
+Result<unsigned long long> file_size(FileSystem &fs, std::string_view file, const Command &command, const Place &place)
 {
-    ::FILE *opened = nullptr;
-    unsigned long long size = 0;
-    const int status = files::open(file, opened, size);
-    const UniqueFile closer(opened);
-    if (status != XPP_FILES_OK)
-        return fail(command.name, xpp::format("\"{}\" was written but cannot be read back: {}", file, files::status_text(status)), place);
+    const Result<unsigned long long> size = fs.size_of(file);
+    if (!size) return fail(command.name, xpp::format("\"{}\" was written but cannot be read back: {}", file, size.error().what), place);
     return size;
 }
 

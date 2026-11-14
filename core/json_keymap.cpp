@@ -13,7 +13,9 @@
 #include "xpp_keymap.h"
 #include "event_registry.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
+#include "xpp_fs.h"
+#include "session.h"
+#include "model.h"
 
 namespace xpp::json {
 
@@ -23,17 +25,17 @@ namespace {
    page sent, not the settings file (its lines are the sent object's) */
 constexpr std::string_view SENT_KEYMAP = "the keymap sent";
 
-void send_keymap(std::string_view op)
+void send_keymap(xpp::Session &s, std::string_view op)
 {
     std::string event = xpp::events::open(xpp::events::KEYMAP_CHANGED) + ",\"op\":";
     json_append_string(event, op);
-    event += ",\"keymap\":" + hello_keymap() + "}";
+    event += ",\"keymap\":" + hello_keymap(s.model()) + "}";
     data_emit(event);
 }
 
 } // namespace
 
-std::string hello_keymap() { return xpp::keymap::effective_json(xpp::keymap::load_keymap()); }
+std::string hello_keymap(const xpp::Model &m) { return xpp::keymap::effective_json(*m.fs, xpp::keymap::load_keymap(*m.fs)); }
 
 namespace {
 
@@ -61,18 +63,18 @@ std::string keymap_result(const xpp::keymap::Keymap &map)
 
 } // namespace
 
-xpp::Result<std::string> keymap_get()
+xpp::Result<std::string> keymap_get(xpp::Session &s)
 {
     /* a file that cannot be read is shown to the page by the keymap event (ok false, the error's place); the result is then the defaults */
-    const xpp::Result<xpp::keymap::Keymap> loaded = xpp::keymap::load_keymap();
-    send_keymap("get");
+    const xpp::Result<xpp::keymap::Keymap> loaded = xpp::keymap::load_keymap(*s.model().fs);
+    send_keymap(s, "get");
     return keymap_result(loaded ? *loaded : xpp::keymap::Keymap{});
 }
 
-xpp::Result<std::string> keymap_set(const xpp::command::Arguments &args)
+xpp::Result<std::string> keymap_set(xpp::Session &s, const xpp::command::Arguments &args)
 {
     /* a file that cannot be read is replaced whole: what the arguments leave out is then the defaults */
-    const xpp::Result<xpp::keymap::Keymap> current = xpp::keymap::load_keymap();
+    const xpp::Result<xpp::keymap::Keymap> current = xpp::keymap::load_keymap(*s.model().fs);
     xpp::keymap::Keymap map = current ? *current : xpp::keymap::Keymap{};
     if (args.has("bindings")) {
         map.bindings.clear();
@@ -82,17 +84,17 @@ xpp::Result<std::string> keymap_set(const xpp::command::Arguments &args)
     /* checked whole, then written: nothing of an unusable keymap is kept */
     xpp::Result<xpp::keymap::Keymap> checked = xpp::keymap::parse_keymap(xpp::keymap::serialize(map), std::string(SENT_KEYMAP));
     if (checked) {
-        if (const xpp::Result<> saved = xpp::keymap::save(*checked); !saved) checked = std::unexpected(saved.error());
+        if (const xpp::Result<> saved = xpp::keymap::save(*s.model().fs, *checked); !saved) checked = std::unexpected(saved.error());
     }
     if (!checked) return std::unexpected(checked.error());
-    send_keymap("set");
+    send_keymap(s, "set");
     return xpp::command::ResultObject().boolean("saved", true).done();
 }
 
-xpp::Result<std::string> keymap_reset()
+xpp::Result<std::string> keymap_reset(xpp::Session &s)
 {
-    if (const xpp::Result<> reset = xpp::keymap::reset(); !reset) return std::unexpected(reset.error());
-    send_keymap("reset");
+    if (const xpp::Result<> reset = xpp::keymap::reset(*s.model().fs); !reset) return std::unexpected(reset.error());
+    send_keymap(s, "reset");
     return xpp::command::ResultObject().boolean("reset", true).done();
 }
 

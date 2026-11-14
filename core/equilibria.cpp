@@ -1,4 +1,3 @@
-#include "xpp_io.h"
 #include "xpp_path.h"
 #include "solver.h"
 #include "xpp_ui.h"
@@ -367,11 +366,10 @@ Result<> save_batch_shoot(Session &s,std::string_view file,bool confirm,const Ru
       if(job::cancelled())return {};
       const std::string name=files::output_name(file,".dat",xpp::format("eigen{}-{}",k,unstable?"unstable":"stable"));
       Result<> opened;
-      Writer writer=confirm?open_writer_replacing(name,false,&opened):open_writer_asking(name,false,&opened);
+      const std::unique_ptr<Sink> writer=confirm?open_sink_replacing(*s.model().fs,name,false,&opened):open_sink_asking(*s.model().fs,name,false,&opened);
       if(!opened)return opened;
       if(!writer)return fail("equilibrium.export",xpp::format("Manifold output {} was not opened",name),command_place());
-      write_mytable_data(s,writer);
-      if(const auto saved=commit_save(writer);!saved)return saved;
+      if(const auto saved=save_mytable_data(s,*writer);!saved)return saved;
     }
     return {};
   }();

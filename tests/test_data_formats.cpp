@@ -6,6 +6,7 @@
 #include "xpptest.h"
 #include "data_formats.h"
 #include "xpp_files.h"
+#include "xpp_fs_local.h"
 #include "xpp_io.h"
 #include "xpp_zip.h"
 #include "xpp_error.h"
@@ -57,8 +58,16 @@ xpp::DataTable sample()
 /* table written as format f to path; true when it was, and committed */
 bool write_as(const xpp::DataFormat &f, const xpp::DataTable &t, const std::string &path)
 {
-    xpp::Writer w = f.binary ? xpp::Writer::binary(path.c_str()) : xpp::Writer(path.c_str());
-    return w && f.write(t, w) && w.commit();
+    xpp::LocalFileSystem fs;
+    const auto sink = fs.open_sink(path, f.binary, {});
+    return sink && f.write(t, **sink) && (*sink)->commit();
+}
+
+/* the file at path read as format f (its bytes, as the loaders hand them to the format) */
+bool read_back(const xpp::DataFormat &f, const std::string &path, xpp::DataTable &t)
+{
+    std::string bytes;
+    return xpp::read_bytes(path, bytes) && f.read(bytes, t);
 }
 
 std::string bytes_of(const std::string &path)
@@ -163,7 +172,7 @@ TEST_CASE("test_data_formats")
         CHECK_STR(text.substr(0, text.find('\n') + 1).c_str(), "0 1 100 \n");
         CHECK(text.find("\n1e-30 0.6666667 1e+30 \n") != std::string::npos);
         xpp::DataTable r;
-        CHECK(f.read(p.c_str(), r));
+        CHECK(read_back(f, p, r));
         CHECK(r.columns.size() == 3 && r.rows() == 4 && r.names.empty());
         CHECK(r.rows() == 4 && r.columns[1][2] == 123456.79 && r.columns[0][1] == 0.1);
         CHECK_STR(xpp::data_column_name(r, 2).c_str(), "col3");
@@ -178,7 +187,7 @@ TEST_CASE("test_data_formats")
         CHECK_STR(text.substr(0, text.find('\n') + 1).c_str(), "T,x,y\n");
         CHECK(text.find("\n0.1,-3.5,0.33333334\n") != std::string::npos);
         xpp::DataTable r;
-        CHECK(f.read(csv_path.c_str(), r));
+        CHECK(read_back(f, csv_path, r));
         CHECK(r.names == t.names);
         CHECK(same_values(r, t));
 
@@ -188,7 +197,7 @@ TEST_CASE("test_data_formats")
             xpp::Writer w = xpp::Writer::binary(p.c_str());
             CHECK(w.write("\"a, b\",c\r\n1,2\r\n\r\n3,\r\n") && w.commit());
         }
-        CHECK(f.read(p.c_str(), r));
+        CHECK(read_back(f, p, r));
         CHECK(r.names.size() == 2 && r.names[0] == "a, b" && r.rows() == 2);
         CHECK(r.rows() == 2 && r.columns[0][1] == 3.0f && std::isnan(r.columns[1][1]));
         /* no header: every line numbers */
@@ -196,26 +205,27 @@ TEST_CASE("test_data_formats")
             xpp::Writer w = xpp::Writer::binary(p.c_str());
             CHECK(w.write("1,2\n3,4\n") && w.commit());
         }
-        CHECK(f.read(p.c_str(), r) && r.names.empty() && r.rows() == 2);
+        CHECK(read_back(f, p, r) && r.names.empty() && r.rows() == 2);
         /* text after the header: not a table */
         {
             xpp::Writer w = xpp::Writer::binary(p.c_str());
             CHECK(w.write("a,b\n1,2\nx,y\n") && w.commit());
         }
-        CHECK(!f.read(p.c_str(), r) && r.columns.empty());
-        CHECK(!f.read(scratch("missing.csv").c_str(), r));
+        CHECK(!read_back(f, p, r) && r.columns.empty());
+        CHECK(!read_back(f, scratch("missing.csv"), r));
         {
             xpp::Writer w = xpp::Writer::binary(p);
             CHECK(w.write("# seed 7\na,b\n1,2\n3\n") && w.commit());
         }
-        CHECK(!f.read(p.c_str(), r) && r.columns.empty() && r.error_line == 4);
-        const auto bad = xpp::read_data_table(p.c_str());
+        CHECK(!read_back(f, p, r) && r.columns.empty() && r.error_line == 4);
+        xpp::LocalFileSystem fs;
+        const auto bad = xpp::read_data_table(fs, p);
         CHECK(!bad && bad.error().place.file == p && bad.error().place.line == 4);
         {
             xpp::Writer w = xpp::Writer::binary(p);
             CHECK(w.write("\"unclosed,b\n1,2\n") && w.commit());
         }
-        CHECK(!f.read(p.c_str(), r) && r.error_line == 1);
+        CHECK(!read_back(f, p, r) && r.error_line == 1);
     }
 
     {
@@ -223,7 +233,7 @@ TEST_CASE("test_data_formats")
         xpp::Writer w = xpp::Writer::binary(p);
         CHECK(w.write("1 2\n3\n") && w.commit());
         xpp::DataTable r;
-        CHECK(!xpp::data_format_named("dat")->read(p.c_str(),r) && r.columns.empty() && r.error_line == 2);
+        CHECK(!read_back(*xpp::data_format_named("dat"),p,r) && r.columns.empty() && r.error_line == 2);
     }
 
     /* Text readers preserve doubles; storage writers retain their exact bytes. */
@@ -233,7 +243,7 @@ TEST_CASE("test_data_formats")
         xpp::Writer w=xpp::Writer::binary(p);
         CHECK(w.write("1.0000000001\n") && w.commit());
         xpp::DataTable r;
-        CHECK(format.read(p.c_str(),r));
+        CHECK(read_back(format, p, r));
         CHECK(r.columns.size()==1 && r.rows()==1 && r.columns[0][0]==1.0000000001);
         CHECK(!r.stored_floats);
         const std::string csv=scratch("precise-output.csv");
@@ -265,7 +275,7 @@ TEST_CASE("test_data_formats")
         const std::optional<std::string> text = xpp::zip::gunzip(gz);
         CHECK(text && *text == bytes_of(csv_path));
         xpp::DataTable r;
-        CHECK(f.read(p.c_str(), r));
+        CHECK(read_back(f, p, r));
         CHECK(r.names == t.names && same_values(r, t));
         /* a damaged file */
         std::string bad = gz;
@@ -314,7 +324,7 @@ TEST_CASE("test_data_formats")
             CHECK(v.size() == 4 && v[2] == static_cast<double>(123456.79f) && v[3] == static_cast<double>(2.0f / 3.0f));
         }
         xpp::DataTable r;
-        CHECK(f.read(p.c_str(), r));
+        CHECK(read_back(f, p, r));
         CHECK(r.names == t.names && same_values(r, t));
 
         /* what the plot shows: one (points x 2) array per curve */
@@ -336,10 +346,10 @@ TEST_CASE("test_data_formats")
             const std::vector<double> v = npy_doubles((*ce)[0].bytes, at);
             CHECK(v == std::vector<double>({0.5, -1, 1.5, -2}));
         }
-        CHECK(f.read(pc.c_str(), r));
+        CHECK(read_back(f, pc, r));
         CHECK(r.names.size() == 4 && r.names[0] == "curve1_0" && r.rows() == 2);
         CHECK(r.rows() == 2 && r.columns[2][0] == 9.0f && std::isnan(r.columns[2][1]));
-        CHECK(!f.read(csv_path.c_str(), r));
+        CHECK(!read_back(f, csv_path, r));
     }
 
     /* a zip of entries, read back in order */
@@ -407,12 +417,12 @@ TEST_CASE("test_data_formats")
         for (const char *seed : {"5", " -7 "}) {
             put(seed);
             xpp::DataTable c;
-            CHECK(csv.read(sp.c_str(), c) && c.seed);
+            CHECK(read_back(csv, sp, c) && c.seed);
         }
         for (const char *seed : {"abc", "5x", "1.5", "1e300", "nan", "99999999999", ""}) {
             put(seed);
             xpp::DataTable c;
-            CHECK(!csv.read(sp.c_str(), c) && c.error_line == 1 && c.error.find("seed") != std::string::npos);
+            CHECK(!read_back(csv, sp, c) && c.error_line == 1 && c.error.find("seed") != std::string::npos);
         }
     }
 

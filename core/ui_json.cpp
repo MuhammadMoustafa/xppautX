@@ -1208,7 +1208,7 @@ void send_hello(xpp::Session &s)
     buf_str(b, xpp::LEAVE_KEYS);
     BUF_LIT(b, "}");
     BUF_LIT(b, ",\"keymap\":");
-    const std::string keymap = hello_keymap();
+    const std::string keymap = hello_keymap(m);
     buf_add(b, keymap.data(), keymap.size());
     /* a session with no model: what the start screen shows (xpp_recent.h) */
     if (!m.loaded()) {

@@ -48,17 +48,41 @@ public:
         return *bytes;
     }
     xpp::PathCheck resolve_path(std::string_view path, std::string_view) override { return {xpp::PathKind::inside, std::string(path)}; }
-    xpp::Result<std::unique_ptr<xpp::Sink>> open_sink(std::string_view path, bool) override
+    xpp::Result<std::unique_ptr<xpp::Sink>> open_sink(std::string_view path, bool, const xpp::Place &) override
     {
         return std::unique_ptr<xpp::Sink>(std::make_unique<MemorySink>(*this, std::string(path)));
     }
+    xpp::Result<> check_destination(std::string_view, const xpp::Place &) override { return {}; }
     bool destination_ok(std::string_view) override { return true; }
     bool exists(std::string_view path) override { return files.contains(std::string(path)); }
     bool is_dir(std::string_view) override { return false; }
+    xpp::Result<unsigned long long> size_of(std::string_view path) override
+    {
+        const auto it = files.find(std::string(path));
+        if (it == files.end()) return std::unexpected(xpp::Error{"file size", "no such file", xpp::Place{std::string(path)}});
+        return it->second.size();
+    }
     bool dir_writable(std::string_view) override { return true; }
     int remove_file(std::string_view path) override { return files.erase(std::string(path)) ? 0 : 1; }
     std::string make_temp_dir() override { return "memory-temp"; }
     void remove_temp_dir(std::string_view) override {}
+    std::string config_path(std::string_view name) override { return "config/" + std::string(name); }
+    xpp::Result<std::optional<std::string>> read_config(std::string_view, std::string_view name, std::size_t) override
+    {
+        const auto it = files.find(config_path(name));
+        return it == files.end() ? std::optional<std::string>() : std::optional<std::string>(it->second);
+    }
+    xpp::Result<> write_config(std::string_view, std::string_view name, std::string_view bytes) override
+    {
+        files[config_path(name)] = std::string(bytes);
+        return {};
+    }
+    xpp::Result<> remove_config(std::string_view, std::string_view name) override
+    {
+        files.erase(config_path(name));
+        return {};
+    }
+    bool serving_reads() override { return false; }
     std::string absolute(std::string_view path) override { return std::string(path); }
     std::string working_dir() override { return "memory"; }
     int change_dir(std::string_view) override { return 0; }
@@ -113,7 +137,7 @@ TEST_CASE("test_fs")
 
     /* a sink replaces its file at commit only */
     memory.files["out.txt"] = "before";
-    xpp::Result<std::unique_ptr<xpp::Sink>> sink = memory.open_sink("out.txt", false);
+    xpp::Result<std::unique_ptr<xpp::Sink>> sink = memory.open_sink("out.txt", false, {});
     CHECK(sink.has_value());
     CHECK((*sink)->write("after").has_value());
     CHECK(memory.files["out.txt"] == "before");

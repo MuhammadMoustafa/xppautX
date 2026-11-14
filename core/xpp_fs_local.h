@@ -16,14 +16,21 @@ public:
     std::optional<std::string> read_within(std::string_view path, std::string_view folder,
                                            std::span<const std::string> allowed_outside, std::size_t limit) override;
     PathCheck resolve_path(std::string_view path, std::string_view folder) override;
-    Result<std::unique_ptr<Sink>> open_sink(std::string_view path, bool binary) override;
+    Result<std::unique_ptr<Sink>> open_sink(std::string_view path, bool binary, const Place &at) override;
+    Result<> check_destination(std::string_view path, const Place &at) override;
     bool destination_ok(std::string_view path) override;
     bool exists(std::string_view path) override;
     bool is_dir(std::string_view path) override;
+    Result<unsigned long long> size_of(std::string_view path) override;
     bool dir_writable(std::string_view dir) override;
     int remove_file(std::string_view path) override;
     std::string make_temp_dir() override;
     void remove_temp_dir(std::string_view dir) override;
+    std::string config_path(std::string_view name) override;
+    Result<std::optional<std::string>> read_config(std::string_view where, std::string_view name, std::size_t limit) override;
+    Result<> write_config(std::string_view where, std::string_view name, std::string_view bytes) override;
+    Result<> remove_config(std::string_view where, std::string_view name) override;
+    bool serving_reads() override;
     std::string absolute(std::string_view path) override;
     std::string working_dir() override;
     int change_dir(std::string_view path) override;

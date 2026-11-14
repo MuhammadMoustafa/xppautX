@@ -11,6 +11,7 @@
 #include "xpp_examples.h"
 #include "model_switch.h"
 #include "xpp_files.h"
+#include "xpp_fs_local.h"
 #include "xpp_error.h"
 
 #include <filesystem>
@@ -27,12 +28,13 @@ TEST_CASE("test_examples")
     const std::string json = xpp::examples::json();
     CHECK(json.find("\"names\":[]") != std::string::npos && json.find("\"reason\":") != std::string::npos);
 
+    xpp::LocalFileSystem fs;
     xpp::TempDir temp;
     CHECK(!temp.path().empty());
     const std::string config = temp.path() + "/config";
     CHECK(test_setenv(xpp::files::CONFIG_DIR_ENV, config.c_str()) == 0);
     for (const char *name : {"lecar.odex", "../lecar.odex", "..", "", "/etc/passwd", "C:\\x.odex", "a/b.odex", "lecar.ode"}) {
-        const xpp::Result<std::string> copied = xpp::examples::install(name);
+        const xpp::Result<std::string> copied = xpp::examples::install(fs, name);
         CHECK(!copied && copied.error().what.find("not one of the bundled examples") != std::string::npos);
     }
     CHECK(!std::filesystem::exists(config)); /* a refused name made nothing */

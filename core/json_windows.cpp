@@ -32,6 +32,7 @@
 #include <utility>
 #include "kinescope.h"
 #include "session.h"
+#include "model.h"
 #include "json_reader.h"
 #include "autox_data.h"
 #include "event_registry.h"
@@ -260,13 +261,13 @@ void j_movie_autox_play(xpp::Session &s) { play_film(s, "autoplay"); }
 xpp::Result<int> j_movie_save(xpp::Session &s, std::string_view basename, int fmat)
 {
     const xpp::ImageFormat &format = xpp::image_formats[fmat];
-    std::vector<xpp::Writer> outputs;
+    std::vector<std::unique_ptr<xpp::Sink>> outputs;
     for (int i = 0; i < s.kinescope->frames; i++) {
         const std::string file = xpp::files::run_file_name(basename, i);
         if (i > 0)
             if (const auto decided = reset_save_decision(); !decided) return std::unexpected(decided.error());
         xpp::Result<> opened;
-        auto output = xpp::open_writer_asking(file, true, &opened);
+        auto output = xpp::open_sink_asking(*s.model().fs, file, true, &opened);
         if (!opened) return std::unexpected(opened.error());
         if (!output) return xpp::fail("kinescope", xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), xpp::command_place());
         outputs.push_back(std::move(output));
@@ -276,10 +277,10 @@ xpp::Result<int> j_movie_save(xpp::Session &s, std::string_view basename, int fm
         const std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
         if (rgb.empty())
             return xpp::fail("kinescope", xpp::format("The client gave no picture of frame {} of {}: nothing was written", i + 1, s.kinescope->frames), xpp::command_place());
-        format.pixels(outputs[static_cast<std::size_t>(i)], rgb, w, h, xpp::IMAGE_STILL_FRAME);
+        if (const auto written = format.pixels(*outputs[static_cast<std::size_t>(i)], rgb, w, h, xpp::IMAGE_STILL_FRAME); !written) return std::unexpected(written.error());
     }
     for (auto &output : outputs)
-        if (const auto saved = xpp::commit_save(output); !saved) return std::unexpected(saved.error());
+        if (const auto saved = xpp::commit_save(*output); !saved) return std::unexpected(saved.error());
     return s.kinescope->frames;
 }
 
@@ -288,26 +289,32 @@ xpp::Result<> j_movie_make_anigif(xpp::Session &s, std::string_view file)
     const XppKinescope &k = *s.kinescope;
     int w, h, w0 = 0, h0 = 0;
     xpp::Result<> opened;
-    xpp::Writer out = xpp::open_writer_asking(file, true, &opened);
+    const std::unique_ptr<xpp::Sink> out = xpp::open_sink_asking(*s.model().fs, file, true, &opened);
     if (!opened) return std::unexpected(opened.error());
     if (!out) return xpp::fail("kinescope", xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), xpp::command_place());
     for (int i = 0; i < k.frames; i++) {
         std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
         if (rgb.empty()) {
-            xpp::abort_save(out);
+            xpp::abort_save(*out);
             return xpp::fail("kinescope", xpp::format("The client gave no picture of frame {} of {}: nothing was written", i + 1, k.frames), xpp::command_place());
         }
         if (i == 0) {
             w0 = w;
             h0 = h;
         } else if (w != w0 || h != h0) {
-            xpp::abort_save(out);
+            xpp::abort_save(*out);
             return xpp::fail("kinescope", xpp::format("All clips must be the same size: frame {} is {} by {}, the first {} by {}", i + 1, w, h, w0, h0), xpp::command_place());
         }
-        xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(out,rgb,w,h,i);
+        if (const xpp::Result<> written = xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(*out,rgb,w,h,i); !written) {
+            xpp::abort_save(*out);
+            return written;
+        }
     }
-    xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(out);
-    return xpp::commit_save(out);
+    if (const xpp::Result<> finished = xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(*out); !finished) {
+        xpp::abort_save(*out);
+        return finished;
+    }
+    return xpp::commit_save(*out);
 }
 
 /* ---- array plot ------------------------------------------------------------------
@@ -404,31 +411,32 @@ namespace {
 
 /* write the picture the client shows as a GIF: one file, or a frame of
    the range movie (aplotwin.c gif_aplot_all); false when replacing the file was declined */
-xpp::Result<bool> aplot_gif(ArrayPlotState &a, const char *file, int still)
+xpp::Result<bool> aplot_gif(xpp::Session &s, ArrayPlotState &a, const char *file, int still)
 {
     int w, h;
-    xpp::Writer one; /* a still: one GIF, in place once whole */
+    std::unique_ptr<xpp::Sink> one; /* a still: one GIF, in place once whole */
     xpp::Result<> opened;
     if (still == 1) {
-        one = xpp::open_writer_asking(file,true,&opened);
+        one = xpp::open_sink_asking(*s.model().fs,file,true,&opened);
         if (!opened) return std::unexpected(opened.error());
         if (!one) return false;
     } else if (a.range_count == 0) {
         /* a range movie's frames all go into the first frame's file, a
            stream kept open until arrayplot.cpp's close_aplot_files */
-        a.movie=std::make_unique<xpp::Writer>(xpp::open_writer_asking(file,true,&opened));
+        a.movie=xpp::open_sink_asking(*s.model().fs,file,true,&opened);
         if (!opened) return std::unexpected(opened.error());
     }
-    if(still!=1&&!(a.movie&&*a.movie))return false;
+    if(still!=1&&!(a.movie))return false;
     std::vector<unsigned char> rgb = ask_pixels(WIN_APLOT, -1, &w, &h);
     if(rgb.empty()){
-        if(one)xpp::abort_save(one);
-        else if(a.movie&&*a.movie)xpp::abort_save(*a.movie);
+        if(one)xpp::abort_save(*one);
+        else if(a.movie)xpp::abort_save(*a.movie);
         return xpp::fail("array plot", "The client gave no picture of the array plot", xpp::command_place());
     }
-    xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(still == 1 ? one : *a.movie,rgb,w,h,still == 1 ? xpp::IMAGE_STILL_FRAME : a.range_count);
+    if (const xpp::Result<> written = xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(still == 1 ? *one : *a.movie,rgb,w,h,still == 1 ? xpp::IMAGE_STILL_FRAME : a.range_count); !written)
+        return std::unexpected(written.error());
     if (one) {
-        if (const xpp::Result<> committed = xpp::commit_save(one); !committed) return std::unexpected(committed.error());
+        if (const xpp::Result<> committed = xpp::commit_save(*one); !committed) return std::unexpected(committed.error());
     }
     return true;
 }
@@ -444,13 +452,13 @@ void j_aplot_draw_one(xpp::Session &s, std::string_view tag)
         if(s.array_plot->still && s.array_plot->range_count>0) /* asked once, for the first */
             s.array_plot->save_cancelled=!xpp::ok_or_show(reset_save_decision());
         if(!s.array_plot->save_cancelled){
-            const xpp::Result<bool> saved=aplot_gif(*s.array_plot,file.c_str(),s.array_plot->still);
+            const xpp::Result<bool> saved=aplot_gif(s,*s.array_plot,file.c_str(),s.array_plot->still);
             s.array_plot->save_cancelled=!xpp::ok_or_show(saved)||!*saved;
         }
     }
     s.array_plot->range_count++;
 }
 
-xpp::Result<bool> j_aplot_gif(xpp::Session &s, std::string_view file) { return aplot_gif(*s.array_plot, std::string(file).c_str(), 1); }
+xpp::Result<bool> j_aplot_gif(xpp::Session &s, std::string_view file) { return aplot_gif(s, *s.array_plot, std::string(file).c_str(), 1); }
 
 } // namespace xpp::json

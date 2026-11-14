@@ -2,6 +2,7 @@
    listed once, with the extension the export menus and file dialogs use (PDF, SVG and the kinescope/array-plot
    GIF -- no PNG, decided on the card: the core has no rasteriser and SVG covers it). */
 #include "xpptest.h"
+#include "xpp_fs_local.h"
 #include "image_format.h"
 #include "my_pdf.h"
 #include "my_svg.h"
@@ -25,11 +26,12 @@
 namespace {
 
 /* a picture's file as text: the writer's bytes, read back */
-std::string written(xpp::Result<> (*write)(const xpp::Picture &, xpp::Writer &), const xpp::Picture &p, const char *path)
+std::string written(xpp::Result<> (*write)(const xpp::Picture &, xpp::Sink &), const xpp::Picture &p, const char *path)
 {
     {
-        xpp::Writer w = xpp::Writer::binary(path);
-        CHECK(w && write(p, w) && xpp::commit_save(w));
+        xpp::LocalFileSystem fs;
+        const auto sink = fs.open_sink(path, true, {});
+        CHECK(sink && write(p, **sink) && xpp::commit_save(**sink));
     }
     std::string text;
     xpp::LineReader r(path);

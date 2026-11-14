@@ -1,6 +1,6 @@
 /* XPPAUT's set file (.set), read for an import only (lunch-new.h), and
    XPPAUT's parameter file (.par) and initial-conditions file (.ic), which are
-   imports too: read through xpp_io.h's Lines whole, checked, then applied in one
+   imports too: read through xpp_lines.h's Lines whole, checked, then applied in one
    step (W125). Nothing of ours writes any of them. */
 #include <algorithm>
 #include <cmath>
@@ -13,7 +13,7 @@
 #include "expr.h"
 #include "browse.h"
 #include "session_settings.h"
-#include "xpp_io.h"
+#include "xpp_fs.h"
 #include "xpp_path.h"
 #include "xpp_lines.h"
 
@@ -46,42 +46,42 @@ namespace xpp {
 namespace {
 
 /* An equation line of do_info/dump_eqn: dX/dT=..., X(n+1)=... or X=... */
-void put_equation(const xpp::Session &s, FILE *fp, int i)
+void put_equation(const xpp::Session &s, xpp::Sink &fp, int i)
 {
   if(i>=s.model().node)
-    xpp::print(fp,"{}={}\n",s.model().uvar_names[i],s.model().formulas[i]);
+    fp.print("{}={}\n",s.model().uvar_names[i],s.model().formulas[i]);
   else if(!xpp::solver_info(s.numerics->method).traits.discrete)
-    xpp::print(fp,"d{}/dT={}\n",s.model().uvar_names[i],s.model().formulas[i]);
+    fp.print("d{}/dT={}\n",s.model().uvar_names[i],s.model().formulas[i]);
   else
-    xpp::print(fp,"{}(n+1)={}\n",s.model().uvar_names[i],s.model().formulas[i]);
+    fp.print("{}(n+1)={}\n",s.model().uvar_names[i],s.model().formulas[i]);
 }
 
 /* do_info/dump_eqn's equations, fixed variables and functions */
-void put_equations(const xpp::Session &s, FILE *fp)
+void put_equations(const xpp::Session &s, xpp::Sink &fp)
 {
   for(int i=0;i<s.model().neq;i++)put_equation(s,fp,i);
-  xpp::print(fp,"\n{}\n",describe_subsystems(s));
+  fp.print("\n{}\n",describe_subsystems(s));
   if(s.model().fix_var>0){
-    xpp::print(fp,"\nwhere ...\n");
+    fp.print("\nwhere ...\n");
     for(int i=0;i<s.model().fix_var;i++)
-      xpp::print(fp,"{} = {} \n",s.model().fixinfo[i].name,s.model().fixinfo[i].value);
+      fp.print("{} = {} \n",s.model().fixinfo[i].name,s.model().fixinfo[i].value);
   }
   if(s.model().nfun>0){
-    xpp::print(fp,"\nUser-defined functions:\n");
+    fp.print("\nUser-defined functions:\n");
     user_fun_info(s.model(),fp);
   }
 }
 
 /* The parameters four to a line, each after prefix ("" or "%% ") */
-void put_parameters(const xpp::Session &s, FILE *fp, const char *prefix)
+void put_parameters(const xpp::Session &s, xpp::Sink &fp, const char *prefix)
 {
   double z;
   for(int i=0;i<s.model().nupar;i++){
     get_val(s,s.model().upar_names[i],&z);
-    xpp::print(fp,"{}{}={:.16g}   ",prefix,s.model().upar_names[i],z);
-    if(i%4==3) xpp::print(fp,"\n");
+    fp.print("{}{}={:.16g}   ",prefix,s.model().upar_names[i],z);
+    if(i%4==3) fp.print("\n");
   }
-  xpp::print(fp,"\n");
+  fp.print("\n");
 }
 
 /* ---- XPPAUT's set file, read (an import only) ----
@@ -601,42 +601,42 @@ Result<std::vector<std::string>> import_xppaut_state(xpp::Session &s, std::strin
 Result<bool> write_info(xpp::Session &s, const std::string &filename, bool confirm)
 {
   Result<> opened;
-  xpp::Writer w=confirm?open_writer_replacing(filename,false,&opened):open_writer_asking(filename,false,&opened);
+  const std::unique_ptr<xpp::Sink> w=confirm?open_sink_replacing(*s.model().fs,filename,false,&opened):open_sink_asking(*s.model().fs,filename,false,&opened);
   if(!opened)return std::unexpected(opened.error());
   if(!w)return false;
   redraw_params();
   ensure_compiled(s); /* the info names the model's subsystems, found by compiling */
-  do_info(s,w.file());
-  if(const Result<> saved=xpp::commit_save(w);!saved)return std::unexpected(saved.error());
+  do_info(s,*w);
+  if(const Result<> saved=xpp::commit_save(*w);!saved)return std::unexpected(saved.error());
   return true;
 }
 
-void do_info(const xpp::Session &s, FILE *fp)
+void do_info(const xpp::Session &s, xpp::Sink &fp)
 {
-  xpp::print(fp,"File: {} \n\n Equations... \n",s.model().this_file);
+  fp.print("File: {} \n\n Equations... \n",s.model().this_file);
   put_equations(s,fp);
 
-  xpp::print(fp,"\n\n Numerical parameters ...\n");
+  fp.print("\n\n Numerical parameters ...\n");
   const auto word=[&](std::string_view key){ return setting_text(s,*saved_setting(key)); };
-  xpp::print(fp,"STORE_EVERY={}  NULLCLINE_MESH={} METHOD={} MAX_ITERATIONS={} \n",
+  fp.print("STORE_EVERY={}  NULLCLINE_MESH={} METHOD={} MAX_ITERATIONS={} \n",
 	 s.numerics->store_every,s.numerics->nullcline_mesh,xpp::solver_info(s.numerics->method).name,s.numerics->equilibria.max_iterations);
-  xpp::print(fp,"BVP_EPSILON={:g},BVP_TOLERANCE={:g},BVP_MAX_ITERATES={} \n",
+  fp.print("BVP_EPSILON={:g},BVP_TOLERANCE={:g},BVP_MAX_ITERATES={} \n",
 	 s.numerics->bvp_epsilon,s.numerics->bvp_tolerance,s.numerics->bvp_max_iterates);
-  xpp::print(fp,"DT={:g} START_TIME={:g} STORE_FROM={:g} TOTAL_TIME={:g} STATE_LIMIT={:g} STOP_AT_LIMIT={} DELAY={:g} MaxPts={}\n",
+  fp.print("DT={:g} START_TIME={:g} STORE_FROM={:g} TOTAL_TIME={:g} STATE_LIMIT={:g} STOP_AT_LIMIT={} DELAY={:g} MaxPts={}\n",
 	 s.numerics->delta_t,s.numerics->start_time,s.numerics->store_from,s.numerics->total_time,s.numerics->state_limit,word("integration.stop_at_limit"),s.numerics->delay,s.numerics->max_points);
-  xpp::print(fp,"NEWTON_TOLERANCE={:g}, JACOBIAN_STEP={:g} SEARCH_LIMIT={:g} MIN_STEP={:g} MAX_STEP={:g} RELATIVE_TOLERANCE={:g} \n",
+  fp.print("NEWTON_TOLERANCE={:g}, JACOBIAN_STEP={:g} SEARCH_LIMIT={:g} MIN_STEP={:g} MAX_STEP={:g} RELATIVE_TOLERANCE={:g} \n",
 	 s.numerics->equilibria.newton_tolerance,s.numerics->equilibria.jacobian_step,s.numerics->equilibria.search_limit,s.numerics->min_step,s.numerics->max_step,s.numerics->relative_tolerance);
   const std::string &poincare_variable=ind_to_sym(s,s.numerics->poincare_variable);
-  xpp::print(fp,"POINCARE_MAP={} POINCARE_VARIABLE={} POINCARE_PLANE={:g} POINCARE_SIGN={} \n",
+  fp.print("POINCARE_MAP={} POINCARE_VARIABLE={} POINCARE_PLANE={:g} POINCARE_SIGN={} \n",
         word("poincare.map"),poincare_variable,s.numerics->poincare_plane,word("poincare.sign"));
 
-  xpp::print(fp,"\n\n Delay strings ...\n");
-  for(int i=0;i<s.model().node;i++)xpp::print(fp,"{}\n",s.delay_string[i]);
-  xpp::print(fp,"\n\n BCs ...\n");
-  for(int i=0;i<s.model().node;i++)xpp::print(fp,"0={}\n",s.bcs[i].string.data());
-  xpp::print(fp,"\n\n ICs ...\n");
-  for(int i=0;i<s.model().node+s.model().nmarkov;i++)xpp::print(fp,"{}={:.16g}\n",s.model().uvar_names[i],s.last_ic[i]);
-  xpp::print(fp,"\n\n Parameters ...\n");
+  fp.print("\n\n Delay strings ...\n");
+  for(int i=0;i<s.model().node;i++)fp.print("{}\n",s.delay_string[i]);
+  fp.print("\n\n BCs ...\n");
+  for(int i=0;i<s.model().node;i++)fp.print("0={}\n",s.bcs[i].string.data());
+  fp.print("\n\n ICs ...\n");
+  for(int i=0;i<s.model().node+s.model().nmarkov;i++)fp.print("{}={:.16g}\n",s.model().uvar_names[i],s.last_ic[i]);
+  fp.print("\n\n Parameters ...\n");
   put_parameters(s,fp,"");
 }
 
