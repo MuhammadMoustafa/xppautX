@@ -10,10 +10,18 @@
 #include "session.h"
 #include "autox_state.h"
 #include "autox_c.h"
+#include "xpp_error.h"
+#include "xpp_files.h"
+#include "xpp_io.h"
+#include "xpp_math_autox.h"
 
 #include <array>
 #include <cstdio>
 #include <string>
+#include <cstddef>
+#include <memory>
+#include <optional>
+namespace xpp { struct ComplexPair; }
 
 namespace {
 

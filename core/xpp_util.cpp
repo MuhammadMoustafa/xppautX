@@ -4,34 +4,22 @@
 #include <cmath>
 #include <numeric>
 #include "model.h"
-#include "ode_read.h"
 #include "xpp_util.h"
 #include "typed_values.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
-#include "xpp_files.h"
 #include "xpp_ui.h"
 #include "axes2.h"
-#include "graphics.h"
-#include "xpp_globals.h"
 #include "expr.h"
 #include "browse.h"
 #include "graf_par.h"
 #include "grobs.h"
 #include "integrate.h"
 #include "nullcline.h"
-#include "picture.h"
-#include "my_svg.h"
 #include "image_format.h"
 #include "tabular.h"
 #include "volterra2.h"
-#include "derived.h"
-#include "form_ode.h"
-#include "delay_handle.h"
-#include "numerics.h"
 #include "arrayplot.h"
-#include <array>
-#include <algorithm>
 #include <string>
 #include <span>
 #include <string_view>
@@ -43,11 +31,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <memory>
 #include "load_eqn.h"
-#include "autox_nox.h"
 #include "session.h"
 #include "autox_state.h"
 #include "many_pops.h"
+#include "storage.h"
+#include "struct.h"
 
 namespace xpp {
 

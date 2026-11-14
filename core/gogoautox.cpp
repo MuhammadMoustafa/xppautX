@@ -5,12 +5,21 @@
 #include <memory>
 #include <optional>
 #include <vector>
-#include "xpp_log.h"
+#include <cstddef>
+#include <span>
+#include <string>
+#include <string_view>
 #include "session.h"
 #include "autox_state.h"
 #include "autox_evd.h" /* xAutox (its own extern) */
 #include "autox_nox.h" /* xpp::autox_fort_path() */
 #include "diagram.h" /* diagram_of_label */
+#include "autox_c.h"
+#include "autox_codes.h"
+#include "autox_parallel.h"
+#include "xAutox.h"
+#include "xpp_files.h"
+#include "xpp_io.h"
 
 
 namespace {

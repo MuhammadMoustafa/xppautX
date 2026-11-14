@@ -2,9 +2,11 @@
 #include "xpp_examples.h"
 
 #include <algorithm>
+#include <expected>
+#include <span>
+#include <utility>
 
 #include "browse.h"
-#include "json_error.h"
 #include "odex.h"
 #include "model.h"
 #include "model_files.h"

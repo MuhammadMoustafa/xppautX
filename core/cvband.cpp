@@ -12,6 +12,7 @@
 
 #include "xpp_log.h"
 #include <stdlib.h>
+#include <vector>
 #include "cvband.h"
 #include "llnlmath.h"
 

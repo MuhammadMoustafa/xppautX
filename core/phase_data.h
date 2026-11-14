@@ -1,9 +1,8 @@
 #pragma once
 
-#include <array>
 #include <string_view>
 #include <vector>
-#include "many_pops.h"
+#include "colormap.h"
 
 namespace xpp {
 struct Session; /* session.h */

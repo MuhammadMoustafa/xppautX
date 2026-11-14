@@ -16,7 +16,6 @@
 #include <cstdio>
 #include <string_view>
 #include <vector>
-#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <sys/stat.h>

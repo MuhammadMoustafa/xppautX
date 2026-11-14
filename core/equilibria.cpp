@@ -3,14 +3,12 @@
 #include "xpp_ui.h"
 #include "session.h"
 #include "storage.h"
-#include "odesol2.h"
 #include "browse.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "equilibria.h"
 #include "jacobian.h"
 #include "graphics.h"
-#include "flags.h"
 #include "integrate.h"
 #include "xpp_job.h"
 #include "model_files.h"
@@ -23,10 +21,14 @@
 #include <span>
 #include <string>
 #include <vector>
+#include <expected>
+#include <optional>
 #include "xpp_globals.h"
-#include "form_ode.h"
 #include "load_eqn.h"
 #include "model.h"
+#include "colormap.h"
+#include "xpp_io.h"
+#include "xpp_prefs.h"
 
 namespace xpp {
 #define DING ping()

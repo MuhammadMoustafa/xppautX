@@ -1,8 +1,6 @@
 #include <algorithm>
 #include <ranges>
 #include <array>
-#include <cctype>
-#include <cstdio>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -13,15 +11,11 @@
 #include <vector>
 #include "model.h"
 #include "solver.h"
-#include "ode_read.h"
-#include "nullcline.h"
-#include "colormap.h"
 #include "autox_settings.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "typed_values.h"
 #include "many_pops.h"
-#include "markov.h"
 #include "expr.h"
 #include "xpp_io.h"
 
@@ -34,28 +28,25 @@
 #include "numerics_settings.h"
 #include "odex.h"
 
-#include "browse.h"
 #include "numerics.h"
 #include "integrate.h"
 #include "adj2.h"
-#include "arrayplot.h"
 #include "graphics.h"
 
-#include "userbut.h"
 #include "volterra2.h"
 #include "storage.h"
-#include "histogram.h"
-#include "tabular.h"
 
 #include <stdlib.h> 
 #include <string.h>
 #include <stdio.h>
+#include <cstdint>
+#include <expected>
+#include <unordered_map>
 #include "xpp_batch.h"
 #include "xpp_log.h"
-#include "graf_par.h"
-#include "xpp_globals.h"
 #include "delay_handle.h"
 #include "session.h"
+#include "struct.h"
 
 namespace xpp {
 

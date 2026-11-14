@@ -13,6 +13,9 @@
 #include <charconv>
 #include <cmath>
 #include <set>
+#include <expected>
+#include <system_error>
+#include <utility>
 
 namespace xpp {
 

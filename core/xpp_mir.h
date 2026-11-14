@@ -1,10 +1,10 @@
 #pragma once
 
-#include "expr_ir.h"
 #include "xpp_error.h"
 #include <memory>
 #include <string>
 #include <utility>
+namespace xpp { struct IrModule; }
 
 namespace xpp::mir {
 

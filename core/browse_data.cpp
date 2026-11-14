@@ -4,7 +4,6 @@
 #include <limits>
 #include "xpp_files.h"
 #include "many_pops.h"
-#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -14,25 +13,31 @@
 #include <vector>
 #include "model.h"
 #include "getvar.h"
-#include "xpp_util.h"
 #include "typed_values.h"
 #include "storage.h"
 #include "json_number.h"
-#include "form_ode.h"
 #include "expr.h"
 #include "xpp_io.h"
 #include "browse.h"
 #include "xpp_ui.h"
 #include "integrate.h"
 #include <cctype>
-#include <cstring>
 #include <strings.h>
 #include "load_eqn.h"
 #include "data_formats.h"
 #include "graf_par.h"
 #include "menus.h"
+#include "expr_program.h"
+#include "numerics_settings.h"
+#include "session.h"
+#include "struct.h"
+#include "xpp_error.h"
 #include <algorithm>
 #include <span>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <utility>
 
 namespace xpp {
 

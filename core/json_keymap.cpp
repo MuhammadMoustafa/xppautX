@@ -1,9 +1,19 @@
 /* The `keymap` command and hello's `keymap` (docs/protocol.md "Keymap"): the
    protocol's side of xpp_keymap.h, which owns the file. Window and browser
    mode both come through here, so they read and write the one file. */
+#include <cstddef>
+#include <expected>
+#include <map>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 #include "ui_json_internal.h"
 #include "command_def.h"
 #include "xpp_keymap.h"
+#include "event_registry.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
 
 namespace xpp::json {
 

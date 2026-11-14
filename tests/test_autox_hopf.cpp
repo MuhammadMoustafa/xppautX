@@ -8,16 +8,18 @@
 #include "jacobian.h"
 #include "expr_native.h"
 #include "autox_c.h"
-#include "autox_jacobian.h"
 #include "autox_nox.h"
 #include "autox_unknowns.h"
-#include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
-#include "xpp_math.h"
+#include "autox_codes.h"
+#include "xpp_error.h"
 #include <array>
 #include <cmath>
 #include <vector>
+#include <cstddef>
+#include <memory>
+#include <string>
 
 TEST_CASE("test_autox_hopf") {
     xpp::TempDir temp;

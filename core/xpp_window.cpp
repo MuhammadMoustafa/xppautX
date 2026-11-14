@@ -1,4 +1,3 @@
-#include "open_model.h"
 /* The desktop window (xpp_window.h): web2 in the operating system's web
    view, through the vendored webview library (third_party/webview, built
    as its own object from src/webview.cc; this file sees only its C API).
@@ -19,18 +18,25 @@
    loader's. */
 #include "xpp_window.h"
 #include "xpp_window_plugin.h"
-#include "xpp_http.h"
-#include "xpp_inbox.h"
 #include "xpp_log.h"
-#include "ui_json.h"
 #include "xpp_webview.h"
 #include "xpp_window_hint.h"
-#include <array>
+#include "xpp_error.h"
+#include "xpp_io.h"
 #include <cctype>
 #include <cstring>
 #include <optional>
 #include <string>
 #include <vector>
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <gdk/gdk.h>
+#include <glib-object.h>
+#include <glib.h>
+#include <gobject/gclosure.h>
+#include <exception>
+#include <span>
+#include <string_view>
+#include <utility>
 
 #ifndef XPP_WINDOW
 

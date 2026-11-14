@@ -1,10 +1,14 @@
 #pragma once
 
-#include "grobs.h"
 #include <array>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <cstddef>
+#include <string>
+#include <vector>
+#include "struct.h"
+#include "xpp_types.h"
 
 namespace xpp {
 

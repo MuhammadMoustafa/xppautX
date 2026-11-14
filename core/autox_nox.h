@@ -3,13 +3,13 @@
 #include <stdio.h>
 #include <string>
 #include <string_view>
-#include <array>
 #include <span>
 #include <vector>
 #include <functional>
 #include <optional>
 #include <utility>
 #include <memory>
+#include <cstddef>
 #include "xpp_error.h"
 #include "autox_codes.h"
 #include "autox_axis.h"

@@ -15,14 +15,14 @@
      again before it is offered at the next start and before the installer is started with it;
    - the installer and the new program are started by xpp_process.h: no shell, fixed arguments, the file as one argument.
    C++ only. */
-#include <array>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <cstddef>
 
 #include "xpp_error.h"
-#include "xpp_update.h"
+namespace xpp { namespace update { struct ReleaseFile; } }
 
 namespace xpp::update {
 

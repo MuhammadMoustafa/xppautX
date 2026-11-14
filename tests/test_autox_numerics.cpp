@@ -9,14 +9,15 @@
 #include "xpp_math.h"
 #include "session.h"
 #include "autox_state.h"
-#include "browse.h"
 #include "load_eqn.h"
 #include "autox_c.h"
 #include "xpp_io.h"
-#include "xpp_batch.h"
 #include "xpp_files.h"
 #include "jacobian.h"
 #include "expr_native.h"
+#include "autox_unknowns.h"
+#include "xpp_error.h"
+#include "xpp_math_autox.h"
 #include <array>
 #include <cstddef>
 #include <span>
@@ -26,6 +27,9 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <algorithm>
+#include <cstdio>
+#include <memory>
 
 namespace {
 constexpr std::array expected{

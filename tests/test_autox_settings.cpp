@@ -10,9 +10,15 @@
 #include "autox_nox.h"
 #include "autox_settings.h"
 #include "xpp_util.h"
+#include "autox_axis.h"
+#include "xpp_error.h"
 
 #include <cmath>
-#include <cstring>
+#include <array>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace {
 

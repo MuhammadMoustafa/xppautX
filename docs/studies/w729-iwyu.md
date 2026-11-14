@@ -205,3 +205,39 @@ platform risk above); (d) the tests apart. Each module: apply with
 
 Commands: `tools/iwyucheck.sh` (the run and `build/iwyu/summary.txt`),
 `tools/iwyucheck.sh --db-only`, `tools/iwyucheck.sh --only xpp_util,gear`.
+
+## Stage 2: the advice applied (after W724, master af8b5e3d)
+
+Rerun on the new tree: 745 removals, 1815 additions, 78 forward declarations.
+Applied with a small script of our own, not `fix_include`: fix_include takes a
+comment above an `#include` as attached to it and deleted 202 lines of
+documentation (the first attempt, sent back by review). The script deletes
+only the lines IWYU names, by line number, and only when the line is an
+`#include` or exactly one forward declaration; adds an include after the last
+include of its kind; and puts a new forward declaration in the file's one-line
+`namespace xpp { ... }` form, merged into an existing such line. Lines deleted
+that are not includes: 3 forward declarations (command_def.h, diagram.h,
+xpp_util.h), no comment. 364 files changed, core/ and tests/.
+Left out on purpose: removals of C headers (`<stdio.h>`, `<math.h>`, ...: 116,
+used on a platform IWYU does not see), removals inside a conditional, the
+implicit additions, and a removal of a forward declaration that shares its line
+with another. After it: build 0 warnings (-Werror), unit tests, examples_check
+(215 of 215), servercheck (3163), autoxcompare (0 failures), sourcecheck, all
+green; docs/deps.html regenerated.
+
+IWYU was wrong in seven places, each kept with an `IWYU pragma: keep` and a
+reason: a generic lambda that needs a type complete (core/grobs.h, struct.h;
+core/model_options.cpp, delay_handle.h), a `std::vector` of types destroyed
+where it is declared (core/odex_parse.cpp, load_eqn.h; core/session.h,
+model_parts.h: the advice that repeated 38 times, because after the apply
+Session holds `std::vector<BoundaryCondition>` and IWYU wants a forward
+declaration of it, which cannot destroy the vector), enums an opaque
+declaration cannot stand in for (core/autox_c.h, xpp_math_autox.h), and the
+internal header of xpp_files*.cpp, which the mapping sends to xpp_files.h
+(core/xpp_files.cpp, core/xpp_files_dir.cpp, tests/test_files.cpp). IWYU does
+not analyse tests/ headers, so tests/load_args.h got comline.h and xpp_error.h
+by hand.
+
+Reach (core/*.cpp of 201), after W724 and before the apply, then after: sum
+over all 177 headers 7180 to 6205; session.h 132 to 127; xpp_log.h 158 to 144;
+colormap.h 164 to 161. docs/deps.html has the rest.

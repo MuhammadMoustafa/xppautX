@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <cstddef>
 #include "autox_nox.h"
 #include "autox_codes.h"
 #include "xpp_error.h"

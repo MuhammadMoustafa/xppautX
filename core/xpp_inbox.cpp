@@ -15,14 +15,10 @@
    Nothing here throws out of a thread (an allocation that fails ends the
    program: xpp::out_of_memory_now). */
 #include "xpp_inbox.h"
-#include "xpp_files.h"
 #include "xpp_io.h"
-#include "xpp_log.h"
 #include "xpp_mem.h"
 
 #include <cerrno>
-#include <cstdio>
-#include <cstdlib>
 #include <array>
 #include <cstring>
 #include <deque>
@@ -35,6 +31,8 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <time.h>
+#include <sys/types.h>
+#include <utility>
 #ifdef _WIN32
 #include "xpp_win32.h"
 #else

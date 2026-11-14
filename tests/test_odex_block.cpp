@@ -10,11 +10,16 @@
 #include "odex.h"
 #include "model.h"
 #include "odex_write.h"
+#include "xpp_error.h"
 
 #include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
+#include <cstddef>
+#include <optional>
+#include <span>
+#include <string_view>
 
 namespace {
 

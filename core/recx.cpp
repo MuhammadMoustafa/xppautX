@@ -6,12 +6,14 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_sha256.h"
+#include "odex_block.h"
 
 #include <algorithm>
-#include <array>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <expected>
+#include <utility>
 
 namespace xpp::recx {
 

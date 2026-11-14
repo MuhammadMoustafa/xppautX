@@ -1,5 +1,7 @@
 #pragma once
+#include <memory>
 #include "solver.h"
+namespace xpp { struct Session; }
 namespace xpp {
 /* Accepted and rejected attempts together, over a run (including event restarts).
    Exhaustion is an error, never a successful shortened trajectory. */

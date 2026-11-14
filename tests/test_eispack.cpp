@@ -5,14 +5,14 @@
    serially for a reference, then from several threads, with other inputs
    between the calls, and every result is compared bit for bit. */
 #include "xpptest.h"
-#include "browse.h"
-#include "autox_c.h"
+#include "xpp_math_autox.h"
 #include <array>
 #include <atomic>
 #include <bit>
 #include <cstdint>
 #include <thread>
 #include <vector>
+#include <cstddef>
 
 namespace {
 

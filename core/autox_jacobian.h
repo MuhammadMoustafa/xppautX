@@ -5,13 +5,16 @@
 
 #include <algorithm>
 #include <vector>
+#include <cstddef>
+#include <span>
+#include <utility>
 #include "xpp_math.h"
 #include "jacobian.h"
 #include "autox_c.h"
 #include "autox_state.h"
 #include "session.h"
-#include "load_eqn.h"
-#include "solver.h"
+#include "autox_codes.h"
+#include "autox_f2c.h"
 
 namespace xpp::autox_jacobian {
 

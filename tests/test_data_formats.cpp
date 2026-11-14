@@ -8,12 +8,15 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_zip.h"
+#include "xpp_error.h"
 
 #include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <string>
 #include <vector>
+#include <optional>
+#include <span>
 
 namespace {
 

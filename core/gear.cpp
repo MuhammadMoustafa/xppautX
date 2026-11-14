@@ -1,25 +1,17 @@
-#include "solver.h"
-#include "xpp_ui.h"
 #include "session.h"
-#include "odesol2.h"
-#include "browse.h"
-#include "xpp_log.h"
 #include "xpp_math.h"
 #include "gear.h"
 #include "jacobian.h"
-#include "graphics.h"
 #include "flags.h"
 #include "integrate.h"
-#include "xpp_job.h"
 
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
 #include <algorithm>
 #include <vector>
-#include "xpp_globals.h"
-#include "form_ode.h"
-#include "load_eqn.h"
+#include <memory>
+#include <span>
 #include "model.h"
 
 namespace xpp {

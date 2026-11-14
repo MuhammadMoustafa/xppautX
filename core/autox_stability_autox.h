@@ -4,7 +4,9 @@
 #include "autox_c.h"
 #include "xpp_math.h"
 #include <optional>
-#include "autox_stability.h"
+#include <cstddef>
+#include <span>
+namespace xpp { struct AutoxStability; }
 
 namespace xpp {
 

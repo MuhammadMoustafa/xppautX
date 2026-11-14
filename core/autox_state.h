@@ -19,7 +19,6 @@
 #include "jacobian.h"
 #include "autox_nox.h"
 #include "autox_data.h"
-#include "colormap.h"
 #include "autox_stop.h"
 #include "autox_stability.h"
 #include "autox_codim.h"
@@ -31,8 +30,11 @@
 #include "xpp_error.h"
 #include "xpp_math.h"
 #include "xpp_job.h"
+#include "autox_axis.h"
+#include "autox_codes.h"
+#include "autox_ends.h"
+#include "xpp_files.h"
 
-#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstddef>
@@ -42,6 +44,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <math.h>
+#include <memory>
 
 /* the autoX settings the model's @ options give (autox_ntst=, ...), which
    init_autox_win copies into AutoxState::bifur */

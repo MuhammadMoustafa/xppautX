@@ -8,9 +8,14 @@
 #include "model.h"
 #include "autox_stop.h"
 #include "autox_unknowns.h"
+#include "autox_codes.h"
+#include "autox_global.h"
 
 #include <cmath>
 #include <cstring>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace {
 

@@ -2,17 +2,21 @@
    two-argument functions a program calls by index (FUN1TYPE, FUN2TYPE:
    the tables below, whose order the symbol table's built-ins name), and
    what DELAY, DEL_SHFT, SHIFT and ISHIFT compute (expr_program.h). */
-#include "expr_internal.h"
 #include "expr_derivative.h"
 #include "delay_handle.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "session.h"
 #include "expr.h"
+#include "expr_program.h"
 
 #include <cmath>
 #include <math.h>
 #include <numbers>
+#include <stddef.h>
+#include <array>
+#include <memory>
+#include <vector>
 
 namespace {
 

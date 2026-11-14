@@ -3,9 +3,7 @@
 #include "storage.h"
 #include "my_rhs.h"
 #include "flags.h"
-#include "form_ode.h"
 #include "xpp_ui.h"
-#include "xpp_util.h"
 #include "typed_values.h"
 #include "xpp_log.h"
 
@@ -27,10 +25,13 @@
 #include "getvar.h"
 #include <array>
 #include <string>
-#include <vector>
+#include <memory>
 #define MY_DBL_EPS 5e-16
 
 #include "odesol2.h"
+#include "expr_program.h"
+#include "model_parts.h"
+#include "session.h"
 
 /*  this is a new (Summer 1995) addition to XPP that allows one to
     do things like delta functions and other discontinuous

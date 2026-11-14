@@ -1,4 +1,3 @@
-#include "autox_unknowns.h"
 /* The queue of found points (autox_queue.h, W605). */
 #include <algorithm>
 #include <cstdlib>
@@ -9,6 +8,7 @@
 #include "autox_queue.h"
 #include "autox_state.h"
 #include "autox_stop.h"
+#include "autox_nox.h"
 
 namespace xpp {
 

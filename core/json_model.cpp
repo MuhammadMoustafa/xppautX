@@ -6,22 +6,18 @@
 #include "ui_json.h"
 #include "ui_json_internal.h"
 #include "model_switch.h"
-#include "model.h"
 #include "many_pops.h"
 #include "xpp_files.h"
 #include "xpp_globals.h"
 #include "xpp_session.h"
-#include "xpp_util.h"
 #include "autox_nox.h"
 #include "xpp_window.h"
 #include "colormap.h"
-#include "comline.h"
 #include "browse.h"
 #include "aniparse.h"
 #include "graphics.h"
 #include "graf_par.h"
 #include "nullcline.h"
-#include "userbut.h"
 #include "plot_data.h"
 #include "phase_data.h"
 #include "marks_data.h"
@@ -30,7 +26,17 @@
 #include "session.h"
 #include "arrayplot.h"
 #include "autox_state.h"
+#include "event_registry.h"
+#include "model_files.h"
+#include "struct.h"
+#include "xpp_error.h"
+#include "xpp_types.h"
+#include "xpp_ui.h"
 #include <vector>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
 
 namespace xpp::json {
 

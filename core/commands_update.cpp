@@ -1,8 +1,6 @@
 /* The update resource's registry rows (W622): whether the opening's check for a newer release is due, the page's report of
    a check that failed, and the download of a release file (checked against the release list: xpp_update.h). */
 #include "command_def.h"
-#include "command_registry.h"
-#include "integrate.h"
 #include "session.h"
 #include "xpp_session.h"
 #include "model_switch.h"
@@ -16,7 +14,16 @@
 #include "xpp_update.h"
 #include "model.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "xpp_error.h"
+#include "xpp_https.h"
+#include "xpp_io.h"
 #include <array>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
 
 namespace xpp::command {
 namespace {

@@ -4,10 +4,17 @@
 #include "session.h"
 #include "autox_state.h"
 #include "xpp_math.h"
+#include "xpp_io.h"
+#include "xpp_math_autox.h"
+#include "xpp_mem.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <numeric>
+#include <array>
+#include <memory>
+#include <span>
+struct AutoxMark;
 
 namespace {
 // Strong resonances in increasing continued angle, in units of pi.

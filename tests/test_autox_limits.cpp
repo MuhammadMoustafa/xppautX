@@ -3,7 +3,6 @@
 #include "xpptest.h"
 #include "session.h"
 #include "autox_state.h"
-#include "xpp_batch.h"
 #include "xpp_files.h"
 #include "autox_settings.h"
 #include "autox_nox.h"
@@ -12,11 +11,22 @@
 #include "diagram.h"
 #include "xpp_session_autox.h"
 #include "autox_text.h"
-#include "xpp_ui.h"
-#include "xpp_log.h"
 #include "model.h"
+#include "autox_axis.h"
+#include "autox_codes.h"
+#include "xAutox.h"
+#include "xpp_error.h"
 #include <cmath>
 #include <string>
+#include <algorithm>
+#include <array>
+#include <deque>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 TEST_CASE("test_autox_limits")
 {

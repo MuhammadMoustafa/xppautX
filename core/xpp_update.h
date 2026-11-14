@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <cstddef>
 
 #include "xpp_error.h"
 #include "xpp_https.h"

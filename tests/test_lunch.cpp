@@ -20,7 +20,6 @@
 #include "lunch-new.h"
 #include "session_settings.h"
 #include "settings_text.h"
-#include "xpp_batch.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
 #include "expr.h"
@@ -29,9 +28,18 @@
 #include "load_eqn.h"
 #include "xpp_files.h"
 #include "model.h"
+#include "model_options.h"
+#include "numerics_settings.h"
+#include "xpp_error.h"
 #include <stdio.h>
 #include <string>
 #include <tuple>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace {
 

@@ -16,7 +16,6 @@
 #include "ode_read.h"
 #include "typed_values.h"
 #include <limits>
-#include "comline.h"
 #include "expr.h"
 #include "flags.h"
 #include "form_ode.h"
@@ -31,6 +30,7 @@
 #include "xpp_log.h"
 #include "xpp_util.h"
 #include "session.h"
+#include "xpp_error.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -38,12 +38,13 @@
 #include <string.h>
 
 #include <algorithm>
-#include <array>
 #include <new>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <functional>
+#include <utility>
 
 using xpp::odex::Binding;
 using xpp::odex::Expr;

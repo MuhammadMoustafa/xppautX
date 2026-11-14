@@ -4,9 +4,7 @@
    C++ only (every caller is a .cpp file). */
 #include <array>
 #include <span>
-#include <string>
 #include <string_view>
-#include <vector>
 
 #include "xpp_error.h"
 

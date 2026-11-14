@@ -3,9 +3,10 @@
 #include <array>
 #include <optional>
 #include <vector>
-#include <span>
 #include <functional>
 #include <string_view>
+#include <cstddef>
+#include <string>
 #include "xpp_error.h"
 
 namespace xpp {

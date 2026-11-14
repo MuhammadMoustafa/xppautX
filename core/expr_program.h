@@ -57,7 +57,6 @@
                 the compiler writes them for the symbol table's
                 COM(FUN1TYPE,RANDOM_UNIFORM) ..., random_instruction)
      ENDEXP     the end: the program's value is the stack's top */
-#include "expr.h"
 #include "xpp_error.h"
 #include "xpp_mir.h"
 #include "expr_ir.h"
@@ -70,6 +69,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <cstddef>
+namespace xpp { struct Session; }
 
 namespace xpp::expr {
 using Fun1 = double (*)(double);

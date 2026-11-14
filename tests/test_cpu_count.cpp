@@ -4,6 +4,10 @@
 #include "autox_parallel.h"
 #include <thread>
 #include <algorithm>
+#include <stdio.h>
+#include <optional>
+#include <string>
+#include <vector>
 
 TEST_CASE("test_cpu_count")
 {

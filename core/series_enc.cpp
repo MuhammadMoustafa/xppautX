@@ -4,11 +4,14 @@
 #include "xpp_mem.h"
 #include "json_number.h"
 #include "xpp_io.h"
+#include "storage.h"
 
 #include <bit>
 #include <new>
 #include <string>
 #include <string_view>
+#include <cstddef>
+#include <vector>
 
 namespace {
 

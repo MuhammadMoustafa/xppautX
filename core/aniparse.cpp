@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <cstdlib>
 #include <cstring>
 #include <initializer_list>
 #include <optional>
@@ -33,7 +32,6 @@
 #include "xpp_io.h"
 #include "xpp_zip.h"
 #include "snapx.h"
-#include "form_ode.h"
 #include "my_rhs.h"
 #include "nullcline.h"
 #include "xpp_ui.h"
@@ -41,13 +39,17 @@
 #include "typed_values.h"
 #include "integrate.h"
 #include "browse.h"
-#include "graf_par.h"
 #include <libgen.h>
+#include <expected>
+#include <memory>
+#include <span>
 #include "colormap.h"
-#include "command_def.h"
-#include "command_registry.h"
 #include "comline.h"
 #include "xpp_batch.h"
+#include "odex_block.h"
+#include "session.h"
+#include "storage.h"
+#include "struct.h"
 
 namespace xpp {
 

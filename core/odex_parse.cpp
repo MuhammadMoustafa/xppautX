@@ -7,15 +7,16 @@
 #include "odex.h"
 #include "format_version.h"
 #include "expr.h"
-#include "snapx.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "model_files.h"
 #include "model_options.h"
 #include "userbut.h"
-#include "load_eqn.h"
+#include "load_eqn.h" /* IWYU pragma: keep (std::vector of its types is destroyed here, which needs them complete) */
 #include "model.h"
 #include "odex_block.h"
+#include "xpp_error.h"
+#include "xpp_mem.h"
 
 #include <algorithm>
 #include <array>
@@ -25,6 +26,11 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <cstddef>
+#include <cstdlib>
+#include <expected>
+#include <iterator>
+#include <utility>
 
 namespace xpp::odex {
 

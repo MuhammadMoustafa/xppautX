@@ -5,6 +5,7 @@
 #include <optional>
 #include <span>
 #include <utility>
+#include <expected>
 
 #include "model_options.h" /* choice_index */
 #include "odex.h"
@@ -13,6 +14,7 @@
 #include "xpp_cpu.h"
 #include "xpp_io.h"
 #include "xpp_util.h"
+#include "odex_block.h"
 
 namespace xpp::prefs {
 

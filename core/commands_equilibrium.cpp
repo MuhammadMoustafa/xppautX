@@ -9,18 +9,26 @@
 #include "graf_par.h"
 #include "numerics_settings.h"
 #include "xpp_util.h"
-#include "xpp_ui.h"
-#include "getvar.h"
-#include "json_reader.h"
 #include "json_number.h"
-#include "browse.h"
-#include "my_rhs.h"
 #include "derived.h"
 #include "typed_values.h"
-#include "form_ode.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "model.h"
+#include "session.h"
+#include "struct.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
 #include <array>
 #include <limits>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace xpp::command {
 namespace {

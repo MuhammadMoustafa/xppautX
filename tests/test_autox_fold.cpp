@@ -8,13 +8,17 @@
 #include "load_eqn.h"
 #include "autox_c.h"
 #include "autox_unknowns.h"
-#include "xpp_batch.h"
 #include "jacobian.h"
 #include "expr_native.h"
 #include <utility>
 #include "xpp_files.h"
+#include "xpp_io.h"
 #include <array>
 #include <cmath>
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <vector>
 
 TEST_CASE("test_autox_fold")
 {

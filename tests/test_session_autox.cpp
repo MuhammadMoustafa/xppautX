@@ -27,7 +27,6 @@
 #include "autox_run.h"
 #include "autox_c.h"
 #include "autox_settings.h"
-#include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
@@ -39,7 +38,13 @@
 #include "autox_parallel.h"
 #include "xpp_job.h"
 #include "solver.h"
-#include "xpp_globals.h"
+#include "autox_axis.h"
+#include "autox_codes.h"
+#include "display_state.h"
+#include "struct.h"
+#include "xAutox.h"
+#include "xpp_error.h"
+#include "xpp_log.h"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -61,6 +66,14 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <array>
+#include <cstddef>
+#include <cstdio>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string_view>
+#include <utility>
 
 namespace {
 

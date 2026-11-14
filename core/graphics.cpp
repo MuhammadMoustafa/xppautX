@@ -1,24 +1,27 @@
 #include "graphics.h"
 #include "session_settings.h"
 #include "colormap.h"
-#include "xpp_util.h"
 #include "typed_values.h"
 #include "many_pops.h"
 #include "xpp_ui.h"
-#include "xpp_globals.h"
 #include "marks_data.h"
-#include "image_format.h"
 
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include "graf_par.h"
+#include <array>
+#include <cmath>
+#include <cstddef>
+#include <memory>
+#include <vector>
 #include "xpp_io.h"
 #include "load_eqn.h"
 #include "xpp_math.h"
 #include "session.h"
 #include "picture.h"
+#include "line_style.h"
+#include "struct.h"
 
 namespace xpp {
 

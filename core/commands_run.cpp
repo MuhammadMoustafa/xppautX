@@ -6,7 +6,6 @@
    (integrate.h's run_from, run_range ...). */
 #include "command_def.h"
 #include "command_range.h"
-#include "command_registry.h"
 #include "dae_fun.h"
 #include "integrate.h"
 #include "model_options.h"
@@ -15,15 +14,27 @@
 #include "solver.h"
 #include "value_undo.h"
 #include "xpp_io.h"
-#include "xpp_util.h"
 #include "session.h"
 #include "delay_handle.h"
 #include "load_eqn.h"
 #include "storage.h"
 #include "model.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "json_number.h"
+#include "xpp_error.h"
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace xpp::command {
 

@@ -6,6 +6,7 @@
 #include <array>
 #include <optional>
 #include <string_view>
+#include <cstddef>
 
 #include "xpp_io.h"
 

@@ -16,17 +16,31 @@
 #include "model_options.h"
 #include "numerics.h"
 #include "torus.h"
-#include "xpp_util.h"
 #include "model.h"
 #include "session.h"
 #include "integrate.h"
 #include "load_eqn.h"
 #include "many_pops.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "json_number.h"
+#include "numerics_settings.h"
+#include "struct.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace xpp::command {
 namespace {

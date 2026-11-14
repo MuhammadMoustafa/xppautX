@@ -4,14 +4,15 @@
 #include "format_version.h"
 
 #include "expr.h"
-#include "model.h"
 #include "model_options.h"
 #include "xpp_io.h"
+#include "xpp_mem.h"
 
 #include <algorithm>
-#include <cmath>
-#include <map>
-#include <set>
+#include <array>
+#include <expected>
+#include <optional>
+namespace xpp { struct Model; }
 
 namespace xpp::odex {
 

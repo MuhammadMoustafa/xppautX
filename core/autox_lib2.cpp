@@ -6,11 +6,18 @@
 #include <functional>
 #include <limits>
 #include <vector>
-#include "xpp_log.h"
-#include "session.h"
+#include <stdio.h>
+#include <cmath>
+#include <cstddef>
+#include <memory>
+#include <utility>
 #include "autox_state.h"
 #include "autox_c.h"
-#include "xpp_job.h" /* xppautX: cancel */
+#include "autox_codes.h"
+#include "autox_f2c.h"
+#include "autox_parallel.h"
+#include "xpp_io.h"
+#include "xpp_math_autox.h"
 
 /* The sizes follow the Fortran's macros: nrow = ndim*ncol (rows of A),
    nclm = nrow + ndim (its columns), nrc = nbc + nint + 1 (rows of C and D),

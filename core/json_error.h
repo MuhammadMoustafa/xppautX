@@ -1,5 +1,7 @@
 #pragma once
-#include "xpp_error.h"
+#include <string>
+#include <string_view>
+namespace xpp { struct Error; }
 namespace xpp::json {
 /* Append the common error and place fields to an event object. */
 void append_error(std::string &out, const xpp::Error &error);

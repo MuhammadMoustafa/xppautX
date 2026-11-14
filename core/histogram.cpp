@@ -10,8 +10,11 @@
 #include <math.h>
 #include <string.h>
 #include <algorithm>
-#include <array>
 #include <vector>
+#include <cmath>
+#include <expected>
+#include <memory>
+#include <span>
 
 #include "adj2.h"
 #include "browse.h"
@@ -20,9 +23,9 @@
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "xpp_ui.h"
-#include "xpp_util.h"
-#include "form_ode.h"
-#include "load_eqn.h"
+#include "expr_program.h"
+#include "session.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

@@ -9,14 +9,18 @@
 #include <stdlib.h> 
 #include <stdio.h>
 #include <math.h>
+#include <memory>
+#include <optional>
+#include <span>
+#include <vector>
 #include "flags.h"
 #include "markov.h"
 #include "delay_handle.h"
 #include "xpp_job.h"
 #include "load_eqn.h"
-#include "numerics.h"
 #include "model.h"
 #include "xpp_math.h"
+#include "xpp_error.h"
 
 namespace xpp {
 

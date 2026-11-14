@@ -5,6 +5,18 @@
 #include <initializer_list>
 #include <string>
 #include <vector>
+#include <stdio.h>
+#include <stdlib.h>
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <deque>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <optional>
+#include <string_view>
+#include <utility>
 #include "xpp_mem.h"
 #include "session.h"
 #include "autox_state.h"
@@ -15,11 +27,19 @@
 #include "autox_stability_autox.h"
 #include "xpp_ui.h" /* err_msg(), byeautox_() */
 #include "autox_nox.h" /* autox_screen_col(), RestartLabel */
-#include "xpp_job.h" /* xppautX: cancel */
 #include "autox_stop.h" /* xppautX: why a branch ended (T23) */
-#include "form_ode.h"
 #include "model.h"
 #include "xpp_math.h"
+#include "autox_c.h"
+#include "autox_codes.h"
+#include "autox_codim.h"
+#include "autox_ends.h"
+#include "autox_f2c.h"
+#include "autox_global.h"
+#include "xAutox.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
+#include "xpp_math_autox.h"
 
 namespace {
 struct AutoxPointOutputContext {

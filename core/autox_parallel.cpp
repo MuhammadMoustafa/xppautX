@@ -9,11 +9,17 @@
 #include "solver.h"
 #include "xpp_cpu.h"
 #include "xpp_job.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
 #include <algorithm>
 #include <condition_variable>
 #include <exception>
 #include <mutex>
 #include <thread>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace xpp {
 struct AutoxParallel::State {

@@ -5,21 +5,19 @@
 #include "xpp_ui.h"
 #include "image_format.h"
 #include "browse.h"
-#include "xpp_files.h"
 #include "xpp_error.h"
 #include "xpp_job.h"
-#include "xpp_util.h"
-#include "typed_values.h"
-#include "command_def.h"
-#include "command_registry.h"
 
-#include <array>
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
-#include <cstring>
 #include <string>
 #include <string_view>
+#include <algorithm>
+#include <expected>
+#include <memory>
+#include <utility>
+#include <vector>
 /*   routines for plotting arrays as functions of time  
 
      makes a window 
@@ -51,10 +49,6 @@
 
 */
 
-#include "browse.h"
-#include "xpp_files.h"
-#include "xpp_error.h"
-#include "integrate.h"
 #include "session.h"
 
 void begin_array_range(xpp::Session &s, bool still, bool tag, std::string_view file)

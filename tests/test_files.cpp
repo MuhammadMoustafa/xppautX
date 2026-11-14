@@ -5,7 +5,7 @@
    tools/servercheck.py through the protocol's `file` command. */
 #include "xpptest.h"
 #include "xpp_files.h"
-#include "xpp_files_internal.h"
+#include "xpp_files_internal.h" /* IWYU pragma: keep (xpp_files.h is the public face; the implementation needs its internals) */
 #include "xpp_io.h"
 #include "json_files.h"
 #include "snapx.h"
@@ -13,8 +13,8 @@
 #ifdef _WIN32
 #include "xpp_win32.h"
 #endif
-#include "xpp_mem.h"
 #include "xpp_sha256.h"
+#include "xpp_error.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -25,6 +25,13 @@
 
 #include <dirent.h>
 #include <sys/stat.h>
+#include <errno.h>
+#include <optional>
+#include <span>
+#include <system_error>
+#include <utility>
+#include <vector>
+namespace xpp { namespace files { struct Put; } }
 #ifdef _WIN32
 #include <direct.h>
 #include <process.h>

@@ -29,22 +29,18 @@
 
 #include "xpp_ui.h"
 #include "xpp_io.h"
-#include "xpp_mem.h"
 #include "xpp_inbox.h"
-#include "xpp_job.h"
-#include "diagram.h"
 #include "data_event.h"
 #include "event_registry.h"
 #include "autox_data.h"
 #include "autox_settings.h"
+#include "xpp_error.h"
 #include <stddef.h>
 #include <array>
 #include <atomic>
 #include <climits>
 #include <deque>
 #include <functional>
-#include <initializer_list>
-#include <iterator>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -54,6 +50,10 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+#include <cstdint>
+#include <format>
+#include <type_traits>
+namespace xpp { enum class AutoxProjection; namespace job { struct BranchJob; } struct AniExport; struct DiagramBranch; }
 
 /* window ids the client draws into; plot windows are graph index + 1 */
 

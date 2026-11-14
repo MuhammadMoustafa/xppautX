@@ -1,9 +1,7 @@
-#include "storage.h"
 #include "session.h"
 #include "delay_handle.h"
 #include "integrate.h"
 #include "load_eqn.h"
-#include "xpp_ui.h"
 #include "xpp_math.h"
 #include <math.h>
 #include <cstring>
@@ -15,7 +13,18 @@
 #include "my_rhs.h"
 #include <algorithm>
 #include <cmath>
+#include <expected>
+#include <functional>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
 #include "xpp_job.h"
+#include "model_files.h"
+#include "numerics_settings.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
+#include "xpp_mem.h"
 
 /* Hairer's DOP853 and DOPRI5, with what XPP's one caller (the Solver
    below) always chose built in: one scalar relative and absolute

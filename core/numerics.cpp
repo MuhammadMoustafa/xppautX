@@ -7,22 +7,17 @@
 #include <string>
 #include <string_view>
 #include <strings.h>
-#include <array>
 
-#include "menus.h"
 #include <stdlib.h> 
 #include <stdio.h>
 #include <math.h>
+#include <expected>
+#include <memory>
 #include "browse.h"
 #include "volterra2.h"
-#include "pp_shoot.h"
 #include "storage.h"
 #include "delay_handle.h"
-#include "colormap.h"
-#include "flags.h"
-#include "form_ode.h"
 #include "load_eqn.h"
-#include "expr.h"
 #include "model.h"
 #include "solver.h"
 #include "numerics_settings.h"
@@ -30,6 +25,8 @@
 #include "xpp_batch.h"
 #include "session.h"
 #include "many_pops.h"
+#include "model_options.h"
+#include "struct.h"
 
 namespace xpp {
 

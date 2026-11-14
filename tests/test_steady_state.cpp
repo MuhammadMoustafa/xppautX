@@ -2,6 +2,7 @@
 #include "integrate.h"
 #include <array>
 #include <limits>
+#include <span>
 
 TEST_CASE("test_steady_state")
 {

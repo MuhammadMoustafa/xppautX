@@ -1,25 +1,28 @@
-#include "mykeydef.h"
 /* Text labels, arrows, pointers and markers drawn on the plot windows, and
    the Text,etc and Makewindow commands. The window
    handling itself is the front end's. What draw_label draws
    is also reported as data (marks_data.h). */
 #include "xpp_ui.h"
-#include "xpp_util.h"
 #include "many_pops.h"
-#include "menus.h"
 #include "graphics.h"
 #include "browse.h"
 #include "marks_data.h"
 #include "colormap.h"
 #include "session.h"
 #include "picture.h"
-#include <algorithm>
+#include "grobs.h"
+#include "line_style.h"
+#include "struct.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
+#include "xpp_types.h"
 #include <string>
 #include <array>
 #include <span>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <memory>
+#include <string_view>
+#include <vector>
 
 namespace xpp {
 

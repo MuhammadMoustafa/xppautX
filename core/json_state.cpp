@@ -10,7 +10,6 @@
 #include "event_streams.h"
 #include "load_eqn.h"
 #include "xpp_files.h"
-#include "model_save.h"
 #include "storage.h"
 #include "xpp_util.h"
 #include "typed_values.h"
@@ -20,9 +19,7 @@
 #include "browse.h"
 #include "autox_nox.h"
 #include "derived.h"
-#include "form_ode.h"
 #include "expr.h"
-#include "arrayplot.h"
 #include "xpp_session.h"
 #include "plot_data.h"
 #include "phase_data.h"
@@ -31,13 +28,9 @@
 #include "autox_data.h"
 #include "autox_settings.h"
 #include "numerics_settings.h"
-#include "lunch-new.h"
-#include "histogram.h"
 #include "axes2.h"
-#include "menus.h"
 #include <cmath>
 #include <strings.h>
-#include <climits>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -48,9 +41,24 @@
 #include "model_parts.h"
 #include "value_undo.h"
 #include "json_reader.h"
+#include "data_event.h"
+#include "model_switch.h"
+#include "struct.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
+#include "xpp_ui.h"
 #include <algorithm>
 #include <array>
 #include <string>
+#include <cstddef>
+#include <deque>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 /* the core's own globals and functions that have no header of their own */
 namespace xpp::json {

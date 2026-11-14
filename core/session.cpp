@@ -16,7 +16,6 @@
 #include "display_state.h"
 #include "do_fit.h"
 #include "equilibria.h"
-#include "expr.h"
 #include "graf_par.h"
 #include "graphics.h"
 #include "grobs.h"
@@ -38,6 +37,11 @@
 #include "value_undo.h"
 #include "volterra.h"
 #include "xpp_session.h"
+#include "autox_codes.h"
+#include "struct.h"
+#include "tabular.h"
+#include "userbut.h"
+#include "xpp_io.h"
 
 #include <memory>
 #include <new>

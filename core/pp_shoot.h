@@ -1,8 +1,6 @@
 #pragma once
 
 #include <array>
-#include <cstdio>
-#include <string_view>
 #include "xpp_error.h"
 
 #include <string>

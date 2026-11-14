@@ -8,13 +8,11 @@
 #include "xpp_http.h"
 #include "xpp_inbox.h"
 #include "xpp_io.h"
-#include "xpp_log.h"
-#include "xpp_win32.h"
 #include "mykeydef.h"
 #include "json_reader.h"
-#include <algorithm>
-#include <cctype>
-#include <climits>
+#include "event_registry.h"
+#include "xpp_error.h"
+#include "xpp_ui.h"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -23,6 +21,8 @@
 #include <mutex>
 #include <string_view>
 #include <unistd.h>
+#include <span>
+#include <string>
 
 namespace xpp::json {
 

@@ -4,7 +4,6 @@
 #include "json_number.h"
 
 #include <cfloat>
-#include <cmath>
 #include <limits>
 #include <string>
 

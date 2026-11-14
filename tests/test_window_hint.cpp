@@ -7,6 +7,7 @@
 #include "xpp_window_hint.h"
 
 #include <string>
+#include <string_view>
 
 namespace {
 

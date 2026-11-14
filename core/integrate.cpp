@@ -1,7 +1,6 @@
 #include <charconv>
 #include <cstring>
 #include "mykeydef.h"
-#include "image_format.h"
 #include "picture.h"
 #include "value_undo.h"
 #include "solver.h"
@@ -29,20 +28,14 @@
 #include "browse.h"
 #include "derived.h"
 #include "equilibria.h"
-#include "gear.h"
 #include "graf_par.h"
 #include "graphics.h"
-#include "kinescope.h"
-#include "lunch-new.h"
 #include "del_stab.h"
 #include "flags.h"
 #include "histogram.h"
 
 #include "nullcline.h"
 
-#include "pp_shoot.h"
-#include "command_registry.h"
-#include "json_reader.h"
 #include "dae_fun.h"
 #include "numerics.h"
 #include "numerics_settings.h"
@@ -52,7 +45,6 @@
 #include "volterra2.h"
 #include <stdlib.h> 
 #include <cmath>
-#include <climits>
 #include "aniparse.h"
 #include "delay_handle.h"
 
@@ -76,15 +68,20 @@
 #include <utility>
 #include <string_view>
 #include <vector>
+#include <new>
+#include <stdexcept>
 #include "arrayplot.h"
 #include "xpp_job.h"
 #include "phase_data.h"
-#include "xpp_batch.h"
 #include "colormap.h"
-#include "comline.h"
 #include "session.h"
 #include "load_eqn.h"
 #include "many_pops.h"
+#include "grobs.h"
+#include "line_style.h"
+#include "odex.h"
+#include "struct.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

@@ -2,11 +2,9 @@
 #include "getvar.h"
 #include "storage.h"
 #include "xpp_files.h"
-#include "load_eqn.h"
 #include "xpp_ui.h"
 
 #include "browse.h"
-#include "many_pops.h"
 #include "simplenet.h"
 
 #include "expr.h"
@@ -15,7 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <optional>
 #include <string>
@@ -68,9 +65,15 @@ to be added later
 
 #include <math.h>
 #include <stdio.h>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <utility>
 #include "model.h"
 #include "model_files.h"
-#include "menus.h"
+#include "expr_program.h"
+#include "session.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

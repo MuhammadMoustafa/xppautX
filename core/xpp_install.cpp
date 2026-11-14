@@ -6,15 +6,20 @@
 #include <cstdlib>
 #include <new>
 #include <vector>
+#include <array>
+#include <expected>
+#include <span>
+#include <system_error>
+#include <utility>
 
 #include "xpp_about.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
-#include "xpp_log.h"
 #include "xpp_mem.h"
 #include "xpp_process.h"
 #include "xpp_sha256.h"
 #include "xpp_zip.h"
+#include "xpp_update.h"
 
 namespace xpp::update {
 

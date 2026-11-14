@@ -16,9 +16,13 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <mir-alloc.h>
+#include <mir-dlist.h>
+#include <span>
 #include "xpp_io.h"
 #include "mir.h"
 #include "mir-gen.h"
+#include "expr_ir.h"
 
 namespace xpp::mir {
 

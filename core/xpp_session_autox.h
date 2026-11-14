@@ -4,20 +4,22 @@
    session's), and the members autox/diagram.csv and autox/solutions.s. The only archive reader/writer is
    xpp_session.cpp (.snapx). */
 #include <deque>
-#include <expected>
 #include <map>
-#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <array>
+#include <cstddef>
+#include <utility>
 
 #include "autox_settings.h"
-#include "diagram.h"
 #include "display_state.h"
-#include "odex_block.h"
 #include "xpp_error.h"
 #include "xpp_zip.h"
+#include "autox_axis.h"
+#include "autox_nox.h"
+namespace xpp { enum AutoxCalculation : int; namespace odex { class Block; } namespace odex { class Out; } }
 
 namespace xpp {
 struct Session; /* session.h */

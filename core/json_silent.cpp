@@ -30,20 +30,26 @@
 #include "session.h"
 #include "autox_state.h"
 #include "integrate.h"
-#include "comline.h"
 #include "browse.h"
-#include "graf_par.h"
 #include "histogram.h"
 #include "image_format.h"
-#include "lunch-new.h"
 #include "xpp_batch.h"
 #include "load_eqn.h"
 #include "xpp_log.h"
+#include "autox_script.h"
+#include "xpp_io.h"
+#include "xpp_ui.h"
 #include <algorithm>
 #include <deque>
 #include <memory>
-#include <span>
 #include <vector>
+#include <array>
+#include <cstddef>
+#include <functional>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
 
 namespace xpp::json {
 

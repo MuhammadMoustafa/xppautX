@@ -1,10 +1,17 @@
 #include "xpp_mem.h"
 #include <vector>
 #include <cstring>
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <memory>
 #include "autox_c.h"
-#include "session.h"
 #include "autox_state.h"
 #include "xpp_job.h" /* xppautX: cancel */
+#include "autox_codes.h"
+#include "autox_f2c.h"
+#include "autox_parallel.h"
+#include "xpp_math.h"
 
 namespace {
 /* This structure contains all of the input data for the setup_boundary_system routine

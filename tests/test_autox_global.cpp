@@ -4,9 +4,12 @@
    equilibrium search and the stops themselves are tools/servercheck.py's. */
 #include "xpptest.h"
 #include "autox_global.h"
+#include "autox_codes.h"
 
-#include <cmath>
 #include <vector>
+#include <cstddef>
+#include <span>
+#include <utility>
 
 namespace {
 

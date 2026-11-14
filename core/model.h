@@ -35,10 +35,9 @@
 #include "xpp_mir.h"
 #include "expr_program.h"
 #include "model_parts.h"
+#include "xpp_io.h"
 
 #include <array>
-#include <atomic>
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <map>
@@ -46,6 +45,9 @@
 #include <optional>
 #include <set>
 #include <vector>
+#include <cstddef>
+#include <string_view>
+#include <utility>
 
 namespace xpp {
 struct Session;

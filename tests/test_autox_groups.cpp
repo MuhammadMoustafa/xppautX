@@ -9,14 +9,17 @@
 #include "jacobian.h"
 #include "autox_c.h"
 #include "autox_jacobian.h"
-#include "autox_unknowns.h"
-#include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
+#include "autox_codes.h"
 #include <array>
 #include <bit>
 #include <cstdint>
 #include <vector>
+#include <cstddef>
+#include <memory>
+#include <optional>
+#include <string>
 
 TEST_CASE("test_autox_groups") {
     constexpr int n = 6;

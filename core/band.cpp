@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include "band.h"
 #include "llnlmath.h"
+#include "vector.h"
 
 namespace xpp::cvode_solver {
 

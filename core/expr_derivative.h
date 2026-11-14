@@ -7,16 +7,15 @@
    variables, the derived parameters and the user functions, each of them
    read in place. translate_model (expr_native.cpp) writes the derivatives
    as C, so they cost about what the right-hand side costs. C++ only. */
-#include "expr_native.h"
 #include "expr_program.h"
 #include "xpp_error.h"
 
 #include <array>
 #include <cstddef>
-#include <cstdint>
 #include <span>
 #include <unordered_map>
 #include <vector>
+namespace xpp { struct ModelProgram; }
 
 namespace xpp {
 struct Session;

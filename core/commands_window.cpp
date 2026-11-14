@@ -5,8 +5,6 @@
    Each handler gets its arguments validated and typed (command_def.h). */
 #include "command_def.h"
 #include "command_graph.h"
-#include "command_registry.h"
-#include "json_error.h"
 #include "many_pops.h"
 #include "autox_nox.h"
 #include "graf_par.h"
@@ -21,10 +19,21 @@
 #include "autox_state.h"
 #include "display_state.h"
 #include "event_registry.h"
-#include <algorithm>
+#include "command_category.h"
+#include "struct.h"
+#include "xpp_error.h"
 #include <array>
 #include <functional>
 #include <tuple>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace xpp::command {
 namespace {

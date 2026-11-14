@@ -6,6 +6,11 @@
 
 #include <cmath>
 #include <string>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <string_view>
 
 namespace {
 /* a color of its parts (not the foreground) */

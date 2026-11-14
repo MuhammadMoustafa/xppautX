@@ -5,15 +5,12 @@
    (docs/odex.md question 10). An old-style model (the number of
    equations on its first line) is built here line by line as it is read
    (compiler, build_old_style), with the same pieces, during conversion. */
-#include <new>
 #include <string>
 #include <vector>
 #include <algorithm>
-#include <array>
 #include <optional>
 #include <string_view>
 #include <functional>
-#include <map>
 #include <set>
 
 #include "xpp_util.h"
@@ -26,7 +23,6 @@
 #include "expr.h"
 #include "xpp_io.h"
 #include "markov.h"
-#include "xpp_files.h"
 #include "load_eqn.h"
 #include <unistd.h>
 #include "flags.h"
@@ -36,20 +32,26 @@
 #include "browse.h"
 #include "simplenet.h"
 #include "integrate.h"
-#include "xpp_ui.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
+#include <span>
+#include <unordered_map>
+#include <utility>
 
 
 #include "xpp_batch.h"
 #include "xpp_globals.h"
-#include "comline.h"
 #include "session.h"
 #include "model_parts.h"
+#include "expr_program.h"
+#include "model_options.h"
+#include "tabular.h"
+#include "xpp_error.h"
+#include "xpp_math.h"
 
 using xpp::odex::Binding;
 using xpp::odex::Expr;

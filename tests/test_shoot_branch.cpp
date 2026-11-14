@@ -12,6 +12,11 @@
 #include "picture.h"
 #include <utility>
 #include <variant>
+#include <array>
+#include <cstdio>
+#include <memory>
+#include <string>
+#include <vector>
 
 TEST_CASE("test_shoot_branch")
 {

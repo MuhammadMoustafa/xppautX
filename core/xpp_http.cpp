@@ -33,9 +33,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
-#include <cerrno>
 #include <chrono>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -46,6 +44,12 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <sys/types.h>
+#include <expected>
+#include <iterator>
+#include <span>
+namespace xpp { namespace files { struct Put; } }
+struct iovec;
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>

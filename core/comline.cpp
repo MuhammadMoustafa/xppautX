@@ -4,18 +4,19 @@
 #include "autox_state.h"
 #include "integrate.h"
 #include "comline.h"
-#include "lunch-new.h"
-#include "xpp_ui.h"
 #include "xpp_log.h"
 /* the command line of xppautX */
 #include "xpp_batch.h"
-#include "xpp_globals.h"
+#include "model_options.h"
+#include "xpp_io.h"
 #include <algorithm>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
+#include <expected>
+#include <memory>
 
 namespace xpp {
 

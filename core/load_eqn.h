@@ -5,7 +5,6 @@
 #include "line_style.h"
 #include "numerics_settings.h"
 #include "solver.h"
-#include "odex.h"
 #include "odex_write.h"
 #include "xpp_error.h"
 
@@ -16,6 +15,8 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+#include <cstddef>
+namespace xpp { namespace odex { struct Option; } namespace odex { struct Parsed; } }
 
 
 namespace xpp {

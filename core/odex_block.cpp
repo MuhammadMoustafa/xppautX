@@ -4,10 +4,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <array>
 
-#include "model_options.h"
 #include "odex.h"
 #include "xpp_io.h"
+#include "line_style.h"
+#include "text_style.h"
 
 namespace xpp::odex {
 

@@ -7,7 +7,16 @@
 #include "session.h"
 #include "model.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "userbut.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
 #include <array>
+#include <cstddef>
+#include <expected>
+#include <span>
+#include <string>
+#include <vector>
 
 namespace xpp::command {
 namespace {

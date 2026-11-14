@@ -21,10 +21,11 @@
 #include "xpp_batch.h"
 #include "xpp_io.h"
 #include "xpp_files.h"
-#include "xpp_log.h"
-#include "xpp_util.h"
 #include "xpp_math.h"
 #include "session.h"
+#include "odex_block.h"
+#include "xpp_error.h"
+#include "xpp_mem.h"
 
 #include <array>
 #include <cmath>
@@ -33,6 +34,10 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <cstddef>
+#include <span>
+#include <unordered_map>
+#include <utility>
 
 namespace xpp::odex {
 

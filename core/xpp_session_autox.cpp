@@ -3,9 +3,11 @@
 #include "xpp_io.h"
 #include "snapx.h"
 #include "jacobian.h"
-#include "autox_state.h"
 #include "session_settings.h"
 #include "many_pops.h"
+#include "autox_codes.h"
+#include "autox_unknowns.h"
+#include "odex_block.h"
 
 #include <algorithm>
 #include <array>
@@ -13,6 +15,10 @@
 #include <cmath>
 #include <vector>
 #include <map>
+#include <format>
+#include <memory>
+#include <optional>
+#include <tuple>
 
 namespace xpp::snapx::autox_members {
 

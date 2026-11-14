@@ -42,25 +42,16 @@
 #include "xpp_io.h"
 #include "xpp_ui.h"
 #include "ui_json.h"
-#include "colormap.h"
-#include "graphics.h"
-#include "graf_par.h"
-#include "grobs.h"
-#include "browse.h"
 #include "aniparse.h"
 #include "comline.h"
-#include "load_eqn.h"
 #include "recx.h"
 #include "set_load.h"
 #include "snapx.h"
-#include "session_settings.h"
 #include "xpp_http.h"
-#include "xpp_util.h"
 #include "autox_nox.h"
 #include "xpp_files.h"
 #include "xpp_about.h"
 #include "xpp_window.h"
-#include "xpp_win32.h"
 #include "odex.h"
 #include "xpp_session.h"
 #include "xpp_prefs.h"
@@ -70,11 +61,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "many_pops.h"
-#include "axes2.h"
-#include "nullcline.h"
+#include <cstddef>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 #include "session.h"
 #include "autox_state.h"
+#include "model_files.h"
+#include "xpp_error.h"
 
 /* autoX's files in a directory of this session's own, removed at exit
    (issue #11); a model's --silent command list runs no autoX */

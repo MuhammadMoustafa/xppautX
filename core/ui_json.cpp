@@ -12,18 +12,14 @@
    classifier, install and hello; ui_json_internal.h names
    the files that hold the rest. */
 #include "model.h"
-#include <cmath>
 #include "options_panels.h"
 #include "grobs.h"
 #include "ui_json.h"
 #include "json_files.h"
 #include "xpp_about.h"
 #include "xpp_install.h"
-#include "xpp_keymap.h"
-#include "form_ode.h"
 #include "xpp_batch.h"
 #include "integrate.h"
-#include "nullcline.h"
 #include "ui_json_internal.h"
 #include "autox_run.h"
 #include "autox_evd.h"
@@ -35,21 +31,17 @@
 #include "xpp_http.h"
 #include "xpp_inbox.h"
 #include "xpp_job.h"
-#include "xpp_util.h"
 #include "many_pops.h"
 #include "command_def.h"
 #include "command_registry.h"
-#include "menus.h"
 #include "mykeydef.h"
 #include "userbut.h"
-#include "xpp_session.h"
 #include "xpp_globals.h"
 #include "model_switch.h"
 #include "plot_data.h"
 #include "phase_data.h"
 #include "marks_data.h"
 #include "ani_data.h"
-#include "aniparse.h"
 #include "autox_data.h"
 #include "autox_settings.h"
 #include "numerics_settings.h"
@@ -58,19 +50,43 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "load_eqn.h"
-#include "graf_par.h"
+#include <array>
+#include <cstring>
+#include <deque>
+#include <expected>
+#include <functional>
+#include <iterator>
+#include <memory>
+#include <mutex>
+#include <new>
+#include <span>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 #include "colormap.h"
 #include "xpp_files.h"
 #include "xpp_examples.h"
 #include "xpp_recent.h"
 #include "recx.h"
 #include "event_registry.h"
-#include "event_streams.h"
 #include "session.h"
 #include "browse.h"
 #include "json_reader.h"
 #include "format_version.h"
+#include "autox_codes.h"
+#include "comline.h"
+#include "command_category.h"
+#include "data_event.h"
+#include "model_features.h"
+#include "solver.h"
+#include "struct.h"
+#include "text_style.h"
+#include "xpp_io.h"
+#include "xpp_mem.h"
+#include "xpp_types.h"
+#include "xpp_ui.h"
+namespace xpp { namespace prefs { struct Preferences; } }
 
 /* the core's own globals and functions that have no header of their own */
 

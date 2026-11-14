@@ -12,17 +12,25 @@
 #include "autox_state.h"
 #include "autox_c.h"
 #include "diagram.h"
-#include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "integrate.h"
 #include "model.h"
+#include "autox_codes.h"
+#include "autox_nox.h"
+#include "xpp_math.h"
 
 #include <deque>
 #include <cmath>
 #include <numeric>
 #include <utility>
 #include <vector>
+#include <array>
+#include <cstddef>
+#include <memory>
+#include <span>
+#include <stdexcept>
+#include <string>
 
 namespace {
 

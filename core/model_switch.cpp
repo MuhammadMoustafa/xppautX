@@ -13,21 +13,23 @@
 #include "xpp_log.h"
 #include "xpp_session.h"
 #include "xpp_ui.h"
-#include "xpp_util.h"
 #include "typed_values.h"
 #include "expr.h"
 #include "expr_native.h"
 #include "form_ode.h"
 #include "numerics.h"
 #include "jacobian.h"
-#include "storage.h"
 #include "session.h"
 #include "load_eqn.h"
+#include "comline.h"
+#include "expr_program.h"
 #include <functional>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
+#include <expected>
+#include <memory>
 
 namespace {
 

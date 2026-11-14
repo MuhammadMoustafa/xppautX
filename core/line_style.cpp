@@ -1,11 +1,11 @@
 #include "line_style.h"
 
 #include <cmath>
+#include <cstddef>
 
 #include "json_number.h"
 #include "model_options.h"
-#include "xpp_util.h"
-#include "display_state.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

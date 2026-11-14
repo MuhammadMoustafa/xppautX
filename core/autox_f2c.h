@@ -8,9 +8,8 @@
 
 #include <stdlib.h>
 #include <math.h>
-#include <cstddef>
+namespace xpp { struct ComplexPair; }
 
-#include "xpp_math.h" /* xpp::ComplexPair */
 
 /* autoX's dimensions and linear indices must have pointer width on Windows
    too, where long remains 32 bits. Allocation extents use checked size_t. */

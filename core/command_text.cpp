@@ -9,11 +9,16 @@
    maps hold single values only. */
 #include "command_def.h"
 #include "command_registry.h"
-#include "json_error.h"
 #include "json_reader.h"
 #include "xpp_io.h"
+#include "xpp_error.h"
 #include <algorithm>
 #include <cstring>
+#include <expected>
+#include <span>
+#include <string>
+#include <string_view>
+#include <utility>
 
 namespace xpp::command {
 namespace {

@@ -11,19 +11,16 @@
    changes nothing (W125). XPPAUT's own .set is read by lunch-new.cpp
    into the same Settings, which is applied as it is (File > Import XPPAUT
    session state, --convert --statefile). C++ only. */
-#include <optional>
 #include <span>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
+#include <cstddef>
 
-#include "browse.h"    /* AddedColumn */
 #include "display_state.h" /* Zoom */
-#include "odex.h" /* StateFile */
-#include "odex_block.h"
 #include "struct.h"    /* GRAPH */
 #include "xpp_error.h"
+namespace xpp { namespace odex { class Block; } namespace odex { class Out; } namespace odex { struct StateFile; } struct AddedColumn; }
 
 namespace xpp {
 

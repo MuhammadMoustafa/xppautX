@@ -1,9 +1,8 @@
 /* The pop-up menus a command asks one of its choices with (menus.h). */
+#include <stddef.h>
 #include "menus.h"
 #include "autox_codes.h"
 
-#include <string>
-#include <string_view>
 
 namespace xpp {
 

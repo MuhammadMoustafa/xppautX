@@ -7,12 +7,20 @@
 #include "session.h"
 #include "csv_export.h"
 #include "data_formats.h"
-#include "xpp_ui.h"
 #include "diagram.h"
 #include "jacobian.h"
 #include "autox_evd.h"
-#include "form_ode.h"
+#include "autox_axis.h"
+#include "autox_codes.h"
+#include "autox_nox.h"
+#include "xpp_io.h"
 #include <string>
+#include <cstddef>
+#include <deque>
+#include <expected>
+#include <memory>
+#include <utility>
+#include <vector>
 
 namespace {
 

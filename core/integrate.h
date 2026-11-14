@@ -5,7 +5,6 @@
 #include <functional>
 #include <array>
 #include <cstdint>
-#include <cstdio>
 #include <memory>
 #include <limits>
 #include <span>
@@ -13,10 +12,13 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <expected>
+#include <string_view>
 
 #include "solver.h"
 #include "model_parts.h"
-#include "colormap.h"
+#include "xpp_error.h"
+namespace xpp { struct Color; struct Model; }
 
 namespace xpp {
 

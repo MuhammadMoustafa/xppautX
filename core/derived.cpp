@@ -9,8 +9,10 @@
 #include "xpp_batch.h"
 #include "xpp_log.h"
 #include "model.h"
+#include "expr_program.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
 
-#include <array>
 #include <string>
 #include <utility>
 #include <vector>

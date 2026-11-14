@@ -4,28 +4,32 @@
    model), the zip xpp_zip.cpp's; this file gathers autoX's state into
    them and puts it back. */
 #include "xpp_session_autox.h"
-#include "session_settings.h"
-#include "solver.h"
-#include "snapx.h"
 #include "session.h"
 #include "autox_state.h"
 #include "model.h"
-#include "xpp_session.h"
 #include "xpp_zip.h"
 #include "xpp_io.h"
-#include "xpp_log.h"
-#include "xpp_ui.h"
-#include "xpp_files.h"
 #include "autox_data.h"
 #include "autox_nox.h"
 #include "autox_settings.h"
-#include "browse.h"
 #include "diagram.h"
+#include "autox_axis.h"
+#include "display_state.h"
+#include "odex_block.h"
+#include "xpp_error.h"
 
 #include <map>
 #include <optional>
 #include <string>
 #include <vector>
+#include <array>
+#include <cstddef>
+#include <deque>
+#include <expected>
+#include <memory>
+#include <span>
+#include <string_view>
+#include <utility>
 
 namespace xpp::snapx::autox_members {
 

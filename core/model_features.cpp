@@ -4,6 +4,8 @@
 #include "session.h"
 #include "model.h"
 #include <algorithm>
+#include <utility>
+#include <vector>
 
 namespace xpp {
 

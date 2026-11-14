@@ -1,9 +1,10 @@
 #include "xpp_cpu.h"
 #include "xpp_io.h"
-#include "xpp_win32.h"
 #include <set>
 #include <algorithm>
 #include <thread>
+#include <string>
+#include <utility>
 #ifdef __APPLE__
 #include <sys/sysctl.h>
 #endif

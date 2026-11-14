@@ -3,6 +3,9 @@
 #include "xpp_files.h"
 #include "../tools/embed_data.h"
 #include <sstream>
+#include <filesystem>
+#include <iostream>
+#include <string>
 
 TEST_CASE("test_embed")
 {

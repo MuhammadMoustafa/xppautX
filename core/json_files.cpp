@@ -1,8 +1,13 @@
 /* File results rendered for the protocol and HTTP /files, in one place. */
+#include <stddef.h>
+#include <optional>
+#include <vector>
 #include "event_registry.h"
 #include "json_files.h"
 #include "json_error.h"
 #include "xpp_io.h"
+#include "xpp_error.h"
+#include "xpp_files.h"
 
 namespace xpp::json {
 std::string files_json(const xpp::files::CommandResult &result)

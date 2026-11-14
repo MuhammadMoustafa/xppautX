@@ -1,9 +1,10 @@
 /* The keymap resource's registry rows (W528): the user's keyboard bindings (one key each) and the quick-access commands, kept in keymap.json (xpp_keymap.h). Each page and --server session reads and writes the one file
    through the front end (json_keymap.cpp), which sends the `keymap` event the page keeps its shortcuts from. */
 #include "command_def.h"
-#include "xpp_keymap.h"
 #include "event_registry.h"
+#include "command_category.h"
 #include <array>
+#include <span>
 
 namespace xpp::command {
 namespace {

@@ -4,8 +4,15 @@
 #include "my_svg.h"
 
 #include <string>
+#include <array>
+#include <string_view>
+#include <variant>
+#include <vector>
 
 #include "xpp_io.h"
+#include "colormap.h"
+#include "line_style.h"
+#include "picture.h"
 
 namespace xpp {
 

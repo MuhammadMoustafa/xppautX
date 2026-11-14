@@ -4,11 +4,15 @@
    text that would not load is an error. Where the lines went is LineMap's. */
 #include "xpptest.h"
 #include "model.h"
-#include "odex.h"
 #include "odex_write.h"
+#include "xpp_error.h"
 
 #include <memory>
 #include <string>
+#include <cstddef>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace {
 

@@ -4,6 +4,7 @@
 #include "xpp_session.h"
 #include "xpp_ui.h"
 #include <utility>
+#include <memory>
 
 namespace xpp {
 

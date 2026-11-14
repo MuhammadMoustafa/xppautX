@@ -4,6 +4,7 @@
 #include <array>
 #include <span>
 #include <vector>
+#include <cstddef>
 #include "xpp_error.h"
 
 namespace xpp {

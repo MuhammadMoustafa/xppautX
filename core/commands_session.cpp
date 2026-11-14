@@ -3,7 +3,6 @@
    A handler calls the core function the File menu's items call after their questions (model_switch.h,
    xpp_session.h, lunch-new.h); the three the front end answers itself go through front_end. */
 #include "command_def.h"
-#include "json_error.h"
 #include "lunch-new.h"
 #include "model_files.h"
 #include "model_switch.h"
@@ -15,7 +14,17 @@
 #include "xpp_session.h"
 #include "model.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
 #include <array>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
 
 namespace xpp::command {
 namespace {

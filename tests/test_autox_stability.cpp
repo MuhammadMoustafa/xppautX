@@ -10,12 +10,19 @@
 #include <cmath>
 #include <array>
 #include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
 #include "session.h"
 #include "autox_state.h"
 #include "autox_c.h"
-#include "autox_evd.h"
-#include "xpp_batch.h"
 #include "xpp_files.h"
+#include "autox_codes.h"
+#include "xpp_io.h"
+#include "xpp_math.h"
 
 namespace {
 

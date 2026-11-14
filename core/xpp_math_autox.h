@@ -2,8 +2,9 @@
 
 /* autoX-specific interfaces of the numerical owner. Kept out of xpp_math.h
    so f2c's global types stay out of other numerical interfaces. */
-#include "autox_f2c.h"
 #include <cstdio>
+#include <cstddef>
+namespace xpp { struct ComplexPair; }
 
 struct iap_type; // The adapter borrows the run's AutoxRun and diagnostics.
 

@@ -17,13 +17,12 @@
 #include "autox_state.h"
 #include "integrate.h"
 #include "load_eqn.h"
-#include "xpp_batch.h"
-#include "xpp_globals.h"
 #include "derived.h"
 #include "autox_c.h"
 #include "autox_unknowns.h"
 #include "autox_nox.h"
 #include "xpp_math.h"
+#include "xpp_error.h"
 
 #include <algorithm>
 #include <bit>
@@ -33,6 +32,10 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <array>
+#include <cstddef>
+#include <string_view>
+#include <utility>
 
 namespace {
 

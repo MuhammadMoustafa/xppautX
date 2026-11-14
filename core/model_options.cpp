@@ -7,6 +7,8 @@
 #include <ranges>
 #include <string>
 #include <string_view>
+#include <iterator>
+#include <memory>
 
 #include "model_options.h"
 #include "image_format.h"
@@ -14,7 +16,6 @@
 #include "odex.h"
 #include "xpp_util.h"
 #include "autox_settings.h"
-#include "xpp_session_autox.h"
 #include "browse.h"
 #include "data_formats.h"
 #include "colormap.h"
@@ -33,7 +34,6 @@
 #include "xpp_batch.h"
 #include "xpp_error.h"
 #include "xpp_ui.h"
-#include "xpp_globals.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
@@ -42,10 +42,15 @@
 #include "aniparse.h"
 #include "arrayplot.h"
 #include "autox_state.h"
-#include "delay_handle.h"
+#include "delay_handle.h" /* IWYU pragma: keep (the generic lambdas of the option table need DelayState complete) */
 #include "integrate.h"
 #include "load_eqn.h"
 #include "nullcline.h"
+#include "autox_codes.h"
+#include "expr_program.h"
+#include "line_style.h"
+#include "numerics_settings.h"
+#include "storage.h"
 
 namespace xpp {
 

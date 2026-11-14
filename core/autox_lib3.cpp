@@ -2,13 +2,21 @@
 #include "autox_unknowns.h"
 /* translated from autoX's autox_lib3.f by f2c */
 
-#include <array>
 #include <vector>
-#include "xpp_log.h"
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <span>
 #include "autox_c.h"
 #include "autox_jacobian.h"
 #include "xpp_math.h"
-#include "solver.h"
+#include "autox_codes.h"
+#include "autox_f2c.h"
+#include "autox_nox.h"
+#include "autox_state.h"
+#include "xpp_io.h"
+#include "xpp_math_autox.h"
+namespace xpp { struct DifferenceGroups; }
 
 namespace {
 // Original amplitude of the torus restart's added eigenvector states.

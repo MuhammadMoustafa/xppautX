@@ -11,13 +11,13 @@
    program once, at its first evaluation, into the instructions it then
    runs at every step (Program::ops, W717). C++ only, the expression
    engine's own (expr.h). */
-#include "expr_program.h"
 
 #include <cstddef>
 #include <expected>
 #include <span>
 #include <string>
 #include <vector>
+namespace xpp { struct Session; }
 
 namespace xpp::expr {
 

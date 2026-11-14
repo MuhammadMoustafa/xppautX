@@ -4,7 +4,9 @@
 #include "command_def.h"
 #include "event_registry.h"
 #include "event_streams.h"
+#include "command_category.h"
 #include <array>
+#include <span>
 
 namespace xpp::command {
 namespace {

@@ -42,6 +42,9 @@
 #include <cstdio> /* first, so MinGW's libstdc++ picks its C99 printf */
 #include <string>
 #include <string_view>
+#include <format>
+#include <type_traits>
+#include <utility>
 
 #include "xpp_io.h" /* xpp::vformat */
 

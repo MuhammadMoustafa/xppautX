@@ -1,9 +1,14 @@
 /* The session file's pure part: see snapx.h. */
+#include <expected>
+#include <utility>
 #include "snapx.h"
 #include "xpp_io.h"
 
 #include "xpp_files.h"
 #include "odex_write.h"
+#include "odex.h"
+#include "odex_block.h"
+#include "xpp_zip.h"
 
 namespace xpp::snapx {
 

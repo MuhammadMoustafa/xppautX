@@ -46,10 +46,10 @@
    I/O; tests/test_recx.cpp); what goes into one is json_record.cpp's,
    and its replay json_player.cpp's.
    C++ only. */
-#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <stddef.h>
 
 #include "model_files.h"
 #include "xpp_error.h"

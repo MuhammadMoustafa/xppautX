@@ -9,10 +9,10 @@
    (command_text.cpp) and help/hello (command_registry.cpp) read the same
    rows. A handler never reads the JSON line: it asks Arguments. */
 #include "colormap.h"
-#include "command_category.h"
 #include "json_number.h"
 #include "model_features.h"
 #include "xpp_io.h"
+#include "xpp_error.h"
 #include <array>
 #include <cstddef>
 #include <optional>
@@ -22,8 +22,9 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include <expected>
 
-namespace xpp { struct Session; }
+namespace xpp { struct Session; enum class CommandCategory; }
 namespace xpp::command {
 
 /* Registry requests describe small operations; bulk data uses /files. */

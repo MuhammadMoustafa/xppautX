@@ -1,9 +1,11 @@
 #pragma once
+#include <optional>
+#include "xpp_error.h"
+namespace xpp { namespace command { class Arguments; } namespace command { struct Command; } struct Session; }
 
 /* What the registry commands that act on one graph share (commands_window.cpp, commands_plot.cpp): the graph a
    command names with `window` (the selected one when it names none), made the active one while the command
    works, since the core's drawing code works on the active window. */
-#include "command_def.h"
 
 namespace xpp::command {
 

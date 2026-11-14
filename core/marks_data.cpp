@@ -12,23 +12,27 @@
 #include <new>
 #include "event_registry.h"
 #include "xpp_mem.h"
-#include <cmath>
-#include <cstdlib>
 #include <cstring>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
+#include <array>
+#include <memory>
+#include <utility>
 
 #include "marks_data.h"
 #include "grobs.h"
-#include "xpp_util.h"
 #include "json_number.h"
 #include "series_enc.h"
 #include "xpp_io.h"
 #include "many_pops.h"
 #include "graf_par.h"
 #include "session.h"
+#include "colormap.h"
+#include "line_style.h"
+#include "struct.h"
+#include "text_style.h"
 
 namespace xpp {
 

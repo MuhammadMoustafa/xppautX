@@ -4,6 +4,9 @@
 #include <cmath>
 #include <cstdlib>
 #include <string>
+#include <memory>
+#include <new>
+#include <utility>
 
 #include "autox_nox.h"
 #include "xpp_math_autox.h" /* autox_rsmall */
@@ -12,6 +15,9 @@
 #include "autox_stop.h"
 #include "xpp_log.h"
 #include "xpp_mem.h"
+#include "autox_codes.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

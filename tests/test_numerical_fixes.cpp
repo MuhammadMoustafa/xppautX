@@ -3,13 +3,18 @@
 #include "xpptest.h"
 #include "session.h"
 #include "integrate.h"
-#include "xpp_batch.h"
 #include "flags.h"
 #include "histogram.h"
 #include "solver.h"
 #include "model.h"
+#include "storage.h"
+#include "xpp_error.h"
 #include <array>
 #include <cmath>
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
 
 TEST_CASE("test_numerical_fixes")
 {

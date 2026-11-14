@@ -1,8 +1,8 @@
 #pragma once
 
 #include <string>
+namespace xpp { class Column; }
 
-#include "storage.h"
 
 /* How the series event (core/ui_json.cpp, docs/protocol.md "The plot as
    data") writes a column of stored values.

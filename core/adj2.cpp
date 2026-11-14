@@ -1,7 +1,6 @@
 #include "model.h"
 #include "adj2.h"
 #include "storage.h"
-#include "odesol2.h"
 #include "jacobian.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
@@ -12,7 +11,6 @@
 #include "expr.h"
 #include "getvar.h"
 #include "xpp_ui.h"
-#include "typed_values.h"
 
 #include <string>
 #include <stdlib.h>
@@ -32,9 +30,15 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <utility>
 
 #include "histogram.h"
 #include "load_eqn.h"
+#include "session.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

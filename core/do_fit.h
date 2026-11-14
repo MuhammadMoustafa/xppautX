@@ -3,7 +3,6 @@
 #include <string_view>
 #include "xpp_error.h"
 
-#include <array>
 #include <string>
 #include <utility>
 #include <vector>

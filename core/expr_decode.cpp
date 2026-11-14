@@ -1,8 +1,13 @@
 /* The decoder of a program's instructions (expr_decode.h, W276). */
+#include <array>
 #include "expr_decode.h"
 #include "model.h"
 #include "session.h"
 #include "expr.h"
+#include "expr_program.h"
+#include "simplenet.h"
+#include "tabular.h"
+#include "volterra.h"
 
 namespace xpp::expr {
 

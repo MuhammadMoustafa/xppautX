@@ -12,8 +12,19 @@
 #include "set_load.h"
 #include "xpp_io.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "xpp_error.h"
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <expected>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+namespace xpp { struct Session; }
 
 namespace xpp::command {
 namespace {

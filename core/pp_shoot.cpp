@@ -4,7 +4,6 @@
 #include "model.h"
 #include "xpp_ui.h"
 #include "storage.h"
-#include "xpp_util.h"
 #include "typed_values.h"
 #include "many_pops.h"
 #include "xpp_math.h"
@@ -25,14 +24,24 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <array>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 #include <math.h>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <span>
+#include <string_view>
 #include "getvar.h"
 #include "delay_handle.h"
+#include "colormap.h"
+#include "expr_program.h"
+#include "model_files.h"
+#include "odex.h"
+#include "session.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

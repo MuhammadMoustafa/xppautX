@@ -3,14 +3,20 @@
    range of one parameter, and the numerics they use. Each handler calls the
    core function the imported XPPAUT button sequences call too (pp_shoot.h). */
 #include "command_def.h"
-#include "command_registry.h"
 #include "integrate.h"
 #include "pp_shoot.h"
 #include "session.h"
 #include "typed_values.h"
-#include "xpp_io.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "model_features.h"
+#include "xpp_error.h"
 #include <array>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
 
 namespace xpp::command {
 namespace {

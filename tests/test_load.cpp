@@ -14,9 +14,13 @@
 #include "xpp_batch.h"
 #include "xpp_io.h"
 #include "xpp_files.h"
+#include "colormap.h"
+#include "xpp_error.h"
 
-#include <optional>
 #include <string>
+#include <stddef.h>
+#include <memory>
+#include <vector>
 
 TEST_CASE("test_load")
 {

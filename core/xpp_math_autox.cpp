@@ -1,13 +1,20 @@
 #include "xpp_math.h"
-#include "session.h"
 #include "autox_state.h"
 #include "autox_c.h"
-#include "xpp_log.h"
 #include "xpp_io.h"
+#include "autox_f2c.h"
+#include "autox_unknowns.h"
+#include "xpp_math_autox.h"
+#include "xpp_mem.h"
 #include <algorithm>
 #include <array>
 #include <vector>
 #include <limits>
+#include <stdio.h>
+#include <cmath>
+#include <cstddef>
+#include <string>
+#include <utility>
 
 namespace xpp {
 namespace {

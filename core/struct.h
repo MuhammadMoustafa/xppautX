@@ -3,11 +3,11 @@
 #include "xpp_types.h"
 #include "colormap.h"
 #include "line_style.h"
-#include "text_style.h"
 #include <string>
 #include <array>
 #include <cstddef>
 #include <vector>
+namespace xpp { enum class TextStyle; }
 
 /* A phase portrait and stored points have three spatial axes. */
 inline constexpr int plot_axes = 3;

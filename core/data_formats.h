@@ -13,8 +13,9 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include "xpp_error.h"
+namespace xpp { class Writer; }
 
-#include "xpp_io.h"
 
 namespace xpp {
 

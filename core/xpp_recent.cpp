@@ -2,6 +2,8 @@
 #include "xpp_recent.h"
 
 #include <utility>
+#include <expected>
+#include <functional>
 
 #include "json_error.h"
 #include "xpp_files.h"

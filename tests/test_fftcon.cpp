@@ -18,7 +18,8 @@
 
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
+#include <memory>
+#include <string>
 
 /* relative error, falling back to absolute when want is ~0 */
 static double relerr(double got, double want)

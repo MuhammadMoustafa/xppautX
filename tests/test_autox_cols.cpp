@@ -9,7 +9,10 @@
 #include "autox_nox.h"
 #include "autox_c.h"
 #include "model.h"
+#include "xpp_io.h"
 #include <string>
+#include <memory>
+#include <vector>
 
 /* what the core holds for a loaded model; the names come from the .ode file */
 

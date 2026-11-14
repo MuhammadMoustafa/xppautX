@@ -25,13 +25,25 @@
 #include <string_view>
 #include <thread>
 #include <algorithm>
+#include <atomic>
+#include <cstddef>
+#include <expected>
+#include <format>
+#include <memory>
+#include <new>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 #include "xpp_log.h"
 #include "xpp_mem.h"
-#include "xpp_globals.h"
 #include "session.h"
 #include "expr.h"
 #include "load_eqn.h"
 #include "model.h"
+#include "model_files.h"
+#include "numerics_settings.h"
+#include "odex.h"
+#include "volterra.h"
 
 namespace xpp {
 namespace {

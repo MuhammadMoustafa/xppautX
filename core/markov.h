@@ -1,8 +1,6 @@
 #pragma once
 
 #include <cstdio>
-#include "xpp_math.h" /* Random, the generator stocHast seeds */
-#include <array>
 #include <span>
 #include <string>
 #include <vector>

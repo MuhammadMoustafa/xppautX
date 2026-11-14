@@ -2,7 +2,6 @@
    TokenReader, Writer) and xpp::format/xpp::vformat. Nothing here throws:
    a failed allocation is xpp::out_of_memory's. */
 #include "xpp_io.h"
-#include "browse.h"
 #include "xpp_files.h"
 #include "xpp_log.h"
 #include "xpp_mem.h"
@@ -14,11 +13,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <atomic>
-#include <cstring>
 #include <memory>
 #include <new>
 #include <string>
 #include <utility>
+#include <span>
 
 #ifdef _WIN32
 #include <process.h>

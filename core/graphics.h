@@ -2,8 +2,8 @@
 
 #include <string>
 #include <string_view>
+namespace xpp { struct Color; }
 
-#include "colormap.h"
 
 namespace xpp {
 struct Session; /* session.h */

@@ -3,7 +3,6 @@
    change the initial values and run nothing; the click commands start the
    run from the point clicked, as Initialconds' Mouse and mIce always did. */
 #include "command_def.h"
-#include "command_registry.h"
 #include "integrate.h"
 #include "lunch-new.h"
 #include "many_pops.h"
@@ -12,13 +11,23 @@
 #include "storage.h"
 #include "typed_values.h"
 #include "value_undo.h"
-#include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
 #include "model.h"
 #include "event_registry.h"
-#include <algorithm>
+#include "command_category.h"
+#include "json_number.h"
+#include "xpp_error.h"
 #include <array>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace xpp::command {
 namespace {

@@ -129,10 +129,16 @@ special ydot=import(...) ran a compiled library's function: refused
 #include <math.h>
 #include <cmath>
 #include <stdio.h>
+#include <algorithm>
+#include <cstddef>
+#include <span>
+#include <type_traits>
 
 #include "delay_handle.h"
 #include "model.h"
 #include "session.h"
+#include "model_files.h"
+#include "xpp_math.h"
 
 namespace xpp {
 

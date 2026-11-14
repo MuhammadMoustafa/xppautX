@@ -2,17 +2,20 @@
 /* Print arrayplot: the array plot as a picture of colored cells with its color scale, labels and
    ranges (W479, #542). It is a Picture like a plot window's, so color, text and the file are
    picture.h's and the PDF writer's; the colors are the session's ramp, the one the page shows. */
-#include <algorithm>
-#include <cmath>
 #include <string>
+#include <array>
+#include <expected>
+#include <vector>
 
 #include "array_print.h"
 #include "arrayplot.h"
-#include "image_format.h"
 #include "my_pdf.h"
 #include "picture.h"
 #include "session.h"
 #include "xpp_io.h"
+#include "colormap.h"
+#include "line_style.h"
+#include "storage.h"
 
 namespace xpp {
 

@@ -27,8 +27,8 @@
 
 #include <span>
 #include <vector>
+namespace xpp { struct AutoxPointCode; }
 
-#include "autox_codes.h"
 
 namespace xpp {
 

@@ -9,13 +9,16 @@
 #include <stdlib.h> 
 #include <stdio.h>
 #include <algorithm>
-#include <array>
 #include <cstring>
 #include <new>
 #include <vector>
-#include "form_ode.h"
+#include <cstdlib>
+#include <memory>
+#include <string>
+#include <utility>
 #include "load_eqn.h"
 #include "model.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

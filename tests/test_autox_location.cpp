@@ -5,18 +5,30 @@
 #include "session.h"
 #include "autox_state.h"
 #include "autox_c.h"
-#include "xpp_batch.h"
 #include "xpp_files.h"
 #include <array>
 #include <optional>
 #include <tuple>
 #include <limits>
 #include <cmath>
+#include <cstddef>
+#include <deque>
+#include <memory>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
 #include "autox_evd.h"
 #include "autox_settings.h"
 #include "autox_nox.h"
 #include "autox_run.h"
 #include "diagram.h"
+#include "autox_codes.h"
+#include "autox_stability.h"
+#include "autox_stop.h"
+#include "xAutox.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
 
 namespace {
 int line(const iap_type *, const rap_type *, std::ptrdiff_t, const double *u,

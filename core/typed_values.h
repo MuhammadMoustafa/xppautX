@@ -1,7 +1,6 @@
 #pragma once
 
 #include "xpp_error.h"
-#include "xpp_types.h"
 #include "colormap.h"
 
 #include <optional>

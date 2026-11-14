@@ -1,22 +1,18 @@
-#include "autox_unknowns.h"
 /* A run of autoX (autox_run.h): the kind-by-point-type table, the check of a model's equations against t, the set-up of
    each kind of run (XPPAUT's Run menus' items, moved here from autox_nox.cpp), the one function that starts a run and
    the Run key's questions. */
 #include <algorithm>
-#include <bit>
 #include <cmath>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <expected>
+#include <memory>
+#include <span>
 
 #include "autox_run.h"
-#include "autox_settings.h"
-#include "autox_evd.h"
 #include "autox_jobs.h"
-#include "diagram.h"
-#include "expr.h"
 #include "expr_decode.h"
-#include "integrate.h"
 #include "model.h"
 #include "model_files.h"
 #include "pp_shoot.h"
@@ -26,9 +22,8 @@
 #include "storage.h"
 #include "solver.h"
 #include "xpp_io.h"
-#include "menus.h"
-#include "xpp_log.h"
 #include "xpp_ui.h"
+#include "expr_program.h"
 
 namespace xpp {
 

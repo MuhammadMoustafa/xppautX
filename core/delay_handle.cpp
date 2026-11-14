@@ -13,13 +13,20 @@
 #include <array>
 #include <vector>
 #include "getvar.h"
-#include "form_ode.h"
 #include "model.h"
 #include "model_files.h"
 #include "numerics_settings.h"
 #include "xpp_mem.h"
+#include "expr_program.h"
+#include "session.h"
+#include "xpp_io.h"
 #include <limits>
 #include <cmath>
+#include <memory>
+#include <new>
+#include <stdexcept>
+#include <string>
+#include <string_view>
 
 namespace xpp {
 

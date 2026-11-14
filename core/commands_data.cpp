@@ -11,8 +11,18 @@
 #include "xpp_io.h"
 #include "xpp_ui.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "data_formats.h"
+#include "xpp_error.h"
 #include <array>
 #include <limits>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
 
 namespace xpp::command {
 namespace {

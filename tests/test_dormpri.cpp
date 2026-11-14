@@ -3,15 +3,22 @@
 #include "session.h"
 #include "integrate.h"
 #include "load_eqn.h"
-#include "xpp_batch.h"
 #include "dormpri.h"
 #include "flags.h"
 #include "expr.h"
 #include "delay_handle.h"
 #include "xpp_math.h"
 #include "model.h"
+#include "numerics_settings.h"
+#include "solver.h"
+#include "xpp_error.h"
 #include <array>
 #include <cmath>
+#include <functional>
+#include <memory>
+#include <span>
+#include <string>
+#include <vector>
 
 TEST_CASE("test_dormpri")
 {

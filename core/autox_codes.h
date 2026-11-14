@@ -10,10 +10,10 @@
    stability values' kind autox_stability.h's AutoxStabilityKind. */
 
 #include <array>
-#include <algorithm>
 #include <string_view>
 #include <optional>
 #include <string>
+#include <cstddef>
 
 #include "xpp_io.h"
 

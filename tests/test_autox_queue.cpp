@@ -4,8 +4,14 @@
 #include "xpptest.h"
 #include "autox_queue.h"
 #include "autox_state.h"
+#include "autox_codes.h"
+#include "autox_ends.h"
+#include "autox_global.h"
+#include "autox_stop.h"
 
 #include <vector>
+#include <optional>
+#include <span>
 
 namespace {
 

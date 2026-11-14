@@ -15,10 +15,23 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "model.h"
+#include "colormap.h"
+#include "xpp_error.h"
 #include <algorithm>
 #include <charconv>
 #include <cmath>
 #include <stdexcept>
+#include <array>
+#include <cstddef>
+#include <expected>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <utility>
+#include <variant>
+#include <vector>
 
 namespace xpp::command {
 namespace {

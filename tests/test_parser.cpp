@@ -6,6 +6,9 @@
 #include <math.h>
 #include <string>
 #include <vector>
+#include <memory>
+#include <span>
+#include <string_view>
 #include "expr.h"
 #include "markov.h"
 #include "session.h"

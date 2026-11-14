@@ -17,16 +17,16 @@
 #include "model.h"
 #include "autox_settings.h"
 #include "model_options.h"
-#include "xpp_session_autox.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
 #include <algorithm>
+#include <expected>
+#include <functional>
+#include <memory>
 #include "browse.h"
 #include "diagram.h"
-#include "expr.h"
 #include "xpp_util.h"
 #include "typed_values.h"
-#include "form_ode.h"
 #include "xpp_mem.h"
 #include "autox_parallel.h"
 #include "xpp_cpu.h"
@@ -35,6 +35,9 @@
 #include "json_number.h"
 #include "session.h"
 #include "autox_state.h"
+#include "autox_axis.h"
+#include "autox_nox.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

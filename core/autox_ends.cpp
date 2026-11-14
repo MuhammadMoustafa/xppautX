@@ -5,15 +5,19 @@
 #include <numbers>
 #include <utility>
 #include <vector>
+#include <memory>
+#include <string_view>
 
 #include "autox_c.h"
 #include "autox_ends.h"
 #include "autox_global.h"
 #include "autox_state.h"
 #include "equilibria.h"
-#include "model.h"
 #include "session.h"
 #include "xpp_io.h"
+#include "autox_f2c.h"
+#include "autox_stop.h"
+#include "xpp_error.h"
 
 namespace xpp {
 

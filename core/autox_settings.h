@@ -6,10 +6,10 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include "autox_axis.h"
+#include <utility>
 #include "autox_codes.h"
 #include "xpp_error.h"
-#include "xpp_prefs.h"
+namespace xpp { enum class AutoxProjection; namespace prefs { struct Preferences; } }
 
 /* autoX's settings as data (docs/ui-v2.md T22, docs/protocol.md "autoX's
    settings as data"): what the autoX window's Numerics, Axes

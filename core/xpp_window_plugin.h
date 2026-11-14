@@ -1,8 +1,13 @@
 #pragma once
 
 #include <stddef.h>
+#include <format>
+#include <string_view>
+#include <type_traits>
+#include <utility>
 #include "xpp_log.h"
 #include "xpp_error.h"
+#include "xpp_io.h"
 
 /* The seam between xppautX and its window when the window is a library of
    its own (Linux, W13e): xpp_window.cpp and third_party/webview built into

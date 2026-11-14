@@ -1,11 +1,11 @@
 #pragma once
 
 #include "expr_program.h"
+#include "xpp_error.h"
 
 /* a kernel that is a convolution (KERNEL's flag) */
 #define CONV 2
 
-#include <array>
 #include <string>
 #include <vector>
 

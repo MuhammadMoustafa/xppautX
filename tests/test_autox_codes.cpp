@@ -9,6 +9,9 @@
 #include "xpp_io.h"
 
 #include <array>
+#include <optional>
+#include <string>
+#include <string_view>
 
 namespace {
 

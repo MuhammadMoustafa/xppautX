@@ -5,6 +5,8 @@
    reads the compiled code without one */
 #include "expr_native.h"
 #include "xpp_batch.h"
+#include "comline.h"
+#include "xpp_error.h"
 #include <string>
 #include <vector>
 

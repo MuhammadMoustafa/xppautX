@@ -1,22 +1,23 @@
 #include "picture.h"
-#include "xpp_ui.h"
 #include "xpp_util.h"
 #include  "axes2.h"
 
 #include <cmath>
 #include <cstdlib>
 #include <string>
-#include <string_view>
+#include <memory>
+#include <vector>
  /* All new improved axes !!  */
 
 
 #include "graphics.h"
-#include "graf_par.h"
-#include "xpp_globals.h"
 #include "xpp_io.h"
 #include "xpp_math.h"
 #include "session.h"
 #include "many_pops.h"
+#include "colormap.h"
+#include "line_style.h"
+#include "struct.h"
 
 namespace xpp {
 

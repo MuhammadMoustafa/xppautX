@@ -2,9 +2,9 @@
 #include "xpp_process.h"
 
 #include <algorithm>
+#include <sys/types.h>
+#include <cstdlib>
 
-#include "xpp_io.h"
-#include "xpp_win32.h"
 #ifndef _WIN32
 #include <fcntl.h>
 #include <spawn.h>

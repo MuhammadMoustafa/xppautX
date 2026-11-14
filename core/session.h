@@ -21,8 +21,6 @@
    Session together (Load, below) and keeps them only when it succeeds. */
 #include "colormap.h"
 #include "expr.h"
-#include "tabular.h"
-#include "userbut.h"
 #include "xpp_math.h"
 #include "xpp_error.h"
 #include "xpp_files.h"
@@ -30,14 +28,15 @@
 #include "model_options.h"
 #include "xpp_prefs.h"
 #include "xpp_cpu.h"
+#include "model_parts.h" /* IWYU pragma: keep (a std::vector of its BoundaryCondition is destroyed by Session, which needs it complete) */
 
-#include <array>
 #include <map>
 #include <memory>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <cstddef>
+namespace xpp { struct TABULAR; struct UserButton; }
 
 /* global types, as their owners define them */
 struct LABEL; /* struct.h: the text labels a Session holds in a vector */

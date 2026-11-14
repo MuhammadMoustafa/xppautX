@@ -11,7 +11,16 @@
 #include "options_panels.h"
 #include "xpp_io.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "xpp_error.h"
 #include <array>
+#include <expected>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
+namespace xpp { struct Session; }
 
 namespace xpp::command {
 namespace {

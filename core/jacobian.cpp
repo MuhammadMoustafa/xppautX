@@ -6,16 +6,20 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <memory>
+#include <span>
+#include <utility>
 #include "model.h"
 #include "model_files.h"
 #include "session.h"
 #include "integrate.h"
 #include "load_eqn.h"
-#include "solver.h"
 #include "xpp_io.h"
 #include "expr.h"
 #include "expr_native.h"
 #include "xpp_mem.h"
+#include "expr_program.h"
+#include "xpp_mir.h"
 
 namespace xpp {
 

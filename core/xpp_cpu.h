@@ -2,6 +2,7 @@
 #include <optional>
 #include <string_view>
 #include <vector>
+#include <stddef.h>
 
 namespace xpp::cpu {
 // Logical processors the system reports, at least 1 (hardware_concurrency may report 0).

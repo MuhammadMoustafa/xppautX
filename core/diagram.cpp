@@ -1,31 +1,32 @@
-#include "autox_unknowns.h"
 /* xpp_io.h first: it pulls in <optional>/<string_view>/<format>, which
    autox_f2c.h's own min/max macros (included transitively below, through
    autox_nox.h) break if they are already defined first. */
 #include "xpp_files.h"
-#include <algorithm>
-#include <array>
 #include <deque>
 #include <vector>
 #include "storage.h"
 #include "session.h"
 #include "autox_state.h"
 #include "xpp_ui.h"
-#include "xpp_log.h"
 #include "diagram.h"
 #include "autox_data.h"
 #include "autox_evd.h"
 
-#include "my_svg.h"
 #include "picture.h"
 #include "graphics.h"
 #include "image_format.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <cmath>
+#include <cstddef>
+#include <memory>
+#include <utility>
 #include "browse.h"
-#include "graf_par.h"
-#include "form_ode.h"
 #include "model.h"
+#include "autox_axis.h"
+#include "autox_codes.h"
+#include "autox_script.h"
+#include "xpp_io.h"
 
 namespace {
 /* a new last point of n variables, zeroed */

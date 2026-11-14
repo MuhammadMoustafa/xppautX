@@ -9,19 +9,14 @@
 #include "xpp_log.h"
 #include "xpp_io.h"
 #include <optional>
-#include <span>
 #include <array>
 #include <string>
 #include <vector>
-#include "arrayplot.h"
 #include "marks_data.h"
 
-#include "integrate.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
-#include "typed_values.h"
 #include "many_pops.h"
-#include "menus.h"
 
 
 #include "graphics.h"
@@ -38,7 +33,10 @@
 #include "nullcline.h"
 #include "display_state.h"
 #include "picture.h"
+#include "autox_codes.h"
 #include <libgen.h>
+#include <expected>
+#include <memory>
 
 namespace xpp {
 

@@ -4,9 +4,13 @@
 #include "xpptest.h"
 #include "autox_ends.h"
 #include "autox_global.h"
+#include "autox_codes.h"
 
 #include <cmath>
 #include <vector>
+#include <optional>
+#include <span>
+#include <utility>
 
 namespace {
 

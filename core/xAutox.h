@@ -1,8 +1,8 @@
 #pragma once
 
-#include "autox_codes.h"
 
 #include <vector>
+namespace xpp { enum class AutoxProblem : int; }
 
 /* a user-defined output (a Mark of the autoX window): the parameter it is at
    (autoX's slot; the period for T) and the value that parameter has there */

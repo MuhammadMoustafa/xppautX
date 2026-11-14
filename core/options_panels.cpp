@@ -1,13 +1,13 @@
 /* The settings panels as data (options_panels.h, W616). */
 #include "options_panels.h"
 
-#include <algorithm>
-#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <array>
+#include <cstddef>
+#include <span>
 
-#include "json_number.h"
 #include "model.h"
 #include "model_features.h"
 #include "model_options.h"

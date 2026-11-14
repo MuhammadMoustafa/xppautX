@@ -12,14 +12,18 @@
 #include "xpp_log.h"
 #include "xpp_ui.h"
 #include "model.h"
+#include "tabular.h"
+#include "xpp_math.h"
+#include "xpp_mem.h"
 
-#include <algorithm>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <system_error>
 #include <thread>
 #include <vector>
+#include <new>
+#include <optional>
 
 namespace xpp {
 

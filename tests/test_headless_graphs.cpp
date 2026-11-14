@@ -1,16 +1,20 @@
 /* W348 (#409): graph and equilibrium data with the headless UI defaults,
    before a protocol emitter is installed (the --silent load path).
    W351 (#412): each extra window's TimeFlag comes from its own axes. */
+#include <memory>
+#include <string_view>
+#include <vector>
 #include "load_args.h"
 #include "xpptest.h"
 #include "xpp_batch.h"
-#include "xpp_util.h"
 #include "many_pops.h"
 #include "graphics.h"
 #include "marks_data.h"
 #include "phase_data.h"
 #include "session.h"
 #include "graf_par.h"
+#include "struct.h"
+#include "xpp_types.h"
 
 /* a model whose first window plots t and whose second is a phase plane: the
    flags come from each window's axes, and an equilibrium mark is kept only

@@ -2,19 +2,22 @@
    branch on which format was chosen look it up here instead. A vector picture is recorded by
    picture.cpp and written by its row's writer (my_pdf.cpp, my_svg.cpp, W479); GIF and PPM take the
    page's pixels. */
+#include <expected>
+#include <memory>
+#include <string>
+#include <vector>
 #include "image_format.h"
 #include "graphics.h"
-#include "model.h"
 #include "my_pdf.h"
 #include "my_svg.h"
 #include "picture.h"
 #include "scrngif.h"
 #include "xpp_files.h"
 #include "xpp_globals.h"
-#include "xpp_ui.h"
-#include "xpp_util.h"
 #include "session.h"
 #include "browse.h"
+#include "colormap.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

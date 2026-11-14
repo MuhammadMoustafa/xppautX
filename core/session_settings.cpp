@@ -12,6 +12,11 @@
 #include <cmath>
 #include <map>
 #include <string>
+#include <expected>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <string_view>
 
 #include "delay_handle.h"
 #include "expr.h"
@@ -33,6 +38,11 @@
 #include "many_pops.h"
 #include "model_parts.h"
 #include "storage.h"
+#include "browse.h"
+#include "colormap.h"
+#include "line_style.h"
+#include "odex.h"
+#include "odex_block.h"
 
 namespace xpp {
 

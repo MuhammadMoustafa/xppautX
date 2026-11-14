@@ -14,10 +14,7 @@
 #include "expr_native.h"
 #include "jacobian.h"
 #include "xpp_batch.h"
-#include "load_eqn.h"
-#include "odesol2.h"
 #include "xpp_globals.h"
-#include "colormap.h"
 #include "comline.h"
 #include "form_ode.h"
 #include "integrate.h"
@@ -26,7 +23,6 @@
 #include "storage.h"
 #include "dae_fun.h"
 #include "simplenet.h"
-#include "do_fit.h"
 #include "graphics.h"
 #include "browse.h"
 #include "autox_nox.h"
@@ -40,13 +36,15 @@
 #include <optional>
 #include <string_view>
 #include <utility>
+#include <cstddef>
+#include <memory>
 #include "xpp_files.h"
-#include "graf_par.h"
 #include "odex.h"
-#include "snapx.h"
 #include "autox_script.h"
 #include "aniparse.h"
 #include "xpp_ui.h"
+#include "expr_program.h"
+#include "xpp_prefs.h"
 
 namespace xpp {
 

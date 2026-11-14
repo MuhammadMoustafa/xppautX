@@ -31,12 +31,19 @@
 #include <dlfcn.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <exception>
+#include <optional>
+#include <span>
 
 #ifndef MFD_EXEC
 #define MFD_EXEC 0x0010U /* linux/memfd.h, Linux 6.3; glibc 2.35 lacks it */
 #endif
 
 #include "xpp_assets.h"
+#include "xpp_files.h"
+#include "xpp_io.h"
+#include "xpp_log.h"
 
 namespace {
 

@@ -1,6 +1,7 @@
 #pragma once
+#include "xpp_error.h"
+namespace xpp { class Writer; struct Picture; }
 
-#include "picture.h"
 
 namespace xpp {
 

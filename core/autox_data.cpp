@@ -7,20 +7,17 @@
 #include <new>
 #include "event_registry.h"
 #include "xpp_mem.h"
-#include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "autox_data.h"
-#include "diagram.h"
 #include "jacobian.h"
 #include "xpp_io.h"
 #include "json_number.h"
 #include "autox_stop.h"
 #include "autox_run.h"
-#include "xpp_job.h"
 #include "session.h"
 #include "autox_state.h"
 #include "xpp_math.h"

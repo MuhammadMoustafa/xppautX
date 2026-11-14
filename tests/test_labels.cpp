@@ -5,10 +5,18 @@
 #include "grobs.h"
 #include "model.h"
 #include "session.h"
+#include "struct.h"
+#include "text_style.h"
 
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <array>
+#include <cstddef>
+#include <optional>
+#include <span>
+#include <string_view>
+#include <vector>
 
 namespace {
 

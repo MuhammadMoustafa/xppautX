@@ -1,4 +1,3 @@
-#include "autox_unknowns.h"
 #include <algorithm>
 #include <vector> /* first: autox_f2c.h's min/max macros (pulled in below) break libstdc++ headers if not included first */
 #include <atomic>
@@ -21,6 +20,9 @@
 #include "xpp_log.h"
 #include "xpp_ui.h"
 #include "model.h"
+#include "autox_codes.h"
+#include "autox_ends.h"
+#include "autox_nox.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -35,6 +37,11 @@
 #include <string_view>
 #include <system_error>
 #include <thread>
+#include <cstddef>
+#include <exception>
+#include <expected>
+#include <span>
+#include <utility>
 
 namespace xpp {
 

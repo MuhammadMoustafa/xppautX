@@ -16,8 +16,16 @@
 #include "tabular.h"
 #include "torus.h"
 #include "xpp_batch.h"
+#include "numerics_settings.h"
+#include "struct.h"
+#include "xpp_math.h"
 #include <cmath>
 #include <string>
+#include <cstddef>
+#include <memory>
+#include <optional>
+#include <utility>
+#include <vector>
 
 TEST_CASE("test_analysis")
 {

@@ -1,9 +1,6 @@
 #pragma once
 
 #include "xpp_error.h"
-#include "model_files.h"
-#include "comline.h"
-#include "xpp_prefs.h"
 
 #include <expected>
 #include <functional>
@@ -11,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+namespace xpp { namespace prefs { struct Preferences; } struct CommandLine; struct SavedModel; }
 
 namespace xpp {
 

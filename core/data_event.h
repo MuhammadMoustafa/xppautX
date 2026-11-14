@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <new>
 #include <string>
+#include <utility>
 
 #include "xpp_mem.h"
 

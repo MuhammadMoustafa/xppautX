@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <iterator>
+#include <cstddef>
+#include <utility>
 
 #include "command_def.h"
 #include "odex_block.h"

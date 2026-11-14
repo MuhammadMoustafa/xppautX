@@ -7,11 +7,12 @@
    `runs` and `plots` events, json_autox.cpp's `autoxview`), so a session
    file can save them. C++ only. */
 #include <array>
-#include <string>
 #include <vector>
 
 #include "struct.h"
 #include "storage.h"
+#include "colormap.h"
+#include "line_style.h"
 
 namespace xpp {
 

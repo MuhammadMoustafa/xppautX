@@ -2,10 +2,15 @@
    recording and the player, the user's keymap, the event subscriptions, the state and the model source. A row's
    handler is command::front_end, which comes here through XppUi.front_end_command; each case calls the function of the
    file that owns the state. */
+#include <optional>
+#include <string>
+#include <string_view>
 #include "ui_json_internal.h"
 #include "command_def.h"
 #include "model_switch.h"
 #include "xpp_ui.h"
+#include "xpp_error.h"
+namespace xpp { struct Session; }
 
 namespace xpp::json {
 

@@ -11,7 +11,13 @@
 #include "xpp_ui.h"
 #include "xpp_log.h"
 #include "getvar.h"
+#include "xpp_error.h"
 #include <string>
+#include <expected>
+#include <memory>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace {
 void put(const char *path, const std::string &text)

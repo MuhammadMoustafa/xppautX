@@ -10,11 +10,19 @@
 #include "xpp_io.h"
 #include "xpp_prefs.h"
 #include "format_version.h"
+#include "colormap.h"
+#include "xpp_error.h"
+#include "xpp_log.h"
 
 #include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <vector>
+#include <stdio.h>
+#include <array>
+#include <functional>
+#include <optional>
+#include <utility>
 
 namespace {
 

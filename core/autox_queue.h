@@ -27,8 +27,10 @@
 #include <optional>
 #include <span>
 #include <vector>
+#include <math.h>
 
 #include "autox_ends.h"
+#include "autox_codes.h"
 
 struct AutoxBufferedPoint; /* autox_state.h */
 

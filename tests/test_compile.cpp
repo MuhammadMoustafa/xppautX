@@ -6,16 +6,25 @@
 #include "expr.h"
 #include "load_eqn.h"
 #include "model_files.h"
-#include "xpp_batch.h"
 #include "xpp_log.h"
-#include "xpp_globals.h"
 #include "my_rhs.h"
 #include "model.h"
+#include "odex.h"
+#include "xpp_error.h"
+#include "xpp_math.h"
 #include <algorithm>
 #include <bit>
 #include <cstdint>
 #include <limits>
 #include <set>
+#include <stdio.h>
+#include <array>
+#include <atomic>
+#include <memory>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace {
 std::vector<int> number(double x)

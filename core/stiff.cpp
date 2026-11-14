@@ -1,7 +1,9 @@
 #include <algorithm>
 #include <stdlib.h> 
 #include <math.h>
-#include "odesol2.h"
+#include <memory>
+#include <span>
+#include <vector>
 #include "jacobian.h"
 #include "session.h"
 #include "integrate.h"

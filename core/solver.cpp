@@ -14,6 +14,8 @@
 #include <new>
 #include <string>
 #include <vector>
+#include <cstddef>
+#include <expected>
 
 #include "cv2.h"
 #include "dormpri.h"

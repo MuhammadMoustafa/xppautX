@@ -16,15 +16,18 @@
 #include "browse.h"
 #include "graphics.h"
 #include "integrate.h"
-#include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "expr.h"
-#include "xpp_util.h"
 #include "typed_values.h"
 
 #include <cmath>
 #include <string>
+#include <cstddef>
+#include <memory>
+#include <optional>
+#include <unordered_map>
+#include <vector>
 
 namespace {
 constexpr int EQUATIONS = 5200, PARAMETERS = 450;

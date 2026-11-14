@@ -10,9 +10,9 @@
 #include "xpp_io.h"
 #include "xpp_prefs.h"
 #include "xpp_recent.h"
+#include "xpp_error.h"
 
 #include <cstdlib>
-#include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>

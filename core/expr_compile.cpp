@@ -5,12 +5,12 @@
 #include "expr_internal.h"
 #include "model.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
 #include "xpp_mem.h"
 #include "xpp_math.h"
 #include "expr_decode.h"
 #include "session.h"
 #include "expr.h"
+#include "expr_program.h"
 
 #include <array>
 #include <algorithm>
@@ -18,6 +18,9 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include <expected>
+#include <span>
+#include <string_view>
 
 using xpp::expr::is_ucon;
 using xpp::expr::is_uvar;

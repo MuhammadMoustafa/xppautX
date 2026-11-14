@@ -9,7 +9,16 @@
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "my_rhs.h"
+#include "xpp_error.h"
+#include "xpp_math.h"
 #include <utility>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace {
 xpp::Loaded open_model(const std::string &model)

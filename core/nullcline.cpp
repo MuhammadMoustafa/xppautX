@@ -1,7 +1,5 @@
-#include "xpp_files.h"
 #include "picture.h"
 #include "data_formats.h"
-#include "image_format.h"
 #include "mykeydef.h"
 /* Nullclines and direction fields (Nullcline, Dir.field/flow): the current
    pair of nullclines, the frozen ones, and the direction field's grid, drawn
@@ -9,13 +7,10 @@
    phase_data.cpp. */
 #include "nullcline.h"
 #include "xpp_job.h"
-#include <cmath>
 #include <limits>
 #include "getvar.h"
-#include "xpp_util.h"
 #include "many_pops.h"
 #include "xpp_log.h"
-#include "odesol2.h"
 #include "numerics.h"
 #include "my_rhs.h"
 #include "browse.h"
@@ -28,15 +23,24 @@
 #include "xpp_ui.h"
 
 #include <array>
-#include <cmath>
-#include <cstdlib>
 #include <string>
 #include <vector>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <utility>
 #include "graphics.h"
-#include "form_ode.h"
 #include "model.h"
 #include "model_options.h"
 #include "xpp_math.h"
+#include "colormap.h"
+#include "line_style.h"
+#include "odex_block.h"
+#include "session.h"
+#include "struct.h"
+#include "xpp_io.h"
+#include "xpp_prefs.h"
 
 namespace xpp {
 

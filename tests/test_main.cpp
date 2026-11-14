@@ -21,11 +21,13 @@
 #include "xpptest.h"
 
 #include <algorithm>
-#include <cstring>
 #include <filesystem>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <atomic>
+#include <cstdio>
+#include <system_error>
 
 namespace {
 

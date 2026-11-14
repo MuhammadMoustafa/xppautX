@@ -27,8 +27,8 @@
 
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 #include <vector>
+#include <memory>
 
 static const double PI = 3.14159265358979323846;
 

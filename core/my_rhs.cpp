@@ -3,12 +3,16 @@
 #include "expr.h"
 #include "dae_fun.h"
 #include <stdlib.h> 
+#include <memory>
+#include <string>
+#include <vector>
 #include "getvar.h"
 #include "simplenet.h"
-#include "form_ode.h"
 #include "model.h"
 #include "expr_native.h"
-#include "xpp_globals.h"
+#include "expr_program.h"
+#include "session.h"
+#include "xpp_mir.h"
 
 namespace {
 // Session evaluation and autoX's private arrays share the same state/fixed/RHS order.

@@ -3,12 +3,8 @@
 #include "display_state.h"
 #include "model.h"
 #include "many_pops.h"
-#include "snapx.h"
-#include "xpp_session.h"
-#include "model_switch.h"
 #include "integrate.h"
 #include "storage.h"
-#include "form_ode.h"
 #include "xpp_log.h"
 #include <string>
 #include <vector>
@@ -17,10 +13,8 @@
 #include <string_view>
 #include <limits>
 #include "numerics.h"
-#include "xpp_globals.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
-#include "typed_values.h"
 #include <string.h>
 #include "autox_evd.h"
 #include "autox_c.h" /* autox_bind_session */
@@ -29,12 +23,10 @@
 #include "jacobian.h"
 #include "autox_stability.h"
 #include "csv_export.h"
-#include "image_format.h"
 #include <libgen.h>
 #include "graf_par.h"
 
 
-#include "pp_shoot.h"
 
 #include "xpp_files.h"
 #include "xpp_zip.h"
@@ -53,9 +45,22 @@
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
+#include <cmath>
+#include <cstddef>
+#include <cstdio>
+#include <deque>
+#include <expected>
+#include <functional>
+#include <map>
+#include <memory>
+#include <new>
+#include <optional>
+#include <span>
+#include <stdexcept>
+#include <system_error>
+#include <utility>
 
 #include "axes2.h"
-#include "jacobian.h"
 #include "graphics.h"
 
 #include "xpp_job.h"
@@ -66,10 +71,18 @@
 #include "my_rhs.h"    /* extra() */
 #include "menus.h"
 #include "picture.h"
-#include "solver.h"
 
 
 #include "mykeydef.h"
+#include "autox_axis.h"
+#include "autox_codes.h"
+#include "autox_nox.h"
+#include "colormap.h"
+#include "line_style.h"
+#include "session.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
+#include "xpp_prefs.h"
 namespace xpp {
 
 

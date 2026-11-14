@@ -4,8 +4,7 @@
 #include <string>
 #include "xpp_error.h"
 #include "model_files.h"
-#include "comline.h"
-#include "xpp_prefs.h"
+namespace xpp { namespace prefs { struct Preferences; } struct CommandLine; }
 
 namespace xpp {
 struct Session; /* session.h */

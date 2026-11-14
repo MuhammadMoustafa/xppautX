@@ -1,7 +1,11 @@
 /* One protocol rendering of Error's fields, including its place. */
+#include <cstddef>
+#include <optional>
+#include <vector>
 #include "json_error.h"
 #include "event_registry.h"
 #include "xpp_io.h"
+#include "xpp_error.h"
 
 namespace xpp::json {
 void append_error(std::string &out, const xpp::Error &error)

@@ -9,11 +9,11 @@
 #include "xpptest.h"
 #include "xpp_examples.h"
 #include "xpp_files.h"
-#include "xpp_io.h"
+#include "xpp_error.h"
 
-#include <cstdlib>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 TEST_CASE("test_examples")
 {

@@ -11,6 +11,7 @@
 
 #include <cstring>
 #include <random>
+#include <string>
 
 TEST_CASE("test_seed_stream")
 {

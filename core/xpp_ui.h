@@ -7,6 +7,7 @@
 #include <string_view>
 #include <optional>
 #include <vector>
+#include <cstddef>
 #include "xpp_error.h"
 #include "autox_codes.h"
 #include "colormap.h"

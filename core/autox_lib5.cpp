@@ -3,10 +3,17 @@
 /* translated from autoX's autox_lib5.f by f2c */
 
 #include <vector>
+#include <math.h>
+#include <cstddef>
+#include <functional>
+#include <string>
 #include "xpp_io.h"
-#include "autox_evd.h" /* xAutox (its own extern) */
 #include "autox_jacobian.h"
 #include "xpp_math.h"
+#include "autox_c.h"
+#include "autox_f2c.h"
+#include "autox_state.h"
+#include "xpp_math_autox.h"
 
 /* Finite-difference scratch and HomCont state belong to iap->run. W247
    gives each collocation worker its own scratch and a copy of the HomCont

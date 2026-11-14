@@ -1,6 +1,7 @@
 #pragma once
 #include "xpp_error.h"
 #include <vector>
+#include <string>
 namespace xpp {
 struct Session;
 struct Model;

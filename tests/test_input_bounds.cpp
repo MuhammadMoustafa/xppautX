@@ -9,16 +9,22 @@
 #include "storage.h"
 #include "xpp_batch.h"
 #include "xpp_ui.h"
-#include "xpp_globals.h"
 #include "xpp_mem.h"
-#include "model_files.h"
 #include "integrate.h"
 #include "pp_shoot.h"
 #include "expr_decode.h"
-#include "autox_c.h"
 #include "model.h"
-#include <cstdlib>
+#include "xpp_error.h"
+#include "xpp_math.h"
 #include <limits>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <span>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace {
 void fail_growth(bool fail)

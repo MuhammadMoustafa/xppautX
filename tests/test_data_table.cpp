@@ -12,6 +12,9 @@
 #include "xpp_batch.h"
 #include "model.h"
 #include <string>
+#include <algorithm>
+#include <memory>
+#include <vector>
 
 TEST_CASE("test_data_table")
 {

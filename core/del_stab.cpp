@@ -1,10 +1,8 @@
 #include "xpp_ui.h"
 #include "session.h"
 #include "integrate.h"
-#include "odesol2.h"
 #include "xpp_log.h"
 #include <stdlib.h>
-#include <algorithm>
 #include <vector>
 
 #include "equilibria.h"
@@ -12,10 +10,16 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <array>
+#include <expected>
+#include <memory>
+#include <span>
+#include <string>
 #include "del_stab.h"
 #include "delay_handle.h"
 #include "xpp_math.h"
 #include "model.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

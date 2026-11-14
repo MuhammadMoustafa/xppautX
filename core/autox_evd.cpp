@@ -9,6 +9,15 @@
 #include <cstdlib>
 #include <math.h>
 #include <stdio.h>
+#include <atomic>
+#include <cmath>
+#include <deque>
+#include <format>
+#include <functional>
+#include <memory>
+#include <string_view>
+#include <tuple>
+#include <utility>
 
 #include "diagram.h"
 #include "autox_c.h"
@@ -23,6 +32,10 @@
 #include "equilibria.h"
 #include "numerics_settings.h"
 #include "model.h"
+#include "autox_axis.h"
+#include "autox_stop.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

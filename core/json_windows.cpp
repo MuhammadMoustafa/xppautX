@@ -2,9 +2,7 @@
    pictures only the client has (pixels, for frame and GIF writers), the
    kinescope, whose frames the client keeps, and the array plot window. */
 #include "xpp_files.h"
-#include "model.h"
 #include "ui_json_internal.h"
-#include "xpp_util.h"
 #include "many_pops.h"
 #include "graphics.h"
 #include "graf_par.h"
@@ -14,25 +12,36 @@
 #include "colormap.h"
 #include "axes2.h"
 #include "arrayplot.h"
-#include "command_registry.h"
 #include "plot_data.h"
 #include "phase_data.h"
 #include "marks_data.h"
 #include "grobs.h"
 #include "series_enc.h"
 #include "image_format.h"
-#include <algorithm>
 #include <array>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <string>
 #include <vector>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <span>
+#include <string_view>
+#include <utility>
 #include "kinescope.h"
-#include "menus.h"
-#include "load_eqn.h"
 #include "session.h"
 #include "json_reader.h"
+#include "autox_data.h"
+#include "event_registry.h"
+#include "storage.h"
+#include "struct.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
+#include "xpp_mem.h"
+#include "xpp_types.h"
+#include "xpp_ui.h"
 
 /* the core's own globals and functions that have no header of their own */
 namespace xpp::json {

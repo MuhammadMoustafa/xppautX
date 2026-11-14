@@ -12,8 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "dense.h"
-#include "llnlmath.h"
-#include "xpp_math.h"
 
 namespace xpp::cvode_solver {
 

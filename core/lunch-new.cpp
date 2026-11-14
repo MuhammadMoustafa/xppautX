@@ -5,38 +5,39 @@
 #include <algorithm>
 #include <cmath>
 #include "model.h"
-#include "integrate.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "typed_values.h"
-#include "value_undo.h"
-#include "many_pops.h"
-#include "xpp_log.h"
 #include "lunch-new.h"
 #include "expr.h"
 #include "browse.h"
 #include "session_settings.h"
 #include "numerics_settings.h"
-#include "odex.h"
 #include "xpp_files.h"
 
-#include "numerics.h"
 #include "expr_native.h"
 #include <stdio.h>
 #include <time.h>
 #include "load_eqn.h"
-#include "xpp_globals.h"
-#include "xpp_batch.h"
-#include "delay_handle.h"
 #include "solver.h"
 #include "model_options.h"
 #include "session.h"
 #include "pp_shoot.h"
 #include "model_parts.h"
+#include "colormap.h"
+#include "line_style.h"
+#include "struct.h"
+#include "xpp_io.h"
 #include <array>
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <utility>
 
 namespace xpp {
 

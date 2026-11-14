@@ -4,7 +4,7 @@
    scratch folders autoX runs in, the folder listing, the Unix-style
    wildcard match and the file selector's current folder. */
 #include "xpp_files.h"
-#include "xpp_files_internal.h"
+#include "xpp_files_internal.h" /* IWYU pragma: keep (xpp_files.h is the public face; the implementation needs its internals) */
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_mem.h"
@@ -13,7 +13,6 @@
 #include <cctype>
 #include <cerrno>
 #include <charconv>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -25,6 +24,10 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h> /* getcwd, chdir (MinGW's unistd.h provides both) */
+#include <sys/types.h>
+#include <new>
+#include <system_error>
+#include <utility>
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h> /* _NSGetExecutablePath */

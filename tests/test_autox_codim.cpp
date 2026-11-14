@@ -11,11 +11,21 @@
 #include "expr_native.h"
 #include "autox_stability_autox.h"
 #include "autox_unknowns.h"
-#include "xpp_batch.h"
 #include "xpp_files.h"
+#include "autox_codes.h"
+#include "autox_codim.h"
+#include "xpp_io.h"
+#include "xpp_math.h"
 #include <array>
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
 
 TEST_CASE("test_autox_codim")
 {

@@ -5,6 +5,7 @@
 #include <atomic>
 #include <cstddef>
 #include <vector>
+#include <functional>
 
 /* the seeds a sweep gives its runs, and the ordered executor that computes the runs on threads (W434): what the
    sweep's results depend on is the order the runs are taken in and the seed each has, never the thread count */

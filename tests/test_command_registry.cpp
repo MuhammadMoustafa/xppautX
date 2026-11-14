@@ -7,13 +7,20 @@
 #include "command_def.h"
 #include "command_registry.h"
 #include "xpp_batch.h"
-#include "session.h"
 #include "event_registry.h"
+#include "colormap.h"
+#include "command_category.h"
+#include "xpp_error.h"
 #include <algorithm>
 #include <array>
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <optional>
+#include <span>
+#include <string_view>
+#include <utility>
+namespace xpp { struct Session; }
 
 namespace {
 

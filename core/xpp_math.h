@@ -19,7 +19,6 @@
    reject short spans; autoX's numerical failures retain their AutoxFailed
    error values for the command dispatcher. */
 
-#include "../third_party/core-math/core_math.h"
 
 #include <cstddef>
 #include <functional>
@@ -30,6 +29,7 @@
 #include <string>
 #include <vector>
 #include "xpp_mem.h"
+#include "/home/muhammad/muhammad/git_repos/xppautX/.claude/worktrees/W729/third_party/core-math/core_math.h"
 
 namespace xpp {
 

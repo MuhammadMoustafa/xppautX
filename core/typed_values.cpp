@@ -1,16 +1,17 @@
 /* Reading a value a user typed (a number field, a %formula, a form's fields, a box's entry) and the parameter and IC names it can name: one reading of each, shown by no one; the front ends show what it returns. */
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <utility>
+#include <vector>
 #include "typed_values.h"
 #include "expr.h"
 #include "xpp_ui.h"
-#include "xpp_log.h"
-#include "browse.h"
 #include "xpp_util.h"
 #include "model.h"
 #include "xpp_io.h"
 #include "tabular.h"
 #include "volterra2.h"
-#include "numerics.h"
-#include "graf_par.h"
 #include "delay_handle.h"
 #include "form_ode.h"
 #include "session.h"

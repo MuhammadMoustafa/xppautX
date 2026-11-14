@@ -1,8 +1,13 @@
 #pragma once
 
+#include <cstddef>
+#include <optional>
+#include <span>
+#include <string>
 #include "autox_c.h"
 #include "autox_codes.h"
 #include "autox_nox.h"
+#include "xAutox.h"
 
 struct AutoxState; /* autox_state.h */
 namespace xpp { struct Session; /* session.h */ }

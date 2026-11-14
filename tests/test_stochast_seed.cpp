@@ -5,7 +5,7 @@
    the test only checks reproducibility and non-determinism between seeds,
    never an exact value tied to the current generator. */
 #include "xpptest.h"
-#include "markov.h"
+#include "xpp_math.h"
 
 #include <cstring>
 

@@ -13,6 +13,7 @@
 #include "autox_settings.h"
 #include "model_files.h"
 #include "xpp_session.h"
+#include "xpp_error.h"
 #include <optional>
 #include <string>
 #include <string_view>

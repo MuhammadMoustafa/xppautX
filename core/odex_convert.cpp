@@ -11,7 +11,6 @@
    model's comments and what follows its done. */
 #include "odex.h"
 #include "odex_write.h"
-#include "expr_internal.h"
 #include "expr_native.h"
 #include "form_ode.h"
 #include "ode_read.h"
@@ -25,13 +24,19 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
-#include "xpp_util.h"
 #include "typed_values.h"
 #include "userbut.h"
 #include "xpp_ui.h"
 #include "browse.h"
 #include "session.h"
 #include "expr.h"
+#include "comline.h"
+#include "expr_program.h"
+#include "model_files.h"
+#include "model_parts.h"
+#include "simplenet.h"
+#include "volterra.h"
+#include "xpp_error.h"
 
 #include <algorithm>
 #include <cmath>
@@ -44,6 +49,14 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <array>
+#include <cstdio>
+#include <expected>
+#include <functional>
+#include <memory>
+#include <span>
+#include <unordered_map>
+#include <utility>
 
 namespace xpp::odex {
 

@@ -1,17 +1,21 @@
 /* Direction fields and flows' typed commands (W522). */
 #include "command_def.h"
-#include "command_registry.h"
 #include "xpp_ui.h"
 #include "nullcline.h"
 #include "session.h"
 #include "many_pops.h"
 #include "graf_par.h"
 #include "model_options.h"
-#include "xpp_ui.h"
-#include "json_reader.h"
 #include "xpp_io.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "xpp_error.h"
 #include <array>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
 
 namespace xpp::command {
 namespace {

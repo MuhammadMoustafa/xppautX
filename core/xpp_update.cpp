@@ -2,6 +2,8 @@
 #include "xpp_update.h"
 
 #include <algorithm>
+#include <expected>
+#include <utility>
 
 #include "xpp_files.h"
 #include "xpp_io.h"

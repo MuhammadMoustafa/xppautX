@@ -9,11 +9,17 @@
 #include "xpp_process.h"
 #include "xpp_sha256.h"
 #include "xpp_update.h"
+#include "xpp_error.h"
+#include "xpp_https.h"
 
 #include <filesystem>
 #include <map>
 #include <string>
 #include <vector>
+#include <cstdio>
+#include <optional>
+#include <string_view>
+#include <utility>
 
 namespace {
 

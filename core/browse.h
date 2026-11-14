@@ -4,10 +4,13 @@
 #include "xpp_io.h"
 #include "data_formats.h"
 #include "storage.h"
+#include "xpp_error.h"
 #include <array>
 #include <optional>
 #include <string_view>
 #include <vector>
+#include <cstddef>
+#include <string>
 
 namespace xpp {
 struct Session; /* session.h */

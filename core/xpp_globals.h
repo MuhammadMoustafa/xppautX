@@ -6,7 +6,6 @@
    xpp_globals.cpp, which has no UI dependency. C++ (a std::string
    member). */
 
-#include <string>
 
 struct XppProgram {
     int interactive = 0; /* a front end is up (0: --silent, headless) */

@@ -10,12 +10,17 @@
 #include "xpp_io.h"
 #include "xpp_keymap.h"
 #include "format_version.h"
+#include "xpp_error.h"
 
-#include <cstdlib>
-#include <cstring>
 #include <filesystem>
 #include <set>
 #include <string>
+#include <cstdio>
+#include <map>
+#include <span>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace {
 

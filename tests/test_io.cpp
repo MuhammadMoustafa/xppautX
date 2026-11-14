@@ -11,7 +11,8 @@
 #include "xpptest.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
-#include "xpp_util.h"
+#include "xpp_error.h"
+#include "xpp_files.h"
 
 #include <cmath>
 #include <cstdio>
@@ -21,6 +22,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <atomic>
+#include <memory>
 
 namespace {
 

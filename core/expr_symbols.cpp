@@ -4,7 +4,6 @@
    its first STDSYM entries are the built-ins below, then come the
    model's names as the load adds them. */
 #include "expr_internal.h"
-#include "browse.h"
 #include "expr.h"
 #include "load_eqn.h"
 #include "model.h"
@@ -13,16 +12,27 @@
 #include "xpp_io.h"
 #include "xpp_math.h"
 #include "tabular.h"
-#include "getvar.h"
+#include "expr_program.h"
+#include "session.h"
+#include "volterra.h"
+#include "xpp_error.h"
 
 #include <cctype>
 #include <algorithm>
-#include <cmath>
 #include <ctime>
 #include <iterator>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <array>
+#include <map>
+#include <memory>
+#include <optional>
+#include <set>
+#include <span>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
 
 using xpp::expr::is_ucon;
 using xpp::expr::is_uvar;

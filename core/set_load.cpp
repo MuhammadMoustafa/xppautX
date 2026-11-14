@@ -14,9 +14,14 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
+#include "comline.h"
+#include "xpp_log.h"
 
 #include <map>
 #include <memory>
+#include <expected>
+#include <span>
+#include <utility>
 
 namespace xpp {
 

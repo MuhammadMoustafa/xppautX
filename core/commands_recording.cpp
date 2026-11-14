@@ -4,7 +4,10 @@
 #include "command_def.h"
 #include "recx.h"
 #include "event_registry.h"
+#include "command_category.h"
 #include <array>
+#include <cstddef>
+#include <span>
 
 namespace xpp::command {
 namespace {

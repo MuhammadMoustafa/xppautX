@@ -16,12 +16,9 @@
 #include "load_eqn.h"
 #include "solver.h"
 #include "model.h"
-#include "numerics_settings.h"
 #include "command_def.h"
-#include "command_registry.h"
 #include "userbut.h"
 #include "model_options.h"
-#include "lunch-new.h"
 #include "session_settings.h"
 #include "settings_text.h"
 #include "model_text.h"
@@ -32,15 +29,22 @@
 #include "browse.h"
 #include "graphics.h"
 #include "comline.h"
+#include "line_style.h"
+#include "odex.h"
+#include "xpp_error.h"
 
 #include <cstdio>
-#include <cstdlib>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <array>
+#include <expected>
+#include <optional>
+#include <span>
+#include <utility>
 
 namespace {
 

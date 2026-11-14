@@ -1,12 +1,14 @@
 #pragma once
 
-#include "xpp_types.h"
-#include "load_eqn.h"
 #include "odex.h"
 #include "line_style.h"
 #include "expr_program.h"
+#include "colormap.h"
+#include "xpp_error.h"
 #include <string>
 #include <vector>
+#include <optional>
+#include <string_view>
 
 namespace xpp {
 struct Session; /* session.h */

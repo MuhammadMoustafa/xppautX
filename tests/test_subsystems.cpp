@@ -9,7 +9,6 @@
 #include "load_eqn.h"
 #include "expr_native.h"
 #include "numerics_settings.h"
-#include "xpp_batch.h"
 #include "xpp_math.h"
 #include "xpp_util.h"
 
@@ -18,6 +17,9 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <cstddef>
+#include <memory>
+#include <span>
 
 namespace {
 

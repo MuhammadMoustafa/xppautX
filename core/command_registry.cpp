@@ -15,9 +15,18 @@
 #include "xpp_ui.h"
 #include "xpp_files.h"
 #include "model.h"
+#include "command_category.h"
+#include "model_features.h"
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <expected>
+#include <format>
+#include <optional>
+#include <span>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 namespace xpp::command {
 namespace {

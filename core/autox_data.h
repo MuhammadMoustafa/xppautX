@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <span>
 #include "autox_codes.h"
 
 /* autoX's info strip and stability circle as data, for a front end that

@@ -10,7 +10,6 @@
 #include "diagram.h"
 #include "image_format.h"
 #include "integrate.h"
-#include "json_error.h"
 #include "many_pops.h"
 #include "session.h"
 #include "autox_state.h"
@@ -21,13 +20,32 @@
 #include "xpp_job.h"
 #include "xpp_prefs.h"
 #include "xpp_log.h"
-#include "xpp_session.h"
-#include "xpp_ui.h"
 #include "model.h"
 #include "event_registry.h"
+#include "autox_axis.h"
+#include "autox_codes.h"
+#include "autox_nox.h"
+#include "autox_parallel.h"
+#include "autox_script.h"
+#include "colormap.h"
+#include "command_category.h"
+#include "model_options.h"
+#include "xpp_error.h"
+#include "xpp_files.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdlib>
+#include <deque>
+#include <expected>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace xpp::command {
 namespace {

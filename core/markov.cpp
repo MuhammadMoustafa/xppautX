@@ -5,13 +5,11 @@
 #include "xpp_log.h"
 
 #include "integrate.h"
-#include "do_fit.h"
 #include "my_rhs.h"
 #include "getvar.h"
 
 #include <stdlib.h> 
 #include "adj2.h"
-#include "histogram.h"
 #include "browse.h"
 
 #include <strings.h>
@@ -19,12 +17,25 @@
 #include <stdio.h>
 #include <string.h>
 #include "expr.h"
-#include "form_ode.h"
 #include "load_eqn.h"
 #include <string>
 #include <vector>
+#include <cmath>
+#include <expected>
+#include <iterator>
+#include <memory>
+#include <optional>
+#include <set>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
 #include "model.h"
 #include "xpp_math.h"
+#include "expr_program.h"
+#include "model_files.h"
+#include "odex.h"
+#include "session.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

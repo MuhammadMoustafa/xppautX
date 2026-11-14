@@ -8,16 +8,16 @@
    loaded with, whether the data is in) and the model's members. Reading and writing a whole file
    is xpp_session.cpp's; autoX's members belong to the session too
    (xpp_session_autox.h). C++ only. */
-#include <expected>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <cstddef>
 
 #include "model_files.h"
 #include "xpp_error.h"
-#include "xpp_zip.h"
+namespace xpp { namespace zip { struct Entry; } }
 
 namespace xpp::odex { class Block; class Out; }
 

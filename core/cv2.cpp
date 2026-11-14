@@ -1,7 +1,6 @@
 #include "cv2.h"
 #include "session.h"
 #include "expr.h"
-#include "xpp_ui.h"
 
 #include "flags.h"
 #include "my_rhs.h"
@@ -15,13 +14,18 @@
 #include "cvband.h"
 #include "xpp_io.h"
 #include "load_eqn.h"
-#include "numerics.h"
 #include <string>
 #include "model.h"
 #include "jacobian.h"
 #include "xpp_math.h"
+#include "band.h"
+#include "cvode.h"
+#include "dense.h"
+#include "vector.h"
 #include <algorithm>
 #include <vector>
+#include <cstddef>
+#include <span>
 
 namespace xpp {
 static_assert(cvode_opt_size==cvode_solver::OPT_SIZE);

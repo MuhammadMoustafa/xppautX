@@ -14,10 +14,8 @@
 #include "xpp_session.h"
 #include "snapx.h"
 #include "model.h"
-#include "model_switch.h"
 #include "xpp_ui.h"
 #include "xpp_io.h"
-#include "xpp_log.h"
 #include "xpp_files.h"
 #include "xpp_zip.h"
 #include "xpp_util.h"
@@ -41,14 +39,24 @@
 #include "marks_data.h"
 #include "phase_data.h"
 #include "storage.h"
+#include "line_style.h"
+#include "odex.h"
+#include "struct.h"
+#include "text_style.h"
 #include <algorithm>
-#include <cmath>
 #include <cstdint>
 #include <map>
 #include <optional>
 #include <set>
 #include <string>
 #include <vector>
+#include <array>
+#include <cstddef>
+#include <deque>
+#include <expected>
+#include <memory>
+#include <span>
+#include <utility>
 
 namespace {
 

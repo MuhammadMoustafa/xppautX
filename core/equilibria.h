@@ -6,9 +6,9 @@
 #include <string_view>
 #include <vector>
 #include "xpp_error.h"
-#include "colormap.h"
-#include "jacobian.h"
 #include <memory>
+#include <cstddef>
+namespace xpp { struct JacobianForm; }
 
 namespace xpp {
 

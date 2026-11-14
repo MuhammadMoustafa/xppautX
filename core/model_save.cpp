@@ -13,10 +13,18 @@
 #include "xpp_util.h"
 #include "session.h"
 #include "storage.h"
+#include "expr_program.h"
+#include "odex.h"
 
 #include <algorithm>
 #include <functional>
 #include <memory>
+#include <cstddef>
+#include <expected>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 namespace xpp {
 

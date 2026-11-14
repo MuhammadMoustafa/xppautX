@@ -15,6 +15,7 @@
 #include <iterator>
 #include <limits>
 #include <vector>
+#include <cstddef>
 
 static bool same(double got, std::uint64_t want_bits)
 {

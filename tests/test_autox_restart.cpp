@@ -7,15 +7,22 @@
 #include "autox_state.h"
 #include "autox_c.h"
 #include "autox_nox.h"
-#include "autox_parallel.h"
 #include "autox_unknowns.h"
-#include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_math.h"
+#include "autox_codes.h"
+#include "xAutox.h"
+#include "xpp_error.h"
 #include <array>
 #include <limits>
 #include <vector>
+#include <cstddef>
+#include <cstdio>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
 
 namespace {
 constexpr double canary = 77.;

@@ -3,8 +3,9 @@
 #include "picture.h"
 
 #include <algorithm>
-#include <cmath>
-#include <numbers>
+#include <cstddef>
+#include <memory>
+#include <utility>
 
 #include "graphics.h"
 #include "session.h"

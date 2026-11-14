@@ -1,14 +1,15 @@
 #pragma once
 
-#include <cstdio>
 #include <array>
 #include <span>
 #include <string>
 #include <vector>
+#include <string_view>
 #include "expr_program.h"
 
 #include "storage.h"
 #include "xpp_error.h"
+namespace xpp { class BlockLu; }
 
 namespace xpp {
 

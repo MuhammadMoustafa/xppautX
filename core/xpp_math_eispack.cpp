@@ -1,11 +1,11 @@
+#include <math.h>
+#include <cstddef>
 #include "xpp_math.h"
-#include "session.h"
 #include "autox_state.h"
-#include "autox_c.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
-#include <array>
-#include <vector>
+#include "autox_f2c.h"
+#include "xpp_math_autox.h"
 
 /* W337: EISPACK/BLAS and Demmel-Kahan SVD belong to xpp_math.
    Preserve each reduction, QR/QZ shift, rotation and accumulation order.

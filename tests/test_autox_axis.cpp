@@ -2,9 +2,11 @@
    parameter and an autoX unknown with the same number are different axes,
    the period is not parameter 10, and the file's std::ptrdiff_t is made and read
    only by autox_axis_encode / autox_axis_decode, a bad one refused. */
+#include <optional>
 #include "xpptest.h"
 #include "autox_axis.h"
 #include "autox_state.h"
+#include "autox_unknowns.h"
 
 TEST_CASE("test_autox_axis")
 {

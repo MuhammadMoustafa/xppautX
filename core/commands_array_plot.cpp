@@ -4,16 +4,21 @@
 #include "arrayplot.h"
 #include "command_def.h"
 #include "command_range.h"
-#include "image_format.h"
-#include "xpp_files.h"
 #include "xpp_ui.h"
-#include "xpp_util.h"
 #include "browse.h"
 #include "session.h"
 #include "integrate.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
 #include <array>
 #include <limits>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
 
 namespace xpp::command {
 namespace {

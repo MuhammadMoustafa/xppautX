@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include "autox_nox.h"
-#include "autox_codes.h" /* DiagramPointType */
 
 #include <deque>
 #include <span>
@@ -20,7 +19,7 @@ struct AutoxDiagram {
   std::deque<xpp::DIAGRAM> points;
 };
 
-namespace xpp { struct Session; /* session.h */ struct Model; /* model.h */ }
+namespace xpp { struct Session; /* session.h */ struct Model; /* model.h */ struct AutoxAxis; }
 
 /* The session s's diagram: a list of points in the order they were
    stored. start_diagram empties it to one point of n variables, which the

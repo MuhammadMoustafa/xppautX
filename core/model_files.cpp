@@ -6,14 +6,21 @@
 #include "xpp_prefs.h"
 #include "xpp_ui.h"
 #include "xpp_zip.h"
-#include "xpp_util.h"
 #include "model_options.h"
 #include "session.h"
+#include "expr.h"
 
 #include <algorithm>
 #include <array>
 #include <memory>
 #include <string>
+#include <cstddef>
+#include <expected>
+#include <map>
+#include <optional>
+#include <span>
+#include <unordered_map>
+#include <utility>
 
 namespace xpp {
 

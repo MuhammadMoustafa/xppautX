@@ -1,9 +1,15 @@
 #include "autox_c.h"
-#include "session.h"
 #include "autox_state.h"
 #include "xpp_math.h"
+#include "autox_parallel.h"
+#include "xpp_mem.h"
 #include <cmath>
 #include <utility>
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <span>
+#include <vector>
 
 namespace {
 /* This structure contains all of the input data for the condense_parameters routine

@@ -8,8 +8,6 @@
 #include "many_pops.h"
 #include "xpp_inbox.h"
 #include "xpp_job.h"
-#include "xpp_util.h"
-#include "typed_values.h"
 #include "menus.h"
 #include "graphics.h"
 #include "autox_nox.h"
@@ -21,11 +19,29 @@
 #include "autox_state.h"
 #include "json_reader.h"
 #include "command_category.h"
+#include "event_registry.h"
+#include "struct.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
+#include "xpp_log.h"
+#include "xpp_mem.h"
+#include "xpp_types.h"
+#include "xpp_ui.h"
 #include <array>
-#include <iterator>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 /* the core's own globals and functions that have no header of their own */
 namespace xpp::json {

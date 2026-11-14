@@ -3,13 +3,28 @@
    page's text dialog and the Text,etc menu's Edit go through the same core functions (grobs.h). */
 #include "command_def.h"
 #include "grobs.h"
-#include "json_error.h"
 #include "many_pops.h"
 #include "marks_data.h"
 #include "session.h"
 #include "xpp_io.h"
 #include "event_registry.h"
+#include "colormap.h"
+#include "command_category.h"
+#include "struct.h"
+#include "text_style.h"
+#include "xpp_error.h"
+#include "xpp_types.h"
 #include <array>
+#include <algorithm>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace xpp::command {
 namespace {

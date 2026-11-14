@@ -26,15 +26,14 @@
 #include <string_view>
 #include <vector>
 
-#include <functional>
 #include <type_traits>
 #include <utility>
+#include <expected>
 
 #include "colormap.h"
-#include "line_style.h"
-#include "text_style.h"
 #include "xpp_error.h"
 #include "xpp_io.h" /* ReadFailed */
+namespace xpp { enum class TextStyle; struct LineStyle; }
 
 namespace xpp::odex {
 

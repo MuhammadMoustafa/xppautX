@@ -3,12 +3,15 @@
 #include "xpp_error.h"
 #include "xpp_types.h"
 #include "struct.h" /* CURVE */
+#include "colormap.h"
+#include "line_style.h"
 #include <array>
 #include <optional>
 #include <utility>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <cstddef>
 
 namespace xpp {
 struct Session; /* session.h */

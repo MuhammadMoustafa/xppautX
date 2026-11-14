@@ -2,8 +2,11 @@
    at its file and line; a run's line as it is sent (the start by type and index, the settings by their names). */
 #include "xpptest.h"
 #include "autox_script.h"
+#include "xpp_error.h"
 
 #include <string>
+#include <optional>
+#include <vector>
 
 namespace {
 

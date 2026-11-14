@@ -17,6 +17,7 @@
 #include "xpp_log.h"
 #include <stdlib.h>
 #include <memory>
+#include <utility>
 #include "cvode.h"
 #include "llnlmath.h"
 

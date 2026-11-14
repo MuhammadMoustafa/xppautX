@@ -8,19 +8,27 @@
 #include "xpp_job.h"
 #include "browse.h"
 #include "aniparse.h"
-#include "command_registry.h"
 #include "mykeydef.h"
 #include "image_format.h"
 #include "my_rhs.h"
-#include "form_ode.h"
-#include "menus.h"
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <string>
 #include <sys/time.h>
 #include <vector>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <span>
 #include "model.h"
+#include "event_registry.h"
+#include "storage.h"
+#include "xpp_error.h"
+#include "xpp_files.h"
+#include "xpp_io.h"
+#include "xpp_types.h"
+#include "xpp_ui.h"
 
 /* the core's own globals and functions that have no header of their own */
 namespace xpp::json {

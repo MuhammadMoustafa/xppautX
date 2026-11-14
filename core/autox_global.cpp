@@ -1,21 +1,23 @@
-#include "autox_unknowns.h"
 /* The global end of a periodic branch (autox_global.h, W518). */
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <functional>
+#include <string_view>
+#include <utility>
 
 #include "autox_c.h"
 #include "autox_global.h"
 #include "equilibria.h"
 #include "jacobian.h"
 #include "solver.h"
-#include "xpp_job.h"
 #include "model.h"
 #include "session.h"
 #include "autox_state.h"
 #include "load_eqn.h"
 #include "xpp_io.h"
 #include "xpp_math.h"
+#include "xpp_error.h"
 
 namespace xpp {
 

@@ -20,7 +20,6 @@
    programs, and evaluate() and the built-ins serve both. The four files
    share expr_internal.h; the rest of the core uses this header. */
 
-#include <array>
 #include <cstdint>
 #include <map>
 #include <numbers>
@@ -30,6 +29,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <stddef.h>
 #include "xpp_error.h"
 
 /* the built-in symbols, the symbol table's first entries (expr_symbols.cpp) */

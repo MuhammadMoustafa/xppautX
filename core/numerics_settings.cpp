@@ -7,30 +7,31 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <climits>
 #include <optional>
 #include <vector>
 #include <ranges>
 #include <string>
 #include <string_view>
+#include <functional>
+#include <memory>
+#include <new>
 
 #include "event_registry.h"
 #include "numerics_settings.h"
 #include "xpp_util.h"
 #include "data_event.h"
-#include "model.h"
 #include "model_files.h"
 #include "model_features.h"
 #include "model_options.h"
 #include "json_number.h"
 #include "numerics.h"
-#include "pp_shoot.h"
 #include "solver.h"
 #include "xpp_io.h"
 #include "xpp_mem.h"
 #include "xpp_ui.h"
 #include "session.h"
 #include "load_eqn.h"
+#include "xpp_error.h"
 
 namespace xpp {
 

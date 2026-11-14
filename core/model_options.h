@@ -9,7 +9,6 @@
    `set num` and the menu's questions). model_options.cpp. */
 
 #include <array>
-#include "colormap.h"
 #include "model_features.h"
 #include <cstddef>
 #include <functional>
@@ -19,6 +18,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <utility>
 
 namespace xpp {
 

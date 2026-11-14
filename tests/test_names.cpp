@@ -10,10 +10,14 @@
 #include <string>
 #include "expr.h"
 #include "autox_nox.h"
-#include "lunch-new.h"
 #include "xpp_util.h"
 #include "typed_values.h"
+#include "xpp_io.h"
 #include <stdio.h>
+#include <array>
+#include <memory>
+#include <span>
+#include <vector>
 
 static double calc(const std::string &expr, int *ok)
 {

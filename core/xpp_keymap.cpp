@@ -12,6 +12,9 @@
 #include <charconv>
 #include <set>
 #include <utility>
+#include <expected>
+#include <span>
+#include <system_error>
 
 namespace xpp::keymap {
 

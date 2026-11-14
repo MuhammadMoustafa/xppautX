@@ -1,6 +1,12 @@
 /* The plot windows' bookkeeping (many_pops.h's XppPlotWindows): creating, activating and destroying graphs, and checking their bounds. */
 #include "many_pops.h"
 #include <tuple>
+#include <math.h>
+#include <algorithm>
+#include <map>
+#include <memory>
+#include <set>
+#include <utility>
 #include "xpp_util.h"
 #include "xpp_ui.h"
 #include "xpp_files.h"
@@ -10,19 +16,8 @@
 #include "axes2.h"
 #include "picture.h"
 #include "image_format.h"
-#include "integrate.h"
-#include "derived.h"
-#include "xpp_log.h"
-#include "xpp_globals.h"
-#include "expr.h"
 #include "nullcline.h"
 #include "plot_data.h"
-#include "delay_handle.h"
-#include "numerics.h"
-#include "browse.h"
-#include "form_ode.h"
-#include "volterra2.h"
-#include "tabular.h"
 #include "session.h"
 #include "aniparse.h"
 #include "arrayplot.h"
@@ -31,6 +26,9 @@
 #include "marks_data.h"
 #include "phase_data.h"
 #include "model.h"
+#include "autox_nox.h"
+#include "storage.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

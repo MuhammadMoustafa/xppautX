@@ -8,10 +8,14 @@
 #include "xpp_io.h"
 #include "xpp_sha256.h"
 #include "xpp_zip.h"
+#include "xpp_error.h"
+#include "xpp_update.h"
 
 #include <filesystem>
 #include <string>
 #include <vector>
+#include <cstddef>
+#include <optional>
 
 namespace {
 

@@ -6,6 +6,7 @@
    and hands its statements here. */
 #include "odex.h"
 #include "xpp_io.h"
+#include "xpp_mem.h"
 
 #include <algorithm>
 #include <functional>
@@ -15,6 +16,7 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+#include <stddef.h>
 
 namespace xpp::odex {
 

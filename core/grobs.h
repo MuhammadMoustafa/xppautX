@@ -2,15 +2,17 @@
 
 #include "xpp_error.h"
 #include "xpp_types.h"
-#include "struct.h"
+#include "struct.h" /* IWYU pragma: keep (the generic lambda below needs LABEL complete) */
 #include "text_style.h"
+#include "colormap.h"
 #include <algorithm>
 #include <array>
 #include <limits>
 #include <span>
-#include <vector>
 #include <string>
 #include <string_view>
+#include <cstddef>
+struct LABEL;
 
 namespace xpp {
 struct Session; /* session.h */

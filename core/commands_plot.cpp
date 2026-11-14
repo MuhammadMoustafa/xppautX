@@ -21,9 +21,21 @@
 #include "session.h"
 #include "many_pops.h"
 #include "event_registry.h"
+#include "colormap.h"
+#include "command_category.h"
+#include "line_style.h"
+#include "struct.h"
+#include "xpp_error.h"
 #include <array>
 #include <cstdio>
 #include <string_view>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace xpp::command {
 namespace {

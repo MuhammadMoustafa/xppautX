@@ -1,7 +1,6 @@
 /* The autoX window: its prompts and mouse, the diagram's points as data
    ("diagram" events), and autoX's settings as data ({"cmd":"autox","op":"set"},
    autox_settings.h). */
-#include <algorithm>
 #include <map>
 #include "ui_json_internal.h"
 #include "session.h"
@@ -9,15 +8,12 @@
 #include "display_state.h"
 #include "many_pops.h"
 #include "xpp_job.h"
-#include "menus.h"
 #include "mykeydef.h"
 #include "diagram.h"
 #include "jacobian.h"
 #include "autox_data.h"
 #include "autox_settings.h"
-#include "autox_run.h"
 #include "autox_script.h"
-#include "xpp_prefs.h"
 #include "json_number.h"
 #include <array>
 #include <climits>
@@ -26,9 +22,24 @@
 #include <cstring>
 #include <string>
 #include <vector>
-#include "menus.h"
+#include <deque>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string_view>
+#include <utility>
 #include "model.h"
 #include "json_reader.h"
+#include "autox_axis.h"
+#include "autox_codes.h"
+#include "autox_nox.h"
+#include "colormap.h"
+#include "data_event.h"
+#include "event_registry.h"
+#include "xpp_io.h"
+#include "xpp_mem.h"
+#include "xpp_types.h"
+#include "xpp_ui.h"
 
 namespace xpp::json {
 

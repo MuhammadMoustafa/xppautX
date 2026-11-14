@@ -3,9 +3,9 @@
 #include "xpp_https.h"
 
 #include <string>
+#include <cstddef>
 
 #include "xpp_io.h"
-#include "xpp_log.h"
 #ifdef _WIN32
 #include "xpp_win32.h"
 #endif

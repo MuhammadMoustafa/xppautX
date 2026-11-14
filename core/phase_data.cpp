@@ -15,20 +15,21 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <string>
 #include <vector>
+#include <memory>
+#include <utility>
 
 #include "model.h"
 #include "phase_data.h"
 #include "json_number.h"
 #include "series_enc.h"
 #include "many_pops.h"
-#include "form_ode.h"
 #include "xpp_math.h"
 #include "xpp_util.h"
 #include "session.h"
+#include "struct.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

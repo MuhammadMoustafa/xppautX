@@ -5,15 +5,17 @@
    integrator's own values, which a single store holds rounded to floats. */
 #include "load_args.h"
 #include "xpptest.h"
-#include "browse.h"
 #include "integrate.h"
 #include "session.h"
 #include "load_eqn.h"
 #include "storage.h"
 #include "xpp_batch.h"
 #include "model.h"
-#include <cmath>
+#include "numerics_settings.h"
 #include <vector>
+#include <cstddef>
+#include <memory>
+#include <span>
 
 namespace {
 

@@ -7,7 +7,6 @@
 #include <string_view>
 #include <vector>
 #include "xpp_error.h"
-#include "xpp_io.h"    /* Lines */
 
 namespace xpp {
 

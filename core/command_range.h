@@ -6,6 +6,7 @@
 #include "command_def.h"
 #include "integrate.h"
 #include <array>
+#include <span>
 
 namespace xpp::command {
 

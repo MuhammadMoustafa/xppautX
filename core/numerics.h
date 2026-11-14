@@ -2,8 +2,8 @@
 
 #include <optional>
 #include <utility>
-#include "numerics_settings.h"
 #include "xpp_error.h"
+namespace xpp { enum class PoincareMap; enum class SectionSign; }
 
 namespace xpp {
 

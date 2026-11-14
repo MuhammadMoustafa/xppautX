@@ -5,7 +5,16 @@
 #include "session.h"
 #include "tabular.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "model_features.h"
+#include "xpp_error.h"
 #include <array>
+#include <cstddef>
+#include <expected>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
 
 namespace xpp::command {
 namespace {

@@ -7,12 +7,19 @@
 #include <vector>
 #include <tuple>
 #include <limits>
+#include <algorithm>
+#include <cstddef>
+#include <optional>
+#include <utility>
 
 #include "autox_stability.h"
 #include "autox_stability_autox.h"
 #include "xpp_math.h"
-#include "autox_nox.h"
 #include "autox_state.h"
+#include "autox_c.h"
+#include "autox_codes.h"
+#include "autox_codim.h"
+#include "xpp_math_autox.h"
 
 namespace xpp {
 

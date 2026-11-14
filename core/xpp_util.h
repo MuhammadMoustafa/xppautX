@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdio.h>
-#include "xpp_types.h"
 #include "xpp_error.h"
 
 #include <cstdint>
@@ -11,9 +10,9 @@
 #include <string>
 #include <string_view>
 #include <vector>
+namespace xpp { struct XppSlider; }
 
 
-struct XppSlider; /* load_eqn.h */
 namespace xpp {
 struct Session; /* session.h */
 struct Model; /* model.h */

@@ -1,11 +1,11 @@
 #pragma once
-#include "colormap.h"
 
-#include "odex_block.h"
 #include "xpp_error.h"
 #include <string>
 #include <string_view>
 #include <vector>
+#include <cstddef>
+namespace xpp { namespace odex { class Block; } namespace odex { class Out; } }
 
 namespace xpp {
 struct Session; /* session.h */

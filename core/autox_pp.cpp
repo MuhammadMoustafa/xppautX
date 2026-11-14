@@ -4,15 +4,19 @@
 #include <algorithm>
 #include <bit>
 #include <cstdint>
-#include <array>
 #include <span>
 #include <vector>
 #include <stdlib.h>
-#include "autox_f2c.h"
+#include <atomic>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
 #include "autox_c.h" /* user_right_hand_side, user_start, user_boundary_conditions */
 #include "session.h"
 #include "autox_state.h"
-#include "odesol2.h"
 #include "autox_nox.h"
 #include "derived.h"
 #include "pp_shoot.h"
@@ -26,6 +30,8 @@
 #include "integrate.h"
 #include "xpp_ui.h"
 #include "model.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
 
 /*    Hooks to xpp RHS     */
 

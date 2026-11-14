@@ -28,11 +28,20 @@
 #include "data_formats.h"
 #include "session_settings.h"
 #include "settings_text.h"
+#include "struct.h"
+#include "xpp_error.h"
+#include "xpp_types.h"
 #include <array>
 #include <limits>
 
 #include <string>
 #include <vector>
+#include <cstddef>
+#include <map>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string_view>
 
 namespace {
 

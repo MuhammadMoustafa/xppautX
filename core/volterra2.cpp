@@ -2,14 +2,11 @@
 #include "storage.h"
 #include "volterra.h"
 #include "load_eqn.h"
-#include "form_ode.h"
 #include "volterra2.h"
 #include "solver.h"
-#include "xpp_log.h"
 #include "delay_handle.h"
 #include "markov.h"
 #include "xpp_job.h"
-#include "xpp_globals.h"
 
 #include <stdlib.h> 
 #include "getvar.h"
@@ -18,9 +15,17 @@
 #include "expr.h"
 #include <algorithm>
 #include <vector>
+#include <cstddef>
+#include <memory>
+#include <string>
 #include "model.h"
 #include "xpp_math.h"
 #include "my_rhs.h"
+#include "expr_program.h"
+#include "model_files.h"
+#include "session.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

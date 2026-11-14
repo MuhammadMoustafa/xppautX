@@ -9,16 +9,15 @@
 #include "session.h"
 #include "storage.h"
 #include "adj2.h"
-#include "browse.h"
-#include "graphics.h"
-#include "integrate.h"
-#include "numerics.h"
 #include "xpp_batch.h"
 #include "load_eqn.h"
 #include "command_registry.h"
 #include "xpp_ui.h"
 
 #include <cmath>
+#include <stddef.h>
+#include <memory>
+#include <string>
 
 TEST_CASE("test_stochast_liap")
 {

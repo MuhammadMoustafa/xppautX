@@ -2,8 +2,14 @@
 #include "expr_ir.h"
 #include "xpp_math.h"
 #include "xpp_mir.h"
+#include "xpp_error.h"
 #include <bit>
 #include <cstdint>
+#include <stdio.h>
+#include <array>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace {
 using xpp::IrFunction;

@@ -9,10 +9,14 @@
    precedence is reached. */
 #include "odex.h"
 #include "xpp_io.h"
+#include "xpp_mem.h"
 
 #include <cmath>
 #include <string>
 #include <string_view>
+#include <stddef.h>
+#include <optional>
+#include <vector>
 
 namespace xpp::odex {
 

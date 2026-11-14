@@ -6,13 +6,18 @@
 #include "model.h"
 #include "session.h"
 #include "xpp_io.h"
+#include "model_files.h"
+#include "tabular.h"
+#include "volterra.h"
 
-#include <algorithm>
 #include <bit>
 #include <map>
 #include <optional>
 #include <span>
 #include <utility>
+#include <cstdint>
+#include <expected>
+#include <string>
 
 namespace xpp::expr {
 

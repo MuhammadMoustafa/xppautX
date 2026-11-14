@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <cstring>
 #include <map>
 #include <set>
@@ -8,7 +7,6 @@
 #include <string_view>
 #include <vector>
 #include "xpp_types.h"
-#include "many_pops.h"
 
 namespace xpp {
 struct Session; /* session.h */

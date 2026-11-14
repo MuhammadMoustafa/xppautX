@@ -18,10 +18,12 @@
 #include "graphics.h"
 #include "integrate.h"
 #include "markov.h"
-#include "xpp_batch.h"
-#include "xpp_io.h"
 
 #include <cmath>
+#include <stddef.h>
+#include <memory>
+#include <string>
+#include <vector>
 
 TEST_CASE("test_stochast_runs")
 {

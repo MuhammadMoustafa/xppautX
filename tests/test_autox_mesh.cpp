@@ -1,8 +1,11 @@
 /* W361 (#423): mesh endpoints and the unaccumulated monitor density. */
 #include "xpptest.h"
 #include "autox_c.h"
+#include "autox_codes.h"
 #include <array>
 #include <cmath>
+#include <cstddef>
+#include <span>
 
 TEST_CASE("test_autox_mesh")
 {

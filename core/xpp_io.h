@@ -20,7 +20,6 @@
 
 #include <array>
 #include <concepts>
-#include <cstddef>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -39,6 +38,9 @@
 
 #include <charconv>
 #include <format>
+#include <expected>
+#include <iterator>
+#include <system_error>
 
 namespace xpp {
 

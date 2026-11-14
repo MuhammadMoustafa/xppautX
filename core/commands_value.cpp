@@ -13,7 +13,18 @@
 #include "load_eqn.h"
 #include "model.h"
 #include "event_registry.h"
+#include "command_category.h"
+#include "json_number.h"
+#include "xpp_error.h"
 #include <array>
+#include <cstddef>
+#include <expected>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace xpp::command {
 namespace {

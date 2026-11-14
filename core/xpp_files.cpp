@@ -4,7 +4,7 @@
    this file keeps the page's file API and the core's own single-file
    operations. */
 #include "xpp_files.h"
-#include "xpp_files_internal.h"
+#include "xpp_files_internal.h" /* IWYU pragma: keep (xpp_files.h is the public face; the implementation needs its internals) */
 #include "xpp_io.h"
 #include "xpp_job.h"
 #include "xpp_log.h"
@@ -14,11 +14,9 @@
 #include "session.h"
 
 #include <algorithm>
-#include <array>
 #include <cctype>
 #include <cerrno>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
@@ -33,6 +31,10 @@
 
 #include <dirent.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <memory>
 #ifdef _WIN32
 #include <io.h>
 #endif

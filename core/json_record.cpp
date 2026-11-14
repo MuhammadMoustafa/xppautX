@@ -12,7 +12,6 @@
 #include "browse.h"
 #include "command_def.h"
 #include "command_registry.h"
-#include "menus.h"
 #include "model.h"
 #include "model_files.h"
 #include "recx.h"
@@ -26,15 +25,22 @@
 #include "xpp_session.h"
 #include "session.h"
 #include "json_reader.h"
+#include "command_category.h"
+#include "xpp_error.h"
+#include "xpp_mem.h"
+#include "xpp_ui.h"
 
 #include <cctype>
-#include <chrono>
 #include <cstring>
 #include <new>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <expected>
+#include <format>
+#include <tuple>
+#include <utility>
 
 namespace xpp::json {
 

@@ -1,6 +1,8 @@
 #pragma once
+#include <vector>
 #include "model.h"
 #include "session.h"
+#include "expr.h"
 /* the expression engine's variable i in the Session s (0 is t, then the
    Model's variables, fixed quantities, Markov variables ...): setvar sets
    it, getvar reads it (0 past the Model's variables) */

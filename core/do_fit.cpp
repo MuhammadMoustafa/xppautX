@@ -5,20 +5,24 @@
 #include "jacobian.h"
 #include "session.h"
 #include "storage.h"
-#include "form_ode.h"
 #include "integrate.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 
 #include "expr.h"
 #include "derived.h"
-#include <array>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <string>
 #include <vector>
+#include <cmath>
+#include <cstddef>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
 #include "delay_handle.h"
 #include "browse.h"
 #include "xpp_ui.h"
@@ -27,6 +31,8 @@
 
 #include "load_eqn.h"
 #include "model.h"
+#include "solver.h"
+#include "xpp_io.h"
 
 namespace xpp {
 

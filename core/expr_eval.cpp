@@ -6,10 +6,8 @@
    W717), its built-ins called through expr_functions.cpp's tables. The
    RPN stays the program's source: what the compiler writes, what is
    saved and translated. */
-#include "expr_internal.h"
 #include "expr_decode.h"
 #include "expr_derivative.h"
-#include "xpp_globals.h"
 #include "model.h"
 #include "model_files.h"
 #include "integrate.h"
@@ -18,9 +16,23 @@
 #include "tabular.h"
 #include "volterra2.h"
 #include "session.h"
+#include "expr.h"
+#include "expr_program.h"
+#include "xpp_error.h"
+#include "xpp_io.h"
+#include "xpp_mir.h"
 
 #include <algorithm>
 #include <utility>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <expected>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
 
 namespace xpp {
 

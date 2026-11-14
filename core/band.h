@@ -52,8 +52,8 @@
 
 
 #include "llnltyps.h"
-#include "vector.h"
 #include <vector>
+namespace xpp { namespace cvode_solver { struct N_VectorContent; } }
 namespace xpp::cvode_solver {
 
  

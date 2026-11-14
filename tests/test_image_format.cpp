@@ -8,10 +8,19 @@
 #include "picture.h"
 #include "browse.h"
 #include "xpp_io.h"
+#include "colormap.h"
+#include "line_style.h"
+#include "xpp_error.h"
 
 #include <cstring>
 #include <set>
 #include <string>
+#include <array>
+#include <cstdint>
+#include <optional>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace {
 

@@ -11,7 +11,6 @@
 #include "form_ode.h"
 #include "ode_read.h"
 #include "model.h"
-#include "expr.h"
 #include "xpp_batch.h"
 #include "xpp_ui.h"
 #include "xpp_files.h"
@@ -19,11 +18,16 @@
 #include "session.h"
 #include "load_eqn.h"
 #include "storage.h"
-#include "xpp_util.h"
 #include "typed_values.h"
 #include "command_registry.h"
 #include "solver.h"
 #include "tabular.h"
+#include "model_files.h"
+#include "model_options.h"
+#include "simplenet.h"
+#include "xpp_error.h"
+#include "xpp_math.h"
+#include "xpp_mem.h"
 
 #include <cmath>
 #include <algorithm>
@@ -31,6 +35,11 @@
 #include <cstdio>
 #include <string>
 #include <vector>
+#include <memory>
+#include <optional>
+#include <span>
+#include <unordered_map>
+#include <utility>
 
 using xpp::Error;
 using xpp::odex::Expr;

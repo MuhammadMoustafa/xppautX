@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include "autox_f2c.h"
+#include "xpp_math.h"
 
 namespace {
 

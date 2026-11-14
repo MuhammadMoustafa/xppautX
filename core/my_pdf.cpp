@@ -4,13 +4,22 @@
    identifier: the same picture is the same bytes (tools/goldencheck.py). */
 #include "my_pdf.h"
 
-#include <cmath>
 #include <map>
 #include <numbers>
 #include <string>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
+#include <utility>
+#include <variant>
+#include <vector>
 
 #include "xpp_io.h"
 #include "xpp_math.h"
+#include "colormap.h"
+#include "line_style.h"
+#include "picture.h"
 
 namespace xpp {
 

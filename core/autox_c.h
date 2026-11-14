@@ -13,7 +13,7 @@
 #include "autox_codes.h"
 #include "xAutox.h" /* AutoxMark */
 #include "xpp_math.h" /* xpp::Matrix, Matrix3 */
-#include "xpp_math_autox.h" /* autoX numerical interfaces, owned by xpp_math */
+#include "xpp_math_autox.h" /* autoX numerical interfaces, owned by xpp_math; IWYU pragma: keep (the prototypes below need its enums complete) */
 
 namespace xpp { class TokenReader; struct AutoxSolutionHeader; }
 

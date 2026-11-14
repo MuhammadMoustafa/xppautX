@@ -25,7 +25,6 @@
 #include "ui_json.h"
 #include "command_registry.h"
 #include "ui_json_internal.h"
-#include "model.h"
 #include "browse.h"
 #include "model_files.h"
 #include "model_switch.h"
@@ -39,9 +38,12 @@
 #include "xpp_io.h"
 #include "xpp_job.h"
 #include "xpp_log.h"
-#include "xpp_batch.h"
 #include "xpp_ui.h"
 #include "json_reader.h"
+#include "event_registry.h"
+#include "xpp_error.h"
+#include "xpp_mem.h"
+#include "xpp_session.h"
 
 #include <algorithm>
 #include <array>
@@ -52,6 +54,11 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <compare>
+#include <expected>
+#include <optional>
+#include <ratio>
+#include <utility>
 
 namespace xpp::json {
 
