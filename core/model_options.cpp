@@ -33,7 +33,7 @@
 #include "tabular.h"
 #include "typed_values.h"
 #include "userbut.h"
-#include "xpp_batch.h"
+#include "model_failed.h"
 #include "xpp_error.h"
 #include "xpp_ui.h"
 #include "xpp_io.h"

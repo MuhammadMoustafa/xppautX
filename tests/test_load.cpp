@@ -11,7 +11,7 @@
 #include "numerics_settings.h"
 #include "nullcline.h"
 #include "model.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "xpp_io.h"
 #include "xpp_files.h"
 #include "colormap.h"

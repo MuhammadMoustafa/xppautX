@@ -5,7 +5,7 @@
 #include "ani_data.h"
 #include "session.h"
 #include "comline.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "my_rhs.h"

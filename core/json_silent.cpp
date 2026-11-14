@@ -33,7 +33,7 @@
 #include "browse.h"
 #include "histogram.h"
 #include "image_format.h"
-#include "xpp_batch.h"
+#include "xpp_globals.h"
 #include "load_eqn.h"
 #include "xpp_log.h"
 #include "autox_script.h"

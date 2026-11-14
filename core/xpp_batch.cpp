@@ -14,6 +14,8 @@
 #include "expr_native.h"
 #include "jacobian.h"
 #include "xpp_batch.h"
+#include "model_failed.h"
+#include "model_load.h"
 #include "xpp_globals.h"
 #include "comline.h"
 #include "form_ode.h"
@@ -48,17 +50,64 @@
 
 namespace xpp {
 
-XppBatchOptions batch_options;
+/* the command line's switches into the loading Session s and the model's
+   file into its Model's this_file; the Model keeps cl. */
+void apply_command_line(Session &s, CommandLine cl)
+{
+  s.got_file = 0;
+  if (!cl.model_file.empty()) {
+    s.model().this_file = cl.model_file;
+    s.got_file = 1;
+  }
+  if (cl.new_seed) xpp::log(XPP_LOG_INFO, "Random number seed changed\n");
+  if (cl.silent) batch_options.enabled = 1;
+  if (cl.no_output) s.integrator->suppress_out = 1;
+  if (cl.out_file) {
+    s.batch_out_file = *cl.out_file;
+    batch_options.user_out_file = *cl.out_file;
+    s.output_place = Place{"", 0, 0, cl.out_place};
+  }
+  if (cl.ani_file) {
+    s.animation->options.file = *cl.ani_file;
+    s.animation->options.use_file = 1;
+  }
+  if (cl.equilibria) {
+    batch_options.equilibria = *cl.equilibria;
+    xpp::log(XPP_LOG_INFO, " Batch equilibria {:d} \n", batch_options.equilibria);
+  }
+  /* --dfdraw and --ncdraw win over the model's @ lines */
+  for (const auto &[name, value] : cl.options) set_option(s, name, value, 1, NULL);
+  s.model().record->command_line = std::move(cl);
+}
 
+
+/* the thread count and the colors the preferences file holds into s (a recording's replay
+   keeps the user's preferences out of it, and reads none); a bad file leaves
+   the automatic count and the default colors (the file's error is shown by the recent models' note,
+   once). Called by the load (load_and_set_up), with the preferences the program's start read
+   (read), or null to read the file now: a reload reads it again. */
+void preferences_load(Session &s, const Result<prefs::Preferences> *read)
+{
+    if (files::serving_reads()) return;
+    const Result<prefs::Preferences> p = read ? *read : prefs::load_prefs();
+    if (p) {
+        s.threads = p->threads;
+        s.colors = p->colors;
+    }
+    /* the count stays automatic and the colors the defaults until the file is fixed (a `set` of the count refuses until then); said in the
+       log, as --silent shows no recent models' note to carry the file's error */
+    else xpp::log(XPP_LOG_WARN, "{}: the thread count stays automatic and the colors the defaults\n", p.error().text());
+}
 
 /* everything both the batch run and an interactive front end do: options,
    the ODE file, numerics set-up. batch forces XPPBatch. */
-static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
+static void load_and_set_up(xpp::Session &s, const CommandLine &cl, std::optional<AutoxScript> script, int batch,
                             const std::function<void(Session &)> &read, const Result<prefs::Preferences> *read_prefs)
 {
     xpp::Model &m = s.model();
     program.interactive = 0;
     apply_command_line(s, cl);
+    if (script) s.autox_state->script.script = std::move(script);
     if (batch) batch_options.enabled = 1; /* headless: always batch, even without --silent */
 
     s.options_applied = 0;
@@ -117,13 +166,13 @@ Result<std::vector<Error>> compile_loaded(Session &s)
 namespace {
 
 /* an .autox script opens with the model it names, its runs listed in the session (nothing computes) */
-Result<CommandLine> script_command_line(CommandLine cl)
+Result<CommandLine> script_command_line(CommandLine cl, std::optional<AutoxScript> &script)
 {
     if (!files::has_extension(cl.model_file, autox_script_extension)) return cl;
-    auto script = autox_script_load(cl.model_file);
-    if (!script) return std::unexpected(script.error());
-    cl.model_file = include_path(cl.model_file, script->model);
-    cl.autox_script = std::move(*script);
+    auto loaded = autox_script_load(cl.model_file);
+    if (!loaded) return std::unexpected(loaded.error());
+    cl.model_file = include_path(cl.model_file, loaded->model);
+    script = std::move(*loaded);
     return cl;
 }
 
@@ -187,7 +236,8 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
 Loaded load_in(const CommandLine &cl, int batch, const SavedModel *saved,
                const std::function<std::optional<Error>(Session &)> &check,
                const std::function<void(Session &)> &read, bool commit,
-               const std::vector<std::string> &outside_paths = {}, const Result<prefs::Preferences> *read_prefs = nullptr)
+               const std::vector<std::string> &outside_paths = {}, const Result<prefs::Preferences> *read_prefs = nullptr,
+               std::optional<AutoxScript> script = {})
 {
     return in_model([&](Session &s) {
         Model &m = s.model();
@@ -196,7 +246,7 @@ Loaded load_in(const CommandLine &cl, int batch, const SavedModel *saved,
             m.saved_in = saved->in;
             m.record->files = saved->files;
         }
-        load_and_set_up(s, cl, batch, read, read_prefs);
+        load_and_set_up(s, cl, std::move(script), batch, read, read_prefs);
         if (check)
             if (std::optional<Error> wrong = check(s)) model_failed(std::move(*wrong));
     }, commit);
@@ -208,7 +258,8 @@ Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
                   const std::function<std::optional<Error>(Session &)> &check, const Result<prefs::Preferences> *read_prefs)
 {
     auto resolved = animation_command_line(std::move(cl));
-    if (resolved) resolved = script_command_line(std::move(*resolved));
+    std::optional<AutoxScript> script;
+    if (resolved) resolved = script_command_line(std::move(*resolved), script);
     if (!resolved) {
         /* a file that names the model is the load's own: its fault is written once, as the model's own are (below) */
         if (batch) xpp::log(XPP_LOG_ERROR, "{}\n", resolved.error().text());
@@ -245,7 +296,7 @@ Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
                 cl.model_file = converted;
             }
         }
-        if (loaded) loaded = load_in(cl, batch, saved, check, load_eqn, true, outside_paths, read_prefs);
+        if (loaded) loaded = load_in(cl, batch, saved, check, load_eqn, true, outside_paths, read_prefs, std::move(script));
     }
     /* the one place a model that does not load is written to the log */
     if (!loaded) {

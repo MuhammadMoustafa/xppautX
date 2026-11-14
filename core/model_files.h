@@ -12,7 +12,7 @@
      never the disk (Model::saved_in names the file), a file not saved
      being a file that is not there.
 
-   The model itself is loaded by xpp::load_model (xpp_batch.h), given the
+   The model itself is loaded by xpp::load_model (model_load.h), given the
    saved files for a saved one. C++ only. */
 #include "xpp_error.h"
 #include "xpp_io.h"
@@ -57,6 +57,17 @@ inline constexpr char OUTSIDE_PATH_ALWAYS = 'a', OUTSIDE_PATH_ONCE = 'o';
    functions below, which refuse an outside path not approved; the error is
    the refusal, at `at`. */
 Result<> approve_model_path(Model &m, const std::string &name, const Place &at);
+
+/* The user's standing answers behind "Allow always": kept in the preferences
+   (xpp_prefs.cpp, the application's), asked here, below the Session. */
+namespace prefs {
+/* whether the user answered "Allow always" for model naming path (a bad file
+   is the error) */
+Result<bool> outside_path_approved(std::string_view model, std::string_view path);
+/* the user's "Allow always": remembered first, the oldest answer dropped when
+   MAX_OUTSIDE_APPROVALS are kept, a repeated one moved to the front */
+Result<> approve_outside_path(std::string_view model, std::string_view path);
+} // namespace prefs
 
 /* m's file name, whole, into bytes: false (bytes empty) when absent,
    outside the model's folder, linked, or over the archive member byte limit. */

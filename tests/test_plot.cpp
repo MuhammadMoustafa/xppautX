@@ -11,7 +11,7 @@
 #include "numerics.h"
 #include "session.h"
 #include "many_pops.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "xpp_util.h"
 #include "session_values.h"
 #include "line_style.h"

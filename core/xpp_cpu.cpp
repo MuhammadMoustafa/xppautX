@@ -50,4 +50,11 @@ unsigned physical_threads()
     }();
     return count;
 }
+
+std::optional<std::string> threads_problem(long long n)
+{
+    const unsigned most = logical_processors();
+    if (n >= 1 && n <= static_cast<long long>(most)) return std::nullopt;
+    return xpp::format("the thread count must be \"{}\" or a whole number from 1 to {} (this computer's logical processors)", THREADS_AUTO_WORD, most);
+}
 }

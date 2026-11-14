@@ -16,7 +16,6 @@
 #include "model_record.h"
 #include "recx.h"
 #include "snapx.h"
-#include "xpp_about.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_util.h"
@@ -169,7 +168,7 @@ xpp::Result<> start(xpp::Session &s)
     if (!snapshot)
         return xpp::fail("recording", "Cannot record: the session's state could not be saved to begin the recording with", xpp::command_place());
     recx::Recording r;
-    r.program = xpp::format("xppautX {}", xpp_version_string());
+    r.program = xpp::format("xppautX {}", session.hello.version);
     r.model = s.model().this_file;
     r.recorded = xpp::utc_now();
     r.snapshot = std::move(*snapshot);

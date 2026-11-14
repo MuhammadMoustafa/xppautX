@@ -9,6 +9,7 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_prefs.h"
+#include "model_files.h"
 #include "format_version.h"
 #include "colormap.h"
 #include "xpp_error.h"
@@ -183,7 +184,7 @@ void check_good_files()
 /* autoX's thread count (W267): "auto" or a whole number from 1 to the logical processors */
 void check_threads()
 {
-    using xpp::prefs::THREADS_AUTO;
+    using xpp::cpu::THREADS_AUTO;
     const unsigned most = xpp::cpu::logical_processors();
     CHECK(parse("").value().threads == THREADS_AUTO);
     CHECK(parse("threads: auto,\n").value().threads == THREADS_AUTO);
@@ -221,8 +222,8 @@ void check_threads()
     xpp::prefs::Preferences p;
     p.threads = most + 1;
     CHECK(!xpp::prefs::serialize_prefs(p)); /* not written as a file that does not read */
-    CHECK(!xpp::prefs::threads_problem(1) && !xpp::prefs::threads_problem(most));
-    CHECK(xpp::prefs::threads_problem(0) && xpp::prefs::threads_problem(most + 1));
+    CHECK(!xpp::cpu::threads_problem(1) && !xpp::cpu::threads_problem(most));
+    CHECK(xpp::cpu::threads_problem(0) && xpp::cpu::threads_problem(most + 1));
 }
 
 /* the colors (W655): each by its key, a quoted color; none is XPPAUT's defaults, a bad one is refused at its line */
@@ -231,7 +232,7 @@ void check_colors()
     const xpp::prefs::Preferences none = parse("").value();
     CHECK(none.colors.stable_equilibrium == xpp::xppaut_color(1) && none.colors.unstable_manifold == xpp::xppaut_color(5));
     xpp::prefs::Preferences p;
-    for (const xpp::prefs::ColorKey &c : xpp::prefs::COLOR_KEYS) p.colors.*c.member = xpp::xppaut_color(3);
+    for (const xpp::ColorKey &c : xpp::COLOR_KEYS) p.colors.*c.member = xpp::xppaut_color(3);
     p.colors.y_nullcline = xpp::Color{1, 2, 3, 128, false};
     const auto text = xpp::prefs::serialize_prefs(p);
     CHECK(text.has_value());

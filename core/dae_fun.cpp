@@ -9,7 +9,7 @@
 #include <string.h>
 #include <math.h>
 #include "getvar.h"
-#include "xpp_batch.h"
+#include "model_failed.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "xpp_ui.h"

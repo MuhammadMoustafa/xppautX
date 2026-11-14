@@ -6,7 +6,7 @@
 #include "xpptest.h"
 #include "command_def.h"
 #include "command_registry.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "event_registry.h"
 #include "colormap.h"
 #include "command_category.h"

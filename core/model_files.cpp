@@ -6,7 +6,6 @@
 #include "model_record.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
-#include "xpp_prefs.h"
 #include "xpp_ui.h"
 #include "xpp_zip.h"
 #include "model_options.h"

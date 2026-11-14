@@ -45,7 +45,7 @@
 #include <utility>
 
 
-#include "xpp_batch.h"
+#include "model_failed.h"
 #include "xpp_globals.h"
 #include "session.h"
 #include "model_parts.h"

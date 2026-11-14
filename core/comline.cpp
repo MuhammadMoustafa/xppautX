@@ -1,19 +1,6 @@
-#include "model.h"
-#include "model_record.h"
-#include "lunch-new.h"
-#include "xpp_ui.h"
-#include "xpp_globals.h"
-#include "session.h"
-#include "aniparse.h"
-#include "autox_state.h"
-#include "integrate.h"
+/* the command line of xppautX: its words read once into a CommandLine (comline.h) */
 #include "comline.h"
-#include "xpp_log.h"
-/* the command line of xppautX */
-#include "xpp_batch.h"
-#include "model_options.h"
-#include "xpp_io.h"
-#include "xpp_platform.h"
+#include "xpp_text.h"
 #include <algorithm>
 #include <optional>
 #include <string>
@@ -21,7 +8,6 @@
 #include <utility>
 #include <vector>
 #include <expected>
-#include <memory>
 
 namespace xpp {
 
@@ -95,7 +81,6 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
   for (int i = 1; i < count; ++i) {
     const std::string_view word(cl.arguments[static_cast<std::size_t>(i)]);
     const Place place{"command line", i, 0, std::string(word)};
-    if (xpp::platform::ignored_launch_argument(word)) continue;
     if (!word.starts_with('-')) {
       if (!cl.model_file.empty()) return fail("options", xpp::format("unexpected model argument {}", word), place);
       cl.model_file = word;
@@ -181,35 +166,6 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
   if (no_open_place && cl.interface != Interface::browser)
     return fail("options", "--no-open needs --browser (it prints the address, which only browser mode shows)", *no_open_place);
   return cl;
-}
-
-void apply_command_line(Session &s, CommandLine cl)
-{
-  s.got_file = 0;
-  if (!cl.model_file.empty()) {
-    s.model().this_file = cl.model_file;
-    s.got_file = 1;
-  }
-  if (cl.new_seed) xpp::log(XPP_LOG_INFO, "Random number seed changed\n");
-  if (cl.silent) batch_options.enabled = 1;
-  if (cl.no_output) s.integrator->suppress_out = 1;
-  if (cl.out_file) {
-    s.batch_out_file = *cl.out_file;
-    batch_options.user_out_file = *cl.out_file;
-    s.output_place = Place{"", 0, 0, cl.out_place};
-  }
-  if (cl.autox_script) s.autox_state->script.script = std::move(cl.autox_script);
-  if (cl.ani_file) {
-    s.animation->options.file = *cl.ani_file;
-    s.animation->options.use_file = 1;
-  }
-  if (cl.equilibria) {
-    batch_options.equilibria = *cl.equilibria;
-    xpp::log(XPP_LOG_INFO, " Batch equilibria {:d} \n", batch_options.equilibria);
-  }
-  /* --dfdraw and --ncdraw win over the model's @ lines */
-  for (const auto &[name, value] : cl.options) set_option(s, name, value, 1, NULL);
-  s.model().record->command_line = std::move(cl);
 }
 
 } // namespace xpp

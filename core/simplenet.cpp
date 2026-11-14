@@ -1,5 +1,5 @@
 #include "xpp_util.h"
-#include "xpp_batch.h"
+#include "model_failed.h"
 #include "simplenet.h"
 #include "model_options.h"
 #include "xpp_files.h"

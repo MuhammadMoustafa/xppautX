@@ -1,89 +1,18 @@
 #pragma once
 
-#include "xpp_error.h"
-
-#include <expected>
-#include <functional>
-#include <optional>
-#include <string>
-#include <string_view>
-#include <vector>
-namespace xpp { namespace prefs { struct Preferences; } struct CommandLine; struct SavedModel; }
+#include "comline.h"
 
 namespace xpp {
 
 struct Session; /* session.h */
 
-/* the model cannot be loaded (a parse or compile error, logged while the
-   load is at its place): model_failed(Load::error()), at the place the
-   load is: during a load, the load fails (LoadFailed, caught
-   by load_model); otherwise the program exits with status 1. In browser
-   and window mode the page stays open on the log until it is closed
-   (xpp_http's at_exit). */
-[[noreturn]] void model_failed();
-/* the same, for the reason what (the parser's own): at the place the load
-   is, after what was logged there (Load::error(what)) */
-[[noreturn]] void model_failed(std::string_view what);
+/* The program's start: what the readers and the front ends call is declared
+   below the application, where they are (model_failed.h: a reader's failure;
+   model_load.h: the load and the batch start); this file holds what only the
+   program's start and the unit tests call. */
 
-/* After a load with no interface (--silent, a unit test): s's browser,
-   graphs and colors set up. What --silent then runs is its built-in
-   script (json_silent.cpp). */
-void batch_start(Session &s);
-
-/* what a load gives: the Session it loaded (its Model the Session's),
-   or what is wrong and where */
-using Loaded = std::expected<Session *, Error>;
-/* The shared start of every mode (the program, --silent, --convert,
-   File > Open model, a unit test): options, the ODE file, numerics
-   set-up; batch forces batch mode. The Session loaded (the client's in
-   the session list from now on, session.h), else what is wrong and where
-   (the one before stays; the caller exits with status 1 when there is
-   nothing to go on with). saved: a model saved in an
-   autoX or session file, whose files the load reads instead of the disk's
-   (model_files.h); cl names its first file. check, when given, reads
-   what such a file adds against the loaded Session before the load keeps
-   it (xpp_saved_check, xpp_session.h): what it finds wrong fails the load
-   as a model that does not load does. What is wrong is written to the
-   log here (Error::text()), once. */
-Loaded load_model(CommandLine cl, int batch, const SavedModel *saved = nullptr,
-                  const std::function<std::optional<Error>(Session &)> &check = {},
-                  const Result<prefs::Preferences> *read_prefs = nullptr);
-/* Import and validate in a temporary Model and Session, using the shared
-   setup. Never commits; the converter alone supplies the .ode reader. */
-/* A loaded model translated (translate_model, W260's exact Jacobian when the
-   numerics ask for it): the warnings the compiler gave, each with its place,
-   or the error of a model that asks for an exact Jacobian it has none of.
-   A load logs the warnings; --check reports them. */
-Result<std::vector<Error>> compile_loaded(Session &s);
-
-Result<> inspect_model(const CommandLine &cl, const std::function<void(Session &)> &read,
-                      const std::function<std::optional<Error>(Session &)> &check = {},
-                      const SavedModel *saved = nullptr);
-/* A start with no model file on the command line (a Start menu entry, the
-   Dock, a launcher) is not a load that failed: it is the error whose
-   `where` is NO_MODEL_WHERE, which load_model does not write to the log in
-   an interactive start. The program then serves the start screen, whose
-   Open model is File > Open model's (model_switch.h, W232); --silent, with
-   nothing to open, takes it as any other error. */
-inline constexpr std::string_view NO_MODEL_WHERE = "no model";
-inline bool is_no_model(const Error &e) { return e.where == NO_MODEL_WHERE; }
-/* the model cannot be loaded, for the reason e: during a load, the load
-   fails (LoadFailed with e, the line e.place.line of e.place.file added
-   as it is written; load_model writes it); otherwise e is written and the
-   program exits with status 1 */
-[[noreturn]] void model_failed(Error e);
-
-/* How a run without an interface goes: the command line's own flags
-   (--silent, --outfile, --equil, -iset), set by comline.cpp, the program's
-   start and the batch start. The model's @ output= and @ range= are the
-   Session's (session.h batch_out_file, integrator.range.write_files). */
-struct XppBatchOptions {
-    int enabled = 0;           /* batch mode: no interface, run and write */
-    bool yes = false;          /* -y / --yes: terminal questions answered yes, each answer printed */
-    bool check = false;        /* --check: nothing waits on the terminal; a question is left unanswered */
-    int equilibria = -1;       /* --equil: <0 none, 1 find and write equilibria */
-    std::string user_out_file; /* --outfile as given ("": name it after the set) */
-};
-extern XppBatchOptions batch_options;
+/* the command line's switches into the loading Session s and the model's
+   file into its Model's this_file; the Model keeps cl. */
+void apply_command_line(Session &s, CommandLine cl);
 
 } // namespace xpp

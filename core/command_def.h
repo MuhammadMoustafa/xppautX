@@ -310,6 +310,8 @@ std::span<const Command> options_commands();
 std::span<const Command> events_commands();
 std::span<const Command> tool_commands();
 std::span<const Command> update_commands();
+/* the preferences resource (xpp_prefs_commands.cpp: the program's application, with the file it keeps) */
+std::span<const Command> preferences_commands();
 
 /* the handler of a command the front end answers itself (xpp::ui.front_end_command): the row names the command, its arguments and its result */
 Result<std::string> front_end(Session &s, const Command &command, const Arguments &args, const Place &place);

@@ -14,7 +14,6 @@
    input, the error count, the front end's table of calls (xpp::ui), the batch
    options and the program's description. */
 #include "session.h"
-#include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"

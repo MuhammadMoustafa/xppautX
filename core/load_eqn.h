@@ -37,7 +37,7 @@ std::vector<std::pair<std::string, std::string>> option_items(std::string_view l
 /* The load (xpp_batch.cpp) hands the Model and Session it builds to what
    reads the model and its options (W47d3): */
 /* the model's file (Model::this_file) named on the command line is kept;
-   none (or a folder) is the error xpp::is_no_model (xpp_batch.h): the
+   none (or a folder) is the error xpp::is_no_model (model_failed.h): the
    start screen's Open model asks, not the load */
 void choose_model_file(Session &s);
 void load_eqn(Session &s);

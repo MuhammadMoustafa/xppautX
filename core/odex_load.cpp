@@ -18,7 +18,7 @@
 #include "model_record.h"
 #include "model_options.h"
 #include "snapx.h"
-#include "xpp_batch.h"
+#include "model_failed.h"
 #include "xpp_io.h"
 #include "xpp_files.h"
 #include "xpp_math.h"

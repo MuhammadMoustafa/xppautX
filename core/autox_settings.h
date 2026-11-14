@@ -9,7 +9,7 @@
 #include <utility>
 #include "autox_codes.h"
 #include "xpp_error.h"
-namespace xpp { enum class AutoxProjection; namespace prefs { struct Preferences; } }
+namespace xpp { enum class AutoxProjection; }
 
 /* autoX's settings as data (docs/ui-v2.md T22, docs/protocol.md "autoX's
    settings as data"): what the autoX window's Numerics, Axes
@@ -106,19 +106,7 @@ struct AutoxSettingsSet {
     std::optional<int> nmarks; /* absent: keep the current marks; present: whole list length */
     std::vector<std::string> mark_name;
     std::vector<double> mark_value;
-    /* the thread count of autoX and sweeps (W267, W434), a program preference and not a setting of
-       the session: prefs::THREADS_AUTO or the count. Set by `autox`
-       `set`'s "threads" and saved in the preferences file; never filled by
-       autox_settings_now, so a session file does not hold it. */
-    std::optional<unsigned> threads;
 };
-
-/* the thread count and the colors the preferences file holds into s (a recording's replay
-   keeps the user's preferences out of it, and reads none); a bad file leaves
-   the automatic count and the default colors (the file's error is shown by the recent models' note,
-   once). Called by the load, with the preferences the program's start read
-   (read), or null to read the file now: a reload reads it again. */
-void preferences_load(Session &s, const Result<prefs::Preferences> *read);
 
 /* the settings now, whole: every Numerics field, the
    axes and the Mark values, names empty where there is none (the event's

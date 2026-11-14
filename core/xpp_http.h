@@ -12,6 +12,14 @@
 
 namespace xpp::http {
 
+/* The addresses the page may ask the system browser to open, which the program's own
+   text lists (the update's release pages, the About links: the application's, so given
+   at start, never a prefix or a list this module knows). */
+struct OpenableLinks {
+    std::string_view release_tag_prefix;         /* a release's tag page begins with this (open_release_page) */
+    bool (*is_about_link)(std::string_view url); /* exactly one of the About links' targets (open_about_link) */
+};
+
 constexpr int DEFAULT_PORT = 8765; /* stable default address for local browser sessions */
 
 /* Serve on `port` (another free one when it is taken). This redirects
@@ -24,7 +32,7 @@ constexpr int DEFAULT_PORT = 8765; /* stable default address for local browser s
    Code extension read) and open opens it in the default browser; the
    desktop window (xpp_window.h) asks for neither and navigates to url()
    itself, so the token appears nowhere. */
-bool start(int port, bool show, bool open);
+bool start(int port, bool show, bool open, const OpenableLinks &links);
 /* browser mode after the fact (the window could not open): print the
    address, and open it in the default browser when `open` is set */
 void show(bool open);

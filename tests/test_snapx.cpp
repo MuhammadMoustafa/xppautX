@@ -12,7 +12,7 @@
 #include "model_record.h"
 #include "session.h"
 #include "aniparse.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "nullcline.h"

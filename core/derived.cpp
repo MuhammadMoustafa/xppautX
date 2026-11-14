@@ -6,7 +6,7 @@
 #include "derived.h"
 #include "expr.h"
 #include "session.h"
-#include "xpp_batch.h"
+#include "model_failed.h"
 #include "xpp_log.h"
 #include "model.h"
 #include "expr_program.h"

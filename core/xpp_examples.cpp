@@ -1,5 +1,6 @@
 /* The bundled examples: see xpp_examples.h. */
 #include "xpp_examples.h"
+#include "model_switch.h"
 
 #include <algorithm>
 #include <expected>

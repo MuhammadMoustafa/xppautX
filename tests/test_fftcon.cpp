@@ -10,7 +10,7 @@
    variables' stored columns, never through the FFT directly. */
 #include "load_args.h"
 #include "xpptest.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "session.h"
 #include "storage.h"
 #include "command_registry.h"

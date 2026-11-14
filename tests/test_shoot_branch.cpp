@@ -4,7 +4,7 @@
 #include "xpptest.h"
 #include "session.h"
 #include "numerics_settings.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "comline.h"
 #include "integrate.h"
 #include "image_format.h"

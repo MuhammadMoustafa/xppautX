@@ -14,7 +14,7 @@
 #include "storage.h"
 #include "tabular.h"
 #include "torus.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "numerics_settings.h"
 #include "struct.h"
 #include "xpp_math.h"

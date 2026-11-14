@@ -6,7 +6,7 @@
 #include <vector>
 #include "load_args.h"
 #include "xpptest.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "many_pops.h"
 #include "graphics.h"
 #include "marks_data.h"

@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "colormap.h"
+#include "xpp_cpu.h"
 #include "xpp_error.h"
 #include "xpp_log.h"
 
@@ -45,16 +46,6 @@ inline constexpr std::size_t MAX_RECENT_MODELS = 10;
    path past it needs the \?\ form no model's folder uses */
 inline constexpr std::size_t MAX_PATH_BYTES = 4096;
 
-/* the thread count of autoX and sweeps (W267, W434): the file says "auto" or a whole number from 1
-   to the logical processors (xpp::cpu::logical_processors); THREADS_AUTO
-   in the Preferences is "auto", the count AutoxParallel::automatic_threads
-   gives. Any count gives the same results (W247). */
-inline constexpr unsigned THREADS_AUTO = 0;
-inline constexpr std::string_view THREADS_AUTO_WORD = "auto";
-/* why n cannot be the thread count, or nothing; the one check of the file's
-   reader and writer and of the protocol's `set` */
-std::optional<std::string> threads_problem(long long n);
-
 /* how many of the user's "Allow always" answers about a path outside a
    model's folder are kept (W286): each is two paths of at most MAX_PATH_BYTES
    and the file holds MAX_FILE_BYTES, with the recent models and the groups
@@ -69,40 +60,11 @@ struct OutsideApproval {
     bool operator==(const OutsideApproval &) const = default;
 };
 
-/* the colors the program draws with (W655): the user's, not a model's, one list for every model and every view. Each is
-   read when something is drawn with it: a diagram point's by its kind when it is stored, a nullcline's and a manifold's
-   when it is computed. The defaults are XPPAUT's. The names are the keys of the file and the arguments of
-   preferences.configure; their order is the option table's order of the settings they were (the diagram's, the nullclines',
-   the manifolds'). */
-struct Colors {
-    Color stable_equilibrium = xppaut_color(1), unstable_equilibrium = xppaut_color(0);
-    Color stable_periodic = xppaut_color(7), unstable_periodic = xppaut_color(9);
-    Color x_nullcline = xppaut_color(2), y_nullcline = xppaut_color(7);
-    Color stable_manifold = xppaut_color(8), unstable_manifold = xppaut_color(5);
-};
-
-/* one color's key (the file's, preferences.configure's argument and result field) and what it is: the one list the
-   file, the command and the dialog read */
-struct ColorKey {
-    std::string_view key;
-    Color Colors::*member;
-    std::string_view description;
-};
-inline constexpr std::array COLOR_KEYS = {
-    ColorKey{"stable_equilibrium_color", &Colors::stable_equilibrium, "The color of the stable equilibria in the continuation diagram."},
-    ColorKey{"unstable_equilibrium_color", &Colors::unstable_equilibrium, "The color of the unstable equilibria in the continuation diagram."},
-    ColorKey{"stable_periodic_color", &Colors::stable_periodic, "The color of the stable periodic orbits in the continuation diagram."},
-    ColorKey{"unstable_periodic_color", &Colors::unstable_periodic, "The color of the unstable periodic orbits in the continuation diagram."},
-    ColorKey{"x_nullcline_color", &Colors::x_nullcline, "The color of the x nullcline."},
-    ColorKey{"y_nullcline_color", &Colors::y_nullcline, "The color of the y nullcline."},
-    ColorKey{"stable_manifold_color", &Colors::stable_manifold, "The color of the stable manifold of a saddle."},
-    ColorKey{"unstable_manifold_color", &Colors::unstable_manifold, "The color of the unstable manifold of a saddle."}};
-
 struct Preferences {
     /* absolute paths of the models opened lately, newest first, none twice */
     std::vector<std::string> recent_models;
     /* THREADS_AUTO, or the number of threads autoX's collocation and a sweep's runs use */
-    unsigned threads = THREADS_AUTO;
+    unsigned threads = cpu::THREADS_AUTO;
     /* what the log shows (xpp::log_level_names) and the file it goes to ("" is stderr, an absolute path): the user's, not a
        model's (W619); --verbose and --debug win over them */
     XppLogLevel log_level = XPP_LOG_WARN;
@@ -137,12 +99,6 @@ std::string prefs_path();
 Result<Preferences> load_prefs();
 /* writes them, making the folder */
 Result<> save_prefs(const Preferences &p);
-/* whether the user answered "Allow always" for model naming path (a bad file
-   is the error) */
-Result<bool> outside_path_approved(std::string_view model, std::string_view path);
-/* the user's "Allow always": remembered first, the oldest answer dropped when
-   MAX_OUTSIDE_APPROVALS are kept, a repeated one moved to the front */
-Result<> approve_outside_path(std::string_view model, std::string_view path);
 /* item first in list: an equal one earlier is removed, and the oldest
    dropped past max (the one rule of every newest-first list here) */
 template <class T> void remember_newest(std::vector<T> &list, T item, std::size_t max)

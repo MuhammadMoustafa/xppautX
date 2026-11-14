@@ -22,7 +22,7 @@
 #include "solver.h"
 #include "numerics_settings.h"
 #include "xpp_io.h"
-#include "xpp_batch.h"
+#include "model_failed.h"
 #include "session.h"
 #include "plot_state.h"
 #include "model_options.h"

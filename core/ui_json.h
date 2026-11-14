@@ -1,10 +1,22 @@
 #pragma once
 
+#include <functional>
 #include <optional>
 #include <string>
+#include <vector>
 #include "xpp_error.h"
 #include "model_files.h"
 namespace xpp { namespace prefs { struct Preferences; } struct CommandLine; }
+
+/* a run of the About text: plain, or a link when `url` is not empty */
+struct AboutPart {
+    std::string text;
+    std::string url;
+};
+
+struct AboutLine {
+    std::vector<AboutPart> parts; /* none: a blank line */
+};
 
 namespace xpp {
 struct Session; /* session.h */
@@ -13,13 +25,21 @@ struct Session; /* session.h */
 /* the protocol's version (format_version.h, the one number of the protocol and every file), in hello and the desktop window's About */
 #define JSON_UI_STR_(x) #x
 #define JSON_UI_STR(x) JSON_UI_STR_(x)
-void json_ui_install(bool silent = false); /* protocol, or no interface */
+/* What hello (and a recording's header) carries that only the program's start knows: the front end owns this
+   shape and the program fills it before it installs the front end. */
+struct HelloInfo {
+    std::vector<AboutLine> about;        /* Help > About's text (xpp_about.h) */
+    std::string version;                 /* the release tag, or "dev" (xpp_version_string) */
+    std::string update_install, update_asset_suffix, update_why; /* how a newer release is installed over this program, and which release file fits (xpp_install.h) */
+    std::function<std::string()> start;  /* a session with no model: hello's `start` object, the recent models and the examples (xpp_recent.h, xpp_examples.h) */
+};
+void json_ui_install(HelloInfo hello, bool silent = false); /* protocol, or no interface */
 void json_ui_loop(void);           /* read and run commands until EOF */
 /* xppautX model.ode --silent: load the model with no interface, then run
    the built-in script its options make (core/json_silent.cpp) through
    this front end, its events going nowhere; exits 0 when the script
    ends, 1 when the model does not load */
-int json_ui_silent(CommandLine cl, const Result<prefs::Preferences> *read_prefs);
+int json_ui_silent(CommandLine cl, const Result<prefs::Preferences> *read_prefs, HelloInfo hello);
 
 /* the command line run at once, as if the client had sent it; the
    Session it ended in: the client's, or the one a model it loaded (a
@@ -30,7 +50,7 @@ Session &json_ui_handle(const char *line);
    then hello, the main window and state (json_model.cpp) */
 void json_ui_start_model(Session &s);
 
-/* The program started with no model file (xpp::is_no_model, xpp_batch.h): the
+/* The program started with no model file (xpp::is_no_model, model_failed.h): the
    client's Session has no model, hello carries the start screen
    (`start`: the recent models, docs/protocol.md "Start screen"), and the
    Open model dialog opens at once, as File > Open model does; a cancel

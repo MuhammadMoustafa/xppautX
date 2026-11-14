@@ -4,3 +4,9 @@
 #include "xpp_globals.h"
 
 XppProgram program;
+
+namespace xpp {
+
+XppBatchOptions batch_options;
+
+} // namespace xpp

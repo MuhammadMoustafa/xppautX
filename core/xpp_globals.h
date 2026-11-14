@@ -1,10 +1,14 @@
 #pragma once
 
-/* What this run of the program is. The rest of the state lives with the module that owns it (batch
-   options in xpp_batch.h, logging in xpp_log.h, the plot windows in
-   many_pops.h, and so on; AGENTS.md lists them). Defined in
-   xpp_globals.cpp, which has no UI dependency. C++ (a std::string
-   member). */
+/* What this run of the program is: the process-wide state the readers and the
+   computations below the program's start read (the program, the batch
+   options), declared here at their lowest reader, written by the program's start
+   (xppautx_main.cpp, xpp_batch.cpp). The rest of the state lives with the module that owns it
+   (logging in xpp_log.h, the plot windows in many_pops.h, and so on; AGENTS.md
+   lists them). Defined in xpp_globals.cpp, which has no UI dependency. C++ (a
+   std::string member). */
+
+#include <string>
 
 
 struct XppProgram {
@@ -15,3 +19,20 @@ struct XppProgram {
 };
 extern XppProgram program;
 
+
+namespace xpp {
+
+/* How a run without an interface goes: the command line's own flags
+   (--silent, --outfile, --equil, -iset), set by the program's start and the
+   batch start (xpp_batch.cpp). The model's @ output= and @ range= are the
+   Session's (session.h batch_out_file, integrator.range.write_files). */
+struct XppBatchOptions {
+    int enabled = 0;           /* batch mode: no interface, run and write */
+    bool yes = false;          /* -y / --yes: terminal questions answered yes, each answer printed */
+    bool check = false;        /* --check: nothing waits on the terminal; a question is left unanswered */
+    int equilibria = -1;       /* --equil: <0 none, 1 find and write equilibria */
+    std::string user_out_file; /* --outfile as given ("": name it after the set) */
+};
+extern XppBatchOptions batch_options;
+
+} // namespace xpp

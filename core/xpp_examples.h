@@ -41,13 +41,5 @@ Listing list();
 /* hello.start's "examples": {"folder":..., "names":[...], "reason":...} (reason only when there are none) */
 std::string json();
 
-/* The copy of the example `name` in the config folder's examples/, made
-   (the folder too) after asking before replacing one that is there (the
-   Replace question of every save, browse.h open_writer_asking): its path,
-   or "" when the user declined (nothing is changed). An error when `name` is
-   not in list() (a path, "..", a link, a file that is not there are all
-   that), when it cannot be read or when there is no config folder. */
-Result<std::string> install(std::string_view name);
-
 } // namespace xpp::examples
 

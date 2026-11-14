@@ -1,5 +1,4 @@
 #include "load_args.h"
-#include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "autox_unknowns.h"
 /* The session's autoX members (xpp_session_autox.h, W92, W103): its settings, diagram and

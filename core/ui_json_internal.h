@@ -27,6 +27,7 @@
 #error "ui_json_internal.h is C++ only"
 #endif
 
+#include "ui_json.h"
 #include "xpp_ui.h"
 #include "xpp_io.h"
 #include "xpp_inbox.h"
@@ -117,6 +118,7 @@ struct ClientDiagramView {
 };
 
 struct ProtocolSession {
+    HelloInfo hello; /* what the program's start gave the front end (ui_json.h) */
     int save_replace = SAVE_ASK; /* the running command's decision, never the disk's */
     bool generated = false; /* --silent model's internal commands */
     bool silent = false; /* no interface; errors determine the process result */

@@ -21,8 +21,6 @@
 #include <cerrno>
 #include <cstdint>
 #include "event_registry.h"
-#include "xpp_update.h"
-#include "xpp_about.h"
 #include "xpp_assets.h"
 #include "xpp_inbox.h"
 #include "xpp_files.h"
@@ -101,6 +99,8 @@ struct Server {
     std::string sticky_computing; /* the running command computes: until its own done */
     std::string sticky_job;       /* the number of the job the two above belong to (their `job` field) */
     std::string load_error; /* the error event of a model that did not load */
+    std::string release_tag_prefix; /* start()'s links, set once before the threads start */
+    bool (*is_about_link)(std::string_view) = nullptr;
     std::array<WindowLine, MAX_WINDOWS> windows;
     std::string log_text; /* the last LOG_KEEP bytes printed */
     std::array<PageCommands, MAX_PAGES> pages;
@@ -1104,12 +1104,12 @@ void start_serving(int got, bool show, bool open)
 
 xpp::Result<> open_release_page(std::string_view url)
 {
-    constexpr std::string_view PREFIX = xpp::update::RELEASE_TAG_PREFIX;
+    const std::string_view PREFIX = srv.release_tag_prefix;
     constexpr size_t URL_LIMIT = 256; /* a release tag page needs no long query or fragment */
     const auto refused = [] {
         return xpp::fail("update check", "release URL refused", xpp::Place{"Check for updates", 1});
     };
-    if (url.size() > URL_LIMIT || !url.starts_with(PREFIX)) return refused();
+    if (PREFIX.empty() || url.size() > URL_LIMIT || !url.starts_with(PREFIX)) return refused();
     const std::string_view tail = url.substr(PREFIX.size());
     /* One tag segment only: no assets or other release routes. Strict path alphabet: no shell quotes, escapes, query, fragment, traversal or program scheme. */
     if (tail.empty() || tail == "." || tail.find("..") != std::string_view::npos) return refused();
@@ -1123,8 +1123,8 @@ xpp::Result<> open_release_page(std::string_view url)
 
 xpp::Result<> open_about_link(std::string_view url)
 {
-    /* exactly one of the About links' targets (xpp_about.h), never a URL of the caller's making */
-    if (!xpp_about_has_link(url))
+    /* exactly one of the About links' targets, never a URL of the caller's making */
+    if (!srv.is_about_link || !srv.is_about_link(url))
         return xpp::fail("About", "link refused", xpp::Place{"About", 1});
     if (!open_in_browser(std::string(url)))
         return xpp::fail("About", "the system browser could not open", xpp::Place{"About", 1});
@@ -1172,9 +1172,11 @@ void show(bool open)
     }
 }
 
-bool start(int port, bool show, bool open)
+bool start(int port, bool show, bool open, const OpenableLinks &links)
 {
     if (!start_sockets()) return false;
+    srv.release_tag_prefix = links.release_tag_prefix;
+    srv.is_about_link = links.is_about_link;
     int got = listen_on(port);
     if (got < 0 && port != 0) got = listen_on(0); /* taken: any free port */
     if (got < 0) {

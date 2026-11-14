@@ -1,5 +1,6 @@
 /* The recent models: see xpp_recent.h. */
 #include "xpp_recent.h"
+#include "model_switch.h"
 
 #include <utility>
 #include <expected>

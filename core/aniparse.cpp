@@ -44,7 +44,7 @@
 #include <span>
 #include "colormap.h"
 #include "comline.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "odex_block.h"
 #include "session.h"
 #include "storage.h"

@@ -31,7 +31,6 @@
 #include "autox_parallel.h"
 #include "xpp_cpu.h"
 #include "xpp_files.h"
-#include "xpp_prefs.h"
 #include "json_number.h"
 #include "session.h"
 #include "autox_state.h"
@@ -290,7 +289,7 @@ std::string event_text(const xpp::Session &s)
     for (std::size_t i=0;i<autox_codim_kinds.size();++i)
         o += xpp::format("{}\"{}\":{}",i ? "," : "",autox_codim_keys[i],*set.special_points[i] ? "true" : "false");
     o += "},\"threads\":";
-    if (s.threads == prefs::THREADS_AUTO) xpp::json_append_string(o, std::string(prefs::THREADS_AUTO_WORD).c_str());
+    if (s.threads == cpu::THREADS_AUTO) xpp::json_append_string(o, std::string(cpu::THREADS_AUTO_WORD).c_str());
     else o += xpp::number(s.threads);
     o += xpp::format(",\"threads_auto\":{},\"threads_max\":{}", AutoxParallel::automatic_threads(), cpu::logical_processors());
     o += ",\"rules\":{";
@@ -496,22 +495,6 @@ bool apply(xpp::Session &s, const AutoxSettingsSet *set, std::string &why)
         return false;
     }
     Checked &c = *checked;
-    if (set->threads) {
-        if (*set->threads != prefs::THREADS_AUTO)
-            if (const auto problem = prefs::threads_problem(*set->threads)) {
-                why = *problem;
-                return false;
-            }
-        /* a recording's replay changes the session's count, never the user's preferences */
-        if (!files::serving_reads()) {
-            const auto saved = prefs::update_prefs([&](prefs::Preferences &p) { p.threads = *set->threads; });
-            if (!saved) {
-                why = saved.error().text();
-                return false;
-            }
-        }
-        s.threads = *set->threads;
-    }
     commit(s, set, c);
     return true;
 }
@@ -560,19 +543,6 @@ Result<double> autox_settings_num_parse(int i, std::string_view text)
         return v;
     }
     return v;
-}
-
-void preferences_load(Session &s, const Result<prefs::Preferences> *read)
-{
-    if (files::serving_reads()) return;
-    const Result<prefs::Preferences> p = read ? *read : prefs::load_prefs();
-    if (p) {
-        s.threads = p->threads;
-        s.colors = p->colors;
-    }
-    /* the count stays automatic and the colors the defaults until the file is fixed (a `set` of the count refuses until then); said in the
-       log, as --silent shows no recent models' note to carry the file's error */
-    else xpp::log(XPP_LOG_WARN, "{}: the thread count stays automatic and the colors the defaults\n", p.error().text());
 }
 
 AutoxSettingsSet autox_settings_now(const xpp::Session &s)

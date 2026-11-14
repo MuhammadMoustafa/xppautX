@@ -10,6 +10,7 @@
 #include "xpp_io.h"
 #include "xpp_prefs.h"
 #include "xpp_recent.h"
+#include "model_switch.h"
 #include "xpp_error.h"
 
 #include <cstdlib>

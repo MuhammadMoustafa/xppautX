@@ -6,7 +6,7 @@
 #include "xpp_ui.h"
 #include "xpp_job.h"
 #include "xpp_io.h"
-#include "xpp_batch.h"
+#include "xpp_globals.h"
 #include "xpp_log.h"
 #include <stdarg.h>
 #include <stdio.h>

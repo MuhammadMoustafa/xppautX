@@ -24,6 +24,28 @@ namespace xpp {
 struct Session; /* session.h */
 }
 
+/* What File > Open model asks of the program's own services, below the
+   Session: the recent models and the bundled examples (xpp_recent.cpp,
+   xpp_examples.cpp, the application's), which implement these. */
+namespace xpp::recent {
+/* the entries of the preferences file: none when it is not there, the error when it is bad */
+Result<std::vector<std::string>> load_recent();
+/* `model` (an absolute path) first in the file, the rest after it without a
+   repeat of it and cut at prefs::MAX_RECENT_MODELS. The file is read first: a bad one is
+   the error, left as it is. Nothing is kept while a recording plays
+   (files::serving_reads): that is not the user opening it. */
+Result<> note(std::string_view model);
+} // namespace xpp::recent
+namespace xpp::examples {
+/* The copy of the example `name` in the config folder's examples/, made
+   (the folder too) after asking before replacing one that is there (the
+   Replace question of every save, browse.h open_writer_asking): its path,
+   or "" when the user declined (nothing is changed). An error when `name` is
+   not in list() (a path, "..", a link, a file that is not there are all
+   that), when it cannot be read or when there is no config folder. */
+Result<std::string> install(std::string_view name);
+} // namespace xpp::examples
+
 /* File > Open model (key m) and {"cmd":"open"}: path, or the file the
    user picks when it is NULL or empty; asks before this model goes,
    offering to save its session first (xpp_session_save). A file that

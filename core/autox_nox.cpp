@@ -80,7 +80,6 @@
 #include "session.h"
 #include "xpp_error.h"
 #include "xpp_io.h"
-#include "xpp_prefs.h"
 namespace xpp {
 
 

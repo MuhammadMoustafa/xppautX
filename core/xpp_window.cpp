@@ -1,4 +1,3 @@
-#include "open_model.h"
 /* The desktop window (xpp_window.h): web2 in the operating system's web
    view, through the vendored webview library (third_party/webview, built
    as its own object from src/webview.cc; this file sees only its C API).

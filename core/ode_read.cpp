@@ -25,7 +25,7 @@
 #include "model_files.h"
 #include "newpars.h"
 #include "odex.h"
-#include "xpp_batch.h"
+#include "model_failed.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_util.h"

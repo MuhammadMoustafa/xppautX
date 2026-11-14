@@ -1,4 +1,4 @@
-#include "xpp_batch.h"
+#include "model_failed.h"
 #include "storage.h"
 #include "xpp_ui.h"
 #include "markov.h"

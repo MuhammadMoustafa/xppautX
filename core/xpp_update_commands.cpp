@@ -1,4 +1,4 @@
-/* The update resource's registry rows (W622): whether the opening's check for a newer release is due, the page's report of
+/* The update resource's registry rows (W622), the application's since the update and the install it starts are (xpp_update.h, xpp_install.h): whether the opening's check for a newer release is due, the page's report of
    a check that failed, and the download of a release file (checked against the release list: xpp_update.h). */
 #include "command_def.h"
 #include "session.h"

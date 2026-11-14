@@ -39,7 +39,6 @@
 #include "session.h"
 #include "struct.h"
 #include "xpp_io.h"
-#include "xpp_prefs.h"
 
 namespace xpp {
 

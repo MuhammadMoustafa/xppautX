@@ -2,19 +2,11 @@
    page's Help > About shows it, from hello's "about". */
 #pragma once
 
+#include "ui_json.h" /* AboutLine and AboutPart, the text's own types, are hello's */
+
 #include <string>
 #include <string_view>
 #include <vector>
-
-/* a run of the About text: plain, or a link when `url` is not empty */
-struct AboutPart {
-    std::string text;
-    std::string url;
-};
-
-struct AboutLine {
-    std::vector<AboutPart> parts; /* none: a blank line */
-};
 
 /* the version line, the author, the contact and project links, the credit
    and licence, and the build (commit, compiler, protocol); the links'

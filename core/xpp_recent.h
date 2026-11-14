@@ -17,14 +17,6 @@
 
 namespace xpp::recent {
 
-/* the entries of the preferences file: none when it is not there, the error when it is bad */
-Result<std::vector<std::string>> load_recent();
-/* `model` (an absolute path) first in the file, the rest after it without a
-   repeat of it and cut at prefs::MAX_RECENT_MODELS. The file is read first: a bad one is
-   the error, left as it is. Nothing is kept while a recording plays
-   (files::serving_reads): that is not the user opening it. */
-Result<> note(std::string_view model);
-
 /* hello's `start` object for a session with no model: {"path":..., "limit":N,
    "recent":[{"path":..., "missing":bool}, ...]} and, when the file is bad,
    "error" (the common error fields) with no entries; `more` is further

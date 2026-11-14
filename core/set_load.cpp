@@ -11,7 +11,7 @@
 #include "odex_write.h"
 #include "session.h"
 #include "session_settings.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"

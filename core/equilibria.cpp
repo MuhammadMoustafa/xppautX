@@ -27,7 +27,6 @@
 #include "model.h"
 #include "colormap.h"
 #include "xpp_io.h"
-#include "xpp_prefs.h"
 
 namespace xpp {
 #define DING ping()

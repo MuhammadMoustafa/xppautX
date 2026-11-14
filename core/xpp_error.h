@@ -2,7 +2,7 @@
 /* xpp::Error: an error as a value, and where it is (W63b, W63c; one type
    since W140). C++ only. Every way of reporting one takes it: show_error
    and command_error (xpp_ui.h), a load that fails (xpp::load_model and
-   xpp::model_failed, xpp_batch.h; xpp::LoadFailed, session.h), the .odex
+   xpp::model_failed, model_failed.h; xpp::LoadFailed, session.h), the .odex
    reader's problems (odex::error_at, odex.h). Error::text() is the one
    rendering of it as text (the console, the log, --silent), and the JSON
    front end sends its fields in the `error` and `message` events

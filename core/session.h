@@ -26,7 +26,6 @@
 #include "xpp_files.h"
 #include "xpp_log.h"
 #include "model_options.h"
-#include "xpp_prefs.h"
 #include "xpp_cpu.h"
 #include "model_parts.h" /* IWYU pragma: keep (a std::vector of its BoundaryCondition is destroyed by Session, which needs it complete) */
 
@@ -173,12 +172,12 @@ struct Session {
   std::vector<int> itor;
 
   /* the thread count of autoX's collocation and of a sweep's runs (W267, W434), a program preference
-     (xpp_prefs.h) kept here for the run: prefs::THREADS_AUTO, or the count */
-  unsigned threads = prefs::THREADS_AUTO;
+     (xpp_prefs.h) kept here for the run: cpu::THREADS_AUTO, or the count */
+  unsigned threads = cpu::THREADS_AUTO;
   /* the colors the diagram, the nullclines and the manifolds are drawn in, a program preference like the thread count */
-  prefs::Colors colors;
+  Colors colors;
   /* the threads a set of jobs or runs shares: the count, or all the physical cores when automatic */
-  unsigned thread_budget() const { return threads != prefs::THREADS_AUTO ? threads : cpu::physical_threads(); }
+  unsigned thread_budget() const { return threads != cpu::THREADS_AUTO ? threads : cpu::physical_threads(); }
 
   /* autoX's settings, what its window shows and its scratch folder
      (autox_nox.cpp), and the diagram (diagram.cpp). A run's own state, its

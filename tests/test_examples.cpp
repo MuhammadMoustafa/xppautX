@@ -8,6 +8,7 @@
    tools/servercheck.py's start screen section. */
 #include "xpptest.h"
 #include "xpp_examples.h"
+#include "model_switch.h"
 #include "xpp_files.h"
 #include "xpp_error.h"
 

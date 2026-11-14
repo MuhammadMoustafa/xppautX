@@ -46,7 +46,8 @@
 #include "axes2.h"
 #include "nullcline.h"
 #include "model_options.h"
-#include "xpp_batch.h"
+#include "model_load.h"
+#include "model_failed.h"
 #include "xpp_globals.h"
 #include "xpp_log.h"
 #include "xpp_install.h"
@@ -62,11 +63,14 @@
 #include "autox_nox.h"
 #include "xpp_files.h"
 #include "xpp_about.h"
+#include "xpp_update.h"
 #include "xpp_window.h"
 #include "odex.h"
 #include "xpp_session.h"
 #include "xpp_prefs.h"
 #include "xpp_recent.h"
+#include "xpp_examples.h"
+#include "model_switch.h"
 #include <functional>
 #include <stdio.h>
 #include <stdlib.h>
@@ -142,6 +146,14 @@ static struct {
     xpp::Result<xpp::prefs::Preferences> prefs;
 } startup;
 
+/* what the front end's hello carries that only the program's start knows (ui_json.h) */
+static xpp::HelloInfo hello_info()
+{
+    const xpp::update::Plan plan = xpp::update::running_plan();
+    return {xpp_about_lines(), xpp_version_string(), std::string(xpp::update::install_name(plan.install)), plan.asset_suffix, plan.why,
+            [] { return xpp::recent::start_json(xpp::recent::load_recent(), ",\"examples\":" + xpp::examples::json()); }};
+}
+
 static void run_session(void)
 {
     /* a monospace font the client can match: small 7x13, big 9x15 */
@@ -149,7 +161,7 @@ static void run_session(void)
     xpp::text_metrics.big_width = 9; xpp::text_metrics.big_height = 15;
 
     const bool silent = startup.line.silent;
-    xpp::json_ui_install(silent);
+    xpp::json_ui_install(hello_info(), silent);
     /* what the command line says, changed below only where a file in its place
        or the system adds an argument: then the changed arguments are read again */
     std::vector<std::string> args = startup.line.arguments;
@@ -236,7 +248,10 @@ int main(int argc, char **argv)
        already a real pipe or file, or there is no parent console */
     xpp::platform::attach_parent_console();
     /* the whole command line, read once: ours and xppaut's */
-    xpp::Result<xpp::CommandLine> parsed = xpp::parse_command_line(std::vector<std::string>(argv, argv + argc));
+    std::vector<std::string> arguments(argv, argv + argc);
+    /* what the system adds that is not an option (macOS's -psn_ serial number) is not read as one */
+    std::erase_if(arguments, [&](const std::string &word) { return &word != &arguments.front() && xpp::platform::ignored_launch_argument(word); });
+    xpp::Result<xpp::CommandLine> parsed = xpp::parse_command_line(std::move(arguments));
     if (!parsed) {
         xpp::log(XPP_LOG_ERROR, "{}\n", parsed.error().text());
         return 2;
@@ -300,7 +315,7 @@ int main(int argc, char **argv)
                                 xpp::Place{cl.model_file}}.text());
             return 2;
         }
-        return xpp::json_ui_silent(startup.line, &startup.prefs);
+        return xpp::json_ui_silent(startup.line, &startup.prefs, hello_info());
     }
     /* a build without a window is browser mode (--no-open needs --browser: comline.cpp) */
     xpp::Interface interface = cl.interface.value_or(xpp::Interface::window);
@@ -311,7 +326,8 @@ int main(int argc, char **argv)
         const bool browser = interface == xpp::Interface::browser;
         program.page = browser ? XppProgram::Page::browser : XppProgram::Page::window;
         /* the window navigates to the address itself: shown nowhere */
-        if (!xpp::http::start(cl.port.value_or(xpp::http::DEFAULT_PORT), browser, browser && !cl.no_open)) return 1;
+        if (!xpp::http::start(cl.port.value_or(xpp::http::DEFAULT_PORT), browser, browser && !cl.no_open,
+                              {xpp::update::RELEASE_TAG_PREFIX, xpp_about_has_link})) return 1;
         /* the autoX window's Output panel shows autoX's table from the log */
         xpp::log_set_autox_echo(1);
     }

@@ -17,9 +17,7 @@
 #include "grobs.h"
 #include "ui_json.h"
 #include "json_files.h"
-#include "xpp_about.h"
-#include "xpp_install.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "integrate.h"
 #include "ui_json_internal.h"
 #include "autox_run.h"
@@ -67,8 +65,6 @@
 #include <vector>
 #include "colormap.h"
 #include "xpp_files.h"
-#include "xpp_examples.h"
-#include "xpp_recent.h"
 #include "recx.h"
 #include "event_registry.h"
 #include "session.h"
@@ -1083,15 +1079,17 @@ void install(bool silent)
 
 } // namespace
 
-void json_ui_install(bool silent)
+void json_ui_install(HelloInfo hello, bool silent)
 {
+    session.hello = std::move(hello);
     session.silent = silent;
     if (silent) session.output_folder = xpp::files::working_dir();
     install(silent);
 }
 
-int json_ui_silent(CommandLine cl, const Result<prefs::Preferences> *read_prefs)
+int json_ui_silent(CommandLine cl, const Result<prefs::Preferences> *read_prefs, HelloInfo hello)
 {
+    session.hello = std::move(hello);
     /* the model loads as with no interface at all: a model that does not
        load exits 1, its reason logged */
     const xpp::Loaded loaded = xpp::load_model(std::move(cl), 1, nullptr, {}, read_prefs);
@@ -1165,7 +1163,7 @@ void send_hello(xpp::Session &s)
     BUF_LIT(b, ",\"about\":");
     BUF_LIT(b, "[");
     bool first_line = true;
-    for (const AboutLine &line : xpp_about_lines()) {
+    for (const AboutLine &line : session.hello.about) {
         if (!first_line) BUF_LIT(b, ",");
         first_line = false;
         BUF_LIT(b, "[");
@@ -1183,13 +1181,12 @@ void send_hello(xpp::Session &s)
     }
     BUF_LIT(b, "]");
     /* how a newer release is installed over this program, and which release file fits (xpp_install.h) */
-    const xpp::update::Plan update = xpp::update::running_plan();
     BUF_LIT(b, ",\"update\":{\"install\":");
-    buf_str(b, std::string(xpp::update::install_name(update.install)));
+    buf_str(b, session.hello.update_install);
     BUF_LIT(b, ",\"asset_suffix\":");
-    buf_str(b, update.asset_suffix);
+    buf_str(b, session.hello.update_asset_suffix);
     BUF_LIT(b, ",\"why\":");
-    buf_str(b, update.why);
+    buf_str(b, session.hello.update_why);
     BUF_LIT(b, "}");
     /* File > Quit's question, as the core asks it (model_switch.h): the
        page asks the same itself while a computation runs (W110) */
@@ -1212,7 +1209,7 @@ void send_hello(xpp::Session &s)
     /* a session with no model: what the start screen shows (xpp_recent.h) */
     if (!m.loaded()) {
         BUF_LIT(b, ",\"start\":");
-        const std::string start = xpp::recent::start_json(xpp::recent::load_recent(), ",\"examples\":" + xpp::examples::json());
+        const std::string start = session.hello.start();
         buf_add(b, start.data(), start.size());
     }
     /* the limits the page keeps to and the windows' numbers in `window`

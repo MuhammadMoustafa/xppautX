@@ -44,7 +44,7 @@ std::span<const Command> help_commands() { return HELP_ROWS; }
 /* every resource's table, in the order `help` lists them; a menu's entries follow it, the rows of one table in their order */
 constexpr std::array TABLES = {keymap_commands, session_commands, initial_conditions_commands, recording_commands, equilibrium_commands, nullcline_commands,
                               annotation_commands, run_commands, direction_field_commands, plot_commands, analysis_commands, kinescope_commands,
-                              table_commands, data_commands, help_commands, tool_commands, window_commands, autox_commands, animation_commands,
+                              table_commands, data_commands, help_commands, tool_commands, window_commands, autox_commands, preferences_commands, animation_commands,
                               array_plot_commands, set_commands, boundary_value_commands, value_commands, options_commands, events_commands, update_commands};
 
 template <class Visit> void each_command(Visit visit)

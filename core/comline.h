@@ -1,6 +1,5 @@
 #pragma once
 
-#include "autox_script.h"
 #include "xpp_error.h"
 #include "xpp_log.h"
 #include <optional>
@@ -11,9 +10,6 @@
 #include <cstddef>
 
 namespace xpp {
-
-struct Model;   /* model.h */
-struct Session; /* session.h */
 
 /* what the program shows its session in */
 enum class Interface { window, browser, server };
@@ -40,16 +36,11 @@ struct CommandLine {
   std::optional<std::string> out_file, ani_file, state_file; /* given or not */
   std::string out_place;                       /* --outfile as written, for an error's place */
   std::vector<std::pair<std::string_view, std::string>> options; /* --dfdraw, --ncdraw through set_option, in order */
-  std::optional<AutoxScript> autox_script;     /* the .autox script the model file names (load_model), read whole */
-
 };
 
 /* Read the whole command line in one pass: every option's spelling, argument
    and value checked; the first fault is an error naming the option, at its
    place in the command line. */
 Result<CommandLine> parse_command_line(std::vector<std::string> arguments);
-/* the command line's switches into the loading Session s and the model's
-   file into its Model's this_file; the Model keeps cl. */
-void apply_command_line(Session &s, CommandLine cl);
 
 } // namespace xpp

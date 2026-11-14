@@ -885,7 +885,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   `xpp::Session &s` (or the part it uses) from its caller, never a
   current one ("No global state" below). What stays process-wide is a global of its
   owner: `program` (xpp_globals.h: interactive, version, tutorial),
-  `batch_options` (xpp_batch.h), `xpp::log_settings` (xpp_log.h),
+  `batch_options` (xpp_globals.h), `xpp::log_settings` (xpp_log.h),
   `color_table` (colormap.h), `text_metrics` (xpp_ui.h), the command-line
   flags (comline.h). Include the owner's header, never redeclare
   anything `extern` in a .cpp.

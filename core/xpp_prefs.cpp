@@ -1,5 +1,6 @@
 /* preferences.odex: see xpp_prefs.h. */
 #include "xpp_prefs.h"
+#include "model_files.h"
 
 #include <algorithm>
 #include <optional>
@@ -195,7 +196,7 @@ public:
 template <class IO, class P> void describe(IO &io, P &p)
 {
     io.paths("recent_models", p.recent_models, MAX_RECENT_MODELS, recent_problem);
-    io.count("threads", p.threads, THREADS_AUTO_WORD, threads_problem);
+    io.count("threads", p.threads, cpu::THREADS_AUTO_WORD, cpu::threads_problem);
     io.level("log_level", p.log_level);
     io.text("log_file", p.log_file, path_problem);
     for (const ColorKey &c : COLOR_KEYS) io.color(c.key, p.colors.*c.member);
@@ -205,13 +206,6 @@ template <class IO, class P> void describe(IO &io, P &p)
 }
 
 } // namespace
-
-std::optional<std::string> threads_problem(long long n)
-{
-    const unsigned most = cpu::logical_processors();
-    if (n >= 1 && n <= static_cast<long long>(most)) return std::nullopt;
-    return xpp::format("the thread count must be \"{}\" or a whole number from 1 to {} (this computer's logical processors)", THREADS_AUTO_WORD, most);
-}
 
 Result<Preferences> parse_prefs(std::string_view text, std::string file)
 {

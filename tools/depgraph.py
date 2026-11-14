@@ -39,18 +39,18 @@ MODULES = {
     'files': ('the file system, outside the kernel: the file handles (LineReader, Writer), folders, the log file, zip and hashes, and the files command\'s result as the protocol shows it (json_files)', [
         'xpp_io', 'xpp_io_internal', 'xpp_files', 'xpp_files_dir', 'xpp_files_internal', 'xpp_files_win', 'xpp_files_posix',
         'xpp_files_linux', 'xpp_files_mac', 'xpp_sha256', 'xpp_zip', 'json_files']),
-    'run control': ('the cancel token and progress a computation reports to, and the input queues of commands and cancels it sees, which the front ends and the platform fill (the stdin reader is the --server front end\'s own, json_io.cpp)', ['xpp_job', 'xpp_inbox']),
+    'run control': ('the cancel token and progress a computation reports to, and the input queues of commands and cancels it sees, which the front ends and the platform fill (the stdin reader is the --server front end\'s own, json_io.cpp)', ['xpp_job', 'xpp_inbox', 'model_failed']),
     'styles': ('the colors, color scales, line styles and text styles a model, a run and a plot carry: pure types and their words, which include only the kernel (W733)', [
         'colormap', 'line_style', 'text_style']),
     'plot state': ('the data of the plot windows a Session holds, a model\'s options give and a run reads: pure structs and the window handle type, with no drawing (W733)', [
         'plot_state', 'struct', 'xpp_types']),
-    'ui seam': ('the XppUi table core code calls the front end through, the lists of choices it shows, and the events the core sends (their names, fields and the error event: the vocabulary the front end implements)', [
-        'xpp_ui', 'menus', 'typed_values', 'event_*', 'json_error']),
+    'ui seam': ('the XppUi table core code calls the front end through, the lists of choices it shows, and the events the core sends (their names, fields and the error event: the vocabulary the front end implements), and what this run of the program is (xpp_globals: whether a front end is up, the batch options), which the program\'s start sets', [
+        'xpp_ui', 'menus', 'typed_values', 'event_*', 'json_error', 'xpp_globals']),
     'expressions': ('the formula compiler, its evaluators, native code and derived quantities', [
         'expr', 'expr_*', 'xpp_mir', 'getvar', 'derived', 'form_ode', 'tabular']),
-    'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets, among them the plot settings the model carries (W733)', [
+    'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets, among them the plot settings the model carries (W733), and the command line a load takes (comline: the switches read once, a Model keeps them)', [
         'model', 'model_*', 'load_eqn', 'odex', 'odex_*', 'ode_read', 'lunch-new', 'set_load', 'newpars',
-        'simplenet', 'options_panels', 'plot_settings']),
+        'simplenet', 'options_panels', 'plot_settings', 'comline']),
     'session': ('the Session, its stored data, display state and undo', [
         'session', 'session_values', 'storage', 'display_state', 'value_undo']),
     'session files': ('the session file, recordings and the settings they carry', [
@@ -76,8 +76,8 @@ MODULES = {
     'protocol front end': ('the JSON protocol: input, commands, events, windows and state', [
         'json_*', 'ui_json*']),
     'application': ('the program\'s start, its preferences, recent models, updates and About', [
-        'xppautx_main', 'xpp_batch', 'comline', 'model_switch', 'open_model', 'xpp_about', 'xpp_prefs',
-        'xpp_recent', 'xpp_examples', 'xpp_update', 'xpp_install', 'xpp_globals']),
+        'xppautx_main', 'xpp_batch', 'model_switch', 'open_model', 'xpp_about', 'xpp_prefs',
+        'xpp_recent', 'xpp_examples', 'xpp_update', 'xpp_install', 'xpp_prefs_commands', 'xpp_update_commands']),
     'platform': ('the system: HTTP, the window, WebView, Windows, starting a process, the page assets, and the platform files of other modules', [
         'xpp_http*', 'xpp_https*', 'xpp_window*', 'xpp_webview', 'xpp_win', 'xpp_process*', 'xpp_assets', 'xpp_platform*', 'xpp_cpu_win', 'xpp_cpu_linux', 'xpp_cpu_mac']),
 }
@@ -114,29 +114,22 @@ INDEPENDENT = [('protocol front end', 'platform')]
 # (from, to) -> (include lines against the levels now, the card that removes them); exact
 ALLOWLIST = {
     ('analysis', 'animation'): (1, 'W737'),
-    ('analysis', 'application'): (2, 'W735'),
     ('analysis', 'commands'): (3, 'W737'),
     ('analysis', 'export'): (3, 'W737'),
     ('analysis', 'files'): (11, 'W731'),
     ('analysis', 'plot'): (4, 'W733'),
     ('analysis', 'session'): (18, 'W732'),
-    ('animation', 'application'): (2, 'W735'),
     ('animation', 'files'): (4, 'W731'),
     ('animation', 'session files'): (2, 'W737'),
-    ('autoX', 'application'): (2, 'W735'),
     ('autoX', 'commands'): (2, 'W737'),
     ('autoX', 'export'): (4, 'W737'),
     ('autoX', 'files'): (32, 'W731'),
     ('autoX', 'plot'): (4, 'W733'),
     ('autoX', 'session'): (21, 'W732'),
     ('autoX', 'session files'): (3, 'W737'),
-    ('commands', 'application'): (6, 'W735'),
-    ('commands', 'files'): (35, 'W731'),
-    ('commands', 'platform'): (1, 'W737'),
-    ('export', 'application'): (1, 'W735'),
+    ('commands', 'files'): (33, 'W731'),
     ('export', 'files'): (9, 'W731'),
     ('expressions', 'analysis'): (2, 'W736'),
-    ('expressions', 'application'): (4, 'W735'),
     ('expressions', 'files'): (9, 'W731'),
     ('expressions', 'integrators'): (17, 'W736'),
     ('expressions', 'model and loading'): (31, 'W736'),
@@ -144,7 +137,6 @@ ALLOWLIST = {
     ('files', 'platform'): (1, 'W737'),
     ('integrators', 'analysis'): (11, 'W736'),
     ('integrators', 'animation'): (1, 'W737'),
-    ('integrators', 'application'): (5, 'W735'),
     ('integrators', 'autoX'): (1, 'W736'),
     ('integrators', 'commands'): (1, 'W737'),
     ('integrators', 'export'): (1, 'W737'),
@@ -153,7 +145,7 @@ ALLOWLIST = {
     ('integrators', 'session'): (28, 'W732'),
     ('model and loading', 'analysis'): (9, 'W736'),
     ('model and loading', 'animation'): (1, 'W737'),
-    ('model and loading', 'application'): (16, 'W735'),
+    ('model and loading', 'application'): (1, 'W735'),
     ('model and loading', 'autoX'): (6, 'W736'),
     ('model and loading', 'commands'): (3, 'W737'),
     ('model and loading', 'export'): (2, 'W737'),
@@ -162,25 +154,19 @@ ALLOWLIST = {
     ('model and loading', 'plot'): (3, 'W733'),
     ('model and loading', 'session'): (20, 'W732'),
     ('model and loading', 'session files'): (9, 'W737'),
-    ('platform', 'application'): (3, 'W735'),
     ('plot', 'animation'): (1, 'W737'),
-    ('plot', 'application'): (1, 'W735'),
     ('plot', 'commands'): (1, 'W737'),
     ('plot', 'export'): (12, 'W737'),
     ('plot', 'files'): (12, 'W731'),
     ('plot', 'session files'): (1, 'W737'),
-    ('protocol front end', 'application'): (10, 'W735'),
     ('protocol front end', 'platform'): (5, 'W737'),
     ('session', 'animation'): (2, 'W737'),
-    ('session', 'application'): (1, 'W735'),
     ('session', 'commands'): (1, 'W737'),
     ('session', 'export'): (3, 'W737'),
     ('session', 'files'): (4, 'W731'),
     ('session', 'plot'): (6, 'W733'),
     ('session', 'session files'): (2, 'W737'),
-    ('session files', 'application'): (1, 'W735'),
     ('session files', 'files'): (16, 'W731'),
-    ('ui seam', 'application'): (1, 'W735'),
     ('ui seam', 'autoX'): (3, 'W736'),
     ('ui seam', 'commands'): (1, 'W737'),
     ('ui seam', 'expressions'): (3, 'W736'),

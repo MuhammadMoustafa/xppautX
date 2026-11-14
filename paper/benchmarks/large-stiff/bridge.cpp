@@ -2,7 +2,7 @@
 #include "factor_timer.h"
 #include "session.h"
 #include "model.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "my_rhs.h"
 #include "expr_native.h"
 #include "cvdense.h"

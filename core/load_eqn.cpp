@@ -45,7 +45,7 @@
 #include <cstdint>
 #include <expected>
 #include <unordered_map>
-#include "xpp_batch.h"
+#include "model_failed.h"
 #include "xpp_log.h"
 #include "delay_handle.h"
 #include "session.h"

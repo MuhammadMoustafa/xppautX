@@ -18,7 +18,6 @@
 #include "xpp_cpu.h"
 #include "xpp_io.h"
 #include "xpp_job.h"
-#include "xpp_prefs.h"
 #include "xpp_log.h"
 #include "model.h"
 #include "event_registry.h"
@@ -173,54 +172,6 @@ Result<std::string> configure_marks(Session &s, const Command &command, const Ar
     set.nmarks = static_cast<int>(set.mark_name.size());
     if (const Result<> done = apply_settings(s, command, set, place); !done) return std::unexpected<Error>(done.error());
     return xpp::format("{{\"marks_count\":{}}}", set.mark_name.size());
-}
-
-/* the preferences as they stand: the thread count (and whether it is automatic), what the log shows and the file it goes to, and the colors */
-Result<std::string> preferences_now(const Session &s)
-{
-    const Result<prefs::Preferences> kept = prefs::load_prefs();
-    const bool automatic = s.threads == prefs::THREADS_AUTO;
-    ResultObject result;
-    result.integer("threads", automatic ? AutoxParallel::automatic_threads() : s.threads).boolean("automatic", automatic)
-        .text("log_level", log_level_names[static_cast<std::size_t>(kept ? kept->log_level : XPP_LOG_WARN)]).text("log_file", kept ? kept->log_file : std::string())
-        .boolean("check_for_updates", kept ? kept->check_for_updates : prefs::Preferences{}.check_for_updates);
-    for (const prefs::ColorKey &c : prefs::COLOR_KEYS) result.text(c.key, print_color(s.colors.*c.member));
-    return result.done();
-}
-
-Result<std::string> get_preferences(Session &s, const Command &, const Arguments &, const Place &) { return preferences_now(s); }
-
-/* the program's preferences: the thread count autoX and sweeps use, and what the log shows and the file it goes to (kept in
-   preferences.odex; the log applies from the next start, and --verbose and --debug win over it; a color applies to what is drawn or computed after it) */
-Result<std::string> configure_preferences(Session &s, const Command &command, const Arguments &args, const Place &place)
-{
-    const bool threads = args.has("threads") || args.has("automatic"), log = args.has("log_level") || args.has("log_file") || args.has("check_for_updates");
-    const bool colors = std::ranges::any_of(prefs::COLOR_KEYS, [&](const prefs::ColorKey &c) { return args.has(std::string(c.key)); });
-    if (!threads && !log && !colors) return fail(command.name, "Give the thread count, the log level, the log file, whether to check for updates or a color", place);
-    if ((log || colors) && files::serving_reads()) return fail(command.name, "a recording's replay leaves the user's preferences alone", place);
-    if (threads) {
-        AutoxSettingsSet set;
-        if (const auto count = args.optional<long long>("threads")) set.threads = static_cast<unsigned>(*count);
-        else if (args.get<bool>("automatic")) set.threads = prefs::THREADS_AUTO;
-        else return fail(command.name, "automatic is true; give threads for a count", place);
-        if (const Result<> done = apply_settings(s, command, set, place); !done) return std::unexpected<Error>(done.error());
-    }
-    if (log) {
-        const Result<> saved = prefs::update_prefs([&](prefs::Preferences &p) {
-            if (const auto level = args.optional<std::string>("log_level")) p.log_level = static_cast<XppLogLevel>(choice_index(log_level_names, *level));
-            if (const auto file = args.optional<std::string>("log_file")) p.log_file = *file;
-            if (const auto check = args.optional<bool>("check_for_updates")) p.check_for_updates = *check;
-        });
-        if (!saved) return std::unexpected<Error>(saved.error());
-    }
-    if (colors) {
-        /* a recording's replay changes nothing of the user's (refused above) */
-        for (const prefs::ColorKey &c : prefs::COLOR_KEYS)
-            if (const auto color = args.optional<Color>(std::string(c.key))) s.colors.*c.member = *color;
-        const Result<> saved = prefs::update_prefs([&](prefs::Preferences &p) { p.colors = s.colors; });
-        if (!saved) return std::unexpected<Error>(saved.error());
-    }
-    return preferences_now(s);
 }
 
 /* ---- running autoX ---- */
@@ -706,7 +657,7 @@ Result<std::string> draw_labeled_orbits(Session &s, const Command &command, cons
 
 /* ---- the rows ---- */
 
-double threads_maximum(const Session &) { return static_cast<double>(cpu::logical_processors()); }
+
 
 constexpr std::array<const char *, 7> PROJECTION_CHOICES = {"maximum", "norm", "maximum_and_minimum", "period", "two_parameter", "frequency", "average"};
 constexpr std::array<const char *, 2> LAST_PLOT_CHOICES = {"one", "two"};
@@ -795,22 +746,6 @@ constexpr std::array PLOT_ARGUMENTS = {
     Argument{VIEW_KEY, Type::window, false}, Argument{"fit", Type::boolean, false}};
 constexpr std::array MARKS_ARGUMENTS = {Argument{"parameters", Type::list, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::none, Type::text},
                                         Argument{"values", Type::list, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::none, Type::real}};
-constexpr std::array<const char *, 2> THREADS_ONE = {"threads", "automatic"};
-constexpr auto LOG_LEVELS = c_names(log_level_names);
-constexpr auto COLOR_ARGUMENTS = []<std::size_t... I>(std::index_sequence<I...>) {
-    return std::array{Argument{.name = prefs::COLOR_KEYS[I].key.data(), .type = Type::color, .required = false, .description = prefs::COLOR_KEYS[I].description.data()}...};
-}(std::make_index_sequence<prefs::COLOR_KEYS.size()>{});
-constexpr std::array THREAD_AND_LOG_ARGUMENTS = {
-    Argument{.name = "threads", .type = Type::integer, .required = false, .min = constant(1), .max = session_quantity("threads_max", threads_maximum),
-             .description = "How many threads autoX and a sweep's runs use, at most the computer's logical processors."},
-    Argument{.name = "automatic", .type = Type::boolean, .required = false, .description = "Let the program choose: all the physical cores."},
-    Argument{.name = "log_level", .type = Type::choice, .required = false, .choices = LOG_LEVELS,
-             .description = "What the log shows; it applies from the next start."},
-    Argument{.name = "log_file", .type = Type::text, .required = false, .description = "The file the log goes to, an absolute path; empty is the terminal."},
-    Argument{.name = "check_for_updates", .type = Type::boolean, .required = false,
-             .description = "Look for a newer release when the window or the browser page opens, at most once a day."}};
-constexpr auto THREADS_ARGUMENTS = join(THREAD_AND_LOG_ARGUMENTS, COLOR_ARGUMENTS);
-constexpr std::array<Group, 1> THREADS_GROUPS = {Group{GroupRule::at_most_one, THREADS_ONE}};
 constexpr std::array VIEW_ARGUMENTS = {Argument{VIEW_KEY, Type::window, false}};
 constexpr std::array PICK_ARGUMENTS = {Argument{"x", Type::real, true}, Argument{"y", Type::real, true}, Argument{VIEW_KEY, Type::window, false}};
 constexpr std::array DISPLAY_ARGUMENTS = {Argument{VIEW_KEY, Type::window, false},
@@ -842,10 +777,6 @@ constexpr std::array RESULT_GRAB = {ResultField{"grabbed", "boolean"}, ResultFie
 constexpr std::array RESULT_SETTINGS = {ResultField{"settings_updated", "boolean"}};
 constexpr std::array RESULT_PLOT = {ResultField{"plot_configured", "boolean"}};
 constexpr std::array RESULT_MARKS = {ResultField{"marks_count", "integer"}};
-constexpr auto RESULT_THREADS = []<std::size_t... I>(std::index_sequence<I...>) {
-    return std::array{ResultField{"threads", "integer"}, ResultField{"automatic", "boolean"}, ResultField{"log_level", "choice"}, ResultField{"log_file", "text"}, ResultField{"check_for_updates", "boolean"},
-                      ResultField{prefs::COLOR_KEYS[I].key.data(), "text"}...};
-}(std::make_index_sequence<prefs::COLOR_KEYS.size()>{});
 constexpr std::array RESULT_HIDDEN = {ResultField{"hidden_points", "integer"}};
 constexpr std::array RESULT_REDRAWN = {ResultField{"redrawn", "boolean"}};
 constexpr std::array RESULT_PICK = {ResultField{"x", "real"}, ResultField{"y", "real"}};
@@ -898,10 +829,6 @@ const std::array ROWS = {
             RESULT_PLOT, EVENTS_SETTINGS, true, configure_axes, {}, {}, "read", "*", "diagram+"},
     Command{"autox.configure_marks", MARKS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Mark values", "autoX",
             "Set the Mark values: the parameters (or T, the period) and the values at which autoX labels a point.", RESULT_MARKS, EVENTS_SETTINGS, true, configure_marks, {}, {}},
-    Command{"preferences.get", {}, XPP_KIND_CONTROL, CommandCategory::Analysis, "Get preferences", "",
-            "The program's preferences as they stand: the thread count and whether it is automatic, the log level and the log file.", RESULT_THREADS, EVENTS_BROWSER, false, get_preferences, {}, {}},
-    Command{"preferences.configure", THREADS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Preferences", "File",
-            "Set the program's preferences, kept in its preferences file: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and the file it goes to (empty: the terminal), and the colors the diagram, the nullclines and the manifolds are drawn with, and whether the window and the page look for a newer release when they open; the log applies from the next start.", RESULT_THREADS, EVENTS_SETTINGS, true, configure_preferences, THREADS_GROUPS, {}},
     Command{"autox.import_diagram", FILE_REQUIRED, XPP_KIND_DATA, CommandCategory::Analysis, "Import XPPAUT diagram", "autoX/File",
             "Import an XPPAUT diagram (.auto) into the open model.", RESULT_IMPORTED, EVENTS_RUN, true, import_diagram, {}, {}},
     Command{"autox.reset_diagram", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Reset diagram", "autoX/File",

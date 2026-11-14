@@ -9,7 +9,7 @@
 #include "session.h"
 #include "storage.h"
 #include "adj2.h"
-#include "xpp_batch.h"
+#include "model_load.h"
 #include "command_registry.h"
 #include "xpp_ui.h"
 

@@ -22,6 +22,8 @@
 #include "session_settings.h"
 #include "settings_text.h"
 #include "model_text.h"
+#include "model_load.h"
+#include "xpp_globals.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
 #include "xpp_files.h"

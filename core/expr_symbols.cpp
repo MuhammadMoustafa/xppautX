@@ -8,7 +8,6 @@
 #include "numerics_settings.h"
 #include "model.h"
 #include "model_record.h"
-#include "comline.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
 #include "xpp_math.h"
