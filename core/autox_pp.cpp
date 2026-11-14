@@ -53,14 +53,14 @@ void exact_derivatives(const xpp::Session &s, AutoxRun &run, const double *c, st
     if(ijac<2)return;
     for(std::ptrdiff_t i=0;i<nfpr;i++){
       double *column=dfdp+icp[i]*ndim;
-      const int k=s.autox_state->parameter_layout.model_index(static_cast<int>(icp[i]));
+      const int k=run.evaluation.parameter_layout.model_index(static_cast<int>(icp[i]));
       if(k>=0)xpp::exact_constant_derivative(s,run.jacobian_scratch,c,s.model().upar_con[k],0.0,u,f,n,column);
       else std::fill_n(column,n,0.0);
     }
   } catch (const xpp::JacobianFailed &failed) {
     if(!run.jacobian_failure){
       run.jacobian_failure=failed.error;
-      const int k=s.autox_state->parameter_layout.model_index(static_cast<int>(icp[0]));
+      const int k=run.evaluation.parameter_layout.model_index(static_cast<int>(icp[0]));
       if(k>=0)
         run.jacobian_failure->what+=xpp::format(" (autoX at {}={})",s.model().upar_names[k],c[s.model().upar_con[k]]);
     }
@@ -123,7 +123,7 @@ void worker_func(const xpp::Session &s, AutoxRun &worker, std::ptrdiff_t ndim, c
 {
   double *c=worker.rhs_constants.data();
   pure_values(s,c,worker.rhs_variables.data(),u,icp,nfpr,parameters,f);
-  if(ijac!=0&&s.numerics->jacobian==xpp::JACOBIAN_EXACT)exact_derivatives(s,worker,c,ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
+  if(ijac!=0&&worker.evaluation.exact_jacobian)exact_derivatives(s,worker,c,ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
 }
 
 }
@@ -170,11 +170,11 @@ namespace {
 [[gnu::noinline]] void serial_func(AutoxRun &run, std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, std::span<const double> parameters, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
    xpp::Session &s=*run.session;
-   const bool exact=ijac!=0&&s.numerics->jacobian==xpp::JACOBIAN_EXACT;
+   const bool exact=ijac!=0&&run.evaluation.exact_jacobian;
    int i,j;
    /* the right-hand side and the Jacobian only read the point */
    double *x=const_cast<double *>(u);
-   if(xpp::autox_parallel_ready(s))
+   if(run.evaluation.parallel_ready)
      pure_values(s,s.parser.constants.data(),s.parser.variables.data(),x,icp,nfpr,parameters,f);
    else{
      continued_constants(s,s.parser.constants.data(),icp,nfpr,parameters);
@@ -188,7 +188,7 @@ namespace {
    else if(ijac==1){
      xpp::jacobian(s,0.0,x,f,ndim,s.numerics->equilibria.jacobian_step,{xpp::JacobianLayout::ColumnMajor},dfdu);
    }
-   if(!xpp::solver_info(s.numerics->method).traits.discrete||s.numerics->store_every==1)return;
+   if(!run.evaluation.chained_map)return;
    /* the map applied store_every times: its exact Jacobian is the product
       of each step's, and each step adds its own dependence on the
       parameters to what the steps before passed on */
@@ -222,7 +222,7 @@ namespace {
 int user_right_hand_side(AutoxRun &run, std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, const double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
    xpp::Session &s=*run.session;
-   const auto parameters=s.autox_state->parameter_layout.parameters(par);
+   const auto parameters=run.evaluation.parameter_layout.parameters(par);
    if (run.pure_rhs) worker_func(s,run,ndim,u,icp,nfpr,parameters,ijac,f,dfdu,dfdp);
    else serial_func(run,ndim,u,icp,nfpr,parameters,ijac,f,dfdu,dfdp);
    return 0;
@@ -232,6 +232,15 @@ void func_again(AutoxRun &run, std::ptrdiff_t ndim, const double *u, const std::
 {
    if(run.pure_rhs)pure_rhs(*run.session,u,f,run.rhs_constants.data(),run.rhs_variables.data());
    else user_right_hand_side(run,ndim,u,icp,nfpr,par,0,f,nullptr,nullptr);
+}
+
+void autox_bind_session(AutoxRun &run, xpp::Session &s)
+{
+  run.session=&s;
+  run.evaluation={.parameter_layout=s.autox_state->parameter_layout,
+                  .parallel_ready=xpp::autox_parallel_ready(s),
+                  .exact_jacobian=s.numerics->jacobian==xpp::JACOBIAN_EXACT,
+                  .chained_map=xpp::solver_info(s.numerics->method).traits.discrete&&s.numerics->store_every!=1};
 }
 
 void autox_fill_parameters(const AutoxRun &run, double *par)

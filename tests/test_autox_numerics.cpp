@@ -318,7 +318,7 @@ void homcont()
     CHECK(xpp::ensure_exact_jacobian(session));
     session.numerics->jacobian = xpp::JACOBIAN_EXACT;
     AutoxRun run;
-    run.session = &session;
+    autox_bind_session(run, session);
     run.parameter_count = session.autox_state->parameter_layout.size();
     iap_type iap{};
     iap.run = &run; iap.ndim = n; iap.ndm = n; iap.nfpr = 2;

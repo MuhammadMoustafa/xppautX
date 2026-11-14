@@ -676,7 +676,7 @@ void check_branch_parameters()
     s.autox_state->follow_all_branches=false; /* these tests start one run each */
     // Mark functions must read a held model constant even though autoX never received it.
     AutoxRun mark_lib;
-    mark_lib.session=&s;
+    autox_bind_session(mark_lib, s);
     mark_lib.parameter_count=s.autox_state->parameter_layout.size();
     iap_type mark_iap{};
     mark_iap.run=&mark_lib;
@@ -988,7 +988,7 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
     // The run's pool is its own, gone with it: the selection a run makes is the one select_run makes
     // for its dimension and mesh.
     AutoxRun run;
-    run.session=&s;
+    autox_bind_session(run, s);
     xpp::AutoxParallel::select_run(run,s.model().node,s.autox_state->bifur.ntst,s.autox_state->bifur.ncol);
     if (compiled && !impure) CHECK(run.collocation && run.collocation->threads()==(mesh==serial_mesh?1:threads));
     else CHECK(!run.collocation && !xpp::autox_parallel_ready(s));
@@ -1054,7 +1054,7 @@ void check_collocation()
     // dispatch must leave the persistent pool usable for the next call.
     auto &s=xpp::client_session();
     AutoxRun run;
-    run.session=&s;
+    autox_bind_session(run, s);
     xpp::AutoxParallel pool(4);
     pool.prepare(run,2,2);
     std::atomic<int> visited=0;
@@ -1087,7 +1087,7 @@ void check_pool_reuse()
 {
     auto &s=xpp::client_session();
     AutoxRun run;
-    run.session=&s;
+    autox_bind_session(run, s);
     for (unsigned count:{4u,1u,3u,2u,4u}) {
         xpp::AutoxParallel pool(count);
         pool.prepare(run,2,2);
@@ -1187,7 +1187,7 @@ void check_brbd_tree()
     double first_det=0;
     for (unsigned threads=1;threads<=xpp::AutoxParallel::max_threads;++threads) {
         AutoxRun run;
-        run.session=&xpp::client_session();
+        autox_bind_session(run,xpp::client_session());
         run.parameter_count=ncb;
         run.collocation=std::make_unique<xpp::AutoxParallel>(threads);
         run.collocation->prepare(run,nov,nbc);

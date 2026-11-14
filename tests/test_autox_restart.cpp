@@ -39,7 +39,7 @@ void formulation(xpp::Session &s, decltype(&periodic_fold_starting_data) restart
     xpp::UniqueFile file(xpp::files::open_stream(path, "w+"));
     CHECK(file != nullptr);
     AutoxRun run;
-    run.session = &s;
+    autox_bind_session(run, s);
     run.parameter_count = s.autox_state->parameter_layout.size();
     run.fp3 = file.get();
     run.fort3 = path;
@@ -116,7 +116,7 @@ void algebraic(xpp::Session &s, bool truncated) {
     const std::string path = temp.path() + "/fort.3";
     xpp::UniqueFile file(xpp::files::open_stream(path, "w+"));
     AutoxRun run;
-    run.session = &s;
+    autox_bind_session(run, s);
     run.parameter_count = s.autox_state->parameter_layout.size();
     run.fp3 = file.get();
     run.fort3 = path;
@@ -157,7 +157,7 @@ void user_zero_text(xpp::Session &s) {
     const std::string path = temp.path() + "/fort.9";
     xpp::UniqueFile file(xpp::files::open_stream(path, "w+"));
     AutoxRun run;
-    run.session = &s;
+    autox_bind_session(run, s);
     run.parameter_count = s.autox_state->parameter_layout.size();
     run.fp9 = file.get();
     iap_type iap{};
@@ -196,7 +196,7 @@ void user_zero_text(xpp::Session &s) {
 void point_files(xpp::Session &s, int count, bool collocation) {
     xpp::TempDir temp;
     AutoxRun run;
-    run.session = &s;
+    autox_bind_session(run, s);
     run.parameter_count = s.autox_state->parameter_layout.size();
     const std::string solution_path = temp.path() + "/fort.8";
     run.fp8.reset(xpp::files::open_stream(solution_path, "w+"));
@@ -267,7 +267,7 @@ void branch_point_direction(xpp::Session &s) {
         xpp::TempDir temp;
         const std::string path = temp.path() + "/fort.8";
         AutoxRun run;  // write_special_point_restart writes the session's own fort.8
-        run.session = &s;
+        autox_bind_session(run, s);
         run.parameter_count = s.autox_state->parameter_layout.size();
         run.fp8.reset(xpp::files::open_stream(path, "w+"));
         CHECK(run.fp8 != nullptr);

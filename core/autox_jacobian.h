@@ -39,9 +39,7 @@ inline double central_step(std::ptrdiff_t n, const double *x) {
 // are not known, or a map iterated store_every times reads more states than
 // one step does.
 inline const DifferenceGroups *state_groups(const iap_type *iap, std::ptrdiff_t n) {
-  const auto &numerics = *iap->run->session->numerics;
-  const bool chained = xpp::solver_info(numerics.method).traits.discrete && numerics.store_every != 1;
-  return chained ? nullptr : difference_groups(iap->run->session->model(), iap->run->jacobian_scratch, n);
+  return iap->run->evaluation.chained_map ? nullptr : difference_groups(iap->run->session->model(), iap->run->jacobian_scratch, n);
 }
 
 // d(eval)/dx by central differences about x[0..n), step HMACH*(max|x| + 1)

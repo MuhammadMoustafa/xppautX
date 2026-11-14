@@ -33,7 +33,7 @@ TEST_CASE("test_autox_groups") {
     CHECK(load_args(2, argv, 1).has_value());
     auto &s = xpp::client_session();
     AutoxRun run;
-    run.session = &s;
+    autox_bind_session(run, s);
     run.parameter_count = s.autox_state->parameter_layout.size();
     iap_type iap{};
     iap.run = &run;

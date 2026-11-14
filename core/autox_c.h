@@ -479,6 +479,8 @@ std::span<const double> autox_constants(const AutoxRun &run);
 std::pair<std::vector<double> &,std::vector<double> &> autox_rhs_values(AutoxRun &run);
 /* the model's parameters, as the run holds them, into autoX's par (the model's part of it): a start's */
 void autox_fill_parameters(const AutoxRun &run, double *par);
+/* the run's Session, and what its evaluations read from it on every call (AutoxEvaluation) */
+void autox_bind_session(AutoxRun &run, xpp::Session &s);
 /* autoX's checkpoint (xpp::byeautox_), for a run on the main thread; a job's
    thread only reads whether the job was cancelled: the front end is polled by
    the main thread that waits for it */

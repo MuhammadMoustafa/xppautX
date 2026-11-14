@@ -88,6 +88,7 @@ void AutoxParallel::prepare(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_
     const Session &s = *source.session;
     for (auto &run : state_->runs) {
         run->session = source.session;
+        run->evaluation = source.evaluation;
         run->owner = &source;
         run->parameter_count = source.parameter_count;
         iap_type local{};

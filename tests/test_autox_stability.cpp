@@ -190,7 +190,7 @@ TEST_CASE("test_autox_stability")
     xpp::TempDir temp;
     xpp::UniqueFile diagnostics(xpp::files::open_stream(temp.path() + "/stability.log", "w"));
     AutoxRun run;
-    run.session = &session;
+    autox_bind_session(run, session);
     run.parameter_count = session.autox_state->parameter_layout.size();
     run.fp9 = diagnostics.get();
     iap_type iap{};

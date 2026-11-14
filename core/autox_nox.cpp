@@ -23,6 +23,7 @@
 #include "typed_values.h"
 #include <string.h>
 #include "autox_evd.h"
+#include "autox_c.h" /* autox_bind_session */
 #include <charconv>
 #include "autox_stop.h"
 #include "jacobian.h"
@@ -500,7 +501,7 @@ std::optional<xpp::Error> autox_end_run(xpp::Session &s, AutoxRun &run, std::opt
 
 Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold, const AutoxFoundStart *found)
 {
-  run.session=&s;
+  autox_bind_session(run,s);
   init_autox(*s.autox_state,run.params,s.model().node,s.numerics->jacobian==JACOBIAN_EXACT); /* the continuation's initialization from the settings: what reading in AUTO's parameters and running its init did */
   run.orbit_start=s.autox_state->new_period_flag;
   if(found){ /* the problem and the point of the job that found it, which are not the settings' */

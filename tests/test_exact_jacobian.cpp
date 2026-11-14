@@ -309,7 +309,7 @@ void check_autox_func(const char *path, double u0, double u1, int store_every = 
     s.numerics->store_every = store_every;
     constexpr std::ptrdiff_t n = 2;
     AutoxRun run;
-    run.session = &s;
+    autox_bind_session(run, s);
     run.parameter_count = s.autox_state->parameter_layout.size();
     const std::ptrdiff_t continued=s.autox_state->parameter_layout.solver_index(0);
     std::vector<double> par(run.parameter_count, 0.0);

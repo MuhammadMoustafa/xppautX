@@ -286,6 +286,16 @@ struct AutoxBufferedPoint {
   bool new_segment=false;
 };
 
+/* What the model's callbacks (autox_pp.cpp, autox_jacobian.h) read on every
+   evaluation, fixed while a run lasts: autox_bind_session takes it from the
+   Session once, so the hot calls do not reach through the Session's parts. */
+struct AutoxEvaluation {
+  AutoxParameterLayout parameter_layout;
+  bool parallel_ready=false; /* xpp::autox_parallel_ready: the model can be evaluated on copies of its values */
+  bool exact_jacobian=false; /* the numerics' Jacobian is JACOBIAN_EXACT */
+  bool chained_map=false;    /* a map applied store_every times (more than once) per point */
+};
+
 /* One autoX run: do_autox makes it, the translated routines reach it through
    their iap_type's run, and it is gone when the run ends. A collocation
    worker (autox_parallel.cpp) is a run too, with only its scratch. */
@@ -294,6 +304,7 @@ struct AutoxRun {
      reads and never changes, and what the model's callbacks (autox_pp.cpp)
      evaluate on */
   xpp::Session *session=nullptr;
+  AutoxEvaluation evaluation;
   /* a collocation worker's: the run it works for; null for a run itself */
   AutoxRun *owner=nullptr;
   /* the run's parameters, filled from the model and settings by do_autox

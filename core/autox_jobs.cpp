@@ -177,7 +177,7 @@ Result<std::optional<std::vector<double>>> refined_equilibrium_start(Session &s)
   const AutoxState &state=*s.autox_state;
   const std::size_t n=static_cast<std::size_t>(s.model().node);
   AutoxRun probe;
-  probe.session=&s;
+  autox_bind_session(probe,s);
   probe.parameter_count=state.parameter_layout.size();
   iap_type iap{};
   iap.run=&probe;

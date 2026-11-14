@@ -151,7 +151,7 @@ TEST_CASE("test_autox_location")
     xpp::TempDir temp;
     xpp::UniqueFile diagnostics(xpp::files::open_stream(temp.path() + "/location.log", "w"));
     AutoxRun run;
-    run.session = &s;
+    autox_bind_session(run, s);
     run.parameter_count = s.autox_state->parameter_layout.size();
     run.fp9 = diagnostics.get();
     iap_type iap{};
