@@ -4,7 +4,7 @@
    JSON objects they are. */
 #include "ui_json_internal.h"
 #include "xpp_log.h"
-#include "xpp_win32.h"
+#include "xpp_platform.h"
 #include <algorithm>
 #include <cctype>
 #include <climits>
@@ -127,10 +127,8 @@ void out_flush(void)
 void open_protocol_stdout(void)
 {
     int fd = dup(1);
-#ifdef _WIN32
-    xpp::win32::binary_mode(fd); /* "\n" line ends, not "\r\n" */
-    xpp::win32::binary_mode(0);
-#endif
+    xpp::platform::binary_mode(fd);
+    xpp::platform::binary_mode(0);
     proto = fdopen(fd, "w");
     dup2(2, 1);
 }

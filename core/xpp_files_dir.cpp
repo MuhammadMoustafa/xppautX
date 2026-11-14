@@ -30,50 +30,13 @@
 #include <system_error>
 #include <utility>
 
-#ifdef __APPLE__
-#include <mach-o/dyld.h> /* _NSGetExecutablePath */
-#endif
-
 namespace xpp::files {
-
-#ifndef _WIN32
-namespace {
-/* the room program_dir gives the system to write the executable's path in: PATH_MAX on Linux and macOS (4096 and
-   1024); a longer one is no folder this program can be installed in (Windows: xpp_win32's executable_path) */
-constexpr std::size_t PATH_BUFFER_BYTES = 4096;
-} // namespace
-#endif
-
-std::string temp_base()
-{
-#ifdef _WIN32
-    return xpp::win32::temp_folder();
-#else
-    const char *base = std::getenv("TMPDIR");
-    return base && base[0] ? base : "/tmp";
-#endif
-}
 
 std::string config_base()
 {
     /* an override is a whole path: a relative one would follow the working folder, which opening a model changes */
     if (const char *own = std::getenv(CONFIG_DIR_ENV); own && own[0]) return is_absolute(own) ? own : std::string();
-    std::string base;
-#ifdef _WIN32
-    base = xpp::win32::app_data_folder();
-#else
-    const char *home = std::getenv("HOME");
-    const bool have_home = home && home[0];
-#ifdef __APPLE__
-    if (have_home) base = std::string(home) + "/Library/Application Support";
-#else
-    /* the XDG spec: a relative $XDG_CONFIG_HOME is invalid and ignored */
-    const char *xdg = std::getenv("XDG_CONFIG_HOME");
-    if (xdg && xdg[0] == '/') base = xdg;
-    else if (have_home) base = std::string(home) + "/.config";
-#endif
-#endif
-    return base;
+    return system_config_base();
 }
 
 std::string config_dir()
@@ -85,37 +48,11 @@ std::string config_dir()
     return join(base, APP);
 }
 
-std::string program_file()
-{
-#ifdef _WIN32
-    return xpp::win32::executable_path();
-#elif defined(__APPLE__)
-    std::string exe(PATH_BUFFER_BYTES, '\0');
-    std::uint32_t size = static_cast<std::uint32_t>(exe.size());
-    if (_NSGetExecutablePath(exe.data(), &size) != 0) return {}; /* too long for the buffer: no path */
-    exe.resize(std::strlen(exe.c_str()));
-    return exe;
-#else
-    std::string exe(PATH_BUFFER_BYTES, '\0');
-    const ssize_t n = readlink("/proc/self/exe", exe.data(), exe.size());
-    if (n <= 0 || static_cast<std::size_t>(n) == exe.size()) return {}; /* an unreadable or cut-short link */
-    exe.resize(static_cast<std::size_t>(n));
-    return exe;
-#endif
-}
-
 std::string program_dir()
 {
     const std::string exe = program_file();
     if (exe.empty()) return {};
-    const std::string exe_folder = split_path(exe).first;
-#ifdef __APPLE__
-    /* the .app bundle's layout: the executable in Contents/MacOS, the files it ships in Contents/Resources */
-    const std::string contents = split_path(exe_folder).first;
-    if (split_path(exe_folder).second == "MacOS" && split_path(contents).second == "Contents")
-        return join(contents, "Resources");
-#endif
-    return exe_folder;
+    return shipped_files_folder(split_path(exe).first);
 }
 
 std::string join(std::string_view dir, std::string_view name) { return xpp::format("{}{}{}", dir, SEP, name); }
@@ -184,12 +121,7 @@ bool dir_writable(std::string_view dir)
 std::string writable_save_folder(std::string_view model_folder)
 {
     if (dir_writable(model_folder)) return std::string(model_folder);
-#ifdef _WIN32
-    const std::string documents = xpp::win32::documents_folder();
-#else
-    const char *home = std::getenv("HOME");
-    const std::string documents = home && *home ? join(home, "Documents") : std::string();
-#endif
+    const std::string documents = documents_folder();
     return dir_writable(documents) ? documents : std::string();
 }
 
@@ -332,10 +264,7 @@ void cleanup_stale_temp_dirs()
             Stat st;
             /* a link is never followed (lstat; is_link for Windows' reparse points) */
             if (is_link(path.c_str()) || stat_name(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) continue;
-#ifndef _WIN32
-            /* a folder another user made under our name is not ours to empty */
-            if (st.st_uid != geteuid()) continue;
-#endif
+            if (owned_by_another(st)) continue; /* a folder another user made under our name is not ours to empty */
             remove_temp_dir(path);
         }
         closedir(d);
@@ -468,17 +397,11 @@ std::string working_dir()
 
 std::pair<std::string, std::string> split_path(std::string_view path)
 {
-#ifdef _WIN32
-    const size_t sep = path.find_last_of("/\\");
-#else
-    const size_t sep = path.find_last_of('/');
-#endif
+    const size_t sep = path.find_last_of(SEPARATORS);
     if (sep == std::string_view::npos) return {std::string(), std::string(path)};
     /* "/x" (and on Windows "C:\x"): the root itself */
     size_t keep = sep == 0 ? 1 : sep;
-#ifdef _WIN32
-    if (sep == 2 && path[1] == ':') keep = 3;
-#endif
+    if (drive_root(path, sep)) keep = 3;
     return {std::string(path.substr(0, keep)), std::string(path.substr(sep + 1))};
 }
 
@@ -489,27 +412,11 @@ bool has_extension(std::string_view path, std::string_view ext)
            xpp::equal_ignoring_case(std::string_view(name).substr(name.size() - ext.size()), ext);
 }
 
-bool is_absolute(std::string_view path)
-{
-#ifdef _WIN32
-    const auto sep = [](char c) { return c == '/' || c == '\\'; };
-    return (!path.empty() && sep(path[0])) ||
-           (path.size() > 2 && std::isalpha(static_cast<unsigned char>(path[0])) && path[1] == ':' && sep(path[2]));
-#else
-    return !path.empty() && path[0] == '/';
-#endif
-}
-
 std::string absolute(std::string_view path, std::string_view dir)
 {
-#ifdef _WIN32
-    const auto sep = [](char c) { return c == '/' || c == '\\'; };
-#else
-    const auto sep = [](char c) { return c == '/'; };
-#endif
     if (is_absolute(path) || path.empty()) return std::string(path);
     std::string base = dir.empty() ? working_dir() : std::string(dir);
-    if (!base.empty() && !sep(base.back())) base += '/';
+    if (!base.empty() && SEPARATORS.find(base.back()) == std::string_view::npos) base += '/';
     return base.append(path);
 }
 

@@ -1,5 +1,5 @@
-/* xpp_https.h: the Linux client, libcurl loaded when the first request is made. Windows is xpp_win32.cpp's
-   WinHTTP; macOS has none yet (W625: its update is the release page). */
+/* xpp_https.h: the Linux client, libcurl loaded when the first request is made. Windows is xpp_https_win.cpp's
+   WinHTTP; macOS has none yet (W625: its update is the release page: xpp_https_mac.cpp). */
 #include "xpp_https.h"
 #include "xpp_log.h"
 
@@ -7,22 +7,11 @@
 #include <cstddef>
 
 #include "xpp_io.h"
-#ifdef _WIN32
-#include "xpp_win32.h"
-#endif
-#ifdef __linux__
 #include <dlfcn.h>
-#endif
 
 namespace xpp::https {
 
 namespace {
-
-#ifndef _WIN32 // Windows' errors are xpp_win32.cpp's
-constexpr std::string_view WHERE = "https";
-#endif
-
-#ifdef __linux__
 
 /* the library's name and the numbers of the few options and infos used, which libcurl's ABI keeps (curl/curl.h:
    CURLOPT_* are a base plus an id, CURLINFO_* a type plus an id) */
@@ -154,19 +143,8 @@ Result<Reply> get_with_curl(std::string_view url, const Chunk &chunk)
     return reply;
 }
 
-#endif
-
 } // namespace
 
-Result<Reply> get([[maybe_unused]] std::string_view url, [[maybe_unused]] const Chunk &chunk)
-{
-#ifdef _WIN32
-    return win32::https_get(url, chunk);
-#elif defined(__linux__)
-    return get_with_curl(url, chunk);
-#else
-    return fail(std::string(WHERE), "this system has no HTTPS client for updates yet: open the release page", Place{std::string(PLACE), 1});
-#endif
-}
+Result<Reply> get(std::string_view url, const Chunk &chunk) { return get_with_curl(url, chunk); }
 
 } // namespace xpp::https

@@ -37,11 +37,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <utility>
-#ifdef _WIN32
-#include "xpp_win32.h"
-#else
-#include <unistd.h>
-#endif
+#include "xpp_platform.h"
 
 namespace {
 
@@ -242,20 +238,6 @@ void input_too_large()
     xpp::inbox::push(xpp::format(R"({{"input_error":"command exceeds the {} MB input limit"}})", MAX_LINE >> 20));
 }
 
-/* up to n bytes of stdin, blocking; <= 0 at end of input or on an error */
-long read_stdin(char *buf, size_t n)
-{
-#ifdef _WIN32
-    return xpp::win32::read_stdin({buf, n});
-#else
-    for (;;) {
-        ssize_t r = read(0, buf, n);
-        if (r < 0 && errno == EINTR) continue;
-        return static_cast<long>(r);
-    }
-#endif
-}
-
 void read_stdin_lines()
 {
     std::vector<char> buf;
@@ -263,7 +245,7 @@ void read_stdin_lines()
     bool skipping = false; /* inside an overlong line, until its newline */
     for (;;) {
         if (buf.size() - len < CHUNK) buf.resize(buf.size() * 2 + CHUNK);
-        long r = read_stdin(buf.data() + len, buf.size() - len);
+        long r = xpp::platform::read_stdin(buf.data() + len, buf.size() - len);
         if (r <= 0) break;
         len += static_cast<size_t>(r);
         /* push every complete line; search only the bytes not searched yet */

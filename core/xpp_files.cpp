@@ -37,16 +37,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <memory>
-#ifdef _WIN32
-#include <io.h>
-#endif
-
-#ifndef O_BINARY
-#define O_BINARY 0
-#endif
-#ifndef O_TEXT
-#define O_TEXT 0
-#endif
 
 struct xpp::files::Put {
     xpp::Writer w; /* binary: the temp file beside name, renamed over it at commit */
@@ -75,15 +65,9 @@ bool device_name(std::string_view name)
 /* ---- the file system ------------------------------------------------------------ */
 
 /* is_link, stat_name, stat_follow, make_dir, remove_dir, own_pid, temp_base,
-   process_gone, SEP and the Stat type are xpp_files_internal.h, shared
-   with xpp_files_dir.cpp. rename_over is this file's own. */
+   process_gone, rename_over, the plain opens, SEP and the Stat type are
+   xpp_files_internal.h, shared with xpp_files_dir.cpp. */
 using namespace xpp::files;
-
-#ifdef _WIN32
-int rename_over(const char *from, const char *to) { return xpp::win32::move_over(from, to) ? 0 : -1; }
-#else
-int rename_over(const char *from, const char *to) { return std::rename(from, to); }
-#endif
 
 /* what a name is on disk: NOT_FOUND, REFUSED (not a plain file) or OK */
 int kind_of(const char *name, Stat *st)
@@ -98,38 +82,13 @@ int open_plain(const char *name, xpp::UniqueFile &fp, unsigned long long &size, 
     Stat st;
     int k = kind_of(name, &st); /* a folder, a link or a device named at once */
     if (k != XPP_FILES_OK && !(writing && k == XPP_FILES_NOT_FOUND)) return k;
-#ifdef _WIN32
-    /* and refused again on the handle opened, so nothing swapped in between is followed (W174) */
-    int fd = xpp::win32::open_plain(name, false, !writing, size, writing);
-#else
-    /* O_NOFOLLOW: a link made between the check and the open is not followed */
-    int fd = ::open(name, (writing ? O_WRONLY | O_CREAT | O_TEXT : O_RDONLY | O_BINARY) | O_NOFOLLOW | O_NONBLOCK, 0666);
-#endif
+    int fd = open_plain_fd(name, writing, size);
     if (fd < 0) return errno == ENOENT ? XPP_FILES_NOT_FOUND : errno == ELOOP ? XPP_FILES_REFUSED : XPP_FILES_IO;
-#ifndef _WIN32
-    struct stat fst;
-    if (fstat(fd, &fst) != 0 || !S_ISREG(fst.st_mode)) {
-        close(fd);
-        return XPP_FILES_REFUSED;
-    }
-    /* Do not truncate a name before proving its opened object is plain. */
-    if (writing && ftruncate(fd, 0) != 0) {
-        const int error = errno;
-        close(fd);
-        errno = error;
-        return XPP_FILES_IO;
-    }
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
-    st.st_size = fst.st_size;
-#endif
     fp.reset(fdopen(fd, writing ? "w" : "rb"));
     if (!fp) {
         close(fd);
         return XPP_FILES_IO;
     }
-#ifndef _WIN32
-    size = writing ? 0 : static_cast<unsigned long long>(st.st_size);
-#endif
     return XPP_FILES_OK;
 }
 
@@ -328,16 +287,6 @@ int replace_file(std::string_view from, std::string_view to)
 {
     if (!write_path_ok(to)) return -1;
     return rename_over(std::string(from).c_str(), std::string(to).c_str());
-}
-
-bool make_executable(std::string_view path)
-{
-#ifdef _WIN32
-    return exists(path);
-#else
-    constexpr mode_t PROGRAM_MODE = 0755; /* what the packages install a program with */
-    return chmod(std::string(path).c_str(), PROGRAM_MODE) == 0;
-#endif
 }
 
 const char *status_text(int status)
@@ -701,14 +650,6 @@ FILE *open_stream(std::string_view path, const char *mode)
     return f;
 }
 
-int stream_fd(FILE *f)
-{
-#ifdef _WIN32
-    if (_fileno(f) < 0 && !std::freopen("NUL", "w", f)) return -1;
-#endif
-    return fileno(f);
-}
-
 FILE *open_write_plain(std::string_view path_view)
 {
     if (!write_path_ok(path_view, true) || !prepare_write_folder(path_view)) return nullptr;
@@ -731,12 +672,7 @@ FILE *create_new(std::string_view path_view, bool binary)
 FILE *create_plain(std::string_view path_view, bool binary)
 {
     const std::string path(path_view);
-#ifdef _WIN32
-    unsigned long long size;
-    int fd = xpp::win32::open_plain(path.c_str(), true, binary, size);
-#else
-    int fd = ::open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | (binary ? O_BINARY : O_TEXT), 0666);
-#endif
+    int fd = create_fd(path.c_str(), binary);
     if (fd < 0) return nullptr;
     FILE *fp = fdopen(fd, binary ? "wb" : "w");
     if (!fp) {

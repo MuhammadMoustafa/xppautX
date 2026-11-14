@@ -1,6 +1,6 @@
 #pragma once
 /* One GET over HTTPS through the system's own client, the one module for it (W622): WinHTTP on Windows
-   (xpp_win32.cpp), libcurl loaded at run time on Linux (xpp_https.cpp: dlopen, only when something is
+   (xpp_https_win.cpp), libcurl loaded at run time on Linux (xpp_https_linux.cpp: dlopen, only when something is
    downloaded, so xppautX links no TLS and one binary starts everywhere). No TLS stack of ours is
    vendored and no process is started. Certificates are the system's, always verified.
 
@@ -23,6 +23,8 @@ inline constexpr int CONNECT_SECONDS = 15;
 
 /* the place of an error of this module: what the user was doing (an error from a request names no file) */
 inline constexpr std::string_view PLACE = "update download";
+/* what the errors of the Linux and macOS clients say failed (Windows' are xpp_win32.cpp's) */
+inline constexpr std::string_view WHERE = "https";
 
 struct Reply {
     int status = 0;

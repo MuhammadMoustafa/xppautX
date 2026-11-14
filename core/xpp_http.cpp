@@ -11,14 +11,13 @@
    model's folder is served as /files (xpp_files.h: listing, reading, and
    uploads streamed to a temporary file). This file includes no core header
    but those small APIs (xpp_inbox.h, xpp_files.h, xpp_log.h, xpp_io.h,
-   xpp_mem.h), so the socket and Windows headers cannot clash with core
+   xpp_mem.h) and xpp_http_internal.h, whose primitives (sockets, the log
+   pipe, the browser) are once per platform (xpp_http_win.cpp,
+   xpp_http_posix.cpp, xpp_http_linux.cpp, xpp_http_mac.cpp): the socket and
+   Windows headers are theirs, so none of their names can clash with core
    names. */
-/* macOS hides the BSD names (INADDR_LOOPBACK) under _XOPEN_SOURCE=600;
-   this must come before any system header. */
-#ifdef __APPLE__
-#define _DARWIN_C_SOURCE 1
-#endif
 #include "xpp_http.h"
+#include "xpp_http_internal.h"
 #include <cerrno>
 #include <cstdint>
 #include "event_registry.h"
@@ -43,6 +42,7 @@
 #include <memory>
 #include <optional>
 #include <pthread.h>
+#include <thread>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -51,47 +51,12 @@
 #include <iterator>
 #include <span>
 namespace xpp { namespace files { struct Put; } }
-struct iovec;
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <windows.h>
-#include <io.h>
-#include <fcntl.h>
-#include <process.h>
-typedef SOCKET sock_t;
-#define close_sock closesocket
-#define dup _dup
-#define dup2 _dup2
-#define read _read
-#else
-#include <arpa/inet.h>
-#include <fcntl.h>
-#include <fstream>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <signal.h>
-#include <sys/socket.h>
-#include <sys/uio.h>
-#include <sys/time.h>
-#include <sys/wait.h>
-#include <unistd.h>
-typedef int sock_t;
-#define INVALID_SOCKET (-1)
-#define close_sock close
-/* BSD and macOS have no MSG_NOSIGNAL; SIGPIPE is ignored in http::start */
-#ifndef MSG_NOSIGNAL
-#define MSG_NOSIGNAL 0
-#endif
-#endif
-
-#ifdef _WIN32
-extern "C" errno_t rand_s(unsigned int *); /* the C library's; stdlib.h declares it only with _CRT_RAND_S */
-#endif
 
 /* No exception may leave a thread: a failed allocation ends the program
    with xpp::out_of_memory_now (not out_of_memory: at_exit would wait on
    the lock this thread may hold). */
+
+namespace xpp::http {
 
 namespace {
 
@@ -181,7 +146,7 @@ pthread_cond_t released_cond = PTHREAD_COND_INITIALIZER;
 /* stream i is gone (the lock is held) */
 void drop_client(int i)
 {
-    close_sock(srv.clients[i]);
+    close_socket(srv.clients[i]);
     srv.clients[i] = srv.clients[srv.nclients - 1];
     srv.nclients--;
 }
@@ -191,11 +156,7 @@ bool send_all(sock_t s, std::string_view data)
     const char *p = data.data();
     size_t n = data.size();
     while (n > 0) {
-#ifdef _WIN32
-        int r = send(s, p, static_cast<int>(n > CHUNK ? CHUNK : n), 0);
-#else
-        ssize_t r = send(s, p, n, MSG_NOSIGNAL);
-#endif
+        const long r = send_some(s, p, n);
         if (r <= 0) return false;
         p += r;
         n -= static_cast<size_t>(r);
@@ -210,27 +171,9 @@ bool send_event(sock_t s, std::string_view line)
     std::array<std::string_view, 3> part = {"data: ", line, "\n\n"};
     std::size_t k = 0;
     while (k < part.size()) {
-#ifdef _WIN32
-        std::array<WSABUF, 3> buf;
-        DWORD n = 0, sent = 0;
-        for (std::size_t i = k; i < part.size(); i++, n++) {
-            buf[n].buf = const_cast<char *>(part[i].data()); /* WSABUF's own type: WSASend only reads it */
-            buf[n].len = static_cast<ULONG>(part[i].size());
-        }
-        if (WSASend(s, buf.data(), n, &sent, 0, nullptr, nullptr) != 0 || sent == 0) return false;
-        std::size_t r = sent;
-#else
-        std::array<iovec, 3> buf;
-        msghdr m{};
-        for (std::size_t i = k; i < part.size(); i++, m.msg_iovlen++) {
-            buf[m.msg_iovlen].iov_base = const_cast<char *>(part[i].data()); /* iovec's own type: sendmsg only reads it */
-            buf[m.msg_iovlen].iov_len = part[i].size();
-        }
-        m.msg_iov = buf.data();
-        const ssize_t sent = sendmsg(s, &m, MSG_NOSIGNAL);
+        const long sent = send_gather(s, std::span<const std::string_view>(part).subspan(k));
         if (sent <= 0) return false;
         std::size_t r = static_cast<std::size_t>(sent);
-#endif
         /* a partial write: on from where it stopped */
         while (k < part.size() && r >= part[k].size()) r -= part[k++].size();
         if (k < part.size()) part[k].remove_prefix(r);
@@ -283,24 +226,14 @@ void heartbeat()
        there is no page left to tell anyway. Flush what the core wrote,
        then go. */
     std::fflush(nullptr);
-#ifdef _WIN32
-    /* the core thread may sit in exit() (at_exit waiting for a page that is
-       gone: a stopped model's log), holding the C runtime's exit lock, which
-       _exit() would wait on forever (W112) */
-    TerminateProcess(GetCurrentProcess(), 0);
-#endif
-    _exit(0);
+    end_process();
 }
 
 void *watchdog_main(void *)
 {
     long long next_beat = now_ms() + HEARTBEAT_MS;
     for (;;) {
-#ifdef _WIN32
-        Sleep(TICK_MS);
-#else
-        usleep(TICK_MS * 1000);
-#endif
+        std::this_thread::sleep_for(std::chrono::milliseconds(TICK_MS));
         pthread_mutex_lock(&lock);
         long long now = now_ms();
         if (now >= next_beat) {
@@ -426,7 +359,7 @@ void *log_main(void *arg)
     std::array<char, LOG_READ_CHUNK> chunk;
     try {
         for (;;) {
-            int r = read(fd, chunk.data(), chunk.size());
+            long r = read_fd(fd, chunk.data(), chunk.size());
             if (r <= 0) break;
             std::string_view got(chunk.data(), static_cast<size_t>(r));
             pthread_mutex_lock(&lock);
@@ -462,12 +395,8 @@ void reply_text(sock_t s, const char *status, const char *text) { reply(s, statu
 void refuse_connection(sock_t s, const char *reason)
 {
     reply_text(s, "503 Service Unavailable", reason);
-#ifdef _WIN32
-    shutdown(s, SD_SEND);
-#else
-    shutdown(s, SHUT_WR);
-#endif
-    close_sock(s);
+    end_sending(s);
+    close_socket(s);
 }
 
 /* the query's t= is the token, compared in full and in constant time */
@@ -504,8 +433,7 @@ void open_events(sock_t s)
     static constexpr std::string_view head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\n\r\n";
     /* the events are many and mostly small: each goes out at once, not held
        back for the next (Nagle's algorithm) */
-    const int one = 1;
-    setsockopt(s, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char *>(&one), sizeof one);
+    set_nodelay(s);
     pthread_mutex_lock(&lock);
     bool ok = send_all(s, head);
     if (ok && !srv.log_text.empty()) ok = send_event(s, log_event(srv.log_text));
@@ -529,7 +457,7 @@ void open_events(sock_t s)
             std::string unsent; /* a redraw the full queue refuses is not worth telling: the page has all it needs */
             push_command("{\"cmd\":\"window.redraw\"}", unsent);
         }
-    } else close_sock(s);
+    } else close_socket(s);
     pthread_mutex_unlock(&lock);
 }
 
@@ -547,7 +475,7 @@ constexpr int REFUSED_HEAD_SECONDS = 1; /* bound the accept thread wait when con
 constexpr size_t METHOD_MAX = 7, TARGET_MAX = 1023; /* longer is cut, as sscanf's %7s %1023s did */
 
 struct Request {
-    sock_t s = INVALID_SOCKET;
+    sock_t s = INVALID_SOCK;
     long long head_deadline = 0;  /* measured from accept, including thread scheduling */
     std::array<char, HEAD_MAX + 1> head{};
     std::string method, target;
@@ -605,7 +533,7 @@ bool read_head(Request &q)
     while (got < HEAD_MAX) {
         const long long left = q.head_deadline - now_ms();
         if (left <= 0 || !set_recv_timeout(q.s, static_cast<int>(left))) return false;
-        int r = recv(q.s, q.head.data() + got, static_cast<int>(HEAD_MAX - got), 0);
+        const long r = receive(q.s, q.head.data() + got, static_cast<int>(HEAD_MAX - got));
         if (r <= 0) return false;
         got += static_cast<size_t>(r);
         for (i = got >= static_cast<size_t>(r) + 3 ? got - static_cast<size_t>(r) - 3 : 0; i + 4 <= got; i++)
@@ -634,9 +562,9 @@ bool read_head(Request &q)
 /* up to n more bytes of the body */
 int take(Request &q, char *buf, size_t n)
 {
-    int r = recv(q.s, buf, static_cast<int>(n), 0);
+    const long r = receive(q.s, buf, static_cast<int>(n));
     if (r > 0) q.consumed += static_cast<unsigned long long>(r);
-    return r;
+    return static_cast<int>(r);
 }
 
 void continue_body(Request &q)
@@ -921,23 +849,9 @@ void serve_asset(Request &q)
     reply_text(q.s, "404 Not Found", "not found");
 }
 
-/* Both socket timeouts use milliseconds; zero would disable the timeout. */
-bool set_socket_timeout(sock_t s, int option, int milliseconds)
-{
-#ifdef _WIN32
-    DWORD ms = static_cast<DWORD>(milliseconds);
-    return setsockopt(s, SOL_SOCKET, option, reinterpret_cast<const char *>(&ms), sizeof ms) == 0;
-#else
-    struct timeval tv;
-    tv.tv_sec = milliseconds / 1000;
-    tv.tv_usec = (milliseconds % 1000) * 1000;
-    return setsockopt(s, SOL_SOCKET, option, reinterpret_cast<const char *>(&tv), sizeof tv) == 0;
-#endif
-}
-
 bool set_recv_timeout(sock_t s, int milliseconds)
 {
-    return set_socket_timeout(s, SO_RCVTIMEO, milliseconds);
+    return set_timeout(s, Timeout::receive, milliseconds);
 }
 
 /* A request refused before its body was read (a bad token, a bad name)
@@ -976,7 +890,7 @@ void handle(sock_t s, bool connection_limited, long long head_deadline)
     q->s = s;
     q->head_deadline = head_deadline;
     if (!read_head(*q) || !set_recv_timeout(s, RECV_SECONDS * 1000)) {
-        close_sock(s);
+        close_socket(s);
         return;
     }
     const bool command = q->method == "POST" && q->target.starts_with("/cmd");
@@ -989,7 +903,7 @@ void handle(sock_t s, bool connection_limited, long long head_deadline)
     if ((command || events || leave || files) && !token_ok(q->target)) {
         reply_text(s, "403 Forbidden", BAD_TOKEN);
         if (!connection_limited) drain(*q);
-        close_sock(s);
+        close_socket(s);
         return;
     }
     if (connection_limited) {
@@ -1025,7 +939,7 @@ void handle(sock_t s, bool connection_limited, long long head_deadline)
     } else reply(s, "405 Method Not Allowed", "text/plain", {});
     drain(*q);
     if (serial) pthread_mutex_unlock(&serve_lock);
-    close_sock(s);
+    close_socket(s);
 }
 
 void answer_connection(sock_t s, bool connection_limited, long long head_deadline)
@@ -1050,26 +964,8 @@ void *connection_main(void *arg)
     return nullptr;
 }
 
-/* A process xppautX starts (the web view's own processes, a browser
-   opener, a second xppautX) must not inherit the listening socket, a
-   page's connection or the log pipe: it would keep the port, or the pipe,
-   after xppautX has gone. */
-void no_inherit_sock(sock_t s)
-{
-#ifdef _WIN32
-    SetHandleInformation(reinterpret_cast<HANDLE>(s), HANDLE_FLAG_INHERIT, 0);
-#else
-    fcntl(s, F_SETFD, FD_CLOEXEC);
-#endif
-}
 
-#ifndef _WIN32
-void no_inherit_fd(int fd) { fcntl(fd, F_SETFD, FD_CLOEXEC); }
-#else
-void no_inherit_fd(int) {} /* the pipe is made _O_NOINHERIT; a second xppautX is started inheriting nothing */
-#endif
-
-sock_t listener = INVALID_SOCKET;
+sock_t listener = INVALID_SOCK;
 
 void *http_main(void *)
 {
@@ -1078,12 +974,12 @@ void *http_main(void *)
     pthread_attr_init(&detached);
     pthread_attr_setdetachstate(&detached, PTHREAD_CREATE_DETACHED);
     for (;;) {
-        sock_t s = accept(listener, nullptr, nullptr);
-        if (s == INVALID_SOCKET) continue;
+        sock_t s = accept_connection(listener);
+        if (s == INVALID_SOCK) continue;
         const long long accepted_at = now_ms();
-        no_inherit_sock(s);
-        if (!set_recv_timeout(s, RECV_SECONDS * 1000) || !set_socket_timeout(s, SO_SNDTIMEO, SEND_SECONDS * 1000)) {
-            close_sock(s); /* never serve with an unbounded socket if setting a timeout failed */
+        no_inherit_socket(s);
+        if (!set_recv_timeout(s, RECV_SECONDS * 1000) || !set_timeout(s, Timeout::send, SEND_SECONDS * 1000)) {
+            close_socket(s); /* never serve with an unbounded socket if setting a timeout failed */
             continue;
         }
         RequestSlot slot;
@@ -1114,11 +1010,7 @@ void at_exit()
     constexpr int EXIT_LOG_GRACE_MS = 200; /* let the log pipe's last output reach the page before exit */
     std::fflush(stdout);
     std::fflush(stderr);
-#ifdef _WIN32
-    Sleep(EXIT_LOG_GRACE_MS);
-#else
-    usleep(EXIT_LOG_GRACE_MS * 1000);
-#endif
+    std::this_thread::sleep_for(std::chrono::milliseconds(EXIT_LOG_GRACE_MS));
     try {
         std::string line = xpp::format("{},\"code\":{}}}", xpp::events::open(xpp::events::EXIT), saw_bye ? 0 : 1);
         pthread_mutex_lock(&lock);
@@ -1148,19 +1040,7 @@ void make_token()
     static constexpr std::string_view hex = "0123456789abcdef";
     constexpr size_t TOKEN_BYTES = 16; /* 128 random bits authenticate local browser requests */
     std::array<unsigned char, TOKEN_BYTES> bytes{};
-#ifdef _WIN32
-    for (unsigned char &b : bytes) {
-        unsigned int v = 0;
-        rand_s(&v);
-        b = static_cast<unsigned char>(v);
-    }
-#else
-    std::ifstream f("/dev/urandom", std::ios::binary);
-    if (!f.read(reinterpret_cast<char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()))) {
-        srand(static_cast<unsigned>(time(nullptr)) ^ static_cast<unsigned>(getpid()));
-        for (unsigned char &b : bytes) b = static_cast<unsigned char>(rand());
-    }
-#endif
+    random_bytes(bytes);
     std::string token;
     for (unsigned char b : bytes) {
         token += hex[b >> 4];
@@ -1169,48 +1049,12 @@ void make_token()
     srv.token = token;
 }
 
-bool open_in_browser(const std::string &url)
-{
-#ifdef _WIN32
-    constexpr INT_PTR SHELL_ERROR_MAX = 32; /* ShellExecute returns an error code up to 32, success above it */
-    return reinterpret_cast<INT_PTR>(ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > SHELL_ERROR_MAX;
-#else
-    /* No shell: the URL is one argv entry of the opener, whatever characters it holds (xpp_process.h). */
-#ifdef __APPLE__
-    std::vector<std::string> argv{"open"};
-#else
-    std::vector<std::string> argv{"xdg-open"};
-#endif
-    /* WSL: rundll32.exe takes the URL as one command-line argument and starts the Windows default browser
-       with no command interpreter (cmd.exe /c start would parse & ^ % in it); it exits 0 when it started */
-    if (getenv("WSL_DISTRO_NAME")) argv = {"rundll32.exe", "url.dll,FileProtocolHandler"};
-    argv.push_back(url);
-    return xpp::process::spawn(argv, xpp::process::Wait::until_it_ends).has_value();
-#endif
-}
-
+/* the listening socket, on this machine only; its port, or -1 */
 int listen_on(int port)
 {
-    struct sockaddr_in addr{};
-    listener = socket(AF_INET, SOCK_STREAM, 0);
-    if (listener == INVALID_SOCKET) return -1;
-    no_inherit_sock(listener);
-#ifndef _WIN32
-    int one = 1;
-    setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&one), sizeof one);
-#endif
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); /* this machine only */
-    addr.sin_port = htons(static_cast<unsigned short>(port));
-    constexpr int LISTEN_BACKLOG = 16; /* queue a burst of browser connections while accept dispatches them */
-    if (bind(listener, reinterpret_cast<struct sockaddr *>(&addr), sizeof addr) != 0 || listen(listener, LISTEN_BACKLOG) != 0) {
-        close_sock(listener);
-        listener = INVALID_SOCKET;
-        return -1;
-    }
-    socklen_t len = sizeof addr;
-    getsockname(listener, reinterpret_cast<struct sockaddr *>(&addr), &len);
-    return ntohs(addr.sin_port);
+    int bound = 0;
+    listener = listen_loopback(port, bound);
+    return listener == INVALID_SOCK ? -1 : bound;
 }
 
 /* the "XPP: http://..." line tools and the VS Code extension read: stdout until the log pipe takes it, then the terminal */
@@ -1229,25 +1073,20 @@ void start_serving(int got, bool show, bool open)
     srv.page_url = xpp::format("http://127.0.0.1:{}/?t={}", got, srv.token);
     if (show) print_address(srv.page_url.c_str());
 
-#ifdef _WIN32
-    constexpr unsigned LOG_PIPE_BYTES = 65536; /* the log pipe's buffer: printed text waits here for log_main */
-    if (_pipe(log_pipe.data(), LOG_PIPE_BYTES, _O_BINARY | _O_NOINHERIT) == 0) {
-#else
-    if (pipe(log_pipe.data()) == 0) {
-#endif
+    if (make_log_pipe(log_pipe)) {
         no_inherit_fd(log_pipe[0]);
         no_inherit_fd(log_pipe[1]);
         /* the terminal's own stderr, kept before the page takes it, for what
            xpp_log sends it: WARN, ERROR, and all at --verbose; without the
            pipe stderr stays the terminal and needs no copy */
-        if (const int terminal_fd = dup(xpp::files::stream_fd(stderr)); terminal_fd >= 0) {
+        if (const int terminal_fd = dup_fd(xpp::files::stream_fd(stderr)); terminal_fd >= 0) {
             no_inherit_fd(terminal_fd);
             FILE *terminal = fdopen(terminal_fd, "w");
             if (terminal != nullptr) setvbuf(terminal, nullptr, _IONBF, 0);
             xpp::log_set_terminal(terminal);
         }
-        dup2(log_pipe[1], xpp::files::stream_fd(stdout));
-        dup2(log_pipe[1], xpp::files::stream_fd(stderr));
+        dup2_fd(log_pipe[1], xpp::files::stream_fd(stdout));
+        dup2_fd(log_pipe[1], xpp::files::stream_fd(stderr));
         setvbuf(stdout, nullptr, _IONBF, 0);
         setvbuf(stderr, nullptr, _IONBF, 0);
         pthread_create(&log_thread, nullptr, log_main, &log_pipe[0]);
@@ -1262,8 +1101,6 @@ void start_serving(int got, bool show, bool open)
 } // namespace
 
 /* ---- the API ---------------------------------------------------------------------- */
-
-namespace xpp::http {
 
 xpp::Result<> open_release_page(std::string_view url)
 {
@@ -1337,12 +1174,7 @@ void show(bool open)
 
 bool start(int port, bool show, bool open)
 {
-#ifdef _WIN32
-    WSADATA wsa;
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return false;
-#else
-    signal(SIGPIPE, SIG_IGN);
-#endif
+    if (!start_sockets()) return false;
     int got = listen_on(port);
     if (got < 0 && port != 0) got = listen_on(0); /* taken: any free port */
     if (got < 0) {

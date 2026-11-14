@@ -154,6 +154,8 @@ bool load(std::string &err)
 
 bool xpp::window::supported() { return true; }
 
+const char *xpp::window::launch_document() { return nullptr; } /* only macOS's Finder opens a document with the app */
+
 bool xpp::window::run(void (*session)())
 {
     try {

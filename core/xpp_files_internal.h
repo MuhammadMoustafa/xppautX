@@ -1,34 +1,28 @@
-/* Platform filesystem primitives shared by xpp_files.cpp (the page's
-   files and the core's own file operations) and xpp_files_dir.cpp (folder
-   listing, the current folder, autoX's scratch folders): stat-without-
+/* The platform primitives of the files module, shared by xpp_files.cpp (the
+   page's files and the core's own file operations) and xpp_files_dir.cpp
+   (folder listing, the current folder, autoX's scratch folders): stat-without-
    following-a-link, mkdir/rmdir, the process id and whether it is still
-   running, and the scratch-folder base. Each wraps one OS call, so it is
-   inline rather than split into its own translation unit. The shared path
-   walk is implemented by xpp_files.cpp. C++ only,
-   internal to the two xpp_files*.cpp files (never a public header). */
+   running, the rename over a file, the plain-file opens and the folder
+   syntax. Each wraps one OS call or a short OS-specific sequence and is
+   implemented once per platform, the build picking the files:
+   xpp_files_win.cpp (Windows), xpp_files_posix.cpp (Linux and macOS), and
+   xpp_files_linux.cpp / xpp_files_mac.cpp for the public functions those two
+   answer differently (config_base, program_file, program_dir). The shared
+   path walk is implemented by xpp_files.cpp. C++ only, internal to the
+   xpp_files*.cpp files (never a public header). */
 #pragma once
 
 #ifndef __cplusplus
 #error "xpp_files_internal.h is C++ only"
 #endif
 
-#include <cerrno>
-#include <cstdlib>
+#include <cstddef>
 #include <cstdio>
 #include <string_view>
 #include <vector>
-#include <filesystem>
 #include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
-#ifdef _WIN32
-#include "xpp_win32.h"
-#include <direct.h>
-#include <process.h>
-#else
-#include <signal.h>
-#include <unistd.h>
-#endif
 
 namespace xpp::files {
 /* Owner-only exclusive open: create_new guards a user write; dir_writable
@@ -42,43 +36,45 @@ std::vector<PathPart> path_parts(std::string_view path, std::string_view folder)
 
 #ifdef _WIN32
 using Stat = struct _stat64;
-inline int stat_follow(const char *path, Stat *st) { return _stat64(path, st); }
-inline int stat_name(const char *name, Stat *st) { return _stat64(name, st); } /* a link is found by is_link first */
-inline bool is_link(const char *name) { return xpp::win32::path_is_link(name); }
-inline bool link_on_way(const char *name) { return is_link(name); }
-inline int make_dir(const char *path) { return _mkdir(path); }
-inline int remove_dir(const char *path) { return _rmdir(path); }
-inline long long own_pid() { return _getpid(); }
-inline bool process_gone(long long pid) { return pid >= 0 && xpp::win32::process_gone(static_cast<unsigned long>(pid)); }
 inline constexpr char SEP = '\\';
+inline constexpr std::string_view SEPARATORS = "/\\"; /* every character that ends a folder name: Windows takes both */
 #else
 using Stat = struct stat;
-inline int stat_follow(const char *path, Stat *st) { return stat(path, st); }
-inline int stat_name(const char *name, Stat *st) { return lstat(name, st); } /* never follows a link */
-inline bool is_link(const char *name)
-{
-    struct stat st;
-    return lstat(name, &st) == 0 && S_ISLNK(st.st_mode);
-}
-/* Only root can plant a root-owned link in a root-owned folder with no
-   group/other write permission (OpenSSH StrictModes' ownership rule). */
-inline bool link_on_way(const char *name)
-{
-    struct stat link;
-    if (lstat(name, &link) != 0 || !S_ISLNK(link.st_mode)) return false;
-    if (link.st_uid != 0) return true;
-    const auto parent = std::filesystem::path(name).parent_path();
-    struct stat folder;
-    return stat(parent.empty() ? "." : parent.c_str(), &folder) != 0 ||
-           folder.st_uid != 0 || (folder.st_mode & (S_IWGRP | S_IWOTH)) != 0;
-}
-inline int make_dir(const char *path) { return mkdir(path, 0700); }
-inline int remove_dir(const char *path) { return rmdir(path); }
-inline long long own_pid() { return getpid(); }
-/* kill(pid, 0) says ESRCH: no such process. A live pid, or one this user
-   may not signal (EPERM), is not gone. */
-inline bool process_gone(long long pid) { return kill(static_cast<pid_t>(pid), 0) != 0 && errno == ESRCH; }
 inline constexpr char SEP = '/';
+inline constexpr std::string_view SEPARATORS = "/";
 #endif
+
+int stat_follow(const char *path, Stat *st);
+int stat_name(const char *name, Stat *st); /* never follows a link (Windows: a link is found by is_link first) */
+bool is_link(const char *name);
+/* a link on the way that anyone but root could have planted (Windows: any link) */
+bool link_on_way(const char *name);
+int make_dir(const char *path);
+int remove_dir(const char *path);
+long long own_pid();
+bool process_gone(long long pid);
+/* whether a folder under a scratch base belongs to another user (never on Windows) */
+bool owned_by_another(const Stat &st);
+/* rename a file over an existing one: 0, or -1 */
+int rename_over(const char *from, const char *to);
+/* a file descriptor of the plain file name, or -1 with errno set (ELOOP: a
+   link or not a regular file, ENOENT: not there); refused again on the
+   descriptor opened, so nothing swapped in between is followed (W174).
+   size: the file's size when read, 0 when written (truncated once proved plain) */
+int open_plain_fd(const char *name, bool writing, unsigned long long &size);
+/* the descriptor of a new, exclusively created file, or -1 */
+int create_fd(const char *path, bool binary);
+/* whether path's root is a drive ("C:\x": sep is the index of its last
+   separator): always false off Windows */
+bool drive_root(std::string_view path, std::size_t sep);
+/* the user's Documents folder, "" when there is none */
+std::string documents_folder();
+/* the system's per-user settings folder (config_base without the override), "" when there is none */
+std::string system_config_base();
+/* where the files the program ships are, given the running program's folder */
+std::string shipped_files_folder(const std::string &exe_folder);
+/* the room program_file gives the system to write the executable's path in: PATH_MAX on Linux and macOS (4096 and
+   1024); a longer one is no folder this program can be installed in (Windows: xpp_win32's executable_path) */
+inline constexpr std::size_t PATH_BUFFER_BYTES = 4096;
 
 } // namespace xpp::files

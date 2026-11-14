@@ -1,6 +1,6 @@
 #include "mykeydef.h"
 #include "xpp_util.h"
-#include "xpp_win32.h"
+#include "xpp_platform.h"
 /* Headless defaults for the UI seam, plus the dispatchers that keep the
    historical function names working. See xpp_ui.h. */
 #include "xpp_ui.h"
@@ -26,10 +26,6 @@
 #include <cerrno>
 #include <memory>
 #include <utility>
-#ifndef _WIN32
-#include <poll.h>
-#include <unistd.h>
-#endif
 
 namespace xpp {
 
@@ -42,27 +38,7 @@ static std::optional<std::string> ask_terminal(const std::string &question, cons
 {
     print(stderr, "{} [{}] ({} s): ", question, suggestion, TERMINAL_QUESTION_SECONDS);
     fflush(stderr);
-#ifdef _WIN32
-    return win32::read_stdin_line(TERMINAL_QUESTION_SECONDS, TERMINAL_ANSWER_CAP);
-#else
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(TERMINAL_QUESTION_SECONDS);
-    std::string line;
-    while (line.size() < TERMINAL_ANSWER_CAP) {
-        const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now());
-        if (left.count() <= 0) return std::nullopt;
-        pollfd input{STDIN_FILENO, POLLIN, 0};
-        if (poll(&input, 1, static_cast<int>(left.count())) < 0) {
-            if (errno == EINTR) continue;
-            return std::nullopt;
-        }
-        if (!(input.revents & (POLLIN | POLLHUP))) return std::nullopt;
-        char c;
-        if (read(STDIN_FILENO, &c, 1) != 1) return std::nullopt;
-        if (c == '\n') return line;
-        if (c != '\r') line += c;
-    }
-    return std::nullopt;
-#endif
+    return platform::read_stdin_line(TERMINAL_QUESTION_SECONDS, TERMINAL_ANSWER_CAP);
 }
 
 void report_automatic(std::string_view question, std::string_view answer)

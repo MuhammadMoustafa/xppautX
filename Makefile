@@ -79,7 +79,7 @@ MAINSTACK = -Wl,--stack,8388608
 else
 EXE      =
 # dlopen, for xpp_window_loader.cpp (the Linux window's library) and
-# xpp_https.cpp (libcurl)
+# xpp_https_linux.cpp (libcurl)
 CORE_SYSLIBS = -ldl
 LDSTATIC =
 NETLIBS  = -lpthread
@@ -139,7 +139,19 @@ BUILDDIR = build/obj
 
 # Source lists name files without an extension: $(call src,a b) finds
 # core/a.c or core/a.cpp, so converting a file is `git mv x.c x.cpp` alone.
-ALL_SOURCES := $(wildcard $(SRCDIR)/*.c $(SRCDIR)/*.cpp)
+# Platform files (W730): what differs by platform is in a module's
+# <module>_win.cpp (Windows), _posix.cpp (Linux and macOS), _linux.cpp or _mac.cpp,
+# and xpp_win32.cpp is Windows' shared helpers; only this platform's are built,
+# each compiled whole with no platform #if inside.
+ifeq ($(OS),Windows_NT)
+PLATFORM_SUFFIXES := win
+else ifeq ($(shell uname -s 2>/dev/null),Darwin)
+PLATFORM_SUFFIXES := posix mac
+else
+PLATFORM_SUFFIXES := posix linux
+endif
+OTHER_PLATFORM_SOURCES := $(foreach x,$(filter-out $(PLATFORM_SUFFIXES),win posix linux mac),$(SRCDIR)/%_$(x).cpp) $(if $(filter win,$(PLATFORM_SUFFIXES)),,$(SRCDIR)/xpp_win32.cpp)
+ALL_SOURCES := $(filter-out $(OTHER_PLATFORM_SOURCES),$(wildcard $(SRCDIR)/*.c $(SRCDIR)/*.cpp))
 $(foreach f,$(filter $(basename $(filter %.cpp,$(ALL_SOURCES))),$(basename $(filter %.c,$(ALL_SOURCES)))),$(error both $(f).c and $(f).cpp exist))
 src = $(foreach f,$(1),$(or $(filter $(SRCDIR)/$(f).c $(SRCDIR)/$(f).cpp,$(ALL_SOURCES)),$(error no $(SRCDIR)/$(f).c or .cpp)))
 # core/x.c or core/x.cpp -> $(BUILDDIR)/x.o
@@ -148,16 +160,21 @@ obj = $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%.o,$(basename $(1)))
 # them is C++ (it brings the C++ runtime), else $(CC)
 link = $(if $(filter %.cpp,$(1)),$(CXX),$(CC))
 
-SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_record json_player json_state json_windows json_autox json_ani json_model json_registry json_silent xppautx_main xpp_http xpp_inbox)
+SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_record json_player json_state json_windows json_autox json_ani json_model json_registry json_silent xppautx_main xpp_http xpp_inbox) $(filter $(SRCDIR)/xpp_http_%.cpp,$(ALL_SOURCES))
 # the window's (below): xpp_window, or on Linux the loader of its library;
 # xpp_webview is the web view library's own object (webview.o, below)
-WINDOW_SOURCES_ALL := $(call src,xpp_window xpp_window_loader xpp_webview)
+WINDOW_PLATFORM_SOURCES := $(filter $(foreach x,win linux mac,$(SRCDIR)/xpp_window_$(x).cpp),$(ALL_SOURCES))
+WINDOW_SOURCES_ALL := $(call src,xpp_window xpp_window_loader xpp_webview) $(WINDOW_PLATFORM_SOURCES)
 CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(WINDOW_SOURCES_ALL),$(ALL_SOURCES))
 # the page xppautX serves, compiled in: web2 (web2/dist, built from
 # web2/src and committed: web2/build.mjs)
 WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/manual.json web2/dist/inter.woff2 \
   web2/dist/inter-greek.woff2 web2/dist/inter-OFL.txt
 SERVER_OBJECTS := $(call obj,$(SERVER_SOURCES)) $(BUILDDIR)/web_assets.o
+# macOS hides the BSD names (INADDR_LOOPBACK) under _XOPEN_SOURCE=600 (xpp_http_posix.cpp)
+ifneq ($(filter mac,$(PLATFORM_SUFFIXES)),)
+$(BUILDDIR)/xpp_http_posix.o: CXXFLAGS += -D_DARWIN_C_SOURCE=1
+endif
 $(BUILDDIR)/xpp_about.o: CFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"' -DXPPAUTX_COMMIT='"$(XPPAUTX_COMMIT)"'
 $(BUILDDIR)/xpp_about.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"' -DXPPAUTX_COMMIT='"$(XPPAUTX_COMMIT)"'
 
@@ -216,11 +233,13 @@ WINDOW_LIB := $(WINDOW_LIB_DIR)/libxppwindow.so
 # icon by name when tools/associate/install-linux.sh has put one there, else
 # this fallback, embedded so an unpacked-but-not-installed build still has
 # one. assets/icons/hicolor/256x256/apps/xppautx.png is tools/make_icons.py's.
-WINDOW_LIB_OBJECTS := $(WINDOW_LIB_DIR)/xpp_window.o $(WINDOW_LIB_DIR)/webview.o $(WINDOW_LIB_DIR)/icon_assets.o
+WINDOW_LIB_COMPILED := $(WINDOW_LIB_DIR)/xpp_window.o $(patsubst $(SRCDIR)/%.cpp,$(WINDOW_LIB_DIR)/%.o,$(WINDOW_PLATFORM_SOURCES))
+WINDOW_LIB_OBJECTS := $(WINDOW_LIB_COMPILED) $(WINDOW_LIB_DIR)/webview.o $(WINDOW_LIB_DIR)/icon_assets.o
 SERVER_SOURCES += $(call src,xpp_window_loader)
 SERVER_OBJECTS += $(call obj,$(call src,xpp_window_loader)) $(BUILDDIR)/window_lib.o
-# position-independent and without LTO (a shared library of its own)
-$(WINDOW_LIB_DIR)/xpp_window.o: $(SRCDIR)/xpp_window.cpp $(BUILDDIR)/toolchain.stamp | $(WINDOW_LIB_DIR)
+# position-independent and without LTO (a shared library of its own): the
+# shared window logic and this platform's primitives (xpp_window_linux.cpp)
+$(WINDOW_LIB_COMPILED): $(WINDOW_LIB_DIR)/%.o: $(SRCDIR)/%.cpp $(BUILDDIR)/toolchain.stamp | $(WINDOW_LIB_DIR)
 	$(CXX) $(call NOLTO,$(CXXFLAGS)) -fPIC -DXPP_WINDOW -DXPP_WINDOW_PLUGIN -DXPP_ICON_ASSET -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -MMD -MP -MF $(@:.o=.d) -c $< -o $@
 $(WINDOW_LIB_DIR)/webview.o: $(SRCDIR)/xpp_webview.cpp $(BUILDDIR)/toolchain.stamp | $(WINDOW_LIB_DIR)
 	$(CXX) $(WEBVIEW_STD) $(call NOLTO,$(OPT)) -fPIC -DWEBVIEW_STATIC -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -c $< -o $@
@@ -238,13 +257,13 @@ $(BUILDDIR)/window_lib.o: $(BUILDDIR)/window_lib.cpp core/xpp_assets.h $(BUILDDI
 	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
 $(WINDOW_LIB_DIR):
 	mkdir -p $@
--include $(WINDOW_LIB_DIR)/xpp_window.d $(WINDOW_LIB_DIR)/icon_assets.d
+-include $(WINDOW_LIB_COMPILED:.o=.d) $(WINDOW_LIB_DIR)/icon_assets.d
 else
 SERVER_SOURCES += $(call src,xpp_window)
 SERVER_OBJECTS += $(call obj,$(call src,xpp_window))
 ifeq ($(WINDOW),1)
-SERVER_OBJECTS += $(BUILDDIR)/webview.o
-$(BUILDDIR)/xpp_window.o: CXXFLAGS += -DXPP_WINDOW -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS)
+SERVER_OBJECTS += $(BUILDDIR)/webview.o $(call obj,$(WINDOW_PLATFORM_SOURCES))
+$(BUILDDIR)/xpp_window.o $(call obj,$(WINDOW_PLATFORM_SOURCES)): CXXFLAGS += -DXPP_WINDOW -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS)
 endif
 endif
 ifneq ($(WINDOW),1)

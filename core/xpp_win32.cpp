@@ -1,8 +1,8 @@
 /* Windows replacements for the few POSIX calls the core and the protocol
-   front end use. Kept in one file so <windows.h> (whose macros clash with
-   core names such as max, MessageBox and VARTYPE) is included nowhere else.
-   Empty on other systems. */
-#ifdef _WIN32
+   front end use, and the Windows API behind the platform files. Windows only
+   (the Makefile builds it nowhere else). With the *_win.cpp files it is where
+   <windows.h> (whose macros clash with core names such as max, MessageBox and
+   VARTYPE) is included: never a header. */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winhttp.h>
@@ -408,4 +408,3 @@ void xpp::win32::attach_console()
     if (!in) reopen("CONIN$", "r", stdin);
 }
 
-#endif

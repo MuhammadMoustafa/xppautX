@@ -2,8 +2,7 @@
 
 /* xpp_win32.cpp, Windows only: the Windows API behind the few POSIX calls
    the core and the protocol front end use, in namespace xpp::win32
-   (W109f). */
-#ifdef _WIN32
+   (W109f). Included only by the *_win.cpp files. */
 #include <span>
 #include <string>
 #include <optional>
@@ -62,4 +61,3 @@ std::string documents_folder();
 void attach_console();
 
 } // namespace xpp::win32
-#endif

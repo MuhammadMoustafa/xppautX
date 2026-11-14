@@ -21,11 +21,7 @@
 #include <utility>
 #include <span>
 
-#ifdef _WIN32
-#include <process.h>
-#else
-#include <unistd.h>
-#endif
+#include "xpp_io_internal.h"
 
 /* ===================================================================
    The file half: line reader, token reader, writer (issue: W11 step 3,
@@ -92,36 +88,15 @@ namespace {
    spent most of its renumbering in fgetc's per-character lock). */
 class StreamLock {
 public:
-    explicit StreamLock(std::FILE *fp) noexcept : fp_(fp)
-    {
-#ifdef _WIN32
-        _lock_file(fp_);
-#else
-        flockfile(fp_);
-#endif
-    }
-    ~StreamLock()
-    {
-#ifdef _WIN32
-        _unlock_file(fp_);
-#else
-        funlockfile(fp_);
-#endif
-    }
+    explicit StreamLock(std::FILE *fp) noexcept : fp_(fp) { xpp::io_platform::lock_stream(fp_); }
+    ~StreamLock() { xpp::io_platform::unlock_stream(fp_); }
     StreamLock(const StreamLock &) = delete;
     StreamLock &operator=(const StreamLock &) = delete;
 private:
     std::FILE *fp_;
 };
 
-int get_char_locked(std::FILE *fp) noexcept
-{
-#ifdef _WIN32
-    return _getc_nolock(fp);
-#else
-    return getc_unlocked(fp);
-#endif
-}
+int get_char_locked(std::FILE *fp) noexcept { return xpp::io_platform::get_char_unlocked(fp); }
 
 /* Reads one line a character at a time, growing `line` without limit; strips a
    trailing \r so \n and \r\n both end a line. Returns false only at a
@@ -201,14 +176,7 @@ bool read_number(xpp::TokenReader::State *in, T &out, Convert strto)
 
 std::atomic<unsigned> writer_serial{0};
 
-long long writer_pid()
-{
-#ifdef _WIN32
-    return _getpid();
-#else
-    return getpid();
-#endif
-}
+long long writer_pid() { return xpp::io_platform::process_id(); }
 
 /* A handle's new state (Ptr: the handle's std::unique_ptr<State, Free>),
    over the file path, opened here (closed with the reader), or over the

@@ -3,12 +3,13 @@
    view, through the vendored webview library (third_party/webview, built
    as its own object from src/webview.cc; this file sees only its C API).
 
-   Like xpp_http.cpp this file includes no core header but small APIs
-   (xpp_http.h, xpp_inbox.h, xpp_log.h, ui_json.h), so the platform headers it needs
-   for the file dialogs, the close box and the icon (<windows.h> and <shobjidl.h> on
-   Windows, GTK on Linux, the Objective-C runtime on macOS) cannot clash
-   with core names: the one exception to "Windows API code lives only in
-   xpp_win32.cpp", kept behind _WIN32 and out of every header. It calls them
+   This is the window's shared logic; what differs by platform (the file
+   dialogs, the close box and the icon: <windows.h> and <shobjidl.h> on
+   Windows, GTK on Linux, the Objective-C runtime on macOS) is the
+   primitives of xpp_window_internal.h, implemented in xpp_window_win.cpp,
+   xpp_window_linux.cpp and xpp_window_mac.cpp, so those headers never
+   reach this file. Like xpp_http.cpp it includes no core header but small
+   APIs (xpp_http.h, xpp_inbox.h, xpp_log.h, ui_json.h), and it calls the core
    through an XppWindowHost table (xpp_window_plugin.h).
 
    Built with XPP_WINDOW defined when the build has a web view (the
@@ -37,11 +38,11 @@
 bool xpp::window::supported() { return false; }
 bool xpp::window::run(void (*)()) { return false; }
 void xpp::window::set_model(const char *) {}
-#ifdef __APPLE__
 const char *xpp::window::launch_document() { return nullptr; }
-#endif
 
 #else /* XPP_WINDOW */
+
+#include "xpp_window_internal.h"
 
 #include <algorithm>
 #include <chrono>
@@ -52,28 +53,7 @@ const char *xpp::window::launch_document() { return nullptr; }
 #include <thread>
 #include <type_traits>
 
-#define WEBVIEW_HEADER /* declarations only: the library is webview.o */
-#define WEBVIEW_STATIC
-#include "webview/webview.h"
-
-#if defined(_WIN32)
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <shobjidl.h>
-#include <commctrl.h>
-#elif defined(__APPLE__)
-#include <objc/message.h>
-#include <objc/runtime.h>
-#include <cstdint>
-#include <pthread.h>
-#include <unistd.h>
-#else
-#include <gtk/gtk.h>
-#include <unistd.h>
-#ifdef XPP_ICON_ASSET
-#include "xpp_assets.h"
-#endif
-#endif
+namespace xpp::window::platform {
 
 namespace {
 
@@ -94,18 +74,15 @@ const XppWindowHost host_table = {XPP_WINDOW_HOST_VERSION,
 const XppWindowHost *const host = &host_table;
 #endif
 
+} // namespace
+
+const XppWindowHost *host_api() { return host; }
+
 /* the restored size (W230: the window opens maximized, and un-maximizing
    gives this): web2 needs room for its panels */
 constexpr int WIDTH = 1280, HEIGHT = 840;
 
-/* Where the window opens (W13f): its size, which the display's scaling can
-   make larger than the screen (1280x840 at 125% is 1600x1050), shrunk to
-   95% of the work area (the monitor less the taskbar) when it does not
-   fit, and centred in it; the window is then maximized (W230). */
-struct Placement {
-    int x, y, width, height;
-};
-[[maybe_unused]] Placement fit_in(int width, int height, int area_x, int area_y, int area_width, int area_height)
+Placement fit_in(int width, int height, int area_x, int area_y, int area_width, int area_height)
 {
     width = std::min(width, area_width * 95 / 100);
     height = std::min(height, area_height * 95 / 100);
@@ -132,15 +109,11 @@ struct State {
     bool core_exiting = false; /* the core is exiting: a close box closes the window */
     std::string model;         /* the title's file name */
     std::string error_msg;     /* why the window failed to open (W35e) */
-#ifdef __APPLE__
-    bool session_started = false; /* a document to open is opened, not the model to load */
-    std::string launch_document;  /* the file the launch's open-documents event named */
-#endif
     std::vector<PopOut> popouts; /* the views in windows of their own: the UI thread's only */
     std::promise<void> done;   /* the window has closed and let go */
     std::shared_future<void> done_f = done.get_future().share();
 };
-State *st;
+namespace { State *st; }
 
 std::string title_of(const std::string &model)
 {
@@ -170,7 +143,7 @@ void terminate_cb(webview_t w, void *) { webview_terminate(w); }
    did not load) closes the window: the plain quit (window_closed). True
    when it asked; false once the core is exiting (an error left the window
    open on its log), when the window closes. */
-[[maybe_unused]] bool quit_asking()
+bool quit_asking()
 {
     webview_t w;
     {
@@ -182,12 +155,24 @@ void terminate_cb(webview_t w, void *) { webview_terminate(w); }
     return true;
 }
 
+webview_t main_view()
+{
+    std::lock_guard<std::mutex> lk(st->mu);
+    return st->view;
+}
+
+void set_main_view(webview_t view)
+{
+    std::lock_guard<std::mutex> lk(st->mu);
+    st->view = view;
+}
+
 /* A native window's close box, on the UI thread (Windows' WM_CLOSE, GTK's
    delete-event, Cocoa's windowShouldClose:): a pop-out's asks its page to pop
    in, which closes it (web2's __xppPopIn, then __xppClosePopOut; a page
    without the hook is closed at once); the main window's is the leave
    question. True when the page was asked and the window stays. */
-[[maybe_unused]] bool close_asking(void *native)
+bool close_asking(void *native)
 {
     for (const PopOut &p : st->popouts) {
         if (webview_get_window(p.view) != native) continue;
@@ -195,12 +180,8 @@ void terminate_cb(webview_t w, void *) { webview_terminate(w); }
         return true;
     }
     /* a window that is neither (a pop-out already taken off the list, being destroyed) just closes */
-    webview_t main_view;
-    {
-        std::lock_guard<std::mutex> lk(st->mu);
-        main_view = st->view;
-    }
-    return main_view && webview_get_window(main_view) == native && quit_asking();
+    const webview_t main = main_view();
+    return main && webview_get_window(main) == native && quit_asking();
 }
 
 /* __xppCloseWindow (W110): the leave question's Don't save in the window,
@@ -273,530 +254,6 @@ void on_exit()
    A save dialog confirms an existing destination itself. Its file answer
    carries replace:1, so the core writes the chosen path without another
    question. Browser pickers choose a separate delivery destination. */
-struct FileDialog {
-    bool save = false;
-    std::string title;
-    std::string dir;               /* the folder shown first ("": the system's choice) */
-    std::string file;              /* the name offered (a base name) */
-    std::string filter;            /* the filter's name */
-    std::vector<std::string> exts; /* ".set" ...; none: no filter but All files */
-};
-
-/* the platform's dialog, below, on the window's UI thread, owned by window
-   (its native window): the path picked, "" when cancelled, nullopt when it
-   could not open */
-std::optional<std::string> pick_file(void *window, const FileDialog &d);
-
-#if defined(_WIN32)
-
-constexpr bool HAS_FILE_DIALOG = true;
-
-std::wstring wide(const std::string &s)
-{
-    int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
-    std::wstring w(n > 0 ? static_cast<size_t>(n) : 1, L'\0');
-    if (n > 0) MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &w[0], n);
-    w.resize(w.size() - 1);
-    return w;
-}
-
-/* UTF-16 to UTF-8, wide's inverse */
-std::string narrow(const wchar_t *w)
-{
-    int n = WideCharToMultiByte(CP_UTF8, 0, w, -1, nullptr, 0, nullptr, nullptr);
-    std::string s(n > 0 ? static_cast<size_t>(n) : 1, '\0');
-    if (n > 0) WideCharToMultiByte(CP_UTF8, 0, w, -1, &s[0], n, nullptr, nullptr);
-    s.resize(s.size() - 1);
-    return s;
-}
-
-/* a COM interface, released at the end of its scope */
-template <class T> struct Com {
-    T *p = nullptr;
-    Com() = default;
-    Com(const Com &) = delete;
-    Com &operator=(const Com &) = delete;
-    ~Com()
-    {
-        if (p) p->Release();
-    }
-    void **out() { return reinterpret_cast<void **>(&p); }
-    T *operator->() const { return p; }
-};
-
-/* the Common Item Dialog (IFileOpenDialog, IFileSaveDialog), on the
-   window's STA thread */
-std::optional<std::string> pick_file(void *window, const FileDialog &d)
-{
-    Com<IFileDialog> dlg;
-    if (FAILED(CoCreateInstance(d.save ? __uuidof(FileSaveDialog) : __uuidof(FileOpenDialog), nullptr,
-                                CLSCTX_INPROC_SERVER, __uuidof(IFileDialog), dlg.out())))
-        return std::nullopt;
-    FILEOPENDIALOGOPTIONS opts = 0;
-    dlg->GetOptions(&opts);
-    opts |= FOS_FORCEFILESYSTEM | FOS_NOCHANGEDIR | FOS_PATHMUSTEXIST;
-    if (d.save)
-        opts |= FOS_OVERWRITEPROMPT;
-    else
-        opts |= FOS_FILEMUSTEXIST;
-    dlg->SetOptions(opts);
-    if (!d.title.empty()) dlg->SetTitle(wide(d.title).c_str());
-    std::wstring name = wide(d.filter), patterns;
-    for (const std::string &e : d.exts) patterns += (patterns.empty() ? L"*" : L";*") + wide(e);
-    std::vector<COMDLG_FILTERSPEC> types;
-    if (!patterns.empty()) types.push_back({name.c_str(), patterns.c_str()});
-    types.push_back({L"All files (*.*)", L"*.*"});
-    dlg->SetFileTypes(static_cast<UINT>(types.size()), types.data());
-    dlg->SetFileTypeIndex(1);
-    if (d.save && !d.exts.empty()) dlg->SetDefaultExtension(wide(d.exts[0].substr(1)).c_str());
-    if (!d.dir.empty()) {
-        std::wstring dir = wide(d.dir);
-        std::replace(dir.begin(), dir.end(), L'/', L'\\');
-        if (dir.size() > 3 && dir.back() == L'\\') dir.pop_back();
-        Com<IShellItem> folder;
-        if (SUCCEEDED(SHCreateItemFromParsingName(dir.c_str(), nullptr, __uuidof(IShellItem), folder.out())))
-            dlg->SetFolder(folder.p);
-    }
-    if (!d.file.empty()) dlg->SetFileName(wide(d.file).c_str());
-    HRESULT shown = dlg->Show(static_cast<HWND>(window));
-    if (shown == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return std::string();
-    Com<IShellItem> item;
-    PWSTR path = nullptr;
-    if (FAILED(shown) || FAILED(dlg->GetResult(&item.p)) || FAILED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)))
-        return std::nullopt;
-    std::string picked = narrow(path);
-    CoTaskMemFree(path);
-    return picked;
-}
-
-WNDPROC webview_proc; /* the library's own window procedure */
-
-LRESULT CALLBACK close_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
-{
-    if (msg == WM_CLOSE && close_asking(hwnd)) return 0;
-    return CallWindowProcW(webview_proc, hwnd, msg, wp, lp);
-}
-
-void prepare_window(webview_t w)
-{
-    HWND hwnd = static_cast<HWND>(webview_get_window(w));
-    if (!hwnd) return;
-    /* the icon: resource 32512 (IDI_APPLICATION's number) in assets/xppautx.rc,
-       which the library already set as the class's large icon */
-    HINSTANCE inst = GetModuleHandleW(nullptr);
-    HANDLE icon = LoadImageW(inst, MAKEINTRESOURCEW(32512), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON),
-                             GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
-    if (icon) SendMessageW(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(icon));
-
-    webview_proc = reinterpret_cast<WNDPROC>(
-        SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(close_proc)));
-}
-
-/* a pop-out: the same close box and icon as the main window's (webview_proc is the library's one window
-   procedure, already kept by prepare_window), no maximizing and no place of ours: the system's */
-void prepare_popout(webview_t w)
-{
-    HWND hwnd = static_cast<HWND>(webview_get_window(w));
-    if (!hwnd) return;
-    HANDLE icon = LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(32512), IMAGE_ICON,
-                             GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
-    if (icon) SendMessageW(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(icon));
-    SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(close_proc));
-}
-
-/* a pop-out brought to the front, restored when minimized */
-void raise_window(void *native)
-{
-    HWND hwnd = static_cast<HWND>(native);
-    if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
-    SetForegroundWindow(hwnd);
-}
-
-/* fit_in on the monitor the window opened on (the library sized it, frame
-   and DPI scaling included, at the system's default position) */
-void place_window(webview_t w)
-{
-    HWND hwnd = static_cast<HWND>(webview_get_window(w));
-    RECT r;
-    MONITORINFO mi;
-    mi.cbSize = sizeof mi;
-    if (!hwnd || !GetWindowRect(hwnd, &r) ||
-        !GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi))
-        return;
-    const RECT &a = mi.rcWork;
-    Placement p = fit_in(r.right - r.left, r.bottom - r.top, a.left, a.top, a.right - a.left, a.bottom - a.top);
-    SetWindowPos(hwnd, nullptr, p.x, p.y, p.width, p.height, SWP_NOZORDER | SWP_NOACTIVATE);
-    ShowWindow(hwnd, SW_MAXIMIZE); /* W230: title bar and taskbar stay */
-}
-
-#elif defined(__APPLE__)
-
-constexpr bool HAS_FILE_DIALOG = true;
-
-/* an Objective-C message from C++, as the webview library sends them */
-template <typename R = id, typename... A> R msg(id self, const char *sel, A... a)
-{
-    return reinterpret_cast<R (*)(id, SEL, A...)>(objc_msgSend)(self, sel_registerName(sel), a...);
-}
-id cls(const char *name) { return reinterpret_cast<id>(objc_getClass(name)); }
-id ns_string(const std::string &s) { return msg(cls("NSString"), "stringWithUTF8String:", s.c_str()); }
-
-/* the library centres the window and Cocoa keeps it on its screen (the
-   restored size); W230: zoom it to the screen's visible frame (untested) */
-void place_window(webview_t w)
-{
-    msg<void>(static_cast<id>(webview_get_window(w)), "zoom:", static_cast<id>(nullptr));
-}
-
-/* ---- leaving (W110) -----------------------------------------------------
-   The window's close box and Cmd+Q (the app menu's Quit, the Dock's)
-   answer "not yet" and go through the leave question (quit_asking), as
-   WM_CLOSE and GTK's delete-event do: -windowShouldClose: on the library's
-   window delegate (WebviewNSWindowDelegate) and
-   -applicationShouldTerminate: on its application delegate
-   (WebviewAppDelegate), both added to the library's classes once it has
-   made them (in xpp::webview_create). The core's own exit after its bye
-   stops the run loop (webview_terminate), which asks neither. On the main
-   thread, from the run loop. Not tested: written without a Mac (CI's
-   macos-core). */
-constexpr unsigned long TERMINATE_CANCEL = 0; /* NSTerminateCancel */
-
-/* -windowShouldClose: (called from Cocoa: nothing may throw) */
-BOOL window_should_close(id, SEL, id window) { return close_asking(window) ? static_cast<BOOL>(NO) : static_cast<BOOL>(YES); }
-
-/* -applicationShouldTerminate: never terminates the application itself
-   (its exit() would run the core's atexit handlers on the window's
-   thread): asked, or once the core is exiting, the window closes, as its
-   close box would, and window_closed ends the process */
-unsigned long application_should_terminate(id, SEL, id)
-{
-    if (!quit_asking()) {
-        webview_t w;
-        {
-            std::lock_guard<std::mutex> lk(st->mu);
-            w = st->view;
-        }
-        if (w) webview_terminate(w);
-    }
-    return TERMINATE_CANCEL;
-}
-
-/* a pop-out: the window delegate's windowShouldClose: (prepare_window added it to the library's class) is its close box;
-   nothing to set up, and no place of ours: the system's */
-void prepare_popout(webview_t) {}
-
-/* a pop-out brought to the front (untested: written without a Mac) */
-void raise_window(void *native)
-{
-    msg<void>(msg(cls("NSApplication"), "sharedApplication"), "activateIgnoringOtherApps:", static_cast<BOOL>(YES));
-    msg<void>(static_cast<id>(native), "makeKeyAndOrderFront:", static_cast<id>(nullptr));
-}
-
-/* the method on the library's class name (a no-op when it has none) */
-void add_method(const char *name, const char *sel, IMP imp, const char *types)
-{
-    Class c = objc_lookUpClass(name);
-    if (c) class_replaceMethod(c, sel_registerName(sel), imp, types);
-}
-
-void about_action(id, SEL, id)
-{
-    msg<void>(msg(cls("NSApplication"), "sharedApplication"), "orderFrontStandardAboutPanel:", static_cast<id>(nullptr));
-}
-
-/* The app menu's Quit and About. The icon comes
-   with the .app bundle (W13b). */
-void prepare_window(webview_t)
-{
-    add_method("WebviewNSWindowDelegate", "windowShouldClose:", reinterpret_cast<IMP>(window_should_close), "c@:@");
-    add_method("WebviewAppDelegate", "applicationShouldTerminate:", reinterpret_cast<IMP>(application_should_terminate),
-               "Q@:@");
-    add_method("WebviewAppDelegate", "xppAbout:", reinterpret_cast<IMP>(about_action), "v@:@");
-    id pool = msg(cls("NSAutoreleasePool"), "new");
-    id bar = msg(msg(cls("NSMenu"), "alloc"), "init");
-    id app_item = msg(msg(cls("NSMenuItem"), "alloc"), "init");
-    id app_menu = msg(msg(cls("NSMenu"), "alloc"), "init");
-    id quit = msg(msg(cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:", ns_string("Quit xppautX"),
-                  sel_registerName("terminate:"), ns_string("q"));
-    if (bar && app_item && app_menu && quit) {
-        msg<void>(app_menu, "addItem:", quit);
-        msg<void>(app_item, "setSubmenu:", app_menu);
-        msg<void>(bar, "addItem:", app_item);
-        msg<void>(msg(cls("NSApplication"), "sharedApplication"), "setMainMenu:", bar);
-    }
-    id about_item = msg(msg(cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:",
-                        ns_string("About xppautX"), sel_registerName("xppAbout:"), ns_string(""));
-    msg<void>(about_item, "setTarget:", msg(msg(cls("NSApplication"), "sharedApplication"), "delegate"));
-    msg<void>(app_menu, "insertItem:atIndex:", about_item, static_cast<long>(0));
-    msg<void>(pool, "drain");
-}
-
-/* NSOpenPanel, NSSavePanel, application-modal on the main thread (not
-   tested: written without a Mac). An open panel has no type menu of its
-   own, so it filters nothing and every file stays pickable (All files);
-   a save panel takes the types, the first added to a name without one. */
-std::optional<std::string> pick_file(void *, const FileDialog &d)
-{
-    id panel = d.save ? msg(cls("NSSavePanel"), "savePanel") : msg(cls("NSOpenPanel"), "openPanel");
-    if (!panel) return std::nullopt;
-    if (!d.title.empty()) {
-        msg<void>(panel, "setTitle:", ns_string(d.title));
-        msg<void>(panel, "setMessage:", ns_string(d.title));
-    }
-    if (!d.dir.empty())
-        msg<void>(panel, "setDirectoryURL:",
-                  msg(cls("NSURL"), "fileURLWithPath:isDirectory:", ns_string(d.dir), static_cast<BOOL>(YES)));
-    if (d.save && !d.file.empty()) msg<void>(panel, "setNameFieldStringValue:", ns_string(d.file));
-    if (d.save && !d.exts.empty()) {
-        id types = msg(cls("NSMutableArray"), "array");
-        for (const std::string &e : d.exts) msg<void>(types, "addObject:", ns_string(e.substr(1)));
-        msg<void>(panel, "setAllowedFileTypes:", types);
-        msg<void>(panel, "setAllowsOtherFileTypes:", static_cast<BOOL>(YES));
-    }
-    constexpr long MODAL_RESPONSE_OK = 1; /* NSModalResponseOK */
-    if (msg<long>(panel, "runModal") != MODAL_RESPONSE_OK) return std::string();
-    id url = msg(panel, "URL");
-    const char *path = url ? msg<const char *>(msg(url, "path"), "UTF8String") : nullptr;
-    if (!path) return std::nullopt;
-    return std::string(path);
-}
-
-/* ---- Finder's documents (W91) -------------------------------------------
-   Double-clicking a .ode, .odex, .snapx or .recx (xppautX.app's Info.plist
-   declares them), dropping one on the app or `open -a xppautX file` sends
-   the app an open-documents Apple Event, not an argument. Our handler
-   replaces NSApplication's own (which would hand the files to the
-   delegate, and webview's WebviewAppDelegate is left as it is): installed
-   when NSApplicationWillFinishLaunchingNotification is posted, where Apple
-   says a handler replaces the standard one, and before the event a launch
-   brings, which Cocoa dispatches before applicationDidFinishLaunching:.
-   That all happens inside xpp::webview_create (webview runs the app until
-   it has finished launching), so a launch's document is known before the
-   session starts, and becomes its model (xpp::window::launch_document);
-   one that comes later is opened as File > Open model opens one (W61),
-   asking first. On the main thread, from the run loop. Not tested: written
-   without a Mac. */
-
-/* the Apple Event Manager's four-character codes (AE/AppleEvents.h) */
-constexpr uint32_t four_cc(const char (&c)[5])
-{
-    return static_cast<uint32_t>(static_cast<unsigned char>(c[0])) << 24 |
-           static_cast<uint32_t>(static_cast<unsigned char>(c[1])) << 16 |
-           static_cast<uint32_t>(static_cast<unsigned char>(c[2])) << 8 |
-           static_cast<uint32_t>(static_cast<unsigned char>(c[3]));
-}
-constexpr uint32_t CORE_EVENT_CLASS = four_cc("aevt"); /* kCoreEventClass */
-constexpr uint32_t OPEN_DOCUMENTS = four_cc("odoc");   /* kAEOpenDocuments */
-constexpr uint32_t DIRECT_OBJECT = four_cc("----");    /* keyDirectObject */
-constexpr const char *HANDLE_DOCUMENTS = "handleOpenDocuments:withReplyEvent:";
-constexpr const char *WILL_FINISH_LAUNCHING = "applicationWillFinishLaunching:";
-
-/* the files an open-documents event names, in its order */
-std::vector<std::string> document_paths(id event)
-{
-    std::vector<std::string> paths;
-    id list = event ? msg(event, "paramDescriptorForKeyword:", DIRECT_OBJECT) : nullptr;
-    if (!list) return paths;
-    auto add = [&paths](id item) {
-        id url = item ? msg(item, "fileURLValue") : nullptr; /* coerced from an alias if need be */
-        id path = url ? msg(url, "path") : nullptr;
-        const char *s = path ? msg<const char *>(path, "UTF8String") : nullptr;
-        if (s && *s) paths.emplace_back(s);
-    };
-    const long n = msg<long>(list, "numberOfItems"); /* NSInteger; not a list: 0 */
-    if (n <= 0) add(list);
-    for (long i = 1; i <= n; i++) add(msg(list, "descriptorAtIndex:", i)); /* from 1 */
-    return paths;
-}
-
-/* -handleOpenDocuments:withReplyEvent: (called from Cocoa: nothing may
-   throw) */
-void open_documents(id, SEL, id event, id)
-{
-    try {
-        std::vector<std::string> paths = document_paths(event);
-        if (paths.empty()) return;
-        if (paths.size() > 1)
-            host->log(XPP_LOG_WARN, "xppautX: {:d} files to open, one model at a time: only the first\n", paths.size());
-        host->log(XPP_LOG_INFO, "xppautX: macOS asked to open {}\n", paths[0].c_str());
-        {
-            std::lock_guard<std::mutex> lk(st->mu);
-            if (!st->session_started) {
-                st->launch_document = paths[0];
-                return;
-            }
-        }
-        host->open_model(paths[0].c_str());
-    } catch (const std::exception &e) {
-        host->log(XPP_LOG_WARN, "xppautX: a document to open was lost: {}\n", e.what());
-    } catch (...) {
-        host->log(XPP_LOG_WARN, "xppautX: a document to open was lost\n");
-    }
-}
-
-/* the handler, on the object below */
-void install_documents_handler(id handler)
-{
-    id events = msg(cls("NSAppleEventManager"), "sharedAppleEventManager");
-    if (events)
-        msg<void>(events, "setEventHandler:andSelector:forEventClass:andEventID:", handler,
-                  sel_registerName(HANDLE_DOCUMENTS), CORE_EVENT_CLASS, OPEN_DOCUMENTS);
-}
-
-/* -applicationWillFinishLaunching:, the notification's */
-void will_finish_launching(id self, SEL, id) { install_documents_handler(self); }
-
-/* An object of a class of our own (XppDocumentsHandler, NSObject's) that
-   observes the launch and handles the event; kept for the process's life.
-   Before the web view is created. */
-void watch_for_documents()
-{
-    constexpr const char *CLASS_NAME = "XppDocumentsHandler";
-    id pool = msg(cls("NSAutoreleasePool"), "new");
-    Class c = objc_lookUpClass(CLASS_NAME);
-    if (!c) {
-        c = objc_allocateClassPair(objc_lookUpClass("NSObject"), CLASS_NAME, 0);
-        if (c) {
-            class_addMethod(c, sel_registerName(HANDLE_DOCUMENTS),
-                            reinterpret_cast<IMP>(open_documents), "v@:@@");
-            class_addMethod(c, sel_registerName(WILL_FINISH_LAUNCHING),
-                            reinterpret_cast<IMP>(will_finish_launching), "v@:@");
-            objc_registerClassPair(c);
-        }
-    }
-    id handler = c ? msg(reinterpret_cast<id>(c), "new") : nullptr;
-    if (handler) {
-        msg<void>(msg(cls("NSNotificationCenter"), "defaultCenter"), "addObserver:selector:name:object:", handler,
-                  sel_registerName(WILL_FINISH_LAUNCHING),
-                  ns_string("NSApplicationWillFinishLaunchingNotification"), static_cast<id>(nullptr));
-        /* and now, should the application have finished launching already */
-        install_documents_handler(handler);
-    }
-    msg<void>(pool, "drain");
-}
-
-#else /* Linux: GTK 3 (webkit2gtk-4.1) */
-
-#if GTK_MAJOR_VERSION >= 4
-void prepare_window(webview_t) {} /* webkitgtk-6.0 (GTK 4): nothing to set up */
-void place_window(webview_t) {} /* nor a work area or a window position */
-void prepare_popout(webview_t) {} /* nor a close box of its own: a pop-out closes by its page's Pop in */
-void raise_window(void *native) { gtk_window_present(GTK_WINDOW(native)); }
-/* nor gtk_dialog_run: web2 shows its own file dialog */
-constexpr bool HAS_FILE_DIALOG = false;
-std::optional<std::string> pick_file(void *, const FileDialog &) { return std::nullopt; }
-#else
-constexpr bool HAS_FILE_DIALOG = true;
-
-/* a pattern that matches ext in any case (GTK 3's are case-sensitive):
-   ".ode" is "*.[oO][dD][eE]" */
-std::string any_case(const std::string &ext)
-{
-    std::string p = "*";
-    for (char c : ext) {
-        const char lo = g_ascii_tolower(c), up = g_ascii_toupper(c);
-        if (lo == up) p += c;
-        else p += std::string("[") + lo + up + "]";
-    }
-    return p;
-}
-
-/* GtkFileChooserDialog, on the GTK thread */
-std::optional<std::string> pick_file(void *window, const FileDialog &d)
-{
-    GtkWidget *dlg = gtk_file_chooser_dialog_new(d.title.empty() ? nullptr : d.title.c_str(), GTK_WINDOW(window),
-                                                 d.save ? GTK_FILE_CHOOSER_ACTION_SAVE : GTK_FILE_CHOOSER_ACTION_OPEN,
-                                                 "_Cancel", GTK_RESPONSE_CANCEL, d.save ? "_Save" : "_Open",
-                                                 GTK_RESPONSE_ACCEPT, nullptr);
-    if (!dlg) return std::nullopt;
-    GtkFileChooser *fc = GTK_FILE_CHOOSER(dlg);
-    gtk_file_chooser_set_local_only(fc, TRUE);
-    gtk_file_chooser_set_do_overwrite_confirmation(fc, TRUE);
-    if (!d.exts.empty()) {
-        GtkFileFilter *types = gtk_file_filter_new();
-        gtk_file_filter_set_name(types, d.filter.c_str());
-        for (const std::string &e : d.exts) gtk_file_filter_add_pattern(types, any_case(e).c_str());
-        gtk_file_chooser_add_filter(fc, types);
-    }
-    GtkFileFilter *all = gtk_file_filter_new();
-    gtk_file_filter_set_name(all, "All files");
-    gtk_file_filter_add_pattern(all, "*");
-    gtk_file_chooser_add_filter(fc, all);
-    if (!d.dir.empty()) gtk_file_chooser_set_current_folder(fc, d.dir.c_str());
-    if (d.save && !d.file.empty()) gtk_file_chooser_set_current_name(fc, d.file.c_str());
-    std::optional<std::string> picked = std::string();
-    if (gtk_dialog_run(GTK_DIALOG(dlg)) == GTK_RESPONSE_ACCEPT) {
-        char *path = gtk_file_chooser_get_filename(fc);
-        if (path) picked = std::string(path);
-        g_free(path);
-    }
-    gtk_widget_destroy(dlg);
-    return picked;
-}
-
-/* the window icon (item 4, W13b): the installed hicolor theme icon by name
-   (tools/associate/install-linux.sh put it there), else the PNG embedded at
-   build time (Makefile, XPP_ICON_ASSET) so an unpacked-but-not-installed
-   build still has one instead of GTK's generic default. */
-void set_window_icon(GtkWindow *win)
-{
-    if (gtk_icon_theme_has_icon(gtk_icon_theme_get_default(), "xppautx")) {
-        gtk_window_set_icon_name(win, "xppautx");
-        return;
-    }
-#ifdef XPP_ICON_ASSET
-    GdkPixbufLoader *loader = gdk_pixbuf_loader_new();
-    GError *err = nullptr;
-    if (gdk_pixbuf_loader_write(loader, xpp::icon_png.data(), xpp::icon_png.size(), &err) &&
-        gdk_pixbuf_loader_close(loader, &err)) {
-        GdkPixbuf *pix = gdk_pixbuf_loader_get_pixbuf(loader);
-        if (pix) gtk_window_set_icon(win, pix);
-    } else {
-        host->log(XPP_LOG_WARN, "xppautX: window icon: {}\n", err ? err->message : "unknown error");
-    }
-    if (err) g_error_free(err);
-    g_object_unref(loader);
-#endif
-}
-
-/* the close box: the question first (quit_asking) */
-gboolean on_delete(GtkWidget *window, GdkEvent *, gpointer) { return close_asking(window) ? TRUE : FALSE; }
-
-void prepare_window(webview_t w)
-{
-    GtkWidget *win = static_cast<GtkWidget *>(webview_get_window(w));
-    if (!win) return;
-    g_signal_connect(win, "delete-event", G_CALLBACK(on_delete), nullptr);
-    set_window_icon(GTK_WINDOW(win));
-}
-
-/* a pop-out: the main window's icon and close box, no maximizing and no place of ours: the window manager's */
-void prepare_popout(webview_t w) { prepare_window(w); }
-
-void raise_window(void *native) { gtk_window_present(GTK_WINDOW(native)); }
-
-/* fit_in on the primary monitor's work area (GTK sizes in logical pixels,
-   so the scaling is already in the area); on Wayland the compositor
-   chooses the position and ignores the move */
-void place_window(webview_t w)
-{
-    GtkWindow *win = static_cast<GtkWindow *>(webview_get_window(w));
-    GdkDisplay *display = gdk_display_get_default();
-    GdkMonitor *monitor = display ? gdk_display_get_primary_monitor(display) : nullptr;
-    if (!monitor && display) monitor = gdk_display_get_monitor(display, 0);
-    if (!win || !monitor) return;
-    GdkRectangle a;
-    gdk_monitor_get_workarea(monitor, &a);
-    int width, height;
-    gtk_window_get_size(win, &width, &height);
-    Placement p = fit_in(width, height, a.x, a.y, a.width, a.height);
-    gtk_window_resize(win, p.width, p.height);
-    gtk_window_move(win, p.x, p.y);
-    gtk_window_maximize(win); /* W230: un-maximizing gives the size above */
-}
-#endif /* GTK 3 */
-
-#endif /* platform */
 
 /* the page's __xppFileDialog({mode, title, dir, file, wild, exts}), in
    webview's JSON (xpp_webview.h) */
@@ -923,12 +380,8 @@ void destroy_popout_cb(webview_t, void *arg)
 
 void close_popout_cb(const char *, const char *, void *arg)
 {
-    webview_t main_view;
-    {
-        std::lock_guard<std::mutex> lk(st->mu);
-        main_view = st->view;
-    }
-    if (main_view) webview_dispatch(main_view, destroy_popout_cb, arg);
+    const webview_t main = main_view();
+    if (main) webview_dispatch(main, destroy_popout_cb, arg);
 }
 
 /* the pop-out's window, the page loading in it; NULL with why */
@@ -944,7 +397,7 @@ webview_t open_popout_view(const std::string &key, const std::string &title, std
     webview_set_title(w, title.c_str());
     webview_set_size(w, POPOUT_WIDTH, POPOUT_HEIGHT, WEBVIEW_HINT_NONE);
     prepare_popout(w);
-    if (HAS_FILE_DIALOG) webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
+    if (has_file_dialog()) webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
     webview_bind(w, "__xppClosePopOut", close_popout_cb, w);
     webview_navigate(w, (std::string(host->http_url()) + std::string(POPOUT_FRAGMENT) + key).c_str());
     return w;
@@ -1006,7 +459,7 @@ webview_t open_view()
     prepare_window(w);
     place_window(w);
     /* before the page loads, so it is there from its first script */
-    if (HAS_FILE_DIALOG) webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
+    if (has_file_dialog()) webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
     webview_bind(w, "__xppCloseWindow", close_window_cb, w);
     webview_bind(w, "__xppPopOut", popout_cb, w);
     webview_bind(w, "__xppOpenRelease", open_release_cb, w);
@@ -1023,16 +476,6 @@ const char *no_view_message()
     return st->error_msg.c_str();
 }
 
-#ifdef __APPLE__
-void (*session_fn)(void);
-
-void *session_main(void *)
-{
-    session_fn();
-    return nullptr;
-}
-#endif
-
 /* xpp_window.h's set_model and run: the library's (XppWindowApi) in the
    plugin, else the public functions below */
 void set_window_model(const char *path)
@@ -1046,56 +489,33 @@ void set_window_model(const char *path)
     if (st->view) webview_dispatch(st->view, set_title_cb, nullptr);
 }
 
+/* the window on a thread of its own (Windows' message loop wants an STA thread, GTK one thread that
+   initialises and runs it), the session on the caller's: false when the window cannot open */
+bool run_on_ui_thread()
+{
+    auto ready = std::make_shared<std::promise<webview_t>>();
+    std::future<webview_t> up = ready->get_future();
+    std::thread([ready] {
+        webview_t w = open_view();
+        if (w) set_main_view(w);
+        ready->set_value(w);
+        if (!w) return;
+        webview_run(w);
+        window_closed(w);
+    }).detach();
+    if (!up.get()) {
+        host->log(XPP_LOG_WARN, "{}", no_view_message());
+        return false;
+    }
+    std::atexit(on_exit);
+    return true;
+}
+
 bool run_window(void (*session)())
 {
     try {
         st = new State;
-#ifdef __APPLE__
-        /* Cocoa: the window on the main thread, the session on another,
-           with the main thread's 8 MB of stack (a new thread gets 512 KB).
-           Finder's documents first: the launch's comes while the view is
-           created */
-        watch_for_documents();
-        webview_t w = open_view();
-        if (!w) {
-            host->log(XPP_LOG_WARN, "{}", no_view_message());
-            return false;
-        }
-        {
-            std::lock_guard<std::mutex> lk(st->mu);
-            st->view = w;
-            st->session_started = true; /* a document from now on is opened */
-        }
-        std::atexit(on_exit);
-        pthread_attr_t attr;
-        pthread_t core;
-        pthread_attr_init(&attr);
-        pthread_attr_setstacksize(&attr, 8u << 20);
-        session_fn = session;
-        pthread_create(&core, &attr, session_main, nullptr);
-        webview_run(w);
-        window_closed(w); /* never returns */
-        return true;
-#else
-        auto ready = std::make_shared<std::promise<webview_t>>();
-        std::future<webview_t> up = ready->get_future();
-        std::thread([ready] {
-            webview_t w = open_view();
-            if (w) {
-                std::lock_guard<std::mutex> lk(st->mu);
-                st->view = w;
-            }
-            ready->set_value(w);
-            if (!w) return;
-            webview_run(w);
-            window_closed(w);
-        }).detach();
-        if (!up.get()) {
-            host->log(XPP_LOG_WARN, "{}", no_view_message());
-            return false;
-        }
-        std::atexit(on_exit);
-#endif
+        if (!run_window_ui(session)) return false;
     } catch (const std::exception &e) {
         host->log(XPP_LOG_WARN, "{}", xpp::data_message(e.what()));
         return false;
@@ -1104,30 +524,22 @@ bool run_window(void (*session)())
     return true;
 }
 
-} /* namespace */
+} // namespace xpp::window::platform
 
 #ifdef XPP_WINDOW_PLUGIN
 extern "C" __attribute__((visibility("default"))) int xpp_window_plugin_init(const XppWindowHost *h,
                                                                              XppWindowApi *api)
 {
     if (!h || h->version != XPP_WINDOW_HOST_VERSION || !api) return 0;
-    host = h;
-    api->run = run_window;
-    api->set_model = set_window_model;
+    xpp::window::platform::host = h;
+    api->run = xpp::window::platform::run_window;
+    api->set_model = xpp::window::platform::set_window_model;
     return 1;
 }
 #else
 bool xpp::window::supported() { return true; }
-void xpp::window::set_model(const char *path) { set_window_model(path); }
-bool xpp::window::run(void (*session)()) { return run_window(session); }
-#ifdef __APPLE__
-const char *xpp::window::launch_document()
-{
-    if (!st) return nullptr;
-    std::lock_guard<std::mutex> lk(st->mu);
-    return st->launch_document.empty() ? nullptr : st->launch_document.c_str();
-}
-#endif
+void xpp::window::set_model(const char *path) { xpp::window::platform::set_window_model(path); }
+bool xpp::window::run(void (*session)()) { return xpp::window::platform::run_window(session); }
 #endif
 
 #endif /* XPP_WINDOW */

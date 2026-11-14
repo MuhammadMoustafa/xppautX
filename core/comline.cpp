@@ -12,6 +12,7 @@
 #include "xpp_batch.h"
 #include "model_options.h"
 #include "xpp_io.h"
+#include "xpp_platform.h"
 #include <algorithm>
 #include <optional>
 #include <string>
@@ -93,11 +94,7 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
   for (int i = 1; i < count; ++i) {
     const std::string_view word(cl.arguments[static_cast<std::size_t>(i)]);
     const Place place{"command line", i, 0, std::string(word)};
-#ifdef __APPLE__
-    /* the process serial number an older macOS gave an app Finder started,
-       which would be taken for a bad option */
-    if (word.starts_with("-psn_")) continue;
-#endif
+    if (xpp::platform::ignored_launch_argument(word)) continue;
     if (!word.starts_with('-')) {
       if (!cl.model_file.empty()) return fail("options", xpp::format("unexpected model argument {}", word), place);
       cl.model_file = word;

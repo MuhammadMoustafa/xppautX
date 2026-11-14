@@ -42,7 +42,7 @@
 #include "load_eqn.h"
 #include "session_settings.h"
 #include "xpp_util.h"
-#include "xpp_win32.h"
+#include "xpp_platform.h"
 #include "many_pops.h"
 #include "axes2.h"
 #include "nullcline.h"
@@ -156,22 +156,7 @@ static void run_session(void)
        or the system adds an argument: then the changed arguments are read again */
     std::vector<std::string> args = startup.line.arguments;
     bool changed = false;
-#ifdef __APPLE__
-    /* a document Finder or `open` gave xppautX.app when it launched it (an
-       Apple Event, not an argument: xpp_window.h) is the model, loaded from
-       its own folder as File > Open model loads one; without one, an app
-       Finder started (in "/") starts in the home folder, where the
-       start screen's Open model dialog begins */
-    if (const char *doc = xpp::window::launch_document()) {
-        const std::pair<std::string, std::string> where = xpp::files::split_path(doc);
-        if (!where.first.empty()) xpp::files::change_dir(where.first.c_str());
-        args.push_back(where.second);
-        changed = true;
-    } else if (xpp::files::working_dir() == "/") {
-        const char *home = getenv("HOME");
-        if (home && *home) xpp::files::change_dir(home);
-    }
-#endif
+    if (xpp::platform::adopt_launch_document(args)) changed = true;
     /* a file that carries a model on the command line (W103: an autoX
        file or a session file): its saved model is loaded, from the file's
        own folder as File > Open model loads one, then what the file adds */
@@ -247,13 +232,11 @@ static void run_session(void)
 
 int main(int argc, char **argv)
 {
-#ifdef _WIN32
-    /* xppautX links -mwindows (no console from Explorer or a file
+    /* Windows: xppautX links -mwindows (no console from Explorer or a file
        association): reattach to a real console before any output, for
        --version/--help and every command-line mode; a no-op when stdio is
        already a real pipe or file, or there is no parent console */
-    xpp::win32::attach_console();
-#endif
+    xpp::platform::attach_console();
     /* the whole command line, read once: ours and xppaut's */
     xpp::Result<xpp::CommandLine> parsed = xpp::parse_command_line(std::vector<std::string>(argv, argv + argc));
     if (!parsed) {

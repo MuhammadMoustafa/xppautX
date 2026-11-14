@@ -1,14 +1,10 @@
 #include "xpp_cpu.h"
-#include "xpp_win32.h"
 #include "xpp_io.h"
-#include <set>
-#include <algorithm>
 #include <thread>
 #include <string>
-#include <utility>
-#ifdef __APPLE__
-#include <sys/sysctl.h>
-#endif
+#include <algorithm>
+
+/* physical_cores is once per platform: xpp_cpu_win.cpp, xpp_cpu_linux.cpp, xpp_cpu_mac.cpp */
 
 namespace xpp::cpu {
 unsigned logical_processors() { return std::max(1u, std::thread::hardware_concurrency()); }
@@ -42,64 +38,6 @@ std::optional<std::vector<unsigned>> cpu_list(std::string_view text)
     }
     if (cpus.empty()) return std::nullopt;
     return cpus;
-}
-
-#ifdef __linux__
-namespace {
-// A sysfs attribute is one line of at most a page, the kernel's own bound.
-std::optional<std::string> system_line(LineReader reader)
-{
-    auto line = reader.next();
-    if (!line) return std::nullopt;
-    std::string value(*line);
-    if (reader.next()) return std::nullopt;
-    return value;
-}
-}
-#endif
-
-std::optional<unsigned> physical_cores()
-{
-#ifdef _WIN32
-    return win32::processor_core_count();
-#elif defined(__linux__)
-    const auto online_text = system_line(LineReader("/sys/devices/system/cpu/online"));
-    if (!online_text) return std::nullopt;
-    const auto online = cpu_list(*online_text);
-    if (!online) return std::nullopt;
-    // An absent Intel hybrid PMU list means the OS does not distinguish core classes.
-    LineReader performance_reader("/sys/devices/cpu_core/cpus");
-    std::optional<std::vector<unsigned>> performance;
-    if (performance_reader) {
-        const auto line = system_line(std::move(performance_reader));
-        if (!line) return std::nullopt;
-        performance = cpu_list(*line);
-        if (!performance) return std::nullopt;
-    }
-    std::set<std::pair<unsigned, unsigned>> cores;
-    for (unsigned cpu : *online) {
-        if (performance && !std::binary_search(performance->begin(), performance->end(), cpu)) continue;
-        const auto base = format("/sys/devices/system/cpu/cpu{}/topology/", cpu);
-        const auto package_text = system_line(LineReader(base + "physical_package_id"));
-        const auto core_text = system_line(LineReader(base + "core_id"));
-        if (!package_text || !core_text) return std::nullopt;
-        const auto package = topology_id(*package_text), core = topology_id(*core_text);
-        if (!package || !core) return std::nullopt;
-        cores.emplace(*package, *core);
-    }
-    if (cores.empty()) return std::nullopt;
-    return static_cast<unsigned>(cores.size());
-#elif defined(__APPLE__)
-    for (const char *name : {"hw.perflevel0.physicalcpu", "hw.physicalcpu"}) {
-        int count = 0;
-        size_t size = sizeof(count);
-        if (sysctlbyname(name, &count, &size, nullptr, 0) == 0 && size == sizeof(count) && count > 0)
-            return static_cast<unsigned>(count);
-    }
-    return std::nullopt;
-#else
-    return std::nullopt;
-#endif
 }
 
 unsigned physical_threads()
