@@ -7,8 +7,8 @@
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "equilibria.h"
+#include "plot_state.h"
 #include "jacobian.h"
-#include "graphics.h"
 #include "integrate.h"
 #include "xpp_job.h"
 #include "model_place.h"
@@ -143,17 +143,24 @@ xpp::Result<SingStatus> find_equilibrium(xpp::Session &s, Equilibrium &q, double
  return find_equilibrium(*model,q,x,eps,err,big,maxit,n,ierr,ghost);
 }
 
-/* the equilibrium's symbol on the graph: saddle, unstable or stable */
-void mark_equilibrium(xpp::Session &s, const Equilibrium &q, double *x)
+/* the equilibrium's symbol: saddle, unstable or stable */
+int equilibrium_symbol(const Equilibrium &q)
 {
- if(((q.rp+q.cp)!=0)&&((q.rn+q.cn)!=0))eq_symb(s,x,1);
- else
- {
-   if((q.rp+q.cp)!=0)eq_symb(s,x,0);
-   else eq_symb(s,x,3);
- }
+ if(((q.rp+q.cp)!=0)&&((q.rn+q.cn)!=0))return 1;
+ return (q.rp+q.cp)!=0?0:3;
 }
 
+}
+
+void mark_equilibrium(Session &s, std::span<const double> x, int symbol)
+{
+ const GRAPH &g=*s.plot_windows->current;
+ const int pop=s.plot_windows->active;
+ if(g.TimeFlag||g.ThreeDFlag)return;
+ if(pop<0||pop>=static_cast<int>(s.plot_windows->graph.size()))return;
+ const int ix=g.xv[0]-1,iy=g.yv[0]-1;
+ if(ix<0||iy<0||ix>=static_cast<int>(x.size())||iy>=static_cast<int>(x.size()))return;
+ s.marks_shown->windows[static_cast<std::size_t>(pop)].mark_equilibrium({x[static_cast<std::size_t>(ix)],x[static_cast<std::size_t>(iy)],symbol});
 }
 
 NewtonCause newton_cause(const Session &s, const NewtonRun &run, std::size_t variables)
@@ -231,7 +238,7 @@ if(!s.numerics->par_fol)
   for(i=0;i<n;i++)
    xpp::log(XPP_LOG_INFO, " {:f}  +  i  {:f} \n",eval[2*i],eval[2*i+1]);
 }
- mark_equilibrium(s,q,x);
+ mark_equilibrium(s,{x,static_cast<std::size_t>(n)},equilibrium_symbol(q));
  
  *stabinfo=(cp+rp)+(cn+rn)/1000.0;
  
@@ -443,7 +450,7 @@ xpp::Result<> do_sing_info(xpp::Session &s, double *x, double eps, double err, d
   er[i]=eval[2*i];
   em[i]=eval[2*i+1];
  }
- mark_equilibrium(s,q,x);
+ mark_equilibrium(s,{x,static_cast<std::size_t>(n)},equilibrium_symbol(q));
 
  if(n>1)
  {

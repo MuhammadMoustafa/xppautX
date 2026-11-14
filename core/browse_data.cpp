@@ -24,7 +24,6 @@
 #include <cctype>
 #include <strings.h>
 #include "data_formats.h"
-#include "graf_par.h"
 #include "menus.h"
 #include "expr_program.h"
 #include "numerics_settings.h"
@@ -752,7 +751,7 @@ Result<bool> write_table(const xpp::Session &s, xpp::DataTable &t, const xpp::Da
 
 } // namespace
 
-Result<DataSaved> save_data_file(const xpp::Session &s, std::optional<DataTarget> target, std::string_view format, std::string_view name)
+Result<DataSaved> save_data_file(const xpp::Session &s, std::optional<DataTarget> target, std::string_view format, std::string_view name, const std::function<xpp::DataTable()> &plot_curves)
 {
  const DATA_VIEW *b=&s.data->view;
  if(!target){
@@ -764,7 +763,7 @@ Result<DataSaved> save_data_file(const xpp::Session &s, std::optional<DataTarget
  const xpp::DataFormat *f=nullptr;
  if(!format.empty()&&!(f=xpp::data_format_named(format)))
    return fail("save data",xpp::format("No data format {}",format),command_place());
- xpp::DataTable t=plot?plot_curves_table(s):data_table(s,*b,*target==DataTarget::output?output_columns(s,*b):all_columns(*b));
+ xpp::DataTable t=plot?plot_curves():data_table(s,*b,*target==DataTarget::output?output_columns(s,*b):all_columns(*b));
  if(t.rows()==0){
    ui.save_result("",false);
    return fail("save data","Nothing to save",command_place());

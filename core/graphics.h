@@ -17,10 +17,6 @@ std::string fill_in_text(Session &s, std::string_view old);
 
 /* the world coordinates of the session s's drawing */
 void set_scale(Session &s, double x1, double y1, double x2, double y2);
-/* the color of the window's first curve is newcolor, the one it had given back in *old (the equilibria's
-   manifolds are drawn in their own colors with the curve's pen) */
-void change_current_color(Session &s, const Color &newcolor, Color *old);
-void eq_symb(Session &s, double *x, int type);
 
 /* The drawing into the session s's active plot window, or into the
    picture file begun (*s.plot_file): its scale and drawing area, the
@@ -64,7 +60,6 @@ void frect_abs(Session &s, float x1, float y1, float w, float h);
 void line_abs(Session &s, float x1, float y1, float x2, float y2);
 void text_abs(Session &s, float x, float y, const char *text);
 void fancy_text_abs(Session &s, float x, float y, const char *old, int size, int font);
-void draw_symbol(Session &s, float x, float y, float size, int my_symb);
 /* the line (x1,y1)-(x2,y2) clipped to the drawing d's world box: 1 with
    its ends when any of it is inside */
 int clip(const DrawingState &d, float x1, float x2, float y1, float y2, float *x1_out, float *y1_out, float *x2_out,

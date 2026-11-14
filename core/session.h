@@ -39,7 +39,7 @@ namespace xpp { struct TABULAR; struct UserButton; }
 
 /* global types, as their owners define them */
 struct LABEL; /* struct.h: the text labels a Session holds in a vector */
-struct ArrayPlotState; /* arrayplot.h */
+struct ArrayPlotState; /* plot_state.h */
 struct AutoxState; /* autox_state.h */
 struct AutoxDiagram; /* diagram.h */
 struct XppKinescope; /* kinescope.h */

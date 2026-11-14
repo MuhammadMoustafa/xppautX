@@ -404,17 +404,17 @@ xpp::Result<bool> aplot_gif(ArrayPlotState &a, const char *file, int still)
     } else if (a.range_count == 0) {
         /* a range movie's frames all go into the first frame's file, a
            stream kept open until arrayplot.cpp's close_aplot_files */
-        a.movie=xpp::open_writer_asking(file,true,&opened);
+        a.movie=std::make_unique<xpp::Writer>(xpp::open_writer_asking(file,true,&opened));
         if (!opened) return std::unexpected(opened.error());
     }
-    if(still!=1&&!a.movie)return false;
+    if(still!=1&&!(a.movie&&*a.movie))return false;
     std::vector<unsigned char> rgb = ask_pixels(WIN_APLOT, -1, &w, &h);
     if(rgb.empty()){
         if(one)xpp::abort_save(one);
-        else if(a.movie)xpp::abort_save(a.movie);
+        else if(a.movie&&*a.movie)xpp::abort_save(*a.movie);
         return xpp::fail("array plot", "The client gave no picture of the array plot", xpp::command_place());
     }
-    xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(still == 1 ? one : a.movie,rgb,w,h,still == 1 ? xpp::IMAGE_STILL_FRAME : a.range_count);
+    xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(still == 1 ? one : *a.movie,rgb,w,h,still == 1 ? xpp::IMAGE_STILL_FRAME : a.range_count);
     if (one) {
         if (const xpp::Result<> committed = xpp::commit_save(one); !committed) return std::unexpected(committed.error());
     }

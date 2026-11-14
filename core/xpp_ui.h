@@ -256,7 +256,7 @@ typedef struct XppUi {
     void (*tool_window_closed)(Session &s, std::string_view name, std::string_view kind); /* the animation or array plot window destroyed */
     void (*redraw_diagram_for_client)(Session &s); /* the autoX diagram sent to the client again, from its first point */
     void (*lower_plot_window)(void);   /* put the active one at the bottom */
-    void (*get_draw_size)(Session &s, unsigned int *w, unsigned int *h);
+    void (*get_draw_size)(Session &s, unsigned int *w, unsigned int *h); /* in: the active window's size now; out: the size a front end with a window of its own gives it (the headless one leaves it) */
     void (*blank_draw_window)(Session &s);
     Result<> (*film_clip)(Session &s); /* a frame, or why it was not captured */
     void (*reset_film)(Session &s);

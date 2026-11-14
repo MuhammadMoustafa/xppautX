@@ -5,6 +5,7 @@
    one behaviour, whichever front end asks. Get (a row made the initial conditions) is initial_conditions.set_from_data_row. */
 #include "adj2.h"
 #include "browse.h"
+#include "graf_par.h"
 #include "command_def.h"
 #include "model_options.h"
 #include "session.h"
@@ -102,7 +103,8 @@ Result<std::string> export_data(Session &s, const Command &command, const Argume
     std::optional<DataTarget> target;
     if (const auto name = args.optional<std::string>(TARGET_KEY)) target = TARGETS[choice_index(data_target_names, *name)];
     const Result<DataSaved> saved = save_data_file(s, target, args.optional<std::string>(FORMAT_KEY).value_or(std::string{}),
-                                                   args.optional<std::string>(FILE_KEY).value_or(std::string{}));
+                                                   args.optional<std::string>(FILE_KEY).value_or(std::string{}),
+                                                   [&s] { return plot_curves_table(s); });
     if (!saved) return std::unexpected<Error>(saved.error());
     if (!saved->file.empty() && saved->rows == 0)
         return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", saved->file), place);

@@ -32,6 +32,10 @@
 #include "plot_settings.h"
 #include "session.h"
 #include "nullcline.h"
+#include "axes2.h"
+#include "grobs.h"
+#include "arrayplot.h"
+#include "integrate.h"
 #include "display_state.h"
 #include "picture.h"
 #include "autox_codes.h"
@@ -615,6 +619,41 @@ void kill_frz(xpp::Session &s)
       delete_frz_crv(s,i);
   }
   redraw_the_graph(s);
+}
+
+/* a PDF or SVG export: what the session holds for the window, drawn into the picture begun, which is then ended */
+xpp::Result<> vector_restore(xpp::Session &s)
+{
+  redraw_dfield(s);
+  if (s.plot_windows->current->Nullrestore) restore_nullclines(s);
+  xpp::restore(s,0,s.data->view.maxrow);
+  do_axes(s);
+  draw_label(s,s.plot_windows->draw_win);
+  draw_freeze(s,s.plot_windows->draw_win);
+  return xpp::end_picture(s);
+}
+
+/* the data columns of variables `variables` (1 is the first variable) plotted: curves against time, a phase
+   portrait of two or three axes, or an array plot over the variables from the first to the last */
+Result<> plot_variables(xpp::Session &s,PlotHow how,std::span<const int> variables)
+{
+  std::vector<int> list(variables.begin(),variables.end());
+  switch(how){
+  case PlotHow::time_series:
+    if(list.empty())return fail("plot","Give at least one variable to plot against time",command_place());
+    graph_all(s,list.data(),static_cast<int>(list.size()),0);
+    break;
+  case PlotHow::phase_plane:
+    if(list.size()<2||list.size()>static_cast<std::size_t>(plot_axes))return fail("plot",xpp::format("A phase portrait takes two or three axes, not {}",list.size()),command_place());
+    graph_all(s,list.data(),static_cast<int>(list.size()),1);
+    break;
+  case PlotHow::array_plot:
+    if(list.size()!=2||list[0]>=list[1])return fail("plot","An array plot goes from one variable to a later one: give those two",command_place());
+    if(s.data->view.maxrow<2)return fail("plot","An array plot needs stored data: run first",command_place());
+    optimize_aplot(s,list.data());
+    break;
+  }
+  return {};
 }
 
 void autox_freeze_it(xpp::Session &s)

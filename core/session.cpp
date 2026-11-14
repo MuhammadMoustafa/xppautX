@@ -6,7 +6,6 @@
 #include "adj2.h"
 #include "ani_data.h"
 #include "aniparse.h"
-#include "arrayplot.h"
 #include "autox_state.h"
 #include "browse.h"
 #include "dae_fun.h"

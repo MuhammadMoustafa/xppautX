@@ -8,6 +8,7 @@
 #include "line_style.h"
 #include <array>
 #include <optional>
+#include <span>
 #include <utility>
 #include <string>
 #include <string_view>
@@ -17,10 +18,7 @@
 namespace xpp {
 struct Session; /* session.h */
 
-#define REAL_SMALL 1.e-6
-
 #define MAXBIFCRV 100
-#define lmax(a,b) ((a) > (b) ? (a) : (b))
 
 
 
@@ -144,6 +142,14 @@ void clear_bifurcation(Session &s);
 /* autoX's Write pts file `filename` (six columns, checked whole first) shown in the active window as curves
    by kind: how many curves it made */
 Result<int> import_bifurcation(Session &s, std::string_view filename);
+/* the plot of s redrawn into the picture file begun (image_format.h's
+   restore), which it then closes */
+Result<> vector_restore(Session &s);
+/* What plot.set_variables plots: curves against time, a phase portrait, an array plot */
+enum class PlotHow { time_series, phase_plane, array_plot };
+/* the variables (numbered from 1) plotted in the active window as `how` says: curves against time (at least
+   one), a phase portrait (two or three axes), or an array plot from the first of two variables to the later one */
+Result<> plot_variables(Session &s, PlotHow how, std::span<const int> variables);
 /* a run's curve frozen when s freezes each run (Freeze > On freeze) */
 void autox_freeze_it(Session &s);
 /* curve `ind` of the active window frozen in its window: the slot it took */

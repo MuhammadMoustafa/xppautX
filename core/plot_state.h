@@ -10,6 +10,8 @@
 #include <cstddef>
 #include <cstring>
 #include <map>
+#include <memory>
+#include <new>
 #include <set>
 #include <string>
 #include <string_view>
@@ -17,7 +19,22 @@
 
 #include "colormap.h"
 #include "struct.h"
+#include "xpp_mem.h"
 #include "xpp_types.h"
+
+namespace xpp { class Writer; }
+
+/* ---- arrayplot.h's: the array plot ---- */
+/* the array plot's settings */
+struct APLOT {
+  int index0 = 1, alive = 0, nacross = 1, ndown = 50, plotdef = 0;
+  int height = 400, width = 400, ploth = 0, plotw = 0;
+  int nstart = 0, nskip = 8, ncskip = 1;
+  std::string name; /* its first column */
+  double zmin = 0.0, zmax = 1.0;
+  std::string xtitle = "index", ytitle = "time", filename, bottom; /* Print's */
+};
+
 
 namespace xpp {
 
@@ -228,7 +245,7 @@ struct PhaseShown {
 struct MarksShown {
     struct Equilibrium {
         double x, y;
-        int symbol; /* eq_symb's: 0 box, 1 triangle, 3 circle */
+        int symbol; /* equilibria.h's equilibrium_symbol: 0 box, 1 triangle, 3 circle */
         bool operator==(const Equilibrium &o) const
         {
             return std::memcmp(&x, &o.x, sizeof x) == 0 && std::memcmp(&y, &o.y, sizeof y) == 0 && symbol == o.symbol;
@@ -239,6 +256,19 @@ struct MarksShown {
         std::map<int, std::string> labels;    /* a label's id -> the text drawn */
         std::set<int> grobs;                  /* the ids of the graphic objects drawn */
         std::map<int, unsigned long> frozen;  /* frozen_curves.curve[] slot -> its generation */
+        /* equilibria kept per window at most (Sing pts/Monte Carlo can mark many) */
+        static constexpr std::size_t eq_max = 10000;
+        /* an equilibrium marked in this window: once (the same picture again changes nothing), up to eq_max */
+        void mark_equilibrium(const Equilibrium &e)
+        {
+            try {
+                for (const Equilibrium &o : eqs)
+                    if (o == e) return;
+                if (eqs.size() < eq_max) eqs.push_back(e);
+            } catch (const std::bad_alloc &) {
+                out_of_memory("recording an equilibrium");
+            }
+        }
     };
     std::vector<Record> windows{1};
     /* each frozen_curves.curve[] slot's generation, bumped when a curve is
@@ -249,3 +279,20 @@ struct MarksShown {
 };
 
 } // namespace xpp
+
+/* the array plot (arrayplot.h), a Session's (session.h): its settings;
+   range: the next range integration saves the array plot at each step
+   (the array plot's range saving), integrate.cpp clears it when the range
+   ends; the range saving's settings (Array range saving: range_count,
+   still, tag, the first destination range_stem) and its open GIF file
+   (json_windows.cpp writes it); Autoplot: redraw after each integration
+   (auto_redraw) */
+struct ArrayPlotState {
+  APLOT plot{};
+  int range = 0, range_count = 0, still = 1, tag = 0, auto_redraw = 0;
+  std::unique_ptr<xpp::Writer> movie; /* open while a range movie is being written (a declared destructor: the Session destroys this where Writer is incomplete) */
+  bool save_cancelled = false; /* stop later frame saves after a declined/failed frame */
+  std::string range_stem;
+  ArrayPlotState();
+  ~ArrayPlotState();
+};

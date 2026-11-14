@@ -116,6 +116,9 @@ int set_up_range2(Session &s);
 void init_monte_carlo(Session &s);
 
 void swap_color(Session &s, Color *col, int rorw);
+/* the color of the window's first curve is newcolor, the one it had given back in *old (the equilibria's
+   manifolds are shot in their own colors with the curve's pen) */
+void change_current_color(Session &s, const Color &newcolor, Color *old);
 void set_cycle(Session &s, int flag, int *icol);
 int do_range(Session &s, double *x, int flag);
 Result<int> equilibrium_range(Session &s);

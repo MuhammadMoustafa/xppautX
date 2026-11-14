@@ -28,7 +28,6 @@ namespace xpp {
 #define DEGTORAD .0174532
 #define EP1 1.000001
 #define max(a,b) ((a>b) ? a : b)
-#define SYMSIZE .00175
 
 
 
@@ -74,6 +73,8 @@ void get_draw_area_flag(xpp::Session &s, int flag)
   unsigned int w,h;
   if(flag==1)
     {
+      w=static_cast<unsigned int>(s.plot_windows->current->x11Wid);
+      h=static_cast<unsigned int>(s.plot_windows->current->x11Hgt);
       ui.get_draw_size(s,&w,&h);
       s.plot_windows->current->x11Wid=w;
       s.plot_windows->current->x11Hgt=h;
@@ -96,12 +97,6 @@ void get_draw_area_flag(xpp::Session &s, int flag)
   s.drawing->d_bottom=YDMax-1-s.drawing->v_char*7/2;
   s.drawing->d_top=s.drawing->v_char*5/2+1;
  set_normal_scale(s);
-}
-
-void change_current_color(xpp::Session &s, const xpp::Color &newcolor, xpp::Color *old)
-{
- *old=s.plot_windows->current->color[0];
-  s.plot_windows->current->color[0]=newcolor;
 }
 
 void set_normal_scale(xpp::Session &s)
@@ -832,75 +827,6 @@ C4:
   return(1);
   }
   return(iflag);
-}
-
-void eq_symb(xpp::Session &s, double *x, int type)
-{
-
-  float dx=6.0*static_cast<float>(s.plot_windows->current->xhi-s.plot_windows->current->xlo)*SYMSIZE;
-  float dy=6.0*static_cast<float>(s.plot_windows->current->yhi-s.plot_windows->current->ylo)*SYMSIZE;
- int ix=s.plot_windows->current->xv[0]-1,iy=s.plot_windows->current->yv[0]-1,iz=s.plot_windows->current->zv[0]-1;
-  if(s.plot_windows->current->TimeFlag)return;
-  set_pen(s,foreground_color,LineStyle{});
-  if(s.plot_windows->current->ThreeDFlag)
-  {
-   dx=6.0*SYMSIZE/s.plot_windows->current->dx;
-   dy=6.0*SYMSIZE/s.plot_windows->current->dy;
-   line_3d(s,static_cast<float>(x[ix])+dx,static_cast<float>(x[iy]),static_cast<float>(x[iz]),
-           static_cast<float>(x[ix])-dx,static_cast<float>(x[iy]),static_cast<float>(x[iz]));
-   line_3d(s,static_cast<float>(x[ix]),static_cast<float>(x[iy])+dy,static_cast<float>(x[iz]),
-           static_cast<float>(x[ix]),static_cast<float>(x[iy])-dy,static_cast<float>(x[iz]));
-  return;
-  }
-  draw_symbol(s,static_cast<float>(x[ix]),static_cast<float>(x[iy]),SYMSIZE,type);
-  point_abs(s,static_cast<float>(x[ix]),static_cast<float>(x[iy]));
-  if(ix>=0&&iy>=0)marks_data_equilibrium(s,x[ix],x[iy],type); /* the mark as data */
- 
-}
-
-void draw_symbol(xpp::Session &s, float x, float y, float size, int my_symb)
-{
- float dx=static_cast<float>(s.plot_windows->current->xhi-s.plot_windows->current->xlo)*size;
- float dy=static_cast<float>(s.plot_windows->current->yhi-s.plot_windows->current->ylo)*size;
- static const int sym_dir[4][48] = {
- /*          box              */
-    {0, -6, -6,1, 12,  0,1,  0, 12,1,-12,  0,
-    1,  0,-12,3,  0,  0,3,  0,  0,3,  0,  0,
-    3,  0,  0,3,  0,  0,3,  0,  0,3,  0,  0,
-    3,  0,  0,3,  0,  0,3,  0,  0,3,  0,  0},
-
- /*          triangle         */
-    {0, -6, -6,1, 12,  0,1, -6, 12,1, -6,-12,
-    3,  0,  0,3,  0,  0,3,  0,  0,3,  0,  0,
-    3,  0,  0,3,  0,  0,3,  0,  0,3,  0,  0,
-    3,  0,  0,3,  0,  0,3,  0,  0,3,  0,  0},
-
- /*          cross            */
-    {0, -6,  0,1, 12,  0,0, -6, -6,1,  0, 12,
-    3,  0,  0,3,  0,  0,3,  0,  0,3,  0,  0,
-    3,  0,  0,3,  0,  0,3,  0,  0,3,  0,  0,
-    3,  0,  0,3,  0,  0,3,  0,  0,3,  0,  0},
-
- /*          circle           */
-    {0,  6,  0,1, -1,  3,1, -2,  2,1, -3,  1,
-    1, -3, -1,1, -2, -2,1, -1, -3,1,  1, -3,
-    1,  2, -2,1,  3, -1,1,  3,  1,1,  2,  2,
-    1,  1,  3,3,  0,  0,3,  0,  0,3,  0,  0},
-    };
-  int ind=0,pen=0;
-  float x1=x,y1=y,x2,y2;
- 
-   while(pen!=3)
-   {
-    x2=sym_dir[my_symb][3*ind+1]*dx+x1;
-    y2=sym_dir[my_symb][3*ind+2]*dy+y1;
-    pen=sym_dir[my_symb][3*ind];
-    if(pen!=0) line_abs(s,x1,y1,x2,y2);
-    x1=x2;
-    y1=y2;
-    ind++;
-   }
-
 }
 
 } // namespace xpp

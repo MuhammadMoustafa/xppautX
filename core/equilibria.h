@@ -71,6 +71,11 @@ struct EquilibriumNear {
 };
 Result<EquilibriumNear> equilibrium_near(const Session &s, EquilibriumModel &model, std::span<const double> start);
 
+/* the equilibrium x (the model's states) marked in the active plot window's record (the "marks" event shows it) with
+   a symbol: 0 box (unstable), 1 triangle (saddle), 3 circle (stable); a time plot, a 3D plot and axes that are not
+   states of x keep no mark */
+void mark_equilibrium(Session &s, std::span<const double> x, int symbol);
+
 Result<> do_sing_info(Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
 void pr_evec(Session &s, double *x, double *ev, int n, int pr, double eval,int type);
 void numerical_jacobian(EquilibriumModel &model, double *x, double *y, double eps, double *dermat, int n);

@@ -6,6 +6,7 @@
 #include "storage.h"
 #include "xpp_error.h"
 #include <array>
+#include <functional>
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -77,13 +78,14 @@ inline constexpr std::array<std::string_view, 3> data_target_names = {"table", "
    name the file; whichever is missing is asked for (a menu, a menu of the formats, a file). The command's replace
    decision is used, or asked for independent of destination existence. The file and the rows written, 0 rows when
    the user cancelled or declined to replace the file; an error for nothing to save or a file that cannot be
-   written. */
+   written. `plot_curves` makes what the plot shows as a table (graf_par.h's plot_curves_table, the plot module's),
+   called only when that is the target; the --silent callers, which save the output, give none. */
 struct DataSaved {
   std::string file;
   std::size_t rows = 0;
 };
 Result<DataSaved> save_data_file(const Session &s, std::optional<DataTarget> target, std::string_view format,
-                                 std::string_view name);
+                                 std::string_view name, const std::function<DataTable()> &plot_curves = {});
 /* the data table's Load: name (asked for when empty) read as format (by its
    extension when empty, else .dat) into s's stored columns, in order; the file and rows loaded (no file when the
    user cancelled the file's question), or why not */

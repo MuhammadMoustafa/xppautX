@@ -20,8 +20,6 @@
 #include <vector>
 #include "session.h"
 #include "diagram.h"
-#include "plot_state.h"
-#include "struct.h"
 #include <chrono>
 #include <cerrno>
 #include <memory>
@@ -113,13 +111,7 @@ static int hl_file_selector(std::string_view, std::string &, std::string_view, c
 
 static int hl_check_abort(void) { return KEY_NONE; }
 static void hl_progress(std::int64_t, std::int64_t, int) {}
-static void hl_get_draw_size(Session &s, unsigned int *w, unsigned int *h)
-{
-    /* whatever the graph last had, else a sensible canvas */
-    const GRAPH *g = s.plot_windows->current;
-    *w = g && g->x11Wid > 0 ? static_cast<unsigned int>(g->x11Wid) : 640;
-    *h = g && g->x11Hgt > 0 ? static_cast<unsigned int>(g->x11Hgt) : 480;
-}
+static void hl_get_draw_size(Session &, unsigned int *, unsigned int *) {}
 static Result<> hl_film_clip(Session &) { return {}; }
 static void hl_autox_make_window(Session &, std::string_view, std::string_view) {}
 static void hl_autox_diagram(Session &, int, const XppDiagPoint *) {}

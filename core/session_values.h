@@ -28,14 +28,6 @@ void set_default_params(Session &s, std::optional<int> only = std::nullopt);
 void set_default_ics(Session &s, std::optional<int> only = std::nullopt);
 void set_par_or_var(Session &s, std::string_view name, int type, int index, double val);
 void eq_import(Session &s, double *y, int n);
-/* the plot of s redrawn into the picture file begun (image_format.h's
-   restore), which it then closes */
-Result<> vector_restore(Session &s);
-/* What plot.set_variables plots: curves against time, a phase portrait, an array plot */
-enum class PlotHow { time_series, phase_plane, array_plot };
-/* the variables (numbered from 1) plotted in the active window as `how` says: curves against time (at least
-   one), a phase portrait (two or three axes), or an array plot from the first of two variables to the later one */
-Result<> plot_variables(Session &s, PlotHow how, std::span<const int> variables);
 /* a comment's action (the source's "# ... {action}"), run on s when it is
    picked */
 Result<> do_txt_action(Session &s, std::string_view action);

@@ -1093,7 +1093,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   come from `core/phase_data.cpp`, which records per window what
   nullcline.c and the integrator (Flow) draw and forgets it when json_windows.cpp
   blanks the window; `plot.marks` likewise from `core/marks_data.cpp`: Sing pts'
-  equilibrium symbols (graphics.c eq_symb), Text,etc's labels and objects
+  equilibrium symbols (equilibria.cpp mark_equilibrium), Text,etc's labels and objects
   (grobs.cpp draw_label) and frozen curves (graf_par.c) by their slot; the animation's frames, `animation.frame`, come from
   `core/ani_data.cpp`, to which aniparse.cpp gives every primitive in the
   `.ani`'s unit coordinates;

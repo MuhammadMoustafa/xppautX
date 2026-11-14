@@ -592,6 +592,12 @@ void swap_color(xpp::Session &s, xpp::Color *col, int rorw)
  else *col=s.plot_windows->current->color[0];
 }
 
+void change_current_color(xpp::Session &s, const xpp::Color &newcolor, xpp::Color *old)
+{
+ swap_color(s,old,0);
+ s.plot_windows->current->color[0]=newcolor;
+}
+
 void set_cycle(xpp::Session &s, int flag, int *icol)
 {
  if(flag==0)return;

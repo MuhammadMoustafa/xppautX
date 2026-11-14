@@ -21,7 +21,6 @@
 #include "data_formats.h"
 #include "colormap.h"
 #include "expr_native.h"
-#include "arrayplot.h"
 #include "plot_state.h"
 #include "histogram.h"
 #include "jacobian.h"

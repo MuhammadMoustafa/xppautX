@@ -39,10 +39,6 @@ namespace xpp {
 
 namespace {
 
-/* equilibria kept per window at most (Sing pts/Monte Carlo can mark many) */
-const std::size_t EQ_MAX = 10000;
-
-
 struct Label {
     int id; /* the annotation's id: the page names the label by it */
     float x, y;
@@ -316,21 +312,6 @@ void marks_data_cleared(xpp::Session &s, int pop)
 {
     if (pop < 0 || pop >= static_cast<int>(s.plot_windows->graph.size())) return;
     s.marks_shown->windows[pop] = MarksShown::Record();
-}
-
-void marks_data_equilibrium(xpp::Session &s, double x, double y, int symbol)
-{
-    const int pop = s.plot_windows->active;
-    if (pop < 0 || pop >= static_cast<int>(s.plot_windows->graph.size())) return;
-    MarksShown::Record &r = s.marks_shown->windows[pop];
-    const MarksShown::Equilibrium e{x, y, symbol};
-    try {
-        for (const MarksShown::Equilibrium &o : r.eqs)
-            if (o == e) return; /* marked again: the same picture */
-        if (r.eqs.size() < EQ_MAX) r.eqs.push_back(e);
-    } catch (const std::bad_alloc &) {
-        xpp::out_of_memory("recording an equilibrium");
-    }
 }
 
 void marks_data_label(xpp::Session &s, XppWinId w, int id, std::string_view text)

@@ -5,7 +5,6 @@
 #include "xpp_ui.h"
 #include "storage.h"
 #include "typed_values.h"
-#include "many_pops.h"
 #include "xpp_math.h"
 #include "pp_shoot.h"
 #include "numerics_settings.h"
@@ -113,7 +112,7 @@ xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend)
      set_val(s,s.shoot_range->item,temp);
      bottom_msg(2,xpp::format("{}={:.16g}",s.shoot_range->item,temp));
      if(s.shoot_range->movie==1)
-       clr_scrn(s);
+       clear_draw_window(s);
      
      const xpp::Result<Shot> shot=bvshoot(s,ystart,yend,s.numerics->bvp_tolerance,s.numerics->bvp_epsilon,s.numerics->bvp_max_iterates,s.model().node,0,
 	     0,0,0,0.0);

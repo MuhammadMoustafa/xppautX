@@ -16,7 +16,7 @@ struct Session; /* session.h */
    that draws it itself: the "marks" event (docs/protocol.md "The plot as
    data", docs/ui-v2.md event 6):
 
-   - the equilibria Sing pts marked on the plot (eq_symb in graphics.c),
+   - the equilibria Sing pts marked on the plot (equilibria.cpp's mark_equilibrium),
      with the stability its symbol says;
    - Text,etc's text labels, arrows, pointers and markers (grobs.cpp);
    - Graphic stuff/Freeze's frozen curves (graf_par.c).
@@ -49,11 +49,6 @@ void marks_data_cleared(Session &s, int pop);
 /* the end of a command on s: the events of every window whose marks
    changed */
 void marks_data_update(Session &s);
-
-/* the active plot window of s marks an equilibrium at (x, y)
-   (plot coordinates) with eq_symb's symbol: 0 box (unstable), 1 triangle
-   (saddle), 3 circle (stable) */
-void marks_data_equilibrium(Session &s, double x, double y, int symbol);
 
 /* the "annotations" event: every text, arrow, pointer and marker of plot
    window w, drawn or not, as the "marks" event gives them (text, arrows, markers) */

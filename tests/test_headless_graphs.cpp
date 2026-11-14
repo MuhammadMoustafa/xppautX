@@ -8,7 +8,7 @@
 #include "xpptest.h"
 #include "model_load.h"
 #include "many_pops.h"
-#include "graphics.h"
+#include "equilibria.h"
 #include "marks_data.h"
 #include "phase_data.h"
 #include "session.h"
@@ -41,10 +41,10 @@ static void check_time_first_model()
     CHECK(s.plot_windows->graph[1].TimeFlag == 0);
     double equilibrium[] = {0, 0};
     xpp::make_active(s, 0, 0);
-    eq_symb(s, equilibrium, 3);
+    xpp::mark_equilibrium(s, equilibrium, 3);
     CHECK(s.marks_shown->windows[0].eqs.empty());
     xpp::make_active(s, 1, 0);
-    eq_symb(s, equilibrium, 3);
+    xpp::mark_equilibrium(s, equilibrium, 3);
     CHECK(s.marks_shown->windows[1].eqs.size() == 1);
     CHECK(s.marks_shown->windows[0].eqs.empty());
 }
@@ -90,11 +90,11 @@ TEST_CASE("test_headless_graphs")
     CHECK(s.plot_windows->graph[0].TimeFlag == 0 && s.plot_windows->graph[1].TimeFlag == 0);
     CHECK(s.plot_windows->graph[2].TimeFlag == 1);
     double equilibrium[] = {0, 0};
-    eq_symb(s, equilibrium, 3);
+    xpp::mark_equilibrium(s, equilibrium, 3);
     const auto &eqs = s.marks_shown->windows[0].eqs;
     CHECK(eqs.size() == 1);
     if (!eqs.empty()) CHECK(eqs[0].x == 0 && eqs[0].y == 0 && eqs[0].symbol == 3);
-    eq_symb(s, equilibrium, 3);
+    xpp::mark_equilibrium(s, equilibrium, 3);
     CHECK(eqs.size() == 1);
     marks_data_cleared(s, 0);
     CHECK(eqs.empty());

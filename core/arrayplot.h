@@ -3,21 +3,12 @@
 #include "xpp_error.h"
 #include "xpp_io.h"
 #include "storage.h"
+#include "plot_state.h"
 #include <stdio.h>
 
 #include <string>
 #include <string_view>
 
-
-/* the array plot's settings */
-struct APLOT {
-  int index0 = 1, alive = 0, nacross = 1, ndown = 50, plotdef = 0;
-  int height = 400, width = 400, ploth = 0, plotw = 0;
-  int nstart = 0, nskip = 8, ncskip = 1;
-  std::string name; /* its first column */
-  double zmin = 0.0, zmax = 1.0;
-  std::string xtitle = "index", ytitle = "time", filename, bottom; /* Print's */
-};
 
 namespace xpp {
 /* One array picture passed to its registered encoder. Data remains in storage. */
@@ -52,18 +43,3 @@ AplotTimes aplot_times(const xpp::Session &s, const APLOT &ap);
 /* splits an array plot's first column name at its trailing digits: "u10"
    gives "u" and 10, a name with no digits itself and 0 */
 std::string get_root(std::string_view s, int *num);
-
-/* the array plot (arrayplot.cpp), a Session's (session.h): its settings;
-   range: the next range integration saves the array plot at each step
-   (the array plot's range saving), integrate.cpp clears it when the range
-   ends; the range saving's settings (Array range saving: range_count,
-   still, tag, the first destination range_stem) and its open GIF file
-   (json_windows.cpp writes it); Autoplot: redraw after each integration
-   (auto_redraw) */
-struct ArrayPlotState {
-  APLOT plot{};
-  int range = 0, range_count = 0, still = 1, tag = 0, auto_redraw = 0;
-  xpp::Writer movie;
-  bool save_cancelled = false; /* stop later frame saves after a declined/failed frame */
-  std::string range_stem;
-};
