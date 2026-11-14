@@ -15,9 +15,11 @@
 #include "markov.h"
 #include "model_options.h"
 #include "numerics.h"
-#include "session.h"
 #include "torus.h"
 #include "xpp_util.h"
+#include "model.h"
+#include "session.h"
+#include "event_registry.h"
 #include <algorithm>
 #include <array>
 #include <cmath>

@@ -1,6 +1,5 @@
 
 #include "xpp_ui.h"
-#include "session.h"
 #include "xpp_util.h"
 #include "adj2.h"
 #include "integrate.h"
@@ -29,6 +28,7 @@
 #include "numerics_settings.h"
 #include "xpp_io.h"
 #include "xpp_batch.h"
+#include "session.h"
 
 namespace xpp {
 

@@ -5,7 +5,6 @@
 #include "solver.h"
 #include "xpp_math.h"
 #include "model.h"
-#include "session.h"
 #include "ode_read.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
@@ -81,6 +80,7 @@
 #include "xpp_batch.h"
 #include "colormap.h"
 #include "comline.h"
+#include "session.h"
 
 namespace xpp {
 

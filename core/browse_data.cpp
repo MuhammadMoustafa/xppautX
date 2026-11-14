@@ -12,7 +12,6 @@
 #include <thread>
 #include <vector>
 #include "model.h"
-#include "session.h"
 #include "getvar.h"
 #include "xpp_util.h"
 #include "typed_values.h"

@@ -10,7 +10,6 @@
 #include <span>
 #include <string_view>
 #include <functional>
-#include "autox_f2c.h"
 #include "autox_codes.h"
 #include "xAutox.h" /* AutoxMark */
 #include "xpp_math.h" /* xpp::Matrix, Matrix3 */

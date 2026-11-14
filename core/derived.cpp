@@ -8,6 +8,7 @@
 #include "session.h"
 #include "xpp_batch.h"
 #include "xpp_log.h"
+#include "model.h"
 
 #include <array>
 #include <string>

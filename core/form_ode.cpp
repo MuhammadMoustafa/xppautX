@@ -17,7 +17,6 @@
 #include <set>
 
 #include "xpp_util.h"
-#include "session.h"
 #include "form_ode.h"
 #include "ode_read.h"
 #include "model.h"
@@ -49,6 +48,7 @@
 #include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "comline.h"
+#include "session.h"
 
 using xpp::odex::Binding;
 using xpp::odex::Expr;
@@ -99,7 +99,7 @@ void put_bc_text(std::vector<char> &text, std::string_view string)
 /* the model's boundary condition i is 0=string (at most 255 bytes of it) */
 void set_bc(xpp::Model &m, int i, std::string_view string)
 {
-  xpp::Model::BoundaryCondition &b=m.bcs[i];
+  xpp::BoundaryCondition &b=m.bcs[i];
   b.com=Program{};
   b.string.assign(256,'\0');
   b.name.assign(10,'\0');

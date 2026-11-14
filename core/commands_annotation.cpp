@@ -8,6 +8,7 @@
 #include "marks_data.h"
 #include "session.h"
 #include "xpp_io.h"
+#include "event_registry.h"
 #include <array>
 
 namespace xpp::command {

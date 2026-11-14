@@ -4,7 +4,6 @@
    the equations, source and equilibrium windows. */
 #include "solver.h"
 #include "model.h"
-#include "session.h"
 #include "ui_json_internal.h"
 #include "command_def.h"
 #include "event_registry.h"
@@ -43,6 +42,8 @@
 #include <string.h>
 #include <math.h>
 #include "delay_handle.h"
+#include "session.h"
+#include "json_reader.h"
 #include <algorithm>
 #include <array>
 #include <string>

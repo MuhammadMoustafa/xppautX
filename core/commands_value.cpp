@@ -5,11 +5,13 @@
 #include "command_def.h"
 #include "expr.h"
 #include "lunch-new.h"
-#include "session.h"
 #include "typed_values.h"
 #include "value_undo.h"
 #include "xpp_io.h"
 #include "xpp_util.h"
+#include "session.h"
+#include "model.h"
+#include "event_registry.h"
 #include <array>
 
 namespace xpp::command {

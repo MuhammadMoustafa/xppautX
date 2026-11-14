@@ -10,10 +10,8 @@
    rows. A handler never reads the JSON line: it asks Arguments. */
 #include "colormap.h"
 #include "command_category.h"
-#include "event_registry.h"
 #include "json_number.h"
 #include "model_features.h"
-#include "xpp_error.h"
 #include "xpp_io.h"
 #include <array>
 #include <cstddef>

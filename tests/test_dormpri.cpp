@@ -7,6 +7,7 @@
 #include "expr.h"
 #include "delay_handle.h"
 #include "xpp_math.h"
+#include "model.h"
 #include <array>
 #include <cmath>
 

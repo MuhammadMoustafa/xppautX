@@ -8,6 +8,7 @@
 #include "command_registry.h"
 #include "xpp_batch.h"
 #include "session.h"
+#include "event_registry.h"
 #include <algorithm>
 #include <array>
 #include <stdexcept>

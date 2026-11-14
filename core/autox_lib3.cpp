@@ -5,7 +5,6 @@
 #include <array>
 #include <vector>
 #include "xpp_log.h"
-#include "session.h"
 #include "autox_c.h"
 #include "autox_jacobian.h"
 #include "xpp_math.h"

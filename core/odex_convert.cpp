@@ -19,7 +19,6 @@
 #include "load_eqn.h"
 #include "model_options.h"
 #include "model.h"
-#include "session.h"
 #include "solver.h"
 #include "tabular.h"
 #include "xpp_batch.h"
@@ -31,6 +30,7 @@
 #include "userbut.h"
 #include "xpp_ui.h"
 #include "browse.h"
+#include "session.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1099,7 +1099,7 @@ private:
     case Statement::Kind::Group: refuse("a group statement has no .odex form yet");
     case Statement::Kind::Set: return set_statement();
     case Statement::Kind::Boundary: {
-      const Model::BoundaryCondition &bc = m_.bcs[nbc_++];
+      const BoundaryCondition &bc = m_.bcs[nbc_++];
       return "boundary " + text(compiled(std::string(bc.string.data()))) + "\n";
     }
     case Statement::Kind::Event: return event();

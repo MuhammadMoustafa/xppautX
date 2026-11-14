@@ -25,6 +25,8 @@
 #include <string>
 #include <vector>
 #include "menus.h"
+#include "model.h"
+#include "json_reader.h"
 
 namespace xpp::json {
 

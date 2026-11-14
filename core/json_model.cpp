@@ -6,7 +6,6 @@
 #include "ui_json.h"
 #include "ui_json_internal.h"
 #include "model_switch.h"
-#include "session.h"
 #include "model.h"
 #include "many_pops.h"
 #include "xpp_files.h"
@@ -28,6 +27,7 @@
 #include "marks_data.h"
 #include "ani_data.h"
 #include "autox_data.h"
+#include "session.h"
 #include <vector>
 
 namespace xpp::json {

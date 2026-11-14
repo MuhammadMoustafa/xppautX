@@ -1,6 +1,5 @@
 #include "graphics.h"
 #include "session_settings.h"
-#include "session.h"
 #include "colormap.h"
 #include "xpp_util.h"
 #include "typed_values.h"
@@ -18,6 +17,7 @@
 #include "xpp_io.h"
 #include "load_eqn.h"
 #include "xpp_math.h"
+#include "session.h"
 
 namespace xpp {
 

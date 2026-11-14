@@ -2,7 +2,6 @@
 
 #include <optional>
 #include <string>
-#include "format_version.h"
 #include "xpp_error.h"
 #include "model_files.h"
 #include "comline.h"

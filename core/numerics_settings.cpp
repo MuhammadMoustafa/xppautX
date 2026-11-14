@@ -25,11 +25,11 @@
 #include "json_number.h"
 #include "numerics.h"
 #include "pp_shoot.h"
-#include "session.h"
 #include "solver.h"
 #include "xpp_io.h"
 #include "xpp_mem.h"
 #include "xpp_ui.h"
+#include "session.h"
 
 namespace xpp {
 

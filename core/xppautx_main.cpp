@@ -35,7 +35,6 @@
    on stderr too (comline.cpp reads every option once, ours and xppaut's). */
 #include "model.h"
 #include "model_options.h"
-#include "session.h"
 #include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "xpp_log.h"
@@ -74,6 +73,7 @@
 #include "many_pops.h"
 #include "axes2.h"
 #include "nullcline.h"
+#include "session.h"
 
 /* autoX's files in a directory of this session's own, removed at exit
    (issue #11); a model's --silent command list runs no autoX */

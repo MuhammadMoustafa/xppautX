@@ -7,6 +7,7 @@
 #include "delay_handle.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
+#include "session.h"
 
 #include <cmath>
 #include <math.h>

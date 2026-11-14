@@ -13,11 +13,13 @@
 #include "image_format.h"
 #include "numerics.h"
 #include "model_options.h"
-#include "session.h"
 #include "typed_values.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_util.h"
+#include "model.h"
+#include "session.h"
+#include "event_registry.h"
 #include <array>
 #include <cstdio>
 #include <string_view>

@@ -15,7 +15,6 @@
 #include <strings.h>
 
 #include "model.h"
-#include "session.h"
 #include "autox_settings.h"
 #include "model_options.h"
 #include "xpp_session_autox.h"
@@ -34,6 +33,7 @@
 #include "xpp_files.h"
 #include "xpp_prefs.h"
 #include "json_number.h"
+#include "session.h"
 
 namespace xpp {
 

@@ -5,10 +5,11 @@
 #include "command_def.h"
 #include "command_range.h"
 #include "image_format.h"
-#include "session.h"
 #include "xpp_files.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "session.h"
+#include "event_registry.h"
 #include <array>
 #include <limits>
 

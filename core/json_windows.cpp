@@ -3,7 +3,6 @@
    kinescope, whose frames the client keeps, and the array plot window. */
 #include "xpp_files.h"
 #include "model.h"
-#include "session.h"
 #include "ui_json_internal.h"
 #include "xpp_util.h"
 #include "many_pops.h"
@@ -32,6 +31,8 @@
 #include "kinescope.h"
 #include "menus.h"
 #include "load_eqn.h"
+#include "session.h"
+#include "json_reader.h"
 
 /* the core's own globals and functions that have no header of their own */
 namespace xpp::json {

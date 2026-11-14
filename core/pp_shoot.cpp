@@ -1,7 +1,6 @@
 #include "sweep_runs.h"
 #include "mykeydef.h"
 #include "model.h"
-#include "session.h"
 #include "xpp_ui.h"
 #include "storage.h"
 #include "xpp_util.h"

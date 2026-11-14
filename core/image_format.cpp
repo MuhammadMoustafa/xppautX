@@ -9,11 +9,11 @@
 #include "my_svg.h"
 #include "picture.h"
 #include "scrngif.h"
-#include "session.h"
 #include "xpp_files.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "session.h"
 
 namespace xpp {
 

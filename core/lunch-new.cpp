@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cmath>
 #include "model.h"
-#include "session.h"
 #include "integrate.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
@@ -31,6 +30,7 @@
 #include "delay_handle.h"
 #include "solver.h"
 #include "model_options.h"
+#include "session.h"
 #include <array>
 #include <string>
 #include <string_view>

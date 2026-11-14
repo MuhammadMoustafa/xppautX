@@ -2,8 +2,6 @@
 
 #include <stdio.h>
 #include "xpp_types.h"
-#include "many_pops.h"
-#include "session.h"
 #include "xpp_error.h"
 
 #include <cstdint>
@@ -15,7 +13,10 @@
 #include <vector>
 
 
+struct XppSlider; /* load_eqn.h */
 namespace xpp {
+struct Session; /* session.h */
+struct Model; /* model.h */
 
 /* now in UTC as 2026-09-30T10:14:02Z: when a recording begins, when a file of
    values was saved */
@@ -84,24 +85,6 @@ int has_eq(std::string_view z, std::string &name, int *where);
    the naming, this is just its name for a plotted column */
 std::string ind_to_sym(const Session &s, int ind);
 
-
-/* f() on the active plot window of s, or under Simulplot on each open one
-   in turn (made active with make_active(s, i, flag)), the active one made
-   active again after */
-template <class F>
-void for_each_shown_window(Session &s, int flag, F f)
-{
-    if (s.plot_windows.simul == 0) {
-        f();
-        return;
-    }
-    const int ic = s.plot_windows.active;
-    for (int i = 0; i < s.plot_windows.count; i++) {
-        make_active(s, s.plot_windows.open[i], flag);
-        f();
-    }
-    make_active(s, ic, flag);
-}
 
 /* a fingerprint of values, to tell whether they are what they were
    without keeping a copy (a phase record against what the client got, a

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "command_category.h"
 
 #include <optional>
 #include <string>

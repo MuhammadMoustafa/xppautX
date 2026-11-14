@@ -17,7 +17,6 @@
 #include "model.h"
 #include "model_files.h"
 #include "model_options.h"
-#include "session.h"
 #include "snapx.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
@@ -25,6 +24,7 @@
 #include "xpp_log.h"
 #include "xpp_util.h"
 #include "xpp_math.h"
+#include "session.h"
 
 #include <array>
 #include <cmath>

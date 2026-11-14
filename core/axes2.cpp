@@ -1,6 +1,5 @@
 #include "picture.h"
 #include "xpp_ui.h"
-#include "session.h"
 #include "xpp_util.h"
 #include  "axes2.h"
 
@@ -16,6 +15,7 @@
 #include "xpp_globals.h"
 #include "xpp_io.h"
 #include "xpp_math.h"
+#include "session.h"
 
 namespace xpp {
 

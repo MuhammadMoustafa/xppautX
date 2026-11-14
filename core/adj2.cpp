@@ -1,5 +1,4 @@
 #include "model.h"
-#include "session.h"
 #include "adj2.h"
 #include "storage.h"
 #include "odesol2.h"

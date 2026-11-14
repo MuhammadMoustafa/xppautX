@@ -1,6 +1,5 @@
 #include "model.h"
 #include "my_rhs.h"
-#include "session.h"
 #include "flags.h"
 #include "form_ode.h"
 #include "xpp_ui.h"
@@ -85,11 +84,6 @@ global -1 u-.2 {m=.5*m}
 #define IC 2
 #define PARAM 1
 
-/* the most events a flag has */
-constexpr int MAX_EVENTS=xpp::Model::max_events;
-
-
-
 int split_events(const char *cond, const char *rest, std::vector<FlagEvent> &events)
 {
   std::string temp,name;
@@ -98,7 +92,7 @@ int split_events(const char *cond, const char *rest, std::vector<FlagEvent> &eve
     char ch=*p;
     if(ch=='{'||ch==' ')continue;
     if(ch=='}'||ch==';'){
-      if(static_cast<int>(events.size())==MAX_EVENTS){
+      if(static_cast<int>(events.size())==xpp::max_events){
 	xpp::log(XPP_LOG_WARN, " Too many events per flag \n");
 	return(1);
       }
@@ -129,7 +123,7 @@ int split_events(const char *cond, const char *rest, std::vector<FlagEvent> &eve
 int add_global(xpp::Session &s, const char *cond, int sign, const std::vector<FlagEvent> &events)
 {
   xpp::Model &m=s.model();
-  if(static_cast<int>(events.size())>MAX_EVENTS){
+  if(static_cast<int>(events.size())>xpp::max_events){
     xpp::log(XPP_LOG_WARN, " Too many events per flag \n");
     return(1);
   }

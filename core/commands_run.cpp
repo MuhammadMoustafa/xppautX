@@ -12,11 +12,13 @@
 #include "model_options.h"
 #include "numerics.h"
 #include "numerics_settings.h"
-#include "session.h"
 #include "solver.h"
 #include "value_undo.h"
 #include "xpp_io.h"
 #include "xpp_util.h"
+#include "session.h"
+#include "model.h"
+#include "event_registry.h"
 #include <algorithm>
 #include <array>
 

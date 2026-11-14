@@ -20,13 +20,13 @@
 #include "model_options.h"
 #include "numerics.h"
 #include "numerics_settings.h"
-#include "session.h"
 #include "solver.h"
 #include "volterra2.h"
 #include "xpp_globals.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "session.h"
 
 namespace xpp {
 

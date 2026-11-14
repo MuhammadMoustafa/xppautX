@@ -7,11 +7,11 @@
 #include "model.h"
 #include "model_files.h"
 #include "odex_write.h"
-#include "session.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "session.h"
 
 #include <algorithm>
 #include <functional>

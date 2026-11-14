@@ -4,7 +4,6 @@
    (expr_symbols.cpp), and the tests on what a symbol compiles to. C++
    only; nothing outside expr_*.cpp includes it. */
 #include "expr_program.h"
-#include "session.h"
 
 /* tokens: the built-in symbols' indexes (expr_symbols.cpp's table) */
 #define LPAREN 0

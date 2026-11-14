@@ -15,6 +15,7 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "integrate.h"
+#include "model.h"
 
 #include <deque>
 #include <cmath>

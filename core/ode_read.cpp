@@ -26,11 +26,11 @@
 #include "model_files.h"
 #include "newpars.h"
 #include "odex.h"
-#include "session.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_util.h"
+#include "session.h"
 
 #include <ctype.h>
 #include <stdio.h>

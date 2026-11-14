@@ -4,7 +4,6 @@
 #include "open_model.h"
 #include "xpp_examples.h"
 #include "xpp_recent.h"
-#include "session.h"
 #include "model.h"
 #include "recx.h"
 #include "snapx.h"
@@ -22,6 +21,7 @@
 #include "numerics.h"
 #include "jacobian.h"
 #include "storage.h"
+#include "session.h"
 #include <functional>
 #include <optional>
 #include <string>

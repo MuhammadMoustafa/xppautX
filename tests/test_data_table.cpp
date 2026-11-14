@@ -9,6 +9,7 @@
 #include "integrate.h"
 #include "session.h"
 #include "xpp_batch.h"
+#include "model.h"
 #include <string>
 
 TEST_CASE("test_data_table")

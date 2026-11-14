@@ -13,6 +13,7 @@
 #include "autox_text.h"
 #include "xpp_ui.h"
 #include "xpp_log.h"
+#include "model.h"
 #include <cmath>
 #include <string>
 

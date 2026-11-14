@@ -15,7 +15,8 @@
 #include <vector>
 
 #include "solver.h"
-#include "model.h"
+#include "model_parts.h"
+#include "colormap.h"
 
 namespace xpp {
 
@@ -251,7 +252,7 @@ struct EquilibriumRange {
 struct FlagState {
   double f0 = 0.0, f1 = 0.0;
   double tstar = 0.0;
-  std::array<double, Model::max_events> vrhs{};
+  std::array<double, max_events> vrhs{};
   int hit = 0;
 };
 

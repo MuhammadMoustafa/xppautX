@@ -13,7 +13,6 @@
    the files that hold the rest. */
 #include "model.h"
 #include <cmath>
-#include "session.h"
 #include "options_panels.h"
 #include "grobs.h"
 #include "ui_json.h"
@@ -68,6 +67,9 @@
 #include "recx.h"
 #include "event_registry.h"
 #include "event_streams.h"
+#include "session.h"
+#include "json_reader.h"
+#include "format_version.h"
 
 /* the core's own globals and functions that have no header of their own */
 

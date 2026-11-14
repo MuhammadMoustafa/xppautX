@@ -1,5 +1,4 @@
 #include "model.h"
-#include "session.h"
 #include "arrayplot.h"
 #include "array_print.h"
 #include "storage.h"
@@ -56,6 +55,7 @@
 #include "xpp_files.h"
 #include "xpp_error.h"
 #include "integrate.h"
+#include "session.h"
 
 void begin_array_range(xpp::Session &s, bool still, bool tag, std::string_view file)
 {

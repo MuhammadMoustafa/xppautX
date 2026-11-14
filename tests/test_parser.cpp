@@ -10,6 +10,7 @@
 #include "markov.h"
 #include "session.h"
 #include "tabular.h"
+#include "model.h"
 
 static double calc(std::string_view expr, int *ok)
 {

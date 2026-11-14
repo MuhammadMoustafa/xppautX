@@ -1,5 +1,4 @@
 #include "xpp_batch.h"
-#include "session.h"
 #include "load_eqn.h"
 #include "form_ode.h"
 #include "volterra2.h"

@@ -2,6 +2,7 @@
    to this object; a build from a tree with no tags and no git says "dev". */
 #include "xpp_about.h"
 #include "ui_json.h"
+#include "format_version.h"
 #include <initializer_list>
 #include <utility>
 

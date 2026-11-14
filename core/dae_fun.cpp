@@ -1,7 +1,6 @@
 
 #include "numerics_settings.h"
 #include "dae_fun.h"
-#include "session.h"
 #include "expr.h"
 
 #include <stdlib.h> 

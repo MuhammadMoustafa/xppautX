@@ -6,13 +6,13 @@
 #include "xpp_ui.h"
 #include "nullcline.h"
 #include "data_formats.h"
-#include "session.h"
 #include "numerics_settings.h"
 #include "model_options.h"
 #include "getvar.h"
 #include "graf_par.h"
 #include "json_reader.h"
 #include "xpp_io.h"
+#include "event_registry.h"
 #include <array>
 
 namespace xpp::command {

@@ -20,6 +20,8 @@
 #include "xpp_log.h"
 #include "xpp_session.h"
 #include "xpp_ui.h"
+#include "model.h"
+#include "event_registry.h"
 #include <algorithm>
 #include <array>
 #include <cmath>

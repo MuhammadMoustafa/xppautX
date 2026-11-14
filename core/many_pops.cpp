@@ -1,6 +1,5 @@
 /* The plot windows' bookkeeping (many_pops.h's XppPlotWindows): creating, activating and destroying graphs, and checking their bounds. */
 #include "many_pops.h"
-#include "session.h"
 #include <tuple>
 #include "xpp_util.h"
 #include "xpp_ui.h"
@@ -24,6 +23,8 @@
 #include "form_ode.h"
 #include "volterra2.h"
 #include "tabular.h"
+#include "session.h"
+#include "model.h"
 
 namespace xpp {
 

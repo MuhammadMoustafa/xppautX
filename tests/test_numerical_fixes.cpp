@@ -6,6 +6,7 @@
 #include "flags.h"
 #include "histogram.h"
 #include "solver.h"
+#include "model.h"
 #include <array>
 #include <cmath>
 

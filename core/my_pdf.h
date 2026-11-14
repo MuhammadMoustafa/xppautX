@@ -1,7 +1,6 @@
 #pragma once
 
 #include "picture.h"
-#include "xpp_error.h"
 
 namespace xpp {
 

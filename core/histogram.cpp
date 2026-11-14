@@ -1,6 +1,5 @@
 #include "histogram.h"
 #include "model_options.h"
-#include "session.h"
 #include "mykeydef.h"
 #include "getvar.h"
 #include "model.h"

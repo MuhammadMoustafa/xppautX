@@ -2,9 +2,11 @@
    button of the model (an `@ button`). Each calls what the File menu's item and the page's button call. */
 #include "command_def.h"
 #include "command_registry.h"
-#include "session.h"
 #include "typed_values.h"
 #include "xpp_util.h"
+#include "session.h"
+#include "model.h"
+#include "event_registry.h"
 #include <array>
 
 namespace xpp::command {

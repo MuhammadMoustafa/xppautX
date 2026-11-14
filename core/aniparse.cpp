@@ -21,7 +21,6 @@
 
 #include "model.h"
 #include "model_files.h"
-#include "session.h"
 #include "getvar.h"
 #include "ode_read.h"
 #include "aniparse.h"

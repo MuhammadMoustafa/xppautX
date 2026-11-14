@@ -3,6 +3,7 @@
    handler is front_end; the rows name the commands, their arguments and results. */
 #include "command_def.h"
 #include "recx.h"
+#include "event_registry.h"
 #include <array>
 
 namespace xpp::command {

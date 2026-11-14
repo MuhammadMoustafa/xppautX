@@ -16,7 +16,6 @@
 #include "model.h"
 #include "model_files.h"
 #include "recx.h"
-#include "session.h"
 #include "snapx.h"
 #include "xpp_about.h"
 #include "xpp_files.h"
@@ -25,6 +24,8 @@
 #include "xpp_job.h"
 #include "xpp_log.h"
 #include "xpp_session.h"
+#include "session.h"
+#include "json_reader.h"
 
 #include <cctype>
 #include <chrono>

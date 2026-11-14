@@ -4,6 +4,7 @@
 #include "command_def.h"
 #include "session.h"
 #include "tabular.h"
+#include "event_registry.h"
 #include <array>
 
 namespace xpp::command {

@@ -14,6 +14,7 @@
 #include "del_stab.h"
 #include "delay_handle.h"
 #include "xpp_math.h"
+#include "model.h"
 
 namespace xpp {
 

@@ -1,5 +1,4 @@
 #include "tabular.h"
-#include "session.h"
 #include "getvar.h"
 #include "storage.h"
 #include "xpp_files.h"

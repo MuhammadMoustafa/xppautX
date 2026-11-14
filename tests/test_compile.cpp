@@ -8,6 +8,7 @@
 #include "xpp_log.h"
 #include "xpp_globals.h"
 #include "my_rhs.h"
+#include "model.h"
 #include <algorithm>
 #include <bit>
 #include <cstdint>

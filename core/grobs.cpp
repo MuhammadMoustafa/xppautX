@@ -4,7 +4,6 @@
    handling itself is the front end's. What draw_label draws
    is also reported as data (marks_data.h). */
 #include "xpp_ui.h"
-#include "session.h"
 #include "xpp_util.h"
 #include "many_pops.h"
 #include "menus.h"
@@ -12,6 +11,7 @@
 #include "browse.h"
 #include "marks_data.h"
 #include "colormap.h"
+#include "session.h"
 #include <algorithm>
 #include <string>
 #include <array>

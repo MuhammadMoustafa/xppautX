@@ -4,7 +4,6 @@
 #include <cmath>
 #include <numeric>
 #include "model.h"
-#include "session.h"
 #include "ode_read.h"
 #include "xpp_util.h"
 #include "typed_values.h"
@@ -46,6 +45,7 @@
 #include <strings.h>
 #include "load_eqn.h"
 #include "autox_nox.h"
+#include "session.h"
 
 namespace xpp {
 

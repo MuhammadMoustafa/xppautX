@@ -4,8 +4,6 @@
    command names with `window` (the selected one when it names none), made the active one while the command
    works, since the core's drawing code works on the active window. */
 #include "command_def.h"
-#include "many_pops.h"
-#include "session.h"
 
 namespace xpp::command {
 

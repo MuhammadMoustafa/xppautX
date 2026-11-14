@@ -8,7 +8,6 @@
 #include <vector>
 #include "storage.h"
 #include "xpp_error.h"
-#include "model.h" /* Model::OuProcess */
 
 namespace xpp {
 

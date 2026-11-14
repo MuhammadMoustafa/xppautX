@@ -33,7 +33,6 @@
 #include "colormap.h"
 #include "line_style.h"
 #include "text_style.h"
-#include "format_version.h"
 #include "xpp_error.h"
 #include "xpp_io.h" /* ReadFailed */
 

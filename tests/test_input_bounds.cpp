@@ -11,6 +11,7 @@
 #include "pp_shoot.h"
 #include "expr_decode.h"
 #include "autox_c.h"
+#include "model.h"
 #include <cstdlib>
 #include <limits>
 

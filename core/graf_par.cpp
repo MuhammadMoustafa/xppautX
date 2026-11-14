@@ -3,7 +3,6 @@
 #include "model.h"
 #include "model_options.h"
 #include <tuple>
-#include "session.h"
 #include "graf_par.h"
 #include "colormap.h"
 #include "storage.h"
@@ -35,6 +34,7 @@
 #include "browse.h"
 #include "image_format.h"
 #include "load_eqn.h"
+#include "session.h"
 #include <libgen.h>
 
 namespace xpp {

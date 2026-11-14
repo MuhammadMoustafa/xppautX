@@ -14,6 +14,7 @@
 #include "xpp_io.h"
 #include "xpp_ui.h"
 #include "xpp_files.h"
+#include "model.h"
 #include <algorithm>
 #include <array>
 #include <cstring>

@@ -17,6 +17,7 @@
 #include "simplenet.h"
 #include "tabular.h"
 #include "volterra2.h"
+#include "session.h"
 
 #include <algorithm>
 #include <utility>

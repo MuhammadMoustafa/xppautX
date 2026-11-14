@@ -14,6 +14,8 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
+#include "model.h"
+#include "event_registry.h"
 #include <algorithm>
 #include <array>
 

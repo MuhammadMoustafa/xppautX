@@ -1,8 +1,6 @@
 #pragma once
 
-#include "autox_f2c.h"
 #include "autox_c.h"
-#include "xAutox.h"
 #include "autox_codes.h"
 #include "autox_nox.h"
 

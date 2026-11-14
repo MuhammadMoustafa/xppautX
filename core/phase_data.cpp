@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "model.h"
-#include "session.h"
 #include "phase_data.h"
 #include "json_number.h"
 #include "series_enc.h"
@@ -29,6 +28,7 @@
 #include "form_ode.h"
 #include "xpp_math.h"
 #include "xpp_util.h"
+#include "session.h"
 
 namespace xpp {
 

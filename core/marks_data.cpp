@@ -22,13 +22,13 @@
 
 #include "marks_data.h"
 #include "grobs.h"
-#include "session.h"
 #include "xpp_util.h"
 #include "json_number.h"
 #include "series_enc.h"
 #include "xpp_io.h"
 #include "many_pops.h"
 #include "graf_par.h"
+#include "session.h"
 
 namespace xpp {
 

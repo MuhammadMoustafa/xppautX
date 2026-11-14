@@ -7,7 +7,6 @@
 #include "expr_ir.h"
 #include "expr_program.h"
 #include "jacobian.h"
-#include "session.h"
 #include "simplenet.h"
 #include "tabular.h"
 #include "volterra2.h"
@@ -29,6 +28,8 @@
 #include "xpp_log.h"
 #include "xpp_mem.h"
 #include "xpp_globals.h"
+#include "session.h"
+#include "model.h"
 
 namespace xpp {
 namespace {

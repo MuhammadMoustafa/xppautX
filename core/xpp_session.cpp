@@ -13,7 +13,6 @@
 #include "model_options.h"
 #include "xpp_session.h"
 #include "snapx.h"
-#include "session.h"
 #include "model.h"
 #include "model_switch.h"
 #include "xpp_ui.h"
@@ -35,6 +34,7 @@
 #include "xpp_math.h"
 #include "colormap.h"
 #include "grobs.h"
+#include "session.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>

@@ -5,7 +5,6 @@
 #include "ui_json_internal.h"
 #include "command_def.h"
 #include "model_switch.h"
-#include "session.h"
 #include "xpp_ui.h"
 
 namespace xpp::json {

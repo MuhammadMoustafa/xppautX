@@ -1,5 +1,4 @@
 #include "delay_handle.h"
-#include "session.h"
 #include "load_eqn.h"
 #include "xpp_ui.h"
 #include "xpp_job.h"

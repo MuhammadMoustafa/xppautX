@@ -1,5 +1,4 @@
 #include "xpp_batch.h"
-#include "session.h"
 #include "storage.h"
 #include "xpp_ui.h"
 #include "markov.h"

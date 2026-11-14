@@ -3,7 +3,6 @@
 #include "equilibria.h"
 #include "integrate.h"
 #include "del_stab.h"
-#include "session.h"
 #include "many_pops.h"
 #include "graf_par.h"
 #include "numerics_settings.h"
@@ -17,6 +16,7 @@
 #include "derived.h"
 #include "typed_values.h"
 #include "form_ode.h"
+#include "event_registry.h"
 #include <array>
 #include <limits>
 

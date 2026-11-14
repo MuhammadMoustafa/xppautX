@@ -31,7 +31,6 @@
 #include <string_view>
 #include <vector>
 #include "xpp_error.h"
-#include "xpp_io.h"
 
 /* the built-in symbols, the symbol table's first entries (expr_symbols.cpp) */
 #define STDSYM 96

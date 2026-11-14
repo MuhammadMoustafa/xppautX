@@ -52,7 +52,6 @@
 #include <vector>
 
 #include "model_files.h"
-#include "format_version.h"
 #include "xpp_error.h"
 
 namespace xpp::recx {

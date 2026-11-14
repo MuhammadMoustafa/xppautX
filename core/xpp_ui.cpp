@@ -2,7 +2,6 @@
 /* Headless defaults for the UI seam, plus the dispatchers that keep the
    historical function names working. See xpp_ui.h. */
 #include "xpp_ui.h"
-#include "session.h"
 #include "xpp_job.h"
 #include "xpp_io.h"
 #include "xpp_batch.h"
@@ -19,6 +18,7 @@
 #include <string>
 #include <vector>
 #include "xpp_win32.h"
+#include "session.h"
 #include <chrono>
 #include <cerrno>
 #ifndef _WIN32

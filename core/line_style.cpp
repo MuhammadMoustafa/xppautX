@@ -5,6 +5,7 @@
 #include "json_number.h"
 #include "model_options.h"
 #include "xpp_util.h"
+#include "display_state.h"
 
 namespace xpp {
 

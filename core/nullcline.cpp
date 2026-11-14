@@ -10,7 +10,6 @@
 #include "xpp_job.h"
 #include <cmath>
 #include <limits>
-#include "session.h"
 #include "getvar.h"
 #include "xpp_util.h"
 #include "many_pops.h"

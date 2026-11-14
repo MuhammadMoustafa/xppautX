@@ -1,6 +1,5 @@
 /* Reading a value a user typed (a number field, a %formula, a form's fields, a box's entry) and the parameter and IC names it can name: one reading of each, shown by no one; the front ends show what it returns. */
 #include "typed_values.h"
-#include "session.h"
 #include "expr.h"
 #include "xpp_ui.h"
 #include "xpp_log.h"
@@ -14,6 +13,7 @@
 #include "graf_par.h"
 #include "delay_handle.h"
 #include "form_ode.h"
+#include "session.h"
 
 namespace xpp {
 

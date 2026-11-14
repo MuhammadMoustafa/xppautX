@@ -1,6 +1,7 @@
 /* The session list and a load's swap of its client's Model and Session
    (session.h). */
 #include "session.h"
+#include "model.h"
 #include "model_files.h"
 #include "xpp_mem.h"
 
@@ -9,6 +10,17 @@
 #include <utility>
 
 namespace xpp {
+
+void Session::size_variables(int n)
+{
+  const std::size_t k=static_cast<std::size_t>(n);
+  model_->size_variables(n);
+  if(last_ic.size()>=k)return;
+  last_ic.resize(k);
+  delay_string.resize(k,"0.0");
+  itor.resize(k);
+  bcs.resize(k);
+}
 
 namespace {
 

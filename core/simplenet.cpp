@@ -1,5 +1,4 @@
 #include "xpp_util.h"
-#include "session.h"
 #include "xpp_batch.h"
 #include "simplenet.h"
 #include "model_options.h"
@@ -133,6 +132,7 @@ special ydot=import(...) ran a compiled library's function: refused
 
 #include "delay_handle.h"
 #include "model.h"
+#include "session.h"
 
 namespace xpp {
 

@@ -1,6 +1,5 @@
 #include "autox_unknowns.h"
 #include "model.h"
-#include "session.h"
 #include "many_pops.h"
 #include "snapx.h"
 #include "xpp_session.h"

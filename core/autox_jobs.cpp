@@ -18,6 +18,7 @@
 #include "xpp_job.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
+#include "model.h"
 
 #include <chrono>
 #include <condition_variable>

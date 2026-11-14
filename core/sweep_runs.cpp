@@ -7,6 +7,7 @@
 #include "xpp_job.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
+#include "model.h"
 
 #include <algorithm>
 #include <chrono>

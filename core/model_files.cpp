@@ -1,7 +1,6 @@
 /* A model's own files: see model_files.h. */
 #include "model_files.h"
 #include "model.h"
-#include "session.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_prefs.h"
@@ -9,6 +8,7 @@
 #include "xpp_zip.h"
 #include "xpp_util.h"
 #include "model_options.h"
+#include "session.h"
 
 #include <algorithm>
 #include <array>

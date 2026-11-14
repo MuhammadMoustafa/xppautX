@@ -9,6 +9,7 @@
 #include "xpp_mem.h"
 #include "xpp_math.h"
 #include "expr_decode.h"
+#include "session.h"
 
 #include <array>
 #include <algorithm>

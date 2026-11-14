@@ -44,7 +44,6 @@
 
 
 #include "llnltyps.h"
-#include "vector.h"
 #include <vector>
 namespace xpp::cvode_solver {
 

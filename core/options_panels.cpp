@@ -12,9 +12,9 @@
 #include "model_features.h"
 #include "model_options.h"
 #include "numerics_settings.h"
-#include "session.h"
 #include "xpp_io.h"
 #include "xpp_util.h"
+#include "session.h"
 
 namespace xpp {
 

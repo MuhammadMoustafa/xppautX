@@ -7,6 +7,7 @@
 #include "session.h"
 #include "xpp_files.h"
 #include "xpp_ui.h"
+#include "event_registry.h"
 #include <array>
 #include <limits>
 

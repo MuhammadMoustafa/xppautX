@@ -13,6 +13,8 @@
 #include "xpp_ui.h"
 #include "xpp_install.h"
 #include "xpp_update.h"
+#include "model.h"
+#include "event_registry.h"
 #include <array>
 
 namespace xpp::command {

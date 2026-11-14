@@ -1,5 +1,4 @@
 #pragma once
-#include "xpp_files.h"
 #include "jacobian.h"
 /* xpp::Session: everything a run changes (AGENTS.md "No global state";
    docs/roadmap.md W47c). C++ only.
@@ -21,7 +20,10 @@
    nothing reads a current one. The one global that holds Sessions is the
    session list (client_session, below). A load builds a new Model and
    Session together (Load, below) and keeps them only when it succeeds. */
-#include "model.h"
+#include "model_parts.h"
+#include "simplenet.h"
+#include "tabular.h"
+#include "volterra.h"
 #include "colormap.h"
 #include "storage.h"
 #include "many_pops.h"
@@ -71,6 +73,8 @@
 
 namespace xpp {
 
+struct Model; /* model.h */
+
 struct Session {
   /* a Session of the Model m (Load) */
   explicit Session(Model &m) noexcept : model_(&m) {}
@@ -82,16 +86,7 @@ struct Session {
      the Model's (Model::size_variables); the builder calls it as the file
      declares its variables. The new entries are 0, "0.0" (no history), 0
      (no torus) and no boundary condition. */
-  void size_variables(int n)
-  {
-    const std::size_t k=static_cast<std::size_t>(n);
-    model_->size_variables(n);
-    if(last_ic.size()>=k)return;
-    last_ic.resize(k);
-    delay_string.resize(k,"0.0");
-    itor.resize(k);
-    bcs.resize(k);
-  }
+  void size_variables(int n);
 
   /* the Model this session runs */
   Model &model() noexcept { return *model_; }
@@ -231,7 +226,7 @@ struct Session {
   /* the boundary conditions in use, one per ODE: the Model's, copied at
      the end of a load, then changed by a `set` or a .set
      (set_bc_formula) and compiled when a shooting starts (pp_shoot.cpp) */
-  std::vector<xpp::Model::BoundaryCondition> bcs;
+  std::vector<xpp::BoundaryCondition> bcs;
 
   /* the delay equations' state (delay_handle.cpp) */
   DelayState delay;
@@ -373,6 +368,25 @@ private:
   Place where;
   LogCapture messages;
 };
+
+
+/* f() on the active plot window of s, or under Simulplot on each open one
+   in turn (made active with make_active(s, i, flag)), the active one made
+   active again after */
+template <class F>
+void for_each_shown_window(Session &s, int flag, F f)
+{
+    if (s.plot_windows.simul == 0) {
+        f();
+        return;
+    }
+    const int ic = s.plot_windows.active;
+    for (int i = 0; i < s.plot_windows.count; i++) {
+        make_active(s, s.plot_windows.open[i], flag);
+        f();
+    }
+    make_active(s, ic, flag);
+}
 
 }
 

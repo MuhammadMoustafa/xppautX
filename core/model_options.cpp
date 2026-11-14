@@ -26,7 +26,6 @@
 #include "model_files.h"
 #include "numerics.h"
 #include "pp_shoot.h"
-#include "session.h"
 #include "solver.h"
 #include "tabular.h"
 #include "typed_values.h"
@@ -38,6 +37,7 @@
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
+#include "session.h"
 
 namespace xpp {
 

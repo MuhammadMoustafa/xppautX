@@ -9,6 +9,7 @@
 #include "session.h"
 #include "typed_values.h"
 #include "xpp_io.h"
+#include "event_registry.h"
 #include <array>
 
 namespace xpp::command {

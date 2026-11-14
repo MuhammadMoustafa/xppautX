@@ -5,7 +5,6 @@
    arrives (docs/protocol.md). Also the messages, and what a long
    computation does between steps (Esc, progress). */
 #include "ui_json_internal.h"
-#include "session.h"
 #include "many_pops.h"
 #include "xpp_inbox.h"
 #include "xpp_job.h"
@@ -18,6 +17,9 @@
 #include "json_error.h"
 #include "autox_data.h"
 #include "autox_settings.h"
+#include "session.h"
+#include "json_reader.h"
+#include "command_category.h"
 #include <array>
 #include <iterator>
 #include <stdio.h>

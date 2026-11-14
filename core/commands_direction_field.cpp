@@ -9,6 +9,7 @@
 #include "xpp_ui.h"
 #include "json_reader.h"
 #include "xpp_io.h"
+#include "event_registry.h"
 #include <array>
 
 namespace xpp::command {

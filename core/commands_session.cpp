@@ -13,6 +13,8 @@
 #include "xpp_files.h"
 #include "xpp_recent.h"
 #include "xpp_session.h"
+#include "model.h"
+#include "event_registry.h"
 #include <array>
 
 namespace xpp::command {

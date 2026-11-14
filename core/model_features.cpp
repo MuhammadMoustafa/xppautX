@@ -2,6 +2,7 @@
 #include "model_features.h"
 #include "xpp_io.h"
 #include "session.h"
+#include "model.h"
 #include <algorithm>
 
 namespace xpp {

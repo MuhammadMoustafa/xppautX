@@ -2,6 +2,7 @@
    through the front end (json_keymap.cpp), which sends the `keymap` event the page keeps its shortcuts from. */
 #include "command_def.h"
 #include "xpp_keymap.h"
+#include "event_registry.h"
 #include <array>
 
 namespace xpp::command {

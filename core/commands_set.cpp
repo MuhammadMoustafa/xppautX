@@ -9,9 +9,9 @@
 #include "load_eqn.h"
 #include "model_options.h"
 #include "model_save.h"
-#include "session.h"
 #include "set_load.h"
 #include "xpp_io.h"
+#include "event_registry.h"
 #include <algorithm>
 #include <array>
 

@@ -24,6 +24,7 @@
 #include "my_rhs.h"
 #include "integrate.h"
 #include "xpp_ui.h"
+#include "model.h"
 
 /*    Hooks to xpp RHS     */
 

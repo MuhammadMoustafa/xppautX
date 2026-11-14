@@ -9,7 +9,6 @@
 #include "jacobian.h"
 #include "autox_c.h"
 #include "autox_state.h"
-#include "autox_f2c.h"
 #include "session.h"
 #include "solver.h"
 

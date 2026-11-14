@@ -19,6 +19,7 @@
 #include "xpp_log.h"
 #include "equilibria.h"
 #include "numerics_settings.h"
+#include "model.h"
 
 namespace xpp {
 

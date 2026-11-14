@@ -13,7 +13,6 @@
 #include <vector>
 #include "model.h"
 #include "solver.h"
-#include "session.h"
 #include "ode_read.h"
 #include "nullcline.h"
 #include "colormap.h"
@@ -56,6 +55,7 @@
 #include "graf_par.h"
 #include "xpp_globals.h"
 #include "delay_handle.h"
+#include "session.h"
 
 namespace xpp {
 

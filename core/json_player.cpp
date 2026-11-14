@@ -41,6 +41,7 @@
 #include "xpp_log.h"
 #include "xpp_batch.h"
 #include "xpp_ui.h"
+#include "json_reader.h"
 
 #include <algorithm>
 #include <array>

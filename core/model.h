@@ -29,12 +29,12 @@
 #include "xpp_zip.h"
 #include "comline.h"
 #include "volterra.h"
-#include "tabular.h"
 #include "simplenet.h"
 #include "odex.h"
 #include "model_files.h"
 #include "xpp_mir.h"
 #include "expr_program.h"
+#include "model_parts.h"
 
 #include <array>
 #include <atomic>
@@ -51,24 +51,6 @@ namespace xpp {
 struct Session;
 
 class TempDir; /* xpp_files.h */
-
-/* the array initial values: each one's variable x and range j1..j2 and
-   its formula (type 2 when in use), at most NAR_IC of them; defined once
-   the model gave one. The model's (Model::array_ics), and the run's own
-   copy (IntegratorState), which Initialconds edits. */
-constexpr int NAR_IC = 50;
-struct ArrayIc {
-  int index0 = -1, type = 0;
-  std::string formula;
-  int n = 0;
-  std::string var;
-  int j1 = 0, j2 = 0;
-};
-struct ArrayIcs {
-  std::array<ArrayIc, NAR_IC> ics{};
-  int defined = 0;
-};
-
 
 struct Model {
   /* Room for n parameters in default_val, upar_names and upar_con (it
@@ -176,15 +158,6 @@ struct Model {
      numbers), which couple the states beyond their reads. */
   std::vector<std::vector<int>> subsystems;
   std::string subsystem_joined_by;
-  /* a boundary condition, 0=string: string (at most 255 bytes, the rest
-     NUL), com its compiled form (200 commands), name "0=" (10 bytes;
-     pp_shoot writes its side into it). C buffers: the shooting code and
-     the dialogs write into them. */
-  struct BoundaryCondition {
-    Program com;
-    std::vector<char> string;
-    std::vector<char> name;
-  };
   /* the boundary conditions, one per ODE, as the model gives them (the
      ones in use are the Session's) */
   std::vector<BoundaryCondition> bcs;
@@ -206,17 +179,16 @@ struct Model {
      nevents events' lhs to its formula (rhs, compiled comrhs); the target
      is a variable, a parameter (anypars when any is), output or halt;
      nointerp for "no_interp" */
-  static constexpr int max_events=20;
   enum class EventTarget { variable, parameter, output, halt };
   struct GlobalFlag {
-    std::array<int,max_events> lhs{};
-    std::array<std::string,max_events> lhsname;
-    std::array<std::string,max_events> rhs;
-    std::array<Program,max_events> comrhs;
+    std::array<int,xpp::max_events> lhs{};
+    std::array<std::string,xpp::max_events> lhsname;
+    std::array<std::string,xpp::max_events> rhs;
+    std::array<Program,xpp::max_events> comrhs;
     std::string cond;
     Program comcond;
     int sign=0,nevents=0;
-    std::array<EventTarget,max_events> type{};
+    std::array<EventTarget,xpp::max_events> type{};
     int anypars=0;
     int nointerp=0;
   };

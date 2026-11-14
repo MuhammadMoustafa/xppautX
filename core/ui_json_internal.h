@@ -27,18 +27,14 @@
 #error "ui_json_internal.h is C++ only"
 #endif
 
-#include "json_reader.h"
 #include "xpp_ui.h"
 #include "xpp_io.h"
 #include "xpp_mem.h"
 #include "xpp_inbox.h"
 #include "xpp_job.h"
-#include "display_state.h"
-#include "grobs.h"
 #include "diagram.h"
 #include "data_event.h"
 #include "event_registry.h"
-#include "event_streams.h"
 #include "autox_data.h"
 #include "autox_settings.h"
 #include <stddef.h>

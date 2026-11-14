@@ -4,7 +4,6 @@
 
 #include <vector>
 #include "xpp_io.h"
-#include "session.h"
 #include "autox_evd.h" /* xAutox (its own extern) */
 #include "autox_jacobian.h"
 #include "xpp_math.h"

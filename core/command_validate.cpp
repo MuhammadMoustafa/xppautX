@@ -14,6 +14,7 @@
 #include "xpp_keymap.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
+#include "model.h"
 #include <algorithm>
 #include <charconv>
 #include <cmath>
