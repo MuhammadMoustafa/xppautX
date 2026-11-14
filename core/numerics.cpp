@@ -123,7 +123,7 @@ Result<> set_axis_shifts(xpp::Session &s, int x, int y, int z)
    return {};
 }
 
-void compute_one_period(xpp::Session &s, double period,double *x,const char *name)
+void compute_one_period(xpp::Session &s, double period,double *x,const char *name, const xpp::RunReport &report)
 {
   const PoincareMap opm=s.numerics->poincare_map;
   double ot=s.numerics->store_from,ote=s.numerics->total_time;
@@ -139,7 +139,7 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
   s.numerics->poincare_map=PoincareMap::none;
   reset_data(s);
 
-  usual_integrate_stuff(s,x);
+  usual_integrate_stuff(s,x,report);
   {
     xpp::Writer w=xpp::ask_output_writer(s,"Save orbit",".dat",xpp::format("orbit-{}",name));
     if(w){

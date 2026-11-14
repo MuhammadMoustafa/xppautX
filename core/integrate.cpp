@@ -905,7 +905,7 @@ if(s.integrator->range.type==PARAM)get_val(s,s.integrator->range.item,&temp);
    if(s.integrator->adj_range==1){
      bob=xpp::format("{}_{:g}",plan.item,v.p);
      data_get_mytable(s,s.data_store->rows-1);
-     compute_one_period(s,static_cast<double>(s.data_store->col[0][s.data_store->rows-1]),s.last_ic.data(),bob.c_str());
+     compute_one_period(s,static_cast<double>(s.data_store->col[0][s.data_store->rows-1]),s.last_ic.data(),bob.c_str(),report.orbit?*report.orbit:xpp::RunReport{});
    }
 
    do_this_liaprun(s,v.p);  /* sends parameter and index back */
@@ -1031,7 +1031,7 @@ int do_range(xpp::Session &s, double *x, int flag, const xpp::RunReport &report)
  return *r;
 }
 
-Result<> write_equilibrium(xpp::Session &s, const char *name, int shoot, bool confirm)
+Result<> write_equilibrium(xpp::Session &s, const char *name, int shoot, bool confirm, const RunReport &report)
 {
   const int n=s.model().node;
   std::vector<double> x(s.last_ic.begin(),s.last_ic.begin()+n),er(n),em(n);
@@ -1047,7 +1047,7 @@ Result<> write_equilibrium(xpp::Session &s, const char *name, int shoot, bool co
   for(int i=0;i<n;i++)
     w.print("{:g} {:g} {:g}\n",x[i],er[i],em[i]);
   if(const auto saved=commit_save(w);!saved)return saved;
-  if(shoot)return save_batch_shoot(s,name,confirm);
+  if(shoot)return save_batch_shoot(s,name,confirm,report);
   return {};
 }
   
@@ -1281,9 +1281,9 @@ xpp::Result<bool> integrate_from(xpp::Session &s, double *x, const RunReport &re
   return early;
 }
 
-int usual_integrate_stuff(xpp::Session &s, double *x)
+int usual_integrate_stuff(xpp::Session &s, double *x, const xpp::RunReport &report)
 {
-  return xpp::ok_or_show(integrate_from(s,x,RunReport{}))?0:1;
+  return xpp::ok_or_show(integrate_from(s,x,report))?0:1;
 }
 /*  form_ic  --  u_i(0) = F(i)  where  "i" is represented by "t"
     or  

@@ -36,6 +36,8 @@ struct RunReport {
   std::function<void(std::string_view label)> done;
   /* a sweep's run wrote its data file (the run's number, from 0): its picture goes with it */
   std::function<void(int run)> written;
+  /* a sweep: the report of the single run it makes inside a run (the period's orbit of Range's adjoint mode) */
+  std::shared_ptr<const RunReport> orbit;
 };
 
 /* Decimal places, not significant digits. Double has digits10 reliable
@@ -108,7 +110,7 @@ DenseEvent dense_event(Session &s, double from, double until, double step_from, 
    Newton does not converge); shoot: also the invariant manifolds of a
    saddle, integrated into UMk.dat/SMk.dat (--silent's --equil 0/1, the
    protocol's `equilibrium` `write`) */
-Result<> write_equilibrium(Session &s, const char *name, int shoot, bool confirm);
+Result<> write_equilibrium(Session &s, const char *name, int shoot, bool confirm, const RunReport &report);
 void init_range(Session &s);
 /* Continue (W213), the one way to extend the trajectory: to the time `until`, or for `extra` more,
    either rounded up to the output grid (Dt times Store every N steps) and appending rows at that
@@ -172,7 +174,7 @@ Result<int> run_range(Session &s, int flag, RangeProgress *done, const RunReport
 /* the integration of x as the Session's settings say, after a run's start made: the one every run ends in */
 Result<bool> integrate_from(Session &s, double *x, const RunReport &report);
 void do_start_flags(Session &s, double *x, double *t);
-int usual_integrate_stuff(Session &s, double *x); /* integrate_from with nothing reported, its error shown: 1 when it failed */
+int usual_integrate_stuff(Session &s, double *x, const RunReport &report); /* integrate_from, its error shown: 1 when it failed */
 void evaluate_ar_ic(Session &s, const char *v, const char *f, int j1, int j2);
 void arr_ic_start(Session &s);
 /* the initial conditions by formula (initial_conditions.set_by_formula): `variable` a state, or an array range name[j1..j2] whose

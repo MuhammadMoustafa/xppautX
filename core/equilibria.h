@@ -13,6 +13,7 @@ namespace xpp { struct JacobianForm; }
 namespace xpp {
 
 struct Session; /* session.h */
+struct RunReport; /* integrate.h */
 
 /* What Newton's method asks of the model, so that the one search serves two evaluations: the Session's own (Sing pts, the
    delay equations' stability: session_equilibrium_model) and a job's of autoX (autox_equilibrium_model), which evaluates
@@ -96,7 +97,7 @@ Result<> do_sing(Session &s, double *x, double eps, double err, double big, int 
 Result<> shoot_this_now(Session &s);
 /* Integrate the stored manifolds into file-stem-eigenN-stable/unstable.dat,
    using the export command's overwrite decision and returning its first error. */
-Result<> save_batch_shoot(Session &s, std::string_view file, bool confirm);
+Result<> save_batch_shoot(Session &s, std::string_view file, bool confirm, const RunReport &report);
 /* Sing pts' shooting (equilibria.cpp), a Session's (session.h): the initial
    conditions it found along the unstable and stable manifolds (count of
    ic, ic_flag once there are any) */

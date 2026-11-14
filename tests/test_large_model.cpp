@@ -90,7 +90,7 @@ TEST_CASE("test_large_model")
 
     xpp::get_ic(s, 2, s.data_store->current.data());
     s.numerics->storflag=true;
-    CHECK(xpp::usual_integrate_stuff(s, s.data_store->current.data()) == 0);
+    CHECK(xpp::usual_integrate_stuff(s, s.data_store->current.data(), xpp::RunReport{}) == 0);
     CHECK(m.record->names.size()==indexed);
     const int rows = s.data_store->rows;
     CHECK(rows == 11);

@@ -141,7 +141,7 @@ Result<std::string> export_file(Session &s,const Command &,const Arguments &a,co
 {
     const auto &file=a.get<std::string>("file");
     const bool shoot=a.optional<bool>("shoot").value_or(s.equilibrium_shoot);
-    if(const auto saved=write_equilibrium(s,file.c_str(),shoot,a.optional<bool>("confirm").value_or(false));!saved)return std::unexpected(saved.error());
+    if(const auto saved=write_equilibrium(s,file.c_str(),shoot,a.optional<bool>("confirm").value_or(false),run_report(s));!saved)return std::unexpected(saved.error());
     s.equilibrium_shoot=shoot;
     std::string result="{\"file\":";json_append_string(result,file);return result+",\"written\":true}";
 }

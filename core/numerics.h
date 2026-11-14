@@ -8,6 +8,7 @@ namespace xpp { enum class PoincareMap; enum class SectionSign; }
 namespace xpp {
 
 struct Session; /* session.h */
+struct RunReport; /* integrate.h */
 
 /* the numerics settings that have no key of the main table (the method's own: the Volterra points, the CVODE
    band, the delay's stability search); named as the .odex options name them (vmaxpts, bandlo, bandup) */
@@ -29,7 +30,7 @@ void chk_delay(Session &s);
 void set_delay(Session &s);
 /* the active plot window's rUelle shifts (how many rows each axis lags): each 0 or more; redrawn */
 Result<> set_axis_shifts(Session &s, int x, int y, int z);
-void compute_one_period(Session &s, double period,double *x, const char *name);
+void compute_one_period(Session &s, double period,double *x, const char *name, const RunReport &report);
 /* the Poincare map: its kind, and for a kind other than none the variable (a column), the section, the crossing
    direction and whether the run stops on it, a setting left out as it is; or why the settings are not ones it takes */
 Result<> set_poincare_map(Session &s, PoincareMap map, std::optional<int> variable, std::optional<double> section,

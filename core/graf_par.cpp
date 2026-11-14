@@ -1149,6 +1149,7 @@ RunReport range_report(Session &s)
     if(s.data_store->rows>2)autox_freeze_it(s);
     if(s.array_plot->range==1)draw_one_array_plot(s,label);
   };
+  report.orbit=std::make_shared<RunReport>(run_report(s));
   report.written=[&s](int run){
     if(!program.interactive&&!s.picture_file.empty())dump_ps(s,run);
   };

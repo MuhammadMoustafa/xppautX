@@ -2243,8 +2243,14 @@ def check_equilibrium_exports():
                 tail, _ = s.collect(lambda e: e.get('ev') == 'done')
                 events += tail
             return events, next((e for e in events if e.get('ev') == 'done'), {})
+        s.send(cmd='plot.set_autox_freeze', enabled=True)
+        s.collect(lambda e: e.get('ev') == 'done')
         events, done = export('seed.dat')
         files = sorted(glob.glob(os.path.join(s.run, 'seed-eigen*.dat')))
+        s.send(cmd='plot.freeze_curve')
+        _, froze = s.collect(lambda e: e.get('ev') == 'done')
+        check('W742: with auto-freeze on, each manifold the export runs leaves its frozen curve (the next one takes slot 2)',
+              froze and froze.get('result', {}).get('slot') == 2, str(froze)[:300])
         check('W522: shoot export writes two derived manifold files without filename asks',
               done.get('status') == 'ok' and done.get('result', {}).get('written') is True and len(files) == 2
               and not any(e.get('ev') == 'ask' for e in events), str(events)[-500:])
