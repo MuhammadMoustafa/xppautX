@@ -1119,8 +1119,8 @@ def section_sessiondiagram():
     check('sessiondiagram: solutions.s holds the orbits', len(got.get('autox/solutions.s', '')) > 1000, str(len(got.get('autox/solutions.s', ''))))
     views = state[state.index('    views: ['):] if '    views: [' in state else ''
     check('sessiondiagram: the autox group holds the two views of the diagram, the first active',
-          re.search(r'name: "diagram_1",\n\s+hidden: false,\n\s+plot: maximum_and_minimum,\n\s+var: V,\n\s+par1: iapp,', views) is not None
-          and re.search(r'name: "diagram_2",\n\s+hidden: false,\n\s+plot: period,\n\s+var: V,\n\s+par1: iapp,', views) is not None
+          re.search(r'name: "diagram_1",\n\s+hidden: false,\n\s+group: first,\n\s+plot: maximum_and_minimum,\n\s+var: V,\n\s+par1: iapp,', views) is not None
+          and re.search(r'name: "diagram_2",\n\s+hidden: false,\n\s+group: first,\n\s+plot: period,\n\s+var: V,\n\s+par1: iapp,', views) is not None
           and '    active: "diagram_1",' in views, views[:300])
     d1 = os.path.join(scratch, 'd1.snapx')
     if os.path.exists(os.path.join(s.run, 'd1.snapx')):
