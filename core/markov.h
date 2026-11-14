@@ -15,19 +15,12 @@ struct RunReport; /* integrate.h */
 void  make_gill_nu(Session &s, double *nu, int n, int m, double *v);
 void  one_gill_step(Session &s, int meth, int nrxn, int *rxn, double *v, double *r);
 
-/* the Markov variables, the Wiener parameters and stocHast (markov.cpp),
-   in the Session s: a load's, or the run's */
-void add_markov(Session &s, int nstate, const char *name);
-void add_wiener(Session &s, int index);
+/* the Markov variables, the Wiener parameters and stocHast's runs (markov.cpp), in the Session s: a run's;
+   a load's are model_markov.h's */
 /* every Ornstein-Uhlenbeck process to its start (a run's) */
 void start_ou(Session &s);
 /* the noise of the step of dt about to be taken: Markov chains, Wiener parameters and Ornstein-Uhlenbeck processes, once for all its stages */
 void set_wieners(Session &s, double dt, double *x, double t);
-int old_build_markov(Session &s, const std::function<bool(std::string &)> &next_line, const char *name);
-void create_markov(Session &s, int nstates, double *st, int type, const char *name);
-void add_markov_entry(Session &s, int index, int j, int k, const char *expr);
-void compile_all_markov(Session &s);
-int compile_markov(Session &s, int index, int j, int k);
 void update_markov(Session &s, double *x, double t, double dt);
 double new_state(Session &s, double old, int index, double dt);
 /* the seed the next run starts from (the Session's random numbers seeded with it at once), or why it is not one */
@@ -42,12 +35,6 @@ void  init_stoch(Session &s, int len);
 void  append_stoch(Session &s, int first, int length);
 void  do_stats(Session &s, int ierr);
 
-/* an .ode transition row's next cell from *start on: the text between
-   its { and }, *start past the } */
-std::string markov_cell(const char *row, int *start);
-/* the Markov variable name's transitions, cells its nstates x nstates
-   formulas row by row (text, or numbers for a fixed chain): its index */
-int build_markov(Session &s, std::span<const std::string> cells, const char *name);
 /* the mean and variance of the runs converted to the store's precision (storage_precision_changed) */
 void retype_stochastic(Session &s);
 /* stocHast's many-runs state (markov.cpp), a Session's (session.h):

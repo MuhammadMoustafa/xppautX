@@ -19,9 +19,14 @@ namespace xpp {
 struct Model;   /* model.h */
 struct Session; /* session.h */
 
-/* temp ("name:formula" sets name, or a formula) worked out in the Session
-   s into *z */
-int do_calc(Session &s, std::string_view temp, double *z);
+/* what a %formula (the text after the '%') says: its value, and the name it
+   sets when it is "name:formula" (empty otherwise). The one rule of the
+   %name:formula form: the name checked, the formula worked out once. */
+struct WorkedOut {
+  double value=0.0;
+  std::string name;
+};
+Result<WorkedOut> work_out(Session &s, std::string_view formula, std::string_view field);
 /* the formula expr worked out in s, or why it does not compile; shows
    nothing and changes nothing */
 Result<double> evaluate_formula(Session &s, std::string_view expr);
@@ -34,34 +39,6 @@ Result<> compile_formula(Session &s, std::string_view expr);
    shown or set: the one reading of a typed number (W131), which new_float,
    the `set` command and every box go through. */
 Result<double> typed_number(Session &s, std::string_view typed, std::string_view field = {});
-/* One reading of the fields typed in a form, all or nothing: the first
-   fault is kept with the field it belongs to, no later field is read once
-   there is one, and the caller applies nothing when error() is set. */
-class TypedFields {
- public:
-  /* a whole number (parse_int), within min..max where given; 0 after a fault */
-  int integer(std::string_view field, const std::string &text, std::optional<double> min = std::nullopt,
-              std::optional<double> max = std::nullopt);
-  /* a plain real number (parse_number: no %formula), within min..max where
-     given; 0 after a fault */
-  double real(std::string_view field, const std::string &text, std::optional<double> min = std::nullopt,
-              std::optional<double> max = std::nullopt);
-  /* `true` or `false`; false after a fault */
-  bool boolean(std::string_view field, const std::string &text);
-  /* a color (colormap.h's parse_color); the foreground after a fault */
-  Color color(std::string_view field, const std::string &text);
-  /* one of choices, by its name, exactly: its index; 0 after a fault */
-  int choice(std::string_view field, const std::string &text, std::span<const std::string> choices);
-  void fail(std::string_view field, std::string_view what);
-  const std::optional<std::string> &error() const { return error_; }
-
- private:
-  std::optional<std::string> error_;
-};
-/* store the text typed for entry i of the box `type`; the refusal, shown by
-   no one, changes nothing (typed_number) */
-Result<void> box_set_value(Session &s, int type, int i, std::string_view text, std::string_view field = {});
-void box_values_loaded(Session &s, int type);
 /* the index of parameter (type PARAMBOX) or variable (ICBOX) oname,
    blanks ignored and case not, -1 when there is none */
 int find_user_name(const Model &m, int type, std::string_view oname);

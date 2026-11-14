@@ -17,6 +17,7 @@
 #include "model.h"
 #include "getvar.h"
 #include "typed_values.h"
+#include "typed_fields.h"
 #include "storage.h"
 #include "json_number.h"
 #include "expr.h"

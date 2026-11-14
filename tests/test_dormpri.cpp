@@ -4,6 +4,7 @@
 #include "integrate.h"
 #include "dormpri.h"
 #include "flags.h"
+#include "model_flags.h"
 #include "expr.h"
 #include "delay_handle.h"
 #include "xpp_math.h"

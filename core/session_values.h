@@ -38,4 +38,12 @@ void user_fun_info(const Model &m, FILE *fp);
    the naming, this is just its name for a plotted column */
 std::string ind_to_sym(const Session &s, int ind);
 
+/* temp ("name:formula" sets name, or a formula) worked out in the Session
+   s into *z */
+int do_calc(Session &s, std::string_view temp, double *z);
+/* store the text typed for entry i of the box `type`; the refusal, shown by
+   no one, changes nothing (typed_number) */
+Result<void> box_set_value(Session &s, int type, int i, std::string_view text, std::string_view field = {});
+void box_values_loaded(Session &s, int type);
+
 } // namespace xpp

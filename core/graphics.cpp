@@ -2,6 +2,7 @@
 #include "session_settings.h"
 #include "colormap.h"
 #include "typed_values.h"
+#include "session_values.h"
 #include "many_pops.h"
 #include "xpp_ui.h"
 #include "marks_data.h"

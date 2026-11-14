@@ -10,7 +10,7 @@ namespace xpp {
 
 struct Session; /* session.h */
 struct Model; /* model.h */
-class TypedFields; /* typed_values.h */
+class TypedFields; /* typed_fields.h */
 
 /* the first character of s2 found in s1 from i0 on: its index in s2, *i1
    where it is; -1 when there is none */

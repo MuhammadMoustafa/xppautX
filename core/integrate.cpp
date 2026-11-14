@@ -9,6 +9,8 @@
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "typed_values.h"
+#include "typed_fields.h"
+#include "session_values.h"
 #include "autox_nox.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"

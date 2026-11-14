@@ -16,12 +16,13 @@
    and built line by line (form_ode.cpp's build_old_style). */
 #include "ode_read.h"
 #include "typed_values.h"
+#include "typed_fields.h"
 #include <limits>
 #include "expr.h"
 #include "model_declarations.h"
 #include "form_ode.h"
 #include "integrate.h"
-#include "markov.h"
+#include "model_markov.h"
 #include "model.h"
 #include "model_files.h"
 #include "newpars.h"

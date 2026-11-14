@@ -11,6 +11,7 @@
 #include <string_view>
 #include "expr.h"
 #include "markov.h"
+#include "model_markov.h"
 #include "session.h"
 #include "storage.h"
 #include "tabular.h"

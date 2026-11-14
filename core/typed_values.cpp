@@ -11,12 +11,7 @@
 #include "model.h"
 #include "model_record.h"
 #include "xpp_text.h"
-#include "tabular.h"
-#include "volterra2.h"
-#include "delay_handle.h"
-#include "form_ode.h"
 #include "session.h"
-#include "model_numerics.h"
 
 namespace xpp {
 
@@ -59,15 +54,7 @@ static std::unexpected<Error> refused_value(std::string what,std::string_view fi
   return std::unexpected(Error{"value",std::move(what),command_place(),std::string(field)});
 }
 
-/* what a %formula (the text after the '%') says: its value, and the name it
-   sets when it is "name:formula" (empty otherwise). The one rule of the
-   %name:formula form: the name checked, the formula worked out once. */
-struct WorkedOut {
-  double value=0.0;
-  std::string name;
-};
-
-static Result<WorkedOut> work_out(xpp::Session &s, std::string_view formula, std::string_view field)
+Result<WorkedOut> work_out(xpp::Session &s, std::string_view formula, std::string_view field)
 {
   WorkedOut w;
   if(formula.empty())return w; /* nothing typed after the % is 0 */
@@ -87,19 +74,6 @@ static Result<WorkedOut> work_out(xpp::Session &s, std::string_view formula, std
   return w;
 }
 
-/* the parameter or IC `name` set to value (a "%name:formula" or do_calc) */
-static void set_named(xpp::Session &s, const std::string &name, double value)
-{
-  const int i=find_user_name(s.model(),PARAMBOX,name);
-  set_val(s,name,value);
-  if(i>-1){
-    redraw_params();
-    return;
-  }
-  s.last_ic[find_user_name(s.model(),ICBOX,name)]=value;
-  redraw_ics();
-}
-
 Result<double> typed_number(xpp::Session &s, std::string_view typed, std::string_view field)
 {
   const std::string_view text=trim_blanks(typed);
@@ -111,138 +85,6 @@ Result<double> typed_number(xpp::Session &s, std::string_view typed, std::string
   double v;
   if(!parse_number(text,v))return refused_value(xpp::format("\"{}\" is not a number",text),field);
   return v;
-}
-
-int do_calc(xpp::Session &s, std::string_view temp, double *z)
-{
-  const Result<WorkedOut> w=work_out(s,temp,{});
-  if(!ok_or_show(w))return -1;
-  *z=w->value;
-  if(w->name.empty())return 1;
-  set_named(s,w->name,w->value);
-  return 0;
-}
-
-/* the fault of v outside min..max, or nothing */
-static std::optional<std::string> out_of_range(double v, std::optional<double> min, std::optional<double> max)
-{
-  if(min&&v<*min)return xpp::format("{:g} is below {:g}",v,*min);
-  if(max&&v>*max)return xpp::format("{:g} is above {:g}",v,*max);
-  return std::nullopt;
-}
-
-int TypedFields::integer(std::string_view field, const std::string &text, std::optional<double> min,
-                         std::optional<double> max)
-{
-  if(error_)return 0;
-  int v=0;
-  if(!parse_int(trim_blanks(text),v)){
-    fail(field,xpp::format("\"{}\" is not a whole number",text));
-    return 0;
-  }
-  if(const auto bad=out_of_range(v,min,max)){
-    fail(field,*bad);
-    return 0;
-  }
-  return v;
-}
-
-double TypedFields::real(std::string_view field, const std::string &text, std::optional<double> min,
-                         std::optional<double> max)
-{
-  if(error_)return 0;
-  double v=0;
-  if(!parse_number(trim_blanks(text),v)){
-    fail(field,xpp::format("\"{}\" is not a number",text));
-    return 0;
-  }
-  if(const auto bad=out_of_range(v,min,max)){
-    fail(field,*bad);
-    return 0;
-  }
-  return v;
-}
-
-bool TypedFields::boolean(std::string_view field, const std::string &text)
-{
-  if(error_)return false;
-  if(text=="true")return true;
-  if(text!="false")fail(field,xpp::format("\"{}\" is not true or false",text));
-  return false;
-}
-
-Color TypedFields::color(std::string_view field, const std::string &text)
-{
-  if(error_)return foreground_color;
-  if(const auto c=parse_color(trim_blanks(text)))return *c;
-  fail(field,xpp::format("\"{}\" is not a color: write #rrggbb, #rrggbbaa, a CSS color name or foreground",text));
-  return foreground_color;
-}
-
-int TypedFields::choice(std::string_view field, const std::string &text, std::span<const std::string> choices)
-{
-  if(error_)return 0;
-  for(std::size_t i=0;i<choices.size();i++)
-    if(choices[i]==text)return static_cast<int>(i);
-  std::string names;
-  for(const std::string &c:choices)names+=(names.empty()?"":", ")+c;
-  fail(field,xpp::format("\"{}\" is not one of {}",text,names));
-  return 0;
-}
-
-void TypedFields::fail(std::string_view field, std::string_view what)
-{
-  if(!error_)error_=xpp::format("{}: {}",field,what);
-}
-
-/* the value typed for a number box: checked whole, worked out once, and a
-   "%name:formula" also sets its name, whose value the box takes */
-static Result<double> box_number(xpp::Session &s,std::string_view text,std::string_view field)
-{
-  const std::string_view t=trim_blanks(text);
-  if(!t.starts_with('%'))return typed_number(s,t,field);
-  const Result<WorkedOut> w=work_out(s,t.substr(1),field);
-  if(!w)return std::unexpected(w.error());
-  if(!w->name.empty())set_named(s,w->name,w->value);
-  return w->value;
-}
-
-/* store the text typed for entry i of a box of the given type: a number
-   (ICs, parameters: a plain number or %formula, nothing else) or, for BCs
-   and delays, a string. A refusal changes nothing and is returned, not shown. */
-Result<void> box_set_value(xpp::Session &s, int type,int i,std::string_view text,std::string_view field)
-{
-  switch(type){
-  case ICBOX:{
-    const Result<double> z=box_number(s,text,field);
-    if(!z)return std::unexpected(z.error());
-    s.last_ic[i]=*z;
-    break;}
-  case PARAMBOX:{
-    const Result<double> z=box_number(s,text,field);
-    if(!z)return std::unexpected(z.error());
-    set_val(s,s.model().upar_names[i],*z);
-    break;}
-  case BCBOX:
-    set_bc_formula(s,i,text);
-    break;
-  case DELAYBOX:
-    s.delay_string[i]=text;
-    break;
-  }
-  return {};
-}
-
-/* every entry of a box was just stored: recompute what depends on them */
-void box_values_loaded(xpp::Session &s, int type)
-{
-  if(type==PARAMBOX){
-    xpp::re_evaluate_kernels(s);
-    xpp::ok_or_show(redo_all_fun_tables(s));
-  }
-  if(type==DELAYBOX){
-   xpp::ok_or_show(xpp::do_init_delay(s,s.numerics->delay));
-  }
 }
 
 } // namespace xpp

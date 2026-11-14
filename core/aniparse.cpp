@@ -40,6 +40,7 @@
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "typed_values.h"
+#include "typed_fields.h"
 #include "integrate.h"
 #include "browse.h"
 #include <libgen.h>

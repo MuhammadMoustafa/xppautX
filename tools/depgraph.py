@@ -46,13 +46,13 @@ MODULES = {
         'colormap', 'line_style', 'text_style']),
     'plot state': ('the data of the plot windows a Session holds, a model\'s options give and a run reads: pure structs and the window handle type, with no drawing (W733)', [
         'plot_state', 'struct', 'xpp_types']),
-    'ui seam': ('the XppUi table core code calls the front end through, the lists of choices it shows, and the events the core sends (their names, fields and the error event: the vocabulary the front end implements), and what this run of the program is (xpp_globals: whether a front end is up, the batch options), which the program\'s start sets', [
-        'xpp_ui', 'menus', 'typed_values', 'event_*', 'json_error', 'xpp_globals']),
-    'expressions': ('the formula compiler, its evaluators, native code and derived quantities', [
-        'expr', 'expr_*', 'xpp_mir', 'getvar', 'derived', 'form_ode', 'tabular']),
-    'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets, among them the plot settings the model carries (W733), and the command line a load takes (comline: the switches read once, a Model keeps them)', [
+    'ui seam': ('the XppUi table core code calls the front end through, the reading of the fields a form carries (typed_fields), the lists of choices it shows, and the events the core sends (their names, fields and the error event: the vocabulary the front end implements), and what this run of the program is (xpp_globals: whether a front end is up, the batch options), which the program\'s start sets', [
+        'xpp_ui', 'menus', 'typed_fields', 'event_*', 'json_error', 'xpp_globals']),
+    'expressions': ('the formula compiler, its evaluators, native code and derived quantities (the builders of a Model, form_ode and tabular, are model and loading\'s: W736)', [
+        'expr', 'expr_*', 'xpp_mir', 'getvar', 'derived']),
+    'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets, among them the plot settings the model carries (W733), and the command line a load takes (comline: the switches read once, a Model keeps them), the builders of a Model from what it reads (form_ode: the .ode lines, tabular: the lookup tables, model_markov and model_flags: the Markov variables and flags a load declares, W736) and the reading of a value a user typed as a formula (typed_values)', [
         'model', 'model_*', 'load_eqn', 'odex', 'odex_*', 'ode_read', 'lunch-new', 'set_load', 'newpars',
-        'simplenet', 'options_panels', 'plot_settings', 'comline']),
+        'simplenet', 'options_panels', 'plot_settings', 'comline', 'form_ode', 'tabular', 'typed_values']),
     'session': ('the Session, its stored data, display state and undo', [
         'session', 'session_values', 'storage', 'display_state', 'value_undo']),
     'session files': ('the session file, recordings and the settings they carry', [
@@ -130,26 +130,25 @@ ALLOWLIST = {
     ('commands', 'application'): (1, 'W737'),
     ('commands', 'files'): (5, 'W740'),
     ('export', 'files'): (7, 'W740'),
-    ('expressions', 'analysis'): (2, 'W736'),
-    ('expressions', 'integrators'): (11, 'W736'),
-    ('expressions', 'model and loading'): (25, 'W736'),
-    ('expressions', 'session'): (12, 'W732'),
+    ('expressions', 'integrators'): (6, 'W736'),
+    ('expressions', 'model and loading'): (19, 'W736'),
+    ('expressions', 'session'): (9, 'W732'),
     ('files', 'platform'): (1, 'W737'),
     ('integrators', 'analysis'): (9, 'W736'),
     ('integrators', 'animation'): (1, 'W737'),
     ('integrators', 'autoX'): (1, 'W736'),
     ('integrators', 'commands'): (1, 'W737'),
     ('integrators', 'files'): (2, 'W740'),
-    ('integrators', 'session'): (28, 'W732'),
-    ('model and loading', 'analysis'): (7, 'W736'),
+    ('integrators', 'session'): (29, 'W732'),
+    ('model and loading', 'analysis'): (9, 'W736'),
     ('model and loading', 'animation'): (1, 'W737'),
     ('model and loading', 'autoX'): (1, 'W736'),
     ('model and loading', 'commands'): (3, 'W737'),
     ('model and loading', 'export'): (2, 'W737'),
     ('model and loading', 'files'): (1, 'W740'),
-    ('model and loading', 'integrators'): (17, 'W736'),
+    ('model and loading', 'integrators'): (19, 'W736'),
     ('model and loading', 'session files'): (5, 'W737'),
-    ('model and loading', 'session'): (19, 'W732'),
+    ('model and loading', 'session'): (25, 'W732'),
     ('plot', 'animation'): (1, 'W737'),
     ('plot', 'commands'): (1, 'W737'),
     ('plot', 'export'): (12, 'W737'),
@@ -164,11 +163,9 @@ ALLOWLIST = {
     ('session', 'export'): (3, 'W737'),
     ('session', 'session files'): (2, 'W737'),
     ('ui seam', 'commands'): (1, 'W737'),
-    ('ui seam', 'expressions'): (3, 'W736'),
-    ('ui seam', 'integrators'): (2, 'W736'),
-    ('ui seam', 'model and loading'): (2, 'W736'),
+    ('ui seam', 'model and loading'): (1, 'W736'),
     ('ui seam', 'platform'): (1, 'W737'),
-    ('ui seam', 'session'): (2, 'W732'),
+    ('ui seam', 'session'): (1, 'W732'),
 }
 
 INCLUDE = re.compile(r'\s*#\s*include\s*"([^"]+)"')

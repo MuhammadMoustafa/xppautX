@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "typed_values.h"
+#include "typed_fields.h"
 #include "menus.h"
 #include <algorithm>
 #include <span>

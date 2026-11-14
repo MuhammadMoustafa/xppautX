@@ -24,10 +24,10 @@
 
 #include "expr.h"
 #include "xpp_text.h"
-#include "markov.h"
+#include "model_markov.h"
 #include "load_eqn.h"
 #include <unistd.h>
-#include "flags.h"
+#include "model_flags.h"
 #include "model_declarations.h"
 
 #include "dae_fun.h"

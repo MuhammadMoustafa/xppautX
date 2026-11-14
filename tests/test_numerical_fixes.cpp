@@ -4,6 +4,7 @@
 #include "session.h"
 #include "integrate.h"
 #include "flags.h"
+#include "model_flags.h"
 #include "histogram.h"
 #include "solver.h"
 #include "model.h"

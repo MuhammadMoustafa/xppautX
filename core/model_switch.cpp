@@ -14,6 +14,7 @@
 #include "xpp_session.h"
 #include "xpp_ui.h"
 #include "typed_values.h"
+#include "session_values.h"
 #include "expr.h"
 #include "expr_native.h"
 #include "form_ode.h"

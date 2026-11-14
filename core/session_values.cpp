@@ -15,6 +15,8 @@
 #include "image_format.h"
 #include "tabular.h"
 #include "volterra2.h"
+#include "delay_handle.h"
+#include "form_ode.h"
 #include <string>
 #include <span>
 #include <string_view>
@@ -160,6 +162,79 @@ void eq_import(xpp::Session &s, double *y,int n)
     s.autox_state->homo_side=s.autox_state->homo_side==HomoclinicSide::Left?HomoclinicSide::Right:HomoclinicSide::Left;
   }
    redraw_ics();
+}
+
+/* the parameter or IC `name` set to value (a "%name:formula" or do_calc) */
+static void set_named(xpp::Session &s, const std::string &name, double value)
+{
+  const int i=find_user_name(s.model(),PARAMBOX,name);
+  set_val(s,name,value);
+  if(i>-1){
+    redraw_params();
+    return;
+  }
+  s.last_ic[find_user_name(s.model(),ICBOX,name)]=value;
+  redraw_ics();
+}
+
+int do_calc(xpp::Session &s, std::string_view temp, double *z)
+{
+  const Result<WorkedOut> w=work_out(s,temp,{});
+  if(!ok_or_show(w))return -1;
+  *z=w->value;
+  if(w->name.empty())return 1;
+  set_named(s,w->name,w->value);
+  return 0;
+}
+
+/* the value typed for a number box: checked whole, worked out once, and a
+   "%name:formula" also sets its name, whose value the box takes */
+static Result<double> box_number(xpp::Session &s,std::string_view text,std::string_view field)
+{
+  const std::string_view t=trim_blanks(text);
+  if(!t.starts_with('%'))return typed_number(s,t,field);
+  const Result<WorkedOut> w=work_out(s,t.substr(1),field);
+  if(!w)return std::unexpected(w.error());
+  if(!w->name.empty())set_named(s,w->name,w->value);
+  return w->value;
+}
+
+/* store the text typed for entry i of a box of the given type: a number
+   (ICs, parameters: a plain number or %formula, nothing else) or, for BCs
+   and delays, a string. A refusal changes nothing and is returned, not shown. */
+Result<void> box_set_value(xpp::Session &s, int type,int i,std::string_view text,std::string_view field)
+{
+  switch(type){
+  case ICBOX:{
+    const Result<double> z=box_number(s,text,field);
+    if(!z)return std::unexpected(z.error());
+    s.last_ic[i]=*z;
+    break;}
+  case PARAMBOX:{
+    const Result<double> z=box_number(s,text,field);
+    if(!z)return std::unexpected(z.error());
+    set_val(s,s.model().upar_names[i],*z);
+    break;}
+  case BCBOX:
+    set_bc_formula(s,i,text);
+    break;
+  case DELAYBOX:
+    s.delay_string[i]=text;
+    break;
+  }
+  return {};
+}
+
+/* every entry of a box was just stored: recompute what depends on them */
+void box_values_loaded(xpp::Session &s, int type)
+{
+  if(type==PARAMBOX){
+    xpp::re_evaluate_kernels(s);
+    xpp::ok_or_show(redo_all_fun_tables(s));
+  }
+  if(type==DELAYBOX){
+   xpp::ok_or_show(xpp::do_init_delay(s,s.numerics->delay));
+  }
 }
 
 } // namespace xpp
