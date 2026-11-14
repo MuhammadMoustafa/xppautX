@@ -3,6 +3,7 @@
    memory miniz allocates leaves it (core/xpp_mem.h); the callbacks never
    let an exception reach miniz's C code. */
 #include "xpp_zip.h"
+#include "browse.h"
 
 #include <cstdint>
 #include <algorithm>

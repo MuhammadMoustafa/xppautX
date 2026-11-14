@@ -1,5 +1,6 @@
 #include "xpp_ui.h"
 #include "session.h"
+#include "integrate.h"
 #include "odesol2.h"
 #include "xpp_log.h"
 #include <stdlib.h>
@@ -36,12 +37,12 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
  double colnorm=0,colmax,colsum;
  double sign;
  std::vector<double> old_x(n),y(n);
- for(auto &shift : s.delay.variable_shift)shift.assign(s.model().neq,0.0);
+ for(auto &shift : s.delay->variable_shift)shift.assign(s.model().neq,0.0);
  int kmem=n*(2*n+5)+50,i,j,k;
 
  std::vector<double> ev(2*n, 0.0);
  /* first we establish how many delays there are */
- s.delay.stab_flag=0;
+ s.delay->stab_flag=0;
  for(i=0;i<n;i++)old_x[i]=x[i];
  std::vector<double> work(kmem);
  NewtonRun run;
@@ -49,23 +50,23 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
  *ierr=run.end==NewtonEnd::converged?0:1;
  if(*ierr!=0)
    {
-     s.delay.stab_flag=1;
+     s.delay->stab_flag=1;
      for(i=0;i<n;i++)x[i]=old_x[i];
      return std::unexpected(newton_error(s,run,old_x));
    }
  /* OKAY -- we have the root */
- s.delay.ndelay=0;
- s.integrator.rhs(0.0,x,y.data(),n); /* one more evaluation to get delays */
+ s.delay->ndelay=0;
+ s.integrator->rhs(0.0,x,y.data(),n); /* one more evaluation to get delays */
  for(i=0;i<n;i++){
-   s.delay.variable_shift[0][i]=x[i];  /* unshifted  */
-   s.delay.variable_shift[1][i]=x[i];
+   s.delay->variable_shift[0][i]=x[i];  /* unshifted  */
+   s.delay->variable_shift[1][i]=x[i];
  }
- std::vector<double> coef(static_cast<size_t>(n)*n*(s.delay.ndelay+1));
+ std::vector<double> coef(static_cast<size_t>(n)*n*(s.delay->ndelay+1));
 
  /* now we must compute a bunch of jacobians  */
  /* first the normal one   */
- s.delay.stab_flag=-1;
- s.delay.which=-1;
+ s.delay->stab_flag=-1;
+ s.delay->which=-1;
  colmax=0.0;
  xpp::jacobian(s,0.0,x,y.data(),n,eps,{xpp::JacobianLayout::RowMajor},coef.data());
  for(i=0;i<n;i++)
@@ -76,14 +77,14 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
    }
  colnorm=colmax;
  /* now the jacobians for the delays */
- for(k=0;k<s.delay.ndelay;k++){
-   s.delay.which=k;
+ for(k=0;k<s.delay->ndelay;k++){
+   s.delay->which=k;
    auto perturb_delay=[&](int i,double xi,double *f){
      for(int j=0;j<n;j++)
-       s.delay.variable_shift[1][j]=s.delay.variable_shift[0][j];
-     s.delay.variable_shift[1][i]=xi;
-     s.integrator.rhs(0.0,x,f,n);
-     s.delay.variable_shift[1][i]=x[i];
+       s.delay->variable_shift[1][j]=s.delay->variable_shift[0][j];
+     s.delay->variable_shift[1][i]=xi;
+     s.integrator->rhs(0.0,x,f,n);
+     s.delay->variable_shift[1][i]=x[i];
    };
    xpp::jacobian(perturb_delay,x,y.data(),n,eps,{xpp::JacobianLayout::RowMajor},coef.data()+n*n*(k+1));
    colmax=0.0;
@@ -94,10 +95,10 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
    }
    colnorm+=colmax;
  }
- sign=plot_args(coef.data(),s.delay.list.data(),n,s.delay.ndelay,s.delay.grid,colnorm,colnorm);
+ sign=plot_args(coef.data(),s.delay->list.data(),n,s.delay->ndelay,s.delay->grid,colnorm,colnorm);
 
- const double guess_re=s.delay.alpha_max,guess_im=s.delay.omega_max;
- const NewtonRun root=find_positive_root(s,coef.data(),s.delay.list.data(),n,s.delay.ndelay,colnorm,err,eps,big,maxit,rr);
+ const double guess_re=s.delay->alpha_max,guess_im=s.delay->omega_max;
+ const NewtonRun root=find_positive_root(s,coef.data(),s.delay->list.data(),n,s.delay->ndelay,colnorm,err,eps,big,maxit,rr);
  const bool okroot=root.end==NewtonEnd::converged;
  if(okroot){
    ev[0]=rr[0];
@@ -108,15 +109,15 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
             newton_cause(s,root,1).why);
  *stabinfo=fabs(sign);
  i=static_cast<int>(sign);
-if(i==0&&okroot&&s.delay.alpha_max>0)
+if(i==0&&okroot&&s.delay->alpha_max>0)
   i=2;
 
  /* no eigenvalue list: a delay equation has infinitely many; the
     counts say which way the dominant root lies */
  create_eq_box(s,abs(i),2,0,0,0,x,NULL,n);
  /* DING; */
- s.delay.stab_flag=1;
- if(okroot)*stabinfo=s.delay.alpha_max;
+ s.delay->stab_flag=1;
+ if(okroot)*stabinfo=s.delay->alpha_max;
  return {};
 }
 
@@ -248,8 +249,8 @@ NewtonRun find_positive_root(xpp::Session &s, double *coef, double *delay, int n
   int k;
   double change=0.0;
 
-    lambda.r=s.delay.alpha_max;
-    lambda.i=s.delay.omega_max;
+    lambda.r=s.delay->alpha_max;
+    lambda.i=s.delay->omega_max;
 
    std::vector<ComplexPair> z(static_cast<size_t>(n)*n);
 
@@ -262,8 +263,8 @@ NewtonRun find_positive_root(xpp::Session &s, double *coef, double *delay, int n
     r=complex_modulus(det);
     if(r<err){ /* within the tolerance */
       process_root(lambda.r,lambda.i);
-      s.delay.alpha_max=lambda.r;
-      s.delay.omega_max=lambda.i;
+      s.delay->alpha_max=lambda.r;
+      s.delay->omega_max=lambda.i;
       return {NewtonEnd::converged,k,0.0,0};
     }
     xl=lambda.r;
@@ -296,10 +297,10 @@ NewtonRun find_positive_root(xpp::Session &s, double *coef, double *delay, int n
     if(r<err)
     { /* within the tolerance */
       process_root(lambda.r,lambda.i);
-      s.delay.alpha_max=lambda.r;
-      s.delay.omega_max=lambda.i;
-      rr[0]=s.delay.alpha_max;
-      rr[1]=s.delay.omega_max;
+      s.delay->alpha_max=lambda.r;
+      s.delay->omega_max=lambda.i;
+      rr[0]=s.delay->alpha_max;
+      rr[1]=s.delay->omega_max;
       return {NewtonEnd::converged,k+1,r,0};
     }
     if(r>big)return {NewtonEnd::left_box,k+1,r,0};

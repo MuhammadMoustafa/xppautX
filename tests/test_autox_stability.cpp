@@ -11,6 +11,7 @@
 #include <array>
 #include <algorithm>
 #include "session.h"
+#include "autox_state.h"
 #include "autox_c.h"
 #include "autox_evd.h"
 #include "xpp_batch.h"
@@ -190,7 +191,7 @@ TEST_CASE("test_autox_stability")
     xpp::UniqueFile diagnostics(xpp::files::open_stream(temp.path() + "/stability.log", "w"));
     AutoxRun run;
     run.session = &session;
-    run.parameter_count = session.autox_state.parameter_layout.size();
+    run.parameter_count = session.autox_state->parameter_layout.size();
     run.fp9 = diagnostics.get();
     iap_type iap{};
     iap.run = &run;

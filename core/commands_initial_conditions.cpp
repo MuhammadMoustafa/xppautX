@@ -9,6 +9,7 @@
 #include "many_pops.h"
 #include "browse.h"
 #include "session.h"
+#include "storage.h"
 #include "typed_values.h"
 #include "value_undo.h"
 #include "xpp_files.h"
@@ -140,8 +141,8 @@ Result<std::string> ic_array(Session &s, const Command &command, const Arguments
 Result<std::string> ic_from_data_row(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     const long long row = args.get<long long>("row");
-    if (row >= s.data_store.rows)
-        return fail(command.name, xpp::format("Row {} is past the data: it has {} rows", row, s.data_store.rows), place);
+    if (row >= s.data_store->rows)
+        return fail(command.name, xpp::format("Row {} is past the data: it has {} rows", row, s.data_store->rows), place);
     ic_of_row(s, static_cast<int>(row));
     std::string values = "{";
     for (int i = 0; i < s.model().node + s.model().nmarkov; ++i) {

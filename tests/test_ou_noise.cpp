@@ -46,8 +46,8 @@ std::vector<double> samples(const char *model)
     int col = -1;
     find_variable(s, "sample", &col);
     CHECK(col > 0);
-    CHECK(s.data_store.rows > 100000);
-    return s.data_store.col[col].values(0, s.data_store.rows);
+    CHECK(s.data_store->rows > 100000);
+    return s.data_store->col[col].values(0, s.data_store->rows);
 }
 
 void check_statistics(const char *model, double dt)

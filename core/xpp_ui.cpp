@@ -19,6 +19,8 @@
 #include <vector>
 #include "xpp_win32.h"
 #include "session.h"
+#include "diagram.h"
+#include "many_pops.h"
 #include <chrono>
 #include <cerrno>
 #ifndef _WIN32
@@ -95,7 +97,7 @@ static files::WriteFolders *hl_write_folders() { return nullptr; }
 static void hl_void(void) {}
 static void hl_int(int) {}
 static void hl_bottom_msg(int, std::string_view msg, std::string_view, std::string_view) { log(XPP_LOG_INFO, "{}\n", msg); }
-static int hl_autox_points_held(Session &s) { return diagram_count(s.diagram); }
+static int hl_autox_points_held(Session &s) { return diagram_count(*s.diagram); }
 static void hl_autox_jobs(const XppAutoxJobs &) {}
 static void hl_autox_joined(const std::vector<XppJoinedJob> &) {}
 static void hl_autox_live_drop(Session &) {}
@@ -135,7 +137,7 @@ static void hl_progress(std::int64_t, std::int64_t, int) {}
 static void hl_get_draw_size(Session &s, unsigned int *w, unsigned int *h)
 {
     /* whatever the graph last had, else a sensible canvas */
-    const GRAPH *g = s.plot_windows.current;
+    const GRAPH *g = s.plot_windows->current;
     *w = g && g->x11Wid > 0 ? static_cast<unsigned int>(g->x11Wid) : 640;
     *h = g && g->x11Hgt > 0 ? static_cast<unsigned int>(g->x11Hgt) : 480;
 }

@@ -9,6 +9,8 @@
 #include "model.h"
 #include "model_files.h"
 #include "session.h"
+#include "integrate.h"
+#include "load_eqn.h"
 #include "solver.h"
 #include "xpp_io.h"
 #include "expr.h"
@@ -153,8 +155,8 @@ double difference_step(double eps, double x)
 
 JacobianForm model_jacobian_form(const Session &s, int n)
 {
-  if (!s.numerics.cv_bandflag) return {};
-  return {JacobianLayout::Banded, std::min(s.numerics.cv_bandlower, n - 1), std::min(s.numerics.cv_bandupper, n - 1)};
+  if (!s.numerics->cv_bandflag) return {};
+  return {JacobianLayout::Banded, std::min(s.numerics->cv_bandlower, n - 1), std::min(s.numerics->cv_bandupper, n - 1)};
 }
 
 int jacobian_entries(int n, const JacobianForm &form)
@@ -192,22 +194,22 @@ void jacobian(const JacobianEvaluate &evaluate, const double *x, const double *f
 
 void jacobian(Session &s, double t, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out, double *dfdt)
 {
-  const bool exact = s.numerics.jacobian == JACOBIAN_EXACT;
+  const bool exact = s.numerics->jacobian == JACOBIAN_EXACT;
   if (dfdt && !exact) {
     std::vector<double> xp(x, x + n), f1(n);
     const double r = difference_step(eps, t);
-    s.integrator.rhs(t + r, xp.data(), f1.data(), n);
+    s.integrator->rhs(t + r, xp.data(), f1.data(), n);
     for (int i = 0; i < n; i++) dfdt[i] = (f1[i] - f0[i]) / r;
   }
-  model_jacobian(s, s.jacobian_scratch, s.parser.constants.data(), t, [&](double *xp, double *f) { s.integrator.rhs(t, xp, f, n); }, x, f0, n, eps, form, out);
-  if (dfdt && exact) exact_time_derivative(s, s.jacobian_scratch, s.parser.constants.data(), t, x, f0, n, dfdt);
+  model_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), t, [&](double *xp, double *f) { s.integrator->rhs(t, xp, f, n); }, x, f0, n, eps, form, out);
+  if (dfdt && exact) exact_time_derivative(s, *s.jacobian_scratch, s.parser.constants.data(), t, x, f0, n, dfdt);
 }
 
 void model_jacobian(const Session &s, JacobianScratch &scratch, const double *c, double t,
                     const std::function<void(double *x, double *f)> &evaluate_rhs, const double *x, const double *f0, int n, double eps,
                     const JacobianForm &form, double *out)
 {
-  if (s.numerics.jacobian == JACOBIAN_EXACT) {
+  if (s.numerics->jacobian == JACOBIAN_EXACT) {
     exact_jacobian(s, scratch, c, t, x, f0, n, form, out);
     return;
   }

@@ -1,5 +1,8 @@
 #include "model.h"
 #include "session.h"
+#include "aniparse.h"
+#include "autox_state.h"
+#include "integrate.h"
 #include "comline.h"
 #include "lunch-new.h"
 #include "xpp_ui.h"
@@ -187,16 +190,16 @@ void apply_command_line(Session &s, CommandLine cl)
   }
   if (cl.new_seed) xpp::log(XPP_LOG_INFO, "Random number seed changed\n");
   if (cl.silent) batch_options.enabled = 1;
-  if (cl.no_output) s.integrator.suppress_out = 1;
+  if (cl.no_output) s.integrator->suppress_out = 1;
   if (cl.out_file) {
     s.batch_out_file = *cl.out_file;
     batch_options.user_out_file = *cl.out_file;
     s.output_place = Place{"", 0, 0, cl.out_place};
   }
-  if (cl.autox_script) s.autox_state.script.script = std::move(cl.autox_script);
+  if (cl.autox_script) s.autox_state->script.script = std::move(cl.autox_script);
   if (cl.ani_file) {
-    s.animation.options.file = *cl.ani_file;
-    s.animation.options.use_file = 1;
+    s.animation->options.file = *cl.ani_file;
+    s.animation->options.use_file = 1;
   }
   if (cl.equilibria) {
     batch_options.equilibria = *cl.equilibria;

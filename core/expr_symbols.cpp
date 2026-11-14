@@ -4,6 +4,9 @@
    its first STDSYM entries are the built-ins below, then come the
    model's names as the load adds them. */
 #include "expr_internal.h"
+#include "browse.h"
+#include "expr.h"
+#include "load_eqn.h"
 #include "model.h"
 #include "comline.h"
 #include "xpp_log.h"
@@ -323,7 +326,7 @@ void init_rpn(xpp::Session &s)
     s.model().nvar = 0;
     s.model().nkernel=0;
 
-    s.numerics.max_points=4000;
+    s.numerics->max_points=4000;
     s.parser.nsym = STDSYM;
     add_con(s,"PI", pi_value);
 
@@ -340,10 +343,10 @@ void init_rpn(xpp::Session &s)
 
     init_table(s);
     if (s.model().command_line.new_seed) {
-      s.numerics.rand_seed=static_cast<int>(time(0));
-      xpp::log(XPP_LOG_INFO,"--newseed: seed {}\n",s.numerics.rand_seed);
+      s.numerics->rand_seed=static_cast<int>(time(0));
+      xpp::log(XPP_LOG_INFO,"--newseed: seed {}\n",s.numerics->rand_seed);
     }
-    s.random.seed(s.numerics.rand_seed);
+    s.random.seed(s.numerics->rand_seed);
 }
 
 namespace {

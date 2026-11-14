@@ -63,7 +63,7 @@ struct GRAPH {
 	        std::string xlabel,ylabel,zlabel;
 		};
 
-typedef struct {
+struct LABEL {
 		XppWinId w;
 		float x;
 		float y;
@@ -72,7 +72,7 @@ typedef struct {
 		int font,size;
 		xpp::TextStyle style; /* text_style.h */
 		xpp::Color color;
-		} LABEL;
+		};
 
 typedef struct {
                 XppWinId w;

@@ -117,12 +117,12 @@ std::string symbol_to_unicode(std::string_view text);
 PictureText centred_text(double x, double y, TextAnchor anchor, double angle, std::string_view text, double size);
 
 /* the primitives graphics.cpp's drawing calls while a picture is being written: they record into
-   s.plot_file.picture with the pen set by set_pen */
+   s.plot_file->picture with the pen set by set_pen */
 void picture_line(Session &s, int x1, int y1, int x2, int y2);
 void picture_marker(Session &s, int x, int y);
 void picture_bead(Session &s, int x, int y);
 void picture_rect(Session &s, int x, int y, int w, int h);
-/* ordinary text (the axes' numbers and names) justified by s.drawing.text_justify, centred on y */
+/* ordinary text (the axes' numbers and names) justified by s.drawing->text_justify, centred on y */
 void picture_text(Session &s, int x, int y, std::string_view text);
 /* a label (size 0 to 4, markup) starting at x, y */
 void picture_label(Session &s, int x, int y, std::string_view text, int size, bool symbol);

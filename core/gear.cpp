@@ -144,7 +144,7 @@ L120:
    
     nq=1;	
 	
-        s.integrator.rhs(*t,ytable[0],save11,n);
+        s.integrator->rhs(*t,ytable[0],save11,n);
 
     for(i=0;i<n;i++)
     {
@@ -248,7 +248,7 @@ L330:
       error[i]=0.0;
     for(l=0;l<3;l++)
      {
-      s.integrator.rhs(*t,ytable[0],save11,n);
+      s.integrator->rhs(*t,ytable[0],save11,n);
       if(iweval<1)
 	{ 
 	  goto L460;
@@ -258,7 +258,7 @@ L330:
       for(i=0;i<n*n;i++)dermat[i]*=a[0]*h;
       for(i=0;i<n;i++)dermat[n*i+i]+=1.0;
       iweval=-1;
-      s.integrator.gear_lu.factor(dermat,n,n,s.model().subsystems,&info);
+      s.integrator->gear_lu.factor(dermat,n,n,s.model().subsystems,&info);
       if(info==-1)j1=1;
       else j1=-1;
       if(j1<0)goto L520;
@@ -267,7 +267,7 @@ L460:
 
       for(i=0;i<n;i++)save12[i]=ytable[1][i]-save11[i]*h;
       for(i=0;i<n;i++)save9[i]=save12[i];
-      s.integrator.gear_lu.solve(dermat,n,save9);
+      s.integrator->gear_lu.solve(dermat,n,save9);
       nt=n;
       for(i=0;i<n;i++)
       {
@@ -423,7 +423,7 @@ L770:
 L790:
 	
     if(nq==1)goto L850;
-    s.integrator.rhs(*t,ytable[0],save11,n);
+    s.integrator->rhs(*t,ytable[0],save11,n);
     r=h/hold;
     for(i=0;i<n;i++)
     {

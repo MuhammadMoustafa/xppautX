@@ -35,8 +35,8 @@ void send_ani_slider(const xpp::Session &s)
     std::string b;
     buf_format(b, "{},\"pos\":{:d},\"rows\":{:d},\"fly\":{:d},\"grab\":{:d},\"skip\":{:d},\"speed\":{:d},"
                "\"loaded\":{:d},\"open\":{:d}}}",
-               xpp::events::open(xpp::events::ANIMATION_STATE), s.animation.vcr.pos, s.data.view.maxrow, s.animation.options.on_the_fly, s.animation.grab_flag, s.animation.vcr.inc, s.animation.speed, s.animation.ncom > 0,
-               s.animation.vcr.iexist);
+               xpp::events::open(xpp::events::ANIMATION_STATE), s.animation->vcr.pos, s.data->view.maxrow, s.animation->options.on_the_fly, s.animation->grab_flag, s.animation->vcr.inc, s.animation->speed, s.animation->ncom > 0,
+               s.animation->vcr.iexist);
     send_buf(b);
 }
 
@@ -76,7 +76,7 @@ int ani_wait(xpp::Session &s, int ms)
 xpp::Result<int> ani_go(xpp::Session &s, const xpp::AniExport &out)
 {
     std::vector<double> y(static_cast<std::size_t>(s.model().node + s.model().nmarkov));
-    const ColumnTable ss = s.data.view.data;
+    const ColumnTable ss = s.data->view.data;
     xpp::Writer gif; /* chosen GIF, when the animation is written as one */
     xpp::Result<> outcome; /* ok until a frame cannot be written */
     int i, stop = 0, frame = 0, w, h;
@@ -89,7 +89,7 @@ xpp::Result<int> ani_go(xpp::Session &s, const xpp::AniExport &out)
         if (!gif) return xpp::fail("animation", xpp::format("\"{}\" exists and replacing it was declined: nothing was written", out.file), xpp::command_place());
     }
     while (!stop) {
-        int row = s.animation.vcr.pos;
+        int row = s.animation->vcr.pos;
         for (i = 0; i < s.model().node + s.model().nmarkov; i++) y[i] = ss[i + 1][row];
         set_fix_rhs(s,static_cast<double>(ss[0][row]), y.data());
         render_ani(s);
@@ -114,11 +114,11 @@ xpp::Result<int> ani_go(xpp::Session &s, const xpp::AniExport &out)
             } else xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(gif,rgb,w,h,frame++);
         } else frame++;
         xpp::job::report_frame(frame);
-        stop = ani_wait(s, s.animation.speed * (writing ? ani_export_pace : 1));
-        s.animation.vcr.pos += s.animation.vcr.inc;
-        if (s.animation.vcr.pos >= s.data.view.maxrow) {
+        stop = ani_wait(s, s.animation->speed * (writing ? ani_export_pace : 1));
+        s.animation->vcr.pos += s.animation->vcr.inc;
+        if (s.animation->vcr.pos >= s.data->view.maxrow) {
             stop = 1;
-            s.animation.vcr.pos = 0;
+            s.animation->vcr.pos = 0;
             reset_comets(s);
         }
     }
@@ -141,15 +141,15 @@ xpp::Result<int> j_ani_go(xpp::Session &s, const xpp::AniExport &out) { return a
 void j_new_vcr(xpp::Session &s)
 {
     /* already open: say so (a client that reconnected has not seen it made) */
-    if (s.animation.vcr.iexist == 1) {
+    if (s.animation->vcr.iexist == 1) {
         send_ani_slider(s);
         return;
     }
-    s.animation.vcr.wid = 280;
-    s.animation.vcr.hgt = 350;
-    s.animation.vcr.iexist = 1;
-    s.tools_hidden.animation = false;
-    send_window(xpp::events::WINDOW_CREATED,xpp::window_name(s,WIN_ANI), s.animation.vcr.wid, s.animation.vcr.hgt, "Animation","animation");
+    s.animation->vcr.wid = 280;
+    s.animation->vcr.hgt = 350;
+    s.animation->vcr.iexist = 1;
+    s.tools_hidden->animation = false;
+    send_window(xpp::events::WINDOW_CREATED,xpp::window_name(s,WIN_ANI), s.animation->vcr.wid, s.animation->vcr.hgt, "Animation","animation");
     ani_view_created(s);
 }
 void j_ani_show(void)

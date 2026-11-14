@@ -1,5 +1,8 @@
 #include "autox_parallel.h"
 #include "session.h"
+#include "autox_state.h"
+#include "expr.h"
+#include "load_eqn.h"
 #include "autox_c.h"
 #include "my_rhs.h"
 #include "expr_native.h"
@@ -61,7 +64,7 @@ AutoxParallel::~AutoxParallel() = default;
 
 bool autox_parallel_ready(const Session &s) {
     return pure_rhs_ready(s)
-        && (!solver_info(s.numerics.method).traits.discrete || s.numerics.store_every == 1);
+        && (!solver_info(s.numerics->method).traits.discrete || s.numerics->store_every == 1);
 }
 
 void AutoxParallel::select_run(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_t ntst, std::ptrdiff_t ncol) {

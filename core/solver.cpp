@@ -21,6 +21,9 @@
 #include "jacobian.h"
 #include "odesol2.h"
 #include "session.h"
+#include "integrate.h"
+#include "load_eqn.h"
+#include "storage.h"
 #include "stiff.h"
 #include "volterra2.h"
 #include "xpp_mem.h" /* xpp::out_of_memory */
@@ -64,7 +67,7 @@ public:
   {
     const int kflag=step_(session_,s.y,s.t,s.dt,s.steps,s.neq,s.start,work_.data());
     /* an implicit step's Newton iteration (backward Euler's, Volterra's) */
-    const SolverWork::Stop &stop=session_.solver_work.stop;
+    const SolverWork::Stop &stop=session_.solver_work->stop;
     switch(kflag){
     case NEWTON_SINGULAR: return stopped("the Newton iteration's matrix is singular",*s.t,stop.variable,{});
     case NEWTON_NO_CONVERGENCE:
@@ -86,7 +89,7 @@ public:
   void begin(int *start) override { if(*start==1)*start=0; }
   Result<> step_by(const SolverStep &s) override
   {
-    NumericsSettings &num=session_.numerics;
+    NumericsSettings &num=*session_.numerics;
     int kflag=0;
     gear(session_,s.neq,s.t,s.tout,s.y,num.min_step,num.max_step,num.relative_tolerance,2,error_.data(),&kflag,s.start,
          work_.data(),iwork_.data());
@@ -114,11 +117,11 @@ public:
   Adaptive(const SolverInfo &info, Session &s, int work) : Solver(info,s), work_(make_work(work)) {}
   Result<> step_by(const SolverStep &s) override
   {
-    NumericsSettings &num=session_.numerics;
+    NumericsSettings &num=*session_.numerics;
     int kflag=0;
     adaptive(session_,s.y,s.neq,s.t,s.tout,num.relative_tolerance,s.hguess,num.min_step,work_.data(),&kflag,
              num.equilibria.jacobian_step,info().id,s.start);
-    const SolverWork::Stop &stop=session_.solver_work.stop;
+    const SolverWork::Stop &stop=session_.solver_work->stop;
     switch(kflag){
     case ADAPTIVE_SINGULAR:
       return stopped("the step matrix is singular",stop.t,stop.variable,{"integration.dt","integration.jacobian.kind"});
@@ -142,7 +145,7 @@ public:
   Cvode(const SolverInfo &info, Session &s) : Solver(info,s) {}
   Result<> step_by(const SolverStep &s) override
   {
-    NumericsSettings &num=session_.numerics;
+    NumericsSettings &num=*session_.numerics;
     int kflag=0;
     cvode(session_,run_,s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.relative_tolerance,&num.absolute_tolerance);
     if(kflag<0)
@@ -167,7 +170,7 @@ public:
   {
     int kflag=0;
     rosenbrock_driver(session_,s.y,s.t,s.tout,s.start,s.neq,work_.data(),&kflag);
-    const SolverWork::Stop &stop=session_.solver_work.stop;
+    const SolverWork::Stop &stop=session_.solver_work->stop;
     if(kflag<0)
       return stopped(xpp::format("the step size fell to the rounding limit {} with the error still above the tolerance",stop.h),
                      stop.t,stop.variable,{"integration.step.relative_tolerance","integration.step.absolute_tolerance"});
@@ -294,7 +297,7 @@ Result<> Solver::stopped(std::string_view what, double t, int variable, std::ini
 
 Result<> check_step_limits(const Session &s, const SolverInfo &info, double dt, double length)
 {
-  const double min_step=s.numerics.min_step;
+  const double min_step=s.numerics->min_step;
   if(!info.traits.min_step)return {};
   auto refuse=[&](std::string what,std::initializer_list<std::string_view> settings)->Result<>{
     return fail(info.name,xpp::format("{}: {} ({})",info.name,what,named_settings(s,settings)),settings_place(s.model(),settings));
@@ -333,9 +336,9 @@ Result<int> steps_per_advance(const Session &s, const SolverInfo &info, std::int
 
 Result<> check_store_from(const Session &s, double start, double dt, double length)
 {
-  if(!s.numerics.storflag)return {};
+  if(!s.numerics->storflag)return {};
   const double end=start+(dt<0?-length:length);
-  if(stored_from(s.numerics.store_from,end,dt)||std::isnan(s.numerics.store_from))return {};
+  if(stored_from(s.numerics->store_from,end,dt)||std::isnan(s.numerics->store_from))return {};
   /* a model whose events write rows (out_put) stores something past store_from or not */
   for(const Model::GlobalFlag &flag:s.model().flags)
     for(int e=0;e<flag.nevents;++e)
@@ -401,8 +404,8 @@ Result<method::Id> pick_method(const Model &model, std::string_view text, Place 
 
 void start_solver(Session &s)
 {
-  const SolverInfo &info=solver_info(s.numerics.method);
-  s.integrator.solver=info.start(info,s,s.solver_work.xpv.node+s.solver_work.xpv.nvec);
+  const SolverInfo &info=solver_info(s.numerics->method);
+  s.integrator->solver=info.start(info,s,s.solver_work->xpv.node+s.solver_work->xpv.nvec);
 }
 
 } // namespace xpp

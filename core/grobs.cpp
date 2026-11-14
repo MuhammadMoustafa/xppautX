@@ -12,6 +12,7 @@
 #include "marks_data.h"
 #include "colormap.h"
 #include "session.h"
+#include "picture.h"
 #include <algorithm>
 #include <string>
 #include <array>
@@ -169,8 +170,8 @@ std::string annotation_glyphs_json()
 void draw_marker(xpp::Session &s, double xd, double yd, double size, int type)
 {
     const float x0 = static_cast<float>(xd), y0 = static_cast<float>(yd);
-    const float dx = static_cast<float>((s.plot_windows.current->xhi - s.plot_windows.current->xlo) * WDMARK * size);
-    const float dy = static_cast<float>((s.plot_windows.current->yhi - s.plot_windows.current->ylo) * HTMARK * size);
+    const float dx = static_cast<float>((s.plot_windows->current->xhi - s.plot_windows->current->xlo) * WDMARK * size);
+    const float dy = static_cast<float>((s.plot_windows->current->yhi - s.plot_windows->current->ylo) * HTMARK * size);
     for (const auto &stroke : marker_strokes(type)) {
         float x1 = 0, y1 = 0;
         for (std::size_t k = 0; k < stroke.size(); k++) {
@@ -196,7 +197,7 @@ void arrow_head(xpp::Session &s, double xsd, double ysd, double xed, double yed,
     const float xs = static_cast<float>(xsd), ys = static_cast<float>(ysd);
     const float xe = static_cast<float>(xed), ye = static_cast<float>(yed);
     const float l = xe - xs, h = ye - ys;
-    const float ar = static_cast<float>((s.plot_windows.current->xhi - s.plot_windows.current->xlo) / (s.plot_windows.current->yhi - s.plot_windows.current->ylo));
+    const float ar = static_cast<float>((s.plot_windows->current->xhi - s.plot_windows->current->xlo) / (s.plot_windows->current->yhi - s.plot_windows->current->ylo));
     const float x0 = static_cast<float>(xs + size * l), y0 = static_cast<float>(ys + size * h);
     const float xp = static_cast<float>(x0 + ARROW_HEAD_SPREAD * size * h * ar), yp = static_cast<float>(y0 - ARROW_HEAD_SPREAD * size * l / ar);
     const float xm = static_cast<float>(x0 - ARROW_HEAD_SPREAD * size * h * ar), ym = static_cast<float>(y0 + ARROW_HEAD_SPREAD * size * l / ar);
@@ -239,14 +240,14 @@ Result<int> add_data_markers(xpp::Session &s, const MarkInfo &m)
 {
     if (m.number < 1 || m.skip < 1 || m.start < 0)
         return fail("Add Markers", "Number and Skip are at least 1 and Row1 at least 0", command_place());
-    const DATA_VIEW &data = s.data.view;
+    const DATA_VIEW &data = s.data->view;
     const long long last_row = data.row0 + m.start + static_cast<long long>(m.number - 1) * m.skip;
     if (last_row >= data.maxrow)
         return fail("Add Markers", xpp::format("The markers reach row {}, past the data: it has {} rows", last_row - data.row0, data.maxrow - data.row0), command_place());
     if (s.grobs.size() + static_cast<std::size_t>(m.number) > ANNOTATION_LIST_MAX)
         return fail("Add Markers", xpp::format("a session has at most {} arrows, pointers and markers", ANNOTATION_LIST_MAX), command_place());
-    s.marker = m;
-    const GRAPH &g = *s.plot_windows.current;
+    *s.marker = m;
+    const GRAPH &g = *s.plot_windows->current;
     for (int i = 0; i < m.number; i++) {
         float xs, ys, x, y, z;
         get_data_xyz(s, &x, &y, &z, g.xv[0], g.yv[0], g.zv[0], m.start + i * m.skip);
@@ -256,7 +257,7 @@ Result<int> add_data_markers(xpp::Session &s, const MarkInfo &m)
         } else {
             threed_proj(s, x, y, z, &xs, &ys);
         }
-        add_grob(s, s.plot_windows.draw_win, xs, ys, 0, 0, m.size, m.type, m.color);
+        add_grob(s, s.plot_windows->draw_win, xs, ys, 0, 0, m.size, m.type, m.color);
     }
     redraw_all(s);
     return m.number;

@@ -31,6 +31,8 @@
 #include "solver.h"
 #include "model_options.h"
 #include "session.h"
+#include "pp_shoot.h"
+#include "model_parts.h"
 #include <array>
 #include <string>
 #include <string_view>
@@ -45,7 +47,7 @@ void put_equation(const xpp::Session &s, FILE *fp, int i)
 {
   if(i>=s.model().node)
     xpp::print(fp,"{}={}\n",s.model().uvar_names[i],s.model().formulas[i]);
-  else if(!xpp::solver_info(s.numerics.method).traits.discrete)
+  else if(!xpp::solver_info(s.numerics->method).traits.discrete)
     xpp::print(fp,"d{}/dT={}\n",s.model().uvar_names[i],s.model().formulas[i]);
   else
     xpp::print(fp,"{}(n+1)={}\n",s.model().uvar_names[i],s.model().formulas[i]);
@@ -129,7 +131,7 @@ void read_numerics(const xpp::Session &s, Lines &l, Settings &f)
 {
   l.heading("# Numerical stuff");
   /* the method comes third: the lines before it are read as the model's own method takes them */
-  int method=s.numerics.method;
+  int method=s.numerics->method;
   const int store_every=l.whole(XPPAUT_STORE_EVERY,true);
   const int store_every_line=l.line();
   const int mesh=l.whole("nullcline mesh",true);
@@ -614,16 +616,16 @@ void do_info(const xpp::Session &s, FILE *fp)
   xpp::print(fp,"\n\n Numerical parameters ...\n");
   const auto word=[&](std::string_view key){ return setting_text(s,*saved_setting(key)); };
   xpp::print(fp,"STORE_EVERY={}  NULLCLINE_MESH={} METHOD={} MAX_ITERATIONS={} \n",
-	 s.numerics.store_every,s.numerics.nullcline_mesh,xpp::solver_info(s.numerics.method).name,s.numerics.equilibria.max_iterations);
+	 s.numerics->store_every,s.numerics->nullcline_mesh,xpp::solver_info(s.numerics->method).name,s.numerics->equilibria.max_iterations);
   xpp::print(fp,"BVP_EPSILON={:g},BVP_TOLERANCE={:g},BVP_MAX_ITERATES={} \n",
-	 s.numerics.bvp_epsilon,s.numerics.bvp_tolerance,s.numerics.bvp_max_iterates);
+	 s.numerics->bvp_epsilon,s.numerics->bvp_tolerance,s.numerics->bvp_max_iterates);
   xpp::print(fp,"DT={:g} START_TIME={:g} STORE_FROM={:g} TOTAL_TIME={:g} STATE_LIMIT={:g} STOP_AT_LIMIT={} DELAY={:g} MaxPts={}\n",
-	 s.numerics.delta_t,s.numerics.start_time,s.numerics.store_from,s.numerics.total_time,s.numerics.state_limit,word("integration.stop_at_limit"),s.numerics.delay,s.numerics.max_points);
+	 s.numerics->delta_t,s.numerics->start_time,s.numerics->store_from,s.numerics->total_time,s.numerics->state_limit,word("integration.stop_at_limit"),s.numerics->delay,s.numerics->max_points);
   xpp::print(fp,"NEWTON_TOLERANCE={:g}, JACOBIAN_STEP={:g} SEARCH_LIMIT={:g} MIN_STEP={:g} MAX_STEP={:g} RELATIVE_TOLERANCE={:g} \n",
-	 s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.jacobian_step,s.numerics.equilibria.search_limit,s.numerics.min_step,s.numerics.max_step,s.numerics.relative_tolerance);
-  const std::string &poincare_variable=ind_to_sym(s,s.numerics.poincare_variable);
+	 s.numerics->equilibria.newton_tolerance,s.numerics->equilibria.jacobian_step,s.numerics->equilibria.search_limit,s.numerics->min_step,s.numerics->max_step,s.numerics->relative_tolerance);
+  const std::string &poincare_variable=ind_to_sym(s,s.numerics->poincare_variable);
   xpp::print(fp,"POINCARE_MAP={} POINCARE_VARIABLE={} POINCARE_PLANE={:g} POINCARE_SIGN={} \n",
-        word("poincare.map"),poincare_variable,s.numerics.poincare_plane,word("poincare.sign"));
+        word("poincare.map"),poincare_variable,s.numerics->poincare_plane,word("poincare.sign"));
 
   xpp::print(fp,"\n\n Delay strings ...\n");
   for(int i=0;i<s.model().node;i++)xpp::print(fp,"{}\n",s.delay_string[i]);

@@ -10,6 +10,7 @@
 #include "autox_c.h"
 #include "autox_state.h"
 #include "session.h"
+#include "load_eqn.h"
 #include "solver.h"
 
 namespace xpp::autox_jacobian {
@@ -38,7 +39,7 @@ inline double central_step(std::ptrdiff_t n, const double *x) {
 // are not known, or a map iterated store_every times reads more states than
 // one step does.
 inline const DifferenceGroups *state_groups(const iap_type *iap, std::ptrdiff_t n) {
-  const auto &numerics = iap->run->session->numerics;
+  const auto &numerics = *iap->run->session->numerics;
   const bool chained = xpp::solver_info(numerics.method).traits.discrete && numerics.store_every != 1;
   return chained ? nullptr : difference_groups(iap->run->session->model(), iap->run->jacobian_scratch, n);
 }

@@ -30,6 +30,7 @@
 #include "xpp_mem.h"
 #include "xpp_ui.h"
 #include "session.h"
+#include "load_eqn.h"
 
 namespace xpp {
 
@@ -59,7 +60,7 @@ bool uses(const xpp::Session &s, const OptionRow &f, int method)
 }
 
 /* whether the session's method (and model) uses field f */
-bool used(const xpp::Session &s, const OptionRow &f) { return uses(s, f, s.numerics.method); }
+bool used(const xpp::Session &s, const OptionRow &f) { return uses(s, f, s.numerics->method); }
 
 /* whether field f is one of s's model's: the delay of a model with no delays is not */
 bool of_the_model(const xpp::Session &s, const OptionRow &f) { return xpp::has_feature(s, f.needs); }

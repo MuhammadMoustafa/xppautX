@@ -74,12 +74,13 @@
 #include "axes2.h"
 #include "nullcline.h"
 #include "session.h"
+#include "autox_state.h"
 
 /* autoX's files in a directory of this session's own, removed at exit
    (issue #11); a model's --silent command list runs no autoX */
 static void start_autox_dir(void)
 {
-    std::string &dir = xpp::client_session().autox_state.dir;
+    std::string &dir = xpp::client_session().autox_state->dir;
     dir = xpp::files::make_temp_dir();
     /* at exit the folder is the session list's client's: every load hands
        it on to the Session it makes (session.cpp) */

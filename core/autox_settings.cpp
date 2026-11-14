@@ -34,6 +34,7 @@
 #include "xpp_prefs.h"
 #include "json_number.h"
 #include "session.h"
+#include "autox_state.h"
 
 namespace xpp {
 
@@ -166,14 +167,14 @@ std::string pair_message(const NumPair &p)
 
 void read_num(const xpp::Session &s, double v[AUTOX_NUM_N])
 {
-    const xpp::BIFUR &b = s.autox_state.bifur;
-    const xpp::ADVAUTOX &a = s.autox_state.advanced;
+    const xpp::BIFUR &b = s.autox_state->bifur;
+    const xpp::ADVAUTOX &a = s.autox_state->advanced;
     const double now[AUTOX_NUM_N] = {
         static_cast<double>(b.ntst), static_cast<double>(b.nmx), static_cast<double>(b.npr), static_cast<double>(b.ncol),
         b.ds, b.dsmin, b.dsmax, b.rl0, b.rl1, b.a0, b.a1, b.epsl, b.epsu, b.epss,
         static_cast<double>(a.iad), static_cast<double>(a.max_branch_switches), a.switch_one_direction ? 1.0 : 0.0,
         static_cast<double>(a.iid), static_cast<double>(a.itmx), static_cast<double>(a.itnw), static_cast<double>(a.nwtn),
-        static_cast<double>(a.iads), s.autox_state.suppress_bp ? 1.0 : 0.0, s.autox_state.follow_all_branches ? 1.0 : 0.0,
+        static_cast<double>(a.iads), s.autox_state->suppress_bp ? 1.0 : 0.0, s.autox_state->follow_all_branches ? 1.0 : 0.0,
     };
     std::memcpy(v, now, sizeof now);
 }
@@ -181,8 +182,8 @@ void read_num(const xpp::Session &s, double v[AUTOX_NUM_N])
 void write_num(xpp::Session &s, const double v[AUTOX_NUM_N])
 {
     auto i = [&](int k) { return static_cast<int>(v[k]); };
-    xpp::BIFUR &b = s.autox_state.bifur;
-    xpp::ADVAUTOX &a = s.autox_state.advanced;
+    xpp::BIFUR &b = s.autox_state->bifur;
+    xpp::ADVAUTOX &a = s.autox_state->advanced;
     b.ntst = i(AUTOX_NUM_MESH_INTERVALS);
     b.nmx = i(AUTOX_NUM_MAX_STEPS);
     b.npr = i(AUTOX_NUM_OUTPUT_EVERY);
@@ -205,8 +206,8 @@ void write_num(xpp::Session &s, const double v[AUTOX_NUM_N])
     a.itnw = i(AUTOX_NUM_MAX_NEWTON_ITERATIONS);
     a.nwtn = i(AUTOX_NUM_FULL_NEWTON_AFTER);
     a.iads = i(AUTOX_NUM_STEP_ADAPT_EVERY);
-    s.autox_state.suppress_bp = i(AUTOX_NUM_SUPPRESS_BRANCH_POINTS) != 0;
-    s.autox_state.follow_all_branches = i(AUTOX_NUM_FOLLOW_ALL_BRANCHES) != 0;
+    s.autox_state->suppress_bp = i(AUTOX_NUM_SUPPRESS_BRANCH_POINTS) != 0;
+    s.autox_state->follow_all_branches = i(AUTOX_NUM_FOLLOW_ALL_BRANCHES) != 0;
 }
 
 /* ---- the event ---- */
@@ -237,12 +238,12 @@ void axes_of(const xpp::Session &s, const AUTOAX &a, AutoxSettingsSet &set)
 AutoxSettingsSet settings_now(const xpp::Session &s)
 {
     AutoxSettingsSet set;
-    for (std::size_t i=0;i<autox_codim_kinds.size();++i) set.special_points[i]=s.autox_state.special_points[i];
+    for (std::size_t i=0;i<autox_codim_kinds.size();++i) set.special_points[i]=s.autox_state->special_points[i];
     read_num(s, set.num.data());
     set.has_num.fill(1);
-    axes_of(s, s.autox_state.axes(), set);
-    set.nmarks = static_cast<int>(s.autox_state.bifur.marks.size());
-    for (const auto &mark : s.autox_state.bifur.marks) {
+    axes_of(s, s.autox_state->axes(), set);
+    set.nmarks = static_cast<int>(s.autox_state->bifur.marks.size());
+    for (const auto &mark : s.autox_state->bifur.marks) {
         set.mark_name.push_back(mark.period ? std::string("T") : name_or_empty(autox_par_name(s, mark.parameter)));
         set.mark_value.push_back(mark.value);
     }
@@ -381,14 +382,14 @@ Result<Checked> check(const xpp::Session &s, const AutoxSettingsSet *set, int vi
 
     /* the Axes: plot type, the variable, the two parameters among autoX's, the ranges */
     /* of the view named (W50), else the active one: setting a view's axes makes it the active one */
-    const int view = set->view < 0 ? s.autox_state.active_view : set->view;
+    const int view = set->view < 0 ? s.autox_state->active_view : set->view;
     c.view = view;
-    if (view >= (views < 0 ? static_cast<int>(s.autox_state.views.size()) : views)) {
+    if (view >= (views < 0 ? static_cast<int>(s.autox_state->views.size()) : views)) {
         return std::unexpected(refused(xpp::format("there is no view {}", view), "view"));
     }
     /* a view not there yet (views) starts from the active one's axes */
-    const AUTOAX &now = static_cast<std::size_t>(view) < s.autox_state.views.size() ? s.autox_state.views[static_cast<std::size_t>(view)].axes
-                                                                                  : s.autox_state.axes();
+    const AUTOAX &now = static_cast<std::size_t>(view) < s.autox_state->views.size() ? s.autox_state->views[static_cast<std::size_t>(view)].axes
+                                                                                  : s.autox_state->axes();
     AutoxProjection &plot = c.plot;
     int &var = c.var, &icp1 = c.icp1, &icp2 = c.icp2;
     plot = now.plot;
@@ -463,25 +464,25 @@ void commit(xpp::Session &s, const AutoxSettingsSet *set, Checked &c)
     const double(&range)[4] = c.range;
     write_num(s, num);
     for (std::size_t i=0;i<autox_codim_kinds.size();++i)
-        if (set->special_points[i]) s.autox_state.special_points[i]=*set->special_points[i];
+        if (set->special_points[i]) s.autox_state->special_points[i]=*set->special_points[i];
     bool axes = set->plot.has_value() || !set->var.empty() || !set->par1.empty() || !set->par2.empty() || set->fit;
     for (int i = 0; i < 4; i++) axes = axes || set->has_range[i];
     if (axes) {
-        s.autox_state.active_view = view;
-        s.autox_state.axes().plot = plot;
-        s.autox_state.axes().var = var;
-        s.autox_state.axes().icp1 = icp1;
-        s.autox_state.axes().icp2 = icp2;
-        s.autox_state.axes().xmin = range[0];
-        s.autox_state.axes().xmax = range[1];
-        s.autox_state.axes().ymin = range[2];
-        s.autox_state.axes().ymax = range[3];
+        s.autox_state->active_view = view;
+        s.autox_state->axes().plot = plot;
+        s.autox_state->axes().var = var;
+        s.autox_state->axes().icp1 = icp1;
+        s.autox_state->axes().icp2 = icp2;
+        s.autox_state->axes().xmin = range[0];
+        s.autox_state->axes().xmax = range[1];
+        s.autox_state->axes().ymin = range[2];
+        s.autox_state->axes().ymax = range[3];
         keep_axes_as_last(s);
         if (set->fit) autox_fit(s);
     }
-    if (set->nmarks.has_value()) s.autox_state.bifur.marks.swap(c.marks);
+    if (set->nmarks.has_value()) s.autox_state->bifur.marks.swap(c.marks);
     /* the diagram in its new quantities (and a new parameter's name on its axis) */
-    if (axes && s.autox_state.bifur.exist) redraw_diagram(s);
+    if (axes && s.autox_state->bifur.exist) redraw_diagram(s);
 }
 
 bool apply(xpp::Session &s, const AutoxSettingsSet *set, std::string &why)
@@ -620,7 +621,7 @@ AutoxSettingsSet autox_settings_view(const xpp::Session &s, int view)
 {
     try {
         AutoxSettingsSet set;
-        axes_of(s, s.autox_state.views[static_cast<std::size_t>(view)].axes, set);
+        axes_of(s, s.autox_state->views[static_cast<std::size_t>(view)].axes, set);
         set.view = view;
         return set;
     } catch (...) {
@@ -713,7 +714,7 @@ bool autox_view_row(const OptionRow &row)
 
 std::string autox_view_text(const Session &s, const OptionRow &row)
 {
-    const AUTOAX &a = s.autox_state.axes();
+    const AUTOAX &a = s.autox_state->axes();
     const std::string name = option_name(row);
     if (name == view_variable) return a.var >= 0 && a.var < s.model().node ? s.model().uvar_names[a.var] : std::string();
     const double edges[4] = {a.xmin, a.xmax, a.ymin, a.ymax};

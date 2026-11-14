@@ -4,6 +4,7 @@
 #include "command_registry.h"
 #include "integrate.h"
 #include "session.h"
+#include "xpp_session.h"
 #include "model_switch.h"
 #include "xpp_files.h"
 #include "xpp_globals.h"
@@ -95,7 +96,7 @@ Result<std::string> discard(Session &, const Command &, const Arguments &, const
 std::string reopen_target(const Session &s)
 {
     const Model &m = s.model();
-    if (!s.saved_session.file.empty()) return s.saved_session.file;
+    if (!s.saved_session->file.empty()) return s.saved_session->file;
     return m.loaded() && m.this_file != "console" ? files::absolute(m.this_file, m.load_dir) : std::string();
 }
 

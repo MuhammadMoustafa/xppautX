@@ -17,6 +17,9 @@
 #include "xpp_io.h"
 #include "xpp_util.h"
 #include "session.h"
+#include "delay_handle.h"
+#include "load_eqn.h"
+#include "storage.h"
 #include "model.h"
 #include "event_registry.h"
 #include <algorithm>
@@ -46,8 +49,8 @@ std::string run_result(const Session &s, bool ended_early)
 {
     return ResultObject()
         .text("status", ended_early ? STATUS_ENDED_EARLY : STATUS_COMPLETED)
-        .integer("steps", s.data_store.rows)
-        .real("time", s.data_store.current_time)
+        .integer("steps", s.data_store->rows)
+        .real("time", s.data_store->current_time)
         .done();
 }
 
@@ -72,7 +75,7 @@ Result<std::string> run_continue(Session &s, const Command &, const Arguments &a
     if (!ran) return std::unexpected<Error>(ran.error());
     return ResultObject()
         .text("status", *ran ? STATUS_ENDED_EARLY : STATUS_COMPLETED)
-        .real("end_time", s.data_store.current_time)
+        .real("end_time", s.data_store->current_time)
         .done();
 }
 
@@ -81,7 +84,7 @@ Result<std::string> run_steady(Session &s, const Command &, const Arguments &arg
     const Result<> ran = run_to_steady_state(
         s, {static_cast<int>(args.get<long long>("decimals")), args.get<double>("hold"), args.get<double>("maximum")});
     if (!ran) return std::unexpected<Error>(ran.error());
-    const SteadyStateResult &steady = *s.integrator.steady_result;
+    const SteadyStateResult &steady = *s.integrator->steady_result;
     return ResultObject().text("status", steady.status).integer("decimals", steady.decimals).real("time", steady.time).done();
 }
 
@@ -93,11 +96,11 @@ std::string sweep_result(const RangeProgress &done, const char *runs_name)
 
 Result<std::string> run_range_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    RangeVars range = s.integrator.range;
+    RangeVars range = s.integrator->range;
     set_range_settings(range, args);
     if (const Result<> items = resolve_range_items(s, range, false); !items) return std::unexpected<Error>(items.error());
     if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
-    s.integrator.range = range;
+    s.integrator->range = range;
     RangeProgress done;
     if (const Result<int> swept = run_range(s, 0, &done); !swept) return std::unexpected<Error>(swept.error());
     return sweep_result(done, "runs_completed");
@@ -107,7 +110,7 @@ constexpr std::array VARY_CHOICES = {"together", "independently"};
 
 Result<std::string> run_double_range_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    RangeVars range = s.integrator.range;
+    RangeVars range = s.integrator->range;
     if (const auto item = args.optional<std::string>("variable1")) range.item = *item;
     if (const auto low = args.optional<double>("start1")) range.plow = *low;
     if (const auto high = args.optional<double>("end1")) range.phigh = *high;
@@ -129,7 +132,7 @@ Result<std::string> run_double_range_handler(Session &s, const Command &, const 
     /* refused before the settings are applied: the command changes nothing when its runs are too many (W682) */
     if (const Result<std::int64_t> runs = sweep_run_count(s, range.steps, range.rtype == RANGE_INDEPENDENT ? range.steps2 : 0); !runs)
         return std::unexpected<Error>(runs.error());
-    s.integrator.range = range;
+    s.integrator->range = range;
     RangeProgress done;
     const Result<int> swept = run_range(s, 1, &done);
     if (!swept) return std::unexpected<Error>(swept.error());
@@ -153,7 +156,7 @@ Result<std::string> run_dae_guess(Session &s, const Command &command, const Argu
         if (i) guesses += ',';
         json_append_string(guesses, m.svars[static_cast<std::size_t>(i)].name);
         guesses += ':';
-        json::json_append_number_shortest(guesses, s.dae.svar_last[static_cast<std::size_t>(i)]);
+        json::json_append_number_shortest(guesses, s.dae->svar_last[static_cast<std::size_t>(i)]);
     }
     return ResultObject().raw("guesses", guesses + '}').done();
 }
@@ -162,7 +165,7 @@ Result<std::string> run_dae_guess(Session &s, const Command &command, const Argu
    next check; a line that reaches here found nothing to stop. */
 Result<std::string> run_abort(Session &s, const Command &, const Arguments &, const Place &)
 {
-    return ResultObject().real("stopped_at", s.data_store.current_time).done();
+    return ResultObject().real("stopped_at", s.data_store->current_time).done();
 }
 
 } // namespace
@@ -205,12 +208,12 @@ std::string extras_json(const Session &s, const Arguments &args)
         json_append_string(members, name);
         members += ':' + value;
     };
-    add("vmaxpts", std::to_string(s.numerics.max_points));
-    add("bandlo", std::to_string(s.numerics.cv_bandlower));
-    add("bandup", std::to_string(s.numerics.cv_bandupper));
-    add("delay_real_guess", xpp::number(s.delay.alpha_max));
-    add("delay_imaginary_guess", xpp::number(s.delay.omega_max));
-    add("delay_grid", std::to_string(s.delay.grid));
+    add("vmaxpts", std::to_string(s.numerics->max_points));
+    add("bandlo", std::to_string(s.numerics->cv_bandlower));
+    add("bandup", std::to_string(s.numerics->cv_bandupper));
+    add("delay_real_guess", xpp::number(s.delay->alpha_max));
+    add("delay_imaginary_guess", xpp::number(s.delay->omega_max));
+    add("delay_grid", std::to_string(s.delay->grid));
     return members;
 }
 
@@ -240,7 +243,7 @@ Result<std::string> configure_numerics(Session &s, const Command &command, const
         if (keys.size() == 1) error.field = "num:" + keys.front();
         return std::unexpected<Error>(std::move(error));
     }
-    int method = s.numerics.method;
+    int method = s.numerics->method;
     if (const auto name = args.optional<std::string>("method")) method = *method_by_key(s.model(), *name, place);
     if (auto checked = check_numerics_extras(s, extras, method); !checked) return std::unexpected<Error>(checked.error());
     push_value_undo(s);

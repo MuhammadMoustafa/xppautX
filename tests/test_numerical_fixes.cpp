@@ -2,6 +2,7 @@
 #include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
+#include "integrate.h"
 #include "xpp_batch.h"
 #include "flags.h"
 #include "histogram.h"
@@ -73,7 +74,7 @@ TEST_CASE("test_numerical_fixes")
         // asking the solver to take a zero-length remainder.
         time = 0.5;
         next = 0;
-        s.integrator.flags[0].f1 = sign == -1 ? 0.5 : -0.5;
+        s.integrator->flags[0].f1 = sign == -1 ? 0.5 : -0.5;
         int steps = 0;
         one_flag_steps(s, &next, 1, &time, &start, 0.5, [&](double dt) {
             CHECK(dt > 0);

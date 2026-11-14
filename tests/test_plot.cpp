@@ -10,6 +10,7 @@
 #include "grobs.h"
 #include "numerics.h"
 #include "session.h"
+#include "many_pops.h"
 #include "xpp_batch.h"
 #include "xpp_util.h"
 #include <array>
@@ -24,7 +25,7 @@ TEST_CASE("test_plot")
     if (!loaded) TEST_REPORT("plot");
     xpp::Session &s = **loaded;
     xpp::batch_start(s);
-    GRAPH &g = *s.plot_windows.current;
+    GRAPH &g = *s.plot_windows->current;
 
     /* curves: added, the later ones moving up when one goes, the first one the graph's own */
     xpp::CurveSettings curve = xpp::curve_settings(s, 0);
@@ -118,9 +119,9 @@ TEST_CASE("test_plot")
         frozen.name = std::string(xpp::frozen_name_max, 'n');
         CHECK(xpp::set_frozen_curve(s, *slot, frozen) && xpp::frozen_settings(s, *slot).name == frozen.name);
         CHECK(!xpp::delete_frozen(s, g.w + 1, *slot));
-        CHECK(!xpp::delete_frozen(s, s.plot_windows.draw_win, *slot + 1));
-        CHECK(xpp::delete_frozen(s, s.plot_windows.draw_win, *slot));
-        CHECK(!xpp::delete_frozen(s, s.plot_windows.draw_win, *slot));
+        CHECK(!xpp::delete_frozen(s, s.plot_windows->draw_win, *slot + 1));
+        CHECK(xpp::delete_frozen(s, s.plot_windows->draw_win, *slot));
+        CHECK(!xpp::delete_frozen(s, s.plot_windows->draw_win, *slot));
     }
     TEST_REPORT("plot");
 }

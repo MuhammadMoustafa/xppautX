@@ -1,5 +1,7 @@
 /* Equilibria's registry commands (W522). The numerical routines remain in their owners. */
 #include "command_def.h"
+#include "delay_handle.h"
+#include "load_eqn.h"
 #include "equilibria.h"
 #include "integrate.h"
 #include "del_stab.h"
@@ -46,11 +48,11 @@ std::string equilibrium_result(const Session &s)
 /* The old Equilibria entry prepared the numerical context before any of its searches. */
 Result<> prepare_equilibrium(Session &s,const Command &c,const Place &p)
 {
-    if(s.numerics.fft||s.numerics.hist||s.model().nkernel>0)
+    if(s.numerics->fft||s.numerics->hist||s.model().nkernel>0)
         return fail(c.name,"Equilibrium finding is unavailable for this model or data",p);
-    s.numerics.storflag=false;
-    s.numerics.poincare_map=PoincareMap::none;
-    s.numerics.store_from=0;
+    s.numerics->storflag=false;
+    s.numerics->poincare_map=PoincareMap::none;
+    s.numerics->store_from=0;
     evaluate_derived(s);
     return {};
 }
@@ -63,7 +65,7 @@ Result<std::string> find_point(Session &s,const Command &c,const Arguments &a,co
         const auto target=find_window(s,a.optional<std::string>("window").value_or(s.selected_window));
         if(!target||target->kind!=WindowKind::graph)return fail(c.name,"Not in a usable 2D plane",p);
         active.emplace(s,target->index);
-        const auto &graph=s.plot_windows.graph[target->index];
+        const auto &graph=s.plot_windows->graph[target->index];
         const int ix=graph.xv[0]-1,iy=graph.yv[0]-1;
         if(!phase_plane_states(s,graph))
             return fail(c.name,"Not in a usable 2D plane",p);
@@ -75,35 +77,35 @@ Result<std::string> find_point(Session &s,const Command &c,const Arguments &a,co
             x[index]=value;
         }
     }
-    const double oldtrans=s.numerics.store_from;
+    const double oldtrans=s.numerics->store_from;
     if(const auto ready=prepare_equilibrium(s,c,p);!ready)return std::unexpected(ready.error());
     int ierr=0;double stability=0;
-    const auto &settings=s.numerics.equilibria;
-    const auto found=s.delay.flag
+    const auto &settings=s.numerics->equilibria;
+    const auto found=s.delay->flag
         ?do_delay_sing(s,x.data(),settings.jacobian_step,settings.newton_tolerance,settings.search_limit,settings.max_iterations,s.model().node,&ierr,&stability)
         :do_sing(s,x.data(),settings.jacobian_step,settings.newton_tolerance,settings.search_limit,settings.max_iterations,s.model().node,&ierr,&stability);
-    s.numerics.store_from=oldtrans;
+    s.numerics->store_from=oldtrans;
     if(!found)return std::unexpected(found.error());
     return equilibrium_result(s);
 }
 Result<std::string> guess(Session &s,const Command &c,const Arguments &a,const Place &p){return find_point(s,c,a,p);}
 Result<std::string> range(Session &s,const Command &c,const Arguments &a,const Place &p)
 {
-    auto r=s.integrator.eq_range;
+    auto r=s.integrator->eq_range;
     r.item=a.get<std::string>("parameter");r.plow=a.get<double>("start");r.phigh=a.get<double>("end");
     r.steps=static_cast<int>(a.get<long long>("steps"));
     r.shoot=a.optional<bool>("shoot").value_or(r.shoot);
     r.col=static_cast<int>(a.optional<long long>("stability_column").value_or(r.col));
     r.movie=a.optional<bool>("movie").value_or(r.movie);r.mc=a.optional<bool>("monte_carlo").value_or(r.mc);
     if(const auto ready=prepare_equilibrium(s,c,p);!ready)return std::unexpected(ready.error());
-    s.integrator.eq_range=std::move(r);
+    s.integrator->eq_range=std::move(r);
     const auto run=equilibrium_range(s);
     if(!run)return std::unexpected(run.error());
     return xpp::format("{{\"points_found\":{}}}",*run);
 }
 Result<std::string> search(Session &s,const Command &c,const Arguments &a,const Place &p)
 {
-    auto settings=s.integrator.fixptguess;
+    auto settings=s.integrator->fixptguess;
     for(const auto &[name,bounds]:a.map<std::array<double,2>>("bounds")){
         const int index=find_user_name(s.model(),ICBOX,name);
         if(index>=s.model().node)return fail(c.name,"bounds must name differential variables",p);
@@ -112,11 +114,11 @@ Result<std::string> search(Session &s,const Command &c,const Arguments &a,const 
     }
     settings.n=static_cast<int>(a.get<long long>("guesses"));settings.tol=a.get<double>("tolerance");
     if(const auto ready=prepare_equilibrium(s,c,p);!ready)return std::unexpected(ready.error());
-    s.integrator.fixptguess=std::move(settings);
+    s.integrator->fixptguess=std::move(settings);
     s.equilibrium_append=a.optional<bool>("append").value_or(s.equilibrium_append);
     s.equilibrium_shoot=a.optional<bool>("shoot").value_or(s.equilibrium_shoot);
     if(const auto run=do_monte_carlo_search(s,s.equilibrium_append,1,s.equilibrium_shoot);!run)return std::unexpected(run.error());
-    const auto &points=s.integrator.fixptlist;
+    const auto &points=s.integrator->fixptlist;
     std::string result=xpp::format("{{\"found\":{},\"equilibria\":[",points.n);
     for(int i=0;i<points.n;++i){if(i)result+=',';result+=values_json(s,points.x[i]);}
     return result+"]}";
@@ -153,7 +155,7 @@ Result<std::string> configure(Session &s,const Command &c,const Arguments &a,con
         std::string why;
         if(numerics_settings_set(s,CONFIG_KEYS[i],values[i],why,&p)<0)return fail(c.name,why,p);
     }
-    const auto &n=s.numerics.equilibria;
+    const auto &n=s.numerics->equilibria;
     return xpp::format("{{\"settings\":{{\"max_iterates\":{},\"newton_tolerance\":{},\"jacobian_epsilon\":{},\"search_limit\":{}}},\"print_eigenvalues\":{},\"draw_invariant_sets\":{},\"draw_strong_sets\":{}}}",
         n.max_iterations,n.newton_tolerance,n.jacobian_step,n.search_limit,n.print_eigenvalues,n.draw_invariant_sets,n.draw_strong_sets);
 }

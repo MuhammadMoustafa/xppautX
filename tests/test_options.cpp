@@ -8,10 +8,12 @@
    options file (an option line) is refused, @ lines of an include file apply.
 
    make test runs this from the top of the tree. */
+#include "nullcline.h"
 #include "load_args.h"
 #include "xpptest.h"
 #include "test_support.h"
 #include "session.h"
+#include "load_eqn.h"
 #include "solver.h"
 #include "model.h"
 #include "numerics_settings.h"
@@ -90,18 +92,21 @@ std::string value_of(xpp::Session &s, const xpp::OptionRow &r)
     return "";
 }
 
-/* the member lies in the Session (not in a process-wide setting such as
-   the command line's batch_options) */
+/* the member belongs to the Session (or a part of it), not to a process-wide
+   setting such as the command line's batch_options: another Session's row
+   reaches another member */
 bool in_session(xpp::Session &s, const xpp::OptionRow &r)
 {
     if (r.index) return true;
-    const void *p = r.real ? static_cast<void *>(&r.real(s))
-                  : r.whole ? static_cast<void *>(&r.whole(s))
-                  : r.boolean ? static_cast<void *>(&r.boolean(s))
-                  : r.text ? static_cast<void *>(&r.text(s)) : nullptr;
-    const char *b = reinterpret_cast<const char *>(&s);
-    const char *q = static_cast<const char *>(p);
-    return p && q >= b && q < b + sizeof(xpp::Session);
+    xpp::Session other(s.model());
+    const auto at = [&](xpp::Session &x) -> const void * {
+        return r.real ? static_cast<void *>(&r.real(x))
+             : r.whole ? static_cast<void *>(&r.whole(x))
+             : r.boolean ? static_cast<void *>(&r.boolean(x))
+             : r.text ? static_cast<void *>(&r.text(x)) : nullptr;
+    };
+    const void *p = at(s);
+    return p && p != at(other);
 }
 
 /* the value an @ line gives row k, and what it reads back as; a number
@@ -331,7 +336,7 @@ TEST_CASE("test_options")
         if (info.traits.integral_history) continue; /* needs an integral model */
         CHECK(write_file("build/test_method_names.odex", xpp::format("x'=-x\ny'=x\noptions {{ integration: {{ method: {}, total_time: 1 }} }}\n", info.key)));
         xpp::Session *named = load("build/test_method_names.odex");
-        CHECK(named && named->numerics.method == info.id && named->numerics.total_time == 1);
+        CHECK(named && named->numerics->method == info.id && named->numerics->total_time == 1);
     }
 
     /* the limits and the nullclines' options: our own words in a .odex, XPPAUT's bound and ncdraw
@@ -340,25 +345,25 @@ TEST_CASE("test_options")
                                                "plot: { nullclines.draw: true }, output: { nullclines_file: \"nc.dat\" } }\n"));
     {
         const xpp::Session *l = load("build/test_limits.odex");
-        CHECK(l && l->numerics.state_limit == 7 && !l->numerics.stop_at_limit && l->numerics.equilibria.search_limit == 9);
-        CHECK(l && l->nullclines.draw && l->nullclines.file == "build/nc.dat");
+        CHECK(l && l->numerics->state_limit == 7 && !l->numerics->stop_at_limit && l->numerics->equilibria.search_limit == 9);
+        CHECK(l && l->nullclines->draw && l->nullclines->file == "build/nc.dat");
     }
     for (const char *ncdraw : {"0", "1", "2"}) {
         CHECK(write_file("build/test_bound.ode", xpp::format("x'=-x\n@ bound=7 ncdraw={}\ndone\n", ncdraw)));
         const xpp::Session *l = load("build/test_bound.ode");
-        CHECK(l && l->numerics.state_limit == 7 && l->numerics.stop_at_limit && l->numerics.equilibria.search_limit == 7);
-        CHECK(l && l->nullclines.draw == (std::string_view(ncdraw) == "1") && l->nullclines.file == (std::string_view(ncdraw) == "2" ? "build/nullclines.dat" : ""));
+        CHECK(l && l->numerics->state_limit == 7 && l->numerics->stop_at_limit && l->numerics->equilibria.search_limit == 7);
+        CHECK(l && l->nullclines->draw == (std::string_view(ncdraw) == "1") && l->nullclines->file == (std::string_view(ncdraw) == "2" ? "build/nullclines.dat" : ""));
     }
     /* XPPAUT's lt is the line style every new curve starts with: its line types; our own style is any */
     for (const int lt : {1, 0, -3}) {
         CHECK(write_file("build/test_lt.ode", xpp::format("x'=-x\n@ lt={}\ndone\n", lt)));
         const xpp::Session *l = load("build/test_lt.ode");
-        CHECK(l && l->plot_settings.start_line_style == *xpp::line_style_of_xppaut(lt));
+        CHECK(l && l->plot_settings->start_line_style == *xpp::line_style_of_xppaut(lt));
     }
     CHECK(write_file("build/test_lt.odex", "x' = -x\noptions { plot: { line.draw: points, line.marker_size: 4 } }\n"));
     {
         const xpp::Session *l = load("build/test_lt.odex");
-        CHECK(l && l->plot_settings.start_line_style == *xpp::line_style_of_xppaut(-4));
+        CHECK(l && l->plot_settings->start_line_style == *xpp::line_style_of_xppaut(-4));
     }
     CHECK(write_file("build/test_style.odex", "x' = -x\noptions { plot: { line.dash: dash_dot, line.width: 2.5, line.draw: both, line.marker: star, line.marker_size: 6 } }\n"));
     {
@@ -369,7 +374,7 @@ TEST_CASE("test_options")
         want.width = 2.5;
         want.marker = xpp::LineMarker::star;
         want.marker_size = 6;
-        CHECK(l && l->plot_settings.start_line_style == want);
+        CHECK(l && l->plot_settings->start_line_style == want);
     }
     for (const char *bad : {"line.dash: dotted dashed", "line.width: 0", "line.marker: 5", "line.marker_size: -1", "line.draw: 1"}) {
         CHECK(write_file("build/test_bad_choice.odex", xpp::format("x' = -x\noptions {{ plot: {{ {} }} }}\n", bad)));

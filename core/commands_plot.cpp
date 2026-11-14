@@ -19,6 +19,7 @@
 #include "xpp_util.h"
 #include "model.h"
 #include "session.h"
+#include "many_pops.h"
 #include "event_registry.h"
 #include <array>
 #include <cstdio>
@@ -88,8 +89,8 @@ Result<std::string> edit_curve_command(Session &s, const Command &command, const
 {
     ON_GRAPH(graph);
     const int curve = static_cast<int>(args.get<long long>("curve_index"));
-    if (curve < 0 || curve >= s.plot_windows.current->nvars)
-        return fail(command.name, xpp::format("no curve {}: the window has curves 0 to {}", curve, s.plot_windows.current->nvars - 1), place);
+    if (curve < 0 || curve >= s.plot_windows->current->nvars)
+        return fail(command.name, xpp::format("no curve {}: the window has curves 0 to {}", curve, s.plot_windows->current->nvars - 1), place);
     if (const Result<> set = set_curve(s, curve, curve_of(s, args, curve_settings(s, curve))); !set) return std::unexpected<Error>(set.error());
     return ResultObject().integer("curve_index", curve).boolean("updated", true).done();
 }
@@ -97,9 +98,9 @@ Result<std::string> edit_curve_command(Session &s, const Command &command, const
 Result<std::string> delete_curve_command(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     ON_GRAPH(graph);
-    const int curve = static_cast<int>(args.optional<long long>("curve_index").value_or(s.plot_windows.current->nvars - 1));
+    const int curve = static_cast<int>(args.optional<long long>("curve_index").value_or(s.plot_windows->current->nvars - 1));
     if (const Result<> deleted = delete_curve(s, curve); !deleted) return std::unexpected<Error>(deleted.error());
-    return ResultObject().integer("remaining_curves", s.plot_windows.current->nvars).done();
+    return ResultObject().integer("remaining_curves", s.plot_windows->current->nvars).done();
 }
 
 /* a command that clears something of the graph: the core function, then {"cleared":true} */
@@ -128,14 +129,14 @@ Result<std::string> freeze_curve_command(Session &s, const Command &command, con
     const Result<int> slot = freeze_curve(s, 0);
     if (!slot) return std::unexpected<Error>(slot.error());
     if (const Result<> set = set_frozen_curve(s, *slot, frozen_of(args, frozen_settings(s, *slot))); !set) return std::unexpected<Error>(set.error());
-    return ResultObject().integer("slot", *slot).text("name", s.frozen_curves.curve[static_cast<std::size_t>(*slot)].name).done();
+    return ResultObject().integer("slot", *slot).text("name", s.frozen_curves->curve[static_cast<std::size_t>(*slot)].name).done();
 }
 
 Result<std::string> edit_frozen_command(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     ON_GRAPH(graph);
     const int slot = static_cast<int>(args.get<long long>("slot"));
-    if (const Result<> held = frozen_slot_in_window(s, s.plot_windows.draw_win, slot, command.name); !held) return std::unexpected<Error>(held.error());
+    if (const Result<> held = frozen_slot_in_window(s, s.plot_windows->draw_win, slot, command.name); !held) return std::unexpected<Error>(held.error());
     if (const Result<> set = set_frozen_curve(s, slot, frozen_of(args, frozen_settings(s, slot))); !set) return std::unexpected<Error>(set.error());
     return ResultObject().integer("slot", slot).boolean("updated", true).done();
 }
@@ -144,7 +145,7 @@ Result<std::string> delete_frozen_command(Session &s, const Command &command, co
 {
     ON_GRAPH(graph);
     const int slot = static_cast<int>(args.get<long long>("slot"));
-    if (const Result<> deleted = delete_frozen(s, s.plot_windows.draw_win, slot); !deleted) return std::unexpected<Error>(deleted.error());
+    if (const Result<> deleted = delete_frozen(s, s.plot_windows->draw_win, slot); !deleted) return std::unexpected<Error>(deleted.error());
     return ResultObject().integer("slot", slot).boolean("deleted", true).done();
 }
 
@@ -170,7 +171,7 @@ Result<std::string> import_bifurcation_command(Session &s, const Command &comman
 Result<std::string> set_autox_freeze_command(Session &s, const Command &, const Arguments &args, const Place &)
 {
     const bool enabled = args.get<bool>("enabled");
-    s.frozen_curves.autox_freeze = enabled ? 1 : 0;
+    s.frozen_curves->autox_freeze = enabled ? 1 : 0;
     return ResultObject().boolean("autox_freeze", enabled).done();
 }
 
@@ -238,7 +239,7 @@ Result<std::string> set_axes(Session &s, const Command &command, const Arguments
 {
     ON_GRAPH(graph);
     if (const Result<> set = set_axes_view(s, 0, three, axes_of(s, args, axes_view(s, 0), three)); !set) return std::unexpected<Error>(set.error());
-    const GRAPH &g = *s.plot_windows.current;
+    const GRAPH &g = *s.plot_windows->current;
     ResultObject result;
     result.text("axes", three ? "3d" : "2d").text("x", column_name(s, g.xv[0])).text("y", column_name(s, g.yv[0]));
     if (three) result.text("z", column_name(s, g.zv[0]));
@@ -258,7 +259,7 @@ Result<std::string> set_3d(Session &s, const Command &command, const Arguments &
 Result<std::string> set_3d_view(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     ON_GRAPH(graph);
-    if (s.plot_windows.current->grtype < 5) return fail(command.name, "The window is not a 3D plot: make it one with plot.set_3d", place);
+    if (s.plot_windows->current->grtype < 5) return fail(command.name, "The window is not a 3D plot: make it one with plot.set_3d", place);
     ViewParams view = view_params(s);
     if (const auto perspective = args.optional<bool>("perspective")) view.persp = *perspective ? 1 : 0;
     view.zplane = args.optional<double>("z_plane").value_or(view.zplane);
@@ -281,7 +282,7 @@ Result<std::string> set_3d_view(Session &s, const Command &command, const Argume
 Result<std::string> set_shifted_axes(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     ON_GRAPH(graph);
-    const GRAPH &g = *s.plot_windows.current;
+    const GRAPH &g = *s.plot_windows->current;
     const auto shift = [&](const char *name, int now) { return static_cast<int>(args.optional<long long>(name).value_or(now)); };
     const int x = shift("x_shift", g.xshft), y = shift("y_shift", g.yshft), z = shift("z_shift", g.zshft);
     if (const Result<> set = set_axis_shifts(s, x, y, z); !set) return std::unexpected<Error>(set.error());
@@ -299,7 +300,7 @@ Result<std::string> variable_vs_time_command(Session &s, const Command &command,
 Result<std::string> add_data_markers_command(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     ON_GRAPH(graph);
-    MarkInfo markers = s.marker;
+    MarkInfo markers = *s.marker;
     if (const auto shape = args.optional<std::string>("shape")) markers.type = MARKER + choice_index(marker_shape_names, *shape);
     if (const auto color = args.optional<Color>(COLOR_KEY)) markers.color = *color;
     markers.size = args.optional<double>("size").value_or(markers.size);

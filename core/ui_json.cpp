@@ -68,6 +68,7 @@
 #include "event_registry.h"
 #include "event_streams.h"
 #include "session.h"
+#include "browse.h"
 #include "json_reader.h"
 #include "format_version.h"
 
@@ -870,7 +871,7 @@ xpp::Result<std::string> run_protocol_command(xpp::Session &s, const char *line,
         /* an evaluation's failure no caller took (W387: user functions
            nested too deep in the flow, a plot, a formula) is shown once,
            and the next command starts clean */
-        if (s.integrator.step_error) xpp::show_error(xpp::take_step_error(s).error());
+        if (s.integrator->step_error) xpp::show_error(xpp::take_step_error(s).error());
         return std::string("{}");
     } catch (const BadArgument &bad) {
         return xpp::fail(what, xpp::format("{}: {} must be {}, not {}", what,
@@ -1242,7 +1243,7 @@ void send_hello(xpp::Session &s)
     buf_add(b, glyphs.data(), glyphs.size());
     BUF_LIT(b, ",\"line_styles\":");
     buf_add(b, line_styles.data(), line_styles.size());
-    BUF_LIT(b,",\"window_names\":{\"main\":");buf_str(b,s.plot_windows.graph[0].name);
+    BUF_LIT(b,",\"window_names\":{\"main\":");buf_str(b,s.plot_windows->graph[0].name);
     BUF_LIT(b,",\"autox\":");buf_str(b,xpp::window_name(s,WIN_AUTOX));
     BUF_LIT(b,",\"ani\":");buf_str(b,xpp::window_name(s,WIN_ANI));
     BUF_LIT(b,",\"aplot\":");buf_str(b,xpp::window_name(s,WIN_APLOT));BUF_LIT(b,",\"data\":");buf_str(b,std::string(xpp::DATA_WINDOW));BUF_LIT(b,"}");

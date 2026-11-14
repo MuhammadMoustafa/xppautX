@@ -41,13 +41,13 @@ namespace xpp::json {
 /* ---- plot windows ------------------------------------------------------------ */
 
 /* the main plot window, for hello */
-void send_main_window(const xpp::Session &s,const char *title) { send_window(xpp::events::WINDOW_CREATED, s.plot_windows.graph[0].name, main_plot_width, main_plot_height, title); }
+void send_main_window(const xpp::Session &s,const char *title) { send_window(xpp::events::WINDOW_CREATED, s.plot_windows->graph[0].name, main_plot_width, main_plot_height, title); }
 
 void j_get_draw_size(xpp::Session &s, unsigned int *w, unsigned int *h)
 {
-    int i = graph_of(s, s.plot_windows.draw_win);
-    *w = s.plot_windows.graph[i].x11Wid;
-    *h = s.plot_windows.graph[i].x11Hgt;
+    int i = graph_of(s, s.plot_windows->draw_win);
+    *w = s.plot_windows->graph[i].x11Wid;
+    *h = s.plot_windows->graph[i].x11Hgt;
 }
 
 namespace {
@@ -57,8 +57,8 @@ namespace {
    drawn again */
 void blank_draw_window(xpp::Session &s)
 {
-    const int i=graph_of(s,s.plot_windows.draw_win);
-    if(s.plot_windows.graph[i].Use && s.plot_windows.graph[i].w==s.plot_windows.draw_win){
+    const int i=graph_of(s,s.plot_windows->draw_win);
+    if(s.plot_windows->graph[i].Use && s.plot_windows->graph[i].w==s.plot_windows->draw_win){
         phase_data_cleared(s,i);
         marks_data_cleared(s,i);
     }
@@ -71,9 +71,9 @@ void j_blank_draw_window(xpp::Session &s) { blank_draw_window(s); }
 void j_redraw_all(xpp::Session &s)
 {
     redraw_dfield(s);
-    restore(s, 0, s.data.view.maxrow);
-    draw_label(s, s.plot_windows.draw_win);
-    draw_freeze(s,s.plot_windows.draw_win);
+    restore(s, 0, s.data->view.maxrow);
+    draw_label(s, s.plot_windows->draw_win);
+    draw_freeze(s,s.plot_windows->draw_win);
 }
 
 void redraw_graph(xpp::Session &s)
@@ -81,11 +81,11 @@ void redraw_graph(xpp::Session &s)
     blank_draw_window(s);
     set_normal_scale(s);
     do_axes(s);
-    restore(s, 0, s.data.view.maxrow);
-    draw_label(s, s.plot_windows.draw_win);
-    draw_freeze(s,s.plot_windows.draw_win);
+    restore(s, 0, s.data->view.maxrow);
+    draw_label(s, s.plot_windows->draw_win);
+    draw_freeze(s,s.plot_windows->draw_win);
     redraw_dfield(s);
-    if (s.plot_windows.current->Nullrestore) restore_nullclines(s);
+    if (s.plot_windows->current->Nullrestore) restore_nullclines(s);
 }
 
 void j_redraw_graph(xpp::Session &s) { redraw_graph(s); }
@@ -142,16 +142,16 @@ void j_tool_window_closed(xpp::Session &, std::string_view name, std::string_vie
 
 void j_create_plot_window(xpp::Session &s)
 {
-    const int i = s.plot_windows.active;
-    send_window(xpp::events::WINDOW_CREATED, xpp::window_name(s,s.plot_windows.graph[i].w), s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt, "");
-    send_window(xpp::events::WINDOW_SELECTED, xpp::window_name(s,s.plot_windows.draw_win), s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt);
+    const int i = s.plot_windows->active;
+    send_window(xpp::events::WINDOW_CREATED, xpp::window_name(s,s.plot_windows->graph[i].w), s.plot_windows->graph[i].x11Wid, s.plot_windows->graph[i].x11Hgt, "");
+    send_window(xpp::events::WINDOW_SELECTED, xpp::window_name(s,s.plot_windows->draw_win), s.plot_windows->graph[i].x11Wid, s.plot_windows->graph[i].x11Hgt);
 }
 
 /* The core removes the window; this callback only tells the page. */
 void j_destroy_plot_window(xpp::Session &s)
 {
-    send_window(xpp::events::WINDOW_DESTROYED,xpp::window_name(s,s.plot_windows.draw_win),0,0);
-    const GRAPH &main=s.plot_windows.graph[0];
+    send_window(xpp::events::WINDOW_DESTROYED,xpp::window_name(s,s.plot_windows->draw_win),0,0);
+    const GRAPH &main=s.plot_windows->graph[0];
     send_window(xpp::events::WINDOW_SELECTED,xpp::window_name(s,main.w),main.x11Wid,main.x11Hgt);
 }
 
@@ -198,9 +198,9 @@ namespace {
 void send_film(const xpp::Session &s, const char *what)
 {
     std::string b;
-    buf_format(b,"{},\"op\":\"{}\",\"count\":{},\"win\":",xpp::events::open(xpp::events::KINESCOPE_FILM),what,s.kinescope.frames);
-    buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
-    buf_format(b,",\"cycles\":{},\"delay\":{}}}",s.kinescope.cycles,s.kinescope.frame_ms);
+    buf_format(b,"{},\"op\":\"{}\",\"count\":{},\"win\":",xpp::events::open(xpp::events::KINESCOPE_FILM),what,s.kinescope->frames);
+    buf_str(b,xpp::window_name(s,s.plot_windows->draw_win));
+    buf_format(b,",\"cycles\":{},\"delay\":{}}}",s.kinescope->cycles,s.kinescope->frame_ms);
     send_buf(b);
 }
 
@@ -208,16 +208,16 @@ void send_film(const xpp::Session &s, const char *what)
 
 xpp::Result<> j_film_clip(xpp::Session &s)
 {
-    if (s.kinescope.frames >= kinescope_max_frames)
+    if (s.kinescope->frames >= kinescope_max_frames)
         return xpp::fail("kinescope", "Out of film: the kinescope holds no more frames", xpp::command_place());
-    s.kinescope.frames++;
+    s.kinescope->frames++;
     send_film(s, "capture");
     return {};
 }
 
 void j_reset_film(xpp::Session &s)
 {
-    s.kinescope.frames = 0;
+    s.kinescope->frames = 0;
     send_film(s, "reset");
 }
 
@@ -227,7 +227,7 @@ namespace {
    when there are any */
 void play_film(const xpp::Session &s, const char *how)
 {
-    if (s.kinescope.frames) send_film(s, how);
+    if (s.kinescope->frames) send_film(s, how);
 }
 
 } // namespace
@@ -240,7 +240,7 @@ xpp::Result<int> j_movie_save(xpp::Session &s, std::string_view basename, int fm
 {
     const xpp::ImageFormat &format = xpp::image_formats[fmat];
     std::vector<xpp::Writer> outputs;
-    for (int i = 0; i < s.kinescope.frames; i++) {
+    for (int i = 0; i < s.kinescope->frames; i++) {
         const std::string file = xpp::files::run_file_name(basename, i);
         if (i > 0)
             if (const auto decided = reset_save_decision(); !decided) return std::unexpected(decided.error());
@@ -250,21 +250,21 @@ xpp::Result<int> j_movie_save(xpp::Session &s, std::string_view basename, int fm
         if (!output) return xpp::fail("kinescope", xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), xpp::command_place());
         outputs.push_back(std::move(output));
     }
-    for (int i = 0; i < s.kinescope.frames; i++) {
+    for (int i = 0; i < s.kinescope->frames; i++) {
         int w = 0, h = 0;
         const std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
         if (rgb.empty())
-            return xpp::fail("kinescope", xpp::format("The client gave no picture of frame {} of {}: nothing was written", i + 1, s.kinescope.frames), xpp::command_place());
+            return xpp::fail("kinescope", xpp::format("The client gave no picture of frame {} of {}: nothing was written", i + 1, s.kinescope->frames), xpp::command_place());
         format.pixels(outputs[static_cast<std::size_t>(i)], rgb, w, h, xpp::IMAGE_STILL_FRAME);
     }
     for (auto &output : outputs)
         if (const auto saved = xpp::commit_save(output); !saved) return std::unexpected(saved.error());
-    return s.kinescope.frames;
+    return s.kinescope->frames;
 }
 
 xpp::Result<> j_movie_make_anigif(xpp::Session &s, std::string_view file)
 {
-    const XppKinescope &k = s.kinescope;
+    const XppKinescope &k = *s.kinescope;
     int w, h, w0 = 0, h0 = 0;
     xpp::Result<> opened;
     xpp::Writer out = xpp::open_writer_asking(file, true, &opened);
@@ -304,8 +304,8 @@ int aplot_dirty; /* the data behind an array plot changed */
 void send_aplot(xpp::Session &s, const char *tag)
 {
     std::string b;
-    int num, i, j, nx, ny, nrows = s.data.view.maxrow;
-    APLOT *ap = &s.array_plot.plot;
+    int num, i, j, nx, ny, nrows = s.data->view.maxrow;
+    APLOT *ap = &s.array_plot->plot;
     std::vector<float> vals;
     int f32 = plot_data_want_f32();
     aplot_dirty = 0;
@@ -344,7 +344,7 @@ void send_aplot(xpp::Session &s, const char *tag)
         for (i = 0; i < nx; i++) {
             int ib = ap->index0 + i * ap->ncskip;
             float v = NAN;
-            if (ib < s.data.view.maxcol && jb < nrows && jb >= 0) v = static_cast<float>(s.data.view.data[ib][jb]);
+            if (ib < s.data->view.maxcol && jb < nrows && jb >= 0) v = static_cast<float>(s.data->view.data[ib][jb]);
             if (!vals.empty()) vals[j * nx + i] = v;
         }
     }
@@ -362,16 +362,16 @@ void aplot_changed(void) { aplot_dirty = 1; }
 /* an auto-redrawn array plot shows the data that changed */
 void aplot_update(xpp::Session &s)
 {
-    if (aplot_dirty && s.array_plot.plot.alive && s.array_plot.auto_redraw == 1) send_aplot(s, NULL);
+    if (aplot_dirty && s.array_plot->plot.alive && s.array_plot->auto_redraw == 1) send_aplot(s, NULL);
     aplot_dirty = 0;
 }
 
 void j_aplot_make(xpp::Session &s, std::string_view name)
 {
-    APLOT &ap = s.array_plot.plot;
+    APLOT &ap = s.array_plot->plot;
     if (ap.alive) return;
     ap.alive = 1;
-    s.tools_hidden.array_plot = false;
+    s.tools_hidden->array_plot = false;
     ap.plotw = ap.width - 30 - 10 * text_metrics.small_width;
     ap.ploth = ap.height - 55;
     send_window(xpp::events::WINDOW_CREATED, xpp::window_name(s,WIN_APLOT), ap.plotw, ap.ploth, name,"array_plot");
@@ -417,19 +417,19 @@ xpp::Result<bool> aplot_gif(ArrayPlotState &a, const char *file, int still)
 void j_aplot_draw_one(xpp::Session &s, std::string_view tag)
 {
     const std::string shown(tag); /* send_aplot's tag: NUL-terminated, or none */
-    send_aplot(s, s.array_plot.tag ? shown.c_str() : nullptr);
-    if(!s.array_plot.save_cancelled){
-        std::string file=xpp::files::run_file_name(s.array_plot.range_stem,s.array_plot.still?s.array_plot.range_count:0);
-        if(s.array_plot.still && s.array_plot.range_count>0) /* asked once, for the first */
-            s.array_plot.save_cancelled=!xpp::ok_or_show(reset_save_decision());
-        if(!s.array_plot.save_cancelled){
-            const xpp::Result<bool> saved=aplot_gif(s.array_plot,file.c_str(),s.array_plot.still);
-            s.array_plot.save_cancelled=!xpp::ok_or_show(saved)||!*saved;
+    send_aplot(s, s.array_plot->tag ? shown.c_str() : nullptr);
+    if(!s.array_plot->save_cancelled){
+        std::string file=xpp::files::run_file_name(s.array_plot->range_stem,s.array_plot->still?s.array_plot->range_count:0);
+        if(s.array_plot->still && s.array_plot->range_count>0) /* asked once, for the first */
+            s.array_plot->save_cancelled=!xpp::ok_or_show(reset_save_decision());
+        if(!s.array_plot->save_cancelled){
+            const xpp::Result<bool> saved=aplot_gif(*s.array_plot,file.c_str(),s.array_plot->still);
+            s.array_plot->save_cancelled=!xpp::ok_or_show(saved)||!*saved;
         }
     }
-    s.array_plot.range_count++;
+    s.array_plot->range_count++;
 }
 
-xpp::Result<bool> j_aplot_gif(xpp::Session &s, std::string_view file) { return aplot_gif(s.array_plot, std::string(file).c_str(), 1); }
+xpp::Result<bool> j_aplot_gif(xpp::Session &s, std::string_view file) { return aplot_gif(*s.array_plot, std::string(file).c_str(), 1); }
 
 } // namespace xpp::json

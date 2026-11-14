@@ -501,7 +501,7 @@ void load(xpp::Session &s, int from, bool play)
         player.work = std::move(before);
         return;
     }
-    s.model_request = xpp::saved_request(s, player.work->path(), *player.snapshot);
+    s.model_request = std::make_unique<xpp::ModelRequest>(xpp::saved_request(s, player.work->path(), *player.snapshot));
     s.model_request->home = xpp::files::split_path(player.path).first; /* dialogs stay in the recording's folder */
     player.loading = true;
     player.fast_to = from;

@@ -4,6 +4,8 @@
 #include "solver.h"
 #include "jacobian.h"
 #include "session.h"
+#include "integrate.h"
+#include "storage.h"
 #include <stdlib.h> 
 #include <stdio.h>
 #include <math.h>
@@ -56,7 +58,7 @@ int fixed_steps(xpp::Session &s, double *y, int nt, int neq, double *tim, int *i
     if(s.model().flag_count()==0)step(dt);
     else one_flag_steps(s,y,neq,tim,istart,dt,f);
     stor_delay(s,y);
-    if(s.integrator.step_error||xpp::job::cancelled())break;
+    if(s.integrator->step_error||xpp::job::cancelled())break;
   }
   return(0);
 }
@@ -127,24 +129,24 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
   double err=0.0,err1=0.0;
   
   int iter=0,info;
-  xpp::BlockLu &lu=s.solver_work.lu;
+  xpp::BlockLu &lu=s.solver_work->lu;
   const auto form=xpp::model_jacobian_form(s,neq);
   int ml=form.lower,mr=form.upper,mt=ml+mr+1;
   set_wieners(s,dt,y,*t);
   *t=*t+dt;
-  s.integrator.rhs(*t,y,yp2,neq);
+  s.integrator->rhs(*t,y,yp2,neq);
   for(i=0;i<neq;i++)yg[i]=y[i];
   while(1)
     {
       err1=0.0;
       err=0.0;
-      s.integrator.rhs(*t,yg,yp,neq);
+      s.integrator->rhs(*t,yg,yp,neq);
       for(i=0;i<neq;i++){
 	errvec[i]=yg[i]-.5*dt*(yp[i]+yp2[i])-y[i];
 	err1+=fabs(errvec[i]);
       }
-      get_the_jac(s,*t,yg,yp,jac,neq,s.numerics.equilibria.jacobian_step,-.5*dt);
-      if(s.numerics.cv_bandflag){
+      get_the_jac(s,*t,yg,yp,jac,neq,s.numerics->equilibria.jacobian_step,-.5*dt);
+      if(s.numerics->cv_bandflag){
 	for(i=0;i<neq;i++)
 	  jac[i*mt+ml]+=1;
 	xpp::band_factor(jac,ml,mr,neq);
@@ -155,7 +157,7 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
       lu.factor(jac,neq,neq,s.model().subsystems,&info);
       if(info!=-1)
 	{
-	  s.solver_work.stop={*t,dt,info,iter};
+	  s.solver_work->stop={*t,dt,info,iter};
 	  return(NEWTON_SINGULAR);
 	}
       lu.solve(jac,neq,errvec);
@@ -164,13 +166,13 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
 	err+=fabs(errvec[i]);
 	yg[i]-=errvec[i];
       }
-      if(err<s.numerics.eul_tol||err1<s.numerics.eul_tol){
+      if(err<s.numerics->eul_tol||err1<s.numerics->eul_tol){
 	for(i=0;i<neq;i++)y[i]=yg[i];
 	return(0);
       }
       iter++;
-      if(iter>s.numerics.max_eul_iter){
-	s.solver_work.stop={*t,dt,xpp::largest_magnitude(errvec,neq),iter};
+      if(iter>s.numerics->max_eul_iter){
+	s.solver_work->stop={*t,dt,xpp::largest_magnitude(errvec,neq),iter};
 	return(NEWTON_NO_CONVERGENCE);
       }
     }
@@ -180,7 +182,7 @@ void one_step_discrete(xpp::Session &s, double *y, double dt, double *yp, int ne
 {
   int j;
    set_wieners(s,dt,y,*t);
-     s.integrator.rhs(*t,y,yp,neq);
+     s.integrator->rhs(*t,y,yp,neq);
      *t=*t+dt;
      for(j=0;j<neq;j++){y[j]=yp[j];
      }
@@ -193,7 +195,7 @@ void one_step_symp(xpp::Session &s, double *y, double h, double *f, int n, doubl
   for(k=0;k<3;k++){
     for(j=0;j<n;j+=2)
       y[j]+=(h*symp_b[k]*y[j+1]);
-    s.integrator.rhs(*t,y,f,n);
+    s.integrator->rhs(*t,y,f,n);
     for(j=0;j<n;j+=2)
       y[j+1]+=(h*symp_B[k]*f[j+1]);
   }
@@ -206,7 +208,7 @@ void one_step_euler(xpp::Session &s, double *y, double dt, double *yp, int neq, 
  int j;
 
    set_wieners(s,dt,y,*t);
-   s.integrator.rhs(*t,y,yp,neq);
+   s.integrator->rhs(*t,y,yp,neq);
    *t+=dt;
    for(j=0;j<neq;j++)y[j]=y[j]+dt*yp[j];
 }
@@ -216,27 +218,27 @@ void one_step_rk4(xpp::Session &s, double *y, double dt, double *yval[3], int ne
  int i;
  double t=*tim,t1,t2;
  set_wieners(s,dt,y,t);
- s.integrator.rhs(t,y,yval[1],neq);
+ s.integrator->rhs(t,y,yval[1],neq);
  for(i=0;i<neq;i++)
    {
      yval[0][i]=y[i]+dt*yval[1][i]/6.00;
      yval[2][i]=y[i]+dt*yval[1][i]*0.5;
   }
   t1=t+.5*dt;
-  s.integrator.rhs(t1,yval[2],yval[1],neq);
+  s.integrator->rhs(t1,yval[2],yval[1],neq);
   for(i=0;i<neq;i++)
     {
       yval[0][i]=yval[0][i]+dt*yval[1][i]/3.00;
       yval[2][i]=y[i]+.5*dt*yval[1][i];
     }
- s.integrator.rhs(t1,yval[2],yval[1],neq);
+ s.integrator->rhs(t1,yval[2],yval[1],neq);
  for(i=0;i<neq;i++)
    {
      yval[0][i]=yval[0][i]+dt*yval[1][i]/3.000;
      yval[2][i]=y[i]+dt*yval[1][i];
    }
  t2=t+dt;
- s.integrator.rhs(t2,yval[2],yval[1],neq);
+ s.integrator->rhs(t2,yval[2],yval[1],neq);
  for(i=0;i<neq;i++)y[i]=yval[0][i]+dt*yval[1][i]/6.00;
  *tim=t2;
 }
@@ -246,10 +248,10 @@ void one_step_heun(xpp::Session &s, double *y, double dt, double *yval[2], int n
  int i;
  double t=*tim,t1;
   set_wieners(s,dt,y,*tim);
-  s.integrator.rhs(t,y,yval[0],neq);
+  s.integrator->rhs(t,y,yval[0],neq);
   for(i=0;i<neq;i++)yval[0][i]=dt*yval[0][i]+y[i];
   t1=t+dt;
-  s.integrator.rhs(t1,yval[0],yval[1],neq);
+  s.integrator->rhs(t1,yval[0],yval[1],neq);
   for(i=0;i<neq;i++)y[i]=.5*(y[i]+yval[0][i]+dt*yval[1][i]);
   *tim=t1;
 }
@@ -309,13 +311,13 @@ int adams(xpp::Session &s, double *y, double *tim, double dt, int nstep, int neq
 n20:
 
  x0=xst;
- s.integrator.rhs(x0,y,w.y_p[3],neq);
+ s.integrator->rhs(x0,y,w.y_p[3],neq);
  for(k=1;k<4;k++)
  {
   runge_kutta_fixed(s,y,&x0,dt,1,neq,&irk,work1);
   stor_delay(s,y);
   for(i=0;i<neq;i++)w.y_s[3-k][i]=y[i];
-  s.integrator.rhs(x0,y,w.y_p[3-k],neq);
+  s.integrator->rhs(x0,y,w.y_p[3-k],neq);
  }
  istpst=3;
  if(istpst<=nstep) goto n400;
@@ -377,7 +379,7 @@ int adams_bashforth_moulton(xpp::Session &s, double *y, double *t, double dt, in
  for(i=0;i<neq;i++)
  for(k=3;k>0;k--)w.y_p[k][i]=w.y_p[k-1][i];
  x1=x0+dt;
- s.integrator.rhs(x1,w.ypred,w.y_p[0],neq);
+ s.integrator->rhs(x1,w.ypred,w.y_p[0],neq);
 
  for(i=0;i<neq;i++)
  {
@@ -386,7 +388,7 @@ int adams_bashforth_moulton(xpp::Session &s, double *y, double *t, double dt, in
   y[i]=y[i]+dt*w.ypred[i];
  }
    *t=x1;
- s.integrator.rhs(x1,y,w.y_p[0],neq);
+ s.integrator->rhs(x1,y,w.y_p[0],neq);
  
  return(1);
  
@@ -415,11 +417,11 @@ int out =-1;
 int rosenbrock_steps(xpp::Session &s, double *y,double *tstart,double tfinal,
 int *istart,int n,double *work,int *ierr)
 {
- double &htry=s.integrator.rosen_htry; /* the step the last call ended with */
- double epsjac=s.numerics.equilibria.jacobian_step;
+ double &htry=s.integrator->rosen_htry; /* the step the last call ended with */
+ double epsjac=s.numerics->equilibria.jacobian_step;
  double eps=1e-15,hmin,hmax;
  double tdir=1,t0=*tstart,t=t0;
- double atol=s.numerics.absolute_tolerance,rtol=s.numerics.relative_tolerance;
+ double atol=s.numerics->absolute_tolerance,rtol=s.numerics->relative_tolerance;
  double sqrteps=sqrt(eps);
  double thresh=atol/rtol,absh,h;
  double d=1/(2.+sqrt(2.)),e32=6.+sqrt(2.),tnew;
@@ -427,7 +429,7 @@ int *istart,int n,double *work,int *ierr)
  const auto form=xpp::model_jacobian_form(s,n);
  int i,done=0,info,ml=form.lower,mr=form.upper,mt=ml+mr+1,entries=xpp::jacobian_entries(n,form);
  int nofailed;
- xpp::BlockLu &lu=s.solver_work.lu;
+ xpp::BlockLu &lu=s.solver_work->lu;
  double temp,err,tdel;
  double *k1,*k2,*k3,*f0,*f1,*f2,*dfdt,*ynew,*dfdy;
  *ierr=1;
@@ -445,7 +447,7 @@ int *istart,int n,double *work,int *ierr)
  hmax=fabs(tfinal-t);
  if(*istart==1)
    htry=hmax;
- s.integrator.rhs(t0,y,f0,n);
+ s.integrator->rhs(t0,y,f0,n);
  hmin=16*eps*fabs(t);
  absh = std::min(std::max(htry, hmin), hmax);
  while(!done)
@@ -461,7 +463,7 @@ int *istart,int n,double *work,int *ierr)
      }
      get_the_jac(s,t,y,f0,dfdy,n,epsjac,1.0);
      tdel = (t + tdir*std::min(absh,sqrteps*std::max(fabs(t+h),fabs(t)))) - t;
-     s.integrator.rhs(t+tdel,y,f1,n);
+     s.integrator->rhs(t+tdel,y,f1,n);
      for(i=0;i<n;i++)
        dfdt[i]=(f1[i]-f0[i])/tdel;
      while(1){ /* advance a step  */
@@ -469,7 +471,7 @@ int *istart,int n,double *work,int *ierr)
 	 dfdy[i]=-h*d*dfdy[i];
        for(i=0;i<n;i++)
 	 k1[i]=f0[i]+(h*d)*dfdt[i];
-       if(s.numerics.cv_bandflag){
+       if(s.numerics->cv_bandflag){
 	  for(i=0;i<n;i++)
 	 dfdy[i*mt+ml]+=1;
         
@@ -485,10 +487,10 @@ int *istart,int n,double *work,int *ierr)
        }
        for(i=0;i<n;i++)
 	 ynew[i]=y[i]+.5*h*k1[i];
-       s.integrator.rhs(t+.5*h,ynew,f1,n);
+       s.integrator->rhs(t+.5*h,ynew,f1,n);
        for(i=0;i<n;i++)
 	 k2[i]=f1[i]-k1[i];
-       if(s.numerics.cv_bandflag)
+       if(s.numerics->cv_bandflag)
 	 xpp::band_solve(dfdy,k2,ml,mr,n);
        else
 	 lu.solve(dfdy,n,k2);
@@ -497,10 +499,10 @@ int *istart,int n,double *work,int *ierr)
 	 ynew[i]=y[i]+h*k2[i];
        }
        tnew=t+h;
-       s.integrator.rhs(tnew,ynew,f2,n);
+       s.integrator->rhs(tnew,ynew,f2,n);
        for(i=0;i<n;i++)
 	 k3[i]=f2[i] - e32*(k2[i] - f1[i]) - 2*(k1[i] - f0[i]) + (h*d)*dfdt[i];
-       if(s.numerics.cv_bandflag)
+       if(s.numerics->cv_bandflag)
 	 xpp::band_solve(dfdy,k3,ml,mr,n);
        else
 	 lu.solve(dfdy,n,k3);
@@ -518,7 +520,7 @@ int *istart,int n,double *work,int *ierr)
 	   /* the variable whose error is the largest (f1 is free: the step ends) */
 	   for(i=0;i<n;i++)
 	     f1[i]=fabs(k1[i]-2*k2[i]+k3[i])/std::max(thresh,std::max(fabs(ynew[i]),fabs(y[i])));
-	   s.solver_work.stop={t,absh,xpp::largest_magnitude(f1,n),0};
+	   s.solver_work->stop={t,absh,xpp::largest_magnitude(f1,n),0};
            *ierr=-1;
 	   return(-1);
 	 }

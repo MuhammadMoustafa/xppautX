@@ -5,6 +5,7 @@
    forms. */
 #include "xpptest.h"
 #include "session.h"
+#include "autox_state.h"
 #include "model.h"
 #include "autox_nox.h"
 #include "autox_settings.h"
@@ -29,18 +30,18 @@ void load_model()
     xpp::Model &m=xpp::client_session().model();
     for(int i=0;i<m.nupar;i++)m.define_name(m.upar_names[i],xpp::Model::NameKind::Param,i,{}).parameter=i;
     for(int i=0;i<m.neq;i++)m.define_name(m.uvar_names[i],xpp::Model::NameKind::Variable,i,{}).column=i;
-    xpp::client_session().autox_state.bifur.nmx = 200;
-    xpp::client_session().autox_state.bifur.ncol = 4;
-    xpp::client_session().autox_state.bifur.dsmin = 0.001;
-    xpp::client_session().autox_state.bifur.dsmax = 0.5;
-    xpp::client_session().autox_state.bifur.rl0 = 0;
-    xpp::client_session().autox_state.bifur.rl1 = 2;
-    xpp::client_session().autox_state.axes().xmin = -1;
-    xpp::client_session().autox_state.axes().xmax = 1;
-    xpp::client_session().autox_state.axes().ymin = -1;
-    xpp::client_session().autox_state.axes().ymax = 1;
-    xpp::client_session().autox_state.axes().icp1 = 0;
-    xpp::client_session().autox_state.axes().icp2 = 1;
+    xpp::client_session().autox_state->bifur.nmx = 200;
+    xpp::client_session().autox_state->bifur.ncol = 4;
+    xpp::client_session().autox_state->bifur.dsmin = 0.001;
+    xpp::client_session().autox_state->bifur.dsmax = 0.5;
+    xpp::client_session().autox_state->bifur.rl0 = 0;
+    xpp::client_session().autox_state->bifur.rl1 = 2;
+    xpp::client_session().autox_state->axes().xmin = -1;
+    xpp::client_session().autox_state->axes().xmax = 1;
+    xpp::client_session().autox_state->axes().ymin = -1;
+    xpp::client_session().autox_state->axes().ymax = 1;
+    xpp::client_session().autox_state->axes().icp1 = 0;
+    xpp::client_session().autox_state->axes().icp2 = 1;
 }
 
 bool ok(int field, double v)
@@ -93,56 +94,56 @@ TEST_CASE("test_autox_settings")
     s.num[xpp::AUTOX_NUM_MAX_STEPS] = 30;
     s.has_num[xpp::AUTOX_NUM_COLLOCATION_POINTS] = 1;
     s.num[xpp::AUTOX_NUM_COLLOCATION_POINTS] = 9;
-    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state.bifur.nmx == 200 && xpp::client_session().autox_state.bifur.ncol == 4);
+    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state->bifur.nmx == 200 && xpp::client_session().autox_state->bifur.ncol == 4);
     s.num[xpp::AUTOX_NUM_COLLOCATION_POINTS] = 5;
-    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().autox_state.bifur.nmx == 30 && xpp::client_session().autox_state.bifur.ncol == 5);
+    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().autox_state->bifur.nmx == 30 && xpp::client_session().autox_state->bifur.ncol == 5);
 
     /* pairs in order, only checked when one of them is given */
     s = xpp::AutoxSettingsSet{};
     s.has_num[xpp::AUTOX_NUM_PARAMETER_MAX] = 1;
     s.num[xpp::AUTOX_NUM_PARAMETER_MAX] = -1;
-    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state.bifur.rl1 == 2);
+    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state->bifur.rl1 == 2);
     CHECK(why.starts_with("Parameter min must be below Parameter max (parameter_min="));
 
     /* Dsmin <= |Ds| <= Dsmax, checked when one of the three is given (T23) */
-    xpp::client_session().autox_state.bifur.ds = 0.02;
+    xpp::client_session().autox_state->bifur.ds = 0.02;
     s = xpp::AutoxSettingsSet{};
     s.has_num[xpp::AUTOX_NUM_STEP_SIZE] = 1;
     s.num[xpp::AUTOX_NUM_STEP_SIZE] = -0.6;
-    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state.bifur.ds == 0.02);
+    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state->bifur.ds == 0.02);
     CHECK(why.starts_with("The size of Step size must be from Min step size to Max step size (its sign is the direction) (step_size=-0.6,"));
     s.num[xpp::AUTOX_NUM_STEP_SIZE] = -0.5;
-    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().autox_state.bifur.ds == -0.5);
+    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().autox_state->bifur.ds == -0.5);
     s = xpp::AutoxSettingsSet{};
     s.has_num[xpp::AUTOX_NUM_MIN_STEP_SIZE] = 1;
     s.num[xpp::AUTOX_NUM_MIN_STEP_SIZE] = 0.6; /* above |Ds| and Dsmax */
-    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state.bifur.dsmin == 0.001);
+    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state->bifur.dsmin == 0.001);
 
     /* axes: names among autoX's parameters, ranges in order */
     s = xpp::AutoxSettingsSet{};
     s.par1 = "GCA";
     s.var = "w";
     s.plot = xpp::AutoxProjection::norm;
-    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().autox_state.axes().icp1 == 1 && xpp::client_session().autox_state.axes().var == 1 && xpp::client_session().autox_state.axes().plot == xpp::AutoxProjection::norm);
+    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().autox_state->axes().icp1 == 1 && xpp::client_session().autox_state->axes().var == 1 && xpp::client_session().autox_state->axes().plot == xpp::AutoxProjection::norm);
     s.par1 = "nosuch";
-    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state.axes().icp1 == 1);
+    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state->axes().icp1 == 1);
     /* a projection is a name: XPPAUT's numbers are read on import only */
     CHECK(xpp::autox_projection_from_name("norm") == xpp::AutoxProjection::norm && !xpp::autox_projection_from_name("1"));
     CHECK(xpp::autox_projection_from_xppaut(11) == xpp::AutoxProjection::average && !xpp::autox_projection_from_xppaut(5));
     s = xpp::AutoxSettingsSet{};
     s.has_range[2] = 1;
     s.range[2] = 3; /* ymin above ymax */
-    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state.axes().ymin == -1);
+    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state->axes().ymin == -1);
 
     /* Mark values: a parameter of autoX's or T, into autoX's user points */
     s = xpp::AutoxSettingsSet{};
     s.nmarks = 2;
     s.mark_name = {"phi","t"};
     s.mark_value = {0.5,20};
-    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().autox_state.bifur.marks.size() == 2);
-    CHECK(xpp::client_session().autox_state.bifur.marks[0].parameter == 2 && xpp::client_session().autox_state.bifur.marks[0].value == 0.5 && xpp::client_session().autox_state.bifur.marks[1].parameter == 10 && xpp::client_session().autox_state.bifur.marks[1].value == 20);
+    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().autox_state->bifur.marks.size() == 2);
+    CHECK(xpp::client_session().autox_state->bifur.marks[0].parameter == 2 && xpp::client_session().autox_state->bifur.marks[0].value == 0.5 && xpp::client_session().autox_state->bifur.marks[1].parameter == 10 && xpp::client_session().autox_state->bifur.marks[1].value == 20);
     s.mark_name[1] = "v"; /* a variable is no user point */
-    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state.bifur.marks[1].parameter == 10);
+    CHECK(xpp::autox_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().autox_state->bifur.marks[1].parameter == 10);
 
     TEST_REPORT("autox_settings");
 }

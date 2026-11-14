@@ -8,7 +8,9 @@
 #include "xpp_files.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "browse.h"
 #include "session.h"
+#include "integrate.h"
 #include "event_registry.h"
 #include <array>
 #include <limits>
@@ -32,14 +34,14 @@ Result<> shown_cells_fit(const Command &command, long long columns, long long ro
 /* the window the commands work on, or why there is none */
 Result<> window_open(const Session &s, const Command &command, const Place &place)
 {
-    if (!s.array_plot.plot.alive) return fail(command.name, "No array plot is open: open one first (array_plot.open)", place);
+    if (!s.array_plot->plot.alive) return fail(command.name, "No array plot is open: open one first (array_plot.open)", place);
     return {};
 }
 
 Result<std::string> open(Session &s, const Command &, const Arguments &, const Place &)
 {
     make_my_aplot(s, "Array!");
-    return ResultObject().boolean("open", s.array_plot.plot.alive != 0).done();
+    return ResultObject().boolean("open", s.array_plot->plot.alive != 0).done();
 }
 
 Result<std::string> redraw(Session &s, const Command &command, const Arguments &, const Place &place)
@@ -52,7 +54,7 @@ Result<std::string> redraw(Session &s, const Command &command, const Arguments &
 Result<std::string> configure(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     if (const Result<> ready = window_open(s, command, place); !ready) return std::unexpected<Error>(ready.error());
-    APLOT &ap = s.array_plot.plot;
+    APLOT &ap = s.array_plot->plot;
     int column = ap.index0;
     const std::string name = args.optional<std::string>("first_column").value_or(ap.name);
     if (args.has("first_column")) {
@@ -76,7 +78,7 @@ Result<std::string> configure(Session &s, const Command &command, const Argument
     ap.ndown = static_cast<int>(rows);
     ap.nskip = static_cast<int>(row_skip);
     ap.ncskip = static_cast<int>(column_skip);
-    s.array_plot.auto_redraw = args.optional<bool>("auto_redraw").value_or(s.array_plot.auto_redraw != 0) ? 1 : 0;
+    s.array_plot->auto_redraw = args.optional<bool>("auto_redraw").value_or(s.array_plot->auto_redraw != 0) ? 1 : 0;
     ap.plotdef = 1;
     ui.aplot_reset_axes(s);
     return ResultObject().boolean("configured", true).done();
@@ -86,22 +88,22 @@ Result<std::string> fit(Session &s, const Command &command, const Arguments &, c
 {
     if (const Result<> ready = aplot_ready(s, command.name); !ready) return std::unexpected<Error>(ready.error());
     fit_aplot(s);
-    return ResultObject().real("fitted_min", s.array_plot.plot.zmin).real("fitted_max", s.array_plot.plot.zmax).done();
+    return ResultObject().real("fitted_min", s.array_plot->plot.zmin).real("fitted_max", s.array_plot->plot.zmax).done();
 }
 
 Result<std::string> range(Session &s, const Command &command, const Arguments &args, const Place &)
 {
     if (const Result<> ready = aplot_ready(s, command.name, false); !ready) return std::unexpected<Error>(ready.error());
-    RangeVars candidate = s.integrator.range;
+    RangeVars candidate = s.integrator->range;
     set_range_settings(candidate, args);
     if (const auto items = resolve_range_items(s, candidate, false); !items) return std::unexpected<Error>(items.error());
     if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
-    s.integrator.range = candidate;
-    begin_array_range(s, args.optional<bool>("still").value_or(s.array_plot.still != 0), args.optional<bool>("tag").value_or(s.array_plot.tag != 0),
+    s.integrator->range = candidate;
+    begin_array_range(s, args.optional<bool>("still").value_or(s.array_plot->still != 0), args.optional<bool>("tag").value_or(s.array_plot->tag != 0),
                       args.get<std::string>("file"));
     RangeProgress done;
     Result<int> swept = run_range(s, 0, &done);
-    s.array_plot.range = 0;
+    s.array_plot->range = 0;
     if (!swept) return std::unexpected<Error>(swept.error());
     return ResultObject().integer("steps_completed", done.runs).done();
 }
@@ -109,7 +111,7 @@ Result<std::string> range(Session &s, const Command &command, const Arguments &a
 Result<std::string> export_pdf(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     if (const Result<> ready = aplot_ready(s, command.name); !ready) return std::unexpected<Error>(ready.error());
-    APLOT ap = s.array_plot.plot;
+    APLOT ap = s.array_plot->plot;
     ap.xtitle = args.optional<std::string>("top_label").value_or(ap.xtitle);
     ap.ytitle = args.optional<std::string>("side_label").value_or(ap.ytitle);
     ap.bottom = args.optional<std::string>("bottom_label").value_or(ap.bottom);
@@ -135,12 +137,12 @@ Result<std::string> export_gif(Session &s, const Command &command, const Argumen
 Result<std::string> scroll(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     if (const Result<> ready = window_open(s, command, place); !ready) return std::unexpected<Error>(ready.error());
-    const long long first_row = args.get<long long>("first_row"), shown = s.array_plot.plot.ndown;
-    if (const Result<> fits = shown_cells_fit(command, 1, shown, first_row + s.array_plot.plot.nskip * (shown - 1), place); !fits)
+    const long long first_row = args.get<long long>("first_row"), shown = s.array_plot->plot.ndown;
+    if (const Result<> fits = shown_cells_fit(command, 1, shown, first_row + s.array_plot->plot.nskip * (shown - 1), place); !fits)
         return std::unexpected<Error>(fits.error());
-    s.array_plot.plot.nstart = static_cast<int>(first_row);
+    s.array_plot->plot.nstart = static_cast<int>(first_row);
     ui.aplot_redraw(s);
-    return ResultObject().integer("first_row", s.array_plot.plot.nstart).done();
+    return ResultObject().integer("first_row", s.array_plot->plot.nstart).done();
 }
 
 constexpr long long MAX_INT = std::numeric_limits<int>::max();

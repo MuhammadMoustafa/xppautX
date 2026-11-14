@@ -11,6 +11,7 @@
 #include "event_registry.h"
 #include "ani_data.h"
 #include "session.h"
+#include "aniparse.h"
 #include "json_number.h"
 #include "xpp_io.h"
 #include "colormap.h"
@@ -88,27 +89,27 @@ void ani_data_init(AniDataEmit emit) { client.emit_line = emit; }
 void ani_data_subscribe(const xpp::Session &s, int on)
 {
     client.subscribed = on != 0;
-    client.unsent = client.subscribed && !s.ani_shown.frame.empty();
+    client.unsent = client.subscribed && !s.ani_shown->frame.empty();
 }
 
 void ani_data_update(const xpp::Session &s)
 {
-    if (client.subscribed && client.unsent) send_frame(s.ani_shown.frame);
+    if (client.subscribed && client.unsent) send_frame(s.ani_shown->frame);
 }
 
 void ani_data_forget(xpp::Session &s)
 {
-    s.ani_shown.frame.clear();
-    s.ani_shown.prims.clear();
+    s.ani_shown->frame.clear();
+    s.ani_shown->prims.clear();
     client.unsent = false;
 }
 
-void ani_data_begin(xpp::Session &s) { s.ani_shown.prims.clear(); }
+void ani_data_begin(xpp::Session &s) { s.ani_shown->prims.clear(); }
 
 void ani_data_line(xpp::Session &s, double u1, double v1, double u2, double v2, const xpp::Color &c, double thick)
 {
     if (!client.emit_line) return;
-    std::string &prims = s.ani_shown.prims;
+    std::string &prims = s.ani_shown->prims;
     open_prim(prims, "line");
     num(prims, u1);
     num(prims, v1);
@@ -116,7 +117,7 @@ void ani_data_line(xpp::Session &s, double u1, double v1, double u2, double v2, 
     num(prims, v2);
     color(prims, c);
     num(prims, thick);
-    prims += ',' + odex::quote_string(line_dash_names[static_cast<std::size_t>(s.animation.pen.dash)]);
+    prims += ',' + odex::quote_string(line_dash_names[static_cast<std::size_t>(s.animation->pen.dash)]);
     prims += ']';
 }
 
@@ -124,7 +125,7 @@ static void box_prim(xpp::Session &s, const char *kind, double a, double b, doub
                      int fill)
 {
     if (!client.emit_line) return;
-    std::string &prims = s.ani_shown.prims;
+    std::string &prims = s.ani_shown->prims;
     open_prim(prims, kind);
     num(prims, a);
     num(prims, b);
@@ -133,7 +134,7 @@ static void box_prim(xpp::Session &s, const char *kind, double a, double b, doub
     color(prims, col);
     num(prims, thick);
     integer(prims, fill ? 1 : 0);
-    prims += ',' + odex::quote_string(line_dash_names[static_cast<std::size_t>(s.animation.pen.dash)]);
+    prims += ',' + odex::quote_string(line_dash_names[static_cast<std::size_t>(s.animation->pen.dash)]);
     prims += ']';
 }
 
@@ -155,7 +156,7 @@ void ani_data_ellipse(xpp::Session &s, double u, double v, double ru, double rv,
 void ani_data_dot(xpp::Session &s, double u, double v, int r, const xpp::Color &c)
 {
     if (!client.emit_line) return;
-    std::string &prims = s.ani_shown.prims;
+    std::string &prims = s.ani_shown->prims;
     open_prim(prims, "dot");
     num(prims, u);
     num(prims, v);
@@ -167,7 +168,7 @@ void ani_data_dot(xpp::Session &s, double u, double v, int r, const xpp::Color &
 void ani_data_text(xpp::Session &s, double u, double v, std::string_view text, const xpp::Color &c, int size, int font)
 {
     if (!client.emit_line) return;
-    std::string &prims = s.ani_shown.prims;
+    std::string &prims = s.ani_shown->prims;
     open_prim(prims, "text");
     num(prims, u);
     num(prims, v);
@@ -182,8 +183,8 @@ void ani_data_text(xpp::Session &s, double u, double v, std::string_view text, c
 void ani_data_end(xpp::Session &s, const AniDataFrame *f)
 {
     if (!client.emit_line) return;
-    std::string &prims = s.ani_shown.prims;
-    std::string &o = s.ani_shown.frame;
+    std::string &prims = s.ani_shown->prims;
+    std::string &o = s.ani_shown->frame;
     o.clear();
     o += xpp::events::open(xpp::events::ANIMATION_FRAME) + ",\"pos\":";
     add_int(o, f->pos);

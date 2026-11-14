@@ -22,6 +22,7 @@
 #include "autox_run.h"
 #include "xpp_job.h"
 #include "session.h"
+#include "autox_state.h"
 #include "xpp_math.h"
 
 namespace xpp {
@@ -129,7 +130,7 @@ void add_stop(std::string &o, const AutoxStop &stop)
 
 std::string autox_data_event_line(const Session &s, const int &point)
 {
-    const AutoxDataShown &sh = s.autox_state.shown;
+    const AutoxDataShown &sh = s.autox_state->shown;
     std::string o = xpp::events::open(xpp::events::AUTOX_INFO) + ",\"info\":";
     if (sh.has_info) add_info(o, sh, point);
     else o += "null";
@@ -138,25 +139,25 @@ std::string autox_data_event_line(const Session &s, const int &point)
     else o += "null";
     o += ",\"start\":" + autox_run_start_json(s);
     o += ",\"stop\":";
-    add_stop(o, s.autox_state.stop);
+    add_stop(o, s.autox_state->stop);
     o += ",\"notes\":[";
-    for (std::size_t i = 0; i < s.autox_state.stop.notes.size(); ++i) {
+    for (std::size_t i = 0; i < s.autox_state->stop.notes.size(); ++i) {
         if (i > 0) o += ',';
-        xpp::json_append_string(o, s.autox_state.stop.notes[i]);
+        xpp::json_append_string(o, s.autox_state->stop.notes[i]);
     }
-    o += s.autox_state.stop.start_refined ? "],\"start_refined\":true}" : "],\"start_refined\":false}";
+    o += s.autox_state->stop.start_refined ? "],\"start_refined\":true}" : "],\"start_refined\":false}";
     return o;
 }
 
 void autox_data_forget(Session &s)
 {
-    s.autox_state.shown.has_info = s.autox_state.shown.has_stab = false;
-    autox_stop_clear(s.autox_state.stop);
+    s.autox_state->shown.has_info = s.autox_state->shown.has_stab = false;
+    autox_stop_clear(s.autox_state->stop);
 }
 
 void autox_data_info(Session &s, const AutoxDataInfo *v)
 {
-    AutoxDataShown &info = s.autox_state.shown;
+    AutoxDataShown &info = s.autox_state->shown;
     if (!v || info.held > 0) return;
     try {
         info.v = *v;
@@ -174,7 +175,7 @@ void autox_data_info(Session &s, const AutoxDataInfo *v)
 
 void autox_data_stab(Session &s, std::span<const double> evr, std::span<const double> evi, int periodic)
 {
-    AutoxDataShown &sh = s.autox_state.shown;
+    AutoxDataShown &sh = s.autox_state->shown;
     if (sh.held > 0) return;
     try {
         sh.stab_re.assign(evr.begin(), evr.end());
@@ -188,7 +189,7 @@ void autox_data_stab(Session &s, std::span<const double> evr, std::span<const do
 
 void autox_data_hold(Session &s, int on)
 {
-    int &held = s.autox_state.shown.held;
+    int &held = s.autox_state->shown.held;
     held += on ? 1 : (held > 0 ? -1 : 0);
 }
 

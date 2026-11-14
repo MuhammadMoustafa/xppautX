@@ -1,5 +1,6 @@
 #include "xpp_math.h"
 #include "session.h"
+#include "autox_state.h"
 #include "autox_c.h"
 #include "xpp_log.h"
 #include "xpp_io.h"

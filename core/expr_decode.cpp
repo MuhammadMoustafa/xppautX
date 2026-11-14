@@ -2,6 +2,7 @@
 #include "expr_decode.h"
 #include "model.h"
 #include "session.h"
+#include "expr.h"
 
 namespace xpp::expr {
 

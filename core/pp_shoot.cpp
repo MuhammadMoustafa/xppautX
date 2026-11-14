@@ -1,4 +1,5 @@
 #include "sweep_runs.h"
+#include "model_parts.h"
 #include "mykeydef.h"
 #include "model.h"
 #include "xpp_ui.h"
@@ -86,56 +87,56 @@ xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend)
  std::optional<xpp::Error> failure;
 
  swap_color(s,&color,0);
- parhi=s.shoot_range.phigh;
- parlo=s.shoot_range.plow;
- npar=s.shoot_range.steps;
+ parhi=s.shoot_range->phigh;
+ parlo=s.shoot_range->plow;
+ npar=s.shoot_range->steps;
  dpar=(parhi-parlo)/static_cast<double>(npar);
- side=s.shoot_range.side;
- cycle=s.shoot_range.cycle;
- s.data_store.rows=0;
+ side=s.shoot_range->side;
+ cycle=s.shoot_range->cycle;
+ s.data_store->rows=0;
  icol=0;
  xpp::Result<> film;
- if(s.shoot_range.movie==1)
+ if(s.shoot_range->movie==1)
    reset_film(s);
  xpp::say_sweep_serial(s,"Range Shoot",npar+1,"each shot starts from the solution before it");
  for(i=0;i<=npar;i++)
    {
      if(xpp::job::cancelled())break;
      temp=parlo+dpar*static_cast<double>(i);
-     set_val(s,s.shoot_range.item,temp);
-     bottom_msg(2,xpp::format("{}={:.16g}",s.shoot_range.item,temp));
-     if(s.shoot_range.movie==1)
+     set_val(s,s.shoot_range->item,temp);
+     bottom_msg(2,xpp::format("{}={:.16g}",s.shoot_range->item,temp));
+     if(s.shoot_range->movie==1)
        clr_scrn(s);
      
-     const xpp::Result<Shot> shot=bvshoot(s,ystart,yend,s.numerics.bvp_tolerance,s.numerics.bvp_epsilon,s.numerics.bvp_max_iterates,s.model().node,0,
+     const xpp::Result<Shot> shot=bvshoot(s,ystart,yend,s.numerics->bvp_tolerance,s.numerics->bvp_epsilon,s.numerics->bvp_max_iterates,s.model().node,0,
 	     0,0,0,0.0);
      if(xpp::job::cancelled())break;
      if(!shot){ /* a value with no solution ends the sweep, naming it */
        failure=shot.error();
-       failure->what=xpp::format("Range Shoot stopped at {} = {} (step {} of {}): {}",s.shoot_range.item,xpp::number(temp),i+1,npar+1,failure->what);
+       failure->what=xpp::format("Range Shoot stopped at {} = {} (step {} of {}): {}",s.shoot_range->item,xpp::number(temp),i+1,npar+1,failure->what);
        break;
      }
      if(shot->end==ShootEnd::cancelled)break;
-     if(s.data_store.rows==s.data_store.max_rows){
+     if(s.data_store->rows==s.data_store->max_rows){
        const auto grown=stor_full(s);
        if(!grown){failure=grown.error();break;}
      }
-     s.data_store.col[0][s.data_store.rows]=temp;
-     if(side==SHOOT_SIDE_START)for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=ystart[j];
-     else for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=yend[j];
-     s.data_store.rows++;
+     s.data_store->col[0][s.data_store->rows]=temp;
+     if(side==SHOOT_SIDE_START)for(j=0;j<s.model().node;j++)s.data_store->col[j+1][s.data_store->rows]=ystart[j];
+     else for(j=0;j<s.model().node;j++)s.data_store->col[j+1][s.data_store->rows]=yend[j];
+     s.data_store->rows++;
      set_cycle(s,cycle,&icol);
      set_initial_data(s,{ystart,static_cast<size_t>(s.model().node)});
      if(const xpp::Result<> r=last_shot(s,0);!r&&!failure)failure=r.error();
-     if(s.shoot_range.movie==1 && film)film=ui.film_clip(s);
+     if(s.shoot_range->movie==1 && film)film=ui.film_clip(s);
      ping();
    }
-  refresh_data(s,s.data_store.rows);
+  refresh_data(s,s.data_store->rows);
   autox_freeze_it(s);     
  swap_color(s,&color,1);
  if(failure)return std::unexpected(std::move(*failure));
  if(!film)return std::unexpected(film.error());
- return s.data_store.rows;
+ return s.data_store->rows;
 }
 
 namespace {
@@ -148,24 +149,24 @@ xpp::Result<> begin_shoot(xpp::Session &s)
  if(s.model().nmarkov>0||s.model().nkernel>0)
    return xpp::fail("boundary_value","Can't do BVP with integral or markov eqns",xpp::command_place());
 
- if(s.numerics.fft||s.numerics.hist)
+ if(s.numerics->fft||s.numerics->hist)
    return xpp::fail("boundary_value","The data table shows a Fourier or histogram result: choose Stochastic, Data to see the trajectory again before solving",xpp::command_place());
- if(s.delay.flag)
+ if(s.delay->flag)
    return xpp::fail("boundary_value","Boundary value problems cannot be solved for a model with delays",xpp::command_place());
  if(auto compiled=compile_bvp(s);!compiled)return compiled;
- wipe_rep(s.data);
+ wipe_rep(*s.data);
  data_back(s);
- s.numerics.storflag=false;
- s.integrator.range_flag=1;
- s.numerics.poincare_map=PoincareMap::none;
+ s.numerics->storflag=false;
+ s.integrator->range_flag=1;
+ s.numerics->poincare_map=PoincareMap::none;
  return {};
 }
 
 struct ShootStoreFrom {
  xpp::Session &s;
  double before;
- explicit ShootStoreFrom(xpp::Session &session) : s(session), before(session.numerics.store_from){s.numerics.store_from=0.0;}
- ~ShootStoreFrom(){s.numerics.store_from=before;}
+ explicit ShootStoreFrom(xpp::Session &session) : s(session), before(session.numerics->store_from){s.numerics->store_from=0.0;}
+ ~ShootStoreFrom(){s.numerics->store_from=before;}
 };
 
 /* the solution bvshoot found made the initial data and integrated and stored (the periodic solve's period
@@ -190,8 +191,8 @@ xpp::Result<> keep_shot(xpp::Session &s, const xpp::Result<Shot> &shot, double *
  if(show)
    reset_graphics(s);
  problems.keep(last_shot(s,1));
- s.numerics.inflag=true;
- refresh_data(s,s.data_store.rows);
+ s.numerics->inflag=true;
+ refresh_data(s,s.data_store->rows);
  autox_freeze_it(s);
  ping();
  return problems.result();
@@ -205,7 +206,7 @@ xpp::Result<> bvp_solve(xpp::Session &s, bool show)
  const ShootStoreFrom store_from(s);
  std::vector<double> ystart(s.model().neq),yend(s.model().neq);
  get_ic(s,1,ystart.data());
- const xpp::Result<Shot> shot=bvshoot(s,ystart.data(),yend.data(),s.numerics.bvp_tolerance,s.numerics.bvp_epsilon,s.numerics.bvp_max_iterates,s.model().node,show?1:0,
+ const xpp::Result<Shot> shot=bvshoot(s,ystart.data(),yend.data(),s.numerics->bvp_tolerance,s.numerics->bvp_epsilon,s.numerics->bvp_max_iterates,s.model().node,show?1:0,
 	0,0,0,0.0);
  return keep_shot(s,shot,ystart.data(),show,std::nullopt);
 }
@@ -220,7 +221,7 @@ xpp::Result<double> bvp_solve_periodic(xpp::Session &s, int ipar, int ivar, doub
  get_ic(s,1,ystart.data());
  double oldpar;
  get_val(s,s.model().upar_names[static_cast<std::size_t>(ipar)],&oldpar);
- const xpp::Result<Shot> shot=bvshoot(s,ystart.data(),yend.data(),s.numerics.bvp_tolerance,s.numerics.bvp_epsilon,s.numerics.bvp_max_iterates,s.model().node,show?1:0,
+ const xpp::Result<Shot> shot=bvshoot(s,ystart.data(),yend.data(),s.numerics->bvp_tolerance,s.numerics->bvp_epsilon,s.numerics->bvp_max_iterates,s.model().node,show?1:0,
 	1,ipar,ivar,sect);
  if(auto kept=keep_shot(s,shot,ystart.data(),show,std::pair{ipar,oldpar});!kept)return std::unexpected(kept.error());
  double period;
@@ -230,10 +231,10 @@ xpp::Result<double> bvp_solve_periodic(xpp::Session &s, int ipar, int ivar, doub
 
 xpp::Result<int> bvp_solve_range(xpp::Session &s, const ShootRange *given)
 {
- const ShootRange &range=given?*given:s.shoot_range;
+ const ShootRange &range=given?*given:*s.shoot_range;
  if(find_user_name(s.model(),PARAMBOX,range.item)<0)return fail("boundary_value",xpp::format("No such parameter {}",range.item),command_place());
  if(auto begun=begin_shoot(s);!begun)return std::unexpected(begun.error());
- if(given)s.shoot_range=*given;
+ if(given)*s.shoot_range=*given;
  const ShootStoreFrom store_from(s);
  std::vector<double> ystart(s.model().neq),yend(s.model().neq);
  get_ic(s,1,ystart.data());
@@ -244,19 +245,19 @@ xpp::Result<> last_shot(xpp::Session &s, int flag)
 {
  int i;
  double *x;
- x=&s.data_store.current[0];
- s.integrator.my_start=1;
+ x=&s.data_store->current[0];
+ s.integrator->my_start=1;
  get_ic(s,2,x);
- s.numerics.storflag=flag;
- s.data_store.current_time=s.numerics.start_time;
+ s.numerics->storflag=flag;
+ s.data_store->current_time=s.numerics->start_time;
  if(flag){
-  s.data_store.col[0][0]=s.numerics.start_time;
-  extra(s,x,s.numerics.start_time,s.model().node,s.model().neq);
-  for(i=0;i<s.model().neq;i++)s.data_store.col[1+i][0]=x[i];
-  s.data_store.rows=1;
+  s.data_store->col[0][0]=s.numerics->start_time;
+  extra(s,x,s.numerics->start_time,s.model().node,s.model().neq);
+  for(i=0;i<s.model().neq;i++)s.data_store->col[1+i][0]=x[i];
+  s.data_store->rows=1;
 
 }
- return integrate(s,&s.data_store.current_time,x,s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start)
+ return integrate(s,&s.data_store->current_time,x,s.numerics->total_time,s.numerics->delta_t,1,s.numerics->store_every,&s.integrator->my_start)
    .transform([](int){});
 }
 
@@ -269,9 +270,9 @@ xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, 
  int ntot=n;
  int i,istart=1,j;
  int info,niter=0;
- double dt=s.numerics.delta_t,t;
- double t0=s.numerics.start_time;
- double t1=s.numerics.start_time+s.numerics.total_time*dt/fabs(dt);
+ double dt=s.numerics->delta_t,t;
+ double t0=s.numerics->start_time;
+ double t1=s.numerics->start_time+s.numerics->total_time*dt/fabs(dt);
 
  if(iper)ntot=n+1;
  std::vector<int> ipvt_values(ntot);

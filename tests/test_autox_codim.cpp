@@ -3,6 +3,8 @@
 #include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
+#include "load_eqn.h"
+#include "autox_state.h"
 #include "autox_c.h"
 #include "autox_settings.h"
 #include "jacobian.h"
@@ -27,13 +29,13 @@ TEST_CASE("test_autox_codim")
     auto &s=xpp::client_session();
     AutoxRun run;
     run.session=&s;
-    run.parameter_count=s.autox_state.parameter_layout.size();
+    run.parameter_count=s.autox_state->parameter_layout.size();
     run.codim.prepare(2);
     iap_type iap{};
     iap.run=&run; iap.ndm=2; iap.ndim=6; iap.nfpr=2; iap.isw=2; iap.ips=xpp::AutoxProblem::SteadyState;
     iap.itpst=xpp::AutoxPointKind::Hopf;
     rap_type rap{};
-    std::array<std::ptrdiff_t,2> icp{s.autox_state.parameter_layout.solver_index(0),s.autox_state.parameter_layout.solver_index(1)};
+    std::array<std::ptrdiff_t,2> icp{s.autox_state->parameter_layout.solver_index(0),s.autox_state->parameter_layout.solver_index(1)};
     std::vector<double> par(run.parameter_count),dp(6*run.parameter_count);
     std::array<double,6> u{0,0,1,0,1,1},rhs{},old=u;
     std::array<double,36> jac{};
@@ -59,10 +61,10 @@ TEST_CASE("test_autox_codim")
     set.special_points.fill(false);
     std::string why;
     CHECK(xpp::autox_settings_apply(s,set,why)==0);
-    for (bool on:s.autox_state.special_points) CHECK(!on);
+    for (bool on:s.autox_state->special_points) CHECK(!on);
     set.special_points[0]=true;
     set.has_num[xpp::AUTOX_NUM_MESH_INTERVALS]=1; set.num[xpp::AUTOX_NUM_MESH_INTERVALS]=-1;
-    CHECK(xpp::autox_settings_apply(s,set,why)!=0 && !s.autox_state.special_points[0]);
+    CHECK(xpp::autox_settings_apply(s,set,why)!=0 && !s.autox_state->special_points[0]);
     // The reaction's exact multilinear derivatives give these coefficients;
     // independent contraction: tests/autox/codim_coefficients.py.
     std::string reaction="examples/tstauto/ab.odex";
@@ -71,10 +73,10 @@ TEST_CASE("test_autox_codim")
     auto &reaction_session=xpp::client_session();
     AutoxRun reaction_lib;
     reaction_lib.session=&reaction_session;
-    reaction_lib.parameter_count=reaction_session.autox_state.parameter_layout.size();
+    reaction_lib.parameter_count=reaction_session.autox_state->parameter_layout.size();
     reaction_lib.codim.prepare(2);
     iap.run=&reaction_lib;
-    icp={reaction_session.autox_state.parameter_layout.solver_index(0),reaction_session.autox_state.parameter_layout.solver_index(1)};
+    icp={reaction_session.autox_state->parameter_layout.solver_index(0),reaction_session.autox_state->parameter_layout.solver_index(1)};
     par.resize(reaction_lib.parameter_count); dp.resize(6*reaction_lib.parameter_count);
     const std::array<std::array<double,2>,3> cases={{{1,0.23809523809523817},{2,-0.2783653083592841},{5.5,-0.360695777622527}}};
     for (const auto &item:cases) {
@@ -87,7 +89,7 @@ TEST_CASE("test_autox_codim")
     // Independent spectra: fixed neutral/imposed multipliers and a real
     // remaining multiplier crossing +1 (fold) or -1 (flip).
     iap.ndm=3; iap.ndim=6; rap.epss=1e-5;
-    reaction_session.autox_state.special_points.fill(true);
+    reaction_session.autox_state->special_points.fill(true);
     std::array<xpp::ComplexPair,3> multipliers={{{1,0},{1,0},{.9,0}}};
     iap.itpst=xpp::AutoxPointKind::CycleFold;
     CHECK(autox_cycle_test(iap,rap,par.data(),multipliers,&enabled)<0 && enabled);
@@ -140,16 +142,16 @@ TEST_CASE("test_autox_codim")
         CHECK(torus_test(angle)==angle*(angle-multiple_of_pi(.5))*(angle-multiple_of_pi(2./3))*(angle-multiple_of_pi(1.)));
     // A disabled root is removed, so it cannot hide a later enabled root.
     const auto r4=std::find(xpp::autox_codim_kinds.begin(),xpp::autox_codim_kinds.end(),xpp::AutoxPointKind::Resonance4);
-    reaction_session.autox_state.special_points[static_cast<std::size_t>(r4-xpp::autox_codim_kinds.begin())]=false;
+    reaction_session.autox_state->special_points[static_cast<std::size_t>(r4-xpp::autox_codim_kinds.begin())]=false;
     par[xpp::autox_unknown::torus_angle]=multiple_of_pi(.5);
     CHECK(autox_cycle_test(iap,rap,par.data(),multipliers,&enabled)!=0 && enabled);
     // Without 1:1 and 1:2 the folded angle's turns at 0 and pi change no sign.
     for (auto kind:{xpp::AutoxPointKind::Resonance1,xpp::AutoxPointKind::Resonance2})
-        reaction_session.autox_state.special_points[static_cast<std::size_t>(
+        reaction_session.autox_state->special_points[static_cast<std::size_t>(
             std::find(xpp::autox_codim_kinds.begin(),xpp::autox_codim_kinds.end(),kind)-xpp::autox_codim_kinds.begin())]=false;
     for (double turn:{0.,1.,2.,3.})
         CHECK(torus_test(multiple_of_pi(turn)-1e-4)*torus_test(multiple_of_pi(turn)+1e-4)>0 && enabled);
-    reaction_session.autox_state.special_points.fill(false);
+    reaction_session.autox_state->special_points.fill(false);
     CHECK(!autox_test_applies(autox_cycle_test(iap,rap,par.data(),multipliers,&enabled)) && !enabled);
     // A mixed augmented pencil with exact original multipliers {1,-1,-2}.
     // P1's last columns have full rank only after selecting different rows.
@@ -180,14 +182,14 @@ TEST_CASE("test_autox_codim")
     CHECK(load_args(2,map_args,1).has_value());
     auto &map_session=xpp::client_session();
     CHECK(xpp::ensure_exact_jacobian(map_session));
-    map_session.numerics.jacobian=xpp::JACOBIAN_EXACT;
+    map_session.numerics->jacobian=xpp::JACOBIAN_EXACT;
     iap.jac=1;
     AutoxRun map_lib;
     map_lib.session=&map_session;
-    map_lib.parameter_count=map_session.autox_state.parameter_layout.size();
+    map_lib.parameter_count=map_session.autox_state->parameter_layout.size();
     iap.run=&map_lib; iap.ndm=4; iap.ndim=10;
     iap.ips=xpp::AutoxProblem::DiscreteMap; iap.itpst=xpp::AutoxPointKind::NeimarkSacker;
-    icp={map_session.autox_state.parameter_layout.solver_index(0),map_session.autox_state.parameter_layout.solver_index(1)};
+    icp={map_session.autox_state->parameter_layout.solver_index(0),map_session.autox_state->parameter_layout.solver_index(1)};
     std::vector<double> mp(map_lib.parameter_count),mj(100),mdp(10*map_lib.parameter_count),mr(10);
     const double fixed=std::sqrt(2.5)-1.;
     mp[icp[0]]=1.5;

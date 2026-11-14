@@ -14,6 +14,7 @@
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "session.h"
+#include "browse.h"
 
 namespace xpp {
 
@@ -48,19 +49,19 @@ const ImageFormat image_formats[n_image_formats] = {
 Result<> begin_picture(Session &s, const ImageFormat &format, std::string_view filename)
 {
   Result<> opened;
-  s.plot_file.writer = open_writer_asking(std::string(filename).c_str(), format.binary, &opened);
-  if (!opened || !s.plot_file.writer) return opened;
-  s.plot_file.format = &format;
-  s.plot_file.picture = Picture{};
-  s.plot_file.pen = Pen{};
-  s.plot_file.text_color = foreground_color;
+  s.plot_file->writer = open_writer_asking(std::string(filename).c_str(), format.binary, &opened);
+  if (!opened || !s.plot_file->writer) return opened;
+  s.plot_file->format = &format;
+  s.plot_file->picture = Picture{};
+  s.plot_file->pen = Pen{};
+  s.plot_file->text_color = foreground_color;
   init_picture(s);
   return {};
 }
 
 Result<> end_picture(Session &s)
 {
-  PlotFileState &f = s.plot_file;
+  PlotFileState &f = *s.plot_file;
   Result<> result;
   if (f.writer) {
     result = f.format->write(f.picture, f.writer);

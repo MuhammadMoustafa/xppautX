@@ -14,6 +14,7 @@
 #include "delay_handle.h"
 #include "form_ode.h"
 #include "session.h"
+#include "load_eqn.h"
 
 namespace xpp {
 
@@ -238,7 +239,7 @@ void box_values_loaded(xpp::Session &s, int type)
     xpp::ok_or_show(redo_all_fun_tables(s));
   }
   if(type==DELAYBOX){
-   xpp::ok_or_show(xpp::do_init_delay(s,s.numerics.delay));
+   xpp::ok_or_show(xpp::do_init_delay(s,s.numerics->delay));
   }
 }
 

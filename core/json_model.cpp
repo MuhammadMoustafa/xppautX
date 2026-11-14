@@ -28,6 +28,8 @@
 #include "ani_data.h"
 #include "autox_data.h"
 #include "session.h"
+#include "arrayplot.h"
+#include "autox_state.h"
 #include <vector>
 
 namespace xpp::json {
@@ -38,7 +40,7 @@ namespace {
 void init_main_graph(xpp::Session &s)
 {
     int i;
-    for (i = 0; i < static_cast<int>(s.frozen_curves.curve.size()); i++) s.frozen_curves.curve[i].use = 0;
+    for (i = 0; i < static_cast<int>(s.frozen_curves->curve.size()); i++) s.frozen_curves->curve[i].use = 0;
     init_all_graph(s);
     get_draw_area(s);
 }
@@ -59,7 +61,7 @@ void start_model(xpp::Session &s, const xpp::KeptValues *kept)
     default_window(s);
     if (kept) xpp::restore_values(s, *kept);
     send_hello(s);
-    if (s.animation.options.use_file) {
+    if (s.animation->options.use_file) {
         /* The shared load already validated and installed this animation. The
            model offers it: its window starts hidden, listed and shown on request
            (Discussion #594, question 13). */
@@ -72,11 +74,11 @@ void start_model(xpp::Session &s, const xpp::KeptValues *kept)
 std::vector<std::pair<std::string,std::string>> shown_windows(const xpp::Session &s)
 {
     std::vector<std::pair<std::string,std::string>> w;
-    for (int i = 1; i < static_cast<int>(s.plot_windows.graph.size()); i++)
-        if (s.plot_windows.graph[i].Use) w.emplace_back(s.plot_windows.graph[i].name,"graph");
-    if (s.autox_state.bifur.exist) w.emplace_back(xpp::window_name(s,WIN_AUTOX),"diagram");
-    if (s.animation.vcr.iexist) w.emplace_back(xpp::window_name(s,WIN_ANI),"animation");
-    if (s.array_plot.plot.alive) w.emplace_back(xpp::window_name(s,WIN_APLOT),"array_plot");
+    for (int i = 1; i < static_cast<int>(s.plot_windows->graph.size()); i++)
+        if (s.plot_windows->graph[i].Use) w.emplace_back(s.plot_windows->graph[i].name,"graph");
+    if (s.autox_state->bifur.exist) w.emplace_back(xpp::window_name(s,WIN_AUTOX),"diagram");
+    if (s.animation->vcr.iexist) w.emplace_back(xpp::window_name(s,WIN_ANI),"animation");
+    if (s.array_plot->plot.alive) w.emplace_back(xpp::window_name(s,WIN_APLOT),"array_plot");
     return w;
 }
 
@@ -94,7 +96,7 @@ xpp::Result<xpp::Session *> switch_model(xpp::Session &before, const xpp::ModelR
     s.file_dialogs.home = req.home.empty() ? xpp::files::working_dir() : req.home;
     for (const auto &[name,kind] : shown) send_window(xpp::events::WINDOW_DESTROYED, name, 0, 0,"",kind);
     /* what the data modules and this front end recorded of the model before */
-    for (int i = 0; i < static_cast<int>(s.plot_windows.graph.size()); i++) {
+    for (int i = 0; i < static_cast<int>(s.plot_windows->graph.size()); i++) {
         phase_data_cleared(s, i);
         marks_data_cleared(s, i);
     }

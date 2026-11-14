@@ -12,6 +12,7 @@
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "session.h"
+#include "storage.h"
 
 #include <algorithm>
 #include <functional>
@@ -183,7 +184,7 @@ Result<> save_defaults(Session &s, std::string_view scope, std::optional<int> gr
         changed.parameters.emplace_back(static_cast<int>(i), now);
     }
     for (std::size_t i = 0; i < values->state_values.size(); i++) {
-        const double now = last_state ? s.data_store.current[i] : s.last_ic[i];
+        const double now = last_state ? s.data_store->current[i] : s.last_ic[i];
         if (now == m.default_ic[i]) continue;
         differing.state_values.push_back(values->state_values[i]);
         changed.states.emplace_back(static_cast<int>(i), now);

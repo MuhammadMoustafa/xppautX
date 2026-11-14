@@ -29,6 +29,8 @@
 #include "xpp_mem.h"
 #include "xpp_globals.h"
 #include "session.h"
+#include "expr.h"
+#include "load_eqn.h"
 #include "model.h"
 
 namespace xpp {
@@ -861,7 +863,7 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     m.native_equations=false;
     m.native_program.reset();
     m.native_build.reset();
-    if (!s.numerics.compile || entries.empty()) return {};
+    if (!s.numerics->compile || entries.empty()) return {};
     Generator g{s};
     std::vector<Error> warnings;
     if (m.nfun<0 || static_cast<size_t>(m.nfun)>m.ufun_programs.size()) return g.refuse("an out-of-range function count");
@@ -1112,7 +1114,7 @@ namespace {
 ExactJacobian make_jacobian(Session &s, const std::vector<ModelProgram> &entries)
 {
     ExactJacobian j;
-    if (!s.numerics.compile) {
+    if (!s.numerics->compile) {
         j.unavailable = "the model is interpreted (option compile is false)";
         return j;
     }
@@ -1183,9 +1185,9 @@ std::vector<std::vector<int>> equation_reads(const Model &m)
 
 std::string run_joined_by(const Session &s)
 {
-    if (s.numerics.subsystem_split != SubsystemSplit::run) return "";
-    if (s.numerics.poincare_stop) return "a Poincare stop";
-    if (s.numerics.poincare_map != PoincareMap::none) return "a Poincare section";
+    if (s.numerics->subsystem_split != SubsystemSplit::run) return "";
+    if (s.numerics->poincare_stop) return "a Poincare stop";
+    if (s.numerics->poincare_map != PoincareMap::none) return "a Poincare section";
     return "";
 }
 
@@ -1245,7 +1247,7 @@ Result<std::vector<Error>> translate_model(Session &s)
     m.jacobian.requested=std::move(requested);
     /* the exact Jacobian a model asks for is made now (its derivatives: the run evaluates them from the first
        step); its compile and the programs' start on their threads when due (build_native) */
-    if (s.numerics.jacobian==JACOBIAN_EXACT) ensure_exact_jacobian(s);
+    if (s.numerics->jacobian==JACOBIAN_EXACT) ensure_exact_jacobian(s);
     return compiled;
 }
 

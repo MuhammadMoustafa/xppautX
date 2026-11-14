@@ -19,6 +19,9 @@
 #include "xpp_util.h"
 #include "model.h"
 #include "session.h"
+#include "integrate.h"
+#include "load_eqn.h"
+#include "many_pops.h"
 #include "event_registry.h"
 #include <algorithm>
 #include <array>
@@ -50,16 +53,16 @@ template <std::size_t N> std::size_t position_of(const std::array<const char *, 
 Result<std::string> seed_random(Session &s, const Command &, const Arguments &args, const Place &)
 {
     if (const Result<> set = set_random_seed(s, static_cast<int>(args.get<long long>("seed"))); !set) return std::unexpected<Error>(set.error());
-    return ResultObject().integer("seed", s.numerics.rand_seed).done();
+    return ResultObject().integer("seed", s.numerics->rand_seed).done();
 }
 
 Result<std::string> stochastic_integrate_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    RangeVars range=s.integrator.range;
+    RangeVars range=s.integrator->range;
     if(auto items=resolve_range_items(s,range,false); !items)return std::unexpected<Error>(items.error());
     if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
     /* the runs are the Range settings' steps plus one: the sweep takes a run at each of the steps and at the start */
-    if (const auto trials = args.optional<long long>("trials")) s.integrator.range.steps = static_cast<int>(*trials - 1);
+    if (const auto trials = args.optional<long long>("trials")) s.integrator->range.steps = static_cast<int>(*trials - 1);
     const Result<int> runs = stochastic_integrate(s);
     if (!runs) return std::unexpected<Error>(runs.error());
     return ResultObject().integer("trials_completed", *runs).done();
@@ -81,7 +84,7 @@ template <Result<> (*Do)(Session &), const char *Key> Result<std::string> done_w
 
 Result<std::string> histogram_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    HIST_INFO info = s.histogram.info;
+    HIST_INFO info = s.histogram->info;
     if (const auto column = args.optional<std::string>("column")) info.col = variable_column(s, *column);
     if (const auto bins = args.optional<long long>("bins")) info.nbins = static_cast<int>(*bins);
     if (const auto low = args.optional<double>("low")) info.xlo = *low;
@@ -94,7 +97,7 @@ Result<std::string> histogram_handler(Session &s, const Command &, const Argumen
 
 Result<std::string> histogram_2d_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    HIST_INFO info = s.histogram.info;
+    HIST_INFO info = s.histogram->info;
     if (const auto column = args.optional<std::string>("column1")) info.col = variable_column(s, *column);
     if (const auto column = args.optional<std::string>("column2")) info.col2 = variable_column(s, *column);
     if (const auto bins = args.optional<long long>("bins1")) info.nbins = static_cast<int>(*bins);
@@ -128,7 +131,7 @@ Result<std::string> statistics_handler(Session &s, const Command &, const Argume
 
 Result<std::string> autocorrelation_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    HIST_INFO info = s.histogram.info;
+    HIST_INFO info = s.histogram->info;
     if (const auto column = args.optional<std::string>("column")) info.col = variable_column(s, *column);
     if (const auto bins = args.optional<long long>("bins")) info.nbins = static_cast<int>(*bins);
     if (const auto low = args.optional<double>("low")) info.xlo = *low;
@@ -140,7 +143,7 @@ Result<std::string> autocorrelation_handler(Session &s, const Command &, const A
 
 Result<std::string> cross_correlation_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    HIST_INFO info = s.histogram.info;
+    HIST_INFO info = s.histogram->info;
     if (const auto column = args.optional<std::string>("column1")) info.col = variable_column(s, *column);
     if (const auto column = args.optional<std::string>("column2")) info.col2 = variable_column(s, *column);
     if (const auto lags = args.optional<long long>("lags")) info.nbins = static_cast<int>(*lags);
@@ -172,7 +175,7 @@ std::string joined(const std::vector<std::string> &names)
 
 Result<std::string> fit_curve(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    FitInfo fit = s.fit;
+    FitInfo fit = *s.fit;
     fit.varlist = joined(args.list<std::string>("variables"));
     fit.parlist1 = joined(args.list<std::string>("parameters"));
     fit.parlist2.clear();
@@ -206,11 +209,11 @@ Result<std::string> lyapunov_handler(Session &s, const Command &command, const A
         for (const Argument &arg : RUN_RANGE_ARGUMENTS)
             if (args.has(arg.name)) return fail(command.name, xpp::format("\"{}\" is a setting of the sweep: give range_over_parameters", arg.name), place);
     if (over_range) {
-        RangeVars range=s.integrator.range;
+        RangeVars range=s.integrator->range;
         set_range_settings(range,args);
         if(auto items=resolve_range_items(s,range,false); !items)return std::unexpected<Error>(items.error());
     if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
-        s.integrator.range=range;
+        s.integrator->range=range;
     }
     const Result<LyapunovResult> found = lyapunov_exponent(s, over_range);
     if (!found) return std::unexpected<Error>(found.error());
@@ -229,7 +232,7 @@ Result<std::string> poincare_handler(Session &s, const Command &, const Argument
     }
     if (const Result<> set = set_poincare_map(s, map, variable, args.optional<double>("section"), direction, args.optional<bool>("stop_on_section")); !set)
         return std::unexpected<Error>(set.error());
-    return ResultObject().boolean("poincare_configured", s.numerics.poincare_map != PoincareMap::none).done();
+    return ResultObject().boolean("poincare_configured", s.numerics->poincare_map != PoincareMap::none).done();
 }
 
 Result<std::string> torus_handler(Session &s, const Command &, const Arguments &args, const Place &)
@@ -243,7 +246,7 @@ Result<std::string> torus_handler(Session &s, const Command &, const Arguments &
     if (const Result<> set = set_torus(s, mode, args.optional<double>("period"), chosen); !set) return std::unexpected<Error>(set.error());
     std::string names = "[";
     for (int i = 0; i < s.model().neq; ++i) {
-        if (s.itor[static_cast<std::size_t>(i)] != 1 || !s.numerics.torus) continue;
+        if (s.itor[static_cast<std::size_t>(i)] != 1 || !s.numerics->torus) continue;
         if (names.size() > 1) names += ',';
         json_append_string(names, s.model().uvar_names[static_cast<std::size_t>(i)]);
     }
@@ -256,16 +259,16 @@ Result<std::string> color_coding_handler(Session &s, const Command &command, con
     if (!graph) return std::unexpected<Error>(graph.error());
     const ActiveGraph active(s, *graph);
     const ColorBy by = static_cast<ColorBy>(position_of(COLOR_MODES, args.get<std::string>("mode")));
-    const int variable = args.has("variable") ? variable_column(s, args.get<std::string>("variable")) : s.plot_windows.current->ColorValue;
+    const int variable = args.has("variable") ? variable_column(s, args.get<std::string>("variable")) : s.plot_windows->current->ColorValue;
     std::optional<std::pair<double, double>> limits;
     if (args.has("low")) limits = std::pair{args.get<double>("low"), args.get<double>("high")};
     if (const Result<> set = set_color_coding(s, by, variable, limits); !set) return std::unexpected<Error>(set.error());
-    return ResultObject().text("color_coding", COLOR_MODES[static_cast<std::size_t>(s.plot_windows.current->ColorFlag)]).done();
+    return ResultObject().text("color_coding", COLOR_MODES[static_cast<std::size_t>(s.plot_windows->current->ColorFlag)]).done();
 }
 
 Result<std::string> adjoint_interaction(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
-    auto couplings = s.adjoint.coup_string;
+    auto couplings = s.adjoint->coup_string;
     for (const auto &[name, formula] : args.map<std::string>("couplings")) {
         const int variable = variable_column(s, name) - 1;
         if (variable < 0 || variable >= s.model().node)
@@ -278,16 +281,16 @@ Result<std::string> adjoint_interaction(Session &s, const Command &command, cons
 
 Result<std::string> adjoint_configure(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    const int iterations = static_cast<int>(args.optional<long long>("max_iterates").value_or(s.adjoint.maxit));
-    if (const Result<> set = set_adjoint_parameters(s, iterations, args.optional<double>("tolerance").value_or(s.adjoint.err)); !set)
+    const int iterations = static_cast<int>(args.optional<long long>("max_iterates").value_or(s.adjoint->maxit));
+    if (const Result<> set = set_adjoint_parameters(s, iterations, args.optional<double>("tolerance").value_or(s.adjoint->err)); !set)
         return std::unexpected<Error>(set.error());
     return ResultObject().boolean("updated", true).done();
 }
 
 Result<std::string> adjoint_range(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    if (const auto enabled = args.optional<bool>("enabled")) s.integrator.adj_range = *enabled ? 1 : 0;
-    return ResultObject().boolean("adjoint_range", s.integrator.adj_range == 1).done();
+    if (const auto enabled = args.optional<bool>("enabled")) s.integrator->adj_range = *enabled ? 1 : 0;
+    return ResultObject().boolean("adjoint_range", s.integrator->adj_range == 1).done();
 }
 
 constexpr Argument COLUMN = {"column", Type::model_name, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::column};

@@ -11,6 +11,7 @@
 #include "model.h"
 #include "model_files.h"
 #include "session.h"
+#include "aniparse.h"
 #include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
@@ -144,8 +145,8 @@ void check_saved_animation(const xpp::TempDir &tmp)
     CHECK(write_file("animated.odex", "x'=-x\ninit x=1\noptions { animation: \"motion.anix\", equilibria: { max_iterations: 7 } }\n"));
     CHECK(write_file("motion.anix", "model: \"animated.odex\"\nline { x1: near(0,.05,tol=.1), y1: 0, x2: x, y2: 1 }\n"));
     CHECK(load("animated.odex"));
-    CHECK(xpp::client_session().animation.ncom == 1);
-    CHECK(xpp::evaluate(xpp::client_session(), xpp::client_session().animation.commands.front().x1) == 1);
+    CHECK(xpp::client_session().animation->ncom == 1);
+    CHECK(xpp::evaluate(xpp::client_session(), xpp::client_session().animation->commands.front().x1) == 1);
     xpp::snapx::Manifest manifest;
     auto entries = xpp_saved_entries(xpp::client_session(), manifest);
     CHECK(entries.has_value());
@@ -157,12 +158,12 @@ void check_saved_animation(const xpp::TempDir &tmp)
     if (!saved) return;
     CHECK(xpp::files::remove("animated.odex") == 0 && xpp::files::remove("motion.anix") == 0);
     CHECK(load("animated.odex", &saved->model));
-    CHECK(xpp::client_session().animation.ncom == 1);
+    CHECK(xpp::client_session().animation->ncom == 1);
     for (auto &file : saved->model.files)
         if (file.name == "motion.anix") file.bytes = versioned_anix("line { x1: missing, y1: 0, x2: 1, y2: 1 }\n");
     /* an animation that no longer fits the model is refused whole: the model loads without it */
     CHECK(load("animated.odex", &saved->model));
-    CHECK(xpp::client_session().animation.ncom == 0);
+    CHECK(xpp::client_session().animation->ncom == 0);
 }
 
 void check_saved_model(const xpp::TempDir &tmp)
@@ -270,8 +271,8 @@ void check_plot_limits(const xpp::TempDir &tmp)
     std::array<int,curves> variables;
     for(int i=0;i<curves;i++)variables[static_cast<std::size_t>(i)]=i+1;
     CHECK(xpp::plot_variables(s,xpp::PlotHow::time_series,variables));
-    CHECK(s.plot_windows.current->nvars==curves && s.plot_windows.current->yv.back()==curves);
-    CHECK(s.plot_windows.current->plot_points[0].size()==curves);
+    CHECK(s.plot_windows->current->nvars==curves && s.plot_windows->current->yv.back()==curves);
+    CHECK(s.plot_windows->current->plot_points[0].size()==curves);
     xpp::DataTable data;
     data.names={"T"};data.columns={{0,1,2}};
     for(int i=0;i<curves;i++){
@@ -280,14 +281,14 @@ void check_plot_limits(const xpp::TempDir &tmp)
     }
     CHECK(xpp::put_stored_data(s,data)==3);
     for(int i=0;i<frozen;i++){const auto slot=xpp::freeze_curve(s,curves-1);CHECK(slot&&*slot==i);}
-    CHECK(s.frozen_curves.curve.size()==frozen && s.frozen_curves.curve.back().yv[2]==curves);
+    CHECK(s.frozen_curves->curve.size()==frozen && s.frozen_curves->curve.back().yv[2]==curves);
     for(int i=1;i<windows;i++){
         xpp::create_a_pop(s);
-        CHECK(s.plot_windows.active==i && s.plot_windows.current==&s.plot_windows.graph[i]);
-        CHECK(s.plot_windows.current->nvars==curves);
-        CHECK(s.plot_windows.current->w<WIN_AUTOX || s.plot_windows.current->w>WIN_APLOT);
+        CHECK(s.plot_windows->active==i && s.plot_windows->current==&s.plot_windows->graph[i]);
+        CHECK(s.plot_windows->current->nvars==curves);
+        CHECK(s.plot_windows->current->w<WIN_AUTOX || s.plot_windows->current->w>WIN_APLOT);
     }
-    CHECK(s.plot_windows.graph.back().w==windows+WIN_APLOT-WIN_AUTOX+1);
+    CHECK(s.plot_windows->graph.back().w==windows+WIN_APLOT-WIN_AUTOX+1);
     xpp::make_active(s,7,1);
     xpp::destroy_a_pop(s);
     xpp::make_active(s,windows-1,1);
@@ -312,8 +313,8 @@ void check_plot_limits(const xpp::TempDir &tmp)
         text.replace(pos,std::string_view(old).size(),replacement);
         const auto error=xpp_saved_check(s,damaged);
         CHECK(error && error->place.file.ends_with(member) && error->place.line>0 && !error->place.source.empty());
-        CHECK(s.plot_windows.active==windows-1 && s.plot_windows.count==windows-1);
-        CHECK(s.frozen_curves.curve.size()==frozen && !s.frozen_curves.curve[5].use);
+        CHECK(s.plot_windows->active==windows-1 && s.plot_windows->count==windows-1);
+        CHECK(s.frozen_curves->curve.size()==frozen && !s.frozen_curves->curve[5].use);
     };
     bad("session.odex","name: \"main\"","name: \"\"");
     bad("session.odex","active: \"graph_106\"","active: \"graph_7\"");
@@ -328,7 +329,7 @@ void check_plot_limits(const xpp::TempDir &tmp)
     bad("session.odex","points: 3","points: 2");
     /* The real curve reader shares the budget with preceding window lists.
        A rejected oversized list leaves both the graph and live session intact. */
-    GRAPH graph = *s.plot_windows.current;
+    GRAPH graph = *s.plot_windows->current;
     const auto old_y = graph.yv;
     std::size_t used = xpp::zip::archive_bytes_limit - 1;
     const auto rejected = xpp::odex::read_block("session", "limits.snapx/session.odex", "\ncurves: [{}, {}]", true,
@@ -338,7 +339,7 @@ void check_plot_limits(const xpp::TempDir &tmp)
         });
     CHECK(!rejected && rejected.error().what == "too many curves for the session memory limit");
     CHECK(!rejected && rejected.error().place.line == 2 && rejected.error().place.file == "limits.snapx/session.odex");
-    CHECK(graph.yv == old_y && graph.nvars == curves && s.plot_windows.current->nvars == curves);
+    CHECK(graph.yv == old_y && graph.nvars == curves && s.plot_windows->current->nvars == curves);
     /* a file of the settings alone uses the same curve reader, independently of the archive. */
     const auto settings=xpp::settings_text(s,xpp::capture_settings(s,xpp::SettingsUse::session));
     CHECK(settings.has_value());
@@ -354,10 +355,10 @@ void check_plot_limits(const xpp::TempDir &tmp)
     xpp::Session &restored=xpp::client_session();
     xpp::batch_start(restored);
     CHECK(xpp_saved_restore(restored,*disk));
-    CHECK(restored.plot_windows.graph.size()==windows-1 && restored.plot_windows.count==windows-1);
-    CHECK(restored.plot_windows.active==windows-2 && restored.plot_windows.graph[7].name=="graph_8");
-    CHECK(restored.plot_windows.current->nvars==curves && restored.plot_windows.current->yv.back()==curves);
-    CHECK(restored.frozen_curves.curve.size()==frozen && !restored.frozen_curves.curve[5].use);
+    CHECK(restored.plot_windows->graph.size()==windows-1 && restored.plot_windows->count==windows-1);
+    CHECK(restored.plot_windows->active==windows-2 && restored.plot_windows->graph[7].name=="graph_8");
+    CHECK(restored.plot_windows->current->nvars==curves && restored.plot_windows->current->yv.back()==curves);
+    CHECK(restored.frozen_curves->curve.size()==frozen && !restored.frozen_curves->curve[5].use);
     const auto again=xpp_session_snapshot(restored);
     CHECK(again.has_value());
     if(!again)return;

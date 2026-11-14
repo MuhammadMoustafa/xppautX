@@ -137,11 +137,11 @@ void load_eqn(xpp::Session &s)
 
 void set_all_vals(xpp::Session &s)
 {
- s.delay.stab_flag=DFNORMAL;
- s.data_store.rows=0;
- s.numerics.storflag=false;
- s.numerics.inflag=false;
- s.plot_settings.plot_3d=0;
+ s.delay->stab_flag=DFNORMAL;
+ s.data_store->rows=0;
+ s.numerics->storflag=false;
+ s.numerics->inflag=false;
+ s.plot_settings->plot_3d=0;
  xpp::set_option_defaults(s);
  /* internal options go here  */
  set_internopts(s,NULL);
@@ -159,19 +159,19 @@ void set_all_vals(xpp::Session &s)
 
 /*                           */
 
- PlotCurve &axes_curve=s.plot_settings.curves[0];
+ PlotCurve &axes_curve=s.plot_settings->curves[0];
  if(axes_curve.z>s.model().neq)axes_curve.z=s.model().neq;
  if(axes_curve.y>s.model().neq)axes_curve.y=s.model().neq;
  if(axes_curve.x==0||axes_curve.y==0)
-   s.plot_settings.timplot=1;
+   s.plot_settings->timplot=1;
  else 
-   s.plot_settings.timplot=0;
+   s.plot_settings->timplot=0;
  /* room for one run's rows, at most start_rows: an untouched row costs a page in every column of a large model */
- const NumericsSettings &n=s.numerics;
+ const NumericsSettings &n=*s.numerics;
  const std::int64_t run_steps=xpp::step_count(s,xpp::solver_info(n.method),n.delta_t,n.total_time).value_or(DataStore::start_rows);
  const std::int64_t run_rows=run_steps/std::max(n.store_every,1)+2;
- s.data_store.allocate(static_cast<int>(std::min<std::int64_t>(DataStore::start_rows,run_rows)),s.model().neq+1,n.storage_precision);
- if(s.plot_settings.axes>=5)s.plot_settings.plot_3d=1;
+ s.data_store->allocate(static_cast<int>(std::min<std::int64_t>(DataStore::start_rows,run_rows)),s.model().neq+1,n.storage_precision);
+ if(s.plot_settings->axes>=5)s.plot_settings->plot_3d=1;
  xpp::chk_delay(s); /* check for delay allocation */
  xpp::alloc_h_stuff(s);
 
@@ -362,8 +362,8 @@ std::vector<SetItem> set_items(const xpp::Model::InternalSet &set)
 /* the open graph `graph` names, the active one when none; the error otherwise */
 xpp::Result<int> target_graph(const xpp::Session &s, std::optional<int> graph, std::string_view command)
 {
-  if(!graph)return s.plot_windows.active;
-  if(*graph<0||*graph>=static_cast<int>(s.plot_windows.graph.size())||!s.plot_windows.graph[*graph].Use)
+  if(!graph)return s.plot_windows->active;
+  if(*graph<0||*graph>=static_cast<int>(s.plot_windows->graph.size())||!s.plot_windows->graph[*graph].Use)
     return std::unexpected(xpp::Error{std::string(command),xpp::format("{}: window {} is not an open plot window",command,*graph+1),xpp::command_place()});
   return *graph;
 }
@@ -382,7 +382,7 @@ xpp::Result<> graph_fits_scope(std::optional<int> graph, std::string_view scope,
    back, with its own settings in the plot settings again */
 class GraphTarget {
 public:
-  GraphTarget(xpp::Session &s, int graph, bool used) : s_(s), previous_(s.plot_windows.active), used_(used)
+  GraphTarget(xpp::Session &s, int graph, bool used) : s_(s), previous_(s.plot_windows->active), used_(used)
   {
     if(!used_)return;
     if(graph!=previous_)xpp::make_active(s_,graph,1);
@@ -392,7 +392,7 @@ public:
   void store() const { if(used_)reset_graph(s_); }
   ~GraphTarget()
   {
-    if(!used_||s_.plot_windows.active==previous_)return;
+    if(!used_||s_.plot_windows->active==previous_)return;
     xpp::make_active(s_,previous_,1);
     get_graph(s_);
   }
@@ -463,7 +463,7 @@ std::vector<std::pair<const OptionRow *,std::string>> group_settings(xpp::Sessio
 {
   std::vector<std::pair<const OptionRow *,std::string>> out;
   for(const OptionRow &row : option_rows()){
-    if(row.group!=group||(wanted==Rows::set&&!set_holds(row))||(wanted==Rows::model&&row.top_level)||!has_member(row)||!setting_applies(s,row,s.numerics.method))continue;
+    if(row.group!=group||(wanted==Rows::set&&!set_holds(row))||(wanted==Rows::model&&row.top_level)||!has_member(row)||!setting_applies(s,row,s.numerics->method))continue;
     std::string text=autox_view_row(row)?autox_view_text(s,row):setting_text(s,row);
     if(row.kind==OptionKind::path&&wanted!=Rows::panel){
       if(text.empty())continue; /* a path left out: none */
@@ -637,12 +637,12 @@ xpp::Result<odex::Values> captured_values(xpp::Session &s, std::string_view scop
     }
   }
   if(all||scope==set_scope::initial){
-    if(last_state&&s.data_store.rows<=0)return fail("no run has reached a state yet: there is no last state to save");
+    if(last_state&&s.data_store->rows<=0)return fail("no run has reached a state yet: there is no last state to save");
     values.states=true;
     for(int i=0;i<m.node+m.nmarkov;i++){
       const std::size_t k=static_cast<std::size_t>(i);
       values.state_values.emplace_back(declared_spelling(m,m.uvar_names[i]),
-                                       odex::print_number(last_state?s.data_store.current[k]:s.last_ic[k]));
+                                       odex::print_number(last_state?s.data_store->current[k]:s.last_ic[k]));
     }
   }
   const GraphTarget on(s,*target,all||scope==option_group::plot);

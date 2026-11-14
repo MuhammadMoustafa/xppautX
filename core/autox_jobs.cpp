@@ -7,6 +7,8 @@
 #include "expr_native.h"
 #include "autox_queue.h"
 #include "session.h"
+#include "autox_state.h"
+#include "expr.h"
 #include "autox_data.h"
 #include "autox_evd.h"
 #include "autox_c.h"
@@ -172,7 +174,7 @@ std::optional<Error> run_numerics(AutoxRun &run) noexcept
    start that needed none (or is not an equilibrium start). */
 Result<std::optional<std::vector<double>>> refined_equilibrium_start(Session &s)
 {
-  const AutoxState &state=s.autox_state;
+  const AutoxState &state=*s.autox_state;
   const std::size_t n=static_cast<std::size_t>(s.model().node);
   AutoxRun probe;
   probe.session=&s;
@@ -313,7 +315,7 @@ bool repeats(std::deque<QueuedJob> &jobs, const AutoxJobKey &key, const AutoxJob
 /* a direction that leaves the parameter window at the start is not run (it says so, once, in the job's own output) */
 void skip_if_away(Queue &q, QueuedJob &job, double start)
 {
-  const AutoxState &state=q.s.autox_state;
+  const AutoxState &state=*q.s.autox_state;
   const double ds=job.run->params.ds;
   if(!autox_start_points_away(start,state.bifur.rl0,state.bifur.rl1,ds))return;
   job.skipped=true;
@@ -358,7 +360,7 @@ Result<> set_up_child(Queue &q, QueuedJob &job)
   Session &s=q.s;
   AutoxRun &run=*job.run;
   const AutoxJobStart &start=job.start;
-  AutoxFoundStart found{start.ips,start.isw,s.autox_state.suppress_bp?0:start.ips==AutoxProblem::Periodic?2:1,start.label,nullptr,{}};
+  AutoxFoundStart found{start.ips,start.isw,s.autox_state->suppress_bp?0:start.ips==AutoxProblem::Periodic?2:1,start.label,nullptr,{}};
   if(start.label==0){
     if(auto ready=autox_set_up_run(s,run,NO_OPEN_3,&found);!ready)return ready;
     run.orbit_start=false;
@@ -509,7 +511,7 @@ void begin(Queue &q, QueuedJob &job, std::vector<std::thread> &threads)
   configure(q,job);
   AutoxRun &run=*job.run;
   if(job.parent&&job.start.label==0){ /* an equilibrium: the parameter value it starts at */
-    const int slot=q.s.model().upar_con[q.s.autox_state.axes().icp1];
+    const int slot=q.s.model().upar_con[q.s.autox_state->axes().icp1];
     (run.pure_rhs?run.rhs_constants:q.s.parser.constants)[static_cast<std::size_t>(slot)]=job.start.parameter;
   }
   run.point_stored=[&q,&job](std::size_t points){
@@ -617,7 +619,7 @@ std::optional<Error> early_end(const QueuedJob &job)
 std::string job_text(const Queue &q, const QueuedJob &job)
 {
   const AutoxJobStart &start=job.start;
-  const std::string from=job.parent?xpp::format("the point at {} = {}",q.s.model().upar_names[q.s.autox_state.axes().icp1],xpp::number(start.id->parameters[0])):"the start";
+  const std::string from=job.parent?xpp::format("the point at {} = {}",q.s.model().upar_names[q.s.autox_state->axes().icp1],xpp::number(start.id->parameters[0])):"the start";
   const std::string direction=start.sign?(*start.sign>0?", +step_size":", -step_size"):"";
   return xpp::format("the job of {} from {}{}",start.ips==AutoxProblem::Periodic?"cycles":"steady states",from,direction);
 }
@@ -717,7 +719,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
   /* the jobs evaluate on copies of the model's constants when the model allows it; else on the Session's own, one at a
      time, each from the constants the run began with, which are the Session's again when the run ends */
   Queue q(s);
-  const AutoxState &state=s.autox_state;
+  const AutoxState &state=*s.autox_state;
   q.isolated=native_ready(s)&&autox_parallel_ready(s); /* the jobs on threads call the native code: built first (W715) */
   q.constants=s.parser.constants;
   q.variables=s.parser.variables;
@@ -725,7 +727,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
   q.ds=std::abs(state.bifur.ds);
   q.budget=s.thread_budget();
   q.at_once=q.isolated&&q.budget>1;
-  q.diagram_base=s.diagram.points.size();
+  q.diagram_base=s.diagram->points.size();
   if(const std::vector<xpp::job::BranchJob> *armed=xpp::job::armed_jobs())q.plan=*armed; /* a recording's stopped run: each job ends as it did */
   for(const xpp::job::BranchJob &entry:q.plan)q.plan_of.emplace(entry.key,&entry);
   for(const int sign:{1,-1}){ /* the roots: both directions of the start */
@@ -764,7 +766,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
     root.done=root.expanded=root.skipped||root.never;
   }
   bool stopped=false; /* the run was stopped (Stop, or an error of the whole run) */
-  const AutoxCalculation calculation=s.autox_state.type_of_calc; /* the roots' kind of calculation, which each job stores its points under */
+  const AutoxCalculation calculation=s.autox_state->type_of_calc; /* the roots' kind of calculation, which each job stores its points under */
   {
     const xpp::Job job;
     const Computation computing;
@@ -817,7 +819,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
     }
     if(!job.started){
       if(!job.warnings.empty())xpp::log(XPP_LOG_WARN,"{}",job.warnings);
-      autox_stop_merge(s.autox_state.stop,std::move(run.stop));
+      autox_stop_merge(s.autox_state->stop,std::move(run.stop));
       continue;
     }
     if(run.dropped||repeats(q.jobs,job.key,job.start,job.twin,q.epss)){
@@ -828,14 +830,14 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
       if(wide_shown)job.failed.reset();
       wide_shown=true;
     }
-    const int saving=s.autox_state.diag_flag&&isave==OVERWRITE?APPEND:isave;
+    const int saving=s.autox_state->diag_flag&&isave==OVERWRITE?APPEND:isave;
     const Renumber mine=moved;
     job.numbering=mine;
     const Renumber from=job.parent?job.parent->numbering:mine; /* its first point's `from` label is the finding job's */
     int branches=moved.base_branch,labels=moved.base_label;
     StoredPoints stored;
     bool cut=diagram_full; /* some of this job's points were not stored */
-    s.autox_state.type_of_calc=autox_job_calculation(job.start.ips);
+    s.autox_state->type_of_calc=autox_job_calculation(job.start.ips);
     job_number++;
     for(AutoxBufferedPoint &held:run.points){
       DIAGRAM &p=held.point;
@@ -845,7 +847,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
       p.job=job_number;
       branches=std::max(branches,std::abs(p.ibr));
       labels=std::max(labels,p.lab);
-      if(!diagram_full&&autox_diagram_full(s.diagram.points.size())){ /* the limit is the whole run's: every job's points and the diagram's */
+      if(!diagram_full&&autox_diagram_full(s.diagram->points.size())){ /* the limit is the whole run's: every job's points and the diagram's */
         diagram_full=cut=true;
         if(!wide_shown&&!job.failed){
           job.failed=Error{"autoX",limit_text,command_place()};
@@ -893,9 +895,9 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
   if(early)notes.push_back(xpp::format("autoX: {} of {} jobs ended early (the messages above say why)",early,ends.size()));
   for(std::string &note:notes){
     xpp::log_autox("{}\n",note);
-    s.autox_state.stop.notes.push_back(std::move(note));
+    s.autox_state->stop.notes.push_back(std::move(note));
   }
-  s.autox_state.type_of_calc=calculation;
+  s.autox_state->type_of_calc=calculation;
   if(last_stored)xpp::job::report_point(last_stored->first,last_stored->second);
   xpp::job::report_jobs(std::move(ends));
   ping();
@@ -908,7 +910,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
 
 Result<> autox_run_from_current_state(Session &s, int iold, int isave)
 {
-  return s.autox_state.follow_all_branches?autox_run_jobs(s,iold,isave):do_autox(s,iold,isave,s.autox_state.bifur.itp);
+  return s.autox_state->follow_all_branches?autox_run_jobs(s,iold,isave):do_autox(s,iold,isave,s.autox_state->bifur.itp);
 }
 
 } // namespace xpp

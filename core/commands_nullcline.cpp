@@ -1,5 +1,7 @@
 /* Nullclines' typed commands (W522), sharing nullcline.cpp's numerical routines. */
 #include "command_def.h"
+#include "load_eqn.h"
+#include "many_pops.h"
 #include "integrate.h"
 #include <limits>
 #include "command_registry.h"
@@ -19,10 +21,10 @@ namespace xpp::command {
 namespace {
 Result<std::string> compute(Session &s,const Command &c,const Arguments &,const Place &p)
 {
-    if(!phase_plane(*s.plot_windows.current))return fail(c.name,"Not in a usable 2D plane",p);
+    if(!phase_plane(*s.plot_windows->current))return fail(c.name,"Not in a usable 2D plane",p);
     compute_nullclines(s);
-    if(s.integrator.step_error)return std::unexpected(take_step_error(s).error());
-    return xpp::format("{{\"curves_computed\":{}}}",s.numerics.null_here?2:0);
+    if(s.integrator->step_error)return std::unexpected(take_step_error(s).error());
+    return xpp::format("{{\"curves_computed\":{}}}",s.numerics->null_here?2:0);
 }
 Result<std::string> redraw(Session &s,const Command &,const Arguments &,const Place &)
 {
@@ -30,14 +32,14 @@ Result<std::string> redraw(Session &s,const Command &,const Arguments &,const Pl
 }
 Result<std::string> auto_mode(Session &s,const Command &,const Arguments &a,const Place &)
 {
-    s.plot_windows.current->Nullrestore=a.get<bool>("enabled");
+    s.plot_windows->current->Nullrestore=a.get<bool>("enabled");
     return xpp::format("{{\"auto_redraw\":{}}}",a.get<bool>("enabled"));
 }
 Result<std::string> freeze(Session &s,const Command &c,const Arguments &,const Place &p)
 {
-    if(s.nullcline_state.frozen.size()>=max_frozen_clines)return fail(c.name,"The frozen nullcline list is full",p);
+    if(s.nullcline_state->frozen.size()>=max_frozen_clines)return fail(c.name,"The frozen nullcline list is full",p);
     freeze_nullclines(s);
-    return xpp::format("{{\"frozen_curves_count\":{}}}",s.nullcline_state.frozen.size());
+    return xpp::format("{{\"frozen_curves_count\":{}}}",s.nullcline_state->frozen.size());
 }
 Result<std::string> clear_frozen(Session &s,const Command &,const Arguments &,const Place &)
 {
@@ -46,21 +48,21 @@ Result<std::string> clear_frozen(Session &s,const Command &,const Arguments &,co
 }
 Result<std::string> range_freeze(Session &s,const Command &c,const Arguments &a,const Place &p)
 {
-    if(!phase_plane(*s.plot_windows.current))return fail(c.name,"Not in a usable 2D plane",p);
+    if(!phase_plane(*s.plot_windows->current))return fail(c.name,"Not in a usable 2D plane",p);
     if(a.get<double>("end")<=a.get<double>("start"))return fail(c.name,"end must be above start",p);
-    if(static_cast<std::size_t>(a.get<long long>("steps"))+1>max_frozen_clines-s.nullcline_state.frozen.size())return fail(c.name,"The range exceeds the remaining frozen nullcline capacity",p);
-    auto &range=s.nullcline_state.range;
+    if(static_cast<std::size_t>(a.get<long long>("steps"))+1>max_frozen_clines-s.nullcline_state->frozen.size())return fail(c.name,"The range exceeds the remaining frozen nullcline capacity",p);
+    auto &range=s.nullcline_state->range;
     range.rv=a.get<std::string>("parameter");
     range.xlo=a.get<double>("start");range.xhi=a.get<double>("end");
     range.nstep=static_cast<int>(a.get<long long>("steps"));
-    const auto before=s.nullcline_state.frozen.size();
+    const auto before=s.nullcline_state->frozen.size();
     range_nullclines(s);
-    if(s.integrator.step_error)return std::unexpected(take_step_error(s).error());
-    return xpp::format("{{\"steps_frozen\":{}}}",s.nullcline_state.frozen.size()-before);
+    if(s.integrator->step_error)return std::unexpected(take_step_error(s).error());
+    return xpp::format("{{\"steps_frozen\":{}}}",s.nullcline_state->frozen.size()-before);
 }
 Result<std::string> animate(Session &s,const Command &,const Arguments &a,const Place &)
 {
-    const bool drawn=animate_nullclines(s,static_cast<int>(a.optional<long long>("delay_ms").value_or(s.nullcline_state.animation_delay_ms)));
+    const bool drawn=animate_nullclines(s,static_cast<int>(a.optional<long long>("delay_ms").value_or(s.nullcline_state->animation_delay_ms)));
     return xpp::format("{{\"animated\":{}}}",drawn);
 }
 Result<std::string> export_file(Session &s,const Command &,const Arguments &a,const Place &)
@@ -75,7 +77,7 @@ Result<std::string> set_mesh(Session &s,const Command &c,const Arguments &a,cons
 {
     std::string why;
     if(numerics_settings_set(s,"nullcline_mesh",xpp::format("{}",a.get<long long>("mesh")),why,&p)<0)return fail(c.name,why,p);
-    return xpp::format("{{\"nullcline_mesh\":{}}}",s.numerics.nullcline_mesh);
+    return xpp::format("{{\"nullcline_mesh\":{}}}",s.numerics->nullcline_mesh);
 }
 constexpr std::array ENABLED={Argument{"enabled",Type::boolean,true}};
 constexpr std::array RANGE={Argument{"parameter",Type::model_name,true,MAX_COMMAND_BYTES,{},{},{},NameSet::parameter},

@@ -8,6 +8,7 @@
    with arguments in range). */
 #include "xpptest.h"
 #include "session.h"
+#include "autox_state.h"
 #include "autox_c.h"
 
 #include <array>
@@ -84,7 +85,7 @@ TEST_CASE("test_autox_errors")
     /* check_dimensions: more free parameters than autoX's arrays hold */
     iap_type iap{};
     iap.run = &run;
-    iap.run->parameter_count = xpp::client_session().autox_state.parameter_layout.size();
+    iap.run->parameter_count = xpp::client_session().autox_state->parameter_layout.size();
     iap.nfpr = iap.run->parameter_count + 1;
     CHECK(has(failure([&] { check_dimensions(&iap); }), "free parameters"));
     iap.nfpr = 2;

@@ -35,6 +35,12 @@
 #include "colormap.h"
 #include "grobs.h"
 #include "session.h"
+#include "display_state.h"
+#include "expr.h"
+#include "load_eqn.h"
+#include "marks_data.h"
+#include "phase_data.h"
+#include "storage.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -72,8 +78,8 @@ bool name_or_ask(const xpp::Model &m, const char *title, std::string_view wild, 
 void write_windows(xpp::odex::Out &out, const xpp::Session &s)
 {
     out.begin_list("windows");
-    for (const int i : s.plot_windows.open) {
-        const GRAPH &g = s.plot_windows.graph[i];
+    for (const int i : s.plot_windows->open) {
+        const GRAPH &g = s.plot_windows->graph[i];
         out.begin_item();
         out.text("name",g.name);
         out.flag("hidden", g.hidden);
@@ -87,15 +93,15 @@ void write_windows(xpp::odex::Out &out, const xpp::Session &s)
         out.end_item();
     }
     out.end_list();
-    out.text("active",s.plot_windows.graph[s.plot_windows.active].name);
-    out.flag("data_hidden", s.tools_hidden.data);
-    const xpp::AutoxView &v = s.autox_view;
+    out.text("active",s.plot_windows->graph[s.plot_windows->active].name);
+    out.flag("data_hidden", s.tools_hidden->data);
+    const xpp::AutoxView &v = *s.autox_view;
     out.begin("autox_view");
     out.whole("earlier", v.earlier);
     out.flag("show_earlier", v.show_earlier);
     out.end();
     out.begin_list("added_columns");
-    for (const xpp::AddedColumn &c : s.data.added_columns) {
+    for (const xpp::AddedColumn &c : s.data->added_columns) {
         out.begin_item();
         out.text("name", c.name);
         out.text("formula", c.formula);
@@ -153,7 +159,7 @@ WindowsRead read_windows(xpp::Session &s, xpp::odex::Block &file, std::size_t &e
         for(std::size_t j=0;j+1<r.windows.size();++j)
             if(r.windows[j].graph.name==sw.graph.name)w.fail(*w.member("name"),"a window name is listed twice");
         /* Creating a graph copies the main graph's curves as well. */
-        const int main_curves = s.plot_windows.graph[0].nvars;
+        const int main_curves = s.plot_windows->graph[0].nvars;
         const std::size_t slot_bytes = sizeof(GRAPH) + sizeof(xpp::PlotDisplay) + sizeof(xpp::MarksShown::Record)
             + sizeof(xpp::PhaseShown::Window) + sizeof(int)
             + static_cast<std::size_t>(main_curves) * (5 * sizeof(int) + 2 * plot_axes * sizeof(float));
@@ -161,7 +167,7 @@ WindowsRead read_windows(xpp::Session &s, xpp::odex::Block &file, std::size_t &e
         if (!xpp::snapx::account_memory(expanded_bytes, next - slots, slot_bytes))
             file.fail(*file.member("windows"), "too many windows for the session memory limit");
         slots = next;
-        xpp::copy_graph_settings(s.plot_windows.graph[0], sw.graph);
+        xpp::copy_graph_settings(s.plot_windows->graph[0], sw.graph);
         xpp::read_window(w, s, sw.graph, r.added, expanded_bytes);
         w.text("xlabel", sw.xlabel);
         w.text("ylabel", sw.ylabel);
@@ -189,19 +195,19 @@ void apply_windows(xpp::Session &s, const WindowsRead &r)
 {
     /* Allocate the checked count before creating the graphs. */
     const std::size_t slots = r.windows.size();
-    s.plot_windows.graph.reserve(slots);
-    s.plot_windows.current = &s.plot_windows.graph[s.plot_windows.active];
+    s.plot_windows->graph.reserve(slots);
+    s.plot_windows->current = &s.plot_windows->graph[s.plot_windows->active];
     s.plot_display.reserve(slots);
-    s.marks_shown.windows.reserve(slots);
-    s.phase_shown.windows.reserve(slots);
-    s.plot_windows.open.reserve(slots);
+    s.marks_shown->windows.reserve(slots);
+    s.phase_shown->windows.reserve(slots);
+    s.plot_windows->open.reserve(slots);
     for (int i = 1; i < static_cast<int>(slots); ++i) {
         xpp::make_active(s, 0, 1);
         create_a_pop(s,r.windows[i].graph.name);
     }
     for (int i=0;i<static_cast<int>(slots);++i) {
         const SavedWindow &w=r.windows[i];
-        GRAPH &g = s.plot_windows.graph[i];
+        GRAPH &g = s.plot_windows->graph[i];
         xpp::copy_graph_settings(w.graph, g);
         g.name=w.graph.name;
         xpp::copy_curves(w.graph, g);
@@ -216,7 +222,7 @@ void apply_windows(xpp::Session &s, const WindowsRead &r)
     }
     xpp::set_active_windows(s);
     xpp::make_active(s,r.active,1);
-    s.tools_hidden.data = r.data_hidden;
+    s.tools_hidden->data = r.data_hidden;
 }
 
 /* ---- the session's marks and frozen.npz: labels, arrows and markers, frozen curves ---- */
@@ -255,10 +261,10 @@ void write_marks(xpp::odex::Out &out, const xpp::Session &s)
         out.end_item();
     }
     out.end_list();
-    out.whole("freeze_each_run", s.frozen_curves.autox_freeze);
+    out.whole("freeze_each_run", s.frozen_curves->autox_freeze);
     out.begin_list("frozen_curves");
-    for (int i = 0; i < static_cast<int>(s.frozen_curves.curve.size()); i++) {
-        const CURVE &c = s.frozen_curves.curve[i];
+    for (int i = 0; i < static_cast<int>(s.frozen_curves->curve.size()); i++) {
+        const CURVE &c = s.frozen_curves->curve[i];
         if (!c.use) continue;
         out.begin_item();
         out.whole("slot", i);
@@ -284,8 +290,8 @@ std::optional<std::string> frozen_npz(const xpp::Session &s)
     t.names = {"curve", "x", "y", "z"};
     t.curves = true;
     t.columns.resize(4);
-    for (int i = 0; i < static_cast<int>(s.frozen_curves.curve.size()); i++) {
-        const CURVE &c = s.frozen_curves.curve[i];
+    for (int i = 0; i < static_cast<int>(s.frozen_curves->curve.size()); i++) {
+        const CURVE &c = s.frozen_curves->curve[i];
         if (!c.use) continue;
         for (int j = 0; j < c.len; j++) {
             t.columns[0].push_back(static_cast<double>(i));
@@ -464,7 +470,7 @@ MarksRead read_marks(xpp::odex::Block &session, const WindowsRead &windows, cons
    apply_windows restored in file order */
 void apply_marks(xpp::Session &s, MarksRead r)
 {
-    const auto w = [&](int saved) { return s.plot_windows.graph[saved].w; };
+    const auto w = [&](int saved) { return s.plot_windows->graph[saved].w; };
     s.next_annotation_id = r.next_annotation_id;
     s.labels.clear();
     s.grobs.clear();
@@ -483,11 +489,11 @@ void apply_marks(xpp::Session &s, MarksRead r)
     for (const SavedGrob &g : r.grobs)
         s.grobs.push_back(xpp::GROB{static_cast<float>(g.xs), static_cast<float>(g.ys), static_cast<float>(g.xe), static_cast<float>(g.ye),
                                     g.size, g.id, w(g.window), g.type, g.color});
-    s.frozen_curves.autox_freeze = r.autox_freeze;
+    s.frozen_curves->autox_freeze = r.autox_freeze;
     const std::size_t slots = r.curves.empty() ? 0 : static_cast<std::size_t>(r.curves.back().slot) + 1;
-    s.frozen_curves.curve.resize(slots);
-    s.frozen_curves.points.resize(slots);
-    s.marks_shown.generation.resize(slots);
+    s.frozen_curves->curve.resize(slots);
+    s.frozen_curves->points.resize(slots);
+    s.marks_shown->generation.resize(slots);
     for (SavedCurve &c : r.curves)
         if(c.used)restore_frozen_curve(s, c.slot, w(c.window), c.type, c.color, c.style, std::move(c.key), std::move(c.name), std::move(c.x),
                              std::move(c.y), std::move(c.z));
@@ -511,7 +517,7 @@ void write_random(xpp::odex::Out &out, xpp::Session &s)
     for (int i = 0; i < m.nwiener; i++) wieners.push_back(s.parser.constants[m.wiener[i]]);
     for (const xpp::Model::OuProcess &p : m.ou) ous.push_back(s.parser.constants[p.slot]);
     out.begin("random");
-    out.whole("seed", s.numerics.rand_seed);
+    out.whole("seed", s.numerics->rand_seed);
     out.reals("wiener", wieners);
     out.reals("ou", ous);
     out.text("generator", s.random.save());
@@ -643,17 +649,17 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
         return xpp::fail("session", xpp::format("its {} cannot be put in the data table", xpp::snapx::data_member), xpp::Place{f.name});
     if (r.diagram)
         if (xpp::Result<> d = xpp::snapx::autox_members::restore_members(s, std::move(*r.diagram)); !d) return d;
-    if (r.data) s.numerics.last_seed = r.data->seed;
+    if (r.data) s.numerics->last_seed = r.data->seed;
     xpp::apply_settings(s, r.set, true);
 
     apply_windows(s, r.windows);
     if (r.diagram) {
-        s.autox_view.earlier = std::min(r.windows.autox_view.earlier, diagram_count(s.diagram));
-        s.autox_view.show_earlier = r.windows.autox_view.show_earlier && s.autox_view.earlier > 0;
+        s.autox_view->earlier = std::min(r.windows.autox_view.earlier, diagram_count(*s.diagram));
+        s.autox_view->show_earlier = r.windows.autox_view.show_earlier && s.autox_view->earlier > 0;
     }
-    s.data.added_columns = std::move(r.windows.added);
+    s.data->added_columns = std::move(r.windows.added);
 
-    s.numerics.rand_seed = r.random.seed;
+    s.numerics->rand_seed = r.random.seed;
     const xpp::Model &m = s.model();
     for (int i = 0; i < m.nwiener; i++) s.parser.constants[m.wiener[i]] = r.random.wieners[static_cast<std::size_t>(i)];
     for (std::size_t i = 0; i < m.ou.size(); i++) s.parser.constants[m.ou[i].slot] = r.random.ous[i];
@@ -661,24 +667,24 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
     /* the added columns computed over the data put in place, with the
        values just restored */
     if (r.data && r.data->rows() > 0) {
-        refresh_data(s, s.data_store.rows);
-        s.numerics.storflag=true; /* a run stored these rows: Continue stores on (storing is not in the .set) */
+        refresh_data(s, s.data_store->rows);
+        s.numerics->storflag=true; /* a run stored these rows: Continue stores on (storing is not in the .set) */
     }
 
     apply_marks(s, std::move(r.marks));
-    s.nullcline_state=std::move(r.nullclines);
-    s.numerics.null_here=s.nullcline_state.num_x_n||s.nullcline_state.num_y_n||s.nullcline_state.frozen_started;
+    *s.nullcline_state=std::move(r.nullclines);
+    s.numerics->null_here=s.nullcline_state->num_x_n||s.nullcline_state->num_y_n||s.nullcline_state->frozen_started;
 
     /* every window drawn as it now is, the active one last */
-    const int active = s.plot_windows.active;
-    for (int i = 0; i < static_cast<int>(s.plot_windows.graph.size()); i++)
-        if (s.plot_windows.graph[i].Use && i != active) {
+    const int active = s.plot_windows->active;
+    for (int i = 0; i < static_cast<int>(s.plot_windows->graph.size()); i++)
+        if (s.plot_windows->graph[i].Use && i != active) {
             xpp::make_active(s, i, 1);
             redraw_the_graph(s);
         }
     xpp::make_active(s, active, 1);
     redraw_the_graph(s);
-    if (!f.snapshot) s.saved_session.file = f.path;
+    if (!f.snapshot) s.saved_session->file = f.path;
     xpp_session_mark_clean(s);
     return {};
 }
@@ -747,8 +753,8 @@ std::uint64_t values_fingerprint(const xpp::Session &s)
         else if (row->boolean) f.value(row->boolean(s) ? 1 : 0);
         else if (row->index) f.value(row->index.read(s));
     }
-    f.value(s.data_store.rows);
-    f.value(s.data_store.current_time);
+    f.value(s.data_store->rows);
+    f.value(s.data_store->current_time);
     return f.result();
 }
 
@@ -757,8 +763,8 @@ std::uint64_t values_fingerprint(const xpp::Session &s)
 int save_to(xpp::Session &s, const std::string &file, int data, bool replace, bool copy)
 {
     const xpp::Model &m = s.model();
-    bool with_data = s.data_store.rows > 0 && data != 0;
-    const std::uint64_t data_bytes = static_cast<std::uint64_t>(s.data_store.rows) * static_cast<std::uint64_t>(m.neq + 1) * 8;
+    bool with_data = s.data_store->rows > 0 && data != 0;
+    const std::uint64_t data_bytes = static_cast<std::uint64_t>(s.data_store->rows) * static_cast<std::uint64_t>(m.neq + 1) * 8;
     if (with_data && data < 0 && data_bytes > large_data) {
         const std::string q = xpp::format("The data table is {} MB. Save the session without it? (Go computes it again.)",
                                           data_bytes / (1024 * 1024));
@@ -792,14 +798,14 @@ int xpp_session_save(xpp::Session &s, const char *name_arg, int data, bool copy,
 
 int xpp_session_save_here(xpp::Session &s, int data)
 {
-    if (s.saved_session.file.empty()) return xpp_session_save(s, nullptr, data);
+    if (s.saved_session->file.empty()) return xpp_session_save(s, nullptr, data);
     if (!xpp::save_ready(s.model().nlines() > 0)) return 0;
-    return save_to(s, s.saved_session.file, data, true, false);
+    return save_to(s, s.saved_session->file, data, true, false);
 }
 
 xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data, bool replace, bool copy)
 {
-    const xpp::Result<std::string> bytes = session_bytes(s, data && s.data_store.rows > 0);
+    const xpp::Result<std::string> bytes = session_bytes(s, data && s.data_store->rows > 0);
     if (!bytes) {
         xpp::ui.save_result(file,false);
         return std::unexpected(bytes.error());
@@ -811,7 +817,7 @@ xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file
     w.write(*bytes);
     if (const xpp::Result<> saved=xpp::commit_save(w); !saved) return std::unexpected(saved.error());
     if (!copy) {
-        s.saved_session.file = file;
+        s.saved_session->file = file;
         xpp_session_mark_clean(s);
     }
     return true;
@@ -819,12 +825,12 @@ xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file
 
 bool xpp_session_changed(const xpp::Session &s)
 {
-    return values_fingerprint(s) != s.saved_session.clean;
+    return values_fingerprint(s) != s.saved_session->clean;
 }
 
 void xpp_session_mark_clean(xpp::Session &s)
 {
-    s.saved_session.clean = values_fingerprint(s);
+    s.saved_session->clean = values_fingerprint(s);
 }
 
 std::optional<std::string> xpp_session_snapshot(xpp::Session &s)

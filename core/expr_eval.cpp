@@ -285,7 +285,7 @@ double run(const expr::Op *code, const expr::Op *op, Session &s)
       for(int j=0;j<n;j++)st.args[st.nargs++]=*--sp;
       st.top=static_cast<int>(sp-values);
       double value=0.0;
-      if(s.integrator.step_error){
+      if(s.integrator->step_error){
         st.nargs-=n;
       }else if(st.ufun_depth>=MAX_UFUN_DEPTH){
         nested_too_deep(s,o.a);

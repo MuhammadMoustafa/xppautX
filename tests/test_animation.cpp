@@ -37,14 +37,14 @@ TEST_CASE("test_animation")
     put(good, "speed 27\ndimension -1;-2;3;4\npermanent\nline 0;0;1;1;$RED;2\n"
               "grab .5;.5;.1\n{iapp=1}\n{iapp=2;runnow=0}\ndone\n");
     CHECK(xpp::load_chosen_animation(s, good).has_value());
-    CHECK(s.animation.ncom == 1 && s.animation.grabs.size() == 1);
-    if (s.animation.commands.empty() || s.animation.grabs.empty()) TEST_REPORT("animation");
-    const auto *commands = s.animation.commands.data();
-    const auto *grabs = s.animation.grabs.data();
-    s.animation.vcr.pos = 7;
-    s.animation.grab_flag = 1;
-    s.ani_shown.frame = "previous frame";
-    s.ani_shown.prims = "previous primitives";
+    CHECK(s.animation->ncom == 1 && s.animation->grabs.size() == 1);
+    if (s.animation->commands.empty() || s.animation->grabs.empty()) TEST_REPORT("animation");
+    const auto *commands = s.animation->commands.data();
+    const auto *grabs = s.animation->grabs.data();
+    s.animation->vcr.pos = 7;
+    s.animation->grab_flag = 1;
+    s.ani_shown->frame = "previous frame";
+    s.ani_shown->prims = "previous primitives";
     auto refused = [&](const std::string &text, int line, const std::string &source) {
         put(bad, text);
         const xpp::Result<> loaded = xpp::load_chosen_animation(s, bad);
@@ -53,13 +53,13 @@ TEST_CASE("test_animation")
             CHECK(loaded.error().where == "animation" && loaded.error().place.file == bad && loaded.error().place.line == line);
             CHECK(loaded.error().place.source == source);
         }
-        CHECK(s.animation.commands.data() == commands && s.animation.ncom == 1);
-        CHECK(s.animation.grabs.data() == grabs && s.animation.grabs.size() == 1);
-        CHECK(s.animation.grabs.size() == 1 && s.animation.grabs[0].start.events.size() == 1 && s.animation.grabs[0].end.events.size() == 1);
-        CHECK(s.animation.vcr.file == good_native && s.animation.vcr.ok == 1 && s.animation.vcr.pos == 7);
-        CHECK(s.animation.speed == 27 && s.animation.xlo == -1 && s.animation.ylo == -2
-              && s.animation.xhi == 3 && s.animation.yhi == 4 && s.animation.grab_flag == 1);
-        CHECK(s.ani_shown.frame == "previous frame" && s.ani_shown.prims == "previous primitives");
+        CHECK(s.animation->commands.data() == commands && s.animation->ncom == 1);
+        CHECK(s.animation->grabs.data() == grabs && s.animation->grabs.size() == 1);
+        CHECK(s.animation->grabs.size() == 1 && s.animation->grabs[0].start.events.size() == 1 && s.animation->grabs[0].end.events.size() == 1);
+        CHECK(s.animation->vcr.file == good_native && s.animation->vcr.ok == 1 && s.animation->vcr.pos == 7);
+        CHECK(s.animation->speed == 27 && s.animation->xlo == -1 && s.animation->ylo == -2
+              && s.animation->xhi == 3 && s.animation->yhi == 4 && s.animation->grab_flag == 1);
+        CHECK(s.ani_shown->frame == "previous frame" && s.ani_shown->prims == "previous primitives");
     };
     refused("speed 4\ndimension 0;0;10;10\nline 0;0;1;1\ngrab .2;.2;.1\n{iapp=3}\n{iapp=4}\n"
             "line 0;0;1;1;$RED;bad\n", 7, "line 0;0;1;1;$RED;bad");
@@ -73,9 +73,9 @@ TEST_CASE("test_animation")
     refused("line [2147483647..2147483647];0;[j+1];1\n", 1, "line [2147483647..2147483647];0;[j+1];1");
     put(bad, "speed 8\nline [1..3];0;1;1\ndone\n");
     CHECK(xpp::load_chosen_animation(s, bad).has_value());
-    CHECK(s.animation.vcr.file == bad_native && s.animation.ncom == 3 && s.animation.speed == 8);
-    CHECK(s.animation.grabs.empty() && s.animation.vcr.pos == 0 && s.animation.grab_flag == 0);
-    CHECK(s.ani_shown.frame.empty() && s.ani_shown.prims.empty());
+    CHECK(s.animation->vcr.file == bad_native && s.animation->ncom == 3 && s.animation->speed == 8);
+    CHECK(s.animation->grabs.empty() && s.animation->vcr.pos == 0 && s.animation->grab_flag == 0);
+    CHECK(s.ani_shown->frame.empty() && s.ani_shown->prims.empty());
     xpp::files::remove(good);
     xpp::files::remove(bad);
     xpp::files::remove(good_native);
@@ -156,25 +156,25 @@ TEST_CASE("test_animation")
     auto permanent = xpp::read_animation(s, versioned_anix("permanent { line { x1: 0, y1: 0, x2: 1, y2: 1, color: t } }"), "permanent.anix");
     CHECK(permanent.has_value());
     if (permanent) {
-        s.animation = std::move(*permanent);
+        *s.animation = std::move(*permanent);
         xpp::set_ani_perm(s);
         xpp::render_ani(s);
-        const auto primitives = s.ani_shown.prims;
+        const auto primitives = s.ani_shown->prims;
         setvar(s, 0, 1);
         xpp::render_ani(s);
-        CHECK(s.ani_shown.prims == primitives);
+        CHECK(s.ani_shown->prims == primitives);
     }
     if (imported && roundtrip) {
         CHECK(imported->grabs.size() == roundtrip->grabs.size());
         for (int frame = 0; frame < 3; ++frame) {
-            s.animation = *imported;
+            *s.animation = *imported;
             xpp::set_ani_perm(s);
             xpp::render_ani(s);
-            const auto before = s.ani_shown.frame;
-            s.animation = *roundtrip;
+            const auto before = s.ani_shown->frame;
+            *s.animation = *roundtrip;
             xpp::set_ani_perm(s);
             xpp::render_ani(s);
-            CHECK(s.ani_shown.frame == before);
+            CHECK(s.ani_shown->frame == before);
         }
     }
     TEST_REPORT("animation");

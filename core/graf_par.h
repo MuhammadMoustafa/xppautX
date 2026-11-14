@@ -25,7 +25,7 @@ struct BifCurve {
 };
 
 /* The frozen curves of every plot window (Graphic stuff > Freeze) */
-typedef struct {
+struct XppFrozenCurves {
     std::vector<CURVE> curve; /* .use: the slot holds one; .w: its window */
     int autox_freeze;     /* freeze the curve after every integration */
     /* their points: curve[i].xv/yv/zv point into points[i][0..2] (CURVE,
@@ -40,7 +40,7 @@ typedef struct {
       std::vector<BifCurve> curves;
       XppWinId w;
     } bif_diagram;
-} XppFrozenCurves;
+};
 
 /* 3D Params' movie */
 struct Mov3d {

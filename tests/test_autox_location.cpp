@@ -3,6 +3,7 @@
 #include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
+#include "autox_state.h"
 #include "autox_c.h"
 #include "xpp_batch.h"
 #include "xpp_files.h"
@@ -151,7 +152,7 @@ TEST_CASE("test_autox_location")
     xpp::UniqueFile diagnostics(xpp::files::open_stream(temp.path() + "/location.log", "w"));
     AutoxRun run;
     run.session = &s;
-    run.parameter_count = s.autox_state.parameter_layout.size();
+    run.parameter_count = s.autox_state->parameter_layout.size();
     run.fp9 = diagnostics.get();
     iap_type iap{};
     iap.run = &run;
@@ -298,7 +299,7 @@ TEST_CASE("test_autox_location")
     iap.iads = 1;
     rap.dsmin = 0.2;
     double ds = 1;
-    const auto count = s.diagram.points.size();
+    const auto count = s.diagram->points.size();
     std::string error;
     try {
         solve_algebraic(&iap, &rap, par.data(), &icp, nonfinite_line, &ds, &stride,
@@ -308,7 +309,7 @@ TEST_CASE("test_autox_location")
     CHECK(error == "Branch 1 point 2: nonfinite autoX solution");
     CHECK(ds > 0 && ds < rap.dsmin);
     CHECK(iap.istop == 1 && u == uold && rlcur == rlold && par[0] == rlold);
-    CHECK(s.diagram.points.size() == count);
+    CHECK(s.diagram->points.size() == count);
 
     // The same failure in the collocation solver must not pass its
     // maximum-increment test (NaN comparisons formerly left done=true).
@@ -334,7 +335,7 @@ TEST_CASE("test_autox_location")
     CHECK(error == "Branch 1 point 2: nonfinite autoX solution");
     CHECK(ds > 0 && ds < rap.dsmin);
     CHECK(iap.istop == 1 && mesh == old && rlcur == rlold && par[0] == rlold);
-    CHECK(s.diagram.points.size() == count);
+    CHECK(s.diagram->points.size() == count);
 
     // The final storage seam refuses nonfinite state, parameter and norm
     // independently, before filling even the initial diagram placeholder.
@@ -350,7 +351,7 @@ TEST_CASE("test_autox_location")
                         &norm, std::span(&state, 1), std::span(&state, 1), std::span(&state, 1), std::span(&state, 1));
         } catch (const xpp::AutoxFailed &e) { error = e.error.what; }
         CHECK(error == "Branch 1 point 2: nonfinite autoX solution");
-        CHECK(s.diagram.points.size() == count && !s.autox_state.diag_flag);
+        CHECK(s.diagram->points.size() == count && !s.autox_state->diag_flag);
     }
     run.fp9 = nullptr;
     // Two UZ tests cross in the same step on u=p. The farther mark is
@@ -364,7 +365,7 @@ TEST_CASE("test_autox_location")
     std::array<char *, 3> event_argv{name, event_path.data(), nullptr};
     CHECK(load_args(2, event_argv.data(), 1).has_value());
     auto &events_session = xpp::client_session();
-    events_session.autox_state.dir = temp.path();
+    events_session.autox_state->dir = temp.path();
     xpp::init_autox_win(events_session);
     xpp::AutoxSettingsSet settings;
     settings.par1 = "p";
@@ -380,10 +381,10 @@ TEST_CASE("test_autox_location")
     settings.mark_value = {0.35, 0.3};
     std::string why;
     CHECK(xpp::autox_settings_apply(events_session, settings, why) == 0);
-    events_session.autox_state.follow_all_branches = false; // one run, in the direction of the step
+    events_session.autox_state->follow_all_branches = false; // one run, in the direction of the step
     CHECK(xpp::autox_run_start(events_session,xpp::AutoxRunRequest{}));
     std::vector<double> marks;
-    for (const auto &point : events_session.diagram.points) {
+    for (const auto &point : events_session.diagram->points) {
         if (point.itp.kind == xpp::AutoxPointKind::UserZero) {
             marks.push_back(diagram_parameter(point, 0));
             CHECK(std::abs(point.u0[0] - marks.back()) < 1e-7);

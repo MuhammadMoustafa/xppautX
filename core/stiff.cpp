@@ -4,6 +4,8 @@
 #include "odesol2.h"
 #include "jacobian.h"
 #include "session.h"
+#include "integrate.h"
+#include "storage.h"
 #include "stiff.h"
 #include "flags.h"
 #include "model.h"
@@ -49,7 +51,7 @@ namespace xpp {
 /* jacobn: stiff's numerical Jacobian */
 void stiff_numerical_jacobian(xpp::Session &s, double x, double *y, double *dfdx, double *dermat, double eps, double *work, int n)
 {
- s.integrator.rhs(x,y,work,n);
+ s.integrator->rhs(x,y,work,n);
  xpp::jacobian(s,x,y,work,n,eps,{xpp::JacobianLayout::RowMajor},dermat,dfdx);
 }
 
@@ -79,7 +81,7 @@ int adaptive_integration_without_flags(xpp::Session &s, double *ystart, int nvar
   *ier=0;
   for (i=0;i<nvar;i++) y[i]=ystart[i];
   for(nstp=1;nstp<=ADAPTIVE_MAX_STEPS;nstp++){
-    s.integrator.rhs(x,y,dydx,nvar);
+    s.integrator->rhs(x,y,dydx,nvar);
     for(i=0;i<nvar;i++)
       if(xpp::solver_info(iflag).traits.stiff_step)
 	yscal[i]=std::max(fabs(y[i]),1.0);
@@ -105,7 +107,7 @@ int adaptive_integration_without_flags(xpp::Session &s, double *ystart, int nvar
          largest: stiff's err (after its matrix, derivatives and saved
          state in work2), or cash_karp_adaptive_step's yerr (work2's first) */
       const double *err=xpp::solver_info(iflag).traits.stiff_step?work2+2*nvar*nvar+2*nvar:work2;
-      s.solver_work.stop={x,hnext,xpp::largest_magnitude(err,nvar),0};
+      s.solver_work->stop={x,hnext,xpp::largest_magnitude(err,nvar),0};
       *ier=ADAPTIVE_BELOW_MIN_STEP;
       return -1;
     }
@@ -113,7 +115,7 @@ int adaptive_integration_without_flags(xpp::Session &s, double *ystart, int nvar
     
   }
   
-  s.solver_work.stop={x,h,-1,0};
+  s.solver_work->stop={x,h,-1,0};
   *ier=ADAPTIVE_TOO_MANY_STEPS;
   return -1;
 }
@@ -124,7 +126,7 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 {
 
 	int i,j,jtry;
-	xpp::BlockLu &lu = s.solver_work.lu;
+	xpp::BlockLu &lu = s.solver_work->lu;
         int info;
       	double errmax,h,xsav,*a,*dfdx,*dfdy,*dysav,*err;
 	double *g1,*g2,*g3,*g4,*ysav,*work2;
@@ -155,7 +157,7 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 		}
 		lu.factor(a,n,n,s.model().subsystems,&info);
 		if(info!=-1){
-		  s.solver_work.stop={xsav,h,info,0};
+		  s.solver_work->stop={xsav,h,info,0};
 		  *ier=ADAPTIVE_SINGULAR;
 		  return -1;
 		}
@@ -166,14 +168,14 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 		for (i=0;i<n;i++)
 			y[i]=ysav[i]+A21*g1[i];
 		*x=xsav+A2X*h;
-		s.integrator.rhs(*x,y,dydx,n);
+		s.integrator->rhs(*x,y,dydx,n);
 		for (i=0;i<n;i++)
 			g2[i]=dydx[i]+h*C2X*dfdx[i]+C21*g1[i]/h;
 		lu.solve(a,n,g2);
 		for (i=0;i<n;i++)
 			y[i]=ysav[i]+A31*g1[i]+A32*g2[i];
 		*x=xsav+A3X*h;
-		s.integrator.rhs(*x,y,dydx,n);
+		s.integrator->rhs(*x,y,dydx,n);
 		for (i=0;i<n;i++)
 			g3[i]=dydx[i]+h*C3X*dfdx[i]+(C31*g1[i]+C32*g2[i])/h;
 		lu.solve(a,n,g3);
@@ -186,7 +188,7 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 		}
 		*x=xsav+h;
 		if (*x == xsav) {
-		  s.solver_work.stop={xsav,h,xpp::largest_magnitude(err,n),0};
+		  s.solver_work->stop={xsav,h,xpp::largest_magnitude(err,n),0};
 		  *ier=ADAPTIVE_STEP_UNDERFLOW;
 		  return -1;
 		}
@@ -204,7 +206,7 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 		  h=(h >= 0.0 ? std::max(SHRNK*h,*hnext) : std::min(SHRNK*h,*hnext));
 		}
 	}
-	s.solver_work.stop={xsav,h,xpp::largest_magnitude(err,n),0};
+	s.solver_work->stop={xsav,h,xpp::largest_magnitude(err,n),0};
 	*ier=ADAPTIVE_TOO_MANY_TRIES;
 	return -1;
 }
@@ -230,7 +232,7 @@ int cash_karp_adaptive_step(xpp::Session &s, double *y, double *dydx, int n, dou
       h=(h >= 0.0 ? std::max(0.1*h,htemp) : std::min(0.1*h,htemp));
       xnew=(*x)+h;
       if (xnew == *x) {
-	s.solver_work.stop={*x,h,xpp::largest_magnitude(yerr,n),0};
+	s.solver_work->stop={*x,h,xpp::largest_magnitude(yerr,n),0};
 	*ier=ADAPTIVE_STEP_UNDERFLOW;
 	return -1;
       }
@@ -269,20 +271,20 @@ void cash_karp_step(xpp::Session &s, double *y, double *dydx, int n, double x, d
   ytemp=ak6+n;
   for (i=0;i<n;i++)
 		ytemp[i]=y[i]+b21*h*dydx[i];
-	s.integrator.rhs(x+a2*h,ytemp,ak2,n);
+	s.integrator->rhs(x+a2*h,ytemp,ak2,n);
 	for (i=0;i<n;i++)
 		ytemp[i]=y[i]+h*(b31*dydx[i]+b32*ak2[i]);
-	s.integrator.rhs(x+a3*h,ytemp,ak3,n);
+	s.integrator->rhs(x+a3*h,ytemp,ak3,n);
 	for (i=0;i<n;i++)
 		ytemp[i]=y[i]+h*(b41*dydx[i]+b42*ak2[i]+b43*ak3[i]);
-	s.integrator.rhs(x+a4*h,ytemp,ak4,n);
+	s.integrator->rhs(x+a4*h,ytemp,ak4,n);
 	for (i=0;i<n;i++)
 		ytemp[i]=y[i]+h*(b51*dydx[i]+b52*ak2[i]+b53*ak3[i]+b54*ak4[i]);
-	s.integrator.rhs(x+a5*h,ytemp,ak5,n);
+	s.integrator->rhs(x+a5*h,ytemp,ak5,n);
 	for (i=0;i<n;i++)
 		ytemp[i]=y[i]+h*(b61*dydx[i]+b62*ak2[i]+b63*ak3[i]+
 				 b64*ak4[i]+b65*ak5[i]);
-	s.integrator.rhs(x+a6*h,ytemp,ak6,n);
+	s.integrator->rhs(x+a6*h,ytemp,ak6,n);
 	for (i=0;i<n;i++)
 		yout[i]=y[i]+h*(c1*dydx[i]+c3*ak3[i]+c4*ak4[i]+c6*ak6[i]);
 	for (i=0;i<n;i++)

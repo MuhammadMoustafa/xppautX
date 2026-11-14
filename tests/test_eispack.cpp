@@ -5,6 +5,7 @@
    serially for a reference, then from several threads, with other inputs
    between the calls, and every result is compared bit for bit. */
 #include "xpptest.h"
+#include "browse.h"
 #include "autox_c.h"
 #include <array>
 #include <atomic>

@@ -126,17 +126,17 @@ std::vector<TextRun> text_runs(std::string_view text, double size, bool symbol)
     return runs;
 }
 
-void set_pen(Session &s, const Color &color, const LineStyle &style) { s.plot_file.pen = Pen{color, style}; }
+void set_pen(Session &s, const Color &color, const LineStyle &style) { s.plot_file->pen = Pen{color, style}; }
 
-void set_pen_color(Session &s, const Color &color) { s.plot_file.pen.color = color; }
+void set_pen_color(Session &s, const Color &color) { s.plot_file->pen.color = color; }
 
-void set_pen_style(Session &s, const LineStyle &style) { s.plot_file.pen.style = style; }
+void set_pen_style(Session &s, const LineStyle &style) { s.plot_file->pen.style = style; }
 
 void set_border_pen(Session &s)
 {
     LineStyle style;
     style.width = 1.5;
-    s.plot_file.pen = Pen{foreground_color, style};
+    s.plot_file->pen = Pen{foreground_color, style};
 }
 
 void set_zero_axes_pen(Session &s)
@@ -144,14 +144,14 @@ void set_zero_axes_pen(Session &s)
     LineStyle style;
     style.width = .75;
     style.dash = LineDash::dotted;
-    s.plot_file.pen = Pen{foreground_color, style};
+    s.plot_file->pen = Pen{foreground_color, style};
 }
 
-void set_text_color(Session &s, const Color &color) { s.plot_file.text_color = color; }
+void set_text_color(Session &s, const Color &color) { s.plot_file->text_color = color; }
 
 void picture_line(Session &s, int x1, int y1, int x2, int y2)
 {
-    PlotFileState &f = s.plot_file;
+    PlotFileState &f = *s.plot_file;
     Pen pen = f.pen;
     pen.color = ink(pen.color);
     const std::array<double, 2> from{static_cast<double>(x1), static_cast<double>(y1)}, to{static_cast<double>(x2), static_cast<double>(y2)};
@@ -166,7 +166,7 @@ void picture_line(Session &s, int x1, int y1, int x2, int y2)
 
 void picture_marker(Session &s, int x, int y)
 {
-    PlotFileState &f = s.plot_file;
+    PlotFileState &f = *s.plot_file;
     Pen pen = f.pen;
     pen.color = ink(pen.color);
     f.picture.items.emplace_back(PictureMarker{static_cast<double>(x), static_cast<double>(y), pen});
@@ -175,7 +175,7 @@ void picture_marker(Session &s, int x, int y)
 void picture_bead(Session &s, int x, int y)
 {
     constexpr double bead_radius = 1.5; /* a direction field arrow's head, a dot */
-    PlotFileState &f = s.plot_file;
+    PlotFileState &f = *s.plot_file;
     Pen pen = f.pen;
     pen.color = ink(pen.color);
     pen.style.draw = LineDraw::points;
@@ -186,7 +186,7 @@ void picture_bead(Session &s, int x, int y)
 
 void picture_rect(Session &s, int x, int y, int w, int h)
 {
-    PlotFileState &f = s.plot_file;
+    PlotFileState &f = *s.plot_file;
     /* the corner (x, y) is the bottom left, as the plot's coordinates grow up: the picture's rectangle starts at the top */
     f.picture.items.emplace_back(PictureRect{static_cast<double>(x), static_cast<double>(y - h), static_cast<double>(w), static_cast<double>(h),
                                              ink(f.pen.color)});
@@ -198,7 +198,7 @@ constexpr double baseline_below_centre = .35; /* a text centred on y has its bas
 
 void put_runs(Session &s, double x, double y, TextAnchor anchor, double angle, std::vector<TextRun> runs, double size)
 {
-    PlotFileState &f = s.plot_file;
+    PlotFileState &f = *s.plot_file;
     f.picture.items.emplace_back(PictureText{x, y + baseline_below_centre * size, anchor, angle, ink(f.text_color), std::move(runs)});
 }
 
@@ -212,8 +212,8 @@ PictureText centred_text(double x, double y, TextAnchor anchor, double angle, st
 void picture_text(Session &s, int x, int y, std::string_view text)
 {
     constexpr int left = 0, center = 1; /* DrawingState::text_justify: 0 left, 1 centre, 2 right */
-    const int justify = s.drawing.text_justify;
-    const double size = s.plot_file.picture.font_size;
+    const int justify = s.drawing->text_justify;
+    const double size = s.plot_file->picture.font_size;
     put_runs(s, x, y, justify == left ? TextAnchor::start : justify == center ? TextAnchor::middle : TextAnchor::end, 0, text_runs(text, size), size);
 }
 
@@ -226,14 +226,14 @@ void picture_label(Session &s, int x, int y, std::string_view text, int size, bo
 void picture_y_label(Session &s, std::string_view text)
 {
     constexpr double columns_left_of_axis = 5.75; /* in characters: clear of the tick numbers */
-    const double size = s.plot_file.picture.font_size;
-    const DrawingState &d = s.drawing;
+    const double size = s.plot_file->picture.font_size;
+    const DrawingState &d = *s.drawing;
     put_runs(s, d.d_left - columns_left_of_axis * d.h_char, .5 * (d.d_top + d.d_bottom), TextAnchor::middle, 90, text_runs(text, size), size);
 }
 
 void picture_group(Session &s, bool begin)
 {
-    if (s.plot_file.format) s.plot_file.picture.items.emplace_back(PictureGroup{begin});
+    if (s.plot_file->format) s.plot_file->picture.items.emplace_back(PictureGroup{begin});
 }
 
 } // namespace xpp

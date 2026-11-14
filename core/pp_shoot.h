@@ -26,7 +26,7 @@ struct ShootRange;
 void do_bc(Session &s, double *y__0, double t0, double *y__1, double t1, double *f, int n);
 /* the boundary conditions compiled, or the one that does not */
 Result<> compile_bvp(Session &s);
-/* Range shoot over s.shoot_range (the settings made): a solution for each parameter value, the values at its
+/* Range shoot over *s.shoot_range (the settings made): a solution for each parameter value, the values at its
    `side`, stored as rows; the solutions found (rows stored), or the error that stopped the sweep (shown by the
    command). ystart and yend hold the model's states, room for neq each. */
 Result<int> do_sh_range(Session &s, double *ystart, double *yend);

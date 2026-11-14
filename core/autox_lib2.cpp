@@ -8,6 +8,7 @@
 #include <vector>
 #include "xpp_log.h"
 #include "session.h"
+#include "autox_state.h"
 #include "autox_c.h"
 #include "xpp_job.h" /* xppautX: cancel */
 

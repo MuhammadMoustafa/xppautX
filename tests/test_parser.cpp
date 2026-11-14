@@ -9,6 +9,7 @@
 #include "expr.h"
 #include "markov.h"
 #include "session.h"
+#include "storage.h"
 #include "tabular.h"
 #include "model.h"
 
@@ -95,7 +96,7 @@ TEST_CASE("test_parser")
     CHECK(close_to(xpp::client_session().model().markov[m_idx].states[59], 59.0));
 
     /* Stiff solver pivots with > 700 variables: previously overflowed indx[700] */
-    int *pivots = xpp::client_session().solver_work.size_pivots(750);
+    int *pivots = xpp::client_session().solver_work->size_pivots(750);
     CHECK(pivots != nullptr);
 
     TEST_REPORT("parser");

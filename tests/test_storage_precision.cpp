@@ -8,6 +8,7 @@
 #include "browse.h"
 #include "integrate.h"
 #include "session.h"
+#include "load_eqn.h"
 #include "storage.h"
 #include "xpp_batch.h"
 #include "model.h"
@@ -89,12 +90,12 @@ std::vector<std::vector<double>> run_stored(xpp::StoragePrecision precision, std
     if (!loaded) return {};
     xpp::Session &s = **loaded;
     xpp::batch_start(s);
-    s.numerics.storage_precision = precision;
+    s.numerics->storage_precision = precision;
     xpp::storage_precision_changed(s);
     CHECK(xpp::run_from(s, xpp::RunFrom::initial).has_value());
     std::vector<std::vector<double>> columns;
-    for (int c = 0; c <= s.model().neq; c++) columns.push_back(s.data_store.col[c].values(0, s.data_store.rows));
-    final_state = s.data_store.current;
+    for (int c = 0; c <= s.model().neq; c++) columns.push_back(s.data_store->col[c].values(0, s.data_store->rows));
+    final_state = s.data_store->current;
     return columns;
 }
 

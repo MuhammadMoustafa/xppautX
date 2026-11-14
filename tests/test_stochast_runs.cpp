@@ -32,24 +32,24 @@ TEST_CASE("test_stochast_runs")
     init_all_graph(xpp::client_session());
 
     const int ntrials = 400;
-    xpp::client_session().integrator.range.item = "dummy";
-    xpp::client_session().integrator.range.steps = ntrials - 1;
-    xpp::client_session().integrator.range.plow = 0.0;
-    xpp::client_session().integrator.range.phigh = 0.0;
-    xpp::client_session().integrator.range.reset = 1;
-    xpp::client_session().integrator.range.oldic = 1;
-    xpp::client_session().integrator.range.cycle = 0;
-    xpp::client_session().integrator.range.movie = 0;
-    xpp::client_session().integrator.range.rtype = 0;
+    xpp::client_session().integrator->range.item = "dummy";
+    xpp::client_session().integrator->range.steps = ntrials - 1;
+    xpp::client_session().integrator->range.plow = 0.0;
+    xpp::client_session().integrator->range.phigh = 0.0;
+    xpp::client_session().integrator->range.reset = 1;
+    xpp::client_session().integrator->range.oldic = 1;
+    xpp::client_session().integrator->range.cycle = 0;
+    xpp::client_session().integrator->range.movie = 0;
+    xpp::client_session().integrator->range.rtype = 0;
 
-    xpp::client_session().stochastic.flag = true;
-    int ierr = xpp::do_range(xpp::client_session(), xpp::client_session().data_store.current.data(), 0);
-    xpp::client_session().stochastic.flag = false;
+    xpp::client_session().stochastic->flag = true;
+    int ierr = xpp::do_range(xpp::client_session(), xpp::client_session().data_store->current.data(), 0);
+    xpp::client_session().stochastic->flag = false;
 
     CHECK(ierr != -1);
-    CHECK(xpp::client_session().stochastic.n_trials == ntrials);
-    CHECK(xpp::client_session().stochastic.here == 1);
-    CHECK(xpp::client_session().stochastic.len == 11); /* total=10,dt=1: 11 rows per trial */
+    CHECK(xpp::client_session().stochastic->n_trials == ntrials);
+    CHECK(xpp::client_session().stochastic->here == 1);
+    CHECK(xpp::client_session().stochastic->len == 11); /* total=10,dt=1: 11 rows per trial */
 
     int ncol = -1;
     find_variable(xpp::client_session(), "nsamp", &ncol);
@@ -57,9 +57,9 @@ TEST_CASE("test_stochast_runs")
 
     double meantol = 4.0 / std::sqrt(static_cast<double>(ntrials));
     double vartol = 4.0 * std::sqrt(2.0 / ntrials);
-    for (int i = 0; i < xpp::client_session().stochastic.len; i++) {
-        CHECK(std::fabs(xpp::client_session().stochastic.mean[ncol][i] - 0.0) < meantol);
-        CHECK(std::fabs(xpp::client_session().stochastic.variance[ncol][i] - 1.0) < vartol);
+    for (int i = 0; i < xpp::client_session().stochastic->len; i++) {
+        CHECK(std::fabs(xpp::client_session().stochastic->mean[ncol][i] - 0.0) < meantol);
+        CHECK(std::fabs(xpp::client_session().stochastic->variance[ncol][i] - 1.0) < vartol);
     }
 
     TEST_REPORT("stochast compute/mean/variance");

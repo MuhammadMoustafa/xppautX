@@ -1,5 +1,6 @@
 
 #include "numerics_settings.h"
+#include "integrate.h"
 #include "dae_fun.h"
 #include "expr.h"
 
@@ -95,17 +96,17 @@ void compile_svars(xpp::Session &s)
 /* the solver starts afresh: no failure */
 void reset_dae(xpp::Session &s)
 {
-  s.dae.status=DAE_SOLVED;
+  s.dae->status=DAE_SOLVED;
 }
 
-DaeRun::DaeRun(xpp::Session &s) : s_(s), outer_(!s.dae.run)
+DaeRun::DaeRun(xpp::Session &s) : s_(s), outer_(!s.dae->run)
 {
-  if(outer_)s_.dae.run.emplace();
+  if(outer_)s_.dae->run.emplace();
 }
 
 DaeRun::~DaeRun()
 {
-  if(outer_)s_.dae.run.reset();
+  if(outer_)s_.dae->run.reset();
 }
 void set_init_guess(xpp::Session &s)
 {
@@ -117,7 +118,7 @@ void set_init_guess(xpp::Session &s)
   for(i=0;i<m.nsvar;i++){
    z=evaluate(s,m.svars[i].form);
     setvar(s,m.svars[i].index,z);
-    s.dae.svar_last[i]=z;
+    s.dae->svar_last[i]=z;
   }
 }
 namespace {
@@ -126,7 +127,7 @@ namespace {
 const xpp::Place &dae_place(const xpp::Session &s)
 {
   const xpp::Model &m=s.model();
-  const double *f=s.dae.work.data()+m.nsvar;
+  const double *f=s.dae->work.data()+m.nsvar;
   int k=0;
   for(int i=1;i<m.naeqn;i++)
     if(fabs(f[i])>fabs(f[k]))k=i;
@@ -146,8 +147,8 @@ xpp::Error dae_failure(const xpp::Session &s, int status)
   case DAE_OUT_OF_BOUNDS: why="the Newton update went out of bounds"; break;
   case DAE_FOLD: why="their Jacobian changed sign, a fold where this branch of solutions ends"; break;
   }
-  if(s.dae.run&&s.dae.run->last_t)
-    return {"DAE",xpp::format("No solution of the algebraic equations past t={:g}: {}",*s.dae.run->last_t,why),
+  if(s.dae->run&&s.dae->run->last_t)
+    return {"DAE",xpp::format("No solution of the algebraic equations past t={:g}: {}",*s.dae->run->last_t,why),
             dae_place(s)};
   return {"DAE",xpp::format("No solution of the algebraic equations at t={:g}: {}",getvar(s,0),why),dae_place(s)};
 }
@@ -157,9 +158,9 @@ void init_dae_work(xpp::Session &s)
 {
   xpp::Model &m=s.model();
 
-  s.dae.work.assign(m.nsvar*m.nsvar+10*m.nsvar, 0.0);
-  s.dae.iwork.assign(m.nsvar, 0);
-  s.dae.svar_last.assign(m.nsvar, 0.0);
+  s.dae->work.assign(m.nsvar*m.nsvar+10*m.nsvar, 0.0);
+  s.dae->iwork.assign(m.nsvar, 0);
+  s.dae->svar_last.assign(m.nsvar, 0.0);
   reset_dae(s);
 }
 
@@ -177,12 +178,13 @@ void get_dae_fun(xpp::Session &s, double *y, double *f)
 
 void do_daes(xpp::Session &s)
 {
+  if(s.model().nsvar==0)return; /* no algebraic variable: nothing to solve or record */
   const int ans=solve_dae(s);
-  s.dae.status=ans;
+  s.dae->status=ans;
   if(ans==DAE_SOLVED)return;
   /* the integration stops after this step and returns it */
-  if(!s.integrator.step_error)
-    s.integrator.step_error=dae_failure(s,ans);
+  if(!s.integrator->step_error)
+    s.integrator->step_error=dae_failure(s,ans);
 }
 
 /* Newton solver for algebraic stuff. A solution is accepted only where the
@@ -200,22 +202,22 @@ int solve_dae(xpp::Session &s)
   int i,j,n;
   int info;
   double err,del,z,yold;
-  double tol=s.numerics.equilibria.newton_tolerance,eps=s.numerics.equilibria.jacobian_step;
-  int maxit=s.numerics.equilibria.max_iterations,iter=0;
+  double tol=s.numerics->equilibria.newton_tolerance,eps=s.numerics->equilibria.jacobian_step;
+  int maxit=s.numerics->equilibria.max_iterations,iter=0;
   int sign=0; /* the sign of the last Jacobian factored, 0 before one */
-  DaeRunBranch *run=s.dae.run?&*s.dae.run:nullptr; /* none outside a run */
+  DaeRunBranch *run=s.dae->run?&*s.dae->run:nullptr; /* none outside a run */
   double *y,*ynew,*f,*fnew,*jac,*errvec;
   n=m.nsvar;
   if(m.nsvar==0)return DAE_SOLVED;
-  if(s.dae.status<0)return s.dae.status; /* failed: until the run restarts */
-  y=s.dae.work.data();
+  if(s.dae->status<0)return s.dae->status; /* failed: until the run restarts */
+  y=s.dae->work.data();
   f=y+m.nsvar;
   fnew=f+m.nsvar;
   ynew=fnew+m.nsvar;
   errvec=ynew+m.nsvar;
   jac=errvec+m.nsvar;
   for(i=0;i<n;i++){ /* copy current value as initial guess */
-    y[i]=s.dae.svar_last[i];
+    y[i]=s.dae->svar_last[i];
     ynew[i]=y[i]; /* keep old guess */
   }
   while(1){
@@ -232,13 +234,13 @@ int solve_dae(xpp::Session &s)
       }
       for(i=0;i<n;i++){
 	setvar(s,m.svars[i].index,y[i]);
-	s.dae.svar_last[i]=y[i];
+	s.dae->svar_last[i]=y[i];
       }
       return DAE_SOLVED;
     }
     if(iter>maxit){
       for(i=0;i<n;i++)
-	setvar(s,m.svars[i].index,s.dae.svar_last[i]);
+	setvar(s,m.svars[i].index,s.dae->svar_last[i]);
       return DAE_NO_CONVERGENCE;
     }
     /* compute jacobian */
@@ -253,30 +255,30 @@ int solve_dae(xpp::Session &s)
 	jac[j*n+i]=(fnew[j]-f[j])/del;
       y[i]=yold;
     }
-    xpp::lu_factor(jac,n,n,s.dae.iwork.data(),&info);
+    xpp::lu_factor(jac,n,n,s.dae->iwork.data(),&info);
     if(info!=-1){
       for(i=0;i<n;i++)
 	setvar(s,m.svars[i].index,ynew[i]);
       return DAE_SINGULAR;
     }
-    sign=xpp::lu_determinant_sign(jac,n,n,s.dae.iwork.data());
+    sign=xpp::lu_determinant_sign(jac,n,n,s.dae->iwork.data());
     if(run&&run->jac_sign!=0&&sign!=run->jac_sign){
       /* Newton has crossed where the Jacobian is singular: no solution
 	 near the last one continues its branch */
       for(i=0;i<n;i++)
-	setvar(s,m.svars[i].index,s.dae.svar_last[i]);
+	setvar(s,m.svars[i].index,s.dae->svar_last[i]);
       return DAE_FOLD;
     }
-    xpp::lu_solve(jac,n,n,s.dae.iwork.data(),errvec); /* get x=J^(-1) f */
+    xpp::lu_solve(jac,n,n,s.dae->iwork.data(),errvec); /* get x=J^(-1) f */
     err=0.0;
     for(i=0;i<n;i++){
       y[i]-=errvec[i];
       err+=fabs(errvec[i]);
     } 
     /* a Newton update past n times the state limit has run away, as XPPAUT's bound cap it */
-    if(err>(n*s.numerics.state_limit)){
+    if(err>(n*s.numerics->state_limit)){
       for(i=0;i<n;i++)
-	setvar(s,m.svars[i].index,s.dae.svar_last[i]);
+	setvar(s,m.svars[i].index,s.dae->svar_last[i]);
       return DAE_OUT_OF_BOUNDS;
     }
     /* a small update is not a solution: the loop's top accepts y only
@@ -298,7 +300,7 @@ Result<double> set_dae_guess(xpp::Session &s, int i, std::string_view formula)
   var.form.rpn.resize(std::max(100, n+2), 0);
   const double z=evaluate(s,var.form);
   setvar(s,var.index,z);
-  s.dae.svar_last[static_cast<std::size_t>(i)]=z;
+  s.dae->svar_last[static_cast<std::size_t>(i)]=z;
   return z;
 }
 

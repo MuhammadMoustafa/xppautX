@@ -18,6 +18,7 @@
 #include "load_eqn.h"
 #include "xpp_math.h"
 #include "session.h"
+#include "picture.h"
 
 namespace xpp {
 
@@ -52,10 +53,10 @@ namespace xpp {
 
 void set_scale(xpp::Session &s, double x1, double y1, double x2, double y2)
 {
-  s.drawing.x_min=x1;
-  s.drawing.y_min=y1;
-  s.drawing.x_max=x2;
-  s.drawing.y_max=y2;
+  s.drawing->x_min=x1;
+  s.drawing->y_min=y1;
+  s.drawing->x_max=x2;
+  s.drawing->y_max=y2;
 }
 
 /* SLUGGISH??? */
@@ -71,41 +72,41 @@ void get_draw_area_flag(xpp::Session &s, int flag)
   if(flag==1)
     {
       ui.get_draw_size(s,&w,&h);
-      s.plot_windows.current->x11Wid=w;
-      s.plot_windows.current->x11Hgt=h;
+      s.plot_windows->current->x11Wid=w;
+      s.plot_windows->current->x11Hgt=h;
     }
   else
     {
     
-    w=s.plot_windows.current->x11Wid;
-    h=s.plot_windows.current->x11Hgt;
+    w=s.plot_windows->current->x11Wid;
+    h=s.plot_windows->current->x11Hgt;
   }
   XDMax=w;
   YDMax=h;
-  s.drawing.v_tic=max(h/100,1);
-  s.drawing.h_tic=max(w/150,1);
-  s.drawing.v_char=text_metrics.small_height;
-  s.drawing.h_char=text_metrics.small_width;
+  s.drawing->v_tic=max(h/100,1);
+  s.drawing->h_tic=max(w/150,1);
+  s.drawing->v_char=text_metrics.small_height;
+  s.drawing->h_char=text_metrics.small_width;
   
-  s.drawing.d_left=12*s.drawing.h_char;
-  s.drawing.d_right=XDMax-3*s.drawing.h_char-s.drawing.h_tic;
-  s.drawing.d_bottom=YDMax-1-s.drawing.v_char*7/2;
-  s.drawing.d_top=s.drawing.v_char*5/2+1;
+  s.drawing->d_left=12*s.drawing->h_char;
+  s.drawing->d_right=XDMax-3*s.drawing->h_char-s.drawing->h_tic;
+  s.drawing->d_bottom=YDMax-1-s.drawing->v_char*7/2;
+  s.drawing->d_top=s.drawing->v_char*5/2+1;
  set_normal_scale(s);
 }
 
 void change_current_color(xpp::Session &s, const xpp::Color &newcolor, xpp::Color *old)
 {
- *old=s.plot_windows.current->color[0];
-  s.plot_windows.current->color[0]=newcolor;
+ *old=s.plot_windows->current->color[0];
+  s.plot_windows->current->color[0]=newcolor;
 }
 
 void set_normal_scale(xpp::Session &s)
 {
-s.drawing.x_min=s.plot_windows.current->xlo;
- s.drawing.y_min=s.plot_windows.current->ylo;
- s.drawing.x_max=s.plot_windows.current->xhi;
- s.drawing.y_max=s.plot_windows.current->yhi;
+s.drawing->x_min=s.plot_windows->current->xlo;
+ s.drawing->y_min=s.plot_windows->current->ylo;
+ s.drawing->x_max=s.plot_windows->current->xhi;
+ s.drawing->y_max=s.plot_windows->current->yhi;
 }
 
 
@@ -114,28 +115,28 @@ s.drawing.x_min=s.plot_windows.current->xlo;
    file begun nothing is drawn here */
 void point(xpp::Session &s, int x, int y)
 {
-  if(s.plot_file.format)xpp::picture_marker(s,x,y);
+  if(s.plot_file->format)xpp::picture_marker(s,x,y);
 }
 
 void line(xpp::Session &s, int x1, int y1, int x2, int y2)
 {
-  if(s.plot_file.format)xpp::picture_line(s,x1,y1,x2,y2);
+  if(s.plot_file->format)xpp::picture_line(s,x1,y1,x2,y2);
 }
 
 /* draw a little filled circle */
 void bead(xpp::Session &s, int x1, int y1)
 {
-  if(s.plot_file.format)xpp::picture_bead(s,x1,y1);
+  if(s.plot_file->format)xpp::picture_bead(s,x1,y1);
 }
 
 void frect(xpp::Session &s, int x1, int y1, int w, int h)
 {
-  if(s.plot_file.format)xpp::picture_rect(s,x1,y1,w,h);
+  if(s.plot_file->format)xpp::picture_rect(s,x1,y1,w,h);
 }
 
 void put_text(xpp::Session &s, int x, int y, const char *str)
 {
-  if(s.plot_file.format)xpp::picture_text(s,x,y,str);
+  if(s.plot_file->format)xpp::picture_text(s,x,y,str);
 }
 
 void init_x11(xpp::Session &s)
@@ -145,40 +146,40 @@ void init_x11(xpp::Session &s)
 
 void init_picture(xpp::Session &s)
 {
-  s.drawing.v_tic=9;
-  s.drawing.h_tic=9;
-  s.drawing.v_char=20;
-  s.drawing.h_char=12;
-  s.drawing.d_left=12*s.drawing.h_char;
-  s.drawing.d_right=xpp::picture_width-3*s.drawing.h_char-s.drawing.h_tic;
-  s.drawing.d_bottom=xpp::picture_height-1-s.drawing.v_char*7/2;
-  s.drawing.d_top=s.drawing.v_char*5/2+1;
+  s.drawing->v_tic=9;
+  s.drawing->h_tic=9;
+  s.drawing->v_char=20;
+  s.drawing->h_char=12;
+  s.drawing->d_left=12*s.drawing->h_char;
+  s.drawing->d_right=xpp::picture_width-3*s.drawing->h_char-s.drawing->h_tic;
+  s.drawing->d_bottom=xpp::picture_height-1-s.drawing->v_char*7/2;
+  s.drawing->d_top=s.drawing->v_char*5/2+1;
 }
 
 void scale_dxdy(const xpp::Session &s, float x, float y, double *i, double *j)
 {
-  float dx=(s.drawing.d_right-s.drawing.d_left)/(s.drawing.x_max-s.drawing.x_min);
-  float dy=(s.drawing.d_top-s.drawing.d_bottom)/(s.drawing.y_max-s.drawing.y_min);
+  float dx=(s.drawing->d_right-s.drawing->d_left)/(s.drawing->x_max-s.drawing->x_min);
+  float dy=(s.drawing->d_top-s.drawing->d_bottom)/(s.drawing->y_max-s.drawing->y_min);
   *i=x*dx;
   *j=y*dy;
 }  
      
 void scale_to_screen(const xpp::Session &s, float x, float y, int *i, int *j)  /* not really the screen!  */
 {
-  float dx=(s.drawing.d_right-s.drawing.d_left)/(s.drawing.x_max-s.drawing.x_min);
-  float dy=(s.drawing.d_top-s.drawing.d_bottom)/(s.drawing.y_max-s.drawing.y_min);
-  *i=static_cast<int>((x-s.drawing.x_min)*dx)+s.drawing.d_left;
-  *j=static_cast<int>((y-s.drawing.y_min)*dy)+s.drawing.d_bottom;
+  float dx=(s.drawing->d_right-s.drawing->d_left)/(s.drawing->x_max-s.drawing->x_min);
+  float dy=(s.drawing->d_top-s.drawing->d_bottom)/(s.drawing->y_max-s.drawing->y_min);
+  *i=static_cast<int>((x-s.drawing->x_min)*dx)+s.drawing->d_left;
+  *j=static_cast<int>((y-s.drawing->y_min)*dy)+s.drawing->d_bottom;
 }
 
 void reset_all_line_type(xpp::Session &s)
 {
 	int j,k;
-	for(j=0;j<static_cast<int>(s.plot_windows.graph.size());j++)
+	for(j=0;j<static_cast<int>(s.plot_windows->graph.size());j++)
 	{
-		for(k=0;k<s.plot_windows.graph[j].nvars;k++)
+		for(k=0;k<s.plot_windows->graph[j].nvars;k++)
 		{
-			s.plot_windows.graph[j].style[k]=s.plot_settings.start_line_style;
+			s.plot_windows->graph[j].style[k]=s.plot_settings->start_line_style;
 		}
 	}
 
@@ -186,63 +187,63 @@ void reset_all_line_type(xpp::Session &s)
 
 void init_all_graph(xpp::Session &s)
 {
- s.drawing.axis_var_labels=1; /* Every plot names its axes, including headless exports. */
+ s.drawing->axis_var_labels=1; /* Every plot names its axes, including headless exports. */
  int i;
- for(i=0;i<static_cast<int>(s.plot_windows.graph.size());i++)
+ for(i=0;i<static_cast<int>(s.plot_windows->graph.size());i++)
  init_graph(s,i);
- s.plot_windows.graph[0].w=1;
- s.plot_windows.graph[0].Use=1;
- s.plot_windows.graph[0].Nullrestore=1;
- s.plot_windows.open[0]=0;
- s.plot_windows.count=1;
- s.plot_windows.active=0;
- s.plot_windows.draw_win=s.plot_windows.graph[0].w;
- s.plot_windows.current=&s.plot_windows.graph[0];
+ s.plot_windows->graph[0].w=1;
+ s.plot_windows->graph[0].Use=1;
+ s.plot_windows->graph[0].Nullrestore=1;
+ s.plot_windows->open[0]=0;
+ s.plot_windows->count=1;
+ s.plot_windows->active=0;
+ s.plot_windows->draw_win=s.plot_windows->graph[0].w;
+ s.plot_windows->current=&s.plot_windows->graph[0];
  set_normal_scale(s);
 
 }
 
 void set_extra_graphs(xpp::Session &s)
 {
-  const std::vector<PlotCurve> &curves=s.plot_settings.curves;
+  const std::vector<PlotCurve> &curves=s.plot_settings->curves;
   if(curves.size()<2)return;
-  s.plot_windows.current->resize_curves(static_cast<int>(curves.size()));
+  s.plot_windows->current->resize_curves(static_cast<int>(curves.size()));
   for(std::size_t i=1;i<curves.size();i++){
-    s.plot_windows.current->xv[i]=curves[i].x;
-    s.plot_windows.current->yv[i]=curves[i].y;
-    s.plot_windows.current->zv[i]=curves[i].z;
-    s.plot_windows.current->color[i]=xpp::xppaut_color(static_cast<int>(i)%(LAST_PLOT_COLOR+1)); /* XPPAUT cycles its eleven colors */
+    s.plot_windows->current->xv[i]=curves[i].x;
+    s.plot_windows->current->yv[i]=curves[i].y;
+    s.plot_windows->current->zv[i]=curves[i].z;
+    s.plot_windows->current->color[i]=xpp::xppaut_color(static_cast<int>(i)%(LAST_PLOT_COLOR+1)); /* XPPAUT cycles its eleven colors */
   }
 }
 
 void reset_graph(xpp::Session &s)
 {
-  if(s.plot_settings.axes>=5)
-    s.plot_settings.plot_3d=1;
+  if(s.plot_settings->axes>=5)
+    s.plot_settings->plot_3d=1;
   else
-    s.plot_settings.plot_3d=0;
-  s.plot_windows.current->xv[0]=s.plot_settings.curves[0].x;
-  s.plot_windows.current->yv[0]=s.plot_settings.curves[0].y;
-  s.plot_windows.current->zv[0]=s.plot_settings.curves[0].z;
-   s.plot_windows.current->xmax=s.plot_settings.x_3d[1];
-    s.plot_windows.current->ymax=s.plot_settings.y_3d[1];
-    s.plot_windows.current->zmax=s.plot_settings.z_3d[1];
-    s.plot_windows.current->xbar=.5*(s.plot_settings.x_3d[1]+s.plot_settings.x_3d[0]);
-    s.plot_windows.current->ybar=.5*(s.plot_settings.y_3d[1]+s.plot_settings.y_3d[0]);
-    s.plot_windows.current->zbar=.5*(s.plot_settings.z_3d[1]+s.plot_settings.z_3d[0]);
-    s.plot_windows.current->dx=2./(s.plot_settings.x_3d[1]-s.plot_settings.x_3d[0]);
-    s.plot_windows.current->dy=2./(s.plot_settings.y_3d[1]-s.plot_settings.y_3d[0]);
-    s.plot_windows.current->dz=2./(s.plot_settings.z_3d[1]-s.plot_settings.z_3d[0]);
-    s.plot_windows.current->xmin=s.plot_settings.x_3d[0];
-    s.plot_windows.current->ymin=s.plot_settings.y_3d[0];
-    s.plot_windows.current->zmin=s.plot_settings.z_3d[0];
-    if(!s.plot_settings.plot_3d){ /* a 2D window is its limits; a 3D one's zoom fits its box (default_window) */
-      s.plot_windows.current->xlo=s.plot_settings.x_3d[0];
-      s.plot_windows.current->ylo=s.plot_settings.y_3d[0];
-      s.plot_windows.current->xhi=s.plot_settings.x_3d[1];
-      s.plot_windows.current->yhi=s.plot_settings.y_3d[1];
+    s.plot_settings->plot_3d=0;
+  s.plot_windows->current->xv[0]=s.plot_settings->curves[0].x;
+  s.plot_windows->current->yv[0]=s.plot_settings->curves[0].y;
+  s.plot_windows->current->zv[0]=s.plot_settings->curves[0].z;
+   s.plot_windows->current->xmax=s.plot_settings->x_3d[1];
+    s.plot_windows->current->ymax=s.plot_settings->y_3d[1];
+    s.plot_windows->current->zmax=s.plot_settings->z_3d[1];
+    s.plot_windows->current->xbar=.5*(s.plot_settings->x_3d[1]+s.plot_settings->x_3d[0]);
+    s.plot_windows->current->ybar=.5*(s.plot_settings->y_3d[1]+s.plot_settings->y_3d[0]);
+    s.plot_windows->current->zbar=.5*(s.plot_settings->z_3d[1]+s.plot_settings->z_3d[0]);
+    s.plot_windows->current->dx=2./(s.plot_settings->x_3d[1]-s.plot_settings->x_3d[0]);
+    s.plot_windows->current->dy=2./(s.plot_settings->y_3d[1]-s.plot_settings->y_3d[0]);
+    s.plot_windows->current->dz=2./(s.plot_settings->z_3d[1]-s.plot_settings->z_3d[0]);
+    s.plot_windows->current->xmin=s.plot_settings->x_3d[0];
+    s.plot_windows->current->ymin=s.plot_settings->y_3d[0];
+    s.plot_windows->current->zmin=s.plot_settings->z_3d[0];
+    if(!s.plot_settings->plot_3d){ /* a 2D window is its limits; a 3D one's zoom fits its box (default_window) */
+      s.plot_windows->current->xlo=s.plot_settings->x_3d[0];
+      s.plot_windows->current->ylo=s.plot_settings->y_3d[0];
+      s.plot_windows->current->xhi=s.plot_settings->x_3d[1];
+      s.plot_windows->current->yhi=s.plot_settings->y_3d[1];
     }
-    s.plot_windows.current->grtype=s.plot_settings.axes;
+    s.plot_windows->current->grtype=s.plot_settings->axes;
     xpp::check_windows(s);
     set_normal_scale(s);
     ui.redraw_graph(s);
@@ -250,95 +251,95 @@ void reset_graph(xpp::Session &s)
 
 void get_graph(xpp::Session &s)
 {
- s.plot_settings.x_3d[0]=s.plot_windows.current->xmin;
- s.plot_settings.x_3d[1]=s.plot_windows.current->xmax;
-s.plot_settings.y_3d[0]=s.plot_windows.current->ymin;
- s.plot_settings.y_3d[1]=s.plot_windows.current->ymax;
-s.plot_settings.z_3d[0]=s.plot_windows.current->zmin;
- s.plot_settings.z_3d[1]=s.plot_windows.current->zmax;
-if(!s.plot_windows.current->ThreeDFlag){ /* the 2D window is the limits' one pair */
-  s.plot_settings.x_3d={s.plot_windows.current->xlo,s.plot_windows.current->xhi};
-  s.plot_settings.y_3d={s.plot_windows.current->ylo,s.plot_windows.current->yhi};
+ s.plot_settings->x_3d[0]=s.plot_windows->current->xmin;
+ s.plot_settings->x_3d[1]=s.plot_windows->current->xmax;
+s.plot_settings->y_3d[0]=s.plot_windows->current->ymin;
+ s.plot_settings->y_3d[1]=s.plot_windows->current->ymax;
+s.plot_settings->z_3d[0]=s.plot_windows->current->zmin;
+ s.plot_settings->z_3d[1]=s.plot_windows->current->zmax;
+if(!s.plot_windows->current->ThreeDFlag){ /* the 2D window is the limits' one pair */
+  s.plot_settings->x_3d={s.plot_windows->current->xlo,s.plot_windows->current->xhi};
+  s.plot_settings->y_3d={s.plot_windows->current->ylo,s.plot_windows->current->yhi};
 }
-s.plot_settings.curves[0].x=s.plot_windows.current->xv[0];
-s.plot_settings.curves[0].y=s.plot_windows.current->yv[0];
-s.plot_settings.curves[0].z=s.plot_windows.current->zv[0];
-s.plot_settings.plot_3d=s.plot_windows.current->ThreeDFlag;
-if(s.plot_settings.plot_3d)
-  s.plot_settings.axes=5;
+s.plot_settings->curves[0].x=s.plot_windows->current->xv[0];
+s.plot_settings->curves[0].y=s.plot_windows->current->yv[0];
+s.plot_settings->curves[0].z=s.plot_windows->current->zv[0];
+s.plot_settings->plot_3d=s.plot_windows->current->ThreeDFlag;
+if(s.plot_settings->plot_3d)
+  s.plot_settings->axes=5;
 else
-  s.plot_settings.axes=0;
-s.plot_settings.axes=s.plot_windows.current->grtype;  
+  s.plot_settings->axes=0;
+s.plot_settings->axes=s.plot_windows->current->grtype;  
 }
 
 void init_graph(xpp::Session &s, int i)
 {
  int j,k;
- if(s.plot_settings.axes<=3)s.plot_settings.axes=0;
+ if(s.plot_settings->axes<=3)s.plot_settings->axes=0;
  for(j=0;j<3;j++)
   for(k=0;k<3;k++)
-        if(k==j)s.plot_windows.graph[i].rm[k][j]=1.0;
-	else s.plot_windows.graph[i].rm[k][j]=0.0;
- s.plot_windows.graph[i].resize_curves(1);
-  for(j=0;j<s.plot_windows.graph[i].nvars;j++){
-        s.plot_windows.graph[i].xv[j]=s.plot_settings.curves[0].x;
-	s.plot_windows.graph[i].yv[j]=s.plot_settings.curves[0].y;
-	s.plot_windows.graph[i].zv[j]=s.plot_settings.curves[0].z;
-        s.plot_windows.graph[i].style[j]=s.plot_settings.start_line_style;
-	s.plot_windows.graph[i].color[j]=xpp::foreground_color;
+        if(k==j)s.plot_windows->graph[i].rm[k][j]=1.0;
+	else s.plot_windows->graph[i].rm[k][j]=0.0;
+ s.plot_windows->graph[i].resize_curves(1);
+  for(j=0;j<s.plot_windows->graph[i].nvars;j++){
+        s.plot_windows->graph[i].xv[j]=s.plot_settings->curves[0].x;
+	s.plot_windows->graph[i].yv[j]=s.plot_settings->curves[0].y;
+	s.plot_windows->graph[i].zv[j]=s.plot_settings->curves[0].z;
+        s.plot_windows->graph[i].style[j]=s.plot_settings->start_line_style;
+	s.plot_windows->graph[i].color[j]=xpp::foreground_color;
         }
      
-    s.plot_windows.graph[i].xlabel.clear();
-    s.plot_windows.graph[i].ylabel.clear();
-    s.plot_windows.graph[i].zlabel.clear();
+    s.plot_windows->graph[i].xlabel.clear();
+    s.plot_windows->graph[i].ylabel.clear();
+    s.plot_windows->graph[i].zlabel.clear();
     
-    s.plot_windows.graph[i].Use=0;
-    s.plot_windows.graph[i].Nullrestore=0;
-    s.plot_windows.graph[i].ZPlane=-1000.0;
-    s.plot_windows.graph[i].ZView=1000.0;
-    s.plot_windows.graph[i].PerspFlag=0;
-    s.plot_windows.graph[i].ThreeDFlag=s.plot_settings.plot_3d;
-    s.plot_windows.graph[i].TimeFlag=s.plot_settings.timplot;
-    s.plot_windows.graph[i].ColorFlag=0;
-    s.plot_windows.graph[i].grtype=s.plot_settings.axes;
-    s.plot_windows.graph[i].color_scale=1.0;
-    s.plot_windows.graph[i].min_scale=0.0;
-    s.plot_windows.graph[i].xmax=s.plot_settings.x_3d[1];
-    s.plot_windows.graph[i].ymax=s.plot_settings.y_3d[1];
-    s.plot_windows.graph[i].zmax=s.plot_settings.z_3d[1];
-    s.plot_windows.graph[i].xbar=.5*(s.plot_settings.x_3d[1]+s.plot_settings.x_3d[0]);
-    s.plot_windows.graph[i].ybar=.5*(s.plot_settings.y_3d[1]+s.plot_settings.y_3d[0]);
-    s.plot_windows.graph[i].zbar=.5*(s.plot_settings.z_3d[1]+s.plot_settings.z_3d[0]);
-    s.plot_windows.graph[i].dx=2./(s.plot_settings.x_3d[1]-s.plot_settings.x_3d[0]);
-    s.plot_windows.graph[i].dy=2./(s.plot_settings.y_3d[1]-s.plot_settings.y_3d[0]);
-    s.plot_windows.graph[i].dz=2./(s.plot_settings.z_3d[1]-s.plot_settings.z_3d[0]);
-    s.plot_windows.graph[i].xmin=s.plot_settings.x_3d[0];
-    s.plot_windows.graph[i].ymin=s.plot_settings.y_3d[0];
-    s.plot_windows.graph[i].zmin=s.plot_settings.z_3d[0];
-    s.plot_windows.graph[i].xorg=0.0;
-    s.plot_windows.graph[i].yorg=0.0;
-    s.plot_windows.graph[i].yorg=0.0;
-    s.plot_windows.graph[i].xorgflag=1;
-    s.plot_windows.graph[i].yorgflag=1;
-    s.plot_windows.graph[i].zorgflag=1;
-    s.plot_windows.graph[i].Theta=s.drawing.theta0;
-    s.plot_windows.graph[i].Phi=s.drawing.phi0;
-    s.plot_windows.graph[i].xshft=0;
-    s.plot_windows.graph[i].yshft=0;
-    s.plot_windows.graph[i].zshft=0;
-    s.plot_windows.graph[i].xlo=s.plot_windows.graph[i].oldxlo=s.plot_settings.x_3d[0];
-    s.plot_windows.graph[i].ylo=s.plot_windows.graph[i].oldylo=s.plot_settings.y_3d[0];
-    s.plot_windows.graph[i].xhi=s.plot_windows.graph[i].oldxhi=s.plot_settings.x_3d[1];
-    s.plot_windows.graph[i].yhi=s.plot_windows.graph[i].oldyhi=s.plot_settings.y_3d[1];
-    s.plot_windows.current=&s.plot_windows.graph[i];
-    make_rot(s,s.drawing.theta0,s.drawing.phi0);
+    s.plot_windows->graph[i].Use=0;
+    s.plot_windows->graph[i].Nullrestore=0;
+    s.plot_windows->graph[i].ZPlane=-1000.0;
+    s.plot_windows->graph[i].ZView=1000.0;
+    s.plot_windows->graph[i].PerspFlag=0;
+    s.plot_windows->graph[i].ThreeDFlag=s.plot_settings->plot_3d;
+    s.plot_windows->graph[i].TimeFlag=s.plot_settings->timplot;
+    s.plot_windows->graph[i].ColorFlag=0;
+    s.plot_windows->graph[i].grtype=s.plot_settings->axes;
+    s.plot_windows->graph[i].color_scale=1.0;
+    s.plot_windows->graph[i].min_scale=0.0;
+    s.plot_windows->graph[i].xmax=s.plot_settings->x_3d[1];
+    s.plot_windows->graph[i].ymax=s.plot_settings->y_3d[1];
+    s.plot_windows->graph[i].zmax=s.plot_settings->z_3d[1];
+    s.plot_windows->graph[i].xbar=.5*(s.plot_settings->x_3d[1]+s.plot_settings->x_3d[0]);
+    s.plot_windows->graph[i].ybar=.5*(s.plot_settings->y_3d[1]+s.plot_settings->y_3d[0]);
+    s.plot_windows->graph[i].zbar=.5*(s.plot_settings->z_3d[1]+s.plot_settings->z_3d[0]);
+    s.plot_windows->graph[i].dx=2./(s.plot_settings->x_3d[1]-s.plot_settings->x_3d[0]);
+    s.plot_windows->graph[i].dy=2./(s.plot_settings->y_3d[1]-s.plot_settings->y_3d[0]);
+    s.plot_windows->graph[i].dz=2./(s.plot_settings->z_3d[1]-s.plot_settings->z_3d[0]);
+    s.plot_windows->graph[i].xmin=s.plot_settings->x_3d[0];
+    s.plot_windows->graph[i].ymin=s.plot_settings->y_3d[0];
+    s.plot_windows->graph[i].zmin=s.plot_settings->z_3d[0];
+    s.plot_windows->graph[i].xorg=0.0;
+    s.plot_windows->graph[i].yorg=0.0;
+    s.plot_windows->graph[i].yorg=0.0;
+    s.plot_windows->graph[i].xorgflag=1;
+    s.plot_windows->graph[i].yorgflag=1;
+    s.plot_windows->graph[i].zorgflag=1;
+    s.plot_windows->graph[i].Theta=s.drawing->theta0;
+    s.plot_windows->graph[i].Phi=s.drawing->phi0;
+    s.plot_windows->graph[i].xshft=0;
+    s.plot_windows->graph[i].yshft=0;
+    s.plot_windows->graph[i].zshft=0;
+    s.plot_windows->graph[i].xlo=s.plot_windows->graph[i].oldxlo=s.plot_settings->x_3d[0];
+    s.plot_windows->graph[i].ylo=s.plot_windows->graph[i].oldylo=s.plot_settings->y_3d[0];
+    s.plot_windows->graph[i].xhi=s.plot_windows->graph[i].oldxhi=s.plot_settings->x_3d[1];
+    s.plot_windows->graph[i].yhi=s.plot_windows->graph[i].oldyhi=s.plot_settings->y_3d[1];
+    s.plot_windows->current=&s.plot_windows->graph[i];
+    make_rot(s,s.drawing->theta0,s.drawing->phi0);
     
   }
 
 void copy_graph(xpp::Session &s, int i, int l)
 {
-  GRAPH &to=s.plot_windows.graph[i];
-  const GRAPH &from=s.plot_windows.graph[l];
+  GRAPH &to=s.plot_windows->graph[i];
+  const GRAPH &from=s.plot_windows->graph[l];
   to.Use=from.Use;
   to.Nullrestore=from.Nullrestore;
   copy_graph_settings(from,to);
@@ -349,24 +350,24 @@ void make_rot(xpp::Session &s, double theta, double phi)
 {
  double ct=xpp::math::cos(DEGTORAD*theta),st=xpp::math::sin(DEGTORAD*theta);
  double sp=xpp::math::sin(DEGTORAD*phi),cp=xpp::math::cos(DEGTORAD*phi);
- s.plot_windows.current->Theta=theta;
- s.plot_windows.current->Phi=phi;
- s.plot_windows.current->rm[0][0]=ct;
- s.plot_windows.current->rm[0][1]=st;
- s.plot_windows.current->rm[0][2]=0.0;
- s.plot_windows.current->rm[1][0]=-cp*st;
- s.plot_windows.current->rm[1][1]=cp*ct;
- s.plot_windows.current->rm[1][2]=sp;
- s.plot_windows.current->rm[2][0]=st*sp;
- s.plot_windows.current->rm[2][1]=-sp*ct;
- s.plot_windows.current->rm[2][2]=cp;
+ s.plot_windows->current->Theta=theta;
+ s.plot_windows->current->Phi=phi;
+ s.plot_windows->current->rm[0][0]=ct;
+ s.plot_windows->current->rm[0][1]=st;
+ s.plot_windows->current->rm[0][2]=0.0;
+ s.plot_windows->current->rm[1][0]=-cp*st;
+ s.plot_windows->current->rm[1][1]=cp*ct;
+ s.plot_windows->current->rm[1][2]=sp;
+ s.plot_windows->current->rm[2][0]=st*sp;
+ s.plot_windows->current->rm[2][1]=-sp*ct;
+ s.plot_windows->current->rm[2][2]=cp;
 }
 
 void scale3d(const xpp::Session &s, float x, float y, float z, float *xp, float *yp, float *zp)
 {
- *xp=(x-s.plot_windows.current->xbar)*s.plot_windows.current->dx;
- *yp=(y-s.plot_windows.current->ybar)*s.plot_windows.current->dy;
- *zp=(z-s.plot_windows.current->zbar)*s.plot_windows.current->dz;
+ *xp=(x-s.plot_windows->current->xbar)*s.plot_windows->current->dx;
+ *yp=(y-s.plot_windows->current->ybar)*s.plot_windows->current->dy;
+ *zp=(z-s.plot_windows->current->zbar)*s.plot_windows->current->dz;
 }
 
 int threedproj(const xpp::Session &s, float x2p, float y2p, float z2p, float *xp, float *yp)
@@ -374,13 +375,13 @@ int threedproj(const xpp::Session &s, float x2p, float y2p, float z2p, float *xp
   float x1p,y1p,z1p,k;
  rot_3dvec(s,x2p,y2p,z2p,&x1p,&y1p,&z1p);
 
- if(s.plot_windows.current->PerspFlag==0){
+ if(s.plot_windows->current->PerspFlag==0){
  *xp=x1p;
  *yp=y1p;
   return(1);
  }
-  if((z1p>=static_cast<float>(s.plot_windows.current->ZView))||(z1p<static_cast<float>(s.plot_windows.current->ZPlane)))return(0);
-  k=static_cast<float>(s.plot_windows.current->ZView-s.plot_windows.current->ZPlane)/(static_cast<float>(s.plot_windows.current->ZView)-z1p);
+  if((z1p>=static_cast<float>(s.plot_windows->current->ZView))||(z1p<static_cast<float>(s.plot_windows->current->ZPlane)))return(0);
+  k=static_cast<float>(s.plot_windows->current->ZView-s.plot_windows->current->ZPlane)/(static_cast<float>(s.plot_windows->current->ZView)-z1p);
   x1p=k*x1p;
   y1p=k*y1p;
   *xp=x1p;
@@ -401,13 +402,13 @@ int threed_proj(const xpp::Session &s, float x, float y, float z, float *xp, flo
  scale3d(s,x,y,z,&x2p,&y2p,&z2p);  /* scale to a cube  */
  rot_3dvec(s,x2p,y2p,z2p,&x1p,&y1p,&z1p);
 
- if(s.plot_windows.current->PerspFlag==0){
+ if(s.plot_windows->current->PerspFlag==0){
  *xp=x1p;
  *yp=y1p;
   return(1);
  }
-  if((z1p>=static_cast<float>(s.plot_windows.current->ZView))||(z1p<static_cast<float>(s.plot_windows.current->ZPlane)))return(0);
-  k=static_cast<float>(s.plot_windows.current->ZView-s.plot_windows.current->ZPlane)/(static_cast<float>(s.plot_windows.current->ZView)-z1p);
+  if((z1p>=static_cast<float>(s.plot_windows->current->ZView))||(z1p<static_cast<float>(s.plot_windows->current->ZPlane)))return(0);
+  k=static_cast<float>(s.plot_windows->current->ZView-s.plot_windows->current->ZPlane)/(static_cast<float>(s.plot_windows->current->ZView)-z1p);
   x1p=k*x1p;
   y1p=k*y1p;
   *xp=x1p;
@@ -427,7 +428,7 @@ void line3dn(xpp::Session &s, float xs1, float ys1, float zs1, float xsp1, float
  float xsp,ysp,zsp;
  rot_3dvec(s,xs1,ys1,zs1,&xs,&ys,&zs);   /* rotate the line */
  rot_3dvec(s,xsp1,ysp1,zsp1,&xsp,&ysp,&zsp);
- if(s.plot_windows.current->PerspFlag)pers_line(s,xs,ys,zs,xsp,ysp,zsp);
+ if(s.plot_windows->current->PerspFlag)pers_line(s,xs,ys,zs,xsp,ysp,zsp);
  else
      line_nabs(s,xs,ys,xsp,ysp);
  }
@@ -441,7 +442,7 @@ void line3d(xpp::Session &s, float x01, float y01, float z01, float x02, float y
 if(!clip3d(x01,y01,z01,x02,y02,z02,&xs1,&ys1,&zs1,&xsp1,&ysp1,&zsp1))return;
  rot_3dvec(s,xs1,ys1,zs1,&xs,&ys,&zs);   /* rotate the line */
  rot_3dvec(s,xsp1,ysp1,zsp1,&xsp,&ysp,&zsp);
- if(s.plot_windows.current->PerspFlag)pers_line(s,xs,ys,zs,xsp,ysp,zsp);
+ if(s.plot_windows->current->PerspFlag)pers_line(s,xs,ys,zs,xsp,ysp,zsp);
  else
      line_abs(s,xs,ys,xsp,ysp);
  }
@@ -458,14 +459,14 @@ float xs1,ys1,zs1;
  if(!clip3d(x01,y01,z01,x02,y02,z02,&xs1,&ys1,&zs1,&xsp1,&ysp1,&zsp1))return;
  rot_3dvec(s,xs1,ys1,zs1,&xs,&ys,&zs);   /* rotate the line */
  rot_3dvec(s,xsp1,ysp1,zsp1,&xsp,&ysp,&zsp);
- if(s.plot_windows.current->PerspFlag)pers_line(s,xs,ys,zs,xsp,ysp,zsp);
+ if(s.plot_windows->current->PerspFlag)pers_line(s,xs,ys,zs,xsp,ysp,zsp);
  else
      line_abs(s,xs,ys,xsp,ysp);
  }
 
 void pers_line(xpp::Session &s, float x, float y, float z, float xp, float yp, float zp)
 {
- float Zv=static_cast<float>(s.plot_windows.current->ZView),Zp=static_cast<float>(s.plot_windows.current->ZPlane);
+ float Zv=static_cast<float>(s.plot_windows->current->ZView),Zp=static_cast<float>(s.plot_windows->current->ZPlane);
  float d=Zv-Zp,k;
  float eps=.005*d;
 
@@ -517,7 +518,7 @@ void rot_3dvec(const xpp::Session &s, float x, float y, float z, float *xp, floa
 
  for(i=0;i<3;i++){
 	vnew[i]=0.0;
-	for(j=0;j<3;j++)vnew[i]=vnew[i]+s.plot_windows.current->rm[i][j]*vt[j];
+	for(j=0;j<3;j++)vnew[i]=vnew[i]+s.plot_windows->current->rm[i][j]*vt[j];
 	}
 	*xp=vnew[0];
 	*yp=vnew[1];
@@ -529,10 +530,10 @@ void point_abs(xpp::Session &s, float x1, float y1)
 {
   int xp,yp;
 
-  float x_left=s.drawing.x_min;
-  float x_right=s.drawing.x_max;
-  float y_top=s.drawing.y_max;
-  float y_bottom=s.drawing.y_min;
+  float x_left=s.drawing->x_min;
+  float x_right=s.drawing->x_max;
+  float y_top=s.drawing->y_max;
+  float y_bottom=s.drawing->y_min;
    if((x1>x_right)||(x1<x_left)||(y1>y_top)||(y1<y_bottom))return; 
   scale_to_screen(s,x1,y1,&xp,&yp);
   point(s,xp,yp);
@@ -551,10 +552,10 @@ void line_nabs(xpp::Session &s, float x1_out, float y1_out, float x2_out, float 
 void bead_abs(xpp::Session &s, float x1, float y1)
 {
   int i1,j1;
-  float x_left=s.drawing.x_min;
-  float x_right=s.drawing.x_max;
-  float y_top=s.drawing.y_max;
-  float y_bottom=s.drawing.y_min;
+  float x_left=s.drawing->x_min;
+  float x_right=s.drawing->x_max;
+  float y_top=s.drawing->y_max;
+  float y_bottom=s.drawing->y_min;
    if((x1>x_right)||(x1<x_left)||(y1>y_top)||(y1<y_bottom))return; 
   scale_to_screen(s,x1,y1,&i1,&j1);
   bead(s,i1,j1);
@@ -578,7 +579,7 @@ void line_abs(xpp::Session &s, float x1, float y1, float x2, float y2)
   float x1_out,y1_out,x2_out,y2_out;
 
   int xp1,yp1,xp2,yp2;
-  if(clip(s.drawing,x1,x2,y1,y2,&x1_out,&y1_out,&x2_out,&y2_out)){
+  if(clip(*s.drawing,x1,x2,y1,y2,&x1_out,&y1_out,&x2_out,&y2_out)){
     scale_to_screen(s,x1_out,y1_out,&xp1,&yp1);
     scale_to_screen(s,x2_out,y2_out,&xp2,&yp2);
     line(s,xp1,yp1,xp2,yp2);
@@ -639,7 +640,7 @@ void fancy_text_abs(xpp::Session &s, float x, float y, const char *old, int size
   int xp,yp;
   scale_to_screen(s,x,y,&xp,&yp);
   const std::string text=fill_in_text(s,old);
-  if(s.plot_file.format)xpp::picture_label(s,xp,yp,text,size,font==1);
+  if(s.plot_file->format)xpp::picture_label(s,xp,yp,text,size,font==1);
 }
 
 int clip3d(float x1, float y1, float z1, float x2, float y2, float z2, float *x1p, float *y1p, float *z1p, float *x2p, float *y2p, float *z2p)
@@ -846,15 +847,15 @@ C4:
 void eq_symb(xpp::Session &s, double *x, int type)
 {
 
-  float dx=6.0*static_cast<float>(s.plot_windows.current->xhi-s.plot_windows.current->xlo)*SYMSIZE;
-  float dy=6.0*static_cast<float>(s.plot_windows.current->yhi-s.plot_windows.current->ylo)*SYMSIZE;
- int ix=s.plot_windows.current->xv[0]-1,iy=s.plot_windows.current->yv[0]-1,iz=s.plot_windows.current->zv[0]-1;
-  if(s.plot_windows.current->TimeFlag)return;
+  float dx=6.0*static_cast<float>(s.plot_windows->current->xhi-s.plot_windows->current->xlo)*SYMSIZE;
+  float dy=6.0*static_cast<float>(s.plot_windows->current->yhi-s.plot_windows->current->ylo)*SYMSIZE;
+ int ix=s.plot_windows->current->xv[0]-1,iy=s.plot_windows->current->yv[0]-1,iz=s.plot_windows->current->zv[0]-1;
+  if(s.plot_windows->current->TimeFlag)return;
   set_pen(s,foreground_color,LineStyle{});
-  if(s.plot_windows.current->ThreeDFlag)
+  if(s.plot_windows->current->ThreeDFlag)
   {
-   dx=6.0*SYMSIZE/s.plot_windows.current->dx;
-   dy=6.0*SYMSIZE/s.plot_windows.current->dy;
+   dx=6.0*SYMSIZE/s.plot_windows->current->dx;
+   dy=6.0*SYMSIZE/s.plot_windows->current->dy;
    line_3d(s,static_cast<float>(x[ix])+dx,static_cast<float>(x[iy]),static_cast<float>(x[iz]),
            static_cast<float>(x[ix])-dx,static_cast<float>(x[iy]),static_cast<float>(x[iz]));
    line_3d(s,static_cast<float>(x[ix]),static_cast<float>(x[iy])+dy,static_cast<float>(x[iz]),
@@ -869,8 +870,8 @@ void eq_symb(xpp::Session &s, double *x, int type)
 
 void draw_symbol(xpp::Session &s, float x, float y, float size, int my_symb)
 {
- float dx=static_cast<float>(s.plot_windows.current->xhi-s.plot_windows.current->xlo)*size;
- float dy=static_cast<float>(s.plot_windows.current->yhi-s.plot_windows.current->ylo)*size;
+ float dx=static_cast<float>(s.plot_windows->current->xhi-s.plot_windows->current->xlo)*size;
+ float dy=static_cast<float>(s.plot_windows->current->yhi-s.plot_windows->current->ylo)*size;
  static const int sym_dir[4][48] = {
  /*          box              */
     {0, -6, -6,1, 12,  0,1,  0, 12,1,-12,  0,

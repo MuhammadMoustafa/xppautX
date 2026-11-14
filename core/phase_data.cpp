@@ -127,9 +127,9 @@ Record &change(Record &record, unsigned long &generation)
 /* the record of the active window of s, the window drawn in */
 PhaseShown::Window *current(Session &s)
 {
-    const int pop = s.plot_windows.active;
-    if (!client.emit_line || pop < 0 || pop >= static_cast<int>(s.plot_windows.graph.size())) return nullptr;
-    return &s.phase_shown.windows[pop];
+    const int pop = s.plot_windows->active;
+    if (!client.emit_line || pop < 0 || pop >= static_cast<int>(s.plot_windows->graph.size())) return nullptr;
+    return &s.phase_shown->windows[pop];
 }
 
 /* ---- flows ---- */
@@ -209,7 +209,7 @@ void begin_event(std::string &o, std::string_view ev, const GRAPH &g)
 void send_nullclines(const xpp::Session &s, int pop, const PhaseShown::Nullclines &nc)
 {
     std::string o;
-    begin_event(o, xpp::events::NULLCLINE_CURVES, s.plot_windows.graph[pop]);
+    begin_event(o, xpp::events::NULLCLINE_CURVES, s.plot_windows->graph[pop]);
     o += ",\"xname\":";
     add_name(o, s.model(), nc.ix);
     o += ",\"yname\":";
@@ -268,18 +268,18 @@ void send_dfield(const GRAPH &g, const PhaseShown::Field &f)
 
 void update(xpp::Session &s)
 {
-    client.windows.resize(s.plot_windows.graph.size());
-    for (int k = 0; k < static_cast<int>(s.plot_windows.graph.size()); k++) {
-        const int pop = k == 0 ? s.plot_windows.active : (k == s.plot_windows.active ? 0 : k); /* the active window first */
-        PhaseShown::Window &w = s.phase_shown.windows[pop];
+    client.windows.resize(s.plot_windows->graph.size());
+    for (int k = 0; k < static_cast<int>(s.plot_windows->graph.size()); k++) {
+        const int pop = k == 0 ? s.plot_windows->active : (k == s.plot_windows->active ? 0 : k); /* the active window first */
+        PhaseShown::Window &w = s.phase_shown->windows[pop];
         ClientWindow &got = client.windows[pop];
-        if (!s.plot_windows.graph[pop].Use) {
+        if (!s.plot_windows->graph[pop].Use) {
             w = PhaseShown::Window(); /* a window made again later starts afresh */
             got = ClientWindow();
             continue;
         }
         if (client.nullclines_on && due(got.nc, w.nc, w.nc_generation)) send_nullclines(s, pop, w.nc);
-        if (client.dfield_on && due(got.df, w.df, w.df_generation)) send_dfield(s.plot_windows.graph[pop], w.df);
+        if (client.dfield_on && due(got.df, w.df, w.df_generation)) send_dfield(s.plot_windows->graph[pop], w.df);
     }
 }
 
@@ -309,8 +309,8 @@ void phase_data_update(xpp::Session &s)
 
 void phase_data_cleared(xpp::Session &s, int pop)
 {
-    if (!client.emit_line || pop < 0 || pop >= static_cast<int>(s.plot_windows.graph.size())) return;
-    PhaseShown::Window &w = s.phase_shown.windows[pop];
+    if (!client.emit_line || pop < 0 || pop >= static_cast<int>(s.plot_windows->graph.size())) return;
+    PhaseShown::Window &w = s.phase_shown->windows[pop];
     PhaseShown::Nullclines &nc = change(w.nc, w.nc_generation);
     nc.now = PhaseShown::Clines();
     nc.frozen.clear();
@@ -389,24 +389,24 @@ void phase_data_arrow(xpp::Session &s, double x, double y, double fx, double fy)
     }
 }
 
-void phase_data_flow_start(xpp::Session &s) { s.phase_shown.flowing = client.emit_line != nullptr; }
+void phase_data_flow_start(xpp::Session &s) { s.phase_shown->flowing = client.emit_line != nullptr; }
 
-void phase_data_flow_next(xpp::Session &s) { s.phase_shown.trajectory++; }
+void phase_data_flow_next(xpp::Session &s) { s.phase_shown->trajectory++; }
 
 void phase_data_flow_step(xpp::Session &s, int ncurves, const float *ox, const float *oy, const float *x,
                           const float *y, const Color *color)
 {
-    if (!s.phase_shown.flowing) return;
+    if (!s.phase_shown->flowing) return;
     PhaseShown::Window *w = current(s);
-    if (!w || s.plot_windows.graph[s.plot_windows.active].ThreeDFlag || ncurves <= 0) return;
+    if (!w || s.plot_windows->graph[s.plot_windows->active].ThreeDFlag || ncurves <= 0) return;
     try {
         if (flow_values(w->df) > FLOW_MAX) return;
         PhaseShown::Field &f = change(w->df, w->df_generation);
         if (f.flows.size() != static_cast<std::size_t>(ncurves)) f.flows.resize(ncurves);
-        const GRAPH &g = s.plot_windows.graph[s.plot_windows.active];
+        const GRAPH &g = s.plot_windows->graph[s.plot_windows->active];
         const double ex = std::fabs(g.xhi - g.xlo) * FLOW_STEP, ey = std::fabs(g.yhi - g.ylo) * FLOW_STEP;
-        const bool first = w->trajectory != s.phase_shown.trajectory;
-        w->trajectory = s.phase_shown.trajectory;
+        const bool first = w->trajectory != s.phase_shown->trajectory;
+        w->trajectory = s.phase_shown->trajectory;
         for (int i = 0; i < ncurves; i++) {
             PhaseShown::FlowCurve &c = f.flows[i];
             c.color = color[i];
@@ -420,8 +420,8 @@ void phase_data_flow_step(xpp::Session &s, int ncurves, const float *ox, const f
 
 void phase_data_flow_stop(xpp::Session &s)
 {
-    s.phase_shown.flowing = false;
-    for (PhaseShown::Window &w : s.phase_shown.windows)
+    s.phase_shown->flowing = false;
+    for (PhaseShown::Window &w : s.phase_shown->windows)
         for (PhaseShown::FlowCurve &c : w.df.flows) try {
                 if (c.pending) change(w.df, w.df_generation);
                 flow_flush(c);

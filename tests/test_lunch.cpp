@@ -15,6 +15,7 @@
 #include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
+#include "storage.h"
 #include "solver.h"
 #include "lunch-new.h"
 #include "session_settings.h"
@@ -147,22 +148,22 @@ TEST_CASE("test_lunch")
     if (!imported) printf("  %s\n", imported.error().text().c_str());
     CHECK(!xpp::files::exists(xsx)); /* nothing written beside the set file */
     CHECK(imported && !imported->empty()); /* it names what it changed */
-    CHECK(s.numerics.total_time == 500 && s.numerics.delta_t == 0.05 && s.numerics.store_from == 200);
-    CHECK(s.numerics.method == xpp::method::RK4);
-    CHECK(s.data_store.current_time == 8.549999999999986);
+    CHECK(s.numerics->total_time == 500 && s.numerics->delta_t == 0.05 && s.numerics->store_from == 200);
+    CHECK(s.numerics->method == xpp::method::RK4);
+    CHECK(s.data_store->current_time == 8.549999999999986);
     xpp::get_val(s, "iapp", &x);
     CHECK(x == 0.09);
     xpp::get_val(s, "gca", &x);
     CHECK(x == 1);
     CHECK(s.last_ic[0] == 0.008015491512486121 && s.last_ic[1] == 0.05732158561413084);
-    CHECK(s.numerics.poincare_map == xpp::PoincareMap::period); /* Period */
-    CHECK(s.numerics.jacobian == 0);
+    CHECK(s.numerics->poincare_map == xpp::PoincareMap::period); /* Period */
+    CHECK(s.numerics->jacobian == 0);
 
     /* W347: XPPAUT's negative Total remains a finite absolute duration. */
     put(xs,with_line(set,line_with(set,"  total"),"-500  total"));
     remove(xsx);
     CHECK(xpp::import_xppaut_state(s,xs,false).has_value());
-    CHECK(s.numerics.total_time==500);
+    CHECK(s.numerics->total_time==500);
 
     /* the settings written again, read, applied and written once more: the same */
     const std::string first = snapshot(s);
@@ -222,7 +223,7 @@ TEST_CASE("test_lunch")
     /* all or nothing: the session changed, then a file with a bad value last
        is refused at that line, the session as it was, value for value */
     xpp::set_val(s, "iapp", 0.25);
-    s.numerics.total_time = 11;
+    s.numerics->total_time = 11;
     const std::string before = snapshot(s);
     const int last_line = last_line_with(first, "transpose.row_skip:");
     CHECK(last_line > 20);

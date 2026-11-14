@@ -22,6 +22,7 @@
 #include "jacobian.h"
 #include "storage.h"
 #include "session.h"
+#include "load_eqn.h"
 #include <functional>
 #include <optional>
 #include <string>
@@ -105,7 +106,7 @@ xpp::Result<bool> xpp_model_open(xpp::Session &s, const char *path)
     const std::pair<std::string,std::string> where=xpp::files::split_path(file);
     req=xpp::open_request(s,where.first,where.second);
   }
-  s.model_request=std::move(req);
+  s.model_request=std::make_unique<xpp::ModelRequest>(std::move(req));
   return true;
 }
 
@@ -174,7 +175,7 @@ xpp::Result<bool> xpp_model_reload(xpp::Session &s)
   if(!s.got_file)command_line={program_name(m),m.this_file};
   xpp::ModelRequest req{m.load_dir,m.this_file,std::move(command_line),true,std::nullopt,std::nullopt};
   if(!m.saved_in.empty())req.saved=xpp::SavedModel{m.saved_in,m.files};
-  s.model_request=std::move(req);
+  s.model_request=std::make_unique<xpp::ModelRequest>(std::move(req));
   return true;
 }
 
@@ -211,7 +212,8 @@ ModelRequest saved_request(const Session &s, std::string dir, SavedFile f)
 
 std::optional<ModelRequest> take_model_request(Session &s)
 {
-  std::optional<ModelRequest> req=std::move(s.model_request);
+  if(!s.model_request)return std::nullopt;
+  std::optional<ModelRequest> req=std::move(*s.model_request);
   s.model_request.reset();
   return req;
 }
@@ -229,10 +231,10 @@ KeptValues keep_values(const Session &s)
     kept.ics.emplace_back(m.uvar_names[i],s.last_ic[i]);
   for(int i=0;i<m.node;i++)
     kept.delays.emplace_back(m.uvar_names[i],s.delay_string[i]);
-  kept.numerics=s.numerics;
+  kept.numerics=*s.numerics;
   kept.autox_settings=autox_settings_now(s);
-  kept.poincare_variable=poincare_name(m,s.numerics.poincare_variable);
-  kept.saved=s.saved_session;
+  kept.poincare_variable=poincare_name(m,s.numerics->poincare_variable);
+  kept.saved=*s.saved_session;
   return kept;
 }
 
@@ -242,8 +244,8 @@ void restore_values(Session &s, const KeptValues &kept)
   /* the numerics: the settings kept, what a run leaves (data stored, a
      range's or shooting's state, the last seed) the new session's own */
   autox_settings_reload(s, kept.autox_settings);
-  const NumericsSettings loaded=s.numerics;
-  NumericsSettings &n=s.numerics;
+  const NumericsSettings loaded=*s.numerics;
+  NumericsSettings &n=*s.numerics;
   n=kept.numerics;
   n.inflag=loaded.inflag;
   n.storflag=loaded.storflag;
@@ -290,7 +292,7 @@ void restore_values(Session &s, const KeptValues &kept)
     const int i=ic_index(m,d.first);
     if(i>=0&&i<m.node)s.delay_string[i]=d.second;
   }
-  s.saved_session=kept.saved;
+  *s.saved_session=kept.saved;
 }
 
 Result<Session *> load_requested(const Session &now, const ModelRequest &req)
@@ -319,7 +321,7 @@ Result<Session *> load_requested(const Session &now, const ModelRequest &req)
     }
     if(req.keep_values) {
       const auto picked=disc(fresh.model()) ? pick_method(fresh.model(),"Discrete",command_place())
-                                            : check_method(fresh.model(),now.numerics.method,command_place());
+                                            : check_method(fresh.model(),now.numerics->method,command_place());
       if(!picked)return picked.error();
     }
     return std::nullopt;

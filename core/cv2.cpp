@@ -1,5 +1,6 @@
 #include "cv2.h"
 #include "session.h"
+#include "expr.h"
 #include "xpp_ui.h"
 
 #include "flags.h"
@@ -40,7 +41,7 @@ void cv_dense_jacobian(int N, cvode_solver::DenseMatRec * J, cvode_solver::RhsFn
   xpp::Session &s=*static_cast<xpp::Session *>(jac_data);
   const int n=static_cast<int>(N);
   std::vector<double> out(static_cast<size_t>(n)*n);
-  exact_jacobian(s,s.jacobian_scratch,s.parser.constants.data(),t,y->data,fy->data,n,{JacobianLayout::ColumnMajor},out.data());
+  exact_jacobian(s,*s.jacobian_scratch,s.parser.constants.data(),t,y->data,fy->data,n,{JacobianLayout::ColumnMajor},out.data());
   for(int j=0;j<n;j++)std::copy_n(out.data()+static_cast<size_t>(j)*n,n,DENSE_COL(J,j));
 }
 
@@ -51,7 +52,7 @@ void cv_band_jacobian(int N, int mupper, int mlower, cvode_solver::BandMatRec * 
   const int n=static_cast<int>(N);
   const JacobianForm form{JacobianLayout::Banded,static_cast<int>(mlower),static_cast<int>(mupper)};
   std::vector<double> out(static_cast<size_t>(jacobian_entries(n,form)));
-  exact_jacobian(s,s.jacobian_scratch,s.parser.constants.data(),t,y->data,fy->data,n,form,out.data());
+  exact_jacobian(s,*s.jacobian_scratch,s.parser.constants.data(),t,y->data,fy->data,n,form,out.data());
   const int mt=form.lower+form.upper+1;
   for(int i=0;i<n;i++)
     for(int d=-form.lower;d<=form.upper;d++){
@@ -70,9 +71,9 @@ struct CvodeRun::Memory {
     for(int i=0;i<n;i++)y->data[i]=y0[i];
     cvode=cvode_solver::CVodeMalloc(n, cvf, t, y, cvode_solver::BDF, cvode_solver::NEWTON, cvode_solver::SS, rtol, atol,
                       &s, false, run.iopt.data(), run.ropt.data());
-    const bool exact=s.numerics.jacobian==JACOBIAN_EXACT;
-    if(s.numerics.cv_bandflag)
-      cvode_solver::CVBand(cvode,s.numerics.cv_bandupper,s.numerics.cv_bandlower,exact?cv_band_jacobian:nullptr,exact?&s:nullptr);
+    const bool exact=s.numerics->jacobian==JACOBIAN_EXACT;
+    if(s.numerics->cv_bandflag)
+      cvode_solver::CVBand(cvode,s.numerics->cv_bandupper,s.numerics->cv_bandlower,exact?cv_band_jacobian:nullptr,exact?&s:nullptr);
     else
       cvode_solver::CVDense(cvode,exact?cv_dense_jacobian:nullptr,exact?&s:nullptr,s.model().subsystems);
   }
@@ -127,7 +128,7 @@ std::string cvode_error_text(const xpp::Session &s, const CvodeRun &run, int kfl
   case -2: return "CVODE refused its input";
   case -3: return "more steps between two output times than CVODE takes";
   case -4: return xpp::format("the tolerances are too small for the rounding: relative_tolerance = {} and absolute_tolerance = {} would do",
-                              s.numerics.relative_tolerance*run.ropt[cvode_solver::ROPT_TOLSF], s.numerics.absolute_tolerance*run.ropt[cvode_solver::ROPT_TOLSF]);
+                              s.numerics->relative_tolerance*run.ropt[cvode_solver::ROPT_TOLSF], s.numerics->absolute_tolerance*run.ropt[cvode_solver::ROPT_TOLSF]);
   case -5: return "the error test failed repeatedly";
   case -6: return "the corrector (Newton iteration) failed to converge repeatedly";
   case -7: return "the setup of CVODE's linear solver failed";

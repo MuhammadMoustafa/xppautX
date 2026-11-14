@@ -59,20 +59,20 @@
 
 void begin_array_range(xpp::Session &s, bool still, bool tag, std::string_view file)
 {
-  s.array_plot.range_stem=file;
-  s.array_plot.still=still;
-  s.array_plot.tag=tag;
-  s.array_plot.range=1;
-  s.array_plot.range_count=0;
-  s.array_plot.save_cancelled=false;
+  s.array_plot->range_stem=file;
+  s.array_plot->still=still;
+  s.array_plot->tag=tag;
+  s.array_plot->range=1;
+  s.array_plot->range_count=0;
+  s.array_plot->save_cancelled=false;
 }
 
 void fit_aplot(xpp::Session &s)
 {
 double zmax,zmin;
- scale_aplot(s,&s.array_plot.plot,&zmax,&zmin);
-  s.array_plot.plot.zmin=zmin;
-  s.array_plot.plot.zmax=zmax;
+ scale_aplot(s,&s.array_plot->plot,&zmax,&zmin);
+  s.array_plot->plot.zmin=zmin;
+  s.array_plot->plot.zmax=zmax;
   xpp::ui.aplot_redraw(s);
 
 }
@@ -82,25 +82,25 @@ void optimize_aplot(xpp::Session &s, int *plist)
   int i1=plist[1]-1;
   int nr,ns;
   double zmax,zmin;
-  int nrows=s.data.view.maxrow;
+  int nrows=s.data->view.maxrow;
   int ncol=i1+1-i0;
   if(ncol<2||nrows<2)return;
   make_my_aplot(s,"Array!");
 
-  s.array_plot.plot.index0=i0+1;
-  s.array_plot.plot.name=s.model().uvar_names[i0];
-  s.array_plot.plot.nacross=ncol;
+  s.array_plot->plot.index0=i0+1;
+  s.array_plot->plot.name=s.model().uvar_names[i0];
+  s.array_plot->plot.nacross=ncol;
   nr=201;
   if(nrows<nr)
     nr=nrows;
-  s.array_plot.plot.ndown=nr;
+  s.array_plot->plot.ndown=nr;
   ns=nrows/nr;
-  s.array_plot.plot.nskip=ns;
-  s.array_plot.plot.ncskip=1;
-  scale_aplot(s,&s.array_plot.plot,&zmax,&zmin);
-  s.array_plot.plot.zmin=zmin;
-  s.array_plot.plot.zmax=zmax;
-  s.array_plot.plot.plotdef=1;
+  s.array_plot->plot.nskip=ns;
+  s.array_plot->plot.ncskip=1;
+  scale_aplot(s,&s.array_plot->plot,&zmax,&zmin);
+  s.array_plot->plot.zmin=zmin;
+  s.array_plot->plot.zmax=zmax;
+  s.array_plot->plot.plotdef=1;
   xpp::ui.aplot_reset_axes(s);
   xpp::ui.aplot_redraw(s);
 }
@@ -108,19 +108,19 @@ void optimize_aplot(xpp::Session &s, int *plist)
 void scale_aplot(const xpp::Session &s, APLOT *ap, double *zmax, double *zmin)
 {
   int i,j,ib,jb,row0=ap->nstart,col0=ap->index0;
-  int nrows=s.data.view.maxrow;
+  int nrows=s.data->view.maxrow;
   double z;
   ib=col0;
   jb=row0;
-  *zmax=s.data.view.data[ib][jb];
+  *zmax=s.data->view.data[ib][jb];
   *zmin=*zmax;
   for(i=0;i<ap->nacross/ap->ncskip;i++){
       ib=col0+i*ap->ncskip;
-      if(ib<=s.data.view.maxcol){
+      if(ib<=s.data->view.maxcol){
 	for(j=0;j<ap->ndown;j++){
 	  jb=row0+ap->nskip*j;
 	  if(jb<nrows&&jb>=0){
-	    z=s.data.view.data[ib][jb];
+	    z=s.data->view.data[ib][jb];
 	    if(z<*zmin)*zmin=z;
 	    if(z>*zmax)*zmax=z;
 	  }
@@ -134,24 +134,24 @@ void scale_aplot(const xpp::Session &s, APLOT *ap, double *zmax, double *zmin)
 
 AplotTimes aplot_times(const xpp::Session &s, const APLOT &ap)
 {
-  const int nrows=s.data.view.maxrow;
-  const auto time_of=[&](int row){return static_cast<double>(s.data.view.data[0][std::clamp(row,0,nrows-1)]);};
+  const int nrows=s.data->view.maxrow;
+  const auto time_of=[&](int row){return static_cast<double>(s.data->view.data[0][std::clamp(row,0,nrows-1)]);};
   return {time_of(ap.nstart),time_of(ap.nstart+ap.nskip*(ap.ndown-1))};
 }
 
 xpp::Result<> aplot_ready(const xpp::Session &s, const std::string &where, bool needs_data)
 {
-  const APLOT &ap=s.array_plot.plot;
+  const APLOT &ap=s.array_plot->plot;
   if(!ap.alive)return xpp::fail(where,"No array plot is open: open one first (array_plot.open)",xpp::command_place());
   if(ap.plotdef==0)return xpp::fail(where,"The array plot shows no columns yet: configure it first (array_plot.configure)",xpp::command_place());
-  if(needs_data&&(s.data.view.maxrow<=2||ap.nacross<2||ap.ndown<2))
+  if(needs_data&&(s.data->view.maxrow<=2||ap.nacross<2||ap.ndown<2))
     return xpp::fail(where,"The array plot has nothing to show: integrate first, and show at least 2 columns and 2 rows",xpp::command_place());
   return {};
 }
 
 xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file, const APLOT *given)
 {
-  APLOT candidate=given?*given:s.array_plot.plot;
+  APLOT candidate=given?*given:s.array_plot->plot;
   APLOT *ap=&candidate;
   if(const auto ready=aplot_ready(s,"array_plot.export_pdf");!ready)return std::unexpected(ready.error());
   const AplotTimes times=aplot_times(s,*ap);
@@ -160,11 +160,11 @@ xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file, const 
     .filename=ap->filename.c_str(), .xtitle=ap->xtitle.c_str(),
     .ytitle=ap->ytitle.c_str(), .bottom=ap->bottom.c_str(),
     .nacross=ap->nacross, .ndown=ap->ndown, .col0=ap->index0, .row0=ap->nstart,
-    .nskip=ap->nskip, .ncskip=ap->ncskip, .maxrow=s.data.view.maxrow,
-    .maxcol=s.data.view.maxcol, .data=s.data.view.data,
+    .nskip=ap->nskip, .ncskip=ap->ncskip, .maxrow=s.data->view.maxrow,
+    .maxcol=s.data->view.maxcol, .data=s.data->view.data,
     .zmin=ap->zmin, .zmax=ap->zmax, .tlo=times.first, .thi=times.last};
   const auto written=xpp::array_print(s,picture);
-  if(written&&*written)s.array_plot.plot=std::move(candidate);
+  if(written&&*written)s.array_plot->plot=std::move(candidate);
   return written;
 }
 
@@ -187,12 +187,12 @@ std::string get_root(std::string_view s, int *num)
 
 void close_aplot_files(xpp::Session &s, bool complete)
 {
-  if(s.array_plot.still==0){
-    if(s.array_plot.movie){
-      if (!complete || s.array_plot.save_cancelled || xpp::job::cancelled()) xpp::abort_save(s.array_plot.movie);
+  if(s.array_plot->still==0){
+    if(s.array_plot->movie){
+      if (!complete || s.array_plot->save_cancelled || xpp::job::cancelled()) xpp::abort_save(s.array_plot->movie);
       else {
-        xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(s.array_plot.movie);
-        xpp::ok_or_show(xpp::commit_save(s.array_plot.movie));
+        xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(s.array_plot->movie);
+        xpp::ok_or_show(xpp::commit_save(s.array_plot->movie));
       }
     }
   }

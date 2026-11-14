@@ -1,5 +1,4 @@
 #pragma once
-#include "jacobian.h"
 /* xpp::Session: everything a run changes (AGENTS.md "No global state";
    docs/roadmap.md W47c). C++ only.
 
@@ -20,46 +19,15 @@
    nothing reads a current one. The one global that holds Sessions is the
    session list (client_session, below). A load builds a new Model and
    Session together (Load, below) and keeps them only when it succeeds. */
-#include "model_parts.h"
-#include "simplenet.h"
-#include "tabular.h"
-#include "volterra.h"
 #include "colormap.h"
-#include "storage.h"
-#include "many_pops.h"
-#include "graf_par.h"
-#include "integrate.h"
-#include "autox_state.h"
-#include "diagram.h"
-#include "browse.h"
-#include "kinescope.h"
-#include "load_eqn.h"
 #include "expr.h"
-#include "delay_handle.h"
-#include "dae_fun.h"
-#include "do_fit.h"
-#include "histogram.h"
-#include "adj2.h"
-#include "markov.h"
-#include "nullcline.h"
-#include "equilibria.h"
-#include "pp_shoot.h"
-#include "graphics.h"
-#include "picture.h"
-#include "grobs.h"
-#include "arrayplot.h"
-#include "aniparse.h"
+#include "tabular.h"
 #include "userbut.h"
 #include "xpp_math.h"
-#include "phase_data.h"
-#include "marks_data.h"
-#include "ani_data.h"
 #include "xpp_error.h"
+#include "xpp_files.h"
 #include "xpp_log.h"
-#include "model_switch.h"
-#include "value_undo.h"
-#include "display_state.h"
-#include "xpp_session.h"
+#include "model_options.h"
 #include "xpp_prefs.h"
 #include "xpp_cpu.h"
 
@@ -71,13 +39,66 @@
 #include <string_view>
 #include <vector>
 
+/* global types, as their owners define them */
+struct LABEL; /* struct.h: the text labels a Session holds in a vector */
+struct ArrayPlotState; /* arrayplot.h */
+struct AutoxState; /* autox_state.h */
+struct AutoxDiagram; /* diagram.h */
+struct XppKinescope; /* kinescope.h */
+struct SavedSession; /* xpp_session.h */
+
 namespace xpp {
 
 struct Model; /* model.h */
 
+/* The parts a Session holds through a std::unique_ptr, so that a change to
+   one's header rebuilds only the files that use that part, never every file
+   that reads session.h; each is defined by its owner's header. A file that
+   uses `s.part` includes that header beside session.h. */
+struct DataStore; /* storage.h */
+struct XppPlotWindows; /* many_pops.h */
+struct ToolWindowsHidden; /* many_pops.h */
+struct XppFrozenCurves; /* graf_par.h */
+struct Mov3d; /* graf_par.h */
+struct PhaseShown; /* phase_data.h */
+struct MarksShown; /* marks_data.h */
+struct AutoxView; /* display_state.h */
+struct IntegratorState; /* integrate.h */
+struct SolverWork; /* storage.h */
+struct JacobianScratch; /* jacobian.h */
+struct DataState; /* browse.h */
+struct NumericsSettings; /* load_eqn.h */
+struct PlotSettings; /* load_eqn.h */
+struct DelayState; /* delay_handle.h */
+struct HistogramState; /* histogram.h */
+struct AdjointState; /* adj2.h */
+struct StochasticState; /* markov.h */
+struct NullclineSettings; /* nullcline.h */
+struct VolterraState; /* volterra.h */
+struct FitInfo; /* do_fit.h */
+struct DaeState; /* dae_fun.h */
+struct NullclineState; /* nullcline.h */
+struct ShootRange; /* pp_shoot.h */
+struct MarkInfo; /* grobs.h */
+struct ManifoldShots; /* equilibria.h */
+struct DrawingState; /* graphics.h */
+struct PlotFileState; /* picture.h */
+struct AnimationState; /* aniparse.h */
+struct AniShown; /* ani_data.h */
+struct ValueUndo; /* value_undo.h */
+struct ModelRequest; /* model_switch.h */
+/* element types of the vectors a Session holds: the vector's type may be
+   incomplete here, as Session's constructor and destructor are in session.cpp */
+struct PlotDisplay; /* display_state.h */
+struct NetworkValues; /* simplenet.h */
+struct BoundaryCondition; /* model_parts.h */
+struct GROB; /* grobs.h */
+struct XppSlider; /* load_eqn.h */
+
 struct Session {
   /* a Session of the Model m (Load) */
-  explicit Session(Model &m) noexcept : model_(&m) {}
+  explicit Session(Model &m);
+  ~Session();
   Session(const Session &)=delete;
   Session &operator=(const Session &)=delete;
 
@@ -93,24 +114,24 @@ struct Session {
   const Model &model() const noexcept { return *model_; }
 
   /* the rows a run stores and where the last run ended (storage.cpp) */
-  DataStore data_store;
+  std::unique_ptr<DataStore> data_store;
   /* the plot windows, the active one, Simulplot (many_pops.cpp) */
-  XppPlotWindows plot_windows{};
-  std::string selected_window=plot_windows.graph[0].name; // The target of an omitted window argument.
-  ToolWindowsHidden tools_hidden; // The data table, animation and array plot windows hidden (graphs and views keep their own).
+  std::unique_ptr<XppPlotWindows> plot_windows;
+  std::string selected_window; // The first graph's name, set by the constructor; the target of an omitted window argument.
+  std::unique_ptr<ToolWindowsHidden> tools_hidden; // The data table, animation and array plot windows hidden (graphs and views keep their own).
   /* the frozen curves of every window (graf_par.cpp) */
-  XppFrozenCurves frozen_curves{};
+  std::unique_ptr<XppFrozenCurves> frozen_curves;
   /* 3D Params' movie settings (graf_par.cpp) */
-  Mov3d movie_3d;
+  std::unique_ptr<Mov3d> movie_3d;
   /* what the page displays of each window: earlier runs, zoom (display_state.h) */
-  std::vector<PlotDisplay> plot_display{1};
+  std::vector<PlotDisplay> plot_display; /* one per window; the constructor makes the first */
   /* what each window shows besides its curves since it was last blanked:
      nullclines, direction field and flows (phase_data.cpp), equilibria,
      labels, objects and frozen curves (marks_data.cpp) */
-  PhaseShown phase_shown;
-  MarksShown marks_shown;
+  std::unique_ptr<PhaseShown> phase_shown;
+  std::unique_ptr<MarksShown> marks_shown;
   /* autoX's hidden branches and zoom */
-  AutoxView autox_view;
+  std::unique_ptr<AutoxView> autox_view;
   /* how plots are written to files (graf_par.cpp) */
 
   /* where a file dialog starts (json_prompts.cpp, W151): the folder of the
@@ -138,10 +159,10 @@ struct Session {
   std::string after_run_file;
 
   /* the integrator's state (integrate.cpp) */
-  IntegratorState integrator;
+  std::unique_ptr<IntegratorState> integrator;
   /* its state vector and the solvers' scratch space (storage.cpp) */
-  SolverWork solver_work;
-  JacobianScratch jacobian_scratch;
+  std::unique_ptr<SolverWork> solver_work;
+  std::unique_ptr<JacobianScratch> jacobian_scratch;
   /* the initial data the next run starts from (the model's are
      Model::default_ic) */
   std::vector<double> last_ic;
@@ -164,17 +185,17 @@ struct Session {
      (autox_nox.cpp), and the diagram (diagram.cpp). A run's own state, its
      parameters, fort files and work arrays, is an AutoxRun (autox_state.h)
      do_autox makes: none is kept here. */
-  AutoxState autox_state;
-  AutoxDiagram diagram;
+  std::unique_ptr<AutoxState> autox_state;
+  std::unique_ptr<AutoxDiagram> diagram;
 
   /* the data table (browse_data.cpp) */
-  DataState data;
+  std::unique_ptr<DataState> data;
   /* the kinescope (commands.cpp, json_windows.cpp) */
-  XppKinescope kinescope;
+  std::unique_ptr<XppKinescope> kinescope;
 
   /* the numerics and the main plot's settings in use (load_eqn.cpp) */
-  NumericsSettings numerics;
-  PlotSettings plot_settings;
+  std::unique_ptr<NumericsSettings> numerics;
+  std::unique_ptr<PlotSettings> plot_settings;
   /* the expression engine's constants, variables, counts, symbol table
      and evaluation stacks (expr.h) */
   ParserState parser;
@@ -229,63 +250,63 @@ struct Session {
   std::vector<xpp::BoundaryCondition> bcs;
 
   /* the delay equations' state (delay_handle.cpp) */
-  DelayState delay;
+  std::unique_ptr<DelayState> delay;
   /* the histogram and spectrum settings and results (histogram.cpp) */
-  HistogramState histogram;
+  std::unique_ptr<HistogramState> histogram;
   /* the adjoint, its H function and the transposed data (adj2.cpp) */
-  AdjointState adjoint;
+  std::unique_ptr<AdjointState> adjoint;
   /* stocHast's many-runs state (markov.cpp) */
-  StochasticState stochastic;
+  std::unique_ptr<StochasticState> stochastic;
   /* the random generator its runs, the parser's ran(), normal() and
      poisson() and Monte Carlo draw from (xpp_math.h); a .snapx's
      the random group of a .snapx's session.odex saves and restores it */
   Random random;
   /* the nullclines', direction field's and orbit coloring's settings
      (nullcline.cpp) */
-  NullclineSettings nullclines;
+  std::unique_ptr<NullclineSettings> nullclines;
   /* the columns a batch run writes, the "only" statement's or
      post-processing's (form_ode.cpp's create_plot_list, histogram.cpp);
      none: every column */
   std::vector<int> plot_list;
   /* the integral equations' running state (volterra2.cpp) */
-  VolterraState volterra;
+  std::unique_ptr<VolterraState> volterra;
   /* Data's Fit settings (do_fit.cpp) */
-  FitInfo fit;
+  std::unique_ptr<FitInfo> fit;
   /* the algebraic variables' solver (dae_fun.cpp) */
-  DaeState dae;
+  std::unique_ptr<DaeState> dae;
   /* the nullclines and direction field computed, and the frozen ones */
-  NullclineState nullcline_state;
+  std::unique_ptr<NullclineState> nullcline_state;
   /* BVP's Range settings (pp_shoot.cpp) */
-  ShootRange shoot_range;
+  std::unique_ptr<ShootRange> shoot_range;
   /* Text,etc's marker settings (grobs.cpp) */
-  MarkInfo marker;
+  std::unique_ptr<MarkInfo> marker;
   /* Sing pts' shooting (equilibria.cpp) */
-  ManifoldShots manifolds;
+  std::unique_ptr<ManifoldShots> manifolds;
 
   /* the drawing state and a picture file's (graphics.cpp, axes2.cpp,
      picture.cpp) */
-  DrawingState drawing;
-  PlotFileState plot_file;
+  std::unique_ptr<DrawingState> drawing;
+  std::unique_ptr<PlotFileState> plot_file;
   /* the text labels and graphic objects on the plot windows (grobs.cpp) */
   std::vector<LABEL> labels;
   std::vector<GROB> grobs;
   int next_annotation_id = 0; /* the id of the next text, arrow, pointer or marker added (grobs.h) */
   /* the array plot (arrayplot.cpp) and the animator (aniparse.cpp) */
-  ArrayPlotState array_plot;
-  AnimationState animation;
+  std::unique_ptr<ArrayPlotState> array_plot;
+  std::unique_ptr<AnimationState> animation;
   /* the animation's frames as the events' text (ani_data.cpp) */
-  AniShown ani_shown;
+  std::unique_ptr<AniShown> ani_shown;
   /* the model's buttons (userbut.h) */
   std::vector<UserButton> user_buttons;
 
   /* File > Open model's or Reload's model to load once the command that
      asked for it has returned (model_switch.h) */
-  std::optional<ModelRequest> model_request;
+  std::unique_ptr<ModelRequest> model_request;
   /* the session file this session was last saved to or opened from
      (xpp_session.h) */
-  SavedSession saved_session;
+  std::unique_ptr<SavedSession> saved_session;
   /* the Values edits that can be undone and redone (value_undo.h) */
-  ValueUndo value_undo;
+  std::unique_ptr<ValueUndo> value_undo;
 
 private:
   Model *model_;
@@ -369,24 +390,4 @@ private:
   LogCapture messages;
 };
 
-
-/* f() on the active plot window of s, or under Simulplot on each open one
-   in turn (made active with make_active(s, i, flag)), the active one made
-   active again after */
-template <class F>
-void for_each_shown_window(Session &s, int flag, F f)
-{
-    if (s.plot_windows.simul == 0) {
-        f();
-        return;
-    }
-    const int ic = s.plot_windows.active;
-    for (int i = 0; i < s.plot_windows.count; i++) {
-        make_active(s, s.plot_windows.open[i], flag);
-        f();
-    }
-    make_active(s, ic, flag);
 }
-
-}
-

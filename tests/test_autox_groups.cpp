@@ -5,6 +5,7 @@
 #include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
+#include "autox_state.h"
 #include "jacobian.h"
 #include "autox_c.h"
 #include "autox_jacobian.h"
@@ -33,7 +34,7 @@ TEST_CASE("test_autox_groups") {
     auto &s = xpp::client_session();
     AutoxRun run;
     run.session = &s;
-    run.parameter_count = s.autox_state.parameter_layout.size();
+    run.parameter_count = s.autox_state->parameter_layout.size();
     iap_type iap{};
     iap.run = &run;
     iap.ndm = n;
@@ -42,7 +43,7 @@ TEST_CASE("test_autox_groups") {
     iap.jac = 0;
     iap.ips = xpp::AutoxProblem::SteadyState;
     rap_type rap{};
-    std::array<std::ptrdiff_t, 1> icp{s.autox_state.parameter_layout.solver_index(0)};
+    std::array<std::ptrdiff_t, 1> icp{s.autox_state->parameter_layout.solver_index(0)};
     std::vector<double> par(run.parameter_count, 0.);
     par[icp[0]] = 1.3;
     const std::array<double, n> u{.1, -.2, .3, -.4, .5, .6};
@@ -68,7 +69,7 @@ TEST_CASE("test_autox_groups") {
     constexpr int ndim = 2 * n + 1;
     iap.ndim = ndim;
     iap.nfpr = 2;
-    std::array<std::ptrdiff_t, 2> icp2{icp[0], s.autox_state.parameter_layout.solver_index(1)};
+    std::array<std::ptrdiff_t, 2> icp2{icp[0], s.autox_state->parameter_layout.solver_index(1)};
     const std::array<double, ndim> w{.1, -.2, .3, -.4, .5, .6, .3, .1, -.2, .4, .5, -.1, 0.7};
     std::array<double, ndim * ndim> fold_grouped{}, fold_single{};
     std::array<double, ndim> g{}, g_columns{};

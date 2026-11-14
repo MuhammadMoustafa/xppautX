@@ -27,6 +27,12 @@
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "session.h"
+#include "phase_data.h"
+#include "integrate.h"
+#include "load_eqn.h"
+#include "many_pops.h"
+#include "model_parts.h"
+#include "storage.h"
 
 namespace xpp {
 
@@ -409,22 +415,22 @@ Settings capture_settings(const Session &s, SettingsUse use)
     Settings f;
     f.graphics = use == SettingsUse::file;
     for (const OptionRow *row : saved_settings())
-        if (setting_applies(s, *row, s.numerics.method)) f.options.emplace_back(row, setting_text(s, *row));
-    f.current_time = s.data_store.current_time;
-    f.last_time = s.integrator.last_time;
-    f.my_start = s.integrator.my_start;
-    f.inflag = s.numerics.inflag;
-    f.delay_flag = s.delay.flag;
+        if (setting_applies(s, *row, s.numerics->method)) f.options.emplace_back(row, setting_text(s, *row));
+    f.current_time = s.data_store->current_time;
+    f.last_time = s.integrator->last_time;
+    f.my_start = s.integrator->my_start;
+    f.inflag = s.numerics->inflag;
+    f.delay_flag = s.delay->flag;
     for (int i = 0; i < m.node; i++) {
         f.delays.push_back(s.delay_string[static_cast<std::size_t>(i)]);
         f.bcs.emplace_back(s.bcs[static_cast<std::size_t>(i)].string.data());
     }
     for (int i = 0; i < m.node + m.nmarkov; i++) {
         f.last_ic.push_back(s.last_ic[static_cast<std::size_t>(i)]);
-        f.current.push_back(s.data_store.current[static_cast<std::size_t>(i)]);
+        f.current.push_back(s.data_store->current[static_cast<std::size_t>(i)]);
     }
     for (int i = 0; i < m.nupar; i++) f.params.push_back(parameter_value(s, i));
-    f.graph = s.plot_windows.current ? *s.plot_windows.current : s.plot_windows.graph[0];
+    f.graph = s.plot_windows->current ? *s.plot_windows->current : s.plot_windows->graph[0];
     return f;
 }
 
@@ -505,7 +511,7 @@ void read_options(Session &s, const odex::StateFile &file, Settings &f)
             given[row].push_back(&o);
         }
     }
-    int method = s.numerics.method;
+    int method = s.numerics->method;
     for (const OptionRow *row : saved_settings()) {
         const std::string key = odex_key(*row, 0);
         const auto at = given.find(row);
@@ -591,20 +597,20 @@ void apply_storage_precision(Session &s, const Settings &f)
 void apply_settings(Session &s, const Settings &f, bool redraw)
 {
     const Model &m = s.model();
-    NumericsSettings &n = s.numerics;
+    NumericsSettings &n = *s.numerics;
     for (const auto &[row, text] : f.options) {
         setting_write(s, *row, text);
         if (row->rule == OptionRule::method) do_meth(s);
     }
     storage_precision_changed(s); /* the data held converted when the settings changed what it is kept as */
-    s.delay.flag = f.delay_flag;
-    s.data_store.current_time = f.current_time;
-    s.integrator.last_time = f.last_time;
-    s.integrator.my_start = f.my_start;
+    s.delay->flag = f.delay_flag;
+    s.data_store->current_time = f.current_time;
+    s.integrator->last_time = f.last_time;
+    s.integrator->my_start = f.my_start;
     n.inflag = f.inflag;
     if (solver_info(n.method).traits.integral_history) {
         allocate_volterra(s, n.max_points, 1);
-        s.integrator.my_start = 1;
+        s.integrator->my_start = 1;
     }
     chk_delay(s);
     for (int i = 0; i < m.node; i++) {
@@ -615,14 +621,14 @@ void apply_settings(Session &s, const Settings &f, bool redraw)
     for (int i = 0; i < m.node + m.nmarkov; i++) {
         const auto k = static_cast<std::size_t>(i);
         s.last_ic[k] = f.last_ic[k];
-        s.data_store.current[k] = f.current[k];
+        s.data_store->current[k] = f.current[k];
     }
     for (int i = 0; i < m.nupar; i++) set_val(s, m.upar_names[static_cast<std::size_t>(i)], f.params[static_cast<std::size_t>(i)]);
     if (f.graphics) {
-        copy_graph_settings(f.graph, *s.plot_windows.current);
-        copy_curves(f.graph, *s.plot_windows.current);
+        copy_graph_settings(f.graph, *s.plot_windows->current);
+        copy_curves(f.graph, *s.plot_windows->current);
     }
-    s.integrator.range.steps2 = s.integrator.range.steps;
+    s.integrator->range.steps2 = s.integrator->range.steps;
     if (redraw && program.interactive) {
         ui.redraw_bcs();
         redraw_ics();

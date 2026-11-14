@@ -11,6 +11,7 @@
 #include "autox_f2c.h"
 #include "autox_c.h" /* user_right_hand_side, user_start, user_boundary_conditions */
 #include "session.h"
+#include "autox_state.h"
 #include "odesol2.h"
 #include "autox_nox.h"
 #include "derived.h"
@@ -52,14 +53,14 @@ void exact_derivatives(const xpp::Session &s, AutoxRun &run, const double *c, st
     if(ijac<2)return;
     for(std::ptrdiff_t i=0;i<nfpr;i++){
       double *column=dfdp+icp[i]*ndim;
-      const int k=s.autox_state.parameter_layout.model_index(static_cast<int>(icp[i]));
+      const int k=s.autox_state->parameter_layout.model_index(static_cast<int>(icp[i]));
       if(k>=0)xpp::exact_constant_derivative(s,run.jacobian_scratch,c,s.model().upar_con[k],0.0,u,f,n,column);
       else std::fill_n(column,n,0.0);
     }
   } catch (const xpp::JacobianFailed &failed) {
     if(!run.jacobian_failure){
       run.jacobian_failure=failed.error;
-      const int k=s.autox_state.parameter_layout.model_index(static_cast<int>(icp[0]));
+      const int k=s.autox_state->parameter_layout.model_index(static_cast<int>(icp[0]));
       if(k>=0)
         run.jacobian_failure->what+=xpp::format(" (autoX at {}={})",s.model().upar_names[k],c[s.model().upar_con[k]]);
     }
@@ -88,7 +89,7 @@ void chain(int n, const double *b, double *column, const double *add, double *t)
    every collocation point its own copy of par, so every call compares. */
 bool continued_constants(const xpp::Session &s, double *constants, const std::ptrdiff_t *icp, std::ptrdiff_t count, std::span<const double> parameters)
 {
-  const auto &layout=s.autox_state.parameter_layout;
+  const auto &layout=s.autox_state->parameter_layout;
   const int *constant_index=s.model().upar_con.data();
   bool changed=false;
   for(std::ptrdiff_t i=0;i<count;i++){
@@ -122,7 +123,7 @@ void worker_func(const xpp::Session &s, AutoxRun &worker, std::ptrdiff_t ndim, c
 {
   double *c=worker.rhs_constants.data();
   pure_values(s,c,worker.rhs_variables.data(),u,icp,nfpr,parameters,f);
-  if(ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT)exact_derivatives(s,worker,c,ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
+  if(ijac!=0&&s.numerics->jacobian==xpp::JACOBIAN_EXACT)exact_derivatives(s,worker,c,ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
 }
 
 }
@@ -131,7 +132,7 @@ void worker_func(const xpp::Session &s, AutoxRun &worker, std::ptrdiff_t ndim, c
    section): autoX calls them with the run, which holds its Session. */
 bool autox_model_parameter(const xpp::Session &s, std::ptrdiff_t slot)
 {
-  return s.autox_state.parameter_layout.model_index(static_cast<int>(slot))>=0;
+  return s.autox_state->parameter_layout.model_index(static_cast<int>(slot))>=0;
 }
 
 std::span<const double> autox_constants(const AutoxRun &run)
@@ -156,7 +157,7 @@ double autox_parameter_value(const AutoxRun &run, std::ptrdiff_t slot,
                            std::span<const std::ptrdiff_t> free, std::span<const double> parameters)
 {
   const xpp::Session &s=*run.session;
-  const int k=s.autox_state.parameter_layout.model_index(static_cast<int>(slot));
+  const int k=s.autox_state->parameter_layout.model_index(static_cast<int>(slot));
   if(k>=0 && std::find(free.begin(),free.end(),slot)==free.end())
     return autox_constants(run)[s.model().upar_con[k]];
   return parameters[slot];
@@ -169,7 +170,7 @@ namespace {
 [[gnu::noinline]] void serial_func(AutoxRun &run, std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, std::span<const double> parameters, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
    xpp::Session &s=*run.session;
-   const bool exact=ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT;
+   const bool exact=ijac!=0&&s.numerics->jacobian==xpp::JACOBIAN_EXACT;
    int i,j;
    /* the right-hand side and the Jacobian only read the point */
    double *x=const_cast<double *>(u);
@@ -179,15 +180,15 @@ namespace {
      continued_constants(s,s.parser.constants.data(),icp,nfpr,parameters);
      xpp::evaluate_derived(s);
      if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::autox_fail(r.error());
-     s.integrator.rhs(0.0,x,f,ndim);
-     if(s.integrator.step_error)xpp::autox_fail(take_step_error(s).error());
+     s.integrator->rhs(0.0,x,f,ndim);
+     if(s.integrator->step_error)xpp::autox_fail(take_step_error(s).error());
    }
    const double *c=s.parser.constants.data();
    if(exact)exact_derivatives(s,run,c,ndim,x,f,icp,nfpr,ijac,dfdu,dfdp);
    else if(ijac==1){
-     xpp::jacobian(s,0.0,x,f,ndim,s.numerics.equilibria.jacobian_step,{xpp::JacobianLayout::ColumnMajor},dfdu);
+     xpp::jacobian(s,0.0,x,f,ndim,s.numerics->equilibria.jacobian_step,{xpp::JacobianLayout::ColumnMajor},dfdu);
    }
-   if(!xpp::solver_info(s.numerics.method).traits.discrete||s.numerics.store_every==1)return;
+   if(!xpp::solver_info(s.numerics->method).traits.discrete||s.numerics->store_every==1)return;
    /* the map applied store_every times: its exact Jacobian is the product
       of each step's, and each step adds its own dependence on the
       parameters to what the steps before passed on */
@@ -202,11 +203,11 @@ namespace {
      step_p.resize(xpp::size_product(nn,run.parameter_count));
      scratch.resize(nn);
    }
-   for(i=1;i<s.numerics.store_every;i++){
+   for(i=1;i<s.numerics->store_every;i++){
      for(j=0;j<ndim;j++)
        zz[j]=f[j];
-     s.integrator.rhs(0.0,zz.data(),f,ndim);
-     if(s.integrator.step_error)xpp::autox_fail(take_step_error(s).error());
+     s.integrator->rhs(0.0,zz.data(),f,ndim);
+     if(s.integrator->step_error)xpp::autox_fail(take_step_error(s).error());
      if(!exact)continue;
      exact_derivatives(s,run,c,ndim,zz.data(),f,icp,nfpr,ijac,step.data(),step_p.data());
      const int n=static_cast<int>(ndim);
@@ -221,7 +222,7 @@ namespace {
 int user_right_hand_side(AutoxRun &run, std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, const double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
    xpp::Session &s=*run.session;
-   const auto parameters=s.autox_state.parameter_layout.parameters(par);
+   const auto parameters=s.autox_state->parameter_layout.parameters(par);
    if (run.pure_rhs) worker_func(s,run,ndim,u,icp,nfpr,parameters,ijac,f,dfdu,dfdp);
    else serial_func(run,ndim,u,icp,nfpr,parameters,ijac,f,dfdu,dfdp);
    return 0;
@@ -236,7 +237,7 @@ void func_again(AutoxRun &run, std::ptrdiff_t ndim, const double *u, const std::
 void autox_fill_parameters(const AutoxRun &run, double *par)
 {
   const xpp::Session &s=*run.session;
-  const auto parameters=s.autox_state.parameter_layout.parameters(par);
+  const auto parameters=s.autox_state->parameter_layout.parameters(par);
   const auto constants=autox_constants(run);
   for(int k=0;k<s.model().nupar;k++)parameters[k]=constants[s.model().upar_con[k]];
 }
@@ -249,7 +250,7 @@ int user_start(AutoxRun &run, std::ptrdiff_t ndim, double t, double *u, double *
 
   double p;
 
-  const auto &layout=s.autox_state.parameter_layout;
+  const auto &layout=s.autox_state->parameter_layout;
   const auto unknowns=layout.unknowns(par);
   autox_fill_parameters(run,par);
 
@@ -261,19 +262,19 @@ int user_start(AutoxRun &run, std::ptrdiff_t ndim, double t, double *u, double *
 
   get_start_period(s,&p);
   unknowns[xpp::autox_unknown::period]=p;
-  if(s.autox_state.homo_flag!=HomoclinicRun::Homoclinic)get_start_orbit(s,u,t,p,ndim);
-  if(s.autox_state.homo_flag==HomoclinicRun::Homoclinic){
+  if(s.autox_state->homo_flag!=HomoclinicRun::Homoclinic)get_start_orbit(s,u,t,p,ndim);
+  if(s.autox_state->homo_flag==HomoclinicRun::Homoclinic){
     /* the orbit from its point nearest the equilibrium (find_best_homo_shift) */
-    get_start_orbit(s,u,t+s.autox_state.homo_shift/p,p,ndim);
+    get_start_orbit(s,u,t+s.autox_state->homo_shift/p,p,ndim);
     for(i=0;i<ndim;i++){
-      unknowns[xpp::autox_unknown::homoclinic_equilibrium_start+i]=s.autox_state.homo_l[i];
+      unknowns[xpp::autox_unknown::homoclinic_equilibrium_start+i]=s.autox_state->homo_l[i];
 
     }
   }
-  if(s.autox_state.homo_flag==HomoclinicRun::Heteroclinic){
+  if(s.autox_state->homo_flag==HomoclinicRun::Heteroclinic){
     for(i=0;i<ndim;i++){
-      unknowns[xpp::autox_unknown::homoclinic_equilibrium_start+i]=s.autox_state.homo_l[i];
-      unknowns[xpp::autox_unknown::homoclinic_equilibrium_start+i+ndim]=s.autox_state.homo_r[i];
+      unknowns[xpp::autox_unknown::homoclinic_equilibrium_start+i]=s.autox_state->homo_l[i];
+      unknowns[xpp::autox_unknown::homoclinic_equilibrium_start+i+ndim]=s.autox_state->homo_r[i];
 
     }
 
@@ -289,7 +290,7 @@ int user_boundary_conditions(AutoxRun &run, std::ptrdiff_t ndim, const double *p
 /* Hooks to the XPP bc parser!! */
 
  const bool changed=continued_constants(s,s.parser.constants.data(),icp,run.params.nicp,
-                     s.autox_state.parameter_layout.parameters(par));
+                     s.autox_state->parameter_layout.parameters(par));
 
  /* with no function table the derived constants depend on the parameters
     alone (pure_values) */

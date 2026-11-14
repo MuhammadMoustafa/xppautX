@@ -4,6 +4,7 @@
 #include "xpp_ui.h"
 #include "nullcline.h"
 #include "session.h"
+#include "many_pops.h"
 #include "graf_par.h"
 #include "model_options.h"
 #include "xpp_ui.h"
@@ -16,7 +17,7 @@ namespace xpp::command {
 namespace {
 Result<std::string> draw(Session &s,const Command &c,const Arguments &a,const Place &p,int mode,const char *count)
 {
-    if(!phase_plane(*s.plot_windows.current))return fail(c.name,"Not in a usable 2D plane",p);
+    if(!phase_plane(*s.plot_windows->current))return fail(c.name,"Not in a usable 2D plane",p);
     const int grid=static_cast<int>(a.get<long long>("grid"));
     if(const auto drawn=draw_direction_field(s,mode,grid);!drawn)return std::unexpected(drawn.error());
     if(mode!=1){create_new_cline(s);ui.redraw_graph(s);}
@@ -25,19 +26,19 @@ Result<std::string> draw(Session &s,const Command &c,const Arguments &a,const Pl
 }
 Result<std::string> compute(Session &s,const Command &c,const Arguments &a,const Place &p)
 {
-    return draw(s,c,a,p,a.optional<bool>("scaled").value_or(s.nullcline_state.dfield_type==0)?4:0,"vectors_drawn");
+    return draw(s,c,a,p,a.optional<bool>("scaled").value_or(s.nullcline_state->dfield_type==0)?4:0,"vectors_drawn");
 }
 Result<std::string> flow(Session &s,const Command &c,const Arguments &a,const Place &p){return draw(s,c,a,p,1,"trajectories_run");}
 Result<std::string> colorize(Session &s,const Command &c,const Arguments &a,const Place &p){return draw(s,c,a,p,3,"cells_colored");}
 Result<std::string> clear(Session &s,const Command &,const Arguments &,const Place &)
 {
-    s.nullclines.df_flag=0;
+    s.nullclines->df_flag=0;
     create_new_cline(s);ui.redraw_graph(s);
     return "{\"cleared\":true}";
 }
 Result<std::string> export_file(Session &s,const Command &c,const Arguments &a,const Place &p)
 {
-    if(!s.nullclines.df_flag)return fail(c.name,"No direction field is shown",p);
+    if(!s.nullclines->df_flag)return fail(c.name,"No direction field is shown",p);
     const auto &file=a.get<std::string>("file");
     if(const auto saved=write_dfield(s,file,a.optional<bool>("confirm").value_or(false));!saved)return std::unexpected(saved.error());
     std::string result="{\"file\":";json_append_string(result,file);

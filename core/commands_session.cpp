@@ -75,7 +75,7 @@ int data_choice(const Arguments &args)
 
 Result<std::string> saved_result(const Session &s, bool saved)
 {
-    return ResultObject().text(FILE_KEY, s.saved_session.file).boolean("saved", saved).done();
+    return ResultObject().text(FILE_KEY, s.saved_session->file).boolean("saved", saved).done();
 }
 
 Result<std::string> save(Session &s, const Command &, const Arguments &args, const Place &)

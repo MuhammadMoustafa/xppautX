@@ -46,6 +46,8 @@
 #include "load_eqn.h"
 #include "autox_nox.h"
 #include "session.h"
+#include "autox_state.h"
+#include "many_pops.h"
 
 namespace xpp {
 
@@ -65,11 +67,11 @@ void  get_max(const xpp::Session &s, int index, double *vmin, double *vmax)
 {
    double x0,x1,z,temp;
    int i;
-   x0=s.data.view.data[index][0];
+   x0=s.data->view.data[index][0];
    x1=x0;
-   for(i=0;i<s.data.view.maxrow;i++)
+   for(i=0;i<s.data->view.maxrow;i++)
    {
-    z=s.data.view.data[index][i];
+    z=s.data->view.data[index][i];
     if(z<x0)x0=z;
     if(z>x1)x1=z;
    }
@@ -174,11 +176,11 @@ void user_fun_info(const xpp::Model &m, FILE *fp)
 xpp::Result<> vector_restore(xpp::Session &s)
 {
   redraw_dfield(s);
-  if (s.plot_windows.current->Nullrestore) restore_nullclines(s);
-  xpp::restore(s,0,s.data.view.maxrow);
+  if (s.plot_windows->current->Nullrestore) restore_nullclines(s);
+  xpp::restore(s,0,s.data->view.maxrow);
   do_axes(s);
-  draw_label(s,s.plot_windows.draw_win);
-  draw_freeze(s,s.plot_windows.draw_win);
+  draw_label(s,s.plot_windows->draw_win);
+  draw_freeze(s,s.plot_windows->draw_win);
   return xpp::end_picture(s);
 }
 
@@ -221,7 +223,7 @@ Result<> plot_variables(xpp::Session &s,PlotHow how,std::span<const int> variabl
     break;
   case PlotHow::array_plot:
     if(list.size()!=2||list[0]>=list[1])return fail("plot","An array plot goes from one variable to a later one: give those two",command_place());
-    if(s.data.view.maxrow<2)return fail("plot","An array plot needs stored data: run first",command_place());
+    if(s.data->view.maxrow<2)return fail("plot","An array plot needs stored data: run first",command_place());
     optimize_aplot(s,list.data());
     break;
   }
@@ -276,17 +278,17 @@ void eq_import(xpp::Session &s, double *y,int n)
   set_initial_data(s,{y,static_cast<size_t>(n)});
 
   if(n<20){
-    if(s.autox_state.homo_side==HomoclinicSide::Left){
+    if(s.autox_state->homo_side==HomoclinicSide::Left){
       for(i=0;i<n;i++)
-	s.autox_state.homo_l[i]=y[i];
+	s.autox_state->homo_l[i]=y[i];
       xpp::log(XPP_LOG_INFO, "Saved to left equilibrium\n");
     }
     else {
       for(i=0;i<n;i++)
-	s.autox_state.homo_r[i]=y[i];
+	s.autox_state->homo_r[i]=y[i];
       xpp::log(XPP_LOG_INFO, "Saved to right equilibrium\n");
     }
-    s.autox_state.homo_side=s.autox_state.homo_side==HomoclinicSide::Left?HomoclinicSide::Right:HomoclinicSide::Left;
+    s.autox_state->homo_side=s.autox_state->homo_side==HomoclinicSide::Left?HomoclinicSide::Right:HomoclinicSide::Left;
   }
    redraw_ics();
 }

@@ -7,6 +7,9 @@
 #include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
+#include "integrate.h"
+#include "load_eqn.h"
+#include "nullcline.h"
 #include "model.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
@@ -36,14 +39,14 @@ TEST_CASE("test_load")
     xpp::Session *session = &xpp::client_session();
     const int node = model->node;
     const std::string file = model->this_file;
-    session->numerics.total_time = 123.0; /* a change the failed load must keep */
+    session->numerics->total_time = 123.0; /* a change the failed load must keep */
 
     CHECK(!load_args(2, argv_bad, 1).has_value());
     CHECK(&xpp::client_session().model() == model);
     CHECK(&xpp::client_session() == session);
     CHECK(xpp::client_session().model().node == node);
     CHECK(xpp::client_session().model().this_file == file);
-    CHECK(xpp::client_session().numerics.total_time == 123.0);
+    CHECK(xpp::client_session().numerics->total_time == 123.0);
 
     /* why: f's formula (line 4) does not compile */
     xpp::Loaded d = load_args(2, argv_bad, 1);
@@ -77,7 +80,7 @@ TEST_CASE("test_load")
     CHECK(load_args(2, argv_good, 1).has_value());
     CHECK(xpp::client_session().model().node == node);
     CHECK(xpp::client_session().model().this_file == file);
-    CHECK(xpp::client_session().numerics.total_time != 123.0);
+    CHECK(xpp::client_session().numerics->total_time != 123.0);
 
     /* a model's @ colormap is its own Session's (W120): the next model
        loaded without one gets the default scale */
@@ -130,18 +133,18 @@ TEST_CASE("test_load")
     char rng_arg[] = "build/test_load_range.ode";
     char *argv_rng[] = {arg0, rng_arg, NULL};
     CHECK(load_args(2, argv_rng, 1).has_value());
-    CHECK(xpp::client_session().integrator.range.write_files);
+    CHECK(xpp::client_session().integrator->range.write_files);
     CHECK(xpp::client_session().batch_out_file.ends_with("range_out.dat"));
     CHECK(!load_args(2, argv_bad, 1).has_value());
-    CHECK(xpp::client_session().integrator.range.write_files);
+    CHECK(xpp::client_session().integrator->range.write_files);
     CHECK(xpp::client_session().batch_out_file.ends_with("range_out.dat"));
     CHECK(load_args(2, argv_good, 1).has_value());
-    CHECK(!xpp::client_session().integrator.range.write_files);
+    CHECK(!xpp::client_session().integrator->range.write_files);
     CHECK(xpp::client_session().batch_out_file == "output.dat");
 
     /* a map is its own Model's: the next model loaded is not taken for
        one (its method is not made discrete) */
-    const int method = xpp::client_session().numerics.method;
+    const int method = xpp::client_session().numerics->method;
     CHECK(method != 0);
     const char map[] = "build/test_load_map.ode";
     {
@@ -152,15 +155,15 @@ TEST_CASE("test_load")
     char *argv_map[] = {arg0, map_arg, NULL};
     CHECK(load_args(2, argv_map, 1).has_value());
     CHECK(xpp::client_session().model().this_file == "build/test_load_map.odex");
-    CHECK(xpp::client_session().numerics.method == 0);
+    CHECK(xpp::client_session().numerics->method == 0);
     CHECK(load_args(2, argv_good, 1).has_value());
     CHECK(xpp::client_session().model().is_a_map == 0);
-    CHECK(xpp::client_session().numerics.method == method);
+    CHECK(xpp::client_session().numerics->method == method);
 
     /* the nullclines, frozen or not, are the Session's: the next model
        loaded has none of them */
     {
-        xpp::NullclineState &nc = xpp::client_session().nullcline_state;
+        xpp::NullclineState &nc = *xpp::client_session().nullcline_state;
         nc.frozen_started = true;
         nc.frozen.emplace_back();
         nc.frozen.back().nmx = 1;
@@ -169,9 +172,9 @@ TEST_CASE("test_load")
         nc.num_x_n = 1;
     }
     CHECK(load_args(2, argv_good, 1).has_value());
-    CHECK(!xpp::client_session().nullcline_state.frozen_started);
-    CHECK(xpp::client_session().nullcline_state.frozen.empty());
-    CHECK(xpp::client_session().nullcline_state.num_x_n == 0);
+    CHECK(!xpp::client_session().nullcline_state->frozen_started);
+    CHECK(xpp::client_session().nullcline_state->frozen.empty());
+    CHECK(xpp::client_session().nullcline_state->num_x_n == 0);
 
     /* W214 (#245): a name that clashes with an array's member says so, in
        the name as its author wrote it, at the later declaration, in both

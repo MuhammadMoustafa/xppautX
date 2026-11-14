@@ -50,28 +50,28 @@ TEST_CASE("test_anix")
         CHECK(original->grabs.size() == native->grabs.size());
         /* Permanent coordinates evaluate once at the same initial state. */
         const auto random = s.random;
-        s.animation = std::move(*original);
+        *s.animation = std::move(*original);
         xpp::set_ani_perm(s);
-        auto legacy_state = std::move(s.animation);
+        auto legacy_state = std::move(*s.animation);
         s.random = random;
-        s.animation = std::move(*native);
+        *s.animation = std::move(*native);
         xpp::set_ani_perm(s);
-        auto native_state = std::move(s.animation);
+        auto native_state = std::move(*s.animation);
         auto y = s.last_ic;
         for (int frame = 0; frame < 5; ++frame) {
             for (std::size_t i = 0; i < y.size(); ++i) y[i] = s.last_ic[i] + frame * .01;
             set_fix_rhs(s, frame * .1, y.data());
             const auto before = s.random;
-            s.animation = std::move(legacy_state);
+            *s.animation = std::move(legacy_state);
             xpp::render_ani(s);
-            const auto expected = s.ani_shown.frame;
-            legacy_state = std::move(s.animation);
+            const auto expected = s.ani_shown->frame;
+            legacy_state = std::move(*s.animation);
             s.random = before;
-            s.animation = std::move(native_state);
+            *s.animation = std::move(native_state);
             xpp::render_ani(s);
-            CHECK(s.ani_shown.frame == expected);
-            if (s.ani_shown.frame != expected) xpp::log(XPP_LOG_WARN, "{}: frame {} differs\n", input, frame);
-            native_state = std::move(s.animation);
+            CHECK(s.ani_shown->frame == expected);
+            if (s.ani_shown->frame != expected) xpp::log(XPP_LOG_WARN, "{}: frame {} differs\n", input, frame);
+            native_state = std::move(*s.animation);
         }
         ++models;
     }

@@ -2,6 +2,7 @@
 #include "autox_c.h"
 #include "autox_unknowns.h"
 #include "session.h"
+#include "autox_state.h"
 #include "xpp_math.h"
 #include <algorithm>
 #include <cmath>
@@ -283,7 +284,7 @@ double autox_cycle_test(const iap_type &iap, const rap_type &rap, const double *
     const auto start=iap.itpst;
     const double angle=par[xpp::autox_unknown::torus_angle];
     const auto kind=xpp::autox_cycle_resonance_kind(start,angle);
-    const auto &enabled=iap.run->session->autox_state.special_points;
+    const auto &enabled=iap.run->session->autox_state->special_points;
     if (start==xpp::AutoxPointKind::NeimarkSacker) {
         return resonance_test(enabled,angle,changed);
     }
@@ -352,10 +353,10 @@ double resonance_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::
     if (iap->itpst==xpp::AutoxPointKind::NeimarkSacker) {
         const double angle=u[2*iap->ndm];
         w.map_kind=xpp::autox_cycle_resonance_kind(iap->itpst,angle);
-        return resonance_test(iap->run->session->autox_state.special_points,angle,chng);
+        return resonance_test(iap->run->session->autox_state->special_points,angle,chng);
     }
     w.map_kind=xpp::autox_cycle_resonance_kind(iap->itpst,0.);
-    *chng=xpp::autox_codim_enabled(iap->run->session->autox_state.special_points,w.map_kind);
+    *chng=xpp::autox_codim_enabled(iap->run->session->autox_state->special_points,w.map_kind);
     left_null(*iap,dfdu,iap->ndim);
     return dot({u+iap->ndm,static_cast<size_t>(iap->ndm)},w.left);
 }

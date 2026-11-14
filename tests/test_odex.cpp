@@ -17,6 +17,7 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "session.h"
+#include "load_eqn.h"
 #include "storage.h"
 #include "xpp_util.h"
 #include "typed_values.h"
@@ -870,7 +871,7 @@ TEST_CASE("test_odex")
     CHECK(load_args(2, argv, 1).has_value());
     xpp::batch_start(xpp::client_session());
     CHECK(xpp::command::run_button(xpp::client_session(), "{\"cmd\":\"run.initial\"}", xpp::command_place()));
-    const xpp::DataStore &d = xpp::client_session().data_store;
+    const xpp::DataStore &d = *xpp::client_session().data_store;
     CHECK(d.rows > 0);
     if (d.rows > 0) {
       /* t=0's row: t, x, then the auxes in order */
@@ -889,13 +890,13 @@ TEST_CASE("test_odex")
     auto integrate = [](int method, int width) {
       CHECK(load_text("x'=-x+y\ny'=-y\ninit x=1,y=2\n@ total=.1 dt=.01\ndone\n","ode"));
       xpp::Session &s=xpp::client_session();
-      s.numerics.method=static_cast<xpp::method::Id>(method);
-      s.numerics.cv_bandflag=width>0;
-      s.numerics.cv_bandlower=width;
-      s.numerics.cv_bandupper=width;
+      s.numerics->method=static_cast<xpp::method::Id>(method);
+      s.numerics->cv_bandflag=width>0;
+      s.numerics->cv_bandlower=width;
+      s.numerics->cv_bandupper=width;
       xpp::batch_start(s);
       CHECK(xpp::command::run_button(s, "{\"cmd\":\"run.initial\"}", xpp::command_place()));
-      const xpp::DataStore &d=s.data_store;
+      const xpp::DataStore &d=*s.data_store;
       CHECK(d.rows>0);
       if(d.rows==0)return std::array<double,2>{};
       CHECK(std::fabs(static_cast<double>(d.col[0][d.rows-1])-.1)<1e-6);

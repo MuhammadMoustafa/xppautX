@@ -77,12 +77,12 @@ xpp::Result<> get_fit_info(xpp::Session &s, double *y, double *a, double *t0, do
   for(i=0;i<s.model().node;i++){
     yold[i]=y[i];
   }
-  if(s.delay.flag){
+  if(s.delay->flag){
    /* restart initial data */
-   if(auto d=do_init_delay(s,s.numerics.delay); !d)return std::unexpected(d.error());
+   if(auto d=do_init_delay(s,s.numerics->delay); !d)return std::unexpected(d.error());
   }
 evaluate_derived(s);
-  s.integrator.solver->begin(&istart);
+  s.integrator->solver->begin(&istart);
 /*   This gets the values at the desired points  */
   for(i=0;i<nvars;i++){
     iv=ivar[i];
@@ -104,7 +104,7 @@ evaluate_derived(s);
       yfit[i+k0]=y[iv];
     }
   }   
-  s.integrator.solver->finish();
+  s.integrator->solver->finish();
   /*  Now we take the derivatives !!   */
   for(l=0;l<npars;l++){
     istart=1;
@@ -128,12 +128,12 @@ evaluate_derived(s);
 	  yderv[l][j]=1.0;  /* ... except for those ICs that can vary */
       }
     }
-    if(s.delay.flag){
+    if(s.delay->flag){
    /* restart initial data */
-   if(auto d=do_init_delay(s,s.numerics.delay); !d)return std::unexpected(d.error());
+   if(auto d=do_init_delay(s,s.numerics->delay); !d)return std::unexpected(d.error());
   }
     evaluate_derived(s);
-    s.integrator.solver->begin(&istart);
+    s.integrator->solver->begin(&istart);
    /* now loop through all the points */
     for(k=1;k<npts;k++){
       if(my_abort()==ESC)return {};
@@ -153,7 +153,7 @@ evaluate_derived(s);
     /* Now return the parameter to its old value */
     if(ip<0)s.parser.constants[-ip]=par;
     evaluate_derived(s);
-    s.integrator.solver->finish();
+    s.integrator->solver->finish();
 
   }
      for(i=0;i<s.model().node;i++)
@@ -163,9 +163,9 @@ evaluate_derived(s);
 
 xpp::Result<> one_step_int(xpp::Session &s, double *y, double t0, double t1, int *istart)
 {
-  xpp::Solver &solver=*s.integrator.solver;
+  xpp::Solver &solver=*s.integrator->solver;
   int neq=s.model().node;
-  double dt=s.numerics.delta_t;
+  double dt=s.numerics->delta_t;
   double t=t0;
   xpp::Result<> r;
   if(!solver.traits().fixed_step){
@@ -199,13 +199,13 @@ void print_fit_info(const xpp::Session &s)
 {
   int i;
   xpp::log(XPP_LOG_INFO, "dim={} maxiter={} npts={} file={} tol={:g} eps={:g}\n",
-	 s.fit.dim,s.fit.maxiter,s.fit.npts,s.fit.file.c_str(),s.fit.tol,s.fit.eps);
+	 s.fit->dim,s.fit->maxiter,s.fit->npts,s.fit->file.c_str(),s.fit->tol,s.fit->eps);
 
-  for(i=0;i<s.fit.nvars;i++)
+  for(i=0;i<s.fit->nvars;i++)
     xpp::log(XPP_LOG_INFO, " variable {} to col {} \n",
-	   s.fit.ivar[i],s.fit.icols[i]);
-  for(i=0;i<s.fit.npars;i++)
-    xpp::log(XPP_LOG_INFO, " P[{}]={} \n",i,s.fit.ipar[i]);
+	   s.fit->ivar[i],s.fit->icols[i]);
+  for(i=0;i<s.fit->npars;i++)
+    xpp::log(XPP_LOG_INFO, " P[{}]={} \n",i,s.fit->ipar[i]);
 }
 
 namespace {
@@ -264,23 +264,23 @@ Result<FitOutcome> test_fit(Session &s, FitInfo fit)
    return fail("fit",xpp::format("The fit needs at least 2 points (not {}), 2 columns (not {}) and 1 iteration (not {})",fit.npts,fit.dim,fit.maxiter),command_place());
   auto data = fit_data(fit.file.c_str(),fit.npts,fit.dim,fit.icols);
   if (!data) return std::unexpected(data.error());
-  s.fit=std::move(fit);
+  *s.fit=std::move(fit);
   std::vector<double> initial(s.model().node);
-  std::vector<double> a(s.fit.npars);
+  std::vector<double> a(s.fit->npars);
   for(i=0;i<s.model().node;i++)
     initial[i]=s.last_ic[i];
-  for(i=0;i<s.fit.npars;i++){
-    if(s.fit.ipar[i]<0)
-      a[i]=s.parser.constants[-s.fit.ipar[i]];
+  for(i=0;i<s.fit->npars;i++){
+    if(s.fit->ipar[i]<0)
+      a[i]=s.parser.constants[-s.fit->ipar[i]];
     else
-      a[i]=s.last_ic[s.fit.ipar[i]];
+      a[i]=s.last_ic[s.fit->ipar[i]];
   }
 
  print_fit_info(s);
  xpp::log(XPP_LOG_INFO, " Running the fit...\n");
- auto ok=run_fit(s,*data, s.fit.npts,s.fit.npars,s.fit.nvars,s.fit.maxiter,
-         s.fit.eps,s.fit.tol,
-	 s.fit.ipar.data(),s.fit.ivar.data(),s.fit.icols.data(),
+ auto ok=run_fit(s,*data, s.fit->npts,s.fit->npars,s.fit->nvars,s.fit->maxiter,
+         s.fit->eps,s.fit->tol,
+	 s.fit->ipar.data(),s.fit->ivar.data(),s.fit->icols.data(),
 	 initial.data(),a.data());
 
    if(!ok){
@@ -292,18 +292,18 @@ Result<FitOutcome> test_fit(Session &s, FitInfo fit)
    case FitEnd::Stopped: bottom_msg(0," Stopped "); break;
    case FitEnd::MaxIterations:
      bottom_msg(0,xpp::format("Fit: stopped after maxiter = {} iterations, chisq = {} (the last relative change {} is not below tol = {}); the parameters are set to the last iterate",
-                              s.fit.maxiter,xpp::number(ok->chisq),xpp::number(ok->change),xpp::number(s.fit.tol)));
+                              s.fit->maxiter,xpp::number(ok->chisq),xpp::number(ok->change),xpp::number(s.fit->tol)));
      break;
    }
 
  /* get the latest par values ...  */
  FitOutcome outcome{*ok,{}};
- for(i=0;i<s.fit.npars;i++){
-   if(s.fit.ipar[i]<0)
-     s.parser.constants[-s.fit.ipar[i]]=a[i];
+ for(i=0;i<s.fit->npars;i++){
+   if(s.fit->ipar[i]<0)
+     s.parser.constants[-s.fit->ipar[i]]=a[i];
    else
-     s.last_ic[s.fit.ipar[i]]=a[i];
-   outcome.parameters.emplace_back(std::string(fit_parameter_name(s,s.fit.ipar[i])),a[i]);
+     s.last_ic[s.fit->ipar[i]]=a[i];
+   outcome.parameters.emplace_back(std::string(fit_parameter_name(s,s.fit->ipar[i])),a[i]);
  }
  return outcome;
 }
@@ -428,7 +428,7 @@ sigma  weights on nvars
 */
 {
   int i,j,k,ierr;
-  int *ipivot = s.solver_work.size_pivots(npars);
+  int *ipivot = s.solver_work->size_pivots(npars);
 
   double *da,*atry,*beta,*oneda;
   da=work;

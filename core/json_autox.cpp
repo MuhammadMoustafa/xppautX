@@ -5,6 +5,8 @@
 #include <map>
 #include "ui_json_internal.h"
 #include "session.h"
+#include "autox_state.h"
+#include "display_state.h"
 #include "many_pops.h"
 #include "xpp_job.h"
 #include "menus.h"
@@ -74,7 +76,7 @@ ClientDiagramView &view_data(int v)
 
 /* the list the grab and the info strip's point index go by: the active
    view's (every view holds the same points in the same order) */
-ClientDiagramView &active_data(const xpp::Session &s) { return view_data(s.autox_state.active_view); }
+ClientDiagramView &active_data(const xpp::Session &s) { return view_data(s.autox_state->active_view); }
 
 } // namespace
 
@@ -132,15 +134,15 @@ void j_autox_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
     if (!session.diagram_subscribed) return;
     ClientDiagramView &d = view_data(view);
     if (!p) {
-        const AUTOAX &a = s.autox_state.views[static_cast<std::size_t>(view)].axes;
+        const AUTOAX &a = s.autox_state->views[static_cast<std::size_t>(view)].axes;
         d.ax.xmin = a.xmin;
         d.ax.xmax = a.xmax;
         d.ax.ymin = a.ymin;
         d.ax.ymax = a.ymax;
-        d.ax.x0 = s.autox_state.bifur.x0;
-        d.ax.y0 = s.autox_state.bifur.y0;
-        d.ax.wid = s.autox_state.bifur.wid;
-        d.ax.hgt = s.autox_state.bifur.hgt;
+        d.ax.x0 = s.autox_state->bifur.x0;
+        d.ax.y0 = s.autox_state->bifur.y0;
+        d.ax.wid = s.autox_state->bifur.wid;
+        d.ax.hgt = s.autox_state->bifur.hgt;
         d.ax.plot = a.plot;
         get_autox_str(s, a, d.ax.xlabel, d.ax.ylabel);
         d.axes = true;
@@ -148,8 +150,8 @@ void j_autox_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
         d.match = 0;
         return;
     }
-    const auto branch=p->node>=0 && static_cast<std::size_t>(p->node)<s.diagram.points.size()
-        ? s.diagram.points[p->node].branch : std::shared_ptr<const DiagramBranch>();
+    const auto branch=p->node>=0 && static_cast<std::size_t>(p->node)<s.diagram->points.size()
+        ? s.diagram->points[p->node].branch : std::shared_ptr<const DiagramBranch>();
     if (d.replay) {
         if (d.match < d.n && diag_same(d,&d.dg[static_cast<std::size_t>(d.match)], p,d.branches[d.match],branch)) {
             d.branches[d.match]=branch;
@@ -197,7 +199,7 @@ namespace {
 void diag_num(std::string &b, double v) { buf_num(b, v, 7); }
 
 /* an event's start: its op and view */
-void diag_head(std::string &b,const char *op,const xpp::Session &s,int v){buf_format(b,"{},\"op\":\"{}\",\"view\":",xpp::events::open(xpp::events::AUTOX_DIAGRAM),op);buf_str(b,s.autox_state.views[v].name);}
+void diag_head(std::string &b,const char *op,const xpp::Session &s,int v){buf_format(b,"{},\"op\":\"{}\",\"view\":",xpp::events::open(xpp::events::AUTOX_DIAGRAM),op);buf_str(b,s.autox_state->views[v].name);}
 
 void diag_axes(std::string &b, const ClientDiagramView &d)
 {
@@ -234,8 +236,8 @@ void diag_run(const xpp::Session &s, std::string &b, const std::vector<XppDiagPo
     buf_format(b, ",\"jac\":\"{}\"", xpp::jacobian_name(p->jacobian));
     /* A branch's complete constants, once at its first point, in model order.
        Continued point coordinates are resolved from this same stored branch. */
-    if (p->newseg && p->node >= 0 && static_cast<std::size_t>(p->node) < s.diagram.points.size()) {
-        const DIAGRAM &point=s.diagram.points[p->node];
+    if (p->newseg && p->node >= 0 && static_cast<std::size_t>(p->node) < s.diagram->points.size()) {
+        const DIAGRAM &point=s.diagram->points[p->node];
         BUF_LIT(b, ",\"parameters\":[");
         for (std::size_t index=0;index<point.branch->parameters.size();index++) {
             if(index)BUF_LIT(b,",");
@@ -356,9 +358,9 @@ void diag_flush_view(const xpp::Session &s, int v, ClientDiagramView &d, int fin
 void diag_flush(const xpp::Session &s, int final)
 {
     if (!session.diagram_subscribed) return;
-    const int n = static_cast<int>(s.autox_state.views.size());
-    std::vector<std::string> names;for(const auto &view:s.autox_state.views)names.push_back(view.name);
-    if (names != session.client_view_names && s.autox_state.bifur.exist) {
+    const int n = static_cast<int>(s.autox_state->views.size());
+    std::vector<std::string> names;for(const auto &view:s.autox_state->views)names.push_back(view.name);
+    if (names != session.client_view_names && s.autox_state->bifur.exist) {
         /* the lists of views no longer there go on both sides; a new one
            starts empty on both */
         std::string e=xpp::format("{},\"op\":\"views\",\"n\":{},\"names\":[",xpp::events::open(xpp::events::AUTOX_DIAGRAM),n);
@@ -417,14 +419,14 @@ void autox_view_subscribe(int on)
 
 std::string autox_view_event_line(const xpp::Session &s)
 {
-    const xpp::AutoxView &v = s.autox_view;
-    int earlier = v.earlier > diagram_count(s.diagram) ? diagram_count(s.diagram) : v.earlier;
+    const xpp::AutoxView &v = *s.autox_view;
+    int earlier = v.earlier > diagram_count(*s.diagram) ? diagram_count(*s.diagram) : v.earlier;
     bool show_earlier = earlier == 0 ? false : v.show_earlier;
     std::string o = xpp::events::open(xpp::events::AUTOX_VIEW) + ",\"earlier\":" + std::to_string(earlier) + ",\"show\":" +
                     (show_earlier ? "1" : "0") + ",\"active\":";
-    xpp::json_append_string(o,s.autox_state.views[s.autox_state.active_view].name);o+=",\"views\":[";
+    xpp::json_append_string(o,s.autox_state->views[s.autox_state->active_view].name);o+=",\"views\":[";
     bool first = true;
-    for (const AutoxDiagramView &w : s.autox_state.views) {
+    for (const AutoxDiagramView &w : s.autox_state->views) {
         if(!first)o+=',';
         o+="{\"name\":";xpp::json_append_string(o,w.name);o+=",\"zoom\":{\"x\":";
         first = false;
@@ -440,10 +442,10 @@ std::string autox_view_event_line(const xpp::Session &s)
 void autox_view_update(xpp::Session &s)
 {
     if (!session.autoxview.ready() || !session.autoxview.subscribed()) return;
-    xpp::AutoxView &v = s.autox_view;
-    if (v.earlier > diagram_count(s.diagram)) v.earlier = diagram_count(s.diagram); /* a diagram that holds fewer points than Clear hid (File/Reset diagram) */
+    xpp::AutoxView &v = *s.autox_view;
+    if (v.earlier > diagram_count(*s.diagram)) v.earlier = diagram_count(*s.diagram); /* a diagram that holds fewer points than Clear hid (File/Reset diagram) */
     if (v.earlier == 0) v.show_earlier = false;
-    for (AutoxDiagramView &w : s.autox_state.views) {
+    for (AutoxDiagramView &w : s.autox_state->views) {
         const std::array<double, 4> axes = {w.axes.xmin, w.axes.xmax, w.axes.ymin, w.axes.ymax};
         if (w.zoom_seen && axes != w.zoom_axes) w.zoom = xpp::Zoom();
         w.zoom_seen = true;
@@ -459,7 +461,7 @@ void autox_script_subscribe(int on)
 
 std::string autox_script_event_line(const xpp::Session &s)
 {
-    const xpp::AutoxScriptState &state = s.autox_state.script;
+    const xpp::AutoxScriptState &state = s.autox_state->script;
     std::string o = xpp::events::open(xpp::events::AUTOX_SCRIPT_RUNS);
     if (!state.script) return o + ",\"open\":false}";
     const xpp::AutoxScript &script = *state.script;
@@ -496,7 +498,7 @@ void autox_script_update(xpp::Session &s)
    starting with a reset */
 void auto_redraw_for_client(xpp::Session &s)
 {
-    if (!s.autox_state.bifur.exist) return;
+    if (!s.autox_state->bifur.exist) return;
     session.client_views = 1; /* a new client holds one empty view */
     session.client_diagram.resize(1);
     ClientDiagramView &d = session.client_diagram.front();
@@ -518,7 +520,7 @@ void autox_data_update(const Session &s, int final)
 {
     if (!json::session.autoxinfo.ready() || !json::session.autoxinfo.subscribed()) return;
     if (!final && !xpp::every(json::session.autoxinfo_last, xpp::PROGRESS_SECONDS)) return;
-    json::session.autoxinfo.update(s, json::diag_point_of_node(s, s.autox_state.shown.v.node));
+    json::session.autoxinfo.update(s, json::diag_point_of_node(s, s.autox_state->shown.v.node));
 }
 
 void autox_settings_subscribe(const Session &s, int on)
@@ -539,14 +541,14 @@ namespace xpp::json {
 
 void j_autox_make_window(xpp::Session &s, std::string_view wname, std::string_view)
 {
-    s.autox_state.bifur.hgt = 20 * text_metrics.big_height;
-    s.autox_state.bifur.wid = 67 * text_metrics.big_width;
-    s.autox_state.bifur.x0 = 10 * text_metrics.small_width;
-    s.autox_state.bifur.y0 = 2 * text_metrics.small_height;
-    s.autox_state.bifur.hinttxt = "hint";
+    s.autox_state->bifur.hgt = 20 * text_metrics.big_height;
+    s.autox_state->bifur.wid = 67 * text_metrics.big_width;
+    s.autox_state->bifur.x0 = 10 * text_metrics.small_width;
+    s.autox_state->bifur.y0 = 2 * text_metrics.small_height;
+    s.autox_state->bifur.hinttxt = "hint";
     diag_forget();      /* a new window has no data */
     autox_data_forget(s); /* nor an info strip or a stability circle */
-    send_window(xpp::events::WINDOW_CREATED,xpp::window_name(s,WIN_AUTOX), s.autox_state.bifur.wid + 12 * text_metrics.small_width, s.autox_state.bifur.hgt + 4 * text_metrics.small_height, wname,"diagram");
+    send_window(xpp::events::WINDOW_CREATED,xpp::window_name(s,WIN_AUTOX), s.autox_state->bifur.wid + 12 * text_metrics.small_width, s.autox_state->bifur.hgt + 4 * text_metrics.small_height, wname,"diagram");
     draw_bif_axes(s);
 }
 
@@ -590,7 +592,7 @@ int j_autox_check_abort(int *iflag)
 /* A question about the diagram (a grab, a zoom box, a scroll) is answered on it: the views are shown */
 static void show_views_for_ask(xpp::Session &s)
 {
-    for (AutoxDiagramView &view : s.autox_state.views) view.hidden = false;
+    for (AutoxDiagramView &view : s.autox_state->views) view.hidden = false;
 }
 
 int j_autox_grab_event(xpp::Session &s, int *x, int *y)
@@ -615,7 +617,7 @@ int j_autox_grab_event(xpp::Session &s, int *x, int *y)
     if ((jp = js_find(ask_answer(), "point")) != NULL) {
         double i = get_num(ask_answer(), "point", -1);
         const XppDiagPoint *p = i >= 0 && i < INT_MAX ? diag_client_point(s, static_cast<int>(i)) : NULL;
-        *x = p && diagram_has(s.diagram, p->node, p->ibr, p->pt) ? p->node : -1;
+        *x = p && diagram_has(*s.diagram, p->node, p->ibr, p->pt) ? p->node : -1;
         if (*x >= 0 && get_string(ask_answer(), "key", k)) session.grab_key_after = key_code(k.c_str());
         return XPP_AUTOX_NODE;
     }
@@ -623,6 +625,6 @@ int j_autox_grab_event(xpp::Session &s, int *x, int *y)
     answer_point(s, WIN_AUTOX, 0, x, y);
     return XPP_AUTOX_CLICK;
 }
-void j_autox_show_hint(xpp::Session &s) { send_simple(xpp::events::SESSION_MESSAGE, "autox", s.autox_state.bifur.hinttxt.c_str()); }
+void j_autox_show_hint(xpp::Session &s) { send_simple(xpp::events::SESSION_MESSAGE, "autox", s.autox_state->bifur.hinttxt.c_str()); }
 
 } // namespace xpp::json

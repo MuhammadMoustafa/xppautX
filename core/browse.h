@@ -120,7 +120,7 @@ std::string browse_column_name(const Session &s, int j);
 /* col_index's rows 0..nrows-1: formula compiled and evaluated fresh over
    them (add_expr's constants roll back to the Model's own end right
    after, like a histogram condition -- the column is not a symbol a
-   later formula can name), into s.data_store.col[col_index].
+   later formula can name), into s.data_store->col[col_index].
    data_add_col's own add, and a fresh run's recompute (refresh_data)
    of every added column, both go through this; the error for
    a formula that no longer compiles */

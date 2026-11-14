@@ -21,7 +21,7 @@ Result<XppWinId> graph_handle(Session &s, const Command &command, const Argument
     const std::string name = args.optional<std::string>(WINDOW_KEY).value_or(s.selected_window);
     const auto target = find_window(s, name);
     if (!target || target->kind != WindowKind::graph) return fail(command.name, xpp::format("Unknown graph \"{}\"", name), place);
-    return s.plot_windows.graph[static_cast<std::size_t>(target->index)].w;
+    return s.plot_windows->graph[static_cast<std::size_t>(target->index)].w;
 }
 
 Result<std::string> full(const Command &command, const char *what, const Place &place)

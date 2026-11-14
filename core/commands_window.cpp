@@ -16,6 +16,10 @@
 #include "xpp_io.h"
 #include "xpp_ui.h"
 #include "session.h"
+#include "aniparse.h"
+#include "arrayplot.h"
+#include "autox_state.h"
+#include "display_state.h"
 #include "event_registry.h"
 #include <algorithm>
 #include <array>
@@ -56,7 +60,7 @@ std::string window_result(std::string_view name)
 
 std::string bounds_result(const Session &s)
 {
-    const GRAPH &g = *s.plot_windows.current;
+    const GRAPH &g = *s.plot_windows->current;
     return xpp::format("{{\"x_min\":{},\"x_max\":{},\"y_min\":{},\"y_max\":{}}}", xpp::number(g.xlo), xpp::number(g.xhi),
                        xpp::number(g.ylo), xpp::number(g.yhi));
 }
@@ -78,7 +82,7 @@ Result<std::string> change_view(Session &s, const Command &command, const Argume
 struct Box { double x_min, x_max, y_min, y_max; };
 Box box_of(const Session &s, const Arguments &args)
 {
-    const GRAPH &g = *s.plot_windows.current;
+    const GRAPH &g = *s.plot_windows->current;
     return {args.optional<double>("x_min").value_or(g.xlo), args.optional<double>("x_max").value_or(g.xhi),
             args.optional<double>("y_min").value_or(g.ylo), args.optional<double>("y_max").value_or(g.yhi)};
 }
@@ -121,7 +125,7 @@ Result<std::string> zoom_out_window(Session &s, const Command &command, const Ar
     const Result<int> index = graph_of_command(s, command, args, place);
     if (!index) return std::unexpected<Error>(index.error());
     const ActiveGraph active(s, *index);
-    const GRAPH &g = *s.plot_windows.current;
+    const GRAPH &g = *s.plot_windows->current;
     if (const auto factor = args.optional<double>("factor")) {
         const double cx = args.optional<double>("center_x").value_or((g.xlo + g.xhi) / 2);
         const double cy = args.optional<double>("center_y").value_or((g.ylo + g.yhi) / 2);
@@ -151,7 +155,7 @@ Result<std::string> scroll(Session &s, const Command &command, const Arguments &
     const Result<int> index = graph_of_command(s, command, args, place);
     if (!index) return std::unexpected<Error>(index.error());
     const ActiveGraph active(s, *index);
-    const GRAPH &g = *s.plot_windows.current;
+    const GRAPH &g = *s.plot_windows->current;
     const double dx = args.get<double>("dx"), dy = args.get<double>("dy");
     update_view(s, g.xlo + dx, g.xhi + dx, g.ylo + dy, g.yhi + dy);
     set_normal_scale(s);
@@ -219,7 +223,7 @@ Result<std::string> clear(Session &s, const Command &command, const Arguments &a
 Result<std::string> create_window(Session &s, const Command &, const Arguments &args, const Place &)
 {
     create_a_pop(s, args.optional<std::string>(NAME_KEY).value_or(std::string{}));
-    return window_result(s.plot_windows.current->name) + '}';
+    return window_result(s.plot_windows->current->name) + '}';
 }
 
 Result<std::string> rename_window(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -228,8 +232,8 @@ Result<std::string> rename_window(Session &s, const Command &command, const Argu
     const auto target = find_window(s, name);
     if (!target) return unknown_window(command, name, place);
     if (const Result<std::string> refused = named_by_user(command, name, target->kind, place); !refused) return refused;
-    if (target->kind == WindowKind::graph) s.plot_windows.graph[target->index].name = new_name;
-    else s.autox_state.views[target->index].name = new_name;
+    if (target->kind == WindowKind::graph) s.plot_windows->graph[target->index].name = new_name;
+    else s.autox_state->views[target->index].name = new_name;
     ui.window_renamed(s, name, new_name);
     if (s.selected_window == name) s.selected_window = new_name;
     std::string result = window_result(name) + ",\"new_name\":";
@@ -264,8 +268,8 @@ Result<std::string> move_by(Session &s, const Command &command, const Place &pla
     if (const Result<std::string> refused = named_by_user(command, name, target->kind, place); !refused) return refused;
     const long long from = window_position(s, *target);
     const long long first = target->kind == WindowKind::graph ? 1 : 0;
-    const long long count = target->kind == WindowKind::graph ? static_cast<long long>(s.plot_windows.open.size())
-                                                               : static_cast<long long>(s.autox_state.views.size());
+    const long long count = target->kind == WindowKind::graph ? static_cast<long long>(s.plot_windows->open.size())
+                                                               : static_cast<long long>(s.autox_state->views.size());
     if (from < first || from + step < first || from + step >= count) return window_result(name) + xpp::format(",\"position\":{}}}", from);
     return move_to(s, command, name, *target, from + step, place);
 }
@@ -342,34 +346,34 @@ Result<std::string> destroy_window(Session &s, const Command &command, const Arg
     switch (target->kind) {
     case WindowKind::graph:
         if (target->index == 0) return fail(command.name, "The main graph stays open", place);
-        if (const Result<> asked = confirm_destroy(command, args, name, window_content(s, s.plot_windows.graph[target->index].w), place); !asked)
+        if (const Result<> asked = confirm_destroy(command, args, name, window_content(s, s.plot_windows->graph[target->index].w), place); !asked)
             return std::unexpected<Error>(asked.error());
         make_active(s, target->index, 1);
         destroy_a_pop(s);
         break;
     case WindowKind::diagram:
         if (!autox_close_view(s, target->index)) {
-            s.autox_state.bifur.exist = 0;
-            s.autox_view = AutoxView();
-            for (AutoxDiagramView &view : s.autox_state.views) {
+            s.autox_state->bifur.exist = 0;
+            *s.autox_view = AutoxView();
+            for (AutoxDiagramView &view : s.autox_state->views) {
                 view.zoom = Zoom();
                 view.hidden = false;
             }
             ui.autox_closed(s, name);
-            s.selected_window = s.plot_windows.graph[s.plot_windows.active].name;
-        } else s.selected_window = s.autox_state.views[s.autox_state.active_view].name;
+            s.selected_window = s.plot_windows->graph[s.plot_windows->active].name;
+        } else s.selected_window = s.autox_state->views[s.autox_state->active_view].name;
         break;
     case WindowKind::data:
         return fail(command.name, "The data table stays open: it shows the session's stored data (Clear plot's Erase empties it)", place);
     case WindowKind::animation:
-        s.animation.vcr.iexist = 0;
-        s.animation.grab_flag = 0;
-        s.tools_hidden.animation = false;
+        s.animation->vcr.iexist = 0;
+        s.animation->grab_flag = 0;
+        s.tools_hidden->animation = false;
         ui.tool_window_closed(s, name, window_kind_name(target->kind));
         break;
     case WindowKind::array_plot:
-        s.array_plot.plot.alive = 0;
-        s.tools_hidden.array_plot = false;
+        s.array_plot->plot.alive = 0;
+        s.tools_hidden->array_plot = false;
         ui.tool_window_closed(s, name, window_kind_name(target->kind));
         break;
     }
@@ -378,7 +382,7 @@ Result<std::string> destroy_window(Session &s, const Command &command, const Arg
 
 Result<std::string> destroy_all(Session &s, const Command &, const Arguments &, const Place &)
 {
-    const int count = s.plot_windows.count - 1;
+    const int count = s.plot_windows->count - 1;
     kill_all_pops(s);
     return xpp::format("{{\"closed_count\":{}}}", count);
 }
@@ -399,14 +403,14 @@ Result<std::string> set_redraw_mode(Session &s, const Command &command, const Ar
     const auto target = find_window(s, name);
     if (!target) return unknown_window(command, name, place);
     if (target->kind != WindowKind::graph) return fail(command.name, "This setting applies to a graph", place);
-    s.plot_windows.graph[target->index].Nullrestore = mode == "auto";
+    s.plot_windows->graph[target->index].Nullrestore = mode == "auto";
     return "{\"redraw_mode\":\"" + mode + "\"}";
 }
 
 Result<std::string> set_simultaneous_plot(Session &s, const Command &, const Arguments &args, const Place &)
 {
     const bool enabled = args.get<bool>("enabled");
-    s.plot_windows.simul = enabled;
+    s.plot_windows->simul = enabled;
     return xpp::format("{{\"simultaneous_plot\":{}}}", enabled);
 }
 

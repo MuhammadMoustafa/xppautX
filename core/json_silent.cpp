@@ -28,6 +28,8 @@
 #include "ui_json_internal.h"
 #include "model.h"
 #include "session.h"
+#include "autox_state.h"
+#include "integrate.h"
 #include "comline.h"
 #include "browse.h"
 #include "graf_par.h"
@@ -64,10 +66,10 @@ private:
     /* the run's data into batch_out_file (the stochastic mean or variance first); once, until the next run */
     void save_output();
     /* a range that resets its storage wrote each run's file itself (integrate.cpp do_range, write_this_run) */
-    bool writes_output() const { return !session.integrator.range.write_files || session.integrator.range.reset == 0; }
+    bool writes_output() const { return !session.integrator->range.write_files || session.integrator->range.reset == 0; }
     bool trajectory_saved = false;
     /* the run's data were replaced by an after_run (the analysis, or the mean or the variance of the runs) */
-    bool after_run_analysed() const { return session.histogram.post_process != xpp::AfterRun::none; }
+    bool after_run_analysed() const { return session.histogram->post_process != xpp::AfterRun::none; }
     /* the files --silent writes itself replace what is there, unasked, as its key lines' "replace":1 said */
     void replace_files() { xpp::json::session.save_replace = SAVE_REPLACE; }
 };
@@ -77,7 +79,7 @@ private:
 void SilentScript::post_process()
 {
     using xpp::AfterRun;
-    const AfterRun kind = session.histogram.post_process;
+    const AfterRun kind = session.histogram->post_process;
     if (kind == AfterRun::none) return;
     if (kind == AfterRun::mean_of_runs) return registry("stochastic.show_mean");
     if (kind == AfterRun::variance_of_runs) return registry("stochastic.show_variance");
@@ -96,7 +98,7 @@ void SilentScript::save_output()
 {
     const xpp::Session &s = session;
     trajectory_saved = true;
-    if (s.integrator.suppress_out) return;
+    if (s.integrator->suppress_out) return;
     replace_files();
     xpp::ok_or_show(xpp::save_data_file(s, xpp::DataTarget::output, "dat", s.batch_out_file));
 }
@@ -127,9 +129,9 @@ void SilentScript::add_run(int set)
         apply_set(name);
     });
     steps.push_back([this] {
-        const xpp::AfterRun after = session.histogram.post_process;
+        const xpp::AfterRun after = session.histogram->post_process;
         if (after == xpp::AfterRun::mean_of_runs || after == xpp::AfterRun::variance_of_runs) registry("stochastic.compute");
-        else registry(session.integrator.range.write_files ? "run.range" : "run.initial");
+        else registry(session.integrator->range.write_files ? "run.range" : "run.initial");
     });
     /* with after_run_file the trajectory is written first, so the analysis does not replace it */
     steps.push_back([this] {
@@ -166,7 +168,7 @@ static bool runs_set(const xpp::Session &s, const std::string &name)
 SilentScript::SilentScript(xpp::Session &s) : session(s)
 {
     /* an .autox script: its runs, then the diagram (the script's own file, else autoX's default name); the integration is the runs' own */
-    if (const auto &script = s.autox_state.script.script) {
+    if (const auto &script = s.autox_state->script.script) {
         registry("autox.open");
         registry("autox.run_script");
         steps.push_back([this, file = script->diagram_file] {

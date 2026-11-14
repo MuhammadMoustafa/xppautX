@@ -10,6 +10,7 @@
 #include "xpp_math.h"
 #include "expr_decode.h"
 #include "session.h"
+#include "expr.h"
 
 #include <array>
 #include <algorithm>

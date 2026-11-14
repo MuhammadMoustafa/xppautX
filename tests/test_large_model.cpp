@@ -10,6 +10,7 @@
 #include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
+#include "load_eqn.h"
 #include "model.h"
 #include "storage.h"
 #include "browse.h"
@@ -84,15 +85,15 @@ TEST_CASE("test_large_model")
     CHECK(xpp::find_user_name(m,PARAMBOX,"p449")==PARAMETERS-1);
     const std::size_t indexed=m.names.size();
 
-    xpp::get_ic(s, 2, s.data_store.current.data());
-    s.numerics.storflag=true;
-    CHECK(xpp::usual_integrate_stuff(s, s.data_store.current.data()) == 0);
+    xpp::get_ic(s, 2, s.data_store->current.data());
+    s.numerics->storflag=true;
+    CHECK(xpp::usual_integrate_stuff(s, s.data_store->current.data()) == 0);
     CHECK(m.names.size()==indexed);
-    const int rows = s.data_store.rows;
+    const int rows = s.data_store->rows;
     CHECK(rows == 11);
     for (int i : {0, 2600, EQUATIONS - 1})
-        CHECK(std::fabs(static_cast<double>(s.data_store.col[i + 1][rows - 1]) - std::exp(-rate(i))) < 1e-5);
-    CHECK(std::fabs(static_cast<double>(s.data_store.col[EQUATIONS + 1][rows - 1]) - (std::exp(-rate(0)) + std::exp(-rate(EQUATIONS - 1)))) < 1e-5);
+        CHECK(std::fabs(static_cast<double>(s.data_store->col[i + 1][rows - 1]) - std::exp(-rate(i))) < 1e-5);
+    CHECK(std::fabs(static_cast<double>(s.data_store->col[EQUATIONS + 1][rows - 1]) - (std::exp(-rate(0)) + std::exp(-rate(EQUATIONS - 1)))) < 1e-5);
 
     const std::string table = temp.file("table.dat");
     {

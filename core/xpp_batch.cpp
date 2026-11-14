@@ -4,10 +4,13 @@
    libxppcore alone. */
 #include "model_options.h"
 #include "xpp_session.h"
+#include "load_eqn.h"
 #include "solver.h"
 #include "model.h"
 #include "model_files.h"
 #include "session.h"
+#include "autox_state.h"
+#include "model_parts.h"
 #include "expr_native.h"
 #include "jacobian.h"
 #include "xpp_batch.h"
@@ -80,20 +83,20 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
     xpp::init_alloc_info(s);
     xpp::set_init_guess(s);
     update_all_ffts(s);
-    if (s.autox_state.script.script)
-        if (const Result<> checked = autox_script_check(s, *s.autox_state.script.script); !checked) model_failed(checked.error());
+    if (s.autox_state->script.script)
+        if (const Result<> checked = autox_script_check(s, *s.autox_state->script.script); !checked) model_failed(checked.error());
     init_autox_win(s);
     preferences_load(s, read_prefs);
     if (disc(m)) {
         const auto picked = pick_method(m, "Discrete", Load::place());
         if (!picked) model_failed(picked.error());
-        s.numerics.method = *picked;
+        s.numerics->method = *picked;
     }
     program.version_major = static_cast<float>(MYSTR1);
     program.version_minor = static_cast<float>(MYSTR2);
     xpp::do_meth(s);
     xpp::set_delay(s);
-    s.integrator.rhs = {my_rhs, &s};
+    s.integrator->rhs = {my_rhs, &s};
     strip_saveqn(m);
     create_plot_list(s);
     init_all_graph(s);
@@ -107,7 +110,7 @@ Result<std::vector<Error>> compile_loaded(Session &s)
     /* the exact Jacobian a model asks for is known to exist only now
        (W260): none is an error at the @ line, not a quiet difference */
     const Model &m=s.model();
-    if (s.numerics.jacobian==JACOBIAN_EXACT && !m.jacobian.available())
+    if (s.numerics->jacobian==JACOBIAN_EXACT && !m.jacobian.available())
         return std::unexpected(Error{"options",option_error_text("integration.jacobian.kind","exact","the model has no exact Jacobian: "+m.jacobian.unavailable),
                                      m.jacobian.requested});
     return compiled;
@@ -169,7 +172,7 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
     m.saved_copies.reset(); /* the load's readers are done with them */
     xpp_session_mark_clean(load.session()); /* what it loaded is not a change */
     /* the compile waits for the first computation (W713), except for a model that asks for the exact Jacobian: its absence is the load's error */
-    if (load.session().numerics.jacobian!=JACOBIAN_EXACT) m.compile_pending=true;
+    if (load.session().numerics->jacobian!=JACOBIAN_EXACT) m.compile_pending=true;
     const auto compiled=m.compile_pending?Result<std::vector<Error>>(std::vector<Error>()):compile_loaded(load.session());
     if (!compiled) {
         program = program_before;

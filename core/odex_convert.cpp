@@ -31,6 +31,7 @@
 #include "xpp_ui.h"
 #include "browse.h"
 #include "session.h"
+#include "expr.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1864,7 +1865,7 @@ Fingerprint fingerprint(const xpp::Session &s, int guard = -1)
 {
   const xpp::Model &m = s.model();
   Fingerprint f;
-  f.values.push_back(s.numerics.method);
+  f.values.push_back(s.numerics->method);
   for (int c : {m.neq, m.node, m.nmarkov, m.fix_var, m.nupar, m.nfun - (guard >= 0 ? 1 : 0), m.flag_count(), m.naeqn, m.nsvar, m.nkernel, m.nwiener, static_cast<int>(m.ou.size())})
     f.values.push_back(c);
   for (int i = 0; i < m.node + m.fix_var + m.neq - m.node - m.nmarkov; i++) f.programs.push_back(normalized(m.programs[i].rpn, guard));

@@ -104,7 +104,7 @@ Result<bool> continue_for(Session &s, double extra);
 Result<bool> continue_total(Session &s);
 int range_item(Session &s);
 int range_item2(Session &s);
-/* the type and index of what s.integrator.range names to vary (and the second item when `two`), or the error of one that is
+/* the type and index of what s.integrator->range names to vary (and the second item when `two`), or the error of one that is
    neither a parameter nor a variable */
 Result<> run_allowed(const Session &s, std::string_view command);
 Result<> resolve_range_items(Session &s, bool two);
@@ -148,7 +148,7 @@ struct RangeProgress {
   int runs = 0;
   long steps = 0;
 };
-/* the sweep over the settings in s.integrator.range (flag 0: one parameter, 1: two), what it completed in `done`
+/* the sweep over the settings in s.integrator->range (flag 0: one parameter, 1: two), what it completed in `done`
    when given; the sweep's end code (-1 when a run stopped early) or the error it failed with */
 Result<int> run_range(Session &s, int flag, RangeProgress *done);
 /* the integration of x as the Session's settings say, after a run's start made: the one every run ends in */

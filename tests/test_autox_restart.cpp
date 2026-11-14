@@ -4,6 +4,7 @@
 #include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
+#include "autox_state.h"
 #include "autox_c.h"
 #include "autox_nox.h"
 #include "autox_parallel.h"
@@ -39,7 +40,7 @@ void formulation(xpp::Session &s, decltype(&periodic_fold_starting_data) restart
     CHECK(file != nullptr);
     AutoxRun run;
     run.session = &s;
-    run.parameter_count = s.autox_state.parameter_layout.size();
+    run.parameter_count = s.autox_state->parameter_layout.size();
     run.fp3 = file.get();
     run.fort3 = path;
     std::string text = solution(run.parameter_count, bvp);
@@ -116,7 +117,7 @@ void algebraic(xpp::Session &s, bool truncated) {
     xpp::UniqueFile file(xpp::files::open_stream(path, "w+"));
     AutoxRun run;
     run.session = &s;
-    run.parameter_count = s.autox_state.parameter_layout.size();
+    run.parameter_count = s.autox_state->parameter_layout.size();
     run.fp3 = file.get();
     run.fort3 = path;
     std::string text = xpp::format("3 1 5 7 1 1 1 3 2 0 0 {}\n0 2 3\n", run.parameter_count);
@@ -157,7 +158,7 @@ void user_zero_text(xpp::Session &s) {
     xpp::UniqueFile file(xpp::files::open_stream(path, "w+"));
     AutoxRun run;
     run.session = &s;
-    run.parameter_count = s.autox_state.parameter_layout.size();
+    run.parameter_count = s.autox_state->parameter_layout.size();
     run.fp9 = file.get();
     iap_type iap{};
     iap.run = &run;
@@ -196,7 +197,7 @@ void point_files(xpp::Session &s, int count, bool collocation) {
     xpp::TempDir temp;
     AutoxRun run;
     run.session = &s;
-    run.parameter_count = s.autox_state.parameter_layout.size();
+    run.parameter_count = s.autox_state->parameter_layout.size();
     const std::string solution_path = temp.path() + "/fort.8";
     run.fp8.reset(xpp::files::open_stream(solution_path, "w+"));
     CHECK(run.fp8 != nullptr);
@@ -211,7 +212,7 @@ void point_files(xpp::Session &s, int count, bool collocation) {
     iap.ntst = collocation ? 1 : 0;
     iap.ncol = collocation ? 2 : 0;
     rap_type rap{};
-    std::array<std::ptrdiff_t, 1> icp = {s.autox_state.parameter_layout.solver_index(0)};
+    std::array<std::ptrdiff_t, 1> icp = {s.autox_state->parameter_layout.solver_index(0)};
     std::vector<double> par(run.parameter_count);
     std::array<double, 4> values = {2., 3., 4., 5.}, tangent = {.5, .5, .5, .5};
     std::array<double, 2> times = {0., 1.};
@@ -267,7 +268,7 @@ void branch_point_direction(xpp::Session &s) {
         const std::string path = temp.path() + "/fort.8";
         AutoxRun run;  // write_special_point_restart writes the session's own fort.8
         run.session = &s;
-        run.parameter_count = s.autox_state.parameter_layout.size();
+        run.parameter_count = s.autox_state->parameter_layout.size();
         run.fp8.reset(xpp::files::open_stream(path, "w+"));
         CHECK(run.fp8 != nullptr);
         iap_type iap{};
@@ -280,7 +281,7 @@ void branch_point_direction(xpp::Session &s) {
         iap.isw = 1;
         iap.itp = {branch_point ? xpp::AutoxPointKind::BranchPoint : xpp::AutoxPointKind::End, xpp::AutoxPointKind::Regular};
         rap_type rap{};
-        std::array<std::ptrdiff_t, 1> icp = {s.autox_state.parameter_layout.solver_index(0)};
+        std::array<std::ptrdiff_t, 1> icp = {s.autox_state->parameter_layout.solver_index(0)};
         std::vector<double> par(run.parameter_count);
         std::array<double, 2> values = {2., 3.}, tangent = {.6, -.8};
         std::array<double, 1> rldot = {.25};

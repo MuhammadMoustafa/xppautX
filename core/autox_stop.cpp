@@ -8,6 +8,7 @@
 #include "autox_nox.h"
 #include "xpp_math_autox.h" /* autox_rsmall */
 #include "session.h"
+#include "autox_state.h"
 #include "autox_stop.h"
 #include "xpp_log.h"
 #include "xpp_mem.h"
@@ -26,7 +27,7 @@ const char *const keys[AUTOX_STOP_N] = {
 std::string par_name(const xpp::Session &s, long ipar)
 {
     if (ipar == xpp::autox_unknown::period) return "the period T";
-    const int k = s.autox_state.parameter_layout.model_index(static_cast<int>(ipar));
+    const int k = s.autox_state->parameter_layout.model_index(static_cast<int>(ipar));
     const char *name = autox_par_name(s, k);
     return name ? std::string("parameter ") + name : std::string("the parameter");
 }

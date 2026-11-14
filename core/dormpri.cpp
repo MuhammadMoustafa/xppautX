@@ -1,5 +1,8 @@
 #include "storage.h"
 #include "session.h"
+#include "delay_handle.h"
+#include "integrate.h"
+#include "load_eqn.h"
 #include "xpp_ui.h"
 #include "xpp_math.h"
 #include <math.h>
@@ -780,7 +783,7 @@ private:
   Result<> step_by(const SolverStep &step) override
   {
     auto &s=session_;
-    auto &num=s.numerics;
+    auto &num=*s.numerics;
     section_=false;
     if(step.sections&&num.poincare_map!=PoincareMap::none&&num.poincare_variable>s.model().neq)
       return failed("A Poincare section requires a model variable, not an added data column");
@@ -799,9 +802,9 @@ private:
       run_.resume=false;
     }
     while((*step.t-step.tout)*direction<0){
-      if(xpp::job::cancelled()){s.integrator.stop_flag=1;break;}
+      if(xpp::job::cancelled()){s.integrator->stop_flag=1;break;}
       if(!valid_||(internal_time_-*step.t)*direction<=0){
-        const double end=s.delay.flag?step.tout:internal_time_+direction*horizon_steps*fabs(num.max_step);
+        const double end=s.delay->flag?step.tout:internal_time_+direction*horizon_steps*fabs(num.max_step);
         const int status=dormand_prince(s,n,internal_time_,endpoint_.data(),end,num.relative_tolerance,num.absolute_tolerance,
                                         num.max_step,info().traits.eighth_order,work_.data(),run_);
         /* dormand_prince_853_correct fails when its attempts run out (-2) or its step falls
@@ -815,7 +818,7 @@ private:
         internal_time_=run_.xout;
         valid_=true;
         events_checked_=false;
-        if(s.integrator.step_error)return std::unexpected(*s.integrator.step_error);
+        if(s.integrator->step_error)return std::unexpected(*s.integrator->step_error);
       }
       const double until=(internal_time_-step.tout)*direction<0?internal_time_:step.tout;
       const auto state=[&](double time,std::span<double> y){sample(time,y);};
@@ -844,24 +847,24 @@ private:
       }
       if(auto checked=check_state(step.y,n,*step.t);!checked)return checked;
       section_=event.section;
-      if(section_||s.integrator.stop_flag)break;
+      if(section_||s.integrator->stop_flag)break;
     }
     std::copy_n(step.y,n,returned_.begin());
     returned_time_=*step.t;
     set_fix_rhs(s,*step.t,step.y);
     // History is updated by integrate.cpp at the output grid, so the old
     // derivative no longer describes the next delay interval.
-    if(s.delay.flag){valid_=false;run_.resume=false;}
+    if(s.delay->flag){valid_=false;run_.resume=false;}
     return {};
   }
   Result<> check_state(const double *y,int n,double time) const
   {
     for(int i=0;i<n;++i){
       const auto &s=session_;
-      const bool bounded=s.numerics.stop_at_limit&&!(s.integrator.range_flag||s.integrator.suppress_bounds);
-      if(!std::isfinite(y[i])||(bounded&&fabs(y[i])>s.numerics.state_limit)){
+      const bool bounded=s.numerics->stop_at_limit&&!(s.integrator->range_flag||s.integrator->suppress_bounds);
+      if(!std::isfinite(y[i])||(bounded&&fabs(y[i])>s.numerics->state_limit)){
         const auto &name=s.model().uvar_names[i];
-        return failed(xpp::format("{} is not finite or exceeds state_limit = {} at t = {}",name,xpp::number(s.numerics.state_limit),time),model_place(s.model(),name));
+        return failed(xpp::format("{} is not finite or exceeds state_limit = {} at t = {}",name,xpp::number(s.numerics->state_limit),time),model_place(s.model(),name));
       }
     }
     return {};

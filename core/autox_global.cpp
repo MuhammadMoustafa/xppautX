@@ -12,6 +12,8 @@
 #include "xpp_job.h"
 #include "model.h"
 #include "session.h"
+#include "autox_state.h"
+#include "load_eqn.h"
 #include "xpp_io.h"
 #include "xpp_math.h"
 
@@ -100,7 +102,7 @@ public:
         model_jacobian(*run_.session, run_.jacobian_scratch, autox_constants(run_).data(), 0.0,
                        [&](double *xp, double *f) { rhs(xp, f); }, x, f0, static_cast<int>(ndm_), eps, form, out);
     }
-    bool discrete() const override { return solver_info(run_.session->numerics.method).traits.discrete; }
+    bool discrete() const override { return solver_info(run_.session->numerics->method).traits.discrete; }
     bool stopped() override { return autox_cancelled(run_); }
 
 private:

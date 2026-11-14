@@ -43,6 +43,10 @@
 #include <math.h>
 #include "delay_handle.h"
 #include "session.h"
+#include "autox_state.h"
+#include "many_pops.h"
+#include "model_parts.h"
+#include "value_undo.h"
 #include "json_reader.h"
 #include <algorithm>
 #include <array>
@@ -59,15 +63,15 @@ namespace xpp::json {
 static void buf_tail_rates(std::string &b, const xpp::Session &s)
 {
     BUF_LIT(b, ",\"rates\":[");
-    const int rows = s.data_store.rows;
+    const int rows = s.data_store->rows;
     for (int col = 1; col <= s.model().node + s.model().nmarkov; ++col) {
         if (col > 1) BUF_LIT(b, ",");
         bool valid = rows >= 2;
         double rate = 0;
         int direction = 0;
         for (int row = std::max(1, rows - STATE_TAIL_INTERVALS); valid && row < rows; ++row) {
-            const double dt = static_cast<double>(s.data_store.col[0][row]) - s.data_store.col[0][row - 1];
-            const double dv = static_cast<double>(s.data_store.col[col][row]) - s.data_store.col[col][row - 1];
+            const double dt = static_cast<double>(s.data_store->col[0][row]) - s.data_store->col[0][row - 1];
+            const double dv = static_cast<double>(s.data_store->col[col][row]) - s.data_store->col[col][row - 1];
             if (!std::isfinite(dt) || !std::isfinite(dv) || dt == 0 || (direction && direction != (dt > 0 ? 1 : -1))) {
                 valid = false;
                 break;
@@ -145,19 +149,19 @@ std::string build_state(xpp::Session &s)
     }
     BUF_LIT(b, "]");
     /* where the last run ended (MyData, what Initialconds/Last starts from) */
-    if (s.numerics.inflag) {
+    if (s.numerics->inflag) {
         BUF_LIT(b, ",\"now\":[");
         for (i = 0; i < m.node + m.nmarkov; i++) {
             if (i) BUF_LIT(b, ",");
-            buf_num(b, s.data_store.current[i], 16);
+            buf_num(b, s.data_store->current[i], 16);
         }
         BUF_LIT(b, "]");
     }
     buf_tail_rates(b, s);
     BUF_LIT(b, ",\"time\":");
-    buf_num(b,s.data_store.current_time,17);
-    if(s.integrator.steady_result){
-        const auto &result=*s.integrator.steady_result;
+    buf_num(b,s.data_store->current_time,17);
+    if(s.integrator->steady_result){
+        const auto &result=*s.integrator->steady_result;
         BUF_LIT(b, ",\"steady\":{\"status\":");
         buf_str(b,result.status);
         buf_format(b, ",\"decimals\":{},\"time\":",result.decimals);
@@ -174,7 +178,7 @@ std::string build_state(xpp::Session &s)
         BUF_LIT(b, "]");
     }
     BUF_LIT(b, "]");
-    if (s.delay.flag) {
+    if (s.delay->flag) {
         BUF_LIT(b, ",\"delays\":[");
         for (i = 0; i < m.node; i++) {
             if (i) BUF_LIT(b, ",");
@@ -189,31 +193,31 @@ std::string build_state(xpp::Session &s)
     /* pixel to plot coordinates of the active window and the autoX diagram,
        for the x,y readout under the mouse (scale_to_real) */
     get_draw_area(s);
-    BUF_LIT(b,",\"view\":{\"win\":");buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
+    BUF_LIT(b,",\"view\":{\"win\":");buf_str(b,xpp::window_name(s,s.plot_windows->draw_win));
     buf_format(b, ",\"left\":{:d},\"right\":{:d},\"top\":{:d},\"bottom\":{:d},"
                "\"xlo\":{:g},\"xhi\":{:g},\"ylo\":{:g},\"yhi\":{:g},\"three\":{:d}",
-               s.drawing.d_left, s.drawing.d_right, s.drawing.d_top, s.drawing.d_bottom, s.plot_windows.current->xlo, s.plot_windows.current->xhi,
-               s.plot_windows.current->ylo, s.plot_windows.current->yhi, s.plot_windows.current->ThreeDFlag);
+               s.drawing->d_left, s.drawing->d_right, s.drawing->d_top, s.drawing->d_bottom, s.plot_windows->current->xlo, s.plot_windows->current->xhi,
+               s.plot_windows->current->ylo, s.plot_windows->current->yhi, s.plot_windows->current->ThreeDFlag);
     /* a 3D window's angles (view3d); only then are they set at all */
-    if (s.plot_windows.current->ThreeDFlag && isfinite(s.plot_windows.current->Theta) && isfinite(s.plot_windows.current->Phi))
-        buf_format(b, ",\"theta\":{:g},\"phi\":{:g}", s.plot_windows.current->Theta, s.plot_windows.current->Phi);
+    if (s.plot_windows->current->ThreeDFlag && isfinite(s.plot_windows->current->Theta) && isfinite(s.plot_windows->current->Phi))
+        buf_format(b, ",\"theta\":{:g},\"phi\":{:g}", s.plot_windows->current->Theta, s.plot_windows->current->Phi);
     BUF_LIT(b, ",\"title\":");
     buf_str(b, xpp::plot_title(s));
     BUF_LIT(b, "}");
-    if (s.autox_state.bifur.exist)
+    if (s.autox_state->bifur.exist)
         buf_format(b, ",\"autox\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
-                   "\"ymin\":{:g},\"ymax\":{:g}}}", s.autox_state.bifur.x0, s.autox_state.bifur.y0, s.autox_state.bifur.wid, s.autox_state.bifur.hgt, s.autox_state.axes().xmin, s.autox_state.axes().xmax,
-                   s.autox_state.axes().ymin, s.autox_state.axes().ymax);
-    buf_format(b,",\"rows\":{},\"win\":",s.data.view.maxrow);buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
-    if (s.numerics.last_seed) buf_format(b, ",\"seed\":{:d}", *s.numerics.last_seed);
-    const SavedSession &saved = s.saved_session;
+                   "\"ymin\":{:g},\"ymax\":{:g}}}", s.autox_state->bifur.x0, s.autox_state->bifur.y0, s.autox_state->bifur.wid, s.autox_state->bifur.hgt, s.autox_state->axes().xmin, s.autox_state->axes().xmax,
+                   s.autox_state->axes().ymin, s.autox_state->axes().ymax);
+    buf_format(b,",\"rows\":{},\"win\":",s.data->view.maxrow);buf_str(b,xpp::window_name(s,s.plot_windows->draw_win));
+    if (s.numerics->last_seed) buf_format(b, ",\"seed\":{:d}", *s.numerics->last_seed);
+    const SavedSession &saved = *s.saved_session;
     if (!saved.file.empty()) {
         BUF_LIT(b, ",\"session\":{\"file\":");
         buf_str(b, saved.file.c_str());
         BUF_LIT(b, "}");
     }
     buf_format(b, ",\"changed\":{},\"can_undo\":{},\"can_redo\":{}", xpp_session_changed(s) ? "true" : "false",
-               s.value_undo.undo.empty() ? "false" : "true", s.value_undo.redo.empty() ? "false" : "true");
+               s.value_undo->undo.empty() ? "false" : "true", s.value_undo->redo.empty() ? "false" : "true");
     buf_sets(b, s);
     buf_recording(b);
     buf_player(b);
@@ -259,12 +263,12 @@ namespace {
 void send_data(xpp::Session &s)
 {
     std::string b;
-    const int maxcol = s.data.view.maxcol;
+    const int maxcol = s.data->view.maxcol;
     session.data_dirty = 0;
     xpp::fit_data_block(s);
-    const xpp::DataBlock &block = s.data.block;
+    const xpp::DataBlock &block = s.data->block;
     buf_format(b, "{},\"rows\":{:d},\"row0\":{:d},\"start\":{:d},\"end\":{:d},\"cols\":[\"T\"",
-               xpp::events::open(xpp::events::DATA_UPDATED), s.data.view.dataflag ? s.data.view.maxrow : 0, s.data.view.row0, s.data.view.istart, s.data.view.iend);
+               xpp::events::open(xpp::events::DATA_UPDATED), s.data->view.dataflag ? s.data->view.maxrow : 0, s.data->view.row0, s.data->view.istart, s.data->view.iend);
     for (int j = 1; j < maxcol; j++) {
         BUF_LIT(b, ",");
         buf_str(b, browse_column_name(s,j));
@@ -288,7 +292,7 @@ void j_data_changed(int)
 /* the block the client sees, when the data changed */
 void data_update(xpp::Session &s)
 {
-    if (session.data_dirty && s.data.block.count) send_data(s);
+    if (session.data_dirty && s.data->block.count) send_data(s);
 }
 
 /* the data events a client subscribed to (events.subscribe) are sent at the end of each command; each is sent at
@@ -366,10 +370,10 @@ std::vector<std::string> equation_lines(const xpp::Session &s)
         const std::string &name = m.uvar_names[i];
         const char *rhs = m.formulas[i].c_str();
         std::string line;
-        if (i < m.node && m.eq_type[i] != 1 && !xpp::solver_info(s.numerics.method).traits.discrete) BUF_LIT(line, "d");
+        if (i < m.node && m.eq_type[i] != 1 && !xpp::solver_info(s.numerics->method).traits.discrete) BUF_LIT(line, "d");
         buf_add(line, name.data(), name.size());
         if (i < m.node && m.eq_type[i] == 1) BUF_LIT(line, "(t)");
-        else if (i < m.node && xpp::solver_info(s.numerics.method).traits.discrete) BUF_LIT(line, "(n+1)");
+        else if (i < m.node && xpp::solver_info(s.numerics->method).traits.discrete) BUF_LIT(line, "(n+1)");
         else if (i < m.node) BUF_LIT(line, "/dT");
         BUF_LIT(line, "=");
         buf_add(line, rhs, strlen(rhs));

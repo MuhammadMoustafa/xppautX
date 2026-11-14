@@ -14,6 +14,9 @@
 #include "jacobian.h"
 #include "model.h"
 #include "session.h"
+#include "autox_state.h"
+#include "integrate.h"
+#include "load_eqn.h"
 #include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "derived.h"
@@ -82,10 +85,10 @@ struct Fixture {
         CHECK(model->jacobian.build && !model->jacobian.states.function);
         const double point[2] = {0.3, 0.7}, fxy[2] = {f(0, 0.3, 0.7), 0};
         double interpreted[4], compiled[4];
-        xpp::exact_jacobian(s, s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, interpreted);
+        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, interpreted);
         xpp::build_native(s, true);
         CHECK(!model->jacobian.build && model->jacobian.states.function);
-        xpp::exact_jacobian(s, s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, compiled);
+        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, compiled);
         for (int k = 0; k < 4; ++k) CHECK(std::bit_cast<std::uint64_t>(interpreted[k]) == std::bit_cast<std::uint64_t>(compiled[k]));
         return true;
     }
@@ -107,7 +110,7 @@ struct Fixture {
         const double point[2] = {x, y};
         double exact[4];
         const double fxy[2] = {f(0, x, y), 0};
-        xpp::exact_jacobian(s, s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, exact);
+        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, exact);
         const double hx = 1e-6 * std::max(1.0, std::fabs(x)), hy = 1e-6 * std::max(1.0, std::fabs(y));
         const double dx = (f(0, x + hx, y) - f(0, x - hx, y)) / (2 * hx), dy = (f(0, x, y + hy) - f(0, x, y - hy)) / (2 * hy);
         const bool ok = close(exact[0], dx) && close(exact[1], dy) && exact[2] == 0 && exact[3] == 0;
@@ -159,7 +162,7 @@ void check_operations()
         xpp::Session &s = *fx.session;
         const double point[2] = {-0.83, 0.7}, fxy[2] = {fx.f(0, point[0], point[1]), 0};
         double exact[4];
-        xpp::exact_jacobian(s, s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, exact);
+        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, exact);
         CHECK(exact[0] == n * (n == 2 ? point[0] : xpp::math::integer_power(point[0], n - 1)));
     }
     /* if, a constant, the time */
@@ -174,11 +177,11 @@ void check_operations()
     xpp::Session &s = *fx.session;
     const double point[2] = {0.25, 0.0};
     double column[2] = {-1, -1};
-    xpp::exact_constant_derivative(s, s.jacobian_scratch, s.parser.constants.data(), fx.par, 0.4, point, point, 2, column);
+    xpp::exact_constant_derivative(s, *s.jacobian_scratch, s.parser.constants.data(), fx.par, 0.4, point, point, 2, column);
     CHECK(column[0] == 0.25 && column[1] == 0);
-    xpp::exact_time_derivative(s, s.jacobian_scratch, s.parser.constants.data(), 0.4, point, point, 2, column);
+    xpp::exact_time_derivative(s, *s.jacobian_scratch, s.parser.constants.data(), 0.4, point, point, 2, column);
     CHECK(close(column[0], std::cos(0.4)) && column[1] == 0);
-    xpp::exact_constant_derivative(s, s.jacobian_scratch, s.parser.constants.data(), fx.par + 1, 0.4, point, point, 2, column);
+    xpp::exact_constant_derivative(s, *s.jacobian_scratch, s.parser.constants.data(), fx.par + 1, 0.4, point, point, 2, column);
     CHECK(column[0] == 0 && column[1] == 0);
     /* sqrt(x) at x=0: an exact derivative not finite where f is stops the
        computation, the equation's line named, no difference instead */
@@ -188,7 +191,7 @@ void check_operations()
         double out[4];
         bool stopped = false;
         try {
-            xpp::exact_jacobian(s, s.jacobian_scratch, s.parser.constants.data(), 0.0, at, f0, 2, {xpp::JacobianLayout::RowMajor}, out);
+            xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, at, f0, 2, {xpp::JacobianLayout::RowMajor}, out);
         } catch (const xpp::JacobianFailed &failed) {
             stopped = failed.error.where == xpp::JACOBIAN_FAILED
                 && failed.error.what == "the exact Jacobian's dx'/dx is inf at t=0 (x=0, y=0), where x' is 0: switch the Numerics' Jacobian to difference";
@@ -200,10 +203,10 @@ void check_operations()
     CHECK(!fx.compile({x, RANDUNI}));
     CHECK(fx.model->jacobian.unavailable.find("uses random numbers") != std::string::npos);
     /* compile false (the option): none */
-    fx.session->numerics.compile = false;
+    fx.session->numerics->compile = false;
     CHECK(!fx.compile({x}));
     CHECK(fx.model->jacobian.unavailable == "the model is interpreted (option compile is false)");
-    fx.session->numerics.compile = true;
+    fx.session->numerics->compile = true;
 }
 
 /* the model file's exact Jacobian at its initial point against central
@@ -224,16 +227,16 @@ void check_model(const char *path, bool map, bool forward = true)
     /* away from a symmetric start, and from 0, where a forward difference steps by eps^2 */
     for (int i = 0; i < n; ++i) x[static_cast<std::size_t>(i)] += 0.13 * (i + 1);
     const double t = 0.3;
-    s.integrator.rhs(t, x.data(), f.data(), n);
+    s.integrator->rhs(t, x.data(), f.data(), n);
     if (map)
         for (int i = 0; i < n; ++i) f[static_cast<std::size_t>(i)] -= x[static_cast<std::size_t>(i)];
     const xpp::JacobianForm form{xpp::JacobianLayout::RowMajor, 0, 0, map};
     std::vector<double> differences(static_cast<std::size_t>(n) * n), exact(differences.size()), dt(static_cast<std::size_t>(n)),
         dt_exact(dt.size());
     /* (a map's time derivative is no Jacobian's: none asked) */
-    s.numerics.jacobian = xpp::JACOBIAN_DIFFERENCE;
+    s.numerics->jacobian = xpp::JACOBIAN_DIFFERENCE;
     xpp::jacobian(s, t, x.data(), f.data(), n, 1e-8, form, differences.data(), map ? nullptr : dt.data());
-    s.numerics.jacobian = xpp::JACOBIAN_EXACT;
+    s.numerics->jacobian = xpp::JACOBIAN_EXACT;
     xpp::jacobian(s, t, x.data(), f.data(), n, 1e-8, form, exact.data(), map ? nullptr : dt_exact.data());
     double worst = 0;
     for (std::size_t k = 0; k < exact.size(); ++k) worst = std::max(worst, std::fabs(exact[k] - differences[k]) / std::max(1.0, std::fabs(exact[k])));
@@ -248,9 +251,9 @@ void check_model(const char *path, bool map, bool forward = true)
             const auto sj = static_cast<std::size_t>(j);
             const double h = 1e-5 * std::max(1.0, std::fabs(x[sj]));
             xp[sj] = x[sj] + h;
-            s.integrator.rhs(t, xp.data(), fp.data(), n);
+            s.integrator->rhs(t, xp.data(), fp.data(), n);
             xp[sj] = x[sj] - h;
-            s.integrator.rhs(t, xp.data(), fm.data(), n);
+            s.integrator->rhs(t, xp.data(), fm.data(), n);
             xp[sj] = x[sj];
             for (int i = 0; i < n; ++i) {
                 const auto si = static_cast<std::size_t>(i);
@@ -270,13 +273,13 @@ void check_model(const char *path, bool map, bool forward = true)
         const double c = s.parser.constants[static_cast<std::size_t>(k)], h = 1e-6 * std::max(1.0, std::fabs(c));
         s.parser.constants[static_cast<std::size_t>(k)] = c + h;
         xpp::evaluate_derived(s);
-        s.integrator.rhs(t, x.data(), fp.data(), n);
+        s.integrator->rhs(t, x.data(), fp.data(), n);
         s.parser.constants[static_cast<std::size_t>(k)] = c - h;
         xpp::evaluate_derived(s);
-        s.integrator.rhs(t, x.data(), fm.data(), n);
+        s.integrator->rhs(t, x.data(), fm.data(), n);
         s.parser.constants[static_cast<std::size_t>(k)] = c;
         xpp::evaluate_derived(s);
-        xpp::exact_constant_derivative(s, s.jacobian_scratch, s.parser.constants.data(), k, t, x.data(), f.data(), n, column.data());
+        xpp::exact_constant_derivative(s, *s.jacobian_scratch, s.parser.constants.data(), k, t, x.data(), f.data(), n, column.data());
         for (int i = 0; i < n; ++i) {
             const double d = (fp[static_cast<std::size_t>(i)] - fm[static_cast<std::size_t>(i)]) / (2 * h);
             worst = std::max(worst, std::fabs(column[static_cast<std::size_t>(i)] - d) / std::max(1.0, std::fabs(d)));
@@ -302,15 +305,15 @@ void check_autox_func(const char *path, double u0, double u1, int store_every = 
     xpp::Session &s = xpp::client_session();
     xpp::init_autox_win(s);
     CHECK(xpp::ensure_exact_jacobian(s));
-    s.numerics.jacobian = xpp::JACOBIAN_EXACT;
-    s.numerics.store_every = store_every;
+    s.numerics->jacobian = xpp::JACOBIAN_EXACT;
+    s.numerics->store_every = store_every;
     constexpr std::ptrdiff_t n = 2;
     AutoxRun run;
     run.session = &s;
-    run.parameter_count = s.autox_state.parameter_layout.size();
-    const std::ptrdiff_t continued=s.autox_state.parameter_layout.solver_index(0);
+    run.parameter_count = s.autox_state->parameter_layout.size();
+    const std::ptrdiff_t continued=s.autox_state->parameter_layout.solver_index(0);
     std::vector<double> par(run.parameter_count, 0.0);
-    for (int k = 0; k < s.model().nupar; ++k) par[s.autox_state.parameter_layout.solver_index(k)] = s.parser.constants[static_cast<std::size_t>(s.model().upar_con[k])];
+    for (int k = 0; k < s.model().nupar; ++k) par[s.autox_state->parameter_layout.solver_index(k)] = s.parser.constants[static_cast<std::size_t>(s.model().upar_con[k])];
     par[xpp::autox_unknown::period] = 6.3;
     const std::ptrdiff_t icp[2] = {continued, xpp::autox_unknown::period};
     const double u[n] = {u0, u1};

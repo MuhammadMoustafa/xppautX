@@ -43,7 +43,7 @@ constexpr int IMAGE_FORMAT_GIF = 2;
 constexpr int IMAGE_FORMAT_PPM = 3;
 constexpr int IMAGE_STILL_FRAME = -1; /* a still has no index in a movie */
 
-/* A vector picture begun into filename (s.plot_file.writer is empty when the user declined to replace
+/* A vector picture begun into filename (s.plot_file->writer is empty when the user declined to replace
    it), or why it cannot be written; the plot is then drawn through graphics.cpp's primitives and the
    picture ended: written and renamed into place */
 Result<> begin_picture(Session &s, const ImageFormat &format, std::string_view filename);

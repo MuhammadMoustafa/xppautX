@@ -1,5 +1,6 @@
 #include "autox_c.h"
 #include "session.h"
+#include "autox_state.h"
 #include "xpp_math.h"
 #include <cmath>
 #include <utility>

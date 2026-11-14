@@ -9,6 +9,7 @@
 #include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
+#include "autox_state.h"
 #include "autox_c.h"
 #include "diagram.h"
 #include "xpp_batch.h"
@@ -136,15 +137,15 @@ void check_diagram_points(xpp::Session &s)
 {
     constexpr int n = 3;
     start_diagram(s, n);
-    xpp::DIAGRAM *first = &s.diagram.points.front();
+    xpp::DIAGRAM *first = &s.diagram->points.front();
     CHECK(first && first->u0.size() == n && first->evi.size() == n && first->index == 0);
     for (int k = 1; k <= 20; k++) { /* a deque keeps the earlier points' addresses while it grows */
         xpp::DIAGRAM p = point_of(n, k);
         p.branch = std::make_shared<xpp::DiagramBranch>();
         add_diagram(s, p);
     }
-    CHECK(diagram_count(s.diagram) == 21 && &s.diagram.points.front() == first);
-    CHECK(s.diagram.points[7].u0[2] == 2 * 7 + 2 && s.diagram.points[7].index == 7);
+    CHECK(diagram_count(*s.diagram) == 21 && &s.diagram->points.front() == first);
+    CHECK(s.diagram->points[7].u0[2] == 2 * 7 + 2 && s.diagram->points[7].index == 7);
 
     /* restore: the list is taken whole, indices renumbered, arrays kept */
     std::deque<xpp::DIAGRAM> list;
@@ -152,25 +153,25 @@ void check_diagram_points(xpp::Session &s)
     const std::deque<xpp::DIAGRAM> snapshot = list;
     for (int round = 0; round < 3; round++) { /* repeated restores, as a session load does */
         diagram_restore(s, list);
-        CHECK(diagram_count(s.diagram) == 5);
+        CHECK(diagram_count(*s.diagram) == 5);
         bool ok = true;
         for (int i = 0; i < 5; i++) {
-            const xpp::DIAGRAM *d = &s.diagram.points[static_cast<std::size_t>(i)];
+            const xpp::DIAGRAM *d = &s.diagram->points[static_cast<std::size_t>(i)];
             ok = ok && d->index == i && d->uhi == snapshot[i].uhi && d->evi == snapshot[i].evi &&
                  d->uhi.data() != snapshot[i].uhi.data();
         }
         CHECK(ok);
-        list = std::move(s.diagram.points); /* moved out and back in */
+        list = std::move(s.diagram->points); /* moved out and back in */
     }
     diagram_restore(s, std::move(list));
-    s.diagram.points[0].u0.assign(n, -1.0);
+    s.diagram->points[0].u0.assign(n, -1.0);
     CHECK(snapshot[0].u0[0] == 200); /* no point shares an array with a copy */
 
     /* a run's point of the wrong length is the caller's: the first point takes the point whole */
     start_diagram(s, n);
     xpp::DIAGRAM p = point_of(n, 9);
     edit_start(s, p);
-    CHECK(s.diagram.points.front().ubar == p.ubar && s.diagram.points.front().ubar.data() != p.ubar.data());
+    CHECK(s.diagram->points.front().ubar == p.ubar && s.diagram->points.front().ubar.data() != p.ubar.data());
 }
 
 /* the work arrays of a library: sized once, a worker's copy of the rotation
@@ -320,7 +321,7 @@ TEST_CASE("test_autox_views")
     if (!loaded) return 1;
     auto &markov = xpp::client_session();
     CHECK(markov.model().node == 1 && markov.model().nmarkov == 1);
-    markov.autox_state.dir = temp.path();
+    markov.autox_state->dir = temp.path();
     xpp::init_autox_win(markov);
     auto point = point_of(1, 3);
     point.ibr = 1;
@@ -331,7 +332,7 @@ TEST_CASE("test_autox_views")
     point.ntot = 3;
     point.lab = 8;
     add_diagram(markov, point);
-    markov.autox_state.diag_flag = true;
+    markov.autox_state->diag_flag = true;
     const double saved_markov = markov.last_ic[1];
     CHECK(autox_grab_label(markov, 7) == 1);
     CHECK(markov.last_ic[0] == 6 && markov.last_ic[1] == saved_markov);

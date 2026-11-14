@@ -117,10 +117,10 @@ Result<int> view_table(xpp::Session &s, int index)
 {
   const TABULAR &table=s.tables[index];
   if(table.flag==0)return fail("table",xpp::format("{} is not defined yet: it has no values to show",table.name),table_place(s,index));
-  if(const xpp::Result<> room=s.data_store.fit(s.model().neq+1,table.n+1);!room)return std::unexpected(room.error());
+  if(const xpp::Result<> room=s.data_store->fit(s.model().neq+1,table.n+1);!room)return std::unexpected(room.error());
   for(int i=0;i<table.n;i++){
-    s.data_store.col[0][i]=table.xlo+i*table.dx;
-    s.data_store.col[1][i]=table.y[i];
+    s.data_store->col[0][i]=table.xlo+i*table.dx;
+    s.data_store->col[1][i]=table.y[i];
   }
   refresh_data(s,table.n);
   return table.n;
@@ -243,7 +243,7 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int index, int n, double xlo, doub
   for(i=0;i<n;i++){
     setvar(s,0,dx*i+xlo);
     y[i]=evaluate(s,command);
-    if (s.integrator.step_error) {
+    if (s.integrator->step_error) {
       setvar(s,0,oldt);
       s.parser.ncon=ncold;
       s.parser.nsym=nsym;

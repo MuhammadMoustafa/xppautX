@@ -49,6 +49,7 @@
 #include "xpp_globals.h"
 #include "comline.h"
 #include "session.h"
+#include "model_parts.h"
 
 using xpp::odex::Binding;
 using xpp::odex::Expr;

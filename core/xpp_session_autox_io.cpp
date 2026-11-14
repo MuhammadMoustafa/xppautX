@@ -8,6 +8,7 @@
 #include "solver.h"
 #include "snapx.h"
 #include "session.h"
+#include "autox_state.h"
 #include "model.h"
 #include "xpp_session.h"
 #include "xpp_zip.h"
@@ -53,13 +54,13 @@ AutoxSettingsSet view_settings(const SavedView &v, int k)
 Result<> add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::string_view prefix)
 {
     const xpp::Model &m = s.model();
-    if (!s.autox_state.diag_flag) return {};
+    if (!s.autox_state->diag_flag) return {};
     const std::string solutions_path = autox_solutions_file(s);
     std::string solutions;
     if (!xpp::read_bytes(solutions_path, solutions))
         return xpp::fail("save session", "autoX's restart solutions cannot be read", xpp::Place{solutions_path});
     const std::vector<std::string> vars(m.uvar_names.begin(), m.uvar_names.begin() + m.node);
-    entries.push_back({named(prefix, diagram_member), diagram_csv(s.diagram.points, m.nupar, vars)});
+    entries.push_back({named(prefix, diagram_member), diagram_csv(s.diagram->points, m.nupar, vars)});
     entries.push_back({named(prefix, solutions_member), std::move(solutions)});
     return {};
 }
@@ -69,10 +70,10 @@ void write_state(odex::Out &out, const Session &s)
     out.begin("autox");
     write_autox_settings(out, autox_settings_now(s));
     SavedViews views;
-    views.active = s.autox_state.active_view;
-    for (std::size_t k = 0; k < s.autox_state.views.size(); k++) {
+    views.active = s.autox_state->active_view;
+    for (std::size_t k = 0; k < s.autox_state->views.size(); k++) {
         const AutoxSettingsSet a = autox_settings_view(s, static_cast<int>(k));
-        views.views.push_back({*a.plot, a.var, a.par1, a.par2, a.range, s.autox_state.views[k].zoom, s.autox_state.views[k].name, s.autox_state.views[k].hidden});
+        views.views.push_back({*a.plot, a.var, a.par1, a.par2, a.range, s.autox_state->views[k].zoom, s.autox_state->views[k].name, s.autox_state->views[k].hidden});
     }
     write_views(out, views);
     out.end();
@@ -84,24 +85,24 @@ namespace {
    (members_read checked them) */
 void restore_views(xpp::Session &s, const SavedViews &saved)
 {
-    s.autox_state.views.assign(saved.views.size(), AutoxDiagramView{s.autox_state.axes(), {}, false, {}});
-    s.autox_state.active_view = 0;
+    s.autox_state->views.assign(saved.views.size(), AutoxDiagramView{s.autox_state->axes(), {}, false, {}});
+    s.autox_state->active_view = 0;
     for (std::size_t k = 0; k < saved.views.size(); k++) {
         const SavedView &v = saved.views[k];
         std::string why;
         autox_settings_apply(s, view_settings(v, static_cast<int>(k)), why);
         /* the ranges as they were, even the ones a form refuses (a Fit of
            a flat quantity leaves its axis a point) */
-        AUTOAX &ax = s.autox_state.views[k].axes;
+        AUTOAX &ax = s.autox_state->views[k].axes;
         ax.xmin = v.range[0];
         ax.xmax = v.range[1];
         ax.ymin = v.range[2];
         ax.ymax = v.range[3];
-        s.autox_state.views[k].zoom = v.zoom;
-        s.autox_state.views[k].name=v.name;
-        s.autox_state.views[k].hidden=v.hidden;
+        s.autox_state->views[k].zoom = v.zoom;
+        s.autox_state->views[k].name=v.name;
+        s.autox_state->views[k].hidden=v.hidden;
     }
-    s.autox_state.active_view = saved.active;
+    s.autox_state->active_view = saved.active;
 }
 
 } // namespace
@@ -131,7 +132,7 @@ Members members_read(const Session &s, const std::map<std::string, std::string> 
         raise(xpp::fail("session autoX", xpp::format("its {} is missing", named(prefix, diagram ? solutions_member : diagram_member)), Place{name}));
     std::deque<DIAGRAM> points;
     if (diagram) {
-        if (const Result<> checked = check_autox_solutions(text(solutions_member), file(solutions_member), AutoxState::state_copies*s.model().node, s.autox_state.parameter_layout.size(),false,
+        if (const Result<> checked = check_autox_solutions(text(solutions_member), file(solutions_member), AutoxState::state_copies*s.model().node, s.autox_state->parameter_layout.size(),false,
             2*s.model().node+2); !checked)
             raise(checked);
         Result<std::deque<DIAGRAM>> read = parse_diagram_csv(text(diagram_member), s.model().node, s.model().nupar, file(diagram_member));
@@ -163,8 +164,8 @@ Result<> restore_members(Session &s, Members m)
         xpp::Writer w = xpp::Writer::binary(solutions_path);
         if (!w || !w.write(m.solutions) || !w.commit())
             return xpp::fail("session autoX", "autoX's restart solutions cannot be written", Place{solutions_path});
-        s.autox_state.solutions_index.reset(); /* the file is another one */
-        if (!s.autox_state.bifur.exist) do_autox_win(s);
+        s.autox_state->solutions_index.reset(); /* the file is another one */
+        if (!s.autox_state->bifur.exist) do_autox_win(s);
     }
     std::string why;
     autox_settings_apply(s, m.settings, why); /* members_read checked it */
@@ -172,7 +173,7 @@ Result<> restore_members(Session &s, Members m)
     if (!m.points.empty()) diagram_restore(s, std::move(m.points));
     // Foreign XPPAUT imports hold one active axis record, with no saved view list.
     if (!m.views.views.empty()) restore_views(s, m.views);
-    if (s.autox_state.bifur.exist) redraw_diagram(s);
+    if (s.autox_state->bifur.exist) redraw_diagram(s);
     return {};
 }
 

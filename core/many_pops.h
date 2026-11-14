@@ -69,6 +69,23 @@ void create_a_pop(Session &s, std::string_view name = {});
 void make_active(Session &s, int i, int flag);
 int graph_of(const Session &s, XppWinId w);
 void check_windows(Session &s);
+/* f() on the active plot window of s, or under Simulplot on each open one
+   in turn (made active with make_active(s, i, flag)), the active one made
+   active again after */
+template <class F>
+void for_each_shown_window(auto &s, int flag, F f) /* s is a Session, incomplete here: read where it is complete */
+{
+    if (s.plot_windows->simul == 0) {
+        f();
+        return;
+    }
+    const int ic = s.plot_windows->active;
+    for (int i = 0; i < s.plot_windows->count; i++) {
+        make_active(s, s.plot_windows->open[i], flag);
+        f();
+    }
+    make_active(s, ic, flag);
+}
 /* s's active plot window blanked, its axes drawn again */
 void clr_scrn(Session &s);
 /* Clear plot (window.clear, the key E): the windows a command draws on (every open one under Simulplot)

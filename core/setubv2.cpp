@@ -3,6 +3,7 @@
 #include <cstring>
 #include "autox_c.h"
 #include "session.h"
+#include "autox_state.h"
 #include "xpp_job.h" /* xppautX: cancel */
 
 namespace {

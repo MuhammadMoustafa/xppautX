@@ -48,14 +48,14 @@ struct MarkInfo {
     double size = MARKER_SIZE_DEFAULT;
 };
 
-typedef struct {
+struct GROB {
   float xs,ys,xe,ye;
   double size;
   int id;
   XppWinId w;
   int type;
   Color color;
-} GROB;
+};
 
 /* the glyph of marker shape 0..MARKER_SHAPE_COUNT-1 (marker_shape_names): its
    polylines in glyph units, y up, centred on the marker's position, a unit

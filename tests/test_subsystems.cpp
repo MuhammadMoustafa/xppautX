@@ -6,6 +6,7 @@
 #include "xpptest.h"
 #include "model.h"
 #include "session.h"
+#include "load_eqn.h"
 #include "expr_native.h"
 #include "numerics_settings.h"
 #include "xpp_batch.h"
@@ -56,13 +57,13 @@ void check_models()
     /* a Poincare stop on x: two subsystems by the equations, one when the split is by the run (W433) */
     load("tools/models/subsystems_stop.odex");
     xpp::Session &stop = xpp::client_session();
-    CHECK((stop.model().subsystems == Blocks{{0}, {1}}) && stop.numerics.subsystem_split == xpp::SubsystemSplit::equations);
+    CHECK((stop.model().subsystems == Blocks{{0}, {1}}) && stop.numerics->subsystem_split == xpp::SubsystemSplit::equations);
     CHECK(xpp::has_subsystems(stop) && xpp::run_joined_by(stop).empty());
-    stop.numerics.subsystem_split = xpp::SubsystemSplit::run;
+    stop.numerics->subsystem_split = xpp::SubsystemSplit::run;
     CHECK(!xpp::has_subsystems(stop) && xpp::run_joined_by(stop) == "a Poincare stop");
     CHECK(stop.model().subsystems == (Blocks{{0}, {1}})); /* the solvers keep the equations' split */
     load("tools/models/subsystems_stop_run.odex");
-    CHECK(xpp::client_session().numerics.subsystem_split == xpp::SubsystemSplit::run && !xpp::has_subsystems(xpp::client_session()));
+    CHECK(xpp::client_session().numerics->subsystem_split == xpp::SubsystemSplit::run && !xpp::has_subsystems(xpp::client_session()));
     /* a delay */
     const xpp::Model &delayed = load("examples/ode/delay.odex");
     CHECK(delayed.subsystem_joined_by == "delays" && delayed.subsystems.empty());

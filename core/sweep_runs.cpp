@@ -1,5 +1,9 @@
 #include "sweep_runs.h"
 #include "session.h"
+#include "aniparse.h"
+#include "expr.h"
+#include "integrate.h"
+#include "load_eqn.h"
 #include "my_rhs.h"
 #include "solver.h"
 #include "storage.h"
@@ -22,9 +26,9 @@ namespace xpp {
 std::string sweep_serial_reason(const Session &s)
 {
     if (!s.model().rhs_impurity.empty()) return "the model's right-hand side is not pure: " + s.model().rhs_impurity;
-    if (s.integrator.rhs.function != my_rhs) return "the right-hand side is not the model's own";
-    if (s.integrator.steady) return "an unchanged-digits run is on";
-    if (s.animation.options.on_the_fly) return "the animation draws as the runs go (on_the_fly)";
+    if (s.integrator->rhs.function != my_rhs) return "the right-hand side is not the model's own";
+    if (s.integrator->steady) return "an unchanged-digits run is on";
+    if (s.animation->options.on_the_fly) return "the animation draws as the runs go (on_the_fly)";
     if (job::stop_armed()) return "a replayed recording stops this sweep at a row, which runs side by side cannot reach";
     if (recording_in_progress()) return "a recording is being made, and a Stop is replayed at a row, which runs side by side cannot reach";
     return {};
@@ -41,21 +45,21 @@ std::unique_ptr<Session> make_sweep_worker(Session &s, int rows)
     try {
         auto worker = std::make_unique<Session>(s.model());
         Session &w = *worker;
-        w.numerics = s.numerics;
+        *w.numerics = *s.numerics;
         w.parser = s.parser;
         w.itor = s.itor;
         w.last_ic = s.last_ic;
         w.tables = s.tables;
         w.ntable = s.ntable;
         w.random = s.random;
-        w.integrator.flags = s.integrator.flags;
-        w.integrator.range_flag = s.integrator.range_flag;
-        w.integrator.suppress_bounds = s.integrator.suppress_bounds;
-        w.integrator.rhs = RightHandSide{my_rhs, &w};
-        w.integrator.on_worker = true;
+        w.integrator->flags = s.integrator->flags;
+        w.integrator->range_flag = s.integrator->range_flag;
+        w.integrator->suppress_bounds = s.integrator->suppress_bounds;
+        w.integrator->rhs = RightHandSide{my_rhs, &w};
+        w.integrator->on_worker = true;
         init_alloc_info(w);
-        w.data_store.allocate(rows, s.model().neq + 1, s.numerics.storage_precision);
-        w.data_store.current_time = s.data_store.current_time;
+        w.data_store->allocate(rows, s.model().neq + 1, s.numerics->storage_precision);
+        w.data_store->current_time = s.data_store->current_time;
         start_solver(w);
         return worker;
     } catch (const std::bad_alloc &) {

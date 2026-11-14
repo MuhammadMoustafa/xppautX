@@ -3,6 +3,8 @@
 #include "expr_native.h"
 #include "expr_program.h"
 #include "session.h"
+#include "expr.h"
+#include "load_eqn.h"
 #include "model_files.h"
 #include "xpp_batch.h"
 #include "xpp_log.h"
@@ -108,10 +110,10 @@ void same_rhs(xpp::Session &s)
         const auto native_variables=s.parser.variables;
         const auto native_constants=s.parser.constants;
         const std::string native_random=s.random.save();
-        s.numerics.compile=false;
+        s.numerics->compile=false;
         CHECK(compile_model(s).has_value());
         run(ydot);
-        s.numerics.compile=true;
+        s.numerics->compile=true;
         CHECK(compile_model(s).has_value());
         CHECK(same(native_variables,s.parser.variables));
         CHECK(same(native_constants,s.parser.constants));
@@ -314,12 +316,12 @@ TEST_CASE("test_compile")
     CHECK(!m.native_build && m.native_program && m.programs[1].native!=nullptr);
     CHECK(xpp::translate_model(s).has_value() && m.native_build && !m.native_program);
     CHECK(xpp::native_ready(s)==m.rhs_impurity.empty() && !m.native_build && m.native_program);
-    s.numerics.compile=false;
+    s.numerics->compile=false;
     m.programs[0].rpn=number(0.1);
     CHECK(compile_model(s).has_value());
     CHECK(!m.native_program);
     CHECK(xpp::evaluate(s,m.programs[0])==0.1);
-    s.numerics.compile=true;
+    s.numerics->compile=true;
     CHECK(compile_model(s).has_value());
     /* z0 to z3 as fixed variables and x' after them, compiled as one function (W468,
        W469): a math call is made once across them, except across what changes its argument (a fixed variable

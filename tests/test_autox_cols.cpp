@@ -5,6 +5,7 @@
    only the heading slides. */
 #include "xpptest.h"
 #include "session.h"
+#include "autox_state.h"
 #include "autox_nox.h"
 #include "autox_c.h"
 #include "model.h"
@@ -23,7 +24,7 @@ static void load_model(void)
     xpp::client_session().model().uvar_names[1] = "w";
     xpp::client_session().model().node = xpp::client_session().model().neq = 2;
     xpp::client_session().model().nupar = 3;
-    xpp::client_session().autox_state.parameter_layout.model_parameters=3;
+    xpp::client_session().autox_state->parameter_layout.model_parameters=3;
 }
 
 TEST_CASE("test_autox_cols")
@@ -32,11 +33,11 @@ TEST_CASE("test_autox_cols")
     load_model();
 
     /* a parameter column becomes the parameter's name */
-    out = autox_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().autox_state.parameter_layout.solver_index(1)));
+    out = autox_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().autox_state->parameter_layout.solver_index(1)));
     CHECK(out.size() == autox_column_width);
     CHECK(out.find("gca") != std::string::npos);
 
-    out = autox_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().autox_state.parameter_layout.solver_index(0)));
+    out = autox_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().autox_state->parameter_layout.solver_index(0)));
     CHECK_STR(out.c_str(), "     iapp     ");
 
     /* a variable column, with and without the prefix autoX puts in front */

@@ -1,4 +1,5 @@
 #include "my_rhs.h"
+#include "integrate.h"
 #include "expr.h"
 #include "dae_fun.h"
 #include <stdlib.h> 
@@ -98,7 +99,7 @@ int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
 
 bool pure_rhs_ready(const xpp::Session &s)
 {
-  return s.model().rhs_impurity.empty() && !s.model().native_build && s.integrator.rhs.function==my_rhs;
+  return s.model().rhs_impurity.empty() && !s.model().native_build && s.integrator->rhs.function==my_rhs;
 }
 
 void pure_rhs(const xpp::Session &s, const double *y, double *ydot, double *c, double *v)

@@ -2,6 +2,11 @@
 #include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
+#include "autox_state.h"
+#include "delay_handle.h"
+#include "expr.h"
+#include "load_eqn.h"
+#include "storage.h"
 #include "xpp_batch.h"
 #include "xpp_ui.h"
 #include "xpp_globals.h"
@@ -37,41 +42,41 @@ TEST_CASE("test_input_bounds")
     test_ui.typed_form=[](std::string_view,std::span<xpp::FormField>){return 1;};
     test_ui.err_msg=[](const xpp::Error &e){CHECK(e.where=="storage");};
     xpp::set_ui(&test_ui);
-    s.integrator.eq_range.item="a";
-    s.integrator.eq_range.steps=9;
-    s.integrator.eq_range.plow=1;
-    s.integrator.eq_range.phigh=10;
-    s.integrator.eq_range.shoot=0;
-    s.integrator.eq_range.mc=0;
-    s.integrator.eq_range.movie=0;
+    s.integrator->eq_range.item="a";
+    s.integrator->eq_range.steps=9;
+    s.integrator->eq_range.plow=1;
+    s.integrator->eq_range.phigh=10;
+    s.integrator->eq_range.shoot=0;
+    s.integrator->eq_range.mc=0;
+    s.integrator->eq_range.movie=0;
     for(bool fail:{false,true}){
-        s.data_store.allocate(2,s.model().neq+1,s.numerics.storage_precision);
+        s.data_store->allocate(2,s.model().neq+1,s.numerics->storage_precision);
         fail_growth(fail);
-        s.data_store.current[0]=1;
+        s.data_store->current[0]=1;
         const auto result=xpp::equilibrium_range(s);
         CHECK(result.has_value()!=fail);
         if(result)CHECK(*result==10);
-        CHECK(s.data_store.rows==(fail?2:10));
-        CHECK(s.data_store.col[0][0]==1 && s.data_store.col[0][1]==2);
-        if(!fail)CHECK(s.data_store.col[0][9]==10);
+        CHECK(s.data_store->rows==(fail?2:10));
+        CHECK(s.data_store->col[0][0]==1 && s.data_store->col[0][1]==2);
+        if(!fail)CHECK(s.data_store->col[0][9]==10);
     }
     fail_growth(false);
-    s.shoot_range.item="a";
-    s.shoot_range.steps=9;
-    s.shoot_range.plow=1;
-    s.shoot_range.phigh=10;
+    s.shoot_range->item="a";
+    s.shoot_range->steps=9;
+    s.shoot_range->plow=1;
+    s.shoot_range->phigh=10;
     CHECK(xpp::compile_bvp(s).has_value());
-    s.numerics.storflag=false;
+    s.numerics->storflag=false;
     for(bool fail:{false,true}){
-        s.data_store.allocate(2,s.model().neq+1,s.numerics.storage_precision);
+        s.data_store->allocate(2,s.model().neq+1,s.numerics->storage_precision);
         fail_growth(fail);
         double start=1,end=1;
         const xpp::Result<int> swept=xpp::do_sh_range(s,&start,&end);
         CHECK(swept.has_value()==!fail);
         CHECK(fail?(!swept&&swept.error().where=="storage"):*swept==10);
-        CHECK(s.data_store.rows==(fail?2:10));
-        CHECK(s.data_store.col[0][0]==1 && s.data_store.col[0][1]==2);
-        if(!fail)CHECK(s.data_store.col[0][9]==10);
+        CHECK(s.data_store->rows==(fail?2:10));
+        CHECK(s.data_store->col[0][0]==1 && s.data_store->col[0][1]==2);
+        if(!fail)CHECK(s.data_store->col[0][9]==10);
     }
     fail_growth(false);
     xpp::set_ui(&saved_ui);
@@ -104,7 +109,7 @@ TEST_CASE("test_input_bounds")
     CHECK(&xpp::client_session()==&s);
     CHECK(xpp::alloc_delay(s,1).has_value());
     double history=3;
-    for(std::size_t i=0;i<s.delay.rows+1;++i)xpp::stor_delay(s,&history);
+    for(std::size_t i=0;i<s.delay->rows+1;++i)xpp::stor_delay(s,&history);
     CHECK(xpp::get_delay(s,0,0)==3);
 
     CHECK(xpp::size_product(65536,65536)==4294967296ULL);

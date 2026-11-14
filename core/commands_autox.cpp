@@ -13,6 +13,9 @@
 #include "json_error.h"
 #include "many_pops.h"
 #include "session.h"
+#include "autox_state.h"
+#include "display_state.h"
+#include "storage.h"
 #include "xpp_cpu.h"
 #include "xpp_io.h"
 #include "xpp_job.h"
@@ -38,7 +41,7 @@ constexpr const char *LABEL_KEY = "label";
 
 Result<std::string> need_open(const Session &s, const Command &command, const Place &place)
 {
-    if (!s.autox_state.bifur.exist)
+    if (!s.autox_state->bifur.exist)
         return fail(command.name, "autoX is not open: open it first (autox.open, File > autoX continuation)", place);
     return std::string();
 }
@@ -48,7 +51,7 @@ Result<int> target_view(Session &s, const Command &command, const Arguments &arg
 {
     if (const Result<std::string> open = need_open(s, command, place); !open) return std::unexpected<Error>(open.error());
     const std::optional<std::string> name = args.optional<std::string>(key);
-    if (!name) return s.autox_state.active_view;
+    if (!name) return s.autox_state->active_view;
     const auto target = find_window(s, *name);
     if (!target || target->kind != WindowKind::diagram)
         return fail(command.name, xpp::format("\"{}\" is not an autoX view (a diagram window)", *name), place);
@@ -58,9 +61,9 @@ Result<int> target_view(Session &s, const Command &command, const Arguments &arg
 /* the active view's ranges as the result of a view command */
 std::string view_result(const Session &s)
 {
-    const AUTOAX &a = s.autox_state.axes();
+    const AUTOAX &a = s.autox_state->axes();
     return xpp::format("{{\"window\":{},\"x_range\":[{},{}],\"y_range\":[{},{}]}}",
-                       [&] { std::string name; json_append_string(name, s.autox_state.views[static_cast<std::size_t>(s.autox_state.active_view)].name); return name; }(),
+                       [&] { std::string name; json_append_string(name, s.autox_state->views[static_cast<std::size_t>(s.autox_state->active_view)].name); return name; }(),
                        xpp::number(a.xmin), xpp::number(a.xmax), xpp::number(a.ymin), xpp::number(a.ymax));
 }
 
@@ -207,7 +210,7 @@ Result<std::string> configure_preferences(Session &s, const Command &command, co
 Result<std::string> open_autox(Session &s, const Command &, const Arguments &, const Place &)
 {
     do_autox_win(s);
-    return xpp::format("{{\"open\":{}}}", s.autox_state.bifur.exist != 0);
+    return xpp::format("{{\"open\":{}}}", s.autox_state->bifur.exist != 0);
 }
 
 Result<std::string> run_autox(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -228,10 +231,10 @@ Result<std::string> run_autox(Session &s, const Command &command, const Argument
     }
     request.from_point=point!=nullptr;
     request.replace_diagram = args.optional<bool>("replace_diagram").value_or(false);
-    if (!request.from_point && request.kind == AutoxRunKind::equilibrium && diagram_count(s.diagram) > 1 && !args.has("replace_diagram"))
-        return fail(command.name, xpp::format("The diagram holds {} points: say replace_diagram true to begin it again, false to add this run to it", diagram_count(s.diagram)), place);
+    if (!request.from_point && request.kind == AutoxRunKind::equilibrium && diagram_count(*s.diagram) > 1 && !args.has("replace_diagram"))
+        return fail(command.name, xpp::format("The diagram holds {} points: say replace_diagram true to begin it again, false to add this run to it", diagram_count(*s.diagram)), place);
     if (args.has("unstable_dimension") || args.has("stable_dimension") || args.has("left_equilibrium") || args.has("right_equilibrium")) {
-        HomoclinicStart start{s.autox_state.homo_equilibria.nunstab, s.autox_state.homo_equilibria.nstab, s.autox_state.homo_l, s.autox_state.homo_r};
+        HomoclinicStart start{s.autox_state->homo_equilibria.nunstab, s.autox_state->homo_equilibria.nstab, s.autox_state->homo_l, s.autox_state->homo_r};
         if (const auto v = args.optional<long long>("unstable_dimension")) start.unstable = static_cast<int>(*v);
         if (const auto v = args.optional<long long>("stable_dimension")) start.stable = static_cast<int>(*v);
         if (args.has("left_equilibrium")) start.left = args.list<double>("left_equilibrium");
@@ -248,14 +251,14 @@ Result<std::string> run_autox(Session &s, const Command &command, const Argument
     if(args.has("decimals")){
         const SteadyStateSettings settle{static_cast<int>(args.get<long long>("decimals")),args.get<double>("hold"),args.get<double>("maximum")};
         if(const auto settled=run_to_steady_state(s,settle); !settled)return std::unexpected<Error>(settled.error());
-        set_initial_data(s,std::span<const double>(s.data_store.current.data(),static_cast<std::size_t>(s.model().node)));
+        set_initial_data(s,std::span<const double>(s.data_store->current.data(),static_cast<std::size_t>(s.model().node)));
     }
     if(point)autox_grab_label(s,point->lab);
     const AutoxSettingsSet before = autox_settings_now(s);
     const bool any = std::find(given.has_num.begin(), given.has_num.end(), 1) != given.has_num.end();
     if (any)
         if (const Result<> done = apply_settings(s, command, given, place); !done) return std::unexpected<Error>(done.error());
-    const int before_points = s.autox_state.diag_flag ? diagram_count(s.diagram) : 0;
+    const int before_points = s.autox_state->diag_flag ? diagram_count(*s.diagram) : 0;
     const Result<> ran = autox_run_start(s, request);
     if (any) {
         AutoxSettingsSet restore;
@@ -269,10 +272,10 @@ Result<std::string> run_autox(Session &s, const Command &command, const Argument
     }
     if (!ran) return std::unexpected<Error>(as_command_error(command, ran.error(), place));
     const int first = request.replace_diagram && !request.from_point ? 0 : before_points;
-    const int after_points = s.autox_state.diag_flag ? diagram_count(s.diagram) : 0;
+    const int after_points = s.autox_state->diag_flag ? diagram_count(*s.diagram) : 0;
     std::vector<int> branches;
     for (int i = first; i < after_points; ++i) {
-        const int branch = std::abs(s.diagram.points[static_cast<std::size_t>(i)].ibr);
+        const int branch = std::abs(s.diagram->points[static_cast<std::size_t>(i)].ibr);
         if (std::find(branches.begin(), branches.end(), branch) == branches.end()) branches.push_back(branch);
     }
     return xpp::format("{{\"points_computed\":{},\"branches_tracked\":{}}}", std::max(0, after_points - first), branches.size());
@@ -282,8 +285,8 @@ Result<std::string> run_autox(Session &s, const Command &command, const Argument
 
 Result<const AutoxScript *> need_script(const Session &s, const Command &command, const Place &place)
 {
-    if (!s.autox_state.script.script) return fail(command.name, "no autoX script is open: open an .autox file (File > Open model, or on the command line)", place);
-    return &*s.autox_state.script.script;
+    if (!s.autox_state->script.script) return fail(command.name, "no autoX script is open: open an .autox file (File > Open model, or on the command line)", place);
+    return &*s.autox_state->script.script;
 }
 
 /* the open script's file and model, each run's name and which of them have run (the runs' points are in the diagram) */
@@ -291,7 +294,7 @@ Result<std::string> script_runs(Session &s, const Command &command, const Argume
 {
     const Result<const AutoxScript *> script = need_script(s, command, place);
     if (!script) return std::unexpected<Error>(script.error());
-    const AutoxScriptState &state = s.autox_state.script;
+    const AutoxScriptState &state = s.autox_state->script;
     std::string runs = "[", completed = "[";
     for (std::size_t i = 0; i < (*script)->runs.size(); ++i) {
         json_append_string(runs, (*script)->runs[i].name);
@@ -313,7 +316,7 @@ Result<std::pair<std::string, int>> script_start(const Session &s, const AutoxSc
 {
     const AutoxScriptStart &from = *run.from;
     const std::size_t source = static_cast<std::size_t>(std::ranges::find(script.runs, from.run, &AutoxScriptRun::name) - script.runs.begin());
-    const AutoxScriptState &state = s.autox_state.script;
+    const AutoxScriptState &state = s.autox_state->script;
     if (!autox_script_run_done(state, source))
         return fail(command.name, xpp::format("run \"{}\" starts from run \"{}\", which has not run (or whose points a new diagram dropped): run it first", run.name, from.run), run.place);
     const AutoxScriptPoints &points = *state.points[source];
@@ -336,7 +339,7 @@ Result<std::string> run_script(Session &s, const Command &command, const Argumen
         first = static_cast<std::size_t>(at - script.runs.begin());
         last = first + 1;
     }
-    if (!s.autox_state.bifur.exist) do_autox_win(s);
+    if (!s.autox_state->bifur.exist) do_autox_win(s);
     long long computed = 0;
     std::size_t completed = 0;
     for (std::size_t i = first; i < last; ++i) {
@@ -358,13 +361,13 @@ Result<std::string> run_script(Session &s, const Command &command, const Argumen
         };
         if (const std::string axes = autox_script_axes_command(run); !axes.empty())
             if (const Result<> set = go(axes); !set) return std::unexpected<Error>(set.error());
-        const int before = s.autox_state.diag_flag ? diagram_count(s.diagram) : 0;
+        const int before = s.autox_state->diag_flag ? diagram_count(*s.diagram) : 0;
         if (const Result<> ran = go(autox_script_command(run, start.first, start.second)); !ran) return std::unexpected<Error>(ran.error());
-        const int after = s.autox_state.diag_flag ? diagram_count(s.diagram) : 0;
+        const int after = s.autox_state->diag_flag ? diagram_count(*s.diagram) : 0;
         /* a new diagram (start_diagram) dropped every earlier run's points: points is sized again, none done but this run */
         const int begins = run.replaces && !run.from ? 0 : before;
-        s.autox_state.script.points.resize(script.runs.size());
-        s.autox_state.script.points[i] = AutoxScriptPoints{begins, after};
+        s.autox_state->script.points.resize(script.runs.size());
+        s.autox_state->script.points[i] = AutoxScriptPoints{begins, after};
         computed += std::max(0, after - begins);
         ++completed;
     }
@@ -384,7 +387,7 @@ Result<std::string> grab_point(Session &s, const Command &command, const Argumen
         if (!autox_grab_type_index(s, *kind, static_cast<int>(index))) return fail(command.name, xpp::format("Grab: no {} point number {}", type, index), place);
     }
     if (!args.has(LABEL_KEY) && !args.has("type")) autox_grab(s);
-    const GRABPT &g = s.autox_state.grabpt;
+    const GRABPT &g = s.autox_state->grabpt;
     std::string result = xpp::format("{{\"grabbed\":true,\"label\":{},\"type\":", g.lab);
     json_append_string(result, autox_point_kind_name(g.itp.kind));
     return result + xpp::format(",\"branch\":{},\"point\":{}}}", std::abs(g.ibr), 0);
@@ -393,7 +396,7 @@ Result<std::string> grab_point(Session &s, const Command &command, const Argumen
 Result<std::string> clear_grab(Session &s, const Command &command, const Arguments &, const Place &place)
 {
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
-    s.autox_state.grabpt.flag = 0;
+    s.autox_state->grabpt.flag = 0;
     return "{\"cleared\":true}";
 }
 
@@ -404,7 +407,7 @@ Result<std::string> hide_earlier(Session &s, const Command &command, const Argum
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
     autox_hide_earlier(s);
     redraw_diagram(s); /* clearing blanks the picture: its points are sent again, the earlier ones marked */
-    return xpp::format("{{\"hidden_points\":{}}}", s.autox_view.earlier);
+    return xpp::format("{{\"hidden_points\":{}}}", s.autox_view->earlier);
 }
 
 Result<std::string> redraw(Session &s, const Command &command, const Arguments &, const Place &place)
@@ -447,19 +450,19 @@ Result<std::string> set_display(Session &s, const Command &command, const Argume
     const Result<int> view = target_view(s, command, args, place);
     if (!view) return std::unexpected<Error>(view.error());
     autox_activate_view(s, *view);
-    Zoom zoom = s.autox_state.views[static_cast<std::size_t>(*view)].zoom;
+    Zoom zoom = s.autox_state->views[static_cast<std::size_t>(*view)].zoom;
     if (*x) zoom.x = **x;
     if (*y) zoom.y = **y;
-    s.autox_state.views[static_cast<std::size_t>(*view)].zoom = zoom;
-    if (const auto show = args.optional<bool>("show_earlier")) s.autox_view.show_earlier = *show && s.autox_view.earlier > 0;
-    const AutoxDiagramView &shown = s.autox_state.views[static_cast<std::size_t>(*view)];
+    s.autox_state->views[static_cast<std::size_t>(*view)].zoom = zoom;
+    if (const auto show = args.optional<bool>("show_earlier")) s.autox_view->show_earlier = *show && s.autox_view->earlier > 0;
+    const AutoxDiagramView &shown = s.autox_state->views[static_cast<std::size_t>(*view)];
     const auto range_text = [](const AxisRange &r) { return r.set ? xpp::format("[{},{}]", xpp::number(r.lo), xpp::number(r.hi)) : std::string("[]"); };
     return xpp::format("{{\"x_range\":{},\"y_range\":{}}}", range_text(shown.zoom.x), range_text(shown.zoom.y));
 }
 
 Result<std::string> new_view(Session &s, const Command &, const Arguments &, const Place &)
 {
-    if (!s.autox_state.bifur.exist) do_autox_win(s);
+    if (!s.autox_state->bifur.exist) do_autox_win(s);
     else autox_new_view(s);
     return view_result(s);
 }
@@ -564,7 +567,7 @@ Result<std::string> export_file(Session &s, const Command &command, const Argume
 
 Result<std::string> export_points(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
-    return export_file(s, command, args, place, "diagram", ".dat", [&](const std::string &f) { return write_pts(s, f); }, "points_written", diagram_count(s.diagram));
+    return export_file(s, command, args, place, "diagram", ".dat", [&](const std::string &f) { return write_pts(s, f); }, "points_written", diagram_count(*s.diagram));
 }
 
 Result<std::string> export_all_info(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -579,7 +582,7 @@ Result<std::string> export_initial_data(Session &s, const Command &command, cons
 
 Result<std::string> export_csv(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
-    return export_file(s, command, args, place, "diagram", ".csv", [&](const std::string &f) { return export_autox_csv(s, f); }, "points_written", diagram_count(s.diagram));
+    return export_file(s, command, args, place, "diagram", ".csv", [&](const std::string &f) { return export_autox_csv(s, f); }, "points_written", diagram_count(*s.diagram));
 }
 
 Result<std::string> export_picture(Session &s, const Command &command, const Arguments &args, const Place &place, int format, const char *extension)
@@ -606,7 +609,7 @@ Result<std::string> import_diagram(Session &s, const Command &command, const Arg
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
     const std::string &file = args.get<std::string>(FILE_KEY);
     if (const Result<> done = import_autox(s, file); !done) return std::unexpected<Error>(as_command_error(command, done.error(), place));
-    return file_result(file, "points_imported", diagram_count(s.diagram));
+    return file_result(file, "points_imported", diagram_count(*s.diagram));
 }
 
 Result<std::string> reset_diagram(Session &s, const Command &command, const Arguments &, const Place &place)
@@ -620,19 +623,19 @@ Result<std::string> reset_diagram(Session &s, const Command &command, const Argu
 Result<std::string> set_auto_redraw(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
-    s.autox_state.redraw = args.get<bool>("enabled");
-    return xpp::format("{{\"auto_redraw\":{}}}", s.autox_state.redraw);
+    s.autox_state->redraw = args.get<bool>("enabled");
+    return xpp::format("{{\"auto_redraw\":{}}}", s.autox_state->redraw);
 }
 
 /* the stretch of a branch the commands below work on: marked as the grab's S and E keys mark it */
 Result<> mark_stretch(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
-    if (diagram_count(s.diagram) < 2) return fail(command.name, "The diagram has no points", place);
+    if (diagram_count(*s.diagram) < 2) return fail(command.name, "The diagram has no points", place);
     const int branch = static_cast<int>(args.get<long long>("branch"));
     const int first = static_cast<int>(args.get<long long>("first_point")), last = static_cast<int>(args.get<long long>("last_point"));
-    if (!diagram_find(s.diagram, branch, first) || !diagram_find(s.diagram, branch, last))
+    if (!diagram_find(*s.diagram, branch, first) || !diagram_find(*s.diagram, branch, last))
         return fail(command.name, xpp::format("Branch {} has no points {} and {}", branch, first, last), place);
-    AutoxDiagramMark &mark = s.autox_state.diagram_mark;
+    AutoxDiagramMark &mark = s.autox_state->diagram_mark;
     mark.state = 2;
     mark.start_branch = mark.end_branch = branch;
     mark.start_point = first;
@@ -645,16 +648,16 @@ Result<std::string> range_branch(Session &s, const Command &command, const Argum
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
     if (const Result<> marked = mark_stretch(s, command, args, place); !marked) return std::unexpected<Error>(marked.error());
     do_autox_range(s);
-    return xpp::format("{{\"runs_completed\":{}}}", std::abs(std::abs(s.autox_state.diagram_mark.end_point) - std::abs(s.autox_state.diagram_mark.start_point)) + 1);
+    return xpp::format("{{\"runs_completed\":{}}}", std::abs(std::abs(s.autox_state->diagram_mark.end_point) - std::abs(s.autox_state->diagram_mark.start_point)) + 1);
 }
 
 Result<std::string> load_branch_into_data(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
     if (const Result<> marked = mark_stretch(s, command, args, place); !marked) return std::unexpected<Error>(marked.error());
-    const AutoxDiagramMark &mark = s.autox_state.diagram_mark;
+    const AutoxDiagramMark &mark = s.autox_state->diagram_mark;
     if (const Result<> loaded = load_data_with_branch(s, mark.start_branch, mark.start_point, mark.end_point); !loaded) return std::unexpected<Error>(loaded.error());
-    return xpp::format("{{\"rows_loaded\":{}}}", s.data_store.rows);
+    return xpp::format("{{\"rows_loaded\":{}}}", s.data_store->rows);
 }
 
 Result<std::string> load_orbit_into_data(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -663,13 +666,13 @@ Result<std::string> load_orbit_into_data(Session &s, const Command &command, con
     const std::optional<long long> label = args.optional<long long>(LABEL_KEY);
     if (const Result<> done = load_autox_orbit(s, label ? std::optional<int>(static_cast<int>(*label)) : std::nullopt); !done)
         return std::unexpected<Error>(as_command_error(command, done.error(), place));
-    return xpp::format("{{\"orbit_loaded\":true,\"rows\":{}}}", s.data_store.rows);
+    return xpp::format("{{\"orbit_loaded\":true,\"rows\":{}}}", s.data_store->rows);
 }
 
 Result<std::string> select_two_parameter_point(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
-    if (s.autox_state.axes().plot != AutoxProjection::two_parameter) return fail(command.name, "Must be in a two parameter plot", place);
+    if (s.autox_state->axes().plot != AutoxProjection::two_parameter) return fail(command.name, "Must be in a two parameter plot", place);
     if (args.has("x")) autox_point_xy(s, args.get<double>("x"), args.get<double>("y"));
     setautoxpoint(s);
     return "{\"selected\":true}";
@@ -679,7 +682,7 @@ Result<std::string> draw_labeled_orbits(Session &s, const Command &command, cons
 {
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
     const std::string &mode = args.get<std::string>("mode");
-    s.autox_state.load_all_labeled_orbits = mode == "off" ? LabeledOrbits::Off : mode == "draw" ? LabeledOrbits::Draw : LabeledOrbits::ClearAndDraw;
+    s.autox_state->load_all_labeled_orbits = mode == "off" ? LabeledOrbits::Off : mode == "draw" ? LabeledOrbits::Draw : LabeledOrbits::ClearAndDraw;
     return xpp::format("{{\"orbits_drawn\":\"{}\"}}", mode);
 }
 

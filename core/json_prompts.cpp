@@ -18,6 +18,7 @@
 #include "autox_data.h"
 #include "autox_settings.h"
 #include "session.h"
+#include "autox_state.h"
 #include "json_reader.h"
 #include "command_category.h"
 #include <array>
@@ -432,12 +433,12 @@ void answer_point(xpp::Session &s, unsigned long win, int k, int *x, int *y)
         *x = get_int(answer.c_str(), px[k], 0);
         *y = get_int(answer.c_str(), py[k], 0);
     } else if (win == WIN_AUTOX) {
-        *x = data_to_pixel(get_num(answer.c_str(), dx[k], 0), s.autox_state.axes().xmin, s.autox_state.axes().xmax, s.autox_state.bifur.x0, s.autox_state.bifur.x0 + s.autox_state.bifur.wid);
-        *y = data_to_pixel(get_num(answer.c_str(), dy[k], 0), s.autox_state.axes().ymin, s.autox_state.axes().ymax, s.autox_state.bifur.y0 + s.autox_state.bifur.hgt, s.autox_state.bifur.y0);
+        *x = data_to_pixel(get_num(answer.c_str(), dx[k], 0), s.autox_state->axes().xmin, s.autox_state->axes().xmax, s.autox_state->bifur.x0, s.autox_state->bifur.x0 + s.autox_state->bifur.wid);
+        *y = data_to_pixel(get_num(answer.c_str(), dy[k], 0), s.autox_state->axes().ymin, s.autox_state->axes().ymax, s.autox_state->bifur.y0 + s.autox_state->bifur.hgt, s.autox_state->bifur.y0);
     } else {
         get_draw_area(s);
-        *x = data_to_pixel(get_num(answer.c_str(), dx[k], 0), s.plot_windows.current->xlo, s.plot_windows.current->xhi, s.drawing.d_left, s.drawing.d_right);
-        *y = data_to_pixel(get_num(answer.c_str(), dy[k], 0), s.plot_windows.current->ylo, s.plot_windows.current->yhi, s.drawing.d_bottom, s.drawing.d_top);
+        *x = data_to_pixel(get_num(answer.c_str(), dx[k], 0), s.plot_windows->current->xlo, s.plot_windows->current->xhi, s.drawing->d_left, s.drawing->d_right);
+        *y = data_to_pixel(get_num(answer.c_str(), dy[k], 0), s.plot_windows->current->ylo, s.plot_windows->current->yhi, s.drawing->d_bottom, s.drawing->d_top);
     }
 }
 

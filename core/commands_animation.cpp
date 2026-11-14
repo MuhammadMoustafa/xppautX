@@ -18,12 +18,12 @@ namespace {
    MAX_SLOWER_MS (the animation window's buttons: XPPAUT's own steps) */
 constexpr int SPEED_STEP_MS = 2, MAX_SLOWER_MS = 100;
 
-std::string speed_result(const Session &s) { return ResultObject().integer("speed_ms", s.animation.speed).done(); }
+std::string speed_result(const Session &s) { return ResultObject().integer("speed_ms", s.animation->speed).done(); }
 
 Result<std::string> open(Session &s, const Command &, const Arguments &, const Place &)
 {
     new_vcr(s);
-    return ResultObject().boolean("open", s.animation.vcr.iexist == 1).done();
+    return ResultObject().boolean("open", s.animation->vcr.iexist == 1).done();
 }
 
 Result<std::string> load(Session &s, const Command &, const Arguments &args, const Place &)
@@ -31,7 +31,7 @@ Result<std::string> load(Session &s, const Command &, const Arguments &args, con
     const std::string &file = args.get<std::string>("file");
     if (const Result<> loaded = load_chosen_animation(s, file); !loaded) return std::unexpected<Error>(loaded.error());
     ui.ani_slider(s);
-    return ResultObject().text("file", file).boolean("loaded", s.animation.ncom > 0).done();
+    return ResultObject().text("file", file).boolean("loaded", s.animation->ncom > 0).done();
 }
 
 Result<std::string> play(Session &s, const Command &, const Arguments &, const Place &)
@@ -44,14 +44,14 @@ Result<std::string> reset(Session &s, const Command &command, const Arguments &,
 {
     if (const Result<> ready = animation_ready(s, command.name); !ready) return std::unexpected<Error>(ready.error());
     ani_reset(s);
-    return ResultObject().integer("frame", s.animation.vcr.pos).done();
+    return ResultObject().integer("frame", s.animation->vcr.pos).done();
 }
 
 Result<std::string> set_frame_skip(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    s.animation.vcr.inc = static_cast<int>(args.get<long long>("skip"));
+    s.animation->vcr.inc = static_cast<int>(args.get<long long>("skip"));
     ui.ani_slider(s);
-    return ResultObject().integer("skip", s.animation.vcr.inc).done();
+    return ResultObject().integer("skip", s.animation->vcr.inc).done();
 }
 
 Result<std::string> export_frames(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -69,18 +69,18 @@ Result<std::string> export_frames(Session &s, const Command &command, const Argu
 
 Result<std::string> set_live_draw(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    s.animation.options.on_the_fly = args.get<bool>("enabled") ? 1 : 0;
+    s.animation->options.on_the_fly = args.get<bool>("enabled") ? 1 : 0;
     ui.ani_slider(s);
-    return ResultObject().boolean("live_draw", s.animation.options.on_the_fly != 0).done();
+    return ResultObject().boolean("live_draw", s.animation->options.on_the_fly != 0).done();
 }
 
 /* press at (x, y), move to (to_x, to_y) when given, release: what a drag on the picture does */
 Result<std::string> grab_point(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
-    if (s.animation.ncom == 0) return fail(command.name, "No animation is loaded: load one first (animation.load)", place);
-    if (s.animation.grabs.empty()) return fail(command.name, "The animation has no grab points: its file gives none", place);
+    if (s.animation->ncom == 0) return fail(command.name, "No animation is loaded: load one first (animation.load)", place);
+    if (s.animation->grabs.empty()) return fail(command.name, "The animation has no grab points: its file gives none", place);
     if (!args.has("x") && args.has("to_x")) return fail(command.name, "to_x and to_y need x and y", place);
-    if (!s.animation.grab_flag) ani_grab_start(s);
+    if (!s.animation->grab_flag) ani_grab_start(s);
     if (!args.has("x")) {ui.ani_slider(s); return ResultObject().boolean("grabbed", false).done();}
     const double x = args.get<double>("x"), y = args.get<double>("y");
     ani_grab_mouse(s, 1, x, y);
@@ -88,12 +88,12 @@ Result<std::string> grab_point(Session &s, const Command &command, const Argumen
     if (args.has("to_x")) update_ani_motion_stuff(s, to_x, to_y);
     ani_grab_mouse(s, 0, to_x, to_y);
     ui.ani_slider(s);
-    return ResultObject().boolean("grabbed", s.animation.who_was_grabbed >= 0).done();
+    return ResultObject().boolean("grabbed", s.animation->who_was_grabbed >= 0).done();
 }
 
 Result<std::string> set_speed(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    s.animation.speed = static_cast<int>(args.get<long long>("ms"));
+    s.animation->speed = static_cast<int>(args.get<long long>("ms"));
     ui.ani_slider(s);
     return speed_result(s);
 }
@@ -104,7 +104,7 @@ template <class Move> Result<std::string> move_frame(Session &s, const Command &
     if (const Result<> ready = animation_ready(s, command.name); !ready) return std::unexpected<Error>(ready.error());
     move();
     ui.ani_slider(s);
-    return ResultObject().integer("row", s.animation.vcr.pos).done();
+    return ResultObject().integer("row", s.animation->vcr.pos).done();
 }
 
 Result<std::string> step(Session &s, const Command &command, const Arguments &args, const Place &)
@@ -125,14 +125,14 @@ Result<std::string> pause(Session &s, const Command &, const Arguments &, const 
 
 Result<std::string> faster(Session &s, const Command &, const Arguments &, const Place &)
 {
-    s.animation.speed = std::max(0, s.animation.speed - SPEED_STEP_MS);
+    s.animation->speed = std::max(0, s.animation->speed - SPEED_STEP_MS);
     ui.ani_slider(s);
     return speed_result(s);
 }
 
 Result<std::string> slower(Session &s, const Command &, const Arguments &, const Place &)
 {
-    s.animation.speed = std::min(MAX_SLOWER_MS, s.animation.speed + SPEED_STEP_MS);
+    s.animation->speed = std::min(MAX_SLOWER_MS, s.animation->speed + SPEED_STEP_MS);
     ui.ani_slider(s);
     return speed_result(s);
 }

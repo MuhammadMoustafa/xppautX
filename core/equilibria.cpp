@@ -2,6 +2,7 @@
 #include "solver.h"
 #include "xpp_ui.h"
 #include "session.h"
+#include "storage.h"
 #include "odesol2.h"
 #include "browse.h"
 #include "xpp_log.h"
@@ -197,11 +198,11 @@ xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double
  int i;
  xpp::Color oldcol,dummy;
  int pr;
- double oldt=s.numerics.delta_t;
+ double oldt=s.numerics->delta_t;
  char ch;
  Equilibrium q;
- s.manifolds.ic_flag=0;
- s.manifolds.count=0;
+ s.manifolds->ic_flag=0;
+ s.manifolds->count=0;
  auto found=find_equilibrium(s,q,x,eps,err,big,maxit,n,ierr);
  if(!found)return std::unexpected(found.error());
  if(*found==SingStatus::no_root)
@@ -216,9 +217,9 @@ xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double
  int *ipivot=q.ipivot.data();
 /* succesfully computed evals now lets work with them */
 ch='n';
-if(!s.numerics.par_fol)
+if(!s.numerics->par_fol)
 {
- ch=s.numerics.equilibria.print_eigenvalues?'y':'n';
+ ch=s.numerics->equilibria.print_eigenvalues?'y':'n';
  
 }
  pr=0;
@@ -238,13 +239,13 @@ if(!s.numerics.par_fol)
  if(((rp==1)||(rn==1))&&(n>1))
  {
  ch='n';
- if(!s.numerics.par_fol)
+ if(!s.numerics->par_fol)
  {
-  ch=s.numerics.equilibria.draw_invariant_sets?'y':'n';
+  ch=s.numerics->equilibria.draw_invariant_sets?'y':'n';
    }
-  if((ch=='y')||(s.numerics.par_fol&&s.numerics.shoot))
+  if((ch=='y')||(s.numerics->par_fol&&s.numerics->shoot))
   {
-   oldt=s.numerics.delta_t;
+   oldt=s.numerics->delta_t;
   
    if(rp==1)
    {
@@ -253,7 +254,7 @@ if(!s.numerics.par_fol)
      {
      change_current_color(s,s.colors.unstable_manifold,&oldcol);
      pr_evec(s,x,b,n,pr,eval[2*pose],1);
-      s.numerics.delta_t=fabs(s.numerics.delta_t);
+      s.numerics->delta_t=fabs(s.numerics->delta_t);
       failure.keep(shoot(s,bp,x,b,1));
       failure.keep(shoot(s,bp,x,b,-1));
      change_current_color(s,oldcol,&dummy);
@@ -270,7 +271,7 @@ if(!s.numerics.par_fol)
      {
         change_current_color(s,s.colors.stable_manifold,&oldcol);
 	pr_evec(s,x,b,n,pr,eval[2*nege],-1);
-      s.numerics.delta_t=-fabs(s.numerics.delta_t);
+      s.numerics->delta_t=-fabs(s.numerics->delta_t);
       failure.keep(shoot(s,bp,x,b,1));
       failure.keep(shoot(s,bp,x,b,-1));
         change_current_color(s,oldcol,&dummy);
@@ -278,7 +279,7 @@ if(!s.numerics.par_fol)
      else
        failure.keep(evec);
    }
-    s.numerics.delta_t=oldt;
+    s.numerics->delta_t=oldt;
   }
  }  /* end of normal shooting stuff */
 
@@ -287,14 +288,14 @@ if(!s.numerics.par_fol)
  /* lets check to see if it is relevant */
  if(((rn>1)&&(bneg>=0))||((rp>1)&&(bpos>=0))) {
    ch='n';
-   if(!s.numerics.par_fol)
+   if(!s.numerics->par_fol)
      {
-       ch=s.numerics.equilibria.draw_strong_sets?'y':'n';
+       ch=s.numerics->equilibria.draw_strong_sets?'y':'n';
      }
 
-   if((ch=='y')||(s.numerics.par_fol&&s.numerics.shoot))
+   if((ch=='y')||(s.numerics->par_fol&&s.numerics->shoot))
      {
-       oldt=s.numerics.delta_t;
+       oldt=s.numerics->delta_t;
 
 	 if((rp>1)&&(bpos>=0)) /* then there is a strong unstable */
 	 {
@@ -304,7 +305,7 @@ if(!s.numerics.par_fol)
 	     {
 	       change_current_color(s,s.colors.unstable_manifold,&oldcol);
 	       pr_evec(s,x,b,n,pr,bigpos,1);
-	       s.numerics.delta_t=fabs(s.numerics.delta_t);
+	       s.numerics->delta_t=fabs(s.numerics->delta_t);
 	       failure.keep(shoot(s,bp,x,b,1));
 	       failure.keep(shoot(s,bp,x,b,-1));
 	       change_current_color(s,oldcol,&dummy);
@@ -322,7 +323,7 @@ if(!s.numerics.par_fol)
 	     {
 	       change_current_color(s,s.colors.stable_manifold,&oldcol);
 	       pr_evec(s,x,b,n,pr,bigneg,-1);
-	       s.numerics.delta_t=-fabs(s.numerics.delta_t);
+	       s.numerics->delta_t=-fabs(s.numerics->delta_t);
 	       failure.keep(shoot(s,bp,x,b,1));
 	       failure.keep(shoot(s,bp,x,b,-1));
 	       change_current_color(s,oldcol,&dummy);
@@ -332,7 +333,7 @@ if(!s.numerics.par_fol)
 
 	 }
      }
-        s.numerics.delta_t=oldt;
+        s.numerics->delta_t=oldt;
  }
 
  return failure.result();
@@ -340,19 +341,19 @@ if(!s.numerics.par_fol)
 
 Result<> save_batch_shoot(Session &s,std::string_view file,bool confirm)
 {
-  if(s.manifolds.count<1)return {};
-  const double olddt=s.numerics.delta_t;
+  if(s.manifolds->count<1)return {};
+  const double olddt=s.numerics->delta_t;
   /* every branch starts at the saddle's time, as the drawn ones do; the session's clock is put back after */
-  const double begun=s.data_store.current_time;
+  const double begun=s.data_store->current_time;
   const auto result=[&]() -> Result<> {
     std::vector<double> x(s.model().neq);
-    s.numerics.storflag=true;
-    for(int k=0;k<s.manifolds.count;++k){
-      std::copy(s.manifolds.ic[k].begin(),s.manifolds.ic[k].end(),x.begin());
-      if(s.manifolds.type[k]==0)continue;
-      const bool unstable=s.manifolds.type[k]>0;
-      s.numerics.delta_t=unstable?fabs(olddt):-fabs(olddt);
-      s.data_store.current_time=BRANCH_START_TIME;
+    s.numerics->storflag=true;
+    for(int k=0;k<s.manifolds->count;++k){
+      std::copy(s.manifolds->ic[k].begin(),s.manifolds->ic[k].end(),x.begin());
+      if(s.manifolds->type[k]==0)continue;
+      const bool unstable=s.manifolds->type[k]>0;
+      s.numerics->delta_t=unstable?fabs(olddt):-fabs(olddt);
+      s.data_store->current_time=BRANCH_START_TIME;
       const BranchStoreFrom branch(s);
       if(const auto run=integrate_from(s,x.data());!run)return std::unexpected(run.error());
       if(job::cancelled())return {};
@@ -366,8 +367,8 @@ Result<> save_batch_shoot(Session &s,std::string_view file,bool confirm)
     }
     return {};
   }();
-  s.numerics.delta_t=olddt;
-  s.data_store.current_time=begun;
+  s.numerics->delta_t=olddt;
+  s.data_store->current_time=begun;
   return result;
 }
 xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled saddle point stuff to integrate */
@@ -377,35 +378,35 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
   xpp::Color oldcol,dummy;
   double olddt;
   std::vector<double> x(s.model().node);
-  if(s.manifolds.count<1)return {};
-  olddt=s.numerics.delta_t;
+  if(s.manifolds->count<1)return {};
+  olddt=s.numerics->delta_t;
 
-  for(k=0;k<s.manifolds.count;k++){
+  for(k=0;k<s.manifolds->count;k++){
     for(i=0;i<s.model().node;i++)
-      x[i]=s.manifolds.ic[k][i];
+      x[i]=s.manifolds->ic[k][i];
     
-    type=s.manifolds.type[k];
+    type=s.manifolds->type[k];
     if(type>0){
        change_current_color(s,s.colors.unstable_manifold,&oldcol);
-       s.numerics.delta_t=fabs(s.numerics.delta_t);
+       s.numerics->delta_t=fabs(s.numerics->delta_t);
        failure.keep(shoot_easy(s,x.data()));
        change_current_color(s,oldcol,&dummy);
     }
     if(type<0){
       change_current_color(s,s.colors.stable_manifold,&oldcol);
-       s.numerics.delta_t=-fabs(s.numerics.delta_t);
+       s.numerics->delta_t=-fabs(s.numerics->delta_t);
        failure.keep(shoot_easy(s,x.data()));
        change_current_color(s,oldcol,&dummy);
     }
   }
-  s.numerics.delta_t=olddt;
+  s.numerics->delta_t=olddt;
   return failure.result();
 }
 
 xpp::Result<EquilibriumNear> equilibrium_near(const xpp::Session &s, EquilibriumModel &model, std::span<const double> start)
 {
  const int n=static_cast<int>(start.size());
- const auto &eq=s.numerics.equilibria;
+ const auto &eq=s.numerics->equilibria;
  Equilibrium q;
  EquilibriumNear root;
  root.x.assign(start.begin(),start.end());
@@ -428,8 +429,8 @@ xpp::Result<> do_sing_info(xpp::Session &s, double *x, double eps, double err, d
 {
  xpp::FirstError failure; /* report a failed manifold through the calling command */
  Equilibrium q;
- s.manifolds.ic_flag=0;
- s.manifolds.count=0;
+ s.manifolds->ic_flag=0;
+ s.manifolds->count=0;
  auto found=find_equilibrium(s,q,x,eps,err,big,maxit,n,ierr);
  if(!found)return std::unexpected(found.error());
  if(*found!=SingStatus::found)return {};
@@ -464,19 +465,19 @@ void pr_evec(xpp::Session &s, double *x, double *ev, int n, int pr, double eval,
 {
 
  int i;
- double d=fabs(s.numerics.delta_t)*.1;
- s.manifolds.ic_flag=1;
- if(s.manifolds.count<7){
+ double d=fabs(s.numerics->delta_t)*.1;
+ s.manifolds->ic_flag=1;
+ if(s.manifolds->count<7){
    const std::size_t room=static_cast<std::size_t>(std::max(n,s.model().node));
-   s.manifolds.ic[s.manifolds.count].assign(room,0.0);
-   s.manifolds.ic[s.manifolds.count+1].assign(room,0.0);
+   s.manifolds->ic[s.manifolds->count].assign(room,0.0);
+   s.manifolds->ic[s.manifolds->count+1].assign(room,0.0);
    for(i=0;i<n;i++){
-     s.manifolds.ic[s.manifolds.count][i]=x[i]+d*ev[i];
-     s.manifolds.type[s.manifolds.count]=type;
-     s.manifolds.ic[s.manifolds.count+1][i]=x[i]-d*ev[i];
-     s.manifolds.type[s.manifolds.count+1]=type;
+     s.manifolds->ic[s.manifolds->count][i]=x[i]+d*ev[i];
+     s.manifolds->type[s.manifolds->count]=type;
+     s.manifolds->ic[s.manifolds->count+1][i]=x[i]-d*ev[i];
+     s.manifolds->type[s.manifolds->count+1]=type;
    }
-   s.manifolds.count+=2;
+   s.manifolds->count+=2;
  }
  if(pr==0)return;
 }
@@ -670,21 +671,21 @@ class SessionEquilibriumModel final : public EquilibriumModel {
 public:
   SessionEquilibriumModel(Session &s,int n) : s_(s), n_(n) { job::compute_begin(); } /* what Escape stops (xpp_job.h) */
   ~SessionEquilibriumModel() override { job::compute_end(); }
-  void rhs(const double *x,double *f) override { s_.integrator.rhs(0.0,const_cast<double *>(x),f,n_); }
+  void rhs(const double *x,double *f) override { s_.integrator->rhs(0.0,const_cast<double *>(x),f,n_); }
   void jacobian(const double *x,const double *f0,double eps,const JacobianForm &form,double *out) override
   {
     xpp::jacobian(s_,0.0,x,f0,n_,eps,form,out);
   }
-  bool discrete() const override { return xpp::solver_info(s_.numerics.method).traits.discrete; }
+  bool discrete() const override { return xpp::solver_info(s_.numerics->method).traits.discrete; }
   bool stopped() override
   {
     if(!program.interactive)return false;
     const char ch=my_abort();
-    if(ch=='/')s_.numerics.endsing=true;
-    if(ch=='p')s_.numerics.pauser=true;
+    if(ch=='/')s_.numerics->endsing=true;
+    if(ch=='p')s_.numerics->pauser=true;
     return ch==27||ch=='/';
   }
-  bool failed() const override { return s_.integrator.step_error.has_value(); }
+  bool failed() const override { return s_.integrator->step_error.has_value(); }
   Error take_failure() override { return take_step_error(s_).error(); }
 private:
   Session &s_;

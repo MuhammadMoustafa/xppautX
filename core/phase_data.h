@@ -99,7 +99,7 @@ void phase_data_flow_stop(Session &s);
    changed */
 void phase_data_update(Session &s);
 
-/* The recorders below record into s.phase_shown's record of the active
+/* The recorders below record into *s.phase_shown's record of the active
    plot window of s, the one drawn in. */
 
 /* that window now shows these nullclines (nx and ny segments of 4 floats,

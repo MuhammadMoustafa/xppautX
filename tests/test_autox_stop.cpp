@@ -4,6 +4,7 @@
    in and their words. */
 #include "xpptest.h"
 #include "session.h"
+#include "autox_state.h"
 #include "model.h"
 #include "autox_stop.h"
 #include "autox_unknowns.h"
@@ -19,7 +20,7 @@ xpp::AutoxStopAt inside()
     xpp::AutoxStopAt at{};
     at.br = 1;
     at.pt = 7;
-    at.ipar = xpp::client_session().autox_state.parameter_layout.solver_index(0);
+    at.ipar = xpp::client_session().autox_state->parameter_layout.solver_index(0);
     at.par = 0.5;
     at.norm = 1;
     at.rl0 = 0, at.rl1 = 2, at.a0 = 0, at.a1 = 10;
@@ -34,7 +35,7 @@ TEST_CASE("test_autox_stop")
     xpp::client_session().model().size_parameters(1);
     xpp::client_session().model().upar_names[0] = "iapp";
     xpp::client_session().model().nupar = 1;
-    xpp::client_session().autox_state.parameter_layout.model_parameters=1;
+    xpp::client_session().autox_state->parameter_layout.model_parameters=1;
     AutoxRun run;
     run.session = &xpp::client_session();
     xpp::AutoxStop &stop = run.stop;

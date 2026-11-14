@@ -3,6 +3,9 @@
 #include <vector> /* first: autox_f2c.h's min/max macros (pulled in below) break libstdc++ headers if not included first */
 #include "autox_evd.h"
 #include "session.h"
+#include "autox_state.h"
+#include "expr.h"
+#include "load_eqn.h"
 #include <cstdlib>
 #include <math.h>
 #include <stdio.h>
@@ -68,7 +71,7 @@ std::optional<std::string> autox_diagram_full(std::size_t points)
 void autox_check_start_parameters(const iap_type &iap, const rap_type &rap, const double *par, const std::ptrdiff_t *icp)
 {
   const Session &s=*iap.run->session;
-  const int k=s.autox_state.parameter_layout.model_index(static_cast<int>(icp[0]));
+  const int k=s.autox_state->parameter_layout.model_index(static_cast<int>(icp[0]));
   if(k<0)return; // autoX's period is not a model parameter; autoX bounds only the principal parameter.
   const double value=par[icp[0]];
   /* outside or on a bound, a start is refused only when Ds leads away from
@@ -105,7 +108,7 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
   const double start_value=std::abs(residual[worst]);
   if(std::isfinite(start_value) && start_value<=rap.epsu)return;
 
-  const auto &eq=s.numerics.equilibria;
+  const auto &eq=s.numerics->equilibria;
   std::vector<double> start(u,u+n);
   std::vector<double> work(static_cast<std::size_t>(n*n+2*n));
   xpp::NewtonRun newton;
@@ -196,17 +199,17 @@ DiagramPointType get_bif_type(int ibr, int ntot)
 }
 void autox_store_point(Session &s, const DIAGRAM &p, bool new_segment)
 {
-  if(!s.autox_state.diag_flag){
+  if(!s.autox_state->diag_flag){
     edit_start(s,p);
-    s.autox_state.diag_flag=true;
+    s.autox_state->diag_flag=true;
   } else {
     add_diagram(s,p);
   }
-  if(p.from)last_diagram(s.diagram)->from=p.from;
+  if(p.from)last_diagram(*s.diagram)->from=p.from;
 
   /* plotted, and its stability shown, from the stored point, as a redraw
      or a grab shows it */
-  const DIAGRAM *d=last_diagram(s.diagram);
+  const DIAGRAM *d=last_diagram(*s.diagram);
   add_point(s,*d,get_bif_type(p.ibr,p.ntot),new_segment?0:1);
 }
 
@@ -239,7 +242,7 @@ void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t i
     autox_nonfinite(*iap, std::abs(ntots));
 
   AutoxRun &run=*iap->run;
-  if(const auto full=autox_diagram_full(s.diagram.points.size()+run.points.size())){
+  if(const auto full=autox_diagram_full(s.diagram->points.size()+run.points.size())){
     run.run_wide_error=true; /* the whole run is over: the queue stops every job */
     autox_fail(*full);
   }
@@ -255,21 +258,21 @@ void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t i
   p.u0.assign(u0.begin(),u0.end());
   p.ubar.assign(ubar.begin(),ubar.end());
   for(int k=0;k<iap->nfpr;k++){
-    const int parameter=s.autox_state.parameter_layout.model_index(static_cast<int>(icp[k]));
+    const int parameter=s.autox_state->parameter_layout.model_index(static_cast<int>(icp[k]));
     if(parameter>=0){
       p.parameter_indices.push_back(parameter);
       p.par.push_back(par[icp[k]]);
     }
   }
   p.per=per;
-  p.icp1=s.autox_state.parameter_layout.axis(icp1);
-  p.icp2=s.autox_state.parameter_layout.axis(icp2);
-  p.icp3=s.autox_state.parameter_layout.axis(icp3);
-  p.icp4=s.autox_state.parameter_layout.axis(icp4);
-  p.flag2=s.autox_state.two_param;
+  p.icp1=s.autox_state->parameter_layout.axis(icp1);
+  p.icp2=s.autox_state->parameter_layout.axis(icp2);
+  p.icp3=s.autox_state->parameter_layout.axis(icp3);
+  p.icp4=s.autox_state->parameter_layout.axis(icp4);
+  p.flag2=s.autox_state->two_param;
   if (iap->itpst == AutoxPointKind::Hopf && iap->ndim == 2 * iap->ndm + 2)
     p.flag2=autox_hopf_curve_kind(u0[2 * iap->ndm]);
-  p.jacobian=s.numerics.jacobian;
+  p.jacobian=s.numerics->jacobian;
   if(run.job){
     /* a job keeps its points apart until the jobs are joined (autox_jobs.cpp), which draws them as they come in the meantime */
     p.from=from;
@@ -281,7 +284,7 @@ void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t i
     if(run.point_stored)run.point_stored(run.points.size());
     return;
   }
-  diagram_record_branch(s.model(),s.parser.constants,last_diagram(s.diagram),p);
+  diagram_record_branch(s.model(),s.parser.constants,last_diagram(*s.diagram),p);
   p.from=from;
   autox_store_point(s,p,iap->ntot==1);
   xpp::job::report_point(static_cast<int>(std::abs(ibrs)),static_cast<int>(std::abs(ntots))); /* xppautX: where it got to (xpp_job.h) */

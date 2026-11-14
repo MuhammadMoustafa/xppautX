@@ -33,7 +33,7 @@ Result<std::string> bvp_periodic_handler(Session &s, const Command &, const Argu
 
 Result<std::string> bvp_range_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    ShootRange range = s.shoot_range;
+    ShootRange range = *s.shoot_range;
     if (const auto item = args.optional<std::string>("parameter")) range.item = *item;
     if (const auto low = args.optional<double>("start")) range.plow = *low;
     if (const auto high = args.optional<double>("end")) range.phigh = *high;

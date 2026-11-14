@@ -3,6 +3,8 @@
 #include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
+#include "autox_state.h"
+#include "load_eqn.h"
 #include "jacobian.h"
 #include "expr_native.h"
 #include "autox_c.h"
@@ -27,10 +29,10 @@ TEST_CASE("test_autox_hopf") {
     CHECK(load_args(2, argv, 1).has_value());
     auto &s = xpp::client_session();
     CHECK(xpp::ensure_exact_jacobian(s));
-    s.numerics.jacobian = xpp::JACOBIAN_EXACT;
+    s.numerics->jacobian = xpp::JACOBIAN_EXACT;
     AutoxRun run;
     run.session = &s;
-    run.parameter_count = s.autox_state.parameter_layout.size();
+    run.parameter_count = s.autox_state->parameter_layout.size();
     iap_type iap{};
     iap.run = &run;
     iap.ndm = 2;
@@ -40,7 +42,7 @@ TEST_CASE("test_autox_hopf") {
     iap.ips = xpp::AutoxProblem::SteadyState;
     iap.itpst = xpp::AutoxPointKind::Hopf;
     rap_type rap{};
-    std::array<std::ptrdiff_t, 2> icp{s.autox_state.parameter_layout.solver_index(0), s.autox_state.parameter_layout.solver_index(1)};
+    std::array<std::ptrdiff_t, 2> icp{s.autox_state->parameter_layout.solver_index(0), s.autox_state->parameter_layout.solver_index(1)};
     std::vector<double> par(run.parameter_count), dp(6 * run.parameter_count);
     par[icp[0]] = -.25;
     std::array<double, 6> u{-.5, 0., 1., 0., 1., 0.}, old = u, f{}, minus{}, plus{};
@@ -53,7 +55,7 @@ TEST_CASE("test_autox_hopf") {
     CHECK(jac[2 + 4 * 6] == 1 && jac[4 + 2 * 6] == 2);
     CHECK(std::abs(jac[5 + 3 * 6] - 2) < 1e-8); // symmetric phase
     iap.jac = 0;
-    s.numerics.jacobian = xpp::JACOBIAN_DIFFERENCE;
+    s.numerics->jacobian = xpp::JACOBIAN_DIFFERENCE;
     // Independent full central Jacobian at a non-solution, including phase
     // and both parameter derivatives, so zero residuals cannot hide mistakes.
     u = {-.4, .1, .8, .6, 1.2, .15};

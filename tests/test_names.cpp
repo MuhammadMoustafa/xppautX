@@ -5,6 +5,7 @@
    tools/autoxcheck.py's names section, with 200-character names. */
 #include "xpptest.h"
 #include "session.h"
+#include "autox_state.h"
 #include "model.h"
 #include <string>
 #include "expr.h"
@@ -74,8 +75,8 @@ TEST_CASE("test_names")
     xpp::client_session().model().uvar_names[0] = "MEMBRANE_POTENTIAL_FAST_VARIABLE";
     xpp::client_session().model().node = xpp::client_session().model().neq = 1;
     xpp::client_session().model().nupar = 1;
-    xpp::client_session().autox_state.parameter_layout.model_parameters=1;
-    out = autox_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().autox_state.parameter_layout.solver_index(0)));
+    xpp::client_session().autox_state->parameter_layout.model_parameters=1;
+    out = autox_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().autox_state->parameter_layout.solver_index(0)));
     CHECK_STR(out.c_str(), "applied_stim~ ");
     out = autox_screen_col(xpp::client_session(), "   MAX U(1)   ");
     CHECK_STR(out.c_str(), "MAX MEMBRANE~ ");

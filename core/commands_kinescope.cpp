@@ -16,14 +16,14 @@ namespace {
 
 Result<> need_frames(const Session &s, const Command &command, const Place &place)
 {
-    if (s.kinescope.frames == 0) return fail(command.name, "The kinescope holds no frames: capture one first", place);
+    if (s.kinescope->frames == 0) return fail(command.name, "The kinescope holds no frames: capture one first", place);
     return {};
 }
 
 Result<std::string> capture(Session &s, const Command &, const Arguments &, const Place &)
 {
     if (const Result<> clipped = ui.film_clip(s); !clipped) return std::unexpected<Error>(clipped.error());
-    return ResultObject().integer("frame_count", s.kinescope.frames).done();
+    return ResultObject().integer("frame_count", s.kinescope->frames).done();
 }
 
 Result<std::string> reset(Session &s, const Command &, const Arguments &, const Place &)
@@ -36,16 +36,16 @@ Result<std::string> play(Session &s, const Command &command, const Arguments &, 
 {
     if (const Result<> ready = need_frames(s, command, place); !ready) return std::unexpected<Error>(ready.error());
     ui.movie_play_back(s);
-    return ResultObject().integer("frames_played", s.kinescope.frames).done();
+    return ResultObject().integer("frames_played", s.kinescope->frames).done();
 }
 
 Result<std::string> autoplay(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     if (const Result<> ready = need_frames(s, command, place); !ready) return std::unexpected<Error>(ready.error());
-    s.kinescope.cycles = static_cast<int>(args.optional<long long>("cycles").value_or(s.kinescope.cycles));
-    s.kinescope.frame_ms = static_cast<int>(args.optional<long long>("frame_ms").value_or(s.kinescope.frame_ms));
+    s.kinescope->cycles = static_cast<int>(args.optional<long long>("cycles").value_or(s.kinescope->cycles));
+    s.kinescope->frame_ms = static_cast<int>(args.optional<long long>("frame_ms").value_or(s.kinescope->frame_ms));
     ui.movie_autox_play(s);
-    return ResultObject().integer("cycles_completed", s.kinescope.cycles).done();
+    return ResultObject().integer("cycles_completed", s.kinescope->cycles).done();
 }
 
 Result<std::string> export_frames(Session &s, const Command &command, const Arguments &args, const Place &place)

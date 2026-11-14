@@ -8,6 +8,7 @@
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "session.h"
+#include "expr.h"
 
 #include <cmath>
 #include <math.h>
@@ -342,8 +343,8 @@ double do_delay_shift(xpp::Session &s, double delay, double shift, double variab
   if(in<0||static_cast<size_t>(in)>=s.parser.variables.size())
     return 0.0;
 
-  if(s.delay.stab_flag>0){
-    if(s.delay.flag&&delay>0.0)
+  if(s.delay->stab_flag>0){
+    if(s.delay->flag&&delay>0.0)
       return(get_delay(s,in-1,delay));
     return(s.parser.variables[in]);
   }
@@ -357,8 +358,8 @@ double do_delay(xpp::Session &s, double delay, double i)
     /* ram - this was a little weird, since i is a double... except I think it's secretely an integer */
     variable = (static_cast<int>(i)) % MAXTYPE;
 
-  if(s.delay.stab_flag>0){
-    if(s.delay.flag&&delay>0.0) {
+  if(s.delay->stab_flag>0){
+    if(s.delay->flag&&delay>0.0) {
       return(get_delay(s,variable-1,delay));
     }
     return(s.parser.variables[variable]);

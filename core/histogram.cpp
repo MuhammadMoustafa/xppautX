@@ -66,51 +66,51 @@ int two_d_hist(xpp::Session &s, int col1,int col2,int ndat,int n1,int n2,double 
   */
   for(i=0;i<n1;i++)
     for(j=0;j<n2;j++){
-      s.histogram.hist()[0][i+j*n1]=xlo + (i+.5)*dx;
-      s.histogram.hist()[1][i+j*n1]=ylo + (j+.5)*dy;
-      s.histogram.hist()[2][i+j*n1]=0.0;
+      s.histogram->hist()[0][i+j*n1]=xlo + (i+.5)*dx;
+      s.histogram->hist()[1][i+j*n1]=ylo + (j+.5)*dy;
+      s.histogram->hist()[2][i+j*n1]=0.0;
     }
   for(k=0;k<ndat;k++){
-    x=(s.data_store.col[col1][k]-xlo)/dx;
-    y=(s.data_store.col[col2][k]-ylo)/dy;
+    x=(s.data_store->col[col1][k]-xlo)/dx;
+    y=(s.data_store->col[col2][k]-ylo)/dy;
     i=static_cast<int>(x);
     j=static_cast<int>(y);
     if((i>=0)&&(i<n1)&&(j>=0)&&(j<n2))
-      s.histogram.hist()[2][i+j*n1]+=norm;
+      s.histogram->hist()[2][i+j*n1]+=norm;
    }  
   return 0;
 }
 
 void four_back(xpp::Session &s)
 {
- if(s.histogram.four_here)new_browse_dat(s,s.histogram.four_columns.view(s.data_store),s.histogram.four_len);
+ if(s.histogram->four_here)new_browse_dat(s,s.histogram->four_columns.view(*s.data_store),s.histogram->four_len);
 }
 
 void hist_back(xpp::Session &s)
 {
- if(s.histogram.hist_here)new_browse_dat(s,s.histogram.hist_columns.view(s.data_store),s.histogram.hist_len);
+ if(s.histogram->hist_here)new_browse_dat(s,s.histogram->hist_columns.view(*s.data_store),s.histogram->hist_len);
 }
 
 Result<> reload_histogram(xpp::Session &s)
 {
- return show_derived(s,s.histogram.hist_here!=0,"histogram","No histogram yet: compute one first",hist_back);
+ return show_derived(s,s.histogram->hist_here!=0,"histogram","No histogram yet: compute one first",hist_back);
 }
 
 void new_four(xpp::Session &s, int nmodes, int col)
 {
   int i;
   int length=nmodes+1;
-  const double total=s.data_store.round(s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0]);
-  if(s.histogram.four_here){
+  const double total=s.data_store->round(s.data_store->col[0][s.data_store->rows-1]-s.data_store->col[0][0]);
+  if(s.histogram->four_here){
    data_back(s);
-   s.histogram.four_columns.release();
-   s.histogram.four_here=0;
+   s.histogram->four_columns.release();
+   s.histogram->four_here=0;
  }
-  s.histogram.four_len=nmodes;
- s.histogram.four_columns.make(s.data_store,3,length,s.model().neq);
- s.histogram.four_here=1;
-for(i=0;i<length;i++)s.histogram.four()[0][i]=i/total; 
-    fourier_modes(get_data_col(s,col),s.data_store.rows,s.histogram.four()[1],s.histogram.four()[2],nmodes);
+  s.histogram->four_len=nmodes;
+ s.histogram->four_columns.make(*s.data_store,3,length,s.model().neq);
+ s.histogram->four_here=1;
+for(i=0;i<length;i++)s.histogram->four()[0][i]=i/total; 
+    fourier_modes(get_data_col(s,col),s.data_store->rows,s.histogram->four()[1],s.histogram->four()[2],nmodes);
  four_back(s);
   ping();
 }
@@ -119,8 +119,8 @@ namespace {
 /* whether the run stored at least `rows` rows, or why it did not */
 Result<> need_rows(const xpp::Session &s, const std::string &command, int rows)
 {
-  if(s.data_store.rows<rows)
-    return fail(command,xpp::format("The run stored {} row(s): nothing to analyse (at least {} are needed)",s.data_store.rows,rows),command_place());
+  if(s.data_store->rows<rows)
+    return fail(command,xpp::format("The run stored {} row(s): nothing to analyse (at least {} are needed)",s.data_store->rows,rows),command_place());
   return {};
 }
 
@@ -148,19 +148,19 @@ Result<> histogram_range_ok(const std::string &command,int bins,double lo,double
 long long counted(xpp::Session &s)
 {
   double total=0;
-  for(int i=0;i<s.histogram.hist_len;i++)total+=static_cast<double>(s.histogram.hist()[1][i]);
+  for(int i=0;i<s.histogram->hist_len;i++)total+=static_cast<double>(s.histogram->hist()[1][i]);
   return static_cast<long long>(total);
 }
 }
 
 void post_process_stuff(xpp::Session &s)
 {
-  const AfterRun after=s.histogram.post_process;
+  const AfterRun after=s.histogram->post_process;
   if(after==AfterRun::none||after==AfterRun::mean_of_runs||after==AfterRun::variance_of_runs)return;
   s.plot_list.assign({0,1});
   switch(after){
   case AfterRun::histogram_2d: xpp::ok_or_show(new_2d_hist(s)); break;
-  case AfterRun::histogram: xpp::ok_or_show(new_hist(s,s.histogram.info.nbins,s.histogram.info.xlo,s.histogram.info.xhi,s.histogram.info.col,0,"",0)); break;
+  case AfterRun::histogram: xpp::ok_or_show(new_hist(s,s.histogram->info.nbins,s.histogram->info.xlo,s.histogram->info.xhi,s.histogram->info.col,0,"",0)); break;
   case AfterRun::fourier_series: xpp::ok_or_show(just_fourier(s,0)); break;
   case AfterRun::power_spectrum: xpp::ok_or_show(just_fourier(s,1)); break;
   case AfterRun::spectral_density: case AfterRun::cross_spectral_density: case AfterRun::coherence:
@@ -173,23 +173,23 @@ int twod_hist(xpp::Session &s)
 
 {
   int length;
- length=s.histogram.info.nbins*s.histogram.info.nbins2;
-   if(length>=s.data_store.max_rows)
-    length=s.data_store.max_rows-1;
+ length=s.histogram->info.nbins*s.histogram->info.nbins2;
+   if(length>=s.data_store->max_rows)
+    length=s.data_store->max_rows-1;
 
-  if(s.histogram.hist_here){
+  if(s.histogram->hist_here){
     data_back(s);
-    s.histogram.hist_columns.release();
-    s.histogram.hist_here=0;
+    s.histogram->hist_columns.release();
+    s.histogram->hist_here=0;
   }
 
-   s.histogram.hist_len=length;
-  s.histogram.hist_columns.make(s.data_store,3,length,s.model().neq);
-  s.histogram.hist_here=2;
-  s.histogram.hist_len=length;
-  two_d_hist(s,s.histogram.info.col,s.histogram.info.col2,s.data_store.rows,
-	     s.histogram.info.nbins,s.histogram.info.nbins2,
-	     s.histogram.info.xlo,s.histogram.info.xhi,s.histogram.info.ylo,s.histogram.info.yhi);
+   s.histogram->hist_len=length;
+  s.histogram->hist_columns.make(*s.data_store,3,length,s.model().neq);
+  s.histogram->hist_here=2;
+  s.histogram->hist_len=length;
+  two_d_hist(s,s.histogram->info.col,s.histogram->info.col2,s.data_store->rows,
+	     s.histogram->info.nbins,s.histogram->info.nbins2,
+	     s.histogram->info.xlo,s.histogram->info.xhi,s.histogram->info.ylo,s.histogram->info.yhi);
 
   hist_back(s);
 
@@ -202,7 +202,7 @@ int twod_hist(xpp::Session &s)
 namespace {
 Result<> need_data_for_2d(const xpp::Session &s)
 {
-  if((s.model().neq<2)||(s.data_store.rows<3))
+  if((s.model().neq<2)||(s.data_store->rows<3))
     return fail("histogram","Need more data and at least 3 columns",command_place());
   return {};
 }
@@ -211,14 +211,14 @@ Result<> need_data_for_2d(const xpp::Session &s)
 Result<> new_2d_hist(xpp::Session &s, const HIST_INFO *given)
 {
   if(auto data=need_data_for_2d(s);!data)return data;
-  HIST_INFO info=given?*given:s.histogram.info;
+  HIST_INFO info=given?*given:s.histogram->info;
   if(auto first=histogram_range_ok("histogram",info.nbins,info.xlo,info.xhi);!first)return first;
   if(auto second=histogram_range_ok("histogram",info.nbins2,info.ylo,info.yhi);!second)return second;
   /* the bins are rows of the data table, which a histogram fills up to what a load starts it with */
   if(static_cast<long long>(info.nbins)*info.nbins2>=DataStore::start_rows)
     return fail("histogram",xpp::format("{} by {} bins is {} rows: the data table has room for {}; use fewer bins",info.nbins,info.nbins2,static_cast<long long>(info.nbins)*info.nbins2,DataStore::start_rows-1),command_place());
-  if(const xpp::Result<> room=s.data_store.fit(s.model().neq+1,info.nbins*info.nbins2+1);!room)return std::unexpected(room.error());
-  s.histogram.info=info;
+  if(const xpp::Result<> room=s.data_store->fit(s.model().neq+1,info.nbins*info.nbins2+1);!room)return std::unexpected(room.error());
+  s.histogram->info=info;
   twod_hist(s);
   return {};
 }
@@ -232,7 +232,7 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
   double z,y;
   double dz;
   const int length=nbins+1;
-  if(const xpp::Result<> room=s.data_store.fit(s.model().neq+1,length+1);!room)return std::unexpected(room.error());
+  if(const xpp::Result<> room=s.data_store->fit(s.model().neq+1,length+1);!room)return std::unexpected(room.error());
   dz=(zhi-zlo)/static_cast<double>((length-1));
   if(which==0&&strlen(condition)>0){
     /* a condition that does not compile is the command's error, nothing is made */
@@ -243,35 +243,35 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
     }
     cond=1;
   }
-  if(s.histogram.hist_here){
+  if(s.histogram->hist_here){
     data_back(s);
-    s.histogram.hist_columns.release();
-    s.histogram.hist_here=0;
+    s.histogram->hist_columns.release();
+    s.histogram->hist_here=0;
   }
-  s.histogram.hist_len=length;
-  s.histogram.hist_columns.make(s.data_store,2,length,s.model().neq);
-  s.histogram.hist_here=1;
+  s.histogram->hist_len=length;
+  s.histogram->hist_columns.make(*s.data_store,2,length,s.model().neq);
+  s.histogram->hist_here=1;
   for(i=0;i<length;i++){
-    s.histogram.hist()[0][i]=zlo+dz*i;
-    s.histogram.hist()[1][i]=0.0;
+    s.histogram->hist()[0][i]=zlo+dz*i;
+    s.histogram->hist()[1][i]=0.0;
   }
   if(which==0){
-    for(i=0;i<s.data_store.rows;i++)
+    for(i=0;i<s.data_store->rows;i++)
       {
 	if(my_abort() == ESC) break;
 	flag=1;
 	if(cond){
-	  for(j=0;j<s.model().node+1;j++)setvar(s,j,static_cast<double>(s.data_store.col[j][i]));
+	  for(j=0;j<s.model().node+1;j++)setvar(s,j,static_cast<double>(s.data_store->col[j][i]));
 	  for(j=0;j<s.model().nmarkov;j++)
-	    setvar(s,j+s.model().node+1+s.model().fix_var,static_cast<double>(s.data_store.col[j+s.model().node+1][i]));
+	    setvar(s,j+s.model().node+1+s.model().fix_var,static_cast<double>(s.data_store->col[j+s.model().node+1][i]));
 	  z=evaluate(s,command);
 	  if(fabs(z)>0.0)flag=1;
 	  else flag=0;
 	}
-	z=(s.data_store.col[col][i]-zlo)/dz;
+	z=(s.data_store->col[col][i]-zlo)/dz;
 	index=static_cast<int>(z);
 	if(index>=0&&index<length&&flag==1){
-	  s.histogram.hist()[1][index]+=1.0;
+	  s.histogram->hist()[1][index]+=1.0;
 	}
       }
     s.parser.ncon=s.model().ncon_start;
@@ -281,14 +281,14 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
     return {};
   }
   if(which==1){
-    for(i=0;i<s.data_store.rows;i++){
+    for(i=0;i<s.data_store->rows;i++){
       if(my_abort() == ESC) break;
-      for(j=0;j<s.data_store.rows;j++){
-	y=s.data_store.col[col][i]-s.data_store.col[col][j];
+      for(j=0;j<s.data_store->rows;j++){
+	y=s.data_store->col[col][i]-s.data_store->col[col][j];
 	z=(y-zlo)/dz;
 	index=static_cast<int>(z);
 	if(index>=0&&index<length)
-	  s.histogram.hist()[1][index]+=1.0;
+	  s.histogram->hist()[1][index]+=1.0;
       }
     }
     hist_back(s);
@@ -296,13 +296,13 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
     return {};
   }
   if(which==2){
-    with_value_type(s.data_store.col[col],[&](auto t){mycor2<decltype(t)>(s.data_store.col[col],s.data_store.col[col2],s.data_store.rows,nbins,s.histogram.hist()[1],1);});
+    with_value_type(s.data_store->col[col],[&](auto t){mycor2<decltype(t)>(s.data_store->col[col],s.data_store->col[col2],s.data_store->rows,nbins,s.histogram->hist()[1],1);});
     hist_back(s);
     ping();
     return {};
   }
   if(which==3){
-    with_value_type(s.data_store.col[col],[&](auto t){fftxcorr<decltype(t)>(s.data_store.col[col],s.data_store.col[col2],s.data_store.rows,(nbins-1)/2,s.histogram.hist()[1],1);});
+    with_value_type(s.data_store->col[col],[&](auto t){fftxcorr<decltype(t)>(s.data_store->col[col],s.data_store->col[col2],s.data_store->rows,(nbins-1)/2,s.histogram->hist()[1],1);});
     hist_back(s);
     ping();
     return {};
@@ -312,18 +312,18 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
 
 Result<ColumnStatistics> column_mean(xpp::Session &s, std::optional<int> column)
 {
- if(s.data_store.rows<=1)
+ if(s.data_store->rows<=1)
    return fail("mean","Need at least 2 data points!",command_place());
- if(column)s.histogram.info.col=*column;
+ if(column)s.histogram->info.col=*column;
  double sum=0.0,sum2=0.0;
- for(int i=0;i<s.data_store.rows;i++){
-   const double ss=s.data_store.col[s.histogram.info.col][i];
+ for(int i=0;i<s.data_store->rows;i++){
+   const double ss=s.data_store->col[s.histogram->info.col][i];
    sum+=ss;
    sum2+=(ss*ss);
  }
- const double mean=sum/static_cast<double>(s.data_store.rows);
+ const double mean=sum/static_cast<double>(s.data_store->rows);
  /* rounding may take a variance of constant data just below 0 */
- const double variance=std::max(0.0,sum2/static_cast<double>(s.data_store.rows)-mean*mean);
+ const double variance=std::max(0.0,sum2/static_cast<double>(s.data_store->rows)-mean*mean);
  return ColumnStatistics{mean,variance};
 }
 
@@ -336,7 +336,7 @@ Result<int> compute_power(xpp::Session &s, std::optional<int> column)
   const Column datx=get_data_col(s,1);
   const Column daty=get_data_col(s,2);
 
-  for(i=0;i<s.histogram.four_len;i++){
+  for(i=0;i<s.histogram->four_len;i++){
     c=datx[i];
     sv=daty[i];
     datx[i]=sqrt(sv*sv+c*c);
@@ -344,7 +344,7 @@ Result<int> compute_power(xpp::Session &s, std::optional<int> column)
     ptot+=(datx[i]*datx[i]);
   }
   xpp::log(XPP_LOG_INFO, "a0={:g} L2norm= {:g}  \n",static_cast<double>(datx[0]),sqrt(ptot));
-  return s.histogram.four_len;
+  return s.histogram->four_len;
 }
 /* short-term fft 
    first apply a window
@@ -505,21 +505,21 @@ int cross_spectrum(Column data,Column data2,int nr,int win,int w_type,Column pow
 
 Result<int> compute_sd(Session &s, std::optional<int> type, std::optional<int> column, std::optional<int> column2, std::optional<int> window_length, std::optional<int> window)
 {
-  HistogramState &h=s.histogram;
+  HistogramState &h=*s.histogram;
   const int flag=type.value_or(h.spec_type), width=window_length.value_or(h.spec_wid), win=window.value_or(h.spec_win);
   if(auto data=need_data(s,"spectrum");!data)return std::unexpected(data.error());
   if(flag<0||flag>2)
     return fail("spectrum",xpp::format("The spectrum type {} is not 0 (PSDx), 1 (PSDxy) or 2 (COHxy)",flag),command_place());
   /* a window is at least 2 points (it is moved by half its length) and no more than the run stored */
-  if(width<2||width>s.data_store.rows)
-    return fail("spectrum",xpp::format("No window of {} points fits in the {} rows the run stored (a window is 2 points or more, and moves by half its length)",width,s.data_store.rows),command_place());
+  if(width<2||width>s.data_store->rows)
+    return fail("spectrum",xpp::format("No window of {} points fits in the {} rows the run stored (a window is 2 points or more, and moves by half its length)",width,s.data_store->rows),command_place());
   if(win<0||win>4)
     return fail("spectrum",xpp::format("The window type {} is not one of 0 to 4 (square, parzen, hamming, bartlett, hann)",win),command_place());
   h.spec_wid=width;
   h.spec_win=win;
   if(column)h.spec_col=*column;
   if(column2)h.spec_col2=*column2;
-  const double total=s.data_store.round(s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0]);
+  const double total=s.data_store->round(s.data_store->col[0][s.data_store->rows-1]-s.data_store->col[0][0]);
   h.spec_type=flag;
   if(h.hist_here){
     data_back(s);
@@ -528,16 +528,16 @@ Result<int> compute_sd(Session &s, std::optional<int> type, std::optional<int> c
   }  
    h.hist_len=h.spec_wid/2;
    const int length=h.hist_len+2;
-  h.hist_columns.make(s.data_store,2,length,s.model().neq);
+  h.hist_columns.make(*s.data_store,2,length,s.model().neq);
   h.hist_here=1;
-  for(int j=0;j<h.hist_len;j++)h.hist()[0][j]=s.data_store.round(s.data_store.round(static_cast<double>(j)*s.data_store.rows)/h.spec_wid)/total;
+  for(int j=0;j<h.hist_len;j++)h.hist()[0][j]=s.data_store->round(s.data_store->round(static_cast<double>(j)*s.data_store->rows)/h.spec_wid)/total;
   const int computed=h.spec_type==0
-    ? spectrum(s.data_store.col[h.spec_col],s.data_store.rows,h.spec_wid,h.spec_win,h.hist()[1])
-    : cross_spectrum(s.data_store.col[h.spec_col],s.data_store.col[h.spec_col2],s.data_store.rows,h.spec_wid,h.spec_win,h.hist()[1],h.spec_type);
+    ? spectrum(s.data_store->col[h.spec_col],s.data_store->rows,h.spec_wid,h.spec_win,h.hist()[1])
+    : cross_spectrum(s.data_store->col[h.spec_col],s.data_store->col[h.spec_col2],s.data_store->rows,h.spec_wid,h.spec_win,h.hist()[1],h.spec_type);
   hist_back(s);
   ping();
   if(!computed)
-    return fail("spectrum",xpp::format("No window of {} points fits in the {} rows the run stored (windows overlap by half)",width,s.data_store.rows),command_place());
+    return fail("spectrum",xpp::format("No window of {} points fits in the {} rows the run stored (windows overlap by half)",width,s.data_store->rows),command_place());
   return h.hist_len;
 }
 Result<int> just_sd(Session &s, int flag)
@@ -550,16 +550,16 @@ Result<int> just_fourier(xpp::Session &s, int flag, std::optional<int> column)
 {
   int i;
   double sv,c;
-  int nmodes=s.data_store.rows/2-1;
+  int nmodes=s.data_store->rows/2-1;
   if(auto data=need_data(s,"fourier");!data)return std::unexpected(data.error());
-   if(column)s.histogram.spec_col=*column;
-   new_four(s,nmodes,s.histogram.spec_col);
+   if(column)s.histogram->spec_col=*column;
+   new_four(s,nmodes,s.histogram->spec_col);
    if(flag)
      {
        const Column datx=get_data_col(s,1);
        const Column daty=get_data_col(s,2);
        
-       for(i=0;i<s.histogram.four_len;i++){
+       for(i=0;i<s.histogram->four_len;i++){
 	 c=datx[i];
 	 sv=daty[i];
 	 datx[i]=sqrt(sv*sv+c*c);
@@ -568,7 +568,7 @@ Result<int> just_fourier(xpp::Session &s, int flag, std::optional<int> column)
        }
 
      }
-   return s.histogram.four_len;
+   return s.histogram->four_len;
 }
   
 Result<int> compute_fourier(xpp::Session &s, std::optional<int> column)
@@ -578,37 +578,37 @@ Result<int> compute_fourier(xpp::Session &s, std::optional<int> column)
 
 Result<int> compute_correl(xpp::Session &s, const HIST_INFO *given)
 {
-  HIST_INFO info=given?*given:s.histogram.info;
+  HIST_INFO info=given?*given:s.histogram->info;
   if(auto data=need_data(s,"correlation");!data)return std::unexpected(data.error());
   /* the lags are bins either side of 0, as many as half the data less 2 allows (the data are taken as periodic) */
-  const int most=s.data_store.rows/2-2;
+  const int most=s.data_store->rows/2-2;
   if(info.nbins<2||info.nbins>most)
-    return fail("correlation",xpp::format("Number of lags ({}) is not between 2 and {}, half the {} rows the run stored less 2",info.nbins,most,s.data_store.rows),command_place());
+    return fail("correlation",xpp::format("Number of lags ({}) is not between 2 and {}, half the {} rows the run stored less 2",info.nbins,most,s.data_store->rows),command_place());
   if(info.fftc!=0&&info.fftc!=1)
     return fail("correlation",xpp::format("The method {} is not 0 (direct) or 1 (FFT)",info.fftc),command_place());
-  const double total=s.data_store.round(s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0]);
-  const double dta=s.data_store.round(total/(s.data_store.rows-1));
+  const double total=s.data_store->round(s.data_store->col[0][s.data_store->rows-1]-s.data_store->col[0][0]);
+  const double dta=s.data_store->round(total/(s.data_store->rows-1));
   
   info.nbins=2*(info.nbins/2)+1;
   const int lag=info.nbins/2;
 
   /* lets try to get the lags correct for plotting */
-  info.xlo=-s.data_store.round(lag*dta);
-  info.xhi=s.data_store.round(lag*dta);
+  info.xlo=-s.data_store->round(lag*dta);
+  info.xhi=s.data_store->round(lag*dta);
   
   if(auto made=new_hist(s,info.nbins,info.xlo,info.xhi,info.col,info.col2,info.cond.c_str(),2+info.fftc);!made)return std::unexpected(made.error());
-  s.histogram.info=info;
-  return s.histogram.hist_len;
+  s.histogram->info=info;
+  return s.histogram->hist_len;
 }
 
 Result<int> compute_stacor(xpp::Session &s, const HIST_INFO *given)
 {
-  HIST_INFO info=given?*given:s.histogram.info;
+  HIST_INFO info=given?*given:s.histogram->info;
   if(auto rows=need_rows(s,"correlation",1);!rows)return std::unexpected(rows.error());
   if(auto range=histogram_range_ok("correlation",info.nbins,info.xlo,info.xhi);!range)return std::unexpected(range.error());
   if(auto made=new_hist(s,info.nbins,info.xlo,info.xhi,info.col,0,info.cond.c_str(),1);!made)return std::unexpected(made.error());
-  s.histogram.info=info;
-  return s.histogram.hist_len;
+  s.histogram->info=info;
+  return s.histogram->hist_len;
 }
 
 namespace {
@@ -646,11 +646,11 @@ template<class T> void mycor2(Column x,Column y,int n,int nbins,Column z,int fla
 
 Result<HistogramCounts> compute_hist(xpp::Session &s, const HIST_INFO *given)
 {
-  HIST_INFO info=given?*given:s.histogram.info;
+  HIST_INFO info=given?*given:s.histogram->info;
   if(auto rows=need_rows(s,"histogram",1);!rows)return std::unexpected(rows.error());
   if(auto range=histogram_range_ok("histogram",info.nbins,info.xlo,info.xhi);!range)return std::unexpected(range.error());
   if(auto made=new_hist(s,info.nbins,info.xlo,info.xhi,info.col,0,info.cond.c_str(),0);!made)return std::unexpected(made.error());
-  s.histogram.info=info;
+  s.histogram->info=info;
   return HistogramCounts{info.nbins,counted(s)};
 }
 

@@ -8,6 +8,9 @@
 #include "xpptest.h"
 #include "xpp_math.h"
 #include "session.h"
+#include "autox_state.h"
+#include "browse.h"
+#include "load_eqn.h"
 #include "autox_c.h"
 #include "xpp_io.h"
 #include "xpp_batch.h"
@@ -313,14 +316,14 @@ void homcont()
     if (!loaded) return;
     auto &session = xpp::client_session();
     CHECK(xpp::ensure_exact_jacobian(session));
-    session.numerics.jacobian = xpp::JACOBIAN_EXACT;
+    session.numerics->jacobian = xpp::JACOBIAN_EXACT;
     AutoxRun run;
     run.session = &session;
-    run.parameter_count = session.autox_state.parameter_layout.size();
+    run.parameter_count = session.autox_state->parameter_layout.size();
     iap_type iap{};
     iap.run = &run; iap.ndim = n; iap.ndm = n; iap.nfpr = 2;
-    std::array<std::ptrdiff_t, 2> icp{session.autox_state.parameter_layout.solver_index(0),
-                               session.autox_state.parameter_layout.solver_index(1)};
+    std::array<std::ptrdiff_t, 2> icp{session.autox_state->parameter_layout.solver_index(0),
+                               session.autox_state->parameter_layout.solver_index(1)};
     std::vector<double> par(run.parameter_count), dfdp(n*run.parameter_count);
     std::array<double,n> equilibrium{}, rr{}, ri{};
     std::array<double,n*n> a{}, zz{}, vectors{}, bound{};

@@ -71,7 +71,7 @@ Result<std::string> add_column(Session &s, const Command &, const Arguments &arg
 {
     const std::string &name = args.get<std::string>(NAME_KEY);
     if (const Result<> added = add_data_column(s, name, args.get<std::string>(FORMULA_KEY)); !added) return std::unexpected<Error>(added.error());
-    return ResultObject().text(COLUMN_KEY, s.data.added_columns.back().name).boolean("added", true).done();
+    return ResultObject().text(COLUMN_KEY, s.data->added_columns.back().name).boolean("added", true).done();
 }
 
 Result<std::string> delete_column(Session &s, const Command &, const Arguments &args, const Place &)
@@ -101,7 +101,7 @@ Result<std::string> export_data(Session &s, const Command &command, const Argume
 
 Result<std::string> page(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    DataBlock &block = s.data.block;
+    DataBlock &block = s.data->block;
     block.from = static_cast<int>(args.get<long long>("from_row"));
     block.count = static_cast<int>(args.get<long long>("count"));
     block.col = static_cast<int>(args.optional<long long>("first_column").value_or(block.col));
@@ -110,20 +110,20 @@ Result<std::string> page(Session &s, const Command &, const Arguments &args, con
     ui.data_redraw(0);
     return ResultObject()
         .integer("first_row", block.from)
-        .integer("total_rows", s.data.view.dataflag ? s.data.view.maxrow : 0)
+        .integer("total_rows", s.data->view.dataflag ? s.data->view.maxrow : 0)
         .raw("rows", data_block_rows(s))
         .done();
 }
 
 Result<std::string> transpose(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    const AdjointState &now = s.adjoint;
+    const AdjointState &now = *s.adjoint;
     const auto number = [&](const char *name, int kept) { return static_cast<int>(args.optional<long long>(name).value_or(kept)); };
     const Result<> done = transpose_data(s, args.optional<std::string>("first_column").value_or(now.transpose.firstcol), number("columns", now.transpose.ncol),
                                          number("column_skip", now.transpose.colskip), number("first_row", now.transpose.row0),
                                          number("rows", now.transpose.nrow), number("row_skip", now.transpose.rowskip));
     if (!done) return std::unexpected<Error>(done.error());
-    return ResultObject().integer("transposed_rows", s.adjoint.transpose.ncol).integer("transposed_cols", s.adjoint.transpose.nrow).done();
+    return ResultObject().integer("transposed_rows", s.adjoint->transpose.ncol).integer("transposed_cols", s.adjoint->transpose.nrow).done();
 }
 
 constexpr int MAX_INDEX = std::numeric_limits<int>::max();

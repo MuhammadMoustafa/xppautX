@@ -3,6 +3,9 @@
 #include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
+#include "expr.h"
+#include "autox_state.h"
+#include "load_eqn.h"
 #include "autox_c.h"
 #include "autox_unknowns.h"
 #include "xpp_batch.h"
@@ -25,17 +28,17 @@ TEST_CASE("test_autox_fold")
     auto &s = xpp::client_session();
     AutoxRun run;
     run.session = &s;
-    run.parameter_count = s.autox_state.parameter_layout.size();
+    run.parameter_count = s.autox_state->parameter_layout.size();
     iap_type iap{};
     iap.run = &run; iap.ndm = 2; iap.ndim = 4; iap.nfpr = 4;
     size_run_scratch(iap);
     // Isolate the augmented blocks from roundoff in nested first differences.
-    s.numerics.jacobian = xpp::JACOBIAN_EXACT;
+    s.numerics->jacobian = xpp::JACOBIAN_EXACT;
     CHECK(xpp::ensure_exact_jacobian(s));
     iap.jac = 1;
     rap_type rap{};
-    const std::ptrdiff_t a = s.autox_state.parameter_layout.solver_index(0);
-    const std::ptrdiff_t b = s.autox_state.parameter_layout.solver_index(1);
+    const std::ptrdiff_t a = s.autox_state->parameter_layout.solver_index(0);
+    const std::ptrdiff_t b = s.autox_state->parameter_layout.solver_index(1);
     std::vector<double> par(run.parameter_count), dp(4 * run.parameter_count);
     par[a] = 2; par[b] = 3;
     par[xpp::autox_unknown::period] = 2;
@@ -107,12 +110,12 @@ TEST_CASE("test_autox_fold")
     CHECK(xpp::native_ready(derived)); /* a worker calls the native code: built before it starts (W715) */
     AutoxRun worker;
     worker.session = &derived;
-    worker.parameter_count = derived.autox_state.parameter_layout.size();
+    worker.parameter_count = derived.autox_state->parameter_layout.size();
     worker.pure_rhs = true;
     worker.rhs_constants = derived.parser.constants;
     worker.rhs_variables = derived.parser.variables;
-    const std::array<std::ptrdiff_t,2> slots{derived.autox_state.parameter_layout.solver_index(0),
-                                     derived.autox_state.parameter_layout.solver_index(1)};
+    const std::array<std::ptrdiff_t,2> slots{derived.autox_state->parameter_layout.solver_index(0),
+                                     derived.autox_state->parameter_layout.solver_index(1)};
     par.assign(worker.parameter_count, 0.);
     double state=1, value=0, unused=0;
     for (const auto &[first,second] : {std::pair{2.,3.},std::pair{-2.,3.},std::pair{2.,4.},

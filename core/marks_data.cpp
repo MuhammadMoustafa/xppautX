@@ -110,7 +110,7 @@ MarksShown::Record *record_of(Session &s, XppWinId w)
 {
     if (!client.emit_line) return nullptr;
     const int pop = graph_of(s,w);
-    return s.plot_windows.graph[pop].Use && s.plot_windows.graph[pop].w==w ? &s.marks_shown.windows[pop] : nullptr;
+    return s.plot_windows->graph[pop].Use && s.plot_windows->graph[pop].w==w ? &s.marks_shown->windows[pop] : nullptr;
 }
 
 /* ---- JSON text ---- */
@@ -203,7 +203,7 @@ void append_annotations(std::string &o, const std::vector<Label> &labels, const 
 void send_marks(const xpp::Session &s, int pop, const Content &c)
 {
     std::string o = xpp::events::open(xpp::events::PLOT_MARKS) + ",\"win\":";
-    xpp::json_append_string(o,xpp::window_name(s,s.plot_windows.graph[pop].w));
+    xpp::json_append_string(o,xpp::window_name(s,s.plot_windows->graph[pop].w));
     if (client.values_f32) o += ",\"enc\":\"f32\"";
     o += ",\"equilibria\":[";
     for (std::size_t k = 0; k < c.eqs.size(); k++) {
@@ -222,7 +222,7 @@ void send_marks(const xpp::Session &s, int pop, const Content &c)
     o += ",\"frozen\":[";
     for (std::size_t k = 0; k < c.frozen.size(); k++) {
         const Frozen &f = c.frozen[k];
-        const CURVE &z = s.frozen_curves.curve[f.slot];
+        const CURVE &z = s.frozen_curves->curve[f.slot];
         o += k ? ",{\"slot\":" : "{\"slot\":";
         o += std::to_string(f.slot);
         o += ",\"key\":";
@@ -246,7 +246,7 @@ void send_marks(const xpp::Session &s, int pop, const Content &c)
 /* the window's record as it stands, each slot read from where it is kept */
 Content content_of(const xpp::Session &s, int pop, const MarksShown::Record &r)
 {
-    const XppWinId w = s.plot_windows.graph[pop].w;
+    const XppWinId w = s.plot_windows->graph[pop].w;
     Content c;
     c.eqs = r.eqs;
     for (const auto &e : r.labels) {
@@ -258,8 +258,8 @@ Content content_of(const xpp::Session &s, int pop, const MarksShown::Record &r)
         if (g && g->w == w) c.grobs.push_back({id, g->type, g->color, g->xs, g->ys, g->xe, g->ye, g->size});
     }
     for (const auto &e : r.frozen) {
-        const CURVE &z = s.frozen_curves.curve[e.first];
-        if (z.use == 1 && z.w == w && z.type == 0 && e.second == s.marks_shown.generation[e.first] && z.xv && z.yv)
+        const CURVE &z = s.frozen_curves->curve[e.first];
+        if (z.use == 1 && z.w == w && z.type == 0 && e.second == s.marks_shown->generation[e.first] && z.xv && z.yv)
             c.frozen.push_back({e.first, e.second, z.color, z.style, z.len, z.key, z.name});
     }
     return c;
@@ -267,16 +267,16 @@ Content content_of(const xpp::Session &s, int pop, const MarksShown::Record &r)
 
 void update(xpp::Session &s)
 {
-    client.windows.resize(s.plot_windows.graph.size());
-    for (int k = 0; k < static_cast<int>(s.plot_windows.graph.size()); k++) {
-        const int pop = k == 0 ? s.plot_windows.active : (k == s.plot_windows.active ? 0 : k); /* the active window first */
+    client.windows.resize(s.plot_windows->graph.size());
+    for (int k = 0; k < static_cast<int>(s.plot_windows->graph.size()); k++) {
+        const int pop = k == 0 ? s.plot_windows->active : (k == s.plot_windows->active ? 0 : k); /* the active window first */
         ClientWindow &w = client.windows[pop];
-        if (!s.plot_windows.graph[pop].Use) {
-            s.marks_shown.windows[pop] = MarksShown::Record(); /* a window made again later starts afresh */
+        if (!s.plot_windows->graph[pop].Use) {
+            s.marks_shown->windows[pop] = MarksShown::Record(); /* a window made again later starts afresh */
             w = ClientWindow();
             continue;
         }
-        Content c = content_of(s, pop, s.marks_shown.windows[pop]);
+        Content c = content_of(s, pop, s.marks_shown->windows[pop]);
         if (w.valid && c == w.sent) continue;
         send_marks(s, pop, c);
         w.sent = std::move(c);
@@ -299,7 +299,7 @@ void marks_data_subscribe(int on, int f32)
 
 void marks_data_update(xpp::Session &s)
 {
-    if (!client.emit_line || !client.marks_on || s.plot_windows.active < 0 || s.plot_windows.active >= static_cast<int>(s.plot_windows.graph.size())) return;
+    if (!client.emit_line || !client.marks_on || s.plot_windows->active < 0 || s.plot_windows->active >= static_cast<int>(s.plot_windows->graph.size())) return;
     try {
         update(s);
     } catch (const std::bad_alloc &) {
@@ -309,15 +309,15 @@ void marks_data_update(xpp::Session &s)
 
 void marks_data_cleared(xpp::Session &s, int pop)
 {
-    if (pop < 0 || pop >= static_cast<int>(s.plot_windows.graph.size())) return;
-    s.marks_shown.windows[pop] = MarksShown::Record();
+    if (pop < 0 || pop >= static_cast<int>(s.plot_windows->graph.size())) return;
+    s.marks_shown->windows[pop] = MarksShown::Record();
 }
 
 void marks_data_equilibrium(xpp::Session &s, double x, double y, int symbol)
 {
-    const int pop = s.plot_windows.active;
-    if (pop < 0 || pop >= static_cast<int>(s.plot_windows.graph.size())) return;
-    MarksShown::Record &r = s.marks_shown.windows[pop];
+    const int pop = s.plot_windows->active;
+    if (pop < 0 || pop >= static_cast<int>(s.plot_windows->graph.size())) return;
+    MarksShown::Record &r = s.marks_shown->windows[pop];
     const MarksShown::Equilibrium e{x, y, symbol};
     try {
         for (const MarksShown::Equilibrium &o : r.eqs)
@@ -353,9 +353,9 @@ void marks_data_grob(xpp::Session &s, XppWinId w, int id)
 void marks_data_frozen(xpp::Session &s, XppWinId w, int slot)
 {
     MarksShown::Record *r = record_of(s, w);
-    if (!r || slot < 0 || slot >= static_cast<int>(s.frozen_curves.curve.size())) return;
+    if (!r || slot < 0 || slot >= static_cast<int>(s.frozen_curves->curve.size())) return;
     try {
-        r->frozen[slot] = s.marks_shown.generation[slot];
+        r->frozen[slot] = s.marks_shown->generation[slot];
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("recording a frozen curve");
     }
@@ -378,9 +378,9 @@ std::string annotations_json(Session &s, XppWinId w)
 
 void marks_data_frozen_new(xpp::Session &s, int slot)
 {
-    if (!client.emit_line || slot < 0 || slot >= static_cast<int>(s.frozen_curves.curve.size())) return;
-    s.marks_shown.generation[slot] = ++s.marks_shown.generations;
-    marks_data_frozen(s, s.frozen_curves.curve[slot].w, slot);
+    if (!client.emit_line || slot < 0 || slot >= static_cast<int>(s.frozen_curves->curve.size())) return;
+    s.marks_shown->generation[slot] = ++s.marks_shown->generations;
+    marks_data_frozen(s, s.frozen_curves->curve[slot].w, slot);
 }
 
 } // namespace xpp

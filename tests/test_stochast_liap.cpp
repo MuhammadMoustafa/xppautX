@@ -28,9 +28,9 @@ TEST_CASE("test_stochast_liap")
     xpp::batch_start(xpp::client_session());
     CHECK(xpp::command::run_button(xpp::client_session(), "{\"cmd\":\"run.initial\"}", xpp::command_place())); /* Initialconds/Go, as --silent's script runs it */
 
-    CHECK(xpp::client_session().data_store.rows > 100);
+    CHECK(xpp::client_session().data_store->rows > 100);
 
-    auto liap = xpp::hrw_liapunov(xpp::client_session(), xpp::client_session().numerics.equilibria.jacobian_step);
+    auto liap = xpp::hrw_liapunov(xpp::client_session(), xpp::client_session().numerics->equilibria.jacobian_step);
     CHECK(liap.has_value());
     CHECK(liap && std::fabs(*liap - (-0.7)) < 1e-3);
 

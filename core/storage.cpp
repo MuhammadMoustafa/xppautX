@@ -2,6 +2,9 @@
 #include "storage.h"
 #include "xpp_ui.h"
 #include "session.h"
+#include "markov.h"
+#include "adj2.h"
+#include "histogram.h"
 #include "xpp_mem.h" /* xpp::out_of_memory */
 #include <stdlib.h> 
 #include <stdio.h>
@@ -18,7 +21,7 @@ namespace xpp {
 
 void init_alloc_info(xpp::Session &s)
 {
-  SolverWork &w=s.solver_work;
+  SolverWork &w=*s.solver_work;
   w.xpv.node=s.model().node+s.model().nmarkov;
   w.xpv.nvec=0; /* this is just for now */
   /* called again once the model's options are read: a fresh zeroed block */
@@ -267,18 +270,18 @@ void LentColumns::retype(const DataStore &store)
 
 void storage_precision_changed(Session &s)
 {
-  const StoragePrecision wanted=s.numerics.storage_precision;
-  const Result<> converted=s.data_store.set_precision(wanted);
+  const StoragePrecision wanted=s.numerics->storage_precision;
+  const Result<> converted=s.data_store->set_precision(wanted);
   if(!converted){
-    s.numerics.storage_precision=s.data_store.precision();
+    s.numerics->storage_precision=s.data_store->precision();
     ok_or_show(converted);
     return;
   }
-  s.histogram.hist_columns.retype(s.data_store);
-  s.histogram.four_columns.retype(s.data_store);
-  s.adjoint.adjoint.retype(s.data_store);
-  s.adjoint.h_function.retype(s.data_store);
-  s.adjoint.transposed.retype(s.data_store);
+  s.histogram->hist_columns.retype(*s.data_store);
+  s.histogram->four_columns.retype(*s.data_store);
+  s.adjoint->adjoint.retype(*s.data_store);
+  s.adjoint->h_function.retype(*s.data_store);
+  s.adjoint->transposed.retype(*s.data_store);
   retype_stochastic(s);
 }
 

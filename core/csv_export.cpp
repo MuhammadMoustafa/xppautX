@@ -47,7 +47,7 @@ xpp::Result<bool> write_table(const xpp::DataTable &table, const char *filename)
 xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename)
 {
     const xpp::Model &m = s.model();
-    if (!xpp::save_ready(s.diagram.points.size() >= 2)) return false; /* nothing recorded */
+    if (!xpp::save_ready(s.diagram->points.size() >= 2)) return false; /* nothing recorded */
     xpp::DataTable table;
     table.names = {"branch", "point", "type", "label", "stability", "f2", "param1_name", "param1", "param2_name", "param2", "period", "jacobian"};
     for (int i = 0; i < m.nupar; i++) table.names.push_back(xpp::format("parameter.{}",m.upar_names[i]));
@@ -57,7 +57,7 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
     /* the first point is a stored point itself (edit_start fills it in
        place), not a sentinel before one: write_info_out/write_pts start
        the same way */
-    for (const xpp::DIAGRAM &p : s.diagram.points) {
+    for (const xpp::DIAGRAM &p : s.diagram->points) {
         const xpp::DIAGRAM *d = &p;
         xpp::DiagramPointType type = xpp::get_bif_type(d->ibr, d->ntot);
         const std::string type_name(xpp::autox_point_kind_name(d->itp.kind));
@@ -78,11 +78,11 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
 
 xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const char *filename)
 {
-    if (!xpp::save_ready(s.diagram.points.size() >= 2)) return false;
+    if (!xpp::save_ready(s.diagram->points.size() >= 2)) return false;
     xpp::DataTable table;
     table.names = {"branch", "point", "index", "re", "im", "kind"};
     table.fields.resize(table.names.size());
-    for (const xpp::DIAGRAM &p : s.diagram.points) {
+    for (const xpp::DIAGRAM &p : s.diagram->points) {
         const xpp::DIAGRAM *d = &p;
         xpp::DiagramPointType type = xpp::get_bif_type(d->ibr, d->ntot);
         const char *kind = xpp::point_is_periodic(type) ? "multiplier" : "eigenvalue";

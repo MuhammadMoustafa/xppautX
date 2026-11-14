@@ -9,6 +9,7 @@
 #include <vector>
 #include "storage.h"
 #include "session.h"
+#include "autox_state.h"
 #include "xpp_ui.h"
 #include "xpp_log.h"
 #include "diagram.h"
@@ -40,7 +41,7 @@ xpp::DIAGRAM *new_point(AutoxDiagram &dg, std::size_t n)
    kind of calculation and torus period) */
 void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p, xpp::AutoxCalculation flag2)
 {
-  d->calc=s.autox_state.type_of_calc;
+  d->calc=s.autox_state->type_of_calc;
   d->ibr=p.ibr;
   d->ntot=p.ntot;
   d->itp=p.itp;
@@ -64,7 +65,7 @@ void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p,
   d->u0=p.u0;
   d->evr=p.evr;
   d->evi=p.evi;
-  d->torper=s.autox_state.blrtn.torper;
+  d->torper=s.autox_state->blrtn.torper;
   d->jacobian=p.jacobian;
   d->job=p.job;
 }
@@ -116,29 +117,29 @@ void diagram_restore(xpp::Session &s, std::deque<xpp::DIAGRAM> points)
     start_diagram(s,s.model().node);
     return;
   }
-  s.diagram.points=std::move(points);
-  s.autox_state.script.points.clear();
+  s.diagram->points=std::move(points);
+  s.autox_state->script.points.clear();
   int index=0;
-  for(xpp::DIAGRAM &p:s.diagram.points)p.index=index++;
-  s.autox_state.diag_flag=true;
+  for(xpp::DIAGRAM &p:s.diagram->points)p.index=index++;
+  s.autox_state->diag_flag=true;
 }
 
 void start_diagram(xpp::Session &s, int n)
 {
-  s.diagram.points.clear();
-  s.autox_state.script.points.clear(); /* the points a script's runs stored are gone */
-  new_point(s.diagram,static_cast<std::size_t>(n));
-  s.autox_state.diag_flag=false;
+  s.diagram->points.clear();
+  s.autox_state->script.points.clear(); /* the points a script's runs stored are gone */
+  new_point(*s.diagram,static_cast<std::size_t>(n));
+  s.autox_state->diag_flag=false;
 }
 
 void edit_start(xpp::Session &s, const xpp::DIAGRAM &p)
 {
-  edit_diagram(s,&s.diagram.points.front(),p,p.flag2);
+  edit_diagram(s,&s.diagram->points.front(),p,p.flag2);
 }
 
 void add_diagram(xpp::Session &s, const xpp::DIAGRAM &p)
 {
-  xpp::DIAGRAM *dnew=new_point(s.diagram,p.u0.size());
+  xpp::DIAGRAM *dnew=new_point(*s.diagram,p.u0.size());
   edit_diagram(s,dnew,p,p.flag2);
 }
 
@@ -149,8 +150,8 @@ xpp::DIAGRAM *last_diagram(AutoxDiagram &diagram)
 
 const xpp::DIAGRAM *diagram_of_label(const xpp::Session &s, int lab)
 {
-  if(lab<=0||!s.autox_state.diag_flag)return NULL; /* not yet: the first point is not filled in yet */
-  for(const xpp::DIAGRAM &p:s.diagram.points)
+  if(lab<=0||!s.autox_state->diag_flag)return NULL; /* not yet: the first point is not filled in yet */
+  for(const xpp::DIAGRAM &p:s.diagram->points)
     if(p.lab==lab)return &p;
   return NULL;
 }
@@ -177,9 +178,9 @@ void redraw_diagram(xpp::Session &s)
   xpp::DiagramPointType type;
   int flag=0;
   draw_bif_axes(s);
-  if(diagram_count(s.diagram)<2)return;
+  if(diagram_count(*s.diagram)<2)return;
   xpp::autox_data_hold(s,1); /* plotting again leaves the strip and circle as they were */
-  for(xpp::DIAGRAM &point:s.diagram.points){
+  for(xpp::DIAGRAM &point:s.diagram->points){
     xpp::DIAGRAM *d=&point;
     type=xpp::get_bif_type(d->ibr,d->ntot);
  
@@ -200,7 +201,7 @@ namespace {
 /* a diagram export needs points */
 xpp::Result<> need_points(const xpp::Session &s)
 {
-  if(diagram_count(s.diagram)<2)return xpp::fail("autox","The diagram has no points to write",xpp::command_place());
+  if(diagram_count(*s.diagram)<2)return xpp::fail("autox","The diagram has no points to write",xpp::command_place());
   return {};
 }
 
@@ -236,11 +237,11 @@ xpp::Result<> export_diagram(xpp::Session &s, const std::optional<std::string> &
   const auto target=export_target(s,file,f.name,"diagram",xpp::format(".{}",f.extension).c_str());
   if(!target)return {};
   if(const xpp::Result<> begun=xpp::begin_picture(s,f,*target);!begun)return begun;
-  if(!s.plot_file.writer)return {};
+  if(!s.plot_file->writer)return {};
   if(view)autox_activate_view(s,*view);
   draw_export_axes(s);
   int flag=0;
-  for(xpp::DIAGRAM &point:s.diagram.points){
+  for(xpp::DIAGRAM &point:s.diagram->points){
     xpp::DIAGRAM *d=&point;
     const xpp::DiagramPointType type=xpp::get_bif_type(d->ibr,d->ntot);
     if(d->ntot==1)flag=0;
@@ -257,7 +258,7 @@ xpp::Result<> export_diagram(xpp::Session &s, const std::optional<std::string> &
 xpp::Result<> write_info_out(xpp::Session &s, const std::optional<std::string> &file)
 {
   return export_text(s,file,"Write all info","allinfo",[&](xpp::Writer &w){
-    for(xpp::DIAGRAM &point:s.diagram.points){
+    for(xpp::DIAGRAM &point:s.diagram->points){
       xpp::DIAGRAM *d=&point;
       const xpp::DiagramPointType type=xpp::get_bif_type(d->ibr,d->ntot);
       const xpp::AutoxAxis icp1=d->icp1,icp2=d->icp2;
@@ -296,10 +297,10 @@ xpp::Result<> load_data_with_branch(xpp::Session &s, int ibr,int pts,int pte)
     last=i;
   }
   nrows=last-first+1;
-  if(diagram_count(s.diagram)<2)return {};
-  if(const xpp::Result<> room=s.data_store.fit(s.model().neq+1,nrows+1);!room)return room;
+  if(diagram_count(*s.diagram)<2)return {};
+  if(const xpp::Result<> room=s.data_store->fit(s.model().neq+1,nrows+1);!room)return room;
   j=0;
- for(xpp::DIAGRAM &point:s.diagram.points){
+ for(xpp::DIAGRAM &point:s.diagram->points){
    xpp::DIAGRAM *d=&point;
     pt=abs(d->ntot);
     if((d->ibr==ibr) && (pt>=first) && (pt<=last)){
@@ -309,20 +310,20 @@ xpp::Result<> load_data_with_branch(xpp::Session &s, int ibr,int pts,int pte)
       u0=d->u0.data();
 
       par1=par[icp1.index];
-      s.data_store.col[0][j]=par1;
+      s.data_store->col[0][j]=par1;
       for(i=0;i<s.model().node;i++)
-	s.data_store.col[i+1][j]=u0[i];
+	s.data_store->col[i+1][j]=u0[i];
       j++;
     }
  }
- s.data_store.rows=nrows;
+ s.data_store->rows=nrows;
  refresh_data(s,nrows);
  return {};
 }
 xpp::Result<> write_init_data_file(xpp::Session &s, const std::optional<std::string> &file)
 {
   return export_text(s,file,"Write init data file","initdata",[&](xpp::Writer &w){
-    for(xpp::DIAGRAM &point:s.diagram.points){
+    for(xpp::DIAGRAM &point:s.diagram->points){
       xpp::DIAGRAM *d=&point;
       auto parameters=diagram_parameters(*d);
       std::string line=xpp::format("{:g} ",parameters.data()[d->icp1.index]);
@@ -337,7 +338,7 @@ xpp::Result<> write_init_data_file(xpp::Session &s, const std::optional<std::str
 xpp::Result<> write_pts(xpp::Session &s, const std::optional<std::string> &file)
 {
   return export_text(s,file,"Write points","diagram",[&](xpp::Writer &w){
-    for(xpp::DIAGRAM &point:s.diagram.points){
+    for(xpp::DIAGRAM &point:s.diagram->points){
       xpp::DIAGRAM *d=&point;
       const xpp::DiagramPointType type=xpp::get_bif_type(d->ibr,d->ntot);
       const xpp::AutoxAxis icp1=d->icp1,icp2=d->icp2;
@@ -350,7 +351,7 @@ xpp::Result<> write_pts(xpp::Session &s, const std::optional<std::string> &file)
       */
       if(check_plot_type(s,d->flag2,icp1,icp2)==1){
         double x,y1,y2;
-        autox_xy_plot(&s.autox_state.axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
+        autox_xy_plot(&s.autox_state->axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
         w.print("{:g} {:g} {:g} {} {} {}\n",
                 x,y1,y2,xpp::diagram_point_type_code(type),abs(d->ibr),autox_calculation_name(d->flag2));
       }
@@ -371,16 +372,16 @@ void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, doubl
 {
   
   double x,y1,y2,par1,par2=0.0;
-  if(diagram_count(s.diagram)<2)return;
+  if(diagram_count(*s.diagram)<2)return;
   *xlo=1.e16;
   *ylo=*xlo;
   *xhi=-*xlo;
   *yhi=-*ylo;
-  for(xpp::DIAGRAM &point:s.diagram.points){
+  for(xpp::DIAGRAM &point:s.diagram->points){
     xpp::DIAGRAM *d=&point;
     par1=diagram_axis_value(*d,d->icp1);
     if(d->icp2.is_parameter())par2=diagram_axis_value(*d,d->icp2);
-    autox_xy_plot(&s.autox_state.axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
+    autox_xy_plot(&s.autox_state->axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
     if(x<*xlo)*xlo=x;
     if(x>*xhi)*xhi=x;
     if(y2<*ylo)*ylo=y2;

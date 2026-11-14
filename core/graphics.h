@@ -34,7 +34,7 @@ void change_current_color(Session &s, const Color &newcolor, Color *old);
 void eq_symb(Session &s, double *x, int type);
 
 /* The drawing into the session s's active plot window, or into the
-   picture file begun (s.plot_file): its scale and drawing area, the
+   picture file begun (*s.plot_file): its scale and drawing area, the
    device primitives, the plot's world coordinates' lines, points and
    text, 2D and 3D (point_abs, line_abs, line_3d ...), and the plot
    windows' settings (init_all_graph, reset_graph, get_graph ...) */

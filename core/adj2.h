@@ -60,7 +60,7 @@ void h_back(Session &s);
 Result<> transpose_data(Session &s, std::string_view first_column, int columns, int column_skip, int first_row, int rows, int row_skip);
 void alloc_h_stuff(Session &s);
 void data_back(Session &s);
-/* the adjoint of the stored orbit; the H function for the couplings of s.adjoint.coup_string, compiled first when
+/* the adjoint of the stored orbit; the H function for the couplings of s.adjoint->coup_string, compiled first when
    `compile` (else the formulas of the last time are used again, as a range of adjoints does) */
 Result<> new_adjoint(Session &s);
 Result<> new_h_fun(Session &s, bool compile, const std::vector<std::string> *couplings = nullptr);

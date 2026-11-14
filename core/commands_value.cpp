@@ -10,6 +10,7 @@
 #include "xpp_io.h"
 #include "xpp_util.h"
 #include "session.h"
+#include "load_eqn.h"
 #include "model.h"
 #include "event_registry.h"
 #include <array>
