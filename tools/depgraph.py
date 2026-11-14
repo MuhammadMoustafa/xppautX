@@ -91,9 +91,9 @@ LEVELS = [
     ('kernel', 'kernel', 'pure helpers (errors, memory, text, math) that include nothing outside themselves'),
     ('run control', 'kernel', 'the cancel token and progress a computation reports to, owned inside, set by the front ends'),
     ('styles', 'kernel', 'the colors and styles a model, a run and a plot carry: pure types, including only the kernel, below the XppUi seam that passes them'),
-    ('plot state', 'kernel', 'pure data of the plot windows (GRAPH, the split, the drawing, the nullclines), including only the kernel and the styles, below the seam and everything that reads a window'),
     ('ui seam', 'kernel', 'the XppUi table core code calls the front end through, owned inside, implemented outside'),
     ('expressions', 'domain model', 'the formula compiler and its evaluators, which need no run'),
+    ('plot state', 'domain model', 'pure data of the plot windows (GRAPH, the split, the drawing, the nullclines) that a model\'s options set and a run reads: no drawing; above the XppUi seam, whose headless defaults still read a graph\'s size (W733 left those 2 lines)'),
     ('model and loading', 'domain model', 'a Model and the readers of model files, given their text'),
     ('integrators', 'domain services', 'the solvers, computing with a model'),
     ('analysis', 'domain services', 'what is computed from a run: sweeps, fits, equilibria, shooting, spectra'),
@@ -188,6 +188,7 @@ ALLOWLIST = {
     ('ui seam', 'integrators'): (3, 'W736'),
     ('ui seam', 'model and loading'): (2, 'W736'),
     ('ui seam', 'platform'): (1, 'W737'),
+    ('ui seam', 'plot state'): (2, 'W733'),
     ('ui seam', 'session'): (2, 'W732'),
 }
 
