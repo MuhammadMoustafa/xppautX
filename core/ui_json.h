@@ -20,6 +20,7 @@ struct AboutLine {
 
 namespace xpp {
 struct Session; /* session.h */
+class FileSystem; /* xpp_fs.h */
 
 /* line-delimited JSON front end (ui_json.cpp, docs/protocol.md) */
 /* the protocol's version (format_version.h, the one number of the protocol and every file), in hello and the desktop window's About */
@@ -39,7 +40,7 @@ void json_ui_loop(void);           /* read and run commands until EOF */
    the built-in script its options make (core/json_silent.cpp) through
    this front end, its events going nowhere; exits 0 when the script
    ends, 1 when the model does not load */
-int json_ui_silent(CommandLine cl, const Result<prefs::Preferences> *read_prefs, HelloInfo hello);
+int json_ui_silent(FileSystem &fs, CommandLine cl, const Result<prefs::Preferences> *read_prefs, HelloInfo hello);
 
 /* the command line run at once, as if the client had sent it; the
    Session it ended in: the client's, or the one a model it loaded (a

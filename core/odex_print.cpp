@@ -8,7 +8,7 @@
    grouping, a sign and an if always bracketed, so no quirk of .ode's
    precedence is reached. */
 #include "odex.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_mem.h"
 
 #include <cmath>

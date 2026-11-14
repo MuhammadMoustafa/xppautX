@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdio>
+#include <functional>
 #include <span>
 #include <string>
 #include <vector>
@@ -22,7 +22,7 @@ void add_wiener(Session &s, int index);
 void start_ou(Session &s);
 /* the noise of the step of dt about to be taken: Markov chains, Wiener parameters and Ornstein-Uhlenbeck processes, once for all its stages */
 void set_wieners(Session &s, double dt, double *x, double t);
-int old_build_markov(Session &s, FILE *fptr, const char *name);
+int old_build_markov(Session &s, const std::function<bool(std::string &)> &next_line, const char *name);
 void create_markov(Session &s, int nstates, double *st, int type, const char *name);
 void add_markov_entry(Session &s, int index, int j, int k, const char *expr);
 void compile_all_markov(Session &s);

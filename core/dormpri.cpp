@@ -22,7 +22,7 @@
 #include "model_place.h"
 #include "numerics_settings.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_mem.h"
 
 /* Hairer's DOP853 and DOPRI5, with what XPP's one caller (the Solver

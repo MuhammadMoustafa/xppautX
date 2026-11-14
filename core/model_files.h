@@ -15,7 +15,6 @@
    The model itself is loaded by xpp::load_model (model_load.h), given the
    saved files for a saved one. C++ only. */
 #include "xpp_error.h"
-#include "xpp_io.h"
 #include "model_file_types.h"
 
 #include <memory>
@@ -75,16 +74,6 @@ bool read_model_file(Model &m, const std::string &name, std::string &bytes);
 /* A validated companion picked after loading, recorded for session saving.
    Replace its earlier bytes, checking the same aggregate archive budget. */
 Result<> remember_model_file(Model &m, const std::string &name, std::string bytes);
-
-/* m's file name opened for reading, as open_read opens a file,
-   for a reader that takes a FILE *: empty when there is none. During a
-   load only: the checked and recorded bytes are read from a copy in a
-   scratch folder the load removes when it ends. */
-UniqueFile open_model_file(Model &m, const std::string &name);
-
-/* m's file name, a line at a time (LineReader): empty when there
-   is none */
-LineReader model_file_lines(Model &m, const std::string &name);
 
 /* bytes can be a model's text: not a zip (an .snapx is opened
    as what it is, by its name) nor any other binary file (a NUL byte) */

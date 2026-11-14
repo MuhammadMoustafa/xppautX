@@ -2,13 +2,14 @@
 #include <expected>
 #include <utility>
 #include "snapx.h"
-#include "xpp_io.h"
+#include "xpp_zip.h"
+#include "xpp_path.h"
+#include "xpp_lines.h"
+#include "xpp_text.h"
 
-#include "xpp_files.h"
 #include "odex_write.h"
 #include "odex.h"
 #include "odex_block.h"
-#include "xpp_zip.h"
 
 namespace xpp::snapx {
 

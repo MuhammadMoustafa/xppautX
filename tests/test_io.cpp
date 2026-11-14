@@ -234,21 +234,6 @@ TEST_CASE("test_io")
         CHECK(r.next().value_or("") == "short");
     }
 
-    /* attach: reads through a FILE* the caller keeps open and owns --
-       closing the reader must not close it */
-    {
-        TempFile tf("test_io_attach.tmp");
-        write_raw(tf.c_str(), "only line\n");
-        FILE *fp = std::fopen(tf.c_str(), "r");
-        CHECK(fp != NULL);
-        {
-            xpp::LineReader r = xpp::LineReader::attach(fp);
-            CHECK(r.next().value_or("") == "only line");
-        }
-        CHECK(std::feof(fp) == 0 || std::fgetc(fp) == EOF); /* fp still usable */
-        std::fclose(fp);
-    }
-
     /* token reader: fscanf "%lg"/"%d" equivalents, whitespace separated,
        strtod on the same token agreeing with the double read; a token
        that is no number is no read */

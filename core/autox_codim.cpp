@@ -4,7 +4,6 @@
 #include "session.h"
 #include "autox_state.h"
 #include "xpp_math.h"
-#include "xpp_io.h"
 #include "xpp_math_autox.h"
 #include "xpp_mem.h"
 #include <algorithm>

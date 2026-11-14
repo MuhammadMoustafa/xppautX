@@ -13,7 +13,7 @@
 #include "xpp_mir.h"
 #include "my_rhs.h"
 #include "xpp_util.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_math.h"
 #include <array>
 #include <bit>

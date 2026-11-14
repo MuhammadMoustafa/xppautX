@@ -9,7 +9,7 @@
 #include "xpp_cpu.h"
 #include "xpp_job.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include <algorithm>
 #include <condition_variable>
 #include <exception>

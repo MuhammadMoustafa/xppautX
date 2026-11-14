@@ -2,9 +2,10 @@
 #include "recx.h"
 #include "odex.h"
 #include "odex_write.h"
-#include "xpp_files.h"
-#include "xpp_io.h"
 #include "xpp_sha256.h"
+#include "xpp_path.h"
+#include "xpp_lines.h"
+#include "xpp_text.h"
 #include "odex_block.h"
 
 #include <algorithm>

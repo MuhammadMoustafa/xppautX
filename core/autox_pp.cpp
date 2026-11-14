@@ -30,7 +30,7 @@
 #include "xpp_ui.h"
 #include "model.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 /*    Hooks to xpp RHS     */
 

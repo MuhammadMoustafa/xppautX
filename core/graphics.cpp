@@ -15,7 +15,7 @@
 #include <cstddef>
 #include <memory>
 #include <vector>
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "plot_settings.h"
 #include "xpp_math.h"
 #include "session.h"

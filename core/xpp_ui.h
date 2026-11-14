@@ -15,7 +15,7 @@
 namespace xpp {
 struct Session; /* session.h */
 struct AniExport; /* aniparse.h */
-namespace files { struct WriteFolders; }
+struct WriteFolders; /* xpp_fs.h */
 namespace command { struct Command; class Arguments; } /* command_def.h */
 
 /*
@@ -200,12 +200,15 @@ typedef struct XppUi {
     void (*err_msg)(const Error &e);
     /* where the command that runs came from (command_place) */
     Place (*command_place)(void);
+    /* line `line` of the file `file` as written, "" when it cannot be had: what an error's place quotes when
+       nothing else supplied it (the front end reads the file; the seam never does) */
+    std::string (*source_line)(const std::string &file, int line);
     /* A command's explicit replace decision: 0 asks, 1 permits, -1 declines. */
     int (*save_replace)(bool independent);
     /* A core decision without a dialog/command answer, for recording. */
     void (*save_decision)(int decision, bool asked);
     void (*save_result)(std::string_view file, bool saved);
-    files::WriteFolders *(*write_folders)(void); /* the active front end supplies its session owner */
+    WriteFolders *(*write_folders)(void); /* the active front end supplies its session owner */
     void (*ping)(void);
     void (*bottom_msg)(int line, std::string_view msg, std::string_view chapter, std::string_view anchor);
 

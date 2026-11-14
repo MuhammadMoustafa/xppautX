@@ -23,7 +23,7 @@
 #include "xpp_log.h"
 
 #include "expr.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "markov.h"
 #include "load_eqn.h"
 #include <unistd.h>
@@ -335,7 +335,7 @@ void room_for_declared(xpp::Session &s)
 
 /* One line of an old-style model (a command letter and its arguments),
    built as it is read. 0 at "done". */
-int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
+int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(std::string &)> &next_line)
 {
   xpp::Model &m=s.model();
   double value,xlo,xhi;
@@ -419,7 +419,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
     case 'r': /* state table for Markov variables  */
       name=tokens.text("\n");
       nlin=m.nlines();
-      index=xpp::old_build_markov(s,fptr,name.c_str());
+      index=xpp::old_build_markov(s,next_line,name.c_str());
       set_ode_name(m,s.parser.build.in_vars+index,xpp::format("{{ {} ... }}",m.source[nlin]));
       break;
     case 'v':
@@ -731,14 +731,14 @@ int disc(const xpp::Model &m)
   return end=="dis"||end=="dif";
 }
 
-void build_old_style(xpp::Session &s, int neq, FILE *fptr, const std::function<bool(std::string &)> &next_line)
+void build_old_style(xpp::Session &s, int neq, const std::function<bool(std::string &)> &next_line)
 {
   begin_model(s);
   s.model().neq=neq;
   xpp::log(XPP_LOG_INFO, "NEQ={:d}\n",neq);
   std::string bob;
   for(int done=1;done&&next_line(bob);)
-    done=compiler(s,bob,fptr);
+    done=compiler(s,bob,next_line);
   finish_model(s);
 }
 

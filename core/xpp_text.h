@@ -101,6 +101,18 @@ void format_append(std::string &out, std::format_string<Args...> fmt, Args &&...
                           std::forward<Args>(args)...);
 }
 
+/* fprintf's type-checked counterpart: std::format into fp, for a stream
+   that stays a FILE * (autoX's fort.7/8/9, written while it runs, and the
+   helpers that are handed one); a Writer prints with its own print().
+   Nothing is written to a NULL fp. */
+template <class... Args>
+void print(FILE *fp, std::format_string<Args...> fmt, Args &&...args) noexcept
+{
+    const std::string s = xpp::with_format_args([&fmt](std::format_args a) { return xpp::vformat(fmt.get(), a); },
+                                               std::forward<Args>(args)...);
+    if (fp) std::fwrite(s.data(), 1, s.size(), fp);
+}
+
 /* A double's shortest round-trip decimal text (std::to_chars): unlike
    "%g" it never loses precision and never needs a chosen digit count;
    prefer this in new C++ code. */

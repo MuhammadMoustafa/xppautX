@@ -29,7 +29,7 @@
 #include "solver.h"
 #include "volterra2.h"
 #include "xpp_globals.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "session_values.h"

@@ -192,16 +192,16 @@ Result<CommandLine> animation_command_line(CommandLine cl)
 /* load_model's work: the Session loaded, else what is wrong and where.
    The Load ends here, before its error is written: the messages it kept
    are written first */
-Loaded in_model(const std::function<void(Session &)> &work, bool commit)
+Loaded in_model(FileSystem &fs, const std::function<void(Session &)> &work, bool commit)
 {
     /* the parser and the set-up fill a fresh Model and Session, kept only
        when the load gets to the end: a failed one puts back those before */
-    xpp::Load load;
+    xpp::Load load(fs);
     /* the process-wide settings a load writes, put back when it fails */
     const XppProgram program_before = program;
     xpp::Model &m = load.model();
     try {
-        m.load_dir = xpp::files::working_dir();
+        m.load_dir = fs.working_dir();
         work(load.session());
     } catch (xpp::LoadFailed &failed) {
         program = program_before;
@@ -216,7 +216,6 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
         Load::at(m.this_file);
         xpp::log(XPP_LOG_WARN, "states without init start at 0:{}\n", missing);
     }
-    m.saved_copies.reset(); /* the load's readers are done with them */
     xpp_session_mark_clean(load.session()); /* what it loaded is not a change */
     /* the compile waits for the first computation (W713), except for a model that asks for the exact Jacobian: its absence is the load's error */
     if (load.session().numerics->jacobian!=JACOBIAN_EXACT) m.compile_pending=true;
@@ -233,13 +232,13 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
     return &load.session();
 }
 
-Loaded load_in(const CommandLine &cl, int batch, const SavedModel *saved,
+Loaded load_in(FileSystem &fs, const CommandLine &cl, int batch, const SavedModel *saved,
                const std::function<std::optional<Error>(Session &)> &check,
                const std::function<void(Session &)> &read, bool commit,
                const std::vector<std::string> &outside_paths = {}, const Result<prefs::Preferences> *read_prefs = nullptr,
                std::optional<AutoxScript> script = {})
 {
-    return in_model([&](Session &s) {
+    return in_model(fs, [&](Session &s) {
         Model &m = s.model();
         m.outside_paths = outside_paths;
         if (saved) {
@@ -254,7 +253,7 @@ Loaded load_in(const CommandLine &cl, int batch, const SavedModel *saved,
 
 } // namespace
 
-Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
+Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *saved,
                   const std::function<std::optional<Error>(Session &)> &check, const Result<prefs::Preferences> *read_prefs)
 {
     auto resolved = animation_command_line(std::move(cl));
@@ -270,7 +269,7 @@ Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
     bool existing = false;
     std::vector<odex::Diagnostic> diagnostics;
     std::vector<std::string> outside_paths;
-    Loaded prepared = in_model([&](Session &s) {
+    Loaded prepared = in_model(fs, [&](Session &s) {
         apply_command_line(s, cl);
         if (batch) batch_options.enabled = 1;
         choose_model_file(s);
@@ -286,7 +285,7 @@ Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
     Loaded loaded = prepared;
     if (prepared) {
         if (xpp::files::has_extension(file, ".ode")) {
-            Result<bool> opened = odex::open_ode(file, diagnostics, outside_paths);
+            Result<bool> opened = odex::open_ode(fs, file, diagnostics, outside_paths);
             if (!opened) loaded = std::unexpected(opened.error());
             else {
                 converted = odex::odex_name(file);
@@ -296,7 +295,7 @@ Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
                 cl.model_file = converted;
             }
         }
-        if (loaded) loaded = load_in(cl, batch, saved, check, load_eqn, true, outside_paths, read_prefs, std::move(script));
+        if (loaded) loaded = load_in(fs, cl, batch, saved, check, load_eqn, true, outside_paths, read_prefs, std::move(script));
     }
     /* the one place a model that does not load is written to the log */
     if (!loaded) {
@@ -311,12 +310,12 @@ Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
     return loaded;
 }
 
-Result<> inspect_model(const CommandLine &cl, const std::function<void(Session &)> &read,
+Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::function<void(Session &)> &read,
                        const std::function<std::optional<Error>(Session &)> &check,
                        const SavedModel *saved)
 {
     const auto resolved = animation_command_line(cl);
-    Loaded inspected = resolved ? load_in(*resolved, 1, saved, check, read, false) : Loaded{std::unexpected(resolved.error())};
+    Loaded inspected = resolved ? load_in(fs, *resolved, 1, saved, check, read, false) : Loaded{std::unexpected(resolved.error())};
     if (!inspected) return std::unexpected(inspected.error());
     return {};
 }

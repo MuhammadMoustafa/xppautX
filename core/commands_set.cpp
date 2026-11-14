@@ -9,7 +9,7 @@
 #include "model_options.h"
 #include "model_save.h"
 #include "set_load.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "event_registry.h"
 #include "command_category.h"
 #include "xpp_error.h"

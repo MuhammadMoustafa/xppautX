@@ -17,7 +17,7 @@
 #include "xpp_mem.h"
 #include "autox_codes.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 namespace xpp {
 

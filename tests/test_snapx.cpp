@@ -4,6 +4,7 @@
    .odex, an included file, a file table) and a file written with it
    carries them all; that saved model loads from the file alone, the
    files on the disk gone, and a file without its model is refused. */
+#include "local_fs.h"
 #include "load_args.h"
 #include "model_text.h"
 #include "xpptest.h"
@@ -163,7 +164,7 @@ void check_saved_animation(const xpp::TempDir &tmp)
     if (!entries) return;
     const std::string path = tmp.file("animation.snapx");
     CHECK(write_file(path, xpp::zip::make_zip(*entries)));
-    auto saved = xpp_saved_read(path);
+    auto saved = xpp_saved_read(local_fs(), path);
     CHECK(saved && saved->manifest.model_name == "animated.odex");
     if (!saved) return;
     CHECK(xpp::files::remove("animated.odex") == 0 && xpp::files::remove("motion.anix") == 0);
@@ -186,9 +187,8 @@ void check_saved_model(const xpp::TempDir &tmp)
     CHECK(load("main.odex"));
     /* A disk change after recording must not change the stream a parser sees. */
     CHECK(write_file("inc.odex", "par a=99\n"));
-    xpp::UniqueFile stream = xpp::open_model_file(xpp::client_session().model(), "inc.odex");
     std::string streamed;
-    CHECK(xpp::read_bytes(stream.get(), streamed) && streamed == versioned("par a=2\n"));
+    CHECK(xpp::read_model_file(xpp::client_session().model(), "inc.odex", streamed) && streamed == versioned("par a=2\n"));
     CHECK(write_file("inc.odex", "par a=2\n"));
     const std::vector<xpp::ModelFile> files = xpp::client_session().model().record->files;
     CHECK(files.size() >= 3 && files[0].name == "main.odex" && files[1].name == "inc.odex" && files[2].name == "w.tab");
@@ -201,7 +201,7 @@ void check_saved_model(const xpp::TempDir &tmp)
     if (!entries) return;
     const std::string path = tmp.file("s.snapx");
     CHECK(write_file(path, xpp::zip::make_zip(*entries)));
-    std::optional<SavedFile> f = xpp_saved_read(path);
+    std::optional<SavedFile> f = xpp_saved_read(local_fs(), path);
     CHECK(f && f->manifest.model_name == "main.odex" && f->model.files == files && f->model.in == path);
     if (!f) return;
     CHECK(f->manifest.model_name == "main.odex");
@@ -224,9 +224,9 @@ void check_saved_model(const xpp::TempDir &tmp)
     /* a file without its model is refused, as is one that is no zip */
     std::vector<xpp::zip::Entry> no_model{(*entries)[0]};
     CHECK(write_file(path, xpp::zip::make_zip(no_model)));
-    CHECK(!xpp_saved_read(path));
+    CHECK(!xpp_saved_read(local_fs(), path));
     CHECK(write_file(path, "not a zip"));
-    CHECK(!xpp_saved_read(path));
+    CHECK(!xpp_saved_read(local_fs(), path));
 
     /* a zip or another binary file opened as a model is refused */
     CHECK(write_file("zip.odex", xpp::zip::make_zip(*entries)));
@@ -358,7 +358,7 @@ void check_plot_limits(const xpp::TempDir &tmp)
         CHECK(read && read->graph.nvars==curves && read->graph.yv.back()==curves);
     }
     CHECK(write_file(tmp.file("limits.snapx"),*bytes));
-    auto disk=xpp_saved_read(tmp.file("limits.snapx"));
+    auto disk=xpp_saved_read(local_fs(), tmp.file("limits.snapx"));
     CHECK(disk.has_value());
     if(!disk)return;
     CHECK(load("plotlimits.odex",&disk->model));

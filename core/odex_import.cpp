@@ -5,7 +5,7 @@
    The parser (odex_parse.cpp) reads the file
    and hands its statements here. */
 #include "odex.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_mem.h"
 
 #include <algorithm>

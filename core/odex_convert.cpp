@@ -24,8 +24,11 @@
 #include "tabular.h"
 #include "model_load.h"
 #include "model_failed.h"
-#include "xpp_files.h"
-#include "xpp_io.h"
+#include "xpp_zip.h"
+#include "xpp_path.h"
+#include "xpp_lines.h"
+#include "xpp_text.h"
+#include "xpp_fs.h"
 #include "xpp_log.h"
 #include "typed_values.h"
 #include "userbut.h"
@@ -1901,7 +1904,7 @@ Fingerprint fingerprint(const xpp::Session &s, int guard = -1)
 
 } // namespace
 
-int check_file(const std::string &file)
+int check_file(FileSystem &fs, const std::string &file)
 {
   std::vector<Diagnostic> diagnostics;
   std::optional<Error> error;
@@ -1917,10 +1920,10 @@ int check_file(const std::string &file)
       if (has_subsystems(s)) diagnostics.push_back({Place{file}, "subsystems", "info", describe_subsystems(s)});
       return std::nullopt;
     };
-    const Result<> loaded = line ? inspect_model(*line, load_eqn, compiled) : std::unexpected(line.error());
+    const Result<> loaded = line ? inspect_model(fs, *line, load_eqn, compiled) : std::unexpected(line.error());
     if (!loaded) error = loaded.error();
   } else {
-    const Result<std::string> converted = convert_text(file, &diagnostics, nullptr, DeclinedRename::report);
+    const Result<std::string> converted = convert_text(fs, file, &diagnostics, nullptr, DeclinedRename::report);
     if (!converted) error = converted.error();
   }
   capture.clear();
@@ -1959,7 +1962,7 @@ void show_diagnostics(const std::vector<Diagnostic> &diagnostics)
   }
 }
 
-Result<std::string> convert_text(const std::string &ode, std::vector<Diagnostic> *diagnostics,
+Result<std::string> convert_text(FileSystem &fs, const std::string &ode, std::vector<Diagnostic> *diagnostics,
                                std::vector<std::string> *outside_paths, DeclinedRename declined)
 {
   if (is_odex(ode)) return xpp::fail_reading("convert", "is .odex already", ode);
@@ -1973,15 +1976,13 @@ Result<std::string> convert_text(const std::string &ode, std::vector<Diagnostic>
   const OdeAsOdex as_odex;
   std::vector<Diagnostic> findings;
   std::vector<Diagnostic> &output = diagnostics ? *diagnostics : findings;
-  Result<> imported = xpp::inspect_model(*line, [](Session &s) {
+  Result<> imported = xpp::inspect_model(fs, *line, [](Session &s) {
     const std::string &file = s.model().this_file;
     xpp::Load::at(file);
     std::string bytes;
     if (!read_model_file(s.model(), file, bytes) || !is_model_text(bytes))
       model_failed(Error{"convert", "cannot be read as model text", Place{file}});
-    xpp::UniqueFile input = open_model_file(s.model(), file);
-    if (!input) model_failed(Error{"convert", "cannot be read", Place{file}});
-    get_eqn(s, input.get());
+    get_eqn(s, bytes);
   }, [&](Session &s) -> std::optional<Error> {
     try {
       Converter converter(s, output, declined);
@@ -2001,7 +2002,7 @@ Result<std::string> convert_text(const std::string &ode, std::vector<Diagnostic>
   const Result<CommandLine> converted_line = parse_command_line({"xppautX", model});
   if (!converted_line) return std::unexpected(converted_line.error());
   saved.files.push_back({model, text});
-  Result<> checked = xpp::inspect_model(*converted_line, load_eqn,
+  Result<> checked = xpp::inspect_model(fs, *converted_line, load_eqn,
     [&](Session &s) -> std::optional<Error> {
       /* run() writes the guard last, so every other function keeps its
          .ode number and the programs' calls compare as they are */
@@ -2028,18 +2029,17 @@ Result<std::string> convert_text(const std::string &ode, std::vector<Diagnostic>
 
 namespace {
 
-Result<> write_conversion(const std::string &out, std::string_view text)
+Result<> write_conversion(FileSystem &fs, const std::string &out, std::string_view text)
 {
-  /* Writer's diagnostic is rendered once by the command that opened it. */
+  /* the sink's diagnostic is rendered once by the command that opened it. */
   xpp::LogCapture messages;
-  xpp::Writer w = xpp::Writer::binary(out);
-  if (!w) {
-    const Error error = xpp::files::write_error("convert", out);
+  Result<std::unique_ptr<Sink>> sink = fs.open_sink(out, true);
+  if (!sink) {
     messages.clear();
-    return std::unexpected(error);
+    return std::unexpected(std::move(sink.error()));
   }
-  if (!w.write(text)) return xpp::fail_reading("convert", "cannot be written", out);
-  return w.commit();
+  if (const Result<> written = (*sink)->write(text); !written) return xpp::fail_reading("convert", "cannot be written", out);
+  return (*sink)->commit();
 }
 
 } // namespace
@@ -2057,43 +2057,43 @@ std::string print_range(Session &s, const std::vector<std::string> &texts,
   return Converter(s, diagnostics, DeclinedRename::refuse).range(texts, values, range);
 }
 
-Result<bool> write_converted(const std::string &source, const std::string &out, std::string_view text)
+Result<bool> write_converted(FileSystem &fs, const std::string &source, const std::string &out, std::string_view text)
 {
-  if (files::output_status(out) != XPP_FILES_OK)
+  if (!fs.destination_ok(out))
     return fail_reading("convert", "destination is not a plain file", out);
-  if (xpp::files::exists(out)) {
-    std::string existing;
-    if (!xpp::read_bytes(out, existing)) return xpp::fail_reading("convert", "cannot be read", out);
-    if (xpp::split_lines(existing) == xpp::split_lines(text)) return false; /* the same text: used as it is */
+  if (fs.exists(out)) {
+    const Result<std::string> existing = fs.read("convert", out, zip::archive_bytes_limit);
+    if (!existing) return xpp::fail_reading("convert", "cannot be read", out);
+    if (xpp::split_lines(*existing) == xpp::split_lines(text)) return false; /* the same text: used as it is */
     const int choice = xpp::file_replace_choice(true);
     if (choice == 'n') return false;
     if (choice != 'y') return xpp::fail_reading("convert", xpp::format("opening {} cancelled; {} was left unchanged", source, out), source);
   }
-  Result<> written = write_conversion(out, text);
+  Result<> written = write_conversion(fs, out, text);
   if (!written) return std::unexpected(written.error());
   return true;
 }
 
-Result<bool> open_ode(const std::string &ode, std::vector<Diagnostic> &diagnostics,
+Result<bool> open_ode(FileSystem &fs, const std::string &ode, std::vector<Diagnostic> &diagnostics,
                       std::vector<std::string> &outside_paths)
 {
-  Result<std::string> text = convert_text(ode, &diagnostics, &outside_paths);
+  Result<std::string> text = convert_text(fs, ode, &diagnostics, &outside_paths);
   if (!text) return std::unexpected(text.error());
-  return write_converted(ode, odex_name(ode), *text);
+  return write_converted(fs, ode, odex_name(ode), *text);
 }
 
-int convert_file(const std::string &ode)
+int convert_file(FileSystem &fs, const std::string &ode)
 {
   std::vector<Diagnostic> diagnostics;
-  Result<std::string> text = convert_text(ode, &diagnostics);
+  Result<std::string> text = convert_text(fs, ode, &diagnostics);
   show_diagnostics(diagnostics);
   const std::string out = odex_name(ode);
   Result<> written;
   if (!text) written = std::unexpected(text.error());
   else {
-    if (xpp::files::exists(out) && !xpp::confirm(out + " exists; replace it"))
+    if (fs.exists(out) && !xpp::confirm(out + " exists; replace it"))
       written = xpp::fail_reading("convert", "exists and was left as it is (--yes replaces it)", out);
-    if (written) written = write_conversion(out, *text);
+    if (written) written = write_conversion(fs, out, *text);
   }
   if (!written) {
     xpp::log(XPP_LOG_ERROR, "{}\n", written.error().text());

@@ -16,9 +16,11 @@
 #include "model.h"
 #include "model_record.h"
 #include "xpp_ui.h"
-#include "xpp_io.h"
-#include "xpp_files.h"
 #include "xpp_zip.h"
+#include "xpp_path.h"
+#include "xpp_lines.h"
+#include "xpp_text.h"
+#include "xpp_fs.h"
 #include "xpp_util.h"
 #include "many_pops.h"
 #include "session_settings.h"
@@ -863,11 +865,15 @@ xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file
         return std::unexpected(bytes.error());
     }
     xpp::Result<> opened;
-    xpp::Writer w = replace ? xpp::open_writer_replacing(file, true, &opened) : xpp::open_writer_asking(file, true, &opened);
+    xpp::FileSystem &fs = *s.model().fs;
+    const std::unique_ptr<xpp::Sink> sink = replace ? xpp::open_sink_replacing(fs, file, true, &opened) : xpp::open_sink_asking(fs, file, true, &opened);
     if (!opened) return std::unexpected(opened.error());
-    if (!w) return false;
-    w.write(*bytes);
-    if (const xpp::Result<> saved=xpp::commit_save(w); !saved) return std::unexpected(saved.error());
+    if (!sink) return false;
+    if (const xpp::Result<> written = sink->write(*bytes); !written) {
+        xpp::abort_save(*sink);
+        return std::unexpected(written.error());
+    }
+    if (const xpp::Result<> saved=xpp::commit_save(*sink); !saved) return std::unexpected(saved.error());
     if (!copy) {
         s.saved_session->file = file;
         xpp_session_mark_clean(s);
@@ -900,15 +906,15 @@ bool xpp_saved_file_name(std::string_view path)
     return xpp::snapx::is_session_file(path);
 }
 
-std::optional<SavedFile> xpp_saved_read(const std::string &path)
+std::optional<SavedFile> xpp_saved_read(xpp::FileSystem &fs, const std::string &path)
 {
-    const std::string abs = xpp::files::absolute(path);
-    std::string bytes;
-    if (!xpp::read_bytes(abs, bytes, xpp::zip::archive_bytes_limit)) {
+    const std::string abs = fs.absolute(path);
+    const xpp::Result<std::string> bytes = fs.read("session", abs, xpp::zip::archive_bytes_limit);
+    if (!bytes) {
         xpp::err_reading(path, "cannot be read within the session archive size limit");
         return std::nullopt;
     }
-    return xpp_saved_parse(abs, xpp::files::split_path(path).second, bytes, SavedKind::session);
+    return xpp_saved_parse(abs, xpp::files::split_path(path).second, *bytes, SavedKind::session);
 }
 
 std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::string &name, std::string_view bytes, SavedKind kind)

@@ -24,7 +24,7 @@
 #include "typed_values.h"
 #include "expr_program.h"
 #include "session.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 namespace xpp {
 

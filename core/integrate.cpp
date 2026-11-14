@@ -14,7 +14,8 @@
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_globals.h"
-#include "xpp_files.h"
+#include "xpp_io.h"
+#include "xpp_path.h"
 #include "model_place.h"
 #include "integrate.h"
 #include "jacobian.h"
@@ -80,7 +81,6 @@
 #include "line_style.h"
 #include "odex.h"
 #include "struct.h"
-#include "xpp_io.h"
 
 namespace xpp {
 

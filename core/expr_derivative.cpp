@@ -5,7 +5,7 @@
 #include "expr_native.h"
 #include "model.h"
 #include "session.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "model_place.h"
 #include "tabular.h"
 #include "volterra.h"

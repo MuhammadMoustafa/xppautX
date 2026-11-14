@@ -1,4 +1,5 @@
-#include "xpp_files.h"
+#include "xpp_path.h"
+#include "xpp_text.h"
 /* The .ode reader (ode_read.h, odex.h): an .ode file's lines to the
    statement list the Model builder (form_ode.cpp's build_model) makes the
    Model from, the builder an .odex model's statements go through too
@@ -26,7 +27,6 @@
 #include "newpars.h"
 #include "odex.h"
 #include "model_failed.h"
-#include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_util.h"
 #include "session.h"
@@ -91,12 +91,14 @@ struct VAR_INFO {
   std::string written;
 };
 
-/* where a model's lines come from: the file, its name and its index in
-   Parsed::files, how many lines were read from it and the line the last
-   logical line (read_a_line) began at; and the loading Model, whose
-   files an include reads and whose source keeps the lines (save_line) */
+/* where a model's lines come from: the file's text and how far it was read,
+   its name and its index in Parsed::files, how many lines were read from it
+   and the line the last logical line (read_a_line) began at; and the loading
+   Model, whose files an include reads and whose source keeps the lines
+   (save_line) */
 struct LineSource {
-  FILE *fp=nullptr;
+  std::string_view text;
+  std::size_t pos=0;
   xpp::Model *model=nullptr;
   std::string file;
   int index=0;
@@ -223,23 +225,17 @@ std::vector<OdeItem> ode_items(std::string_view rhs)
 
 namespace {
 
-/* the model's source line: fgets without its size, the line with its
-   '\n' ("" at the end of the file); false once the end was met, what
-   feof(fp) says after it */
+/* the model's source line: the text up to and with its '\n' ("" at the end
+   of the text); false once the end was met */
 bool read_raw_line(LineSource &src, std::string &line)
 {
-  line.clear();
-  FILE *fp=src.fp;
-  int c;
-  while((c=getc(fp))!=EOF){
-    line+=static_cast<char>(c);
-    if(c=='\n'){
-      src.lines++;
-      return true;
-    }
-  }
-  if(!line.empty())src.lines++;
-  return false;
+  const std::size_t newline=src.text.find('\n',src.pos);
+  const bool ended=newline!=std::string_view::npos;
+  const std::size_t end=ended?newline+1:src.text.size();
+  line.assign(src.text.substr(src.pos,end-src.pos));
+  src.pos=end;
+  if(ended||!line.empty())src.lines++;
+  return ended;
 }
 
 /* Keeps the original physical line for source display and conversion,
@@ -921,8 +917,8 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
       newfile=xpp::include_path(src.file,newfile);
       if (const xpp::Result<> allowed = xpp::approve_model_path(*src.model, newfile, xpp::Place{src.file, src.line, 0, old}); !allowed)
         model_failed(allowed.error());
-      xpp::UniqueFile fnew=xpp::open_model_file(*src.model,newfile);
-      if(!fnew){
+      std::string included;
+      if(!xpp::read_model_file(*src.model,newfile,included)){
          auto error = xpp::files::open_error("model",newfile);
          error.place = xpp::Place{src.file,src.line,0,old};
          model_failed(std::move(error));
@@ -930,13 +926,12 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
        xpp::log(XPP_LOG_INFO, "Including {}...\n",newfile);
        p.included++;
        LineSource inc_src;
-       inc_src.fp=fnew.get();
+       inc_src.text=included;
        inc_src.model=src.model;
        inc_src.file=newfile;
        inc_src.index=static_cast<int>(p.files.size());
        p.files.push_back(newfile);
        do_new_parser(inc_src,newfile,1,false,p);
-       fnew.reset();
        if (p.included <= 0)
              continue;
     }
@@ -1345,11 +1340,11 @@ void subsk(std::string_view big_text, std::string &newstr, int k, int flag, Type
   }
 }
 
-int get_eqn(xpp::Session &s, FILE *fptr)
+int get_eqn(xpp::Session &s, std::string_view text)
 {
   xpp::Model &m=s.model();
   LineSource src;
-  src.fp=fptr;
+  src.text=text;
   src.file=m.this_file;
   src.model=&m;
   std::string first;
@@ -1359,7 +1354,7 @@ int get_eqn(xpp::Session &s, FILE *fptr)
   save_line(m.source,first);
   const int neq=atoi(first.c_str());
   if(neq>0){ /* an old-style model: each line built as it is read */
-    build_old_style(s,neq,fptr,[&src](std::string &line){
+    build_old_style(s,neq,[&src](std::string &line){
       read_raw_line(src,line);
       if(line.empty())return false;
       save_line(src.model->source,line);

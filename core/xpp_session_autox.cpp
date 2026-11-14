@@ -1,6 +1,8 @@
 /* The session's autoX state: its settings and views written and read, its diagram's members: see xpp_session_autox.h. */
 #include "xpp_session_autox.h"
 #include "xpp_io.h"
+#include "xpp_zip.h"
+#include "xpp_lines.h"
 #include "snapx.h"
 #include "jacobian.h"
 #include "session_settings.h"
@@ -351,7 +353,7 @@ std::deque<DIAGRAM> read_foreign_diagram(Lines &lines, int n,
     // XPPAUT diagram records have exactly four continuation index columns.
     constexpr int foreign_continuation_columns = 4;
     int last;
-    lines.numbers(last);
+    xpp::numbers(lines, last);
     const std::size_t bytes = sizeof(DIAGRAM) + sizeof(DiagramBranch)
         + (6 * static_cast<std::size_t>(n) + parameters.size()) * sizeof(double)
         + imported.size() * (sizeof(int) + sizeof(double));
@@ -367,7 +369,7 @@ std::deque<DIAGRAM> read_foreign_diagram(Lines &lines, int n,
         int itp_code;
         int slots[4];
         int calc_code, curve_code;
-        lines.numbers(calc_code, d.ibr, d.ntot, itp_code, d.lab, foreign_index, d.nfpar,
+        xpp::numbers(lines, calc_code, d.ibr, d.ntot, itp_code, d.lab, foreign_index, d.nfpar,
                       slots[0], slots[1], slots[2], slots[3], curve_code);
         const auto imported_calc=autox_calculation_from_code(calc_code), imported_curve=autox_calculation_from_code(curve_code);
         if(!imported_calc || !imported_curve) lines.fail("unknown XPPAUT calculation code");
@@ -383,7 +385,7 @@ std::deque<DIAGRAM> read_foreign_diagram(Lines &lines, int n,
                 lines.fail("foreign parameter index is outside autoX's slots");
         // XPPAUT stores eight selected parameter values on each point's numeric row.
         std::array<double, xppaut_parameter_prefix> values;
-        lines.numbers(values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], d.norm, d.per);
+        xpp::numbers(lines, values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], d.norm, d.per);
         if (!branch || std::abs(static_cast<long long>(d.ntot)) == 1 || points.back().ibr != d.ibr) {
             auto held = std::make_shared<DiagramBranch>();
             held->parameters.assign(parameters.begin(), parameters.end());
@@ -404,7 +406,7 @@ std::deque<DIAGRAM> read_foreign_diagram(Lines &lines, int n,
         check_point_indices(d, static_cast<int>(parameters.size()), lines, point_line);
         check_point_parameters(d, lines, point_line);
         p.size_variables(static_cast<std::size_t>(n));
-        for (int k = 0; k < n; k++) lines.numbers(p.u0[k], p.uhi[k], p.ulo[k], p.ubar[k], p.evr[k], p.evi[k]);
+        for (int k = 0; k < n; k++) xpp::numbers(lines, p.u0[k], p.uhi[k], p.ulo[k], p.ubar[k], p.evr[k], p.evi[k]);
         // Preserve the old import's run presentation fields.
         d.calc = calc; d.torper = torper;
         if (index == 0) d.flag2 = flag2;

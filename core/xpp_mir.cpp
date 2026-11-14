@@ -19,7 +19,7 @@
 #include <mir-alloc.h>
 #include <mir-dlist.h>
 #include <span>
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "mir.h"
 #include "mir-gen.h"
 #include "expr_ir.h"

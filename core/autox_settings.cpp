@@ -30,13 +30,12 @@
 #include "xpp_mem.h"
 #include "autox_parallel.h"
 #include "xpp_cpu.h"
-#include "xpp_files.h"
+#include "xpp_text.h"
 #include "json_number.h"
 #include "session.h"
 #include "autox_state.h"
 #include "autox_axis.h"
 #include "autox_nox.h"
-#include "xpp_io.h"
 
 namespace xpp {
 

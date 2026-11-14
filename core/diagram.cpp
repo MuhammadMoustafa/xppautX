@@ -1,7 +1,8 @@
 /* xpp_io.h first: it pulls in <optional>/<string_view>/<format>, which
    autox_f2c.h's own min/max macros (included transitively below, through
    autox_nox.h) break if they are already defined first. */
-#include "xpp_files.h"
+#include "xpp_io.h"
+#include "xpp_path.h"
 #include <deque>
 #include <vector>
 #include "storage.h"
@@ -26,7 +27,6 @@
 #include "autox_axis.h"
 #include "autox_codes.h"
 #include "autox_script.h"
-#include "xpp_io.h"
 
 namespace {
 /* a new last point of n variables, zeroed */

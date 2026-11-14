@@ -1,7 +1,9 @@
 #include "tabular.h"
 #include "getvar.h"
 #include "storage.h"
-#include "xpp_files.h"
+#include "xpp_zip.h"
+#include "xpp_lines.h"
+#include "xpp_text.h"
 #include "xpp_ui.h"
 
 #include "browse.h"
@@ -74,7 +76,6 @@ to be added later
 #include "model_place.h"
 #include "expr_program.h"
 #include "session.h"
-#include "xpp_io.h"
 
 namespace xpp {
 
@@ -313,18 +314,22 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
     const xpp::Result<> allowed=xpp::approve_model_path(s.model(),filename2,table_place(s,index));
     if(!allowed)return std::unexpected(allowed.error());
   }
-  xpp::LineReader reader=model_file?xpp::model_file_lines(s.model(),filename2):xpp::LineReader(filename2.c_str());
-  if(!reader){
-    xpp::files::refresh_cur_dir();
-    return xpp::fail_reading("table",xpp::format("cannot be read (not found in {})",xpp::files::cur_dir()),filename2);
+  std::string bytes;
+  if(model_file){
+    if(!xpp::read_model_file(s.model(),filename2,bytes))
+      return xpp::fail_reading("table",xpp::format("cannot be read (not found in {})",s.model().fs->working_dir()),filename2);
   }
+  else{
+    xpp::Result<std::string> read=s.model().fs->read("table",filename2,xpp::zip::archive_bytes_limit);
+    if(!read)return xpp::fail_reading("table",xpp::format("cannot be read (not found in {})",s.model().fs->working_dir()),filename2);
+    bytes=std::move(*read);
+  }
+  const std::vector<std::string_view> table_lines=xpp::split_lines(bytes);
   int at=0; /* the file's lines read */
   std::string source;
-  auto next_line=[&reader,&at,&source]() -> std::optional<std::string> {
-    auto line=reader.next();
-    if(!line) return std::nullopt;
-    at++;
-    source = *line;
+  auto next_line=[&table_lines,&at,&source]() -> std::optional<std::string> {
+    if(static_cast<std::size_t>(at)>=table_lines.size()) return std::nullopt;
+    source = table_lines[static_cast<std::size_t>(at++)];
     return source;
   };
   /* a problem at the line read last; a file that ends too soon at its

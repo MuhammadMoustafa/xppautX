@@ -16,7 +16,7 @@
 #include "autox_codes.h"
 #include "autox_f2c.h"
 #include "autox_parallel.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_math_autox.h"
 
 /* The sizes follow the Fortran's macros: nrow = ndim*ncol (rows of A),

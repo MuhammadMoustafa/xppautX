@@ -17,7 +17,7 @@
 #include <string>
 #include <utility>
 #include "model.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 namespace xpp {
 

@@ -23,7 +23,7 @@
 #include "expr.h"
 #include "xpp_math.h"
 #include "xpp_error.h"
-#include "xpp_files.h"
+#include "xpp_fs.h"
 #include "xpp_log.h"
 #include "model_options.h"
 #include "xpp_cpu.h"
@@ -140,7 +140,7 @@ struct Session {
     std::string home;
     std::map<std::string,std::string> last;
   } file_dialogs;
-  files::WriteFolders write_folders; /* Folder answers belong to this session, never to a global. */
+  WriteFolders write_folders; /* Folder answers belong to this session, never to a global. */
   Place output_place; /* The model option that named a batch output, kept through its run. */
   /* a run without an interface: the data file it writes
      (--outfile, @ output=, else a set's name: json_silent.cpp changes it per
@@ -341,7 +341,9 @@ struct LoadFailed {
    commit, when the new ones have replaced every use. */
 class Load {
 public:
-  Load();
+  /* the load's Model reads and writes its files through fs (Model::fs), which must outlive the Model:
+     the program's, made at its start */
+  explicit Load(FileSystem &fs);
   ~Load();
   Load(const Load &)=delete;
   Load &operator=(const Load &)=delete;

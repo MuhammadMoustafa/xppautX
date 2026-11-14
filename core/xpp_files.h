@@ -1,6 +1,7 @@
 #pragma once
 
 #include "xpp_error.h"
+#include "xpp_fs.h" /* PathKind, PathCheck and WriteFolders: the interface's types */
 
 #include <cstddef>
 #include <cstdio>
@@ -45,19 +46,6 @@
 
 namespace xpp::files {
 
-inline constexpr size_t NAME_MAX_BYTES = 255; /* Common filesystem basename limit; refuse longer names without cutting them. */
-
-/* All offered defaults: model base without its extension, optional qualifier, extension. */
-std::string output_name(std::string_view model_file, std::string_view ext,
-                        std::string_view what = {});
-
-/* the file of run i of a run that writes a file per run (a sweep's data, a batch run's picture): the path's
-   base name with the run's number before its extension, out.dat -> out_0007.dat (4 digits, more when i needs
-   them); the dot is searched in the base name only, so a dot in a folder's name is not an extension */
-std::string run_file_name(std::string_view path, int i);
-/* Case-insensitive suffix on the basename; an extension alone is not a filename. */
-bool has_extension(std::string_view path, std::string_view ext);
-bool name_ok(std::string_view name, bool allow_hidden = false);
 /* Validate the basename and refuse links, folders and devices at a save destination. */
 int output_status(std::string_view path);
 const char *status_text(int status); /* in words, for an error */
@@ -114,8 +102,6 @@ struct CommandResult {
     std::vector<FileEntry> files;
 };
 CommandResult command(std::string_view op, const char *name_json, const char *data_json);
-/* Every failed open names the requested file and the system or explicit reason. */
-Error open_error(std::string where, std::string_view file, std::string_view why = {});
 /* A core write's failure, preserving errno before UI notification, at its
    load line or command/recording step; permission denial has its own advice. */
 Error write_error(std::string where, std::string_view file);
@@ -136,17 +122,6 @@ Error write_error(std::string where, std::string_view file);
    an input script): fopen's modes, NULL on failure. A file opened and
    closed in one scope uses a handle of xpp_io.h instead. */
 FILE *open_stream(std::string_view path, const char *mode);
-/* Where a path a model names lies, against the folder of the model: inside
-   it, outside it (the user decides, W286), or refused for good (a link on
-   the way below the common ancestor of the two, an unsafe name). path is the
-   path to open or write when not refused: absolute, normalised ("." and ".."
-   resolved in the text, so what is checked, shown, remembered and opened is
-   one text). */
-enum class PathKind { inside, outside, refused };
-struct PathCheck {
-    PathKind kind;
-    std::string path;
-};
 /* path (absolute, or under the working folder) against folder ("" the
    working folder): no link on the way inside folder, or below the common
    ancestor of folder and path when outside, every part a safe name. The file
@@ -207,14 +182,8 @@ bool is_dir(std::string_view path);
 bool dir_writable(std::string_view dir);
 /* A native save retry: writable model folder, then Documents; empty if neither is available. */
 std::string writable_save_folder(std::string_view model_folder);
-/* the file selector's current folder (core/read_dir.cpp's old cur_dir,
-   folded in here, W46b): "" until refreshed */
-std::string cur_dir();
-/* sets it from getcwd(): true on success; on failure a WARN and "" */
-bool refresh_cur_dir();
-/* chdir(path), then refreshes the current folder. 0 on success, 1 on
-   failure (the chdir failed, a WARN, or the refresh after it did) -- the
-   historical change_directory()'s own convention. */
+/* chdir(path). 0 on success, 1 on failure (the chdir failed, or the working folder cannot be had
+   after it; a WARN either way) -- the historical change_directory()'s own convention. */
 int change_dir(std::string_view path);
 /* deletes the file path: 0 on success */
 int remove(std::string_view path);
@@ -261,8 +230,6 @@ inline constexpr const char *CONFIG_DIR_ENV = "XPP_CONFIG_DIR";
 std::string program_dir();
 /* the running program's full path, "" when the system will not say */
 std::string program_file();
-/* the file or folder `name` in the folder dir, with the platform's separator */
-std::string join(std::string_view dir, std::string_view name);
 /* path and its missing parents as folders, mode 0700 (POSIX); false when
    one cannot be made. Refuse links below anchor (empty: working folder), or
    below its common ancestor with an outside path, with resolve_path's POSIX
@@ -276,7 +243,6 @@ bool check_dirs(std::string_view path, std::string_view anchor = {});
 /* Prepare the parent of a write, after its outside/replay guard. The active
    front end supplies the Session's WriteFolders, remembering yes and no.
    A refusal returns ECANCELED; a system failure preserves errno. */
-struct WriteFolders { std::map<std::string, bool> answers; };
 bool prepare_write_folder(std::string_view file);
 /* path is in one of this process's scratch folders (as the path above
    names them): a file the core itself keeps there, never the user's.
@@ -308,11 +274,6 @@ bool list_matching(std::string_view wild, std::string_view direct, std::vector<s
 
 /* the working directory, whatever its length ("" when it cannot be had) */
 std::string working_dir();
-/* path's folder ("" when it names none: a bare name) and its last part,
-   either separator ('/', or '\' too on Windows) */
-std::pair<std::string, std::string> split_path(std::string_view path);
-/* path starts at the root ("/x", and on Windows "C:\x" or "\x") */
-bool is_absolute(std::string_view path);
 /* path itself when it is absolute (is_absolute),
    else under the folder dir ("" the working directory) */
 std::string absolute(std::string_view path, std::string_view dir = {});

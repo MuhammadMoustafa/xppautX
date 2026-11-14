@@ -1,7 +1,7 @@
 #pragma once
 /* The .ode reader (ode_read.cpp): an .ode file's lines to the statement
    list (odex.h) the Model builder (form_ode.h) makes the Model from. */
-#include <stdio.h>
+#include <string_view>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -16,10 +16,10 @@ class TypedFields; /* typed_values.h */
    where it is; -1 when there is none */
 int find_char(std::string_view s1, std::string_view s2, int i0, int *i1);
 
-/* the .ode model fptr reads into the loading Session s's Model (its
+/* the .ode model text read into the loading Session s's Model (its
    this_file the path): read, then built; 1 (a model that does not load
    fails the load, model_failed) */
-int get_eqn(Session &s, FILE *fptr);
+int get_eqn(Session &s, std::string_view text);
 
 /* The comment marker in a physical .ode line, or npos. Directives,
    displayed (quoted) comments and Volterra convolution separators keep

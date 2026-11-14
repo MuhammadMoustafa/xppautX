@@ -35,7 +35,7 @@
 #include "model_place.h"
 #include "odex.h"
 #include "session.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 namespace xpp {
 
@@ -145,7 +145,7 @@ int build_markov(xpp::Session &s, std::span<const std::string> cells, const char
  return index;
 }
 
-int old_build_markov(xpp::Session &s, FILE *fptr, const char *name)
+int old_build_markov(xpp::Session &s, const std::function<bool(std::string &)> &next_line, const char *name)
 {
   int istart;
 
@@ -154,15 +154,12 @@ int old_build_markov(xpp::Session &s, FILE *fptr, const char *name)
  int nstates=s.model().markov[index].nstates;
  xpp::log(XPP_LOG_INFO, " Building {} ...\n",name);
  {
-   /* a whole line at a time, no 256-byte fgets cut, wrapping the FILE*
-      the caller keeps owning */
-   xpp::LineReader reader = xpp::LineReader::attach(fptr);
+   /* a whole line at a time, from the same source as the model's other lines */
+   std::string line;
    for(i=0;i<nstates;i++){
-    auto line_view = reader.next();
-    if(!line_view){
+    if(!next_line(line)){
       model_failed(xpp::format("Unexpected end of file building Markov variable {}",name));
     }
-    std::string line(*line_view);
 
    istart=0;
      for(j=0;j<nstates;j++){

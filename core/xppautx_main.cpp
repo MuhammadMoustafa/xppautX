@@ -62,6 +62,7 @@
 #include "xpp_http.h"
 #include "autox_nox.h"
 #include "xpp_files.h"
+#include "xpp_fs_local.h"
 #include "xpp_about.h"
 #include "xpp_update.h"
 #include "xpp_window.h"
@@ -144,6 +145,7 @@ static std::string usage_tail()
 static struct {
     xpp::CommandLine line;
     xpp::Result<xpp::prefs::Preferences> prefs;
+    xpp::LocalFileSystem files; /* the disk: every load and the Models it makes read and write through it (xpp_fs.h) */
 } startup;
 
 /* what the front end's hello carries that only the program's start knows (ui_json.h) */
@@ -184,7 +186,7 @@ static void run_session(void)
             args[i] = recording->model;
             changed = true;
         } else if (xpp_saved_file_name(model_file)) {
-            saved = xpp_saved_read(model_file);
+            saved = xpp_saved_read(startup.files, model_file);
             if (!saved) exit(1); /* the error message said why, at the file */
             opened = xpp::files::absolute(model_file);
             xpp::files::change_dir(xpp::files::split_path(saved->path).first.c_str());
@@ -210,7 +212,7 @@ static void run_session(void)
     /* a saved file's members are read before the load keeps its model */
     std::function<std::optional<xpp::Error>(xpp::Session &)> check;
     if (saved) check = [&saved](xpp::Session &fresh) { return xpp_saved_check(fresh, *saved); };
-    const xpp::Loaded loaded = xpp::load_model(std::move(cl), 0,
+    const xpp::Loaded loaded = xpp::load_model(startup.files, std::move(cl), 0,
                                                saved ? &saved->model : recording ? &recording->saved : nullptr, check, &startup.prefs);
     if (!loaded && !silent && xpp::is_no_model(loaded.error())) {
         /* no file named: the start screen, whose Open model is File > Open model's */
@@ -282,7 +284,7 @@ int main(int argc, char **argv)
     }
     if (cl.check && !cl.convert && !cl.model_file.empty() && cl.load_options == 0) {
         xpp::batch_options.check = true;
-        return xpp::odex::check_file(cl.model_file);
+        return xpp::odex::check_file(startup.files, cl.model_file);
     }
     if (cl.check) {
         xpp::log(XPP_LOG_ERROR, "usage: xppautX --check model.ode (or model.odex)\n");
@@ -295,10 +297,10 @@ int main(int argc, char **argv)
             xpp::log(XPP_LOG_ERROR, "usage: xppautX --convert [--yes] model.ode\n");
             return 2;
         }
-        if (cl.state_file) return xpp::convert_state_file(cl.model_file, *cl.state_file);
-        if (cl.ani_file) return xpp::convert_animation_file(*cl.ani_file, cl.model_file);
-        if (xpp::files::has_extension(cl.model_file, ".ani")) return xpp::convert_animation_file(cl.model_file);
-        return xpp::odex::convert_file(cl.model_file);
+        if (cl.state_file) return xpp::convert_state_file(startup.files, cl.model_file, *cl.state_file);
+        if (cl.ani_file) return xpp::convert_animation_file(startup.files, *cl.ani_file, cl.model_file);
+        if (xpp::files::has_extension(cl.model_file, ".ani")) return xpp::convert_animation_file(startup.files, cl.model_file);
+        return xpp::odex::convert_file(startup.files, cl.model_file);
     }
     /* issue #32: the folders of runs that ended without their atexit (a
        kill, Ctrl+C, the watchdog's _exit) go at the next start, --silent
@@ -315,7 +317,7 @@ int main(int argc, char **argv)
                                 xpp::Place{cl.model_file}}.text());
             return 2;
         }
-        return xpp::json_ui_silent(startup.line, &startup.prefs, hello_info());
+        return xpp::json_ui_silent(startup.files, startup.line, &startup.prefs, hello_info());
     }
     /* a build without a window is browser mode (--no-open needs --browser: comline.cpp) */
     xpp::Interface interface = cl.interface.value_or(xpp::Interface::window);

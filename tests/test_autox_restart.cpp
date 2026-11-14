@@ -1,6 +1,7 @@
 /* W333 (#394): fort.8 restart layouts, including augmented formulations.
    Fixtures have distinct states and tangents at every collocation node;
    untouched columns are canaries, so a stride/range mixup cannot pass. */
+#include "stream_lines.h"
 #include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
@@ -192,7 +193,7 @@ void user_zero_text(xpp::Session &s) {
                  nullptr, nullptr, nullptr, marks) == .75);
     CHECK(changed == true);
     CHECK(xpp::seek_stream(file.get(), 0, path).has_value());
-    auto reader = xpp::LineReader::attach(file.get());
+    StreamLines reader(file.get());
     CHECK(reader.next() == "   3 10001        User Func.   0     7.500000E-01");
     CHECK(reader.next() == "   3 10001        User Func.   0   7.500000E-01");
     CHECK(!reader.next());
@@ -252,7 +253,7 @@ void point_files(xpp::Session &s, int count, bool collocation) {
         CHECK(write_diagram_line(&iap, &rap, par.data(), icp.data(), icp.data(), &iap.ibr,
                      &point, &iap.lab, &current, values.data()) == 0);
     CHECK(xpp::seek_stream(diagram.get(), 0, diagram_path).has_value());
-    auto lines = xpp::LineReader::attach(diagram.get());
+    StreamLines lines(diagram.get());
     for (int sign : {1, -1}) {
         const auto line = lines.next();
         CHECK(line.has_value());

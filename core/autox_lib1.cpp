@@ -1,4 +1,5 @@
 #include "autox_unknowns.h"
+#include "xpp_io.h"
 #include "xpp_files.h"
 #include <array>
 #include <span>
@@ -38,7 +39,6 @@
 #include "autox_global.h"
 #include "xAutox.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
 #include "xpp_math_autox.h"
 
 namespace {

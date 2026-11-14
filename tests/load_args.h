@@ -3,6 +3,7 @@
    parse_command_line, then loaded as every mode loads (xpp::load_model);
    the model is compiled as a computation's start would (W713), since a test
    reads the compiled code without one */
+#include "local_fs.h"
 #include "expr_native.h"
 #include "model_load.h"
 #include "comline.h"
@@ -22,7 +23,7 @@ inline xpp::Loaded load_args(int argc, char **argv, int batch, const xpp::SavedM
 {
     xpp::Result<xpp::CommandLine> cl = xpp::parse_command_line(std::vector<std::string>(argv, argv + argc));
     if (!cl) return std::unexpected(cl.error());
-    xpp::Loaded loaded = xpp::load_model(std::move(*cl), batch, saved);
+    xpp::Loaded loaded = xpp::load_model(local_fs(), std::move(*cl), batch, saved);
     if (loaded && *loaded) xpp::ensure_compiled(**loaded);
     return loaded;
 }

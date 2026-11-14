@@ -2,11 +2,13 @@
 
 #include <stdio.h>
 #include "xpp_io.h"
+#include "xpp_fs.h"
 #include "data_formats.h"
 #include "storage.h"
 #include "xpp_error.h"
 #include <array>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -50,6 +52,11 @@ Writer open_writer_asking(std::string_view fil, bool binary = false,
    session was saved to: no question, the status checks and the temp-then-
    rename write of open_writer_asking. */
 Writer open_writer_replacing(std::string_view fil, bool binary = false, Result<> *opened = nullptr);
+/* The same for the file system's Sink (xpp_fs.h): the status checks and the replace question of
+   open_writer_asking / open_writer_replacing, then fs's temp-then-rename sink; empty when declined or
+   when opening fails (opened as there). */
+std::unique_ptr<xpp::Sink> open_sink_asking(xpp::FileSystem &fs, std::string_view fil, bool binary = false, Result<> *opened = nullptr);
+std::unique_ptr<xpp::Sink> open_sink_replacing(xpp::FileSystem &fs, std::string_view fil, bool binary = false, Result<> *opened = nullptr);
 /* One precondition, before asking for a name. Empty saves report once. */
 bool save_ready(bool available);
 Writer ask_output_writer(const Session &s, std::string_view title, std::string_view ext,
@@ -57,9 +64,11 @@ Writer ask_output_writer(const Session &s, std::string_view title, std::string_v
 /* Finish a user save: report its destination and whether commit succeeded.
    The command shows the returned error once (ok_or_show for void commands). */
 Result<> commit_save(Writer &writer);
+Result<> commit_save(xpp::Sink &sink);
 /* A serializer or picture capture stopped before commit: discard the
    temporary file and report that this destination was not saved. */
 void abort_save(Writer &writer);
+void abort_save(xpp::Sink &sink);
 /* The existing overwrite question, with Cancel (0). For an imported
    model, n opens the existing file instead of declining the write. */
 int file_replace_choice(bool open_existing = false);

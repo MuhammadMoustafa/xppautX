@@ -5,12 +5,12 @@
 #include "aniparse.h"
 #include "command_def.h"
 #include "session.h"
-#include "xpp_files.h"
+#include "xpp_path.h"
+#include "xpp_text.h"
 #include "xpp_ui.h"
 #include "event_registry.h"
 #include "command_category.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
 #include <array>
 #include <limits>
 #include <algorithm>

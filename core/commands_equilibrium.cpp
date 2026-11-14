@@ -18,7 +18,7 @@
 #include "session.h"
 #include "struct.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include <array>
 #include <limits>
 #include <cstddef>

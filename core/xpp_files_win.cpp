@@ -157,15 +157,6 @@ int create_fd(const char *path, bool binary)
     return open_plain(path, true, binary, size);
 }
 
-bool drive_root(std::string_view path, std::size_t sep) { return sep == 2 && path[1] == ':'; }
-
-bool is_absolute(std::string_view path)
-{
-    const auto sep = [](char c) { return c == '/' || c == '\\'; };
-    return (!path.empty() && sep(path[0])) ||
-           (path.size() > 2 && std::isalpha(static_cast<unsigned char>(path[0])) && path[1] == ':' && sep(path[2]));
-}
-
 /* the system Documents folder, including redirected folders; empty when unavailable */
 std::string user_documents_folder()
 {

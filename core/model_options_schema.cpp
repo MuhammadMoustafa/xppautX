@@ -5,7 +5,7 @@
 #include "model_options.h"
 #include "autox_settings.h"
 
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 #include <algorithm>
 #include <cctype>

@@ -1,3 +1,4 @@
+#include "local_fs.h"
 #include "load_args.h"
 #include "xpp_globals.h"
 #include "autox_unknowns.h"
@@ -827,7 +828,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     s.autox_state->views.resize(1);
     const std::string path = tmp.file("t.snapx");
     CHECK(write_file(path, *bytes));
-    std::optional<SavedFile> f = xpp_saved_read(path);
+    std::optional<SavedFile> f = xpp_saved_read(local_fs(), path);
     CHECK(f && f->model.files == xpp::client_session().model().record->files);
     CHECK(f && xpp_saved_restore(xpp::client_session(), *f));
     CHECK(same_diagram(s.diagram->points, pts));
@@ -854,9 +855,9 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     std::vector<xpp::zip::Entry> no_model = *entries;
     no_model.erase(no_model.begin() + 1);
     CHECK(write_file(path, xpp::zip::make_zip(no_model)));
-    CHECK(!xpp_saved_read(path));
+    CHECK(!xpp_saved_read(local_fs(), path));
     CHECK(write_file(path, "PK\x03\x04 not really"));
-    CHECK(!xpp_saved_read(path));
+    CHECK(!xpp_saved_read(local_fs(), path));
 }
 
 /* an XPPAUT .auto imported, then its autoX members restored: the same */

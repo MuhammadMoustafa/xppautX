@@ -11,7 +11,7 @@
 #include "command_category.h"
 #include "userbut.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include <array>
 #include <cstddef>
 #include <expected>

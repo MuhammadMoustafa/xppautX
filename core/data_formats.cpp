@@ -24,8 +24,8 @@
 #include <utility>
 
 #include "xpp_mem.h"
-#include "xpp_zip.h"
 #include "xpp_io.h"
+#include "xpp_zip.h"
 
 namespace xpp {
 

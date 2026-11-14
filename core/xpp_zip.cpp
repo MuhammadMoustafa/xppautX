@@ -13,7 +13,7 @@
 #include <utility>
 
 #include "miniz.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_mem.h"
 
 namespace xpp::zip {

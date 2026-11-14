@@ -12,8 +12,10 @@
 #include "session.h"
 #include "session_settings.h"
 #include "model_load.h"
-#include "xpp_files.h"
-#include "xpp_io.h"
+#include "xpp_path.h"
+#include "xpp_lines.h"
+#include "xpp_text.h"
+#include "xpp_fs.h"
 #include "xpp_ui.h"
 #include "comline.h"
 #include "xpp_log.h"
@@ -115,7 +117,7 @@ void add_options(ValuesPart &part, std::span<const odex::Option> entries, const 
 /* an .odex's defaults (its par and init lines, the options a set may hold) and each of its sets */
 Result<ValuesSource> read_odex_source(Session &s, std::string_view path)
 {
-    Result<std::string> text = read_file_bytes("values file", path, settings_bytes_limit);
+    Result<std::string> text = s.model().fs->read("values file", path, settings_bytes_limit);
     if (!text) return std::unexpected(text.error());
     const Model &m = s.model();
     const std::unique_ptr<Model> scratch = scratch_model(m);
@@ -254,15 +256,15 @@ Result<> load_xppaut_values(Session &s, ValueFile kind, std::string_view fn)
     return apply_values(s, part.items, part.where, kind == ValueFile::parameters ? set_scope::parameters : set_scope::initial, std::nullopt, LOADING);
 }
 
-int convert_state_file(const std::string &model, const std::string &state)
+int convert_state_file(FileSystem &fs, const std::string &model, const std::string &state)
 {
   /* the model first, as --convert alone writes it; an .odex is used as it is */
   if (!odex::is_odex(model))
-    if (const int status = odex::convert_file(model); status != 0) return status;
+    if (const int status = odex::convert_file(fs, model); status != 0) return status;
   const std::string odex_file = odex::is_odex(model) ? model : odex::odex_name(model);
   const Result<CommandLine> line = parse_command_line({"xppautX", odex_file, "--convert"});
   if (!line) { show_error(line.error()); return 1; }
-  const Loaded loaded = load_model(*line, 1);
+  const Loaded loaded = load_model(fs, *line, 1);
   if (!loaded) return 1;
   Session &s = **loaded;
   /* the file's values and numerics are the model's own starting ones, written as its defaults */

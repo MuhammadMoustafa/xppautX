@@ -27,7 +27,7 @@
 #include "json_number.h"
 #include "numerics.h"
 #include "solver.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_mem.h"
 #include "xpp_ui.h"
 #include "session.h"

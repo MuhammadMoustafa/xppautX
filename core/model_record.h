@@ -9,8 +9,8 @@
 #include "odex_expr.h"
 #include "model_file_types.h"
 #include "comline.h"
-#include "xpp_io.h"
 #include "xpp_zip.h"
+#include "xpp_lines.h"
 
 #include <cstddef>
 #include <map>

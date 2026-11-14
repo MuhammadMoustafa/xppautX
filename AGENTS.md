@@ -1191,6 +1191,16 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   whole file's bytes is `xpp::open_read`/`open_read_binary` (an
   `xpp::UniqueFile`). Asking before overwriting a user's file is
   `open_writer_asking` (browse.h), a Writer that commits in place.
+- The inner rings never open a file (W731, Discussion #808: text in, sink out): they are handed a
+  `xpp::FileSystem` (core/xpp_fs.h, owned by the kernel, implemented by `LocalFileSystem` in
+  xpp_fs_local.cpp over xpp_io/xpp_files, and in memory by tests/test_fs.cpp), read a file's text through
+  `read`/`read_within` and write through a `Sink` (temp file, replaced at `commit()`). The program's start
+  makes the local one and passes it to `load_model`; a Model keeps it (`Model::fs`) for the commands that
+  read or write later; there is no global one. The text of a file name (`files::has_extension`,
+  `split_path`, `output_name`, ...: core/xpp_path.h), a file of ours read as lines from given text
+  (core/xpp_lines.h: `Lines`, `read_lines`), zip/gzip and SHA-256 (bytes in, bytes out) are the kernel's,
+  so an inner file includes those, never xpp_io.h or xpp_files.h for them. The writers and autoX's scratch
+  files still open files themselves (W739, W740 take them to the Sink).
 - Every other file operation is `core/xpp_files.h` (W32b), namespace
   `xpp::files`: a stream kept open across calls (`open_stream`: autoX's
   fort.3/7/8/9 during a run, the array plot's GIF movie, an input

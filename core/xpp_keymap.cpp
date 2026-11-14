@@ -5,8 +5,9 @@
 #include "command_def.h"
 #include "json_error.h"
 #include "json_reader.h"
-#include "xpp_files.h"
 #include "xpp_io.h"
+#include "xpp_files.h"
+#include "xpp_lines.h"
 
 #include <algorithm>
 #include <charconv>

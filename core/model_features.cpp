@@ -1,6 +1,5 @@
 /* The model's features (model_features.h): each one's presence is decided here, once. */
 #include "model_features.h"
-#include "xpp_io.h"
 #include "session.h"
 #include "model.h"
 #include <algorithm>

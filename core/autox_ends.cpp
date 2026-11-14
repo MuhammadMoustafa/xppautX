@@ -14,7 +14,7 @@
 #include "autox_state.h"
 #include "equilibria.h"
 #include "session.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "autox_f2c.h"
 #include "autox_stop.h"
 #include "xpp_error.h"

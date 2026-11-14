@@ -10,7 +10,7 @@
 #include "xpp_util.h"
 #include "model.h"
 #include "model_record.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "tabular.h"
 #include "volterra2.h"
 #include "delay_handle.h"

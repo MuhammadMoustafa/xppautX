@@ -1,6 +1,7 @@
 /* W533: an invariant set's branch is drawn whole from the saddle, whatever store_from says:
    shoot_easy draws the unstable branch of x' = x, y' = -y (store_from 0.5, dt 0.05, length 1,
    20 steps) and the picture holds every step's segment, not only those past store_from. */
+#include "local_fs.h"
 #include "xpptest.h"
 #include "session.h"
 #include "numerics_settings.h"
@@ -23,7 +24,7 @@ TEST_CASE("test_shoot_branch")
     auto line = xpp::parse_command_line({"test_shoot_branch", "tools/models/saddle_manifolds_transient.odex", "--convert"});
     CHECK(line.has_value());
     if (!line) return 1;
-    auto loaded = xpp::load_model(std::move(*line), 1);
+    auto loaded = xpp::load_model(local_fs(), std::move(*line), 1);
     CHECK(loaded.has_value());
     if (!loaded) return 1;
     xpp::Session &s = **loaded;

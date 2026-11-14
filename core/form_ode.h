@@ -62,7 +62,7 @@ public:
 /* an old-style model, neq its number of equations: each line next_line
    gives (false at the end) built as it is read, fptr the file (a Markov
    table's lines are read from it) */
-void build_old_style(Session &s, int neq, FILE *fptr, const std::function<bool(std::string &)> &next_line);
+void build_old_style(Session &s, int neq, const std::function<bool(std::string &)> &next_line);
 /* 1 when the model is a map: is_a_map, or file ends in .dis or .dif */
 int disc(const Model &m);
 /* the Session s's boundary condition i's formula (Session::bcs[i].string,

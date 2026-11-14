@@ -6,7 +6,7 @@
 #include "many_pops.h"
 #include "graf_par.h"
 #include "model_options.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "event_registry.h"
 #include "command_category.h"
 #include "xpp_error.h"

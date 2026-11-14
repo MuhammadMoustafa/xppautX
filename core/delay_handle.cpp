@@ -18,7 +18,7 @@
 #include "xpp_mem.h"
 #include "expr_program.h"
 #include "session.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include <limits>
 #include <cmath>
 #include <memory>

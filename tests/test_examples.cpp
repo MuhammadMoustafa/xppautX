@@ -6,6 +6,7 @@
    read or written, in a config folder of its own (XPP_CONFIG_DIR). The
    protocol side (hello, the copy, the Replace question) is
    tools/servercheck.py's start screen section. */
+#include "xpp_path.h"
 #include "xpptest.h"
 #include "xpp_examples.h"
 #include "model_switch.h"

@@ -6,7 +6,7 @@
 #include "many_pops.h"
 #include "marks_data.h"
 #include "session.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "event_registry.h"
 #include "colormap.h"
 #include "command_category.h"

@@ -7,8 +7,9 @@
 #include "recx.h"
 #include "snapx.h"
 #include "model_load.h"
-#include "xpp_files.h"
-#include "xpp_io.h"
+#include "xpp_path.h"
+#include "xpp_text.h"
+#include "xpp_fs.h"
 #include "xpp_log.h"
 #include "xpp_session.h"
 #include "xpp_ui.h"
@@ -41,11 +42,11 @@ std::string program_name(const xpp::Model &m)
 
 /* a file a load can read: there, and not a folder (load_eqn would ask
    for another file instead) */
-xpp::Result<> model_file_ok(const std::string &file)
+xpp::Result<> model_file_ok(xpp::FileSystem &fs, const std::string &file)
 {
   if (file.empty()) return xpp::fail("open model", "no file name was given", xpp::command_place());
-  if (!xpp::files::exists(file)) return std::unexpected(xpp::files::open_error("open model", file));
-  if (xpp::files::is_dir(file)) return std::unexpected(xpp::files::open_error("open model", file, "a directory, not a model file"));
+  if (!fs.exists(file)) return std::unexpected(xpp::files::open_error("open model", file));
+  if (fs.is_dir(file)) return std::unexpected(xpp::files::open_error("open model", file, "a directory, not a model file"));
   return {};
 }
 
@@ -65,9 +66,9 @@ int ic_index(const xpp::Model &m, const std::string &name)
 
 /* the model the user opened is the newest of the recent ones; the open goes
    on when the list cannot be kept (a bad preferences.odex is shown, not changed) */
-void remember_opened(const std::string &file)
+void remember_opened(xpp::FileSystem &fs, const std::string &file)
 {
-  if(const auto noted=xpp::recent::note(xpp::files::absolute(file));!noted)xpp::show_error(noted.error());
+  if(const auto noted=xpp::recent::note(fs.absolute(file));!noted)xpp::show_error(noted.error());
 }
 
 } // namespace
@@ -78,24 +79,24 @@ xpp::Result<bool> xpp_model_open(xpp::Session &s, const char *path)
   if(file.empty()){
     if(!xpp::file_selector(xpp::OPEN_MODEL_TITLE,file,xpp::open_model_wild()))return false;
   }
-  if (const auto checked = model_file_ok(file); !checked) return std::unexpected(checked.error());
+  if (const auto checked = model_file_ok(*s.model().fs,file); !checked) return std::unexpected(checked.error());
   /* a recording: its model, in the player (W59b) */
   if(xpp::files::has_extension(file,xpp::recx::extension)){
-    remember_opened(file);
+    remember_opened(*s.model().fs,file);
     play_recording(s,file);
     return true;
   }
   /* a file that carries a model: that model, then what the file adds */
   std::optional<SavedFile> saved;
   if(xpp_saved_file_name(file)){
-    saved=xpp_saved_read(file);
+    saved=xpp_saved_read(*s.model().fs,file);
     if(!saved)return false; /* its reader showed why */
   }
   /* everything below replaces this session (a .snapx of this very model
      too: its values, data and diagram take the place of these), so it
      asks first, as File > Open does (W103 review) */
   if(!xpp_model_may_leave(s,file))return false;
-  remember_opened(file);
+  remember_opened(*s.model().fs,file);
   /* loaded from its own folder, as a double-click starts it: the folder
      the page's files are (xpp_files.h); a saved model from the folder of
      the file it is saved in, which its outputs go to */
@@ -297,11 +298,12 @@ void restore_values(Session &s, const KeptValues &kept)
 
 Result<Session *> load_requested(const Session &now, const ModelRequest &req)
 {
-  const std::string before=xpp::files::working_dir(),before_file=now.model().this_file;
-  if(!req.dir.empty()&&xpp::files::change_dir(req.dir.c_str())!=0)return std::unexpected(xpp::files::open_error("open model",req.dir));
-  auto back=[&before](){ if(!before.empty())xpp::files::change_dir(before.c_str()); };
+  xpp::FileSystem &fs=*now.model().fs;
+  const std::string before=fs.working_dir(),before_file=now.model().this_file;
+  if(!req.dir.empty()&&fs.change_dir(req.dir)!=0)return std::unexpected(xpp::files::open_error("open model",req.dir));
+  auto back=[&before,&fs](){ if(!before.empty())fs.change_dir(before); };
   if (!req.saved) {
-    const auto checked = model_file_ok(req.file);
+    const auto checked = model_file_ok(*now.model().fs,req.file);
     if (!checked) {
       back();
       return std::unexpected(checked.error());
@@ -326,7 +328,7 @@ Result<Session *> load_requested(const Session &now, const ModelRequest &req)
     }
     return std::nullopt;
   };
-  Loaded loaded=load_model(std::move(*line),0,req.saved?&*req.saved:nullptr,check);
+  Loaded loaded=load_model(fs,std::move(*line),0,req.saved?&*req.saved:nullptr,check);
   if(!loaded){
     back();
     /* at the place the load failed at */

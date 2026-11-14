@@ -24,7 +24,7 @@
 #include "model_place.h"
 #include "session.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 namespace xpp {
 

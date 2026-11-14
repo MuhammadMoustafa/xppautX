@@ -13,6 +13,7 @@
    shares: the session list's one session, made fresh, the working folder, the
    input, the error count, the front end's table of calls (xpp::ui), the batch
    options and the program's description. */
+#include "local_fs.h"
 #include "session.h"
 #include "xpp_globals.h"
 #include "xpp_log.h"
@@ -59,7 +60,7 @@ struct SharedState {
         /* no terminal answers a question: a test that needs an answer gives its own (test_options) */
         const char *none = test_null_device();
         if (!std::freopen(none, "r", stdin)) printf("cannot read %s as the input\n", none);
-        xpp::Load fresh; /* the session list's one session, new */
+        xpp::Load fresh(local_fs()); /* the session list's one session, new */
         fresh.commit();
         xpp::log_settings.errors = 0;
     }

@@ -10,7 +10,7 @@
 #include "command_def.h"
 #include "command_registry.h"
 #include "json_reader.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_error.h"
 #include <algorithm>
 #include <cstring>

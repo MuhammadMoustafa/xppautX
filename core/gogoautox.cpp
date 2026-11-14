@@ -18,8 +18,9 @@
 #include "autox_codes.h"
 #include "autox_parallel.h"
 #include "xAutox.h"
-#include "xpp_files.h"
 #include "xpp_io.h"
+#include "xpp_files.h"
+#include "xpp_path.h"
 
 
 namespace {

@@ -24,6 +24,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "xpp_path.h" /* SEP and SEPARATORS, the folder syntax these primitives share */
+
 namespace xpp::files {
 /* Owner-only exclusive open: create_new guards a user write; dir_writable
    checks the parent and uses it only for its own unique, hidden probe. */
@@ -36,12 +38,8 @@ std::vector<PathPart> path_parts(std::string_view path, std::string_view folder)
 
 #ifdef _WIN32
 using Stat = struct _stat64;
-inline constexpr char SEP = '\\';
-inline constexpr std::string_view SEPARATORS = "/\\"; /* every character that ends a folder name: Windows takes both */
 #else
 using Stat = struct stat;
-inline constexpr char SEP = '/';
-inline constexpr std::string_view SEPARATORS = "/";
 #endif
 
 int stat_follow(const char *path, Stat *st);
@@ -64,9 +62,6 @@ int rename_over(const char *from, const char *to);
 int open_plain_fd(const char *name, bool writing, unsigned long long &size);
 /* the descriptor of a new, exclusively created file, or -1 */
 int create_fd(const char *path, bool binary);
-/* whether path's root is a drive ("C:\x": sep is the index of its last
-   separator): always false off Windows */
-bool drive_root(std::string_view path, std::size_t sep);
 /* the user's Documents folder, "" when there is none */
 std::string user_documents_folder();
 /* the system's per-user settings folder (config_base without the override), "" when there is none */

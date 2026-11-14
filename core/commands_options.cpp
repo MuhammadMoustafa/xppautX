@@ -9,7 +9,7 @@
 #include "model_options.h"
 #include "numerics_settings.h"
 #include "options_panels.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "event_registry.h"
 #include "command_category.h"
 #include "xpp_error.h"

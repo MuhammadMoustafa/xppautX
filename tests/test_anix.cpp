@@ -1,5 +1,6 @@
 /* W520: retained .ani imports compile to native grammar and reproduce their
    frame data at several states, including trail history and random colors. */
+#include "local_fs.h"
 #include "xpptest.h"
 #include "aniparse.h"
 #include "ani_data.h"
@@ -26,7 +27,7 @@ xpp::Loaded open_model(const std::string &model)
     auto line = xpp::parse_command_line({"test_anix", model, "--convert"});
     CHECK(line.has_value());
     if (!line) return std::unexpected(line.error());
-    return xpp::load_model(std::move(*line), 1);
+    return xpp::load_model(local_fs(), std::move(*line), 1);
 }
 }
 

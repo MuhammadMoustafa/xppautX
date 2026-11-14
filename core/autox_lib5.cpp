@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <functional>
 #include <string>
-#include "xpp_io.h"
 #include "autox_jacobian.h"
 #include "xpp_math.h"
 #include "autox_c.h"

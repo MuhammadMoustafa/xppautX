@@ -6,7 +6,7 @@
 #include "my_rhs.h"
 #include "solver.h"
 #include "storage.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_job.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"

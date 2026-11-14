@@ -12,6 +12,7 @@
 
 namespace xpp {
 struct Session; /* session.h */
+class FileSystem; /* xpp_fs.h */
 int run_now_grab(const Session &s);
 
 void reset_comets(Session &s);
@@ -164,7 +165,7 @@ Result<> load_animation(Session &s, std::string file);
 void load_option_animation(Session &s);
 Result<std::string> animation_model(const std::string &file);
 Result<std::string> convert_animation(Session &s, std::string_view text, const std::string &file);
-int convert_animation_file(const std::string &file, const std::string &model = {});
+int convert_animation_file(FileSystem &fs, const std::string &file, const std::string &model = {});
 void render_ani(Session &s);
 void set_ani_perm(Session &s);
 

@@ -8,7 +8,7 @@
 #include "numerics_settings.h"
 #include "model_options.h"
 #include "graf_par.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "event_registry.h"
 #include "command_category.h"
 #include "session.h"

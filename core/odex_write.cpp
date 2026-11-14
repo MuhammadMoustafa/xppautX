@@ -5,7 +5,7 @@
 
 #include "expr.h"
 #include "model_options.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_mem.h"
 
 #include <algorithm>

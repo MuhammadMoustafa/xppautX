@@ -17,6 +17,7 @@
 #include "display_state.h"
 #include "xpp_error.h"
 #include "xpp_zip.h"
+#include "xpp_lines.h"
 #include "autox_axis.h"
 #include "autox_nox.h"
 namespace xpp { enum AutoxCalculation : int; namespace odex { class Block; } namespace odex { class Out; } }

@@ -5,7 +5,12 @@
    [0,1] x [0,1] by default, y up) and each primitive goes to ani_data.h
    (the "frame sinks" below), which keeps it in unit coordinates for a front
    end that draws it itself (docs/protocol.md "The animation as data"). */
+#include "xpp_io.h"
 #include "xpp_files.h"
+#include "xpp_zip.h"
+#include "xpp_path.h"
+#include "xpp_lines.h"
+#include "xpp_fs.h"
 #include "many_pops.h"
 #include <array>
 #include <algorithm>
@@ -28,8 +33,6 @@
 #include "ani_data.h"
 #include "xpp_log.h"
 #include "expr.h"
-#include "xpp_io.h"
-#include "xpp_zip.h"
 #include "snapx.h"
 #include "my_rhs.h"
 #include "nullcline.h"
@@ -806,18 +809,16 @@ xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_fil
         const xpp::Result<> allowed = xpp::approve_model_path(s.model(), filename, xpp::Place{});
         if (!allowed) return std::unexpected(allowed.error());
     }
-    xpp::LineReader fp;
-    if (model_file) fp = xpp::model_file_lines(s.model(), filename);
-    else {
-        std::string bytes;
-        UniqueFile input(files::open_read_within(filename, files::split_path(filename).first, {}));
-        if (!input || !xpp::read_bytes(input.get(), bytes, xpp::zip::archive_bytes_limit))
+    std::string bytes;
+    if (model_file) {
+        if (!xpp::read_model_file(s.model(), filename, bytes)) return std::unexpected(xpp::files::open_error("animation", filename));
+    } else {
+        std::optional<std::string> input = s.model().fs->read_within(filename, files::split_path(filename).first, {}, xpp::zip::archive_bytes_limit);
+        if (!input)
             return xpp::fail("animation", xpp::format("cannot be read in full within the {} byte input limit", xpp::zip::archive_bytes_limit), Place{filename});
-        fp = xpp::LineReader::of_text(std::move(bytes));
+        bytes = std::move(*input);
     }
-    if (!fp) {
-        return std::unexpected(xpp::files::open_error("animation", filename));
-    }
+    xpp::LineReader fp = xpp::LineReader::of_text(std::move(bytes));
     std::string text;
     while (auto line = fp.next()) { text += *line; text += '\n'; }
     std::string native_file = filename;
@@ -830,7 +831,7 @@ xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_fil
                import in memory; replay never creates an unrecorded disk file. */
             text = std::move(*converted);
         } else {
-            auto written = odex::write_converted(filename, native_file, *converted);
+            auto written = odex::write_converted(*s.model().fs, filename, native_file, *converted);
             if (!written) return std::unexpected(written.error());
             if (!read_bytes(native_file, text, zip::archive_bytes_limit)) return std::unexpected(files::open_error("animation", native_file));
         }
@@ -1464,19 +1465,19 @@ Result<std::string> convert_animation(Session &s, std::string_view text, const s
       catch (const ReadFailed &e) { return std::unexpected(e.error); }
 }
 
-int convert_animation_file(const std::string &file, const std::string &model)
+int convert_animation_file(FileSystem &fs, const std::string &file, const std::string &model)
 {
     const std::string model_file = model.empty() ? include_path(file, files::output_name(file, ".odex")) : model;
     auto line = parse_command_line({"xppautX", model_file, "--convert"});
     if (!line) { show_error(line.error()); return 1; }
-    auto loaded = load_model(std::move(*line), 1);
+    auto loaded = load_model(fs, std::move(*line), 1);
     if (!loaded) return 1;
     std::string text;
     UniqueFile input(files::open_read_within(file, files::split_path(file).first, {}));
     if (!input || !read_bytes(input.get(), text, zip::archive_bytes_limit)) { show_error(files::open_error("animation", file)); return 1; }
     auto native = convert_animation(**loaded, text, file);
     if (!native) { show_error(native.error()); return 1; }
-    const auto written = odex::write_converted(file, include_path(file, files::output_name(file, ".anix")), *native);
+    const auto written = odex::write_converted(fs, file, include_path(file, files::output_name(file, ".anix")), *native);
     if (!written) { show_error(written.error()); return 1; }
     return 0;
 }

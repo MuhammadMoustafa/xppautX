@@ -5,7 +5,7 @@
    .snapx, .recx, keymap.json (a `version` key). Another version is an error naming both versions;
    there is no upgrader and no fallback. 4 is the command migration's; it is reset to 1 once everything settles. A macro
    so the protocol's hello and About can print it at compile time. */
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include <string>
 #include <string_view>
 

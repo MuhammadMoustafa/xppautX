@@ -27,13 +27,13 @@
 #include "display_state.h"
 #include "xAutox.h"
 #include "xpp_io.h"
+#include "xpp_files.h"
 #include "xpp_error.h"
 #include "xpp_math.h"
 #include "xpp_job.h"
 #include "autox_axis.h"
 #include "autox_codes.h"
 #include "autox_ends.h"
-#include "xpp_files.h"
 
 #include <array>
 #include <atomic>

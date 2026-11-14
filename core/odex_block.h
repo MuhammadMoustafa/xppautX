@@ -32,7 +32,8 @@
 
 #include "colormap.h"
 #include "xpp_error.h"
-#include "xpp_io.h" /* ReadFailed */
+#include "xpp_lines.h"
+#include "xpp_text.h"
 namespace xpp { enum class TextStyle; struct LineStyle; }
 
 namespace xpp::odex {

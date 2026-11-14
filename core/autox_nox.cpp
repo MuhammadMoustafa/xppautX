@@ -27,8 +27,11 @@
 
 
 
+#include "xpp_io.h"
 #include "xpp_files.h"
 #include "xpp_zip.h"
+#include "xpp_path.h"
+#include "xpp_lines.h"
 #include "xpp_session_autox.h"
 #include "autox_settings.h"
 
@@ -79,7 +82,6 @@
 #include "line_style.h"
 #include "session.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
 namespace xpp {
 
 
@@ -1471,7 +1473,7 @@ xpp::Result<> import_autox_file(xpp::Session &s, FILE *fp, const std::string &fi
     for(int k=0;k<xpp::autox_foreign_mark_rows;k++){
       int slot;
       double value;
-      lines.numbers(value,slot);
+      xpp::numbers(lines, value,slot);
       const int solver=imported_solver_index(s,held.parameters,slot);
       const int parameter=s.autox_state->parameter_layout.model_index(solver);
       if(slot<0 || (solver!=xpp::autox_unknown::period && parameter<0))
@@ -1503,7 +1505,7 @@ xpp::Result<> import_autox_file(xpp::Session &s, FILE *fp, const std::string &fi
     numeric({xpp::AUTOX_NUM_PARAMETER_MIN,xpp::AUTOX_NUM_PARAMETER_MAX,xpp::AUTOX_NUM_NORM_MIN,xpp::AUTOX_NUM_NORM_MAX});
     numeric({xpp::AUTOX_NUM_MESH_ADAPT_EVERY,xpp::AUTOX_NUM_MAX_BRANCH_SWITCHES,xpp::AUTOX_NUM_OUTPUT_DETAIL,xpp::AUTOX_NUM_MAX_LOCATION_ITERATIONS,xpp::AUTOX_NUM_MAX_NEWTON_ITERATIONS,xpp::AUTOX_NUM_FULL_NEWTON_AFTER,xpp::AUTOX_NUM_STEP_ADAPT_EVERY});
     int var,plot;
-    lines.numbers(settings.range[0],settings.range[2],settings.range[1],settings.range[3],var,plot);
+    xpp::numbers(lines, settings.range[0],settings.range[2],settings.range[1],settings.range[3],var,plot);
     if(var<0 || var>=s.model().node)lines.fail("foreign axis variable is outside the model");
     settings.var=s.model().uvar_names[var];
     settings.plot=xpp::autox_projection_from_xppaut(plot);

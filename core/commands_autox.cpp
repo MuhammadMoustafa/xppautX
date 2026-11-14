@@ -16,7 +16,7 @@
 #include "display_state.h"
 #include "storage.h"
 #include "xpp_cpu.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_job.h"
 #include "xpp_log.h"
 #include "model.h"
@@ -30,7 +30,6 @@
 #include "command_category.h"
 #include "model_options.h"
 #include "xpp_error.h"
-#include "xpp_files.h"
 #include <algorithm>
 #include <array>
 #include <cmath>

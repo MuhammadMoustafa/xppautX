@@ -8,13 +8,13 @@
 #include "recx.h"
 #include "session.h"
 #include "snapx.h"
-#include "xpp_files.h"
+#include "xpp_path.h"
+#include "xpp_text.h"
 #include "xpp_session.h"
 #include "model.h"
 #include "event_registry.h"
 #include "command_category.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
 #include <array>
 #include <cstddef>
 #include <expected>

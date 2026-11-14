@@ -7,7 +7,8 @@
 #include <array>
 
 #include "odex.h"
-#include "xpp_io.h"
+#include "xpp_lines.h"
+#include "xpp_text.h"
 #include "line_style.h"
 #include "text_style.h"
 

@@ -1,7 +1,6 @@
 #pragma once
 
-/* core/xpp_io.cpp: text formatting (xpp::format, xpp::number) and the file
-   handles (xpp::LineReader, xpp::TokenReader, xpp::Writer; issue: W11
+/* core/xpp_io.cpp: the file handles (xpp::LineReader, xpp::TokenReader, xpp::Writer; issue: W11
    step 3, W7b). C++ in namespace xpp (W109a). The C text-formatting half
    this header used to declare -- xpp_snprintf/xpp_strlcpy/xpp_strlcat,
    XPP_SPRINTF/XPP_STRCPY/XPP_STRCAT, for a C file's sprintf/strcpy/
@@ -35,6 +34,8 @@
 
 #include "xpp_error.h" /* a file of ours that does not read (read_lines) */
 #include "xpp_files.h" /* the files the readers and writers open */
+#include "xpp_path.h"  /* files::open_error, in read_file_bytes */
+#include "xpp_lines.h" /* Lines, read below from a file by read_file_lines */
 #include "xpp_text.h"  /* the kernel's text formatting, which every file handle below uses */
 
 #include <charconv>
@@ -92,18 +93,6 @@ inline bool read_bytes(std::string_view path, std::string &out, std::size_t limi
     return read_bytes(f.get(), out, limit);
 }
 
-/* fprintf's type-checked counterpart: std::format into fp, for a stream
-   that stays a FILE * (autoX's fort.7/8/9, written while it runs, and the
-   helpers that are handed one); a Writer prints with its own print().
-   Nothing is written to a NULL fp. */
-template <class... Args>
-void print(FILE *fp, std::format_string<Args...> fmt, Args &&...args) noexcept
-{
-    const std::string s = xpp::with_format_args([&fmt](std::format_args a) { return xpp::vformat(fmt.get(), a); },
-                                               std::forward<Args>(args)...);
-    if (fp) std::fwrite(s.data(), 1, s.size(), fp);
-}
-
 /* ---- the file handles ---------------------------------------------------
    A line reader and a token reader replace the fgets/fscanf/feof loops
    that either cut a long line at a fixed buffer or (a bare "while
@@ -129,8 +118,6 @@ public:
     /* text's lines, as a file of those bytes gives them (a model's saved
        file, model_files.h) */
     static LineReader of_text(std::string text) noexcept;
-    /* reads fp, never closes it */
-    static LineReader attach(FILE *fp) noexcept;
     LineReader(const LineReader &) = delete;
     LineReader &operator=(const LineReader &) = delete;
     LineReader(LineReader &&o) noexcept = default;
@@ -311,90 +298,19 @@ Result<T> load_config_file(std::string_view where, std::string_view name, std::s
    Foreign formats (XPPAUT's .auto, a data file) are imports, read where
    they are converted. */
 
-/* text's lines, each without its \n or \r\n (a last line needs none; no
-   bytes, no lines): the views are into text */
-/* Split at each delimiter, preserving empty fields (strict text formats). */
-std::vector<std::string_view> split_fields(std::string_view text, char delimiter);
-std::vector<std::string_view> split_lines(std::string_view text);
-
-/* line n (from 1) of text, the file named file, as a Place (the line as
-   written): a value read whole that a later check refuses, at its line */
-Place line_place(std::string file, std::string_view text, int n);
-
-/* what a reader of Lines throws at a line that is wrong: the error, at
-   its place; read_lines turns it into its Result */
-struct ReadFailed {
-    Error error;
-};
-
-/* a file of ours as lines, for a reader that takes them one by one */
-class Lines {
-public:
-    /* text's lines (a \n or \r\n ends one; a last line needs none), of
-       the file named file, read by where ("set file", ...: the Error's) */
-    Lines(std::string where, std::string file, std::string_view text);
-    const std::string &file() const noexcept { return file_; }
-    /* no line is left */
-    bool at_end() const noexcept { return next_ >= lines_.size(); }
-    /* the line read last, from 1; 0 before the first */
-    int line() const noexcept { return static_cast<int>(next_); }
-    /* the next line whole; at the end of the file ReadFailed, what (the
-       line due: a value's name, or "") named */
-    std::string_view next(std::string_view what = {});
-    /* the next line's first word, as a whole number or a number (the set
-       format's line: the value, then blanks and its name, which is not
-       read unless named); ReadFailed when it is not one, what named */
-    int whole(std::string_view what, bool named = false);
-    double real(std::string_view what, bool named = false);
-    /* the name after the last line's number (blanks trimmed), empty if absent */
-    std::string_view value_name() const;
-    /* the name after the last line's number must equal what (blanks trimmed) */
-    void check_name(std::string_view what) const;
-    /* A foreign numeric record: every field present, finite and no extra token. */
-    template<class... Values> void numbers(Values &...values)
-    {
-        auto reader = TokenReader::of_text(next("a numeric record"));
-        const auto read = [&](auto &value) {
-            if (!reader.read(value) || !std::isfinite(static_cast<double>(value))) return false;
-            // Point branch/step numbers are interpreted by sign, including abs().
-            if constexpr (std::is_integral_v<std::remove_reference_t<decltype(value)>>)
-                if (value == std::numeric_limits<std::remove_reference_t<decltype(value)>>::min()) return false;
-            return true;
-        };
-        if (!(read(values) && ...) || !reader.at_end()) fail("invalid or incomplete numeric record");
-    }
-    /* the next line starts with "#" (a set file's heading); ReadFailed
-       when not */
-    void heading(std::string_view heading);
-    /* nothing but blank lines is left; ReadFailed at the first line that
-       is not blank */
-    void end();
-    /* line n (from 1) as written; "" past the end */
-    std::string_view text(int n) const noexcept;
-    /* what is wrong at line n (the line read last), its place named */
-    Error error(int n, std::string what) const;
-    [[noreturn]] void fail(int n, std::string what) const;
-    [[noreturn]] void fail(std::string what) const { fail(line(), std::move(what)); }
-
-private:
-    std::string where_, file_, text_;
-    std::vector<std::string_view> lines_;
-    std::size_t next_ = 0;
-};
-
-/* parse(lines) over text, the contents of file (the name its errors
-   give): the value it read, or the error at the line it stopped at
-   (ReadFailed) */
-template <class F>
-auto read_lines(std::string where, std::string file, std::string_view text, F &&parse)
-    -> Result<std::invoke_result_t<F &, Lines &>>
+/* A foreign numeric record: the next line of lines, every field present, finite and no extra token (a
+   TokenReader's grammar, so columns printed flush against each other read as the format wrote them). */
+template<class... Values> void numbers(Lines &lines, Values &...values)
 {
-    Lines lines(std::move(where), std::move(file), text);
-    try {
-        return parse(lines);
-    } catch (ReadFailed &e) {
-        return std::unexpected<Error>(std::move(e.error));
-    }
+    auto reader = TokenReader::of_text(lines.next("a numeric record"));
+    const auto read = [&](auto &value) {
+        if (!reader.read(value) || !std::isfinite(static_cast<double>(value))) return false;
+        // Point branch/step numbers are interpreted by sign, including abs().
+        if constexpr (std::is_integral_v<std::remove_reference_t<decltype(value)>>)
+            if (value == std::numeric_limits<std::remove_reference_t<decltype(value)>>::min()) return false;
+        return true;
+    };
+    if (!(read(values) && ...) || !reader.at_end()) lines.fail("invalid or incomplete numeric record");
 }
 
 /* the bytes of the file at path, read whole; the error when it cannot be read, or is longer than limit
@@ -407,17 +323,6 @@ inline Result<std::string> read_file_bytes(std::string where, std::string_view p
     if (read_bytes(f.get(), bytes, limit)) return bytes;
     /* read_bytes stops without an error of the stream when the file is longer than the bound */
     return std::unexpected(files::open_error(std::move(where), path, std::ferror(f.get()) ? "cannot be read" : xpp::format("is longer than {} bytes", limit)));
-}
-
-/* the same over the file at path, read whole; the error when it cannot
-   be read (its place the file, no line) */
-template <class F>
-auto read_file_lines(std::string where, std::string_view path, F &&parse, std::size_t limit = std::numeric_limits<std::size_t>::max())
-    -> Result<std::invoke_result_t<F &, Lines &>>
-{
-    Result<std::string> bytes = read_file_bytes(where, path, limit);
-    if (!bytes) return std::unexpected(bytes.error());
-    return read_lines(std::move(where), std::string(path), *bytes, parse);
 }
 
 } // namespace xpp

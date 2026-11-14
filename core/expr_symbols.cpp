@@ -9,7 +9,7 @@
 #include "model.h"
 #include "model_record.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_math.h"
 #include "tabular.h"
 #include "expr_program.h"

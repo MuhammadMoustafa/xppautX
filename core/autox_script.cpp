@@ -5,8 +5,9 @@
 #include "format_version.h"
 #include "json_number.h"
 #include "odex_block.h"
-#include "xpp_files.h"
 #include "xpp_io.h"
+#include "xpp_path.h"
+#include "xpp_lines.h"
 
 #include <algorithm>
 #include <array>

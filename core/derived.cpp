@@ -11,7 +11,7 @@
 #include "model.h"
 #include "expr_program.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 #include <string>
 #include <utility>

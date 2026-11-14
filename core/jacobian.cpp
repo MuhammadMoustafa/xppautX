@@ -14,7 +14,7 @@
 #include "session.h"
 #include "integrate.h"
 #include "numerics_settings.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "expr.h"
 #include "expr_native.h"
 #include "xpp_mem.h"

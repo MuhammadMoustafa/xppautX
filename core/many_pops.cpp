@@ -10,7 +10,8 @@
 #include "xpp_util.h"
 #include "session_values.h"
 #include "xpp_ui.h"
-#include "xpp_files.h"
+#include "xpp_path.h"
+#include "xpp_text.h"
 #include "graphics.h"
 #include "graf_par.h"
 #include "grobs.h"
@@ -29,7 +30,6 @@
 #include "model.h"
 #include "autox_nox.h"
 #include "storage.h"
-#include "xpp_io.h"
 
 namespace xpp {
 

@@ -9,7 +9,7 @@
 #include "command_def.h"
 #include "model_options.h"
 #include "session.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_ui.h"
 #include "event_registry.h"
 #include "command_category.h"

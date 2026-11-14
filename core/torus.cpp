@@ -2,7 +2,7 @@
 #include "torus.h"
 #include "xpp_ui.h"
 #include "numerics_settings.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 #include <algorithm>
 #include <cstddef>

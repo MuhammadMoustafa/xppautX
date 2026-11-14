@@ -19,10 +19,10 @@
 #include "typed_values.h"
 #include "many_pops.h"
 #include "expr.h"
-#include "xpp_io.h"
-
-#include "xpp_files.h"
 #include "xpp_zip.h"
+#include "xpp_text.h"
+#include "xpp_fs.h"
+
 #include "model_place.h"
 #include "plot_settings.h"
 #include "load_eqn.h"
@@ -106,13 +106,14 @@ void each_option(std::string_view line, std::string_view first, std::string_view
 void choose_model_file(xpp::Session &s)
 {
  std::string &file=s.model().this_file;
- if(s.got_file&&!xpp::files::is_dir(file))return;
+ xpp::FileSystem &fs=*s.model().fs;
+ if(s.got_file&&!fs.is_dir(file))return;
  /* no file, or a folder: the start screen's Open model asks, in that folder
     (xppautx_main.cpp); the dialog is File > Open model's, not a second one */
- if(s.got_file)xpp::files::change_dir(file.c_str());
+ if(s.got_file)fs.change_dir(file);
  const char *start=getenv("XPPSTART");
- if(start&&xpp::files::is_dir(start))xpp::files::change_dir(start);
- model_failed(Error{std::string(xpp::NO_MODEL_WHERE),"no model file was named",Place{xpp::files::working_dir()}});
+ if(start&&fs.is_dir(start))fs.change_dir(start);
+ model_failed(Error{std::string(xpp::NO_MODEL_WHERE),"no model file was named",Place{fs.working_dir()}});
 }
 
 void load_eqn(xpp::Session &s)

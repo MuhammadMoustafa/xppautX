@@ -14,7 +14,9 @@
 #include "browse.h"
 #include "session_settings.h"
 #include "numerics_settings.h"
-#include "xpp_files.h"
+#include "xpp_io.h"
+#include "xpp_path.h"
+#include "xpp_lines.h"
 
 #include "expr_native.h"
 #include <stdio.h>
@@ -27,7 +29,6 @@
 #include "colormap.h"
 #include "line_style.h"
 #include "struct.h"
-#include "xpp_io.h"
 #include <array>
 #include <string>
 #include <string_view>
@@ -509,7 +510,7 @@ std::vector<double> read_ics(const xpp::Model &m, Lines &l)
 Result<Settings> read_xppaut_set(xpp::Session &s, std::string_view path)
 {
   /* a set file a user may have been sent is read within a bound */
-  return xpp::read_file_lines("set file",path,[&s](Lines &l){ return read_set(s,l); },xpp::settings_bytes_limit);
+  return xpp::read_file_lines(*s.model().fs,"set file",path,[&s](Lines &l){ return read_set(s,l); },xpp::settings_bytes_limit);
 }
 
 namespace {
@@ -640,12 +641,12 @@ void do_info(const xpp::Session &s, FILE *fp)
 
 Result<std::vector<double>> read_parameter_file(const xpp::Model &m, std::string_view path)
 {
-  return read_file_lines("parameter file",path,[&m](Lines &l){ return read_parameters(m,l); },xpp::settings_bytes_limit);
+  return read_file_lines(*m.fs,"parameter file",path,[&m](Lines &l){ return read_parameters(m,l); },xpp::settings_bytes_limit);
 }
 
 Result<std::vector<double>> read_ic_file(const xpp::Model &m, std::string_view path)
 {
-  return read_file_lines("initial conditions file",path,[&m](Lines &l){ return read_ics(m,l); },xpp::settings_bytes_limit);
+  return read_file_lines(*m.fs,"initial conditions file",path,[&m](Lines &l){ return read_ics(m,l); },xpp::settings_bytes_limit);
 }
 
 Result<std::string> load_value_file(xpp::Session &s, ValueFile kind, std::string file)

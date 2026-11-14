@@ -13,7 +13,7 @@
 #include "numerics_settings.h"
 #include "solver.h"
 #include "value_undo.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "session.h"
 #include "delay_handle.h"
 #include "storage.h"

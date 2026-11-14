@@ -89,10 +89,6 @@ int create_fd(const char *path, bool)
     return ::open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0666);
 }
 
-bool drive_root(std::string_view, std::size_t) { return false; }
-
-bool is_absolute(std::string_view path) { return !path.empty() && path[0] == '/'; }
-
 std::string user_documents_folder()
 {
     const char *home = std::getenv("HOME");

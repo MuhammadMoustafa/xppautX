@@ -32,7 +32,6 @@
 #include "autox_codes.h"
 #include "tabular.h"
 #include "userbut.h"
-#include "xpp_io.h"
 
 #include <memory>
 #include <new>
@@ -106,6 +105,9 @@ namespace {
 struct Client {
   std::unique_ptr<Model> model;
   std::unique_ptr<Session> session;
+  /* the file system the last Load was given: a Model made while no load stands (the start screen's, after a
+     load that found no model) opens its first file through it */
+  FileSystem *fs=nullptr;
 };
 
 /* The session list, kept for the program's life: never destroyed, as a
@@ -130,18 +132,24 @@ Session &client_session()
   Client &c=sessions.entry;
   if(!c.session)[[unlikely]]{
     c.model=std::make_unique<Model>();
+    c.model->fs=c.fs;
     c.session=std::make_unique<Session>(*c.model);
   }
   return *c.session;
 }
 
-Load::Load()
+Load::Load(FileSystem &fs)
 {
   /* made before anything changes hands: an allocation that fails leaves
      the client as it was */
   std::unique_ptr<Model> model=std::make_unique<Model>();
+  model->fs=&fs;
   std::unique_ptr<Session> fresh=std::make_unique<Session>(*model);
   Client &c=sessions.entry;
+  c.fs=&fs;
+  /* a Model no load made (the start screen's, made before the first load) takes the file system of the load
+     that finds no model to open, so that File > Open model's load has one to pass on */
+  if(c.model&&!c.model->fs)c.model->fs=&fs;
   /* the process's autoX scratch folder (xppautx_main.cpp makes it before
      the first load) stays the same across loads */
   if(c.session)fresh->autox_state->dir=c.session->autox_state->dir;
@@ -171,7 +179,8 @@ void Load::add_source(Error &e)
 {
   Place &p=e.place;
   if(!loading||p.line<=0||!p.source.empty()||p.file.empty())return;
-  p.source=model_file_lines(loading->model(),p.file).line(p.line);
+  std::string text;
+  if(read_model_file(loading->model(),p.file,text))p.source=std::string(nth_line(text,p.line));
 }
 
 void Load::at(std::string_view file, int line, int col)

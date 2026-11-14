@@ -2,13 +2,13 @@
 #include "model_failed.h"
 #include "simplenet.h"
 #include "model_options.h"
-#include "xpp_files.h"
+#include "xpp_path.h"
+#include "xpp_text.h"
 #include "form_ode.h"
 #include "xpp_log.h"
 
 #include "markov.h"
 #include "expr.h"
-#include "xpp_io.h"
 #include "tabular.h"
 
 #include <stdio.h>

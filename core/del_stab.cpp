@@ -19,7 +19,7 @@
 #include "delay_handle.h"
 #include "xpp_math.h"
 #include "model.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 namespace xpp {
 

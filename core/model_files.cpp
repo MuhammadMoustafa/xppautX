@@ -4,10 +4,12 @@
 #include "model_place.h"
 #include "model.h"
 #include "model_record.h"
-#include "xpp_files.h"
-#include "xpp_io.h"
-#include "xpp_ui.h"
 #include "xpp_zip.h"
+#include "xpp_path.h"
+#include "xpp_lines.h"
+#include "xpp_text.h"
+#include "xpp_fs.h"
+#include "xpp_ui.h"
 #include "model_options.h"
 #include "session.h"
 #include "expr.h"
@@ -44,15 +46,15 @@ Result<> approve_model_path(Model &m, const std::string &name, const Place &at)
 {
     /* a saved model reads its own copies; nothing is read from the disk */
     if (!m.saved_in.empty() || name.empty()) return {};
-    const files::PathCheck found = files::resolve_path(name, files::split_path(m.this_file).first);
-    if (found.kind == files::PathKind::inside) return {};
+    const PathCheck found = m.fs->resolve_path(name, files::split_path(m.this_file).first);
+    if (found.kind == PathKind::inside) return {};
     const Place place = at.file.empty() ? Place{m.this_file} : at;
-    if (found.kind == files::PathKind::refused)
+    if (found.kind == PathKind::refused)
         return fail(std::string(PATH_REFUSED), xpp::format("names {}, a link or a path that is not a plain name: refused", name), place);
     if (std::ranges::find(m.outside_paths, found.path) != m.outside_paths.end()) return {};
     /* The approval owner is the absolute native-model path, including
        the .odex a foreign .ode becomes. */
-    const std::string model = files::absolute(files::has_extension(m.this_file, ".ode") ? odex::odex_name(m.this_file) : m.this_file);
+    const std::string model = m.fs->absolute(files::has_extension(m.this_file, ".ode") ? odex::odex_name(m.this_file) : m.this_file);
     bool remembered = false;
     if (!m.outside_once_only) {
         const Result<bool> kept = prefs::outside_path_approved(model, found.path);
@@ -136,29 +138,10 @@ bool read_model_file(Model &m, const std::string &name, std::string &bytes)
     if (!m.saved_in.empty()) return false;
     if (name.empty()) return false;
     if (m.record->files.size() >= zip::archive_entries_limit) return false;
-    const std::size_t available = remaining_file_bytes(m, name);
-    UniqueFile fp(files::open_read_within(name, files::split_path(m.this_file).first, m.outside_paths));
-    if (!read_bytes(fp.get(), bytes, available)) return false;
+    std::optional<std::string> read = m.fs->read_within(name, files::split_path(m.this_file).first, m.outside_paths, remaining_file_bytes(m, name));
+    if (!read) return false;
+    bytes = std::move(*read);
     return remember_model_file(m, name, bytes).has_value();
-}
-
-UniqueFile open_model_file(Model &m, const std::string &name)
-{
-    std::string bytes;
-    if (!read_model_file(m, name, bytes)) return UniqueFile();
-    if (!m.saved_copies) m.saved_copies = std::make_shared<TempDir>();
-    if (m.saved_copies->path().empty()) return UniqueFile();
-    const std::string copy = m.saved_copies->file(std::to_string(file_index(m, name)));
-    Writer w = Writer::binary(copy.c_str());
-    if (!w || !w.write(bytes) || !w.commit()) return UniqueFile();
-    return open_read(copy.c_str());
-}
-
-LineReader model_file_lines(Model &m, const std::string &name)
-{
-    std::string bytes;
-    if (!read_model_file(m, name, bytes)) return LineReader();
-    return LineReader::of_text(std::move(bytes));
 }
 
 std::string model_source_line(const Model &m, const std::string &name, int n)
@@ -169,7 +152,7 @@ std::string model_source_line(const Model &m, const std::string &name, int n)
     /* Before the builder has indexed a source (a converter diagnostic),
        use the recorded bytes through the same line reader. No disk read. */
     const long i = file_index(m, name);
-    return i < 0 ? std::string() : LineReader::of_text(m.record->files[static_cast<size_t>(i)].bytes).line(n);
+    return i < 0 ? std::string() : std::string(nth_line(m.record->files[static_cast<size_t>(i)].bytes, n));
 }
 
 std::vector<std::string> model_source_lines(const Model &m, const std::string &name)
@@ -177,8 +160,7 @@ std::vector<std::string> model_source_lines(const Model &m, const std::string &n
     std::vector<std::string> lines;
     const long i = file_index(m, name);
     if (i < 0) return lines;
-    LineReader r = LineReader::of_text(m.record->files[static_cast<size_t>(i)].bytes);
-    while (const std::optional<std::string_view> line = r.next()) lines.emplace_back(*line);
+    for (const std::string_view line : split_lines(m.record->files[static_cast<size_t>(i)].bytes)) lines.emplace_back(line);
     return lines;
 }
 
@@ -193,8 +175,7 @@ Place model_place(const Model &m, const odex::Pos &pos)
 void set_model_source(Model &m, std::string_view text)
 {
     m.source.clear();
-    LineReader lr = LineReader::of_text(std::string(text));
-    while (std::optional<std::string_view> line = lr.next()) m.source.push_back(std::string(*line) + "\n");
+    for (const std::string_view line : split_lines(text)) m.source.push_back(std::string(line) + "\n");
 }
 
 void replace_model_text(Model &m, std::string bytes)
@@ -313,6 +294,7 @@ std::unique_ptr<Model> scratch_model(const Model &m)
 {
     std::unique_ptr<Model> scratch = std::make_unique<Model>();
     scratch->this_file = m.this_file;
+    scratch->fs = m.fs;
     scratch->outside_paths = m.outside_paths;
     scratch->load_dir = m.load_dir;
     if (!m.saved_in.empty()) { /* its files are the session's copies, never the disk's */

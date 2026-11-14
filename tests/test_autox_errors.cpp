@@ -6,6 +6,7 @@
    the dimension check (xppautX never frees more than a few parameters),
    a singular solve, and the BLAS argument checks (autoX always calls them
    with arguments in range). */
+#include "stream_lines.h"
 #include "xpptest.h"
 #include "session.h"
 #include "autox_state.h"
@@ -76,7 +77,7 @@ TEST_CASE("test_autox_errors")
         const auto end=xpp::tell_stream(positions.get(), path);
         CHECK(end && *end > 0);
         CHECK(xpp::seek_stream(positions.get(), 0, path).has_value());
-        auto reader=xpp::LineReader::attach(positions.get());
+        StreamLines reader(positions.get());
         CHECK(reader.next() == "first");
         const auto second=xpp::tell_stream(positions.get(), path);
         CHECK(second && *second > 0);

@@ -1,4 +1,5 @@
-#include "xpp_files.h"
+#include "xpp_path.h"
+#include "xpp_text.h"
 /* The model's options as one table (model_options.h, W119). */
 #include <algorithm>
 #include <cctype>
@@ -35,7 +36,6 @@
 #include "model_failed.h"
 #include "xpp_error.h"
 #include "xpp_ui.h"
-#include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "session.h"

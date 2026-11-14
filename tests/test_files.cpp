@@ -119,7 +119,7 @@ TEST_CASE("test_files")
         CHECK(xpp::files::make_dirs(deep, anchor));
         CHECK(xpp::files::check_dirs(deep, anchor));
         CHECK(xpp::files::make_dirs(deep, anchor));
-        CHECK(xpp::files::resolve_path(deep, anchor).kind == xpp::files::PathKind::inside);
+        CHECK(xpp::files::resolve_path(deep, anchor).kind == xpp::PathKind::inside);
         CHECK(symlink("b", (anchor + "/link").c_str()) == 0);
         CHECK(!xpp::files::make_dirs(anchor + "/link/new", anchor) && errno == ELOOP);
         CHECK(!xpp::files::check_dirs(anchor + "/link", anchor) && errno == ELOOP);
@@ -130,7 +130,7 @@ TEST_CASE("test_files")
         CHECK(xpp::files::prepare_write_folder("b/output.dat"));
         CHECK(!xpp::files::prepare_write_folder("link/output.dat") && errno == ELOOP);
         /* W311: a user-planted alias remains refused below the boundary. */
-        CHECK(xpp::files::resolve_path(deep, xpp::files::working_dir()).kind == xpp::files::PathKind::refused);
+        CHECK(xpp::files::resolve_path(deep, xpp::files::working_dir()).kind == xpp::PathKind::refused);
         CHECK(!xpp::files::prepare_write_folder(deep + "/output.dat") && errno == ELOOP);
         CHECK(chdir(cwd.c_str()) == 0);
         CHECK(unlink((anchor + "/link").c_str()) == 0);
@@ -150,7 +150,7 @@ TEST_CASE("test_files")
         const std::string planted = t.path() + "/planted";
         CHECK(symlink("/", planted.c_str()) == 0);
         CHECK(xpp::files::link_on_way(planted.c_str()));
-        CHECK(xpp::files::resolve_path(planted + "/etc/passwd", t.path()).kind == xpp::files::PathKind::refused);
+        CHECK(xpp::files::resolve_path(planted + "/etc/passwd", t.path()).kind == xpp::PathKind::refused);
         CHECK(unlink(planted.c_str()) == 0);
         bool found_link = false, found_file = false;
         for (const char *candidate : {"/bin", "/lib", "/var", "/tmp", "/etc"}) {
@@ -168,7 +168,7 @@ TEST_CASE("test_files")
                 struct stat st;
                 if (lstat(file.c_str(), &st) == 0 && S_ISREG(st.st_mode) &&
                     xpp::files::name_ok(entry->path().filename().string(), true)) {
-                    CHECK(xpp::files::resolve_path(file, t.path()).kind == xpp::files::PathKind::outside);
+                    CHECK(xpp::files::resolve_path(file, t.path()).kind == xpp::PathKind::outside);
                     found_file = true;
                     break;
                 }
@@ -407,22 +407,22 @@ TEST_CASE("test_files")
     /* where a path a model names lies against its folder (W286): inside, outside (for the user to allow) or
        refused for good; an outside file is read only when its resolved text was approved */
     {
-        using xpp::files::PathKind;
+        using xpp::PathKind;
         using xpp::files::resolve_path;
-        CHECK(resolve_path("a.bin", "").kind == PathKind::inside);
-        CHECK(resolve_path("sub/../a.bin", "").kind == PathKind::inside); /* normalised: no ".." left to follow */
+        CHECK(resolve_path("a.bin", "").kind == xpp::PathKind::inside);
+        CHECK(resolve_path("sub/../a.bin", "").kind == xpp::PathKind::inside); /* normalised: no ".." left to follow */
         CHECK(resolve_path("sub/../a.bin", "").path.ends_with("a.bin") && resolve_path("sub/../a.bin", "").path == resolve_path("a.bin", "").path);
-        CHECK(resolve_path("sub/x.dat", "").kind == PathKind::inside);
-        CHECK(resolve_path("../outside.dat", "").kind == PathKind::outside);
-        CHECK(resolve_path("sub/../../outside.dat", "").kind == PathKind::outside);
-        CHECK(resolve_path(xpp::files::split_path(xpp::files::working_dir()).first + "/elsewhere/x.tab", "").kind == PathKind::outside);
-        CHECK(resolve_path("sub/bad:name.dat", "").kind == PathKind::refused);
-        CHECK(resolve_path("../bad|name.dat", "").kind == PathKind::refused);
-        CHECK(resolve_path("a.bin", "sub").kind == PathKind::outside && resolve_path("sub/x.dat", "sub").kind == PathKind::inside);
+        CHECK(resolve_path("sub/x.dat", "").kind == xpp::PathKind::inside);
+        CHECK(resolve_path("../outside.dat", "").kind == xpp::PathKind::outside);
+        CHECK(resolve_path("sub/../../outside.dat", "").kind == xpp::PathKind::outside);
+        CHECK(resolve_path(xpp::files::split_path(xpp::files::working_dir()).first + "/elsewhere/x.tab", "").kind == xpp::PathKind::outside);
+        CHECK(resolve_path("sub/bad:name.dat", "").kind == xpp::PathKind::refused);
+        CHECK(resolve_path("../bad|name.dat", "").kind == xpp::PathKind::refused);
+        CHECK(resolve_path("a.bin", "sub").kind == xpp::PathKind::outside && resolve_path("sub/x.dat", "sub").kind == xpp::PathKind::inside);
 #ifndef _WIN32
-        CHECK(resolve_path("link.txt", "").kind == PathKind::refused);
+        CHECK(resolve_path("link.txt", "").kind == xpp::PathKind::refused);
         /* a link below the common ancestor of the folder and the path is refused, outside too */
-        CHECK(resolve_path("link.txt", "sub").kind == PathKind::refused);
+        CHECK(resolve_path("link.txt", "sub").kind == xpp::PathKind::refused);
 #endif
         const std::string approved = resolve_path("a.bin", "sub").path;
         CHECK(xpp::files::open_read_within("a.bin", "sub", {}) == nullptr && errno == EACCES);

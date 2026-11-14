@@ -11,7 +11,7 @@
 #include "graphics.h"
 #include "model_options.h"
 #include "plot_data.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_ui.h"
 #include "session.h"
 #include "aniparse.h"

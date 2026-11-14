@@ -10,7 +10,7 @@
 #include <cassert>
 #include <cmath>
 #include <limits>
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include <new>
 #include <string>
 #include <vector>

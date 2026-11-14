@@ -11,8 +11,8 @@
 #include "colormap.h"
 #include "json_number.h"
 #include "model_features.h"
-#include "xpp_io.h"
 #include "xpp_error.h"
+#include "xpp_text.h"
 #include <array>
 #include <cstddef>
 #include <optional>

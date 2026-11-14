@@ -49,19 +49,6 @@ namespace {
 
 /* ---- names ------------------------------------------------------------------ */
 
-bool device_name(std::string_view name)
-{
-    /* CON, NUL, COM1.txt ...: Windows opens the device whatever follows the dot */
-    static const char *const devices[] = {"con", "prn", "aux", "nul", "conin$", "conout$"};
-    std::string stem;
-    for (char c : name.substr(0, name.find('.'))) stem += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    while (!stem.empty() && stem.back() == ' ') stem.pop_back();
-    for (const char *d : devices)
-        if (stem == d) return true;
-    return stem.size() == 4 && (stem.compare(0, 3, "com") == 0 || stem.compare(0, 3, "lpt") == 0)
-           && stem[3] >= '0' && stem[3] <= '9';
-}
-
 /* ---- the file system ------------------------------------------------------------ */
 
 /* is_link, stat_name, stat_follow, make_dir, remove_dir, own_pid, temp_base,
@@ -268,21 +255,6 @@ int refused_busy(std::string_view name)
 
 namespace xpp::files {
 
-bool name_ok(std::string_view name, bool allow_hidden)
-{
-    if (name.empty() || (!allow_hidden && name[0] == '.') || name[0] == ' ') return false;
-    const size_t n = name.size();
-    if (n > NAME_MAX_BYTES || name.find("..") != std::string_view::npos) return false;
-    constexpr std::string_view reserved = "/\\:<>\"|?*";
-    for (char ch : name) {
-        unsigned char c = static_cast<unsigned char>(ch);
-        if (c < 0x20 || c == 0x7f || reserved.find(ch) != std::string_view::npos) return false;
-    }
-    /* Windows drops a trailing dot or space, so "a.set." would be a.set */
-    if (name[n - 1] == '.' || name[n - 1] == ' ') return false;
-    return !device_name(name);
-}
-
 int replace_file(std::string_view from, std::string_view to)
 {
     if (!write_path_ok(to)) return -1;
@@ -293,7 +265,7 @@ const char *status_text(int status)
 {
     switch (status) {
     case XPP_FILES_OK: return "ok";
-    case XPP_FILES_BAD_NAME: return "not a plain file name in the model's folder";
+    case XPP_FILES_BAD_NAME: return NOT_A_PLAIN_NAME;
     case XPP_FILES_NOT_FOUND: return "no such file";
     case XPP_FILES_REFUSED: return "not a plain file (a link, a folder or a device)";
     case XPP_FILES_TOO_LARGE: return "larger than 64 MB";
@@ -377,23 +349,6 @@ int put_commit(Put *put, unsigned long long &size, std::string &sha256)
     return XPP_FILES_OK;
 }
 
-std::string output_name(std::string_view model_file, std::string_view ext, std::string_view what)
-{
-    std::string base = split_path(model_file).second;
-    const std::size_t dot = base.rfind('.');
-    if (dot != std::string::npos && dot > 0) base.resize(dot);
-    if (!what.empty()) { base += '-'; base += what; }
-    return base + std::string(ext);
-}
-
-std::string run_file_name(std::string_view path, int i)
-{
-    const auto [folder, base] = split_path(path);
-    const std::size_t dot = std::min(base.size(), base.rfind('.'));
-    const std::string name = xpp::format("{}_{:04d}{}", base.substr(0, dot), i, base.substr(dot));
-    return folder.empty() ? name : absolute(name, folder);
-}
-
 const char *ask_mode(std::string_view title)
 {
     /* the file selectors' titles (file_selector() callers): "Load autoX",
@@ -414,12 +369,6 @@ const char *ask_mode(std::string_view title)
 CommandResult command(std::string_view op, const char *name_json, const char *data_json)
 {
     return run_command(op, name_json, data_json);
-}
-
-Error open_error(std::string where, std::string_view file, std::string_view why)
-{
-    const std::string reason = why.empty() ? std::strerror(errno) : std::string(why);
-    return Error{std::move(where), xpp::format("cannot open {}: {}", file, reason), Place{std::string(file)}};
 }
 
 Error write_error(std::string where, std::string_view file)

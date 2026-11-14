@@ -31,7 +31,7 @@
 
 #include "model.h"
 #include "solver.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 namespace xpp {
 

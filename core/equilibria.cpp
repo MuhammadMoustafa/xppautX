@@ -1,4 +1,5 @@
-#include "xpp_files.h"
+#include "xpp_io.h"
+#include "xpp_path.h"
 #include "solver.h"
 #include "xpp_ui.h"
 #include "session.h"
@@ -26,7 +27,6 @@
 #include "xpp_globals.h"
 #include "model.h"
 #include "colormap.h"
-#include "xpp_io.h"
 
 namespace xpp {
 #define DING ping()

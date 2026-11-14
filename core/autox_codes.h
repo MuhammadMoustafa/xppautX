@@ -15,7 +15,7 @@
 #include <string>
 #include <cstddef>
 
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 namespace xpp {
 

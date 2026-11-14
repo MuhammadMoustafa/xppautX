@@ -1,7 +1,7 @@
 #include "xpp_math.h"
 #include "autox_state.h"
 #include "autox_c.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "autox_f2c.h"
 #include "autox_unknowns.h"
 #include "xpp_math_autox.h"

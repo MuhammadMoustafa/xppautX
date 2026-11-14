@@ -38,7 +38,6 @@
 #include "line_style.h"
 #include "storage.h"
 #include "struct.h"
-#include "xpp_io.h"
 
 namespace xpp {
 

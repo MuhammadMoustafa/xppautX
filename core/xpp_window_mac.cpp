@@ -7,6 +7,7 @@
 #include "xpp_window_internal.h"
 #include "xpp_window.h"
 #include "xpp_files.h"
+#include "xpp_path.h"
 #include <utility>
 
 #include <cstdint>

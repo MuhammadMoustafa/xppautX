@@ -26,6 +26,7 @@
    limit on their number): it writes an entry by its index (a variable, a
    Markov variable, an aux quantity each at its own offset). */
 #include "xpp_error.h"
+#include "xpp_fs.h"
 #include "volterra.h"
 #include "simplenet.h"
 #include "xpp_mir.h"
@@ -370,9 +371,10 @@ struct Model {
   /* a Model made to parse a file of values in (set_load.cpp, scratch_model) holds whether a path outside the folder the user
      allows is for this read only (asked every time, never kept in the preferences) */
   bool outside_once_only = false;
-  /* during a load of a saved model, the scratch folder of the copies a
-     reader of a FILE * reads (model_files.cpp) */
-  std::shared_ptr<TempDir> saved_copies;
+  /* the file system this model reads its files from and writes them to (xpp_fs.h): the one it was loaded
+     with, handed in by the program's start and kept for the commands that read or write later. Set by
+     every load (Load), so null only in a Model no load made. */
+  FileSystem *fs = nullptr;
   /* the working directory it was loaded in, which the command line's
      relative paths name files of */
   std::string load_dir;

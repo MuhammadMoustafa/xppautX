@@ -20,7 +20,7 @@
 #include "autox_state.h"
 #include "storage.h"
 #include "solver.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_ui.h"
 #include "expr_program.h"
 

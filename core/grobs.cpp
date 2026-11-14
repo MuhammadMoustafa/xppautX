@@ -14,7 +14,7 @@
 #include "line_style.h"
 #include "struct.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_types.h"
 #include <string>
 #include <array>

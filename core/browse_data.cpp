@@ -2,7 +2,10 @@
    pointer, row/column bookkeeping and the file writer. The page
    displays it. */
 #include <limits>
+#include "xpp_io.h"
 #include "xpp_files.h"
+#include "xpp_path.h"
+#include "xpp_fs.h"
 #include "plot_state.h"
 #include <chrono>
 #include <cmath>
@@ -17,7 +20,6 @@
 #include "storage.h"
 #include "json_number.h"
 #include "expr.h"
-#include "xpp_io.h"
 #include "browse.h"
 #include "xpp_ui.h"
 #include "integrate.h"
@@ -237,10 +239,10 @@ bool save_ready(bool available)
 
 namespace {
 
-/* the writer of open_writer_asking and open_writer_replacing: ask is
-   whether the replace decision is still to be had (a command's, a
-   dialog's, or the user's answer) */
-xpp::Writer open_writer(std::string_view fil, bool binary, Result<> *opened, bool ask, bool independent, const Place &at)
+/* the decisions before a save's destination is opened, shared by the Writer and the Sink: the destination's status, then
+   the replace question (ask: whether it is still to be had: a command's, a dialog's, or the user's answer); true to go on,
+   else the save was refused or declined and opened (when given) holds why */
+bool save_allowed(std::string_view fil, bool ask, bool independent, const Place &at, Result<> *opened)
 {
  if(opened)*opened={};
  const int status=xpp::files::output_status(fil);
@@ -254,7 +256,7 @@ xpp::Writer open_writer(std::string_view fil, bool binary, Result<> *opened, boo
    xpp::files::write_path_ok(fil,true);
    ui.save_result(fil,false);
    if(opened)*opened=error; else show_error(error.error());
-   return {};
+   return false;
  }
  int answer=ask?ui.save_replace(independent):SAVE_REPLACE;
  /* A native dialog or an explicit command already made the decision.
@@ -267,18 +269,49 @@ xpp::Writer open_writer(std::string_view fil, bool binary, Result<> *opened, boo
  }
  if(answer==SAVE_DECLINE){
    ui.save_result(fil,false);
-   return {};
+   return false;
  }
+ return true;
+}
+
+/* the destination could not be opened for writing, as failure says: shown, or given to opened */
+void open_failed(Error failure, std::string_view fil, const Place &at, Result<> *opened)
+{
+ if((!at.file.empty() || !at.source.empty()) && !xpp::files::serving_reads())failure.place=at;
+ const Result<> error=std::unexpected(std::move(failure));
+ ui.save_result(fil,false);
+ if(opened)*opened=error;
+ else show_error(error.error());
+}
+
+xpp::Writer open_writer(std::string_view fil, bool binary, Result<> *opened, bool ask, bool independent, const Place &at)
+{
+ if(!save_allowed(fil,ask,independent,at,opened))return {};
  xpp::Writer w=binary?xpp::Writer::binary(fil):xpp::Writer(fil);
- if(!w){
-   Error failure=xpp::files::write_error("save",fil);
-   if((!at.file.empty() || !at.source.empty()) && !xpp::files::serving_reads())failure.place=at;
-   const Result<> error=std::unexpected(std::move(failure));
-   ui.save_result(fil,false);
-   if(opened)*opened=error;
-   else show_error(error.error());
- }
+ if(!w)open_failed(xpp::files::write_error("save",fil),fil,at,opened);
  return w;
+}
+
+std::unique_ptr<xpp::Sink> open_sink(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened, bool ask)
+{
+ if(!save_allowed(fil,ask,false,{},opened))return nullptr;
+ Result<std::unique_ptr<xpp::Sink>> sink=fs.open_sink(fil,binary);
+ if(!sink){
+   open_failed(std::move(sink.error()),fil,{},opened);
+   return nullptr;
+ }
+ return std::move(*sink);
+}
+
+/* a finished save reported: its destination and whether it was committed; the error carries the destination */
+Result<> saved(std::string_view path, Result<> result)
+{
+ ui.save_result(path,result.has_value());
+ if(!result){
+   result.error().what=xpp::format("Cannot save {}: {}",path,result.error().what);
+   result.error().place=command_place();
+ }
+ return result;
 }
 
 } // namespace
@@ -293,21 +326,36 @@ xpp::Writer open_writer_replacing(std::string_view fil, bool binary, Result<> *o
  return open_writer(fil,binary,opened,false,false,{});
 }
 
+std::unique_ptr<xpp::Sink> open_sink_asking(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened)
+{
+ return open_sink(fs,fil,binary,opened,true);
+}
+
+std::unique_ptr<xpp::Sink> open_sink_replacing(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened)
+{
+ return open_sink(fs,fil,binary,opened,false);
+}
+
 Result<> commit_save(Writer &w)
 {
- Result<> result=w.commit();
- ui.save_result(w.path(),result.has_value());
- if(!result){
-   result.error().what=xpp::format("Cannot save {}: {}",w.path(),result.error().what);
-   result.error().place=command_place();
- }
- return result;
+ return saved(w.path(),w.commit());
+}
+
+Result<> commit_save(xpp::Sink &sink)
+{
+ return saved(sink.path(),sink.commit());
 }
 
 void abort_save(Writer &w)
 {
  w.abort();
  ui.save_result(w.path(),false);
+}
+
+void abort_save(xpp::Sink &sink)
+{
+ sink.abort();
+ ui.save_result(sink.path(),false);
 }
 
 int file_replace_choice(bool open_existing)

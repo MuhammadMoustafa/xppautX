@@ -8,8 +8,10 @@
 #include "model_record.h"
 #include "model_files.h"
 #include "odex_write.h"
-#include "xpp_files.h"
-#include "xpp_io.h"
+#include "xpp_zip.h"
+#include "xpp_path.h"
+#include "xpp_text.h"
+#include "xpp_fs.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "session.h"
@@ -39,14 +41,14 @@ struct Adopt {
 
 Error save_error(std::string what, const Place &place = {}) { return Error{"save values", std::move(what), place}; }
 
-/* text written through w (opened by open_writer_*) and put in place */
-Result<> write_text(Writer &w, const std::string &text)
+/* text written through sink (opened by open_sink_*) and put in place */
+Result<> write_text(Sink &sink, const std::string &text)
 {
-    if (!w.write(text)) {
-        abort_save(w);
-        return std::unexpected(files::write_error("save values", w.path()));
+    if (const Result<> written = sink.write(text); !written) {
+        abort_save(sink);
+        return written;
     }
-    return commit_save(w);
+    return commit_save(sink);
 }
 
 /* the model file's text as the model loaded it, or why this model has no file to write */
@@ -133,15 +135,15 @@ Result<bool> write_model_file(Session &s, const Edit &edit, const Adopt &changed
        session's copy of the model changes, and saving the session keeps it */
     if (m.saved_in.empty()) {
         /* the file as it is now must be the file the model loaded: else it was changed by something else */
-        std::string disk;
-        if (!read_bytes(path, disk))
+        const Result<std::string> disk = m.fs->read("save values", path, zip::archive_bytes_limit);
+        if (!disk)
             return std::unexpected(save_error(xpp::format("{} cannot be read to check it has not changed: nothing was written", path), Place{path}));
-        if (disk != text)
+        if (*disk != text)
             return std::unexpected(save_error(xpp::format("{} changed on disk since the model was loaded: nothing was written (reload the model, then save again)", path), Place{path}));
         Result<> opened;
-        Writer w = open_writer_replacing(path, true, &opened);
-        if (!w) return std::unexpected(opened ? save_error(xpp::format("{} cannot be written", path), Place{path}) : opened.error());
-        if (const Result<> done = write_text(w, edited->text); !done) return std::unexpected(done.error());
+        const std::unique_ptr<Sink> sink = open_sink_replacing(*m.fs, path, true, &opened);
+        if (!sink) return std::unexpected(opened ? save_error(xpp::format("{} cannot be written", path), Place{path}) : opened.error());
+        if (const Result<> done = write_text(*sink, edited->text); !done) return std::unexpected(done.error());
     }
     adopt(s, *edited, now, changed);
     return true;
@@ -223,7 +225,7 @@ Result<bool> export_values(Session &s, std::string_view name, std::string_view s
     const Result<const ModelFile *> own = own_file(s);
     if (!own) return std::unexpected(own.error());
     const Model &m = s.model();
-    if (files::absolute(file) == files::absolute(m.this_file))
+    if (m.fs->absolute(file) == m.fs->absolute(m.this_file))
         return std::unexpected(save_error(xpp::format("{} is the model file: Save values writes into it", file), Place{std::string(file)}));
     if (!odex::is_odex(file)) return std::unexpected(save_error(xpp::format("{} is not an .odex file", file), Place{std::string(file)}));
     Result<odex::Values> values = captured_values(s, scope, graph, last_state, false);
@@ -232,13 +234,13 @@ Result<bool> export_values(Session &s, std::string_view name, std::string_view s
     const std::string target(file);
     const odex::Classify classify = [&m](std::string_view key) { return value_kind(m, key); };
     Result<odex::Edited> edited = std::unexpected(Error{});
-    const bool exists = files::exists(target);
+    const bool exists = m.fs->exists(target);
     if (!exists) {
         edited = odex::add_set(*scratch, odex::export_header(files::split_path(m.this_file).second, utc_now()), target, name, *values, true);
     } else {
-        std::string existing;
-        if (!read_bytes(target, existing))
-            return std::unexpected(save_error(xpp::format("{} cannot be read", file), Place{target}));
+        Result<std::string> read = m.fs->read("save values", target, zip::archive_bytes_limit);
+        if (!read) return std::unexpected(save_error(xpp::format("{} cannot be read", file), Place{target}));
+        const std::string existing = std::move(*read);
         const Result<std::vector<std::pair<std::string, odex::Pos>>> sets = odex::local_sets(*scratch, existing, target);
         if (!sets) return std::unexpected(sets.error());
         const bool has = std::ranges::any_of(*sets, [&](const auto &entry) { return entry.first == name; });
@@ -252,12 +254,12 @@ Result<bool> export_values(Session &s, std::string_view name, std::string_view s
     }
     if (!edited) return std::unexpected(edited.error());
     Result<> opened;
-    Writer w = exists ? open_writer_replacing(target, true, &opened) : open_writer_asking(target, true, &opened);
-    if (!w) {
+    const std::unique_ptr<Sink> sink = exists ? open_sink_replacing(*m.fs, target, true, &opened) : open_sink_asking(*m.fs, target, true, &opened);
+    if (!sink) {
         if (opened) return false; /* the replace question was answered no */
         return std::unexpected(opened.error());
     }
-    if (const Result<> done = write_text(w, edited->text); !done) return std::unexpected(done.error());
+    if (const Result<> done = write_text(*sink, edited->text); !done) return std::unexpected(done.error());
     return true;
 }
 

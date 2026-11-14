@@ -12,12 +12,12 @@
 #include "my_svg.h"
 #include "picture.h"
 #include "scrngif.h"
-#include "xpp_files.h"
+#include "xpp_io.h"
+#include "xpp_path.h"
 #include "xpp_globals.h"
 #include "session.h"
 #include "browse.h"
 #include "colormap.h"
-#include "xpp_io.h"
 
 namespace xpp {
 

@@ -7,7 +7,7 @@
 #include <functional>
 #include <optional>
 #include <vector>
-namespace xpp { namespace prefs { struct Preferences; } struct SavedModel; }
+namespace xpp { namespace prefs { struct Preferences; } struct SavedModel; class FileSystem; }
 
 namespace xpp {
 
@@ -22,7 +22,7 @@ struct Session; /* session.h */
 using Loaded = std::expected<Session *, Error>;
 /* The shared start of every mode (the program, --silent, --convert,
    File > Open model, a unit test): options, the ODE file, numerics
-   set-up; batch forces batch mode. The Session loaded (the client's in
+   set-up; batch forces batch mode. fs is the file system the model is read from and keeps for later (Model::fs). The Session loaded (the client's in
    the session list from now on, session.h), else what is wrong and where
    (the one before stays; the caller exits with status 1 when there is
    nothing to go on with). saved: a model saved in an
@@ -32,7 +32,7 @@ using Loaded = std::expected<Session *, Error>;
    it (xpp_saved_check, xpp_session.h): what it finds wrong fails the load
    as a model that does not load does. What is wrong is written to the
    log here (Error::text()), once. */
-Loaded load_model(CommandLine cl, int batch, const SavedModel *saved = nullptr,
+Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *saved = nullptr,
                   const std::function<std::optional<Error>(Session &)> &check = {},
                   const Result<prefs::Preferences> *read_prefs = nullptr);
 /* Import and validate in a temporary Model and Session, using the shared
@@ -43,7 +43,7 @@ Loaded load_model(CommandLine cl, int batch, const SavedModel *saved = nullptr,
    A load logs the warnings; --check reports them. */
 Result<std::vector<Error>> compile_loaded(Session &s);
 
-Result<> inspect_model(const CommandLine &cl, const std::function<void(Session &)> &read,
+Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::function<void(Session &)> &read,
                       const std::function<std::optional<Error>(Session &)> &check = {},
                       const SavedModel *saved = nullptr);
 

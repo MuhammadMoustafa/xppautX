@@ -598,6 +598,7 @@ XppUi make_json_ui(void)
     XppUi u{};
     u.err_msg = j_err_msg;
     u.command_place = j_command_place;
+    u.source_line = [](const std::string &file, int line) { return xpp::LineReader(file).line(line); };
     u.save_replace = [](bool independent) -> int {
         if (independent && !xpp::ok_or_show(reset_save_decision())) return SAVE_DECLINE;
         record_save_permission();
@@ -1087,12 +1088,12 @@ void json_ui_install(HelloInfo hello, bool silent)
     install(silent);
 }
 
-int json_ui_silent(CommandLine cl, const Result<prefs::Preferences> *read_prefs, HelloInfo hello)
+int json_ui_silent(FileSystem &fs, CommandLine cl, const Result<prefs::Preferences> *read_prefs, HelloInfo hello)
 {
     session.hello = std::move(hello);
     /* the model loads as with no interface at all: a model that does not
        load exits 1, its reason logged */
-    const xpp::Loaded loaded = xpp::load_model(std::move(cl), 1, nullptr, {}, read_prefs);
+    const xpp::Loaded loaded = xpp::load_model(fs, std::move(cl), 1, nullptr, {}, read_prefs);
     if (!loaded) exit(1);
     xpp::Session &s = **loaded;
     xpp::batch_start(s);

@@ -26,7 +26,7 @@
 #include "numerics_settings.h"
 #include "struct.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include <algorithm>
 #include <array>
 #include <cmath>

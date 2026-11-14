@@ -7,7 +7,7 @@
 #include "colormap.h"
 #include "storage.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include <optional>
 #include <array>
 #include <string>

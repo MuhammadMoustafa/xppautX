@@ -55,8 +55,6 @@ std::string program_dir()
     return shipped_files_folder(split_path(exe).first);
 }
 
-std::string join(std::string_view dir, std::string_view name) { return xpp::format("{}{}{}", dir, SEP, name); }
-
 std::string config_path(std::string_view name)
 {
     const std::string dir = config_dir();
@@ -379,11 +377,7 @@ bool list_matching(std::string_view wild_view, std::string_view direct, std::vec
     return true;
 }
 
-/* ---- the file selector's current folder --------------------------------------- */
-
-namespace {
-std::string cur_dir_str;
-}
+/* ---- the working folder ------------------------------------------------------- */
 
 std::string working_dir()
 {
@@ -395,29 +389,10 @@ std::string working_dir()
     }
 }
 
-std::pair<std::string, std::string> split_path(std::string_view path)
-{
-    const size_t sep = path.find_last_of(SEPARATORS);
-    if (sep == std::string_view::npos) return {std::string(), std::string(path)};
-    /* "/x" (and on Windows "C:\x"): the root itself */
-    size_t keep = sep == 0 ? 1 : sep;
-    if (drive_root(path, sep)) keep = 3;
-    return {std::string(path.substr(0, keep)), std::string(path.substr(sep + 1))};
-}
-
-bool has_extension(std::string_view path, std::string_view ext)
-{
-    const std::string name = split_path(path).second;
-    return !ext.empty() && name.size() > ext.size() &&
-           xpp::equal_ignoring_case(std::string_view(name).substr(name.size() - ext.size()), ext);
-}
-
 std::string absolute(std::string_view path, std::string_view dir)
 {
     if (is_absolute(path) || path.empty()) return std::string(path);
-    std::string base = dir.empty() ? working_dir() : std::string(dir);
-    if (!base.empty() && SEPARATORS.find(base.back()) == std::string_view::npos) base += '/';
-    return base.append(path);
+    return append_path(dir.empty() ? working_dir() : std::string(dir), path);
 }
 
 std::string folder_in(std::string_view dir, std::string_view name)
@@ -432,27 +407,17 @@ std::string folder_in(std::string_view dir, std::string_view name)
     return is_dir(into) ? into : std::string();
 }
 
-std::string cur_dir() { return cur_dir_str; }
-
-bool refresh_cur_dir()
-{
-    std::string cwd = working_dir();
-    if (cwd.empty()) {
-        xpp::log(XPP_LOG_WARN, "Can't get current directory\n");
-        cur_dir_str.clear();
-        return false;
-    }
-    cur_dir_str = std::move(cwd);
-    return true;
-}
-
 int change_dir(std::string_view path)
 {
     if (chdir(std::string(path).c_str()) == -1) {
         xpp::log(XPP_LOG_WARN, "Can't go to directory {}\n", path);
         return 1;
     }
-    return refresh_cur_dir() ? 0 : 1;
+    if (working_dir().empty()) {
+        xpp::log(XPP_LOG_WARN, "Can't get current directory\n");
+        return 1;
+    }
+    return 0;
 }
 
 } // namespace xpp::files

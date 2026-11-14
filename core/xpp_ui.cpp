@@ -5,7 +5,8 @@
    historical function names working. See xpp_ui.h. */
 #include "xpp_ui.h"
 #include "xpp_job.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
+#include "xpp_fs.h"
 #include "xpp_globals.h"
 #include "xpp_log.h"
 #include <stdarg.h>
@@ -67,10 +68,11 @@ static bool confirm_terminal(const std::string &question)
 
 static void hl_err_msg(const Error &e) { log(XPP_LOG_ERROR, "{}\n", e.text()); }
 static Place hl_command_place(void) { return {}; }
+static std::string hl_source_line(const std::string &, int) { return {}; }
 static int hl_save_replace(bool) { return SAVE_ASK; }
 static void hl_save_decision(int, bool) {}
 static void hl_save_result(std::string_view, bool) {}
-static files::WriteFolders *hl_write_folders() { return nullptr; }
+static WriteFolders *hl_write_folders() { return nullptr; }
 static void hl_void(void) {}
 static void hl_int(int) {}
 static void hl_bottom_msg(int, std::string_view msg, std::string_view, std::string_view) { log(XPP_LOG_INFO, "{}\n", msg); }
@@ -146,6 +148,7 @@ XppTextMetrics text_metrics;
 XppUi ui = {
     .err_msg = hl_err_msg,
     .command_place = hl_command_place,
+    .source_line = hl_source_line,
     .save_replace = hl_save_replace,
     .save_decision = hl_save_decision,
     .save_result = hl_save_result,
@@ -247,7 +250,7 @@ Error with_source_line(const Error &e)
 {
     Error placed = e;
     /* the line as written, when the file reads */
-    if (e.place.line > 0 && e.place.source.empty() && !e.place.file.empty()) placed.place.source = LineReader(e.place.file).line(e.place.line);
+    if (e.place.line > 0 && e.place.source.empty() && !e.place.file.empty()) placed.place.source = ui.source_line(e.place.file, e.place.line);
     return placed;
 }
 

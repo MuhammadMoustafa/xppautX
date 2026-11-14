@@ -7,7 +7,7 @@
 #include "lunch-new.h"
 #include "typed_values.h"
 #include "value_undo.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_util.h"
 #include "session_values.h"
 #include "session.h"

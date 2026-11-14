@@ -13,6 +13,7 @@
 
 namespace xpp {
 struct Session; /* session.h */
+class FileSystem; /* xpp_fs.h */
 }
 
 /* Save session and Open session (W57, docs/protocol.md "Session files"):
@@ -86,7 +87,7 @@ bool xpp_saved_file_name(std::string_view path);
 /* the session file path read whole:
    nothing, with an error message, when it cannot be read, is not a zip,
    has no manifest of its kind or has no model */
-std::optional<SavedFile> xpp_saved_read(const std::string &path);
+std::optional<SavedFile> xpp_saved_read(xpp::FileSystem &fs, const std::string &path);
 /* what a file that carries a model holds */
 enum class SavedKind { session, snapshot };
 /* bytes, a file of kind kind, read as xpp_saved_read reads one: path is

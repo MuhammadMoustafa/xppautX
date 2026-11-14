@@ -34,7 +34,7 @@
 #include "autox_axis.h"
 #include "autox_stop.h"
 #include "xpp_error.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 namespace xpp {
 

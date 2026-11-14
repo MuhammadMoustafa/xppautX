@@ -13,7 +13,8 @@
 #include "typed_values.h"
 #include "xpp_keymap.h"
 #include "xpp_files.h"
-#include "xpp_io.h"
+#include "xpp_path.h"
+#include "xpp_text.h"
 #include "model.h"
 #include "model_record.h"
 #include "colormap.h"
@@ -157,7 +158,7 @@ Result<Scalar> read_text(const Check &c, const Argument &arg, Type type, const c
         break;
     case Type::file:
         if (!files::name_ok(text))
-            return bad(xpp::format("Argument \"{}\": \"{}\" is {}", label, text, files::status_text(XPP_FILES_BAD_NAME)));
+            return bad(xpp::format("Argument \"{}\": \"{}\" is {}", label, text, files::NOT_A_PLAIN_NAME));
         break;
     case Type::path:
         if (text.empty()) return bad(xpp::format("Argument \"{}\" must not be empty", label));
