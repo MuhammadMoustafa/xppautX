@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "xpp_win32.h"
+#include "xpp_win.h"
 #include <array>
 #include <string>
 #include <cerrno>
@@ -20,7 +20,7 @@
 #include <vector>
 #include <cstddef>
 
-namespace xpp::win32 {
+namespace xpp::win {
 
 std::optional<unsigned> processor_core_count()
 {
@@ -266,7 +266,7 @@ bool process_gone(unsigned long pid)
     return gone;
 }
 
-} // namespace xpp::win32
+} // namespace xpp::win
 
 namespace {
 
@@ -315,7 +315,7 @@ constexpr DWORD BODY_PIECE_BYTES = 64 * 1024; /* read this much of the body at a
 
 } // namespace
 
-xpp::Result<xpp::https::Reply> xpp::win32::https_get(std::string_view url, const xpp::https::Chunk &chunk)
+xpp::Result<xpp::https::Reply> xpp::win::https_get(std::string_view url, const xpp::https::Chunk &chunk)
 {
     const std::wstring wide_url = widen(url);
     URL_COMPONENTS parts{};
@@ -366,7 +366,7 @@ xpp::Result<xpp::https::Reply> xpp::win32::https_get(std::string_view url, const
 
 /* W13b: xppautX links -mwindows, so no console appears when Explorer or a
    file association starts it; a command-line mode reattaches to a real
-   parent console instead (xpp_win32.h). A handle that is already a pipe,
+   parent console instead (xpp_win.h). A handle that is already a pipe,
    a file or NUL (piped --server, redirected output, `< NUL`) is a real inherited
    handle regardless of subsystem (redirected() below), and it is left
    alone. Only a missing handle or one that is already a console (rare, but
@@ -395,7 +395,7 @@ bool redirected(DWORD which)
 
 } // namespace
 
-void xpp::win32::attach_console()
+void xpp::win::attach_console()
 {
     bool in = redirected(STD_INPUT_HANDLE), out = redirected(STD_OUTPUT_HANDLE), err = redirected(STD_ERROR_HANDLE);
     if (in && out && err) return;

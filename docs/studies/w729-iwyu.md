@@ -147,7 +147,7 @@ rerun after it.
   `g++ -std=c++23 -fsyntax-only`: 12 of 12 compile. Scratch deleted.
 - **Only the platform the run is on is seen.** IWYU sees Linux, no
   `XPP_WINDOW_PLUGIN` variants beyond the Makefile's, and does not see the
-  files that do not build there (xpp_win32.cpp, the macOS code). Three
+  files that do not build there (xpp_win.cpp, the macOS code). Three
   removals sit inside a conditional: `<sys/wait.h>` (xpp_http.cpp:71, the
   POSIX half), `<unistd.h>` (xpp_window.cpp:72) and `<type_traits>`
   (xpp_window.cpp:53). Right for Linux; a stage 2 must check each against

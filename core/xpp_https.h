@@ -23,7 +23,7 @@ inline constexpr int CONNECT_SECONDS = 15;
 
 /* the place of an error of this module: what the user was doing (an error from a request names no file) */
 inline constexpr std::string_view PLACE = "update download";
-/* what the errors of the Linux and macOS clients say failed (Windows' are xpp_win32.cpp's) */
+/* what the errors of the Linux and macOS clients say failed (Windows' are xpp_win.cpp's) */
 inline constexpr std::string_view WHERE = "https";
 
 struct Reply {

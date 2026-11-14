@@ -1,7 +1,7 @@
 /* The window's platform primitives (xpp_window_internal.h) on Windows: the
    native file dialog (the Common Item Dialog), the close box and icon (a window
    procedure over the library's), the pop-out's raise and the window's place.
-   The one window file that includes <windows.h> (with xpp_win32.cpp and the
+   The one window file that includes <windows.h> (with xpp_win.cpp and the
    other *_win.cpp files): its macros clash with core names such as max,
    MessageBox and VARTYPE, so it includes no core header but xpp_window_internal.h. */
 #include "xpp_window_internal.h"

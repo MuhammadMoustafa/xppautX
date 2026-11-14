@@ -1,7 +1,7 @@
 #pragma once
 
-/* xpp_win32.cpp, Windows only: the Windows API behind the few POSIX calls
-   the core and the protocol front end use, in namespace xpp::win32
+/* xpp_win.cpp, Windows only: the Windows API behind the few POSIX calls
+   the core and the protocol front end use, in namespace xpp::win
    (W109f). Included only by the *_win.cpp files. */
 #include <span>
 #include <string>
@@ -9,7 +9,7 @@
 
 #include "xpp_https.h"
 
-namespace xpp::win32 {
+namespace xpp::win {
 // Count processor-core records of the highest EfficiencyClass (performance cores).
 std::optional<unsigned> processor_core_count();
 
@@ -60,4 +60,4 @@ std::string documents_folder();
    this is a harmless no-op, matching the current no-console behaviour. */
 void attach_console();
 
-} // namespace xpp::win32
+} // namespace xpp::win

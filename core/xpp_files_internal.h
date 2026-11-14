@@ -74,7 +74,7 @@ std::string system_config_base();
 /* where the files the program ships are, given the running program's folder */
 std::string shipped_files_folder(const std::string &exe_folder);
 /* the room program_file gives the system to write the executable's path in: PATH_MAX on Linux and macOS (4096 and
-   1024); a longer one is no folder this program can be installed in (Windows: xpp_win32's executable_path) */
+   1024); a longer one is no folder this program can be installed in (Windows: xpp_win's executable_path) */
 inline constexpr std::size_t PATH_BUFFER_BYTES = 4096;
 
 } // namespace xpp::files

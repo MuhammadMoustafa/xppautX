@@ -1,17 +1,17 @@
-/* xpp_platform.h for Windows: the console, pipe or file of xpp_win32.cpp, and nothing
+/* xpp_platform.h for Windows: the console, pipe or file of xpp_win.cpp, and nothing
    Finder-like to adopt from a launch. */
 #include "xpp_platform.h"
-#include "xpp_win32.h"
+#include "xpp_win.h"
 
 namespace xpp::platform {
 
-long read_stdin(char *buf, std::size_t n) { return xpp::win32::read_stdin({buf, n}); }
+long read_stdin(char *buf, std::size_t n) { return xpp::win::read_stdin({buf, n}); }
 
-std::optional<std::string> read_stdin_line(int seconds, std::size_t cap) { return xpp::win32::read_stdin_line(seconds, cap); }
+std::optional<std::string> read_stdin_line(int seconds, std::size_t cap) { return xpp::win::read_stdin_line(seconds, cap); }
 
-void binary_mode(int fd) { xpp::win32::binary_mode(fd); /* "\n" line ends, not "\r\n" */ }
+void binary_mode(int fd) { xpp::win::binary_mode(fd); /* "\n" line ends, not "\r\n" */ }
 
-void attach_console() { xpp::win32::attach_console(); }
+void attach_console() { xpp::win::attach_console(); }
 
 bool ignored_launch_argument(std::string_view) { return false; }
 
