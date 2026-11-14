@@ -125,7 +125,6 @@ ALLOWLIST = {
     ('autoX', 'files'): (13, 'W739'),
     ('autoX', 'session'): (21, 'W732'),
     ('autoX', 'session files'): (3, 'W737'),
-    ('autoX', 'session'): (21, 'W732'),
     ('commands', 'application'): (1, 'W737'),
     ('commands', 'files'): (5, 'W740'),
     ('export', 'files'): (7, 'W740'),
