@@ -41,9 +41,9 @@ std::string temp_folder();
 std::string app_data_folder();
 /* the running program's full path (GetModuleFileNameA), empty when it cannot be had (xpp_files_dir.cpp's program_file) */
 std::string executable_path();
-/* xpp_process.h's spawn: CreateProcess with the arguments quoted as the C runtime reads them back, no shell, the child's
-   streams the null device; argv[0] is the program's path (no search of the working folder) */
-Result<> run_process(std::span<const std::string> argv, bool wait);
+/* xpp_process.h's spawn: CreateProcess of the program at `program` (its path: no search of the working folder) with the
+   command line `line` (its arguments quoted by xpp_process.h), no shell, the child's streams the null device */
+Result<> run_process(const std::string &program, const std::string &line, bool wait);
 /* xpp_https.h's request through WinHTTP (the system's own client and certificate store): TLS verified, no redirect
    followed, a body that stalls ends the request. Written by reading, built by Windows CI (W622). */
 Result<https::Reply> https_get(std::string_view url, const https::Chunk &chunk);

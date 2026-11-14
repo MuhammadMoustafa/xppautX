@@ -4,7 +4,9 @@
    refusal. The transport is a stub: no network. */
 #include "xpptest.h"
 #include "xpp_files.h"
+#include "xpp_install.h"
 #include "xpp_io.h"
+#include "xpp_process.h"
 #include "xpp_sha256.h"
 #include "xpp_update.h"
 
@@ -177,6 +179,35 @@ void check_download()
     CHECK(stopped && stopped->stopped && stopped->path.empty() && stopped->bytes >= 10 && nothing_left(dir));
 }
 
+/* the .msi's install: msiexec of the Windows folder, the file, and the two properties that make the installer start the program
+   again; the properties are quoted as the installer reads them, and a file name that could add arguments is refused */
+void check_msiexec()
+{
+    using xpp::process::Quoting;
+    const auto line = [](const std::vector<std::string> &argv) {
+        std::string out;
+        for (const std::string &a : argv) out += (out.empty() ? "" : " ") + xpp::process::quote_argument(a, Quoting::installer);
+        return out;
+    };
+    const auto plain = xpp::update::msiexec_argv("C:\\Windows", "C:\\Users\\a\\update.msi", "", false);
+    CHECK(plain && plain->size() == 5 && (*plain)[0] == "C:\\Windows\\System32\\msiexec.exe" && (*plain)[1] == "/i" && (*plain)[2] == "C:\\Users\\a\\update.msi");
+    CHECK(plain && (*plain)[3] == "XPPAUTX_RELAUNCH=1" && (*plain)[4] == "XPPAUTX_RELAUNCH_ARGS=");
+    CHECK(plain && line(*plain) == "C:\\Windows\\System32\\msiexec.exe /i C:\\Users\\a\\update.msi XPPAUTX_RELAUNCH=1 XPPAUTX_RELAUNCH_ARGS=");
+    const auto both = xpp::update::msiexec_argv("C:\\Windows", "C:\\Users\\a b\\update.msi", "C:\\My Models\\x[1].snapx", true);
+    CHECK(both && (*both)[4] == "XPPAUTX_RELAUNCH_ARGS=--browser \"C:\\My Models\\x[1].snapx\"");
+    CHECK(both && line(*both) == "C:\\Windows\\System32\\msiexec.exe /i \"C:\\Users\\a b\\update.msi\" XPPAUTX_RELAUNCH=1 "
+                                 "XPPAUTX_RELAUNCH_ARGS=\"--browser \"\"C:\\My Models\\x[1].snapx\"\"\"");
+    const auto spaced = xpp::update::msiexec_argv("C:\\Windows", "u.msi", "C:\\m\\a b.ode", false);
+    CHECK(spaced && line(*spaced).ends_with("XPPAUTX_RELAUNCH_ARGS=\"\"\"C:\\m\\a b.ode\"\"\""));
+    const auto bare = xpp::update::msiexec_argv("C:\\Windows", "u.msi", "C:\\m\\a.ode", false);
+    CHECK(bare && line(*bare).ends_with("XPPAUTX_RELAUNCH_ARGS=C:\\m\\a.ode"));
+    for (const char *bad : {"C:\\m\\a\" --evil \"b.ode", "C:\\m\\", "\"", "x\\"}) CHECK(!xpp::update::msiexec_argv("C:\\Windows", "u.msi", bad, false));
+    /* the runtime's rule is unchanged: an option bare, a name with a blank or quote in quotes */
+    CHECK_STR(xpp::process::quote_argument("/i").c_str(), "/i");
+    CHECK_STR(xpp::process::quote_argument("a=b c").c_str(), "\"a=b c\"");
+    CHECK_STR(xpp::process::quote_argument("say \"hi\"\\").c_str(), "\"say \\\"hi\\\"\\\\\"");
+}
+
 } // namespace
 
 TEST_CASE("test_update")
@@ -184,5 +215,6 @@ TEST_CASE("test_update")
     check_addresses();
     check_files();
     check_download();
+    check_msiexec();
     TEST_REPORT("update");
 }

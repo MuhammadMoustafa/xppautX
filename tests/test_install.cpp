@@ -270,7 +270,7 @@ void check_kept()
     stage();
     CHECK(xpp::update::prepare(deb, file, "0.2.0", staged));
     const xpp::update::Plan portable = xpp::update::plan_for(where("v0.2.0", xpp::update::Os::linux_x64, "/home/u/x", "/usr/bin", true));
-    CHECK(!xpp::update::start_installer(portable));
+    CHECK(!xpp::update::start_installer(portable, "", false));
     xpp::update::discard_pending();
     CHECK(std::filesystem::is_empty(xpp::update::kept_folder()));
     test_setenv(xpp::files::CONFIG_DIR_ENV, nullptr);

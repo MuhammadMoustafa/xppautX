@@ -115,7 +115,8 @@ Result<std::string> switch_program(Session &s, const Command &command, const Arg
                                 : xpp_session_may_leave(s, leave_question(installer ? Leave::install : Leave::restart, recording), recording);
     if (!may_leave) return result.boolean("restarting", false).done();
     const std::string reopen = reopen_target(s);
-    const Result<> started = installer ? update::start_installer(plan) : update::start_new_program(reopen, program.page == XppProgram::Page::browser);
+    const bool browser = program.page == XppProgram::Page::browser;
+    const Result<> started = installer ? update::start_installer(plan, reopen, browser) : update::start_new_program(reopen, browser);
     if (!started) return fail(command.name, started.error().what, started.error().place.file.empty() ? place : started.error().place);
     bye_bye();
     return result.boolean("restarting", true).done();
@@ -164,7 +165,7 @@ constexpr std::array ROWS = {
             "After a portable copy was updated: ask the leave question Quit asks, then start the new program, reopening the model or session saved, and quit. Only the window and the browser page restart.",
             RESULT_SWITCH, DONE_EVENTS, false, restart, {}, {}},
     Command{"update.install", SWITCH_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Tools, "Install update and quit", "",
-            "After a download that kept an installer's file: ask the leave question Quit asks, hand the checked file to the system's installer (msiexec for an .msi, the software installer for a .deb: no shell, no sudo) and quit.",
+            "After a download that kept an installer's file: ask the leave question Quit asks, hand the checked file to the system's installer (msiexec for an .msi, which starts the program again at its end, reopening the model or session saved and with --browser in the browser page; the software installer for a .deb, which only installs: no shell, no sudo) and quit.",
             RESULT_SWITCH, DONE_EVENTS, false, install, {}, {}}};
 
 } // namespace

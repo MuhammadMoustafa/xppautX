@@ -527,7 +527,8 @@ GitHub's release list, and then:
 - an .msi (Windows) or a .deb (Linux) is kept beside the preferences and offered as "Install X and restart" with **Install and
   restart** and **Later**; it is checked again before it is offered at the next start and before the installer starts. The
   installer asks for permission itself (Windows' installer, the system's software installer); xppautX never uses sudo and
-  quits so the program can be replaced;
+  quits so the program can be replaced. The Windows installer starts xppautX again when it is done, reopening the session or
+  model you had (an .msi you run yourself starts nothing);
 - a build from a source checkout, macOS and a folder xppautX cannot write only open the release page, saying why.
 
 Restart now and Install and restart ask the question Quit asks (save the session first, don't save, cancel). During a computation

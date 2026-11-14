@@ -18,6 +18,21 @@
     <Property Id="ARPPRODUCTICON" Value="xppautx.ico" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/MuhammadMoustafa/xppautX" />
 
+    <!-- W688: the program starts again at the end of an install xppautX itself began (core/xpp_install.h's MSI_RELAUNCH and
+         MSI_RELAUNCH_ARGS: the same names), never at an install by hand, which does not set them. The two public properties are
+         Secure so a value given on the command line reaches an install the installer service runs for a user who is not an
+         administrator. The custom action is immediate and after InstallFinalize, so it runs in the installer's client: the
+         user's own token, not the elevated service's, and only once every file is in place (a failed install never gets there);
+         a major upgrade runs it as well, since the new package's sequence is what is read; a silent install runs it too.
+         The arguments are one command line (the browser flag and the quoted file to open again), which xppautX has checked holds no
+         quote; the installer substitutes a property's value into ExeCommand once, never reading brackets inside it again. -->
+    <Property Id="XPPAUTX_RELAUNCH" Secure="yes" />
+    <Property Id="XPPAUTX_RELAUNCH_ARGS" Secure="yes" />
+    <CustomAction Id="RelaunchXppautX" FileRef="ExeFile" ExeCommand="[XPPAUTX_RELAUNCH_ARGS]" Execute="immediate" Return="asyncNoWait" />
+    <InstallExecuteSequence>
+      <Custom Action="RelaunchXppautX" After="InstallFinalize" Condition="XPPAUTX_RELAUNCH AND NOT REMOVE" />
+    </InstallExecuteSequence>
+
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="xppautX">
         <Directory Id="ExamplesFolder" Name="examples" />

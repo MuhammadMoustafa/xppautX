@@ -19,6 +19,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "xpp_error.h"
 #include "xpp_update.h"
@@ -93,9 +94,17 @@ struct Pending {
 Result<std::optional<Pending>> pending(const Plan &plan);
 /* removes what is kept */
 void discard_pending();
-/* hands the kept file to the system's installer (the .msi to Windows' msiexec, the .deb to xdg-open: the system's software
-   installer asks for the password itself), once it is checked again */
-Result<> start_installer(const Plan &plan);
+/* the .msi's two public properties that only xppautX's own msiexec call sets, so an install by hand never starts the program: the
+   flag, and the command line the program is started with (packaging/windows/xppautX.wxs's custom action reads both: the same names) */
+inline constexpr std::string_view MSI_RELAUNCH = "XPPAUTX_RELAUNCH", MSI_RELAUNCH_ARGS = "XPPAUTX_RELAUNCH_ARGS";
+/* the .msi's install as one argv: msiexec of `windows_folder`, the file, and the two properties that make the installer start the
+   program again at its end, with --browser when `browser` and the file `reopen` ("" for none); an error when `reopen` could not
+   be one quoted argument. Started with process::Quoting::installer, which writes the properties as the installer reads them. */
+Result<std::vector<std::string>> msiexec_argv(std::string_view windows_folder, std::string_view msi, std::string_view reopen, bool browser);
+/* hands the kept file to the system's installer (the .msi to Windows' msiexec, which starts the program again at its end with
+   what start_new_program would pass; the .deb to xdg-open, which only installs: the system's software installer asks for the
+   password itself), once it is checked again */
+Result<> start_installer(const Plan &plan, std::string_view reopen, bool browser);
 /* starts the program that was swapped in (one argument each: the model or session to reopen, "--browser" when the page
    is in a browser) and returns, the caller then quits */
 Result<> start_new_program(std::string_view reopen, bool browser);

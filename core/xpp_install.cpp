@@ -32,6 +32,7 @@ constexpr std::string_view LINUX_INSTALLER_FOLDER = "/usr/bin"; /* where the .de
 constexpr std::string_view LINUX_OPENER = "xdg-open";            /* the system's own handler of a .deb */
 constexpr std::string_view WINDOWS_INSTALLER_FOLDER_ENV = "ProgramFiles", WINDOWS_INSTALLER_FOLDER_NAME = "xppautX", SYSTEM_ROOT_ENV = "SystemRoot";
 constexpr std::string_view MSIEXEC = "\\System32\\msiexec.exe";
+constexpr std::string_view BROWSER_FLAG = "--browser"; /* what start_new_program passes when the page is in a browser */
 
 constexpr Os RUNNING_OS =
 #if defined(_WIN32)
@@ -291,27 +292,37 @@ Result<std::optional<Pending>> pending(const Plan &plan)
     return found;
 }
 
-Result<> start_installer(const Plan &plan)
+Result<std::vector<std::string>> msiexec_argv(std::string_view windows_folder, std::string_view msi, std::string_view reopen, bool browser)
+{
+    /* the relaunch's arguments are one command line the custom action runs: a name with a quote or a closing backslash could end
+       the quoted name early and add arguments of its own (Windows file names hold neither) */
+    if (reopen.find('"') != std::string_view::npos || reopen.ends_with('\\'))
+        return fail(std::string(WHERE), "the file to open again after the install has a quote or ends with a backslash", Place{std::string(reopen)});
+    std::string relaunch_args;
+    if (browser) relaunch_args = BROWSER_FLAG;
+    if (!reopen.empty()) relaunch_args += (relaunch_args.empty() ? "" : " ") + process::quote_argument(reopen);
+    return std::vector<std::string>{std::string(windows_folder) + std::string(MSIEXEC), "/i", std::string(msi),
+                                    std::string(MSI_RELAUNCH) + "=1", std::string(MSI_RELAUNCH_ARGS) + "=" + relaunch_args};
+}
+
+Result<> start_installer(const Plan &plan, std::string_view reopen, bool browser)
 {
     if (plan.install != Install::msi && plan.install != Install::deb) return fail(std::string(WHERE), "this installation has no installer to start", Place{std::string(WHERE)});
     const Result<std::optional<Pending>> kept = pending(plan);
     if (!kept) return std::unexpected(kept.error());
     if (!*kept) return fail(std::string(WHERE), "no update is kept", Place{kept_folder()});
-    std::vector<std::string> argv;
-    if (plan.install == Install::msi) {
-        const char *root = std::getenv(std::string(SYSTEM_ROOT_ENV).c_str()); /* the full path: no search for a program of that name */
-        if (!root || !root[0]) return fail(std::string(WHERE), "the Windows folder is not known", Place{std::string(SYSTEM_ROOT_ENV)});
-        argv = {std::string(root) + std::string(MSIEXEC), "/i", (*kept)->path};
-    } else {
-        argv = {std::string(LINUX_OPENER), (*kept)->path};
-    }
-    return process::spawn(argv, process::Wait::not_at_all);
+    if (plan.install == Install::deb) return process::spawn(std::vector<std::string>{std::string(LINUX_OPENER), (*kept)->path}, process::Wait::not_at_all);
+    const char *root = std::getenv(std::string(SYSTEM_ROOT_ENV).c_str()); /* the full path: no search for a program of that name */
+    if (!root || !root[0]) return fail(std::string(WHERE), "the Windows folder is not known", Place{std::string(SYSTEM_ROOT_ENV)});
+    const Result<std::vector<std::string>> argv = msiexec_argv(root, (*kept)->path, reopen, browser);
+    if (!argv) return std::unexpected(argv.error());
+    return process::spawn(*argv, process::Wait::not_at_all, process::Quoting::installer);
 }
 
 Result<> start_new_program(std::string_view reopen, bool browser)
 {
     std::vector<std::string> argv = {files::program_file()};
-    if (browser) argv.push_back("--browser");
+    if (browser) argv.emplace_back(BROWSER_FLAG);
     if (!reopen.empty()) argv.emplace_back(reopen);
     return process::spawn(argv, process::Wait::not_at_all);
 }

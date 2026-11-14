@@ -235,42 +235,17 @@ std::string executable_path()
     return std::string(exe.data(), n);
 }
 
-/* one argument as CommandLineToArgvW and the C runtime read it back: as written when it holds no blank or quote (a
-   program with a parser of its own, msiexec, refuses an option in quotes: "/i" ends it with 1639, an invalid command
-   line), else in quotes, a quote preceded by a backslash, the backslashes before a quote (or the closing quote) doubled */
-static std::string quote_argument(const std::string &arg)
-{
-    if (!arg.empty() && arg.find_first_of(" \t\n\v\"") == std::string::npos) return arg;
-    std::string out = "\"";
-    std::size_t slashes = 0;
-    for (const char c : arg) {
-        if (c == '\\') {
-            slashes++;
-            continue;
-        }
-        if (c == '"') out.append(slashes * 2 + 1, '\\');
-        else out.append(slashes, '\\');
-        slashes = 0;
-        out += c;
-    }
-    out.append(slashes * 2, '\\');
-    return out + "\"";
-}
-
-Result<> run_process(std::span<const std::string> argv, bool wait)
+Result<> run_process(const std::string &program, const std::string &line, bool wait)
 {
     constexpr std::string_view WHERE = "start a program";
-    if (argv.empty() || argv.front().empty()) return fail(std::string(WHERE), "no program is named", Place{std::string(WHERE)});
-    const Place place{argv.front()};
-    std::string line;
-    for (const std::string &a : argv) line += (line.empty() ? "" : " ") + quote_argument(a);
+    const Place place{program};
     std::vector<char> command(line.begin(), line.end());
     command.push_back('\0'); /* CreateProcessA may write into its command line */
     STARTUPINFOA startup{};
     startup.cb = sizeof startup;
     PROCESS_INFORMATION child{};
     /* lpApplicationName is the program itself: no search of the working folder or the path */
-    if (!CreateProcessA(argv.front().c_str(), command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup, &child))
+    if (!CreateProcessA(program.c_str(), command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup, &child))
         return fail(std::string(WHERE), "the program could not be started (Windows error " + std::to_string(GetLastError()) + ")", place);
     CloseHandle(child.hThread);
     DWORD status = 0;
