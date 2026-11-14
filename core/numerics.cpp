@@ -24,9 +24,8 @@
 #include "xpp_io.h"
 #include "xpp_batch.h"
 #include "session.h"
-#include "many_pops.h"
+#include "plot_state.h"
 #include "model_options.h"
-#include "struct.h"
 
 namespace xpp {
 

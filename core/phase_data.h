@@ -3,6 +3,7 @@
 #include <string_view>
 #include <vector>
 #include "colormap.h"
+#include "plot_state.h"
 
 namespace xpp {
 struct Session; /* session.h */
@@ -29,50 +30,6 @@ struct Session; /* session.h */
 
    phase_data.cpp; nothing escapes it. */
 
-/* What each plot window shows of these, recorded since it was last blanked:
-   a Session's (Session::phase_shown), which phase_data.cpp fills; what the
-   client got of it is phase_data.cpp's own, the client's. */
-struct PhaseShown {
-    /* nullcline segments, 4 values each */
-    struct Clines {
-        std::vector<float> x, y;
-    };
-    struct Nullclines {
-        int ix = 0, iy = 0;
-        Color xcolor, ycolor;
-        Clines now;
-        std::vector<Clines> frozen;
-    };
-    /* one curve's trajectories of Flow */
-    struct FlowCurve {
-        Color color;
-        std::vector<float> x, y; /* the trajectories one after the other, NaN between two */
-        /* thinning: the last point kept, and the last one seen when it was not kept */
-        float kx = 0, ky = 0, px = 0, py = 0;
-        bool pending = false;
-    };
-    struct Field {
-        int n = 0, scaled = 0;
-        Color color;
-        double du = 0, dv = 0;
-        std::vector<float> grid;  /* x, y, ux, uy per arrow */
-        std::vector<float> speed; /* one per arrow */
-        std::vector<FlowCurve> flows; /* one per curve of the window */
-    };
-    struct Window {
-        Nullclines nc;
-        Field df;
-        /* every change of nc, of df, bumps its generation: an update looks
-           at a record again only when its generation moved */
-        unsigned long nc_generation = 0, df_generation = 0;
-        unsigned long trajectory = 0; /* the flow trajectory its last point was from */
-    };
-    std::vector<Window> windows{1};
-    /* Flow is drawing (phase_data_flow_start to _stop), and the number of
-       the trajectory it draws */
-    bool flowing = false;
-    unsigned long trajectory = 0;
-};
 
 typedef void (*PhaseDataEmit)(std::string_view line);
 

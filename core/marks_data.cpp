@@ -22,6 +22,7 @@
 #include <utility>
 
 #include "marks_data.h"
+#include "plot_data.h"
 #include "grobs.h"
 #include "json_number.h"
 #include "series_enc.h"

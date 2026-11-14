@@ -21,7 +21,8 @@
 #include "data_formats.h"
 #include "colormap.h"
 #include "expr_native.h"
-#include "graphics.h"
+#include "arrayplot.h"
+#include "plot_state.h"
 #include "histogram.h"
 #include "jacobian.h"
 #include "model.h"
@@ -41,12 +42,10 @@
 #include "session.h"
 #include "adj2.h"
 #include "aniparse.h"
-#include "arrayplot.h"
 #include "autox_state.h"
 #include "delay_handle.h" /* IWYU pragma: keep (the generic lambdas of the option table need DelayState complete) */
 #include "integrate.h"
 #include "plot_settings.h"
-#include "nullcline.h"
 #include "autox_codes.h"
 #include "expr_program.h"
 #include "line_style.h"
@@ -113,7 +112,8 @@ const char *start_line_style_into(Session &s, const LineStyle &style, const Opti
 {
   if (v.apply) {
     s.plot_settings->start_line_style = style;
-    reset_all_line_type(s);
+    for (GRAPH &g : s.plot_windows->graph)
+      for (int k = 0; k < g.nvars; k++) g.style[static_cast<std::size_t>(k)] = style;
   }
   return nullptr;
 }

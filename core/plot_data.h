@@ -1,6 +1,9 @@
 #pragma once
 
+#include <string>
 #include <string_view>
+
+#include "line_style.h"
 
 namespace xpp {
 struct Session; /* session.h */
@@ -23,6 +26,10 @@ struct Session; /* session.h */
 typedef void (*PlotDataEmit)(std::string_view line);
 
 void plot_data_init(PlotDataEmit emit);
+
+/* the style as the protocol's events carry it, the members of an object: "draw":"line","dash":"solid","width":1,
+   "marker":"circle","marker_size":3 */
+std::string line_style_json(const LineStyle &style);
 
 /* {"cmd":"data"}: which events the client wants from now on (each is sent at
    the next plot_data_update(), whatever changed) and whether values go as

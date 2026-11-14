@@ -2,6 +2,7 @@
 
 #include <string>
 #include <string_view>
+#include "plot_state.h"
 namespace xpp { struct Color; }
 
 
@@ -13,18 +14,6 @@ int clip3d(float x1, float y1, float z1, float x2, float y2, float z2, float *x1
 /* text with each \{expr} replaced by the expression's value in s */
 std::string fill_in_text(Session &s, std::string_view old);
 
-/* the drawing state (graphics.cpp, axes2.cpp), a Session's (session.h):
-   the drawing area in device units, its tick and character sizes, its
-   world coordinates, the text's justification and the 3D view's angles;
-   label unlabelled 2D axes with the plotted variables (front ends that ask) */
-struct DrawingState {
-  int d_left = 0, d_right = 0, d_top = 0, d_bottom = 0;
-  int v_tic = 0, h_tic = 0, v_char = 0, h_char = 0;
-  double x_min = 0, y_min = 0, x_max = 0, y_max = 0;
-  int text_justify = 0;
-  double theta0 = 45, phi0 = 45;
-  int axis_var_labels = 0;
-};
 
 /* the world coordinates of the session s's drawing */
 void set_scale(Session &s, double x1, double y1, double x2, double y2);
@@ -58,8 +47,6 @@ void get_graph(Session &s);
 void init_graph(Session &s, int i);
 void copy_graph(Session &s, int i, int l);
 void make_rot(Session &s, double theta, double phi);
-/* every curve of every window starts with the model's curve style again */
-void reset_all_line_type(Session &s);
 void scale3d(const Session &s, float x, float y, float z, float *xp, float *yp, float *zp);
 int threedproj(const Session &s, float x2p, float y2p, float z2p, float *xp, float *yp);
 void text3d(Session &s, float x, float y, float z, const char *str);

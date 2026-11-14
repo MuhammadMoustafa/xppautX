@@ -40,13 +40,17 @@ MODULES = {
         'xpp_io', 'xpp_io_internal', 'xpp_files', 'xpp_files_dir', 'xpp_files_internal', 'xpp_files_win', 'xpp_files_posix',
         'xpp_files_linux', 'xpp_files_mac', 'xpp_sha256', 'xpp_zip', 'json_files']),
     'run control': ('the cancel token and progress a computation reports to, and the input queues of commands and cancels it sees, which the front ends and the platform fill (the stdin reader is the --server front end\'s own, json_io.cpp)', ['xpp_job', 'xpp_inbox']),
+    'styles': ('the colors, color scales, line styles and text styles a model, a run and a plot carry: pure types and their words, which include only the kernel (W733)', [
+        'colormap', 'line_style', 'text_style']),
+    'plot state': ('the data of the plot windows a Session holds, a model\'s options give and a run reads: pure structs and the window handle type, with no drawing (W733)', [
+        'plot_state', 'struct', 'xpp_types']),
     'ui seam': ('the XppUi table core code calls the front end through, the lists of choices it shows, and the events the core sends (their names, fields and the error event: the vocabulary the front end implements)', [
-        'xpp_ui', 'xpp_types', 'menus', 'typed_values', 'event_*', 'json_error']),
+        'xpp_ui', 'menus', 'typed_values', 'event_*', 'json_error']),
     'expressions': ('the formula compiler, its evaluators, native code and derived quantities', [
         'expr', 'expr_*', 'xpp_mir', 'getvar', 'derived', 'form_ode', 'tabular']),
-    'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets', [
+    'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets, among them the plot settings the model carries (W733)', [
         'model', 'model_*', 'load_eqn', 'odex', 'odex_*', 'ode_read', 'lunch-new', 'set_load', 'newpars',
-        'simplenet', 'options_panels']),
+        'simplenet', 'options_panels', 'plot_settings']),
     'session': ('the Session, its stored data, display state and undo', [
         'session', 'session_values', 'storage', 'display_state', 'value_undo']),
     'session files': ('the session file, recordings and the settings they carry', [
@@ -60,9 +64,9 @@ MODULES = {
     'analysis': ('what is computed from a run: sweeps, fits, equilibria, shooting, spectra, the data table', [
         'histogram', 'adj2', 'browse', 'browse_data', 'data_event', 'do_fit', 'equilibria', 'pp_shoot',
         'sweep_runs', 'del_stab']),
-    'plot': ('the plot windows and what they show: curves, nullclines, marks, axes, colors, and the encoding of a series for the page', [
+    'plot': ('the plot windows and what they show: curves, nullclines, marks, axes, and the encoding of a series for the page', [
         'plot_data', 'graf_par', 'many_pops', 'graphics', 'nullcline', 'phase_data', 'marks_data', 'grobs',
-        'axes2', 'colormap', 'line_style', 'plot_settings', 'text_style', 'arrayplot', 'struct', 'torus', 'series_enc']),
+        'axes2', 'arrayplot', 'torus', 'series_enc']),
     'export': ('pictures, movies and data files written out', [
         'picture', 'my_pdf', 'my_svg', 'scrngif', 'image_format', 'csv_export', 'data_formats', 'array_print',
         'kinescope']),
@@ -86,6 +90,8 @@ KERNEL = 'kernel'   # the innermost ring: the finding at the page's top says whe
 LEVELS = [
     ('kernel', 'kernel', 'pure helpers (errors, memory, text, math) that include nothing outside themselves'),
     ('run control', 'kernel', 'the cancel token and progress a computation reports to, owned inside, set by the front ends'),
+    ('styles', 'kernel', 'the colors and styles a model, a run and a plot carry: pure types, including only the kernel, below the XppUi seam that passes them'),
+    ('plot state', 'kernel', 'pure data of the plot windows (GRAPH, the split, the drawing, the nullclines), including only the kernel and the styles, below the seam and everything that reads a window'),
     ('ui seam', 'kernel', 'the XppUi table core code calls the front end through, owned inside, implemented outside'),
     ('expressions', 'domain model', 'the formula compiler and its evaluators, which need no run'),
     ('model and loading', 'domain model', 'a Model and the readers of model files, given their text'),
@@ -112,7 +118,7 @@ ALLOWLIST = {
     ('analysis', 'commands'): (3, 'W737'),
     ('analysis', 'export'): (3, 'W737'),
     ('analysis', 'files'): (11, 'W731'),
-    ('analysis', 'plot'): (8, 'W733'),
+    ('analysis', 'plot'): (4, 'W733'),
     ('analysis', 'session'): (18, 'W732'),
     ('animation', 'application'): (2, 'W735'),
     ('animation', 'files'): (4, 'W731'),
@@ -121,7 +127,7 @@ ALLOWLIST = {
     ('autoX', 'commands'): (2, 'W737'),
     ('autoX', 'export'): (4, 'W737'),
     ('autoX', 'files'): (32, 'W731'),
-    ('autoX', 'plot'): (7, 'W733'),
+    ('autoX', 'plot'): (4, 'W733'),
     ('autoX', 'session'): (21, 'W732'),
     ('autoX', 'session files'): (3, 'W737'),
     ('commands', 'application'): (6, 'W735'),
@@ -143,7 +149,7 @@ ALLOWLIST = {
     ('integrators', 'commands'): (1, 'W737'),
     ('integrators', 'export'): (1, 'W737'),
     ('integrators', 'files'): (13, 'W731'),
-    ('integrators', 'plot'): (12, 'W733'),
+    ('integrators', 'plot'): (7, 'W733'),
     ('integrators', 'session'): (28, 'W732'),
     ('model and loading', 'analysis'): (9, 'W736'),
     ('model and loading', 'animation'): (1, 'W737'),
@@ -153,7 +159,7 @@ ALLOWLIST = {
     ('model and loading', 'export'): (2, 'W737'),
     ('model and loading', 'files'): (37, 'W731'),
     ('model and loading', 'integrators'): (30, 'W736'),
-    ('model and loading', 'plot'): (18, 'W733'),
+    ('model and loading', 'plot'): (3, 'W733'),
     ('model and loading', 'session'): (20, 'W732'),
     ('model and loading', 'session files'): (9, 'W737'),
     ('platform', 'application'): (3, 'W735'),
@@ -161,7 +167,7 @@ ALLOWLIST = {
     ('plot', 'application'): (1, 'W735'),
     ('plot', 'commands'): (1, 'W737'),
     ('plot', 'export'): (12, 'W737'),
-    ('plot', 'files'): (14, 'W731'),
+    ('plot', 'files'): (12, 'W731'),
     ('plot', 'session files'): (1, 'W737'),
     ('protocol front end', 'application'): (10, 'W735'),
     ('protocol front end', 'platform'): (5, 'W737'),
@@ -170,7 +176,7 @@ ALLOWLIST = {
     ('session', 'commands'): (1, 'W737'),
     ('session', 'export'): (3, 'W737'),
     ('session', 'files'): (4, 'W731'),
-    ('session', 'plot'): (21, 'W733'),
+    ('session', 'plot'): (6, 'W733'),
     ('session', 'session files'): (2, 'W737'),
     ('session files', 'application'): (1, 'W735'),
     ('session files', 'files'): (16, 'W731'),
@@ -182,7 +188,6 @@ ALLOWLIST = {
     ('ui seam', 'integrators'): (3, 'W736'),
     ('ui seam', 'model and loading'): (2, 'W736'),
     ('ui seam', 'platform'): (1, 'W737'),
-    ('ui seam', 'plot'): (4, 'W733'),
     ('ui seam', 'session'): (2, 'W732'),
 }
 

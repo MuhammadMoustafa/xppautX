@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 
+
 /* the array plot's settings */
 struct APLOT {
   int index0 = 1, alive = 0, nacross = 1, ndown = 50, plotdef = 0;

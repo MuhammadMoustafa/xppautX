@@ -24,7 +24,6 @@
 #include "autox_stability.h"
 #include "csv_export.h"
 #include <libgen.h>
-#include "graf_par.h"
 
 
 

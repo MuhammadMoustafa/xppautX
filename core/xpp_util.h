@@ -10,6 +10,10 @@
 
 namespace xpp {
 
+/* the range *x1..*x2 made a usable one: an empty one widened a little each way, a reversed one swapped; then its middle in *xb
+   and 2 over its width in *xd (the plot's scale factor) */
+void check_val(double *x1, double *x2, double *xb, double *xd);
+
 /* now in UTC as 2026-09-30T10:14:02Z: when a recording begins, when a file of
    values was saved */
 std::string utc_now();

@@ -175,19 +175,6 @@ void scale_to_screen(const xpp::Session &s, float x, float y, int *i, int *j)  /
   *j=static_cast<int>((y-s.drawing->y_min)*dy)+s.drawing->d_bottom;
 }
 
-void reset_all_line_type(xpp::Session &s)
-{
-	int j,k;
-	for(j=0;j<static_cast<int>(s.plot_windows->graph.size());j++)
-	{
-		for(k=0;k<s.plot_windows->graph[j].nvars;k++)
-		{
-			s.plot_windows->graph[j].style[k]=s.plot_settings->start_line_style;
-		}
-	}
-
-}
-
 void init_all_graph(xpp::Session &s)
 {
  s.drawing->axis_var_labels=1; /* Every plot names its axes, including headless exports. */

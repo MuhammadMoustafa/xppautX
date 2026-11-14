@@ -3,6 +3,7 @@
 #include "xpp_error.h"
 #include "xpp_types.h"
 #include "struct.h" /* CURVE */
+#include "plot_state.h"
 #include "colormap.h"
 #include "line_style.h"
 #include <array>
@@ -21,40 +22,9 @@ struct Session; /* session.h */
 #define MAXBIFCRV 100
 #define lmax(a,b) ((a) > (b) ? (a) : (b))
 
-/* an imported bifurcation diagram's curve (Freeze > Bif.Diag) */
-struct BifCurve {
-  std::vector<float> x,y;
-  Color color;
-};
 
-/* The frozen curves of every plot window (Graphic stuff > Freeze) */
-struct XppFrozenCurves {
-    std::vector<CURVE> curve; /* .use: the slot holds one; .w: its window */
-    int autox_freeze;     /* freeze the curve after every integration */
-    /* their points: curve[i].xv/yv/zv point into points[i][0..2] (CURVE,
-       struct.h, holds plain pointers) */
-    std::vector<std::array<std::vector<float>,plot_axes>> points;
-    /* the key (Freeze > Key): where, and whether it is drawn */
-    double key_x, key_y;
-    int key_flag;
-    /* an imported bifurcation diagram's curves (at most MAXBIFCRV) and
-       its window */
-    struct {
-      std::vector<BifCurve> curves;
-      XppWinId w;
-    } bif_diagram;
-};
 
-/* 3D Params' movie */
-struct Mov3d {
-  std::string angle="theta"; /* theta or phi, at most 19 characters */
-  std::string yes="N";       /* at most 2 */
-  double start=45;
-  double incr=45;
-  int nclip=7;
-};
 
-void check_val(double *x1, double *x2, double *xb, double *xd);
 void pretty(double *x1, double *x2);
 /* the session's color scale: the array plot and the direction field show it at once */
 void set_colormap(Session &s, Colormap colormap);

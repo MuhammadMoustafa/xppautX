@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include "struct.h"
+#include "plot_state.h"
 #include "xpp_types.h"
 
 namespace xpp {
@@ -15,7 +16,7 @@ namespace xpp {
 /* The split view (W720): the main area's graphs and autoX views in one group or two side by side (right) or one above the other
    (down). The first group holds the main graph, always; a window is in the second group when its `second` is set (a graph's, an
    autoX view's), and the split ends with the last one. Within a group the tabs keep the order of plot_windows.open and of the views. */
-enum class SplitDirection { none, right, down };
+
 /* the direction's word in commands, events and the session file; the other way, or none for a word that is no direction */
 std::string_view split_direction_name(SplitDirection direction);
 std::optional<SplitDirection> split_direction_from_name(std::string_view name);
@@ -23,38 +24,15 @@ std::optional<SplitDirection> split_direction_from_name(std::string_view name);
 inline constexpr std::string_view GROUP_FIRST = "first", GROUP_SECOND = "second";
 inline std::string_view group_name(bool second) { return second ? GROUP_SECOND : GROUP_FIRST; }
 std::optional<bool> group_second_from_name(std::string_view name);
-/* the first group's share of the main area when a split starts: half and half */
-inline constexpr double SPLIT_SHARE_DEFAULT = 0.5;
 /* neither group goes below this share of the area: it keeps a tab strip and a plot usable (the page's minimum is the same fraction) */
 inline constexpr double SPLIT_SHARE_MIN = 0.2;
-struct WindowSplit {
-    SplitDirection direction = SplitDirection::none;
-    double share = SPLIT_SHARE_DEFAULT;     /* the first group's share, 0..1 */
-    std::array<std::string, 2> shown;       /* each group's shown window (split_upkeep keeps them true) */
-};
 
-/* The plot windows: every window's graph settings, the active one, and
-   the windows a command draws on (all open ones under Simulplot). */
-struct XppPlotWindows {
-    std::vector<GRAPH> graph{1};   /* graph[i].Use: window i is open */
-    GRAPH *current;        /* &graph[active] */
-    int active;            /* the active window's index */
-    int count;             /* how many are open */
-    std::vector<int> open{0};      /* the open windows' indices in the tabs' order (move_window), count of them; the main graph's, 0, first */
-    int simul;             /* Simulplot: draw on every open window */
-    XppWinId draw_win;     /* graph[active].w, the window drawn into */
-    WindowSplit split;     /* the split view's direction, share and shown windows */
-};
 
 /* The windows that are neither graphs nor autoX views have a name each, fixed
    and reserved (window_name_problem): the data table, the animation and
    the array plot (W515). */
 inline constexpr std::string_view DATA_WINDOW = "data", ANIMATION_WINDOW = "animation",
                                   ARRAY_PLOT_WINDOW = "array_plot_1";
-/* whether each of them is hidden (a window hidden keeps everything it holds) */
-struct ToolWindowsHidden {
-    bool data = false, animation = false, array_plot = false;
-};
 
 struct Session; /* session.h */
 

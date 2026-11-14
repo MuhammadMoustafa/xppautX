@@ -20,7 +20,7 @@
 #include <vector>
 #include "session.h"
 #include "diagram.h"
-#include "many_pops.h"
+#include "plot_state.h"
 #include "struct.h"
 #include <chrono>
 #include <cerrno>

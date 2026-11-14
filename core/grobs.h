@@ -1,6 +1,7 @@
 #pragma once
 
 #include "xpp_error.h"
+#include "plot_state.h"
 #include "xpp_types.h"
 #include "struct.h" /* IWYU pragma: keep (the generic lambda below needs LABEL complete) */
 #include "text_style.h"
@@ -39,25 +40,9 @@ constexpr int POINTER = 0, ARROW = 1, MARKER = 2;
 constexpr int MARKER_SHAPE_COUNT = 6;
 inline constexpr std::array<std::string_view, MARKER_SHAPE_COUNT> marker_shape_names{"box", "diamond", "triangle", "plus", "cross", "circle"};
 
-/* Text,etc's marker settings: the last ones the Marker and Markers
-   dialogs gave (type, color, size; the Markers' number, first row and
-   skip) */
-constexpr double MARKER_SIZE_DEFAULT = 1.0, ARROW_SIZE_DEFAULT = .1; /* XPPAUT's dialogs offered these */
-struct MarkInfo {
-    int type = 2;
-    Color color;
-    int number = 1, start = 0, skip = 1;
-    double size = MARKER_SIZE_DEFAULT;
-};
 
-struct GROB {
-  float xs,ys,xe,ye;
-  double size;
-  int id;
-  XppWinId w;
-  int type;
-  Color color;
-};
+/* an arrow's default size (plot_state.h's MarkInfo holds the markers' settings) */
+constexpr double ARROW_SIZE_DEFAULT = .1; /* XPPAUT's dialogs offered this */
 
 /* the glyph of marker shape 0..MARKER_SHAPE_COUNT-1 (marker_shape_names): its
    polylines in glyph units, y up, centred on the marker's position, a unit

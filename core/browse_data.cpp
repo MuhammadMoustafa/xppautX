@@ -3,7 +3,7 @@
    displays it. */
 #include <limits>
 #include "xpp_files.h"
-#include "many_pops.h"
+#include "plot_state.h"
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -29,7 +29,6 @@
 #include "expr_program.h"
 #include "numerics_settings.h"
 #include "session.h"
-#include "struct.h"
 #include "xpp_error.h"
 #include <algorithm>
 #include <span>

@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 #include "xpp_types.h"
+#include "plot_state.h"
 
 namespace xpp {
 struct Session; /* session.h */
@@ -32,31 +33,6 @@ struct Session; /* session.h */
 
    marks_data.cpp; nothing escapes it. */
 
-/* What each plot window was drawn since it was last blanked: a Session's
-   (Session::marks_shown), which marks_data.cpp fills; what the client got
-   of it is marks_data.cpp's own, the client's. */
-struct MarksShown {
-    struct Equilibrium {
-        double x, y;
-        int symbol; /* eq_symb's: 0 box, 1 triangle, 3 circle */
-        bool operator==(const Equilibrium &o) const
-        {
-            return std::memcmp(&x, &o.x, sizeof x) == 0 && std::memcmp(&y, &o.y, sizeof y) == 0 && symbol == o.symbol;
-        }
-    };
-    struct Record {
-        std::vector<Equilibrium> eqs;
-        std::map<int, std::string> labels;    /* a label's id -> the text drawn */
-        std::set<int> grobs;                  /* the ids of the graphic objects drawn */
-        std::map<int, unsigned long> frozen;  /* frozen_curves.curve[] slot -> its generation */
-    };
-    std::vector<Record> windows{1};
-    /* each frozen_curves.curve[] slot's generation, bumped when a curve is
-       made in it (marks_data_frozen_new): a record keeps the generation it
-       drew, so a new curve in the slot is not the one drawn */
-    std::vector<unsigned long> generation;
-    unsigned long generations = 0;
-};
 
 typedef void (*MarksDataEmit)(std::string_view line);
 

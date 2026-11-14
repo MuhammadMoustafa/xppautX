@@ -3,6 +3,7 @@
 #include "xpptest.h"
 #include "colormap.h"
 #include "line_style.h"
+#include "plot_data.h"
 
 #include <cmath>
 #include <string>

@@ -4,15 +4,30 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <numeric>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 #include "xpp_text.h"
 #include "xpp_util.h"
 
 namespace xpp {
+
+void check_val(double *x1, double *x2, double *xb, double *xd)
+{
+  if (*x1 == *x2) {
+    const double size = std::fabs(*x1);
+    const double temp = .05 * (size > 1.0 ? size : 1.0); /* not std::max: a NaN gives 1, as the macro this was did */
+    *x1 -= temp;
+    *x2 += temp;
+  }
+  if (*x1 > *x2) std::swap(*x1, *x2);
+  *xb = .5 * (*x1 + *x2);
+  *xd = 2.0 / (*x2 - *x1);
+}
 
 std::string utc_now()
 {

@@ -418,31 +418,6 @@ void check_windows(xpp::Session &s)
  check_val(&s.plot_windows->current->ylo,&s.plot_windows->current->yhi,&zip,&zap);
 } 
 
-/* graf_par.h's */
-void check_val(double *x1, double *x2, double *xb, double *xd)
-{
- double temp;
-
-/* 
-  see get_max for details
-*/   
-      
- if(*x1==*x2){
-   temp=.05*lmax(fabs(*x1),1.0);
-   *x1=*x1-temp;
-   *x2=*x2+temp;
- }
- if(*x1>*x2){
-	     temp=*x2;
-             *x2=*x1;
-             *x1=temp;
-	     
-            }
-	    *xb=.5*(*x1+*x2);
-	    *xd=2.0/(*x2-*x1);
-
-}
-
 void dump_ps(xpp::Session &s, int i)
 {
   const xpp::ImageFormat *fmt=xpp::picture_format_of_file(s.picture_file);

@@ -35,9 +35,8 @@
 #include "load_eqn.h"
 #include "session.h"
 #include "autox_state.h"
-#include "many_pops.h"
+#include "plot_state.h"
 #include "storage.h"
-#include "struct.h"
 
 namespace xpp {
 

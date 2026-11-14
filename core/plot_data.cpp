@@ -611,6 +611,21 @@ void plots_update(xpp::Session &s)
 
 /* ---- the API: no exception leaves it (out of memory drops the event) ---- */
 
+std::string line_style_json(const LineStyle &style)
+{
+    std::string o = "\"draw\":\"";
+    o += line_draw_names[static_cast<std::size_t>(style.draw)];
+    o += "\",\"dash\":\"";
+    o += line_dash_names[static_cast<std::size_t>(style.dash)];
+    o += "\",\"width\":";
+    json::json_append_number_shortest(o, style.width);
+    o += ",\"marker\":\"";
+    o += line_marker_names[static_cast<std::size_t>(style.marker)];
+    o += "\",\"marker_size\":";
+    json::json_append_number_shortest(o, style.marker_size);
+    return o;
+}
+
 void plot_data_init(PlotDataEmit emit) { client.emit_line = emit; }
 
 void plot_data_subscribe(int series, int plots, int f32)
