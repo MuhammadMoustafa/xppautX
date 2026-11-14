@@ -321,7 +321,7 @@ label{display:block;margin:.4rem 0}
 [54,5,3,[[193,54]]],
 [55,4,47,[[109,5],[280,6],[311,7],[329,4]]],
 [56,4,-1,[[55,21],[109,27],[130,19],[142,30],[152,15],[155,28],[165,23],[178,18],[195,26],[199,6],[205,29],[206,14],[232,31],[265,32],[280,17],[281,33],[290,16],[311,34],[315,5],[329,20],[360,22]]],
-[57,9,-1,[[58,3],[337,4],[466,5]]],
+[57,9,-1,[[58,3],[337,4],[465,5]]],
 [58,9,161,[]],
 [59,7,-1,[[5,3],[47,4],[60,6],[165,5],[206,1],[212,10],[265,2],[308,9],[329,11],[335,7]]],
 [60,7,91,[[41,3],[311,4],[335,5]]],
@@ -601,7 +601,7 @@ label{display:block;margin:.4rem 0}
 [334,16,-1,[[315,3],[335,2],[342,4]]],
 [335,16,144,[[329,49]]],
 [336,16,-1,[[329,8],[335,7],[337,4],[469,5],[470,42]]],
-[337,16,143,[[342,31],[465,32]]],
+[337,16,143,[[342,31],[466,32]]],
 [338,16,-1,[[11,3],[21,5],[47,2],[50,6],[329,4],[337,1],[339,7],[342,8]]],
 [339,16,22,[]],
 [340,16,-1,[[21,7],[47,4],[329,6],[335,5],[337,3],[339,8]]],
@@ -754,7 +754,7 @@ label{display:block;margin:.4rem 0}
 {"files":["core/ani_data.cpp","core/ani_data.h","core/aniparse.cpp","core/aniparse.h"],"libs":[],"lines_in":22,"lines_out":39,"name":"animation","two_way":["analysis","application","integrators","model and loading","plot","protocol front end","session","session files"],"usedby":["analysis","application","commands","integrators","model and loading","plot","protocol front end","session","session files","tests"],"uses":["analysis","application","expressions","foundation","integrators","model and loading","plot","protocol front end","session","session files","ui seam"],"why":"the animator and its .ani files","y":696},
 {"files":["core/display_state.h","core/session.cpp","core/session.h","core/storage.cpp","core/storage.h","core/value_undo.cpp","core/value_undo.h"],"libs":[],"lines_in":248,"lines_out":67,"name":"session","two_way":["analysis","animation","application","autoX","commands","export","expressions","foundation","integrators","model and loading","plot","session files","ui seam"],"usedby":["analysis","animation","application","autoX","commands","export","expressions","foundation","integrators","model and loading","plot","protocol front end","session files","tests","ui seam"],"uses":["analysis","animation","application","autoX","commands","export","expressions","foundation","integrators","model and loading","plot","session files","ui seam"],"why":"the Session, its stored data, display state and undo","y":748},
 {"files":["core/menus.cpp","core/menus.h","core/typed_values.cpp","core/typed_values.h","core/xpp_ui.cpp","core/xpp_ui.h"],"libs":[],"lines_in":113,"lines_out":25,"name":"ui seam","two_way":["application","autoX","commands","expressions","foundation","integrators","model and loading","plot","session"],"usedby":["analysis","animation","application","autoX","commands","expressions","foundation","integrators","model and loading","plot","protocol front end","session","session files","tests"],"uses":["application","autoX","commands","expressions","foundation","integrators","model and loading","plot","session"],"why":"the XppUi table core code calls the front end through, and the lists of choices it shows","y":800},
-{"files":["core/f2c_helpers.cpp","core/format_version.h","core/xpp_cpu.cpp","core/xpp_cpu.h","core/xpp_error.h","core/xpp_files.cpp","core/xpp_files.h","core/xpp_files_dir.cpp","core/xpp_files_internal.h","core/xpp_globals.cpp","core/xpp_globals.h","core/xpp_io.cpp","core/xpp_io.h","core/xpp_job.cpp","core/xpp_job.h","core/xpp_log.cpp","core/xpp_log.h","core/xpp_math.cpp","core/xpp_math.h","core/xpp_math_autox.cpp","core/xpp_math_autox.h","core/xpp_math_eispack.cpp","core/xpp_mem.cpp","core/xpp_mem.h","core/xpp_sha256.cpp","core/xpp_sha256.h","core/xpp_types.h","core/xpp_util.cpp","core/xpp_util.h","core/xpp_zip.cpp","core/xpp_zip.h"],"libs":["","miniz","musl-bessel","pocketfft"],"lines_in":788,"lines_out":30,"name":"foundation","two_way":["analysis","autoX","export","expressions","integrators","model and loading","platform","plot","session","ui seam"],"usedby":["analysis","animation","application","autoX","commands","export","expressions","integrators","model and loading","platform","plot","protocol front end","session","session files","tests","ui seam"],"uses":["analysis","autoX","export","expressions","integrators","model and loading","platform","plot","session","ui seam"],"why":"the owners of memory, text, files, logging, errors, math and the cancel token","y":852}
+{"files":["core/f2c_helpers.cpp","core/format_version.h","core/xpp_cpu.cpp","core/xpp_cpu.h","core/xpp_error.h","core/xpp_files.cpp","core/xpp_files.h","core/xpp_files_dir.cpp","core/xpp_files_internal.h","core/xpp_globals.cpp","core/xpp_globals.h","core/xpp_io.cpp","core/xpp_io.h","core/xpp_job.cpp","core/xpp_job.h","core/xpp_log.cpp","core/xpp_log.h","core/xpp_math.cpp","core/xpp_math.h","core/xpp_math_autox.cpp","core/xpp_math_autox.h","core/xpp_math_eispack.cpp","core/xpp_mem.cpp","core/xpp_mem.h","core/xpp_sha256.cpp","core/xpp_sha256.h","core/xpp_types.h","core/xpp_util.cpp","core/xpp_util.h","core/xpp_zip.cpp","core/xpp_zip.h"],"libs":["core-math","miniz","musl-bessel","pocketfft"],"lines_in":788,"lines_out":30,"name":"foundation","two_way":["analysis","autoX","export","expressions","integrators","model and loading","platform","plot","session","ui seam"],"usedby":["analysis","animation","application","autoX","commands","export","expressions","integrators","model and loading","platform","plot","protocol front end","session","session files","tests","ui seam"],"uses":["analysis","autoX","export","expressions","integrators","model and loading","platform","plot","session","ui seam"],"why":"the owners of memory, text, files, logging, errors, math and the cancel token","y":852}
 ],
 "nodes":[
 "core/adj2.cpp",
@@ -1222,8 +1222,8 @@ label{display:block;margin:.4rem 0}
 "tests/test_update.cpp",
 "tests/test_window_hint.cpp",
 "tests/xpptest.h",
-"lib:",
 "lib:colormaps",
+"lib:core-math",
 "lib:miniz",
 "lib:mir",
 "lib:musl-bessel",

@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 #include "xpp_mem.h"
-#include "/home/muhammad/muhammad/git_repos/xppautX/.claude/worktrees/W729/third_party/core-math/core_math.h"
+#include "../third_party/core-math/core_math.h"
 
 namespace xpp {
 
