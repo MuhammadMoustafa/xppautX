@@ -475,6 +475,16 @@ it does not place fails the script with its name. The page is byte-stable,
 so `--check` fails when it is stale: a card that changes includes regenerates
 it, `uv run --locked python tools/depgraph.py`, and commits it.
 
+`tools/iwyucheck.sh` (W729, #807; advice only, in no check yet, 3 to 6 minutes)
+runs include-what-you-use over core/ and tests/: a compile database made from
+`make -Bn`'s own compile lines (the Makefile stays the one source of flags),
+`tools/iwyu.imp` (the gcc 15 libstdc++ fixes and our owners' private pieces),
+and per-source advice plus `summary.txt` (per module what it would remove, add
+and forward-declare, and each header's reach after it, by depgraph.py's graph)
+in the git-ignored build/iwyu/. docs/studies/w729-iwyu.md has the numbers and
+what is wrong for us (a platform's `#ifdef`, include order: apply with
+`fix_include --noreorder`).
+
 `tools/csscheck.sh` (W638; sourcecheck runs it with `--check`, a second;
 `tools/csscheck.py` does the work) is the same rule for web2's CSS (maintainer,
 2026-11-07: "the rule is unifications and no duplications"): it fails, in

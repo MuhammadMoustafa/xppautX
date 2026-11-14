@@ -1,0 +1,26 @@
+# tools/iwyu.imp (W729, #807): include-what-you-use's mapping for xppautX, read
+# by tools/iwyucheck.py. IWYU 0.23's own mappings know libstdc++ up to gcc 13;
+# gcc 15's <format>, <ranges> and <functional> declare or pull in names IWYU
+# credits to them, so a file is told to include <format> "for vector" and
+# <ranges> "for pair". Every line below is a fix found by reading the advice
+# over core/ and tests/ (docs/studies/w729-iwyu.md): no <bits/...> is ever
+# suggested, so none is mapped.
+[
+  # the standard library: the header a name belongs to, never the one gcc 15 happens to pull it in through
+  { symbol: ["std::vector", "private", "<vector>", "public"] },
+  { symbol: ["std::pair", "private", "<utility>", "public"] },
+  { symbol: ["std::ranges::find", "private", "<algorithm>", "public"] },
+  { symbol: ["std::ranges::find_if", "private", "<algorithm>", "public"] },
+  { symbol: ["std::ranges::__find_fn", "private", "<algorithm>", "public"] },
+  # the C++ spelling of the C names core/ uses (AGENTS.md: the API is C++), never <stddef.h>
+  { symbol: ["size_t", "private", "<cstddef>", "public"] },
+  { symbol: ["ptrdiff_t", "private", "<cstddef>", "public"] },
+  { symbol: ["NULL", "private", "<cstddef>", "public"] },
+  # our owners (AGENTS.md "Single source"): a private piece of an owner is never named
+  # core/xpp_files_internal.h is internal to xpp_files*.cpp; its users go through xpp_files.h
+  { include: ["\"xpp_files_internal.h\"", "private", "\"xpp_files.h\"", "public"] },
+  # third_party/core-math is xpp_math.h's engine, reached as xpp::math::*; the test that
+  # compares the two names core_math.h by its path, which IWYU prints absolute
+  { include: ["@.*core_math\\.h", "private", "\"xpp_math.h\"", "public"] },
+  { include: ["@.*/third_party/core-math/.*", "private", "\"xpp_math.h\"", "public"] },
+]
