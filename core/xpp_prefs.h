@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "colormap.h"
+#include "model_file_types.h"
 #include "xpp_cpu.h"
 #include "xpp_error.h"
 #include "xpp_log.h"
@@ -51,14 +52,6 @@ inline constexpr std::size_t MAX_PATH_BYTES = 4096;
    and the file holds MAX_FILE_BYTES, with the recent models and the groups
    to come; when it is full the oldest answer goes, and asks again */
 inline constexpr std::size_t MAX_OUTSIDE_APPROVALS = 24;
-
-/* the user's answer "Allow always" for one model file and one path it names
-   outside its folder (both absolute; the path as the program resolved it,
-   files::resolve_path): a changed path is another question */
-struct OutsideApproval {
-    std::string model, path;
-    bool operator==(const OutsideApproval &) const = default;
-};
 
 struct Preferences {
     /* absolute paths of the models opened lately, newest first, none twice */
@@ -110,6 +103,13 @@ template <class T> void remember_newest(std::vector<T> &list, T item, std::size_
 
 /* load, change, save: a bad file is the error, left as it is */
 Result<> update_prefs(const std::function<void(Preferences &)> &change);
+
+/* The "Allow always" answers of a load (model_file_types.h): the kept ones from
+   `read` (the preferences the program's start read, or null to read the file
+   now) or the file's error when it is bad, and `keep`, which remembers an
+   answer in the preferences as it is given (newest first, the oldest dropped
+   at MAX_OUTSIDE_APPROVALS, a repeated one moved to the front). */
+PathApprovals path_approvals(const Result<Preferences> *read);
 
 } // namespace xpp::prefs
 

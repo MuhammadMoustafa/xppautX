@@ -284,7 +284,7 @@ int main(int argc, char **argv)
     }
     if (cl.check && !cl.convert && !cl.model_file.empty() && cl.load_options == 0) {
         xpp::batch_options.check = true;
-        return xpp::odex::check_file(startup.files, cl.model_file);
+        return xpp::odex::check_file(startup.files, cl.model_file, xpp::prefs::path_approvals(&startup.prefs));
     }
     if (cl.check) {
         xpp::log(XPP_LOG_ERROR, "usage: xppautX --check model.ode (or model.odex)\n");
@@ -297,10 +297,10 @@ int main(int argc, char **argv)
             xpp::log(XPP_LOG_ERROR, "usage: xppautX --convert [--yes] model.ode\n");
             return 2;
         }
-        if (cl.state_file) return xpp::convert_state_file(startup.files, cl.model_file, *cl.state_file);
+        if (cl.state_file) return xpp::convert_state_file(startup.files, cl.model_file, *cl.state_file, xpp::prefs::path_approvals(&startup.prefs));
         if (cl.ani_file) return xpp::convert_animation_file(startup.files, *cl.ani_file, cl.model_file);
         if (xpp::files::has_extension(cl.model_file, ".ani")) return xpp::convert_animation_file(startup.files, cl.model_file);
-        return xpp::odex::convert_file(startup.files, cl.model_file);
+        return xpp::odex::convert_file(startup.files, cl.model_file, xpp::prefs::path_approvals(&startup.prefs));
     }
     /* issue #32: the folders of runs that ended without their atexit (a
        kill, Ctrl+C, the watchdog's _exit) go at the next start, --silent

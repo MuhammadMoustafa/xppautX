@@ -49,24 +49,13 @@ inline constexpr char OUTSIDE_PATH_ALWAYS = 'a', OUTSIDE_PATH_ONCE = 'o';
    folder, or outside it when the user allowed it: this asks (Choose: the
    dialog, --server's ask event, the terminal with no interface, where
    -y / --yes allows it once, printed), unless the pair of the model file and
-   the path was kept before ("Allow always", xpp_prefs.h) or allowed in this
+   the path was kept before ("Allow always", Model::approvals.kept) or allowed in this
    load (Model::outside_paths). A link on the way, or a name that is not a
    plain one, is refused with no question. Call it, with the place that names
    the path (an empty Place: the command line), before reading name with the
    functions below, which refuse an outside path not approved; the error is
    the refusal, at `at`. */
 Result<> approve_model_path(Model &m, const std::string &name, const Place &at);
-
-/* The user's standing answers behind "Allow always": kept in the preferences
-   (xpp_prefs.cpp, the application's), asked here, below the Session. */
-namespace prefs {
-/* whether the user answered "Allow always" for model naming path (a bad file
-   is the error) */
-Result<bool> outside_path_approved(std::string_view model, std::string_view path);
-/* the user's "Allow always": remembered first, the oldest answer dropped when
-   MAX_OUTSIDE_APPROVALS are kept, a repeated one moved to the front */
-Result<> approve_outside_path(std::string_view model, std::string_view path);
-} // namespace prefs
 
 /* m's file name, whole, into bytes: false (bytes empty) when absent,
    outside the model's folder, linked, or over the archive member byte limit. */

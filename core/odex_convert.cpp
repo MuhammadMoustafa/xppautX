@@ -1904,7 +1904,7 @@ Fingerprint fingerprint(const xpp::Session &s, int guard = -1)
 
 } // namespace
 
-int check_file(FileSystem &fs, const std::string &file)
+int check_file(FileSystem &fs, const std::string &file, const PathApprovals &approvals)
 {
   std::vector<Diagnostic> diagnostics;
   std::optional<Error> error;
@@ -1920,10 +1920,10 @@ int check_file(FileSystem &fs, const std::string &file)
       if (has_subsystems(s)) diagnostics.push_back({Place{file}, "subsystems", "info", describe_subsystems(s)});
       return std::nullopt;
     };
-    const Result<> loaded = line ? inspect_model(fs, *line, load_eqn, compiled) : std::unexpected(line.error());
+    const Result<> loaded = line ? inspect_model(fs, *line, load_eqn, compiled, nullptr, &approvals) : std::unexpected(line.error());
     if (!loaded) error = loaded.error();
   } else {
-    const Result<std::string> converted = convert_text(fs, file, &diagnostics, nullptr, DeclinedRename::report);
+    const Result<std::string> converted = convert_text(fs, file, &diagnostics, nullptr, DeclinedRename::report, &approvals);
     if (!converted) error = converted.error();
   }
   capture.clear();
@@ -1963,7 +1963,7 @@ void show_diagnostics(const std::vector<Diagnostic> &diagnostics)
 }
 
 Result<std::string> convert_text(FileSystem &fs, const std::string &ode, std::vector<Diagnostic> *diagnostics,
-                               std::vector<std::string> *outside_paths, DeclinedRename declined)
+                               std::vector<std::string> *outside_paths, DeclinedRename declined, const PathApprovals *approvals)
 {
   if (is_odex(ode)) return xpp::fail_reading("convert", "is .odex already", ode);
   std::vector<std::string> args{"xppautX", ode};
@@ -1996,7 +1996,7 @@ Result<std::string> convert_text(FileSystem &fs, const std::string &ode, std::ve
       return e;
     }
     return std::nullopt;
-  });
+  }, nullptr, approvals);
   if (!imported) return std::unexpected(imported.error());
   const std::string model = odex_name(ode);
   const Result<CommandLine> converted_line = parse_command_line({"xppautX", model});
@@ -2075,17 +2075,17 @@ Result<bool> write_converted(FileSystem &fs, const std::string &source, const st
 }
 
 Result<bool> open_ode(FileSystem &fs, const std::string &ode, std::vector<Diagnostic> &diagnostics,
-                      std::vector<std::string> &outside_paths)
+                      std::vector<std::string> &outside_paths, const PathApprovals &approvals)
 {
-  Result<std::string> text = convert_text(fs, ode, &diagnostics, &outside_paths);
+  Result<std::string> text = convert_text(fs, ode, &diagnostics, &outside_paths, DeclinedRename::refuse, &approvals);
   if (!text) return std::unexpected(text.error());
   return write_converted(fs, ode, odex_name(ode), *text);
 }
 
-int convert_file(FileSystem &fs, const std::string &ode)
+int convert_file(FileSystem &fs, const std::string &ode, const PathApprovals &approvals)
 {
   std::vector<Diagnostic> diagnostics;
-  Result<std::string> text = convert_text(fs, ode, &diagnostics);
+  Result<std::string> text = convert_text(fs, ode, &diagnostics, nullptr, DeclinedRename::refuse, &approvals);
   show_diagnostics(diagnostics);
   const std::string out = odex_name(ode);
   Result<> written;

@@ -251,16 +251,16 @@ Result<> save_prefs(const Preferences &p)
     return write_config_file(WHERE, FILE_NAME, *text);
 }
 
-Result<bool> outside_path_approved(std::string_view model, std::string_view path)
+PathApprovals path_approvals(const Result<Preferences> *read)
 {
-    const Result<Preferences> p = load_prefs();
-    if (!p) return std::unexpected(p.error());
-    return std::ranges::find(p->outside_paths, OutsideApproval{std::string(model), std::string(path)}) != p->outside_paths.end();
-}
-
-Result<> approve_outside_path(std::string_view model, std::string_view path)
-{
-    return update_prefs([&](Preferences &p) { remember_newest(p.outside_paths, OutsideApproval{std::string(model), std::string(path)}, MAX_OUTSIDE_APPROVALS); });
+    const Result<Preferences> p = read ? *read : load_prefs();
+    PathApprovals approvals;
+    if (p) approvals.kept = p->outside_paths;
+    else approvals.unreadable = p.error();
+    approvals.keep = [](const OutsideApproval &a) {
+        return update_prefs([&](Preferences &q) { remember_newest(q.outside_paths, a, MAX_OUTSIDE_APPROVALS); });
+    };
+    return approvals;
 }
 
 Result<bool> update_check_due()

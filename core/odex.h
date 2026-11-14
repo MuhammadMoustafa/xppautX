@@ -25,6 +25,7 @@
 #include "odex_expr.h"
 #include "xpp_mem.h"
 #include "xpp_error.h"
+#include "model_file_types.h"
 
 #include <functional>
 #include <optional>
@@ -380,7 +381,9 @@ struct Diagnostic {
 };
 /* Import and validate the conversion without changing the open model or
    writing a file. Used by both conversion commands and their tests.
-   outside_paths receives the imported model's approvals for the native load. */
+   outside_paths receives the imported model's approvals for the native load.
+   approvals (model_file_types.h), when given, are the "Allow always" answers
+   the import works with. */
 /* A rename of a reserved name nobody answered: refused when the text is to
    be written; under --check, which writes nothing, the suggested name is
    taken and its keyword-name or reserved-word diagnostic reports it
@@ -390,22 +393,23 @@ enum class DeclinedRename { refuse, report };
 xpp::Result<std::string> convert_text(xpp::FileSystem &fs, const std::string &ode,
                                      std::vector<Diagnostic> *diagnostics = nullptr,
                                      std::vector<std::string> *outside_paths = nullptr,
-                                     DeclinedRename declined = DeclinedRename::refuse);
+                                     DeclinedRename declined = DeclinedRename::refuse,
+                                     const xpp::PathApprovals *approvals = nullptr);
 /* Read and validate in memory; one JSON object on stdout, no files or window. */
-int check_file(xpp::FileSystem &fs, const std::string &file);
+int check_file(xpp::FileSystem &fs, const std::string &file, const xpp::PathApprovals &approvals);
 /* The opening/convert command displays findings once through its existing log route. */
 void show_diagnostics(const std::vector<Diagnostic> &diagnostics);
 /* xppautX --convert [--yes] model.ode: the model loaded, written as
    model.odex (odex_name), which is loaded in turn and must compile to
    the same programs (exact by construction, checked); 0 when written, 1
    (said why) when not. Questions go through xpp_ui. */
-int convert_file(xpp::FileSystem &fs, const std::string &ode);
+int convert_file(xpp::FileSystem &fs, const std::string &ode, const xpp::PathApprovals &approvals);
 /* Opening a .ode: its conversion, checked, written as odex_name(ode)
    (true), or the existing .odex opened as it is (false: the same text, or
    the user chose it); an error when cancelled or not written. outside_paths
    carries only exact approved paths; the native loader rechecks their kinds. */
 xpp::Result<bool> open_ode(xpp::FileSystem &fs, const std::string &ode, std::vector<Diagnostic> &diagnostics,
-                         std::vector<std::string> &outside_paths);
+                         std::vector<std::string> &outside_paths, const xpp::PathApprovals &approvals);
 /* The conversion text of the foreign file source written as out, beside
    it: true when written; false when out already holds this text, or the
    user chose to keep the file that is there (a question through xpp_ui

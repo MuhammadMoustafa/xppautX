@@ -1,8 +1,12 @@
 #pragma once
 /* A model's files as a Model holds them and a session file saves them
    (model_files.h has the functions). C++ only. */
+#include <functional>
+#include <optional>
 #include <string>
 #include <vector>
+
+#include "xpp_error.h"
 
 namespace xpp {
 
@@ -18,6 +22,27 @@ struct ModelFile {
 struct SavedModel {
     std::string in;
     std::vector<ModelFile> files;
+};
+
+/* the user's answer "Allow always" for one model file and one path it names
+   outside its folder (both absolute; the path as the program resolved it,
+   files::resolve_path): a changed path is another question */
+struct OutsideApproval {
+    std::string model, path;
+    bool operator==(const OutsideApproval &) const = default;
+};
+
+/* The "Allow always" answers a load works with (maintainer, 2026-11-14): data
+   in, and an interface the loader owns for what comes out. The program's
+   start fills it from the preferences (xpp_prefs.h: path_approvals): `kept`
+   the answers kept before (or `unreadable`, why they cannot be read), and
+   `keep` what remembers one more at the moment the user gives it; the
+   loader reaches no file of the preferences itself. A Model with no `keep`
+   (a unit test) remembers an answer only in `kept`. */
+struct PathApprovals {
+    std::vector<OutsideApproval> kept;
+    std::optional<Error> unreadable;
+    std::function<Result<>(const OutsideApproval &)> keep;
 };
 
 } // namespace xpp

@@ -17,6 +17,7 @@
 
 #include <cstdlib>
 #include <filesystem>
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <stdio.h>
@@ -114,12 +115,12 @@ void check_outside_paths()
     /* the round trip; the newest first, a repeat moves to the front, the oldest dropped when full */
     xpp::prefs::Preferences p;
     for (std::size_t i = 0; i < xpp::prefs::MAX_OUTSIDE_APPROVALS; i++)
-        xpp::prefs::remember_newest(p.outside_paths, xpp::prefs::OutsideApproval{abs_path("a.odex"), abs_path("t" + std::to_string(i))},
+        xpp::prefs::remember_newest(p.outside_paths, xpp::OutsideApproval{abs_path("a.odex"), abs_path("t" + std::to_string(i))},
                                     xpp::prefs::MAX_OUTSIDE_APPROVALS);
     CHECK(p.outside_paths.size() == xpp::prefs::MAX_OUTSIDE_APPROVALS && p.outside_paths.front().path == abs_path("t23"));
-    xpp::prefs::remember_newest(p.outside_paths, xpp::prefs::OutsideApproval{abs_path("a.odex"), abs_path("t5")}, xpp::prefs::MAX_OUTSIDE_APPROVALS);
+    xpp::prefs::remember_newest(p.outside_paths, xpp::OutsideApproval{abs_path("a.odex"), abs_path("t5")}, xpp::prefs::MAX_OUTSIDE_APPROVALS);
     CHECK(p.outside_paths.size() == xpp::prefs::MAX_OUTSIDE_APPROVALS && p.outside_paths.front().path == abs_path("t5"));
-    xpp::prefs::remember_newest(p.outside_paths, xpp::prefs::OutsideApproval{abs_path("b.odex"), abs_path("new")}, xpp::prefs::MAX_OUTSIDE_APPROVALS);
+    xpp::prefs::remember_newest(p.outside_paths, xpp::OutsideApproval{abs_path("b.odex"), abs_path("new")}, xpp::prefs::MAX_OUTSIDE_APPROVALS);
     CHECK(p.outside_paths.size() == xpp::prefs::MAX_OUTSIDE_APPROVALS && p.outside_paths.back().path == abs_path("t1")); /* t0 went */
     const auto text = xpp::prefs::serialize_prefs(p);
     CHECK(text.has_value());
@@ -290,10 +291,13 @@ void check_file()
     CHECK(xpp::prefs::save_prefs(p).has_value() && xpp::files::exists(file));
     CHECK(xpp::prefs::load_prefs().value().recent_models == p.recent_models);
     /* an answer kept is found for its model and its path only */
-    CHECK(xpp::prefs::approve_outside_path(abs_path("a.odex"), abs_path("x.tab")).has_value());
-    CHECK(xpp::prefs::outside_path_approved(abs_path("a.odex"), abs_path("x.tab")).value());
-    CHECK(!xpp::prefs::outside_path_approved(abs_path("a.odex"), abs_path("y.tab")).value());
-    CHECK(!xpp::prefs::outside_path_approved(abs_path("b.odex"), abs_path("x.tab")).value());
+    xpp::PathApprovals read = xpp::prefs::path_approvals(nullptr);
+    CHECK(!read.unreadable && read.kept.empty() && read.keep);
+    CHECK(read.keep({abs_path("a.odex"), abs_path("x.tab")}).has_value());
+    read = xpp::prefs::path_approvals(nullptr);
+    CHECK(std::ranges::find(read.kept, xpp::OutsideApproval{abs_path("a.odex"), abs_path("x.tab")}) != read.kept.end());
+    CHECK(std::ranges::find(read.kept, xpp::OutsideApproval{abs_path("a.odex"), abs_path("y.tab")}) == read.kept.end());
+    CHECK(std::ranges::find(read.kept, xpp::OutsideApproval{abs_path("b.odex"), abs_path("x.tab")}) == read.kept.end());
     CHECK(xpp::prefs::load_prefs().value().recent_models == p.recent_models); /* the other group untouched */
     CHECK(xpp::prefs::update_prefs([](xpp::prefs::Preferences &q) { q.recent_models.push_back(abs_path("b.odex")); }).has_value());
     CHECK((xpp::prefs::load_prefs().value().recent_models == std::vector<std::string>{abs_path("a.odex"), abs_path("b.odex")}));
@@ -304,6 +308,7 @@ void check_file()
     CHECK(w && w.write(badtext) && w.commit().has_value());
     const auto r = xpp::prefs::load_prefs();
     CHECK(!r && r.error().place.file == file && r.error().place.line == 3);
+    CHECK(xpp::prefs::path_approvals(nullptr).unreadable && xpp::prefs::path_approvals(nullptr).kept.empty()); /* a bad file is why, none kept */
     bool called = false;
     CHECK(!xpp::prefs::update_prefs([&](xpp::prefs::Preferences &) { called = true; }));
     CHECK(!called);

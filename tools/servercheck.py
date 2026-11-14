@@ -11445,6 +11445,30 @@ def check_outside_paths():
             s.collect(failed)
         finally:
             s.close()
+        # an ask after the load (a command naming a file): Allow always is kept at the answer, so another run does not ask
+        plain = os.path.join(proj, 'plain.odex')
+        with open(plain, 'w') as f:
+            f.write(versioned(chr(10).join(["par a=1.5", "x'=-a*x", 'init x=0', 'options { integration: { total_time: 4 } }', ''])))
+        runtime_out = os.path.join(root, 'runtime.dat').replace(os.sep, '/')
+        s = start(plain)
+        try:
+            s.collect(is_done)
+            s.send(cmd='options.configure', group='output', values={'data_file': runtime_out})
+            evs, ask = s.collect(lambda e: e.get('ev') == 'ask')
+            check('W741: a command naming a path outside the folder asks after the load', ask and runtime_out in ask.get('question', ''), str(ask))
+            s.send(cmd='answer', id=ask['id'], key='a')
+            s.collect(is_done)
+        finally:
+            s.close()
+        check('W741: an Allow always given after the load is kept in the preferences', runtime_out in kept(), kept())
+        s = start(plain)
+        try:
+            s.collect(is_done)
+            s.send(cmd='options.configure', group='output', values={'data_file': runtime_out})
+            evs, _ = s.collect(is_done)
+            check('W741: a runtime Allow always is not asked again by another load', not any(e.get('ev') == 'ask' for e in evs), str(evs)[-300:])
+        finally:
+            s.close()
         # --silent: the terminal's question; no answer refuses at the model's line, --yes allows once and says so
         def silent(flags, answer=''):
             return subprocess.run([binary, 'tab.odex', '--silent'] + flags, cwd=proj, input=answer,

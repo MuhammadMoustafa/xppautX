@@ -256,11 +256,11 @@ Result<> load_xppaut_values(Session &s, ValueFile kind, std::string_view fn)
     return apply_values(s, part.items, part.where, kind == ValueFile::parameters ? set_scope::parameters : set_scope::initial, std::nullopt, LOADING);
 }
 
-int convert_state_file(FileSystem &fs, const std::string &model, const std::string &state)
+int convert_state_file(FileSystem &fs, const std::string &model, const std::string &state, const PathApprovals &approvals)
 {
   /* the model first, as --convert alone writes it; an .odex is used as it is */
   if (!odex::is_odex(model))
-    if (const int status = odex::convert_file(fs, model); status != 0) return status;
+    if (const int status = odex::convert_file(fs, model, approvals); status != 0) return status;
   const std::string odex_file = odex::is_odex(model) ? model : odex::odex_name(model);
   const Result<CommandLine> line = parse_command_line({"xppautX", odex_file, "--convert"});
   if (!line) { show_error(line.error()); return 1; }

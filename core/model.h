@@ -27,6 +27,7 @@
    Markov variable, an aux quantity each at its own offset). */
 #include "xpp_error.h"
 #include "xpp_fs.h"
+#include "model_file_types.h"
 #include "volterra.h"
 #include "simplenet.h"
 #include "xpp_mir.h"
@@ -368,6 +369,8 @@ struct Model {
   /* the paths outside the model's folder the user allowed while this model
      loaded, as files::resolve_path gives them (approve_model_path, model_files.h) */
   std::vector<std::string> outside_paths;
+  /* the user's "Allow always" answers this load works with, kept before and as given (model_file_types.h) */
+  PathApprovals approvals;
   /* a Model made to parse a file of values in (set_load.cpp, scratch_model) holds whether a path outside the folder the user
      allows is for this read only (asked every time, never kept in the preferences) */
   bool outside_once_only = false;
