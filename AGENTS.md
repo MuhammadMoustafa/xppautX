@@ -464,6 +464,16 @@ types, new function-pointer types, typedefs of builtins and
 `typedef struct {...} name;` definitions need no entry; the platform
 shims and vendored CVODE/autoX names are entries. Use the real name.
 
+`tools/depgraph.py` (W725, #803; sourcecheck runs its unit test and `--check`)
+writes `docs/deps.html`, the include graph of core/ (and tests/): each header's
+reach (how many core/*.cpp include it, directly or not), include cycles among
+headers (`#pragma once` hides them) and among modules, the modules' arcs
+weighted by include lines, a file search and the findings at the page's top.
+Its MODULES table places every core file in one module with a reason; a file
+it does not place fails the script with its name. The page is byte-stable,
+so `--check` fails when it is stale: a card that changes includes regenerates
+it, `uv run --locked python tools/depgraph.py`, and commits it.
+
 `tools/csscheck.sh` (W638; sourcecheck runs it with `--check`, a second;
 `tools/csscheck.py` does the work) is the same rule for web2's CSS (maintainer,
 2026-11-07: "the rule is unifications and no duplications"): it fails, in
@@ -796,6 +806,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
 ## Hygiene
 
 - Paths used often (the frozen comparison run, the latest report, the references, the board's scripts) are in docs/paths.md: look there before searching, and add a path you had to search for (maintainer, 2026-11-06).
+- A change to `#include` lines (or a new or renamed core file) regenerates docs/deps.html with `uv run --locked python tools/depgraph.py` and commits it; a new core file also gets its module in tools/depgraph.py (W725).
 - Never a bare `git stash` (shared by every worktree); use a WIP commit.
 - Never kill the maintainer's own running programs; never stop a process by
   name.

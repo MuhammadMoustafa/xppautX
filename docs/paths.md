@@ -12,6 +12,7 @@ Checkouts: the Ubuntu machine's is `/home/muhammad/muhammad/git_repos/xppautX`
 | What | Path |
 |---|---|
 | Cards, their order and status | `docs/roadmap.md` (the plan at its top) |
+| Include graph of core/ (cycles, reach, modules), `tools/depgraph.py` | `docs/deps.html` |
 | Studies and design proposals | `docs/studies/` (`w<card>-<topic>.md`) |
 | XPPAUT's bugs and limits | `docs/xppaut-findings.md` |
 | AUTO-07p's bugs | `docs/auto07p-findings.md` |

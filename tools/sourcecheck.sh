@@ -90,6 +90,15 @@ if part rules; then
     echo "COMMENT STRIPPER UNIT TESTS FAILED"
     exit 1
   fi
+  if ! uv run --locked python tools/test_depgraph.py; then
+    echo "DEPENDENCY GRAPH UNIT TESTS FAILED"
+    exit 1
+  fi
+  # W725 (#803): docs/deps.html is the include graph of core/, regenerated with every change to includes.
+  if ! uv run --locked python tools/depgraph.py --check; then
+    echo "DEPENDENCY GRAPH STALE"
+    exit 1
+  fi
   if ! uv run --locked python tools/findingscheck.py > build/findingscheck.out 2>&1; then
     cat build/findingscheck.out
     echo "FINDINGS NUMBERING CHECK FAILED"
