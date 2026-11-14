@@ -1446,11 +1446,11 @@ def check_registry():
         result, evs = request({'cmd': 'window.hide', 'window': 'kept'})
         check('window.hide: the window stays and is not shown', result == {'window': 'kept', 'shown': False})
         check('window.hide: the windows event says so', any(e.get('ev') == 'window.list' and
-              {'name': 'kept', 'kind': 'graph', 'shown': False} in e['windows'] for e in evs), str(evs)[-500:])
+              {'name': 'kept', 'kind': 'graph', 'shown': False, 'group': 'first'} in e['windows'] for e in evs), str(evs)[-500:])
         result, _ = request({'cmd': 'window.list'})
         listed = {w['name']: w for w in result['windows']}
         check('window.list: every window with its kind and whether it is shown',
-              listed['kept'] == {'name': 'kept', 'kind': 'graph', 'shown': False} and listed['main']['shown'] is True and
+              listed['kept'] == {'name': 'kept', 'kind': 'graph', 'shown': False, 'group': 'first'} and listed['main']['shown'] is True and
               listed['data'] == {'name': 'data', 'kind': 'data', 'shown': True}, str(result))
         result, _ = request({'cmd': 'window.show', 'window': 'kept'})
         check('window.show: the window comes back', result == {'window': 'kept', 'shown': True})
@@ -1502,6 +1502,108 @@ def check_registry():
             if end is None or end['ev'] == 'done': break
             snd(cmd='answer', id=end['id'], key='d')
         check('W719: a session file keeps the tabs\' order and a reload restores it', graph_order() == before, str(graph_order()) + ' vs ' + str(before))
+        # W720: the split view, the core's: window.split / window.join / window.set_split_share, atomic, kept by the session file and recordings
+        def split_state():
+            listed_now, _ = request({'cmd': 'window.list'})
+            return listed_now['split'], {w['name']: w['group'] for w in listed_now['windows'] if w['kind'] == 'graph'}
+        split, groups = split_state()
+        check('W720: no split at first: direction none, every graph in the first group', split['direction'] == 'none' and set(groups.values()) == {'first'}, str((split, groups)))
+        request({'cmd': 'window.select', 'window': 'main'})
+        result, evs = request({'cmd': 'window.split', 'window': 'second', 'direction': 'right'})
+        split, groups = split_state()
+        check('W720: window.split puts the window in the second group, selects it and the split goes right, half and half',
+              result == {'window': 'second', 'group': 'second'} and groups['second'] == 'second' and groups['main'] == 'first'
+              and split == {'direction': 'right', 'share': 0.5, 'shown': {'first': 'main', 'second': 'second'}, 'selected': 'second'}, str((result, split, groups)))
+        check('W720: the windows event carries the split', any(e.get('ev') == 'window.list' and e['split']['direction'] == 'right' and
+              {'name': 'second', 'kind': 'graph', 'shown': True, 'group': 'second'} in e['windows'] for e in evs), str(evs)[-500:])
+        check('W720: the tabs keep the core\'s order whatever the groups', graph_order() == before, str(graph_order()))
+        request({'cmd': 'window.select', 'window': 'main'})
+        split, _ = split_state()
+        check('W720: selecting a window of the first group leaves the second group showing what it showed', split['shown'] == {'first': 'main', 'second': 'second'}, str(split))
+        result, _ = request({'cmd': 'window.split', 'window': 'third', 'direction': 'down'})
+        split, groups = split_state()
+        check('W720: window.split on an existing split changes its direction too',
+              split['direction'] == 'down' and groups['third'] == 'second' and groups['second'] == 'second' and split['shown']['second'] == 'third', str((split, groups)))
+        for refused, why in [({'cmd': 'window.split', 'window': 'main', 'direction': 'right'}, 'The main graph stays in the first group'),
+                             ({'cmd': 'window.split', 'window': 'data', 'direction': 'right'}, 'is not in a group'),
+                             ({'cmd': 'window.split', 'window': 'nowhere', 'direction': 'right'}, 'Unknown window'),
+                             ({'cmd': 'window.split', 'window': 'kept', 'direction': 'none'}, ''),
+                             ({'cmd': 'window.split', 'window': 'kept', 'direction': 'up'}, ''),
+                             ({'cmd': 'window.split', 'window': 'kept'}, ''),
+                             ({'cmd': 'window.join', 'window': 'main'}, 'The main graph stays in the first group'),
+                             ({'cmd': 'window.join', 'window': 'kept'}, 'already in the first group'),
+                             ({'cmd': 'window.join', 'window': 'data'}, 'is not in a group'),
+                             ({'cmd': 'window.set_split_share', 'share': 0.1}, ''),
+                             ({'cmd': 'window.set_split_share', 'share': 0.9}, ''),
+                             ({'cmd': 'window.set_split_share'}, '')]:
+            _, evs = request(refused, False)
+            now_split, now_groups = split_state()
+            check('W720: %s is refused%s and changes nothing' % (json.dumps(refused), ' saying ' + why if why else ''),
+                  why in json.dumps(evs) and (now_split, now_groups) == (split, groups), str(evs)[-300:])
+        result, _ = request({'cmd': 'window.set_split_share', 'share': 0.3})
+        split, _ = split_state()
+        check('W720: window.set_split_share sets the first group\'s share', result == {'share': 0.3} and split['share'] == 0.3, str((result, split)))
+        for edge in (0.2, 0.8):
+            result, _ = request({'cmd': 'window.set_split_share', 'share': edge})
+            check('W720: the share goes to %s, the bound, and no further' % edge, result == {'share': edge}, str(result))
+        request({'cmd': 'window.set_split_share', 'share': 0.3})
+        request({'cmd': 'window.select', 'window': 'main'})
+        split, _ = split_state()
+        check('W720: the second group shows the window it showed when the first group is selected', split['shown'] == {'first': 'main', 'second': 'third'} and split['selected'] == 'main', str(split))
+        snd(cmd='session.save_as', file='split view.snapx', data=False)
+        col(lambda e: e.get('ev') == 'done')
+        snd(cmd='recording.start'); col(lambda e: e.get('ev') == 'done')
+        request({'cmd': 'window.join', 'window': 'third'})
+        request({'cmd': 'window.split', 'window': 'third', 'direction': 'right'})
+        request({'cmd': 'window.set_split_share', 'share': 0.6})
+        snd(cmd='recording.stop', file='split.recx'); col(lambda e: e.get('ev') == 'done')
+        with open(os.path.join(folder, 'split.recx'), encoding='utf-8') as f: text = f.read()
+        _, _, steps, written, computed = read_recx(text)
+        check('W720: a recording keeps the split commands', written == computed and [step['cmd']['cmd'] for step, _ in steps] == ['window.join', 'window.split', 'window.set_split_share'], str(steps)[:400])
+        replay_dir = tempfile.mkdtemp(prefix='xppsplit-replay')
+        try:
+            replay = replay_recording(args.server, args.ode, os.path.join(folder, 'split.recx'), replay_dir)
+            check('W720: the split recording replays silently', replay.returncode == 0, replay.stderr[-1000:])
+        finally:
+            shutil.rmtree(replay_dir)
+        request({'cmd': 'window.join', 'window': 'second'})
+        result, _ = request({'cmd': 'window.join', 'window': 'third'})
+        split, groups = split_state()
+        check('W720: joining the last window of the second group ends the split',
+              split['direction'] == 'none' and split['share'] == 0.5 and set(groups.values()) == {'first'}, str((split, groups)))
+        _, evs = request({'cmd': 'window.set_split_share', 'share': 0.5}, False)
+        check('W720: there is no share to set without a split', 'There is no split' in json.dumps(evs), str(evs)[-300:])
+        snd(cmd='session.open_model', file='split view.snapx')
+        while True:
+            _, end = col(lambda e: e.get('ev') in ('ask', 'done'))
+            if end is None or end['ev'] == 'done': break
+            snd(cmd='answer', id=end['id'], key='d')
+        split, groups = split_state()
+        check('W720: a session file keeps the split and a reload restores it', split['direction'] == 'down' and split['share'] == 0.3 and
+              groups['second'] == 'second' and groups['third'] == 'second' and groups['main'] == 'first' and graph_order() == before, str((split, groups)))
+        check('W720: a session file keeps each group\'s shown window: the unselected second group shows "third" again, not its first window', split['shown'] == {'first': 'main', 'second': 'third'}, str(split))
+        # one way to move a tab: within its own strip (its kind and group), by the key, by the command with a window, by a recording
+        for name, position in (('second', 1), ('kept', 2), ('third', 3)): request({'cmd': 'window.move', 'window': name, 'position': position})
+        ordered = graph_order()
+        check('W720: the tabs in order: main, second, kept, third; main and kept in the first group', ordered[:4] == ['main', 'second', 'kept', 'third'], str(ordered))
+        request({'cmd': 'window.select', 'window': 'second'})
+        result, _ = request({'cmd': 'window.move_later'})
+        check('W720: the key moves a second-group tab past its strip neighbour (third), not past the first group\'s tab',
+              result == {'window': 'second', 'position': 3} and graph_order()[:4] == ['main', 'kept', 'third', 'second'], str((result, graph_order())))
+        result, _ = request({'cmd': 'window.move_earlier'})
+        check('W720: the key moves it back past the same neighbour, one way for the key and the menu (which selects the tab first)',
+              result == {'window': 'second', 'position': 2} and graph_order()[:4] == ['main', 'kept', 'second', 'third'], str((result, graph_order())))
+        for step, name in (('window.move_later', 'kept'), ('window.move_earlier', 'kept'), ('window.move_later', 'third'), ('window.move_earlier', 'main')):
+            now = graph_order()
+            request({'cmd': 'window.select', 'window': name})
+            request({'cmd': step})
+            check('W720: %s of %s at the end of its strip leaves the order' % (step, name), graph_order() == now, str(graph_order()))
+        result, _ = request({'cmd': 'window.close', 'window': 'third'})
+        split, groups = split_state()
+        check('W720: closing a window of the second group leaves the split while others remain', split['direction'] == 'down' and groups['second'] == 'second' and 'third' not in groups, str((split, groups)))
+        result, _ = request({'cmd': 'window.close', 'window': 'second'})
+        split, groups = split_state()
+        check('W720: closing the last window of the second group ends the split', split['direction'] == 'none' and set(groups.values()) == {'first'}, str((split, groups)))
         snd(cmd='annotation.list', window='kept')
         evs, _ = col(lambda e: e.get('ev') == 'done')
         check('window.hide and show keep what the window holds (its text)', any('note' in json.dumps(e) for e in evs if e.get('ev') == 'done'), str(evs)[-500:])
@@ -4196,6 +4298,34 @@ def check_live_series():
 
 
 check_live_series()
+
+
+def check_split_live_series():
+    """W720: in a split view a run's rows go live to the shown graph of each group, not only the active one (docs/protocol.md "Live runs")"""
+    proc3, run3, send3, collect3, _ = launch_server(ode=LIVE)
+    try:
+        collect3(is_done)
+        send3(cmd='events.subscribe', events=['plot.series'])
+        collect3(is_done)
+        send3(cmd='window.new', name='beside'); collect3(is_done)
+        send3(cmd='window.split', window='beside', direction='right'); collect3(is_done)
+        send3(cmd='window.select', window='main'); collect3(is_done)
+        ser = live_run(send3, collect3)
+        for name in ('main', 'beside'):
+            mine = [e for e in ser if e.get('win') == name]
+            check('W720: the split\'s %s group\'s graph gets live appends and its end' % ('first' if name == 'main' else 'second'),
+                  len([e for e in mine if e.get('op') == 'append']) >= 3 and [e for e in mine if e.get('op') == 'end'] and not [e for e in mine if e.get('op') not in ('append', 'end')],
+                  str([(e.get('op'), e.get('rows')) for e in mine])[:300])
+    finally:
+        send3(cmd='session.quit', save=False)
+        try:
+            proc3.wait(timeout=5 * SLOW)
+        except subprocess.TimeoutExpired:
+            proc3.kill()
+        shutil.rmtree(run3, ignore_errors=True)
+
+
+check_split_live_series()
 
 
 # Answers in data coordinates (docs/protocol.md "Asks"): a mouse, rubber or
@@ -9168,8 +9298,8 @@ def check_session_file():
             vt = z.read('session.odex').decode()
             views = vt[vt.index('    views: ['):vt.index('    active: ')]
             check('session save: the autox group of session.odex holds both views, the first active',
-                  views.count('name: "diagram_') == 2 and 'name: "diagram_1",\n        hidden: false,\n        plot: maximum_and_minimum,\n        var: V,\n        par1: iapp,' in views
-                  and 'name: "diagram_2",\n        hidden: false,\n        plot: norm,\n        var: V,\n        par1: iapp,' in views
+                  views.count('name: "diagram_') == 2 and 'name: "diagram_1",\n        hidden: false,\n        group: first,\n        plot: maximum_and_minimum,\n        var: V,\n        par1: iapp,' in views
+                  and 'name: "diagram_2",\n        hidden: false,\n        group: first,\n        plot: norm,\n        var: V,\n        par1: iapp,' in views
                   and re.search(r'y: \{\n\s+set: true,\n\s+low: 0,\n\s+high: 0.5,', views) and '    active: "diagram_1",' in vt, views[:600])
             shutil.copy(snap, keep)
         answered(snd, col, (), cmd='session.save_as', file='s2.snapx', data=False)

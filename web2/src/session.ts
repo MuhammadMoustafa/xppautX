@@ -1,3 +1,4 @@
+import {splitDrawn} from './store/splitView';
 import {panelSpec, toolbarCommand} from './ui/navigation';
 import {registryRows} from './ui/navigation';
 /* The session: connects a transport to the store and is the one place that
@@ -639,8 +640,11 @@ export class Session {
   /** a graph's tab picked: it is shown at once, and becomes the core's active window; the autoX view shown gives way (its views are
       hidden in the core, as Hide autoX did, so a saved session keeps which view was shown, and a grab waiting on it is cancelled) */
   selectWindow(win: string): void {
-    const {plots, ask, busy, diagram} = this.store.getState();
-    const fromAutox = diagram.shown;
+    const state = this.store.getState();
+    const {plots, ask, busy, diagram} = state;
+    /* in a split view on screen an autoX view stays where it is in its group (W720), so the graph's pick does not hide it */
+    const drawn = splitDrawn(state);
+    const fromAutox = diagram.shown && !drawn;
     if (fromAutox) this.showAutox(false);
     /* a prompt is the shown window's until answered */
     if (ask) return;
@@ -652,7 +656,7 @@ export class Session {
       return;
     }
     this.windowHeld = null;
-    if (plots.active === win && !fromAutox) return;
+    if (plots.active === win && !fromAutox && (!drawn || state.split.selected === win)) return;
     this.store.dispatch({type: 'selectWindow', win});
     this.send({cmd: 'window.select', window:win});
   }
@@ -665,8 +669,16 @@ export class Session {
   renameWindow(window: string, name: string): void { this.send({cmd:'window.rename',window,name}); }
 
   /** a view's tab moved to `position` among the tabs of its kind, from 0 (a dragged tab, W719); one place earlier or later is the
-      commands `window.move_earlier` and `window.move_later`, which keys and the tab menu send */
+      commands `window.move_earlier and window.move_later, which keys and the tab menu send */
   moveWindow(window: string, position: number): void { this.send({cmd:'window.move',window,position}); }
+  /** one place earlier (-1) or later (1) in the tab's own strip: the tab is selected, then the core's move the keys send (W720) */
+  moveWindowBeside(window: string, step: -1 | 1): void { this.send({cmd: 'window.select', window}); this.send({cmd: step < 0 ? 'window.move_earlier' : 'window.move_later'}); }
+
+  /** the split view (W720): `window` to the second group, the split going `direction`; back to the first group; the first group's
+      share of the area, sent when the splitter is released */
+  splitWindow(window: string, direction: 'right' | 'down'): void { this.send({cmd:'window.split',window,direction}); }
+  joinWindow(window: string): void { this.send({cmd:'window.join',window}); }
+  setSplitShare(share: number): void { this.send({cmd:'window.set_split_share',share}); }
 
   /** Makewindow/Create: a copy of the active window, which becomes active */
   newWindow(): void {
@@ -729,8 +741,10 @@ export class Session {
   /** a view of the autoX diagram clicked: the active one (W50), whose axes autoX's Axes menu,
       zoom and a run go by */
   activateView(view: number): void {
-    const d = this.store.getState().diagram;
-    if (view === d.active || view >= d.views.length) return;
+    const state = this.store.getState(), d = state.diagram;
+    if (view >= d.views.length) return;
+    /* a graph may be the selected one beside it in a split view: then it is selected too */
+    if (view === d.active && !(splitDrawn(state) && state.split.selected !== d.views[view].name)) return;
     this.store.dispatch({type: 'diagram', action: {type: 'activate', view}});
     this.send({cmd:'window.select',window:d.views[view].name});
   }

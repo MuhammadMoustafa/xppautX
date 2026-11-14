@@ -253,7 +253,7 @@ void check_views_text()
     const std::string text = autox_text::views_text(v);
     const xpp::Result<xpp::snapx::autox_members::ViewsRead> r = autox_text::parse_views(text, "views.odex");
     CHECK(r && r->views == v && r->places.size() == 2 && r->places[0].first == 2 && r->places[1].first == line_of(text, "name: \"diagram_2\"") - 1);
-    CHECK(text.ends_with("active: \"diagram_2\",\n") && text.contains("name: \"diagram_2\",\n    hidden: true,\n    plot: period"));
+    CHECK(text.ends_with("active: \"diagram_2\",\n") && text.contains("name: \"diagram_2\",\n    hidden: true,\n    group: first,\n    plot: period"));
     const auto bad = [&](const std::string &changed) { return !autox_text::parse_views(changed, "views.odex"); };
     CHECK(bad(with_line(text, "hidden: true", "hidden: visible,")));                                        /* true or false */
     CHECK(bad(without_line(text, "active:")));                                                              /* no active line */

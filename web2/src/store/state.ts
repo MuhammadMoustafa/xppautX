@@ -8,7 +8,7 @@ import {setPointTypes} from './pointTypes';
 import {setFileFormats} from './fieldKinds';
 import {computationName} from '../protocol/kinds';
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
-import type {AskEvent, Command, ErrorAction, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, WindowListEntry, XppEvent} from '../protocol/types';
+import type {AskEvent, Command, ErrorAction, HelloEvent, LoadErrorEvent, NumericsField, SplitInfo, StateEvent, View, WindowListEntry, XppEvent} from '../protocol/types';
 import {errorPlace, errorText, unreadFile, type ErrorPlace} from '../protocol/errors';
 import {CONTINUE_INPUT_DEFAULT, type ContinueInput} from './steady';
 import {
@@ -130,6 +130,8 @@ export interface AppState {
   plots: PlotsState;
   /** every window of the core, with whether it is shown (the `windows` event) */
   windows: WindowListEntry[];
+  /** the split view of the main area (W720): from the same event */
+  split: SplitInfo;
   /** the views in windows of their own, by `kind:name` (popout.ts): their tabs say so */
   popouts: readonly string[];
   /** how many whole series arrived (a full series event, or the end of a live run): tests wait on it */
@@ -253,6 +255,9 @@ export type Action =
   /** the page's own leave question (LEAVE_ASK) opened or closed */
   | {type: 'leave'; open: boolean; then?: LeaveThen};
 
+/** no split: one group */
+export const NO_SPLIT: SplitInfo = {direction: 'none', share: 0.5, shown: {first: '', second: ''}, selected: 'main'};
+
 export const initialState: AppState = {
   connected: false,
   exited: null,
@@ -291,6 +296,7 @@ export const initialState: AppState = {
   text: initialText,
   files: initialFiles,
   windows: [],
+  split: NO_SPLIT,
   popouts: [],
   diagram: initialDiagram,
   autoxSettings: initialAutoxSettings,
@@ -432,7 +438,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       /* a set sent before gets no done now */
       setPointTypes(ev.point_types);
       setFileFormats(ev.file_formats);
-      return {...state, hello: ev, title: ev.title, values, numerics: null, selectedAnnotation: null, commandForm: null, optionsPanel: null, optionValues: {}, valuesFile: null, windows: [],
+      return {...state, hello: ev, title: ev.title, values, numerics: null, selectedAnnotation: null, commandForm: null, optionsPanel: null, optionValues: {}, valuesFile: null, windows: [], split: NO_SPLIT,
         autoxSettings: reduceAutoxSettings(state.autoxSettings, {type: 'reset'}),
         keymap: reduceKeymap(state.keymap, {type: 'info', info: ev.keymap})};
     }
@@ -484,7 +490,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       const animation = flag('animation'), arrayPlot = flag('array_plot');
       if (animation !== undefined) ani = reduceAni(ani, {type: 'open', open: animation});
       if (arrayPlot !== undefined) aplot = reduceAplot(aplot, {type: 'panel', open: arrayPlot});
-      return {...state, windows: ev.windows, diagram, ani, aplot};
+      return {...state, windows: ev.windows, split: ev.split, diagram, ani, aplot};
     }
     case 'window.renamed': {
       const plots={...state.plots,active:state.plots.active===ev.window?ev.new_name:state.plots.active,
@@ -508,7 +514,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       const ids = state.hello?.window_names;
       if (!ids) return state;
       if (op === 'select') {
-        const front = {...state, diagram: reduceDiagram(state.diagram, {type:'show',shown:ev.kind === 'diagram'}),
+        /* an autoX view is in front when it is selected; with a split view the others stay where they are (their group shows them, W720) */
+        const front = {...state, diagram: state.split.direction !== 'none' && ev.kind !== 'diagram' ? state.diagram : reduceDiagram(state.diagram, {type:'show',shown:ev.kind === 'diagram'}),
           ani: reduceAni(state.ani,{type:'open',open:ev.kind === 'animation'}),
           aplot: reduceAplot(state.aplot,{type:'panel',open:ev.kind === 'array_plot'}),
           table: {...state.table,open:ev.kind === 'data'}};

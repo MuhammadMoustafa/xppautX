@@ -54,7 +54,7 @@ function PopOutShell({view}: {view: ViewKey}) {
       </header>
       <Banner />
       <main class="popout-body">
-        {view.kind === 'graph' && <div class="plots"><GraphView win={view.name} dark={dark} shown tabbed={false} windowRow={null} /></div>}
+        {view.kind === 'graph' && <div class="plots"><GraphView win={view.name} dark={dark} shown focused tabbed={false} windowRow={null} /></div>}
         {view.kind === 'autox' && <AutoxPopOut name={view.name} dark={dark} />}
         {view.kind === 'dock' && <aside id="dock" class="dock open popout-dock" data-tab={view.name} aria-label={label}><DockBody /></aside>}
       </main>

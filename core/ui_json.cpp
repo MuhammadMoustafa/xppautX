@@ -964,6 +964,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     diag_flush(*s, 1);
     autox_data_update(*s, 1);
     autox_view_update(*s);
+    xpp::split_upkeep(*s);
     session.windows.update(*s);
     autox_settings_update(*s);
     autox_script_update(*s);

@@ -32,7 +32,7 @@ import {ShownName, ShownNumber} from './CutText';
 import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 
 /** the plot's ⋯: a pop-up holding the tools the plot's header has no room for (a pick, or a click outside, closes it) */
-function PlotMore({children}: {children: ComponentChildren}) {
+export function PlotMore({children}: {children: ComponentChildren}) {
   const box = useDropDown();
   return (
     <details class="plot-more" ref={box}>
@@ -195,15 +195,19 @@ export function PickBar({pick}: {pick: PickState}) {
 interface Props {
   win: string;
   dark: boolean;
-  /** this window's tab is the one shown */
+  /** this window's tab is the one shown (in a split view, the shown one of each group) */
   shown: boolean;
+  /** this window is the active one: the one the keys and the point readout are for */
+  focused: boolean;
+  /** its group in a split view on screen, which places it (ui/Plots.tsx), else none */
+  group?: 'first' | 'second';
   /** shown as a tab panel (more than one window) */
   tabbed: boolean;
   /** the window row (ui/Plots.tsx), drawn in the header of the shown window */
   windowRow: ComponentChildren;
 }
 
-export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
+export function PlotView({win, dark, shown, focused, group, tabbed, windowRow}: Props) {
   const session = useSession();
   const pw = useStore(s => windowOf(s.plots, win));
   const series = pw?.series ?? null;
@@ -215,7 +219,7 @@ export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
     [nullclines, dfield, marks]);
   const viewport = pw?.viewport ?? HOME;
   const view = useStore(s => s.core?.view);
-  const hover = useStore(s => (shown ? s.hover : null));
+  const hover = useStore(s => (focused ? s.hover : null));
   const busy = useStore(s => s.computing);
   const may = useMay();
   const mayMain = useMayMain();
@@ -225,6 +229,9 @@ export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
   const picking = pick && !pick.waiting ? pick : null;
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<Chart | null>(null);
+  /* the point readout is the active window's: a plot of the other group (split view) leaves it alone until a press focuses it */
+  const focusedNow = useRef(focused);
+  focusedNow.current = focused;
   const [, setShown] = useState(0); /* the legend's toggles live in the chart */
   const [appearance, setAppearance] = useState<Record<string, {label?: string; color?: string; visible?: boolean}>>({});
   const [editing, setEditing] = useState<{key: string; label: string; color: string} | null>(null);
@@ -293,6 +300,7 @@ export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
       area.addEventListener('pointercancel', cancel);
       const gestures = attachGestures(c, area, {
         hover: (curve, index, run) => {
+          if (!focusedNow.current) return;
           if (run === undefined || run < 0) setHover(session, modelRef.current, curve, index);
           else clearHover(session);
         },
@@ -427,7 +435,8 @@ export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
     : {'aria-label': 'Plot'};
 
   return (
-    <section class="plot-view" hidden={!shown} {...panel}>
+    <section class={'plot-view' + (group && focused ? ' focused' : '')} data-group={group} hidden={!shown} {...panel}
+      onPointerDown={() => { if (group && !focused) session.selectWindow(win); /* a press in the other group focuses it, as in VS Code */ }}>
       <header class="plot-bar">
         <div class="legend" role="group" aria-label="Curves">
           {model?.curves.map((c, i) => legend(c, `current:${i}`, -1, i))}

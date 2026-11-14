@@ -55,6 +55,7 @@ struct SavedView {
     xpp::Zoom zoom;
     std::string name;
     bool hidden = false;
+    bool second = false; /* in the split view's second group (many_pops.h) */
     bool operator==(const SavedView &) const = default;
 };
 struct SavedViews {

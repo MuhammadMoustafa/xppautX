@@ -111,6 +111,7 @@ void write_views(odex::Out &out, const SavedViews &v)
         out.begin_item();
         out.text("name", w.name);
         out.flag("hidden", w.hidden);
+        out.word("group", group_name(w.second));
         out.word("plot", autox_projection_name(w.plot));
         out.name("var", w.var);
         out.name("par1", w.par1);
@@ -140,6 +141,11 @@ ViewsRead read_views(odex::Block &autox)
         for (std::size_t j = 0; j < k; j++)
             if (v.views[j].name == s.name) g.fail(*g.member("name"), "a view name is listed twice");
         g.flag("hidden", s.hidden);
+        std::string group;
+        g.word("group", group);
+        const std::optional<bool> second = group_second_from_name(group);
+        if (!second) g.fail(*g.member("group"), xpp::format("Unknown group \"{}\": {} or {}", group, GROUP_FIRST, GROUP_SECOND));
+        s.second = *second;
         const odex::Member &plot = *g.member("plot");
         const std::optional<AutoxProjection> projection = autox_projection_from_name(g.word_of(plot));
         if (!projection) g.fail(plot.value, autox_projection_unknown(g.word_of(plot)));

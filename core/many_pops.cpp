@@ -72,6 +72,15 @@ bool window_hidden(const Session &s, const WindowTarget &target)
     return false;
 }
 
+bool window_second(const Session &s, const WindowTarget &target)
+{
+    switch (target.kind) {
+    case WindowKind::graph: return s.plot_windows->graph[target.index].second;
+    case WindowKind::diagram: return s.autox_state->views[target.index].second;
+    default: return false;
+    }
+}
+
 void set_window_hidden(Session &s, const WindowTarget &target, bool hidden)
 {
     switch (target.kind) {
@@ -95,6 +104,11 @@ std::string window_content(const Session &s, XppWinId w)
     return held;
 }
 
+/* the windows that are in a group of the split view: the graphs and the autoX views */
+namespace {
+bool grouped(WindowKind kind) { return kind == WindowKind::graph || kind == WindowKind::diagram; }
+} // namespace
+
 std::string windows_json(const Session &s)
 {
     std::string o = "[";
@@ -102,16 +116,20 @@ std::string windows_json(const Session &s)
         if (o.size() > 1) o += ',';
         o += "{\"name\":";
         json_append_string(o, w.name);
-        o += xpp::format(",\"kind\":\"{}\",\"shown\":{}}}", window_kind_name(w.kind), w.shown);
+        o += xpp::format(",\"kind\":\"{}\",\"shown\":{}", window_kind_name(w.kind), w.shown);
+        if (grouped(w.kind)) o += xpp::format(",\"group\":\"{}\"", group_name(w.second));
+        o += '}';
     }
     return o + ']';
 }
+
+std::string windows_fields(const Session &s) { return "\"windows\":" + windows_json(s) + ",\"split\":" + split_json(s); }
 
 std::vector<WindowInfo> list_windows(const Session &s)
 {
     std::vector<WindowInfo> windows;
     const auto add = [&](std::string name, const WindowTarget &target) {
-        windows.push_back({std::move(name), target.kind, !window_hidden(s, target)});
+        windows.push_back({std::move(name), target.kind, !window_hidden(s, target), window_second(s, target)});
     };
     for (const int i:s.plot_windows->open) add(s.plot_windows->graph[i].name, {WindowKind::graph,i});
     if (s.autox_state->bifur.exist)
@@ -176,6 +194,7 @@ void create_a_pop(Session &s, std::string_view requested)
     copy_graph(s, i, s.plot_windows->active);
     s.plot_windows->graph[i].name=name;
     s.plot_windows->graph[i].hidden=false;
+    s.plot_windows->graph[i].second=false;
     s.plot_display[i]={};
     s.marks_shown->windows[i]={};
     s.phase_shown->windows[i]={};
@@ -202,6 +221,7 @@ void destroy_a_pop(Session &s)
     ui.destroy_plot_window(s);
     s.plot_windows->graph[index].Use=0;
     s.plot_windows->graph[index].hidden=false;
+    s.plot_windows->graph[index].second=false;
     make_active(s,0,1);
     set_active_windows(s);
 }
@@ -283,6 +303,110 @@ std::string move_window(Session &s, const WindowTarget &target, long long positi
     else std::rotate(to,from,from+1);
     s.autox_state->active_view=static_cast<int>(std::ranges::find(views,active,&AutoxDiagramView::name)-views.begin());
     return {};
+}
+
+std::string_view split_direction_name(SplitDirection direction)
+{
+    switch (direction) {
+    case SplitDirection::none: return "none";
+    case SplitDirection::right: return "right";
+    case SplitDirection::down: return "down";
+    }
+    return {};
+}
+
+std::optional<SplitDirection> split_direction_from_name(std::string_view name)
+{
+    for (const SplitDirection d : {SplitDirection::none, SplitDirection::right, SplitDirection::down})
+        if (split_direction_name(d) == name) return d;
+    return std::nullopt;
+}
+
+std::optional<bool> group_second_from_name(std::string_view name)
+{
+    if (name == GROUP_FIRST) return false;
+    if (name == GROUP_SECOND) return true;
+    return std::nullopt;
+}
+
+namespace {
+
+void set_window_second(Session &s, const WindowTarget &target, bool second)
+{
+    if (target.kind == WindowKind::graph) s.plot_windows->graph[target.index].second = second;
+    else s.autox_state->views[target.index].second = second;
+}
+
+/* the first move's check: only a graph or an autoX view is in a group */
+std::string group_problem(const WindowTarget &target)
+{
+    if (!grouped(target.kind))
+        return xpp::format("The {} window is not in a group: only a graph or an autoX view is", window_kind_name(target.kind));
+    if (target.kind == WindowKind::graph && target.index == 0) return "The main graph stays in the first group";
+    return {};
+}
+
+} // namespace
+
+std::string split_window(Session &s, const WindowTarget &target, SplitDirection direction)
+{
+    if (const std::string problem = group_problem(target); !problem.empty()) return problem;
+    if (direction == SplitDirection::none) return "A split goes right or down";
+    set_window_second(s, target, true);
+    s.plot_windows->split.direction = direction;
+    return {};
+}
+
+std::string join_window(Session &s, const WindowTarget &target)
+{
+    if (const std::string problem = group_problem(target); !problem.empty()) return problem;
+    if (!window_second(s, target)) return "The window is already in the first group";
+    set_window_second(s, target, false);
+    return {};
+}
+
+std::string set_split_share(Session &s, double share)
+{
+    if (s.plot_windows->split.direction == SplitDirection::none) return "There is no split: window.split makes one";
+    if (!(share >= SPLIT_SHARE_MIN && share <= 1 - SPLIT_SHARE_MIN))
+        return xpp::format("The first group's share {} is not between {} and {}", xpp::number(share), xpp::number(SPLIT_SHARE_MIN), xpp::number(1 - SPLIT_SHARE_MIN));
+    s.plot_windows->split.share = share;
+    return {};
+}
+
+void split_upkeep(Session &s)
+{
+    WindowSplit &split = s.plot_windows->split;
+    const std::vector<WindowInfo> windows = list_windows(s);
+    if (!std::ranges::any_of(windows, [](const WindowInfo &w) { return w.second; })) {
+        split = {};
+        return;
+    }
+    const auto in_group = [&](const WindowInfo &w, bool second) { return grouped(w.kind) && w.second == second; };
+    const auto selected = std::ranges::find(windows, s.selected_window, &WindowInfo::name);
+    for (const bool second : {false, true}) {
+        std::string &shown = split.shown[second];
+        if (selected != windows.end() && in_group(*selected, second)) {
+            shown = selected->name;
+            continue;
+        }
+        const auto kept = std::ranges::find(windows, shown, &WindowInfo::name);
+        if (kept != windows.end() && in_group(*kept, second) && kept->shown) continue;
+        const auto first = std::ranges::find_if(windows, [&](const WindowInfo &w) { return in_group(w, second) && w.shown; });
+        shown = first == windows.end() ? std::string() : first->name;
+    }
+}
+
+std::string split_json(const Session &s)
+{
+    const WindowSplit &split = s.plot_windows->split;
+    std::string o = xpp::format("{{\"direction\":\"{}\",\"share\":{},\"shown\":{{\"first\":", split_direction_name(split.direction), xpp::number(split.share));
+    json_append_string(o, split.shown[false]);
+    o += ",\"second\":";
+    json_append_string(o, split.shown[true]);
+    o += "},\"selected\":";
+    json_append_string(o, s.selected_window);
+    return o + '}';
 }
 
 void check_windows(xpp::Session &s)

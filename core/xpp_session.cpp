@@ -83,6 +83,7 @@ void write_windows(xpp::odex::Out &out, const xpp::Session &s)
         out.begin_item();
         out.text("name",g.name);
         out.flag("hidden", g.hidden);
+        out.word("group", xpp::group_name(g.second));
         xpp::write_window(out, s, g);
         out.text("xlabel", g.xlabel);
         out.text("ylabel", g.ylabel);
@@ -94,6 +95,10 @@ void write_windows(xpp::odex::Out &out, const xpp::Session &s)
     }
     out.end_list();
     out.text("active",s.plot_windows->graph[s.plot_windows->active].name);
+    out.word("split", xpp::split_direction_name(s.plot_windows->split.direction));
+    out.real("split_share", s.plot_windows->split.share);
+    out.text("shown_first", s.plot_windows->split.shown[false]);
+    out.text("shown_second", s.plot_windows->split.shown[true]);
     out.flag("data_hidden", s.tools_hidden->data);
     const xpp::AutoxView &v = *s.autox_view;
     out.begin("autox_view");
@@ -117,12 +122,16 @@ struct SavedWindow {
     xpp::Zoom zoom;
     bool show_runs = true;
     bool hidden = false;
+    bool second = false;
 };
 
 /* the session's windows read */
 struct WindowsRead {
     std::vector<SavedWindow> windows;
     int active = 0;
+    xpp::SplitDirection split = xpp::SplitDirection::none;
+    double split_share = xpp::SPLIT_SHARE_DEFAULT;
+    std::array<std::string, 2> shown; /* each group's shown window ("" for none) */
     bool data_hidden = false;
     xpp::AutoxView autox_view;
     std::vector<xpp::AddedColumn> added;
@@ -175,12 +184,28 @@ WindowsRead read_windows(xpp::Session &s, xpp::odex::Block &file, std::size_t &e
         sw.zoom = xpp::read_zoom(w);
         w.flag("previous_runs", sw.show_runs);
         w.flag("hidden", sw.hidden);
+        std::string group;
+        w.word("group", group);
+        const std::optional<bool> second = xpp::group_second_from_name(group);
+        if (!second) w.fail(*w.member("group"), xpp::format("Unknown group \"{}\": {} or {}", group, xpp::GROUP_FIRST, xpp::GROUP_SECOND));
+        sw.second = *second;
         w.done();
     }
     std::string active;file.text("active",active);
     const auto current=std::ranges::find(r.windows,active,[](const SavedWindow &w){return w.graph.name;});
     if(current==r.windows.end())file.fail(*file.member("active"),xpp::format("Unknown window \"{}\"",active));
     r.active=static_cast<int>(current-r.windows.begin());
+    std::string split;
+    file.word("split", split);
+    const std::optional<xpp::SplitDirection> direction = xpp::split_direction_from_name(split);
+    if (!direction) file.fail(*file.member("split"), xpp::format("Unknown split \"{}\": none, right or down", split));
+    r.split = *direction;
+    file.real("split_share", r.split_share);
+    file.text("shown_first", r.shown[false]);
+    file.text("shown_second", r.shown[true]);
+    if (!(r.split_share >= xpp::SPLIT_SHARE_MIN && r.split_share <= 1 - xpp::SPLIT_SHARE_MIN))
+        file.fail(*file.member("split_share"), xpp::format("A split share is from {} to {}", xpp::number(xpp::SPLIT_SHARE_MIN), xpp::number(1 - xpp::SPLIT_SHARE_MIN)));
+    if (r.windows[0].second) file.fail(*file.member("windows"), "The main graph stays in the first group");
     file.flag("data_hidden", r.data_hidden);
     if (std::optional<xpp::odex::Block> v = file.group("autox_view")) {
         v->whole("earlier", r.autox_view.earlier);
@@ -218,10 +243,14 @@ void apply_windows(xpp::Session &s, const WindowsRead &r)
         d.zoom = w.zoom;
         d.show_runs = w.show_runs;
         g.hidden = w.hidden;
+        g.second = w.second;
         d.axes_seen = false; /* the zoom is for the axes just read */
     }
     xpp::set_active_windows(s);
     xpp::make_active(s,r.active,1);
+    s.plot_windows->split.direction = r.split;
+    s.plot_windows->split.share = r.split_share;
+    s.plot_windows->split.shown = r.shown;
     s.tools_hidden->data = r.data_hidden;
 }
 
@@ -609,6 +638,21 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
         if(!r.diagram->points.empty())for(const auto &view:r.diagram->views.views)
             for(const auto &window:r.windows.windows)
                 if(view.name==window.graph.name)return wrong(xpp::format("Window name \"{}\" occurs in both graph and diagram lists",view.name));
+        /* a split is there when a window is in its second group, and only then (the views count when a diagram is) */
+        const bool second = std::ranges::any_of(r.windows.windows, &SavedWindow::second)
+            || (!r.diagram->points.empty() && std::ranges::any_of(r.diagram->views.views, &xpp::snapx::autox_members::SavedView::second));
+        if (second != (r.windows.split != xpp::SplitDirection::none))
+            session.fail(*session.member("split"), second ? "A window is in the second group: the split is right or down" : "A split has a window in its second group");
+        /* a group's shown window is one of its own, a graph or (with a diagram) an autoX view, or none */
+        for (const bool group : {false, true}) {
+            const std::string &name = r.windows.shown[group];
+            if (name.empty()) continue;
+            const auto graph = std::ranges::find(r.windows.windows, name, [](const SavedWindow &w) { return w.graph.name; });
+            const auto view = r.diagram->points.empty() ? r.diagram->views.views.end() : std::ranges::find(r.diagram->views.views, name, &xpp::snapx::autox_members::SavedView::name);
+            const bool in_group = graph != r.windows.windows.end() ? graph->second == group : view != r.diagram->views.views.end() && view->second == group;
+            if (!in_group)
+                session.fail(*session.member(group ? "shown_second" : "shown_first"), xpp::format("\"{}\" is not a window of the {} group", name, xpp::group_name(group)));
+        }
 
         /* the data table: there when the manifest says so */
         const auto data = mem.find(xpp::snapx::data_member);

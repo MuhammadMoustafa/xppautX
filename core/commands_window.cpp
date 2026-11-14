@@ -23,6 +23,7 @@
 #include "event_registry.h"
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <tuple>
 
 namespace xpp::command {
@@ -32,6 +33,8 @@ constexpr const char *WINDOW_KEY = "window";
 constexpr const char *NAME_KEY = "name";
 constexpr const char *CONFIRM_KEY = "confirm";
 constexpr const char *POSITION_KEY = "position";
+constexpr const char *DIRECTION_KEY = "direction";
+constexpr const char *SHARE_KEY = "share";
 
 std::string target_name(const Session &s, const Arguments &args)
 {
@@ -236,6 +239,7 @@ Result<std::string> rename_window(Session &s, const Command &command, const Argu
     else s.autox_state->views[target->index].name = new_name;
     ui.window_renamed(s, name, new_name);
     if (s.selected_window == name) s.selected_window = new_name;
+    for (std::string &shown : s.plot_windows->split.shown) if (shown == name) shown = new_name;
     std::string result = window_result(name) + ",\"new_name\":";
     json_append_string(result, new_name);
     return result + '}';
@@ -258,20 +262,25 @@ Result<std::string> move_the_window(Session &s, const Command &command, const Ar
     return move_to(s, command, name, *target, args.get<long long>(POSITION_KEY), place);
 }
 
-/* one place earlier or later: the keys' way to move the selected window (a key runs a command with no arguments); at either end of
-   its tabs, or on the main graph, it stays where it is, as VS Code's tab keys do */
-Result<std::string> move_by(Session &s, const Command &command, const Place &place, long long step)
+/* one place earlier or later within its own strip (the tabs of its kind and group that are shown): the window beside it takes the place
+   it leaves, so the key, the tab menu (which selects the tab first) and a recording agree whatever the split. The selected window (a key
+   runs a command with no arguments); at either end of its strip, or on the main graph, it stays where it is, as VS Code's tab keys do. */
+Result<std::string> move_by(Session &s, const Command &command, const Place &place, int step)
 {
     const std::string name = s.selected_window;
     const auto target = find_window(s, name);
     if (!target) return unknown_window(command, name, place);
     if (const Result<std::string> refused = named_by_user(command, name, target->kind, place); !refused) return refused;
     const long long from = window_position(s, *target);
+    std::vector<WindowInfo> strip;
+    for (const WindowInfo &w : list_windows(s))
+        if (w.kind == target->kind && w.second == window_second(s, *target) && (w.shown || w.name == name)) strip.push_back(w);
+    const auto at = std::ranges::find(strip, name, &WindowInfo::name);
+    const std::ptrdiff_t next = (at - strip.begin()) + step;
+    const auto beside = next >= 0 && next < static_cast<std::ptrdiff_t>(strip.size()) ? find_window(s, strip[static_cast<std::size_t>(next)].name) : std::nullopt;
     const long long first = target->kind == WindowKind::graph ? 1 : 0;
-    const long long count = target->kind == WindowKind::graph ? static_cast<long long>(s.plot_windows->open.size())
-                                                               : static_cast<long long>(s.autox_state->views.size());
-    if (from < first || from + step < first || from + step >= count) return window_result(name) + xpp::format(",\"position\":{}}}", from);
-    return move_to(s, command, name, *target, from + step, place);
+    if (!beside || from < first || window_position(s, *beside) < first) return window_result(name) + xpp::format(",\"position\":{}}}", from);
+    return move_to(s, command, name, *target, window_position(s, *beside), place);
 }
 
 Result<std::string> move_earlier(Session &s, const Command &command, const Arguments &, const Place &place)
@@ -284,16 +293,52 @@ Result<std::string> move_later(Session &s, const Command &command, const Argumen
     return move_by(s, command, place, 1);
 }
 
+/* the window selected and shown in its group */
+void select_target(Session &s, const std::string &name, const WindowTarget &target)
+{
+    if (target.kind == WindowKind::graph) make_active(s, target.index, 1);
+    else if (target.kind == WindowKind::diagram) autox_activate_view(s, target.index);
+    else s.selected_window = name;
+    ui.window_selected(s, name, window_kind_name(target.kind));
+}
+
 Result<std::string> select_window(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     const std::string name = target_name(s, args);
     const auto target = find_window(s, name);
     if (!target) return unknown_window(command, name, place);
-    if (target->kind == WindowKind::graph) make_active(s, target->index, 1);
-    else if (target->kind == WindowKind::diagram) autox_activate_view(s, target->index);
-    else s.selected_window = name;
-    ui.window_selected(s, name, window_kind_name(target->kind));
+    select_target(s, name, *target);
     return window_result(name) + '}';
+}
+
+/* the split view's groups (many_pops.h WindowSplit): a window moved to the other group is the one selected, so the focus follows it */
+Result<std::string> move_to_group(Session &s, const Command &command, const Arguments &args, const Place &place,
+                                  const std::function<std::string(const WindowTarget &)> &move)
+{
+    const std::string &name = args.get<std::string>(WINDOW_KEY);
+    const auto target = find_window(s, name);
+    if (!target) return unknown_window(command, name, place);
+    if (const std::string problem = move(*target); !problem.empty()) return fail(command.name, problem, place);
+    select_target(s, name, *target);
+    return window_result(name) + xpp::format(",\"group\":\"{}\"}}", group_name(window_second(s, *target)));
+}
+
+Result<std::string> split_the_window(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const auto direction = split_direction_from_name(args.get<std::string>(DIRECTION_KEY));
+    return move_to_group(s, command, args, place, [&](const WindowTarget &target) { return split_window(s, target, *direction); });
+}
+
+Result<std::string> join_the_window(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    return move_to_group(s, command, args, place, [&](const WindowTarget &target) { return join_window(s, target); });
+}
+
+Result<std::string> set_the_split_share(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const double share = args.get<double>(SHARE_KEY);
+    if (const std::string problem = set_split_share(s, share); !problem.empty()) return fail(command.name, problem, place);
+    return xpp::format("{{\"share\":{}}}", xpp::number(share));
 }
 
 Result<std::string> set_shown(Session &s, const Command &command, const Arguments &args, const Place &place, bool hidden)
@@ -319,7 +364,8 @@ Result<std::string> show_window(Session &s, const Command &command, const Argume
 
 Result<std::string> list_windows_result(Session &s, const Command &, const Arguments &, const Place &)
 {
-    return "{\"windows\":" + windows_json(s) + '}';
+    split_upkeep(s);
+    return "{" + windows_fields(s) + '}';
 }
 
 /* A graph's texts, arrows, markers and frozen curves cannot be made again:
@@ -358,6 +404,7 @@ Result<std::string> destroy_window(Session &s, const Command &command, const Arg
             for (AutoxDiagramView &view : s.autox_state->views) {
                 view.zoom = Zoom();
                 view.hidden = false;
+                view.second = false;
             }
             ui.autox_closed(s, name);
             s.selected_window = s.plot_windows->graph[s.plot_windows->active].name;
@@ -418,6 +465,10 @@ constexpr std::array CREATE_ARGUMENTS = {Argument{NAME_KEY, Type::new_name, fals
 constexpr std::array RENAME_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, true}, Argument{NAME_KEY, Type::new_name, true}};
 constexpr std::array MOVE_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, true},
                                        Argument{POSITION_KEY, Type::integer, true, MAX_TEXT_BYTES, {}, constant(0), constant(MAX_INTEGER)}};
+constexpr std::array<const char *, 2> SPLIT_DIRECTIONS = {"right", "down"}; /* split_direction_name's words but none: a split goes somewhere */
+constexpr std::array SPLIT_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, true},
+                                        Argument{DIRECTION_KEY, Type::choice, true, MAX_TEXT_BYTES, SPLIT_DIRECTIONS}};
+constexpr std::array SPLIT_SHARE_ARGUMENTS = {Argument{SHARE_KEY, Type::real, true, MAX_TEXT_BYTES, {}, constant(SPLIT_SHARE_MIN), constant(1 - SPLIT_SHARE_MIN)}};
 constexpr std::array SELECT_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, true}};
 constexpr std::array WINDOW_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false}};
 constexpr std::array DESTROY_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false}, Argument{CONFIRM_KEY, Type::boolean, false}};
@@ -455,9 +506,13 @@ constexpr std::array SIMULTANEOUS_ARGUMENTS = {Argument{"enabled", Type::boolean
 constexpr std::array WINDOW_RESULTS = {ResultField{WINDOW_KEY, "window"}};
 constexpr std::array RENAME_RESULTS = {ResultField{WINDOW_KEY, "window"}, ResultField{"new_name", "text"}};
 constexpr std::array MOVE_RESULTS = {ResultField{WINDOW_KEY, "window"}, ResultField{POSITION_KEY, "integer"}};
+constexpr std::array GROUP_RESULTS = {ResultField{WINDOW_KEY, "window"}, ResultField{"group", "choice: first or second"}};
+constexpr std::array SHARE_RESULTS = {ResultField{SHARE_KEY, "real"}};
+constexpr std::array GROUP_EVENTS = {xpp::events::WINDOW_SELECTED, xpp::events::WINDOW_LIST, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array CLOSE_RESULTS = {ResultField{WINDOW_KEY, "window"}, ResultField{"closed", "boolean"}};
 constexpr std::array SHOWN_RESULTS = {ResultField{WINDOW_KEY, "window"}, ResultField{"shown", "boolean"}};
-constexpr std::array LIST_RESULTS = {ResultField{"windows", "list of {name, kind, shown}"}};
+constexpr std::array LIST_RESULTS = {ResultField{"windows", "list of {name, kind, shown, group}"},
+                                     ResultField{"split", "{direction: none, right or down, share, shown: {first, second}, selected}"}};
 constexpr std::array CLOSE_ALL_RESULTS = {ResultField{"closed_count", "integer"}};
 constexpr std::array MODE_RESULTS = {ResultField{"redraw_mode", "choice"}};
 constexpr std::array SIMULTANEOUS_RESULTS = {ResultField{"simultaneous_plot", "boolean"}};
@@ -506,11 +561,20 @@ constexpr std::array ROWS = {
             "Move a graph or autoX view to a place among the windows of its kind, the tabs' order, counted from 0: the main graph is 0 and stays, "
             "so a graph moves to 1 or later; a graph and an autoX view do not trade places.", MOVE_RESULTS, STATE_EVENTS, true, move_the_window},
     Command{"window.move_earlier", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Move window earlier", "",
-            "Move the selected graph or autoX view one place earlier among its tabs, which a key acts on; at either end, or on the main graph, it stays where it is.",
+            "Move the selected graph or autoX view, which a key acts on, one place earlier among the tabs of its own strip, its kind and group; at either end of the strip, or on the main graph, it stays where it is.",
             MOVE_RESULTS, STATE_EVENTS, true, move_earlier, {}, MOVE_EARLIER_KEYS},
     Command{"window.move_later", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Move window later", "",
-            "Move the selected graph or autoX view one place later among its tabs.",
+            "Move the selected graph or autoX view one place later among the tabs of its own strip.",
             MOVE_RESULTS, STATE_EVENTS, true, move_later, {}, MOVE_LATER_KEYS},
+    Command{"window.split", SPLIT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Split window", "",
+            "Show a graph or autoX view in a second group beside (right) or below (down) the first, the split taking that direction, and "
+            "select it. The main graph stays in the first group; the tabs keep their order within each group.", GROUP_RESULTS, GROUP_EVENTS, true, split_the_window},
+    Command{"window.join", SELECT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Join window", "",
+            "Move a graph or autoX view of the second group back to the first and select it; the split ends with the last window of the second group.",
+            GROUP_RESULTS, GROUP_EVENTS, true, join_the_window},
+    Command{"window.set_split_share", SPLIT_SHARE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Set split share", "",
+            "Set the first group's share of the main area, from 0.2 to 0.8, while there is a split (the splitter's).", SHARE_RESULTS, STATE_EVENTS, true,
+            set_the_split_share},
     Command{"window.hide", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Hide window", "",
             "Hide a window: it keeps everything it holds and comes back with window.show. The main graph is always shown, so it cannot be hidden.", SHOWN_RESULTS, STATE_EVENTS, true, hide_window},
     Command{"window.show", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Show window", "",

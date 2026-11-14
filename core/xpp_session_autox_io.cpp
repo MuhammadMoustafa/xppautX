@@ -73,7 +73,7 @@ void write_state(odex::Out &out, const Session &s)
     views.active = s.autox_state->active_view;
     for (std::size_t k = 0; k < s.autox_state->views.size(); k++) {
         const AutoxSettingsSet a = autox_settings_view(s, static_cast<int>(k));
-        views.views.push_back({*a.plot, a.var, a.par1, a.par2, a.range, s.autox_state->views[k].zoom, s.autox_state->views[k].name, s.autox_state->views[k].hidden});
+        views.views.push_back({*a.plot, a.var, a.par1, a.par2, a.range, s.autox_state->views[k].zoom, s.autox_state->views[k].name, s.autox_state->views[k].hidden, s.autox_state->views[k].second});
     }
     write_views(out, views);
     out.end();
@@ -101,6 +101,7 @@ void restore_views(xpp::Session &s, const SavedViews &saved)
         s.autox_state->views[k].zoom = v.zoom;
         s.autox_state->views[k].name=v.name;
         s.autox_state->views[k].hidden=v.hidden;
+        s.autox_state->views[k].second=v.second;
     }
     s.autox_state->active_view = saved.active;
 }

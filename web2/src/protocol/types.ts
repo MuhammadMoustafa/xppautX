@@ -365,6 +365,18 @@ export interface WindowListEntry {
   name: string;
   kind: 'graph' | 'diagram' | 'data' | 'animation' | 'array_plot';
   shown: boolean;
+  /** the split view's group of a graph or an autoX view (W720; the main graph is always in the first), none for the other windows */
+  group?: 'first' | 'second';
+}
+
+/** the split view as the `windows` event and window.list give it: the direction, the first group's share of the area (0 to 1) and
+    each group's shown window ('' when it has none) */
+export interface SplitInfo {
+  direction: 'none' | 'right' | 'down';
+  share: number;
+  shown: {first: string; second: string};
+  /** the selected window: the shown one of the focused group */
+  selected: string;
 }
 
 /** one plot window as `plots` describes it */
@@ -753,7 +765,7 @@ export type XppEvent =
   | {ev: 'done'; id?: string; status: 'ok' | 'error' | 'stopped'; result?: Record<string,unknown>; error?: string; file?: string; line?: number; col?: number; source?: string; field?: string}
   | {ev: 'window.renamed'; window: string; new_name: string}
   /** every open window and whether it is shown (window.list's result; sent again when it changed) */
-  | {ev: 'window.list'; windows: WindowListEntry[]}
+  | {ev: 'window.list'; windows: WindowListEntry[]; split: SplitInfo}
   /** Erase blanked plot window `win`; Redraw drew its current data again */
   | {ev: 'plot.cleared' | 'plot.redrawn'; win: string}
   | {ev: 'job.progress'; n: number; of: number}

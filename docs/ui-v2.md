@@ -505,6 +505,17 @@ section checks R1 and R3 at 390x844, 768x1024 and 1024x700):
     stops a running continuation first and closes the view (A10), the last view closing autoX. "Hide autoX" is choosing another tab.
     The title bar names the view in front. The array plot and the animation stay panels over the page (a sheet under 48 rem,
     a side panel from there).
+  - **The split view** (W720, maintainer 2026-11-13, from mockups of the real page at 1280, 1024, 768 and 390 px): at most two groups, side by
+    side (right) or stacked (down), the first holding the main graph. Each group has its own strip over its plot with a ◫ (Split right) at
+    its end, the run bar spans both, the bar between them (a separator, arrow keys, Home and End) sets the share, bounded by the core
+    (`window.set_split_share`); the group with the selected view has the accent outline, the other's shown tab is muted. A tab's menu has
+    Split right and Split down, and Move to first group in the second group; a tab dragged over the right or bottom half of the plots
+    shades it ("Drop: split right with “NAME”") and splits on drop, onto the other strip or plot it moves there. Both shown graphs draw
+    (the core sends a run's appends to both). Below 48 rem the split is not drawn: one strip with every tab in the core's order, one plot,
+    the split kept (`ui/split.ts`). An autoX view is drawn in its group like a graph (`AutoxGroupView`): the branch legend one wrapping row with Fit and ⋯,
+    autoX's buttons and key behind a closed "autoX options" disclosure (the graph's Window options component), a grab's bar an overlay row on the
+    plot, the point's info a "Point" disclosure under it (open while a point is grabbed); the panel with the script, output and status strip is the whole one, with no split on screen.
+    Move left and Move right, and the keys, are the core's one move within the tab's strip.
   - **autoX in front** (T26): it takes the work area under the tabs (the main status bar gives way to its own strip); beside it
     the dock is there only for Table, Model and Help, never for Values, since autoX needs the width.
 - **R7** Dialogs fit the viewport (`max-height: 100%`, scroll inside), with

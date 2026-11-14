@@ -16,6 +16,7 @@
 #include <new>
 #include "xpp_mem.h"
 #include <cstdio>
+#include <algorithm>
 #include <array>
 #include <cstring>
 #include <string>
@@ -65,7 +66,7 @@ struct PlotClient {
     unsigned long data_version = 0; /* counts data changes */
     std::vector<Sent> sent{1};
     int rows_seen = 0;     /* storage rows when last seen: fewer next time means it started again */
-    int appended = -1;     /* the graph index that got appends in this command */
+    std::vector<int> appended; /* the graph indices that got appends in this command */
     double last_append = 0; /* when the last append went (xpp::every) */
     std::string plots_sent;
     bool plots_valid = false;
@@ -434,17 +435,30 @@ bool appends_continue(xpp::Session &s, int pop, const SeriesSig &sig)
     return w.valid && same_plot(sig, w.sig) && disp(s, pop).has_cur && disp(s, pop).cur.cols == w.cols;
 }
 
-/* during a run: the active window's rows stored since what the client holds */
+/* the graphs drawn live during a run: the active window and, in a split view (W720), the graph the other group shows */
+std::vector<int> live_graphs(const xpp::Session &s)
+{
+    std::vector<int> live{s.plot_windows->active};
+    const xpp::WindowSplit &split = s.plot_windows->split;
+    if (split.direction == xpp::SplitDirection::none) return live;
+    const bool other = !s.plot_windows->graph[s.plot_windows->active].second;
+    const auto shown = xpp::find_window(s, split.shown[other]);
+    if (shown && shown->kind == xpp::WindowKind::graph && shown->index != live[0]) live.push_back(shown->index);
+    return live;
+}
+
+/* during a run: the live windows' rows stored since what the client holds */
 void series_append(xpp::Session &s, int rows)
 {
-    const int pop = s.plot_windows->active;
-    const SeriesSig sig = series_sig(s, pop);
-    client.appended = pop;
-    if (!appends_continue(s, pop, sig)) {
-        send_series(s, pop, sig, rows); /* other columns: the whole series, as far as it goes */
-        return;
+    client.appended = live_graphs(s);
+    for (const int pop : client.appended) {
+        const SeriesSig sig = series_sig(s, pop);
+        if (!appends_continue(s, pop, sig)) {
+            send_series(s, pop, sig, rows); /* other columns: the whole series, as far as it goes */
+            continue;
+        }
+        if (rows > client.sent[pop].held) send_append(s, pop, sig.win, client.sent[pop].held, rows);
     }
-    if (rows > client.sent[pop].held) send_append(s, pop, sig.win, client.sent[pop].held, rows);
 }
 
 /* the end of a command that appended to window pop: the rows stored since the
@@ -485,14 +499,15 @@ void series_update(xpp::Session &s)
         }
         const SeriesSig sig = series_sig(s, pop);
         const int rows = s.data->view.dataflag ? sig.rows : 0;
-        if (client.appended == pop && appends_continue(s, pop, sig) && rows >= client.sent[pop].held) {
+        const bool appended = std::ranges::find(client.appended, pop) != client.appended.end();
+        if (appended && appends_continue(s, pop, sig) && rows >= client.sent[pop].held) {
             series_end(s, pop, sig, rows);
             continue;
         }
-        if (client.appended != pop && client.sent[pop].valid && same(sig, client.sent[pop].sig)) continue;
+        if (!appended && client.sent[pop].valid && same(sig, client.sent[pop].sig)) continue;
         send_series(s, pop, sig, rows);
     }
-    client.appended = -1;
+    client.appended.clear();
 }
 
 /* ---- plots ---- */
@@ -598,7 +613,7 @@ void plot_data_subscribe(int series, int plots, int f32)
     client.series_f32 = f32 != 0;
     for (Sent &w : client.sent) w.valid = false; /* the next update sends */
     client.plots_valid = false;
-    client.appended = -1;
+    client.appended.clear();
 }
 
 void plot_data_changed(void) { client.data_version++; }

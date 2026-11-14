@@ -83,7 +83,9 @@ import {PoppedOut} from './PoppedOut';
 import {viewKeyText} from '../popout';
 import {toolbarRow} from './navigation';
 import {SetsRow} from './SetsRow';
-import {AxisTitle, FitButton, PickBar, PickOverlay, pickSink} from './PlotView';
+import {useSplitView} from './split';
+import {AxisTitle, FitButton, PickBar, PickOverlay, PlotMore, pickSink} from './PlotView';
+import {PlotOptions} from './PlotOptions';
 
 /** the ops (the registry command, its label and description, are navigation.ts toolbarCommand's), in the X11 window's order; no
     reDraw (T21): the diagram is always the current one */
@@ -184,7 +186,22 @@ const whatOf = (v: DiagramView) => (v.axes ? `${v.axes.ylabel} against ${v.axes.
 
 /** one view of the diagram (W50): its title (its axes, and a close button while it is not the only
     one), its key and view tools, its chart and axis names. A click in it makes it the active view. */
-function DiagramPane({view, dark}: {view: number; dark: boolean}) {
+/** the point's info and stability circle under a diagram in a group (W720): one line closed, open while a point is grabbed */
+function PointDisclosure({open}: {open: boolean}) {
+  const box = useRef<HTMLDetailsElement>(null);
+  useEffect(() => { if (box.current) box.current.open = open; }, [open]);
+  return (
+    <details class="autox-point" ref={box}>
+      <summary>Point</summary>
+      <AutoxInfo />
+    </details>
+  );
+}
+
+/** one view of the diagram: its bar, plot and axis dialogs; `compact` (a group of the split view, W720) lays it out as a graph in a group: the
+    branch legend a wrapping row, Fit and ⋯ at the right, autoX's controls and its key behind one "autoX options" disclosure, the grab and
+    pick bars an overlay row on the plot, the point's info a "Point" disclosure under it */
+function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean; compact?: boolean}) {
   const session = useSession();
   const points = useStore(s => viewOf(s, view).points);
   const labels = useStore(s => viewOf(s, view).labels);
@@ -423,17 +440,8 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
     host.current?.querySelector<HTMLElement>(`.autox-axis-name[data-axis="${which}"]`)?.focus();
   };
 
-  return (
-    <section class={'autox-pane' + (active ? ' active' : '')} data-view={view} aria-current={active ? 'true' : undefined}
-      aria-label={`${session.store.getState().diagram.views[view].name}${active ? ' (active)' : ''}`} onPointerDownCapture={onPress}
-      onFocusCapture={onPress}>
-      <header class="plot-bar autox-pane-bar">
-        {views > 1 && (
-          <h3 class="autox-pane-title" title={active ? 'The active view: autoX\'s Axes menu changes it' : 'Click to make it the active view'}>
-            {what || `View ${view + 1}`}
-          </h3>
-        )}
-        <ul class="autox-legend" aria-label="Key">
+  const key = (
+    <ul class="autox-legend" aria-label="Key">
           {legendOf(model).map(l => (
             <li key={`${l.text}/${l.color}`}>
               <span class={'autox-swatch' + (l.dashed ? ' dashed' : '')} aria-hidden="true"
@@ -459,7 +467,19 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
               </button>
             </li>
           )}
-        </ul>
+    </ul>
+  );
+  return (
+    <section class={'autox-pane' + (active ? ' active' : '')} data-view={view} aria-current={active ? 'true' : undefined}
+      aria-label={`${session.store.getState().diagram.views[view].name}${active ? ' (active)' : ''}`} onPointerDownCapture={onPress}
+      onFocusCapture={onPress}>
+      <header class="plot-bar autox-pane-bar">
+        {views > 1 && (
+          <h3 class="autox-pane-title" title={active ? 'The active view: autoX\'s Axes menu changes it' : 'Click to make it the active view'}>
+            {what || `View ${view + 1}`}
+          </h3>
+        )}
+        {!compact && key}
         <div class="legend" role="group" aria-label="Branches">
           {entries.map(e => {
             const a = appearance[e.key], off = a?.visible === false, color = a?.color ?? cssColor(e.color, dark);
@@ -475,7 +495,20 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
             );
           })}
         </div>
-        <div class="plot-tools">
+        {compact ? (
+          <>
+            <div class="plot-tools">
+              <button disabled={empty} onClick={() => chart.current!.fit()}
+                title="Fit the view to the branches shown (client-side; earlier branches only if Earlier branches is on)">Fit</button>
+              <PlotMore>
+                <button disabled={!zoomed} onClick={() => chart.current!.reset()}
+                  title="Back to autoX's axes (double click, or 0 on the diagram)">Reset zoom</button>
+                {views > 1 && <button onClick={() => session.closeView(view)} title="Close this view of the diagram (the diagram stays, and so do the other views)">Close view</button>}
+              </PlotMore>
+            </div>
+            <PlotOptions label="autoX options">{key}<AutoxControls /></PlotOptions>
+          </>
+        ) : (        <div class="plot-tools">
           <button disabled={!zoomed} onClick={() => chart.current!.reset()}
             title="Back to autoX's axes (double click, or 0 on the diagram)">Reset zoom</button>
           <button disabled={empty} onClick={() => chart.current!.fit()}
@@ -488,6 +521,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
               onClick={() => session.closeView(view)}>×</button>
           )}
         </div>
+        )}
       </header>
       {editing && <TraceDialog label={editing.label} color={editing.color} close={() => setEditing(null)}
         apply={(label, color) => { setAppearance(a => ({...a, [editing.key]: {...a[editing.key], label, color}})); setEditing(null); }} />}
@@ -507,6 +541,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
             title={`Stored point: ${sixSig(stored!.x)}, ${sixSig(stored!.y)}`} />
         )}
         {pick && chart.current && <PickOverlay pick={pick} chart={chart.current} />}
+        {compact && (grabbing && active || pick) && <div class="autox-overlay-row">{grabbing && active ? <GrabBar /> : pick ? <PickBar pick={pick} /> : null}</div>}
         {area && axes && axisButton('x', axes.xlabel, area)}
         {area && axes && axisButton('y', axes.ylabel, area)}
         {empty && (
@@ -515,6 +550,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
           </div>
         )}
       </div>
+      {compact && active && <PointDisclosure open={grabbing} />}
       {axisOpen && <AutoxAxisDialog key={axisOpen} axis={axisOpen} view={view} onClose={closeAxis} />}
     </section>
   );
@@ -550,43 +586,25 @@ function Readout() {
 }
 
 /** view `view`'s pane, or a note that it is in a window of its own (popout.ts) */
-function DiagramPaneOrNote({view, dark}: {view: number; dark: boolean}) {
+function DiagramPaneOrNote({view, dark, compact = false}: {view: number; dark: boolean; compact?: boolean}) {
   const name = useStore(s => viewOf(s, view).name);
   const out = useStore(s => s.popouts.includes(viewKeyText({kind: 'autox', name})));
-  return out ? <PoppedOut view={{kind: 'autox', name}} /> : <DiagramPane view={view} dark={dark} />;
+  return out ? <PoppedOut view={{kind: 'autox', name}} /> : <DiagramPane view={view} dark={dark} compact={compact} />;
 }
 
-function AutoxPanel({dark}: {dark: boolean}) {
+/** autoX's buttons (the run, grab, axes ... ones), Sets, Save, List file contents and Restore defaults: the panel's toolbar, and in a group of the
+    split view the contents of the plot bar's "autoX options" */
+function AutoxControls() {
   const session = useSession();
   /* a button that opens the page's own form works during a run too (its edits wait); the others
      by the kind of the key they send (W95: Axes and Clear are views, Run, Grab and File wait) */
   const mayKey = useMayKey();
   const off = (op: AutoxOp) => !SETTINGS_DIALOG[op] && !mayKey('autox', op);
-  const grabbing = useStore(s => s.diagram.grabbing);
-  const stored = useStore(s => s.diagram.stored);
-  const pick = useStore(s => (s.pick?.win === autoxWindow(s) && !s.pick.waiting ? s.pick : null));
-  const views = useStore(s => s.diagram.views.length);
-  const what = useStore(s => whatOf(activeView(s.diagram)));
   const pending = pendingFields(useStore(s => s.autoxSettings));
-  /* a button: its form (T22), else its command */
-  const act = (op: AutoxOp) => session.autoxOp(op);
-
-  const panel = useRef<HTMLElement>(null);
-
-  /* Escape hides the panel through hotkeys.ts's one owner (openPanel), only while nothing runs: the
-     autoX view is where its run is watched, so there Escape stops the run (W536), never hides it */
-  const running = useStore(s => s.busy);
   const hello = useStore(s => s.hello);
-  useEffect(() => running ? undefined : openPanel(() => session.showAutox(false)), [session, running]);
-
   return (
-    <section id="autox-panel" ref={panel} class="autox-panel" aria-label="autoX">
-      <div class="panel-header autox-header">
-        <h2>autoX <span class="muted autox-what">{views > 1 ? `${views} views, the active one ${what}` : what}</span></h2>
-        <HelpButton target={HELP.autoxView} label="autoX" />
-      </div>
-      <div class="autox-tools" role="toolbar" aria-label="autoX">
-        {BUTTONS.map(op => {
+    <>
+      {BUTTONS.map(op => {
           const row = toolbarRow(hello, 'autox', op);
           const k = '';
           const kind = SETTINGS_DIALOG[op];
@@ -596,27 +614,58 @@ function AutoxPanel({dark}: {dark: boolean}) {
               class={waits ? 'autox-pending' : undefined} data-op={op} data-button={`autox:${op}`}
               title={off(op) ? BUSY_TITLE
                 : (TITLES[op] ?? row?.description ?? '') + (waits ? ' (changes wait for the run to end)' : '')}
-              onClick={() => act(op)}>{row?.label}</button>
+              onClick={() => session.autoxOp(op)}>{row?.label}</button>
           );
         })}
         <SetsRow scope="continuation" />
-      </div>
+    </>
+  );
+}
+
+/** the autoX panel: whole (`view` unset: the header, the buttons, every view, the info, script, output and status strip), or, in a group of the
+    split view (W720), one view `view` and its readout, laid out as a graph in a group is: its buttons, grab and pick bars and info are in
+    the diagram's own bar, overlay and "Point" disclosure (DiagramPane `compact`) */
+function AutoxPanel({dark, view, group, focused = false}: {dark: boolean; view?: number; group?: 'first' | 'second'; focused?: boolean}) {
+  const whole = view === undefined;
+  const session = useSession();
+  const grabbing = useStore(s => s.diagram.grabbing);
+  const stored = useStore(s => s.diagram.stored);
+  const pick = useStore(s => (s.pick?.win === autoxWindow(s) && !s.pick.waiting ? s.pick : null));
+  const views = useStore(s => s.diagram.views.length);
+  const what = useStore(s => whatOf(activeView(s.diagram)));
+
+  const panel = useRef<HTMLElement>(null);
+
+  /* Escape hides the panel through hotkeys.ts's one owner (openPanel), only while nothing runs: the
+     autoX view is where its run is watched, so there Escape stops the run (W536), never hides it */
+  const running = useStore(s => s.busy);
+  useEffect(() => running || !whole ? undefined : openPanel(() => session.showAutox(false)), [session, running, whole]);
+
+  return (
+    <section id={whole ? 'autox-panel' : undefined} ref={panel} class={'autox-panel' + (whole ? '' : ' in-group') + (focused ? ' focused' : '')} data-group={group}
+      aria-label="autoX"
+      onPointerDown={() => { if (!whole && !focused) session.selectAutoxView(view); /* a press in the other group focuses it */ }}>
+      {whole && <div class="panel-header autox-header">
+        <h2>autoX <span class="muted autox-what">{views > 1 ? `${views} views, the active one ${what}` : what}</span></h2>
+        <HelpButton target={HELP.autoxView} label="autoX" />
+      </div>}
+      {whole && <div class="autox-tools" role="toolbar" aria-label="autoX"><AutoxControls /></div>}
       <div class="autox-view">
-        {grabbing && <GrabBar />}
-        {pick && <PickBar pick={pick} />}
-        <div class="autox-views" data-views={views}>
-          {Array.from({length: views}, (_, k) => <DiagramPaneOrNote key={k} view={k} dark={dark} />)}
+        {whole && grabbing && <GrabBar />}
+        {whole && pick && <PickBar pick={pick} />}
+        <div class="autox-views" data-views={whole ? views : 1}>
+          {whole ? Array.from({length: views}, (_, k) => <DiagramPaneOrNote key={k} view={k} dark={dark} />) : <DiagramPaneOrNote view={view} dark={dark} compact />}
         </div>
         <Readout />
       </div>
-      <AutoxInfo />
-      <AutoxScript />
-      <AutoxOutput />
-      {stored && (
+      {whole && <AutoxInfo />}
+      {whole && <AutoxScript />}
+      {whole && <AutoxOutput />}
+      {whole && stored && (
         <p class="autox-stored-text muted">Stored point for File/sElect 2par pt: <ShownNumber value={stored.x} />, <ShownNumber value={stored.y} /></p>
       )}
       {/* at the bottom, as the main window's status bar (T24) */}
-      <AutoxStatus />
+      {whole && <AutoxStatus />}
       <p id="autox-keys-help" class="visually-hidden">{KEYS_HELP}</p>
       <p id="grab-keys-help" class="visually-hidden">{GRAB_HELP}</p>
     </section>
@@ -637,9 +686,17 @@ export function AutoxPopOut({name, dark}: {name: string; dark: boolean}) {
   );
 }
 
+/** autoX's view `name` in its group of the split view's plots (ui/Plots.tsx), laid out as a graph in a group is */
+export function AutoxGroupView({name, group, focused, dark}: {name: string; group: 'first' | 'second'; focused: boolean; dark: boolean}) {
+  const view = useStore(s => s.diagram.views.findIndex(v => v.name === name));
+  return view < 0 ? null : <AutoxPanel dark={dark} view={view} group={group} focused={focused} />;
+}
+
 export function AutoxView({dark}: {dark: boolean}) {
   const open = useStore(s => s.diagram.open);
-  const shown = useStore(s => s.diagram.shown);
+  /* in a split view on screen the views are in the groups of the plots (AutoxGroupView), not in a panel of their own */
+  const drawn = useSplitView() !== null;
+  const shown = useStore(s => s.diagram.shown) && !drawn;
   const wasShown = useRef(false);
 
   /* the focus goes back to the main plot when the panel is hidden or autoX closes (T21):

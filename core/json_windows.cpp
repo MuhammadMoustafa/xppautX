@@ -117,7 +117,7 @@ void send_window(std::string_view event, std::string_view name, int w, int h, st
     send_buf(b);
 }
 
-std::string windows_event_line(const xpp::Session &s) { return xpp::events::open(xpp::events::WINDOW_LIST) + ",\"windows\":" + xpp::windows_json(s) + '}'; }
+std::string windows_event_line(const xpp::Session &s) { return xpp::events::open(xpp::events::WINDOW_LIST) + "," + xpp::windows_fields(s) + '}'; }
 
 void j_window_selected(xpp::Session &, std::string_view name, std::string_view kind) { send_window(xpp::events::WINDOW_SELECTED, name, 0, 0, "", kind); }
 

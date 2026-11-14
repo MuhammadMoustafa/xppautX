@@ -42,7 +42,7 @@ constexpr std::array EVENTS = {
     Event{WINDOW_SELECTED, "kind, win, w, h, title", "A window became the active one."},
     Event{WINDOW_DESTROYED, "kind, win, w, h, title", "A window was destroyed."},
     Event{WINDOW_RENAMED, "window, new_name", "A window was renamed."},
-    Event{WINDOW_LIST, "windows", "Every open window and whether it is shown, sent again when it changed.", WINDOW_LIST},
+    Event{WINDOW_LIST, "windows, split", "Every open window, whether it is shown and its group, and the split view, sent again when it changed.", WINDOW_LIST},
     Event{AUTOX_DIAGRAM, "op, view", "The autoX diagram as data, each view of it; the rest of its fields depend on op (axes, reset, add, views)."},
     Event{AUTOX_INFO, "info, stab, stop, notes, start_refined", "autoX's info strip and stability circle, and why the last branch ended.", AUTOX_INFO},
     Event{AUTOX_JOBS, "running, queued, done, jobs",

@@ -26,8 +26,12 @@ import {ShownName} from './CutText';
 interface Props {
   win: string;
   dark: boolean;
-  /** this window's tab is the one shown */
+  /** this window's tab is the one shown (in a split view, the shown one of each group) */
   shown: boolean;
+  /** this window is the active one: the one the keys and the point readout are for */
+  focused: boolean;
+  /** its group in a split view on screen, which places it (ui/Plots.tsx), else none */
+  group?: 'first' | 'second';
   /** shown as a tab panel (more than one window) */
   tabbed: boolean;
   /** the window row (ui/Plots.tsx), drawn in the header of the shown window */
@@ -46,7 +50,7 @@ function fmt(v: number | undefined): string {
   return v === undefined ? '' : String(Math.round(v));
 }
 
-export function Plot3DView({win, dark, shown, tabbed, windowRow}: Props) {
+export function Plot3DView({win, dark, shown, focused, group, tabbed, windowRow}: Props) {
   const session = useSession();
   const pw = useStore(s => windowOf(s.plots, win));
   const info = pw?.info ?? null;
@@ -147,7 +151,8 @@ export function Plot3DView({win, dark, shown, tabbed, windowRow}: Props) {
     : {'aria-label': 'Plot'};
 
   return (
-    <section class="plot-view" hidden={!shown} {...panel}>
+    <section class={'plot-view' + (group && focused ? ' focused' : '')} data-group={group} hidden={!shown} {...panel}
+      onPointerDown={() => { if (group && !focused) session.selectWindow(win); /* a press in the other group focuses it, as in VS Code */ }}>
       <header class="plot-bar">
         <div class="legend" role="group" aria-label="Curves">
           {model?.curves.map((c, i) => (

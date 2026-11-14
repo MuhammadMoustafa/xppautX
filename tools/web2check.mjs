@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only popout,options,fieldhelp,dock,viewtabs,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
+     [--only popout,options,fieldhelp,dock,viewtabs,splitview,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -3559,7 +3559,7 @@ async function viewTabsCheck() {
   await cdp.eval(`(() => { const t = [...document.querySelectorAll('.view-tabs [role=tab]')].find(b => b.textContent.trim() === 'Tab graph renamed');
     t.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: ${again.x}, clientY: ${again.y}})); })()`);
   await rendered();
-  check('W685, W645: the tab\'s context menu has Rename and Pop out', await cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].map(b => b.textContent).join() === 'Rename,Move left,Move right,Pop out'`));
+  check('W685, W645: the tab\'s context menu has Rename and Pop out', await cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].map(b => b.textContent).join() === 'Rename,Move left,Move right,Split right,Split down,Pop out'`));
   await cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].find(b => b.textContent === 'Rename').click()`);
   check('W685: Rename in the menu edits the tab name', await until(`document.querySelector('.view-tab-rename input')?.value === 'Tab graph renamed'`, 'menu rename'));
   await key('Escape');
@@ -3637,6 +3637,301 @@ async function viewTabsCheck() {
   await menuRun('window.close', {window: 'Tab graph'});
   await until(`!s.busy && !s.windows.some(w => w.name === 'Tab graph')`, 'closed');
   await desktopMetrics();
+}
+
+/* W720: the split view of the main area. Data only: the core's split (the store's `split` and each window's group), the strips and
+   plots the page makes of it, the tab menu's items, the drag's zones, the splitter's bounds, and the phone showing one strip with
+   the split kept. A drag is DragEvents on the strip and the plots, as W719's. */
+async function splitViewCheck() {
+  await desktopMetrics();
+  await until('s.hello && !s.busy', 'hello');
+  for (const name of ['Split B', 'Split C']) {
+    await menuRun('window.new', {name});
+    await requireUntil(`!s.busy && s.windows.some(w => w.name === ${JSON.stringify(name)})`, name);
+  }
+  await menuRun('run.initial');
+  await requireUntil('!s.busy && s.seriesCount >= 1', 'a run for the plots');
+  const strips = () => cdp.eval(`[...document.querySelectorAll('.group-strip')].map(g => g.dataset.group + ':' + [...g.querySelectorAll('[role=tab]')].map(b => b.textContent.trim()).join('|')).join(' ')`);
+  const tabBox = name => `[...document.querySelectorAll('.group-strip .view-tab')].find(t => t.querySelector('[role=tab]').textContent.trim() === ${JSON.stringify(name)})`;
+  const stripBox = group => `document.querySelector('.group-strip[data-group=${group}]')`;
+  const drag = (target, type, extra = {}) => cdp.eval(`${target}.dispatchEvent(new DragEvent(${JSON.stringify(type)}, {bubbles: true, cancelable: true, dataTransfer: new DataTransfer(), ...${JSON.stringify(extra)}}))`);
+  const menuOf = async name => {
+    const box = await cdp.eval(`(() => { const r = ${tabBox(name)}.getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
+    await cdp.eval(`${tabBox(name)}.querySelector('[role=tab]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: ${box.x}, clientY: ${box.y}}))`);
+    await rendered();
+  };
+  const items = () => cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].map(b => b.textContent).join()`);
+  const item = label => `[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].find(b => b.textContent === ${JSON.stringify(label)})`;
+  const hasData = win => cdp.eval(`(() => { const p = __xpp.plot(${JSON.stringify(win)}); return !!p && p.curves.length > 0 && p.curves.every(c => c.points > 0) && p.width > 0 && p.height > 0; })()`);
+  const joinAll = async () => {
+    for (const name of ['Split B', 'Split C']) if (await S(`s.windows.find(w => w.name === ${JSON.stringify(name)})?.group === 'second'`)) await menuRun('window.join', {window: name});
+    await requireUntil(`!s.busy && s.split.direction === 'none'`, 'no split');
+  };
+
+  check('W720: no split: one strip holding every tab, and the core says none', await strips() === 'all:main|Split B|Split C' && await S(`s.split.direction === 'none'`), await strips());
+  await menuRun('window.select', {window: 'main'});
+  await requireUntil(`!s.busy && s.plots.active === 'main'`, 'main selected');
+  check('W720: ◫ is off while the main graph is the one shown (it stays in the first group)', await cdp.eval(`document.querySelector('.group-strip .group-split').disabled`));
+  await menuRun('window.select', {window: 'Split B'});
+  await requireUntil(`!s.busy && s.plots.active === 'Split B'`, 'Split B selected');
+  await cdp.eval(`document.querySelector('.group-strip .group-split').click()`);
+  await requireUntil(`!s.busy && s.split.direction === 'right'`, 'split right by ◫');
+  check('W720: ◫ splits the shown graph to the right: the core has it in the second group, each group has its own strip',
+    await S(`s.windows.find(w => w.name === 'Split B').group === 'second' && s.windows.find(w => w.name === 'main').group === 'first' && s.split.shown.second === 'Split B'`)
+    && await strips() === 'first:main|Split C second:Split B', await strips());
+  await rendered();
+  check('W720: both groups\' shown graphs have data and a size, side by side',
+    await until(`document.querySelectorAll('.plots > .plot-view:not([hidden])').length === 2`, 'two plots') && await until(`!!__xpp.plot('main') && !!__xpp.plot('Split B')`, 'both drawn')
+    && await hasData('main') && await hasData('Split B') && await cdp.eval(`(() => { const a = __xpp.plot('main'), b = __xpp.plot('Split B'); const r = [...document.querySelectorAll('.plots > .plot-view:not([hidden])')].map(e => e.getBoundingClientRect());
+      return r.length === 2 && Math.abs(r[0].top - r[1].top) < 2 && r[0].right <= r[1].left + 1 && a.width > 100 && b.width > 100; })()`));
+  check('W720: the strip of the focused group is marked, and one plot has the focus outline',
+    await cdp.eval(`document.querySelector('.group-strip.focused').dataset.group === 'second' && document.querySelectorAll('.plots > .plot-view.focused').length === 1 && document.querySelector('.plots > .plot-view.focused').dataset.group === 'second'`));
+  await cdp.eval(`document.querySelector('.plots > .plot-view[data-group=first]').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))`);
+  check('W720: a press on the other group\'s plot selects its window', await until(`!s.busy && s.plots.active === 'main'`, 'focus moved')
+    && await cdp.eval(`document.querySelector('.group-strip.focused').dataset.group === 'first'`));
+  check('W720: the splitter is a separator with the share, 50 percent', await cdp.eval(`(() => { const e = document.querySelector('.plots > .group-splitter'); return e.getAttribute('role') === 'separator' && e.getAttribute('aria-valuenow') === '50' && e.getAttribute('aria-orientation') === 'vertical' && e.tabIndex === 0; })()`));
+  await cdp.eval(`document.querySelector('.plots > .group-splitter').focus()`);
+  await key('ArrowRight');
+  check('W720: the splitter\'s arrow key sends window.set_split_share: the core\'s share and the bar follow', await until(`!s.busy && Math.abs(s.split.share - 0.55) < 1e-9`, 'share 0.55')
+    && await until(`document.querySelector('.plots > .group-splitter').getAttribute('aria-valuenow') === '55'`, 'bar at 55'));
+  await key('Home');
+  check('W720: Home goes to the least share the core allows, and no further', await until(`!s.busy && Math.abs(s.split.share - 0.2) < 1e-9`, 'minimum') && await cdp.eval(`document.querySelector('.plots > .group-splitter').getAttribute('aria-valuemin') === '20'`));
+  await key('End');
+  check('W720: End goes to the greatest', await until(`!s.busy && Math.abs(s.split.share - 0.8) < 1e-9`, 'maximum'));
+  await menuRun('window.set_split_share', {share: 0.5});
+
+  /* the tab menu: Split right and Split down after Move right, Move to first group in the second group */
+  await menuOf('Split C');
+  check('W720: a first-group graph\'s menu has Split right and Split down after Move right', await items() === 'Rename,Move left,Move right,Split right,Split down,Pop out', await items());
+  await cdp.eval(`${item('Split down')}.click()`);
+  await requireUntil(`!s.busy && s.split.direction === 'down'`, 'split down by the menu');
+  check('W720: Split down from the menu: the split goes down, the second group\'s strip is over its plot, below the first group\'s',
+    await strips() === 'first:main second:Split B|Split C' && await cdp.eval(`(() => { const s = document.querySelector('.plots > .group-strip[data-group=second]'); const p = document.querySelector('.plots > .plot-view[data-group=second]:not([hidden])'), f = document.querySelector('.plots > .plot-view[data-group=first]:not([hidden])');
+      return !!s && document.querySelector('.plots').classList.contains('split-down') && f.getBoundingClientRect().bottom <= s.getBoundingClientRect().top + 1 && s.getBoundingClientRect().bottom <= p.getBoundingClientRect().top + 1; })()`), await strips());
+  check('W720: both plots have data when stacked', await until(`!!__xpp.plot('main') && !!__xpp.plot('Split C')`, 'both drawn') && await hasData('main') && await hasData('Split C'));
+  await menuOf('Split B');
+  check('W720: a second-group graph\'s menu has Move to first group', (await items()).includes('Move to first group'), await items());
+  await cdp.eval(`${item('Move to first group')}.click()`);
+  check('W720: Move to first group sends window.join: the core has it in the first group, the split stays for the other', await until(`!s.busy && s.windows.find(w => w.name === 'Split B').group === 'first' && s.split.direction === 'down'`, 'joined')
+    && await strips() === 'first:main|Split B second:Split C', await strips());
+  /* the tabs' Move left / Move right go by the strip: Split B is the strip's last tab of its kind after main */
+  await menuRun('window.join', {window: 'Split C'});
+  await requireUntil(`!s.busy && s.split.direction === 'none'`, 'split ended');
+  check('W720: the last window of the second group joined: the split ends and there is one strip again', await strips() === 'all:main|Split B|Split C');
+
+  /* dragging a tab: over the right half of the plots it shades that half and splits on drop */
+  await drag(tabBox('Split C'), 'dragstart');
+  const area = await cdp.eval(`(() => { const r = document.querySelector('.plots').getBoundingClientRect(); return {l: r.left, t: r.top, w: r.width, h: r.height}; })()`);
+  await drag(`document.querySelector('.plots')`, 'dragover', {clientX: area.l + area.w * 0.75, clientY: area.t + area.h * 0.3});
+  await rendered();
+  check('W720: dragged over the right half of the plots, that half is shaded with "Drop: split right with “Split C”"', await cdp.eval(`(() => { const z = document.querySelector('.plots > .drop-zone'); return !!z && z.textContent === 'Drop: split right with “Split C”' && z.style.left === '50%' && z.style.width === '50%'; })()`));
+  await drag(`document.querySelector('.plots')`, 'dragover', {clientX: area.l + area.w * 0.3, clientY: area.t + area.h * 0.8});
+  await rendered();
+  check('W720: over the bottom half it says split down', await cdp.eval(`document.querySelector('.plots > .drop-zone')?.textContent === 'Drop: split down with “Split C”'`));
+  await drag(`document.querySelector('.plots')`, 'dragover', {clientX: area.l + area.w * 0.2, clientY: area.t + area.h * 0.2});
+  await rendered();
+  check('W720: over the other quarter there is no drop', await cdp.eval(`!document.querySelector('.plots > .drop-zone')`));
+  await drag(`document.querySelector('.plots')`, 'dragover', {clientX: area.l + area.w * 0.75, clientY: area.t + area.h * 0.3});
+  await drag(`document.querySelector('.plots')`, 'drop', {clientX: area.l + area.w * 0.75, clientY: area.t + area.h * 0.3});
+  await requireUntil(`!s.busy && s.split.direction === 'right' && s.windows.find(w => w.name === 'Split C').group === 'second'`, 'split by the drop');
+  check('W720: the drop splits right with the dragged graph, and the shade is gone', await strips() === 'first:main|Split B second:Split C' && await cdp.eval(`!document.querySelector('.plots > .drop-zone')`), await strips());
+  await drag(tabBox('Split C'), 'dragend');
+  /* a tab dragged onto the other group's strip changes its group */
+  await drag(tabBox('Split B'), 'dragstart');
+  await drag(stripBox('second'), 'dragover');
+  check('W720: a tab dragged over the other group\'s strip marks it', await cdp.eval(`${stripBox('second')}.classList.contains('drop-group')`));
+  await drag(stripBox('second'), 'drop');
+  check('W720: dropped there, the graph moves to that group', await until(`!s.busy && s.windows.find(w => w.name === 'Split B').group === 'second'`, 'moved')
+    && await strips() === 'first:main second:Split B|Split C', await strips());
+  await drag(tabBox('Split B'), 'dragend');
+  await drag(tabBox('Split B'), 'dragstart');
+  await drag(`document.querySelector('.plots')`, 'dragover', {clientX: area.l + area.w * 0.1, clientY: area.t + area.h * 0.5});
+  await rendered();
+  check('W720: over the other group\'s plot the shade says it moves to that group', await cdp.eval(`document.querySelector('.plots > .drop-zone')?.textContent === 'Drop: move “Split B” to the first group'`));
+  await drag(tabBox('Split B'), 'dragend');
+  await drag(`document.querySelector('.plots')`, 'dragleave', {relatedTarget: null});
+
+  /* the widths: both directions work at 1024 and 768; the phone has one strip and one plot, the split kept */
+  for (const [width, height] of [[1024, 800], [768, 1024]]) {
+    await metrics({width, height, deviceScaleFactor: 1, mobile: false});
+    check(`W720: at ${width} the split is on screen: two strips, two plots with data`,
+      await strips() === 'first:main second:Split B|Split C' && await until(`document.querySelectorAll('.plots > .plot-view:not([hidden])').length === 2`, 'two plots'), await strips());
+  }
+  await metrics({width: 390, height: 844, deviceScaleFactor: 1, mobile: true});
+  check('W720: on the phone there is one strip with every tab in the core\'s order and one plot, and the core keeps the split',
+    await until(`document.querySelectorAll('.group-strip').length === 1`, 'one strip') && await strips() === 'all:main|Split B|Split C' && await until(`document.querySelectorAll('.plots > .plot-view:not([hidden])').length === 1`, 'one plot')
+    && await S(`s.split.direction === 'right'`) && await cdp.eval(`!document.querySelector('.plots.split') && !document.querySelector('.group-split')`), await strips());
+  await menuOf('Split C');
+  check('W720: the phone\'s tab menu has Move to first group for a second-group graph, and no Split items', await items() === 'Rename,Move left,Move right,Move to first group,Pop out', await items());
+  await key('Escape');
+  await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  check('W720: on a wide screen again the split is back as it was', await until(`document.querySelectorAll('.group-strip').length === 2`, 'two strips') && await strips() === 'first:main second:Split B|Split C', await strips());
+  await joinAll();
+  for (const name of ['Split B', 'Split C']) await menuRun('window.close', {window: name, confirm: true});
+  await until(`!s.busy && !s.windows.some(w => w.name === 'Split B' || w.name === 'Split C')`, 'closed');
+  await desktopMetrics();
+}
+
+/* The split view's pictures for the UI review (W720; with --only shots and XPP_SHOTS=folder): the split right and down at 1280, 1024, 768 wide and on the
+   phone (one strip, the split kept), the tab menu with its Split items and a tab dragged over the right half of the plots, each light and dark. Never a
+   check: it writes files only. */
+async function splitViewShots() {
+  const dir = process.env.XPP_SHOTS;
+  if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(dir, {recursive: true});
+  await until('s.hello && !s.busy', 'hello');
+  for (const name of ['recovery', 'voltage']) {
+    await menuRun('window.new', {name});
+    await requireUntil(`!s.busy && s.windows.some(w => w.name === ${JSON.stringify(name)})`, name);
+  }
+  await menuRun('run.initial');
+  await requireUntil('!s.busy && s.seriesCount >= 1', 'a run for the plots');
+  const full = async name => fs.writeFileSync(path.join(dir, name + '.png'), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+  const tabBox = name => `[...document.querySelectorAll('.group-strip .view-tab')].find(t => t.querySelector('[role=tab]').textContent.trim() === ${JSON.stringify(name)})`;
+  const drag = (target, type, extra = {}) => cdp.eval(`${target}.dispatchEvent(new DragEvent(${JSON.stringify(type)}, {bubbles: true, cancelable: true, dataTransfer: new DataTransfer(), ...${JSON.stringify(extra)}}))`);
+  const looks = [['light', 1280, 860, false], ['dark', 1280, 860, false], ['light', 1024, 800, false], ['dark', 1024, 800, false], ['light', 768, 1024, false], ['dark', 768, 1024, false], ['light', 390, 844, true], ['dark', 390, 844, true]];
+  const at = async (scheme, width, height, mobile) => {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile});
+    await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+    await rendered();
+  };
+  for (const direction of ['right', 'down']) {
+    await menuRun('window.split', {window: 'voltage', direction});
+    await requireUntil(`!s.busy && s.split.direction === ${JSON.stringify(direction)}`, 'split ' + direction);
+    await menuRun('window.select', {window: 'main'});
+    await requireUntil(`!s.busy && s.plots.active === 'main'`, 'main selected');
+    for (const [scheme, width, height, mobile] of looks) {
+      await at(scheme, width, height, mobile);
+      await until(`!!__xpp.plot('main')`, 'drawn');
+      await full(`split-${direction}-${width}-${scheme}`);
+    }
+  }
+  await menuRun('window.join', {window: 'voltage'});
+  await requireUntil(`!s.busy && s.split.direction === 'none'`, 'no split');
+  for (const scheme of ['light', 'dark']) {
+    await at(scheme, 1280, 860, false);
+    const box = await cdp.eval(`(() => { const r = ${tabBox('recovery')}.getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
+    await cdp.eval(`${tabBox('recovery')}.querySelector('[role=tab]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: ${box.x}, clientY: ${box.y}}))`);
+    await rendered();
+    await full(`split-tab-menu-1280-${scheme}`);
+    await key('Escape');
+    await drag(tabBox('voltage'), 'dragstart');
+    const area = await cdp.eval(`(() => { const r = document.querySelector('.plots').getBoundingClientRect(); return {l: r.left, t: r.top, w: r.width, h: r.height}; })()`);
+    await drag(`document.querySelector('.plots')`, 'dragover', {clientX: area.l + area.w * 0.75, clientY: area.t + area.h * 0.3});
+    await rendered();
+    await full(`split-drag-1280-${scheme}`);
+    await drag(tabBox('voltage'), 'dragend');
+    await drag(`document.querySelector('.plots')`, 'dragleave', {relatedTarget: null});
+  }
+  for (const name of ['recovery', 'voltage']) await menuRun('window.close', {window: name, confirm: true});
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
+/* W720: an autoX view in a group of the split view, drawn beside a graph like it (its buttons in the focused group, the other group having
+   only its diagram), and two views in the two groups, both drawn. Data only. */
+async function splitViewAutoxCheck() {
+  await desktopMetrics();
+  await until('s.hello && !s.busy', 'hello');
+  await openAutoxAtFixedPoint();
+  await autoxRun('equilibrium');
+  await requireUntil('!s.busy && dv.points.x.length > 10', 'steady state', 60000);
+  await menuRun('autox.open');
+  await menuRun('window.new', {name: 'phase'});
+  await requireUntil(`!s.busy && s.windows.some(w => w.name === 'phase')`, 'phase');
+  await menuRun('window.select', {window: 'main'});
+  await menuRun('run.initial');
+  await requireUntil('!s.busy && s.seriesCount >= 1', 'a run for the graphs');
+  const strips = () => cdp.eval(`[...document.querySelectorAll('.group-strip')].map(g => g.dataset.group + ':' + [...g.querySelectorAll('[role=tab]')].map(b => b.textContent.trim().replace('autoX · ', '@')).join('|')).join(' ')`);
+  const tabBox = name => `[...document.querySelectorAll('.group-strip .view-tab')].find(t => t.querySelector('[role=tab]').textContent.trim().endsWith(${JSON.stringify(name)}))`;
+  const menuOf = async name => {
+    const box = await cdp.eval(`(() => { const r = ${tabBox(name)}.getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
+    await cdp.eval(`${tabBox(name)}.querySelector('[role=tab]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: ${box.x}, clientY: ${box.y}}))`);
+    await rendered();
+  };
+  const items = () => cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].map(b => b.textContent).join()`);
+  await menuOf('diagram_1');
+  check('W720: an autoX tab\'s menu has Split right and Split down too', (await items()).includes('Split right,Split down'), await items());
+  await cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].find(b => b.textContent === 'Split right').click()`);
+  await requireUntil(`!s.busy && s.split.direction === 'right' && s.windows.find(w => w.name === 'diagram_1').group === 'second' && s.split.selected === 'diagram_1'`, 'autoX split right');
+  await rendered();
+  check('W720: the autoX view is in the second group, drawn beside the graph with data, the graph drawn too',
+    await strips() === 'first:main|phase second:@diagram_1'
+    && await until(`!!document.querySelector('.plots > .autox-panel[data-group=second] .autox-pane') && !!__xpp.diagram(0) && __xpp.diagram(0).curves.length > 0`, 'diagram drawn')
+    && await until(`!!__xpp.plot('main') && __xpp.plot('main').curves.every(c => c.points > 0)`, 'graph drawn')
+    && await cdp.eval(`(() => { const a = document.querySelector('.plots > .autox-panel[data-group=second]').getBoundingClientRect(), g = document.querySelector('.plots > .plot-view[data-group=first]:not([hidden])').getBoundingClientRect();
+      return g.right <= a.left + 1 && Math.abs(g.top - a.top) < 2 && a.width > 100; })()`), await strips());
+  check('W720: the autoX view in its group is laid out as a graph: autoX\'s buttons are behind one closed "autoX options" disclosure in its plot bar, no toolbar of its own, "Point" closed under the plot; it has the outline',
+    await cdp.eval(`(() => { const p = document.querySelector('.plots > .autox-panel.focused'); const d = p?.querySelector('.autox-pane-bar details.plot-window-options');
+      return !!d && !d.open && d.querySelector('summary').textContent === 'autoX options' && ['Axes', 'Numerics', 'Run', 'Grab'].every(l => [...d.querySelectorAll('button')].some(b => b.textContent.trim() === l))
+        && !p.querySelector('.autox-tools') && !!p.querySelector('details.autox-point:not([open])') && !p.querySelector('.autox-overlay-row') && !document.querySelector('.shell[data-view=autox]'); })()`));
+  for (const [width, height] of [[1280, 800], [1024, 700], [768, 1024]]) {
+    await metrics({width, height, deviceScaleFactor: 1, mobile: false});
+    check(`W720: at ${width}x${height} the autoX view in its group does not scroll and its diagram has room`,
+      await until(`(() => { const p = document.querySelector('.plots > .autox-panel'); const h = p?.querySelector('.autox-host'); return !!p && p.scrollHeight <= p.clientHeight + 1 && h.clientHeight >= 100; })()`, 'fits', 8000), await cdp.eval(`(() => { const p = document.querySelector('.plots > .autox-panel'); return [p.scrollHeight, p.clientHeight, p.querySelector('.autox-host').clientHeight]; })()`));
+  }
+  await desktopMetrics();
+  await menuRun('autox.grab');
+  await requireUntil(`s.ask && s.ask.kind === 'grab' && s.diagram.grabbing`, 'grab');
+  check('W720: while a point is grabbed the grab bar is an overlay row at the top of the plot area and "Point" is open',
+    await until(`!!document.querySelector('.plots > .autox-panel .autox-host .autox-overlay-row .pick-bar[data-pick=grab]') && document.querySelector('.plots > .autox-panel details.autox-point')?.open === true`, 'overlay and point open'));
+  await key('Escape');
+  check('W720: after the grab "Point" closes again and the overlay is gone', await until(`!s.busy && !s.diagram.grabbing && !document.querySelector('.autox-overlay-row') && document.querySelector('.plots > .autox-panel details.autox-point')?.open === false`, 'closed'));
+  await cdp.eval(`document.querySelector('.plots > .plot-view[data-group=first]').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))`);
+  check('W720: a press on the graph selects it', await until(`!s.busy && s.split.selected === 'main'`, 'graph selected'));
+  check('W720: the autoX view stays shown in the core', await S(`s.windows.find(w => w.name === 'diagram_1').shown && s.diagram.shown`));
+  check('W720: and drawn in its group, with its buttons, the graph holding the focus outline',
+    await cdp.eval(`!!document.querySelector('.plots > .autox-panel[data-group=second] .autox-pane') && !!document.querySelector('.plots > .autox-panel .plot-window-options') && document.querySelector('.plots > .plot-view.focused')?.dataset.group === 'first'`),
+    await cdp.eval(`document.querySelector('.plots').innerHTML.length + ' ' + document.querySelectorAll('.plots > *').length + ' ' + document.querySelectorAll('.plots > .plot-view.focused').length`));
+  /* two views, one in each group: both drawn, one set of buttons */
+  await menuRun('window.join', {window: 'diagram_1'});
+  await menuRun('autox.new_view');
+  await requireUntil(`!s.busy && s.windows.some(w => w.name === 'diagram_2')`, 'second autoX view');
+  await requireUntil(`!s.busy && s.split.direction === 'none'`, 'no split');
+  await menuRun('window.split', {window: 'diagram_2', direction: 'right'});
+  await menuRun('window.select', {window: 'diagram_1'});
+  await requireUntil(`!s.busy && s.split.direction === 'right' && s.split.shown.first === 'diagram_1' && s.split.shown.second === 'diagram_2'`, 'two views in two groups');
+  await rendered();
+  check('W720: with an autoX view in each group both are drawn with data, each with its options disclosure',
+    await until(`document.querySelectorAll('.plots > .autox-panel').length === 2 && !!__xpp.diagram(0) && !!__xpp.diagram(1) && __xpp.diagram(0).curves.length > 0 && __xpp.diagram(1).curves.length > 0`, 'both drawn')
+    && await cdp.eval(`document.querySelectorAll('.plots > .autox-panel .autox-pane-bar details.plot-window-options').length === 2 && document.querySelector('.plots > .autox-panel[data-group=first]').classList.contains('focused')`));
+  await menuRun('window.join', {window: 'diagram_2'});
+  await menuRun('window.select', {window: 'main'});
+  await desktopMetrics();
+}
+
+/* A bifurcation diagram beside a graph for the UI review (W720; with --only splitshots and XPP_SHOTS=folder), 1280 wide light and dark. */
+async function splitViewAutoxShots() {
+  const dir = process.env.XPP_SHOTS;
+  if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(dir, {recursive: true});
+  await until('s.hello && !s.busy', 'hello');
+  await openAutoxAtFixedPoint();
+  await autoxRun('equilibrium');
+  await requireUntil('!s.busy && dv.points.x.length > 10', 'steady state', 60000);
+  await menuRun('window.select', {window: 'main'});
+  await menuRun('run.initial');
+  await requireUntil('!s.busy && s.seriesCount >= 1', 'a run for the graph');
+  await menuRun('window.split', {window: 'diagram_1', direction: 'right'});
+  await requireUntil(`!s.busy && s.split.direction === 'right' && s.split.selected === 'diagram_1'`, 'diagram beside the graph');
+  const full = async name => fs.writeFileSync(path.join(dir, name + '.png'), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+  for (const [width, height] of [[1280, 800], [1024, 700], [768, 1024]])
+    for (const scheme of ['light', 'dark']) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: false});
+      await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+      await rendered();
+      await until(`!!__xpp.plot('main') && !!__xpp.diagram(0)`, 'drawn');
+      await full(`split-diagram-${width}-${scheme}`);
+    }
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 800, deviceScaleFactor: 1, mobile: false});
+  await menuRun('autox.grab');
+  await requireUntil(`s.ask && s.ask.kind === 'grab' && s.diagram.grabbing`, 'grab');
+  await until(`document.querySelector('details.autox-point')?.open === true`, 'point open');
+  await rendered();
+  await full('split-diagram-grab-1280-dark');
+  await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: 'light'}]});
+  await rendered();
+  await full('split-diagram-grab-1280-light');
+  await key('Escape');
 }
 
 /* The renaming's pictures for the UI review (W685; with --only shots and XPP_SHOTS=folder): a view's name being edited in its tab,
@@ -7511,7 +7806,7 @@ async function main() {
       await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     }
     /* every section name run() is asked about: an --only that names none of them ran nothing, which is a failure, never "all passed" */
-    const asked = new Set(['shots', 'popoutshots']);
+    const asked = new Set(['shots', 'popoutshots', 'splitshots']);
     const run = name => { asked.add(name); return !opt.only || opt.only.split(',').includes(name); };
     if (run('desktop')) await session(ODE, async (dir) => {
       await desktop(want);
@@ -7549,6 +7844,8 @@ async function main() {
     if (run('fieldhelp')) await session(ODE, fieldHelp);
     if (run('dock')) await session(ODE, dockCheck);
     if (run('viewtabs')) await session(ODE, viewTabsCheck);
+    if (run('splitview')) await session(ODE, splitViewCheck);
+    if (run('splitview')) await session(ODE, splitViewAutoxCheck);
     if (run('autox')) await session(AB_ODE, autoxScriptCheck);
     if (run('popout')) await session(ODE, popOutCheck);
     if (run('dialogs')) await session(ODE, dialogsCheck, ['command:1: Total time must be a number of at least 0']);
@@ -7558,6 +7855,7 @@ async function main() {
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, dockShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, mainLookShots);
     if (opt.only && opt.only.split(',').includes('shots')) { await session(ODE, renameShots); await session(ODE, tabOrderShots); }
+    if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'splitshots')) { await session(ODE, splitViewShots); await session(ODE, splitViewAutoxShots); }
     if (opt.only && opt.only.split(',').includes('shots')) await session(AB_ODE, autoxScriptShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'popoutshots')) await session(ODE, popOutShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, tableShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */

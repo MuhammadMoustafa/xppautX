@@ -23,6 +23,19 @@
   min-height: 0;
 }
 .autox-host { min-height: 14rem; }
+/* a view in a group of the split view (W720): laid out as a graph in a group is, the diagram taking the group's height, nothing scrolling */
+.autox-panel.in-group { min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); }
+.autox-panel.in-group .autox-view { flex: 1 1 0; }
+.autox-panel.in-group .autox-views { overflow: hidden; }
+.autox-panel.in-group .autox-pane { min-height: 0; }
+.autox-panel.in-group .autox-host { min-height: 8rem; }
+.autox-panel.in-group .autox-pane-bar .legend { flex: 1 1 12rem; order: 0; }
+.autox-panel.in-group .legend-item { max-width: 9rem; padding-inline: var(--space-1); }
+.autox-panel.in-group .plot-tools { width: auto; margin-left: auto; }
+.autox-panel.in-group .plot-tools button { flex: none; }
+.autox-overlay-row { position: absolute; inset: 0 0 auto 0; z-index: var(--z-dropdown); }
+.autox-point[open] { max-height: 45%; overflow: auto; }
+.autox-point > summary { min-height: var(--target); padding: var(--space-1) var(--space-2); cursor: pointer; border-top: 1px solid var(--border); }
 /* W50: the views of the diagram side by side, wrapping to a new row when
    narrow; with two or more, each is framed and the active one (autoX's Axes
    menu changes it) framed in the accent */

@@ -37,11 +37,17 @@ test('Hide autoX and Show autoX are window.hide and window.show of every view, a
   session.showAutox(false);
   assert.deepEqual(sent,[{cmd:'window.hide',window:'Diagram A'},{cmd:'window.hide',window:'Diagram B'}]);
   const list = (shown: boolean) => ({ev:'window.list' as const,windows:[
-    {name:'main',kind:'graph' as const,shown:true},
-    {name:'Diagram A',kind:'diagram' as const,shown},{name:'Diagram B',kind:'diagram' as const,shown}]});
+    {name:'main',kind:'graph' as const,shown:true,group:'first' as const},
+    {name:'Diagram A',kind:'diagram' as const,shown,group:'first' as const},{name:'Diagram B',kind:'diagram' as const,shown,group:'first' as const}],
+    split:{direction:'none' as const,share:0.5,shown:{first:'main',second:''},selected:'main'}});
   session.store.dispatch({type:'event',ev:list(false)});
   assert.equal(session.store.getState().diagram.shown,false);
   session.store.dispatch({type:'event',ev:list(true)});
   assert.equal(session.store.getState().diagram.shown,true);
   assert.equal(session.store.getState().windows.length,3);
+  /* the split view's state is the same event's (W720) */
+  const split={direction:'right' as const,share:0.3,shown:{first:'main',second:'voltage'},selected:'voltage'};
+  session.store.dispatch({type:'event',ev:{ev:'window.list',windows:[{name:'main',kind:'graph',shown:true,group:'first'},{name:'voltage',kind:'graph',shown:true,group:'second'}],split}});
+  assert.deepEqual(session.store.getState().split,split);
+  assert.equal(session.store.getState().windows[1].group,'second');
 });

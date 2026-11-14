@@ -24,6 +24,7 @@ struct GRAPH {
 
 	       int Use;
   bool hidden = false; /* a hidden window keeps everything and is not shown (window.hide, W515) */
+  bool second = false; /* in the second group of the split view (window.split, many_pops.h WindowSplit) */
 		int Nullrestore;
                 int x11Wid = main_plot_width;
   int x11Hgt = main_plot_height;

@@ -70,6 +70,7 @@ struct AutoxDiagramView {
   std::array<double,4> zoom_axes{};
   std::string name = initial_diagram_name;
   bool hidden=false; /* window.hide: kept with its axes and zoom, not shown */
+  bool second=false; /* in the second group of the split view (window.split, many_pops.h WindowSplit) */
 };
 
 /* the diagram's marked stretch (the S and E keys in the Grab loop): the

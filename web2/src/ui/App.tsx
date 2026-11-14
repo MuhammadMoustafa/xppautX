@@ -34,6 +34,7 @@ import {ErrorSource} from './ErrorSource';
 import {Toasts} from './Toasts';
 import {Dock, HelpDock} from './Dock';
 import {ViewTabs} from './ViewTabs';
+import {useSplitTracks, useSplitView} from './split';
 import {RunToolbar} from './RunToolbar';
 import {StartScreen} from './StartScreen';
 
@@ -87,8 +88,11 @@ function Shell() {
   const playerOpen = useStore(s => s.player.open);
   const dark = useDark(theme);
   const panels = useStore(s => s.panels);
-  const autoxShown = useStore(s => s.diagram.open && s.diagram.shown);
+  /* the autoX panel takes the work area unless a split view is on screen: then its views are in the groups of the plots */
+  const drawn = useSplitView() !== null;
+  const autoxShown = useStore(s => s.diagram.open && s.diagram.shown) && !drawn;
   const tab = useStore(dockTab);
+  useSplitTracks();
   useEffect(() => savePanels(panels), [panels]);
   /* the autoX view takes the whole width (its info and views wrap when narrow), so beside it the dock is there only for the
      panels the user opened (Table, Model, Help), not for Values, which are on the graph's tab */

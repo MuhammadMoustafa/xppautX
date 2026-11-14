@@ -59,7 +59,7 @@ test('W517: form fields use registry types, choices, bounds and model/window nam
   assert.ok(argumentProblem(arg('integer'), '4'));
   assert.equal(argumentProblem(arg('integer'), '2'), null);
   assert.ok(argumentProblem(arg('real'), '-'));
-  const state = {...initialState, hello: {...REGISTRY_HELLO, lists: [['T'], ['x'], ['p']]}, windows: [{name: 'Named graph', kind: 'graph' as const, shown: false}]};
+  const state = {...initialState, hello: {...REGISTRY_HELLO, lists: [['T'], ['x'], ['p']]}, windows: [{name: 'Named graph', kind: 'graph' as const, shown: false, group: 'first' as const}]};
   assert.deepEqual(argumentNames(arg('window'), state), ['Named graph']);
   assert.deepEqual(argumentNames({...arg('name'), names:'parameter'}, state), ['p']);
   const list = {...arg('list'), element:'real'};
