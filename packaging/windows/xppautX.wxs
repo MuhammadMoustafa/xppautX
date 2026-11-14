@@ -19,11 +19,12 @@
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/MuhammadMoustafa/xppautX" />
 
     <!-- W688: the program starts again at the end of an install xppautX itself began (core/xpp_install.h's MSI_RELAUNCH and
-         MSI_RELAUNCH_ARGS: the same names), never at an install by hand, which does not set them. The two public properties are
-         Secure so a value given on the command line reaches an install the installer service runs for a user who is not an
-         administrator. The custom action is immediate and after InstallFinalize, so it runs in the installer's client: the
-         user's own token, not the elevated service's, and only once every file is in place (a failed install never gets there);
-         a major upgrade runs it as well, since the new package's sequence is what is read; a silent install runs it too.
+         MSI_RELAUNCH_ARGS: the same names), never at an install by hand, which does not set them. The execute sequence of this
+         per-machine package runs in the installer service, so the two public properties are Secure: only then does the service
+         get the values given on msiexec's command line. The custom action is immediate and after InstallFinalize: the service
+         runs it impersonating the user who started the install, so the program starts in that user's session with their own
+         token, not elevated, and only once every file is in place (a failed install never gets there); a major upgrade runs it
+         as well, since the new package's sequence is what is read. Checked 2026-11-13 by installing over 0.1.0-beta.2 (W688).
          The arguments are one command line (the browser flag and the quoted file to open again), which xppautX has checked holds no
          quote; the installer substitutes a property's value into ExeCommand once, never reading brackets inside it again. -->
     <Property Id="XPPAUTX_RELAUNCH" Secure="yes" />

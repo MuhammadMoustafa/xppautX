@@ -20,6 +20,7 @@ namespace xpp::process {
 namespace {
 
 constexpr std::string_view BLANKS_AND_QUOTE = " \t\n\v\"";
+constexpr std::string_view WHERE = "start a program";
 
 /* a property name: what the installer allows in a public one */
 bool property_name(std::string_view name)
@@ -60,17 +61,13 @@ std::string quote_argument(std::string_view arg, Quoting quoting)
 
 Result<> spawn(std::span<const std::string> argv, Wait wait, Quoting quoting)
 {
-    if (argv.empty() || argv.front().empty()) return fail("start a program", "no program is named", Place{"start a program"});
+    if (argv.empty() || argv.front().empty()) return fail(std::string(WHERE), "no program is named", Place{std::string(WHERE)});
     std::string line;
     for (const std::string &a : argv) line += (line.empty() ? "" : " ") + quote_argument(a, quoting);
     return win32::run_process(argv.front(), line, wait == Wait::until_it_ends);
 }
 
 #else
-
-namespace {
-constexpr std::string_view WHERE = "start a program";
-}
 
 Result<> spawn(std::span<const std::string> argv, Wait wait, Quoting)
 {
