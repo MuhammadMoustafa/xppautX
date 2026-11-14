@@ -156,7 +156,7 @@ static void run_session(void)
        or the system adds an argument: then the changed arguments are read again */
     std::vector<std::string> args = startup.line.arguments;
     bool changed = false;
-    if (xpp::platform::adopt_launch_document(args)) changed = true;
+    if (xpp::window::adopt_launch_document(args)) changed = true;
     /* a file that carries a model on the command line (W103: an autoX
        file or a session file): its saved model is loaded, from the file's
        own folder as File > Open model loads one, then what the file adds */

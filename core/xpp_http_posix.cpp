@@ -118,7 +118,7 @@ void end_process() { _exit(0); }
 bool open_in_browser(const std::string &url)
 {
     /* No shell: the URL is one argv entry of the opener, whatever characters it holds (xpp_process.h). */
-    std::vector<std::string> argv{browser_opener()};
+    std::vector<std::string> argv{browser_opener};
     /* WSL: rundll32.exe takes the URL as one command-line argument and starts the Windows default browser
        with no command interpreter (cmd.exe /c start would parse & ^ % in it); it exits 0 when it started */
     if (getenv("WSL_DISTRO_NAME")) argv = {"rundll32.exe", "url.dll,FileProtocolHandler"};

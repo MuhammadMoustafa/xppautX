@@ -61,12 +61,12 @@ CSTD     = -std=gnu99
 CXXSTD   = -std=gnu++23
 EXE      = .exe
 # the system libraries core/ itself calls, linked into every program the core
-# library is (xppautX and the unit-test program): WinHTTP, for xpp_win.cpp's update
+# library is (xppautX and the unit-test program): WinHTTP, for xpp_https_win.cpp's update
 # check (W622)
 CORE_SYSLIBS = -lwinhttp
 LDSTATIC = -static
 # -mwindows: a GUI-subsystem exe, so Explorer and a file association start
-# it with no console window (xpp_win.cpp's xpp::win::attach_console()
+# it with no console window (xpp_platform_win.cpp's attach_parent_console()
 # reattaches to a real one for the command-line modes; --server's pipes are
 # untouched, W13b)
 NETLIBS  = -lpthread -lws2_32 -mwindows
@@ -141,7 +141,7 @@ BUILDDIR = build/obj
 # core/a.c or core/a.cpp, so converting a file is `git mv x.c x.cpp` alone.
 # Platform files (W730): what differs by platform is in a module's
 # <module>_win.cpp (Windows), _posix.cpp (Linux and macOS), _linux.cpp or _mac.cpp,
-# and xpp_win.cpp is the Windows API they share; only this platform's are built,
+# and xpp_win.cpp is the UTF-8 conversion they share; only this platform's are built,
 # each compiled whole with no platform #if inside.
 ifeq ($(OS),Windows_NT)
 PLATFORM_SUFFIXES := win

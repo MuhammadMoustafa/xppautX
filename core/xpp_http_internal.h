@@ -56,6 +56,10 @@ void random_bytes(std::span<unsigned char> out);
 /* the system's browser on url, without a shell; true when it started */
 bool open_in_browser(const std::string &url);
 /* the program that opens an address on Linux ("xdg-open") and macOS ("open"): xpp_http_posix.cpp starts it */
-const char *browser_opener();
+#ifdef __APPLE__
+inline constexpr const char *browser_opener = "open";
+#else
+inline constexpr const char *browser_opener = "xdg-open";
+#endif
 
 } // namespace xpp::http

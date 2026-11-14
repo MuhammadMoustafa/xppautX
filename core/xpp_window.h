@@ -28,6 +28,9 @@
    these functions load it (xpp_window_loader.cpp) and call it through the
    C table of xpp_window_plugin.h. */
 
+#include <string>
+#include <vector>
+
 namespace xpp::window {
 
 /* true when this build has the window (Windows, macOS, and Linux built
@@ -46,13 +49,13 @@ bool run(void (*session)());
    a no-op without a window */
 void set_model(const char *path);
 
-/* The document Finder (a double-click, a drop on the app) or `open` asked
-   xppautX.app to open when it launched it, which macOS sends as an
-   open-documents Apple Event rather than an argument (W91): the model to
-   load, from the session run() runs; nullptr when there was none. Only macOS has
-   one: defined by xpp_window_mac.cpp (and a stub without a window), called by xpp_platform_mac.cpp.
-   One that comes while the app runs is opened as File > Open model opens
-   one (W61). */
-const char *launch_document();
+/* macOS: the document Finder (a double-click, a drop on the app) or `open` asked xppautX.app to
+   open when it launched it, which macOS sends as an open-documents Apple Event rather than an
+   argument (W91), is the model, loaded from its own folder as File > Open model loads one (W61),
+   and an app Finder started (in "/") starts in the home folder, where the start screen's Open
+   model dialog begins: args gets the model's name added and the working folder is changed, true
+   when args changed; false elsewhere, and when there was no document. Defined by
+   xpp_window_mac.cpp, a stub elsewhere (xpp_window.cpp, xpp_window_loader.cpp): the window is not in the core library. */
+bool adopt_launch_document(std::vector<std::string> &args);
 
 } // namespace xpp::window

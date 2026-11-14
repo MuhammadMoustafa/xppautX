@@ -6,7 +6,7 @@
 # tmpfile in core/*.cpp and core/*.h, comments and string literals
 # stripped first (tools/strip_comments.awk, as tools/formatcheck.sh does).
 # xpp_files.cpp, xpp_files.h and xpp_io.cpp (the module that owns them) and
-# xpp_win.cpp (the Windows API's file) are not counted. A member call
+# the _win files are not counted. A member call
 # (x.remove(), p->rename()) or a longer name (xpp::files::remove) is not a
 # match; std::fopen and ::remove are.
 #
@@ -43,7 +43,7 @@ trap 'rm -rf "$tmp"' EXIT
 
 for f in core/*.cpp core/*.h; do
   case "$f" in
-    core/xpp_files.cpp|core/xpp_files.h|core/xpp_files_*|core/xpp_io.cpp|core/xpp_win.cpp) continue ;; # the owners
+    core/xpp_files.cpp|core/xpp_files.h|core/xpp_files_*|core/xpp_io.cpp|core/*_win.cpp) continue ;; # the owners
   esac
   awk -f tools/strip_comments.awk "$f" | awk -v file="$f" '
     {

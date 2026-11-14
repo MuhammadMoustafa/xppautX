@@ -6,6 +6,8 @@
    written without a Mac (CI's macos-core). */
 #include "xpp_window_internal.h"
 #include "xpp_window.h"
+#include "xpp_files.h"
+#include <utility>
 
 #include <cstdint>
 #include <cstdlib>
@@ -31,11 +33,24 @@ DocumentState documents_state;
 
 } // namespace
 
-/* the file Finder or `open` gave the launch, as the model to load; nullptr when there was none */
-const char *xpp::window::launch_document()
+bool xpp::window::adopt_launch_document(std::vector<std::string> &args)
 {
-    std::lock_guard<std::mutex> lk(documents_state.mu);
-    return documents_state.launch_document.empty() ? nullptr : documents_state.launch_document.c_str();
+    std::string doc;
+    {
+        std::lock_guard<std::mutex> lk(documents_state.mu);
+        doc = documents_state.launch_document;
+    }
+    if (!doc.empty()) {
+        const std::pair<std::string, std::string> where = xpp::files::split_path(doc);
+        if (!where.first.empty()) xpp::files::change_dir(where.first.c_str());
+        args.push_back(where.second);
+        return true;
+    }
+    if (xpp::files::working_dir() == "/") {
+        const char *home = getenv("HOME");
+        if (home && *home) xpp::files::change_dir(home);
+    }
+    return false;
 }
 
 namespace xpp::window::platform {

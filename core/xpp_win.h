@@ -1,63 +1,14 @@
 #pragma once
 
-/* xpp_win.cpp, Windows only: the Windows API behind the few POSIX calls
-   the core and the protocol front end use, in namespace xpp::win
-   (W109f). Included only by the *_win.cpp files. */
-#include <span>
+/* xpp_win.cpp, Windows only: the UTF-8 <-> UTF-16 conversion the *_win.cpp files share
+   (the core's text is UTF-8, the Windows API's wide). Declares no Windows type, so
+   any file may include it. */
 #include <string>
-#include <optional>
-
-#include "xpp_https.h"
+#include <string_view>
 
 namespace xpp::win {
-// Count processor-core records of the highest EfficiencyClass (performance cores).
-std::optional<unsigned> processor_core_count();
-
-/* up to buf.size() bytes of stdin, blocking; -1 at end of input or on an
-   error */
-int read_stdin(std::span<char> buf);
-/* One bounded line from a console, pipe or file, with a whole-line deadline. */
-std::optional<std::string> read_stdin_line(int seconds, size_t cap);
-void binary_mode(int fd); /* no \r\n translation */
-/* true when path is a symbolic link or another reparse point (a junction) */
-bool path_is_link(const char *path);
-/* Open the final component itself, refuse reparse points/non-regular files,
-   and return a CRT fd and size from that same handle; -1 sets errno.
-   create means exclusive creation; overwrite opens or creates and truncates only
-   after the handle check; binary selects the CRT translation mode. */
-int open_plain(const char *path, bool create, bool binary, unsigned long long &size, bool overwrite = false);
-/* rename from to to, replacing to when it exists (rename() does not);
-   true on success */
-bool move_over(const char *from, const char *to);
-/* Only a proved exit permits deleting that PID's scratch folders;
-   a failed query (including access denied) preserves them. */
-bool process_gone(unsigned long pid);
-/* the system temp folder without its trailing backslash; empty when
-   there is none (xpp_files.cpp's scratch folders) */
-std::string temp_folder();
-/* %APPDATA%, the per-user roaming folder, without a trailing backslash; empty
-   when it is not set (xpp_files_dir.cpp's config_dir) */
-std::string app_data_folder();
-/* the running program's full path (GetModuleFileNameA), empty when it cannot be had (xpp_files_dir.cpp's program_file) */
-std::string executable_path();
-/* xpp_process.h's spawn: CreateProcess of the program at `program` (its path: no search of the working folder) with the
-   command line `line` (its arguments quoted by xpp_process.h), no shell, the child's streams the null device */
-Result<> run_process(const std::string &program, const std::string &line, bool wait);
-/* xpp_https.h's request through WinHTTP (the system's own client and certificate store): TLS verified, no redirect
-   followed, a body that stalls ends the request. Written by reading, built by Windows CI (W622). */
-Result<https::Reply> https_get(std::string_view url, const https::Chunk &chunk);
-/* The system Documents folder, including redirected folders; empty when unavailable. */
-std::string documents_folder();
-/* xppautX links -mwindows (a GUI-subsystem exe: no console pops up when
-   Explorer or a file association starts it) so a command-line mode
-   (--server, --silent, --version, --help, --browser, or any log to
-   stderr) needs this before its first output: when stdout/stderr/stdin are
-   not already a real pipe, file or null device (an inherited handle, e.g. --server piped
-   by the VS Code extension or a test script, which is left alone), it
-   attaches to a console-subsystem parent's console (AttachConsole) and
-   reopens the three standard streams on it, so a plain terminal run (or
-   `--version`) still prints; when there is no parent console (Explorer)
-   this is a harmless no-op, matching the current no-console behaviour. */
-void attach_console();
-
+/* UTF-16 of UTF-8 text; empty when the text is empty or not valid UTF-8 */
+std::wstring widen(std::string_view text);
+/* UTF-8 of UTF-16 text; empty when the text is empty */
+std::string narrow(std::wstring_view text);
 } // namespace xpp::win

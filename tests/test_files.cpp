@@ -11,9 +11,6 @@
 #include "json_files.h"
 #include "snapx.h"
 #include "odex.h"
-#ifdef _WIN32
-#include "xpp_win.h"
-#endif
 #include "xpp_sha256.h"
 #include "xpp_error.h"
 
@@ -330,11 +327,11 @@ TEST_CASE("test_files")
     CHECK(xpp::files::put_begin("sub", 100, put) == XPP_FILES_REFUSED);
 #ifdef _WIN32
     /* Exercise the handle check directly, without a pathname precheck. */
-    int fd = xpp::win::open_plain("a.bin", false, true, size);
+    int fd = xpp::files::open_plain_fd("a.bin", false, size);
     CHECK(fd >= 0 && size == 3);
     if (fd >= 0) _close(fd);
     for (const char *name : {"sub", "NUL"}) {
-        fd = xpp::win::open_plain(name, false, true, size);
+        fd = xpp::files::open_plain_fd(name, false, size);
         CHECK(fd < 0 && errno == ELOOP);
         if (fd >= 0) _close(fd);
     }
@@ -343,7 +340,7 @@ TEST_CASE("test_files")
                                      "mklink /J link.txt sub >NUL", nullptr);
     CHECK(junction == 0);
     if (junction == 0) {
-        fd = xpp::win::open_plain("link.txt", false, true, size);
+        fd = xpp::files::open_plain_fd("link.txt", false, size);
         CHECK(fd < 0 && errno == ELOOP);
         if (fd >= 0) _close(fd);
         CHECK(xpp::files::open("link.txt", fp, size) == XPP_FILES_REFUSED && !fp);
@@ -352,7 +349,7 @@ TEST_CASE("test_files")
         CHECK(!xpp::files::check_dirs("link.txt/../sub") && errno == ELOOP);
         CHECK(xpp::files::create_new("link.txt", true) == nullptr);
         CHECK(xpp::files::open_write_plain("link.txt") == nullptr);
-        fd = xpp::win::open_plain("link.txt", false, false, size, true);
+        fd = xpp::files::open_plain_fd("link.txt", true, size);
         CHECK(fd < 0 && errno == ELOOP);
         if (fd >= 0) _close(fd);
         CHECK(slurp("a.bin") == "new");
@@ -364,7 +361,7 @@ TEST_CASE("test_files")
     if (symlink != 0) {
         std::printf("SKIP Windows file symlink: %s (junction tested)\n", slurp("symlink-result.txt").c_str());
     } else {
-        fd = xpp::win::open_plain("link.txt", false, true, size);
+        fd = xpp::files::open_plain_fd("link.txt", false, size);
         CHECK(fd < 0 && errno == ELOOP);
         if (fd >= 0) _close(fd);
         CHECK(xpp::files::open("link.txt", fp, size) == XPP_FILES_REFUSED && !fp);
@@ -374,7 +371,7 @@ TEST_CASE("test_files")
         CHECK(xpp::files::put_begin("link.txt", 100, put) == XPP_FILES_REFUSED);
         CHECK(xpp::files::create_new("link.txt", true) == nullptr);
         CHECK(xpp::files::open_write_plain("link.txt") == nullptr);
-        fd = xpp::win::open_plain("link.txt", false, false, size, true);
+        fd = xpp::files::open_plain_fd("link.txt", true, size);
         CHECK(fd < 0 && errno == ELOOP);
         if (fd >= 0) _close(fd);
         CHECK(slurp("a.bin") == "new");
@@ -618,8 +615,8 @@ TEST_CASE("test_files")
 
 #ifdef _WIN32
     constexpr unsigned long SYSTEM_PID = 4; /* Windows' System process stays alive, and its query may be denied. */
-    CHECK(!xpp::win::process_gone(SYSTEM_PID));
-    CHECK(!xpp::win::process_gone(0)); /* invalid reserved PID cannot prove an exit */
+    CHECK(!xpp::files::pid_gone(SYSTEM_PID));
+    CHECK(!xpp::files::pid_gone(0)); /* invalid reserved PID cannot prove an exit */
 #endif
 
     /* clean up */

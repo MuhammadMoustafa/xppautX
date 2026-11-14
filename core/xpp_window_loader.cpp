@@ -170,6 +170,8 @@ bool xpp::window::run(void (*session)())
     return api.run(session);
 }
 
+bool xpp::window::adopt_launch_document(std::vector<std::string> &) { return false; }
+
 void xpp::window::set_model(const char *path)
 {
     if (loaded) api.set_model(path);

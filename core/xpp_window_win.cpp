@@ -3,8 +3,9 @@
    procedure over the library's), the pop-out's raise and the window's place.
    The one window file that includes <windows.h> (with xpp_win.cpp and the
    other *_win.cpp files): its macros clash with core names such as max,
-   MessageBox and VARTYPE, so it includes no core header but xpp_window_internal.h. */
+   MessageBox and VARTYPE, so it includes no core header but xpp_window_internal.h and xpp_win.h. */
 #include "xpp_window_internal.h"
+#include "xpp_win.h"
 
 
 #include <algorithm>
@@ -19,25 +20,6 @@
 namespace xpp::window::platform {
 
 namespace {
-
-std::wstring wide(const std::string &s)
-{
-    int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
-    std::wstring w(n > 0 ? static_cast<size_t>(n) : 1, L'\0');
-    if (n > 0) MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &w[0], n);
-    w.resize(w.size() - 1);
-    return w;
-}
-
-/* UTF-16 to UTF-8, wide's inverse */
-std::string narrow(const wchar_t *w)
-{
-    int n = WideCharToMultiByte(CP_UTF8, 0, w, -1, nullptr, 0, nullptr, nullptr);
-    std::string s(n > 0 ? static_cast<size_t>(n) : 1, '\0');
-    if (n > 0) WideCharToMultiByte(CP_UTF8, 0, w, -1, &s[0], n, nullptr, nullptr);
-    s.resize(s.size() - 1);
-    return s;
-}
 
 /* a COM interface, released at the end of its scope */
 template <class T> struct Com {
@@ -75,31 +57,31 @@ std::optional<std::string> pick_file(void *window, const FileDialog &d)
     else
         opts |= FOS_FILEMUSTEXIST;
     dlg->SetOptions(opts);
-    if (!d.title.empty()) dlg->SetTitle(wide(d.title).c_str());
-    std::wstring name = wide(d.filter), patterns;
-    for (const std::string &e : d.exts) patterns += (patterns.empty() ? L"*" : L";*") + wide(e);
+    if (!d.title.empty()) dlg->SetTitle(xpp::win::widen(d.title).c_str());
+    std::wstring name = xpp::win::widen(d.filter), patterns;
+    for (const std::string &e : d.exts) patterns += (patterns.empty() ? L"*" : L";*") + xpp::win::widen(e);
     std::vector<COMDLG_FILTERSPEC> types;
     if (!patterns.empty()) types.push_back({name.c_str(), patterns.c_str()});
     types.push_back({L"All files (*.*)", L"*.*"});
     dlg->SetFileTypes(static_cast<UINT>(types.size()), types.data());
     dlg->SetFileTypeIndex(1);
-    if (d.save && !d.exts.empty()) dlg->SetDefaultExtension(wide(d.exts[0].substr(1)).c_str());
+    if (d.save && !d.exts.empty()) dlg->SetDefaultExtension(xpp::win::widen(d.exts[0].substr(1)).c_str());
     if (!d.dir.empty()) {
-        std::wstring dir = wide(d.dir);
+        std::wstring dir = xpp::win::widen(d.dir);
         std::replace(dir.begin(), dir.end(), L'/', L'\\');
         if (dir.size() > 3 && dir.back() == L'\\') dir.pop_back();
         Com<IShellItem> folder;
         if (SUCCEEDED(SHCreateItemFromParsingName(dir.c_str(), nullptr, __uuidof(IShellItem), folder.out())))
             dlg->SetFolder(folder.p);
     }
-    if (!d.file.empty()) dlg->SetFileName(wide(d.file).c_str());
+    if (!d.file.empty()) dlg->SetFileName(xpp::win::widen(d.file).c_str());
     HRESULT shown = dlg->Show(static_cast<HWND>(window));
     if (shown == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return std::string();
     Com<IShellItem> item;
     PWSTR path = nullptr;
     if (FAILED(shown) || FAILED(dlg->GetResult(&item.p)) || FAILED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)))
         return std::nullopt;
-    std::string picked = narrow(path);
+    std::string picked = xpp::win::narrow(path);
     CoTaskMemFree(path);
     return picked;
 }

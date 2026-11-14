@@ -627,8 +627,9 @@ difference of a line or two (a constant, a separator) may stay an `#if` in the
 primitives header. windows.h is included only in `*_win.cpp` files (those
 include no core header but their module's small ones: its macros clash with
 core names like `max`, `MessageBox`, `VARTYPE`) and never in a header;
-`core/xpp_win.cpp` is the Windows API they share (UTF-8 conversion, the console,
-handles). A new platform file gets its module in tools/depgraph.py.
+`core/xpp_win.cpp` holds only what two or more of them share (the UTF-8
+conversion); every other Windows call is in the `_win.cpp` of the module that
+uses it, under that module's own names, with no forwarding layer. A new platform file gets its module in tools/depgraph.py.
 
 XPPAUT itself (the reference program, for comparisons and benchmarks;
 maintainer, 2026-10-11: W248's agent took Windows XPPAUT for unrunnable
@@ -1191,7 +1192,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   `dir_writable`, `remove`, `copy`, `prepend` (autoX's "append": new bytes
   ahead of the file's own), `move`, and autoX's scratch folders
   (`make_temp_dir`, `remove_temp_dir`, `cleanup_stale_temp_dirs`; the
-  Windows API parts in xpp_win.cpp); a path they only read is a
+  Windows API parts in xpp_files_win.cpp); a path they only read is a
   `std::string_view`.
   The folder half (listing and its wildcard match, the file selector's
   current folder, is_dir, dir_writable, autoX's scratch folders) is
@@ -1200,7 +1201,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   `core/xpp_files_internal.h`.
   `tools/filecheck.sh` (sourcecheck) counts each core file's direct
   fopen/freopen/remove/rename/unlink/mkdir/rmdir/opendir/tmpfile calls
-  outside xpp_files, xpp_io and xpp_win against `tests/files.baseline`
+  outside xpp_files, xpp_io and the _win files against `tests/files.baseline`
   and fails on growth; the W33 sweeps take the rest to 0
   (`--update` after a drop).
 

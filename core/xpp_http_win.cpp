@@ -1,5 +1,5 @@
 /* xpp_http_internal.h on Windows: Winsock, the CRT's descriptors and pipe, rand_s and ShellExecute.
-   One of the files that include <windows.h> (xpp_win.cpp's rule): it includes no core header but
+   One of the files that include <windows.h> (the rule of the *_win.cpp files): it includes no core header but
    xpp_http_internal.h, so the macros of windows.h cannot clash with core names. */
 #include "xpp_http_internal.h"
 

@@ -33,12 +33,15 @@
 #include <string>
 #include <vector>
 
+#if !defined(XPP_WINDOW_PLUGIN) && (!defined(XPP_WINDOW) || !defined(__APPLE__))
+bool xpp::window::adopt_launch_document(std::vector<std::string> &) { return false; }
+#endif
+
 #ifndef XPP_WINDOW
 
 bool xpp::window::supported() { return false; }
 bool xpp::window::run(void (*)()) { return false; }
 void xpp::window::set_model(const char *) {}
-const char *xpp::window::launch_document() { return nullptr; }
 
 #else /* XPP_WINDOW */
 
