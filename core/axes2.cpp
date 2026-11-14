@@ -1,5 +1,6 @@
 #include "picture.h"
 #include "xpp_util.h"
+#include "session_values.h"
 #include  "axes2.h"
 
 #include <cmath>

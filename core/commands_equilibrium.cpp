@@ -9,6 +9,7 @@
 #include "graf_par.h"
 #include "numerics_settings.h"
 #include "xpp_util.h"
+#include "session_values.h"
 #include "json_number.h"
 #include "derived.h"
 #include "typed_values.h"

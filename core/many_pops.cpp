@@ -8,6 +8,7 @@
 #include <set>
 #include <utility>
 #include "xpp_util.h"
+#include "session_values.h"
 #include "xpp_ui.h"
 #include "xpp_files.h"
 #include "graphics.h"

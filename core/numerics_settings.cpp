@@ -19,6 +19,7 @@
 #include "event_registry.h"
 #include "numerics_settings.h"
 #include "xpp_util.h"
+#include "session_values.h"
 #include "data_event.h"
 #include "model_files.h"
 #include "model_features.h"

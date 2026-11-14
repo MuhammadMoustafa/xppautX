@@ -9,6 +9,7 @@
 #include "value_undo.h"
 #include "xpp_io.h"
 #include "xpp_util.h"
+#include "session_values.h"
 #include "session.h"
 #include "load_eqn.h"
 #include "model.h"

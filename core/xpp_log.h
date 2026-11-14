@@ -46,7 +46,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "xpp_io.h" /* xpp::vformat */
+#include "xpp_text.h" /* xpp::vformat */
 
 typedef enum {
     XPP_LOG_ERROR = 0,
@@ -73,10 +73,7 @@ void log_note_error();
 int log_exit_code();
 [[noreturn]] void log_exit();
 
-/* The log goes to the file path from now on: the one it
-   went to before is closed, unless that was stdout or stderr. An empty path
-   is stderr again. */
-bool log_open_file(std::string_view path);
+/* (xpp_files.h's log_open_file opens the log file: the kernel owns the log, the file system is outside it.) */
 
 /* Default is XPP_LOG_WARN. */
 void log_set_threshold(XppLogLevel level);

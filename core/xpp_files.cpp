@@ -728,3 +728,17 @@ void move(std::string_view from_view, std::string_view to_view)
    cleanup_stale_temp_dirs and list_dir are core/xpp_files_dir.cpp. */
 
 } // namespace xpp::files
+
+namespace xpp {
+
+bool log_open_file(std::string_view path)
+{
+    if (log_settings.file != nullptr && log_settings.file != stdout && log_settings.file != stderr)
+        std::fclose(log_settings.file); /* a log file of its own is closed (never stdout or stderr) */
+    log_settings.file = nullptr; /* A folder question must not log through the closed stream. */
+    if (path.empty()) return true;
+    log_settings.file = files::open_write_plain(path);
+    return log_settings.file != nullptr;
+}
+
+} // namespace xpp

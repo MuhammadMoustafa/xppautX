@@ -1,6 +1,5 @@
 /* See xpp_log.h. */
 #include "xpp_log.h"
-#include "xpp_files.h"
 #include "xpp_mem.h"
 #include <cstdio>
 #include <cstdlib>
@@ -59,24 +58,9 @@ struct WriteKeptAtExit {
 };
 const WriteKeptAtExit write_kept_at_exit;
 
-/* a log file of its own is closed (never stdout or stderr) */
-void close_log_file()
-{
-    if (log_settings.file != nullptr && log_settings.file != stdout && log_settings.file != stderr)
-        std::fclose(log_settings.file);
-}
 } // namespace
 
 LogSettings log_settings = {nullptr, nullptr};
-
-bool log_open_file(std::string_view path)
-{
-    close_log_file();
-    log_settings.file = nullptr; /* A folder question must not log through the closed stream. */
-    if (path.empty()) return true;
-    log_settings.file = xpp::files::open_write_plain(path);
-    return log_settings.file != nullptr;
-}
 
 void log_set_threshold(XppLogLevel level) { threshold = level; }
 void log_set_autox_echo(bool on) { autox_echo = on; }

@@ -80,6 +80,7 @@ ALLOWED = [
     # the process itself, about no file or command
     ('core/xpp_mem.cpp', r'out of memory', 'out of memory: the process exits'),
     ('core/xpp_io.cpp', r'out of memory', 'out of memory: the process exits'),
+    ('core/xpp_text.cpp', r'out of memory', 'out of memory: the process exits'),
     ('core/ode_read.cpp', r'out of memory', 'out of memory: the process exits'),
     ('core/xpp_math.cpp', r'Fourier transform of', 'pocketfft out of memory: the process exits'),
     ('core/ui_json.cpp', r'cannot start the input thread', 'the system refused a thread'),

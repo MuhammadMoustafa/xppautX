@@ -4,6 +4,7 @@
 #include "command_registry.h"
 #include "typed_values.h"
 #include "xpp_util.h"
+#include "session_values.h"
 #include "session.h"
 #include "model.h"
 #include "event_registry.h"

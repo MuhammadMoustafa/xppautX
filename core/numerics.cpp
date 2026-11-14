@@ -1,6 +1,7 @@
 
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "session_values.h"
 #include "adj2.h"
 #include "integrate.h"
 #include "numerics.h"

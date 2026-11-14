@@ -17,6 +17,7 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_util.h"
+#include "session_values.h"
 #include "model.h"
 #include "session.h"
 #include "many_pops.h"

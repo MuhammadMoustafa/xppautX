@@ -21,6 +21,7 @@
 #include "xpp_session.h"
 #include "xpp_zip.h"
 #include "xpp_util.h"
+#include "session_values.h"
 #include "many_pops.h"
 #include "xpp_ui.h"
 #include "graf_par.h"

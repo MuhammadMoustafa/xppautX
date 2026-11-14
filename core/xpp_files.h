@@ -341,5 +341,10 @@ public:
 private:
     std::string path_;
 };
+
+/* The log goes to the file path from now on: the one it went to before is closed, unless that
+   was stdout or stderr. An empty path is stderr again. The log (xpp_log.h) is the kernel's; its
+   file is opened here, outside it. */
+bool log_open_file(std::string_view path);
 } // namespace xpp
 

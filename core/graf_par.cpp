@@ -16,6 +16,7 @@
 
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "session_values.h"
 #include "many_pops.h"
 
 

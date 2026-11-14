@@ -5,7 +5,7 @@
 #include "../third_party/musl-bessel/bessel.h"
 
 #include "xpp_log.h"
-#include "xpp_io.h"
+#include "xpp_text.h"
 
 #include <cmath>
 #include <algorithm>

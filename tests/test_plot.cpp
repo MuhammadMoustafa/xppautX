@@ -13,6 +13,7 @@
 #include "many_pops.h"
 #include "xpp_batch.h"
 #include "xpp_util.h"
+#include "session_values.h"
 #include "line_style.h"
 #include "struct.h"
 #include <array>

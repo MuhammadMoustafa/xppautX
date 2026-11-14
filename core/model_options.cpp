@@ -15,6 +15,7 @@
 #include "odex_block.h"
 #include "odex.h"
 #include "xpp_util.h"
+#include "session_values.h"
 #include "autox_settings.h"
 #include "browse.h"
 #include "data_formats.h"

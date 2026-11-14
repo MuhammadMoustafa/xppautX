@@ -30,20 +30,23 @@ TESTS = 'tests'
 # module name -> (why these files belong together, stem patterns). A stem is a
 # file name without its extension; the first module whose pattern matches wins.
 MODULES = {
-    'foundation': ('the owners of memory, text, files, logging, errors, math and the cancel token', [
-        'xpp_io', 'xpp_io_internal', 'xpp_files', 'xpp_files_dir', 'xpp_files_internal', 'xpp_log', 'xpp_mem', 'xpp_error', 'xpp_util', 'xpp_math*', 'xpp_types',
-        'xpp_cpu', 'xpp_sha256', 'xpp_zip', 'xpp_job', 'xpp_globals', 'f2c_helpers', 'format_version']),
+    'kernel': ('the innermost ring (Discussion #808): errors and their log, memory, text formatting and the pure helpers on text, and math; it includes nothing outside itself (W726)', [
+        'xpp_error', 'xpp_log', 'xpp_mem', 'xpp_text', 'xpp_util', 'xpp_math', 'xpp_cpu']),
+    'files': ('the file system, outside the kernel: the file handles (LineReader, Writer), folders, the log file, zip and hashes', [
+        'xpp_io', 'xpp_io_internal', 'xpp_files', 'xpp_files_dir', 'xpp_files_internal', 'xpp_files_win', 'xpp_files_posix',
+        'xpp_files_linux', 'xpp_files_mac', 'xpp_sha256', 'xpp_zip']),
+    'run control': ('the cancel token and progress a computation reports to, which the front ends set', ['xpp_job']),
     'ui seam': ('the XppUi table core code calls the front end through, and the lists of choices it shows', [
-        'xpp_ui', 'menus', 'typed_values']),
+        'xpp_ui', 'xpp_types', 'menus', 'typed_values']),
     'expressions': ('the formula compiler, its evaluators, native code and derived quantities', [
         'expr', 'expr_*', 'xpp_mir', 'getvar', 'derived', 'form_ode', 'tabular']),
     'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets', [
         'model', 'model_*', 'load_eqn', 'odex', 'odex_*', 'ode_read', 'lunch-new', 'set_load', 'newpars',
         'flags', 'simplenet', 'options_panels']),
     'session': ('the Session, its stored data, display state and undo', [
-        'session', 'storage', 'display_state', 'value_undo']),
+        'session', 'session_values', 'storage', 'display_state', 'value_undo']),
     'session files': ('the session file, recordings and the settings they carry', [
-        'recx', 'snapx', 'xpp_session', 'xpp_session_*', 'session_settings']),
+        'recx', 'snapx', 'xpp_session', 'xpp_session_*', 'session_settings', 'format_version']),
     'commands': ('the command registry, its commands, keys and a model\'s buttons', [
         'command_*', 'commands_*', 'command', 'userbut', 'xpp_keymap', 'mykeydef']),
     'integrators': ('the solvers, CVODE, the right-hand side, delays and the Markov variables', [
@@ -61,17 +64,17 @@ MODULES = {
         'kinescope']),
     'animation': ('the animator and its .ani files', ['ani*', 'ani_data', 'aniparse']),
     'autoX': ('xppautX\'s continuation: its numerics, runs, diagram and settings', [
-        'autox_*', 'xAutox', 'setubv*', 'gogoautox', 'diagram*', 'conpar2']),
+        'autox_*', 'xAutox', 'setubv*', 'gogoautox', 'diagram*', 'conpar2', 'xpp_math_eispack', 'xpp_math_autox', 'f2c_helpers']),
     'protocol front end': ('the JSON protocol: input, commands, events, windows and state', [
         'json_*', 'ui_json*', 'event_*', 'series_enc', 'xpp_inbox']),
     'application': ('the program\'s start, its preferences, recent models, updates and About', [
         'xppautx_main', 'xpp_batch', 'comline', 'model_switch', 'open_model', 'xpp_about', 'xpp_prefs',
-        'xpp_recent', 'xpp_examples', 'xpp_update', 'xpp_install']),
+        'xpp_recent', 'xpp_examples', 'xpp_update', 'xpp_install', 'xpp_globals']),
     'platform': ('the system: HTTP, the window, WebView, Windows, starting a process, the page assets, and the platform files of other modules', [
-        'xpp_http*', 'xpp_https*', 'xpp_window*', 'xpp_webview', 'xpp_win', 'xpp_process*', 'xpp_assets', 'xpp_platform*', 'xpp_cpu_win', 'xpp_cpu_linux', 'xpp_cpu_mac', 'xpp_files_win', 'xpp_files_posix',
-        'xpp_files_linux', 'xpp_files_mac']),
+        'xpp_http*', 'xpp_https*', 'xpp_window*', 'xpp_webview', 'xpp_win', 'xpp_process*', 'xpp_assets', 'xpp_platform*', 'xpp_cpu_win', 'xpp_cpu_linux', 'xpp_cpu_mac']),
 }
 TESTS_MODULE = 'tests'
+KERNEL = 'kernel'   # the innermost ring: the finding at the page's top says whether it includes anything outside itself
 
 INCLUDE = re.compile(r'\s*#\s*include\s*"([^"]+)"')
 DIRECTIVE = re.compile(r'\s*#\s*(\w+)\s*(.*)')
@@ -343,6 +346,12 @@ def findings(r, data):
                    'include each other both ways.</p>')
     else:
         out.append('<p class="ok"><b>Module cycles: none.</b></p>')
+    out_of_kernel = sorted({(e[0], e[1]) for e in r['edges'] if r['module_of'].get(e[0]) == KERNEL and r['module_of'].get(e[1], KERNEL) != KERNEL})
+    if out_of_kernel:
+        out.append(f'<p class="warn"><b>The kernel includes outside itself: {len(out_of_kernel)} arcs.</b> ' + '; '.join(
+            f'{esc(a)} to {esc(b)}' for a, b in out_of_kernel[:6]) + '.</p>')
+    else:
+        out.append('<p class="ok"><b>The kernel includes nothing outside itself.</b> Errors, memory, text and math (W726).</p>')
     widest = sorted(r['reach'].items(), key=lambda kv: (-kv[1], kv[0]))[:10]
     out.append(f'<p><b>The 10 widest headers</b> (core/*.cpp that reach them, of {r["cpps"]}):</p><ol>' + ''.join(
         f'<li><code>{esc(h)}</code> {c} <span class="muted">({esc(r["module_of"][h])})</span></li>' for h, c in widest) + '</ol>')

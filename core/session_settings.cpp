@@ -31,6 +31,7 @@
 #include "xpp_io.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "session_values.h"
 #include "session.h"
 #include "phase_data.h"
 #include "integrate.h"
