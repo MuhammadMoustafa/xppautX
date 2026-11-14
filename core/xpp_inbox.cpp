@@ -9,7 +9,7 @@
    enqueue happen as one step, so sequence order is queue order) and is
    never taken by the core; lock guards the queues and is held only briefly.
    Waiting is on a condition variable, never a polling loop. This file
-   includes no core header but the small APIs of xpp_log.h and xpp_mem.h.
+   includes no core header but the small APIs of xpp_log.h, xpp_mem.h and xpp_text.h (the JSON string escape of push_open).
 
    Nothing here throws out of a thread (an allocation that fails ends the
    program: xpp::out_of_memory_now). */
