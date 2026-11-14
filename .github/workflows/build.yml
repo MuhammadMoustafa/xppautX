@@ -66,18 +66,17 @@ permissions:
   actions: write
 
 jobs:
-  # the source, not a build: encoding, script modes, stdoutcheck,
-  # formatcheck, the LTO type check and the warning count
-  # (tools/sourcecheck.sh; tools/verify.sh runs it too, locally), and web2's
-  # dist/ built from src/, types and unit tests
+  # the source, not a build (W722: three jobs, so the two builds below run
+  # beside the rules and the web checks): encoding, script modes, stdoutcheck,
+  # formatcheck and every other check that reads the source
+  # (tools/sourcecheck.sh --only rules; tools/verify.sh runs all three parts
+  # locally), and web2's dist/ built from src/, types and unit tests. No
+  # warning count: every build here passes -Werror with the flags the count
+  # used (W722), so linux-core's build already refuses what it would list.
   source:
     name: Source - rules, types and web unit tests
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',source,')
     runs-on: ubuntu-26.04
-    env:
-      CCACHE_DIR: ${{ github.workspace }}/build/ccache
-      # source: 815 compiles over several flag sets, 44 cleanups at 600M in run 43154967684 (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
-      CCACHE_MAXSIZE: 1000M
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6.4.3
@@ -87,8 +86,28 @@ jobs:
         id: node
         with:
           node-version: 24
-      # WebKitGTK: the LTO link and the warning count compile the same
-      # sources as linux-core's build, the window's included
+      - name: "Source checks: encoding, script modes, stdout, formats, options, duplication, aliases, CSS, manual"
+        run: tools/sourcecheck.sh --only rules
+      - name: "New front end: dist/ built from src/, types, unit tests"
+        if: ${{ !cancelled() && steps.node.outcome == 'success' }}
+        run: cd web2 && npm ci && npm run check && npm run typecheck && npm test
+
+  # the LTO link of the whole program: no extern whose type differs from its definition, and the option schema against that program (tools/sourcecheck.sh --only lto)
+  source-lto:
+    name: Source - LTO type check
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',source-lto,')
+    runs-on: ubuntu-26.04
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/build/ccache
+      # source-lto: 246 compiles, 130M in run 43534556462 (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
+      CCACHE_MAXSIZE: 300M
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
+      # WebKitGTK: the build compiles the same sources as linux-core's,
+      # the window's included
       - name: Runner image
         id: image
         run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
@@ -107,9 +126,9 @@ jobs:
       - name: Restore the compiler cache (W692, W716)
         uses: ./.github/actions/ccache-restore
         with:
-          prefix: ccache-source-gcc-
-      - name: "Source checks: encoding, script modes, stdout, formats, LTO types, dead code, warning count"
-        run: tools/sourcecheck.sh --warnings
+          prefix: ccache-source-lto-gcc-
+      - name: "LTO type check and option schema"
+        run: tools/sourcecheck.sh --only lto
       - name: Compiler cache hit rate
         if: ${{ always() }}
         run: ccache --show-stats
@@ -120,10 +139,56 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         with:
-          prefix: ccache-source-gcc-
-      - name: "New front end: dist/ built from src/, types, unit tests"
-        if: ${{ !cancelled() && steps.node.outcome == 'success' }}
-        run: cd web2 && npm ci && npm run check && npm run typecheck && npm test
+          prefix: ccache-source-lto-gcc-
+
+  # the dead-code link at -O0, and the global state check on its objects (tools/sourcecheck.sh --only deadcode)
+  source-deadcode:
+    name: Source - dead code and global state
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',source-deadcode,')
+    runs-on: ubuntu-26.04
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/build/ccache
+      # source-deadcode: 326 compiles, 50M in run 43534556462 (W716: a cap one job's whole build fits in, so ccache never cleans up mid-run)
+      CCACHE_MAXSIZE: 200M
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
+      # WebKitGTK: the build compiles the same sources as linux-core's,
+      # the window's included
+      - name: Runner image
+        id: image
+        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+      - name: Cache WebKitGTK apt packages
+        uses: actions/cache@v6
+        with:
+          path: ~/apt-cache
+          key: apt-webkit2gtk-4.1-dev-${{ steps.image.outputs.os }}-v1
+          restore-keys: apt-webkit2gtk-4.1-dev-${{ steps.image.outputs.os }}-
+      - name: WebKitGTK for the desktop window
+        run: |
+          mkdir -p ~/apt-cache/partial
+          sudo apt-get update
+          sudo apt-get install -y -o Dir::Cache::Archives="$HOME/apt-cache" libwebkit2gtk-4.1-dev ccache
+          sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
+      - name: Restore the compiler cache (W692, W716)
+        uses: ./.github/actions/ccache-restore
+        with:
+          prefix: ccache-source-deadcode-gcc-
+      - name: "Dead code and global state"
+        run: tools/sourcecheck.sh --only deadcode
+      - name: Compiler cache hit rate
+        if: ${{ always() }}
+        run: ccache --show-stats
+      # saved even when a check failed or the run was cancelled: the objects the build made are good either way
+      - name: Save the compiler cache, delete the older ones (W716)
+        if: ${{ always() }}
+        uses: ./.github/actions/ccache-save
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          prefix: ccache-source-deadcode-gcc-
 
   linux-core:
     name: Linux - GCC core and numerical baselines

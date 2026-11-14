@@ -41,181 +41,201 @@
 #     out code, a header nothing includes (tools/deadcheck.py)
 #   - each findings doc numbers its entries once, in order, index and
 #     headings agreeing (tools/findingscheck.py, W393)
-# Usage: tools/sourcecheck.sh [--warnings]
-#   --warnings  also count a clean build's warnings by flag and file
-#               (tools/warnings.sh; a count, it fails only if the build does)
+# Usage: tools/sourcecheck.sh [--only rules|lto|deadcode]
+#   --only      one part (W722: CI runs the three as jobs of their own, since
+#               the two builds, the LTO link and the dead-code build, are the
+#               slow part): rules = every check that reads the source, lto =
+#               the LTO type check and the option schema (they need its
+#               build), deadcode = the dead-code link and the global state
+#               check (they need its objects); no --only runs all three
 cd "$(dirname "$0")/.." || exit 1
+only=
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --only) only="$2"; shift 2 ;;
+    *) echo "sourcecheck.sh: unknown argument $1"; exit 2 ;;
+  esac
+done
+case "$only" in
+  ""|rules|lto|deadcode) ;;
+  *) echo "sourcecheck.sh: --only takes rules, lto or deadcode"; exit 2 ;;
+esac
+# part NAME: is this part of the run?
+part() { [ -z "$only" ] || [ "$only" = "$1" ]; }
 . tools/jobs.sh
 mkdir -p build || exit 1
-if ! uv run --locked python tools/cishardcheck.py; then
-  echo "CI SHARD CHECK FAILED"
-  exit 1
+if part rules; then
+  if ! uv run --locked python tools/cishardcheck.py; then
+    echo "CI SHARD CHECK FAILED"
+    exit 1
+  fi
+  if ! uv run --locked python tools/utf8check.py; then
+    echo "ENCODING CHECK FAILED"
+    exit 1
+  fi
+  # W170: captured macOS ps output exercises the shared parser on every CI source run.
+  if ! uv run --locked python tools/test_xppclient.py; then
+    echo "CHECKER UNIT TESTS FAILED"
+    exit 1
+  fi
+  if ! uv run --locked python tools/test_autoxcompare.py; then
+    echo "autoX BASELINE UNIT TESTS FAILED"
+    exit 1
+  fi
+  if ! uv run --locked python tools/test_findingscheck.py; then
+    echo "FINDINGS CHECK UNIT TESTS FAILED"
+    exit 1
+  fi
+  if ! uv run --locked python tools/test_cstrip.py; then
+    echo "COMMENT STRIPPER UNIT TESTS FAILED"
+    exit 1
+  fi
+  if ! uv run --locked python tools/findingscheck.py > build/findingscheck.out 2>&1; then
+    cat build/findingscheck.out
+    echo "FINDINGS NUMBERING CHECK FAILED"
+    exit 1
+  fi
+  tail -1 build/findingscheck.out
+  # a script committed from Windows loses its executable bit: CI's checkout
+  # then cannot run it ("Permission denied"), which a Windows or WSL run on
+  # /mnt/c never shows
+  noexec=$(git ls-files -s -- '*.sh' 2>/dev/null | awk '$1 != "100755" {print $4}')
+  if [ -n "$noexec" ]; then
+    echo "scripts not executable in git (git update-index --chmod=+x):" $noexec
+    echo "SCRIPT MODE CHECK FAILED"
+    exit 1
+  fi
+  # The core, tests and build tools are C++ (W27, W109f, W173).
+  # A new source there is a .cpp; vendored third-party C is separate.
+  csrc=$(ls core/*.c tests/*.c tools/*.c 2>/dev/null)
+  if [ -n "$csrc" ]; then
+    echo "C sources in core/, tests/ or tools/ (they are C++: git mv to .cpp):" $csrc
+    echo "C SOURCE CHECK FAILED"
+    exit 1
+  fi
+  # W304 (#363): terminal questions belong only to the dialog owner, including autoX.
+  questions=$(grep -nE '(ask_terminal|confirm_terminal)[[:space:]]*[(]' core/*.cpp core/*.h | grep -v '^core/xpp_ui.cpp:' || true)
+  policy_reads=$(grep -nE 'batch_options[.](yes|check)' core/*.cpp core/*.h | grep -v '^core/xpp_ui.cpp:' | grep -vE 'batch_options[.](yes|check)[[:space:]]*=[^=]' || true)
+  if [ -n "$questions$policy_reads" ]; then
+    printf '%s\n' "$questions" "$policy_reads"
+    echo "QUESTION OWNER CHECK FAILED"
+    exit 1
+  fi
+  if ! sh tools/stdoutcheck.sh; then
+    echo "STDOUT CHECK FAILED"
+    exit 1
+  fi
+  if ! sh tools/formatcheck.sh; then
+    echo "FORMAT CHECK FAILED"
+    exit 1
+  fi
+  if ! sh tools/alloccheck.sh; then
+    echo "ALLOC CHECK FAILED"
+    exit 1
+  fi
+  if ! sh tools/filecheck.sh --check; then
+    echo "FILE CHECK FAILED"
+    exit 1
+  fi
+  if ! uv run --locked python tools/errorcheck.py --check > build/errorcheck.out 2>&1; then
+    tail -40 build/errorcheck.out
+    echo "ERROR PLACE CHECK FAILED"
+    exit 1
+  fi
+  tail -1 build/errorcheck.out
+  if ! sh tools/literalcheck.sh; then
+    echo "LITERAL CHECK FAILED"
+    exit 1
+  fi
+  if ! sh tools/sleepcheck.sh; then
+    echo "SLEEP CHECK FAILED"
+    exit 1
+  fi
+  if ! sh tools/mathcheck.sh; then
+    echo "MATH CHECK FAILED"
+    exit 1
+  fi
+  if ! sh tools/numbercheck.sh; then
+    echo "NUMBER CHECK FAILED"
+    exit 1
+  fi
+  if ! sh tools/externcheck.sh; then
+    echo "EXTERN C CHECK FAILED"
+    exit 1
+  fi
+  if ! sh tools/sessioncheck.sh; then
+    echo "SESSION CHECK FAILED"
+    exit 1
+  fi
+  if ! sh tools/dupcheck.sh --check > build/dupcheck.out 2>&1; then
+    tail -60 build/dupcheck.out
+    echo "DUPLICATION CHECK FAILED"
+    exit 1
+  fi
+  tail -1 build/dupcheck.out
+  if ! sh tools/optioncheck.sh --check; then
+    echo "OPTION NAMES CHECK FAILED"
+    exit 1
+  fi
+  if ! sh tools/aliascheck.sh --check > build/aliascheck.out 2>&1; then
+    tail -40 build/aliascheck.out
+    echo "ALIAS CHECK FAILED"
+    exit 1
+  fi
+  tail -1 build/aliascheck.out
+  if ! sh tools/csscheck.sh --check web2/src > build/csscheck.out 2>&1; then
+    tail -40 build/csscheck.out
+    echo "CSS CHECK FAILED"
+    exit 1
+  fi
+  tail -1 build/csscheck.out
+  if ! sh tools/manualcheck.sh --check > build/manualcheck.out 2>&1; then
+    tail -40 build/manualcheck.out
+    echo "MANUAL CHECK FAILED"
+    exit 1
+  fi
+  tail -1 build/manualcheck.out
+  if ! sh tools/colorcheck.sh --check > build/colorcheck.out 2>&1; then
+    tail -40 build/colorcheck.out
+    echo "COLOR CHECK FAILED"
+    exit 1
+  fi
+  tail -1 build/colorcheck.out
+  if ! uv run --locked python tools/deadcheck.py --check > build/deadcheck.out 2>&1; then
+    tail -40 build/deadcheck.out
+    echo "DEAD DECLARATION CHECK FAILED"
+    exit 1
+  fi
+  tail -1 build/deadcheck.out
 fi
-if ! uv run --locked python tools/utf8check.py; then
-  echo "ENCODING CHECK FAILED"
-  exit 1
+if part lto; then
+  # make ltocheck's own sub-make, invoked via $(MAKE), shares the jobserver
+  # this -j sets up, so its build/lto compile parallelizes too
+  if make -j"$JOBS" ltocheck > build/ltocheck.log 2>&1; then
+    echo "lto link ok: no types differ across files"
+  else
+    tail -30 build/ltocheck.log
+    echo "LTO CHECK FAILED"
+    exit 1
+  fi
+  # the schema of the .odex options block is the option table's (W281)
+  if ! sh tools/optionschema.sh --check --bin build/lto/xppautX; then
+    echo "OPTION SCHEMA CHECK FAILED"
+    exit 1
+  fi
 fi
-# W170: captured macOS ps output exercises the shared parser on every CI source run.
-if ! uv run --locked python tools/test_xppclient.py; then
-  echo "CHECKER UNIT TESTS FAILED"
-  exit 1
-fi
-if ! uv run --locked python tools/test_autoxcompare.py; then
-  echo "autoX BASELINE UNIT TESTS FAILED"
-  exit 1
-fi
-if ! uv run --locked python tools/test_findingscheck.py; then
-  echo "FINDINGS CHECK UNIT TESTS FAILED"
-  exit 1
-fi
-if ! uv run --locked python tools/test_cstrip.py; then
-  echo "COMMENT STRIPPER UNIT TESTS FAILED"
-  exit 1
-fi
-if ! uv run --locked python tools/findingscheck.py > build/findingscheck.out 2>&1; then
-  cat build/findingscheck.out
-  echo "FINDINGS NUMBERING CHECK FAILED"
-  exit 1
-fi
-tail -1 build/findingscheck.out
-# a script committed from Windows loses its executable bit: CI's checkout
-# then cannot run it ("Permission denied"), which a Windows or WSL run on
-# /mnt/c never shows
-noexec=$(git ls-files -s -- '*.sh' 2>/dev/null | awk '$1 != "100755" {print $4}')
-if [ -n "$noexec" ]; then
-  echo "scripts not executable in git (git update-index --chmod=+x):" $noexec
-  echo "SCRIPT MODE CHECK FAILED"
-  exit 1
-fi
-# The core, tests and build tools are C++ (W27, W109f, W173).
-# A new source there is a .cpp; vendored third-party C is separate.
-csrc=$(ls core/*.c tests/*.c tools/*.c 2>/dev/null)
-if [ -n "$csrc" ]; then
-  echo "C sources in core/, tests/ or tools/ (they are C++: git mv to .cpp):" $csrc
-  echo "C SOURCE CHECK FAILED"
-  exit 1
-fi
-# W304 (#363): terminal questions belong only to the dialog owner, including autoX.
-questions=$(grep -nE '(ask_terminal|confirm_terminal)[[:space:]]*[(]' core/*.cpp core/*.h | grep -v '^core/xpp_ui.cpp:' || true)
-policy_reads=$(grep -nE 'batch_options[.](yes|check)' core/*.cpp core/*.h | grep -v '^core/xpp_ui.cpp:' | grep -vE 'batch_options[.](yes|check)[[:space:]]*=[^=]' || true)
-if [ -n "$questions$policy_reads" ]; then
-  printf '%s\n' "$questions" "$policy_reads"
-  echo "QUESTION OWNER CHECK FAILED"
-  exit 1
-fi
-if ! sh tools/stdoutcheck.sh; then
-  echo "STDOUT CHECK FAILED"
-  exit 1
-fi
-if ! sh tools/formatcheck.sh; then
-  echo "FORMAT CHECK FAILED"
-  exit 1
-fi
-if ! sh tools/alloccheck.sh; then
-  echo "ALLOC CHECK FAILED"
-  exit 1
-fi
-if ! sh tools/filecheck.sh --check; then
-  echo "FILE CHECK FAILED"
-  exit 1
-fi
-if ! uv run --locked python tools/errorcheck.py --check > build/errorcheck.out 2>&1; then
-  tail -40 build/errorcheck.out
-  echo "ERROR PLACE CHECK FAILED"
-  exit 1
-fi
-tail -1 build/errorcheck.out
-if ! sh tools/literalcheck.sh; then
-  echo "LITERAL CHECK FAILED"
-  exit 1
-fi
-if ! sh tools/sleepcheck.sh; then
-  echo "SLEEP CHECK FAILED"
-  exit 1
-fi
-if ! sh tools/mathcheck.sh; then
-  echo "MATH CHECK FAILED"
-  exit 1
-fi
-if ! sh tools/numbercheck.sh; then
-  echo "NUMBER CHECK FAILED"
-  exit 1
-fi
-if ! sh tools/externcheck.sh; then
-  echo "EXTERN C CHECK FAILED"
-  exit 1
-fi
-if ! sh tools/sessioncheck.sh; then
-  echo "SESSION CHECK FAILED"
-  exit 1
-fi
-# make ltocheck's own sub-make, invoked via $(MAKE), shares the jobserver
-# this -j sets up, so its build/lto compile parallelizes too
-if make -j"$JOBS" ltocheck > build/ltocheck.log 2>&1; then
-  echo "lto link ok: no types differ across files"
-else
-  tail -30 build/ltocheck.log
-  echo "LTO CHECK FAILED"
-  exit 1
-fi
-# the schema of the .odex options block is the option table's (W281)
-if ! sh tools/optionschema.sh --check --bin build/lto/xppautX; then
-  echo "OPTION SCHEMA CHECK FAILED"
-  exit 1
-fi
-if ! sh tools/deadcode.sh --check > build/deadcode.out 2>&1; then
-  tail -40 build/deadcode.out
-  echo "DEAD CODE CHECK FAILED"
-  exit 1
-fi
-tail -1 build/deadcode.out
-# the objects deadcode.sh just built in build/deadcode
-if ! sh tools/globalcheck.sh --check --builddir build/deadcode > build/globalcheck.out 2>&1; then
-  tail -40 build/globalcheck.out
-  echo "GLOBAL STATE CHECK FAILED"
-  exit 1
-fi
-tail -1 build/globalcheck.out
-if ! sh tools/dupcheck.sh --check > build/dupcheck.out 2>&1; then
-  tail -60 build/dupcheck.out
-  echo "DUPLICATION CHECK FAILED"
-  exit 1
-fi
-tail -1 build/dupcheck.out
-if ! sh tools/optioncheck.sh --check; then
-  echo "OPTION NAMES CHECK FAILED"
-  exit 1
-fi
-if ! sh tools/aliascheck.sh --check > build/aliascheck.out 2>&1; then
-  tail -40 build/aliascheck.out
-  echo "ALIAS CHECK FAILED"
-  exit 1
-fi
-tail -1 build/aliascheck.out
-if ! sh tools/csscheck.sh --check web2/src > build/csscheck.out 2>&1; then
-  tail -40 build/csscheck.out
-  echo "CSS CHECK FAILED"
-  exit 1
-fi
-tail -1 build/csscheck.out
-if ! sh tools/manualcheck.sh --check > build/manualcheck.out 2>&1; then
-  tail -40 build/manualcheck.out
-  echo "MANUAL CHECK FAILED"
-  exit 1
-fi
-tail -1 build/manualcheck.out
-if ! sh tools/colorcheck.sh --check > build/colorcheck.out 2>&1; then
-  tail -40 build/colorcheck.out
-  echo "COLOR CHECK FAILED"
-  exit 1
-fi
-tail -1 build/colorcheck.out
-if ! uv run --locked python tools/deadcheck.py --check > build/deadcheck.out 2>&1; then
-  tail -40 build/deadcheck.out
-  echo "DEAD DECLARATION CHECK FAILED"
-  exit 1
-fi
-tail -1 build/deadcheck.out
-if [ "$1" = --warnings ]; then
-  sh tools/warnings.sh || exit 1
+if part deadcode; then
+  if ! sh tools/deadcode.sh --check > build/deadcode.out 2>&1; then
+    tail -40 build/deadcode.out
+    echo "DEAD CODE CHECK FAILED"
+    exit 1
+  fi
+  tail -1 build/deadcode.out
+  # the objects deadcode.sh just built in build/deadcode
+  if ! sh tools/globalcheck.sh --check --builddir build/deadcode > build/globalcheck.out 2>&1; then
+    tail -40 build/globalcheck.out
+    echo "GLOBAL STATE CHECK FAILED"
+    exit 1
+  fi
+  tail -1 build/globalcheck.out
 fi

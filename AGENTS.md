@@ -247,10 +247,10 @@ timed study:
   10 GB limit and GitHub evicted master's), printing `ccache -s` (the run's own
   hit rate: the stats are zeroed after the restore). A ci/** branch restores
   master's caches and saves none. Each cap fits one job's whole build, so ccache
-  never cleans up mid-run (1000 MB source, linux-core and linux-ui; 900 linux
+  never cleans up mid-run (1000 MB linux-core and linux-ui; 300 source-lto; 200 source-deadcode; 900 linux
   sanitizers; 800 windows-core; 700 macos sanitizers; 500 macos-core, macos-ui,
   windows-ui, windows-clang sanitizers; 400 windows-clang): the saved ones sum to
-  6.3 GB, with the toolchain and apt caches under 8 GB. A `-ui` job restores its
+  6.0 GB (the old `source` job's 1000 MB, which held three builds, is the two caps of 300 and 200 MB, run 43534556462's caches being 130 and 50 MB), with the toolchain and apt caches under 8 GB. A `-ui` job restores its
   `-core` job's and a sanitizer matrix saves from its first shard only. release.yml sets
   `CCACHE=` (empty) and builds clean, as does `make CCACHE=`;
   `tools/heavy.sh --alone` sets
@@ -335,9 +335,11 @@ calls (W32b, W33).
 
 verify.sh's checks about the source rather than the build (UTF-8, the
 scripts' executable bit, stdoutcheck, formatcheck, literalcheck, sessioncheck, mathcheck, the LTO
-type check, the dead-code checks, the global state check, the duplication check, optioncheck: an option named outside the option table, W293) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
-`--warnings`: tools/warnings.sh's count, and web2's dist/types/unit
-tests), and its linux-core job runs `verify.sh --no-source-checks`. Every
+type check, the dead-code checks, the global state check, the duplication check, optioncheck: an option named outside the option table, W293) are `tools/sourcecheck.sh`; CI runs them once, in three jobs
+of `sourcecheck.sh --only` (W722, so the two builds run beside the rest: `source`
+is the rules and web2's dist/types/unit tests, `source-lto` the LTO link and the
+option schema, `source-deadcode` the dead-code link and the global state check;
+no `--only` runs all three, as verify.sh does), and its linux-core job runs `verify.sh --no-source-checks`. Every
 platform runs the same behaviour checks against its own build (`<platform>-core`)
 and web2check against it (`<platform>-ui`), for linux, windows and macos;
 `windows-clang` runs windows-core's checks against a clang build (its
@@ -551,7 +553,9 @@ sources). The tree builds with 0 warnings (WSL gcc 15, MSYS2 UCRT64 gcc 16
 and MSYS2 clang 22):
 verify.sh builds with plain `make`, whose default `-Werror` makes every warning
 an error; `tools/warnings.sh` (WERROR=0) counts the warnings of a build by
-flag and file.
+flag and file, by hand or `verify.sh --clean-warnings`: CI does
+not run it (W722), since it builds `-g -O2` with the same flags as linux-core's
+-Werror build, so what it would count that build already refuses.
 
 `sudo` inside WSL needs the user's password; apt installs must be run by the user.
 Windows 10 1903 or later and Windows 11 are the only Windows versions supported (maintainer, 2026-10-24): the manifest's activeCodePage UTF-8 is relied on, conversions name `CP_UTF8`, and no code serves an older version.
