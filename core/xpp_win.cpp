@@ -8,13 +8,14 @@
 
 namespace xpp::win {
 
-std::wstring widen(std::string_view text)
+std::optional<std::wstring> widen(std::string_view text, InvalidUtf8 invalid)
 {
-    if (text.empty()) return {};
-    const int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), nullptr, 0);
-    if (n <= 0) return {};
+    if (text.empty()) return std::wstring{};
+    const DWORD flags = invalid == InvalidUtf8::refuse ? MB_ERR_INVALID_CHARS : 0;
+    const int n = MultiByteToWideChar(CP_UTF8, flags, text.data(), static_cast<int>(text.size()), nullptr, 0);
+    if (n <= 0) return std::nullopt;
     std::wstring wide(static_cast<size_t>(n), L'\0');
-    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), wide.data(), n);
+    MultiByteToWideChar(CP_UTF8, flags, text.data(), static_cast<int>(text.size()), wide.data(), n);
     return wide;
 }
 

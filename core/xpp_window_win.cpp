@@ -21,6 +21,13 @@ namespace xpp::window::platform {
 
 namespace {
 
+/* the dialog's text as the Windows API takes it: what the page sent, shown, so bytes
+   that are not UTF-8 become U+FFFD rather than an empty field */
+std::wstring dialog_text(std::string_view text)
+{
+    return *xpp::win::widen(text, xpp::win::InvalidUtf8::replace);
+}
+
 /* a COM interface, released at the end of its scope */
 template <class T> struct Com {
     T *p = nullptr;
@@ -57,24 +64,24 @@ std::optional<std::string> pick_file(void *window, const FileDialog &d)
     else
         opts |= FOS_FILEMUSTEXIST;
     dlg->SetOptions(opts);
-    if (!d.title.empty()) dlg->SetTitle(xpp::win::widen(d.title).c_str());
-    std::wstring name = xpp::win::widen(d.filter), patterns;
-    for (const std::string &e : d.exts) patterns += (patterns.empty() ? L"*" : L";*") + xpp::win::widen(e);
+    if (!d.title.empty()) dlg->SetTitle(dialog_text(d.title).c_str());
+    std::wstring name = dialog_text(d.filter), patterns;
+    for (const std::string &e : d.exts) patterns += (patterns.empty() ? L"*" : L";*") + dialog_text(e);
     std::vector<COMDLG_FILTERSPEC> types;
     if (!patterns.empty()) types.push_back({name.c_str(), patterns.c_str()});
     types.push_back({L"All files (*.*)", L"*.*"});
     dlg->SetFileTypes(static_cast<UINT>(types.size()), types.data());
     dlg->SetFileTypeIndex(1);
-    if (d.save && !d.exts.empty()) dlg->SetDefaultExtension(xpp::win::widen(d.exts[0].substr(1)).c_str());
+    if (d.save && !d.exts.empty()) dlg->SetDefaultExtension(dialog_text(d.exts[0].substr(1)).c_str());
     if (!d.dir.empty()) {
-        std::wstring dir = xpp::win::widen(d.dir);
+        std::wstring dir = dialog_text(d.dir);
         std::replace(dir.begin(), dir.end(), L'/', L'\\');
         if (dir.size() > 3 && dir.back() == L'\\') dir.pop_back();
         Com<IShellItem> folder;
         if (SUCCEEDED(SHCreateItemFromParsingName(dir.c_str(), nullptr, __uuidof(IShellItem), folder.out())))
             dlg->SetFolder(folder.p);
     }
-    if (!d.file.empty()) dlg->SetFileName(xpp::win::widen(d.file).c_str());
+    if (!d.file.empty()) dlg->SetFileName(dialog_text(d.file).c_str());
     HRESULT shown = dlg->Show(static_cast<HWND>(window));
     if (shown == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return std::string();
     Com<IShellItem> item;

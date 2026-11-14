@@ -41,7 +41,7 @@ constexpr DWORD BODY_PIECE_BYTES = 64 * 1024; /* read this much of the body at a
 
 Result<Reply> get(std::string_view url, const Chunk &chunk)
 {
-    const std::wstring wide_url = win::widen(url);
+    const std::wstring wide_url = win::widen(url, win::InvalidUtf8::refuse).value_or(std::wstring{});
     URL_COMPONENTS parts{};
     parts.dwStructSize = sizeof parts;
     parts.dwSchemeLength = parts.dwHostNameLength = parts.dwUrlPathLength = parts.dwExtraInfoLength = static_cast<DWORD>(-1);

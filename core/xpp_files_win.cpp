@@ -35,9 +35,9 @@ int open_plain(const char *path, bool create, bool binary, unsigned long long &s
 {
     /* The core's paths are UTF-8, as the narrow calls beside this one read
        them under the manifest's activeCodePage UTF-8 (assets/xppautx.rc). */
-    const std::wstring wide = xpp::win::widen(path);
-    if (wide.empty()) { errno = EINVAL; return -1; }
-    HANDLE h = CreateFileW(wide.c_str(), create || overwrite ? GENERIC_WRITE : GENERIC_READ,
+    const std::optional<std::wstring> wide = xpp::win::widen(path, xpp::win::InvalidUtf8::refuse);
+    if (!wide) { errno = EINVAL; return -1; }
+    HANDLE h = CreateFileW(wide->c_str(), create || overwrite ? GENERIC_WRITE : GENERIC_READ,
                           FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
                           create ? CREATE_NEW : overwrite ? OPEN_ALWAYS : OPEN_EXISTING,
                           FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
@@ -50,7 +50,7 @@ int open_plain(const char *path, bool create, bool binary, unsigned long long &s
         /* a folder or a folder's junction cannot be opened without backup
            semantics: denied, which names it a refused kind, not an I/O error
            (only the error's name: nothing was opened) */
-        const DWORD a = e == ERROR_ACCESS_DENIED ? GetFileAttributesW(wide.c_str()) : INVALID_FILE_ATTRIBUTES;
+        const DWORD a = e == ERROR_ACCESS_DENIED ? GetFileAttributesW(wide->c_str()) : INVALID_FILE_ATTRIBUTES;
         if (a != INVALID_FILE_ATTRIBUTES && (a & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT))) {
             errno = ELOOP;
             return -1;
