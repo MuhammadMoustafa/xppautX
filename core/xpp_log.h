@@ -73,7 +73,6 @@ void log_note_error();
 int log_exit_code();
 [[noreturn]] void log_exit();
 
-/* (xpp_files.h's log_open_file opens the log file: the kernel owns the log, the file system is outside it.) */
 
 /* Default is XPP_LOG_WARN. */
 void log_set_threshold(XppLogLevel level);
