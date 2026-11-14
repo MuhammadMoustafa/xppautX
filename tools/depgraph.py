@@ -34,7 +34,7 @@ TESTS = 'tests'
 # module name -> (why these files belong together, stem patterns). A stem is a
 # file name without its extension; a module naming a stem exactly wins, else the first whose pattern matches.
 MODULES = {
-    'kernel': ('the innermost ring (Discussion #808): errors (the failure of a load among them, model_failed) and their log, memory, text formatting and the pure helpers on text (the JSON number writer and reader among them: text in, text out), a file of ours read as lines from the text it is given (xpp_lines, W731), the text of a file name (xpp_path) and the FileSystem and Sink the inner rings read and write through (xpp_fs: an interface the kernel owns, the files module implements, W731), bytes in and bytes out (zip and gzip archives, SHA-256: W731 moved them here, they open no file), and math; it includes nothing outside itself (W726)', [
+    'kernel': ('the innermost ring (Discussion #808): errors (the failure of a load among them, model_failed) and their log, memory, text formatting and the pure helpers on text (the JSON number writer and reader among them: text in, text out), a file of ours read as lines and numbers from the text it is given (xpp_lines: Lines and TokenReader, W731, W739), the text of a file name (xpp_path) and the FileSystem and Sink the inner rings read and write through (xpp_fs: an interface the kernel owns, the files module implements, W731), bytes in and bytes out (zip and gzip archives, SHA-256: W731 moved them here, they open no file), and math; it includes nothing outside itself (W726)', [
         'xpp_error', 'model_failed', 'xpp_log', 'xpp_mem', 'xpp_text', 'xpp_lines', 'xpp_path', 'xpp_fs', 'xpp_zip', 'xpp_sha256', 'xpp_util', 'xpp_math', 'xpp_cpu', 'json_number', 'json_reader']),
     'files': ('the file system, outside the kernel: the file handles (LineReader, Writer), folders, the log file, and the files command\'s result as the protocol shows it (json_files)', [
         'xpp_io', 'xpp_io_internal', 'xpp_files', 'xpp_files_dir', 'xpp_files_internal', 'xpp_files_win', 'xpp_files_posix',
@@ -122,7 +122,6 @@ ALLOWLIST = {
     ('animation', 'session files'): (2, 'W737'),
     ('autoX', 'commands'): (2, 'W737'),
     ('autoX', 'export'): (1, 'W737'),
-    ('autoX', 'files'): (13, 'W739'),
     ('autoX', 'session'): (21, 'W732'),
     ('autoX', 'session files'): (3, 'W737'),
     ('commands', 'application'): (1, 'W737'),

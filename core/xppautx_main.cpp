@@ -87,17 +87,6 @@
 #include "autox_state.h"
 #include "xpp_error.h"
 
-/* autoX's files in a directory of this session's own, removed at exit
-   (issue #11); a model's --silent command list runs no autoX */
-static void start_autox_dir(void)
-{
-    std::string &dir = xpp::client_session().autox_state->dir;
-    dir = xpp::files::make_temp_dir();
-    /* at exit the folder is the session list's client's: every load hands
-       it on to the Session it makes (session.cpp) */
-    if (!dir.empty()) atexit([] { xpp::cleanup_autox_dir(xpp::client_session()); });
-}
-
 /* --help: the modes, then the options that go with them */
 static const char *const usage_head =
     "usage: xppautX [MODE] [--port N] [--verbose|--debug] file.ode [xppaut options]\n"
@@ -147,6 +136,17 @@ static struct {
     xpp::Result<xpp::prefs::Preferences> prefs;
     xpp::LocalFileSystem files; /* the disk: every load and the Models it makes read and write through it (xpp_fs.h) */
 } startup;
+
+/* autoX's files in a directory of this session's own, removed at exit
+   (issue #11); a model's --silent command list runs no autoX */
+static void start_autox_dir(void)
+{
+    std::string &dir = xpp::client_session().autox_state->dir;
+    dir = xpp::files::make_temp_dir();
+    /* at exit the folder is the session list's client's: every load hands
+       it on to the Session it makes (session.cpp) */
+    if (!dir.empty()) atexit([] { xpp::cleanup_autox_dir(startup.files, xpp::client_session()); });
+}
 
 /* what the front end's hello carries that only the program's start knows (ui_json.h) */
 static xpp::HelloInfo hello_info()

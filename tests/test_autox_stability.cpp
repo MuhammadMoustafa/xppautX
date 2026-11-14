@@ -194,12 +194,9 @@ TEST_CASE("test_autox_stability")
     char *argv[] = {name, file, nullptr};
     CHECK(load_args(2, argv, 1).has_value());
     auto &session = xpp::client_session();
-    xpp::TempDir temp;
-    xpp::UniqueFile diagnostics(xpp::files::open_stream(temp.path() + "/stability.log", "w"));
     AutoxRun run;
     autox_bind_session(run, session);
     run.parameter_count = session.autox_state->parameter_layout.size();
-    run.fp9 = diagnostics.get();
     iap_type iap{};
     iap.run = &run;
     iap.ibr = 1;
@@ -365,7 +362,6 @@ TEST_CASE("test_autox_stability")
     xpp::autox_stability_multipliers_restored(actual, iap, rotation.data(), minus_identity.data());
     CHECK(xpp::autox_stability_for(actual, 1, 6, r, i) == 1);
     CHECK(near(r[0], 0) && near(r[1], 0) && near(std::fabs(i[0]), 0.75) && near(i[0], -i[1]));
-    run.fp9 = nullptr;
 
     TEST_REPORT("autox_stability");
 }

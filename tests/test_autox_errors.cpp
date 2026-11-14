@@ -6,7 +6,6 @@
    the dimension check (xppautX never frees more than a few parameters),
    a singular solve, and the BLAS argument checks (autoX always calls them
    with arguments in range). */
-#include "stream_lines.h"
 #include "xpptest.h"
 #include "session.h"
 #include "autox_state.h"
@@ -62,35 +61,9 @@ TEST_CASE("test_autox_errors")
         CHECK(e.error.place.file == located.place.file && e.error.place.line == 12);
         CHECK(e.error.place.col == 3 && e.error.place.source == located.place.source);
     }
-    /* gauss_eliminate writes its pivots to fort.9 */
-    FILE *fp9 = std::tmpfile();
+    /* gauss_eliminate writes its pivots to the run's diagnostics (fort.9) */
     AutoxRun run;
-    run.fp9 = fp9;
-
-    CHECK(fp9 != nullptr);
-    /* Explicit text mode exercises Windows' translated newline positions. */
-    {
-        const std::string path="build/test_autox_positions.txt";
-        xpp::UniqueFile positions(xpp::files::open_stream(path, "w+"));
-        CHECK(positions != nullptr);
-        xpp::print(positions.get(), "first\nsecond\n");
-        const auto end=xpp::tell_stream(positions.get(), path);
-        CHECK(end && *end > 0);
-        CHECK(xpp::seek_stream(positions.get(), 0, path).has_value());
-        StreamLines reader(positions.get());
-        CHECK(reader.next() == "first");
-        const auto second=xpp::tell_stream(positions.get(), path);
-        CHECK(second && *second > 0);
-        CHECK(reader.next() == "second");
-        CHECK(!reader.next());
-        CHECK(xpp::seek_stream(positions.get(), *second, path).has_value());
-        CHECK(reader.next() == "second");
-        const auto bad_seek=xpp::seek_stream(positions.get(), -1, path);
-        CHECK(!bad_seek && bad_seek.error().place.file == path);
-        CHECK(xpp::seek_stream(positions.get(), 0, path).has_value() && !std::feof(positions.get()));
-    }
-    CHECK(xpp::files::remove("build/test_autox_positions.txt") == 0);
-
+    std::string diagnostics;
     /* check_dimensions: more free parameters than autoX's arrays hold */
     iap_type iap{};
     iap.run = &run;
@@ -118,10 +91,10 @@ TEST_CASE("test_autox_errors")
     std::array<double, 4> a{1, 2, 2, 4};
     std::array<double, 2> u{}, f{1, 1};
     double det = 0;
-    CHECK(has(failure([&] { xpp::gauss_eliminate(nullptr, 0, 2, 2, a.data(), 1, 2, u.data(), 2, f.data(), &det); }), "division by zero"));
+    CHECK(has(failure([&] { xpp::gauss_eliminate(diagnostics, 0, 2, 2, a.data(), 1, 2, u.data(), 2, f.data(), &det); }), "division by zero"));
     std::array<double, 4> b{2, 0, 0, 4};
     f = {2, 4};
-    CHECK(failure([&] { xpp::gauss_eliminate(nullptr, 0, 2, 2, b.data(), 1, 2, u.data(), 2, f.data(), &det); }).empty());
+    CHECK(failure([&] { xpp::gauss_eliminate(diagnostics, 0, 2, 2, b.data(), 1, 2, u.data(), 2, f.data(), &det); }).empty());
     CHECK(u[0] == 1 && u[1] == 1);
 
     /* householder_compute, householder_apply: Householder arguments out of range */
@@ -150,7 +123,5 @@ TEST_CASE("test_autox_errors")
         failure([&] { xpp::matrix_multiply("N", "N", &m, &nn, &kk, &one, a.data(), &ld, b.data(), &ld, &zero, c.data(), &ld, 1, 1); });
     CHECK(has(blas, "DGEMM") && has(blas, "parameter number 3"));
 
-    run.fp9 = nullptr;
-    std::fclose(fp9);
     TEST_REPORT("autox_errors");
 }

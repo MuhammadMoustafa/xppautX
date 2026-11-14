@@ -25,6 +25,7 @@
 #include <cstddef>
 
 #include "xpp_error.h"
+#include "xpp_fs.h"
 
 namespace xpp {
 
@@ -78,8 +79,8 @@ struct Session; /* session.h */
 
 /* the text of a script file read whole: the script, or the error at the line and value that is wrong */
 Result<AutoxScript> autox_script_read(std::string_view text, const std::string &file);
-/* the file's bytes, then autox_script_read */
-Result<AutoxScript> autox_script_load(const std::string &file);
+/* the file's bytes, read through fs, then autox_script_read */
+Result<AutoxScript> autox_script_load(FileSystem &fs, const std::string &file);
 
 /* the autox.run line of a run: its start the stored point of type `type` and (diagram-wide) index `index`, or the current
    state when type is empty */

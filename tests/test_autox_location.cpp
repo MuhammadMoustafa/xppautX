@@ -161,11 +161,9 @@ TEST_CASE("test_autox_location")
     CHECK(load_args(2, argv, 1).has_value());
     auto &s = xpp::client_session();
     xpp::TempDir temp;
-    xpp::UniqueFile diagnostics(xpp::files::open_stream(temp.path() + "/location.log", "w"));
     AutoxRun run;
     autox_bind_session(run, s);
     run.parameter_count = s.autox_state->parameter_layout.size();
-    run.fp9 = diagnostics.get();
     iap_type iap{};
     iap.run = &run;
     iap.ndim = iap.ndm = iap.nfpr = 1;
@@ -365,7 +363,6 @@ TEST_CASE("test_autox_location")
         CHECK(error == "Branch 1 point 2: nonfinite autoX solution");
         CHECK(s.diagram->points.size() == count && !s.autox_state->diag_flag);
     }
-    run.fp9 = nullptr;
     // Two UZ tests cross in the same step on u=p. The farther mark is
     // tested first, then the second locator moves back past it. Its sample
     // must be recomputed, so the next continuation step finds it again.

@@ -83,14 +83,6 @@ template <class T> void fold(std::uint64_t &digest, const T &value)
     }
 }
 
-std::string contents(FILE *file)
-{
-    std::rewind(file);
-    std::string text;
-    for (int c; (c = std::fgetc(file)) != EOF;) text += static_cast<char>(c);
-    return text;
-}
-
 template <class F> std::string failure(F call)
 {
     try { call(); }
@@ -104,10 +96,8 @@ std::uint64_t solve(std::vector<double> input, std::ptrdiff_t rhs, bool expect_f
     auto a = input;
     std::array<double, 6> f{.3, -2., 4., 1., 0., -3.}, u{};
     double det = 0.;
-    xpp::UniqueFile log(std::tmpfile());
-    CHECK(log);
-    if (!log) return digest;
-    const auto error = failure([&] { xpp::gauss_eliminate(log.get(), xpp::autox_ge_pivot_iid, n, n, a.data(), rhs, n, u.data(), n, f.data(), &det); });
+    std::string log;
+    const auto error = failure([&] { xpp::gauss_eliminate(log, xpp::autox_ge_pivot_iid, n, n, a.data(), rhs, n, u.data(), n, f.data(), &det); });
     // W498 adds the pivot diagnostic; keep the numerical digest and verify the new detail separately.
     if(expect_failure)CHECK(error.ends_with(" (smallest pivot 0 < 1e-30)"));
     fold(digest, error.substr(0,error.find(" (smallest pivot")));
@@ -116,7 +106,7 @@ std::uint64_t solve(std::vector<double> input, std::ptrdiff_t rhs, bool expect_f
        swapped in place), no output; the digests without it were checked
        equal to the pre-W491 GE's */
     fold(digest, f); fold(digest, u); fold(digest, det);
-    fold(digest, contents(log.get()));
+    fold(digest, log);
     return digest;
 }
 
@@ -124,12 +114,10 @@ std::uint64_t null_vector(std::vector<double> a, std::ptrdiff_t nullity)
 {
     std::uint64_t digest = fnv_offset_basis;
     std::array<double, n> u{};
-    xpp::UniqueFile log(std::tmpfile());
-    CHECK(log);
-    if (!log) return digest;
-    fold(digest, xpp::matrix_null_vector(log.get(), n, n, nullity, a.data(), u.data()));
+    std::string log;
+    fold(digest, xpp::matrix_null_vector(log, n, n, nullity, a.data(), u.data()));
     fold(digest, a); fold(digest, u);
-    fold(digest, contents(log.get()));
+    fold(digest, log);
     return digest;
 }
 
@@ -192,15 +180,13 @@ std::uint64_t floquet(bool deflate, bool infinite)
     std::array<double, n*n> work{};
     std::array<xpp::ComplexPair, n> ev{};
     std::ptrdiff_t dim = n, diagnostic = 4;
-    xpp::UniqueFile log(std::tmpfile());
-    CHECK(log);
-    if (!log) return digest;
-    fold(digest, xpp::floquet_multipliers(log.get(), &dim, a.data(), b.data(), &diagnostic, work.data(), ev.data(), deflate));
+    std::string log;
+    fold(digest, xpp::floquet_multipliers(log, &dim, a.data(), b.data(), &diagnostic, work.data(), ev.data(), deflate));
     fold(digest, a); fold(digest, b); fold(digest, work);
     for (std::ptrdiff_t i = 0; i < n; ++i) {
         fold(digest, ev[i].r); fold(digest, ev[i].i);
     }
-    fold(digest, contents(log.get()));
+    fold(digest, log);
     return digest;
 }
 
@@ -330,10 +316,6 @@ void homcont()
     std::vector<double> par(run.parameter_count), dfdp(n*run.parameter_count);
     std::array<double,n> equilibrium{}, rr{}, ri{};
     std::array<double,n*n> a{}, zz{}, vectors{}, bound{};
-    xpp::UniqueFile log(std::tmpfile());
-    CHECK(log);
-    if (!log) return;
-    run.fp9 = log.get();
     std::ptrdiff_t dim = n;
     constexpr double tolerance = 1e-12; // Analytic invariant-subspace identities on a small, well-conditioned matrix.
     for (bool reverse : {false,true}) for (double shift : {0.,2.}) {
@@ -435,7 +417,6 @@ void homcont()
     CHECK(phase[0] == 4.625);
     for (std::ptrdiff_t column=0; column<n+run.parameter_count; ++column)
         CHECK(derivative[column] == (column<n ? tangent[column] : 0.));
-    run.fp9 = nullptr;
 }
 } // namespace
 
@@ -447,11 +428,9 @@ void check_ge_verbosity()
     for (std::ptrdiff_t iid : {0, 1, 3, 4}) {
         std::array<double, 4> matrix{2e-32, 0, 0, 1e-32}, rhs{1, 2}, solution{};
         double det = 0;
-        xpp::UniqueFile log(std::tmpfile());
-        CHECK(log);
-        if (!log) continue;
-        xpp::gauss_eliminate(log.get(), iid, 2, 2, matrix.data(), 1, 2, solution.data(), 2, rhs.data(), &det);
-        const auto text = contents(log.get());
+        std::string log;
+        xpp::gauss_eliminate(log, iid, 2, 2, matrix.data(), 1, 2, solution.data(), 2, rhs.data(), &det);
+        const auto &text = log;
         CHECK((text.find("Pivots in GE") != std::string::npos) == (iid >= xpp::autox_ge_pivot_iid));
         CHECK((text.find("NOTE:Pivot") != std::string::npos) == (iid >= xpp::autox_ge_note_iid));
         if (iid == 0) {

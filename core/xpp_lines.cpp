@@ -1,7 +1,13 @@
 /* core/xpp_lines.h's implementation: text read by lines. Nothing here touches a file. */
 #include "xpp_lines.h"
 
+#include <cctype>
+#include <cerrno>
+#include <cstdlib>
+#include <new>
 #include <utility>
+
+#include "xpp_mem.h"
 
 namespace xpp {
 
@@ -142,5 +148,129 @@ void Lines::end()
 }
 
 
+
+/* ---- TokenReader ---- */
+
+/* Skips leading whitespace, then collects the run of non-whitespace characters into token. False at the end of the
+   text before any token starts. The whitespace that ends the token is put back, as fscanf leaves it. */
+bool TokenReader::read_token(std::string &token)
+{
+    token.clear();
+    int c;
+    do {
+        c = get();
+    } while (c != EOF && std::isspace(static_cast<unsigned char>(c)));
+    if (c == EOF) return false;
+    while (c != EOF && !std::isspace(static_cast<unsigned char>(c))) {
+        token.push_back(static_cast<char>(c));
+        c = get();
+    }
+    unget(c);
+    return true;
+}
+
+/* the next token converted by strto (strtod, or strtol in base 10): false at the end of the text or when it does not
+   start with a number */
+template <class T, class Convert>
+bool TokenReader::read_number(T &out, Convert strto)
+{
+    std::string token;
+    try {
+        if (!read_token(token)) return false;
+    } catch (const std::bad_alloc &) {
+        out_of_memory("reading a number");
+    }
+    char *end = nullptr;
+    const auto v = strto(token.c_str(), &end);
+    if (end == token.c_str()) return false;
+    out = static_cast<T>(v);
+    return true;
+}
+
+bool TokenReader::at_end() noexcept
+{
+    int c;
+    do {
+        c = get();
+    } while (c != EOF && std::isspace(static_cast<unsigned char>(c)));
+    unget(c);
+    return c == EOF;
+}
+
+bool TokenReader::read(double &x) noexcept
+{
+    return read_number(x, [](const char *s, char **e) { return std::strtod(s, e); });
+}
+
+bool TokenReader::read(int &x) noexcept
+{
+    return read_number(x, [](const char *s, char **e) { return std::strtol(s, e, 10); });
+}
+
+/* fscanf "%ld"'s own grammar, one character of lookahead put back as fscanf puts it back, so a field that follows with
+   no space between (autoX's "%5ld" columns) is the next read's. */
+bool TokenReader::read(long long &x) noexcept
+{
+    std::string num;
+    int c;
+    do {
+        c = get();
+    } while (c != EOF && std::isspace(static_cast<unsigned char>(c)));
+    try {
+        if (c == '+' || c == '-') {
+            num.push_back(static_cast<char>(c));
+            c = get();
+        }
+        while (c != EOF && std::isdigit(static_cast<unsigned char>(c))) {
+            num.push_back(static_cast<char>(c));
+            c = get();
+        }
+    } catch (const std::bad_alloc &) {
+        out_of_memory("reading a number");
+    }
+    unget(c);
+    if (num.empty() || !std::isdigit(static_cast<unsigned char>(num.back()))) return false;
+    errno = 0;
+    const long long value = std::strtoll(num.c_str(), nullptr, 10);
+    if (errno == ERANGE) return false;
+    x = value;
+    return true;
+}
+
+bool TokenReader::read(long &x) noexcept
+{
+    long long value;
+    if (!read(value) || !std::in_range<long>(value)) return false;
+    x = static_cast<long>(value);
+    return true;
+}
+
+bool TokenReader::refill()
+{
+    if (!next_) return false;
+    std::string piece = next_();
+    if (piece.empty()) {
+        next_ = nullptr;
+        return false;
+    }
+    before_ += text_.size();
+    piece_ = std::move(piece);
+    text_ = piece_;
+    pos_ = 0;
+    return true;
+}
+
+bool TokenReader::skip_line() noexcept
+{
+    for (;;) {
+        const std::size_t nl = text_.find('\n', pos_);
+        if (nl != std::string_view::npos) {
+            pos_ = nl + 1;
+            return true;
+        }
+        pos_ = text_.size();
+        if (!refill()) return false;
+    }
+}
 
 } // namespace xpp

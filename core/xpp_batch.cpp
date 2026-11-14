@@ -166,10 +166,10 @@ Result<std::vector<Error>> compile_loaded(Session &s)
 namespace {
 
 /* an .autox script opens with the model it names, its runs listed in the session (nothing computes) */
-Result<CommandLine> script_command_line(CommandLine cl, std::optional<AutoxScript> &script)
+Result<CommandLine> script_command_line(FileSystem &fs, CommandLine cl, std::optional<AutoxScript> &script)
 {
     if (!files::has_extension(cl.model_file, autox_script_extension)) return cl;
-    auto loaded = autox_script_load(cl.model_file);
+    auto loaded = autox_script_load(fs, cl.model_file);
     if (!loaded) return std::unexpected(loaded.error());
     cl.model_file = include_path(cl.model_file, loaded->model);
     script = std::move(*loaded);
@@ -259,7 +259,7 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
 {
     auto resolved = animation_command_line(std::move(cl));
     std::optional<AutoxScript> script;
-    if (resolved) resolved = script_command_line(std::move(*resolved), script);
+    if (resolved) resolved = script_command_line(fs, std::move(*resolved), script);
     if (!resolved) {
         /* a file that names the model is the load's own: its fault is written once, as the model's own are (below) */
         if (batch) xpp::log(XPP_LOG_ERROR, "{}\n", resolved.error().text());

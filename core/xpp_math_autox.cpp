@@ -95,7 +95,7 @@ autox_eigenvalues(iap_type *iap, std::ptrdiff_t *ndim, std::ptrdiff_t *m1a, doub
     *ier = 1;
   }
   if (*ier == 1) {
-    xpp::print(iap->run->fp9,"{:4} {:5} NOTE:Error return from EISPACK routine RG\n",ibr,ntop);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5} NOTE:Error return from EISPACK routine RG\n",ibr,ntop);
     xpp::autox_fail("Error return from EISPACK routine RG");
   }
 
@@ -108,7 +108,7 @@ autox_eigenvalues(iap_type *iap, std::ptrdiff_t *ndim, std::ptrdiff_t *m1a, doub
    NLVC's free components, singular divisions and diagnostics separately. */
 /* nlvc: finds a null vector of a singular matrix whose null space is k-dimensional: AUTO-07p support.f90:230 */
 int 
-matrix_null_vector(FILE *fp9, std::ptrdiff_t n, std::ptrdiff_t m, std::ptrdiff_t k, double *a, double *u)
+matrix_null_vector(std::string &diagnostics, std::ptrdiff_t n, std::ptrdiff_t m, std::ptrdiff_t k, double *a, double *u)
 {
   std::ptrdiff_t a_dim1;
 
@@ -148,7 +148,7 @@ matrix_null_vector(FILE *fp9, std::ptrdiff_t n, std::ptrdiff_t m, std::ptrdiff_t
   for (jj = 0; jj < nmk; ++jj) {
     complete_pivot(n, a_dim1, a, ir, ic, jj, ipiv, jpiv, piv);
     if (piv < autox_rsmall) {
-      xpp::print(fp9,"        NOTE:Pivot {:3} < {:10.3E}  in NLVC : A null space may be multi-dimensional\n",jj,autox_rsmall);	
+      xpp::format_append(diagnostics,"        NOTE:Pivot {:3} < {:10.3E}  in NLVC : A null space may be multi-dimensional\n",jj,autox_rsmall);	
 
     }
 
@@ -200,7 +200,7 @@ matrix_null_vector(FILE *fp9, std::ptrdiff_t n, std::ptrdiff_t m, std::ptrdiff_t
    Returns the smallest pivot magnitude: below autox_rsmall, A is singular. */
 /* ge: Gaussian elimination with complete pivoting, determinant and pivot log (XPPAUT's AUTO's GE, xpp_math_autox.cpp) */
 double
-gauss_eliminate(FILE *fp9, std::ptrdiff_t iid, std::ptrdiff_t n, std::ptrdiff_t m1a, double *a, std::ptrdiff_t nrhs, std::ptrdiff_t ndxloc, double *u, std::ptrdiff_t m1f, double *f, double *det)
+gauss_eliminate(std::string &diagnostics, std::ptrdiff_t iid, std::ptrdiff_t n, std::ptrdiff_t m1a, double *a, std::ptrdiff_t nrhs, std::ptrdiff_t ndxloc, double *u, std::ptrdiff_t m1f, double *f, double *det)
 {
   const auto at = [&](std::ptrdiff_t i, std::ptrdiff_t j) -> double & { return a[i + j * m1a]; };
   const auto rhs = [&](std::ptrdiff_t i, std::ptrdiff_t k) -> double & { return f[i + k * m1f]; };
@@ -231,14 +231,14 @@ gauss_eliminate(FILE *fp9, std::ptrdiff_t iid, std::ptrdiff_t n, std::ptrdiff_t 
     smallest = std::min(smallest, piv);
     *det *= at(ipiv, jpiv);
     if (iid >= autox_ge_pivot_iid) {
-      if (jj == 0) xpp::print(fp9, "\n Pivots in GE");
-      if ((jj % 6) == 0) xpp::print(fp9, "\n");
-      xpp::print(fp9, " {:4} {:12.3e} ", jj, f2c::abs(at(ipiv, jpiv)));
+      if (jj == 0) xpp::format_append(diagnostics, "\n Pivots in GE");
+      if ((jj % 6) == 0) xpp::format_append(diagnostics, "\n");
+      xpp::format_append(diagnostics, " {:4} {:12.3e} ", jj, f2c::abs(at(ipiv, jpiv)));
     }
     if (ipiv != jj) *det = -(*det);
     if (jpiv != jj) *det = -(*det);
     if (iid >= autox_ge_note_iid && piv < autox_rsmall)
-      xpp::print(fp9, "         NOTE:Pivot {:3} < {:10.3E}, in GE\n", jj, autox_rsmall);
+      xpp::format_append(diagnostics, "         NOTE:Pivot {:3} < {:10.3E}, in GE\n", jj, autox_rsmall);
 
     if (ipiv != jj) {
       for (std::ptrdiff_t c = 0; c < n; ++c) std::swap(at(jj, c), at(ipiv, c));
@@ -310,8 +310,8 @@ gauss_eliminate(FILE *fp9, std::ptrdiff_t iid, std::ptrdiff_t n, std::ptrdiff_t 
   *det *= at(n - 1, n - 1);
   smallest = std::min(smallest, std::fabs(at(n - 1, n - 1)));
   if (iid >= autox_ge_pivot_iid) {
-    if ((jj % 6) == 0) xpp::print(fp9, "\n");
-    xpp::print(fp9, " {:4} {:12.3e} \n", n - 1, at(n - 1, n - 1));
+    if ((jj % 6) == 0) xpp::format_append(diagnostics, "\n");
+    xpp::format_append(diagnostics, " {:4} {:12.3e} \n", n - 1, at(n - 1, n - 1));
   }
   if (nrhs == 0) return smallest;
 
@@ -388,7 +388,7 @@ gauss_eliminate(FILE *fp9, std::ptrdiff_t iid, std::ptrdiff_t n, std::ptrdiff_t 
    Ordinary real_general_eigen or a matrix inverse followed by QR changes these operations. */
 /* flowkm: Floquet multipliers by the deflated circuit pencil method: floquet.f90:64 */
 int 
-floquet_multipliers(FILE *fp9, std::ptrdiff_t *ndim, double *c0, double *c1, std::ptrdiff_t *iid, double *rwork, xpp::ComplexPair *ev, bool deflate)
+floquet_multipliers(std::string &diagnostics, std::ptrdiff_t *ndim, double *c0, double *c1, std::ptrdiff_t *iid, double *rwork, xpp::ComplexPair *ev, bool deflate)
 {
     
   std::ptrdiff_t c0_dim1, c1_dim1, rwork_dim1;
@@ -441,24 +441,24 @@ floquet_multipliers(FILE *fp9, std::ptrdiff_t *ndim, double *c0, double *c1, std
   /*  Print the undeflated circuit pencil (C0, C1). */
 
   if (*iid > 4) {
-    xpp::print(fp9," Undeflated circuit pencil (C0, C1) \n");	
+    xpp::format_append(diagnostics," Undeflated circuit pencil (C0, C1) \n");	
 
-    xpp::print(fp9,"   C0 : \n");	
+    xpp::format_append(diagnostics,"   C0 : \n");	
 
     for (i = 0; i < *ndim; ++i) {
       for (j = 0; j < *ndim; ++j) {
-	xpp::print(fp9," {:23.16f}",ARRAY2D(c0, i, j));	
+	xpp::format_append(diagnostics," {:23.16f}",ARRAY2D(c0, i, j));	
       }
-      xpp::print(fp9,"\n");	
+      xpp::format_append(diagnostics,"\n");	
 
     }
-    xpp::print(fp9,"   C1 : \n");	
+    xpp::format_append(diagnostics,"   C1 : \n");	
 
     for (i = 0; i < *ndim; ++i) {
       for (j = 0; j < *ndim; ++j) {
-	xpp::print(fp9," {:23.16f}",ARRAY2D(c1, i, j));
+	xpp::format_append(diagnostics," {:23.16f}",ARRAY2D(c1, i, j));
       }
-      xpp::print(fp9,"\n");	
+      xpp::format_append(diagnostics,"\n");	
 
     }
   }
@@ -510,7 +510,7 @@ floquet_multipliers(FILE *fp9, std::ptrdiff_t *ndim, double *c0, double *c1, std
 	  svdv.data(), ndim, svdwrk.data(), &tmp, &svdinf, &tmp_tol);
   }
   if (svdinf != 0) {
-    xpp::print(fp9," NOTE : Warning from subroutine FLOWKM SVD routine returned SVDINF = {:4}        Floquet multiplier calculations may be wrong\n",svdinf);	
+    xpp::format_append(diagnostics," NOTE : Warning from subroutine FLOWKM SVD routine returned SVDINF = {:4}        Floquet multiplier calculations may be wrong\n",svdinf);	
 
   }
 
@@ -571,23 +571,23 @@ floquet_multipliers(FILE *fp9, std::ptrdiff_t *ndim, double *c0, double *c1, std
   /*  Finished the deflation process! Print the deflated circuit pencil. */
 
   if (*iid > 4) {
-    xpp::print(fp9," Deflated cicuit pencil (H2^T)*(C0, C1)*(H1) \n");	
+    xpp::format_append(diagnostics," Deflated cicuit pencil (H2^T)*(C0, C1)*(H1) \n");	
 
-    xpp::print(fp9,"   (H2^T)*C0*(H1) : \n");	
+    xpp::format_append(diagnostics,"   (H2^T)*C0*(H1) : \n");	
 
     for (i = 0; i < *ndim; ++i) {
       for (j = 0; j < *ndim; ++j) {
-	xpp::print(fp9," {:23.16f}",ARRAY2D(c0, i, j));
+	xpp::format_append(diagnostics," {:23.16f}",ARRAY2D(c0, i, j));
       }
-      xpp::print(fp9,"\n");	
+      xpp::format_append(diagnostics,"\n");	
     }
-    xpp::print(fp9,"   (H2^T)*C1*(H1) : \n");	
+    xpp::format_append(diagnostics,"   (H2^T)*C1*(H1) : \n");	
 
     for (i = 0; i < *ndim; ++i) {
       for (j = 0; j < *ndim; ++j) {
-	xpp::print(fp9," {:23.16f}",ARRAY2D(c1, i, j));
+	xpp::format_append(diagnostics," {:23.16f}",ARRAY2D(c1, i, j));
       }
-      xpp::print(fp9,"\n");	
+      xpp::format_append(diagnostics,"\n");	
 
     }
   }
@@ -629,7 +629,7 @@ eigenvalues:
   qz_iterate(*ndim, ndimm1, &c0[offset], &c1[offset], autox_qzeps1, false ,
        qzz.data(), &qzierr);
   if (qzierr != 0) {
-    xpp::print(fp9," NOTE : Warning from subroutine FLOWKM : QZ routine returned QZIERR = {:4}        Floquet multiplier calculations may be wrong \n",qzierr);	
+    xpp::format_append(diagnostics," NOTE : Warning from subroutine FLOWKM : QZ routine returned QZIERR = {:4}        Floquet multiplier calculations may be wrong \n",qzierr);	
 
   }
 
@@ -654,7 +654,7 @@ eigenvalues:
     }
   }
   if (infev) {
-    xpp::print(fp9," NOTE : Warning from subroutine FLOWKM : Infinite Floquet multiplier represented by CMPLX( 1.0D+30, 1.0D+30 )\n");	
+    xpp::format_append(diagnostics," NOTE : Warning from subroutine FLOWKM : Infinite Floquet multiplier represented by CMPLX( 1.0D+30, 1.0D+30 )\n");	
 
   }
 
@@ -1040,7 +1040,7 @@ homoclinic_eigen_ordered(const iap_type *iap, std::ptrdiff_t *isign, std::ptrdif
      iv1.data(), fv1.data(), &ifail);
 
   if (ifail != 0) {
-    xpp::print(iap->run->fp9,"EISPACK EIGENVALUE ROUTINE FAILED !\n");	
+    xpp::format_append(iap->run->diagnostics_text,"EISPACK EIGENVALUE ROUTINE FAILED !\n");	
   }
 
   for (j = 0; j < *ndm; ++j) {
@@ -1212,7 +1212,7 @@ int homoclinic_projection_conditions(const iap_type *iap, double *bound, double 
                 gram[i+j*count] += previous[first+i+k*n] * previous[first+j+k*n];
             }
     double det = 0.;
-    gauss_eliminate(iap->run->fp9, iap->iid, count, count, overlap.data(), count, count, transport.data(), count, gram.data(), &det);
+    gauss_eliminate(iap->run->diagnostics_text, iap->iid, count, count, overlap.data(), count, count, transport.data(), count, gram.data(), &det);
     for (std::ptrdiff_t i = 0; i < count; ++i)
         for (std::ptrdiff_t j = 0; j < n; ++j) {
             double value = 0.;

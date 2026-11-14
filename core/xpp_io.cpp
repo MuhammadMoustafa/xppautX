@@ -1,5 +1,5 @@
 /* core/xpp_io.h's implementation: the file handles (LineReader,
-   TokenReader, Writer) and xpp::format/xpp::vformat. Nothing here throws:
+   Writer) and xpp::format/xpp::vformat. Nothing here throws:
    a failed allocation is xpp::out_of_memory's. */
 #include "xpp_io.h"
 #include <cstring>
@@ -26,21 +26,6 @@
    The file half: line reader, token reader, writer (issue: W11 step 3,
    W7b). See xpp_io.h for the contract. */
 
-xpp::Result<> xpp::seek_stream(FILE *file, long position, std::string_view path)
-{
-    if (std::fseek(file, position, SEEK_SET) != 0)
-        return fail_reading("I/O", "cannot seek in stream", std::string(path));
-    return {};
-}
-
-xpp::Result<long> xpp::tell_stream(FILE *file, std::string_view path)
-{
-    const long position = std::ftell(file);
-    if (position == -1L)
-        return fail_reading("I/O", "cannot tell stream position", std::string(path));
-    return position;
-}
-
 /* A reader reads the stream it opened itself (closed with the reader); with none, the lines
    are text's, from pos on (LineReader::of_text) */
 struct xpp::LineReader::State {
@@ -49,26 +34,6 @@ struct xpp::LineReader::State {
     std::string text;
     size_t pos = 0;
     std::FILE *fp() const noexcept { return owned.get(); }
-};
-
-struct xpp::TokenReader::State {
-    std::FILE *attached = nullptr;
-    std::FILE *fp() const noexcept { return attached; }
-    std::string_view text;
-    std::size_t pos = 0;
-    bool text_mode = false;
-    bool has_input() const noexcept { return fp() || text_mode; }
-    int get() noexcept
-    {
-        return text_mode ? (pos < text.size() ? static_cast<unsigned char>(text[pos++]) : EOF) : std::fgetc(fp());
-    }
-    /* c, the last character read, back to the stream (one at a time) */
-    void unget(int c) noexcept
-    {
-        if (c == EOF) return;
-        if (text_mode) --pos;
-        else std::ungetc(c, fp());
-    }
 };
 
 /* the temp file being written, and the file it replaces at commit */
@@ -127,48 +92,6 @@ bool text_line(xpp::LineReader::State &r)
     return true;
 }
 
-/* ---- tokens --------------------------------------------------------- */
-
-/* Skips leading whitespace, then collects the run of non-whitespace
-   characters into `tok`. False at end of file before any token starts.
-   The whitespace that ends the token goes back to the stream, as fscanf
-   leaves it, so a line read after a token on an attached FILE* sees the
-   same rest of the line. */
-bool read_token(xpp::TokenReader::State &in, std::string &tok)
-{
-    tok.clear();
-    int c;
-    do {
-        c = in.get();
-    } while (c != EOF && std::isspace(static_cast<unsigned char>(c)));
-    if (c == EOF) return false;
-    while (c != EOF && !std::isspace(static_cast<unsigned char>(c))) {
-        tok.push_back(static_cast<char>(c));
-        c = in.get();
-    }
-    in.unget(c);
-    return true;
-}
-
-/* the next token of fp converted by strto (strtod, strtof, or strtol in
-   base 10): false at the end of the file or when it does not start with
-   a number */
-template <class T, class Convert>
-bool read_number(xpp::TokenReader::State *in, T &out, Convert strto)
-{
-    std::string tok;
-    try {
-        if (!in || !in->has_input() || !read_token(*in, tok)) return false;
-    } catch (const std::bad_alloc &) {
-        xpp::out_of_memory("reading a number");
-    }
-    char *end = nullptr;
-    const auto v = strto(tok.c_str(), &end);
-    if (end == tok.c_str()) return false;
-    out = static_cast<T>(v);
-    return true;
-}
-
 /* ---- writer's temp file ---------------------------------------------- */
 
 std::atomic<unsigned> writer_serial{0};
@@ -196,15 +119,6 @@ Ptr opened_state(std::string_view path) noexcept
     if (!fp) return nullptr;
     Ptr st = new_state<Ptr>();
     if (st) st->owned = std::move(fp);
-    return st;
-}
-
-template <class Ptr>
-Ptr attached_state(std::FILE *fp) noexcept
-{
-    if (!fp) return nullptr;
-    Ptr st = new_state<Ptr>();
-    if (st) st->attached = fp;
     return st;
 }
 
@@ -272,102 +186,6 @@ std::string LineReader::line(int n)
     for (int i = 1; std::optional<std::string_view> l = next(); i++)
         if (i == n) return std::string(*l);
     return {};
-}
-
-/* ---- TokenReader ----------------------------------------------------- */
-
-void TokenReader::Free::operator()(State *s) const noexcept { delete s; }
-
-TokenReader TokenReader::attach(FILE *fp) noexcept
-{
-    TokenReader t;
-    t.state_ = attached_state<decltype(t.state_)>(fp);
-    return t;
-}
-
-TokenReader TokenReader::of_text(std::string_view text) noexcept
-{
-    TokenReader t;
-    t.state_ = new_state<decltype(t.state_)>();
-    if (t.state_) { t.state_->text = text; t.state_->text_mode = true; }
-    return t;
-}
-
-bool TokenReader::at_end() noexcept
-{
-    if (!state_) return true;
-    int c;
-    do { c = state_->get(); } while (c != EOF && std::isspace(static_cast<unsigned char>(c)));
-    state_->unget(c);
-    return c == EOF;
-}
-
-bool TokenReader::read(double &x) noexcept
-{
-    return read_number(state_.get(), x, [](const char *s, char **e) { return std::strtod(s, e); });
-}
-
-bool TokenReader::read(int &x) noexcept
-{
-    return read_number(state_.get(), x, [](const char *s, char **e) { return std::strtol(s, e, 10); });
-}
-
-/* fscanf "%ld"'s own grammar, one character of lookahead pushed back as
-   fscanf pushes it back, so a field that follows with no space between
-   (autoX's "%5ld" columns) is the next read's. */
-bool TokenReader::read(long long &x) noexcept
-{
-    if (!state_ || !state_->has_input()) return false;
-    State &in = *state_;
-    std::string num;
-    int c;
-    do {
-        c = in.get();
-    } while (c != EOF && std::isspace(static_cast<unsigned char>(c)));
-    try {
-        if (c == '+' || c == '-') {
-            num.push_back(static_cast<char>(c));
-            c = in.get();
-        }
-        while (c != EOF && std::isdigit(static_cast<unsigned char>(c))) {
-            num.push_back(static_cast<char>(c));
-            c = in.get();
-        }
-    } catch (const std::bad_alloc &) {
-        xpp::out_of_memory("reading a number");
-    }
-    in.unget(c);
-    if (num.empty() || !std::isdigit(static_cast<unsigned char>(num.back()))) return false;
-    errno = 0;
-    const long long value = std::strtoll(num.c_str(), nullptr, 10);
-    if(errno == ERANGE)return false;
-    x = value;
-    return true;
-}
-
-bool TokenReader::read(long &x) noexcept
-{
-    long long value;
-    if(!read(value) || !std::in_range<long>(value))return false;
-    x=static_cast<long>(value);
-    return true;
-}
-
-bool TokenReader::skip_line() noexcept
-{
-    if (!state_ || !state_->has_input()) return false;
-    int c;
-    if (state_->text_mode) {
-        while ((c = state_->get()) != EOF)
-            if (c == '\n') return true;
-        return false;
-    }
-    /* a file is locked once and read without the lock per character (as read_line does): autoX's label search skips
-       every line of a session's solutions this way, megabytes after a few runs (W701) */
-    const StreamLock held(state_->fp());
-    while ((c = get_char_locked(state_->fp())) != EOF)
-        if (c == '\n') return true;
-    return false;
 }
 
 /* ---- Writer ----------------------------------------------------------- */

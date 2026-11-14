@@ -239,7 +239,6 @@ TEST_CASE("test_io")
        that is no number is no read */
     {
         xpp::TokenReader r = xpp::TokenReader::of_text("  3.5 -7 hello   1e3\n");
-        CHECK(static_cast<bool>(r));
         double d;
         int i;
         CHECK(r.read(d));
@@ -252,47 +251,24 @@ TEST_CASE("test_io")
         CHECK(!r.read(d)); /* end of file */
     }
 
-    /* the whitespace after a token stays in an attached stream */
-    {
-        TempFile tf("test_io_tok.tmp");
-        write_raw(tf.c_str(), "0.1 2.5\nnext\n");
-        std::FILE *fp = std::fopen(tf.c_str(), "r");
-        CHECK(fp != NULL);
-        double a, b;
-        xpp::TokenReader r = xpp::TokenReader::attach(fp);
-        CHECK(r.read(a) && a == 0.1);
-        CHECK(r.read(b) && b == 2.5);
-        CHECK(std::fgetc(fp) == '\n');
-        r.close();
-        std::fclose(fp);
-    }
-
     /* long fields: fscanf "%ld" field by field, autoX's "%5ld" columns
        printed flush ("    2-1234" is 2 then -1234), the rest of the line
-       skipped, the stream left where fscanf leaves it */
+       skipped, the text left where fscanf leaves it */
     {
-        TempFile tf("test_io_tok.tmp");
-        write_raw(tf.c_str(), "    2-1234  +7 x\n   1.5E+00 tail\nlast");
-        std::FILE *fp = std::fopen(tf.c_str(), "r");
-        CHECK(fp != NULL);
+        const std::string text = "    2-1234  +7 x\n   1.5E+00 tail\nlast";
         long a = 0, b = 0, c = 0, d = 0;
-        xpp::TokenReader tr = xpp::TokenReader::attach(fp);
+        xpp::TokenReader tr = xpp::TokenReader::of_text(text);
         CHECK(tr.read(a) && a == 2);
         CHECK(tr.read(b) && b == -1234);
         CHECK(tr.read(c) && c == 7);
-        CHECK(!tr.read(d));                /* "x" is no number, left in the stream */
-        CHECK(std::fgetc(fp) == 'x');
-        CHECK(tr.skip_line());             /* the "\n" after x */
+        CHECK(!tr.read(d));                /* "x" is no number, left in the text */
+        CHECK(text[tr.position()] == 'x');
+        CHECK(tr.skip_line());             /* "x\n" */
         double x = 0;
         CHECK(tr.read(x) && x == 1.5);
         CHECK(tr.skip_line());             /* " tail\n" */
-        CHECK(!tr.skip_line());            /* "last" ends at end of file */
-        tr.close();
-        std::rewind(fp);
-        long s1, s2, s3;
-        CHECK(std::fscanf(fp, "%ld%ld%ld", &s1, &s2, &s3) == 3);
-        CHECK(s1 == a && s2 == b && s3 == c);
-        std::fclose(fp);
+        CHECK(!tr.skip_line());            /* "last" ends at the end of the text */
+        CHECK(tr.position() == text.size());
     }
 
     /* the binary writer copies line ends as they are */

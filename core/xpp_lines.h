@@ -7,6 +7,7 @@
    nothing outside it. */
 
 #include <cstddef>
+#include <cstdio>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -78,6 +79,109 @@ private:
     std::string where_, file_, text_;
     std::vector<std::string_view> lines_;
     std::size_t next_ = 0;
+};
+
+/* Whitespace-separated tokens of text, the fscanf "%lg"/"%d" equivalents, the conversion picked by
+   the type read into: read(double&) is fscanf "%lg" (also "%le"/"%lf"), read(int&) "%d": each skips
+   leading whitespace, then reads the run of non-whitespace characters (the token) and converts it
+   with strtod/strtol, so a value read here and strtod(token) agree. Every value in the text this
+   reads is whitespace/newline separated (never comma or other punctuation), where a
+   whitespace-delimited token is exactly what fscanf's own grammar would have consumed too.
+   read(long&) is fscanf "%ld" exactly, not a whole token: leading whitespace, an optional sign and
+   the digits, and no more; what follows stays. For integer columns printed flush against each
+   other, like the "%5ld" label lines of autoX's fort.8/.s text, where "    2-1234" is 2 then -1234
+   and a whitespace-delimited token would swallow both. Each read is true on success, false at the
+   end of the text or where fscanf would not have returned 1. skip_line() passes over the rest of
+   the current line, its \n included: true when a \n ended it, false when the text ended first. The
+   text is borrowed: it must outlive the reader. (A file's text is read whole by the file system,
+   xpp_fs.h; the kernel never opens one.) */
+class TokenReader {
+public:
+    TokenReader() noexcept = default;
+    /* moved, a reader of pieces keeps viewing its own piece */
+    TokenReader(TokenReader &&o) noexcept { *this = std::move(o); }
+    TokenReader &operator=(TokenReader &&o) noexcept
+    {
+        const bool in_piece = !o.piece_.empty();
+        next_ = std::move(o.next_);
+        piece_ = std::move(o.piece_);
+        before_ = o.before_;
+        pos_ = o.pos_;
+        text_ = in_piece ? std::string_view(piece_) : o.text_;
+        return *this;
+    }
+    static TokenReader of_text(std::string_view text) noexcept
+    {
+        TokenReader t;
+        t.text_ = text;
+        return t;
+    }
+    /* text that comes in pieces, each next() call giving the following one ("" at the end): a file read by range, so a solution
+       of any length is parsed with one piece in memory. A token or a number may straddle two pieces. */
+    static TokenReader of_pieces(std::function<std::string()> next) { 
+        TokenReader t;
+        t.next_ = std::move(next);
+        return t;
+    }
+    /* true when only whitespace remains; leaves the next token untouched */
+    bool at_end() noexcept;
+    bool read(double &x) noexcept;
+    bool read(int &x) noexcept;
+    bool read(long &x) noexcept;
+    bool read(long long &x) noexcept;
+    bool skip_line() noexcept;
+    /* the byte offset of the next character: how much of the text was read (of a reader of pieces, from its first) */
+    std::size_t position() const noexcept { return before_ + pos_; }
+
+private:
+    int get() noexcept
+    {
+        if (pos_ >= text_.size() && !refill()) return EOF;
+        return static_cast<unsigned char>(text_[pos_++]);
+    }
+    /* the next piece in place of the text read (a reader of pieces only): false at the end */
+    bool refill();
+    /* c, the character just read, put back (one at a time) */
+    void unget(int c) noexcept
+    {
+        if (c != EOF) --pos_;
+    }
+    bool read_token(std::string &token);
+    template <class T, class Convert> bool read_number(T &out, Convert strto);
+    std::string_view text_;
+    std::size_t pos_ = 0;
+    std::function<std::string()> next_; /* the pieces of a reader of pieces; empty for a text */
+    std::string piece_;                 /* the piece text_ views then */
+    std::size_t before_ = 0;            /* the bytes of the pieces before it */
+};
+
+/* Text that arrives in pieces (a file read in chunks), cut into lines: line(raw) is called for each line the text so far
+   completes, raw without its \n (a \r stays), and finish() hands over the unfinished last line, if any, as one that no \n ended.
+   Memory is the longest line. A file's pass over every line without holding the file. */
+class LineFeeder {
+public:
+    template <class F> void feed(std::string_view chunk, F &&line)
+    {
+        std::size_t at = 0;
+        for (std::size_t nl; (nl = chunk.find('\n', at)) != std::string_view::npos; at = nl + 1) {
+            if (tail_.empty()) {
+                line(chunk.substr(at, nl - at), true);
+            } else {
+                tail_.append(chunk.substr(at, nl - at));
+                line(std::string_view(tail_), true);
+                tail_.clear();
+            }
+        }
+        tail_.append(chunk.substr(at));
+    }
+    template <class F> void finish(F &&line)
+    {
+        if (!tail_.empty()) line(std::string_view(tail_), false);
+        tail_.clear();
+    }
+
+private:
+    std::string tail_;
 };
 
 /* parse(lines) over text, the contents of file (the name its errors

@@ -24,6 +24,7 @@
 #include "ani_data.h"
 #include "autox_data.h"
 #include "session.h"
+#include "model.h"
 #include "arrayplot.h"
 #include "autox_state.h"
 #include "event_registry.h"
@@ -110,7 +111,7 @@ xpp::Result<xpp::Session *> switch_model(xpp::Session &before, const xpp::ModelR
     diag_forget();
     plot_data_changed();
     state_forget();
-    renew_autox_dir(s);
+    renew_autox_dir(*s.model().fs, s);
     start_model(s, req.keep_values ? &kept : nullptr);
     if (req.restore) xpp_saved_restore(s, *req.restore); /* an autoX or session file */
     redraw_graph(s);

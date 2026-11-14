@@ -35,6 +35,12 @@ Result<std::string> LocalFileSystem::read(std::string where, std::string_view pa
     return read_file_bytes(std::move(where), path, limit);
 }
 
+Result<std::string> LocalFileSystem::read_range(std::string where, std::string_view path, std::size_t offset, std::size_t length)
+{
+    if (length > file_range_limit) return std::unexpected(files::open_error(std::move(where), path, "is read in smaller pieces"));
+    return read_file_range(std::move(where), path, offset, length);
+}
+
 std::optional<std::string> LocalFileSystem::read_within(std::string_view path, std::string_view folder,
                                                         std::span<const std::string> allowed_outside, std::size_t limit)
 {
@@ -60,6 +66,10 @@ bool LocalFileSystem::destination_ok(std::string_view path) { return files::outp
 
 bool LocalFileSystem::exists(std::string_view path) { return files::exists(path); }
 bool LocalFileSystem::is_dir(std::string_view path) { return files::is_dir(path); }
+bool LocalFileSystem::dir_writable(std::string_view dir) { return files::dir_writable(dir); }
+int LocalFileSystem::remove_file(std::string_view path) { return files::remove(path); }
+std::string LocalFileSystem::make_temp_dir() { return files::make_temp_dir(); }
+void LocalFileSystem::remove_temp_dir(std::string_view dir) { files::remove_temp_dir(dir); }
 std::string LocalFileSystem::absolute(std::string_view path) { return files::absolute(path); }
 std::string LocalFileSystem::working_dir() { return files::working_dir(); }
 int LocalFileSystem::change_dir(std::string_view path) { return files::change_dir(path); }

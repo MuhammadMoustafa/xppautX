@@ -91,17 +91,13 @@ TEST_CASE("test_autox_hopf") {
         CHECK(xpp::autox_hopf_curve_kind(u[4]) == (x > 0 ? xpp::autox_neutral_saddle_curve : xpp::autox_hopf_curve));
     }
     // Start at a stored one-parameter HB: construct only the reduced layout.
-    run.fort3 = temp.path() + "/fort.3";
-    run.fp3 = xpp::files::open_stream(run.fort3, "w+");
-    run.fp9 = xpp::files::open_stream(temp.path() + "/fort.9", "w+");
-    CHECK(run.fp3 && run.fp9);
+    run.restart_name = "the restart text of the test";
     par[icp[0]] = -.25;
     par[icp[1]] = 0.;
     par[xpp::autox_unknown::period] = multiple_of_pi(2.);
-    xpp::print(run.fp3, "1 1 3 1 1 1 1 3 2 0 0 {}\n0 -0.5 0\n", run.parameter_count);
-    for (double value : par) xpp::print(run.fp3, "{} ", value);
-    xpp::print(run.fp3, "\n");
-    CHECK(xpp::seek_stream(run.fp3, 0, run.fort3).has_value());
+    run.restart_text = xpp::format("1 1 3 1 1 1 1 3 2 0 0 {}\n0 -0.5 0\n", run.parameter_count);
+    for (double value : par) xpp::format_append(run.restart_text, "{} ", value);
+    run.restart_text += "\n";
     iap.irs = 1;
     iap.isw = 2;
     u.fill(0.);
@@ -110,8 +106,6 @@ TEST_CASE("test_autox_hopf") {
     hopf_equations(&iap, &rap, 6, u.data(), old.data(), icp.data(), par.data(), 2, f.data(), jac.data(), dp.data());
     for (double value : f) CHECK(std::abs(value) < 1e-8);
     CHECK(u[4] == 1 && u[5] == 0);
-    xpp::UniqueFile restart(run.fp3), diagnostics(run.fp9);
-    run.fp3 = run.fp9 = nullptr;
     // Read the current reduced neutral-saddle restart through the same
     // validator used before restoring a session's solution member.
     par[icp[0]] = -.25;
@@ -119,14 +113,11 @@ TEST_CASE("test_autox_hopf") {
     for (double value : par) solution += xpp::number(value) + " ";
     solution += "\n";
     CHECK(xpp::check_autox_solutions(solution, "current.snapx/autox/solutions.s", 16, run.parameter_count, false, 6));
-    auto current = xpp::Writer::binary(temp.path() + "/current.s");
-    CHECK(current.write(solution) && current.commit());
-    auto input = xpp::open_read(temp.path() + "/current.s");
-    run.fp3 = input.get();
+    run.restart_text = solution;
+    run.fort3_index.reset();
     u.fill(0.);
     CHECK(algebraic_start(&iap, &rap, par.data(), icp.data(), u.data()) == 0);
     CHECK(u == (std::array<double, 6>{.5, 0., 1., 0., -1., 0.}));
-    run.fp3 = nullptr;
     output_parameters_algebraic(&iap, &rap, u.data(), par.data());
     CHECK(par[xpp::autox_unknown::period] == multiple_of_pi(2.));
     // Own files reject the obsolete augmented layout on its header line.

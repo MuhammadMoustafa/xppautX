@@ -474,7 +474,7 @@ TEST_CASE("test_files")
     CHECK(up == nullptr);
     if (up) std::fclose(up);
 
-    /* the core's own files (W32b): copy, prepend (autoX's "append"), move,
+    /* the core's own files (W32b): copy, move,
        remove, whole or not at all */
     CHECK(xpp::files::exists("a.bin"));
     CHECK(!xpp::files::exists("none.dat"));
@@ -483,9 +483,7 @@ TEST_CASE("test_files")
     CHECK(slurp("b.bin") == "new");
     xpp::files::copy("none.dat", "b.bin"); /* an unreadable source leaves the target */
     CHECK(slurp("b.bin") == "new");
-    xpp::files::prepend("c.dat", "b.bin");
-    CHECK(slurp("b.bin") == slurp("c.dat") + "new");
-    xpp::files::prepend("a.bin", "e.bin"); /* no target yet: a copy */
+    xpp::files::copy("a.bin", "e.bin");
     CHECK(slurp("e.bin") == "new");
     xpp::files::move("e.bin", "b.bin"); /* replaces */
     CHECK(slurp("b.bin") == "new" && !xpp::files::exists("e.bin"));

@@ -11,6 +11,7 @@
 #include <memory>
 #include <cstddef>
 #include "xpp_error.h"
+#include "xpp_fs.h"
 #include "autox_codes.h"
 #include "colormap.h"
 #include "autox_axis.h"
@@ -48,21 +49,41 @@ std::string autox_branch_row_key(long branch, long point, long type, long label)
 bool read_autox_solution_header(TokenReader &reader, AutoxSolutionHeader &h, long parameters);
 /* Where each solution of a fort.8/.s file starts, found by one pass over it and kept: autoX's start label is looked up here
    (find_restart_label, new_restart_label, move_to_label) instead of by reading every solution of the session's accumulated .s file again for each run (W705).
-   A record is a header line: its position in the file as tell_stream gives it, and the header fields the start needs. */
+   A record is a header line: its byte offset in the text, and the header fields the start needs. */
 struct AutoxSolutionRecord {
     long position{}, ibr{}, lab{}, nfpr{};
     AutoxPointCode itp;
 };
 struct AutoxSolutionIndex {
     std::vector<AutoxSolutionRecord> records; /* in file order: the newest run's first, as close_autox prepends */
-    long bytes{};                              /* the file's length */
+    long bytes{};                              /* the text's length */
     long max_branch{}, max_label{};            /* the largest of the records', 0 for none */
 };
-/* the index of the file at `path` (one pass; a header that cannot be read ends it, as it ends autoX's search); parameters: the layout's size */
-Result<AutoxSolutionIndex> autox_index_solutions(const std::string &path, long parameters);
+/* The index of a fort.8 or .s file made from its text as it arrives in pieces (one pass; a header that cannot be read ends it,
+   as it ends autoX's search); parameters: the layout's size. bytes counts every byte fed. */
+class AutoxSolutionIndexer {
+public:
+    explicit AutoxSolutionIndexer(long parameters) : parameters_(parameters) {}
+    void feed(std::string_view piece);
+    AutoxSolutionIndex finish();
+private:
+    void line(std::string_view raw, bool terminated);
+    long parameters_;
+    long offset_ = 0; /* where the next line starts */
+    AutoxSolutionIndex index_;
+    LineFeeder lines_;
+    long rows_left_ = 0;
+    bool stopped_ = false;
+};
+/* the index of a text, and of the file at path, read in pieces through fs */
+AutoxSolutionIndex autox_index_solutions(std::string_view text, long parameters);
+Result<AutoxSolutionIndex> autox_index_file(FileSystem &fs, const std::string &path, long parameters);
+/* a reader of the file at path from byte offset on, the file read in pieces as the reader needs them (a solution is parsed with
+   one piece in memory) */
+TokenReader autox_reader_at(FileSystem &fs, std::string path, std::size_t offset);
 /* the session's .s file's index, made on first use and kept up to date by close_autox, a loaded session and a cleared diagram */
 Result<const AutoxSolutionIndex *> autox_session_solutions(Session &s);
-/* the index of the run's fort.3: the session's, when the run restarts from it, else its own file's, made on first use; a failure stops the run */
+/* the index of the run's fort.3: the session's, when the run restarts from it, else its own text's, made on first use; a failure stops the run */
 const AutoxSolutionIndex &autox_run_solutions(AutoxRun &run);
 // Read a collocation payload into the formulation's explicit target columns.
 // tm selects orbit rows (which carry a time); null selects tangent rows.
@@ -176,16 +197,18 @@ typedef struct {
 void draw_bif_axes(Session &s);
 int IXVal(const Session &s, double x);
 int IYVal(const Session &s, double y);
-/* the run's end: its fort.7, .9 and .8 replace the session's .b, .d and .s
-   files (flag OVERWRITE) or go in front of them (APPEND), and its fort.3 and
-   the rest go; the fort files are the run's own (open_autox) */
+/* the run's end: its files (fort.7, .9 and .8, in the run's scratch folder) replace the session's .b, .d and .s files
+   (flag OVERWRITE) or go in front of them (APPEND), through the model's file system, and the folder goes */
 void close_autox(Session &s, AutoxRun &run, int flag);
-/* the run's own scratch folder and fort.3/7/8/9 in it; flag OPEN_3 copies the session's .s
-   file to fort.3 for a restart. An error when the folder cannot be made */
+/* what the run has written so far goes to its files (fort.7, .8 and .9: they are written as the run goes, never held whole);
+   a failed write ends the run with its error */
+void autox_flush(AutoxRun &run);
+/* the run's files complete: flushed and committed, so another run or the join can read them */
+Result<> autox_finish_files(AutoxRun &run);
+/* the run's start: the folder of the .b/.d/.s files must be writable, and the run gets a scratch folder whose files (fort.7, .8, .9)
+   its numerics open as sinks they write through; flag OPEN_3 makes the session's .s file the run's restart data (fort.3,
+   read by range, one solution at a time). An error when the folder is not writable or a file cannot be opened */
 Result<> open_autox(Session &s, AutoxRun &run, int flag);
-/* the path of the run's fort.<unit> (3, 7, 8 or 9) open_autox set, "" for
-   another unit: gogoautox.cpp opens them for a run */
-const char *autox_fort_path(const AutoxRun &run, int unit);
 /* do_autox's iold: autoX's fort.3 is opened for a restart (OPEN_3) or not; isave: the run's solutions replace the .s file or
    are added to it */
 inline constexpr int OPEN_3 = 1, NO_OPEN_3 = 0, OVERWRITE = 0, APPEND = 1;
@@ -210,9 +233,9 @@ struct AutoxFoundStart {
   AutoxProblem ips;
   int isw,isp,label;
   const DIAGRAM *point;
-  std::string solution;
+  std::string solution_file; /* the file of the finding job's solutions, the point's among them: the run restarts from it */
 };
-/* a run made ready (the Session's settings into run.params, its folder and fort files, where it started from and its
+/* a run made ready (the Session's settings into run.params, its restart text, where it started from and its
    first point's stability); the error is what is wrong. After create_autox_file_name. */
 Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold, const AutoxFoundStart *found = nullptr);
 /* a run that left a model parameter not finite (a diverged Newton step) puts the value it had before, `before` (the model's
@@ -299,12 +322,11 @@ Result<> import_autox(Session &s, const std::optional<std::string> &file);
 // XPPAUT stores eight selected parameters before its numerical slots.
 inline constexpr int xppaut_parameter_prefix = 8;
 /* Foreign XPPAUT import: validate whole, then replace; errors belong to the caller. */
-Result<> import_autox_file(Session &s, FILE *fp, const std::string &file);
-int move_to_label(Session &s, int mylab, int *nrow, int *ndim, FILE *fp);
-/* the solution labelled `label` in a fort.8 or .s file (its header line and its rows, as written, each with its newline), for
-   a restart of another run (autox_jobs.cpp); none when the file has no such label or is damaged. parameters: the layout's size */
-std::optional<std::string> autox_solution_block(const std::string &path, int label, long parameters);
-void get_a_row(double *u, double *t, int n, FILE *fp);
+Result<> import_autox_file(Session &s, std::string_view text, const std::string &file);
+/* the point `mylab` of the session's .s file: rows' reader (autox_reader_at) positioned at the first row, and their count and the model's
+   dimension; false when the label is not there or the text is not what the index says */
+bool move_to_label(Session &s, int mylab, int *nrow, int *ndim, TokenReader &rows);
+void get_a_row(double *u, double *t, int n, TokenReader &rows);
 int check_plot_type(const Session &s, AutoxCalculation flag2, AutoxAxis icp1, AutoxAxis icp2);
 
 /* grabbing and marking points on the diagram (from autox_x11.c) */
@@ -349,11 +371,11 @@ void get_autox_str(const Session &s, const AUTOAX &ax, std::string &xlabel, std:
 
 /* at exit (xppautx_main.cpp's atexit hook): removes s's autoX scratch
    folder (autox_state.h) if it is set, and clears it */
-void cleanup_autox_dir(Session &s);
+void cleanup_autox_dir(FileSystem &fs, Session &s);
 
 /* another model is loaded (File > Open model, Reload): a new, empty autoX
    scratch folder in place of the Session s's, whose files (<model>.s, .b,
    .d) were the model before's */
-void renew_autox_dir(Session &s);
+void renew_autox_dir(FileSystem &fs, Session &s);
 
 } // namespace xpp

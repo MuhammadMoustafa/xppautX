@@ -191,10 +191,6 @@ int remove(std::string_view path);
    into place, so it is either the whole copy or left as it was; a WARN
    when from cannot be read or to written */
 void copy(std::string_view from, std::string_view to);
-/* to becomes from's bytes followed by its own, the same way (autoX's run
-   output put ahead of the diagram files it keeps: its "append"); a copy
-   when to does not exist */
-void prepend(std::string_view from, std::string_view to);
 /* from becomes to, replacing it; when the system refuses (Windows, a
    source still open elsewhere) a copy, then from is removed if it can be */
 void move(std::string_view from, std::string_view to);

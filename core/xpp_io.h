@@ -1,6 +1,6 @@
 #pragma once
 
-/* core/xpp_io.cpp: the file handles (xpp::LineReader, xpp::TokenReader, xpp::Writer; issue: W11
+/* core/xpp_io.cpp: the file handles (xpp::LineReader, xpp::Writer; issue: W11
    step 3, W7b). C++ in namespace xpp (W109a). The C text-formatting half
    this header used to declare -- xpp_snprintf/xpp_strlcpy/xpp_strlcat,
    XPP_SPRINTF/XPP_STRCPY/XPP_STRCAT, for a C file's sprintf/strcpy/
@@ -46,11 +46,6 @@
 
 namespace xpp {
 
-/* Checked stream positions. Positions returned by tell_stream are opaque:
-   seek_stream uses an absolute seek, including on Windows text streams. */
-Result<> seek_stream(FILE *file, long position, std::string_view path);
-Result<long> tell_stream(FILE *file, std::string_view path);
-
 /* A FILE * that closes itself: the read handle, for a helper that takes
    a plain FILE * (the .set, .auto and .ode readers), and for a stream the
    core gets from an API that hands out a FILE * (xpp::files::open, fdopen,
@@ -64,8 +59,7 @@ struct FileCloser {
 using UniqueFile = std::unique_ptr<FILE, FileCloser>;
 
 /* path opened for reading, text ("r") or binary ("rb"); empty (false)
-   when it cannot be. Lines are read with LineReader and
-   numbers with TokenReader below, which open their own. */
+   when it cannot be. Lines are read with LineReader. */
 inline UniqueFile open_read(std::string_view path) noexcept { return UniqueFile(xpp::files::open_stream(path, "r")); }
 inline UniqueFile open_read_binary(std::string_view path) noexcept
 {
@@ -129,53 +123,6 @@ public:
     std::string line(int n);
     /* what a reader reads, and Free, which deletes it where it is
        complete (xpp_io.cpp) */
-    struct State;
-    struct Free {
-        void operator()(State *s) const noexcept;
-    };
-
-private:
-    std::unique_ptr<State, Free> state_;
-};
-
-/* Whitespace-separated tokens, the fscanf "%lg"/"%g"/"%d" equivalents, the
-   conversion picked by the type read into: read(double&) is fscanf "%lg"
-   (also "%le"/"%lf"), read(int&) "%d": each skips leading whitespace,
-   then reads the run of non-whitespace characters (the token) and
-   converts it with strtod/strtol, so a value read here and
-   strtod(token) agree. Every value in the files this reads is
-   whitespace/newline separated (never comma or other punctuation), where
-   a whitespace-delimited token is exactly what fscanf's own grammar would
-   have consumed too. read(long&) is fscanf "%ld" exactly, not a whole
-   token: leading whitespace, an optional sign and the digits, and no
-   more; what follows stays in the stream. For integer columns printed
-   flush against each other, like the "%5ld" label lines of autoX's
-   fort.8/.s files, where "    2-1234" is 2 then -1234 and a
-   whitespace-delimited token would swallow both. Each read is true on
-   success, false at the end of the file or where fscanf would not have
-   returned 1. skip_line() passes over the rest of the current line, its
-   \n included (the "go to the end of the line" after reading a line's
-   leading fields): true when a \n ended it, false when the end of the
-   file came first. */
-class TokenReader {
-public:
-    TokenReader() noexcept = default;
-    static TokenReader attach(FILE *fp) noexcept;
-    /* Borrow text for this reader's lifetime, using the same token grammar. */
-    static TokenReader of_text(std::string_view text) noexcept;
-    /* True when only whitespace remains; leaves the next token untouched. */
-    bool at_end() noexcept;
-    TokenReader(const TokenReader &) = delete;
-    TokenReader &operator=(const TokenReader &) = delete;
-    TokenReader(TokenReader &&o) noexcept = default;
-    TokenReader &operator=(TokenReader &&o) noexcept = default;
-    explicit operator bool() const noexcept { return state_ != nullptr; }
-    bool read(double &x) noexcept;
-    bool read(int &x) noexcept;
-    bool read(long &x) noexcept;
-    bool read(long long &x) noexcept;
-    bool skip_line() noexcept;
-    void close() noexcept { state_.reset(); }
     struct State;
     struct Free {
         void operator()(State *s) const noexcept;
@@ -323,6 +270,26 @@ inline Result<std::string> read_file_bytes(std::string where, std::string_view p
     if (read_bytes(f.get(), bytes, limit)) return bytes;
     /* read_bytes stops without an error of the stream when the file is longer than the bound */
     return std::unexpected(files::open_error(std::move(where), path, std::ferror(f.get()) ? "cannot be read" : xpp::format("is longer than {} bytes", limit)));
+}
+
+/* up to length bytes of the file at path from offset on (fewer at the end of the file, none past it); the error when it cannot be
+   opened or read (its place the file) */
+inline Result<std::string> read_file_range(std::string where, std::string_view path, std::size_t offset, std::size_t length)
+{
+    UniqueFile f = open_read_binary(path);
+    if (!f) return std::unexpected(files::open_error(std::move(where), path));
+    if (!std::in_range<long>(offset) || std::fseek(f.get(), static_cast<long>(offset), SEEK_SET) != 0)
+        return std::unexpected(files::open_error(std::move(where), path, "cannot be read at that offset"));
+    /* grown by what is read, never sized by length: a short file or a piece near its end takes no more than it holds */
+    std::string bytes;
+    std::array<char, 65536> buf;
+    while (bytes.size() < length) {
+        const std::size_t n = std::fread(buf.data(), 1, std::min(buf.size(), length - bytes.size()), f.get());
+        bytes.append(buf.data(), n);
+        if (n == 0) break;
+    }
+    if (std::ferror(f.get())) return std::unexpected(files::open_error(std::move(where), path, "cannot be read"));
+    return bytes;
 }
 
 } // namespace xpp

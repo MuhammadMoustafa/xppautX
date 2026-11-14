@@ -1,7 +1,6 @@
 /* W333 (#394): fort.8 restart layouts, including augmented formulations.
    Fixtures have distinct states and tangents at every collocation node;
    untouched columns are canaries, so a stride/range mixup cannot pass. */
-#include "stream_lines.h"
 #include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
@@ -9,8 +8,7 @@
 #include "autox_c.h"
 #include "autox_nox.h"
 #include "autox_unknowns.h"
-#include "xpp_files.h"
-#include "xpp_io.h"
+#include "xpp_lines.h"
 #include "xpp_math.h"
 #include "autox_codes.h"
 #include "xAutox.h"
@@ -42,19 +40,12 @@ std::string solution(long parameters, bool bvp) {
 void formulation(xpp::Session &s, decltype(&periodic_fold_starting_data) restart,
                  long dimension, long free, bool bvp, bool torus,
                  bool optimization, bool truncated) {
-    xpp::TempDir temp;
-    const std::string path = temp.path() + "/fort.3";
-    xpp::UniqueFile file(xpp::files::open_stream(path, "w+"));
-    CHECK(file != nullptr);
     AutoxRun run;
     autox_bind_session(run, s);
     run.parameter_count = s.autox_state->parameter_layout.size();
-    run.fp3 = file.get();
-    run.fort3 = path;
-    std::string text = solution(run.parameter_count, bvp);
-    if (truncated) text.resize(text.find_last_of(' '));
-    xpp::print(file.get(), "{}", text);
-    CHECK(xpp::seek_stream(file.get(), 0, path).has_value());
+    run.restart_name = "fort.3";
+    run.restart_text = solution(run.parameter_count, bvp);
+    if (truncated) run.restart_text.resize(run.restart_text.find_last_of(' '));
     iap_type iap{};
     iap.run = &run;
     iap.ndim = dimension;
@@ -120,19 +111,14 @@ void formulation(xpp::Session &s, decltype(&periodic_fold_starting_data) restart
 }
 
 void algebraic(xpp::Session &s, bool truncated) {
-    xpp::TempDir temp;
-    const std::string path = temp.path() + "/fort.3";
-    xpp::UniqueFile file(xpp::files::open_stream(path, "w+"));
     AutoxRun run;
     autox_bind_session(run, s);
     run.parameter_count = s.autox_state->parameter_layout.size();
-    run.fp3 = file.get();
-    run.fort3 = path;
-    std::string text = xpp::format("3 1 5 7 1 1 1 3 2 0 0 {}\n0 2 3\n", run.parameter_count);
+    run.restart_name = "fort.3";
+    run.restart_text = xpp::format("3 1 5 7 1 1 1 3 2 0 0 {}\n0 2 3\n", run.parameter_count);
     for (long k = 0; k < run.parameter_count - (truncated ? 1 : 0); ++k)
-        text += xpp::format("{} ", k + .125);
-    xpp::print(file.get(), "{}\n", text);
-    CHECK(xpp::seek_stream(file.get(), 0, path).has_value());
+        run.restart_text += xpp::format("{} ", k + .125);
+    run.restart_text += "\n";
     iap_type iap{};
     iap.run = &run;
     iap.ndim = 2;
@@ -161,13 +147,9 @@ void algebraic(xpp::Session &s, bool truncated) {
 // The UZR routines differ only in diagnostic width; preserve the signed
 // index, full attempted point number and emitted text, not just the value.
 void user_zero_text(xpp::Session &s) {
-    xpp::TempDir temp;
-    const std::string path = temp.path() + "/fort.9";
-    xpp::UniqueFile file(xpp::files::open_stream(path, "w+"));
     AutoxRun run;
     autox_bind_session(run, s);
     run.parameter_count = s.autox_state->parameter_layout.size();
-    run.fp9 = file.get();
     iap_type iap{};
     iap.run = &run;
     iap.iid = 3;
@@ -192,23 +174,17 @@ void user_zero_text(xpp::Session &s) {
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  nullptr, nullptr, nullptr, marks) == .75);
     CHECK(changed == true);
-    CHECK(xpp::seek_stream(file.get(), 0, path).has_value());
-    StreamLines reader(file.get());
-    CHECK(reader.next() == "   3 10001        User Func.   0     7.500000E-01");
-    CHECK(reader.next() == "   3 10001        User Func.   0   7.500000E-01");
-    CHECK(!reader.next());
+    const std::vector<std::string_view> lines = xpp::split_lines(run.diagnostics_text);
+    CHECK(lines == (std::vector<std::string_view>{"   3 10001        User Func.   0     7.500000E-01",
+                                                  "   3 10001        User Func.   0   7.500000E-01"}));
 }
 
 // W384 (#446): exercise the real writers at the wrap and beyond their old
 // column widths, without computing thousands of continuation points.
 void point_files(xpp::Session &s, int count, bool collocation) {
-    xpp::TempDir temp;
     AutoxRun run;
     autox_bind_session(run, s);
     run.parameter_count = s.autox_state->parameter_layout.size();
-    const std::string solution_path = temp.path() + "/fort.8";
-    run.fp8.reset(xpp::files::open_stream(solution_path, "w+"));
-    CHECK(run.fp8 != nullptr);
     iap_type iap{};
     iap.run = &run;
     iap.ibr = 3;
@@ -232,39 +208,25 @@ void point_files(xpp::Session &s, int count, bool collocation) {
     } else {
         CHECK(write_special_point_restart(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data(), tangent.data(), &direction) == 0);
     }
-    CHECK(xpp::seek_stream(run.fp8.get(), 0, solution_path).has_value());
-    auto solutions = xpp::TokenReader::attach(run.fp8.get());
+    auto solutions = xpp::TokenReader::of_text(run.solutions_text);
     xpp::AutoxSolutionHeader header;
     CHECK(xpp::read_autox_solution_header(solutions, header, run.parameter_count));
     CHECK(header.ibr == 3 && header.ntot == count && header.lab == 7);
     CHECK(header.itp == iap.itp && header.ntst == iap.ntst && header.ncol == iap.ncol);
-    solutions.close();
-    run.fp8.reset();
-
-    const std::string diagram_path = temp.path() + "/fort.7";
-    const std::string diagnostic_path = temp.path() + "/fort.9";
-    xpp::UniqueFile diagram(xpp::files::open_stream(diagram_path, "w+"));
-    xpp::UniqueFile diagnostic(xpp::files::open_stream(diagnostic_path, "w+"));
-    CHECK(diagram != nullptr && diagnostic != nullptr);
-    run.fp7 = diagram.get();
-    run.fp9 = diagnostic.get();
     // Both signs matter: fort.7 uses the sign to encode stability.
     for (std::ptrdiff_t point : {static_cast<std::ptrdiff_t>(count), -static_cast<std::ptrdiff_t>(count)})
         CHECK(write_diagram_line(&iap, &rap, par.data(), icp.data(), icp.data(), &iap.ibr,
                      &point, &iap.lab, &current, values.data()) == 0);
-    CHECK(xpp::seek_stream(diagram.get(), 0, diagram_path).has_value());
-    StreamLines lines(diagram.get());
+    const std::vector<std::string_view> lines = xpp::split_lines(run.branches_text);
+    CHECK(lines.size() == 2);
     for (int sign : {1, -1}) {
-        const auto line = lines.next();
-        CHECK(line.has_value());
-        if (!line) continue;
-        auto row = xpp::TokenReader::of_text(*line);
+        const std::size_t at = sign == 1 ? 0 : 1;
+        if (at >= lines.size()) continue;
+        auto row = xpp::TokenReader::of_text(lines[at]);
         int branch = 0, point = 0, type = 0, label = 0;
         CHECK(row.read(branch) && row.read(point) && row.read(type) && row.read(label));
         CHECK(branch == 3 && point == sign * count && type == 9 && label == 7);
     }
-    CHECK(!lines.next());
-    run.fp7 = run.fp9 = nullptr;
     run.session = nullptr;
 }
 // W563 (#628): a branch point keeps the direction of its branch (AUTO-07p's NTST=1 record), a regular
@@ -272,13 +234,9 @@ void point_files(xpp::Session &s, int count, bool collocation) {
 // direction back exactly as written.
 void branch_point_direction(xpp::Session &s) {
     for (bool branch_point : {true, false}) {
-        xpp::TempDir temp;
-        const std::string path = temp.path() + "/fort.8";
-        AutoxRun run;  // write_special_point_restart writes the session's own fort.8
+        AutoxRun run;  // write_special_point_restart writes the run's own solutions text (fort.8)
         autox_bind_session(run, s);
         run.parameter_count = s.autox_state->parameter_layout.size();
-        run.fp8.reset(xpp::files::open_stream(path, "w+"));
-        CHECK(run.fp8 != nullptr);
         iap_type iap{};
         iap.run = &run;
         iap.ibr = 3;
@@ -298,9 +256,8 @@ void branch_point_direction(xpp::Session &s) {
         iap.lab = 8;
         iap.itp = {xpp::AutoxPointKind::End, xpp::AutoxPointKind::Regular};
         CHECK(write_special_point_restart(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data(), tangent.data(), rldot.data()) == 0);
-        run.fp3 = run.fp8.get();
-        run.fort3 = path;
-        CHECK(std::fflush(run.fp8.get()) == 0); /* find_restart_label reads the file by its path */
+        run.restart_text = run.solutions_text; /* the run restarts from what it wrote */
+        run.restart_name = "fort.8";
         iap.irs = 7;
         bool found = false;
         std::ptrdiff_t free = 0;
@@ -308,11 +265,11 @@ void branch_point_direction(xpp::Session &s) {
         CHECK(found);
         xpp::AutoxSolutionHeader header;
         {
-            auto reader = xpp::TokenReader::attach(run.fp3);
+            auto reader = run.restart_reader();
             CHECK(xpp::read_autox_solution_header(reader, header, run.parameter_count));
             CHECK(header.equilibrium_direction() == branch_point);
         }
-        CHECK(xpp::seek_stream(run.fp3, 0, path).has_value());
+        run.restart_pos = 0;
         std::array<double, 2> u{};
         std::vector<double> restored(run.parameter_count, canary);
         read_restart_label(&iap, &rap, u.data(), restored.data());
@@ -326,8 +283,6 @@ void branch_point_direction(xpp::Session &s) {
         bool next = false;
         find_restart_label(&iap, &rap, 8, &free, &next);
         CHECK(next);
-        run.fp3 = nullptr;
-        run.fp8.reset();
         run.restart_direction.reset();
         run.session = nullptr;
     }

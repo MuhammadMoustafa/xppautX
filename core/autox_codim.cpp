@@ -190,7 +190,7 @@ void left_null(iap_type &iap, const double *aa, std::ptrdiff_t stride)
     // The fold's eigenvector block is exactly the user's Jacobian.
     for (std::ptrdiff_t j=0; j<n; ++j) for (std::ptrdiff_t i=0; i<n; ++i)
         w.matrix[i+n*j]=aa[n+j+stride*(n+i)];
-    xpp::matrix_null_vector(iap.run->fp9,n,n,1,w.matrix.data(),w.left.data());
+    xpp::matrix_null_vector(iap.run->diagnostics_text,n,n,1,w.matrix.data(),w.left.data());
     double length=std::sqrt(dot(w.left,w.left));
     if (dot(w.left,w.previous_left)<0) length=-length;
     for (auto &v:w.left) v/=length;
@@ -226,7 +226,7 @@ double lyapunov(iap_type &iap, rap_type &rap, double *par, std::ptrdiff_t *icp,
         w.matrix[i+m*(n+i)]=-omega;
         w.matrix[n+i+m*i]=omega;
     }
-    xpp::matrix_null_vector(iap.run->fp9,m,m,2,w.matrix.data(),w.solution.data());
+    xpp::matrix_null_vector(iap.run->diagnostics_text,m,m,2,w.matrix.data(),w.solution.data());
     const double alpha=dot({w.solution.data(),static_cast<size_t>(n)},w.qr)
         +dot({w.solution.data()+n,static_cast<size_t>(n)},w.qi);
     const double beta=dot({w.solution.data()+n,static_cast<size_t>(n)},w.qr)
@@ -245,7 +245,7 @@ double lyapunov(iap_type &iap, rap_type &rap, double *par, std::ptrdiff_t *icp,
     for (std::ptrdiff_t j=0; j<n; ++j) for (std::ptrdiff_t i=0; i<n; ++i) w.matrix[i+n*j]=aa[i+stride*j];
     for (std::ptrdiff_t i=0; i<n; ++i) w.rhs[i]=w.a[i]+w.b[i];
     double determinant;
-    xpp::gauss_eliminate(iap.run->fp9,iap.iid,n,n,w.matrix.data(),1,n,w.r.data(),n,w.rhs.data(),&determinant);
+    xpp::gauss_eliminate(iap.run->diagnostics_text,iap.iid,n,n,w.matrix.data(),1,n,w.r.data(),n,w.rhs.data(),&determinant);
     std::fill(w.matrix.begin(),w.matrix.end(),0.);
     for (std::ptrdiff_t j=0; j<n; ++j) for (std::ptrdiff_t i=0; i<n; ++i) {
         w.matrix[i+m*j]=-aa[i+stride*j];
@@ -256,7 +256,7 @@ double lyapunov(iap_type &iap, rap_type &rap, double *par, std::ptrdiff_t *icp,
         w.matrix[n+i+m*i]=2*omega;
         w.rhs[i]=w.a[i]-w.b[i]; w.rhs[n+i]=2*w.c[i];
     }
-    xpp::gauss_eliminate(iap.run->fp9,iap.iid,m,m,w.matrix.data(),1,m,w.solution.data(),m,w.rhs.data(),&determinant);
+    xpp::gauss_eliminate(iap.run->diagnostics_text,iap.iid,m,m,w.matrix.data(),1,m,w.solution.data(),m,w.rhs.data(),&determinant);
     for (std::ptrdiff_t i=0; i<n; ++i) { w.sr[i]=w.solution[i]; w.si[i]=w.solution[n+i]; }
     const double sigma=derivatives.mixed(w.pr,w.qr,w.r)+derivatives.mixed(w.pi,w.qi,w.r);
     const double delta=derivatives.mixed(w.pr,w.qr,w.sr)+derivatives.mixed(w.pr,w.qi,w.si)
@@ -346,7 +346,7 @@ double generalized_hopf_test_algebraic(iap_type *iap, rap_type *rap, double *par
     *chng=u[2*iap->ndm]>0 && iap->itp.kind!=xpp::AutoxPointKind::BogdanovTakens;
     if (!*chng) return autox_test_not_applicable;
     const double coefficient=lyapunov(*iap,*rap,par,icp,u,dfdu,iap->ndim);
-    if (iap->iid>=2) xpp::print(iap->run->fp9,"GH first Lyapunov coefficient: {:.9E}\n",coefficient);
+    if (iap->iid>=2) xpp::format_append(iap->run->diagnostics_text,"GH first Lyapunov coefficient: {:.9E}\n",coefficient);
     return coefficient;
 }
 

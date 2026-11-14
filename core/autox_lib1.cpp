@@ -1,6 +1,4 @@
 #include "autox_unknowns.h"
-#include "xpp_io.h"
-#include "xpp_files.h"
 #include <array>
 #include <span>
 #include <initializer_list>
@@ -502,7 +500,7 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample,
   bool cancelled = false;
   const auto trial = [&] {
     if (iid >= 2 && !accept) {
-      xpp::print(iap.run->fp9," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",iterations,rds);
+      xpp::format_append(iap.run->diagnostics_text," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",iterations,rds);
     }
     {
       Locating locating(*iap.run); /* predictor and solve belong to the unstored point */
@@ -651,7 +649,7 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample,
     } else {
       q = 0.;
     }
-    if (!accept) xpp::print(iap.run->fp9," ==> Location of special point :  Convergence.    Stepsize ={:11.3E}\n",rds);
+    if (!accept) xpp::format_append(iap.run->diagnostics_text," ==> Location of special point :  Convergence.    Stepsize ={:11.3E}\n",rds);
     return;
   }
 
@@ -661,7 +659,7 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample,
   stepped = false;
   q = q_end;
   if (accept) return;
-  xpp::print(iap.run->fp9,"{:4} {:5} NOTE:Possible special point\n",ibr,ntot + 1);
+  xpp::format_append(iap.run->diagnostics_text,"{:4} {:5} NOTE:Possible special point\n",ibr,ntot + 1);
   if (refused.empty()) special_point_lost(iap, ibr, ntot, kind, why);
   else special_point_rejected(iap, ibr, ntot, kind, refused_parameter, refused);
 }
@@ -675,18 +673,6 @@ struct SetubvStop {
   SetubvStop &operator=(const SetubvStop &) = delete;
 };
 
-/* fort.8, opened when the run writes its first label (write_special_point_restart, write_solution_restart) and
-   kept open for the rest of it (close_autox closes it). One that cannot be
-   opened fails the run instead of exit(1), a server must outlive a bad
-   HOME; a later run tries again. */
-FILE *fort8(AutoxRun &run)
-{
-  if(!run.fp8){
-    run.fp8.reset(xpp::files::open_stream(xpp::autox_fort_path(run,8),"w"));
-    if(!run.fp8)xpp::autox_fail(xpp::files::write_error("autoX", xpp::autox_fort_path(run,8)));
-  }
-  return run.fp8.get();
-}
 } // namespace
 
 /* init: XPPAUT's AUTO's INIT: reads the constants and generates the starting data (autlib1.c:417 for init1) */
@@ -1365,7 +1351,7 @@ static void perpendicular_null_direction(iap_type *iap, std::ptrdiff_t *icp, std
   }
   ARRAY2D(aa, ndim, ndim) = rldot[0];
 
-  xpp::matrix_null_vector(iap->run->fp9, ndim + 1, *m1aaloc, 1, aa, du);
+  xpp::matrix_null_vector(iap->run->diagnostics_text, ndim + 1, *m1aaloc, 1, aa, du);
 
   ss = 0.;
   for (i = 0; i < ndim; ++i) {
@@ -1391,7 +1377,7 @@ static void
 switch_branch_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, std::ptrdiff_t *m1aaloc, double *aa, double *rlcur, double *u, double *du, double *udot, double *rldot, double *f, double *dfdu, double *dfdp, double *thl, double *thu)
 {
   const auto &stored = iap->run->restart_direction;
-  const std::string where = xpp::format("restart label {} in {}", iap->irs, xpp::autox_fort_path(*iap->run, 3));
+  const std::string where = xpp::format("restart label {} in {}", iap->irs, iap->run->restart_name);
   const std::ptrdiff_t ndim = iap->ndim;
   if (!stored)
     xpp::autox_fail(xpp::format("autoX: {} keeps no direction of its branch, so the branch cannot be switched there: only a branch point of an equilibrium run stores it", where));
@@ -1599,7 +1585,7 @@ control_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp
     for (std::ptrdiff_t k = 0; k < ndim; ++k) matrix[ndim + k * ld] = thu[k] * 2. * udot[k];
     matrix[ndim + ndim * ld] = thl[icp[0]] * 2. * rldot[0];
     double det;
-    xpp::gauss_eliminate(iap->run->fp9, iap->iid, ndim + 1, ld, matrix.data(), 1, ndim + 1, solution.data(), ndim + 1, rhs_unused.data(), &det);
+    xpp::gauss_eliminate(iap->run->diagnostics_text, iap->iid, ndim + 1, ld, matrix.data(), 1, ndim + 1, solution.data(), ndim + 1, rhs_unused.data(), &det);
     return det;
   };
 
@@ -1888,7 +1874,7 @@ start_direction_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdif
     std::ptrdiff_t tmp = ndim + 1;
     write_jacobian(iap, &tmp, m1aaloc, aa, rhs);
   }
-  xpp::matrix_null_vector(iap->run->fp9, ndim + 1, *m1aaloc, 1, aa, du);
+  xpp::matrix_null_vector(iap->run->diagnostics_text, ndim + 1, *m1aaloc, 1, aa, du);
 
   /* Scale and make sure that the PAR(ICP(1))-dot is positive. */
 
@@ -2040,20 +2026,20 @@ solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
   }
   if (iid >= 2) {
     if(last_ntop != ntop) {
-      xpp::print(iap->run->fp9,"========================================");
-      xpp::print(iap->run->fp9,"========================================\n");
+      xpp::format_append(iap->run->diagnostics_text,"========================================");
+      xpp::format_append(iap->run->diagnostics_text,"========================================\n");
       last_ntop = ntop;
     }
     if (nit == 0) {
-      xpp::print(iap->run->fp9,"  BR    PT  IT\n");
+      xpp::format_append(iap->run->diagnostics_text,"  BR    PT  IT\n");
     }
 
-    xpp::print(iap->run->fp9,"{:4} {:5}{:4}    {:14.6E}              ",ibr,ntop,
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}{:4}    {:14.6E}              ",ibr,ntop,
 	    nit,rlcur[0]);
     for (i = 0; i < ndmr; ++i) {
-      xpp::print(iap->run->fp9,"{:14.6E}",u[i]);
+      xpp::format_append(iap->run->diagnostics_text,"{:14.6E}",u[i]);
     }
-    xpp::print(iap->run->fp9,"\n");
+    xpp::format_append(iap->run->diagnostics_text,"\n");
   }
 
   /* Call user-supplied FUNC to evaluate the right hand side of the */
@@ -2098,7 +2084,7 @@ solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
       write_jacobian(iap, &tmp, m1aaloc, aa, rhs);
     }
 
-    pivot = xpp::gauss_eliminate(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
+    pivot = xpp::gauss_eliminate(iap->run->diagnostics_text, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
        ndim + 1, rhs, &det);
     rap->det = det;
     drlm = du[ndim];
@@ -2128,12 +2114,12 @@ solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
     }
 
     if (iid >= 2) {
-      xpp::print(iap->run->fp9,"{:4} {:5}{:4}    {:14.6E}              ",ibr,ntop,
+      xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}{:4}    {:14.6E}              ",ibr,ntop,
 	      nit,rlcur[0]);
       for (i = 0; i < ndmr; ++i) {
-	xpp::print(iap->run->fp9,"{:14.6E}",u[i]);
+	xpp::format_append(iap->run->diagnostics_text,"{:14.6E}",u[i]);
       }
-      xpp::print(iap->run->fp9,"\n");
+      xpp::format_append(iap->run->diagnostics_text,"\n");
     }
 
     rdrlm = f2c::abs(drlm) / (f2c::abs(rlcur[0]) + 1.);
@@ -2150,7 +2136,7 @@ solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
         goto L3;
       }
       if (iid >= 2) {
-	xpp::print(iap->run->fp9,"\n");
+	xpp::format_append(iap->run->diagnostics_text,"\n");
       }
       return 0;
     }
@@ -2174,7 +2160,7 @@ solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
 
  L3:
   if (iads == 0) {
-    xpp::print(iap->run->fp9,"{:4} {:5} NOTE:No convergence with fixed step size\n",ibr,ntop);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5} NOTE:No convergence with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
     xpp::autox_stop_noconv(iap->run->stop, {xpp::AUTOX_STOP_NOCONV_FIXED, *rds, dsmin, itnw, epsl, epsu, pivot}); /* xppautX: T23 */
@@ -2194,14 +2180,14 @@ solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
     u[i] = uold[i] + *rds * udot[i];
   }
   if (iid >= 2) {
-    xpp::print(iap->run->fp9," NOTE:Retrying step\n");
+    xpp::format_append(iap->run->diagnostics_text," NOTE:Retrying step\n");
   }
   goto L1;
 
 /* Minimum stepsize reached */
 
  L4:
-  xpp::print(iap->run->fp9,"{:4} {:5} NOTE:No convergence using minimum step size\n",ibr,ntop);
+  xpp::format_append(iap->run->diagnostics_text,"{:4} {:5} NOTE:No convergence using minimum step size\n",ibr,ntop);
   xpp::autox_stop_noconv(iap->run->stop, {xpp::AUTOX_STOP_NOCONV_MIN, *rds, dsmin, itnw, epsl, epsu, pivot}); /* xppautX: T23 */
  L5:
   rlcur[0] = rlold[0];
@@ -2317,7 +2303,7 @@ branch_point_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrd
   /* If requested write additional output on unit 9 : */
 
   if (iid >= 2) {
-    xpp::print(iap->run->fp9,"{:4} {:5}        BP   Function {:14.6E}\n",ibr,ntop,ret_val);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        BP   Function {:14.6E}\n",ibr,ntop,ret_val);
   }
 
   return ret_val;
@@ -2363,7 +2349,7 @@ fold_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
      matrix's, whose last row is the arclength condition, as AUTO-07p's FNLPAE
      leaves AP%DET alone; the tangent row here changes sign when a step turns
      past a fold (W423, docs/xppaut-findings.md 72) */
-  xpp::gauss_eliminate(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud.data(), ndim + 1, rhs, &det);
+  xpp::gauss_eliminate(iap->run->diagnostics_text, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud.data(), ndim + 1, rhs, &det);
   {
     std::ptrdiff_t tmp = ndim + 1;
     normalize_vector(&tmp, ud.data());
@@ -2382,7 +2368,7 @@ fold_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
   /* If requested write additional output on unit 9 : */
 
   if (iid >= 2) {
-    xpp::print(iap->run->fp9,"{:4} {:5}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
   }
   return ret_val;
 } /* fnlpae_ */
@@ -2531,22 +2517,22 @@ hopf_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
   ntot = iap->ntot;
   ntotp1 = ntot + 1;
   if (iid >= 2) {
-    xpp::print(iap->run->fp9,"{:4} {:5}        Hopf Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Hopf Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
   }
   if (nins1 == ndm) {
     ntotp1 = -ntotp1;
   }
 
-  xpp::print(iap->run->fp9,"{:4} {:5}        Eigenvalues:                                 Stable:{:3}\n",f2c::abs(ibr),ntop,nins);
+  xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Eigenvalues:                                 Stable:{:3}\n",f2c::abs(ibr),ntop,nins);
   if (ips == xpp::AutoxProblem::DiscreteMap) {
     for (i = 0; i < ndm; ++i) {
       const double expx = xpp::math::exp(ev[i].r); /* exp(ev) */
-      xpp::print(iap->run->fp9,"{:4} {:5}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,
+      xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,
                  expx * xpp::math::cos(ev[i].i),expx * xpp::math::sin(ev[i].i));
     }
   } else {
     for (i = 0; i < ndm; ++i) {
-      xpp::print(iap->run->fp9,"{:4} {:5}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,ev[i].r,ev[i].i);
+      xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,ev[i].r,ev[i].i);
     }
   }
 
@@ -2577,7 +2563,7 @@ double user_zero(const iap_type &iap, const double *par,
       {par, static_cast<std::size_t>(iap.run->parameter_count)}) - marks[iuzr].value;
   *chng = true;
   if (iap.iid >= user_zero_diagnostic_level) {
-    xpp::print(iap.run->fp9, "{:4} {:5}        User Func. {:3} {:{}.6E}\n",
+    xpp::format_append(iap.run->diagnostics_text, "{:4} {:5}        User Func. {:3} {:{}.6E}\n",
                f2c::abs(iap.ibr), iap.ntot + 1,
                iuzr, value, width);
   }
@@ -2769,12 +2755,12 @@ second_branch_point(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
     ndmr = 6;
   }
   if (iid >= 2) {
-    xpp::print(iap->run->fp9," Branch {:2} N={:5} IT={:2} PAR({:2})={:11.3E} U=",ibr,ntop,
+    xpp::format_append(iap->run->diagnostics_text," Branch {:2} N={:5} IT={:2} PAR({:2})={:11.3E} U=",ibr,ntop,
 	    nit,icp[0],rlcur[0]);	
     for (i = 0; i < ndmr; ++i) {
-      xpp::print(iap->run->fp9,"{:11.3E}",u[i]);	
+      xpp::format_append(iap->run->diagnostics_text,"{:11.3E}",u[i]);	
     }
-    xpp::print(iap->run->fp9,"\n");	
+    xpp::format_append(iap->run->diagnostics_text,"\n");	
 
   }
 
@@ -2812,7 +2798,7 @@ second_branch_point(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
       std::ptrdiff_t tmp = ndim + 1;
       write_jacobian(iap, &tmp, m1aaloc, aa, rhs);
     }
-    pivot = xpp::gauss_eliminate(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
+    pivot = xpp::gauss_eliminate(iap->run->diagnostics_text, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
        ndim + 1, rhs, &det);
     rap->det = det;
     drlm = du[ndim];
@@ -2842,12 +2828,12 @@ second_branch_point(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
     }
 
     if (iid >= 2) {
-      xpp::print(iap->run->fp9," Branch {:2} N={:5} IT={:2} PAR({:2})={:11.3E} U=",ibr,ntop,
+      xpp::format_append(iap->run->diagnostics_text," Branch {:2} N={:5} IT={:2} PAR({:2})={:11.3E} U=",ibr,ntop,
 	      nit+1,icp[0],rlcur[0]);	
       for (i = 0; i < ndmr; ++i) {
-	xpp::print(iap->run->fp9,"{:11.3E}",u[i]);	
+	xpp::format_append(iap->run->diagnostics_text,"{:11.3E}",u[i]);	
       }
-      xpp::print(iap->run->fp9,"\n");	
+      xpp::format_append(iap->run->diagnostics_text,"\n");	
     }
 
     /* Check whether relative error has reached user-supplied tolerance : 
@@ -2870,7 +2856,7 @@ failed_step:
   /* Maximum number of iterations reached. Reduce stepsize and try again. */
 
   if (iads == 0) {
-    xpp::print(iap->run->fp9,"{:4} {:5} NOTE:No convergence when switching branches with fixed step size\n",ibr,ntop);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5} NOTE:No convergence when switching branches with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
     xpp::autox_stop_noconv(iap->run->stop, {xpp::AUTOX_STOP_NOCONV_SWITCH_FIXED, *rds, dsmin, itnw, epsl, epsu, pivot}); /* xppautX: T23 */
@@ -2888,14 +2874,14 @@ failed_step:
     u[i] = uold[i] + *rds * udot[i];
   }
   if (iid >= 2) {
-    xpp::print(iap->run->fp9,"{:4} {:5} NOTE:Retrying step\n",ibr,ntop);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5} NOTE:Retrying step\n",ibr,ntop);
   }
   goto L2;
 
 /* Minimum stepsize reached. */
 
  L4:
-  xpp::print(iap->run->fp9,"{:4} {:5} NOTE:No convergence when switching branches with minimum step size\n",ibr,ntop);
+  xpp::format_append(iap->run->diagnostics_text,"{:4} {:5} NOTE:No convergence when switching branches with minimum step size\n",ibr,ntop);
   xpp::autox_stop_noconv(iap->run->stop, {xpp::AUTOX_STOP_NOCONV_SWITCH_MIN, *rds, dsmin, itnw, epsl, epsu, pivot}); /* xppautX: T23 */
  L5:
   rlcur[0] = rlold[0];
@@ -2979,44 +2965,44 @@ write_header(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, dou
   epsu = rap->epsu;
   epss = rap->epss;
 
-  xpp::print(iap->run->fp7,"   0 {:12.4E}{:12.4E}{:12.4E}{:12.4E}\n",rl0,rl1,a0,a1);
-  xpp::print(iap->run->fp7,"   0   EPSL={:11.4E}  EPSU ={:11.4E}  EPSS ={:11.4E}\n",epsl,epsu,epss);
-  xpp::print(iap->run->fp7,"   0   DS  ={:11.4E}  DSMIN={:11.4E}  DSMAX={:11.4E}\n",ds,dsmin,dsmax);
-  xpp::print(iap->run->fp7,"   0   NDIM={:4}   IPS ={:4}   IRS ={:4}   ILP ={:4}\n",ndim,xpp::autox_problem_code(ips),irs,ilp); 
-  xpp::print(iap->run->fp7,"   0   NTST={:4}   NCOL={:4}   IAD ={:4}   ISP ={:4}\n",ntst,ncol,iad,isp);
-  xpp::print(iap->run->fp7,"   0   ISW ={:4}   IPLT={:4}   NBC ={:4}   NINT={:4}\n",isw,iplt,nbc,nint);
-  xpp::print(iap->run->fp7,"   0   NMX={:5}   NPR ={:4}   MXBF={:4}   IID ={:4}\n",nmx,npr,mxbf,iid);
-  xpp::print(iap->run->fp7,"   0   ITMX={:4}   ITNW={:4}   NWTN={:4}   JAC={:4}  NUZR={:4}\n",itmx,itnw,nwtn,jac,nuzr);
+  xpp::format_append(iap->run->branches_text,"   0 {:12.4E}{:12.4E}{:12.4E}{:12.4E}\n",rl0,rl1,a0,a1);
+  xpp::format_append(iap->run->branches_text,"   0   EPSL={:11.4E}  EPSU ={:11.4E}  EPSS ={:11.4E}\n",epsl,epsu,epss);
+  xpp::format_append(iap->run->branches_text,"   0   DS  ={:11.4E}  DSMIN={:11.4E}  DSMAX={:11.4E}\n",ds,dsmin,dsmax);
+  xpp::format_append(iap->run->branches_text,"   0   NDIM={:4}   IPS ={:4}   IRS ={:4}   ILP ={:4}\n",ndim,xpp::autox_problem_code(ips),irs,ilp); 
+  xpp::format_append(iap->run->branches_text,"   0   NTST={:4}   NCOL={:4}   IAD ={:4}   ISP ={:4}\n",ntst,ncol,iad,isp);
+  xpp::format_append(iap->run->branches_text,"   0   ISW ={:4}   IPLT={:4}   NBC ={:4}   NINT={:4}\n",isw,iplt,nbc,nint);
+  xpp::format_append(iap->run->branches_text,"   0   NMX={:5}   NPR ={:4}   MXBF={:4}   IID ={:4}\n",nmx,npr,mxbf,iid);
+  xpp::format_append(iap->run->branches_text,"   0   ITMX={:4}   ITNW={:4}   NWTN={:4}   JAC={:4}  NUZR={:4}\n",itmx,itnw,nwtn,jac,nuzr);
 
   if (nicp == 1) {
     jtmp = iap->run->parameter_count;
-    xpp::print(iap->run->fp7,"   0   User-specified parameter:       ");
+    xpp::format_append(iap->run->branches_text,"   0   User-specified parameter:       ");
     for (i = 0; i < nicp; ++i) {
-      xpp::print(iap->run->fp7,"{:4}",icp[jtmp + i]);
+      xpp::format_append(iap->run->branches_text,"{:4}",icp[jtmp + i]);
     }
-    xpp::print(iap->run->fp7,"\n");
+    xpp::format_append(iap->run->branches_text,"\n");
   } else {
     jtmp = iap->run->parameter_count;
-    xpp::print(iap->run->fp7,"   0   User-specified parameters:      ");
+    xpp::format_append(iap->run->branches_text,"   0   User-specified parameters:      ");
     for (i = 0; i < nicp; ++i) {
-      xpp::print(iap->run->fp7,"{:4}",icp[jtmp + i]);
+      xpp::format_append(iap->run->branches_text,"{:4}",icp[jtmp + i]);
     }
-    xpp::print(iap->run->fp7,"\n");
+    xpp::format_append(iap->run->branches_text,"\n");
   }
 
   if (nfpr == 1) {
-    xpp::print(iap->run->fp7,"   0   Active continuation parameter:  ");
+    xpp::format_append(iap->run->branches_text,"   0   Active continuation parameter:  ");
 	
     for (i = 0; i < nfpr; ++i) {
-      xpp::print(iap->run->fp7,"{:4}",icp[i]);
+      xpp::format_append(iap->run->branches_text,"{:4}",icp[i]);
     }
-    xpp::print(iap->run->fp7,"\n");
+    xpp::format_append(iap->run->branches_text,"\n");
   } else {
-    xpp::print(iap->run->fp7,"   0   Active continuation parameters:  ");
+    xpp::format_append(iap->run->branches_text,"   0   Active continuation parameters:  ");
     for (i = 0; i < nfpr; ++i) {
-      xpp::print(iap->run->fp7,"{:4}",icp[i]);
+      xpp::format_append(iap->run->branches_text,"{:4}",icp[i]);
     }
-    xpp::print(iap->run->fp7,"\n");
+    xpp::format_append(iap->run->branches_text,"\n");
   }
 
   return 0;
@@ -3047,10 +3033,10 @@ write_headings(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, s
     xpp::log_autox(" \n");
   }
   if (iunit == 7) {
-    xpp::print(iap->run->fp7,"   0\n");
+    xpp::format_append(iap->run->branches_text,"   0\n");
   }
   if (iunit == 9) {
-    xpp::print(iap->run->fp9," \n");	
+    xpp::format_append(iap->run->diagnostics_text," \n");	
   }
 
   j = 0;
@@ -3118,17 +3104,17 @@ write_headings(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, s
     }
     xpp::log_autox("\n");
   } else if (iunit == 7) {
-    xpp::print(iap->run->fp7,"   0    PT  TY LAB ");
+    xpp::format_append(iap->run->branches_text,"   0    PT  TY LAB ");
     for (i = 0; i < *n1 + *n2 + 1; ++i) {
-      xpp::print(iap->run->fp7,"{}",col[i]);
+      xpp::format_append(iap->run->branches_text,"{}",col[i]);
     }
-    xpp::print(iap->run->fp7,"\n");
+    xpp::format_append(iap->run->branches_text,"\n");
   } else if (iunit == 9) {
-    xpp::print(iap->run->fp9,"  BR    PT  TY LAB ");	
+    xpp::format_append(iap->run->diagnostics_text,"  BR    PT  TY LAB ");	
     for (i = 0; i < *n1 + *n2 + 1; ++i) {
-      xpp::print(iap->run->fp9,"{}",col[i]);
+      xpp::format_append(iap->run->diagnostics_text,"{}",col[i]);
     }
-    xpp::print(iap->run->fp9,"\n");	
+    xpp::format_append(iap->run->diagnostics_text,"\n");	
   }
 
   return 0;
@@ -3343,20 +3329,20 @@ write_diagram_line(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *ic
       }
       xpp::log_autox("\n");
     }
-    xpp::print(iap->run->fp7,"{}",xpp::autox_branch_row_key(*ibr,*ntot,xpp::autox_point_encode(itp),*lab));
-    xpp::print(iap->run->fp7,"{:14.5E}",par[icu[0]]);
-    xpp::print(iap->run->fp7,"{:14.5E}",(*vaxis));
+    xpp::format_append(iap->run->branches_text,"{}",xpp::autox_branch_row_key(*ibr,*ntot,xpp::autox_point_encode(itp),*lab));
+    xpp::format_append(iap->run->branches_text,"{:14.5E}",par[icu[0]]);
+    xpp::format_append(iap->run->branches_text,"{:14.5E}",(*vaxis));
     for (i = 1; i < n1; ++i) {
-      xpp::print(iap->run->fp7,"{:14.5E}",par[icu[i]]);
+      xpp::format_append(iap->run->branches_text,"{:14.5E}",par[icu[i]]);
     }
-    xpp::print(iap->run->fp7,"\n");
-    xpp::print(iap->run->fp9,"{}",xpp::autox_point_row_key(*ibr,*ntot,atype,*lab));
-    xpp::print(iap->run->fp9,"{:14.6E}",par[icu[0]]);
-    xpp::print(iap->run->fp9,"{:14.6E}",(*vaxis));
+    xpp::format_append(iap->run->branches_text,"\n");
+    xpp::format_append(iap->run->diagnostics_text,"{}",xpp::autox_point_row_key(*ibr,*ntot,atype,*lab));
+    xpp::format_append(iap->run->diagnostics_text,"{:14.6E}",par[icu[0]]);
+    xpp::format_append(iap->run->diagnostics_text,"{:14.6E}",(*vaxis));
     for (i = 1; i < n1; ++i) {
-      xpp::print(iap->run->fp9,"{:14.6E}",par[icu[i]]);
+      xpp::format_append(iap->run->diagnostics_text,"{:14.6E}",par[icu[i]]);
     }
-    xpp::print(iap->run->fp9,"\n");
+    xpp::format_append(iap->run->diagnostics_text,"\n");
   } else {
     if (n1 == 1) {
       if (itp.kind != xpp::AutoxPointKind::Regular) {
@@ -3368,20 +3354,20 @@ write_diagram_line(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *ic
 	}
 	xpp::log_autox("\n");
       }
-      xpp::print(iap->run->fp7,"{}",xpp::autox_branch_row_key(*ibr,*ntot,xpp::autox_point_encode(itp),*lab));
-      xpp::print(iap->run->fp7,"{:14.5E}",par[icu[0]]);
-      xpp::print(iap->run->fp7,"{:14.5E}",(*vaxis));
+      xpp::format_append(iap->run->branches_text,"{}",xpp::autox_branch_row_key(*ibr,*ntot,xpp::autox_point_encode(itp),*lab));
+      xpp::format_append(iap->run->branches_text,"{:14.5E}",par[icu[0]]);
+      xpp::format_append(iap->run->branches_text,"{:14.5E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
-	xpp::print(iap->run->fp7,"{:14.5E}",u[i]);
+	xpp::format_append(iap->run->branches_text,"{:14.5E}",u[i]);
       }
-      xpp::print(iap->run->fp7,"\n");
-      xpp::print(iap->run->fp9,"{}",xpp::autox_point_row_key(*ibr,*ntot,atype,*lab));
-      xpp::print(iap->run->fp9,"{:14.6E}",par[icu[0]]);
-      xpp::print(iap->run->fp9,"{:14.6E}",(*vaxis));
+      xpp::format_append(iap->run->branches_text,"\n");
+      xpp::format_append(iap->run->diagnostics_text,"{}",xpp::autox_point_row_key(*ibr,*ntot,atype,*lab));
+      xpp::format_append(iap->run->diagnostics_text,"{:14.6E}",par[icu[0]]);
+      xpp::format_append(iap->run->diagnostics_text,"{:14.6E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
-	xpp::print(iap->run->fp9,"{:14.6E}",u[i]);
+	xpp::format_append(iap->run->diagnostics_text,"{:14.6E}",u[i]);
       }
-      xpp::print(iap->run->fp9,"\n");	
+      xpp::format_append(iap->run->diagnostics_text,"\n");	
 
     } else {
       if (itp.kind != xpp::AutoxPointKind::Regular) {
@@ -3396,42 +3382,43 @@ write_diagram_line(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *ic
 	}
 	xpp::log_autox("\n");
       }
-      xpp::print(iap->run->fp7,"{}",xpp::autox_branch_row_key(*ibr,*ntot,xpp::autox_point_encode(itp),*lab));
-      xpp::print(iap->run->fp7,"{:14.5E}",par[icu[0]]);
-      xpp::print(iap->run->fp7,"{:14.5E}",(*vaxis));
+      xpp::format_append(iap->run->branches_text,"{}",xpp::autox_branch_row_key(*ibr,*ntot,xpp::autox_point_encode(itp),*lab));
+      xpp::format_append(iap->run->branches_text,"{:14.5E}",par[icu[0]]);
+      xpp::format_append(iap->run->branches_text,"{:14.5E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
-	xpp::print(iap->run->fp7,"{:14.5E}",u[i]);
+	xpp::format_append(iap->run->branches_text,"{:14.5E}",u[i]);
       }
       for (i = 1; i < n1; ++i) {
-	xpp::print(iap->run->fp7,"{:14.5E}",par[icu[i]]);
+	xpp::format_append(iap->run->branches_text,"{:14.5E}",par[icu[i]]);
       }
-      xpp::print(iap->run->fp7,"\n");
-      xpp::print(iap->run->fp9,"{}",xpp::autox_point_row_key(*ibr,*ntot,atype,*lab));
-      xpp::print(iap->run->fp9,"{:14.6E}",par[icu[0]]);
-      xpp::print(iap->run->fp9,"{:14.6E}",(*vaxis));
+      xpp::format_append(iap->run->branches_text,"\n");
+      xpp::format_append(iap->run->diagnostics_text,"{}",xpp::autox_point_row_key(*ibr,*ntot,atype,*lab));
+      xpp::format_append(iap->run->diagnostics_text,"{:14.6E}",par[icu[0]]);
+      xpp::format_append(iap->run->diagnostics_text,"{:14.6E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
-	xpp::print(iap->run->fp9,"{:14.6E}",u[i]);
+	xpp::format_append(iap->run->diagnostics_text,"{:14.6E}",u[i]);
       }
       for (i = 1; i < n1; ++i) {
-	xpp::print(iap->run->fp9,"{:14.6E}",par[icu[i]]);
+	xpp::format_append(iap->run->diagnostics_text,"{:14.6E}",par[icu[i]]);
       }
-      xpp::print(iap->run->fp9,"\n");	
+      xpp::format_append(iap->run->diagnostics_text,"\n");	
     }
   }
 
+  xpp::autox_flush(*iap->run);
   return 0;
 } /* wrline_ */
 
 /* Values in autoX's solution-file rows: autox_solution_columns to a row, each row indented. */
-static void print_solution_row_values(FILE *fp, std::span<const double> values)
+static void print_solution_row_values(std::string &out, std::span<const double> values)
 {
-  xpp::print(fp,"    ");
+  xpp::format_append(out,"    ");
   for (std::size_t i = 0; i < values.size(); ++i) {
     if ((i > 0) && (i % autox_solution_columns == 0))
-      xpp::print(fp,"\n    ");
-    xpp::print(fp,"{:19.10E}",values[i]);
+      xpp::format_append(out,"\n    ");
+    xpp::format_append(out,"{:19.10E}",values[i]);
   }
-  xpp::print(fp,"\n");
+  xpp::format_append(out,"\n");
 }
 
 static std::ptrdiff_t solution_row_count(std::ptrdiff_t values)
@@ -3449,7 +3436,7 @@ write_special_point_restart(iap_type *iap, rap_type *rap, double *par, std::ptrd
   std::ptrdiff_t nar, isw;
   xpp::AutoxPointCode itp;
 
-  FILE *const fp8=fort8(*iap->run);
+  std::string &run_solutions=iap->run->solutions_text;
 
   /* Write restart information on singular points, plotting points, etc., */
   /* on unit 8. */
@@ -3478,25 +3465,25 @@ write_special_point_restart(iap_type *iap, rap_type *rap, double *par, std::ptrd
     header.ibr=ibr; header.ntot=ntot; header.itp=itp; header.lab=*lab; header.nfpr=nfpr; header.isw=isw;
     header.ntpl=ntpl; header.nar=nar; header.nskip=nrowpr; header.ntst=direction ? 1 : 0; header.ncol=0;
     header.npar=iap->run->parameter_count;
-    xpp::print(fp8,"{}",xpp::autox_solution_header_text(header));
+    xpp::format_append(run_solutions,"{}",xpp::autox_solution_header_text(header));
   }
-  xpp::print(fp8,"    {:19.10E}",t);
+  xpp::format_append(run_solutions,"    {:19.10E}",t);
   for (i = 0; i < ndim; ++i) {
     if((i>0)&&((i+1)%autox_solution_columns==0))
-      xpp::print(fp8,"\n    ");
-    xpp::print(fp8,"{:19.10E}",u[i]);
+      xpp::format_append(run_solutions,"\n    ");
+    xpp::format_append(run_solutions,"{:19.10E}",u[i]);
   }
-  xpp::print(fp8,"\n");
+  xpp::format_append(run_solutions,"\n");
   if (direction) {
     for (i = 0; i < nfpr; ++i)
-      xpp::print(fp8,"{:5}",icp[i]);
-    xpp::print(fp8,"\n");
-    print_solution_row_values(fp8, {rldot, static_cast<std::size_t>(nfpr)});
-    print_solution_row_values(fp8, {udot, static_cast<std::size_t>(ndim)});
+      xpp::format_append(run_solutions,"{:5}",icp[i]);
+    xpp::format_append(run_solutions,"\n");
+    print_solution_row_values(run_solutions, {rldot, static_cast<std::size_t>(nfpr)});
+    print_solution_row_values(run_solutions, {udot, static_cast<std::size_t>(ndim)});
   }
-  print_solution_row_values(fp8, {par, static_cast<std::size_t>(jtmp)});
-  fflush(fp8);
+  print_solution_row_values(run_solutions, {par, static_cast<std::size_t>(jtmp)});
 
+  xpp::autox_flush(*iap->run);
   return 0;
 } /* wrtsp8_ */
 
@@ -3510,18 +3497,18 @@ write_jacobian(iap_type *iap, std::ptrdiff_t *n, std::ptrdiff_t *m1aaloc, double
 
   aa_dim1 = *m1aaloc;
     
-  xpp::print(iap->run->fp9," Residual vector :\n");	
+  xpp::format_append(iap->run->diagnostics_text," Residual vector :\n");	
 
   for (i = 0; i < *n; ++i) {
-    xpp::print(iap->run->fp9," {:10.3E}",rhs[i]);	
+    xpp::format_append(iap->run->diagnostics_text," {:10.3E}",rhs[i]);	
   }
-  xpp::print(iap->run->fp9,"\n");	
-  xpp::print(iap->run->fp9," Jacobian matrix :\n");	
+  xpp::format_append(iap->run->diagnostics_text,"\n");	
+  xpp::format_append(iap->run->diagnostics_text," Jacobian matrix :\n");	
   for (i = 0; i < *n; ++i) {
     for (j = 0; j < *n; ++j) {
-      xpp::print(iap->run->fp9," {:10.3E}",ARRAY2D(aa, i, j));	
+      xpp::format_append(iap->run->diagnostics_text," {:10.3E}",ARRAY2D(aa, i, j));	
     }
-    xpp::print(iap->run->fp9,"\n");	
+    xpp::format_append(iap->run->diagnostics_text,"\n");	
 
   }
 
@@ -3873,8 +3860,8 @@ adapt_step(iap_type *iap, rap_type *rap, double *rds)
     *rds = *rds * dsmax / ards;
   }
 
-  xpp::print(iap->run->fp9,"{:4} {:5}        Iterations     {:3}\n",f2c::abs(ibr),ntop - 1,nit);
-  xpp::print(iap->run->fp9,"{:4} {:5}        Stepsize      {:14.6E}\n",f2c::abs(ibr),ntop,(*rds));
+  xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Iterations     {:3}\n",f2c::abs(ibr),ntop - 1,nit);
+  xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Stepsize      {:14.6E}\n",f2c::abs(ibr),ntop,(*rds));
 
   return 0;
 } /* adptds_ */
@@ -4309,14 +4296,14 @@ new_restart_label(iap_type *iap, rap_type *rap)
 
 void autox_restart_label_missing(const iap_type *iap)
 {
-  xpp::autox_fail(xpp::format("autoX: restart label {} is not in {}", iap->irs, xpp::autox_fort_path(*iap->run, 3)));
+  xpp::autox_fail(xpp::format("autoX: restart label {} is not in {}", iap->irs, iap->run->restart_name));
 }
 
 void autox_restart_read(const iap_type *iap, bool ok, std::string_view what)
 {
   if (!ok)
     xpp::autox_fail(xpp::format("autoX: the restart data of label {} in {} ends before {}", iap->irs,
-                               xpp::autox_fort_path(*iap->run, 3), what));
+                               iap->run->restart_name, what));
 }
 
 void read_autox_restart_header(iap_type *iap, const rap_type *rap,
@@ -4326,11 +4313,11 @@ void read_autox_restart_header(iap_type *iap, const rap_type *rap,
   bool found;
   find_restart_label(iap, rap, iap->irs, &free, &found);
   if (!found) autox_restart_label_missing(iap);
-  reader = xpp::TokenReader::attach(iap->run->fp3);
+  reader = iap->run->restart_reader();
   autox_restart_read(iap, xpp::read_autox_solution_header(reader, header, iap->run->parameter_count), "its header");
   if (header.equilibrium_direction())
     xpp::autox_fail(xpp::format("autoX: restart label {} in {} is an equilibrium's branch point, not a mesh of a periodic solution or a boundary value problem", iap->irs,
-                               xpp::autox_fort_path(*iap->run, 3)));
+                               iap->run->restart_name));
   *ntst = header.ntst;
   *ncol = header.ncol;
   iap->ibr = header.ibr;
@@ -4346,9 +4333,10 @@ find_restart_label(iap_type *iap, const rap_type *rap,
 
   *found = false;
   const xpp::AutoxSolutionIndex &solutions = xpp::autox_run_solutions(*iap->run);
-  const std::string path = xpp::autox_fort_path(*iap->run, 3);
   /* the records before the label set what a search that reads them sets: the last one's, when the label is not there */
-  for (const xpp::AutoxSolutionRecord &record : solutions.records) {
+  AutoxRun &run = *iap->run;
+  for (std::size_t i = 0; i < solutions.records.size(); ++i) {
+    const xpp::AutoxSolutionRecord &record = solutions.records[i];
     *nfpr = static_cast<std::ptrdiff_t>(record.nfpr);
     iap->itp = record.itp;
     iap->ibr = static_cast<std::ptrdiff_t>(record.ibr);
@@ -4356,12 +4344,10 @@ find_restart_label(iap_type *iap, const rap_type *rap,
     *found = true;
     iap->itpst = f2c::abs(iap->isw) == 2 ? xpp::autox_point_start_of(record.itp) : xpp::AutoxPointKind::Regular;
     /* read_restart_label() reads the label line again from its start */
-    if (auto r=xpp::seek_stream(iap->run->fp3, record.position, path); !r)
-      xpp::autox_fail(r.error());
+    run.restart_pos = static_cast<std::size_t>(record.position);
     return 0;
   }
-  if (auto r=xpp::seek_stream(iap->run->fp3, solutions.bytes, path); !r) /* read_restart_label() finds the end of the file, as after the search */
-    xpp::autox_fail(r.error());
+  run.restart_pos = static_cast<std::size_t>(solutions.bytes); /* read_restart_label() finds the end of the data, as after the search */
   return 0;
 } 
 
@@ -4371,13 +4357,13 @@ find_restart_label(iap_type *iap, const rap_type *rap,
 void
 read_restart_label(const iap_type *iap, const rap_type *rap, double *u, double *par)
 {
-  xpp::TokenReader tr = xpp::TokenReader::attach(iap->run->fp3);
+  xpp::TokenReader tr = iap->run->restart_reader();
   xpp::AutoxSolutionHeader header;
   autox_restart_read(iap, xpp::read_autox_solution_header(tr, header, iap->run->parameter_count), "its header");
   const std::ptrdiff_t ndim = header.nar - 1;
   if (ndim > iap->ndim)
     xpp::autox_fail(xpp::format("autoX: the restart data of label {} in {} has {} variables, the model {}", iap->irs,
-                               xpp::autox_fort_path(*iap->run, 3), ndim, iap->ndim));
+                               iap->run->restart_name, ndim, iap->ndim));
   double time;
   autox_restart_read(iap, xpp::read_autox_solution_rows(tr, ndim, 0, 0, 1, 0, ndim, u, &time, false, 0, {}),
                     "the solution");
@@ -5252,7 +5238,7 @@ step_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, Pr
         goto L3;
       }
       if (iid >= 2) {
-	xpp::print(iap->run->fp9," \n");	
+	xpp::format_append(iap->run->diagnostics_text," \n");	
       }
       return 0;
     }
@@ -5273,7 +5259,7 @@ step_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, Pr
 
  L3:
   if (iads == 0) {
-    xpp::print(iap->run->fp9,"{:4} {:5} NOTE:No convergence with fixed step size\n",ibr,ntop);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5} NOTE:No convergence with fixed step size\n",ibr,ntop);
     xpp::autox_stop_noconv(iap->run->stop, {xpp::AUTOX_STOP_NOCONV_FIXED, *rds, dsmin, itnw, epsl, epsu, iap->run->solve_boundary_work.pivot}); /* xppautX: T23 */
     goto L13;
   }
@@ -5296,7 +5282,7 @@ step_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, Pr
     }
   }
   if (iid >= 2) {
-    xpp::print(iap->run->fp9,"{:4} {:5} NOTE:Retrying step\n",ibr,ntop);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5} NOTE:Retrying step\n",ibr,ntop);
 
   }
   goto L1;
@@ -5304,7 +5290,7 @@ step_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, Pr
 /* Minimum stepsize reached. */
 
  L12:
-  xpp::print(iap->run->fp9,"{:4} {:5}, NOTE:No convergence using minimum step size\n",ibr,ntop);
+  xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}, NOTE:No convergence using minimum step size\n",ibr,ntop);
   xpp::autox_stop_noconv(iap->run->stop, {xpp::AUTOX_STOP_NOCONV_MIN, *rds, dsmin, itnw, epsl, epsu, iap->run->solve_boundary_work.pivot}); /* xppautX: T23 */
  L13:
   for (i = 0; i < nfpr; ++i) {
@@ -5383,7 +5369,7 @@ restart_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp,
   if(iap->irs > 0) {
     bool found = false;
     find_restart_label(iap, rap, iap->irs, &junk, &found);
-    xpp::TokenReader tr = xpp::TokenReader::attach(iap->run->fp3);
+    xpp::TokenReader tr = iap->run->restart_reader();
     xpp::AutoxSolutionHeader header;
     autox_restart_read(iap, xpp::read_autox_solution_header(tr, header, iap->run->parameter_count), "its header");
     ntst_fort8 = header.ntst;
@@ -5785,10 +5771,10 @@ start_direction_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff
   }
 
   if (iid >= 2) {
-    xpp::print(iap->run->fp9,"Starting direction of the free parameter(s) :\n");	
+    xpp::format_append(iap->run->diagnostics_text,"Starting direction of the free parameter(s) :\n");	
 
     for (i = 0; i < nfpr; ++i) {
-      xpp::print(iap->run->fp9," PAR({:3}) :{:11.3E}\n",icp[i],rldot[i]);	
+      xpp::format_append(iap->run->diagnostics_text," PAR({:3}) :{:11.3E}\n",icp[i],rldot[i]);	
     }
   }
 
@@ -5903,7 +5889,7 @@ fold_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *ic
   scale_direction(iap, icp, ndxloc, udotps, rldot, dtm, 
 	 thl, thu);
   if (iid >= 2) {
-    xpp::print(iap->run->fp9,"{:4} {:5}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,rldot[0]);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,rldot[0]);
   }
 
   /* Set the quantity to be returned. */
@@ -5948,7 +5934,7 @@ branch_point_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdi
   for (i = 0; i < ndim * ndim; ++i) {
     pp[i] = p1[i];
   }
-  xpp::gauss_eliminate(iap->run->fp9, iap->iid, ndim, ndim, pp.data(), 0, 1, &u, 1, &f, &det);
+  xpp::gauss_eliminate(iap->run->diagnostics_text, iap->iid, ndim, ndim, pp.data(), 0, 1, &u, 1, &f, &det);
   rap->det = det;
 
   /* Set the determinant of the normalized reduced system. */
@@ -5971,7 +5957,7 @@ branch_point_test_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdi
   }
 
   if (iid >= 2) {
-    xpp::print(iap->run->fp9,"{:4} {:5}        BP   Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        BP   Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
 
   }
   return ret_val;
@@ -6017,7 +6003,7 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, s
   if (isw==2) {
     xpp::autox_cycle_multipliers(*iap,p0,p1,ev,true);
     ndim=iap->ndm;
-  } else xpp::floquet_multipliers(iap->run->fp9, &ndim, p0, p1, &iid, wrk.data(), ev, true);
+  } else xpp::floquet_multipliers(iap->run->diagnostics_text, &ndim, p0, p1, &iid, wrk.data(), ev, true);
   /* Find the multiplier closest to z=1. */
   /* xppautX: the orbit's Floquet multipliers (autox_stability.h) */
   xpp::autox_stability_computed(iap->run->stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndim)},xpp::AUTOX_STABILITY_PERIODIC);
@@ -6070,7 +6056,7 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, s
   }
   if (amin > .05 && isp == 2) {
     if (iid >= 2) {
-      xpp::print(iap->run->fp9,"{:4} {:5} NOTE:Multiplier inaccurate\n",f2c::abs(ibr),ntop);
+      xpp::format_append(iap->run->diagnostics_text,"{:4} {:5} NOTE:Multiplier inaccurate\n",f2c::abs(ibr),ntop);
 
     }
     xpp::autox_stop_note(*iap->run,
@@ -6078,11 +6064,11 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, s
                                     "period doubling and torus detection are off until they are accurate again (try a larger mesh_intervals or collocation_points)",
                                     f2c::abs(ibr), ntop, amin));
     for (i = 0; i < ndim; ++i) {
-      xpp::print(iap->run->fp9,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
+      xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
     }
     nins = 0;
     iap->nins = nins;
-    xpp::print(iap->run->fp9,"{:4} {:5}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);
     isp = -isp;
     iap->isp = isp;
     return ret_val;
@@ -6093,12 +6079,12 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, s
 
   if (isp < 0) {
     if (amin < .01) {
-      xpp::print(iap->run->fp9,"{:4} {:5} NOTE:Multiplier accurate again\n",f2c::abs(ibr),ntop);
+      xpp::format_append(iap->run->diagnostics_text,"{:4} {:5} NOTE:Multiplier accurate again\n",f2c::abs(ibr),ntop);
       isp = -isp;
       iap->isp = isp;
     } else {
       for (i = 0; i < ndim; ++i) {
-	xpp::print(iap->run->fp9,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
+	xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
       }
       return ret_val;
     }
@@ -6140,16 +6126,16 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, s
   nins = nins1;
   iap->nins = nins;
   if (iid >= 2 && (isp == 1 || isp == 2)) {
-    xpp::print(iap->run->fp9,"{:4} {:5}        SPB  Function {:14.6E}\n",f2c::abs(ibr),ntop,d);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        SPB  Function {:14.6E}\n",f2c::abs(ibr),ntop,d);
   }
 
   /* Print the Floquet multipliers. */
 
   nins = iap->nins;
-  xpp::print(iap->run->fp9,"{:4} {:5}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);
+  xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);
 
   for (i = 0; i < ndim; ++i) {
-    xpp::print(iap->run->fp9,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
 
   }
 
@@ -6507,7 +6493,7 @@ write_solution_restart(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t
   std::ptrdiff_t nrowpr, lab, ibr, nar, nrd, isw;
   xpp::AutoxPointCode itp;
 
-  FILE *const fp8=fort8(*iap->run);
+  std::string &run_solutions=iap->run->solutions_text;
 
   /* Writes plotting and restart data on unit 8, viz.: */
   /* (1) data identifying the corresponding point on unit 7, */
@@ -6578,7 +6564,7 @@ write_solution_restart(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t
     header.ibr=ibr; header.ntot=ntot; header.itp=itp; header.lab=lab; header.nfpr=nfpr; header.isw=isw;
     header.ntpl=ntpl; header.nar=nar; header.nskip=nrowpr; header.ntst=ntst; header.ncol=ncol;
     header.npar=iap->run->parameter_count;
-    xpp::print(fp8,"{}",xpp::autox_solution_header_text(header));
+    xpp::format_append(run_solutions,"{}",xpp::autox_solution_header_text(header));
   }
 
 /* Write the entire solution on unit 8 : */
@@ -6589,60 +6575,62 @@ write_solution_restart(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t
       k1 = i * ndim;
       k2 = (i + 1) * ndim;
       t = tm[j] + i * rn * dtm[j];
-      xpp::print(fp8,"    {:19.10E}",t);
+      xpp::format_append(run_solutions,"    {:19.10E}",t);
       for (k = k1; k < k2; ++k) {
 	if((k+1-k1)%autox_solution_columns==0)
-	  xpp::print(fp8,"\n    ");
-	xpp::print(fp8,"{:19.10E}",ARRAY2D(ups, j, k));
+	  xpp::format_append(run_solutions,"\n    ");
+	xpp::format_append(run_solutions,"{:19.10E}",ARRAY2D(ups, j, k));
       }
-      xpp::print(fp8,"\n");	 
+      xpp::format_append(run_solutions,"\n");	 
 
     }
+    xpp::autox_flush(*iap->run); /* a mesh interval at a time: a solution is never held whole */
   }
-  xpp::print(fp8,"    {:19.10E}",tm[ntst]);
+  xpp::format_append(run_solutions,"    {:19.10E}",tm[ntst]);
   for (i = 0; i < ndim; ++i) {
     if((i+1)%autox_solution_columns==0)
-      xpp::print(fp8,"\n    ");
-    xpp::print(fp8,"{:19.10E}",ARRAY2D(ups, ntst, i));
+      xpp::format_append(run_solutions,"\n    ");
+    xpp::format_append(run_solutions,"{:19.10E}",ARRAY2D(ups, ntst, i));
   }
-  xpp::print(fp8,"\n");  
+  xpp::format_append(run_solutions,"\n");  
 
 /* Write the free parameter indices: */
   for (i = 0; i < nfpr; ++i) {
-    xpp::print(fp8,"{:5}",icp[i]);
+    xpp::format_append(run_solutions,"{:5}",icp[i]);
   }
-  xpp::print(fp8,"\n");  
+  xpp::format_append(run_solutions,"\n");  
 
 /* Write the direction of the branch: */
-  print_solution_row_values(fp8, {rldot, static_cast<std::size_t>(nfpr)});
+  print_solution_row_values(run_solutions, {rldot, static_cast<std::size_t>(nfpr)});
 
   for (j = 0; j < ntst; ++j) {
     for (i = 0; i < ncol; ++i) {
       k1 = i * ndim;
       k2 = (i + 1)* ndim;
 
-      xpp::print(fp8,"    ");
+      xpp::format_append(run_solutions,"    ");
       for (k = k1; k < k2; ++k) {
 	if((k!=k1)&&((k-k1)%autox_solution_columns==0))
-	  xpp::print(fp8,"\n    ");
-	xpp::print(fp8,"{:19.10E}",ARRAY2D(udotps, j, k));
+	  xpp::format_append(run_solutions,"\n    ");
+	xpp::format_append(run_solutions,"{:19.10E}",ARRAY2D(udotps, j, k));
       }
-      xpp::print(fp8,"\n");
+      xpp::format_append(run_solutions,"\n");
     }
+    xpp::autox_flush(*iap->run);
   }
-  xpp::print(fp8,"    ");
+  xpp::format_append(run_solutions,"    ");
 
   for (k = 0; k < ndim; ++k) {
     if((k!=0)&&(k%autox_solution_columns==0))
-      xpp::print(fp8,"\n    ");
-    xpp::print(fp8,"{:19.10E}",ARRAY2D(udotps, ntst, k));
+      xpp::format_append(run_solutions,"\n    ");
+    xpp::format_append(run_solutions,"{:19.10E}",ARRAY2D(udotps, ntst, k));
   }
-  xpp::print(fp8,"\n");
+  xpp::format_append(run_solutions,"\n");
 
 /* Write the parameter values. */
 
-  print_solution_row_values(fp8, {par, static_cast<std::size_t>(iap->run->parameter_count)});
-  fflush(fp8);
+  print_solution_row_values(run_solutions, {par, static_cast<std::size_t>(iap->run->parameter_count)});
+  xpp::autox_flush(*iap->run);
   return 0;
 } /* wrtbv8_ */
 
@@ -6687,40 +6675,40 @@ write_solution_extra(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *
   }
   if (iid >= 2) {
     if (nitps == 0 || iid >= 3) {
-      xpp::print(iap->run->fp9,"========================================");
-      xpp::print(iap->run->fp9,"========================================\n");
-      xpp::print(iap->run->fp9,"  BR    PT  IT\n");	
+      xpp::format_append(iap->run->diagnostics_text,"========================================");
+      xpp::format_append(iap->run->diagnostics_text,"========================================\n");
+      xpp::format_append(iap->run->diagnostics_text,"  BR    PT  IT\n");	
       
     }
     mtot = ntot + 1;
-    xpp::print(iap->run->fp9,"{:4} {:5}{:4}    {:14.6E}{:14.6E}\n",ibr,mtot,nitps,rlcur[0],amp);
+    xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}{:4}    {:14.6E}{:14.6E}\n",ibr,mtot,nitps,rlcur[0],amp);
   }
   
   if (iid >= 5) {
-    xpp::print(iap->run->fp9," UPS :\n");	
+    xpp::format_append(iap->run->diagnostics_text," UPS :\n");	
     for (j = 0; j < ntst; ++j) {
       rn = 1. / ncol;
       for (i = 0; i < ncol; ++i) {
 	t = tm[j] + i * rn * dtm[j];
 	k1 = i * ndim;
 	k2 = (i + 1) * ndim;
-	xpp::print(iap->run->fp9," {:14.6E}",t);	
+	xpp::format_append(iap->run->diagnostics_text," {:14.6E}",t);	
 	for (k = k1; k < k2; ++k) {
 	  if((k+1-k1)%7==0)
-	    xpp::print(iap->run->fp9,"\n ");
-	  xpp::print(iap->run->fp9," {:14.6E}",ARRAY2D(ups, j, k));	
+	    xpp::format_append(iap->run->diagnostics_text,"\n ");
+	  xpp::format_append(iap->run->diagnostics_text," {:14.6E}",ARRAY2D(ups, j, k));	
 	}
-	xpp::print(iap->run->fp9,"\n");	
+	xpp::format_append(iap->run->diagnostics_text,"\n");	
 	
       }
     }
-    xpp::print(iap->run->fp9," {:14.6E}",tm[ntst]);	
+    xpp::format_append(iap->run->diagnostics_text," {:14.6E}",tm[ntst]);	
     for (i = 0; i < ndim; ++i) {
       if((i+1)%7==0)
-	xpp::print(iap->run->fp9,"\n ");
-      xpp::print(iap->run->fp9," {:14.6E}",ARRAY2D(ups, ntst, i));	
+	xpp::format_append(iap->run->diagnostics_text,"\n ");
+      xpp::format_append(iap->run->diagnostics_text," {:14.6E}",ARRAY2D(ups, ntst, i));	
     }
-    xpp::print(iap->run->fp9,"\n");	
+    xpp::format_append(iap->run->diagnostics_text,"\n");	
   }
   return 0;
 } /* wrtbv9_ */

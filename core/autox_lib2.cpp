@@ -195,7 +195,7 @@ solve_boundary(std::ptrdiff_t *ifst, iap_type *iap, rap_type *rap, double *par, 
 
   if (iap->run->setubv_stop && autox_cancelled(*iap->run)) return 0; /* xppautX: cancel */
 
-  solve_bordered_block_diagonal(*iap->run, iap->run->fp9, ft.data(), fc, p0, p1,
+  solve_bordered_block_diagonal(*iap->run, ft.data(), fc, p0, p1,
        ifst, &iid, nllv, &det, &ndim, &ntst, &nbc, &nrow, &nclm, &nfpr, &nrc);
   
   transpose_right_hand_side(ft.data(), fa, &ntst, &nrow, ndxloc);
@@ -711,10 +711,11 @@ void determine_local_variables(const double *a, const double *b, double *fa, con
 
 /* brbd: AUTO-07p solvebv.f90:544: solves linear systems with the bordered almost-block-diagonal profile */
 int 
-solve_bordered_block_diagonal(AutoxRun &run, FILE *fp9, double *fa, double *fc, double *p0, double *p1, std::ptrdiff_t *ifst, std::ptrdiff_t *idb, std::ptrdiff_t *nllv, double *det, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nbc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc)
+solve_bordered_block_diagonal(AutoxRun &run, double *fa, double *fc, double *p0, double *p1, std::ptrdiff_t *ifst, std::ptrdiff_t *idb, std::ptrdiff_t *nllv, double *det, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nbc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc)
 {
   /* the matrices and index arrays solve_boundary sized and kept in run.solve_boundary_work */
   SolveBoundaryWork &work = run.solve_boundary_work;
+  std::string &diagnostics = run.diagnostics_text;
   double *a = work.a.data(), *b = work.b.data(), *c = work.c.data(), *d = work.d.data();
   std::ptrdiff_t *irf = work.irf.data(), *icf = work.icf.data();
   const CondensedBlocks blocks{work.a1.data(), work.a2.data(), work.s1.data(), work.s2.data(), work.bb.data(),
@@ -722,7 +723,7 @@ solve_bordered_block_diagonal(AutoxRun &run, FILE *fp9, double *fa, double *fc, 
     work.ipr.data(), work.icf2.data(), *nov, *ncb, *nrc, *nbc};
 
   if (*idb > 4) {
-    print_system(fp9, nov, na, nra, nca, ncb, nrc, a, b, c, d, fa, fc);
+    print_system(diagnostics, nov, na, nra, nca, ncb, nrc, a, b, c, d, fa, fc);
   }
   if (*ifst == 1) {
     condense_parameters(run, nov, na, nra, nca, a, ncb, b, nbc, nrc, c, d, irf, icf);
@@ -743,7 +744,7 @@ solve_bordered_block_diagonal(AutoxRun &run, FILE *fp9, double *fa, double *fc, 
     reduce_right_hand_side(run, blocks, *na, fc);
   }
 
-  solve_end_system(run, fp9, work.e.data(), blocks.cc, blocks.c2, d, fc, ifst, na,
+  solve_end_system(run, work.e.data(), blocks.cc, blocks.c2, d, fc, ifst, na,
 	 nrc, nov, ncb, idb, nllv, work.fcc.data(), p0, p1, det, blocks.a1, blocks.a2,
 	 blocks.faa, blocks.bb);
 
@@ -910,8 +911,9 @@ copy_right_hand_side(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *nr
 
 /* dimrge: AUTO-07p solvebv.f90:1408: assembles and solves the small end system from the first and last blocks, the boundary rows and the integral rows */
 int 
-solve_end_system(AutoxRun &run, FILE *fp9, double *e, double *cc, double *c2, double *d, double *fc, std::ptrdiff_t *ifst, std::ptrdiff_t *na, std::ptrdiff_t *nrc, std::ptrdiff_t *nov, std::ptrdiff_t *ncb, std::ptrdiff_t *idb, std::ptrdiff_t *nllv, double *fcc, double *p0, double *p1, double *det, double *a1, double *a2, double *faa, double *bb)
+solve_end_system(AutoxRun &run, double *e, double *cc, double *c2, double *d, double *fc, std::ptrdiff_t *ifst, std::ptrdiff_t *na, std::ptrdiff_t *nrc, std::ptrdiff_t *nov, std::ptrdiff_t *ncb, std::ptrdiff_t *idb, std::ptrdiff_t *nllv, double *fcc, double *p0, double *p1, double *det, double *a1, double *a2, double *faa, double *bb)
 {
+  std::string &diagnostics = run.diagnostics_text;
 
   std::ptrdiff_t e_dim1, cc_dim1, cc_dim2, c2_dim1, c2_dim2, d_dim1, 
     p0_dim1, p1_dim1, a1_dim1, a1_dim2, 
@@ -982,58 +984,58 @@ solve_end_system(AutoxRun &run, FILE *fp9, double *e, double *cc, double *c2, do
   }
 
   if (*idb >= 3) {
-    xpp::print(fp9," Residuals of reduced system:\n");	
+    xpp::format_append(diagnostics," Residuals of reduced system:\n");	
 	  
-    xpp::print(fp9," ");
+    xpp::format_append(diagnostics," ");
     for (i = 0; i < ncrloc; ++i) {
-      xpp::print(fp9,"{:11.3E}",xe[i]);	
+      xpp::format_append(diagnostics,"{:11.3E}",xe[i]);	
       if((i+ 1)%10==0)
-	xpp::print(fp9,"\n ");
+	xpp::format_append(diagnostics,"\n ");
 	    
     }
-    xpp::print(fp9,"\n");	
+    xpp::format_append(diagnostics,"\n");	
   }
 
   if (*idb >= 4) {
 
-    xpp::print(fp9," Reduced Jacobian matrix:\n");	
+    xpp::format_append(diagnostics," Reduced Jacobian matrix:\n");	
 	      
     for (i = 0; i < ncrloc; ++i) {
       int total_printed = 0;
       for (j = 0; j < ncrloc; ++j) {
 	if((total_printed != 0)&&(total_printed % 10 == 0))
-	  xpp::print(fp9,"\n");	
-	xpp::print(fp9," {:11.3E}",ARRAY2D(e, i, j));	
+	  xpp::format_append(diagnostics,"\n");	
+	xpp::format_append(diagnostics," {:11.3E}",ARRAY2D(e, i, j));	
 	total_printed++;
       }
-      xpp::print(fp9,"\n");	
+      xpp::format_append(diagnostics,"\n");	
     }
   }
 
   /* Solve for FCC */
   run.solve_boundary_work.pivot=NAN;
   if (*nllv == 0) {
-    run.solve_boundary_work.pivot=xpp::gauss_eliminate(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
+    run.solve_boundary_work.pivot=xpp::gauss_eliminate(diagnostics, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   } else if (*nllv > 0) {
-    xpp::matrix_null_vector(fp9, ncrloc, ncrloc, *nllv, e, fcc);
+    xpp::matrix_null_vector(diagnostics, ncrloc, ncrloc, *nllv, e, fcc);
   } else {
     for (i = 0; i < ncrloc - 1; ++i) {
       xe[i] = 0.;
     }
     xe[-1 + ncrloc] = 1.;
-    run.solve_boundary_work.pivot=xpp::gauss_eliminate(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
+    run.solve_boundary_work.pivot=xpp::gauss_eliminate(diagnostics, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   }
   if (*idb >= 4) {
-    xpp::print(fp9," Solution vector:\n");	
+    xpp::format_append(diagnostics," Solution vector:\n");	
 	  
     for (i = 0; i < ncrloc; ++i) {
       if((i!=0)&&(i%autox_solution_columns==0))
-	xpp::print(fp9,"\n");	
-      xpp::print(fp9," {:11.3E}",fcc[i]);	
+	xpp::format_append(diagnostics,"\n");	
+      xpp::format_append(diagnostics," {:11.3E}",fcc[i]);	
     }
-    xpp::print(fp9,"\n");	
+    xpp::format_append(diagnostics,"\n");	
   }
 
   k1 = ncrloc;
@@ -1058,7 +1060,7 @@ solve_end_system(AutoxRun &run, FILE *fp9, double *e, double *cc, double *c2, do
 
 /* print1: prints the blocks of the condensed system (AUTO-07p solvebv.f90:1697) */
 int 
-print_system(FILE *fp9, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc, double *a, double *b, double *c, double *d, double *fa, double *fc)
+print_system(std::string &diagnostics, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc, double *a, double *b, double *c, double *d, double *fa, double *fc)
 {
 
   std::ptrdiff_t a_dim1, a_dim2, b_dim1, b_dim2, c_dim1, 
@@ -1075,58 +1077,58 @@ print_system(FILE *fp9, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t 
   c_dim1 = *nca;
   c_dim2 = *nrc;
     
-  xpp::print(fp9,"AA , BB , FA (Full dimension) :\n");	
+  xpp::format_append(diagnostics,"AA , BB , FA (Full dimension) :\n");	
   /* should be 10.3f*/
   for (i = 0; i < *na; ++i) {
-    xpp::print(fp9,"I={:3}\n",i + 1);
+    xpp::format_append(diagnostics,"I={:3}\n",i + 1);
     for (ir = 0; ir < *nra; ++ir) {
       int total_written = 0;
       for (ic = 0; ic < *nca; ++ic) {
 	if((total_written != 0) && (total_written%12 == 0))
-	  xpp::print(fp9,"\n");
-	xpp::print(fp9," {:10.3E}",ARRAY3D(a, ic, ir, i));
+	  xpp::format_append(diagnostics,"\n");
+	xpp::format_append(diagnostics," {:10.3E}",ARRAY3D(a, ic, ir, i));
 	total_written++;
       }
       for (ic = 0; ic < *ncb; ++ic) {
 	if((total_written != 0) && (total_written%12 == 0))
-	  xpp::print(fp9,"\n");
-	xpp::print(fp9," {:10.3E}",ARRAY3D(b, ic, ir, i));	
+	  xpp::format_append(diagnostics,"\n");
+	xpp::format_append(diagnostics," {:10.3E}",ARRAY3D(b, ic, ir, i));	
 	total_written++;
       }
       if((total_written != 0) && (total_written%12 == 0))
-	xpp::print(fp9,"\n");
-      xpp::print(fp9," {:10.3E}",ARRAY2D(fa, ir, i));	
-      xpp::print(fp9,"\n");	
+	xpp::format_append(diagnostics,"\n");
+      xpp::format_append(diagnostics," {:10.3E}",ARRAY2D(fa, ir, i));	
+      xpp::format_append(diagnostics,"\n");	
     }
   }
 
-  xpp::print(fp9,"CC (Full dimension) :\n");	
+  xpp::format_append(diagnostics,"CC (Full dimension) :\n");	
 
   for (i = 0; i < *na; ++i) {
-    xpp::print(fp9,"I={:3}\n",i + 1);	
+    xpp::format_append(diagnostics,"I={:3}\n",i + 1);	
     for (ir = 0; ir < *nrc; ++ir) {
       int total_written = 0;
       for (ic = 0; ic < *nca; ++ic) {
 	if((total_written != 0) && (total_written%12 == 0))
-	  xpp::print(fp9,"\n");
-	xpp::print(fp9," {:10.3E}",ARRAY3D(c, ic, ir, i));	
+	  xpp::format_append(diagnostics,"\n");
+	xpp::format_append(diagnostics," {:10.3E}",ARRAY3D(c, ic, ir, i));	
 	total_written++;
       }
-      xpp::print(fp9,"\n");	
+      xpp::format_append(diagnostics,"\n");	
     }
   }
 
-  xpp::print(fp9,"DD , FC\n");	
+  xpp::format_append(diagnostics,"DD , FC\n");	
 
   for (ir = 0; ir < *nrc; ++ir) {
     int total_written = 0;
     for (ic = 0; ic < *ncb; ++ic) {
       if((total_written != 0) && (total_written%12 == 0))
-	xpp::print(fp9,"\n");
-      xpp::print(fp9," {:10.3E}",ARRAY2D(d, ic, ir));	
+	xpp::format_append(diagnostics,"\n");
+      xpp::format_append(diagnostics," {:10.3E}",ARRAY2D(d, ic, ir));	
       total_written++;
     }
-    xpp::print(fp9," {:10.3E}\n",fc[ir]);	
+    xpp::format_append(diagnostics," {:10.3E}\n",fc[ir]);	
   }
 
   return 0;

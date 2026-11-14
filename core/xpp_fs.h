@@ -13,7 +13,7 @@
    load_model; a Model keeps the reference it was loaded with (Model::fs) for the commands that read
    or write later. Never a global. Only what a caller needs is here: the inner rings read whole files
    (text or bytes), write through a Sink, and ask the questions a loader asks of the folders.
-   Streaming writers and autoX's scratch files go through the Sink later (W739, W740). */
+   autoX's run files are text it keeps and writes through a Sink when the run ends (W739); streaming writers go through the Sink later (W740). */
 
 #include <cstddef>
 #include <functional>
@@ -68,6 +68,9 @@ public:
     /* the whole file at path, at most limit bytes; the error names the file and `where`, and says
        why (not there, a folder, cannot be read, longer than limit) */
     virtual Result<std::string> read(std::string where, std::string_view path, std::size_t limit) = 0;
+    /* up to length bytes of the file at path from byte offset on: fewer at its end, none past it; length is at most
+       file_range_limit. The error names the file and `where`. What a run reads of a file too long to hold whole */
+    virtual Result<std::string> read_range(std::string where, std::string_view path, std::size_t offset, std::size_t length) = 0;
     /* a plain file inside folder ("" the working folder), or one outside it that the caller has the
        user's approval for (allowed_outside: resolve_path's text of each): its bytes, at most limit.
        Nothing for a file that is absent, linked, outside without approval, or longer than limit:
@@ -87,12 +90,48 @@ public:
     virtual bool exists(std::string_view path) = 0;
     /* path names a folder */
     virtual bool is_dir(std::string_view path) = 0;
+    /* a file can be created in the folder dir (probed), false for "" */
+    virtual bool dir_writable(std::string_view dir) = 0;
+    /* deletes the file path: 0 on success */
+    virtual int remove_file(std::string_view path) = 0;
+    /* a scratch folder of its own (its path, "" when none could be made), and removing it with what it holds */
+    virtual std::string make_temp_dir() = 0;
+    virtual void remove_temp_dir(std::string_view dir) = 0;
     /* path itself when it is absolute, else under the working folder */
     virtual std::string absolute(std::string_view path) = 0;
     /* the working folder ("" when it cannot be had), and moving it: 0 on success */
     virtual std::string working_dir() = 0;
     virtual int change_dir(std::string_view path) = 0;
 };
+
+/* the most a read_range gives, and the piece the files are streamed in: a solution of autoX's is far below the one, a
+   copy or a pass over a file never holds more than the other */
+inline constexpr std::size_t file_range_limit = 512u * 1024 * 1024;
+inline constexpr std::size_t file_chunk_bytes = 64u * 1024;
+
+/* the file at path in pieces of at most file_chunk_bytes, each handed to piece(std::string_view) in order; the error when it
+   cannot be read. Memory stays one piece, whatever the file's length */
+template <class F>
+Result<> for_each_chunk(FileSystem &fs, const std::string &where, std::string_view path, F &&piece)
+{
+    for (std::size_t offset = 0;;) {
+        Result<std::string> chunk = fs.read_range(where, path, offset, file_chunk_bytes);
+        if (!chunk) return std::unexpected(chunk.error());
+        if (chunk->empty()) return {};
+        piece(std::string_view(*chunk));
+        offset += chunk->size();
+    }
+}
+
+/* the file at path appended to sink, streamed in pieces */
+inline Result<> copy_into(FileSystem &fs, Sink &sink, std::string_view path)
+{
+    Result<> written;
+    const Result<> read = for_each_chunk(fs, "copy", path, [&](std::string_view piece) {
+        if (written) written = sink.write(piece);
+    });
+    return read ? written : read;
+}
 
 /* parse(lines) over the file at path, read whole through fs (at most limit bytes); the error when it
    cannot be read (its place the file, no line) or parse stops at a line (ReadFailed) */

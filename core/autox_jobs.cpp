@@ -2,6 +2,7 @@
 #include <vector> /* first: autox_f2c.h's min/max macros (pulled in below) break libstdc++ headers if not included first */
 #include <atomic>
 #include <deque>
+#include <tuple>
 #include "autox_jobs.h"
 #include "expr_native.h"
 #include "autox_queue.h"
@@ -14,8 +15,6 @@
 #include "autox_parallel.h"
 #include "autox_stop.h"
 #include "diagram.h"
-#include "xpp_io.h"
-#include "xpp_files.h"
 #include "xpp_job.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
@@ -23,6 +22,7 @@
 #include "autox_codes.h"
 #include "autox_ends.h"
 #include "autox_nox.h"
+#include "xpp_lines.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -88,63 +88,83 @@ std::optional<Key> read_branch_row_key(std::string_view line)
    diagram's limit cut it short */
 using StoredPoints=std::set<std::pair<int,int>>;
 
-/* Which file a renumbering reads: .s (fort.8: a header line then its rows, which are counted), .b (fort.7: a record per
-   line, headers and column titles among them) or .d (fort.9: lines of text, autox_renumbered_line's). */
+/* Which text a renumbering reads: solutions (fort.8: a header line then its rows, which are counted), branches (fort.7: a record per
+   line, headers and column titles among them) or diagnostics (fort.9: lines of text, autox_renumbered_line's). */
 enum class RunFile { solutions, branches, diagnostics };
 
-/* the file of a job with its branch and label numbers moved by r, and, when only some of the job's points were stored
-   (the diagram's limit), with the records of the others left out of the .b and .s */
-Result<> renumber_file(const AutoxRun &run, const std::string &path, RunFile kind, const Renumber &r, const StoredPoints *stored)
+/* a job's file at path with its branch and label numbers moved by r, and, when only some of the job's points were stored (the
+   diagram's limit), with the records of the others left out of the branches and solutions: streamed into a file beside it, which
+   becomes the job's file (path is its name); path is left as it is when that fails */
+Result<> renumber_file(FileSystem &fs, const AutoxRun &run, std::string &path, RunFile kind, const Renumber &r, const StoredPoints *stored)
 {
-  if((r.identity()&&!stored)||!files::exists(path))return {};
-  xpp::Writer out(path);
-  if(!out)return fail("autox","cannot write autoX's file",Place{path,0,0,{}});
-  { /* the reader is closed before the rename into place (Windows refuses to replace an open file) */
-    xpp::LineReader in(path);
-    if(!in)return fail("autox","cannot read autoX's file to number its branches and labels after those before it",Place{path,0,0,{}});
-    const auto branch=[&](int value){return r.branch(value);};
-    const auto label=[&](int value){return r.label(value);};
-    const auto kept=[&](long point_branch,long point){
-      return !stored||stored->contains({static_cast<int>(std::abs(point_branch)),static_cast<int>(std::abs(point))});
-    };
-    int line_number=0;
-    long rows_left=0;
-    bool keeping=true; /* the rows of the solution whose header was last read */
-    while(const auto line=in.next()){
-      line_number++;
-      if(rows_left>0){ /* a solution's rows are copied as they are, or left out with their header */
-        rows_left--;
-        if(keeping)out.write_line(*line);
-        continue;
-      }
-      if(kind==RunFile::diagnostics){
-        out.write_line(autox_renumbered_line(*line,branch,label));
-        continue;
-      }
-      const std::string text(*line);
-      if(kind==RunFile::solutions){
-        TokenReader fields=TokenReader::of_text(text);
-        AutoxSolutionHeader header;
-        if(!read_autox_solution_header(fields,header,run.parameter_count))
-          return fail("autox","not a solution's header line (autoX's file is damaged)",Place{path,line_number,0,text});
-        header.ibr=r.branch(static_cast<int>(header.ibr));
-        header.lab=r.label(static_cast<int>(header.lab));
-        rows_left=header.nskip;
-        keeping=kept(header.ibr,header.ntot);
-        if(keeping)out.print("{}",autox_solution_header_text(header));
-        continue;
-      }
-      const std::optional<Key> key=read_branch_row_key(text);
-      if(!key||key->field[0]==0||key->end>=text.size()){ /* a header or a column title */
-        out.write_line(text);
-        continue;
-      }
-      const long moved=r.branch(static_cast<int>(key->field[0]));
-      if(kept(moved,key->field[1]))
-        out.print("{}{}\n",autox_branch_row_key(moved,key->field[1],key->field[2],r.label(static_cast<int>(key->field[3]))),text.substr(key->end));
+  if(r.identity()&&!stored)return {};
+  auto opened=fs.open_sink(path+".renumbered",true);
+  if(!opened)return std::unexpected(opened.error());
+  Sink &sink=**opened;
+  std::string out;
+  std::optional<Error> failed;
+  const auto branch=[&](int value){return r.branch(value);};
+  const auto label=[&](int value){return r.label(value);};
+  const auto kept=[&](long point_branch,long point){
+    return !stored||stored->contains({static_cast<int>(std::abs(point_branch)),static_cast<int>(std::abs(point))});
+  };
+  int line_number=0;
+  long rows_left=0;
+  bool keeping=true; /* the rows of the solution whose header was last read */
+  const auto write_line=[&](std::string_view line){out+=line;out+='\n';};
+  const auto each=[&](std::string_view line,bool){
+    if(failed)return;
+    line_number++;
+    if(!line.empty()&&line.back()=='\r')line.remove_suffix(1);
+    if(rows_left>0){ /* a solution's rows are copied as they are, or left out with their header */
+      rows_left--;
+      if(keeping)write_line(line);
+      return;
     }
+    if(kind==RunFile::diagnostics){
+      write_line(autox_renumbered_line(line,branch,label));
+      return;
+    }
+    if(kind==RunFile::solutions){
+      TokenReader fields=TokenReader::of_text(line);
+      AutoxSolutionHeader header;
+      if(!read_autox_solution_header(fields,header,run.parameter_count)){
+        failed=Error{"autox","not a solution's header line (autoX's file is damaged)",Place{path,line_number,0,std::string(line)}};
+        return;
+      }
+      header.ibr=r.branch(static_cast<int>(header.ibr));
+      header.lab=r.label(static_cast<int>(header.lab));
+      rows_left=header.nskip;
+      keeping=kept(header.ibr,header.ntot);
+      if(keeping)out+=autox_solution_header_text(header);
+      return;
+    }
+    const std::optional<Key> key=read_branch_row_key(line);
+    if(!key||key->field[0]==0||key->end>=line.size()){ /* a header or a column title */
+      write_line(line);
+      return;
+    }
+    const long moved=r.branch(static_cast<int>(key->field[0]));
+    if(kept(moved,key->field[1]))
+      out+=xpp::format("{}{}\n",autox_branch_row_key(moved,key->field[1],key->field[2],r.label(static_cast<int>(key->field[3]))),line.substr(key->end));
+  };
+  Result<> written;
+  LineFeeder lines;
+  const auto drain=[&]{
+    if(written&&!out.empty())written=sink.write(out);
+    out.clear();
+  };
+  if(auto read=for_each_chunk(fs,"autox",path,[&](std::string_view piece){lines.feed(piece,each);drain();});!read)return read;
+  lines.finish(each);
+  drain();
+  if(failed){
+    sink.abort();
+    return std::unexpected(*failed);
   }
-  return out.commit();
+  if(!written)return written;
+  if(auto committed=sink.commit();!committed)return committed;
+  path+=".renumbered";
+  return {};
 }
 
 /* a job's table lines with their branch and label numbers moved, as its .d is */
@@ -360,7 +380,7 @@ void configure(Queue &q, QueuedJob &job)
   }
 }
 
-/* a job that starts at what another found: its folder, and its fort.3 the point's solution out of the finding job's fort.8
+/* a job that starts at what another found: its restart text the point's solution out of the finding job's solutions
    (an equilibrium through an end of cycles starts from its state, as a run from the initial conditions does) */
 Result<> set_up_child(Queue &q, QueuedJob &job)
 {
@@ -375,12 +395,11 @@ Result<> set_up_child(Queue &q, QueuedJob &job)
     return {};
   }
   const AutoxRun &finder=*job.parent->run;
-  auto solution=autox_solution_block(finder.fort8,start.label,finder.parameter_count);
   const auto point=std::find_if(finder.points.begin(),finder.points.end(),[&](const AutoxBufferedPoint &held){return held.point.lab==start.label;});
-  if(!solution||point==finder.points.end())
-    return fail("autox",xpp::format("the solution of label {} is not in the job that found it",start.label),Place{finder.fort8,0,0,{}});
+  if(!finder.outputs.solutions_written||point==finder.points.end())
+    return fail("autox",xpp::format("the solution of label {} is not in the job that found it",start.label),Place{"the solutions of the job that found it",0,0,{}});
   found.point=&point->point;
-  found.solution=std::move(*solution);
+  found.solution_file=finder.outputs.solutions; /* its index says whether the label is there; the run's start reads it */
   return autox_set_up_run(s,run,NO_OPEN_3,&found);
 }
 
@@ -428,7 +447,7 @@ void run_job(Queue &q, QueuedJob &job)
   {
     const LogHold hold(job.table,job.warnings);
     job.failed=run_numerics(*job.run);
-    job.run->fp8.reset();
+    if(auto finished=autox_finish_files(*job.run);!finished&&!job.failed)job.failed=finished.error(); /* what the join and a child read */
   }
   const std::lock_guard lock(q.mutex);
   if(job.failed&&job.run->run_wide_error)q.fatal=true;
@@ -867,8 +886,9 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
       autox_store_point(s,p,held.new_segment);
       last_stored=std::pair<int,int>(std::abs(p.ibr),std::abs(p.ntot));
     }
-    for(const auto &[file,kind]:{std::pair{run.fort7,RunFile::branches},std::pair{run.fort8,RunFile::solutions},std::pair{run.fort9,RunFile::diagnostics}})
-      if(auto numbered=renumber_file(run,file,kind,mine,kind==RunFile::diagnostics||!cut?nullptr:&stored);!numbered&&!reported)reported=numbered.error();
+    for(const auto &[path,kind,present]:{std::tuple{&run.outputs.branches,RunFile::branches,true},std::tuple{&run.outputs.solutions,RunFile::solutions,run.outputs.solutions_written},std::tuple{&run.outputs.diagnostics,RunFile::diagnostics,true}})
+      if(present)
+        if(auto numbered=renumber_file(*s.model().fs,run,*path,kind,mine,kind==RunFile::diagnostics||!cut?nullptr:&stored);!numbered&&!reported)reported=numbered.error();
     if(!stored.empty())joined.push_back({job.key.path,stored.begin()->first}); /* one run, one branch: every point stored has it */
     /* the next job numbers after this one's */
     moved.branch_offset=branches-moved.base_branch;

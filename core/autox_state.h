@@ -7,7 +7,7 @@
    are kept in.
 
    AutoxRun is one run's own (autox_lib1-5, gogoautox, setubv2): its
-   parameters, its fort folder and files, its work arrays, why its branches
+   parameters, its fort texts, its work arrays, why its branches
    ended, its stability values, and the Session whose model and settings it
    reads. do_autox makes one per run and the numerical code reaches the
    Session only through it, so two runs share no state of their own. What a
@@ -26,15 +26,15 @@
 #include "autox_script.h"
 #include "display_state.h"
 #include "xAutox.h"
-#include "xpp_io.h"
-#include "xpp_files.h"
 #include "xpp_error.h"
+#include "xpp_lines.h"
 #include "xpp_math.h"
 #include "xpp_job.h"
 #include "autox_axis.h"
 #include "autox_codes.h"
 #include "autox_ends.h"
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstddef>
@@ -327,22 +327,45 @@ struct AutoxRun {
      Session's when the run ends */
   xpp::AutoxStop stop;
   xpp::AutoxStability stability;
-  /* the run's own folder (xpp::files::make_temp_dir) and fort.3/7/8/9 in it
-     (open_autox): fort.3 the restart data, fort.7 the branches, fort.8 the
-     solutions, fort.9 the diagnostics. close_autox moves them to the
-     Session's .b/.d/.s files and the folder goes with the run. Declared
-     before fp8, which is closed before the folder is removed. */
-  std::optional<xpp::TempDir> folder;
-  std::string fort3,fort7,fort8,fort9;
-  /* a restart reads the session's own .s file as fort.3 (nothing is copied, the file is only read): close_autox must not remove it */
+  /* autoX's fort.3/7/8/9, never opened by the numerics: the file system is the edge's (xpp_fs.h). fort.7 (the branches), fort.8
+     (the solutions) and fort.9 (the diagnostics) are written as the run goes: the code appends to the three texts below,
+     autox_flush hands them to the sinks open_autox made in the run's scratch folder and empties them, so a run holds one
+     point's text, not its whole output. close_autox puts the files in the session's .b/.d/.s. A run with no sinks (a unit test)
+     keeps its text. fort.3 is the restart data: one solution's text, read by range from the session's .s file
+     (find_restart_label). */
+  std::string branches_text,solutions_text,diagnostics_text;
+  struct Outputs {
+    /* the run's scratch folder (FileSystem::make_temp_dir), removed with its files when reset or the run goes: declared before
+       the sinks, which close first */
+    struct Folder {
+      xpp::FileSystem *fs=nullptr;
+      std::string path;
+      void open(xpp::FileSystem &where){ fs=&where; path=where.make_temp_dir(); }
+      void reset(){ if(fs&&!path.empty())fs->remove_temp_dir(path); path.clear(); }
+      Folder()=default;
+      Folder(const Folder &)=delete;
+      Folder &operator=(const Folder &)=delete;
+      ~Folder(){ reset(); }
+    } folder;
+    std::string branches,solutions,diagnostics; /* the files in it */
+    std::unique_ptr<xpp::Sink> branches_sink,solutions_sink,diagnostics_sink;
+    bool solutions_written=false;     /* a label was written: fort.8 exists, else it has nothing to keep */
+  } outputs;
+  std::string restart_text;
+  /* the file the restart solutions are read from, by range, one at a time (find_restart_label): the session's .s file, or the
+     solutions of the job that found the point; none: restart_text holds them (a unit test's) */
+  std::string restart_file;
+  /* where the restart label's solution starts, in restart_file or restart_text: find_restart_label sets it, the readers start there */
+  std::size_t restart_pos=0;
+  /* where the restart data came from, for the errors that name it: the session's .s file, or the job that found the point */
+  std::string restart_name;
+  /* a restart reads the session's own .s file, one solution at a time: its index is the Session's, not the run's */
   bool fort3_is_session=false;
-  /* where the solutions of fort.3 start, when it is the run's own file (the session's is the Session's solutions_index) */
+  /* where the solutions of restart_text start, when it is the run's own (the session's is the Session's solutions_index) */
   std::optional<xpp::AutoxSolutionIndex> fort3_index;
-  /* the fort.3/7/9 files open during a run (gogoautox.cpp's RunUnits) */
-  FILE *fp3=nullptr,*fp7=nullptr,*fp9=nullptr;
-  /* fort.8, opened when a run writes its first label (autox_lib1.cpp) and
-     closed by close_autox, or with the run when it never got there */
-  xpp::UniqueFile fp8;
+  /* a reader of the restart data from restart_pos: the file's bytes from there, read in pieces (restart_file), or restart_text's
+     (an index of another text puts it past the end: nothing is read then) */
+  xpp::TokenReader restart_reader() const;
   /* W247: the pool persists across collocation calls. Worker AutoxRuns own
      their evaluation arrays and finite-difference scratch, never a Session's. */
   std::unique_ptr<xpp::AutoxParallel> collocation;

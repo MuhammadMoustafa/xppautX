@@ -398,13 +398,10 @@ void copy_bytes(FILE *from, FILE *to)
     while ((n = std::fread(buf.data(), 1, buf.size(), from)) > 0) std::fwrite(buf.data(), 1, n, to);
 }
 
-/* to becomes first's bytes, then (when given) second's. Binary: autoX's
-   files carry their own line ends, which text mode would rewrite. Both
-   opens are checked: on Windows a file still open elsewhere cannot be
-   opened, and writing into a NULL FILE * left fort.3 empty, which autoX
-   then reported as "Restart label N not found". Both are closed before
-   the rename: Windows cannot replace an open file. */
-void concat(const char *first, xpp::UniqueFile second, const char *to)
+/* to becomes first's bytes. Binary: autoX's files carry their own line ends, which text mode would rewrite. Both
+   opens are checked: on Windows a file still open elsewhere cannot be opened, and writing into a NULL FILE * left a
+   file empty. Both are closed before the rename: Windows cannot replace an open file. */
+void copy_file(const char *first, const char *to)
 {
     xpp::UniqueFile in(std::fopen(first, "rb"));
     if (!in) {
@@ -418,8 +415,6 @@ void concat(const char *first, xpp::UniqueFile second, const char *to)
     }
     copy_bytes(in.get(), w.file());
     in.reset();
-    if (second) copy_bytes(second.get(), w.file());
-    second.reset();
     if(const xpp::Result<> saved=w.commit();!saved)xpp::log(XPP_LOG_ERROR,"{}\n",saved.error().text());
 }
 
@@ -643,18 +638,7 @@ int remove(std::string_view path) { return std::remove(std::string(path).c_str()
 
 void copy(std::string_view from, std::string_view to)
 {
-    concat(std::string(from).c_str(), xpp::UniqueFile(), std::string(to).c_str());
-}
-
-void prepend(std::string_view from_view, std::string_view to_view)
-{
-    const std::string from(from_view), to(to_view);
-    xpp::UniqueFile own(std::fopen(to.c_str(), "rb"));
-    if (!own) {
-        copy(from, to);
-        return;
-    }
-    concat(from.c_str(), std::move(own), to.c_str());
+    copy_file(std::string(from).c_str(), std::string(to).c_str());
 }
 
 void move(std::string_view from_view, std::string_view to_view)

@@ -56,12 +56,6 @@
 #include <cmath>
 #include <cstring>
 #include <deque>
-#include <filesystem>
-#ifdef _WIN32
-#include <process.h>
-#else
-#include <unistd.h>
-#endif
 #include <functional>
 #include <limits>
 #include <map>
@@ -606,19 +600,12 @@ void check_directions_limit()
     CHECK(!diagram_labels.empty() && stored_labels==diagram_labels); /* no record of a point the diagram dropped */
 }
 
-/* how many jobs of this process have written at least two points to their solution file (their own scratch folders,
-   xppautoX-<pid>-<n>/fort.8, which autoX flushes at each labelled point) */
-int jobs_with_points()
+/* how many jobs the last autox.jobs event of the run showed with at least two points drawn: the jobs' progress as the front end
+   gets it (the run's files are the run's own text, none to look at) */
+int jobs_with_points_now=0;
+void note_jobs_with_points(const xpp::XppAutoxJobs &jobs)
 {
-#ifdef _WIN32
-    const std::string mine="xppautoX-"+std::to_string(_getpid())+"-";
-#else
-    const std::string mine="xppautoX-"+std::to_string(getpid())+"-";
-#endif
-    int ready=0;
-    for(const auto &entry:std::filesystem::directory_iterator(std::filesystem::temp_directory_path()))
-        if(entry.path().filename().string().rfind(mine,0)==0&&solution_labels((entry.path()/"fort.8").string()).size()>=2)ready++;
-    return ready;
+    jobs_with_points_now=static_cast<int>(std::count_if(jobs.each.begin(),jobs.each.end(),[](const xpp::XppAutoxJob &job){return job.points>=2;}));
 }
 
 /* what the front end's poll answers while the main thread of a run of jobs waits: Abort once `jobs_wanted` jobs have
@@ -627,7 +614,7 @@ int jobs_wanted=2,abort_polls=0;
 int abort_when_jobs_have_points(int *iflag)
 {
     constexpr int safety_polls=20000;
-    *iflag=(jobs_with_points()>=jobs_wanted||++abort_polls>=safety_polls)?1:0;
+    *iflag=(jobs_with_points_now>=jobs_wanted||++abort_polls>=safety_polls)?1:0;
     return 0;
 }
 
@@ -661,12 +648,16 @@ void check_directions_stopped(unsigned threads)
     s.last_ic[1]=0.2931712128950587;
     CHECK(xpp::native_ready(s) && xpp::autox_parallel_ready(s));
     int (*const polled)(int *)=xpp::ui.autox_check_abort;
+    void (*const shown)(const xpp::XppAutoxJobs &)=xpp::ui.autox_jobs;
     jobs_wanted=threads>1?2:1;
     abort_polls=0;
+    jobs_with_points_now=0;
     xpp::ui.autox_check_abort=abort_when_jobs_have_points;
+    xpp::ui.autox_jobs=note_jobs_with_points;
     CHECK(abort_polls<20000);
     const xpp::Result<> run=xpp::autox_run_start(s,xpp::AutoxRunRequest{});
     xpp::ui.autox_check_abort=polled;
+    xpp::ui.autox_jobs=shown;
     CHECK(run && abort_polls<20000);
     std::array<int,3> kept{};
     for(const xpp::DIAGRAM &p:s.diagram->points)if(std::abs(p.ibr)>=1&&std::abs(p.ibr)<=2)kept[static_cast<std::size_t>(std::abs(p.ibr))]++;
@@ -866,9 +857,7 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
     xpp::Session &s = xpp::client_session();
     const std::string path = tmp.file("lecar.auto");
     CHECK(write_file(path, autox_text));
-    xpp::UniqueFile fp = xpp::open_read(path);
-    CHECK(fp && xpp::import_autox_file(s, fp.get(), path).has_value());
-    fp.reset();
+    CHECK(xpp::import_autox_file(s, autox_text, path).has_value());
     CHECK(diagram_count(*xpp::client_session().diagram) == 2042);
     /* its first point, as the file prints it */
     const xpp::DIAGRAM *d = &xpp::client_session().diagram->points.front();
@@ -889,8 +878,7 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
     const auto rows = xpp::split_lines(autox_text);
     const auto refuse_import = [&](std::string bad, int line) {
         CHECK(write_file(path, bad));
-        auto input = xpp::open_read(path);
-        const auto result = xpp::import_autox_file(s, input.get(), path);
+        const auto result = xpp::import_autox_file(s, bad, path);
         CHECK(!result);
         if (!result) {
             CHECK(result.error().place.file == path && result.error().place.line == line);
@@ -922,8 +910,7 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
     refuse_import(truncated, 22);
     refuse_import(autox_text + "bad solution header\n", static_cast<int>(rows.size()) + 1);
     CHECK(write_file(path, autox_text));
-    auto valid_again = xpp::open_read(path);
-    CHECK(xpp::import_autox_file(s, valid_again.get(), path));
+    CHECK(xpp::import_autox_file(s, autox_text, path));
     CHECK(!s.autox_state->from_autox_flag && s.autox_state->grabpt.flag == 0 && s.autox_state->diagram_mark.state == 0);
     const std::deque<xpp::DIAGRAM> imported = s.diagram->points;
     const std::string solutions = file_text(xpp::autox_solutions_file(xpp::client_session()));
@@ -1215,12 +1202,12 @@ void check_brbd_tree()
         u.resize(work.ft.size());
         std::ptrdiff_t ifst=1,idb=0,nllv=0,nov_=nov,na=ntst,nbc_=nbc,nra_=nra,nca_=nca,ncb_=ncb,nrc_=nrc;
         double det=0;
-        solve_bordered_block_diagonal(run,nullptr,u.data(),w.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
+        solve_bordered_block_diagonal(run,u.data(),w.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
         CHECK(residual(u,w,fa,fc)<1e-10);
         std::vector<double> u2(fa2),w2(fc2);
         u2.resize(work.ft.size());
         ifst=0;
-        solve_bordered_block_diagonal(run,nullptr,u2.data(),w2.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
+        solve_bordered_block_diagonal(run,u2.data(),w2.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
         CHECK(residual(u2,w2,fa2,fc2)<1e-10);
         if (threads==1) { first_fa=u; first_fc=w; second_fa=u2; second_fc=w2; first_det=det; }
         else CHECK(same_vector(first_fa,u) && same_vector(first_fc,w) && same_vector(second_fa,u2)

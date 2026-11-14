@@ -1,7 +1,7 @@
-/* xpp_io.h first: it pulls in <optional>/<string_view>/<format>, which
+/* xpp_text.h first: it pulls in <optional>/<string_view>/<format>, which
    autox_f2c.h's own min/max macros (included transitively below, through
    autox_nox.h) break if they are already defined first. */
-#include "xpp_io.h"
+#include "xpp_text.h"
 #include "xpp_path.h"
 #include <deque>
 #include <vector>
@@ -220,19 +220,20 @@ template <class Write> xpp::Result<> export_text(xpp::Session &s, const std::opt
   if(const xpp::Result<> points=diagram_need_points(s);!points)return points;
   const auto target=diagram_export_target(s,file,title,what,".dat");
   if(!target)return {};
+  std::string text;
+  write(text);
   xpp::Result<> opened;
-  xpp::Writer w=xpp::open_writer_asking(*target,false,&opened);
-  if(!opened)return opened;
-  if(!w)return {};
-  write(w);
-  return xpp::commit_save(w);
+  const std::unique_ptr<xpp::Sink> sink=xpp::open_sink_asking(*s.model().fs,*target,false,&opened);
+  if(!sink)return opened; /* the error, or nothing when the replace question was answered no */
+  if(const xpp::Result<> written=sink->write(text);!written)return written;
+  return xpp::commit_save(*sink);
 }
 
 } // namespace
 
 xpp::Result<> write_info_out(xpp::Session &s, const std::optional<std::string> &file)
 {
-  return export_text(s,file,"Write all info","allinfo",[&](xpp::Writer &w){
+  return export_text(s,file,"Write all info","allinfo",[&](std::string &out){
     for(xpp::DIAGRAM &point:s.diagram->points){
       xpp::DIAGRAM *d=&point;
       const xpp::DiagramPointType type=xpp::get_bif_type(d->ibr,d->ntot);
@@ -252,7 +253,7 @@ xpp::Result<> write_info_out(xpp::Session &s, const std::optional<std::string> &
       for(int i=0;i<s.model().node;i++)
         line+=xpp::format("{:g} {:g} ",d->evr[i],d->evi[i]);
       line+='\n';
-      w.print("{}",line);
+      out+=line;
     }
   });
 }
@@ -297,7 +298,7 @@ xpp::Result<> load_data_with_branch(xpp::Session &s, int ibr,int pts,int pte)
 }
 xpp::Result<> write_init_data_file(xpp::Session &s, const std::optional<std::string> &file)
 {
-  return export_text(s,file,"Write init data file","initdata",[&](xpp::Writer &w){
+  return export_text(s,file,"Write init data file","initdata",[&](std::string &out){
     for(xpp::DIAGRAM &point:s.diagram->points){
       xpp::DIAGRAM *d=&point;
       auto parameters=diagram_parameters(*d);
@@ -305,14 +306,14 @@ xpp::Result<> write_init_data_file(xpp::Session &s, const std::optional<std::str
       for(int i=0;i<s.model().node;i++)
         line+=xpp::format("{:g} ",d->u0[i]);
       line+='\n';
-      w.print("{}",line);
+      out+=line;
     }
   });
 }
 
 xpp::Result<> write_pts(xpp::Session &s, const std::optional<std::string> &file)
 {
-  return export_text(s,file,"Write points","diagram",[&](xpp::Writer &w){
+  return export_text(s,file,"Write points","diagram",[&](std::string &out){
     for(xpp::DIAGRAM &point:s.diagram->points){
       xpp::DIAGRAM *d=&point;
       const xpp::DiagramPointType type=xpp::get_bif_type(d->ibr,d->ntot);
@@ -327,7 +328,7 @@ xpp::Result<> write_pts(xpp::Session &s, const std::optional<std::string> &file)
       if(check_plot_type(s,d->flag2,icp1,icp2)==1){
         double x,y1,y2;
         autox_xy_plot(&s.autox_state->axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
-        w.print("{:g} {:g} {:g} {} {} {}\n",
+        xpp::format_append(out,"{:g} {:g} {:g} {} {} {}\n",
                 x,y1,y2,xpp::diagram_point_type_code(type),abs(d->ibr),autox_calculation_name(d->flag2));
       }
     }

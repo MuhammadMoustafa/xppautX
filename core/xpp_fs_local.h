@@ -12,6 +12,7 @@ namespace xpp {
 class LocalFileSystem final : public FileSystem {
 public:
     Result<std::string> read(std::string where, std::string_view path, std::size_t limit) override;
+    Result<std::string> read_range(std::string where, std::string_view path, std::size_t offset, std::size_t length) override;
     std::optional<std::string> read_within(std::string_view path, std::string_view folder,
                                            std::span<const std::string> allowed_outside, std::size_t limit) override;
     PathCheck resolve_path(std::string_view path, std::string_view folder) override;
@@ -19,6 +20,10 @@ public:
     bool destination_ok(std::string_view path) override;
     bool exists(std::string_view path) override;
     bool is_dir(std::string_view path) override;
+    bool dir_writable(std::string_view dir) override;
+    int remove_file(std::string_view path) override;
+    std::string make_temp_dir() override;
+    void remove_temp_dir(std::string_view dir) override;
     std::string absolute(std::string_view path) override;
     std::string working_dir() override;
     int change_dir(std::string_view path) override;

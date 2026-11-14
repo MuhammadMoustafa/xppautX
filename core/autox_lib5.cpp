@@ -809,9 +809,9 @@ homoclinic_start_point(iap_type *iap, std::ptrdiff_t *icp, double *u, double *pa
       * par[-1 + kp] * par[kp] * xpp::math::exp(rr[iap->run->homcont.homoclinic_constants.nstab] * *t * par[xpp::autox_unknown::period]);
   }
   for (i = 0; i < ndm; ++i) {
-    xpp::print(iap->run->fp9,"stpho {:20.10f}\n",u[i]);	
+    xpp::format_append(iap->run->diagnostics_text,"stpho {:20.10f}\n",u[i]);	
   }
-  xpp::print(iap->run->fp9,"\n");	
+  xpp::format_append(iap->run->diagnostics_text,"\n");	
 
 /* Artificial parameters at the right-hand end point of the orbit */
 /* omega_i=<x(1)-x_o,w_i^*> */
@@ -854,9 +854,9 @@ homoclinic_output_parameters(iap_type *iap, rap_type *rap, std::ptrdiff_t *icp, 
   homoclinic_eigen(iap, 1, 2, iap->run->homcont.homoclinic_eigen_workspace.rr.data(), iap->run->homcont.homoclinic_eigen_workspace.ri.data(), iap->run->homcont.homoclinic_eigen_workspace.v.data(), iap->run->homcont.homoclinic_eigen_workspace.xequib.data(), 
 	icp, par, &ndm);
   if (iid >= 3) {
-    xpp::print(iap->run->fp9,"EIGENVALUES\n");	
+    xpp::format_append(iap->run->diagnostics_text,"EIGENVALUES\n");	
     for (j = 0; j < ndm; ++j) {
-      xpp::print(iap->run->fp9," ({:12.7f} {:12.7f})\n",iap->run->homcont.homoclinic_eigen_workspace.rr[j],iap->run->homcont.homoclinic_eigen_workspace.ri[j]);	
+      xpp::format_append(iap->run->diagnostics_text," ({:12.7f} {:12.7f})\n",iap->run->homcont.homoclinic_eigen_workspace.rr[j],iap->run->homcont.homoclinic_eigen_workspace.ri[j]);	
     }
   }
   if (iap->run->homcont.homoclinic_constants.itwist == 1) {
@@ -867,9 +867,9 @@ homoclinic_output_parameters(iap_type *iap, rap_type *rap, std::ptrdiff_t *icp, 
 		   iap->run->homcont.homoclinic_eigen_workspace.vt.data(), icp, par);
     if (iid >= 3) {
       if (orient < 0.) {
-	xpp::print(iap->run->fp9," Non-orientable, ({:20.10f})\n",orient);	
+	xpp::format_append(iap->run->diagnostics_text," Non-orientable, ({:20.10f})\n",orient);	
       } else {
-	xpp::print(iap->run->fp9," Orientable ({:20.10f})\n",orient);	
+	xpp::format_append(iap->run->diagnostics_text," Orientable ({:20.10f})\n",orient);	
       }
     }
   }
@@ -882,7 +882,7 @@ homoclinic_output_parameters(iap_type *iap, rap_type *rap, std::ptrdiff_t *icp, 
     }
     par[iap->run->homcont.homoclinic_indices.ipsi[i] + xpp::autox_unknown::test_function_start - 1] = homoclinic_degeneracy_condition(iap, iap->run->homcont.homoclinic_indices.ipsi[i], iap->run->homcont.homoclinic_eigen_workspace.rr.data(), iap->run->homcont.homoclinic_eigen_workspace.ri.data(), iap->run->homcont.homoclinic_eigen_workspace.v.data(), iap->run->homcont.homoclinic_eigen_workspace.vt.data(), icp, par);
     if (iid >= 3) {
-      xpp::print(iap->run->fp9," PSI({:2})={:20.10f}\n",iap->run->homcont.homoclinic_indices.ipsi[i],par[iap->run->homcont.homoclinic_indices.ipsi[i] + xpp::autox_unknown::test_function_start - 1]);
+      xpp::format_append(iap->run->diagnostics_text," PSI({:2})={:20.10f}\n",iap->run->homcont.homoclinic_indices.ipsi[i],par[iap->run->homcont.homoclinic_indices.ipsi[i] + xpp::autox_unknown::test_function_start - 1]);
 
     }
   }

@@ -14,7 +14,6 @@
 #include "autox_f2c.h"
 #include "autox_nox.h"
 #include "autox_state.h"
-#include "xpp_io.h"
 #include "xpp_math_autox.h"
 namespace xpp { struct DifferenceGroups; }
 
@@ -111,7 +110,7 @@ fold_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *ic
   }
   if (ips==xpp::AutoxProblem::DiscreteMap && iap->itp.is(xpp::AutoxPointKind::PeriodDoubling))
     for (std::ptrdiff_t k=0;k<ndm;++k) iap->run->scratch.dfu[k+ndm*k]+=2.;
-  xpp::matrix_null_vector(iap->run->fp9, ndm, ndm, 1, iap->run->scratch.dfu.data(), v.data());
+  xpp::matrix_null_vector(iap->run->diagnostics_text, ndm, ndm, 1, iap->run->scratch.dfu.data(), v.data());
   normalize_vector(&ndm, v.data());
   for (i = 0; i < ndm; ++i) {
     u[ndm + i] = v[i];
@@ -353,7 +352,7 @@ optimization_multi_starting_data(iap_type *iap, rap_type *rap, double *par, std:
       dd[ndm + i * ndim] = iap->run->scratch.dfp[(icp[1]) * ndm + i];
     }
     dd[ndm + ndm * ndim] = dp[icp[1]];
-    xpp::matrix_null_vector(iap->run->fp9, ndm + 1, ndim, 1, dd.data(), v.data());
+    xpp::matrix_null_vector(iap->run->diagnostics_text, ndm + 1, ndim, 1, dd.data(), v.data());
     {
       std::ptrdiff_t tmp = ndm + 1;
       normalize_vector(&tmp, v.data());
@@ -524,7 +523,7 @@ hopf_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *ic
   std::ptrdiff_t size = n;
   // The Hopf pair gives a two-dimensional kernel. NLVC chooses its phase;
   // subsequent correctors use the previous vector's symmetric condition.
-  xpp::matrix_null_vector(iap->run->fp9, n, n, 2, blocks.data() + n * n, u + n);
+  xpp::matrix_null_vector(iap->run->diagnostics_text, n, n, 2, blocks.data() + n * n, u + n);
   normalize_vector(&size, u + n);
   return 0;
 } /* stpnhb_ */
@@ -652,7 +651,7 @@ hopf_wave_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_
   }
   {
     std::ptrdiff_t tmp=(ndim*2);
-    xpp::matrix_null_vector(iap->run->fp9, ndm2, tmp, 2, smat.data(), v.data());
+    xpp::matrix_null_vector(iap->run->diagnostics_text, ndm2, tmp, 2, smat.data(), v.data());
   }
   normalize_vector(&ndm2, v.data());
 
@@ -925,7 +924,7 @@ periodic_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t
 
   {
     std::ptrdiff_t tmp=(ndim*2);
-    xpp::matrix_null_vector(iap->run->fp9, ndim2, tmp, 2, smat.data(), rnllv.data());
+    xpp::matrix_null_vector(iap->run->diagnostics_text, ndim2, tmp, 2, smat.data(), rnllv.data());
   }
   normalize_vector(&ndim2, rnllv.data());
 
@@ -1170,7 +1169,7 @@ wave_train_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrdiff
     }
   }
 
-  xpp::matrix_null_vector(iap->run->fp9, ndim2, ndim*2, 2, smat.data(), rnllv.data());
+  xpp::matrix_null_vector(iap->run->diagnostics_text, ndim2, ndim*2, 2, smat.data(), rnllv.data());
   normalize_vector(&ndim2, rnllv.data());
 
   /* Generate the (initially uniform) mesh. */

@@ -28,6 +28,12 @@ public:
     std::map<std::string, std::string> files;
     int sinks_committed = 0;
 
+    xpp::Result<std::string> read_range(std::string where, std::string_view path, std::size_t offset, std::size_t length) override
+    {
+        const xpp::Result<std::string> whole = read(std::move(where), path, xpp::file_range_limit);
+        if (!whole) return whole;
+        return whole->substr(std::min(offset, whole->size()), length);
+    }
     xpp::Result<std::string> read(std::string where, std::string_view path, std::size_t limit) override
     {
         const auto it = files.find(std::string(path));
@@ -49,6 +55,10 @@ public:
     bool destination_ok(std::string_view) override { return true; }
     bool exists(std::string_view path) override { return files.contains(std::string(path)); }
     bool is_dir(std::string_view) override { return false; }
+    bool dir_writable(std::string_view) override { return true; }
+    int remove_file(std::string_view path) override { return files.erase(std::string(path)) ? 0 : 1; }
+    std::string make_temp_dir() override { return "memory-temp"; }
+    void remove_temp_dir(std::string_view) override {}
     std::string absolute(std::string_view path) override { return std::string(path); }
     std::string working_dir() override { return "memory"; }
     int change_dir(std::string_view) override { return 0; }

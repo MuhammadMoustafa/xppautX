@@ -12,49 +12,16 @@
 #include "session.h"
 #include "autox_state.h"
 #include "autox_evd.h" /* xAutox (its own extern) */
-#include "autox_nox.h" /* xpp::autox_fort_path() */
+#include "autox_nox.h"
 #include "diagram.h" /* diagram_of_label */
 #include "autox_c.h"
 #include "autox_codes.h"
 #include "autox_parallel.h"
 #include "xAutox.h"
-#include "xpp_io.h"
-#include "xpp_files.h"
 #include "xpp_path.h"
 
 
 namespace {
-/* autoX's fort.3 (its restart data: read, or written from scratch), fort.7
-   and fort.9 for one run, opened where open_autox put them: autoX reads and
-   writes them through its AutoxRun (autox_state.h), which the run's iap_type
-   points at. Closed on every way out of the run (Windows cannot rename or
-   delete an open file, which close_autox does next), the pointers cleared
-   first. */
-struct RunUnits {
-  AutoxRun &run;
-  xpp::UniqueFile u3,u7,u9;
-  RunUnits(AutoxRun &run_, bool restart)
-    : run(run_)
-  {
-    const auto open = [this](int unit, const char *mode) {
-      const std::string path=xpp::autox_fort_path(run,unit);
-      xpp::UniqueFile file(xpp::files::open_stream(path,mode));
-      if(!file)xpp::autox_fail((mode[0]=='r' ? xpp::files::open_error("autoX",path)
-                                         : xpp::files::write_error("autoX",path)));
-      return file;
-    };
-    u3=open(3,restart?"r":"w+");
-    u7=open(7,"w");
-    u9=open(9,"w");
-    run.fp3=u3.get();
-    run.fp7=u7.get();
-    run.fp9=u9.get();
-  }
-  ~RunUnits() { run.fp3=run.fp7=run.fp9=nullptr; }
-  RunUnits(const RunUnits &)=delete;
-  RunUnits &operator=(const RunUnits &)=delete;
-};
-
 
 problem_function_table algebraic(ProblemFunction problem_function, UserStartAlgebraic start)
 {
@@ -225,7 +192,6 @@ void run_autox_problem(AutoxRun &run)
   std::vector<AutoxMark> marks(run.params.marks.size());
   iap_type iap;
   rap_type rap;
-  RunUnits units(run, run.params.irs > 0);
   iap.run = &run;
 
   initialize_run(&iap, &rap, par.data(), icp.data(), thl.data(), thu, marks);
@@ -235,7 +201,7 @@ void run_autox_problem(AutoxRun &run)
     bool found = false;
     find_restart_label(&iap, &rap, iap.irs, &(iap.nfpr), &found);
     if (!found)
-      xpp::autox_fail(xpp::format("autoX: restart label {} is not in {}", iap.irs, xpp::autox_fort_path(run, 3)));
+      xpp::autox_fail(xpp::format("autoX: restart label {} is not in {}", iap.irs, run.restart_name));
   }
   const problem_function_table list = problem_functions(iap);
   initialize_constants(&iap, &rap, icp.data(), par.data());

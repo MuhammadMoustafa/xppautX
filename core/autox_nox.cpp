@@ -26,8 +26,6 @@
 
 
 
-#include "xpp_io.h"
-#include "xpp_files.h"
 #include "xpp_zip.h"
 #include "xpp_path.h"
 #include "xpp_lines.h"
@@ -231,29 +229,72 @@ int IYVal(const xpp::Session &s, double y)
   return(s.autox_state->bifur.hgt-static_cast<int>(temp)+s.autox_state->bifur.y0);
 }
 
+static void flush_text(std::string &text, const std::unique_ptr<xpp::Sink> &sink, bool &written)
+{
+  if(!sink||text.empty())return;
+  if(auto put=sink->write(text);!put)xpp::autox_fail(put.error());
+  written=true;
+  text.clear();
+}
+
+void autox_flush(AutoxRun &run)
+{
+  bool unused=false;
+  flush_text(run.branches_text,run.outputs.branches_sink,unused);
+  flush_text(run.solutions_text,run.outputs.solutions_sink,run.outputs.solutions_written);
+  flush_text(run.diagnostics_text,run.outputs.diagnostics_sink,unused);
+}
+
+xpp::Result<> autox_finish_files(AutoxRun &run)
+{
+  try{
+    autox_flush(run);
+  }catch(const xpp::AutoxFailed &e){
+    return std::unexpected(e.error);
+  }
+  xpp::Result<> done;
+  const auto commit=[&](std::unique_ptr<xpp::Sink> &sink,bool keep){
+    if(!sink)return;
+    if(!keep)sink->abort();
+    else if(auto committed=sink->commit();!committed&&done)done=std::move(committed);
+    sink.reset();
+  };
+  commit(run.outputs.branches_sink,true);
+  commit(run.outputs.diagnostics_sink,true);
+  commit(run.outputs.solutions_sink,run.outputs.solutions_written); /* a run that wrote no label has no fort.8 */
+  return done;
+}
+
+/* the file from (a run's, complete) put in place of the file dest (OVERWRITE), or in front of the bytes dest holds (APPEND: the new
+   run's lines first, the older runs' after them), as a whole or not at all; both are streamed, never held */
+static xpp::Result<> install_run_file(xpp::FileSystem &fs, const std::string &from, const std::string &dest, bool in_front)
+{
+  auto sink=fs.open_sink(dest,true);
+  if(!sink)return std::unexpected(sink.error());
+  if(auto put=xpp::copy_into(fs,**sink,from);!put)return put;
+  if(in_front&&fs.exists(dest))
+    if(auto put=xpp::copy_into(fs,**sink,dest);!put)return put;
+  return (*sink)->commit();
+}
+
 void close_autox(xpp::Session &s, AutoxRun &run, int flg) /* labels compatible with A2K  */
 {
-  /* Close fp8 before the renames below: Windows refuses rename()/remove()
-     on a file that is still open (see xpp::files::move), which left
-     fort.8 behind next to <model>.s with the handle leaked. Linux allows
-     renaming/removing an open file, which is likely why this was never
-     turned on upstream -- it was dead code there, not a deliberate
-     no-op. */
-  run.fp8.reset();
-  /* a run that ended before it wrote a label (fort.8) or a point has nothing of that file to keep */
-  const auto keep=[&](const std::string &from, const char *suffix){
-    if(!xpp::files::exists(from))return;
-    if(flg==0)xpp::files::move(from.c_str(),(s.autox_state->file+suffix).c_str()); /*Overwrite*/
-    else xpp::files::prepend(from.c_str(),(s.autox_state->file+suffix).c_str()); /*APPEND*/
+  xpp::FileSystem &fs=*s.model().fs;
+  if(auto finished=autox_finish_files(run);!finished)xpp::log(XPP_LOG_ERROR,"{}\n",finished.error().text());
+  const auto keep=[&](const std::string &from,const char *suffix){
+    if(auto stored=install_run_file(fs,from,s.autox_state->file+suffix,flg!=0);!stored)
+      xpp::log(XPP_LOG_ERROR,"{}\n",stored.error().text());
   };
-  keep(run.fort7,".b");
-  keep(run.fort9,".d");
+  /* the run's branches and diagnostics replace the session's .b and .d even when empty (a run that ended before its first point);
+     its solutions (fort.8) exist only once it wrote a label, a run that did not has nothing of them to keep */
+  keep(run.outputs.branches,".b");
+  keep(run.outputs.diagnostics,".d");
   /* the session's solutions index follows the file: the run's records come first, as its bytes do, the older ones after them */
-  if(xpp::files::exists(run.fort8)){
-    auto added=autox_index_solutions(run.fort8,static_cast<long>(run.parameter_count));
+  if(run.outputs.solutions_written){
+    xpp::Result<AutoxSolutionIndex> added=autox_index_file(fs,run.outputs.solutions,static_cast<long>(run.parameter_count));
     if(!added)xpp::log(XPP_LOG_ERROR,"{}\n",added.error().text());
-    const bool replaces=flg==0||!xpp::files::exists(autox_solutions_file(s));
-    keep(run.fort8,".s");
+    const bool replaces=flg==0||!fs.exists(autox_solutions_file(s));
+    keep(run.outputs.solutions,".s");
     std::optional<AutoxSolutionIndex> &held=s.autox_state->solutions_index;
     if(!added)held.reset();
     else if(replaces)held=std::move(*added);
@@ -266,13 +307,7 @@ void close_autox(xpp::Session &s, AutoxRun &run, int flg) /* labels compatible w
       held=std::move(*added);
     }
   }
-
-    xpp::files::remove(run.fort8.c_str());
-
-    xpp::files::remove(run.fort7.c_str());
-    xpp::files::remove(run.fort9.c_str());
-    if(!run.fort3_is_session)xpp::files::remove(run.fort3.c_str());
-
+  run.outputs.folder.reset(); /* the scratch folder goes with its files */
 }
 
 /* autoX keeps its .b/.d/.s files under HOME. A HOME that is set but unusable
@@ -287,7 +322,7 @@ static const char *autox_home_dir(xpp::Session &s, char *dname)
     return s.autox_state->dir.c_str();
 
   home = getenv("HOME");
-  if (home == NULL || !xpp::files::dir_writable(home))
+  if (home == NULL || !s.model().fs->dir_writable(home))
     home = dname;
   return home;
 }
@@ -308,35 +343,25 @@ void create_autox_file_name(xpp::Session &s)
 
 xpp::Result<> open_autox(xpp::Session &s, AutoxRun &run, int flg) /* compatible with new auto */
 {
-  /* the .b, .d and .s files close_autox moves the run's fort files to: a folder that cannot take them
-     is refused before the run, as its fort files used to be */
+  /* the .b, .d and .s files close_autox puts the run's files in: a folder that cannot take them
+     is refused before the run, not at its end */
+  xpp::FileSystem &fs=*s.model().fs;
+  run.restart_name="the run's own restart data"; /* what a restart that finds no such label names */
   const std::string solutions=xpp::files::split_path(s.autox_state->file).first;
-  if(!xpp::files::dir_writable(solutions))
+  if(!fs.dir_writable(solutions))
     return xpp::fail("autox",xpp::format("cannot write autoX's files: the folder {} is not writable",solutions),xpp::command_place());
-  run.folder.emplace();
-  if(run.folder->path().empty())
+  AutoxRun::Outputs &out=run.outputs;
+  out.folder.open(fs);
+  if(out.folder.path.empty())
     return xpp::fail("autox","Cannot make autoX's scratch folder for the run",xpp::command_place());
-  run.fort3=run.folder->file("fort.3");
-  run.fort7=run.folder->file("fort.7");
-  run.fort8=run.folder->file("fort.8");
-  run.fort9=run.folder->file("fort.9");
-
-  if(flg==1&&run.params.irs>0){ /* a restart (gogoautox's) reads the session's solutions where they are, never writes them: no copy for every run */
-    run.fort3=autox_solutions_file(s);
+  out.branches=xpp::format("{}/fort.7",out.folder.path);
+  out.solutions=xpp::format("{}/fort.8",out.folder.path);
+  out.diagnostics=xpp::format("{}/fort.9",out.folder.path);
+  if(flg==OPEN_3&&run.params.irs>0){ /* a restart reads the session's solutions as they are, never writes them */
+    run.restart_file=run.restart_name=autox_solutions_file(s);
     run.fort3_is_session=true;
   }
   return {};
-}
-
-const char *autox_fort_path(const AutoxRun &run, int unit)
-{
-  switch(unit){
-  case 3: return run.fort3.c_str();
-  case 7: return run.fort7.c_str();
-  case 8: return run.fort8.c_str();
-  case 9: return run.fort9.c_str();
-  default: return "";
-  }
 }
 
 /* what a run continues, for autox_stability.h */
@@ -446,8 +471,24 @@ std::string autox_branch_row_key(long branch, long point, long type, long label)
 
 AutoxDepth::AutoxDepth(Session &s) : depth(s.autox_state->depth) { if(depth++==0)autox_stop_clear(s.autox_state->stop); } /* xppautX: T23: why this run's branches end */
 
+/* the run's three files opened as sinks in its scratch folder, when its numerics start: a job queued behind others holds a folder,
+   not open files */
+static xpp::Result<> open_run_files(AutoxRun &run)
+{
+  xpp::FileSystem &fs=*run.session->model().fs;
+  AutoxRun::Outputs &out=run.outputs;
+  for(const auto &[path,sink]:{std::pair{&out.branches,&out.branches_sink},std::pair{&out.solutions,&out.solutions_sink},std::pair{&out.diagnostics,&out.diagnostics_sink}}){
+    auto opened=fs.open_sink(*path,true);
+    if(!opened)return std::unexpected(opened.error());
+    *sink=std::move(*opened);
+  }
+  return {};
+}
+
 std::optional<xpp::Error> autox_numerics(AutoxRun &run)
 {
+  if(!run.outputs.folder.path.empty())
+    if(auto opened=open_run_files(run);!opened)return opened.error();
   try {
     run_autox_problem(run); /* this complets the initialization and calls the
                          main routines
@@ -508,12 +549,9 @@ Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold, const AutoxFoundS
     run.params.isp=found->isp;
     run.params.irs=found->label;
   }
-  if(auto opened=open_autox(s,run,found?NO_OPEN_3:iold);!opened)return opened; /* the run's folder; this copies the relevant files .s  to fort.3 */
-  if(found&&!found->solution.empty()){ /* its fort.3 is that point's solution alone */
-    xpp::Writer restart(run.fort3);
-    if(!restart)return xpp::fail("autox","cannot write the restart point of a job",xpp::Place{run.fort3,0,0,{}});
-    restart.print("{}",found->solution);
-    if(auto written=restart.commit();!written)return written;
+  if(auto opened=open_autox(s,run,found?NO_OPEN_3:iold);!opened)return opened; /* a restart's text (fort.3), and where the files go */
+  if(found&&!found->solution_file.empty()){ /* its fort.3 is the finding job's solutions, the point's read from them */
+    run.restart_file=run.restart_name=found->solution_file;
   }
   const xpp::BIFUR &b=s.autox_state->bifur;
   run.run_from=run.params.irs>0?run.params.irs:0; /* the diagram's data say where the run started */
@@ -1123,10 +1161,11 @@ static void forget_autox_diagram(xpp::Session &s, bool remove_solutions)
   s.autox_state->from_autox_flag=false;
   s.autox_state->grabpt.flag=0;
   s.autox_state->diagram_mark.state=0;
-  xpp::files::remove(s.autox_state->file+".b");
-  xpp::files::remove(s.autox_state->file+".d");
+  xpp::FileSystem &fs=*s.model().fs;
+  fs.remove_file(s.autox_state->file+".b");
+  fs.remove_file(s.autox_state->file+".d");
   if(remove_solutions){
-    xpp::files::remove(s.autox_state->file+".s");
+    fs.remove_file(s.autox_state->file+".s");
     s.autox_state->solutions_index.reset();
   }
 }
@@ -1211,13 +1250,11 @@ xpp::Result<> load_autox_orbitx(xpp::Session &s, int ibr,int flag, int lab, doub
   if((ibr>0&&(s.autox_state->bifur.ips!=xpp::AutoxProblem::BoundaryValue)&&(s.autox_state->bifur.ips!=xpp::AutoxProblem::Homoclinic))||flag==0)return {};
    /* either nothing grabbed or just a fixed point and that is already loaded */
   string=s.autox_state->file+".s";
-  xpp::UniqueFile fp=xpp::open_read(string.c_str());
-  if(!fp){
-    return xpp::fail_reading("autoX","cannot be read",string);
-  }
+  if(const auto index=autox_session_solutions(s);!index)return std::unexpected(index.error());
   label=lab;
   period=per;
-  flg=move_to_label(s,label,&nrow,&ndim,fp.get());
+  xpp::TokenReader rows; /* the point's solution, read from the .s file in pieces */
+  flg=move_to_label(s,label,&nrow,&ndim,rows);
   if(flg==0){
     xpp::log_autox("Could not find label {:d} in file {} \n",label,string.c_str());
     return xpp::fail("autoX",xpp::format("No point labelled {} in {}",label,string),command_place());
@@ -1228,7 +1265,7 @@ xpp::Result<> load_autox_orbitx(xpp::Session &s, int ibr,int flag, int lab, doub
   if(const xpp::Result<> fitted=s.data_store->fit(s.model().neq+1,nrow);!fitted)return fitted;
   x=&s.data_store->current[0];
   for(i=0;i<nrow;i++){
-    get_a_row(u.data(),&t,ndim,fp.get());
+    get_a_row(u.data(),&t,ndim,rows);
     if(s.autox_state->bifur.ips!=xpp::AutoxProblem::BoundaryValue) 
       s.data_store->col[0][i]=t*period;
     else
@@ -1332,9 +1369,9 @@ xpp::Result<> import_autox(xpp::Session &s, const std::optional<std::string> &fi
   std::string filename=xpp::files::output_name(s.model().this_file, ".auto");
   if(file)filename=*file;
   else if(!file_selector("Import XPPAUT diagram",filename,"*.auto"))return {};
-  xpp::UniqueFile fp=xpp::open_read(filename);
-  if(!fp)return std::unexpected(xpp::files::open_error("autoX",filename));
-  return import_autox_file(s,fp.get(),filename);
+  xpp::Result<std::string> text=s.model().fs->read("import autoX",filename,xpp::zip::archive_bytes_limit);
+  if(!text)return std::unexpected(text.error());
+  return import_autox_file(s,*text,filename);
 }
 
 std::string autox_solutions_file(const xpp::Session &s)
@@ -1352,11 +1389,8 @@ struct ImportedAutox {
 };
 }
 
-xpp::Result<> import_autox_file(xpp::Session &s, FILE *fp, const std::string &file)
+xpp::Result<> import_autox_file(xpp::Session &s, std::string_view text, const std::string &file)
 {
-  std::string text;
-  if(!xpp::read_bytes(fp,text,xpp::zip::archive_bytes_limit))
-    return xpp::fail("import autoX","cannot read foreign autoX file within the session memory limit",xpp::Place{file});
   auto read=xpp::read_lines("import autoX",file,text,[&](xpp::Lines &lines){
     ImportedAutox held;
     auto &settings=held.settings;
@@ -1566,72 +1600,85 @@ Result<> check_autox_solutions(std::string_view text, std::string file, int vari
     return {};
 }
 
-int move_to_label(Session &s, int mylab, int *nrow, int *ndim, FILE *fp)
+TokenReader autox_reader_at(FileSystem &fs, std::string path, std::size_t offset)
+{
+  return TokenReader::of_pieces([&fs,path=std::move(path),offset]() mutable {
+    Result<std::string> piece=fs.read_range("autoX",path,offset,file_chunk_bytes);
+    if(!piece)return std::string(); /* a file that cannot be read ends the data: the reader's caller says what is missing */
+    offset+=piece->size();
+    return std::move(*piece);
+  });
+}
+
+bool move_to_label(Session &s, int mylab, int *nrow, int *ndim, TokenReader &rows)
 {
   const auto index=autox_session_solutions(s);
-  if(!index)return 0;
+  if(!index)return false;
   const auto found=std::find_if((*index)->records.begin(),(*index)->records.end(),[&](const AutoxSolutionRecord &r){return r.lab==mylab;});
-  if(found==(*index)->records.end())return 0;
-  const std::string path=autox_solutions_file(s);
-  if(!seek_stream(fp,found->position,path))return 0;
-  TokenReader tr = TokenReader::attach(fp);
+  if(found==(*index)->records.end())return false;
+  rows=autox_reader_at(*s.model().fs,autox_solutions_file(s),static_cast<std::size_t>(found->position));
   AutoxSolutionHeader h;
-  if(!read_autox_solution_header(tr,h,s.autox_state->parameter_layout.size())||h.lab!=mylab)return 0; /* the file is not the one indexed */
-  tr.skip_line();
+  if(!read_autox_solution_header(rows,h,s.autox_state->parameter_layout.size())||h.lab!=mylab)return false; /* the file is not the one indexed */
+  rows.skip_line();
   *nrow = static_cast<int>(h.ntpl);
   *ndim = static_cast<int>(h.nar) - 1;
-  return 1;
+  return true;
 }
 
-std::optional<std::string> autox_solution_block(const std::string &path, int label, long parameters)
+void AutoxSolutionIndexer::feed(std::string_view piece)
 {
-  xpp::LineReader in(path);
-  if(!in)return std::nullopt;
-  while(const auto line=in.next()){
-    TokenReader fields=TokenReader::of_text(*line);
-    AutoxSolutionHeader header;
-    if(!read_autox_solution_header(fields,header,parameters))return std::nullopt;
-    std::string block=xpp::format("{}\n",*line);
-    for(long row=0;row<header.nskip;row++){
-      const auto text=in.next();
-      if(!text)return std::nullopt;
-      if(header.lab==label)block+=xpp::format("{}\n",*text);
-    }
-    if(header.lab==label)return block;
-  }
-  return std::nullopt;
+  index_.bytes+=static_cast<long>(piece.size()); /* the whole text's length, whatever ends the records */
+  if(!stopped_)lines_.feed(piece,[&](std::string_view raw,bool terminated){line(raw,terminated);});
 }
 
-Result<AutoxSolutionIndex> autox_index_solutions(const std::string &path, long parameters)
+AutoxSolutionIndex AutoxSolutionIndexer::finish()
 {
-  UniqueFile file=xpp::open_read(path.c_str());
-  if(!file)return std::unexpected(xpp::files::open_error("autoX",path));
-  TokenReader reader=TokenReader::attach(file.get());
-  AutoxSolutionIndex index;
-  while(true){
-    const auto position=tell_stream(file.get(),path);
-    if(!position)return std::unexpected(position.error());
-    AutoxSolutionHeader header;
-    if(!read_autox_solution_header(reader,header,parameters))break; /* the end of the file, or a line that is no header: where autoX's own search stops */
-    index.records.push_back({*position,header.ibr,header.lab,header.nfpr,header.itp});
-    index.max_branch=std::max(index.max_branch,header.ibr);
-    index.max_label=std::max(index.max_label,header.lab);
-    reader.skip_line();
-    bool whole=true; /* a solution cut short by the end of the file is the last */
-    for(long row=0;row<header.nskip&&whole;row++)whole=reader.skip_line();
-    if(!whole)break;
+  if(!stopped_)lines_.finish([&](std::string_view raw,bool terminated){line(raw,terminated);});
+  return std::move(index_);
+}
+
+/* a header line starts a record, the nskip lines after it are its rows; a line that is no header, or a solution cut short by the
+   end of the text (a last line no \n ended), is where autoX's own search stops */
+void AutoxSolutionIndexer::line(std::string_view raw,bool terminated)
+{
+  if(stopped_)return;
+  const long start=offset_;
+  offset_+=static_cast<long>(raw.size())+(terminated?1:0);
+  if(!terminated)stopped_=true;
+  if(rows_left_>0){
+    --rows_left_;
+    return;
   }
-  if(std::fseek(file.get(),0,SEEK_END)!=0)return std::unexpected(xpp::files::open_error("autoX",path));
-  const auto bytes=tell_stream(file.get(),path);
-  if(!bytes)return std::unexpected(bytes.error());
-  index.bytes=*bytes;
-  return index;
+  TokenReader fields=TokenReader::of_text(raw);
+  AutoxSolutionHeader header;
+  if(!read_autox_solution_header(fields,header,parameters_)){
+    stopped_=true;
+    return;
+  }
+  index_.records.push_back({start,header.ibr,header.lab,header.nfpr,header.itp});
+  index_.max_branch=std::max(index_.max_branch,header.ibr);
+  index_.max_label=std::max(index_.max_label,header.lab);
+  rows_left_=header.nskip;
+}
+
+AutoxSolutionIndex autox_index_solutions(std::string_view text,long parameters)
+{
+  AutoxSolutionIndexer indexer(parameters);
+  indexer.feed(text);
+  return indexer.finish();
+}
+
+Result<AutoxSolutionIndex> autox_index_file(FileSystem &fs,const std::string &path,long parameters)
+{
+  AutoxSolutionIndexer indexer(parameters);
+  if(auto read=for_each_chunk(fs,"autoX",path,[&](std::string_view piece){indexer.feed(piece);});!read)return std::unexpected(read.error());
+  return indexer.finish();
 }
 
 Result<const AutoxSolutionIndex *> autox_session_solutions(Session &s)
 {
   if(!s.autox_state->solutions_index){
-    auto index=autox_index_solutions(autox_solutions_file(s),static_cast<long>(s.autox_state->parameter_layout.size()));
+    auto index=autox_index_file(*s.model().fs,autox_solutions_file(s),static_cast<long>(s.autox_state->parameter_layout.size()));
     if(!index)return std::unexpected(index.error());
     s.autox_state->solutions_index=std::move(*index);
   }
@@ -1640,23 +1687,26 @@ Result<const AutoxSolutionIndex *> autox_session_solutions(Session &s)
 
 const AutoxSolutionIndex &autox_run_solutions(AutoxRun &run)
 {
-  if(run.fort3_is_session){
+  if(run.fort3_is_session){ /* the session's .s file is indexed once for the Session, which keeps it */
     const auto index=autox_session_solutions(*run.session);
     if(!index)autox_fail(index.error());
     return **index;
   }
   if(!run.fort3_index){
-    auto index=autox_index_solutions(run.fort3,static_cast<long>(run.parameter_count));
-    if(!index)autox_fail(index.error());
-    run.fort3_index=std::move(*index);
+    if(run.restart_file.empty()){
+      run.fort3_index=autox_index_solutions(run.restart_text,static_cast<long>(run.parameter_count));
+    }else{
+      auto index=autox_index_file(*run.session->model().fs,run.restart_file,static_cast<long>(run.parameter_count));
+      if(!index)autox_fail(index.error());
+      run.fort3_index=std::move(*index);
+    }
   }
   return *run.fort3_index;
 }
 
-void get_a_row(double *u, double *t, int n, FILE *fp)
+void get_a_row(double *u, double *t, int n, TokenReader &rows)
 {
-  auto reader = TokenReader::attach(fp);
-  read_autox_solution_rows(reader, n, 0, 0, 1, 0, n, u, t, false, 0, {});
+  read_autox_solution_rows(rows, n, 0, 0, 1, 0, n, u, t, false, 0, {});
 }
 
 /* the diagram and its eigenvalues/multipliers as CSV (csv_export.h),
@@ -2001,21 +2051,27 @@ void autox_point_xy(xpp::Session &s, double x,double y)
 
 /* ---- autoX's private scratch directory (session.h: AutoxState::dir),
    made by xpp::files::make_temp_dir ---- */
-void cleanup_autox_dir(xpp::Session &s)
+void cleanup_autox_dir(xpp::FileSystem &fs, xpp::Session &s)
 {
   std::string &dir=s.autox_state->dir;
   if (!dir.empty()) {
-    xpp::files::remove_temp_dir(dir.c_str());
+    fs.remove_temp_dir(dir);
     dir.clear();
   }
 }
 
-void renew_autox_dir(xpp::Session &s)
+void renew_autox_dir(xpp::FileSystem &fs, xpp::Session &s)
 {
   std::string &dir=s.autox_state->dir;
   if (dir.empty()) return; /* none was made: autoX writes beside the model */
-  xpp::files::remove_temp_dir(dir.c_str());
-  dir=xpp::files::make_temp_dir();
+  fs.remove_temp_dir(dir);
+  dir=fs.make_temp_dir();
 }
 
 } // namespace xpp
+
+xpp::TokenReader AutoxRun::restart_reader() const
+{
+  if(!restart_file.empty())return xpp::autox_reader_at(*session->model().fs,restart_file,restart_pos);
+  return xpp::TokenReader::of_text(std::string_view(restart_text).substr(std::min(restart_pos,restart_text.size())));
+}

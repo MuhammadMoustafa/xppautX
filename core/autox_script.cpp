@@ -5,7 +5,6 @@
 #include "format_version.h"
 #include "json_number.h"
 #include "odex_block.h"
-#include "xpp_io.h"
 #include "xpp_path.h"
 #include "xpp_lines.h"
 
@@ -203,9 +202,9 @@ Result<AutoxScript> autox_script_read(std::string_view text, const std::string &
     });
 }
 
-Result<AutoxScript> autox_script_load(const std::string &file)
+Result<AutoxScript> autox_script_load(FileSystem &fs, const std::string &file)
 {
-    const Result<std::string> bytes = read_file_bytes("autox script", file, autox_script_bytes_limit);
+    const Result<std::string> bytes = fs.read("autox script", file, autox_script_bytes_limit);
     if (!bytes) return std::unexpected(bytes.error());
     return autox_script_read(*bytes, file);
 }
