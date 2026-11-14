@@ -613,12 +613,22 @@ run it with clang64/bin on PATH):
 
     PATH=/c/msys64/clang64/bin:$PATH mingw32-make -j4 build/clang/xppautX.exe BUILDDIR=build/clang CC=clang CXX=clang++
 
-Windows API code lives only in `core/xpp_win32.cpp` (windows.h macros clash
-with core names like `max`, `MessageBox`, `VARTYPE`). The exceptions
-are the two files that include no core header but small APIs:
-`core/xpp_http.cpp` (sockets) and `core/xpp_window.cpp` (the desktop
-window's dialogs, close box and icon, behind `_WIN32`); windows.h never
-reaches a header.
+One file per platform (maintainer, 2026-11-14; W730, #809): what differs by
+platform is never an `#if` inside a file. A module's header is its public
+interface and its common `.cpp` the shared logic, written once; what differs
+goes behind a small internal header of the module's platform primitives
+(`xpp_files_internal.h`, `xpp_http_internal.h`, `xpp_window_internal.h`, ...),
+implemented once per platform in `<module>_win.cpp` (Windows),
+`<module>_posix.cpp` (Linux and macOS together) and, only where those two
+really differ, `<module>_linux.cpp` and `<module>_mac.cpp`: Chromium's
+suffixes, no others. The Makefile builds the files of its platform only
+(`PLATFORM_SUFFIXES`), so every file compiles whole where it is built; a
+difference of a line or two (a constant, a separator) may stay an `#if` in the
+primitives header. windows.h is included only in `*_win.cpp` files (those
+include no core header but their module's small ones: its macros clash with
+core names like `max`, `MessageBox`, `VARTYPE`) and never in a header;
+`core/xpp_win.cpp` is the Windows API they share (UTF-8 conversion, the console,
+handles). A new platform file gets its module in tools/depgraph.py.
 
 XPPAUT itself (the reference program, for comparisons and benchmarks;
 maintainer, 2026-10-11: W248's agent took Windows XPPAUT for unrunnable
@@ -1181,7 +1191,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   `dir_writable`, `remove`, `copy`, `prepend` (autoX's "append": new bytes
   ahead of the file's own), `move`, and autoX's scratch folders
   (`make_temp_dir`, `remove_temp_dir`, `cleanup_stale_temp_dirs`; the
-  Windows API parts in xpp_win32.cpp); a path they only read is a
+  Windows API parts in xpp_win.cpp); a path they only read is a
   `std::string_view`.
   The folder half (listing and its wildcard match, the file selector's
   current folder, is_dir, dir_writable, autoX's scratch folders) is
@@ -1190,7 +1200,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   `core/xpp_files_internal.h`.
   `tools/filecheck.sh` (sourcecheck) counts each core file's direct
   fopen/freopen/remove/rename/unlink/mkdir/rmdir/opendir/tmpfile calls
-  outside xpp_files, xpp_io and xpp_win32 against `tests/files.baseline`
+  outside xpp_files, xpp_io and xpp_win against `tests/files.baseline`
   and fails on growth; the W33 sweeps take the rest to 0
   (`--update` after a drop).
 
