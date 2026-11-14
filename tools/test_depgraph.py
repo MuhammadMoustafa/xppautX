@@ -58,6 +58,11 @@ class Depgraph(unittest.TestCase):
         self.assertEqual(reach['core/c.h'], 1)    # the `#if 0` and commented includes do not count
         self.assertEqual(self.r['cpps'], 2)
 
+    def test_exact_name_wins_over_an_earlier_pattern(self):
+        mods = {'loading': ('', ['model_*']), 'app': ('', ['model_switch'])}
+        self.assertEqual(depgraph.place('core/model_switch.cpp', mods), 'app')
+        self.assertEqual(depgraph.place('core/model_files.cpp', mods), 'loading')
+
     def test_unplaced_file_fails_by_name(self):
         files = dict(FILES, **{'core/zzz.h': ''})
         with self.assertRaises(SystemExit) as e:

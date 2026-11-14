@@ -32,7 +32,7 @@ PAGE = 'docs/deps.html'
 TESTS = 'tests'
 
 # module name -> (why these files belong together, stem patterns). A stem is a
-# file name without its extension; the first module whose pattern matches wins.
+# file name without its extension; a module naming a stem exactly wins, else the first whose pattern matches.
 MODULES = {
     'kernel': ('the innermost ring (Discussion #808): errors (the failure of a load among them, model_failed) and their log, memory, text formatting and the pure helpers on text (the JSON number writer and reader among them: text in, text out), a file of ours read as lines from the text it is given (xpp_lines, W731), the text of a file name (xpp_path) and the FileSystem and Sink the inner rings read and write through (xpp_fs: an interface the kernel owns, the files module implements, W731), bytes in and bytes out (zip and gzip archives, SHA-256: W731 moved them here, they open no file), and math; it includes nothing outside itself (W726)', [
         'xpp_error', 'model_failed', 'xpp_log', 'xpp_mem', 'xpp_text', 'xpp_lines', 'xpp_path', 'xpp_fs', 'xpp_zip', 'xpp_sha256', 'xpp_util', 'xpp_math', 'xpp_cpu', 'json_number', 'json_reader']),
@@ -125,8 +125,9 @@ ALLOWLIST = {
     ('autoX', 'export'): (4, 'W737'),
     ('autoX', 'files'): (13, 'W739'),
     ('autoX', 'plot'): (4, 'W742'),
-    ('autoX', 'session'): (21, 'W732'),
     ('autoX', 'session files'): (3, 'W737'),
+    ('autoX', 'session'): (21, 'W732'),
+    ('commands', 'application'): (1, 'W737'),
     ('commands', 'files'): (5, 'W740'),
     ('export', 'files'): (7, 'W740'),
     ('expressions', 'analysis'): (2, 'W736'),
@@ -144,26 +145,27 @@ ALLOWLIST = {
     ('integrators', 'session'): (28, 'W732'),
     ('model and loading', 'analysis'): (9, 'W736'),
     ('model and loading', 'animation'): (1, 'W737'),
-    ('model and loading', 'application'): (1, 'W736'),
-    ('model and loading', 'autoX'): (6, 'W736'),
+    ('model and loading', 'autoX'): (5, 'W736'),
     ('model and loading', 'commands'): (3, 'W737'),
     ('model and loading', 'export'): (2, 'W737'),
     ('model and loading', 'files'): (1, 'W740'),
-    ('model and loading', 'integrators'): (30, 'W736'),
+    ('model and loading', 'integrators'): (26, 'W736'),
     ('model and loading', 'plot'): (2, 'W742'),
-    ('model and loading', 'session'): (20, 'W732'),
-    ('model and loading', 'session files'): (9, 'W737'),
+    ('model and loading', 'session files'): (5, 'W737'),
+    ('model and loading', 'session'): (19, 'W732'),
     ('plot', 'animation'): (1, 'W737'),
     ('plot', 'commands'): (1, 'W737'),
     ('plot', 'export'): (12, 'W737'),
     ('plot', 'files'): (2, 'W740'),
     ('plot', 'session files'): (1, 'W737'),
+    ('protocol front end', 'application'): (5, 'W737'),
     ('protocol front end', 'platform'): (5, 'W737'),
+    ('session files', 'files'): (2, 'W740'),
     ('session', 'animation'): (2, 'W737'),
+    ('session', 'application'): (2, 'W737'),
     ('session', 'commands'): (1, 'W737'),
     ('session', 'export'): (3, 'W737'),
     ('session', 'session files'): (2, 'W737'),
-    ('session files', 'files'): (2, 'W740'),
     ('ui seam', 'autoX'): (3, 'W736'),
     ('ui seam', 'commands'): (1, 'W737'),
     ('ui seam', 'expressions'): (3, 'W736'),
@@ -221,9 +223,14 @@ def stem(path):
 
 
 def place(path, modules):
-    """The module of a core file, or None."""
+    """The module of a core file, or None: a module naming the stem exactly wins over any pattern;
+    else the first module whose pattern matches."""
+    s = stem(path)
     for mod, (_, pats) in modules.items():
-        if any(fnmatch.fnmatchcase(stem(path), p) for p in pats):
+        if s in pats:
+            return mod
+    for mod, (_, pats) in modules.items():
+        if any(fnmatch.fnmatchcase(s, p) for p in pats):
             return mod
     return None
 
