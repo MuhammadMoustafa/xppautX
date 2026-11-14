@@ -65,7 +65,7 @@ bool device_name(std::string_view name)
 /* ---- the file system ------------------------------------------------------------ */
 
 /* is_link, stat_name, stat_follow, make_dir, remove_dir, own_pid, temp_base,
-   process_gone, rename_over, the plain opens, SEP and the Stat type are
+   pid_gone, rename_over, the plain opens, SEP and the Stat type are
    xpp_files_internal.h, shared with xpp_files_dir.cpp. */
 using namespace xpp::files;
 

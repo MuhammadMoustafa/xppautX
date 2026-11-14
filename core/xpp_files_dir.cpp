@@ -121,7 +121,7 @@ bool dir_writable(std::string_view dir)
 std::string writable_save_folder(std::string_view model_folder)
 {
     if (dir_writable(model_folder)) return std::string(model_folder);
-    const std::string documents = documents_folder();
+    const std::string documents = user_documents_folder();
     return dir_writable(documents) ? documents : std::string();
 }
 
@@ -257,7 +257,7 @@ void cleanup_stale_temp_dirs()
         while (struct dirent *e = readdir(d)) {
             long long pid;
             if (!scratch_dir_pid(e->d_name, &pid)) continue;
-            if (!process_gone(pid)) continue; /* still running, or cannot tell: leave it alone */
+            if (!pid_gone(pid)) continue; /* still running, or cannot tell: leave it alone */
             std::string path = base;
             path += SEP;
             path += e->d_name;

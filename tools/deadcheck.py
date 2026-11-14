@@ -49,8 +49,8 @@ TESTS = ROOT / "tests"
 # "kind file name|reason": what stays although it reads as dead. Delete
 # rather than add an entry.
 ALLOW = """\
-nodef core/xpp_http.cpp rand_s|the Windows C library's; its stdlib.h declares it only with _CRT_RAND_S
-nodef core/xpp_process.cpp environ|the C library's environment, defined by libc; POSIX leaves it undeclared in headers (macOS has no unistd.h declaration), posix_spawnp needs it
+nodef core/xpp_http_win.cpp rand_s|the Windows C library's; its stdlib.h declares it only with _CRT_RAND_S
+nodef core/xpp_process_posix.cpp environ|the C library's environment, defined by libc; POSIX leaves it undeclared in headers (macOS has no unistd.h declaration), posix_spawnp needs it
 nodef core/xpp_assets.h web_assets|defined in the generated build/.../web_assets.cpp (tools/embed.cpp, W173)
 nodef core/xpp_assets.h icon_png|defined in the generated build/.../icon_assets.cpp (tools/embed_bytes.cpp, W173)
 nodef core/xpp_assets.h window_lib|defined in the generated build/.../window_lib.cpp (tools/embed_bytes.cpp, W173)

@@ -5,7 +5,7 @@
    other *_win.cpp files): its macros clash with core names such as max,
    MessageBox and VARTYPE, so it includes no core header but xpp_window_internal.h. */
 #include "xpp_window_internal.h"
-#include "xpp_window.h"
+
 
 #include <algorithm>
 #include <string>
@@ -15,12 +15,6 @@
 #include <windows.h>
 #include <shobjidl.h>
 #include <commctrl.h>
-
-namespace xpp::window {
-
-const char *launch_document() { return nullptr; } /* only macOS's Finder opens a document with the app */
-
-} // namespace xpp::window
 
 namespace xpp::window::platform {
 

@@ -12,7 +12,7 @@
 
 namespace xpp::platform {
 
-long read_stdin(char *buf, std::size_t n)
+long read_input(char *buf, std::size_t n)
 {
     for (;;) {
         ssize_t r = read(0, buf, n);
@@ -21,7 +21,7 @@ long read_stdin(char *buf, std::size_t n)
     }
 }
 
-std::optional<std::string> read_stdin_line(int seconds, std::size_t cap)
+std::optional<std::string> read_input_line(int seconds, std::size_t cap)
 {
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(seconds);
     std::string line;
@@ -42,8 +42,8 @@ std::optional<std::string> read_stdin_line(int seconds, std::size_t cap)
     return std::nullopt;
 }
 
-void binary_mode(int) {}
+void set_binary_mode(int) {}
 
-void attach_console() {}
+void attach_parent_console() {}
 
 } // namespace xpp::platform

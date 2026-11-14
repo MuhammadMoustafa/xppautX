@@ -127,8 +127,8 @@ void out_flush(void)
 void open_protocol_stdout(void)
 {
     int fd = dup(1);
-    xpp::platform::binary_mode(fd);
-    xpp::platform::binary_mode(0);
+    xpp::platform::set_binary_mode(fd);
+    xpp::platform::set_binary_mode(0);
     proto = fdopen(fd, "w");
     dup2(2, 1);
 }

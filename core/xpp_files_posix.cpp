@@ -54,7 +54,7 @@ long long own_pid() { return getpid(); }
 
 /* kill(pid, 0) says ESRCH: no such process. A live pid, or one this user
    may not signal (EPERM), is not gone. */
-bool process_gone(long long pid) { return kill(static_cast<pid_t>(pid), 0) != 0 && errno == ESRCH; }
+bool pid_gone(long long pid) { return kill(static_cast<pid_t>(pid), 0) != 0 && errno == ESRCH; }
 
 /* a folder another user made under our name is not ours to empty */
 bool owned_by_another(const Stat &st) { return st.st_uid != geteuid(); }
@@ -93,7 +93,7 @@ bool drive_root(std::string_view, std::size_t) { return false; }
 
 bool is_absolute(std::string_view path) { return !path.empty() && path[0] == '/'; }
 
-std::string documents_folder()
+std::string user_documents_folder()
 {
     const char *home = std::getenv("HOME");
     return home && *home ? join(home, "Documents") : std::string();

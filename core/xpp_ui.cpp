@@ -38,7 +38,7 @@ static std::optional<std::string> ask_terminal(const std::string &question, cons
 {
     print(stderr, "{} [{}] ({} s): ", question, suggestion, TERMINAL_QUESTION_SECONDS);
     fflush(stderr);
-    return platform::read_stdin_line(TERMINAL_QUESTION_SECONDS, TERMINAL_ANSWER_CAP);
+    return platform::read_input_line(TERMINAL_QUESTION_SECONDS, TERMINAL_ANSWER_CAP);
 }
 
 void report_automatic(std::string_view question, std::string_view answer)

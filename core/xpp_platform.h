@@ -15,18 +15,18 @@
 namespace xpp::platform {
 
 /* up to n bytes of stdin, blocking; <= 0 at end of input or on an error */
-long read_stdin(char *buf, std::size_t n);
+long read_input(char *buf, std::size_t n);
 
 /* One bounded line (at most cap bytes) of stdin, ending with a newline, a carriage return dropped,
    with a whole-line deadline of seconds; nullopt at the deadline, at the end of input or on an error */
-std::optional<std::string> read_stdin_line(int seconds, std::size_t cap);
+std::optional<std::string> read_input_line(int seconds, std::size_t cap);
 
 /* no \r\n translation on the descriptor (Windows; nothing elsewhere) */
-void binary_mode(int fd);
+void set_binary_mode(int fd);
 
 /* xppautX is a GUI-subsystem program on Windows (no console from Explorer): reattach to the
    parent's console, if it has one, before any output of a command-line mode; nothing elsewhere */
-void attach_console();
+void attach_parent_console();
 
 /* a command-line word the system adds that is not an option (macOS: -psn_..., the process
    serial number an older macOS gave an app Finder started); false elsewhere */

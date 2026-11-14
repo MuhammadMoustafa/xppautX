@@ -28,7 +28,7 @@ bool link_on_way(const char *name) { return is_link(name); }
 int make_dir(const char *path) { return _mkdir(path); }
 int remove_dir(const char *path) { return _rmdir(path); }
 long long own_pid() { return _getpid(); }
-bool process_gone(long long pid) { return pid >= 0 && xpp::win::process_gone(static_cast<unsigned long>(pid)); }
+bool pid_gone(long long pid) { return pid >= 0 && xpp::win::process_gone(static_cast<unsigned long>(pid)); }
 
 bool owned_by_another(const Stat &) { return false; }
 
@@ -55,7 +55,7 @@ bool is_absolute(std::string_view path)
            (path.size() > 2 && std::isalpha(static_cast<unsigned char>(path[0])) && path[1] == ':' && sep(path[2]));
 }
 
-std::string documents_folder() { return xpp::win::documents_folder(); }
+std::string user_documents_folder() { return xpp::win::documents_folder(); }
 
 std::string system_config_base() { return xpp::win::app_data_folder(); }
 

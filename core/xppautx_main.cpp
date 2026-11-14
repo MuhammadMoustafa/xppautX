@@ -236,7 +236,7 @@ int main(int argc, char **argv)
        association): reattach to a real console before any output, for
        --version/--help and every command-line mode; a no-op when stdio is
        already a real pipe or file, or there is no parent console */
-    xpp::platform::attach_console();
+    xpp::platform::attach_parent_console();
     /* the whole command line, read once: ours and xppaut's */
     xpp::Result<xpp::CommandLine> parsed = xpp::parse_command_line(std::vector<std::string>(argv, argv + argc));
     if (!parsed) {

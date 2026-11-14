@@ -245,7 +245,7 @@ void read_stdin_lines()
     bool skipping = false; /* inside an overlong line, until its newline */
     for (;;) {
         if (buf.size() - len < CHUNK) buf.resize(buf.size() * 2 + CHUNK);
-        long r = xpp::platform::read_stdin(buf.data() + len, buf.size() - len);
+        long r = xpp::platform::read_input(buf.data() + len, buf.size() - len);
         if (r <= 0) break;
         len += static_cast<size_t>(r);
         /* push every complete line; search only the bytes not searched yet */

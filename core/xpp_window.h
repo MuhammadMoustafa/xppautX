@@ -49,8 +49,8 @@ void set_model(const char *path);
 /* The document Finder (a double-click, a drop on the app) or `open` asked
    xppautX.app to open when it launched it, which macOS sends as an
    open-documents Apple Event rather than an argument (W91): the model to
-   load, from the session run() runs; nullptr when there was none (and
-   always elsewhere than macOS).
+   load, from the session run() runs; nullptr when there was none. Only macOS has
+   one: defined by xpp_window_mac.cpp (and a stub without a window), called by xpp_platform_mac.cpp.
    One that comes while the app runs is opened as File > Open model opens
    one (W61). */
 const char *launch_document();

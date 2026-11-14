@@ -52,7 +52,7 @@ bool link_on_way(const char *name);
 int make_dir(const char *path);
 int remove_dir(const char *path);
 long long own_pid();
-bool process_gone(long long pid);
+bool pid_gone(long long pid);
 /* whether a folder under a scratch base belongs to another user (never on Windows) */
 bool owned_by_another(const Stat &st);
 /* rename a file over an existing one: 0, or -1 */
@@ -68,7 +68,7 @@ int create_fd(const char *path, bool binary);
    separator): always false off Windows */
 bool drive_root(std::string_view path, std::size_t sep);
 /* the user's Documents folder, "" when there is none */
-std::string documents_folder();
+std::string user_documents_folder();
 /* the system's per-user settings folder (config_base without the override), "" when there is none */
 std::string system_config_base();
 /* where the files the program ships are, given the running program's folder */

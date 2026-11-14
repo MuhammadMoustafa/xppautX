@@ -19,7 +19,7 @@ cd "$(dirname "$0")/.." || exit 1
 
 # "file count|why"
 ALLOW="core/xpp_window.cpp 1|xpp_window_plugin_init, the dlsym export
-core/xpp_http.cpp 1|rand_s, the C library's, which stdlib.h declares only under _CRT_RAND_S"
+core/xpp_http_win.cpp 1|rand_s, the C library's, which stdlib.h declares only under _CRT_RAND_S"
 
 allowed() {
   printf '%s\n' "$ALLOW" | awk -v f="$1" '$1 == f { split($2, a, "|"); print a[1]; exit }'
