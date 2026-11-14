@@ -33,7 +33,6 @@
 .autox-panel.in-group .legend-item { max-width: 9rem; padding-inline: var(--space-1); }
 .autox-panel.in-group .plot-tools { width: auto; margin-left: auto; }
 .autox-panel.in-group .plot-tools button { flex: none; }
-.autox-overlay-row { position: absolute; inset: 0 0 auto 0; z-index: var(--z-dropdown); }
 /* open, Point takes at most --point-share of the pane and scrolls inside; it gives way before the diagram does (the host keeps its minimum) */
 .autox-point[open] { flex: 0 1 auto; min-height: var(--target); max-height: var(--point-share); overflow: auto; }
 .autox-point > summary { min-height: var(--target); padding: var(--space-1) var(--space-2); cursor: pointer; border-top: 1px solid var(--border); }

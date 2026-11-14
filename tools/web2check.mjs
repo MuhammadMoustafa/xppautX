@@ -3863,7 +3863,7 @@ async function splitViewAutoxCheck() {
   check('W720: the autoX view in its group is laid out as a graph: autoX\'s buttons are behind one closed "autoX options" disclosure in its plot bar, no toolbar of its own, "Point" closed under the plot; it has the outline',
     await cdp.eval(`(() => { const p = document.querySelector('.plots > .autox-panel.focused'); const d = p?.querySelector('.autox-pane-bar details.plot-window-options');
       return !!d && !d.open && d.querySelector('summary').textContent === 'autoX options' && ['Axes', 'Numerics', 'Run', 'Grab'].every(l => [...d.querySelectorAll('button')].some(b => b.textContent.trim() === l))
-        && !p.querySelector('.autox-tools') && !!p.querySelector('details.autox-point:not([open])') && !p.querySelector('.autox-overlay-row') && !document.querySelector('.shell[data-view=autox]'); })()`));
+        && !p.querySelector('.autox-tools') && !!p.querySelector('details.autox-point:not([open])') && !p.querySelector('.pick-bar') && !document.querySelector('.shell[data-view=autox]'); })()`));
   for (const [width, height] of [[1280, 800], [1024, 700], [768, 1024]]) {
     await metrics({width, height, deviceScaleFactor: 1, mobile: false});
     check(`W720: at ${width}x${height} the autoX view in its group does not scroll and its diagram has room`,
@@ -3872,23 +3872,24 @@ async function splitViewAutoxCheck() {
   await desktopMetrics();
   await menuRun('autox.grab');
   await requireUntil(`s.ask && s.ask.kind === 'grab' && s.diagram.grabbing`, 'grab');
-  check('W720: while a point is grabbed the grab bar is an overlay row at the top of the plot area and "Point" is open',
-    await until(`!!document.querySelector('.plots > .autox-panel .autox-host .autox-overlay-row .pick-bar[data-pick=grab]') && document.querySelector('.plots > .autox-panel details.autox-point')?.open === true`, 'overlay and point open'));
+  check('W720: while a point is grabbed the grab bar is its own row above the plot area and "Point" is open',
+    await until(`!!document.querySelector('.plots > .autox-panel > .autox-view .autox-pane > .pick-bar[data-pick=grab]') && document.querySelector('.plots > .autox-panel details.autox-point')?.open === true`, 'overlay and point open'));
   /* the grab bar is one line the height of the tab strip's row, and the open Point leaves the diagram its minimum, at every width, light and dark */
   for (const [width, height] of [[1280, 800], [1024, 700], [768, 1024]])
     for (const scheme of ['light', 'dark']) {
       await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
       await metrics({width, height, deviceScaleFactor: 1, mobile: false});
-      const probe = () => cdp.eval(`(() => { const b = document.querySelector('.plots > .autox-panel .pick-bar'), t = document.querySelector('.group-strip .view-tab'), h = document.querySelector('.plots > .autox-panel .autox-host'), s = b.querySelector('span');
-        return {bar: b.getBoundingClientRect().height, row: t.getBoundingClientRect().height, host: h.clientHeight, min: parseFloat(getComputedStyle(h).minHeight), cut: s.scrollWidth > s.clientWidth, buttons: [...b.querySelectorAll('button')].every(x => x.getBoundingClientRect().right <= b.getBoundingClientRect().right + 1)}; })()`);
+      const probe = () => cdp.eval(`(() => { const b = document.querySelector('.plots > .autox-panel .pick-bar'), host = document.querySelector('.plots > .autox-panel .autox-host'), fit = host.querySelector('.plot-fit'), t = document.querySelector('.group-strip .view-tab'), h = document.querySelector('.plots > .autox-panel .autox-host'), s = b.querySelector('span');
+        return {bar: b.getBoundingClientRect().height, row: t.getBoundingClientRect().height, host: h.clientHeight, min: parseFloat(getComputedStyle(h).minHeight), cut: s.scrollWidth > s.clientWidth, buttons: [...b.querySelectorAll('button')].every(x => x.getBoundingClientRect().right <= b.getBoundingClientRect().right + 1),
+          apart: b.getBoundingClientRect().bottom <= host.getBoundingClientRect().top + 1 && !!fit && b.getBoundingClientRect().bottom <= fit.getBoundingClientRect().top + 1}; })()`);
       const got = await probe();
-      check(`W720: at ${width}x${height} ${scheme} the grab bar is one line, ${got.row}px like the tab strip's row, its words cut with an ellipsis and its buttons in view, and the diagram keeps its minimum with Point open`,
-        got.bar === got.row && got.buttons && got.host >= got.min - 1, JSON.stringify(got));
+      check(`W720: at ${width}x${height} ${scheme} the grab bar is one line, ${got.row}px like the tab strip's row, its words cut with an ellipsis, its buttons in view, its rect clear of the plot and its Fit button, and the diagram keeps its minimum with Point open`,
+        got.bar === got.row && got.buttons && got.apart && got.host >= got.min - 1, JSON.stringify(got));
     }
   await cdp.send('Emulation.setEmulatedMedia', {features: []});
   await desktopMetrics();
   await key('Escape');
-  check('W720: after the grab "Point" closes again and the overlay is gone', await until(`!s.busy && !s.diagram.grabbing && !document.querySelector('.autox-overlay-row') && document.querySelector('.plots > .autox-panel details.autox-point')?.open === false`, 'closed'));
+  check('W720: after the grab "Point" closes again and the overlay is gone', await until(`!s.busy && !s.diagram.grabbing && !document.querySelector('.pick-bar') && document.querySelector('.plots > .autox-panel details.autox-point')?.open === false`, 'closed'));
   await cdp.eval(`document.querySelector('.plots > .plot-view[data-group=first]').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))`);
   check('W720: a press on the graph selects it', await until(`!s.busy && s.split.selected === 'main'`, 'graph selected'));
   check('W720: the autoX view stays shown in the core', await S(`s.windows.find(w => w.name === 'diagram_1').shown && s.diagram.shown`));

@@ -528,6 +528,7 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
       </header>
       {editing && <TraceDialog label={editing.label} color={editing.color} close={() => setEditing(null)}
         apply={(label, color) => { setAppearance(a => ({...a, [editing.key]: {...a[editing.key], label, color}})); setEditing(null); }} />}
+      {compact && (grabbing && active ? <GrabBar /> : pick ? <PickBar pick={pick} /> : null)}
       <div class={'plot-host autox-host' + (grabbing ? ' picking pick-grab' : pick ? ` picking pick-${pick.mode}` : '')}
         ref={host} tabIndex={0} role="application" aria-roledescription="diagram"
         aria-label={label} onKeyDown={onHostKey} aria-describedby={grabbing ? 'grab-instruction grab-keys-help'
@@ -544,7 +545,6 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
             title={`Stored point: ${sixSig(stored!.x)}, ${sixSig(stored!.y)}`} />
         )}
         {pick && chart.current && <PickOverlay pick={pick} chart={chart.current} />}
-        {compact && (grabbing && active || pick) && <div class="autox-overlay-row">{grabbing && active ? <GrabBar /> : pick ? <PickBar pick={pick} /> : null}</div>}
         {area && axes && axisButton('x', axes.xlabel, area)}
         {area && axes && axisButton('y', axes.ylabel, area)}
         {empty && (
