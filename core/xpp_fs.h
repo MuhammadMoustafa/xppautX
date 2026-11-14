@@ -13,7 +13,7 @@
    load_model; a Model keeps the reference it was loaded with (Model::fs) for the commands that read
    or write later. Never a global. Only what a caller needs is here: the inner rings read whole files
    (text or bytes), write through a Sink, and ask the questions a loader asks of the folders.
-   autoX's run files are text it keeps and writes through a Sink when the run ends (W739); streaming writers go through the Sink later (W740). */
+   autoX's run files are streamed through Sinks as a run goes and copied into place in pieces when it ends (W739); streaming writers go through the Sink later (W740). */
 
 #include <cstddef>
 #include <functional>

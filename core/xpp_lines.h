@@ -93,8 +93,8 @@ private:
    and a whitespace-delimited token would swallow both. Each read is true on success, false at the
    end of the text or where fscanf would not have returned 1. skip_line() passes over the rest of
    the current line, its \n included: true when a \n ended it, false when the text ended first. The
-   text is borrowed: it must outlive the reader. (A file's text is read whole by the file system,
-   xpp_fs.h; the kernel never opens one.) */
+   text of of_text is borrowed: it must outlive the reader; of_pieces holds one piece at a time (a
+   file read by range through the file system, xpp_fs.h; the kernel never opens one). */
 class TokenReader {
 public:
     TokenReader() noexcept = default;
