@@ -295,7 +295,7 @@ def scc(nodes, succ):
 
 
 def level_violations(r, modules, levels=None, independent=None):
-    """{(from, to): [file:line]}: the include lines that go to a module at the same or a higher level, or across an
+    """{(from, to): [file:line]}: the include lines that go to a module at a higher level (one module per level), or across an
     independent pair. Each module of `modules` must be in `levels` and the reverse, else the script fails by name."""
     levels = LEVELS if levels is None else levels
     independent = INDEPENDENT if independent is None else independent
@@ -495,7 +495,7 @@ def findings(r, data, bad, allow=None):
     if bad:
         out.append(f'<p class="warn"><b>Includes against the levels: {sum(len(v) for v in bad.values())} lines in '
                    f'{len(bad)} pairs, each listed with its card.</b></p><ul>' + ''.join(
-                       f'<li><code>{esc(a)}</code> to <code>{esc(b)}</code>: {len(v)} lines, card '
+                       f'<li><code>{esc(a)}</code> to <code>{esc(b)}</code>: {len(v)} line{"s" if len(v) != 1 else ""}, card '
                        f'{esc(allow.get((a, b), ("?", "none"))[1])}</li>' for (a, b), v in sorted(bad.items())) + '</ul>')
     else:
         out.append('<p class="ok"><b>Includes against the levels: none.</b> Every include goes to its own module or a lower level.</p>')
