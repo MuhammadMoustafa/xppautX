@@ -1,6 +1,7 @@
 /* xpp_https.h: the Linux client, libcurl loaded when the first request is made. Windows is xpp_win32.cpp's
    WinHTTP; macOS has none yet (W625: its update is the release page). */
 #include "xpp_https.h"
+#include "xpp_log.h"
 
 #include <string>
 #include <cstddef>

@@ -34,6 +34,18 @@
    errors only) so the banner, parser stats and integrator chatter show
    on stderr too (comline.cpp reads every option once, ours and xppaut's). */
 #include "model.h"
+#include "colormap.h"
+#include "graphics.h"
+#include "graf_par.h"
+#include "grobs.h"
+#include "browse.h"
+#include "load_eqn.h"
+#include "session_settings.h"
+#include "xpp_util.h"
+#include "xpp_win32.h"
+#include "many_pops.h"
+#include "axes2.h"
+#include "nullcline.h"
 #include "model_options.h"
 #include "xpp_batch.h"
 #include "xpp_globals.h"

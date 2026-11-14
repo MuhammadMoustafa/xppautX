@@ -4,6 +4,7 @@
    scratch folders autoX runs in, the folder listing, the Unix-style
    wildcard match and the file selector's current folder. */
 #include "xpp_files.h"
+#include <cstdint>
 #include "xpp_files_internal.h" /* IWYU pragma: keep (xpp_files.h is the public face; the implementation needs its internals) */
 #include "xpp_io.h"
 #include "xpp_log.h"

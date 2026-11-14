@@ -1,4 +1,5 @@
 #include "xpp_cpu.h"
+#include "xpp_win32.h"
 #include "xpp_io.h"
 #include <set>
 #include <algorithm>

@@ -4,6 +4,7 @@
    nothing behind. tools/webcheck.py checks the same through HTTP, and
    tools/servercheck.py through the protocol's `file` command. */
 #include "xpptest.h"
+#include "xpp_mem.h"
 #include "xpp_files.h"
 #include "xpp_files_internal.h" /* IWYU pragma: keep (xpp_files.h is the public face; the implementation needs its internals) */
 #include "xpp_io.h"

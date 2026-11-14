@@ -25,6 +25,7 @@
 #include <array>
 #include <functional>
 #include <tuple>
+#include <algorithm>
 #include <cstddef>
 #include <expected>
 #include <memory>

@@ -13,6 +13,7 @@
 #endif
 
 #include <cerrno>
+#include <cstdlib>
 #include <cstdio>
 #include <string_view>
 #include <vector>

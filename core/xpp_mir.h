@@ -1,6 +1,7 @@
 #pragma once
 
 #include "xpp_error.h"
+#include "expr_ir.h"
 #include <memory>
 #include <string>
 #include <utility>

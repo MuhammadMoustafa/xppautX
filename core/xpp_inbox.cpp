@@ -15,6 +15,10 @@
    Nothing here throws out of a thread (an allocation that fails ends the
    program: xpp::out_of_memory_now). */
 #include "xpp_inbox.h"
+#include "xpp_files.h"
+#include "xpp_log.h"
+#include <cstdio>
+#include <cstdlib>
 #include "xpp_io.h"
 #include "xpp_mem.h"
 

@@ -1,5 +1,6 @@
 /* xpp_install.h */
 #include "xpp_install.h"
+#include "xpp_log.h"
 
 #include <algorithm>
 #include <charconv>

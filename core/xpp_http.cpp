@@ -19,6 +19,8 @@
 #define _DARWIN_C_SOURCE 1
 #endif
 #include "xpp_http.h"
+#include <cerrno>
+#include <cstdint>
 #include "event_registry.h"
 #include "xpp_update.h"
 #include "xpp_about.h"

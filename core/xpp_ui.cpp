@@ -1,4 +1,6 @@
 #include "mykeydef.h"
+#include "xpp_util.h"
+#include "xpp_win32.h"
 /* Headless defaults for the UI seam, plus the dispatchers that keep the
    historical function names working. See xpp_ui.h. */
 #include "xpp_ui.h"

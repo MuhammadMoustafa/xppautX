@@ -1,4 +1,7 @@
 #include "model.h"
+#include "lunch-new.h"
+#include "xpp_ui.h"
+#include "xpp_globals.h"
 #include "session.h"
 #include "aniparse.h"
 #include "autox_state.h"

@@ -1,5 +1,7 @@
 /* xpp_process.h: posix_spawn here, CreateProcess in xpp_win32.cpp */
 #include "xpp_process.h"
+#include "xpp_io.h"
+#include "xpp_win32.h"
 
 #include <algorithm>
 #include <sys/types.h>

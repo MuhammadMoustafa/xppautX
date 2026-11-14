@@ -3,6 +3,11 @@
    lines that come in, from the inbox; and a small reader for the flat
    JSON objects they are. */
 #include "ui_json_internal.h"
+#include "xpp_log.h"
+#include "xpp_win32.h"
+#include <algorithm>
+#include <cctype>
+#include <climits>
 #include "json_number.h"
 #include "xpp_mem.h"
 #include "xpp_http.h"

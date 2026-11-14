@@ -9,6 +9,7 @@
    retired at W48, the C API under the handles at W109a: no core file
    called either any more. */
 #include "xpptest.h"
+#include "xpp_util.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_error.h"

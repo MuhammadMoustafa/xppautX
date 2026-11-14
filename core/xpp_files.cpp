@@ -4,6 +4,8 @@
    this file keeps the page's file API and the core's own single-file
    operations. */
 #include "xpp_files.h"
+#include <array>
+#include <cstdlib>
 #include "xpp_files_internal.h" /* IWYU pragma: keep (xpp_files.h is the public face; the implementation needs its internals) */
 #include "xpp_io.h"
 #include "xpp_job.h"
