@@ -34,12 +34,12 @@ TESTS = 'tests'
 # module name -> (why these files belong together, stem patterns). A stem is a
 # file name without its extension; the first module whose pattern matches wins.
 MODULES = {
-    'kernel': ('the innermost ring (Discussion #808): errors and their log, memory, text formatting and the pure helpers on text (the JSON number writer and reader among them: text in, text out), and math; it includes nothing outside itself (W726)', [
-        'xpp_error', 'xpp_log', 'xpp_mem', 'xpp_text', 'xpp_util', 'xpp_math', 'xpp_cpu', 'json_number', 'json_reader']),
+    'kernel': ('the innermost ring (Discussion #808): errors (the failure of a load among them, model_failed) and their log, memory, text formatting and the pure helpers on text (the JSON number writer and reader among them: text in, text out), and math; it includes nothing outside itself (W726)', [
+        'xpp_error', 'model_failed', 'xpp_log', 'xpp_mem', 'xpp_text', 'xpp_util', 'xpp_math', 'xpp_cpu', 'json_number', 'json_reader']),
     'files': ('the file system, outside the kernel: the file handles (LineReader, Writer), folders, the log file, zip and hashes, and the files command\'s result as the protocol shows it (json_files)', [
         'xpp_io', 'xpp_io_internal', 'xpp_files', 'xpp_files_dir', 'xpp_files_internal', 'xpp_files_win', 'xpp_files_posix',
         'xpp_files_linux', 'xpp_files_mac', 'xpp_sha256', 'xpp_zip', 'json_files']),
-    'run control': ('the cancel token and progress a computation reports to, and the input queues of commands and cancels it sees, which the front ends and the platform fill (the stdin reader is the --server front end\'s own, json_io.cpp)', ['xpp_job', 'xpp_inbox', 'model_failed']),
+    'run control': ('the cancel token and progress a computation reports to, and the input queues of commands and cancels it sees, which the front ends and the platform fill (the stdin reader is the --server front end\'s own, json_io.cpp)', ['xpp_job', 'xpp_inbox']),
     'styles': ('the colors, color scales, line styles and text styles a model, a run and a plot carry: pure types and their words, which include only the kernel (W733)', [
         'colormap', 'line_style', 'text_style']),
     'plot state': ('the data of the plot windows a Session holds, a model\'s options give and a run reads: pure structs and the window handle type, with no drawing (W733)', [
