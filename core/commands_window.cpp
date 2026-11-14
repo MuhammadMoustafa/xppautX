@@ -253,14 +253,20 @@ Result<std::string> move_the_window(Session &s, const Command &command, const Ar
     return move_to(s, command, name, *target, args.get<long long>(POSITION_KEY), place);
 }
 
-/* one place earlier or later: the keys' way to move the selected window (a key runs a command with no arguments) */
+/* one place earlier or later: the keys' way to move the selected window (a key runs a command with no arguments); at either end of
+   its tabs, or on the main graph, it stays where it is, as VS Code's tab keys do */
 Result<std::string> move_by(Session &s, const Command &command, const Place &place, long long step)
 {
     const std::string name = s.selected_window;
     const auto target = find_window(s, name);
     if (!target) return unknown_window(command, name, place);
     if (const Result<std::string> refused = named_by_user(command, name, target->kind, place); !refused) return refused;
-    return move_to(s, command, name, *target, window_position(s, *target) + step, place);
+    const long long from = window_position(s, *target);
+    const long long first = target->kind == WindowKind::graph ? 1 : 0;
+    const long long count = target->kind == WindowKind::graph ? static_cast<long long>(s.plot_windows.open.size())
+                                                               : static_cast<long long>(s.autox_state.views.size());
+    if (from < first || from + step < first || from + step >= count) return window_result(name) + xpp::format(",\"position\":{}}}", from);
+    return move_to(s, command, name, *target, from + step, place);
 }
 
 Result<std::string> move_earlier(Session &s, const Command &command, const Arguments &, const Place &place)
@@ -495,7 +501,7 @@ constexpr std::array ROWS = {
             "Move a graph or autoX view to a place among the windows of its kind, the tabs' order, counted from 0: the main graph is 0 and stays, "
             "so a graph moves to 1 or later; a graph and an autoX view do not trade places.", MOVE_RESULTS, STATE_EVENTS, true, move_the_window},
     Command{"window.move_earlier", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Move window earlier", "",
-            "Move the selected graph or autoX view one place earlier among its tabs, which a key acts on; the main graph stays first.",
+            "Move the selected graph or autoX view one place earlier among its tabs, which a key acts on; at either end, or on the main graph, it stays where it is.",
             MOVE_RESULTS, STATE_EVENTS, true, move_earlier, {}, MOVE_EARLIER_KEYS},
     Command{"window.move_later", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Move window later", "",
             "Move the selected graph or autoX view one place later among its tabs.",

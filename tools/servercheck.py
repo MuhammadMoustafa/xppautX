@@ -1483,11 +1483,11 @@ def check_registry():
                              ]:
             _, evs = request(refused, False)
             check('W719: %s is refused%s' % (json.dumps(refused), ' saying ' + why if why else ''), why in json.dumps(evs) and graph_order() == before, str(evs)[-300:])
-        for selected, step, why in [('main', 'window.move_earlier', 'The main graph stays first'), (before[-1], 'window.move_later', 'is not a place'),
-                                    (before[1], 'window.move_earlier', 'is not a place')]:
+        for selected, step in [('main', 'window.move_earlier'), ('main', 'window.move_later'), (before[-1], 'window.move_later'), (before[1], 'window.move_earlier')]:
             request({'cmd': 'window.select', 'window': selected})
-            _, evs = request({'cmd': step}, False)
-            check('W719: %s on the selected %s is refused saying %s' % (step, selected, why), why in json.dumps(evs) and graph_order() == before, str(evs)[-300:])
+            result, evs = request({'cmd': step})
+            check('W719: %s on the selected %s leaves it where it is, as VS Code does' % (step, selected),
+                  result == {'window': selected, 'position': before.index(selected)} and graph_order() == before and '"error"' not in json.dumps(evs), str(evs)[-300:])
         request({'cmd': 'window.select', 'window': 'second'})
         result, _ = request({'cmd': 'window.move_later'})
         check('W719: window.move_later moves the selected graph one place', result == {'window': 'second', 'position': 2} and graph_order() == before[:1] + [before[2], before[1]] + before[3:], str(graph_order()))
