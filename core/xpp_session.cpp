@@ -72,9 +72,8 @@ bool name_or_ask(const xpp::Model &m, const char *title, std::string_view wild, 
 void write_windows(xpp::odex::Out &out, const xpp::Session &s)
 {
     out.begin_list("windows");
-    for (int i = 0; i < static_cast<int>(s.plot_windows.graph.size()); i++) {
+    for (const int i : s.plot_windows.open) {
         const GRAPH &g = s.plot_windows.graph[i];
-        if (!g.Use) continue;
         out.begin_item();
         out.text("name",g.name);
         out.flag("hidden", g.hidden);

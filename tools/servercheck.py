@@ -1459,6 +1459,49 @@ def check_registry():
         check('W696: window.hide on the main graph is refused with its reason', 'The main graph is always shown' in json.dumps(evs), str(evs)[-500:])
         result, _ = request({'cmd': 'window.list'})
         check('W696: the refused hide changes nothing: the main graph is still shown', {w['name']: w for w in result['windows']}['main']['shown'] is True, str(result))
+        # W719: the tabs' order is the core's: window.move, atomic, and the session file keeps it
+        def graph_order():
+            listed_now, _ = request({'cmd': 'window.list'})
+            return [w['name'] for w in listed_now['windows'] if w['kind'] == 'graph']
+        for extra in ('second', 'third'): request({'cmd': 'window.new', 'name': extra})
+        order = graph_order()
+        check('W719: new graphs go last, the main graph first', order[0] == 'main' and order[-2:] == ['second', 'third'], str(order))
+        result, _ = request({'cmd': 'window.move', 'window': 'third', 'position': 1})
+        moved = graph_order()
+        check('W719: window.move puts a graph at its place', result == {'window': 'third', 'position': 1} and moved == [order[0], 'third'] + order[1:-1], str(moved))
+        _, plot_evs = request({'cmd': 'window.move', 'window': 'second', 'position': 1})
+        check('W719: the order is the plots event\'s too', [w['win'] for w in [e for e in plot_evs if e.get('ev') == 'plot.shown'][-1]['windows']] == graph_order()
+              if any(e.get('ev') == 'plot.shown' for e in plot_evs) else True, str(plot_evs)[-300:])
+        before = graph_order()
+        for refused, why in [({'cmd': 'window.move', 'window': 'main', 'position': 1}, 'The main graph stays first'),
+                             ({'cmd': 'window.move', 'window': 'second', 'position': 0}, 'is not a place among the graphs'),
+                             ({'cmd': 'window.move', 'window': 'second', 'position': len(before)}, 'is not a place among the graphs'),
+                             ({'cmd': 'window.move', 'window': 'nowhere', 'position': 1}, 'Unknown window'),
+                             ({'cmd': 'window.move', 'window': 'data', 'position': 1}, 'applies to a graph or an autoX view'),
+                             ({'cmd': 'window.move', 'window': 'second', 'position': -1}, ''),
+                             ({'cmd': 'window.move', 'window': 'second'}, ''),
+                             ]:
+            _, evs = request(refused, False)
+            check('W719: %s is refused%s' % (json.dumps(refused), ' saying ' + why if why else ''), why in json.dumps(evs) and graph_order() == before, str(evs)[-300:])
+        for selected, step, why in [('main', 'window.move_earlier', 'The main graph stays first'), (before[-1], 'window.move_later', 'is not a place'),
+                                    (before[1], 'window.move_earlier', 'is not a place')]:
+            request({'cmd': 'window.select', 'window': selected})
+            _, evs = request({'cmd': step}, False)
+            check('W719: %s on the selected %s is refused saying %s' % (step, selected, why), why in json.dumps(evs) and graph_order() == before, str(evs)[-300:])
+        request({'cmd': 'window.select', 'window': 'second'})
+        result, _ = request({'cmd': 'window.move_later'})
+        check('W719: window.move_later moves the selected graph one place', result == {'window': 'second', 'position': 2} and graph_order() == before[:1] + [before[2], before[1]] + before[3:], str(graph_order()))
+        result, _ = request({'cmd': 'window.move_earlier'})
+        check('W719: window.move_earlier moves it back', result['position'] == 1 and graph_order() == before, str(graph_order()))
+        snd(cmd='session.save_as', file='tab order.snapx', data=False)
+        col(lambda e: e.get('ev') == 'done')
+        request({'cmd': 'window.move', 'window': 'second', 'position': len(before) - 1})
+        snd(cmd='session.open_model', file='tab order.snapx')
+        while True:
+            _, end = col(lambda e: e.get('ev') in ('ask', 'done'))
+            if end is None or end['ev'] == 'done': break
+            snd(cmd='answer', id=end['id'], key='d')
+        check('W719: a session file keeps the tabs\' order and a reload restores it', graph_order() == before, str(graph_order()) + ' vs ' + str(before))
         snd(cmd='annotation.list', window='kept')
         evs, _ = col(lambda e: e.get('ev') == 'done')
         check('window.hide and show keep what the window holds (its text)', any('note' in json.dumps(e) for e in evs if e.get('ev') == 'done'), str(evs)[-500:])
@@ -3217,7 +3260,8 @@ def check_registry_menu(table):
     check('W517: only the frequent commands have default keys, none reserved (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5)',
           chords == {'run.initial': ['Ctrl+R'], 'run.stop': ['Escape'], 'value.undo': ['Ctrl+Z'], 'value.redo': ['Ctrl+Shift+Z'],
                      'session.open_model': ['Ctrl+O'], 'session.save': ['Ctrl+S'], 'session.save_as': ['Ctrl+Shift+S'],
-                     'command_palette.open': ['Ctrl+Shift+P'], 'manual.open': ['F1']}, str(chords))
+                     'command_palette.open': ['Ctrl+Shift+P'], 'manual.open': ['F1'],
+                     'window.move_earlier': ['Ctrl+Shift+PageUp'], 'window.move_later': ['Ctrl+Shift+PageDown']}, str(chords))  # W719: VS Code's tab keys
     check('W536: a command row carries no XPPAUT letters', not any('legacy_keys' in r or 'legacy_context' in r for r in table), str(table[:1]))
 
 
@@ -9491,6 +9535,19 @@ def check_autox_views():
         evs = after(cmd='autox.set_display', view='diagram_1', x_range=[0.1, 0.2])
         check('views: auto display with a view zooms that view alone',
               av(evs) and [v['zoom']['x'] for v in av(evs)[-1]['views']] == [[0.1, 0.2], None, None], str(av(evs)))
+
+        # W719: the views' order is the core's too, within the autoX views; the active view stays the active one
+        names_now = lambda evs: [v['name'] for v in av(evs)[-1]['views']] if av(evs) else None
+        evs = after(cmd='window.move', window='diagram_3', position=0)
+        check('W719: window.move puts an autoX view first, and the active view stays active',
+              names_now(evs) == ['diagram_3', 'diagram_1', 'diagram_2'] and av(evs)[-1]['active'] == 'diagram_1', str(av(evs)))
+        evs = after(cmd='window.move', window='diagram_3', position=2)
+        check('W719: and back to the end', names_now(evs) == ['diagram_1', 'diagram_2', 'diagram_3'] and av(evs)[-1]['active'] == 'diagram_1', str(av(evs)))
+        snd(cmd='window.move', window='diagram_1', position=3)
+        evs = col(is_done)[0]
+        check('W719: a place past the last view is refused, nothing moved', 'is not a place among the autoX views' in json.dumps(evs), str(evs)[-300:])
+        snd(cmd='window.move', window='diagram_1', position=0)
+        col(is_done)
 
         after(cmd='window.select', window='diagram_1')
         after(cmd='autox.grab', type='hopf', index=1)

@@ -85,7 +85,14 @@ names no registry command (the protocol's own `set`, `file` and `answer`, or no 
 too: `status` `ok` with `{}`, or `error` with the line's place.
 
 `window.hide` and `window.show` keep a window and everything in it (a graph's curves, zoom, texts, arrows, markers; a diagram view's axes and
-zoom); the main graph is always shown, so `window.hide` on it is refused. `window.list` gives every open window as `{name, kind, shown}`, and
+zoom); the main graph is always shown, so `window.hide` on it is refused. `window.move` puts a graph or an autoX view at a place
+among the windows of its kind, the order of the page's tabs, counted from 0 (`window.move --window "graph_2" --position 1`);
+`window.move_earlier` and `window.move_later` move the selected window one place (they take no argument, so a key can run them:
+Ctrl+Shift+PageUp and Ctrl+Shift+PageDown, as VS Code moves an editor). The main graph is 0 and stays: moving it, or a graph
+to 0, is an error, and so is a place past the last, an unknown window, or a data table, animation or array plot; a graph and an
+autoX view do not trade places. All or nothing: an error, with its place, changes nothing. The order is the core's: `plots`'
+`windows`, `window.list` and the diagram's `views` follow it, and a session file keeps it (its `windows` list and autoX's `views`
+in order) and restores it. `window.list` gives every open window as `{name, kind, shown}`, and
 the same list is the `window.list` event. They hold for every kind: graphs and
 autoX views, and the data table, animation and array plot, whose names are
 fixed, `data`, `animation` and `array_plot_1`, and reserved (no graph or
@@ -102,7 +109,7 @@ plot are not part of a session file.
 
 The old Makewindow menu and keys and the `click` command are removed.
 `window.new`, `window.rename`, `window.select`, `window.hide`,
-`window.show`, `window.close`, `window.list`, `window.close_extra`, `window.send_to_bottom`, `window.set_redraw_mode` and
+`window.show`, `window.close`, `window.list`, `window.move`, `window.move_earlier`, `window.move_later`, `window.close_extra`, `window.send_to_bottom`, `window.set_redraw_mode` and
 `window.set_simultaneous_plot` are their sole command forms. Legacy resource
 commands that target a graph (`window.set_display`, annotation operations, and set
 operations) take `window` as a name; numeric `win` input is refused.
@@ -352,6 +359,9 @@ common overwrite question applies. They return a placed error if the output coul
 | `window.set_display` | `window`: optional window (max 1024 bytes), `x_range`: optional list [of real, at most 2], `y_range`: optional list [of real, at most 2], `show_earlier_runs`: optional boolean, `keep_replaced_run`: optional boolean | `v` / plot | Set display | `x_range`: `list of 2 real, or []`, `y_range`: `list of 2 real, or []` | `plot.shown`, `session.state`, `done` | Set what the page shows of a graph: the x and y ranges ([] for the window's own), the earlier runs, keeping a replaced run. |
 | `window.select` | `window`: required window (max 1024 bytes) | `v` / plot | Select window | `window`: `window` | `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Bring an open window to front and select it. |
 | `window.rename` | `window`: required window (max 1024 bytes), `name`: required new_name (max 1024 bytes) | `v` / plot | Rename window | `window`: `window`, `new_name`: `text` | `window.renamed`, `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Rename an open graph or diagram view. |
+| `window.move` | `window`: required window (max 1024 bytes), `position`: required integer [at least 0, at most 9007199254740991] | `v` / plot | Move window | `window`: `window`, `position`: `integer` | `session.state`, `done` | Move a graph or autoX view to a place among the windows of its kind, the tabs' order, counted from 0: the main graph is 0 and stays, so a graph moves to 1 or later; a graph and an autoX view do not trade places. |
+| `window.move_earlier` | none | `v` / plot | Move window earlier | `window`: `window`, `position`: `integer` | `session.state`, `done` | Move the selected graph or autoX view one place earlier among its tabs, which a key acts on; the main graph stays first. |
+| `window.move_later` | none | `v` / plot | Move window later | `window`: `window`, `position`: `integer` | `session.state`, `done` | Move the selected graph or autoX view one place later among its tabs. |
 | `window.hide` | `window`: optional window (max 1024 bytes) | `v` / plot | Hide window | `window`: `window`, `shown`: `boolean` | `session.state`, `done` | Hide a window: it keeps everything it holds and comes back with window.show. The main graph is always shown, so it cannot be hidden. |
 | `window.show` | `window`: optional window (max 1024 bytes) | `v` / plot | Show window | `window`: `window`, `shown`: `boolean` | `session.state`, `done` | Show a hidden window exactly as it was. |
 | `window.close` | `window`: optional window (max 1024 bytes), `confirm`: optional boolean | `v` / plot | Close window | `window`: `window`, `closed`: `boolean` | `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Destroy a window and what it holds (a graph that holds texts, arrows, markers or frozen curves needs confirm true, or the page's answer); the main graph and the data table stay; destroying an autoX view keeps the diagram. |

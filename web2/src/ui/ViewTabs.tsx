@@ -4,7 +4,10 @@
    window, so keys and menus act on the window shown. Keyboard: the WAI-ARIA tabs pattern, automatic activation
    (arrow keys, Home, End move and select; Tab leaves the tab list). A view is renamed on its tab (W685): a double
    click, the tab's context menu's Rename, or F2 on the focused tab edits its name in place; Enter applies it
-   through window.rename, Escape or leaving the field cancels. */
+   through window.rename, Escape or leaving the field cancels. The tabs are reordered as VS Code's are (W719): a tab dragged onto
+   another of its kind takes that tab's place (a marker shows the side it lands on), Ctrl+Shift+PageUp and PageDown (the keymap's
+   window.move_earlier and window.move_later) and the tab menu's Move left and Move right (the way on a phone) move it one place. The
+   order is the core's (window.move); the main graph stays first, and a graph and an autoX view do not trade places. */
 import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {CommandButton, CommandLabel} from './CommandButton';
@@ -18,8 +21,11 @@ const MAIN_TITLE = 'The main graph: always open';
 
 /** the views shown as tabs: the graph windows (a hidden one has none until shown again; the active one always has), then autoX's */
 interface ViewTab {kind: 'graph' | 'autox'; name: string; index: number}
+type ViewKind = ViewTab['kind'];
 
-export function useViewTabs(): {tabs: ViewTab[]; active: string} {
+/** `tabs` as the core orders them (a tab's `index` is its place among the views of its kind, hidden graphs counted) and how many views
+    of each kind there are */
+export function useViewTabs(): {tabs: ViewTab[]; active: string; count: Record<ViewKind, number>} {
   const all = useStore(s => s.plots.windows);
   const plotsActive = useStore(s => s.plots.active);
   const hidden = useStore(s => s.windows.filter(w => w.kind === 'graph' && !w.shown).map(w => w.name).join('\n')).split('\n');
@@ -27,15 +33,15 @@ export function useViewTabs(): {tabs: ViewTab[]; active: string} {
   const graphs = all.filter(w => w.win === plotsActive || !hidden.includes(w.win)).map(w => w.win);
   /* before the first `plots` or `series`: the main graph, empty */
   const named = graphs.length ? graphs : ['main'];
-  const tabs: ViewTab[] = named.map((name, index) => ({kind: 'graph', name, index}));
+  const tabs: ViewTab[] = named.map(name => ({kind: 'graph', name, index: Math.max(0, all.findIndex(w => w.win === name))}));
   if (diagram.open) diagram.views.forEach((v, index) => tabs.push({kind: 'autox', name: v.name, index}));
-  return {tabs, active: diagram.open && diagram.shown ? diagram.views[diagram.active].name : plotsActive};
+  return {tabs, count: {graph: Math.max(1, all.length), autox: diagram.open ? diagram.views.length : 0}, active: diagram.open && diagram.shown ? diagram.views[diagram.active].name : plotsActive};
 }
 
 export function ViewTabs() {
   const session = useSession();
   const may = useMay();
-  const {tabs, active} = useViewTabs();
+  const {tabs, active, count} = useViewTabs();
   /* the main graph is the first graph window the core lists (its index 0): pinned first, it never closes (W696) */
   const mainName = useStore(s => s.windows.find(w => w.kind === 'graph')?.name);
   const autoxShown = useStore(s => s.diagram.open && s.diagram.shown);
@@ -56,6 +62,9 @@ export function ViewTabs() {
   /* the view being renamed (its name as the core has it), its context menu, and the tab the focus returns to after
      a rename that Enter or Escape ended (the tab's place in the strip) */
   const [renaming, setRenaming] = useState<string | null>(null);
+  /* the tab being dragged, and where its drop would land: on a tab, at the side the tab moves from */
+  const dragged = useRef<ViewTab | null>(null);
+  const [drop, setDrop] = useState<{name: string; side: 'before' | 'after'} | null>(null);
   const [menu, setMenu] = useState<{name: string; x: number; y: number} | null>(null);
   const refocus = useRef<number | null>(null);
   useEffect(() => {
@@ -68,6 +77,22 @@ export function ViewTabs() {
     if (restore) refocus.current = tabs.findIndex(t => t.name === renaming);
     setRenaming(null);
   };
+
+  /* a tab is dragged onto another of its kind and takes its place, the main graph's excepted: that is as far left as a graph goes */
+  const landing = (over: ViewTab): {position: number; side: 'before' | 'after'} | null => {
+    const from = dragged.current;
+    if (!from || from.kind !== over.kind || from.name === over.name) return null;
+    const first = over.kind === 'graph' ? 1 : 0;
+    return {position: Math.max(first, over.index), side: over.index < from.index && over.index >= first ? 'before' : 'after'};
+  };
+  const endDrag = () => { dragged.current = null; setDrop(null); };
+  /* after a move the focus stays on the moved tab, which is the active one, so the keys go on moving it */
+  const order = tabs.map(t => t.name).join('\n');
+  useEffect(() => {
+    const focused = document.activeElement;
+    if (focused?.getAttribute('role') !== 'tab' || !list.current?.contains(focused)) return;
+    list.current.querySelectorAll<HTMLElement>('[role=tab]')[tabs.findIndex(t => t.name === active)]?.focus();
+  }, [order]);
 
   const viewOf = (tab: ViewTab): ViewKey => ({kind: tab.kind, name: tab.name});
   /* a tab whose view is in its own window brings that window forward as well */
@@ -109,8 +134,25 @@ export function ViewTabs() {
           /* the main graph has no × (the core refuses to close it), and its tab says why it stays (W696) */
           const isMain = tab.kind === 'graph' && tab.name === mainName;
           const out = popouts.includes(viewKeyText(viewOf(tab)));
+          const marked = drop?.name === tab.name ? ` drop-${drop.side}` : '';
           return (
-            <span key={slot(tab)} class={'view-tab' + (tab.name === active ? ' active' : '') + (out ? ' out' : '')} data-view-kind={tab.kind}>
+            <span key={slot(tab)} class={'view-tab' + (tab.name === active ? ' active' : '') + (out ? ' out' : '') + marked} data-view-kind={tab.kind}
+              draggable={!isMain && !off && may({cmd: 'window.move'})}
+              onDragStart={e => { if (isMain) { e.preventDefault(); return; } dragged.current = tab; if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', tab.name); } }}
+              onDragOver={e => {
+                const to = landing(tab);
+                if (!to) return; /* no drop here: no marker, and the cursor says so */
+                e.preventDefault();
+                if (drop?.name !== tab.name || drop.side !== to.side) setDrop({name: tab.name, side: to.side});
+              }}
+              onDragLeave={() => { if (drop?.name === tab.name) setDrop(null); }}
+              onDrop={e => {
+                e.preventDefault();
+                const to = landing(tab), from = dragged.current;
+                endDrag();
+                if (to && from) session.moveWindow(from.name, to.position);
+              }}
+              onDragEnd={endDrag}>
               <button id={id(tab)} class="plot-tab" role="tab" aria-selected={tab.name === active} tabIndex={tab.name === active ? 0 : -1}
                 disabled={off} title={off ? BUSY_TITLE : isMain ? MAIN_TITLE : undefined} aria-description={isMain ? MAIN_TITLE : undefined} onClick={() => pick(tab)} onDblClick={() => startRename(tab.name)}
                 onContextMenu={e => { e.preventDefault(); setMenu({name: tab.name, x: e.clientX, y: e.clientY}); }}>
@@ -131,8 +173,13 @@ export function ViewTabs() {
         const tab = tabs.find(t => t.name === menu.name);
         const view = tab && viewOf(tab);
         const out = !!view && popouts.includes(viewKeyText(view));
+        /* the main graph is first and stays; a graph goes no further left than the place after it */
+        const first = tab?.kind === 'graph' ? 1 : 0;
+        const left = !tab || tab.index <= first, right = !tab || tab.index < first || tab.index >= count[tab.kind] - 1;
         return <ContextMenu x={menu.x} y={menu.y} label={`View ${menu.name}`} close={() => setMenu(null)}
           items={[{label: 'Rename', off: !may({cmd: 'window.rename'}), run: () => startRename(menu.name)},
+            {label: 'Move left', off: left || !may({cmd: 'window.move'}), run: () => session.moveWindow(menu.name, tab!.index - 1)},
+            {label: 'Move right', off: right || !may({cmd: 'window.move'}), run: () => session.moveWindow(menu.name, tab!.index + 1)},
             {label: out ? 'Pop in' : 'Pop out', off: !view, run: () => view && (out ? session.popouts.popIn(view) : void session.popouts.show(view))}]} />;
       })()}
       <details class="view-add" ref={add}>

@@ -445,7 +445,7 @@ placed in plot coordinates. The page's Add text, Add arrow, Add pointer and
 Add marker buttons keep the interactive way, a click on the plot.
 
 Scripts use `window.new`, `window.rename`, `window.select`,
-`window.hide`, `window.show`, `window.close` and `window.list`, with
+`window.hide`, `window.show`, `window.close`, `window.list`, `window.move`, `window.move_earlier` and `window.move_later`, with
 `window` and `name` as quoted text. There are no window
 numbers or Makewindow key sequences. The core validates these same commands
 for the page, the server and recordings; each ends with a `done` result.

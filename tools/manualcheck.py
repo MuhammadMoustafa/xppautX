@@ -21,6 +21,7 @@ ALLOWED_WORDS = {
     "ImageMagick": "a program's name", "MIR": "the compiler's name", "SemVer": "the versioning scheme's name",
     "DoPri": "the integrator's name (Dormand-Prince)", "MiB": "the unit's symbol", "NaN": "the floating-point value's name",
     "MuhammadMoustafa": "the repository owner in a web address",
+    "PageUp": "a key's name, as the keymap writes it", "PageDown": "a key's name, as the keymap writes it",
 }
 # (file, text): a model's own name or an XPPAUT name a model uses, with its reason
 ALLOWED = {

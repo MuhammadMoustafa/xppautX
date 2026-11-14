@@ -664,6 +664,10 @@ export class Session {
 
   renameWindow(window: string, name: string): void { this.send({cmd:'window.rename',window,name}); }
 
+  /** a view's tab moved to `position` among the tabs of its kind, from 0 (a dragged tab, W719); one place earlier or later is the
+      commands `window.move_earlier` and `window.move_later`, which keys and the tab menu send */
+  moveWindow(window: string, position: number): void { this.send({cmd:'window.move',window,position}); }
+
   /** Makewindow/Create: a copy of the active window, which becomes active */
   newWindow(): void {
     this.send({cmd:'window.new'});

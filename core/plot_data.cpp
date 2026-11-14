@@ -529,9 +529,8 @@ std::string plots_event(xpp::Session &s)
     o+=s.plot_windows.simul?",\"simultaneous_plot\":true":",\"simultaneous_plot\":false";
     o += ",\"windows\":[";
     bool first = true;
-    for (int pop = 0; pop < static_cast<int>(s.plot_windows.graph.size()); pop++) {
+    for (const int pop : s.plot_windows.open) {
         const GRAPH &g = s.plot_windows.graph[pop];
-        if (!g.Use) continue;
         if (!first) o += ',';
         first = false;
         o += "{\"win\":";

@@ -87,7 +87,9 @@ test('the editor\'s search matches label, description, id and the keys pressed',
   const ids = (query: string, from: KeymapInfo = info) => editorRows(from, rows, query).map(r => r.id);
   assert.ok(ids('session.open_model').includes('session.open_model'));
   assert.ok(ids('Ctrl+R').includes('run.initial'));
-  assert.deepEqual(ids('ctrl+shift+p'), ['command_palette.open']);
+  /* a key is found by what it starts with: Ctrl+Shift+PageUp and PageDown (W719) begin as Ctrl+Shift+P does */
+  assert.deepEqual(ids('ctrl+shift+p'), ['command_palette.open', 'window.move_earlier', 'window.move_later']);
+  assert.deepEqual(ids('ctrl+shift+pagedown'), ['window.move_later']);
   assert.deepEqual(ids('escape'), ['run.stop']);
   assert.ok(ids('initial').includes('run.initial'));
   /* the user's keys are searched, not the table's */

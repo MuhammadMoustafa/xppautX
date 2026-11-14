@@ -3559,7 +3559,7 @@ async function viewTabsCheck() {
   await cdp.eval(`(() => { const t = [...document.querySelectorAll('.view-tabs [role=tab]')].find(b => b.textContent.trim() === 'Tab graph renamed');
     t.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: ${again.x}, clientY: ${again.y}})); })()`);
   await rendered();
-  check('W685, W645: the tab\'s context menu has Rename and Pop out', await cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].map(b => b.textContent).join() === 'Rename,Pop out'`));
+  check('W685, W645: the tab\'s context menu has Rename and Pop out', await cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].map(b => b.textContent).join() === 'Rename,Move left,Move right,Pop out'`));
   await cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].find(b => b.textContent === 'Rename').click()`);
   check('W685: Rename in the menu edits the tab name', await until(`document.querySelector('.view-tab-rename input')?.value === 'Tab graph renamed'`, 'menu rename'));
   await key('Escape');
@@ -3567,6 +3567,73 @@ async function viewTabsCheck() {
 
   await menuRun('window.rename', {window: 'Tab graph renamed', name: 'Tab graph'});
   check('W685: a rename by the registry command (the window row\'s form is gone) reaches the tab too', await until(`!s.busy && s.windows.some(w => w.name === 'Tab graph') && [...document.querySelectorAll('.view-tabs [role=tab]')].some(b => b.textContent.trim() === 'Tab graph')`, 'registry rename'));
+  /* W719: the tabs' order is the core's: dragged, moved by keys and by the tab menu; the main graph never moves */
+  for (const name of ['Tab B', 'Tab C']) {
+    await menuRun('window.new', {name});
+    await requireUntil(`!s.busy && s.windows.some(w => w.name === ${JSON.stringify(name)})`, name);
+  }
+  const order = () => cdp.eval(`[...document.querySelectorAll('.view-tabs [role=tab]')].map(b => b.textContent.trim()).join()`);
+  const coreOrder = () => S(`s.plots.windows.map(w => w.win).join()`);
+  const tabBox = name => `[...document.querySelectorAll('.view-tabs .view-tab')].find(t => t.querySelector('[role=tab]').textContent.trim() === ${JSON.stringify(name)})`;
+  const dnd = (type, name) => cdp.eval(`${tabBox(name)}.dispatchEvent(new DragEvent(${JSON.stringify(type)}, {bubbles: true, cancelable: true, dataTransfer: new DataTransfer()}))`);
+  check('W719: the tabs follow the core\'s order, new graphs last', await order() === 'main,Tab graph,Tab B,Tab C' && await coreOrder() === 'main,Tab graph,Tab B,Tab C', await order());
+  check('W719: the main graph\'s tab is not draggable, the others are', await cdp.eval(`${tabBox('main')}.draggable === false && ${tabBox('Tab C')}.draggable === true`));
+  await dnd('dragstart', 'Tab C');
+  await dnd('dragover', 'Tab graph');
+  check('W719: over a tab to its left the drop marker is on its left side', await cdp.eval(`${tabBox('Tab graph')}.classList.contains('drop-before')`));
+  await dnd('dragover', 'Tab B');
+  check('W719: the marker moves with the pointer: one tab only has it', await cdp.eval(`${tabBox('Tab B')}.classList.contains('drop-before') && document.querySelectorAll('.view-tab.drop-before, .view-tab.drop-after').length === 1`));
+  await dnd('dragover', 'main');
+  check('W719: over the main graph the marker is on its right side (a graph goes no further left than after it)', await cdp.eval(`${tabBox('main')}.classList.contains('drop-after')`));
+  await dnd('drop', 'Tab graph');
+  check('W719: a drop sends window.move: the core lists the dragged graph in the place, the tabs follow, the marker is gone',
+    await until(`!s.busy && s.plots.windows.map(w => w.win).join() === 'main,Tab C,Tab graph,Tab B'`, 'dropped') && await order() === 'main,Tab C,Tab graph,Tab B'
+    && await cdp.eval(`document.querySelectorAll('.view-tab.drop-before, .view-tab.drop-after').length === 0`), await coreOrder());
+  await dnd('dragstart', 'Tab B');
+  await dnd('drop', 'main');
+  check('W719: dropped on the main graph, a tab goes to the place after it, never before', await until(`!s.busy && s.plots.windows.map(w => w.win).join() === 'main,Tab B,Tab C,Tab graph'`, 'dropped on main') && await order() === 'main,Tab B,Tab C,Tab graph', await coreOrder());
+  await dnd('dragstart', 'main');
+  await dnd('dragover', 'Tab C');
+  check('W719: the main graph is not dragged: no marker', await cdp.eval(`document.querySelectorAll('.view-tab.drop-before, .view-tab.drop-after').length === 0`));
+  await dnd('dragend', 'main');
+
+  /* the keys: the keymap's window.move_earlier and window.move_later (Ctrl+Shift+PageUp, PageDown) move the selected tab, and the focus stays on it */
+  const at2 = await tabOf('Tab graph');
+  await mouse('mouseMoved', at2.x, at2.y);
+  await mouse('mousePressed', at2.x, at2.y, {button: 'left', buttons: 1, clickCount: 1});
+  await mouse('mouseReleased', at2.x, at2.y, {button: 'left', buttons: 0, clickCount: 1});
+  await requireUntil(`!s.busy && s.plots.active === 'Tab graph'`, 'Tab graph selected');
+  await key('PageUp', 10);
+  check('W719: Ctrl+Shift+PageUp moves the selected tab one place earlier, and it keeps the focus',
+    await until(`!s.busy && s.plots.windows.map(w => w.win).join() === 'main,Tab B,Tab graph,Tab C'`, 'earlier') && await order() === 'main,Tab B,Tab graph,Tab C'
+    && await cdp.eval(`document.activeElement.getAttribute('role') === 'tab' && document.activeElement.textContent.trim() === 'Tab graph'`), await coreOrder());
+  await key('PageDown', 10);
+  check('W719: Ctrl+Shift+PageDown moves it later',
+    await until(`!s.busy && s.plots.windows.map(w => w.win).join() === 'main,Tab B,Tab C,Tab graph'`, 'later') && await order() === 'main,Tab B,Tab C,Tab graph', await coreOrder());
+
+  /* the tab menu's Move left and Move right (the way on a phone) */
+  const menuOf = async name => {
+    const box = await tabOf(name);
+    await cdp.eval(`${tabBox(name)}.querySelector('[role=tab]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: ${box.x}, clientY: ${box.y}}))`);
+    await rendered();
+  };
+  const item = label => `[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].find(b => b.textContent === ${JSON.stringify(label)})`;
+  await menuOf('main');
+  check('W719: the main graph\'s menu cannot move it', await cdp.eval(`${item('Move left')}.getAttribute('aria-disabled') === 'true' && ${item('Move right')}.getAttribute('aria-disabled') === 'true'`));
+  await key('Escape');
+  await menuOf('Tab B');
+  check('W719: the first graph after main cannot move left, and can move right', await cdp.eval(`${item('Move left')}.getAttribute('aria-disabled') === 'true' && ${item('Move right')}.getAttribute('aria-disabled') === 'false'`));
+  await cdp.eval(`${item('Move right')}.click()`);
+  check('W719: Move right in the tab menu moves that tab one place later', await until(`!s.busy && s.plots.windows.map(w => w.win).join() === 'main,Tab C,Tab B,Tab graph'`, 'menu right') && await order() === 'main,Tab C,Tab B,Tab graph', await coreOrder());
+  await menuOf('Tab B');
+  await cdp.eval(`${item('Move left')}.click()`);
+  check('W719: Move left moves it back', await until(`!s.busy && s.plots.windows.map(w => w.win).join() === 'main,Tab B,Tab C,Tab graph'`, 'menu left') && await order() === 'main,Tab B,Tab C,Tab graph', await coreOrder());
+  await menuOf('Tab graph');
+  check('W719: the last graph cannot move right', await cdp.eval(`${item('Move left')}.getAttribute('aria-disabled') === 'false' && ${item('Move right')}.getAttribute('aria-disabled') === 'true'`));
+  await key('Escape');
+  for (const name of ['Tab B', 'Tab C']) await menuRun('window.close', {window: name, confirm: true});
+  await until(`!s.busy && !s.windows.some(w => w.name === 'Tab B' || w.name === 'Tab C')`, 'extra tabs closed');
+
   await menuRun('window.close', {window: 'Tab graph'});
   await until(`!s.busy && !s.windows.some(w => w.name === 'Tab graph')`, 'closed');
   await desktopMetrics();
@@ -3596,6 +3663,42 @@ async function renameShots() {
     await shot(`rename-window-row-${size}`);
   }
   await menuRun('window.close', {window: 'Tab graph'});
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
+/* The tab reordering's pictures for the UI review (W719; with --only shots and XPP_SHOTS=folder): the tab bar with a tab dragged over another (the drop
+   marker) at 1280 wide, and at 390 the tab's menu with Move left and Move right, each light and dark. Never a check: it writes files only. */
+async function tabOrderShots() {
+  const dir = process.env.XPP_SHOTS;
+  if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(dir, {recursive: true});
+  await until('s.hello && !s.busy', 'hello');
+  for (const name of ['phase plane', 'time series']) {
+    await menuRun('window.new', {name});
+    await requireUntil(`!s.busy && s.windows.some(w => w.name === ${JSON.stringify(name)})`, name);
+  }
+  const tabBox = name => `[...document.querySelectorAll('.view-tabs .view-tab')].find(t => t.querySelector('[role=tab]').textContent.trim() === ${JSON.stringify(name)})`;
+  const dnd = (type, name) => cdp.eval(`${tabBox(name)}.dispatchEvent(new DragEvent(${JSON.stringify(type)}, {bubbles: true, cancelable: true, dataTransfer: new DataTransfer()}))`);
+  const full = async name => fs.writeFileSync(path.join(dir, name + '.png'), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+  for (const [size, width, height, scheme, drag] of [['1280-light', 1280, 860, 'light', true], ['1280-dark', 1280, 860, 'dark', true], ['390-light', 390, 844, 'light', false], ['390-dark', 390, 844, 'dark', false]]) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+    await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+    await rendered();
+    if (drag) {
+      await dnd('dragstart', 'time series');
+      await dnd('dragover', 'phase plane');
+      await rendered();
+      await full(`tab-drag-${size}`);
+      await dnd('dragend', 'time series');
+    } else {
+      const box = await cdp.eval(`(() => { const r = ${tabBox('phase plane')}.getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
+      await cdp.eval(`${tabBox('phase plane')}.querySelector('[role=tab]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: ${box.x}, clientY: ${box.y}}))`);
+      await rendered();
+      await full(`tab-menu-${size}`);
+      await key('Escape');
+    }
+  }
+  for (const name of ['phase plane', 'time series']) await menuRun('window.close', {window: name, confirm: true});
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
@@ -3723,12 +3826,12 @@ async function popOut(selector, key) {
   if (!await untilOn(page, '!!s.hello && s.connected', 'the pop-out connected')) throw new Error(`the pop-out of ${key} never connected`);
   return page;
 }
-/* pops a view out from its tab's context menu (Rename, Pop out: the order W685's check holds), as the page offers it */
+/* pops a view out from its tab's context menu (Rename, Move left, Move right, Pop out: the order W685's and W719's checks hold), as the page offers it */
 async function popOutTab(tab, key) {
   await cdp.eval(`(() => { const t = document.querySelector(${JSON.stringify(tab)}); const b = t.getBoundingClientRect();
     t.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: b.left + 4, clientY: b.bottom})); })()`);
   await requireUntil(`!!document.querySelector('.quick-menu[role=menu]')`, 'the tab\'s menu');
-  return popOut('.quick-menu[role=menu] [role=menuitem]:nth-child(2)', key);
+  return popOut('.quick-menu[role=menu] [role=menuitem]:nth-child(4)', key);
 }
 
 async function popOutCheck() {
@@ -7454,7 +7557,7 @@ async function main() {
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, menuShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, dockShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, mainLookShots);
-    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, renameShots);
+    if (opt.only && opt.only.split(',').includes('shots')) { await session(ODE, renameShots); await session(ODE, tabOrderShots); }
     if (opt.only && opt.only.split(',').includes('shots')) await session(AB_ODE, autoxScriptShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'popoutshots')) await session(ODE, popOutShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, tableShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */

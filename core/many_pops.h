@@ -13,7 +13,7 @@ struct XppPlotWindows {
     GRAPH *current;        /* &graph[active] */
     int active;            /* the active window's index */
     int count;             /* how many are open */
-    std::vector<int> open{0};      /* the open windows' indices, count of them */
+    std::vector<int> open{0};      /* the open windows' indices in the tabs' order (move_window), count of them; the main graph's, 0, first */
     int simul;             /* Simulplot: draw on every open window */
     XppWinId draw_win;     /* graph[active].w, the window drawn into */
 };
@@ -48,6 +48,11 @@ std::string_view window_kind_name(WindowKind kind);
 /* whether the window is hidden (it exists: a find_window result) */
 bool window_hidden(const Session &s, const WindowTarget &target);
 void set_window_hidden(Session &s, const WindowTarget &target, bool hidden);
+/* the window's place among the windows of its kind (a graph or an autoX view) in the tabs' order, from 0 */
+long long window_position(const Session &s, const WindowTarget &target);
+/* Move a window to `position` among the windows of its kind in the tabs' order (graphs: the main graph is 0 and stays; autoX
+   views from 0); the problem as words, nothing changed, or empty. Windows keep their slots: only the order moves. */
+std::string move_window(Session &s, const WindowTarget &target, long long position);
 std::string next_window_name(const Session &s, WindowKind kind);
 std::string window_name(const Session &s, XppWinId handle);
 /* the animation's and the array plot's names, which no session changes */

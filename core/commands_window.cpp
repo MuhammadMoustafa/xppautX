@@ -26,6 +26,7 @@ namespace {
 constexpr const char *WINDOW_KEY = "window";
 constexpr const char *NAME_KEY = "name";
 constexpr const char *CONFIRM_KEY = "confirm";
+constexpr const char *POSITION_KEY = "position";
 
 std::string target_name(const Session &s, const Arguments &args)
 {
@@ -235,6 +236,43 @@ Result<std::string> rename_window(Session &s, const Command &command, const Argu
     return result + '}';
 }
 
+/* a window moved to a place among the tabs of its kind; the result names the place it has */
+Result<std::string> move_to(Session &s, const Command &command, std::string_view name, const WindowTarget &target, long long position,
+                            const Place &place)
+{
+    if (const std::string problem = move_window(s, target, position); !problem.empty()) return fail(command.name, problem, place);
+    return window_result(name) + xpp::format(",\"position\":{}}}", position);
+}
+
+Result<std::string> move_the_window(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const std::string &name = args.get<std::string>(WINDOW_KEY);
+    const auto target = find_window(s, name);
+    if (!target) return unknown_window(command, name, place);
+    if (const Result<std::string> refused = named_by_user(command, name, target->kind, place); !refused) return refused;
+    return move_to(s, command, name, *target, args.get<long long>(POSITION_KEY), place);
+}
+
+/* one place earlier or later: the keys' way to move the selected window (a key runs a command with no arguments) */
+Result<std::string> move_by(Session &s, const Command &command, const Place &place, long long step)
+{
+    const std::string name = s.selected_window;
+    const auto target = find_window(s, name);
+    if (!target) return unknown_window(command, name, place);
+    if (const Result<std::string> refused = named_by_user(command, name, target->kind, place); !refused) return refused;
+    return move_to(s, command, name, *target, window_position(s, *target) + step, place);
+}
+
+Result<std::string> move_earlier(Session &s, const Command &command, const Arguments &, const Place &place)
+{
+    return move_by(s, command, place, -1);
+}
+
+Result<std::string> move_later(Session &s, const Command &command, const Arguments &, const Place &place)
+{
+    return move_by(s, command, place, 1);
+}
+
 Result<std::string> select_window(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     const std::string name = target_name(s, args);
@@ -367,6 +405,8 @@ Result<std::string> set_simultaneous_plot(Session &s, const Command &, const Arg
 
 constexpr std::array CREATE_ARGUMENTS = {Argument{NAME_KEY, Type::new_name, false}};
 constexpr std::array RENAME_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, true}, Argument{NAME_KEY, Type::new_name, true}};
+constexpr std::array MOVE_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, true},
+                                       Argument{POSITION_KEY, Type::integer, true, MAX_TEXT_BYTES, {}, constant(0), constant(MAX_INTEGER)}};
 constexpr std::array SELECT_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, true}};
 constexpr std::array WINDOW_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false}};
 constexpr std::array DESTROY_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false}, Argument{CONFIRM_KEY, Type::boolean, false}};
@@ -403,6 +443,7 @@ constexpr std::array MODE_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false}
 constexpr std::array SIMULTANEOUS_ARGUMENTS = {Argument{"enabled", Type::boolean, true}};
 constexpr std::array WINDOW_RESULTS = {ResultField{WINDOW_KEY, "window"}};
 constexpr std::array RENAME_RESULTS = {ResultField{WINDOW_KEY, "window"}, ResultField{"new_name", "text"}};
+constexpr std::array MOVE_RESULTS = {ResultField{WINDOW_KEY, "window"}, ResultField{POSITION_KEY, "integer"}};
 constexpr std::array CLOSE_RESULTS = {ResultField{WINDOW_KEY, "window"}, ResultField{"closed", "boolean"}};
 constexpr std::array SHOWN_RESULTS = {ResultField{WINDOW_KEY, "window"}, ResultField{"shown", "boolean"}};
 constexpr std::array LIST_RESULTS = {ResultField{"windows", "list of {name, kind, shown}"}};
@@ -413,6 +454,8 @@ constexpr std::array WINDOW_EVENTS = {xpp::events::WINDOW_CREATED, xpp::events::
 constexpr std::array RENAME_EVENTS = {xpp::events::WINDOW_RENAMED, xpp::events::WINDOW_CREATED, xpp::events::WINDOW_SELECTED, xpp::events::WINDOW_DESTROYED, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
+constexpr std::array MOVE_EARLIER_KEYS = {"Ctrl+Shift+PageUp"}; /* VS Code's keys for moving an editor tab */
+constexpr std::array MOVE_LATER_KEYS = {"Ctrl+Shift+PageDown"};
 constexpr std::array ROWS = {
     Command{"window.set_bounds", BOUNDS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Set bounds", "Plot/View",
             "Set the view's bounds; a bound left out keeps the view's.", BOUNDS_RESULTS, PLOT_EVENTS, true, set_bounds},
@@ -448,6 +491,15 @@ constexpr std::array ROWS = {
             "Bring an open window to front and select it.", WINDOW_RESULTS, WINDOW_EVENTS, true, select_window},
     Command{"window.rename", RENAME_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Rename window", "",
             "Rename an open graph or diagram view.", RENAME_RESULTS, RENAME_EVENTS, true, rename_window},
+    Command{"window.move", MOVE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Move window", "",
+            "Move a graph or autoX view to a place among the windows of its kind, the tabs' order, counted from 0: the main graph is 0 and stays, "
+            "so a graph moves to 1 or later; a graph and an autoX view do not trade places.", MOVE_RESULTS, STATE_EVENTS, true, move_the_window},
+    Command{"window.move_earlier", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Move window earlier", "",
+            "Move the selected graph or autoX view one place earlier among its tabs, which a key acts on; the main graph stays first.",
+            MOVE_RESULTS, STATE_EVENTS, true, move_earlier, {}, MOVE_EARLIER_KEYS},
+    Command{"window.move_later", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Move window later", "",
+            "Move the selected graph or autoX view one place later among its tabs.",
+            MOVE_RESULTS, STATE_EVENTS, true, move_later, {}, MOVE_LATER_KEYS},
     Command{"window.hide", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Hide window", "",
             "Hide a window: it keeps everything it holds and comes back with window.show. The main graph is always shown, so it cannot be hidden.", SHOWN_RESULTS, STATE_EVENTS, true, hide_window},
     Command{"window.show", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Show window", "",

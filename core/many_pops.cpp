@@ -106,8 +106,7 @@ std::vector<WindowInfo> list_windows(const Session &s)
     const auto add = [&](std::string name, const WindowTarget &target) {
         windows.push_back({std::move(name), target.kind, !window_hidden(s, target)});
     };
-    for (int i=0;i<static_cast<int>(s.plot_windows.graph.size());++i)
-        if (s.plot_windows.graph[i].Use) add(s.plot_windows.graph[i].name, {WindowKind::graph,i});
+    for (const int i:s.plot_windows.open) add(s.plot_windows.graph[i].name, {WindowKind::graph,i});
     if (s.autox_state.bifur.exist)
         for (int i=0;i<static_cast<int>(s.autox_state.views.size());++i) add(s.autox_state.views[i].name, {WindowKind::diagram,i});
     if (s.model().loaded()) add(std::string(DATA_WINDOW), {WindowKind::data,0});
@@ -240,16 +239,44 @@ void clear_windows(xpp::Session &s)
 
 void set_active_windows(xpp::Session &s)
 {
-  int i,np=0;
-  s.plot_windows.open.resize(s.plot_windows.graph.size());
-   for(i=0;i<static_cast<int>(s.plot_windows.graph.size());i++){
-   if(s.plot_windows.graph[i].Use==1){
-     s.plot_windows.open[np]=i;
-     np++;
-   }
- }
- s.plot_windows.count=np;
-}  
+    /* the tab order is kept (move_window): a graph that closed leaves it, one that opened goes last */
+    std::vector<int> &open=s.plot_windows.open;
+    const std::vector<GRAPH> &graph=s.plot_windows.graph;
+    const auto used=[&](int i){return i<static_cast<int>(graph.size()) && graph[i].Use==1;};
+    std::erase_if(open,[&](int i){return !used(i);});
+    for(int i=0;i<static_cast<int>(graph.size());i++)
+        if(used(i) && std::ranges::find(open,i)==open.end())open.push_back(i);
+    s.plot_windows.count=static_cast<int>(open.size());
+}
+
+long long window_position(const Session &s, const WindowTarget &target)
+{
+    if (target.kind==WindowKind::graph) return std::ranges::find(s.plot_windows.open,target.index)-s.plot_windows.open.begin();
+    return target.index;
+}
+
+std::string move_window(Session &s, const WindowTarget &target, long long position)
+{
+    const auto out_of_range=[&](long long first,std::size_t count){
+        return xpp::format("Position {} is not a place among the {}: {} to {}",position,target.kind==WindowKind::graph?"graphs":"autoX views",first,count-1);
+    };
+    if (target.kind==WindowKind::graph) {
+        std::vector<int> &open=s.plot_windows.open;
+        if (target.index==0) return "The main graph stays first";
+        if (position<1 || position>=static_cast<long long>(open.size())) return out_of_range(1,open.size());
+        open.erase(std::ranges::find(open,target.index));
+        open.insert(open.begin()+static_cast<std::ptrdiff_t>(position),target.index);
+        return {};
+    }
+    std::vector<AutoxDiagramView> &views=s.autox_state.views;
+    if (position<0 || position>=static_cast<long long>(views.size())) return out_of_range(0,views.size());
+    const std::string active=views[static_cast<std::size_t>(s.autox_state.active_view)].name;
+    const auto from=views.begin()+target.index, to=views.begin()+static_cast<std::ptrdiff_t>(position);
+    if (from<to) std::rotate(from,from+1,to+1);
+    else std::rotate(to,from,from+1);
+    s.autox_state.active_view=static_cast<int>(std::ranges::find(views,active,&AutoxDiagramView::name)-views.begin());
+    return {};
+}
 
 void check_windows(xpp::Session &s)
 {
