@@ -22,9 +22,11 @@ inline constexpr std::size_t NAME_MAX_BYTES = 255; /* Common filesystem basename
 #ifdef _WIN32
 inline constexpr char SEP = '\\';
 inline constexpr std::string_view SEPARATORS = "/\\"; /* every character that ends a folder name: Windows takes both */
+inline constexpr bool DRIVE_LETTERS = true; /* a path may start with a drive, "C:\\" */
 #else
 inline constexpr char SEP = '/';
 inline constexpr std::string_view SEPARATORS = "/";
+inline constexpr bool DRIVE_LETTERS = false;
 #endif
 
 /* All offered defaults: model base without its extension, optional qualifier, extension. */

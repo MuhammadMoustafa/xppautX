@@ -2217,7 +2217,10 @@ def check_session_commands():
               bye is not None and not any(e.get('ev') == 'done' for e in evs), str([e.get('ev') for e in evs]))
     finally:
         if proc.poll() is None:
-            snd(cmd='session.quit', save=False)
+            try:
+                snd(cmd='session.quit', save=False)
+            except BrokenPipeError:
+                pass  # it left between the poll and the write (a quit above was already on its way)
         try:
             proc.wait(timeout=5 * SLOW)
         except subprocess.TimeoutExpired:

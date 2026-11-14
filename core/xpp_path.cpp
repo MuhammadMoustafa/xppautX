@@ -27,13 +27,7 @@ bool device_name(std::string_view name)
 /* whether path's root is a drive ("C:\x": sep is the index of its last separator): never off Windows */
 bool drive_root(std::string_view path, std::size_t sep)
 {
-#ifdef _WIN32
-    return sep == 2 && path[1] == ':';
-#else
-    (void)path;
-    (void)sep;
-    return false;
-#endif
+    return xpp::files::DRIVE_LETTERS && sep == 2 && path.size() > 1 && path[1] == ':';
 }
 
 } // namespace
@@ -93,13 +87,10 @@ std::string join(std::string_view dir, std::string_view name) { return xpp::form
 
 bool is_absolute(std::string_view path)
 {
-#ifdef _WIN32
-    const auto sep = [](char c) { return c == '/' || c == '\\'; };
+    const auto sep = [](char c) { return SEPARATORS.find(c) != std::string_view::npos; };
     return (!path.empty() && sep(path[0])) ||
-           (path.size() > 2 && std::isalpha(static_cast<unsigned char>(path[0])) && path[1] == ':' && sep(path[2]));
-#else
-    return !path.empty() && path[0] == '/';
-#endif
+           (DRIVE_LETTERS && path.size() > 2 && std::isalpha(static_cast<unsigned char>(path[0])) && path[1] == ':' &&
+            sep(path[2]));
 }
 
 std::string append_path(std::string_view dir, std::string_view path)
