@@ -26,16 +26,11 @@
    limit on their number): it writes an entry by its index (a variable, a
    Markov variable, an aux quantity each at its own offset). */
 #include "xpp_error.h"
-#include "xpp_zip.h"
-#include "comline.h"
 #include "volterra.h"
 #include "simplenet.h"
-#include "odex.h"
-#include "model_files.h"
 #include "xpp_mir.h"
 #include "expr_program.h"
 #include "model_parts.h"
-#include "xpp_io.h"
 
 #include <array>
 #include <memory>
@@ -51,10 +46,20 @@
 
 namespace xpp {
 struct Session;
+struct ModelRecord; /* model_record.h */
 
 class TempDir; /* xpp_files.h */
 
 struct Model {
+  /* out of line (model_files.cpp), where ModelRecord is complete: what
+     only loads and writes a Model includes it, not what reads one */
+  Model();
+  ~Model();
+
+  /* what the load recorded of where the model came from (statements, name
+     index, files, command line: model_record.h) */
+  std::unique_ptr<ModelRecord> record;
+
   /* Room for n parameters in default_val, upar_names and upar_con (it
      only grows; the parser's constants grow in add_con). */
   void size_parameters(int n)
@@ -233,17 +238,6 @@ struct Model {
      last_ic) */
   std::vector<double> default_val;
   std::vector<double> default_ic;
-  /* the initial values a model draws (an .odex's init that calls ran; any
-     other init is a number at load): each variable (by name) and its
-     formula, drawn in order once the model is set up (form_ode.cpp's
-     set_initial_values); where its init is, for an error (no cause) */
-  struct InitialValue {
-    std::string name;
-    odex::Expr formula;
-    Place where;
-    int index = -1; /* -1 until the builder resolves the state column */
-  };
-  std::vector<InitialValue> initial_values;
   /* a statement is a map, x(t+1)=... (disc: the method is discrete) */
   int is_a_map=0;
   /* its array initial values, x[j1..j2](0)=formula (extract_ic_data) */
@@ -341,51 +335,6 @@ struct Model {
      characters blanks at the end of the load) */
   std::vector<std::string> source;
   int nlines() const { return static_cast<int>(source.size()); }
-  /* its statements as its reader read them (odex.h; an array's copies,
-     each marked), in order, as the builder made them (in an .odex, a
-     fixed quantity of parameters a derived one): xppautX --convert
-     writes them (odex_convert.cpp) */
-  std::vector<odex::Statement> statements;
-  /* the files a statement's place (odex::Pos::file) indexes: the model's
-     own first, then each file it includes (model_place, model_files.h) */
-  std::vector<std::string> statement_files;
-  /* W291: the load's single model-name index. The parser separately owns
-     built-ins, argument slots and temporary expression symbols. Indices
-     are -1 until assigned by the builder, or when that namespace excludes
-     the name (a fixed quantity can also have an aux output column). */
-  enum class NameKind { Variable, Markov, Fixed, Aux, Param, Const, Wiener, Ou,
-                        Function, Table, Network, Vector, Algebraic, Derived, Set, Kernel };
-  struct NameOrigin {
-    std::string written;
-    odex::Pos pos;
-    std::string array;
-  };
-  struct Name {
-    NameKind kind = NameKind::Variable;
-    odex::Pos pos;
-    std::string written, array;
-    int arity = 0;
-    int index = -1, column = -1, parameter = -1, set = -1;
-    int parser_var = -1, parser_con = -1;
-    std::unordered_map<std::string,int> set_spellings; /* exact .ode set spellings can share a folded name */
-    bool declared = false, variable_declared = false, markov_declared = false;
-    int function_statement = -1;
-    int purity = -1; /* -1 unknown, 0 visiting/impure, 1 pure during load */
-    bool purity_constant = false, purity_table = false, purity_derived = false;
-    std::optional<std::pair<std::string,double>> load_constant;
-    std::unordered_map<int,std::pair<std::string,std::string>> array_members; /* load's range group -> spelling, provenance */
-    std::vector<NameOrigin> origins; /* load-only clash history, cleared on success */
-  };
-  std::unordered_map<std::string, Name> names;
-  /* Foreign Markov headers match prefixes: probe only declared lengths,
-     so a hostile long header does not cause quadratic substring work. */
-  std::set<std::size_t> markov_name_lengths;
-  const Name *name(std::string_view text) const;
-  /* Declaration metadata is written only while loading; indices are the
-     owner's category indices, with parser and output namespaces separate. */
-  Name &define_name(std::string_view text,NameKind kind,int index,const odex::Pos &pos);
-  /* Source lines indexed by model_files during the load; read-only in a run. */
-  std::map<std::string, Lines, std::less<>> source_lines;
   /* a " comment of the model: its text, and with {name=value,...} an
      action, "$ name=value ..." (aflag 1), run when it is picked */
   struct Comment {
@@ -411,11 +360,6 @@ struct Model {
   /* a model was loaded: the Model of a program started with no file (the
      start screen, W232) has none */
   bool loaded() const { return !this_file.empty(); }
-  /* the model's own files as its load read them (model_files.h):
-     this_file first, then each file included, each file table, the
-     options file and the animation's file, in the order read; an autoX
-     file and a session file save them all (xpp_session.h) */
-  std::vector<ModelFile> files;
   /* the .snapx the model was loaded from (an absolute path),
      whose saved copies are its files; empty for a model read from the
      disk */
@@ -423,17 +367,12 @@ struct Model {
   /* the paths outside the model's folder the user allowed while this model
      loaded, as files::resolve_path gives them (approve_model_path, model_files.h) */
   std::vector<std::string> outside_paths;
-  /* a Model made to parse a file of values in (set_load.cpp, scratch_model) holds those two apart: the most bytes
-     its files may hold in all, and whether a path outside the folder the user allows is for this read only (asked
-     every time, never kept in the preferences) */
-  std::size_t files_bytes_limit = zip::archive_bytes_limit;
+  /* a Model made to parse a file of values in (set_load.cpp, scratch_model) holds whether a path outside the folder the user
+     allows is for this read only (asked every time, never kept in the preferences) */
   bool outside_once_only = false;
   /* during a load of a saved model, the scratch folder of the copies a
      reader of a FILE * reads (model_files.cpp) */
   std::shared_ptr<TempDir> saved_copies;
-  /* the command line it was loaded with, read once (comline.h): File >
-     Reload loads its arguments again (model_switch.h) */
-  CommandLine command_line;
   /* the working directory it was loaded in, which the command line's
      relative paths name files of */
   std::string load_dir;

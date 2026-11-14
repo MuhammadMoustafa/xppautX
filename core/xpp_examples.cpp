@@ -9,7 +9,7 @@
 #include "browse.h"
 #include "odex.h"
 #include "model.h"
-#include "model_files.h"
+#include "model_file_types.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"

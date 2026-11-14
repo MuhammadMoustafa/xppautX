@@ -19,7 +19,6 @@
 #include "model.h"
 #include "session.h"
 #include "integrate.h"
-#include "load_eqn.h"
 #include "many_pops.h"
 #include "event_registry.h"
 #include "command_category.h"

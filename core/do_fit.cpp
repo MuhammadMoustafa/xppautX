@@ -29,7 +29,6 @@
 #include "mykeydef.h"
 #include "xpp_job.h"
 
-#include "load_eqn.h"
 #include "model.h"
 #include "solver.h"
 #include "xpp_io.h"

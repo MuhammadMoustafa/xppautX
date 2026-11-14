@@ -1,7 +1,6 @@
 #include "session.h"
 #include "delay_handle.h"
 #include "integrate.h"
-#include "load_eqn.h"
 #include "xpp_math.h"
 #include <math.h>
 #include <cstring>
@@ -20,7 +19,7 @@
 #include <string>
 #include <string_view>
 #include "xpp_job.h"
-#include "model_files.h"
+#include "model_place.h"
 #include "numerics_settings.h"
 #include "xpp_error.h"
 #include "xpp_io.h"

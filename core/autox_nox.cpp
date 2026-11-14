@@ -32,7 +32,6 @@
 #include "xpp_zip.h"
 #include "xpp_session_autox.h"
 #include "autox_settings.h"
-#include "load_eqn.h"
 
 
 #include "expr.h"

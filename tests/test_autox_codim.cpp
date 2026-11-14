@@ -3,7 +3,6 @@
 #include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
-#include "load_eqn.h"
 #include "autox_state.h"
 #include "autox_c.h"
 #include "autox_settings.h"

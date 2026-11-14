@@ -26,8 +26,15 @@ struct Session; /* session.h */
 struct Model;   /* model.h */
 
 struct OptionRow;
-struct XppSlider;
-struct PlotCurve; /* load_eqn.h */
+/* The parameter sliders the ODE file sets up (@ s1=name, slo1=, shi1=,
+   likewise 2 and 3); options_set has the s1.. rows once slider n was set. */
+struct XppSlider {
+    std::string var;           /* the parameter it moves */
+    double lo = 0.0, hi = 1.0; /* its range */
+    double step = 0.0;         /* 0: the page picks one */
+};
+
+struct PlotCurve; /* plot_settings.h */
 namespace odex { class Block; }
 /* Shared preset/session reader. Before model compilation, check_names is false;
    the .odex loader checks names against declarations instead. */

@@ -15,7 +15,7 @@
 #include "expr.h"
 #include "form_ode.h"
 #include "model.h"
-#include "model_files.h"
+#include "model_record.h"
 #include "model_options.h"
 #include "snapx.h"
 #include "xpp_batch.h"
@@ -53,25 +53,25 @@ std::optional<std::string> range_problem(int first, int last, int step)
 namespace {
 
 
-const char *kind_name(Model::NameKind k)
+const char *kind_name(ModelRecord::NameKind k)
 {
   switch (k) {
-  case Model::NameKind::Variable: return "a variable";
-  case Model::NameKind::Markov: return "a Markov variable";
-  case Model::NameKind::Fixed: return "a fixed variable";
-  case Model::NameKind::Aux: return "an aux quantity";
-  case Model::NameKind::Param: return "a parameter";
-  case Model::NameKind::Const: return "a const";
-  case Model::NameKind::Wiener: return "a Wiener parameter";
-  case Model::NameKind::Ou: return "an Ornstein-Uhlenbeck process";
-  case Model::NameKind::Function: return "a function";
-  case Model::NameKind::Table: return "a table";
-  case Model::NameKind::Network: return "a network";
-  case Model::NameKind::Algebraic: return "an algebraic variable";
-  case Model::NameKind::Vector:
-  case Model::NameKind::Derived:
-  case Model::NameKind::Set:
-  case Model::NameKind::Kernel: break;
+  case ModelRecord::NameKind::Variable: return "a variable";
+  case ModelRecord::NameKind::Markov: return "a Markov variable";
+  case ModelRecord::NameKind::Fixed: return "a fixed variable";
+  case ModelRecord::NameKind::Aux: return "an aux quantity";
+  case ModelRecord::NameKind::Param: return "a parameter";
+  case ModelRecord::NameKind::Const: return "a const";
+  case ModelRecord::NameKind::Wiener: return "a Wiener parameter";
+  case ModelRecord::NameKind::Ou: return "an Ornstein-Uhlenbeck process";
+  case ModelRecord::NameKind::Function: return "a function";
+  case ModelRecord::NameKind::Table: return "a table";
+  case ModelRecord::NameKind::Network: return "a network";
+  case ModelRecord::NameKind::Algebraic: return "an algebraic variable";
+  case ModelRecord::NameKind::Vector:
+  case ModelRecord::NameKind::Derived:
+  case ModelRecord::NameKind::Set:
+  case ModelRecord::NameKind::Kernel: break;
   }
   return "a name";
 }
@@ -79,15 +79,15 @@ const char *kind_name(Model::NameKind k)
 /* the const named name, with its value */
 std::optional<double> const_named(const Model &m, const std::string &name)
 {
-  const Model::Name *c = m.name(name);
+  const ModelRecord::Name *c = m.record->name(name);
   if (c && c->load_constant && c->load_constant->first == name) return c->load_constant->second;
   return std::nullopt;
 }
 
 /* a value a formula reads */
-bool is_value(Model::NameKind k)
+bool is_value(ModelRecord::NameKind k)
 {
-  return k != Model::NameKind::Aux && k != Model::NameKind::Function && k != Model::NameKind::Table && k != Model::NameKind::Network;
+  return k != ModelRecord::NameKind::Aux && k != ModelRecord::NameKind::Function && k != ModelRecord::NameKind::Table && k != ModelRecord::NameKind::Network;
 }
 
 
@@ -118,12 +118,12 @@ public:
 
   Parsed run()
   {
-    m_.names.clear();
+    m_.record->names.clear();
     std::vector<Statement> statements = expanded();
     for (const Statement &s : statements) in_copy(s.array, [&] { declare(s); });
     for (const Statement &s : p_.statements)
       if (s.range)
-        if (const Model::Name *d = find(s.range->index))
+        if (const ModelRecord::Name *d = find(s.range->index))
           fail(s.range->index_pos, xpp::format("the index `{}` is {}, declared at {}:{}: an index is named like "
                                               "no declared name", s.range->index, kind_name(d->kind),
                                               d->pos.line, d->pos.col));
@@ -229,7 +229,7 @@ private:
   std::string defined(const std::string &base, const Expr &index, const std::string &ix, int value)
   {
     std::string name = element(base, index, ix, value);
-    if (group_) m_.names[xpp::upper_case(name)].array_members[group_] = {name,array_text(base, lo_, hi_, step_)};
+    if (group_) m_.record->names[xpp::upper_case(name)].array_members[group_] = {name,array_text(base, lo_, hi_, step_)};
     return name;
   }
 
@@ -297,7 +297,7 @@ private:
       for (Binding &b : c.bindings) {
         const double v = fixed(b.value, xpp::format("the value of const {}", b.name), index, value);
         number_of(b, v);
-        m_.names[xpp::upper_case(b.name)].load_constant=std::pair{b.name,v};
+        m_.record->names[xpp::upper_case(b.name)].load_constant=std::pair{b.name,v};
       }
     }
     return c;
@@ -358,20 +358,20 @@ private:
   }
 
   /* ---- the names ---- */
-  void add(const std::string &name, Model::NameKind kind, Pos declared_at, int arity = 0)
+  void add(const std::string &name, ModelRecord::NameKind kind, Pos declared_at, int arity = 0)
   {
     /* a name an import brought is reported at the import */
     const Pos pos = import_.line ? import_ : declared_at;
     const std::string via = import_.line ? xpp::format(" (declared at {}:{} of {})", declared_at.line, declared_at.col,
                                                        p_.files[static_cast<size_t>(declared_at.file)]) : std::string();
-    const Model::Name *member_name = m_.name(name);
+    const ModelRecord::Name *member_name = m_.record->name(name);
     std::string member_of;
     if(member_name){
       const auto member=member_name->array_members.find(declaring_.group);
       if(member!=member_name->array_members.end() && member->second.first==name)member_of=member->second.second;
     }
     const std::string upper = xpp::upper_case(name);
-    const Model::Name *same = m_.name(name);
+    const ModelRecord::Name *same = m_.record->name(name);
     if (same && same->declared && same->written == name)
       fail(pos, name_clash(name, member_of, same->array,
                            xpp::format("{}:{}", same->pos.line, same->pos.col)) + via);
@@ -382,7 +382,7 @@ private:
     if (reads_as_builtin(upper))
       fail(pos, xpp::format("`{}` would be read as the built-in `{}`: this version of xppautX keeps a model's "
                             "names without case", name, xpp::lower_case(upper)) + via);
-    Model::Name &entry = m_.names[upper];
+    ModelRecord::Name &entry = m_.record->names[upper];
     entry.kind = kind;
     entry.pos = pos;
     entry.arity = arity;
@@ -408,45 +408,45 @@ private:
     import_ = s.more().imported_at;
     switch (s.kind) {
     case Statement::Kind::Ode:
-    case Statement::Kind::Volterra: add(s.name, Model::NameKind::Variable, s.name_pos); break;
-    case Statement::Kind::Markov: add(s.name, Model::NameKind::Markov, s.name_pos); break;
-    case Statement::Kind::Fixed: add(s.name, Model::NameKind::Fixed, s.name_pos); break;
+    case Statement::Kind::Volterra: add(s.name, ModelRecord::NameKind::Variable, s.name_pos); break;
+    case Statement::Kind::Markov: add(s.name, ModelRecord::NameKind::Markov, s.name_pos); break;
+    case Statement::Kind::Fixed: add(s.name, ModelRecord::NameKind::Fixed, s.name_pos); break;
     case Statement::Kind::Aux:
       /* an aux may record a fixed variable under its own name (aux ica =
          ica, as lecar.ode does): the column takes the name */
       for (const Binding &b : s.bindings) {
-        const Model::Name *d = find(b.name);
-        if (!(d && d->kind == Model::NameKind::Fixed)) add(b.name, Model::NameKind::Aux, b.pos);
+        const ModelRecord::Name *d = find(b.name);
+        if (!(d && d->kind == ModelRecord::NameKind::Fixed)) add(b.name, ModelRecord::NameKind::Aux, b.pos);
       }
       break;
     case Statement::Kind::Par:
-      for (const Binding &b : s.bindings) add(b.name, Model::NameKind::Param, b.pos);
+      for (const Binding &b : s.bindings) add(b.name, ModelRecord::NameKind::Param, b.pos);
       break;
     case Statement::Kind::Const:
-      for (const Binding &b : s.bindings) add(b.name, Model::NameKind::Const, b.pos);
+      for (const Binding &b : s.bindings) add(b.name, ModelRecord::NameKind::Const, b.pos);
       break;
     case Statement::Kind::Wiener:
-      for (size_t i = 0; i < s.more().names.size(); i++) add(s.more().names[i], Model::NameKind::Wiener, s.more().name_positions[i]);
+      for (size_t i = 0; i < s.more().names.size(); i++) add(s.more().names[i], ModelRecord::NameKind::Wiener, s.more().name_positions[i]);
       break;
-    case Statement::Kind::Ou: add(s.name, Model::NameKind::Ou, s.name_pos); break;
-    case Statement::Kind::Fun: add(s.name, Model::NameKind::Function, s.name_pos, static_cast<int>(s.more().names.size())); break;
-    case Statement::Kind::Table: add(s.name, Model::NameKind::Table, s.name_pos, 1); break;
-    case Statement::Kind::Network: add(s.name, Model::NameKind::Network, s.name_pos, 1); break;
-    case Statement::Kind::Solv: add(s.name, Model::NameKind::Algebraic, s.name_pos); break;
+    case Statement::Kind::Ou: add(s.name, ModelRecord::NameKind::Ou, s.name_pos); break;
+    case Statement::Kind::Fun: add(s.name, ModelRecord::NameKind::Function, s.name_pos, static_cast<int>(s.more().names.size())); break;
+    case Statement::Kind::Table: add(s.name, ModelRecord::NameKind::Table, s.name_pos, 1); break;
+    case Statement::Kind::Network: add(s.name, ModelRecord::NameKind::Network, s.name_pos, 1); break;
+    case Statement::Kind::Solv: add(s.name, ModelRecord::NameKind::Algebraic, s.name_pos); break;
     default: break;
     }
   }
 
-  const Model::Name *find(const std::string &name) const
+  const ModelRecord::Name *find(const std::string &name) const
   {
-    const Model::Name *entry = m_.name(name);
+    const ModelRecord::Name *entry = m_.record->name(name);
     return entry && entry->declared && entry->written == name ? entry : nullptr;
   }
 
   /* "`X` is not declared", with the name of another case if there is one */
   [[noreturn]] void undeclared(const Expr &e, std::string_view what) const
   {
-    const Model::Name *entry = m_.name(e.text);
+    const ModelRecord::Name *entry = m_.record->name(e.text);
     if (entry && entry->declared)
       fail(e.pos, xpp::format("{} `{}` is not declared (names have case: did you mean `{}`?)", what, e.text, entry->written));
     fail(e.pos, xpp::format("{} `{}` is not declared", what, e.text));
@@ -475,8 +475,8 @@ private:
     if (e.primed) {
       if (e.text == "i" && sc.sum_index) return;
       if (e.text == "t" && sc.kernel) return;
-      const Model::Name *d = find(e.text);
-      if (sc.primed_vars && d && (d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov)) return;
+      const ModelRecord::Name *d = find(e.text);
+      if (sc.primed_vars && d && (d->kind == ModelRecord::NameKind::Variable || d->kind == ModelRecord::NameKind::Markov)) return;
       fail(e.pos, xpp::format("`{}'` cannot be read here (x' is a variable at a boundary condition's right end, "
                               "i' sum's index, t' volterra's variable of integration)", e.text));
     }
@@ -488,9 +488,9 @@ private:
     }
     if (builtin_arity(e.text) != -1 || e.text == "near")
       fail(e.pos, xpp::format("`{}` is a built-in function: call it", e.text));
-    const Model::Name *d = find(e.text);
+    const ModelRecord::Name *d = find(e.text);
     if (!d) undeclared(e, "the name");
-    if (d->kind == Model::NameKind::Aux)
+    if (d->kind == ModelRecord::NameKind::Aux)
       fail(e.pos, xpp::format("`{}` is an aux quantity, computed after every formula: a formula cannot read it", e.text));
     if (!is_value(d->kind))
       fail(e.pos, xpp::format("`{}` is {}: call it", e.text, kind_name(d->kind)));
@@ -526,10 +526,10 @@ private:
         const Expr &v = e.args[0];
         /* a variable of the expression engine's (a state, fixed, Markov or
            algebraic variable); shift's may be a constant too */
-        const Model::Name *d = v.kind == Expr::Kind::Name && !v.primed ? find(v.text) : nullptr;
-        const bool var = d && (d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov || d->kind == Model::NameKind::Fixed ||
-                               d->kind == Model::NameKind::Algebraic);
-        const bool con = d && (d->kind == Model::NameKind::Param || d->kind == Model::NameKind::Const || d->kind == Model::NameKind::Wiener);
+        const ModelRecord::Name *d = v.kind == Expr::Kind::Name && !v.primed ? find(v.text) : nullptr;
+        const bool var = d && (d->kind == ModelRecord::NameKind::Variable || d->kind == ModelRecord::NameKind::Markov || d->kind == ModelRecord::NameKind::Fixed ||
+                               d->kind == ModelRecord::NameKind::Algebraic);
+        const bool con = d && (d->kind == ModelRecord::NameKind::Param || d->kind == ModelRecord::NameKind::Const || d->kind == ModelRecord::NameKind::Wiener);
         const bool ok = var || ((e.text == "shift" || e.text == "ishift") && con);
         if (!ok) fail(v.pos, xpp::format("{}'s first argument is the name of a variable", e.text));
         for (int i = 1; i < n; i++) check(e.args[i], sc);
@@ -538,9 +538,9 @@ private:
       for (const Expr &a : e.args) check(a, sc);
       return;
     }
-    const Model::Name *d = find(e.text);
+    const ModelRecord::Name *d = find(e.text);
     if (!d) undeclared(e, "the function");
-    if (d->kind != Model::NameKind::Function && d->kind != Model::NameKind::Table && d->kind != Model::NameKind::Network)
+    if (d->kind != ModelRecord::NameKind::Function && d->kind != ModelRecord::NameKind::Table && d->kind != ModelRecord::NameKind::Network)
       fail(e.pos, xpp::format("`{}` is {}, not a function", e.text, kind_name(d->kind)));
     no_named(e);
     if (n != d->arity)
@@ -604,8 +604,8 @@ private:
                                                                   e.arg_names[2]));
       }
       const Expr &t = e.args[2];
-      const Model::Name *d = t.kind == Expr::Kind::Name && !t.primed ? find(t.text) : nullptr;
-      const bool param = d && d->kind == Model::NameKind::Param;
+      const ModelRecord::Name *d = t.kind == Expr::Kind::Name && !t.primed ? find(t.text) : nullptr;
+      const bool param = d && d->kind == ModelRecord::NameKind::Param;
       if (!param && (t.kind != Expr::Kind::Number || !(t.value > 0)))
         fail(t.pos, "near's tol= is not a positive number or a parameter");
     }
@@ -643,7 +643,7 @@ private:
     const BlockStmt &b = body[i];
     switch (b.kind) {
     case BlockStmt::Kind::Let: {
-      if (const Model::Name *d = find(b.name))
+      if (const ModelRecord::Name *d = find(b.name))
         fail(b.pos, xpp::format("fun {} cannot set `{}`, {}: a block function writes no parameter or state variable",
                                 f.name, b.name, kind_name(d->kind)));
       Expr v = substituted(b.value, env);
@@ -682,9 +682,9 @@ private:
      is written under `options:` */
   void set_key(const Binding &b) const
   {
-    const Model::Name *d = find(b.name);
+    const ModelRecord::Name *d = find(b.name);
     int index = 0;
-    if (d && (d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov || d->kind == Model::NameKind::Param)) return;
+    if (d && (d->kind == ModelRecord::NameKind::Variable || d->kind == ModelRecord::NameKind::Markov || d->kind == ModelRecord::NameKind::Param)) return;
     if (const OptionRow *row = xpp::find_odex_option_anywhere(b.name, index))
       fail(b.pos, xpp::format("`{}` is a setting: a set holds it under `options: {{ {}: {{ {}: ... }} }}`", b.name, row->group, b.name));
     fail(b.pos, xpp::format("a set's keys are the model's parameters and states, and `{}` is neither", b.name));
@@ -711,8 +711,8 @@ private:
   void variables(const Statement &s, bool markov, std::string_view what) const
   {
     for (const Binding &b : s.bindings) {
-      const Model::Name *d = find(b.name);
-      if (!d || !(d->kind == Model::NameKind::Variable || (markov && d->kind == Model::NameKind::Markov)))
+      const ModelRecord::Name *d = find(b.name);
+      if (!d || !(d->kind == ModelRecord::NameKind::Variable || (markov && d->kind == ModelRecord::NameKind::Markov)))
         fail(b.pos, xpp::format("`{}` is not a variable: {}", b.name, what));
     }
   }
@@ -728,8 +728,8 @@ private:
         for (const Value &preset : o.tree->items)
           for (const Member &entry : preset.members) {
             if (entry.key != "name") continue;
-            const Model::Name *d = find(entry.value.text);
-            if (!d || !(d->kind == Model::NameKind::Param || d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov))
+            const ModelRecord::Name *d = find(entry.value.text);
+            if (!d || !(d->kind == ModelRecord::NameKind::Param || d->kind == ModelRecord::NameKind::Variable || d->kind == ModelRecord::NameKind::Markov))
               fail(Pos{o.pos.file, entry.value.line, entry.value.col}, xpp::format("slider name {}: the model has no parameter or variable", entry.value.text));
           }
       }
@@ -743,7 +743,7 @@ private:
          init (when given) a fixed number */
       const auto value = [&](Expr &e, std::string_view what, bool parameter) {
         if (parameter && e.kind == Expr::Kind::Name && !e.primed)
-          if (const Model::Name *d = find(e.text); d && d->kind == Model::NameKind::Param) return;
+          if (const ModelRecord::Name *d = find(e.text); d && d->kind == ModelRecord::NameKind::Param) return;
         const double v = fixed(e, xpp::format("{} of {}", what, s.name), std::string(), 0);
         if (what == "tau" && !(v > 0 && std::isfinite(v)))
           fail(e.pos, xpp::format("tau of {} is {}: a positive number (its correlation time) is needed", s.name, print_number(v)));
@@ -815,11 +815,11 @@ private:
     case Statement::Kind::Event:
       formula(s.expr, formula_scope());
       for (Binding &b : s.bindings) {
-        const Model::Name *d = find(b.name);
+        const ModelRecord::Name *d = find(b.name);
         /* what flags.cpp's compile_flags finds: a column (a variable or
            an aux quantity), a parameter, or out_put, arret, no_interp */
-        const bool target = d && (d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov || d->kind == Model::NameKind::Aux ||
-                                  d->kind == Model::NameKind::Param);
+        const bool target = d && (d->kind == ModelRecord::NameKind::Variable || d->kind == ModelRecord::NameKind::Markov || d->kind == ModelRecord::NameKind::Aux ||
+                                  d->kind == ModelRecord::NameKind::Param);
         if (!target && b.name != "out_put" && b.name != "arret" && b.name != "no_interp")
           fail(b.pos, xpp::format("an event sets a variable, an aux quantity, a parameter, out_put, arret or "
                                   "no_interp, not `{}`", b.name));
@@ -886,7 +886,7 @@ std::string name_clash(std::string_view name, std::string_view array, std::strin
 namespace {
 
 /* kind_name without its article: the parameter, the state ... */
-std::string_view the_kind(Model::NameKind k)
+std::string_view the_kind(ModelRecord::NameKind k)
 {
   std::string_view name = kind_name(k);
   for (std::string_view article : {"a ", "an "})
@@ -917,7 +917,7 @@ double fixed_value(const Model &m, const Expr &e, std::string_view what, const s
     if (e.kind == Expr::Kind::Name && !index.empty() && name == index) return value;
     if (name == "pi" && is_reserved(name)) return xpp::pi_value;
     if (const std::optional<double> c = const_named(m, name)) return *c;
-    const Model::Name *d = m.name(name);
+    const ModelRecord::Name *d = m.record->name(name);
     if (d && d->declared && d->written == name)
       throw problem(xpp::format("{} can't use the {} {}; use a const or a number", what, the_kind(d->kind), name));
     throw problem(xpp::format("{} can't use `{}`: a fixed value is numbers, pi, consts declared before it and the "
@@ -956,7 +956,7 @@ double fixed_value(const Model &m, const Expr &e, std::string_view what, const s
     if (const std::optional<double> v = pure_builtin_value(e.text, args)) return *v;
     if (is_pure_builtin(upper_case(e.text)))
       throw problem(xpp::format("{} takes {} argument{}, not {}", e.text, builtin_arity(e.text), builtin_arity(e.text) == 1 ? "" : "s", args.size()));
-    const Model::Name *d = m.name(e.text);
+    const ModelRecord::Name *d = m.record->name(e.text);
     if (d && d->declared && d->written == e.text)
       throw problem(xpp::format("{} can't call the {} {}; use a const or a number", what, the_kind(d->kind), e.text));
     throw problem(xpp::format("{} can't call {}: only the pure functions of numbers (sin, exp, max ...)", what, e.text));

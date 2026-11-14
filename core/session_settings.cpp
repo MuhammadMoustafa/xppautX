@@ -22,6 +22,7 @@
 #include "expr.h"
 #include "form_ode.h"
 #include "model.h"
+#include "model_record.h"
 #include "model_options.h"
 #include "numerics.h"
 #include "numerics_settings.h"
@@ -35,7 +36,6 @@
 #include "session.h"
 #include "phase_data.h"
 #include "integrate.h"
-#include "load_eqn.h"
 #include "many_pops.h"
 #include "model_parts.h"
 #include "storage.h"
@@ -79,7 +79,7 @@ void read_named(const Model &model, odex::Block &g, std::span<const std::string>
 {
     std::size_t matched = 0;
     for (const odex::Member *m : g.members()) {
-        const Model::Name *entry = model.name(m->key);
+        const ModelRecord::Name *entry = model.record->name(m->key);
         const int index = entry ? entry->column : -1;
         if (index < 0 || static_cast<std::size_t>(index) >= names.size() || names[static_cast<std::size_t>(index)] != m->key)
             g.fail(*m, xpp::format("`{}` is not one of the model's variables", m->key));
@@ -483,7 +483,7 @@ void read_values(const odex::StateFile &file, const Model &m, odex::Statement::K
     for (const odex::Statement &st : file.parsed.statements) {
         if (st.kind != kind) continue;
         for (const odex::Binding &b : st.bindings) {
-            const Model::Name *entry = m.name(b.name);
+            const ModelRecord::Name *entry = m.record->name(b.name);
             const int index = entry ? (parameters ? entry->parameter : entry->column) : -1;
             if (index < 0 || static_cast<std::size_t>(index) >= names.size() || names[static_cast<std::size_t>(index)] != b.name)
                 file.doc.fail(b.pos.line, b.pos.col, xpp::format("`{}` is not one of the model's {}", b.name, parameters ? "parameters" : "variables"));

@@ -5,7 +5,6 @@
 #include "xpptest.h"
 #include "recx.h"
 #include "xpp_sha256.h"
-#include "model_files.h"
 #include "xpp_error.h"
 
 #include <string>

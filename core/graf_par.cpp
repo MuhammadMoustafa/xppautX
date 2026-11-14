@@ -29,7 +29,7 @@
 #include <math.h>
 #include "browse.h"
 #include "image_format.h"
-#include "load_eqn.h"
+#include "plot_settings.h"
 #include "session.h"
 #include "nullcline.h"
 #include "display_state.h"

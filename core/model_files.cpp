@@ -1,6 +1,9 @@
 /* A model's own files: see model_files.h. */
+#include "odex.h"
 #include "model_files.h"
+#include "model_place.h"
 #include "model.h"
+#include "model_record.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_prefs.h"
@@ -84,16 +87,16 @@ namespace {
 /* the index of the model's file name in m.files, or -1 */
 long file_index(const Model &m, const std::string &name)
 {
-    const auto it = std::find_if(m.files.begin(), m.files.end(), [&name](const ModelFile &f) { return f.name == name; });
-    return it == m.files.end() ? -1 : it - m.files.begin();
+    const auto it = std::find_if(m.record->files.begin(), m.record->files.end(), [&name](const ModelFile &f) { return f.name == name; });
+    return it == m.record->files.end() ? -1 : it - m.record->files.begin();
 }
 
 /* The bytes a replacement or a new companion may use, excluding its earlier
    copy. Reads and later validated picks share this archive budget. */
 std::size_t remaining_file_bytes(const Model &m, const std::string &name)
 {
-    std::size_t available = m.files_bytes_limit;
-    for (const auto &file : m.files) {
+    std::size_t available = m.record->files_bytes_limit;
+    for (const auto &file : m.record->files) {
         if (file.name == name) continue;
         if (file.bytes.size() > available) return 0;
         available -= file.bytes.size();
@@ -104,7 +107,7 @@ std::size_t remaining_file_bytes(const Model &m, const std::string &name)
 /* Decode a recorded file once, while loading; workers only read the index. */
 void index_source_lines(Model &m, const ModelFile &file)
 {
-    m.source_lines.try_emplace(file.name, "model", file.name, file.bytes);
+    m.record->source_lines.try_emplace(file.name, "model", file.name, file.bytes);
 }
 
 } // namespace
@@ -112,14 +115,14 @@ void index_source_lines(Model &m, const ModelFile &file)
 Result<> remember_model_file(Model &m, const std::string &name, std::string bytes)
 {
     const long i = file_index(m, name);
-    if (i < 0 && m.files.size() >= zip::archive_entries_limit)
+    if (i < 0 && m.record->files.size() >= zip::archive_entries_limit)
         return fail_reading("model files", "too many companion files for a session", name);
     if (bytes.size() > remaining_file_bytes(m, name))
         return fail_reading("model files", "companion files exceed the session byte budget", name);
-    if (i < 0) m.files.push_back({name, std::move(bytes)});
-    else m.files[static_cast<std::size_t>(i)].bytes = std::move(bytes);
-    m.source_lines.erase(name);
-    index_source_lines(m, m.files[static_cast<std::size_t>(file_index(m, name))]);
+    if (i < 0) m.record->files.push_back({name, std::move(bytes)});
+    else m.record->files[static_cast<std::size_t>(i)].bytes = std::move(bytes);
+    m.record->source_lines.erase(name);
+    index_source_lines(m, m.record->files[static_cast<std::size_t>(file_index(m, name))]);
     return {};
 }
 
@@ -128,12 +131,12 @@ bool read_model_file(Model &m, const std::string &name, std::string &bytes)
     bytes.clear();
     const long i = file_index(m, name);
     if (i >= 0) {
-        bytes = m.files[static_cast<size_t>(i)].bytes;
+        bytes = m.record->files[static_cast<size_t>(i)].bytes;
         return true;
     }
     if (!m.saved_in.empty()) return false;
     if (name.empty()) return false;
-    if (m.files.size() >= zip::archive_entries_limit) return false;
+    if (m.record->files.size() >= zip::archive_entries_limit) return false;
     const std::size_t available = remaining_file_bytes(m, name);
     UniqueFile fp(files::open_read_within(name, files::split_path(m.this_file).first, m.outside_paths));
     if (!read_bytes(fp.get(), bytes, available)) return false;
@@ -162,12 +165,12 @@ LineReader model_file_lines(Model &m, const std::string &name)
 std::string model_source_line(const Model &m, const std::string &name, int n)
 {
     if (n <= 0) return {};
-    const auto lines = m.source_lines.find(name);
-    if (lines != m.source_lines.end()) return std::string(lines->second.text(n));
+    const auto lines = m.record->source_lines.find(name);
+    if (lines != m.record->source_lines.end()) return std::string(lines->second.text(n));
     /* Before the builder has indexed a source (a converter diagnostic),
        use the recorded bytes through the same line reader. No disk read. */
     const long i = file_index(m, name);
-    return i < 0 ? std::string() : LineReader::of_text(m.files[static_cast<size_t>(i)].bytes).line(n);
+    return i < 0 ? std::string() : LineReader::of_text(m.record->files[static_cast<size_t>(i)].bytes).line(n);
 }
 
 std::vector<std::string> model_source_lines(const Model &m, const std::string &name)
@@ -175,7 +178,7 @@ std::vector<std::string> model_source_lines(const Model &m, const std::string &n
     std::vector<std::string> lines;
     const long i = file_index(m, name);
     if (i < 0) return lines;
-    LineReader r = LineReader::of_text(m.files[static_cast<size_t>(i)].bytes);
+    LineReader r = LineReader::of_text(m.record->files[static_cast<size_t>(i)].bytes);
     while (const std::optional<std::string_view> line = r.next()) lines.emplace_back(*line);
     return lines;
 }
@@ -183,7 +186,7 @@ std::vector<std::string> model_source_lines(const Model &m, const std::string &n
 Place model_place(const Model &m, const odex::Pos &pos)
 {
     const size_t f = static_cast<size_t>(pos.file);
-    Place p{f < m.statement_files.size() ? m.statement_files[f] : m.this_file, pos.line, pos.col};
+    Place p{f < m.record->statement_files.size() ? m.record->statement_files[f] : m.this_file, pos.line, pos.col};
     p.source = model_source_line(m, p.file, p.line);
     return p;
 }
@@ -200,9 +203,9 @@ void replace_model_text(Model &m, std::string bytes)
     set_model_source(m, bytes);
     const long i = file_index(m, m.this_file);
     if (i < 0) return;
-    ModelFile &file = m.files[static_cast<size_t>(i)];
+    ModelFile &file = m.record->files[static_cast<size_t>(i)];
     file.bytes = std::move(bytes);
-    m.source_lines.erase(file.name);
+    m.record->source_lines.erase(file.name);
     index_source_lines(m, file);
 }
 
@@ -210,15 +213,15 @@ void index_model_places(Model &m)
 {
 
     // Data tables need no source index; only files that supplied statements do.
-    for (const std::string &file : m.statement_files) {
+    for (const std::string &file : m.record->statement_files) {
         const long i = file_index(m, file);
-        if (i >= 0) index_source_lines(m, m.files[static_cast<size_t>(i)]);
+        if (i >= 0) index_source_lines(m, m.record->files[static_cast<size_t>(i)]);
     }
     /* a statement that defines name first (an equation, a function, a
        table ...), then the lists that name it (par, aux, wiener ...).
        Reverse assignment keeps the first defining statement, including
        repeated .ode Markov declarations that share one state variable. */
-    for (auto it=m.statements.rbegin();it!=m.statements.rend();++it) {
+    for (auto it=m.record->statements.rbegin();it!=m.record->statements.rend();++it) {
         const odex::Statement &st=*it;
         switch (st.kind) {
         case odex::Statement::Kind::Ode:
@@ -231,33 +234,38 @@ void index_model_places(Model &m)
         case odex::Statement::Kind::Network:
         case odex::Statement::Kind::Vector:
         case odex::Statement::Kind::Solv:
-            m.names.try_emplace(converted(st.name)).first->second.pos = st.pos;
+            m.record->names.try_emplace(converted(st.name)).first->second.pos = st.pos;
             break;
         case odex::Statement::Kind::Set:
-            if (auto entry=m.names.find(converted(st.name));entry!=m.names.end() && entry->second.kind==Model::NameKind::Set)
+            if (auto entry=m.record->names.find(converted(st.name));entry!=m.record->names.end() && entry->second.kind==ModelRecord::NameKind::Set)
                 entry->second.pos=st.pos;
             break;
         default:
             break;
         }
     }
-    for (const odex::Statement &st : m.statements) {
+    for (const odex::Statement &st : m.record->statements) {
         for (const odex::Binding &b : st.bindings)
-            if (auto [it, inserted] = m.names.try_emplace(converted(b.name)); inserted || it->second.pos.line == 0)
+            if (auto [it, inserted] = m.record->names.try_emplace(converted(b.name)); inserted || it->second.pos.line == 0)
                 it->second.pos = b.pos.line > 0 ? b.pos : st.pos;
         if(st.kind==odex::Statement::Kind::Wiener)
             for (size_t k = 0; k < st.more().names.size(); k++)
-                if (auto [it, inserted] = m.names.try_emplace(converted(st.more().names[k])); inserted || it->second.pos.line == 0)
+                if (auto [it, inserted] = m.record->names.try_emplace(converted(st.more().names[k])); inserted || it->second.pos.line == 0)
                     it->second.pos = k < st.more().name_positions.size() && st.more().name_positions[k].line > 0 ? st.more().name_positions[k] : st.pos;
     }
-    for (auto &[name, entry] : m.names) {
+    for (auto &[name, entry] : m.record->names) {
         decltype(entry.origins){}.swap(entry.origins);
         decltype(entry.array_members){}.swap(entry.array_members);
         entry.load_constant.reset();
     }
 }
 
-Model::Name &Model::define_name(std::string_view text,NameKind kind,int index,const odex::Pos &pos)
+Model::Model() : record(std::make_unique<ModelRecord>()) {}
+Model::~Model() = default;
+ModelRecord::ModelRecord() = default;
+ModelRecord::~ModelRecord() = default;
+
+ModelRecord::Name &ModelRecord::define_name(std::string_view text,NameKind kind,int index,const odex::Pos &pos)
 {
     Name &entry=names[converted(text)];
     if(entry.written.empty())entry.written=text;
@@ -267,7 +275,7 @@ Model::Name &Model::define_name(std::string_view text,NameKind kind,int index,co
     return entry;
 }
 
-const Model::Name *Model::name(std::string_view text) const
+const ModelRecord::Name *ModelRecord::name(std::string_view text) const
 {
     const auto it = names.find(converted(text));
     return it == names.end() ? nullptr : &it->second;
@@ -275,7 +283,7 @@ const Model::Name *Model::name(std::string_view text) const
 
 Place model_place(const Model &m, std::string_view name)
 {
-    const Model::Name *entry = m.name(name);
+    const ModelRecord::Name *entry = m.record->name(name);
     if(entry)return model_place(m, entry->pos);
     const std::string option=odex_option_key(name);
     for(auto line=m.options.rbegin();line!=m.options.rend();++line)
@@ -284,9 +292,9 @@ Place model_place(const Model &m, std::string_view name)
     return Load::place();
 }
 
-Place model_place(const Model &m, odex::Statement::Kind kind, int k)
+Place model_statement_place(const Model &m, odex::Statement::Kind kind, int k)
 {
-    for (const odex::Statement &st : m.statements)
+    for (const odex::Statement &st : m.record->statements)
         if (st.kind == kind && k-- == 0) return model_place(m, st.pos);
     return {};
 }
@@ -310,7 +318,7 @@ std::unique_ptr<Model> scratch_model(const Model &m)
     scratch->load_dir = m.load_dir;
     if (!m.saved_in.empty()) { /* its files are the session's copies, never the disk's */
         scratch->saved_in = m.saved_in;
-        scratch->files = m.files;
+        scratch->record->files = m.record->files;
     }
     return scratch;
 }

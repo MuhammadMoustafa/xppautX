@@ -6,7 +6,6 @@
    values saved are the initial ones unless `state` says last. */
 #include "command_def.h"
 #include "command_graph.h"
-#include "load_eqn.h"
 #include "model_options.h"
 #include "model_save.h"
 #include "set_load.h"

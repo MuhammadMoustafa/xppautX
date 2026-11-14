@@ -16,7 +16,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include "load_eqn.h"
 #include "model.h"
 #include "xpp_io.h"
 

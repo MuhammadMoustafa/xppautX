@@ -13,7 +13,7 @@
 #include "xpptest.h"
 #include "test_support.h"
 #include "session.h"
-#include "load_eqn.h"
+#include "plot_settings.h"
 #include "solver.h"
 #include "model.h"
 #include "command_def.h"

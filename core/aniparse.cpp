@@ -6,7 +6,6 @@
    (the "frame sinks" below), which keeps it in unit coordinates for a front
    end that draws it itself (docs/protocol.md "The animation as data"). */
 #include "xpp_files.h"
-#include "load_eqn.h"
 #include "many_pops.h"
 #include <array>
 #include <algorithm>
@@ -21,7 +20,7 @@
 #include <vector>
 
 #include "model.h"
-#include "model_files.h"
+#include "model_record.h"
 #include "getvar.h"
 #include "ode_read.h"
 #include "aniparse.h"
@@ -496,10 +495,10 @@ void init_ani_stuff(AnimationState &animation)
 
 /*************************  GRABBER CODE *****************************/
 
-const Model::Name *grab_target(const Model &m, std::string_view name)
+const ModelRecord::Name *grab_target(const Model &m, std::string_view name)
 {
-    const auto *entry = m.name(name);
-    if (!entry || !(entry->kind == Model::NameKind::Variable || entry->kind == Model::NameKind::Markov || entry->kind == Model::NameKind::Param)) return nullptr;
+    const auto *entry = m.record->name(name);
+    if (!entry || !(entry->kind == ModelRecord::NameKind::Variable || entry->kind == ModelRecord::NameKind::Markov || entry->kind == ModelRecord::NameKind::Param)) return nullptr;
     return entry;
 }
 
@@ -846,7 +845,7 @@ xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_fil
     s.animation->options.use_file = 1;
     s.animation->options.file = native_file;
     if (native_file != filename)
-        std::erase_if(s.model().files, [&](const ModelFile &f) { return f.name == filename; });
+        std::erase_if(s.model().record->files, [&](const ModelFile &f) { return f.name == filename; });
     ani_data_forget(s);
     return {};
 }
@@ -1152,7 +1151,7 @@ void native_shape(Session &s, AnimationState &animation, const odex::Statement &
             if (l.has("width")) a.null_width = a.zthick;
             std::string variable;
             if (!l.text("variable", variable)) l.fail("nullcline needs variable in double quotes");
-            const auto *entry = s.model().name(variable);
+            const auto *entry = s.model().record->name(variable);
             if (variable != "t" && (!entry || entry->written != variable)) f.bad("variable", xpp::format("nullcline variable names no model quantity: \"{}\"", variable));
             int ix = -1;
             find_variable(s, variable, &ix);
@@ -1420,7 +1419,7 @@ Result<std::string> convert_animation(Session &s, std::string_view text, const s
                 shape = "nullcline"; box();
                 const auto &g = s.plot_windows->graph[s.plot_windows->active];
                 const int variable = a.type == AXNULL ? g.xv[0] : g.yv[0];
-                const auto *entry = variable == 0 ? nullptr : s.model().name(s.model().uvar_names[variable - 1]);
+                const auto *entry = variable == 0 ? nullptr : s.model().record->name(s.model().uvar_names[variable - 1]);
                 field("variable", odex::quote_string(entry ? entry->written : "t"));
                 field("source", "frozen"); field("frame", expression(a.who));
                 break;
@@ -1448,7 +1447,7 @@ Result<std::string> convert_animation(Session &s, std::string_view text, const s
                 bool first = true;
                 for (const auto &event : (start ? grab.start : grab.end).events) {
                     if (!first) out += ", ";
-                    const auto *name = s.model().name(event.lhs);
+                    const auto *name = s.model().record->name(event.lhs);
                     if (!name) return fail_reading("animation", "a grab assignment names no model quantity: " + event.lhs, file);
                     out += name->written + ": " + expression(event.rhs);
                     first = false;

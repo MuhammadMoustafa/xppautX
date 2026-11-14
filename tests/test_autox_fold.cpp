@@ -5,7 +5,6 @@
 #include "session.h"
 #include "expr.h"
 #include "autox_state.h"
-#include "load_eqn.h"
 #include "autox_c.h"
 #include "autox_unknowns.h"
 #include "jacobian.h"

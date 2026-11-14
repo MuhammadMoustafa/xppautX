@@ -15,7 +15,7 @@
 #include "xpp_log.h"
 #include "xpp_globals.h"
 #include "xpp_files.h"
-#include "model_files.h"
+#include "model_place.h"
 #include "integrate.h"
 #include "jacobian.h"
 
@@ -75,7 +75,6 @@
 #include "phase_data.h"
 #include "colormap.h"
 #include "session.h"
-#include "load_eqn.h"
 #include "many_pops.h"
 #include "grobs.h"
 #include "line_style.h"
@@ -1709,7 +1708,7 @@ namespace {
 /* what a global event that set arret says: the time, the condition and its line */
 std::string halt_note(const xpp::Session &s, int flag, double t)
 {
-  const xpp::Place where=xpp::model_place(s.model(),odex::Statement::Kind::Event,flag);
+  const xpp::Place where=xpp::model_statement_place(s.model(),odex::Statement::Kind::Event,flag);
   std::string text=xpp::format("Stopped at t = {}: the global event \"{}\" set arret",t,s.model().flags[flag].cond);
   if(where.line>0)text+=xpp::format(" (model line {})",where.line);
   return text;

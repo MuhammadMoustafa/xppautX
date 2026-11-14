@@ -2,7 +2,6 @@
 #include "xpptest.h"
 #include "session.h"
 #include "integrate.h"
-#include "load_eqn.h"
 #include "dormpri.h"
 #include "flags.h"
 #include "expr.h"

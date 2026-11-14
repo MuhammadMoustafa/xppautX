@@ -7,6 +7,7 @@
 #include "session.h"
 #include "autox_state.h"
 #include "model.h"
+#include "model_record.h"
 #include "autox_nox.h"
 #include "autox_settings.h"
 #include "xpp_util.h"
@@ -34,8 +35,8 @@ void load_model()
     xpp::client_session().model().node = xpp::client_session().model().neq = 2;
     xpp::client_session().model().nupar = 3;
     xpp::Model &m=xpp::client_session().model();
-    for(int i=0;i<m.nupar;i++)m.define_name(m.upar_names[i],xpp::Model::NameKind::Param,i,{}).parameter=i;
-    for(int i=0;i<m.neq;i++)m.define_name(m.uvar_names[i],xpp::Model::NameKind::Variable,i,{}).column=i;
+    for(int i=0;i<m.nupar;i++)m.record->define_name(m.upar_names[i],xpp::ModelRecord::NameKind::Param,i,{}).parameter=i;
+    for(int i=0;i<m.neq;i++)m.record->define_name(m.uvar_names[i],xpp::ModelRecord::NameKind::Variable,i,{}).column=i;
     xpp::client_session().autox_state->bifur.nmx = 200;
     xpp::client_session().autox_state->bifur.ncol = 4;
     xpp::client_session().autox_state->bifur.dsmin = 0.001;

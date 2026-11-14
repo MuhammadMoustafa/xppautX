@@ -45,7 +45,7 @@
 #include "autox_state.h"
 #include "delay_handle.h" /* IWYU pragma: keep (the generic lambdas of the option table need DelayState complete) */
 #include "integrate.h"
-#include "load_eqn.h"
+#include "plot_settings.h"
 #include "nullcline.h"
 #include "autox_codes.h"
 #include "expr_program.h"

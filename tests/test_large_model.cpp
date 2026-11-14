@@ -10,8 +10,8 @@
 #include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
-#include "load_eqn.h"
 #include "model.h"
+#include "model_record.h"
 #include "storage.h"
 #include "browse.h"
 #include "graphics.h"
@@ -86,12 +86,12 @@ TEST_CASE("test_large_model")
     CHECK(xpp::get_var_index(s,"x5199")==EQUATIONS);
     CHECK(xpp::get_param_index(s,"p449")==m.upar_con[PARAMETERS-1]);
     CHECK(xpp::find_user_name(m,PARAMBOX,"p449")==PARAMETERS-1);
-    const std::size_t indexed=m.names.size();
+    const std::size_t indexed=m.record->names.size();
 
     xpp::get_ic(s, 2, s.data_store->current.data());
     s.numerics->storflag=true;
     CHECK(xpp::usual_integrate_stuff(s, s.data_store->current.data()) == 0);
-    CHECK(m.names.size()==indexed);
+    CHECK(m.record->names.size()==indexed);
     const int rows = s.data_store->rows;
     CHECK(rows == 11);
     for (int i : {0, 2600, EQUATIONS - 1})

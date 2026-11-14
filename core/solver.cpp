@@ -24,14 +24,13 @@
 #include "odesol2.h"
 #include "session.h"
 #include "integrate.h"
-#include "load_eqn.h"
 #include "storage.h"
 #include "stiff.h"
 #include "volterra2.h"
 #include "xpp_mem.h" /* xpp::out_of_memory */
 #include "xpp_ui.h"
 #include "model.h"
-#include "model_files.h"
+#include "model_place.h"
 #include "numerics_settings.h"
 #include "xpp_math.h"
 

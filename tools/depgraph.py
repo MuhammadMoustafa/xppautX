@@ -42,7 +42,7 @@ MODULES = {
         'expr', 'expr_*', 'xpp_mir', 'getvar', 'derived', 'form_ode', 'tabular']),
     'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets', [
         'model', 'model_*', 'load_eqn', 'odex', 'odex_*', 'ode_read', 'lunch-new', 'set_load', 'newpars',
-        'flags', 'simplenet', 'options_panels']),
+        'simplenet', 'options_panels']),
     'session': ('the Session, its stored data, display state and undo', [
         'session', 'session_values', 'storage', 'display_state', 'value_undo']),
     'session files': ('the session file, recordings and the settings they carry', [
@@ -51,14 +51,14 @@ MODULES = {
         'command_*', 'commands_*', 'command', 'userbut', 'xpp_keymap', 'mykeydef']),
     'integrators': ('the solvers, CVODE, the right-hand side, delays and the Markov variables', [
         'integrate', 'odesol2', 'stiff', 'gear', 'cv2', 'cvode', 'cvband', 'cvdense', 'llnl*', 'solver',
-        'dormpri', 'jacobian', 'volterra', 'volterra2', 'delay_handle', 'my_rhs', 'dae_fun', 'numerics',
+        'dormpri', 'flags', 'jacobian', 'volterra', 'volterra2', 'delay_handle', 'my_rhs', 'dae_fun', 'numerics',
         'numerics_settings', 'band', 'dense', 'vector', 'markov']),
     'analysis': ('what is computed from a run: sweeps, fits, equilibria, shooting, spectra, the data table', [
         'histogram', 'adj2', 'browse', 'browse_data', 'data_event', 'do_fit', 'equilibria', 'pp_shoot',
         'sweep_runs', 'del_stab']),
     'plot': ('the plot windows and what they show: curves, nullclines, marks, axes, colors', [
         'plot_data', 'graf_par', 'many_pops', 'graphics', 'nullcline', 'phase_data', 'marks_data', 'grobs',
-        'axes2', 'colormap', 'line_style', 'text_style', 'arrayplot', 'struct', 'torus']),
+        'axes2', 'colormap', 'line_style', 'plot_settings', 'text_style', 'arrayplot', 'struct', 'torus']),
     'export': ('pictures, movies and data files written out', [
         'picture', 'my_pdf', 'my_svg', 'scrngif', 'image_format', 'csv_export', 'data_formats', 'array_print',
         'kinescope']),

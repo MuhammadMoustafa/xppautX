@@ -22,6 +22,7 @@
    The expression tree is .odex's own: an operator is the word or symbol
    .odex spells it with ("and", "mod", "!=", ...). */
 #include "odex_block.h"
+#include "odex_expr.h"
 #include "xpp_mem.h"
 #include "xpp_error.h"
 
@@ -57,45 +58,6 @@ inline constexpr std::size_t max_file_tokens = 1048576;
 inline constexpr int max_range_length = 100000;
 /* Shared by the foreign .ode and native .odex readers before making any copies. */
 std::optional<std::string> range_problem(int first, int last, int step);
-
-/* a place in a model: which of Parsed::files, the line and the column
-   (both from 1) */
-struct Pos {
-  int file = 0;
-  int line = 0;
-  int col = 0;
-};
-
-/* the problem cause at pos of file, as the load's own error
-   (xpp::Error, xpp_error.h): what, and where */
-inline Error error_at(std::string file, Pos pos, std::string cause)
-{
-  return Error{"model", std::move(cause), Place{std::move(file), pos.line, pos.col}};
-}
-
-/* an expression */
-struct Expr {
-  enum class Kind {
-    Text,   /* an .ode formula (text) as the .ode reader keeps it: the
-               expression engine compiles it as written, .ode's precedence
-               and all */
-    Number, /* value, text as written */
-    Name,   /* text; primed for a name written x' */
-    Neg,    /* -args[0] */
-    Not,    /* not args[0] */
-    Binary, /* args[0] text args[1]: or and < > <= >= == != + - * / mod ^ */
-    If,     /* if args[0] then args[1] else args[2] */
-    Call,   /* text(args...), arg_names[i] "" or the name of a named one */
-    Index   /* args[0][args[1]] */
-  };
-  Kind kind = Kind::Number;
-  Pos pos;
-  double value = 0;
-  std::string text;
-  bool primed = false;
-  std::vector<Expr> args;
-  std::vector<std::string> arg_names;
-};
 
 /* a fixed value cannot be worked out: where, and why */
 struct FixedProblem {
@@ -476,3 +438,9 @@ std::string engine_text(const Expr &e);
 
 }
 
+namespace xpp {
+/* where m's statement number k (from 0) of kind is (its k-th boundary,
+   say); an empty Place when it has fewer (model_files.cpp; model_place.h
+   has the places of a name and of a position) */
+Place model_statement_place(const Model &m, odex::Statement::Kind kind, int k);
+}

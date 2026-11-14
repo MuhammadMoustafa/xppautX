@@ -66,8 +66,8 @@ struct IntegratorState; /* integrate.h */
 struct SolverWork; /* storage.h */
 struct JacobianScratch; /* jacobian.h */
 struct DataState; /* browse.h */
-struct NumericsSettings; /* load_eqn.h */
-struct PlotSettings; /* load_eqn.h */
+struct NumericsSettings; /* numerics_settings.h */
+struct PlotSettings; /* plot_settings.h */
 struct DelayState; /* delay_handle.h */
 struct HistogramState; /* histogram.h */
 struct AdjointState; /* adj2.h */
@@ -92,7 +92,7 @@ struct PlotDisplay; /* display_state.h */
 struct NetworkValues; /* simplenet.h */
 struct BoundaryCondition; /* model_parts.h */
 struct GROB; /* grobs.h */
-struct XppSlider; /* load_eqn.h */
+struct XppSlider; /* model_options.h */
 
 struct Session {
   /* a Session of the Model m (Load) */

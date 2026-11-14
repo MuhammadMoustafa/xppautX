@@ -136,8 +136,9 @@ special ydot=import(...) ran a compiled library's function: refused
 
 #include "delay_handle.h"
 #include "model.h"
+#include "model_record.h"
 #include "session.h"
-#include "model_files.h"
+#include "model_place.h"
 #include "xpp_math.h"
 
 namespace xpp {
@@ -177,8 +178,8 @@ int add_vectorizer(xpp::Session &s, std::string_view name,char *rhs)
   int len;
   int flag;
 
-  const auto *entry=s.model().name(name);
-  ind=entry && entry->kind==xpp::Model::NameKind::Vector && entry->index>=0 && entry->index<s.model().nvector &&
+  const auto *entry=s.model().record->name(name);
+  ind=entry && entry->kind==xpp::ModelRecord::NameKind::Vector && entry->index>=0 && entry->index<s.model().nvector &&
       s.model().vectors[entry->index].name==name ? entry->index : s.model().nvector;
   flag=get_vector_info(s,rhs,name,&ivar,&len,&il,&ir);
 
@@ -511,8 +512,8 @@ bool add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
   xpp::to_upper(rhs);
   const NetworkForm *form=form_of(rhs);
   if(!form)return false;
-  const auto *entry=s.model().name(name);
-  const int ind=entry && entry->kind==xpp::Model::NameKind::Network && entry->index>=0 && entry->index<s.model().nnetwork &&
+  const auto *entry=s.model().record->name(name);
+  const int ind=entry && entry->kind==xpp::ModelRecord::NameKind::Network && entry->index>=0 && entry->index<s.model().nnetwork &&
       s.model().networks[entry->index].name==name ? entry->index : s.model().nnetwork;
   if(ind>=s.model().nnetwork)
     model_failed(xpp::format("No such name {}",name));

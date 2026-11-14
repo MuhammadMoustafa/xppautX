@@ -9,11 +9,11 @@
 #include "expr.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
-#include "model_files.h"
 #include "model_options.h"
 #include "userbut.h"
-#include "load_eqn.h" /* IWYU pragma: keep (std::vector of its types is destroyed here, which needs them complete) */
+#include "plot_settings.h"
 #include "model.h"
+#include "model_files.h"
 #include "odex_block.h"
 #include "xpp_error.h"
 #include "xpp_mem.h"

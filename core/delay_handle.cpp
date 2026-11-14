@@ -1,5 +1,4 @@
 #include "delay_handle.h"
-#include "load_eqn.h"
 #include "xpp_ui.h"
 #include "xpp_job.h"
 #include "expr.h"
@@ -14,7 +13,7 @@
 #include <vector>
 #include "getvar.h"
 #include "model.h"
-#include "model_files.h"
+#include "model_place.h"
 #include "numerics_settings.h"
 #include "xpp_mem.h"
 #include "expr_program.h"

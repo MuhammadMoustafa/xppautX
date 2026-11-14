@@ -2,7 +2,6 @@
 #include "session.h"
 #include "autox_state.h"
 #include "expr.h"
-#include "load_eqn.h"
 #include "autox_c.h"
 #include "my_rhs.h"
 #include "expr_native.h"

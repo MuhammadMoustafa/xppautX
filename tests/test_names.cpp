@@ -7,6 +7,7 @@
 #include "session.h"
 #include "autox_state.h"
 #include "model.h"
+#include "model_record.h"
 #include <string>
 #include "expr.h"
 #include "autox_nox.h"
@@ -91,7 +92,7 @@ TEST_CASE("test_names")
     /* find_user_name finds a 200-character parameter, blanks and all */
     xpp::client_session().model().upar_names[0] = p200;
     const int parser_constant=xpp::get_param_index(s,p200);
-    auto &indexed=s.model().define_name(p200,xpp::Model::NameKind::Param,0,{});
+    auto &indexed=s.model().record->define_name(p200,xpp::ModelRecord::NameKind::Param,0,{});
     indexed.parameter=0;
     indexed.parser_con=parser_constant;
     CHECK(xpp::find_user_name(xpp::client_session().model(), PARAMBOX, " " + p200.substr(0, 100) + " " + p200.substr(100)) == 0);
@@ -129,12 +130,12 @@ TEST_CASE("test_names")
     /* Internal-set names share the model index but cannot shadow the
        parser's built-ins or its local symbols (W291). */
     const int pi_slot=xpp::get_param_index(s,"PI");
-    s.model().define_name("pi",xpp::Model::NameKind::Set,0,{});
+    s.model().record->define_name("pi",xpp::ModelRecord::NameKind::Set,0,{});
     CHECK(xpp::get_param_index(s,"PI")==pi_slot);
     CHECK(xpp::get_val(s,"pi",&z) && z==s.parser.constants[pi_slot]);
     CHECK(xpp::add_var(s,"T",2.25)==0);
     const int time_slot=xpp::get_var_index(s,"T");
-    s.model().define_name("t",xpp::Model::NameKind::Set,1,{});
+    s.model().record->define_name("t",xpp::ModelRecord::NameKind::Set,1,{});
     CHECK(xpp::get_var_index(s,"T")==time_slot);
     CHECK(xpp::get_val(s,"t",&z) && z==2.25);
 

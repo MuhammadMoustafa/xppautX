@@ -71,6 +71,7 @@ to be added later
 #include <utility>
 #include "model.h"
 #include "model_files.h"
+#include "model_place.h"
 #include "expr_program.h"
 #include "session.h"
 #include "xpp_io.h"

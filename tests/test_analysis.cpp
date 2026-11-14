@@ -10,7 +10,6 @@
 #include "markov.h"
 #include "numerics.h"
 #include "session.h"
-#include "load_eqn.h"
 #include "many_pops.h"
 #include "storage.h"
 #include "tabular.h"

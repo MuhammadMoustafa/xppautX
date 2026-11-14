@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 #include "model.h"
+#include "model_record.h"
 #include "solver.h"
 #include "autox_settings.h"
 #include "xpp_ui.h"
@@ -22,7 +23,8 @@
 
 #include "xpp_files.h"
 #include "xpp_zip.h"
-#include "model_files.h"
+#include "model_place.h"
+#include "plot_settings.h"
 #include "load_eqn.h"
 #include "value_undo.h"
 #include "form_ode.h"
@@ -193,9 +195,9 @@ void add_set_at(xpp::Model &m, std::string_view name, std::string_view does,
       continue;
     bob+=c==','?' ':c;
   }
-  auto [it,inserted]=m.names.try_emplace(xpp::converted(name));
+  auto [it,inserted]=m.record->names.try_emplace(xpp::converted(name));
   if(inserted){
-    it->second.kind=xpp::Model::NameKind::Set;
+    it->second.kind=xpp::ModelRecord::NameKind::Set;
     it->second.index=static_cast<int>(sets.size());
     it->second.written=name;
     it->second.pos={0,where.line,where.col};
@@ -217,11 +219,11 @@ void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does,
 
 void replace_intern_sets(xpp::Model &m, const xpp::odex::Parsed &parsed)
 {
-  for(auto &[key,entry] : m.names){
+  for(auto &[key,entry] : m.record->names){
     entry.set=-1;
     entry.set_spellings.clear();
   }
-  std::erase_if(m.names,[](const auto &entry){ return entry.second.kind==xpp::Model::NameKind::Set; });
+  std::erase_if(m.record->names,[](const auto &entry){ return entry.second.kind==xpp::ModelRecord::NameKind::Set; });
   m.intern_sets.clear();
   for(const xpp::odex::Statement &st : parsed.statements){
     if(st.kind!=xpp::odex::Statement::Kind::Set)continue;
@@ -243,7 +245,7 @@ namespace {
 /* a variable's name as its equation spells it (the Model keeps them in upper case) */
 std::string declared_spelling(const xpp::Model &m, const std::string &name)
 {
-  if(const auto *entry=m.name(name);entry && !entry->written.empty())return entry->written;
+  if(const auto *entry=m.record->name(name);entry && !entry->written.empty())return entry->written;
   return name;
 }
 
@@ -497,7 +499,7 @@ std::vector<std::string_view> scopes_held(const xpp::Session &s, std::size_t set
 
 int intern_set_index(const xpp::Model &m, std::string_view name)
 {
-  if(const auto *entry=m.name(name))
+  if(const auto *entry=m.record->name(name))
     if(const auto set=entry->set_spellings.find(std::string(name));set!=entry->set_spellings.end())return set->second;
   return -1;
 }

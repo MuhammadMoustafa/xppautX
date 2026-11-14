@@ -7,7 +7,6 @@
 #include "xpptest.h"
 #include "integrate.h"
 #include "session.h"
-#include "load_eqn.h"
 #include "storage.h"
 #include "xpp_batch.h"
 #include "model.h"

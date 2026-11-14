@@ -4,7 +4,6 @@
    xpp_session.h, lunch-new.h); the three the front end answers itself go through front_end. */
 #include "command_def.h"
 #include "lunch-new.h"
-#include "model_files.h"
 #include "model_switch.h"
 #include "recx.h"
 #include "session.h"

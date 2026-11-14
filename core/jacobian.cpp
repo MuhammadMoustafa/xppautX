@@ -10,10 +10,10 @@
 #include <span>
 #include <utility>
 #include "model.h"
-#include "model_files.h"
+#include "model_place.h"
 #include "session.h"
 #include "integrate.h"
-#include "load_eqn.h"
+#include "numerics_settings.h"
 #include "xpp_io.h"
 #include "expr.h"
 #include "expr_native.h"

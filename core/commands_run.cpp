@@ -16,7 +16,6 @@
 #include "xpp_io.h"
 #include "session.h"
 #include "delay_handle.h"
-#include "load_eqn.h"
 #include "storage.h"
 #include "model.h"
 #include "event_registry.h"

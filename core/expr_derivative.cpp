@@ -6,7 +6,7 @@
 #include "model.h"
 #include "session.h"
 #include "xpp_io.h"
-#include "model_files.h"
+#include "model_place.h"
 #include "tabular.h"
 #include "volterra.h"
 

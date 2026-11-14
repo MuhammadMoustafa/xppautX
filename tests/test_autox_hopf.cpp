@@ -4,7 +4,6 @@
 #include "xpptest.h"
 #include "session.h"
 #include "autox_state.h"
-#include "load_eqn.h"
 #include "jacobian.h"
 #include "expr_native.h"
 #include "autox_c.h"

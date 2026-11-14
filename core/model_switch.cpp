@@ -5,6 +5,7 @@
 #include "xpp_examples.h"
 #include "xpp_recent.h"
 #include "model.h"
+#include "model_record.h"
 #include "recx.h"
 #include "snapx.h"
 #include "xpp_batch.h"
@@ -20,7 +21,6 @@
 #include "numerics.h"
 #include "jacobian.h"
 #include "session.h"
-#include "load_eqn.h"
 #include "comline.h"
 #include "expr_program.h"
 #include <functional>
@@ -37,7 +37,7 @@ namespace {
    loaded with */
 std::string program_name(const xpp::Model &m)
 {
-  const std::vector<std::string> &now=m.command_line.arguments;
+  const std::vector<std::string> &now=m.record->command_line.arguments;
   return now.empty()?std::string("xppautX"):now[0];
 }
 
@@ -166,17 +166,17 @@ void xpp_quit(xpp::Session &s, bool saving)
 xpp::Result<bool> xpp_model_reload(xpp::Session &s)
 {
   const xpp::Model &m=s.model();
-  if(m.command_line.arguments.empty()||m.this_file=="console")
+  if(m.record->command_line.arguments.empty()||m.this_file=="console")
     return xpp::fail("reload", "This model was not read from a file: there is nothing to reload", xpp::command_place());
   const std::string question=xpp::format("Reload {}? Its values are kept by name; this model's data and diagram go. Save its session first?",
                                          xpp::files::split_path(m.this_file).second);
   if(!xpp_session_may_leave(s,question,false))return false;
   /* a model picked at the start (no file on the command line) is loaded
      by its name this time */
-  std::vector<std::string> command_line=m.command_line.arguments;
+  std::vector<std::string> command_line=m.record->command_line.arguments;
   if(!s.got_file)command_line={program_name(m),m.this_file};
   xpp::ModelRequest req{m.load_dir,m.this_file,std::move(command_line),true,std::nullopt,std::nullopt};
-  if(!m.saved_in.empty())req.saved=xpp::SavedModel{m.saved_in,m.files};
+  if(!m.saved_in.empty())req.saved=xpp::SavedModel{m.saved_in,m.record->files};
   s.model_request=std::make_unique<xpp::ModelRequest>(std::move(req));
   return true;
 }

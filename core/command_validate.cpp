@@ -15,6 +15,7 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "model.h"
+#include "model_record.h"
 #include "colormap.h"
 #include "xpp_error.h"
 #include <algorithm>
@@ -74,7 +75,7 @@ bool names_a(const Session &s, NameSet names, std::string_view text)
     case NameSet::variable: return find_user_name(model, ICBOX, text) >= 0;
     case NameSet::either: return find_user_name(model, PARAMBOX, text) >= 0 || find_user_name(model, ICBOX, text) >= 0;
     case NameSet::column: { int found = -1; find_variable(s, text, &found); return found >= 0; }
-    default: return model.name(text) != nullptr;
+    default: return model.record->name(text) != nullptr;
     }
 }
 

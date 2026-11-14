@@ -1,7 +1,6 @@
 /* Equilibria's registry commands (W522). The numerical routines remain in their owners. */
 #include "command_def.h"
 #include "delay_handle.h"
-#include "load_eqn.h"
 #include "equilibria.h"
 #include "integrate.h"
 #include "del_stab.h"

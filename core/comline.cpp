@@ -1,4 +1,5 @@
 #include "model.h"
+#include "model_record.h"
 #include "lunch-new.h"
 #include "xpp_ui.h"
 #include "xpp_globals.h"
@@ -208,7 +209,7 @@ void apply_command_line(Session &s, CommandLine cl)
   }
   /* --dfdraw and --ncdraw win over the model's @ lines */
   for (const auto &[name, value] : cl.options) set_option(s, name, value, 1, NULL);
-  s.model().command_line = std::move(cl);
+  s.model().record->command_line = std::move(cl);
 }
 
 } // namespace xpp

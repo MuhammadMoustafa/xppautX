@@ -10,7 +10,6 @@
 #include "storage.h"
 #include "adj2.h"
 #include "xpp_batch.h"
-#include "load_eqn.h"
 #include "command_registry.h"
 #include "xpp_ui.h"
 

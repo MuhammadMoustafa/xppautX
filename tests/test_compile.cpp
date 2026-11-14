@@ -4,11 +4,12 @@
 #include "expr_program.h"
 #include "session.h"
 #include "expr.h"
-#include "load_eqn.h"
-#include "model_files.h"
+#include "numerics_settings.h"
 #include "xpp_log.h"
 #include "my_rhs.h"
 #include "model.h"
+#include "model_record.h"
+#include "model_files.h"
 #include "odex.h"
 #include "xpp_error.h"
 #include "xpp_math.h"
@@ -159,13 +160,13 @@ TEST_CASE("test_compile")
     for (const auto *name:{"z0","z1","z2","z3"}) CHECK(xpp::add_var(s,name,0.0)==0);
     CHECK(xpp::add_con(s,"par",3.0)==0);
     m.this_file="compile.odex";
-    m.files.push_back({m.this_file,"\n\n\n\n\n\nx' = sum(0,0)of(0)\n"});
-    m.statement_files={m.this_file};
+    m.record->files.push_back({m.this_file,"\n\n\n\n\n\nx' = sum(0,0)of(0)\n"});
+    m.record->statement_files={m.this_file};
     xpp::odex::Statement statement;
     statement.kind=xpp::odex::Statement::Kind::Ode;
     statement.name="x";
     statement.pos.line=7;
-    m.statements.push_back(statement);
+    m.record->statements.push_back(statement);
     xpp::index_model_places(m);
     m.node=1;
     s.size_variables(1024); /* the programs below, one each */

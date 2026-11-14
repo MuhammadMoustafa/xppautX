@@ -5,7 +5,6 @@
 #include "autox_state.h"
 #include "delay_handle.h"
 #include "expr.h"
-#include "load_eqn.h"
 #include "storage.h"
 #include "xpp_batch.h"
 #include "xpp_ui.h"

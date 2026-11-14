@@ -3,7 +3,7 @@
    20 steps) and the picture holds every step's segment, not only those past store_from. */
 #include "xpptest.h"
 #include "session.h"
-#include "load_eqn.h"
+#include "numerics_settings.h"
 #include "xpp_batch.h"
 #include "comline.h"
 #include "integrate.h"

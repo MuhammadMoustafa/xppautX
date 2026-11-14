@@ -11,7 +11,7 @@
 #include "graphics.h"
 #include "integrate.h"
 #include "xpp_job.h"
-#include "model_files.h"
+#include "model_place.h"
 #include "numerics_settings.h"
 
 #include <stdlib.h>
@@ -24,7 +24,6 @@
 #include <expected>
 #include <optional>
 #include "xpp_globals.h"
-#include "load_eqn.h"
 #include "model.h"
 #include "colormap.h"
 #include "xpp_io.h"

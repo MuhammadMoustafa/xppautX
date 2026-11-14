@@ -23,7 +23,6 @@
 #include "integrate.h"
 #include <cctype>
 #include <strings.h>
-#include "load_eqn.h"
 #include "data_formats.h"
 #include "graf_par.h"
 #include "menus.h"

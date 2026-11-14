@@ -7,7 +7,7 @@
 #include "load_eqn.h"
 #include "solver.h"
 #include "model.h"
-#include "model_files.h"
+#include "model_record.h"
 #include "session.h"
 #include "autox_state.h"
 #include "model_parts.h"
@@ -77,7 +77,7 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
     for (const std::string &name : s.run_sets)
         if (!model_has_set(s.model(), name))
             model_failed(Error{"options", xpp::format("run_set \"{}\" is not one of the model's sets", name),
-                               model_place(s.model(), odex::Statement::Kind::Options, 0)});
+                               model_statement_place(s.model(), odex::Statement::Kind::Options, 0)});
     xpp::init_alloc_info(s);
     xpp::set_init_guess(s);
     update_all_ffts(s);
@@ -194,7 +194,7 @@ Loaded load_in(const CommandLine &cl, int batch, const SavedModel *saved,
         m.outside_paths = outside_paths;
         if (saved) {
             m.saved_in = saved->in;
-            m.files = saved->files;
+            m.record->files = saved->files;
         }
         load_and_set_up(s, cl, batch, read, read_prefs);
         if (check)

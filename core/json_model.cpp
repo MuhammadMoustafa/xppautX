@@ -27,7 +27,6 @@
 #include "arrayplot.h"
 #include "autox_state.h"
 #include "event_registry.h"
-#include "model_files.h"
 #include "struct.h"
 #include "xpp_error.h"
 #include "xpp_types.h"

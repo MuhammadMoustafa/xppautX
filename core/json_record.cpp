@@ -13,7 +13,7 @@
 #include "command_def.h"
 #include "command_registry.h"
 #include "model.h"
-#include "model_files.h"
+#include "model_record.h"
 #include "recx.h"
 #include "snapx.h"
 #include "xpp_about.h"
@@ -133,11 +133,11 @@ std::string step_line(const StepTaken &t, const std::string &abort)
     return j + "}";
 }
 
-/* the model's files, as it read them (Model::files), into the recording:
+/* the model's files, as it read them (ModelRecord::files), into the recording:
    those of a model loaded while recording too */
 void add_model_files(const xpp::Model &m)
 {
-    for (const xpp::ModelFile &f : m.files) recx::add_file(*recorder.rec, f);
+    for (const xpp::ModelFile &f : m.record->files) recx::add_file(*recorder.rec, f);
 }
 
 /* xpp::files::observe_reads' observer: a file the core opened for reading,

@@ -5,6 +5,7 @@
 #include "expr.h"
 #include "load_eqn.h"
 #include "model.h"
+#include "model_record.h"
 #include "model_files.h"
 #include "odex_write.h"
 #include "xpp_files.h"
@@ -55,9 +56,9 @@ Result<const ModelFile *> own_file(const Session &s)
     if (!m.loaded()) return std::unexpected(save_error("no model is open"));
     if (!odex::is_odex(m.this_file))
         return std::unexpected(save_error(xpp::format("{} is not an .odex model: only an .odex takes saved values", m.this_file), Place{m.this_file}));
-    if (m.files.empty() || m.files.front().name != m.this_file)
+    if (m.record->files.empty() || m.record->files.front().name != m.this_file)
         return std::unexpected(save_error("the model's file was not kept as it was loaded", Place{m.this_file}));
-    return &m.files.front();
+    return &m.record->files.front();
 }
 
 /* a place of the model file moved to where its line went */
@@ -73,13 +74,13 @@ void remap_places(Model &m, const odex::LineMap &lines)
     const auto shift = [&lines](odex::Pos &p) {
         if (p.file == 0 && p.line > 0) p.line = lines.map(p.line);
     };
-    for (auto &[name, entry] : m.names) shift(entry.pos);
-    for (odex::Statement &st : m.statements) {
+    for (auto &[name, entry] : m.record->names) shift(entry.pos);
+    for (odex::Statement &st : m.record->statements) {
         shift(st.pos);
         shift(st.name_pos);
         for (odex::Binding &b : st.bindings) shift(b.pos);
     }
-    for (Model::InitialValue &v : m.initial_values) remap(v.where, m.this_file, lines);
+    for (ModelRecord::InitialValue &v : m.record->initial_values) remap(v.where, m.this_file, lines);
     for (Model::DerivedQuantity &d : m.derived) remap(d.where, m.this_file, lines);
     for (int i = 0; i < m.nsvar; i++) remap(m.svars[static_cast<std::size_t>(i)].where, m.this_file, lines);
     for (int i = 0; i < m.naeqn; i++) remap(m.aeqns[static_cast<std::size_t>(i)].where, m.this_file, lines);
@@ -92,16 +93,16 @@ void adopt(Session &s, const odex::Edited &edited, const odex::Parsed &now, cons
     Model &m = s.model();
     remap_places(m, edited.lines);
     replace_model_text(m, edited.text);
-    std::erase_if(m.statements, [](const odex::Statement &st) { return st.kind == odex::Statement::Kind::Set; });
+    std::erase_if(m.record->statements, [](const odex::Statement &st) { return st.kind == odex::Statement::Kind::Set; });
     for (const odex::Statement &st : now.statements)
-        if (st.kind == odex::Statement::Kind::Set) m.statements.push_back(st);
+        if (st.kind == odex::Statement::Kind::Set) m.record->statements.push_back(st);
     replace_intern_sets(m, now);
     replace_model_options(m, now);
     s.options_applied = m.options.size(); /* the values in use are the ones saved */
     for (const auto &[i, value] : changed.parameters) m.default_val[static_cast<std::size_t>(i)] = value;
     for (const auto &[i, value] : changed.states) {
         m.default_ic[static_cast<std::size_t>(i)] = value;
-        std::erase_if(m.initial_values, [&](const Model::InitialValue &v) { return v.index == i; });
+        std::erase_if(m.record->initial_values, [&](const ModelRecord::InitialValue &v) { return v.index == i; });
     }
 }
 

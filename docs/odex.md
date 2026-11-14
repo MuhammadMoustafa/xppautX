@@ -926,7 +926,7 @@ variable and the time.
 ### What --convert writes
 
 `xppautX --convert [--yes] model.ode` writes model.odex beside it:
-the statements in the order the reader read them (Model::statements),
+the statements in the order the reader read them (ModelRecord::statements),
 each formula read back from the program it compiled to. An array's
 copies (the .ode reader marks each, `Statement::array`) are written back
 as one statement with its range (W80): what differs between the copies'

@@ -1,7 +1,7 @@
 #include "session.h"
 #include "torus.h"
 #include "xpp_ui.h"
-#include "load_eqn.h"
+#include "numerics_settings.h"
 #include "xpp_io.h"
 
 #include <algorithm>

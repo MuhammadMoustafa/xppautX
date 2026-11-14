@@ -14,7 +14,6 @@
 #include "model.h"
 #include "session.h"
 #include "autox_state.h"
-#include "load_eqn.h"
 #include "xpp_io.h"
 #include "xpp_math.h"
 #include "xpp_error.h"

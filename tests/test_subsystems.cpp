@@ -6,7 +6,6 @@
 #include "xpptest.h"
 #include "model.h"
 #include "session.h"
-#include "load_eqn.h"
 #include "expr_native.h"
 #include "numerics_settings.h"
 #include "xpp_math.h"

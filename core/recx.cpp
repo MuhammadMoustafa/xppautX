@@ -1,6 +1,5 @@
 /* A recording's file, name.recx: see recx.h. */
 #include "recx.h"
-#include "model_files.h"
 #include "odex.h"
 #include "odex_write.h"
 #include "xpp_files.h"

@@ -16,7 +16,7 @@
 #include <memory>
 #include <vector>
 #include "xpp_io.h"
-#include "load_eqn.h"
+#include "plot_settings.h"
 #include "xpp_math.h"
 #include "session.h"
 #include "picture.h"

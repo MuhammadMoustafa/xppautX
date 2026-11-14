@@ -20,9 +20,9 @@
 #include "graphics.h"
 #include "autox_state.h"
 #include "expr.h"
-#include "load_eqn.h"
 #include "storage.h"
 #include "model.h"
+#include "model_record.h"
 #include "diagram.h"
 #include "jacobian.h"
 #include "autox_nox.h"
@@ -34,7 +34,6 @@
 #include "xpp_ui.h"
 #include "xpp_zip.h"
 #include "xpp_session.h"
-#include "model_files.h"
 #include "browse.h"
 #include "many_pops.h"
 #include "autox_parallel.h"
@@ -830,7 +829,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     const std::string path = tmp.file("t.snapx");
     CHECK(write_file(path, *bytes));
     std::optional<SavedFile> f = xpp_saved_read(path);
-    CHECK(f && f->model.files == xpp::client_session().model().files);
+    CHECK(f && f->model.files == xpp::client_session().model().record->files);
     CHECK(f && xpp_saved_restore(xpp::client_session(), *f));
     CHECK(same_diagram(s.diagram->points, pts));
     bool indexed = true;

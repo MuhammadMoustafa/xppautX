@@ -13,7 +13,6 @@
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "xpp_ui.h"
-#include "load_eqn.h"
 #include <string>
 #include <string_view>
 #include <vector>

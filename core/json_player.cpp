@@ -26,7 +26,6 @@
 #include "command_registry.h"
 #include "ui_json_internal.h"
 #include "browse.h"
-#include "model_files.h"
 #include "model_switch.h"
 #include "odex_write.h"
 #include "recx.h"

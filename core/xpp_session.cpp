@@ -14,6 +14,7 @@
 #include "xpp_session.h"
 #include "snapx.h"
 #include "model.h"
+#include "model_record.h"
 #include "xpp_ui.h"
 #include "xpp_io.h"
 #include "xpp_files.h"
@@ -35,7 +36,6 @@
 #include "session.h"
 #include "display_state.h"
 #include "expr.h"
-#include "load_eqn.h"
 #include "marks_data.h"
 #include "phase_data.h"
 #include "storage.h"
@@ -958,11 +958,11 @@ xpp::Result<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &
 {
     const xpp::Model &m = s.model();
     auto has = [&m](const std::string &name) {
-        return std::any_of(m.files.begin(), m.files.end(), [&name](const xpp::ModelFile &f) { return f.name == name; });
+        return std::any_of(m.record->files.begin(), m.record->files.end(), [&name](const xpp::ModelFile &f) { return f.name == name; });
     };
     if (!xpp::odex::is_odex(m.this_file))
         return xpp::fail_reading("save session", "a session stores an .odex model only", m.this_file);
-    for (const xpp::ModelFile &file : m.files)
+    for (const xpp::ModelFile &file : m.record->files)
         if (xpp::files::has_extension(file.name, ".ode") || xpp::files::has_extension(file.name, ".ani"))
             return xpp::fail_reading("save session", "a session cannot carry foreign .ode or .ani text", file.name);
     if (!has(m.this_file)) {
@@ -978,7 +978,7 @@ xpp::Result<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &
         return std::unexpected(manifest_text.error());
     }
     entries.push_back({manifest, std::move(*manifest_text)});
-    xpp::snapx::add_model_members(entries, m.files);
+    xpp::snapx::add_model_members(entries, m.record->files);
     return entries;
 }
 

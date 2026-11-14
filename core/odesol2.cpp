@@ -17,7 +17,6 @@
 #include "markov.h"
 #include "delay_handle.h"
 #include "xpp_job.h"
-#include "load_eqn.h"
 #include "model.h"
 #include "xpp_math.h"
 #include "xpp_error.h"

@@ -24,7 +24,6 @@
 #include "tabular.h"  /* redo_all_fun_tables() */
 #include "jacobian.h"
 #include "xpp_job.h"
-#include "load_eqn.h"
 #include "expr.h"
 #include "my_rhs.h"
 #include "integrate.h"

@@ -19,7 +19,6 @@
 #include "expr_native.h"
 #include <stdio.h>
 #include <time.h>
-#include "load_eqn.h"
 #include "solver.h"
 #include "model_options.h"
 #include "session.h"

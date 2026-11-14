@@ -11,18 +11,19 @@
 #include "form_ode.h"
 #include "ode_read.h"
 #include "model.h"
+#include "model_record.h"
+#include "model_files.h"
 #include "xpp_batch.h"
 #include "xpp_ui.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "session.h"
-#include "load_eqn.h"
 #include "storage.h"
 #include "typed_values.h"
 #include "command_registry.h"
 #include "solver.h"
 #include "tabular.h"
-#include "model_files.h"
+#include "model_place.h"
 #include "model_options.h"
 #include "simplenet.h"
 #include "xpp_error.h"
@@ -218,7 +219,7 @@ std::string quantities(const char *text, const char *ext = "odex")
 {
   if (load_text(text, ext) != 1) return "does not load";
   std::string out;
-  for (const Statement &s : xpp::client_session().model().statements) {
+  for (const Statement &s : xpp::client_session().model().record->statements) {
     if (s.kind == Statement::Kind::Fixed) out += (out.empty() ? "" : "|") + s.name + ":fixed";
     if (s.kind == Statement::Kind::Derived)
       for (const xpp::odex::Binding &b : s.bindings) out += (out.empty() ? "" : "|") + b.name + ":derived";
@@ -699,7 +700,7 @@ TEST_CASE("test_odex")
                     "x'=-x # words\ndone\n", "ode") == 1);
     CHECK(constant("a") == 1 && constant("b") == 2 && constant("n") == 3);
     CHECK(xpp::client_session().model().nupar == 2);
-    CHECK(xpp::client_session().model().files.front().bytes.find("# some words") != std::string::npos);
+    CHECK(xpp::client_session().model().record->files.front().bytes.find("# some words") != std::string::npos);
     const std::string converted=*xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(converted.find("# some words\\ ignored continuation") != std::string::npos);
     CHECK(converted.find("# another comment") != std::string::npos);
@@ -930,10 +931,10 @@ TEST_CASE("test_odex")
     xpp::Model &m=*model;
     m.this_file="indexed.odex";
     const std::string text=versioned("par gain = 1\r\nv' = gain\r\naux v = v\n");
-    m.files.push_back({m.this_file,text});
+    m.record->files.push_back({m.this_file,text});
     Parsed p=xpp::odex::parse(m,text,m.this_file);
-    m.statements=std::move(p.statements);
-    m.statement_files=std::move(p.files);
+    m.record->statements=std::move(p.statements);
+    m.record->statement_files=std::move(p.files);
     xpp::index_model_places(m);
     const xpp::Place equation=xpp::model_place(m,"V");
     CHECK(equation.file==m.this_file && equation.line==3);
@@ -957,17 +958,17 @@ TEST_CASE("test_odex")
     CHECK(xpp::get_var_index(s,"q")==2);
     CHECK(xpp::get_param_index(s,"gain")==m.upar_con[0]);
     CHECK(xpp::get_var_index(s,"arg")==-1);
-    CHECK(m.name("arg")==nullptr);
-    CHECK(m.name("f") && m.name("f")->kind==xpp::Model::NameKind::Function);
+    CHECK(m.record->name("arg")==nullptr);
+    CHECK(m.record->name("f") && m.record->name("f")->kind==xpp::ModelRecord::NameKind::Function);
     CHECK(xpp::model_place(m,"q").line==5);
-    const size_t count=m.names.size();
+    const size_t count=m.record->names.size();
     double value=0;
     CHECK(xpp::get_val(s,"gain",&value));
-    CHECK(value==2 && m.names.size()==count);
+    CHECK(value==2 && m.record->names.size()==count);
     CHECK(!load_text("par gain=2\nv'=missing\n", "odex"));
-    CHECK(xpp::client_session().model().name("q")!=nullptr);
+    CHECK(xpp::client_session().model().record->name("q")!=nullptr);
     CHECK(load_text("z'=0\n", "odex"));
-    CHECK(xpp::client_session().model().name("q")==nullptr);
+    CHECK(xpp::client_session().model().record->name("q")==nullptr);
     CHECK(xpp::find_user_name(xpp::client_session().model(),ICBOX,"z")==0);
   }
 

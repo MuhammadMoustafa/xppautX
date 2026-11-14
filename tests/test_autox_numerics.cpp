@@ -9,7 +9,6 @@
 #include "xpp_math.h"
 #include "session.h"
 #include "autox_state.h"
-#include "load_eqn.h"
 #include "autox_c.h"
 #include "xpp_io.h"
 #include "xpp_files.h"

@@ -11,7 +11,6 @@
 #include "xpp_util.h"
 #include "session_values.h"
 #include "session.h"
-#include "load_eqn.h"
 #include "model.h"
 #include "event_registry.h"
 #include "command_category.h"

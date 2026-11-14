@@ -36,7 +36,6 @@
 #include <utility>
 
 #include "histogram.h"
-#include "load_eqn.h"
 #include "session.h"
 #include "xpp_io.h"
 

@@ -39,7 +39,6 @@
 #include "graf_par.h"
 #include "grobs.h"
 #include "browse.h"
-#include "load_eqn.h"
 #include "session_settings.h"
 #include "xpp_util.h"
 #include "xpp_platform.h"
@@ -81,7 +80,6 @@
 #include <vector>
 #include "session.h"
 #include "autox_state.h"
-#include "model_files.h"
 #include "xpp_error.h"
 
 /* autoX's files in a directory of this session's own, removed at exit

@@ -2,7 +2,6 @@
    (session.h). */
 #include "session.h"
 #include "model.h"
-#include "model_files.h"
 #include "xpp_mem.h"
 #include "adj2.h"
 #include "ani_data.h"
@@ -23,7 +22,7 @@
 #include "integrate.h"
 #include "jacobian.h"
 #include "kinescope.h"
-#include "load_eqn.h"
+#include "plot_settings.h"
 #include "many_pops.h"
 #include "markov.h"
 #include "marks_data.h"

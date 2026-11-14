@@ -16,7 +16,6 @@
 #include "session.h"
 #include "autox_state.h"
 #include "integrate.h"
-#include "load_eqn.h"
 #include "derived.h"
 #include "autox_c.h"
 #include "autox_unknowns.h"

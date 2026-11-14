@@ -29,7 +29,7 @@ void strip_saveqn(Model &m);
    "only" statement's */
 void create_plot_list(Session &s);
 /* the initial values an .odex model gives as formulas
-   (Model::initial_values), each evaluated with every parameter set:
+   (ModelRecord::initial_values), each evaluated with every parameter set:
    set_all_vals (load_eqn.cpp) calls this once the model is set up, where
    an .ode's array initial values are evaluated too */
 void set_initial_values(Session &s);

@@ -21,7 +21,7 @@ enum class Interface { window, browser, server };
 /* the whole command line, read once by parse_command_line: the program's own
    switches (what interface, the port, --convert) and what a load takes (the
    model, its files and sets, options). A load keeps its own in its Model
-   (Model::command_line), so File > Reload and a second session never share
+   (ModelRecord::command_line), so File > Reload and a second session never share
    one. */
 struct CommandLine {
   std::vector<std::string> arguments;          /* argv: the program's name first; File > Reload loads them again */

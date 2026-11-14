@@ -21,7 +21,7 @@
 #include "xpp_util.h"
 #include "session_values.h"
 #include "data_event.h"
-#include "model_files.h"
+#include "model_place.h"
 #include "model_features.h"
 #include "model_options.h"
 #include "json_number.h"
@@ -31,7 +31,6 @@
 #include "xpp_mem.h"
 #include "xpp_ui.h"
 #include "session.h"
-#include "load_eqn.h"
 #include "xpp_error.h"
 
 namespace xpp {

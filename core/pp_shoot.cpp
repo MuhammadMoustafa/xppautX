@@ -13,7 +13,6 @@
 #include "my_rhs.h"
 #include "adj2.h"
 #include "jacobian.h"
-#include "load_eqn.h"
 
 #include "expr.h"
 #include "browse.h"
@@ -38,7 +37,6 @@
 #include "delay_handle.h"
 #include "colormap.h"
 #include "expr_program.h"
-#include "model_files.h"
 #include "odex.h"
 #include "session.h"
 #include "xpp_io.h"
@@ -79,7 +77,7 @@ xpp::Result<> compile_bvp(xpp::Session &s)
    if(add_expr(s,s.bcs[static_cast<std::size_t>(i)].string.data(),compiled[static_cast<std::size_t>(i)].rpn,&length)){
      s.parser.ncon=before_ncon;
      s.parser.nsym=before_nsym;
-     return fail("boundary",xpp::format("Bad syntax in boundary condition {}: {}",i+1,s.bcs[static_cast<std::size_t>(i)].string.data()),model_place(s.model(),odex::Statement::Kind::Boundary,i));
+     return fail("boundary",xpp::format("Bad syntax in boundary condition {}: {}",i+1,s.bcs[static_cast<std::size_t>(i)].string.data()),model_statement_place(s.model(),odex::Statement::Kind::Boundary,i));
    }
  }
  for(int i=0;i<s.model().node;i++)s.bcs[static_cast<std::size_t>(i)].com=std::move(compiled[static_cast<std::size_t>(i)]);

@@ -9,7 +9,7 @@
 #include "expr_decode.h"
 #include "expr_derivative.h"
 #include "model.h"
-#include "model_files.h"
+#include "model_place.h"
 #include "integrate.h"
 #include "xpp_ui.h"
 #include "simplenet.h"

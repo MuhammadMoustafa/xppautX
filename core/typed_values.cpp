@@ -9,19 +9,20 @@
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "model.h"
+#include "model_record.h"
 #include "xpp_io.h"
 #include "tabular.h"
 #include "volterra2.h"
 #include "delay_handle.h"
 #include "form_ode.h"
 #include "session.h"
-#include "load_eqn.h"
+#include "numerics_settings.h"
 
 namespace xpp {
 
 int find_user_name(const xpp::Model &m, int type, std::string_view oname)
 {
-  const auto *entry=m.name(oname);
+  const auto *entry=m.record->name(oname);
   if(!entry)return -1;
   return type==PARAMBOX ? entry->parameter : type==ICBOX ? entry->column : -1;
 }

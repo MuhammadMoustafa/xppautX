@@ -17,7 +17,9 @@
 #include "form_ode.h"
 #include "ode_read.h"
 #include "model.h"
+#include "model_record.h"
 #include "model_files.h"
+#include "model_place.h"
 #include "xpp_log.h"
 
 #include "expr.h"
@@ -264,7 +266,7 @@ void begin_model(xpp::Session &s)
 void add_parameter(xpp::Session &s, const std::string &name, double value)
 {
   xpp::Model &m=s.model();
-  auto &entry=m.define_name(name,xpp::Model::NameKind::Param,m.nupar,{0,xpp::Load::place().line,xpp::Load::place().col});
+  auto &entry=m.record->define_name(name,xpp::ModelRecord::NameKind::Param,m.nupar,{0,xpp::Load::place().line,xpp::Load::place().col});
   if(add_con(s,name,value))
     model_failed(xpp::format("{} is a name already, or one parameter too many",name));
   m.size_parameters(m.nupar+1);
@@ -279,7 +281,7 @@ void add_parameter(xpp::Session &s, const std::string &name, double value)
 void add_constant(xpp::Session &s, const std::string &name, double value, bool wiener)
 {
   xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
-  s.model().define_name(name,wiener?xpp::Model::NameKind::Wiener:xpp::Model::NameKind::Const,s.parser.ncon,
+  s.model().record->define_name(name,wiener?xpp::ModelRecord::NameKind::Wiener:xpp::ModelRecord::NameKind::Const,s.parser.ncon,
                         {0,xpp::Load::place().line,xpp::Load::place().col});
   if(add_con(s,name,value))
     model_failed(xpp::format("{} is a name already, or one parameter too many",name));
@@ -405,7 +407,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       name=tokens.text(" ");
       value=atof(tokens.text(" ").c_str());
       nstates=atoi(tokens.text(" \n").c_str());
-      m.define_name(name,xpp::Model::NameKind::Markov,m.nmarkov,{0,xpp::Load::place().line,xpp::Load::place().col});
+      m.record->define_name(name,xpp::ModelRecord::NameKind::Markov,m.nmarkov,{0,xpp::Load::place().line,xpp::Load::place().col});
       if(add_var(s,name,value))
 	model_failed(xpp::format("{} is a name already, or one variable too many",name));
       m.uvar_names[s.parser.build.in_vars+m.nmarkov]=name;
@@ -437,7 +439,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	  name=item.name;
 	  value=item.value;
 	  room_for_declared(s);
-          m.define_name(name,iflg?xpp::Model::NameKind::Variable:xpp::Model::NameKind::Fixed,
+          m.record->define_name(name,iflg?xpp::ModelRecord::NameKind::Variable:xpp::ModelRecord::NameKind::Fixed,
                         iflg?s.parser.build.in_vars:m.fix_var,{0,xpp::Load::place().line,xpp::Load::place().col});
 	  if(add_var(s,name,value))
 	    model_failed(xpp::format("{} is a name already, or one variable too many",name));
@@ -463,7 +465,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       value=atof(tokens.text(" ").c_str());
       formula=tokens.text("$");
       xpp::log(XPP_LOG_DEBUG, "Kernel mu={:f} {} = {} \n",value,name,formula);
-      m.define_name(name,xpp::Model::NameKind::Kernel,m.nkernel,{0,xpp::Load::place().line,xpp::Load::place().col});
+      m.record->define_name(name,xpp::ModelRecord::NameKind::Kernel,m.nkernel,{0,xpp::Load::place().line,xpp::Load::place().col});
       if(add_kernel(s,name,value,formula)){
 	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
@@ -472,7 +474,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
     case 't':
       name=tokens.text(" ");
       formula=tokens.text(" \n");
-      m.define_name(name,xpp::Model::NameKind::Table,s.ntable,{0,xpp::Load::place().line,xpp::Load::place().col});
+      m.record->define_name(name,xpp::ModelRecord::NameKind::Table,s.ntable,{0,xpp::Load::place().line,xpp::Load::place().col});
       if(formula[0]=='%') {
 	xpp::log(XPP_LOG_INFO, " Function form of table....\n");
 	nn=atoi(tokens.text(" ").c_str());
@@ -513,7 +515,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       narg=atoi(tokens.text(" ").c_str());
       formula=tokens.text("$");
       xpp::log(XPP_LOG_INFO, "{} {} :\n",name,narg);
-      m.define_name(name,xpp::Model::NameKind::Function,m.nfun,{0,xpp::Load::place().line,xpp::Load::place().col});
+      m.record->define_name(name,xpp::ModelRecord::NameKind::Function,m.nfun,{0,xpp::Load::place().line,xpp::Load::place().col});
       if(add_ufun(s,name,formula,narg)){
 	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
@@ -564,7 +566,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       for(std::optional<std::string_view> tok;(tok=tokens.next(" ,\n"));)
 	{
 	  std::string aux(*tok);
-          m.define_name(aux,xpp::Model::NameKind::Aux,s.parser.build.naux,
+          m.record->define_name(aux,xpp::ModelRecord::NameKind::Aux,s.parser.build.naux,
                         {0,xpp::Load::place().line,xpp::Load::place().col});
 	  s.parser.build.aux_names.push_back(aux);
 	  xpp::log(XPP_LOG_DEBUG, "|{}| ",s.parser.build.aux_names[s.parser.build.naux]);
@@ -669,21 +671,21 @@ void finish_model(xpp::Session &s)
 	set_ode_name(m,i,formula);
       }
   for(i=0;i<m.neq;i++){
-    auto [it,inserted]=m.names.try_emplace(converted(uvar_names[i]));
+    auto [it,inserted]=m.record->names.try_emplace(converted(uvar_names[i]));
     auto &entry=it->second;
-    if(inserted || entry.kind==xpp::Model::NameKind::Set){
+    if(inserted || entry.kind==xpp::ModelRecord::NameKind::Set){
       if(inserted)entry.written=uvar_names[i];
-      entry.kind=i<m.node?xpp::Model::NameKind::Variable:i<m.node+m.nmarkov?xpp::Model::NameKind::Markov:xpp::Model::NameKind::Aux;
-      entry.index=entry.kind==xpp::Model::NameKind::Variable?i:
-                  entry.kind==xpp::Model::NameKind::Markov?i-m.node:i-m.node-m.nmarkov;
+      entry.kind=i<m.node?xpp::ModelRecord::NameKind::Variable:i<m.node+m.nmarkov?xpp::ModelRecord::NameKind::Markov:xpp::ModelRecord::NameKind::Aux;
+      entry.index=entry.kind==xpp::ModelRecord::NameKind::Variable?i:
+                  entry.kind==xpp::ModelRecord::NameKind::Markov?i-m.node:i-m.node-m.nmarkov;
       const int symbol=s.parser.symbol_named(converted(uvar_names[i]));
       if(symbol>=0 && s.parser.symbols[symbol].com/MAXTYPE==VARTYPE)entry.parser_var=s.parser.symbols[symbol].com%MAXTYPE;
     }
     if(entry.column<0)entry.column=i;
   }
   for(i=0;i<m.nupar;i++){
-    auto &entry=m.names[converted(m.upar_names[i])];
-    entry.kind=xpp::Model::NameKind::Param;
+    auto &entry=m.record->names[converted(m.upar_names[i])];
+    entry.kind=xpp::ModelRecord::NameKind::Param;
     entry.parameter=i;
     entry.parser_con=m.upar_con[i];
     entry.index=i;
@@ -769,8 +771,8 @@ public:
       const std::string u=xpp::upper_case(w);
       if(std::find(args.begin(),args.end(),u)!=args.end())continue;
       if(builtin(u))continue;
-      auto f=m_.names.find(u);
-      if(f==m_.names.end())return false;
+      auto f=m_.record->names.find(u);
+      if(f==m_.record->names.end())return false;
       auto &entry=f->second;
       if(entry.purity_constant||entry.purity_table)continue;
       if(with_derived&&entry.purity_derived)continue;
@@ -792,7 +794,7 @@ private:
   /* a user function is pure when its formula reads only its arguments,
      the constants and pure functions (never a derived quantity, which a
      call may read before it is worked out) */
-  bool function(xpp::Model::Name &entry, const Statement &f)
+  bool function(xpp::ModelRecord::Name &entry, const Statement &f)
   {
     if(entry.purity>=0)return entry.purity!=0;
     entry.purity=0; /* a function that calls itself is not pure */
@@ -870,8 +872,8 @@ public:
     m.node=nvar_+naux_+nfix_;
     xpp::log(XPP_LOG_INFO, " nvar={:d} naux={:d} nfix={:d} nmark={:d} NEQ={:d} NODE={:d} \n",
 	   nvar_,naux_,nfix_,nmark_,m.neq,m.node);
-    m.statements=std::move(p_.statements);
-    m.statement_files=p_.files;
+    m.record->statements=std::move(p_.statements);
+    m.record->statement_files=p_.files;
     index_model_places(m);
     finish_model(s_);
   }
@@ -900,8 +902,8 @@ private:
      when it is not) */
   void note(const std::string &name,const xpp::odex::Pos &pos,const Statement &s)
   {
-    xpp::Model::Name &entry=m_.names[converted(name)];
-    entry.origins.push_back(xpp::Model::NameOrigin{s.more().written.empty()?name:s.more().written,pos,s.array.written});
+    xpp::ModelRecord::Name &entry=m_.record->names[converted(name)];
+    entry.origins.push_back(xpp::ModelRecord::NameOrigin{s.more().written.empty()?name:s.more().written,pos,s.array.written});
     if(entry.written.empty())entry.written=name;
     if(entry.pos.line==0)entry.pos=pos;
   }
@@ -913,7 +915,7 @@ private:
      two were written differently. */
   [[noreturn]] void clash(const std::string &upper) const
   {
-    const xpp::Model::Name *entry=m_.name(upper);
+    const xpp::ModelRecord::Name *entry=m_.record->name(upper);
     if(!entry||entry->origins.size()<2)
       model_failed(xpp::format("Duplicate name {}",!entry||entry->origins.empty()?upper:entry->origins.back().written));
     const auto &now=entry->origins.back(),&before=entry->origins[entry->origins.size()-2];
@@ -969,10 +971,10 @@ private:
       switch(s.kind){
       case Statement::Kind::Par:
       case Statement::Kind::Const:
-	for(const Binding &b : s.bindings)m_.names[converted(b.name)].purity_constant=true;
+	for(const Binding &b : s.bindings)m_.record->names[converted(b.name)].purity_constant=true;
 	break;
-      case Statement::Kind::Fun: m_.names[converted(s.name)].function_statement=static_cast<int>(&s-p_.statements.data()); break;
-      case Statement::Kind::Table: m_.names[converted(s.name)].purity_table=true; break;
+      case Statement::Kind::Fun: m_.record->names[converted(s.name)].function_statement=static_cast<int>(&s-p_.statements.data()); break;
+      case Statement::Kind::Table: m_.record->names[converted(s.name)].purity_table=true; break;
       case Statement::Kind::Aux:
 	for(const Binding &b : s.bindings)keep.insert(xpp::upper_case(b.name));
 	break;
@@ -997,7 +999,7 @@ private:
 	s.parameters_only=true;
 	for(const Binding &b : s.bindings)
 	  s.parameters_only=s.parameters_only&&pure.reads(text(b.value,true),none,true);
-	for(const Binding &b : s.bindings)m_.names[converted(b.name)].purity_derived=true;
+	for(const Binding &b : s.bindings)m_.record->names[converted(b.name)].purity_derived=true;
       }
       else if(fixed&&s.kind==Statement::Kind::Fixed&&!kept(s.name)&&
 	      pure.reads(text(s.expr,true),none,true)){
@@ -1009,7 +1011,7 @@ private:
 	s.kind=Statement::Kind::Derived;
 	s.bindings.assign(1,std::move(b));
 	s.parameters_only=true;
-	m_.names[converted(s.name)].purity_derived=true;
+	m_.record->names[converted(s.name)].purity_derived=true;
       }
     }
   }
@@ -1023,11 +1025,11 @@ private:
     xpp::Model &m=m_;
     note(s.name,s.name_pos,s);
     add_constant(s_,s.name,0,false);
-    m.define_name(s.name,xpp::Model::NameKind::Ou,s_.parser.ncon-1,s.pos);
+    m.record->define_name(s.name,xpp::ModelRecord::NameKind::Ou,s_.parser.ncon-1,s.pos);
     const auto value=[&](const Expr &e){
       xpp::Model::OuValue v;
-      const auto it=e.kind==Expr::Kind::Name?m.names.find(converted(e.text)):m.names.end();
-      if(it!=m.names.end()&&it->second.kind==xpp::Model::NameKind::Param)v.constant=m.upar_con[it->second.parameter];
+      const auto it=e.kind==Expr::Kind::Name?m.record->names.find(converted(e.text)):m.record->names.end();
+      if(it!=m.record->names.end()&&it->second.kind==xpp::ModelRecord::NameKind::Param)v.constant=m.upar_con[it->second.parameter];
       else v.number=e.value;
       return v;
     };
@@ -1060,8 +1062,8 @@ private:
       for(const Expr &c : s.more().cells)cells.push_back(text(c));
       /* a second chain of the same name has no variable of its own */
       std::string name=converted(s.name);
-      auto &entry=m.names[name];
-      entry.kind=xpp::Model::NameKind::Markov;
+      auto &entry=m.record->names[name];
+      entry.kind=xpp::ModelRecord::NameKind::Markov;
       if(entry.index==m.nmarkov-1)mnames_.push_back(std::move(name));
       xpp::build_markov(s_,cells,s.name.c_str());
       break;
@@ -1070,7 +1072,7 @@ private:
       xpp::log(XPP_LOG_INFO, "Parameters:\n");
       for(const Binding &b : s.bindings){
 	note(b.name,b.pos.line?b.pos:s.pos,s);
-        m.define_name(b.name,xpp::Model::NameKind::Param,m.nupar,s.pos);
+        m.record->define_name(b.name,xpp::ModelRecord::NameKind::Param,m.nupar,s.pos);
         add_parameter(s_,b.name,b.value.value);
       }
       xpp::log(XPP_LOG_DEBUG, "\n");
@@ -1080,7 +1082,7 @@ private:
       xpp::log(XPP_LOG_INFO, "{}", s.kind==Statement::Kind::Wiener?"Wiener constants\n":" Hidden params:\n");
       for(const Binding &b : s.bindings){
 	note(b.name,b.pos.line?b.pos:s.pos,s);
-        m.define_name(b.name,s.kind==Statement::Kind::Wiener?xpp::Model::NameKind::Wiener:xpp::Model::NameKind::Const,s_.parser.ncon,s.pos);
+        m.record->define_name(b.name,s.kind==Statement::Kind::Wiener?xpp::ModelRecord::NameKind::Wiener:xpp::ModelRecord::NameKind::Const,s_.parser.ncon,s.pos);
         add_constant(s_,b.name,b.value.value,s.kind==Statement::Kind::Wiener);
       }
       xpp::log(XPP_LOG_DEBUG, "\n");
@@ -1104,33 +1106,33 @@ private:
     case Statement::Kind::Volterra: {
       std::string name=converted(s.name);
       note(s.name,s.pos,s);
-      auto &entry=m.names[name];
+      auto &entry=m.record->names[name];
       if(entry.variable_declared)clash(name);
       entry.variable_declared=true;
-      entry.kind=xpp::Model::NameKind::Variable;
+      entry.kind=xpp::ModelRecord::NameKind::Variable;
       entry.index=static_cast<int>(vnames_.size());
       vnames_.push_back(std::move(name));
       break;
     }
     case Statement::Kind::Vector:
-      m.define_name(s.name,xpp::Model::NameKind::Vector,m.nvector,s.pos);
+      m.record->define_name(s.name,xpp::ModelRecord::NameKind::Vector,m.nvector,s.pos);
       add_vectorizer_name(s_,s.name,s.text); break;
     case Statement::Kind::Network:
-      m.define_name(s.name,xpp::Model::NameKind::Network,m.nnetwork,s.pos);
+      m.record->define_name(s.name,xpp::ModelRecord::NameKind::Network,m.nnetwork,s.pos);
       add_special_name(s_,s.name,s.text.data());
       c_resync(s.text);
       break;
     case Statement::Kind::Solv:
-      m.define_name(s.name,xpp::Model::NameKind::Algebraic,m.nsvar,s.pos);
+      m.record->define_name(s.name,xpp::ModelRecord::NameKind::Algebraic,m.nsvar,s.pos);
       xpp::add_svar(s_,s.name.c_str(),text(s.expr).c_str());
       break;
     case Statement::Kind::Aux:
       for(const Binding &b : s.bindings){
-        auto &entry=m.names[converted(b.name)];
+        auto &entry=m.record->names[converted(b.name)];
         if(entry.written.empty()){
           entry.written=b.name;
           entry.pos=b.pos.line?b.pos:s.pos;
-          entry.kind=xpp::Model::NameKind::Aux;
+          entry.kind=xpp::ModelRecord::NameKind::Aux;
         }
         anames_.push_back(converted(b.name));
 	xpp::log(XPP_LOG_INFO, "{} = {} \n",anames_.back(),text(b.value));
@@ -1139,7 +1141,7 @@ private:
     case Statement::Kind::Derived:
       for(const Binding &b : s.bindings){
 	note(b.name,b.pos.line?b.pos:s.pos,s);
-        m.define_name(b.name,xpp::Model::NameKind::Derived,s_.parser.ncon,s.pos);
+        m.record->define_name(b.name,xpp::ModelRecord::NameKind::Derived,s_.parser.ncon,s.pos);
         if(add_derived(s_,xpp::upper_case(b.name),text(b.value,true))==1)
 	  clash(converted(b.name));
       }
@@ -1147,7 +1149,7 @@ private:
     case Statement::Kind::Fixed: {
       const int k=static_cast<int>(fnames_.size());
       note(s.name,s.pos,s);
-      m.define_name(s.name,xpp::Model::NameKind::Fixed,k,s.pos);
+      m.record->define_name(s.name,xpp::ModelRecord::NameKind::Fixed,k,s.pos);
       m.fixinfo[k].name=xpp::upper_case(s.name);
       m.fixinfo[k].value=text(s.expr,true);
       fnames_.push_back(converted(s.name));
@@ -1156,7 +1158,7 @@ private:
     }
     case Statement::Kind::Table: {
       const std::string name=converted(s.name);
-      m.define_name(s.name,xpp::Model::NameKind::Table,ntab_,s.pos);
+      m.record->define_name(s.name,xpp::ModelRecord::NameKind::Table,ntab_,s.pos);
       if(add_table_name(s_,ntab_,name)==1){
 	model_failed(xpp::format("{} is a duplicate name",name));
       }
@@ -1166,7 +1168,7 @@ private:
     }
     case Statement::Kind::Fun: {
       const std::string name=converted(s.name);
-      m.define_name(s.name,xpp::Model::NameKind::Function,nufun_,s.pos);
+      m.record->define_name(s.name,xpp::ModelRecord::NameKind::Function,nufun_,s.pos);
       if(add_ufun_name(s_,name,nufun_,static_cast<int>(s.more().names.size()))==1){
 	model_failed(xpp::format("Duplicate name or too many functions for {}",name));
       }
@@ -1188,7 +1190,7 @@ private:
     for(int i=0;i<nvar;i++){
       if(add_var(s_,vnames_[i].c_str(),0.0))clash(vnames_[i]);
       m.uvar_names[i]=vnames_[i];
-      m.names[vnames_[i]].column=i;
+      m.record->names[vnames_[i]].column=i;
       s.last_ic[i]=DEFAULT_INITIAL_VALUE;
       m.default_ic[i]=DEFAULT_INITIAL_VALUE;
     }
@@ -1197,15 +1199,15 @@ private:
     for(size_t i=0;i<mnames_.size();i++){
       if(add_var(s_,mnames_[i].c_str(),0.0))clash(mnames_[i]);
       m.uvar_names[i+nvar]=mnames_[i];
-      m.names[mnames_[i]].column=static_cast<int>(i)+nvar;
+      m.record->names[mnames_[i]].column=static_cast<int>(i)+nvar;
       s.last_ic[i+nvar]=DEFAULT_INITIAL_VALUE;
       m.default_ic[i+nvar]=DEFAULT_INITIAL_VALUE;
     }
     s_.parser.build.aux_names=anames_;
     for(size_t i=0;i<anames_.size();i++){
-      auto &entry=m.names[anames_[i]];
+      auto &entry=m.record->names[anames_[i]];
       if(entry.column<0)entry.column=nvar+m.nmarkov+static_cast<int>(i);
-      if(entry.kind==xpp::Model::NameKind::Aux)entry.index=static_cast<int>(i);
+      if(entry.kind==xpp::ModelRecord::NameKind::Aux)entry.index=static_cast<int>(i);
     }
     xpp::add_svar_names(s);
     s_.parser.build.in_vars=nvar;
@@ -1222,7 +1224,7 @@ private:
      index after the variables'): -1 when it is neither */
   int variable(const std::string &name, bool &markov) const
   {
-    const auto *entry=m_.name(name);
+    const auto *entry=m_.record->name(name);
     markov=entry && entry->markov_declared;
     return entry && (entry->variable_declared || markov) ? entry->column : -1;
   }
@@ -1271,7 +1273,7 @@ private:
       for(const Binding &b : s.bindings){
         bool markov;
         if(b.value.kind==Expr::Kind::Number)initial_value(b);
-        else m.initial_values.push_back({b.name,b.value,where(b.value.pos),initial_variable(converted(b.name),markov)});
+        else m.record->initial_values.push_back({b.name,b.value,where(b.value.pos),initial_variable(converted(b.name),markov)});
       }
       break;
     case Statement::Kind::History:
@@ -1434,12 +1436,12 @@ OdeAsOdex::~OdeAsOdex()
 std::vector<const odex::Statement *> missing_initial_values(const Model &m)
 {
   std::set<std::string> initialized;
-  for (const Statement &s : m.statements)
+  for (const Statement &s : m.record->statements)
     if (s.kind == Statement::Kind::Init || s.kind == Statement::Kind::InitNumbers)
       for (const Binding &b : s.bindings) initialized.insert(converted(b.name));
   for (const ArrayInitialValue &value : array_initial_values(m)) initialized.insert(converted(value.var));
   std::vector<const Statement *> missing;
-  for (const Statement &s : m.statements)
+  for (const Statement &s : m.record->statements)
     if ((s.kind == Statement::Kind::Ode || s.kind == Statement::Kind::Map ||
          s.kind == Statement::Kind::Volterra || s.kind == Statement::Kind::Markov) &&
         !initialized.contains(converted(s.name))) missing.push_back(&s);
@@ -1484,7 +1486,7 @@ void set_initial_values(xpp::Session &s)
   xpp::Model &m=s.model();
   /* ran(x) as the evaluator draws it */
   const xpp::odex::Draw draw=[&s](double x){return x*s.random.uniform();};
-  for(const xpp::Model::InitialValue &init : m.initial_values){
+  for(const xpp::ModelRecord::InitialValue &init : m.record->initial_values){
     double z=0;
     try{
       z=xpp::odex::fixed_value(m,init.formula,xpp::format("the initial value of {}",init.name),std::string(),0,&draw);

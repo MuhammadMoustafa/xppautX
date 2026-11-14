@@ -12,6 +12,7 @@
    classifier, install and hello; ui_json_internal.h names
    the files that hold the rest. */
 #include "model.h"
+#include "model_record.h"
 #include "options_panels.h"
 #include "grobs.h"
 #include "ui_json.h"
@@ -1275,8 +1276,8 @@ void send_hello(xpp::Session &s)
     b += xpp::autox_run_table_json();
     /* The names accepted by a registry model_name of NameSet::any. */
     std::vector<std::string> model_names;
-    model_names.reserve(m.names.size());
-    for (const auto &[key, name] : m.names) model_names.push_back(name.written);
+    model_names.reserve(m.record->names.size());
+    for (const auto &[key, name] : m.record->names) model_names.push_back(name.written);
     std::ranges::sort(model_names);
     BUF_LIT(b, ",\"model_names\":[");
     for (std::size_t index = 0; index < model_names.size(); ++index) {

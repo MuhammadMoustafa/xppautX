@@ -1,7 +1,7 @@
 /* xppautX --convert (odex.h; docs/odex.md "What --convert writes"): the
    loaded .ode model written as .odex from what the .ode parser understood,
    not from its text. The statements come in the order the reader read
-   them (Model::statements), an array's copies (Statement::array) written
+   them (ModelRecord::statements), an array's copies (Statement::array) written
    back as one array statement (docs/odex.md "Arrays"); every formula is the one it
    compiled, read back from its program (expr_program.h) into .odex's tree
    and printed with the parentheses .odex needs to group it the same way:
@@ -18,6 +18,8 @@
 #include "load_eqn.h"
 #include "model_options.h"
 #include "model.h"
+#include "model_record.h"
+#include "model_files.h"
 #include "solver.h"
 #include "tabular.h"
 #include "xpp_batch.h"
@@ -32,7 +34,7 @@
 #include "expr.h"
 #include "comline.h"
 #include "expr_program.h"
-#include "model_files.h"
+#include "model_place.h"
 #include "model_parts.h"
 #include "simplenet.h"
 #include "volterra.h"
@@ -256,7 +258,7 @@ public:
     guard_name_ = "ode_divisor";
     while (taken_.count(xpp::upper_case(guard_name_))) guard_name_ += "_";
     std::string body;
-    const std::vector<Statement> &st = m_.statements;
+    const std::vector<Statement> &st = m_.record->statements;
     options_total_ = static_cast<size_t>(std::ranges::count_if(st, [](const Statement &x) { return x.kind == Statement::Kind::Options; }));
     for (size_t i = 0; i < st.size();) {
       const Place at = model_place(m_, st[i].pos);
@@ -291,7 +293,7 @@ public:
   Expr program(const std::vector<int> &p) const { return expr_of(p); }
   std::string range(const std::vector<std::string> &texts, const std::vector<int> &values, const ArrayCopy &a)
   {
-    for (const auto &[key, entry] : m_.names) if (entry.declared) taken_.insert(key);
+    for (const auto &[key, entry] : m_.record->names) if (entry.declared) taken_.insert(key);
     return as_array(texts, values, a);
   }
 
@@ -601,7 +603,7 @@ private:
   std::string name(const std::string &upper) const
   {
     if (is_odex(m_.this_file)) {
-      if (const auto *entry = m_.name(upper); entry && entry->declared) return entry->written;
+      if (const auto *entry = m_.record->name(upper); entry && entry->declared) return entry->written;
     }
     const std::string spelled = spell_.of(upper);
     auto r = renames_.find(spelled);
@@ -1414,7 +1416,7 @@ private:
   std::string remaining_comments()
   {
     std::string out;
-    for (const std::string &file : m_.statement_files) out += comments_through(file, std::numeric_limits<int>::max());
+    for (const std::string &file : m_.record->statement_files) out += comments_through(file, std::numeric_limits<int>::max());
     out += comments_through(m_.this_file, std::numeric_limits<int>::max());
     return out;
   }
@@ -1523,7 +1525,7 @@ private:
     std::string prefix;
     if (map) {
       /* a map ((t+1)=, or a .dis file) runs with the discrete method */
-      for (const Statement &s : m_.statements)
+      for (const Statement &s : m_.record->statements)
         if (s.kind == Statement::Kind::Ode || s.kind == Statement::Kind::Map) {
           place_ = model_place(m_, s.pos);
           break;
@@ -1750,7 +1752,7 @@ private:
         place_ = Place{m_.this_file, n, 0, model_source_line(m_, m_.this_file, n)};
         /* source is flattened across includes; statement places retain
            the physical file and line. Keep the old comment's line list. */
-        for (const Statement &s : m_.statements) {
+        for (const Statement &s : m_.record->statements) {
           const Place at = model_place(m_, s.pos);
           if (trim_blanks(at.source) == trim_blanks(m_.source[static_cast<size_t>(n - 1)])) {
             place_ = at;
@@ -1985,7 +1987,7 @@ Result<std::string> convert_text(const std::string &ode, std::vector<Diagnostic>
       text = converter.run();
       guard_name = converter.guard_name();
       before = fingerprint(s);
-      saved = SavedModel{odex_name(ode), s.model().files};
+      saved = SavedModel{odex_name(ode), s.model().record->files};
       if (outside_paths) *outside_paths = s.model().outside_paths;
     } catch (Error &e) {
       if (e.place.file.empty()) e.place = Place{ode};

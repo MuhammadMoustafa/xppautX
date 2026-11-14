@@ -9,7 +9,7 @@
 #include "xpptest.h"
 #include "snapx.h"
 #include "model.h"
-#include "model_files.h"
+#include "model_record.h"
 #include "session.h"
 #include "aniparse.h"
 #include "xpp_batch.h"
@@ -190,7 +190,7 @@ void check_saved_model(const xpp::TempDir &tmp)
     std::string streamed;
     CHECK(xpp::read_bytes(stream.get(), streamed) && streamed == versioned("par a=2\n"));
     CHECK(write_file("inc.odex", "par a=2\n"));
-    const std::vector<xpp::ModelFile> files = xpp::client_session().model().files;
+    const std::vector<xpp::ModelFile> files = xpp::client_session().model().record->files;
     CHECK(files.size() >= 3 && files[0].name == "main.odex" && files[1].name == "inc.odex" && files[2].name == "w.tab");
     CHECK(xpp::client_session().model().saved_in.empty() && xpp::client_session().model().nupar == 1);
 
@@ -209,7 +209,7 @@ void check_saved_model(const xpp::TempDir &tmp)
     /* the files on the disk gone: the saved model loads from the file */
     for (const char *name : {"main.odex", "inc.odex", "w.tab"}) CHECK(xpp::files::remove(name) == 0);
     CHECK(load("main.odex", &f->model));
-    CHECK(xpp::client_session().model().saved_in == path && xpp::client_session().model().files == files && xpp::client_session().model().nupar == 1);
+    CHECK(xpp::client_session().model().saved_in == path && xpp::client_session().model().record->files == files && xpp::client_session().model().nupar == 1);
     CHECK(xpp::client_session().model().upar_names[0] == "a" || xpp::client_session().model().upar_names[0] == "A");
     CHECK(xpp::model_title(xpp::client_session().model()) == "main.odex (saved in s.snapx)");
     std::string bytes;
@@ -219,7 +219,7 @@ void check_saved_model(const xpp::TempDir &tmp)
     /* the same bytes on the disk, edited: the saved model still loads as saved */
     CHECK(write_file("main.odex", "par a=5,b=1\nx'=-a*x\ninit x=1\n"));
     CHECK(load("main.odex", &f->model));
-    CHECK(xpp::client_session().model().nupar == 1 && xpp::client_session().model().files == files);
+    CHECK(xpp::client_session().model().nupar == 1 && xpp::client_session().model().record->files == files);
 
     /* a file without its model is refused, as is one that is no zip */
     std::vector<xpp::zip::Entry> no_model{(*entries)[0]};

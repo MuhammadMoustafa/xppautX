@@ -3,7 +3,6 @@
 #include "aniparse.h"
 #include "expr.h"
 #include "integrate.h"
-#include "load_eqn.h"
 #include "my_rhs.h"
 #include "solver.h"
 #include "storage.h"

@@ -8,7 +8,7 @@
 #include "xpptest.h"
 #include "session.h"
 #include "integrate.h"
-#include "load_eqn.h"
+#include "numerics_settings.h"
 #include "nullcline.h"
 #include "model.h"
 #include "xpp_batch.h"

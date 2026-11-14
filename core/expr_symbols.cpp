@@ -5,8 +5,9 @@
    model's names as the load adds them. */
 #include "expr_internal.h"
 #include "expr.h"
-#include "load_eqn.h"
+#include "numerics_settings.h"
 #include "model.h"
+#include "model_record.h"
 #include "comline.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -352,7 +353,7 @@ void init_rpn(xpp::Session &s)
     /* end animator stuff */
 
     init_table(s);
-    if (s.model().command_line.new_seed) {
+    if (s.model().record->command_line.new_seed) {
       s.numerics->rand_seed=static_cast<int>(time(0));
       xpp::log(XPP_LOG_INFO,"--newseed: seed {}\n",s.numerics->rand_seed);
     }
@@ -432,7 +433,7 @@ int add_constant(ParserState &p, std::string_view junk)
 
 int get_var_index(const xpp::Session &s, std::string_view name)
 {
-  if(const auto *entry=s.model().name(name);entry && entry->kind!=Model::NameKind::Set)return entry->parser_var;
+  if(const auto *entry=s.model().record->name(name);entry && entry->kind!=ModelRecord::NameKind::Set)return entry->parser_var;
 
   int type,com;
   find_name(s.parser,name,&type);
@@ -460,7 +461,7 @@ int add_con(xpp::Session &s, std::string_view name, double value)
  p.ncon++;
  const int result=add_constant(p,name);
  if(result==0)
-   if(auto it=s.model().names.find(converted(name));it!=s.model().names.end())it->second.parser_con=p.ncon-1;
+   if(auto it=s.model().record->names.find(converted(name));it!=s.model().record->names.end())it->second.parser_con=p.ncon-1;
  return result;
 }
 
@@ -518,7 +519,7 @@ int add_var(xpp::Session &s, std::string_view junk, double value)
  p.nsym++;
  if(p.variables.size()<=static_cast<size_t>(m.nvar))p.variables.resize(std::max<size_t>(64,2*p.variables.size()));
  p.variables[m.nvar]=value;
- if(auto it=m.names.find(converted(junk));it!=m.names.end())it->second.parser_var=m.nvar;
+ if(auto it=m.record->names.find(converted(junk));it!=m.record->names.end())it->second.parser_var=m.nvar;
  m.nvar++;
  return(0);
 }
@@ -694,7 +695,7 @@ int add_ufun(xpp::Session &s, std::string_view junk, std::string_view expr, int 
 
 int find_lookup(const xpp::Session &s, std::string_view name)
 {
- if(const auto *entry=s.model().name(name);entry && entry->kind!=Model::NameKind::Set)return entry->kind==Model::NameKind::Table?entry->index:-1;
+ if(const auto *entry=s.model().record->name(name);entry && entry->kind!=ModelRecord::NameKind::Set)return entry->kind==ModelRecord::NameKind::Table?entry->index:-1;
  int index,com;
  find_name(s.parser,name,&index);
   if(index==-1)return(-1);
@@ -716,7 +717,7 @@ void find_name(const ParserState &p, std::string_view string, int *index)
 
 int get_param_index(const xpp::Session &s, std::string_view name)
 {
- if(const auto *entry=s.model().name(name);entry && entry->kind!=Model::NameKind::Set)return entry->parser_con;
+ if(const auto *entry=s.model().record->name(name);entry && entry->kind!=ModelRecord::NameKind::Set)return entry->parser_con;
  int type,com;
   find_name(s.parser,name,&type);
   if(type<0)return(-1);
@@ -744,7 +745,7 @@ namespace {
 template <class Parser>
 auto slot_in(const Model &m, Parser &p, std::string_view name) -> decltype(&p.constants[0])
 {
-  if(const Model::Name *entry=m.name(name);entry && entry->kind!=Model::NameKind::Set){
+  if(const ModelRecord::Name *entry=m.record->name(name);entry && entry->kind!=ModelRecord::NameKind::Set){
     if(entry->parser_con>=0)return &p.constants[entry->parser_con];
     if(entry->parser_var>=0)return &p.variables[entry->parser_var];
     return nullptr;

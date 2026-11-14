@@ -15,7 +15,6 @@
 #include "my_rhs.h"
 #include "browse.h"
 #include "integrate.h"
-#include "load_eqn.h"
 #include "graf_par.h"
 #include "phase_data.h"
 

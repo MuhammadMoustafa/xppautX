@@ -25,7 +25,6 @@
 #include "expr.h"
 #include "browse.h"
 #include "graphics.h"
-#include "load_eqn.h"
 #include "xpp_files.h"
 #include "model.h"
 #include "model_options.h"

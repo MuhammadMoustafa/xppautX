@@ -3,6 +3,7 @@
 
 #include "lunch-new.h"
 #include "model.h"
+#include "model_record.h"
 #include "model_files.h"
 #include "model_options.h"
 #include "model_save.h"
@@ -119,7 +120,7 @@ Result<ValuesSource> read_odex_source(Session &s, std::string_view path)
     const Model &m = s.model();
     const std::unique_ptr<Model> scratch = scratch_model(m);
     /* the whole read, the imports in it too, is within the bound; a path outside the folder asks every time and is never kept */
-    scratch->files_bytes_limit = text->size() < settings_bytes_limit ? settings_bytes_limit - text->size() : 0;
+    scratch->record->files_bytes_limit = text->size() < settings_bytes_limit ? settings_bytes_limit - text->size() : 0;
     scratch->outside_once_only = true;
     const Result<odex::Parsed> parsed = odex::read_statements(*scratch, *text, std::string(path));
     if (!parsed) return std::unexpected(parsed.error());

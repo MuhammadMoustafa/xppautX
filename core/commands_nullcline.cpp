@@ -1,6 +1,5 @@
 /* Nullclines' typed commands (W522), sharing nullcline.cpp's numerical routines. */
 #include "command_def.h"
-#include "load_eqn.h"
 #include "many_pops.h"
 #include "integrate.h"
 #include <limits>

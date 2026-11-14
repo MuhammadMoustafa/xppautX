@@ -5,7 +5,6 @@
 #include "session.h"
 #include "autox_state.h"
 #include "expr.h"
-#include "load_eqn.h"
 #include <cstdlib>
 #include <math.h>
 #include <stdio.h>
@@ -24,7 +23,7 @@
 #include "xpp_session_autox.h"
 
 #include "autox_stability.h"
-#include "model_files.h"
+#include "model_place.h"
 #include "xpp_ui.h"
 #include "xpp_math.h"
 #include "xpp_job.h"

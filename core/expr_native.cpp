@@ -38,9 +38,9 @@
 #include "xpp_mem.h"
 #include "session.h"
 #include "expr.h"
-#include "load_eqn.h"
 #include "model.h"
 #include "model_files.h"
+#include "model_place.h"
 #include "numerics_settings.h"
 #include "odex.h"
 #include "volterra.h"
@@ -798,7 +798,7 @@ std::vector<ModelProgram> model_programs(Model &m)
     }
     for (size_t i=0;i<m.flags.size();++i) {
         if (m.flags[i].comcond.rpn.empty()) continue;
-        const Place place=model_place(m,odex::Statement::Kind::Event,static_cast<int>(i));
+        const Place place=model_statement_place(m,odex::Statement::Kind::Event,static_cast<int>(i));
         add(m.flags[i].comcond,xpp::format("p_condition{}",i),place);
         for (size_t j=0;j<m.flags[i].comrhs.size();++j) add(m.flags[i].comrhs[j],xpp::format("p_event{}_{}",i,j),place);
     }
