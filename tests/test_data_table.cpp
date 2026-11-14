@@ -31,7 +31,7 @@ TEST_CASE("test_data_table")
     CHECK(!xpp::find_in_column(s, "V", 0));
     CHECK(!xpp::set_first_row(s, 0));
     CHECK(!xpp::restore_whole_data(s));
-    const auto run = xpp::run_from(s, xpp::RunFrom::initial);
+    const auto run = xpp::run_from(s, xpp::RunFrom::initial, xpp::RunReport{});
     CHECK(run.has_value());
     const int rows = s.data_store->rows;
     CHECK(rows == 601 && view.maxrow == rows && view.istart == 0 && view.iend == rows);

@@ -416,7 +416,7 @@ Result<> variance_back(xpp::Session &s)
   return stats_back(s,ColumnTable(s.stochastic->variance.data()));
 }
 
-Result<int> stochastic_integrate(xpp::Session &s)
+Result<int> stochastic_integrate(xpp::Session &s, const RunReport &report)
 {
   if(auto items=resolve_range_items(s,false);!items)return std::unexpected(items.error());
   if(auto allowed=run_allowed(s,"range");!allowed)return std::unexpected(allowed.error());
@@ -429,7 +429,7 @@ Result<int> stochastic_integrate(xpp::Session &s)
   } unflag{s};
   s.integrator->range.rtype=RANGE_SINGLE;
   RangeProgress done;
-  if(auto swept=run_range(s,0,&done);!swept)return std::unexpected(swept.error());
+  if(auto swept=run_range(s,0,&done,report);!swept)return std::unexpected(swept.error());
   redraw_ics();
   return done.runs;
 }

@@ -29,6 +29,23 @@ void set_colormap(Session &s, Colormap colormap);
 
 void dump_ps(Session &s, int i);
 
+/* What a command that starts a run shows of its results (integrate.h's RunReport): the run's nullclines and direction field in batch
+   mode and, when it ends, its curve frozen; a Range's movie frames, curve frozen and array plot, and its batch pictures; Range
+   Equilibria's movie frames; a boundary-value solve's curve frozen. */
+struct RunReport; /* integrate.h */
+RunReport run_report(Session &s);
+RunReport range_report(Session &s);
+RunReport equilibrium_range_report(Session &s);
+RunReport shoot_report(Session &s);
+
+/* The run as the plot windows show it. A step the integrator computed (the XppUi's step_computed): x the new state (time
+   first), xvold the one before, ddt the step's size, tc each variable's torus crossings */
+void plot_the_graphs(Session &s, float *xv, float *xvold, double ddt, const int *tc);
+/* the stored rows i1 to i2 of the data table drawn in the active window */
+void restore(Session &s, int i1, int i2);
+/* the pen's color by the velocity or the z value between v1 and v2 over dt (n variables) */
+void comp_color(Session &s, float *v1, float *v2, int n, float dt);
+
 struct DataTable; /* data_formats.h */
 /* The flags a graph's axes and grtype imply (ThreeDFlag, TimeFlag): the one
    rule, for the active window and for each extra window of a model */

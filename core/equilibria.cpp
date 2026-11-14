@@ -362,7 +362,7 @@ Result<> save_batch_shoot(Session &s,std::string_view file,bool confirm)
       s.numerics->delta_t=unstable?fabs(olddt):-fabs(olddt);
       s.data_store->current_time=BRANCH_START_TIME;
       const BranchStoreFrom branch(s);
-      if(const auto run=integrate_from(s,x.data());!run)return std::unexpected(run.error());
+      if(const auto run=integrate_from(s,x.data(),RunReport{});!run)return std::unexpected(run.error());
       if(job::cancelled())return {};
       const std::string name=files::output_name(file,".dat",xpp::format("eigen{}-{}",k,unstable?"unstable":"stable"));
       Result<> opened;

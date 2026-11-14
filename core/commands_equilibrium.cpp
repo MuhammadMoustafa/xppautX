@@ -107,7 +107,7 @@ Result<std::string> range(Session &s,const Command &c,const Arguments &a,const P
     r.movie=a.optional<bool>("movie").value_or(r.movie);r.mc=a.optional<bool>("monte_carlo").value_or(r.mc);
     if(const auto ready=prepare_equilibrium(s,c,p);!ready)return std::unexpected(ready.error());
     s.integrator->eq_range=std::move(r);
-    const auto run=equilibrium_range(s);
+    const auto run=equilibrium_range(s,equilibrium_range_report(s));
     if(!run)return std::unexpected(run.error());
     return xpp::format("{{\"points_found\":{}}}",*run);
 }

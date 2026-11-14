@@ -18,6 +18,7 @@ struct ShootRange {
 };
 
 struct Session; /* session.h */
+struct RunReport; /* integrate.h */
 struct ShootRange;
 
 
@@ -27,14 +28,14 @@ Result<> compile_bvp(Session &s);
 /* Range shoot over *s.shoot_range (the settings made): a solution for each parameter value, the values at its
    `side`, stored as rows; the solutions found (rows stored), or the error that stopped the sweep (shown by the
    command). ystart and yend hold the model's states, room for neq each. */
-Result<int> do_sh_range(Session &s, double *ystart, double *yend);
+Result<int> do_sh_range(Session &s, double *ystart, double *yend, const RunReport &report);
 /* the boundary-value commands (docs/protocol.md "boundary_value"), the one core each front end calls: solve from the
    initial data (show: every Newton step drawn, else only the solution) and make the solution the initial
    data; solve with the period as an unknown (the parameter `ipar`, 0-based, the variable `ivar` held at
    `sect` as the section), the period found; Range shoot over s.shoot_range. All store the solution's orbit. */
-Result<> bvp_solve(Session &s, bool show);
-Result<double> bvp_solve_periodic(Session &s, int ipar, int ivar, double sect, bool show);
-Result<int> bvp_solve_range(Session &s, const ShootRange *given = nullptr);
+Result<> bvp_solve(Session &s, bool show, const RunReport &report);
+Result<double> bvp_solve_periodic(Session &s, int ipar, int ivar, double sect, bool show, const RunReport &report);
+Result<int> bvp_solve_range(Session &s, const ShootRange *given, const RunReport &report);
 
 /* the solution the shooting found, integrated and stored (flag), or the
    error the integration failed with */

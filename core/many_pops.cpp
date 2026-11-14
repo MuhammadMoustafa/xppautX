@@ -147,6 +147,19 @@ std::string next_window_name(const Session &s, WindowKind kind)
     }
 }
 
+void open_diagram_window(Session &s)
+{
+    if (s.autox_state->bifur.exist) return;
+    s.autox_state->bifur.exist=1;
+    for (int i=0;i<static_cast<int>(s.autox_state->views.size());++i) {
+        auto &view=s.autox_state->views[i];
+        const auto existing=find_window(s,view.name);
+        if (existing && (existing->kind!=WindowKind::diagram || existing->index!=i))
+            view.name=next_window_name(s,WindowKind::diagram);
+    }
+    autox_window_opened(s);
+}
+
 std::string window_name(const Session &s, XppWinId handle)
 {
     if (handle==WIN_AUTOX) return s.autox_state->views[s.autox_state->active_view].name;
@@ -407,16 +420,6 @@ std::string split_json(const Session &s)
     json_append_string(o, s.selected_window);
     return o + '}';
 }
-
-void check_windows(xpp::Session &s)
-{
- double zip,zap;
- check_val(&s.plot_windows->current->xmin,&s.plot_windows->current->xmax,&s.plot_windows->current->xbar,&s.plot_windows->current->dx);
- check_val(&s.plot_windows->current->ymin,&s.plot_windows->current->ymax,&s.plot_windows->current->ybar,&s.plot_windows->current->dy);
- check_val(&s.plot_windows->current->zmin,&s.plot_windows->current->zmax,&s.plot_windows->current->zbar,&s.plot_windows->current->dz);
- check_val(&s.plot_windows->current->xlo,&s.plot_windows->current->xhi,&zip,&zap);
- check_val(&s.plot_windows->current->ylo,&s.plot_windows->current->yhi,&zip,&zap);
-} 
 
 void dump_ps(xpp::Session &s, int i)
 {

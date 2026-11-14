@@ -13,9 +13,6 @@
 #include "autox_data.h"
 #include "autox_evd.h"
 
-#include "picture.h"
-#include "graphics.h"
-#include "image_format.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <cmath>
@@ -197,10 +194,8 @@ std::string diagram_default_file(const xpp::Session &s, std::string_view what, s
   return xpp::files::output_name(s.model().this_file,extension,what);
 }
 
-namespace {
-
 /* a diagram export needs points */
-xpp::Result<> need_points(const xpp::Session &s)
+xpp::Result<> diagram_need_points(const xpp::Session &s)
 {
   if(diagram_count(*s.diagram)<2)return xpp::fail("autox","The diagram has no points to write",xpp::command_place());
   return {};
@@ -208,7 +203,7 @@ xpp::Result<> need_points(const xpp::Session &s)
 
 /* where an export goes: the file given (an argument), else the one the dialog asks for with the model's default name;
    nothing when declined */
-std::optional<std::string> export_target(const xpp::Session &s, const std::optional<std::string> &given, const char *title, const char *what, const char *extension)
+std::optional<std::string> diagram_export_target(const xpp::Session &s, const std::optional<std::string> &given, const char *title, const char *what, const char *extension)
 {
   if(given)return *given;
   std::string filename=diagram_default_file(s,what,extension);
@@ -216,12 +211,14 @@ std::optional<std::string> export_target(const xpp::Session &s, const std::optio
   return filename;
 }
 
+namespace {
+
 /* one of the diagram's text exports: its file (asked for or given), opened only when there are points to write, so an
    empty diagram leaves an existing file alone, written by `write`, committed. Nothing is written when declined. */
 template <class Write> xpp::Result<> export_text(xpp::Session &s, const std::optional<std::string> &file, const char *title, const char *what, Write write)
 {
-  if(const xpp::Result<> points=need_points(s);!points)return points;
-  const auto target=export_target(s,file,title,what,".dat");
+  if(const xpp::Result<> points=diagram_need_points(s);!points)return points;
+  const auto target=diagram_export_target(s,file,title,what,".dat");
   if(!target)return {};
   xpp::Result<> opened;
   xpp::Writer w=xpp::open_writer_asking(*target,false,&opened);
@@ -229,29 +226,6 @@ template <class Write> xpp::Result<> export_text(xpp::Session &s, const std::opt
   if(!w)return {};
   write(w);
   return xpp::commit_save(w);
-}
-
-/* the diagram as a picture in the vector format f, in the file given or asked for */
-xpp::Result<> export_diagram(xpp::Session &s, const std::optional<std::string> &file, const xpp::ImageFormat &f, std::optional<int> view)
-{
-  if(const xpp::Result<> points=need_points(s);!points)return points;
-  const auto target=export_target(s,file,f.name,"diagram",xpp::format(".{}",f.extension).c_str());
-  if(!target)return {};
-  if(const xpp::Result<> begun=xpp::begin_picture(s,f,*target);!begun)return begun;
-  if(!s.plot_file->writer)return {};
-  if(view)autox_activate_view(s,*view);
-  draw_export_axes(s);
-  int flag=0;
-  for(xpp::DIAGRAM &point:s.diagram->points){
-    xpp::DIAGRAM *d=&point;
-    const xpp::DiagramPointType type=xpp::get_bif_type(d->ibr,d->ntot);
-    if(d->ntot==1)flag=0;
-    else flag=1;
-    add_ps_point(s,*d,type,flag);
-  }
-  xpp::ok_or_show(xpp::end_picture(s));
-  set_normal_scale(s);
-  return {};
 }
 
 } // namespace
@@ -358,15 +332,6 @@ xpp::Result<> write_pts(xpp::Session &s, const std::optional<std::string> &file)
       }
     }
   });
-}
-
-/* the autoX File menu's PDF/SVG entries (W53, issue #101): one
-   function through the image_format.h registry in place of the former
-   post_autox/svg_autox pair, with model-based default names and
-   "*.pdf"/"*.svg" filter */
-xpp::Result<> export_autox_picture(xpp::Session &s, int fmt, const std::optional<std::string> &file, std::optional<int> view)
-{
-  return export_diagram(s,file,xpp::image_formats[fmt],view);
 }
 
 void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, double *yhi)

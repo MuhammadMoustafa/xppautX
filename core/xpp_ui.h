@@ -237,6 +237,8 @@ typedef struct XppUi {
     void (*redraw_bcs)(void);
     void (*redraw_delays)(void);
     void (*redraw_graph)(Session &s);
+    /* the plot settings were put in plot window `graph` (reset_graph): show it again with its new limits and axes */
+    void (*graph_settings_changed)(Session &s, int graph);
     void (*redraw_screens)(Session &s);   /* every plot window */
     void (*clear_screens)(Session &s);
     void (*clear_draw_window)(Session &s);
@@ -246,6 +248,10 @@ typedef struct XppUi {
        far, before data_changed at its end. Called for every row: keep it
        cheap (a front end that shows the run as it grows rate-limits itself) */
     void (*rows_stored)(Session &s, int nrows);
+    /* an integration step was computed, before it is stored: x the new state (the time first, then the variables and auxiliaries),
+       xold the one before (a periodic variable's torus crossings shifted into it), dt the step's size, crossings each variable's
+       count of torus crossings. Like rows_stored, once per step: keep it cheap */
+    void (*step_computed)(Session &s, std::span<float> x, std::span<float> xold, double dt, std::span<const int> crossings);
     /* Every accepted output step, before Poincare/transient filtering. */
     void (*live_state)(Session &s, const double *values, double time);
     void (*data_redraw)(int full); /* my_table: 1 columns too, 0 data */

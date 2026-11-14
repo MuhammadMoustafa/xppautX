@@ -802,7 +802,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     CHECK(xpp::autox_settings_apply(s,mark_set,why)==0);
     const xpp::AutoxSettingsSet before = xpp::autox_settings_now(xpp::client_session());
     /* a second view (W50), the norm, a zoom of its own; the first active */
-    xpp::autox_new_view(xpp::client_session());
+    xpp::autox_new_view(xpp::client_session(), xpp::next_window_name(xpp::client_session(), xpp::WindowKind::diagram));
     s.autox_state->views[1].axes.plot = xpp::AutoxProjection::norm;
     s.autox_state->views[1].axes.ymax = 5;
     s.autox_state->views[1].zoom.y = {true, 0.5, 1.5};

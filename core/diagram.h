@@ -55,10 +55,10 @@ xpp::Result<> write_pts(xpp::Session &s, const std::optional<std::string> &file)
 std::string diagram_default_file(const xpp::Session &s, std::string_view what, std::string_view extension);
 /* the points of branch ibr from pts to pte into the data table */
 xpp::Result<> load_data_with_branch(xpp::Session &s, int ibr, int pts, int pte);
-/* the diagram as a picture, in image_format.h's IMAGE_FORMAT_PS or
-   IMAGE_FORMAT_SVG (W53, issue #101; GIF has no vector picture to draw
-   here) */
-xpp::Result<> export_autox_picture(xpp::Session &s, int fmt, const std::optional<std::string> &file, std::optional<int> view = {});
+/* what every export of the diagram starts with: the diagram holds points, or why not; the file it goes to (the one given, else the
+   dialog's answer with the model's default name; nothing when declined) */
+xpp::Result<> diagram_need_points(const xpp::Session &s);
+std::optional<std::string> diagram_export_target(const xpp::Session &s, const std::optional<std::string> &given, const char *title, const char *what, const char *extension);
 void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, double *yhi);
 /* points, whole (a .snapx's diagram, xpp_session_autox.h), in place of the session
    s's diagram: each point's index set, the

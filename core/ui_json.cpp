@@ -632,12 +632,14 @@ XppUi make_json_ui(void)
     u.redraw_bcs = j_state_dirty;
     u.redraw_delays = j_state_dirty;
     u.redraw_graph = j_redraw_graph;
+    u.graph_settings_changed = j_graph_settings_changed;
     u.redraw_screens = j_redraw_screens;
     u.clear_screens = j_clear_screens;
     u.clear_draw_window = [](xpp::Session &s) { clr_scrn(s); };
     u.reset_graphics = j_reset_graphics;
     u.data_changed = j_data_changed;
     u.rows_stored = j_rows_stored;
+    u.step_computed = j_step_computed;
     u.live_state = j_live_state;
     u.data_redraw = j_data_changed;
     u.create_plot_window = j_create_plot_window;

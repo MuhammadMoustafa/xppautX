@@ -45,7 +45,7 @@ TEST_CASE("test_stochast_runs")
     xpp::client_session().integrator->range.rtype = 0;
 
     xpp::client_session().stochastic->flag = true;
-    int ierr = xpp::do_range(xpp::client_session(), xpp::client_session().data_store->current.data(), 0);
+    int ierr = xpp::do_range(xpp::client_session(), xpp::client_session().data_store->current.data(), 0, xpp::RunReport{});
     xpp::client_session().stochastic->flag = false;
 
     CHECK(ierr != -1);

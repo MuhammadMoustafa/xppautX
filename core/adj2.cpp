@@ -438,7 +438,7 @@ return {};
    to get an approximation
 */
 
-Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range)
+Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range, const RunReport &report)
 {
   if(!over_range){
     auto z=hrw_liapunov(s,s.numerics->equilibria.jacobian_step);
@@ -458,7 +458,7 @@ Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range)
   } sweep(s);
   s.integrator->range.rtype=RANGE_SINGLE;
   RangeProgress done;
-  if(auto swept=run_range(s,0,&done);!swept)return std::unexpected(swept.error());
+  if(auto swept=run_range(s,0,&done,report);!swept)return std::unexpected(swept.error());
   /* done the range */
   double largest=-std::numeric_limits<double>::infinity();
   const std::size_t points=s.adjoint->liap[0].size();

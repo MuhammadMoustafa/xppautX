@@ -25,6 +25,19 @@ namespace xpp {
 struct Session; /* session.h */
 struct RangeVars;
 
+/* What a run reports to the command that started it, each as data, once its result exists: the caller shows it (freezes the curve, takes
+   the movie's frame, draws; the integrators know no window). A member may be empty (a run its caller shows nothing of). `label` names
+   the run ("p=0.3  i=4": a sweep's, empty for a plain run). An error from `stored` stops a sweep and is its failure, but a Range
+   Equilibria step's, which goes on and tells it once the sweep has ended. */
+struct RunReport {
+  /* the run's rows are stored (a Range Equilibria step's equilibrium found), before the data table follows */
+  std::function<Result<>(std::string_view label)> stored;
+  /* the run is complete, the data table follows it */
+  std::function<void(std::string_view label)> done;
+  /* a sweep's run wrote its data file (the run's number, from 0): its picture goes with it */
+  std::function<void(int run)> written;
+};
+
 /* Decimal places, not significant digits. Double has digits10 reliable
    decimal digits; asking for more would imply unsupported precision. */
 inline constexpr int MAX_STEADY_DECIMALS = std::numeric_limits<double>::digits10;
@@ -64,7 +77,7 @@ class SteadyStateMonitor {
   double previous_time_ = 0, unchanged_ = 0;
 };
 Result<> validate_steady_state(SteadyStateSettings settings, double dt, double start);
-Result<> run_to_steady_state(Session &s, SteadyStateSettings settings);
+Result<> run_to_steady_state(Session &s, SteadyStateSettings settings, const RunReport &report);
 
 /* a line of initial data x[j1..j2](0)=formula (the parser's, which
    search_array hands it) kept in m's array initial values */
@@ -100,10 +113,10 @@ void init_range(Session &s);
 /* Continue (W213), the one way to extend the trajectory: to the time `until`, or for `extra` more,
    either rounded up to the output grid (Dt times Store every N steps) and appending rows at that
    stride; the end reached is the state's time */
-Result<bool> continue_to(Session &s, double until);
-Result<bool> continue_for(Session &s, double extra);
+Result<bool> continue_to(Session &s, double until, const RunReport &report);
+Result<bool> continue_for(Session &s, double extra, const RunReport &report);
 /* ... for another Total (Run duration): the key c, a user button's `c`, a `continue` with no value */
-Result<bool> continue_total(Session &s);
+Result<bool> continue_total(Session &s, const RunReport &report);
 int range_item(Session &s);
 int range_item2(Session &s);
 /* the type and index of what s.integrator->range names to vary (and the second item when `two`), or the error of one that is
@@ -120,10 +133,10 @@ void swap_color(Session &s, Color *col, int rorw);
    manifolds are shot in their own colors with the curve's pen) */
 void change_current_color(Session &s, const Color &newcolor, Color *old);
 void set_cycle(Session &s, int flag, int *icol);
-int do_range(Session &s, double *x, int flag);
-Result<int> equilibrium_range(Session &s);
+int do_range(Session &s, double *x, int flag, const RunReport &report);
+Result<int> equilibrium_range(Session &s, const RunReport &report);
 int write_this_run(Session &s, const char *file, int i);
-void run_now(Session &s);
+void run_now(Session &s, const RunReport &report);
 
 /* the runs, the one core each front end's command calls (docs/protocol.md "run"). Every one returns whether
    the run ended before its end without failing (an event's arret, a section that stops it, '/'; the
@@ -133,7 +146,7 @@ void run_now(Session &s);
    time (Backward) */
 enum class RunFrom { initial, old, last, shift, backward };
 /* reset_integrals: a run from the last state of an integral-equation method starts the integrals afresh (else they go on) */
-Result<bool> run_from(Session &s, RunFrom from, bool reset_integrals = false);
+Result<bool> run_from(Session &s, RunFrom from, const RunReport &report, bool reset_integrals = false);
 /* the states a graph plots against each other (0-based); the pair a click sets */
 struct Plane {
   int horizontal, vertical;
@@ -142,12 +155,12 @@ struct Plane {
 Result<Plane> window_plane(const Session &s, int graph);
 /* a run from the initial data with the plane's two states set to a click's plot coordinates, no data kept of the
    run before */
-Result<bool> run_from_click(Session &s, Plane plane, double horizontal, double vertical);
+Result<bool> run_from_click(Session &s, Plane plane, double horizontal, double vertical, const RunReport &report);
 /* one run from each click in turn, the first emptying the store, the rest added to it (suppress_bounds: Mice's
    runs ignore the state limit); the runs made (fewer when cancelled) */
-Result<int> run_from_clicks(Session &s, Plane plane, std::span<const std::pair<double, double>> clicks, bool suppress_bounds);
+Result<int> run_from_clicks(Session &s, Plane plane, std::span<const std::pair<double, double>> clicks, bool suppress_bounds, const RunReport &report);
 /* a run from manifold `index` (1-based) of the equilibria's shooting */
-Result<bool> run_from_manifold(Session &s, int index);
+Result<bool> run_from_manifold(Session &s, int index, const RunReport &report);
 /* what a range sweep did: the integrations it completed and the steps (rows) they stored */
 struct RangeProgress {
   int runs = 0;
@@ -155,11 +168,11 @@ struct RangeProgress {
 };
 /* the sweep over the settings in s.integrator->range (flag 0: one parameter, 1: two), what it completed in `done`
    when given; the sweep's end code (-1 when a run stopped early) or the error it failed with */
-Result<int> run_range(Session &s, int flag, RangeProgress *done);
+Result<int> run_range(Session &s, int flag, RangeProgress *done, const RunReport &report);
 /* the integration of x as the Session's settings say, after a run's start made: the one every run ends in */
-Result<bool> integrate_from(Session &s, double *x);
+Result<bool> integrate_from(Session &s, double *x, const RunReport &report);
 void do_start_flags(Session &s, double *x, double *t);
-int usual_integrate_stuff(Session &s, double *x); /* integrate_from, its error shown: 1 when it failed */
+int usual_integrate_stuff(Session &s, double *x); /* integrate_from with nothing reported, its error shown: 1 when it failed */
 void evaluate_ar_ic(Session &s, const char *v, const char *f, int j1, int j2);
 void arr_ic_start(Session &s);
 /* the initial conditions by formula (initial_conditions.set_by_formula): `variable` a state, or an array range name[j1..j2] whose
@@ -173,13 +186,8 @@ Result<std::vector<int>> set_ic_array(Session &s, std::string_view name, int siz
 void set_initial_data(Session &s, std::span<const double> state);
 void get_ic(Session &s, int it, double *x);
 void send_output(Session &s, double *y, double t);
-void do_plot(Session &s, float *oldxpl, float *oldypl, float *oldzpl, float *xpl, float *ypl, float *zpl);
-void plot_the_graphs(Session &s, float *xv, float *xvold, int node, int neq, double ddt, int *tc,int flag);
-void plot_one_graph(Session &s, float *xv, float *xvold, int node, int neq, double ddt, int *tc);
-void restore(Session &s, int i1, int i2);
-void comp_color(Session &s, float *v1, float *v2, int n, float dt);
 Result<> stor_full(Session &s);
-int do_autox_range_go(Session &s);
+int do_autox_range_go(Session &s, const RunReport &report);
 
 /* the model's array initial values (x[j1..j2](0)=formula, applied by
    arr_ic_start when set_all_vals sets the model up), element by element:

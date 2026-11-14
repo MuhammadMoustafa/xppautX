@@ -894,7 +894,6 @@ Result<int> restore_whole_data(xpp::Session &s)
  if(b.maxrow<=0)return fail("data","The data table holds no rows",command_place());
  b.istart=0;
  b.iend=b.maxrow;
- xpp::restore(s,b.istart,b.iend);
  ui.data_redraw(0);
  return b.maxrow-1;
 }

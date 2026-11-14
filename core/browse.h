@@ -205,7 +205,7 @@ Result<int> find_in_column(Session &s, std::string_view column, double value);
    `file`: the rows written, 0 when the user declined to replace the file */
 Result<std::size_t> tabulate_column(Session &s, std::string_view column, double xlo, double xhi, std::string_view file);
 /* First, Last (inclusive) and Restore: the row made the first or last one kept, and selected; the whole data
-   kept again and replotted. The row, or the last row of the data */
+   kept again (the caller replots them). The row, or the last row of the data */
 Result<int> set_first_row(Session &s, int row);
 Result<int> set_last_row(Session &s, int row);
 Result<int> restore_whole_data(Session &s);

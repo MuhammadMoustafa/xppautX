@@ -99,6 +99,18 @@ void redraw_graph(xpp::Session &s)
 
 void j_redraw_graph(xpp::Session &s) { redraw_graph(s); }
 
+void j_graph_settings_changed(xpp::Session &s, int graph)
+{
+    const xpp::ActiveGraph on(s, graph);
+    set_normal_scale(s);
+    redraw_graph(s);
+}
+
+void j_step_computed(xpp::Session &s, std::span<float> x, std::span<float> xold, double dt, std::span<const int> crossings)
+{
+    plot_the_graphs(s, x.data(), xold.data(), dt, crossings.data());
+}
+
 void j_redraw_screens(xpp::Session &s) { for_each_shown_window(s, 1, [&s] { j_redraw_all(s); }); }
 
 void j_clear_screens(xpp::Session &s)

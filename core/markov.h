@@ -10,6 +10,7 @@
 namespace xpp {
 
 struct Session; /* session.h */
+struct RunReport; /* integrate.h */
 
 void  make_gill_nu(Session &s, double *nu, int n, int m, double *v);
 void  one_gill_step(Session &s, int meth, int nrxn, int *rxn, double *v, double *r);
@@ -35,7 +36,7 @@ Result<> set_random_seed(Session &s, int seed);
 Result<> mean_back(Session &s);
 Result<> variance_back(Session &s);
 /* the Range settings' sweep as many independent runs whose mean and variance are kept: the runs completed */
-Result<int> stochastic_integrate(Session &s);
+Result<int> stochastic_integrate(Session &s, const RunReport &report);
 void  free_stoch(Session &s);
 void  init_stoch(Session &s, int len);
 void  append_stoch(Session &s, int first, int length);

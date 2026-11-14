@@ -15,7 +15,6 @@
 
 #include "expr.h"
 #include "browse.h"
-#include "graf_par.h"
 #include "integrate.h"
 #include "xpp_job.h"
 
@@ -84,7 +83,7 @@ xpp::Result<> compile_bvp(xpp::Session &s)
 }
 
 
-xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend)
+xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend, const xpp::RunReport &report)
 {
  double parlo,parhi,dpar,temp;
  int npar,i,j;
@@ -138,7 +137,7 @@ xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend)
      ping();
    }
   refresh_data(s,s.data_store->rows);
-  autox_freeze_it(s);     
+  if(report.done)report.done({});
  swap_color(s,&color,1);
  if(failure)return std::unexpected(std::move(*failure));
  if(!film)return std::unexpected(film.error());
@@ -177,7 +176,7 @@ struct ShootStoreFrom {
 
 /* the solution bvshoot found made the initial data and integrated and stored (the periodic solve's period
    back as it was when it found none) */
-xpp::Result<> keep_shot(xpp::Session &s, const xpp::Result<Shot> &shot, double *ystart, bool show, std::optional<std::pair<int,double>> period)
+xpp::Result<> keep_shot(xpp::Session &s, const xpp::Result<Shot> &shot, double *ystart, bool show, std::optional<std::pair<int,double>> period, const xpp::RunReport &report)
 {
  xpp::FirstError problems;
  const auto restore_period=[&]{if(period)set_val(s,s.model().upar_names[static_cast<std::size_t>(period->first)],period->second);};
@@ -199,14 +198,14 @@ xpp::Result<> keep_shot(xpp::Session &s, const xpp::Result<Shot> &shot, double *
  problems.keep(last_shot(s,1));
  s.numerics->inflag=true;
  refresh_data(s,s.data_store->rows);
- autox_freeze_it(s);
+ if(report.done)report.done({});
  ping();
  return problems.result();
 }
 
 } // namespace
 
-xpp::Result<> bvp_solve(xpp::Session &s, bool show)
+xpp::Result<> bvp_solve(xpp::Session &s, bool show, const xpp::RunReport &report)
 {
  if(auto begun=begin_shoot(s);!begun)return begun;
  const ShootStoreFrom store_from(s);
@@ -214,10 +213,10 @@ xpp::Result<> bvp_solve(xpp::Session &s, bool show)
  get_ic(s,1,ystart.data());
  const xpp::Result<Shot> shot=bvshoot(s,ystart.data(),yend.data(),s.numerics->bvp_tolerance,s.numerics->bvp_epsilon,s.numerics->bvp_max_iterates,s.model().node,show?1:0,
 	0,0,0,0.0);
- return keep_shot(s,shot,ystart.data(),show,std::nullopt);
+ return keep_shot(s,shot,ystart.data(),show,std::nullopt,report);
 }
 
-xpp::Result<double> bvp_solve_periodic(xpp::Session &s, int ipar, int ivar, double sect, bool show)
+xpp::Result<double> bvp_solve_periodic(xpp::Session &s, int ipar, int ivar, double sect, bool show, const xpp::RunReport &report)
 {
  if(s.model().nupar==0)
    return xpp::fail("boundary_value","The model has no parameter to be the frequency",xpp::command_place());
@@ -229,13 +228,13 @@ xpp::Result<double> bvp_solve_periodic(xpp::Session &s, int ipar, int ivar, doub
  get_val(s,s.model().upar_names[static_cast<std::size_t>(ipar)],&oldpar);
  const xpp::Result<Shot> shot=bvshoot(s,ystart.data(),yend.data(),s.numerics->bvp_tolerance,s.numerics->bvp_epsilon,s.numerics->bvp_max_iterates,s.model().node,show?1:0,
 	1,ipar,ivar,sect);
- if(auto kept=keep_shot(s,shot,ystart.data(),show,std::pair{ipar,oldpar});!kept)return std::unexpected(kept.error());
+ if(auto kept=keep_shot(s,shot,ystart.data(),show,std::pair{ipar,oldpar},report);!kept)return std::unexpected(kept.error());
  double period;
  get_val(s,s.model().upar_names[static_cast<std::size_t>(ipar)],&period);
  return period;
 }
 
-xpp::Result<int> bvp_solve_range(xpp::Session &s, const ShootRange *given)
+xpp::Result<int> bvp_solve_range(xpp::Session &s, const ShootRange *given, const xpp::RunReport &report)
 {
  const ShootRange &range=given?*given:*s.shoot_range;
  if(find_user_name(s.model(),PARAMBOX,range.item)<0)return fail("boundary_value",xpp::format("No such parameter {}",range.item),command_place());
@@ -244,7 +243,7 @@ xpp::Result<int> bvp_solve_range(xpp::Session &s, const ShootRange *given)
  const ShootStoreFrom store_from(s);
  std::vector<double> ystart(s.model().neq),yend(s.model().neq);
  get_ic(s,1,ystart.data());
- return do_sh_range(s,ystart.data(),yend.data());
+ return do_sh_range(s,ystart.data(),yend.data(),report);
 }
 
 xpp::Result<> last_shot(xpp::Session &s, int flag)

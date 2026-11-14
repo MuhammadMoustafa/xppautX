@@ -201,62 +201,6 @@ void set_extra_graphs(xpp::Session &s)
   }
 }
 
-void reset_graph(xpp::Session &s)
-{
-  if(s.plot_settings->axes>=5)
-    s.plot_settings->plot_3d=1;
-  else
-    s.plot_settings->plot_3d=0;
-  s.plot_windows->current->xv[0]=s.plot_settings->curves[0].x;
-  s.plot_windows->current->yv[0]=s.plot_settings->curves[0].y;
-  s.plot_windows->current->zv[0]=s.plot_settings->curves[0].z;
-   s.plot_windows->current->xmax=s.plot_settings->x_3d[1];
-    s.plot_windows->current->ymax=s.plot_settings->y_3d[1];
-    s.plot_windows->current->zmax=s.plot_settings->z_3d[1];
-    s.plot_windows->current->xbar=.5*(s.plot_settings->x_3d[1]+s.plot_settings->x_3d[0]);
-    s.plot_windows->current->ybar=.5*(s.plot_settings->y_3d[1]+s.plot_settings->y_3d[0]);
-    s.plot_windows->current->zbar=.5*(s.plot_settings->z_3d[1]+s.plot_settings->z_3d[0]);
-    s.plot_windows->current->dx=2./(s.plot_settings->x_3d[1]-s.plot_settings->x_3d[0]);
-    s.plot_windows->current->dy=2./(s.plot_settings->y_3d[1]-s.plot_settings->y_3d[0]);
-    s.plot_windows->current->dz=2./(s.plot_settings->z_3d[1]-s.plot_settings->z_3d[0]);
-    s.plot_windows->current->xmin=s.plot_settings->x_3d[0];
-    s.plot_windows->current->ymin=s.plot_settings->y_3d[0];
-    s.plot_windows->current->zmin=s.plot_settings->z_3d[0];
-    if(!s.plot_settings->plot_3d){ /* a 2D window is its limits; a 3D one's zoom fits its box (default_window) */
-      s.plot_windows->current->xlo=s.plot_settings->x_3d[0];
-      s.plot_windows->current->ylo=s.plot_settings->y_3d[0];
-      s.plot_windows->current->xhi=s.plot_settings->x_3d[1];
-      s.plot_windows->current->yhi=s.plot_settings->y_3d[1];
-    }
-    s.plot_windows->current->grtype=s.plot_settings->axes;
-    xpp::check_windows(s);
-    set_normal_scale(s);
-    ui.redraw_graph(s);
-}
-
-void get_graph(xpp::Session &s)
-{
- s.plot_settings->x_3d[0]=s.plot_windows->current->xmin;
- s.plot_settings->x_3d[1]=s.plot_windows->current->xmax;
-s.plot_settings->y_3d[0]=s.plot_windows->current->ymin;
- s.plot_settings->y_3d[1]=s.plot_windows->current->ymax;
-s.plot_settings->z_3d[0]=s.plot_windows->current->zmin;
- s.plot_settings->z_3d[1]=s.plot_windows->current->zmax;
-if(!s.plot_windows->current->ThreeDFlag){ /* the 2D window is the limits' one pair */
-  s.plot_settings->x_3d={s.plot_windows->current->xlo,s.plot_windows->current->xhi};
-  s.plot_settings->y_3d={s.plot_windows->current->ylo,s.plot_windows->current->yhi};
-}
-s.plot_settings->curves[0].x=s.plot_windows->current->xv[0];
-s.plot_settings->curves[0].y=s.plot_windows->current->yv[0];
-s.plot_settings->curves[0].z=s.plot_windows->current->zv[0];
-s.plot_settings->plot_3d=s.plot_windows->current->ThreeDFlag;
-if(s.plot_settings->plot_3d)
-  s.plot_settings->axes=5;
-else
-  s.plot_settings->axes=0;
-s.plot_settings->axes=s.plot_windows->current->grtype;  
-}
-
 void init_graph(xpp::Session &s, int i)
 {
  int j,k;

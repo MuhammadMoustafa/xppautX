@@ -5,6 +5,7 @@
    function the Stochastic, Adjoint, Poincare map, Phase space and Color code menus' items call after their
    questions (histogram.h, markov.h, adj2.h, do_fit.h, numerics.h, torus.h): one behaviour, whichever front
    end asks. */
+#include "graf_par.h"
 #include "browse.h"
 #include "command_def.h"
 #include "command_graph.h"
@@ -76,7 +77,7 @@ Result<std::string> stochastic_integrate_handler(Session &s, const Command &, co
     if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
     /* the runs are the Range settings' steps plus one: the sweep takes a run at each of the steps and at the start */
     if (const auto trials = args.optional<long long>("trials")) s.integrator->range.steps = static_cast<int>(*trials - 1);
-    const Result<int> runs = stochastic_integrate(s);
+    const Result<int> runs = stochastic_integrate(s, range_report(s));
     if (!runs) return std::unexpected<Error>(runs.error());
     return ResultObject().integer("trials_completed", *runs).done();
 }
@@ -228,7 +229,7 @@ Result<std::string> lyapunov_handler(Session &s, const Command &command, const A
     if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
         s.integrator->range=range;
     }
-    const Result<LyapunovResult> found = lyapunov_exponent(s, over_range);
+    const Result<LyapunovResult> found = lyapunov_exponent(s, over_range, range_report(s));
     if (!found) return std::unexpected<Error>(found.error());
     return ResultObject().real("max_lyapunov_exponent", found->exponent).integer("runs_completed", found->runs).done();
 }

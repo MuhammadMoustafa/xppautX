@@ -75,6 +75,7 @@ Result<std::string> restore_full_slice(Session &s, const Command &, const Argume
 {
     const Result<int> last = restore_whole_data(s);
     if (!last) return std::unexpected<Error>(last.error());
+    restore(s, s.data->view.istart, s.data->view.iend);
     return ResultObject().integer("first_row", 0).integer("last_row", *last).done();
 }
 

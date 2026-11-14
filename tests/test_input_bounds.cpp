@@ -58,7 +58,7 @@ TEST_CASE("test_input_bounds")
         s.data_store->allocate(2,s.model().neq+1,s.numerics->storage_precision);
         fail_growth(fail);
         s.data_store->current[0]=1;
-        const auto result=xpp::equilibrium_range(s);
+        const auto result=xpp::equilibrium_range(s, xpp::RunReport{});
         CHECK(result.has_value()!=fail);
         if(result)CHECK(*result==10);
         CHECK(s.data_store->rows==(fail?2:10));
@@ -76,7 +76,7 @@ TEST_CASE("test_input_bounds")
         s.data_store->allocate(2,s.model().neq+1,s.numerics->storage_precision);
         fail_growth(fail);
         double start=1,end=1;
-        const xpp::Result<int> swept=xpp::do_sh_range(s,&start,&end);
+        const xpp::Result<int> swept=xpp::do_sh_range(s,&start,&end,xpp::RunReport{});
         CHECK(swept.has_value()==!fail);
         CHECK(fail?(!swept&&swept.error().where=="storage"):*swept==10);
         CHECK(s.data_store->rows==(fail?2:10));

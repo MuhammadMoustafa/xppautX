@@ -3,6 +3,8 @@
    File menu's exports and imports. Each handler gets its arguments validated and typed (command_def.h) and calls the
    core function the autoX window's keys call after their questions, so a script, the page and the keys do one thing.
    Closing a view, selecting one and the autoX window's own close are window.close and window.select (W353). */
+#include "graf_par.h"
+#include "diagram_export.h"
 #include "command_def.h"
 #include "command_registry.h"
 #include "autox_run.h"
@@ -177,7 +179,7 @@ Result<std::string> configure_marks(Session &s, const Command &command, const Ar
 
 Result<std::string> open_autox(Session &s, const Command &, const Arguments &, const Place &)
 {
-    do_autox_win(s);
+    open_diagram_window(s);
     return xpp::format("{{\"open\":{}}}", s.autox_state->bifur.exist != 0);
 }
 
@@ -218,7 +220,7 @@ Result<std::string> run_autox(Session &s, const Command &command, const Argument
         return std::unexpected<Error>(as_command_error(command,checked.error(),place));
     if(args.has("decimals")){
         const SteadyStateSettings settle{static_cast<int>(args.get<long long>("decimals")),args.get<double>("hold"),args.get<double>("maximum")};
-        if(const auto settled=run_to_steady_state(s,settle); !settled)return std::unexpected<Error>(settled.error());
+        if(const auto settled=run_to_steady_state(s,settle,run_report(s)); !settled)return std::unexpected<Error>(settled.error());
         set_initial_data(s,std::span<const double>(s.data_store->current.data(),static_cast<std::size_t>(s.model().node)));
     }
     if(point)autox_grab_label(s,point->lab);
@@ -307,7 +309,7 @@ Result<std::string> run_script(Session &s, const Command &command, const Argumen
         first = static_cast<std::size_t>(at - script.runs.begin());
         last = first + 1;
     }
-    if (!s.autox_state->bifur.exist) do_autox_win(s);
+    open_diagram_window(s);
     long long computed = 0;
     std::size_t completed = 0;
     for (std::size_t i = first; i < last; ++i) {
@@ -430,8 +432,8 @@ Result<std::string> set_display(Session &s, const Command &command, const Argume
 
 Result<std::string> new_view(Session &s, const Command &, const Arguments &, const Place &)
 {
-    if (!s.autox_state->bifur.exist) do_autox_win(s);
-    else autox_new_view(s);
+    if (!s.autox_state->bifur.exist) open_diagram_window(s);
+    else autox_new_view(s, next_window_name(s, WindowKind::diagram));
     return view_result(s);
 }
 
@@ -615,7 +617,7 @@ Result<std::string> range_branch(Session &s, const Command &command, const Argum
 {
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
     if (const Result<> marked = mark_stretch(s, command, args, place); !marked) return std::unexpected<Error>(marked.error());
-    do_autox_range(s);
+    do_autox_range(s,range_report(s));
     return xpp::format("{{\"runs_completed\":{}}}", std::abs(std::abs(s.autox_state->diagram_mark.end_point) - std::abs(s.autox_state->diagram_mark.start_point)) + 1);
 }
 

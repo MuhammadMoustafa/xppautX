@@ -93,7 +93,7 @@ std::vector<std::vector<double>> run_stored(xpp::StoragePrecision precision, std
     xpp::batch_start(s);
     s.numerics->storage_precision = precision;
     xpp::storage_precision_changed(s);
-    CHECK(xpp::run_from(s, xpp::RunFrom::initial).has_value());
+    CHECK(xpp::run_from(s, xpp::RunFrom::initial, xpp::RunReport{}).has_value());
     std::vector<std::vector<double>> columns;
     for (int c = 0; c <= s.model().neq; c++) columns.push_back(s.data_store->col[c].values(0, s.data_store->rows));
     final_state = s.data_store->current;

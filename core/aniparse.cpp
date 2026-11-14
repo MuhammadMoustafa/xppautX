@@ -6,6 +6,7 @@
    (the "frame sinks" below), which keeps it in unit coordinates for a front
    end that draws it itself (docs/protocol.md "The animation as data"). */
 #include "xpp_io.h"
+#include "graf_par.h"
 #include "xpp_files.h"
 #include "xpp_zip.h"
 #include "xpp_path.h"
@@ -1719,7 +1720,7 @@ void ani_grab_mouse(xpp::Session &s, int flag, double x, double y)
         s.animation->grab_flag = 0;
         redraw_params();
         if (run_now_grab(s)) {
-            xpp::run_now(s);
+            xpp::run_now(s,run_report(s));
             s.animation->grab_flag = 0;
         }
     }

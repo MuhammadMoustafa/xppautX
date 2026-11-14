@@ -76,6 +76,8 @@ void split_upkeep(Session &s);
    window is the focused group's shown one) */
 std::string split_json(const Session &s);
 std::string next_window_name(const Session &s, WindowKind kind);
+/* the autoX window opened, unless it is: the views count as windows from now on, one named like another window is renamed (next_window_name), then the front end is asked to make it */
+void open_diagram_window(Session &s);
 std::string window_name(const Session &s, XppWinId handle);
 /* the animation's and the array plot's names, which no session changes */
 std::string_view fixed_window_name(XppWinId handle);
@@ -83,14 +85,12 @@ std::string window_name_problem(std::string_view name);
 std::string window_name_problem(const Session &s, std::string_view name, std::string_view replacing = {});
 /* The session s's plot windows: which are open (set_active_windows), the
    active one (make_active), the plot window (its graph's index) whose
-   window is w (graph_of; 0, the main one, when none in use is), and the
-   active window's bounds made valid (check_windows) */
+   window is w (graph_of; 0, the main one, when none in use is) */
 void set_active_windows(Session &s);
 /* Create and activate a graph; the UI callback only presents its surface. */
 void create_a_pop(Session &s, std::string_view name = {});
 void make_active(Session &s, int i, int flag);
 int graph_of(const Session &s, XppWinId w);
-void check_windows(Session &s);
 /* f() on the active plot window of s, or under Simulplot on each open one
    in turn (made active with make_active(s, i, flag)), the active one made
    active again after */

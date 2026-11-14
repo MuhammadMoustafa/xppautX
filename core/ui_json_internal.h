@@ -434,6 +434,8 @@ void j_blank_draw_window(xpp::Session &s);
 void j_redraw_all(xpp::Session &s);
 void redraw_graph(xpp::Session &s);
 void j_redraw_graph(xpp::Session &s);
+void j_graph_settings_changed(xpp::Session &s, int graph);
+void j_step_computed(xpp::Session &s, std::span<float> x, std::span<float> xold, double dt, std::span<const int> crossings);
 void j_redraw_screens(xpp::Session &s);
 void j_clear_screens(xpp::Session &s);
 void j_reset_graphics(xpp::Session &s);

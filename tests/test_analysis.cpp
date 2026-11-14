@@ -49,7 +49,7 @@ TEST_CASE("test_analysis")
     CHECK(!xpp::load_adjoint(s) && !xpp::load_interaction(s) && !xpp::reload_histogram(s));
     CHECK(!xpp::new_adjoint(s));
 
-    CHECK(xpp::run_from(s, xpp::RunFrom::initial));
+    CHECK(xpp::run_from(s, xpp::RunFrom::initial, xpp::RunReport{}));
     const int v = variable_column(s, "v");
     CHECK(v == 1);
 

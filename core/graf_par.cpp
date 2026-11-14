@@ -36,6 +36,8 @@
 #include "grobs.h"
 #include "arrayplot.h"
 #include "integrate.h"
+#include "phase_data.h"
+#include "xpp_globals.h"
 #include "display_state.h"
 #include "picture.h"
 #include "autox_codes.h"
@@ -146,7 +148,7 @@ Result<> set_axes_view(xpp::Session &s, int ind, bool three, const AxesView &v)
     g.yhi=g.ymax;
   }
   g.grtype=three?5:0;
-  xpp::check_windows(s);
+  xpp::check_windows(*s.plot_windows->current);
   check_flags(g);
   if(three)make_rot(s,g.Theta,g.Phi);
   redraw_the_graph(s);
@@ -242,7 +244,7 @@ void default_window(xpp::Session &s)
 	      corner_cube(s,&(s.plot_windows->current->xlo),&(s.plot_windows->current->xhi),&(s.plot_windows->current->ylo),&(s.plot_windows->current->yhi));
 	      pretty(&(s.plot_windows->current->xlo),&(s.plot_windows->current->xhi));
 	      pretty(&(s.plot_windows->current->ylo),&(s.plot_windows->current->yhi));
-	      xpp::check_windows(s); 
+	      xpp::check_windows(*s.plot_windows->current); 
 	}
 	else  
     	{
@@ -258,7 +260,7 @@ void default_window(xpp::Session &s)
 	      s.plot_windows->current->ylo=s.plot_windows->current->ymin;
 	      s.plot_windows->current->xhi=s.plot_windows->current->xmax;
 	      s.plot_windows->current->yhi=s.plot_windows->current->ymax;
-	      xpp::check_windows(s);
+	      xpp::check_windows(*s.plot_windows->current);
 	}
 	
 	redraw_the_graph(s);
@@ -331,7 +333,7 @@ void fit_window(xpp::Session &s)
     corner_cube(s,&(s.plot_windows->current->xlo),&(s.plot_windows->current->xhi),&(s.plot_windows->current->ylo),&(s.plot_windows->current->yhi));
     pretty(&(s.plot_windows->current->xlo),&(s.plot_windows->current->xhi));
     pretty(&(s.plot_windows->current->ylo),&(s.plot_windows->current->yhi));
-    xpp::check_windows(s);
+    xpp::check_windows(*s.plot_windows->current);
   }
   else  
     {
@@ -347,7 +349,7 @@ void fit_window(xpp::Session &s)
       s.plot_windows->current->ylo=s.plot_windows->current->ymin;
       s.plot_windows->current->xhi=s.plot_windows->current->xmax;
       s.plot_windows->current->yhi=s.plot_windows->current->ymax;
-      xpp::check_windows(s);
+      xpp::check_windows(*s.plot_windows->current);
     }
   redraw_the_graph(s);
 }
@@ -373,7 +375,7 @@ Result<> variable_vs_time(xpp::Session &s, std::string_view name)
  g.ylo=g.ymin;
  g.xhi=g.xmax;
  g.yhi=g.ymax;
- xpp::check_windows(s);
+ xpp::check_windows(*s.plot_windows->current);
  check_flags(g);
  set_normal_scale(s);
  redraw_the_graph(s);
@@ -412,7 +414,7 @@ void update_view(xpp::Session &s, double xlo,double xhi, double ylo, double yhi)
 	      s.plot_windows->current->ymin=s.plot_windows->current->ylo;
 	      s.plot_windows->current->ymax=s.plot_windows->current->yhi;
 	      }
-	      xpp::check_windows(s);
+	      xpp::check_windows(*s.plot_windows->current);
             
  redraw_the_graph(s);
 
@@ -965,6 +967,212 @@ xpp::DataTable plot_curves_table(const xpp::Session &s)
     id++;
   }
   return t;
+}
+
+  /* the segment or the point of curve ip, in the pen its color and style make */
+static void draw_curve_step(xpp::Session &s, int ip, float oldx, float oldy, float oldz, float x, float y, float z)
+{
+  const xpp::LineStyle &style=s.plot_windows->current->style[ip];
+  const bool flat=s.plot_windows->current->ThreeDFlag==0;
+  if(style.draw!=xpp::LineDraw::points){
+    if(flat)line_abs(s,oldx,oldy,x,y);
+    else line_3d(s,oldx,oldy,oldz,x,y,z);
+  }
+  if(style.draw!=xpp::LineDraw::line){
+    if(flat)point_abs(s,x,y);
+    else point_3d(s,x,y,z);
+  }
+}
+
+static void do_plot(xpp::Session &s, float *oldxpl, float *oldypl, float *oldzpl, float *xpl, float *ypl, float *zpl)
+{
+	int ip,np=s.plot_windows->current->nvars;
+        
+        for(ip=0;ip<np;ip++){
+           if(s.plot_windows->current->ColorFlag==0)
+	     xpp::set_pen(s,s.plot_windows->current->color[ip],s.plot_windows->current->style[ip]);
+           else xpp::set_pen_style(s,s.plot_windows->current->style[ip]);
+           draw_curve_step(s,ip,oldxpl[ip],oldypl[ip],oldzpl[ip],xpl[ip],ypl[ip],zpl[ip]);
+       }
+}
+
+/*
+ old restore is in restore.c
+
+*/
+
+/* the run's step as the plot windows show it: each shown window (the active one, or every open one under Simulplot) takes the
+   segment the step made, in its curves' pens; the Flow's trajectory records it as data */
+void plot_the_graphs(xpp::Session &s, float *xv, float *xvold, double ddt, const int *tc)
+{
+ for_each_shown_window(s,0,[&]{
+ auto &points=s.plot_windows->current->plot_points;
+ float *oldxpl=points[0].data(), *oldypl=points[1].data(), *oldzpl=points[2].data();
+ float *xpl=points[3].data(), *ypl=points[4].data(), *zpl=points[5].data();
+ const int NPlots=s.plot_windows->current->nvars;
+ const int *xvar=s.plot_windows->current->xv.data();
+ const int *yvar=s.plot_windows->current->yv.data();
+ const int *zvar=s.plot_windows->current->zv.data();
+ for(int ip=0;ip<s.model().neq;ip++){
+   if(s.itor[ip]==1)
+     xvold[ip+1]=xvold[ip+1]+tc[ip]*s.numerics->torus_period;
+ }
+ for(int ip=0;ip<NPlots;ip++){
+ oldxpl[ip]=xvold[xvar[ip]];
+ oldypl[ip]=xvold[yvar[ip]];
+ oldzpl[ip]=xvold[zvar[ip]];
+ xpl[ip]=xv[xvar[ip]];
+ ypl[ip]=xv[yvar[ip]];
+ zpl[ip]=xv[zvar[ip]];
+ }
+ if(s.plot_windows->current->ColorFlag)
+   comp_color(s,xv,xvold,s.model().node,static_cast<float>(ddt));
+ do_plot(s,oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
+ phase_data_flow_step(s,NPlots,oldxpl,oldypl,xpl,ypl,s.plot_windows->current->color.data()); /* Dir.field/flow's Flow as data */
+ });
+}
+
+void restore(xpp::Session &s, int i1, int i2)
+{
+  int ip,np=s.plot_windows->current->nvars;
+  int ZSHFT,YSHFT,XSHFT;
+  int i,j,kxoff,kyoff,kzoff;
+  int iiXPLT,iiYPLT,iiZPLT;
+  float oldxpl,oldypl,oldzpl,xpl,ypl,zpl;
+  std::vector<float> v1(s.model().neq+1),v2(s.model().neq+1);
+  ColumnTable data;
+
+  data=get_table_data(s);
+  XSHFT=s.plot_windows->current->xshft;
+  YSHFT=s.plot_windows->current->yshft;
+  ZSHFT=s.plot_windows->current->zshft;
+  if(i1<ZSHFT)i1=ZSHFT;
+  if(i1<YSHFT)i1=YSHFT;
+  if(i1<XSHFT)i1=XSHFT;
+  if(s.data_store->rows<2)return;
+
+   for(ip=0;ip<np;ip++){
+     xpp::picture_group(s, true);
+     kxoff=i1-XSHFT;
+     kzoff=i1-ZSHFT;
+     kyoff=i1-YSHFT;
+
+    iiXPLT=s.plot_windows->current->xv[ip];
+    iiYPLT=s.plot_windows->current->yv[ip];
+    iiZPLT=s.plot_windows->current->zv[ip];
+    xpp::set_pen(s,s.plot_windows->current->color[ip],s.plot_windows->current->style[ip]);
+    oldxpl=data[iiXPLT][kxoff];
+    oldypl=data[iiYPLT][kyoff];
+    oldzpl=data[iiZPLT][kzoff];
+    for(i=i1;i<i2;i++){
+      {
+	xpl=data[iiXPLT][kxoff];
+	ypl=data[iiYPLT][kyoff];
+	zpl=data[iiZPLT][kzoff];
+      }
+      
+      if(s.numerics->torus)
+      {
+	if (fabs(oldxpl-xpl)>static_cast<float>((.5*s.numerics->torus_period)))oldxpl=xpl;
+	if (fabs(oldypl-ypl)>static_cast<float>((.5*s.numerics->torus_period)))oldypl=ypl;
+	if (fabs(oldzpl-zpl)>static_cast<float>((.5*s.numerics->torus_period)))oldzpl=zpl;
+      }
+      if(s.plot_windows->current->ColorFlag!=0&&i>i1){
+	  for(j=0;j<=s.model().neq;j++){
+	    v1[j]=data[j][i];
+	    v2[j]=data[j][i-1];
+	  }
+
+	  comp_color(s,v1.data(),v2.data(),s.model().node,
+		     static_cast<float>(fabs(data[0][i]-data[0][i+1])));
+	}
+      draw_curve_step(s,ip,oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
+     /*noplot:*/
+      oldxpl=xpl;
+      oldypl=ypl;
+      oldzpl=zpl;
+      kxoff++;
+      kyoff++;
+      kzoff++;
+     
+    }
+    xpp::picture_group(s, false);
+    
+  }
+}
+
+/*  Sets the color according to the velocity or z-value */
+void comp_color(xpp::Session &s, float *v1, float *v2, int n, float dt)
+{
+ int i;
+ float sum;
+ float min_scale=static_cast<float>((s.plot_windows->current->min_scale));
+ float color_scale=static_cast<float>((s.plot_windows->current->color_scale));
+ if(s.plot_windows->current->ColorFlag==2){
+   sum=v1[s.plot_windows->current->ColorValue];
+ }
+ else
+   {
+     for(i=0,sum=0.0;i<n;i++)sum+=static_cast<float>(fabs(static_cast<double>((v1[i+1]-v2[i+1]))));
+     sum=sum/(dt);
+   }
+ xpp::set_pen_color(s,xpp::ramp_color(s.ramp(),static_cast<double>((sum-min_scale)/color_scale)));
+}
+
+RunReport run_report(Session &s)
+{
+  RunReport report;
+  report.stored=[&s](std::string_view)->Result<>{
+    do_batch_nclines(s);
+    do_batch_dfield(s);
+    return {};
+  };
+  report.done=[&s](std::string_view){autox_freeze_it(s);};
+  return report;
+}
+
+RunReport range_report(Session &s)
+{
+  RunReport report;
+  report.stored=[&s](std::string_view)->Result<>{
+    if(s.integrator->range.movie){
+      redraw_dfield(s);
+      create_new_cline(s);
+      draw_label(s,s.plot_windows->draw_win);
+      if(const Result<> framed=ui.film_clip(s);!framed)return framed; /* out of film: the sweep ends */
+    }
+    do_batch_nclines(s);
+    do_batch_dfield(s);
+    return {};
+  };
+  report.done=[&s](std::string_view label){
+    if(s.data_store->rows>2)autox_freeze_it(s);
+    if(s.array_plot->range==1)draw_one_array_plot(s,label);
+  };
+  report.written=[&s](int run){
+    if(!program.interactive&&!s.picture_file.empty())dump_ps(s,run);
+  };
+  return report;
+}
+
+RunReport equilibrium_range_report(Session &s)
+{
+  RunReport report;
+  report.stored=[&s,film=Result<>{}](std::string_view) mutable ->Result<>{
+    if(s.integrator->eq_range.movie){
+      draw_label(s,s.plot_windows->draw_win);
+      if(film)film=ui.film_clip(s); /* out of film, the sweep goes on without frames */
+    }
+    return film;
+  };
+  return report;
+}
+
+RunReport shoot_report(Session &s)
+{
+  RunReport report;
+  report.done=[&s](std::string_view){autox_freeze_it(s);};
+  return report;
 }
 
 } // namespace xpp

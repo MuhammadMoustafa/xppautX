@@ -14,6 +14,7 @@ namespace xpp { class BlockLu; }
 namespace xpp {
 
 struct Session; /* session.h */
+struct RunReport; /* integrate.h */
 
 /* adj2.cpp's derived data sets, a Session's (session.h): the adjoint, its
    H function and the transposed data, each its own columns with the
@@ -77,7 +78,7 @@ struct LyapunovResult {
   double exponent;
   int runs;
 };
-Result<LyapunovResult> lyapunov_exponent(Session &s, bool over_range);
+Result<LyapunovResult> lyapunov_exponent(Session &s, bool over_range, const RunReport &report);
 void do_this_liaprun(Session &s, double p);
 
 /* adjoints and the maximal Liapunov exponent return why they failed; the

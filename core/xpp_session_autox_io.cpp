@@ -14,6 +14,7 @@
 #include "autox_nox.h"
 #include "autox_settings.h"
 #include "diagram.h"
+#include "many_pops.h"
 #include "autox_axis.h"
 #include "display_state.h"
 #include "odex_block.h"
@@ -171,7 +172,7 @@ Result<> restore_members(Session &s, Members m)
         if (!w || !w.write(m.solutions) || !w.commit())
             return xpp::fail("session autoX", "autoX's restart solutions cannot be written", Place{solutions_path});
         s.autox_state->solutions_index.reset(); /* the file is another one */
-        if (!s.autox_state->bifur.exist) do_autox_win(s);
+        open_diagram_window(s);
     }
     std::string why;
     autox_settings_apply(s, m.settings, why); /* members_read checked it */

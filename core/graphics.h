@@ -22,7 +22,7 @@ void set_scale(Session &s, double x1, double y1, double x2, double y2);
    picture file begun (*s.plot_file): its scale and drawing area, the
    device primitives, the plot's world coordinates' lines, points and
    text, 2D and 3D (point_abs, line_abs, line_3d ...), and the plot
-   windows' settings (init_all_graph, reset_graph, get_graph ...) */
+   windows' settings (init_all_graph, init_graph ...) */
 void get_draw_area_flag(Session &s, int flag);
 void get_draw_area(Session &s);
 void set_normal_scale(Session &s);
@@ -38,8 +38,6 @@ void scale_dxdy(const Session &s, float x, float y, double *i, double *j);
 void scale_to_screen(const Session &s, float x, float y, int *i, int *j);
 void init_all_graph(Session &s);
 void set_extra_graphs(Session &s);
-void reset_graph(Session &s);
-void get_graph(Session &s);
 void init_graph(Session &s, int i);
 void copy_graph(Session &s, int i, int l);
 void make_rot(Session &s, double theta, double phi);

@@ -12,6 +12,7 @@
 #include <cstddef>
 #include "xpp_error.h"
 #include "autox_codes.h"
+#include "colormap.h"
 #include "autox_axis.h"
 
 
@@ -20,6 +21,7 @@ struct AutoxRun; /* autox_state.h */
 namespace xpp {
 
 struct Session; /* session.h */
+struct RunReport; /* integrate.h */
 class TokenReader;
 /* The twelve fort.8 header fields, read and bounded once for every autoX
    restart/orbit reader and the session's untrusted solution member. */
@@ -171,7 +173,6 @@ typedef struct {
   double xmin,ymin,xmax,ymax;
 }  AUTOAX;
 
-void draw_export_axes(Session &s);
 void draw_bif_axes(Session &s);
 int IXVal(const Session &s, double x);
 int IYVal(const Session &s, double y);
@@ -244,7 +245,7 @@ void autox_default(Session &s);
    Axes menu, zoom, the exports and a run's parameters then use; 0 when
    there is no view k. Each draws the diagram again when autoX's window is
    open. */
-void autox_new_view(Session &s);
+void autox_new_view(Session &s, std::string name);
 int autox_close_view(Session &s, int k);
 int autox_activate_view(Session &s, int k);
 /* the active view shows this box of its quantities, x1 below x2 and y1 below y2, or the box a zoom out shrinks it into
@@ -257,9 +258,8 @@ void autox_scroll_by(Session &s, double dx, double dy);
 /* where view ax plots a point: x, and y1 and y2 (the maximum and minimum,
    or y1 twice) */
 void autox_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> ubar, double a);
-/* the stored point d into the PDF or SVG picture being written
-   (type its get_bif_type, flag 0 for a branch's first point) */
-void add_ps_point(Session &s, const DIAGRAM &d, DiagramPointType type, int flag);
+/* the color of the two-parameter curve of kind flag2 */
+xpp::Color two_parameter_color(AutoxCalculation flag2);
 /* the label the running continuation started from, once: for its first point */
 int autox_run_from_take(AutoxRun &run);
 /* the stored point d (its branch, point and type, its entry in the
@@ -273,7 +273,9 @@ void add_point(Session &s, const DIAGRAM &d, DiagramPointType type, int flag);
 void add_live_point(Session &s, const DIAGRAM &d, int live, DiagramPointType type, int flag);
 /* the info strip's line for the stored point d */
 void traverse_out(Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw);
-void do_autox_win(Session &s);
+/* the diagram window open (bifur.exist set): its active view selected, the front end asked to make it. many_pops.h's open_diagram_window
+   is how it opens, with every view named apart from the other windows first */
+void autox_window_opened(Session &s);
 /* the axes a one-parameter and a two-parameter view had last
    (AutoxState::old1p, old2p): the Axes menu's last 1 par and last 2 par */
 enum class LastPlot { OneParameter, TwoParameter };
@@ -323,7 +325,7 @@ void setautoxpoint(Session &s);
 
 void find_point(Session &s, int ibr, int pt);
 void autox_set_mark(Session &s, int i);
-void do_autox_range(Session &s);
+void do_autox_range(Session &s, const RunReport &report);
 
 /* orbit lab of the solution file into the data (a labelled point's, when
    a grab or a diagram point asks for it); what failed otherwise, for the

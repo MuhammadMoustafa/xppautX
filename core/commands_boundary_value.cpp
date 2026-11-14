@@ -5,6 +5,7 @@
 #include "command_def.h"
 #include "integrate.h"
 #include "pp_shoot.h"
+#include "graf_par.h"
 #include "session.h"
 #include "typed_values.h"
 #include "event_registry.h"
@@ -23,7 +24,7 @@ namespace {
 
 Result<std::string> bvp_solve_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    const Result<> solved = bvp_solve(s, args.get<bool>("show"));
+    const Result<> solved = bvp_solve(s, args.get<bool>("show"), shoot_report(s));
     if (!solved) return std::unexpected<Error>(solved.error());
     return ResultObject().boolean("converged", true).done();
 }
@@ -32,7 +33,7 @@ Result<std::string> bvp_periodic_handler(Session &s, const Command &, const Argu
 {
     const int parameter = find_user_name(s.model(), PARAMBOX, args.get<std::string>("frequency_parameter"));
     const int variable = find_user_name(s.model(), ICBOX, args.get<std::string>("section_variable"));
-    const Result<double> period = bvp_solve_periodic(s, parameter, variable, args.get<double>("section"), args.get<bool>("show"));
+    const Result<double> period = bvp_solve_periodic(s, parameter, variable, args.get<double>("section"), args.get<bool>("show"), shoot_report(s));
     if (!period) return std::unexpected<Error>(period.error());
     return ResultObject().boolean("converged", true).real("period", *period).done();
 }
@@ -47,7 +48,7 @@ Result<std::string> bvp_range_handler(Session &s, const Command &, const Argumen
     if (const auto cycle = args.optional<bool>("cycle_color")) range.cycle = *cycle;
     if (const auto side = args.optional<std::string>("side")) range.side = *side == SHOOT_SIDE_NAMES[1] ? SHOOT_SIDE_END : SHOOT_SIDE_START;
     if (const auto movie = args.optional<bool>("movie")) range.movie = *movie;
-    const Result<int> found = bvp_solve_range(s, &range);
+    const Result<int> found = bvp_solve_range(s, &range, shoot_report(s));
     if (!found) return std::unexpected<Error>(found.error());
     return ResultObject().integer("solutions_found", *found).done();
 }

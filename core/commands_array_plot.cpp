@@ -1,7 +1,9 @@
 /* The array plot's registry rows (W527): its window, its settings (the columns, the rows and the color scale's
    ends), its time scroll, the range of runs it saves as GIFs and its pictures. Each handler calls the core
    function the array plot window's keys call too (arrayplot.h): one behaviour, whichever front end asks. */
+#include "graf_par.h"
 #include "arrayplot.h"
+#include "xpp_job.h"
 #include "command_def.h"
 #include "command_range.h"
 #include "xpp_ui.h"
@@ -107,8 +109,9 @@ Result<std::string> range(Session &s, const Command &command, const Arguments &a
     begin_array_range(s, args.optional<bool>("still").value_or(s.array_plot->still != 0), args.optional<bool>("tag").value_or(s.array_plot->tag != 0),
                       args.get<std::string>("file"));
     RangeProgress done;
-    Result<int> swept = run_range(s, 0, &done);
+    Result<int> swept = run_range(s, 0, &done, range_report(s));
     s.array_plot->range = 0;
+    close_aplot_files(s, swept && *swept == 0 && !xpp::job::cancelled());
     if (!swept) return std::unexpected<Error>(swept.error());
     return ResultObject().integer("steps_completed", done.runs).done();
 }

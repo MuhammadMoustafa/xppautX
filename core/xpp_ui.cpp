@@ -82,6 +82,7 @@ static void hl_autox_joined(const std::vector<XppJoinedJob> &) {}
 static void hl_autox_live_drop(Session &) {}
 static void hl_s(Session &) {}
 static void hl_s_int(Session &, int) {}
+static void hl_step_computed(Session &, std::span<float>, std::span<float>, double, std::span<const int>) {}
 static void hl_live_state(Session &, const double *, double) {}
 static void hl_s_str(Session &, std::string_view) {}
 static void hl_s_str_str(Session &, std::string_view, std::string_view) {}
@@ -171,12 +172,14 @@ XppUi ui = {
     .redraw_bcs = hl_void,
     .redraw_delays = hl_void,
     .redraw_graph = hl_s,
+    .graph_settings_changed = hl_s_int,
     .redraw_screens = hl_s,
     .clear_screens = hl_s,
     .clear_draw_window = hl_s,
     .reset_graphics = hl_s,
     .data_changed = hl_int,
     .rows_stored = hl_s_int,
+    .step_computed = hl_step_computed,
     .live_state = hl_live_state,
     .data_redraw = hl_int,
     .create_plot_window = hl_s,

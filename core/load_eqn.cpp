@@ -17,7 +17,6 @@
 #include "xpp_util.h"
 #include "session_values.h"
 #include "typed_values.h"
-#include "many_pops.h"
 #include "expr.h"
 #include "xpp_zip.h"
 #include "xpp_text.h"
@@ -25,6 +24,7 @@
 
 #include "model_place.h"
 #include "plot_settings.h"
+#include "plot_state.h"
 #include "load_eqn.h"
 #include "value_undo.h"
 #include "form_ode.h"
@@ -34,7 +34,6 @@
 #include "numerics.h"
 #include "integrate.h"
 #include "adj2.h"
-#include "graphics.h"
 
 #include "volterra2.h"
 #include "storage.h"
@@ -372,30 +371,33 @@ xpp::Result<> graph_fits_scope(std::optional<int> graph, std::string_view scope,
   return {};
 }
 
-/* the target graph made the active one, with its settings in the plot
-   settings the options write; the destructor puts the graph that was active
-   back, with its own settings in the plot settings again */
+/* the plot settings put in graph `graph`, which the front end then shows again */
+void put_plot_settings(xpp::Session &s, int graph)
+{
+  xpp::reset_graph(*s.plot_settings,s.plot_windows->graph[static_cast<std::size_t>(graph)]);
+  ui.graph_settings_changed(s,graph);
+}
+
+/* the target graph's settings in the plot settings the options write; the destructor puts the settings of the graph that is
+   active (the window the user works in, which stays) in the plot settings again */
 class GraphTarget {
 public:
-  GraphTarget(xpp::Session &s, int graph, bool used) : s_(s), previous_(s.plot_windows->active), used_(used)
+  GraphTarget(xpp::Session &s, int graph, bool used) : s_(s), graph_(graph), previous_(s.plot_windows->active), used_(used)
   {
-    if(!used_)return;
-    if(graph!=previous_)xpp::make_active(s_,graph,1);
-    get_graph(s_);
+    if(used_)xpp::get_graph(*s_.plot_settings,s_.plot_windows->graph[static_cast<std::size_t>(graph_)]);
   }
   /* the plot settings put in the graph */
-  void store() const { if(used_)reset_graph(s_); }
+  void store() const { if(used_)put_plot_settings(s_,graph_); }
   ~GraphTarget()
   {
-    if(!used_||s_.plot_windows->active==previous_)return;
-    xpp::make_active(s_,previous_,1);
-    get_graph(s_);
+    if(!used_||graph_==previous_)return;
+    xpp::get_graph(*s_.plot_settings,s_.plot_windows->graph[static_cast<std::size_t>(previous_)]);
   }
   GraphTarget(const GraphTarget &)=delete;
   GraphTarget &operator=(const GraphTarget &)=delete;
 private:
   xpp::Session &s_;
-  int previous_;
+  int graph_, previous_;
   bool used_;
 };
 
@@ -509,7 +511,7 @@ xpp::Result<> extract_action(xpp::Session &s, std::string_view ptr, const xpp::P
 {
   const std::vector<SetItem> items=set_items(ptr);
   if(xpp::Result<> r=check_set_items(s,items,where,xppaut_names,"internal set");!r)return r;
-  if(graph_settings)get_graph(s);
+  if(graph_settings)xpp::get_graph(*s.plot_settings,*s.plot_windows->current);
   apply_set_items(s,items);
   return {};
 }
@@ -521,7 +523,7 @@ Result<> do_txt_action(Session &s, std::string_view action)
   chk_delay(s);
   redraw_params();
   redraw_ics();
-  reset_graph(s);
+  put_plot_settings(s,s.plot_windows->active);
   return {};
 }
 

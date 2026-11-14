@@ -2,6 +2,7 @@
    values, a click, a file, a formula or a row of the data. Setting commands
    change the initial values and run nothing; the click commands start the
    run from the point clicked, as Initialconds' Mouse and mIce always did. */
+#include "graf_par.h"
 #include "command_def.h"
 #include "integrate.h"
 #include "lunch-new.h"
@@ -103,7 +104,7 @@ Result<std::string> ic_at(Session &s, const Command &command, const Arguments &a
     if (!plane) return std::unexpected<Error>(plane.error());
     const Result<std::pair<double, double>> point = clicked_point(s, command, args, *plane, place);
     if (!point) return std::unexpected<Error>(point.error());
-    const Result<int> ran = run_from_clicks(s, *plane, std::span(&*point, 1), false);
+    const Result<int> ran = run_from_clicks(s, *plane, std::span(&*point, 1), false, run_report(s));
     if (!ran) return std::unexpected<Error>(ran.error());
     return ResultObject().raw("applied", applied(s, all_states(s))).done();
 }
@@ -117,7 +118,7 @@ Result<std::string> ic_mouse_stream(Session &s, const Command &command, const Ar
     if (x.empty()) return fail(command.name, "Give at least one click", place);
     std::vector<std::pair<double, double>> clicks;
     for (std::size_t i = 0; i < x.size(); ++i) clicks.emplace_back(x[i], y[i]);
-    const Result<int> ran = run_from_clicks(s, *plane, clicks, true);
+    const Result<int> ran = run_from_clicks(s, *plane, clicks, true, run_report(s));
     if (!ran) return std::unexpected<Error>(ran.error());
     return ResultObject().integer("trajectories_run", *ran).done();
 }

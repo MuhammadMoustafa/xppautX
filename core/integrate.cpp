@@ -1,7 +1,6 @@
 #include <charconv>
 #include <cstring>
 #include "mykeydef.h"
-#include "picture.h"
 #include "value_undo.h"
 #include "solver.h"
 #include "xpp_math.h"
@@ -29,13 +28,10 @@
 #include "browse.h"
 #include "derived.h"
 #include "equilibria.h"
-#include "graf_par.h"
-#include "graphics.h"
 #include "del_stab.h"
 #include "flags.h"
 #include "histogram.h"
 
-#include "nullcline.h"
 
 #include "dae_fun.h"
 #include "numerics.h"
@@ -71,13 +67,10 @@
 #include <vector>
 #include <new>
 #include <stdexcept>
-#include "arrayplot.h"
 #include "xpp_job.h"
-#include "phase_data.h"
+#include "plot_state.h"
 #include "colormap.h"
 #include "session.h"
-#include "many_pops.h"
-#include "grobs.h"
 #include "line_style.h"
 #include "odex.h"
 #include "struct.h"
@@ -438,39 +431,19 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
 }
 
 namespace {
-/* a range's movie takes a frame of each step into the kinescope: false
-   when it is out of film */
-using TakeFrame = std::function<bool()>;
 /* a sweep's progress line ("p=0.3  i=4"), which the command shows */
 using ShowProgress = std::function<void(const std::string &)>;
 
-/* a range command's movie (Range's, Range Equilibria's): the frames its
-   sweep takes go into s's kinescope until it is out of film, which the
-   command says once the sweep has ended */
-class RangeFilm {
-public:
-  explicit RangeFilm(xpp::Session &s) : s_(s) {}
-  TakeFrame taker()
-  {
-    return [this]{
-      if(result_)result_=ui.film_clip(s_);
-      return result_.has_value();
-    };
-  }
-  static ShowProgress progress()
-  {
-    return [](const std::string &line){ bottom_msg(2,line); };
-  }
-  const xpp::Result<> &result() const { return result_; }
-private:
-  xpp::Session &s_;
-  xpp::Result<> result_;
-};
+/* the progress line a range command shows */
+void show_range_progress(const std::string &line)
+{
+  bottom_msg(2,line);
+}
 
 /* Range Equilibria's sweep over s.integrator->eq_range: each step's equilibrium (or
    Monte Carlo's) stored as a row; the first step that failed is
    returned once the sweep has ended */
-xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_frame, const ShowProgress &show_progress)
+xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const xpp::RunReport &report, const ShowProgress &show_progress)
 {
  double parlo,parhi,dpar,temp;
  int npar,stabcol,i,j,ierr;
@@ -544,10 +517,7 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &tak
           found=false;
         }
         }
-        if(s.integrator->eq_range.movie){
-	  draw_label(s,s.plot_windows->draw_win);
-	  take_frame(); /* out of film, the sweep goes on without frames */
-        }
+        if(report.stored)failure.keep(report.stored(bob)); /* out of film, the sweep goes on without frames and tells it at the end */
       }
       if(mc==0&&found){
       if(s.data_store->rows==s.data_store->max_rows){
@@ -577,13 +547,9 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &tak
 }
 }
 
-Result<int> equilibrium_range(Session &s)
+Result<int> equilibrium_range(Session &s, const RunReport &report)
 {
- RangeFilm film(s);
- const auto run=eq_range_sweep(s,s.data_store->current.data(),film.taker(),film.progress());
- if(!run)return run;
- if(!film.result())return std::unexpected(film.result().error());
- return *run;
+ return eq_range_sweep(s,s.data_store->current.data(),report,show_range_progress);
 }
 
 void swap_color(xpp::Session &s, xpp::Color *col, int rorw)
@@ -606,11 +572,11 @@ void set_cycle(xpp::Session &s, int flag, int *icol)
   if(*icol==10)*icol=0;
 } 
 
-int do_autox_range_go(xpp::Session &s)
+int do_autox_range_go(xpp::Session &s, const xpp::RunReport &report)
 {
   double *x;
   x=&s.data_store->current[0];
-  return(do_range(s,x,2));
+  return(do_range(s,x,2,report));
 }
 
 namespace {
@@ -756,7 +722,7 @@ void compute_run(xpp::Session &x, double *state, const RangeRuns &r, int i, int 
    I.C.s" on) and whose model allows it (sweep_serial_reason) are computed on as many worker threads as the thread
    setting gives; every run, on a worker or here, is compute_run, and what comes after a run (its rows, files, messages,
    drawing) is done here, in run order, as each run is taken in. */
-xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const TakeFrame &take_frame, const ShowProgress &show_progress, RangeProgress &progress)
+xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const xpp::RunReport &report, const ShowProgress &show_progress, RangeProgress &progress)
 {
   std::optional<xpp::Error> failure;
   bool complete=true; /* a failed capture can stop the sweep without an integration error */
@@ -929,14 +895,12 @@ if(s.integrator->range.type==PARAM)get_val(s,s.integrator->range.item,&temp);
    if(s.stochastic->flag)
      append_stoch(s,i,s.data_store->rows);
 
-   if(s.integrator->range.movie){
-     redraw_dfield(s);
-	create_new_cline(s);
-     draw_label(s,s.plot_windows->draw_win);
-     if(!take_frame()){complete=false;return false;}
-   }
-   do_batch_nclines(s);
-   do_batch_dfield(s);
+   if(report.stored)
+     if(const xpp::Result<> shown=report.stored(bob);!shown){ /* out of film */
+       if(!failure)failure=shown.error();
+       complete=false;
+       return false;
+     }
    refresh_data(s,s.data_store->rows);
    if(s.integrator->adj_range==1){
      bob=xpp::format("{}_{:g}",plan.item,v.p);
@@ -945,9 +909,7 @@ if(s.integrator->range.type==PARAM)get_val(s,s.integrator->range.item,&temp);
    }
 
    do_this_liaprun(s,v.p);  /* sends parameter and index back */
-   if(s.data_store->rows>2)autox_freeze_it(s);
-   if(s.array_plot->range==1)
-     draw_one_array_plot(s,bob);
+   if(report.done)report.done(bob);
 
    if(res==1||s.stochastic->flag)
      {
@@ -957,6 +919,7 @@ if(s.integrator->range.type==PARAM)get_val(s,s.integrator->range.item,&temp);
            ? xpp::include_path(s.model().this_file,xpp::files::output_name(s.model().this_file,".dat"))
            : s.batch_out_file;
          write_this_run(s,file.c_str(),j*(nit+1)+i);
+         if(report.written)report.written(j*(nit+1)+i);
        }
        s.data_store->rows=0;
      }
@@ -1018,10 +981,6 @@ if(s.integrator->range.type==PARAM)get_val(s,s.integrator->range.item,&temp);
  }
  workers.clear();
  if(early>0)bottom_msg(0,xpp::format("{} of {} runs ended early; the first at {}",early,runs,first_early));
- if(s.array_plot->range==1){
-   s.array_plot->range=0;
-   close_aplot_files(s, complete && !failure && ierr == 0 && !xpp::job::cancelled());
- }
  if(oldic==1)get_ic(s,1,x);
  else set_initial_data(s,{x,static_cast<size_t>(s.model().node+s.model().nmarkov)});
  if(s.integrator->range.type==PARAM)set_val(s,s.integrator->range.item,temp);
@@ -1046,19 +1005,16 @@ s.plot_windows->current->color[0]=color;
 
 namespace {
 /* the sweep over the range settings made: its integrations, the movie's frames; done (when given) what they completed */
-xpp::Result<int> sweep_range(xpp::Session &s, double *x, int flag, RangeProgress *done)
+xpp::Result<int> sweep_range(xpp::Session &s, double *x, int flag, RangeProgress *done, const xpp::RunReport &report)
 {
- RangeFilm film(s);
  RangeProgress progress;
- const xpp::Result<int> r=range_sweep(s,x,flag,film.taker(),film.progress(),progress);
+ const xpp::Result<int> r=range_sweep(s,x,flag,report,show_range_progress,progress);
  if(done)*done=progress;
- if(!r)return std::unexpected(r.error());
- if(!film.result())return std::unexpected(film.result().error());
- return *r;
+ return r;
 }
 }
 
-int do_range(xpp::Session &s, double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto range */
+int do_range(xpp::Session &s, double *x, int flag, const xpp::RunReport &report)  /* 0 for 1-param 1 for 2 parameter 2 for Auto range */
 {
  if(flag==0||flag==2){
    s.integrator->range.rtype=RANGE_SINGLE;
@@ -1067,7 +1023,7 @@ int do_range(xpp::Session &s, double *x, int flag)  /* 0 for 1-param 1 for 2 par
  if(flag==1){
    if(set_up_range2(s)==0)return -1;
  }
- const xpp::Result<int> r=sweep_range(s,x,flag,nullptr);
+ const xpp::Result<int> r=sweep_range(s,x,flag,nullptr,report);
  if(!r){
    xpp::show_error(r.error());
    return -1;
@@ -1105,7 +1061,6 @@ int write_this_run(xpp::Session &s, const char *file, int i)
   write_mytable_data(s,w);
   xpp::ok_or_show(xpp::commit_save(w));
   }
-   if(!program.interactive&&!s.picture_file.empty())dump_ps(s,i);
   return(1);
 }
   
@@ -1158,7 +1113,7 @@ xpp::Result<> restart_delays(xpp::Session &s)
 
 } // namespace
 
-xpp::Result<bool> run_from(xpp::Session &s, RunFrom from, bool reset_integrals)
+xpp::Result<bool> run_from(xpp::Session &s, RunFrom from, const RunReport &report, bool reset_integrals)
 {
   const int oldstart=s.integrator->my_start;
   const DtRestore dt(s);
@@ -1194,17 +1149,17 @@ xpp::Result<bool> run_from(xpp::Session &s, RunFrom from, bool reset_integrals)
     if(auto delays=restart_delays(s);!delays)return std::unexpected(delays.error());
     break;
   }
-  return integrate_from(s,x);
+  return integrate_from(s,x,report);
 }
 
-xpp::Result<int> run_range(xpp::Session &s, int flag, RangeProgress *done)
+xpp::Result<int> run_range(xpp::Session &s, int flag, RangeProgress *done, const xpp::RunReport &report)
 {
   double *const x=&s.data_store->current[0];
   if(auto allowed=run_allowed(s,"range");!allowed)return std::unexpected(allowed.error());
   reset_run_state(s);
   clear_for_run(s);
   s.integrator->range_flag=1; /* a range's runs are not stopped at the state limit */
-  return sweep_range(s,x,flag,done);
+  return sweep_range(s,x,flag,done,report);
 }
 
 namespace {
@@ -1223,7 +1178,7 @@ xpp::Result<Plane> window_plane(const xpp::Session &s, int graph)
   return plane_of(s,s.plot_windows->graph[static_cast<std::size_t>(graph)]);
 }
 
-xpp::Result<bool> run_from_click(xpp::Session &s, Plane plane, double horizontal, double vertical)
+xpp::Result<bool> run_from_click(xpp::Session &s, Plane plane, double horizontal, double vertical, const RunReport &report)
 {
   double *const x=&s.data_store->current[0];
   get_ic(s,1,x);
@@ -1234,10 +1189,10 @@ xpp::Result<bool> run_from_click(xpp::Session &s, Plane plane, double horizontal
   if(auto delays=restart_delays(s);!delays)return std::unexpected(delays.error());
   s.integrator->my_start=1;
   s.data_store->current_time=s.numerics->start_time;
-  return integrate_from(s,x);
+  return integrate_from(s,x,report);
 }
 
-xpp::Result<int> run_from_clicks(xpp::Session &s, Plane plane, std::span<const std::pair<double,double>> clicks, bool suppress_bounds)
+xpp::Result<int> run_from_clicks(xpp::Session &s, Plane plane, std::span<const std::pair<double,double>> clicks, bool suppress_bounds, const RunReport &report)
 {
   if(auto allowed=run_allowed(s,"initial conditions");!allowed)return std::unexpected(allowed.error());
   reset_run_state(s);
@@ -1251,13 +1206,13 @@ xpp::Result<int> run_from_clicks(xpp::Session &s, Plane plane, std::span<const s
   int done=0;
   for(const auto &[horizontal,vertical]:clicks){
     if(xpp::job::cancelled())break;
-    if(auto run=run_from_click(s,plane,horizontal,vertical);!run)return std::unexpected(run.error());
+    if(auto run=run_from_click(s,plane,horizontal,vertical,report);!run)return std::unexpected(run.error());
     done++;
   }
   return done;
 }
 
-xpp::Result<bool> run_from_manifold(xpp::Session &s, int index)
+xpp::Result<bool> run_from_manifold(xpp::Session &s, int index, const RunReport &report)
 {
   if(s.manifolds->ic_flag==0)
     return xpp::fail("shoot","No shooting data available: run the equilibria's shooting (Sing pts, Shoot) first",xpp::command_place());
@@ -1265,10 +1220,10 @@ xpp::Result<bool> run_from_manifold(xpp::Session &s, int index)
     return xpp::fail("shoot",xpp::format("Manifold {} is out of range: the shooting found {}",index,s.manifolds->count),xpp::command_place());
   if(auto allowed=run_allowed(s,"shoot"); !allowed)return std::unexpected(allowed.error());
   set_initial_data(s,std::span(s.manifolds->ic[static_cast<std::size_t>(index-1)]).first(static_cast<std::size_t>(s.model().node)));
-  return run_from(s,RunFrom::old);
+  return run_from(s,RunFrom::old,report);
 }
 
-void run_now(xpp::Session &s)
+void run_now(xpp::Session &s, const RunReport &report)
 {
   double *const x=&s.data_store->current[0];
   reset_run_state(s);
@@ -1278,7 +1233,7 @@ void run_now(xpp::Session &s)
   s.numerics->poiext=0;
   s.data_store->rows=0;
   reset_data(s);
-  xpp::ok_or_show(integrate_from(s,x));
+  xpp::ok_or_show(integrate_from(s,x,report));
 }
 
 void do_start_flags(xpp::Session &s, double *x,double *t)
@@ -1289,7 +1244,7 @@ void do_start_flags(xpp::Session &s, double *x,double *t)
  one_flag_step(s,x,x,&iflagstart,*t,&tnew,s.model().node,&sss);
 
 }
-xpp::Result<bool> integrate_from(xpp::Session &s, double *x)
+xpp::Result<bool> integrate_from(xpp::Session &s, double *x, const RunReport &report)
 {
   int i;
 
@@ -1314,13 +1269,12 @@ xpp::Result<bool> integrate_from(xpp::Session &s, double *x)
   
   ping();
   s.numerics->inflag=true;
-  do_batch_nclines(s);
-  do_batch_dfield(s);
+  if(report.stored)xpp::ok_or_show(report.stored({}));
   refresh_data(s,s.data_store->rows);
   const bool early=r&&(*r!=0||!s.integrator->stop_note.empty());
   show_stop_note(s);
   if(program.interactive){
- autox_freeze_it(s);
+  if(report.done)report.done({});
   redraw_ics();
   }
   if(!r)return std::unexpected(r.error());
@@ -1329,7 +1283,7 @@ xpp::Result<bool> integrate_from(xpp::Session &s, double *x)
 
 int usual_integrate_stuff(xpp::Session &s, double *x)
 {
-  return xpp::ok_or_show(integrate_from(s,x))?0:1;
+  return xpp::ok_or_show(integrate_from(s,x,RunReport{}))?0:1;
 }
 /*  form_ic  --  u_i(0) = F(i)  where  "i" is represented by "t"
     or  
@@ -1624,7 +1578,7 @@ Result<> validate_steady_state(SteadyStateSettings settings, double dt, double s
   return {};
 }
 
-Result<bool> continue_to(Session &s, double until)
+Result<bool> continue_to(Session &s, double until, const RunReport &report)
 {
   /* one output group: store_every steps of Dt (of 1, for a map); the run ends on a group boundary,
      so the end is rounded up to the output grid and the stride is honoured */
@@ -1642,8 +1596,7 @@ Result<bool> continue_to(Session &s, double until)
   s.integrator->my_start=1;  /*  I know it is wasteful to restart, but lets be safe.... */
   const xpp::Result<int> r=integrate(s,&s.data_store->current_time,&s.data_store->current[0],length,s.numerics->delta_t,1,s.numerics->store_every,&s.integrator->my_start);
   ping();
-  do_batch_nclines(s);
-  do_batch_dfield(s);
+  if(report.stored)xpp::ok_or_show(report.stored({}));
   refresh_data(s,s.data_store->rows);
   const bool early=r&&(*r!=0||!s.integrator->stop_note.empty());
   show_stop_note(s);
@@ -1651,17 +1604,17 @@ Result<bool> continue_to(Session &s, double until)
   return early;
 }
 
-Result<bool> continue_for(Session &s, double extra)
+Result<bool> continue_for(Session &s, double extra, const RunReport &report)
 {
-  return continue_to(s,s.data_store->current_time+extra);
+  return continue_to(s,s.data_store->current_time+extra,report);
 }
 
-Result<bool> continue_total(Session &s)
+Result<bool> continue_total(Session &s, const RunReport &report)
 {
-  return continue_for(s,s.numerics->total_time);
+  return continue_for(s,s.numerics->total_time,report);
 }
 
-Result<> run_to_steady_state(Session &s, SteadyStateSettings settings)
+Result<> run_to_steady_state(Session &s, SteadyStateSettings settings, const RunReport &report)
 {
   const double interval=s.integrator->solver->traits().discrete?(s.numerics->delta_t>0?1:-1):s.numerics->delta_t;
   if(auto valid=validate_steady_state(settings,interval,s.numerics->start_time);!valid)return valid;
@@ -1683,7 +1636,7 @@ Result<> run_to_steady_state(Session &s, SteadyStateSettings settings)
   s.integrator->steady.emplace(settings);
   s.integrator->steady_result=SteadyStateResult{"failed",settings.decimals};
   s.integrator->last_time=s.numerics->start_time;
-  const Result<bool> run=run_from(s,RunFrom::initial);
+  const Result<bool> run=run_from(s,RunFrom::initial,report);
   s.integrator->steady_result->time=s.integrator->last_time;
   if(!run)return std::unexpected(run.error());
   return {};
@@ -2039,7 +1992,7 @@ dense_poi:
 	  {
 	     std::ranges::copy(xv_values,plot_xv.begin());
 	     std::ranges::copy(xvold_values,plot_xvold.begin());
-	     plot_the_graphs(s,plot_xv.data(),plot_xvold.data(),s.model().node,s.model().neq,fabs(dt*s.numerics->store_every),torcross,0); 
+	     ui.step_computed(s,plot_xv,plot_xvold,fabs(dt*s.numerics->store_every),std::span<const int>(torcross,static_cast<std::size_t>(s.model().neq)));
 
 	  }
 
@@ -2112,158 +2065,6 @@ void send_output(xpp::Session &s, double *y,double t)
     s.data_store->rows++;
     row_stored(s);
   }
-}
-
-  /* the segment or the point of curve ip, in the pen its color and style make */
-static void draw_curve_step(xpp::Session &s, int ip, float oldx, float oldy, float oldz, float x, float y, float z)
-{
-  const xpp::LineStyle &style=s.plot_windows->current->style[ip];
-  const bool flat=s.plot_windows->current->ThreeDFlag==0;
-  if(style.draw!=xpp::LineDraw::points){
-    if(flat)line_abs(s,oldx,oldy,x,y);
-    else line_3d(s,oldx,oldy,oldz,x,y,z);
-  }
-  if(style.draw!=xpp::LineDraw::line){
-    if(flat)point_abs(s,x,y);
-    else point_3d(s,x,y,z);
-  }
-}
-
-void  do_plot(xpp::Session &s, float *oldxpl, float *oldypl, float *oldzpl, float *xpl, float *ypl, float *zpl)
-{
-	int ip,np=s.plot_windows->current->nvars;
-        
-        for(ip=0;ip<np;ip++){
-           if(s.plot_windows->current->ColorFlag==0)
-	     xpp::set_pen(s,s.plot_windows->current->color[ip],s.plot_windows->current->style[ip]);
-           else xpp::set_pen_style(s,s.plot_windows->current->style[ip]);
-           draw_curve_step(s,ip,oldxpl[ip],oldypl[ip],oldzpl[ip],xpl[ip],ypl[ip],zpl[ip]);
-       }
-}
-
-/*
- old restore is in restore.c
-
-*/
-
-void plot_the_graphs(xpp::Session &s, float *xv,float *xvold,int node,int neq,double ddt,int *tc,int flag)
-{
- for_each_shown_window(s,flag,[&]{plot_one_graph(s,xv,xvold,node,neq,ddt,tc);});
-}
-
-void plot_one_graph(xpp::Session &s, float *xv,float *xvold,int node,int neq,double ddt,int *tc)
-{
- int *xvar,*yvar,*zvar;
- int NPlots,ip;
- auto &points=s.plot_windows->current->plot_points;
- float *oldxpl=points[0].data(), *oldypl=points[1].data(), *oldzpl=points[2].data();
- float *xpl=points[3].data(), *ypl=points[4].data(), *zpl=points[5].data();
- NPlots=s.plot_windows->current->nvars;
- xvar=s.plot_windows->current->xv.data();
- yvar=s.plot_windows->current->yv.data();
- zvar=s.plot_windows->current->zv.data();
- for(ip=0;ip<s.model().neq;ip++){
-   if(s.itor[ip]==1)
-     xvold[ip+1]=xvold[ip+1]+tc[ip]*s.numerics->torus_period;
- }
- for(ip=0;ip<NPlots;ip++){
- oldxpl[ip]=xvold[xvar[ip]];
- oldypl[ip]=xvold[yvar[ip]];
- oldzpl[ip]=xvold[zvar[ip]];
- xpl[ip]=xv[xvar[ip]];
- ypl[ip]=xv[yvar[ip]];
- zpl[ip]=xv[zvar[ip]];
- }
- if(s.plot_windows->current->ColorFlag)
-   comp_color(s,xv,xvold,s.model().node,static_cast<float>(ddt));
- do_plot(s,oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
- phase_data_flow_step(s,NPlots,oldxpl,oldypl,xpl,ypl,s.plot_windows->current->color.data()); /* Dir.field/flow's Flow as data */
-}
-void restore(xpp::Session &s, int i1, int i2)
-{
-  int ip,np=s.plot_windows->current->nvars;
-  int ZSHFT,YSHFT,XSHFT;
-  int i,j,kxoff,kyoff,kzoff;
-  int iiXPLT,iiYPLT,iiZPLT;
-  float oldxpl,oldypl,oldzpl,xpl,ypl,zpl;
-  std::vector<float> v1(s.model().neq+1),v2(s.model().neq+1);
-  ColumnTable data;
-
-  data=get_table_data(s);
-  XSHFT=s.plot_windows->current->xshft;
-  YSHFT=s.plot_windows->current->yshft;
-  ZSHFT=s.plot_windows->current->zshft;
-  if(i1<ZSHFT)i1=ZSHFT;
-  if(i1<YSHFT)i1=YSHFT;
-  if(i1<XSHFT)i1=XSHFT;
-  if(s.data_store->rows<2)return;
-
-   for(ip=0;ip<np;ip++){
-     xpp::picture_group(s, true);
-     kxoff=i1-XSHFT;
-     kzoff=i1-ZSHFT;
-     kyoff=i1-YSHFT;
-
-    iiXPLT=s.plot_windows->current->xv[ip];
-    iiYPLT=s.plot_windows->current->yv[ip];
-    iiZPLT=s.plot_windows->current->zv[ip];
-    xpp::set_pen(s,s.plot_windows->current->color[ip],s.plot_windows->current->style[ip]);
-    oldxpl=data[iiXPLT][kxoff];
-    oldypl=data[iiYPLT][kyoff];
-    oldzpl=data[iiZPLT][kzoff];
-    for(i=i1;i<i2;i++){
-      {
-	xpl=data[iiXPLT][kxoff];
-	ypl=data[iiYPLT][kyoff];
-	zpl=data[iiZPLT][kzoff];
-      }
-      
-      if(s.numerics->torus)
-      {
-	if (fabs(oldxpl-xpl)>static_cast<float>((.5*s.numerics->torus_period)))oldxpl=xpl;
-	if (fabs(oldypl-ypl)>static_cast<float>((.5*s.numerics->torus_period)))oldypl=ypl;
-	if (fabs(oldzpl-zpl)>static_cast<float>((.5*s.numerics->torus_period)))oldzpl=zpl;
-      }
-      if(s.plot_windows->current->ColorFlag!=0&&i>i1){
-	  for(j=0;j<=s.model().neq;j++){
-	    v1[j]=data[j][i];
-	    v2[j]=data[j][i-1];
-	  }
-
-	  comp_color(s,v1.data(),v2.data(),s.model().node,
-		     static_cast<float>(fabs(data[0][i]-data[0][i+1])));
-	}
-      draw_curve_step(s,ip,oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
-     /*noplot:*/
-      oldxpl=xpl;
-      oldypl=ypl;
-      oldzpl=zpl;
-      kxoff++;
-      kyoff++;
-      kzoff++;
-     
-    }
-    xpp::picture_group(s, false);
-    
-  }
-}
-
-/*  Sets the color according to the velocity or z-value */
-void comp_color(xpp::Session &s, float *v1, float *v2, int n, float dt)
-{
- int i;
- float sum;
- float min_scale=static_cast<float>((s.plot_windows->current->min_scale));
- float color_scale=static_cast<float>((s.plot_windows->current->color_scale));
- if(s.plot_windows->current->ColorFlag==2){
-   sum=v1[s.plot_windows->current->ColorValue];
- }
- else
-   {
-     for(i=0,sum=0.0;i<n;i++)sum+=static_cast<float>(fabs(static_cast<double>((v1[i+1]-v2[i+1]))));
-     sum=sum/(dt);
-   }
- xpp::set_pen_color(s,xpp::ramp_color(s.ramp(),static_cast<double>((sum-min_scale)/color_scale)));
 }
 
 /* an invariant set's branch ends where it leaves the box (state_limit) or an
