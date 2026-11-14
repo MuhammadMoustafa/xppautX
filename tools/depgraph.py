@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""tools/depgraph.py (W725, #803): the include graph of core/, as docs/deps.html.
+"""tools/depgraph.py (W725, #803; the levels, W728, #806): the include graph of core/, as docs/deps.html.
 
 Reads every `#include "..."` of core/*.h, core/*.cpp and tests/*.cpp (comments
 and `#if 0` blocks skipped), resolves it to a file (third_party/ to one
@@ -7,7 +7,11 @@ external node per library), and computes: the file graph, a module for each
 core file (MODULES below: a file the table does not place fails the script),
 how many core/*.cpp reach each header through includes, include cycles among
 headers (`#pragma once` hides them from the compiler) and among modules, and
-module edges weighted by include lines. The page is one self-contained file,
+module edges weighted by include lines. The levels (LEVELS below): an include
+goes to its own module or a module at a lower level, never sideways or up;
+INDEPENDENT pairs never include each other. Each include against them is listed
+in ALLOWLIST with its count and the card that removes it; `--check` fails on
+any other, and when a count moved (lowered in the commit that fixes lines). The page is one self-contained file,
 byte-stable (everything sorted, no timestamps).
 
   uv run --locked python tools/depgraph.py            write docs/deps.html
@@ -75,6 +79,119 @@ MODULES = {
 }
 TESTS_MODULE = 'tests'
 KERNEL = 'kernel'   # the innermost ring: the finding at the page's top says whether it includes anything outside itself
+
+# The levels, innermost first (Discussion #808, its update of 2026-11-14): each module is
+# its own level, the rings named groups of levels. A file includes its own module or a
+# module at a LOWER level. (module, ring, why it sits there).
+LEVELS = [
+    ('kernel', 'kernel', 'pure helpers (errors, memory, text, math) that include nothing outside themselves'),
+    ('run control', 'kernel', 'the cancel token and progress a computation reports to, owned inside, set by the front ends'),
+    ('ui seam', 'kernel', 'the XppUi table core code calls the front end through, owned inside, implemented outside'),
+    ('expressions', 'domain model', 'the formula compiler and its evaluators, which need no run'),
+    ('model and loading', 'domain model', 'a Model and the readers of model files, given their text'),
+    ('integrators', 'domain services', 'the solvers, computing with a model'),
+    ('analysis', 'domain services', 'what is computed from a run: sweeps, fits, equilibria, shooting, spectra'),
+    ('autoX', 'domain services', 'autoX\'s numerics, runs and diagram'),
+    ('session', 'application', 'the Session and the state a run keeps'),
+    ('plot', 'application', 'the plot windows and what they show'),
+    ('export', 'application', 'pictures, movies and data files written out'),
+    ('animation', 'application', 'the animator and its .ani files'),
+    ('session files', 'application', 'the session file and recordings'),
+    ('commands', 'application', 'the command registry: commands, keys, a model\'s buttons'),
+    ('files', 'outside', 'the file system at the edge, behind the interfaces the inner rings own'),
+    ('protocol front end', 'outside', 'the JSON protocol front end, which implements the seams'),
+    ('platform', 'outside', 'the system: HTTP, the window, WebView, Windows, starting a process'),
+    ('application', 'outside', 'the program\'s start and composition root: outermost, may include any module'),
+]
+# pairs of modules that never include each other, in either direction
+INDEPENDENT = [('protocol front end', 'platform')]
+# (from, to) -> (include lines against the levels now, the card that removes them); exact
+ALLOWLIST = {
+    ('analysis', 'animation'): (1, 'W737'),
+    ('analysis', 'application'): (2, 'W735'),
+    ('analysis', 'commands'): (3, 'W737'),
+    ('analysis', 'export'): (3, 'W737'),
+    ('analysis', 'files'): (11, 'W731'),
+    ('analysis', 'plot'): (8, 'W733'),
+    ('analysis', 'protocol front end'): (1, 'W734'),
+    ('analysis', 'session'): (18, 'W732'),
+    ('animation', 'application'): (2, 'W735'),
+    ('animation', 'files'): (4, 'W731'),
+    ('animation', 'protocol front end'): (2, 'W734'),
+    ('animation', 'session files'): (2, 'W737'),
+    ('autoX', 'application'): (2, 'W735'),
+    ('autoX', 'commands'): (2, 'W737'),
+    ('autoX', 'export'): (4, 'W737'),
+    ('autoX', 'files'): (32, 'W731'),
+    ('autoX', 'plot'): (7, 'W733'),
+    ('autoX', 'protocol front end'): (5, 'W734'),
+    ('autoX', 'session'): (21, 'W732'),
+    ('autoX', 'session files'): (3, 'W737'),
+    ('commands', 'application'): (6, 'W735'),
+    ('commands', 'files'): (35, 'W731'),
+    ('commands', 'platform'): (1, 'W737'),
+    ('commands', 'protocol front end'): (40, 'W734'),
+    ('export', 'application'): (1, 'W735'),
+    ('export', 'files'): (9, 'W731'),
+    ('expressions', 'analysis'): (2, 'W736'),
+    ('expressions', 'application'): (4, 'W735'),
+    ('expressions', 'files'): (9, 'W731'),
+    ('expressions', 'integrators'): (17, 'W736'),
+    ('expressions', 'model and loading'): (31, 'W736'),
+    ('expressions', 'session'): (12, 'W732'),
+    ('files', 'platform'): (1, 'W737'),
+    ('integrators', 'analysis'): (11, 'W736'),
+    ('integrators', 'animation'): (1, 'W737'),
+    ('integrators', 'application'): (5, 'W735'),
+    ('integrators', 'autoX'): (1, 'W736'),
+    ('integrators', 'commands'): (1, 'W737'),
+    ('integrators', 'export'): (1, 'W737'),
+    ('integrators', 'files'): (13, 'W731'),
+    ('integrators', 'plot'): (12, 'W733'),
+    ('integrators', 'protocol front end'): (2, 'W734'),
+    ('integrators', 'session'): (28, 'W732'),
+    ('model and loading', 'analysis'): (9, 'W736'),
+    ('model and loading', 'animation'): (1, 'W737'),
+    ('model and loading', 'application'): (16, 'W735'),
+    ('model and loading', 'autoX'): (6, 'W736'),
+    ('model and loading', 'commands'): (3, 'W737'),
+    ('model and loading', 'export'): (2, 'W737'),
+    ('model and loading', 'files'): (37, 'W731'),
+    ('model and loading', 'integrators'): (30, 'W736'),
+    ('model and loading', 'plot'): (18, 'W733'),
+    ('model and loading', 'session'): (20, 'W732'),
+    ('model and loading', 'session files'): (9, 'W737'),
+    ('platform', 'application'): (3, 'W735'),
+    ('platform', 'protocol front end'): (7, 'W734'),
+    ('plot', 'animation'): (1, 'W737'),
+    ('plot', 'application'): (1, 'W735'),
+    ('plot', 'commands'): (1, 'W737'),
+    ('plot', 'export'): (12, 'W737'),
+    ('plot', 'files'): (14, 'W731'),
+    ('plot', 'protocol front end'): (10, 'W734'),
+    ('plot', 'session files'): (1, 'W737'),
+    ('protocol front end', 'application'): (10, 'W735'),
+    ('protocol front end', 'platform'): (6, 'W737'),
+    ('session', 'animation'): (2, 'W737'),
+    ('session', 'application'): (1, 'W735'),
+    ('session', 'commands'): (1, 'W737'),
+    ('session', 'export'): (3, 'W737'),
+    ('session', 'files'): (4, 'W731'),
+    ('session', 'plot'): (21, 'W733'),
+    ('session', 'session files'): (2, 'W737'),
+    ('session files', 'application'): (1, 'W735'),
+    ('session files', 'files'): (16, 'W731'),
+    ('ui seam', 'application'): (1, 'W735'),
+    ('ui seam', 'autoX'): (3, 'W736'),
+    ('ui seam', 'commands'): (1, 'W737'),
+    ('ui seam', 'expressions'): (3, 'W736'),
+    ('ui seam', 'files'): (2, 'W731'),
+    ('ui seam', 'integrators'): (3, 'W736'),
+    ('ui seam', 'model and loading'): (2, 'W736'),
+    ('ui seam', 'platform'): (1, 'W737'),
+    ('ui seam', 'plot'): (4, 'W733'),
+    ('ui seam', 'session'): (2, 'W732'),
+}
 
 INCLUDE = re.compile(r'\s*#\s*include\s*"([^"]+)"')
 DIRECTIVE = re.compile(r'\s*#\s*(\w+)\s*(.*)')
@@ -177,6 +294,47 @@ def scc(nodes, succ):
     return sorted(out)
 
 
+def level_violations(r, modules, levels=None, independent=None):
+    """{(from, to): [file:line]}: the include lines that go to a module at the same or a higher level, or across an
+    independent pair. Each module of `modules` must be in `levels` and the reverse, else the script fails by name."""
+    levels = LEVELS if levels is None else levels
+    independent = INDEPENDENT if independent is None else independent
+    names = [m for m, _, _ in levels]
+    missing = sorted(set(modules) ^ set(names))
+    if missing:
+        raise SystemExit('depgraph: modules and levels differ (in one of MODULES, LEVELS only): ' + ', '.join(missing))
+    rank = {m: i for i, m in enumerate(names)}
+    rank[TESTS_MODULE] = len(names)   # core may not include the unit tests; the tests may include anything
+    pairs = {frozenset(p) for p in independent}
+    bad = {}
+    for s, d, n in r['edges']:
+        if d.startswith('lib:'):
+            continue
+        a, b = r['module_of'][s], r['module_of'][d]
+        if a == b or a == TESTS_MODULE:
+            continue
+        if rank[b] > rank[a] or frozenset((a, b)) in pairs:
+            bad.setdefault((a, b), []).append(f'{s}:{n}')
+    return {k: sorted(v) for k, v in bad.items()}
+
+
+def level_problems(bad, allow):
+    """What the includes against the levels (level_violations) owe the allowlist; empty when it is exact."""
+    out = []
+    for (a, b), lines in sorted(bad.items()):
+        n = len(lines)
+        if (a, b) not in allow:
+            out.append(f'{a} -> {b}: {n} include line(s) against the levels, not in ALLOWLIST: ' + ', '.join(lines))
+        elif n > allow[(a, b)][0]:
+            out.append(f'{a} -> {b}: {n} include line(s) against the levels, ALLOWLIST allows {allow[(a, b)][0]}: '
+                       + ', '.join(lines))
+        elif n < allow[(a, b)][0]:
+            out.append(f'lower the allowlist for {a} -> {b} to {n}')
+    out += [f'remove the ALLOWLIST line for {a} -> {b}: no include against the levels is left'
+            for (a, b) in sorted(allow) if (a, b) not in bad]
+    return out
+
+
 def closure(start, succ):
     seen, todo = set(), [start]
     while todo:
@@ -267,43 +425,24 @@ NODE_W, NODE_H, NODE_GAP, ARC_STEP, ARC_MAX = 210, 30, 22, 9, 130
 WIDTH_PAD = 40   # the diagram's drawing width is ARC_MAX + node + ARC_MAX; the page scales it
 
 
-def order_modules(names, weight):
-    """A linear order of the modules with as little weight as possible running against it
-    (Eades-Lin-Smyth: sources first, sinks last, else the biggest out minus in)."""
-    live, front, back = set(names), [], []
-    out_w = lambda n: sum(weight.get((n, m), 0) for m in live if m != n)
-    in_w = lambda n: sum(weight.get((m, n), 0) for m in live if m != n)
-    while live:
-        pick = None
-        for n in sorted(live):
-            if out_w(n) == 0:
-                back.append(n)
-                pick = n
-                break
-            if in_w(n) == 0:
-                front.append(n)
-                pick = n
-                break
-        if pick is None:
-            pick = max(sorted(live), key=lambda n: out_w(n) - in_w(n))
-            front.append(pick)
-        live.discard(pick)
-    return front + back[::-1]
-
-
-def page_data(r, modules=None):
+def page_data(r, bad, modules=None):
+    """The page's data. Modules run in level order, innermost first, the unit tests last; an arc is flagged when
+    its module pair has an include against the levels (`bad`, level_violations)."""
     modules = MODULES if modules is None else modules
     libs = sorted({d for _, d, _ in r['edges'] if d.startswith('lib:')})
     nodes = r['files'] + libs
     index = {n: i for i, n in enumerate(nodes)}
-    order = order_modules(r['modules'], r['weight'])
+    level = {m: (i, ring, why) for i, (m, ring, why) in enumerate(LEVELS)}
+    order = [m for m, _, _ in LEVELS] + [TESTS_MODULE]
     pos = {m: i for i, m in enumerate(order)}
     mods = []
     for m in order:
         deps = sorted({b for (a, b) in r['weight'] if a == m})
         users = sorted({a for (a, b) in r['weight'] if b == m})
+        lv = level.get(m, (len(LEVELS), 'the unit tests', 'the unit tests'))
         mods.append({
             'name': m, 'why': modules[m][0] if m in modules else 'the unit tests',
+            'level': lv[0] + 1 if m in level else None, 'ring': lv[1], 'level_why': lv[2],
             'files': [f for f in r['files'] if r['module_of'][f] == m],
             'uses': deps, 'usedby': users,
             'two_way': sorted(set(deps) & set(users)),
@@ -319,7 +458,7 @@ def page_data(r, modules=None):
                   for f in r['files']],
         'cpps': r['cpps'],
         'modules': mods,
-        'edges': [[pos[a], pos[b], w, int(pos[a] > pos[b])] for (a, b), w in sorted(r['weight'].items())],
+        'edges': [[pos[a], pos[b], w, int((a, b) in bad)] for (a, b), w in sorted(r['weight'].items())],
         'hcycles': r['header_cycles'],
         'pairs': [[p['a'], p['b'], p['ab'], p['ba']] for p in r['module_pairs']],
         'mcycles': r['module_cycles'],
@@ -327,8 +466,9 @@ def page_data(r, modules=None):
     }
 
 
-def findings(r, data):
+def findings(r, data, bad, allow=None):
     """The top section's plain findings, as HTML."""
+    allow = ALLOWLIST if allow is None else allow
     esc = html.escape
     hc, mc, pairs = r['header_cycles'], r['module_cycles'], r['module_pairs']
     out = []
@@ -352,6 +492,13 @@ def findings(r, data):
             f'{esc(a)} to {esc(b)}' for a, b in out_of_kernel[:6]) + '.</p>')
     else:
         out.append('<p class="ok"><b>The kernel includes nothing outside itself.</b> Errors, memory, text and math (W726).</p>')
+    if bad:
+        out.append(f'<p class="warn"><b>Includes against the levels: {sum(len(v) for v in bad.values())} lines in '
+                   f'{len(bad)} pairs, each listed with its card.</b></p><ul>' + ''.join(
+                       f'<li><code>{esc(a)}</code> to <code>{esc(b)}</code>: {len(v)} lines, card '
+                       f'{esc(allow.get((a, b), ("?", "none"))[1])}</li>' for (a, b), v in sorted(bad.items())) + '</ul>')
+    else:
+        out.append('<p class="ok"><b>Includes against the levels: none.</b> Every include goes to its own module or a lower level.</p>')
     widest = sorted(r['reach'].items(), key=lambda kv: (-kv[1], kv[0]))[:10]
     out.append(f'<p><b>The 10 widest headers</b> (core/*.cpp that reach them, of {r["cpps"]}):</p><ol>' + ''.join(
         f'<li><code>{esc(h)}</code> {c} <span class="muted">({esc(r["module_of"][h])})</span></li>' for h, c in widest) + '</ol>')
@@ -363,8 +510,10 @@ def findings(r, data):
 
 
 def render(root):
+    """The page's text, and what differs from ALLOWLIST (empty when exact)."""
     r = analyze(root)
-    data = page_data(r)
+    bad = level_violations(r, MODULES)
+    data = page_data(r, bad)
     lines = ['{']
     keys = sorted(data)
     for i, k in enumerate(keys):
@@ -376,16 +525,19 @@ def render(root):
         lines.append(f'{json.dumps(k)}:{body}{sep}')
     lines.append('}')
     blob = '\n'.join(lines).replace('</', '<\\/')
-    return TEMPLATE.replace('@@FINDINGS@@', findings(r, data)).replace('@@DATA@@', blob)
+    page = TEMPLATE.replace('@@FINDINGS@@', findings(r, data, bad)).replace('@@DATA@@', blob)
+    return page, level_problems(bad, ALLOWLIST)
 
 
 def main(argv):
     check = argv[1:] == ['--check']
     if argv[1:] and not check:
         raise SystemExit('usage: tools/depgraph.py [--check]')
-    want = render(ROOT)
+    want, problems = render(ROOT)
     path = os.path.join(ROOT, PAGE)
     if check:
+        for p in problems:
+            print('depgraph: ' + p, file=sys.stderr)
         have = open(path, encoding='utf-8', newline='').read() if os.path.exists(path) else ''
         if have != want:
             a, b = have.split('\n'), want.split('\n')
@@ -393,8 +545,7 @@ def main(argv):
             print(f'depgraph: {PAGE} is stale: first difference at line {n + 1}'
                   f' (now: {b[n][:100] if n < len(b) else "<end>"}); regenerate with'
                   ' `uv run --locked python tools/depgraph.py` and commit it', file=sys.stderr)
-            return 1
-        return 0
+        return 1 if problems or have != want else 0
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(want)
     return 0
@@ -448,7 +599,7 @@ label{display:block;margin:.4rem 0}
 </section>
 <div class="cols">
 <section><h2>Modules</h2>
-<p class="muted">Each arc is the include lines from one module's files into another's, drawn right when it follows the order (users above, owners below), left in the warning color when it runs against it. Click a module to see only its arcs.</p>
+<p class="muted">Modules in level order, innermost first (kernel at the top, the application last). Each arc is the include lines from one module's files into another's: drawn right when it follows the levels, left in the warning color when it goes against them (an include at the same or a higher level, or across an independent pair). Click a module to see only its arcs.</p>
 <label>Hide arcs lighter than <b id="minv">3</b> include lines <input id="min" type="range" min="1" max="30" value="3"></label>
 <svg id="graph" role="img" aria-label="module dependency graph"></svg></section>
 <section><h2>A file</h2>
@@ -494,7 +645,7 @@ function drawEdges(){
  D.edges.forEach(function(e){if(e[2]<min)return;
   var y1=M[e[0]].y+g.h/2,y2=M[e[1]].y+g.h/2,back=e[3],x=back?CX-g.w/2:CX+g.w/2,k=Math.min(g.max,g.step*Math.abs(e[0]-e[1])+8)*(back?-1:1);
   var p=el('path',{'class':'edge'+(back?' back':''),d:'M'+x+' '+y1+' C'+(x+k*1.3)+' '+y1+' '+(x+k*1.3)+' '+y2+' '+x+' '+y2,'stroke-width':(0.6+Math.sqrt(e[2])*0.55).toFixed(2)},edgeG);
-  el('title',{},p,M[e[0]].name+' -> '+M[e[1]].name+': '+e[2]+' include lines'+(back?' (against the order)':''));
+  el('title',{},p,M[e[0]].name+' -> '+M[e[1]].name+': '+e[2]+' include lines'+(back?' (against the levels)':''));
   p._e=e;edgeEls.push(p)});
  mark()}
 function mark(){svg.classList.toggle('dim',sel>=0);edgeEls.forEach(function(p){p.classList.toggle('hi',sel>=0&&(p._e[0]==sel||p._e[1]==sel))})}
@@ -532,7 +683,7 @@ drawReach();
 // the module table
 var tb=document.querySelector('#mods tbody');
 M.forEach(function(m){var tr=h('tr',{},tb),td=h('td',{},tr),d=h('details',{},td),s=h('summary',{},d,m.name+' ('+m.files.length+')');
- h('div',{'class':'muted'},d,m.why+(m.libs.length?'. External: '+m.libs.join(', '):''));var u=h('ul',{},d);m.files.forEach(function(f){h('li',{'class':'mono'},u,f)});
+ h('div',{'class':'muted'},d,(m.level?'Level '+m.level+', '+m.ring+' ring: '+m.level_why+'. ':'')+m.why+(m.libs.length?'. External: '+m.libs.join(', '):''));var u=h('ul',{},d);m.files.forEach(function(f){h('li',{'class':'mono'},u,f)});
  h('td',{'class':'n'},tr,m.uses.length);h('td',{'class':'n'},tr,m.usedby.length);h('td',{'class':'n opt'},tr,m.two_way.length);h('td',{'class':'n opt'},tr,m.lines_out);h('td',{'class':'n opt'},tr,m.lines_in)});
 })();
 </script>
