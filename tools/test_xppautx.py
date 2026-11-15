@@ -145,6 +145,20 @@ class ClientTests(unittest.TestCase):
             if saved is not None:
                 os.environ['XPPAUTX'] = saved
 
+    def test_a_program_that_does_not_start_leaves_no_scratch_copy(self):
+        scratch = os.path.join(self.folder, 'scratch')  # a folder of the test's own stands for the temporary one
+        os.mkdir(scratch)
+        made = []
+        real = tempfile.mkdtemp
+        tempfile.mkdtemp = lambda **kw: made.append(real(dir=scratch, **kw)) or made[-1]
+        try:
+            with self.assertRaises(OSError):
+                Client(self.model, binary=os.path.join(self.folder, 'no-such-program'), scratch=True)
+        finally:
+            tempfile.mkdtemp = real
+        self.assertEqual(len(made), 1)
+        self.assertEqual(os.listdir(scratch), [])
+
 
 if __name__ == '__main__':
     unittest.main()

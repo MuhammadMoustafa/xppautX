@@ -108,9 +108,14 @@ class Client:
         full = {**os.environ, **env} if env is not None else None
         self.started_at = time.monotonic()
         # argv is a list, never a shell string; the model is passed as a name in the folder the process runs in
-        self.proc = subprocess.Popen([os.path.abspath(binary), '--server', os.path.basename(model), *extra_args], cwd=self.cwd,
-                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                     text=True, encoding='utf-8', bufsize=1, env=full)
+        try:
+            self.proc = subprocess.Popen([os.path.abspath(binary), '--server', os.path.basename(model), *extra_args], cwd=self.cwd,
+                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True, encoding='utf-8', bufsize=1, env=full)
+        except OSError:
+            if self.owns_cwd:  # a program that does not start leaves no scratch copy behind
+                shutil.rmtree(self.cwd, ignore_errors=True)
+            raise
         threading.Thread(target=self._read, daemon=True).start()
         self.log_thread = drain(self.proc, self.log.append)
 

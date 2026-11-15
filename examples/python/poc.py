@@ -4,24 +4,23 @@ library only (python/xppautx). The model is a published XPPAUT demo of examples/
     uv run --locked python examples/python/poc.py [--bin ./xppautX] [MODEL]
 
 Every step is one registry command, the one the window's menu runs; a command that fails raises XppError, which this
-script prints with its place (file, line) before it exits 1. The program runs in a temporary copy of the model's folder.
+script prints with its place (file, line) before it exits 1. The program runs in a temporary copy of the model.
 """
-import argparse, glob, os, shutil, sys, tempfile
+import argparse, os, sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'python'))
+CHECKOUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+sys.path.insert(0, os.path.join(CHECKOUT, 'python'))
 from xppautx import Client, XppError
 
 parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
 parser.add_argument('model', nargs='?', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ode', 'lecar.odex'))
-parser.add_argument('--bin', help='the xppautX program (else the XPPAUTX environment variable)')
+parser.add_argument('--bin', default=os.environ.get('XPPAUTX') or os.path.join(CHECKOUT, 'xppautX'),
+                    help='the xppautX program (default: the XPPAUTX environment variable, else the one built in this checkout)')
 args = parser.parse_args()
 
-folder = tempfile.mkdtemp(prefix='xppautx-poc-')  # the program writes beside the model: keep the original untouched
 try:
-    shutil.copy(args.model, folder)
-    for companion in glob.glob(os.path.join(os.path.dirname(args.model), '*.anix')):
-        shutil.copy(companion, folder)
-    with Client(os.path.join(folder, os.path.basename(args.model)), binary=args.bin) as x:
+    # scratch: the program runs in a temporary copy of the model (it writes beside it), removed when it quits
+    with Client(args.model, binary=args.bin, scratch=True) as x:
         x.start_events()
         print('1. load: %s' % os.path.basename(args.model))
 
@@ -58,10 +57,8 @@ try:
         print('   eigenvalues: %s' % ', '.join('%.4g%+.4gi' % (e['real'], e['imaginary']) for e in found['eigenvalues']))
 
         saved = x.command('session.save_as', file='poc.snapx')
-        print('8. saved the session as %s (%d bytes)' % (saved['file'], os.path.getsize(os.path.join(folder, saved['file']))))
+        print('8. saved the session as %s (%d bytes)' % (saved['file'], os.path.getsize(os.path.join(x.cwd, saved['file']))))
     print('9. quit: the program ended with status %d' % x.proc.returncode)
 except XppError as error:
     print('error: %s' % error, file=sys.stderr)
     sys.exit(1)
-finally:
-    shutil.rmtree(folder, ignore_errors=True)
