@@ -487,7 +487,7 @@ inline bool autox_cancelled(const AutoxRun &run)
   return (xpp::job::cancelled()&&!waits)||run.stopped_alone;
 }
 
-/* a solve begins (autoX's Newton solve of a point, algebraic or boundary value): XPP_AUTOX_CANCEL_AT_SOLVE's Nth non-locating
+/* an algebraic solve begins (autoX's Newton solve of an equilibrium point): XPP_AUTOX_CANCEL_AT_SOLVE's Nth non-locating
    one asks Stop, so servercheck's Stop lands at the same solve every time (autox_nox.cpp, W750, W751) */
 inline void autox_solve_begins(AutoxRun &run)
 {
