@@ -271,8 +271,8 @@ struct Queue {
   bool isolated=false; /* the jobs evaluate on copies of the model's constants (else on the Session's own, in turn) */
   bool at_once=false; /* one thread each, at most `budget` together */
   unsigned budget=1;
-  std::atomic<bool> fatal{false}; /* a job ended with an error of the whole run: every job is stopped, as Stop does */
-  std::atomic<std::size_t> points_held{0}; /* every job's points together, which with the diagram's own are the run's */
+  std::atomic<const QueuedJob *> cut{nullptr}; /* the first job in the join's order at which the diagram's limit is reached: it and the jobs after it stop, none after it starts (declare_cut) */
+  std::atomic<std::size_t> points_held{0}; /* every job's points together, which with the diagram's own bound the points the join keeps */
   std::size_t diagram_base=0; /* the diagram's points when the jobs began */
   std::vector<xpp::job::BranchJob> plan; /* a recording's replay: how each job ended (xpp_job.h's stop_jobs); empty otherwise */
   std::map<std::vector<long>,const xpp::job::BranchJob *> plan_of; /* plan by job key: a recording may list a great many jobs */
@@ -319,6 +319,30 @@ bool made_by(const std::vector<const QueuedJob *> &kept, const AutoxJobStart &st
   return false;
 }
 
+/* the jobs before `key` in the join's order that the join keeps, as far as they are settled (a job's keeping is a function of the
+   jobs before it), and whether every job before it is settled. The mutex is held when the jobs are running. */
+struct KeptBefore {
+  std::vector<const QueuedJob *> kept;
+  bool all_settled=true;
+};
+KeptBefore kept_before(std::deque<QueuedJob> &jobs, const AutoxJobKey &key, double epss)
+{
+  std::vector<QueuedJob *> before;
+  for(QueuedJob &other:jobs)
+    if(autox_job_before(other.key,key))before.push_back(&other);
+  std::sort(before.begin(),before.end(),[](const QueuedJob *a,const QueuedJob *b){return autox_job_before(a->key,b->key);});
+  KeptBefore result;
+  for(QueuedJob *other:before){
+    if(!settled(*other)){
+      result.all_settled=false;
+      break;
+    }
+    if(!other->kept)other->kept=!unmade(*other)&&(!other->parent||other->parent->kept.value_or(false))&&!made_by(result.kept,other->start,other->twin,epss);
+    if(*other->kept)result.kept.push_back(other);
+  }
+  return result;
+}
+
 /* whether a job with this key and start is already made by a job the join keeps before it (autox_queue.h). The join's rule is
    a function of the jobs before a job, so a job before the first one not yet settled counts and a later one does not: what it
    would make is not known, and a job another has dropped makes nothing. The answer is the same whatever the order the jobs
@@ -326,17 +350,37 @@ bool made_by(const std::vector<const QueuedJob *> &kept, const AutoxJobStart &st
    dropped by it). The mutex is held when the jobs are running. */
 bool repeats(std::deque<QueuedJob> &jobs, const AutoxJobKey &key, const AutoxJobStart &start, const QueuedJob *twin, double epss)
 {
-  std::vector<QueuedJob *> before;
-  for(QueuedJob &other:jobs)
-    if(autox_job_before(other.key,key))before.push_back(&other);
-  std::sort(before.begin(),before.end(),[](const QueuedJob *a,const QueuedJob *b){return autox_job_before(a->key,b->key);});
-  std::vector<const QueuedJob *> kept;
-  for(QueuedJob *other:before){
-    if(!settled(*other))break;
-    if(!other->kept)other->kept=!unmade(*other)&&(!other->parent||other->parent->kept.value_or(false))&&!made_by(kept,other->start,other->twin,epss);
-    if(*other->kept)kept.push_back(other);
-  }
-  return made_by(kept,start,twin,epss);
+  return made_by(kept_before(jobs,key,epss).kept,start,twin,epss);
+}
+
+/* whether the points the join keeps, up to and including this job's, are more than the diagram holds, so the join stops at
+   this job whatever the other jobs do: counted only when every job before it is settled (a job still running may be dropped
+   as a repeat), so the answer is the one a queue served in turn gives. The latest point is not counted: the limit is
+   reached when one more arrives, as addbif's own check has it. The mutex is held. */
+bool fills_diagram(Queue &q, const QueuedJob &job)
+{
+  const KeptBefore before=kept_before(q.jobs,job.key,q.epss);
+  if(!before.all_settled||made_by(before.kept,job.start,job.twin,q.epss)||(job.parent&&!job.parent->kept.value_or(false)))return false;
+  std::size_t points=q.diagram_base+job.run->points.size()-1;
+  for(const QueuedJob *other:before.kept)points+=other->run->points.size();
+  return autox_diagram_full(points).has_value();
+}
+
+/* the diagram's limit is reached at this job (the mutex held): the jobs after it in the join's order only add points the join
+   cuts, so they stop and none starts, while the jobs before it go on until they end or reach it themselves: the diagram is the
+   same at every thread count and timing */
+void declare_cut(Queue &q, const QueuedJob &job)
+{
+  const QueuedJob *cut=q.cut;
+  if(!cut||autox_job_before(job.key,cut->key))q.cut=&job;
+  q.changed.notify_all();
+}
+
+/* whether a job is the cut or after it */
+bool after_cut(const Queue &q, const AutoxJobKey &key)
+{
+  const QueuedJob *cut=q.cut;
+  return cut&&!autox_job_before(key,cut->key);
 }
 
 /* a direction that leaves the parameter window at the start is not run (it says so, once, in the job's own output) */
@@ -443,7 +487,7 @@ void run_job(Queue &q, QueuedJob &job)
     if(auto finished=autox_finish_files(*job.run);!finished&&!job.failed)job.failed=finished.error(); /* what the join and a child read */
   }
   const std::lock_guard lock(q.mutex);
-  if(job.failed&&job.run->run_wide_error)q.fatal=true;
+  if(job.failed&&job.run->run_wide_error)declare_cut(q,job);
   finish(q,job);
 }
 
@@ -538,10 +582,11 @@ void begin(Queue &q, QueuedJob &job, std::vector<std::thread> &threads)
       const std::lock_guard lock(q.mutex);
       job.unseen.push_back(job.run->points.back());
     }
-    if(autox_diagram_full(q.diagram_base+q.points_held.fetch_add(1))){ /* more points than the diagram holds: the run is over */
-      q.fatal=true;
-      if(!q.at_once)xpp::job::cancel_current();
+    if(autox_diagram_full(q.diagram_base+q.points_held.fetch_add(1))){ /* the jobs hold more points than the diagram: does the join's cut fall here? */
+      const std::lock_guard lock(q.mutex);
+      if(fills_diagram(q,job))declare_cut(q,job);
     }
+    if(after_cut(q,job.key))job.run->stopped_alone=true; /* the cut is at or before this job */
     if(q.at_once)q.changed.notify_all(); /* the main thread draws it */
     else{
       show_live(q);
@@ -577,9 +622,9 @@ void begin(Queue &q, QueuedJob &job, std::vector<std::thread> &threads)
 /* the jobs a job that ended starts (autox_found_starts), those not already made by the jobs before them */
 void make_found_jobs(Queue &q, QueuedJob &job)
 {
-  /* a run over (stopped, or fatal: a point at the diagram's limit sets it before its job can end) makes no more jobs, so the
-     jobs made never exceed autox_recorded_jobs_limit, whatever the threads stored after it */
-  if(xpp::job::cancelled()||q.fatal||job.run->dropped)return;
+  /* a job at or after the diagram's cut (a point at the limit sets it before its job can end) makes no more jobs, so the jobs
+     made never exceed autox_recorded_jobs_limit, whatever the threads stored after it */
+  if(xpp::job::cancelled()||after_cut(q,job.key)||job.run->dropped)return;
   if(const xpp::job::BranchJob *entry=planned(q,job.key);entry&&entry->state!=xpp::job::JobState::finished)return; /* a stopped job's points started nothing */
   QueuedJob *last_hopf=nullptr;
   for(AutoxJobStart &start:autox_found_starts(job.start.ips,job.run->points,job.run->stop)){
@@ -615,13 +660,13 @@ void expand(Queue &q, QueuedJob &job)
   job.expanded=true;
 }
 
-/* the queued job with the least key, none once the run was stopped */
+/* the queued job with the least key, none once the run was stopped; a job at or after the diagram's cut never starts */
 QueuedJob *next_queued(Queue &q)
 {
   if(xpp::job::cancelled())return nullptr;
   QueuedJob *next=nullptr;
   for(QueuedJob &job:q.jobs)
-    if(!job.started&&!job.done&&(!next||autox_job_before(job.key,next->key)))next=&job;
+    if(!job.started&&!job.done&&!after_cut(q,job.key)&&(!next||autox_job_before(job.key,next->key)))next=&job;
   return next;
 }
 
@@ -692,7 +737,6 @@ void run_queue(Queue &q)
 {
   std::vector<std::thread> threads;
   for(;;){
-    if(q.fatal&&!xpp::job::cancelled())xpp::job::cancel_current(); /* an error of the whole run stops every job, as Stop does */
     for(std::size_t i=0;i<q.jobs.size();i++){
       QueuedJob &job=q.jobs[i];
       bool ended;
@@ -724,6 +768,7 @@ void run_queue(Queue &q)
     byeautox_(&stop); /* the front end's Abort, which cancels every job */
   }
   for(std::thread &thread:threads)thread.join();
+  if(q.cut&&!xpp::job::cancelled())xpp::job::cancel_current(); /* the diagram's limit ends the run as Stop does: its stop is reported so */
   show_live(q); /* what the threads stored last */
   for(QueuedJob &job:q.jobs)
     if(!job.started&&!job.done&&!job.skipped)job.never=true; /* what a stop left queued */

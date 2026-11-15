@@ -573,9 +573,17 @@ void check_directions_output(unsigned threads)
     CHECK(text.find(xpp::autox_point_row_key(2,1,"EP",0).substr(0,16))!=std::string::npos); /* its first point's row: branch 2, point 1, EP */
 }
 
+/* a diagram point as the limit check compares it: what the diagram says of its place and its values */
+struct LimitPoint {
+    int ibr, lab;
+    std::vector<double> par, u0;
+    bool operator==(const LimitPoint &) const = default;
+};
+
 /* W596: the diagram's point limit is the whole run's: the points of both jobs and the diagram's, one error, the points
-   up to the limit kept (XPP_DIAGRAM_POINTS_LIMIT lowers it, as servercheck's W432 check does) */
-void check_directions_limit(unsigned threads)
+   up to the limit kept (XPP_DIAGRAM_POINTS_LIMIT lowers it, as servercheck's W432 check does). W756 (#835): the points
+   kept are the first ones in the join's order whatever the thread count and timing; returned, for the caller to compare */
+std::vector<LimitPoint> check_directions_limit(unsigned threads)
 {
     xpp::TempDir tmp;
     CHECK(load("examples/tstauto/ab.odex"));
@@ -591,14 +599,27 @@ void check_directions_limit(unsigned threads)
     CHECK(!run && run.error().what.find("the diagram holds 30 points")!=std::string::npos);
     CHECK(s.diagram->points.size()==30);
     int branches=0;
-    for(const xpp::DIAGRAM &p:s.diagram->points)branches=std::max(branches,std::abs(p.ibr));
-    if(threads==1)CHECK(branches==1); /* in turn the first job reaches the limit alone; side by side the branches kept depend on timing until W756 (#835) */
+    std::vector<LimitPoint> points;
+    for(const xpp::DIAGRAM &p:s.diagram->points){
+        branches=std::max(branches,std::abs(p.ibr));
+        points.push_back({p.ibr,p.lab,p.par,p.u0});
+    }
+    CHECK(branches==1); /* the first job reaches the limit alone */
     std::vector<int> diagram_labels;
     for(const xpp::DIAGRAM &p:s.diagram->points)if(p.lab>0)diagram_labels.push_back(p.lab);
     std::vector<int> stored_labels=solution_labels(xpp::autox_solutions_file(s));
     std::sort(diagram_labels.begin(),diagram_labels.end());
     std::sort(stored_labels.begin(),stored_labels.end());
     CHECK(!diagram_labels.empty() && stored_labels==diagram_labels); /* no record of a point the diagram dropped */
+    return points;
+}
+
+/* the limit's diagram is the same side by side as in turn, run again so that a timing that differs shows */
+void check_directions_limit_same()
+{
+    constexpr int side_by_side_runs=10; /* the jobs' relative speed varies from run to run */
+    const std::vector<LimitPoint> in_turn=check_directions_limit(1);
+    for(int run=0;run<side_by_side_runs;run++)CHECK(check_directions_limit(2)==in_turn);
 }
 
 /* how many jobs the last autox.jobs event of the run showed with at least two points drawn: the jobs' progress as the front end
@@ -1270,8 +1291,7 @@ TEST_CASE("test_session_autox")
 
     CHECK(load("examples/ode/lecar.odex"));
     check_import(lecar_autox, tmp);
-    check_directions_limit(1);
-    check_directions_limit(2);
+    check_directions_limit_same();
     check_directions_stopped(2);
     check_directions_stopped(1); /* last: its Abort leaves the process-wide cancel set */
     TEST_REPORT("session_autox");
