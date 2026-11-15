@@ -226,13 +226,13 @@ Result<Preferences> parse_prefs(std::string_view text, std::string file)
     }
 }
 
-Result<std::string> serialize_prefs(const Preferences &p)
+Result<std::string> serialize_prefs(const Preferences &p, std::string_view file)
 {
     Put put;
     put.out.begin_statement("preferences");
     describe(put, p);
     put.out.end_statement();
-    if (put.bad_) return fail(std::string(WHERE), "cannot be saved: " + *put.bad_, Place{std::string(FILE_NAME)});
+    if (put.bad_) return fail(std::string(WHERE), "cannot be saved: " + *put.bad_, Place{std::string(file)});
     Result<std::string> body = put.out.result(std::string(WHERE));
     if (!body) return std::unexpected(body.error());
     return odex::version_statement() + "\n" + *body;
@@ -247,7 +247,7 @@ Result<Preferences> load_prefs(FileSystem &fs)
 
 Result<> save_prefs(FileSystem &fs, const Preferences &p)
 {
-    const Result<std::string> text = serialize_prefs(p);
+    const Result<std::string> text = serialize_prefs(p, prefs_path(fs));
     if (!text) return std::unexpected(text.error());
     return fs.write_config(WHERE, FILE_NAME, *text);
 }

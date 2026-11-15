@@ -82,8 +82,8 @@ struct Preferences {
    already listed, is an error at that value. */
 Result<Preferences> parse_prefs(std::string_view text, std::string file);
 /* the file's text for these preferences (parse of it gives them back), or
-   the error for a value that cannot be written */
-Result<std::string> serialize_prefs(const Preferences &p);
+   the error for a value that cannot be written, placed at file (the preferences' path) */
+Result<std::string> serialize_prefs(const Preferences &p, std::string_view file);
 
 /* whether the opening's check for a newer release is due now (the preference is on and none began today, UTC); when it is,
    the check is recorded as begun, so a failed one waits for tomorrow too. A bad preferences file is the error. */

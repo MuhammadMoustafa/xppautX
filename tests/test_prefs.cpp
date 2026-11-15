@@ -127,13 +127,13 @@ void check_outside_paths()
     CHECK(p.outside_paths.size() == xpp::prefs::MAX_OUTSIDE_APPROVALS && p.outside_paths.front().path == abs_path("t5"));
     xpp::prefs::remember_newest(p.outside_paths, xpp::OutsideApproval{abs_path("b.odex"), abs_path("new")}, xpp::prefs::MAX_OUTSIDE_APPROVALS);
     CHECK(p.outside_paths.size() == xpp::prefs::MAX_OUTSIDE_APPROVALS && p.outside_paths.back().path == abs_path("t1")); /* t0 went */
-    const auto text = xpp::prefs::serialize_prefs(p);
+    const auto text = xpp::prefs::serialize_prefs(p, FILE_LABEL);
     CHECK(text.has_value());
     const auto back = xpp::prefs::parse_prefs(*text, FILE_LABEL);
     CHECK(back && back->outside_paths == p.outside_paths);
     xpp::prefs::Preferences bad;
     bad.outside_paths = {{abs_path("a.odex"), "relative"}};
-    CHECK(!xpp::prefs::serialize_prefs(bad));
+    CHECK(!xpp::prefs::serialize_prefs(bad, FILE_LABEL));
 }
 
 /* W622: the opening's update check: its switch and the time of the last one */
@@ -156,10 +156,10 @@ void check_update_check()
     xpp::prefs::Preferences p;
     p.check_for_updates = false;
     p.last_update_check = "2026-11-10T14:03:00Z";
-    const auto back = xpp::prefs::parse_prefs(*xpp::prefs::serialize_prefs(p), FILE_LABEL);
+    const auto back = xpp::prefs::parse_prefs(*xpp::prefs::serialize_prefs(p, FILE_LABEL), FILE_LABEL);
     CHECK(back && !back->check_for_updates && back->last_update_check == p.last_update_check);
     p.last_update_check = "soon";
-    CHECK(!xpp::prefs::serialize_prefs(p));
+    CHECK(!xpp::prefs::serialize_prefs(p, FILE_LABEL));
 }
 
 void check_good_files()
@@ -171,7 +171,7 @@ void check_good_files()
     xpp::prefs::Preferences p;
     p.recent_models = {abs_path("a.odex"), abs_path("b c.odex"), abs_path("d\\e.odex")};
     for (std::size_t i = p.recent_models.size(); i < xpp::prefs::MAX_RECENT_MODELS; i++) p.recent_models.push_back(abs_path("m" + std::to_string(i)));
-    const auto text = xpp::prefs::serialize_prefs(p);
+    const auto text = xpp::prefs::serialize_prefs(p, FILE_LABEL);
     CHECK(text.has_value());
     const auto back = xpp::prefs::parse_prefs(*text, FILE_LABEL);
     CHECK(back && back->recent_models == p.recent_models);
@@ -182,9 +182,9 @@ void check_good_files()
     /* a value that cannot be written is refused when saving, not written as a file that does not read */
     xpp::prefs::Preferences bad;
     bad.recent_models = {"relative.odex"};
-    CHECK(!xpp::prefs::serialize_prefs(bad));
+    CHECK(!xpp::prefs::serialize_prefs(bad, FILE_LABEL));
     bad.recent_models = {abs_path("a\nb")};
-    CHECK(!xpp::prefs::serialize_prefs(bad));
+    CHECK(!xpp::prefs::serialize_prefs(bad, FILE_LABEL));
 }
 
 /* autoX's thread count (W267): "auto" or a whole number from 1 to the logical processors */
@@ -199,12 +199,12 @@ void check_threads()
         xpp::prefs::Preferences p;
         p.recent_models = {abs_path("a.odex")};
         p.threads = n;
-        const auto text = xpp::prefs::serialize_prefs(p);
+        const auto text = xpp::prefs::serialize_prefs(p, FILE_LABEL);
         CHECK(text.has_value());
         const auto back = xpp::prefs::parse_prefs(*text, FILE_LABEL);
         CHECK(back && back->threads == n && back->recent_models == p.recent_models);
     }
-    const auto automatic = xpp::prefs::serialize_prefs({});
+    const auto automatic = xpp::prefs::serialize_prefs({}, FILE_LABEL);
     CHECK(automatic && xpp::prefs::parse_prefs(*automatic, FILE_LABEL).value().threads == THREADS_AUTO);
     /* a bad value is refused at its line, with the value */
     const std::string beyond = std::to_string(most + 1);
@@ -227,7 +227,7 @@ void check_threads()
     }
     xpp::prefs::Preferences p;
     p.threads = most + 1;
-    CHECK(!xpp::prefs::serialize_prefs(p)); /* not written as a file that does not read */
+    CHECK(!xpp::prefs::serialize_prefs(p, FILE_LABEL)); /* not written as a file that does not read */
     CHECK(!xpp::cpu::threads_problem(1) && !xpp::cpu::threads_problem(most));
     CHECK(xpp::cpu::threads_problem(0) && xpp::cpu::threads_problem(most + 1));
 }
@@ -240,7 +240,7 @@ void check_colors()
     xpp::prefs::Preferences p;
     for (const xpp::ColorKey &c : xpp::COLOR_KEYS) p.colors.*c.member = xpp::xppaut_color(3);
     p.colors.y_nullcline = xpp::Color{1, 2, 3, 128, false};
-    const auto text = xpp::prefs::serialize_prefs(p);
+    const auto text = xpp::prefs::serialize_prefs(p, FILE_LABEL);
     CHECK(text.has_value());
     const auto back = xpp::prefs::parse_prefs(*text, FILE_LABEL);
     CHECK(back && back->colors.x_nullcline == xpp::xppaut_color(3) && back->colors.y_nullcline == p.colors.y_nullcline);
@@ -260,7 +260,7 @@ void check_log()
         xpp::prefs::Preferences p;
         p.log_level = static_cast<XppLogLevel>(i);
         p.log_file = abs_path("log.txt");
-        const auto text = xpp::prefs::serialize_prefs(p);
+        const auto text = xpp::prefs::serialize_prefs(p, FILE_LABEL);
         CHECK(text.has_value());
         const auto back = xpp::prefs::parse_prefs(*text, FILE_LABEL);
         CHECK(back && back->log_level == p.log_level && back->log_file == p.log_file);
@@ -282,7 +282,7 @@ void check_log()
     }
     xpp::prefs::Preferences p;
     p.log_file = "relative.txt";
-    CHECK(!xpp::prefs::serialize_prefs(p));
+    CHECK(!xpp::prefs::serialize_prefs(p, FILE_LABEL));
 }
 
 void check_file()
