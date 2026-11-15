@@ -691,7 +691,7 @@ public:
     if(ch=='p')s_.numerics->pauser=true;
     return ch==27||ch=='/';
   }
-  bool failed() const override { return s_.integrator->step_error.has_value(); }
+  bool failed() const override { return s_.parser.step_error.has_value(); }
   Error take_failure() override { return take_step_error(s_).error(); }
 private:
   Session &s_;

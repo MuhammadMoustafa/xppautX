@@ -15,33 +15,11 @@ struct Session; /* session.h */
 /* Bound both allocation and formula evaluation from hostile table counts to 8 MB per session. */
 inline constexpr int table_points_limit = 1000000;
 
-/* a model's table (xpp::Model's tables, model.h): file or function values y on [xlo,xhi]
-   step dx; y stays a raw double* because simplenet.cpp's networks
-   keep pointers into it (weights, indices, delays); y_storage owns that
-   block (tabular.cpp's resize_values), a std::vector */
-struct TABULAR {
-  double xlo=0.0,xhi=0.0,dx=0.0;
-  double *y=nullptr;
-  std::vector<double> y_storage;
-  int n=0,flag=0,interp=0,autoeval=1;
-/* flag=0 if virgin array, flag=1 if already allocated; flag=2 for function
-   interp=0 for normal interpolation, interp=1 for 'step'
-   interp=2 for cubic spline */
-  std::string filename; /* the file, or a function table's formula */
-  std::string name;
-};
-
 /* Tables return why they failed; the command (or the model load) shows it. */
 
-int get_lookup_len(const Session &s, int i);
 /* the Session s's function tables again, after a parameter changed: the
    first failure, the others still done */
 Result<> redo_all_fun_tables(Session &s);
-/* table index's value at x in the Session s (the evaluator's TABTYPE) */
-double lookup(const Session &s, double x, int index);
-/* the slope of that table's interpolation at x: the derivative of lookup
-   (W260), 0 on a step table's steps */
-double lookup_slope(const Session &s, double x, int index);
 /* table index's formula worked out at n points of [xlo,xhi] into y (its
    error at the table's line); formula is a
    std::string (a table's own) and not a string_view: autoX redoes the
@@ -65,10 +43,9 @@ struct TableEdit {
 };
 /* table index edited: its points, now evaluated or read, or why it could not be */
 Result<int> edit_table(Session &s, int index, const TableEdit &edit);
-/* the session s's table index is called name; every table back to none
-   (a load's start) */
-void set_table_name(Session &s, std::string_view name, int index);
-void init_table(Session &s);
+/* table index read from the file named file (its printable characters), one of the model's own files
+   (model_files.h): why it could not be, else nothing */
+Result<> add_file_table(Session &s, int index, std::string_view file);
 Result<> create_fun_table(Session &s, int npts, double xlo, double xhi, std::string_view formula, int index);
 /* table index read from the file filename (quoted or not): one of the
    model's own files (model_file, model_files.h: a file table of the

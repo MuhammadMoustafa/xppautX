@@ -242,7 +242,7 @@ struct Session {
      redo_all_fun_tables), and a file table can be read again from the
      Numerics menu */
   int ntable=0;
-  std::vector<TABULAR> tables; /* set_table_name makes room for each */
+  std::vector<TABULAR> tables; /* add_table_name makes room for each */
 
   /* the boundary conditions in use, one per ODE: the Model's, copied at
      the end of a load, then changed by a `set` or a .set

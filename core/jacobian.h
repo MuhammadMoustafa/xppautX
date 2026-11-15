@@ -39,17 +39,6 @@ struct Model; /* model.h */
    or fewer than two groups fewer than states. */
 const DifferenceGroups *difference_groups(const Model &m, JacobianScratch &scratch, int n);
 
-/* How the model's Jacobian is formed, the numerics' `jacobian` (W260):
-   by forward differences, XPPAUT's (the default: a model gives XPPAUT's
-   numbers), or exactly, from the derivatives translate_model made of the
-   model's right-hand sides (Model::jacobian). Their names, by value, are
-   what the `jacobian` option and `set num` take. */
-constexpr int JACOBIAN_DIFFERENCE = 0, JACOBIAN_EXACT = 1;
-inline constexpr std::array<std::string_view, 2> jacobian_names{"difference", "exact"};
-inline constexpr std::string_view jacobian_name(int jacobian) { return jacobian_names[static_cast<std::size_t>(jacobian)]; }
-/* its key in the numerics (`set num`, the numerics event) */
-inline constexpr std::string_view JACOBIAN_KEY = "jacobian";
-
 /* How the Jacobian is stored: d f_row / d x_col is out[row*n+col]
    (RowMajor) or out[row+n*col] (ColumnMajor); Banded, with `lower` and
    `upper` diagonals and mt = lower+upper+1, is out[row*mt+(col-row)+lower]

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <optional>
+#include <cstddef>
 #include <string_view>
 
 /* The numerics a model gives and a Session holds, as data: the methods by number, the value types and the
@@ -34,6 +35,16 @@ inline constexpr std::array<std::string_view, 2> subsystem_split_names{"equation
    the double itself; the words are the .odex's `storage_precision` */
 enum class StoragePrecision { single, double_ };
 inline constexpr std::array<std::string_view, 2> storage_precision_names{"single", "double"};
+/* How the model's Jacobian is formed, the numerics' `jacobian` (W260):
+   by forward differences, XPPAUT's (the default: a model gives XPPAUT's
+   numbers), or exactly, from the derivatives translate_model made of the
+   model's right-hand sides (Model::jacobian). Their names, by value, are
+   what the `jacobian` option and `set num` take. */
+constexpr int JACOBIAN_DIFFERENCE = 0, JACOBIAN_EXACT = 1;
+inline constexpr std::array<std::string_view, 2> jacobian_names{"difference", "exact"};
+inline constexpr std::string_view jacobian_name(int jacobian) { return jacobian_names[static_cast<std::size_t>(jacobian)]; }
+/* its key in the numerics (`set num`, the numerics event) */
+inline constexpr std::string_view JACOBIAN_KEY = "jacobian";
 /* the sign a number's own sign says (XPPAUT's +1, -1 and 0) */
 constexpr SectionSign section_sign(double x) { return x < 0 ? SectionSign::negative : x == 0 ? SectionSign::both : SectionSign::positive; }
 /* the crossings' words, by the sign's number plus 1 (negative, both, positive); the .odex's and the commands' */
@@ -102,7 +113,7 @@ struct NumericsSettings {
   bool cv_bandflag = false;
   int cv_bandupper = 1, cv_bandlower = 1;
   /* how every Jacobian of the model is formed: JACOBIAN_DIFFERENCE or
-     JACOBIAN_EXACT (jacobian.h, W260) */
+     JACOBIAN_EXACT (model_numerics.h, W260) */
   int jacobian = 0;
   /* the global flags' crossing tolerance */
   double stol = 1.e-10;

@@ -1,6 +1,7 @@
 /* .odex's tokenizer, grammar and printer (core/odex.h, docs/odex.md): the
    precedence and grouping of docs/odex.md's table, every statement, and
    an error at the right line and column for each kind of mistake. */
+#include "expr_tables.h"
 #include "local_fs.h"
 #include "load_args.h"
 #include "model_text.h"
@@ -1074,7 +1075,7 @@ TEST_CASE("test_odex")
     const int index = s.model().networks[0].weight_table;
     const auto shorter = xpp::load_table(s, "build/w_short.tab", index, 0);
     CHECK(!shorter && shorter.error().place.line == 5 && shorter.error().what == "In network k, table W has 2 values; 3 are needed");
-    CHECK(xpp::get_lookup_len(s, index) == 3 && s.tables[index].y[2] == 3.0);
+    CHECK(s.tables[index].n == 3 && s.tables[index].y[2] == 3.0);
   }
 
   /* W505: every table number is read through the typed reader, all or nothing: a word, a nan or
@@ -1097,7 +1098,7 @@ TEST_CASE("test_odex")
     CHECK(!inf_end && inf_end.error().place.line == 3 && inf_end.error().place.source == "inf");
     const auto wide = xpp::load_table(s, "build/w_range.tab", index, 0);
     CHECK(!wide && wide.error().place.line == 3);
-    CHECK(xpp::get_lookup_len(s, index) == 3 && s.tables[index].y[2] == 3.0 && s.tables[index].xlo == 0.0);
+    CHECK(s.tables[index].n == 3 && s.tables[index].y[2] == 3.0 && s.tables[index].xlo == 0.0);
   }
 
   /* W497: a user function takes any number of arguments: ARG1..ARG20 are built in, and the rest are

@@ -1,5 +1,6 @@
 /* The session list and a load's swap of its client's Model and Session
    (session.h). */
+#include "expr_tables.h"
 #include "session.h"
 #include "model_request.h"
 #include "model.h"
@@ -28,6 +29,8 @@
 #include "storage.h"
 #include "value_undo.h"
 #include "volterra.h"
+#include "volterra2.h"
+#include "my_rhs.h"
 #include "autox_codes.h"
 #include "tabular.h"
 #include "userbut.h"
@@ -37,6 +40,21 @@
 #include <utility>
 
 namespace xpp {
+
+namespace {
+
+/* the run's functions the compiled formulas call (ExprHost, expr.h): the delays, integral kernels, networks and the
+   right-hand side's purity, which the expressions never include */
+const ExprHost run_host{
+  .delay = do_delay,
+  .delay_shift = do_delay_shift,
+  .kernel_value = ker_val,
+  .network_value = network_value,
+  .vector_value = vector_value,
+  .pure_rhs_ready = pure_rhs_ready,
+};
+
+}
 
 /* The parts are made default-initialised, as when they were members, except
    the plot windows and frozen curves, which were value-initialised. */
@@ -79,6 +97,7 @@ Session::Session(Model &m)
     value_undo(std::make_unique_for_overwrite<ValueUndo>()),
     model_(&m)
 {
+  parser.host=&run_host;
   selected_window=plot_windows->graph[0].name;
   plot_display.resize(1);
 }

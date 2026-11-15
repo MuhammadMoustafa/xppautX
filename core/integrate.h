@@ -284,9 +284,6 @@ struct IntegratorState {
   int suppress_out = 0;
   /* the bounds check is off */
   int suppress_bounds = 0;
-  /* a step's delay (stop_integration) or DAE solve (do_daes) failed:
-     why; integrate() ends and returns it */
-  std::optional<Error> step_error;
   /* where the last integration stopped */
   double last_time = 0;
   /* the adjoint is computed over a range (adj2.cpp) */
@@ -324,11 +321,6 @@ Result<int> integrate(Session &s, double *t, double *x, double tend, double dt, 
 /* shooting's integration over the whole interval (drawn as it runs when
    ishow, where a failure only ends the curve), or the method's failure */
 Result<> ode_int(Session &s, double *y, double *t, int *istart, int ishow);
-/* a step or an evaluation that cannot go on (a delay out of range, a DAE
-   solve, user functions nested past MAX_UFUN_DEPTH): records why (the
-   first); the integration ends after the step and returns it, and what
-   no caller takes the command shows when it ends (ui_json.cpp) */
-void stop_integration(Session &s, Error why);
 /* the recorded failure, cleared, so the next run starts clean (and the
    DAE solve afresh) */
 std::unexpected<Error> take_step_error(Session &s);

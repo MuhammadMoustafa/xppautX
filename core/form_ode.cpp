@@ -13,6 +13,7 @@
 #include <functional>
 #include <set>
 
+#include "expr_tables.h"
 #include "xpp_util.h"
 #include "form_ode.h"
 #include "ode_read.h"
@@ -483,7 +484,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
 	       name,nn,xlo,xhi,formula);
 	add_table_name(s,s.ntable,name);
 
-	if(auto t=add_form_table(s,s.ntable,nn,xlo,xhi,formula);!t)
+	if(auto t=create_fun_table(s,nn,xlo,xhi,formula,s.ntable);!t)
 	  table_failed(t.error());
 
 	s.ntable++;
@@ -1379,7 +1380,7 @@ private:
       const std::string formula=text(s.expr);
       xpp::log(XPP_LOG_INFO, " Function form of table....\n");
       xpp::log(XPP_LOG_INFO, " {} has {} pts from {:f} to {:f} = {}\n",s.name,s.more().count,s.more().lo,s.more().hi,formula);
-      if(auto t=add_form_table(s_,ntab_,s.more().count,s.more().lo,s.more().hi,formula);!t){
+      if(auto t=create_fun_table(s_,s.more().count,s.more().lo,s.more().hi,formula,ntab_);!t){
 	table_failed(t.error());
       }
       s_.tables[ntab_].autoeval=s.more().auto_evaluate?1:0;

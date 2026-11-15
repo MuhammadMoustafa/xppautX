@@ -1,3 +1,4 @@
+#include "expr_tables.h"
 #include "xpp_util.h"
 #include "model_failed.h"
 #include "simplenet.h"
@@ -320,7 +321,7 @@ int next_index(const xpp::Session &s, xpp::Tokens &args, const char *net, const 
    network reads them */
 void require_table_length(const xpp::Session &s, const char *net, std::string_view tablename, int index, long long needed)
 {
-  const long long have=get_lookup_len(s,index);
+  const long long have=s.tables[index].n;
   if(have<needed)
     model_failed(xpp::format("In {}, {} has {} values; {} are needed",net,tablename,have,needed));
 }

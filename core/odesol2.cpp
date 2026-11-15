@@ -61,7 +61,7 @@ int fixed_steps(xpp::Session &s, double *y, int nt, int neq, double *tim, int *i
     if(s.model().flag_count()==0)step(dt);
     else one_flag_steps(s,y,neq,tim,istart,dt,f);
     stor_delay(s,y);
-    if(s.integrator->step_error||xpp::job::cancelled())break;
+    if(s.parser.step_error||xpp::job::cancelled())break;
   }
   return(0);
 }

@@ -3,7 +3,6 @@
    the tables below, whose order the symbol table's built-ins name), and
    what DELAY, DEL_SHFT, SHIFT and ISHIFT compute (expr_program.h). */
 #include "expr_derivative.h"
-#include "delay_handle.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "session.h"
@@ -337,40 +336,5 @@ double do_random_normal(xpp::Session &s, double mean, double sd)
   return s.random.normal(mean,sd);
 }
 
-double do_delay_shift(xpp::Session &s, double delay, double shift, double variable)
-{
- int in;
-  int i=static_cast<int>(variable),ish=static_cast<int>(shift);
-  if(i<0) return(0.0);
-  in=(i % MAXTYPE)+ish;
-
-  if(in<0||static_cast<size_t>(in)>=s.parser.variables.size())
-    return 0.0;
-
-  if(s.delay->stab_flag>0){
-    if(s.delay->flag&&delay>0.0)
-      return(get_delay(s,in-1,delay));
-    return(s.parser.variables[in]);
-  }
-
-  return(delay_stab_eval(s,delay,in));
-
-}
-double do_delay(xpp::Session &s, double delay, double i)
-{
-  int variable;
-    /* ram - this was a little weird, since i is a double... except I think it's secretely an integer */
-    variable = (static_cast<int>(i)) % MAXTYPE;
-
-  if(s.delay->stab_flag>0){
-    if(s.delay->flag&&delay>0.0) {
-      return(get_delay(s,variable-1,delay));
-    }
-    return(s.parser.variables[variable]);
-  }
-
-  return(delay_stab_eval(s,delay,static_cast<int>(variable)));
-
-}
 
 }

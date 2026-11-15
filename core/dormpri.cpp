@@ -826,7 +826,7 @@ private:
         internal_time_=run_.xout;
         valid_=true;
         events_checked_=false;
-        if(s.integrator->step_error)return std::unexpected(*s.integrator->step_error);
+        if(s.parser.step_error)return std::unexpected(*s.parser.step_error);
       }
       const double until=(internal_time_-step.tout)*direction<0?internal_time_:step.tout;
       const auto state=[&](double time,std::span<double> y){sample(time,y);};

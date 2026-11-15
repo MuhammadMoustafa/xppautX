@@ -10,12 +10,10 @@
 #include "expr_derivative.h"
 #include "model.h"
 #include "model_place.h"
-#include "integrate.h"
 #include "xpp_ui.h"
-#include "tabular.h"
-#include "volterra2.h"
 #include "session.h"
 #include "expr.h"
+#include "expr_tables.h"
 #include "expr_program.h"
 #include "xpp_error.h"
 #include "xpp_text.h"
@@ -191,7 +189,7 @@ std::expected<std::vector<expr::Op>, std::string> operations(Session &s, std::sp
 {
   auto ops=operations(s,program.rpn,arguments,decoding);
   if(!ops){
-    stop_integration(s,Error{"evaluation",xpp::format("the program cannot be run: {}",ops.error()),command_place()});
+    stop_integration(s.parser,Error{"evaluation",xpp::format("the program cannot be run: {}",ops.error()),command_place()});
     return nullptr;
   }
   program.ops=std::move(*ops);
@@ -214,7 +212,7 @@ inline const expr::Op *instructions(Session &s, const Program &program, int argu
    frame for the error's text) */
 [[gnu::noinline]] void nested_too_deep(Session &s, int function)
 {
-  stop_integration(s,Error{"evaluation",
+  stop_integration(s.parser,Error{"evaluation",
       xpp::format("user function '{}' nests deeper than {} calls",s.model().ufun_names[function],MAX_UFUN_DEPTH),
       model_place(s.model(),s.model().ufun_names[function])});
 }
@@ -296,7 +294,7 @@ double run(const expr::Op *code, const expr::Op *op, Session &s)
       for(int j=0;j<n;j++)st.args[st.nargs++]=*--sp;
       st.top=static_cast<int>(sp-values);
       double value=0.0;
-      if(s.integrator->step_error){
+      if(s.parser.step_error){
         st.nargs-=n;
       }else if(st.ufun_depth>=MAX_UFUN_DEPTH){
         nested_too_deep(s,o.a);
@@ -340,7 +338,7 @@ double run(const expr::Op *code, const expr::Op *op, Session &s)
       const double tau=*--sp;
       const double variable=*--sp;
       st.top=static_cast<int>(sp-values);
-      const double value=expr::do_delay(s,tau,variable);
+      const double value=s.parser.host->delay(s,tau,variable);
       sp=values+st.top;
       *sp++=value;
       break;
@@ -350,7 +348,7 @@ double run(const expr::Op *code, const expr::Op *op, Session &s)
       const double shift=*--sp;
       const double variable=*--sp;
       st.top=static_cast<int>(sp-values);
-      const double value=expr::do_delay_shift(s,tau,shift,variable);
+      const double value=s.parser.host->delay_shift(s,tau,shift,variable);
       sp=values+st.top;
       *sp++=value;
       break;
@@ -376,14 +374,14 @@ double run(const expr::Op *code, const expr::Op *op, Session &s)
     case expr::OpKind::Table: case expr::OpKind::Network: case expr::OpKind::Vector: {
       const double x=*--sp;
       st.top=static_cast<int>(sp-values);
-      const double value=o.kind==expr::OpKind::Table?lookup(s,x,o.a):o.kind==expr::OpKind::Network?network_value(s,x,o.a):vector_value(s,x,o.a);
+      const double value=o.kind==expr::OpKind::Table?lookup(s.tables[o.a],x):o.kind==expr::OpKind::Network?s.parser.host->network_value(s,x,o.a):s.parser.host->vector_value(s,x,o.a);
       sp=values+st.top;
       *sp++=value;
       break;
     }
     case expr::OpKind::Kernel: {
       st.top=static_cast<int>(sp-values);
-      const double value=ker_val(s,o.a);
+      const double value=s.parser.host->kernel_value(s,o.a);
       sp=values+st.top;
       *sp++=value;
       break;
@@ -458,8 +456,8 @@ void evaluate_derivatives(const Session &s, const expr::Symbolic &graph, const J
       break;
     }
     case expr::Symbolic::Op::Select: value=arg(0)==0.0?arg(2):arg(1); break;
-    case expr::Symbolic::Op::Table: value=lookup(s,arg(0),n.index); break;
-    case expr::Symbolic::Op::TableSlope: value=lookup_slope(s,arg(0),n.index); break;
+    case expr::Symbolic::Op::Table: value=lookup(s.tables[n.index],arg(0)); break;
+    case expr::Symbolic::Op::TableSlope: value=lookup_slope(s.tables[n.index],arg(0)); break;
     }
   }
   for(std::size_t k=0;k<out.size();k++)out[k]=values[static_cast<std::size_t>(p.terms[k].id)];

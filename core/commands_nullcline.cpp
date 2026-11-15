@@ -30,7 +30,7 @@ Result<std::string> compute(Session &s,const Command &c,const Arguments &,const 
 {
     if(!phase_plane(*s.plot_windows->current))return fail(c.name,"Not in a usable 2D plane",p);
     compute_nullclines(s);
-    if(s.integrator->step_error)return std::unexpected(take_step_error(s).error());
+    if(s.parser.step_error)return std::unexpected(take_step_error(s).error());
     return xpp::format("{{\"curves_computed\":{}}}",s.numerics->null_here?2:0);
 }
 Result<std::string> redraw(Session &s,const Command &,const Arguments &,const Place &)
@@ -64,7 +64,7 @@ Result<std::string> range_freeze(Session &s,const Command &c,const Arguments &a,
     range.nstep=static_cast<int>(a.get<long long>("steps"));
     const auto before=s.nullcline_state->frozen.size();
     range_nullclines(s);
-    if(s.integrator->step_error)return std::unexpected(take_step_error(s).error());
+    if(s.parser.step_error)return std::unexpected(take_step_error(s).error());
     return xpp::format("{{\"steps_frozen\":{}}}",s.nullcline_state->frozen.size()-before);
 }
 Result<std::string> animate(Session &s,const Command &,const Arguments &a,const Place &)

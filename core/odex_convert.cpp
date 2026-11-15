@@ -9,6 +9,7 @@
    different value. The source text serves only to spell a name the way
    its declaration does (.ode keeps names in upper case), to copy the
    model's comments and what follows its done. */
+#include "expr_tables.h"
 #include "odex.h"
 #include "odex_write.h"
 #include "expr_native.h"

@@ -328,10 +328,8 @@ inline double number_from_halves(int first, int second)
   return std::bit_cast<double>(std::array<int,2>{first,second});
 }
 
-/* ENDDELAY, ENDDELSHFT, ENDSHIFT and ENDISHIFT (expr_functions.cpp), in
-   the Session s the evaluator runs in */
-double do_delay(xpp::Session &s, double delay, double i);
-double do_delay_shift(xpp::Session &s, double delay, double shift, double variable);
+/* ENDSHIFT and ENDISHIFT (expr_functions.cpp), in the Session s the
+   evaluator runs in (the delays are the run's: ExprHost, expr.h) */
 double do_shift(const xpp::Session &s, double shift, double variable);
 double do_ishift(double shift, double variable);
 /* ENDSET: variable v+shift becomes value (v and shift as the program

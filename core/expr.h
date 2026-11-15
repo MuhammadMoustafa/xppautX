@@ -30,6 +30,7 @@
 #include <string_view>
 #include <vector>
 #include <stddef.h>
+#include <utility>
 #include "xpp_error.h"
 
 /* the built-in symbols, the symbol table's first entries (expr_symbols.cpp) */
@@ -41,6 +42,22 @@
 namespace xpp {
 
 struct Session; /* session.h */
+
+/* What a compiled formula calls that a run owns (the program's delay, integral and network terms), as an
+   interface the expressions own and the Session's constructor fills with the run's functions (session.cpp),
+   so the evaluator never includes what implements them. Each takes the Session the formula runs in. */
+struct ExprHost {
+  /* delay(tau, x) and delay(tau, x, shift): the delayed value of variable x (as the program holds it) */
+  double (*delay)(Session &s, double tau, double variable);
+  double (*delay_shift)(Session &s, double tau, double shift, double variable);
+  /* integral equation kernel `index`'s value at the step in progress */
+  double (*kernel_value)(Session &s, int index);
+  /* network `index`'s and vectorizer `index`'s value at x */
+  double (*network_value)(Session &s, double x, int index);
+  double (*vector_value)(Session &s, double x, int index);
+  /* the right-hand side is native and reads nothing a run changes (autoX's workers and a sweep's threads need it) */
+  bool (*pure_rhs_ready)(const Session &s);
+};
 
 /* a 2-D table (not supported): 1 */
 int add_2d_table(std::string_view name, std::string_view file);
@@ -68,10 +85,6 @@ int add_net_name(Session &s, int index, std::string_view name, int vectorizer);
 int add_table_name(Session &s, int index, std::string_view name);
 int add_ufun_name(Session &s, std::string_view name, int index, int narg);
 int add_ufun(Session &s, std::string_view junk, std::string_view expr, int narg);
-/* table index filled from a file, or from formula at nn points in
-   [xlo,xhi]: what failed otherwise (the loader shows it) */
-Result<> add_file_table(Session &s, int index, std::string_view file);
-Result<> add_form_table(Session &s, int index, int nn, double xlo, double xhi, std::string_view formula);
 /* user function index with the arguments args and the formula rhs */
 int add_ufun_new(Session &s, int index, std::string_view rhs, std::span<const std::string> args);
 /* compiles expr into command, ending in ENDEXP;
@@ -202,6 +215,13 @@ struct ParserState {
     if (symbols.size() < static_cast<size_t>(nsym) + 3) symbols.resize(2 * symbols.size());
   }
   ExprStack stack;
+  /* the run's functions the formulas call (ExprHost), set by the Session's constructor */
+  const ExprHost *host = nullptr;
+  /* why a step or an evaluation cannot go on (a delay out of range, a DAE solve, a user function nested past
+     MAX_UFUN_DEPTH, a program that cannot be run), the first one recorded by stop_integration: the integration
+     ends after the step and returns it (integrate.cpp take_step_error); what no caller takes the command shows
+     when it ends (ui_json.cpp) */
+  std::optional<Error> step_error;
   /* how many instructions the interpreter has run (a program's count at each evaluation, a sum's body's at
      each index, a called function's at each call): what says when a native build is due (expr_native.cpp
      NativeBuild) */
@@ -219,5 +239,12 @@ private:
   mutable std::map<std::string, std::set<int>, std::less<>> names_;
   int arg_count_ = BUILTIN_ARGS;
 };
+
+
+/* a step or an evaluation that cannot go on: records why, the first only (ParserState::step_error) */
+inline void stop_integration(ParserState &p, Error why)
+{
+  if (!p.step_error) p.step_error = std::move(why);
+}
 
 } // namespace xpp

@@ -1,6 +1,7 @@
 /* The table resource's registry rows (W525): a model's lookup tables, edited (the formula, points and range of a table
    of a formula, or the file a table of a file is read from again) or viewed in the data table. Each handler calls
    the core function the Tables menu's items call after their questions (tabular.h). */
+#include "expr_tables.h"
 #include "command_def.h"
 #include "session.h"
 #include "tabular.h"

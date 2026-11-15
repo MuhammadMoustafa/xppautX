@@ -1,5 +1,6 @@
 /* Symbolic differentiation of a model's programs (expr_derivative.h,
    W260): the graph, a program read into it, and the chain rule over it. */
+#include "expr_tables.h"
 #include "expr_derivative.h"
 #include "expr_decode.h"
 #include "expr_native.h"
@@ -7,7 +8,6 @@
 #include "session.h"
 #include "xpp_text.h"
 #include "model_place.h"
-#include "tabular.h"
 
 #include <bit>
 #include <map>

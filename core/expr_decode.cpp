@@ -4,8 +4,8 @@
 #include "model.h"
 #include "session.h"
 #include "expr.h"
+#include "expr_tables.h"
 #include "expr_program.h"
-#include "tabular.h"
 
 namespace xpp::expr {
 

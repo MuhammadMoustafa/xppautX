@@ -12,7 +12,7 @@
 #include "xpp_log.h"
 #include "xpp_text.h"
 #include "xpp_math.h"
-#include "tabular.h"
+#include "expr_tables.h"
 #include "expr_program.h"
 #include "session.h"
 #include "xpp_error.h"
@@ -351,7 +351,7 @@ void init_rpn(xpp::Session &s)
 
     /* end animator stuff */
 
-    init_table(s);
+    s.tables.clear();
     if (s.model().record->command_line.new_seed) {
       s.numerics->rand_seed=static_cast<int>(time(0));
       xpp::log(XPP_LOG_INFO,"--newseed: seed {}\n",s.numerics->rand_seed);
@@ -540,34 +540,15 @@ int add_2d_table(std::string_view name, std::string_view file)
  return(1);
 }
 
-xpp::Result<> add_file_table(xpp::Session &s, int index, std::string_view file)
-{
-  /* the name's printable characters */
-  std::string file2;
-  for(char c:file)
-    if(c>31&&c<127)
-      file2+=c;
-  auto loaded=load_table(s,file2,index,1);
-  return loaded;
-}
-
 int add_table_name(xpp::Session &s, int index, std::string_view name)
 {
      if(duplicate_name(s.parser,name)==1)return(1);
      if(set_symbol(s.parser,name,10,1,COM(TABTYPE, index)))return 1;
-     set_table_name(s,name,index);
+     if(s.tables.size()<=static_cast<std::size_t>(index))s.tables.resize(static_cast<std::size_t>(index)+1);
+     s.tables[index].name=name;
      s.parser.nsym++;
      return(0);
    }
-/* ADD LOOKUP TABLE   */
-
-xpp::Result<> add_form_table(xpp::Session &s, int index, int nn, double xlo, double xhi, std::string_view formula)
-{
-
-  auto made=create_fun_table(s,nn,xlo,xhi,formula,index);
-  return made;
-}
-
 namespace {
 
 /* the symbols ARG1..ARGnarg back to their own names */

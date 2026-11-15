@@ -244,10 +244,10 @@ void quad_contour(xpp::Session &s, Pt p1, Pt p2, Pt p3, Pt p4)
 
 /* a right-hand side that failed at a grid point (its error is the Session's step_error, taken by the
    command) names the point, in variables ix and iy (0-based); whether it failed */
-bool grid_point_failed(xpp::Session &s, IntegratorState &in, int ix, int iy, double x, double y)
+bool grid_point_failed(xpp::Session &s, int ix, int iy, double x, double y)
 {
-  if(!in.step_error)return false;
-  in.step_error->what+=xpp::format(" (at the grid point {} = {}, {} = {})",s.model().uvar_names[ix],xpp::number(x),
+  if(!s.parser.step_error)return false;
+  s.parser.step_error->what+=xpp::format(" (at the grid point {} = {}, {} = {})",s.model().uvar_names[ix],xpp::number(x),
                                               s.model().uvar_names[iy],xpp::number(y));
   return true;
 }
@@ -267,20 +267,20 @@ void do_cline(xpp::Session &s, int ngrid, float x1, float y1, float x2, float y2
   for(int i=0;i<nx;i++){
     const float x=x1+i*dx;
     ns.n_bot[i]=fnull(s,ns,in,x,y);
-    if(grid_point_failed(s,in,ix,iy,x,y))return;
+    if(grid_point_failed(s,ix,iy,x,y))return;
   }
 
   for(int j=1;j<ny;j++){
-    if(in.step_error||my_abort()==ESC)return;
+    if(s.parser.step_error||my_abort()==ESC)return;
     y=y2-j*dy;
     ns.n_top[0]=ns.n_bot[0];
     ns.n_bot[0]=fnull(s,ns,in,x1,y);
-    if(grid_point_failed(s,in,ix,iy,x1,y))return;
+    if(grid_point_failed(s,ix,iy,x1,y))return;
     for(int i=1;i<nx;i++){
       const float x=x1+i*dx;
       ns.n_top[i]=ns.n_bot[i];
       ns.n_bot[i]=fnull(s,ns,in,x,y);
-      if(grid_point_failed(s,in,ix,iy,x,y))return;
+      if(grid_point_failed(s,ix,iy,x,y))return;
       p[0].x=x-dx;
       p[0].y=y+dy;
       p[0].z=ns.n_top[i-1];
@@ -363,7 +363,7 @@ void get_max_dfield(xpp::Session &s, double *y, double *ydot, double u0, double 
     for(int j=0;j<=n;j++){
       y[iny]=v0+dv*j;
       in.rhs(0.0,y,ydot,s.model().node);
-      if(grid_point_failed(s,in,inx,iny,y[inx],y[iny]))return;
+      if(grid_point_failed(s,inx,iny,y[inx],y[iny]))return;
       extra(s,y,0.0,s.model().node,s.model().neq);
       scale_dxdy(s,ydot[inx],ydot[iny],&dxp,&dyp);
       const double amp=xpp::math::hypot(dxp,dyp);
@@ -385,7 +385,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
   const bool suppress=dump!=nullptr;
   xpp::get_ic(s,2,y.data());
   get_max_dfield(s,y.data(),ydot.data(),u0,v0,du,dv,grid,inx,iny,&mdf);
-  if(s.integrator->step_error)return;
+  if(s.parser.step_error)return;
   if(!suppress&&(s.nullclines->df_flag==1||s.nullclines->df_flag==4))
     phase_data_dfield_begin(s,grid+1,du,dv,s.nullcline_state->dfield_type==0,s.plot_windows->current->color[0]);
   xpp::picture_group(s, true);
@@ -612,7 +612,7 @@ Result<> write_dfield(xpp::Session &s, std::string_view name, bool confirm)
   if(!w){*s.drawing=drawn;return fail("direction_field.export","Output was not opened",command_place());}
   dfield_of_window(s,w.get());
   *s.drawing=drawn;
-  if(s.integrator->step_error){abort_save(*w);return take_step_error(s);}
+  if(s.parser.step_error){abort_save(*w);return take_step_error(s);}
   return commit_save(*w);
 }
 
@@ -649,7 +649,7 @@ Result<> draw_direction_field(xpp::Session &s, int c, int grid)
     s.nullcline_state->df_iy=iny+1;
     dfield_grid(s,grid,u0,v0,du,dv,dz,inx,iny,nullptr);
     s.numerics->store_from=oldtrans;
-    if(s.integrator->step_error)return take_step_error(s);
+    if(s.parser.step_error)return take_step_error(s);
     return {};
   }
   s.numerics->storflag=false;

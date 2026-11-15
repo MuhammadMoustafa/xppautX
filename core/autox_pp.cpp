@@ -186,7 +186,7 @@ namespace {
      xpp::evaluate_derived(s);
      if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::autox_fail(r.error());
      s.integrator->rhs(0.0,x,f,ndim);
-     if(s.integrator->step_error)xpp::autox_fail(take_step_error(s).error());
+     if(s.parser.step_error)xpp::autox_fail(take_step_error(s).error());
    }
    const double *c=s.parser.constants.data();
    if(exact)exact_derivatives(s,run,c,ndim,x,f,icp,nfpr,ijac,dfdu,dfdp);
@@ -212,7 +212,7 @@ namespace {
      for(j=0;j<ndim;j++)
        zz[j]=f[j];
      s.integrator->rhs(0.0,zz.data(),f,ndim);
-     if(s.integrator->step_error)xpp::autox_fail(take_step_error(s).error());
+     if(s.parser.step_error)xpp::autox_fail(take_step_error(s).error());
      if(!exact)continue;
      exact_derivatives(s,run,c,ndim,zz.data(),f,icp,nfpr,ijac,step.data(),step_p.data());
      const int n=static_cast<int>(ndim);

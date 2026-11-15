@@ -147,7 +147,7 @@ double get_delay(xpp::Session &s, int in, double tau)
 
  if(tau<0.0||tau>s.numerics->delay){
 			const std::string &name=s.model().uvar_names[static_cast<std::size_t>(in)];
-			stop_integration(s,{"delay",xpp::format("delay of {}: tau = {} is outside 0 to the delay setting at t = {} ({})",
+			stop_integration(s.parser,{"delay",xpp::format("delay of {}: tau = {} is outside 0 to the delay setting at t = {} ({})",
 			                                        name,tau,getvar(s,0),named_settings(s,{"integration.delay.max_delay"})),
 			                    model_place(s.model(),name)});
 			return(0.0);
@@ -172,6 +172,43 @@ double get_delay(xpp::Session &s, int in, double tau)
   
   return(y);
  }
+
+/* the delayed value of a variable (a program's DELAY and DEL_SHFT, ExprHost) */
+double do_delay_shift(xpp::Session &s, double delay, double shift, double variable)
+{
+ int in;
+  int i=static_cast<int>(variable),ish=static_cast<int>(shift);
+  if(i<0) return(0.0);
+  in=(i % MAXTYPE)+ish;
+
+  if(in<0||static_cast<size_t>(in)>=s.parser.variables.size())
+    return 0.0;
+
+  if(s.delay->stab_flag>0){
+    if(s.delay->flag&&delay>0.0)
+      return(get_delay(s,in-1,delay));
+    return(s.parser.variables[in]);
+  }
+
+  return(delay_stab_eval(s,delay,in));
+
+}
+double do_delay(xpp::Session &s, double delay, double i)
+{
+  int variable;
+    /* ram - this was a little weird, since i is a double... except I think it's secretely an integer */
+    variable = (static_cast<int>(i)) % MAXTYPE;
+
+  if(s.delay->stab_flag>0){
+    if(s.delay->flag&&delay>0.0) {
+      return(get_delay(s,variable-1,delay));
+    }
+    return(s.parser.variables[variable]);
+  }
+
+  return(delay_stab_eval(s,delay,static_cast<int>(variable)));
+
+}
 
 /*  Handling of the initial data  */
 xpp::Result<> do_init_delay(xpp::Session &s, double big)

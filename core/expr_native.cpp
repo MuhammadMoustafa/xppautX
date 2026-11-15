@@ -6,11 +6,8 @@
 #include "expr_derivative.h"
 #include "expr_ir.h"
 #include "expr_program.h"
-#include "jacobian.h"
-#include "tabular.h"
-#include "volterra2.h"
+#include "expr_tables.h"
 #include "xpp_mir.h"
-#include "my_rhs.h"
 #include "xpp_util.h"
 #include "xpp_text.h"
 #include "xpp_math.h"
@@ -96,13 +93,13 @@ constexpr std::array<HelperText, static_cast<size_t>(Helper::Count)> helper_text
    calls each through its own type; S is the Session the native function
    was given. */
 Session &session(void *S) { return *static_cast<Session *>(S); }
-double h_tab(void *S, double x, int i) { return lookup(session(S), x, i); }
-double h_tabs(void *S, double x, int i) { return lookup_slope(session(S), x, i); }
-double h_net(void *S, double x, int i) { return network_value(session(S), x, i); }
-double h_vec(void *S, double x, int i) { return vector_value(session(S), x, i); }
-double h_ker(void *S, int i) { return ker_val(session(S), i); }
-double h_del(void *S, double delay, double i) { return expr::do_delay(session(S), delay, i); }
-double h_dsh(void *S, double delay, double shift, double variable) { return expr::do_delay_shift(session(S), delay, shift, variable); }
+double h_tab(void *S, double x, int i) { return lookup(session(S).tables[i], x); }
+double h_tabs(void *S, double x, int i) { return lookup_slope(session(S).tables[i], x); }
+double h_net(void *S, double x, int i) { return session(S).parser.host->network_value(session(S), x, i); }
+double h_vec(void *S, double x, int i) { return session(S).parser.host->vector_value(session(S), x, i); }
+double h_ker(void *S, int i) { return session(S).parser.host->kernel_value(session(S), i); }
+double h_del(void *S, double delay, double i) { return session(S).parser.host->delay(session(S), delay, i); }
+double h_dsh(void *S, double delay, double shift, double variable) { return session(S).parser.host->delay_shift(session(S), delay, shift, variable); }
 double h_sft(void *S, double shift, double variable) { return expr::do_shift(session(S), shift, variable); }
 double h_set(void *S, double shift, double variable, double value) { return expr::do_set(session(S), shift, variable, value); }
 double h_ru(void *S, double x) { return expr::do_random_uniform(session(S), x); }
@@ -1111,7 +1108,7 @@ void build_native(Session &s, bool wait)
 bool native_ready(Session &s)
 {
     build_native(s,true);
-    return pure_rhs_ready(s);
+    return s.parser.host->pure_rhs_ready(s);
 }
 
 namespace {

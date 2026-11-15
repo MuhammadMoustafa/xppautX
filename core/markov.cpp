@@ -52,9 +52,9 @@ bool ou_scales(xpp::Session &s, const xpp::Model::OuProcess &o, double t, double
   tau=read(o.tau);
   sigma=read(o.sigma);
   if(tau>0&&std::isfinite(tau)&&sigma>=0&&std::isfinite(sigma))return true;
-  if(!s.integrator->step_error){
+  if(!s.parser.step_error){
     const bool bad_tau=!(tau>0&&std::isfinite(tau));
-    s.integrator->step_error=xpp::Error{"integration",
+    s.parser.step_error=xpp::Error{"integration",
       xpp::format("{} at t = {}: {} = {}, {}",o.name,xpp::number(t),bad_tau?"tau":"sigma",xpp::number(bad_tau?tau:sigma),
                   bad_tau?"but the correlation time must be positive":"but the standard deviation must be at least 0"),
       xpp::model_place(s.model(),o.name)};

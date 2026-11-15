@@ -35,8 +35,6 @@ ALLOWLIST = {
     ('autoX', 'export'): (1, 'W753'),
     ('autoX', 'session files'): (2, 'W753'),
     ('commands', 'application'): (3, 'W753'),
-    ('expressions', 'integrators'): (6, 'W743'),
-    ('expressions', 'model and loading'): (18, 'W743'),
     ('integrators', 'analysis'): (31, 'W745'),
     ('integrators', 'autoX'): (2, 'W745'),
     ('integrators', 'session'): (5, 'W732'),

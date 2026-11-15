@@ -883,7 +883,7 @@ xpp::Result<std::string> run_protocol_command(xpp::Session &s, const char *line,
         /* an evaluation's failure no caller took (W387: user functions
            nested too deep in the flow, a plot, a formula) is shown once,
            and the next command starts clean */
-        if (s.integrator->step_error) xpp::show_error(xpp::take_step_error(s).error());
+        if (s.parser.step_error) xpp::show_error(xpp::take_step_error(s).error());
         return std::string("{}");
     } catch (const BadArgument &bad) {
         return xpp::fail(what, xpp::format("{}: {} must be {}, not {}", what,

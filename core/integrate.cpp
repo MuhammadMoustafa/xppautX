@@ -465,7 +465,7 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const xpp::RunReport
  stabcol=s.integrator->eq_range.col;
  mc=s.integrator->eq_range.mc;
  s.data_store->rows=0;
- s.integrator->step_error.reset();
+ s.parser.step_error.reset();
  s.numerics->endsing=false;
  s.numerics->par_fol=true;
  s.numerics->pauser=false;
@@ -1079,7 +1079,7 @@ void reset_run_state(xpp::Session &s)
 {
   s.integrator->my_start=1;
   s.integrator->range_flag=0;
-  s.integrator->step_error.reset();
+  s.parser.step_error.reset();
   reset_dae(s);
 }
 
@@ -1257,7 +1257,7 @@ xpp::Result<bool> integrate_from(xpp::Session &s, double *x, const RunReport &re
       for(i=0;i<s.model().neq;i++)s.data_store->col[1+i][0]=x[i];
       s.data_store->rows=1;
     }
-  if(s.integrator->step_error){
+  if(s.parser.step_error){
     refresh_data(s,s.data_store->rows);
     return take_step_error(s);
   }
@@ -1624,8 +1624,8 @@ Result<> run_to_steady_state(Session &s, SteadyStateSettings settings, const Run
 
 std::unexpected<xpp::Error> take_step_error(xpp::Session &s)
 {
-  xpp::Error e=std::move(*s.integrator->step_error);
-  s.integrator->step_error.reset();
+  xpp::Error e=std::move(*s.parser.step_error);
+  s.parser.step_error.reset();
   reset_dae(s);
   return std::unexpected(std::move(e));
 }
@@ -1716,7 +1716,7 @@ if(program.interactive&&front_end) cwidth=get_command_width();
 
  s.integrator->last_time=*t;
  evaluate_derived(s);
- if(s.integrator->step_error)return take_step_error(s);
+ if(s.parser.step_error)return take_step_error(s);
 
  solver.begin(start);
  if(solver.traits().discrete) dt=dt/fabs(dt);
@@ -1725,7 +1725,7 @@ if(program.interactive&&front_end) cwidth=get_command_width();
  one_flag_step(s,s.solver_work->xpv.x,s.solver_work->xpv.x,&iflagstart,*t,&tnew,nodes,&sss);
  copy_state(s,x,s.solver_work->xpv.x);
  extra(s,x,*t,s.model().node,s.model().neq); /* Note this takes care of initializing Markov variables */
- if(s.integrator->step_error)return take_step_error(s);
+ if(s.parser.step_error)return take_step_error(s);
   copy_state(s,s.solver_work->xpv.x,x);
  if(s.integrator->steady)s.integrator->steady->begin(std::span(x,static_cast<std::size_t>(s.model().node+s.model().nmarkov)),*t);
  xv[0]=*t;
@@ -1765,7 +1765,7 @@ if(program.interactive&&front_end) cwidth=get_command_width();
 						 .tout=tout,.hguess=&hguess,.sections=true});
 	     copy_state(s,x,s.solver_work->xpv.x);
 	     if(!solver.traits().dense_output||*t==tout)stor_delay(s,x);
-	     if(s.integrator->step_error){
+	     if(s.parser.step_error){
 	       s.integrator->last_time=*t;
 	       return take_step_error(s);
 	     }
@@ -1855,7 +1855,7 @@ if(program.interactive&&front_end) cwidth=get_command_width();
 	  if(s.integrator->steady)s.integrator->steady_result->status="stopped";
 	  break;
 	}
-           if(s.integrator->step_error){
+           if(s.parser.step_error){
              s.numerics->endsing=true;
              xpp::Error e=take_step_error(s).error();
              if(!failure)failure=std::move(e); /* a variable's NaN came first */
@@ -1992,7 +1992,7 @@ dense_poi:
             }
             else {
               const auto grown=stor_full(s);
-              if(!grown){stop_integration(s,grown.error());failure=take_step_error(s).error();break;}
+              if(!grown){stop_integration(s.parser,grown.error());failure=take_step_error(s).error();break;}
             }
             }
 	    if((pflag==1)&&(s.numerics->poincare_stop)){s.integrator->stop_note=section_note(*t);break;}
@@ -2092,12 +2092,6 @@ i=1;
   s.integrator->suppress_bounds=0;
  log_branch_end(s);
  return r.transform([](int){});
-}
-
-void stop_integration(xpp::Session &s, xpp::Error why)
-{
-  std::optional<xpp::Error> &e=s.integrator->step_error;
-  if(!e)e=std::move(why);
 }
 
 xpp::Result<> stor_full(xpp::Session &s)

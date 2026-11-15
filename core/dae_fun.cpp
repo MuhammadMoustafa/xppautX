@@ -188,8 +188,8 @@ void do_daes(xpp::Session &s)
   s.dae->status=ans;
   if(ans==DAE_SOLVED)return;
   /* the integration stops after this step and returns it */
-  if(!s.integrator->step_error)
-    s.integrator->step_error=dae_failure(s,ans);
+  if(!s.parser.step_error)
+    s.parser.step_error=dae_failure(s,ans);
 }
 
 /* Newton solver for algebraic stuff. A solution is accepted only where the

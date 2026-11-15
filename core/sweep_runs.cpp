@@ -1,3 +1,4 @@
+#include "expr_tables.h"
 #include "sweep_runs.h"
 #include "session.h"
 #include "ani_state.h"

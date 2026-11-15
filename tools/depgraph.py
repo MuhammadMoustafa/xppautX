@@ -50,7 +50,7 @@ MODULES = {
         'plot_state', 'picture_state', 'export_services', 'struct', 'xpp_types', 'zoom']),
     'ui seam': ('the XppUi table core code calls the front end through, the reading of the fields a form carries (typed_fields), the lists of choices it shows, and the events the core sends (their names, fields and the error event: the vocabulary the front end implements), the key codes Grab returns and a computation\'s abort check yields (mykeydef, W737: the seam\'s own vocabulary, a header xpp_ui.h names), and what this run of the program is (xpp_globals: whether a front end is up, the batch options), which the program\'s start sets', [
         'xpp_ui', 'mykeydef', 'menus', 'typed_fields', 'event_*', 'json_error', 'xpp_globals']),
-    'expressions': ('the formula compiler, its evaluators, native code and derived quantities (the builders of a Model, form_ode and tabular, are model and loading\'s: W736)', [
+    'expressions': ('the formula compiler, its evaluators, the lookup tables they read (expr_tables, W743), native code and derived quantities; what a formula calls that a run owns (delays, kernels, networks) is an ExprHost the Session fills (W743) (the builders of a Model, form_ode and tabular, are model and loading\'s: W736)', [
         'expr', 'expr_*', 'xpp_mir', 'getvar', 'derived']),
     'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets, among them the plot settings the model carries (W733), the buttons of a model (userbut: read and written as its options, the name of a command checked through command_known, which the commands define), the state data of the animation (ani_state, W737: the options, window, commands and grabs a Session holds of the animation, split from aniparse), and the command line a load takes (comline: the switches read once, a Model keeps them), the builders of a Model from what it reads (form_ode: the .ode lines, tabular: the lookup tables, model_markov and model_flags: the Markov variables and flags a load declares, W736) and the reading of a value a user typed as a formula (typed_values)', [
         'model', 'model_*', 'load_eqn', 'odex', 'odex_*', 'ode_read', 'newpars',
@@ -124,8 +124,7 @@ ALLOWLIST = {
     ('autoX', 'export'): (1, 'W753'),
     ('autoX', 'session'): (17, 'W732'),
     ('autoX', 'session files'): (1, 'W753'),
-    ('expressions', 'integrators'): (6, 'W743'),
-    ('expressions', 'model and loading'): (19, 'W743'),
+    ('expressions', 'model and loading'): (14, 'W743'),
     ('expressions', 'session'): (9, 'W732'),
     ('integrators', 'analysis'): (9, 'W745'),
     ('integrators', 'autoX'): (1, 'W745'),
