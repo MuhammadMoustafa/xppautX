@@ -13,26 +13,26 @@
 
 namespace xpp::recent {
 
-Result<std::vector<std::string>> load_recent()
+Result<std::vector<std::string>> load_recent(FileSystem &fs)
 {
-    Result<prefs::Preferences> p = prefs::load_prefs();
+    Result<prefs::Preferences> p = prefs::load_prefs(fs);
     if (!p) return std::unexpected(p.error());
     return std::move(p->recent_models);
 }
 
-Result<> note(std::string_view model)
+Result<> note(FileSystem &fs, std::string_view model)
 {
     /* a recording playing is not the user opening models: it keeps no list of theirs */
     if (files::serving_reads()) return {};
-    return prefs::update_prefs([&](prefs::Preferences &p) {
+    return prefs::update_prefs(fs, [&](prefs::Preferences &p) {
         prefs::remember_newest(p.recent_models, std::string(model), prefs::MAX_RECENT_MODELS);
     });
 }
 
-std::string start_json(const Result<std::vector<std::string>> &loaded, std::string_view more)
+std::string start_json(FileSystem &fs, const Result<std::vector<std::string>> &loaded, std::string_view more)
 {
     std::string out = "{\"path\":";
-    json_append_string(out, prefs::prefs_path());
+    json_append_string(out, prefs::prefs_path(fs));
     out += xpp::format(",\"limit\":{},\"recent\":[", prefs::MAX_RECENT_MODELS);
     if (loaded) {
         bool first = true;

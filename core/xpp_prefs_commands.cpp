@@ -7,6 +7,7 @@
 #include "event_registry.h"
 #include "model_options.h"
 #include "session.h"
+#include "model.h"
 #include "xpp_cpu.h"
 #include "xpp_error.h"
 #include "xpp_files.h"
@@ -27,7 +28,7 @@ namespace {
 /* the preferences as they stand: the thread count (and whether it is automatic), what the log shows and the file it goes to, and the colors */
 Result<std::string> preferences_now(const Session &s)
 {
-    const Result<prefs::Preferences> kept = prefs::load_prefs();
+    const Result<prefs::Preferences> kept = prefs::load_prefs(*s.model().fs);
     const bool automatic = s.threads == cpu::THREADS_AUTO;
     ResultObject result;
     result.integer("threads", automatic ? AutoxParallel::automatic_threads() : s.threads).boolean("automatic", automatic)
@@ -55,13 +56,13 @@ Result<std::string> configure_preferences(Session &s, const Command &command, co
         } else if (!args.get<bool>("automatic")) return fail(command.name, "automatic is true; give threads for a count", place);
         /* a recording's replay changes the session's count, never the user's preferences */
         if (!files::serving_reads()) {
-            const Result<> saved = prefs::update_prefs([&](prefs::Preferences &p) { p.threads = count; });
+            const Result<> saved = prefs::update_prefs(*s.model().fs, [&](prefs::Preferences &p) { p.threads = count; });
             if (!saved) return fail(command.name, saved.error().text(), place);
         }
         s.threads = count;
     }
     if (log) {
-        const Result<> saved = prefs::update_prefs([&](prefs::Preferences &p) {
+        const Result<> saved = prefs::update_prefs(*s.model().fs, [&](prefs::Preferences &p) {
             if (const auto level = args.optional<std::string>("log_level")) p.log_level = static_cast<XppLogLevel>(choice_index(log_level_names, *level));
             if (const auto file = args.optional<std::string>("log_file")) p.log_file = *file;
             if (const auto check = args.optional<bool>("check_for_updates")) p.check_for_updates = *check;
@@ -72,7 +73,7 @@ Result<std::string> configure_preferences(Session &s, const Command &command, co
         /* a recording's replay changes nothing of the user's (refused above) */
         for (const ColorKey &c : COLOR_KEYS)
             if (const auto color = args.optional<Color>(std::string(c.key))) s.colors.*c.member = *color;
-        const Result<> saved = prefs::update_prefs([&](prefs::Preferences &p) { p.colors = s.colors; });
+        const Result<> saved = prefs::update_prefs(*s.model().fs, [&](prefs::Preferences &p) { p.colors = s.colors; });
         if (!saved) return std::unexpected<Error>(saved.error());
     }
     return preferences_now(s);

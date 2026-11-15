@@ -153,7 +153,7 @@ static xpp::HelloInfo hello_info()
 {
     const xpp::update::Plan plan = xpp::update::running_plan();
     return {xpp_about_lines(), xpp_version_string(), std::string(xpp::update::install_name(plan.install)), plan.asset_suffix, plan.why,
-            [] { return xpp::recent::start_json(xpp::recent::load_recent(), ",\"examples\":" + xpp::examples::json()); }};
+            [] { return xpp::recent::start_json(startup.files, xpp::recent::load_recent(startup.files), ",\"examples\":" + xpp::examples::json()); }};
 }
 
 static void run_session(void)
@@ -227,7 +227,7 @@ static void run_session(void)
     /* a model named on the command line is a recent one like any opened (a .ode's converted .odex is what is loaded) */
     if (!silent) {
         const xpp::Model &m = (**loaded).model();
-        const auto noted = xpp::recent::note(opened.empty() ? xpp::files::absolute(m.this_file, m.load_dir) : opened);
+        const auto noted = xpp::recent::note(startup.files, opened.empty() ? xpp::files::absolute(m.this_file, m.load_dir) : opened);
         /* a preferences file that cannot be read was said once already, with what it costs (preferences_load) */
         if (!noted && startup.prefs) xpp::log(XPP_LOG_WARN, "{}\n", noted.error().text());
     }
@@ -259,7 +259,7 @@ int main(int argc, char **argv)
         return 2;
     }
     startup.line = std::move(*parsed);
-    startup.prefs = xpp::prefs::load_prefs();
+    startup.prefs = xpp::prefs::load_prefs(startup.files);
     const xpp::CommandLine &cl = startup.line;
     {
         /* what the log shows and where it goes: the command line's, else the preferences' (a bad file is said by the load, preferences_load) */
@@ -284,7 +284,7 @@ int main(int argc, char **argv)
     }
     if (cl.check && !cl.convert && !cl.model_file.empty() && cl.load_options == 0) {
         xpp::batch_options.check = true;
-        return xpp::odex::check_file(startup.files, cl.model_file, xpp::prefs::path_approvals(&startup.prefs));
+        return xpp::odex::check_file(startup.files, cl.model_file, xpp::prefs::path_approvals(startup.files, &startup.prefs));
     }
     if (cl.check) {
         xpp::log(XPP_LOG_ERROR, "usage: xppautX --check model.ode (or model.odex)\n");
@@ -297,10 +297,10 @@ int main(int argc, char **argv)
             xpp::log(XPP_LOG_ERROR, "usage: xppautX --convert [--yes] model.ode\n");
             return 2;
         }
-        if (cl.state_file) return xpp::convert_state_file(startup.files, cl.model_file, *cl.state_file, xpp::prefs::path_approvals(&startup.prefs));
+        if (cl.state_file) return xpp::convert_state_file(startup.files, cl.model_file, *cl.state_file, xpp::prefs::path_approvals(startup.files, &startup.prefs));
         if (cl.ani_file) return xpp::convert_animation_file(startup.files, *cl.ani_file, cl.model_file);
         if (xpp::files::has_extension(cl.model_file, ".ani")) return xpp::convert_animation_file(startup.files, cl.model_file);
-        return xpp::odex::convert_file(startup.files, cl.model_file, xpp::prefs::path_approvals(&startup.prefs));
+        return xpp::odex::convert_file(startup.files, cl.model_file, xpp::prefs::path_approvals(startup.files, &startup.prefs));
     }
     /* issue #32: the folders of runs that ended without their atexit (a
        kill, Ctrl+C, the watchdog's _exit) go at the next start, --silent

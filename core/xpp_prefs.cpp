@@ -13,6 +13,7 @@
 #include "odex_write.h"
 #include "xpp_files.h"
 #include "xpp_cpu.h"
+#include "xpp_fs.h"
 #include "xpp_io.h"
 #include "xpp_util.h"
 #include "odex_block.h"
@@ -231,57 +232,57 @@ Result<std::string> serialize_prefs(const Preferences &p)
     put.out.begin_statement("preferences");
     describe(put, p);
     put.out.end_statement();
-    if (put.bad_) return fail(std::string(WHERE), "cannot be saved: " + *put.bad_, Place{prefs_path()});
+    if (put.bad_) return fail(std::string(WHERE), "cannot be saved: " + *put.bad_, Place{std::string(FILE_NAME)});
     Result<std::string> body = put.out.result(std::string(WHERE));
     if (!body) return std::unexpected(body.error());
     return odex::version_statement() + "\n" + *body;
 }
 
-std::string prefs_path() { return files::config_path(FILE_NAME); }
+std::string prefs_path(FileSystem &fs) { return fs.config_path(FILE_NAME); }
 
-Result<Preferences> load_prefs()
+Result<Preferences> load_prefs(FileSystem &fs)
 {
-    return load_config_file<Preferences>(WHERE, FILE_NAME, MAX_FILE_BYTES, parse_prefs);
+    return load_config<Preferences>(fs, WHERE, FILE_NAME, MAX_FILE_BYTES, parse_prefs);
 }
 
-Result<> save_prefs(const Preferences &p)
+Result<> save_prefs(FileSystem &fs, const Preferences &p)
 {
     const Result<std::string> text = serialize_prefs(p);
     if (!text) return std::unexpected(text.error());
-    return write_config_file(WHERE, FILE_NAME, *text);
+    return fs.write_config(WHERE, FILE_NAME, *text);
 }
 
-PathApprovals path_approvals(const Result<Preferences> *read)
+PathApprovals path_approvals(FileSystem &fs, const Result<Preferences> *read)
 {
-    const Result<Preferences> p = read ? *read : load_prefs();
+    const Result<Preferences> p = read ? *read : load_prefs(fs);
     PathApprovals approvals;
     if (p) approvals.kept = p->outside_paths;
     else approvals.unreadable = p.error();
-    approvals.keep = [](const OutsideApproval &a) {
-        return update_prefs([&](Preferences &q) { remember_newest(q.outside_paths, a, MAX_OUTSIDE_APPROVALS); });
+    approvals.keep = [&fs](const OutsideApproval &a) {
+        return update_prefs(fs, [&](Preferences &q) { remember_newest(q.outside_paths, a, MAX_OUTSIDE_APPROVALS); });
     };
     return approvals;
 }
 
-Result<bool> update_check_due()
+Result<bool> update_check_due(FileSystem &fs)
 {
-    const Result<Preferences> p = load_prefs();
+    const Result<Preferences> p = load_prefs(fs);
     if (!p) return std::unexpected(p.error());
     /* a day is the UTC date, the first ten characters of the time */
     const std::string now = utc_now();
     constexpr std::size_t DATE_CHARS = 10;
     if (!p->check_for_updates || p->last_update_check.substr(0, DATE_CHARS) == now.substr(0, DATE_CHARS)) return false;
-    const Result<> saved = update_prefs([&](Preferences &q) { q.last_update_check = now; });
+    const Result<> saved = update_prefs(fs, [&](Preferences &q) { q.last_update_check = now; });
     if (!saved) return std::unexpected(saved.error());
     return true;
 }
 
-Result<> update_prefs(const std::function<void(Preferences &)> &change)
+Result<> update_prefs(FileSystem &fs, const std::function<void(Preferences &)> &change)
 {
-    Result<Preferences> p = load_prefs();
+    Result<Preferences> p = load_prefs(fs);
     if (!p) return std::unexpected(p.error());
     change(*p);
-    return save_prefs(*p);
+    return save_prefs(fs, *p);
 }
 
 } // namespace xpp::prefs

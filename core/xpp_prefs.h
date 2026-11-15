@@ -8,7 +8,7 @@
 
    One owner for the file: this module reads it whole, checks every value,
    and only then hands the Preferences over (W125); it writes it whole,
-   temp-then-rename (write_config_file). A missing file is the defaults; a
+   temp-then-rename (FileSystem::write_config). A missing file is the defaults; a
    bad one is an error naming the file, the line and the value, and nothing
    of it is used; it is never overwritten while it is bad. Every list in it
    has a maximum and the file a byte limit, so a hostile file cannot make an
@@ -28,6 +28,10 @@
 
 #include "colormap.h"
 #include "model_file_types.h"
+
+namespace xpp {
+class FileSystem; /* xpp_fs.h */
+}
 #include "xpp_cpu.h"
 #include "xpp_error.h"
 #include "xpp_log.h"
@@ -83,15 +87,15 @@ Result<std::string> serialize_prefs(const Preferences &p);
 
 /* whether the opening's check for a newer release is due now (the preference is on and none began today, UTC); when it is,
    the check is recorded as begun, so a failed one waits for tomorrow too. A bad preferences file is the error. */
-Result<bool> update_check_due();
+Result<bool> update_check_due(FileSystem &fs);
 
 /* the config folder's preferences.odex ("" when there is no config folder) */
-std::string prefs_path();
+std::string prefs_path(FileSystem &fs);
 /* the file's preferences: the defaults when it is not there, the error when
    it is bad or there is no config folder */
-Result<Preferences> load_prefs();
+Result<Preferences> load_prefs(FileSystem &fs);
 /* writes them, making the folder */
-Result<> save_prefs(const Preferences &p);
+Result<> save_prefs(FileSystem &fs, const Preferences &p);
 /* item first in list: an equal one earlier is removed, and the oldest
    dropped past max (the one rule of every newest-first list here) */
 template <class T> void remember_newest(std::vector<T> &list, T item, std::size_t max)
@@ -102,14 +106,14 @@ template <class T> void remember_newest(std::vector<T> &list, T item, std::size_
 }
 
 /* load, change, save: a bad file is the error, left as it is */
-Result<> update_prefs(const std::function<void(Preferences &)> &change);
+Result<> update_prefs(FileSystem &fs, const std::function<void(Preferences &)> &change);
 
 /* The "Allow always" answers of a load (model_file_types.h): the kept ones from
    `read` (the preferences the program's start read, or null to read the file
    now) or the file's error when it is bad, and `keep`, which remembers an
    answer in the preferences as it is given (newest first, the oldest dropped
    at MAX_OUTSIDE_APPROVALS, a repeated one moved to the front). */
-PathApprovals path_approvals(const Result<Preferences> *read);
+PathApprovals path_approvals(FileSystem &fs, const Result<Preferences> *read);
 
 } // namespace xpp::prefs
 

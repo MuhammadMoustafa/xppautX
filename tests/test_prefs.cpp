@@ -4,6 +4,7 @@
    error, and every list and the file bounded; in a config folder of its own
    (XPP_CONFIG_DIR: the user's real file is never touched). */
 #include "xpptest.h"
+#include "xpp_fs_local.h"
 #include "test_support.h"
 #include "xpp_cpu.h"
 #include "xpp_files.h"
@@ -25,6 +26,10 @@
 #include <functional>
 #include <optional>
 #include <utility>
+
+namespace {
+xpp::LocalFileSystem fs; /* the disk, as the program's start makes it */
+}
 
 namespace {
 
@@ -282,35 +287,35 @@ void check_log()
 
 void check_file()
 {
-    const std::string file = xpp::prefs::prefs_path();
+    const std::string file = xpp::prefs::prefs_path(fs);
     CHECK(!file.empty() && !xpp::files::exists(file));
-    CHECK(xpp::prefs::load_prefs().value().recent_models.empty()); /* a missing file is the defaults */
+    CHECK(xpp::prefs::load_prefs(fs).value().recent_models.empty()); /* a missing file is the defaults */
 
     xpp::prefs::Preferences p;
     p.recent_models = {abs_path("a.odex")};
-    CHECK(xpp::prefs::save_prefs(p).has_value() && xpp::files::exists(file));
-    CHECK(xpp::prefs::load_prefs().value().recent_models == p.recent_models);
+    CHECK(xpp::prefs::save_prefs(fs, p).has_value() && xpp::files::exists(file));
+    CHECK(xpp::prefs::load_prefs(fs).value().recent_models == p.recent_models);
     /* an answer kept is found for its model and its path only */
-    xpp::PathApprovals read = xpp::prefs::path_approvals(nullptr);
+    xpp::PathApprovals read = xpp::prefs::path_approvals(fs, nullptr);
     CHECK(!read.unreadable && read.kept.empty() && read.keep);
     CHECK(read.keep({abs_path("a.odex"), abs_path("x.tab")}).has_value());
-    read = xpp::prefs::path_approvals(nullptr);
+    read = xpp::prefs::path_approvals(fs, nullptr);
     CHECK(std::ranges::find(read.kept, xpp::OutsideApproval{abs_path("a.odex"), abs_path("x.tab")}) != read.kept.end());
     CHECK(std::ranges::find(read.kept, xpp::OutsideApproval{abs_path("a.odex"), abs_path("y.tab")}) == read.kept.end());
     CHECK(std::ranges::find(read.kept, xpp::OutsideApproval{abs_path("b.odex"), abs_path("x.tab")}) == read.kept.end());
-    CHECK(xpp::prefs::load_prefs().value().recent_models == p.recent_models); /* the other group untouched */
-    CHECK(xpp::prefs::update_prefs([](xpp::prefs::Preferences &q) { q.recent_models.push_back(abs_path("b.odex")); }).has_value());
-    CHECK((xpp::prefs::load_prefs().value().recent_models == std::vector<std::string>{abs_path("a.odex"), abs_path("b.odex")}));
+    CHECK(xpp::prefs::load_prefs(fs).value().recent_models == p.recent_models); /* the other group untouched */
+    CHECK(xpp::prefs::update_prefs(fs, [](xpp::prefs::Preferences &q) { q.recent_models.push_back(abs_path("b.odex")); }).has_value());
+    CHECK((xpp::prefs::load_prefs(fs).value().recent_models == std::vector<std::string>{abs_path("a.odex"), abs_path("b.odex")}));
 
     /* a bad file is the error with its file and line; update leaves it as it is, nothing applied */
     xpp::Writer w = xpp::Writer::binary(file);
     const std::string badtext = versioned_prefs("recent_models: [\"relative.odex\"],\n");
     CHECK(w && w.write(badtext) && w.commit().has_value());
-    const auto r = xpp::prefs::load_prefs();
+    const auto r = xpp::prefs::load_prefs(fs);
     CHECK(!r && r.error().place.file == file && r.error().place.line == 3);
-    CHECK(xpp::prefs::path_approvals(nullptr).unreadable && xpp::prefs::path_approvals(nullptr).kept.empty()); /* a bad file is why, none kept */
+    CHECK(xpp::prefs::path_approvals(fs, nullptr).unreadable && xpp::prefs::path_approvals(fs, nullptr).kept.empty()); /* a bad file is why, none kept */
     bool called = false;
-    CHECK(!xpp::prefs::update_prefs([&](xpp::prefs::Preferences &) { called = true; }));
+    CHECK(!xpp::prefs::update_prefs(fs, [&](xpp::prefs::Preferences &) { called = true; }));
     CHECK(!called);
     std::string kept;
     CHECK(xpp::read_bytes(file, kept) && kept == badtext);
@@ -336,10 +341,10 @@ TEST_CASE("test_prefs")
     std::filesystem::remove_all(temp.path() + "/config");
     /* a relative override would follow the working folder: an error naming the variable, never a guess */
     CHECK(set_config_dir("relative/folder"));
-    CHECK(xpp::prefs::prefs_path().empty());
-    const auto none = xpp::prefs::load_prefs();
+    CHECK(xpp::prefs::prefs_path(fs).empty());
+    const auto none = xpp::prefs::load_prefs(fs);
     CHECK(!none && none.error().what.find("XPP_CONFIG_DIR") != std::string::npos);
-    CHECK(!xpp::prefs::save_prefs({}) && !xpp::prefs::update_prefs([](xpp::prefs::Preferences &) {}));
+    CHECK(!xpp::prefs::save_prefs(fs, {}) && !xpp::prefs::update_prefs(fs, [](xpp::prefs::Preferences &) {}));
     set_config_dir(nullptr);
     TEST_REPORT("prefs");
 }

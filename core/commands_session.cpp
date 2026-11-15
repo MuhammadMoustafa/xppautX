@@ -43,7 +43,7 @@ Result<std::string> open_model(Session &s, const Command &command, const Argumen
         if (const std::optional<std::string> file = args.optional<std::string>(FILE_KEY)) path = *file;
         else {
             const long long index = args.get<long long>("recent");
-            const Result<std::vector<std::string>> recent = recent::load_recent();
+            const Result<std::vector<std::string>> recent = recent::load_recent(*s.model().fs);
             if (!recent) return std::unexpected<Error>(recent.error());
             if (static_cast<std::size_t>(index) >= recent->size())
                 return fail(command.name, xpp::format("There is no recent model {}: {} are kept", index, recent->size()), place);

@@ -11,6 +11,7 @@
 #include "nullcline.h"
 #include "load_args.h"
 #include "xpptest.h"
+#include "xpp_fs_local.h"
 #include "test_support.h"
 #include "session.h"
 #include "plot_settings.h"
@@ -47,6 +48,10 @@
 #include <optional>
 #include <span>
 #include <utility>
+
+namespace {
+xpp::LocalFileSystem fs; /* the disk, as the program's start makes it */
+}
 
 namespace {
 
@@ -873,7 +878,7 @@ TEST_CASE("test_options")
         CHECK(answer_with(""));
         CHECK(load_output(outside).has_value()); /* kept: no question */
         CHECK(!load_output(other).has_value());  /* another path asks again */
-        CHECK(xpp::files::exists(xpp::prefs::prefs_path()));
+        CHECK(xpp::files::exists(xpp::prefs::prefs_path(fs)));
         set_config_dir(nullptr);
     }
 

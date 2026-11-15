@@ -30,11 +30,11 @@ namespace {
 
 /* the page's opening asks whether to check for a newer release now: a recording's replay leaves the user's preferences alone,
    so it never is */
-Result<std::string> due(Session &, const Command &, const Arguments &, const Place &)
+Result<std::string> due(Session &s, const Command &, const Arguments &, const Place &)
 {
     ResultObject result;
     if (files::serving_reads()) return result.boolean("due", false).done();
-    const Result<bool> now = prefs::update_check_due();
+    const Result<bool> now = prefs::update_check_due(*s.model().fs);
     /* a bad preferences file is shown by the commands that use it; here the check is simply not made */
     if (!now) xpp::log(XPP_LOG_INFO, "{}\n", now.error().text());
     return result.boolean("due", now.value_or(false)).done();

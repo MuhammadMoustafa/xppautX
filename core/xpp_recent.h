@@ -15,13 +15,17 @@
 
 #include "xpp_error.h"
 
+namespace xpp {
+class FileSystem; /* xpp_fs.h */
+}
+
 namespace xpp::recent {
 
 /* hello's `start` object for a session with no model: {"path":..., "limit":N,
    "recent":[{"path":..., "missing":bool}, ...]} and, when the file is bad,
    "error" (the common error fields) with no entries; `more` is further
    members of the object (",\"examples\":{...}"), or empty */
-std::string start_json(const Result<std::vector<std::string>> &loaded, std::string_view more = {});
+std::string start_json(FileSystem &fs, const Result<std::vector<std::string>> &loaded, std::string_view more = {});
 
 } // namespace xpp::recent
 

@@ -89,7 +89,7 @@ void apply_command_line(Session &s, CommandLine cl)
 void preferences_load(Session &s, const Result<prefs::Preferences> *read)
 {
     if (files::serving_reads()) return;
-    const Result<prefs::Preferences> p = read ? *read : prefs::load_prefs();
+    const Result<prefs::Preferences> p = read ? *read : prefs::load_prefs(*s.model().fs);
     if (p) {
         s.threads = p->threads;
         s.colors = p->colors;
@@ -271,7 +271,7 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
     std::vector<odex::Diagnostic> diagnostics;
     std::vector<std::string> outside_paths;
     /* the "Allow always" answers the load works with (xpp_prefs.h) */
-    const PathApprovals approvals = prefs::path_approvals(read_prefs);
+    const PathApprovals approvals = prefs::path_approvals(fs, read_prefs);
     Loaded prepared = in_model(fs, [&](Session &s) {
         apply_command_line(s, cl);
         if (batch) batch_options.enabled = 1;
