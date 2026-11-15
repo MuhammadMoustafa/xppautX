@@ -505,6 +505,41 @@ def check_autox_closed_branch():
         s.close()
 
 
+def check_autox_range_branch():
+    """W745 (#824): autox.range_branch runs the sweep once for each point of a stretch of a branch, each run starting at the point's
+    state with the point's parameter set. On enz_isola's isola of equilibria (AUTO-07p's demo enz) a run of one step from a
+    point stays where it began exactly when the sweep set the point's parameter: the data keep two rows per point, the same
+    state in both, the first row the point's state as autox.show_branch lists it, its parameter the point's own, in order."""
+    d = autoxcompare.read_description(autoxcompare.BASE / 'enz_isola.json')
+    first, last = 3, 8
+    s = Server(args.server, autoxcompare.ROOT / d['model'])
+    try:
+        autoxcompare.completed(s)
+        autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info']))
+        diagram = autoxcompare.Diagram().apply(autoxcompare.open_autox(s))
+        points = jobs_diagram(autoxcompare.execute_run(s, d['runs'][0], diagram, {}))
+        stretch = [p for p in points if p[0] == 1 and first <= p[1] <= last]
+        autoxcompare.completed(s, dict(cmd='run.configure', total_time=0.25, dt=0.25))
+        s.send(cmd='autox.range_branch', branch=1, first_point=first, last_point=last)
+        # the Range dialog's answers: its own settings, with the storage kept (a reset would empty the data after each run)
+        evs, end = s.answer_asks(autoxcompare.is_done, {'form': lambda e: {'ok': 1, 'values': e['values'][:4] + ['false'] + e['values'][5:]}})
+        autoxcompare.ensure_completed([e for e in evs if not is_ask(e)], end)
+        page = autoxcompare.completed(s, dict(cmd='data.page', from_row=0, count=100, first_column=1, columns=3))
+        rows = [e for e in page if e.get('ev') == 'done'][-1]['result']['rows']
+        autoxcompare.completed(s, dict(cmd='autox.show_branch', branch=1, first_point=first, last_point=last))
+        branch = [e for e in autoxcompare.completed(s, dict(cmd='data.page', from_row=0, count=100, first_column=1, columns=3)) if e.get('ev') == 'done'][-1]['result']['rows']
+        runs = [(rows[2 * k], rows[2 * k + 1]) for k in range(len(rows) // 2)]
+        check('W745: autox.range_branch makes one run for each point of the stretch and stores its rows (%d points, 2 rows each)' % len(stretch),
+              len(stretch) == last - first + 1 and len(rows) == 2 * len(stretch) and len(branch) == len(stretch), '%d points, %d rows, %d listed' % (len(stretch), len(rows), len(branch)))
+        check("W745: the stretch's parameter values, as autox.show_branch lists them, are the diagram's points' own, in order",
+              all(abs(b[0] - p[2]) <= 1e-5 * abs(p[2]) for b, p in zip(branch, stretch)), str([(b[0], p[2]) for b, p in zip(branch, stretch)]))
+        check("W745: each run starts at its point's state and stays there: the sweep set the point's parameter, in the points' order",
+              all(abs(a[i] - b[i + 1]) <= 1e-5 and abs(a[i] - z[i]) <= 1e-5 for (a, z), b in zip(((r[0][1:], r[1][1:]) for r in runs), branch) for i in range(2)),
+              str(runs)[:600])
+    finally:
+        s.close()
+
+
 def check_autox_starts():
     """W495: reject bad starts before a first diagram point is produced. A start at or past a
     bound is refused only when Ds leads away from the interval (autoxcheck's extend of a branch
@@ -12678,6 +12713,7 @@ check_stops()
 check_autox_stops()
 check_autox_global_ends()
 check_autox_closed_branch()
+check_autox_range_branch()
 check_autox_starts()
 check_autox_two_parameter_starts()
 check_autox_periodic_start_kind()
