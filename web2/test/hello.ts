@@ -46,11 +46,14 @@ export const ANNOTATION_GLYPHS: AnnotationGlyphs = {
 };
 setAnnotationGlyphs(ANNOTATION_GLYPHS);
 
-/** the rows of the registry: every resource's table (core/commands_<resource>.cpp) and the help row, read from
+/** the rows of the registry: every file that holds a table of them (core/commands_<resource>.cpp, the application's
+    xpp_*_commands.cpp) and the help row, read from
     the source so that no copy can drift (npm test runs in web2/) */
+function registryFiles(): string[] {
+  return readdirSync('../core').filter(f => f.endsWith('.cpp') && readFileSync(`../core/${f}`, 'utf8').includes('Command{"'));
+}
 function registrySource(): string {
-  const files = ['command_registry.cpp', ...readdirSync('../core').filter(f => /^commands_.*\.cpp$/.test(f))];
-  return files.map(f => readFileSync(`../core/${f}`, 'utf8')).join('\n');
+  return ['command_registry.cpp', ...registryFiles()].map(f => readFileSync(`../core/${f}`, 'utf8')).join('\n');
 }
 
 const RESERVED = [...readFileSync('../core/xpp_keymap.h', 'utf8').match(/RESERVED_KEYS = \{([^}]*)\}/)![1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
@@ -138,7 +141,7 @@ export const HELLO: HelloEvent = {
 export const READY = reduce(initialState, {type: 'event', ev: HELLO});
 /** the hello with every registry row (kind, menu path, default keys), for the key and menu tests */
 export const REGISTRY_HELLO: HelloEvent = {...HELLO, commands: []};
-for (const file of readdirSync('../core').filter(f => /^commands_.*\.cpp$/.test(f))) {
+for (const file of registryFiles()) {
   const source = readFileSync(`../core/${file}`, 'utf8');
   for (const match of source.matchAll(/Command\{"([^"]+)",([\s\S]*?)\},?\n/g)) {
     const body = match[2];
