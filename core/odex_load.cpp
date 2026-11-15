@@ -23,7 +23,6 @@
 #include "xpp_path.h"
 #include "xpp_text.h"
 #include "xpp_math.h"
-#include "session.h"
 #include "odex_block.h"
 #include "xpp_error.h"
 #include "xpp_mem.h"
@@ -971,20 +970,6 @@ double fixed_value(const Model &m, const Expr &e, std::string_view what, const s
 Parsed ready(Model &m, const Parsed &p)
 {
   return Loader(m, p).run();
-}
-
-int load(xpp::Session &s, const std::string &path, std::string text)
-{
-  try {
-    /* the parsed statements go before the model is built: the built list keeps only the expanded ones */
-    Parsed readied = ready(s.model(), parse(s.model(), text, path));
-    build_model(s, std::move(readied));
-  } catch (const Error &e) {
-    xpp::model_failed(e);
-  }
-  /* the model's source: the .odex file's own lines */
-  xpp::set_model_source(s.model(), text);
-  return 1;
 }
 
 }

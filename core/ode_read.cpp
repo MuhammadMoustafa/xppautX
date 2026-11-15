@@ -29,7 +29,6 @@
 #include "model_failed.h"
 #include "xpp_log.h"
 #include "xpp_util.h"
-#include "session.h"
 #include "xpp_error.h"
 
 #include <ctype.h>
@@ -1368,9 +1367,8 @@ void subsk(std::string_view big_text, std::string &newstr, int k, int flag, Type
   }
 }
 
-int get_eqn(xpp::Session &s, std::string_view text)
+int get_eqn(xpp::Model &m, xpp::Session &s, std::string_view text)
 {
-  xpp::Model &m=s.model();
   LineSource src;
   src.text=text;
   src.file=m.this_file;

@@ -16,10 +16,11 @@ class TypedFields; /* typed_fields.h */
    where it is; -1 when there is none */
 int find_char(std::string_view s1, std::string_view s2, int i0, int *i1);
 
-/* the .ode model text read into the loading Session s's Model (its
-   this_file the path): read, then built; 1 (a model that does not load
-   fails the load, model_failed) */
-int get_eqn(Session &s, std::string_view text);
+/* the .ode model text read into the Model m of the loading Session s (m's
+   this_file the path): read, then built into s by the builder (form_ode.h),
+   to which s is only handed on; 1 (a model that does not load fails the
+   load, model_failed) */
+int get_eqn(Model &m, Session &s, std::string_view text);
 
 /* The comment marker in a physical .ode line, or npos. Directives,
    displayed (quoted) comments and Volterra convolution separators keep

@@ -369,11 +369,6 @@ std::string name_clash(std::string_view name, std::string_view array, std::strin
 
 /* path names an .odex model (its extension, any case) */
 bool is_odex(std::string_view path);
-/* The .odex text already read and validated at path into the loading
-   Session s: parse, ready, then build_model: 1;
-   a problem is logged (file, line, column) and the load fails
-   (xpp::model_failed, with the problem as its diagnostic) */
-int load(xpp::Session &s, const std::string &path, std::string text);
 
 /* Converter findings are values; comments and clients render this same list. */
 struct Diagnostic {

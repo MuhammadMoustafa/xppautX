@@ -11,13 +11,14 @@
 #include <vector>
 #include "model.h"
 #include "model_record.h"
+#include "model_failed.h"
+#include "expr.h"
 #include "xpp_ui.h"
 #include "typed_values.h"
 
 #include "model_place.h"
 #include "plot_settings.h"
 #include "load_eqn.h"
-#include "value_undo.h"
 #include "form_ode.h"
 
 
@@ -28,7 +29,6 @@
 #include <cstdint>
 #include <expected>
 #include <unordered_map>
-#include "session.h"
 
 namespace xpp {
 
@@ -80,59 +80,6 @@ void each_option(std::string_view line, std::string_view first, std::string_view
 
 
 
-
-void choose_model_file(xpp::Session &s)
-{
- std::string &file=s.model().this_file;
- xpp::FileSystem &fs=*s.model().fs;
- if(s.got_file&&!fs.is_dir(file))return;
- /* no file, or a folder: the start screen's Open model asks, in that folder
-    (xppautx_main.cpp); the dialog is File > Open model's, not a second one */
- if(s.got_file)fs.change_dir(file);
- const char *start=getenv("XPPSTART");
- if(start&&fs.is_dir(start))fs.change_dir(start);
- model_failed(Error{std::string(xpp::NO_MODEL_WHERE),"no model file was named",Place{fs.working_dir()}});
-}
-
-void load_eqn(xpp::Session &s)
-{
- const std::string &file=s.model().this_file;
- xpp::LoadSite::at(file);
- if(!xpp::odex::is_odex(file))
-   model_failed(Error{"model","the loader reads .odex only; open a .ode to convert it",Place{file}});
- std::string bytes;
- if(!xpp::read_model_file(s.model(),file,bytes))
-   model_failed(Error{"model",s.model().saved_in.empty()?"cannot be read":xpp::format("is not saved in {}",s.model().saved_in),Place{file}});
- if(!xpp::is_model_text(bytes))
-   model_failed(Error{"model",xpp::zip::is_zip(bytes)?"is not a model: it is a zip file (a session file is a .snapx)":"is not a model: it is a binary file",Place{file}});
- xpp::odex::load(s,file,std::move(bytes));
-}
-
-void set_all_vals(xpp::Session &s)
-{
- s.plot_settings->plot_3d=0;
- xpp::set_option_defaults(s);
- /* internal options go here  */
- set_internopts(s,NULL);
- /* every option has its value now (a source's or its default): the orders they keep hold */
- if (const auto bad = xpp::option_pairs_problem(s)) {
-   xpp::Place place = xpp::model_place(s.model(), bad->hi);
-   place.source = xpp::model_source_line(s.model(), place.file, place.line);
-   xpp::model_failed(xpp::Error{"options", bad->text, place});
- }
-
- init_txtview();
-
- PlotCurve &axes_curve=s.plot_settings->curves[0];
- if(axes_curve.z>s.model().neq)axes_curve.z=s.model().neq;
- if(axes_curve.y>s.model().neq)axes_curve.y=s.model().neq;
- if(axes_curve.x==0||axes_curve.y==0)
-   s.plot_settings->timplot=1;
- else 
-   s.plot_settings->timplot=0;
- if(s.plot_settings->axes>=5)s.plot_settings->plot_3d=1;
- set_initial_values(s); /* the initial values given as formulas */
-}
 
 /* here is some new code for internal set files:
    format of the file is a long string of the form:
@@ -222,37 +169,6 @@ std::vector<std::pair<std::string, std::string>> option_items(std::string_view l
   if(set)each_option(line," "," ,;\n",keep,drop);
   else each_option(line," ,"," ,\n\r",keep,drop);
   return out;
-}
-
-void set_internopts(xpp::Session &s, const OptionsSet *mask)
-{
-  const std::vector<xpp::Model::OptionLine> &options=s.model().options;
-  if(s.options_applied>=options.size())return;
-  for(;s.options_applied<options.size();s.options_applied++){
-    /* a value an option refuses is reported at its line */
-    const xpp::Place &at=options[s.options_applied].where;
-    const std::string &file=at.file.empty()?s.model().this_file:at.file;
-    xpp::LoadSite::at(file,at.line,at.col);
-    for(const auto &[name,value] : options[s.options_applied].items)
-      set_option(s,name,value,0,mask);
-  }
-  std::array<double, xpp::AUTOX_NUM_N> values{};
-  std::array<int, xpp::AUTOX_NUM_N> supplied{};
-  for (const xpp::OptionRow &row : xpp::option_rows()) {
-    if (row.autox_numeric < 0) continue;
-    values[row.autox_numeric] = row.real ? row.real(s) : row.whole ? row.whole(s) : row.boolean ? row.boolean(s) : row.index.read(s);
-    supplied[row.autox_numeric] = s.options_set.has(row);
-  }
-  if (const auto valid = xpp::autox_settings_numbers_check(values, supplied); !valid) {
-    const auto row = std::ranges::find_if(xpp::option_rows(), [&](const xpp::OptionRow &r) {
-      return r.autox_numeric >= 0 && valid.error().field == xpp::autox_settings_num_key(r.autox_numeric);
-    });
-    xpp::Error error = valid.error();
-    error.place = xpp::model_place(s.model(), option_name(*row));
-    error.place.source = xpp::model_source_line(s.model(), error.place.file, error.place.line);
-    xpp::model_failed(error);
-  }
-  xpp::LoadSite::at(s.model().this_file);
 }
 
 int add_model_option(xpp::Model &m, std::string_view s1)

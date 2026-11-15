@@ -124,7 +124,7 @@ ALLOWLIST = {
     ('expressions', 'session'): (7, 'W761'),
     ('integrators', 'session'): (18, 'W760'),
     ('model and loading', 'autoX'): (1, 'W757'),
-    ('model and loading', 'session'): (15, 'W757, W758'),
+    ('model and loading', 'session'): (11, 'W757, W758'),
     ('ui seam', 'session'): (1, 'W761'),
 }
 

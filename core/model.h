@@ -244,7 +244,7 @@ struct Model final : NameIndex {
   ArrayIcs array_ics;
   /* its options, each line (an .ode's @ line, whole as read; a .odex's
      options entry) as the name=value items it makes, and where (no cause),
-     for a value an option refuses: load_eqn.cpp's set_internopts sets the
+     for a value an option refuses: xpp_batch.cpp's set_internopts sets the
      numerics and plot settings from them (their current values are the
      Session's) */
   struct OptionLine {

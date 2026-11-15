@@ -59,6 +59,8 @@ struct ModelLoader {
   Result<> (*inspect)(FileSystem &fs, const CommandLine &cl, const std::function<void(Session &)> &read,
                       const std::function<std::optional<Error>(Session &)> &check, const SavedModel *saved, const LoadServices *services);
   void (*batch_start)(Session &s);
+  /* the .odex reader: a model's file read into the Session being loaded (inspect's `read` for an .odex) */
+  void (*read_odex)(Session &s);
 };
 
 /* After a load with no interface (--silent, a unit test): s's browser,

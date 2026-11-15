@@ -1919,7 +1919,7 @@ int check_file(FileSystem &fs, const ModelLoader &loader, const std::string &fil
       if (has_subsystems(s)) diagnostics.push_back({Place{file}, "subsystems", "info", describe_subsystems(s)});
       return std::nullopt;
     };
-    const Result<> loaded = line ? loader.inspect(fs, *line, load_eqn, compiled, nullptr, &services) : std::unexpected(line.error());
+    const Result<> loaded = line ? loader.inspect(fs, *line, loader.read_odex, compiled, nullptr, &services) : std::unexpected(line.error());
     if (!loaded) error = loaded.error();
   } else {
     const Result<std::string> converted = convert_text(fs, loader, file, &diagnostics, nullptr, DeclinedRename::report, &services);
@@ -1981,7 +1981,7 @@ Result<std::string> convert_text(FileSystem &fs, const ModelLoader &loader, cons
     std::string bytes;
     if (!read_model_file(s.model(), file, bytes) || !is_model_text(bytes))
       model_failed(Error{"convert", "cannot be read as model text", Place{file}});
-    get_eqn(s, bytes);
+    get_eqn(s.model(), s, bytes);
   }, [&](Session &s) -> std::optional<Error> {
     try {
       Converter converter(s, output, declined);
@@ -2001,7 +2001,7 @@ Result<std::string> convert_text(FileSystem &fs, const ModelLoader &loader, cons
   const Result<CommandLine> converted_line = parse_command_line({"xppautX", model});
   if (!converted_line) return std::unexpected(converted_line.error());
   saved.files.push_back({model, text});
-  Result<> checked = loader.inspect(fs, *converted_line, load_eqn,
+  Result<> checked = loader.inspect(fs, *converted_line, loader.read_odex,
     [&](Session &s) -> std::optional<Error> {
       /* run() writes the guard last, so every other function keeps its
          .ode number and the programs' calls compare as they are */

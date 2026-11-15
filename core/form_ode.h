@@ -30,7 +30,7 @@ void strip_saveqn(Model &m);
 void create_plot_list(Session &s);
 /* the initial values an .odex model gives as formulas
    (ModelRecord::initial_values), each evaluated with every parameter set:
-   set_all_vals (load_eqn.cpp) calls this once the model is set up, where
+   set_all_vals (xpp_batch.cpp) calls this once the model is set up, where
    an .ode's array initial values are evaluated too */
 void set_initial_values(Session &s);
 /* XPPAUT starts a state without an initial value at zero. */

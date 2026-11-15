@@ -10,6 +10,8 @@
 #include "solver.h"
 #include "model.h"
 #include "model_record.h"
+#include "model_place.h"
+#include "plot_settings.h"
 #include "session.h"
 #include "autox_state.h"
 #include "model_parts.h"
@@ -79,6 +81,104 @@ Result<> check_autox_script(Session &s, const AutoxScript &script)
                 if (const Result<> shaped = command::check_shape(each.c_str(), run.place, &s); !shaped) return shaped;
     }
     return {};
+}
+
+} // namespace
+
+namespace {
+
+/* the load's steps that read or fill the Session (the readers of model and loading give it only the Model) */
+void choose_model_file(xpp::Session &s)
+{
+ std::string &file=s.model().this_file;
+ xpp::FileSystem &fs=*s.model().fs;
+ if(s.got_file&&!fs.is_dir(file))return;
+ /* no file, or a folder: the start screen's Open model asks, in that folder
+    (xppautx_main.cpp); the dialog is File > Open model's, not a second one */
+ if(s.got_file)fs.change_dir(file);
+ const char *start=getenv("XPPSTART");
+ if(start&&fs.is_dir(start))fs.change_dir(start);
+ model_failed(Error{std::string(xpp::NO_MODEL_WHERE),"no model file was named",Place{fs.working_dir()}});
+}
+
+void load_eqn(xpp::Session &s)
+{
+ xpp::Model &m=s.model();
+ const std::string &file=m.this_file;
+ xpp::LoadSite::at(file);
+ if(!xpp::odex::is_odex(file))
+   model_failed(Error{"model","the loader reads .odex only; open a .ode to convert it",Place{file}});
+ std::string bytes;
+ if(!xpp::read_model_file(m,file,bytes))
+   model_failed(Error{"model",m.saved_in.empty()?"cannot be read":xpp::format("is not saved in {}",m.saved_in),Place{file}});
+ if(!xpp::is_model_text(bytes))
+   model_failed(Error{"model",xpp::zip::is_zip(bytes)?"is not a model: it is a zip file (a session file is a .snapx)":"is not a model: it is a binary file",Place{file}});
+ try {
+   /* the parsed statements go before the model is built: the built list keeps only the expanded ones */
+   odex::Parsed readied=odex::ready(m,odex::parse(m,bytes,file));
+   build_model(s,std::move(readied));
+ } catch (const Error &e) {
+   model_failed(e);
+ }
+ /* the model's source: the .odex file's own lines */
+ set_model_source(m,bytes);
+}
+
+void set_internopts(xpp::Session &s, const OptionsSet *mask)
+{
+  const std::vector<xpp::Model::OptionLine> &options=s.model().options;
+  if(s.options_applied>=options.size())return;
+  for(;s.options_applied<options.size();s.options_applied++){
+    /* a value an option refuses is reported at its line */
+    const xpp::Place &at=options[s.options_applied].where;
+    const std::string &file=at.file.empty()?s.model().this_file:at.file;
+    xpp::LoadSite::at(file,at.line,at.col);
+    for(const auto &[name,value] : options[s.options_applied].items)
+      set_option(s,name,value,0,mask);
+  }
+  std::array<double, xpp::AUTOX_NUM_N> values{};
+  std::array<int, xpp::AUTOX_NUM_N> supplied{};
+  for (const xpp::OptionRow &row : xpp::option_rows()) {
+    if (row.autox_numeric < 0) continue;
+    values[row.autox_numeric] = row.real ? row.real(s) : row.whole ? row.whole(s) : row.boolean ? row.boolean(s) : row.index.read(s);
+    supplied[row.autox_numeric] = s.options_set.has(row);
+  }
+  if (const auto valid = xpp::autox_settings_numbers_check(values, supplied); !valid) {
+    const auto row = std::ranges::find_if(xpp::option_rows(), [&](const xpp::OptionRow &r) {
+      return r.autox_numeric >= 0 && valid.error().field == xpp::autox_settings_num_key(r.autox_numeric);
+    });
+    xpp::Error error = valid.error();
+    error.place = xpp::model_place(s.model(), option_name(*row));
+    error.place.source = xpp::model_source_line(s.model(), error.place.file, error.place.line);
+    xpp::model_failed(error);
+  }
+  xpp::LoadSite::at(s.model().this_file);
+}
+
+void set_all_vals(xpp::Session &s)
+{
+ s.plot_settings->plot_3d=0;
+ xpp::set_option_defaults(s);
+ /* internal options go here  */
+ set_internopts(s,NULL);
+ /* every option has its value now (a source's or its default): the orders they keep hold */
+ if (const auto bad = xpp::option_pairs_problem(s)) {
+   xpp::Place place = xpp::model_place(s.model(), bad->hi);
+   place.source = xpp::model_source_line(s.model(), place.file, place.line);
+   xpp::model_failed(xpp::Error{"options", bad->text, place});
+ }
+
+ init_txtview();
+
+ PlotCurve &axes_curve=s.plot_settings->curves[0];
+ if(axes_curve.z>s.model().neq)axes_curve.z=s.model().neq;
+ if(axes_curve.y>s.model().neq)axes_curve.y=s.model().neq;
+ if(axes_curve.x==0||axes_curve.y==0)
+   s.plot_settings->timplot=1;
+ else 
+   s.plot_settings->timplot=0;
+ if(s.plot_settings->axes>=5)s.plot_settings->plot_3d=1;
+ set_initial_values(s); /* the initial values given as formulas */
 }
 
 } // namespace
@@ -369,7 +469,7 @@ Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::functio
     return {};
 }
 
-const ModelLoader program_loader{load_model, inspect_model, batch_start};
+const ModelLoader program_loader{load_model, inspect_model, batch_start, load_eqn};
 
 void batch_start(xpp::Session &s)
 {

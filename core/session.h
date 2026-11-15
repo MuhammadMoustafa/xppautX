@@ -204,7 +204,7 @@ struct Session {
   /* the options a source has set (model_options.h): the command line
      sets its own first, and the model's may not override them */
   OptionsSet options_set;
-  /* how many of the model's options set_internopts (load_eqn.cpp) has
+  /* how many of the model's options set_internopts (xpp_batch.cpp) has
      applied: each call applies those the parser added since the call
      before (xpp::load_model's, after the parse, applies them all;
      set_all_vals' own finds none new) */
