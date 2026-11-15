@@ -93,6 +93,14 @@ void restore_views(xpp::Session &s, const SavedViews &saved)
 {
     s.autox_state->views.assign(saved.views.size(), AutoxDiagramView{s.autox_state->axes(), {}, false, {}});
     s.autox_state->active_view = 0;
+    /* the names first: applying a view's settings can flush the diagram to a client, which must be told
+       the final names, never the default one of a view not yet named (W749: both views went out as diagram_1) */
+    for (std::size_t k = 0; k < saved.views.size(); k++) {
+        AutoxDiagramView &view = s.autox_state->views[k];
+        view.name = saved.views[k].name;
+        view.hidden = saved.views[k].hidden;
+        view.second = saved.views[k].second;
+    }
     for (std::size_t k = 0; k < saved.views.size(); k++) {
         const SavedView &v = saved.views[k];
         std::string why;
@@ -105,9 +113,6 @@ void restore_views(xpp::Session &s, const SavedViews &saved)
         ax.ymin = v.range[2];
         ax.ymax = v.range[3];
         s.autox_state->views[k].zoom = v.zoom;
-        s.autox_state->views[k].name=v.name;
-        s.autox_state->views[k].hidden=v.hidden;
-        s.autox_state->views[k].second=v.second;
     }
     s.autox_state->active_view = saved.active;
 }

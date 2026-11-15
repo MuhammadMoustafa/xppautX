@@ -1083,7 +1083,9 @@ def section_sessiondiagram():
     def server(ode=LECAR):
         home = tempfile.mkdtemp(prefix='xpphome')
         homes.append(home)
-        s = Server(args.server, ode, env={'HOME': home}, verbose=args.v)
+        # XPP_NO_THROTTLE: a flush after every point, as a slow machine's mid-load flush: a view's name must be final
+        # before the load can flush (W749), whatever the machine's speed
+        s = Server(args.server, ode, env={'HOME': home, 'XPP_NO_THROTTLE': '1'}, verbose=args.v)
         s.collect(is_done)
         open_autox(s)
         return s
