@@ -86,6 +86,8 @@ export function installTestHook(session: Session): void {
     sent: () => sent.slice(),
     /** how many commands the page has sent, all told: the mark for sentFrom */
     sentCount: () => sentDropped + sent.length,
+    /** commands sent that have no done yet */
+    owed: () => session.owed(),
     /** the commands sent since sentCount() was `mark`; an error if some were already dropped */
     sentFrom: (mark: number) => {
       if (mark < sentDropped) throw new Error(`sentFrom(${mark}): the commands before ${sentDropped} were dropped`);

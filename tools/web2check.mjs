@@ -3067,7 +3067,10 @@ async function exited(ms = 10000) {
 const appends = () => S('s.seriesAppends');
 
 async function leaveCheck() {
-  await until('!s.busy && !s.ask', 'idle');
+  /* what quitAsked reads (hello, computing, busy, ask), and the opening's own commands all answered: busy goes
+     false at the first done while the page's effect has yet to send its options.get (W754) */
+  check('leave: the opening is over: every command sent has its done, nothing computes or asks',
+    await until('s.hello && !s.busy && !s.computing && !s.ask && __xpp.owed() === 0 && __xpp.rendered()', 'idle'));
   await cdp.eval('__xppQuit()');
   check('leave: idle, the window\'s Quit is the core\'s question, as F Q asks it',
     await until(`s.ask && s.ask.id > 0 && s.ask.kind === 'choice' && s.ask.question === '${QUIT_Q}'`, 'core quit ask')
@@ -3125,6 +3128,9 @@ async function leaveSaveCheck(dir) {
     await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.snapx' && !s.computing`, 'session file', 30000 * SLOW)
     && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'session.quit' && c.save === true)`), JSON.stringify(await S('s.ask')));
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'left'})`);
+  /* a run that stored over the size limit before Stop (how far it got is the machine's) is asked whether the data goes in: leave it out */
+  await until(`s.ask && (s.ask.kind === 'file' && s.ask.wild === '*.recx' || s.ask.question?.startsWith('The data table is'))`, 'recording file', 30000 * SLOW);
+  if (await S(`s.ask.kind === 'choice'`)) await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'l'})`);
   check('leave save: then the recording\'s name',
     await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.recx'`, 'recording file', 30000 * SLOW), JSON.stringify(await S('s.ask')));
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'left'})`);

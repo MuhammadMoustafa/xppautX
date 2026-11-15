@@ -570,6 +570,11 @@ export class Session {
     return !!hello && (computing || (busy && !ask));
   }
 
+  /** how many commands sent have no done yet (a test waits for 0: `busy` goes false at the first done, with others still on the way) */
+  owed(): number {
+    return this.donesOwed;
+  }
+
   /** the page's leave question, opened while a run goes on: `then` is the command its answer goes with (session.quit, or
       update.restart / update.install, W689) */
   private leaveQuestion(then: LeaveThen): void {
