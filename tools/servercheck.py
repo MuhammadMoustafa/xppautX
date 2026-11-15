@@ -12041,11 +12041,13 @@ def check_stop_checks():
         col(is_done)
 
 
-        # 6. Fitting cancellation (core/do_fit.cpp)
+        # 6. Fitting cancellation (core/do_fit.cpp): the data span W388_ROWS steps, so each Levenberg-Marquardt
+        #    step integrates that far and the stop lands in the fit, never after it (the fit sends no
+        #    job.computing to wait for; a fit over 10 time units could converge before the stop was read)
         fit_path = os.path.join(r, 'fit_data.dat')
         with open(fit_path, 'w') as f:
             for i in range(20):
-                f.write(f'{i * 0.5} {-0.5 + i * 0.05}\n')
+                f.write(f'{i * W388_ROWS * 0.05 / 20} {-0.5 + i * 0.05}\n')
         snd(cmd='fit.parameters', variables=['V'], parameters=['iapp'], tolerance=1e-9, points=20, columns=2, data_columns=[2], epsilon=1e-4, max_iterations=1000, file='fit_data.dat')
         snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
