@@ -69,7 +69,7 @@ void   set_default_params(xpp::Session &s, std::optional<int> only)
  {
  for(int i=0;i<s.model().nupar;i++){
    if(only && *only!=i)continue;
-   set_val(s,s.model().upar_names[i],s.model().default_val[i]);
+   set_val(s.parser,s.model().upar_names[i],s.model().default_val[i]);
    ui.param_box_set(i,xpp::format("{:.16g}",s.model().default_val[i]).c_str());
  }
  
@@ -90,7 +90,7 @@ void   set_default_ics(xpp::Session &s, std::optional<int> only)
 
 void set_par_or_var(xpp::Session &s, std::string_view name,int type,int index,double val)
 {
-  set_val(s,name,val);
+  set_val(s.parser,name,val);
   if(type==ICBOX)
     s.last_ic[index]=val;
 }
@@ -125,7 +125,7 @@ void eq_import(xpp::Session &s, double *y,int n)
 static void set_named(xpp::Session &s, const std::string &name, double value)
 {
   const int i=find_user_name(s.model(),PARAMBOX,name);
-  set_val(s,name,value);
+  set_val(s.parser,name,value);
   if(i>-1){
     redraw_params();
     return;
@@ -170,7 +170,7 @@ Result<void> box_set_value(xpp::Session &s, int type,int i,std::string_view text
   case PARAMBOX:{
     const Result<double> z=box_number(s,text,field);
     if(!z)return std::unexpected(z.error());
-    set_val(s,s.model().upar_names[i],*z);
+    set_val(s.parser,s.model().upar_names[i],*z);
     break;}
   case BCBOX:
     set_bc_formula(s,i,text);

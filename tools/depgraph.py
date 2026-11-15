@@ -120,10 +120,8 @@ INDEPENDENT = [('protocol front end', 'platform')]
 # (from, to) -> (include lines against the levels now, the card that removes them); exact
 ALLOWLIST = {
     ('analysis', 'session'): (13, 'W760'),
-    ('expressions', 'session'): (7, 'W761'),
     ('integrators', 'session'): (18, 'W760'),
     ('model and loading', 'session'): (9, 'W758'),
-    ('ui seam', 'session'): (1, 'W761'),
 }
 
 INCLUDE = re.compile(r'\s*#\s*include\s*"([^"]+)"')

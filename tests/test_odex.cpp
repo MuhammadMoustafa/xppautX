@@ -236,7 +236,7 @@ std::string quantities(const char *text, const char *ext = "odex")
 double constant(const char *name)
 {
   double v = -12345;
-  xpp::get_val(xpp::client_session(), xpp::upper_case(name), &v);
+  xpp::get_val(xpp::client_session().parser, xpp::upper_case(name), &v);
   return v;
 }
 
@@ -691,8 +691,8 @@ TEST_CASE("test_odex")
   CHECK(load_text("par a = 2\nd = a*3\nx' = d\n") == 1 && constant("d") == 6);
   {
     /* worked out again when a parameter changes, as .ode's ! is */
-    xpp::set_val(xpp::client_session(), "A", 5);
-    xpp::evaluate_derived(xpp::client_session());
+    xpp::set_val(xpp::client_session().parser, "A", 5);
+    xpp::evaluate_derived(xpp::client_session().parser);
     CHECK(constant("d") == 15);
   }
 
@@ -846,11 +846,11 @@ TEST_CASE("test_odex")
     const double divisor = session.random.uniform();
     const double next = session.random.uniform();
     session.random.seed(1);
-    CHECK(xpp::evaluate(session, session.model().programs[0]) == 1/divisor);
+    CHECK(xpp::evaluate(session.parser, session.model().programs[0]) == 1/divisor);
     CHECK(session.random.uniform() == next); /* exactly one draw */
     CHECK(load_text("par a=2\nx'=1/a\ndone\n", "ode") == 1);
-    xpp::set_val(xpp::client_session(), "A", 0);
-    CHECK(xpp::evaluate(xpp::client_session(), xpp::client_session().model().programs[0]) == 1/xpp::expr::ZERO_DIVISOR);
+    xpp::set_val(xpp::client_session().parser, "A", 0);
+    CHECK(xpp::evaluate(xpp::client_session().parser, xpp::client_session().model().programs[0]) == 1/xpp::expr::ZERO_DIVISOR);
     CHECK(load_text("par ode_divisor=2\nx'=1/x\ndone\n", "ode") == 1);
     const auto collision = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(collision && collision->find("fun ode_divisor_(value)") != std::string::npos);
@@ -959,15 +959,15 @@ TEST_CASE("test_odex")
     CHECK(xpp::find_user_name(m,PARAMBOX," G a i n ")==0);
     CHECK(xpp::find_user_name(m,ICBOX,"v")==0);
     CHECK(xpp::find_user_name(m,ICBOX,"q")==1);
-    CHECK(xpp::get_var_index(s,"q")==2);
-    CHECK(xpp::get_param_index(s,"gain")==m.upar_con[0]);
-    CHECK(xpp::get_var_index(s,"arg")==-1);
+    CHECK(xpp::get_var_index(s.parser,"q")==2);
+    CHECK(xpp::get_param_index(s.parser,"gain")==m.upar_con[0]);
+    CHECK(xpp::get_var_index(s.parser,"arg")==-1);
     CHECK(m.record->name("arg")==nullptr);
     CHECK(m.record->name("f") && m.record->name("f")->kind==xpp::ModelRecord::NameKind::Function);
     CHECK(xpp::model_place(m,"q").line==5);
     const size_t count=m.record->names.size();
     double value=0;
-    CHECK(xpp::get_val(s,"gain",&value));
+    CHECK(xpp::get_val(s.parser,"gain",&value));
     CHECK(value==2 && m.record->names.size()==count);
     CHECK(!load_text("par gain=2\nv'=missing\n", "odex"));
     CHECK(xpp::client_session().model().record->name("q")!=nullptr);
@@ -1113,8 +1113,8 @@ TEST_CASE("test_odex")
     xpp::Session &s = xpp::client_session();
     std::vector<int> command;
     int length = 0;
-    CHECK(xpp::add_expr(s, "f(" + call + ")", command, &length) == 0);
-    CHECK(xpp::evaluate(s, command) == 26.0);
+    CHECK(xpp::add_expr(s.parser, "f(" + call + ")", command, &length) == 0);
+    CHECK(xpp::evaluate(s.parser, command) == 26.0);
     CHECK(s.parser.arg_count() == 25);
   }
 

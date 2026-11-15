@@ -247,7 +247,7 @@ void Settings::set_setting(const OptionRow *row, std::string text)
 double parameter_value(const Session &s, int i)
 {
     double z = 0;
-    get_val(s, s.model().upar_names[static_cast<std::size_t>(i)], &z);
+    get_val(s.parser, s.model().upar_names[static_cast<std::size_t>(i)], &z);
     return z;
 }
 
@@ -555,7 +555,7 @@ void apply_settings(Session &s, const Settings &f, bool redraw)
         s.last_ic[k] = f.last_ic[k];
         s.data_store->current[k] = f.current[k];
     }
-    for (int i = 0; i < m.nupar; i++) set_val(s, m.upar_names[static_cast<std::size_t>(i)], f.params[static_cast<std::size_t>(i)]);
+    for (int i = 0; i < m.nupar; i++) set_val(s.parser, m.upar_names[static_cast<std::size_t>(i)], f.params[static_cast<std::size_t>(i)]);
     if (f.graphics) {
         copy_graph_settings(f.graph, *s.plot_windows->current);
         copy_curves(f.graph, *s.plot_windows->current);

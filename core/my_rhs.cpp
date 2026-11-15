@@ -273,7 +273,7 @@ void evaluate_network(xpp::Session &s, int ind)
       net.f.ops[0].a=net.f.rpn[0]%MAXTYPE;
       net.f.ops[1].a=net.f.rpn[1]%MAXTYPE;
     }
-    return evaluate(s,net.f);
+    return evaluate(s.parser,net.f);
   };
   const auto plain=[y](int,int source,int){ return y[source]; };
   switch(net.kind){
@@ -388,20 +388,20 @@ void extra(xpp::Session &s, double *y__y, double t, int nod, int neq)
   const int fix=m.fix_var,nmark=m.nmarkov;
   int i;
   if(nod>=neq)return;
-  const auto set=[&](int index,double value){setvar(s,index,value);};
+  const auto set=[&](int index,double value){setvar(s.parser,index,value);};
   state_values(m,t,y__y,nod,nmark,set);
   fixed_values(m,s.parser.constants.data(),s.parser.variables.data(),&s,set,
-               [&](const xpp::Program &p){return xpp::evaluate(s,p);});
+               [&](const xpp::Program &p){return xpp::evaluate(s.parser,p);});
   /* I dont think this is generally needed  */
 
   for(i=nod+nmark;i<neq;i++)
-  y__y[i]=xpp::evaluate(s,s.model().programs[i+fix-nmark]);
+  y__y[i]=xpp::evaluate(s.parser,s.model().programs[i+fix-nmark]);
 }
 
 void set_fix_rhs(xpp::Session &s, double t, double *y)
 {
   const xpp::Model &m=s.model();
-  state_values(m,t,y,m.node,m.nmarkov,[&](int i,double value){setvar(s,i,value);});
+  state_values(m,t,y,m.node,m.nmarkov,[&](int i,double value){setvar(s.parser,i,value);});
   fix_only(s);
   xpp::eval_all_nets(s);
 }
@@ -411,8 +411,8 @@ int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
   const xpp::Model &m=s.model();
   if (m.native_build || m.jacobian.build) xpp::build_native(s,false); /* a build due starts, finished code is taken: here, never mid-evaluation (W715) */
   rhs_order(m,t,y,ydot,s.parser.constants.data(),s.parser.variables.data(),&s,
-            [&](int i,double value){setvar(s,i,value);},
-            [&](const xpp::Program &p){return xpp::evaluate(s,p);},
+            [&](int i,double value){setvar(s.parser,i,value);},
+            [&](const xpp::Program &p){return xpp::evaluate(s.parser,p);},
             [&]{xpp::eval_all_nets(s);xpp::do_daes(s);});
   if(neq>m.node) vec_rhs(t,y,ydot,neq);
   return 1;
@@ -427,7 +427,7 @@ void pure_rhs(const xpp::Session &s, const double *y, double *ydot, double *c, d
 {
   /* the native code only reads s's tables (Model::rhs_impurity) */
   rhs_order(s.model(),0.0,y,ydot,c,v,const_cast<xpp::Session *>(&s),[&](int i,double value){v[i]=value;},
-            [&](const xpp::Program &p){return xpp::evaluate_pure(s,p,c,v);},[]{});
+            [&](const xpp::Program &p){return xpp::evaluate_pure(s.parser,p,c,v);},[]{});
 }
 
 void update_based_on_current(xpp::Session &s)
@@ -440,13 +440,13 @@ void fix_only(xpp::Session &s)
 {
   const xpp::Model &m=s.model();
   fixed_values(m,s.parser.constants.data(),s.parser.variables.data(),&s,
-               [&](int i,double value){setvar(s,i,value);},
-               [&](const xpp::Program &p){return xpp::evaluate(s,p);});
+               [&](int i,double value){setvar(s.parser,i,value);},
+               [&](const xpp::Program &p){return xpp::evaluate(s.parser,p);});
 }
 
 void rhs_only(xpp::Session &s, double *ydot)
 {
-  equation_values(s.model(),ydot,[&](const xpp::Program &p){return xpp::evaluate(s,p);});
+  equation_values(s.model(),ydot,[&](const xpp::Program &p){return xpp::evaluate(s.parser,p);});
 }
  
 void vec_rhs(double t, double *y, double *ydot, int neq)

@@ -43,6 +43,9 @@
 namespace xpp {
 
 struct Session; /* session.h */
+struct ParserState;
+struct TABULAR; /* expr_tables.h */
+class Random; /* xpp_math.h */
 
 /* What a compiled formula calls that a run owns (the program's delay, integral and network terms), as an
    interface the expressions own and the Session's constructor fills with the run's functions (session.cpp),
@@ -68,48 +71,47 @@ int add_2d_table(std::string_view name, std::string_view file);
    it; 1 (with a WARN when report is set) when it is not a number */
 int do_num(std::string_view source, double *value, int *ind, int report);
 
-/* The symbol table and the compiler are the Session s's (its ParserState
-   and its Model's names and programs): a load passes the Session it
-   builds (W47d3), a command or a run the one it runs in. */
+/* The symbol table and the compiler are a Session's ParserState (with its Model's names and programs through
+   ParserState::compiler): a load passes the one it builds (W47d3), a command or a run the one it runs in. */
 
 /* starts a load: the symbol table back to the built-ins, no parameters,
-   variables, user functions or kernels, and the random generator seeded */
-void init_rpn(Session &s, bool new_seed);
+   variables, user functions or kernels */
+void init_rpn(ParserState &p);
 /* the symbol table's entries, each returning 0 when the name was added
    and 1 (said why) when it was not: a parameter of value, a kernel of
    mu and formula expr ("kerexpr#expr" is a convolution), network index's
    name (with vectorizer set, vectorizer index's), table index's name, user function name (index, narg
    arguments; add_ufun also compiles expr) */
-int add_con(Session &s, std::string_view name, double value);
-int add_kernel(Session &s, std::string_view name, double mu, std::string_view expr);
-int add_net_name(Session &s, int index, std::string_view name, int vectorizer);
-int add_table_name(Session &s, int index, std::string_view name);
-int add_ufun_name(Session &s, std::string_view name, int index, int narg);
-int add_ufun(Session &s, std::string_view junk, std::string_view expr, int narg);
+int add_con(ParserState &p, std::string_view name, double value);
+int add_kernel(ParserState &p, std::string_view name, double mu, std::string_view expr);
+int add_net_name(ParserState &p, int index, std::string_view name, int vectorizer);
+int add_table_name(ParserState &p, int index, std::string_view name);
+int add_ufun_name(ParserState &p, std::string_view name, int index, int narg);
+int add_ufun(ParserState &p, std::string_view junk, std::string_view expr, int narg);
 /* user function index with the arguments args and the formula rhs */
-int add_ufun_new(Session &s, int index, std::string_view rhs, std::span<const std::string> args);
+int add_ufun_new(ParserState &p, int index, std::string_view rhs, std::span<const std::string> args);
 /* compiles expr into command, ending in ENDEXP;
    *length is the program's length, ENDEXP included; 0 when it compiled,
    1 (said why) when it did not (expr_compile.cpp) */
-int add_expr(Session &s, std::string_view expr, std::vector<int> &command, int *length = nullptr);
-/* program's value, run on s's stacks: the right-hand side, every step
+int add_expr(ParserState &p, std::string_view expr, std::vector<int> &command, int *length = nullptr);
+/* program's value, run on p's stacks: the right-hand side, every step
    (expr_eval.cpp). A Program runs its native function when it has one,
    else its instructions, decoded from its RPN once; a program held only
    as RPN (an expression entered once) is decoded for the evaluation. */
 struct Program;
-double evaluate(Session &s, const Program &program);
-double evaluate(Session &s, std::span<const int> program);
-/* A native program's value from the caller's own arrays, with s only read:
+double evaluate(ParserState &p, const Program &program);
+double evaluate(ParserState &p, std::span<const int> program);
+/* A native program's value from the caller's own arrays, with p only read:
    for a program translate_model proved array_pure (it reads c, v and the
-   immutable lookup tables, never s's stacks), so autoX's collocation workers
-   share s const (expr_eval.cpp). */
-double evaluate_pure(const Session &s, const Program &program, double *constants, double *variables);
+   immutable lookup tables, never p's stacks), so autoX's collocation workers
+   share p const (expr_eval.cpp). */
+double evaluate_pure(const ParserState &p, const Program &program, double *constants, double *variables);
 /* The exact Jacobian's entries of p (expr_program.h JacobianProgram) into out, evaluated from their graph
-   (its nodes' values kept in `values`, p's own in it), from the constants c and the variables v, with s only
-   read (its tables): what p's native function computes once built, bit for bit the same (expr_eval.cpp). */
+   (its nodes' values kept in `values`, p's own in it), from the constants c and the variables v, with the tables only
+   read: what p's native function computes once built, bit for bit the same (expr_eval.cpp). */
 struct JacobianProgram;
 namespace expr { class Symbolic; }
-void evaluate_derivatives(const Session &s, const expr::Symbolic &graph, const JacobianProgram &p, const double *c, const double *v,
+void evaluate_derivatives(const std::vector<TABULAR> &tables, const expr::Symbolic &graph, const JacobianProgram &p, const double *c, const double *v,
                           std::vector<double> &values, std::span<double> out);
 /* name as the symbol table keeps it: blanks removed, upper case */
 std::string converted(std::string_view name);
@@ -131,15 +133,15 @@ std::optional<double> pure_builtin_value(std::string_view name, std::span<const 
    variable's, a lookup table's or a parameter's index (-1 when name is
    not one); a parameter's or variable's value got or set (1 when name is
    one); add_var adds a variable (0 when it did) */
-int get_var_index(const Session &s, std::string_view name);
-int find_lookup(const Session &s, std::string_view name);
-int get_param_index(const Session &s, std::string_view name);
-int get_val(const Session &s, std::string_view name, double *value);
-int set_val(Session &s, std::string_view name, double value);
+int get_var_index(const ParserState &p, std::string_view name);
+int find_lookup(const ParserState &p, std::string_view name);
+int get_param_index(const ParserState &p, std::string_view name);
+int get_val(const ParserState &p, std::string_view name, double *value);
+int set_val(ParserState &p, std::string_view name, double value);
 /* where a parameter's or variable's value lives (nullptr when name is not
    one): a loop that sets or reads it row after row looks it up once */
-double *value_slot(Session &s, std::string_view name);
-int add_var(Session &s, std::string_view name, double value);
+double *value_slot(ParserState &p, std::string_view name);
+int add_var(ParserState &p, std::string_view name, double value);
 
 /* a name the symbol table knows: its length, what it compiles to (com,
    an instruction of expr_program.h), its number of arguments and its
@@ -168,7 +170,7 @@ struct ExprStack {
 
 /* Reserve a compiled expression and the functions it can enter before
    evaluation starts; never allocate on the evaluator's push path. */
-void size_expr_stack(Session &s, std::span<const int> code, int arguments);
+void size_expr_stack(ParserState &p, std::span<const int> code, int arguments);
 
 /* The expression engine's state, a Session's (session.h): the constants
    (parameters and numbers) and variables as the programs read them, how
@@ -219,6 +221,12 @@ struct ParserState {
   /* the model's user functions, kernels, symbol counts and name index (expr_compiler.h): the Model's, set by the
      Session's constructor */
   CompilerTables *compiler = nullptr;
+  /* what a formula reads of the Session it runs in, set by the Session's constructor: the lookup tables its table
+     terms read (and add_table_name sizes), the generator its random terms draw from, and the Session itself as
+     an opaque handle, given back to the ExprHost's functions and to native code, never read here */
+  std::vector<TABULAR> *tables = nullptr;
+  Random *random = nullptr;
+  Session *owner = nullptr;
   /* why a step or an evaluation cannot go on (a delay out of range, a DAE solve, a user function nested past
      MAX_UFUN_DEPTH, a program that cannot be run), the first one recorded by stop_integration: the integration
      ends after the step and returns it (integrate.cpp take_step_error); what no caller takes the command shows

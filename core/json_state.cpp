@@ -239,7 +239,7 @@ std::string build_state(xpp::Session &s)
 void send_state(xpp::Session &s)
 {
     session.state_dirty = 0;
-    evaluate_derived(s);
+    evaluate_derived(s.parser);
     if (!out_wanted()) return;
     std::string b = build_state(s);
     b.insert(1, "\"ev\":\"" + std::string(xpp::events::SESSION_STATE) + "\",");
@@ -249,7 +249,7 @@ void send_state(xpp::Session &s)
 xpp::Result<std::string> session_get_state(xpp::Session &s)
 {
     session.state_dirty = 0;
-    evaluate_derived(s);
+    evaluate_derived(s.parser);
     return build_state(s);
 }
 

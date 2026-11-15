@@ -150,9 +150,9 @@ void setautoxpoint(AutoxParts s)
   if(s.autox_state->from_autox_flag)
     {
       s.autox_state->from_autox_flag=false;
-      xpp::set_val(s.session,s.model().upar_names[s.autox_state->axes().icp1],s.autox_state->from_autox_x);
-      xpp::set_val(s.session,s.model().upar_names[s.autox_state->axes().icp2],s.autox_state->from_autox_y);
-      xpp::evaluate_derived(s.session);
+      xpp::set_val(s.parser,s.model().upar_names[s.autox_state->axes().icp1],s.autox_state->from_autox_x);
+      xpp::set_val(s.parser,s.model().upar_names[s.autox_state->axes().icp2],s.autox_state->from_autox_y);
+      xpp::evaluate_derived(s.parser);
       xpp::ok_or_show(xpp::redo_all_fun_tables(s.session));
       redraw_params();
     }
@@ -1552,10 +1552,10 @@ void find_point(AutoxParts s, int ibr, int pt)
   if(d==NULL)return;
   /* now we use this info to set parameters and init data */
   for(int i=0;i<s.model().node;i++)
-    setvar(s.session,i+1,d->u0[i]);
+    setvar(s.parser,i+1,d->u0[i]);
   xpp::set_initial_data(s.session,d->u0);
   autox_set_pars_from(s, diagram_parameters(*d).data());
-  xpp::evaluate_derived(s.session);
+  xpp::evaluate_derived(s.parser);
   xpp::ok_or_show(xpp::redo_all_fun_tables(s.session));
   redraw_params();
   redraw_ics();
@@ -1770,7 +1770,7 @@ GRABPT autox_point_data(const DIAGRAM &d)
 static void grab_diagram_point(AutoxParts s, const DIAGRAM *d)
 {
   s.autox_state->grabpt=autox_point_data(*d);
-  for(int i=0;i<s.model().node;i++)setvar(s.session,i+1,s.autox_state->grabpt.u0[static_cast<std::size_t>(i)]);
+  for(int i=0;i<s.model().node;i++)setvar(s.parser,i+1,s.autox_state->grabpt.u0[static_cast<std::size_t>(i)]);
   set_initial_data(s.session,s.autox_state->grabpt.u0);
   autox_set_pars_from(s,s.autox_state->grabpt.par.data());
 }
@@ -1778,7 +1778,7 @@ static void grab_diagram_point(AutoxParts s, const DIAGRAM *d)
 /* what follows a grab: derived values, tables and the shown values */
 static void finish_grab(AutoxParts s)
 {
-  xpp::evaluate_derived(s.session);
+  xpp::evaluate_derived(s.parser);
   xpp::ok_or_show(xpp::redo_all_fun_tables(s.session));
   redraw_params();
   redraw_ics();

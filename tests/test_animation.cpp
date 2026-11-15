@@ -166,7 +166,7 @@ TEST_CASE("test_animation")
         xpp::set_ani_perm(s);
         xpp::render_ani(s);
         const auto primitives = s.ani_shown->prims;
-        setvar(s, 0, 1);
+        setvar(s.parser, 0, 1);
         xpp::render_ani(s);
         CHECK(s.ani_shown->prims == primitives);
     }

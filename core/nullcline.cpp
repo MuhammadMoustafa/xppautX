@@ -320,9 +320,9 @@ void range_nullclines(xpp::Session &s)
   const double dz=(s.nullcline_state->range.xhi-s.nullcline_state->range.xlo)/static_cast<double>(s.nullcline_state->range.nstep);
   if(dz<=0.0)return;
   double zold;
-  xpp::get_val(s,s.nullcline_state->range.rv.c_str(),&zold);
+  xpp::get_val(s.parser,s.nullcline_state->range.rv.c_str(),&zold);
 
-  for(int i=s.model().node;i<s.model().node+s.model().nmarkov;i++)setvar(s,i+1+s.model().fix_var,s.last_ic[i]);
+  for(int i=s.model().node;i<s.model().node+s.model().nmarkov;i++)setvar(s.parser,i+1+s.model().fix_var,s.last_ic[i]);
   const float xmin=static_cast<float>(s.plot_windows->current->xmin);
   const float xmax=static_cast<float>(s.plot_windows->current->xmax);
   const float y_tp=static_cast<float>(s.plot_windows->current->ymax);
@@ -333,7 +333,7 @@ void range_nullclines(xpp::Session &s)
   for(int i=0;i<=s.nullcline_state->range.nstep;i++){
     if(my_abort()==ESC)break;
     const double z=static_cast<double>(i)*dz+s.nullcline_state->range.xlo;
-    xpp::set_val(s,s.nullcline_state->range.rv.c_str(),z);
+    xpp::set_val(s.parser,s.nullcline_state->range.rv.c_str(),z);
     null_storage(s,course);
 
     s.nullcline_state->which_crv=s.nullcline_state->null_ix;
@@ -345,7 +345,7 @@ void range_nullclines(xpp::Session &s)
     new_nullcline(s,course,xmin,y_bot,xmax,y_tp,s.nullcline_state->y_null,&s.nullcline_state->num_y_n);
     add_froz_cline(s,s.nullcline_state->x_null.data(),s.nullcline_state->num_x_n,s.nullcline_state->null_ix,s.nullcline_state->y_null.data(),s.nullcline_state->num_y_n,s.nullcline_state->null_iy);
   }
-  xpp::set_val(s,s.nullcline_state->range.rv.c_str(),zold);
+  xpp::set_val(s.parser,s.nullcline_state->range.rv.c_str(),zold);
   phase_data_nullclines(s,s.nullcline_state->x_null.data(),s.nullcline_state->num_x_n,s.nullcline_state->y_null.data(),s.nullcline_state->num_y_n,s.nullcline_state->null_ix,s.nullcline_state->null_iy,col1,col2);
   note_frozen(s);
 }
@@ -825,7 +825,7 @@ void compute_nullclines(xpp::Session &s)
   if(!phase_plane_states(s,*s.plot_windows->current))return;
   const Computation computing;
 
-  for(int i=s.model().node;i<s.model().node+s.model().nmarkov;i++)setvar(s,i+1+s.model().fix_var,s.last_ic[i]);
+  for(int i=s.model().node;i<s.model().node+s.model().nmarkov;i++)setvar(s.parser,i+1+s.model().fix_var,s.last_ic[i]);
   const float xmin=static_cast<float>(s.plot_windows->current->xmin);
   const float xmax=static_cast<float>(s.plot_windows->current->xmax);
   const float y_tp=static_cast<float>(s.plot_windows->current->ymax);

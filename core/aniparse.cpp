@@ -258,7 +258,7 @@ bool compile_expr(xpp::Session &s, const char *x, xpp::Program &c)
 {
     int n;
     c = xpp::Program{};
-    if (xpp::add_expr(s,x, c.rpn, &n) == 1) return false;
+    if (xpp::add_expr(s.parser,x, c.rpn, &n) == 1) return false;
     return true;
 }
 
@@ -608,7 +608,7 @@ void do_grab_tasks(xpp::Session &s, int which) /* which=1 for start, 2 for end *
     if (i < 0 || i >= static_cast<int>(s.animation->grabs.size())) return; /*  no legal grab point */
     if (which != 1 && which != 2) return;
     for (GrabEvent &e : (which == 1 ? s.animation->grabs[i].start : s.animation->grabs[i].end).events)
-        xpp::set_val(s,e.lhs.c_str(), xpp::evaluate(s,e.rhs));
+        xpp::set_val(s.parser,e.lhs.c_str(), xpp::evaluate(s.parser,e.rhs));
 }
 
 /* a command is known by its first two letters */
@@ -868,8 +868,8 @@ void ani_frame(xpp::Session &s, int task)
 void set_to_init_data(xpp::Session &s)
 {
     int i;
-    for (i = 0; i < s.model().node; i++) s.last_ic[i] = getvar(s,i + 1);
-    for (i = s.model().node + s.model().fix_var; i < s.model().node + s.model().fix_var + s.model().nmarkov; i++) s.last_ic[i - s.model().fix_var] = getvar(s,i + 1);
+    for (i = 0; i < s.model().node; i++) s.last_ic[i] = getvar(s.parser,i + 1);
+    for (i = s.model().node + s.model().fix_var; i < s.model().node + s.model().fix_var + s.model().nmarkov; i++) s.last_ic[i - s.model().fix_var] = getvar(s.parser,i + 1);
     redraw_ics();
 }
 
@@ -894,7 +894,7 @@ void eval_ani_color(xpp::Session &s, int j)
 {
     AniCom &a = s.animation->commands[j];
     if (!a.col_expr.rpn.empty()) {
-        double z = xpp::evaluate(s,a.col_expr);
+        double z = xpp::evaluate(s.parser,a.col_expr);
         if (z > 1) z = 1.0;
         if (z < 0) z = 0.0;
         a.zcol = z;
@@ -904,8 +904,8 @@ void eval_ani_color(xpp::Session &s, int j)
 void eval_ani_com(xpp::Session &s, int j)
 {
     AniCom &a = s.animation->commands[j];
-    a.zx1 = xpp::evaluate(s,a.x1);
-    a.zy1 = xpp::evaluate(s,a.y1);
+    a.zx1 = xpp::evaluate(s.parser,a.x1);
+    a.zy1 = xpp::evaluate(s.parser,a.y1);
 
     switch (a.type) {
     case LINE:
@@ -915,19 +915,19 @@ void eval_ani_com(xpp::Session &s, int j)
     case FELLIP:
     case AXNULL:
     case AYNULL:
-        a.zx2 = xpp::evaluate(s,a.x2);
-        a.zy2 = xpp::evaluate(s,a.y2);
+        a.zx2 = xpp::evaluate(s.parser,a.x2);
+        a.zy2 = xpp::evaluate(s.parser,a.y2);
         break;
     case CIRC:
     case FCIRC:
-        a.zrad = xpp::evaluate(s,a.x2);
+        a.zrad = xpp::evaluate(s.parser,a.x2);
         break;
     case VTEXT:
-        a.zval = xpp::evaluate(s,a.x2);
+        a.zval = xpp::evaluate(s.parser,a.x2);
         break;
     }
 
-    if (a.type == AXNULL || a.type == AYNULL) a.zval = xpp::evaluate(s,a.who);
+    if (a.type == AXNULL || a.type == AYNULL) a.zval = xpp::evaluate(s.parser,a.who);
 }
 
 void set_ani_font_stuff(xpp::Session &s, int size, int font, const xpp::Color &color) { pen_font(s, size, font, color); }
@@ -1047,8 +1047,8 @@ void draw_grab_points(xpp::Session &s)
 {
     pen_color(s, xpp::foreground_color);
     for (AniGrab &g : s.animation->grabs) {
-        const double xc = xpp::evaluate(s,g.x);
-        const double yc = xpp::evaluate(s,g.y);
+        const double xc = xpp::evaluate(s.parser,g.x);
+        const double yc = xpp::evaluate(s.parser,g.y);
         g.zx = xc;
         g.zy = yc;
         const double z = g.tol;
@@ -1497,10 +1497,10 @@ void update_ani_motion_stuff(xpp::Session &s, double x, double y)
     if (dt == 0.0) dt = 10000000000;
     s.animation->motion.vx = (s.animation->motion.x - s.animation->motion.ox) / dt;
     s.animation->motion.vy = (s.animation->motion.y - s.animation->motion.oy) / dt;
-    xpp::set_val(s,"mouse_x", s.animation->motion.x);
-    xpp::set_val(s,"mouse_y", s.animation->motion.y);
-    xpp::set_val(s,"mouse_vx", s.animation->motion.vx);
-    xpp::set_val(s,"mouse_vy", s.animation->motion.vy);
+    xpp::set_val(s.parser,"mouse_x", s.animation->motion.x);
+    xpp::set_val(s.parser,"mouse_y", s.animation->motion.y);
+    xpp::set_val(s.parser,"mouse_vx", s.animation->motion.vx);
+    xpp::set_val(s.parser,"mouse_vy", s.animation->motion.vy);
     do_grab_tasks(s, 1);
     fix_only(s);
     ani_frame(s,0);
@@ -1641,7 +1641,7 @@ void render_ani(xpp::Session &s)
         AniDataFrame f;
         f.pos = s.animation->vcr.pos;
         f.rows = s.data->view.maxrow;
-        f.t = getvar(s,0);
+        f.t = getvar(s.parser,0);
         f.speed = s.animation->speed;
         f.skip = s.animation->vcr.inc;
         f.xlo = s.animation->xlo;

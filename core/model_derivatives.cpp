@@ -115,7 +115,7 @@ private:
         made_by(program);
         auto decoded = decoded_.find(&p);
         if (decoded == decoded_.end()) {
-            auto code = decode(s_, p.rpn, depth == 0 ? -1 : static_cast<int>(args.size()));
+            auto code = decode(s_.parser, p.rpn, depth == 0 ? -1 : static_cast<int>(args.size()));
             if (!code) return refuse(where, "is not a valid program (" + code.error() + ")");
             decoded = decoded_.emplace(&p, std::move(*code)).first;
         }

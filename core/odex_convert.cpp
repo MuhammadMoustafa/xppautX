@@ -455,7 +455,7 @@ private:
   {
     std::vector<int> prog;
     int len = 0;
-    if (add_expr(s_, text, prog, &len)) refuse(xpp::format("the formula {} does not compile", text));
+    if (add_expr(s_.parser, text, prog, &len)) refuse(xpp::format("the formula {} does not compile", text));
     s_.parser.ncon = m_.ncon_start;
     s_.parser.nsym = m_.nsym_start;
     return prog;
@@ -473,7 +473,7 @@ private:
     for (int j = 0; j < m_.flag_count(); j++)
       for (int e = 0; e < m_.flags[j].nevents; e++)
         if (m_.flags[j].type[e] == xpp::Model::EventTarget::parameter) {
-          const int c = get_param_index(s_, xpp::upper_case(m_.flags[j].lhsname[e]));
+          const int c = get_param_index(s_.parser, xpp::upper_case(m_.flags[j].lhsname[e]));
           if (c >= 0) moving.insert(c);
         }
     for (const auto &[com, n] : sym_.by_com) {
@@ -868,7 +868,7 @@ private:
       return std::nullopt;
     }
     prog.push_back(ENDEXP);
-    return evaluate(s_,prog);
+    return evaluate(s_.parser,prog);
   }
 
   /* a leaf's value: a number, or a constant of the model's */
@@ -1321,7 +1321,7 @@ private:
       std::string a = std::string(xpp::trim_blanks(arg));
       if (is_name(a) && !is_reserved(xpp::lower_case(a))) {
         const std::string upper = xpp::upper_case(a);
-        a = (find_user_name(m_, ICBOX, upper) >= 0 || find_lookup(s_, upper) >= 0 || get_var_index(s_, upper) >= 0) ? name(upper)
+        a = (find_user_name(m_, ICBOX, upper) >= 0 || find_lookup(s_.parser, upper) >= 0 || get_var_index(s_.parser, upper) >= 0) ? name(upper)
                                                                                                       : xpp::lower_case(a);
       }
       if (n==0 && xpp::lower_case(rhs.substr(0,open))=="findext") {

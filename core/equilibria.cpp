@@ -199,6 +199,16 @@ Error newton_error(const Session &s, const NewtonRun &run, std::span<const doubl
  return {"equilibrium",xpp::format("No equilibrium from {}: Newton's method {}",from,cause.why),place};
 }
 
+void record_equilibrium(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n)
+{
+    s.last_equilibrium.assign(y,y+n);
+    s.last_equilibrium_eigenvalues.clear();
+    if(ev)s.last_equilibrium_eigenvalues.assign(ev,ev+2*n);
+    /* A delay window has no eigenvalue list; its minus count is only a display placeholder. */
+    s.last_equilibrium_stability=(cp+rp>0)?((ev && cm+rm>0)?"saddle":"unstable"):"stable";
+    create_eq_box(s,cp,cm,rp,rm,im,y,ev,n);
+}
+
 /* main fixed point finder */ 
 xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, double *stabinfo)
 {
@@ -243,7 +253,7 @@ if(!s.numerics->par_fol)
  
  *stabinfo=(cp+rp)+(cn+rn)/1000.0;
  
- create_eq_box(s,cp,cn,rp,rn,im,x,eval,n);
+ record_equilibrium(s,cp,cn,rp,rn,im,x,eval,n);
  if(((rp==1)||(rn==1))&&(n>1))
  {
  ch='n';

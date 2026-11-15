@@ -91,13 +91,13 @@ TEST_CASE("test_input_bounds")
     std::string formula="1";
     for(int i=0;i<300;++i)formula="1+("+formula+")";
     std::vector<int> code;
-    CHECK(xpp::add_expr(s,formula,code)==0);
+    CHECK(xpp::add_expr(s.parser,formula,code)==0);
     std::size_t depth=0;
-    CHECK(xpp::expr::decode(s,code,-1,&depth).has_value());
+    CHECK(xpp::expr::decode(s.parser,code,-1,&depth).has_value());
     CHECK(depth==301);
-    CHECK(xpp::evaluate(s,code)==301);
+    CHECK(xpp::evaluate(s.parser,code)==301);
     const auto *values=s.parser.stack.values.data();
-    CHECK(xpp::evaluate(s,code)==301);
+    CHECK(xpp::evaluate(s.parser,code)==301);
     CHECK(values==s.parser.stack.values.data());
 
     /* Past INT_MAX and size_t: reject before any cast or huge allocation. */

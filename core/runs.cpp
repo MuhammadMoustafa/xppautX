@@ -215,12 +215,12 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const xpp::RunReport
        clear_draw_window(s);
       temp=parlo+dpar*static_cast<double>(i);
       bool found=true;
-      set_val(s,s.integrator->eq_range.item,temp);
+      set_val(s.parser,s.integrator->eq_range.item,temp);
       s.numerics->par_fol=true;
       {
         std::string bob=xpp::format("{}={:.16g}",s.integrator->eq_range.item,temp);
         show_progress(bob);
-        evaluate_derived(s);
+        evaluate_derived(s.parser);
         /*  I think  */ failure.keep(redo_all_fun_tables(s));
         if(mc) {
 	  s.random.seed(step_seed);
@@ -380,7 +380,7 @@ void compute_run(xpp::Session &x, double *state, const RangeRuns &r, int i, int 
     const auto set_value=[&](int type,int index,const std::string &item,double value){
       if(type==IC)state[index]=value;
       else {
-        set_val(x,item,value);
+        set_val(x.parser,item,value);
         if(auto t=redo_all_fun_tables(x);!t&&!o.setup_error)o.setup_error=t.error();
         re_evaluate_kernels(x);
       }
@@ -458,7 +458,7 @@ if(s.integrator->range.rtype==RANGE_INDEPENDENT)nit2=s.integrator->range.steps2;
  s.data_store->rows=0;
  s.numerics->storflag=true;
  s.numerics->pauser=false;
-if(s.integrator->range.type==PARAM)get_val(s,s.integrator->range.item,&temp);
+if(s.integrator->range.type==PARAM)get_val(s.parser,s.integrator->range.item,&temp);
  if(s.integrator->range.rtype!=RANGE_SINGLE){
  itype2=s.integrator->range.type2;
  ivar2=s.integrator->range.index2;
@@ -466,7 +466,7 @@ if(s.integrator->range.type==PARAM)get_val(s,s.integrator->range.item,&temp);
  phigh2=s.integrator->range.phigh2;
   if(s.integrator->range.rtype==RANGE_INDEPENDENT)dpar2=(phigh2-plow2)/static_cast<double>(nit2);
   else dpar2=(phigh2-plow2)/static_cast<double>(nit);
-  if(s.integrator->range.type2==PARAM)get_val(s,s.integrator->range.item2,&temp2);
+  if(s.integrator->range.type2==PARAM)get_val(s.parser,s.integrator->range.item2,&temp2);
 
  }
 
@@ -536,7 +536,7 @@ if(s.integrator->range.type==PARAM)get_val(s,s.integrator->range.item,&temp);
    else {  /* auto range stuff */
      diagram->mark(i);
      get_ic(s,2,x);
-     get_val(s,diagram->parameter,&temp);
+     get_val(s.parser,diagram->parameter,&temp);
      bob=xpp::format("{:.230}={:.16g}",diagram->parameter,temp);
      show_progress(bob);
    }
@@ -682,10 +682,10 @@ if(s.integrator->range.type==PARAM)get_val(s,s.integrator->range.item,&temp);
  if(early>0)bottom_msg(0,xpp::format("{} of {} runs ended early; the first at {}",early,runs,first_early));
  if(oldic==1)get_ic(s,1,x);
  else set_initial_data(s,{x,static_cast<size_t>(s.model().node+s.model().nmarkov)});
- if(s.integrator->range.type==PARAM)set_val(s,s.integrator->range.item,temp);
+ if(s.integrator->range.type==PARAM)set_val(s.parser,s.integrator->range.item,temp);
  if(s.integrator->range.rtype!=RANGE_SINGLE)
-   if(s.integrator->range.type2==PARAM)set_val(s,s.integrator->range.item2,temp2);
- evaluate_derived(s);
+   if(s.integrator->range.type2==PARAM)set_val(s.parser,s.integrator->range.item2,temp2);
+ evaluate_derived(s.parser);
 s.plot_windows->current->color[0]=color;
  s.numerics->inflag=true;
  /* whichever runs were computed and wherever, the generator ends seeded for the next run: the same after any thread count */

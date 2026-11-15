@@ -86,7 +86,7 @@ xpp::Result<> get_fit_info(xpp::Session &s, double *y, double *a, double *t0, do
    /* restart initial data */
    if(auto d=do_init_delay(s,s.numerics->delay); !d)return std::unexpected(d.error());
   }
-evaluate_derived(s);
+evaluate_derived(s.parser);
   s.integrator->solver->begin(&istart);
 /*   This gets the values at the desired points  */
   for(i=0;i<nvars;i++){
@@ -137,7 +137,7 @@ evaluate_derived(s);
    /* restart initial data */
    if(auto d=do_init_delay(s,s.numerics->delay); !d)return std::unexpected(d.error());
   }
-    evaluate_derived(s);
+    evaluate_derived(s.parser);
     s.integrator->solver->begin(&istart);
    /* now loop through all the points */
     for(k=1;k<npts;k++){
@@ -157,7 +157,7 @@ evaluate_derived(s);
     }
     /* Now return the parameter to its old value */
     if(ip<0)s.parser.constants[-ip]=par;
-    evaluate_derived(s);
+    evaluate_derived(s.parser);
     s.integrator->solver->finish();
 
   }
@@ -564,7 +564,7 @@ void parse_parlist(const xpp::Session &s, std::string_view parlist, std::vector<
       ipars.push_back(v-1);
     }
     else {
-      v=get_param_index(s,*item);
+      v=get_param_index(s.parser,*item);
       if(v<=0)return;
       ipars.push_back(-v);
     }

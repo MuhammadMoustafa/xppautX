@@ -181,7 +181,7 @@ int compile_markov(xpp::Session &s, int index, int j, int k)
   int l0=s.model().markov[index].nstates*j+k,leng;
   expr=s.model().markov[index].trans[l0].c_str();
 
-  if(add_expr(s,expr,s.model().markov[index].command[l0].rpn,&leng))
+  if(add_expr(s.parser,expr,s.model().markov[index].command[l0].rpn,&leng))
     return -1;
   /* zero-padded by two */
   s.model().markov[index].command[l0].rpn.resize(leng+2, 0);

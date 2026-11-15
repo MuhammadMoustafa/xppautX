@@ -190,7 +190,7 @@ Result<> save_defaults(Session &s, std::string_view scope, std::optional<int> gr
     differing.state_values.clear();
     for (std::size_t i = 0; i < values->parameter_values.size(); i++) {
         double now = 0;
-        get_val(s, m.upar_names[i], &now);
+        get_val(s.parser, m.upar_names[i], &now);
         if (now == m.default_val[i]) continue;
         differing.parameter_values.push_back(values->parameter_values[i]);
         changed.parameters.emplace_back(static_cast<int>(i), now);

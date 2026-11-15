@@ -63,7 +63,7 @@ Result<> prepare_equilibrium(Session &s,const Command &c,const Place &p)
     s.numerics->storflag=false;
     s.numerics->poincare_map=PoincareMap::none;
     s.numerics->store_from=0;
-    evaluate_derived(s);
+    evaluate_derived(s.parser);
     return {};
 }
 Result<std::string> find_point(Session &s,const Command &c,const Arguments &a,const Place &p)

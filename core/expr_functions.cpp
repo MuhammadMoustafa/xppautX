@@ -5,7 +5,6 @@
 #include "expr_derivative.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
-#include "session.h"
 #include "expr.h"
 #include "expr_program.h"
 
@@ -289,7 +288,7 @@ constexpr std::array<Fun2Derivative,FUN2_COUNT> fun2_derivative={
           FANCY DELAY HERE                   *-------------------------<<<
 *********************************************/
 
-double do_shift(const xpp::Session &s, double shift, double variable)
+double do_shift(const xpp::ParserState &p, double shift, double variable)
 {
   int it, in;
   int i=static_cast<int>(variable),ish=static_cast<int>(shift);
@@ -299,11 +298,11 @@ double do_shift(const xpp::Session &s, double shift, double variable)
    in = (i % MAXTYPE) + ish;
   switch(it){
   case CONTYPE:
-    if(in<0||static_cast<size_t>(in)>=s.parser.constants.size()) return 0.0;
-    return s.parser.constants[static_cast<size_t>(in)];
+    if(in<0||static_cast<size_t>(in)>=p.constants.size()) return 0.0;
+    return p.constants[static_cast<size_t>(in)];
   case VARTYPE:
-    if(in<0||static_cast<size_t>(in)>=s.parser.variables.size()) return 0.0;
-    return s.parser.variables[static_cast<size_t>(in)];
+    if(in<0||static_cast<size_t>(in)>=p.variables.size()) return 0.0;
+    return p.variables[static_cast<size_t>(in)];
   default:
     xpp::log(XPP_LOG_WARN, "This can't happen: Invalid symbol index for SHIFT: i = {:d}\n", i);
     return 0.0;
@@ -316,24 +315,24 @@ double do_ishift(double shift, double variable)
 
 }
 
-double do_set(xpp::Session &s, double shift, double variable, double value)
+double do_set(xpp::ParserState &p, double shift, double variable, double value)
 {
   const int index=static_cast<int>(shift)+((static_cast<int>(variable)) % MAXTYPE);
-  if(index>=0&&static_cast<size_t>(index)<s.parser.variables.size())s.parser.variables[index]=value;
+  if(index>=0&&static_cast<size_t>(index)<p.variables.size())p.variables[index]=value;
   return value;
 }
 
-double do_random_uniform(xpp::Session &s, double x)
+double do_random_uniform(xpp::Random &random, double x)
 {
-  return x*s.random.uniform();
+  return x*random.uniform();
 }
-double do_random_poisson(xpp::Session &s, double mean)
+double do_random_poisson(xpp::Random &random, double mean)
 {
-  return s.random.poisson(mean);
+  return random.poisson(mean);
 }
-double do_random_normal(xpp::Session &s, double mean, double sd)
+double do_random_normal(xpp::Random &random, double mean, double sd)
 {
-  return s.random.normal(mean,sd);
+  return random.normal(mean,sd);
 }
 
 

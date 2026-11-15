@@ -165,7 +165,7 @@ Result<> new_h_fun(xpp::Session &s, bool compile, const std::vector<std::string>
    std::vector<Program> compiled(static_cast<std::size_t>(s.model().node));
    for(int i=0;i<s.model().node;++i){
      int count=0;
-     if(add_expr(s,given[static_cast<std::size_t>(i)],compiled[static_cast<std::size_t>(i)].rpn,&count)){
+     if(add_expr(s.parser,given[static_cast<std::size_t>(i)],compiled[static_cast<std::size_t>(i)].rpn,&count)){
        s.parser.nsym=s.model().nsym_start;
        s.parser.ncon=s.model().ncon_start;
        return fail("adjoint",xpp::format("Illegal formula {}",given[static_cast<std::size_t>(i)]),command_place());
@@ -212,15 +212,15 @@ Result<> make_h(xpp::Session &s, ColumnTable orb, ColumnTable adj, ColumnTable h
          k2=k+j;
        if(k2>=nt)k2=k2-nt+1;
        for(int i=0;i<node;i++){
-	 setvar(s,i+1,static_cast<double>(orb[i+1][k]));
-         setvar(s,i+n0+1,static_cast<double>(orb[i+1][k2]));
+	 setvar(s.parser,i+1,static_cast<double>(orb[i+1][k]));
+         setvar(s.parser,i+n0+1,static_cast<double>(orb[i+1][k2]));
        }
        z=0.0;
        update_based_on_current(s); 
 
        for(int i=0;i<node;i++){
 	
-	 z=evaluate(s,s.adjoint->coup_fun[i]);
+	 z=evaluate(s.parser,s.adjoint->coup_fun[i]);
 	
 	 sum=s.data_store->round(sum+s.data_store->round(s.data_store->round(z)*adj[i+1][k]));
        }

@@ -101,11 +101,11 @@ double h_vec(void *S, double x, int i) { return session(S).parser.host->vector_v
 double h_ker(void *S, int i) { return session(S).parser.host->kernel_value(session(S), i); }
 double h_del(void *S, double delay, double i) { return session(S).parser.host->delay(session(S), delay, i); }
 double h_dsh(void *S, double delay, double shift, double variable) { return session(S).parser.host->delay_shift(session(S), delay, shift, variable); }
-double h_sft(void *S, double shift, double variable) { return expr::do_shift(session(S), shift, variable); }
-double h_set(void *S, double shift, double variable, double value) { return expr::do_set(session(S), shift, variable, value); }
-double h_ru(void *S, double x) { return expr::do_random_uniform(session(S), x); }
-double h_rp(void *S, double mean) { return expr::do_random_poisson(session(S), mean); }
-double h_rn(void *S, double mean, double sd) { return expr::do_random_normal(session(S), mean, sd); }
+double h_sft(void *S, double shift, double variable) { return expr::do_shift(session(S).parser, shift, variable); }
+double h_set(void *S, double shift, double variable, double value) { return expr::do_set(session(S).parser, shift, variable, value); }
+double h_ru(void *S, double x) { return expr::do_random_uniform(session(S).random, x); }
+double h_rp(void *S, double mean) { return expr::do_random_poisson(session(S).random, mean); }
+double h_rn(void *S, double mean, double sd) { return expr::do_random_normal(session(S).random, mean, sd); }
 
 double h_arg(void *S,int i) {const auto &stack=session(S).parser.stack;return stack.args[stack.nargs-1-i];}
 double h_end(void *S,double value,int n) {session(S).parser.stack.nargs-=n;return value;}
@@ -549,7 +549,7 @@ struct Generator {
     Result<Tree> value(const std::vector<int> &p, int index, bool user)
     {
         if (p.empty()) return refuse("an invalid program length");
-        const auto code = expr::decode(s, p, user ? s.model().compiler.narg_fun[index] : -1);
+        const auto code = expr::decode(s.parser, p, user ? s.model().compiler.narg_fun[index] : -1);
         if (!code) return refuse(code.error());
         size_t k = 0;
         return sequence(*code, k, user, index);
@@ -1231,7 +1231,7 @@ std::vector<ModelProgram> sized_programs(Session &s)
     Model &m=s.model();
     auto entries=model_programs(m);
     for(const auto &entry:entries)
-        size_expr_stack(s,entry.code->rpn,entry.user_index<0?-1:m.compiler.narg_fun[entry.user_index]);
+        size_expr_stack(s.parser,entry.code->rpn,entry.user_index<0?-1:m.compiler.narg_fun[entry.user_index]);
     return entries;
 }
 }

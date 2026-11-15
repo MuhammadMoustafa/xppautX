@@ -234,18 +234,18 @@ void  wipe_rep(DataState &b)
 void ic_of_row(xpp::Session &s, int in)
 {
  int i;
- setvar(s,0,static_cast<double>(s.data_store->col[0][in]));
+ setvar(s.parser,0,static_cast<double>(s.data_store->col[0][in]));
  for(i=0;i<s.model().node;i++)
  {
   s.last_ic[i]=static_cast<double>(s.data_store->col[i+1][in]);
-  setvar(s,i+1,s.last_ic[i]);
+  setvar(s.parser,i+1,s.last_ic[i]);
  } 
  for(i=0;i<s.model().nmarkov;i++){
    s.last_ic[i+s.model().node]=static_cast<double>(s.data_store->col[i+s.model().node+1][in]);
-   setvar(s,i+1+s.model().node+s.model().fix_var,s.last_ic[i+s.model().node]);
+   setvar(s.parser,i+1+s.model().node+s.model().fix_var,s.last_ic[i+s.model().node]);
  }
  for(i=s.model().node+s.model().nmarkov;i<s.model().neq;i++)
-   xpp::set_val(s,s.model().uvar_names[i],s.data_store->col[i+1][in]);
+   xpp::set_val(s.parser,s.model().uvar_names[i],s.data_store->col[i+1][in]);
 
  redraw_ics();
 }
@@ -318,12 +318,12 @@ public:
   explicit RowValues(xpp::Session &s) : s_(s)
   {
     const xpp::Model &m=s.model();
-    for(int j=m.node;j<m.neq;j++)slots_.push_back(xpp::value_slot(s,m.uvar_names[j]));
+    for(int j=m.node;j<m.neq;j++)slots_.push_back(xpp::value_slot(s.parser,m.uvar_names[j]));
   }
   void set(ColumnTable data, int row)
   {
     const int node=s_.model().node;
-    for(int j=0;j<node+1;j++)setvar(s_,j,static_cast<double>(data[j][row]));
+    for(int j=0;j<node+1;j++)setvar(s_.parser,j,static_cast<double>(data[j][row]));
     for(std::size_t k=0;k<slots_.size();k++)
       if(slots_[k])*slots_[k]=static_cast<double>(data[node+1+static_cast<int>(k)][row]);
   }
@@ -352,14 +352,14 @@ Result<> compute_added_column(xpp::Session &s, const std::string &formula, int c
 {
   Program com;
   int length=0;
-  if(xpp::add_expr(s,formula,com.rpn,&length)){
+  if(xpp::add_expr(s.parser,formula,com.rpn,&length)){
     forget_formula_symbols(s);
     return fail("data","Bad Formula .... ",command_place());
   }
   RowValues row(s);
   for(int i=0;i<nrows;i++){
     row.set(s.data_store->col,i);
-    s.data_store->col[col_index][i]=xpp::evaluate(s,com);
+    s.data_store->col[col_index][i]=xpp::evaluate(s.parser,com);
   }
   forget_formula_symbols(s);
   return {};
@@ -369,7 +369,7 @@ bool added_column_compiles(xpp::Session &s, std::string_view formula)
 {
   std::vector<int> com;
   int length=0;
-  const bool compiles=xpp::add_expr(s,formula,com,&length)==0;
+  const bool compiles=xpp::add_expr(s.parser,formula,com,&length)==0;
   forget_formula_symbols(s);
   return compiles;
 }
@@ -462,7 +462,7 @@ if(dif_var<0){
 /*  first compile formula ... */
 
  if(dif_var<0&&seq==Sequence::none){
-   if(xpp::add_expr(s,form,com.rpn,&i)){
+   if(xpp::add_expr(s.parser,form,com.rpn,&i)){
      s.parser.ncon=s.model().ncon_start;
      s.parser.nsym=s.model().nsym_start;
      return fail("data",xpp::format("Illegal formula: \"{}\"",form),here);
@@ -494,11 +494,11 @@ if(dif_var<0){
 	   row.set(dat,i);
 	   if(intflag)
 	     {
-	       sum+=xpp::evaluate(s,com);
+	       sum+=xpp::evaluate(s.parser,com);
 	       dat[s.data->replaced_col][i]=sum*dt;
 	     }
 	   else 
-	     dat[s.data->replaced_col][i]=xpp::evaluate(s,com);
+	     dat[s.data->replaced_col][i]=xpp::evaluate(s.parser,com);
 	 }
        else 
 	 {

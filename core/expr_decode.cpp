@@ -1,7 +1,6 @@
 /* The decoder of a program's instructions (expr_decode.h, W276). */
 #include <array>
 #include "expr_decode.h"
-#include "session.h"
 #include "expr.h"
 #include "expr_tables.h"
 #include "expr_program.h"
@@ -22,10 +21,10 @@ struct Frame {
 
 }
 
-std::expected<std::vector<Instr>, std::string> decode(const Session &s, std::span<const int> p, int arguments,
+std::expected<std::vector<Instr>, std::string> decode(const ParserState &parser, std::span<const int> p, int arguments,
                                                    std::size_t *maximum_depth)
 {
-    const CompilerTables &m = *s.parser.compiler;
+    const CompilerTables &m = *parser.compiler;
     std::vector<Instr> out;
     out.reserve(p.size());
     std::vector<Frame> frames{{Frame::Kind::Program, 0, p.size()}};
@@ -113,7 +112,7 @@ std::expected<std::vector<Instr>, std::string> decode(const Session &s, std::spa
         } else if (type == SVARTYPE || type == SCONTYPE || type == CONTYPE || type == VARTYPE) {
             /* a delay's, shift's or set's own variable or constant, or an operand */
             const bool constant = type == SCONTYPE || type == CONTYPE;
-            if (!in_range(in, constant ? s.parser.constants.size() : s.parser.variables.size())) return refuse("an out-of-range operand");
+            if (!in_range(in, constant ? parser.constants.size() : parser.variables.size())) return refuse("an out-of-range operand");
             ++depth;
         } else if (type == USTACKTYPE) {
             if (arguments < 0 || in >= arguments || in < 0) return refuse("an out-of-range argument");
@@ -132,7 +131,7 @@ std::expected<std::vector<Instr>, std::string> decode(const Session &s, std::spa
             if (i.count < 0 || !need(static_cast<std::size_t>(i.count))) return refuse("a stack underflow");
             depth = depth - static_cast<std::size_t>(i.count) + 1;
         } else if (type == TABTYPE || type == NETTYPE || type == VECTYPE) {
-            const std::size_t bound = type == TABTYPE ? s.tables.size() : type == NETTYPE ? m.network_count : m.vector_count;
+            const std::size_t bound = type == TABTYPE ? parser.tables->size() : type == NETTYPE ? m.network_count : m.vector_count;
             if (!in_range(in, bound)) return refuse("an out-of-range table, network or vectorizer");
             if (!need(1)) return refuse("a stack underflow");
         } else if (type == KERTYPE) {

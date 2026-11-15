@@ -21,9 +21,9 @@ static double calc(std::string_view expr, int *ok)
 {
     std::vector<int> command;
     int length = 0;
-    *ok = (xpp::add_expr(xpp::client_session(), expr, command, &length) == 0);
+    *ok = (xpp::add_expr(xpp::client_session().parser, expr, command, &length) == 0);
     if (!*ok) return 0.0;
-    return xpp::evaluate(xpp::client_session(), command);
+    return xpp::evaluate(xpp::client_session().parser, command);
 }
 
 static int close_to(double a, double b)
@@ -34,7 +34,7 @@ static int close_to(double a, double b)
 TEST_CASE("test_parser")
 {
     int ok;
-    xpp::init_rpn(xpp::client_session(),false);
+    xpp::init_rpn(xpp::client_session().parser);
 
     CHECK(close_to(calc("1+2", &ok), 3.0) && ok);
     CHECK(close_to(calc("2*3+4", &ok), 10.0) && ok);
@@ -84,7 +84,7 @@ TEST_CASE("test_parser")
     CHECK(close_to(calc(long_expr, &ok), 2001.0) && ok);
 
     /* Table formula with 300 terms: previously overflowed tabular.cpp command[200] */
-    xpp::add_var(xpp::client_session(), "t", 0.0);
+    xpp::add_var(xpp::client_session().parser, "t", 0.0);
     std::string table_expr = "t";
     for (int i = 0; i < 300; ++i) table_expr += "+0.01";
     std::vector<double> table_y(10);

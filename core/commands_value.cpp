@@ -39,7 +39,7 @@ std::string field_of(std::string_view name) { return "par:" + lower_case(std::st
 double parameter_now(const Session &s, std::string_view name)
 {
     double value = 0;
-    get_val(s, name, &value);
+    get_val(s.parser, name, &value);
     return value;
 }
 
@@ -68,7 +68,7 @@ Result<std::string> set_parameters(Session &s, const Command &command, const Arg
         names.push_back(s.model().upar_names[static_cast<std::size_t>(index)]);
     }
     push_value_undo(s);
-    for (std::size_t i = 0; i < entries.size(); ++i) set_val(s, names[i], entries[i].second);
+    for (std::size_t i = 0; i < entries.size(); ++i) set_val(s.parser, names[i], entries[i].second);
     box_values_loaded(s, PARAMBOX);
     return ResultObject().raw("updated", updated(s, names)).done();
 }
@@ -83,7 +83,7 @@ Result<std::string> set_by_formula(Session &s, const Command &command, const Arg
     if (!value) return std::unexpected<Error>(Error{command.name, value.error().what, place, field_of(name)});
     const std::string &parameter = s.model().upar_names[static_cast<std::size_t>(index)];
     push_value_undo(s);
-    set_val(s, parameter, *value);
+    set_val(s.parser, parameter, *value);
     box_values_loaded(s, PARAMBOX);
     return ResultObject().text(NAME_KEY, parameter).real(VALUE_KEY, parameter_now(s, parameter)).done();
 }

@@ -82,7 +82,7 @@ KeptValues keep_values(const Session &s)
   KeptValues kept;
   for(int i=0;i<m.nupar;i++){
     double z=0;
-    get_val(s,m.upar_names[i],&z);
+    get_val(s.parser,m.upar_names[i],&z);
     kept.pars.emplace_back(m.upar_names[i],z);
   }
   for(int i=0;i<m.node+m.nmarkov;i++)
@@ -140,7 +140,7 @@ void restore_values(Session &s, const KeptValues &kept)
   set_delay(s);
 
   for(const std::pair<std::string,double> &p : kept.pars)
-    if(find_user_name(m,PARAMBOX,p.first)>=0)set_val(s,p.first,p.second);
+    if(find_user_name(m,PARAMBOX,p.first)>=0)set_val(s.parser,p.first,p.second);
   box_values_loaded(s,PARAMBOX);
   for(const std::pair<std::string,double> &v : kept.ics){
     const int i=ic_index(m,v.first);

@@ -101,7 +101,7 @@ void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double
   constexpr double tolmin=1e-10; // Existing cascade threshold, shared with sampled flags.
   double *tnew=&time;
   for(i=0;i<s.model().flag_count();i++)
-    s.integrator->flags[i].f0=xpp::evaluate(s,flags[i].comcond);
+    s.integrator->flags[i].f0=xpp::evaluate(s.parser,flags[i].comcond);
   while(1){ /* run through all possible events  */
     ncycle++;
     newhit=0;
@@ -109,10 +109,10 @@ void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double
       nevents=flags[i].nevents;
       if(s.integrator->flags[i].hit==ncycle&&s.integrator->flags[i].tstar<=smin){
 	for(j=0;j<nevents;j++){
-	  s.integrator->flags[i].vrhs[j]=xpp::evaluate(s,flags[i].comrhs[j]);
+	  s.integrator->flags[i].vrhs[j]=xpp::evaluate(s.parser,flags[i].comrhs[j]);
 	  in=flags[i].lhs[j];
 	  if(flags[i].type[j]==xpp::Model::EventTarget::variable)
-	        setvar(s,in+1,s.integrator->flags[i].vrhs[j]);
+	        setvar(s.parser,in+1,s.integrator->flags[i].vrhs[j]);
 	 
 	}
       }
@@ -125,11 +125,11 @@ void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double
 	  in=flags[i].lhs[j];
 	  if(flags[i].type[j]==xpp::Model::EventTarget::variable){
 	     ynew[in]=s.integrator->flags[i].vrhs[j];
-	     /* setvar(s,in+1,ynew[in]); if this screws up */
+	     /* setvar(s.parser,in+1,ynew[in]); if this screws up */
 	  }
 	  else {
 	    if(flags[i].type[j]==xpp::Model::EventTarget::parameter)
-	      xpp::set_val(s,s.model().upar_names[in],s.integrator->flags[i].vrhs[j]);
+	      xpp::set_val(s.parser,s.model().upar_names[in],s.integrator->flags[i].vrhs[j]);
 	    else{
 
 	      if((flags[i].type[j]==xpp::Model::EventTarget::output)&&(s.integrator->flags[i].vrhs[j]>0))xpp::send_output(s,ynew,*tnew);
@@ -139,17 +139,17 @@ void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double
 
 	}
 	if(flags[i].anypars){
-	  xpp::evaluate_derived(s);
+	  xpp::evaluate_derived(s.parser);
 	  xpp::redraw_params();
 	}
       }
     }
 
     for(i=0;i<neq;i++){
-      ynew[i]=getvar(s,i+1); /* if this screws up */
+      ynew[i]=getvar(s.parser,i+1); /* if this screws up */
     }
     for(i=0;i<s.model().flag_count();i++){
-      s.integrator->flags[i].f1=xpp::evaluate(s,flags[i].comcond);
+      s.integrator->flags[i].f1=xpp::evaluate(s.parser,flags[i].comcond);
       if(s.integrator->flags[i].hit>0)continue; /* already hit so dont do anything */
       f1=s.integrator->flags[i].f1;
       sign=flags[i].sign;
@@ -214,22 +214,22 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
   /* If this is the first call, then need f1  */
   if(first){
     for(i=0;i<neq;i++)
-      setvar(s,i+1,yold[i]);
-    setvar(s,0,told);
+      setvar(s.parser,i+1,yold[i]);
+    setvar(s.parser,0,told);
     for(i=0;i<s.model().flag_count();i++)
-      s.integrator->flags[i].f1=xpp::evaluate(s,flags[i].comcond);
+      s.integrator->flags[i].f1=xpp::evaluate(s.parser,flags[i].comcond);
     *istart=0;
 
   }
   /* the step's end state, stored once: evaluating a condition never writes it */
   for(j=0;j<neq;j++)
-    setvar(s,j+1,ynew[j]);
-  setvar(s,0,*tnew);
+    setvar(s.parser,j+1,ynew[j]);
+  setvar(s.parser,0,*tnew);
   for(i=0;i<s.model().flag_count();i++){
     sign=flags[i].sign;
     s.integrator->flags[i].f0=s.integrator->flags[i].f1;
     f0=s.integrator->flags[i].f0;
-    f1=xpp::evaluate(s,flags[i].comcond);
+    f1=xpp::evaluate(s.parser,flags[i].comcond);
     s.integrator->flags[i].f1=f1;
     tol=fabs(f1-f0);
     switch(sign){
@@ -268,10 +268,10 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
   smin=std::min(1.0,smin);
 
   *tnew=told+dt*smin;
-  setvar(s,0,*tnew);
+  setvar(s.parser,0,*tnew);
   for(i=0;i<neq;i++){
     ynew[i]=yold[i]+smin*(ynew[i]-yold[i]);
-    setvar(s,i+1,ynew[i]);
+    setvar(s.parser,i+1,ynew[i]);
   }
   apply_flag_hits(s,ynew,*tnew,neq,smin);
 

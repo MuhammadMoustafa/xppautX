@@ -61,12 +61,12 @@ struct Fixture {
     Fixture()
     {
         xpp::Session &s = *session;
-        xpp::init_rpn(s,false);
-        CHECK(xpp::add_var(s, "t", 0.0) == 0);
-        CHECK(xpp::add_var(s, "x", 0.0) == 0);
-        CHECK(xpp::add_var(s, "y", 0.0) == 0);
+        xpp::init_rpn(s.parser);
+        CHECK(xpp::add_var(s.parser, "t", 0.0) == 0);
+        CHECK(xpp::add_var(s.parser, "x", 0.0) == 0);
+        CHECK(xpp::add_var(s.parser, "y", 0.0) == 0);
         par = s.parser.ncon;
-        CHECK(xpp::add_con(s, "par", 0.6) == 0);
+        CHECK(xpp::add_con(s.parser, "par", 0.6) == 0);
         model->node = 2;
         s.size_variables(2);
         model->uvar_names[0] = "x";
@@ -103,7 +103,7 @@ struct Fixture {
         s.parser.variables[0] = t;
         s.parser.variables[1] = x;
         s.parser.variables[2] = y;
-        return xpp::evaluate(s, model->programs[0]);
+        return xpp::evaluate(s.parser, model->programs[0]);
     }
 
     /* d x'/dx and d x'/dy, exactly and by central differences, agree */
@@ -272,16 +272,16 @@ void check_model(const char *path, bool map, bool forward = true)
        parameters worked out again from it as autoX does */
     std::vector<double> fp(f.size()), fm(f.size()), column(f.size());
     for (int p = 0; p < m.nupar; ++p) {
-        const int k = xpp::get_param_index(s, m.upar_names[static_cast<std::size_t>(p)]);
+        const int k = xpp::get_param_index(s.parser, m.upar_names[static_cast<std::size_t>(p)]);
         const double c = s.parser.constants[static_cast<std::size_t>(k)], h = 1e-6 * std::max(1.0, std::fabs(c));
         s.parser.constants[static_cast<std::size_t>(k)] = c + h;
-        xpp::evaluate_derived(s);
+        xpp::evaluate_derived(s.parser);
         s.integrator->rhs(t, x.data(), fp.data(), n);
         s.parser.constants[static_cast<std::size_t>(k)] = c - h;
-        xpp::evaluate_derived(s);
+        xpp::evaluate_derived(s.parser);
         s.integrator->rhs(t, x.data(), fm.data(), n);
         s.parser.constants[static_cast<std::size_t>(k)] = c;
-        xpp::evaluate_derived(s);
+        xpp::evaluate_derived(s.parser);
         xpp::exact_constant_derivative(s, *s.jacobian_scratch, s.parser.constants.data(), k, t, x.data(), f.data(), n, column.data());
         for (int i = 0; i < n; ++i) {
             const double d = (fp[static_cast<std::size_t>(i)] - fm[static_cast<std::size_t>(i)]) / (2 * h);

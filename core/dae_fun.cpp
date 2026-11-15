@@ -54,8 +54,8 @@ void set_init_guess(xpp::Session &s)
   reset_dae(s);
   if(m.nsvar==0)return;
   for(i=0;i<m.nsvar;i++){
-   z=evaluate(s,m.svars[i].form);
-    setvar(s,m.svars[i].index,z);
+   z=evaluate(s.parser,m.svars[i].form);
+    setvar(s.parser,m.svars[i].index,z);
     s.dae->svar_last[i]=z;
   }
 }
@@ -88,7 +88,7 @@ xpp::Error dae_failure(const xpp::Session &s, int status)
   if(s.dae->run&&s.dae->run->last_t)
     return {"DAE",xpp::format("No solution of the algebraic equations past t={:g}: {}",*s.dae->run->last_t,why),
             dae_place(s)};
-  return {"DAE",xpp::format("No solution of the algebraic equations at t={:g}: {}",getvar(s,0),why),dae_place(s)};
+  return {"DAE",xpp::format("No solution of the algebraic equations at t={:g}: {}",getvar(s.parser,0),why),dae_place(s)};
 }
 }
 
@@ -108,10 +108,10 @@ void get_dae_fun(xpp::Session &s, double *y, double *f)
   int i;
   /* better do this in case fixed variables depend on sol_var */
   for(i=0;i<m.nsvar;i++)
-    setvar(s,m.svars[i].index,y[i]);
+    setvar(s.parser,m.svars[i].index,y[i]);
   fix_only(s);
   for(i=0;i<m.naeqn;i++)
-    f[i]=evaluate(s,m.aeqns[i].form);
+    f[i]=evaluate(s.parser,m.aeqns[i].form);
 }
 
 void do_daes(xpp::Session &s)
@@ -168,17 +168,17 @@ int solve_dae(xpp::Session &s)
     if(err<tol){ /* the equations hold */
       if(run){
 	if(sign!=0)run->jac_sign=sign;
-	run->last_t=getvar(s,0);
+	run->last_t=getvar(s.parser,0);
       }
       for(i=0;i<n;i++){
-	setvar(s,m.svars[i].index,y[i]);
+	setvar(s.parser,m.svars[i].index,y[i]);
 	s.dae->svar_last[i]=y[i];
       }
       return DAE_SOLVED;
     }
     if(iter>maxit){
       for(i=0;i<n;i++)
-	setvar(s,m.svars[i].index,s.dae->svar_last[i]);
+	setvar(s.parser,m.svars[i].index,s.dae->svar_last[i]);
       return DAE_NO_CONVERGENCE;
     }
     /* compute jacobian */
@@ -196,7 +196,7 @@ int solve_dae(xpp::Session &s)
     xpp::lu_factor(jac,n,n,s.dae->iwork.data(),&info);
     if(info!=-1){
       for(i=0;i<n;i++)
-	setvar(s,m.svars[i].index,ynew[i]);
+	setvar(s.parser,m.svars[i].index,ynew[i]);
       return DAE_SINGULAR;
     }
     sign=xpp::lu_determinant_sign(jac,n,n,s.dae->iwork.data());
@@ -204,7 +204,7 @@ int solve_dae(xpp::Session &s)
       /* Newton has crossed where the Jacobian is singular: no solution
 	 near the last one continues its branch */
       for(i=0;i<n;i++)
-	setvar(s,m.svars[i].index,s.dae->svar_last[i]);
+	setvar(s.parser,m.svars[i].index,s.dae->svar_last[i]);
       return DAE_FOLD;
     }
     xpp::lu_solve(jac,n,n,s.dae->iwork.data(),errvec); /* get x=J^(-1) f */
@@ -216,7 +216,7 @@ int solve_dae(xpp::Session &s)
     /* a Newton update past n times the state limit has run away, as XPPAUT's bound cap it */
     if(err>(n*s.numerics->state_limit)){
       for(i=0;i<n;i++)
-	setvar(s,m.svars[i].index,s.dae->svar_last[i]);
+	setvar(s.parser,m.svars[i].index,s.dae->svar_last[i]);
       return DAE_OUT_OF_BOUNDS;
     }
     /* a small update is not a solution: the loop's top accepts y only
@@ -234,10 +234,10 @@ Result<double> set_dae_guess(xpp::Session &s, int i, std::string_view formula)
   var.rhs=formula;
   var.form.forget_code(); /* a guess edited at run time no longer has its load-time code */
   int n;
-  add_expr(s,var.rhs,var.form.rpn,&n);
+  add_expr(s.parser,var.rhs,var.form.rpn,&n);
   var.form.rpn.resize(std::max(100, n+2), 0);
-  const double z=evaluate(s,var.form);
-  setvar(s,var.index,z);
+  const double z=evaluate(s.parser,var.form);
+  setvar(s.parser,var.index,z);
   s.dae->svar_last[static_cast<std::size_t>(i)]=z;
   return z;
 }

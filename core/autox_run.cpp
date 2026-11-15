@@ -655,7 +655,7 @@ Result<> autox_time_check(const AutoxParts &s)
   std::vector<char> checked_fixed(static_cast<std::size_t>(m.fix_var), 0), checked_function(static_cast<std::size_t>(m.compiler.nfun), 0);
   /* whether the program reads t (the variable 0), directly or through a fixed variable or a user function */
   const auto reads_time = [&](const auto &self, const Program &program, int arguments) -> bool {
-    const auto code = expr::decode(s.session, program.rpn, arguments);
+    const auto code = expr::decode(s.parser, program.rpn, arguments);
     if (!code) return false; /* a program the compiler refused never runs */
     for (const expr::Instr &i : *code) {
       if (i.type == VARTYPE && i.in == 0) return true;

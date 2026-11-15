@@ -28,8 +28,8 @@ static Result<double> worked_formula(xpp::Session &s, std::string_view expr, boo
   std::vector<int> com;
   int i;
   double z=0.0;
-  const bool bad=add_expr(s,expr,com,&i)!=0;
-  if(!bad&&value)z=evaluate(s,com);
+  const bool bad=add_expr(s.parser,expr,com,&i)!=0;
+  if(!bad&&value)z=evaluate(s.parser,com);
   s.parser.ncon=s.model().ncon_start;
   s.parser.nsym=s.model().nsym_start;
   if(bad)return std::unexpected(Error{"formula","Illegal formula ..",command_place(),""});

@@ -39,12 +39,12 @@ double delay_stab_eval(xpp::Session &s, double delay, int var)  /* this returns 
     {
       for(i=0;i<s.delay->ndelay;i++){
 	if(delay==s.delay->list[i])
-	  return(getvar(s,var));
+	  return(getvar(s.parser,var));
       }
       if(s.delay->list.size()<=static_cast<std::size_t>(s.delay->ndelay))s.delay->list.resize(s.delay->ndelay+1);
       s.delay->list[s.delay->ndelay]=delay;
       s.delay->ndelay++;
-      return(getvar(s,var));
+      return(getvar(s.parser,var));
     }
  /*  now we must determine the value to return  */
  /*  del_stab_flag =-1 */    
@@ -148,7 +148,7 @@ double get_delay(xpp::Session &s, int in, double tau)
  if(tau<0.0||tau>s.numerics->delay){
 			const std::string &name=s.model().uvar_names[static_cast<std::size_t>(in)];
 			stop_integration(s.parser,{"delay",xpp::format("delay of {}: tau = {} is outside 0 to the delay setting at t = {} ({})",
-			                                        name,tau,getvar(s,0),named_settings(s,{"integration.delay.max_delay"})),
+			                                        name,tau,getvar(s.parser,0),named_settings(s,{"integration.delay.max_delay"})),
 			                    model_place(s.model(),name)});
 			return(0.0);
   			}
@@ -230,7 +230,7 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
  s.parser.ncon=s.model().ncon_start;
  s.parser.nsym=s.model().nsym_start;
  for(i=0;i<(s.model().node );i++){
-	 if(add_expr(s,s.delay_string[i],del_form[i].rpn,&len)){
+	 if(add_expr(s.parser,s.delay_string[i],del_form[i].rpn,&len)){
 		 s.parser.ncon=s.model().ncon_start;
 		s.parser.nsym=s.model().nsym_start;
 		return xpp::fail("delay",xpp::format("Illegal delay expression {} for {}",s.delay_string[i],s.model().uvar_names[i]),
@@ -239,19 +239,19 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
 	 }        /*  Okay all formulas are cool... */
   s.delay->latest=1;
 
-  get_val(s,"t",&old_t);
+  get_val(s.parser,"t",&old_t);
 
   for(std::size_t row=nt+1;row-->0;){
 	if(xpp::job::cancelled())break;
 	t=s.numerics->start_time-fabs(s.numerics->delta_t)*row;
-	set_val(s,"t",t);
+	set_val(s.parser,"t",t);
 	for(j=0;j<(s.model().node );j++)
-		y[j]=evaluate(s,del_form[j]);
+		y[j]=evaluate(s.parser,del_form[j]);
 	stor_delay(s,y.data());
   }
    s.parser.ncon=s.model().ncon_start;
    s.parser.nsym=s.model().nsym_start;
-  set_val(s,"t",old_t);
+  set_val(s.parser,"t",old_t);
    return {};
  }
 

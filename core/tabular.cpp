@@ -158,24 +158,24 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int index, int n, double xlo, doub
   double oldt;
   Program command;
   int ncold=s.parser.ncon,nsym=s.parser.nsym;
-  if(add_expr(s,formula,command.rpn,&i)){
+  if(add_expr(s.parser,formula,command.rpn,&i)){
     s.parser.ncon=ncold;
     s.parser.nsym=nsym;
     return xpp::fail("table",xpp::format("Illegal formula {}",formula),table_place(s,index));
   }
-  oldt=getvar(s,0);
+  oldt=getvar(s.parser,0);
   dx=(xhi-xlo)/(static_cast<double>(n-1));
   for(i=0;i<n;i++){
-    setvar(s,0,dx*i+xlo);
-    y[i]=evaluate(s,command);
+    setvar(s.parser,0,dx*i+xlo);
+    y[i]=evaluate(s.parser,command);
     if (s.parser.step_error) {
-      setvar(s,0,oldt);
+      setvar(s.parser,0,oldt);
       s.parser.ncon=ncold;
       s.parser.nsym=nsym;
       return std::unexpected(xpp::take_stop(s.parser));
     }
   }
-  setvar(s,0,oldt);
+  setvar(s.parser,0,oldt);
   s.parser.ncon=ncold;
   s.parser.nsym=nsym;
   return {};

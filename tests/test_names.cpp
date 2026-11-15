@@ -24,8 +24,8 @@ static double calc(const std::string &expr, int *ok)
 {
     std::vector<int> command;
     int length = 0;
-    *ok = (xpp::add_expr(xpp::client_session(), expr, command, &length) == 0);
-    return *ok ? xpp::evaluate(xpp::client_session(), command) : 0.0;
+    *ok = (xpp::add_expr(xpp::client_session().parser, expr, command, &length) == 0);
+    return *ok ? xpp::evaluate(xpp::client_session().parser, command) : 0.0;
 }
 
 TEST_CASE("test_names")
@@ -36,30 +36,30 @@ TEST_CASE("test_names")
     int ok, where = 0;
 
     xpp::Session &s = xpp::client_session();
-    xpp::init_rpn(s,false);
+    xpp::init_rpn(s.parser);
 
     /* the parser keeps the whole name: before, it cut every name to 10
        characters, so two names that began alike were one symbol */
-    CHECK(xpp::add_con(s, "stimulus_amplitude_first", 1.5) == 0);
-    CHECK(xpp::add_con(s, "stimulus_amplitude_second", 2.5) == 0);
-    CHECK(xpp::get_val(xpp::client_session(), "stimulus_amplitude_first", &z) && z == 1.5);
-    CHECK(xpp::get_val(xpp::client_session(), "STIMULUS_AMPLITUDE_SECOND", &z) && z == 2.5); /* any case */
+    CHECK(xpp::add_con(s.parser, "stimulus_amplitude_first", 1.5) == 0);
+    CHECK(xpp::add_con(s.parser, "stimulus_amplitude_second", 2.5) == 0);
+    CHECK(xpp::get_val(xpp::client_session().parser, "stimulus_amplitude_first", &z) && z == 1.5);
+    CHECK(xpp::get_val(xpp::client_session().parser, "STIMULUS_AMPLITUDE_SECOND", &z) && z == 2.5); /* any case */
     CHECK(calc("stimulus_amplitude_second-stimulus_amplitude_first", &ok) == 1.0 && ok);
 
     /* no length limit: 200 and 1000 characters are names like any other */
-    CHECK(xpp::add_con(s, p200, 3.0) == 0);
-    CHECK(xpp::get_val(xpp::client_session(), p200, &z) && z == 3.0);
-    CHECK(xpp::add_con(s, q1000, 4.0) == 0);
-    CHECK(xpp::get_val(xpp::client_session(), q1000, &z) && z == 4.0);
+    CHECK(xpp::add_con(s.parser, p200, 3.0) == 0);
+    CHECK(xpp::get_val(xpp::client_session().parser, p200, &z) && z == 3.0);
+    CHECK(xpp::add_con(s.parser, q1000, 4.0) == 0);
+    CHECK(xpp::get_val(xpp::client_session().parser, q1000, &z) && z == 4.0);
     /* a longer name does not find the name it starts with, nor a shorter */
-    CHECK(!xpp::get_val(xpp::client_session(), p200 + "x", &z));
-    CHECK(!xpp::get_val(xpp::client_session(), p200.substr(0, 199), &z));
+    CHECK(!xpp::get_val(xpp::client_session().parser, p200 + "x", &z));
+    CHECK(!xpp::get_val(xpp::client_session().parser, p200.substr(0, 199), &z));
     /* a formula of long names (over 1200 characters) compiles whole */
     CHECK(calc(q1000 + "-" + p200, &ok) == 1.0 && ok);
 
     /* a long variable gets its primed name X' too */
-    CHECK(xpp::add_var(xpp::client_session(), v200.c_str(), 0.0) == 0);
-    CHECK(xpp::add_var(xpp::client_session(), (v200 + "'").c_str(), 0.0) == 0);
+    CHECK(xpp::add_var(xpp::client_session().parser, v200.c_str(), 0.0) == 0);
+    CHECK(xpp::add_var(xpp::client_session().parser, (v200 + "'").c_str(), 0.0) == 0);
 
     /* "name:formula" hands back the name whole */
     CHECK(xpp::has_eq(p200 + ":2*3", name, &where) == 1);
@@ -91,7 +91,7 @@ TEST_CASE("test_names")
 
     /* find_user_name finds a 200-character parameter, blanks and all */
     xpp::client_session().model().upar_names[0] = p200;
-    const int parser_constant=xpp::get_param_index(s,p200);
+    const int parser_constant=xpp::get_param_index(s.parser,p200);
     auto &indexed=s.model().record->define_name(p200,xpp::ModelRecord::NameKind::Param,0,{});
     indexed.parameter=0;
     indexed.slots.con=parser_constant;
@@ -109,35 +109,35 @@ TEST_CASE("test_names")
 
     /* Longest matching prefix, argument shadowing and nsym rollback must
        retain the token table's ordering when lookups are indexed. */
-    CHECK(xpp::add_con(s, "voltage", 11.0) == 0);
-    CHECK(xpp::add_con(s, "voltage_long", 17.0) == 0);
+    CHECK(xpp::add_con(s.parser, "voltage", 11.0) == 0);
+    CHECK(xpp::add_con(s.parser, "voltage_long", 17.0) == 0);
     CHECK(calc("voltage_long-voltage", &ok) == 6.0 && ok);
-    CHECK(xpp::add_ufun_name(s, "indexed_function", 0, 1) == 0);
+    CHECK(xpp::add_ufun_name(s.parser, "indexed_function", 0, 1) == 0);
     s.model().compiler.nfun = 1;
     const std::array<std::string, 1> args{"VOLTAGE"};
-    CHECK(xpp::add_ufun_new(s, 0, "VOLTAGE+1", args) == 0);
+    CHECK(xpp::add_ufun_new(s.parser, 0, "VOLTAGE+1", args) == 0);
     CHECK(calc("indexed_function(3)", &ok) == 4.0 && ok);
     CHECK(calc("voltage", &ok) == 11.0 && ok);
     const int symbols = s.parser.nsym, constants = s.parser.ncon;
-    CHECK(xpp::add_con(s, "temporary_old", 5.0) == 0);
-    CHECK(xpp::get_val(s, "temporary_old", &z) && z == 5.0);
+    CHECK(xpp::add_con(s.parser, "temporary_old", 5.0) == 0);
+    CHECK(xpp::get_val(s.parser, "temporary_old", &z) && z == 5.0);
     s.parser.nsym = symbols;
     s.parser.ncon = constants;
-    CHECK(xpp::add_con(s, "temporary_new", 9.0) == 0);
-    CHECK(!xpp::get_val(s, "temporary_old", &z));
-    CHECK(xpp::get_val(s, "temporary_new", &z) && z == 9.0);
+    CHECK(xpp::add_con(s.parser, "temporary_new", 9.0) == 0);
+    CHECK(!xpp::get_val(s.parser, "temporary_old", &z));
+    CHECK(xpp::get_val(s.parser, "temporary_new", &z) && z == 9.0);
 
     /* Internal-set names share the model index but cannot shadow the
        parser's built-ins or its local symbols (W291). */
-    const int pi_slot=xpp::get_param_index(s,"PI");
+    const int pi_slot=xpp::get_param_index(s.parser,"PI");
     s.model().record->define_name("pi",xpp::ModelRecord::NameKind::Set,0,{});
-    CHECK(xpp::get_param_index(s,"PI")==pi_slot);
-    CHECK(xpp::get_val(s,"pi",&z) && z==s.parser.constants[pi_slot]);
-    CHECK(xpp::add_var(s,"T",2.25)==0);
-    const int time_slot=xpp::get_var_index(s,"T");
+    CHECK(xpp::get_param_index(s.parser,"PI")==pi_slot);
+    CHECK(xpp::get_val(s.parser,"pi",&z) && z==s.parser.constants[pi_slot]);
+    CHECK(xpp::add_var(s.parser,"T",2.25)==0);
+    const int time_slot=xpp::get_var_index(s.parser,"T");
     s.model().record->define_name("t",xpp::ModelRecord::NameKind::Set,1,{});
-    CHECK(xpp::get_var_index(s,"T")==time_slot);
-    CHECK(xpp::get_val(s,"t",&z) && z==2.25);
+    CHECK(xpp::get_var_index(s.parser,"T")==time_slot);
+    CHECK(xpp::get_val(s.parser,"t",&z) && z==2.25);
 
     TEST_REPORT("long names");
 }

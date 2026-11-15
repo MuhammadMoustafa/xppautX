@@ -70,7 +70,7 @@
 #include <utility>
 #include <vector>
 #include <cstddef>
-namespace xpp { struct Session; }
+namespace xpp { struct Session; struct ParserState; class Random; }
 
 namespace xpp::expr {
 using Fun1 = double (*)(double);
@@ -328,19 +328,19 @@ inline double number_from_halves(int first, int second)
   return std::bit_cast<double>(std::array<int,2>{first,second});
 }
 
-/* ENDSHIFT and ENDISHIFT (expr_functions.cpp), in the Session s the
+/* ENDSHIFT and ENDISHIFT (expr_functions.cpp), in the variables and constants of the parser p the
    evaluator runs in (the delays are the run's: ExprHost, expr.h) */
-double do_shift(const xpp::Session &s, double shift, double variable);
+double do_shift(const xpp::ParserState &p, double shift, double variable);
 double do_ishift(double shift, double variable);
 /* ENDSET: variable v+shift becomes value (v and shift as the program
-   holds them); the value comes back. A variable outside the Session's
+   holds them); the value comes back. A variable outside the parser's
    variables is not written. */
-double do_set(xpp::Session &s, double shift, double variable, double value);
+double do_set(xpp::ParserState &p, double shift, double variable, double value);
 
-/* RANDUNI, RANDPOI and RANDNORM, from the Session's generator */
-double do_random_uniform(xpp::Session &s, double x);
-double do_random_poisson(xpp::Session &s, double mean);
-double do_random_normal(xpp::Session &s, double mean, double sd);
+/* RANDUNI, RANDPOI and RANDNORM, from the generator random */
+double do_random_uniform(xpp::Random &random, double x);
+double do_random_poisson(xpp::Random &random, double mean);
+double do_random_normal(xpp::Random &random, double mean, double sd);
 
 }
 

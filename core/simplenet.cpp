@@ -182,7 +182,7 @@ void add_vectorizer_name(xpp::Session &s, std::string_view name, std::string_vie
   s.model().vectors.resize(static_cast<std::size_t>(s.model().nvector)+1);
   s.model().compiler.vector_count=s.model().vectors.size();
   s.model().vectors[s.model().nvector].name=name;
-  if(add_net_name(s,s.model().nvector,name,1))
+  if(add_net_name(s.parser,s.model().nvector,name,1))
     model_failed();
   s.model().nvector++;
 
@@ -262,11 +262,11 @@ int next_index(const xpp::Session &s, xpp::Tokens &args, const char *net, const 
 {
   name=args.text(sep);
   if(kind==NameKind::table){
-    int i=find_lookup(s,name);
+    int i=find_lookup(s.parser,name);
     if(i<0)model_failed(xpp::format("In network {}, {} is not a table",net,name));
     return i;
   }
-  int i=get_var_index(s,name);
+  int i=get_var_index(s.parser,name);
   if(i<0)model_failed(xpp::format("In {}, {} is not a valid variable",net,name));
   return i;
 }
@@ -337,7 +337,7 @@ void read_tabled(xpp::Session &s, const NetworkForm &form, int ind, const char *
     next_index(s,args,name,",",root2name,NameKind::variable);
     fname=args.text(")");
     int elen;
-    if(add_expr(s,xpp::format("{}({},{})",fname,rootname,root2name),net.f.rpn,&elen))
+    if(add_expr(s.parser,xpp::format("{}({},{})",fname,rootname,root2name),net.f.rpn,&elen))
       model_failed(xpp::format("Bad function {}",fname));
     net.applies_function=true;
     /* the compiled names, which evaluate_network points at each tap */
@@ -502,7 +502,7 @@ void add_special_name(xpp::Session &s, std::string_view name, char *rhs)
     s.model().compiler.network_count=s.model().networks.size();
     s.networks.resize(index+1);
     s.model().networks[index].name=name;
-    add_net_name(s,s.model().nnetwork,name,0);
+    add_net_name(s.parser,s.model().nnetwork,name,0);
     s.model().nnetwork++;
   }
   else
@@ -613,7 +613,7 @@ bool gilparse(const xpp::Session &s, std::string_view list, std::vector<int> &in
         names.push_back(xpp::format("{}{}", b, id));
     }
     for (const std::string &bn : names) {
-      int iv = get_var_index(s,bn);
+      int iv = get_var_index(s.parser,bn);
       if (iv < 0) {
         model_failed(xpp::format("No such name {}", bn));
       }
@@ -636,7 +636,7 @@ int get_vector_info(const xpp::Session &ses, char *str, std::string_view name,in
   i=i==std::string_view::npos?s.size():i+1;
   size_t comma=s.find(',',i);
   std::string temp(s.substr(i,comma==std::string_view::npos?std::string_view::npos:comma-i));
-  int ivar=get_var_index(ses,temp);
+  int ivar=get_var_index(ses.parser,temp);
   if(ivar<0||comma==std::string_view::npos){
     model_failed(xpp::format("In vector {}, {} is not a valid variable",name,temp));
   }

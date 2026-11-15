@@ -5,7 +5,6 @@
    after another starts with none. */
 #include "derived.h"
 #include "expr.h"
-#include "session.h"
 #include "model_failed.h"
 #include "xpp_log.h"
 #include "expr_program.h"
@@ -21,44 +20,44 @@ namespace xpp {
 /* This compiles all of the formulae
 It is called only once during the session
 */
-void compile_derived(xpp::Session &s)
+void compile_derived(ParserState &p)
 {
   int n;
-  for (xpp::CompilerTables::DerivedQuantity &d : s.parser.compiler->derived) {
-    if (add_expr(s, d.rhs, d.form.rpn, &n) == 1)
+  for (xpp::CompilerTables::DerivedQuantity &d : p.compiler->derived) {
+    if (add_expr(p, d.rhs, d.form.rpn, &n) == 1)
       model_failed(xpp::Error{"derived", xpp::format("Bad right-hand side for a derived parameter: {}", d.rhs), d.where});
   }
-  evaluate_derived(s);
+  evaluate_derived(p);
 }
 
 /* This evaluates all derived quantities in order of definition
 called before any integration or numerical computation
 and after changing parameters and constants
 */
-void evaluate_derived(xpp::Session &s)
+void evaluate_derived(ParserState &p)
 {
-  for (const auto &d : s.parser.compiler->derived)
-    s.parser.constants[d.index] = evaluate(s,d.form);
+  for (const auto &d : p.compiler->derived)
+    p.constants[d.index] = evaluate(p,d.form);
 }
 
-void evaluate_derived_pure(const Session &s, double *constants, double *variables)
+void evaluate_derived_pure(const ParserState &p, double *constants, double *variables)
 {
-  for (const auto &d : s.parser.compiler->derived)
-    constants[d.index] = evaluate_pure(s,d.form,constants,variables);
+  for (const auto &d : p.compiler->derived)
+    constants[d.index] = evaluate_pure(p,d.form,constants,variables);
 }
 
 /* this adds a derived quantity  */
-int add_derived(xpp::Session &s, std::string_view name, std::string_view rhs)
+int add_derived(ParserState &p, std::string_view name, std::string_view rhs)
 {
   xpp::CompilerTables::DerivedQuantity d;
   d.rhs = rhs;
   /* this is the constant to which it addresses */
-  d.index = s.parser.ncon;
+  d.index = p.ncon;
   d.where = xpp::LoadSite::place();
   /* add the name to the recognized symbols */
-  xpp::log(XPP_LOG_INFO, " derived constant[{}] is {} = {}\n", s.parser.ncon, name, rhs);
-  s.parser.compiler->derived.push_back(std::move(d));
-  return add_con(s, name, 0.0);
+  xpp::log(XPP_LOG_INFO, " derived constant[{}] is {} = {}\n", p.ncon, name, rhs);
+  p.compiler->derived.push_back(std::move(d));
+  return add_con(p, name, 0.0);
 }
 
 } // namespace xpp

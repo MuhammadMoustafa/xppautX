@@ -7,7 +7,6 @@
 #include "xpp_mem.h"
 #include "xpp_math.h"
 #include "expr_decode.h"
-#include "session.h"
 #include "expr.h"
 #include "expr_program.h"
 
@@ -244,12 +243,12 @@ return(0);
 
 }
 
-int alg_to_rpn(xpp::Session &s, int *toklist, std::vector<int> &command)
+int alg_to_rpn(xpp::ParserState &p, int *toklist, std::vector<int> &command)
 {
-  Symbols &my_symb=s.parser.symbols;
+  Symbols &my_symb=p.symbols;
   /* the compiler's temporary symbol: ParserState keeps it past nsym */
   const int temporary_token=static_cast<int>(my_symb.size())-2;
-  CompilerTables &m=*s.parser.compiler;
+  CompilerTables &m=*p.compiler;
   std::vector<int> tokstak;
   int comptr=0,tokptr=0,lstptr=0,temp;
   int ncomma=0;
@@ -497,10 +496,10 @@ int alg_to_rpn(xpp::Session &s, int *toklist, std::vector<int> &command)
 
 /* ADD_EXPR   */
 
-void size_expr_stack(Session &s, std::span<const int> code, int arguments)
+void size_expr_stack(ParserState &p, std::span<const int> code, int arguments)
 {
  std::size_t depth=0;
- const auto decoded=xpp::expr::decode(s,code,arguments,&depth);
+ const auto decoded=xpp::expr::decode(p,code,arguments,&depth);
  /* Before all function metadata is installed, the instruction count
     bounds even a program the decoder cannot yet validate. */
  std::size_t values=decoded?depth:code.size();
@@ -508,30 +507,30 @@ void size_expr_stack(Session &s, std::span<const int> code, int arguments)
     arguments of the call refused past it: cover that many of the largest
     frame (its value program or its argument frame, even unused args).
     This conservative bound also covers SUM bodies sharing the stack. */
- const CompilerTables &m=*s.parser.compiler;
+ const CompilerTables &m=*p.compiler;
  std::size_t frame=0;
  for(std::size_t i=0;i<m.ufun_programs.size();++i)
    frame=std::max({frame,m.ufun_programs[i].rpn.size(),xpp::size_product(m.narg_fun[i])});
  values=xpp::size_sum(values,xpp::size_product(MAX_UFUN_DEPTH+1,frame));
- auto &stack=s.parser.stack;
+ auto &stack=p.stack;
  if(stack.values.size()<values)stack.values.resize(values);
  if(stack.args.size()<values)stack.args.resize(values);
 }
 
-int add_expr(xpp::Session &s, std::string_view expr, std::vector<int> &command, int *length)
+int add_expr(xpp::ParserState &p, std::string_view expr, std::vector<int> &command, int *length)
 {
  int err;
  std::string dest=converted(expr);
  std::vector<int> my_token;
  my_token.reserve(3*dest.size()+8);
- err=make_toks(s.parser,dest.c_str(),my_token);
+ err=make_toks(p,dest.c_str(),my_token);
  if(err!=0)return(1);
- err = alg_to_rpn(s,my_token.data(),command);
+ err = alg_to_rpn(p,my_token.data(),command);
  if(err!=0)return(1);
  /* Function bodies are compiled before ENDFUN and their argument count
     are installed. The argument symbols the table holds bound the names a
     body may read. */
- size_expr_stack(s,command,s.parser.arg_count());
+ size_expr_stack(p,command,p.arg_count());
  if(length)*length=static_cast<int>(command.size());
  return(0);
 }

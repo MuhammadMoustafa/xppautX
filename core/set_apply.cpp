@@ -410,7 +410,7 @@ xpp::Result<odex::Values> captured_values(xpp::Session &s, std::string_view scop
     values.parameters=true;
     for(int i=0;i<m.nupar;i++){
       double z=0;
-      get_val(s,m.upar_names[i],&z);
+      get_val(s.parser,m.upar_names[i],&z);
       values.parameter_values.emplace_back(declared_spelling(m,m.upar_names[i]),odex::print_number(z));
     }
   }
@@ -497,7 +497,7 @@ void do_intern_set(xpp::Session &s, std::string_view name1, std::string_view val
   if(ic>-1||par>-1){
     parse_number(trim_blanks(value),number);
     if(ic>-1)s.last_ic[ic]=number;
-    else set_val(s,name,number);
+    else set_val(s.parser,name,number);
   }
   else set_option(s,name,value,1,NULL);
   xpp::do_meth(s);

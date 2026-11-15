@@ -77,6 +77,11 @@ Result<EquilibriumNear> equilibrium_near(const Session &s, EquilibriumModel &mod
    states of x keep no mark */
 void mark_equilibrium(Session &s, std::span<const double> x, int symbol);
 
+/* the equilibrium x of n states found, with its counts of eigenvalues (cp, cm: complex pairs of positive and
+   negative real part, rp, rm: real ones, im: on the imaginary axis; ev the n pairs, none for a delay equation): kept
+   as the Session's last one (the `equilibrium.import` command applies it) and shown through the front end */
+void record_equilibrium(Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
+
 Result<> do_sing_info(Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
 void pr_evec(Session &s, double *x, double *ev, int n, int pr, double eval,int type);
 void numerical_jacobian(EquilibriumModel &model, double *x, double *y, double eps, double *dermat, int n);

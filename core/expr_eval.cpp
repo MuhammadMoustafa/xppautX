@@ -1,5 +1,5 @@
 /* The expression engine's evaluator (expr.h): runs a program
-   (expr_program.h) on the Session's stacks (ParserState::stack). Every
+   (expr_program.h) on the parser's stacks (ParserState::stack). Every
    right-hand side goes through here at every step: the hottest code
    there is, so it is one loop over the program's decoded instructions
    (Program::ops, made once from the RPN by expr_decode.h's decoder:
@@ -9,7 +9,6 @@
 #include "expr_decode.h"
 #include "expr_derivative.h"
 #include "xpp_ui.h"
-#include "session.h"
 #include "expr.h"
 #include "expr_tables.h"
 #include "expr_program.h"
@@ -34,7 +33,7 @@ namespace xpp {
 namespace {
 
 /* a program's instructions, decoded at its first evaluation (below) */
-const expr::Op *instructions(Session &s, const Program &program, int arguments, std::vector<int> &decoding);
+const expr::Op *instructions(ParserState &parser, const Program &program, int arguments, std::vector<int> &decoding);
 
 /* an instruction's effect on the stack's depth */
 int effect(const expr::Op &o)
@@ -67,9 +66,9 @@ int effect(const expr::Op &o)
    copied; `decoding` holds the user functions whose instructions are
    being made up the chain of calls, and a call of one of them (a
    recursion) stays a call. */
-std::expected<std::vector<expr::Op>, std::string> operations(Session &s, std::span<const int> p, int arguments, std::vector<int> &decoding)
+std::expected<std::vector<expr::Op>, std::string> operations(ParserState &parser, std::span<const int> p, int arguments, std::vector<int> &decoding)
 {
-  const auto decoded=expr::decode(s,p,arguments);
+  const auto decoded=expr::decode(parser,p,arguments);
   if(!decoded)return std::unexpected(decoded.error());
   std::vector<expr::Op> ops;
   ops.reserve(decoded->size()+1);
@@ -144,11 +143,11 @@ std::expected<std::vector<expr::Op>, std::string> operations(Session &s, std::sp
       o.kind=expr::OpKind::Call; o.a=in; o.count=i.count;
       /* inlined when the function runs interpreted and is not being decoded up the chain: the body's
          instructions, its arguments read from the stack, its jumps moved */
-      const Program &function=s.parser.compiler->ufun_programs[static_cast<std::size_t>(in)];
+      const Program &function=parser.compiler->ufun_programs[static_cast<std::size_t>(in)];
       const expr::Op *body=nullptr;
       if(!function.native&&std::find(decoding.begin(),decoding.end(),in)==decoding.end()){
         decoding.push_back(in);
-        body=instructions(s,function,i.count,decoding);
+        body=instructions(parser,function,i.count,decoding);
         decoding.pop_back();
       }
       if(body){
@@ -183,36 +182,36 @@ std::expected<std::vector<expr::Op>, std::string> operations(Session &s, std::sp
    none when it cannot be decoded, which stops the integration with the
    reason (a program the compiler wrote decodes; one evaluated before what
    it names exists does not) */
-[[gnu::noinline]] const expr::Op *decode_program(Session &s, const Program &program, int arguments, std::vector<int> &decoding)
+[[gnu::noinline]] const expr::Op *decode_program(ParserState &parser, const Program &program, int arguments, std::vector<int> &decoding)
 {
-  auto ops=operations(s,program.rpn,arguments,decoding);
+  auto ops=operations(parser,program.rpn,arguments,decoding);
   if(!ops){
-    stop_integration(s.parser,Error{"evaluation",xpp::format("the program cannot be run: {}",ops.error()),command_place()});
+    stop_integration(parser,Error{"evaluation",xpp::format("the program cannot be run: {}",ops.error()),command_place()});
     return nullptr;
   }
   program.ops=std::move(*ops);
   return program.ops.data();
 }
 
-inline const expr::Op *instructions(Session &s, const Program &program, int arguments, std::vector<int> &decoding)
+inline const expr::Op *instructions(ParserState &parser, const Program &program, int arguments, std::vector<int> &decoding)
 {
-  return program.ops.empty()?decode_program(s,program,arguments,decoding):program.ops.data();
+  return program.ops.empty()?decode_program(parser,program,arguments,decoding):program.ops.data();
 }
 
-inline const expr::Op *instructions(Session &s, const Program &program, int arguments)
+inline const expr::Op *instructions(ParserState &parser, const Program &program, int arguments)
 {
   if(!program.ops.empty())return program.ops.data();
   std::vector<int> decoding;
-  return decode_program(s,program,arguments,decoding);
+  return decode_program(parser,program,arguments,decoding);
 }
 
 /* a user function called at MAX_UFUN_DEPTH: the integration stops (out of the evaluator's loop, which keeps no
    frame for the error's text) */
-[[gnu::noinline]] void nested_too_deep(Session &s, int function)
+[[gnu::noinline]] void nested_too_deep(ParserState &p, int function)
 {
-  stop_integration(s.parser,Error{"evaluation",
-      xpp::format("user function '{}' nests deeper than {} calls",s.parser.compiler->ufun_names[function],MAX_UFUN_DEPTH),
-      s.parser.compiler->names->place(s.parser.compiler->ufun_names[function])});
+  stop_integration(p,Error{"evaluation",
+      xpp::format("user function '{}' nests deeper than {} calls",p.compiler->ufun_names[function],MAX_UFUN_DEPTH),
+      p.compiler->names->place(p.compiler->ufun_names[function])});
 }
 
 /* Runs the instructions from op of the program code on p's stacks and
@@ -227,9 +226,8 @@ inline const expr::Op *instructions(Session &s, const Program &program, int argu
    follows here goes on from where that left it, as it always has. The
    built-in functions (fun1, fun2) never evaluate a program, so their
    calls need no write-back. */
-double run(const expr::Op *code, const expr::Op *op, Session &s)
+double run(const expr::Op *code, const expr::Op *op, ParserState &p)
 {
-  ParserState &p=s.parser;
   ExprStack &st=p.stack;
   /* read once: the constants, variables and stacks */
   double *const constants=p.constants.data();
@@ -292,20 +290,20 @@ double run(const expr::Op *code, const expr::Op *op, Session &s)
       for(int j=0;j<n;j++)st.args[st.nargs++]=*--sp;
       st.top=static_cast<int>(sp-values);
       double value=0.0;
-      if(s.parser.step_error){
+      if(p.step_error){
         st.nargs-=n;
       }else if(st.ufun_depth>=MAX_UFUN_DEPTH){
-        nested_too_deep(s,o.a);
+        nested_too_deep(p,o.a);
         st.nargs-=n;
       }else{
         st.ufun_depth++;
-        const Program &function=s.parser.compiler->ufun_programs[o.a];
+        const Program &function=p.compiler->ufun_programs[o.a];
         if(function.native){
           /* the bridge drops the arguments itself (model_native.cpp h_end) */
-          value=mir::call(function.native,constants,variables,&s,function.rpn.data());
-        }else if(const expr::Op *body=instructions(s,function,n)){
+          value=mir::call(function.native,constants,variables,p.owner,function.rpn.data());
+        }else if(const expr::Op *body=instructions(p,function,n)){
           p.interpreted_ops+=function.ops.size();
-          value=run(body,body,s);
+          value=run(body,body,p);
           st.nargs-=n; /* ENDFUN */
         }else st.nargs-=n;
         st.ufun_depth--;
@@ -325,7 +323,7 @@ double run(const expr::Op *code, const expr::Op *op, Session &s)
       for(int is=low;is<=high;is++){
         constants[expr::SUM_INDEX]=static_cast<double>(is);
         st.top=static_cast<int>(sp-values);
-        sum+=run(code,op,s);
+        sum+=run(code,op,p);
         sp=values+st.top;
       }
       op=code+o.a;
@@ -336,7 +334,7 @@ double run(const expr::Op *code, const expr::Op *op, Session &s)
       const double tau=*--sp;
       const double variable=*--sp;
       st.top=static_cast<int>(sp-values);
-      const double value=s.parser.host->delay(s,tau,variable);
+      const double value=p.host->delay(*p.owner,tau,variable);
       sp=values+st.top;
       *sp++=value;
       break;
@@ -346,7 +344,7 @@ double run(const expr::Op *code, const expr::Op *op, Session &s)
       const double shift=*--sp;
       const double variable=*--sp;
       st.top=static_cast<int>(sp-values);
-      const double value=s.parser.host->delay_shift(s,tau,shift,variable);
+      const double value=p.host->delay_shift(*p.owner,tau,shift,variable);
       sp=values+st.top;
       *sp++=value;
       break;
@@ -355,7 +353,7 @@ double run(const expr::Op *code, const expr::Op *op, Session &s)
       const double shift=*--sp;
       const double variable=*--sp;
       st.top=static_cast<int>(sp-values);
-      const double value=expr::do_shift(s,shift,variable);
+      const double value=expr::do_shift(p,shift,variable);
       sp=values+st.top;
       *sp++=value;
       break;
@@ -366,27 +364,27 @@ double run(const expr::Op *code, const expr::Op *op, Session &s)
       const double value=*--sp;
       const double shift=*--sp;
       const double variable=*--sp;
-      *sp++=expr::do_set(s,shift,variable,value);
+      *sp++=expr::do_set(p,shift,variable,value);
       break;
     }
     case expr::OpKind::Table: case expr::OpKind::Network: case expr::OpKind::Vector: {
       const double x=*--sp;
       st.top=static_cast<int>(sp-values);
-      const double value=o.kind==expr::OpKind::Table?lookup(s.tables[o.a],x):o.kind==expr::OpKind::Network?s.parser.host->network_value(s,x,o.a):s.parser.host->vector_value(s,x,o.a);
+      const double value=o.kind==expr::OpKind::Table?lookup((*p.tables)[o.a],x):o.kind==expr::OpKind::Network?p.host->network_value(*p.owner,x,o.a):p.host->vector_value(*p.owner,x,o.a);
       sp=values+st.top;
       *sp++=value;
       break;
     }
     case expr::OpKind::Kernel: {
       st.top=static_cast<int>(sp-values);
-      const double value=s.parser.host->kernel_value(s,o.a);
+      const double value=p.host->kernel_value(*p.owner,o.a);
       sp=values+st.top;
       *sp++=value;
       break;
     }
-    case expr::OpKind::RandomUniform: sp[-1]=expr::do_random_uniform(s,sp[-1]); break;
-    case expr::OpKind::RandomPoisson: sp[-1]=expr::do_random_poisson(s,sp[-1]); break;
-    case expr::OpKind::RandomNormal: --sp; sp[-1]=expr::do_random_normal(s,sp[-1],sp[0]); break;
+    case expr::OpKind::RandomUniform: sp[-1]=expr::do_random_uniform(*p.random,sp[-1]); break;
+    case expr::OpKind::RandomPoisson: sp[-1]=expr::do_random_poisson(*p.random,sp[-1]); break;
+    case expr::OpKind::RandomNormal: --sp; sp[-1]=expr::do_random_normal(*p.random,sp[-1],sp[0]); break;
     case expr::OpKind::Return:
       --sp;
       st.top=static_cast<int>(sp-values);
@@ -398,35 +396,34 @@ double run(const expr::Op *code, const expr::Op *op, Session &s)
 
 }
 
-double evaluate(Session &s, const Program &code)
+double evaluate(ParserState &p, const Program &code)
 {
   if (code.native)
-    return mir::call(code.native,s.parser.constants.data(),s.parser.variables.data(),&s,code.rpn.data());
-  const expr::Op *ops=instructions(s,code,-1);
+    return mir::call(code.native,p.constants.data(),p.variables.data(),p.owner,code.rpn.data());
+  const expr::Op *ops=instructions(p,code,-1);
   if(!ops)return 0.0;
-  ParserState &p=s.parser;
   p.interpreted_ops+=code.ops.size();
   p.stack.nargs=0;
   p.stack.top=0;
   p.stack.ufun_depth=0;
-  return run(ops,ops,s);
+  return run(ops,ops,p);
 }
 
-double evaluate(Session &s, std::span<const int> program)
+double evaluate(ParserState &p, std::span<const int> program)
 {
   Program code;
   code.rpn.assign(program.begin(),program.end());
-  return evaluate(s,code);
+  return evaluate(p,code);
 }
 
-double evaluate_pure(const Session &s, const Program &code, double *constants, double *variables)
+double evaluate_pure(const ParserState &p, const Program &code, double *constants, double *variables)
 {
-  /* The native function's signature takes the Session for the general
+  /* The native function's signature takes the Session (p.owner, only handed on) for the general
      programs; an array_pure one never writes through it. */
-  return mir::call(code.native,constants,variables,const_cast<Session *>(&s),code.rpn.data());
+  return mir::call(code.native,constants,variables,p.owner,code.rpn.data());
 }
 
-void evaluate_derivatives(const Session &s, const expr::Symbolic &graph, const JacobianProgram &p, const double *c, const double *v,
+void evaluate_derivatives(const std::vector<TABULAR> &tables, const expr::Symbolic &graph, const JacobianProgram &p, const double *c, const double *v,
                           std::vector<double> &values, std::span<double> out)
 {
   /* each node the entries need, in the graph's order, as the Generator's derivatives writes it (model_native.cpp):
@@ -454,8 +451,8 @@ void evaluate_derivatives(const Session &s, const expr::Symbolic &graph, const J
       break;
     }
     case expr::Symbolic::Op::Select: value=arg(0)==0.0?arg(2):arg(1); break;
-    case expr::Symbolic::Op::Table: value=lookup(s.tables[n.index],arg(0)); break;
-    case expr::Symbolic::Op::TableSlope: value=lookup_slope(s.tables[n.index],arg(0)); break;
+    case expr::Symbolic::Op::Table: value=lookup(tables[n.index],arg(0)); break;
+    case expr::Symbolic::Op::TableSlope: value=lookup_slope(tables[n.index],arg(0)); break;
     }
   }
   for(std::size_t k=0;k<out.size();k++)out[k]=values[static_cast<std::size_t>(p.terms[k].id)];

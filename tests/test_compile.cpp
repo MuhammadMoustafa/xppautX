@@ -71,7 +71,7 @@ void same_both_ways(xpp::Session &s,const xpp::Program &code)
     const auto constants=s.parser.constants;
     s.random.seed(7);
     const std::string random=s.random.save();
-    const double native=xpp::evaluate(s,code);
+    const double native=xpp::evaluate(s.parser,code);
     const auto native_variables=s.parser.variables;
     const auto native_constants=s.parser.constants;
     const std::string native_random=s.random.save();
@@ -81,7 +81,7 @@ void same_both_ways(xpp::Session &s,const xpp::Program &code)
     /* interpreted: the same program without its native function */
     xpp::Program interpreted_code=code;
     interpreted_code.native=nullptr;
-    const double interpreted=xpp::evaluate(s,interpreted_code);
+    const double interpreted=xpp::evaluate(s.parser,interpreted_code);
     CHECK(bits(native)==bits(interpreted));
     CHECK(same(native_variables,s.parser.variables));
     CHECK(same(native_constants,s.parser.constants));
@@ -154,11 +154,11 @@ TEST_CASE("test_compile")
     auto session=std::make_unique<xpp::Session>(*model);
     auto &s=*session;
     auto &m=*model;
-    xpp::init_rpn(s,false);
-    CHECK(xpp::add_var(s,"t",0.0)==0);
-    CHECK(xpp::add_var(s,"x",2.0)==0);
-    for (const auto *name:{"z0","z1","z2","z3"}) CHECK(xpp::add_var(s,name,0.0)==0);
-    CHECK(xpp::add_con(s,"par",3.0)==0);
+    xpp::init_rpn(s.parser);
+    CHECK(xpp::add_var(s.parser,"t",0.0)==0);
+    CHECK(xpp::add_var(s.parser,"x",2.0)==0);
+    for (const auto *name:{"z0","z1","z2","z3"}) CHECK(xpp::add_var(s.parser,name,0.0)==0);
+    CHECK(xpp::add_con(s.parser,"par",3.0)==0);
     m.this_file="compile.odex";
     m.record->files.push_back({m.this_file,"\n\n\n\n\n\nx' = sum(0,0)of(0)\n"});
     m.record->statement_files={m.this_file};
@@ -176,7 +176,7 @@ TEST_CASE("test_compile")
     auto expression=[&](const std::string &text) {
         std::vector<int> p;
         int length=0;
-        CHECK(xpp::add_expr(s,text,p,&length)==0);
+        CHECK(xpp::add_expr(s.parser,text,p,&length)==0);
         append(std::move(p));
     };
     for (double x:{0.1,1e-300,std::numeric_limits<double>::denorm_min(),-0.0}) append(number(x));
@@ -194,17 +194,17 @@ TEST_CASE("test_compile")
         if (!xpp::expr::fun2[i]) continue;
         append({COM(VARTYPE,1),COM(CONTYPE,0),COM(FUN2TYPE,static_cast<int>(i)),ENDEXP});
     }
-    CHECK(xpp::add_ufun_name(s,"f",0,2)==0);
-    CHECK(xpp::add_ufun_name(s,"g",1,2)==0);
+    CHECK(xpp::add_ufun_name(s.parser,"f",0,2)==0);
+    CHECK(xpp::add_ufun_name(s.parser,"g",1,2)==0);
     /* r draws and q sums: callers must call them in order, as statements */
-    CHECK(xpp::add_ufun_name(s,"r",2,2)==0);
-    CHECK(xpp::add_ufun_name(s,"q",3,1)==0);
+    CHECK(xpp::add_ufun_name(s.parser,"r",2,2)==0);
+    CHECK(xpp::add_ufun_name(s.parser,"q",3,1)==0);
     m.compiler.nfun=4;
     const std::array<std::string,2> args{"A","B"};
-    CHECK(xpp::add_ufun_new(s,0,"a-b",args)==0);
-    CHECK(xpp::add_ufun_new(s,1,"f(a,f(b,1))*2",args)==0);
-    CHECK(xpp::add_ufun_new(s,2,"a+ran(b)",args)==0);
-    CHECK(xpp::add_ufun_new(s,3,"sum(0,2)of(a*i')",{args.data(),1})==0);
+    CHECK(xpp::add_ufun_new(s.parser,0,"a-b",args)==0);
+    CHECK(xpp::add_ufun_new(s.parser,1,"f(a,f(b,1))*2",args)==0);
+    CHECK(xpp::add_ufun_new(s.parser,2,"a+ran(b)",args)==0);
+    CHECK(xpp::add_ufun_new(s.parser,3,"sum(0,2)of(a*i')",{args.data(),1})==0);
     expression("g(x,par)+f(par,x)");
     /* sums (nested ones share I'), shifts, set, the index, random draws and delays:
        state-changing operations keep the interpreter's order, even in a branch,
@@ -239,7 +239,7 @@ TEST_CASE("test_compile")
     auto writes=[&](const std::string &text,int index) {
         std::vector<int> p;
         int length=0;
-        CHECK(xpp::add_expr(s,text,p,&length)==0);
+        CHECK(xpp::add_expr(s.parser,text,p,&length)==0);
         return std::ranges::find(p,COM(FUN2TYPE,index))!=p.end();
     };
     for (int n=2;n<=16;++n) CHECK(writes("x^"+std::to_string(n),xpp::expr::INTEGER_POWER));
@@ -271,8 +271,8 @@ TEST_CASE("test_compile")
         for (int i=first_square;i<after_square;++i) same_both_ways(s,m.programs[i]);
     }
     for (int i=first_outside;i<first_outside+3;++i) {
-        CHECK(xpp::evaluate(s,m.programs[i])==0.0);
-        CHECK(xpp::evaluate(s,m.programs[i].rpn)==0.0);
+        CHECK(xpp::evaluate(s.parser,m.programs[i])==0.0);
+        CHECK(xpp::evaluate(s.parser,m.programs[i].rpn)==0.0);
     }
     /* Refusal is local, keeps a source warning, and propagates to callers. */
     m.programs[0].rpn=nested_sums(16,ENDEXP);
@@ -294,7 +294,7 @@ TEST_CASE("test_compile")
         CHECK(m.programs[1].native!=nullptr);
         CHECK(messages.text().find("compile.odex:7: not compiled: sums nested too deep; running the interpreter")!=std::string::npos);
     }
-    CHECK(xpp::evaluate(s,m.programs[0])==0.0);
+    CHECK(xpp::evaluate(s.parser,m.programs[0])==0.0);
     for (const auto &invalid:std::vector<std::vector<int>>{{COM(CONTYPE,static_cast<int>(s.parser.constants.size())),ENDEXP},
          {COM(VARTYPE,static_cast<int>(s.parser.variables.size())),ENDEXP},{COM(FUN1TYPE,26),ENDEXP},{MYIF,999999,ENDEXP},{NUMSYM,0}}) {
         m.programs[0].rpn=invalid;
@@ -330,16 +330,16 @@ TEST_CASE("test_compile")
     m.programs[0].rpn=number(0.1);
     CHECK(compile_model(s).has_value());
     CHECK(!m.native_program);
-    CHECK(xpp::evaluate(s,m.programs[0])==0.1);
+    CHECK(xpp::evaluate(s.parser,m.programs[0])==0.1);
     s.numerics->compile=true;
     CHECK(compile_model(s).has_value());
     /* z0 to z3 as fixed variables and x' after them, compiled as one function (W468,
        W469): a math call is made once across them, except across what changes its argument (a fixed variable
        written, read by name, by a user function or by a shift; a set; a draw) or what may
        not run (a branch, a sum). w reads z1; f only its arguments. */
-    CHECK(xpp::add_ufun_name(s,"w",4,1)==0);
+    CHECK(xpp::add_ufun_name(s.parser,"w",4,1)==0);
     m.compiler.nfun=5;
-    CHECK(xpp::add_ufun_new(s,4,"z1*a",{args.data(),1})==0);
+    CHECK(xpp::add_ufun_new(s.parser,4,"z1*a",{args.data(),1})==0);
     m.fix_var=4;
     for (const auto &fixed:std::vector<std::array<const char *,5>>{
          {"tanh(x*par)+tanh(z3)*tanh(z0)", "tanh(x*par)", "tanh(x*par)^2+z0", "tanh(z0)+tanh(x*par)", "tanh(z0)*tanh(z1)+tanh(x*par)"},

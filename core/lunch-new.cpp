@@ -90,7 +90,7 @@ void put_parameters(const xpp::Session &s, xpp::Sink &fp, const char *prefix)
 {
   double z;
   for(int i=0;i<s.model().nupar;i++){
-    get_val(s,s.model().upar_names[i],&z);
+    get_val(s.parser,s.model().upar_names[i],&z);
     fp.print("{}{}={:.16g}   ",prefix,s.model().upar_names[i],z);
     if(i%4==3) fp.print("\n");
   }

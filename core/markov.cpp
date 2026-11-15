@@ -96,9 +96,9 @@ void update_markov(xpp::Session &s, double *x, double t, double dt)
 {
   int i;
   if(s.model().nmarkov==0)return;
-  setvar(s,0,t);
-  for(i=0;i<s.model().node;i++)setvar(s,i+1,x[i]);
-  for(i=s.model().node+s.model().fix_var;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)setvar(s,i+1,x[i-s.model().fix_var]);
+  setvar(s.parser,0,t);
+  for(i=0;i<s.model().node;i++)setvar(s.parser,i+1,x[i]);
+  for(i=s.model().node+s.model().fix_var;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)setvar(s.parser,i+1,x[i-s.model().fix_var]);
   fix_only(s);
   /* every chain moves with the others' variables at their old values (the
      transition formulas read them), so the variables are set after; a
@@ -106,7 +106,7 @@ void update_markov(xpp::Session &s, double *x, double t, double dt)
   for(i=0;i<s.model().nmarkov;i++)
     x[s.model().node+i]=new_state(s,x[s.model().node+i],i,dt);
   for(i=0;i<s.model().nmarkov;i++)
-    setvar(s,i+s.model().node+s.model().fix_var+1,x[s.model().node+i]);
+    setvar(s.parser,i+s.model().node+s.model().fix_var+1,x[s.model().node+i]);
 }
 
 double new_state(xpp::Session &s, double old, int index, double dt)
@@ -130,7 +130,7 @@ double new_state(xpp::Session &s, double old, int index, double dt)
    if(type==0){
      for(i=0;i<ns;i++){
        if(i!=row){
-	 prob=evaluate(s,chain.command[rns+i])*dt;
+	 prob=evaluate(s.parser,chain.command[rns+i])*dt;
 	 sum=sum+prob;
 	 if(coin<=sum){
 	   return(st[i]);
@@ -185,7 +185,7 @@ void one_gill_step(xpp::Session &s, int meth,int nrxn,int *rxn,double *v,double 
   case 0: /* std gillespie method */
     for(i=0;i<nrxn;i++){
       v[i+1]=0.0;
-      r[i]=getvar(s,rxn[i]);
+      r[i]=getvar(s.parser,rxn[i]);
       rate+=r[i];
     }
     r[nrxn]=0.0;

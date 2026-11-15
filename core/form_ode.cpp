@@ -39,6 +39,7 @@
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
+#include <ctime>
 #include <span>
 #include <unordered_map>
 #include <utility>
@@ -86,7 +87,7 @@ void add_svar_names(xpp::Session &s)
   int i;
   for(i=0;i<m.nsvar;i++){
      m.svars[i].index=m.compiler.nvar;
-    if(add_var(s,m.svars[i].name.c_str(),0.0)==1)
+    if(add_var(s.parser,m.svars[i].name.c_str(),0.0)==1)
       model_failed(xpp::Error{"DAE",xpp::format("{} is a name already, or one variable too many",m.svars[i].name),
                               m.svars[i].where});
   }
@@ -114,15 +115,15 @@ void compile_svars(xpp::Session &s)
                             m.naeqn>0?m.aeqns[0].where:m.svars[0].where});
   
   for(i=0;i<m.naeqn;i++){
-    if(add_expr(s,m.aeqns[i].rhs,m.aeqns[i].form.rpn,&n)==1)
+    if(add_expr(s.parser,m.aeqns[i].rhs,m.aeqns[i].form.rpn,&n)==1)
       model_failed(xpp::Error{"DAE","Bad right-hand side for the algebraic equation",m.aeqns[i].where});
-    /* n+2, zero-padded: evaluate(s,)
+    /* n+2, zero-padded: evaluate(s.parser,)
        may read a couple of entries past the parsed length. */
     m.aeqns[i].form.rpn.resize(n+2, 0);
   }
 
    for(i=0;i<m.nsvar;i++){
-    if(add_expr(s,m.svars[i].rhs,m.svars[i].form.rpn,&n)==1)
+    if(add_expr(s.parser,m.svars[i].rhs,m.svars[i].form.rpn,&n)==1)
       model_failed(xpp::Error{"DAE",xpp::format("Bad initial guess for {}",m.svars[i].name),m.svars[i].where});
     m.svars[i].form.rpn.resize(std::max(100, n+2), 0);
    }
@@ -294,7 +295,7 @@ void find_ker(xpp::Session &s, std::string &string, int *alt)
     if(ch=='}'){
       std::string name=xpp::format("K##{}",s.model().compiler.nkernel);
       xpp::log(XPP_LOG_DEBUG, "Kernel mu={:f} {} = {} \n",mu,name,form);
-      if(add_kernel(s,name,mu,form))model_failed();
+      if(add_kernel(s.parser,name,mu,form))model_failed();
       newstr+=name;
       mu=0.0;
       form.clear();
@@ -316,7 +317,14 @@ void find_ker(xpp::Session &s, std::string &string, int *alt)
 void begin_model(xpp::Session &s)
 {
   xpp::Model &m=s.model();
-  init_rpn(s,m.record->command_line.new_seed);
+  init_rpn(s.parser);
+  s.numerics->max_points=4000;
+  s.tables.clear();
+  if (m.record->command_line.new_seed) {
+    s.numerics->rand_seed=static_cast<int>(time(0));
+    xpp::log(XPP_LOG_INFO,"--newseed: seed {}\n",s.numerics->rand_seed);
+  }
+  s.random.seed(s.numerics->rand_seed);
   s.parser.build.in_vars=0;
   s.parser.build.naux=0;
   s.parser.build.aux_names.clear();
@@ -326,7 +334,7 @@ void begin_model(xpp::Session &s)
   m.size_parameters(1); /* a model with no parameter still has the first one's empty name and value to read */
   m.nwiener=0;
   m.ou.clear();
-  add_var(s,"t",0.0);
+  add_var(s.parser,"t",0.0);
 }
 
 /* ---- what a statement or an old-style line does (compiler uses them
@@ -335,7 +343,7 @@ void add_parameter(xpp::Session &s, const std::string &name, double value)
 {
   xpp::Model &m=s.model();
   auto &entry=m.record->define_name(name,xpp::ModelRecord::NameKind::Param,m.nupar,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
-  if(add_con(s,name,value))
+  if(add_con(s.parser,name,value))
     model_failed(xpp::format("{} is a name already, or one parameter too many",name));
   m.size_parameters(m.nupar+1);
   m.default_val[m.nupar]=value;
@@ -351,7 +359,7 @@ void add_constant(xpp::Session &s, const std::string &name, double value, bool w
   xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
   s.model().record->define_name(name,wiener?xpp::ModelRecord::NameKind::Wiener:xpp::ModelRecord::NameKind::Const,s.parser.ncon,
                         {0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
-  if(add_con(s,name,value))
+  if(add_con(s.parser,name,value))
     model_failed(xpp::format("{} is a name already, or one parameter too many",name));
   if(wiener)xpp::add_wiener(s,s.parser.ncon-1);
 }
@@ -476,7 +484,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
       value=atof(tokens.text(" ").c_str());
       nstates=atoi(tokens.text(" \n").c_str());
       m.record->define_name(name,xpp::ModelRecord::NameKind::Markov,m.nmarkov,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
-      if(add_var(s,name,value))
+      if(add_var(s.parser,name,value))
 	model_failed(xpp::format("{} is a name already, or one variable too many",name));
       m.uvar_names[s.parser.build.in_vars+m.nmarkov]=name;
       s.last_ic[s.parser.build.in_vars+m.nmarkov]=value;
@@ -509,7 +517,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
 	  room_for_declared(s);
           m.record->define_name(name,iflg?xpp::ModelRecord::NameKind::Variable:xpp::ModelRecord::NameKind::Fixed,
                         iflg?s.parser.build.in_vars:m.fix_var,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
-	  if(add_var(s,name,value))
+	  if(add_var(s.parser,name,value))
 	    model_failed(xpp::format("{} is a name already, or one variable too many",name));
 	  if(iflg)
 	    {
@@ -534,7 +542,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
       formula=tokens.text("$");
       xpp::log(XPP_LOG_DEBUG, "Kernel mu={:f} {} = {} \n",value,name,formula);
       m.record->define_name(name,xpp::ModelRecord::NameKind::Kernel,m.compiler.nkernel,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
-      if(add_kernel(s,name,value,formula)){
+      if(add_kernel(s.parser,name,value,formula)){
 	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
       }
@@ -551,7 +559,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
 	formula=tokens.text("\n");
 	xpp::log(XPP_LOG_INFO, " {} has {} pts from {:f} to {:f} = {}\n",
 	       name,nn,xlo,xhi,formula);
-	add_table_name(s,s.ntable,name);
+	add_table_name(s.parser,s.ntable,name);
 
 	if(auto t=create_fun_table(s,nn,xlo,xhi,formula,s.ntable);!t)
 	  table_failed(t.error());
@@ -571,7 +579,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
 	else
 	  {
 	    xpp::log(XPP_LOG_INFO, "Lookup table {} = {} \n",name,formula);
-            add_table_name(s,s.ntable,name);
+            add_table_name(s.parser,s.ntable,name);
 	    if(auto t=add_file_table(s,s.ntable,formula);!t)
 	      table_failed(t.error());
 	    s.ntable++;
@@ -584,7 +592,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
       formula=tokens.text("$");
       xpp::log(XPP_LOG_INFO, "{} {} :\n",name,narg);
       m.record->define_name(name,xpp::ModelRecord::NameKind::Function,m.compiler.nfun,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
-      if(add_ufun(s,name,formula,narg)){
+      if(add_ufun(s.parser,name,formula,narg)){
 	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
       }
@@ -622,7 +630,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
 	  set_ode_name(m,m.node-m.fix_var+m.nmarkov,formula);
 	}
       xpp::log(XPP_LOG_INFO, "RHS({})={}\n",m.node,formula);
-      if(add_expr(s,formula,m.programs[m.node].rpn,&len)){
+      if(add_expr(s.parser,formula,m.programs[m.node].rpn,&len)){
 	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
       }
@@ -761,16 +769,16 @@ void finish_model(xpp::Session &s)
   /*
      add primed variables                              */
   m.prime_start=m.compiler.nvar;
-  add_var(s,"t'",0.0);
+  add_var(s.parser,"t'",0.0);
   for(i=0;i<m.node ;i++)
-    add_var(s,xpp::format("{}'",uvar_names[i]),0.0);
+    add_var(s.parser,xpp::format("{}'",uvar_names[i]),0.0);
   if(m.nmarkov>0)
     xpp::compile_all_markov(s);
   if(compile_flags(s)==1){
     model_failed("Error in compiling a flag");
   }
   /*  add auxiliary variables   */
-  for(i=m.node+m.nmarkov;i<m.neq;i++)add_var(s,uvar_names[i],0.0);
+  for(i=m.node+m.nmarkov;i<m.neq;i++)add_var(s.parser,uvar_names[i],0.0);
   m.ncon_start=s.parser.ncon;
   m.nsym_start=s.parser.nsym;
   program.version_major=static_cast<float>(MYSTR1);
@@ -933,9 +941,9 @@ public:
       compile(s);
     }
     xpp::LoadSite::at(m_.this_file);
-    compile_derived(s_);
+    compile_derived(s_.parser);
     xpp::compile_svars(s_);
-    evaluate_derived(s_);
+    evaluate_derived(s_.parser);
     xpp::log(XPP_LOG_INFO, " All formulas are valid!!\n");
     m.node=nvar_+naux_+nfix_;
     xpp::log(XPP_LOG_INFO, " nvar={:d} naux={:d} nfix={:d} nmark={:d} NEQ={:d} NODE={:d} \n",
@@ -1210,7 +1218,7 @@ private:
       for(const Binding &b : s.bindings){
 	note(b.name,b.pos.line?b.pos:s.pos,s);
         m.record->define_name(b.name,xpp::ModelRecord::NameKind::Derived,s_.parser.ncon,s.pos);
-        if(add_derived(s_,xpp::upper_case(b.name),text(b.value,true))==1)
+        if(add_derived(s_.parser,xpp::upper_case(b.name),text(b.value,true))==1)
 	  clash(converted(b.name));
       }
       break;
@@ -1227,7 +1235,7 @@ private:
     case Statement::Kind::Table: {
       const std::string name=converted(s.name);
       m.record->define_name(s.name,xpp::ModelRecord::NameKind::Table,ntab_,s.pos);
-      if(add_table_name(s_,ntab_,name)==1){
+      if(add_table_name(s_.parser,ntab_,name)==1){
 	model_failed(xpp::format("{} is a duplicate name",name));
       }
       xpp::log(XPP_LOG_DEBUG, "added name {:d}\n",ntab_);
@@ -1237,7 +1245,7 @@ private:
     case Statement::Kind::Fun: {
       const std::string name=converted(s.name);
       m.record->define_name(s.name,xpp::ModelRecord::NameKind::Function,nufun_,s.pos);
-      if(add_ufun_name(s_,name,nufun_,static_cast<int>(s.more().names.size()))==1){
+      if(add_ufun_name(s_.parser,name,nufun_,static_cast<int>(s.more().names.size()))==1){
 	model_failed(xpp::format("Duplicate name or too many functions for {}",name));
       }
       nufun_++;
@@ -1256,16 +1264,16 @@ private:
     xpp::Session &s=s_;
     const int nvar=static_cast<int>(vnames_.size());
     for(int i=0;i<nvar;i++){
-      if(add_var(s_,vnames_[i].c_str(),0.0))clash(vnames_[i]);
+      if(add_var(s_.parser,vnames_[i].c_str(),0.0))clash(vnames_[i]);
       m.uvar_names[i]=vnames_[i];
       m.record->names[vnames_[i]].column=i;
       s.last_ic[i]=DEFAULT_INITIAL_VALUE;
       m.default_ic[i]=DEFAULT_INITIAL_VALUE;
     }
     for(const std::string &f : fnames_)
-      if(add_var(s_,f.c_str(),0.0))clash(f);
+      if(add_var(s_.parser,f.c_str(),0.0))clash(f);
     for(size_t i=0;i<mnames_.size();i++){
-      if(add_var(s_,mnames_[i].c_str(),0.0))clash(mnames_[i]);
+      if(add_var(s_.parser,mnames_[i].c_str(),0.0))clash(mnames_[i]);
       m.uvar_names[i+nvar]=mnames_[i];
       m.record->names[mnames_[i]].column=static_cast<int>(i)+nvar;
       s.last_ic[i+nvar]=DEFAULT_INITIAL_VALUE;
@@ -1314,7 +1322,7 @@ private:
     const double z=b.value.value;
     s_.last_ic[in]=z;
     m_.default_ic[in]=z;
-    set_val(s_,name.c_str(),z);
+    set_val(s_.parser,name.c_str(),z);
     xpp::log(XPP_LOG_INFO, " {} {}(0)={:g}\n",markov?"Markov":"Initial",name,z);
   }
 
@@ -1355,7 +1363,7 @@ private:
       set_ode_name(m,nvar_,rhs);
       new_program(m,nvar_);
       find_ker(s_,rhs,&alt);
-      if(add_expr(s_,rhs,m.programs[nvar_].rpn,&len)){
+      if(add_expr(s_.parser,rhs,m.programs[nvar_].rpn,&len)){
 	model_failed(xpp::format("ERROR compiling {}'",s.name));
       }
       if(s.kind==Statement::Kind::Map){
@@ -1373,7 +1381,7 @@ private:
       std::string rhs=text(s.expr,true);
       find_ker(s_,rhs,&alt);
       new_program(m,nfix_+s_.parser.build.in_vars);
-      if(add_expr(s_,rhs,m.programs[nfix_+s_.parser.build.in_vars].rpn,&len)!=0){
+      if(add_expr(s_.parser,rhs,m.programs[nfix_+s_.parser.build.in_vars].rpn,&len)!=0){
 	model_failed(xpp::format("Error allocating or compiling {}",s.name));
       }
       nfix_++;
@@ -1392,7 +1400,7 @@ private:
 	const int in1=s_.parser.build.in_vars+m.nmarkov+naux_,in2=s_.parser.build.in_vars+m.fix_var+naux_;
 	set_ode_name(m,in1,rhs);
 	new_program(m,in2);
-	if(add_expr(s_,rhs,m.programs[in2].rpn,&len)){
+	if(add_expr(s_.parser,rhs,m.programs[in2].rpn,&len)){
 	  model_failed(xpp::format("ERROR compiling {}",b.name));
 	}
 	naux_++;
@@ -1427,7 +1435,7 @@ private:
       std::vector<std::string> args=s.more().names;
       if(s.expr.kind!=Expr::Kind::Text)
 	for(std::string &a : args)xpp::to_upper(a.data());
-      if(add_ufun_new(s_,nufun_,rhs,args)!=0){
+      if(add_ufun_new(s_.parser,nufun_,rhs,args)!=0){
 	model_failed(xpp::format("Function {} messed up",s.name));
       }
       nufun_++;
@@ -1564,7 +1572,7 @@ void set_initial_values(xpp::Session &s)
     const int i=init.index;
     s.last_ic[i]=z;
     m.default_ic[i]=z;
-    set_val(s,converted(init.name),z);
+    set_val(s.parser,converted(init.name),z);
   }
 }
 

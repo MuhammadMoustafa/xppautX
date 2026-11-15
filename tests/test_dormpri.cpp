@@ -33,7 +33,7 @@ TEST_CASE("test_dormpri")
     s.numerics->state_limit=1e8;
     for(auto method:{xpp::method::DP5,xpp::method::DP83}){
         const auto fresh=[&]{
-            CHECK(xpp::set_val(s,"rate",.01));
+            CHECK(xpp::set_val(s.parser,"rate",.01));
             s.model().flags.clear();s.numerics->poincare_map=xpp::PoincareMap::none;s.integrator->stop_flag=0;
             return xpp::make_dormand_prince(xpp::solver_info(method),s,3);
         };
@@ -44,8 +44,8 @@ TEST_CASE("test_dormpri")
             CHECK(solver->advance({.y=y.data(),.t=&t,.neq=3,.start=&start,.tout=out,.sections=true}).has_value());
             CHECK(t==out);
             double current=0;
-            CHECK(xpp::get_val(s,"x",&current)&&current==y[0]);
-            CHECK(xpp::get_val(s,"t",&current)&&current==t);
+            CHECK(xpp::get_val(s.parser,"x",&current)&&current==y[0]);
+            CHECK(xpp::get_val(s.parser,"t",&current)&&current==t);
             CHECK(fabs(y[0]-xpp::math::exp(-.01*t))<2e-8);
             CHECK(fabs(y[1]-t)<1e-10);
         }

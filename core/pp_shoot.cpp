@@ -53,16 +53,16 @@ void do_bc(xpp::Session &s, double *y__0, double t0, double *y__1, double t1, do
  int n0=s.model().prime_start;
  int i;
 
- setvar(s,0,t0);
- setvar(s,n0,t1);
+ setvar(s.parser,0,t0);
+ setvar(s.parser,n0,t1);
 
  for(i=0;i<n;i++){
-   setvar(s,i+1,y__0[i]);
-   setvar(s,i+n0+1,y__1[i]);
+   setvar(s.parser,i+1,y__0[i]);
+   setvar(s.parser,i+n0+1,y__1[i]);
  }
   fix_only(s);
 
-  for(i=0;i<n;i++)f[i]=evaluate(s,s.bcs[i].com);
+  for(i=0;i<n;i++)f[i]=evaluate(s.parser,s.bcs[i].com);
 }
 
 xpp::Result<> compile_bvp(xpp::Session &s)
@@ -73,7 +73,7 @@ xpp::Result<> compile_bvp(xpp::Session &s)
  s.parser.nsym=s.model().nsym_start;
  for(int i=0;i<s.model().node;i++){
    int length=0;
-   if(add_expr(s,s.bcs[static_cast<std::size_t>(i)].string.data(),compiled[static_cast<std::size_t>(i)].rpn,&length)){
+   if(add_expr(s.parser,s.bcs[static_cast<std::size_t>(i)].string.data(),compiled[static_cast<std::size_t>(i)].rpn,&length)){
      s.parser.ncon=before_ncon;
      s.parser.nsym=before_nsym;
      return fail("boundary",xpp::format("Bad syntax in boundary condition {}: {}",i+1,s.bcs[static_cast<std::size_t>(i)].string.data()),model_statement_place(s.model(),odex::Statement::Kind::Boundary,i));
@@ -109,7 +109,7 @@ xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend, cons
    {
      if(xpp::job::cancelled())break;
      temp=parlo+dpar*static_cast<double>(i);
-     set_val(s,s.shoot_range->item,temp);
+     set_val(s.parser,s.shoot_range->item,temp);
      bottom_msg(2,xpp::format("{}={:.16g}",s.shoot_range->item,temp));
      if(s.shoot_range->movie==1)
        clear_draw_window(s);
@@ -180,7 +180,7 @@ struct ShootStoreFrom {
 xpp::Result<> keep_shot(xpp::Session &s, const xpp::Result<Shot> &shot, double *ystart, bool show, std::optional<std::pair<int,double>> period, const xpp::RunReport &report)
 {
  xpp::FirstError problems;
- const auto restore_period=[&]{if(period)set_val(s,s.model().upar_names[static_cast<std::size_t>(period->first)],period->second);};
+ const auto restore_period=[&]{if(period)set_val(s.parser,s.model().upar_names[static_cast<std::size_t>(period->first)],period->second);};
  if(!shot){
    restore_period();
    return std::unexpected(shot.error());
@@ -226,12 +226,12 @@ xpp::Result<double> bvp_solve_periodic(xpp::Session &s, int ipar, int ivar, doub
  std::vector<double> ystart(s.model().neq),yend(s.model().neq);
  get_ic(s,1,ystart.data());
  double oldpar;
- get_val(s,s.model().upar_names[static_cast<std::size_t>(ipar)],&oldpar);
+ get_val(s.parser,s.model().upar_names[static_cast<std::size_t>(ipar)],&oldpar);
  const xpp::Result<Shot> shot=bvshoot(s,ystart.data(),yend.data(),s.numerics->bvp_tolerance,s.numerics->bvp_epsilon,s.numerics->bvp_max_iterates,s.model().node,show?1:0,
 	1,ipar,ivar,sect);
  if(auto kept=keep_shot(s,shot,ystart.data(),show,std::pair{ipar,oldpar},report);!kept)return std::unexpected(kept.error());
  double period;
- get_val(s,s.model().upar_names[static_cast<std::size_t>(ipar)],&period);
+ get_val(s.parser,s.model().upar_names[static_cast<std::size_t>(ipar)],&period);
  return period;
 }
 
@@ -295,7 +295,7 @@ xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, 
 
  for(i=0;i<n;i++)
    y0[i]=y[i];
- if(iper)  get_val(s,s.model().upar_names[ipar],&y0[n]);
+ if(iper)  get_val(s.parser,s.model().upar_names[ipar],&y0[n]);
 
  while(1){
    const char esc=my_abort();
@@ -303,7 +303,7 @@ xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, 
 
   t=t0;
  istart=1;
- if(iper)set_val(s,s.model().upar_names[ipar],y0[n]);
+ if(iper)set_val(s.parser,s.model().upar_names[ipar],y0[n]);
 
  {
    const xpp::Result<> run=ode_int(s,y,&t,&istart,ishow);
@@ -322,7 +322,7 @@ xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, 
  if(error<err){
    for(i=0;i<n;i++)y[i]=y0[i]; /*   Good values .... */
   if(iper){ 
-    set_val(s,s.model().upar_names[ipar],y0[n]);
+    set_val(s.parser,s.model().upar_names[ipar],y0[n]);
     redraw_params();
   }
    
@@ -345,7 +345,7 @@ xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, 
      y0[j]=y0[j]+dev;
   
      if(j==n)
-         set_val(s,s.model().upar_names[ipar],y0[j]);
+         set_val(s.parser,s.model().upar_names[ipar],y0[j]);
        
      t=t0;
      istart=1;

@@ -109,7 +109,7 @@ DenseEvent dense_event(Session &s, double from, double until, double step_from, 
   };
   for(int i=0;i<s.model().flag_count();++i){
     const auto &flag=s.model().flags[i];
-    scan([&](double t){state(t,scratch);set_fix_rhs(s,t,scratch.data());return evaluate(s,flag.comcond);},
+    scan([&](double t){state(t,scratch);set_fix_rhs(s,t,scratch.data());return evaluate(s.parser,flag.comcond);},
          flag.sign,i,false,-1,flag.nointerp!=0);
   }
   const auto &num=*s.numerics;
@@ -454,7 +454,7 @@ xpp::Result<std::vector<int>> set_ic_array(xpp::Session &s, std::string_view nam
   std::vector<int> indices;
   std::vector<double> values;
   for(int k=0;k<size;k++){
-    set_val(s,"t",static_cast<double>(k)); /* the formula's t is the element's offset from the first */
+    set_val(s.parser,"t",static_cast<double>(k)); /* the formula's t is the element's offset from the first */
     const xpp::Result<double> value=evaluate_formula(s,formula);
     if(!value)return ic_problem(xpp::format("{}: {}",formula,value.error().what));
     indices.push_back(first+k);
@@ -507,7 +507,7 @@ xpp::Result<> ode_int(xpp::Session &s, double *y, double *t, int *istart, int is
    per_advance=*counted;
  }
  copy_state(s,s.solver_work->xpv.x,y);
- evaluate_derived(s);
+ evaluate_derived(s.parser);
  solver.begin(istart);
  xpp::SolverStep step{.y=s.solver_work->xpv.x,.t=t,.neq=nodes,.start=istart};
  if(solver.traits().fixed_step){
@@ -673,7 +673,7 @@ copy_state(s,s.solver_work->xpv.x,x);
 if(program.interactive&&front_end) cwidth=get_command_width();
 
  s.integrator->last_time=*t;
- evaluate_derived(s);
+ evaluate_derived(s.parser);
  if(s.parser.step_error)return take_step_error(s);
 
  solver.begin(start);

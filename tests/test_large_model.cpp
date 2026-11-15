@@ -85,8 +85,8 @@ TEST_CASE("test_large_model")
     CHECK(column==EQUATIONS);
     find_variable(s,"both",&column);
     CHECK(column==EQUATIONS+1);
-    CHECK(xpp::get_var_index(s,"x5199")==EQUATIONS);
-    CHECK(xpp::get_param_index(s,"p449")==m.upar_con[PARAMETERS-1]);
+    CHECK(xpp::get_var_index(s.parser,"x5199")==EQUATIONS);
+    CHECK(xpp::get_param_index(s.parser,"p449")==m.upar_con[PARAMETERS-1]);
     CHECK(xpp::find_user_name(m,PARAMBOX,"p449")==PARAMETERS-1);
     const std::size_t indexed=m.record->names.size();
 

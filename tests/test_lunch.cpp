@@ -158,9 +158,9 @@ TEST_CASE("test_lunch")
     CHECK(s.numerics->total_time == 500 && s.numerics->delta_t == 0.05 && s.numerics->store_from == 200);
     CHECK(s.numerics->method == xpp::method::RK4);
     CHECK(s.data_store->current_time == 8.549999999999986);
-    xpp::get_val(s, "iapp", &x);
+    xpp::get_val(s.parser, "iapp", &x);
     CHECK(x == 0.09);
-    xpp::get_val(s, "gca", &x);
+    xpp::get_val(s.parser, "gca", &x);
     CHECK(x == 1);
     CHECK(s.last_ic[0] == 0.008015491512486121 && s.last_ic[1] == 0.05732158561413084);
     CHECK(s.numerics->poincare_map == xpp::PoincareMap::period); /* Period */
@@ -229,7 +229,7 @@ TEST_CASE("test_lunch")
 
     /* all or nothing: the session changed, then a file with a bad value last
        is refused at that line, the session as it was, value for value */
-    xpp::set_val(s, "iapp", 0.25);
+    xpp::set_val(s.parser, "iapp", 0.25);
     s.numerics->total_time = 11;
     const std::string before = snapshot(s);
     const int last_line = last_line_with(first, "transpose.row_skip:");

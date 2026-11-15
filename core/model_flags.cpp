@@ -34,7 +34,7 @@ int add_global(xpp::Session &s, const char *cond, int sign, const std::vector<xp
 static bool compile(xpp::Session &s, const std::string &expr, std::vector<int> &out)
 {
   int nc;
-  if(xpp::add_expr(s,expr,out,&nc))return false;
+  if(xpp::add_expr(s.parser,expr,out,&nc))return false;
   return true;
 }
 
