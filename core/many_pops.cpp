@@ -156,7 +156,7 @@ void open_diagram_window(Session &s)
         if (existing && (existing->kind!=WindowKind::diagram || existing->index!=i))
             view.name=next_window_name(s,WindowKind::diagram);
     }
-    autox_window_opened(s);
+    autox_window_opened(xpp::autox_parts(s));
 }
 
 std::string window_name(const Session &s, XppWinId handle)

@@ -27,7 +27,7 @@ namespace {
 /* the model parameter name of the diagram point's axis (d->icp1/icp2), or "" */
 const char *par_name(const xpp::Session &s, xpp::AutoxAxis icp)
 {
-    const char *p = icp.is_parameter() ? autox_par_name(s, icp.index) : nullptr;
+    const char *p = icp.is_parameter() ? autox_par_name(xpp::autox_parts(s), icp.index) : nullptr;
     return p ? p : "";
 }
 

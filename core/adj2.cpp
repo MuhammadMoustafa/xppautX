@@ -37,7 +37,7 @@
 #include <utility>
 
 #include "histogram.h"
-#include "session.h"
+#include "analysis_parts.h"
 #include "xpp_text.h"
 
 namespace xpp {
@@ -53,7 +53,7 @@ namespace {
 
 /* the transposed data from the settings in s.adjoint->transpose, shown in the browser: every value it reads lies in
    the stored data (transpose_data checked) */
-void create_transpose(xpp::Session &s)
+void create_transpose(xpp::AnalysisParts &s)
 {
   const ColumnTable data=s.adjoint->transposed.make(*s.data_store,s.adjoint->transpose.nrow+1,s.adjoint->transpose.ncol,s.model().neq);
   for(int j=0;j<s.adjoint->transpose.ncol;j++)
@@ -72,7 +72,7 @@ void create_transpose(xpp::Session &s)
 
 } // namespace
 
-Result<> transpose_data(xpp::Session &s, std::string_view first_column, int columns, int column_skip, int first_row, int rows, int row_skip)
+Result<> transpose_data(xpp::AnalysisParts &s, std::string_view first_column, int columns, int column_skip, int first_row, int rows, int row_skip)
 {
   const int neq=s.model().neq,stored_rows=s.data_store->rows;
   const Place here=command_place();
@@ -109,40 +109,40 @@ Result<> transpose_data(xpp::Session &s, std::string_view first_column, int colu
 }
 
  
-void alloc_h_stuff(xpp::Session &s)
+void alloc_h_stuff(xpp::AnalysisParts &s)
 {
  s.adjoint->coup_fun.assign(s.model().node,{});
  s.adjoint->coup_string.resize(static_cast<std::size_t>(s.model().node),"0"); /* what the model's options gave stays */
 }
 
-void data_back(xpp::Session &s)
+void data_back(xpp::AnalysisParts &s)
 {
  s.histogram->four_here=0;
  new_browse_dat(s,s.data_store->col,s.data_store->rows);
 }
 
-void adj_back(xpp::Session &s)
+void adj_back(xpp::AnalysisParts &s)
 {
  AdjointState &a=*s.adjoint;
  if(a.adjoint_here)new_browse_dat(s,a.adjoint.view(*s.data_store),a.adjoint_rows);
 }
 
-void h_back(xpp::Session &s)
+void h_back(xpp::AnalysisParts &s)
 {
  AdjointState &a=*s.adjoint;
  if(a.h_here)new_browse_dat(s,a.h_function.view(*s.data_store),a.h_rows);
 }
-Result<> load_adjoint(xpp::Session &s)
+Result<> load_adjoint(xpp::AnalysisParts &s)
 {
  return show_derived(s,s.adjoint->adjoint_here,"adjoint","No adjoint computed yet: compute one first",adj_back);
 }
 
-Result<> load_interaction(xpp::Session &s)
+Result<> load_interaction(xpp::AnalysisParts &s)
 {
  return show_derived(s,s.adjoint->h_here,"adjoint","No H function computed yet: compute one first",h_back);
 }
 
-Result<> set_adjoint_parameters(xpp::Session &s, int max_iterates, double tolerance)
+Result<> set_adjoint_parameters(xpp::AnalysisParts &s, int max_iterates, double tolerance)
 {
   if(max_iterates<1)return fail("adjoint",xpp::format("Maximum iterates is 1 or more, not {}",max_iterates),command_place());
   if(!(tolerance>0))return fail("adjoint",xpp::format("The adjoint error tolerance is above 0, not {}",xpp::number(tolerance)),command_place());
@@ -151,7 +151,7 @@ Result<> set_adjoint_parameters(xpp::Session &s, int max_iterates, double tolera
   return {};
 }
 
-Result<> new_h_fun(xpp::Session &s, bool compile, const std::vector<std::string> *couplings)
+Result<> new_h_fun(xpp::AnalysisParts &s, bool compile, const std::vector<std::string> *couplings)
 {
 
  int n=2;
@@ -196,7 +196,7 @@ Result<> new_h_fun(xpp::Session &s, bool compile, const std::vector<std::string>
 }
 
 
-Result<> make_h(xpp::Session &s, ColumnTable orb, ColumnTable adj, ColumnTable h, int nt)
+Result<> make_h(xpp::AnalysisParts &s, ColumnTable orb, ColumnTable adj, ColumnTable h, int nt)
 {
  const int node=s.model().node;
  double sum; /* each step rounded as the store keeps a value: a single store sums in floats */
@@ -243,7 +243,7 @@ Result<> make_h(xpp::Session &s, ColumnTable orb, ColumnTable adj, ColumnTable h
 
 }
 
-Result<> new_adjoint(xpp::Session &s)
+Result<> new_adjoint(xpp::AnalysisParts &s)
 {
  if(s.data_store->rows<2)
    return fail("adjoint",xpp::format("Compute a periodic orbit first: the run stored {} row(s), the adjoint needs at least 2",s.data_store->rows),command_place());
@@ -286,7 +286,7 @@ Result<> new_adjoint(xpp::Session &s)
     t in the first column.
   */
 
-xpp::Result<> adjoint(xpp::Session &s, ColumnTable orbit, ColumnTable adjnt, int nt, double dt, double eps, double minerr, int maxit, int node)
+xpp::Result<> adjoint(xpp::AnalysisParts &s, ColumnTable orbit, ColumnTable adjnt, int nt, double dt, double eps, double minerr, int maxit, int node)
 {
   double ytemp;
   double t,prod;
@@ -439,7 +439,7 @@ return {};
    to get an approximation
 */
 
-Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range, const RunReport &report)
+Result<LyapunovResult> lyapunov_exponent(xpp::AnalysisParts &s, bool over_range, const RunReport &report)
 {
   if(!over_range){
     auto z=hrw_liapunov(s,s.numerics->equilibria.jacobian_step);
@@ -450,8 +450,8 @@ Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range, const
   if(auto allowed=run_allowed(s,"range");!allowed)return std::unexpected(allowed.error());
   /* the sweep keeps its exponents while the flag is up; they are in the data table after, and gone from here */
   struct Sweep {
-    xpp::Session &s;
-    explicit Sweep(xpp::Session &session) : s(session){s.adjoint->liap_flag=1;}
+    xpp::AnalysisParts &s;
+    explicit Sweep(xpp::AnalysisParts &session) : s(session){s.adjoint->liap_flag=1;}
     ~Sweep(){
       s.adjoint->liap_flag=0;
       for(auto &c : s.adjoint->liap)c.clear();
@@ -474,7 +474,7 @@ Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range, const
   return LyapunovResult{points>0?static_cast<double>(largest):0.0,done.runs};
 }
 
-void do_this_liaprun(xpp::Session &s, double p)
+void do_this_liaprun(xpp::AnalysisParts &s, double p)
 {
  if(s.adjoint->liap_flag==0)return;
  s.adjoint->liap[0].push_back(p);
@@ -494,7 +494,7 @@ void norm_vec(std::span<double> v, double &mu)
   mu=sum;
 }
 
-xpp::Result<double> hrw_liapunov(xpp::Session &s, double eps)
+xpp::Result<double> hrw_liapunov(xpp::AnalysisParts &s, double eps)
 {
  const std::size_t node=static_cast<std::size_t>(s.model().node);
  std::vector<double> y(node),yp(node),dy(node);

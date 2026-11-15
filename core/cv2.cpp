@@ -1,5 +1,5 @@
 #include "cv2.h"
-#include "session.h"
+#include "run_parts.h"
 #include "expr.h"
 
 #include "flags.h"
@@ -34,7 +34,7 @@ namespace {
 /* CVODE's right-hand side: fdata is the Session start_cv gave it */
 void cvf(int n, double t, cvode_solver::N_VectorContent * y, cvode_solver::N_VectorContent * ydot, void *fdata)
 {
-  my_rhs(*static_cast<xpp::Session *>(fdata),t,y->data,ydot->data,n);
+  my_rhs(*static_cast<xpp::RunParts *>(fdata),t,y->data,ydot->data,n);
 }
 
 /* CVODE's Jacobian, dense or banded, when the numerics ask for the exact
@@ -42,7 +42,7 @@ void cvf(int n, double t, cvode_solver::N_VectorContent * y, cvode_solver::N_Vec
 void cv_dense_jacobian(int N, cvode_solver::DenseMatRec * J, cvode_solver::RhsFn, void *, double t, cvode_solver::N_VectorContent * y, cvode_solver::N_VectorContent * fy, cvode_solver::N_VectorContent *, double, double,
                        void *jac_data, int &, cvode_solver::N_VectorContent *, cvode_solver::N_VectorContent *, cvode_solver::N_VectorContent *)
 {
-  xpp::Session &s=*static_cast<xpp::Session *>(jac_data);
+  xpp::RunParts &s=*static_cast<xpp::RunParts *>(jac_data);
   const int n=static_cast<int>(N);
   std::vector<double> out(static_cast<size_t>(n)*n);
   exact_jacobian(s,*s.jacobian_scratch,s.parser.constants.data(),t,y->data,fy->data,n,{JacobianLayout::ColumnMajor},out.data());
@@ -52,7 +52,7 @@ void cv_dense_jacobian(int N, cvode_solver::DenseMatRec * J, cvode_solver::RhsFn
 void cv_band_jacobian(int N, int mupper, int mlower, cvode_solver::BandMatRec * J, cvode_solver::RhsFn, void *, double t, cvode_solver::N_VectorContent * y, cvode_solver::N_VectorContent * fy,
                       cvode_solver::N_VectorContent *, double, double, void *jac_data, int &, cvode_solver::N_VectorContent *, cvode_solver::N_VectorContent *, cvode_solver::N_VectorContent *)
 {
-  xpp::Session &s=*static_cast<xpp::Session *>(jac_data);
+  xpp::RunParts &s=*static_cast<xpp::RunParts *>(jac_data);
   const int n=static_cast<int>(N);
   const JacobianForm form{JacobianLayout::Banded,static_cast<int>(mlower),static_cast<int>(mupper)};
   std::vector<double> out(static_cast<size_t>(jacobian_entries(n,form)));
@@ -69,7 +69,7 @@ void cv_band_jacobian(int N, int mupper, int mlower, cvode_solver::BandMatRec * 
 struct CvodeRun::Memory {
   cvode_solver::N_VectorContent *y;
   cvode_solver::CVodeMemRec *cvode;
-  Memory(xpp::Session &s, CvodeRun &run, double *y0, double t, int n, double *atol, double *rtol)
+  Memory(xpp::RunParts &s, CvodeRun &run, double *y0, double t, int n, double *atol, double *rtol)
     : y(cvode_solver::N_VNew(n))
   {
     for(int i=0;i<n;i++)y->data[i]=y0[i];
@@ -96,7 +96,7 @@ CvodeRun::~CvodeRun()=default;
 namespace {
 /* a fresh integration of run from y at t: the memory of one before, if
    it never ended, freed first */
-void start_cv(xpp::Session &s, CvodeRun &run, double *y, double t, int n, double *atol, double *rtol)
+void start_cv(xpp::RunParts &s, CvodeRun &run, double *y, double t, int n, double *atol, double *rtol)
 {
   run.memory.reset();
   run.memory=std::make_unique<CvodeRun::Memory>(s,run,y,t,n,atol,rtol);
@@ -125,7 +125,7 @@ void end_cv(CvodeRun &run)
   run.memory.reset();
 }
 
-std::string cvode_error_text(const xpp::Session &s, const CvodeRun &run, int kflag)
+std::string cvode_error_text(const xpp::RunParts &s, const CvodeRun &run, int kflag)
 {
   switch(kflag){
   case -1: return "CVODE has no memory for the integration";
@@ -142,7 +142,7 @@ std::string cvode_error_text(const xpp::Session &s, const CvodeRun &run, int kfl
   }
 }
 
-int cvode(xpp::Session &s, CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
+int cvode(xpp::RunParts &s, CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
  int err=0;
  if(s.model().flag_count()==0)
@@ -152,7 +152,7 @@ int cvode(xpp::Session &s, CvodeRun &run, int *command, double *y, double *t, in
  return 1;
 }
 /* rtol is like our TOLER and atol is something else ?? */
-int ccvode(xpp::Session &s, CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
+int ccvode(xpp::RunParts &s, CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
   int i,flag;
   *kflag=0;

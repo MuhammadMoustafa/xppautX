@@ -68,7 +68,7 @@ AutoxParallel::AutoxParallel(unsigned threads) : threads_(std::max(threads, 1u))
 AutoxParallel::~AutoxParallel() = default;
 
 bool autox_parallel_ready(const AutoxParts &s) {
-    return pure_rhs_ready(s.session)
+    return pure_rhs_ready(s.analysis)
         && (!solver_info(s.numerics->method).traits.discrete || s.numerics->store_every == 1);
 }
 

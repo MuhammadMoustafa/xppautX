@@ -25,21 +25,25 @@
 
 namespace xpp {
 
-struct Session; /* session.h */
+struct AnalysisParts; /* analysis_parts.h */
 
 /* why s's runs may not be computed side by side on workers, or "" when they may: the model's right-hand side is not
    pure (Model::rhs_impurity, the same condition autoX's collocation threads need), or the Session itself does what a
    worker does not (the animation draws as the run goes, a replay armed a stop at a row, an unchanged-digits run) */
-std::string sweep_serial_reason(const Session &s);
+std::string sweep_serial_reason(const AnalysisParts &s);
 
 /* says, at INFO, that the runs of the sweep named (Range, Range Equilibria, Range Shoot) go one after another though the
    thread setting gave more than one thread, and why, when there is more than one run */
-void say_sweep_serial(const Session &s, std::string_view sweep, std::int64_t runs, std::string_view why);
+void say_sweep_serial(const AnalysisParts &s, std::string_view sweep, std::int64_t runs, std::string_view why);
 
-/* a worker for a sweep's runs: a Session of s's Model with the numerics, the parser's constants and variables, the
-   tables, the global flags and the initial data s has now, room for `rows` rows, its own solver and generator. s is
-   untouched. The worker is made once for the sweep and reused for one run after another. */
-std::unique_ptr<Session> make_sweep_worker(Session &s, int rows);
+/* a worker for a sweep's runs: what holds a Session of s's Model with the numerics, the parser's constants and variables, the
+   tables, the global flags and the initial data s has now, room for `rows` rows, its own solver and generator; s is
+   untouched. The Session module makes it (AnalysisParts::make_worker) and the worker is made once for the sweep and reused for one
+   run after another. */
+struct SweepWorker {
+    virtual ~SweepWorker() = default;
+    virtual AnalysisParts &parts() = 0;
+};
 
 /* how many runs a thread may be ahead of the one the caller has taken in: the results waiting in order are held in
    memory, so a long sweep does not hold every run's rows at once */

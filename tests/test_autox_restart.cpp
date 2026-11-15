@@ -41,7 +41,7 @@ void formulation(xpp::Session &s, decltype(&periodic_fold_starting_data) restart
                  long dimension, long free, bool bvp, bool torus,
                  bool optimization, bool truncated) {
     AutoxRun run;
-    autox_bind_parts(run, s);
+    autox_bind_parts(run, xpp::autox_parts(s));
     run.parameter_count = s.autox_state->parameter_layout.size();
     run.restart_name = "fort.3";
     run.restart_text = solution(run.parameter_count, bvp);
@@ -112,7 +112,7 @@ void formulation(xpp::Session &s, decltype(&periodic_fold_starting_data) restart
 
 void algebraic(xpp::Session &s, bool truncated) {
     AutoxRun run;
-    autox_bind_parts(run, s);
+    autox_bind_parts(run, xpp::autox_parts(s));
     run.parameter_count = s.autox_state->parameter_layout.size();
     run.restart_name = "fort.3";
     run.restart_text = xpp::format("3 1 5 7 1 1 1 3 2 0 0 {}\n0 2 3\n", run.parameter_count);
@@ -148,7 +148,7 @@ void algebraic(xpp::Session &s, bool truncated) {
 // index, full attempted point number and emitted text, not just the value.
 void user_zero_text(xpp::Session &s) {
     AutoxRun run;
-    autox_bind_parts(run, s);
+    autox_bind_parts(run, xpp::autox_parts(s));
     run.parameter_count = s.autox_state->parameter_layout.size();
     iap_type iap{};
     iap.run = &run;
@@ -183,7 +183,7 @@ void user_zero_text(xpp::Session &s) {
 // column widths, without computing thousands of continuation points.
 void point_files(xpp::Session &s, int count, bool collocation) {
     AutoxRun run;
-    autox_bind_parts(run, s);
+    autox_bind_parts(run, xpp::autox_parts(s));
     run.parameter_count = s.autox_state->parameter_layout.size();
     iap_type iap{};
     iap.run = &run;
@@ -235,7 +235,7 @@ void point_files(xpp::Session &s, int count, bool collocation) {
 void branch_point_direction(xpp::Session &s) {
     for (bool branch_point : {true, false}) {
         AutoxRun run;  // write_special_point_restart writes the run's own solutions text (fort.8)
-        autox_bind_parts(run, s);
+        autox_bind_parts(run, xpp::autox_parts(s));
         run.parameter_count = s.autox_state->parameter_layout.size();
         iap_type iap{};
         iap.run = &run;
@@ -295,7 +295,7 @@ TEST_CASE("test_autox_restart") {
     char *argv[] = {name, model, nullptr};
     CHECK(load_args(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
-    xpp::init_autox_win(s);
+    xpp::init_autox_win(xpp::autox_parts(s));
     // Directly cover each audit-named augmented fort.8 formulation.
     for (bool truncated : {false, true}) {
         formulation(s, periodic_fold_starting_data, 4, 4, false, false, false, truncated);

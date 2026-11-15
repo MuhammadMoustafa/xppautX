@@ -11,7 +11,7 @@
 
 namespace xpp {
 
-struct Session; /* session.h */
+struct RunParts; /* run_parts.h */
 
 /* The difference Jacobian's columns in groups (W488, W476 finding 6): no
    equation reads two states of one group, so one right-hand side with all
@@ -56,7 +56,7 @@ struct JacobianForm {
    widths clamped to n-1 (a band at least as wide as the system is the
    full matrix), so differencing, factorisation and the work size agree
    (W261). */
-JacobianForm model_jacobian_form(const Session &s, int n);
+JacobianForm model_jacobian_form(const RunParts &s, int n);
 
 /* How many doubles a Jacobian of n equations in `form` holds. */
 int jacobian_entries(int n, const JacobianForm &form);
@@ -78,7 +78,7 @@ void jacobian(const JacobianEvaluate &evaluate, const double *x, const double *f
    in it) on the constants c, with the scratch of its caller (the Session's, or an autoX run's own): exact when the
    numerics say so, else by forward differences, in groups where the model allows, the same bits as one state at a
    time. f0 is f(t, x) (for a map's form, already f(x)-x). */
-void model_jacobian(const Session &s, JacobianScratch &scratch, const double *c, double t,
+void model_jacobian(const RunParts &s, JacobianScratch &scratch, const double *c, double t,
                     const std::function<void(double *x, double *f)> &rhs, const double *x, const double *f0, int n, double eps,
                     const JacobianForm &form, double *out);
 
@@ -86,7 +86,7 @@ void model_jacobian(const Session &s, JacobianScratch &scratch, const double *c,
    of the step rule, W255), or the exact one when the numerics say so
    (W260; then eps and f0 are not used). `f0` is f(t, x) (for a map,
    already f(x)-x), `dfdt`, if given, receives df/dt. */
-void jacobian(Session &s, double t, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out, double *dfdt = nullptr);
+void jacobian(RunParts &s, double t, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out, double *dfdt = nullptr);
 
 /* An exact derivative that is not finite where the right-hand side is
    (W260: sqrt or log at 0, 1/x at 0, a power of a base at most 0): the
@@ -115,10 +115,10 @@ ErrorAction switch_to_differences(std::string resume);
    the caller's thread. f is the right-hand side there (for a map's form,
    f(x)-x): an entry not finite where f is throws JacobianFailed. The
    model must have one (Model::jacobian). */
-void exact_jacobian(const Session &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, const JacobianForm &form, double *out);
+void exact_jacobian(const RunParts &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, const JacobianForm &form, double *out);
 /* d f/d c[k] at (t, x) with the constants c into out[0..n), 0 where no
    equation depends on constant k; d f/dt for the time; checked as above */
-void exact_constant_derivative(const Session &s, JacobianScratch &scratch, const double *c, int k, double t, const double *x, const double *f, int n, double *out);
-void exact_time_derivative(const Session &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, double *out);
+void exact_constant_derivative(const RunParts &s, JacobianScratch &scratch, const double *c, int k, double t, const double *x, const double *f, int n, double *out);
+void exact_time_derivative(const RunParts &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, double *out);
 
 } // namespace xpp

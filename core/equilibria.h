@@ -12,7 +12,7 @@ namespace xpp { struct JacobianForm; }
 
 namespace xpp {
 
-struct Session; /* session.h */
+struct AnalysisParts; /* analysis_parts.h */
 struct RunReport; /* integrate.h */
 
 /* What Newton's method asks of the model, so that the one search serves two evaluations: the Session's own (Sing pts, the
@@ -34,7 +34,7 @@ public:
   virtual Error take_failure() { return Error{}; }
 };
 /* the Session's own evaluation (it holds the computation Escape stops while it lives) */
-std::unique_ptr<EquilibriumModel> session_equilibrium_model(Session &s, int n);
+std::unique_ptr<EquilibriumModel> session_equilibrium_model(AnalysisParts &s, int n);
 
 /* how Newton's method for an equilibrium ended: the way it converged, or what stopped it (a failed
    evaluation of the right-hand side is newton_iterate's error, not an end) */
@@ -51,14 +51,14 @@ struct NewtonCause {
   std::string why;
   std::string_view setting;
 };
-NewtonCause newton_cause(const Session &s, const NewtonRun &run, std::size_t variables);
+NewtonCause newton_cause(const AnalysisParts &s, const NewtonRun &run, std::size_t variables);
 /* why Newton's method from start (the variables' values) found no equilibrium, with the setting that
    stopped it and the model line (the setting's, else the worst equation's) */
-Error newton_error(const Session &s, const NewtonRun &run, std::span<const double> start);
+Error newton_error(const AnalysisParts &s, const NewtonRun &run, std::span<const double> start);
 
 /* the eigenvector of the Jacobian a (a copy, anew, is factored) for eval, into b and bp (inverse
    iteration); the error says why there is none */
-Result<> get_evec(Session &s, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval);
+Result<> get_evec(AnalysisParts &s, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval);
 
 /* The equilibrium near a start (W518: where a long orbit lingers): Newton's method from it with the
    session's equilibria settings, and the eigenvalues (re, im: one per variable) of the Jacobian at the
@@ -70,39 +70,39 @@ struct EquilibriumNear {
   bool found = false;
   std::vector<double> x, re, im;
 };
-Result<EquilibriumNear> equilibrium_near(const Session &s, EquilibriumModel &model, std::span<const double> start);
+Result<EquilibriumNear> equilibrium_near(const AnalysisParts &s, EquilibriumModel &model, std::span<const double> start);
 
 /* the equilibrium x (the model's states) marked in the active plot window's record (the "marks" event shows it) with
    a symbol: 0 box (unstable), 1 triangle (saddle), 3 circle (stable); a time plot, a 3D plot and axes that are not
    states of x keep no mark */
-void mark_equilibrium(Session &s, std::span<const double> x, int symbol);
+void mark_equilibrium(AnalysisParts &s, std::span<const double> x, int symbol);
 
 /* the equilibrium x of n states found, with its counts of eigenvalues (cp, cm: complex pairs of positive and
    negative real part, rp, rm: real ones, im: on the imaginary axis; ev the n pairs, none for a delay equation): kept
    as the Session's last one (the `equilibrium.import` command applies it) and shown through the front end */
-void record_equilibrium(Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
+void record_equilibrium(AnalysisParts &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
 
-Result<> do_sing_info(Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
-void pr_evec(Session &s, double *x, double *ev, int n, int pr, double eval,int type);
+Result<> do_sing_info(AnalysisParts &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
+void pr_evec(AnalysisParts &s, double *x, double *ev, int n, int pr, double eval,int type);
 void numerical_jacobian(EquilibriumModel &model, double *x, double *y, double eps, double *dermat, int n);
 /* the variable whose equation f (n values) is furthest from zero: the equation an error about it names */
 int worst_residual(const double *f, int n);
 /* (a failed exact Jacobian is its error, the point back where it was) */
 Result<> newton_iterate(EquilibriumModel &model, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n);
 /* the same on the Session's own evaluation */
-Result<> newton_iterate(Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n);
+Result<> newton_iterate(AnalysisParts &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n);
 
 /* Sing pts: the equilibrium Newton finds from x (Could not converge,
    no eigenvalues: an error), its stability (stabinfo) and, when asked,
    its invariant manifolds, integrated from it; an eigenvector or a
    manifold that failed is returned once the rest are done */
-Result<> do_sing(Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, double *stabinfo);
+Result<> do_sing(AnalysisParts &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, double *stabinfo);
 /* integrates the manifolds from the saddle's stored starting points,
    returning the first that failed once all are done */
-Result<> shoot_this_now(Session &s);
+Result<> shoot_this_now(AnalysisParts &s);
 /* Integrate the stored manifolds into file-stem-eigenN-stable/unstable.dat,
    using the export command's overwrite decision and returning its first error. */
-Result<> save_batch_shoot(Session &s, std::string_view file, bool confirm, const RunReport &report);
+Result<> save_batch_shoot(AnalysisParts &s, std::string_view file, bool confirm, const RunReport &report);
 /* Sing pts' shooting (equilibria.cpp), a Session's (session.h): the initial
    conditions it found along the unstable and stable manifolds (count of
    ic, ic_flag once there are any) */

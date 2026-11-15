@@ -24,7 +24,7 @@
 #include "my_rhs.h"
 #include "typed_values.h"
 #include "expr_program.h"
-#include "session.h"
+#include "run_parts.h"
 #include "xpp_text.h"
 
 namespace xpp {
@@ -32,12 +32,12 @@ namespace xpp {
 
 /* the solver starts afresh: no failure */
 
-void reset_dae(xpp::Session &s)
+void reset_dae(xpp::RunParts &s)
 {
   s.dae->status=DAE_SOLVED;
 }
 
-DaeRun::DaeRun(xpp::Session &s) : s_(s), outer_(!s.dae->run)
+DaeRun::DaeRun(xpp::RunParts &s) : s_(s), outer_(!s.dae->run)
 {
   if(outer_)s_.dae->run.emplace();
 }
@@ -46,7 +46,7 @@ DaeRun::~DaeRun()
 {
   if(outer_)s_.dae->run.reset();
 }
-void set_init_guess(xpp::Session &s)
+void set_init_guess(xpp::RunParts &s)
 {
   xpp::Model &m=s.model();
   int i;
@@ -62,7 +62,7 @@ void set_init_guess(xpp::Session &s)
 namespace {
 /* the 0= line a failure is at: the equation whose residual was the
    largest at the last iterate (the first of equals) */
-const xpp::Place &dae_place(const xpp::Session &s)
+const xpp::Place &dae_place(const xpp::RunParts &s)
 {
   const xpp::Model &m=s.model();
   const double *f=s.dae->work.data()+m.nsvar;
@@ -74,13 +74,13 @@ const xpp::Place &dae_place(const xpp::Session &s)
 
 /* why solve_dae failed (its status, DAE_SINGULAR ... DAE_FOLD), as a
    value: where the solutions end, and why no step went further */
-xpp::Error dae_failure(const xpp::Session &s, int status)
+xpp::Error dae_failure(const xpp::RunParts &s, int status)
 {
   std::string why;
   switch(status){
   case DAE_SINGULAR: why="their Jacobian is singular"; break;
   case DAE_NO_CONVERGENCE:
-    why=xpp::format("Newton's method did not converge ({})",xpp::named_settings(s,{"equilibria.max_iterations","equilibria.newton_tolerance"}));
+    why=xpp::format("Newton's method did not converge ({})",xpp::named_settings(s.session_parts,{"equilibria.max_iterations","equilibria.newton_tolerance"}));
     break;
   case DAE_OUT_OF_BOUNDS: why="the Newton update went out of bounds"; break;
   case DAE_FOLD: why="their Jacobian changed sign, a fold where this branch of solutions ends"; break;
@@ -92,7 +92,7 @@ xpp::Error dae_failure(const xpp::Session &s, int status)
 }
 }
 
-void init_dae_work(xpp::Session &s)
+void init_dae_work(xpp::RunParts &s)
 {
   xpp::Model &m=s.model();
 
@@ -102,7 +102,7 @@ void init_dae_work(xpp::Session &s)
   reset_dae(s);
 }
 
-void get_dae_fun(xpp::Session &s, double *y, double *f)
+void get_dae_fun(xpp::RunParts &s, double *y, double *f)
 {
   xpp::Model &m=s.model();
   int i;
@@ -114,7 +114,7 @@ void get_dae_fun(xpp::Session &s, double *y, double *f)
     f[i]=evaluate(s.parser,m.aeqns[i].form);
 }
 
-void do_daes(xpp::Session &s)
+void do_daes(xpp::RunParts &s)
 {
   if(s.model().nsvar==0)return; /* no algebraic variable: nothing to solve or record */
   const int ans=solve_dae(s);
@@ -134,7 +134,7 @@ void do_daes(xpp::Session &s)
    (W127: Newton would otherwise wander to another branch, and a loose
    tolerance accept it). The first solve of a run sets the sign; a solve
    outside a run (DaeRun) follows no branch. */
-int solve_dae(xpp::Session &s)
+int solve_dae(xpp::RunParts &s)
 {
   xpp::Model &m=s.model();
   int i,j,n;
@@ -225,11 +225,11 @@ int solve_dae(xpp::Session &s)
   }
 }
 
-Result<double> set_dae_guess(xpp::Session &s, int i, std::string_view formula)
+Result<double> set_dae_guess(xpp::RunParts &s, int i, std::string_view formula)
 {
   xpp::Model &m=s.model();
   auto &var=m.svars[static_cast<std::size_t>(i)];
-  if(const Result<> compiled=compile_formula(s,formula);!compiled)
+  if(const Result<> compiled=compile_formula(s.session_parts,formula);!compiled)
     return xpp::fail("initial guess",xpp::format("{}: illegal formula {}: {}",var.name,formula,compiled.error().what),command_place());
   var.rhs=formula;
   var.form.forget_code(); /* a guess edited at run time no longer has its load-time code */

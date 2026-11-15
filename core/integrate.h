@@ -23,7 +23,7 @@ namespace xpp { struct Color; struct Model; }
 
 namespace xpp {
 
-struct Session; /* session.h */
+struct RunParts; /* run_parts.h */
 
 /* What a run reports to the command that started it, each as data, once its result exists: the caller shows it (freezes the curve, takes
    the movie's frame, draws; the integrators know no window). A member may be empty (a run its caller shows nothing of). `label` names
@@ -34,6 +34,8 @@ struct RunReport {
   std::function<Result<>(std::string_view label)> stored;
   /* the run is complete, the data table follows it */
   std::function<void(std::string_view label)> done;
+  /* a run from the last state is about to overwrite the initial conditions: the caller keeps an undo point of them */
+  std::function<void()> overwriting_initial_data;
   /* a sweep's run wrote its data file (the run's number, from 0): its picture goes with it */
   std::function<void(int run)> written;
   /* a sweep: the report of the single run it makes inside a run (the period's orbit of Range's adjoint mode) */
@@ -52,7 +54,7 @@ inline constexpr double CONTINUE_GRID_TOLERANCE = 1e-6;
 Result<> validate_steady_state(SteadyStateSettings settings, double dt, double start);
 
 /* a global flag's event stops the integration (flags.cpp) */
-void send_halt(Session &s, int flag);
+void send_halt(RunParts &s, int flag);
 
 /* The integrator's driver works on the Session s the command (or the run)
    that started it passes down (W47d4). */
@@ -68,45 +70,37 @@ struct DenseEvent {
   int bound_variable=-1, flag_count=0;
   std::vector<int> flags; /* the global flags that fire, flag_count of them */
 };
-DenseEvent dense_event(Session &s, double from, double until, double step_from, double step_until,
+DenseEvent dense_event(RunParts &s, double from, double until, double step_from, double step_until,
                       const std::function<void(double,std::span<double>)> &state,
                       std::span<double> scratch, std::span<double> derivative, bool sections=true);
 
-void init_range(Session &s);
-int range_item(Session &s);
-int range_item2(Session &s);
+void init_range(RunParts &s);
+int range_item(RunParts &s);
+int range_item2(RunParts &s);
 /* the type and index of what s.integrator->range names to vary (and the second item when `two`), or the error of one that is
    neither a parameter nor a variable */
-Result<> resolve_range_items(Session &s, bool two);
-Result<> resolve_range_items(const Session &s, RangeVars &range, bool two);
-int set_up_range(Session &s);
-int set_up_range2(Session &s);
-void init_monte_carlo(Session &s);
+Result<> resolve_range_items(RunParts &s, bool two);
+Result<> resolve_range_items(const RunParts &s, RangeVars &range, bool two);
+int set_up_range(RunParts &s);
+int set_up_range2(RunParts &s);
+void init_monte_carlo(RunParts &s);
 
-void swap_color(Session &s, Color *col, int rorw);
+void swap_color(RunParts &s, Color *col, int rorw);
 /* the color of the window's first curve is newcolor, the one it had given back in *old (the equilibria's
    manifolds are shot in their own colors with the curve's pen) */
-void change_current_color(Session &s, const Color &newcolor, Color *old);
-void set_cycle(Session &s, int flag, int *icol);
+void change_current_color(RunParts &s, const Color &newcolor, Color *old);
+void set_cycle(RunParts &s, int flag, int *icol);
 
-void evaluate_ar_ic(Session &s, const char *v, const char *f, int j1, int j2);
-void arr_ic_start(Session &s);
-/* the initial conditions by formula (initial_conditions.set_by_formula): `variable` a state, or an array range name[j1..j2] whose
-   formula reads [j] as the element's number (an array's formula is kept like the model's own); the states set (indices),
-   or why none was, nothing changed */
-Result<std::vector<int>> set_ic_formula(Session &s, std::string_view variable, std::string_view formula);
-/* `size` states from `name` on set to the formula, its t the element's offset from the first (initial_conditions.set_by_array_formula) */
-Result<std::vector<int>> set_ic_array(Session &s, std::string_view name, int size, std::string_view formula);
 /* Node-only states preserve Markov initial data; full states replace both.
    Any other length is a programming error, rejected before writing. */
-void set_initial_data(Session &s, std::span<const double> state);
-void get_ic(Session &s, int it, double *x);
+void set_initial_data(RunParts &s, std::span<const double> state);
+void get_ic(RunParts &s, int it, double *x);
 /* the global flags' first step: the state before a run's first row */
-void do_start_flags(Session &s, double *x, double *t);
+void do_start_flags(RunParts &s, double *x, double *t);
 /* a row was just stored: a replayed script may stop the job here, and a front end may show the run growing */
-void row_stored(Session &s);
-void send_output(Session &s, double *y, double t);
-Result<> stor_full(Session &s);
+void row_stored(RunParts &s);
+void send_output(RunParts &s, double *y, double t);
+Result<> stor_full(RunParts &s);
 
 /* The most steps one axis of a sweep takes (Range, Range Equilibria and Range Shoot alike): steps+1 runs fit an int. */
 inline constexpr int MAX_RANGE_STEPS = std::numeric_limits<int>::max() - 1;
@@ -116,7 +110,7 @@ inline constexpr int MAX_RANGE_STEPS = std::numeric_limits<int>::max() - 1;
 inline constexpr std::int64_t MAX_RANGE_RUNS = std::int64_t{1} << 24;
 /* A sweep's run count for steps and steps2 (steps2 0 for a single range), refused before the sweep starts when it is past
    MAX_RANGE_RUNS, naming the steps and the setting they came from (W682). */
-Result<std::int64_t> sweep_run_count(const Session &s, int steps, int steps2);
+Result<std::int64_t> sweep_run_count(const RunParts &s, int steps, int steps2);
 
 
 
@@ -128,17 +122,17 @@ Result<std::int64_t> sweep_run_count(const Session &s, int steps, int steps2);
    method), else 0; or why it failed (a variable NaN or out of
    bounds, the method's own failure, a delay or DAE step), for the
    command that ran it to show (W63b) */
-Result<int> integrate(Session &s, double *t, double *x, double tend, double dt, int count, int store_every, int *start);
+Result<int> integrate(RunParts &s, double *t, double *x, double tend, double dt, int count, int store_every, int *start);
 /* shooting's integration over the whole interval (drawn as it runs when
    ishow, where a failure only ends the curve), or the method's failure */
-Result<> ode_int(Session &s, double *y, double *t, int *istart, int ishow);
+Result<> ode_int(RunParts &s, double *y, double *t, int *istart, int ishow);
 /* the recorded failure, cleared, so the next run starts clean (and the
    DAE solve afresh) */
-std::unexpected<Error> take_step_error(Session &s);
+std::unexpected<Error> take_step_error(RunParts &s);
 /* the curve from x (shoot: from xg along evec, the side sgn), bounds
    unchecked, or the error it failed with */
-Result<> shoot(Session &s, double *x, double *xg, double *evec, int sgn);
-Result<> shoot_easy(Session &s, double *x);
+Result<> shoot(RunParts &s, double *x, double *xg, double *evec, int sgn);
+Result<> shoot_easy(RunParts &s, double *x);
 /* An invariant set's branch starts at the saddle, at this time, whether it is
    drawn or exported (so the two are the same branch), and is stored whole from
    it whatever store_from says (W533). */
@@ -147,12 +141,12 @@ inline constexpr double BRANCH_START_TIME = 0.0;
    puts the run's value back when it ends, on error too (W533). */
 class BranchStoreFrom {
 public:
-  explicit BranchStoreFrom(Session &s);
+  explicit BranchStoreFrom(RunParts &s);
   ~BranchStoreFrom();
   BranchStoreFrom(const BranchStoreFrom &) = delete;
   BranchStoreFrom &operator=(const BranchStoreFrom &) = delete;
 private:
-  Session &s_;
+  RunParts &s_;
   double before_;
 };
 

@@ -106,11 +106,11 @@ xpp::Result<xpp::Session *> switch_model(xpp::Session &before, const xpp::ModelR
         marks_data_cleared(s, i);
     }
     ani_data_forget(s);
-    autox_data_forget(s);
+    autox_data_forget(xpp::autox_parts(s));
     diag_forget();
     plot_data_changed();
     state_forget();
-    renew_autox_dir(*s.model().fs, s);
+    renew_autox_dir(*s.model().fs, xpp::autox_parts(s));
     start_model(s, req.keep_values ? &kept : nullptr);
     if (req.restore) xpp_saved_restore(s, *req.restore); /* an autoX or session file */
     redraw_graph(s);

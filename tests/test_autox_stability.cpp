@@ -195,7 +195,7 @@ TEST_CASE("test_autox_stability")
     CHECK(load_args(2, argv, 1).has_value());
     auto &session = xpp::client_session();
     AutoxRun run;
-    autox_bind_parts(run, session);
+    autox_bind_parts(run, xpp::autox_parts(session));
     run.parameter_count = session.autox_state->parameter_layout.size();
     iap_type iap{};
     iap.run = &run;

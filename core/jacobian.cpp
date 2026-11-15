@@ -11,7 +11,7 @@
 #include <utility>
 #include "model.h"
 #include "model_place.h"
-#include "session.h"
+#include "run_parts.h"
 #include "integrate.h"
 #include "model_numerics.h"
 #include "xpp_text.h"
@@ -29,7 +29,7 @@ namespace {
    where the right-hand side f is, else JacobianFailed; wrt(k) names the
    variable entry k differentiates by */
 template <class By>
-std::span<const double> entries(const Session &s, JacobianScratch &scratch, const JacobianProgram &p, const double *c, double t, const double *x, const double *f, int n, By &&wrt)
+std::span<const double> entries(const RunParts &s, JacobianScratch &scratch, const JacobianProgram &p, const double *c, double t, const double *x, const double *f, int n, By &&wrt)
 {
   const Model &m = s.model();
   auto &v = scratch.point;
@@ -39,7 +39,7 @@ std::span<const double> entries(const Session &s, JacobianScratch &scratch, cons
   v[0] = t;
   std::copy_n(x, m.node, v.begin() + 1);
   /* the helpers only read the Session (its tables); until MIR's code is built, the graph (W717) */
-  if (p.function) mir::call(p.function, c, v.data(), const_cast<ParserState *>(&s.parser), out.data());
+  if (p.function) mir::call(p.function, c, v.data(), &s.parser, out.data());
   else evaluate_derivatives(s.tables, *m.jacobian.graph, p, c, v.data(), scratch.graph, out);
   for (size_t k = 0; k < out.size(); k++) {
     const int row = p.rows[k];
@@ -58,7 +58,7 @@ std::span<const double> entries(const Session &s, JacobianScratch &scratch, cons
 
 /* a column's entries into out[0..n), by the variable by() names */
 template <class By>
-void column(const Session &s, JacobianScratch &scratch, const JacobianProgram &p, const double *c, double t, const double *x, const double *f, int n, By &&by,
+void column(const RunParts &s, JacobianScratch &scratch, const JacobianProgram &p, const double *c, double t, const double *x, const double *f, int n, By &&by,
             double *out)
 {
   const auto e = entries(s, scratch, p, c, t, x, f, n, [&by](size_t) { return by(); });
@@ -110,7 +110,7 @@ ErrorAction switch_to_differences(std::string resume)
                       std::move(resume)}};
 }
 
-void exact_jacobian(const Session &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, const JacobianForm &form, double *out)
+void exact_jacobian(const RunParts &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, const JacobianForm &form, double *out)
 {
   const Model &m = s.model();
   const JacobianProgram &p = m.jacobian.states;
@@ -135,7 +135,7 @@ void exact_jacobian(const Session &s, JacobianScratch &scratch, const double *c,
     for (int i = 0; i < n; i++) out[at(i, i)] -= 1;
 }
 
-void exact_constant_derivative(const Session &s, JacobianScratch &scratch, const double *c, int k, double t, const double *x, const double *f, int n, double *out)
+void exact_constant_derivative(const RunParts &s, JacobianScratch &scratch, const double *c, int k, double t, const double *x, const double *f, int n, double *out)
 {
   const auto &columns = s.model().jacobian.by_constant;
   const auto it = std::ranges::lower_bound(columns, k, {}, [](const auto &e) { return e.first; });
@@ -147,7 +147,7 @@ void exact_constant_derivative(const Session &s, JacobianScratch &scratch, const
   }, out);
 }
 
-void exact_time_derivative(const Session &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, double *out)
+void exact_time_derivative(const RunParts &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, double *out)
 {
   column(s, scratch, s.model().jacobian.time, c, t, x, f, n, []() -> std::string_view { return "t"; }, out);
 }
@@ -157,7 +157,7 @@ double difference_step(double eps, double x)
   return eps * std::max(eps, std::fabs(x));
 }
 
-JacobianForm model_jacobian_form(const Session &s, int n)
+JacobianForm model_jacobian_form(const RunParts &s, int n)
 {
   if (!s.numerics->cv_bandflag) return {};
   return {JacobianLayout::Banded, std::min(s.numerics->cv_bandlower, n - 1), std::min(s.numerics->cv_bandupper, n - 1)};
@@ -196,7 +196,7 @@ void jacobian(const JacobianEvaluate &evaluate, const double *x, const double *f
   }
 }
 
-void jacobian(Session &s, double t, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out, double *dfdt)
+void jacobian(RunParts &s, double t, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out, double *dfdt)
 {
   const bool exact = s.numerics->jacobian == JACOBIAN_EXACT;
   if (dfdt && !exact) {
@@ -209,7 +209,7 @@ void jacobian(Session &s, double t, const double *x, const double *f0, int n, do
   if (dfdt && exact) exact_time_derivative(s, *s.jacobian_scratch, s.parser.constants.data(), t, x, f0, n, dfdt);
 }
 
-void model_jacobian(const Session &s, JacobianScratch &scratch, const double *c, double t,
+void model_jacobian(const RunParts &s, JacobianScratch &scratch, const double *c, double t,
                     const std::function<void(double *x, double *f)> &evaluate_rhs, const double *x, const double *f0, int n, double eps,
                     const JacobianForm &form, double *out)
 {

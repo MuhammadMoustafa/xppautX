@@ -307,13 +307,13 @@ void check_autox_func(const char *path, double u0, double u1, int store_every = 
     char *argv[] = {name, file.data(), nullptr};
     CHECK(load_args(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
-    xpp::init_autox_win(s);
+    xpp::init_autox_win(xpp::autox_parts(s));
     CHECK(xpp::ensure_exact_jacobian(s));
     s.numerics->jacobian = xpp::JACOBIAN_EXACT;
     s.numerics->store_every = store_every;
     constexpr std::ptrdiff_t n = 2;
     AutoxRun run;
-    autox_bind_parts(run, s);
+    autox_bind_parts(run, xpp::autox_parts(s));
     run.parameter_count = s.autox_state->parameter_layout.size();
     const std::ptrdiff_t continued=s.autox_state->parameter_layout.solver_index(0);
     std::vector<double> par(run.parameter_count, 0.0);

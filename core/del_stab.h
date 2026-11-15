@@ -6,7 +6,7 @@
 
 namespace xpp {
 
-struct Session; /* session.h */
+struct AnalysisParts; /* analysis_parts.h */
 
 /* del_stab.cpp */
 ComplexPair complex_subtract(ComplexPair z, ComplexPair w);
@@ -25,10 +25,10 @@ int plot_args(double *coef, double *delay, int n, int m, int npts, double almax,
 
 /* Newton's method in the complex plane from the dominant root so far for a root of the characteristic
    equation: how it ended (NewtonRun, equilibria.h) */
-NewtonRun find_positive_root(Session &s, double *coef, double *delay, int n, int m, double rad, double err, double eps, double big, int maxit, double *rr);
+NewtonRun find_positive_root(AnalysisParts &s, double *coef, double *delay, int n, int m, double rad, double err, double eps, double big, int maxit, double *rr);
 
 /* Sing pts for a delay equation: the equilibrium Newton finds from x
    (or Could not converge, an error) and its stability (stabinfo) */
-Result<> do_delay_sing(Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, double *stabinfo);
+Result<> do_delay_sing(AnalysisParts &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, double *stabinfo);
 
 } // namespace xpp

@@ -4,6 +4,7 @@
 #include "model_options.h"
 #include <tuple>
 #include "graf_par.h"
+#include "value_undo.h"
 #include "colormap.h"
 #include "storage.h"
 #include "xpp_log.h"
@@ -1128,6 +1129,7 @@ RunReport run_report(Session &s)
     return {};
   };
   report.done=[&s](std::string_view){autox_freeze_it(s);};
+  report.overwriting_initial_data=[&s]{push_value_undo(s);};
   return report;
 }
 

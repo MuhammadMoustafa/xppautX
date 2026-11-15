@@ -3,7 +3,7 @@
 
 #include "do_fit.h"
 #include "jacobian.h"
-#include "session.h"
+#include "analysis_parts.h"
 #include "storage.h"
 #include "integrate.h"
 #include "xpp_log.h"
@@ -39,7 +39,7 @@ namespace xpp {
 
 namespace {
 /* the fitted quantity ipar names (an initial condition, else a parameter's constant: parse_parlist) */
-std::string_view fit_parameter_name(const xpp::Session &s, int ipar)
+std::string_view fit_parameter_name(const xpp::AnalysisParts &s, int ipar)
 {
   return ipar>=0?std::string_view(s.model().uvar_names[ipar]):s.model().parameter_name(-ipar);
 }
@@ -47,7 +47,7 @@ std::string_view fit_parameter_name(const xpp::Session &s, int ipar)
 
 
 
-xpp::Result<> get_fit_info(xpp::Session &s, double *y, double *a, double *t0, double eps, double *yfit, double **yderv, int npts, int npars, int nvars, int *ivar, int *ipar)
+xpp::Result<> get_fit_info(xpp::AnalysisParts &s, double *y, double *a, double *t0, double eps, double *yfit, double **yderv, int npts, int npars, int nvars, int *ivar, int *ipar)
 /*  
   y     initial condition
   a     initial guesses for the parameters
@@ -166,7 +166,7 @@ evaluate_derived(s.parser);
   return {};
 }
 
-xpp::Result<> one_step_int(xpp::Session &s, double *y, double t0, double t1, int *istart)
+xpp::Result<> one_step_int(xpp::AnalysisParts &s, double *y, double t0, double t1, int *istart)
 {
   xpp::Solver &solver=*s.integrator->solver;
   int neq=s.model().node;
@@ -200,7 +200,7 @@ xpp::Result<> one_step_int(xpp::Session &s, double *y, double t0, double t1, int
   return {};
 } 
 
-void print_fit_info(const xpp::Session &s)
+void print_fit_info(const xpp::AnalysisParts &s)
 {
   int i;
   xpp::log(XPP_LOG_INFO, "dim={} maxiter={} npts={} file={} tol={:g} eps={:g}\n",
@@ -232,7 +232,7 @@ Result<DataTable> fit_data(xpp::FileSystem &fs, std::span<const DataFormat> form
 }
 }
 
-Result<FitOutcome> test_fit(Session &s, FitInfo fit)
+Result<FitOutcome> test_fit(AnalysisParts &s, FitInfo fit)
 {
  int i;
  fit.nvars=0;
@@ -313,7 +313,7 @@ Result<FitOutcome> test_fit(Session &s, FitInfo fit)
  return outcome;
 }
 
-xpp::Result<FitResult> run_fit(xpp::Session &s, const DataTable &table, int npts, int npars, int nvars, int maxiter, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a)
+xpp::Result<FitResult> run_fit(xpp::AnalysisParts &s, const DataTable &table, int npts, int npars, int nvars, int maxiter, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a)
 /* The data table and fitted columns were validated before the fit settings were applied. */
 {
   int i,j,k,ictrl=0;
@@ -406,7 +406,7 @@ xpp::Result<FitResult> run_fit(xpp::Session &s, const DataTable &table, int npts
   return FitResult{FitEnd::Converged,niter,chisq,change};
 }
 
-xpp::Result<> marlevstep(xpp::Session &s, double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *covar, double *alpha, double *chisq, double *alambda, double *work, double **yderv, double *yfit, double *ochisq, int ictrl, double eps)
+xpp::Result<> marlevstep(xpp::AnalysisParts &s, double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *covar, double *alpha, double *chisq, double *alambda, double *work, double **yderv, double *yfit, double *ochisq, int ictrl, double eps)
 /*   One step of Levenberg-Marquardt  
      
 nvars  the number of variables to fit
@@ -496,7 +496,7 @@ sigma  weights on nvars
   return {};
 }
 
- xpp::Result<> mrqcof(xpp::Session &s, double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *alpha, double *chisq, double *beta, double **yderv, double *yfit, double eps)
+ xpp::Result<> mrqcof(xpp::AnalysisParts &s, double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *alpha, double *chisq, double *beta, double **yderv, double *yfit, double eps)
 {
        int i,j,k,l,k0;
        double sig2i,dy,wt;
@@ -542,7 +542,7 @@ void parse_collist(std::string_view collist, std::vector<int> &icols)
     icols.push_back(atoi(std::string(*item).c_str()));
 }
 
-void parse_varlist(const xpp::Session &s, std::string_view varlist, std::vector<int> &ivars)
+void parse_varlist(const xpp::AnalysisParts &s, std::string_view varlist, std::vector<int> &ivars)
 {
   ivars.clear();
   xpp::Tokens tokens(varlist);
@@ -554,7 +554,7 @@ void parse_varlist(const xpp::Session &s, std::string_view varlist, std::vector<
   }
 }
 
-void parse_parlist(const xpp::Session &s, std::string_view parlist, std::vector<int> &ipars)
+void parse_parlist(const xpp::AnalysisParts &s, std::string_view parlist, std::vector<int> &ipars)
 {
   xpp::Tokens tokens(parlist);
   int v;

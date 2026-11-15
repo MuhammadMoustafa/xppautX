@@ -38,7 +38,7 @@ TEST_CASE("test_autox_codim")
     CHECK(load_args(2,argv,1).has_value());
     auto &s=xpp::client_session();
     AutoxRun run;
-    autox_bind_parts(run, s);
+    autox_bind_parts(run, xpp::autox_parts(s));
     run.parameter_count=s.autox_state->parameter_layout.size();
     run.codim.prepare(2);
     iap_type iap{};
@@ -70,11 +70,11 @@ TEST_CASE("test_autox_codim")
     xpp::AutoxSettingsSet set;
     set.special_points.fill(false);
     std::string why;
-    CHECK(xpp::autox_settings_apply(s,set,why)==0);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),set,why)==0);
     for (bool on:s.autox_state->special_points) CHECK(!on);
     set.special_points[0]=true;
     set.has_num[xpp::AUTOX_NUM_MESH_INTERVALS]=1; set.num[xpp::AUTOX_NUM_MESH_INTERVALS]=-1;
-    CHECK(xpp::autox_settings_apply(s,set,why)!=0 && !s.autox_state->special_points[0]);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),set,why)!=0 && !s.autox_state->special_points[0]);
     // The reaction's exact multilinear derivatives give these coefficients;
     // independent contraction: tests/autox/codim_coefficients.py.
     std::string reaction="examples/tstauto/ab.odex";
@@ -82,7 +82,7 @@ TEST_CASE("test_autox_codim")
     CHECK(load_args(2,reaction_args,1).has_value());
     auto &reaction_session=xpp::client_session();
     AutoxRun reaction_lib;
-    autox_bind_parts(reaction_lib, reaction_session);
+    autox_bind_parts(reaction_lib, xpp::autox_parts(reaction_session));
     reaction_lib.parameter_count=reaction_session.autox_state->parameter_layout.size();
     reaction_lib.codim.prepare(2);
     iap.run=&reaction_lib;
@@ -195,7 +195,7 @@ TEST_CASE("test_autox_codim")
     map_session.numerics->jacobian=xpp::JACOBIAN_EXACT;
     iap.jac=1;
     AutoxRun map_lib;
-    autox_bind_parts(map_lib, map_session);
+    autox_bind_parts(map_lib, xpp::autox_parts(map_session));
     map_lib.parameter_count=map_session.autox_state->parameter_layout.size();
     iap.run=&map_lib; iap.ndm=4; iap.ndim=10;
     iap.ips=xpp::AutoxProblem::DiscreteMap; iap.itpst=xpp::AutoxPointKind::NeimarkSacker;

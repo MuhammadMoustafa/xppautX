@@ -147,7 +147,7 @@ static void start_autox_dir(void)
     dir = xpp::files::make_temp_dir();
     /* at exit the folder is the session list's client's: every load hands
        it on to the Session it makes (session.cpp) */
-    if (!dir.empty()) atexit([] { xpp::cleanup_autox_dir(startup.files, xpp::client_session()); });
+    if (!dir.empty()) atexit([] { xpp::cleanup_autox_dir(startup.files, xpp::autox_parts(xpp::client_session())); });
 }
 
 /* what the front end's hello carries that only the program's start knows (ui_json.h) */

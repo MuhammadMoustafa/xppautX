@@ -2,7 +2,7 @@
 
 namespace xpp {
 
-struct Session; /* session.h */
+struct RunParts; /* run_parts.h */
 
 /* QualRK's and Stiff's limits: the steps between two output times (a run
    that needs more has a tolerance too tight or a solution too stiff for
@@ -17,11 +17,11 @@ inline constexpr int ADAPTIVE_MAX_TRIES = 40;
 inline constexpr int ADAPTIVE_STEP_UNDERFLOW = 1, ADAPTIVE_BELOW_MIN_STEP = 2, ADAPTIVE_TOO_MANY_STEPS = 3,
                      ADAPTIVE_TOO_MANY_TRIES = 4, ADAPTIVE_SINGULAR = -1;
 
-void stiff_numerical_jacobian(Session &s, double x, double *y, double *dfdx, double *dermat, double eps, double *work, int n);
-int adaptive(Session &s, double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart);
-int adaptive_integration_without_flags(Session &s, double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart);
-int stiff(Session &s, double y[], double dydx[], int n, double *x, double htry, double eps, double yscal[], double *hdid, double *hnext, double *work, double epjac, int *ier);
-int cash_karp_adaptive_step(Session &s, double *y, double *dydx, int n, double *x, double htry, double eps, double *yscal, double *hdid, double *hnext, double *work, int *ier);
-void cash_karp_step(Session &s, double *y, double *dydx, int n, double x, double h, double *yout, double *yerr, double *work);
+void stiff_numerical_jacobian(RunParts &s, double x, double *y, double *dfdx, double *dermat, double eps, double *work, int n);
+int adaptive(RunParts &s, double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart);
+int adaptive_integration_without_flags(RunParts &s, double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart);
+int stiff(RunParts &s, double y[], double dydx[], int n, double *x, double htry, double eps, double yscal[], double *hdid, double *hnext, double *work, double epjac, int *ier);
+int cash_karp_adaptive_step(RunParts &s, double *y, double *dydx, int n, double *x, double htry, double eps, double *yscal, double *hdid, double *hnext, double *work, int *ier);
+void cash_karp_step(RunParts &s, double *y, double *dydx, int n, double x, double h, double *yout, double *yerr, double *work);
 
 } // namespace xpp

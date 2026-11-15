@@ -124,7 +124,7 @@ NICP=2, ISW=2 at Hopf
 Result<> autox_start_at_bvp(AutoxParts s)
 {
   int opn=NO_OPEN_3,cls=OVERWRITE;
-  if(const Result<> compiled=xpp::compile_bvp(s.session);!compiled)return compiled;
+  if(const Result<> compiled=xpp::compile_bvp(s.analysis);!compiled)return compiled;
   s.autox_state->type_of_calc=BV1;
  s.autox_state->bifur.ips=AutoxProblem::BoundaryValue;
   s.autox_state->bifur.irs=0;

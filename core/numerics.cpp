@@ -1,7 +1,6 @@
 
 #include "xpp_ui.h"
 #include "xpp_util.h"
-#include "session_values.h"
 #include "integrate.h"
 #include "numerics.h"
 #include <string>
@@ -20,7 +19,7 @@
 #include "solver.h"
 #include "model_numerics.h"
 #include "model_failed.h"
-#include "session.h"
+#include "run_parts.h"
 #include "plot_state.h"
 #include "model_options.h"
 
@@ -37,7 +36,7 @@ namespace xpp {
 
 /*   I will need access to storage  */
 
-Result<> check_numerics_extras(const xpp::Session &s, const NumericsExtras &extras, int method)
+Result<> check_numerics_extras(const xpp::RunParts &s, const NumericsExtras &extras, int method)
 {
   const xpp::SolverTraits &traits=xpp::solver_info(method).traits;
   const auto refuse=[](std::string what){return xpp::fail("numerics",std::move(what),command_place());};
@@ -59,7 +58,7 @@ Result<> check_numerics_extras(const xpp::Session &s, const NumericsExtras &extr
   return {};
 }
 
-Result<> set_numerics_extras(xpp::Session &s, const NumericsExtras &extras)
+Result<> set_numerics_extras(xpp::RunParts &s, const NumericsExtras &extras)
 {
   if (auto checked = check_numerics_extras(s, extras, s.numerics->method); !checked) return checked;
   const bool delay=extras.delay_real_guess||extras.delay_imaginary_guess||extras.delay_grid;
@@ -75,7 +74,7 @@ Result<> set_numerics_extras(xpp::Session &s, const NumericsExtras &extras)
   return {};
 }
 
-void dt_changed(xpp::Session &s)
+void dt_changed(xpp::RunParts &s)
 {
   chk_delay(s);
   if(s.model().compiler.nkernel>0){
@@ -85,7 +84,7 @@ void dt_changed(xpp::Session &s)
   }
 }
 
-void set_total(xpp::Session &s, double total)
+void set_total(xpp::RunParts &s, double total)
 {
   int n;
   n=(total/fabs(s.numerics->delta_t))+1;
@@ -94,7 +93,7 @@ void set_total(xpp::Session &s, double total)
 
  
 
-void chk_delay(xpp::Session &s)
+void chk_delay(xpp::RunParts &s)
 {
   free_delay(s);
   if(s.numerics->delay<=0.0)return;
@@ -104,23 +103,23 @@ void chk_delay(xpp::Session &s)
   else show_error(allocated.error());
 }
 
-void set_delay(xpp::Session &s)
+void set_delay(xpp::RunParts &s)
 {
   if(s.model().compiler.ndelays>0 && s.numerics->delay>0.0)chk_delay(s);
 }
 
-Result<> set_axis_shifts(xpp::Session &s, int x, int y, int z)
+Result<> set_axis_shifts(xpp::RunParts &s, int x, int y, int z)
 {
    if(x<0||y<0||z<0)return fail("rUelle plot",xpp::format("A shift is 0 or more, not {}",x<0?x:y<0?y:z),command_place());
    GRAPH &g=*s.plot_windows->current;
    g.xshft=x;
    g.yshft=y;
    g.zshft=z;
-   redraw_the_graph(s);
+   redraw_the_graph(s.session);
    return {};
 }
 
-Result<> set_poincare_map(xpp::Session &s, PoincareMap map, std::optional<int> variable, std::optional<double> section, std::optional<SectionSign> direction, std::optional<bool> stop_on_section)
+Result<> set_poincare_map(xpp::RunParts &s, PoincareMap map, std::optional<int> variable, std::optional<double> section, std::optional<SectionSign> direction, std::optional<bool> stop_on_section)
 {
  if(map==PoincareMap::none){
    s.numerics->poincare_map=PoincareMap::none;
@@ -135,7 +134,7 @@ Result<> set_poincare_map(xpp::Session &s, PoincareMap map, std::optional<int> v
  return {};
 }
 
-void do_meth(xpp::Session &s)
+void do_meth(xpp::RunParts &s)
 {
  const xpp::SolverTraits &traits=xpp::solver_info(s.numerics->method).traits;
  if(traits.discrete)s.numerics->delta_t=1;

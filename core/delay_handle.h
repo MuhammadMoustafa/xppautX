@@ -10,7 +10,7 @@
 
 namespace xpp {
 
-struct Session; /* session.h */
+struct RunParts; /* run_parts.h */
 
 /* a delay's value is interpolated by the cubic through four stored points */
 inline constexpr std::size_t polint_points = 4;
@@ -18,19 +18,19 @@ inline constexpr std::size_t polint_points = 4;
    value y and its error estimate dy */
 void polint(std::span<const double, polint_points> xa, std::span<const double, polint_points> ya, double x, double &y, double &dy);
 
-double delay_stab_eval(Session &s, double delay, int var);
-Result<> alloc_delay(Session &s, double big);
-void free_delay(Session &s);
-void stor_delay(Session &s, double *y);
-double get_delay(Session &s, int in, double tau);
+double delay_stab_eval(RunParts &s, double delay, int var);
+Result<> alloc_delay(RunParts &s, double big);
+void free_delay(RunParts &s);
+void stor_delay(RunParts &s, double *y);
+double get_delay(RunParts &s, int in, double tau);
 /* what a program's delay(tau, x) and delay(tau, x, shift) give (ExprHost::delay and delay_shift): variable x as the
    program holds it (its symbol index, as a double) delayed by tau, or the variable itself while the stability
    search evaluates the Jacobian's delayed terms */
-double do_delay(Session &s, double delay, double i);
-double do_delay_shift(Session &s, double delay, double shift, double variable);
+double do_delay(RunParts &s, double delay, double i);
+double do_delay_shift(RunParts &s, double delay, double shift, double variable);
 
 /* the delay's initial data, from t0-big to t0, stored from the Delay ICs'
    formulas, or the error when one does not parse */
-Result<> do_init_delay(Session &s, double big);
+Result<> do_init_delay(RunParts &s, double big);
 
 } // namespace xpp

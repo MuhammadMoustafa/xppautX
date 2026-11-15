@@ -547,7 +547,7 @@ void show_live(Queue &q)
     const DIAGRAM &point=*earliest->latest;
     autox_data_stab(q.s,point.evr,point.evi,point_is_periodic(get_bif_type(point.ibr,point.ntot)));
   }
-  refreshdisplay(q.s.session);
+  refreshdisplay(q.s.analysis.session);
 }
 
 /* sets a queued job up and starts it, on a thread or here (the jobs in turn); not started when an earlier job made it, or when
@@ -842,7 +842,7 @@ Result<> autox_run_jobs(AutoxParts s, int iold, int isave)
     finish_replay(q);
     stopped=xpp::job::cancelled();
   }
-  autox_live_drop(s.session); /* the join stores the diagram's own points in place of the live ones */
+  autox_live_drop(s.analysis.session); /* the join stores the diagram's own points in place of the live ones */
   /* the join's order is the jobs' keys (a queue served in turn would run them so) */
   std::vector<QueuedJob *> order;
   for(QueuedJob &job:q.jobs)order.push_back(&job);

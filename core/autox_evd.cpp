@@ -124,12 +124,12 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
   std::vector<double> start(u,u+n);
   std::vector<double> work(static_cast<std::size_t>(n*n+2*n));
   xpp::NewtonRun newton;
-  if(auto r=xpp::newton_iterate(s.session,u,eq.newton_tolerance,eq.jacobian_step,eq.search_limit,work.data(),newton,eq.max_iterations,n);!r)
+  if(auto r=xpp::newton_iterate(s.analysis,u,eq.newton_tolerance,eq.jacobian_step,eq.search_limit,work.data(),newton,eq.max_iterations,n);!r)
     autox_fail(r.error());
   if(newton.end!=xpp::NewtonEnd::converged){
     std::copy(start.begin(),start.end(),u);
     const std::string &name=s.model().uvar_names[worst];
-    const std::string why=xpp::newton_cause(s.session,newton,static_cast<std::size_t>(n)).why;
+    const std::string why=xpp::newton_cause(s.analysis,newton,static_cast<std::size_t>(n)).why;
     autox_fail(Error{"autox",xpp::format("The initial conditions are not a steady state, and Newton's method from them did not converge ({}); equation \"{}\" has the largest residual |f(x,p)| = {}, above state_tolerance = {}. Newton settings: {}. Use Sing pts or integrate to a steady state before starting autoX",
         why,name,xpp::number(start_value),xpp::number(rap.epsu),xpp::named_settings(s.session_parts,{"equilibria.newton_tolerance","equilibria.jacobian_step", "equilibria.search_limit","equilibria.max_iterations"})),model_place(s.model(),name)});
   }

@@ -307,7 +307,7 @@ Result<std::string> move_later(Session &s, const Command &command, const Argumen
 void select_target(Session &s, const std::string &name, const WindowTarget &target)
 {
     if (target.kind == WindowKind::graph) make_active(s, target.index, 1);
-    else if (target.kind == WindowKind::diagram) autox_activate_view(s, target.index);
+    else if (target.kind == WindowKind::diagram) autox_activate_view(xpp::autox_parts(s), target.index);
     else s.selected_window = name;
     ui.window_selected(s, name, window_kind_name(target.kind));
 }
@@ -408,7 +408,7 @@ Result<std::string> destroy_window(Session &s, const Command &command, const Arg
         destroy_a_pop(s);
         break;
     case WindowKind::diagram:
-        if (!autox_close_view(s, target->index)) {
+        if (!autox_close_view(xpp::autox_parts(s), target->index)) {
             s.autox_state->bifur.exist = 0;
             *s.autox_view = AutoxView();
             for (AutoxDiagramView &view : s.autox_state->views) {

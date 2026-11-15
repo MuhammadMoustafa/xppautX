@@ -32,7 +32,7 @@
 #include "expr_program.h"
 #include "model_place.h"
 #include "odex.h"
-#include "session.h"
+#include "run_parts.h"
 #include "xpp_text.h"
 
 namespace xpp {
@@ -44,7 +44,7 @@ namespace {
 /* an Ornstein-Uhlenbeck process's tau and sigma now (a parameter's current
    value); false, with the run's step error set, when they are not a
    positive tau and a sigma of at least 0 (a parameter edited to one) */
-bool ou_scales(xpp::Session &s, const xpp::Model::OuProcess &o, double t, double &tau, double &sigma)
+bool ou_scales(xpp::RunParts &s, const xpp::Model::OuProcess &o, double t, double &tau, double &sigma)
 {
   const auto read=[&s](const xpp::Model::OuValue &v){return v.constant>=0?s.parser.constants[v.constant]:v.number;};
   tau=read(o.tau);
@@ -64,7 +64,7 @@ bool ou_scales(xpp::Session &s, const xpp::Model::OuProcess &o, double t, double
 
 /* a run's start: each process at its init, else a draw from its stationary
    distribution, N(0, sigma^2 tau/2) */
-void start_ou(xpp::Session &s)
+void start_ou(xpp::RunParts &s)
 {
   for(const xpp::Model::OuProcess &o : s.model().ou){
     double tau=0,sigma=0;
@@ -75,7 +75,7 @@ void start_ou(xpp::Session &s)
   }
 }
 
-void set_wieners(xpp::Session &s, double dt, double *x, double t)
+void set_wieners(xpp::RunParts &s, double dt, double *x, double t)
 {
   int i;
   update_markov(s,x,t,fabs(dt));
@@ -92,7 +92,7 @@ void set_wieners(xpp::Session &s, double dt, double *x, double t)
   }
 }
 
-void update_markov(xpp::Session &s, double *x, double t, double dt)
+void update_markov(xpp::RunParts &s, double *x, double t, double dt)
 {
   int i;
   if(s.model().nmarkov==0)return;
@@ -109,7 +109,7 @@ void update_markov(xpp::Session &s, double *x, double t, double dt)
     setvar(s.parser,i+s.model().node+s.model().fix_var+1,x[s.model().node+i]);
 }
 
-double new_state(xpp::Session &s, double old, int index, double dt)
+double new_state(xpp::RunParts &s, double old, int index, double dt)
 {
   double prob,sum;
   double coin=s.random.uniform();
@@ -153,7 +153,7 @@ double new_state(xpp::Session &s, double old, int index, double dt)
   return(old);
 }
 
-void make_gill_nu(xpp::Session &s, double *nu,int n,int m,double *v)
+void make_gill_nu(xpp::RunParts &s, double *nu,int n,int m,double *v)
 {
   /* nu[j+m*i] = nu_{i,j} i=1,n-1 -- assume first eqn is tr'=tr+z(0)
      i species j reaction
@@ -177,7 +177,7 @@ void make_gill_nu(xpp::Session &s, double *nu,int n,int m,double *v)
   }
 }
 
-void one_gill_step(xpp::Session &s, int meth,int nrxn,int *rxn,double *v,double *r)
+void one_gill_step(xpp::RunParts &s, int meth,int nrxn,int *rxn,double *v,double *r)
 {
   double rate=0,test;
   int i;
@@ -209,7 +209,7 @@ void one_gill_step(xpp::Session &s, int meth,int nrxn,int *rxn,double *v,double 
 
 }
 
-Result<> set_random_seed(xpp::Session &s, int seed)
+Result<> set_random_seed(xpp::RunParts &s, int seed)
 {
   if(seed<0)return fail("seed",xpp::format("The seed is a whole number of at least 0, not {}",seed),command_place());
   s.numerics->rand_seed=seed;

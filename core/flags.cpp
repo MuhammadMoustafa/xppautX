@@ -30,7 +30,7 @@
 #include "odesol2.h"
 #include "expr_program.h"
 #include "model_parts.h"
-#include "session.h"
+#include "run_parts.h"
 
 /*  this is a new (Summer 1995) addition to XPP that allows one to
     do things like delta functions and other discontinuous
@@ -87,13 +87,13 @@ global -1 u-.2 {m=.5*m}
 
 namespace {
 /* one FlagState per flag of the model, made the first time a run steps over them (a Model's flags are fixed when it loads) */
-void size_flag_states(xpp::Session &s)
+void size_flag_states(xpp::RunParts &s)
 {
   const std::size_t n=static_cast<std::size_t>(s.model().flag_count());
   if(s.integrator->flags.size()!=n)s.integrator->flags.assign(n,xpp::FlagState{});
 }
 
-void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double smin)
+void apply_flag_hits(xpp::RunParts &s, double *ynew, double time, int neq, double smin)
 {
   auto &flags=s.model().flags;
   int i,j,in,ncycle=0,newhit,nevents,sign;
@@ -184,7 +184,7 @@ void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double
 }
 }
 
-void apply_dense_flags(xpp::Session &s, double *y, double time, int neq, std::span<const int> hits)
+void apply_dense_flags(xpp::RunParts &s, double *y, double time, int neq, std::span<const int> hits)
 {
   size_flag_states(s);
   for(int i=0;i<s.model().flag_count();++i){
@@ -196,7 +196,7 @@ void apply_dense_flags(xpp::Session &s, double *y, double time, int neq, std::sp
   apply_flag_hits(s,y,time,neq,0);
 }
 
-int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, double told, double *tnew, int neq, double *frac)
+int one_flag_step(xpp::RunParts &s, double *yold, double *ynew, int *istart, double told, double *tnew, int neq, double *frac)
 {
   size_flag_states(s);
   std::vector<xpp::Model::GlobalFlag> &flags=s.model().flags;
@@ -298,7 +298,7 @@ struct NoHit {
    crossing (an integrator that must restart). With tend, the loop also ends
    when the step reaches that time. */
 template <class Step, class Hit = NoHit>
-FlagEnd flag_loop(xpp::Session &s, double *y, int neq, double *t, int *istart,
+FlagEnd flag_loop(xpp::RunParts &s, double *y, int neq, double *t, int *istart,
                   double dt, Step &&step, const double *tend = nullptr,
                   Hit &&on_hit = Hit{})
 {
@@ -328,12 +328,12 @@ FlagEnd flag_loop(xpp::Session &s, double *y, int neq, double *t, int *istart,
 
 }
 
-void one_flag_steps(xpp::Session &s, double *y, int neq, double *tim, int *istart, double dt, const std::function<void(double)> &step)
+void one_flag_steps(xpp::RunParts &s, double *y, int neq, double *tim, int *istart, double dt, const std::function<void(double)> &step)
 {
   flag_loop(s,y,neq,tim,istart,dt,[&](double dtt){ step(dtt); return true; });
 }
 
-int one_flag_step_gear(xpp::Session &s, int neq, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
+int one_flag_step_gear(xpp::RunParts &s, int neq, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
   flag_loop(s,y,neq,t,jstart,0,[&](double){
     xpp::gear_step(s,neq,t,tout,y, hmin,hmax,eps,mf,error,kflag,jstart,work,iwork);
@@ -342,7 +342,7 @@ int one_flag_step_gear(xpp::Session &s, int neq, double *t, double tout, double 
   return 0;
 }
 
-int one_flag_step_rosen(xpp::Session &s, double *y,double *tstart,double tfinal,
+int one_flag_step_rosen(xpp::RunParts &s, double *y,double *tstart,double tfinal,
 int *istart,int n,double *work,int *ierr)
 {
   FlagEnd end=flag_loop(s,y,n,tstart,istart,0,[&](double){
@@ -352,7 +352,7 @@ int *istart,int n,double *work,int *ierr)
   return 1;
 }
 
-int one_flag_step_cvode(xpp::Session &s, xpp::CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
+int one_flag_step_cvode(xpp::RunParts &s, xpp::CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
   FlagEnd end=flag_loop(s,y,n,t,command,0,[&](double){
     xpp::ccvode(s,run,command,y,t,n,tout,kflag,atol,rtol);
@@ -361,7 +361,7 @@ int one_flag_step_cvode(xpp::Session &s, xpp::CvodeRun &run, int *command, doubl
   return end==FlagEnd::too_hard;
 }
 
-int one_flag_step_adap(xpp::Session &s, double *y, int neq, double *t, double tout, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
+int one_flag_step_adap(xpp::RunParts &s, double *y, int neq, double *t, double tout, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
 {
   flag_loop(s,y,neq,t,jstart,0,[&](double){
     xpp::adaptive_integration_without_flags(s,y,neq,t,tout,eps,hguess,hmin,work,ier,epjac,iflag,jstart);
@@ -369,7 +369,7 @@ int one_flag_step_adap(xpp::Session &s, double *y, int neq, double *t, double to
   return 0;
 }
 
-int one_flag_step_backeul(xpp::Session &s, double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *errvec, double *jac, int *istart)
+int one_flag_step_backeul(xpp::RunParts &s, double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *errvec, double *jac, int *istart)
 {
   int j=0;
   flag_loop(s,y,neq,t,istart,dt,[&](double dtt){

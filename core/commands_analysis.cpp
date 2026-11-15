@@ -92,7 +92,7 @@ Result<std::string> load_data(Session &s, const Command &, const Arguments &, co
 }
 
 /* a command with no arguments whose core function either does what it says or says why not: {Key: true} */
-template <Result<> (*Do)(Session &), const char *Key> Result<std::string> done_with(Session &s, const Command &, const Arguments &, const Place &)
+template <Result<> (*Do)(AnalysisParts &), const char *Key> Result<std::string> done_with(Session &s, const Command &, const Arguments &, const Place &)
 {
     if (const Result<> done = Do(s); !done) return std::unexpected<Error>(done.error());
     return ResultObject().boolean(Key, true).done();
@@ -127,7 +127,7 @@ Result<std::string> histogram_2d_handler(Session &s, const Command &, const Argu
 }
 
 /* the Fourier series and the power spectrum of one column */
-template <Result<int> (*Transform)(Session &, std::optional<int>), const char *Count>
+template <Result<int> (*Transform)(AnalysisParts &, std::optional<int>), const char *Count>
 Result<std::string> transform_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
     const auto column = args.optional<std::string>("column").transform([&](const auto &name) { return variable_column(s, name); });

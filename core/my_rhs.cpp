@@ -19,7 +19,7 @@
 #include "model.h"
 #include "model_native.h"
 #include "expr_program.h"
-#include "session.h"
+#include "run_parts.h"
 #include "xpp_mir.h"
 
 /* ---- the networks a right-hand side evaluates (simplenet.h: the Model's networks, read by simplenet.cpp) ---- */
@@ -27,7 +27,7 @@ namespace xpp {
 
 namespace {
 
-double net_interp(xpp::Session &s, double x, int i)
+double net_interp(xpp::RunParts &s, double x, int i)
 {
   int jlo=static_cast<int>(x);
   double *y;
@@ -223,7 +223,7 @@ void find_extremum(const Network &net, const double *y, double *values)
 
 } // namespace
 
-double vector_value(xpp::Session &s, double x, int i)
+double vector_value(xpp::RunParts &s, double x, int i)
 {
   const Ends il=s.model().vectors[i].il,ir=s.model().vectors[i].ir;
   const int n=s.model().vectors[i].length,k=static_cast<int>(x);
@@ -242,7 +242,7 @@ double vector_value(xpp::Session &s, double x, int i)
 
 }
 
-double network_value(xpp::Session &s, double x, int i)
+double network_value(xpp::RunParts &s, double x, int i)
 {
   int j=static_cast<int>(x);
   if(s.model().networks[i].kind==NetworkKind::interpolation){
@@ -253,7 +253,7 @@ double network_value(xpp::Session &s, double x, int i)
   return 0.0;
 }
 
-void evaluate_network(xpp::Session &s, int ind)
+void evaluate_network(xpp::RunParts &s, int ind)
 {
   /* every network on every step: the definition, values and variables once */
   Network &net=s.model().networks[ind];
@@ -322,7 +322,7 @@ void evaluate_network(xpp::Session &s, int ind)
 }
 }
 
-void eval_all_nets(xpp::Session &s)
+void eval_all_nets(xpp::RunParts &s)
 {
   int i;
   for(i=0;i<s.model().nnetwork;i++)
@@ -382,7 +382,7 @@ void rhs_order(const xpp::Model &m, double t, const double *y, double *ydot, dou
 }
 }
 
-void extra(xpp::Session &s, double *y__y, double t, int nod, int neq)
+void extra(xpp::RunParts &s, double *y__y, double t, int nod, int neq)
 {
   const xpp::Model &m=s.model();
   const int fix=m.fix_var,nmark=m.nmarkov;
@@ -398,7 +398,7 @@ void extra(xpp::Session &s, double *y__y, double t, int nod, int neq)
   y__y[i]=xpp::evaluate(s.parser,s.model().programs[i+fix-nmark]);
 }
 
-void set_fix_rhs(xpp::Session &s, double t, double *y)
+void set_fix_rhs(xpp::RunParts &s, double t, double *y)
 {
   const xpp::Model &m=s.model();
   state_values(m,t,y,m.node,m.nmarkov,[&](int i,double value){setvar(s.parser,i,value);});
@@ -406,10 +406,10 @@ void set_fix_rhs(xpp::Session &s, double t, double *y)
   xpp::eval_all_nets(s);
 }
 
-int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
+int my_rhs(xpp::RunParts &s, double t, double *y, double *ydot, int neq)
 {
   const xpp::Model &m=s.model();
-  if (m.native_build || m.jacobian.build) xpp::build_native(s,false); /* a build due starts, finished code is taken: here, never mid-evaluation (W715) */
+  if (m.native_build || m.jacobian.build) xpp::build_native(s.session_parts,false); /* a build due starts, finished code is taken: here, never mid-evaluation (W715) */
   rhs_order(m,t,y,ydot,s.parser.constants.data(),s.parser.variables.data(),&s.parser,
             [&](int i,double value){setvar(s.parser,i,value);},
             [&](const xpp::Program &p){return xpp::evaluate(s.parser,p);},
@@ -418,25 +418,25 @@ int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
   return 1;
 }
 
-bool pure_rhs_ready(const xpp::Session &s)
+bool pure_rhs_ready(const xpp::RunParts &s)
 {
   return s.model().rhs_impurity.empty() && !s.model().native_build && s.integrator->rhs.function==my_rhs;
 }
 
-void pure_rhs(const xpp::Session &s, const double *y, double *ydot, double *c, double *v)
+void pure_rhs(const xpp::RunParts &s, const double *y, double *ydot, double *c, double *v)
 {
   /* the native code only reads s's tables (Model::rhs_impurity) */
-  rhs_order(s.model(),0.0,y,ydot,c,v,const_cast<xpp::ParserState *>(&s.parser),[&](int i,double value){v[i]=value;},
+  rhs_order(s.model(),0.0,y,ydot,c,v,&s.parser,[&](int i,double value){v[i]=value;},
             [&](const xpp::Program &p){return xpp::evaluate_pure(s.parser,p,c,v);},[]{});
 }
 
-void update_based_on_current(xpp::Session &s)
+void update_based_on_current(xpp::RunParts &s)
 {
   fix_only(s);
   xpp::eval_all_nets(s);
 }
 
-void fix_only(xpp::Session &s)
+void fix_only(xpp::RunParts &s)
 {
   const xpp::Model &m=s.model();
   fixed_values(m,s.parser.constants.data(),s.parser.variables.data(),&s.parser,
@@ -444,7 +444,7 @@ void fix_only(xpp::Session &s)
                [&](const xpp::Program &p){return xpp::evaluate(s.parser,p);});
 }
 
-void rhs_only(xpp::Session &s, double *ydot)
+void rhs_only(xpp::RunParts &s, double *ydot)
 {
   equation_values(s.model(),ydot,[&](const xpp::Program &p){return xpp::evaluate(s.parser,p);});
 }

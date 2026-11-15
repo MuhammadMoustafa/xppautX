@@ -414,9 +414,9 @@ void check_parameterless_model()
     s.autox_state->dir=tmp.path();
     CHECK(s.model().nupar==0);
     const int points=diagram_count(*s.diagram);
-    CHECK(!xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
+    CHECK(!xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{}));
     CHECK(!s.autox_state->diag_flag && diagram_count(*s.diagram)==points);
-    CHECK(!xpp::files::exists(xpp::autox_solutions_file(s)));
+    CHECK(!xpp::files::exists(xpp::autox_solutions_file(xpp::autox_parts(s))));
 }
 
 /* W596 (#662): what a run of XPPAUT's tstauto/ab left: autoX's .b, .s and .d files and the diagram */
@@ -442,7 +442,7 @@ void directions_settings(xpp::Session &s, double step)
     put(xpp::AUTOX_NUM_MESH_INTERVALS,15);
     put(xpp::AUTOX_NUM_MAX_BRANCH_SWITCHES,0);
     std::string why;
-    CHECK(xpp::autox_settings_apply(s,set,why)==0);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),set,why)==0);
     s.parser.constants[s.model().upar_con[0]]=0.05;
     std::fill(s.last_ic.begin(),s.last_ic.end(),0.0);
 }
@@ -454,17 +454,17 @@ DirectionsRun run_directions(bool follow_all_branches, unsigned threads)
     CHECK(load("examples/tstauto/ab.odex"));
     auto &s=xpp::client_session();
     s.autox_state->dir=tmp.path();
-    xpp::init_autox_win(s);
+    xpp::init_autox_win(xpp::autox_parts(s));
     s.threads=threads;
     s.autox_state->follow_all_branches=follow_all_branches;
     directions_settings(s,0.02);
-    CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
+    CHECK(xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{}));
     if(!follow_all_branches){ /* the other direction, from the same start, as a second run */
         directions_settings(s,-0.02);
-        CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
+        CHECK(xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{}));
     }
     result.branches=file_text(s.autox_state->file+".b");
-    result.solutions=file_text(xpp::autox_solutions_file(s));
+    result.solutions=file_text(xpp::autox_solutions_file(xpp::autox_parts(s)));
     result.diagnostics=file_text(s.autox_state->file+".d");
     result.points=s.diagram->points;
     result.constants=s.parser.constants;
@@ -549,7 +549,7 @@ void check_directions_output(unsigned threads)
     CHECK(load("examples/tstauto/ab.odex"));
     auto &s=xpp::client_session();
     s.autox_state->dir=tmp.path();
-    xpp::init_autox_win(s);
+    xpp::init_autox_win(xpp::autox_parts(s));
     s.threads=threads;
     s.autox_state->follow_all_branches=true;
     directions_settings(s,0.02);
@@ -558,7 +558,7 @@ void check_directions_output(unsigned threads)
     xpp::log_settings.file=nullptr;
     CHECK(xpp::log_open_file(log));
     xpp::log_set_autox_echo(true);
-    const xpp::Result<> run=xpp::autox_run_start(s,xpp::AutoxRunRequest{});
+    const xpp::Result<> run=xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{});
     xpp::log_set_autox_echo(false);
     std::fclose(xpp::log_settings.file);
     xpp::log_settings.file=saved;
@@ -589,12 +589,12 @@ std::vector<LimitPoint> check_directions_limit(unsigned threads)
     CHECK(load("examples/tstauto/ab.odex"));
     auto &s=xpp::client_session();
     s.autox_state->dir=tmp.path();
-    xpp::init_autox_win(s);
+    xpp::init_autox_win(xpp::autox_parts(s));
     s.threads=threads;
     s.autox_state->follow_all_branches=true;
     directions_settings(s,0.02);
     CHECK(test_setenv("XPP_DIAGRAM_POINTS_LIMIT","30")==0);
-    const xpp::Result<> run=xpp::autox_run_start(s,xpp::AutoxRunRequest{});
+    const xpp::Result<> run=xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{});
     CHECK(test_setenv("XPP_DIAGRAM_POINTS_LIMIT",nullptr)==0);
     CHECK(!run && run.error().what.find("the diagram holds 30 points")!=std::string::npos);
     CHECK(s.diagram->points.size()==30);
@@ -607,7 +607,7 @@ std::vector<LimitPoint> check_directions_limit(unsigned threads)
     CHECK(branches==1); /* the first job reaches the limit alone */
     std::vector<int> diagram_labels;
     for(const xpp::DIAGRAM &p:s.diagram->points)if(p.lab>0)diagram_labels.push_back(p.lab);
-    std::vector<int> stored_labels=solution_labels(xpp::autox_solutions_file(s));
+    std::vector<int> stored_labels=solution_labels(xpp::autox_solutions_file(xpp::autox_parts(s)));
     std::sort(diagram_labels.begin(),diagram_labels.end());
     std::sort(stored_labels.begin(),stored_labels.end());
     CHECK(!diagram_labels.empty() && stored_labels==diagram_labels); /* no record of a point the diagram dropped */
@@ -648,7 +648,7 @@ void check_directions_stopped(unsigned threads)
     CHECK(load("examples/tstauto/ab.odex"));
     auto &s=xpp::client_session();
     s.autox_state->dir=tmp.path();
-    xpp::init_autox_win(s);
+    xpp::init_autox_win(xpp::autox_parts(s));
     s.threads=threads;
     s.autox_state->follow_all_branches=true;
     directions_settings(s,0.02);
@@ -664,11 +664,11 @@ void check_directions_stopped(unsigned threads)
     slow.has_num[xpp::AUTOX_NUM_OUTPUT_EVERY]=1;
     slow.num[xpp::AUTOX_NUM_OUTPUT_EVERY]=10;
     std::string why;
-    CHECK(xpp::autox_settings_apply(s,slow,why)==0);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),slow,why)==0);
     /* the steady state at p0 = 0.05, so the start needs no Newton refinement */
     s.last_ic[0]=0.06282240276322631;
     s.last_ic[1]=0.2931712128950587;
-    CHECK(xpp::native_ready(s) && xpp::autox_parallel_ready(s));
+    CHECK(xpp::native_ready(s) && xpp::autox_parallel_ready(xpp::autox_parts(s)));
     int (*const polled)(int *)=xpp::ui.autox_check_abort;
     void (*const shown)(const xpp::XppAutoxJobs &)=xpp::ui.autox_jobs;
     jobs_wanted=threads>1?2:1;
@@ -677,7 +677,7 @@ void check_directions_stopped(unsigned threads)
     xpp::ui.autox_check_abort=abort_when_jobs_have_points;
     xpp::ui.autox_jobs=note_jobs_with_points;
     CHECK(abort_polls<20000);
-    const xpp::Result<> run=xpp::autox_run_start(s,xpp::AutoxRunRequest{});
+    const xpp::Result<> run=xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{});
     xpp::ui.autox_check_abort=polled;
     xpp::ui.autox_jobs=shown;
     CHECK(run && abort_polls<20000);
@@ -699,11 +699,11 @@ void check_branch_parameters()
     CHECK(load(model));
     auto &s=xpp::client_session();
     s.autox_state->dir=tmp.path();
-    xpp::init_autox_win(s);
+    xpp::init_autox_win(xpp::autox_parts(s));
     s.autox_state->follow_all_branches=false; /* these tests start one run each */
     // Mark functions must read a held model constant even though autoX never received it.
     AutoxRun mark_lib;
-    autox_bind_parts(mark_lib, s);
+    autox_bind_parts(mark_lib, xpp::autox_parts(s));
     mark_lib.parameter_count=s.autox_state->parameter_layout.size();
     iap_type mark_iap{};
     mark_iap.run=&mark_lib;
@@ -724,7 +724,7 @@ void check_branch_parameters()
     mark[0].parameter=xpp::autox_unknown::period;
     parameters[xpp::autox_unknown::period]=7.5;
     CHECK(mark_value()==7);
-    CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
+    CHECK(xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{}));
     CHECK(s.diagram->points.size()==4);
     const int label=s.diagram->points.front().lab;
     CHECK(label>0);
@@ -733,28 +733,28 @@ void check_branch_parameters()
     CHECK(s.diagram->points.back().branch==older && s.diagram->points.back().par.size()==1);
     s.parser.constants[s.model().upar_con[1]]=7;
     s.last_ic[0]=7/s.parser.constants[s.model().upar_con[0]];
-    CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{})); /* a new start that keeps the diagram: replace_diagram is false */
+    CHECK(xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{})); /* a new start that keeps the diagram: replace_diagram is false */
     CHECK(s.diagram->points.size()==8 && s.diagram->points.back().branch!=older);
     CHECK(s.diagram->points.back().branch->parameters[1]==7 && older->parameters[1]==2);
-    CHECK(xpp::autox_grab_label(s,label)==1 && s.parser.constants[s.model().upar_con[1]]==2);
+    CHECK(xpp::autox_grab_label(xpp::autox_parts(s),label)==1 && s.parser.constants[s.model().upar_con[1]]==2);
     s.parser.constants[s.model().upar_con[1]]=9;
-    CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{xpp::AutoxRunKind::equilibrium,false,true}));
+    CHECK(xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{xpp::AutoxRunKind::equilibrium,false,true}));
     CHECK(s.parser.constants[s.model().upar_con[1]]==2 && s.diagram->points.back().branch->parameters[1]==2);
     CHECK(std::abs(diagram_parameter(s.diagram->points.back(),0)*s.diagram->points.back().u0[0]-2)<1e-8);
     const auto bytes=xpp_session_snapshot(s);
     CHECK(bytes.has_value());
     const auto saved=bytes?xpp_saved_parse(tmp.file("branches.snapx"),"branches.snapx",*bytes,SavedKind::snapshot):std::nullopt;
     s.parser.constants[s.model().upar_con[1]]=11;
-    start_diagram(s,1);
+    start_diagram(xpp::autox_parts(s),1);
     CHECK(saved && xpp_saved_restore(s,*saved));
-    CHECK(xpp::autox_grab_label(s,label)==1 && s.parser.constants[s.model().upar_con[1]]==2);
+    CHECK(xpp::autox_grab_label(xpp::autox_parts(s),label)==1 && s.parser.constants[s.model().upar_con[1]]==2);
     s.parser.constants[s.model().upar_con[1]]=13;
-    CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{xpp::AutoxRunKind::equilibrium,false,true}));
+    CHECK(xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{xpp::AutoxRunKind::equilibrium,false,true}));
     CHECK(s.parser.constants[s.model().upar_con[1]]==2 && s.diagram->points.back().branch->parameters[1]==2);
     CHECK(std::abs(diagram_parameter(s.diagram->points.back(),0)*s.diagram->points.back().u0[0]-2)<1e-8);
     s.autox_state->axes().icp1=1;
     s.parser.constants[s.model().upar_con[0]]=19;
-    CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{xpp::AutoxRunKind::equilibrium,false,true}));
+    CHECK(xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{xpp::AutoxRunKind::equilibrium,false,true}));
     CHECK(s.parser.constants[s.model().upar_con[0]]==1 && s.diagram->points.back().icp1.is_parameter(1));
     CHECK(std::abs(s.diagram->points.back().u0[0]-diagram_parameter(s.diagram->points.back(),1))<1e-8);
 }
@@ -769,9 +769,9 @@ void check_orbit_growth(const xpp::TempDir &tmp)
     const std::string orbit=xpp::format("1 1 2 1 1 1 3 3 9 1 2 {}\n0 1 2\n0.5 3 4\n1 5 6\n{}\n1\n0 0\n0 0\n0 0\n{}\n",s.autox_state->parameter_layout.size(),s.autox_state->parameter_layout.solver_index(0),parameters);
     CHECK(xpp::check_autox_solutions(orbit, "orbit.s", 24, s.autox_state->parameter_layout.size(),false));
     s.autox_state->file = tmp.file("orbit");
-    CHECK(write_file(xpp::autox_solutions_file(s), orbit));
+    CHECK(write_file(xpp::autox_solutions_file(xpp::autox_parts(s)), orbit));
     s.data_store->allocate(2, s.model().neq + 1, s.numerics->storage_precision);
-    CHECK(xpp::load_autox_orbitx(s, -1, 1, 1, 2));
+    CHECK(xpp::load_autox_orbitx(xpp::autox_parts(s), -1, 1, 1, 2));
     CHECK(s.data_store->rows == 3 && s.data_store->max_rows >= 3);
     CHECK(s.data_store->col[0][0] == 0 && s.data_store->col[0][1] == 1 && s.data_store->col[0][2] == 2);
     CHECK(s.data_store->col[1][0] == 1 && s.data_store->col[1][2] == 5 && s.data_store->col[2][0] == 2 && s.data_store->col[2][2] == 6);
@@ -795,7 +795,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     pts.back().icp2 = xpp::AutoxAxis::period();
     pts.back().parameter_indices.pop_back();
     pts.back().par.pop_back(); /* the period is kept separately from model parameters */
-    diagram_restore(s, pts);
+    diagram_restore(xpp::autox_parts(s), pts);
     CHECK(diagram_count(*xpp::client_session().diagram) == 9 && xpp::client_session().diagram->points[3].uhi[1] == pts[3].uhi[1]);
     std::string solutions;
     const int parameter_rows=(s.autox_state->parameter_layout.size()+6)/7;
@@ -803,7 +803,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     for (int value : {1,1,4,1,2,0,1,3,1+parameter_rows,0,0,s.autox_state->parameter_layout.size()})solutions+=xpp::format("{:5}",value);
     solutions+="\n0.0 1 2\n";
     for(int k=0;k<s.autox_state->parameter_layout.size();k++)solutions+="0"+std::string((k+1)%7==0 || k+1==s.autox_state->parameter_layout.size()?"\n":" ");
-    CHECK(write_file(xpp::autox_solutions_file(xpp::client_session()), solutions));
+    CHECK(write_file(xpp::autox_solutions_file(xpp::autox_parts(xpp::client_session())), solutions));
     s.autox_state->bifur.ds = 0.1 + 0.2;
     s.autox_state->bifur.dsmax = 0.5;
     s.autox_state->bifur.rl1 = 1.0 / 3.0;
@@ -812,10 +812,10 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     mark_set.mark_name.resize(128,"T");
     for(int i=0;i<128;i++)mark_set.mark_value.push_back(awk(i));
     std::string why;
-    CHECK(xpp::autox_settings_apply(s,mark_set,why)==0);
-    const xpp::AutoxSettingsSet before = xpp::autox_settings_now(xpp::client_session());
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),mark_set,why)==0);
+    const xpp::AutoxSettingsSet before = xpp::autox_settings_now(xpp::autox_parts(xpp::client_session()));
     /* a second view (W50), the norm, a zoom of its own; the first active */
-    xpp::autox_new_view(xpp::client_session(), xpp::next_window_name(xpp::client_session(), xpp::WindowKind::diagram));
+    xpp::autox_new_view(xpp::autox_parts(xpp::client_session()), xpp::next_window_name(xpp::client_session(), xpp::WindowKind::diagram));
     s.autox_state->views[1].axes.plot = xpp::AutoxProjection::norm;
     s.autox_state->views[1].axes.ymax = 5;
     s.autox_state->views[1].zoom.y = {true, 0.5, 1.5};
@@ -834,8 +834,8 @@ void check_session_round_trip(const xpp::TempDir &tmp)
 
     /* everything changed, then the file restored */
     s.autox_state->bifur.marks.clear();
-    start_diagram(xpp::client_session(), n);
-    CHECK(write_file(xpp::autox_solutions_file(xpp::client_session()), "other"));
+    start_diagram(xpp::autox_parts(xpp::client_session()), n);
+    CHECK(write_file(xpp::autox_solutions_file(xpp::autox_parts(xpp::client_session())), "other"));
     s.autox_state->bifur.ds = 0.05;
     s.autox_state->bifur.rl1 = 7;
     s.autox_state->views.resize(1);
@@ -849,9 +849,9 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     for (int i = 0; i < diagram_count(*xpp::client_session().diagram); i++)
         indexed = indexed && xpp::client_session().diagram->points[i].index == i;
     CHECK(indexed);
-    CHECK(file_text(xpp::autox_solutions_file(xpp::client_session())) == solutions);
+    CHECK(file_text(xpp::autox_solutions_file(xpp::autox_parts(xpp::client_session()))) == solutions);
     CHECK(same_bits(s.autox_state->bifur.ds, 0.1 + 0.2) && same_bits(s.autox_state->bifur.rl1, 1.0 / 3.0));
-    const xpp::AutoxSettingsSet after = xpp::autox_settings_now(xpp::client_session());
+    const xpp::AutoxSettingsSet after = xpp::autox_settings_now(xpp::autox_parts(xpp::client_session()));
     CHECK(autox_text::settings_text(after) == autox_text::settings_text(before));
     CHECK(s.autox_state->views.size() == 2 && s.autox_state->active_view == 0 && s.autox_state->views[1].axes.plot == xpp::AutoxProjection::norm &&
           s.autox_state->views[1].axes.ymax == 5 && (s.autox_state->views[1].zoom.y == xpp::AxisRange{true, 0.5, 1.5}) &&
@@ -886,13 +886,13 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
     CHECK(d && d->ibr == 1 && d->ntot == 1 && d->itp.is(xpp::AutoxPointKind::End) && d->lab == 1 && diagram_parameter(*d,0) == 0.05 && d->u0[0] == -0.144 &&
           d->u0[1] == 0.03);
     CHECK(s.autox_state->bifur.ntst == 15 && s.autox_state->bifur.nmx == 2000 && s.autox_state->bifur.dsmin == 1e-05);
-    CHECK(file_text(xpp::autox_solutions_file(xpp::client_session())).size() > 100); /* the .s part */
+    CHECK(file_text(xpp::autox_solutions_file(xpp::autox_parts(xpp::client_session()))).size() > 100); /* the .s part */
     CHECK(s.autox_state->bifur.marks.empty());
     /* Sent foreign files must preserve every autoX member after any late failure. */
-    const auto before_settings = autox_text::settings_text(xpp::autox_settings_now(s));
+    const auto before_settings = autox_text::settings_text(xpp::autox_settings_now(xpp::autox_parts(s)));
     const auto before_diagram = xpp::snapx::autox_members::diagram_csv(s.diagram->points, s.model().nupar,
         std::span<const std::string>(s.model().uvar_names.data(), s.model().node));
-    const auto before_solutions = file_text(xpp::autox_solutions_file(s));
+    const auto before_solutions = file_text(xpp::autox_solutions_file(xpp::autox_parts(s)));
     const auto before_parameters = s.autox_state->imported_parameters;
     const auto before_marks = s.autox_state->bifur.marks;
     s.autox_state->from_autox_flag = true;
@@ -906,10 +906,10 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
             CHECK(result.error().place.file == path && result.error().place.line == line);
             CHECK(result.error().place.source == std::string(xpp::line_place(path, bad, line).source));
         }
-        CHECK(autox_text::settings_text(xpp::autox_settings_now(s)) == before_settings);
+        CHECK(autox_text::settings_text(xpp::autox_settings_now(xpp::autox_parts(s))) == before_settings);
         CHECK(xpp::snapx::autox_members::diagram_csv(s.diagram->points, s.model().nupar,
             std::span<const std::string>(s.model().uvar_names.data(), s.model().node)) == before_diagram);
-        CHECK(file_text(xpp::autox_solutions_file(s)) == before_solutions);
+        CHECK(file_text(xpp::autox_solutions_file(xpp::autox_parts(s))) == before_solutions);
         CHECK(s.autox_state->imported_parameters == before_parameters);
         CHECK(s.autox_state->bifur.marks == before_marks);
         CHECK(s.autox_state->from_autox_flag && s.autox_state->grabpt.flag == 1 && s.autox_state->diagram_mark.state == 1);
@@ -935,7 +935,7 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
     CHECK(xpp::import_autox_file(s, autox_text, path));
     CHECK(!s.autox_state->from_autox_flag && s.autox_state->grabpt.flag == 0 && s.autox_state->diagram_mark.state == 0);
     const std::deque<xpp::DIAGRAM> imported = s.diagram->points;
-    const std::string solutions = file_text(xpp::autox_solutions_file(xpp::client_session()));
+    const std::string solutions = file_text(xpp::autox_solutions_file(xpp::autox_parts(xpp::client_session())));
 
     std::vector<xpp::zip::Entry> entries;
     CHECK(xpp::snapx::autox_members::add_members(xpp::client_session(), entries, "autox/"));
@@ -943,7 +943,7 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
     for (xpp::zip::Entry &e : entries) members[e.name] = std::move(e.bytes);
     CHECK(members.size() == 2 && members.contains("autox/diagram.csv") && members.contains("autox/solutions.s"));
     const std::string state = autox_text::state_text(xpp::client_session());
-    start_diagram(xpp::client_session(), xpp::client_session().model().node);
+    start_diagram(xpp::autox_parts(xpp::client_session()), xpp::client_session().model().node);
     xpp::Result<xpp::snapx::autox_members::Members> read = autox_text::read_members(xpp::client_session(), members, "autox/", "lecar.snapx", state, "lecar.snapx/session.odex");
     CHECK(read && xpp::snapx::autox_members::restore_members(xpp::client_session(), std::move(*read)));
     /* one missing: named */
@@ -964,7 +964,7 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
     CHECK(!mesh_refused);
     if (!mesh_refused) CHECK(mesh_refused.error().place.file == "lecar.snapx/session.odex" && mesh_refused.error().place.line == line_of(settings, "mesh_intervals:"));
     CHECK(same_diagram(s.diagram->points, imported));
-    CHECK(file_text(xpp::autox_solutions_file(xpp::client_session())) == solutions);
+    CHECK(file_text(xpp::autox_solutions_file(xpp::autox_parts(xpp::client_session()))) == solutions);
 
 
 }
@@ -993,13 +993,13 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
     }
     CHECK(s.model().rhs_impurity.empty()==(compiled && !impure));
     s.autox_state->dir=tmp.path();
-    xpp::init_autox_win(s);
+    xpp::init_autox_win(xpp::autox_parts(s));
     s.autox_state->follow_all_branches=false; /* these tests start one run each */
     s.threads=threads; /* the preference's count, selected once for the run */
-    CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
-    CHECK(xpp::autox_grab_type_index(s,xpp::AutoxPointKind::Hopf,1)==1);
+    CHECK(xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{}));
+    CHECK(xpp::autox_grab_type_index(xpp::autox_parts(s),xpp::AutoxPointKind::Hopf,1)==1);
     const auto start=std::chrono::steady_clock::now();
-    CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{xpp::AutoxRunKind::periodic,false,true}));
+    CHECK(xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{xpp::AutoxRunKind::periodic,false,true}));
     // W340/#401: periodic continuation frees autoX's period independently of the model.
     CHECK(std::any_of(s.diagram->points.begin(),s.diagram->points.end(),[](const xpp::DIAGRAM &p){
         return p.nfpar==2 && p.icp2.is_period()
@@ -1011,10 +1011,10 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
     // The run's pool is its own, gone with it: the selection a run makes is the one select_run makes
     // for its dimension and mesh.
     AutoxRun run;
-    autox_bind_parts(run, s);
+    autox_bind_parts(run, xpp::autox_parts(s));
     xpp::AutoxParallel::select_run(run,s.model().node,s.autox_state->bifur.ntst,s.autox_state->bifur.ncol);
     if (compiled && !impure) CHECK(run.collocation && run.collocation->threads()==(mesh==serial_mesh?1:threads));
-    else CHECK(!run.collocation && !xpp::autox_parallel_ready(s));
+    else CHECK(!run.collocation && !xpp::autox_parallel_ready(xpp::autox_parts(s)));
     return s.diagram->points;
 }
 
@@ -1040,12 +1040,12 @@ void check_collocation_purity()
     }
     CHECK(load("tools/models/compile_derived.odex"));
     auto &s=xpp::client_session();
-    CHECK(s.model().rhs_impurity.empty() && xpp::native_ready(s) && xpp::autox_parallel_ready(s));
+    CHECK(s.model().rhs_impurity.empty() && xpp::native_ready(s) && xpp::autox_parallel_ready(xpp::autox_parts(s)));
     s.numerics->method=xpp::method::DISCRETE;
     s.numerics->store_every=2;
-    CHECK(!xpp::autox_parallel_ready(s));
+    CHECK(!xpp::autox_parallel_ready(xpp::autox_parts(s)));
     s.numerics->store_every=1;
-    CHECK(xpp::autox_parallel_ready(s));
+    CHECK(xpp::autox_parallel_ready(xpp::autox_parts(s)));
 }
 
 void check_collocation()
@@ -1077,7 +1077,7 @@ void check_collocation()
     // dispatch must leave the persistent pool usable for the next call.
     auto &s=xpp::client_session();
     AutoxRun run;
-    autox_bind_parts(run, s);
+    autox_bind_parts(run, xpp::autox_parts(s));
     xpp::AutoxParallel pool(4);
     pool.prepare(run,2,2);
     std::atomic<int> visited=0;
@@ -1110,7 +1110,7 @@ void check_pool_reuse()
 {
     auto &s=xpp::client_session();
     AutoxRun run;
-    autox_bind_parts(run, s);
+    autox_bind_parts(run, xpp::autox_parts(s));
     for (unsigned count:{4u,1u,3u,2u,4u}) {
         xpp::AutoxParallel pool(count);
         pool.prepare(run,2,2);
@@ -1210,7 +1210,7 @@ void check_brbd_tree()
     double first_det=0;
     for (unsigned threads=1;threads<=xpp::AutoxParallel::max_threads;++threads) {
         AutoxRun run;
-        autox_bind_parts(run,xpp::client_session());
+        autox_bind_parts(run,xpp::autox_parts(xpp::client_session()));
         run.parameter_count=ncb;
         run.collocation=std::make_unique<xpp::AutoxParallel>(threads);
         run.collocation->prepare(run,nov,nbc);
@@ -1271,19 +1271,19 @@ TEST_CASE("test_session_autox")
     {
         xpp::Session &s = xpp::client_session();
         s.autox_state->bifur.nmx = 37;
-        const auto before = autox_text::settings_text(xpp::autox_settings_now(s));
+        const auto before = autox_text::settings_text(xpp::autox_settings_now(xpp::autox_parts(s)));
         const auto bytes = xpp_session_snapshot(s);
         CHECK(bytes.has_value());
         const auto f = bytes ? xpp_saved_parse(tmp.file("settings.snapx"), "settings.snapx", *bytes, SavedKind::snapshot) : std::nullopt;
         s.autox_state->bifur.nmx = 38;
         CHECK(f && xpp_saved_restore(s, *f));
-        CHECK(autox_text::settings_text(xpp::autox_settings_now(s)) == before);
+        CHECK(autox_text::settings_text(xpp::autox_settings_now(xpp::autox_parts(s))) == before);
         CHECK(diagram_count(*s.diagram) <= 1 && !s.autox_state->bifur.exist);
         if (f) {
             SavedFile missing = *f;
             missing.members.erase(xpp::snapx::state_member);
             CHECK(xpp_saved_check(s, missing).has_value());
-            CHECK(autox_text::settings_text(xpp::autox_settings_now(s)) == before);
+            CHECK(autox_text::settings_text(xpp::autox_settings_now(xpp::autox_parts(s))) == before);
         }
     }
     check_orbit_growth(tmp);

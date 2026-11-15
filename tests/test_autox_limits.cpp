@@ -37,7 +37,7 @@ TEST_CASE("test_autox_limits")
     xpp::Session &s=xpp::client_session();
     xpp::TempDir temp;
     s.autox_state->dir=temp.path();
-    xpp::init_autox_win(s);
+    xpp::init_autox_win(xpp::autox_parts(s));
     CHECK(s.model().node==401 && s.model().nupar==40);
     CHECK(s.autox_state->grabpt.u0.size()==401 && s.autox_state->homo_l.size()==401);
     CHECK(s.autox_state->parameter_layout.size()>36);
@@ -58,7 +58,7 @@ TEST_CASE("test_autox_limits")
     xpp::AutoxRunRequest request;
     request.kind=xpp::AutoxRunKind::heteroclinic;
     request.homoclinic=xpp::HomoclinicStart{2,400,start.left,start.right};
-    const xpp::Result<> refused=xpp::autox_run_start(s,request);
+    const xpp::Result<> refused=xpp::autox_run_start(xpp::autox_parts(s),request);
     CHECK(!refused && refused.error().what.find("must add up to the number of variables, 401")!=std::string::npos);
     CHECK(s.autox_state->homo_equilibria.nunstab==1);
     s.autox_state->homo_flag=HomoclinicRun::None;
@@ -76,48 +76,48 @@ TEST_CASE("test_autox_limits")
     selection.has_num[xpp::AUTOX_NUM_MAX_STEPS]=1;
     selection.num[xpp::AUTOX_NUM_MAX_STEPS]=99;
     const int old_max=s.autox_state->bifur.nmx;
-    CHECK(xpp::autox_settings_apply(s,selection,why)!=0);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),selection,why)!=0);
     CHECK(s.autox_state->bifur.nmx==old_max && s.autox_state->axes().icp1==0);
-    CHECK(xpp::autox_settings_apply(s,set,why)==0);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),set,why)==0);
     CHECK(s.autox_state->axes().icp1==39 && s.autox_state->parameter_layout.model_parameters==40);
     CHECK(s.autox_state->parameter_layout.solver_index(39)>36);
     set.nmarks=2;
     set.mark_name={"P10","T"};
     set.mark_value={0.2,6.3};
-    CHECK(xpp::autox_settings_apply(s,set,why)==0);
-    const auto marked=xpp::autox_settings_now(s);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),set,why)==0);
+    const auto marked=xpp::autox_settings_now(xpp::autox_parts(s));
     CHECK(marked.mark_name[0]==s.model().upar_names[10] && marked.mark_name[1]=="T");
     CHECK(!s.autox_state->bifur.marks[0].period && s.autox_state->bifur.marks[1].period);
     set.nmarks=0;
     set.mark_name.clear();
     set.mark_value.clear();
-    CHECK(xpp::autox_settings_apply(s,set,why)==0);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),set,why)==0);
     // W331/#392: registry list values can create more marks than the old storage held.
     xpp::AutoxSettingsSet many;
     many.nmarks=128;
     for(int i=0;i<many.nmarks;i++) {many.mark_name.emplace_back("T");many.mark_value.push_back(100+i);}
-    CHECK(xpp::autox_settings_apply(s,many,why)==0);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),many,why)==0);
     const auto marks=s.autox_state->bifur.marks;
     CHECK(marks.size()==128 && marks.back().value==227);
-    const auto marks_text=autox_text::settings_text(xpp::autox_settings_now(s));
+    const auto marks_text=autox_text::settings_text(xpp::autox_settings_now(xpp::autox_parts(s)));
     const auto marks_read=autox_text::parse_settings(marks_text,"marks.snapx/session.odex");
     CHECK(marks_read && marks_read->set.nmarks==128);
     s.autox_state->bifur.marks.clear();
-    CHECK(marks_read && xpp::autox_settings_apply(s,marks_read->set,why)==0);
+    CHECK(marks_read && xpp::autox_settings_apply(xpp::autox_parts(s),marks_read->set,why)==0);
     CHECK(s.autox_state->bifur.marks==marks);
-    auto invalid=xpp::autox_settings_now(s);
+    auto invalid=xpp::autox_settings_now(xpp::autox_parts(s));
     invalid.num[xpp::AUTOX_NUM_MAX_STEPS]=99;
     invalid.mark_name.back()="unknown";
-    CHECK(xpp::autox_settings_apply(s,invalid,why)!=0);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),invalid,why)!=0);
     CHECK(s.autox_state->bifur.marks==marks && s.autox_state->bifur.nmx==4);
-    invalid=xpp::autox_settings_now(s);
+    invalid=xpp::autox_settings_now(xpp::autox_parts(s));
     invalid.nmarks=129;
-    CHECK(xpp::autox_settings_apply(s,invalid,why)!=0 && s.autox_state->bifur.marks==marks);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),invalid,why)!=0 && s.autox_state->bifur.marks==marks);
     // An input count must be checked against its values before any allocation.
     invalid.nmarks=2147483647;
-    CHECK(xpp::autox_settings_apply(s,invalid,why)!=0 && s.autox_state->bifur.marks==marks);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),invalid,why)!=0 && s.autox_state->bifur.marks==marks);
     s.autox_state->follow_all_branches=false; /* one run, in the direction of the step */
-    CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
+    CHECK(xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{}));
     CHECK(diagram_count(*s.diagram)==4);
     XAUTOX params; // the settings' marks, as the run copies them
     xpp::init_autox(*s.autox_state,params,s.model().node,false);
@@ -133,12 +133,12 @@ TEST_CASE("test_autox_limits")
     // Start from the equilibrium just computed, including the held fortieth parameter.
     std::copy_n(last->u0.begin(),s.model().node,s.last_ic.begin());
     set.par1="P9";
-    CHECK(xpp::autox_settings_apply(s,set,why)==0);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(s),set,why)==0);
     s.autox_state->follow_all_branches=false; /* one run, in the direction of the step */
-    CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
+    CHECK(xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{}));
     last=last_diagram(*s.diagram);
     CHECK(last && last->icp1.is_parameter(9) && last->parameter_indices==std::vector<int>{9});
-    CHECK(last && std::string_view(xpp::autox_par_name(s,last->icp1.index))==s.model().upar_names[9]);
+    CHECK(last && std::string_view(xpp::autox_par_name(xpp::autox_parts(s),last->icp1.index))==s.model().upar_names[9]);
     CHECK(s.diagram->points.size()==8);
     CHECK(last && diagram_parameter(*last,9)!=0 && std::abs(last->u0[9]-diagram_parameter(*last,9))<1e-8);
     const auto hostile=xpp::check_autox_solutions("1 1 4 1 2 0 1 402 2 0 0 999999\n", "sent.snapx/autox/solutions.s",401,s.autox_state->parameter_layout.size(),false);

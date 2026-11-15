@@ -61,13 +61,13 @@ MODULES = {
         'recx', 'snapx', 'xpp_session', 'xpp_session_*', 'session_settings', 'lunch-new', 'set_load', 'set_apply', 'model_save']),
     'commands': ('the command registry, its commands, keys and a model\'s buttons', [
         'command_*', 'commands_*', 'command', 'xpp_keymap']),
-    'integrators': ('the solvers, CVODE, the right-hand side (and the evaluation of a Model\'s networks it makes, W744), delays and the Markov variables, and the state a Session holds of the integrator and the delays (integrator_state, delay_state: W744 split them from integrate.h and delay_handle.h, W757 put them back with their algorithms)', [
+    'integrators': ('the solvers, CVODE, the right-hand side (and the evaluation of a Model\'s networks it makes, W744), delays and the Markov variables, and the state a Session holds of the integrator and the delays (integrator_state, delay_state: W744 split them from integrate.h and delay_handle.h, W757 put them back with their algorithms) and the parts of a Session they take in its place (run_parts: W760, the references a solver, the right-hand side or the run\'s driver reads and writes)', [
         'integrate', 'odesol2', 'stiff', 'gear', 'cv2', 'cvode', 'cvband', 'cvdense', 'llnl*', 'solver',
-        'dormpri', 'flags', 'jacobian', 'volterra', 'volterra2', 'delay_handle', 'my_rhs', 'dae_fun', 'numerics', 'integrator_state', 'delay_state',
+        'dormpri', 'flags', 'jacobian', 'volterra', 'volterra2', 'delay_handle', 'my_rhs', 'dae_fun', 'numerics', 'integrator_state', 'delay_state', 'run_parts',
         'band', 'dense', 'vector', 'markov']),
-    'analysis': ('what is computed from a run: sweeps, fits, equilibria, shooting, spectra, the data table, the runs a command makes of the integrator (runs: one run, Continue, Range, Monte Carlo, taking the rows into the data table; stochastic: Stochastic Compute\'s many runs, W745), and the state a Session holds of the histogram, the adjoint and the data table (histogram_state, adjoint_state, data_state: W744 split them from histogram.h, adj2.h and browse.h, W757 put them back with their algorithms)', [
+    'analysis': ('what is computed from a run: sweeps, fits, equilibria, shooting, spectra, the data table, the runs a command makes of the integrator (runs: one run, Continue, Range, Monte Carlo, taking the rows into the data table; stochastic: Stochastic Compute\'s many runs, W745), and the state a Session holds of the histogram, the adjoint and the data table (histogram_state, adjoint_state, data_state: W744 split them from histogram.h, adj2.h and browse.h, W757 put them back with their algorithms) and the parts of a Session they take in its place (analysis_parts: W760, a RunParts and the references the histogram, the adjoint, the fit, the shooting, the data table and the runs read and write)', [
         'histogram', 'adj2', 'browse', 'browse_data', 'data_event', 'do_fit', 'equilibria', 'pp_shoot', 'histogram_state', 'adjoint_state', 'data_state',
-        'sweep_runs', 'del_stab', 'runs', 'stochastic']),
+        'sweep_runs', 'del_stab', 'runs', 'stochastic', 'analysis_parts']),
     'plot': ('the plot windows and what they show: curves, nullclines, marks, axes, and the encoding of a series for the page, the recorder of the picture an export writes and the array plot picture it builds (picture, array_print, W737)', [
         'plot_data', 'graf_par', 'many_pops', 'graphics', 'nullcline', 'phase_data', 'marks_data', 'grobs',
         'axes2', 'arrayplot', 'torus', 'series_enc', 'picture', 'array_print']),
@@ -119,8 +119,6 @@ LEVELS = [
 INDEPENDENT = [('protocol front end', 'platform')]
 # (from, to) -> (include lines against the levels now, the card that removes them); exact
 ALLOWLIST = {
-    ('analysis', 'session'): (13, 'W760'),
-    ('integrators', 'session'): (18, 'W760'),
 }
 
 INCLUDE = re.compile(r'\s*#\s*include\s*"([^"]+)"')

@@ -1,14 +1,12 @@
 #pragma once
 /* AutoxParts: what autoX takes of a Session. C++ only. */
-#include <concepts>
+#include "analysis_parts.h"
 #include <string>
-#include <type_traits>
 #include <vector>
 
 struct AutoxState; /* autox_state.h */
 struct AutoxDiagram; /* diagram.h */
 namespace xpp {
-struct Session; /* session.h */
 struct Model; /* model.h */
 struct NumericsSettings; /* numerics_settings.h */
 struct IntegratorState; /* integrate.h */
@@ -17,23 +15,19 @@ struct ParserState; /* expr.h */
 struct Colors; /* colormap.h */
 struct AutoxView; /* autox_state.h */
 struct SessionParts; /* model_options.h */
+struct RunParts; /* run_parts.h */
 }
 
 namespace xpp {
 
-/* The parts of a Session that autoX reads and writes, handed in where an autoX operation starts (a Session converts to it
-   where it is passed, session.cpp) and held by the run (AutoxRun::parts), so autoX's files never include session.h. The
-   references are the Session's own parts, not copies; `threads` is the program preference's value
-   when it was made, which a command never changes. `session` is only a handle, handed on to the functions of other
-   modules that still take one (the solvers', the analyses', the XppUi seam's); autoX itself reads nothing through it.
-   Constness is as shallow as a Session's own pointers: a const Session converts too. */
+/* The parts of a Session that autoX reads and writes, handed in where an autoX operation starts (xpp::autox_parts(Session &), made by
+   the Session module: session.h) and held by the run (AutoxRun::parts), so autoX's files never include session.h. The references are
+   the Session's own parts, not copies; `threads` is the program preference's value when it was made, which a command never changes.
+   `analysis` is what the integrators and the analyses take (a RunParts too); its `session` is only a handle, handed on to the XppUi
+   seam's callbacks and to the functions of other modules that still take a Session; autoX itself reads nothing through it.
+   Constness is as shallow as a Session's own pointers: a function that only reads takes it const. */
 struct AutoxParts {
-  /* implicit: callers outside autoX pass their Session (a const one converts too: a function that takes it const only
-     reads the parts). A template, so the conversion is made in the caller, which has session.h: autoX's files never
-     name a Session's members and no link reference to the Session's module is left in them */
-  template<class S> requires std::same_as<std::remove_const_t<S>, Session>
-  AutoxParts(S &s) : AutoxParts(const_cast<std::remove_const_t<S> &>(s), 0) {}
-  Session &session;
+  AnalysisParts &analysis;
   Model &model_;
   AutoxState *autox_state;
   AutoxDiagram *diagram;
@@ -48,11 +42,6 @@ struct AutoxParts {
   const SessionParts &session_parts; /* the settings the option table reads, named in what autoX reports */
   unsigned threads;
   Model &model() const { return model_; }
- private:
-  template<class S> AutoxParts(S &s, int)
-    : session(s), model_(s.model()), autox_state(s.autox_state.get()), diagram(s.diagram.get()), autox_view(s.autox_view.get()),
-      numerics(s.numerics.get()), integrator(s.integrator.get()), data_store(s.data_store.get()), parser(s.parser),
-      colors(s.colors), last_ic(s.last_ic), selected_window(s.selected_window), session_parts(s.session_parts), threads(s.threads) {}
 };
 
 } // namespace xpp

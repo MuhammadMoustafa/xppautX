@@ -10,7 +10,7 @@
 
 namespace xpp {
 
-struct Session; /* session.h */
+struct AnalysisParts; /* analysis_parts.h */
 
 /* the spectral analysis of stored columns (two columns of the same
    length) */
@@ -32,42 +32,42 @@ struct HistogramCounts {
   int bins;
   long long samples;
 };
-Result<HistogramCounts> compute_hist(Session &s, const HIST_INFO *given = nullptr);
+Result<HistogramCounts> compute_hist(AnalysisParts &s, const HIST_INFO *given = nullptr);
 /* the two-dimensional histogram of info's two columns */
-Result<> new_2d_hist(Session &s, const HIST_INFO *given = nullptr);
+Result<> new_2d_hist(AnalysisParts &s, const HIST_INFO *given = nullptr);
 /* the histogram of the differences of a column (autocorrelation): the bins computed */
-Result<int> compute_stacor(Session &s, const HIST_INFO *given = nullptr);
+Result<int> compute_stacor(AnalysisParts &s, const HIST_INFO *given = nullptr);
 /* the correlation of info's two columns at info.nbins lags, directly or by FFT (info.fftc 0 or 1): the lags computed */
-Result<int> compute_correl(Session &s, const HIST_INFO *given = nullptr);
+Result<int> compute_correl(AnalysisParts &s, const HIST_INFO *given = nullptr);
 /* the spectral density of spec_col (and spec_col2) of spec_type, spec_wid points a window of type spec_win: the points computed */
-Result<int> compute_sd(Session &s, std::optional<int> type = {}, std::optional<int> column = {}, std::optional<int> column2 = {}, std::optional<int> length = {}, std::optional<int> window = {});
+Result<int> compute_sd(AnalysisParts &s, std::optional<int> type = {}, std::optional<int> column = {}, std::optional<int> column2 = {}, std::optional<int> length = {}, std::optional<int> window = {});
 /* the Fourier modes of spec_col, and the power spectrum made from them: the harmonics or frequencies computed */
-Result<int> compute_fourier(Session &s, std::optional<int> column = {});
-Result<int> compute_power(Session &s, std::optional<int> column = {});
+Result<int> compute_fourier(AnalysisParts &s, std::optional<int> column = {});
+Result<int> compute_power(AnalysisParts &s, std::optional<int> column = {});
 /* the mean and variance of info.col */
 struct ColumnStatistics {
   double mean, variance;
 };
-Result<ColumnStatistics> column_mean(Session &s, std::optional<int> column = {});
+Result<ColumnStatistics> column_mean(AnalysisParts &s, std::optional<int> column = {});
 
 /* a histogram or correlation of the session s's stored data (which: 0 a histogram of the rows where the condition
    holds, 1 of the differences, 2 and 3 the correlation of two columns, directly and by the FFT); a condition that
    is not a formula is the error, and nothing is made */
-Result<> new_hist(Session &s, int nbins, double zlo, double zhi, int col, int col2, const char *condition,
+Result<> new_hist(AnalysisParts &s, int nbins, double zlo, double zhi, int col, int col2, const char *condition,
                   int which);
 /* the other results of s's stored data: a 2D histogram, the Fourier
    modes, a spectrum; shown in the browser (four_back, hist_back) */
-int two_d_hist(Session &s, int col1, int col2, int ndat, int n1, int n2, double xlo, double xhi, double ylo,
+int two_d_hist(AnalysisParts &s, int col1, int col2, int ndat, int n1, int n2, double xlo, double xhi, double ylo,
                double yhi);
-int twod_hist(Session &s);
-void four_back(Session &s);
-void hist_back(Session &s);
+int twod_hist(AnalysisParts &s);
+void four_back(AnalysisParts &s);
+void hist_back(AnalysisParts &s);
 /* the last histogram shown in the browser again, or why there is none */
-Result<> reload_histogram(Session &s);
-void new_four(Session &s, int nmodes, int col);
-Result<int> just_fourier(Session &s, int flag, std::optional<int> column = {});
-Result<int> just_sd(Session &s, int flag);
+Result<> reload_histogram(AnalysisParts &s);
+void new_four(AnalysisParts &s, int nmodes, int col);
+Result<int> just_fourier(AnalysisParts &s, int flag, std::optional<int> column = {});
+Result<int> just_sd(AnalysisParts &s, int flag);
 /* a batch run's post-processing (@ post_process=) of s's data */
-void post_process_stuff(Session &s);
+void post_process_stuff(AnalysisParts &s);
 
 } // namespace xpp

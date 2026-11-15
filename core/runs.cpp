@@ -33,18 +33,17 @@
 #include "my_rhs.h"
 #include "model_native.h"
 #include "numerics.h"
-#include "numerics_settings.h"
 #include "plot_state.h"
 #include "runs.h"
-#include "session.h"
-#include "session_values.h"
+#include "analysis_parts.h"
+#include "model_options.h"
+#include "model_files.h"
 #include "solver.h"
 #include "storage.h"
 #include "stochastic.h"
 #include "sweep_runs.h"
 #include "tabular.h"
 #include "typed_values.h"
-#include "value_undo.h"
 #include "volterra2.h"
 #include "xpp_globals.h"
 #include "xpp_job.h"
@@ -61,7 +60,7 @@
 
 namespace xpp {
 
-xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse,int ishoot)
+xpp::Result<> do_monte_carlo_search(xpp::AnalysisParts &s, int append, int stuffbrowse,int ishoot)
 {
   xpp::FirstError failure; /* a manifold's */
   int i,j,k,m,n=s.integrator->fixptguess.n;
@@ -152,7 +151,7 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
   }
   bottom_msg(0,xpp::format("Monte Carlo: {} of {} guesses converged to {} distinct equilibria ({} requested; {}); {}",
       converged,attempted,s.integrator->fixptlist.n,n,
-      xpp::named_settings(s,{"equilibria.max_iterations","equilibria.newton_tolerance", "equilibria.search_limit"}),
+      xpp::named_settings(s.session_parts,{"equilibria.max_iterations","equilibria.newton_tolerance", "equilibria.search_limit"}),
       xpp::job::cancelled()?"stopped by the user":attempted<n?"stopped early":"search finished"));
   return failure.result();
 }
@@ -170,7 +169,7 @@ void show_range_progress(const std::string &line)
 /* Range Equilibria's sweep over s.integrator->eq_range: each step's equilibrium (or
    Monte Carlo's) stored as a row; the first step that failed is
    returned once the sweep has ended */
-xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const xpp::RunReport &report, const ShowProgress &show_progress)
+xpp::Result<int> eq_range_sweep(xpp::AnalysisParts &s, double *x, const xpp::RunReport &report, const ShowProgress &show_progress)
 {
  double parlo,parhi,dpar,temp;
  int npar,stabcol,i,j,ierr;
@@ -201,7 +200,7 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const xpp::RunReport
    s.integrator->eq_range.movie=1;
    s.numerics->shoot=false;
  }
- if(s.integrator->eq_range.movie)reset_film(s);
+ if(s.integrator->eq_range.movie)reset_film(s.session);
  /* the steps go one after another: each equilibrium search starts from the last one's (x), and a Monte Carlo step
     adds to the list of equilibria found and draws the manifolds it finds into the windows, in order */
  xpp::say_sweep_serial(s,"Range Equilibria",npar+1,mc?"each step adds to the equilibria found and draws their manifolds in order":"each search starts from the equilibrium before it");
@@ -212,7 +211,7 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const xpp::RunReport
    {
      if(xpp::job::cancelled())break;
      if(s.integrator->eq_range.movie)
-       clear_draw_window(s);
+       clear_draw_window(s.session);
       temp=parlo+dpar*static_cast<double>(i);
       bool found=true;
       set_val(s.parser,s.integrator->eq_range.item,temp);
@@ -221,7 +220,7 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const xpp::RunReport
         std::string bob=xpp::format("{}={:.16g}",s.integrator->eq_range.item,temp);
         show_progress(bob);
         evaluate_derived(s.parser);
-        /*  I think  */ failure.keep(redo_all_fun_tables(s));
+        /*  I think  */ failure.keep(redo_all_fun_tables(s.session_parts));
         if(mc) {
 	  s.random.seed(step_seed);
 	  s.numerics->last_seed=step_seed;
@@ -274,7 +273,7 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const xpp::RunReport
 }
 }
 
-Result<int> equilibrium_range(Session &s, const RunReport &report)
+Result<int> equilibrium_range(AnalysisParts &s, const RunReport &report)
 {
  return eq_range_sweep(s,s.data_store->current.data(),report,show_range_progress);
 }
@@ -293,7 +292,7 @@ namespace {
    its own (xpp::next_seed) so an untouched field still gives fresh
    noise next time (a first run's noise and every example md5 stay
    exactly what they were). */
-void seed_this_run(xpp::Session &s)
+void seed_this_run(xpp::AnalysisParts &s)
 {
   const int seed=s.numerics->rand_seed;
   s.random.seed(seed);
@@ -305,7 +304,7 @@ void seed_this_run(xpp::Session &s)
 
 /* A run that ended early without failing (an event's arret, a section that
    stops the run) says why, once: its note is shown and cleared. */
-void show_stop_note(xpp::Session &s)
+void show_stop_note(xpp::AnalysisParts &s)
 {
   if(s.integrator->stop_note.empty())return;
   bottom_msg(0,s.integrator->stop_note);
@@ -354,7 +353,7 @@ struct RunOutcome {
    its integration, what it gave back in o. The run on the sweep's own Session and on a worker are this one function,
    so a run's numbers do not depend on where it was computed. A fresh run reads nothing an earlier run left: the
    constants and variables are the sweep's, the state the initial data, the generator its own seed. */
-void compute_run(xpp::Session &x, double *state, const RangeRuns &r, int i, int j, std::size_t k, RunOutcome &o)
+void compute_run(xpp::AnalysisParts &x, double *state, const RangeRuns &r, int i, int j, std::size_t k, RunOutcome &o)
 {
   x.integrator->my_start=1;
   x.numerics->poiext=0;
@@ -381,7 +380,7 @@ void compute_run(xpp::Session &x, double *state, const RangeRuns &r, int i, int 
       if(type==IC)state[index]=value;
       else {
         set_val(x.parser,item,value);
-        if(auto t=redo_all_fun_tables(x);!t&&!o.setup_error)o.setup_error=t.error();
+        if(auto t=redo_all_fun_tables(x.session_parts);!t&&!o.setup_error)o.setup_error=t.error();
         re_evaluate_kernels(x);
       }
     };
@@ -422,7 +421,7 @@ void compute_run(xpp::Session &x, double *state, const RangeRuns &r, int i, int 
    I.C.s" on) and whose model allows it (sweep_serial_reason) are computed on as many worker threads as the thread
    setting gives; every run, on a worker or here, is compute_run, and what comes after a run (its rows, files, messages,
    drawing) is done here, in run order, as each run is taken in. */
-xpp::Result<int> range_sweep(xpp::Session &s, double *x, const xpp::DiagramRange *diagram, const xpp::RunReport &report, const ShowProgress &show_progress, RangeProgress &progress)
+xpp::Result<int> range_sweep(xpp::AnalysisParts &s, double *x, const xpp::DiagramRange *diagram, const xpp::RunReport &report, const ShowProgress &show_progress, RangeProgress &progress)
 {
   std::optional<xpp::Error> failure;
   bool complete=true; /* a failed capture can stop the sweep without an integration error */
@@ -470,7 +469,7 @@ if(s.integrator->range.type==PARAM)get_val(s.parser,s.integrator->range.item,&te
 
  }
 
- if(s.integrator->range.movie)reset_film(s);
+ if(s.integrator->range.movie)reset_film(s.session);
  if(diagram){
    nit=diagram->points;
    nit2=0;
@@ -499,15 +498,15 @@ if(s.integrator->range.type==PARAM)get_val(s.parser,s.integrator->range.item,&te
  const unsigned budget=s.thread_budget();
  unsigned threads=1;
  if(runs>1&&budget>1){
-   xpp::native_ready(s); /* runs side by side call the model's native code */
+   xpp::native_ready(s.session_parts); /* runs side by side call the model's native code */
    const std::string why=diagram?"the runs follow autoX's diagram"
      :!plan.fresh?"\"Use old I.C.s\" is off, so each run starts where the last ended"
      :xpp::sweep_serial_reason(s);
    if(why.empty())threads=std::min(budget,static_cast<unsigned>(runs));
    else xpp::say_sweep_serial(s,"Range",runs,why);
  }
- std::vector<std::unique_ptr<xpp::Session>> workers;
- for(unsigned w=0;threads>1&&w<threads;w++)workers.push_back(xpp::make_sweep_worker(s,s.data_store->max_rows));
+ std::vector<std::unique_ptr<xpp::SweepWorker>> workers;
+ for(unsigned w=0;threads>1&&w<threads;w++)workers.push_back(s.make_worker(s,s.data_store->max_rows));
 
  int early=0; /* the runs that ended before their end without failing */
  std::string first_early; /* the first of them, with its parameter value */
@@ -517,7 +516,7 @@ if(s.integrator->range.type==PARAM)get_val(s.parser,s.integrator->range.item,&te
  const auto take=[&](std::size_t k,auto &&compute)->bool{
    const int i=static_cast<int>(k%static_cast<std::size_t>(nit+1)),j=static_cast<int>(k/static_cast<std::size_t>(nit+1));
    const int run_number=static_cast<int>(k)+1;
-   if(s.integrator->range.movie)clear_draw_window(s);
+   if(s.integrator->range.movie)clear_draw_window(s.session);
    if(cycle)s.plot_windows->current->color[0]=xpp::xppaut_color(icol+1);
    icol++;
    if(icol==10)icol=0;
@@ -570,7 +569,7 @@ if(s.integrator->range.type==PARAM)get_val(s.parser,s.integrator->range.item,&te
 	 s.data_store->col[c].store(s.data_store->rows,std::span(o.columns).subspan(static_cast<std::size_t>(c)*rows,rows));
        s.data_store->rows+=o.rows;
        xpp::job::report_rows(s.data_store->rows,s.data_store->col[0][s.data_store->rows-1]);
-       rows_stored(s,s.data_store->rows);
+       rows_stored(s.session,s.data_store->rows);
      }
      s.integrator->last_time=o.last_time;
    }
@@ -642,7 +641,7 @@ if(s.integrator->range.type==PARAM)get_val(s.parser,s.integrator->range.item,&te
    const auto compute_on_worker=[&](unsigned w,std::size_t k){
      RunOutcome &o=slots[k%window];
      o=RunOutcome{};
-     xpp::Session &worker=*workers[w];
+     xpp::AnalysisParts &worker=workers[w]->parts();
      try {
        std::string table; /* log_autox's, which a run never writes */
        const xpp::LogHold hold(table,o.warnings);
@@ -704,7 +703,7 @@ s.plot_windows->current->color[0]=color;
 
 namespace {
 /* the sweep over the range settings made: its integrations, the movie's frames; done (when given) what they completed */
-xpp::Result<int> sweep_range(xpp::Session &s, double *x, const xpp::DiagramRange *diagram, RangeProgress *done, const xpp::RunReport &report)
+xpp::Result<int> sweep_range(xpp::AnalysisParts &s, double *x, const xpp::DiagramRange *diagram, RangeProgress *done, const xpp::RunReport &report)
 {
  RangeProgress progress;
  const xpp::Result<int> r=range_sweep(s,x,diagram,report,show_range_progress,progress);
@@ -713,7 +712,7 @@ xpp::Result<int> sweep_range(xpp::Session &s, double *x, const xpp::DiagramRange
 }
 }
 
-int do_range(xpp::Session &s, double *x, bool two, const xpp::RunReport &report, const xpp::DiagramRange *diagram)
+int do_range(xpp::AnalysisParts &s, double *x, bool two, const xpp::RunReport &report, const xpp::DiagramRange *diagram)
 {
  if(!two){
    s.integrator->range.rtype=RANGE_SINGLE;
@@ -730,7 +729,7 @@ int do_range(xpp::Session &s, double *x, bool two, const xpp::RunReport &report,
  return *r;
 }
 
-Result<> write_equilibrium(xpp::Session &s, const char *name, int shoot, bool confirm, const RunReport &report)
+Result<> write_equilibrium(xpp::AnalysisParts &s, const char *name, int shoot, bool confirm, const RunReport &report)
 {
   const int n=s.model().node;
   std::vector<double> x(s.last_ic.begin(),s.last_ic.begin()+n),er(n),em(n);
@@ -750,7 +749,7 @@ Result<> write_equilibrium(xpp::Session &s, const char *name, int shoot, bool co
   return {};
 }
   
-int write_this_run(xpp::Session &s, const char *file, int i)
+int write_this_run(xpp::AnalysisParts &s, const char *file, int i)
 {
   if(!s.integrator->suppress_out){
   std::string outfile=xpp::files::run_file_name(file,i);
@@ -762,7 +761,7 @@ int write_this_run(xpp::Session &s, const char *file, int i)
   return(1);
 }
   
-xpp::Result<> run_allowed(const xpp::Session &s, std::string_view command)
+xpp::Result<> run_allowed(const xpp::AnalysisParts &s, std::string_view command)
 {
   if(s.numerics->fft||s.numerics->hist)
     return xpp::fail(std::string(command),"The data table shows a Fourier or histogram result: choose Stochastic, Data to see the trajectory again before running",xpp::command_place());
@@ -773,7 +772,7 @@ namespace {
 
 /* the state every run begins in: its first integration afresh, no range
    going, no failure kept from the one before */
-void reset_run_state(xpp::Session &s)
+void reset_run_state(xpp::AnalysisParts &s)
 {
   s.integrator->my_start=1;
   s.integrator->range_flag=0;
@@ -782,7 +781,7 @@ void reset_run_state(xpp::Session &s)
 }
 
 /* a run from the initial data empties what the last one stored */
-void clear_for_run(xpp::Session &s)
+void clear_for_run(xpp::AnalysisParts &s)
 {
   data_back(s);
   wipe_rep(*s.data);
@@ -796,14 +795,14 @@ void clear_for_run(xpp::Session &s)
 
 /* Dt back as it was when the run ends, whichever way it does */
 struct DtRestore {
-  xpp::Session &s;
+  xpp::AnalysisParts &s;
   double dt;
-  explicit DtRestore(xpp::Session &session) : s(session), dt(session.numerics->delta_t) {}
+  explicit DtRestore(xpp::AnalysisParts &session) : s(session), dt(session.numerics->delta_t) {}
   ~DtRestore(){s.numerics->delta_t=dt;}
 };
 
 /* the delay history restarted from the initial data of a model with delays */
-xpp::Result<> restart_delays(xpp::Session &s)
+xpp::Result<> restart_delays(xpp::AnalysisParts &s)
 {
   if(s.delay->flag)return do_init_delay(s,s.numerics->delay);
   return {};
@@ -811,7 +810,7 @@ xpp::Result<> restart_delays(xpp::Session &s)
 
 } // namespace
 
-xpp::Result<bool> run_from(xpp::Session &s, RunFrom from, const RunReport &report, bool reset_integrals)
+xpp::Result<bool> run_from(xpp::AnalysisParts &s, RunFrom from, const RunReport &report, bool reset_integrals)
 {
   const int oldstart=s.integrator->my_start;
   const DtRestore dt(s);
@@ -824,7 +823,7 @@ xpp::Result<bool> run_from(xpp::Session &s, RunFrom from, const RunReport &repor
   switch(from){
   case RunFrom::last:
   case RunFrom::shift:
-    xpp::push_value_undo(s); /* Run from last state overwrites the initial conditions */
+    if(report.overwriting_initial_data)report.overwriting_initial_data(); /* Run from last state overwrites the initial conditions */
     set_initial_data(s,{x,static_cast<size_t>(s.model().node+s.model().nmarkov)});
     if(from==RunFrom::shift){
       s.numerics->start_time=s.integrator->last_time;
@@ -850,7 +849,7 @@ xpp::Result<bool> run_from(xpp::Session &s, RunFrom from, const RunReport &repor
   return integrate_from(s,x,report);
 }
 
-xpp::Result<int> run_range(xpp::Session &s, RangeProgress *done, const xpp::RunReport &report)
+xpp::Result<int> run_range(xpp::AnalysisParts &s, RangeProgress *done, const xpp::RunReport &report)
 {
   double *const x=&s.data_store->current[0];
   if(auto allowed=run_allowed(s,"range");!allowed)return std::unexpected(allowed.error());
@@ -862,7 +861,7 @@ xpp::Result<int> run_range(xpp::Session &s, RangeProgress *done, const xpp::RunR
 
 namespace {
 /* the two states a graph plots against each other, or why it has no such pair */
-xpp::Result<Plane> plane_of(const xpp::Session &s, const GRAPH &graph)
+xpp::Result<Plane> plane_of(const xpp::AnalysisParts &s, const GRAPH &graph)
 {
   const int h=graph.xv[0]-1,v=graph.yv[0]-1;
   if(h<0||h>=s.model().node||v<0||v>=s.model().node||graph.grtype>=5||v==h)
@@ -871,12 +870,12 @@ xpp::Result<Plane> plane_of(const xpp::Session &s, const GRAPH &graph)
 }
 }
 
-xpp::Result<Plane> window_plane(const xpp::Session &s, int graph)
+xpp::Result<Plane> window_plane(const xpp::AnalysisParts &s, int graph)
 {
   return plane_of(s,s.plot_windows->graph[static_cast<std::size_t>(graph)]);
 }
 
-xpp::Result<bool> run_from_click(xpp::Session &s, Plane plane, double horizontal, double vertical, const RunReport &report)
+xpp::Result<bool> run_from_click(xpp::AnalysisParts &s, Plane plane, double horizontal, double vertical, const RunReport &report)
 {
   double *const x=&s.data_store->current[0];
   get_ic(s,1,x);
@@ -890,15 +889,15 @@ xpp::Result<bool> run_from_click(xpp::Session &s, Plane plane, double horizontal
   return integrate_from(s,x,report);
 }
 
-xpp::Result<int> run_from_clicks(xpp::Session &s, Plane plane, std::span<const std::pair<double,double>> clicks, bool suppress_bounds, const RunReport &report)
+xpp::Result<int> run_from_clicks(xpp::AnalysisParts &s, Plane plane, std::span<const std::pair<double,double>> clicks, bool suppress_bounds, const RunReport &report)
 {
   if(auto allowed=run_allowed(s,"initial conditions");!allowed)return std::unexpected(allowed.error());
   reset_run_state(s);
   clear_for_run(s);
   struct Unbounded {
-    xpp::Session &s;
+    xpp::AnalysisParts &s;
     bool on;
-    Unbounded(xpp::Session &session,bool unbounded) : s(session), on(unbounded){if(on)s.integrator->suppress_bounds=1;}
+    Unbounded(xpp::AnalysisParts &session,bool unbounded) : s(session), on(unbounded){if(on)s.integrator->suppress_bounds=1;}
     ~Unbounded(){if(on)s.integrator->suppress_bounds=0;}
   } unbounded(s,suppress_bounds);
   int done=0;
@@ -910,7 +909,7 @@ xpp::Result<int> run_from_clicks(xpp::Session &s, Plane plane, std::span<const s
   return done;
 }
 
-xpp::Result<bool> run_from_manifold(xpp::Session &s, int index, const RunReport &report)
+xpp::Result<bool> run_from_manifold(xpp::AnalysisParts &s, int index, const RunReport &report)
 {
   if(s.manifolds->ic_flag==0)
     return xpp::fail("shoot","No shooting data available: run the equilibria's shooting (Sing pts, Shoot) first",xpp::command_place());
@@ -921,7 +920,7 @@ xpp::Result<bool> run_from_manifold(xpp::Session &s, int index, const RunReport 
   return run_from(s,RunFrom::old,report);
 }
 
-void run_now(xpp::Session &s, const RunReport &report)
+void run_now(xpp::AnalysisParts &s, const RunReport &report)
 {
   double *const x=&s.data_store->current[0];
   reset_run_state(s);
@@ -933,7 +932,7 @@ void run_now(xpp::Session &s, const RunReport &report)
   reset_data(s);
   xpp::ok_or_show(integrate_from(s,x,report));
 }
-xpp::Result<bool> integrate_from(xpp::Session &s, double *x, const RunReport &report)
+xpp::Result<bool> integrate_from(xpp::AnalysisParts &s, double *x, const RunReport &report)
 {
   int i;
 
@@ -970,11 +969,11 @@ xpp::Result<bool> integrate_from(xpp::Session &s, double *x, const RunReport &re
   return early;
 }
 
-int usual_integrate_stuff(xpp::Session &s, double *x, const xpp::RunReport &report)
+int usual_integrate_stuff(xpp::AnalysisParts &s, double *x, const xpp::RunReport &report)
 {
   return xpp::ok_or_show(integrate_from(s,x,report))?0:1;
 }
-Result<bool> continue_to(Session &s, double until, const RunReport &report)
+Result<bool> continue_to(AnalysisParts &s, double until, const RunReport &report)
 {
   /* one output group: store_every steps of Dt (of 1, for a map); the run ends on a group boundary,
      so the end is rounded up to the output grid and the stride is honoured */
@@ -1000,17 +999,17 @@ Result<bool> continue_to(Session &s, double until, const RunReport &report)
   return early;
 }
 
-Result<bool> continue_for(Session &s, double extra, const RunReport &report)
+Result<bool> continue_for(AnalysisParts &s, double extra, const RunReport &report)
 {
   return continue_to(s,s.data_store->current_time+extra,report);
 }
 
-Result<bool> continue_total(Session &s, const RunReport &report)
+Result<bool> continue_total(AnalysisParts &s, const RunReport &report)
 {
   return continue_for(s,s.numerics->total_time,report);
 }
 
-Result<> run_to_steady_state(Session &s, SteadyStateSettings settings, const RunReport &report)
+Result<> run_to_steady_state(AnalysisParts &s, SteadyStateSettings settings, const RunReport &report)
 {
   const double interval=s.integrator->solver->traits().discrete?(s.numerics->delta_t>0?1:-1):s.numerics->delta_t;
   if(auto valid=validate_steady_state(settings,interval,s.numerics->start_time);!valid)return valid;
@@ -1021,7 +1020,7 @@ Result<> run_to_steady_state(Session &s, SteadyStateSettings settings, const Run
   /* One core comparison per configured Dt, regardless of output stride.
      Restore the user's duration/stride before deferred settings apply. */
   struct Restore {
-    Session &s;
+    AnalysisParts &s;
     double duration;
     int stride;
     ~Restore(){s.numerics->total_time=duration;s.numerics->store_every=stride;s.integrator->steady.reset();}
@@ -1038,7 +1037,7 @@ Result<> run_to_steady_state(Session &s, SteadyStateSettings settings, const Run
   return {};
 }
 
-void compute_one_period(xpp::Session &s, double period,double *x,const char *name, const xpp::RunReport &report)
+void compute_one_period(xpp::AnalysisParts &s, double period,double *x,const char *name, const xpp::RunReport &report)
 {
   const PoincareMap opm=s.numerics->poincare_map;
   double ot=s.numerics->store_from,ote=s.numerics->total_time;

@@ -63,7 +63,7 @@ std::optional<AutoxHopfEnd> autox_hopf_end(const iap_type &iap, const double *pa
     const double here = par[icp[0]];
     at[icp[0]] = watch.passed.value_or(autox_hopf_parameter(watch).value_or(here)); /* the line before this point joined the cycles */
     const auto model = autox_equilibrium_model(iap, at.data(), icp, mean);
-    auto found = equilibrium_near(s.session, *model, mean);
+    auto found = equilibrium_near(s.analysis, *model, mean);
     if (!found) {
         AutoxStop &stop = iap.run->stop;
         if (!std::exchange(stop.hopf_failure_noted, true))

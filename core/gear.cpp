@@ -1,4 +1,4 @@
-#include "session.h"
+#include "run_parts.h"
 #include "xpp_math.h"
 #include "gear.h"
 #include "jacobian.h"
@@ -30,7 +30,7 @@ static double square_of(double z)
 return(z*z);
 }
 
-int gear(xpp::Session &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
+int gear(xpp::RunParts &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
   if(s.model().flag_count()==0)
     return(gear_step(s, n,t, tout,y, hmin, hmax,eps,
@@ -40,7 +40,7 @@ int gear(xpp::Session &s, int n, double *t, double tout, double *y, double hmin,
 }
 
 /* ggear: one Gear step */
-int gear_step(xpp::Session &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
+int gear_step(xpp::RunParts &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
   double deltat=0.0,hnew=0.0,hold=0.0,h=0.0,racum=0.0,told=0.0,r=0.0,d=0.0;
   double *a,pr1,pr2,pr3,r1;

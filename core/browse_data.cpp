@@ -31,7 +31,7 @@
 #include "menus.h"
 #include "expr_program.h"
 #include "model_numerics.h"
-#include "session.h"
+#include "analysis_parts.h"
 #include "xpp_error.h"
 #include <algorithm>
 #include <span>
@@ -42,27 +42,27 @@
 
 namespace xpp {
 
-ColumnTable get_table_data(xpp::Session &s)
+ColumnTable get_table_data(xpp::AnalysisParts &s)
 {
   return s.data->view.data;
 }
 
 /* show another data set in the data table: its columns from new_dat[1] on,
    dat_len rows (the adjoint, the Fourier modes, a histogram, ...) */
-void new_browse_dat(xpp::Session &s, ColumnTable new_dat, int dat_len)
+void new_browse_dat(xpp::AnalysisParts &s, ColumnTable new_dat, int dat_len)
 {
   s.data->view.data=new_dat;
   refresh_data(s,dat_len);
 }
 
-Result<> show_derived(xpp::Session &s, bool exists, const std::string &command, const std::string &missing, void (*show)(xpp::Session &))
+Result<> show_derived(xpp::AnalysisParts &s, bool exists, const std::string &command, const std::string &missing, void (*show)(xpp::AnalysisParts &))
 {
   if(!exists)return fail(command,missing,command_place());
   show(s);
   return {};
 }
 
-Column get_data_col(const xpp::Session &s, int c)
+Column get_data_col(const xpp::AnalysisParts &s, int c)
 {
   return s.data->view.data[c];
 }
@@ -72,7 +72,7 @@ void waitasec(int msec)
   std::this_thread::sleep_for(std::chrono::milliseconds(msec));
 }
 
-std::string browse_column_name(const xpp::Session &s, int j)
+std::string browse_column_name(const xpp::AnalysisParts &s, int j)
 {
   return data_column_name(s.model(),s.data->added_columns,j);
 }
@@ -80,7 +80,7 @@ std::string browse_column_name(const xpp::Session &s, int j)
 namespace {
 
 /* the rows First..Last of b's columns cols */
-xpp::DataTable data_table(const xpp::Session &s, const DATA_VIEW &b, std::span<const int> cols)
+xpp::DataTable data_table(const xpp::AnalysisParts &s, const DATA_VIEW &b, std::span<const int> cols)
 {
   xpp::DataTable t;
   t.stored_floats=s.data_store->precision()==StoragePrecision::single;
@@ -105,14 +105,14 @@ std::vector<int> all_columns(const DATA_VIEW &b)
 namespace {
 
 /* the columns a batch run writes: the "only" list, else every column */
-std::vector<int> output_columns(const xpp::Session &s, const DATA_VIEW &b)
+std::vector<int> output_columns(const xpp::AnalysisParts &s, const DATA_VIEW &b)
 {
   return !s.plot_list.empty()?s.plot_list:all_columns(b);
 }
 
 } // namespace
 
-xpp::Result<> save_mytable_data(xpp::Session &s, xpp::Sink &w)
+xpp::Result<> save_mytable_data(xpp::AnalysisParts &s, xpp::Sink &w)
 {
   const DATA_VIEW &b=s.data->view;
   if(const Result<> written=xpp::data_format_named(s.model().services.exports.data_formats,"dat")->write(data_table(s,b,output_columns(s,b)),w);!written){
@@ -122,7 +122,7 @@ xpp::Result<> save_mytable_data(xpp::Session &s, xpp::Sink &w)
   return commit_save(w);
 }
 
-xpp::DataTable stored_data_table(const xpp::Session &s)
+xpp::DataTable stored_data_table(const xpp::AnalysisParts &s)
 {
   const int ncol=s.model().neq+1;
   xpp::DataTable t;
@@ -135,7 +135,7 @@ xpp::DataTable stored_data_table(const xpp::Session &s)
   return t;
 }
 
-int put_stored_data(xpp::Session &s, const xpp::DataTable &t)
+int put_stored_data(xpp::AnalysisParts &s, const xpp::DataTable &t)
 {
   const int neq=s.model().neq;
   const int rows=static_cast<int>(t.rows());
@@ -157,12 +157,12 @@ int put_stored_data(xpp::Session &s, const xpp::DataTable &t)
   return rows;
 }
 
-void find_variable(const xpp::Session &s, std::string_view name, int *col)
+void find_variable(const xpp::AnalysisParts &s, std::string_view name, int *col)
 {
   *col=data_column(s.model(),s.data->added_columns,name);
 }
 
-void  refresh_data(xpp::Session &s, int length)
+void  refresh_data(xpp::AnalysisParts &s, int length)
 {
  s.data->view.dataflag=1;
  s.data->view.maxrow=length;
@@ -183,7 +183,7 @@ void  refresh_data(xpp::Session &s, int length)
  ui.data_changed(length);
 }
 
-Result<int> view_table(xpp::Session &s, int index)
+Result<int> view_table(xpp::AnalysisParts &s, int index)
 {
   const TABULAR &table=s.tables[index];
   if(table.flag==0)return fail("table",xpp::format("{} is not defined yet: it has no values to show",table.name),xpp::model_place(s.model(),table.name));
@@ -196,13 +196,13 @@ Result<int> view_table(xpp::Session &s, int index)
   return table.n;
 }
 
-void reset_data(xpp::Session &s)
+void reset_data(xpp::AnalysisParts &s)
 {
   s.data->view.maxrow=0;
   s.data->view.dataflag=0;
 }
 
-void init_data(xpp::Session &s)
+void init_data(xpp::AnalysisParts &s)
 {
  
  s.data->view.dataflag=0;
@@ -216,7 +216,7 @@ void init_data(xpp::Session &s)
 
 }
 
-std::unique_ptr<xpp::Sink> ask_output_sink(const Session &s, std::string_view title, std::string_view ext,
+std::unique_ptr<xpp::Sink> ask_output_sink(const AnalysisParts &s, std::string_view title, std::string_view ext,
                                            std::string_view what, bool binary)
 {
  std::string file=xpp::files::output_name(s.model().this_file,ext,what);
@@ -231,7 +231,7 @@ void  wipe_rep(DataState &b)
     b.replaced=0;
   }
 
-void ic_of_row(xpp::Session &s, int in)
+void ic_of_row(xpp::AnalysisParts &s, int in)
 {
  int i;
  setvar(s.parser,0,static_cast<double>(s.data_store->col[0][in]));
@@ -250,13 +250,13 @@ void ic_of_row(xpp::Session &s, int in)
  redraw_ics();
 }
 
-void data_get_mytable(xpp::Session &s, int row)
+void data_get_mytable(xpp::AnalysisParts &s, int row)
 {
   s.data->view.row0=row;
   ic_of_row(s,row);
 }
 
-void get_data_xyz(const xpp::Session &s, float *x, float *y, float *z, int i1, int i2, int i3, int off)
+void get_data_xyz(const xpp::AnalysisParts &s, float *x, float *y, float *z, int i1, int i2, int i3, int off)
 {
   int in=s.data->view.row0+off;
   *x=static_cast<float>(s.data->view.data[i1][in]);
@@ -266,13 +266,13 @@ void get_data_xyz(const xpp::Session &s, float *x, float *y, float *z, int i1, i
 
 /* ---- the data table's commands (were in browse.c); the widget calls them ---- */
 
-Result<> require_stored_data(const xpp::Session &s)
+Result<> require_stored_data(const xpp::AnalysisParts &s)
 {
  if(s.data->view.data!=s.data_store->col)return fail("data","Only data can be in the data table",command_place());
  return {};
 }
 
-Result<> delete_added_column(xpp::Session &s, std::string_view name)
+Result<> delete_added_column(xpp::AnalysisParts &s, std::string_view name)
 {
   DATA_VIEW *b=&s.data->view;
   if(const Result<> stored=require_stored_data(s);!stored)return stored;
@@ -315,7 +315,7 @@ namespace {
    quantities through their names, looked up once for all the rows */
 class RowValues {
 public:
-  explicit RowValues(xpp::Session &s) : s_(s)
+  explicit RowValues(xpp::AnalysisParts &s) : s_(s)
   {
     const xpp::Model &m=s.model();
     for(int j=m.node;j<m.neq;j++)slots_.push_back(xpp::value_slot(s.parser,m.uvar_names[j]));
@@ -328,7 +328,7 @@ public:
       if(slots_[k])*slots_[k]=static_cast<double>(data[node+1+static_cast<int>(k)][row]);
   }
 private:
-  xpp::Session &s_;
+  xpp::AnalysisParts &s_;
   std::vector<double *> slots_;
 };
 
@@ -340,7 +340,7 @@ namespace {
    table (ParserState::ncon/nsym, session.h): rolled back to the Model's
    own end, like a histogram condition (histogram.cpp) -- an added column
    is not a symbol a later formula can name */
-void forget_formula_symbols(xpp::Session &s)
+void forget_formula_symbols(xpp::AnalysisParts &s)
 {
   s.parser.ncon=s.model().ncon_start;
   s.parser.nsym=s.model().nsym_start;
@@ -348,7 +348,7 @@ void forget_formula_symbols(xpp::Session &s)
 
 } // namespace
 
-Result<> compute_added_column(xpp::Session &s, const std::string &formula, int col_index, int nrows)
+Result<> compute_added_column(xpp::AnalysisParts &s, const std::string &formula, int col_index, int nrows)
 {
   Program com;
   int length=0;
@@ -365,7 +365,7 @@ Result<> compute_added_column(xpp::Session &s, const std::string &formula, int c
   return {};
 }
 
-bool added_column_compiles(xpp::Session &s, std::string_view formula)
+bool added_column_compiles(xpp::AnalysisParts &s, std::string_view formula)
 {
   std::vector<int> com;
   int length=0;
@@ -374,7 +374,7 @@ bool added_column_compiles(xpp::Session &s, std::string_view formula)
   return compiles;
 }
 
-Result<> add_data_column(xpp::Session &s, std::string_view name, std::string_view formula)
+Result<> add_data_column(xpp::AnalysisParts &s, std::string_view name, std::string_view formula)
 {
   DATA_VIEW *b=&s.data->view;
   if(const Result<> stored=require_stored_data(s);!stored)return stored;
@@ -416,7 +416,7 @@ Sequence chk_seq(xpp::TypedFields &f, std::string_view text, double &a1, double 
 }
 } // namespace
 
-Result<> replace_data_column(xpp::Session &s, std::string_view column, std::string_view formula)
+Result<> replace_data_column(xpp::AnalysisParts &s, std::string_view column, std::string_view formula)
 {
  const ColumnTable dat=s.data->view.data;
  const int n=s.data->view.maxrow;
@@ -520,7 +520,7 @@ if(dif_var<0){
  return {};
 }
 
-Result<> unreplace_column(xpp::Session &s)
+Result<> unreplace_column(xpp::AnalysisParts &s)
 {
  int i,n=s.data->view.maxrow;
  if(!s.data->replaced)return fail("data","No replacement to undo",command_place());
@@ -530,7 +530,7 @@ Result<> unreplace_column(xpp::Session &s)
  return {};
 }
 
-Result<std::size_t> tabulate_column(xpp::Session &s, std::string_view column, double xlo, double xhi, std::string_view filename)
+Result<std::size_t> tabulate_column(xpp::AnalysisParts &s, std::string_view column, double xlo, double xhi, std::string_view filename)
 {
   const DATA_VIEW &b=s.data->view;
   int col=-1;
@@ -578,7 +578,7 @@ void find_value(int col, double val, int *row, const DATA_VIEW &b)
 
 } // namespace
 
-Result<int> find_in_column(xpp::Session &s, std::string_view column, double value)
+Result<int> find_in_column(xpp::AnalysisParts &s, std::string_view column, double value)
 {
  DATA_VIEW &b=s.data->view;
  int col=-1,row=0;
@@ -591,7 +591,7 @@ Result<int> find_in_column(xpp::Session &s, std::string_view column, double valu
  return row;
 }
 
-Result<DataLoaded> load_data_file(xpp::Session &s, std::string_view format, std::string_view name)
+Result<DataLoaded> load_data_file(xpp::AnalysisParts &s, std::string_view format, std::string_view name)
 {
  DATA_VIEW *b=&s.data->view;
  const xpp::DataFormat *f=nullptr;
@@ -644,7 +644,7 @@ const xpp::DataFormat *choose_data_format(std::span<const xpp::DataFormat> forma
 
 /* the table t written to file `fil` in format f, the replace question asked as a save asks it: false when the
    user declined to replace it */
-Result<bool> write_table(const xpp::Session &s, xpp::DataTable &t, const xpp::DataFormat &f, std::string_view fil, const Place &at)
+Result<bool> write_table(const xpp::AnalysisParts &s, xpp::DataTable &t, const xpp::DataFormat &f, std::string_view fil, const Place &at)
 {
  t.seed=s.numerics->last_seed;
  Result<> opened;
@@ -661,7 +661,7 @@ Result<bool> write_table(const xpp::Session &s, xpp::DataTable &t, const xpp::Da
 
 } // namespace
 
-Result<DataSaved> save_data_file(const xpp::Session &s, std::optional<DataTarget> target, std::string_view format, std::string_view name, const std::function<xpp::DataTable()> &plot_curves)
+Result<DataSaved> save_data_file(const xpp::AnalysisParts &s, std::optional<DataTarget> target, std::string_view format, std::string_view name, const std::function<xpp::DataTable()> &plot_curves)
 {
  const DATA_VIEW *b=&s.data->view;
  if(!target){
@@ -690,7 +690,7 @@ Result<DataSaved> save_data_file(const xpp::Session &s, std::optional<DataTarget
  return DataSaved{fil,*written?t.rows():0};
 }
 
-void fit_data_block(xpp::Session &s)
+void fit_data_block(xpp::AnalysisParts &s)
 {
  const DATA_VIEW &b=s.data->view;
  DataBlock &k=s.data->block;
@@ -700,7 +700,7 @@ void fit_data_block(xpp::Session &s)
  if(k.col<1)k.col=1;
 }
 
-std::string data_block_rows(const xpp::Session &s)
+std::string data_block_rows(const xpp::AnalysisParts &s)
 {
  const DATA_VIEW &b=s.data->view;
  const DataBlock &k=s.data->block;
@@ -724,7 +724,7 @@ std::string data_block_rows(const xpp::Session &s)
  return rows+']';
 }
 
-Result<int> set_first_row(xpp::Session &s, int row)
+Result<int> set_first_row(xpp::AnalysisParts &s, int row)
 {
  DATA_VIEW &b=s.data->view;
  if(row<0||row>=b.maxrow)
@@ -737,7 +737,7 @@ Result<int> set_first_row(xpp::Session &s, int row)
  return row;
 }
 
-Result<int> set_last_row(xpp::Session &s, int row)
+Result<int> set_last_row(xpp::AnalysisParts &s, int row)
 {
  DATA_VIEW &b=s.data->view;
  if(row<0||row>=b.maxrow)
@@ -750,7 +750,7 @@ Result<int> set_last_row(xpp::Session &s, int row)
  return row;
 }
 
-Result<int> restore_whole_data(xpp::Session &s)
+Result<int> restore_whole_data(xpp::AnalysisParts &s)
 {
  DATA_VIEW &b=s.data->view;
  if(b.maxrow<=0)return fail("data","The data table holds no rows",command_place());

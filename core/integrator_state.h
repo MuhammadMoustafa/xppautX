@@ -16,7 +16,7 @@
 namespace xpp {
 
 class Solver; /* solver.h */
-struct Session; /* session.h */
+struct RunParts; /* run_parts.h */
 
 struct SteadyStateSettings {
   int decimals;
@@ -49,15 +49,15 @@ class SteadyStateMonitor {
 };
 
 /* the right-hand side the solvers step, rhs(t, y, ydot, neq): a function
-   of the Session it is bound to (the load binds my_rhs to its Session), so
-   that a solver reaches the Model and Session through the IntegratorState
+   of the parts it is bound to (the load binds my_rhs to its Session's), so
+   that a solver reaches the Model and the run's state through the IntegratorState
    that holds it, never through a global (W47d4) */
 struct RightHandSide {
-  int (*function)(Session &s, double t, double *y, double *ydot, int neq) = nullptr;
-  Session *session = nullptr;
+  int (*function)(RunParts &s, double t, double *y, double *ydot, int neq) = nullptr;
+  RunParts *parts = nullptr;
   int operator()(double t, double *y, double *ydot, int neq) const
   {
-    return function(*session,t,y,ydot,neq);
+    return function(*parts,t,y,ydot,neq);
   }
 };
 

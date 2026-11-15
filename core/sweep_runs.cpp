@@ -1,6 +1,6 @@
 #include "expr_tables.h"
 #include "sweep_runs.h"
-#include "session.h"
+#include "analysis_parts.h"
 #include "ani_state.h"
 #include "expr.h"
 #include "integrate.h"
@@ -27,7 +27,7 @@
 
 namespace xpp {
 
-std::string sweep_serial_reason(const Session &s)
+std::string sweep_serial_reason(const AnalysisParts &s)
 {
     if (!s.model().rhs_impurity.empty()) return "the model's right-hand side is not pure: " + s.model().rhs_impurity;
     if (s.integrator->rhs.function != my_rhs) return "the right-hand side is not the model's own";
@@ -38,37 +38,10 @@ std::string sweep_serial_reason(const Session &s)
     return {};
 }
 
-void say_sweep_serial(const Session &s, std::string_view sweep, std::int64_t runs, std::string_view why)
+void say_sweep_serial(const AnalysisParts &s, std::string_view sweep, std::int64_t runs, std::string_view why)
 {
     if (runs > 1 && s.thread_budget() > 1)
         log(XPP_LOG_INFO, "{}: the {} runs go one after another, not on {} threads: {}\n", sweep, runs, s.thread_budget(), why);
-}
-
-std::unique_ptr<Session> make_sweep_worker(Session &s, int rows)
-{
-    try {
-        auto worker = std::make_unique<Session>(s.model());
-        Session &w = *worker;
-        *w.numerics = *s.numerics;
-        w.parser = s.parser;
-        w.itor = s.itor;
-        w.last_ic = s.last_ic;
-        w.tables = s.tables;
-        w.ntable = s.ntable;
-        w.random = s.random;
-        w.integrator->flags = s.integrator->flags;
-        w.integrator->range_flag = s.integrator->range_flag;
-        w.integrator->suppress_bounds = s.integrator->suppress_bounds;
-        w.integrator->rhs = RightHandSide{my_rhs, &w};
-        w.integrator->on_worker = true;
-        init_alloc_info(w);
-        w.data_store->allocate(rows, s.model().neq + 1, s.numerics->storage_precision);
-        w.data_store->current_time = s.data_store->current_time;
-        start_solver(w);
-        return worker;
-    } catch (const std::bad_alloc &) {
-        out_of_memory("a sweep's worker");
-    }
 }
 
 Result<bool> run_ordered(std::size_t count, unsigned threads, const std::function<void(unsigned, std::size_t)> &compute,

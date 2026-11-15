@@ -137,9 +137,9 @@ struct ProtocolSession {
     int rows_seen = INT_MAX;
     double live_state_last = 0; /* Display pacing only; solver steps are unchanged. */
     /* autoX subscriptions, pacing and client view tracking */
-    xpp::ChangedEvent<xpp::Session, int> autoxinfo{[](const xpp::Session &s, const int &point) { return xpp::autox_data_event_line(s, point); }, "sending autoX's info strip"};
+    xpp::ChangedEvent<xpp::Session, int> autoxinfo{[](const xpp::Session &s, const int &point) { return xpp::autox_data_event_line(xpp::autox_parts(s), point); }, "sending autoX's info strip"};
     double autoxinfo_last = 0;
-    xpp::ChangedEvent<xpp::Session> autoxsettings{[](const xpp::Session &s) { return xpp::autox_settings_event_line(s); }, "sending autoX's settings"};
+    xpp::ChangedEvent<xpp::Session> autoxsettings{[](const xpp::Session &s) { return xpp::autox_settings_event_line(xpp::autox_parts(s)); }, "sending autoX's settings"};
     xpp::ChangedEvent<xpp::Session> autoxview{autox_view_event_line, "sending autoX's view"};
     xpp::ChangedEvent<xpp::Session> autoxscript{autox_script_event_line, "sending autoX's script runs"};
     xpp::ChangedEvent<xpp::Session> windows{windows_event_line, "sending the windows"};

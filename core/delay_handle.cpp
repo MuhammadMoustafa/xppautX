@@ -18,7 +18,7 @@
 #include "model_numerics.h"
 #include "xpp_mem.h"
 #include "expr_program.h"
-#include "session.h"
+#include "run_parts.h"
 #include "xpp_text.h"
 #include <limits>
 #include <cmath>
@@ -31,7 +31,7 @@
 namespace xpp {
 
 
-double delay_stab_eval(xpp::Session &s, double delay, int var)  /* this returns appropriate values for delay jacobian */
+double delay_stab_eval(xpp::RunParts &s, double delay, int var)  /* this returns appropriate values for delay jacobian */
 {
   int i;
 
@@ -56,7 +56,7 @@ double delay_stab_eval(xpp::Session &s, double delay, int var)  /* this returns 
    return s.delay->variable_shift[0][var-1];
 }
 
-Result<> alloc_delay(xpp::Session &s, double big)
+Result<> alloc_delay(xpp::RunParts &s, double big)
 {
  const double ratio=big/fabs(s.numerics->delta_t);
  const auto failed=[&]{return xpp::fail("delay",
@@ -80,13 +80,13 @@ Result<> alloc_delay(xpp::Session &s, double big)
  return {};
 }
 
-void free_delay(xpp::Session &s)
+void free_delay(xpp::RunParts &s)
 {
  if(s.delay->flag)s.delay->work=std::vector<double>();
  s.delay->flag=0;
 }
 
-void stor_delay(xpp::Session &s, double *y)
+void stor_delay(xpp::RunParts &s, double *y)
 {
  int i;
  int nodes=s.model().node;
@@ -137,7 +137,7 @@ void polint(std::span<const double, polint_points> xa, std::span<const double, p
 }
 
 /* this is like get_delay but uses cubic interpolation */
-double get_delay(xpp::Session &s, int in, double tau)
+double get_delay(xpp::RunParts &s, int in, double tau)
 {
  double x=tau/fabs(s.numerics->delta_t);
  double dd=fabs(s.numerics->delta_t);
@@ -148,7 +148,7 @@ double get_delay(xpp::Session &s, int in, double tau)
  if(tau<0.0||tau>s.numerics->delay){
 			const std::string &name=s.model().uvar_names[static_cast<std::size_t>(in)];
 			stop_integration(s.parser,{"delay",xpp::format("delay of {}: tau = {} is outside 0 to the delay setting at t = {} ({})",
-			                                        name,tau,getvar(s.parser,0),named_settings(s,{"integration.delay.max_delay"})),
+			                                        name,tau,getvar(s.parser,0),named_settings(s.session_parts,{"integration.delay.max_delay"})),
 			                    model_place(s.model(),name)});
 			return(0.0);
   			}
@@ -174,7 +174,7 @@ double get_delay(xpp::Session &s, int in, double tau)
  }
 
 /* the delayed value of a variable (a program's DELAY and DEL_SHFT, ExprHost) */
-double do_delay_shift(xpp::Session &s, double delay, double shift, double variable)
+double do_delay_shift(xpp::RunParts &s, double delay, double shift, double variable)
 {
  int in;
   int i=static_cast<int>(variable),ish=static_cast<int>(shift);
@@ -193,7 +193,7 @@ double do_delay_shift(xpp::Session &s, double delay, double shift, double variab
   return(delay_stab_eval(s,delay,in));
 
 }
-double do_delay(xpp::Session &s, double delay, double i)
+double do_delay(xpp::RunParts &s, double delay, double i)
 {
   int variable;
     /* ram - this was a little weird, since i is a double... except I think it's secretely an integer */
@@ -211,7 +211,7 @@ double do_delay(xpp::Session &s, double delay, double i)
 }
 
 /*  Handling of the initial data  */
-xpp::Result<> do_init_delay(xpp::Session &s, double big)
+xpp::Result<> do_init_delay(xpp::RunParts &s, double big)
 {
  double t=s.numerics->start_time,old_t;
  std::vector<double> y(s.model().node);

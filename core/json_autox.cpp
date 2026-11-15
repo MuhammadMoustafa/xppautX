@@ -155,7 +155,7 @@ void j_autox_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
         d.ax.wid = s.autox_state->bifur.wid;
         d.ax.hgt = s.autox_state->bifur.hgt;
         d.ax.plot = a.plot;
-        get_autox_str(s, a, d.ax.xlabel, d.ax.ylabel);
+        get_autox_str(xpp::autox_parts(s), a, d.ax.xlabel, d.ax.ylabel);
         d.axes = true;
         d.replay = true;
         d.match = 0;
@@ -515,7 +515,7 @@ void auto_redraw_for_client(xpp::Session &s)
     ClientDiagramView &d = session.client_diagram.front();
     d.dirty = 0;
     d.client = d.n > 0 ? d.n : 1;
-    redraw_diagram(s);
+    redraw_diagram(xpp::autox_parts(s));
 }
 
 } // namespace xpp::json
@@ -558,9 +558,9 @@ void j_autox_make_window(xpp::Session &s, std::string_view wname, std::string_vi
     s.autox_state->bifur.y0 = 2 * text_metrics.small_height;
     s.autox_state->bifur.hinttxt = "hint";
     diag_forget();      /* a new window has no data */
-    autox_data_forget(s); /* nor an info strip or a stability circle */
+    autox_data_forget(xpp::autox_parts(s)); /* nor an info strip or a stability circle */
     send_window(xpp::events::WINDOW_CREATED,xpp::window_name(s,WIN_AUTOX), s.autox_state->bifur.wid + 12 * text_metrics.small_width, s.autox_state->bifur.hgt + 4 * text_metrics.small_height, wname,"diagram");
-    draw_bif_axes(s);
+    draw_bif_axes(xpp::autox_parts(s));
 }
 
 void j_autox_jobs(const XppAutoxJobs &jobs)

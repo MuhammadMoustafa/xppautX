@@ -210,8 +210,8 @@ void get_autox_str(const AutoxParts &s, const AUTOAX &ax, std::string &xlabel, s
 void draw_bif_axes(AutoxParts s)
 {
  /* the data of the diagram starts again, in every view */
- for(int v=0;v<static_cast<int>(s.autox_state->views.size());v++)autox_diagram(s.session,v,NULL);
- refreshdisplay(s.session);
+ for(int v=0;v<static_cast<int>(s.autox_state->views.size());v++)autox_diagram(s.analysis.session,v,NULL);
+ refreshdisplay(s.analysis.session);
 }
 
 int IXVal(const AutoxParts &s, double x)
@@ -739,7 +739,7 @@ void autox_fit(AutoxParts s)
   
 void autox_hide_earlier(AutoxParts s)
 {
-  s.autox_view->earlier=autox_points_held(s.session);
+  s.autox_view->earlier=autox_points_held(s.analysis.session);
   s.autox_view->show_earlier=false;
   draw_bif_axes(s);
 }
@@ -912,7 +912,7 @@ void view_point(AutoxParts s, int v, const AUTOAX &ax, bool active, const DIAGRA
   }
   if((flag2==no_calculation&&ax.plot==AutoxProjection::two_parameter)||(flag2!=no_calculation&&ax.plot!=AutoxProjection::two_parameter)){
     dp.x=dp.y1=dp.y2=std::numeric_limits<double>::quiet_NaN();
-    autox_diagram(s.session,v,&dp);
+    autox_diagram(s.analysis.session,v,&dp);
     return;
   }
   if(flag2!=no_calculation) /* a two-parameter point in a two-parameter view */
@@ -939,7 +939,7 @@ void view_point(AutoxParts s, int v, const AUTOAX &ax, bool active, const DIAGRA
     s.autox_state->bifur.lastx=x;
     s.autox_state->bifur.lasty=y1;
   }
-  autox_diagram(s.session,v,&dp);
+  autox_diagram(s.analysis.session,v,&dp);
 }
 
 void plot_in_views(AutoxParts s, const DIAGRAM &d, DiagramPointType type, int flg, int live)
@@ -955,7 +955,7 @@ void add_point(AutoxParts s, const DIAGRAM &d, DiagramPointType type, int flg)
 {
   plot_in_views(s,d,type,flg,0);
   show_stab(s, d.evr,d.evi,type==STABLE_PERIODIC||type==UNSTABLE_PERIODIC);
-  refreshdisplay(s.session);
+  refreshdisplay(s.analysis.session);
 }
 
 void add_live_point(AutoxParts s, const DIAGRAM &d, int live, DiagramPointType type, int flg)
@@ -1034,7 +1034,7 @@ void traverse_out(AutoxParts s, DIAGRAM *d, int *ix, int *iy, int dodraw)
 void autox_window_opened(AutoxParts s)
 {
   s.selected_window=s.autox_state->views[s.autox_state->active_view].name;
-  make_autox(s.session,s.selected_window,"autoX");
+  make_autox(s.analysis.session,s.selected_window,"autoX");
 }
 
 void load_last_plot(AutoxParts s, LastPlot which)
@@ -1284,15 +1284,15 @@ xpp::Result<> load_autox_orbitx(AutoxParts s, int ibr,int flag, int lab, double 
       s.data_store->col[j+1][i]=u[j];
       x[j]=u[j];
     }
-    extra(s.session,x,static_cast<double>(s.data_store->col[0][i]),nstor,s.model().neq);
+    extra(s.analysis,x,static_cast<double>(s.data_store->col[0][i]),nstor,s.model().neq);
     for(j=nstor;j<s.model().neq;j++)
       s.data_store->col[j+1][i]=x[j];
   }
   s.data_store->rows=nrow;
-  refresh_data(s.session,nrow);
+  refresh_data(s.analysis,nrow);
   /* insert auxiliary stuff here */
-  if(s.autox_state->load_all_labeled_orbits==LabeledOrbits::ClearAndDraw)clr_all_scrns(s.session);
-  drw_all_scrns(s.session);
+  if(s.autox_state->load_all_labeled_orbits==LabeledOrbits::ClearAndDraw)clr_all_scrns(s.analysis.session);
+  drw_all_scrns(s.analysis.session);
   return {};
 }
 
@@ -1553,14 +1553,14 @@ void find_point(AutoxParts s, int ibr, int pt)
   /* now we use this info to set parameters and init data */
   for(int i=0;i<s.model().node;i++)
     setvar(s.parser,i+1,d->u0[i]);
-  xpp::set_initial_data(s.session,d->u0);
+  xpp::set_initial_data(s.analysis,d->u0);
   autox_set_pars_from(s, diagram_parameters(*d).data());
   xpp::evaluate_derived(s.parser);
   xpp::ok_or_show(xpp::redo_all_fun_tables(s.session_parts));
   redraw_params();
   redraw_ics();
   if((d->per)>0)
-    xpp::set_total(s.session,d->per);
+    xpp::set_total(s.analysis,d->per);
 }
 
 void do_autox_range(AutoxParts s, const xpp::RunReport &report)
@@ -1572,7 +1572,7 @@ void do_autox_range(AutoxParts s, const xpp::RunReport &report)
     std::string parameter;
     autox_get_info(s,&points,parameter);
     const xpp::DiagramRange diagram{parameter,points,[&s](int point){autox_set_mark(s,point);}};
-    xpp::do_range(s.session,&s.data_store->current[0],false,report,&diagram);
+    xpp::do_range(s.analysis,&s.data_store->current[0],false,report,&diagram);
   }
   s.numerics->total_time=t;
 }
@@ -1622,7 +1622,7 @@ void traverse_diagram(AutoxParts s)
     if(i>=0)at=i;
     else{
       s.autox_state->bifur.hinttxt=xpp::format("  {} {} not found",missing,xpp::autox_point_kind_label(*wanted));
-      ui.autox_show_hint(s.session);
+      ui.autox_show_hint(s.analysis.session);
     }
     show(1);
   };
@@ -1630,7 +1630,7 @@ void traverse_diagram(AutoxParts s)
 
   show(1);
   while(done==0){
-    const int kp=ui.autox_grab_event(s.session,&xm,&ym);
+    const int kp=ui.autox_grab_event(s.analysis.session,&xm,&ym);
     if(kp==XPP_AUTOX_NODE){
       /* a point of the diagram by its entry: the cursor goes there */
       if(xm>=0&&xm<=last){
@@ -1771,7 +1771,7 @@ static void grab_diagram_point(AutoxParts s, const DIAGRAM *d)
 {
   s.autox_state->grabpt=autox_point_data(*d);
   for(int i=0;i<s.model().node;i++)setvar(s.parser,i+1,s.autox_state->grabpt.u0[static_cast<std::size_t>(i)]);
-  set_initial_data(s.session,s.autox_state->grabpt.u0);
+  set_initial_data(s.analysis,s.autox_state->grabpt.u0);
   autox_set_pars_from(s,s.autox_state->grabpt.par.data());
 }
 
@@ -1840,14 +1840,14 @@ int autox_grab_type_index(AutoxParts s, AutoxPointKind type, int index)
 void clear_msg(AutoxParts s)
 {
   s.autox_state->bifur.hinttxt.clear();
-  ui.autox_show_hint(s.session);
+  ui.autox_show_hint(s.analysis.session);
 }
 
 void autox_point_xy(AutoxParts s, double x,double y)
 {
     s.autox_state->bifur.hinttxt=xpp::format("x={:g},y={:g}",x,y);
     storeautoxpoint(s, x,y);
-    ui.autox_show_hint(s.session);
+    ui.autox_show_hint(s.analysis.session);
 }
 
 

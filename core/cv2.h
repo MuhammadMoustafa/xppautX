@@ -7,7 +7,7 @@
 /* xpp's driver of the vendored CVODE (cvode.h, its own C API) */
 namespace xpp {
 
-struct Session; /* session.h */
+struct RunParts; /* run_parts.h */
 
 /* cvode.h's OPT_SIZE, the length of its optional input and output arrays
    (cv2.cpp checks they agree) */
@@ -41,10 +41,10 @@ struct CvodeRun {
 /* the integration of run has ended: its memory freed (nothing when it has
    none) */
 void end_cv(CvodeRun &run);
-int cvode(Session &s, CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol);
-int ccvode(Session &s, CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol);
+int cvode(RunParts &s, CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol);
+int ccvode(RunParts &s, CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol);
 
 /* what a CVODE failure flag of run means, for the user (empty for none) */
-std::string cvode_error_text(const Session &s, const CvodeRun &run, int kflag);
+std::string cvode_error_text(const RunParts &s, const CvodeRun &run, int kflag);
 
 } // namespace xpp

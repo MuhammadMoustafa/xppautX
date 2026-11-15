@@ -21,7 +21,7 @@ void draw_export_axes(Session &s)
 {
  set_scale(s,s.autox_state->axes().xmin,s.autox_state->axes().ymin,s.autox_state->axes().xmax,s.autox_state->axes().ymax);
  std::string xlabel,ylabel;
- get_autox_str(s,s.autox_state->axes(),xlabel,ylabel);
+ get_autox_str(xpp::autox_parts(s),s.autox_state->axes(),xlabel,ylabel);
  Box_axis(s,s.autox_state->axes().xmin,s.autox_state->axes().xmax,s.autox_state->axes().ymin,s.autox_state->axes().ymax,xlabel.c_str(),ylabel.c_str(),0);
 }
 
@@ -98,12 +98,12 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
 Result<> export_autox_picture(Session &s, int fmt, const std::optional<std::string> &file, std::optional<int> view)
 {
   const ImageFormat &f=image_formats[fmt];
-  if(const Result<> points=diagram_need_points(s);!points)return points;
-  const auto target=diagram_export_target(s,file,f.name,"diagram",(std::string(".")+f.extension).c_str());
+  if(const Result<> points=diagram_need_points(xpp::autox_parts(s));!points)return points;
+  const auto target=diagram_export_target(xpp::autox_parts(s),file,f.name,"diagram",(std::string(".")+f.extension).c_str());
   if(!target)return {};
   if(const Result<> begun=begin_picture(s,f,*target);!begun)return begun;
   if(!s.plot_file->writer)return {};
-  if(view)autox_activate_view(s,*view);
+  if(view)autox_activate_view(xpp::autox_parts(s),*view);
   draw_export_axes(s);
   for(DIAGRAM &point:s.diagram->points){
     const DiagramPointType type=get_bif_type(point.ibr,point.ntot);

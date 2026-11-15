@@ -158,7 +158,7 @@ void j_autox_closed(xpp::Session &s, std::string_view name)
 {
     send_window(xpp::events::WINDOW_DESTROYED,name,0,0,"","diagram");
     diag_forget();
-    autox_data_forget(s);
+    autox_data_forget(xpp::autox_parts(s));
 }
 
 void j_tool_window_closed(xpp::Session &, std::string_view name, std::string_view kind) { send_window(xpp::events::WINDOW_DESTROYED, name, 0, 0, "", kind); }

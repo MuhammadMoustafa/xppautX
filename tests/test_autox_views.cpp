@@ -144,13 +144,13 @@ xpp::DIAGRAM point_of(int n, double base)
 void check_diagram_points(xpp::Session &s)
 {
     constexpr int n = 3;
-    start_diagram(s, n);
+    start_diagram(xpp::autox_parts(s), n);
     xpp::DIAGRAM *first = &s.diagram->points.front();
     CHECK(first && first->u0.size() == n && first->evi.size() == n && first->index == 0);
     for (int k = 1; k <= 20; k++) { /* a deque keeps the earlier points' addresses while it grows */
         xpp::DIAGRAM p = point_of(n, k);
         p.branch = std::make_shared<xpp::DiagramBranch>();
-        add_diagram(s, p);
+        add_diagram(xpp::autox_parts(s), p);
     }
     CHECK(diagram_count(*s.diagram) == 21 && &s.diagram->points.front() == first);
     CHECK(s.diagram->points[7].u0[2] == 2 * 7 + 2 && s.diagram->points[7].index == 7);
@@ -160,7 +160,7 @@ void check_diagram_points(xpp::Session &s)
     for (int k = 0; k < 5; k++) list.push_back(point_of(n, 100 + k));
     const std::deque<xpp::DIAGRAM> snapshot = list;
     for (int round = 0; round < 3; round++) { /* repeated restores, as a session load does */
-        diagram_restore(s, list);
+        diagram_restore(xpp::autox_parts(s), list);
         CHECK(diagram_count(*s.diagram) == 5);
         bool ok = true;
         for (int i = 0; i < 5; i++) {
@@ -171,14 +171,14 @@ void check_diagram_points(xpp::Session &s)
         CHECK(ok);
         list = std::move(s.diagram->points); /* moved out and back in */
     }
-    diagram_restore(s, std::move(list));
+    diagram_restore(xpp::autox_parts(s), std::move(list));
     s.diagram->points[0].u0.assign(n, -1.0);
     CHECK(snapshot[0].u0[0] == 200); /* no point shares an array with a copy */
 
     /* a run's point of the wrong length is the caller's: the first point takes the point whole */
-    start_diagram(s, n);
+    start_diagram(xpp::autox_parts(s), n);
     xpp::DIAGRAM p = point_of(n, 9);
-    edit_start(s, p);
+    edit_start(xpp::autox_parts(s), p);
     CHECK(s.diagram->points.front().ubar == p.ubar && s.diagram->points.front().ubar.data() != p.ubar.data());
 }
 
@@ -218,7 +218,7 @@ int probe_boundary(const iap_type *iap, const rap_type *, std::ptrdiff_t, double
 void check_assembly_passes(xpp::Session &s)
 {
     AssemblyProbe run;
-    autox_bind_parts(run, s);
+    autox_bind_parts(run, xpp::autox_parts(s));
     run.parameter_count = 1;
     iap_type iap{};
     iap.run = &run;
@@ -281,7 +281,7 @@ void check_assembly_passes(xpp::Session &s)
 void check_library_arrays(xpp::Session &s)
 {
     AutoxRun run;
-    autox_bind_parts(run, s);
+    autox_bind_parts(run, xpp::autox_parts(s));
     run.parameter_count = 5;
     iap_type iap{};
     iap.run = &run;
@@ -330,22 +330,22 @@ TEST_CASE("test_autox_views")
     auto &markov = xpp::client_session();
     CHECK(markov.model().node == 1 && markov.model().nmarkov == 1);
     markov.autox_state->dir = temp.path();
-    xpp::init_autox_win(markov);
+    xpp::init_autox_win(xpp::autox_parts(markov));
     auto point = point_of(1, 3);
     point.ibr = 1;
     point.ntot = 2;
     point.lab = 7;
     point.branch = std::make_shared<xpp::DiagramBranch>();
-    edit_start(markov, point);
+    edit_start(xpp::autox_parts(markov), point);
     point.ntot = 3;
     point.lab = 8;
-    add_diagram(markov, point);
+    add_diagram(xpp::autox_parts(markov), point);
     markov.autox_state->diag_flag = true;
     const double saved_markov = markov.last_ic[1];
-    CHECK(autox_grab_label(markov, 7) == 1);
+    CHECK(autox_grab_label(xpp::autox_parts(markov), 7) == 1);
     CHECK(markov.last_ic[0] == 6 && markov.last_ic[1] == saved_markov);
     markov.last_ic[0] = -1;
-    find_point(markov, 1, 2);
+    find_point(xpp::autox_parts(markov), 1, 2);
     CHECK(markov.last_ic[0] == 6 && markov.last_ic[1] == saved_markov);
     // The shared owner refuses an invalid length before changing any values.
     const auto before = markov.last_ic;

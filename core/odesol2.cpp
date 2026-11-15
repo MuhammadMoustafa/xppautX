@@ -3,7 +3,8 @@
 #include "odesol2.h"
 #include "solver.h"
 #include "jacobian.h"
-#include "session.h"
+#include "run_parts.h"
+#include "expr.h"
 #include "integrate.h"
 #include "storage.h"
 #include <stdlib.h> 
@@ -42,7 +43,7 @@ struct AbmWork {
   }
 };
 
-int adams_bashforth_moulton(xpp::Session &s, double *y, double *t, double dt, int neq, const AbmWork &w);
+int adams_bashforth_moulton(xpp::RunParts &s, double *y, double *t, double dt, int neq, const AbmWork &w);
 }
 
 constexpr double symp_b[]={7/24.,.75,-1./24};
@@ -54,7 +55,7 @@ namespace {
    them (flags.cpp's one_flag_steps). discrete, euler, modified_euler_steps and
    runge_kutta_fixed differ only in step(dtt), one step of length dtt. */
 template <class Step>
-int fixed_steps(xpp::Session &s, double *y, int nt, int neq, double *tim, int *istart, double dt, Step step)
+int fixed_steps(xpp::RunParts &s, double *y, int nt, int neq, double *tim, int *istart, double dt, Step step)
 {
   const std::function<void(double)> f=step;
   for(int i=0;i<nt;i++){
@@ -70,7 +71,7 @@ int fixed_steps(xpp::Session &s, double *y, int nt, int neq, double *tim, int *i
 /* my first symplectic integrator */
 
 /* symplect3: third-order symplectic step (odesol2.cpp) */
-int symplectic_third_order(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+int symplectic_third_order(xpp::RunParts &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  if(s.model().flag_count()==0){ 
    for(int i=0;i<nt;i++){
@@ -86,7 +87,7 @@ int symplectic_third_order(xpp::Session &s, double *y, double *tim, double dt, i
 
 /*   DISCRETE    */
 
-int discrete(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+int discrete(xpp::RunParts &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
   return fixed_steps(s,y,nt,neq,tim,istart,dt,
     [&](double dtt){ one_step_discrete(s,y,dtt,work,neq,tim); });
@@ -94,7 +95,7 @@ int discrete(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq
 
 /* Backward Euler  */
 
-int bak_euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+int bak_euler(xpp::RunParts &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  int i,j;
   double *jac,*yg,*yp,*yp2,*errvec;
@@ -126,7 +127,7 @@ int bak_euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int ne
     return(0);
 }
 
-int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *errvec, double *jac, int *istart)
+int one_bak_step(xpp::RunParts &s, double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *errvec, double *jac, int *istart)
 {
   int i;
   double err=0.0,err1=0.0;
@@ -181,7 +182,7 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
     }
 }
 
-void one_step_discrete(xpp::Session &s, double *y, double dt, double *yp, int neq, double *t)
+void one_step_discrete(xpp::RunParts &s, double *y, double dt, double *yp, int neq, double *t)
 {
   int j;
    set_wieners(s,dt,y,*t);
@@ -192,7 +193,7 @@ void one_step_discrete(xpp::Session &s, double *y, double dt, double *yp, int ne
 
 }
 
-void one_step_symp(xpp::Session &s, double *y, double h, double *f, int n, double *t)
+void one_step_symp(xpp::RunParts &s, double *y, double h, double *f, int n, double *t)
 {
   int k,j;
   for(k=0;k<3;k++){
@@ -205,7 +206,7 @@ void one_step_symp(xpp::Session &s, double *y, double h, double *f, int n, doubl
   *t+=h;
 }
 
-void one_step_euler(xpp::Session &s, double *y, double dt, double *yp, int neq, double *t)
+void one_step_euler(xpp::RunParts &s, double *y, double dt, double *yp, int neq, double *t)
 {
    
  int j;
@@ -216,7 +217,7 @@ void one_step_euler(xpp::Session &s, double *y, double dt, double *yp, int neq, 
    for(j=0;j<neq;j++)y[j]=y[j]+dt*yp[j];
 }
 
-void one_step_rk4(xpp::Session &s, double *y, double dt, double *yval[3], int neq, double *tim)
+void one_step_rk4(xpp::RunParts &s, double *y, double dt, double *yval[3], int neq, double *tim)
 {
  int i;
  double t=*tim,t1,t2;
@@ -246,7 +247,7 @@ void one_step_rk4(xpp::Session &s, double *y, double dt, double *yval[3], int ne
  *tim=t2;
 }
 
-void one_step_heun(xpp::Session &s, double *y, double dt, double *yval[2], int neq, double *tim)
+void one_step_heun(xpp::RunParts &s, double *y, double dt, double *yval[2], int neq, double *tim)
 {
  int i;
  double t=*tim,t1;
@@ -261,7 +262,7 @@ void one_step_heun(xpp::Session &s, double *y, double dt, double *yval[2], int n
 
 /*  Euler  */
 
-int euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+int euler(xpp::RunParts &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
   return fixed_steps(s,y,nt,neq,tim,istart,dt,
     [&](double dtt){ one_step_euler(s,y,dtt,work,neq,tim); });
@@ -270,7 +271,7 @@ int euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, i
 /* Modified Euler  */
 
 /* mod_euler: modified Euler (odesol2.cpp) */
-int modified_euler_steps(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+int modified_euler_steps(xpp::RunParts &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  double *yval[2];
 
@@ -283,7 +284,7 @@ int modified_euler_steps(xpp::Session &s, double *y, double *tim, double dt, int
 /*  Runge Kutta    */
 
 /* rung_kut: fixed-step Runge-Kutta (odesol2.cpp) */
-int runge_kutta_fixed(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+int runge_kutta_fixed(xpp::RunParts &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  double *yval[3];
 
@@ -297,7 +298,7 @@ int runge_kutta_fixed(xpp::Session &s, double *y, double *tim, double dt, int nt
 
 /*   ABM   */
 
-int adams(xpp::Session &s, double *y, double *tim, double dt, int nstep, int neq, int *ist, double *work)
+int adams(xpp::RunParts &s, double *y, double *tim, double dt, int nstep, int neq, int *ist, double *work)
 {
   int istart=*ist,i,istpst,k,ik,n;
   int irk;
@@ -368,7 +369,7 @@ n1000:
 
 namespace {
 /* abmpc: Adams-Bashforth-Moulton predictor-corrector (odesol2.cpp) */
-int adams_bashforth_moulton(xpp::Session &s, double *y, double *t, double dt, int neq, const AbmWork &w)
+int adams_bashforth_moulton(xpp::RunParts &s, double *y, double *t, double dt, int neq, const AbmWork &w)
 {
  double x1,x0=*t;
  int i,k;
@@ -401,7 +402,7 @@ int adams_bashforth_moulton(xpp::Session &s, double *y, double *t, double dt, in
 /* this is rosenbrock_steps  - rosenbock step 
     This uses banded routines as well */
 /* rb23: XPPAUT 8.0 odesol2.c:470: Rosenbrock step, flag-aware (rosen without flags) */
-int rosenbrock_driver(xpp::Session &s, double *y,double *tstart,double tfinal,
+int rosenbrock_driver(xpp::RunParts &s, double *y,double *tstart,double tfinal,
  int *istart,int n,double *work,int *ierr)
 {
 int out =-1;
@@ -417,7 +418,7 @@ int out =-1;
 }
  
 /* rosen: XPPAUT 8.0 odesol2.c:485: Rosenbrock step, banded routines as well */
-int rosenbrock_steps(xpp::Session &s, double *y,double *tstart,double tfinal,
+int rosenbrock_steps(xpp::RunParts &s, double *y,double *tstart,double tfinal,
 int *istart,int n,double *work,int *ierr)
 {
  double &htry=s.integrator->rosen_htry; /* the step the last call ended with */
@@ -557,7 +558,7 @@ int *istart,int n,double *work,int *ierr)
 
  /* this assumes that yp is already computed; scal is the solver's factor
     (Backward Euler's -dt/2, rosenbrock_driver's 1) */
-void get_the_jac(xpp::Session &s, double t,double *y,double *yp,
+void get_the_jac(xpp::RunParts &s, double t,double *y,double *yp,
 	    double *dfdy,int neq,double eps,double scal)
 {
   const auto form=xpp::model_jacobian_form(s,neq);

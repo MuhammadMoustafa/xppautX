@@ -7,7 +7,7 @@ namespace xpp { enum class PoincareMap; enum class SectionSign; }
 
 namespace xpp {
 
-struct Session; /* session.h */
+struct RunParts; /* run_parts.h */
 struct RunReport; /* integrate.h */
 
 /* the numerics settings that have no key of the main table (the method's own: the Volterra points, the CVODE
@@ -19,23 +19,23 @@ struct NumericsExtras {
 };
 /* the extras set all or nothing, each checked against the method and the model it applies to; or why not */
 /* Check extras against the method the same command proposes, without applying it. */
-Result<> check_numerics_extras(const Session &s, const NumericsExtras &extras, int method);
-Result<> set_numerics_extras(Session &s, const NumericsExtras &extras);
+Result<> check_numerics_extras(const RunParts &s, const NumericsExtras &extras, int method);
+Result<> set_numerics_extras(RunParts &s, const NumericsExtras &extras);
 
 
 /* what a new delta_t needs: the delays' and the integrals' memory again */
-void dt_changed(Session &s);
-void set_total(Session &s, double total);
-void chk_delay(Session &s);
-void set_delay(Session &s);
+void dt_changed(RunParts &s);
+void set_total(RunParts &s, double total);
+void chk_delay(RunParts &s);
+void set_delay(RunParts &s);
 /* the active plot window's rUelle shifts (how many rows each axis lags): each 0 or more; redrawn */
-Result<> set_axis_shifts(Session &s, int x, int y, int z);
+Result<> set_axis_shifts(RunParts &s, int x, int y, int z);
 /* the Poincare map: its kind, and for a kind other than none the variable (a column), the section, the crossing
    direction and whether the run stops on it, a setting left out as it is; or why the settings are not ones it takes */
-Result<> set_poincare_map(Session &s, PoincareMap map, std::optional<int> variable, std::optional<double> section,
+Result<> set_poincare_map(RunParts &s, PoincareMap map, std::optional<int> variable, std::optional<double> section,
                           std::optional<SectionSign> direction, std::optional<bool> stop_on_section);
 /* applies the checked numerics.method: its
    settings, then a fresh solver (xpp::start_solver) */
-void do_meth(Session &s);
+void do_meth(RunParts &s);
 
 } // namespace xpp

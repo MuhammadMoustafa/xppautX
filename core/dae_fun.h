@@ -8,7 +8,7 @@
 
 namespace xpp {
 
-struct Session; /* session.h */
+struct RunParts; /* run_parts.h */
 
 /* the algebraic variables' solver (dae_fun.cpp), a Session's
    (session.h): its work memory, how the last solve went, and each
@@ -40,12 +40,12 @@ struct DaeState {
    A run inside a run (none today) keeps the outer one's branch. */
 class DaeRun {
 public:
-  explicit DaeRun(Session &s);
+  explicit DaeRun(RunParts &s);
   ~DaeRun();
   DaeRun(const DaeRun &) = delete;
   DaeRun &operator=(const DaeRun &) = delete;
 private:
-  Session &s_;
+  RunParts &s_;
   bool outer_;
 };
 
@@ -56,14 +56,14 @@ constexpr int DAE_NO_CONVERGENCE = -2;
 constexpr int DAE_OUT_OF_BOUNDS = -3;
 constexpr int DAE_FOLD = -4;
 
-void reset_dae(Session &s);
-void set_init_guess(Session &s);
-void init_dae_work(Session &s);
-void get_dae_fun(Session &s, double *y, double *f);
-void do_daes(Session &s);
-int solve_dae(Session &s);
+void reset_dae(RunParts &s);
+void set_init_guess(RunParts &s);
+void init_dae_work(RunParts &s);
+void get_dae_fun(RunParts &s, double *y, double *f);
+void do_daes(RunParts &s);
+int solve_dae(RunParts &s);
 /* algebraic variable i's initial guess made `formula` (compiled and evaluated now), its value; the error of a formula
    that does not compile, nothing changed */
-Result<double> set_dae_guess(Session &s, int i, std::string_view formula);
+Result<double> set_dae_guess(RunParts &s, int i, std::string_view formula);
 
 } // namespace xpp

@@ -252,7 +252,7 @@ std::vector<std::pair<const OptionRow *,std::string>> group_settings(xpp::Sessio
   std::vector<std::pair<const OptionRow *,std::string>> out;
   for(const OptionRow &row : option_rows()){
     if(row.group!=group||(wanted==Rows::set&&!set_holds(row))||(wanted==Rows::model&&row.top_level)||!has_member(row)||!setting_applies(s,row,s.numerics->method))continue;
-    std::string text=autox_view_row(row)?autox_view_text(s,row):setting_text(s,row);
+    std::string text=autox_view_row(row)?autox_view_text(xpp::autox_parts(s),row):setting_text(s,row);
     if(row.kind==OptionKind::path&&wanted!=Rows::panel){
       if(text.empty())continue; /* a path left out: none */
       if(wanted==Rows::model)text=relative_to_model(s.model().this_file,text);
@@ -467,12 +467,12 @@ xpp::Result<> apply_option_group(xpp::Session &s, std::string_view group, std::s
     else own.push_back(item);
   }
   if(xpp::Result<> r=check_set_items(s,own,where,false,command);!r)return r;
-  if(xpp::Result<> r=autox_view_apply(s,view,true);!r)return r;
+  if(xpp::Result<> r=autox_view_apply(xpp::autox_parts(s),view,true);!r)return r;
   xpp::push_value_undo(s);
   /* the sets row's list was split into one item a name above: what the session held goes first, even when the list is empty */
   for(const OptionRow *row : lists)row->reset(s);
   apply_set_items(s,own);
-  if(!view.empty())return autox_view_apply(s,view,false);
+  if(!view.empty())return autox_view_apply(xpp::autox_parts(s),view,false);
   return {};
 }
 

@@ -15,31 +15,31 @@
 #include <string>
 
 namespace xpp {
-struct Session; /* session.h */
+struct AnalysisParts; /* analysis_parts.h */
 struct Model; /* model.h */
 
 void waitasec(int msec);
 
-void refresh_data(Session &s, int length);
-void reset_data(Session &s);
-void new_browse_dat(Session &s, ColumnTable new_dat, int dat_len);
+void refresh_data(AnalysisParts &s, int length);
+void reset_data(AnalysisParts &s);
+void new_browse_dat(AnalysisParts &s, ColumnTable new_dat, int dat_len);
 /* a derived data set (a histogram, the adjoint, the H function) in the data table again with `show` when it exists, else
    `missing` as the error of `command` */
-Result<> show_derived(Session &s, bool exists, const std::string &command, const std::string &missing, void (*show)(Session &));
-ColumnTable get_table_data(Session &s);
+Result<> show_derived(AnalysisParts &s, bool exists, const std::string &command, const std::string &missing, void (*show)(AnalysisParts &));
+ColumnTable get_table_data(AnalysisParts &s);
 /* table index's values in the data table: the rows shown, or why they cannot be */
-Result<int> view_table(Session &s, int index);
+Result<int> view_table(AnalysisParts &s, int index);
 
-void data_get_mytable(Session &s, int row);
+void data_get_mytable(AnalysisParts &s, int row);
 
-std::unique_ptr<xpp::Sink> ask_output_sink(const Session &s, std::string_view title, std::string_view ext,
+std::unique_ptr<xpp::Sink> ask_output_sink(const AnalysisParts &s, std::string_view title, std::string_view ext,
                                            std::string_view what = {}, bool binary = false);
 
 /* the stored rows First..Last as XPP's .dat (data_table.h) into w, only the
    columns of a batch run's "only" list (plotlist) when it has one: the
    batch run's output.dat and the files written beside it; committed (commit_save), or aborted
    when the writing failed */
-Result<> save_mytable_data(Session &s, xpp::Sink &w);
+Result<> save_mytable_data(AnalysisParts &s, xpp::Sink &w);
 
 /* what Save data writes: the "table" (the rows First..Last of every column), the model's "output" (those rows of
    its output columns: its "only" list when it has one, as --silent's output.dat) or what the plot shows
@@ -56,7 +56,7 @@ struct DataSaved {
   std::string file;
   std::size_t rows = 0;
 };
-Result<DataSaved> save_data_file(const Session &s, std::optional<DataTarget> target, std::string_view format,
+Result<DataSaved> save_data_file(const AnalysisParts &s, std::optional<DataTarget> target, std::string_view format,
                                  std::string_view name, const std::function<DataTable()> &plot_curves = {});
 /* the data table's Load: name (asked for when empty) read as format (by its
    extension when empty, else .dat) into s's stored columns, in order; the file and rows loaded (no file when the
@@ -65,24 +65,24 @@ struct DataLoaded {
   std::string file;
   std::size_t rows = 0;
 };
-Result<DataLoaded> load_data_file(Session &s, std::string_view format, std::string_view name);
+Result<DataLoaded> load_data_file(AnalysisParts &s, std::string_view format, std::string_view name);
 
 /* the data table as a session file saves it (xpp_session.cpp, W57):
    every stored row of T and the model's variables and auxiliaries, and
    the seed of the run that made them */
-DataTable stored_data_table(const Session &s);
+DataTable stored_data_table(const AnalysisParts &s);
 /* table's columns into the stored ones of the same names (find_variable
    below; a name the model does not have is left out), the store grown to
    hold every row: its rows, the new data set; 0 when there was no memory
    for them */
-int put_stored_data(Session &s, const DataTable &table);
+int put_stored_data(AnalysisParts &s, const DataTable &table);
 
 /* the data column of variable s: 0 for T, i+1 for variable i, a data table
    column added by data_add_col (by name, case ignored, below), -1 for
    none */
-void find_variable(const Session &s, std::string_view name, int *col);
+void find_variable(const AnalysisParts &s, std::string_view name, int *col);
 /* the same as a value: the column of that name, -1 for none */
-inline int variable_column(const Session &s, std::string_view name)
+inline int variable_column(const AnalysisParts &s, std::string_view name)
 {
   int col = -1;
   find_variable(s, name, &col);
@@ -92,7 +92,7 @@ inline int variable_column(const Session &s, std::string_view name)
 /* column j's name as s's data table shows it: "T", a model variable's
    (Model::uvar_names), or (j>Model::neq) an added column's
    (DataState::added_columns below); "" past the last one */
-std::string browse_column_name(const Session &s, int j);
+std::string browse_column_name(const AnalysisParts &s, int j);
 
 /* col_index's rows 0..nrows-1: formula compiled and evaluated fresh over
    them (add_expr's constants roll back to the Model's own end right
@@ -101,51 +101,51 @@ std::string browse_column_name(const Session &s, int j);
    data_add_col's own add, and a fresh run's recompute (refresh_data)
    of every added column, both go through this; the error for
    a formula that no longer compiles */
-Result<> compute_added_column(Session &s, const std::string &formula, int col_index, int nrows);
+Result<> compute_added_column(AnalysisParts &s, const std::string &formula, int col_index, int nrows);
 /* formula compiles as an added column's in s (Add column's check, a
    saved session's added columns' too); the parser's working symbols
    rolled back after, so s is left as it was */
-bool added_column_compiles(Session &s, std::string_view formula);
+bool added_column_compiles(AnalysisParts &s, std::string_view formula);
 
 /* the most rows and columns one block of the table holds (data.page): a page of it, bounded so one event stays
    small; hello.limits tells the page */
 inline constexpr int DATA_MAX_ROWS = 2000;
 inline constexpr int DATA_MAX_COLS = 500;
 /* block's first row and column brought into the data (the last row, the last column), as the data is now */
-void fit_data_block(Session &s);
+void fit_data_block(AnalysisParts &s);
 /* the rows of the (fitted) block as JSON, [[T, v, ...], ...], each value in the shortest text that reads back as exactly
    the stored value (the same digits as the data files), null for a number JSON cannot hold */
-std::string data_block_rows(const Session &s);
+std::string data_block_rows(const AnalysisParts &s);
 
 /* The data table's operations on the session s (docs/protocol.md "The data table"): each returns its error as a
    value; the data table window's keys ask what they need (the data_* functions below) and call the same, as the
    registry's data.* commands call them with their arguments. */
-Column get_data_col(const Session &s, int c);
+Column get_data_col(const AnalysisParts &s, int c);
 /* the data table shows the stored data, not a derived set (the adjoint, a histogram, ...) */
-Result<> require_stored_data(const Session &s);
+Result<> require_stored_data(const AnalysisParts &s);
 /* the added column `name` (a column of the stored data, computed from `formula`) deleted, or added */
-Result<> delete_added_column(Session &s, std::string_view name);
-Result<> add_data_column(Session &s, std::string_view name, std::string_view formula);
+Result<> delete_added_column(AnalysisParts &s, std::string_view name);
+Result<> add_data_column(AnalysisParts &s, std::string_view name, std::string_view formula);
 /* the column `column` replaced by formula: an expression of the columns, "&column" (its running integral),
    "@column" (its derivative) or a sequence "a:b" (from a to b) or "a;b" (from a, step b); undone by unreplace_column */
-Result<> replace_data_column(Session &s, std::string_view column, std::string_view formula);
+Result<> replace_data_column(AnalysisParts &s, std::string_view column, std::string_view formula);
 /* Replace's saved column dropped: nothing to Unreplace */
 void wipe_rep(DataState &b);
-Result<> unreplace_column(Session &s);
+Result<> unreplace_column(AnalysisParts &s);
 /* the row of `column`, from the selected row on, whose value is nearest `value`, made the selected one */
-Result<int> find_in_column(Session &s, std::string_view column, double value);
+Result<int> find_in_column(AnalysisParts &s, std::string_view column, double value);
 /* the rows First..Last of `column` as a lookup table over xlo..xhi (the model's .tab format) written to
    `file`: the rows written, 0 when the user declined to replace the file */
-Result<std::size_t> tabulate_column(Session &s, std::string_view column, double xlo, double xhi, std::string_view file);
+Result<std::size_t> tabulate_column(AnalysisParts &s, std::string_view column, double xlo, double xhi, std::string_view file);
 /* First, Last (inclusive) and Restore: the row made the first or last one kept, and selected; the whole data
    kept again (the caller replots them). The row, or the last row of the data */
-Result<int> set_first_row(Session &s, int row);
-Result<int> set_last_row(Session &s, int row);
-Result<int> restore_whole_data(Session &s);
+Result<int> set_first_row(AnalysisParts &s, int row);
+Result<int> set_last_row(AnalysisParts &s, int row);
+Result<int> restore_whole_data(AnalysisParts &s);
 /* the data table at the start of a model: s's stored data, no rows */
-void init_data(Session &s);
-void get_data_xyz(const Session &s, float *x, float *y, float *z, int i1, int i2, int i3, int off);
+void init_data(AnalysisParts &s);
+void get_data_xyz(const AnalysisParts &s, float *x, float *y, float *z, int i1, int i2, int i3, int off);
 /* the stored row `row` made the initial conditions (and the values of the auxiliaries and the time the formulas read) */
-void ic_of_row(Session &s, int row);
+void ic_of_row(AnalysisParts &s, int row);
 
 } // namespace xpp

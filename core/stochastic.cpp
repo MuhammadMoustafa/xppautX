@@ -5,13 +5,13 @@
 #include "integrate.h"
 #include "model.h"
 #include "runs.h"
-#include "session.h"
+#include "analysis_parts.h"
 #include "xpp_ui.h"
 
 namespace xpp {
 
 /* show the mean or the variance of the runs in the browser */
-static Result<> stats_back(xpp::Session &s, ColumnTable stats)
+static Result<> stats_back(xpp::AnalysisParts &s, ColumnTable stats)
 {
   if(!s.stochastic->here)
     return fail("stochastic","No stochastic runs yet: run Stochastic Compute first",command_place());
@@ -20,17 +20,17 @@ static Result<> stats_back(xpp::Session &s, ColumnTable stats)
   return {};
 }
 
-Result<> mean_back(xpp::Session &s)
+Result<> mean_back(xpp::AnalysisParts &s)
 {
   return stats_back(s,ColumnTable(s.stochastic->mean.data()));
 }
 
-Result<> variance_back(xpp::Session &s)
+Result<> variance_back(xpp::AnalysisParts &s)
 {
   return stats_back(s,ColumnTable(s.stochastic->variance.data()));
 }
 
-Result<int> stochastic_integrate(xpp::Session &s, const RunReport &report)
+Result<int> stochastic_integrate(xpp::AnalysisParts &s, const RunReport &report)
 {
   if(auto items=resolve_range_items(s,false);!items)return std::unexpected(items.error());
   if(auto allowed=run_allowed(s,"range");!allowed)return std::unexpected(allowed.error());
@@ -38,7 +38,7 @@ Result<int> stochastic_integrate(xpp::Session &s, const RunReport &report)
   s.stochastic->flag=true;
   /* the flag is only for this sweep, whatever it ends in */
   struct Unflag {
-    xpp::Session &s;
+    xpp::AnalysisParts &s;
     ~Unflag(){s.stochastic->flag=false;}
   } unflag{s};
   s.integrator->range.rtype=RANGE_SINGLE;
@@ -48,7 +48,7 @@ Result<int> stochastic_integrate(xpp::Session &s, const RunReport &report)
   return done.runs;
 }
 
-void free_stoch(xpp::Session &s)
+void free_stoch(xpp::AnalysisParts &s)
 {
   int i;
   if(s.stochastic->here){
@@ -62,7 +62,7 @@ void free_stoch(xpp::Session &s)
   }
 }
 
-void retype_stochastic(xpp::Session &s)
+void retype_stochastic(xpp::AnalysisParts &s)
 {
   for(std::size_t i=0;i<s.stochastic->mean_rows.size();i++){
     s.stochastic->mean_rows[i].convert(s.data_store->precision());
@@ -72,7 +72,7 @@ void retype_stochastic(xpp::Session &s)
   }
 }
 
-void init_stoch(xpp::Session &s, int len)
+void init_stoch(xpp::AnalysisParts &s, int len)
 {
   int i,j;
   s.stochastic->n_trials=0;
@@ -95,7 +95,7 @@ void init_stoch(xpp::Session &s, int len)
   s.stochastic->here=1;
 }
 
-void append_stoch(xpp::Session &s, int first, int length)
+void append_stoch(xpp::AnalysisParts &s, int first, int length)
 {
   int i,j;
   double z;
@@ -111,7 +111,7 @@ void append_stoch(xpp::Session &s, int first, int length)
   s.stochastic->n_trials++;
 }
 
-void do_stats(xpp::Session &s, int ierr)
+void do_stats(xpp::AnalysisParts &s, int ierr)
 {
   int i,j;
   double ninv,mean;

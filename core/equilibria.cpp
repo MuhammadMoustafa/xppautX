@@ -1,7 +1,9 @@
 #include "xpp_path.h"
 #include "solver.h"
 #include "xpp_ui.h"
-#include "session.h"
+#include "analysis_parts.h"
+#include "expr.h"
+#include "model_options.h"
 #include "storage.h"
 #include "browse.h"
 #include "xpp_log.h"
@@ -138,7 +140,7 @@ xpp::Result<SingStatus> find_equilibrium(EquilibriumModel &model, Equilibrium &q
 }
 
 /* the same on the Session's own evaluation */
-xpp::Result<SingStatus> find_equilibrium(xpp::Session &s, Equilibrium &q, double *x, double eps, double err, double big, int maxit, int n, int *ierr, bool ghost=false)
+xpp::Result<SingStatus> find_equilibrium(xpp::AnalysisParts &s, Equilibrium &q, double *x, double eps, double err, double big, int maxit, int n, int *ierr, bool ghost=false)
 {
  const auto model=session_equilibrium_model(s,n);
  return find_equilibrium(*model,q,x,eps,err,big,maxit,n,ierr,ghost);
@@ -153,7 +155,7 @@ int equilibrium_symbol(const Equilibrium &q)
 
 }
 
-void mark_equilibrium(Session &s, std::span<const double> x, int symbol)
+void mark_equilibrium(AnalysisParts &s, std::span<const double> x, int symbol)
 {
  const GRAPH &g=*s.plot_windows->current;
  const int pop=s.plot_windows->active;
@@ -164,18 +166,18 @@ void mark_equilibrium(Session &s, std::span<const double> x, int symbol)
  s.marks_shown->windows[static_cast<std::size_t>(pop)].mark_equilibrium({x[static_cast<std::size_t>(ix)],x[static_cast<std::size_t>(iy)],symbol});
 }
 
-NewtonCause newton_cause(const Session &s, const NewtonRun &run, std::size_t variables)
+NewtonCause newton_cause(const AnalysisParts &s, const NewtonRun &run, std::size_t variables)
 {
  switch(run.end){
  case NewtonEnd::singular_jacobian:
    return {xpp::format("met a singular Jacobian after {} iterations",run.iterations),""};
  case NewtonEnd::left_box:
    return {xpp::format("went out of the search box after {} iterations (a step of {} per variable is above {})",
-                       run.iterations,xpp::number(run.change/static_cast<double>(variables)),named_settings(s,{"equilibria.search_limit"})),
+                       run.iterations,xpp::number(run.change/static_cast<double>(variables)),named_settings(s.session_parts,{"equilibria.search_limit"})),
            "equilibria.search_limit"};
  case NewtonEnd::max_iterates:
-   return {xpp::format("exceeded {} with the last change {} not below {}",named_settings(s,{"equilibria.max_iterations"}),
-                       xpp::number(run.change),named_settings(s,{"equilibria.newton_tolerance"})),
+   return {xpp::format("exceeded {} with the last change {} not below {}",named_settings(s.session_parts,{"equilibria.max_iterations"}),
+                       xpp::number(run.change),named_settings(s.session_parts,{"equilibria.newton_tolerance"})),
            "equilibria.max_iterations"};
  case NewtonEnd::cancelled:
    return {xpp::format("was stopped after {} iterations",run.iterations),""};
@@ -186,7 +188,7 @@ NewtonCause newton_cause(const Session &s, const NewtonRun &run, std::size_t var
  return {};
 }
 
-Error newton_error(const Session &s, const NewtonRun &run, std::span<const double> start)
+Error newton_error(const AnalysisParts &s, const NewtonRun &run, std::span<const double> start)
 {
  const Model &m=s.model();
  std::string from;
@@ -199,18 +201,18 @@ Error newton_error(const Session &s, const NewtonRun &run, std::span<const doubl
  return {"equilibrium",xpp::format("No equilibrium from {}: Newton's method {}",from,cause.why),place};
 }
 
-void record_equilibrium(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n)
+void record_equilibrium(xpp::AnalysisParts &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n)
 {
     s.last_equilibrium.assign(y,y+n);
     s.last_equilibrium_eigenvalues.clear();
     if(ev)s.last_equilibrium_eigenvalues.assign(ev,ev+2*n);
     /* A delay window has no eigenvalue list; its minus count is only a display placeholder. */
     s.last_equilibrium_stability=(cp+rp>0)?((ev && cm+rm>0)?"saddle":"unstable"):"stable";
-    create_eq_box(s,cp,cm,rp,rm,im,y,ev,n);
+    create_eq_box(s.session,cp,cm,rp,rm,im,y,ev,n);
 }
 
 /* main fixed point finder */ 
-xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, double *stabinfo)
+xpp::Result<> do_sing(xpp::AnalysisParts &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, double *stabinfo)
 {
  xpp::FirstError failure; /* an eigenvector or a manifold's */
  int i;
@@ -357,7 +359,7 @@ if(!s.numerics->par_fol)
  return failure.result();
 }
 
-Result<> save_batch_shoot(Session &s,std::string_view file,bool confirm,const RunReport &report)
+Result<> save_batch_shoot(AnalysisParts &s,std::string_view file,bool confirm,const RunReport &report)
 {
   if(s.manifolds->count<1)return {};
   const double olddt=s.numerics->delta_t;
@@ -388,7 +390,7 @@ Result<> save_batch_shoot(Session &s,std::string_view file,bool confirm,const Ru
   s.data_store->current_time=begun;
   return result;
 }
-xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled saddle point stuff to integrate */
+xpp::Result<> shoot_this_now(xpp::AnalysisParts &s) /* this uses the current labeled saddle point stuff to integrate */
 {
   xpp::FirstError failure;
   int i,k,type;
@@ -420,7 +422,7 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
   return failure.result();
 }
 
-xpp::Result<EquilibriumNear> equilibrium_near(const xpp::Session &s, EquilibriumModel &model, std::span<const double> start)
+xpp::Result<EquilibriumNear> equilibrium_near(const xpp::AnalysisParts &s, EquilibriumModel &model, std::span<const double> start)
 {
  const int n=static_cast<int>(start.size());
  const auto &eq=s.numerics->equilibria;
@@ -442,7 +444,7 @@ xpp::Result<EquilibriumNear> equilibrium_near(const xpp::Session &s, Equilibrium
 }
 
 /* fixed point with no requests and store manifolds */ 
-xpp::Result<> do_sing_info(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr)
+xpp::Result<> do_sing_info(xpp::AnalysisParts &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr)
 {
  xpp::FirstError failure; /* report a failed manifold through the calling command */
  Equilibrium q;
@@ -478,7 +480,7 @@ xpp::Result<> do_sing_info(xpp::Session &s, double *x, double eps, double err, d
  return failure.result();
 }
 
-void pr_evec(xpp::Session &s, double *x, double *ev, int n, int pr, double eval, int type)
+void pr_evec(xpp::AnalysisParts &s, double *x, double *ev, int n, int pr, double eval, int type)
 {
 
  int i;
@@ -499,7 +501,7 @@ void pr_evec(xpp::Session &s, double *x, double *ev, int n, int pr, double eval,
  if(pr==0)return;
 }
 
-xpp::Result<> get_evec(xpp::Session &s, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval)
+xpp::Result<> get_evec(xpp::AnalysisParts &s, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval)
 {
     int j,iter,jmax,ierr;
     double temp;
@@ -515,7 +517,7 @@ xpp::Result<> get_evec(xpp::Session &s, double *a, double *anew, double *b, doub
     xpp::lu_factor(anew,n,n,ipivot,&ierr);
     if(ierr!=-1)
       return xpp::fail("equilibrium",xpp::format("No eigenvector for the eigenvalue {}: the Jacobian shifted by it is singular ({})",
-                       xpp::number(eval),named_settings(s,{"equilibria.newton_tolerance"})),settings_place(s.model(),{"equilibria.newton_tolerance"}));
+                       xpp::number(eval),named_settings(s.session_parts,{"equilibria.newton_tolerance"})),settings_place(s.model(),{"equilibria.newton_tolerance"}));
     for(j=0;j<n;j++)
     {
      b[j]=1+.1*s.random.uniform();
@@ -552,7 +554,7 @@ xpp::Result<> get_evec(xpp::Session &s, double *a, double *anew, double *b, doub
       iter++;
       if(iter>maxit)
         return xpp::fail("equilibrium",xpp::format("No eigenvector for the eigenvalue {}: the inverse iteration exceeded {} with the last change {} not below {}",
-                         xpp::number(eval),named_settings(s,{"equilibria.max_iterations"}),xpp::number(temp),named_settings(s,{"equilibria.newton_tolerance"})),
+                         xpp::number(eval),named_settings(s.session_parts,{"equilibria.max_iterations"}),xpp::number(temp),named_settings(s.session_parts,{"equilibria.newton_tolerance"})),
                          settings_place(s.model(),{"equilibria.max_iterations","equilibria.newton_tolerance"}));
      }
     {
@@ -676,7 +678,7 @@ xpp::Result<> newton_iterate(EquilibriumModel &model, double *x, double err, dou
  return {};
 }
 
-xpp::Result<> newton_iterate(xpp::Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
+xpp::Result<> newton_iterate(xpp::AnalysisParts &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
 {
  const auto model=session_equilibrium_model(s,n);
  return newton_iterate(*model,x,err,eps,big,work,run,maxit,n);
@@ -686,7 +688,7 @@ namespace {
 /* the Session's own right-hand side and Jacobian, and its front end's keys */
 class SessionEquilibriumModel final : public EquilibriumModel {
 public:
-  SessionEquilibriumModel(Session &s,int n) : s_(s), n_(n) { job::compute_begin(); } /* what Escape stops (xpp_job.h) */
+  SessionEquilibriumModel(AnalysisParts &s,int n) : s_(s), n_(n) { job::compute_begin(); } /* what Escape stops (xpp_job.h) */
   ~SessionEquilibriumModel() override { job::compute_end(); }
   void rhs(const double *x,double *f) override { s_.integrator->rhs(0.0,const_cast<double *>(x),f,n_); }
   void jacobian(const double *x,const double *f0,double eps,const JacobianForm &form,double *out) override
@@ -705,12 +707,12 @@ public:
   bool failed() const override { return s_.parser.step_error.has_value(); }
   Error take_failure() override { return take_step_error(s_).error(); }
 private:
-  Session &s_;
+  AnalysisParts &s_;
   int n_;
 };
 } // namespace
 
-std::unique_ptr<EquilibriumModel> session_equilibrium_model(xpp::Session &s, int n)
+std::unique_ptr<EquilibriumModel> session_equilibrium_model(xpp::AnalysisParts &s, int n)
 {
  return std::make_unique<SessionEquilibriumModel>(s,n);
 }

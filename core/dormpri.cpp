@@ -1,4 +1,5 @@
-#include "session.h"
+#include "run_parts.h"
+#include "expr.h"
 #include "delay_handle.h"
 #include "integrate.h"
 #include "xpp_math.h"
@@ -63,7 +64,7 @@ constexpr double DOPRI5_FAC1 = 0.2, DOPRI5_FAC2 = 10.0, DOPRI5_BETA = 0.04;
 
 /* dprhs: the right-hand side of the DOPRI code */
 /* dprhs: the right-hand side of the DOPRI code */
-static void dormand_prince_right_hand_side(xpp::Session &s, unsigned n, double t, double *y, double *f)
+static void dormand_prince_right_hand_side(xpp::RunParts &s, unsigned n, double t, double *y, double *f)
 {
  my_rhs(s,t,y,f,n);
 
@@ -71,7 +72,7 @@ static void dormand_prince_right_hand_side(xpp::Session &s, unsigned n, double t
 
 /* the initial step size of a method of order iord (both methods') */
 /* hinit: Hairer's initial step size */
-static double dormand_prince_initial_step (xpp::Session &s, unsigned n, double x, double* y,
+static double dormand_prince_initial_step (xpp::RunParts &s, unsigned n, double x, double* y,
 	      double posneg, double* f0, double* f1, double* yy1, int iord,
 	      double hmax, double atoli, double rtoli)
 {
@@ -127,7 +128,7 @@ static double dormand_prince_initial_step (xpp::Session &s, unsigned n, double x
 
 /* where a call's attempts start: k1 = f(x, y) and Hairer's initial step
    for a fresh run, else the step the run's last call chose */
-static double dp_first_step (xpp::Session &s, unsigned n, double x, double *y, double posneg, int iord,
+static double dp_first_step (xpp::RunParts &s, unsigned n, double x, double *y, double posneg, int iord,
 			     double hmax, double atoli, double rtoli, DpRun &r)
 {
   double h = 0.0;
@@ -185,7 +186,7 @@ static int dp_accepted (DpRun &r, double x, double h, double hnew, double hmax, 
 
 /* core integrator */
 /* dopcor: Hairer's DOP853 core */
-static int dormand_prince_853_correct (xpp::Session &s, unsigned n, double x, double* y, double xend,
+static int dormand_prince_853_correct (xpp::RunParts &s, unsigned n, double x, double* y, double xend,
 		   double hmax, double rtoli, double atoli, DpRun &r)
 {
   constexpr double safe = DOPRI_SAFE, fac1 = DOP853_FAC1, fac2 = DOP853_FAC2, beta = DOP853_BETA;
@@ -587,7 +588,7 @@ static int dormand_prince_853_correct (xpp::Session &s, unsigned n, double x, do
 
 /* core integrator */
 /* dopcor5: Hairer's DOPRI5 core */
-static int dormand_prince_5_correct (xpp::Session &s, unsigned n, double x, double* y, double xend,
+static int dormand_prince_5_correct (xpp::RunParts &s, unsigned n, double x, double* y, double xend,
 		   double hmax, double rtoli, double atoli, DpRun &r)
 {
   constexpr double safe = DOPRI_SAFE, fac1 = DOPRI5_FAC1, fac2 = DOPRI5_FAC2, beta = DOPRI5_BETA;
@@ -756,7 +757,7 @@ static int dormand_prince_5_correct (xpp::Session &s, unsigned n, double x, doub
 /* One run of DOP853 (eighth) or DOPRI5 from x to xend, its vectors carved
    from work: the dense output coefficients (eight or five of n), then the
    stage vectors; returns dormand_prince_853_correct's code */
-static int dormand_prince(xpp::Session &s, unsigned n, double x, double *y, double xend, double rtol, double atol,
+static int dormand_prince(xpp::RunParts &s, unsigned n, double x, double *y, double xend, double rtol, double atol,
                           double hmax, bool eighth, double *work, DpRun &r)
 {
   double **const rcont[] = {&r.rcont1, &r.rcont2, &r.rcont3, &r.rcont4, &r.rcont5, &r.rcont6, &r.rcont7, &r.rcont8};
@@ -778,7 +779,7 @@ class DormandPrince final : public Solver {
   // Hairer's 1.01*h endpoint test must not clip a step bounded by DtMax.
   static constexpr double horizon_steps=2;
 public:
-  DormandPrince(const SolverInfo &info, Session &s, int n)
+  DormandPrince(const SolverInfo &info, RunParts &s, int n)
     : Solver(info,s), work_(xpp::size_product(work_vectors,n)), endpoint_(n), returned_(n),
       scratch_(std::max(n,s.model().neq)), derivative_(scratch_.size()) {}
   void begin(int *start) override
@@ -790,7 +791,7 @@ public:
 private:
   Result<> step_by(const SolverStep &step) override
   {
-    auto &s=session_;
+    auto &s=parts_;
     auto &num=*s.numerics;
     section_=false;
     if(step.sections&&num.poincare_map!=PoincareMap::none&&num.poincare_variable>s.model().neq)
@@ -868,7 +869,7 @@ private:
   Result<> check_state(const double *y,int n,double time) const
   {
     for(int i=0;i<n;++i){
-      const auto &s=session_;
+      const auto &s=parts_;
       const bool bounded=s.numerics->stop_at_limit&&!(s.integrator->range_flag||s.integrator->suppress_bounds);
       if(!std::isfinite(y[i])||(bounded&&fabs(y[i])>s.numerics->state_limit)){
         const auto &name=s.model().uvar_names[i];
@@ -895,7 +896,7 @@ private:
   bool valid_=false,section_=false,events_checked_=false,event_sections_=false;
 };
 }
-std::unique_ptr<Solver> make_dormand_prince(const SolverInfo &info, Session &s, int n)
+std::unique_ptr<Solver> make_dormand_prince(const SolverInfo &info, RunParts &s, int n)
 {
   return std::make_unique<DormandPrince>(info,s,n-s.model().nmarkov);
 }

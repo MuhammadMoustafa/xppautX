@@ -9,6 +9,7 @@
 #include "adj2.h"
 #include "ani_state.h"
 #include "autox_state.h"
+#include "autox_parts.h"
 #include "browse.h"
 #include "dae_fun.h"
 #include "delay_handle.h"
@@ -26,6 +27,8 @@
 #include "stochastic.h"
 #include "picture_state.h"
 #include "pp_shoot.h"
+#include "solver.h"
+#include "sweep_runs.h"
 #include "simplenet.h"
 #include "storage.h"
 #include "value_undo.h"
@@ -47,14 +50,56 @@ namespace {
 /* the run's functions the compiled formulas call (ExprHost, expr.h): the delays, integral kernels, networks and the
    right-hand side's purity, which the expressions never include */
 const ExprHost run_host{
-  .delay = do_delay,
-  .delay_shift = do_delay_shift,
-  .kernel_value = ker_val,
-  .network_value = network_value,
-  .vector_value = vector_value,
-  .pure_rhs_ready = pure_rhs_ready,
+  .delay = [](Session &s, double tau, double variable) { return do_delay(s, tau, variable); },
+  .delay_shift = [](Session &s, double tau, double shift, double variable) { return do_delay_shift(s, tau, shift, variable); },
+  .kernel_value = [](Session &s, int index) { return ker_val(s, index); },
+  .network_value = [](Session &s, double x, int index) { return network_value(s, x, index); },
+  .vector_value = [](Session &s, double x, int index) { return vector_value(s, x, index); },
+  .pure_rhs_ready = [](const Session &s) { return pure_rhs_ready(s); },
 };
 
+
+/* a sweep's worker (sweep_runs.h): a Session of s's Model, which AnalysisParts::make_worker makes for the analyses */
+struct SessionWorker final : SweepWorker {
+  explicit SessionWorker(Model &m) : session(m) {}
+  AnalysisParts &parts() override { return session.analysis_parts; }
+  Session session;
+};
+
+std::unique_ptr<SweepWorker> make_sweep_worker(const AnalysisParts &s, int rows)
+{
+  try {
+    auto worker = std::make_unique<SessionWorker>(s.model());
+    Session &w = worker->session;
+    *w.numerics = *s.numerics;
+    w.parser = s.parser;
+    w.itor = s.itor;
+    w.last_ic = s.last_ic;
+    w.tables = s.tables;
+    w.ntable = s.ntable;
+    w.random = s.random;
+    w.integrator->flags = s.integrator->flags;
+    w.integrator->range_flag = s.integrator->range_flag;
+    w.integrator->suppress_bounds = s.integrator->suppress_bounds;
+    w.integrator->rhs = RightHandSide{my_rhs, &w.run_parts};
+    w.integrator->on_worker = true;
+    init_alloc_info(w);
+    w.data_store->allocate(rows, s.model().neq + 1, s.numerics->storage_precision);
+    w.data_store->current_time = s.data_store->current_time;
+    start_solver(w);
+    return worker;
+  } catch (const std::bad_alloc &) {
+    out_of_memory("a sweep's worker");
+  }
+}
+
+}
+
+AutoxParts autox_parts(const Session &session)
+{
+  Session &s = const_cast<Session &>(session);
+  return {s.analysis_parts,s.model(),s.autox_state.get(),s.diagram.get(),s.autox_view.get(),s.numerics.get(),s.integrator.get(),
+          s.data_store.get(),s.parser,s.colors,s.last_ic,s.selected_window,s.session_parts,s.threads};
 }
 
 /* The parts are made default-initialised, as when they were members, except
@@ -99,6 +144,11 @@ Session::Session(Model &m)
     session_parts{m,parser,numerics.get(),plot_settings.get(),autox_state.get(),integrator.get(),delay.get(),histogram.get(),adjoint.get(),
                  nullclines.get(),shoot_range.get(),animation.get(),drawing.get(),plot_windows.get(),array_plot.get(),data->added_columns,
                  sliders,user_buttons,tables,ntable,networks,bcs,last_ic,delay_string,plot_list,run_sets,itor,batch_out_file,picture_file,after_run_file,colormap,output_place,options_set,random},
+    run_parts{*this,m,numerics.get(),integrator.get(),data_store.get(),solver_work.get(),jacobian_scratch.get(),delay.get(),volterra.get(),
+              dae.get(),parser,plot_windows.get(),animation.get(),last_ic,delay_string,itor,tables,networks,random,session_parts},
+    analysis_parts{run_parts,histogram.get(),adjoint.get(),stochastic.get(),fit.get(),manifolds.get(),shoot_range.get(),data.get(),marks_shown.get(),
+                   colors,plot_list,bcs,output_place,batch_out_file,last_equilibrium,last_equilibrium_eigenvalues,last_equilibrium_stability,
+                   ntable,threads,make_sweep_worker},
     model_(&m)
 {
   parser.host=&run_host;

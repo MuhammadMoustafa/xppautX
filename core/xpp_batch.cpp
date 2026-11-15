@@ -28,6 +28,7 @@
 #include "comline.h"
 #include "form_ode.h"
 #include "integrate.h"
+#include "session_values.h"
 #include "nullcline.h"
 #include "numerics.h"
 #include "storage.h"
@@ -288,7 +289,7 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, std::optiona
     update_all_ffts(s);
     if (s.autox_state->script.script)
         if (const Result<> checked = check_autox_script(s, *s.autox_state->script.script); !checked) model_failed(checked.error());
-    init_autox_win(s);
+    init_autox_win(xpp::autox_parts(s));
     preferences_load(s, read_prefs);
     if (disc(m)) {
         const auto picked = pick_method(m, "Discrete", LoadSite::place());
@@ -299,7 +300,7 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, std::optiona
     program.version_minor = static_cast<float>(MYSTR2);
     xpp::do_meth(s);
     xpp::set_delay(s);
-    s.integrator->rhs = {my_rhs, &s};
+    s.integrator->rhs = {my_rhs, &s.run_parts};
     strip_saveqn(m);
     create_plot_list(s);
     init_all_graph(s);

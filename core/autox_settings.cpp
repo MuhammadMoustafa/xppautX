@@ -260,7 +260,7 @@ Result<Checked> check(const AutoxParts &s, const AutoxSettingsSet *set, int view
     if (set->plot) plot = *set->plot;
     if (!set->var.empty()) {
         int col;
-        find_variable(s.session,set->var.c_str(), &col);
+        find_variable(s.analysis,set->var.c_str(), &col);
         if (col < 1 || col > s.model().node) {
             return std::unexpected(autox_refused(xpp::format("{} is not a variable autoX computes", set->var), "var"));
         }

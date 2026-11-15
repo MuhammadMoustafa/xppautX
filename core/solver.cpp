@@ -22,7 +22,7 @@
 #include "gear.h"
 #include "jacobian.h"
 #include "odesol2.h"
-#include "session.h"
+#include "run_parts.h"
 #include "integrate.h"
 #include "storage.h"
 #include "stiff.h"
@@ -39,13 +39,13 @@ namespace xpp {
 namespace {
 
 /* the work memory a solver of n equations steps with */
-int standard_work(int n, const Session &) { return 30*n; }
+int standard_work(int n, const RunParts &) { return 30*n; }
 /* the model's Jacobian, banded or full, never less than n*n */
-int jacobian_work(int n, const Session &s) { return std::max(n*n,jacobian_entries(n,model_jacobian_form(s,n))); }
-int implicit_work(int n, const Session &s) { return 10*n+jacobian_work(n,s)+100; } /* backward Euler, Volterra */
+int jacobian_work(int n, const RunParts &s) { return std::max(n*n,jacobian_entries(n,model_jacobian_form(s,n))); }
+int implicit_work(int n, const RunParts &s) { return 10*n+jacobian_work(n,s)+100; } /* backward Euler, Volterra */
 int gear_work(int n) { return 30*n+n*n+100; }
-int stiff_work(int n, const Session &) { return 2*n*n+13*n+100; }
-int rosenbrock_work(int n, const Session &s) { return 12*n+100+jacobian_work(n,s); }
+int stiff_work(int n, const RunParts &) { return 2*n*n+13*n+100; }
+int rosenbrock_work(int n, const RunParts &s) { return 12*n+100+jacobian_work(n,s); }
 
 std::vector<double> make_work(int size)
 {
@@ -59,17 +59,17 @@ std::vector<double> make_work(int size)
 
 /* a method that advances a number of steps of dt (odesol2.cpp's,
    volterra2.cpp's): a negative flag is a failure */
-using StepFn = int (*)(Session &s, double *y, double *t, double dt, int nt, int neq, int *start, double *work);
+using StepFn = int (*)(RunParts &s, double *y, double *t, double dt, int nt, int neq, int *start, double *work);
 
 class FixedStep final : public Solver {
 public:
-  FixedStep(const SolverInfo &info, Session &s, StepFn step, int work)
+  FixedStep(const SolverInfo &info, RunParts &s, StepFn step, int work)
     : Solver(info,s), step_(step), work_(make_work(work)) {}
   Result<> step_by(const SolverStep &s) override
   {
-    const int kflag=step_(session_,s.y,s.t,s.dt,s.steps,s.neq,s.start,work_.data());
+    const int kflag=step_(parts_,s.y,s.t,s.dt,s.steps,s.neq,s.start,work_.data());
     /* an implicit step's Newton iteration (backward Euler's, Volterra's) */
-    const SolverWork::Stop &stop=session_.solver_work->stop;
+    const SolverWork::Stop &stop=parts_.solver_work->stop;
     switch(kflag){
     case NEWTON_SINGULAR: return stopped("the Newton iteration's matrix is singular",*s.t,stop.variable,{});
     case NEWTON_NO_CONVERGENCE:
@@ -86,14 +86,14 @@ private:
 
 class Gear final : public Solver {
 public:
-  Gear(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(gear_work(n))), error_(static_cast<std::size_t>(n)) {}
+  Gear(const SolverInfo &info, RunParts &s, int n) : Solver(info,s), work_(make_work(gear_work(n))), error_(static_cast<std::size_t>(n)) {}
   /* Gear starts afresh from 0 and continues from its order */
   void begin(int *start) override { if(*start==1)*start=0; }
   Result<> step_by(const SolverStep &s) override
   {
-    NumericsSettings &num=*session_.numerics;
+    NumericsSettings &num=*parts_.numerics;
     int kflag=0;
-    gear(session_,s.neq,s.t,s.tout,s.y,num.min_step,num.max_step,num.relative_tolerance,2,error_.data(),&kflag,s.start,
+    gear(parts_,s.neq,s.t,s.tout,s.y,num.min_step,num.max_step,num.relative_tolerance,2,error_.data(),&kflag,s.start,
          work_.data(),iwork_.data());
     /* on a failure, the variable whose error estimate is the largest */
     const int worst=kflag<0?largest_magnitude(error_.data(),s.neq):-1;
@@ -116,14 +116,14 @@ private:
 /* stiff.cpp's adaptive Runge-Kutta (QualRK) and its stiff method */
 class Adaptive final : public Solver {
 public:
-  Adaptive(const SolverInfo &info, Session &s, int work) : Solver(info,s), work_(make_work(work)) {}
+  Adaptive(const SolverInfo &info, RunParts &s, int work) : Solver(info,s), work_(make_work(work)) {}
   Result<> step_by(const SolverStep &s) override
   {
-    NumericsSettings &num=*session_.numerics;
+    NumericsSettings &num=*parts_.numerics;
     int kflag=0;
-    adaptive(session_,s.y,s.neq,s.t,s.tout,num.relative_tolerance,s.hguess,num.min_step,work_.data(),&kflag,
+    adaptive(parts_,s.y,s.neq,s.t,s.tout,num.relative_tolerance,s.hguess,num.min_step,work_.data(),&kflag,
              num.equilibria.jacobian_step,info().id,s.start);
-    const SolverWork::Stop &stop=session_.solver_work->stop;
+    const SolverWork::Stop &stop=parts_.solver_work->stop;
     switch(kflag){
     case ADAPTIVE_SINGULAR:
       return stopped("the step matrix is singular",stop.t,stop.variable,{"integration.dt","integration.jacobian.kind"});
@@ -144,16 +144,16 @@ private:
 
 class Cvode final : public Solver {
 public:
-  Cvode(const SolverInfo &info, Session &s) : Solver(info,s) {}
+  Cvode(const SolverInfo &info, RunParts &s) : Solver(info,s) {}
   Result<> step_by(const SolverStep &s) override
   {
-    NumericsSettings &num=*session_.numerics;
+    NumericsSettings &num=*parts_.numerics;
     int kflag=0;
-    cvode(session_,run_,s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.relative_tolerance,&num.absolute_tolerance);
+    cvode(parts_,run_,s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.relative_tolerance,&num.absolute_tolerance);
     if(kflag<0)
       /* the reason, then CVODE's own words; at the equation of the variable
          CVODE's error test or corrector failed at, if it names one */
-      return stopped(cvode_error_text(session_,run_,kflag),*s.t,static_cast<int>(run_.error_var),
+      return stopped(cvode_error_text(parts_,run_,kflag),*s.t,static_cast<int>(run_.error_var),
                      {"integration.step.relative_tolerance","integration.step.absolute_tolerance"},run_.error);
     return {};
   }
@@ -167,12 +167,12 @@ private:
 
 class Rosenbrock final : public Solver {
 public:
-  Rosenbrock(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(rosenbrock_work(n,s))) {}
+  Rosenbrock(const SolverInfo &info, RunParts &s, int n) : Solver(info,s), work_(make_work(rosenbrock_work(n,s))) {}
   Result<> step_by(const SolverStep &s) override
   {
     int kflag=0;
-    rosenbrock_driver(session_,s.y,s.t,s.tout,s.start,s.neq,work_.data(),&kflag);
-    const SolverWork::Stop &stop=session_.solver_work->stop;
+    rosenbrock_driver(parts_,s.y,s.t,s.tout,s.start,s.neq,work_.data(),&kflag);
+    const SolverWork::Stop &stop=parts_.solver_work->stop;
     if(kflag<0)
       return stopped(xpp::format("the step size fell to the rounding limit {} with the error still above the tolerance",stop.h),
                      stop.t,stop.variable,{"integration.step.relative_tolerance","integration.step.absolute_tolerance"});
@@ -182,34 +182,34 @@ private:
   std::vector<double> work_;
 };
 
-template <StepFn F, int (*Work)(int, const Session &)>
-std::unique_ptr<Solver> fixed_step(const SolverInfo &info, Session &s, int n)
+template <StepFn F, int (*Work)(int, const RunParts &)>
+std::unique_ptr<Solver> fixed_step(const SolverInfo &info, RunParts &s, int n)
 {
   return std::make_unique<FixedStep>(info,s,F,Work(n,s));
 }
 
-std::unique_ptr<Solver> start_gear(const SolverInfo &info, Session &s, int n)
+std::unique_ptr<Solver> start_gear(const SolverInfo &info, RunParts &s, int n)
 {
   return std::make_unique<Gear>(info,s,n);
 }
 
-template <int (*Work)(int, const Session &)>
-std::unique_ptr<Solver> start_adaptive(const SolverInfo &info, Session &s, int n)
+template <int (*Work)(int, const RunParts &)>
+std::unique_ptr<Solver> start_adaptive(const SolverInfo &info, RunParts &s, int n)
 {
   return std::make_unique<Adaptive>(info,s,Work(n,s));
 }
 
-std::unique_ptr<Solver> start_cvode(const SolverInfo &info, Session &s, int)
+std::unique_ptr<Solver> start_cvode(const SolverInfo &info, RunParts &s, int)
 {
   return std::make_unique<Cvode>(info,s);
 }
 
-std::unique_ptr<Solver> start_dormand_prince(const SolverInfo &info, Session &s, int n)
+std::unique_ptr<Solver> start_dormand_prince(const SolverInfo &info, RunParts &s, int n)
 {
   return make_dormand_prince(info,s,n);
 }
 
-std::unique_ptr<Solver> start_rosenbrock(const SolverInfo &info, Session &s, int n)
+std::unique_ptr<Solver> start_rosenbrock(const SolverInfo &info, RunParts &s, int n)
 {
   return std::make_unique<Rosenbrock>(info,s,n);
 }
@@ -266,7 +266,7 @@ Result<> Solver::failed(std::string what) const
 Result<> Solver::stopped(std::string_view what, double t, int variable, std::initializer_list<std::string_view> settings,
                          std::string_view detail) const
 {
-  const Model &m=session_.model();
+  const Model &m=parts_.model();
   std::string text=xpp::format("{}: {} at t = {}",info_.name,what,t);
   Place place;
   if(variable>=0&&variable<m.neq){
@@ -274,18 +274,18 @@ Result<> Solver::stopped(std::string_view what, double t, int variable, std::ini
     text+=xpp::format(", in {}",name);
     place=model_place(m,name);
   }
-  if(settings.size()>0)text+=xpp::format(" ({})",named_settings(session_,settings));
+  if(settings.size()>0)text+=xpp::format(" ({})",named_settings(parts_.session_parts,settings));
   if(!detail.empty())text+=xpp::format("\n{}",detail);
   if(place.line==0)place=settings_place(m,settings);
   return fail(info_.name,std::move(text),std::move(place));
 }
 
-Result<> check_step_limits(const Session &s, const SolverInfo &info, double dt, double length)
+Result<> check_step_limits(const RunParts &s, const SolverInfo &info, double dt, double length)
 {
   const double min_step=s.numerics->min_step;
   if(!info.traits.min_step)return {};
   auto refuse=[&](std::string what,std::initializer_list<std::string_view> settings)->Result<>{
-    return fail(info.name,xpp::format("{}: {} ({})",info.name,what,named_settings(s,settings)),settings_place(s.model(),settings));
+    return fail(info.name,xpp::format("{}: {} ({})",info.name,what,named_settings(s.session_parts,settings)),settings_place(s.model(),settings));
   };
   if(std::fabs(dt)<min_step)
     return refuse(xpp::format("Dt = {} is below integration.step.min, so no step fits between two output times",dt),{"integration.step.min"});
@@ -294,16 +294,16 @@ Result<> check_step_limits(const Session &s, const SolverInfo &info, double dt, 
   return {};
 }
 
-Result<std::int64_t> count_steps(const Session &s, const SolverInfo &info, double steps,
+Result<std::int64_t> count_steps(const RunParts &s, const SolverInfo &info, double steps,
                                  std::initializer_list<std::string_view> settings)
 {
   if(std::isfinite(steps)&&std::fabs(steps)<MAX_RUN_STEPS)return static_cast<std::int64_t>(steps);
-  std::string named=named_settings(s,settings);
+  std::string named=named_settings(s.session_parts,settings);
   return fail(info.name,xpp::format("{}: the run takes {} steps, more than a step count holds ({:g})",info.name,steps,MAX_RUN_STEPS)+
               (named.empty()?"":xpp::format(" ({})",named)),settings_place(s.model(),settings));
 }
 
-Result<std::int64_t> step_count(const Session &s, const SolverInfo &info, double dt, double length)
+Result<std::int64_t> step_count(const RunParts &s, const SolverInfo &info, double dt, double length)
 {
   /* a discrete map takes one step per unit of length; a flow takes length/|dt| and a tenth of a step more, so its last output
      point is reached (integrate's rounding of the count to store_every groups comes after) */
@@ -311,7 +311,7 @@ Result<std::int64_t> step_count(const Session &s, const SolverInfo &info, double
   return count_steps(s,info,steps,{"integration.total_time","integration.dt"});
 }
 
-Result<int> steps_per_advance(const Session &s, const SolverInfo &info, std::int64_t steps)
+Result<int> steps_per_advance(const RunParts &s, const SolverInfo &info, std::int64_t steps)
 {
   if(steps<=std::numeric_limits<int>::max())return static_cast<int>(steps);
   return fail(info.name,xpp::format("{}: the run takes {} steps in one advance, more than the method's loop counts ({})",
@@ -319,7 +319,7 @@ Result<int> steps_per_advance(const Session &s, const SolverInfo &info, std::int
               settings_place(s.model(),{"integration.total_time","integration.dt"}));
 }
 
-Result<> check_store_from(const Session &s, double start, double dt, double length)
+Result<> check_store_from(const RunParts &s, double start, double dt, double length)
 {
   if(!s.numerics->storflag)return {};
   const double end=start+(dt<0?-length:length);
@@ -329,7 +329,7 @@ Result<> check_store_from(const Session &s, double start, double dt, double leng
     for(int e=0;e<flag.nevents;++e)
       if(flag.type[e]==xpp::Model::EventTarget::output)return {};
   return fail("store_from",xpp::format("store_from is beyond the end of the run: it starts at t = {} and ends at t = {}, so no row would be stored ({})",
-                                      start,end,named_settings(s,{"integration.store_from"})),settings_place(s.model(),{"integration.store_from"}));
+                                      start,end,named_settings(s.session_parts,{"integration.store_from"})),settings_place(s.model(),{"integration.store_from"}));
 }
 
 const SolverInfo &solver_info(int m)
@@ -338,7 +338,7 @@ const SolverInfo &solver_info(int m)
   return registry[m];
 }
 
-void start_solver(Session &s)
+void start_solver(RunParts &s)
 {
   const SolverInfo &info=solver_info(s.numerics->method);
   s.integrator->solver=info.start(info,s,s.solver_work->xpv.node+s.solver_work->xpv.nvec);

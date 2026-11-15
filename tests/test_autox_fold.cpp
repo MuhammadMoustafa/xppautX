@@ -34,7 +34,7 @@ TEST_CASE("test_autox_fold")
     s.numerics->jacobian = xpp::JACOBIAN_EXACT;
     CHECK(xpp::ensure_exact_jacobian(s));
     AutoxRun run;
-    autox_bind_parts(run, s); /* after the settings, as a run's set-up does */
+    autox_bind_parts(run, xpp::autox_parts(s)); /* after the settings, as a run's set-up does */
     run.parameter_count = s.autox_state->parameter_layout.size();
     iap_type iap{};
     iap.run = &run; iap.ndm = 2; iap.ndim = 4; iap.nfpr = 4;
@@ -113,7 +113,7 @@ TEST_CASE("test_autox_fold")
     auto &derived = xpp::client_session();
     CHECK(xpp::native_ready(derived)); /* a worker calls the native code: built before it starts (W715) */
     AutoxRun worker;
-    autox_bind_parts(worker, derived);
+    autox_bind_parts(worker, xpp::autox_parts(derived));
     worker.parameter_count = derived.autox_state->parameter_layout.size();
     worker.pure_rhs = true;
     worker.rhs_constants = derived.parser.constants;

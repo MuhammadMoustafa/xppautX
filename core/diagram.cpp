@@ -297,7 +297,7 @@ xpp::Result<> load_data_with_branch(xpp::AutoxParts s, int ibr,int pts,int pte)
     }
  }
  s.data_store->rows=nrows;
- refresh_data(s.session,nrows);
+ refresh_data(s.analysis,nrows);
  return {};
 }
 xpp::Result<> write_init_data_file(xpp::AutoxParts s, const std::optional<std::string> &file)

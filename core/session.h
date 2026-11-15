@@ -27,6 +27,8 @@
 #include "xpp_fs.h"
 #include "xpp_log.h"
 #include "model_options.h"
+#include "run_parts.h"
+#include "analysis_parts.h"
 #include "xpp_cpu.h"
 #include "xpp_globals.h"
 #include "model_parts.h" /* IWYU pragma: keep (a std::vector of its BoundaryCondition is destroyed by Session, which needs it complete) */
@@ -46,6 +48,7 @@ struct AutoxState; /* autox_state.h */
 struct AutoxDiagram; /* diagram.h */
 struct XppKinescope; /* kinescope.h */
 struct SavedSession; /* model_request.h */
+namespace xpp { struct AutoxParts; } /* autox_parts.h */
 
 namespace xpp {
 
@@ -307,10 +310,23 @@ struct Session {
      the ones above */
   SessionParts session_parts;
   operator const SessionParts &() const noexcept { return session_parts; }
+  /* the parts the integrators read and write (run_parts.h), likewise: what a Session converts to where a solver, the right-hand side
+     or the run's driver is called (W760) */
+  RunParts run_parts;
+  operator RunParts &() noexcept { return run_parts; }
+  operator const RunParts &() const noexcept { return run_parts; }
+  /* and the analyses' (analysis_parts.h): the integrators' and the histogram, adjoint, fit, shooting, data table and the rest of what they read */
+  AnalysisParts analysis_parts;
+  operator AnalysisParts &() noexcept { return analysis_parts; }
+  operator const AnalysisParts &() const noexcept { return analysis_parts; }
 
 private:
   Model *model_;
 };
+
+/* the parts of s autoX reads and writes (autox_parts.h), taken where an autoX operation starts; constness is as shallow as a
+   Session's own pointers, so a function that only reads takes the parts const and is called with a const Session */
+AutoxParts autox_parts(const Session &s);
 
 /* s's state vector, zeroed, for its Model's ODEs and Markov variables */
 void init_alloc_info(Session &s);

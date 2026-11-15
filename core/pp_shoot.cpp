@@ -37,7 +37,7 @@
 #include "colormap.h"
 #include "expr_program.h"
 #include "odex.h"
-#include "session.h"
+#include "analysis_parts.h"
 #include "xpp_text.h"
 
 namespace xpp {
@@ -48,7 +48,7 @@ namespace xpp {
 
 /*   more general mixed boundary types   */
 
-void do_bc(xpp::Session &s, double *y__0, double t0, double *y__1, double t1, double *f, int n)
+void do_bc(xpp::AnalysisParts &s, double *y__0, double t0, double *y__1, double t1, double *f, int n)
 {
  int n0=s.model().prime_start;
  int i;
@@ -65,7 +65,7 @@ void do_bc(xpp::Session &s, double *y__0, double t0, double *y__1, double t1, do
   for(i=0;i<n;i++)f[i]=evaluate(s.parser,s.bcs[i].com);
 }
 
-xpp::Result<> compile_bvp(xpp::Session &s)
+xpp::Result<> compile_bvp(xpp::AnalysisParts &s)
 {
  std::vector<Program> compiled(static_cast<std::size_t>(s.model().node));
  const int before_ncon=s.parser.ncon,before_nsym=s.parser.nsym;
@@ -84,7 +84,7 @@ xpp::Result<> compile_bvp(xpp::Session &s)
 }
 
 
-xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend, const xpp::RunReport &report)
+xpp::Result<int> do_sh_range(xpp::AnalysisParts &s, double *ystart, double *yend, const xpp::RunReport &report)
 {
  double parlo,parhi,dpar,temp;
  int npar,i,j;
@@ -103,7 +103,7 @@ xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend, cons
  icol=0;
  xpp::Result<> film;
  if(s.shoot_range->movie==1)
-   reset_film(s);
+   reset_film(s.session);
  xpp::say_sweep_serial(s,"Range Shoot",npar+1,"each shot starts from the solution before it");
  for(i=0;i<=npar;i++)
    {
@@ -112,7 +112,7 @@ xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend, cons
      set_val(s.parser,s.shoot_range->item,temp);
      bottom_msg(2,xpp::format("{}={:.16g}",s.shoot_range->item,temp));
      if(s.shoot_range->movie==1)
-       clear_draw_window(s);
+       clear_draw_window(s.session);
      
      const xpp::Result<Shot> shot=bvshoot(s,ystart,yend,s.numerics->bvp_tolerance,s.numerics->bvp_epsilon,s.numerics->bvp_max_iterates,s.model().node,0,
 	     0,0,0,0.0);
@@ -134,7 +134,7 @@ xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend, cons
      set_cycle(s,cycle,&icol);
      set_initial_data(s,{ystart,static_cast<size_t>(s.model().node)});
      if(const xpp::Result<> r=last_shot(s,0);!r&&!failure)failure=r.error();
-     if(s.shoot_range->movie==1 && film)film=ui.film_clip(s);
+     if(s.shoot_range->movie==1 && film)film=ui.film_clip(s.session);
      ping();
    }
   refresh_data(s,s.data_store->rows);
@@ -150,7 +150,7 @@ namespace {
 /* what a boundary-value command needs before it solves: a model it can solve for, the boundary
    conditions compiled, the storage cleared, and the settings every solve runs under (the plot's
    store-from time zero while it does, put back when it ends) */
-xpp::Result<> begin_shoot(xpp::Session &s)
+xpp::Result<> begin_shoot(xpp::AnalysisParts &s)
 {
  if(s.model().nmarkov>0||s.model().compiler.nkernel>0)
    return xpp::fail("boundary_value","Can't do BVP with integral or markov eqns",xpp::command_place());
@@ -169,15 +169,15 @@ xpp::Result<> begin_shoot(xpp::Session &s)
 }
 
 struct ShootStoreFrom {
- xpp::Session &s;
+ xpp::AnalysisParts &s;
  double before;
- explicit ShootStoreFrom(xpp::Session &session) : s(session), before(session.numerics->store_from){s.numerics->store_from=0.0;}
+ explicit ShootStoreFrom(xpp::AnalysisParts &session) : s(session), before(session.numerics->store_from){s.numerics->store_from=0.0;}
  ~ShootStoreFrom(){s.numerics->store_from=before;}
 };
 
 /* the solution bvshoot found made the initial data and integrated and stored (the periodic solve's period
    back as it was when it found none) */
-xpp::Result<> keep_shot(xpp::Session &s, const xpp::Result<Shot> &shot, double *ystart, bool show, std::optional<std::pair<int,double>> period, const xpp::RunReport &report)
+xpp::Result<> keep_shot(xpp::AnalysisParts &s, const xpp::Result<Shot> &shot, double *ystart, bool show, std::optional<std::pair<int,double>> period, const xpp::RunReport &report)
 {
  xpp::FirstError problems;
  const auto restore_period=[&]{if(period)set_val(s.parser,s.model().upar_names[static_cast<std::size_t>(period->first)],period->second);};
@@ -195,7 +195,7 @@ xpp::Result<> keep_shot(xpp::Session &s, const xpp::Result<Shot> &shot, double *
  set_initial_data(s,{ystart,static_cast<size_t>(s.model().node)});
  redraw_ics();
  if(show)
-   reset_graphics(s);
+   reset_graphics(s.session);
  problems.keep(last_shot(s,1));
  s.numerics->inflag=true;
  refresh_data(s,s.data_store->rows);
@@ -206,7 +206,7 @@ xpp::Result<> keep_shot(xpp::Session &s, const xpp::Result<Shot> &shot, double *
 
 } // namespace
 
-xpp::Result<> bvp_solve(xpp::Session &s, bool show, const xpp::RunReport &report)
+xpp::Result<> bvp_solve(xpp::AnalysisParts &s, bool show, const xpp::RunReport &report)
 {
  if(auto begun=begin_shoot(s);!begun)return begun;
  const ShootStoreFrom store_from(s);
@@ -217,7 +217,7 @@ xpp::Result<> bvp_solve(xpp::Session &s, bool show, const xpp::RunReport &report
  return keep_shot(s,shot,ystart.data(),show,std::nullopt,report);
 }
 
-xpp::Result<double> bvp_solve_periodic(xpp::Session &s, int ipar, int ivar, double sect, bool show, const xpp::RunReport &report)
+xpp::Result<double> bvp_solve_periodic(xpp::AnalysisParts &s, int ipar, int ivar, double sect, bool show, const xpp::RunReport &report)
 {
  if(s.model().nupar==0)
    return xpp::fail("boundary_value","The model has no parameter to be the frequency",xpp::command_place());
@@ -235,7 +235,7 @@ xpp::Result<double> bvp_solve_periodic(xpp::Session &s, int ipar, int ivar, doub
  return period;
 }
 
-xpp::Result<int> bvp_solve_range(xpp::Session &s, const ShootRange *given, const xpp::RunReport &report)
+xpp::Result<int> bvp_solve_range(xpp::AnalysisParts &s, const ShootRange *given, const xpp::RunReport &report)
 {
  const ShootRange &range=given?*given:*s.shoot_range;
  if(find_user_name(s.model(),PARAMBOX,range.item)<0)return fail("boundary_value",xpp::format("No such parameter {}",range.item),command_place());
@@ -247,7 +247,7 @@ xpp::Result<int> bvp_solve_range(xpp::Session &s, const ShootRange *given, const
  return do_sh_range(s,ystart.data(),yend.data(),report);
 }
 
-xpp::Result<> last_shot(xpp::Session &s, int flag)
+xpp::Result<> last_shot(xpp::AnalysisParts &s, int flag)
 {
  int i;
  double *x;
@@ -267,7 +267,7 @@ xpp::Result<> last_shot(xpp::Session &s, int flag)
    .transform([](int){});
 }
 
-xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, double eps, int maxit, int n, int ishow, int iper, int ipar, int ivar, double sect)
+xpp::Result<Shot> bvshoot(xpp::AnalysisParts &s, double *y, double *yend, double err, double eps, int maxit, int n, int ishow, int iper, int ipar, int ivar, double sect)
 {
  xpp::Computation computing; /* what Escape stops (xpp_job.h) */
  xpp::FirstError shown; /* the drawn curve's failure */
@@ -332,7 +332,7 @@ xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, 
  niter++;
  if(niter>maxit) /* Too many iterates   */
    return xpp::fail("boundary_value",xpp::format("Shoot: no convergence after {} iterations: the residual of the boundary conditions {} is not below {}",
-                    named_settings(s,{"integration.boundary_value.max_iterates"}),xpp::number(error),named_settings(s,{"integration.boundary_value.tolerance"})),limits_place());
+                    named_settings(s.session_parts,{"integration.boundary_value.max_iterates"}),xpp::number(error),named_settings(s.session_parts,{"integration.boundary_value.tolerance"})),limits_place());
 
  /*   create the Jacobian matrix ...   */
  

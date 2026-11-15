@@ -29,6 +29,15 @@ std::string ind_to_sym(const Session &s, int ind);
 /* temp ("name:formula" sets name, or a formula) worked out in the Session
    s into *z */
 int do_calc(Session &s, std::string_view temp, double *z);
+/* the array initial conditions (`u[5..20]=f([j])`) of the model worked out into the Session's initial data (the run's start) */
+void evaluate_ar_ic(Session &s, const char *v, const char *f, int j1, int j2);
+void arr_ic_start(Session &s);
+/* the initial conditions by formula (initial_conditions.set_by_formula): `variable` a state, or an array range name[j1..j2] whose
+   formula reads [j] as the element's number (an array's formula is kept like the model's own); the states set (indices),
+   or why none was, nothing changed */
+Result<std::vector<int>> set_ic_formula(Session &s, std::string_view variable, std::string_view formula);
+/* `size` states from `name` on set to the formula, its t the element's offset from the first (initial_conditions.set_by_array_formula) */
+Result<std::vector<int>> set_ic_array(Session &s, std::string_view name, int size, std::string_view formula);
 /* store the text typed for entry i of the box `type`; the refusal, shown by
    no one, changes nothing (typed_number) */
 Result<void> box_set_value(Session &s, int type, int i, std::string_view text, std::string_view field = {});

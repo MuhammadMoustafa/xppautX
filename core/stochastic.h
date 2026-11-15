@@ -7,21 +7,21 @@
 
 namespace xpp {
 
-struct Session; /* session.h */
+struct AnalysisParts; /* analysis_parts.h */
 struct RunReport; /* integrate.h */
 
 /* the mean or the variance of the stochastic runs in the browser, or why there are none */
-Result<> mean_back(Session &s);
-Result<> variance_back(Session &s);
+Result<> mean_back(AnalysisParts &s);
+Result<> variance_back(AnalysisParts &s);
 /* the Range settings' sweep as many independent runs whose mean and variance are kept: the runs completed */
-Result<int> stochastic_integrate(Session &s, const RunReport &report);
-void  free_stoch(Session &s);
-void  init_stoch(Session &s, int len);
-void  append_stoch(Session &s, int first, int length);
-void  do_stats(Session &s, int ierr);
+Result<int> stochastic_integrate(AnalysisParts &s, const RunReport &report);
+void  free_stoch(AnalysisParts &s);
+void  init_stoch(AnalysisParts &s, int len);
+void  append_stoch(AnalysisParts &s, int first, int length);
+void  do_stats(AnalysisParts &s, int ierr);
 
 /* the mean and variance of the runs converted to the store's precision (storage_precision_changed) */
-void retype_stochastic(Session &s);
+void retype_stochastic(AnalysisParts &s);
 /* stocHast's many-runs state (stochastic.cpp), a Session's (session.h):
    whether a Compute is running (flag), whether its mean and variance
    exist (here), the number of trials and the length of each run, and the

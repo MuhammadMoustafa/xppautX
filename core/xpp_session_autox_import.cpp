@@ -184,8 +184,8 @@ xpp::Result<> import_autox_file(xpp::Session &s, std::string_view text, const st
     settings.has_range.fill(1);
     // XPPAUT omits Ncol; the retained collocation order must still be supported.
     settings.has_num[xpp::AUTOX_NUM_COLLOCATION_POINTS]=1;
-    settings.num[xpp::AUTOX_NUM_COLLOCATION_POINTS]=xpp::autox_settings_now(s).num[xpp::AUTOX_NUM_COLLOCATION_POINTS];
-    if(const xpp::Result<> checked=xpp::autox_settings_check(s,settings,-1);!checked){
+    settings.num[xpp::AUTOX_NUM_COLLOCATION_POINTS]=xpp::autox_settings_now(xpp::autox_parts(s)).num[xpp::AUTOX_NUM_COLLOCATION_POINTS];
+    if(const xpp::Result<> checked=xpp::autox_settings_check(xpp::autox_parts(s),settings,-1);!checked){
       const std::string &key=checked.error().field;
       lines.fail(locations.contains(key)?locations.at(key):lines.line(),checked.error().what);
     }
@@ -211,7 +211,7 @@ xpp::Result<> import_autox_file(xpp::Session &s, std::string_view text, const st
       {held.settings,std::move(held.points),{},held.solutions});
   if(!restored)return restored;
   s.autox_state->imported_parameters=std::move(held.parameters);
-  forget_autox_diagram(s,false);
+  forget_autox_diagram(xpp::autox_parts(s),false);
   return {};
 }
 

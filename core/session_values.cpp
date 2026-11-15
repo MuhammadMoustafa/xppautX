@@ -6,6 +6,9 @@
 #include "model.h"
 #include "session_values.h"
 #include "typed_values.h"
+#include "typed_fields.h"
+#include "value_undo.h"
+#include "ode_read.h"
 #include "xpp_text.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
@@ -192,6 +195,114 @@ void box_values_loaded(xpp::Session &s, int type)
   if(type==DELAYBOX){
    xpp::ok_or_show(xpp::do_init_delay(s,s.numerics->delay));
   }
+}
+
+/*  form_ic  --  u_i(0) = F(i)  where  "i" is represented by "t"
+    or  
+    u[5..20]=f([j]) 
+*/
+
+void evaluate_ar_ic(xpp::Session &s, const char *v, const char *f, int j1, int j2)
+{
+  int j;
+  int i,flag;
+  double z;
+  std::string vp, fp;
+  for(j=j1;j<=j2;j++){
+    subsk(v,vp,j,1);
+    i=find_user_name(s.model(),ICBOX,vp);
+    if(i>=0){
+      subsk(f,fp,j,1);
+      flag=do_calc(s,fp,&z);
+      if(flag!=-1)
+	s.last_ic[i]=z;
+      else 
+	return;
+    }
+  }
+
+}
+void arr_ic_start(xpp::Session &s)
+{
+  int i;
+  s.integrator->array_ics=s.model().array_ics; /* the run's own, which Initialconds edits */
+  const ArrayIcs &ics=s.integrator->array_ics;
+  if(ics.defined==0) return;
+  for(i=0;i<NAR_IC;i++){
+    if(ics.ics[i].type==2){
+      evaluate_ar_ic(s,ics.ics[i].var.c_str(),ics.ics[i].formula.c_str(),
+		     ics.ics[i].j1,ics.ics[i].j2);
+    }
+  }
+
+}
+
+namespace {
+xpp::Result<std::vector<int>> ic_problem(std::string what)
+{
+  return xpp::fail("initial conditions",std::move(what),xpp::command_place());
+}
+}
+
+xpp::Result<std::vector<int>> set_ic_formula(xpp::Session &s, std::string_view variable, std::string_view formula)
+{
+  const xpp::Model &m=s.model();
+  std::string text(variable),base;
+  int j1,j2,array;
+  search_array(text.data(),base,&j1,&j2,&array);
+  std::vector<int> indices;
+  std::vector<double> values;
+  if(array!=1){
+    const int index=find_user_name(m,ICBOX,variable);
+    if(index<0)return ic_problem(xpp::format("{} is not a variable of the model",variable));
+    const xpp::Result<double> value=evaluate_formula(s.session_parts,formula);
+    if(!value)return ic_problem(xpp::format("{}: {}",formula,value.error().what));
+    indices.push_back(index);
+    values.push_back(*value);
+  }
+  else{
+    if(j2<j1)return ic_problem(xpp::format("{} is an empty range of variables",variable));
+    for(int j=j1;j<=j2;j++){
+      xpp::TypedFields fields;
+      std::string name,element;
+      subsk(base,name,j,1,&fields);
+      subsk(formula,element,j,1,&fields);
+      if(fields.error())return ic_problem(*fields.error());
+      const int index=find_user_name(m,ICBOX,name);
+      if(index<0)return ic_problem(xpp::format("{} is not a variable of the model (element {} of {})",name,j,variable));
+      const xpp::Result<double> value=evaluate_formula(s.session_parts,element);
+      if(!value)return ic_problem(xpp::format("{} for {}: {}",element,name,value.error().what));
+      indices.push_back(index);
+      values.push_back(*value);
+    }
+  }
+  xpp::push_value_undo(s);
+  for(std::size_t k=0;k<indices.size();k++)s.last_ic[static_cast<std::size_t>(indices[k])]=values[k];
+  /* the array's formula is kept, as the model's own are (arr_ic_start) */
+  if(array==1)array_ic_for(s.integrator->array_ics,base.c_str(),j1,j2).formula=formula;
+  redraw_ics();
+  return indices;
+}
+
+xpp::Result<std::vector<int>> set_ic_array(xpp::Session &s, std::string_view name, int size, std::string_view formula)
+{
+  const xpp::Model &m=s.model();
+  const int first=find_user_name(m,ICBOX,name);
+  if(first<0)return ic_problem(xpp::format("{} is not a variable of the model",name));
+  if(size<1||size>m.node-first)
+    return ic_problem(xpp::format("{} elements from {} do not fit: the model has {} differential equations, {} is number {}",size,name,m.node,name,first+1));
+  std::vector<int> indices;
+  std::vector<double> values;
+  for(int k=0;k<size;k++){
+    set_val(s.parser,"t",static_cast<double>(k)); /* the formula's t is the element's offset from the first */
+    const xpp::Result<double> value=evaluate_formula(s.session_parts,formula);
+    if(!value)return ic_problem(xpp::format("{}: {}",formula,value.error().what));
+    indices.push_back(first+k);
+    values.push_back(*value);
+  }
+  for(std::size_t k=0;k<indices.size();k++)s.last_ic[static_cast<std::size_t>(indices[k])]=values[k];
+  redraw_ics();
+  return indices;
 }
 
 } // namespace xpp

@@ -22,7 +22,7 @@
 #include "my_rhs.h"
 #include "expr_program.h"
 #include "model_place.h"
-#include "session.h"
+#include "run_parts.h"
 #include "xpp_error.h"
 #include "xpp_text.h"
 
@@ -46,13 +46,13 @@ namespace xpp {
 #define CONV 2
 
 
-double ker_val(xpp::Session &s, int in)
+double ker_val(xpp::RunParts &s, int in)
 {
  if(s.volterra->kn_flag)return(s.volterra->kernels[in].k_n);
  return(s.volterra->kernels[in].k_n1);
 }
 
-void alloc_v_memory(xpp::Session &s)  /* allocate stuff for volterra equations */
+void alloc_v_memory(xpp::RunParts &s)  /* allocate stuff for volterra equations */
 {
   std::vector<KERNEL> &kernels=s.model().compiler.kernels;
   int i,len;
@@ -85,7 +85,7 @@ void alloc_v_memory(xpp::Session &s)  /* allocate stuff for volterra equations *
   allocate_volterra(s,s.numerics->max_points,0);
 }
 
-void allocate_volterra(xpp::Session &s, int npts, int flag)
+void allocate_volterra(xpp::RunParts &s, int npts, int flag)
 {
   int i;
   int ntot=s.model().node+s.model().fix_var+s.model().nmarkov;
@@ -104,7 +104,7 @@ void allocate_volterra(xpp::Session &s, int npts, int flag)
   alloc_kernels(s,flag);
 }
 
-void re_evaluate_kernels(xpp::Session &s)
+void re_evaluate_kernels(xpp::RunParts &s)
 {
   std::vector<KERNEL> &kernels=s.model().compiler.kernels;
   int i,j,n=s.numerics->max_points;
@@ -121,7 +121,7 @@ void re_evaluate_kernels(xpp::Session &s)
   }
 }
 
-void alloc_kernels(xpp::Session &s, int flag)
+void alloc_kernels(xpp::RunParts &s, int flag)
 {
   std::vector<KERNEL> &kernels=s.model().compiler.kernels;
   int i,n=s.numerics->max_points;
@@ -165,7 +165,7 @@ enum class Keep { never, always, same_window };
    init_sums sets for a history point (its variables, and t' when kept
    per window) gives the same value there at every step: not t, a kernel,
    a random draw, a delay or anything else a step changes. */
-Keep keep_formula(const xpp::Session &s, const KERNEL &kernel)
+Keep keep_formula(const xpp::RunParts &s, const KERNEL &kernel)
 {
   const xpp::Program &f=kernel.formula;
   if(!f.compiled||!f.array_pure)return Keep::never;
@@ -181,7 +181,7 @@ Keep keep_formula(const xpp::Session &s, const KERNEL &kernel)
 /* the history's kept values, emptied when the constants changed since they
    were computed (a parameter set between runs, or a function table rebuilt
    from one) */
-xpp::HistoryValues &history_values(xpp::Session &s)
+xpp::HistoryValues &history_values(xpp::RunParts &s)
 {
   xpp::HistoryValues &h=s.volterra->history;
   const std::size_t slots=static_cast<std::size_t>(s.numerics->max_points);
@@ -195,7 +195,7 @@ xpp::HistoryValues &history_values(xpp::Session &s)
 }
 }
 
-void init_sums(xpp::Session &s, double t0, int n, double dt, int i0, int iend, int ishift)
+void init_sums(xpp::RunParts &s, double t0, int n, double dt, int i0, int iend, int ishift)
 {
   std::vector<KERNEL> &kernels=s.model().compiler.kernels;
    double t=t0+n*dt,tp=t0+i0*dt;
@@ -309,7 +309,7 @@ double betnn(double mu, double dt, double t0, double t)
  return(.5*xpp::math::pow(dt,m1)/m1);
 }
 
-void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y to update Kn  */
+void get_kn(xpp::RunParts &s, double *y, double t)  /* uses the guessed value y to update Kn  */
 {
   std::vector<KERNEL> &kernels=s.model().compiler.kernels;
   int i;
@@ -328,7 +328,7 @@ void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y t
   }
 }
      
-int volterra(xpp::Session &s, double *y, double *t, double dt, int nt, int neq, int *istart, double *work)
+int volterra(xpp::RunParts &s, double *y, double *t, double dt, int nt, int neq, int *istart, double *work)
 {
   std::vector<KERNEL> &kernels=s.model().compiler.kernels;
   double *jac,*yg,*yp,*yp2,*ytemp,*errvec;
@@ -383,7 +383,7 @@ int volterra(xpp::Session &s, double *y, double *t, double dt, int nt, int neq, 
  return(0);
 }
 
-int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac)
+int volt_step(xpp::RunParts &s, double *y, double t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac)
 {
  int i0,iend,ishift,i,iter=0,info,j,ind;
  int *const ipivot=s.solver_work->size_pivots(s.model().node);

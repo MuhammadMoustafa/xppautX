@@ -37,45 +37,45 @@ TEST_CASE("test_autox_cols")
     load_model();
 
     /* a parameter column becomes the parameter's name */
-    out = autox_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().autox_state->parameter_layout.solver_index(1)));
+    out = autox_screen_col(xpp::autox_parts(xpp::client_session()), xpp::format("PAR({})",xpp::client_session().autox_state->parameter_layout.solver_index(1)));
     CHECK(out.size() == autox_column_width);
     CHECK(out.find("gca") != std::string::npos);
 
-    out = autox_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().autox_state->parameter_layout.solver_index(0)));
+    out = autox_screen_col(xpp::autox_parts(xpp::client_session()), xpp::format("PAR({})",xpp::client_session().autox_state->parameter_layout.solver_index(0)));
     CHECK_STR(out.c_str(), "     iapp     ");
 
     /* a variable column, with and without the prefix autoX puts in front */
     xpp::client_session().model().uvar_names[0] = "v";
-    out = autox_screen_col(xpp::client_session(), "     U(1)     ");
+    out = autox_screen_col(xpp::autox_parts(xpp::client_session()), "     U(1)     ");
     CHECK_STR(out.c_str(), "      v       ");
-    out = autox_screen_col(xpp::client_session(), "   MAX U(2)   ");
+    out = autox_screen_col(xpp::autox_parts(xpp::client_session()), "   MAX U(2)   ");
     CHECK(out.size() == autox_column_width);
     CHECK(out.find("MAX w") != std::string::npos);
 
     /* autoX's own quantities are not the user's parameters: leave them */
-    out = autox_screen_col(xpp::client_session(), "    PERIOD    ");
+    out = autox_screen_col(xpp::autox_parts(xpp::client_session()), "    PERIOD    ");
     CHECK_STR(out.c_str(), "    PERIOD    ");
-    out = autox_screen_col(xpp::client_session(), "   L2-NORM    ");
+    out = autox_screen_col(xpp::autox_parts(xpp::client_session()), "   L2-NORM    ");
     CHECK_STR(out.c_str(), "   L2-NORM    ");
     /* PAR(10) is the period, whatever sits at parameter 10 */
-    out = autox_screen_col(xpp::client_session(), "   PAR(10)    ");
+    out = autox_screen_col(xpp::autox_parts(xpp::client_session()), "   PAR(10)    ");
     CHECK(out.find("T") != std::string::npos);
 
     /* a periodic branch prints MAX(n)/MIN(n): autoX has overwritten the U */
     xpp::client_session().model().uvar_names[1] = "w";
-    out = autox_screen_col(xpp::client_session(), "   MAX(2)     ");
+    out = autox_screen_col(xpp::autox_parts(xpp::client_session()), "   MAX(2)     ");
     CHECK(out.size() == autox_column_width);
     CHECK(out.find("MAX w") != std::string::npos);
-    out = autox_screen_col(xpp::client_session(), "   MIN(1)     ");
+    out = autox_screen_col(xpp::autox_parts(xpp::client_session()), "   MIN(1)     ");
     CHECK(out.find("MIN v") != std::string::npos);
 
     /* out of range: a variable autoX reports that this model does not have */
-    out = autox_screen_col(xpp::client_session(), "     U(9)     ");
+    out = autox_screen_col(xpp::autox_parts(xpp::client_session()), "     U(9)     ");
     CHECK_STR(out.c_str(), "     U(9)     ");
 
     /* a name as long as XPP allows must still not widen the column */
     xpp::client_session().model().uvar_names[0] = "abcdefghijk";
-    out = autox_screen_col(xpp::client_session(), "   MAX U(1)   ");
+    out = autox_screen_col(xpp::autox_parts(xpp::client_session()), "   MAX U(1)   ");
     CHECK(out.size() == autox_column_width);
 
     TEST_REPORT("autox columns");

@@ -1,5 +1,5 @@
 #include "xpp_ui.h"
-#include "session.h"
+#include "analysis_parts.h"
 #include "integrate.h"
 #include "xpp_log.h"
 #include <stdlib.h>
@@ -34,7 +34,7 @@ namespace xpp {
    a delay differential equation. 
 */
 
-xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, double *stabinfo)
+xpp::Result<> do_delay_sing(xpp::AnalysisParts &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, double *stabinfo)
 {
       double rr[2]={0,0};
 
@@ -243,7 +243,7 @@ void fill_characteristic_matrix(ComplexPair *z, double *delay, int n, int m, dou
   }
 }
 
-NewtonRun find_positive_root(xpp::Session &s, double *coef, double *delay, int n, int m, double rad, double err, double eps, double big, int maxit, double *rr)
+NewtonRun find_positive_root(xpp::AnalysisParts &s, double *coef, double *delay, int n, int m, double rad, double err, double eps, double big, int maxit, double *rr)
 {
   ComplexPair lambda,lambdap;
   ComplexPair det,detp;
