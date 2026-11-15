@@ -117,10 +117,10 @@ INDEPENDENT = [('protocol front end', 'platform')]
 # (from, to) -> (include lines against the levels now, the card that removes them); exact
 ALLOWLIST = {
     ('analysis', 'session'): (18, 'W732'),
-    ('autoX', 'commands'): (1, 'W737'),
-    ('autoX', 'export'): (1, 'W737'),
+    ('autoX', 'commands'): (1, 'W753'),
+    ('autoX', 'export'): (1, 'W753'),
     ('autoX', 'session'): (21, 'W732'),
-    ('autoX', 'session files'): (1, 'W737'),
+    ('autoX', 'session files'): (1, 'W753'),
     ('expressions', 'integrators'): (6, 'W743'),
     ('expressions', 'model and loading'): (19, 'W743'),
     ('expressions', 'session'): (9, 'W732'),
