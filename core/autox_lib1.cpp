@@ -2007,6 +2007,8 @@ solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
   iid = iap->iid;
   itnw = iap->itnw;
   ibr = iap->ibr;
+  if (iap->run->cancel_at_solve && !iap->run->locating && ++iap->run->solves == *iap->run->cancel_at_solve)
+    xpp::job::cancel_current(); /* XPP_AUTOX_CANCEL_AT_SOLVE: the Stop of servercheck's check lands here */
 
   dsmin = rap->dsmin;
   epsl = rap->epsl;
@@ -3205,7 +3207,7 @@ store_diagram_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_
   /* xppautX: cancel: a point the solve reached is stored as it is; the next
      solve sees the cancel and ends the branch with an EP repeating it, so a
      cancel always ends the same way, wherever it came (xpp_job.h, replay) */
-  if (istop == 0 && autox_cancelled(*iap->run)) iflag = 0;
+  if (istop == 0 && autox_cancel_requested(*iap->run)) iflag = 0;
   stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */
   if (istop == 1 && !autox_cancelled(*iap->run)) { /* xppautX: cancel: EP, not MX */
     /*        Maximum number of iterations reached somewhere. */
@@ -6334,7 +6336,7 @@ store_diagram_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t
    call with iflag  */
   autox_checkpoint(*iap->run,&iflag);
   istop = iap->istop;
-  if (istop == 0 && autox_cancelled(*iap->run)) iflag = 0; /* xppautX: cancel: as in store_diagram_algebraic */
+  if (istop == 0 && autox_cancel_requested(*iap->run)) iflag = 0; /* xppautX: cancel: as in store_diagram_algebraic */
   stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */
   if (istop == 1 && !autox_cancelled(*iap->run)) { /* xppautX: cancel: EP, not MX */
     /*        ** Maximum number of iterations reached somewhere. */

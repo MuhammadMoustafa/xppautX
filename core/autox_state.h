@@ -402,6 +402,10 @@ struct AutoxRun {
   std::atomic<bool> stopped_alone{false};
   /* the job fails when it holds this many points (XPP_AUTOX_FAIL_CHILD_AT, autox_jobs.cpp: servercheck's failing job) */
   std::optional<std::size_t> fail_after_points;
+  /* the job asks Stop (xpp::job::cancel_current) as its solve number this begins, a non-locating one (XPP_AUTOX_CANCEL_AT_SOLVE,
+     autox_jobs.cpp: servercheck's Stop at a given place); solves counts them */
+  std::optional<std::size_t> cancel_at_solve;
+  std::size_t solves=0;
   /* the error this run ends with is the whole run's (the diagram's limit, memory): the queue stops every job */
   bool run_wide_error=false;
   /* called by addbif with the number of points the job holds each time it holds one more (on the job's thread), so the
@@ -468,8 +472,18 @@ struct AutoxRun {
   } homcont;
 };
 
-/* Stop was pressed or this job was stopped alone: what ends a branch with an end point */
-inline bool autox_cancelled(const AutoxRun &run) { return xpp::job::cancelled() || run.stopped_alone; }
+/* Stop was pressed or this job was stopped alone: what asks for a branch's end point */
+inline bool autox_cancel_requested(const AutoxRun &run) { return xpp::job::cancelled() || run.stopped_alone; }
+
+/* What a solve acts on: a job's Stop waits until it holds two points (the start and the first point of its loop). A solve
+   cancelled before that returns to the start when it is the second point's and to the unstored second point when it is the
+   next, so where Stop landed (a race) made two different end points; from two points on, a cancelled solve always returns
+   to the last stored point, and a recorded stop at its point count replays to the same diagram (W750). */
+inline bool autox_cancelled(const AutoxRun &run)
+{
+  const bool waits=run.job&&run.points.size()<2;
+  return (xpp::job::cancelled()&&!waits)||run.stopped_alone;
+}
 
 namespace xpp {
 /* What autoX's numerics throw where they used to exit() (W63a): a

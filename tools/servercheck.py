@@ -954,6 +954,7 @@ def check_autox_branch_jobs():
         finally:
             s.close()
     check_autox_stopped_replay()
+    check_autox_stop_at_a_solve_replays()
     check_autox_branch_recordings()
 
 
@@ -973,25 +974,55 @@ def check_autox_stopped_replay():
     s = jobs_session(STOPPED_MODEL, STOPPED_START, record=True)
     try:
         evs, end = stop_when_running(s, 2, STOPPED_RUN)
-        autoxcompare.completed(s, dict(cmd='recording.stop', file='stopped.recx'))
-        path = os.path.join(s.run, 'stopped.recx')
+        path = stopped_recording(s)
         with open(path, encoding='utf-8') as f:
             text = f.read()
         jobs = re.search(r'"abort":\{"what":"autox","branch":\d+,"point":\d+,"jobs":(\[.*?\])\}\}', text)
         check('W606: a stopped run is recorded with its jobs: each with its key and how it ended',
               jobs and '"key":[0]' in jobs.group(1) and '"key":[1]' in jobs.group(1) and '"state":"stopped"' in jobs.group(1), text[text.find('@steps'):][:600])
-        code, replay, err = replayed_events(STOPPED_MODEL, path)
-        errors = jobs_errors(replay) + [e['error'] for e in replay if e.get('ev') == 'done' and e.get('error')]
-        check('W606: the stopped run replays: no error, silently too (exit %s), each job stopped at its recorded point: the same diagram' % code,
-              code == 0 and not errors and jobs_diagram(replay) == jobs_diagram(evs) and len(jobs_diagram(evs)) > 2,
-              '%s %s %d vs %d points' % (errors, err[-200:], len(jobs_diagram(replay)), len(jobs_diagram(evs))))
-        last_done = [e for e in replay if e.get('ev') == 'done' and e.get('job')][-1]
-        counts = lambda events: [(e['running'], e['queued'], e['done']) for e in events if e.get('ev') == 'autox.jobs'][-1]
-        check('W606: the replay ends stopped, with the same jobs ended (running, queued, done)',
-              last_done.get('status') == 'stopped' and counts(replay) == counts(evs) == (0, 0, 2), str(last_done)[:200] + str(counts(replay)) + str(counts(evs)))
+        replay = check_stopped_run_replays(path, evs, 'each job stopped at its recorded point: the same diagram', (0, 0, 2))
         check_recorded_jobs_refused(text)
     finally:
         s.close()
+
+
+def stopped_recording(s):
+    """the recording of a session that has run and been stopped, written; its path"""
+    autoxcompare.completed(s, dict(cmd='recording.stop', file='stopped.recx'))
+    return os.path.join(s.run, 'stopped.recx')
+
+
+def check_stopped_run_replays(path, evs, what, counts_wanted):
+    """the recording at `path` of the stopped run whose events are `evs` replays silently, to the same diagram and the same job
+    counts (running, queued, done)"""
+    code, replay, err = replayed_events(STOPPED_MODEL, path)
+    errors = jobs_errors(replay) + [e['error'] for e in replay if e.get('ev') == 'done' and e.get('error')]
+    check('W606: the stopped run replays: no error, silently too (exit %s), %s' % (code, what),
+          code == 0 and not errors and jobs_diagram(replay) == jobs_diagram(evs) and len(jobs_diagram(evs)) > 2,
+          '%s %s %d vs %d points' % (errors, err[-200:], len(jobs_diagram(replay)), len(jobs_diagram(evs))))
+    last_done = [e for e in replay if e.get('ev') == 'done' and e.get('job')][-1]
+    counts = lambda events: [(e['running'], e['queued'], e['done']) for e in events if e.get('ev') == 'autox.jobs'][-1]
+    check('W606: the replay ends stopped, with the same jobs ended (running, queued, done)',
+          last_done.get('status') == 'stopped' and counts(replay) == counts(evs) == counts_wanted, str(last_done)[:200] + str(counts(replay)) + str(counts(evs)))
+    return replay
+
+
+def check_autox_stop_at_a_solve_replays():
+    """W750 (#829): where Stop lands in a job's first solves (a race at machine speed) never changes how the job ends: a job
+    asked to Stop as its Nth solve begins (XPP_AUTOX_CANCEL_AT_SOLVE, so it lands there every time) ends on a repeat of its last
+    stored point, from its third point on, and its recording replays to the same diagram. The jobs run one after another: the
+    first is stopped, the second never starts."""
+    for solve in (1, 2, 3):
+        s = jobs_session(STOPPED_MODEL, STOPPED_START, env={'XPP_AUTOX_CANCEL_AT_SOLVE': str(solve)}, threads=1, record=True)
+        try:
+            s.send(cmd='autox.run', **STOPPED_RUN)
+            evs, end = s.collect(jobs_done, timeout=120 * SLOW)
+            points = jobs_diagram(evs)
+            check('W750: a job stopped as its solve %d begins ends on a repeat of its last stored point, with three or more points' % solve,
+                  end.get('status') == 'stopped' and len(points) >= 3 and points[-1][2:4] == points[-2][2:4], '%s %s' % (end.get('status'), points))
+            check_stopped_run_replays(stopped_recording(s), evs, 'a Stop at solve %d: the same diagram' % solve, (0, 0, 1))
+        finally:
+            s.close()
 
 
 def check_recorded_jobs_refused(text):
