@@ -48,6 +48,7 @@
 #include "model_failed.h"
 #include "xpp_globals.h"
 #include "session.h"
+#include "model_numerics.h"
 #include "expr_program.h"
 #include "tabular.h"
 #include "xpp_error.h"
