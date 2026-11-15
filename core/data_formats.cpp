@@ -237,17 +237,12 @@ Result<> write_csv(const DataTable &t, Sink &w)
 
 bool read_csv(std::string_view text, DataTable &t) { return parse_csv(text, t); }
 
-/* the compressor takes the text whole, so this one holds it, as it always did */
+/* the CSV text gzipped as it is made, in pieces */
 Result<> write_csv_gz(const DataTable &t, Sink &w)
 {
-    std::string text;
-    if (const Result<> made = csv_pieces(t, [&](const std::string &piece) {
-            text += piece;
-            return Result<>{};
-        });
-        !made)
-        return made;
-    return w.write(zip::gzip(text));
+    zip::GzipWriter gz([&](std::string_view bytes) { return w.write(bytes); }, Place{w.path()});
+    if (const Result<> made = csv_pieces(t, [&](const std::string &piece) { return gz.write(piece); }); !made) return made;
+    return gz.finish();
 }
 
 bool read_csv_gz(std::string_view gz, DataTable &t)
@@ -260,61 +255,111 @@ bool read_csv_gz(std::string_view gz, DataTable &t)
 
 /* ---- NPZ ---- */
 
-/* a .npy file of float64 values in C order, of shape (rows,) or (rows, cols) */
-std::string npy(std::span<const double> values, std::size_t rows, std::size_t cols)
+/* the doubles of a .npy file's data handed to the zip entry in pieces of this many */
+constexpr std::size_t npy_piece = chunk / sizeof(double);
+
+/* A .npy file of float64 values in C order, of shape (rows,) or (rows, cols), as a zip entry written as it comes:
+   begin() has the name and the header, push() the values one after another, end() the last piece. */
+class NpyEntry {
+public:
+    explicit NpyEntry(zip::ZipWriter &z) : z_(z) { piece_.reserve(npy_piece); }
+
+    Result<> begin(const std::string &name, std::size_t rows, std::size_t cols)
+    {
+        if (const Result<> opened = z_.begin_entry(name); !opened) return opened;
+        std::string header = "{'descr': '<f8', 'fortran_order': False, 'shape': (" + std::to_string(rows) +
+                             (cols ? ", " + std::to_string(cols) + "), }" : ",), }");
+        /* padded with blanks and a newline so the data starts on a multiple of
+           64 bytes, numpy's own alignment */
+        const std::size_t total = (10 + header.size() + 1 + 63) / 64 * 64;
+        header.append(total - 10 - header.size() - 1, ' ');
+        header += '\n';
+        std::string o("\x93NUMPY\x01\x00", 8);
+        o += static_cast<char>(header.size() & 0xff);
+        o += static_cast<char>(header.size() >> 8);
+        o += header;
+        return z_.write(o);
+    }
+    Result<> push(double v)
+    {
+        piece_.push_back(v);
+        return piece_.size() == npy_piece ? flush() : Result<>{};
+    }
+    Result<> end()
+    {
+        if (const Result<> flushed = flush(); !flushed) return flushed;
+        return z_.end_entry();
+    }
+
+private:
+    Result<> flush()
+    {
+        if (piece_.empty()) return {};
+        const Result<> written = z_.write(std::string_view(reinterpret_cast<const char *>(piece_.data()), piece_.size() * sizeof(double)));
+        piece_.clear();
+        return written;
+    }
+    zip::ZipWriter &z_;
+    std::vector<double> piece_;
+};
+
+/* the table's arrays, zipped through z as they are made */
+Result<> npz_stream(const DataTable &t, zip::ZipWriter &z)
 {
-    std::string header = "{'descr': '<f8', 'fortran_order': False, 'shape': (" + std::to_string(rows) +
-                         (cols ? ", " + std::to_string(cols) + "), }" : ",), }");
-    /* padded with blanks and a newline so the data starts on a multiple of
-       64 bytes, numpy's own alignment */
-    const std::size_t total = (10 + header.size() + 1 + 63) / 64 * 64;
-    header.append(total - 10 - header.size() - 1, ' ');
-    header += '\n';
-    std::string o("\x93NUMPY\x01\x00", 8);
-    o += static_cast<char>(header.size() & 0xff);
-    o += static_cast<char>(header.size() >> 8);
-    o += header;
-    const std::size_t at = o.size();
-    o.resize(at + values.size() * sizeof(double));
-    if (!values.empty()) std::memcpy(o.data() + at, values.data(), values.size() * sizeof(double));
-    return o;
+    NpyEntry npy(z);
+    const std::size_t n = t.rows();
+    if (!t.curves) {
+        for (std::size_t j = 0; j < t.columns.size(); j++) {
+            if (const Result<> r = npy.begin(data_column_name(t, j) + ".npy", n, 0); !r) return r;
+            for (double v : t.columns[j])
+                if (const Result<> r = npy.push(v); !r) return r;
+            if (const Result<> r = npy.end(); !r) return r;
+        }
+    } else if (!t.columns.empty()) {
+        /* one array per curve, the curves in the order they first appear, with the points each has */
+        std::vector<double> ids;
+        std::vector<std::size_t> points;
+        for (double id : t.columns[0]) {
+            const auto at = std::find(ids.begin(), ids.end(), id);
+            if (at == ids.end()) {
+                ids.push_back(id);
+                points.push_back(1);
+            } else points[static_cast<std::size_t>(at - ids.begin())]++;
+        }
+        const std::size_t m = t.columns.size() - 1;
+        for (std::size_t c = 0; c < ids.size(); c++) {
+            if (const Result<> r = npy.begin(xpp::format("{}{}.npy", data_column_name(t, 0), ids[c]), points[c], m); !r) return r;
+            for (std::size_t i = 0; i < n; i++)
+                if (t.columns[0][i] == ids[c])
+                    for (std::size_t j = 1; j <= m; j++)
+                        if (const Result<> r = npy.push(t.columns[j][i]); !r) return r;
+            if (const Result<> r = npy.end(); !r) return r;
+        }
+    }
+    if (t.seed) {
+        if (const Result<> r = npy.begin("seed.npy", 1, 0); !r) return r;
+        if (const Result<> r = npy.push(*t.seed); !r) return r;
+        if (const Result<> r = npy.end(); !r) return r;
+    }
+    return z.finish();
 }
 
 std::string npz_of(const DataTable &t)
 {
-    std::vector<zip::Entry> entries;
-    const std::size_t n = t.rows();
-    if (!t.curves) {
-        std::vector<double> v;
-        for (std::size_t j = 0; j < t.columns.size(); j++) {
-            v.assign(t.columns[j].begin(), t.columns[j].end());
-            entries.push_back({data_column_name(t, j) + ".npy", npy(v, n, 0)});
-        }
-    } else if (!t.columns.empty()) {
-        /* one array per curve, the curves in the order they first appear */
-        std::vector<double> ids;
-        for (double id : t.columns[0])
-            if (std::find(ids.begin(), ids.end(), id) == ids.end()) ids.push_back(id);
-        const std::size_t m = t.columns.size() - 1;
-        for (double id : ids) {
-            std::vector<double> v;
-            std::size_t k = 0;
-            for (std::size_t i = 0; i < n; i++)
-                if (t.columns[0][i] == id) {
-                    for (std::size_t j = 1; j <= m; j++) v.push_back(t.columns[j][i]);
-                    k++;
-                }
-            entries.push_back({xpp::format("{}{}.npy", data_column_name(t, 0), id), npy(v, k, m)});
-        }
-    }
-    if (t.seed) {
-        const double seed_value = *t.seed;
-        entries.push_back({"seed.npy", npy(std::span<const double>(&seed_value, 1), 1, 0)});
-    }
-    return zip::make_zip(entries);
+    std::string o;
+    zip::ZipWriter z([&](std::string_view bytes) -> Result<> {
+        o.append(bytes);
+        return {};
+    }, Place{});
+    if (!npz_stream(t, z)) xpp::out_of_memory("building a zip archive");
+    return o;
 }
 
-Result<> write_npz(const DataTable &t, Sink &w) { return w.write(npz_of(t)); }
+Result<> write_npz(const DataTable &t, Sink &w)
+{
+    zip::ZipWriter z([&](std::string_view bytes) { return w.write(bytes); }, Place{w.path()});
+    return npz_stream(t, z);
+}
 
 /* the value after "'key':" in a .npy header's dict, up to the next ',' or
    '}' outside parentheses */

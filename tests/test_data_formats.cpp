@@ -4,6 +4,7 @@
    CSV.gz decompressed equal to the CSV, and NPZ's zip and .npy headers
    parsed here, independently of the reader. */
 #include "xpptest.h"
+#include "test_support.h"
 #include "data_formats.h"
 #include "xpp_files.h"
 #include "xpp_fs_local.h"
@@ -283,14 +284,14 @@ TEST_CASE("test_data_formats")
         CHECK(!xpp::zip::gunzip(bad));
         CHECK(!xpp::zip::gunzip("not gzip at all, not at all"));
         /* two members, one after the other */
-        CHECK(xpp::zip::gunzip(xpp::zip::gzip("ab") + xpp::zip::gzip("cd")) == std::string("abcd"));
-        CHECK(xpp::zip::gunzip(xpp::zip::gzip("")) == std::string());
+        CHECK(xpp::zip::gunzip(gzip_of("ab") + gzip_of("cd")) == std::string("abcd"));
+        CHECK(xpp::zip::gunzip(gzip_of("")) == std::string());
         /* the budget: the members together may not pass it */
         bool over = false;
-        CHECK(xpp::zip::gunzip(xpp::zip::gzip(std::string(1000, 'x')), 1000, &over) && !over);
-        CHECK(!xpp::zip::gunzip(xpp::zip::gzip(std::string(1001, 'x')), 1000, &over) && over);
+        CHECK(xpp::zip::gunzip(gzip_of(std::string(1000, 'x')), 1000, &over) && !over);
+        CHECK(!xpp::zip::gunzip(gzip_of(std::string(1001, 'x')), 1000, &over) && over);
         over = false;
-        CHECK(!xpp::zip::gunzip(xpp::zip::gzip(std::string(600, 'x')) + xpp::zip::gzip(std::string(600, 'y')), 1000, &over) && over);
+        CHECK(!xpp::zip::gunzip(gzip_of(std::string(600, 'x')) + gzip_of(std::string(600, 'y')), 1000, &over) && over);
         over = false;
         CHECK(!xpp::zip::gunzip("not gzip at all, not at all", 1000, &over) && !over);
     }
@@ -369,6 +370,52 @@ TEST_CASE("test_data_formats")
         const std::uint32_t declared = xpp::zip::archive_bytes_limit + 1;
         for (int i = 0; i < 4; i++) oversized[central + 24 + i] = static_cast<char>(declared >> (8 * i));
         CHECK(!xpp::zip::read_zip(oversized));
+    }
+
+    /* streamed compression (W748): pieces of any size give the bytes of the whole, a table longer than every piece
+       reads back whole, and a failing sink ends the writer with its error */
+    {
+        std::string text;
+        for (int i = 0; i < 100000; i++) text += std::to_string(i * 7919 % 1000) + ",x\n";
+        std::string streamed;
+        xpp::zip::GzipWriter gz([&](std::string_view b) -> xpp::Result<> {
+            streamed.append(b);
+            return {};
+        }, xpp::Place{});
+        for (std::size_t at = 0; at < text.size(); at += 1000) CHECK(gz.write(std::string_view(text).substr(at, 1000)));
+        CHECK(gz.finish());
+        CHECK(streamed == gzip_of(text));
+        CHECK(xpp::zip::gunzip(streamed) == text);
+
+        xpp::DataTable big;
+        big.names = {"t", "v"};
+        big.stored_floats = false;
+        big.columns.assign(2, {});
+        for (int i = 0; i < 200000; i++) {
+            big.columns[0].push_back(i * 0.001);
+            big.columns[1].push_back(std::sin(i * 0.01));
+        }
+        big.seed = 7;
+        for (const char *id : {"csv.gz", "npz"}) {
+            const xpp::DataFormat &f = *xpp::data_format_named(id);
+            const std::string p = scratch((std::string("big.") + id).c_str());
+            CHECK(write_as(f, big, p));
+            xpp::DataTable r;
+            CHECK(read_back(f, p, r));
+            CHECK(r.names == big.names && same_values(r, big) && r.seed == 7);
+        }
+
+        int writes = 0;
+        xpp::zip::ZipWriter bad([&](std::string_view) -> xpp::Result<> {
+            if (++writes > 2) return xpp::fail("test", "the disk is full", xpp::Place{"full.npz"});
+            return {};
+        }, xpp::Place{});
+        CHECK(bad.begin_entry("a"));
+        bool failed = false;
+        for (int i = 0; i < 100 && !failed; i++) failed = !bad.write(text);
+        CHECK(failed);
+        const xpp::Result<> after = bad.finish();
+        CHECK(!after && after.error().what == "the disk is full");
     }
 
     /* a hostile .npz: the header's shape, a seed */

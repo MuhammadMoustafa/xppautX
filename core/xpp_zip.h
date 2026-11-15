@@ -2,11 +2,14 @@
 
 /* Compression, the one module for it (xpp_zip.cpp, over the vendored
    third_party/miniz, which no other file includes): gzip (RFC 1952) and
-   zip archives, built and read in memory. Writing the bytes to a file is
+   zip archives, written as the bytes come (to a callback: a Sink, or a string) and read from memory. Writing the bytes to a file is
    xpp_io's (xpp::Writer::binary), reading them xpp::read_bytes. C++ only.
    None of these throws: a failed allocation ends the program through
    xpp::out_of_memory (xpp_mem.h), like every other core allocation. */
 #include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -16,9 +19,66 @@
 
 namespace xpp::zip {
 
-/* bytes as one gzip member (deflated, no name, time stamp 0: the same
-   bytes give the same file) */
-std::string gzip(std::string_view bytes);
+/* Compression as it is made (W748): the streaming writers below take the bytes in pieces and hand what they compress
+   to an Emit as it comes (a Sink's write, or a string's append), so nothing holds the whole data or the whole result.
+   An Emit returns the error that stopped it, which ends the writer: every later call returns the same error. The place
+   names the file for an error of the writer's own (an entry or archive past what the format counts in 32 bits). No file
+   is opened here. */
+using Emit = std::function<Result<>(std::string_view)>;
+
+/* raw deflate (RFC 1951) with the CRC-32 and the length of what went in, for a gzip trailer or a zip entry */
+class Deflater {
+public:
+    Deflater(Emit emit, Place place);
+    ~Deflater();
+    Deflater(const Deflater &) = delete;
+    Deflater &operator=(const Deflater &) = delete;
+    Result<> write(std::string_view bytes);
+    /* the deflate stream is complete; crc() and size() are then final */
+    Result<> finish();
+    std::uint32_t crc() const;
+    std::uint64_t size() const;
+
+    struct Impl; /* its state, named by the compressor's callback */
+
+private:
+    std::unique_ptr<Impl> impl_;
+};
+
+/* one gzip member written in pieces (deflated, no name, time stamp 0: the same bytes give the same file) */
+class GzipWriter {
+public:
+    GzipWriter(Emit emit, Place place);
+    Result<> write(std::string_view bytes);
+    Result<> finish();
+
+private:
+    Result<> begin();
+    Emit emit_;
+    Deflater deflater_;
+    bool begun_ = false;
+};
+
+/* a zip archive written in pieces: each entry deflated as its bytes come, its sizes and CRC in a data descriptor after
+   them (sizes are not known before: the local header is written first and the sink cannot be gone back into), the
+   central directory in finish(). Entry names, the order and the timestamp (1980-01-01, so the same bytes give the same
+   file) are what make_zip always gave. Every reader of zips (numpy's, Python's zipfile, read_zip) reads the descriptor. */
+class ZipWriter {
+public:
+    ZipWriter(Emit emit, Place place);
+    ~ZipWriter();
+    ZipWriter(const ZipWriter &) = delete;
+    ZipWriter &operator=(const ZipWriter &) = delete;
+    Result<> begin_entry(std::string_view name);
+    Result<> write(std::string_view bytes);
+    Result<> end_entry();
+    /* the central directory and the end record: the archive is complete */
+    Result<> finish();
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
+};
 
 /* Cap archive input and total expanded bytes (a zip's entries together, a
    gzip's members together): enough for a large data table, while bounding

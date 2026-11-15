@@ -56,8 +56,7 @@ int put_inflated(const void *buf, int len, void *user)
     return put_deflated(buf, len, user) ? 1 : 0;
 }
 
-/* a zip entry's bytes, or the archive being written, at offset ofs (the
-   writer goes back to fill in a local header) */
+/* a zip entry's bytes as the reader extracts them, at offset ofs */
 std::size_t put_at(void *user, mz_uint64 ofs, const void *buf, std::size_t n)
 {
     Sink &s = *static_cast<Sink *>(user);
@@ -131,21 +130,115 @@ bool gunzip_member(std::string_view gz, std::size_t &pos, std::string &out, std:
 
 } // namespace
 
-std::string gzip(std::string_view bytes)
+struct Deflater::Impl {
+    tdefl_compressor d;
+    Emit emit;
+    Place place;
+    std::optional<Error> error;
+    std::uint32_t crc = MZ_CRC32_INIT;
+    std::uint64_t size = 0;
+};
+
+namespace {
+
+mz_bool put_piece(const void *buf, int len, void *user)
 {
+    Deflater::Impl &i = *static_cast<Deflater::Impl *>(user);
+    if (i.error) return MZ_FALSE;
     try {
-        std::string o("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff", 10);
-        Sink s;
-        const int flags = static_cast<int>(tdefl_create_comp_flags_from_zip_params(MZ_DEFAULT_LEVEL, -MZ_DEFAULT_WINDOW_BITS,
-                                                                                  MZ_DEFAULT_STRATEGY));
-        if (!tdefl_compress_mem_to_output(bytes.data(), bytes.size(), put_deflated, &s, flags)) xpp::out_of_memory("compressing");
-        o += s.bytes;
-        put_le32(o, crc32_of(bytes));
-        put_le32(o, static_cast<std::uint32_t>(bytes.size()));
-        return o;
+        const Result<> r = i.emit(std::string_view(static_cast<const char *>(buf), static_cast<std::size_t>(len)));
+        if (!r) {
+            i.error = r.error();
+            return MZ_FALSE;
+        }
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("compressing");
     }
+    return MZ_TRUE;
+}
+
+/* the bytes handed to emit, and its error when it has failed before */
+Result<> emit_bytes(const Emit &emit, std::string_view bytes)
+{
+    try {
+        return emit(bytes);
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("compressing");
+    }
+}
+
+void put_le16(std::string &o, std::uint32_t v)
+{
+    for (int i = 0; i < 2; i++) o += static_cast<char>((v >> (8 * i)) & 0xff);
+}
+
+} // namespace
+
+Deflater::Deflater(Emit emit, Place place)
+{
+    try {
+        impl_ = std::make_unique<Impl>();
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("compressing");
+    }
+    impl_->emit = std::move(emit);
+    impl_->place = std::move(place);
+    const int flags = static_cast<int>(
+        tdefl_create_comp_flags_from_zip_params(MZ_DEFAULT_LEVEL, -MZ_DEFAULT_WINDOW_BITS, MZ_DEFAULT_STRATEGY));
+    tdefl_init(&impl_->d, put_piece, impl_.get(), flags);
+}
+
+Deflater::~Deflater() = default;
+
+std::uint32_t Deflater::crc() const { return impl_->crc; }
+std::uint64_t Deflater::size() const { return impl_->size; }
+
+Result<> Deflater::write(std::string_view bytes)
+{
+    Impl &i = *impl_;
+    if (i.error) return std::unexpected(*i.error);
+    if (bytes.empty()) return {};
+    i.crc = static_cast<std::uint32_t>(mz_crc32(i.crc, reinterpret_cast<const unsigned char *>(bytes.data()), bytes.size()));
+    i.size += bytes.size();
+    const tdefl_status status = tdefl_compress_buffer(&i.d, bytes.data(), bytes.size(), TDEFL_NO_FLUSH);
+    if (i.error) return std::unexpected(*i.error);
+    if (status < 0) xpp::out_of_memory("compressing");
+    return {};
+}
+
+Result<> Deflater::finish()
+{
+    Impl &i = *impl_;
+    if (i.error) return std::unexpected(*i.error);
+    const tdefl_status status = tdefl_compress_buffer(&i.d, nullptr, 0, TDEFL_FINISH);
+    if (i.error) return std::unexpected(*i.error);
+    if (status < 0) xpp::out_of_memory("compressing");
+    return {};
+}
+
+GzipWriter::GzipWriter(Emit emit, Place place) : emit_(emit), deflater_(std::move(emit), std::move(place)) {}
+
+Result<> GzipWriter::begin()
+{
+    if (begun_) return {};
+    begun_ = true;
+    return emit_bytes(emit_, std::string_view("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff", 10));
+}
+
+Result<> GzipWriter::write(std::string_view bytes)
+{
+    if (const Result<> started = begin(); !started) return started;
+    return deflater_.write(bytes);
+}
+
+Result<> GzipWriter::finish()
+{
+    if (const Result<> started = begin(); !started) return started;
+    if (const Result<> done = deflater_.finish(); !done) return done;
+    std::string trailer;
+    put_le32(trailer, deflater_.crc());
+    put_le32(trailer, static_cast<std::uint32_t>(deflater_.size()));
+    return emit_bytes(emit_, trailer);
 }
 
 std::optional<std::string> gunzip(std::string_view gz, std::size_t limit, bool *over_limit)
@@ -169,21 +262,162 @@ std::optional<std::string> gunzip(std::string_view gz, std::size_t limit, bool *
     }
 }
 
+/* what a zip's central directory keeps of each entry */
+struct CentralRecord {
+    std::string name;
+    std::uint32_t crc, compressed, size, offset;
+};
+
+/* zip fields: version 2.0 (deflate), flags bit 3 (a data descriptor follows the data) and 11 (the name is UTF-8), method 8,
+   DOS time 0:00 and date 1980-01-01 */
+constexpr std::uint32_t ZIP_VERSION = 20, ZIP_FLAGS = 0x0808, ZIP_DEFLATED = 8, ZIP_DOS_DATE = 0x21;
+constexpr std::uint32_t ZIP_LOCAL = 0x04034b50, ZIP_DESCRIPTOR = 0x08074b50, ZIP_CENTRAL = 0x02014b50, ZIP_END = 0x06054b50;
+constexpr std::uint64_t ZIP32_MAX = 0xffffffffu;
+constexpr std::size_t ZIP_MEMBERS_MAX = 0xffff;
+
+struct ZipWriter::Impl {
+    Emit emit;
+    Place place;
+    std::optional<Error> error;
+    std::uint64_t offset = 0; /* bytes emitted so far */
+    std::uint64_t compressed = 0; /* of the open entry */
+    std::vector<CentralRecord> records;
+    std::string name; /* the open entry's */
+    std::unique_ptr<Deflater> deflater;
+
+    Result<> put(std::string_view bytes)
+    {
+        if (error) return std::unexpected(*error);
+        const Result<> r = emit_bytes(emit, bytes);
+        if (!r) error = r.error();
+        else offset += bytes.size();
+        return r;
+    }
+    Result<> refuse(std::string what)
+    {
+        error = Error{"zip archive", std::move(what), place};
+        return std::unexpected(*error);
+    }
+};
+
+ZipWriter::ZipWriter(Emit emit, Place place)
+{
+    try {
+        impl_ = std::make_unique<Impl>();
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("building a zip archive");
+    }
+    impl_->emit = std::move(emit);
+    impl_->place = std::move(place);
+}
+
+ZipWriter::~ZipWriter() = default;
+
+Result<> ZipWriter::begin_entry(std::string_view name)
+{
+    Impl &i = *impl_;
+    if (i.error) return std::unexpected(*i.error);
+    if (i.records.size() >= ZIP_MEMBERS_MAX) return i.refuse(xpp::format("more than {} members", ZIP_MEMBERS_MAX));
+    if (name.size() > 0xffff) return i.refuse("a member's name is too long");
+    if (i.offset > ZIP32_MAX) return i.refuse("it passes 4 GiB");
+    std::string h;
+    put_le32(h, ZIP_LOCAL);
+    put_le16(h, ZIP_VERSION);
+    put_le16(h, ZIP_FLAGS);
+    put_le16(h, ZIP_DEFLATED);
+    put_le16(h, 0); /* time */
+    put_le16(h, ZIP_DOS_DATE);
+    put_le32(h, 0); /* crc and the sizes: in the descriptor */
+    put_le32(h, 0);
+    put_le32(h, 0);
+    put_le16(h, static_cast<std::uint32_t>(name.size()));
+    put_le16(h, 0); /* no extra field */
+    h += name;
+    const std::uint64_t start = i.offset;
+    if (const Result<> r = i.put(h); !r) return r;
+    i.name = name;
+    i.compressed = 0;
+    i.deflater = std::make_unique<Deflater>(
+        [&i](std::string_view bytes) -> Result<> {
+            i.compressed += bytes.size();
+            return i.put(bytes);
+        },
+        i.place);
+    i.records.push_back({std::string(name), 0, 0, 0, static_cast<std::uint32_t>(start)});
+    return {};
+}
+
+Result<> ZipWriter::write(std::string_view bytes) { return impl_->deflater->write(bytes); }
+
+Result<> ZipWriter::end_entry()
+{
+    Impl &i = *impl_;
+    if (const Result<> r = i.deflater->finish(); !r) return r;
+    if (i.deflater->size() > ZIP32_MAX || i.compressed > ZIP32_MAX) return i.refuse("a member passes 4 GiB");
+    CentralRecord &rec = i.records.back();
+    rec.crc = i.deflater->crc();
+    rec.compressed = static_cast<std::uint32_t>(i.compressed);
+    rec.size = static_cast<std::uint32_t>(i.deflater->size());
+    i.deflater.reset();
+    std::string d;
+    put_le32(d, ZIP_DESCRIPTOR);
+    put_le32(d, rec.crc);
+    put_le32(d, rec.compressed);
+    put_le32(d, rec.size);
+    return i.put(d);
+}
+
+Result<> ZipWriter::finish()
+{
+    Impl &i = *impl_;
+    const std::uint64_t directory = i.offset;
+    for (const CentralRecord &rec : i.records) {
+        std::string h;
+        put_le32(h, ZIP_CENTRAL);
+        put_le16(h, ZIP_VERSION);
+        put_le16(h, ZIP_VERSION);
+        put_le16(h, ZIP_FLAGS);
+        put_le16(h, ZIP_DEFLATED);
+        put_le16(h, 0);
+        put_le16(h, ZIP_DOS_DATE);
+        put_le32(h, rec.crc);
+        put_le32(h, rec.compressed);
+        put_le32(h, rec.size);
+        put_le16(h, static_cast<std::uint32_t>(rec.name.size()));
+        put_le16(h, 0); /* extra, comment, disk, internal attributes */
+        put_le16(h, 0);
+        put_le16(h, 0);
+        put_le16(h, 0);
+        put_le32(h, 0); /* external attributes */
+        put_le32(h, rec.offset);
+        h += rec.name;
+        if (const Result<> r = i.put(h); !r) return r;
+    }
+    if (i.offset > ZIP32_MAX) return i.refuse("it passes 4 GiB");
+    std::string e;
+    put_le32(e, ZIP_END);
+    put_le16(e, 0); /* this disk, the disk of the directory */
+    put_le16(e, 0);
+    put_le16(e, static_cast<std::uint32_t>(i.records.size()));
+    put_le16(e, static_cast<std::uint32_t>(i.records.size()));
+    put_le32(e, static_cast<std::uint32_t>(i.offset - directory));
+    put_le32(e, static_cast<std::uint32_t>(directory));
+    put_le16(e, 0); /* no comment */
+    return i.put(e);
+}
+
 std::string make_zip(const std::vector<Entry> &entries)
 {
-    Sink s;
-    mz_zip_archive z;
-    mz_zip_zero_struct(&z);
-    z.m_pWrite = put_at;
-    z.m_pIO_opaque = &s;
-    bool ok = mz_zip_writer_init(&z, 0);
-    for (const Entry &e : entries)
-        ok = ok && mz_zip_writer_add_mem(&z, e.name.c_str(), e.bytes.data(), e.bytes.size(), MZ_DEFAULT_LEVEL);
-    ok = ok && mz_zip_writer_finalize_archive(&z);
-    mz_zip_writer_end(&z);
-    /* in memory, only an allocation can fail */
-    if (!ok || s.out_of_memory) xpp::out_of_memory("building a zip archive");
-    return std::move(s.bytes);
+    std::string o;
+    ZipWriter z([&](std::string_view piece) -> Result<> {
+        o.append(piece);
+        return {};
+    }, Place{});
+    bool ok = true;
+    for (const Entry &e : entries) ok = ok && z.begin_entry(e.name) && z.write(e.bytes) && z.end_entry();
+    /* in memory, only an allocation or a size past what a zip counts can fail */
+    if (!ok || !z.finish()) xpp::out_of_memory("building a zip archive");
+    return o;
 }
 
 bool is_zip(std::string_view bytes) { return bytes.starts_with(std::string_view("PK\x03\x04", 4)); }

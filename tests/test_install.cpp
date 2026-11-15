@@ -3,6 +3,7 @@
    larger than the archive, a wrong checksum, a bomb) is refused whole; the program swapped in is the checked archive's, and
    a file changed after its check is not; the kept installer file is offered only while it is what its record says. */
 #include "xpptest.h"
+#include "test_support.h"
 #include "xpp_files.h"
 #include "xpp_install.h"
 #include "xpp_io.h"
@@ -109,7 +110,7 @@ void check_tar()
     for (std::size_t i = 0; i <= xpp::zip::archive_entries_limit; i++) many.push_back(member("d/f" + std::to_string(i), '0', ""));
     refused(tar_of(many), "too many");
     /* a gzip that expands is read through gunzip's limit, and what is not gzip is refused */
-    const auto gz = xpp::zip::read_tar_gz(xpp::zip::gzip(tar_of({member("d/xppautX", '0', PROGRAM_BYTES)})), "x.tar.gz");
+    const auto gz = xpp::zip::read_tar_gz(gzip_of(tar_of({member("d/xppautX", '0', PROGRAM_BYTES)})), "x.tar.gz");
     CHECK(gz && gz->size() == 1);
     CHECK(!xpp::zip::read_tar_gz("not gzip at all, but long enough to be looked at", "x.tar.gz"));
 }
@@ -171,7 +172,7 @@ void check_swap()
 {
     const xpp::update::Plan plan = xpp::update::plan_for(where("v0.2.0", xpp::update::Os::linux_x64, "/home/u/x", "/usr/bin", true));
     const auto swap = [&](Swap &s, const std::string &tar, const xpp::update::ReleaseFile *override = nullptr) {
-        const xpp::update::ReleaseFile f = s.put(xpp::zip::gzip(tar));
+        const xpp::update::ReleaseFile f = s.put(gzip_of(tar));
         return xpp::update::swap_program(plan, override ? *override : f, s.archive, s.running);
     };
     {
@@ -200,11 +201,11 @@ void check_swap()
     {
         /* the archive on disk is not the one that was checked: the digest, or the size, differs */
         Swap s;
-        xpp::update::ReleaseFile f = s.put(xpp::zip::gzip(tar_of({member("d/xppautX", '0', PROGRAM_BYTES)})));
+        xpp::update::ReleaseFile f = s.put(gzip_of(tar_of({member("d/xppautX", '0', PROGRAM_BYTES)})));
         f.digest = sha("another file");
         const auto done = xpp::update::swap_program(plan, f, s.archive, s.running);
         CHECK(!done && done.error().what.find("changed after it was checked") != std::string::npos && s.running_bytes() == "\x7f" "ELF old");
-        f = s.put(xpp::zip::gzip(tar_of({member("d/xppautX", '0', PROGRAM_BYTES)})));
+        f = s.put(gzip_of(tar_of({member("d/xppautX", '0', PROGRAM_BYTES)})));
         f.size += 1;
         CHECK(!xpp::update::swap_program(plan, f, s.archive, s.running));
     }
