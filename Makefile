@@ -485,7 +485,11 @@ $(CORELIB): $(CORE_OBJECTS) $(BUILDDIR)/corelib.stamp
 	ar rcs $@ $(CORE_OBJECTS)
 
 $(BUILDDIR)/corelib.stamp: FORCE | $(BUILDDIR)
-	@echo '$(CORE_OBJECTS)' > $@.tmp; if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
+# the list in pieces of 100: one echo of it passed Windows' 8191-character command line on a long BUILDDIR (macOS's make 3.81 has no $(file))
+	@echo '$(wordlist 1,100,$(CORE_OBJECTS))' > $@.tmp
+	@echo '$(wordlist 101,200,$(CORE_OBJECTS))' >> $@.tmp
+	@echo '$(wordlist 201,100000,$(CORE_OBJECTS))' >> $@.tmp
+	@if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
 
 xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
 	$(LINK_X) $(LDSTATIC) $(LDRUNTIME) $(MAINSTACK) $(RELEASE_LD) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(CORE_SYSLIBS) $(NETLIBS) $(WINDOW_LIBS) $(LINALG_LIBS)

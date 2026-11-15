@@ -426,7 +426,7 @@ Result<> replace_data_column(xpp::Session &s, std::string_view column, std::stri
  int intflag=0;
  int dif_var=-1;
  Sequence seq=Sequence::none;
- double a1,a2,da=0.0;
+ double a1=0.0,a2=0.0,da=0.0;
  double old=0.0,dt,derv=0.0;
  double sum=0.0;
  const Place here=command_place();
