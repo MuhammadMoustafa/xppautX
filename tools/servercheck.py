@@ -7778,7 +7778,7 @@ def check_jacobian_setting():
             f.write('options { integration: { jacobian.kind: exact } }\n')
         check('W260: its own jacobian.kind: exact makes it at load (its derivatives, compiled when the run is long: W717)', 'Made the exact Jacobian' in load_log())
         # Reload keeps the setting; a model with no exact Jacobian says so and takes difference
-        lines = []
+        lines = LogLines()
         p, r, snd, col, _ = launch_server(ode=smooth, log=lines)
         try:
             col(is_done)
@@ -7793,9 +7793,11 @@ def check_jacobian_setting():
                     break
                 snd(cmd='answer', id=e['id'], key='d')
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
+            said = 'Jacobian set to difference: smooth.odex has no exact Jacobian: smooth.odex:3:1: uses random numbers'
+            # stderr has its own reader: the warning may land after the command's done
+            told = lines.wait_for(lambda ls: any(said in l for l in ls), timeout=20 * SLOW)
             check('W260: Reload keeping exact for a model with none says so, naming the file and why, and sets difference',
-                  jac.get('value') == 'difference' and any('Jacobian set to difference: smooth.odex has no exact Jacobian: '
-                                                'smooth.odex:3:1: uses random numbers' in l for l in lines), '%s %s' % (jac, lines[-3:]))
+                  jac.get('value') == 'difference' and told, '%s %s' % (jac, lines[-3:]))
         finally:
             p.stdin.close()
             p.wait(timeout=10 * SLOW)
