@@ -118,7 +118,7 @@ void choose_model_file(xpp::Session &s)
 void load_eqn(xpp::Session &s)
 {
  const std::string &file=s.model().this_file;
- xpp::Load::at(file);
+ xpp::LoadSite::at(file);
  if(!xpp::odex::is_odex(file))
    model_failed(Error{"model","the loader reads .odex only; open a .ode to convert it",Place{file}});
  std::string bytes;
@@ -214,7 +214,7 @@ void add_set_at(xpp::Model &m, std::string_view name, std::string_view does,
 void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does,
                     std::vector<std::pair<std::string,std::string>> settings)
 {
-  add_set_at(m,name,does,std::move(settings),xpp::Load::place());
+  add_set_at(m,name,does,std::move(settings),xpp::LoadSite::place());
 }
 
 void replace_intern_sets(xpp::Model &m, const xpp::odex::Parsed &parsed)
@@ -748,7 +748,7 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
     /* a value an option refuses is reported at its line */
     const xpp::Place &at=options[s.options_applied].where;
     const std::string &file=at.file.empty()?s.model().this_file:at.file;
-    xpp::Load::at(file,at.line,at.col);
+    xpp::LoadSite::at(file,at.line,at.col);
     for(const auto &[name,value] : options[s.options_applied].items)
       set_option(s,name,value,0,mask);
   }
@@ -768,7 +768,7 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
     error.place.source = xpp::model_source_line(s.model(), error.place.file, error.place.line);
     xpp::model_failed(error);
   }
-  xpp::Load::at(s.model().this_file);
+  xpp::LoadSite::at(s.model().this_file);
 }
 
 int add_model_option(xpp::Model &m, std::string_view s1)
@@ -784,7 +784,7 @@ int add_model_option(xpp::Model &m, std::string_view s1)
   if(refused)refuse_compiled_functions(refused);
   /* an .ode's value ends at a space as well as a comma, as XPPAUT reads it
      (`@ parmin=-.2 parmax=.5`) */
-  m.options.push_back(xpp::Model::OptionLine{std::string(s1),option_items(s1,false),xpp::Load::place()});
+  m.options.push_back(xpp::Model::OptionLine{std::string(s1),option_items(s1,false),xpp::LoadSite::place()});
   return 0;
 }
 

@@ -133,7 +133,7 @@ ALLOWLIST = {
     ('model and loading', 'analysis'): (8, 'W744'),
     ('model and loading', 'autoX'): (1, 'W744'),
     ('model and loading', 'integrators'): (17, 'W744'),
-    ('model and loading', 'session'): (17, 'W732'),
+    ('model and loading', 'session'): (15, 'W732'),
     ('ui seam', 'model and loading'): (1, 'W744'),
     ('ui seam', 'session'): (1, 'W732'),
 }

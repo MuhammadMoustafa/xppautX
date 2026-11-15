@@ -30,22 +30,20 @@ STRONG = set('TDBRCSGI')      # nm's global, non-weak definitions (T text, D dat
 
 # (from, to) -> (link edges against the levels now, the card that removes them); exact
 ALLOWLIST = {
-    ('analysis', 'session'): (18, 'W732'),
+    ('analysis', 'session'): (3, 'W732'),
     ('autoX', 'commands'): (1, 'W753'),
     ('autoX', 'export'): (1, 'W753'),
-    ('autoX', 'session'): (2, 'W732'),
     ('autoX', 'session files'): (2, 'W753'),
     ('commands', 'application'): (3, 'W753'),
     ('expressions', 'integrators'): (6, 'W743'),
     ('expressions', 'model and loading'): (18, 'W743'),
-    ('expressions', 'session'): (2, 'W732'),
     ('integrators', 'analysis'): (31, 'W745'),
     ('integrators', 'autoX'): (2, 'W745'),
-    ('integrators', 'session'): (13, 'W732'),
+    ('integrators', 'session'): (5, 'W732'),
     ('model and loading', 'analysis'): (9, 'W744'),
     ('model and loading', 'autoX'): (5, 'W744'),
     ('model and loading', 'integrators'): (27, 'W744'),
-    ('model and loading', 'session'): (21, 'W732'),
+    ('model and loading', 'session'): (9, 'W732'),
     ('protocol front end', 'application'): (2, 'W753'),
 }
 

@@ -16,7 +16,7 @@ struct Model; /* model.h */
 Place model_place(const Model &m, const odex::Pos &pos);
 /* where m defines name (any case): the equation, aux quantity, function,
    table, Markov variable, network or parameter line the parser read it
-   from; where a load in progress is (xpp::Load::place(), session.h) when
+   from; where a load in progress is (xpp::LoadSite::place(), model_failed.h) when
    no line does, else an empty Place (a column the browser added) */
 Place model_place(const Model &m, std::string_view name);
 

@@ -132,7 +132,7 @@ void create_markov(xpp::Session &s, int nstates, double *st, int type, const cha
     entry.kind=xpp::ModelRecord::NameKind::Markov;
     entry.index=j;
     entry.written=name;
-    entry.pos={0,xpp::Load::place().line,xpp::Load::place().col};
+    entry.pos={0,xpp::LoadSite::place().line,xpp::LoadSite::place().col};
   }
   s.model().record->markov_name_lengths.insert(std::string_view(name).size());
   s.model().markov[j].name = name;

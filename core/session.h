@@ -357,22 +357,12 @@ public:
      load's set-up are handed these (W47d3) */
   Session &session() noexcept { return *session_; }
   Model &model() noexcept { return session_->model(); }
-  /* The load is at line (and column) of file: the model's readers and
-     builder say where they are, so that a problem is reported there;
-     line 0, the model as a whole. The ERROR and WARN messages logged
-     while a Load is in progress are kept (LogCapture) and written with
-     the place they are about (Error::text()) once the load moves on from
-     it (here), commits or ends; the ones about the place a load fails at
-     are its error's what, written once by load_model. Nothing when no
-     Load is in progress. */
-  static void at(std::string_view file, int line=0, int col=0);
-  /* where the load is (at()'s place); empty when no Load is in progress */
-  static Place place();
 private:
   /* LoadSite's: the error at the place the load is, and the source line of an error's place */
   Error describe(std::string_view also) override;
   void locate(Error &e) override;
-  static Load *active() noexcept;
+  void arrive(std::string_view file, int line, int col) override;
+  Place where_is() const override { return where; }
   /* the messages kept since at(), without the blank lines around them,
      each line without the blanks at its end (a caret line keeps those in
      front) */

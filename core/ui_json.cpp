@@ -1246,7 +1246,7 @@ void send_hello(xpp::Session &s)
     BUF_LIT(b, ",\"options\":");
     b += xpp::options_table_json(s);
     BUF_LIT(b, ",\"model_features\":");
-    b += xpp::model_features_json(s);
+    b += xpp::model_features_json(s.model(), s.tables);
     buf_commands(b);
     buf_point_types(b);
     buf_file_formats(b);

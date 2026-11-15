@@ -163,7 +163,7 @@ const char *add_xppaut_button(Session &s, std::string_view spec, bool apply)
   const std::string_view command = xppaut_button_command(spec.substr(colon + 1));
   /* a load's .ode keeps its unmapped BUT lines out of the buttons: the conversion warns of each at its line (odex_convert.cpp
      buttons_list); a value set any other way is refused, the caller naming it (option_error_text) */
-  if (command.empty()) return Load::running() ? nullptr : "no command of xppautX does what these keys do";
+  if (command.empty()) return LoadSite::running() ? nullptr : "no command of xppautX does what these keys do";
   if (std::ranges::any_of(s.user_buttons, [&](const UserButton &b) { return b.command == command; })) return nullptr;
   if (apply) s.user_buttons.push_back({std::string(spec.substr(0, colon)), std::string(command)});
   return nullptr;
@@ -176,7 +176,7 @@ const char *own_file(Session &s, const OptionValue &v, std::string &path)
 {
   path = include_path(s.model().this_file, v.text);
   if (path.empty()) return "must name a file";
-  const Result<> allowed = approve_model_path(s.model(), path, Load::running() ? Load::place() : command_place());
+  const Result<> allowed = approve_model_path(s.model(), path, LoadSite::running() ? LoadSite::place() : command_place());
   if (allowed) return nullptr;
   if (allowed.error().where != PATH_REFUSED) model_failed(allowed.error());
   return "names a path outside the model's folder that was refused";
@@ -375,9 +375,9 @@ constexpr OptionRow rows[] = {
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const int i = choice_index(jacobian_names, v.text);
      if (i < 0) return "not difference or exact";
-     if (i == JACOBIAN_EXACT && !Load::running() && !ensure_exact_jacobian(s)) return s.model().jacobian.unavailable.c_str();
+     if (i == JACOBIAN_EXACT && !LoadSite::running() && !ensure_exact_jacobian(s)) return s.model().jacobian.unavailable.c_str();
      if (!v.apply) return nullptr;
-     if (i == JACOBIAN_EXACT && Load::running()) s.model().jacobian.requested = Load::place();
+     if (i == JACOBIAN_EXACT && LoadSite::running()) s.model().jacobian.requested = LoadSite::place();
      s.numerics->jacobian = i;
      return nullptr;
    },
@@ -959,7 +959,7 @@ constexpr OptionRow rows[] = {
      if (const char *why = own_file(s, v, path)) return why;
      if (v.apply) {
        s.batch_out_file = path;
-       s.output_place = Load::running() ? Load::place() : command_place();
+       s.output_place = LoadSite::running() ? LoadSite::place() : command_place();
        if (s.output_place.source.empty())
          s.output_place.source = model_source_line(s.model(), s.output_place.file, s.output_place.line);
      }
@@ -983,7 +983,7 @@ constexpr OptionRow rows[] = {
    .show = [](const Session &s) { return std::ranges::to<std::string>(s.run_sets | std::views::join_with('\n')); },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      /* one set's name: a .odex line, or one of the panel's checked names (apply_option_group splits the list); a load checks it once the sets are read (xpp_batch.cpp) */
-     if (!Load::running() && !model_has_set(s.model(), v.text)) return "is not one of the model's sets";
+     if (!LoadSite::running() && !model_has_set(s.model(), v.text)) return "is not one of the model's sets";
      if (v.apply) s.run_sets.emplace_back(v.text);
      return nullptr;
    },
@@ -1559,7 +1559,7 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   int index = 0;
   const OptionRow *row = find_option(name, index, xppaut_names);
   if (!row) return unknown_option;
-  const bool importing = Load::running() && files::has_extension(Load::place().file, ".ode");
+  const bool importing = LoadSite::running() && files::has_extension(LoadSite::place().file, ".ode");
   const std::optional<double> total = importing ? imported_total(*row, value) : std::nullopt;
   /* the value as a NUL-ended text */
   const std::string text = total ? number(*total)
@@ -1577,7 +1577,7 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   else if (row->once && !source.may(s, *row)) return std::nullopt;
   else if (refused) why = refused;
   else if (row->rule == OptionRule::method) {
-    const Place place = Load::running() ? Load::place() : command_place();
+    const Place place = LoadSite::running() ? LoadSite::place() : command_place();
     const auto picked = importing || xppaut_names ? pick_method(s.model(), text, place) : method_by_key(s.model(), text, place);
     if (!picked) return picked.error().what;
     if (apply) s.numerics->method = *picked;
@@ -1745,7 +1745,7 @@ void set_option(Session &s, std::string_view name, std::string_view value, bool 
   /* the load stops, at the option's line; outside a load (an internal
      set, checked first) the error is shown and nothing else changes */
   const std::string what = option_error_text(name, value, *why);
-  if (Load::running()) model_failed(what);
+  if (LoadSite::running()) model_failed(what);
   const Error e{"options", what, command_place()};
   show_error(e);
 }

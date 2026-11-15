@@ -14,7 +14,6 @@ constinit LoadSite *current_site = nullptr;
 LoadSite::LoadSite() noexcept { current_site = this; }
 LoadSite::~LoadSite() { if (current_site == this) current_site = nullptr; }
 void LoadSite::leave() noexcept { current_site = nullptr; }
-LoadSite *LoadSite::current() noexcept { return current_site; }
 bool LoadSite::running() noexcept { return current_site != nullptr; }
 
 void LoadSite::add_source(Error &e)
@@ -25,6 +24,16 @@ void LoadSite::add_source(Error &e)
 Error LoadSite::error(std::string_view also)
 {
   return current_site->describe(also);
+}
+
+void LoadSite::at(std::string_view file, int line, int col)
+{
+  if (current_site) current_site->arrive(file, line, col);
+}
+
+Place LoadSite::place()
+{
+  return current_site ? current_site->where_is() : Place();
 }
 
 void model_failed(Error e)

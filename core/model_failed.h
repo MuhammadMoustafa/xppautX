@@ -32,6 +32,13 @@ public:
      is at, and as what failed the ERROR and WARN messages logged since (no
      longer kept to be written), then also */
   static Error error(std::string_view also = {});
+  /* The load is at line (and column) of file: the model's readers and builder say where they are, so that a problem is
+     reported there; line 0, the model as a whole. The ERROR and WARN messages logged while a load is in progress are kept
+     and written with the place they are about once the load moves on from it (here), commits or ends. Nothing when no
+     load is in progress. */
+  static void at(std::string_view file, int line = 0, int col = 0);
+  /* where the load is (at()'s place); empty when no load is in progress */
+  static Place place();
 
 protected:
   LoadSite() noexcept;
@@ -40,8 +47,10 @@ protected:
   LoadSite &operator=(const LoadSite &) = delete;
   /* the load ends before its members go */
   static void leave() noexcept;
-  static LoadSite *current() noexcept;
   virtual Error describe(std::string_view also) = 0;
+  /* at()'s and place()'s: the load's own record of where it is */
+  virtual void arrive(std::string_view file, int line, int col) = 0;
+  virtual Place where_is() const = 0;
   virtual void locate(Error &e) = 0;
 };
 

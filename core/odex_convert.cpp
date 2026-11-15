@@ -1977,7 +1977,7 @@ Result<std::string> convert_text(FileSystem &fs, const ModelLoader &loader, cons
   std::vector<Diagnostic> &output = diagnostics ? *diagnostics : findings;
   Result<> imported = loader.inspect(fs, *line, [](Session &s) {
     const std::string &file = s.model().this_file;
-    xpp::Load::at(file);
+    xpp::LoadSite::at(file);
     std::string bytes;
     if (!read_model_file(s.model(), file, bytes) || !is_model_text(bytes))
       model_failed(Error{"convert", "cannot be read as model text", Place{file}});

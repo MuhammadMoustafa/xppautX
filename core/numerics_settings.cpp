@@ -17,6 +17,7 @@
 #include <new>
 
 #include "event_registry.h"
+#include "model_failed.h"
 #include "numerics_settings.h"
 #include "model_numerics.h"
 #include "xpp_util.h"
@@ -65,7 +66,7 @@ bool uses(const xpp::Session &s, const OptionRow &f, int method)
 bool used(const xpp::Session &s, const OptionRow &f) { return uses(s, f, s.numerics->method); }
 
 /* whether field f is one of s's model's: the delay of a model with no delays is not */
-bool of_the_model(const xpp::Session &s, const OptionRow &f) { return xpp::has_feature(s, f.needs); }
+bool of_the_model(const xpp::Session &s, const OptionRow &f) { return xpp::has_feature(s.model(), s.tables, f.needs); }
 
 double value_of(const xpp::Session &s, const OptionRow &f)
 {
@@ -349,7 +350,7 @@ Place settings_place(const Model &m, std::initializer_list<std::string_view> set
 
 /* whether row is checked and written as an @ line is: it has no numerics key, or a model is loading (the exact
    Jacobian is checked once the model is compiled: the option's parser defers it, as the @ line does) */
-static bool by_option(const OptionRow &row) { return row.key.empty() || Load::running(); }
+static bool by_option(const OptionRow &row) { return row.key.empty() || LoadSite::running(); }
 
 namespace {
 

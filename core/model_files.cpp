@@ -1,5 +1,6 @@
 /* A model's own files: see model_files.h. */
 #include "odex.h"
+#include "model_failed.h"
 #include "model_files.h"
 #include "model_place.h"
 #include "model.h"
@@ -11,7 +12,6 @@
 #include "xpp_fs.h"
 #include "xpp_ui.h"
 #include "model_options.h"
-#include "session.h"
 #include "expr.h"
 
 #include <algorithm>
@@ -270,7 +270,7 @@ Place model_place(const Model &m, std::string_view name)
     for(auto line=m.options.rbegin();line!=m.options.rend();++line)
         for(const auto &[key,value]:line->items)
             if(!option.empty() && odex_option_key(key)==option)return line->where;
-    return Load::place();
+    return LoadSite::place();
 }
 
 Place model_statement_place(const Model &m, odex::Statement::Kind kind, int k)

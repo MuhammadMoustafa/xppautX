@@ -41,7 +41,7 @@ void add_svar(xpp::Session &s, const char *name, const char *rhs)
   s.model().svars.resize(s.model().nsvar+1);
   s.model().svars[s.model().nsvar].name=name;
   s.model().svars[s.model().nsvar].rhs=rhs;
-  s.model().svars[s.model().nsvar].where=xpp::Load::place();
+  s.model().svars[s.model().nsvar].where=xpp::LoadSite::place();
   xpp::log(XPP_LOG_INFO, " Added sol-var[{:d}] {} = {} \n",
 	 s.model().nsvar,s.model().svars[s.model().nsvar].name.c_str(),s.model().svars[s.model().nsvar].rhs.c_str());
   s.model().nsvar++;
@@ -68,7 +68,7 @@ void add_aeqn(xpp::Session &s, const char *rhs)
   xpp::Model &m=s.model();
   m.aeqns.resize(m.naeqn+1);
   m.aeqns[m.naeqn].rhs=rhs;
-  m.aeqns[m.naeqn].where=xpp::Load::place();
+  m.aeqns[m.naeqn].where=xpp::LoadSite::place();
   m.naeqn++;
 }
 

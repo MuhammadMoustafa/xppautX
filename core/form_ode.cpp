@@ -128,7 +128,7 @@ namespace {
 {
   if(e.place.line<=0){
     if(!e.place.file.empty())e.what=xpp::format("{}: {}",e.place.file,e.what);
-    e.place=xpp::Load::place();
+    e.place=xpp::LoadSite::place();
   }
   model_failed(std::move(e));
 }
@@ -264,7 +264,7 @@ void begin_model(xpp::Session &s)
 void add_parameter(xpp::Session &s, const std::string &name, double value)
 {
   xpp::Model &m=s.model();
-  auto &entry=m.record->define_name(name,xpp::ModelRecord::NameKind::Param,m.nupar,{0,xpp::Load::place().line,xpp::Load::place().col});
+  auto &entry=m.record->define_name(name,xpp::ModelRecord::NameKind::Param,m.nupar,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
   if(add_con(s,name,value))
     model_failed(xpp::format("{} is a name already, or one parameter too many",name));
   m.size_parameters(m.nupar+1);
@@ -280,7 +280,7 @@ void add_constant(xpp::Session &s, const std::string &name, double value, bool w
 {
   xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
   s.model().record->define_name(name,wiener?xpp::ModelRecord::NameKind::Wiener:xpp::ModelRecord::NameKind::Const,s.parser.ncon,
-                        {0,xpp::Load::place().line,xpp::Load::place().col});
+                        {0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
   if(add_con(s,name,value))
     model_failed(xpp::format("{} is a name already, or one parameter too many",name));
   if(wiener)xpp::add_wiener(s,s.parser.ncon-1);
@@ -291,7 +291,7 @@ void add_constant(xpp::Session &s, const std::string &name, double value, bool w
    is refused rather than silently ignored */
 [[noreturn]] void refuse_options_file(const std::string &name)
 {
-  model_failed(xpp::Error{"model",xpp::format("the options file <{}> is not supported: write its settings as @ lines, in the model or in a file it includes (#include opts.inc)",name),xpp::Load::place()});
+  model_failed(xpp::Error{"model",xpp::format("the options file <{}> is not supported: write its settings as @ lines, in the model or in a file it includes (#include opts.inc)",name),xpp::LoadSite::place()});
 }
 
 void add_boundary(xpp::Session &s, std::string_view formula)
@@ -405,7 +405,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
       name=tokens.text(" ");
       value=atof(tokens.text(" ").c_str());
       nstates=atoi(tokens.text(" \n").c_str());
-      m.record->define_name(name,xpp::ModelRecord::NameKind::Markov,m.nmarkov,{0,xpp::Load::place().line,xpp::Load::place().col});
+      m.record->define_name(name,xpp::ModelRecord::NameKind::Markov,m.nmarkov,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
       if(add_var(s,name,value))
 	model_failed(xpp::format("{} is a name already, or one variable too many",name));
       m.uvar_names[s.parser.build.in_vars+m.nmarkov]=name;
@@ -438,7 +438,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
 	  value=item.value;
 	  room_for_declared(s);
           m.record->define_name(name,iflg?xpp::ModelRecord::NameKind::Variable:xpp::ModelRecord::NameKind::Fixed,
-                        iflg?s.parser.build.in_vars:m.fix_var,{0,xpp::Load::place().line,xpp::Load::place().col});
+                        iflg?s.parser.build.in_vars:m.fix_var,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
 	  if(add_var(s,name,value))
 	    model_failed(xpp::format("{} is a name already, or one variable too many",name));
 	  if(iflg)
@@ -463,7 +463,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
       value=atof(tokens.text(" ").c_str());
       formula=tokens.text("$");
       xpp::log(XPP_LOG_DEBUG, "Kernel mu={:f} {} = {} \n",value,name,formula);
-      m.record->define_name(name,xpp::ModelRecord::NameKind::Kernel,m.nkernel,{0,xpp::Load::place().line,xpp::Load::place().col});
+      m.record->define_name(name,xpp::ModelRecord::NameKind::Kernel,m.nkernel,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
       if(add_kernel(s,name,value,formula)){
 	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
@@ -472,7 +472,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
     case 't':
       name=tokens.text(" ");
       formula=tokens.text(" \n");
-      m.record->define_name(name,xpp::ModelRecord::NameKind::Table,s.ntable,{0,xpp::Load::place().line,xpp::Load::place().col});
+      m.record->define_name(name,xpp::ModelRecord::NameKind::Table,s.ntable,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
       if(formula[0]=='%') {
 	xpp::log(XPP_LOG_INFO, " Function form of table....\n");
 	nn=atoi(tokens.text(" ").c_str());
@@ -513,7 +513,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
       narg=atoi(tokens.text(" ").c_str());
       formula=tokens.text("$");
       xpp::log(XPP_LOG_INFO, "{} {} :\n",name,narg);
-      m.record->define_name(name,xpp::ModelRecord::NameKind::Function,m.nfun,{0,xpp::Load::place().line,xpp::Load::place().col});
+      m.record->define_name(name,xpp::ModelRecord::NameKind::Function,m.nfun,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
       if(add_ufun(s,name,formula,narg)){
 	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
@@ -565,7 +565,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
 	{
 	  std::string aux(*tok);
           m.record->define_name(aux,xpp::ModelRecord::NameKind::Aux,s.parser.build.naux,
-                        {0,xpp::Load::place().line,xpp::Load::place().col});
+                        {0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
 	  s.parser.build.aux_names.push_back(aux);
 	  xpp::log(XPP_LOG_DEBUG, "|{}| ",s.parser.build.aux_names[s.parser.build.naux]);
 	  s.parser.build.naux++;
@@ -850,7 +850,7 @@ public:
     /* the Ornstein-Uhlenbeck processes, once every parameter they may read is declared */
     for(const Statement &s : p_.statements)if(s.kind==Statement::Kind::Ou)declare_ou(s);
     /* what follows is the whole model's */
-    xpp::Load::at(m_.this_file);
+    xpp::LoadSite::at(m_.this_file);
     add_names();
     /* A formula table evaluates while it compiles, so every function it
        can call must already have its program (including converter guards). */
@@ -862,7 +862,7 @@ public:
       at(s);
       compile(s);
     }
-    xpp::Load::at(m_.this_file);
+    xpp::LoadSite::at(m_.this_file);
     compile_derived(s_);
     xpp::compile_svars(s_);
     evaluate_derived(s_);
@@ -892,7 +892,7 @@ private:
   /* the load is at statement s: a problem there is reported at it */
   void at(const Statement &s) const
   {
-    xpp::Load::at(file(s.pos),s.pos.line,s.pos.col);
+    xpp::LoadSite::at(file(s.pos),s.pos.line,s.pos.col);
   }
 
   /* a declaration of name (as written) at pos, kept for the message of a
@@ -917,7 +917,7 @@ private:
     if(!entry||entry->origins.size()<2)
       model_failed(xpp::format("Duplicate name {}",!entry||entry->origins.empty()?upper:entry->origins.back().written));
     const auto &now=entry->origins.back(),&before=entry->origins[entry->origins.size()-2];
-    xpp::Load::at(file(now.pos),now.pos.line,now.pos.col);
+    xpp::LoadSite::at(file(now.pos),now.pos.line,now.pos.col);
     std::string at=xpp::format("line {}",before.pos.line);
     if(file(before.pos)!=file(now.pos))at+=xpp::format(" of {}",file(before.pos));
     if(now.array.empty()&&before.array.empty()){

@@ -138,7 +138,7 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, std::optiona
     init_autox_win(s);
     preferences_load(s, read_prefs);
     if (disc(m)) {
-        const auto picked = pick_method(m, "Discrete", Load::place());
+        const auto picked = pick_method(m, "Discrete", LoadSite::place());
         if (!picked) model_failed(picked.error());
         s.numerics->method = *picked;
     }
@@ -203,7 +203,7 @@ Loaded in_model(FileSystem &fs, const std::function<void(Session &)> &work, bool
     }
     const std::string missing = missing_initial_values_text(m);
     if (!missing.empty()) {
-        Load::at(m.this_file);
+        LoadSite::at(m.this_file);
         xpp::log(XPP_LOG_WARN, "states without init start at 0:{}\n", missing);
     }
     xpp_session_mark_clean(load.session()); /* what it loaded is not a change */
@@ -215,7 +215,7 @@ Loaded in_model(FileSystem &fs, const std::function<void(Session &)> &work, bool
         return std::unexpected(compiled.error());
     }
     for (const Error &warning:*compiled) {
-        Load::at(warning.place.file,warning.place.line,warning.place.col);
+        LoadSite::at(warning.place.file,warning.place.line,warning.place.col);
         xpp::log(XPP_LOG_WARN,"{}\n",warning.what);
     }
     load.commit();

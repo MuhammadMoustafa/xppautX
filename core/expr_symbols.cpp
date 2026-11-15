@@ -4,6 +4,7 @@
    its first STDSYM entries are the built-ins below, then come the
    model's names as the load adds them. */
 #include "expr_internal.h"
+#include "model_failed.h"
 #include "expr.h"
 #include "model_numerics.h"
 #include "model.h"
@@ -495,7 +496,7 @@ int add_kernel(xpp::Session &s, std::string_view name, double mu, std::string_vi
     k.expr=text;
   }
   k.name=name;
-  k.where=Load::place();
+  k.where=LoadSite::place();
   s.parser.nsym++;
   m.nkernel++;
   return(0);

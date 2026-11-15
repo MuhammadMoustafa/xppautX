@@ -4,6 +4,7 @@
    this file keeps the page's file API and the core's own single-file
    operations. */
 #include "xpp_files.h"
+#include "model_failed.h"
 #include <array>
 #include <cstdlib>
 #include "xpp_files_internal.h" /* IWYU pragma: keep (xpp_files.h is the public face; the implementation needs its internals) */
@@ -379,10 +380,10 @@ Error write_error(std::string where, std::string_view file)
           ? xpp::format("Permission denied: the folder {} needs administrator rights; choose another place", folder)
         : failure == ECANCELED ? xpp::format("creation of the folder {} was refused", folder)
         : xpp::format("{} (folder {})", std::strerror(failure), folder);
-    Place at = Load::running() ? Load::place() : command_place();
+    Place at = LoadSite::running() ? LoadSite::place() : command_place();
     if (at.file.empty() && at.source.empty()) at.file = file;
     Error error{std::move(where), xpp::format("cannot open {}: {}", file, reason), std::move(at)};
-    Load::add_source(error);
+    LoadSite::add_source(error);
     return error;
 }
 

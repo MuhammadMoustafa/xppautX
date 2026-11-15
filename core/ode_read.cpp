@@ -937,7 +937,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
              continue;
     }
 
-    xpp::Load::at(src.file,src.line);
+    xpp::LoadSite::at(src.file,src.line);
     search_array(old.data(),newstr,&jj1,&jj2,&is_array,src.model);
    jj=jj1;
    jjsgn=1;
@@ -967,7 +967,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
    std::vector<int> groups(strings.size(),0);
    while(1){
       for(ns=0;ns<static_cast<int>(strings.size());ns++){
-      xpp::Load::at(src.file,string_lines[ns]);
+      xpp::LoadSite::at(src.file,string_lines[ns]);
       const size_t first_new=out.size();
       subsk(strings[ns],big,jj,is_array);
 
@@ -1217,7 +1217,7 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Mo
       }
     }
   }
-  if (Load::running() && !fields) {
+  if (LoadSite::running() && !fields) {
     for (const std::string *end : {&num1,&num2}) {
       double value=0;
       if (parse_number(*end,value) && (value < std::numeric_limits<int>::min() || value > std::numeric_limits<int>::max()))
@@ -1226,7 +1226,7 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Mo
   }
   *i1=fields ? fields->integer("range start", num1) : atoi(num1.c_str());
   *i2=fields ? fields->integer("range end", num2) : atoi(num2.c_str());
-  if (Load::running() && !fields)
+  if (LoadSite::running() && !fields)
     if (const auto why = odex::range_problem(*i1,*i2,1)) model_failed(*why);
   /* now we have the numbers and will get rid of the junk inbetween */
   newstr.assign(old,old+ileft+1);
@@ -1359,7 +1359,7 @@ int get_eqn(xpp::Session &s, std::string_view text)
       read_raw_line(src,line);
       if(line.empty())return false;
       save_line(src.model->source,line);
-      xpp::Load::at(src.file,src.lines);
+      xpp::LoadSite::at(src.file,src.lines);
       return true;
     });
     return 1;

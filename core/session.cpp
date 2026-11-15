@@ -166,11 +166,6 @@ Load::~Load()
   c.model=std::move(previous_model);
 }
 
-Load *Load::active() noexcept
-{
-  return static_cast<Load *>(current());
-}
-
 void Load::locate(Error &e)
 {
   Place &p=e.place;
@@ -179,18 +174,10 @@ void Load::locate(Error &e)
   if(read_model_file(model(),p.file,text))p.source=std::string(nth_line(text,p.line));
 }
 
-void Load::at(std::string_view file, int line, int col)
+void Load::arrive(std::string_view file, int line, int col)
 {
-  Load *load=active();
-  if(!load)return;
-  load->write_kept();
-  load->where=Place{std::string(file),line,col};
-}
-
-Place Load::place()
-{
-  const Load *load=active();
-  return load?load->where:Place();
+  write_kept();
+  where=Place{std::string(file),line,col};
 }
 
 std::string Load::kept() const

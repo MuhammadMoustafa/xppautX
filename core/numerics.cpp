@@ -102,7 +102,7 @@ void chk_delay(xpp::Session &s)
   if(s.numerics->delay<=0.0)return;
   const auto allocated=alloc_delay(s,s.numerics->delay);
   if(allocated)s.numerics->inflag=false; /* No last ICs with a fresh history. */
-  else if(Load::running())model_failed(allocated.error());
+  else if(LoadSite::running())model_failed(allocated.error());
   else show_error(allocated.error());
 }
 

@@ -6,10 +6,12 @@
 #include <array>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace xpp {
 
-struct Session; /* session.h */
+struct Model; /* model.h */
+struct TABULAR; /* tabular.h */
 
 /* none first: a row that needs no feature */
 enum class Feature { none, parameters, delays, boundary_conditions, integral_terms, formula_tables };
@@ -28,9 +30,9 @@ inline constexpr std::array FEATURES = {
     FeatureInfo{Feature::formula_tables, "formula_tables", "needs a model with tables"}};
 
 const FeatureInfo &feature_info(Feature f);
-/* whether the session's model has the feature (Feature::none: always) */
-bool has_feature(const Session &s, Feature f);
+/* whether the model m, with the function tables a session made of it, has the feature (Feature::none: always) */
+bool has_feature(const Model &m, const std::vector<TABULAR> &tables, Feature f);
 /* hello's "model_features": every feature as {name, present, needs} */
-std::string model_features_json(const Session &s);
+std::string model_features_json(const Model &m, const std::vector<TABULAR> &tables);
 
 } // namespace xpp

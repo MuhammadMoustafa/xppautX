@@ -55,7 +55,7 @@ int add_derived(xpp::Session &s, std::string_view name, std::string_view rhs)
   d.rhs = rhs;
   /* this is the constant to which it addresses */
   d.index = s.parser.ncon;
-  d.where = xpp::Load::place();
+  d.where = xpp::LoadSite::place();
   /* add the name to the recognized symbols */
   xpp::log(XPP_LOG_INFO, " derived constant[{}] is {} = {}\n", s.parser.ncon, name, rhs);
   s.model().derived.push_back(std::move(d));
