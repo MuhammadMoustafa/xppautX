@@ -7,7 +7,7 @@
    state pushes the initial conditions it overwrites. A new edit forgets
    what could be redone. A Session's (session.h); a load starts a new one. */
 
-#include "model_switch.h"
+#include "model_request.h"
 #include "xpp_error.h"
 #include <cstddef>
 #include <deque>

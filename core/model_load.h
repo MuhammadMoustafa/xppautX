@@ -7,7 +7,7 @@
 #include <functional>
 #include <optional>
 #include <vector>
-namespace xpp { namespace prefs { struct Preferences; } struct SavedModel; struct PathApprovals; class FileSystem; }
+namespace xpp { namespace prefs { struct Preferences; } struct SavedModel; struct LoadServices; class FileSystem; }
 
 namespace xpp {
 
@@ -43,11 +43,11 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
    A load logs the warnings; --check reports them. */
 Result<std::vector<Error>> compile_loaded(Session &s);
 
-/* A load in a Model that is discarded. approvals, when given, are the
+/* A load in a Model that is discarded. services, when given, are the
    "Allow always" answers it works with (model_file_types.h). */
 Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::function<void(Session &)> &read,
                       const std::function<std::optional<Error>(Session &)> &check = {},
-                      const SavedModel *saved = nullptr, const PathApprovals *approvals = nullptr);
+                      const SavedModel *saved = nullptr, const LoadServices *services = nullptr);
 
 /* After a load with no interface (--silent, a unit test): s's browser,
    graphs and colors set up. What --silent then runs is its built-in

@@ -1,6 +1,5 @@
 #include "mykeydef.h"
 #include "xpp_util.h"
-#include "xpp_platform.h"
 /* Headless defaults for the UI seam, plus the dispatchers that keep the
    historical function names working. See xpp_ui.h. */
 #include "xpp_ui.h"
@@ -37,7 +36,7 @@ static std::optional<std::string> ask_terminal(const std::string &question, cons
 {
     print(stderr, "{} [{}] ({} s): ", question, suggestion, TERMINAL_QUESTION_SECONDS);
     fflush(stderr);
-    return platform::read_input_line(TERMINAL_QUESTION_SECONDS, TERMINAL_ANSWER_CAP);
+    return ui.terminal_line ? ui.terminal_line(TERMINAL_QUESTION_SECONDS, TERMINAL_ANSWER_CAP) : std::nullopt;
 }
 
 void report_automatic(std::string_view question, std::string_view answer)
@@ -216,6 +215,7 @@ XppUi ui = {
     .autox_live_drop = hl_autox_live_drop,
     .new_vcr = hl_s,
     .ani_show = hl_void,
+    .ani_on_the_fly = hl_s_int,
     .ani_slider = hl_s,
     .ani_go = hl_ani_go,
     .init_txtview = hl_void,

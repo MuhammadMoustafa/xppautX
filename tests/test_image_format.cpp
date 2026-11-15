@@ -1,12 +1,12 @@
-/* xpp::image_formats (image_format.h, W53, issue #101; PDF in place of PostScript at W479, #542): each format
+/* xpp::image_formats (picture.h, W53, issue #101; PDF in place of PostScript at W479, #542): each format
    listed once, with the extension the export menus and file dialogs use (PDF, SVG and the kinescope/array-plot
    GIF -- no PNG, decided on the card: the core has no rasteriser and SVG covers it). */
 #include "xpptest.h"
 #include "xpp_fs_local.h"
 #include "image_format.h"
+#include "picture.h"
 #include "my_pdf.h"
 #include "my_svg.h"
-#include "picture.h"
 #include "browse.h"
 #include "xpp_io.h"
 #include "colormap.h"

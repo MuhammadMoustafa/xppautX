@@ -19,6 +19,9 @@ struct ArrayPicture {
   double zmin, zmax, tlo, thi;
 };
 struct Session; /* session.h */
+/* Print arrayplot's picture, a PDF: the cells, the color scale and the labels, built as a Picture (picture.h) the way the plot windows'
+   pictures are and written through the export services; false when replacing an existing file was declined. */
+Result<bool> array_print(const Session &s, const ArrayPicture &picture);
 }
 
 /* The array plot of the session s: its range saving's movie closed,

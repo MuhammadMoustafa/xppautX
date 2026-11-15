@@ -1,93 +1,22 @@
 #pragma once
-/* The picture an export writes (W479, #542): what graphics.cpp's primitives record while the plot is
-   redrawn into a PDF or SVG file, and what the array plot builds the same way. Everything the two
-   formats share is decided here once: a color with its alpha, a line's dash
-   pattern, a marker's shape, a text's runs (the sub- and superscripts, the symbol font), the axis
-   label's place. The writers (my_pdf.cpp, my_svg.cpp) only emit syntax for the items. */
+/* The picture the plot windows record while they are redrawn into a PDF or SVG file, and what the array plot builds the same way
+   (W479, #542); the data is picture_state.h's. Everything the two formats share is decided here once. The writers (my_pdf.cpp,
+   my_svg.cpp) only emit syntax for the items. Below, the picture-export registry the plot asks (W53, #101: one row per
+   format instead of a per-format branch at each place a picture is written), declared here, owned by the plot, and defined by
+   image_format.cpp, the export that writes the formats out (W737). C++ only. */
 
 #include <array>
-#include <memory>
+#include <span>
 #include <string>
 #include <string_view>
-#include <variant>
 #include <vector>
 
-#include "colormap.h"
-#include "line_style.h"
-#include "xpp_fs.h"
+#include "picture_state.h"
+#include "xpp_error.h"
 
 namespace xpp {
 
 struct Session;     /* session.h */
-struct ImageFormat; /* image_format.h */
-
-/* the device of every picture: points, the origin at the top left, y growing down */
-inline constexpr int picture_width = 640, picture_height = 400;
-
-/* what a stroke is drawn with */
-struct Pen {
-    Color color = foreground_color;
-    LineStyle style;
-    bool hollow = false; /* a marker drawn as an outline (an unstable periodic orbit's circle) */
-    friend bool operator==(const Pen &, const Pen &) = default;
-};
-
-/* XPPAUT's five text sizes (a label's size 0 to 4) in points: the page draws them as 1/2, 3/4, 1, 5/4 and 3/2 of its font */
-inline constexpr std::array<double, 5> label_sizes{6, 9, 12, 15, 18};
-
-/* a piece of text in one font and size, its baseline moved by rise points (up positive) */
-struct TextRun {
-    std::string text; /* as written; a symbol run's letters are the symbol font's (Adobe Symbol: "a" is alpha) */
-    double size = 12;
-    double rise = 0;
-    bool symbol = false;
-};
-enum class TextAnchor { start, middle, end };
-
-/* connected segments in one pen: a line is a path of two points, a curve of a run is one path */
-struct PicturePath {
-    std::vector<std::array<double, 2>> points;
-    Pen pen;
-};
-struct PictureMarker {
-    double x, y;
-    Pen pen;
-};
-struct PictureRect {
-    double x, y, w, h; /* the top left corner and the size */
-    Color color;       /* filled; its alpha is drawn */
-};
-struct PictureText {
-    double x, y;   /* the baseline's start, middle or end by anchor */
-    TextAnchor anchor;
-    double angle;  /* degrees, counterclockwise */
-    Color color;
-    std::vector<TextRun> runs;
-};
-struct PictureGroup {
-    bool begin; /* a group of the items between its begin and its end (the curve or the direction field's arrows) */
-};
-using PictureItem = std::variant<PicturePath, PictureMarker, PictureRect, PictureText, PictureGroup>;
-
-/* the axes' text size of a picture, the size the page's panel draws it at: web2's --plot-font
-   (src/css/tokens.css), 12px Inter, one unit of the picture to a px */
-inline constexpr double picture_font_size = 12;
-
-struct Picture {
-    double font_size = picture_font_size; /* the axes' text; array_print.cpp sets its own */
-    std::vector<PictureItem> items;
-};
-
-/* a picture's file state, a Session's (session.h): the vector format being written (nullptr: none, the
-   plot only goes to the page), its picture so far, the file and the pen the next stroke uses */
-struct PlotFileState {
-    const ImageFormat *format = nullptr;
-    Picture picture;
-    std::unique_ptr<Sink> writer;
-    Pen pen;
-    Color text_color = foreground_color;
-};
-
 
 /* the color the picture draws c in: the foreground is black */
 Color ink(const Color &c);
@@ -140,4 +69,5 @@ void set_border_pen(Session &s);
 void set_zero_axes_pen(Session &s);
 /* the color of the text recorded next (a label's color; the foreground for the axes) */
 void set_text_color(Session &s, const Color &color);
+
 } // namespace xpp

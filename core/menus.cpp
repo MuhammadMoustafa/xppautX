@@ -28,7 +28,7 @@ consteval int menu_count(size_t items, size_t keys)
 /* (F)reeze and (C)olormap open the next two menus instead of a command */
 /* (E)dit opens menu_text_edit */
 /* Save data (browse_data.cpp data_write): what it writes; the format
-   comes next, from the data formats' registry (data_formats.h) */
+   comes next, from the data formats' registry (data_table.h) */
 static const char *const save_what_items[]={"The data table","What the plot shows"};
 const XppMenu menu_save_what = XPP_MENU("save_what", "Save data", save_what_items, "tp");
 

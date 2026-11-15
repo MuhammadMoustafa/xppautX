@@ -304,6 +304,8 @@ std::span<const Command> data_commands();
 std::span<const Command> set_commands();
 std::span<const Command> value_commands();
 std::span<const Command> session_commands();
+/* the model resource (xpp_model_commands.cpp: the program's application, which carries a load out) */
+std::span<const Command> model_commands();
 std::span<const Command> recording_commands();
 std::span<const Command> keymap_commands();
 std::span<const Command> options_commands();

@@ -21,14 +21,14 @@
 
 
 #include "graphics.h"
-#include "data_formats.h"
+#include "data_table.h"
 #include <algorithm>
 #include <stdlib.h> 
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
 #include "browse.h"
-#include "image_format.h"
+#include "picture.h"
 #include "plot_settings.h"
 #include "session.h"
 #include "nullcline.h"
@@ -39,7 +39,6 @@
 #include "phase_data.h"
 #include "xpp_globals.h"
 #include "display_state.h"
-#include "picture.h"
 #include "autox_codes.h"
 #include <libgen.h>
 #include <expected>
@@ -543,11 +542,12 @@ void delete_all_curves(xpp::Session &s)
 }
 
 /* the main plot window's picture export (W53, issue #101; PDF and SVG, W479): one entry point through
-   image_format.h's registry: the plot drawn into the picture begun, written and renamed into place */
+   picture.h's registry: the plot drawn into the picture begun, written and renamed into place */
 Result<bool> write_plot_picture(xpp::Session &s, int fmt, std::string_view filename)
 {
- const xpp::ImageFormat &f=xpp::image_formats[fmt];
- if(const Result<> begun=xpp::begin_picture(s,f,filename);!begun)return std::unexpected<Error>(begun.error());
+ const xpp::ExportServices &exports=s.model().services.exports;
+ const xpp::ImageFormat &f=exports.image_formats[static_cast<std::size_t>(fmt)];
+ if(const Result<> begun=exports.begin_picture(s,f,filename);!begun)return std::unexpected<Error>(begun.error());
  if(!s.plot_file->writer)return false;
  if(const Result<> done=vector_restore(s);!done)return std::unexpected<Error>(done.error());
  redraw_the_graph(s); /* the window draws again where the picture was */
@@ -632,7 +632,7 @@ xpp::Result<> vector_restore(xpp::Session &s)
   do_axes(s);
   draw_label(s,s.plot_windows->draw_win);
   draw_freeze(s,s.plot_windows->draw_win);
-  return xpp::end_picture(s);
+  return s.model().services.exports.end_picture(s);
 }
 
 /* the data columns of variables `variables` (1 is the first variable) plotted: curves against time, a phase
@@ -908,7 +908,7 @@ int read_bd(xpp::Session &s, const xpp::DataTable &table)
 
 Result<int> import_bifurcation(xpp::Session &s, std::string_view filename)
 {
-  xpp::Result<xpp::DataTable> read=xpp::read_data_table(*s.model().fs,filename);
+  xpp::Result<xpp::DataTable> read=xpp::read_data_table(s.model().services.exports.data_formats,*s.model().fs,filename);
   if (!read) return std::unexpected<Error>(read.error());
   const xpp::DataTable &table=*read;
   // autoX's Write pts has six columns: x, low, high, type, branch, two-parameter flag.

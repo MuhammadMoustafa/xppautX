@@ -8,6 +8,7 @@
 #include <utility>
 #include <expected>
 
+#include "command_registry.h"
 #include "model_options.h" /* choice_index */
 #include "odex.h"
 #include "odex_write.h"
@@ -252,16 +253,17 @@ Result<> save_prefs(FileSystem &fs, const Preferences &p)
     return fs.write_config(WHERE, FILE_NAME, *text);
 }
 
-PathApprovals path_approvals(FileSystem &fs, const Result<Preferences> *read)
+LoadServices load_services(FileSystem &fs, const Result<Preferences> *read)
 {
     const Result<Preferences> p = read ? *read : load_prefs(fs);
-    PathApprovals approvals;
-    if (p) approvals.kept = p->outside_paths;
-    else approvals.unreadable = p.error();
-    approvals.keep = [&fs](const OutsideApproval &a) {
+    LoadServices services;
+    if (p) services.kept = p->outside_paths;
+    else services.unreadable = p.error();
+    services.keep = [&fs](const OutsideApproval &a) {
         return update_prefs(fs, [&](Preferences &q) { remember_newest(q.outside_paths, a, MAX_OUTSIDE_APPROVALS); });
     };
-    return approvals;
+    services.command_exists = command::command_known;
+    return services;
 }
 
 Result<bool> update_check_due(FileSystem &fs)

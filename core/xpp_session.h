@@ -9,6 +9,7 @@
 #include "xpp_error.h"
 #include "model_files.h"
 #include "snapx.h"
+#include "model_request.h"
 #include "xpp_zip.h"
 
 namespace xpp {
@@ -64,23 +65,6 @@ void xpp_session_mark_clean(xpp::Session &s);
    nothing, with an error message, when it cannot be made (a model not
    read from files) */
 std::optional<std::string> xpp_session_snapshot(xpp::Session &s);
-
-/* the session file last saved or opened; a Session's (session.h) */
-struct SavedSession {
-    std::string file;           /* the .snapx */
-    std::uint64_t clean = 0;    /* the values' fingerprint when it was saved, opened or loaded */
-};
-
-/* A session archive carries its saved model and all session members.
-   The reader checks the whole file before the model is kept. */
-struct SavedFile {
-    std::string path;              /* absolute */
-    std::string name;              /* what a message calls it: its file name, or a recording's snapshot */
-    bool snapshot = false;         /* a recording's snapshot (recx.h): restored as a session, but no session file */
-    xpp::snapx::Manifest manifest;
-    std::map<std::string, std::string> members; /* every member, by its name */
-    xpp::SavedModel model;         /* the model's files, saved in path */
-};
 
 /* path ends in .snapx (case ignored). */
 bool xpp_saved_file_name(std::string_view path);

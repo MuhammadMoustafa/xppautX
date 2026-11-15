@@ -3,6 +3,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 #include "xpp_error.h"
 #include "model_files.h"
@@ -20,6 +21,7 @@ struct AboutLine {
 
 namespace xpp {
 struct Session; /* session.h */
+struct ModelRequest; /* model_request.h */
 class FileSystem; /* xpp_fs.h */
 
 /* line-delimited JSON front end (ui_json.cpp, docs/protocol.md) */
@@ -33,6 +35,21 @@ struct HelloInfo {
     std::string version;                 /* the release tag, or "dev" (xpp_version_string) */
     std::string update_install, update_asset_suffix, update_why; /* how a newer release is installed over this program, and which release file fits (xpp_install.h) */
     std::function<std::string()> start;  /* a session with no model: hello's `start` object, the recent models and the examples (xpp_recent.h, xpp_examples.h) */
+    /* the page the program serves (browser mode, the window), which the platform implements and the program's start wires in (xpp_http.h,
+       xpp_window.h): whether one is up (the events then go to it, not to stdout), the one line it is sent, and the model's title for the window */
+    /* what the program does that the front end asks for, from the model switch (model_switch.h, the application): File > Quit's
+       question and exit (`saving`: the page asked it already and the answer was Save), the question before a model replaces this
+       one (named by its file), and the load a command's request asks for */
+    std::function<void(Session &s, bool saving)> quit;
+    std::function<bool(Session &s, const std::string &file)> model_may_leave;
+    std::function<Result<Session *>(const Session &now, const ModelRequest &req)> load_requested;
+    /* what the front end asks of the system's standard streams (xpp_platform.h): up to n bytes of stdin, blocking (<= 0 at the end or on an
+       error), and no line-end translation on a descriptor (Windows) */
+    std::function<long(char *buf, std::size_t n)> read_input;
+    std::function<void(int fd)> set_binary_mode;
+    std::function<bool()> page_active = [] { return false; };
+    std::function<void(std::string_view line)> page_emit;
+    std::function<void(const char *title)> page_title;
 };
 void json_ui_install(HelloInfo hello, bool silent = false); /* protocol, or no interface */
 void json_ui_loop(void);           /* read and run commands until EOF */

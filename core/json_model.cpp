@@ -5,13 +5,12 @@
    a reconnection, after the windows of the model before went. */
 #include "ui_json.h"
 #include "ui_json_internal.h"
-#include "model_switch.h"
+#include "model_request.h"
 #include "many_pops.h"
 #include "xpp_files.h"
 #include "xpp_globals.h"
 #include "xpp_session.h"
 #include "autox_nox.h"
-#include "xpp_window.h"
 #include "colormap.h"
 #include "browse.h"
 #include "aniparse.h"
@@ -56,7 +55,7 @@ void init_main_graph(xpp::Session &s)
    animation */
 void start_model(xpp::Session &s, const xpp::KeptValues *kept)
 {
-    xpp::window::set_model(xpp::model_title(s.model()).c_str());
+    if (session.hello.page_title) session.hello.page_title(xpp::model_title(s.model()).c_str());
     program.interactive = 1;
     color_table.enabled = 1;                    /* init_X on a color display */
     init_main_graph(s);
@@ -95,7 +94,7 @@ xpp::Result<xpp::Session *> switch_model(xpp::Session &before, const xpp::ModelR
     const auto shown = shown_windows(before);
     xpp::KeptValues kept;
     if (req.keep_values) kept = xpp::keep_values(before);
-    xpp::Result<xpp::Session *> loaded = xpp::load_requested(before, req);
+    xpp::Result<xpp::Session *> loaded = session.hello.load_requested(before, req);
     if (!loaded) return loaded; /* the model before goes on */
     /* before is gone: the new model's session from here on */
     xpp::Session &s = **loaded;

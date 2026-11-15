@@ -13,7 +13,7 @@
 #include "xpp_ui.h"
 #include "event_registry.h"
 #include "command_category.h"
-#include "data_formats.h"
+#include "data_table.h"
 #include "xpp_error.h"
 #include <array>
 #include <limits>

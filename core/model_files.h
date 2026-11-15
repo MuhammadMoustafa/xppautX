@@ -49,7 +49,7 @@ inline constexpr char OUTSIDE_PATH_ALWAYS = 'a', OUTSIDE_PATH_ONCE = 'o';
    folder, or outside it when the user allowed it: this asks (Choose: the
    dialog, --server's ask event, the terminal with no interface, where
    -y / --yes allows it once, printed), unless the pair of the model file and
-   the path was kept before ("Allow always", Model::approvals.kept) or allowed in this
+   the path was kept before ("Allow always", Model::services.kept) or allowed in this
    load (Model::outside_paths). A link on the way, or a name that is not a
    plain one, is refused with no question. Call it, with the place that names
    the path (an empty Place: the command line), before reading name with the

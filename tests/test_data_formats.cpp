@@ -1,4 +1,4 @@
-/* The data formats (data_formats.h, W52) and the compression under them
+/* The data formats (data_table.h, W52) and the compression under them
    (xpp_zip.h): each registered format writes a table and reads it back;
    .dat byte for byte as XPP always wrote it, CSV's header and values,
    CSV.gz decompressed equal to the CSV, and NPZ's zip and .npy headers

@@ -28,6 +28,10 @@ std::string gzip(std::string_view bytes);
 inline constexpr std::size_t archive_bytes_limit = 512 * 1024 * 1024;
 inline constexpr std::size_t archive_entries_limit = 4096;
 
+/* Account for expanded objects, not their compressed text, against archive_bytes_limit. No multiplication
+   overflows and a refused claim leaves the running byte estimate unchanged. */
+bool account_memory(std::size_t &used, std::size_t count, std::size_t bytes_each);
+
 /* the bytes of a gzip file (every member, one after the other), or
    nothing when it is not one or is damaged (a CRC or length that does
    not match) or expands past limit (then *over_limit, when given, is true) */

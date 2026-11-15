@@ -8,6 +8,7 @@
    file system's (xpp_fs.h for the inner rings, xpp_files.h at the edge). Namespace xpp::files, as the
    names always were. */
 
+#include <array>
 #include <cstddef>
 #include <string>
 #include <string_view>
@@ -58,3 +59,15 @@ std::string append_path(std::string_view dir, std::string_view path);
 Error open_error(std::string where, std::string_view file, std::string_view why = {});
 
 } // namespace xpp::files
+
+namespace xpp {
+/* the vector picture formats' names: the extensions output.picture_file takes (the registry that writes them is picture.h's) */
+inline constexpr std::array<std::string_view, 2> picture_format_names{"pdf", "svg"};
+/* path ends in the extension of a vector picture format */
+inline bool has_picture_extension(std::string_view path)
+{
+    for (const std::string_view name : picture_format_names)
+        if (files::has_extension(path, std::string(".") + std::string(name))) return true;
+    return false;
+}
+} // namespace xpp

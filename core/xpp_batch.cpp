@@ -15,6 +15,9 @@
 #include "jacobian.h"
 #include "xpp_batch.h"
 #include "model_failed.h"
+#include "command_registry.h"
+#include "data_formats.h"
+#include "image_format.h"
 #include "model_load.h"
 #include "xpp_globals.h"
 #include "comline.h"
@@ -236,12 +239,15 @@ Loaded load_in(FileSystem &fs, const CommandLine &cl, int batch, const SavedMode
                const std::function<std::optional<Error>(Session &)> &check,
                const std::function<void(Session &)> &read, bool commit,
                const std::vector<std::string> &outside_paths = {}, const Result<prefs::Preferences> *read_prefs = nullptr,
-               std::optional<AutoxScript> script = {}, const PathApprovals *approvals = nullptr)
+               std::optional<AutoxScript> script = {}, const LoadServices *services = nullptr)
 {
     return in_model(fs, [&](Session &s) {
         Model &m = s.model();
         m.outside_paths = outside_paths;
-        if (approvals) m.approvals = *approvals;
+        if (services) m.services = *services;
+        if (!m.services.command_exists) m.services.command_exists = command::command_known;
+        if (!m.services.exports.begin_picture)
+            m.services.exports = {data_formats(), std::span<const ImageFormat>(image_formats, n_image_formats), begin_picture, end_picture, write_picture};
         if (saved) {
             m.saved_in = saved->in;
             m.record->files = saved->files;
@@ -271,7 +277,7 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
     std::vector<odex::Diagnostic> diagnostics;
     std::vector<std::string> outside_paths;
     /* the "Allow always" answers the load works with (xpp_prefs.h) */
-    const PathApprovals approvals = prefs::path_approvals(fs, read_prefs);
+    const LoadServices services = prefs::load_services(fs, read_prefs);
     Loaded prepared = in_model(fs, [&](Session &s) {
         apply_command_line(s, cl);
         if (batch) batch_options.enabled = 1;
@@ -288,7 +294,7 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
     Loaded loaded = prepared;
     if (prepared) {
         if (xpp::files::has_extension(file, ".ode")) {
-            Result<bool> opened = odex::open_ode(fs, file, diagnostics, outside_paths, approvals);
+            Result<bool> opened = odex::open_ode(fs, file, diagnostics, outside_paths, services);
             if (!opened) loaded = std::unexpected(opened.error());
             else {
                 converted = odex::odex_name(file);
@@ -298,7 +304,7 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
                 cl.model_file = converted;
             }
         }
-        if (loaded) loaded = load_in(fs, cl, batch, saved, check, load_eqn, true, outside_paths, read_prefs, std::move(script), &approvals);
+        if (loaded) loaded = load_in(fs, cl, batch, saved, check, load_eqn, true, outside_paths, read_prefs, std::move(script), &services);
     }
     /* the one place a model that does not load is written to the log */
     if (!loaded) {
@@ -315,10 +321,10 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
 
 Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::function<void(Session &)> &read,
                        const std::function<std::optional<Error>(Session &)> &check,
-                       const SavedModel *saved, const PathApprovals *approvals)
+                       const SavedModel *saved, const LoadServices *services)
 {
     const auto resolved = animation_command_line(fs, cl);
-    Loaded inspected = resolved ? load_in(fs, *resolved, 1, saved, check, read, false, {}, nullptr, {}, approvals) : Loaded{std::unexpected(resolved.error())};
+    Loaded inspected = resolved ? load_in(fs, *resolved, 1, saved, check, read, false, {}, nullptr, {}, services) : Loaded{std::unexpected(resolved.error())};
     if (!inspected) return std::unexpected(inspected.error());
     return {};
 }

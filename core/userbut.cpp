@@ -5,10 +5,9 @@
 #include <cstddef>
 #include <utility>
 
-#include "command_def.h"
 #include "odex_block.h"
+#include "model_file_types.h"
 #include "odex.h"
-#include "session.h"
 #include "xpp_text.h"
 
 namespace xpp {
@@ -33,7 +32,7 @@ constexpr KeyCommand key_commands[] = {
 
 } // namespace
 
-std::vector<UserButton> read_buttons(odex::Block &file)
+std::vector<UserButton> read_buttons(odex::Block &file, const LoadServices &services)
 {
   std::vector<odex::Block> items;
   file.groups("buttons", items, odex::max_file_tokens);
@@ -45,7 +44,7 @@ std::vector<UserButton> read_buttons(odex::Block &file)
     g.text("label", button.label);
     if (button.label.empty()) g.fail(*g.member("label"), "a button's label is not empty");
     g.word("command", button.command);
-    if (!command::find(button.command)) g.fail(*g.member("command"), xpp::format("`{}` is no command of xppautX", button.command));
+    if (services.command_exists && !services.command_exists(button.command)) g.fail(*g.member("command"), xpp::format("`{}` is no command of xppautX", button.command));
     if (std::ranges::any_of(buttons, [&](const UserButton &b) { return b.label == button.label; }))
       g.fail(*g.member("label"), xpp::format("two buttons are labelled \"{}\"", button.label));
     g.done();
@@ -65,19 +64,6 @@ std::string_view xppaut_button_command(std::string_view keys)
 {
   const auto at = std::ranges::find(key_commands, keys, &KeyCommand::keys);
   return at == std::end(key_commands) ? std::string_view() : at->command;
-}
-
-const char *add_xppaut_button(Session &s, std::string_view spec, bool apply)
-{
-  const std::size_t colon = spec.find(':');
-  if (colon == std::string_view::npos || colon == 0 || colon + 1 == spec.size()) return "must be a name and a command sequence, name:keys";
-  const std::string_view command = xppaut_button_command(spec.substr(colon + 1));
-  /* a load's .ode keeps its unmapped BUT lines out of the buttons: the conversion warns of each at its line (odex_convert.cpp
-     buttons_list); a value set any other way is refused, the caller naming it (option_error_text) */
-  if (command.empty()) return Load::running() ? nullptr : "no command of xppautX does what these keys do";
-  if (std::ranges::any_of(s.user_buttons, [&](const UserButton &b) { return b.command == command; })) return nullptr;
-  if (apply) s.user_buttons.push_back({std::string(spec.substr(0, colon)), std::string(command)});
-  return nullptr;
 }
 
 } // namespace xpp

@@ -29,7 +29,7 @@ export interface AutoxRunTable {
   rows: {point: string; family: string; kinds: string[]; switch: string[]}[];
 }
 
-/** one leave question's wording: the plain one and the one naming the recording in progress (core/model_switch.h leave_question) */
+/** one leave question's wording: the plain one and the one naming the recording in progress (core/xpp_leave.h leave_question) */
 export interface LeaveQuestion {
   question: string;
   recording: string;

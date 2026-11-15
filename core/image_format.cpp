@@ -7,10 +7,10 @@
 #include <string>
 #include <vector>
 #include "image_format.h"
+#include "picture.h"
 #include "graphics.h"
 #include "my_pdf.h"
 #include "my_svg.h"
-#include "picture.h"
 #include "scrngif.h"
 #include "xpp_path.h"
 #include "xpp_globals.h"
@@ -83,6 +83,17 @@ Result<> end_picture(Session &s)
   return result;
 }
 
+Result<bool> write_picture(FileSystem &fs, const Picture &picture, const ImageFormat &format, const char *filename)
+{
+  Result<> opened;
+  const std::unique_ptr<Sink> out = open_sink_asking(fs, filename, format.binary, &opened);
+  if (!opened) return std::unexpected(opened.error());
+  if (!out) return false;
+  if (const Result<> written = format.write(picture, *out); !written) return std::unexpected(written.error());
+  if (const Result<> committed = commit_save(*out); !committed) return std::unexpected(committed.error());
+  return true;
+}
+
 Result<bool> save_pixels(FileSystem &fs, const ImageFormat &format, const char *filename, std::span<const unsigned char> rgb, int width, int height)
 {
   Result<> opened;
@@ -92,13 +103,6 @@ Result<bool> save_pixels(FileSystem &fs, const ImageFormat &format, const char *
   if (const Result<> written = format.pixels(*w, rgb, width, height, IMAGE_STILL_FRAME); !written) return std::unexpected(written.error());
   if (Result<> saved = commit_save(*w); !saved) return std::unexpected(saved.error());
   return true;
-}
-
-const ImageFormat *picture_format_of_file(std::string_view path)
-{
-  for (const ImageFormat &f : image_formats)
-    if (f.write && files::has_extension(path, xpp::format(".{}", f.extension))) return &f;
-  return nullptr;
 }
 
 } // namespace xpp

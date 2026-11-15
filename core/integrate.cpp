@@ -43,7 +43,7 @@
 #include "volterra2.h"
 #include <stdlib.h> 
 #include <cmath>
-#include "aniparse.h"
+#include "ani_state.h"
 #include "delay_handle.h"
 
 /*    this is the main integrator routine  
@@ -1730,7 +1730,7 @@ if(program.interactive&&front_end) cwidth=get_command_width();
  if(s.integrator->steady)s.integrator->steady->begin(std::span(x,static_cast<std::size_t>(s.model().node+s.model().nmarkov)),*t);
  xv[0]=*t;
  for(ieqn=1;ieqn<=s.model().neq;ieqn++)xv[ieqn]=x[ieqn-1];
- if(s.animation->options.on_the_fly)on_the_fly(s,1); 
+ if(s.animation->options.on_the_fly)ui.ani_on_the_fly(s,1); 
    
  if(s.numerics->poincare_map!=PoincareMap::none)
  {
@@ -1979,7 +1979,7 @@ dense_poi:
 	   if((s.numerics->storflag)&&(count!=0)&&(s.data_store->rows<s.data_store->max_rows)&&stored_from(s.numerics->store_from,*t,dt)
 	      &&(!s.integrator->steady||++steady_seen%steady_stride==0))
 	   {
-           if(s.animation->options.on_the_fly)on_the_fly(s,0);
+           if(s.animation->options.on_the_fly)ui.ani_on_the_fly(s,0);
            for(ieqn=0;ieqn<=s.model().neq;ieqn++)
 		 s.data_store->col[ieqn][s.data_store->rows]=xv[ieqn];
 	    s.data_store->rows++;

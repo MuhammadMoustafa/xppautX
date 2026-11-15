@@ -1,5 +1,5 @@
 #include "picture.h"
-#include "data_formats.h"
+#include "data_table.h"
 #include "mykeydef.h"
 /* Nullclines and direction fields (Nullcline, Dir.field/flow): the current
    pair of nullclines, the frozen ones, and the direction field's grid, drawn
@@ -442,8 +442,9 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
 Result<int> export_nullclines(Session &s, const std::string &file, std::string_view format, bool confirm)
 {
   if(!s.numerics->null_here)return fail("nullcline.export","No nullclines have been computed",command_place());
-  const DataFormat *selected=format.empty()?data_format_of_file(file):data_format_named(format);
-  if(!selected)selected=data_format_named(DATA_FORMAT_DAT);
+  const std::span<const DataFormat> formats=s.model().services.exports.data_formats;
+  const DataFormat *selected=format.empty()?data_format_of_file(formats,file):data_format_named(formats,format);
+  if(!selected)selected=data_format_named(formats,DATA_FORMAT_DAT);
   Result<> opened;
   const std::unique_ptr<Sink> writer=confirm?open_sink_replacing(*s.model().fs,file,selected->binary,&opened):open_sink_asking(*s.model().fs,file,selected->binary,&opened);
   if(!opened)return std::unexpected(opened.error());

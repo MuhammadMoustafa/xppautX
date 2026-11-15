@@ -34,8 +34,8 @@ TESTS = 'tests'
 # module name -> (why these files belong together, stem patterns). A stem is a
 # file name without its extension; a module naming a stem exactly wins, else the first whose pattern matches.
 MODULES = {
-    'kernel': ('the innermost ring (Discussion #808): errors (the failure of a load among them, model_failed) and their log, memory, text formatting and the pure helpers on text (the JSON number writer and reader among them: text in, text out), a file of ours read as lines and numbers from the text it is given (xpp_lines: Lines and TokenReader, W731, W739), the text of a file name (xpp_path) and the FileSystem and Sink the inner rings read and write through (xpp_fs: an interface the kernel owns, the files module implements, W731), bytes in and bytes out (zip and gzip archives, SHA-256: W731 moved them here, they open no file), and math, and the ChangedEvent template (data_event: a sink and a text, pure); it includes nothing outside itself (W726)', [
-        'xpp_error', 'model_failed', 'xpp_log', 'xpp_mem', 'xpp_text', 'xpp_lines', 'xpp_path', 'xpp_fs', 'xpp_zip', 'xpp_sha256', 'xpp_util', 'xpp_math', 'xpp_cpu', 'json_number', 'json_reader', 'data_event']),
+    'kernel': ('the innermost ring (Discussion #808): errors (the failure of a load among them, model_failed) and their log, memory, text formatting and the pure helpers on text (the JSON number writer and reader among them: text in, text out), a file of ours read as lines and numbers from the text it is given (xpp_lines: Lines and TokenReader, W731, W739), the text of a file name (xpp_path) and the FileSystem and Sink the inner rings read and write through (xpp_fs: an interface the kernel owns, the files module implements, W731), bytes in and bytes out (zip and gzip archives, SHA-256: W731 moved them here, they open no file), the plain table of numbers the data formats read and write (data_table, W737: with the declarations of the formats that write it, defined by data_formats.cpp, the export), the UTF-8 <-> UTF-16 conversion the *_win.cpp files share (xpp_win, W737: text, declaring no Windows type; only xpp_win.cpp includes windows.h), the one format number every file of ours and the protocol carry (format_version, W737: constants and a message, text only), and math, and the ChangedEvent template (data_event: a sink and a text, pure); it includes nothing outside itself (W726)', [
+        'xpp_error', 'model_failed', 'xpp_log', 'xpp_mem', 'xpp_text', 'xpp_lines', 'xpp_path', 'xpp_fs', 'xpp_zip', 'xpp_sha256', 'xpp_win', 'format_version', 'data_table', 'xpp_util', 'xpp_math', 'xpp_cpu', 'json_number', 'json_reader', 'data_event']),
     'files': ('the file system, outside the kernel: the file handles (LineReader, Writer), folders, the log file, and the files command\'s result as the protocol shows it (json_files)', [
         'xpp_io', 'xpp_io_internal', 'xpp_files', 'xpp_files_dir', 'xpp_files_internal', 'xpp_files_win', 'xpp_files_posix',
         'xpp_files_linux', 'xpp_files_mac', 'xpp_fs_local', 'json_files']),
@@ -44,21 +44,21 @@ MODULES = {
         'model_numerics', 'autox_codes']),
     'styles': ('the colors, color scales, line styles and text styles a model, a run and a plot carry: pure types and their words, which include only the kernel (W733)', [
         'colormap', 'line_style', 'text_style']),
-    'plot state': ('the data of the plot windows a Session holds, a model\'s options give and a run reads: pure structs and the window handle type, with no drawing (W733)', [
-        'plot_state', 'struct', 'xpp_types']),
-    'ui seam': ('the XppUi table core code calls the front end through, the reading of the fields a form carries (typed_fields), the lists of choices it shows, and the events the core sends (their names, fields and the error event: the vocabulary the front end implements), and what this run of the program is (xpp_globals: whether a front end is up, the batch options), which the program\'s start sets', [
-        'xpp_ui', 'menus', 'typed_fields', 'event_*', 'json_error', 'xpp_globals']),
+    'plot state': ('the export services a load is given (export_services, W737), the data of the plot windows a Session holds, a model\'s options give and a run reads: pure structs and the window handle type, with no drawing (W733), the data of the picture being recorded and the kinescope\'s counters (picture_state, W737)', [
+        'plot_state', 'picture_state', 'export_services', 'struct', 'xpp_types']),
+    'ui seam': ('the XppUi table core code calls the front end through, the reading of the fields a form carries (typed_fields), the lists of choices it shows, and the events the core sends (their names, fields and the error event: the vocabulary the front end implements), the key codes Grab returns and a computation\'s abort check yields (mykeydef, W737: the seam\'s own vocabulary, a header xpp_ui.h names), and what this run of the program is (xpp_globals: whether a front end is up, the batch options), which the program\'s start sets', [
+        'xpp_ui', 'mykeydef', 'menus', 'typed_fields', 'event_*', 'json_error', 'xpp_globals']),
     'expressions': ('the formula compiler, its evaluators, native code and derived quantities (the builders of a Model, form_ode and tabular, are model and loading\'s: W736)', [
         'expr', 'expr_*', 'xpp_mir', 'getvar', 'derived']),
-    'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets, among them the plot settings the model carries (W733), and the command line a load takes (comline: the switches read once, a Model keeps them), the builders of a Model from what it reads (form_ode: the .ode lines, tabular: the lookup tables, model_markov and model_flags: the Markov variables and flags a load declares, W736) and the reading of a value a user typed as a formula (typed_values)', [
-        'model', 'model_*', 'load_eqn', 'odex', 'odex_*', 'ode_read', 'lunch-new', 'set_load', 'newpars',
-        'simplenet', 'options_panels', 'plot_settings', 'comline', 'form_ode', 'tabular', 'typed_values']),
-    'session': ('the Session, its stored data, display state and undo', [
-        'session', 'session_values', 'storage', 'display_state', 'value_undo']),
-    'session files': ('the session file, recordings and the settings they carry', [
-        'recx', 'snapx', 'xpp_session', 'xpp_session_*', 'session_settings', 'format_version']),
+    'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets, among them the plot settings the model carries (W733), the buttons of a model (userbut: read and written as its options, the name of a command checked through command_known, which the commands define), the state data of the animation (ani_state, W737: the options, window, commands and grabs a Session holds of the animation, split from aniparse), and the command line a load takes (comline: the switches read once, a Model keeps them), the builders of a Model from what it reads (form_ode: the .ode lines, tabular: the lookup tables, model_markov and model_flags: the Markov variables and flags a load declares, W736) and the reading of a value a user typed as a formula (typed_values)', [
+        'model', 'model_*', 'load_eqn', 'odex', 'odex_*', 'ode_read', 'newpars',
+        'simplenet', 'options_panels', 'ani_state', 'userbut', 'plot_settings', 'comline', 'form_ode', 'tabular', 'typed_values']),
+    'session': ('the Session, its stored data, display state and undo, and what a command asked to load and what a Reload carries over (model_request, W737: data the Session holds and the model switch carries out)', [
+        'session', 'session_values', 'model_request', 'storage', 'display_state', 'value_undo']),
+    'session files': ('the session file, recordings and the settings they carry, and the XPPAUT .set file read into the same settings and applied to the Session (lunch-new, set_load: W737 moved them here, they take a Session and are called by the commands and the start)', [
+        'recx', 'snapx', 'xpp_session', 'xpp_session_*', 'session_settings', 'lunch-new', 'set_load']),
     'commands': ('the command registry, its commands, keys and a model\'s buttons', [
-        'command_*', 'commands_*', 'command', 'userbut', 'xpp_keymap', 'mykeydef']),
+        'command_*', 'commands_*', 'command', 'xpp_keymap']),
     'integrators': ('the solvers, CVODE, the right-hand side, delays and the Markov variables', [
         'integrate', 'odesol2', 'stiff', 'gear', 'cv2', 'cvode', 'cvband', 'cvdense', 'llnl*', 'solver',
         'dormpri', 'flags', 'jacobian', 'volterra', 'volterra2', 'delay_handle', 'my_rhs', 'dae_fun', 'numerics',
@@ -66,22 +66,22 @@ MODULES = {
     'analysis': ('what is computed from a run: sweeps, fits, equilibria, shooting, spectra, the data table', [
         'histogram', 'adj2', 'browse', 'browse_data', 'data_event', 'do_fit', 'equilibria', 'pp_shoot',
         'sweep_runs', 'del_stab']),
-    'plot': ('the plot windows and what they show: curves, nullclines, marks, axes, and the encoding of a series for the page', [
+    'plot': ('the plot windows and what they show: curves, nullclines, marks, axes, and the encoding of a series for the page, the recorder of the picture an export writes and the array plot picture it builds (picture, array_print, W737)', [
         'plot_data', 'graf_par', 'many_pops', 'graphics', 'nullcline', 'phase_data', 'marks_data', 'grobs',
-        'axes2', 'arrayplot', 'torus', 'series_enc']),
+        'axes2', 'arrayplot', 'torus', 'series_enc', 'picture', 'array_print']),
     'export': ('pictures (the diagram\'s among them, W742), movies and data files written out', [
-        'picture', 'my_pdf', 'my_svg', 'scrngif', 'image_format', 'csv_export', 'data_formats', 'array_print',
+        'my_pdf', 'my_svg', 'scrngif', 'image_format', 'csv_export', 'data_formats',
         'kinescope', 'diagram_export']),
     'animation': ('the animator and its .ani files', ['ani*', 'ani_data', 'aniparse']),
     'autoX': ('xppautX\'s continuation: its numerics, runs, diagram and settings', [
         'autox_*', 'xAutox', 'setubv*', 'gogoautox', 'diagram*', 'conpar2', 'xpp_math_eispack', 'xpp_math_autox', 'f2c_helpers']),
-    'protocol front end': ('the JSON protocol: input, commands, events, windows and state', [
-        'json_*', 'ui_json*']),
+    'protocol front end': ('the JSON protocol: input, commands, events, windows and state, and the leave question and its answers hello carries (xpp_leave, W737: the application asks them too)', [
+        'json_*', 'ui_json*', 'xpp_leave']),
     'application': ('the program\'s start, its preferences, recent models, updates and About', [
         'xppautx_main', 'xpp_batch', 'model_switch', 'open_model', 'xpp_about', 'xpp_prefs',
-        'xpp_recent', 'xpp_examples', 'xpp_update', 'xpp_install', 'xpp_prefs_commands', 'xpp_update_commands']),
+        'xpp_recent', 'xpp_examples', 'xpp_update', 'xpp_install', 'xpp_prefs_commands', 'xpp_update_commands', 'xpp_model_commands']),
     'platform': ('the system: HTTP, the window, WebView, Windows, starting a process, the page assets, and the platform files of other modules', [
-        'xpp_http*', 'xpp_https*', 'xpp_window*', 'xpp_webview', 'xpp_win', 'xpp_process*', 'xpp_assets', 'xpp_platform*', 'xpp_cpu_win', 'xpp_cpu_linux', 'xpp_cpu_mac']),
+        'xpp_http*', 'xpp_https*', 'xpp_window*', 'xpp_webview', 'xpp_process*', 'xpp_assets', 'xpp_platform*', 'xpp_cpu_win', 'xpp_cpu_linux', 'xpp_cpu_mac']),
 }
 TESTS_MODULE = 'tests'
 KERNEL = 'kernel'   # the innermost ring: the finding at the page's top says whether it includes anything outside itself
@@ -116,47 +116,22 @@ LEVELS = [
 INDEPENDENT = [('protocol front end', 'platform')]
 # (from, to) -> (include lines against the levels now, the card that removes them); exact
 ALLOWLIST = {
-    ('analysis', 'animation'): (1, 'W737'),
-    ('analysis', 'commands'): (3, 'W737'),
-    ('analysis', 'export'): (3, 'W737'),
     ('analysis', 'session'): (18, 'W732'),
-    ('animation', 'session files'): (2, 'W737'),
-    ('autoX', 'commands'): (2, 'W737'),
+    ('autoX', 'commands'): (1, 'W737'),
     ('autoX', 'export'): (1, 'W737'),
     ('autoX', 'session'): (21, 'W732'),
-    ('autoX', 'session files'): (3, 'W737'),
-    ('commands', 'application'): (1, 'W737'),
+    ('autoX', 'session files'): (1, 'W737'),
     ('expressions', 'integrators'): (6, 'W743'),
     ('expressions', 'model and loading'): (19, 'W743'),
     ('expressions', 'session'): (9, 'W732'),
-    ('files', 'platform'): (1, 'W737'),
     ('integrators', 'analysis'): (9, 'W745'),
-    ('integrators', 'animation'): (1, 'W737'),
     ('integrators', 'autoX'): (1, 'W745'),
-    ('integrators', 'commands'): (1, 'W737'),
     ('integrators', 'session'): (29, 'W732'),
-    ('model and loading', 'analysis'): (9, 'W744'),
-    ('model and loading', 'animation'): (1, 'W737'),
+    ('model and loading', 'analysis'): (8, 'W744'),
     ('model and loading', 'autoX'): (1, 'W744'),
-    ('model and loading', 'commands'): (3, 'W737'),
-    ('model and loading', 'export'): (2, 'W737'),
-    ('model and loading', 'integrators'): (19, 'W744'),
-    ('model and loading', 'session files'): (5, 'W737'),
-    ('model and loading', 'session'): (25, 'W732'),
-    ('plot', 'animation'): (1, 'W737'),
-    ('plot', 'commands'): (1, 'W737'),
-    ('plot', 'export'): (12, 'W737'),
-    ('plot', 'session files'): (1, 'W737'),
-    ('protocol front end', 'application'): (5, 'W737'),
-    ('protocol front end', 'platform'): (5, 'W737'),
-    ('session', 'animation'): (2, 'W737'),
-    ('session', 'application'): (2, 'W737'),
-    ('session', 'commands'): (1, 'W737'),
-    ('session', 'export'): (3, 'W737'),
-    ('session', 'session files'): (2, 'W737'),
-    ('ui seam', 'commands'): (1, 'W737'),
+    ('model and loading', 'integrators'): (17, 'W744'),
+    ('model and loading', 'session'): (22, 'W732'),
     ('ui seam', 'model and loading'): (1, 'W744'),
-    ('ui seam', 'platform'): (1, 'W737'),
     ('ui seam', 'session'): (1, 'W732'),
 }
 

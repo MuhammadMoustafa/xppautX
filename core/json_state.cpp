@@ -44,7 +44,6 @@
 #include "value_undo.h"
 #include "json_reader.h"
 #include "data_event.h"
-#include "model_switch.h"
 #include "struct.h"
 #include "xpp_error.h"
 #include "xpp_io.h"

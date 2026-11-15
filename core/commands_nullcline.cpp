@@ -4,7 +4,7 @@
 #include "integrate.h"
 #include <limits>
 #include "nullcline.h"
-#include "data_formats.h"
+#include "data_table.h"
 #include "numerics_settings.h"
 #include "model_numerics.h"
 #include "model_options.h"

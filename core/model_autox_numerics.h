@@ -2,6 +2,7 @@
 
 #include <array>
 #include <climits>
+#include <cstddef>
 #include <span>
 #include <string>
 
@@ -9,6 +10,10 @@
    detail and what autoX accepts for each. Pure data, below both the option table (model_options.cpp) and
    autoX's settings (autox_settings.cpp) that read it (W736). */
 namespace xpp {
+
+/* The most points a saved or running diagram holds (autox_diagram_points_limit, autox_evd.cpp): the bound where autoX's memory grows, and what a
+   session file accepts back; far above normal diagrams while keeping tiny rows from allocating without limit. */
+inline constexpr std::size_t saved_points_limit = 1000000;
 
 /* 10000 intervals far exceed shipped meshes while bounding autoX's mesh-sized matrices. */
 inline constexpr int autox_max_mesh_intervals = 10000;

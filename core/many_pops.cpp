@@ -17,11 +17,10 @@
 #include "grobs.h"
 #include "axes2.h"
 #include "picture.h"
-#include "image_format.h"
 #include "nullcline.h"
 #include "plot_data.h"
 #include "session.h"
-#include "aniparse.h"
+#include "ani_state.h"
 #include "arrayplot.h"
 #include "autox_state.h"
 #include "display_state.h"
@@ -423,8 +422,9 @@ std::string split_json(const Session &s)
 
 void dump_ps(xpp::Session &s, int i)
 {
-  const xpp::ImageFormat *fmt=xpp::picture_format_of_file(s.picture_file);
-  if(xpp::ok_or_show(xpp::begin_picture(s,*fmt,xpp::files::run_file_name(s.picture_file,i))) && s.plot_file->writer)
+  const xpp::ExportServices &exports=s.model().services.exports;
+  const xpp::ImageFormat *fmt=xpp::picture_format_of_file(exports.image_formats,s.picture_file);
+  if(xpp::ok_or_show(exports.begin_picture(s,*fmt,xpp::files::run_file_name(s.picture_file,i))) && s.plot_file->writer)
     xpp::ok_or_show(vector_restore(s));
 }
 

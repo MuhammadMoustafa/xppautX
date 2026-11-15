@@ -8,6 +8,7 @@
 #include "graf_par.h"
 #include "xpp_fs.h"
 #include "xpp_zip.h"
+#include "model_files.h"
 #include "xpp_path.h"
 #include "xpp_lines.h"
 #include "xpp_fs.h"
@@ -33,7 +34,6 @@
 #include "ani_data.h"
 #include "xpp_log.h"
 #include "expr.h"
-#include "snapx.h"
 #include "my_rhs.h"
 #include "nullcline.h"
 #include "xpp_ui.h"
@@ -739,19 +739,19 @@ bool animation_memory(std::size_t &used, const AnimationState &animation,
 {
     for (std::size_t i = commands_before; i < animation.commands.size(); ++i) {
         const auto &a = animation.commands[i];
-        if (!snapx::account_memory(used, 1, sizeof(AniCom) + a.text.size()) ||
-            !snapx::account_memory(used, a.c.n, 2 * sizeof(double) + sizeof(Color))) return false;
+        if (!zip::account_memory(used, 1, sizeof(AniCom) + a.text.size()) ||
+            !zip::account_memory(used, a.c.n, 2 * sizeof(double) + sizeof(Color))) return false;
         for (const auto *program : {&a.x1, &a.y1, &a.x2, &a.y2, &a.who, &a.col_expr})
-            if (!snapx::account_memory(used, program->rpn.size(), sizeof(int))) return false;
+            if (!zip::account_memory(used, program->rpn.size(), sizeof(int))) return false;
     }
     for (std::size_t i = grabs_before; i < animation.grabs.size(); ++i) {
         const auto &grab = animation.grabs[i];
-        if (!snapx::account_memory(used, 1, sizeof(AniGrab)) ||
-            !snapx::account_memory(used, grab.x.rpn.size() + grab.y.rpn.size(), sizeof(int))) return false;
+        if (!zip::account_memory(used, 1, sizeof(AniGrab)) ||
+            !zip::account_memory(used, grab.x.rpn.size() + grab.y.rpn.size(), sizeof(int))) return false;
         for (const auto *task : {&grab.start, &grab.end})
             for (const auto &event : task->events)
-                if (!snapx::account_memory(used, 1, sizeof(GrabEvent) + event.lhs.size()) ||
-                    !snapx::account_memory(used, event.rhs.rpn.size(), sizeof(int))) return false;
+                if (!zip::account_memory(used, 1, sizeof(GrabEvent) + event.lhs.size()) ||
+                    !zip::account_memory(used, event.rhs.rpn.size(), sizeof(int))) return false;
     }
     return true;
 }

@@ -55,9 +55,9 @@ function registrySource(): string {
 
 const RESERVED = [...readFileSync('../core/xpp_keymap.h', 'utf8').match(/RESERVED_KEYS = \{([^}]*)\}/)![1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
 
-/** every file format's name as hello gives it: the data formats (core/data_formats.h) then the picture formats' extensions (core/image_format.cpp) */
+/** every file format's name as hello gives it: the data formats (core/data_table.h) then the picture formats' extensions (core/image_format.cpp) */
 const FILE_FORMATS = [
-  ...readFileSync('../core/data_formats.h', 'utf8').match(/\*DATA_FORMAT_DAT=([^;]*);/)![1].matchAll(/"([^"]+)"/g),
+  ...readFileSync('../core/data_table.h', 'utf8').match(/\*DATA_FORMAT_DAT=([^;]*);/)![1].matchAll(/"([^"]+)"/g),
   ...readFileSync('../core/image_format.cpp', 'utf8').matchAll(/\.extension = "(\w+)"/g),
 ].map(m => m[1]);
 

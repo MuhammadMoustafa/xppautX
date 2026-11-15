@@ -10,6 +10,7 @@
 #include "aniparse.h"
 #include "mykeydef.h"
 #include "image_format.h"
+#include "picture.h"
 #include "my_rhs.h"
 #include <stdio.h>
 #include <string.h>
@@ -160,6 +161,10 @@ void j_new_vcr(xpp::Session &s)
     s.tools_hidden->animation = false;
     send_window(xpp::events::WINDOW_CREATED,xpp::window_name(s,WIN_ANI), s.animation->vcr.wid, s.animation->vcr.hgt, "Animation","animation");
     ani_view_created(s);
+}
+void j_ani_on_the_fly(xpp::Session &s, int task)
+{
+    on_the_fly(s, task);
 }
 void j_ani_show(void)
 {

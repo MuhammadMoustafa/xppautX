@@ -1,6 +1,6 @@
 #include "sweep_runs.h"
 #include "session.h"
-#include "aniparse.h"
+#include "ani_state.h"
 #include "expr.h"
 #include "integrate.h"
 #include "my_rhs.h"

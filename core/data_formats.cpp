@@ -1,4 +1,4 @@
-/* The data file formats and their registry (data_formats.h, W52).
+/* The data file formats and their registry (data_table.h, W52).
 
    .dat is XPP's own: each row's values followed by a blank, one row per
    line, no names (the batch run's output.dat and the browser's Write),
@@ -10,7 +10,7 @@
    format: a zip of .npy files, one float64 array per column named after
    it, or for what the plot shows one (points x 2 or 3) array per curve,
    curve1, curve2, ... */
-#include "data_formats.h"
+#include "data_table.h"
 
 #include <algorithm>
 #include <array>
@@ -535,12 +535,6 @@ static_assert(ids_match(), "data_format_ids are the registry's ids, in order");
 
 } // namespace
 
-std::string data_column_name(const DataTable &t, std::size_t i)
-{
-    if (i < t.names.size() && !t.names[i].empty()) return t.names[i];
-    return "col" + std::to_string(i + 1);
-}
-
 std::span<const DataFormat> data_formats() { return registry; }
 
 std::string npz_bytes(const DataTable &table) noexcept
@@ -552,35 +546,6 @@ bool npz_table(std::string_view bytes, DataTable &table) noexcept
 {
     return guarded<read_clean<parse_npz, std::string_view>, std::string_view, DataTable &>("reading a data file",
                                                                                         bytes, table);
-}
-
-const DataFormat *data_format_named(std::string_view id)
-{
-    for (const DataFormat &f : registry)
-        if (equal_ignoring_case(f.id, id)) return &f;
-    return nullptr;
-}
-
-const DataFormat *data_format_of_file(std::string_view path)
-{
-    for (const DataFormat &f : registry) {
-        const std::string_view e = f.extension;
-        if (path.size() > e.size() && equal_ignoring_case(path.substr(path.size() - e.size()), e)) return &f;
-    }
-    return nullptr;
-}
-
-Result<DataTable> read_data_table(FileSystem &fs, std::string_view path)
-{
-    const DataFormat *format=data_format_of_file(path);
-    if (!format || !format->read) return fail_reading("data", "has no registered data format",std::string(path));
-    const Result<std::string> bytes=fs.read("data",path,zip::archive_bytes_limit);
-    if (!bytes) return std::unexpected(bytes.error());
-    DataTable table;
-    if (!format->read(*bytes,table))
-        return fail("data",table.error.empty() ? "cannot be read as a data table" : "cannot be read as a data table: " + table.error,
-                    Place{std::string(path),table.error_line});
-    return table;
 }
 
 } // namespace xpp

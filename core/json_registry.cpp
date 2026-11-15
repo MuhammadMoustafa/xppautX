@@ -7,7 +7,6 @@
 #include <string_view>
 #include "ui_json_internal.h"
 #include "command_def.h"
-#include "model_switch.h"
 #include "xpp_ui.h"
 #include "xpp_error.h"
 namespace xpp { struct Session; }
@@ -24,7 +23,7 @@ xpp::Result<std::string> quit(xpp::Session &s, const xpp::command::Arguments &ar
     if (save && !*save) xpp::bye_bye();
     /* a recording playing waits: the question is the user's */
     player_hold();
-    xpp_quit(s, save.value_or(false));
+    session.hello.quit(s, save.value_or(false));
     return xpp::command::ResultObject().boolean("quitting", false).done();
 }
 

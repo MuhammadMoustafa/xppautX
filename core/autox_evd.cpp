@@ -20,7 +20,7 @@
 
 #include "diagram.h"
 #include "autox_c.h"
-#include "xpp_session_autox.h"
+#include "autox_settings.h"
 
 #include "autox_stability.h"
 #include "model_place.h"
@@ -47,7 +47,7 @@ namespace xpp {
 std::size_t autox_diagram_points_limit()
 {
   const char *lowered=std::getenv("XPP_DIAGRAM_POINTS_LIMIT");
-  return lowered ? static_cast<std::size_t>(std::strtoull(lowered,nullptr,10)) : snapx::autox_members::saved_points_limit;
+  return lowered ? static_cast<std::size_t>(std::strtoull(lowered,nullptr,10)) : xpp::saved_points_limit;
 }
 
 /* The most jobs a run of branch jobs makes, which a recording's jobs list may not exceed (ui_json.cpp). Jobs come from two

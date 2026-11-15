@@ -43,7 +43,7 @@ struct ArrayPlotState; /* plot_state.h */
 struct AutoxState; /* autox_state.h */
 struct AutoxDiagram; /* diagram.h */
 struct XppKinescope; /* kinescope.h */
-struct SavedSession; /* xpp_session.h */
+struct SavedSession; /* model_request.h */
 
 namespace xpp {
 
@@ -84,7 +84,7 @@ struct PlotFileState; /* picture.h */
 struct AnimationState; /* aniparse.h */
 struct AniShown; /* ani_data.h */
 struct ValueUndo; /* value_undo.h */
-struct ModelRequest; /* model_switch.h */
+struct ModelRequest; /* model_request.h */
 /* element types of the vectors a Session holds: the vector's type may be
    incomplete here, as Session's constructor and destructor are in session.cpp */
 struct PlotDisplay; /* display_state.h */
@@ -148,7 +148,7 @@ struct Session {
      opened later never inherits them. */
   std::string batch_out_file = "output.dat";
   /* the picture a batch run writes (output.picture_file): "" for none, else a path whose extension picks the
-     format (image_format.h's picture_format_of_file); json_silent.cpp names it after the set, like batch_out_file */
+     format (picture.h's picture_format_of_file); json_silent.cpp names it after the set, like batch_out_file */
   std::string picture_file;
   /* the run_set options: the sets a batch run runs, by name (none: every set) */
   std::vector<std::string> run_sets;

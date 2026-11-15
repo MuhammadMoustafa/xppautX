@@ -1,7 +1,7 @@
 #pragma once
 
 #include "xpp_fs.h"
-#include "data_formats.h"
+#include "data_table.h"
 #include "storage.h"
 #include "xpp_error.h"
 #include <array>
@@ -63,7 +63,7 @@ void abort_save(xpp::Sink &sink);
    model, n opens the existing file instead of declining the write. */
 int file_replace_choice(bool open_existing = false);
 
-/* the stored rows First..Last as XPP's .dat (data_formats.h) into w, only the
+/* the stored rows First..Last as XPP's .dat (data_table.h) into w, only the
    columns of a batch run's "only" list (plotlist) when it has one: the
    batch run's output.dat and the files written beside it; committed (commit_save), or aborted
    when the writing failed */
@@ -74,7 +74,7 @@ Result<> save_mytable_data(Session &s, xpp::Sink &w);
    ("plot_curves": its curves and frozen curves as one table curve,x,y[,z]); the names are the protocol's */
 enum class DataTarget { table, output, plot_curves };
 inline constexpr std::array<std::string_view, 3> data_target_names = {"table", "output", "plot_curves"};
-/* Save data (the data table's Write, docs/protocol.md): target as above, format a data format's id (data_formats.h),
+/* Save data (the data table's Write, docs/protocol.md): target as above, format a data format's id (data_table.h),
    name the file; whichever is missing is asked for (a menu, a menu of the formats, a file). The command's replace
    decision is used, or asked for independent of destination existence. The file and the rows written, 0 rows when
    the user cancelled or declined to replace the file; an error for nothing to save or a file that cannot be

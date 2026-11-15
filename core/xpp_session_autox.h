@@ -71,7 +71,6 @@ struct SavedViews {
    saved diagrams/views while keeping tiny rows from allocating without limit. */
 inline constexpr std::size_t saved_parameters_limit = zip::archive_bytes_limit / sizeof(std::string);
 inline constexpr std::size_t saved_views_limit = 4096;
-inline constexpr std::size_t saved_points_limit = 1000000;
 
 /* the `views` list and the `active` view's name of the autox group, being written: per view its quoted name,
    `hidden`, `plot`, `var`, `par1`, `par2`, `xmin`, `xmax`, `ymin`, `ymax` and `zoom` (names and numbers as

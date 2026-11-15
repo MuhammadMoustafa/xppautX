@@ -1,9 +1,8 @@
 #include "model.h"
 #include "arrayplot.h"
-#include "array_print.h"
 #include "storage.h"
 #include "xpp_ui.h"
-#include "image_format.h"
+#include "picture.h"
 #include "browse.h"
 #include "xpp_error.h"
 #include "xpp_job.h"
@@ -188,7 +187,7 @@ void close_aplot_files(xpp::Session &s, bool complete)
     if(s.array_plot->movie){
       if (!complete || s.array_plot->save_cancelled || xpp::job::cancelled()) xpp::abort_save(*s.array_plot->movie);
       else {
-        const xpp::Result<> finished=xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(*s.array_plot->movie);
+        const xpp::Result<> finished=s.model().services.exports.image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(*s.array_plot->movie);
         xpp::ok_or_show(finished?xpp::commit_save(*s.array_plot->movie):finished);
       }
     }

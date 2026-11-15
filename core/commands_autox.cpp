@@ -10,7 +10,7 @@
 #include "autox_run.h"
 #include "autox_settings.h"
 #include "diagram.h"
-#include "image_format.h"
+#include "picture.h"
 #include "integrate.h"
 #include "many_pops.h"
 #include "session.h"

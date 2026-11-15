@@ -18,6 +18,13 @@
 
 namespace xpp::zip {
 
+bool account_memory(std::size_t &used, std::size_t count, std::size_t bytes_each)
+{
+    if (used > archive_bytes_limit || (bytes_each && count > (archive_bytes_limit - used) / bytes_each)) return false;
+    used += count * bytes_each;
+    return true;
+}
+
 namespace {
 
 /* the output of a callback: the bytes, and whether one could not be kept */

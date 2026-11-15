@@ -1,4 +1,3 @@
-#include "browse.h"
 /* Print arrayplot: the array plot as a picture of colored cells with its color scale, labels and
    ranges (W479, #542). It is a Picture like a plot window's, so color, text and the file are
    picture.h's and the PDF writer's; the colors are the session's ramp, the one the page shows. */
@@ -7,12 +6,12 @@
 #include <expected>
 #include <vector>
 
-#include "array_print.h"
 #include "arrayplot.h"
-#include "my_pdf.h"
+#include "arrayplot.h"
+#include "export_services.h"
+#include "model.h"
 #include "picture.h"
 #include "session.h"
-#include "model.h"
 #include "colormap.h"
 #include "line_style.h"
 #include "storage.h"
@@ -73,13 +72,8 @@ Result<bool> array_print(const Session &s, const ArrayPicture &a)
     add_text(p, scale_left + scale_width + number_gap, scale_top, TextAnchor::start, 0, xpp::format("{:g}", a.zmax));
     add_text(p, scale_left + scale_width + number_gap, scale_top + scale_height, TextAnchor::start, 0, xpp::format("{:g}", a.zmin));
 
-    Result<> opened;
-    const std::unique_ptr<Sink> out = open_sink_asking(*s.model().fs, a.filename, true, &opened);
-    if (!opened) return std::unexpected(opened.error());
-    if (!out) return false;
-    if (const Result<> written = write_pdf(p, *out); !written) return std::unexpected(written.error());
-    if (const Result<> committed = commit_save(*out); !committed) return std::unexpected(committed.error());
-    return true;
+    const ExportServices &exports = s.model().services.exports;
+    return exports.write_picture(*s.model().fs, p, exports.image_formats[IMAGE_FORMAT_PDF], a.filename);
 }
 
 } // namespace xpp

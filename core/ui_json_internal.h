@@ -65,7 +65,7 @@ namespace xpp { enum class AutoxProjection; namespace job { struct BranchJob; } 
 #define BUF_LIT(b, lit) xpp::json::buf_add(b, lit, sizeof(lit) - 1)
 
 namespace xpp {
-struct ModelRequest; /* model_switch.h */
+struct ModelRequest; /* model_request.h */
 namespace command { struct Command; class Arguments; } /* command_def.h */
 struct Session;      /* session.h */
 }
@@ -314,6 +314,8 @@ void open_protocol_stdout(void); /* the protocol on the stdout of now */
    It never writes to stdout. false when the thread cannot start. */
 bool start_stdin();
 void out_line(const char *s, size_t n);
+/* whether the page the program serves is up (hello's page_active): the events go to it, and the terminal text forms are off */
+bool page_active();
 /* whether an event line goes anywhere (not --silent): a state event nobody reads is not built */
 bool out_wanted();
 void out_flush(void);
@@ -503,6 +505,7 @@ xpp::Result<int> j_ani_go(xpp::Session &s, const xpp::AniExport &out);
 void j_ani_slider(xpp::Session &s);
 void j_new_vcr(xpp::Session &s);
 void j_ani_show(void);
+void j_ani_on_the_fly(xpp::Session &s, int task);
 
 } // namespace xpp::json
 

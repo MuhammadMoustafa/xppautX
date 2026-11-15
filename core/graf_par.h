@@ -46,7 +46,7 @@ void restore(Session &s, int i1, int i2);
 /* the pen's color by the velocity or the z value between v1 and v2 over dt (n variables) */
 void comp_color(Session &s, float *v1, float *v2, int n, float dt);
 
-struct DataTable; /* data_formats.h */
+struct DataTable; /* data_table.h */
 /* The flags a graph's axes and grtype imply (ThreeDFlag, TimeFlag): the one
    rule, for the active window and for each extra window of a model */
 void check_flags(GRAPH &g);
@@ -128,7 +128,7 @@ Result<int> add_curve(Session &s, const CurveSettings &settings);
 Result<> delete_curve(Session &s, int curve);
 /* every curve but the first removed */
 void delete_all_curves(Session &s);
-/* the main plot window's picture in image_format.h's IMAGE_FORMAT_PDF or IMAGE_FORMAT_SVG (W53, issue
+/* the main plot window's picture in picture.h's IMAGE_FORMAT_PDF or IMAGE_FORMAT_SVG (W53, issue
    #101) written to `filename`: false when the user declined to replace the file */
 Result<bool> write_plot_picture(Session &s, int fmt, std::string_view filename);
 void default_window(Session &s);
@@ -159,7 +159,7 @@ void clear_bifurcation(Session &s);
 /* autoX's Write pts file `filename` (six columns, checked whole first) shown in the active window as curves
    by kind: how many curves it made */
 Result<int> import_bifurcation(Session &s, std::string_view filename);
-/* the plot of s redrawn into the picture file begun (image_format.h's
+/* the plot of s redrawn into the picture file begun (picture.h's
    restore), which it then closes */
 Result<> vector_restore(Session &s);
 /* What plot.set_variables plots: curves against time, a phase portrait, an array plot */

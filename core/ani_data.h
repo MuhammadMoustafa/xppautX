@@ -2,7 +2,8 @@
 
 #include <string>
 #include <string_view>
-namespace xpp { struct Color; }
+
+#include "ani_state.h"
 
 
 namespace xpp {
@@ -24,14 +25,6 @@ struct Session; /* session.h */
    the next that may go, and for the end of the command at the latest.
 
    ani_data.cpp; nothing escapes it. */
-
-/* The frames drawn, as their events' text: a Session's (Session::ani_shown,
-   its animation's), which ani_data.cpp fills; what the client got of them
-   is ani_data.cpp's own, the client's. */
-struct AniShown {
-    std::string prims; /* the frame being drawn: its primitives, comma separated */
-    std::string frame; /* the last frame finished, as its event; empty before any */
-};
 
 typedef void (*AniDataEmit)(std::string_view line);
 

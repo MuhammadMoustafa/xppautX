@@ -252,6 +252,9 @@ typedef struct XppUi {
        xold the one before (a periodic variable's torus crossings shifted into it), dt the step's size, crossings each variable's
        count of torus crossings. Like rows_stored, once per step: keep it cheap */
     void (*step_computed)(Session &s, std::span<float> x, std::span<float> xold, double dt, std::span<const int> crossings);
+    /* one bounded line (at most cap bytes) the terminal gives within the seconds, for a question a headless run asks (a mode with no
+       front end); nullopt at the deadline, at the end of input or on an error. The program's start gives it (xpp_platform.h) */
+    std::optional<std::string> (*terminal_line)(int seconds, std::size_t cap);
     /* Every accepted output step, before Poincare/transient filtering. */
     void (*live_state)(Session &s, const double *values, double time);
     void (*data_redraw)(int full); /* my_table: 1 columns too, 0 data */
@@ -272,7 +275,7 @@ typedef struct XppUi {
     /* kinescope: the captured frames live in the front end */
     void (*movie_play_back)(Session &s);  /* step through frames with keys/mouse */
     void (*movie_autox_play)(Session &s);  /* the kinescope's cycles, frame_ms apart */
-    /* the frames as files `basename` names (image_format.h registry index): how many were saved, or why not */
+    /* the frames as files `basename` names (picture.h registry index): how many were saved, or why not */
     Result<int> (*movie_save)(Session &s, std::string_view basename, int fmat);
     Result<> (*movie_make_anigif)(Session &s, std::string_view file); /* the frames as one animated GIF */
 
@@ -317,6 +320,8 @@ typedef struct XppUi {
        vcr.hgt pixels (aniparse.h), then ani_show puts one on screen. */
     void (*new_vcr)(Session &s);
     void (*ani_show)(void);
+    /* the animation shown beside a run (the model's or the .anix's `on the fly`): task 1 as the run starts, 0 at each row it stores */
+    void (*ani_on_the_fly)(Session &s, int task);
     void (*ani_slider)(Session &s);    /* vcr.pos changed */
     Result<int> (*ani_go)(Session &s, const AniExport &out); /* play the frames, writing them when asked: how many were shown */
 

@@ -113,7 +113,7 @@ Result<> update_prefs(FileSystem &fs, const std::function<void(Preferences &)> &
    now) or the file's error when it is bad, and `keep`, which remembers an
    answer in the preferences as it is given (newest first, the oldest dropped
    at MAX_OUTSIDE_APPROVALS, a repeated one moved to the front). */
-PathApprovals path_approvals(FileSystem &fs, const Result<Preferences> *read);
+LoadServices load_services(FileSystem &fs, const Result<Preferences> *read);
 
 } // namespace xpp::prefs
 

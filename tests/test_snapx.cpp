@@ -27,7 +27,7 @@
 #include "xpp_ui.h"
 #include "graf_par.h"
 #include "browse.h"
-#include "data_formats.h"
+#include "data_table.h"
 #include "session_settings.h"
 #include "settings_text.h"
 #include "struct.h"
@@ -261,9 +261,9 @@ void check_list_memory()
         CHECK(!applied && staged.empty() && used == before);
     }
     std::size_t used = 0;
-    CHECK(!xpp::snapx::account_memory(used, std::numeric_limits<std::size_t>::max(), sizeof(GRAPH)) && used == 0);
-    CHECK(xpp::snapx::account_memory(used, 1, xpp::zip::archive_bytes_limit));
-    CHECK(!xpp::snapx::account_memory(used, 1, 1) && used == xpp::zip::archive_bytes_limit);
+    CHECK(!xpp::zip::account_memory(used, std::numeric_limits<std::size_t>::max(), sizeof(GRAPH)) && used == 0);
+    CHECK(xpp::zip::account_memory(used, 1, xpp::zip::archive_bytes_limit));
+    CHECK(!xpp::zip::account_memory(used, 1, 1) && used == xpp::zip::archive_bytes_limit);
 }
 
 /* W376 (#438): all three input-sized dimensions, holes, and the protocol's

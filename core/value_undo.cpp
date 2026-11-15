@@ -1,7 +1,6 @@
 /* Undo and redo of the Values edits: see value_undo.h. */
 #include "value_undo.h"
 #include "session.h"
-#include "xpp_session.h"
 #include "xpp_ui.h"
 #include <utility>
 #include <memory>

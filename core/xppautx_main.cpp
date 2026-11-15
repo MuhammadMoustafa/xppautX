@@ -152,8 +152,17 @@ static void start_autox_dir(void)
 static xpp::HelloInfo hello_info()
 {
     const xpp::update::Plan plan = xpp::update::running_plan();
-    return {xpp_about_lines(), xpp_version_string(), std::string(xpp::update::install_name(plan.install)), plan.asset_suffix, plan.why,
+    xpp::HelloInfo info{xpp_about_lines(), xpp_version_string(), std::string(xpp::update::install_name(plan.install)), plan.asset_suffix, plan.why,
             [] { return xpp::recent::start_json(startup.files, xpp::recent::load_recent(startup.files), ",\"examples\":" + xpp::examples::json()); }};
+    info.quit = [](xpp::Session &s, bool saving) { xpp_quit(s, saving); };
+    info.model_may_leave = [](xpp::Session &s, const std::string &file) { return xpp_model_may_leave(s, file); };
+    info.load_requested = [](const xpp::Session &now, const xpp::ModelRequest &req) { return xpp::load_requested(now, req); };
+    info.read_input = [](char *buf, std::size_t n) { return xpp::platform::read_input(buf, n); };
+    info.set_binary_mode = [](int fd) { xpp::platform::set_binary_mode(fd); };
+    info.page_active = [] { return xpp::http::active(); };
+    info.page_emit = [](std::string_view line) { xpp::http::emit(line); };
+    info.page_title = [](const char *title) { xpp::window::set_model(title); };
+    return info;
 }
 
 static void run_session(void)
@@ -249,6 +258,10 @@ int main(int argc, char **argv)
        --version/--help and every command-line mode; a no-op when stdio is
        already a real pipe or file, or there is no parent console */
     xpp::platform::attach_parent_console();
+    /* the terminal a headless question is asked on (xpp_ui.h): the platform's */
+    xpp::XppUi terminal{};
+    terminal.terminal_line = xpp::platform::read_input_line;
+    xpp::set_ui(&terminal);
     /* the whole command line, read once: ours and xppaut's */
     std::vector<std::string> arguments(argv, argv + argc);
     /* what the system adds that is not an option (macOS's -psn_ serial number) is not read as one */
@@ -284,7 +297,7 @@ int main(int argc, char **argv)
     }
     if (cl.check && !cl.convert && !cl.model_file.empty() && cl.load_options == 0) {
         xpp::batch_options.check = true;
-        return xpp::odex::check_file(startup.files, cl.model_file, xpp::prefs::path_approvals(startup.files, &startup.prefs));
+        return xpp::odex::check_file(startup.files, cl.model_file, xpp::prefs::load_services(startup.files, &startup.prefs));
     }
     if (cl.check) {
         xpp::log(XPP_LOG_ERROR, "usage: xppautX --check model.ode (or model.odex)\n");
@@ -297,10 +310,10 @@ int main(int argc, char **argv)
             xpp::log(XPP_LOG_ERROR, "usage: xppautX --convert [--yes] model.ode\n");
             return 2;
         }
-        if (cl.state_file) return xpp::convert_state_file(startup.files, cl.model_file, *cl.state_file, xpp::prefs::path_approvals(startup.files, &startup.prefs));
+        if (cl.state_file) return xpp::convert_state_file(startup.files, cl.model_file, *cl.state_file, xpp::prefs::load_services(startup.files, &startup.prefs));
         if (cl.ani_file) return xpp::convert_animation_file(startup.files, *cl.ani_file, cl.model_file);
         if (xpp::files::has_extension(cl.model_file, ".ani")) return xpp::convert_animation_file(startup.files, cl.model_file);
-        return xpp::odex::convert_file(startup.files, cl.model_file, xpp::prefs::path_approvals(startup.files, &startup.prefs));
+        return xpp::odex::convert_file(startup.files, cl.model_file, xpp::prefs::load_services(startup.files, &startup.prefs));
     }
     /* issue #32: the folders of runs that ended without their atexit (a
        kill, Ctrl+C, the watchdog's _exit) go at the next start, --silent

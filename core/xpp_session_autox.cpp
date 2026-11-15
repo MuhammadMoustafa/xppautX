@@ -255,7 +255,7 @@ Result<std::deque<DIAGRAM>> parse_diagram_csv(std::string_view text, int n, int 
             int id;
             if(!parse_int(fields[1],id) || id!=static_cast<int>(branches.size()))l.fail("branch ids must be contiguous from zero");
             const std::size_t bytes=sizeof(DiagramBranch)+static_cast<std::size_t>(n_pars)*sizeof(double);
-            if(branches.size()>=saved_points_limit || !account_memory(expanded_bytes, 1, bytes))l.fail("too many autoX branches for the session memory limit");
+            if(branches.size()>=saved_points_limit || !zip::account_memory(expanded_bytes, 1, bytes))l.fail("too many autoX branches for the session memory limit");
             auto branch=std::make_shared<DiagramBranch>();
             for(std::size_t i=2;i<fields.size();i++){
                 double value;
@@ -326,7 +326,7 @@ Result<std::deque<DIAGRAM>> parse_diagram_csv(std::string_view text, int n, int 
             if(indices.empty() || indices.size()>static_cast<std::size_t>(d.nfpar) || values.size()!=indices.size())l.fail("continued model parameter count differs from nfpar");
             const std::size_t point_bytes=sizeof(DIAGRAM)+6*static_cast<std::size_t>(n)*sizeof(double)
                 +indices.size()*(sizeof(int)+sizeof(double));
-            if(!account_memory(expanded_bytes, 1, point_bytes))l.fail("too many autoX diagram points for the session memory limit");
+            if(!zip::account_memory(expanded_bytes, 1, point_bytes))l.fail("too many autoX diagram points for the session memory limit");
             for(std::size_t i=0;i<indices.size();i++){
                 int index;
                 double value;

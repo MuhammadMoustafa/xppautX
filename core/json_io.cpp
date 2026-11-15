@@ -4,13 +4,11 @@
    JSON objects they are. */
 #include "ui_json_internal.h"
 #include "xpp_log.h"
-#include "xpp_platform.h"
 #include <algorithm>
 #include <cctype>
 #include <climits>
 #include "json_number.h"
 #include "xpp_mem.h"
-#include "xpp_http.h"
 #include "xpp_inbox.h"
 #include <pthread.h>
 #include "xpp_io.h"
@@ -99,7 +97,9 @@ void buf_num(std::string &b, double v, int sig)
     build_event([&] { json_append_number(b, v, sig); });
 }
 
-bool out_wanted() { return xpp::http::active() || proto; }
+bool page_active() { return session.hello.page_active(); }
+
+bool out_wanted() { return page_active() || proto; }
 
 /* one event line to the client: stdout, or the page xppautX serves. Whole
    under a lock: the inbox's busy reply comes from a reader thread while
@@ -108,8 +108,8 @@ void out_line(const char *s, size_t n)
 {
     static std::mutex out_lock;
     std::lock_guard<std::mutex> whole(out_lock);
-    if (xpp::http::active()) {
-        xpp::http::emit({s, n});
+    if (page_active()) {
+        session.hello.page_emit({s, n});
         return;
     }
     if (!proto) return; /* --silent: nowhere */
@@ -128,8 +128,8 @@ void out_flush(void)
 void open_protocol_stdout(void)
 {
     int fd = dup(1);
-    xpp::platform::set_binary_mode(fd);
-    xpp::platform::set_binary_mode(0);
+    session.hello.set_binary_mode(fd);
+    session.hello.set_binary_mode(0);
     proto = fdopen(fd, "w");
     dup2(2, 1);
 }
@@ -348,7 +348,7 @@ void read_stdin_lines()
     bool skipping = false; /* inside an overlong line, until its newline */
     for (;;) {
         if (buf.size() - len < CHUNK) buf.resize(buf.size() * 2 + CHUNK);
-        long r = xpp::platform::read_input(buf.data() + len, buf.size() - len);
+        long r = session.hello.read_input(buf.data() + len, buf.size() - len);
         if (r <= 0) break;
         len += static_cast<size_t>(r);
         /* push every complete line; search only the bytes not searched yet */

@@ -5,7 +5,7 @@
 #include "load_args.h"
 #include "xpptest.h"
 #include "browse.h"
-#include "data_formats.h"
+#include "data_table.h"
 #include "graf_par.h"
 #include "grobs.h"
 #include "numerics.h"

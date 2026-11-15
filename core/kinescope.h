@@ -7,11 +7,8 @@
    230 MB (XPPAUT's own limit, which kept its frames in X pixmaps) */
 inline constexpr int kinescope_max_frames = 250;
 
-struct XppKinescope {
-    int frames = 0;     /* frames captured */
-    int cycles = 1;     /* times through the film */
-    int frame_ms = 50;  /* milliseconds between frames */
-};
+#include "plot_state.h" /* XppKinescope */
+
 
 namespace xpp {
 struct Session; /* session.h */

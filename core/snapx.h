@@ -16,6 +16,7 @@
 #include <cstddef>
 
 #include "model_files.h"
+#include "model_request.h"
 #include "xpp_error.h"
 namespace xpp { namespace zip { struct Entry; } }
 
@@ -25,9 +26,6 @@ namespace xpp::snapx {
 
 inline constexpr std::string_view extension = ".snapx";
 
-/* Account for expanded objects, not their compressed text. No multiplication
-   overflows and a refused claim leaves the running byte estimate unchanged. */
-bool account_memory(std::size_t &used, std::size_t count, std::size_t bytes_each);
 /* A settings list's staged records, checked before making its Blocks. Runtime
    slots and point storage are charged separately to the same byte estimate. */
 bool memory_groups(odex::Block &block, std::string_view key, std::vector<odex::Block> &out,
@@ -43,13 +41,6 @@ inline constexpr const char *data_member = "data.npz";      /* the data table */
 /* the folder of the model's members: model/<name> is its file name, as
    the model names it (model_files.h), the model's own first */
 inline constexpr std::string_view model_folder = "model/";
-
-/* the manifest, the first keys of the state file's session statement: `model` and `data` */
-struct Manifest {
-    std::string model_name; /* the model's own file, as it names it: the member model/<model_name> */
-    bool data = false;      /* data.npz holds the data table (a session file's alone) */
-    bool operator==(const Manifest &) const = default;
-};
 
 /* m's keys written into the session statement being written */
 void write_manifest(odex::Out &out, const Manifest &m);

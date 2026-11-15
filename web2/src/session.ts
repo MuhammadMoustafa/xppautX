@@ -1209,7 +1209,7 @@ export class Session {
   }
 
   /** Save data (docs/protocol.md "Saving data"): the core itself writes
-      `what` (`table` or `plot`) as `format` (a data format's id is its extension, data_formats.h) into `name`
+      `what` (`table` or `plot`) as `format` (a data format's id is its extension, data_table.h) into `name`
       (the model's own name with that extension) in the model's folder (browse_data.cpp data_write, skipping the format/name asks
       since both are given), then, at the command's done, the page offers
       it as a download -- the same `pendingSave`/`deliver` path a `file`

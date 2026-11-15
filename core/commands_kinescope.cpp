@@ -2,7 +2,7 @@
    saving them as files or one animated GIF. The captured pictures live in the front end; each handler is the
    core function the Kinescope menu's items call. */
 #include "command_def.h"
-#include "image_format.h"
+#include "picture.h"
 #include "kinescope.h"
 #include "session.h"
 #include "model.h"

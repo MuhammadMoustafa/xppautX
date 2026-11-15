@@ -1,5 +1,6 @@
 #pragma once
 #include <stddef.h>
+#include <cstddef>
 #include <span>
 #include <array>
 #include <vector>

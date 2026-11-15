@@ -908,7 +908,7 @@ private:
       Block block(doc, root, false, std::string(row->group));
       try { /* validates the list */
         if (curves) static_cast<void>(read_starting_curves(nullptr, block));
-        else if (row->kind == OptionKind::buttons) static_cast<void>(read_buttons(block));
+        else if (row->kind == OptionKind::buttons) static_cast<void>(read_buttons(block, model_->services));
         else static_cast<void>(read_sliders(*model_, block, false));
       }
       catch (ReadFailed &e) { throw std::move(e.error); }

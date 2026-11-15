@@ -7,8 +7,8 @@
 #include <vector>
 
 namespace xpp {
-struct Session; /* session.h */
 namespace odex { class Block; }
+struct LoadServices; /* model_file_types.h */
 
 /* a button of the model's: its label and the registry command it runs */
 struct UserButton {
@@ -16,18 +16,15 @@ struct UserButton {
 };
 
 /* the buttons of the `buttons` list of file: each has a label (not empty) and a command (a registry command), and no two have one
-   label; ReadFailed at the member that is wrong. The count has no limit but the file's. */
-std::vector<UserButton> read_buttons(odex::Block &file);
+   label; ReadFailed at the member that is wrong. The count has no limit but the file's. `services` gives the registry's answer
+   (LoadServices::command_exists) to whether a command exists; the Model of a state file read apart from its model has none and
+   checks the shape only: the read that follows with the real Model checks the names. */
+std::vector<UserButton> read_buttons(odex::Block &file, const LoadServices &services);
 
 /* the list as the options block holds it, `[ { label: "AUTO", command: autox.open }, ... ]` */
 std::string buttons_text(const std::vector<UserButton> &buttons);
 
 /* the registry command an XPPAUT key sequence ("fa") runs, "" when no command of ours does (the .ode's button is dropped, said once) */
 std::string_view xppaut_button_command(std::string_view keys);
-
-/* an `@ but=name:keys` line (import only) as a button of s: nullptr when it is taken (a sequence no command of ours runs, or one an
-   earlier button already runs, as XPPAUT keeps one button for each, adds none), else why the line is no button; nothing is
-   added when apply is false */
-const char *add_xppaut_button(Session &s, std::string_view spec, bool apply);
 
 } // namespace xpp

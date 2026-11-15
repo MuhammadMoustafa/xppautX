@@ -97,10 +97,4 @@ void read_window(odex::Block &window, const Session &s, GRAPH &g, std::span<cons
    a set one has low below high */
 void write_zoom(odex::Out &out, const Zoom &z);
 Zoom read_zoom(odex::Block &owner);
-/* from's curves (their number, variables, lines and colors) given to to */
-void copy_curves(const GRAPH &from, GRAPH &to);
-/* those settings of from given to to, its other fields kept (a restored
-   window, as made, takes the saved one's) */
-void copy_graph_settings(const GRAPH &from, GRAPH &to);
-
 } // namespace xpp

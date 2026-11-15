@@ -296,10 +296,10 @@ void check_file()
     CHECK(xpp::prefs::save_prefs(fs, p).has_value() && xpp::files::exists(file));
     CHECK(xpp::prefs::load_prefs(fs).value().recent_models == p.recent_models);
     /* an answer kept is found for its model and its path only */
-    xpp::PathApprovals read = xpp::prefs::path_approvals(fs, nullptr);
+    xpp::LoadServices read = xpp::prefs::load_services(fs, nullptr);
     CHECK(!read.unreadable && read.kept.empty() && read.keep);
     CHECK(read.keep({abs_path("a.odex"), abs_path("x.tab")}).has_value());
-    read = xpp::prefs::path_approvals(fs, nullptr);
+    read = xpp::prefs::load_services(fs, nullptr);
     CHECK(std::ranges::find(read.kept, xpp::OutsideApproval{abs_path("a.odex"), abs_path("x.tab")}) != read.kept.end());
     CHECK(std::ranges::find(read.kept, xpp::OutsideApproval{abs_path("a.odex"), abs_path("y.tab")}) == read.kept.end());
     CHECK(std::ranges::find(read.kept, xpp::OutsideApproval{abs_path("b.odex"), abs_path("x.tab")}) == read.kept.end());
@@ -313,7 +313,7 @@ void check_file()
     CHECK(w && w.write(badtext) && w.commit().has_value());
     const auto r = xpp::prefs::load_prefs(fs);
     CHECK(!r && r.error().place.file == file && r.error().place.line == 3);
-    CHECK(xpp::prefs::path_approvals(fs, nullptr).unreadable && xpp::prefs::path_approvals(fs, nullptr).kept.empty()); /* a bad file is why, none kept */
+    CHECK(xpp::prefs::load_services(fs, nullptr).unreadable && xpp::prefs::load_services(fs, nullptr).kept.empty()); /* a bad file is why, none kept */
     bool called = false;
     CHECK(!xpp::prefs::update_prefs(fs, [&](xpp::prefs::Preferences &) { called = true; }));
     CHECK(!called);

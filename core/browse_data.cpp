@@ -25,7 +25,7 @@
 #include "integrate.h"
 #include <cctype>
 #include <strings.h>
-#include "data_formats.h"
+#include "data_table.h"
 #include "menus.h"
 #include "expr_program.h"
 #include "model_numerics.h"
@@ -121,7 +121,7 @@ std::vector<int> output_columns(const xpp::Session &s, const DATA_VIEW &b)
 xpp::Result<> save_mytable_data(xpp::Session &s, xpp::Sink &w)
 {
   const DATA_VIEW &b=s.data->view;
-  if(const Result<> written=xpp::data_format_named("dat")->write(data_table(s,b,output_columns(s,b)),w);!written){
+  if(const Result<> written=xpp::data_format_named(s.model().services.exports.data_formats,"dat")->write(data_table(s,b,output_columns(s,b)),w);!written){
     abort_save(w);
     return written;
   }
@@ -694,15 +694,15 @@ Result<DataLoaded> load_data_file(xpp::Session &s, std::string_view format, std:
 {
  DATA_VIEW *b=&s.data->view;
  const xpp::DataFormat *f=nullptr;
- if(!format.empty()&&!(f=xpp::data_format_named(format)))
+ if(!format.empty()&&!(f=xpp::data_format_named(s.model().services.exports.data_formats,format)))
    return fail("save data",xpp::format("No data format {}",format),command_place());
  std::string fil(name);
  if(fil.empty()){
    fil="test.dat";
    if(!file_selector("Load data",fil,"*"))return DataLoaded{};
  }
- if(!f)f=xpp::data_format_of_file(fil);
- if(!f||!f->read)f=xpp::data_format_named("dat"); /* any other name: XPP's own */
+ if(!f)f=xpp::data_format_of_file(s.model().services.exports.data_formats,fil);
+ if(!f||!f->read)f=xpp::data_format_named(s.model().services.exports.data_formats,"dat"); /* any other name: XPP's own */
  const Result<std::string> bytes=s.model().fs->read("load data",fil,xpp::zip::archive_bytes_limit);
  if(!bytes)return std::unexpected<Error>(bytes.error());
  xpp::DataTable t;
@@ -726,17 +726,17 @@ namespace {
 
 /* the Save data menu of the data formats' registry; nullptr when none is
    chosen */
-const xpp::DataFormat *choose_data_format()
+const xpp::DataFormat *choose_data_format(std::span<const xpp::DataFormat> formats)
 {
  std::vector<const char *> items;
  std::string keys;
- for(const xpp::DataFormat &f : xpp::data_formats()){
+ for(const xpp::DataFormat &f : formats){
    items.push_back(f.title);
    keys+=f.key;
  }
  const XppMenu m={"save_format","Save data as",static_cast<int>(items.size()),items.data(),keys.c_str()};
  const int k=menu_choose(&m,0);
- for(const xpp::DataFormat &f : xpp::data_formats())
+ for(const xpp::DataFormat &f : formats)
    if(k==f.key)return &f;
  return nullptr;
 }
@@ -770,15 +770,15 @@ Result<DataSaved> save_data_file(const xpp::Session &s, std::optional<DataTarget
  }
  const bool plot=*target==DataTarget::plot_curves;
  const xpp::DataFormat *f=nullptr;
- if(!format.empty()&&!(f=xpp::data_format_named(format)))
+ if(!format.empty()&&!(f=xpp::data_format_named(s.model().services.exports.data_formats,format)))
    return fail("save data",xpp::format("No data format {}",format),command_place());
  xpp::DataTable t=plot?plot_curves():data_table(s,*b,*target==DataTarget::output?output_columns(s,*b):all_columns(*b));
  if(t.rows()==0){
    ui.save_result("",false);
    return fail("save data","Nothing to save",command_place());
  }
- if(!f&&!name.empty())f=xpp::data_format_of_file(name);
- if(!f&&!(f=choose_data_format()))return DataSaved{};
+ if(!f&&!name.empty())f=xpp::data_format_of_file(s.model().services.exports.data_formats,name);
+ if(!f&&!(f=choose_data_format(s.model().services.exports.data_formats)))return DataSaved{};
  std::string fil(name);
  if(fil.empty()){
    fil=xpp::files::output_name(s.model().this_file,f->extension,plot?"curves":"");

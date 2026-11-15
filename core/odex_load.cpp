@@ -17,7 +17,8 @@
 #include "model.h"
 #include "model_record.h"
 #include "model_options.h"
-#include "snapx.h"
+#include "xpp_zip.h"
+#include "model_files.h"
 #include "model_failed.h"
 #include "xpp_path.h"
 #include "xpp_text.h"
@@ -327,7 +328,7 @@ private:
         }
       }
       auto reserve_copy = [&] {
-        if (animation && !snapx::account_memory(memory, 1, bytes))
+        if (animation && !zip::account_memory(memory, 1, bytes))
           fail(s.pos, "animation range expansion exceeds the session memory budget");
       };
       if (!s.range) {

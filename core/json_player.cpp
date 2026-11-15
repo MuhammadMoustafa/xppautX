@@ -26,10 +26,9 @@
 #include "command_registry.h"
 #include "ui_json_internal.h"
 #include "browse.h"
-#include "model_switch.h"
+#include "model_request.h"
 #include "odex_write.h"
 #include "recx.h"
-#include "xpp_http.h"
 #include "session.h"
 #include "model.h"
 #include "snapx.h"
@@ -557,7 +556,7 @@ xpp::Result<> open_recording(xpp::Session &s, std::string_view path, bool ask = 
     const std::string where = xpp::files::absolute(file);
     std::optional<SavedFile> snapshot = snapshot_of(where, got->rec);
     if (!snapshot) return {};
-    if (ask && !xpp_model_may_leave(s, file)) return {};
+    if (ask && !session.hello.model_may_leave(s, file)) return {};
     close_player();
     player.path = where;
     player.snapshot = std::move(snapshot);
@@ -565,7 +564,7 @@ xpp::Result<> open_recording(xpp::Session &s, std::string_view path, bool ask = 
     player.intact = got->intact;
     player.steps = std::move(steps);
     player.copy_of.assign(player.rec.files.size(), std::string());
-    player.wait_for_page = play && xpp::http::active();
+    player.wait_for_page = play && page_active();
     load(s, 0, play || session.silent);
     return {};
 }

@@ -13,6 +13,8 @@
 #include "autox_settings.h"
 #include "model_files.h"
 #include "xpp_session.h"
+#include "model_request.h"
+#include "xpp_leave.h"
 #include "xpp_error.h"
 #include <optional>
 #include <string>
@@ -64,6 +66,13 @@ xpp::Result<bool> xpp_model_open(xpp::Session &s, const char *path);
    xpp_model_open, the one owner. Says where the copy is; as xpp_model_open
    answers, and the error when the copy cannot be made. */
 xpp::Result<bool> xpp_model_open_example(xpp::Session &s, std::string_view name);
+/* File > Reload (key e) and {"cmd":"reload"}: asks first, as Open model
+   does, then the model's file again, with
+   the command line it was loaded with (a saved model's from its saved
+   files); the parameters, initial data, numerics and autoX settings keep their values by
+   name (restore_values). True when it asked for the load, false when the
+   question was declined, the error when the model was not read from a file */
+xpp::Result<bool> xpp_model_reload(xpp::Session &s);
 /* The one question before the session s goes (W59d): question, answered
    Save session (key s), Don't save (d) or Cancel (Esc). Save saves the
    session first (xpp_session_save, its file asked), and with_recording
@@ -85,80 +94,7 @@ bool xpp_model_may_leave(xpp::Session &s, const std::string &file);
    while a computation runs, {"cmd":"quit","save":true}); a save cancelled
    or failing keeps the session. */
 void xpp_quit(xpp::Session &s, bool saving = false);
-/* File > Reload (key e) and {"cmd":"reload"}: asks first, as Open model
-   does, then the model's file again, with
-   the command line it was loaded with (a saved model's from its saved
-   files); the parameters, initial data, numerics and autoX settings keep their values by
-   name (restore_values). True when it asked for the load, false when the
-   question was declined, the error when the model was not read from a file */
-xpp::Result<bool> xpp_model_reload(xpp::Session &s);
-
 namespace xpp {
-
-/* The leave question's answers and their keys (W59d), and Quit's
-   wording: the one source of the core's question (xpp_session_may_leave,
-   xpp_quit) and of the page's own, which hello's `quit` carries (W110:
-   the page asks it while a computation runs, docs/protocol.md "quit") */
-inline constexpr const char *LEAVE_SAVE = "Save session";
-inline constexpr const char *LEAVE_DONT_SAVE = "Don't save";
-inline constexpr const char *LEAVE_KEYS = "sd";
-/* What the leave question is asked for: Quit, or an update's restart or install (W691) */
-enum class Leave { quit, restart, install };
-/* The question for `leave`: "Quit xppautX? Save this session first?", "Restart xppautX to use the new version? Save this session
-   first?", "Install the update and quit xppautX? Save this session first?"; naming the recording in progress when recording */
-std::string leave_question(Leave leave, bool recording);
-
-/* what a command asked to load: file with the command line command_line
-   (the program's name first), in the folder dir ("" the working one) */
-struct ModelRequest {
-  std::string dir, file;
-  std::vector<std::string> command_line;
-  /* Reload: the values of the Session before carry over by name */
-  bool keep_values=false;
-  /* a saved model: its files, read in place of the disk's (model_files.h) */
-  std::optional<SavedModel> saved;
-  /* Open of a session file: what it adds, restored once its
-     model is loaded (xpp_saved_restore) */
-  std::optional<SavedFile> restore;
-  /* the folder file dialogs start in once it is loaded ("" the folder it
-     loads in): a replay loads in a scratch folder and shows its
-     recording's */
-  std::string home;
-};
-
-/* a request for the model file `file`, loaded in the folder dir as a
-   double-click starts it (the command line: the program's name, then the
-   file), in place of the model of s */
-ModelRequest open_request(const Session &s, std::string dir, std::string file);
-/* a request for the model saved in f (a session file or a
-   recording's snapshot), loaded in the folder dir with the command line
-   it was saved with, in place of the model of s; then what f adds */
-ModelRequest saved_request(const Session &s, std::string dir, SavedFile f);
-
-/* the request the last command in s made, taken: nullopt when it made none */
-std::optional<ModelRequest> take_model_request(Session &s);
-
-/* what Reload carries over, by name: each parameter's value, each
-   variable's initial data (and a delay equation's history text), and the
-   numerics (the Poincare section's variable by its name), and the
-   session file the session was last saved to or opened from */
-struct KeptValues {
-  std::vector<std::pair<std::string,double>> pars, ics;
-  std::vector<std::pair<std::string,std::string>> delays;
-  NumericsSettings numerics;
-  AutoxSettingsSet autox_settings;
-  std::string poincare_variable;
-  /* the session file and the values it was saved with (W218): the next
-     Ctrl+S saves to it, and the changed flag still compares with that
-     save, so the data and diagram Reload drops read as a change */
-  SavedSession saved;
-};
-/* the session's and its model's */
-KeptValues keep_values(const Session &s);
-/* into the session s, just loaded, and its model, a name at a time: a
-   name the model no longer has is left out, and what kept does not name
-   keeps the value the load gave it */
-void restore_values(Session &s, const KeptValues &kept);
 
 /* loads what req, made in the session now, asks for: the new Session,
    current now (its Model its model()), now gone; the error (not shown: the caller

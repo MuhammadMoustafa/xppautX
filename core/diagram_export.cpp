@@ -93,7 +93,7 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
 
 } // namespace
 
-/* the autoX File menu's PDF/SVG entries (W53, issue #101): the diagram as a picture in the image_format.h registry's format fmt, in the
+/* the autoX File menu's PDF/SVG entries (W53, issue #101): the diagram as a picture in the picture.h registry's format fmt, in the
    file given or asked for, with model-based default names and "*.pdf"/"*.svg" filter */
 Result<> export_autox_picture(Session &s, int fmt, const std::optional<std::string> &file, std::optional<int> view)
 {

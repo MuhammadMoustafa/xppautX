@@ -18,6 +18,7 @@
 #include "grobs.h"
 #include "series_enc.h"
 #include "image_format.h"
+#include "picture.h"
 #include <array>
 #include <stdio.h>
 #include <string.h>

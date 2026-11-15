@@ -57,8 +57,8 @@ Result<> approve_model_path(Model &m, const std::string &name, const Place &at)
     const std::string model = m.fs->absolute(files::has_extension(m.this_file, ".ode") ? odex::odex_name(m.this_file) : m.this_file);
     bool remembered = false;
     if (!m.outside_once_only) {
-        if (m.approvals.unreadable) return std::unexpected(*m.approvals.unreadable);
-        remembered = std::ranges::find(m.approvals.kept, OutsideApproval{model, found.path}) != m.approvals.kept.end();
+        if (m.services.unreadable) return std::unexpected(*m.services.unreadable);
+        remembered = std::ranges::find(m.services.kept, OutsideApproval{model, found.path}) != m.services.kept.end();
     }
     if (!remembered) {
         const std::string source = at.source.empty() && at.line > 0 ? model_source_line(m, at.file, at.line) : at.source;
@@ -75,9 +75,9 @@ Result<> approve_model_path(Model &m, const std::string &name, const Place &at)
             return fail(std::string(PATH_REFUSED), xpp::format("names {}, outside the model's folder: refused", found.path), place);
         if (key == OUTSIDE_PATH_ALWAYS) {
             const OutsideApproval answer{model, found.path};
-            if (m.approvals.keep)
-                if (const Result<> kept = m.approvals.keep(answer); !kept) return std::unexpected(kept.error());
-            m.approvals.kept.push_back(answer);
+            if (m.services.keep)
+                if (const Result<> kept = m.services.keep(answer); !kept) return std::unexpected(kept.error());
+            m.services.kept.push_back(answer);
         }
     }
     m.outside_paths.push_back(found.path);
@@ -297,6 +297,7 @@ std::unique_ptr<Model> scratch_model(const Model &m)
     scratch->this_file = m.this_file;
     scratch->fs = m.fs;
     scratch->outside_paths = m.outside_paths;
+    scratch->services = m.services;
     scratch->load_dir = m.load_dir;
     if (!m.saved_in.empty()) { /* its files are the session's copies, never the disk's */
         scratch->saved_in = m.saved_in;

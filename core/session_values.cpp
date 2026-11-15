@@ -12,7 +12,6 @@
 #include "expr.h"
 #include "browse.h"
 #include "integrate.h"
-#include "image_format.h"
 #include "tabular.h"
 #include "volterra2.h"
 #include "delay_handle.h"

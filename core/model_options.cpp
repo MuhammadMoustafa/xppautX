@@ -12,14 +12,13 @@
 #include <memory>
 
 #include "model_options.h"
-#include "image_format.h"
 #include "odex_block.h"
 #include "odex.h"
 #include "xpp_util.h"
 #include "session_values.h"
 #include "model_autox_numerics.h"
 #include "browse.h"
-#include "data_formats.h"
+#include "data_table.h"
 #include "colormap.h"
 #include "expr_native.h"
 #include "plot_state.h"
@@ -38,7 +37,7 @@
 #include "xpp_math.h"
 #include "session.h"
 #include "adj2.h"
-#include "aniparse.h"
+#include "ani_state.h"
 #include "autox_state.h"
 #include "delay_handle.h" /* IWYU pragma: keep (the generic lambdas of the option table need DelayState complete) */
 #include "integrate.h"
@@ -154,6 +153,22 @@ std::optional<std::size_t> equation_of(const Session &s, std::string_view name)
   return static_cast<std::size_t>(i);
 }
 
+/* an `@ but=name:keys` line (import only) as a button of s: nullptr when it is taken (a sequence no command of ours runs, or one an
+   earlier button already runs, as XPPAUT keeps one button for each, adds none), else why the line is no button; nothing is
+   added when apply is false */
+const char *add_xppaut_button(Session &s, std::string_view spec, bool apply)
+{
+  const std::size_t colon = spec.find(':');
+  if (colon == std::string_view::npos || colon == 0 || colon + 1 == spec.size()) return "must be a name and a command sequence, name:keys";
+  const std::string_view command = xppaut_button_command(spec.substr(colon + 1));
+  /* a load's .ode keeps its unmapped BUT lines out of the buttons: the conversion warns of each at its line (odex_convert.cpp
+     buttons_list); a value set any other way is refused, the caller naming it (option_error_text) */
+  if (command.empty()) return Load::running() ? nullptr : "no command of xppautX does what these keys do";
+  if (std::ranges::any_of(s.user_buttons, [&](const UserButton &b) { return b.command == command; })) return nullptr;
+  if (apply) s.user_buttons.push_back({std::string(spec.substr(0, colon)), std::string(command)});
+  return nullptr;
+}
+
 /* the file a path option names, from the model's folder, into path: inside
    it, or outside it when the user allows (approve_model_path, which asks
    once); else why not. A stored bad preferences file stops the load. */
@@ -172,7 +187,7 @@ const char *data_file_into(Session &s, const OptionValue &v, std::string &target
 {
   std::string path;
   if (const char *why = own_file(s, v, path)) return why;
-  if (!data_format_of_file(path)) return "must end in the extension of a data format (.dat, .csv, .csv.gz, .npz)";
+  if (!has_data_extension(path)) return "must end in the extension of a data format (.dat, .csv, .csv.gz, .npz)";
   if (v.apply) target = path;
   return nullptr;
 }
@@ -957,7 +972,7 @@ constexpr OptionRow rows[] = {
      std::string path;
      if (v.text[0] != '\0') {
        if (const char *why = own_file(s, v, path)) return why;
-       if (!picture_format_of_file(path)) return "must end in the extension of a picture format (.pdf, .svg)";
+       if (!has_picture_extension(path)) return "must end in the extension of a picture format (.pdf, .svg)";
      }
      if (v.apply) s.picture_file = path;
      return nullptr;
@@ -1591,7 +1606,7 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   }
   else if (row->kind == OptionKind::buttons) {
     const auto buttons = odex::read_block("options", s.model().this_file, "buttons: " + text, false,
-      [&](odex::Block &block) { return read_buttons(block); });
+      [&](odex::Block &block) { return read_buttons(block, s.model().services); });
     if (!buttons) return buttons.error().what;
     if (apply) s.user_buttons = *buttons;
   }

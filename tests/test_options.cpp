@@ -14,6 +14,8 @@
 #include "xpp_fs_local.h"
 #include "test_support.h"
 #include "session.h"
+#include "xpp_platform.h"
+#include "xpp_ui.h"
 #include "plot_settings.h"
 #include "solver.h"
 #include "model.h"
@@ -75,6 +77,9 @@ bool write_file(const char *path, const std::string &text)
 /* the terminal's answers to the next questions: stdin is this text */
 bool answer_with(const std::string &text)
 {
+    xpp::XppUi terminal{};
+    terminal.terminal_line = xpp::platform::read_input_line; /* what the program's start gives the headless questions */
+    xpp::set_ui(&terminal);
     const char *answers = "build/test_options_answers.txt";
     const char *none = test_null_device();
     /* the file being read cannot be replaced on Windows: let go of it first */

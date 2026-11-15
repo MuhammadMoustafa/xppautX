@@ -181,69 +181,6 @@ private:
 
 /* ---- a window's other settings ---- */
 
-/* the window's settings as a settings file holds them, each given to io
-   with its key (its curves are write_curves' and read_curves') */
-template <class IO, class G> void graph_fields(IO &io, G &g)
-{
-    io.numbers("rm", std::span(&g.rm[0][0], 9));
-    io("z_plane", g.ZPlane);
-    io("z_view", g.ZView);
-    io("perspective", g.PerspFlag);
-    io("three_d", g.ThreeDFlag);
-    io("time", g.TimeFlag);
-    io("color_flag", g.ColorFlag);
-    io("type", g.grtype);
-    io("color_scale", g.color_scale);
-    io("min_scale", g.min_scale);
-    io("xmax", g.xmax);
-    io("xmin", g.xmin);
-    io("ymax", g.ymax);
-    io("ymin", g.ymin);
-    io("zmax", g.zmax);
-    io("zmin", g.zmin);
-    io("xbar", g.xbar);
-    io("dx", g.dx);
-    io("ybar", g.ybar);
-    io("dy", g.dy);
-    io("zbar", g.zbar);
-    io("dz", g.dz);
-    io("theta", g.Theta);
-    io("phi", g.Phi);
-    io("xshift", g.xshft);
-    io("yshift", g.yshft);
-    io("zshift", g.zshft);
-    io("xlo", g.xlo);
-    io("ylo", g.ylo);
-    io("old_xlo", g.oldxlo);
-    io("old_ylo", g.oldylo);
-    io("xhi", g.xhi);
-    io("yhi", g.yhi);
-    io("old_xhi", g.oldxhi);
-    io("old_yhi", g.oldyhi);
-}
-
-/* gathers the settings' values into a list / puts them back from it */
-class Gather {
-public:
-    template <class T> void operator()(std::string_view, T &v) { values.push_back(static_cast<double>(v)); }
-    void numbers(std::string_view, std::span<const double> v) { values.insert(values.end(), v.begin(), v.end()); }
-    std::vector<double> values;
-};
-
-class Scatter {
-public:
-    explicit Scatter(const std::vector<double> &values) : values_(values) {}
-    template <class T> void operator()(std::string_view, T &v) { v = static_cast<T>(values_[next_++]); }
-    void numbers(std::string_view, std::span<double> v)
-    {
-        for (double &x : v) x = values_[next_++];
-    }
-
-private:
-    const std::vector<double> &values_;
-    std::size_t next_ = 0;
-};
-
 /* the column name names: the time, a variable, or one of the columns
    added (a session's windows add them before the browser has them);
    nothing when the model has none of that name */
@@ -311,24 +248,6 @@ double parameter_value(const Session &s, int i)
     double z = 0;
     get_val(s, s.model().upar_names[static_cast<std::size_t>(i)], &z);
     return z;
-}
-
-void copy_graph_settings(const GRAPH &from, GRAPH &to)
-{
-    Gather values;
-    graph_fields(values, from);
-    Scatter put(values.values);
-    graph_fields(put, to);
-}
-
-void copy_curves(const GRAPH &from, GRAPH &to)
-{
-    to.resize_curves(from.nvars);
-    to.xv = from.xv;
-    to.yv = from.yv;
-    to.zv = from.zv;
-    to.style = from.style;
-    to.color = from.color;
 }
 
 void write_window(odex::Out &out, const Session &s, const GRAPH &g)

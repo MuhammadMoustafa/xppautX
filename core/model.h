@@ -369,7 +369,7 @@ struct Model {
      loaded, as files::resolve_path gives them (approve_model_path, model_files.h) */
   std::vector<std::string> outside_paths;
   /* the user's "Allow always" answers this load works with, kept before and as given (model_file_types.h) */
-  PathApprovals approvals;
+  LoadServices services;
   /* a Model made to parse a file of values in (set_load.cpp, scratch_model) holds whether a path outside the folder the user
      allows is for this read only (asked every time, never kept in the preferences) */
   bool outside_once_only = false;

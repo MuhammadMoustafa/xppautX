@@ -10,7 +10,7 @@
 #include "command_graph.h"
 #include "graf_par.h"
 #include "grobs.h"
-#include "image_format.h"
+#include "picture.h"
 #include "numerics.h"
 #include "model_options.h"
 #include "typed_values.h"

@@ -184,7 +184,7 @@ WindowsRead read_windows(xpp::Session &s, xpp::odex::Block &file, std::size_t &e
             + sizeof(xpp::PhaseShown::Window) + sizeof(int)
             + static_cast<std::size_t>(main_curves) * (5 * sizeof(int) + 2 * plot_axes * sizeof(float));
         const std::size_t next = r.windows.size();
-        if (!xpp::snapx::account_memory(expanded_bytes, next - slots, slot_bytes))
+        if (!xpp::zip::account_memory(expanded_bytes, next - slots, slot_bytes))
             file.fail(*file.member("windows"), "too many windows for the session memory limit");
         slots = next;
         xpp::copy_graph_settings(s.plot_windows->graph[0], sw.graph);
@@ -478,7 +478,7 @@ MarksRead read_marks(xpp::odex::Block &session, const WindowsRead &windows, cons
             g.fail(*g.member("slot"), "frozen slots must be listed once in index order");
         const std::size_t next = static_cast<std::size_t>(c.slot) + 1;
         constexpr std::size_t slot_bytes = sizeof(CURVE) + sizeof(std::array<std::vector<float>, plot_axes>) + sizeof(unsigned long);
-        if (!xpp::snapx::account_memory(expanded_bytes, next - slots, slot_bytes))
+        if (!xpp::zip::account_memory(expanded_bytes, next - slots, slot_bytes))
             file.fail(*file.member("frozen_curves"), "too many frozen_curves for the session memory limit");
         slots = next;
         g.flag("used",c.used);
@@ -491,7 +491,7 @@ MarksRead read_marks(xpp::odex::Block &session, const WindowsRead &windows, cons
         g.whole("points", len);
         g.text("key", c.key);
         g.text("name", c.name);
-        if (len > 0 && !xpp::snapx::account_memory(expanded_bytes, static_cast<std::size_t>(len), plot_axes * sizeof(float)))
+        if (len > 0 && !xpp::zip::account_memory(expanded_bytes, static_cast<std::size_t>(len), plot_axes * sizeof(float)))
             g.fail(*g.member("points"), "too many frozen curve points for the session memory limit");
         const std::string array = xpp::format("curve{}_", c.slot);
         c.x = points_of(frozen, array + "0", len);

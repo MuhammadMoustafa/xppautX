@@ -1,5 +1,6 @@
 /* The bundled examples: see xpp_examples.h. */
 #include "xpp_examples.h"
+#include "command_registry.h"
 #include "model_switch.h"
 
 #include <algorithm>
@@ -85,6 +86,7 @@ Result<std::string> install(FileSystem &fs, std::string_view name)
     try {
         Model model;
         model.this_file = source;
+        model.services.command_exists = command::command_known;
         const auto parsed = odex::parse(model, members.front().bytes, source);
         for (const auto &statement : parsed.statements) {
             if (statement.kind != odex::Statement::Kind::Options) continue;

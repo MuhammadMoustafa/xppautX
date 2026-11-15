@@ -22,12 +22,11 @@
 #include "ui_json_internal.h"
 #include "autox_run.h"
 #include "autox_evd.h"
+#include "image_format.h"
 #include "picture.h"
 #include "data_formats.h"
-#include "image_format.h"
 #include "json_error.h"
 #include "xpp_log.h"
-#include "xpp_http.h"
 #include "xpp_inbox.h"
 #include "xpp_job.h"
 #include "many_pops.h"
@@ -36,7 +35,8 @@
 #include "mykeydef.h"
 #include "userbut.h"
 #include "xpp_globals.h"
-#include "model_switch.h"
+#include "model_request.h"
+#include "xpp_leave.h"
 #include "plot_data.h"
 #include "phase_data.h"
 #include "marks_data.h"
@@ -171,7 +171,7 @@ void answer_page(xpp::Session &s, const char *line)
 {
     const xpp::Place place = j_command_place();
     xpp::Result<std::string> request = std::string(line);
-    if (*skip_ws(line) != '{' && !session.silent && !xpp::http::active()) request = xpp::command::tokenize(line, place);
+    if (*skip_ws(line) != '{' && !session.silent && !page_active()) request = xpp::command::tokenize(line, place);
     const xpp::Result<std::string> result = request ? xpp::command::run(s, request->c_str(), place, false) : std::unexpected<xpp::Error>(request.error());
     data_update(s);
     if (result) return;
@@ -406,7 +406,7 @@ void take_setting(xpp::Session &s, const char *line)
 /* the registry request a line makes, as JSON: server text is made into it, JSON is the line */
 xpp::Result<std::string> request_of(const char *line, const xpp::Place &place)
 {
-    const bool text = *skip_ws(line) != '{' && !session.silent && !xpp::http::active();
+    const bool text = *skip_ws(line) != '{' && !session.silent && !page_active();
     if (text) return xpp::command::tokenize(line, place);
     return std::string(line);
 }
@@ -417,7 +417,7 @@ bool paths_allowed(bool played, const char *line)
 {
     if (xpp::inbox::take_own_open(line)) return true;
     /* a recording's steps may open the files it holds: the player serves their reads from the recording, never the disk */
-    return played || (!session.silent && !xpp::http::active());
+    return played || (!session.silent && !page_active());
 }
 
 /* a registry command run at once, during a computation (the state, a player control): its done is sent here */
@@ -449,7 +449,7 @@ int control_line(xpp::Session &s, const char *line)
     if (is_steering(line)) {
         /* done now; its own `done` comes with the running command's end, as a setting's */
         const xpp::Place place = j_command_place();
-        const bool text = *skip_ws(line) != '{' && !session.silent && !xpp::http::active();
+        const bool text = *skip_ws(line) != '{' && !session.silent && !page_active();
         const xpp::Result<std::string> request = text ? xpp::command::tokenize(line, place) : xpp::Result<std::string>(line);
         const xpp::Result<std::string> result = request ? xpp::command::run(s, request->c_str(), place, false) : std::unexpected(request.error());
         if (request) record_control(request->c_str());
@@ -676,6 +676,7 @@ XppUi make_json_ui(void)
     u.autox_live_drop = j_autox_live_drop;
     u.new_vcr = j_new_vcr;
     u.ani_show = j_ani_show;
+    u.ani_on_the_fly = j_ani_on_the_fly;
     u.ani_slider = j_ani_slider;
     u.ani_go = j_ani_go;
     u.init_txtview = j_void;
@@ -908,7 +909,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
        (session.h): chosen here, once, and passed down (W47d); only a model
        loaded in its place below replaces it */
     xpp::Session *s = &xpp::client_session();
-    const bool text = *skip_ws(line) != '{' && !session.silent && !xpp::http::active();
+    const bool text = *skip_ws(line) != '{' && !session.silent && !page_active();
     const bool registered=text || !xpp::command::name(line).empty();
     xpp::Result<std::string> request=std::string(line),result=std::string{};
     if (registered) {
@@ -1054,7 +1055,7 @@ namespace {
    interface at all: xpp_ui.cpp's headless messages) */
 void install(bool silent)
 {
-    if (!silent && !xpp::http::active()) { /* browser mode has taken stdout and stderr */
+    if (!silent && !page_active()) { /* browser mode has taken stdout and stderr */
         open_protocol_stdout();
         if (!start_stdin()) {
             xpp::log(XPP_LOG_ERROR, "xppautX: cannot start the input thread\n");
