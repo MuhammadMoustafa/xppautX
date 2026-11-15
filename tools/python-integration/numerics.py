@@ -3,8 +3,8 @@
 
 A run's settings are the model's options block over xppautX's defaults (an XPPAUT set file is converted
 into the model's .odex once, `xppautX --convert model.ode --statefile FILE`). The defaults are xppautX's own, read from core/ where they are written
-(core/model_options.cpp's resets, core/load_eqn.h's NumericsSettings, core/solver.cpp's method
-table), so the Python side has no default of its own.
+(core/model_options.cpp's resets, the NumericsSettings struct, the method table and XPPAUT's method keys, found wherever
+core/ writes them), so the Python side has no default of its own.
 """
 
 from pathlib import Path
@@ -13,15 +13,15 @@ from types import SimpleNamespace
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
-# core/model_options.cpp writes an option's default in its row: `.reset = [](Session &s) { s.numerics.MEMBER = VALUE; }, ... .key = "KEY"`
-RESET = re.compile(r'\.reset = \[\]\(Session &s\) \{ s\.numerics\.[\w.]+ = ([-0-9.eE]+); \},[^{}]*?\.key = "(\w+)"')
+# core/model_options.cpp writes an option's default in its row: `.reset = [](const SessionParts &s) { s.numerics->MEMBER = VALUE; }, ... .key = "KEY"`
+RESET = re.compile(r'\.reset = \[\]\((?:const )?\w+ &s\) \{ s\.numerics(?:->|\.)[\w.]+ = ([-0-9.eE]+); \},[^{}]*?\.key = "(\w+)"')
 # ... and the name a row has in a .odex (`step.min`), which its key (`min_step`) is not: the row's `.odex = "NAME"` and then its `.key = "KEY"`
 ODEX_NAME = re.compile(r'\.odex = "([\w.]+)"(?:(?!\.odex = ).)*?\.key = "(\w+)"', re.S)
 # ... and the default method's, the name picked unless the model has integral equations
 METHOD_RESET = re.compile(r'"Volterra" : "([^"]+)"')
-# core/load_eqn.h: a NumericsSettings member that no option names
+# the NumericsSettings struct: a member that no option names
 STOL = re.compile(r'double stol = ([-0-9.eE]+);')
-# core/solver.cpp's registry rows: {method::ID,"name","set file label","key",...}
+# the method table's rows: {method::ID,"name","set file label","key",...}
 METHOD_ROW = re.compile(r'\{method::\w+,"([^"]+)","([^"]+)","(\w+)"')
 LEGACY_METHOD_KEYS = re.compile(r'constexpr std::string_view keys = "([^"]+)"')
 WHOLE = ('store_every', 'eul_iter')
@@ -35,23 +35,30 @@ def read_core(name):
     return (REPO_ROOT / 'core' / name).read_text(encoding='utf-8')
 
 
+def find_in_core(pattern, what):
+    """The one file of core/ whose text `pattern` matches, and its matches: a definition is read where core/ writes it, so a
+    move between files (W744 moved the method table, W757 changed the option rows) never leaves this reading nothing."""
+    found = [(f.name, pattern.findall(f.read_text(encoding='utf-8'))) for f in sorted((REPO_ROOT / 'core').glob('*.[ch]*'))]
+    found = [(name, matches) for name, matches in found if matches]
+    if len(found) != 1:
+        raise Unreadable('core/: %s found in %s' % (what, ', '.join(name for name, _ in found) or 'no file'))
+    return found[0]
+
+
 def method_rows():
-    rows = METHOD_ROW.findall(read_core('solver.cpp'))
-    if not rows:
-        raise Unreadable('core/solver.cpp: no method rows found')
-    return rows
+    return find_in_core(METHOD_ROW, 'the method table')[1]
 
 
 def legacy_method_key(key):
     """XPPAUT's one-character method key, from the same core registry reader."""
-    keys = LEGACY_METHOD_KEYS.search(read_core('solver.cpp'))
+    keys = find_in_core(LEGACY_METHOD_KEYS, "XPPAUT's method keys")[1]
     rows = method_rows()
-    if keys is None or len(keys.group(1)) != len(rows):
-        raise Unreadable('core/solver.cpp: legacy method keys do not match the registry')
+    if len(keys) != 1 or len(keys[0]) != len(rows):
+        raise Unreadable("core/: XPPAUT's method keys do not match the method table")
     for i, (_, _, candidate) in enumerate(rows):
         if key == candidate:
-            return keys.group(1)[i]
-    raise Unreadable('core/solver.cpp: no method key ' + key)
+            return keys[0][i]
+    raise Unreadable('core/: no method key ' + key)
 
 
 def core_defaults():
@@ -59,11 +66,11 @@ def core_defaults():
     options = read_core('model_options.cpp')
     defaults = {key: float(value) for value, key in RESET.findall(options)}
     default_method = METHOD_RESET.search(options)
-    stol = STOL.search(read_core('load_eqn.h'))
-    if not default_method or not stol:
-        raise Unreadable('core/model_options.cpp or core/load_eqn.h: a default not found')
+    if not defaults or not default_method:
+        raise Unreadable("core/model_options.cpp: the option rows' defaults not found")
+    stol = find_in_core(STOL, 'the stol default')[1]
     defaults['method'] = next(key for name, _, key in method_rows() if name == default_method.group(1))
-    defaults['stol'] = float(stol.group(1))
+    defaults['stol'] = float(stol[0])
     return defaults
 
 
