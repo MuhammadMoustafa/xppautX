@@ -19,7 +19,6 @@
 #include "json_number.h"
 #include "autox_stop.h"
 #include "autox_run.h"
-#include "session.h"
 #include "autox_state.h"
 #include "xpp_math.h"
 
@@ -126,7 +125,7 @@ void add_stop(std::string &o, const AutoxStop &stop)
 
 } // namespace
 
-std::string autox_data_event_line(const Session &s, const int &point)
+std::string autox_data_event_line(const AutoxParts &s, const int &point)
 {
     const AutoxDataShown &sh = s.autox_state->shown;
     std::string o = xpp::events::open(xpp::events::AUTOX_INFO) + ",\"info\":";
@@ -147,13 +146,13 @@ std::string autox_data_event_line(const Session &s, const int &point)
     return o;
 }
 
-void autox_data_forget(Session &s)
+void autox_data_forget(AutoxParts s)
 {
     s.autox_state->shown.has_info = s.autox_state->shown.has_stab = false;
     autox_stop_clear(s.autox_state->stop);
 }
 
-void autox_data_info(Session &s, const AutoxDataInfo *v)
+void autox_data_info(AutoxParts s, const AutoxDataInfo *v)
 {
     AutoxDataShown &info = s.autox_state->shown;
     if (!v || info.held > 0) return;
@@ -171,7 +170,7 @@ void autox_data_info(Session &s, const AutoxDataInfo *v)
     }
 }
 
-void autox_data_stab(Session &s, std::span<const double> evr, std::span<const double> evi, int periodic)
+void autox_data_stab(AutoxParts s, std::span<const double> evr, std::span<const double> evi, int periodic)
 {
     AutoxDataShown &sh = s.autox_state->shown;
     if (sh.held > 0) return;
@@ -185,7 +184,7 @@ void autox_data_stab(Session &s, std::span<const double> evr, std::span<const do
     }
 }
 
-void autox_data_hold(Session &s, int on)
+void autox_data_hold(AutoxParts s, int on)
 {
     int &held = s.autox_state->shown.held;
     held += on ? 1 : (held > 0 ? -1 : 0);

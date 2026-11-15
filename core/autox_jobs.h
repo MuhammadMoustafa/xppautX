@@ -1,4 +1,5 @@
 #pragma once
+#include "autox_parts.h"
 #include "xpp_error.h"
 /* autoX's jobs at once (W596, W605): a run from the current state with follow_all_branches on continues both directions,
    +DS and -DS, as two jobs (the settings' step_size is the direction: the jobs take |step_size| with each sign), and each
@@ -19,10 +20,9 @@
 
 namespace xpp {
 
-struct Session; /* session.h */
 
 /* The run from the current state every starter of one ends with (autox_run.cpp): with follow_all_branches off the one
    run do_autox makes, on both directions as jobs and what they find. iold and isave as do_autox's; irs is 0. */
-Result<> autox_run_from_current_state(Session &s, int iold, int isave);
+Result<> autox_run_from_current_state(AutoxParts s, int iold, int isave);
 
 } // namespace xpp

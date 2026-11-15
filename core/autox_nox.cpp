@@ -1,6 +1,5 @@
 #include "autox_unknowns.h"
 #include "autox_state.h"
-#include "display_state.h"
 #include "model.h"
 #include "integrate.h"
 #include "storage.h"
@@ -16,7 +15,7 @@
 #include "xpp_util.h"
 #include <string.h>
 #include "autox_evd.h"
-#include "autox_c.h" /* autox_bind_session */
+#include "autox_c.h" /* autox_bind_parts */
 #include <charconv>
 #include "autox_stop.h"
 #include "jacobian.h"
@@ -72,7 +71,6 @@
 #include "autox_nox.h"
 #include "colormap.h"
 #include "line_style.h"
-#include "session.h"
 #include "xpp_error.h"
 namespace xpp {
 
@@ -92,7 +90,7 @@ constexpr xpp::Color FP_color=xpp::xppaut_color(6);   /* olive */
    Grab loop's Return): a diverged run's stored point can hold a
    non-finite value (QA SCI-001, -nan in the "state" event's pars). Skip
    it and keep the model's previous value instead, once per parameter. */
-static void autox_set_pars_from(xpp::Session &s, const double *par)
+static void autox_set_pars_from(AutoxParts s, const double *par)
 {
     for (int i = 0; i < s.model().nupar; i++) {
         const int idx = s.model().upar_con[i];
@@ -107,7 +105,7 @@ static void autox_set_pars_from(xpp::Session &s, const double *par)
    autoX's own working copy of a continuation parameter (autox_pp.cpp's user_right_hand_side,
    synced into constants[] every RHS call) not finite. Restore what the
    run started from instead of leaving -nan in the model (QA SCI-001). */
-void autox_restore_finite_pars(xpp::Session &s, const double *before)
+void autox_restore_finite_pars(AutoxParts s, const double *before)
 {
     for (int i = 0; i < s.model().nupar; i++) {
         const int idx = s.model().upar_con[i];
@@ -138,7 +136,7 @@ xpp::Color two_parameter_color(AutoxCalculation flag2)
   }
 }
 
-void storeautoxpoint(xpp::Session &s, double x,double y)
+void storeautoxpoint(AutoxParts s, double x,double y)
 {
   if(s.autox_state->axes().plot==AutoxProjection::two_parameter){
     s.autox_state->from_autox_x=x;
@@ -146,22 +144,22 @@ void storeautoxpoint(xpp::Session &s, double x,double y)
     s.autox_state->from_autox_flag=true;
   }
 }
-void setautoxpoint(xpp::Session &s)
+void setautoxpoint(AutoxParts s)
 {
   if(s.autox_state->from_autox_flag)
     {
       s.autox_state->from_autox_flag=false;
-      xpp::set_val(s,s.model().upar_names[s.autox_state->axes().icp1],s.autox_state->from_autox_x);
-      xpp::set_val(s,s.model().upar_names[s.autox_state->axes().icp2],s.autox_state->from_autox_y);
-      xpp::evaluate_derived(s);
-      xpp::ok_or_show(xpp::redo_all_fun_tables(s));
+      xpp::set_val(s.session,s.model().upar_names[s.autox_state->axes().icp1],s.autox_state->from_autox_x);
+      xpp::set_val(s.session,s.model().upar_names[s.autox_state->axes().icp2],s.autox_state->from_autox_y);
+      xpp::evaluate_derived(s.session);
+      xpp::ok_or_show(xpp::redo_all_fun_tables(s.session));
       redraw_params();
     }
 }
       
 namespace {
 /* autoX's parameter k's name, or "" (autox_par_name) */
-std::string par_label(const xpp::Session &s, int k)
+std::string par_label(const AutoxParts &s, int k)
 {
   const char *p=autox_par_name(s, k);
   return p?p:"";
@@ -172,7 +170,7 @@ std::string par_label(const xpp::Session &s, int k)
 struct AxisLabels {
   std::string x,y;
 };
-AxisLabels axis_labels(const xpp::Session &s, const AUTOAX &ax)
+AxisLabels axis_labels(const AutoxParts &s, const AUTOAX &ax)
 {
   AxisLabels l;
   l.x=par_label(s, ax.icp1);
@@ -201,27 +199,27 @@ AxisLabels axis_labels(const xpp::Session &s, const AUTOAX &ax)
 }
 } // namespace
 
-void get_autox_str(const xpp::Session &s, const AUTOAX &ax, std::string &xlabel, std::string &ylabel)
+void get_autox_str(const AutoxParts &s, const AUTOAX &ax, std::string &xlabel, std::string &ylabel)
 {
   AxisLabels l=axis_labels(s, ax);
   xlabel=std::move(l.x);
   ylabel=std::move(l.y);
 }
 
-void draw_bif_axes(xpp::Session &s)
+void draw_bif_axes(AutoxParts s)
 {
  /* the data of the diagram starts again, in every view */
- for(int v=0;v<static_cast<int>(s.autox_state->views.size());v++)autox_diagram(s,v,NULL);
- refreshdisplay(s);
+ for(int v=0;v<static_cast<int>(s.autox_state->views.size());v++)autox_diagram(s.session,v,NULL);
+ refreshdisplay(s.session);
 }
 
-int IXVal(const xpp::Session &s, double x)
+int IXVal(const AutoxParts &s, double x)
 {
   double temp=static_cast<double>(s.autox_state->bifur.wid)*(x-s.autox_state->axes().xmin)/(s.autox_state->axes().xmax-s.autox_state->axes().xmin);
   return (static_cast<int>(temp)+s.autox_state->bifur.x0);
 }
 
-int IYVal(const xpp::Session &s, double y)
+int IYVal(const AutoxParts &s, double y)
 {
   double temp=static_cast<double>(s.autox_state->bifur.hgt)*(y-s.autox_state->axes().ymin)/(s.autox_state->axes().ymax-s.autox_state->axes().ymin);
   return(s.autox_state->bifur.hgt-static_cast<int>(temp)+s.autox_state->bifur.y0);
@@ -275,7 +273,7 @@ static xpp::Result<> install_run_file(xpp::FileSystem &fs, const std::string &fr
   return (*sink)->commit();
 }
 
-void close_autox(xpp::Session &s, AutoxRun &run, int flg) /* labels compatible with A2K  */
+void close_autox(AutoxParts s, AutoxRun &run, int flg) /* labels compatible with A2K  */
 {
   xpp::FileSystem &fs=*s.model().fs;
   if(auto finished=autox_finish_files(run);!finished)xpp::log(XPP_LOG_ERROR,"{}\n",finished.error().text());
@@ -311,7 +309,7 @@ void close_autox(xpp::Session &s, AutoxRun &run, int flg) /* labels compatible w
 /* autoX keeps its .b/.d/.s files under HOME. A HOME that is set but unusable
    (missing, not writable) must fall back to the model's directory like an
    unset one, or the moves fail at the end of a run. */
-static const char *autox_home_dir(xpp::Session &s, char *dname)
+static const char *autox_home_dir(AutoxParts s, char *dname)
 {
   const char *home;
 
@@ -325,7 +323,7 @@ static const char *autox_home_dir(xpp::Session &s, char *dname)
   return home;
 }
 
-void create_autox_file_name(xpp::Session &s)
+void create_autox_file_name(AutoxParts s)
 {
   /* basename()/dirname() may write into their argument or return a
      pointer into it, so each needs its own writable, NUL-terminated
@@ -339,7 +337,7 @@ void create_autox_file_name(xpp::Session &s)
   s.autox_state->file=xpp::format("{}/{}",autox_dir,bname);
 }
 
-xpp::Result<> open_autox(xpp::Session &s, AutoxRun &run, int flg) /* compatible with new auto */
+xpp::Result<> open_autox(AutoxParts s, AutoxRun &run, int flg) /* compatible with new auto */
 {
   /* the .b, .d and .s files close_autox puts the run's files in: a folder that cannot take them
      is refused before the run, not at its end */
@@ -363,7 +361,7 @@ xpp::Result<> open_autox(xpp::Session &s, AutoxRun &run, int flg) /* compatible 
 }
 
 /* what a run continues, for autox_stability.h */
-static AutoxStabilityKind run_stability_kind(const xpp::Session &s, xpp::AutoxProblem ips, int isw)
+static AutoxStabilityKind run_stability_kind(const AutoxParts &s, xpp::AutoxProblem ips, int isw)
 {
   if(s.autox_state->two_param!=no_calculation||isw==2)return AUTOX_STABILITY_OTHER;
   if(ips==xpp::AutoxProblem::Periodic)return AUTOX_STABILITY_PERIODIC;
@@ -382,7 +380,7 @@ static AutoxStabilityKind point_stability_kind(const DIAGRAM *d)
 /* a run (problem ips, branch switch isw) starts from the stored point d, or from initial data (d null): its first
    point takes the point's stored stability when it is the point's own solution, else it is not computed
    (autox_stability.h) */
-static void stability_run_start(const xpp::Session &s, AutoxRun &run, xpp::AutoxProblem ips, int isw, const DIAGRAM *d)
+static void stability_run_start(const AutoxParts &s, AutoxRun &run, xpp::AutoxProblem ips, int isw, const DIAGRAM *d)
 {
   if(d==NULL){
     autox_stability_run_start(run.stability,run_stability_kind(s,ips,isw),isw,AUTOX_STABILITY_NONE,AutoxPointCode{},{},{});
@@ -467,13 +465,13 @@ std::string autox_branch_row_key(long branch, long point, long type, long label)
   return xpp::format("{:4} {:5} {:3} {:3}",branch,point,type,label);
 }
 
-AutoxDepth::AutoxDepth(Session &s) : depth(s.autox_state->depth) { if(depth++==0)autox_stop_clear(s.autox_state->stop); } /* xppautX: T23: why this run's branches end */
+AutoxDepth::AutoxDepth(AutoxParts s) : depth(s.autox_state->depth) { if(depth++==0)autox_stop_clear(s.autox_state->stop); } /* xppautX: T23: why this run's branches end */
 
 /* the run's three files opened as sinks in its scratch folder, when its numerics start: a job queued behind others holds a folder,
    not open files */
 static xpp::Result<> open_run_files(AutoxRun &run)
 {
-  xpp::FileSystem &fs=*run.session->model().fs;
+  xpp::FileSystem &fs=*run.parts->model().fs;
   AutoxRun::Outputs &out=run.outputs;
   for(const auto &[path,sink]:{std::pair{&out.branches,&out.branches_sink},std::pair{&out.solutions,&out.solutions_sink},std::pair{&out.diagnostics,&out.diagnostics_sink}}){
     auto opened=fs.open_sink(*path,true,{});
@@ -513,7 +511,7 @@ Error autox_shown_failure(Error failed)
   return failed;
 }
 
-std::optional<xpp::Error> autox_end_run(xpp::Session &s, AutoxRun &run, std::optional<xpp::Error> failed, int isave)
+std::optional<xpp::Error> autox_end_run(AutoxParts s, AutoxRun &run, std::optional<xpp::Error> failed, int isave)
 {
   std::optional<xpp::Error> reported; /* what the run says went wrong, for the command to return */
   xpp::autox_stop_merge(s.autox_state->stop,std::move(run.stop)); /* what the Session shows of why branches ended */
@@ -545,9 +543,9 @@ std::optional<std::size_t> autox_check_count(const char *name)
   return static_cast<std::size_t>(std::strtoull(at,nullptr,10));
 }
 
-Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold, const AutoxFoundStart *found)
+Result<> autox_set_up_run(AutoxParts s, AutoxRun &run, int iold, const AutoxFoundStart *found)
 {
-  autox_bind_session(run,s);
+  autox_bind_parts(run,s);
   /* XPP_AUTOX_CANCEL_AT_SOLVE=N: every run (a job or a single run) asks Stop as its Nth solve begins, so servercheck's Stop
      lands at the same place every time (W750, W751); autox_solve_begins */
   run.cancel_at_solve=autox_check_count("XPP_AUTOX_CANCEL_AT_SOLVE");
@@ -569,7 +567,7 @@ Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold, const AutoxFoundS
   return {};
 }
 
-xpp::Result<> autox_run_prologue(xpp::Session &s, int &isave)
+xpp::Result<> autox_run_prologue(AutoxParts s, int &isave)
 {
     // A model parameter must exist before run setup selects its solver index.
     if(s.model().nupar==0)
@@ -583,7 +581,7 @@ xpp::Result<> autox_run_prologue(xpp::Session &s, int &isave)
 }
 
 /* MAIN Running routine  Assumes that Auto structure is set up */
-xpp::Result<> do_autox(xpp::Session &s, int iold, int isave, xpp::AutoxPointCode itp)
+xpp::Result<> do_autox(AutoxParts s, int iold, int isave, xpp::AutoxPointCode itp)
 {
     if(auto prepared=autox_run_prologue(s,isave);!prepared)return prepared;
 
@@ -624,7 +622,7 @@ xpp::Result<> do_autox(xpp::Session &s, int iold, int isave, xpp::AutoxPointCode
 
 void autox_label_parameters(const AutoxRun &run, int label, double *parameters)
 {
-  const xpp::Session &s=*run.session;
+  const AutoxParts &s=*run.parts;
   const DIAGRAM *point=diagram_of_label(s,label);
   if(!point)return; /* a library-generated starting solution may have no stored point */
   for(int k=0;k<run.params.nicp;k++){
@@ -636,7 +634,7 @@ void autox_label_parameters(const AutoxRun &run, int label, double *parameters)
   }
 }
 
-const char *autox_par_name(const xpp::Session &s, int k)
+const char *autox_par_name(const AutoxParts &s, int k)
 {
   return k>=0&&k<s.model().nupar?s.model().upar_names[k].c_str():NULL;
 }
@@ -644,7 +642,7 @@ const char *autox_par_name(const xpp::Session &s, int k)
 namespace {
 /* autoX's parameter index's name, T for the period; empty for no such
    parameter */
-std::string par_or_period_name(const xpp::Session &s, long index, bool period)
+std::string par_or_period_name(const AutoxParts &s, long index, bool period)
 {
   if(period)return "T";
   const int k=static_cast<int>(index);
@@ -676,7 +674,7 @@ std::string col_centre(const std::string &s)
   return std::string(static_cast<size_t>(l),' ')+t+std::string(static_cast<size_t>(autox_column_width-n-l),' ');
 }
 
-std::string screen_col(const xpp::Session &s, const char *col)
+std::string screen_col(const AutoxParts &s, const char *col)
 {
   long p;
   const char *c=col;
@@ -701,7 +699,7 @@ std::string screen_col(const xpp::Session &s, const char *col)
 }
 } // namespace
 
-std::string autox_screen_col(const xpp::Session &s, const std::string &col)
+std::string autox_screen_col(const AutoxParts &s, const std::string &col)
 {
   return screen_col(s, col.c_str());
 }
@@ -715,7 +713,7 @@ std::string autox_screen_col(const xpp::Session &s, const std::string &col)
 
 
 
-void autox_default(xpp::Session &s)
+void autox_default(AutoxParts s)
 {
   s.autox_state->axes().xmin=s.autox_state->options.xmin;
   s.autox_state->axes().xmax=s.autox_state->options.xmax;
@@ -723,7 +721,7 @@ void autox_default(xpp::Session &s)
   s.autox_state->axes().ymax=s.autox_state->options.ymax;
 }
 
-void autox_fit(xpp::Session &s)
+void autox_fit(AutoxParts s)
 {
   double xlo=s.autox_state->axes().xmin,xhi=s.autox_state->axes().xmax,ylo=s.autox_state->axes().ymin,yhi=s.autox_state->axes().ymax;
   bound_diagram(s, &xlo,&xhi,&ylo,&yhi);
@@ -738,14 +736,14 @@ void autox_fit(xpp::Session &s)
   s.autox_state->axes().ymax=yhi;
 }
   
-void autox_hide_earlier(xpp::Session &s)
+void autox_hide_earlier(AutoxParts s)
 {
-  s.autox_view->earlier=autox_points_held(s);
+  s.autox_view->earlier=autox_points_held(s.session);
   s.autox_view->show_earlier=false;
   draw_bif_axes(s);
 }
 
-void autox_zoom_to(xpp::Session &s, double x1, double x2, double y1, double y2)
+void autox_zoom_to(AutoxParts s, double x1, double x2, double y1, double y2)
 {
   s.autox_state->axes().xmin=x1;
   s.autox_state->axes().ymin=y1;
@@ -753,7 +751,7 @@ void autox_zoom_to(xpp::Session &s, double x1, double x2, double y1, double y2)
   s.autox_state->axes().ymax=y2;
 }
 
-void autox_scroll_by(xpp::Session &s, double dx, double dy)
+void autox_scroll_by(AutoxParts s, double dx, double dy)
 {
   s.autox_state->axes().xmin+=dx;
   s.autox_state->axes().xmax+=dx;
@@ -763,7 +761,7 @@ void autox_scroll_by(xpp::Session &s, double dx, double dy)
 
 /* the view shows what it did, scaled so that what it showed now fills the fractions (a1, a2) of its width and (b1, b2) of its
    height (the box a zoom out shrinks it into, as fractions of the range shown) */
-static void autox_zoom_out_fractions(xpp::Session &s, double a1, double a2, double b1, double b2)
+static void autox_zoom_out_fractions(AutoxParts s, double a1, double a2, double b1, double b2)
 {
   const double xmin=s.autox_state->axes().xmin,xmax=s.autox_state->axes().xmax,ymin=s.autox_state->axes().ymin,ymax=s.autox_state->axes().ymax;
   const double x1=(a1*xmax-a2*xmin)/(a1-a2);
@@ -773,7 +771,7 @@ static void autox_zoom_out_fractions(xpp::Session &s, double a1, double a2, doub
   autox_zoom_to(s,x1,x2,y1,y2);
 }
 
-void autox_zoom_out_to(xpp::Session &s, double x1, double x2, double y1, double y2)
+void autox_zoom_out_to(AutoxParts s, double x1, double x2, double y1, double y2)
 {
   const double dx=s.autox_state->axes().xmax-s.autox_state->axes().xmin,dy=s.autox_state->axes().ymax-s.autox_state->axes().ymin;
   autox_zoom_out_fractions(s,(x1-s.autox_state->axes().xmin)/dx,(x2-s.autox_state->axes().xmin)/dx,(y1-s.autox_state->axes().ymin)/dy,(y2-s.autox_state->axes().ymin)/dy);
@@ -833,13 +831,13 @@ int autox_run_from_take(AutoxRun &run)
 
 /* the stability circle as data (autox_data.h): a stored point's values
    (autox_stability.h), whether autoX is computing it or a grab is on it */
-static void show_stab(xpp::Session &s, std::span<const double> evr,std::span<const double> evi,int periodic)
+static void show_stab(AutoxParts s, std::span<const double> evr,std::span<const double> evi,int periodic)
 {
   autox_data_stab(s,evr,evi,periodic);
 }
 
 /* the color a point is drawn in: its kind of two-parameter curve's, or its stability's */
-static xpp::Color autox_point_color(xpp::Session &s, DiagramPointType type,AutoxCalculation flag2)
+static xpp::Color autox_point_color(AutoxParts s, DiagramPointType type,AutoxCalculation flag2)
 {
   if(flag2!=no_calculation)return two_parameter_color(flag2);
   switch(type){
@@ -855,7 +853,7 @@ static xpp::Color autox_point_color(xpp::Session &s, DiagramPointType type,Autox
    in the current view
 
 */
-int check_plot_type(const xpp::Session &s, AutoxCalculation flag2, xpp::AutoxAxis icp1, xpp::AutoxAxis icp2)
+int check_plot_type(const AutoxParts &s, AutoxCalculation flag2, xpp::AutoxAxis icp1, xpp::AutoxAxis icp2)
 {
   if(flag2==no_calculation && s.autox_state->axes().plot==AutoxProjection::two_parameter)
     return 0;
@@ -878,7 +876,7 @@ namespace {
    the same order: a point's index is the same in every view (the grab,
    Clear's earlier branches). live: a running job's point (XppDiagPoint.live), which is in no diagram entry and whose
    run's first label is its job's own; 0 for a stored one. */
-void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIAGRAM &d, DiagramPointType type,
+void view_point(AutoxParts s, int v, const AUTOAX &ax, bool active, const DIAGRAM &d, DiagramPointType type,
                 int flg, int live)
 {
   const int lab=d.lab;
@@ -913,7 +911,7 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
   }
   if((flag2==no_calculation&&ax.plot==AutoxProjection::two_parameter)||(flag2!=no_calculation&&ax.plot!=AutoxProjection::two_parameter)){
     dp.x=dp.y1=dp.y2=std::numeric_limits<double>::quiet_NaN();
-    autox_diagram(s,v,&dp);
+    autox_diagram(s.session,v,&dp);
     return;
   }
   if(flag2!=no_calculation) /* a two-parameter point in a two-parameter view */
@@ -940,10 +938,10 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
     s.autox_state->bifur.lastx=x;
     s.autox_state->bifur.lasty=y1;
   }
-  autox_diagram(s,v,&dp);
+  autox_diagram(s.session,v,&dp);
 }
 
-void plot_in_views(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int flg, int live)
+void plot_in_views(AutoxParts s, const DIAGRAM &d, DiagramPointType type, int flg, int live)
 {
   for(int v=0;v<static_cast<int>(s.autox_state->views.size());v++)
     view_point(s, v,s.autox_state->views[static_cast<std::size_t>(v)].axes,v==s.autox_state->active_view,d,type,flg,live);
@@ -952,19 +950,19 @@ void plot_in_views(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int
 } // namespace
 
 /* main plotting code: the point in every view */
-void add_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int flg)
+void add_point(AutoxParts s, const DIAGRAM &d, DiagramPointType type, int flg)
 {
   plot_in_views(s,d,type,flg,0);
   show_stab(s, d.evr,d.evi,type==STABLE_PERIODIC||type==UNSTABLE_PERIODIC);
-  refreshdisplay(s);
+  refreshdisplay(s.session);
 }
 
-void add_live_point(xpp::Session &s, const DIAGRAM &d, int live, DiagramPointType type, int flg)
+void add_live_point(AutoxParts s, const DIAGRAM &d, int live, DiagramPointType type, int flg)
 {
   plot_in_views(s,d,type,flg,live);
 }
 
-void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
+void traverse_out(AutoxParts s, DIAGRAM *d, int *ix, int *iy, int dodraw)
 {
   double norm,per,*par,par1,par2=0;
   int pt,ibr,lab;
@@ -1032,17 +1030,17 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
 
 }
 
-void autox_window_opened(xpp::Session &s)
+void autox_window_opened(AutoxParts s)
 {
   s.selected_window=s.autox_state->views[s.autox_state->active_view].name;
-  make_autox(s,s.selected_window,"autoX");
+  make_autox(s.session,s.selected_window,"autoX");
 }
 
-void load_last_plot(xpp::Session &s, LastPlot which)
+void load_last_plot(AutoxParts s, LastPlot which)
 {
   s.autox_state->axes()=which==LastPlot::OneParameter?s.autox_state->old1p:s.autox_state->old2p;
 }
-void keep_last_plot(xpp::Session &s, LastPlot which)
+void keep_last_plot(AutoxParts s, LastPlot which)
 {
   if(which==LastPlot::OneParameter)s.autox_state->old1p=s.autox_state->axes();
   else{
@@ -1050,7 +1048,7 @@ void keep_last_plot(xpp::Session &s, LastPlot which)
     s.autox_state->old2p.plot=AutoxProjection::two_parameter;
   }
 }
-void keep_axes_as_last(xpp::Session &s)
+void keep_axes_as_last(AutoxParts s)
 {
   switch(s.autox_state->axes().plot){
   case AutoxProjection::maximum:
@@ -1068,7 +1066,7 @@ void keep_axes_as_last(xpp::Session &s)
   }
 }
 
-void autox_new_view(xpp::Session &s, std::string name)
+void autox_new_view(AutoxParts s, std::string name)
 {
   AutoxDiagramView v;
   v.axes=s.autox_state->axes();
@@ -1079,7 +1077,7 @@ void autox_new_view(xpp::Session &s, std::string name)
   if(s.autox_state->bifur.exist)redraw_diagram(s);
 }
 
-int autox_close_view(xpp::Session &s, int k)
+int autox_close_view(AutoxParts s, int k)
 {
   const int n=static_cast<int>(s.autox_state->views.size());
   if(k<0||k>=n||n<2)return 0;
@@ -1092,7 +1090,7 @@ int autox_close_view(xpp::Session &s, int k)
   return 1;
 }
 
-int autox_activate_view(xpp::Session &s, int k)
+int autox_activate_view(AutoxParts s, int k)
 {
   if(k<0||k>=static_cast<int>(s.autox_state->views.size()))return 0;
   s.autox_state->active_view=k;
@@ -1100,7 +1098,7 @@ int autox_activate_view(xpp::Session &s, int k)
   return 1;
 }
 
-void init_autox_win(xpp::Session &s)
+void init_autox_win(AutoxParts s)
 {
   s.autox_state->bifur.marks.clear();
   s.autox_state->parameter_layout.model_parameters=s.model().nupar;
@@ -1166,7 +1164,7 @@ void init_autox_win(xpp::Session &s)
 
 /* Clear selections and obsolete run files when a diagram is replaced. An import
    has already committed its new solutions, so keeps those bytes. */
-void forget_autox_diagram(xpp::Session &s, bool remove_solutions)
+void forget_autox_diagram(AutoxParts s, bool remove_solutions)
 {
   s.autox_state->from_autox_flag=false;
   s.autox_state->grabpt.flag=0;
@@ -1180,7 +1178,7 @@ void forget_autox_diagram(xpp::Session &s, bool remove_solutions)
   }
 }
 
-int yes_reset_autox(xpp::Session &s)
+int yes_reset_autox(AutoxParts s)
 {
   if(diagram_count(*s.diagram)<=1)return(0);
  start_diagram(s,s.model().node);
@@ -1188,16 +1186,16 @@ int yes_reset_autox(xpp::Session &s)
     return 1;
 }
 
-void autox_grab(xpp::Session &s)
+void autox_grab(AutoxParts s)
 {
   traverse_diagram(s);
 } 
 
-void get_start_period(xpp::Session &s, double *p)
+void get_start_period(AutoxParts s, double *p)
 {
  *p=s.autox_state->bifur.ips==xpp::AutoxProblem::Periodic?s.autox_state->start_return.period:static_cast<double>(s.data_store->col[0][s.data_store->rows-1]);
 }
-void find_best_homo_shift(xpp::Session &s, int n)
+void find_best_homo_shift(AutoxParts s, int n)
 /* this code looks for the best value
     of the shift to be close as possible to the saddle 
     point of the homoclinic when starting from a 
@@ -1221,7 +1219,7 @@ void find_best_homo_shift(xpp::Session &s, int n)
   s.autox_state->homo_shift=tshift;
   xpp::log_autox("shifting {:g}\n",s.autox_state->homo_shift);
 }
-void get_start_orbit(xpp::Session &s, double *u, double t, double p, int n)
+void get_start_orbit(AutoxParts s, double *u, double t, double p, int n)
 /* the orbit at the fraction t of its period, interpolated between the stored rows: of the rows up to the first return when
    the start is periodic, all of them otherwise (rows on an even time grid, as XPPAUT takes them) */
 {
@@ -1240,14 +1238,14 @@ void get_start_orbit(xpp::Session &s, double *u, double t, double p, int n)
 }
   
 
-xpp::Result<> load_autox_orbit(xpp::Session &s, std::optional<int> label)
+xpp::Result<> load_autox_orbit(AutoxParts s, std::optional<int> label)
 {
   if(!label)return load_autox_orbitx(s,s.autox_state->grabpt.ibr,s.autox_state->grabpt.flag,s.autox_state->grabpt.lab,s.autox_state->grabpt.per);
   const DIAGRAM *d=diagram_of_label(s,*label);
   if(!d)return xpp::fail("autox",xpp::format("No point labelled {}",*label),command_place());
   return load_autox_orbitx(s,d->ibr,1,*label,d->per);
 }
-xpp::Result<> load_autox_orbitx(xpp::Session &s, int ibr,int flag, int lab, double per)
+xpp::Result<> load_autox_orbitx(AutoxParts s, int ibr,int flag, int lab, double per)
 {
   double *x;
   int i,j,nstor;
@@ -1285,19 +1283,19 @@ xpp::Result<> load_autox_orbitx(xpp::Session &s, int ibr,int flag, int lab, doub
       s.data_store->col[j+1][i]=u[j];
       x[j]=u[j];
     }
-    extra(s,x,static_cast<double>(s.data_store->col[0][i]),nstor,s.model().neq);
+    extra(s.session,x,static_cast<double>(s.data_store->col[0][i]),nstor,s.model().neq);
     for(j=nstor;j<s.model().neq;j++)
       s.data_store->col[j+1][i]=x[j];
   }
   s.data_store->rows=nrow;
-  refresh_data(s,nrow);
+  refresh_data(s.session,nrow);
   /* insert auxiliary stuff here */
-  if(s.autox_state->load_all_labeled_orbits==LabeledOrbits::ClearAndDraw)clr_all_scrns(s);
-  drw_all_scrns(s);
+  if(s.autox_state->load_all_labeled_orbits==LabeledOrbits::ClearAndDraw)clr_all_scrns(s.session);
+  drw_all_scrns(s.session);
   return {};
 }
 
-std::string autox_solutions_file(const xpp::Session &s)
+std::string autox_solutions_file(const AutoxParts &s)
 {
   return s.autox_state->file+".s";
 }
@@ -1424,7 +1422,7 @@ TokenReader autox_reader_at(FileSystem &fs, std::string path, std::size_t offset
   });
 }
 
-bool move_to_label(Session &s, int mylab, int *nrow, int *ndim, TokenReader &rows)
+bool move_to_label(AutoxParts s, int mylab, int *nrow, int *ndim, TokenReader &rows)
 {
   const auto index=autox_session_solutions(s);
   if(!index)return false;
@@ -1489,7 +1487,7 @@ Result<AutoxSolutionIndex> autox_index_file(FileSystem &fs,const std::string &pa
   return indexer.finish();
 }
 
-Result<const AutoxSolutionIndex *> autox_session_solutions(Session &s)
+Result<const AutoxSolutionIndex *> autox_session_solutions(AutoxParts s)
 {
   if(!s.autox_state->solutions_index){
     auto index=autox_index_file(*s.model().fs,autox_solutions_file(s),static_cast<long>(s.autox_state->parameter_layout.size()));
@@ -1502,7 +1500,7 @@ Result<const AutoxSolutionIndex *> autox_session_solutions(Session &s)
 const AutoxSolutionIndex &autox_run_solutions(AutoxRun &run)
 {
   if(run.fort3_is_session){ /* the session's .s file is indexed once for the Session, which keeps it */
-    const auto index=autox_session_solutions(*run.session);
+    const auto index=autox_session_solutions(*run.parts);
     if(!index)autox_fail(index.error());
     return **index;
   }
@@ -1510,7 +1508,7 @@ const AutoxSolutionIndex &autox_run_solutions(AutoxRun &run)
     if(run.restart_file.empty()){
       run.fort3_index=autox_index_solutions(run.restart_text,static_cast<long>(run.parameter_count));
     }else{
-      auto index=autox_index_file(*run.session->model().fs,run.restart_file,static_cast<long>(run.parameter_count));
+      auto index=autox_index_file(*run.parts->model().fs,run.restart_file,static_cast<long>(run.parameter_count));
       if(!index)autox_fail(index.error());
       run.fort3_index=std::move(*index);
     }
@@ -1523,7 +1521,7 @@ void get_a_row(double *u, double *t, int n, TokenReader &rows)
   read_autox_solution_rows(rows, n, 0, 0, 1, 0, n, u, t, false, 0, {});
 }
 
-void autox_get_info(xpp::Session &s, int *n, std::string &pname)
+void autox_get_info(AutoxParts s, int *n, std::string &pname)
 {
   if(s.autox_state->diagram_mark.state==2){
     const int i1=abs(s.autox_state->diagram_mark.start_point);
@@ -1533,7 +1531,7 @@ void autox_get_info(xpp::Session &s, int *n, std::string &pname)
   }
 }
 
-void autox_set_mark(xpp::Session &s, int i)
+void autox_set_mark(AutoxParts s, int i)
 {
   int pt,ibr;
   if(s.autox_state->diagram_mark.state==2){
@@ -1546,37 +1544,37 @@ void autox_set_mark(xpp::Session &s, int i)
   }
 }
 
-void find_point(xpp::Session &s, int ibr, int pt)
+void find_point(AutoxParts s, int ibr, int pt)
 {
   if(diagram_count(*s.diagram)<2)return;
   const DIAGRAM *d=diagram_find(*s.diagram,ibr,pt);
   if(d==NULL)return;
   /* now we use this info to set parameters and init data */
   for(int i=0;i<s.model().node;i++)
-    setvar(s,i+1,d->u0[i]);
-  xpp::set_initial_data(s,d->u0);
+    setvar(s.session,i+1,d->u0[i]);
+  xpp::set_initial_data(s.session,d->u0);
   autox_set_pars_from(s, diagram_parameters(*d).data());
-  xpp::evaluate_derived(s);
-  xpp::ok_or_show(xpp::redo_all_fun_tables(s));
+  xpp::evaluate_derived(s.session);
+  xpp::ok_or_show(xpp::redo_all_fun_tables(s.session));
   redraw_params();
   redraw_ics();
   if((d->per)>0)
-    xpp::set_total(s,d->per);
+    xpp::set_total(s.session,d->per);
 }
 
-void do_autox_range(xpp::Session &s, const xpp::RunReport &report)
+void do_autox_range(AutoxParts s, const xpp::RunReport &report)
 {
   double t=s.numerics->total_time;
   
   if(s.autox_state->diagram_mark.state==2)
-    xpp::do_autox_range_go(s,report);
+    xpp::do_autox_range_go(s.session,report);
   s.numerics->total_time=t;
 }
 
 /* ---- grabbing a point on the bifurcation diagram, marking a branch and
    the hint line (logic from autox_x11.c) ---- */
-static void grab_diagram_point(xpp::Session &s, const DIAGRAM *d);
-static void finish_grab(xpp::Session &s);
+static void grab_diagram_point(AutoxParts s, const DIAGRAM *d);
+static void finish_grab(AutoxParts s);
 
 /* the point types the grab-by-type menu offers, in the menu's items' order (menus.cpp: its keys behlmptu) */
 constexpr std::array<xpp::AutoxPointKind, 8> autox_grab_kinds={
@@ -1593,7 +1591,7 @@ std::optional<xpp::AutoxPointKind> query_special(const char *title)
 	return autox_grab_kinds[static_cast<std::size_t>(i)];
 }
 
-void traverse_diagram(xpp::Session &s)
+void traverse_diagram(AutoxParts s)
 {
   std::deque<DIAGRAM> &points=s.diagram->points;
   int done=0;
@@ -1618,7 +1616,7 @@ void traverse_diagram(xpp::Session &s)
     if(i>=0)at=i;
     else{
       s.autox_state->bifur.hinttxt=xpp::format("  {} {} not found",missing,xpp::autox_point_kind_label(*wanted));
-      ui.autox_show_hint(s);
+      ui.autox_show_hint(s.session);
     }
     show(1);
   };
@@ -1626,7 +1624,7 @@ void traverse_diagram(xpp::Session &s)
 
   show(1);
   while(done==0){
-    const int kp=ui.autox_grab_event(s,&xm,&ym);
+    const int kp=ui.autox_grab_event(s.session,&xm,&ym);
     if(kp==XPP_AUTOX_NODE){
       /* a point of the diagram by its entry: the cursor goes there */
       if(xm>=0&&xm<=last){
@@ -1763,25 +1761,25 @@ GRABPT autox_point_data(const DIAGRAM &d)
   return point;
 }
 
-static void grab_diagram_point(Session &s, const DIAGRAM *d)
+static void grab_diagram_point(AutoxParts s, const DIAGRAM *d)
 {
   s.autox_state->grabpt=autox_point_data(*d);
-  for(int i=0;i<s.model().node;i++)setvar(s,i+1,s.autox_state->grabpt.u0[static_cast<std::size_t>(i)]);
-  set_initial_data(s,s.autox_state->grabpt.u0);
+  for(int i=0;i<s.model().node;i++)setvar(s.session,i+1,s.autox_state->grabpt.u0[static_cast<std::size_t>(i)]);
+  set_initial_data(s.session,s.autox_state->grabpt.u0);
   autox_set_pars_from(s,s.autox_state->grabpt.par.data());
 }
 
 /* what follows a grab: derived values, tables and the shown values */
-static void finish_grab(xpp::Session &s)
+static void finish_grab(AutoxParts s)
 {
-  xpp::evaluate_derived(s);
-  xpp::ok_or_show(xpp::redo_all_fun_tables(s));
+  xpp::evaluate_derived(s.session);
+  xpp::ok_or_show(xpp::redo_all_fun_tables(s.session));
   redraw_params();
   redraw_ics();
 }
 
 /* the scriptable grabs' common end: 0 and nothing changed without a point */
-static int grab_and_finish(xpp::Session &s, const DIAGRAM *d)
+static int grab_and_finish(AutoxParts s, const DIAGRAM *d)
 {
   if(d==NULL) return 0;
   grab_diagram_point(s, d);
@@ -1794,7 +1792,7 @@ static int grab_and_finish(xpp::Session &s, const DIAGRAM *d)
    s.autox_state->grabpt, parameters, info strip and stability circle, and what a
    following Run starts from. Returns 0 and changes nothing for a label no
    stored point has. */
-int autox_grab_label(xpp::Session &s, int lab)
+int autox_grab_label(AutoxParts s, int lab)
 {
   return grab_and_finish(s, diagram_of_label(s,lab));
 }
@@ -1805,7 +1803,7 @@ static bool counts_as(const DIAGRAM &d,AutoxPointKind type){ return d.lab!=0 && 
 /* grabs the index'th (1-based) stored point of the point type `type` (its name,
    autox_point_kind_name), in stored order: "the 2nd hopf".
    Returns 0 and changes nothing when there is no such point. */
-const DIAGRAM *autox_point_by_type(const Session &s, AutoxPointKind type, int index)
+const DIAGRAM *autox_point_by_type(const AutoxParts &s, AutoxPointKind type, int index)
 {
   int count=0;
   if(index<1 || diagram_count(*s.diagram)<2)return nullptr;
@@ -1814,7 +1812,7 @@ const DIAGRAM *autox_point_by_type(const Session &s, AutoxPointKind type, int in
   return nullptr;
 }
 
-int autox_type_number(const Session &s, AutoxPointKind type, int first, int last, int index)
+int autox_type_number(const AutoxParts &s, AutoxPointKind type, int first, int last, int index)
 {
   int overall=0,within=0,at=0;
   if(index<1 || diagram_count(*s.diagram)<2)return 0;
@@ -1828,28 +1826,28 @@ int autox_type_number(const Session &s, AutoxPointKind type, int first, int last
   return 0;
 }
 
-int autox_grab_type_index(Session &s, AutoxPointKind type, int index)
+int autox_grab_type_index(AutoxParts s, AutoxPointKind type, int index)
 {
   return grab_and_finish(s,autox_point_by_type(s,type,index));
 }
 
-void clear_msg(xpp::Session &s)
+void clear_msg(AutoxParts s)
 {
   s.autox_state->bifur.hinttxt.clear();
-  ui.autox_show_hint(s);
+  ui.autox_show_hint(s.session);
 }
 
-void autox_point_xy(xpp::Session &s, double x,double y)
+void autox_point_xy(AutoxParts s, double x,double y)
 {
     s.autox_state->bifur.hinttxt=xpp::format("x={:g},y={:g}",x,y);
     storeautoxpoint(s, x,y);
-    ui.autox_show_hint(s);
+    ui.autox_show_hint(s.session);
 }
 
 
 /* ---- autoX's private scratch directory (session.h: AutoxState::dir),
    made by xpp::files::make_temp_dir ---- */
-void cleanup_autox_dir(xpp::FileSystem &fs, xpp::Session &s)
+void cleanup_autox_dir(xpp::FileSystem &fs, AutoxParts s)
 {
   std::string &dir=s.autox_state->dir;
   if (!dir.empty()) {
@@ -1858,7 +1856,7 @@ void cleanup_autox_dir(xpp::FileSystem &fs, xpp::Session &s)
   }
 }
 
-void renew_autox_dir(xpp::FileSystem &fs, xpp::Session &s)
+void renew_autox_dir(xpp::FileSystem &fs, AutoxParts s)
 {
   std::string &dir=s.autox_state->dir;
   if (dir.empty()) return; /* none was made: autoX writes beside the model */
@@ -1870,6 +1868,6 @@ void renew_autox_dir(xpp::FileSystem &fs, xpp::Session &s)
 
 xpp::TokenReader AutoxRun::restart_reader() const
 {
-  if(!restart_file.empty())return xpp::autox_reader_at(*session->model().fs,restart_file,restart_pos);
+  if(!restart_file.empty())return xpp::autox_reader_at(*parts->model().fs,restart_file,restart_pos);
   return xpp::TokenReader::of_text(std::string_view(restart_text).substr(std::min(restart_pos,restart_text.size())));
 }

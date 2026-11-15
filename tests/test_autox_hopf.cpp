@@ -33,7 +33,7 @@ TEST_CASE("test_autox_hopf") {
     CHECK(xpp::ensure_exact_jacobian(s));
     s.numerics->jacobian = xpp::JACOBIAN_EXACT;
     AutoxRun run;
-    autox_bind_session(run, s);
+    autox_bind_parts(run, s);
     run.parameter_count = s.autox_state->parameter_layout.size();
     iap_type iap{};
     iap.run = &run;

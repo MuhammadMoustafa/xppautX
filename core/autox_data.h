@@ -1,4 +1,5 @@
 #pragma once
+#include "autox_parts.h"
 #include <stddef.h>
 
 #include <string>
@@ -39,14 +40,14 @@ namespace xpp {
 struct Session; /* session.h */
 
 /* the event's line now; point: the index of the shown diagram entry in the data the client holds (-1: none); empty: none to send */
-std::string autox_data_event_line(const Session &s, const int &point);
+std::string autox_data_event_line(const AutoxParts &s, const int &point);
 
 /* {"cmd":"data"} with or without "autoxinfo": the event is sent at the next
    update whatever it holds */
 void autox_data_subscribe(int on);
 
 /* a new autoX window, or none: nothing to show (no stop reason either) */
-void autox_data_forget(Session &s);
+void autox_data_forget(AutoxParts s);
 
 /* the point the info strip shows; names are the model's, whole. p2name is
    NULL for a one-parameter point (the strip shows a blank name and 0) */
@@ -78,11 +79,11 @@ struct AutoxDataShown {
     int held = 0; /* autox_data_hold depth */
 };
 
-void autox_data_info(Session &s, const AutoxDataInfo *info);
+void autox_data_info(AutoxParts s, const AutoxDataInfo *info);
 
 /* the stability circle now shows these n values (evr + i evi); periodic:
    Floquet multipliers, else e^lambda of a steady state's eigenvalues */
-void autox_data_stab(Session &s, std::span<const double> evr, std::span<const double> evi, int periodic);
+void autox_data_stab(AutoxParts s, std::span<const double> evr, std::span<const double> evi, int periodic);
 
 /* send the event if it changed since the last one sent; final 0 (during a
    run) sends at most ten a second */
@@ -92,6 +93,6 @@ void autox_data_update(const Session &s, int final);
    strip and the circle keep what they show (a run's last point, a grab's
    point) while it plots every point again, autox_data_info and
    autox_data_stab ignored until the last on 0. Nests. */
-void autox_data_hold(Session &s, int on);
+void autox_data_hold(AutoxParts s, int on);
 
 } // namespace xpp

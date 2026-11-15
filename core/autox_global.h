@@ -13,6 +13,7 @@
 
    autox_global.cpp. */
 
+#include "autox_parts.h"
 #include <cmath>
 #include <cstddef>
 #include <memory>
@@ -27,7 +28,6 @@ struct iap_type; /* autox_c.h */
 
 namespace xpp {
 
-struct Session; /* session.h */
 struct Model;   /* model.h */
 class EquilibriumModel; /* equilibria.h */
 
@@ -160,6 +160,6 @@ std::optional<AutoxGlobalEnd> autox_global_end(const iap_type &iap, const double
                                              const double *ups, std::ptrdiff_t ndxloc, double period, double shortest);
 
 /* the stop's words: "period growing without bound (...): the period ... lingers near ..." */
-std::string autox_global_text(const Session &s, const AutoxGlobalEnd &end);
+std::string autox_global_text(const AutoxParts &s, const AutoxGlobalEnd &end);
 
 } // namespace xpp

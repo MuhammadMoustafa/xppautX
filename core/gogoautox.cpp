@@ -9,7 +9,6 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include "session.h"
 #include "autox_state.h"
 #include "autox_evd.h" /* xAutox (its own extern) */
 #include "autox_nox.h"
@@ -156,7 +155,7 @@ problem_function_table problem_functions(const iap_type &iap)
     const std::string_view name = xpp::autox_point_kind_name(c.kind);
     return name == "regular" ? std::string("a regular point") : "a point of type " + std::string(name);
   };
-  const auto &s=*iap.run->session;
+  const auto &s=*iap.run->parts;
   if(std::abs(iap.isw)==2 && iap.run->params.icp[0]==iap.run->params.icp[1])
     xpp::autox_fail(xpp::format("Two-parameter start has the same parameter \"{}\" on both axes; select two different parameters",xpp::autox_par_name(s,s.autox_state->axes().icp1)));
   /* the restart label's stored point decides whether it is a periodic orbit (its branch's sign, get_bif_type):
@@ -183,7 +182,7 @@ problem_function_table problem_functions(const iap_type &iap)
 /* go_go_autox: gogoautox.cpp: builds the problem's function table and runs it */
 void run_autox_problem(AutoxRun &run)
 {
-  xpp::Session &s=*run.session;
+  xpp::AutoxParts &s=*run.parts;
   run.parameter_count = s.autox_state->parameter_layout.size();
   std::vector<std::ptrdiff_t> icp(xpp::size_product(2, run.parameter_count));
   std::vector<double> par(xpp::size_product(2, run.parameter_count));

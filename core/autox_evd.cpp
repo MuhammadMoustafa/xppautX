@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <vector> /* first: autox_f2c.h's min/max macros (pulled in below) break libstdc++ headers if not included first */
 #include "autox_evd.h"
-#include "session.h"
 #include "autox_state.h"
 #include "expr.h"
 #include <cstdlib>
@@ -83,7 +82,7 @@ std::optional<std::string> autox_diagram_full(std::size_t points)
 
 void autox_check_start_parameters(const iap_type &iap, const rap_type &rap, const double *par, const std::ptrdiff_t *icp)
 {
-  const Session &s=*iap.run->session;
+  const AutoxParts &s=*iap.run->parts;
   const int k=s.autox_state->parameter_layout.model_index(static_cast<int>(icp[0]));
   if(k<0)return; // autoX's period is not a model parameter; autoX bounds only the principal parameter.
   const double value=par[icp[0]];
@@ -107,7 +106,7 @@ void autox_check_start_norm(const iap_type &iap, const rap_type &rap, double nor
 void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, double *u, const double *par, const std::ptrdiff_t *icp)
 {
   if(iap.irs!=0 || iap.ips!=AutoxProblem::SteadyState)return;
-  Session &s=*iap.run->session;
+  AutoxParts &s=*iap.run->parts;
   const int n=s.model().node;
   if(n<=0)return;
   std::vector<double> residual(static_cast<std::size_t>(n));
@@ -125,14 +124,14 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
   std::vector<double> start(u,u+n);
   std::vector<double> work(static_cast<std::size_t>(n*n+2*n));
   xpp::NewtonRun newton;
-  if(auto r=xpp::newton_iterate(s,u,eq.newton_tolerance,eq.jacobian_step,eq.search_limit,work.data(),newton,eq.max_iterations,n);!r)
+  if(auto r=xpp::newton_iterate(s.session,u,eq.newton_tolerance,eq.jacobian_step,eq.search_limit,work.data(),newton,eq.max_iterations,n);!r)
     autox_fail(r.error());
   if(newton.end!=xpp::NewtonEnd::converged){
     std::copy(start.begin(),start.end(),u);
     const std::string &name=s.model().uvar_names[worst];
-    const std::string why=xpp::newton_cause(s,newton,static_cast<std::size_t>(n)).why;
+    const std::string why=xpp::newton_cause(s.session,newton,static_cast<std::size_t>(n)).why;
     autox_fail(Error{"autox",xpp::format("The initial conditions are not a steady state, and Newton's method from them did not converge ({}); equation \"{}\" has the largest residual |f(x,p)| = {}, above state_tolerance = {}. Newton settings: {}. Use Sing pts or integrate to a steady state before starting autoX",
-        why,name,xpp::number(start_value),xpp::number(rap.epsu),xpp::named_settings(s,{"equilibria.newton_tolerance","equilibria.jacobian_step", "equilibria.search_limit","equilibria.max_iterations"})),model_place(s.model(),name)});
+        why,name,xpp::number(start_value),xpp::number(rap.epsu),xpp::named_settings(s.session,{"equilibria.newton_tolerance","equilibria.jacobian_step", "equilibria.search_limit","equilibria.max_iterations"})),model_place(s.model(),name)});
   }
 
   user_right_hand_side(*iap.run,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr);
@@ -210,7 +209,7 @@ DiagramPointType get_bif_type(int ibr, int ntot)
   if(ibr>0&&ntot>0)return UNSTABLE_EQ;
   return STABLE_EQ;
 }
-void autox_store_point(Session &s, const DIAGRAM &p, bool new_segment)
+void autox_store_point(AutoxParts s, const DIAGRAM &p, bool new_segment)
 {
   if(!s.autox_state->diag_flag){
     edit_start(s,p);
@@ -226,7 +225,7 @@ void autox_store_point(Session &s, const DIAGRAM &p, bool new_segment)
   add_point(s,*d,get_bif_type(p.ibr,p.ntot),new_segment?0:1);
 }
 
-void autox_show_live_point(Session &s, const DIAGRAM &p, int live, bool new_segment)
+void autox_show_live_point(AutoxParts s, const DIAGRAM &p, int live, bool new_segment)
 {
   add_live_point(s,p,live,get_bif_type(p.ibr,p.ntot),new_segment?0:1);
 }
@@ -238,7 +237,7 @@ bool autox_start_points_away(double value, double rl0, double rl1, double ds)
 
 void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t ibrs, double *par,std::ptrdiff_t *icp,int lab, double *a, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> u0, std::span<const double> ubar)
 {
-  xpp::Session &s=*iap->run->session;
+  AutoxParts &s=*iap->run->parts;
   int icp1=icp[0],icp2=icp[1],icp3=icp[2],icp4=icp[3];
   double per=par[xpp::autox_unknown::period];
   int n=iap->ndim;

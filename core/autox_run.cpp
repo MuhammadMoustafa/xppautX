@@ -16,7 +16,6 @@
 #include "model.h"
 #include "model_place.h"
 #include "pp_shoot.h"
-#include "session.h"
 #include "autox_state.h"
 #include "storage.h"
 #include "solver.h"
@@ -44,7 +43,7 @@ std::optional<Error> infinite_period(const GRABPT &point)
 constexpr double autox_orbit_return_limit = 0.1;
 
 /* the first return of the stored orbit (rows >= 2): its time from the first row and its position among the rows, interpolated */
-Result<AutoxOrbitReturn> autox_orbit_return(const Session &s)
+Result<AutoxOrbitReturn> autox_orbit_return(const AutoxParts &s)
 {
   const std::size_t rows = static_cast<std::size_t>(s.data_store->rows);
   const std::size_t n = static_cast<std::size_t>(s.model().node);
@@ -122,10 +121,10 @@ NICP=2, ISW=2 at Hopf
 
 */   
 
-Result<> autox_start_at_bvp(Session &s)
+Result<> autox_start_at_bvp(AutoxParts s)
 {
   int opn=NO_OPEN_3,cls=OVERWRITE;
-  if(const Result<> compiled=xpp::compile_bvp(s);!compiled)return compiled;
+  if(const Result<> compiled=xpp::compile_bvp(s.session);!compiled)return compiled;
   s.autox_state->type_of_calc=BV1;
  s.autox_state->bifur.ips=AutoxProblem::BoundaryValue;
   s.autox_state->bifur.irs=0;
@@ -142,7 +141,7 @@ Result<> autox_start_at_bvp(Session &s)
   return do_autox(s, opn,cls,s.autox_state->bifur.itp);
 }
 
-Result<> autox_start_at_per(Session &s)
+Result<> autox_start_at_per(AutoxParts s)
 {
   int opn=NO_OPEN_3,cls=OVERWRITE;
   
@@ -164,7 +163,7 @@ Result<> autox_start_at_per(Session &s)
   return autox_run_from_current_state(s, opn,cls);
 }
 
-Result<> autox_new_ss(Session &s, bool replace_diagram)
+Result<> autox_new_ss(AutoxParts s, bool replace_diagram)
 {
   int opn=NO_OPEN_3,cls=OVERWRITE;
   s.autox_state->new_period_flag=false;
@@ -183,7 +182,7 @@ Result<> autox_new_ss(Session &s, bool replace_diagram)
   return autox_run_from_current_state(s, opn,cls);
 }
 
-Result<> autox_new_discrete(Session &s, bool replace_diagram)
+Result<> autox_new_discrete(AutoxParts s, bool replace_diagram)
 {
   int opn=NO_OPEN_3,cls=OVERWRITE;
   s.autox_state->new_period_flag=false;
@@ -201,7 +200,7 @@ Result<> autox_new_discrete(Session &s, bool replace_diagram)
   return autox_run_from_current_state(s, opn,cls);
 }
  
-Result<> autox_extend_ss(Session &s)
+Result<> autox_extend_ss(AutoxParts s)
 {
 
   /*Prevent crash on hopf of infinite period. here
@@ -232,7 +231,7 @@ Result<> autox_extend_ss(Session &s)
   return do_autox(s, OPEN_3,APPEND,s.autox_state->bifur.itp);
 }
 
-Result<> autox_extend_homoclinic(Session &s)
+Result<> autox_extend_homoclinic(AutoxParts s)
 {
    s.autox_state->bifur.irs=s.autox_state->grabpt.lab;
   s.autox_state->bifur.itp=s.autox_state->grabpt.itp;
@@ -257,7 +256,7 @@ Result<> autox_extend_homoclinic(Session &s)
 
 }
 
-Result<> autox_start_at_homoclinic(Session &s, const HomoclinicStart &start)
+Result<> autox_start_at_homoclinic(AutoxParts s, const HomoclinicStart &start)
 {
   int opn=NO_OPEN_3,cls=OVERWRITE;
   s.autox_state->bifur.irs=0;
@@ -288,7 +287,7 @@ Result<> autox_start_at_homoclinic(Session &s, const HomoclinicStart &start)
 
 }
     
-Result<> autox_new_per(Session &s) /* same for extending periodic  */
+Result<> autox_new_per(AutoxParts s) /* same for extending periodic  */
 {
   s.autox_state->blrtn.torper=s.autox_state->grabpt.torper;
   
@@ -317,7 +316,7 @@ Result<> autox_new_per(Session &s) /* same for extending periodic  */
   return do_autox(s, OPEN_3,APPEND,s.autox_state->bifur.itp);
 }
 
-Result<> autox_extend_bvp(Session &s) /* extending bvp */
+Result<> autox_extend_bvp(AutoxParts s) /* extending bvp */
 {
       s.autox_state->type_of_calc=BV1;
   s.autox_state->bifur.irs=s.autox_state->grabpt.lab;
@@ -332,7 +331,7 @@ Result<> autox_extend_bvp(Session &s) /* extending bvp */
   return do_autox(s, OPEN_3,APPEND,s.autox_state->bifur.itp);
 }
 
-Result<> autox_switch_per(Session &s)
+Result<> autox_switch_per(AutoxParts s)
 {
       s.autox_state->type_of_calc=PE1;
   s.autox_state->blrtn.torper=s.autox_state->grabpt.torper;
@@ -348,7 +347,7 @@ Result<> autox_switch_per(Session &s)
   return do_autox(s, OPEN_3,APPEND,s.autox_state->bifur.itp);
 }
 
-Result<> autox_switch_bvp(Session &s)
+Result<> autox_switch_bvp(AutoxParts s)
 {
      s.autox_state->type_of_calc=BV1;
   s.autox_state->bifur.irs=s.autox_state->grabpt.lab;
@@ -363,7 +362,7 @@ Result<> autox_switch_bvp(Session &s)
   return do_autox(s, OPEN_3,APPEND,s.autox_state->bifur.itp);
 }
 
-Result<> autox_switch_ss(Session &s)
+Result<> autox_switch_ss(AutoxParts s)
 {
 
       s.autox_state->type_of_calc=EQ1;
@@ -381,7 +380,7 @@ Result<> autox_switch_ss(Session &s)
   return do_autox(s, OPEN_3,APPEND,s.autox_state->bifur.itp);
 }
 
-Result<> autox_2p_limit(Session &s, AutoxProblem ips)
+Result<> autox_2p_limit(AutoxParts s, AutoxProblem ips)
 {
   AutoxProblem ipsuse=AutoxProblem::SteadyState;
   s.autox_state->blrtn.torper=s.autox_state->grabpt.torper;
@@ -418,7 +417,7 @@ Result<> autox_2p_limit(Session &s, AutoxProblem ips)
 
 /* continue a grabbed period doubling (PD2) or torus bifurcation (TR2) in
    two parameters: the same periodic restart, told apart by its kind */
-Result<> autox_2p_periodic(Session &s, AutoxCalculation kind)
+Result<> autox_2p_periodic(AutoxParts s, AutoxCalculation kind)
 {
   s.autox_state->blrtn.torper=s.autox_state->grabpt.torper;
   s.autox_state->bifur.irs=s.autox_state->grabpt.lab;
@@ -433,7 +432,7 @@ Result<> autox_2p_periodic(Session &s, AutoxCalculation kind)
   return do_autox(s, OPEN_3,APPEND,s.autox_state->bifur.itp);
 }
 
-Result<> autox_2p_branch(Session &s, AutoxProblem ips)
+Result<> autox_2p_branch(AutoxParts s, AutoxProblem ips)
 {
  AutoxProblem ipsuse=AutoxProblem::SteadyState;
  s.autox_state->blrtn.torper=s.autox_state->grabpt.torper;
@@ -459,7 +458,7 @@ Result<> autox_2p_branch(Session &s, AutoxProblem ips)
   return do_autox(s, OPEN_3,APPEND,s.autox_state->bifur.itp);
 }
 
-Result<> autox_2p_fixper(Session &s)
+Result<> autox_2p_fixper(AutoxParts s)
 {
   s.autox_state->bifur.irs=s.autox_state->grabpt.lab;
   s.autox_state->bifur.itp=s.autox_state->grabpt.itp;
@@ -473,7 +472,7 @@ Result<> autox_2p_fixper(Session &s)
   return do_autox(s, OPEN_3,APPEND,s.autox_state->bifur.itp);
 }
 
-Result<> autox_2p_hopf(Session &s)
+Result<> autox_2p_hopf(AutoxParts s)
 {
 
   /*Prevent crash on hopf of infinite period. here
@@ -503,7 +502,7 @@ Result<> autox_2p_hopf(Session &s)
   return do_autox(s, OPEN_3,APPEND,s.autox_state->bifur.itp);
 }
 
-Result<> autox_period_double(Session &s)
+Result<> autox_period_double(AutoxParts s)
 {
 
  s.autox_state->blrtn.torper=s.autox_state->grabpt.torper;
@@ -575,7 +574,7 @@ Error kind_does_not_fit(const GRABPT &point, AutoxFamily family, AutoxRunKind ki
 
 /* ---- what the start point is, and the problem each kind sets up ---- */
 
-AutoxProblem second_problem(const Session &s, std::string_view point, AutoxFamily family)
+AutoxProblem second_problem(const AutoxParts &s, std::string_view point, AutoxFamily family)
 {
   const bool discrete = solver_info(s.numerics->method).traits.discrete;
   if (point == "fold" || point == "hopf" || point == "neutral_saddle")
@@ -585,7 +584,7 @@ AutoxProblem second_problem(const Session &s, std::string_view point, AutoxFamil
 }
 
 /* the run from the grabbed point, its kind already checked against the table */
-Result<> run_from_point(Session &s, const AutoxRunRequest &request, std::string_view point, AutoxFamily family)
+Result<> run_from_point(AutoxParts s, const AutoxRunRequest &request, std::string_view point, AutoxFamily family)
 {
   AutoxState &a = *s.autox_state;
   switch (request.kind) {
@@ -613,7 +612,7 @@ Result<> run_from_point(Session &s, const AutoxRunRequest &request, std::string_
 }
 
 /* the equilibria of a homoclinic run: the request's, else the session's own, and they must fit the model */
-Result<HomoclinicStart> homoclinic_start(const Session &s, const AutoxRunRequest &request)
+Result<HomoclinicStart> homoclinic_start(const AutoxParts &s, const AutoxRunRequest &request)
 {
   const AutoxState &a = *s.autox_state;
   const std::size_t n = static_cast<std::size_t>(s.model().node);
@@ -650,13 +649,13 @@ const AutoxRunRow &autox_run_row_for(const GRABPT &point)
   return autox_run_rows.back(); /* every `other` family has a row, so this is the last */
 }
 
-Result<> autox_time_check(const Session &s)
+Result<> autox_time_check(const AutoxParts &s)
 {
   const Model &m = s.model();
   std::vector<char> checked_fixed(static_cast<std::size_t>(m.fix_var), 0), checked_function(static_cast<std::size_t>(m.compiler.nfun), 0);
   /* whether the program reads t (the variable 0), directly or through a fixed variable or a user function */
   const auto reads_time = [&](const auto &self, const Program &program, int arguments) -> bool {
-    const auto code = expr::decode(s, program.rpn, arguments);
+    const auto code = expr::decode(s.session, program.rpn, arguments);
     if (!code) return false; /* a program the compiler refused never runs */
     for (const expr::Instr &i : *code) {
       if (i.type == VARTYPE && i.in == 0) return true;
@@ -694,7 +693,7 @@ Result<> autox_time_check(const Session &s)
               first.line > 0 ? first : command_place());
 }
 
-Result<> autox_run_check(const Session &s, const AutoxRunRequest &request, const GRABPT *point, bool settling)
+Result<> autox_run_check(const AutoxParts &s, const AutoxRunRequest &request, const GRABPT *point, bool settling)
 {
   const char *kind=autox_run_kind_name(request.kind);
   if (auto autonomous=autox_time_check(s); !autonomous) return autonomous;
@@ -723,7 +722,7 @@ Result<> autox_run_check(const Session &s, const AutoxRunRequest &request, const
   return {};
 }
 
-Result<> autox_run_start(Session &s, const AutoxRunRequest &request)
+Result<> autox_run_start(AutoxParts s, const AutoxRunRequest &request)
 {
   AutoxState &a = *s.autox_state;
   if(auto checked=autox_run_check(s,request); !checked)return checked;
@@ -819,7 +818,7 @@ std::string autox_run_table_json()
   return out;
 }
 
-std::string autox_run_start_json(const Session &s)
+std::string autox_run_start_json(const AutoxParts &s)
 {
   const GRABPT &g = s.autox_state->grabpt;
   if (g.flag == 0) return "null";

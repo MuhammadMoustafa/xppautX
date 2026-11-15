@@ -6,7 +6,6 @@
 #include <deque>
 #include <vector>
 #include "storage.h"
-#include "session.h"
 #include "autox_state.h"
 #include "xpp_ui.h"
 #include "diagram.h"
@@ -37,7 +36,7 @@ xpp::DIAGRAM *new_point(AutoxDiagram &dg, std::size_t n)
 
 /* point d set to p, a point of autoX's run, with flag2 (s: the run's
    kind of calculation and torus period) */
-void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p, xpp::AutoxCalculation flag2)
+void edit_diagram(const xpp::AutoxParts &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p, xpp::AutoxCalculation flag2)
 {
   d->calc=s.autox_state->type_of_calc;
   d->ibr=p.ibr;
@@ -109,12 +108,12 @@ int diagram_count(const AutoxDiagram &diagram)
   return static_cast<int>(diagram.points.size());
 }
 
-std::size_t diagram_stored_points(const xpp::Session &s)
+std::size_t diagram_stored_points(const xpp::AutoxParts &s)
 {
   return s.autox_state->diag_flag?s.diagram->points.size():0;
 }
 
-void diagram_restore(xpp::Session &s, std::deque<xpp::DIAGRAM> points)
+void diagram_restore(xpp::AutoxParts s, std::deque<xpp::DIAGRAM> points)
 {
   if(points.empty()){
     start_diagram(s,s.model().node);
@@ -127,7 +126,7 @@ void diagram_restore(xpp::Session &s, std::deque<xpp::DIAGRAM> points)
   s.autox_state->diag_flag=true;
 }
 
-void start_diagram(xpp::Session &s, int n)
+void start_diagram(xpp::AutoxParts s, int n)
 {
   s.diagram->points.clear();
   s.autox_state->script.points.clear(); /* the points a script's runs stored are gone */
@@ -135,12 +134,12 @@ void start_diagram(xpp::Session &s, int n)
   s.autox_state->diag_flag=false;
 }
 
-void edit_start(xpp::Session &s, const xpp::DIAGRAM &p)
+void edit_start(xpp::AutoxParts s, const xpp::DIAGRAM &p)
 {
   edit_diagram(s,&s.diagram->points.front(),p,p.flag2);
 }
 
-void add_diagram(xpp::Session &s, const xpp::DIAGRAM &p)
+void add_diagram(xpp::AutoxParts s, const xpp::DIAGRAM &p)
 {
   xpp::DIAGRAM *dnew=new_point(*s.diagram,p.u0.size());
   edit_diagram(s,dnew,p,p.flag2);
@@ -151,7 +150,7 @@ xpp::DIAGRAM *last_diagram(AutoxDiagram &diagram)
   return diagram.points.empty() ? NULL : &diagram.points.back();
 }
 
-const xpp::DIAGRAM *diagram_of_label(const xpp::Session &s, int lab)
+const xpp::DIAGRAM *diagram_of_label(const xpp::AutoxParts &s, int lab)
 {
   if(lab<=0||!s.autox_state->diag_flag)return NULL; /* not yet: the first point is not filled in yet */
   for(const xpp::DIAGRAM &p:s.diagram->points)
@@ -176,7 +175,7 @@ const xpp::DIAGRAM *diagram_find(const AutoxDiagram &diagram, int ibr, int ntot)
   return NULL;
 }
 
-void redraw_diagram(xpp::Session &s)
+void redraw_diagram(xpp::AutoxParts s)
 {
   xpp::DiagramPointType type;
   int flag=0;
@@ -194,13 +193,13 @@ void redraw_diagram(xpp::Session &s)
   xpp::autox_data_hold(s,0);
 }
 
-std::string diagram_default_file(const xpp::Session &s, std::string_view what, std::string_view extension)
+std::string diagram_default_file(const xpp::AutoxParts &s, std::string_view what, std::string_view extension)
 {
   return xpp::files::output_name(s.model().this_file,extension,what);
 }
 
 /* a diagram export needs points */
-xpp::Result<> diagram_need_points(const xpp::Session &s)
+xpp::Result<> diagram_need_points(const xpp::AutoxParts &s)
 {
   if(diagram_count(*s.diagram)<2)return xpp::fail("autox","The diagram has no points to write",xpp::command_place());
   return {};
@@ -208,7 +207,7 @@ xpp::Result<> diagram_need_points(const xpp::Session &s)
 
 /* where an export goes: the file given (an argument), else the one the dialog asks for with the model's default name;
    nothing when declined */
-std::optional<std::string> diagram_export_target(const xpp::Session &s, const std::optional<std::string> &given, const char *title, const char *what, const char *extension)
+std::optional<std::string> diagram_export_target(const xpp::AutoxParts &s, const std::optional<std::string> &given, const char *title, const char *what, const char *extension)
 {
   if(given)return *given;
   std::string filename=diagram_default_file(s,what,extension);
@@ -220,7 +219,7 @@ namespace {
 
 /* one of the diagram's text exports: its file (asked for or given), opened only when there are points to write, so an
    empty diagram leaves an existing file alone, written by `write`, committed. Nothing is written when declined. */
-template <class Write> xpp::Result<> export_text(xpp::Session &s, const std::optional<std::string> &file, const char *title, const char *what, Write write)
+template <class Write> xpp::Result<> export_text(xpp::AutoxParts s, const std::optional<std::string> &file, const char *title, const char *what, Write write)
 {
   if(const xpp::Result<> points=diagram_need_points(s);!points)return points;
   const auto target=diagram_export_target(s,file,title,what,".dat");
@@ -236,7 +235,7 @@ template <class Write> xpp::Result<> export_text(xpp::Session &s, const std::opt
 
 } // namespace
 
-xpp::Result<> write_info_out(xpp::Session &s, const std::optional<std::string> &file)
+xpp::Result<> write_info_out(xpp::AutoxParts s, const std::optional<std::string> &file)
 {
   return export_text(s,file,"Write all info","allinfo",[&](std::string &out){
     for(xpp::DIAGRAM &point:s.diagram->points){
@@ -263,7 +262,7 @@ xpp::Result<> write_info_out(xpp::Session &s, const std::optional<std::string> &
   });
 }
 
-xpp::Result<> load_data_with_branch(xpp::Session &s, int ibr,int pts,int pte)
+xpp::Result<> load_data_with_branch(xpp::AutoxParts s, int ibr,int pts,int pte)
 {
    int i,j,pt;
   xpp::AutoxAxis icp1;
@@ -298,10 +297,10 @@ xpp::Result<> load_data_with_branch(xpp::Session &s, int ibr,int pts,int pte)
     }
  }
  s.data_store->rows=nrows;
- refresh_data(s,nrows);
+ refresh_data(s.session,nrows);
  return {};
 }
-xpp::Result<> write_init_data_file(xpp::Session &s, const std::optional<std::string> &file)
+xpp::Result<> write_init_data_file(xpp::AutoxParts s, const std::optional<std::string> &file)
 {
   return export_text(s,file,"Write init data file","initdata",[&](std::string &out){
     for(xpp::DIAGRAM &point:s.diagram->points){
@@ -316,7 +315,7 @@ xpp::Result<> write_init_data_file(xpp::Session &s, const std::optional<std::str
   });
 }
 
-xpp::Result<> write_pts(xpp::Session &s, const std::optional<std::string> &file)
+xpp::Result<> write_pts(xpp::AutoxParts s, const std::optional<std::string> &file)
 {
   return export_text(s,file,"Write points","diagram",[&](std::string &out){
     for(xpp::DIAGRAM &point:s.diagram->points){
@@ -340,7 +339,7 @@ xpp::Result<> write_pts(xpp::Session &s, const std::optional<std::string> &file)
   });
 }
 
-void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, double *yhi)
+void bound_diagram(xpp::AutoxParts s, double *xlo, double *xhi, double *ylo, double *yhi)
 {
   
   double x,y1,y2,par1,par2=0.0;

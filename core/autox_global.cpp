@@ -12,7 +12,6 @@
 #include "jacobian.h"
 #include "solver.h"
 #include "model.h"
-#include "session.h"
 #include "autox_state.h"
 #include "xpp_text.h"
 #include "xpp_math.h"
@@ -100,10 +99,10 @@ public:
     void jacobian(const double *x, const double *f0, double eps, const JacobianForm &form, double *out) override
     {
         /* the constants are par's: the rhs at x just set them */
-        model_jacobian(*run_.session, run_.jacobian_scratch, autox_constants(run_).data(), 0.0,
+        model_jacobian(run_.parts->session, run_.jacobian_scratch, autox_constants(run_).data(), 0.0,
                        [&](double *xp, double *f) { rhs(xp, f); }, x, f0, static_cast<int>(ndm_), eps, form, out);
     }
-    bool discrete() const override { return solver_info(run_.session->numerics->method).traits.discrete; }
+    bool discrete() const override { return solver_info(run_.parts->numerics->method).traits.discrete; }
     bool stopped() override { return autox_cancelled(run_); }
 
 private:
@@ -125,7 +124,7 @@ double distance(std::span<const double> a, std::span<const double> b)
 std::optional<AutoxGlobalEnd> autox_global_end(const iap_type &iap, const double *par, const std::ptrdiff_t *icp,
                                              const double *ups, std::ptrdiff_t ndxloc, double period, double shortest)
 {
-    Session &s = *iap.run->session;
+    AutoxParts &s=*iap.run->parts;
     const std::size_t n = static_cast<std::size_t>(iap.ndm), ntst = static_cast<std::size_t>(iap.ntst),
                       ncol = static_cast<std::size_t>(iap.ncol), count = ntst * ncol;
     /* the orbit's mesh points (the last, autoX's ups(ntst), is the first again), and the speed |f| at each */
@@ -167,7 +166,7 @@ std::optional<AutoxGlobalEnd> autox_global_end(const iap_type &iap, const double
         const bool from_slow = k < slow.size();
         const std::size_t m = starts[k];
         const std::span<const double> start(&points[m * n], n);
-        auto found = equilibrium_near(s, *model, start);
+        auto found = equilibrium_near(s.session, *model, start);
         if (!found) { /* the model failed to evaluate: the branch still ends, unnamed, with the reason */
             end.failed = found.error().text();
             end.approaches.clear();
@@ -207,7 +206,7 @@ std::unique_ptr<EquilibriumModel> autox_equilibrium_model(const iap_type &iap, c
     if (iap.run->pure_rhs) return std::make_unique<RunEquilibriumModel>(iap, par, icp);
     std::vector<double> f(static_cast<std::size_t>(iap.ndm));
     autox_evaluate_at(iap, par, icp, state, f); /* the Session's constants at par, which its evaluation reads */
-    return session_equilibrium_model(*iap.run->session, static_cast<int>(iap.ndm));
+    return session_equilibrium_model(iap.run->parts->session, static_cast<int>(iap.ndm));
 }
 
 void autox_evaluate_at(const iap_type &iap, const double *par, const std::ptrdiff_t *icp, std::span<const double> x,
@@ -244,7 +243,7 @@ std::string describe_approach(const Model &m, const AutoxApproach &a)
 
 } // namespace
 
-std::string autox_global_text(const Session &s, const AutoxGlobalEnd &end)
+std::string autox_global_text(const AutoxParts &s, const AutoxGlobalEnd &end)
 {
     std::string text = xpp::format("period growing without bound: T = {}, {} times the shortest period of the branch ({}), has grown over the last {} points",
         autox_number_text(end.period), autox_number_text(end.period / end.shortest), autox_number_text(end.shortest), autox_global_growing_points);

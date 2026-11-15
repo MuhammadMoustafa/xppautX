@@ -1,4 +1,5 @@
 #pragma once
+#include "autox_parts.h"
 #include <stddef.h>
 #include <cstddef>
 #include <span>
@@ -52,7 +53,7 @@ inline constexpr int autox_foreign_mark_rows = 9;
 
 /* the event: {"ev":"autoxsettings",...} with the settings now, whole; an
    empty string when there is no model with variables (no settings) */
-std::string autox_settings_event_line(const Session &s);
+std::string autox_settings_event_line(const AutoxParts &s);
 
 /* {"cmd":"data"} with or without "autoxsettings": sent (s's) at once, and
    then at each update, whatever it holds */
@@ -83,32 +84,32 @@ struct AutoxSettingsSet {
    axes and the Mark values, names empty where there is none (the event's
    null). What the event sends and a .snapx's session.odex saves in its autox group (xpp_session_autox.h);
    applied with autox_settings_apply, it gives the settings back. */
-AutoxSettingsSet autox_settings_now(const Session &s);
+AutoxSettingsSet autox_settings_now(const AutoxParts &s);
 /* Reload carries settings already in memory; missing model names keep the
    new model's defaults. No diagram, grab or run state carries over. */
-void autox_settings_reload(Session &s, const AutoxSettingsSet &kept);
+void autox_settings_reload(AutoxParts s, const AutoxSettingsSet &kept);
 /* view `view`'s axes alone (W50, AutoxState::views; it must be one), as the
    axes keys and `view`: applied, they give the view its axes back */
-AutoxSettingsSet autox_settings_view(const Session &s, int view);
+AutoxSettingsSet autox_settings_view(const AutoxParts &s, int view);
 
 /* check the set against the model and apply it all, or nothing: 0 when
    applied, -1 with why (a sentence naming the bad value) when not. Axes
    (plot type, names, ranges, fit) draw the diagram again when autoX's
    window is open, as the AutoxPlot form does. Nothing is thrown. */
-int autox_settings_apply(Session &s, const AutoxSettingsSet &set, std::string &why);
+int autox_settings_apply(AutoxParts s, const AutoxSettingsSet &set, std::string &why);
 /* the same checks, nothing applied, as the diagram will be when it has
    views views (-1: the views s has; a file's autox views restore them): the
    Error says why, its field the key of the value that is wrong ("ntst",
    "var", "par1", "xmax", "mark2", ...; "view"; "" for the whole set), for
    a file of autoX's settings to name its line (xpp_session_autox_io.cpp) */
-Result<> autox_settings_check(const Session &s, const AutoxSettingsSet &set, int views);
+Result<> autox_settings_check(const AutoxParts &s, const AutoxSettingsSet &set, int views);
 
 /* the diagram group's rows that are the active view's own (its variable and axes; the colors are the session's) and whose values the
    panel reads and sets there (W616): the model's values are only what a new view starts with */
 bool autox_view_row(const OptionRow &row);
 /* a view row's value in the active view, as text */
-std::string autox_view_text(const Session &s, const OptionRow &row);
+std::string autox_view_text(const AutoxParts &s, const OptionRow &row);
 /* the view rows given (each with its text) applied to the active view, all or nothing; check only: nothing applied */
-Result<> autox_view_apply(Session &s, std::span<const std::pair<const OptionRow *, std::string>> items, bool check_only);
+Result<> autox_view_apply(AutoxParts s, std::span<const std::pair<const OptionRow *, std::string>> items, bool check_only);
 
 } // namespace xpp

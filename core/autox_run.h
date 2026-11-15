@@ -8,6 +8,7 @@
    that fit the point grabbed now, so a front end offers only those.
 
    autox_run.cpp. */
+#include "autox_parts.h"
 #include <array>
 #include <optional>
 #include <string>
@@ -19,7 +20,6 @@
 
 namespace xpp {
 
-struct Session; /* session.h */
 
 /* the branch a start point is on: its problem as the diagram records it */
 enum class AutoxFamily : int { any, steady, periodic, boundary_value, homoclinic };
@@ -99,21 +99,21 @@ struct AutoxRunRequest {
 };
 
 /* Prospective diagram grab and run checks, without changing values or the selected point. */
-const DIAGRAM *autox_point_by_type(const Session &s, AutoxPointKind type, int index);
+const DIAGRAM *autox_point_by_type(const AutoxParts &s, AutoxPointKind type, int index);
 /* the number autox.run's `index` takes (autox_point_by_type's) of the `index`-th point of `type` among the diagram's points
    [first, last): a script's start from the points one of its runs stored; 0 when there is none */
-int autox_type_number(const Session &s, AutoxPointKind type, int first, int last, int index);
+int autox_type_number(const AutoxParts &s, AutoxPointKind type, int first, int last, int index);
 GRABPT autox_point_data(const DIAGRAM &point);
-Result<> autox_run_check(const Session &s, const AutoxRunRequest &request, const GRABPT *point = nullptr, bool settling = false);
+Result<> autox_run_check(const AutoxParts &s, const AutoxRunRequest &request, const GRABPT *point = nullptr, bool settling = false);
 
 /* The run: its start checked against the table, the model against t (autox_time_check), then the problem set up and
    autoX run; what went wrong is the error (a start the kind does not fit names both). */
-Result<> autox_run_start(Session &s, const AutoxRunRequest &request);
+Result<> autox_run_start(AutoxParts s, const AutoxRunRequest &request);
 
 /* A model whose equations autoX runs depends on t, directly or through a function or a fixed variable (the auxiliary
    quantities do not count), is refused: autoX evaluates them at t = 0. The error names each such equation's file and
    line. */
-Result<> autox_time_check(const Session &s);
+Result<> autox_time_check(const AutoxParts &s);
 
 /* the form XPPAUT's homoclinic starts asked: the equilibria's dimensions and values, none when cancelled */
 
@@ -122,6 +122,6 @@ Result<> autox_time_check(const Session &s);
 /* the table as hello sends it ("autox_run": {...}) and the kinds that fit the grabbed point as `autoxinfo` sends them
    ("start": {...} or null) */
 std::string autox_run_table_json();
-std::string autox_run_start_json(const Session &s);
+std::string autox_run_start_json(const AutoxParts &s);
 
 } // namespace xpp

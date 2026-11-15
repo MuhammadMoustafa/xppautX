@@ -1,5 +1,6 @@
 #pragma once
 
+#include "autox_parts.h"
 #include <cstddef>
 #include <optional>
 #include <span>
@@ -10,7 +11,6 @@
 #include "xAutox.h"
 
 struct AutoxState; /* autox_state.h */
-namespace xpp { struct Session; /* session.h */ }
 
 namespace xpp {
 
@@ -38,10 +38,10 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
 DiagramPointType get_bif_type(int ibr, int ntot);
 /* the point p of a run into the Session's diagram, drawn: a run's addbif, and the join of jobs (autox_jobs.cpp), do it;
    new_segment: the point starts a branch (the drawing's new segment). p.from is the label its run started from, or 0 */
-void autox_store_point(Session &s, const DIAGRAM &p, bool new_segment);
+void autox_store_point(AutoxParts s, const DIAGRAM &p, bool new_segment);
 /* the point p of a running job drawn as it comes, as job `live`'s (XppDiagPoint.live): not in the diagram, which the join of jobs
    fills; the numbers it carries are the job's own */
-void autox_show_live_point(Session &s, const DIAGRAM &p, int live, bool new_segment);
+void autox_show_live_point(AutoxParts s, const DIAGRAM &p, int live, bool new_segment);
 /* a start at or outside the parameter window's edge with the step leading out of it, which no run can make */
 bool autox_start_points_away(double value, double rl0, double rl1, double ds);
 void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t ibrs, double *par,std::ptrdiff_t *icp,int labw, double *a, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> u0, std::span<const double> ubar);

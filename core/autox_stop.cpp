@@ -10,7 +10,6 @@
 
 #include "autox_nox.h"
 #include "xpp_math_autox.h" /* autox_rsmall */
-#include "session.h"
 #include "autox_state.h"
 #include "autox_stop.h"
 #include "xpp_log.h"
@@ -30,7 +29,7 @@ const char *const keys[AUTOX_STOP_N] = {
 };
 
 /* the continuation parameter as the text names it */
-std::string par_name(const xpp::Session &s, long ipar)
+std::string par_name(const AutoxParts &s, long ipar)
 {
     if (ipar == xpp::autox_unknown::period) return "the period T";
     const int k = s.autox_state->parameter_layout.model_index(static_cast<int>(ipar));
@@ -57,7 +56,7 @@ std::string singular(const AutoxNoConvergence &nc)
 }
 
 /* the reason in words, and what reached which limit */
-std::string describe(const xpp::Session &s, const AutoxStop &st, int why, const AutoxStopAt &at, double &value, double &limit)
+std::string describe(const AutoxParts &s, const AutoxStop &st, int why, const AutoxStopAt &at, double &value, double &limit)
 {
     value = limit = NAN;
     switch (why) {
@@ -210,7 +209,7 @@ void autox_stop_branch_end(AutoxRun &run, const AutoxStopAt *at)
     try {
         const int why = run.jacobian_failure ? AUTOX_STOP_JACOBIAN : autox_stop_why(st, at);
         double value, limit;
-        std::string text = describe(*run.session, st, why, *at, value, limit);
+        std::string text = describe(*run.parts, st, why, *at, value, limit);
         st.last_why = why;
         st.last_br = std::labs(at->br);
         st.last_pt = std::labs(at->pt);

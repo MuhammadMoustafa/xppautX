@@ -12,7 +12,6 @@
 #include "jacobian.h"
 #include "autox_c.h"
 #include "autox_state.h"
-#include "session.h"
 #include "autox_codes.h"
 #include "autox_f2c.h"
 
@@ -42,7 +41,7 @@ inline double central_step(std::ptrdiff_t n, const double *x) {
 // are not known, or a map iterated store_every times reads more states than
 // one step does.
 inline const DifferenceGroups *state_groups(const iap_type *iap, std::ptrdiff_t n) {
-  return iap->run->evaluation.chained_map ? nullptr : difference_groups(iap->run->session->model(), iap->run->jacobian_scratch, n);
+  return iap->run->evaluation.chained_map ? nullptr : difference_groups(iap->run->parts->model(), iap->run->jacobian_scratch, n);
 }
 
 // d(eval)/dx by central differences about x[0..n), step HMACH*(max|x| + 1)

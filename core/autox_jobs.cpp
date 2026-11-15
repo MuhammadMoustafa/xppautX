@@ -6,7 +6,6 @@
 #include "autox_jobs.h"
 #include "model_native.h"
 #include "autox_queue.h"
-#include "session.h"
 #include "autox_state.h"
 #include "expr.h"
 #include "autox_data.h"
@@ -18,6 +17,7 @@
 #include "xpp_job.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
+#include "xpp_globals.h"
 #include "model.h"
 #include "autox_codes.h"
 #include "autox_ends.h"
@@ -199,12 +199,12 @@ std::optional<Error> run_numerics(AutoxRun &run) noexcept
 /* The equilibrium start Newton's method refines when the initial conditions are not a steady state (autox_evd.cpp), done
    once here, on the Session, before the jobs begin: they all start from it. The error is the run's refusal; no value, a
    start that needed none (or is not an equilibrium start). */
-Result<std::optional<std::vector<double>>> refined_equilibrium_start(Session &s)
+Result<std::optional<std::vector<double>>> refined_equilibrium_start(AutoxParts s)
 {
   const AutoxState &state=*s.autox_state;
   const std::size_t n=static_cast<std::size_t>(s.model().node);
   AutoxRun probe;
-  autox_bind_session(probe,s);
+  autox_bind_parts(probe,s);
   probe.parameter_count=state.parameter_layout.size();
   iap_type iap{};
   iap.run=&probe;
@@ -263,7 +263,7 @@ struct QueuedJob {
 
 /* the jobs, and what running them shares */
 struct Queue {
-  Session &s;
+  AutoxParts s;
   std::deque<QueuedJob> jobs; /* only the main thread adds to it, with the mutex held; a job never moves */
   std::mutex mutex; /* guards the jobs' fields the threads write, and the jobs' list */
   std::condition_variable changed;
@@ -280,7 +280,7 @@ struct Queue {
   double live_last=0,counts_last=0; /* when the live points were last drawn and the jobs' points last announced (xpp::every) */
   std::vector<double> constants,variables; /* the Session's, when the run began */
   double epss=0,ds=0; /* special_point_tolerance, the size of step_size */
-  explicit Queue(Session &session) : s(session) {}
+  explicit Queue(AutoxParts session) : s(session) {}
   void restore_constants() { s.parser.constants=constants; s.parser.variables=variables; }
 };
 
@@ -421,7 +421,7 @@ void configure(Queue &q, QueuedJob &job)
    (an equilibrium through an end of cycles starts from its state, as a run from the initial conditions does) */
 Result<> set_up_child(Queue &q, QueuedJob &job)
 {
-  Session &s=q.s;
+  AutoxParts s=q.s;
   AutoxRun &run=*job.run;
   const AutoxJobStart &start=job.start;
   AutoxFoundStart found{start.ips,start.isw,s.autox_state->suppress_bp?0:start.ips==AutoxProblem::Periodic?2:1,start.label,nullptr,{}};
@@ -547,7 +547,7 @@ void show_live(Queue &q)
     const DIAGRAM &point=*earliest->latest;
     autox_data_stab(q.s,point.evr,point.evi,point_is_periodic(get_bif_type(point.ibr,point.ntot)));
   }
-  refreshdisplay(q.s);
+  refreshdisplay(q.s.session);
 }
 
 /* sets a queued job up and starts it, on a thread or here (the jobs in turn); not started when an earlier job made it, or when
@@ -775,7 +775,7 @@ void run_queue(Queue &q)
   announce_counts(q);
 }
 
-Result<> autox_run_jobs(Session &s, int iold, int isave)
+Result<> autox_run_jobs(AutoxParts s, int iold, int isave)
 {
   if(auto prepared=autox_run_prologue(s,isave);!prepared)return prepared;
   const AutoxDepth depth(s);
@@ -784,12 +784,12 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
      time, each from the constants the run began with, which are the Session's again when the run ends */
   Queue q(s);
   const AutoxState &state=*s.autox_state;
-  q.isolated=native_ready(s)&&autox_parallel_ready(s); /* the jobs on threads call the native code: built first (W715) */
+  q.isolated=native_ready(s.session)&&autox_parallel_ready(s); /* the jobs on threads call the native code: built first (W715) */
   q.constants=s.parser.constants;
   q.variables=s.parser.variables;
   q.epss=state.bifur.epss;
   q.ds=std::abs(state.bifur.ds);
-  q.budget=s.thread_budget();
+  q.budget=program.thread_budget(s.threads);
   q.at_once=q.isolated&&q.budget>1;
   q.diagram_base=diagram_stored_points(s);
   if(const std::vector<xpp::job::BranchJob> *armed=xpp::job::armed_jobs())q.plan=*armed; /* a recording's stopped run: each job ends as it did */
@@ -842,7 +842,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
     finish_replay(q);
     stopped=xpp::job::cancelled();
   }
-  autox_live_drop(s); /* the join stores the diagram's own points in place of the live ones */
+  autox_live_drop(s.session); /* the join stores the diagram's own points in place of the live ones */
   /* the join's order is the jobs' keys (a queue served in turn would run them so) */
   std::vector<QueuedJob *> order;
   for(QueuedJob &job:q.jobs)order.push_back(&job);
@@ -973,7 +973,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
 
 } // namespace
 
-Result<> autox_run_from_current_state(Session &s, int iold, int isave)
+Result<> autox_run_from_current_state(AutoxParts s, int iold, int isave)
 {
   return s.autox_state->follow_all_branches?autox_run_jobs(s,iold,isave):do_autox(s,iold,isave,s.autox_state->bifur.itp);
 }

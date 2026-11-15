@@ -17,7 +17,6 @@
 #include <string_view>
 #include <utility>
 #include "xpp_mem.h"
-#include "session.h"
 #include "autox_state.h"
 #include "diagram.h"
 #include "xpp_log.h"
@@ -243,7 +242,7 @@ bool start_is_tested(const iap_type &iap, xpp::AutoxPointKind label) {
    maximum, then each one's minimum over the orbit. Phase-free, so a family that closes on itself in another phase
    matches its start */
 std::vector<double> orbit_extremes(iap_type &iap, std::ptrdiff_t ndxloc, double *ups) {
-  const std::size_t node = static_cast<std::size_t>(iap.run->session->model().node);
+  const std::size_t node = static_cast<std::size_t>(iap.run->parts->model().node);
   std::vector<double> extremes(2 * node);
   for (std::size_t k = 0; k < node; ++k) {
     std::ptrdiff_t variable = static_cast<std::ptrdiff_t>(k) + 1;
@@ -1382,7 +1381,7 @@ switch_branch_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_
   if (!stored)
     xpp::autox_fail(xpp::format("autoX: {} keeps no direction of its branch, so the branch cannot be switched there: only a branch point of an equilibrium run stores it", where));
   if (stored->parameter != icp[0] || stored->udot.size() != static_cast<std::size_t>(ndim)) {
-    const xpp::Session &session = *iap->run->session;
+    const xpp::AutoxParts &session = *iap->run->parts;
     const auto named = [&session](std::ptrdiff_t solver_index) {
       const int k = session.autox_state->parameter_layout.model_index(static_cast<int>(solver_index));
       return k < 0 ? xpp::format("autoX's parameter {}", solver_index) : xpp::format("\"{}\"", session.model().upar_names[static_cast<std::size_t>(k)]);
@@ -1509,7 +1508,7 @@ control_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp
 
   iap->run->codim.prepare(iap->ndm);
   AutoxTestSample rbt, rcp, rgh;
-  const auto special_points=iap->run->session->autox_state->special_points;
+  const auto special_points=iap->run->parts->autox_state->special_points;
 
   /* The tests of the point just solved. A switched branch's second point leaves the branch point test out: the
      determinant there is of the switch's Newton matrix, whose last row is not the arclength condition. */
@@ -2495,7 +2494,7 @@ hopf_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
       kind=selected ? xpp::autox_map_secondary_kind(isw==2 ? iap->itpst : xpp::AutoxPointKind::Regular,std::abs(selected->i),rap->epss) : xpp::AutoxPointKind::Regular;
       ret_val=selected ? selected->r : autox_test_not_applicable;
       *chng=nins1!=iap->nins && kind!=xpp::AutoxPointKind::Regular && iap->isp!=0 &&
-          (isw!=2 || xpp::autox_codim_enabled(iap->run->session->autox_state->special_points,kind));
+          (isw!=2 || xpp::autox_codim_enabled(iap->run->parts->autox_state->special_points,kind));
       if (isw!=2 && selected && kind==xpp::AutoxPointKind::NeimarkSacker)
         par[xpp::autox_unknown::period]=multiple_of_pi(2.)/std::abs(selected->i);
     }
@@ -2509,7 +2508,7 @@ hopf_test_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *i
     const std::ptrdiff_t required_change=isw==2 && iap->itpst==xpp::AutoxPointKind::Hopf ? 1 : hopf_stability_change;
     if (f2c::abs(nins1 - nins) >= required_change) *chng = true;
     if (isw==2 && (iap->isp==0 || iap->isp==3 ||
-        !xpp::autox_codim_enabled(iap->run->session->autox_state->special_points,xpp::AutoxPointKind::ZeroHopf) ||
+        !xpp::autox_codim_enabled(iap->run->parts->autox_state->special_points,xpp::AutoxPointKind::ZeroHopf) ||
         iap->itp.kind==xpp::AutoxPointKind::BogdanovTakens)) { *chng=false; ret_val=autox_test_not_applicable; }
   }
   nins = nins1;
@@ -3101,7 +3100,7 @@ write_headings(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, s
     xpp::log_autox("  BR    PT  TY LAB ");
     for (i = 0; i < *n1 + *n2 + 1; ++i) {
       /* PAR(n)/U(n) as the user named them */
-      xpp::log_autox("{}",autox_screen_col(*iap->run->session, col[i]).c_str());
+      xpp::log_autox("{}",autox_screen_col(*iap->run->parts, col[i]).c_str());
     }
     xpp::log_autox("\n");
   } else if (iunit == 7) {
@@ -4275,7 +4274,7 @@ new_restart_label(iap_type *iap, rap_type *rap)
 
   /* A fresh run has an empty fort.3, but the diagram may retain older
      branches. Their labels must still identify their own restart solution. */
-  for(const auto &point:iap->run->session->diagram->points){
+  for(const auto &point:iap->run->parts->diagram->points){
     mbr=std::max(mbr,static_cast<std::ptrdiff_t>(f2c::abs(point.ibr)));
     mlab=std::max(mlab,static_cast<std::ptrdiff_t>(point.lab));
   }
@@ -6368,7 +6367,7 @@ store_diagram_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t
     n2 = autox_diagram_columns;
   }
   const std::vector<double> extremes = orbit_extremes(*iap, *ndxloc, ups);
-  const std::size_t node = static_cast<std::size_t>(iap->run->session->model().node);
+  const std::size_t node = static_cast<std::size_t>(iap->run->parts->model().node);
   for (i = 0; i < n2; ++i) {
     itmp = i + 1;
     umx[i] = static_cast<std::size_t>(i) < node ? extremes[static_cast<std::size_t>(i)] : component_maximum(iap, ndxloc, &itmp, ups);

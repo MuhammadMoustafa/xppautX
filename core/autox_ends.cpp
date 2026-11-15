@@ -13,7 +13,6 @@
 #include "autox_global.h"
 #include "autox_state.h"
 #include "equilibria.h"
-#include "session.h"
 #include "xpp_text.h"
 #include "autox_f2c.h"
 #include "autox_stop.h"
@@ -58,13 +57,13 @@ std::optional<double> autox_hopf_parameter(const AutoxAmplitudeWatch &watch)
 std::optional<AutoxHopfEnd> autox_hopf_end(const iap_type &iap, const double *par, const std::ptrdiff_t *icp,
                                            std::span<const double> mean, const AutoxAmplitudeWatch &watch)
 {
-    Session &s = *iap.run->session;
+    AutoxParts &s=*iap.run->parts;
     /* autoX's parameters with the continued one at the Hopf point's, which the model is evaluated at */
     std::vector<double> at(par, par + 2 * iap.run->parameter_count);
     const double here = par[icp[0]];
     at[icp[0]] = watch.passed.value_or(autox_hopf_parameter(watch).value_or(here)); /* the line before this point joined the cycles */
     const auto model = autox_equilibrium_model(iap, at.data(), icp, mean);
-    auto found = equilibrium_near(s, *model, mean);
+    auto found = equilibrium_near(s.session, *model, mean);
     if (!found) {
         AutoxStop &stop = iap.run->stop;
         if (!std::exchange(stop.hopf_failure_noted, true))
@@ -99,7 +98,7 @@ void autox_hopf_end_apply(const iap_type &iap, const AutoxHopfEnd &end, double *
         for (std::ptrdiff_t j = 0; j < ndxloc; ++j) ups[j + i * ndxloc] = end.equilibrium[static_cast<std::size_t>(i % ndim)];
 }
 
-std::string autox_hopf_end_text(const Session &s, const AutoxHopfEnd &end)
+std::string autox_hopf_end_text(const AutoxParts &s, const AutoxHopfEnd &end)
 {
     const auto g = autox_number_text;
     if (end.passed)

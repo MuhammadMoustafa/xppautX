@@ -218,7 +218,7 @@ int probe_boundary(const iap_type *iap, const rap_type *, std::ptrdiff_t, double
 void check_assembly_passes(xpp::Session &s)
 {
     AssemblyProbe run;
-    autox_bind_session(run, s);
+    autox_bind_parts(run, s);
     run.parameter_count = 1;
     iap_type iap{};
     iap.run = &run;
@@ -281,7 +281,7 @@ void check_assembly_passes(xpp::Session &s)
 void check_library_arrays(xpp::Session &s)
 {
     AutoxRun run;
-    autox_bind_session(run, s);
+    autox_bind_parts(run, s);
     run.parameter_count = 5;
     iap_type iap{};
     iap.run = &run;

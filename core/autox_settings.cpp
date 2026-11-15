@@ -32,7 +32,6 @@
 #include "xpp_cpu.h"
 #include "xpp_text.h"
 #include "json_number.h"
-#include "session.h"
 #include "autox_state.h"
 #include "autox_axis.h"
 #include "autox_nox.h"
@@ -45,7 +44,7 @@ constexpr int PARAM_BOX = 1; /* find_user_name's parameters */
 
 /* ---- the settings now ---- */
 
-void read_num(const xpp::Session &s, double v[AUTOX_NUM_N])
+void read_num(const AutoxParts &s, double v[AUTOX_NUM_N])
 {
     const xpp::BIFUR &b = s.autox_state->bifur;
     const xpp::ADVAUTOX &a = s.autox_state->advanced;
@@ -59,7 +58,7 @@ void read_num(const xpp::Session &s, double v[AUTOX_NUM_N])
     std::memcpy(v, now, sizeof now);
 }
 
-void write_num(xpp::Session &s, const double v[AUTOX_NUM_N])
+void write_num(AutoxParts s, const double v[AUTOX_NUM_N])
 {
     auto i = [&](int k) { return static_cast<int>(v[k]); };
     xpp::BIFUR &b = s.autox_state->bifur;
@@ -105,7 +104,7 @@ void add_num(std::string &o, double v) { o += xpp::json::json_finite(v) ? xpp::n
 std::string name_or_empty(const char *s) { return s ? std::string(s) : std::string(); }
 
 /* view axes a as the `set` command's axes keys */
-void axes_of(const xpp::Session &s, const AUTOAX &a, AutoxSettingsSet &set)
+void axes_of(const AutoxParts &s, const AUTOAX &a, AutoxSettingsSet &set)
 {
     set.plot = a.plot;
     if (a.var >= 0 && a.var < s.model().node) set.var = s.model().uvar_names[a.var];
@@ -115,7 +114,7 @@ void axes_of(const xpp::Session &s, const AUTOAX &a, AutoxSettingsSet &set)
     set.range = {a.xmin, a.xmax, a.ymin, a.ymax};
 }
 
-AutoxSettingsSet settings_now(const xpp::Session &s)
+AutoxSettingsSet settings_now(const AutoxParts &s)
 {
     AutoxSettingsSet set;
     for (std::size_t i=0;i<autox_codim_kinds.size();++i) set.special_points[i]=s.autox_state->special_points[i];
@@ -130,7 +129,7 @@ AutoxSettingsSet settings_now(const xpp::Session &s)
     return set;
 }
 
-std::string event_text(const xpp::Session &s)
+std::string event_text(const AutoxParts &s)
 {
     const AutoxSettingsSet set = settings_now(s);
     std::string o = xpp::events::open(xpp::events::AUTOX_SETTINGS) + ",\"numerics\":{";
@@ -210,7 +209,7 @@ std::string event_text(const xpp::Session &s)
 }
 
 /* A loaded model with variables has autoX settings. */
-bool have_settings(const xpp::Session &s) { return s.model().node > 0; }
+bool have_settings(const AutoxParts &s) { return s.model().node > 0; }
 
 /* what a set changes, checked (check), for commit to write */
 struct Checked {
@@ -223,7 +222,7 @@ struct Checked {
 
 /* set checked against s, as it will be when views views of the diagram
    are there (-1: the views s has) */
-Result<Checked> check(const xpp::Session &s, const AutoxSettingsSet *set, int views)
+Result<Checked> check(const AutoxParts &s, const AutoxSettingsSet *set, int views)
 {
     Checked c;
     if (!have_settings(s)) return std::unexpected(autox_refused("autoX needs a model with variables"));
@@ -261,7 +260,7 @@ Result<Checked> check(const xpp::Session &s, const AutoxSettingsSet *set, int vi
     if (set->plot) plot = *set->plot;
     if (!set->var.empty()) {
         int col;
-        find_variable(s,set->var.c_str(), &col);
+        find_variable(s.session,set->var.c_str(), &col);
         if (col < 1 || col > s.model().node) {
             return std::unexpected(autox_refused(xpp::format("{} is not a variable autoX computes", set->var), "var"));
         }
@@ -313,7 +312,7 @@ Result<Checked> check(const xpp::Session &s, const AutoxSettingsSet *set, int vi
 }
 
 /* set, checked into c, written as the forms do */
-void commit(xpp::Session &s, const AutoxSettingsSet *set, Checked &c)
+void commit(AutoxParts s, const AutoxSettingsSet *set, Checked &c)
 {
     const double *num = c.num;
     const int view = c.view, var = c.var, icp1 = c.icp1, icp2 = c.icp2;
@@ -342,7 +341,7 @@ void commit(xpp::Session &s, const AutoxSettingsSet *set, Checked &c)
     if (axes && s.autox_state->bifur.exist) redraw_diagram(s);
 }
 
-bool apply(xpp::Session &s, const AutoxSettingsSet *set, std::string &why)
+bool apply(AutoxParts s, const AutoxSettingsSet *set, std::string &why)
 {
     Result<Checked> checked = check(s, set, -1);
     if (!checked) {
@@ -357,7 +356,7 @@ bool apply(xpp::Session &s, const AutoxSettingsSet *set, std::string &why)
 } // namespace
 
 /* the event, none for a model with no settings */
-std::string autox_settings_event_line(const xpp::Session &s) { return have_settings(s) ? event_text(s) : std::string(); }
+std::string autox_settings_event_line(const AutoxParts &s) { return have_settings(s) ? event_text(s) : std::string(); }
 
 
 AutoxFieldShape autox_settings_num_shape(int i) { return autox_num_field(i).shape; }
@@ -399,7 +398,7 @@ Result<double> autox_settings_num_parse(int i, std::string_view text)
     return v;
 }
 
-AutoxSettingsSet autox_settings_now(const xpp::Session &s)
+AutoxSettingsSet autox_settings_now(const AutoxParts &s)
 {
     try {
         return settings_now(s);
@@ -408,7 +407,7 @@ AutoxSettingsSet autox_settings_now(const xpp::Session &s)
     }
 }
 
-void autox_settings_reload(Session &s, const AutoxSettingsSet &kept)
+void autox_settings_reload(AutoxParts s, const AutoxSettingsSet &kept)
 {
     if (!have_settings(s)) return;
     AutoxSettingsSet set = kept;
@@ -444,7 +443,7 @@ void autox_settings_reload(Session &s, const AutoxSettingsSet &kept)
     commit(s, &set, c);
 }
 
-AutoxSettingsSet autox_settings_view(const xpp::Session &s, int view)
+AutoxSettingsSet autox_settings_view(const AutoxParts &s, int view)
 {
     try {
         AutoxSettingsSet set;
@@ -456,13 +455,13 @@ AutoxSettingsSet autox_settings_view(const xpp::Session &s, int view)
     }
 }
 
-Result<> autox_settings_check(const xpp::Session &s, const AutoxSettingsSet &set, int views)
+Result<> autox_settings_check(const AutoxParts &s, const AutoxSettingsSet &set, int views)
 {
     if (auto checked = check(s, &set, views); !checked) return std::unexpected(std::move(checked.error()));
     return {};
 }
 
-int autox_settings_apply(xpp::Session &s, const AutoxSettingsSet &set, std::string &why)
+int autox_settings_apply(AutoxParts s, const AutoxSettingsSet &set, std::string &why)
 {
     try {
         if (apply(s, &set, why)) return 0;
@@ -489,7 +488,7 @@ bool autox_view_row(const OptionRow &row)
     return name == view_variable || std::ranges::find(view_edges, name) != view_edges.end();
 }
 
-std::string autox_view_text(const Session &s, const OptionRow &row)
+std::string autox_view_text(const AutoxParts &s, const OptionRow &row)
 {
     const AUTOAX &a = s.autox_state->axes();
     const std::string name = option_name(row);
@@ -498,7 +497,7 @@ std::string autox_view_text(const Session &s, const OptionRow &row)
     return xpp::number(edges[std::ranges::find(view_edges, name) - view_edges.begin()]);
 }
 
-Result<> autox_view_apply(Session &s, std::span<const std::pair<const OptionRow *, std::string>> items, bool check_only)
+Result<> autox_view_apply(AutoxParts s, std::span<const std::pair<const OptionRow *, std::string>> items, bool check_only)
 {
     AutoxSettingsSet set;
     for (const auto &[row, text] : items) {

@@ -38,7 +38,7 @@ TEST_CASE("test_autox_codim")
     CHECK(load_args(2,argv,1).has_value());
     auto &s=xpp::client_session();
     AutoxRun run;
-    autox_bind_session(run, s);
+    autox_bind_parts(run, s);
     run.parameter_count=s.autox_state->parameter_layout.size();
     run.codim.prepare(2);
     iap_type iap{};
@@ -82,7 +82,7 @@ TEST_CASE("test_autox_codim")
     CHECK(load_args(2,reaction_args,1).has_value());
     auto &reaction_session=xpp::client_session();
     AutoxRun reaction_lib;
-    autox_bind_session(reaction_lib, reaction_session);
+    autox_bind_parts(reaction_lib, reaction_session);
     reaction_lib.parameter_count=reaction_session.autox_state->parameter_layout.size();
     reaction_lib.codim.prepare(2);
     iap.run=&reaction_lib;
@@ -195,7 +195,7 @@ TEST_CASE("test_autox_codim")
     map_session.numerics->jacobian=xpp::JACOBIAN_EXACT;
     iap.jac=1;
     AutoxRun map_lib;
-    autox_bind_session(map_lib, map_session);
+    autox_bind_parts(map_lib, map_session);
     map_lib.parameter_count=map_session.autox_state->parameter_layout.size();
     iap.run=&map_lib; iap.ndm=4; iap.ndim=10;
     iap.ips=xpp::AutoxProblem::DiscreteMap; iap.itpst=xpp::AutoxPointKind::NeimarkSacker;

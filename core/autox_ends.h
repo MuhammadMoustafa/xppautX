@@ -19,6 +19,7 @@
 
    autox_ends.cpp. */
 
+#include "autox_parts.h"
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -34,7 +35,6 @@ struct iap_type; /* autox_c.h */
 
 namespace xpp {
 
-struct Session; /* session.h */
 
 /* An orbit is no longer a cycle when every variable's range is at most this fraction of (1 + |its mean|): a Hopf
    point's cycles lie about the square of their relative amplitude from it in the parameter (1e-3: 1e-6, below the
@@ -101,7 +101,7 @@ void autox_hopf_end_apply(const iap_type &iap, const AutoxHopfEnd &end, double *
                           std::ptrdiff_t ndxloc, double *ups);
 
 /* the stop's words: "the cycles' amplitude fell to ... at an equilibrium with the imaginary pair ..." */
-std::string autox_hopf_end_text(const Session &s, const AutoxHopfEnd &end);
+std::string autox_hopf_end_text(const AutoxParts &s, const AutoxHopfEnd &end);
 
 /* A special point as the same-point rule sees it: its kind, its parameters (the continuation's), its states
    and, for a Hopf point, its frequency */

@@ -8,9 +8,9 @@
 
    AutoxRun is one run's own (autox_lib1-5, gogoautox, setubv2): its
    parameters, its fort texts, its work arrays, why its branches
-   ended, its stability values, and the Session whose model and settings it
-   reads. do_autox makes one per run and the numerical code reaches the
-   Session only through it, so two runs share no state of their own. What a
+   ended, its stability values, and the parts of the Session whose model and
+   settings it reads (AutoxParts, taken once when the run starts). do_autox makes one per run and the numerical code reaches the
+   Session's parts only through it, so two runs share no state of their own. What a
    run still writes on the Session is what is not a run's: the model's
    evaluation state (Session::parser, the integrator), the diagram its points
    are appended to and what the window shows of them. */
@@ -33,6 +33,7 @@
 #include "autox_axis.h"
 #include "autox_codes.h"
 #include "autox_ends.h"
+#include "autox_parts.h"
 
 #include <algorithm>
 #include <array>
@@ -245,10 +246,6 @@ struct AutoxGlobalRotations {
   std::vector<std::ptrdiff_t> nrtn; /* per boundary condition (nbc), sized with the scratch */
 };
 
-namespace xpp {
-struct Session; /* session.h */
-}
-
 /* solve_boundary's matrices and index arrays, kept from one call to the next: a
    call with *ifst == 1 sizes them with resize, later ones reuse
    what it factored (autox_lib2.cpp). resize states every dimension once
@@ -292,7 +289,7 @@ struct AutoxBufferedPoint {
 };
 
 /* What the model's callbacks (autox_pp.cpp, autox_jacobian.h) read on every
-   evaluation, fixed while a run lasts: autox_bind_session takes it from the
+   evaluation, fixed while a run lasts: autox_bind_parts takes it from the
    Session once, so the hot calls do not reach through the Session's parts. */
 struct AutoxEvaluation {
   AutoxParameterLayout parameter_layout;
@@ -305,10 +302,10 @@ struct AutoxEvaluation {
    their iap_type's run, and it is gone when the run ends. A collocation
    worker (autox_parallel.cpp) is a run too, with only its scratch. */
 struct AutoxRun {
-  /* the Session whose run this is: the model and the settings, which a run
-     reads and never changes, and what the model's callbacks (autox_pp.cpp)
-     evaluate on */
-  xpp::Session *session=nullptr;
+  /* the parts of the Session this run reads and writes (the model and the settings, which a run reads and never changes,
+     and what the model's callbacks (autox_pp.cpp) evaluate on), taken once when the run starts (autox_bind_parts);
+     none until then */
+  std::optional<xpp::AutoxParts> parts;
   AutoxEvaluation evaluation;
   /* a collocation worker's: the run it works for; null for a run itself */
   AutoxRun *owner=nullptr;

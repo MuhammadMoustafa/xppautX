@@ -1,5 +1,6 @@
 #pragma once
 
+#include "autox_parts.h"
 #include <stdio.h>
 #include <string>
 #include <string_view>
@@ -21,7 +22,6 @@ struct AutoxRun; /* autox_state.h */
 
 namespace xpp {
 
-struct Session; /* session.h */
 struct RunReport; /* integrate.h */
 class TokenReader;
 /* The twelve fort.8 header fields, read and bounded once for every autoX
@@ -82,7 +82,7 @@ Result<AutoxSolutionIndex> autox_index_file(FileSystem &fs, const std::string &p
    one piece in memory) */
 TokenReader autox_reader_at(FileSystem &fs, std::string path, std::size_t offset);
 /* the session's .s file's index, made on first use and kept up to date by close_autox, a loaded session and a cleared diagram */
-Result<const AutoxSolutionIndex *> autox_session_solutions(Session &s);
+Result<const AutoxSolutionIndex *> autox_session_solutions(AutoxParts s);
 /* the index of the run's fort.3: the session's, when the run restarts from it, else its own text's, made on first use; a failure stops the run */
 const AutoxSolutionIndex &autox_run_solutions(AutoxRun &run);
 // Read a collocation payload into the formulation's explicit target columns.
@@ -194,12 +194,12 @@ typedef struct {
   double xmin,ymin,xmax,ymax;
 }  AUTOAX;
 
-void draw_bif_axes(Session &s);
-int IXVal(const Session &s, double x);
-int IYVal(const Session &s, double y);
+void draw_bif_axes(AutoxParts s);
+int IXVal(const AutoxParts &s, double x);
+int IYVal(const AutoxParts &s, double y);
 /* the run's end: its files (fort.7, .9 and .8, in the run's scratch folder) replace the session's .b, .d and .s files
    (flag OVERWRITE) or go in front of them (APPEND), through the model's file system, and the folder goes */
-void close_autox(Session &s, AutoxRun &run, int flag);
+void close_autox(AutoxParts s, AutoxRun &run, int flag);
 /* what the run has written so far goes to its files (fort.7, .8 and .9: they are written as the run goes, never held whole);
    a failed write ends the run with its error */
 void autox_flush(AutoxRun &run);
@@ -208,23 +208,23 @@ Result<> autox_finish_files(AutoxRun &run);
 /* the run's start: the folder of the .b/.d/.s files must be writable, and the run gets a scratch folder whose files (fort.7, .8, .9)
    its numerics open as sinks they write through; flag OPEN_3 makes the session's .s file the run's restart data (fort.3,
    read by range, one solution at a time). An error when the folder is not writable or a file cannot be opened */
-Result<> open_autox(Session &s, AutoxRun &run, int flag);
+Result<> open_autox(AutoxParts s, AutoxRun &run, int flag);
 /* do_autox's iold: autoX's fort.3 is opened for a restart (OPEN_3) or not; isave: the run's solutions replace the .s file or
    are added to it */
 inline constexpr int OPEN_3 = 1, NO_OPEN_3 = 0, OVERWRITE = 0, APPEND = 1;
 /* what every start of a run checks and prepares first: the model has a parameter, and isave and the parameters
    a restart label holds are settled; the error is what is wrong */
-Result<> autox_run_prologue(Session &s, int &isave);
+Result<> autox_run_prologue(AutoxParts s, int &isave);
 /* one run's depth, however it ends: the outermost clears why the last runs' branches ended (autox_stop.h) */
 struct AutoxDepth {
   int &depth;
-  explicit AutoxDepth(Session &s);
+  explicit AutoxDepth(AutoxParts s);
   ~AutoxDepth() { depth--; }
   AutoxDepth(const AutoxDepth &)=delete;
   AutoxDepth &operator=(const AutoxDepth &)=delete;
 };
 /* where the run's solutions are kept: the dir may have changed since the last run */
-void create_autox_file_name(Session &s);
+void create_autox_file_name(AutoxParts s);
 /* A job that starts at what another job found (autox_jobs.cpp): the problem it continues (ips, isw, isp as the start of such a
    run sets them), and, when it restarts from the point itself (label above 0), the finding job's label, the point as that job
    stored it (its stability), which is not in the diagram yet, and its solution as the finding job's fort.8 holds it, which
@@ -239,10 +239,10 @@ struct AutoxFoundStart {
    first point's stability); the error is what is wrong. After create_autox_file_name. */
 /* a count a check sets in the environment (XPP_AUTOX_FAIL_CHILD_AT, XPP_AUTOX_CANCEL_AT_SOLVE), or nothing when unset */
 std::optional<std::size_t> autox_check_count(const char *name);
-Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold, const AutoxFoundStart *found = nullptr);
+Result<> autox_set_up_run(AutoxParts s, AutoxRun &run, int iold, const AutoxFoundStart *found = nullptr);
 /* a run that left a model parameter not finite (a diverged Newton step) puts the value it had before, `before` (the model's
    nupar parameters), back, with a warning (QA SCI-001) */
-void autox_restore_finite_pars(Session &s, const double *before);
+void autox_restore_finite_pars(AutoxParts s, const double *before);
 /* the numerics of one run, which ends early with the Error it failed with */
 std::optional<Error> autox_numerics(AutoxRun &run);
 /* what a run that failed shows: its Error as the command returns it ("autoX stopped: ..."), also written to the autoX
@@ -250,9 +250,9 @@ std::optional<Error> autox_numerics(AutoxRun &run);
 Error autox_shown_failure(Error failed);
 /* the end of a run (or of one job of several, once it is joined): why its branches ended is the Session's, its fort files
    the session's .b/.d/.s (isave, as close_autox), and what failed is shown and returned for the command */
-std::optional<Error> autox_end_run(Session &s, AutoxRun &run, std::optional<Error> failed, int isave);
+std::optional<Error> autox_end_run(AutoxParts s, AutoxRun &run, std::optional<Error> failed, int isave);
 /* a run set up (set_autox) and made; the error is what went wrong, shown by the command that ran it */
-Result<> do_autox(Session &s, int iold, int isave, AutoxPointCode itp);
+Result<> do_autox(AutoxParts s, int iold, int isave, AutoxPointCode itp);
 /* goes on from the point labelled `label` with the settings of the run
    before (W275: the action of an exact Jacobian's failure); an error, and
    nothing run, for a label no point has */
@@ -261,25 +261,25 @@ Result<> do_autox(Session &s, int iold, int isave, AutoxPointCode itp);
 void autox_label_parameters(const AutoxRun &run, int label, double *parameters);
 /* the model parameter k's name, NULL when k is outside the model: the one lookup the forms,
    the settings event, the CSV export and the branch-end text share */
-const char *autox_par_name(const Session &s, int k);
-void autox_fit(Session &s);
-void autox_default(Session &s);
+const char *autox_par_name(const AutoxParts &s, int k);
+void autox_fit(AutoxParts s);
+void autox_default(AutoxParts s);
 /* the diagram's views (W50, AutoxState::views). New view: one more, a copy
    of the active one's axes, made active. Close view k: 0 when it is the
    last one (it stays) or there is no view k. Activate view k: the one the
    Axes menu, zoom, the exports and a run's parameters then use; 0 when
    there is no view k. Each draws the diagram again when autoX's window is
    open. */
-void autox_new_view(Session &s, std::string name);
-int autox_close_view(Session &s, int k);
-int autox_activate_view(Session &s, int k);
+void autox_new_view(AutoxParts s, std::string name);
+int autox_close_view(AutoxParts s, int k);
+int autox_activate_view(AutoxParts s, int k);
 /* the active view shows this box of its quantities, x1 below x2 and y1 below y2, or the box a zoom out shrinks it into
    (autox_zoom_out_to), or is moved by dx, dy; the caller draws the diagram again (redraw_diagram) */
 /* Clear: the branches so far become the earlier ones, hidden until shown again */
-void autox_hide_earlier(Session &s);
-void autox_zoom_to(Session &s, double x1, double x2, double y1, double y2);
-void autox_zoom_out_to(Session &s, double x1, double x2, double y1, double y2);
-void autox_scroll_by(Session &s, double dx, double dy);
+void autox_hide_earlier(AutoxParts s);
+void autox_zoom_to(AutoxParts s, double x1, double x2, double y1, double y2);
+void autox_zoom_out_to(AutoxParts s, double x1, double x2, double y1, double y2);
+void autox_scroll_by(AutoxParts s, double dx, double dy);
 /* where view ax plots a point: x, and y1 and y2 (the maximum and minimum,
    or y1 twice) */
 void autox_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> ubar, double a);
@@ -292,87 +292,87 @@ int autox_run_from_take(AutoxRun &run);
    every view: the diagram's data and the active view's drawing, resolving
    parameters from its stored branch. type is its get_bif_type, flag 0 for
    a branch's first point. */
-void add_point(Session &s, const DIAGRAM &d, DiagramPointType type, int flag);
+void add_point(AutoxParts s, const DIAGRAM &d, DiagramPointType type, int flag);
 /* the point d of a running job (autox_jobs.cpp) in every view's data as it comes, where add_point puts a stored one: it is in no
    diagram entry, leaves the info strip and the circle alone, and is the job `live`'s (XppDiagPoint.live) */
-void add_live_point(Session &s, const DIAGRAM &d, int live, DiagramPointType type, int flag);
+void add_live_point(AutoxParts s, const DIAGRAM &d, int live, DiagramPointType type, int flag);
 /* the info strip's line for the stored point d */
-void traverse_out(Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw);
+void traverse_out(AutoxParts s, DIAGRAM *d, int *ix, int *iy, int dodraw);
 /* the diagram window open (bifur.exist set): its active view selected, the front end asked to make it. many_pops.h's open_diagram_window
    is how it opens, with every view named apart from the other windows first */
-void autox_window_opened(Session &s);
+void autox_window_opened(AutoxParts s);
 /* the axes a one-parameter and a two-parameter view had last
    (AutoxState::old1p, old2p): the Axes menu's last 1 par and last 2 par */
 enum class LastPlot { OneParameter, TwoParameter };
-void load_last_plot(Session &s, LastPlot which);
-void keep_last_plot(Session &s, LastPlot which);
+void load_last_plot(AutoxParts s, LastPlot which);
+void keep_last_plot(AutoxParts s, LastPlot which);
 /* the active view's axes kept as the last of their kind (a two-parameter
    view's, or a one-parameter one's; XPPAUT keeps no frequency or average) */
-void keep_axes_as_last(Session &s);
-void init_autox_win(Session &s);
-int yes_reset_autox(Session &s);
+void keep_axes_as_last(AutoxParts s);
+void init_autox_win(AutoxParts s);
+int yes_reset_autox(AutoxParts s);
 /* Clear selections and obsolete run files when a diagram is replaced; `remove_solutions` also drops the session's .s file */
-void forget_autox_diagram(Session &s, bool remove_solutions);
-void autox_grab(Session &s);
+void forget_autox_diagram(AutoxParts s, bool remove_solutions);
+void autox_grab(AutoxParts s);
 
-void find_best_homo_shift(Session &s, int n);
-void get_start_period(Session &s, double *p);
-void get_start_orbit(Session &s, double *u, double t, double p, int n);
+void find_best_homo_shift(AutoxParts s, int n);
+void get_start_period(AutoxParts s, double *p);
+void get_start_orbit(AutoxParts s, double *u, double t, double p, int n);
 /* File's Import orbit: the stored orbit of point `label` (none: the grabbed point's) into the data table */
-Result<> load_autox_orbit(Session &s, std::optional<int> label);
+Result<> load_autox_orbit(AutoxParts s, std::optional<int> label);
 /* the point `mylab` of the session's .s file: rows' reader (autox_reader_at) positioned at the first row, and their count and the model's
    dimension; false when the label is not there or the text is not what the index says */
-bool move_to_label(Session &s, int mylab, int *nrow, int *ndim, TokenReader &rows);
+bool move_to_label(AutoxParts s, int mylab, int *nrow, int *ndim, TokenReader &rows);
 void get_a_row(double *u, double *t, int n, TokenReader &rows);
-int check_plot_type(const Session &s, AutoxCalculation flag2, AutoxAxis icp1, AutoxAxis icp2);
+int check_plot_type(const AutoxParts &s, AutoxCalculation flag2, AutoxAxis icp1, AutoxAxis icp2);
 
 /* grabbing and marking points on the diagram (from autox_x11.c) */
-void traverse_diagram(Session &s);
+void traverse_diagram(AutoxParts s);
 /* the scriptable grabs: the same outcome as an interactive grab ending
    with Return on that point (docs/protocol.md "Grab by point"). 1 on
    success, 0 (nothing changed) when there is no such point. */
-int autox_grab_label(Session &s, int lab);
-int autox_grab_type_index(Session &s, AutoxPointKind type, int index);
+int autox_grab_label(AutoxParts s, int lab);
+int autox_grab_type_index(AutoxParts s, AutoxPointKind type, int index);
 /* asks which point type the grab-by-type menu picks, or none */
 std::optional<AutoxPointKind> query_special(const char *title);
-void clear_msg(Session &s);
+void clear_msg(AutoxParts s);
 /* a click on the diagram at (x, y) in its axis quantities: shown, and kept
    as the point autoX's File/sElect 2par pt uses in a two-parameter plot */
-void autox_point_xy(Session &s, double x, double y);
+void autox_point_xy(AutoxParts s, double x, double y);
 /* the two parameters set to the point autox_point_xy stored (File/sElect 2par pt) */
-void setautoxpoint(Session &s);
+void setautoxpoint(AutoxParts s);
 
-void find_point(Session &s, int ibr, int pt);
-void autox_set_mark(Session &s, int i);
-void do_autox_range(Session &s, const RunReport &report);
+void find_point(AutoxParts s, int ibr, int pt);
+void autox_set_mark(AutoxParts s, int i);
+void do_autox_range(AutoxParts s, const RunReport &report);
 
 /* orbit lab of the solution file into the data (a labelled point's, when
    a grab or a diagram point asks for it); what failed otherwise, for the
    command to show */
-Result<> load_autox_orbitx(Session &s, int ibr,int flag, int lab, double per);
+Result<> load_autox_orbitx(AutoxParts s, int ibr,int flag, int lab, double per);
 
 /* the number of points of the marked stretch of the diagram (*n) and its
    first parameter's name (pname); both unchanged when none is marked */
-void autox_get_info(Session &s, int *n, std::string &pname);
+void autox_get_info(AutoxParts s, int *n, std::string &pname);
 /* autoX's printed column heading col in the user's own names (screen
    only), autox_column_width (autox_c.h) wide */
-std::string autox_screen_col(const Session &s, const std::string &col);
+std::string autox_screen_col(const AutoxParts &s, const std::string &col);
 
 /* autoX's solution file (fort.8 after a run, the orbits of the labelled
    points a grab restarts from): <HOME or the model's folder>/<model>.s */
-std::string autox_solutions_file(const Session &s);
+std::string autox_solutions_file(const AutoxParts &s);
 
 /* view ax's axis labels as the axes show them: a name, name_bar or
    "Frequency" each (json_autox.cpp's diagram events) */
-void get_autox_str(const Session &s, const AUTOAX &ax, std::string &xlabel, std::string &ylabel);
+void get_autox_str(const AutoxParts &s, const AUTOAX &ax, std::string &xlabel, std::string &ylabel);
 
 /* at exit (xppautx_main.cpp's atexit hook): removes s's autoX scratch
    folder (autox_state.h) if it is set, and clears it */
-void cleanup_autox_dir(FileSystem &fs, Session &s);
+void cleanup_autox_dir(FileSystem &fs, AutoxParts s);
 
 /* another model is loaded (File > Open model, Reload): a new, empty autoX
    scratch folder in place of the Session s's, whose files (<model>.s, .b,
    .d) were the model before's */
-void renew_autox_dir(FileSystem &fs, Session &s);
+void renew_autox_dir(FileSystem &fs, AutoxParts s);
 
 } // namespace xpp

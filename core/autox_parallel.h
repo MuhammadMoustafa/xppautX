@@ -1,12 +1,12 @@
 #pragma once
 // autoX's persistent collocation pool, owned by the run's AutoxRun.
 struct AutoxRun;
+#include "autox_parts.h"
 #include <functional>
 #include <cstddef>
 #include <memory>
 
 namespace xpp {
-struct Session;
 class AutoxParallel {
 public:
     // W251 measured no gain past four workers on PY_S1Bf.
@@ -32,5 +32,5 @@ private:
     unsigned threads_;
     std::unique_ptr<State> state_;
 };
-bool autox_parallel_ready(const Session &s);
+bool autox_parallel_ready(const AutoxParts &s);
 } // namespace xpp

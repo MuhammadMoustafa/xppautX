@@ -42,7 +42,7 @@ TEST_CASE("test_autox_stop")
     xpp::client_session().model().nupar = 1;
     xpp::client_session().autox_state->parameter_layout.model_parameters=1;
     AutoxRun run;
-    run.session = &xpp::client_session();
+    run.parts.emplace(xpp::client_session());
     xpp::AutoxStop &stop = run.stop;
 
     xpp::AutoxStopAt at = inside();

@@ -179,7 +179,7 @@ struct Session {
   /* the colors the diagram, the nullclines and the manifolds are drawn in, a program preference like the thread count */
   Colors colors;
   /* the threads a set of jobs or runs shares: the count, or all the physical cores when automatic */
-  unsigned thread_budget() const { return threads != cpu::THREADS_AUTO ? threads : program.physical_threads(); }
+  unsigned thread_budget() const { return program.thread_budget(threads); }
 
   /* autoX's settings, what its window shows and its scratch folder
      (autox_nox.cpp), and the diagram (diagram.cpp). A run's own state, its

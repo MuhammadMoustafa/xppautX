@@ -9,6 +9,7 @@
    std::string member). */
 
 #include <string>
+#include "xpp_cpu.h"
 
 
 struct XppProgram {
@@ -20,6 +21,8 @@ struct XppProgram {
        (xpp_cpu_system.h, measuring on its first call only), given by the program's start; none (a unit test that sets none): 1 */
     unsigned (*measure_physical_threads)() = nullptr;
     unsigned physical_threads() const { return measure_physical_threads ? measure_physical_threads() : 1; }
+    /* the threads a set of jobs or runs shares: the preferred count, or all the physical cores when it is automatic */
+    unsigned thread_budget(unsigned preferred) const { return preferred != xpp::cpu::THREADS_AUTO ? preferred : physical_threads(); }
 };
 extern XppProgram program;
 

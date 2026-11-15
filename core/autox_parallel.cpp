@@ -1,5 +1,4 @@
 #include "autox_parallel.h"
-#include "session.h"
 #include "autox_state.h"
 #include "expr.h"
 #include "autox_c.h"
@@ -68,14 +67,14 @@ unsigned AutoxParallel::automatic_threads() { return std::min(program.physical_t
 AutoxParallel::AutoxParallel(unsigned threads) : threads_(std::max(threads, 1u)) {}
 AutoxParallel::~AutoxParallel() = default;
 
-bool autox_parallel_ready(const Session &s) {
-    return pure_rhs_ready(s)
+bool autox_parallel_ready(const AutoxParts &s) {
+    return pure_rhs_ready(s.session)
         && (!solver_info(s.numerics->method).traits.discrete || s.numerics->store_every == 1);
 }
 
 void AutoxParallel::select_run(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_t ntst, std::ptrdiff_t ncol) {
-    const Session &s = *source.session;
-    if (!native_ready(*source.session) || !autox_parallel_ready(s)) {
+    const AutoxParts &s = *source.parts;
+    if (!native_ready(source.parts->session) || !autox_parallel_ready(s)) {
         source.collocation.reset();
         return;
     }
@@ -91,9 +90,9 @@ void AutoxParallel::select_run(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdi
 
 void AutoxParallel::prepare(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_t nbc) try {
     if (!state_) state_ = std::make_unique<State>(threads_);
-    const Session &s = *source.session;
+    const AutoxParts &s = *source.parts;
     for (auto &run : state_->runs) {
-        run->session = source.session;
+        run->parts.emplace(*source.parts);
         run->evaluation = source.evaluation;
         run->owner = &source;
         run->parameter_count = source.parameter_count;
@@ -120,7 +119,7 @@ void AutoxParallel::publish_rhs(AutoxRun &source) {
         source.rhs_variables = last.rhs_variables;
         return;
     }
-    Session &s = *source.session;
+    AutoxParts &s=*source.parts;
     s.parser.constants = last.rhs_constants;
     s.parser.variables = last.rhs_variables;
 }

@@ -1006,11 +1006,11 @@ wave_steady_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t nd
     }
     ARRAY2D(dfdu, i, (i + ndm)) = 1.;
     ARRAY2D(dfdu, i + ndm, (i + ndm)) = -c / par[i + xpp::autox_unknown::diffusion_start];
-    if (autox_model_parameter(*iap->run->session,icp[0])) {
+    if (autox_model_parameter(*iap->run->parts,icp[0])) {
       ARRAY2D(dfdp, i, (icp[0])) = 0.;
       ARRAY2D(dfdp, i + ndm, icp[0]) = -ARRAY2D(dfp, i, icp[0]) / par[i + xpp::autox_unknown::diffusion_start];
     }
-    if (nfpr > 1 && autox_model_parameter(*iap->run->session,icp[1])) {
+    if (nfpr > 1 && autox_model_parameter(*iap->run->parts,icp[1])) {
       ARRAY2D(dfdp, i, (icp[1])) = 0.;
       ARRAY2D(dfdp, i + ndm, icp[1]) = -ARRAY2D(dfp, i, icp[1]) / par[i + xpp::autox_unknown::diffusion_start];
     }

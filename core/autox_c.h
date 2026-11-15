@@ -1,6 +1,7 @@
 #pragma once
 /* autoX's own API between its files (autox_lib1-3/5, conpar2,
    setubv2) and the autoX front end (gogoautox, autox_nox, autox_evd). */
+#include "autox_parts.h"
 #include <stdio.h>
 #include <algorithm>
 #include <cmath>
@@ -462,14 +463,10 @@ int setup_boundary_system(std::ptrdiff_t ndim, xpp::AutoxProblem ips, std::ptrdi
 	   double *dtm, double *thl, double *thu, double *p0, double *p1);
 /* gogoautox.cpp */
 
-namespace xpp {
-struct Session; /* session.h */
-}
-
 /* autox_pp.cpp: a Mark value reads a free parameter from autoX, a constant
    model parameter from the Session, or an autoX unknown from its own slots. */
 // autoX's wave Jacobian classifies its free columns at the model boundary.
-bool autox_model_parameter(const xpp::Session &s, std::ptrdiff_t slot);
+bool autox_model_parameter(const xpp::AutoxParts &s, std::ptrdiff_t slot);
 double autox_parameter_value(const AutoxRun &run, std::ptrdiff_t slot,
                            std::span<const std::ptrdiff_t> free, std::span<const double> parameters);
 /* the constants the run evaluates on: its own copies when it has them (a
@@ -479,15 +476,15 @@ std::span<const double> autox_constants(const AutoxRun &run);
 std::pair<std::vector<double> &,std::vector<double> &> autox_rhs_values(AutoxRun &run);
 /* the model's parameters, as the run holds them, into autoX's par (the model's part of it): a start's */
 void autox_fill_parameters(const AutoxRun &run, double *par);
-/* the run's Session, and what its evaluations read from it on every call (AutoxEvaluation) */
-void autox_bind_session(AutoxRun &run, xpp::Session &s);
+/* the run's parts of the Session, and what its evaluations read from them on every call (AutoxEvaluation) */
+void autox_bind_parts(AutoxRun &run, xpp::AutoxParts s);
 /* autoX's checkpoint (xpp::byeautox_), for a run on the main thread; a job's
    thread only reads whether the job was cancelled: the front end is polled by
    the main thread that waits for it */
 void autox_checkpoint(const AutoxRun &run, int *iflag);
 /* the problem defined functions that run the model (autox_pp.cpp): its
    right-hand side and Jacobian, the starting point and the boundary
-   conditions, on the run's Session (run.session; a collocation worker's run
+   conditions, on the run's parts of the Session (run.parts; a collocation worker's run
    evaluates on its own copies, autox_parallel.cpp).
    user_right_hand_side gives dfdu for ijac 1 and the dfdp columns of the nfpr
    continuation parameters icp too for ijac 2 (JAC=1: the model's exact
