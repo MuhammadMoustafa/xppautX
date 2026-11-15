@@ -480,6 +480,7 @@ INDEPENDENT pairs (protocol front end and platform) never include each other. AL
 include against that, its count and the card that removes it (W731 files, W732 session, W733 plot, W734 protocol
 front end, W735 application, W736 expressions/model/integrators/analysis/autoX, W737 the rest); `--check` fails on
 any other include against the levels, and when a count moved, so a card that fixes lines lowers its allowlist line in the same commit.
+`tools/linkcheck.py` (W746, #825; sourcecheck's deadcode part, after the global state check) is the same levels checked at the link: each core object's undefined symbols (`nm` on deadcode.sh's objects) against the symbols the core objects define, a reference into a higher level or an independent partner counted per module pair against its own exact ALLOWLIST (each line its card; `--check --verbose` names every symbol and the file that refers to it), because a function a lower header declares and a higher file defines passes the include check.
 
 `tools/iwyucheck.sh` (W729, #807; advice only, in no check yet, 3 to 6 minutes)
 runs include-what-you-use over core/ and tests/: a compile database made from

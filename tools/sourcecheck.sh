@@ -247,4 +247,12 @@ if part deadcode; then
     exit 1
   fi
   tail -1 build/globalcheck.out
+  # the levels at the link: a lower module must not need a higher one's symbol (W746)
+  if ! uv run --locked python tools/test_linkcheck.py > build/linkcheck.out 2>&1 \
+     || ! uv run --locked python tools/linkcheck.py --check --builddir build/deadcode >> build/linkcheck.out 2>&1; then
+    tail -40 build/linkcheck.out
+    echo "LINK LEVELS CHECK FAILED"
+    exit 1
+  fi
+  tail -1 build/linkcheck.out
 fi

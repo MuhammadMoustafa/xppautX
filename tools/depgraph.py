@@ -298,19 +298,19 @@ def level_violations(r, modules, levels=None, independent=None):
     return {k: sorted(v) for k, v in bad.items()}
 
 
-def level_problems(bad, allow):
-    """What the includes against the levels (level_violations) owe the allowlist; empty when it is exact."""
+def level_problems(bad, allow, what='include line(s)'):
+    """What the references against the levels (level_violations; `what` names them) owe the allowlist; empty when it is exact."""
     out = []
     for (a, b), lines in sorted(bad.items()):
         n = len(lines)
         if (a, b) not in allow:
-            out.append(f'{a} -> {b}: {n} include line(s) against the levels, not in ALLOWLIST: ' + ', '.join(lines))
+            out.append(f'{a} -> {b}: {n} {what} against the levels, not in ALLOWLIST: ' + ', '.join(lines))
         elif n > allow[(a, b)][0]:
-            out.append(f'{a} -> {b}: {n} include line(s) against the levels, ALLOWLIST allows {allow[(a, b)][0]}: '
+            out.append(f'{a} -> {b}: {n} {what} against the levels, ALLOWLIST allows {allow[(a, b)][0]}: '
                        + ', '.join(lines))
         elif n < allow[(a, b)][0]:
             out.append(f'lower the allowlist for {a} -> {b} to {n}')
-    out += [f'remove the ALLOWLIST line for {a} -> {b}: no include against the levels is left'
+    out += [f'remove the ALLOWLIST line for {a} -> {b}: no {what} against the levels is left'
             for (a, b) in sorted(allow) if (a, b) not in bad]
     return out
 
