@@ -311,6 +311,8 @@ void keep_last_plot(Session &s, LastPlot which);
 void keep_axes_as_last(Session &s);
 void init_autox_win(Session &s);
 int yes_reset_autox(Session &s);
+/* Clear selections and obsolete run files when a diagram is replaced; `remove_solutions` also drops the session's .s file */
+void forget_autox_diagram(Session &s, bool remove_solutions);
 void autox_grab(Session &s);
 
 void find_best_homo_shift(Session &s, int n);
@@ -318,13 +320,6 @@ void get_start_period(Session &s, double *p);
 void get_start_orbit(Session &s, double *u, double t, double p, int n);
 /* File's Import orbit: the stored orbit of point `label` (none: the grabbed point's) into the data table */
 Result<> load_autox_orbit(Session &s, std::optional<int> label);
-/* the diagram as CSV files (csv_export.h), and a foreign XPPAUT diagram (.auto), to or from `file`, or asked for */
-Result<> export_autox_csv(Session &s, const std::optional<std::string> &file);
-Result<> import_autox(Session &s, const std::optional<std::string> &file);
-// XPPAUT stores eight selected parameters before its numerical slots.
-inline constexpr int xppaut_parameter_prefix = 8;
-/* Foreign XPPAUT import: validate whole, then replace; errors belong to the caller. */
-Result<> import_autox_file(Session &s, std::string_view text, const std::string &file);
 /* the point `mylab` of the session's .s file: rows' reader (autox_reader_at) positioned at the first row, and their count and the model's
    dimension; false when the label is not there or the text is not what the index says */
 bool move_to_label(Session &s, int mylab, int *nrow, int *ndim, TokenReader &rows);

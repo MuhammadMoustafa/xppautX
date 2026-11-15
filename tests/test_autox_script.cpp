@@ -2,6 +2,7 @@
    at its file and line; a run's line as it is sent (the start by type and index, the settings by their names). */
 #include "xpptest.h"
 #include "autox_script.h"
+#include "command_registry.h"
 #include "xpp_error.h"
 
 #include <string>
@@ -19,9 +20,11 @@ const std::string good =
     "  { name: \"cycles\", kind: periodic, start: { run: \"steady\", type: hopf, index: 2 }, parameters: [\"p0\"], settings: { step_size: -0.01 } },\n"
     "]\n";
 
+xpp::Result<> shape(const std::string &line, const xpp::Place &place) { return xpp::command::check_shape(line.c_str(), place); }
+
 std::string error(const std::string &text)
 {
-    const xpp::Result<xpp::AutoxScript> read = xpp::autox_script_read(text, "a.autox");
+    const xpp::Result<xpp::AutoxScript> read = xpp::autox_script_read(text, "a.autox", shape);
     return read ? std::string() : read.error().text();
 }
 
@@ -29,7 +32,7 @@ std::string error(const std::string &text)
 
 TEST_CASE("test_autox_script")
 {
-    const xpp::Result<xpp::AutoxScript> script = xpp::autox_script_read(good, "a.autox");
+    const xpp::Result<xpp::AutoxScript> script = xpp::autox_script_read(good, "a.autox", shape);
     CHECK(script.has_value());
     if (script) {
         CHECK(script->model == "ab.odex" && script->diagram_file == "branch.csv" && script->runs.size() == 2);

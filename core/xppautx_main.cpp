@@ -264,6 +264,7 @@ int main(int argc, char **argv)
     xpp::XppUi terminal{};
     terminal.terminal_line = xpp::platform::read_input_line;
     xpp::set_ui(&terminal);
+    xpp::install_application_commands();
     /* the whole command line, read once: ours and xppaut's */
     std::vector<std::string> arguments(argv, argv + argc);
     /* what the system adds that is not an option (macOS's -psn_ serial number) is not read as one */
@@ -333,7 +334,7 @@ int main(int argc, char **argv)
                                 xpp::Place{cl.model_file}}.text());
             return 2;
         }
-        return xpp::json_ui_silent(startup.files, startup.line, &startup.prefs, hello_info());
+        return xpp::json_ui_silent(startup.files, xpp::program_loader, startup.line, &startup.prefs, hello_info());
     }
     /* a build without a window is browser mode (--no-open needs --browser: comline.cpp) */
     xpp::Interface interface = cl.interface.value_or(xpp::Interface::window);

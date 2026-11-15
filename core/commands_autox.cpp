@@ -5,6 +5,8 @@
    Closing a view, selecting one and the autoX window's own close are window.close and window.select (W353). */
 #include "graf_par.h"
 #include "diagram_export.h"
+#include "xpp_session_autox.h"
+#include "csv_export.h"
 #include "command_def.h"
 #include "command_registry.h"
 #include "autox_run.h"
@@ -550,9 +552,15 @@ Result<std::string> export_initial_data(Session &s, const Command &command, cons
     return export_file(s, command, args, place, "initdata", ".dat", [&](const std::string &f) { return write_init_data_file(s, f); }, "written", 1);
 }
 
+/* the diagram and its eigenvalues/multipliers as CSV (csv_export.h), pandas.read_csv/MATLAB readtable read with no options;
+   one file answer names both files (csv_export_diagram_pair derives the second) */
 Result<std::string> export_csv(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
-    return export_file(s, command, args, place, "diagram", ".csv", [&](const std::string &f) { return export_autox_csv(s, f); }, "points_written", diagram_count(*s.diagram));
+    return export_file(s, command, args, place, "diagram", ".csv", [&](const std::string &f) -> Result<> {
+        if (diagram_count(*s.diagram) < 2) return fail(command.name, "The diagram has no points to write", place);
+        if (const Result<bool> written = csv_export_diagram_pair(s, f.c_str()); !written) return std::unexpected(written.error());
+        return {};
+    }, "points_written", diagram_count(*s.diagram));
 }
 
 Result<std::string> export_picture(Session &s, const Command &command, const Arguments &args, const Place &place, int format, const char *extension)

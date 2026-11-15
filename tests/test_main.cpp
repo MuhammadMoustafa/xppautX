@@ -19,6 +19,7 @@
 #include "xpp_cpu_system.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
+#include "xpp_batch.h"
 #include "xpptest.h"
 
 #include <algorithm>
@@ -76,6 +77,7 @@ TestRegistration::TestRegistration(const char *name, int (*run)())
 
 int main(int argc, char **argv)
 {
+    xpp::install_application_commands();
     std::vector<Test> &tests = registry();
     std::sort(tests.begin(), tests.end(), [](const Test &a, const Test &b) { return a.name < b.name; });
     std::vector<Test> chosen;

@@ -1092,15 +1092,15 @@ void json_ui_install(HelloInfo hello, bool silent)
     install(silent);
 }
 
-int json_ui_silent(FileSystem &fs, CommandLine cl, const Result<prefs::Preferences> *read_prefs, HelloInfo hello)
+int json_ui_silent(FileSystem &fs, const ModelLoader &loader, CommandLine cl, const Result<prefs::Preferences> *read_prefs, HelloInfo hello)
 {
     session.hello = std::move(hello);
     /* the model loads as with no interface at all: a model that does not
        load exits 1, its reason logged */
-    const xpp::Loaded loaded = xpp::load_model(fs, std::move(cl), 1, nullptr, {}, read_prefs);
+    const xpp::Loaded loaded = loader.load(fs, std::move(cl), 1, nullptr, {}, read_prefs);
     if (!loaded) exit(1);
     xpp::Session &s = **loaded;
-    xpp::batch_start(s);
+    loader.batch_start(s);
     session.generated = true;
     session.silent = true;
     xpp::inbox::start_generated(silent_script(s));

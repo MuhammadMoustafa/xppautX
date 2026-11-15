@@ -16,6 +16,7 @@
 #include "xpp_batch.h"
 #include "model_failed.h"
 #include "command_registry.h"
+#include "command_def.h"
 #include "data_formats.h"
 #include "image_format.h"
 #include "model_load.h"
@@ -52,6 +53,30 @@
 #include "xpp_prefs.h"
 
 namespace xpp {
+
+void install_application_commands()
+{
+    command::install_application(command::model_commands(), command::preferences_commands(), command::update_commands());
+}
+
+namespace {
+
+/* the registry's shape check, which the script reader is given */
+Result<> script_shape(const std::string &line, const Place &place) { return command::check_shape(line.c_str(), place); }
+
+/* every run's lines checked against the loaded model (its parameters' names, the settings' values): the first fault, at its run's line */
+Result<> check_autox_script(Session &s, const AutoxScript &script)
+{
+    for (const AutoxScriptRun &run : script.runs) {
+        const std::string axes = autox_script_axes_command(run);
+        for (const std::string &each : {axes, autox_script_command(run)})
+            if (!each.empty())
+                if (const Result<> shaped = command::check_shape(each.c_str(), run.place, &s); !shaped) return shaped;
+    }
+    return {};
+}
+
+} // namespace
 
 /* the command line's switches into the loading Session s and the model's
    file into its Model's this_file; the Model keeps cl. */
@@ -134,7 +159,7 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, std::optiona
     xpp::set_init_guess(s);
     update_all_ffts(s);
     if (s.autox_state->script.script)
-        if (const Result<> checked = autox_script_check(s, *s.autox_state->script.script); !checked) model_failed(checked.error());
+        if (const Result<> checked = check_autox_script(s, *s.autox_state->script.script); !checked) model_failed(checked.error());
     init_autox_win(s);
     preferences_load(s, read_prefs);
     if (disc(m)) {
@@ -159,7 +184,7 @@ namespace {
 Result<CommandLine> script_command_line(FileSystem &fs, CommandLine cl, std::optional<AutoxScript> &script)
 {
     if (!files::has_extension(cl.model_file, autox_script_extension)) return cl;
-    auto loaded = autox_script_load(fs, cl.model_file);
+    auto loaded = autox_script_load(fs, cl.model_file, script_shape);
     if (!loaded) return std::unexpected(loaded.error());
     cl.model_file = include_path(cl.model_file, loaded->model);
     script = std::move(*loaded);
@@ -316,7 +341,7 @@ Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::functio
     return {};
 }
 
-const ModelLoader program_loader{load_model, inspect_model};
+const ModelLoader program_loader{load_model, inspect_model, batch_start};
 
 void batch_start(xpp::Session &s)
 {

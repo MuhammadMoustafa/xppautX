@@ -1,7 +1,6 @@
 /* An autoX script's file, name.autox: see autox_script.h. */
 #include "autox_script.h"
 #include "autox_codes.h"
-#include "command_registry.h"
 #include "format_version.h"
 #include "json_number.h"
 #include "odex_block.h"
@@ -166,18 +165,7 @@ std::string autox_script_axes_command(const AutoxScriptRun &run)
     return line + '}';
 }
 
-Result<> autox_script_check(Session &s, const AutoxScript &script)
-{
-    for (const AutoxScriptRun &run : script.runs) {
-        const std::string axes = autox_script_axes_command(run);
-        for (const std::string &each : {axes, autox_script_command(run)})
-            if (!each.empty())
-                if (const Result<> shaped = command::check_shape(each.c_str(), run.place, &s); !shaped) return shaped;
-    }
-    return {};
-}
-
-Result<AutoxScript> autox_script_read(std::string_view text, const std::string &file)
+Result<AutoxScript> autox_script_read(std::string_view text, const std::string &file, const ScriptShapeCheck &shape)
 {
     return odex::read_block("autox script", file, text, false, [&](odex::Block &b) {
         AutoxScript script;
@@ -196,17 +184,17 @@ Result<AutoxScript> autox_script_read(std::string_view text, const std::string &
             AutoxScriptRun &run = script.runs.back();
             r.done();
             /* the command's own validator, on the run as it will be sent (the stored point's type and index stand in for its start) */
-            if (const Result<> shaped = command::check_shape(autox_script_command(run).c_str(), run.place); !shaped) throw ReadFailed{shaped.error()};
+            if (const Result<> shaped = shape(autox_script_command(run), run.place); !shaped) throw ReadFailed{shaped.error()};
         }
         return script;
     });
 }
 
-Result<AutoxScript> autox_script_load(FileSystem &fs, const std::string &file)
+Result<AutoxScript> autox_script_load(FileSystem &fs, const std::string &file, const ScriptShapeCheck &shape)
 {
     const Result<std::string> bytes = fs.read("autox script", file, autox_script_bytes_limit);
     if (!bytes) return std::unexpected(bytes.error());
-    return autox_script_read(*bytes, file);
+    return autox_script_read(*bytes, file, shape);
 }
 
 } // namespace xpp

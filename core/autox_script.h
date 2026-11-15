@@ -18,6 +18,7 @@
    direction: both directions are two runs). The script reads whole and each run is checked against the command's own
    validator before anything is applied (all or nothing, W125); nothing computes on open. The model named is the one
    opened (xpp::load_model), the diagram file is written by --silent. C++ only. */
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -75,12 +76,14 @@ struct AutoxScriptState {
 /* run i has run, and its points are still the diagram's: what autox.script and autox.script_runs say alike */
 inline bool autox_script_run_done(const AutoxScriptState &state, std::size_t i) { return i < state.points.size() && state.points[i].has_value(); }
 
-struct Session; /* session.h */
+/* a check of one command line (the registry's shape check, which the caller owns: autoX knows no commands) at the place given */
+using ScriptShapeCheck = std::function<Result<>(const std::string &line, const Place &place)>;
 
-/* the text of a script file read whole: the script, or the error at the line and value that is wrong */
-Result<AutoxScript> autox_script_read(std::string_view text, const std::string &file);
+/* the text of a script file read whole: the script, or the error at the line and value that is wrong; `shape` checks each
+   run's autox.run line as it will be sent (the stored point's type and index stand in for its start) */
+Result<AutoxScript> autox_script_read(std::string_view text, const std::string &file, const ScriptShapeCheck &shape);
 /* the file's bytes, read through fs, then autox_script_read */
-Result<AutoxScript> autox_script_load(FileSystem &fs, const std::string &file);
+Result<AutoxScript> autox_script_load(FileSystem &fs, const std::string &file, const ScriptShapeCheck &shape);
 
 /* the autox.run line of a run: its start the stored point of type `type` and (diagram-wide) index `index`, or the current
    state when type is empty */
@@ -89,7 +92,5 @@ std::string autox_script_command(const AutoxScriptRun &run, std::string_view typ
 std::string autox_script_command(const AutoxScriptRun &run);
 /* the autox.configure_axes line that sets a run's parameters, "" for a run that names none */
 std::string autox_script_axes_command(const AutoxScriptRun &run);
-/* every run's lines checked against the loaded model (its parameters' names, the settings' values): the first fault, at its run's line */
-Result<> autox_script_check(Session &s, const AutoxScript &script);
 
 } // namespace xpp

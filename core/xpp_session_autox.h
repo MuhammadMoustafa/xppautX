@@ -27,6 +27,15 @@ struct Session; /* session.h */
 class Lines;
 }
 
+namespace xpp {
+// XPPAUT stores eight selected parameters before its numerical slots.
+inline constexpr int xppaut_parameter_prefix = 8;
+/* A foreign XPPAUT diagram (.auto) read from `file` and imported: validate whole, then replace; errors belong to the caller. */
+Result<> import_autox(Session &s, const std::string &file);
+/* the same from the file's `text` (`file` names it in errors) */
+Result<> import_autox_file(Session &s, std::string_view text, const std::string &file);
+}
+
 namespace xpp::snapx::autox_members {
 
 inline constexpr const char *diagram_member = "diagram.csv";   /* diagram_csv below */

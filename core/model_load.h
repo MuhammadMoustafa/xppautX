@@ -50,7 +50,7 @@ Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::functio
                       const std::function<std::optional<Error>(Session &)> &check = {},
                       const SavedModel *saved = nullptr, const LoadServices *services = nullptr);
 
-/* The load a converter or a checker runs a model through, handed to it by its
+/* The load a converter, a checker or a front end runs a model through, handed to it by its
    caller (the program's start, a unit test: program_loader): the load sets up
    every module, so what is below the application cannot call it. */
 struct ModelLoader {
@@ -58,6 +58,7 @@ struct ModelLoader {
                  const std::function<std::optional<Error>(Session &)> &check, const Result<prefs::Preferences> *read_prefs);
   Result<> (*inspect)(FileSystem &fs, const CommandLine &cl, const std::function<void(Session &)> &read,
                       const std::function<std::optional<Error>(Session &)> &check, const SavedModel *saved, const LoadServices *services);
+  void (*batch_start)(Session &s);
 };
 
 /* After a load with no interface (--silent, a unit test): s's browser,
