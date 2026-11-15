@@ -746,7 +746,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
   q.ds=std::abs(state.bifur.ds);
   q.budget=s.thread_budget();
   q.at_once=q.isolated&&q.budget>1;
-  q.diagram_base=s.diagram->points.size();
+  q.diagram_base=diagram_stored_points(s);
   if(const std::vector<xpp::job::BranchJob> *armed=xpp::job::armed_jobs())q.plan=*armed; /* a recording's stopped run: each job ends as it did */
   for(const xpp::job::BranchJob &entry:q.plan)q.plan_of.emplace(entry.key,&entry);
   for(const int sign:{1,-1}){ /* the roots: both directions of the start */
@@ -866,7 +866,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
       p.job=job_number;
       branches=std::max(branches,std::abs(p.ibr));
       labels=std::max(labels,p.lab);
-      if(!diagram_full&&autox_diagram_full(s.diagram->points.size())){ /* the limit is the whole run's: every job's points and the diagram's */
+      if(!diagram_full&&autox_diagram_full(diagram_stored_points(s))){ /* the limit is the whole run's: every job's points and the diagram's */
         diagram_full=cut=true;
         if(!wide_shown&&!job.failed){
           job.failed=Error{"autoX",limit_text,command_place()};

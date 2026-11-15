@@ -109,6 +109,11 @@ int diagram_count(const AutoxDiagram &diagram)
   return static_cast<int>(diagram.points.size());
 }
 
+std::size_t diagram_stored_points(const xpp::Session &s)
+{
+  return s.autox_state->diag_flag?s.diagram->points.size():0;
+}
+
 void diagram_restore(xpp::Session &s, std::deque<xpp::DIAGRAM> points)
 {
   if(points.empty()){

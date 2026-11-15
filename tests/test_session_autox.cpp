@@ -575,13 +575,14 @@ void check_directions_output(unsigned threads)
 
 /* W596: the diagram's point limit is the whole run's: the points of both jobs and the diagram's, one error, the points
    up to the limit kept (XPP_DIAGRAM_POINTS_LIMIT lowers it, as servercheck's W432 check does) */
-void check_directions_limit()
+void check_directions_limit(unsigned threads)
 {
     xpp::TempDir tmp;
     CHECK(load("examples/tstauto/ab.odex"));
     auto &s=xpp::client_session();
     s.autox_state->dir=tmp.path();
     xpp::init_autox_win(s);
+    s.threads=threads;
     s.autox_state->follow_all_branches=true;
     directions_settings(s,0.02);
     CHECK(test_setenv("XPP_DIAGRAM_POINTS_LIMIT","30")==0);
@@ -591,7 +592,7 @@ void check_directions_limit()
     CHECK(s.diagram->points.size()==30);
     int branches=0;
     for(const xpp::DIAGRAM &p:s.diagram->points)branches=std::max(branches,std::abs(p.ibr));
-    CHECK(branches==2); /* both jobs' points were joined up to the limit */
+    CHECK(threads>1 ? branches==2 : branches==1); /* side by side both jobs' points were joined up to the limit; in turn the first job reached it alone */
     std::vector<int> diagram_labels;
     for(const xpp::DIAGRAM &p:s.diagram->points)if(p.lab>0)diagram_labels.push_back(p.lab);
     std::vector<int> stored_labels=solution_labels(xpp::autox_solutions_file(s));
@@ -1269,7 +1270,8 @@ TEST_CASE("test_session_autox")
 
     CHECK(load("examples/ode/lecar.odex"));
     check_import(lecar_autox, tmp);
-    check_directions_limit();
+    check_directions_limit(1);
+    check_directions_limit(2);
     check_directions_stopped(2);
     check_directions_stopped(1); /* last: its Abort leaves the process-wide cancel set */
     TEST_REPORT("session_autox");

@@ -228,7 +228,7 @@ Result<std::string> run_autox(Session &s, const Command &command, const Argument
     const bool any = std::find(given.has_num.begin(), given.has_num.end(), 1) != given.has_num.end();
     if (any)
         if (const Result<> done = apply_settings(s, command, given, place); !done) return std::unexpected<Error>(done.error());
-    const int before_points = s.autox_state->diag_flag ? diagram_count(*s.diagram) : 0;
+    const int before_points = static_cast<int>(diagram_stored_points(s));
     const Result<> ran = autox_run_start(s, request);
     if (any) {
         AutoxSettingsSet restore;
@@ -242,7 +242,7 @@ Result<std::string> run_autox(Session &s, const Command &command, const Argument
     }
     if (!ran) return std::unexpected<Error>(as_command_error(command, ran.error(), place));
     const int first = request.replace_diagram && !request.from_point ? 0 : before_points;
-    const int after_points = s.autox_state->diag_flag ? diagram_count(*s.diagram) : 0;
+    const int after_points = static_cast<int>(diagram_stored_points(s));
     std::vector<int> branches;
     for (int i = first; i < after_points; ++i) {
         const int branch = std::abs(s.diagram->points[static_cast<std::size_t>(i)].ibr);
@@ -331,9 +331,9 @@ Result<std::string> run_script(Session &s, const Command &command, const Argumen
         };
         if (const std::string axes = autox_script_axes_command(run); !axes.empty())
             if (const Result<> set = go(axes); !set) return std::unexpected<Error>(set.error());
-        const int before = s.autox_state->diag_flag ? diagram_count(*s.diagram) : 0;
+        const int before = static_cast<int>(diagram_stored_points(s));
         if (const Result<> ran = go(autox_script_command(run, start.first, start.second)); !ran) return std::unexpected<Error>(ran.error());
-        const int after = s.autox_state->diag_flag ? diagram_count(*s.diagram) : 0;
+        const int after = static_cast<int>(diagram_stored_points(s));
         /* a new diagram (start_diagram) dropped every earlier run's points: points is sized again, none done but this run */
         const int begins = run.replaces && !run.from ? 0 : before;
         s.autox_state->script.points.resize(script.runs.size());

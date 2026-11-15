@@ -29,6 +29,9 @@ void start_diagram(xpp::Session &s, int n);
 /* how many points: start_diagram's empty diagram has one (the run's first
    point, not filled in yet), a diagram before start_diagram none */
 int diagram_count(const AutoxDiagram &diagram);
+/* the points a run has stored: diagram_count, but 0 until the run's first point fills the empty diagram's one (the limit counts
+   these, never the blank point) */
+std::size_t diagram_stored_points(const xpp::Session &s);
 /* p, a point of autoX's run or of a file being read (its arrays n long),
    into the diagram: edit_start fills the first point in place with the
    run's flag2 (two_param), add_diagram appends it with p's; the kind of

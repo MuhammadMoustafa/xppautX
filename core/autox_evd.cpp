@@ -255,7 +255,7 @@ void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t i
     autox_nonfinite(*iap, std::abs(ntots));
 
   AutoxRun &run=*iap->run;
-  if(const auto full=autox_diagram_full(s.diagram->points.size()+run.points.size())){
+  if(const auto full=autox_diagram_full(diagram_stored_points(s)+run.points.size())){
     run.run_wide_error=true; /* the whole run is over: the queue stops every job */
     autox_fail(*full);
   }
