@@ -183,7 +183,7 @@ namespace {
    else{
      continued_constants(s,s.parser.constants.data(),icp,nfpr,parameters);
      xpp::evaluate_derived(s.parser);
-     if(auto r=xpp::redo_all_fun_tables(s.option_parts);!r)xpp::autox_fail(r.error());
+     if(auto r=xpp::redo_all_fun_tables(s.session_parts);!r)xpp::autox_fail(r.error());
      s.integrator->rhs(0.0,x,f,ndim);
      if(s.parser.step_error)xpp::autox_fail(xpp::take_step_error(s.session).error());
    }
@@ -309,7 +309,7 @@ int user_boundary_conditions(AutoxRun &run, std::ptrdiff_t ndim, const double *p
     alone (pure_values) */
  const bool pure=s.model().rhs_impurity.empty();
  if(changed||!pure)xpp::evaluate_derived(s.parser);
- if(!pure)if(auto r=xpp::redo_all_fun_tables(s.option_parts);!r)xpp::autox_fail(r.error());
+ if(!pure)if(auto r=xpp::redo_all_fun_tables(s.session_parts);!r)xpp::autox_fail(r.error());
  /* the boundary conditions only read the two ends */
  xpp::do_bc(s.session,const_cast<double *>(u0),0.0,const_cast<double *>(u1),1.0,fb,nbc);
 

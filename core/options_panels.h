@@ -8,7 +8,7 @@
 namespace xpp {
 
 struct OptionRow;
-struct OptionParts; /* model_options.h */
+struct SessionParts; /* model_options.h */
 
 /* whether row is a field of a panel: a .odex option with a value to show and set (the lists, `sliders` and `curves`, keep their
    own editors) */
@@ -18,6 +18,6 @@ bool option_in_panel(const OptionRow &row);
    section (the key's part before its last dot), label (the key's last part as words), kind, help, default and, as the row has
    them, choices, boolean, nonzero and the schema's limits}; the defaults are what `fresh`, the parts of a fresh Session of the model,
    holds once the rows' resets are applied to it (none before a model is loaded) */
-std::string options_table_json(const OptionParts &fresh);
+std::string options_table_json(const SessionParts &fresh);
 
 } // namespace xpp

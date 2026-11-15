@@ -16,7 +16,7 @@ struct DataStore; /* storage.h */
 struct ParserState; /* expr.h */
 struct Colors; /* colormap.h */
 struct AutoxView; /* autox_state.h */
-struct OptionParts; /* model_options.h */
+struct SessionParts; /* model_options.h */
 }
 
 namespace xpp {
@@ -45,14 +45,14 @@ struct AutoxParts {
   Colors &colors;
   std::vector<double> &last_ic;
   std::string &selected_window;
-  const OptionParts &option_parts; /* the settings the option table reads, named in what autoX reports */
+  const SessionParts &session_parts; /* the settings the option table reads, named in what autoX reports */
   unsigned threads;
   Model &model() const { return model_; }
  private:
   template<class S> AutoxParts(S &s, int)
     : session(s), model_(s.model()), autox_state(s.autox_state.get()), diagram(s.diagram.get()), autox_view(s.autox_view.get()),
       numerics(s.numerics.get()), integrator(s.integrator.get()), data_store(s.data_store.get()), parser(s.parser),
-      colors(s.colors), last_ic(s.last_ic), selected_window(s.selected_window), option_parts(s.option_parts), threads(s.threads) {}
+      colors(s.colors), last_ic(s.last_ic), selected_window(s.selected_window), session_parts(s.session_parts), threads(s.threads) {}
 };
 
 } // namespace xpp

@@ -101,7 +101,7 @@ void choose_model_file(xpp::Session &s)
  model_failed(Error{std::string(xpp::NO_MODEL_WHERE),"no model file was named",Place{fs.working_dir()}});
 }
 
-void load_eqn(const xpp::OptionParts &s)
+void load_eqn(const xpp::SessionParts &s)
 {
  xpp::Model &m=s.model();
  const std::string &file=m.this_file;
@@ -459,8 +459,8 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
     return loaded;
 }
 
-Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::function<void(const OptionParts &)> &read,
-                       const std::function<std::optional<Error>(const OptionParts &)> &check,
+Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::function<void(const SessionParts &)> &read,
+                       const std::function<std::optional<Error>(const SessionParts &)> &check,
                        const SavedModel *saved, const LoadServices *services)
 {
     const auto resolved = animation_command_line(fs, cl);

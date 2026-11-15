@@ -36,7 +36,7 @@
 #include <cstddef>
 
 namespace xpp {
-struct OptionParts; /* model_options.h */
+struct SessionParts; /* model_options.h */
 class FileSystem; /* xpp_fs.h */
 struct ModelLoader; /* model_load.h */
 struct Model;   /* model.h */
@@ -339,10 +339,10 @@ std::vector<AnimationStatement> parse_animation(std::string_view text, const std
    the model reader's range resolution and formula checks. */
 std::vector<Statement> animation_formulas(Model &m, const Parsed &p);
 /* A foreign expression's compiled program written in native grammar. */
-Expr program_expression(const OptionParts &s, const std::vector<int> &program);
+Expr program_expression(const SessionParts &s, const std::vector<int> &program);
 /* Reconstruct a trailing range from expanded statements with the converter's
    existing index/name inference; otherwise keep their explicit statements. */
-std::string print_range(const OptionParts &s, const std::vector<std::string> &texts,
+std::string print_range(const SessionParts &s, const std::vector<std::string> &texts,
                         const std::vector<int> &values, const ArrayCopy &range);
 
 /* the words .odex reserves (docs/odex.md "Reserved words"): a name may

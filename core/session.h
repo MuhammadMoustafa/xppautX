@@ -305,8 +305,8 @@ struct Session {
   /* the parts the option table's rows read and write (model_options.h): views of the Session's own members, made with it, and what a
      Session converts to where an option is read or set, so the option table needs no Session (W757). Declared last: its members are
      the ones above */
-  OptionParts option_parts;
-  operator const OptionParts &() const noexcept { return option_parts; }
+  SessionParts session_parts;
+  operator const SessionParts &() const noexcept { return session_parts; }
 
 private:
   Model *model_;

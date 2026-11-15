@@ -10,7 +10,7 @@
 
 namespace xpp {
 
-struct OptionParts; /* model_options.h */
+struct SessionParts; /* model_options.h */
 
 /* what a network computes (the Model's networks, simplenet.cpp's table of
    forms): a convolution of a variable with a weight table (its ends:
@@ -37,19 +37,19 @@ bool is_network(char *s);
 
 /* vector(var,length,e|z|p,e|z|p) in str (blanks removed in place): its
    first variable (ses's), length and ends' kinds */
-int get_vector_info(const OptionParts &ses, char *str, std::string_view name, int *root, int *length, Ends *il, Ends *ir);
+int get_vector_info(const SessionParts &ses, char *str, std::string_view name, int *root, int *length, Ends *il, Ends *ir);
 
-int add_vectorizer(const OptionParts &s, std::string_view name, char *rhs);
-void add_vectorizer_name(const OptionParts &s, std::string_view name, std::string_view rhs);
+int add_vectorizer(const SessionParts &s, std::string_view name, char *rhs);
+void add_vectorizer_name(const SessionParts &s, std::string_view name, std::string_view rhs);
 /* the network name's call rhs: its Model network is filled in (an error is thrown); false when rhs is no network */
-bool add_spec_fun(const OptionParts &s, std::string_view name, char *rhs);
+bool add_spec_fun(const SessionParts &s, std::string_view name, char *rhs);
 /* table index is about to take length values (a re-read): the first network
    that reads it needs more is the error, at the network's line; nothing is
    changed by the check */
-xpp::Result<> check_network_table_length(const OptionParts &s, int index, long long length);
-void add_special_name(const OptionParts &s, std::string_view name, char *rhs);
-void update_all_ffts(const OptionParts &s);
-void update_fft(const OptionParts &s, int ind);
+xpp::Result<> check_network_table_length(const SessionParts &s, int index, long long length);
+void add_special_name(const SessionParts &s, std::string_view name, char *rhs);
+void update_all_ffts(const SessionParts &s);
+void update_fft(const SessionParts &s, int ind);
 
 /* a network (a special function: conv, sparse, fftcon, gill, ...) as
    the model defines it, xpp::Model's (model.h): its kind, sizes, roots

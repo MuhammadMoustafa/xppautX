@@ -64,7 +64,7 @@ void add_string(std::string &out, std::string_view key, std::string_view text)
 }
 
 /* the member of a row's value as this module reads it (the rows' `reset` sets what no member's initial value is) */
-std::string row_json(const OptionParts &fresh, bool model_loaded, const OptionRow &row)
+std::string row_json(const SessionParts &fresh, bool model_loaded, const OptionRow &row)
 {
     std::string out = "{\"key\":";
     json_append_string(out, row.odex);
@@ -102,7 +102,7 @@ bool option_in_panel(const OptionRow &row)
     return !row.odex.empty() && has_member && !list && !chosen_elsewhere && row.kind != OptionKind::sliders && row.kind != OptionKind::curves && row.kind != OptionKind::buttons;
 }
 
-std::string options_table_json(const OptionParts &fresh)
+std::string options_table_json(const SessionParts &fresh)
 {
     const bool model_loaded = fresh.model().loaded();
     if (model_loaded)

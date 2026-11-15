@@ -69,7 +69,7 @@ const char *no_derivative(int op)
    kept, for an error's place. */
 class Reader {
 public:
-    Reader(const OptionParts &s, Symbolic &g, std::span<const ModelProgram> programs) : s_(s), m_(s.model()), g_(g)
+    Reader(const SessionParts &s, Symbolic &g, std::span<const ModelProgram> programs) : s_(s), m_(s.model()), g_(g)
     {
         for (const ModelProgram &p : programs) entries_.emplace(p.code, &p);
         for (const auto &d : m_.compiler.derived) derived_.emplace(d.index, std::nullopt);
@@ -189,7 +189,7 @@ private:
         return stack.back();
     }
 
-    const OptionParts &s_;
+    const SessionParts &s_;
     const Model &m_;
     Symbolic &g_;
     std::map<const Program *, const ModelProgram *> entries_;
@@ -240,7 +240,7 @@ Gradient scaled(Symbolic &g, const Gradient &a, Term factor)
 
 } // namespace
 
-Result<ModelDerivatives> differentiate_model(const OptionParts &s, std::span<const ModelProgram> programs)
+Result<ModelDerivatives> differentiate_model(const SessionParts &s, std::span<const ModelProgram> programs)
 {
     const Model &m = s.model();
     if (m.nmarkov > 0) return refuse(model_place(m, m.markov[0].name), "a Markov variable changes the state at random");

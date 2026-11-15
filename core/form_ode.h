@@ -11,7 +11,7 @@
 namespace xpp {
 
 struct Model;   /* model.h */
-struct OptionParts; /* model_options.h */
+struct SessionParts; /* model_options.h */
 
 /* a model statement that calls compiled C code (export, dll_lib, dll_fun,
    a network's import; W55 removed them): the load fails at the line,
@@ -28,15 +28,15 @@ void strip_saveqn(Model &m);
 /* Room for n variables, fixed variables and aux quantities in the Session's per-variable tables (last_ic, delay_string, itor, bcs) and
    the Model's (Model::size_variables); the builder calls it as the file declares its variables. The new entries are 0, "0.0" (no
    history), 0 (no torus) and no boundary condition. */
-void size_variables(const OptionParts &s, int n);
+void size_variables(const SessionParts &s, int n);
 /* the columns a batch run writes (Session::plot_list): the model's
    "only" statement's */
-void create_plot_list(const OptionParts &s);
+void create_plot_list(const SessionParts &s);
 /* the initial values an .odex model gives as formulas
    (ModelRecord::initial_values), each evaluated with every parameter set:
    set_all_vals (xpp_batch.cpp) calls this once the model is set up, where
    an .ode's array initial values are evaluated too */
-void set_initial_values(const OptionParts &s);
+void set_initial_values(const SessionParts &s);
 /* XPPAUT starts a state without an initial value at zero. */
 inline constexpr double DEFAULT_INITIAL_VALUE = 0;
 /* State equations without an explicit init (including .ode array ICs),
@@ -51,7 +51,7 @@ std::string missing_initial_values_text(const Model &m);
    diagnostic). In an .odex model (Parsed::derived), a fixed quantity that
    reads only parameters, consts and pure functions becomes a derived one
    (docs/odex.md question 9); an .ode's stays fixed, as XPPAUT's. */
-void build_model(const OptionParts &s, odex::Parsed p);
+void build_model(const SessionParts &s, odex::Parsed p);
 /* While one lives (xppautX --convert's check, odex_convert.cpp), an .ode
    model is built with .odex's derived quantities, so that the .ode and
    the .odex written from it compile alike (the numbers are the same
@@ -66,12 +66,12 @@ public:
 /* an old-style model, neq its number of equations: each line next_line
    gives (false at the end) built as it is read, fptr the file (a Markov
    table's lines are read from it) */
-void build_old_style(const OptionParts &s, int neq, const std::function<bool(std::string &)> &next_line);
+void build_old_style(const SessionParts &s, int neq, const std::function<bool(std::string &)> &next_line);
 /* 1 when the model is a map: is_a_map, or file ends in .dis or .dif */
 int disc(const Model &m);
 /* the Session s's boundary condition i's formula (Session::bcs[i].string,
    at most 255 bytes of it) becomes string */
-void set_bc_formula(const OptionParts &s, int i, std::string_view string);
+void set_bc_formula(const SessionParts &s, int i, std::string_view string);
 /* formula i (Model::formulas) becomes text */
 void set_ode_name(Model &m, int i, std::string_view text);
 

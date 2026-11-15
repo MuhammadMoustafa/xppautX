@@ -11,14 +11,14 @@
 
 namespace xpp {
 
-/* A function the code calls, returning a double. An external one (`address`) takes the Session first when
-   `session`, then `doubles` doubles, then one int when `index` (the helpers of model_native.cpp and the math
+/* A function the code calls, returning a double. An external one (`address`) takes the ParserState first when
+   `parser`, then `doubles` doubles, then one int when `index` (the helpers of model_native.cpp and the math
    table's functions); one with no address is the module's function of that name, whose parameters its
    IrFunction::Kind gives. */
 struct IrCallee {
     std::string name;
     const void *address = nullptr;
-    bool session = false;
+    bool parser = false;
     int doubles = 0;
     bool index = false;
 };

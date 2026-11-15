@@ -11,7 +11,7 @@
 #define IC 2
 #define PARAM 1
 
-int add_global(const xpp::OptionParts &s, const char *cond, int sign, const std::vector<xpp::FlagEvent> &events)
+int add_global(const xpp::SessionParts &s, const char *cond, int sign, const std::vector<xpp::FlagEvent> &events)
 {
   xpp::Model &m=s.model();
   if(static_cast<int>(events.size())>xpp::max_events){
@@ -31,14 +31,14 @@ int add_global(const xpp::OptionParts &s, const char *cond, int sign, const std:
 
 /* expr compiled (add_expr), its ENDEXP included; false if it does not
    parse */
-static bool compile(const xpp::OptionParts &s, const std::string &expr, std::vector<int> &out)
+static bool compile(const xpp::SessionParts &s, const std::string &expr, std::vector<int> &out)
 {
   int nc;
   if(xpp::add_expr(s.parser,expr,out,&nc))return false;
   return true;
 }
 
-int compile_flags(const xpp::OptionParts &s)
+int compile_flags(const xpp::SessionParts &s)
 {
   std::vector<xpp::Model::GlobalFlag> &flags=s.model().flags;
   int j;

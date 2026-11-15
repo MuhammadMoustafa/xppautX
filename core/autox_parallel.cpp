@@ -74,7 +74,7 @@ bool autox_parallel_ready(const AutoxParts &s) {
 
 void AutoxParallel::select_run(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_t ntst, std::ptrdiff_t ncol) {
     const AutoxParts &s = *source.parts;
-    if (!native_ready(source.parts->option_parts) || !autox_parallel_ready(s)) {
+    if (!native_ready(source.parts->session_parts) || !autox_parallel_ready(s)) {
         source.collocation.reset();
         return;
     }

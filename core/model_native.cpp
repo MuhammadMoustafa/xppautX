@@ -67,7 +67,7 @@ constexpr int MAX_SUM_DEPTH = 16;
 enum class Helper : size_t { Table, TableSlope, Network, Vector, Kernel, Delay, DelayShift, Shift, IShift, Set, Uniform, Poisson, Normal, Argument, FunctionEnd, Count };
 struct HelperText {
     std::string_view name;
-    bool session;
+    bool parser;
     int doubles;
     bool index;
 };
@@ -146,7 +146,7 @@ constexpr int TREE_SIZE_CAP = 1 << 20;
 template <class T> void put(std::string &key, T value) { key.append(reinterpret_cast<const char *>(&value), sizeof value); }
 
 struct Generator {
-    const OptionParts &s;
+    const SessionParts &s;
     Place place;
     IrModule ir;
     std::vector<int> tree_size;                     /* of each ir.nodes entry, up to TREE_SIZE_CAP */
@@ -183,7 +183,7 @@ struct Generator {
     bool dynamic = false; /* a network updates its first two variable operands */
     std::vector<char> allowed; /* user functions with a fully compiled dependency graph */
 
-    explicit Generator(const OptionParts &session) : s(session) { ir.zero_divisor = expr::ZERO_DIVISOR; }
+    explicit Generator(const SessionParts &session) : s(session) { ir.zero_divisor = expr::ZERO_DIVISOR; }
 
     /* The node for this expression: made once, however often it is written (so two writings of one
        expression are one node, which is what lets a call be recognized as made before). A call's arguments
@@ -248,7 +248,7 @@ struct Generator {
     int helper_call(Helper h, std::initializer_list<int> args, int index = 0)
     {
         const HelperText &t = helper_text[static_cast<size_t>(h)];
-        return call(callee({std::string(t.name), helper_address(h), t.session, t.doubles, t.index}), std::span<const int>(args.begin(), args.size()), index);
+        return call(callee({std::string(t.name), helper_address(h), t.parser, t.doubles, t.index}), std::span<const int>(args.begin(), args.size()), index);
     }
     int math_call(bool binary, int i, std::initializer_list<int> args)
     {
@@ -622,7 +622,7 @@ struct Generator {
             } else if (n.op == IrOp::Call) {
                 const size_t target = static_cast<size_t>(n.callee);
                 const IrCallee &callee_ref = ir.callees[target];
-                if (callee_ref.address != nullptr && callee_ref.session && callee_ref.name != helper_text[static_cast<size_t>(Helper::Table)].name
+                if (callee_ref.address != nullptr && callee_ref.parser && callee_ref.name != helper_text[static_cast<size_t>(Helper::Table)].name
                     && callee_ref.name != helper_text[static_cast<size_t>(Helper::TableSlope)].name)
                     any = true;
                 if (callee_ref.address == nullptr) {
@@ -810,7 +810,7 @@ namespace {
    variables and the equations. Networks and DAEs run between them even when
    no equation calls their helpers; function tables can rebuild on parameter
    changes (or when autoeval is toggled), so they are never frozen. */
-std::string rhs_impurity(const OptionParts &s)
+std::string rhs_impurity(const SessionParts &s)
 {
     const Model &m=s.model();
     if (m.nsvar>0) return "algebraic solve variables (a DAE)";
@@ -834,7 +834,7 @@ std::string rhs_impurity(const OptionParts &s)
 }
 
 /* what couples m's states beyond what their equations read, or "" (Model::subsystems) */
-std::string subsystem_joined_by(const OptionParts &s)
+std::string subsystem_joined_by(const SessionParts &s)
 {
     const Model &m=s.model();
     if (m.flag_count()>0) return "global flags (events)";
@@ -852,7 +852,7 @@ std::string subsystem_joined_by(const OptionParts &s)
    was measured and rejected: mu26's 400 time units lost 18% waiting for a compile the thread would have made
    in the first 2%. */
 constexpr std::uint64_t INTERPRETED_OPS_BEFORE_BUILD=1000000;
-std::shared_ptr<NativeBuild> pending_build(const OptionParts &s, IrModule ir, Place place)
+std::shared_ptr<NativeBuild> pending_build(const SessionParts &s, IrModule ir, Place place)
 {
     auto build=std::make_shared<NativeBuild>();
     build->ir=std::move(ir);
@@ -861,7 +861,7 @@ std::shared_ptr<NativeBuild> pending_build(const OptionParts &s, IrModule ir, Pl
     return build;
 }
 
-Result<std::vector<Error>> compile_programs(const OptionParts &s, const std::vector<ModelProgram> &entries)
+Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::vector<ModelProgram> &entries)
 {
     Model &m=s.model();
     /* every program from its RPN again: no code of before, native or the interpreter's (a test rewrites RPN and translates) */
@@ -1005,7 +1005,7 @@ Result<std::vector<Error>> compile_programs(const OptionParts &s, const std::vec
 /* the build's thread, detached: it reads the module the build holds and writes only the build's result, then
    says so; an allocation it cannot make ends the program as one on the core thread would, since no exception
    may leave a thread. A run that ends first leaves it to end with the process (xpp_mir.cpp `compiling`). */
-void start_build(const OptionParts &s, std::shared_ptr<NativeBuild> build)
+void start_build(const SessionParts &s, std::shared_ptr<NativeBuild> build)
 {
     build->started=true;
     log(XPP_LOG_INFO,"MIR compiles {} nodes on a thread, after {} interpreted instructions\n",build->ir.nodes.size(),s.parser.interpreted_ops);
@@ -1023,7 +1023,7 @@ void start_build(const OptionParts &s, std::shared_ptr<NativeBuild> build)
 
 /* The build once its thread is done, with its result: started when it is due (now, when waiting) and taken when
    it has finished (waited for, when waiting), else null. Taken, it is no longer pending. */
-std::shared_ptr<NativeBuild> taken(const OptionParts &s, std::shared_ptr<NativeBuild> &pending, bool wait)
+std::shared_ptr<NativeBuild> taken(const SessionParts &s, std::shared_ptr<NativeBuild> &pending, bool wait)
 {
     if (!pending) return nullptr;
     if (!pending->started) {
@@ -1037,7 +1037,7 @@ std::shared_ptr<NativeBuild> taken(const OptionParts &s, std::shared_ptr<NativeB
 }
 
 /* the programs' code taken from their build (build_native) */
-void take_programs(const OptionParts &s, bool wait)
+void take_programs(const SessionParts &s, bool wait)
 {
     Model &m=s.model();
     const std::shared_ptr<NativeBuild> build=taken(s,m.native_build,wait);
@@ -1071,7 +1071,7 @@ void take_programs(const OptionParts &s, bool wait)
 
 /* the exact Jacobian's functions taken from their build (build_native): until then, and after a failure of MIR's
    (logged), its derivatives are evaluated from their graph, bit for bit the same */
-void take_jacobian(const OptionParts &s, bool wait)
+void take_jacobian(const SessionParts &s, bool wait)
 {
     ExactJacobian &j=s.model().jacobian;
     const std::shared_ptr<NativeBuild> build=taken(s,j.build,wait);
@@ -1099,13 +1099,13 @@ void take_jacobian(const OptionParts &s, bool wait)
 
 }
 
-void build_native(const OptionParts &s, bool wait)
+void build_native(const SessionParts &s, bool wait)
 {
     take_programs(s,wait);
     take_jacobian(s,wait);
 }
 
-bool native_ready(const OptionParts &s)
+bool native_ready(const SessionParts &s)
 {
     build_native(s,true);
     return s.parser.host->pure_rhs_ready(*s.parser.owner);
@@ -1118,7 +1118,7 @@ namespace {
    their own (a build like the programs', W717), one function for the
    state's columns, one for the time's and one for each constant's that a
    right-hand side depends on; or why there is none. */
-ExactJacobian make_jacobian(const OptionParts &s, const std::vector<ModelProgram> &entries)
+ExactJacobian make_jacobian(const SessionParts &s, const std::vector<ModelProgram> &entries)
 {
     ExactJacobian j;
     if (!s.numerics->compile) {
@@ -1190,7 +1190,7 @@ std::vector<std::vector<int>> equation_reads(const Model &m)
     return reads;
 }
 
-std::string run_joined_by(const OptionParts &s)
+std::string run_joined_by(const SessionParts &s)
 {
     if (s.numerics->subsystem_split != SubsystemSplit::run) return "";
     if (s.numerics->poincare_stop) return "a Poincare stop";
@@ -1198,12 +1198,12 @@ std::string run_joined_by(const OptionParts &s)
     return "";
 }
 
-bool has_subsystems(const OptionParts &s)
+bool has_subsystems(const SessionParts &s)
 {
     return !s.model().subsystems.empty() && run_joined_by(s).empty();
 }
 
-std::string describe_subsystems(const OptionParts &s)
+std::string describe_subsystems(const SessionParts &s)
 {
     const Model &m=s.model();
     if (const std::string run=run_joined_by(s); !run.empty() && !m.subsystems.empty())
@@ -1225,7 +1225,7 @@ std::string describe_subsystems(const OptionParts &s)
 
 namespace {
 /* the model's programs, each with its stack sized, for compile_programs */
-std::vector<ModelProgram> sized_programs(const OptionParts &s)
+std::vector<ModelProgram> sized_programs(const SessionParts &s)
 {
     Model &m=s.model();
     auto entries=model_programs(m);
@@ -1235,7 +1235,7 @@ std::vector<ModelProgram> sized_programs(const OptionParts &s)
 }
 }
 
-Result<std::vector<Error>> translate_model(const OptionParts &s)
+Result<std::vector<Error>> translate_model(const SessionParts &s)
 {
     Model &m=s.model();
     m.compile_pending=false;
@@ -1258,7 +1258,7 @@ Result<std::vector<Error>> translate_model(const OptionParts &s)
     return compiled;
 }
 
-void ensure_compiled(const OptionParts &s)
+void ensure_compiled(const SessionParts &s)
 {
     if (!s.model().compile_pending) return;
     const auto compiled=translate_model(s);
@@ -1266,7 +1266,7 @@ void ensure_compiled(const OptionParts &s)
     else for (const Error &warning:*compiled) log(XPP_LOG_WARN,"{}\n",warning.text());
 }
 
-bool ensure_exact_jacobian(const OptionParts &s)
+bool ensure_exact_jacobian(const SessionParts &s)
 {
     ensure_compiled(s); /* its derivatives need the programs compiled; compiling makes a new Jacobian, so before the reference */
     ExactJacobian &j=s.model().jacobian;
@@ -1279,7 +1279,7 @@ bool ensure_exact_jacobian(const OptionParts &s)
     return j.available();
 }
 
-Result<std::vector<Error>> compile_loaded(const OptionParts &s)
+Result<std::vector<Error>> compile_loaded(const SessionParts &s)
 {
     auto compiled=translate_model(s);
     if (!compiled) compiled=std::vector<Error>{compiled.error()};

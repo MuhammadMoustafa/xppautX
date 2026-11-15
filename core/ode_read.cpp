@@ -1367,7 +1367,7 @@ void subsk(std::string_view big_text, std::string &newstr, int k, int flag, Type
   }
 }
 
-int get_eqn(xpp::Model &m, const xpp::OptionParts &s, std::string_view text)
+int get_eqn(xpp::Model &m, const xpp::SessionParts &s, std::string_view text)
 {
   LineSource src;
   src.text=text;

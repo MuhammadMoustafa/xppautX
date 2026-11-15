@@ -9,7 +9,7 @@
 
 namespace xpp {
 
-struct OptionParts; /* model_options.h */
+struct SessionParts; /* model_options.h */
 struct ModelProgram;
 
 namespace expr {
@@ -30,7 +30,7 @@ struct ModelDerivatives {
    or random numbers, an operation with no derivative, a function table,
    a program translate_model did not compile (programs: model_programs'),
    or a model too large (the place the reason is at). */
-Result<ModelDerivatives> differentiate_model(const OptionParts &s, std::span<const ModelProgram> programs);
+Result<ModelDerivatives> differentiate_model(const SessionParts &s, std::span<const ModelProgram> programs);
 
 } // namespace expr
 } // namespace xpp

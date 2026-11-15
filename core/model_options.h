@@ -98,7 +98,7 @@ private:
    parser that compiles its formulas, the tables and networks the builders size, the lists a row names (sliders, buttons, sets, the
    options a source set). Constness is as shallow as a Session's own pointers: a const Session converts too.
    The members keep the Session's names, so a row reads as `s.numerics->total_time`. */
-struct OptionParts {
+struct SessionParts {
   Model &model_;
   ParserState &parser;
   NumericsSettings *numerics;
@@ -138,15 +138,15 @@ struct OptionParts {
    of the parts it is called with */
 template <class T>
 struct Member {
-  T &(*get)(const OptionParts &) = nullptr;
+  T &(*get)(const SessionParts &) = nullptr;
   explicit operator bool() const { return get != nullptr; }
-  T &operator()(const OptionParts &s) const { return get(s); }
+  T &operator()(const SessionParts &s) const { return get(s); }
 };
 template <class F>
 constexpr auto member(F)
 {
-  using T = std::remove_cvref_t<std::invoke_result_t<F, const OptionParts &>>;
-  return Member<T>{[](const OptionParts &s) -> T & { return F{}(s); }};
+  using T = std::remove_cvref_t<std::invoke_result_t<F, const SessionParts &>>;
+  return Member<T>{[](const SessionParts &s) -> T & { return F{}(s); }};
 }
 
 /* the member of a choice row that is an enum, read and written as its number
@@ -154,16 +154,16 @@ constexpr auto member(F)
    A word's number is the enum's value plus Offset (1 for SectionSign, whose
    first word, negative, is -1) */
 struct ChoiceMember {
-  int (*read)(const OptionParts &) = nullptr;
-  void (*write)(const OptionParts &, int) = nullptr;
+  int (*read)(const SessionParts &) = nullptr;
+  void (*write)(const SessionParts &, int) = nullptr;
   explicit operator bool() const { return read != nullptr; }
 };
 template <int Offset = 0, class F>
 constexpr ChoiceMember choice_member(F)
 {
-  using T = std::remove_cvref_t<std::invoke_result_t<F, const OptionParts &>>;
-  return {[](const OptionParts &s) { return static_cast<int>(F{}(s)) + Offset; },
-          [](const OptionParts &s, int i) { F{}(s) = static_cast<T>(i - Offset); }};
+  using T = std::remove_cvref_t<std::invoke_result_t<F, const SessionParts &>>;
+  return {[](const SessionParts &s) { return static_cast<int>(F{}(s)) + Offset; },
+          [](const SessionParts &s, int i) { F{}(s) = static_cast<T>(i - Offset); }};
 }
 
 /* what the Numerics menu and `set num` accept for a numerics setting;
@@ -180,7 +180,7 @@ struct OptionSource {
   bool force;                /* an internal set, the command line: always */
   const OptionsSet *mask;    /* the options unset when this source began */
   /* row may be set from here */
-  bool may(const OptionParts &s, const OptionRow &row) const;
+  bool may(const SessionParts &s, const OptionRow &row) const;
 };
 
 /* an option's value as its parser gets it */
@@ -297,15 +297,15 @@ struct OptionRow {
   ChoiceMember index; /* a choice row's enum */
   Member<std::string> text;
   /* a row whose value is no one member's (a list of choices, special_points): its text as it is shown and written; `parse` sets it */
-  std::string (*show)(const OptionParts &) = nullptr;
+  std::string (*show)(const SessionParts &) = nullptr;
   /* the value when it is not just the member's: nullptr when taken, else
      why not (logged, the option left unset) */
-  const char *(*parse)(const OptionParts &, const OptionValue &) = nullptr;
+  const char *(*parse)(const SessionParts &, const OptionValue &) = nullptr;
   /* only "0" or "1", else the load fails */
   bool zero_or_one = false;
   /* the default a load gives it when no source set it, nullptr: the
      member's own initial value */
-  void (*reset)(const OptionParts &) = nullptr;
+  void (*reset)(const SessionParts &) = nullptr;
   /* a choice row's word for the value XPPAUT's files spell otherwise (a first
      letter, a number), "" when it is none: a .ode and the command
      line only, never our own files; nullptr: the row's words alone (a boolean's
@@ -340,7 +340,7 @@ struct OptionRow {
   std::string_view (*unavailable)(const Model &, int) = nullptr;
   /* makes what choosing value i needs, before `unavailable` is asked
      (the exact Jacobian, on its first need) */
-  void (*prepare)(const OptionParts &, int) = nullptr;
+  void (*prepare)(const SessionParts &, int) = nullptr;
   /* a .odex block may name it more than once (fold, but: each names one) */
   bool repeatable = false; /* its `reset` (if any) empties the list a panel replaces, never a load's default */
   /* each value names one of the model's sets: the panel shows the sets as a list to check (hello's kind "sets"); its panel value is the checked names, one per line */
@@ -381,7 +381,7 @@ struct PairProblem {
 };
 std::optional<PairProblem> option_pairs_problem(const std::function<std::optional<double>(const OptionRow &)> &value_of);
 /* the same for the values of the parts now */
-std::optional<PairProblem> option_pairs_problem(const OptionParts &s);
+std::optional<PairProblem> option_pairs_problem(const SessionParts &s);
 
 /* the value text names among choices (exactly), -1 when none */
 int choice_index(std::span<const std::string_view> choices, std::string_view text);
@@ -437,7 +437,7 @@ bool set_holds(const OptionRow &row);
 
 /* the curves of a model's `curves` list (a window's are session_settings.h's read_curves, with their colors and lines); the groups (x, y, z: a variable's name each); with the parts the names are
    checked and read as columns, without them only the shape of the list */
-std::vector<PlotCurve> read_starting_curves(const OptionParts *s, odex::Block &file);
+std::vector<PlotCurve> read_starting_curves(const SessionParts *s, odex::Block &file);
 
 /* the `buttons` row (a list of buttons: userbut.h) */
 const OptionRow &buttons_option();
@@ -490,7 +490,7 @@ std::string option_error_text(std::string_view name, std::string_view value, std
 
 /* option name set to value (force: even when another source set it; mask:
    the options this source may set again) */
-void set_option(const OptionParts &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask);
+void set_option(const SessionParts &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask);
 
 /* XPPAUT's value of a path option that names no file (plotfmt: a format): the model's name with that format's
    extension; value as given when row.foreign names none */
@@ -500,7 +500,7 @@ std::string foreign_path_option(const OptionRow &row, std::string_view model_fil
    number", ...), empty when it is: the checks set_option makes, nothing
    applied (an internal set checks every item before it applies one);
    xppaut_names as find_option's */
-std::optional<std::string> option_problem(const OptionParts &s, std::string_view name, std::string_view value, bool xppaut_names);
+std::optional<std::string> option_problem(const SessionParts &s, std::string_view name, std::string_view value, bool xppaut_names);
 
 /* each option no source set gets its default, in the table's order */
 /* ---- the settings a session holds (session_settings.h) ----
@@ -511,17 +511,17 @@ std::vector<const OptionRow *> saved_settings();
 const OptionRow *saved_setting(std::string_view name);
 /* s's value of row as text: a number, the method's or a choice's word, a
    variable's name, a name */
-std::string setting_text(const OptionParts &s, const OptionRow &row);
+std::string setting_text(const SessionParts &s, const OptionRow &row);
 /* the saved settings keys with s's values, for a message that names what
    caused it (W480): "min_step = 1e-12, relative_tolerance = 0.001" */
-std::string named_settings(const OptionParts &s, std::initializer_list<std::string_view> keys);
+std::string named_settings(const SessionParts &s, std::initializer_list<std::string_view> keys);
 /* where an error about settings is: the line the model sets the first of them on, else the
    command that ran the computation */
 Place settings_place(const Model &m, std::initializer_list<std::string_view> settings);
 /* row f's value as a number (a real or whole row's, a boolean's 0 or 1) and as the number of its word (a choice row's, a boolean's 0 or 1) */
-double row_number(const OptionParts &s, const OptionRow &f);
-int row_index(const OptionParts &s, const OptionRow &f);
-void set_option_defaults(const OptionParts &s);
+double row_number(const SessionParts &s, const OptionRow &f);
+int row_index(const SessionParts &s, const OptionRow &f);
+void set_option_defaults(const SessionParts &s);
 
 /* XPPAUT's negative Total, read on import only: the run's length |Total|
    (XPPAUT runs that long; its sign only let a full store overwrite itself,

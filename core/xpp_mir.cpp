@@ -182,7 +182,7 @@ struct Lowering {
     std::vector<MIR_item_t> protos, targets; /* by callee, made at its first call: its prototype and its import or forward */
     /* the function being lowered */
     MIR_item_t item = nullptr;
-    MIR_reg_t c = 0, v = 0, session = 0, rpn = 0, output = 0; /* the pointers a kind has */
+    MIR_reg_t c = 0, v = 0, parser = 0, rpn = 0, output = 0; /* the pointers a kind has */
     std::vector<MIR_reg_t> arguments, temporaries;
     struct Loop {
         MIR_reg_t low = 0, high = 0, counter = 0;
@@ -258,7 +258,7 @@ struct Lowering {
             if (module_function->kind == IrFunction::Kind::Equation) parameter(MIR_T_P);
             for (int a = 0; a < module_function->doubles; ++a) parameter(MIR_T_D);
         } else {
-            if (target.session) parameter(MIR_T_P);
+            if (target.parser) parameter(MIR_T_P);
             for (int a = 0; a < target.doubles; ++a) parameter(MIR_T_D);
             if (target.index) parameter(MIR_T_I32);
         }
@@ -352,10 +352,10 @@ struct Lowering {
         if (target.address == nullptr) {
             operands.push_back(reg(c));
             operands.push_back(reg(v));
-            operands.push_back(reg(session));
+            operands.push_back(reg(parser));
             if (function_named.at(target.name)->kind == IrFunction::Kind::Equation) operands.push_back(MIR_new_int_op(ctx, 0));
-        } else if (target.session) {
-            operands.push_back(reg(session));
+        } else if (target.parser) {
+            operands.push_back(reg(parser));
         }
         for (int a : ir.arguments(n)) {
             const MIR_op_t value = in_register(operand(a, depth + 1));
@@ -446,7 +446,7 @@ struct Lowering {
         const MIR_func_t machine = item->u.func;
         c = MIR_reg(ctx, "c", machine);
         v = MIR_reg(ctx, "v", machine);
-        session = MIR_reg(ctx, "S", machine);
+        parser = MIR_reg(ctx, "S", machine);
         if (f.kind == IrFunction::Kind::Equation) rpn = MIR_reg(ctx, "R", machine);
         if (f.kind == IrFunction::Kind::Rhs || f.kind == IrFunction::Kind::Jacobian) output = MIR_reg(ctx, "o", machine);
         arguments.clear();

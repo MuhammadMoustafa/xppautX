@@ -13,13 +13,13 @@
 
 namespace xpp {
 
-void add_wiener(const OptionParts &s, int index)
+void add_wiener(const SessionParts &s, int index)
 {
   s.model().wiener.push_back(index);
   s.model().nwiener++;
 }
 
-void add_markov(const OptionParts &s, int nstate, const char *name)
+void add_markov(const SessionParts &s, int nstate, const char *name)
 {
   std::vector<double> st(nstate);
   for(int i=0;i<nstate;i++)st[i]=static_cast<double>(i);
@@ -29,7 +29,7 @@ void add_markov(const OptionParts &s, int nstate, const char *name)
 /* the Markov variable a transition table names (the longest name that
    is a prefix of it); a model naming none fails to load. Writes the
    table's header line when converting. */
-static int markov_named(const OptionParts &s, const char *name)
+static int markov_named(const SessionParts &s, const char *name)
 {
   int index=-1;
   const std::string upper=xpp::upper_case(name);
@@ -48,7 +48,7 @@ static int markov_named(const OptionParts &s, const char *name)
   return index;
 }
 
-int build_markov(const OptionParts &s, std::span<const std::string> cells, const char *name)
+int build_markov(const SessionParts &s, std::span<const std::string> cells, const char *name)
 {
  int index=markov_named(s,name);
  int nstates=s.model().markov[index].nstates;
@@ -64,7 +64,7 @@ int build_markov(const OptionParts &s, std::span<const std::string> cells, const
  return index;
 }
 
-int old_build_markov(const OptionParts &s, const std::function<bool(std::string &)> &next_line, const char *name)
+int old_build_markov(const SessionParts &s, const std::function<bool(std::string &)> &next_line, const char *name)
 {
   int istart;
 
@@ -112,7 +112,7 @@ std::string markov_cell(const char *source, int *i0)
    return dest;
 }
 
-void create_markov(const OptionParts &s, int nstates, double *st, int type, const char *name)
+void create_markov(const SessionParts &s, int nstates, double *st, int type, const char *name)
 {
   int n2=nstates*nstates;
   int j=s.model().nmarkov;
@@ -141,7 +141,7 @@ void create_markov(const OptionParts &s, int nstates, double *st, int type, cons
 
 }
 
-void add_markov_entry(const OptionParts &s, int index, int j, int k, const char *expr)
+void add_markov_entry(const SessionParts &s, int index, int j, int k, const char *expr)
 {
   
   int l0=s.model().markov[index].nstates*j+k;
@@ -157,7 +157,7 @@ void add_markov_entry(const OptionParts &s, int index, int j, int k, const char 
   }
 }
 
-void compile_all_markov(const OptionParts &s)
+void compile_all_markov(const SessionParts &s)
 {
   int index,j,k,ns,l0;
   if(s.model().nmarkov==0)return;
@@ -176,7 +176,7 @@ void compile_all_markov(const OptionParts &s)
   }
 }
 
-int compile_markov(const OptionParts &s, int index, int j, int k)
+int compile_markov(const SessionParts &s, int index, int j, int k)
 {
   const char *expr;
   int l0=s.model().markov[index].nstates*j+k,leng;

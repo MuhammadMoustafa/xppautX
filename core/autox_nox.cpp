@@ -153,7 +153,7 @@ void setautoxpoint(AutoxParts s)
       xpp::set_val(s.parser,s.model().upar_names[s.autox_state->axes().icp1],s.autox_state->from_autox_x);
       xpp::set_val(s.parser,s.model().upar_names[s.autox_state->axes().icp2],s.autox_state->from_autox_y);
       xpp::evaluate_derived(s.parser);
-      xpp::ok_or_show(xpp::redo_all_fun_tables(s.option_parts));
+      xpp::ok_or_show(xpp::redo_all_fun_tables(s.session_parts));
       redraw_params();
     }
 }
@@ -1556,7 +1556,7 @@ void find_point(AutoxParts s, int ibr, int pt)
   xpp::set_initial_data(s.session,d->u0);
   autox_set_pars_from(s, diagram_parameters(*d).data());
   xpp::evaluate_derived(s.parser);
-  xpp::ok_or_show(xpp::redo_all_fun_tables(s.option_parts));
+  xpp::ok_or_show(xpp::redo_all_fun_tables(s.session_parts));
   redraw_params();
   redraw_ics();
   if((d->per)>0)
@@ -1779,7 +1779,7 @@ static void grab_diagram_point(AutoxParts s, const DIAGRAM *d)
 static void finish_grab(AutoxParts s)
 {
   xpp::evaluate_derived(s.parser);
-  xpp::ok_or_show(xpp::redo_all_fun_tables(s.option_parts));
+  xpp::ok_or_show(xpp::redo_all_fun_tables(s.session_parts));
   redraw_params();
   redraw_ics();
 }
