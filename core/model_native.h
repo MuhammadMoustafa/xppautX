@@ -37,6 +37,11 @@ bool has_subsystems(const Session &s);
    what is native (Program::compiled, Model::rhs_impurity, the subsystems) and start MIR's compile of them on a
    thread (Model::native_build); a failure is the error. */
 Result<std::vector<Error>> translate_model(Session &s);
+/* A loaded model translated (translate_model, W260's exact Jacobian when the
+   numerics ask for it): the warnings the compiler gave, each with its place,
+   or the error of a model that asks for an exact Jacobian it has none of.
+   A load logs the warnings; --check reports them. */
+Result<std::vector<Error>> compile_loaded(Session &s);
 /* The native builds (Model::native_build, the exact Jacobian's): a build due starts its thread (now, when `wait`),
    and the code a thread made goes to its programs (every program its function, the Jacobian's its), waited for
    when `wait`, else only when it has finished (my_rhs, at the start of a right-hand side). A failure of the

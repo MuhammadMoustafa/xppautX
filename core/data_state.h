@@ -1,16 +1,11 @@
 #pragma once
 /* The data table a Session holds (browse_data.cpp): the data set it shows, the columns Add column made, the block a client shows. Plain
-   data, which the option table reads (a column named in a setting is a variable's, the time or an added column) and the data table works
-   on (W744). */
-#include <string>
-#include <string_view>
+   data the data table works on (W744); the option table reads the added columns (model_added_columns.h, W757). */
 #include <vector>
-#include <span>
+#include "model_added_columns.h"
 #include "storage.h"
 
 namespace xpp {
-
-struct Model; /* model.h */
 
 typedef struct {
     int dataflag;
@@ -19,13 +14,6 @@ typedef struct {
     ColumnTable data;
     int istart,iend;
 } DATA_VIEW;
-
-/* an Add column (browse_data.cpp data_add_col): its name and formula, as
-   typed, kept to recompute it after every fresh run (below) */
-struct AddedColumn {
-  std::string name;
-  std::string formula;
-};
 
 /* the block of the table a client shows: its first row, rows (0: none, no block is sent), first column and
    columns after T, which is always the first value of a row (data.page sets it, the `data.updated` event sends it) */
@@ -51,10 +39,5 @@ struct DataState {
   std::vector<AddedColumn> added_columns;
   DataBlock block;
 };
-
-/* the data column of `name` (case ignored): 0 for T, i+1 for the model's variable i, then the added columns in order, -1 for none */
-int data_column(const Model &m, std::span<const AddedColumn> added, std::string_view name);
-/* column j's name: "T", a model variable's, an added column's; "" past the last one */
-std::string data_column_name(const Model &m, std::span<const AddedColumn> added, int j);
 
 } // namespace xpp

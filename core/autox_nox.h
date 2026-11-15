@@ -132,18 +132,6 @@ struct BIFUR {
   int ncol;
 };
 
-struct ADVAUTOX {
-  int iad = 3;
-  /* autoX's MXBF is one signed number: the count, negative for one direction only (W531 keeps them apart) */
-  int max_branch_switches = 5;
-  bool switch_one_direction = false;
-  int iid = 2; /* an index of autox_output_detail_names */
-  int itmx = 8;
-  int itnw = 7;
-  int nwtn = 3;
-  int iads = 1;
-};
-
 struct GRABPT {
   int ibr,lab;
   AutoxPointCode itp;

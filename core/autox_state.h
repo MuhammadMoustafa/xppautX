@@ -34,6 +34,7 @@
 #include "autox_codes.h"
 #include "autox_ends.h"
 #include "autox_parts.h"
+#include "model_autox_settings.h"
 
 #include <algorithm>
 #include <array>
@@ -47,20 +48,6 @@
 #include <vector>
 #include <math.h>
 #include <memory>
-
-/* the autoX settings the model's @ options give (autox_ntst=, ...), which
-   init_autox_win copies into AutoxState::bifur */
-// A nonnegative norm has no useful lower default; the upper bound leaves ordinary branches unrestricted.
-inline constexpr double autox_default_norm_min=0.0;
-inline constexpr double autox_default_norm_max=1e100;
-struct AutoxOptions {
-  int ntst=15,nmx=200,npr=50,ncol=4;
-  double ds=.02,dsmax=.5,dsmin=.001;
-  double rl0=0.0,rl1=2,a0=autox_default_norm_min,a1=autox_default_norm_max;
-  double xmax=2.5,xmin=-.5,ymax=3.0,ymin=-3.0;
-  double epsl=1e-4,epsu=1e-4,epss=1e-4;
-  int var=0;
-};
 
 /* one view of the diagram (W50): its axes, and the part of them the page
    shows (its zoom, W65; a zoom belongs to the axes it was made at, other
@@ -108,14 +95,6 @@ enum class HomoclinicSide { Left, Right };
 /* the File menu's "Draw labeled" toggle: off, traversing the diagram
    draws each labelled point's orbit, or clears the screens first */
 enum class LabeledOrbits { Off, Draw, ClearAndDraw };
-/* every codimension-two kind detected, as AUTO-07p does by default */
-constexpr std::array<bool, xpp::autox_codim_kinds.size()> all_special_points()
-{
-  std::array<bool, xpp::autox_codim_kinds.size()> on{};
-  on.fill(true);
-  return on;
-}
-
 /* what a homoclinic or heteroclinic start gives HomCont's boundary conditions
    (autox_run.cpp): the dimensions of the equilibria's unstable and stable
    manifolds, and the kind of orbit (+1 homoclinic, -2 heteroclinic; 0 none) */
@@ -129,7 +108,7 @@ struct AutoxOrbitReturn {
   double period=0,index=0;
 };
 
-struct AutoxState {
+struct AutoxState : AutoxSettings {
   /* the autoX window and its settings */
   xpp::BIFUR bifur{};
   /* the views of the one diagram (W50), at least one, each plotting it at
@@ -140,8 +119,6 @@ struct AutoxState {
   int active_view=0;
   xpp::AUTOAX &axes() { return views[static_cast<std::size_t>(active_view)].axes; }
   const xpp::AUTOAX &axes() const { return views[static_cast<std::size_t>(active_view)].axes; }
-  /* the advanced numerics */
-  xpp::ADVAUTOX advanced{};
   AutoxParameterLayout parameter_layout;
   /* where the solutions of the session's .s file start (autox_nox.h); none until a restart needs it, reset when the file is replaced */
   std::optional<xpp::AutoxSolutionIndex> solutions_index;
@@ -149,13 +126,6 @@ struct AutoxState {
   static constexpr int state_copies = 8;
   // A foreign XPPAUT .auto alone carries its old selected-parameter mapping.
   std::vector<int> imported_parameters;
-  /* Numerics' SuppBP: no branch point detection */
-  bool suppress_bp=false;
-  /* a run from the current state continues both directions, +DS and -DS, and every branch the jobs find (autox_queue.h)
-     as jobs at once (autox_jobs.cpp); off: only the direction the sign of DS gives */
-  bool follow_all_branches=true;
-  // AUTO-07p enables codimension-two detection by default.
-  std::array<bool, xpp::autox_codim_kinds.size()> special_points=all_special_points();
   /* a homoclinic orbit's left and right equilibria (autox_pp.cpp's user_start),
      and whether a homoclinic run is on */
   std::vector<double> homo_l,homo_r;
@@ -177,8 +147,6 @@ struct AutoxState {
   xpp::AutoxCalculation type_of_calc=xpp::no_calculation;
   /* the torus period a two-parameter torus run starts from */
   xpp::ROTCHK blrtn{};
-  /* the model's @ options for autoX */
-  AutoxOptions options;
   /* the .autox script the model was opened with, and how far it has run (W306) */
   xpp::AutoxScriptState script;
   /* the equilibria of the homoclinic start a run copies (autox_evd.cpp init_autox) */

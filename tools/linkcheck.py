@@ -32,7 +32,7 @@ STRONG = set('TDBRCSGI')      # nm's global, non-weak definitions (T text, D dat
 ALLOWLIST = {
     ('analysis', 'session'): (5, 'W760'),
     ('integrators', 'session'): (2, 'W760'),
-    ('model and loading', 'session'): (3, 'W757, W758'),
+    ('model and loading', 'session'): (1, 'W758'),
 }
 
 

@@ -96,6 +96,9 @@ Session::Session(Model &m)
     ani_shown(std::make_unique_for_overwrite<AniShown>()),
     saved_session(std::make_unique_for_overwrite<SavedSession>()),
     value_undo(std::make_unique_for_overwrite<ValueUndo>()),
+    option_parts{*this,m,numerics.get(),plot_settings.get(),autox_state.get(),integrator.get(),delay.get(),histogram.get(),adjoint.get(),
+                 nullclines.get(),shoot_range.get(),animation.get(),drawing.get(),plot_windows.get(),array_plot.get(),data->added_columns,
+                 sliders,user_buttons,tables,run_sets,itor,batch_out_file,picture_file,after_run_file,colormap,output_place,options_set,random},
     model_(&m)
 {
   parser.host=&run_host;

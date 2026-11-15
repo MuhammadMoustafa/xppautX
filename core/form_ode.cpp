@@ -32,7 +32,7 @@
 #include "model_declarations.h"
 
 #include "derived.h"
-#include "data_state.h"
+#include "model_added_columns.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -1573,7 +1573,7 @@ void create_plot_list(xpp::Session &s)
   int k;
   s.plot_list.clear();
   for(const std::string &name : s.model().only){
-    k=data_column(s.model(),s.data->added_columns,name);
+    k=data_column(s.model(),s.option_parts.added_columns,name);
     if(k>=0)s.plot_list.push_back(k);
   }
 }

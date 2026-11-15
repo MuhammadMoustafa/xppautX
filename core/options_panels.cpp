@@ -14,7 +14,6 @@
 #include "model_numerics.h"
 #include "xpp_text.h"
 #include "xpp_util.h"
-#include "session.h"
 
 namespace xpp {
 
@@ -64,8 +63,8 @@ void add_string(std::string &out, std::string_view key, std::string_view text)
     json_append_string(out, text);
 }
 
-/* the member of a row's value as this module reads it (the Session's `reset` sets what no member's initial value is) */
-std::string row_json(const Session &fresh, bool model_loaded, const OptionRow &row)
+/* the member of a row's value as this module reads it (the rows' `reset` sets what no member's initial value is) */
+std::string row_json(const OptionParts &fresh, bool model_loaded, const OptionRow &row)
 {
     std::string out = "{\"key\":";
     json_append_string(out, row.odex);
@@ -103,10 +102,10 @@ bool option_in_panel(const OptionRow &row)
     return !row.odex.empty() && has_member && !list && !chosen_elsewhere && row.kind != OptionKind::sliders && row.kind != OptionKind::curves && row.kind != OptionKind::buttons;
 }
 
-std::string options_table_json(Session &s)
+std::string options_table_json(const OptionParts &fresh)
 {
-    Session fresh(s.model());
-    if (s.model().loaded())
+    const bool model_loaded = fresh.model().loaded();
+    if (model_loaded)
         for (const OptionRow &row : option_rows())
             if (row.reset) row.reset(fresh);
     std::string out = "[";
@@ -114,7 +113,7 @@ std::string options_table_json(Session &s)
         std::string rows;
         for (const OptionRow &row : option_rows()) {
             if (row.group != group || !option_in_panel(row)) continue;
-            rows += (rows.empty() ? "" : ",") + row_json(fresh, s.model().loaded(), row);
+            rows += (rows.empty() ? "" : ",") + row_json(fresh, model_loaded, row);
         }
         if (rows.empty()) continue; /* a group of lists only (interface) has no panel */
         out += out.size() > 1 ? "," : "";

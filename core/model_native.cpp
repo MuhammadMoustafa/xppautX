@@ -37,6 +37,7 @@
 #include "model.h"
 #include "model_files.h"
 #include "model_place.h"
+#include "model_options.h"
 #include "model_numerics.h"
 #include "odex.h"
 
@@ -1277,5 +1278,18 @@ bool ensure_exact_jacobian(Session &s)
         j.tried=true;
     }
     return j.available();
+}
+
+Result<std::vector<Error>> compile_loaded(Session &s)
+{
+    auto compiled=translate_model(s);
+    if (!compiled) compiled=std::vector<Error>{compiled.error()};
+    /* the exact Jacobian a model asks for is known to exist only now
+       (W260): none is an error at the @ line, not a quiet difference */
+    const Model &m=s.model();
+    if (s.numerics->jacobian==JACOBIAN_EXACT && !m.jacobian.available())
+        return std::unexpected(Error{"options",option_error_text("integration.jacobian.kind","exact","the model has no exact Jacobian: "+m.jacobian.unavailable),
+                                     m.jacobian.requested});
+    return compiled;
 }
 }

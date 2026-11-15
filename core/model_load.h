@@ -38,12 +38,6 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
                   const Result<prefs::Preferences> *read_prefs = nullptr);
 /* Import and validate in a temporary Model and Session, using the shared
    setup. Never commits; the converter alone supplies the .ode reader. */
-/* A loaded model translated (translate_model, W260's exact Jacobian when the
-   numerics ask for it): the warnings the compiler gave, each with its place,
-   or the error of a model that asks for an exact Jacobian it has none of.
-   A load logs the warnings; --check reports them. */
-Result<std::vector<Error>> compile_loaded(Session &s);
-
 /* A load in a Model that is discarded. services, when given, are the
    "Allow always" answers it works with (model_file_types.h). */
 Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::function<void(Session &)> &read,

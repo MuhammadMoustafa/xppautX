@@ -105,9 +105,9 @@ bool table_count_ok(const Session &s, int index, int count)
 }
 }
 
-void set_autox_eval_flags(xpp::Session &s, int f)
+void set_autox_eval_flags(std::vector<TABULAR> &tables, int f)
 {
- for(TABULAR &t:s.tables)
+ for(TABULAR &t:tables)
     t.autoeval=f;
 }
 Result<int> find_table(const xpp::Session &s, std::string_view name)

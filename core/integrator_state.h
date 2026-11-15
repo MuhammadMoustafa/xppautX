@@ -1,6 +1,7 @@
 #pragma once
-/* The integrator's state a Session holds (integrate.cpp, flags.cpp, gear.cpp, ...): plain data, which the option table reads and writes
-   (the Range sweeps' settings among them) and the integrators work on (W744). The methods of SteadyStateMonitor are integrate.cpp's. */
+/* The integrator's state a Session holds (integrate.cpp, flags.cpp, gear.cpp, ...): plain data the integrators work on (W744). What
+   the option table sets of it (the Range sweeps' settings) is model_integrator_settings.h's, its base (W757). The methods of
+   SteadyStateMonitor are integrate.cpp's. */
 #include <algorithm>
 #include <array>
 #include <memory>
@@ -8,6 +9,7 @@
 #include <span>
 #include <string>
 #include <vector>
+#include "model_integrator_settings.h"
 #include "model_parts.h"
 #include "xpp_math.h"
 
@@ -46,20 +48,6 @@ class SteadyStateMonitor {
   double previous_time_ = 0, unchanged_ = 0;
 };
 
-/* Initialconds/Range's settings (integrate.cpp's, read by load_eqn.cpp's
-   options): the one range over item (and item2 for the double range) */
-/* how many values a range varies (RangeVars::rtype): one, two together or two independently */
-inline constexpr int RANGE_SINGLE = 0, RANGE_TOGETHER = 1, RANGE_INDEPENDENT = 2;
-struct RangeVars {
-  std::string item, item2;
-  bool write_files = false; // Opt in: reset runs otherwise keep no separate files.
-  int steps = 20, steps2 = 10; /* the option's default; a double range's second steps, 10 as XPPAUT's dialog fell back to */
-  bool reset, oldic; /* each run starts from the initial data / from the same initial data */
-  int index, index2, cycle = 0, type, type2, movie;
-  double plow, phigh, plow2 = 0, phigh2 = 1;
-  int rtype;
-};
-
 /* the right-hand side the solvers step, rhs(t, y, ydot, neq): a function
    of the Session it is bound to (the load binds my_rhs to its Session), so
    that a solver reaches the Model and Session through the IntegratorState
@@ -90,13 +78,6 @@ struct FixedPointGuess {
   std::vector<double> xlo, xhi; /* NODE each (init_monte_carlo) */
 };
 
-/* Sing pts' Range settings */
-struct EquilibriumRange {
-  std::string item;
-  int steps = 10, shoot = 0, col = -1, movie = 0, mc = 0; /* Steps starts at 10, what the dialog's empty value fell back to */
-  double plow = 0, phigh = 1;
-};
-
 /* each global flag's state during a run (xpp::Model has its definition):
    the condition's value at the step before and this one, where in the
    step it crossed (tstar, 0..1), whether it did (hit, the pass it did in)
@@ -108,8 +89,8 @@ struct FlagState {
   int hit = 0;
 };
 
-/* the integrator's state, a Session's (session.h) */
-struct IntegratorState {
+/* the integrator's state, a Session's (session.h), beside the settings the option table sets (Range, Sing pts' Range) */
+struct IntegratorState : IntegratorSettings {
   /* Present only during an explicitly requested unchanged-digits run;
      its final result is session-local, cleared by the next ordinary run. */
   std::optional<SteadyStateMonitor> steady;
@@ -118,8 +99,6 @@ struct IntegratorState {
   std::unique_ptr<Solver> solver;
   /* the right-hand side the solvers step: my_rhs of this Session */
   RightHandSide rhs;
-  /* Initialconds/Range's settings */
-  RangeVars range{};
   /* a range integration is running (pp_shoot's shooting reads it) */
   int range_flag = 0;
   /* this Session is a sweep's worker (sweep_runs.h): its integration runs on a thread of its own and calls the
@@ -155,7 +134,6 @@ struct IntegratorState {
   /* Sing pts' Monte Carlo search and Range */
   FixedPointList fixptlist;
   FixedPointGuess fixptguess;
-  EquilibriumRange eq_range;
 };
 
 } // namespace xpp

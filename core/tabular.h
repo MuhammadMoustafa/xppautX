@@ -10,6 +10,8 @@
 
 namespace xpp {
 
+struct TABULAR; /* expr_tables.h */
+
 struct Session; /* session.h */
 
 /* Bound both allocation and formula evaluation from hostile table counts to 8 MB per session. */
@@ -26,9 +28,9 @@ Result<> redo_all_fun_tables(Session &s);
    tables at every right-hand side (redo_all_fun_tables), and a
    string_view there cost two instructions a call (W109c) */
 Result<> eval_fun_table(Session &s, int index, int n, double xlo, double xhi, const std::string &formula, double *y);
-/* the session s's tables: @ autoeval= for each, View, Numerics' tables
-   menu (i: 0 view, 1 edit) and which table it picks, -1 for none */
-void set_autox_eval_flags(Session &s, int f);
+/* @ autoeval= for each table: tables, a Session's (View, Numerics' tables
+   menu (i: 0 view, 1 edit) and which table it picks, -1 for none) */
+void set_autox_eval_flags(std::vector<TABULAR> &tables, int f);
 /* the model's table of that name, or why there is none */
 Result<int> find_table(const Session &s, std::string_view name);
 /* what a table's edit changes, a setting left out as the table has it: a function table's points, range and
