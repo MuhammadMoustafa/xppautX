@@ -16,16 +16,16 @@
 #include "odex.h"
 #include "xpp_util.h"
 #include "model_autox_numerics.h"
-#include "browse.h"
+#include "data_state.h"
 #include "data_table.h"
 #include "colormap.h"
 #include "model_native.h"
 #include "plot_state.h"
 #include "model.h"
 #include "model_files.h"
-#include "numerics.h"
+#include "model_method.h"
 #include "model_analysis.h"
-#include "histogram.h"
+#include "histogram_state.h"
 #include "tabular.h"
 #include "typed_values.h"
 #include "userbut.h"
@@ -33,14 +33,16 @@
 #include "model_load.h"
 #include "xpp_error.h"
 #include "xpp_ui.h"
+#include "model_place.h"
+#include <cassert>
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "session.h"
-#include "adj2.h"
+#include "adjoint_state.h"
 #include "ani_state.h"
 #include "autox_state.h"
-#include "delay_handle.h" /* IWYU pragma: keep (the generic lambdas of the option table need DelayState complete) */
-#include "integrate.h"
+#include "delay_state.h"
+#include "integrator_state.h"
 #include "plot_settings.h"
 #include "expr_program.h"
 #include "line_style.h"
@@ -115,9 +117,7 @@ const char *start_line_style_into(Session &s, const LineStyle &style, const Opti
 /* the variable v names (0 the time), -1 for none */
 int variable_of(const Session &s, const OptionValue &v)
 {
-  int i = -1;
-  find_variable(s, v.text, &i);
-  return i;
+  return data_column(s.model(), s.data->added_columns, v.text);
 }
 
 const char *variable_into(const Session &s, int &member, const OptionValue &v)
@@ -131,7 +131,7 @@ const char *variable_into(const Session &s, int &member, const OptionValue &v)
 /* a data column v names (the time, a variable, a column the data table added), into member */
 const char *column_name_into(const Session &s, std::string &member, const OptionValue &v)
 {
-  if (variable_column(s, v.text) < 0) return "no such column";
+  if (data_column(s.model(), s.data->added_columns, v.text) < 0) return "no such column";
   if (v.apply) member = v.text;
   return nullptr;
 }
@@ -295,7 +295,7 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.numerics->delta_t; }),
    /* twenty steps per time unit, XPPAUT's */
    .reset = [](Session &s) { s.numerics->delta_t = .05; },
-   .key = "dt", .label = "Dt", .rule = OptionRule::nonzero, .saved = true, .applied = dt_changed},
+   .key = "dt", .label = "Dt", .rule = OptionRule::nonzero, .saved = true, .effect = OptionEffect::step_size},
   {.group = option_group::integration, .kind = OptionKind::whole, .odex = "store_every", .help = "Keep one step of every this many in the data table.", .xppaut_names = {"NOUT", "NJMP"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics->store_every; }),
    /* every step stored */
@@ -310,7 +310,7 @@ constexpr OptionRow rows[] = {
    .index = choice_member([](auto &s) -> auto & { return s.numerics->storage_precision; }),
    /* single: XPPAUT's float, half the memory */
    .reset = [](Session &s) { s.numerics->storage_precision = StoragePrecision::single; },
-   .key = "storage_precision", .label = "Storage precision", .rule = OptionRule::choice, .choices = storage_precision_names, .saved = true, .applied = storage_precision_changed},
+   .key = "storage_precision", .label = "Storage precision", .rule = OptionRule::choice, .choices = storage_precision_names, .saved = true, .effect = OptionEffect::storage_precision},
   {.group = option_group::integration, .kind = OptionKind::number, .odex = "state_limit", .help = "A state beyond plus or minus this value stops the run.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics->state_limit; }),
    /* XPPAUT's: past it a solution is taken to blow up */
@@ -409,7 +409,7 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.numerics->delay; }),
    /* no delays kept */
    .reset = [](Session &s) { s.numerics->delay = 0; },
-   .key = "delay", .label = "Maximal delay", .rule = OptionRule::nonnegative, .needs = Feature::delays, .saved = true, .applied = chk_delay},
+   .key = "delay", .label = "Maximal delay", .rule = OptionRule::nonnegative, .needs = Feature::delays, .saved = true, .effect = OptionEffect::delay},
   {.group = option_group::integration, .kind = OptionKind::whole, .odex = "delay.history_points", .help = "How many past points of the history the Volterra method keeps for an integral equation.", .xppaut_names = {"VMAXPTS"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics->max_points; }), .rule = OptionRule::whole_positive, .maximum = option_limit::history_points, .use = OptionUse::integral_history, .needs = Feature::integral_terms, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .odex = "delay.real_guess", .help = "The largest real part the search for a delay equilibrium's eigenvalues looks for.", .once = true,
@@ -1508,7 +1508,7 @@ std::vector<std::string> option_choices(const OptionRow &row)
 {
   std::vector<std::string> words;
   if (row.rule == OptionRule::method) {
-    for (const SolverInfo &info : solvers()) words.emplace_back(info.key);
+    for (const MethodInfo &info : methods) words.emplace_back(info.key);
     return words;
   }
   for (std::string_view w : row.choices) words.emplace_back(w);
@@ -1694,8 +1694,7 @@ std::vector<PlotCurve> read_starting_curves(const Session *s, xpp::odex::Block &
             if (!g.has(key)) continue;
             const xpp::odex::Member &m = *g.member(key);
             if (!s) continue; /* the names are the model's: checked when the options are applied */
-            int column = -1;
-            find_variable(*s, g.name_of(m), &column);
+            const int column = data_column(s->model(), s->data->added_columns, g.name_of(m));
             if (column < 0) g.fail(m, "no such variable");
             curve.*member = column;
         }
@@ -1758,6 +1757,63 @@ void set_option_defaults(Session &s)
     row.reset(s);
     if (row.once) s.options_set.mark(row);
   }
+}
+
+/* ---- the rows' values as text and number: the words of the settings (model_options.h) ---- */
+
+/* row f's number now */
+double row_number(const Session &s, const OptionRow &f)
+{
+    return f.real ? f.real(s) : f.whole(s);
+}
+
+/* the number of choice row f's word now (a boolean's false is 0, true 1) */
+int row_index(const Session &s, const OptionRow &f)
+{
+    if (f.boolean) return f.boolean(s) ? 1 : 0;
+    return f.index ? f.index.read(s) : f.whole(s);
+}
+
+std::vector<const OptionRow *> saved_settings()
+{
+    std::vector<const OptionRow *> rows;
+    for (const OptionRow &r : option_rows())
+        if (r.saved) rows.push_back(&r);
+    return rows;
+}
+
+const OptionRow *saved_setting(std::string_view name)
+{
+    for (const OptionRow &r : option_rows())
+        if (r.saved && option_name(r) == name) return &r;
+    return nullptr;
+}
+
+std::string setting_text(const Session &s, const OptionRow &row)
+{
+    if (row.kind == OptionKind::choice) return option_choices(row)[static_cast<std::size_t>(row_index(s, row))];
+    if (row.kind == OptionKind::name && row.whole) return data_column_name(s.model(), s.data->added_columns, row.whole(s));
+    if (row.text) return row.text(s);
+    if (row.show) return row.show(s);
+    return xpp::number(row_number(s, row));
+}
+
+std::string named_settings(const Session &s, std::initializer_list<std::string_view> names)
+{
+    std::string text;
+    for (const std::string_view name : names) {
+        const OptionRow *row = saved_setting(name);
+        assert(row != nullptr);
+        text += xpp::format("{}{} = {}", text.empty() ? "" : ", ", name, setting_text(s, *row));
+    }
+    return text;
+}
+
+Place settings_place(const Model &m, std::initializer_list<std::string_view> settings)
+{
+    for (const std::string_view name : settings)
+        if (Place place = model_place(m, name); place.line > 0) return place;
+    return command_place();
 }
 
 } // namespace xpp

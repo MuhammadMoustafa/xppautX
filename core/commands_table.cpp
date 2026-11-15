@@ -5,6 +5,7 @@
 #include "command_def.h"
 #include "session.h"
 #include "tabular.h"
+#include "browse.h"
 #include "event_registry.h"
 #include "command_category.h"
 #include "model_features.h"

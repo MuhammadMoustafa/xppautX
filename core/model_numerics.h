@@ -18,6 +18,94 @@ enum Id : int {
 };
 }
 
+/* what a method is, and the words it goes by (W744: the model's option table and its checks read these, the solvers (solver.h) add
+   how each starts): the registry's numbers are the method::Id values */
+/* what a method is: how Integrate drives it, what the numerics menu asks */
+struct SolverTraits {
+  /* the time counts iterations of a map (dt is +-1) */
+  bool discrete = false;
+  /* advances a number of steps of dt; otherwise it chooses its own steps
+     on to an output time (its store_every is 1) */
+  bool fixed_step = false;
+  /* the settings its steps read, which the numerics menu asks and the
+     Numerics form shows (W381 questions 5 and 8): relative_tolerance,
+     absolute_tolerance, min_step, max_step */
+  bool relative_tolerance = false;
+  bool absolute_tolerance = false;
+  bool min_step = false;
+  bool max_step = false;
+  /* asks the Newton tolerance and iterations of its implicit step */
+  bool newton = false;
+  /* asks whether the system is banded */
+  bool banded = false;
+  /* keeps integral-equation history and asks its maximum stored points */
+  bool integral_history = false;
+  /* pairs coordinates and momenta, requiring an even dimension */
+  bool paired_dimension = false;
+  /* uses the eighth-order Dormand-Prince step rather than the fifth */
+  bool eighth_order = false;
+  /* retains an accepted-step interpolant across requested output times */
+  bool dense_output = false;
+  /* uses the stiff adaptive step rather than adaptive Runge-Kutta */
+  bool stiff_step = false;
+  /* draws Wiener noise once per step */
+  bool wiener = false;
+};
+
+/* a row of the methods' table */
+struct MethodInfo {
+  method::Id id;
+  const char *name;      /* do_info's and the front end's */
+  const char *set_label; /* the label .set files write beside it */
+  const char *key;       /* the one word a .odex writes (docs/odex.md "Options") */
+  SolverTraits traits;
+};
+
+/* traits */
+inline constexpr SolverTraits map{.discrete=true,.fixed_step=true,.wiener=true};
+inline constexpr SolverTraits steps{.fixed_step=true,.wiener=true};
+inline constexpr SolverTraits implicit_steps{.fixed_step=true,.newton=true,.wiener=true};
+inline constexpr SolverTraits integral_steps{.fixed_step=true,.newton=true,.integral_history=true,.wiener=true};
+inline constexpr SolverTraits paired_steps{.fixed_step=true,.paired_dimension=true,.wiener=true};
+/* Gear: its step between min_step and max_step; QualRK and Stiff stop at
+   min_step and have no bound above; CVODE and Rosenbrock read neither; the
+   Dormand-Prince pair bounds its steps by max_step */
+inline constexpr SolverTraits gear_steps{.relative_tolerance=true,.min_step=true,.max_step=true};
+inline constexpr SolverTraits adaptive_steps{.relative_tolerance=true,.min_step=true};
+inline constexpr SolverTraits stiff_steps{.relative_tolerance=true,.min_step=true,.stiff_step=true};
+inline constexpr SolverTraits rel_abs_eighth{.relative_tolerance=true,.absolute_tolerance=true,.max_step=true,.eighth_order=true,.dense_output=true};
+inline constexpr SolverTraits rel_abs{.relative_tolerance=true,.absolute_tolerance=true,.max_step=true,.dense_output=true};
+inline constexpr SolverTraits rel_abs_banded{.relative_tolerance=true,.absolute_tolerance=true,.banded=true};
+
+/* The table: every method, by number. */
+inline constexpr std::array<MethodInfo,method::COUNT> methods{{
+  {method::DISCRETE,"Discrete","Discrete","discrete",map},
+  {method::EULER,"Euler","Euler","euler",steps},
+  {method::MOD_EULER,"Mod. Euler","Mod. Euler","modified_euler",steps},
+  {method::RK4,"Runge-Kutta","Runge-Kutta","runge_kutta",steps},
+  {method::ADAMS,"Adams","Adams","adams",steps},
+  {method::GEAR,"Gear","Gear","gear",gear_steps},
+  {method::VOLTERRA,"Volterra","Volterra","volterra",integral_steps},
+  {method::BACKEUL,"Backward Euler","BackEul","backward_euler",implicit_steps},
+  {method::RKQS,"QualRK","Qual RK","qualrk",adaptive_steps},
+  {method::STIFF,"Stiff","Stiff","stiff",stiff_steps},
+  {method::CVODE,"CVode","CVode","cvode",rel_abs_banded},
+  {method::DP5,"DoPri5","DorPrin5","dopri5",rel_abs},
+  {method::DP83,"DoPri8(3)","DorPri8(3)","dopri8",rel_abs_eighth},
+  {method::RB23,"Rosenbrock","Rosenbrock","rosenbrock",rel_abs_banded},
+  {method::SYMPLECT,"Symplectic","Symplectic","symplectic",paired_steps},
+}};
+
+constexpr bool methods_in_order()
+{
+  for(int i=0;i<method::COUNT;i++)
+    if(methods[static_cast<std::size_t>(i)].id!=i)return false;
+  return true;
+}
+static_assert(methods_in_order(),"the methods' rows are in method order");
+
+/* a method's row: callers must supply a checked id */
+inline const MethodInfo &method_info(int m) { return methods[static_cast<std::size_t>(m)]; }
 /* the numerics' value types: the words of each are model_options.cpp's
    (poincare_map_names, section_sign_names), the number of a word its
    position there */

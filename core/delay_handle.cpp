@@ -14,7 +14,7 @@
 #include "getvar.h"
 #include "model.h"
 #include "model_place.h"
-#include "numerics_settings.h"
+#include "model_options.h"
 #include "model_numerics.h"
 #include "xpp_mem.h"
 #include "expr_program.h"

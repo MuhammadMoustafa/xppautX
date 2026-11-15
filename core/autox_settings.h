@@ -32,9 +32,6 @@ struct OptionRow; /* model_options.h */
 
 /* a Numerics field's key and shape are its row's in the option table (the continuation group, `autox_numeric` its index here): the one
    source, which the event, `set`, the files and the registry's autox.configure_numerics all read */
-/* the key of Numerics field i in the event, the command and the files
-   ("mesh_intervals", ...); NULL or empty out of range */
-const char *autox_settings_num_key(int i);
 /* the shape of field i: its row's kind (a boolean row, the choice, a whole number or a real) */
 AutoxFieldShape autox_settings_num_shape(int i);
 /* field i's value as the files and forms write it: the number, `true` or
@@ -93,10 +90,6 @@ void autox_settings_reload(Session &s, const AutoxSettingsSet &kept);
 /* view `view`'s axes alone (W50, AutoxState::views; it must be one), as the
    axes keys and `view`: applied, they give the view its axes back */
 AutoxSettingsSet autox_settings_view(const Session &s, int view);
-
-/* Check supplied numbers together, including ordering and signed step magnitude. */
-Result<> autox_settings_numbers_check(std::span<const double, AUTOX_NUM_N> num,
-                                    std::span<const int, AUTOX_NUM_N> supplied);
 
 /* check the set against the model and apply it all, or nothing: 0 when
    applied, -1 with why (a sentence naming the bad value) when not. Axes

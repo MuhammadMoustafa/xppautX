@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstddef>
 #include "xpp_error.h"
+#include "delay_state.h"
 
 namespace xpp {
 
@@ -31,21 +32,5 @@ double do_delay_shift(Session &s, double delay, double shift, double variable);
 /* the delay's initial data, from t0-big to t0, stored from the Delay ICs'
    formulas, or the error when one does not parse */
 Result<> do_init_delay(Session &s, double big);
-/* the delay equations' state (delay_handle.cpp, del_stab.cpp), a
-   Session's (session.h): the model has delays (flag); the stability
-   search's grid and bounds (grid, alpha_max, omega_max), whether the
-   Jacobian's delayed terms are being evaluated (stab_flag) and for which
-   delay (which), the delays found (ndelay of list) and the variables'
-   shifts they read */
-struct DelayState {
-  int flag = 0, grid = 1000, stab_flag = 0, which = 0, ndelay = 0;
-  double alpha_max = 2, omega_max = 2;
-  std::array<std::vector<double>, 2> variable_shift; /* one per variable (do_delay_sing sizes them) */
-  std::vector<double> list; /* the delays found: delay_stab_eval grows it */
-  /* the stored history, NODE values per row, `rows` rows (a ring,
-     `latest` its newest row) */
-  std::vector<double> work;
-  std::size_t latest = 0, rows = 0;
-};
 
 } // namespace xpp

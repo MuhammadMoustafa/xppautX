@@ -25,38 +25,6 @@ namespace xpp {
    ran out (SolverWork::Stop says where) */
 inline constexpr int NEWTON_SINGULAR = -1, NEWTON_NO_CONVERGENCE = -2;
 
-/* what a method is: how Integrate drives it, what the numerics menu asks */
-struct SolverTraits {
-  /* the time counts iterations of a map (dt is +-1) */
-  bool discrete = false;
-  /* advances a number of steps of dt; otherwise it chooses its own steps
-     on to an output time (its store_every is 1) */
-  bool fixed_step = false;
-  /* the settings its steps read, which the numerics menu asks and the
-     Numerics form shows (W381 questions 5 and 8): relative_tolerance,
-     absolute_tolerance, min_step, max_step */
-  bool relative_tolerance = false;
-  bool absolute_tolerance = false;
-  bool min_step = false;
-  bool max_step = false;
-  /* asks the Newton tolerance and iterations of its implicit step */
-  bool newton = false;
-  /* asks whether the system is banded */
-  bool banded = false;
-  /* keeps integral-equation history and asks its maximum stored points */
-  bool integral_history = false;
-  /* pairs coordinates and momenta, requiring an even dimension */
-  bool paired_dimension = false;
-  /* uses the eighth-order Dormand-Prince step rather than the fifth */
-  bool eighth_order = false;
-  /* retains an accepted-step interpolant across requested output times */
-  bool dense_output = false;
-  /* uses the stiff adaptive step rather than adaptive Runge-Kutta */
-  bool stiff_step = false;
-  /* draws Wiener noise once per step */
-  bool wiener = false;
-};
-
 /* one advance: from *t, either `steps` steps of `dt` (a fixed-step method)
    or on to `tout` from the step size guess *hguess, which it updates */
 struct SolverStep {
@@ -80,13 +48,8 @@ struct SolverStep {
 class Solver;
 struct Session; /* session.h */
 
-/* a row of the registry */
-struct SolverInfo {
-  method::Id id;
-  const char *name;      /* do_info's and the front end's */
-  const char *set_label; /* the label .set files write beside it */
-  const char *key;       /* the one word a .odex writes (docs/odex.md "Options") */
-  SolverTraits traits;
+/* a row of the registry: the method's row (model_numerics.h) and how its solver starts */
+struct SolverInfo : MethodInfo {
   /* the solver of the Session s, with its work memory for n equations */
   std::unique_ptr<Solver> (*start)(const SolverInfo &info, Session &s, int n);
 };
@@ -137,17 +100,6 @@ private:
 
 /* the registry, in method order */
 std::span<const SolverInfo> solvers();
-struct Model;
-/* The one place a method is chosen (W132): pick_method takes a name (a
-   method's name or set label, XPPAUT's one-letter @ meth key, a spelling
-   shipped models use), check_method a method's number (a menu, a .set);
-   both refuse what the model cannot run (Symplectic an odd dimension,
-   Volterra no kernels, kernels anything but Volterra) at place. */
-Result<method::Id> pick_method(const Model &model, std::string_view text, Place place);
-Result<method::Id> check_method(const Model &model, int id, Place place);
-/* the method whose key (the word our files and the protocol use: runge_kutta,
-   cvode, ...) is exactly key, refused as check_method refuses */
-Result<method::Id> method_by_key(const Model &model, std::string_view key, Place place);
 /* a method's row: callers must supply a checked id */
 const SolverInfo &solver_info(int method);
 

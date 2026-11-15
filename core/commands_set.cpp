@@ -1,10 +1,11 @@
 /* The set resource's registry rows (W526): apply one of the model's named sets, load values from another file by
    scope (W321), save the current values into the model file (a new set, a set's part, the defaults, another
    file), rename and delete a set, and restore the model's own values. Each handler gets its arguments validated and typed (command_def.h) and calls the same core
-   function the File menu's picks do (load_eqn.h, model_save.h): one behaviour, whichever front end asks. The
+   function the File menu's picks do (set_apply.h, model_save.h): one behaviour, whichever front end asks. The
    settings of a plot (scope plot, or all) are the graph `window` names, the active graph when it is left out; the
    values saved are the initial ones unless `state` says last. */
 #include "command_def.h"
+#include "set_apply.h"
 #include "command_graph.h"
 #include "model_options.h"
 #include "model_save.h"
@@ -31,7 +32,7 @@ namespace {
 constexpr const char *WINDOW_KEY = "window", *SCOPE_KEY = "scope", *STATE_KEY = "state", *NAME_KEY = "name", *FILE_KEY = "file", *FROM_KEY = "from";
 
 /* the scopes of a set, as the C strings a row's choices are: all, the parameters, the initial values, then the
-   option groups a set may hold (set_scopes, load_eqn.h, lists the same) */
+   option groups a set may hold (set_scopes, set_apply.h, lists the same) */
 constexpr std::array<const char *, 3 + set_groups.size()> scope_choices()
 {
     std::array<const char *, 3 + set_groups.size()> out{set_scope::all.data(), set_scope::parameters.data(), set_scope::initial.data()};

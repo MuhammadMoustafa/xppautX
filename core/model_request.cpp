@@ -1,5 +1,6 @@
 /* What a command asked to load, and what a Reload carries over: see model_request.h. */
 #include "model_request.h"
+#include "model_method.h"
 
 #include <utility>
 

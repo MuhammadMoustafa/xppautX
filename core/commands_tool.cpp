@@ -1,6 +1,7 @@
 /* The tool resource's registry rows (W528): the calculator, a comment of the model's source that has an action, and a
    button of the model (an `@ button`). Each calls what the File menu's item and the page's button call. */
 #include "command_def.h"
+#include "set_apply.h"
 #include "command_registry.h"
 #include "typed_values.h"
 #include "xpp_util.h"

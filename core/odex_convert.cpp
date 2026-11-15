@@ -16,7 +16,7 @@
 #include "form_ode.h"
 #include "ode_read.h"
 #include "model_declarations.h"
-#include "solver.h"
+#include "model_method.h"
 #include "load_eqn.h"
 #include "model_options.h"
 #include "model.h"
@@ -34,7 +34,6 @@
 #include "typed_values.h"
 #include "userbut.h"
 #include "xpp_ui.h"
-#include "browse.h"
 #include "session.h"
 #include "expr.h"
 #include "comline.h"
@@ -1734,7 +1733,7 @@ private:
   {
     const auto picked = xpp::pick_method(m_, value, place_);
     if (!picked) refuse(picked.error().what);
-    return xpp::solver_info(*picked).key;
+    return xpp::method_info(*picked).key;
   }
 
   /* ---- around the statements ---- */

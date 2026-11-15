@@ -31,7 +31,7 @@
 #include "xpp_ui.h"
 #include "model.h"
 #include "model_place.h"
-#include "numerics_settings.h"
+#include "model_options.h"
 #include "model_numerics.h"
 #include "xpp_math.h"
 
@@ -214,41 +214,24 @@ std::unique_ptr<Solver> start_rosenbrock(const SolverInfo &info, Session &s, int
   return std::make_unique<Rosenbrock>(info,s,n);
 }
 
-/* traits */
-constexpr SolverTraits map{.discrete=true,.fixed_step=true,.wiener=true};
-constexpr SolverTraits steps{.fixed_step=true,.wiener=true};
-constexpr SolverTraits implicit_steps{.fixed_step=true,.newton=true,.wiener=true};
-constexpr SolverTraits integral_steps{.fixed_step=true,.newton=true,.integral_history=true,.wiener=true};
-constexpr SolverTraits paired_steps{.fixed_step=true,.paired_dimension=true,.wiener=true};
-/* Gear: its step between min_step and max_step; QualRK and Stiff stop at
-   min_step and have no bound above; CVODE and Rosenbrock read neither; the
-   Dormand-Prince pair bounds its steps by max_step */
-constexpr SolverTraits gear_steps{.relative_tolerance=true,.min_step=true,.max_step=true};
-constexpr SolverTraits adaptive_steps{.relative_tolerance=true,.min_step=true};
-constexpr SolverTraits stiff_steps{.relative_tolerance=true,.min_step=true,.stiff_step=true};
-constexpr SolverTraits rel_abs_eighth{.relative_tolerance=true,.absolute_tolerance=true,.max_step=true,.eighth_order=true,.dense_output=true};
-constexpr SolverTraits rel_abs{.relative_tolerance=true,.absolute_tolerance=true,.max_step=true,.dense_output=true};
-constexpr SolverTraits rel_abs_banded{.relative_tolerance=true,.absolute_tolerance=true,.banded=true};
-
-/* The registry: every method, by number. An explicit table rather than
-   solvers that register themselves from static initializers, which a
-   --gc-sections link would drop without a word. */
+/* The registry: every method, by number: its row in model_numerics.h's table and how its solver starts. An explicit table rather
+   than solvers that register themselves from static initializers, which a --gc-sections link would drop without a word. */
 constexpr std::array<SolverInfo,method::COUNT> registry{{
-  {method::DISCRETE,"Discrete","Discrete","discrete",map,fixed_step<discrete,standard_work>},
-  {method::EULER,"Euler","Euler","euler",steps,fixed_step<euler,standard_work>},
-  {method::MOD_EULER,"Mod. Euler","Mod. Euler","modified_euler",steps,fixed_step<modified_euler_steps,standard_work>},
-  {method::RK4,"Runge-Kutta","Runge-Kutta","runge_kutta",steps,fixed_step<runge_kutta_fixed,standard_work>},
-  {method::ADAMS,"Adams","Adams","adams",steps,fixed_step<adams,standard_work>},
-  {method::GEAR,"Gear","Gear","gear",gear_steps,start_gear},
-  {method::VOLTERRA,"Volterra","Volterra","volterra",integral_steps,fixed_step<volterra,implicit_work>},
-  {method::BACKEUL,"Backward Euler","BackEul","backward_euler",implicit_steps,fixed_step<bak_euler,implicit_work>},
-  {method::RKQS,"QualRK","Qual RK","qualrk",adaptive_steps,start_adaptive<standard_work>},
-  {method::STIFF,"Stiff","Stiff","stiff",stiff_steps,start_adaptive<stiff_work>},
-  {method::CVODE,"CVode","CVode","cvode",rel_abs_banded,start_cvode},
-  {method::DP5,"DoPri5","DorPrin5","dopri5",rel_abs,start_dormand_prince},
-  {method::DP83,"DoPri8(3)","DorPri8(3)","dopri8",rel_abs_eighth,start_dormand_prince},
-  {method::RB23,"Rosenbrock","Rosenbrock","rosenbrock",rel_abs_banded,start_rosenbrock},
-  {method::SYMPLECT,"Symplectic","Symplectic","symplectic",paired_steps,fixed_step<symplectic_third_order,standard_work>},
+  {methods[method::DISCRETE],fixed_step<discrete,standard_work>},
+  {methods[method::EULER],fixed_step<euler,standard_work>},
+  {methods[method::MOD_EULER],fixed_step<modified_euler_steps,standard_work>},
+  {methods[method::RK4],fixed_step<runge_kutta_fixed,standard_work>},
+  {methods[method::ADAMS],fixed_step<adams,standard_work>},
+  {methods[method::GEAR],start_gear},
+  {methods[method::VOLTERRA],fixed_step<volterra,implicit_work>},
+  {methods[method::BACKEUL],fixed_step<bak_euler,implicit_work>},
+  {methods[method::RKQS],start_adaptive<standard_work>},
+  {methods[method::STIFF],start_adaptive<stiff_work>},
+  {methods[method::CVODE],start_cvode},
+  {methods[method::DP5],start_dormand_prince},
+  {methods[method::DP83],start_dormand_prince},
+  {methods[method::RB23],start_rosenbrock},
+  {methods[method::SYMPLECT],fixed_step<symplectic_third_order,standard_work>},
 }};
 
 constexpr bool in_method_order()
@@ -353,55 +336,6 @@ const SolverInfo &solver_info(int m)
 {
   assert(m>=0 && m<method::COUNT);
   return registry[m];
-}
-
-Result<method::Id> check_method(const Model &model, int id, Place place)
-{
-  if (id < 0 || id >= method::COUNT)
-    return fail("method", xpp::format("{} is not a method's number (0 to {})", id, method::COUNT - 1), std::move(place));
-  const SolverTraits &traits = registry[id].traits;
-  if (traits.integral_history && model.compiler.nkernel == 0)
-    return fail("method", "Volterra only for integral eqns", std::move(place));
-  if (traits.paired_dimension && model.node % 2 != 0)
-    return fail("method", "Symplectic is only for even dimensions", std::move(place));
-  if (model.compiler.nkernel > 0 && !traits.integral_history)
-    return fail("method", "a model with integral equations is integrated by Volterra", std::move(place));
-  const char *noise = model.nwiener > 0 ? "Wiener" : !model.ou.empty() ? "Ornstein-Uhlenbeck" : nullptr;
-  if (noise && !traits.wiener)
-    return fail("method", xpp::format("a model with {} noise requires a method that draws it each step", noise), std::move(place));
-  return static_cast<method::Id>(id);
-}
-
-Result<method::Id> method_by_key(const Model &model, std::string_view key, Place place)
-{
-  for (const SolverInfo &info : registry)
-    if (info.key == key) return check_method(model, info.id, std::move(place));
-  std::string keys;
-  for (const SolverInfo &info : registry) keys += (keys.empty() ? "" : ", ") + std::string(info.key);
-  return fail("method", xpp::format("`{}` is not a method ({})", key, keys), std::move(place));
-}
-
-Result<method::Id> pick_method(const Model &model, std::string_view text, Place place)
-{
-  /* XPPAUT's @ meth keys in registry order (load_eqn.c:1116). */
-  constexpr std::string_view keys = "demragvbqsc582y";
-  static_assert(keys.size() == registry.size());
-  const SolverInfo *chosen = nullptr;
-  const std::string name = lower_case(std::string(trim_blanks(text)));
-  for (const SolverInfo &info : registry)
-    if (equal_ignoring_case(name, info.name) || equal_ignoring_case(name, info.set_label) || name == info.key) chosen = &info;
-  if (!chosen && name.size() == 1) {
-    const auto i = keys.find(name[0]);
-    if (i != std::string_view::npos) chosen = &registry[i];
-  }
-  /* Spellings used by shipped models and the long descriptive names. */
-  if (name == "rk4") chosen = &registry[method::RK4];
-  if (name == "disc") chosen = &registry[method::DISCRETE];
-  if (name == "qualrk4") chosen = &registry[method::RKQS];
-  if (name == "modified euler") chosen = &registry[method::MOD_EULER];
-  if (name == "modeuler") chosen = &registry[method::MOD_EULER];
-  if (!chosen) return fail("method", xpp::format("Unknown method `{}`", text), std::move(place));
-  return check_method(model, chosen->id, std::move(place));
 }
 
 void start_solver(Session &s)

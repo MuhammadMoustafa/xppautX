@@ -4,6 +4,9 @@
    C++ only. */
 namespace xpp {
 struct Session; /* session.h */
+/* what a formula's network(x) and vector(x) give (ExprHost::network_value, vector_value): the network or vector `i` at index x */
+double network_value(Session &s, double x, int i);
+double vector_value(Session &s, double x, int i);
 }
 
 /* the extras (fixed quantities, Markov variables' values, auxiliaries)

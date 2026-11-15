@@ -12,7 +12,7 @@
 #include "integrate.h"
 #include "xpp_job.h"
 #include "model_place.h"
-#include "numerics_settings.h"
+#include "model_options.h"
 #include "model_numerics.h"
 
 #include <stdlib.h>

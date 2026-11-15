@@ -21,9 +21,6 @@ void set_default_params(Session &s, std::optional<int> only = std::nullopt);
 void set_default_ics(Session &s, std::optional<int> only = std::nullopt);
 void set_par_or_var(Session &s, std::string_view name, int type, int index, double val);
 void eq_import(Session &s, double *y, int n);
-/* a comment's action (the source's "# ... {action}"), run on s when it is
-   picked */
-Result<> do_txt_action(Session &s, std::string_view action);
 /* the name of plotted column ind: T (0), a model variable, or (W77) a
    data column data_add_col added; browse_column_name (browse.h) owns
    the naming, this is just its name for a plotted column */

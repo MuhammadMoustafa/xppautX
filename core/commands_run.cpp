@@ -5,6 +5,7 @@
    the core function the imported XPPAUT button sequences call too
    (integrate.h's run_from, run_range ...). */
 #include "graf_par.h"
+#include "model_method.h"
 #include "command_def.h"
 #include "command_range.h"
 #include "dae_fun.h"

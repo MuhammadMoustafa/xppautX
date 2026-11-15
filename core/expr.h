@@ -248,5 +248,12 @@ inline void stop_integration(ParserState &p, Error why)
 {
   if (!p.step_error) p.step_error = std::move(why);
 }
+/* the recorded reason (there must be one), cleared: the error the command shows (integrate.cpp's take_step_error also resets the DAE solve) */
+inline Error take_stop(ParserState &p)
+{
+  Error why = std::move(*p.step_error);
+  p.step_error.reset();
+  return why;
+}
 
 } // namespace xpp

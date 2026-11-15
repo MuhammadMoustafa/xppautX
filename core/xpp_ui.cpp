@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "typed_values.h"
 #include "typed_fields.h"
 #include "menus.h"
 #include <algorithm>
@@ -271,6 +270,98 @@ void command_error(std::string_view command, std::string_view what)
 {
     show_error(Error{std::string(command), std::string(what), command_place()});
 }
+/* ---- saving: a destination opened for a write (xpp_ui.h) ---- */
+
+bool save_ready(bool available)
+{
+ if(available)return true;
+ ui.save_result("",false);
+ command_error("save","Nothing to save");
+ return false;
+}
+
+namespace {
+
+/* the decisions before a save's destination is opened, shared by the Writer and the Sink: the destination's status, then
+   the replace question (ask: whether it is still to be had: a command's, a dialog's, or the user's answer); true to go on,
+   else the save was refused or declined and opened (when given) holds why */
+bool save_allowed(xpp::FileSystem &fs, std::string_view fil, bool ask, bool independent, const Place &at, Result<> *opened)
+{
+ if(opened)*opened={};
+ if(const Result<> status=fs.check_destination(fil,at);!status){
+   ui.save_result(fil,false);
+   if(opened)*opened=status; else show_error(status.error());
+   return false;
+ }
+ int answer=ask?ui.save_replace(independent):SAVE_REPLACE;
+ /* A native dialog or an explicit command already made the decision.
+    Otherwise only an existing destination needs confirmation. */
+ if(answer==SAVE_ASK){
+   const bool asked=fs.exists(fil);
+   answer=asked&&TwoChoice("Yes","No",xpp::format("{} exists. Replace it?",fil),"yn")!='y'
+          ?SAVE_DECLINE:SAVE_REPLACE;
+   ui.save_decision(answer,asked);
+ }
+ if(answer==SAVE_DECLINE){
+   ui.save_result(fil,false);
+   return false;
+ }
+ return true;
+}
+
+std::unique_ptr<xpp::Sink> open_sink(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened, bool ask, bool independent, const Place &at)
+{
+ if(!save_allowed(fs,fil,ask,independent,at,opened))return nullptr;
+ Result<std::unique_ptr<xpp::Sink>> sink=fs.open_sink(fil,binary,at);
+ if(!sink){
+   ui.save_result(fil,false);
+   if(opened)*opened=std::unexpected(std::move(sink.error()));
+   else show_error(sink.error());
+   return nullptr;
+ }
+ return std::move(*sink);
+}
+
+/* a finished save reported: its destination and whether it was committed; the error carries the destination */
+Result<> saved(std::string_view path, Result<> result)
+{
+ ui.save_result(path,result.has_value());
+ if(!result){
+   result.error().what=xpp::format("Cannot save {}: {}",path,result.error().what);
+   result.error().place=command_place();
+ }
+ return result;
+}
+
+} // namespace
+
+std::unique_ptr<xpp::Sink> open_sink_asking(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened, bool independent, const Place &at)
+{
+ return open_sink(fs,fil,binary,opened,true,independent,at);
+}
+
+std::unique_ptr<xpp::Sink> open_sink_replacing(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened)
+{
+ return open_sink(fs,fil,binary,opened,false,false,{});
+}
+
+Result<> commit_save(xpp::Sink &sink)
+{
+ return saved(sink.path(),sink.commit());
+}
+
+void abort_save(xpp::Sink &sink)
+{
+ sink.abort();
+ ui.save_result(sink.path(),false);
+}
+
+int file_replace_choice(bool open_existing)
+{
+ return TwoChoice(open_existing?"Replace":"Yes",open_existing?"Open existing .odex":"No",
+                  "File Exists! Overwrite?","yn");
+}
+
 void ping(void) { ui.ping(); }
 void bottom_msg(int line, std::string_view msg, std::string_view chapter, std::string_view anchor) { ui.bottom_msg(line, msg, chapter, anchor); }
 static int question_string(std::string_view name, std::string &value, int kind)

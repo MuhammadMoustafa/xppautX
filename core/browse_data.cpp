@@ -21,6 +21,8 @@
 #include "json_number.h"
 #include "expr.h"
 #include "browse.h"
+#include "expr_tables.h"
+#include "model_place.h"
 #include "xpp_ui.h"
 #include "integrate.h"
 #include <cctype>
@@ -72,15 +74,7 @@ void waitasec(int msec)
 
 std::string browse_column_name(const xpp::Session &s, int j)
 {
-  if(j==0)return "T";
-  const xpp::Model &m=s.model();
-  if(j>0&&j<=m.neq)return m.uvar_names[j-1];
-  const std::vector<AddedColumn> &added=s.data->added_columns;
-  if(j>m.neq){
-    const std::size_t k=static_cast<std::size_t>(j-m.neq-1);
-    if(k<added.size())return added[k].name;
-  }
-  return "";
+  return data_column_name(s.model(),s.data->added_columns,j);
 }
 
 namespace {
@@ -165,24 +159,8 @@ int put_stored_data(xpp::Session &s, const xpp::DataTable &t)
 
 void find_variable(const xpp::Session &s, std::string_view name, int *col)
 {
- *col=-1;
-  if(xpp::equal_ignoring_case("T",name)){
-   *col=0;
-    return;
-   }
-  *col=xpp::find_user_name(s.model(),2,name);
-  if(*col>-1){
-    *col=*col+1;
-    return;
-  }
-  const std::vector<AddedColumn> &added=s.data->added_columns;
-  for(std::size_t k=0;k<added.size();k++){
-    if(xpp::equal_ignoring_case(added[k].name,name)){
-      *col=s.model().neq+1+static_cast<int>(k);
-      return;
-    }
-  }
- }
+  *col=data_column(s.model(),s.data->added_columns,name);
+}
 
 void  refresh_data(xpp::Session &s, int length)
 {
@@ -203,6 +181,19 @@ void  refresh_data(xpp::Session &s, int length)
    s.data->view.maxcol=m.neq+1+static_cast<int>(s.data->added_columns.size());
  }
  ui.data_changed(length);
+}
+
+Result<int> view_table(xpp::Session &s, int index)
+{
+  const TABULAR &table=s.tables[index];
+  if(table.flag==0)return fail("table",xpp::format("{} is not defined yet: it has no values to show",table.name),xpp::model_place(s.model(),table.name));
+  if(const xpp::Result<> room=s.data_store->fit(s.model().neq+1,table.n+1);!room)return std::unexpected(room.error());
+  for(int i=0;i<table.n;i++){
+    s.data_store->col[0][i]=table.xlo+i*table.dx;
+    s.data_store->col[1][i]=table.y[i];
+  }
+  refresh_data(s,table.n);
+  return table.n;
 }
 
 void reset_data(xpp::Session &s)
@@ -231,96 +222,6 @@ std::unique_ptr<xpp::Sink> ask_output_sink(const Session &s, std::string_view ti
  std::string file=xpp::files::output_name(s.model().this_file,ext,what);
  if(!file_selector(title,file,xpp::format("*{}",ext)))return nullptr;
  return open_sink_asking(*s.model().fs,file,binary);
-}
-
-bool save_ready(bool available)
-{
- if(available)return true;
- ui.save_result("",false);
- command_error("save","Nothing to save");
- return false;
-}
-
-namespace {
-
-/* the decisions before a save's destination is opened, shared by the Writer and the Sink: the destination's status, then
-   the replace question (ask: whether it is still to be had: a command's, a dialog's, or the user's answer); true to go on,
-   else the save was refused or declined and opened (when given) holds why */
-bool save_allowed(xpp::FileSystem &fs, std::string_view fil, bool ask, bool independent, const Place &at, Result<> *opened)
-{
- if(opened)*opened={};
- if(const Result<> status=fs.check_destination(fil,at);!status){
-   ui.save_result(fil,false);
-   if(opened)*opened=status; else show_error(status.error());
-   return false;
- }
- int answer=ask?ui.save_replace(independent):SAVE_REPLACE;
- /* A native dialog or an explicit command already made the decision.
-    Otherwise only an existing destination needs confirmation. */
- if(answer==SAVE_ASK){
-   const bool asked=fs.exists(fil);
-   answer=asked&&TwoChoice("Yes","No",xpp::format("{} exists. Replace it?",fil),"yn")!='y'
-          ?SAVE_DECLINE:SAVE_REPLACE;
-   ui.save_decision(answer,asked);
- }
- if(answer==SAVE_DECLINE){
-   ui.save_result(fil,false);
-   return false;
- }
- return true;
-}
-
-std::unique_ptr<xpp::Sink> open_sink(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened, bool ask, bool independent, const Place &at)
-{
- if(!save_allowed(fs,fil,ask,independent,at,opened))return nullptr;
- Result<std::unique_ptr<xpp::Sink>> sink=fs.open_sink(fil,binary,at);
- if(!sink){
-   ui.save_result(fil,false);
-   if(opened)*opened=std::unexpected(std::move(sink.error()));
-   else show_error(sink.error());
-   return nullptr;
- }
- return std::move(*sink);
-}
-
-/* a finished save reported: its destination and whether it was committed; the error carries the destination */
-Result<> saved(std::string_view path, Result<> result)
-{
- ui.save_result(path,result.has_value());
- if(!result){
-   result.error().what=xpp::format("Cannot save {}: {}",path,result.error().what);
-   result.error().place=command_place();
- }
- return result;
-}
-
-} // namespace
-
-std::unique_ptr<xpp::Sink> open_sink_asking(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened, bool independent, const Place &at)
-{
- return open_sink(fs,fil,binary,opened,true,independent,at);
-}
-
-std::unique_ptr<xpp::Sink> open_sink_replacing(xpp::FileSystem &fs, std::string_view fil, bool binary, Result<> *opened)
-{
- return open_sink(fs,fil,binary,opened,false,false,{});
-}
-
-Result<> commit_save(xpp::Sink &sink)
-{
- return saved(sink.path(),sink.commit());
-}
-
-void abort_save(xpp::Sink &sink)
-{
- sink.abort();
- ui.save_result(sink.path(),false);
-}
-
-int file_replace_choice(bool open_existing)
-{
- return TwoChoice(open_existing?"Replace":"Yes",open_existing?"Open existing .odex":"No",
-                  "File Exists! Overwrite?","yn");
 }
 
 void  wipe_rep(DataState &b)

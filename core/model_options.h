@@ -15,6 +15,7 @@
 #include <type_traits>
 #include <span>
 #include <optional>
+#include <initializer_list>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -23,6 +24,7 @@
 namespace xpp {
 
 struct Session; /* session.h */
+struct Place; /* xpp_error.h */
 struct Model;   /* model.h */
 
 struct OptionRow;
@@ -186,6 +188,14 @@ inline constexpr std::size_t OPTION_HELP_MOST = 120;
 /* One option. Its name (option_name) matches as a prefix of the name given, ignoring case,
    the longest winning (so "integration.method" and "integration.methodx" are one, and
    "integration.dt" is not "integration.dtminimum"); a numbered one (xp2..xp8) is its name and one digit. */
+/* what a change of a numerics setting asks of the run, after its member is written */
+enum class OptionEffect {
+  none,
+  step_size,         /* a new Dt: the delays' and the integrals' memory again */
+  delay,             /* a new maximal delay: the delays' storage again */
+  storage_precision, /* a new precision: the stored columns converted */
+};
+
 struct OptionRow {
   /* the .odex options block's group and the kind of value it takes ("" and
      number for a row that is no .odex option); first, so a row names them
@@ -281,8 +291,9 @@ struct OptionRow {
   /* a session file holds it only when it has a value (an empty string is no option value): its key may be missing there, meaning none */
   bool optional = false;
   /* what a change of the numerics setting needs, after its member is
-     written (the dt's steps, the delay's storage, the BVP's arrays) */
-  void (*applied)(Session &) = nullptr;
+     written (the dt's steps, the delay's storage, the stored rows' precision): named here, done by apply_option_effect (session.h),
+     since what it does is the integrators' and the Session's */
+  OptionEffect effect = OptionEffect::none;
   /* a setting of the session or the window as a whole, not one graph's or one
      run's own configuration: a set never holds it (sets-design.md section 2) */
   bool wide = false;
@@ -432,6 +443,24 @@ std::string foreign_path_option(const OptionRow &row, std::string_view model_fil
 std::optional<std::string> option_problem(Session &s, std::string_view name, std::string_view value, bool xppaut_names);
 
 /* each option no source set gets its default, in the table's order */
+/* ---- the settings a session holds (session_settings.h) ----
+   The option table's rows marked `saved`, in the table's order; each is read and written as text under its
+   group and .odex key. A repeatable row's text is its items, one a line. */
+std::vector<const OptionRow *> saved_settings();
+/* the saved row whose name (option_name) is name, nullptr when none is */
+const OptionRow *saved_setting(std::string_view name);
+/* s's value of row as text: a number, the method's or a choice's word, a
+   variable's name, a name */
+std::string setting_text(const Session &s, const OptionRow &row);
+/* the saved settings keys with s's values, for a message that names what
+   caused it (W480): "min_step = 1e-12, relative_tolerance = 0.001" */
+std::string named_settings(const Session &s, std::initializer_list<std::string_view> keys);
+/* where an error about settings is: the line the model sets the first of them on, else the
+   command that ran the computation */
+Place settings_place(const Model &m, std::initializer_list<std::string_view> settings);
+/* row f's value as a number (a real or whole row's, a boolean's 0 or 1) and as the number of its word (a choice row's, a boolean's 0 or 1) */
+double row_number(const Session &s, const OptionRow &f);
+int row_index(const Session &s, const OptionRow &f);
 void set_option_defaults(Session &s);
 
 /* XPPAUT's negative Total, read on import only: the run's length |Total|

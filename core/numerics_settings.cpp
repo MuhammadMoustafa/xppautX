@@ -17,6 +17,7 @@
 #include <new>
 
 #include "event_registry.h"
+#include "model_method.h"
 #include "model_failed.h"
 #include "numerics_settings.h"
 #include "model_numerics.h"
@@ -68,17 +69,7 @@ bool used(const xpp::Session &s, const OptionRow &f) { return uses(s, f, s.numer
 /* whether field f is one of s's model's: the delay of a model with no delays is not */
 bool of_the_model(const xpp::Session &s, const OptionRow &f) { return xpp::has_feature(s.model(), s.tables, f.needs); }
 
-double value_of(const xpp::Session &s, const OptionRow &f)
-{
-    return f.real ? f.real(s) : f.whole(s);
-}
 
-/* the number of choice row f's word now (a boolean's false is 0, true 1) */
-int index_of(const xpp::Session &s, const OptionRow &f)
-{
-    if (f.boolean) return f.boolean(s) ? 1 : 0;
-    return f.index ? f.index.read(s) : f.whole(s);
-}
 
 /* the checked word number i put in choice row f's member */
 void write_index(xpp::Session &s, const OptionRow &f, int i)
@@ -104,9 +95,9 @@ void append_value(std::string &o, const xpp::Session &s, const OptionRow &f)
         o += f.boolean(s) ? "true" : "false";
     } else if (f.rule == OptionRule::method || f.rule == OptionRule::choice) {
         const std::vector<std::string> words = option_choices(f);
-        xpp::json_append_string(o, words[static_cast<std::size_t>(index_of(s, f))]);
+        xpp::json_append_string(o, words[static_cast<std::size_t>(row_index(s, f))]);
     } else {
-        const double v = value_of(s, f);
+        const double v = row_number(s, f);
         o += xpp::json::json_finite(v) ? xpp::number(v) : std::string("null");
     }
 }
@@ -276,7 +267,7 @@ int numerics_settings_set_all(Session &s, std::span<const NumericsValue> values,
         if (check_values(s, values, checked, why, place) != 0) return -1;
         for (const auto &c : checked) write_field(s, *c.field, c.value);
         for (const auto &c : checked)
-            if (c.field->applied) c.field->applied(s);
+            apply_option_effect(s, c.field->effect);
         do_meth(s);
         return 0;
     } catch (const std::bad_alloc &) {
@@ -297,20 +288,7 @@ std::string numerics_settings_json_value(const xpp::Session &s, std::string_view
     return text;
 }
 
-std::vector<const OptionRow *> saved_settings()
-{
-    std::vector<const OptionRow *> rows;
-    for (const OptionRow &r : option_rows())
-        if (r.saved) rows.push_back(&r);
-    return rows;
-}
 
-const OptionRow *saved_setting(std::string_view name)
-{
-    for (const OptionRow &r : option_rows())
-        if (r.saved && option_name(r) == name) return &r;
-    return nullptr;
-}
 
 bool setting_applies(const xpp::Session &s, const OptionRow &row, int method)
 {
@@ -321,32 +299,8 @@ bool setting_applies(const xpp::Session &s, const OptionRow &row, int method)
     return held && uses(s, row, method);
 }
 
-std::string setting_text(const xpp::Session &s, const OptionRow &row)
-{
-    if (row.kind == OptionKind::choice) return option_choices(row)[static_cast<std::size_t>(index_of(s, row))];
-    if (row.kind == OptionKind::name && row.whole) return xpp::ind_to_sym(s, row.whole(s));
-    if (row.text) return row.text(s);
-    if (row.show) return row.show(s);
-    return xpp::number(value_of(s, row));
-}
 
-std::string named_settings(const xpp::Session &s, std::initializer_list<std::string_view> names)
-{
-    std::string text;
-    for (const std::string_view name : names) {
-        const OptionRow *row = saved_setting(name);
-        assert(row != nullptr);
-        text += xpp::format("{}{} = {}", text.empty() ? "" : ", ", name, setting_text(s, *row));
-    }
-    return text;
-}
 
-Place settings_place(const Model &m, std::initializer_list<std::string_view> settings)
-{
-    for (const std::string_view name : settings)
-        if (Place place = model_place(m, name); place.line > 0) return place;
-    return command_place();
-}
 
 /* whether row is checked and written as an @ line is: it has no numerics key, or a model is loading (the exact
    Jacobian is checked once the model is compiled: the option's parser defers it, as the @ line does) */

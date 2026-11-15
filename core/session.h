@@ -315,11 +315,14 @@ private:
 /* s's state vector, zeroed, for its Model's ODEs and Markov variables */
 void init_alloc_info(Session &s);
 
-/* s's stored data converted to numerics.storage_precision (the setting's `applied`): the data store's columns, and every
+/* s's stored data converted to numerics.storage_precision (the setting's effect): the data store's columns, and every
    derived data set made from it (a histogram, the Fourier modes, the adjoint, the transposed data, the stochastic
    statistics), in place and with no question, so what the data table shows stays what it was. A failure for want of
    memory is shown and the setting goes back to what the store holds. */
 void storage_precision_changed(Session &s);
+/* what a change of a numerics setting asks of the run (the row's OptionEffect, model_options.h): the delays' and the integrals' memory
+   again for a new Dt, the delays' storage for a new maximal delay, the stored data converted for a new precision */
+void apply_option_effect(Session &s, OptionEffect effect);
 
 /* The session list, the only global that holds a Session (AGENTS.md "No
    global state"): one Session per client. The process serves one client

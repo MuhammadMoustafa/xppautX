@@ -43,26 +43,6 @@ namespace {
 
 constexpr int PARAM_BOX = 1; /* find_user_name's parameters */
 
-/* the values that must be in order: lo below hi (strict) or at most hi */
-struct NumPair {
-    int lo, hi;
-    bool strict;
-};
-constexpr NumPair num_pairs[] = {
-    {AUTOX_NUM_MIN_STEP_SIZE, AUTOX_NUM_MAX_STEP_SIZE, false}, {AUTOX_NUM_PARAMETER_MIN, AUTOX_NUM_PARAMETER_MAX, true},
-    {AUTOX_NUM_NORM_MIN, AUTOX_NUM_NORM_MAX, true}};
-/* the first step within the step sizes autoX may take (T23), whichever its sign */
-std::string step_rule()
-{
-    return xpp::format("The size of {} must be from {} to {} (its sign is the direction)", name_label(autox_num_field(AUTOX_NUM_STEP_SIZE).key),
-                       name_label(autox_num_field(AUTOX_NUM_MIN_STEP_SIZE).key), name_label(autox_num_field(AUTOX_NUM_MAX_STEP_SIZE).key));
-}
-
-std::string pair_message(const NumPair &p)
-{
-    return xpp::format("{} must be {} {}", name_label(autox_num_field(p.lo).key), p.strict ? "below" : "at most", name_label(autox_num_field(p.hi).key));
-}
-
 /* ---- the settings now ---- */
 
 void read_num(const xpp::Session &s, double v[AUTOX_NUM_N])
@@ -241,20 +221,12 @@ struct Checked {
     std::vector<UserMark> marks;
 };
 
-/* a value of the set that is wrong: what, and its key ("ntst", "var",
-   "mark2", ...; "" for the whole set) as the Error's field; at the
-   command's place (a file of settings gives its own line instead) */
-Error refused(std::string what, std::string key = {})
-{
-    return Error{"autox set", std::move(what), command_place(), std::move(key)};
-}
-
 /* set checked against s, as it will be when views views of the diagram
    are there (-1: the views s has) */
 Result<Checked> check(const xpp::Session &s, const AutoxSettingsSet *set, int views)
 {
     Checked c;
-    if (!have_settings(s)) return std::unexpected(refused("autoX needs a model with variables"));
+    if (!have_settings(s)) return std::unexpected(autox_refused("autoX needs a model with variables"));
     /* Numerics: each value given, then the pairs that must be in order */
     double *num = c.num;
     read_num(s, num);
@@ -270,7 +242,7 @@ Result<Checked> check(const xpp::Session &s, const AutoxSettingsSet *set, int vi
     const int view = set->view < 0 ? s.autox_state->active_view : set->view;
     c.view = view;
     if (view >= (views < 0 ? static_cast<int>(s.autox_state->views.size()) : views)) {
-        return std::unexpected(refused(xpp::format("there is no view {}", view), "view"));
+        return std::unexpected(autox_refused(xpp::format("there is no view {}", view), "view"));
     }
     /* a view not there yet (views) starts from the active one's axes */
     const AUTOAX &now = static_cast<std::size_t>(view) < s.autox_state->views.size() ? s.autox_state->views[static_cast<std::size_t>(view)].axes
@@ -291,7 +263,7 @@ Result<Checked> check(const xpp::Session &s, const AutoxSettingsSet *set, int vi
         int col;
         find_variable(s,set->var.c_str(), &col);
         if (col < 1 || col > s.model().node) {
-            return std::unexpected(refused(xpp::format("{} is not a variable autoX computes", set->var), "var"));
+            return std::unexpected(autox_refused(xpp::format("{} is not a variable autoX computes", set->var), "var"));
         }
         var = col - 1;
     }
@@ -300,7 +272,7 @@ Result<Checked> check(const xpp::Session &s, const AutoxSettingsSet *set, int vi
         if (!a.name[0]) continue;
         int k = xpp::find_user_name(s.model(), PARAM_BOX, a.name);
         if (k < 0) {
-            return std::unexpected(refused(xpp::format("{} is not a model parameter", a.name), a.key));
+            return std::unexpected(autox_refused(xpp::format("{} is not a model parameter", a.name), a.key));
         }
         *a.icp = k;
     }
@@ -309,13 +281,13 @@ Result<Checked> check(const xpp::Session &s, const AutoxSettingsSet *set, int vi
     for (int i = 0; i < 4; i++) {
         if (!set->has_range[i]) continue;
         if (!std::isfinite(set->range[i])) {
-            return std::unexpected(refused(xpp::format("{} must be a number", range_names[i]), range_keys[i]));
+            return std::unexpected(autox_refused(xpp::format("{} must be a number", range_names[i]), range_keys[i]));
         }
         range[i] = set->range[i];
     }
     for (int i = 0; i < 4; i += 2) {
         if ((set->has_range[i] || set->has_range[i + 1]) && !(range[i] < range[i + 1])) {
-            return std::unexpected(refused(xpp::format("{} must be below {}", range_names[i], range_names[i + 1]), range_keys[i + 1]));
+            return std::unexpected(autox_refused(xpp::format("{} must be below {}", range_names[i], range_names[i + 1]), range_keys[i + 1]));
         }
     }
 
@@ -323,16 +295,16 @@ Result<Checked> check(const xpp::Session &s, const AutoxSettingsSet *set, int vi
     if (set->nmarks && (*set->nmarks < 0 || *set->nmarks > autox_file_marks_limit ||
         (set->mark_name.size() != static_cast<std::size_t>(*set->nmarks) ||
          set->mark_value.size() != static_cast<std::size_t>(*set->nmarks)))) {
-        return std::unexpected(refused("Mark values: count does not match the list", "mark"));
+        return std::unexpected(autox_refused("Mark values: count does not match the list", "mark"));
     }
     for (int i = 0; i < set->nmarks.value_or(0); i++) {
         const bool period = strcasecmp(set->mark_name[i].c_str(), "T") == 0;
         const int parameter = period ? xpp::autox_unknown::period : xpp::find_user_name(s.model(), PARAM_BOX, set->mark_name[i]);
         if (parameter < 0) {
-            return std::unexpected(refused(xpp::format("Mark values: {} is not a model parameter or T", set->mark_name[i]), xpp::format("mark{}", i)));
+            return std::unexpected(autox_refused(xpp::format("Mark values: {} is not a model parameter or T", set->mark_name[i]), xpp::format("mark{}", i)));
         }
         if (!std::isfinite(set->mark_value[i])) {
-            return std::unexpected(refused(xpp::format("Mark values: the value of {} must be a number", set->mark_name[i]), xpp::format("mark{}", i)));
+            return std::unexpected(autox_refused(xpp::format("Mark values: the value of {} must be a number", set->mark_name[i]), xpp::format("mark{}", i)));
         }
         c.marks.push_back({parameter, period, set->mark_value[i]});
     }
@@ -387,7 +359,6 @@ bool apply(xpp::Session &s, const AutoxSettingsSet *set, std::string &why)
 /* the event, none for a model with no settings */
 std::string autox_settings_event_line(const xpp::Session &s) { return have_settings(s) ? event_text(s) : std::string(); }
 
-const char *autox_settings_num_key(int i) { return i >= 0 && i < AUTOX_NUM_N ? autox_num_field(i).key : nullptr; }
 
 AutoxFieldShape autox_settings_num_shape(int i) { return autox_num_field(i).shape; }
 
@@ -411,18 +382,18 @@ Result<double> autox_settings_num_parse(int i, std::string_view text)
     switch (f.shape) {
     case AutoxFieldShape::boolean: {
         bool enabled;
-        if (!xpp::parse_bool(text, enabled)) return std::unexpected(refused(autox_num_rule_message(f), f.key));
+        if (!xpp::parse_bool(text, enabled)) return std::unexpected(autox_refused(autox_num_rule_message(f), f.key));
         return enabled ? 1.0 : 0.0;
     }
     case AutoxFieldShape::choice: {
         const auto names = autox_num_choices(i);
         const auto at = std::find_if(names.begin(), names.end(), [&](const char *name) { return text == name; });
-        if (at == names.end()) return std::unexpected(refused(xpp::format("{}, not \"{}\"", autox_num_rule_message(f), text), f.key));
+        if (at == names.end()) return std::unexpected(autox_refused(xpp::format("{}, not \"{}\"", autox_num_rule_message(f), text), f.key));
         return static_cast<double>(at - names.begin());
     }
     case AutoxFieldShape::whole:
     case AutoxFieldShape::real:
-        if (!xpp::parse_number(text, v) || !std::isfinite(v)) return std::unexpected(refused(xpp::format("{} must be {}", name_label(f.key), autox_num_is_whole(f) ? "a whole number" : "a number"), f.key));
+        if (!xpp::parse_number(text, v) || !std::isfinite(v)) return std::unexpected(autox_refused(xpp::format("{} must be {}", name_label(f.key), autox_num_is_whole(f) ? "a whole number" : "a number"), f.key));
         return v;
     }
     return v;
@@ -483,25 +454,6 @@ AutoxSettingsSet autox_settings_view(const xpp::Session &s, int view)
     } catch (...) {
         xpp::out_of_memory("reading autoX's settings");
     }
-}
-
-Result<> autox_settings_numbers_check(std::span<const double, AUTOX_NUM_N> num,
-                                    std::span<const int, AUTOX_NUM_N> supplied)
-{
-    for (int i = 0; i < AUTOX_NUM_N; ++i) {
-        std::string why;
-        if (supplied[i] && !autox_num_ok(i, num[i], why)) return std::unexpected(refused(why, autox_num_field(i).key));
-    }
-    for (const NumPair &p : num_pairs) {
-        if (!supplied[p.lo] && !supplied[p.hi]) continue;
-        if (p.strict ? num[p.lo] < num[p.hi] : num[p.lo] <= num[p.hi]) continue;
-        return std::unexpected(refused(xpp::format("{} ({}={}, {}={})", pair_message(p), autox_num_field(p.lo).key, num[p.lo], autox_num_field(p.hi).key, num[p.hi]), autox_num_field(supplied[p.hi] ? p.hi : p.lo).key));
-    }
-    if ((supplied[AUTOX_NUM_STEP_SIZE] || supplied[AUTOX_NUM_MIN_STEP_SIZE] || supplied[AUTOX_NUM_MAX_STEP_SIZE])
-        && !(std::fabs(num[AUTOX_NUM_STEP_SIZE]) >= num[AUTOX_NUM_MIN_STEP_SIZE] && std::fabs(num[AUTOX_NUM_STEP_SIZE]) <= num[AUTOX_NUM_MAX_STEP_SIZE])) {
-        return std::unexpected(refused(xpp::format("{} ({}={}, {}={}, {}={})", step_rule(), autox_num_field(AUTOX_NUM_STEP_SIZE).key, num[AUTOX_NUM_STEP_SIZE], autox_num_field(AUTOX_NUM_MIN_STEP_SIZE).key, num[AUTOX_NUM_MIN_STEP_SIZE], autox_num_field(AUTOX_NUM_MAX_STEP_SIZE).key, num[AUTOX_NUM_MAX_STEP_SIZE]), autox_num_field(supplied[AUTOX_NUM_STEP_SIZE] ? AUTOX_NUM_STEP_SIZE : supplied[AUTOX_NUM_MIN_STEP_SIZE] ? AUTOX_NUM_MIN_STEP_SIZE : AUTOX_NUM_MAX_STEP_SIZE).key));
-    }
-    return {};
 }
 
 Result<> autox_settings_check(const xpp::Session &s, const AutoxSettingsSet &set, int views)

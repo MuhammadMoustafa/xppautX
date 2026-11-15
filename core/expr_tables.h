@@ -4,6 +4,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <cstddef>
 
 namespace xpp {
 
@@ -23,6 +24,8 @@ struct TABULAR {
   std::string name;
 };
 
+/* table t's values, nullptr for none (-1): what a network keeps pointers into */
+inline double *table_values(std::vector<TABULAR> &tables, int t) { return t < 0 ? nullptr : tables[static_cast<std::size_t>(t)].y; }
 /* the table's value at x (the evaluator's TABTYPE) */
 double lookup(const TABULAR &table, double x);
 /* the slope of that table's interpolation at x: the derivative of lookup

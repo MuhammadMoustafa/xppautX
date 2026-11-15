@@ -52,19 +52,20 @@ MODULES = {
         'xpp_ui', 'mykeydef', 'menus', 'typed_fields', 'event_*', 'json_error', 'xpp_globals']),
     'expressions': ('the formula compiler, its evaluators, the lookup tables they read (expr_tables) and the symbolic graph of values (expr_derivative), derived quantities, and the tables of names the compiler reads and writes of a model (expr_compiler: W743); what a formula calls that a run owns (delays, kernels, networks) is an ExprHost the Session fills (W743) (the builders of a Model, form_ode and tabular, are model and loading\'s: W736)', [
         'expr', 'expr_*', 'xpp_mir', 'getvar', 'derived']),
-    'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets, among them the plot settings the model carries (W733), the buttons of a model (userbut: read and written as its options, the name of a command checked through command_known, which the commands define), the state data of the animation (ani_state, W737: the options, window, commands and grabs a Session holds of the animation, split from aniparse), and the command line a load takes (comline: the switches read once, a Model keeps them), the translation of a Model\'s programs to native code and to their exact Jacobian (model_native, model_derivatives: they read the whole Model, programs, algebraic and Markov parts, flags and options, and writes its native build, and model_options and the .odex converter call them, W743), the builders of a Model from what it reads (form_ode: the .ode lines, tabular: the lookup tables, model_markov and model_flags: the Markov variables and flags a load declares, W736) and the reading of a value a user typed as a formula (typed_values)', [
+    'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets, among them the plot settings the model carries (W733), the buttons of a model (userbut: read and written as its options, the name of a command checked through command_known, which the commands define), the state data of the animation (ani_state, W737: the options, window, commands and grabs a Session holds of the animation, split from aniparse), and the command line a load takes (comline: the switches read once, a Model keeps them), the translation of a Model\'s programs to native code and to their exact Jacobian (model_native, model_derivatives: they read the whole Model, programs, algebraic and Markov parts, flags and options, and writes its native build, and model_options and the .odex converter call them, W743), the builders of a Model from what it reads (form_ode: the .ode lines, tabular: the lookup tables, model_markov and model_flags: the Markov variables and flags a load declares, W736) and the reading of a value a user typed as a formula (typed_values), and the state structs a Session holds of the integrator, the delays, the histogram, the adjoint and the data table (integrator_state, delay_state, histogram_state, adjoint_state, data_state: plain data, which the option table\'s rows read and write, the algorithms of their modules working on them; W744 split them from integrate.h, delay_handle.h, histogram.h, adj2.h and browse.h, W757 gives the rows only their parts)', [
         'model', 'model_*', 'load_eqn', 'odex', 'odex_*', 'ode_read', 'newpars',
-        'simplenet', 'options_panels', 'ani_state', 'userbut', 'plot_settings', 'comline', 'form_ode', 'tabular', 'typed_values']),
-    'session': ('the Session, its stored data, display state and undo, and what a command asked to load and what a Reload carries over (model_request, W737: data the Session holds and the model switch carries out)', [
-        'session', 'session_values', 'model_request', 'display_state', 'value_undo']),
-    'session files': ('the session file, recordings and the settings they carry, and the XPPAUT .set file read into the same settings and applied to the Session (lunch-new, set_load: W737 moved them here, they take a Session and are called by the commands and the start)', [
-        'recx', 'snapx', 'xpp_session', 'xpp_session_*', 'session_settings', 'lunch-new', 'set_load']),
+        'simplenet', 'options_panels', 'ani_state', 'userbut', 'plot_settings', 'comline', 'form_ode', 'tabular', 'typed_values',
+        'integrator_state', 'delay_state', 'histogram_state', 'adjoint_state', 'data_state']),
+    'session': ('the Session, its stored data, display state and undo, and what a command asked to load and what a Reload carries over (model_request, W737: data the Session holds and the model switch carries out), and the Session\'s numerics as data: the numerics event, the checks and writes of a numerics setting and the effect it asks of the run (numerics_settings: it reads and writes the Session only; W744 moved it here from the integrators, whose own code never calls it)', [
+        'session', 'session_values', 'model_request', 'display_state', 'value_undo', 'numerics_settings']),
+    'session files': ('the session file, recordings and the settings they carry, and the XPPAUT .set file read into the same settings and applied to the Session (lunch-new, set_load: W737 moved them here, they take a Session and are called by the commands and the start), the model\'s sets and the settings applied to the Session as patches (set_apply: Apply set, Restore defaults, the values a save captures) and Save model (model_save: it writes the Session\'s current values into the model\'s file); W744 moved them here from model and loading, which reads and builds a Model and applies nothing to a run', [
+        'recx', 'snapx', 'xpp_session', 'xpp_session_*', 'session_settings', 'lunch-new', 'set_load', 'set_apply', 'model_save']),
     'commands': ('the command registry, its commands, keys and a model\'s buttons', [
         'command_*', 'commands_*', 'command', 'xpp_keymap']),
-    'integrators': ('the solvers, CVODE, the right-hand side, delays and the Markov variables', [
+    'integrators': ('the solvers, CVODE, the right-hand side (and the evaluation of a Model\'s networks it makes, W744), delays and the Markov variables', [
         'integrate', 'odesol2', 'stiff', 'gear', 'cv2', 'cvode', 'cvband', 'cvdense', 'llnl*', 'solver',
         'dormpri', 'flags', 'jacobian', 'volterra', 'volterra2', 'delay_handle', 'my_rhs', 'dae_fun', 'numerics',
-        'numerics_settings', 'band', 'dense', 'vector', 'markov']),
+        'band', 'dense', 'vector', 'markov']),
     'analysis': ('what is computed from a run: sweeps, fits, equilibria, shooting, spectra, the data table', [
         'histogram', 'adj2', 'browse', 'browse_data', 'data_event', 'do_fit', 'equilibria', 'pp_shoot',
         'sweep_runs', 'del_stab']),
@@ -124,12 +125,9 @@ ALLOWLIST = {
     ('expressions', 'session'): (7, 'W761'),
     ('integrators', 'analysis'): (9, 'W745'),
     ('integrators', 'autoX'): (1, 'W745'),
-    ('integrators', 'session'): (20, 'W760'),
-    ('model and loading', 'analysis'): (8, 'W744'),
-    ('model and loading', 'autoX'): (1, 'W744'),
-    ('model and loading', 'integrators'): (17, 'W744'),
-    ('model and loading', 'session'): (17, 'W757, W758'),
-    ('ui seam', 'model and loading'): (1, 'W744'),
+    ('integrators', 'session'): (18, 'W760'),
+    ('model and loading', 'autoX'): (1, 'W757'),
+    ('model and loading', 'session'): (15, 'W757, W758'),
     ('ui seam', 'session'): (1, 'W761'),
 }
 

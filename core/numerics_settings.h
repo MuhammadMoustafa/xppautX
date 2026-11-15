@@ -54,25 +54,10 @@ int numerics_settings_set(Session &s, std::string_view key, std::string_view tex
    what the "numerics" event's and the panels' `unavailable` say; "" when the model can have them all */
 std::string unavailable_choices_json(const Session &s, const OptionRow &f);
 
-/* ---- the settings a session holds (session_settings.h) ----
-   The option table's rows marked `saved`, in the table's order; each is read and written as text under its
-   group and .odex key. A repeatable row's text is its items, one a line. */
-std::vector<const OptionRow *> saved_settings();
-/* the saved row whose name (option_name) is name, nullptr when none is */
-const OptionRow *saved_setting(std::string_view name);
 /* whether s's model, run by method, has the setting (the delay of a model
    with delays, the Volterra points of an integral-equation method); one it
    has not is not written and not accepted */
 bool setting_applies(const Session &s, const OptionRow &row, int method);
-/* s's value of row as text: a number, the method's or a choice's word, a
-   variable's name, a name */
-std::string setting_text(const Session &s, const OptionRow &row);
-/* the saved settings keys with s's values, for a message that names what
-   caused it (W480): "min_step = 1e-12, relative_tolerance = 0.001" */
-std::string named_settings(const Session &s, std::initializer_list<std::string_view> keys);
-/* where an error about settings is: the line the model sets the first of them on, else the
-   command that ran the computation */
-Place settings_place(const Model &m, std::initializer_list<std::string_view> settings);
 /* why text is not a value of row for s's model (the rule the Numerics menu, `set num` and the @ lines check; the first
    bad line of a repeatable row's list), nothing when it is; changes nothing */
 std::optional<std::string> setting_problem(Session &s, const OptionRow &row, std::string_view text);

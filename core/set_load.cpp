@@ -1,5 +1,7 @@
 /* Load values from a file by scope (set_load.h). */
 #include "set_load.h"
+#include "load_eqn.h"
+#include "set_apply.h"
 
 #include "lunch-new.h"
 #include "model.h"

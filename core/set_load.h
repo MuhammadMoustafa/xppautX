@@ -2,7 +2,7 @@
 /* Load values from a file by scope (W321, docs/studies/w309-values-design/sets-design.md
    sections 6 and 7). A file of values is read whole and checked, which parts of it hold a
    scope's kind are offered, and the chosen part is checked against this model and applied
-   as a patch (load_eqn.h's apply_values: the same as applying one of the model's own
+   as a patch (set_apply.h's apply_values: the same as applying one of the model's own
    sets), or not at all. Nothing runs: no equations, no log file, no defaults applied, and
    the model's file is never changed. The sources:
    - an .odex (a model or a file of sets): its defaults (the par and init lines and the
@@ -11,7 +11,7 @@
      conditions), a .set (its parameters, initial conditions and numerics settings; its
      graphs, delays, boundary conditions and run position come in only through Import
      XPPAUT session state, lunch-new.h). C++ only. */
-#include "load_eqn.h"
+#include "set_apply.h"
 #include "xpp_error.h"
 #include "model_file_types.h"
 

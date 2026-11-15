@@ -8,6 +8,7 @@
 #include "my_pdf.h"
 #include "my_svg.h"
 #include "browse.h"
+#include "xpp_ui.h"
 #include "xpp_io.h"
 #include "colormap.h"
 #include "line_style.h"

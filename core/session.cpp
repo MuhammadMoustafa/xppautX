@@ -12,6 +12,7 @@
 #include "browse.h"
 #include "dae_fun.h"
 #include "delay_handle.h"
+#include "numerics.h"
 #include "diagram.h"
 #include "display_state.h"
 #include "do_fit.h"
@@ -274,6 +275,16 @@ void storage_precision_changed(Session &s)
   s.adjoint->h_function.retype(*s.data_store);
   s.adjoint->transposed.retype(*s.data_store);
   retype_stochastic(s);
+}
+
+void apply_option_effect(Session &s, OptionEffect effect)
+{
+  switch(effect){
+  case OptionEffect::none: break;
+  case OptionEffect::step_size: dt_changed(s); break;
+  case OptionEffect::delay: chk_delay(s); break;
+  case OptionEffect::storage_precision: storage_precision_changed(s); break;
+  }
 }
 
 }

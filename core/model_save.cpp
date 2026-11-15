@@ -4,6 +4,7 @@
 #include "browse.h"
 #include "expr.h"
 #include "load_eqn.h"
+#include "set_apply.h"
 #include "model.h"
 #include "model_record.h"
 #include "model_files.h"

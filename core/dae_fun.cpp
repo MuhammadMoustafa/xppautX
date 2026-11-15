@@ -1,5 +1,5 @@
 
-#include "numerics_settings.h"
+#include "model_options.h"
 #include "model_numerics.h"
 #include "integrate.h"
 #include "dae_fun.h"
@@ -30,75 +30,8 @@
 namespace xpp {
 
 
-/*    will have more stuff someday */
-
-
-/* this adds an algebraically defined variable  and a formula
-   for the first guess */
-
-void add_svar(xpp::Session &s, const char *name, const char *rhs)
-{
-  s.model().svars.resize(s.model().nsvar+1);
-  s.model().svars[s.model().nsvar].name=name;
-  s.model().svars[s.model().nsvar].rhs=rhs;
-  s.model().svars[s.model().nsvar].where=xpp::LoadSite::place();
-  xpp::log(XPP_LOG_INFO, " Added sol-var[{:d}] {} = {} \n",
-	 s.model().nsvar,s.model().svars[s.model().nsvar].name.c_str(),s.model().svars[s.model().nsvar].rhs.c_str());
-  s.model().nsvar++;
-}
-
-/* adds algebraically define name to name list */
-
-void add_svar_names(xpp::Session &s)
-{
-  xpp::Model &m=s.model();
-  int i;
-  for(i=0;i<m.nsvar;i++){
-     m.svars[i].index=m.compiler.nvar;
-    if(add_var(s,m.svars[i].name.c_str(),0.0)==1)
-      model_failed(xpp::Error{"DAE",xpp::format("{} is a name already, or one variable too many",m.svars[i].name),
-                              m.svars[i].where});
-  }
-}
-
-/* adds a right-hand side to slove for zero */
-
-void add_aeqn(xpp::Session &s, const char *rhs)
-{
-  xpp::Model &m=s.model();
-  m.aeqns.resize(m.naeqn+1);
-  m.aeqns[m.naeqn].rhs=rhs;
-  m.aeqns[m.naeqn].where=xpp::LoadSite::place();
-  m.naeqn++;
-}
-
-/* this compiles formulas to set to zero */
-void compile_svars(xpp::Session &s)
-{
-  xpp::Model &m=s.model();
-  int i,n;
-  if(m.nsvar!=m.naeqn)
-    model_failed(xpp::Error{"DAE",xpp::format("The model has {} algebraic variables (solv) and {} algebraic equations (0=): "
-                                              "they must be as many",m.nsvar,m.naeqn),
-                            m.naeqn>0?m.aeqns[0].where:m.svars[0].where});
-  
-  for(i=0;i<m.naeqn;i++){
-    if(add_expr(s,m.aeqns[i].rhs,m.aeqns[i].form.rpn,&n)==1)
-      model_failed(xpp::Error{"DAE","Bad right-hand side for the algebraic equation",m.aeqns[i].where});
-    /* n+2, zero-padded: evaluate(s,)
-       may read a couple of entries past the parsed length. */
-    m.aeqns[i].form.rpn.resize(n+2, 0);
-  }
-
-   for(i=0;i<m.nsvar;i++){
-    if(add_expr(s,m.svars[i].rhs,m.svars[i].form.rpn,&n)==1)
-      model_failed(xpp::Error{"DAE",xpp::format("Bad initial guess for {}",m.svars[i].name),m.svars[i].where});
-    m.svars[i].form.rpn.resize(std::max(100, n+2), 0);
-   }
-     init_dae_work(s);
-}
-
 /* the solver starts afresh: no failure */
+
 void reset_dae(xpp::Session &s)
 {
   s.dae->status=DAE_SOLVED;

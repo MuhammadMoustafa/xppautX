@@ -1,6 +1,7 @@
 #pragma once
 
 #include "xpp_fs.h"
+#include "data_state.h"
 #include "data_table.h"
 #include "storage.h"
 #include "xpp_error.h"
@@ -17,14 +18,6 @@ namespace xpp {
 struct Session; /* session.h */
 struct Model; /* model.h */
 
-typedef struct {
-    int dataflag;
-    int row0;
-    int maxrow,maxcol;
-    ColumnTable data;
-    int istart,iend;
-} DATA_VIEW;
-
 void waitasec(int msec);
 
 void refresh_data(Session &s, int length);
@@ -34,34 +27,13 @@ void new_browse_dat(Session &s, ColumnTable new_dat, int dat_len);
    `missing` as the error of `command` */
 Result<> show_derived(Session &s, bool exists, const std::string &command, const std::string &missing, void (*show)(Session &));
 ColumnTable get_table_data(Session &s);
+/* table index's values in the data table: the rows shown, or why they cannot be */
+Result<int> view_table(Session &s, int index);
 
 void data_get_mytable(Session &s, int row);
 
-/* A file the user named, opened for a write that replaces it only at commit (a Sink of fs, binary: byte for byte),
-   after asking whether to replace it if it exists. A command or native dialog's answer supplies
-   permission; only an existing target without a decision asks in core.
-   Empty when declined or when opening fails. With opened, the caller
-   receives the error to show; otherwise it is shown here, once.
-   independent resets the command decision for a derived destination; at is the place of a failure, when it
-   names one (a model line). */
-std::unique_ptr<xpp::Sink> open_sink_asking(xpp::FileSystem &fs, std::string_view fil, bool binary = false, Result<> *opened = nullptr,
-                                            bool independent = false, const Place &at = {});
-/* The same for a file the user already chose to replace, as the path a session was saved to: no question, the
-   status checks and the temp-then-rename write of open_sink_asking. */
-std::unique_ptr<xpp::Sink> open_sink_replacing(xpp::FileSystem &fs, std::string_view fil, bool binary = false, Result<> *opened = nullptr);
-/* One precondition, before asking for a name. Empty saves report once. */
-bool save_ready(bool available);
 std::unique_ptr<xpp::Sink> ask_output_sink(const Session &s, std::string_view title, std::string_view ext,
                                            std::string_view what = {}, bool binary = false);
-/* Finish a user save: report its destination and whether commit succeeded.
-   The command shows the returned error once (ok_or_show for void commands). */
-Result<> commit_save(xpp::Sink &sink);
-/* A serializer or picture capture stopped before commit: discard the
-   temporary file and report that this destination was not saved. */
-void abort_save(xpp::Sink &sink);
-/* The existing overwrite question, with Cancel (0). For an imported
-   model, n opens the existing file instead of declining the write. */
-int file_replace_choice(bool open_existing = false);
 
 /* the stored rows First..Last as XPP's .dat (data_table.h) into w, only the
    columns of a batch run's "only" list (plotlist) when it has one: the
@@ -135,40 +107,10 @@ Result<> compute_added_column(Session &s, const std::string &formula, int col_in
    rolled back after, so s is left as it was */
 bool added_column_compiles(Session &s, std::string_view formula);
 
-/* an Add column (browse_data.cpp data_add_col): its name and formula, as
-   typed, kept to recompute it after every fresh run (below) */
-struct AddedColumn {
-  std::string name;
-  std::string formula;
-};
 /* the most rows and columns one block of the table holds (data.page): a page of it, bounded so one event stays
    small; hello.limits tells the page */
 inline constexpr int DATA_MAX_ROWS = 2000;
 inline constexpr int DATA_MAX_COLS = 500;
-/* the block of the table a client shows: its first row, rows (0: none, no block is sent), first column and
-   columns after T, which is always the first value of a row (data.page sets it, the `data.updated` event sends it) */
-struct DataBlock {
-  int from = 0, count = 0, col = 1, ncol = 1;
-};
-/* the data table (browse_data.cpp), a Session's (session.h) */
-struct DataState {
-  /* the data set it shows: the stored data, or a derived set in its place */
-  DATA_VIEW view{};
-  /* Replace's column as it was, for Unreplace: whether there is one,
-     its column and its values */
-  int replaced=0,replaced_col=0;
-  std::vector<double> old_column; /* the replaced column as it was, exactly at either precision */
-  /* data_add_col's columns, in the order added, at data_store columns
-     Model::neq+1, +2, ...: the Session's own data, not the
-     Model's (docs/roadmap.md W77 -- the Model stays as the load left
-     it). A fresh load clears this with the rest of the Session; a fresh
-     run recomputes every one of them over its own rows
-     (recompute_added_columns, refresh_data) instead of dropping
-     them, since docs/manual/07-data-table.md promises an added
-     column stays computed "as though ... another auxiliary variable". */
-  std::vector<AddedColumn> added_columns;
-  DataBlock block;
-};
 /* block's first row and column brought into the data (the last row, the last column), as the data is now */
 void fit_data_block(Session &s);
 /* the rows of the (fitted) block as JSON, [[T, v, ...], ...], each value in the shortest text that reads back as exactly

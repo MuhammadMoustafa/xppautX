@@ -28,7 +28,6 @@
 #include <string.h>
 #include <strings.h>
 #include <memory>
-#include "load_eqn.h"
 #include "session.h"
 #include "autox_state.h"
 #include "plot_state.h"

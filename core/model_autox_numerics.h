@@ -6,6 +6,8 @@
 #include <span>
 #include <string>
 
+#include "xpp_error.h"
+
 /* autoX's Numerics fields as the option table names them: their indices, limits, the words of the output
    detail and what autoX accepts for each. Pure data, below both the option table (model_options.cpp) and
    autoX's settings (autox_settings.cpp) that read it (W736). */
@@ -96,5 +98,24 @@ std::string autox_num_rule_message(const AutoxNumField &f);
 /* whether a value of field i is autoX's (an integer where the field is one, in the field's range); why names the field and its
    range otherwise. Pure over the rules and the option table's keys. Nothing is thrown. */
 bool autox_num_ok(int i, double v, std::string &why);
+/* the values that must be in order: lo below hi (strict) or at most hi */
+struct NumPair {
+    int lo, hi;
+    bool strict;
+};
+constexpr NumPair num_pairs[] = {
+    {AUTOX_NUM_MIN_STEP_SIZE, AUTOX_NUM_MAX_STEP_SIZE, false}, {AUTOX_NUM_PARAMETER_MIN, AUTOX_NUM_PARAMETER_MAX, true},
+    {AUTOX_NUM_NORM_MIN, AUTOX_NUM_NORM_MAX, true}};
+/* what the ordering of a pair, and the first step's size within the step sizes (whichever its sign), say when they fail */
+std::string step_rule();
+std::string pair_message(const NumPair &p);
+/* the key of Numerics field i in the event, the command and the files ("mesh_intervals", ...); NULL out of range */
+const char *autox_settings_num_key(int i);
+/* a value of an autoX settings set that is wrong: what, and its key ("ntst", "var", "mark2", ...; "" for the whole set) as the
+   Error's field; at the command's place (a file of settings gives its own line instead) */
+Error autox_refused(std::string what, std::string key = {});
+/* Check supplied numbers together, including ordering and signed step magnitude. */
+Result<> autox_settings_numbers_check(std::span<const double, AUTOX_NUM_N> num,
+                                    std::span<const int, AUTOX_NUM_N> supplied);
 
 } // namespace xpp

@@ -11,7 +11,6 @@
 #include "model.h"
 #include "model_features.h"
 #include "model_options.h"
-#include "numerics_settings.h"
 #include "model_numerics.h"
 #include "xpp_text.h"
 #include "xpp_util.h"

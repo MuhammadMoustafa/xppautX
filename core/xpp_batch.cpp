@@ -3,8 +3,10 @@
    the historical do_main(), with no front end setup, so it links against
    libxppcore alone. */
 #include "model_options.h"
+#include "model_method.h"
 #include "xpp_session.h"
 #include "load_eqn.h"
+#include "set_apply.h"
 #include "solver.h"
 #include "model.h"
 #include "model_record.h"
@@ -28,6 +30,9 @@
 #include "numerics.h"
 #include "storage.h"
 #include "dae_fun.h"
+#include "delay_handle.h"
+#include "adj2.h"
+#include "volterra2.h"
 #include "simplenet.h"
 #include "graphics.h"
 #include "browse.h"
@@ -127,6 +132,28 @@ void preferences_load(Session &s, const Result<prefs::Preferences> *read)
     else xpp::log(XPP_LOG_WARN, "{}: the thread count stays automatic and the colors the defaults\n", p.error().text());
 }
 
+/* what a run needs once the model is loaded and its options hold their values (a load starts none): the stored rows' room (at most
+   start_rows: an untouched row costs a page in every column of a large model), the delays', the adjoint's and the integrals' memory,
+   the DAE solver's, the method's solver, and the array initial conditions by formula */
+static void set_up_run(Session &s)
+{
+    s.delay->stab_flag = DELAY_NORMAL;
+    s.data_store->rows = 0;
+    s.numerics->storflag = false;
+    s.numerics->inflag = false;
+    xpp::init_range(s);
+    const NumericsSettings &n = *s.numerics;
+    const std::int64_t run_steps = xpp::step_count(s, xpp::solver_info(n.method), n.delta_t, n.total_time).value_or(DataStore::start_rows);
+    const std::int64_t run_rows = run_steps / std::max(n.store_every, 1) + 2;
+    s.data_store->allocate(static_cast<int>(std::min<std::int64_t>(DataStore::start_rows, run_rows)), s.model().neq + 1, n.storage_precision);
+    xpp::chk_delay(s); /* check for delay allocation */
+    xpp::alloc_h_stuff(s);
+    xpp::alloc_v_memory(s); /* allocate stuff for volterra equations */
+    xpp::init_dae_work(s);
+    xpp::start_solver(s);
+    xpp::arr_ic_start(s); /* take care of all predefined array ics */
+}
+
 /* everything both the batch run and an interactive front end do: options,
    the ODE file, numerics set-up. batch forces XPPBatch. */
 static void load_and_set_up(xpp::Session &s, const CommandLine &cl, std::optional<AutoxScript> script, int batch,
@@ -148,6 +175,7 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, std::optiona
 
     xpp::init_alloc_info(s);
     set_all_vals(s);
+    set_up_run(s);
     /* a set is checked whole at the load (a bad one stops it) */
     if (const Result<> sets = check_intern_sets(s); !sets) model_failed(sets.error());
     /* run_set names one of the model's sets (W666): checked here, where the sets are read */

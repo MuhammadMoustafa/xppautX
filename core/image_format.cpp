@@ -17,6 +17,7 @@
 #include "session.h"
 #include "model.h"
 #include "browse.h"
+#include "xpp_ui.h"
 #include "colormap.h"
 
 namespace xpp {

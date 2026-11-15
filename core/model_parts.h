@@ -32,6 +32,28 @@ struct ArrayIcs {
   int defined = 0;
 };
 
+/* the array IC newic[j1..j2]: the one already used for it, else the first
+   free one (the first slot when none is free) made into it */
+inline ArrayIc &array_ic_for(ArrayIcs &ics, const char *newic, int j1, int j2)
+{
+  int ihot=-1;
+  int ifree=-1;
+  for(int i=0;i<NAR_IC;i++){
+    if(ics.ics[i].index0==-1&&ifree==-1&&ics.ics[i].type==0)
+      ifree=i;
+    if(ics.ics[i].var==newic&&ics.ics[i].j1==j1&&ics.ics[i].j2==j2)
+      ihot=i;
+  }
+  if(ihot==-1){
+    ihot=ifree==-1?0:ifree;
+    ics.ics[ihot].var=newic;
+    ics.ics[ihot].type=2;
+    ics.ics[ihot].j1=j1;
+    ics.ics[ihot].j2=j2;
+  }
+  return ics.ics[ihot];
+}
+
 /* a boundary condition, 0=string: string (at most 255 bytes, the rest
    NUL), com its compiled form (200 commands), name "0=" (10 bytes;
    pp_shoot writes its side into it). C buffers: the shooting code and

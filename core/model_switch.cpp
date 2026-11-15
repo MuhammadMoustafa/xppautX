@@ -1,5 +1,6 @@
 /* File > Open model and File > Reload: see model_switch.h. */
 #include "solver.h"
+#include "model_method.h"
 #include "model_switch.h"
 #include "open_model.h"
 #include "model.h"

@@ -21,7 +21,6 @@
 #include "expr.h"
 #include "model_declarations.h"
 #include "form_ode.h"
-#include "integrate.h"
 #include "model_markov.h"
 #include "model.h"
 #include "model_files.h"
@@ -1149,6 +1148,34 @@ int find_char(std::string_view s1, std::string_view s2, int i0, int *i1)
   return(-1);
 }
 
+namespace {
+/* a line of initial data x[j1..j2](0)=formula (search_array hands it) kept in m's array initial values */
+int extract_ic_data(Model &m, char *big)
+{
+  int j1,j2,flag2;
+  de_space(big);
+  /* u[j1..j2](0)=formula: the front up to "(", the formula 4 on from it */
+  const std::string_view line=big;
+  const size_t open=line.find('(');
+  if(open==std::string_view::npos)return(-1);
+  std::string front(line.substr(0,open));
+  const std::string back(open+4<line.size()?line.substr(open+4):std::string_view());
+
+  /* now fix it up */
+  big[0]='#';
+  big[1]=' ';
+  std::string newic;
+  search_array(front.data(),newic,&j1,&j2,&flag2);
+  if(flag2==1){
+    array_ic_for(m.array_ics,newic.c_str(),j1,j2).formula=back;
+    m.array_ics.defined=1;
+  }
+  return(1);
+
+}
+
+} // namespace
+
 /* old with its array range x[i..j] made x[j] (i1, i2 the range; flag 1,
    or 2 for a %[i..j] for loop): newstr. 0 (newstr old) when the range
    is malformed. A line of initial data x[..](0)=... goes to
@@ -1170,7 +1197,7 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Mo
     return 1;
   }
   if(check_if_ic(old)==1){
-    if(m)xpp::extract_ic_data(*m,old);
+    if(m)extract_ic_data(*m,old);
     newstr=old;
     return 1;
   }

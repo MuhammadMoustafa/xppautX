@@ -9,6 +9,7 @@
 
    make test runs this from the top of the tree. */
 #include "nullcline.h"
+#include "model_method.h"
 #include "load_args.h"
 #include "xpptest.h"
 #include "xpp_fs_local.h"

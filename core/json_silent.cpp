@@ -35,7 +35,7 @@
 #include "image_format.h"
 #include "picture.h"
 #include "xpp_globals.h"
-#include "load_eqn.h"
+#include "set_apply.h"
 #include "xpp_log.h"
 #include "autox_script.h"
 #include "xpp_io.h"

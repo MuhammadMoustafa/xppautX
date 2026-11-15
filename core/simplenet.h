@@ -41,8 +41,6 @@ int get_vector_info(const Session &ses, char *str, std::string_view name, int *r
 
 int add_vectorizer(Session &s, std::string_view name, char *rhs);
 void add_vectorizer_name(Session &s, std::string_view name, std::string_view rhs);
-double vector_value(Session &s, double x, int i);
-double network_value(Session &s, double x, int i);
 /* the network name's call rhs: its Model network is filled in (an error is thrown); false when rhs is no network */
 bool add_spec_fun(Session &s, std::string_view name, char *rhs);
 /* table index is about to take length values (a re-read): the first network
@@ -50,8 +48,6 @@ bool add_spec_fun(Session &s, std::string_view name, char *rhs);
    changed by the check */
 xpp::Result<> check_network_table_length(const Session &s, int index, long long length);
 void add_special_name(Session &s, std::string_view name, char *rhs);
-void eval_all_nets(Session &s);
-void evaluate_network(Session &s, int ind);
 void update_all_ffts(Session &s);
 void update_fft(Session &s, int ind);
 

@@ -7,7 +7,7 @@
 #include "typed_values.h"
 #include "xpp_math.h"
 #include "pp_shoot.h"
-#include "numerics_settings.h"
+#include "model_options.h"
 #include "model_numerics.h"
 
 #include "my_rhs.h"

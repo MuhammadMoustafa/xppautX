@@ -5,7 +5,7 @@
    in place of their forms (Command::panel). */
 #include "command_def.h"
 #include "command_graph.h"
-#include "load_eqn.h"
+#include "set_apply.h"
 #include "model_options.h"
 #include "numerics_settings.h"
 #include "options_panels.h"

@@ -5,6 +5,7 @@
    the numerics are the file's par and init lines and options block (values_text,
    read_values, options_items, read_options). */
 #include "session_settings.h"
+#include "model_method.h"
 #include "odex_write.h"
 #include "snapx.h"
 
@@ -521,7 +522,7 @@ Settings read_settings(Session &s, const odex::StateFile &file, odex::Block &ses
 void apply_storage_precision(Session &s, const Settings &f)
 {
     for (const auto &[row, text] : f.options)
-        if (row->applied == storage_precision_changed) setting_write(s, *row, text);
+        if (row->effect == OptionEffect::storage_precision) setting_write(s, *row, text);
     storage_precision_changed(s);
 }
 

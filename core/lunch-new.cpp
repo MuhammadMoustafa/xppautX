@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include "model.h"
+#include "model_method.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "session_values.h"

@@ -35,7 +35,7 @@
 
 #include "dae_fun.h"
 #include "numerics.h"
-#include "numerics_settings.h"
+#include "model_options.h"
 #include "model_numerics.h"
 #include "my_rhs.h" /* extra */
 #include "model_native.h"
@@ -1290,30 +1290,6 @@ int usual_integrate_stuff(xpp::Session &s, double *x, const xpp::RunReport &repo
     u[5..20]=f([j]) 
 */
 
-namespace {
-/* the array IC newic[j1..j2]: the one already used for it, else the first
-   free one (the first slot when none is free) made into it */
-ArrayIc &array_ic_for(ArrayIcs &ics, const char *newic, int j1, int j2)
-{
-  int ihot=-1;
-  int ifree=-1;
-  for(int i=0;i<NAR_IC;i++){
-    if(ics.ics[i].index0==-1&&ifree==-1&&ics.ics[i].type==0)
-      ifree=i;
-    if(ics.ics[i].var==newic&&ics.ics[i].j1==j1&&ics.ics[i].j2==j2)
-      ihot=i;
-  }
-  if(ihot==-1){
-    ihot=ifree==-1?0:ifree;
-    ics.ics[ihot].var=newic;
-    ics.ics[ihot].type=2;
-    ics.ics[ihot].j1=j1;
-    ics.ics[ihot].j2=j2;
-  }
-  return ics.ics[ihot];
-}
-}
-
 void evaluate_ar_ic(xpp::Session &s, const char *v, const char *f, int j1, int j2)
 {
   int j;
@@ -1335,30 +1311,6 @@ void evaluate_ar_ic(xpp::Session &s, const char *v, const char *f, int j1, int j
   }
 
 }
-int extract_ic_data(xpp::Model &m, char *big)
-{
-  int j1,j2,flag2;
-  de_space(big);
-  /* u[j1..j2](0)=formula: the front up to "(", the formula 4 on from it */
-  const std::string_view line=big;
-  const size_t open=line.find('(');
-  if(open==std::string_view::npos)return(-1);
-  std::string front(line.substr(0,open));
-  const std::string back(open+4<line.size()?line.substr(open+4):std::string_view());
-
-  /* now fix it up */
-  big[0]='#';
-  big[1]=' ';
-  std::string newic;
-  search_array(front.data(),newic,&j1,&j2,&flag2);
-  if(flag2==1){
-    array_ic_for(m.array_ics,newic.c_str(),j1,j2).formula=back;
-    m.array_ics.defined=1;
-  }
-  return(1);
-
-}
-  
 void arr_ic_start(xpp::Session &s)
 {
   int i;
@@ -1624,8 +1576,7 @@ Result<> run_to_steady_state(Session &s, SteadyStateSettings settings, const Run
 
 std::unexpected<xpp::Error> take_step_error(xpp::Session &s)
 {
-  xpp::Error e=std::move(*s.parser.step_error);
-  s.parser.step_error.reset();
+  xpp::Error e=take_stop(s.parser);
   reset_dae(s);
   return std::unexpected(std::move(e));
 }

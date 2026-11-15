@@ -56,12 +56,6 @@ constexpr int DAE_NO_CONVERGENCE = -2;
 constexpr int DAE_OUT_OF_BOUNDS = -3;
 constexpr int DAE_FOLD = -4;
 
-/* a solv variable, the names of them all, a 0= equation and compiling
-   them, at the load (a problem fails it at its line, model_failed) */
-void add_svar(Session &s, const char *name, const char *rhs);
-void add_svar_names(Session &s);
-void add_aeqn(Session &s, const char *rhs);
-void compile_svars(Session &s);
 void reset_dae(Session &s);
 void set_init_guess(Session &s);
 void init_dae_work(Session &s);

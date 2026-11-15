@@ -8,7 +8,7 @@
 #include "command_def.h"
 #include "event_registry.h"
 #include "event_streams.h"
-#include "load_eqn.h"
+#include "set_apply.h"
 #include "xpp_files.h"
 #include "storage.h"
 #include "xpp_util.h"

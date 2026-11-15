@@ -7,6 +7,7 @@
 #include <string_view>
 #include <optional>
 #include <vector>
+#include <memory>
 #include <cstddef>
 #include "xpp_error.h"
 #include "autox_codes.h"
@@ -42,6 +43,8 @@ namespace command { struct Command; class Arguments; } /* command_def.h */
  */
 
 struct XppMenu; /* menus.h */
+class Sink; /* xpp_fs.h */
+class FileSystem; /* xpp_fs.h */
 
 /* Save permissions on a command: a stable answer, independent of disk state. */
 enum { SAVE_ASK = 0, SAVE_REPLACE = 1, SAVE_DECLINE = -1 };
@@ -400,6 +403,30 @@ int ask_form(Session &s, std::string_view title, std::span<FormField> fields);
    0 on cancel or an empty name. mode ("read" or "write") is a registry command's own file_mode; null takes it from the title's first word
    (xpp::files::ask_mode), for the dialogs no row owns */
 int file_selector(std::string_view title, std::string &file, std::string_view wild, const char *mode = nullptr);
+
+/* A file the user named, opened for a write that replaces it only at commit (a Sink of fs, binary: byte for byte),
+   after asking whether to replace it if it exists. A command or native dialog's answer supplies
+   permission; only an existing target without a decision asks in core.
+   Empty when declined or when opening fails. With opened, the caller
+   receives the error to show; otherwise it is shown here, once.
+   independent resets the command decision for a derived destination; at is the place of a failure, when it
+   names one (a model line). */
+std::unique_ptr<Sink> open_sink_asking(FileSystem &fs, std::string_view fil, bool binary = false, Result<> *opened = nullptr,
+                                       bool independent = false, const Place &at = {});
+/* The same for a file the user already chose to replace, as the path a session was saved to: no question, the
+   status checks and the temp-then-rename write of open_sink_asking. */
+std::unique_ptr<Sink> open_sink_replacing(FileSystem &fs, std::string_view fil, bool binary = false, Result<> *opened = nullptr);
+/* One precondition, before asking for a name. Empty saves report once. */
+bool save_ready(bool available);
+/* Finish a user save: report its destination and whether commit succeeded.
+   The command shows the returned error once (ok_or_show for void commands). */
+Result<> commit_save(Sink &sink);
+/* A serializer or picture capture stopped before commit: discard the
+   temporary file and report that this destination was not saved. */
+void abort_save(Sink &sink);
+/* The existing overwrite question, with Cancel (0). For an imported
+   model, n opens the existing file instead of declining the write. */
+int file_replace_choice(bool open_existing = false);
 
 /* the one way an error is shown (xpp_error.h): what a computation the
    command ran returned, or what the command found wrong itself, with its

@@ -7,10 +7,8 @@
 #include "xpp_text.h"
 #include "xpp_ui.h"
 
-#include "browse.h"
 
 #include "expr.h"
-#include "integrate.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -112,19 +110,6 @@ void set_autox_eval_flags(xpp::Session &s, int f)
  for(TABULAR &t:s.tables)
     t.autoeval=f;
 }
-Result<int> view_table(xpp::Session &s, int index)
-{
-  const TABULAR &table=s.tables[index];
-  if(table.flag==0)return fail("table",xpp::format("{} is not defined yet: it has no values to show",table.name),table_place(s,index));
-  if(const xpp::Result<> room=s.data_store->fit(s.model().neq+1,table.n+1);!room)return std::unexpected(room.error());
-  for(int i=0;i<table.n;i++){
-    s.data_store->col[0][i]=table.xlo+i*table.dx;
-    s.data_store->col[1][i]=table.y[i];
-  }
-  refresh_data(s,table.n);
-  return table.n;
-}
-
 Result<int> find_table(const xpp::Session &s, std::string_view name)
 {
   for(int i=0;i<s.ntable;i++)
@@ -187,7 +172,7 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int index, int n, double xlo, doub
       setvar(s,0,oldt);
       s.parser.ncon=ncold;
       s.parser.nsym=nsym;
-      return std::unexpected(xpp::take_step_error(s).error());
+      return std::unexpected(xpp::take_stop(s.parser));
     }
   }
   setvar(s,0,oldt);

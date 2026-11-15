@@ -29,7 +29,7 @@
 #include "xpp_job.h"
 #include "xpp_log.h"
 #include "equilibria.h"
-#include "numerics_settings.h"
+#include "model_options.h"
 #include "model_numerics.h"
 #include "model.h"
 #include "autox_axis.h"
