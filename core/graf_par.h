@@ -184,4 +184,10 @@ DataTable plot_curves_table(const Session &s);
 bool restore_frozen_curve(Session &s, int i, XppWinId w, int type, const Color &color, const LineStyle &style, std::string key, std::string name,
                           std::vector<float> x, std::vector<float> y, std::vector<float> z);
 
+/* what the active graph's orbit is colored by: nothing, its velocity or a column; the numbers are the graph's ColorFlag */
+enum class ColorBy { none, velocity, variable };
+/* the active graph colored by `by` (`variable`, a column, for ColorBy::variable) between the given limits, or between the
+   least and the greatest the stored data reach; or why it cannot be */
+Result<> set_color_coding(Session &s, ColorBy by, int variable, std::optional<std::pair<double, double>> limits);
+
 } // namespace xpp

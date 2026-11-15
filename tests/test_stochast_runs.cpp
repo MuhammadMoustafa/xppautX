@@ -1,5 +1,5 @@
 /* stocHast's "Compute" (many runs), "Mean" and "Variance" (markov.cpp
-   append_stoch/do_stats, driven by integrate.cpp's do_range() while
+   append_stoch/do_stats, driven by runs.cpp's do_range() while
    STOCH_FLAG is set): running many independent trials of
    tools/models/stoch_runs.odex, each sampling nsamp=normal(0,1) afresh,
    the per-time mean stocHast accumulates across trials must be near 0 and
@@ -17,7 +17,9 @@
 #include "browse.h"
 #include "graphics.h"
 #include "integrate.h"
+#include "runs.h"
 #include "markov.h"
+#include "stochastic.h"
 
 #include <cmath>
 #include <stddef.h>
@@ -45,7 +47,7 @@ TEST_CASE("test_stochast_runs")
     xpp::client_session().integrator->range.rtype = 0;
 
     xpp::client_session().stochastic->flag = true;
-    int ierr = xpp::do_range(xpp::client_session(), xpp::client_session().data_store->current.data(), 0, xpp::RunReport{});
+    int ierr = xpp::do_range(xpp::client_session(), xpp::client_session().data_store->current.data(), false, xpp::RunReport{});
     xpp::client_session().stochastic->flag = false;
 
     CHECK(ierr != -1);

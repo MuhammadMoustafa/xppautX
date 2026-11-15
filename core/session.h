@@ -72,7 +72,7 @@ struct PlotSettings; /* plot_settings.h */
 struct DelayState; /* delay_handle.h */
 struct HistogramState; /* histogram.h */
 struct AdjointState; /* adj2.h */
-struct StochasticState; /* markov.h */
+struct StochasticState; /* stochastic.h */
 struct NullclineSettings; /* nullcline.h */
 struct VolterraState; /* volterra.h */
 struct FitInfo; /* do_fit.h */

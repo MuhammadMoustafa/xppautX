@@ -14,6 +14,7 @@
 #include "diagram.h"
 #include "picture.h"
 #include "integrate.h"
+#include "runs.h"
 #include "many_pops.h"
 #include "session.h"
 #include "autox_state.h"

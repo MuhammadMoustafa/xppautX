@@ -3,13 +3,14 @@
    range sweeps, the DAE guesses, Stop and the numerics that shape a run. Each
    handler gets its arguments validated and typed (command_def.h) and calls
    the core function the imported XPPAUT button sequences call too
-   (integrate.h's run_from, run_range ...). */
+   (runs.h's run_from, run_range ...). */
 #include "graf_par.h"
 #include "model_method.h"
 #include "command_def.h"
 #include "command_range.h"
 #include "dae_fun.h"
 #include "integrate.h"
+#include "runs.h"
 #include "model_options.h"
 #include "numerics.h"
 #include "numerics_settings.h"
@@ -115,7 +116,7 @@ Result<std::string> run_range_handler(Session &s, const Command &, const Argumen
     if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
     s.integrator->range = range;
     RangeProgress done;
-    if (const Result<int> swept = run_range(s, 0, &done, range_report(s)); !swept) return std::unexpected<Error>(swept.error());
+    if (const Result<int> swept = run_range(s, &done, range_report(s)); !swept) return std::unexpected<Error>(swept.error());
     return sweep_result(done, "runs_completed");
 }
 
@@ -147,7 +148,7 @@ Result<std::string> run_double_range_handler(Session &s, const Command &, const 
         return std::unexpected<Error>(runs.error());
     s.integrator->range = range;
     RangeProgress done;
-    const Result<int> swept = run_range(s, 1, &done, range_report(s));
+    const Result<int> swept = run_range(s, &done, range_report(s));
     if (!swept) return std::unexpected<Error>(swept.error());
     return sweep_result(done, "grid_points");
 }

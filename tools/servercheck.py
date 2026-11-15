@@ -12133,7 +12133,7 @@ def check_stop_checks():
         snd(cmd='nullcline.set_mesh', mesh=old_mesh)
         col(is_done)
 
-        # 4. Range equilibria sweep cancellation (core/integrate.cpp)
+        # 4. Range equilibria sweep cancellation (core/runs.cpp)
         snd(cmd='equilibrium.range', parameter='iapp', steps=W388_STEPS, start=-0.5, end=0.5)
         _, started = col(lambda e: e.get('ev') == 'job.computing' or is_done(e))
         eq_started = started is not None and started.get('ev') == 'job.computing'

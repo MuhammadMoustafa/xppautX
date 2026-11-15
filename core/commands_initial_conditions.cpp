@@ -5,6 +5,7 @@
 #include "graf_par.h"
 #include "command_def.h"
 #include "integrate.h"
+#include "runs.h"
 #include "lunch-new.h"
 #include "many_pops.h"
 #include "browse.h"

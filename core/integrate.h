@@ -50,7 +50,6 @@ inline constexpr double DEFAULT_STEADY_HOLD = 1; /* One model-time unit of uncha
    subtracting two times); any more rounds up to the next grid point. */
 inline constexpr double CONTINUE_GRID_TOLERANCE = 1e-6;
 Result<> validate_steady_state(SteadyStateSettings settings, double dt, double start);
-Result<> run_to_steady_state(Session &s, SteadyStateSettings settings, const RunReport &report);
 
 /* a global flag's event stops the integration (flags.cpp) */
 void send_halt(Session &s, int flag);
@@ -73,25 +72,11 @@ DenseEvent dense_event(Session &s, double from, double until, double step_from, 
                       const std::function<void(double,std::span<double>)> &state,
                       std::span<double> scratch, std::span<double> derivative, bool sections=true);
 
-/* the equilibrium Newton finds from the initial data, with its
-   eigenvalues (x, re, im per variable), written to name (nothing when
-   Newton does not converge); shoot: also the invariant manifolds of a
-   saddle, integrated into UMk.dat/SMk.dat (--silent's --equil 0/1, the
-   protocol's `equilibrium` `write`) */
-Result<> write_equilibrium(Session &s, const char *name, int shoot, bool confirm, const RunReport &report);
 void init_range(Session &s);
-/* Continue (W213), the one way to extend the trajectory: to the time `until`, or for `extra` more,
-   either rounded up to the output grid (Dt times Store every N steps) and appending rows at that
-   stride; the end reached is the state's time */
-Result<bool> continue_to(Session &s, double until, const RunReport &report);
-Result<bool> continue_for(Session &s, double extra, const RunReport &report);
-/* ... for another Total (Run duration): the key c, a user button's `c`, a `continue` with no value */
-Result<bool> continue_total(Session &s, const RunReport &report);
 int range_item(Session &s);
 int range_item2(Session &s);
 /* the type and index of what s.integrator->range names to vary (and the second item when `two`), or the error of one that is
    neither a parameter nor a variable */
-Result<> run_allowed(const Session &s, std::string_view command);
 Result<> resolve_range_items(Session &s, bool two);
 Result<> resolve_range_items(const Session &s, RangeVars &range, bool two);
 int set_up_range(Session &s);
@@ -103,46 +88,7 @@ void swap_color(Session &s, Color *col, int rorw);
    manifolds are shot in their own colors with the curve's pen) */
 void change_current_color(Session &s, const Color &newcolor, Color *old);
 void set_cycle(Session &s, int flag, int *icol);
-int do_range(Session &s, double *x, int flag, const RunReport &report);
-Result<int> equilibrium_range(Session &s, const RunReport &report);
-int write_this_run(Session &s, const char *file, int i);
-void run_now(Session &s, const RunReport &report);
 
-/* the runs, the one core each front end's command calls (docs/protocol.md "run"). Every one returns whether
-   the run ended before its end without failing (an event's arret, a section that stops it, '/'; the
-   reason is shown once), or the error it failed with, which its command shows. */
-/* where a run starts from (XPPAUT's Initialconds items): the initial data (Go), the stored initial data again
-   (Old), the last state (Last), the last state with the clock going on (Shift), the initial data backward in
-   time (Backward) */
-enum class RunFrom { initial, old, last, shift, backward };
-/* reset_integrals: a run from the last state of an integral-equation method starts the integrals afresh (else they go on) */
-Result<bool> run_from(Session &s, RunFrom from, const RunReport &report, bool reset_integrals = false);
-/* the states a graph plots against each other (0-based); the pair a click sets */
-struct Plane {
-  int horizontal, vertical;
-};
-/* the plane of graph window `graph` (its index), or why it has none */
-Result<Plane> window_plane(const Session &s, int graph);
-/* a run from the initial data with the plane's two states set to a click's plot coordinates, no data kept of the
-   run before */
-Result<bool> run_from_click(Session &s, Plane plane, double horizontal, double vertical, const RunReport &report);
-/* one run from each click in turn, the first emptying the store, the rest added to it (suppress_bounds: Mice's
-   runs ignore the state limit); the runs made (fewer when cancelled) */
-Result<int> run_from_clicks(Session &s, Plane plane, std::span<const std::pair<double, double>> clicks, bool suppress_bounds, const RunReport &report);
-/* a run from manifold `index` (1-based) of the equilibria's shooting */
-Result<bool> run_from_manifold(Session &s, int index, const RunReport &report);
-/* what a range sweep did: the integrations it completed and the steps (rows) they stored */
-struct RangeProgress {
-  int runs = 0;
-  long steps = 0;
-};
-/* the sweep over the settings in s.integrator->range (flag 0: one parameter, 1: two), what it completed in `done`
-   when given; the sweep's end code (-1 when a run stopped early) or the error it failed with */
-Result<int> run_range(Session &s, int flag, RangeProgress *done, const RunReport &report);
-/* the integration of x as the Session's settings say, after a run's start made: the one every run ends in */
-Result<bool> integrate_from(Session &s, double *x, const RunReport &report);
-void do_start_flags(Session &s, double *x, double *t);
-int usual_integrate_stuff(Session &s, double *x, const RunReport &report); /* integrate_from, its error shown: 1 when it failed */
 void evaluate_ar_ic(Session &s, const char *v, const char *f, int j1, int j2);
 void arr_ic_start(Session &s);
 /* the initial conditions by formula (initial_conditions.set_by_formula): `variable` a state, or an array range name[j1..j2] whose
@@ -155,9 +101,12 @@ Result<std::vector<int>> set_ic_array(Session &s, std::string_view name, int siz
    Any other length is a programming error, rejected before writing. */
 void set_initial_data(Session &s, std::span<const double> state);
 void get_ic(Session &s, int it, double *x);
+/* the global flags' first step: the state before a run's first row */
+void do_start_flags(Session &s, double *x, double *t);
+/* a row was just stored: a replayed script may stop the job here, and a front end may show the run growing */
+void row_stored(Session &s);
 void send_output(Session &s, double *y, double t);
 Result<> stor_full(Session &s);
-int do_autox_range_go(Session &s, const RunReport &report);
 
 /* The most steps one axis of a sweep takes (Range, Range Equilibria and Range Shoot alike): steps+1 runs fit an int. */
 inline constexpr int MAX_RANGE_STEPS = std::numeric_limits<int>::max() - 1;
@@ -206,8 +155,5 @@ private:
   Session &s_;
   double before_;
 };
-/* Monte Carlo's search for equilibria from random guesses (with their
-   manifolds when ishoot), or the first manifold that failed */
-Result<> do_monte_carlo_search(Session &s, int append, int stuffbrowse,int ishoot);
 
 } // namespace xpp

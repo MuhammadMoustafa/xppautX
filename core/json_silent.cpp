@@ -30,6 +30,7 @@
 #include "session.h"
 #include "autox_state.h"
 #include "integrate.h"
+#include "runs.h"
 #include "browse.h"
 #include "histogram.h"
 #include "image_format.h"
@@ -72,7 +73,7 @@ private:
     void post_process();
     /* the run's data into batch_out_file (the stochastic mean or variance first); once, until the next run */
     void save_output();
-    /* a range that resets its storage wrote each run's file itself (integrate.cpp do_range, write_this_run) */
+    /* a range that resets its storage wrote each run's file itself (runs.cpp do_range, write_this_run) */
     bool writes_output() const { return !session.integrator->range.write_files || session.integrator->range.reset == 0; }
     bool trajectory_saved = false;
     /* the run's data were replaced by an after_run (the analysis, or the mean or the variance of the runs) */

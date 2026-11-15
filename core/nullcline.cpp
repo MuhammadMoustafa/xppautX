@@ -532,7 +532,38 @@ void do_batch_nclines(xpp::Session &s)
 
 void set_colorization_stuff(xpp::Session &s)
 {
-  xpp::user_set_color_par(s,s.nullclines->colorize_flag,s.nullclines->color_via.c_str(),s.nullclines->color_via_lo,s.nullclines->color_via_hi);
+  int ivar;
+  const int flag=s.nullclines->colorize_flag;
+  const char *via=s.nullclines->color_via.c_str();
+  const double lo=s.nullclines->color_via_lo,hi=s.nullclines->color_via_hi;
+   s.plot_windows->current->min_scale=lo;
+  if(hi>lo)
+    s.plot_windows->current->color_scale=(hi-lo);
+  else
+    s.plot_windows->current->color_scale=1;
+  
+  if(strncasecmp("speed",via,5)==0)
+    {
+      s.plot_windows->current->ColorFlag=1;
+    }
+  else
+    {
+      find_variable(s,via,&ivar);
+      if(ivar>=0){
+	s.plot_windows->current->ColorValue=ivar;
+	s.plot_windows->current->ColorFlag=2;
+      }
+      else
+	{
+	  s.plot_windows->current->ColorFlag=0; /* no valid colorizing */
+
+	}
+    }
+  if(flag==0){ /* force overwrite  */
+    s.plot_windows->current->ColorFlag=0;
+  
+  }
+
 }
 
 void do_batch_dfield(xpp::Session &s)

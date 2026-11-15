@@ -23,7 +23,7 @@
 #include "integrate.h"
 #include "jacobian.h"
 #include "plot_state.h"
-#include "markov.h"
+#include "stochastic.h"
 #include "picture_state.h"
 #include "pp_shoot.h"
 #include "simplenet.h"

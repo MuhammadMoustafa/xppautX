@@ -2,7 +2,7 @@
 /* A sweep's independent runs side by side on threads (W434).
 
    A sweep (Initial conds > Range and its two-parameter form, the parameter range, Stochastic > Compute, the Lyapunov
-   exponent over a range, the array plot's range: integrate.cpp's range_sweep) integrates the model once for each value
+   exponent over a range, the array plot's range: runs.cpp's range_sweep) integrates the model once for each value
    of what it varies. When "Use old I.C.s" is on, every run starts from the same initial data and no run reads what
    another left, so the runs may be computed at the same time. A run is computed on a worker: a Session of the sweep's
    Model made by make_sweep_worker, which holds what an integration reads and none of the windows, plots and

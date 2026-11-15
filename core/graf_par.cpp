@@ -1176,4 +1176,51 @@ RunReport shoot_report(Session &s)
   return report;
 }
 
+Result<> set_color_coding(xpp::Session &s, ColorBy by, int variable, std::optional<std::pair<double,double>> limits)
+{
+  GRAPH &graph=*s.plot_windows->current;
+  if(by==ColorBy::none){
+    graph.ColorFlag=0; /* set color to black/white */
+    return {};
+  }
+  if(by==ColorBy::variable&&variable<0)return fail("numerics","No such quantity!",command_place());
+  const int flag=by==ColorBy::velocity?1:2;
+  if(limits){
+    const auto [low,high]=*limits;
+    if(!(high>low&&(flag==2||low>=0.0)))
+      return fail("numerics",xpp::format("The color range from {} to {} is empty or, for velocity, starts below 0",xpp::number(low),xpp::number(high)),command_place());
+    graph.ColorFlag=flag;
+    if(flag==2)graph.ColorValue=variable;
+    graph.min_scale=low;
+    graph.color_scale=high-low;
+    return {};
+  }
+  if(flag==1){
+    if(s.data_store->rows<2)
+      return fail("numerics","Coloring by velocity needs a trajectory to find its range from: run one, or give the lowest and highest velocity",command_place());
+    float maxder=0.0,minder=1.e20;
+    for(int i=1;i<s.data->view.maxrow;i++){
+      float sum=0.0;
+      for(int j=0;j<s.model().node;j++)
+        sum+=static_cast<float>(fabs(static_cast<double>(s.data->view.data[1+j][i]-s.data->view.data[1+j][i-1])));
+      if(sum<minder)minder=sum;
+      if(sum>maxder)maxder=sum;
+    }
+    graph.ColorFlag=flag;
+    if(minder>=0.0&&maxder>minder){
+      graph.color_scale=(maxder-minder)/(fabs(s.numerics->delta_t*s.numerics->store_every));
+      graph.min_scale=minder/(fabs(s.numerics->delta_t*s.numerics->store_every));
+    }
+    return {};
+  }
+  double low,high;
+  get_max(s,variable,&low,&high);
+  graph.ColorFlag=flag;
+  graph.ColorValue=variable;
+  graph.min_scale=low;
+  graph.color_scale=high-low;
+  if(graph.color_scale==0.0)graph.color_scale=1.0;
+  return {};
+}
+
 } // namespace xpp

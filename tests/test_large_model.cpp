@@ -17,6 +17,7 @@
 #include "browse.h"
 #include "graphics.h"
 #include "integrate.h"
+#include "runs.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "expr.h"

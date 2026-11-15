@@ -10,6 +10,7 @@
 #include "plot_state.h"
 #include "jacobian.h"
 #include "integrate.h"
+#include "runs.h"
 #include "xpp_job.h"
 #include "model_place.h"
 #include "model_options.h"

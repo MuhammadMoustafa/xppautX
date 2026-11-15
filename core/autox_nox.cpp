@@ -2,6 +2,7 @@
 #include "autox_state.h"
 #include "model.h"
 #include "integrate.h"
+#include "runs.h"
 #include "storage.h"
 #include "xpp_log.h"
 #include <string>
@@ -1566,8 +1567,13 @@ void do_autox_range(AutoxParts s, const xpp::RunReport &report)
 {
   double t=s.numerics->total_time;
   
-  if(s.autox_state->diagram_mark.state==2)
-    xpp::do_autox_range_go(s.session,report);
+  if(s.autox_state->diagram_mark.state==2){
+    int points=0;
+    std::string parameter;
+    autox_get_info(s,&points,parameter);
+    const xpp::DiagramRange diagram{parameter,points,[&s](int point){autox_set_mark(s,point);}};
+    xpp::do_range(s.session,&s.data_store->current[0],false,report,&diagram);
+  }
   s.numerics->total_time=t;
 }
 

@@ -10,6 +10,7 @@
 #include "xpp_ui.h"
 #include "xpp_mem.h"
 #include "integrate.h"
+#include "runs.h"
 #include "pp_shoot.h"
 #include "expr_decode.h"
 #include "model.h"

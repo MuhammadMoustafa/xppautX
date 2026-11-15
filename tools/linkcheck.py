@@ -31,8 +31,6 @@ STRONG = set('TDBRCSGI')      # nm's global, non-weak definitions (T text, D dat
 # (from, to) -> (link edges against the levels now, the card that removes them); exact
 ALLOWLIST = {
     ('analysis', 'session'): (3, 'W760'),
-    ('integrators', 'analysis'): (27, 'W745'),
-    ('integrators', 'autoX'): (2, 'W745'),
     ('integrators', 'session'): (4, 'W760'),
     ('model and loading', 'session'): (3, 'W757, W758'),
 }

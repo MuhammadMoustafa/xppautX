@@ -11,6 +11,7 @@
 #include "session.h"
 #include "model.h"
 #include "integrate.h"
+#include "runs.h"
 #include "event_registry.h"
 #include "command_category.h"
 #include "xpp_error.h"
@@ -110,7 +111,7 @@ Result<std::string> range(Session &s, const Command &command, const Arguments &a
     begin_array_range(s, args.optional<bool>("still").value_or(s.array_plot->still != 0), args.optional<bool>("tag").value_or(s.array_plot->tag != 0),
                       args.get<std::string>("file"));
     RangeProgress done;
-    Result<int> swept = run_range(s, 0, &done, range_report(s));
+    Result<int> swept = run_range(s, &done, range_report(s));
     s.array_plot->range = 0;
     close_aplot_files(s, swept && *swept == 0 && !xpp::job::cancelled());
     if (!swept) return std::unexpected<Error>(swept.error());

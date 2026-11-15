@@ -7,6 +7,7 @@
 #include "adj2.h"
 #include "browse.h"
 #include "integrate.h"
+#include "runs.h"
 #include "session.h"
 #include "storage.h"
 #include "model_load.h"

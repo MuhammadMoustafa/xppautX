@@ -41,6 +41,7 @@
 #include "typed_values.h"
 #include "typed_fields.h"
 #include "integrate.h"
+#include "runs.h"
 #include "browse.h"
 #include <libgen.h>
 #include <expected>

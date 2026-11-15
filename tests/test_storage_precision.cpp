@@ -6,6 +6,7 @@
 #include "load_args.h"
 #include "xpptest.h"
 #include "integrate.h"
+#include "runs.h"
 #include "session.h"
 #include "storage.h"
 #include "model_load.h"

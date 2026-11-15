@@ -66,9 +66,9 @@ MODULES = {
         'integrate', 'odesol2', 'stiff', 'gear', 'cv2', 'cvode', 'cvband', 'cvdense', 'llnl*', 'solver',
         'dormpri', 'flags', 'jacobian', 'volterra', 'volterra2', 'delay_handle', 'my_rhs', 'dae_fun', 'numerics',
         'band', 'dense', 'vector', 'markov']),
-    'analysis': ('what is computed from a run: sweeps, fits, equilibria, shooting, spectra, the data table', [
+    'analysis': ('what is computed from a run: sweeps, fits, equilibria, shooting, spectra, the data table, and the runs a command makes of the integrator (runs: one run, Continue, Range, Monte Carlo, taking the rows into the data table; stochastic: Stochastic Compute\'s many runs, W745)', [
         'histogram', 'adj2', 'browse', 'browse_data', 'data_event', 'do_fit', 'equilibria', 'pp_shoot',
-        'sweep_runs', 'del_stab']),
+        'sweep_runs', 'del_stab', 'runs', 'stochastic']),
     'plot': ('the plot windows and what they show: curves, nullclines, marks, axes, and the encoding of a series for the page, the recorder of the picture an export writes and the array plot picture it builds (picture, array_print, W737)', [
         'plot_data', 'graf_par', 'many_pops', 'graphics', 'nullcline', 'phase_data', 'marks_data', 'grobs',
         'axes2', 'arrayplot', 'torus', 'series_enc', 'picture', 'array_print']),
@@ -120,10 +120,8 @@ LEVELS = [
 INDEPENDENT = [('protocol front end', 'platform')]
 # (from, to) -> (include lines against the levels now, the card that removes them); exact
 ALLOWLIST = {
-    ('analysis', 'session'): (8, 'W760'),
+    ('analysis', 'session'): (13, 'W760'),
     ('expressions', 'session'): (7, 'W761'),
-    ('integrators', 'analysis'): (9, 'W745'),
-    ('integrators', 'autoX'): (1, 'W745'),
     ('integrators', 'session'): (18, 'W760'),
     ('model and loading', 'autoX'): (1, 'W757'),
     ('model and loading', 'session'): (15, 'W757, W758'),

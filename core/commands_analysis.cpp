@@ -3,7 +3,7 @@
    H function, the Poincare map, the phase space's torus and the coloring of an orbit. Each handler sets the
    settings it is given over the ones the session has (an argument left out keeps them) and calls the one core
    function the Stochastic, Adjoint, Poincare map, Phase space and Color code menus' items call after their
-   questions (histogram.h, markov.h, adj2.h, do_fit.h, numerics.h, torus.h): one behaviour, whichever front
+   questions (histogram.h, markov.h, stochastic.h, adj2.h, do_fit.h, numerics.h, torus.h): one behaviour, whichever front
    end asks. */
 #include "graf_par.h"
 #include "browse.h"
@@ -14,12 +14,14 @@
 #include "adj2.h"
 #include "histogram.h"
 #include "markov.h"
+#include "stochastic.h"
 #include "model_options.h"
 #include "numerics.h"
 #include "torus.h"
 #include "model.h"
 #include "session.h"
 #include "integrate.h"
+#include "runs.h"
 #include "many_pops.h"
 #include "event_registry.h"
 #include "command_category.h"

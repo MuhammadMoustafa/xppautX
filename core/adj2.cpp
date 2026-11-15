@@ -8,6 +8,7 @@
 #include "browse.h"
 #include "do_fit.h"
 #include "integrate.h"
+#include "runs.h"
 #include "expr.h"
 #include "getvar.h"
 #include "xpp_ui.h"
@@ -458,7 +459,7 @@ Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range, const
   } sweep(s);
   s.integrator->range.rtype=RANGE_SINGLE;
   RangeProgress done;
-  if(auto swept=run_range(s,0,&done,report);!swept)return std::unexpected(swept.error());
+  if(auto swept=run_range(s, &done, report);!swept)return std::unexpected(swept.error());
   /* done the range */
   double largest=-std::numeric_limits<double>::infinity();
   const std::size_t points=s.adjoint->liap[0].size();

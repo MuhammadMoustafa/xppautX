@@ -3,6 +3,7 @@
 #include "delay_handle.h"
 #include "equilibria.h"
 #include "integrate.h"
+#include "runs.h"
 #include "del_stab.h"
 #include "many_pops.h"
 #include "graf_par.h"

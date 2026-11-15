@@ -2,7 +2,6 @@
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "session_values.h"
-#include "adj2.h"
 #include "integrate.h"
 #include "numerics.h"
 #include <string>
@@ -14,7 +13,6 @@
 #include <math.h>
 #include <expected>
 #include <memory>
-#include "browse.h"
 #include "volterra2.h"
 #include "storage.h"
 #include "delay_handle.h"
@@ -122,59 +120,6 @@ Result<> set_axis_shifts(xpp::Session &s, int x, int y, int z)
    return {};
 }
 
-void compute_one_period(xpp::Session &s, double period,double *x,const char *name, const xpp::RunReport &report)
-{
-  const PoincareMap opm=s.numerics->poincare_map;
-  double ot=s.numerics->store_from,ote=s.numerics->total_time;
-  const auto restore = [&]() {
-    s.numerics->store_from=ot;
-    s.numerics->poincare_map=opm;
-    s.numerics->total_time=ote;
-  };
-  s.numerics->store_from=0;
-  s.numerics->start_time=0;
-  s.data_store->current_time=0;
-  s.numerics->total_time=period;
-  s.numerics->poincare_map=PoincareMap::none;
-  reset_data(s);
-
-  usual_integrate_stuff(s,x,report);
-  {
-    const std::unique_ptr<xpp::Sink> w=xpp::ask_output_sink(s,"Save orbit",".dat",xpp::format("orbit-{}",name));
-    if(w){
-      if (!xpp::ok_or_show(xpp::save_mytable_data(s,*w))) { restore(); return; }
-    }
-    else{
-      restore();
-      return;
-    }
-  }
-  if(!xpp::ok_or_show(new_adjoint(s))){restore();return;}
-  {
-    const std::unique_ptr<xpp::Sink> w=xpp::ask_output_sink(s,"Save adjoint",".dat",xpp::format("adjoint-{}",name));
-    if(w){
-      const bool saved=xpp::ok_or_show(xpp::save_mytable_data(s,*w));
-      data_back(s);
-      if (!saved) { restore(); return; }
-    }
-    else { data_back(s); restore(); return; }
-  }
-  if(!xpp::ok_or_show(new_h_fun(s,false))){restore();return;}
-  {
-    const std::unique_ptr<xpp::Sink> w=xpp::ask_output_sink(s,"Save hfun",".dat",xpp::format("hfun-{}",name));
-    if(w){
-      const bool saved=xpp::ok_or_show(xpp::save_mytable_data(s,*w));
-      data_back(s);
-      if (!saved) { restore(); return; }
-    }
-    else { data_back(s); restore(); return; }
-  }
-
-  reset_data(s);
-
-  restore();
-
-}
 Result<> set_poincare_map(xpp::Session &s, PoincareMap map, std::optional<int> variable, std::optional<double> section, std::optional<SectionSign> direction, std::optional<bool> stop_on_section)
 {
  if(map==PoincareMap::none){
@@ -188,86 +133,6 @@ Result<> set_poincare_map(xpp::Session &s, PoincareMap map, std::optional<int> v
  if(direction)s.numerics->poincare_sign=*direction;
  if(stop_on_section)s.numerics->poincare_stop=*stop_on_section;
  return {};
-}
-
-void user_set_color_par(xpp::Session &s, int flag,const char *via,double lo,double hi)
-{
-  int ivar;
-   s.plot_windows->current->min_scale=lo;
-  if(hi>lo)
-    s.plot_windows->current->color_scale=(hi-lo);
-  else
-    s.plot_windows->current->color_scale=1;
-  
-  if(strncasecmp("speed",via,5)==0)
-    {
-      s.plot_windows->current->ColorFlag=1;
-    }
-  else
-    {
-      find_variable(s,via,&ivar);
-      if(ivar>=0){
-	s.plot_windows->current->ColorValue=ivar;
-	s.plot_windows->current->ColorFlag=2;
-      }
-      else
-	{
-	  s.plot_windows->current->ColorFlag=0; /* no valid colorizing */
-
-	}
-    }
-  if(flag==0){ /* force overwrite  */
-    s.plot_windows->current->ColorFlag=0;
-  
-  }
-
-}
- 
-Result<> set_color_coding(xpp::Session &s, ColorBy by, int variable, std::optional<std::pair<double,double>> limits)
-{
-  GRAPH &graph=*s.plot_windows->current;
-  if(by==ColorBy::none){
-    graph.ColorFlag=0; /* set color to black/white */
-    return {};
-  }
-  if(by==ColorBy::variable&&variable<0)return fail("numerics","No such quantity!",command_place());
-  const int flag=by==ColorBy::velocity?1:2;
-  if(limits){
-    const auto [low,high]=*limits;
-    if(!(high>low&&(flag==2||low>=0.0)))
-      return fail("numerics",xpp::format("The color range from {} to {} is empty or, for velocity, starts below 0",xpp::number(low),xpp::number(high)),command_place());
-    graph.ColorFlag=flag;
-    if(flag==2)graph.ColorValue=variable;
-    graph.min_scale=low;
-    graph.color_scale=high-low;
-    return {};
-  }
-  if(flag==1){
-    if(s.data_store->rows<2)
-      return fail("numerics","Coloring by velocity needs a trajectory to find its range from: run one, or give the lowest and highest velocity",command_place());
-    float maxder=0.0,minder=1.e20;
-    for(int i=1;i<s.data->view.maxrow;i++){
-      float sum=0.0;
-      for(int j=0;j<s.model().node;j++)
-        sum+=static_cast<float>(fabs(static_cast<double>(s.data->view.data[1+j][i]-s.data->view.data[1+j][i-1])));
-      if(sum<minder)minder=sum;
-      if(sum>maxder)maxder=sum;
-    }
-    graph.ColorFlag=flag;
-    if(minder>=0.0&&maxder>minder){
-      graph.color_scale=(maxder-minder)/(fabs(s.numerics->delta_t*s.numerics->store_every));
-      graph.min_scale=minder/(fabs(s.numerics->delta_t*s.numerics->store_every));
-    }
-    return {};
-  }
-  double low,high;
-  get_max(s,variable,&low,&high);
-  graph.ColorFlag=flag;
-  graph.ColorValue=variable;
-  graph.min_scale=low;
-  graph.color_scale=high-low;
-  if(graph.color_scale==0.0)graph.color_scale=1.0;
-  return {};
 }
 
 void do_meth(xpp::Session &s)
