@@ -140,6 +140,7 @@ solve_boundary(std::ptrdiff_t *ifst, iap_type *iap, rap_type *rap, double *par, 
 
   /* Sets up and solves the linear equations for one Newton/Chord iteration 
    */
+  autox_solve_begins(*iap->run); /* XPP_AUTOX_CANCEL_AT_SOLVE counts these too (W751) */
 
   /* Most of the required memory is allocated below */
   /* This is an interesting section of code.  The main point

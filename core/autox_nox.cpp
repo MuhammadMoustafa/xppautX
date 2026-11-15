@@ -538,9 +538,21 @@ std::optional<xpp::Error> autox_end_run(xpp::Session &s, AutoxRun &run, std::opt
   return reported;
 }
 
+namespace {
+/* XPP_AUTOX_CANCEL_AT_SOLVE=N makes every run (a job or a single run) ask Stop as its Nth solve begins, so servercheck's Stop
+   lands at the same place every time (the race of a Stop at machine speed is what W750 and W751 fixed); autox_solve_begins */
+std::optional<std::size_t> cancel_solve_point()
+{
+  const char *at=std::getenv("XPP_AUTOX_CANCEL_AT_SOLVE");
+  if(!at)return std::nullopt;
+  return static_cast<std::size_t>(std::strtoull(at,nullptr,10));
+}
+} // namespace
+
 Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold, const AutoxFoundStart *found)
 {
   autox_bind_session(run,s);
+  run.cancel_at_solve=cancel_solve_point();
   init_autox(*s.autox_state,run.params,s.model().node,s.numerics->jacobian==JACOBIAN_EXACT); /* the continuation's initialization from the settings: what reading in AUTO's parameters and running its init did */
   run.orbit_start=s.autox_state->new_period_flag;
   if(found){ /* the problem and the point of the job that found it, which are not the settings' */

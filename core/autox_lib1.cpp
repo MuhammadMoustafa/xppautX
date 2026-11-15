@@ -2007,8 +2007,7 @@ solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
   iid = iap->iid;
   itnw = iap->itnw;
   ibr = iap->ibr;
-  if (iap->run->cancel_at_solve && !iap->run->locating && ++iap->run->solves == *iap->run->cancel_at_solve)
-    xpp::job::cancel_current(); /* XPP_AUTOX_CANCEL_AT_SOLVE: the Stop of servercheck's check lands here */
+  autox_solve_begins(*iap->run);
 
   dsmin = rap->dsmin;
   epsl = rap->epsl;

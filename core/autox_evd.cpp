@@ -286,6 +286,7 @@ void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t i
   if (iap->itpst == AutoxPointKind::Hopf && iap->ndim == 2 * iap->ndm + 2)
     p.flag2=autox_hopf_curve_kind(u0[2 * iap->ndm]);
   p.jacobian=s.numerics->jacobian;
+  ++run.points_held;
   if(run.job){
     /* a job keeps its points apart until the jobs are joined (autox_jobs.cpp), which draws them as they come in the meantime */
     p.from=from;

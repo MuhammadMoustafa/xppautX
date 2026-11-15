@@ -955,6 +955,7 @@ def check_autox_branch_jobs():
             s.close()
     check_autox_stopped_replay()
     check_autox_stop_at_a_solve_replays()
+    check_single_run_stop_at_a_solve_replays()
     check_autox_branch_recordings()
 
 
@@ -1023,6 +1024,39 @@ def check_autox_stop_at_a_solve_replays():
             check_stopped_run_replays(stopped_recording(s), evs, 'a Stop at solve %d: the same diagram' % solve, (0, 0, 1))
         finally:
             s.close()
+
+
+# W751 (#830): the same run as STOPPED_RUN without follow_all_branches, a single run that is not a branch job
+SINGLE_RUN = dict(kind='equilibrium', replace_diagram=False, max_steps=1000000, output_every=1000, parameter_min=0, parameter_max=1.5,
+                  step_size=1e-6, min_step_size=1e-7, max_step_size=1e-6)
+
+
+def check_single_run_stop_at_a_solve_replays():
+    """W751 (#830): W750's rule holds for a single run too, which is not a branch job: a Stop asked as its Nth solve begins
+    (XPP_AUTOX_CANCEL_AT_SOLVE) ends on a repeat of its last stored point, from its third point on, and its recording replays to
+    the same diagram. Without the rule the Stop in the second point's solve ended on the start, and the next one on an unstored
+    point, so the recorded point count replayed to a different diagram."""
+    for solve in (1, 2, 3):
+        s = jobs_session(STOPPED_MODEL, STOPPED_START, env={'XPP_AUTOX_CANCEL_AT_SOLVE': str(solve)}, threads=1, record=True)
+        try:
+            s.send(cmd='autox.run', **SINGLE_RUN)
+            evs, end = s.collect(lambda e: e.get('ev') == 'done', timeout=120 * SLOW)
+            points = jobs_diagram(evs)
+            check('W751: a single run stopped as its solve %d begins ends on a repeat of its last stored point, with three or more points' % solve,
+                  end.get('status') == 'stopped' and len(points) >= 3 and points[-1][2:4] == points[-2][2:4], '%s %s' % (end.get('status'), points))
+            check_single_run_replays(stopped_recording(s), evs, 'a Stop at solve %d: the same diagram' % solve)
+        finally:
+            s.close()
+
+
+def check_single_run_replays(path, evs, what):
+    """the recording at `path` of a stopped single run whose events are `evs` replays silently to the same diagram, ending stopped"""
+    code, replay, err = replayed_events(STOPPED_MODEL, path)
+    errors = jobs_errors(replay) + [e['error'] for e in replay if e.get('ev') == 'done' and e.get('error')]
+    last_done = [e for e in replay if e.get('ev') == 'done'][-1]
+    check('W751: the stopped single run replays: no error, silently too (exit %s), %s' % (code, what),
+          code == 0 and not errors and jobs_diagram(replay) == jobs_diagram(evs) and len(jobs_diagram(evs)) > 2 and last_done.get('status') == 'stopped',
+          '%s %s %d vs %d points %s' % (errors, err[-200:], len(jobs_diagram(replay)), len(jobs_diagram(evs)), str(last_done)[:200]))
 
 
 def check_recorded_jobs_refused(text):

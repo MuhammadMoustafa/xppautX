@@ -406,6 +406,8 @@ struct AutoxRun {
      autox_jobs.cpp: servercheck's Stop at a given place); solves counts them */
   std::optional<std::size_t> cancel_at_solve;
   std::size_t solves=0;
+  /* the points this run has stored (addbif), a job's and a single run's alike: what a Stop waits for (autox_cancelled) */
+  std::size_t points_held=0;
   /* the error this run ends with is the whole run's (the diagram's limit, memory): the queue stops every job */
   bool run_wide_error=false;
   /* called by addbif with the number of points the job holds each time it holds one more (on the job's thread), so the
@@ -475,14 +477,21 @@ struct AutoxRun {
 /* Stop was pressed or this job was stopped alone: what asks for a branch's end point */
 inline bool autox_cancel_requested(const AutoxRun &run) { return xpp::job::cancelled() || run.stopped_alone; }
 
-/* What a solve acts on: a job's Stop waits until it holds two points (the start and the first point of its loop). A solve
+/* What a solve acts on: a run's Stop waits until it holds two points (the start and the first point of its loop). A solve
    cancelled before that returns to the start when it is the second point's and to the unstored second point when it is the
    next, so where Stop landed (a race) made two different end points; from two points on, a cancelled solve always returns
-   to the last stored point, and a recorded stop at its point count replays to the same diagram (W750). */
+   to the last stored point, and a recorded stop at its point count replays to the same diagram (W750, W751). */
 inline bool autox_cancelled(const AutoxRun &run)
 {
-  const bool waits=run.job&&run.points.size()<2;
+  const bool waits=run.points_held<2;
   return (xpp::job::cancelled()&&!waits)||run.stopped_alone;
+}
+
+/* a solve begins (autoX's Newton solve of a point, algebraic or boundary value): XPP_AUTOX_CANCEL_AT_SOLVE's Nth non-locating
+   one asks Stop, so servercheck's Stop lands at the same solve every time (autox_nox.cpp, W750, W751) */
+inline void autox_solve_begins(AutoxRun &run)
+{
+  if (run.cancel_at_solve && !run.locating && ++run.solves == *run.cancel_at_solve) xpp::job::cancel_current();
 }
 
 namespace xpp {

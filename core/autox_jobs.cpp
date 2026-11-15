@@ -361,15 +361,6 @@ std::optional<std::size_t> child_failure_point()
   return static_cast<std::size_t>(std::strtoull(at,nullptr,10));
 }
 
-/* XPP_AUTOX_CANCEL_AT_SOLVE=N makes every job ask Stop as its Nth solve begins, so servercheck's Stop lands at the same place
-   every time (the race of a Stop at machine speed is what W750 fixed) */
-std::optional<std::size_t> cancel_solve_point()
-{
-  const char *at=std::getenv("XPP_AUTOX_CANCEL_AT_SOLVE");
-  if(!at)return std::nullopt;
-  return static_cast<std::size_t>(std::strtoull(at,nullptr,10));
-}
-
 /* the job's direction, evaluation and threads, once it is about to run */
 void configure(Queue &q, QueuedJob &job)
 {
@@ -377,7 +368,6 @@ void configure(Queue &q, QueuedJob &job)
   run.job=true;
   run.on_thread=q.at_once;
   if(job.parent)run.fail_after_points=child_failure_point();
-  run.cancel_at_solve=cancel_solve_point();
   run.params.mxbf=0; /* the queue follows the branch points: autoX's own switching at them is off */
   run.params.ds=job.start.sign.value_or(1)*q.ds;
   if(const xpp::job::BranchJob *entry=planned(q,job.key);entry&&entry->state==xpp::job::JobState::stopped)
