@@ -241,10 +241,12 @@ bool read_csv(std::string_view text, DataTable &t) { return parse_csv(text, t); 
 Result<> write_csv_gz(const DataTable &t, Sink &w)
 {
     std::string text;
-    csv_pieces(t, [&](const std::string &piece) {
-        text += piece;
-        return Result<>{};
-    });
+    if (const Result<> made = csv_pieces(t, [&](const std::string &piece) {
+            text += piece;
+            return Result<>{};
+        });
+        !made)
+        return made;
     return w.write(zip::gzip(text));
 }
 

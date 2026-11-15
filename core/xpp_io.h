@@ -164,7 +164,8 @@ public:
     bool write(std::string_view bytes) noexcept
     {
         FILE *fp = file();
-        return fp && std::fwrite(bytes.data(), 1, bytes.size(), fp) == bytes.size();
+        /* an empty view's data() may be null, which fwrite must not be given */
+        return fp && (bytes.empty() || std::fwrite(bytes.data(), 1, bytes.size(), fp) == bytes.size());
     }
     /* a line and its newline as they are, with no format per line (files of millions of lines) */
     bool write_line(std::string_view line) noexcept { return write(line) && write("\n"); }
