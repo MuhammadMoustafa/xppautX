@@ -216,7 +216,13 @@ class Client:
             self.proc.kill()
         self.proc.wait()
         self.log_thread.join(timeout=QUIT_TIMEOUT)
-        for pipe in (self.proc.stdin, self.proc.stdout, self.proc.stderr):
-            pipe.close()
+        try:
+            # a quit written to a process that had already ended stays in stdin's buffer, and closing flushes it
+            # again: EPIPE, or EINVAL on Windows (subprocess ignores the same when it closes stdin)
+            self.proc.stdin.close()
+        except OSError:
+            pass
+        self.proc.stdout.close()
+        self.proc.stderr.close()
         if self.owns_cwd:
             shutil.rmtree(self.cwd, ignore_errors=True)
