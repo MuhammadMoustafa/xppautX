@@ -237,6 +237,8 @@ struct AutoxFoundStart {
 };
 /* a run made ready (the Session's settings into run.params, its restart text, where it started from and its
    first point's stability); the error is what is wrong. After create_autox_file_name. */
+/* a count a check sets in the environment (XPP_AUTOX_FAIL_CHILD_AT, XPP_AUTOX_CANCEL_AT_SOLVE), or nothing when unset */
+std::optional<std::size_t> autox_check_count(const char *name);
 Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold, const AutoxFoundStart *found = nullptr);
 /* a run that left a model parameter not finite (a diverged Newton step) puts the value it had before, `before` (the model's
    nupar parameters), back, with a warning (QA SCI-001) */

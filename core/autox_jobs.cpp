@@ -352,22 +352,15 @@ void skip_if_away(Queue &q, QueuedJob &job, double start)
                                        xpp::number(ds),q.s.model().upar_names[principal],xpp::number(start),xpp::number(state.bifur.rl0),xpp::number(state.bifur.rl1)));
 }
 
-/* XPP_AUTOX_FAIL_CHILD_AT=N makes every job that starts at what another found fail when it holds N points, so servercheck
-   reaches a failing job without a model that fails (the way XPP_STORAGE_FAIL_GROW reaches a full store) */
-std::optional<std::size_t> child_failure_point()
-{
-  const char *at=std::getenv("XPP_AUTOX_FAIL_CHILD_AT");
-  if(!at)return std::nullopt;
-  return static_cast<std::size_t>(std::strtoull(at,nullptr,10));
-}
-
 /* the job's direction, evaluation and threads, once it is about to run */
 void configure(Queue &q, QueuedJob &job)
 {
   AutoxRun &run=*job.run;
   run.job=true;
   run.on_thread=q.at_once;
-  if(job.parent)run.fail_after_points=child_failure_point();
+  /* XPP_AUTOX_FAIL_CHILD_AT=N: every job that starts at what another found fails when it holds N points, so servercheck
+     reaches a failing job without a model that fails (the way XPP_STORAGE_FAIL_GROW reaches a full store) */
+  if(job.parent)run.fail_after_points=autox_check_count("XPP_AUTOX_FAIL_CHILD_AT");
   run.params.mxbf=0; /* the queue follows the branch points: autoX's own switching at them is off */
   run.params.ds=job.start.sign.value_or(1)*q.ds;
   if(const xpp::job::BranchJob *entry=planned(q,job.key);entry&&entry->state==xpp::job::JobState::stopped)
