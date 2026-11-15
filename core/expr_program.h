@@ -160,7 +160,7 @@ struct Program {
     mutable std::vector<expr::Op> ops;
     std::vector<int> native_reads; /* variables read by this code and its user functions */
     bool array_pure = false; /* native code only uses c/v and immutable lookup tables */
-    double (*native)(double *, double *, Session *, const int *) = nullptr;
+    double (*native)(double *, double *, ParserState *, const int *) = nullptr;
     bool compiled = false; /* translate_model made native code for it (W715): `native` once build_native built the model's code */
     bool in_rhs = false; /* compiled only inside the model's one right-hand side function (W708): no native of its own */
     /* the RPN was rewritten at run time (a user function redefined, a DAE guess edited): neither the native code

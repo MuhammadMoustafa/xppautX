@@ -784,7 +784,7 @@ Result<> autox_run_jobs(AutoxParts s, int iold, int isave)
      time, each from the constants the run began with, which are the Session's again when the run ends */
   Queue q(s);
   const AutoxState &state=*s.autox_state;
-  q.isolated=native_ready(s.session)&&autox_parallel_ready(s); /* the jobs on threads call the native code: built first (W715) */
+  q.isolated=native_ready(s.option_parts)&&autox_parallel_ready(s); /* the jobs on threads call the native code: built first (W715) */
   q.constants=s.parser.constants;
   q.variables=s.parser.variables;
   q.epss=state.bifur.epss;

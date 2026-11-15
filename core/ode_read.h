@@ -8,7 +8,7 @@
 
 namespace xpp {
 
-struct Session; /* session.h */
+struct OptionParts; /* model_options.h */
 struct Model; /* model.h */
 class TypedFields; /* typed_fields.h */
 
@@ -20,7 +20,7 @@ int find_char(std::string_view s1, std::string_view s2, int i0, int *i1);
    this_file the path): read, then built into s by the builder (form_ode.h),
    to which s is only handed on; 1 (a model that does not load fails the
    load, model_failed) */
-int get_eqn(Model &m, Session &s, std::string_view text);
+int get_eqn(Model &m, const OptionParts &s, std::string_view text);
 
 /* The comment marker in a physical .ode line, or npos. Directives,
    displayed (quoted) comments and Volterra convolution separators keep

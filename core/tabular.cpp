@@ -73,7 +73,7 @@ to be added later
 #include "model_files.h"
 #include "model_place.h"
 #include "expr_program.h"
-#include "session.h"
+#include "model_options.h"
 
 namespace xpp {
 
@@ -89,13 +89,13 @@ void resize_values(TABULAR &t, int length)
 }
 
 /* where the model defines table index (its table line), for its errors */
-xpp::Place table_place(const xpp::Session &s, int index)
+xpp::Place table_place(const OptionParts &s, int index)
 {
   return xpp::model_place(s.model(),s.tables[index].name);
 }
 
 /* Replacements may reuse their table's budget; all other tables share it. */
-bool table_count_ok(const Session &s, int index, int count)
+bool table_count_ok(const OptionParts &s, int index, int count)
 {
   if (count < 2 || count > table_points_limit) return false;
   size_t total = static_cast<size_t>(count);
@@ -110,14 +110,14 @@ void set_autox_eval_flags(std::vector<TABULAR> &tables, int f)
  for(TABULAR &t:tables)
     t.autoeval=f;
 }
-Result<int> find_table(const xpp::Session &s, std::string_view name)
+Result<int> find_table(const OptionParts &s, std::string_view name)
 {
   for(int i=0;i<s.ntable;i++)
     if(equal_ignoring_case(s.tables[i].name,name))return i;
   return fail("table",xpp::format("The model has no table named \"{}\"",name),command_place());
 }
 
-Result<int> edit_table(xpp::Session &s, int index, const TableEdit &edit)
+Result<int> edit_table(const OptionParts &s, int index, const TableEdit &edit)
 {
   TABULAR &table=s.tables[index];
   if(table.flag==1){
@@ -137,7 +137,7 @@ Result<int> edit_table(xpp::Session &s, int index, const TableEdit &edit)
   return table.n;
 }
 
-xpp::Result<> redo_all_fun_tables(xpp::Session &s)
+xpp::Result<> redo_all_fun_tables(const OptionParts &s)
 {
   int i;
   xpp::FirstError first;
@@ -150,7 +150,7 @@ xpp::Result<> redo_all_fun_tables(xpp::Session &s)
   return first.result();
 }
 
-xpp::Result<> eval_fun_table(xpp::Session &s, int index, int n, double xlo, double xhi, const std::string &formula, double *y)
+xpp::Result<> eval_fun_table(const OptionParts &s, int index, int n, double xlo, double xhi, const std::string &formula, double *y)
 {
   int i;
   
@@ -181,7 +181,7 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int index, int n, double xlo, doub
   return {};
 }
 
-xpp::Result<> create_fun_table(xpp::Session &s, int npts, double xlo, double xhi, std::string_view formula, int index)
+xpp::Result<> create_fun_table(const OptionParts &s, int npts, double xlo, double xhi, std::string_view formula, int index)
 {
   int length=npts;
 
@@ -209,7 +209,7 @@ xpp::Result<> create_fun_table(xpp::Session &s, int npts, double xlo, double xhi
   return {};
 }
 
-xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, int model_file)
+xpp::Result<> load_table(const OptionParts &s, std::string_view filename, int index, int model_file)
 {
   int i;
   int length;
@@ -329,7 +329,7 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
   return {};
 }
    
-xpp::Result<> add_file_table(xpp::Session &s, int index, std::string_view file)
+xpp::Result<> add_file_table(const OptionParts &s, int index, std::string_view file)
 {
   /* the name's printable characters */
   std::string file2;

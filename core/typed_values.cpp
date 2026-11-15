@@ -11,7 +11,7 @@
 #include "model.h"
 #include "model_record.h"
 #include "xpp_text.h"
-#include "session.h"
+#include "model_options.h"
 
 namespace xpp {
 
@@ -23,7 +23,7 @@ int find_user_name(const xpp::Model &m, int type, std::string_view oname)
 }
 
 /* expr compiled in s, and worked out when `value`; the symbols it added are taken back */
-static Result<double> worked_formula(xpp::Session &s, std::string_view expr, bool value)
+static Result<double> worked_formula(const OptionParts &s, std::string_view expr, bool value)
 {
   std::vector<int> com;
   int i;
@@ -36,12 +36,12 @@ static Result<double> worked_formula(xpp::Session &s, std::string_view expr, boo
   return z;
 }
 
-Result<double> evaluate_formula(xpp::Session &s, std::string_view expr)
+Result<double> evaluate_formula(const OptionParts &s, std::string_view expr)
 {
   return worked_formula(s,expr,true);
 }
 
-Result<> compile_formula(xpp::Session &s, std::string_view expr)
+Result<> compile_formula(const OptionParts &s, std::string_view expr)
 {
   const Result<double> compiled=worked_formula(s,expr,false);
   if(!compiled)return std::unexpected(compiled.error());
@@ -54,7 +54,7 @@ static std::unexpected<Error> refused_value(std::string what,std::string_view fi
   return std::unexpected(Error{"value",std::move(what),command_place(),std::string(field)});
 }
 
-Result<WorkedOut> work_out(xpp::Session &s, std::string_view formula, std::string_view field)
+Result<WorkedOut> work_out(const OptionParts &s, std::string_view formula, std::string_view field)
 {
   WorkedOut w;
   if(formula.empty())return w; /* nothing typed after the % is 0 */
@@ -74,7 +74,7 @@ Result<WorkedOut> work_out(xpp::Session &s, std::string_view formula, std::strin
   return w;
 }
 
-Result<double> typed_number(xpp::Session &s, std::string_view typed, std::string_view field)
+Result<double> typed_number(const OptionParts &s, std::string_view typed, std::string_view field)
 {
   const std::string_view text=trim_blanks(typed);
   if(text.starts_with('%')){

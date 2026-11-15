@@ -121,7 +121,6 @@ INDEPENDENT = [('protocol front end', 'platform')]
 ALLOWLIST = {
     ('analysis', 'session'): (13, 'W760'),
     ('integrators', 'session'): (18, 'W760'),
-    ('model and loading', 'session'): (9, 'W758'),
 }
 
 INCLUDE = re.compile(r'\s*#\s*include\s*"([^"]+)"')

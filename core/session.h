@@ -102,12 +102,6 @@ struct Session {
   Session(const Session &)=delete;
   Session &operator=(const Session &)=delete;
 
-  /* Room for n variables, fixed variables and aux quantities in the
-     Session's per-variable tables (last_ic, delay_string, itor, bcs) and
-     the Model's (Model::size_variables); the builder calls it as the file
-     declares its variables. The new entries are 0, "0.0" (no history), 0
-     (no torus) and no boundary condition. */
-  void size_variables(int n);
 
   /* the Model this session runs */
   Model &model() noexcept { return *model_; }

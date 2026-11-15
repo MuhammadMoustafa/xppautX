@@ -34,7 +34,6 @@
 #include "typed_values.h"
 #include "userbut.h"
 #include "xpp_ui.h"
-#include "session.h"
 #include "expr.h"
 #include "comline.h"
 #include "expr_program.h"
@@ -249,7 +248,7 @@ Expr op_expr(Expr::Kind kind, std::string text, std::vector<Expr> args)
 
 class Converter {
 public:
-  Converter(xpp::Session &s, std::vector<Diagnostic> &diagnostics, DeclinedRename declined)
+  Converter(const OptionParts &s, std::vector<Diagnostic> &diagnostics, DeclinedRename declined)
       : m_(s.model()), s_(s), spell_(m_.source), sym_(s_.parser), diagnostics_(diagnostics), declined_(declined)
   {
   }
@@ -1790,7 +1789,7 @@ private:
   }
 
   xpp::Model &m_;
-  xpp::Session &s_;
+  const OptionParts &s_;
   Spelling spell_;
   Symbols sym_;
   std::map<std::string, std::string> renames_;
@@ -1879,7 +1878,7 @@ std::vector<int> normalized(const std::vector<int> &prog, int guard)
   return out;
 }
 
-Fingerprint fingerprint(const xpp::Session &s, int guard = -1)
+Fingerprint fingerprint(const OptionParts &s, int guard = -1)
 {
   const xpp::Model &m = s.model();
   Fingerprint f;
@@ -1912,7 +1911,7 @@ int check_file(FileSystem &fs, const ModelLoader &loader, const std::string &fil
     const Result<CommandLine> line = parse_command_line({"xppautX", file});
     /* a loaded model is compiled as a load does, which says what the compiler warns of and finds its
        independent subsystems (W433), reported when there are several */
-    const auto compiled = [&](Session &s) -> std::optional<Error> {
+    const auto compiled = [&](const OptionParts &s) -> std::optional<Error> {
       const Result<std::vector<Error>> warnings = compile_loaded(s);
       if (!warnings) return warnings.error();
       for (const Error &warning : *warnings) diagnostics.push_back({warning.place, "compile", "warning", warning.what});
@@ -1975,14 +1974,14 @@ Result<std::string> convert_text(FileSystem &fs, const ModelLoader &loader, cons
   const OdeAsOdex as_odex;
   std::vector<Diagnostic> findings;
   std::vector<Diagnostic> &output = diagnostics ? *diagnostics : findings;
-  Result<> imported = loader.inspect(fs, *line, [](Session &s) {
+  Result<> imported = loader.inspect(fs, *line, [](const OptionParts &s) {
     const std::string &file = s.model().this_file;
     xpp::LoadSite::at(file);
     std::string bytes;
     if (!read_model_file(s.model(), file, bytes) || !is_model_text(bytes))
       model_failed(Error{"convert", "cannot be read as model text", Place{file}});
     get_eqn(s.model(), s, bytes);
-  }, [&](Session &s) -> std::optional<Error> {
+  }, [&](const OptionParts &s) -> std::optional<Error> {
     try {
       Converter converter(s, output, declined);
       text = converter.run();
@@ -2002,7 +2001,7 @@ Result<std::string> convert_text(FileSystem &fs, const ModelLoader &loader, cons
   if (!converted_line) return std::unexpected(converted_line.error());
   saved.files.push_back({model, text});
   Result<> checked = loader.inspect(fs, *converted_line, loader.read_odex,
-    [&](Session &s) -> std::optional<Error> {
+    [&](const OptionParts &s) -> std::optional<Error> {
       /* run() writes the guard last, so every other function keeps its
          .ode number and the programs' calls compare as they are */
       const int guard = guard_name.empty() ? -1 : s.model().compiler.nfun - 1;
@@ -2043,13 +2042,13 @@ Result<> write_conversion(FileSystem &fs, const std::string &out, std::string_vi
 
 } // namespace
 
-Expr program_expression(Session &s, const std::vector<int> &program)
+Expr program_expression(const OptionParts &s, const std::vector<int> &program)
 {
   std::vector<Diagnostic> diagnostics;
   return Converter(s, diagnostics, DeclinedRename::refuse).program(program);
 }
 
-std::string print_range(Session &s, const std::vector<std::string> &texts,
+std::string print_range(const OptionParts &s, const std::vector<std::string> &texts,
                         const std::vector<int> &values, const ArrayCopy &range)
 {
   std::vector<Diagnostic> diagnostics;

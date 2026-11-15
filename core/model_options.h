@@ -26,7 +26,6 @@ struct AutoxSettings; /* model_autox_settings.h */
 
 namespace xpp {
 
-struct Session; /* session.h */
 struct Place; /* xpp_error.h */
 struct Model;   /* model.h */
 struct NumericsSettings; /* model_numerics.h */
@@ -43,6 +42,9 @@ struct XppPlotWindows; /* plot_state.h */
 struct AddedColumn; /* model_added_columns.h */
 struct UserButton; /* userbut.h */
 struct TABULAR; /* tabular.h */
+struct ParserState; /* expr.h */
+struct NetworkValues; /* simplenet.h */
+struct BoundaryCondition; /* model_parts.h */
 class Random; /* xpp_math.h */
 enum class Colormap; /* colormap.h */
 
@@ -90,15 +92,15 @@ private:
   std::vector<bool> bits_;
 };
 
-/* The parts of a Session the option table's rows read and write, handed in where an option is read or set (a Session converts to it
-   where it is passed: session.h), so the table, its panels and what follows them never include session.h (W757). Each is the Session's
-   own part, not a copy: the settings the options set, the Model, and the lists a row names (sliders, buttons, sets, the options a
-   source set). `session` is only a handle, handed on to the functions of other modules that still take one (the exact Jacobian's
-   make); the rows read nothing through it. Constness is as shallow as a Session's own pointers: a const Session converts too.
+/* The parts of a Session the option table's rows and the builders of a Model read and write, handed in where an option is read or set
+   or a model is built (a Session converts to it where it is passed: session.h), so the table, its panels, the readers and the builders
+   never include session.h (W757, W758). Each is the Session's own part, not a copy: the settings the options set, the Model and the
+   parser that compiles its formulas, the tables and networks the builders size, the lists a row names (sliders, buttons, sets, the
+   options a source set). Constness is as shallow as a Session's own pointers: a const Session converts too.
    The members keep the Session's names, so a row reads as `s.numerics->total_time`. */
 struct OptionParts {
-  Session &session;
   Model &model_;
+  ParserState &parser;
   NumericsSettings *numerics;
   PlotSettings *plot_settings;
   AutoxSettings *autox_state;
@@ -116,6 +118,12 @@ struct OptionParts {
   std::vector<XppSlider> &sliders;
   std::vector<UserButton> &user_buttons;
   std::vector<TABULAR> &tables;
+  int &ntable;
+  std::vector<NetworkValues> &networks;
+  std::vector<BoundaryCondition> &bcs;
+  std::vector<double> &last_ic;
+  std::vector<std::string> &delay_string;
+  std::vector<int> &plot_list;
   std::vector<std::string> &run_sets;
   std::vector<int> &itor;
   std::string &batch_out_file, &picture_file, &after_run_file;

@@ -12,6 +12,7 @@ namespace xpp { namespace prefs { struct Preferences; } struct SavedModel; struc
 namespace xpp {
 
 struct Session; /* session.h */
+struct OptionParts; /* model_options.h */
 
 /* The load, as the front ends ask for it: declared here, at the model's
    level, and done by xpp_batch.cpp, the program's start, which knows every
@@ -40,8 +41,8 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
    setup. Never commits; the converter alone supplies the .ode reader. */
 /* A load in a Model that is discarded. services, when given, are the
    "Allow always" answers it works with (model_file_types.h). */
-Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::function<void(Session &)> &read,
-                      const std::function<std::optional<Error>(Session &)> &check = {},
+Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::function<void(const OptionParts &)> &read,
+                      const std::function<std::optional<Error>(const OptionParts &)> &check = {},
                       const SavedModel *saved = nullptr, const LoadServices *services = nullptr);
 
 /* The load a converter, a checker or a front end runs a model through, handed to it by its
@@ -50,11 +51,11 @@ Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::functio
 struct ModelLoader {
   Loaded (*load)(FileSystem &fs, CommandLine cl, int batch, const SavedModel *saved,
                  const std::function<std::optional<Error>(Session &)> &check, const Result<prefs::Preferences> *read_prefs);
-  Result<> (*inspect)(FileSystem &fs, const CommandLine &cl, const std::function<void(Session &)> &read,
-                      const std::function<std::optional<Error>(Session &)> &check, const SavedModel *saved, const LoadServices *services);
+  Result<> (*inspect)(FileSystem &fs, const CommandLine &cl, const std::function<void(const OptionParts &)> &read,
+                      const std::function<std::optional<Error>(const OptionParts &)> &check, const SavedModel *saved, const LoadServices *services);
   void (*batch_start)(Session &s);
   /* the .odex reader: a model's file read into the Session being loaded (inspect's `read` for an .odex) */
-  void (*read_odex)(Session &s);
+  void (*read_odex)(const OptionParts &s);
 };
 
 /* After a load with no interface (--silent, a unit test): s's browser,

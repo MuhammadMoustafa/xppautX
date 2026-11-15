@@ -374,7 +374,7 @@ constexpr OptionRow rows[] = {
    .parse = [](const OptionParts &s, const OptionValue &v) -> const char * {
      const int i = choice_index(jacobian_names, v.text);
      if (i < 0) return "not difference or exact";
-     if (i == JACOBIAN_EXACT && !LoadSite::running() && !ensure_exact_jacobian(s.session)) return s.model().jacobian.unavailable.c_str();
+     if (i == JACOBIAN_EXACT && !LoadSite::running() && !ensure_exact_jacobian(s)) return s.model().jacobian.unavailable.c_str();
      if (!v.apply) return nullptr;
      if (i == JACOBIAN_EXACT && LoadSite::running()) s.model().jacobian.requested = LoadSite::place();
      s.numerics->jacobian = i;
@@ -389,7 +389,7 @@ constexpr OptionRow rows[] = {
    .unavailable = [](const Model &m, int i) -> std::string_view {
      return i == JACOBIAN_EXACT && m.jacobian.tried && !m.jacobian.available() ? std::string_view(m.jacobian.unavailable) : std::string_view();
    },
-   .prepare = [](const OptionParts &s, int i) { if (i == JACOBIAN_EXACT) ensure_exact_jacobian(s.session); }, .saved = true},
+   .prepare = [](const OptionParts &s, int i) { if (i == JACOBIAN_EXACT) ensure_exact_jacobian(s); }, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::whole, .odex = "jacobian.band_upper", .help = "The diagonals above the main one that a banded Jacobian keeps.", .xppaut_names = {"BANDUP"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics->cv_bandupper; }),
    .parse = [](const OptionParts &s, const OptionValue &v) -> const char * {

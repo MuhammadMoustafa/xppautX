@@ -6,6 +6,7 @@
 #include "local_fs.h"
 #include "model_native.h"
 #include "model_load.h"
+#include "session.h"
 #include "comline.h"
 #include "xpp_error.h"
 #include <string>

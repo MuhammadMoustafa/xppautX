@@ -5,6 +5,7 @@
    only the heading slides. */
 #include "xpptest.h"
 #include "session.h"
+#include "form_ode.h"
 #include "autox_state.h"
 #include "autox_nox.h"
 #include "autox_c.h"
@@ -18,7 +19,7 @@
 
 static void load_model(void)
 {
-    xpp::client_session().size_variables(2);
+    xpp::size_variables(xpp::client_session(), 2);
     xpp::client_session().model().size_parameters(3);
     xpp::client_session().model().upar_names[0] = "iapp";
     xpp::client_session().model().upar_names[1] = "gca";

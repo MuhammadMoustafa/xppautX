@@ -348,7 +348,7 @@ void state_values(const xpp::Model &m, double t, const double *y, int node, int 
    (W715: a fixed variable's own function is not compiled when p_rhs
    computes it, so this is the one way to evaluate them). */
 template <class Set, class Evaluate>
-void fixed_values(const xpp::Model &m, double *c, double *v, xpp::Session *s, Set &&set, Evaluate &&evaluate)
+void fixed_values(const xpp::Model &m, double *c, double *v, xpp::ParserState *s, Set &&set, Evaluate &&evaluate)
 {
   if (m.native_rhs) {
     xpp::mir::call(m.native_rhs,c,v,s,nullptr);
@@ -364,7 +364,7 @@ void equation_values(const xpp::Model &m, double *ydot, Evaluate &&evaluate)
 }
 
 template <class Set, class Evaluate, class Between>
-void rhs_order(const xpp::Model &m, double t, const double *y, double *ydot, double *c, double *v, xpp::Session *s,
+void rhs_order(const xpp::Model &m, double t, const double *y, double *ydot, double *c, double *v, xpp::ParserState *s,
                Set &&set, Evaluate &&evaluate, Between &&between)
 {
   state_values(m,t,y,m.node,0,set);
@@ -390,7 +390,7 @@ void extra(xpp::Session &s, double *y__y, double t, int nod, int neq)
   if(nod>=neq)return;
   const auto set=[&](int index,double value){setvar(s.parser,index,value);};
   state_values(m,t,y__y,nod,nmark,set);
-  fixed_values(m,s.parser.constants.data(),s.parser.variables.data(),&s,set,
+  fixed_values(m,s.parser.constants.data(),s.parser.variables.data(),&s.parser,set,
                [&](const xpp::Program &p){return xpp::evaluate(s.parser,p);});
   /* I dont think this is generally needed  */
 
@@ -410,7 +410,7 @@ int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
 {
   const xpp::Model &m=s.model();
   if (m.native_build || m.jacobian.build) xpp::build_native(s,false); /* a build due starts, finished code is taken: here, never mid-evaluation (W715) */
-  rhs_order(m,t,y,ydot,s.parser.constants.data(),s.parser.variables.data(),&s,
+  rhs_order(m,t,y,ydot,s.parser.constants.data(),s.parser.variables.data(),&s.parser,
             [&](int i,double value){setvar(s.parser,i,value);},
             [&](const xpp::Program &p){return xpp::evaluate(s.parser,p);},
             [&]{xpp::eval_all_nets(s);xpp::do_daes(s);});
@@ -426,7 +426,7 @@ bool pure_rhs_ready(const xpp::Session &s)
 void pure_rhs(const xpp::Session &s, const double *y, double *ydot, double *c, double *v)
 {
   /* the native code only reads s's tables (Model::rhs_impurity) */
-  rhs_order(s.model(),0.0,y,ydot,c,v,const_cast<xpp::Session *>(&s),[&](int i,double value){v[i]=value;},
+  rhs_order(s.model(),0.0,y,ydot,c,v,const_cast<xpp::ParserState *>(&s.parser),[&](int i,double value){v[i]=value;},
             [&](const xpp::Program &p){return xpp::evaluate_pure(s.parser,p,c,v);},[]{});
 }
 
@@ -439,7 +439,7 @@ void update_based_on_current(xpp::Session &s)
 void fix_only(xpp::Session &s)
 {
   const xpp::Model &m=s.model();
-  fixed_values(m,s.parser.constants.data(),s.parser.variables.data(),&s,
+  fixed_values(m,s.parser.constants.data(),s.parser.variables.data(),&s.parser,
                [&](int i,double value){setvar(s.parser,i,value);},
                [&](const xpp::Program &p){return xpp::evaluate(s.parser,p);});
 }

@@ -5,6 +5,7 @@
    tools/autoxcheck.py's names section, with 200-character names. */
 #include "xpptest.h"
 #include "session.h"
+#include "form_ode.h"
 #include "autox_state.h"
 #include "model.h"
 #include "model_record.h"
@@ -74,7 +75,7 @@ TEST_CASE("test_names")
 
     /* autoX's headings stay 14 wide: a long name is shortened with the marker
        and leaves a blank before the next heading */
-    xpp::client_session().size_variables(1);
+    xpp::size_variables(xpp::client_session(), 1);
     xpp::client_session().model().size_parameters(1);
     xpp::client_session().model().upar_names[0] = "applied_stimulus_current_amplitude";
     xpp::client_session().model().uvar_names[0] = "MEMBRANE_POTENTIAL_FAST_VARIABLE";

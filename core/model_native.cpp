@@ -32,7 +32,6 @@
 #include <utility>
 #include "xpp_log.h"
 #include "xpp_mem.h"
-#include "session.h"
 #include "expr.h"
 #include "model.h"
 #include "model_files.h"
@@ -63,7 +62,7 @@ struct Frame {
 constexpr int MAX_SUM_DEPTH = 16;
 
 /* The interpreter's own helpers the generated code calls, as names and
-   what they take (the Session, doubles, an int, in that order): the code does the same operations in the
+   what they take (the ParserState, doubles, an int, in that order): the code does the same operations in the
    same order and these do the arithmetic, so the results are the interpreter's, bit for bit. */
 enum class Helper : size_t { Table, TableSlope, Network, Vector, Kernel, Delay, DelayShift, Shift, IShift, Set, Uniform, Poisson, Normal, Argument, FunctionEnd, Count };
 struct HelperText {
@@ -91,24 +90,24 @@ constexpr std::array<HelperText, static_cast<size_t>(Helper::Count)> helper_text
 }};
 
 /* The helpers with the signatures of helper_text, so the generated code
-   calls each through its own type; S is the Session the native function
-   was given. */
-Session &session(void *S) { return *static_cast<Session *>(S); }
-double h_tab(void *S, double x, int i) { return lookup(session(S).tables[i], x); }
-double h_tabs(void *S, double x, int i) { return lookup_slope(session(S).tables[i], x); }
-double h_net(void *S, double x, int i) { return session(S).parser.host->network_value(session(S), x, i); }
-double h_vec(void *S, double x, int i) { return session(S).parser.host->vector_value(session(S), x, i); }
-double h_ker(void *S, int i) { return session(S).parser.host->kernel_value(session(S), i); }
-double h_del(void *S, double delay, double i) { return session(S).parser.host->delay(session(S), delay, i); }
-double h_dsh(void *S, double delay, double shift, double variable) { return session(S).parser.host->delay_shift(session(S), delay, shift, variable); }
-double h_sft(void *S, double shift, double variable) { return expr::do_shift(session(S).parser, shift, variable); }
-double h_set(void *S, double shift, double variable, double value) { return expr::do_set(session(S).parser, shift, variable, value); }
-double h_ru(void *S, double x) { return expr::do_random_uniform(session(S).random, x); }
-double h_rp(void *S, double mean) { return expr::do_random_poisson(session(S).random, mean); }
-double h_rn(void *S, double mean, double sd) { return expr::do_random_normal(session(S).random, mean, sd); }
+   calls each through its own type; S is the ParserState the native function
+   was given (its tables, the generator and the stacks the interpreter has). */
+ParserState &parser(void *S) { return *static_cast<ParserState *>(S); }
+double h_tab(void *S, double x, int i) { return lookup((*parser(S).tables)[i], x); }
+double h_tabs(void *S, double x, int i) { return lookup_slope((*parser(S).tables)[i], x); }
+double h_net(void *S, double x, int i) { ParserState &p = parser(S); return p.host->network_value(*p.owner, x, i); }
+double h_vec(void *S, double x, int i) { ParserState &p = parser(S); return p.host->vector_value(*p.owner, x, i); }
+double h_ker(void *S, int i) { ParserState &p = parser(S); return p.host->kernel_value(*p.owner, i); }
+double h_del(void *S, double delay, double i) { ParserState &p = parser(S); return p.host->delay(*p.owner, delay, i); }
+double h_dsh(void *S, double delay, double shift, double variable) { ParserState &p = parser(S); return p.host->delay_shift(*p.owner, delay, shift, variable); }
+double h_sft(void *S, double shift, double variable) { return expr::do_shift(parser(S), shift, variable); }
+double h_set(void *S, double shift, double variable, double value) { return expr::do_set(parser(S), shift, variable, value); }
+double h_ru(void *S, double x) { return expr::do_random_uniform(*parser(S).random, x); }
+double h_rp(void *S, double mean) { return expr::do_random_poisson(*parser(S).random, mean); }
+double h_rn(void *S, double mean, double sd) { return expr::do_random_normal(*parser(S).random, mean, sd); }
 
-double h_arg(void *S,int i) {const auto &stack=session(S).parser.stack;return stack.args[stack.nargs-1-i];}
-double h_end(void *S,double value,int n) {session(S).parser.stack.nargs-=n;return value;}
+double h_arg(void *S,int i) {const auto &stack=parser(S).stack;return stack.args[stack.nargs-1-i];}
+double h_end(void *S,double value,int n) {parser(S).stack.nargs-=n;return value;}
 
 const void *helper_address(Helper h)
 {
@@ -147,7 +146,7 @@ constexpr int TREE_SIZE_CAP = 1 << 20;
 template <class T> void put(std::string &key, T value) { key.append(reinterpret_cast<const char *>(&value), sizeof value); }
 
 struct Generator {
-    Session &s;
+    const OptionParts &s;
     Place place;
     IrModule ir;
     std::vector<int> tree_size;                     /* of each ir.nodes entry, up to TREE_SIZE_CAP */
@@ -184,7 +183,7 @@ struct Generator {
     bool dynamic = false; /* a network updates its first two variable operands */
     std::vector<char> allowed; /* user functions with a fully compiled dependency graph */
 
-    explicit Generator(Session &session) : s(session) { ir.zero_divisor = expr::ZERO_DIVISOR; }
+    explicit Generator(const OptionParts &session) : s(session) { ir.zero_divisor = expr::ZERO_DIVISOR; }
 
     /* The node for this expression: made once, however often it is written (so two writings of one
        expression are one node, which is what lets a call be recognized as made before). A call's arguments
@@ -287,7 +286,7 @@ struct Generator {
         return fail("compile", "not compiled: " + reason + "; running the interpreter", place);
     }
 
-    /* the helper's call, noted: only a table lookup keeps a function free of the Session's state */
+    /* the helper's call, noted: only a table lookup keeps a function free of the parser's state */
     int helper(Helper h, std::initializer_list<int> args, int index = 0)
     {
         if (h != Helper::Table && h != Helper::TableSlope && h != Helper::IShift) array_pure = false;
@@ -811,7 +810,7 @@ namespace {
    variables and the equations. Networks and DAEs run between them even when
    no equation calls their helpers; function tables can rebuild on parameter
    changes (or when autoeval is toggled), so they are never frozen. */
-std::string rhs_impurity(const Session &s)
+std::string rhs_impurity(const OptionParts &s)
 {
     const Model &m=s.model();
     if (m.nsvar>0) return "algebraic solve variables (a DAE)";
@@ -835,7 +834,7 @@ std::string rhs_impurity(const Session &s)
 }
 
 /* what couples m's states beyond what their equations read, or "" (Model::subsystems) */
-std::string subsystem_joined_by(const Session &s)
+std::string subsystem_joined_by(const OptionParts &s)
 {
     const Model &m=s.model();
     if (m.flag_count()>0) return "global flags (events)";
@@ -853,7 +852,7 @@ std::string subsystem_joined_by(const Session &s)
    was measured and rejected: mu26's 400 time units lost 18% waiting for a compile the thread would have made
    in the first 2%. */
 constexpr std::uint64_t INTERPRETED_OPS_BEFORE_BUILD=1000000;
-std::shared_ptr<NativeBuild> pending_build(const Session &s, IrModule ir, Place place)
+std::shared_ptr<NativeBuild> pending_build(const OptionParts &s, IrModule ir, Place place)
 {
     auto build=std::make_shared<NativeBuild>();
     build->ir=std::move(ir);
@@ -862,7 +861,7 @@ std::shared_ptr<NativeBuild> pending_build(const Session &s, IrModule ir, Place 
     return build;
 }
 
-Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelProgram> &entries)
+Result<std::vector<Error>> compile_programs(const OptionParts &s, const std::vector<ModelProgram> &entries)
 {
     Model &m=s.model();
     /* every program from its RPN again: no code of before, native or the interpreter's (a test rewrites RPN and translates) */
@@ -1006,7 +1005,7 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
 /* the build's thread, detached: it reads the module the build holds and writes only the build's result, then
    says so; an allocation it cannot make ends the program as one on the core thread would, since no exception
    may leave a thread. A run that ends first leaves it to end with the process (xpp_mir.cpp `compiling`). */
-void start_build(const Session &s, std::shared_ptr<NativeBuild> build)
+void start_build(const OptionParts &s, std::shared_ptr<NativeBuild> build)
 {
     build->started=true;
     log(XPP_LOG_INFO,"MIR compiles {} nodes on a thread, after {} interpreted instructions\n",build->ir.nodes.size(),s.parser.interpreted_ops);
@@ -1024,7 +1023,7 @@ void start_build(const Session &s, std::shared_ptr<NativeBuild> build)
 
 /* The build once its thread is done, with its result: started when it is due (now, when waiting) and taken when
    it has finished (waited for, when waiting), else null. Taken, it is no longer pending. */
-std::shared_ptr<NativeBuild> taken(Session &s, std::shared_ptr<NativeBuild> &pending, bool wait)
+std::shared_ptr<NativeBuild> taken(const OptionParts &s, std::shared_ptr<NativeBuild> &pending, bool wait)
 {
     if (!pending) return nullptr;
     if (!pending->started) {
@@ -1038,7 +1037,7 @@ std::shared_ptr<NativeBuild> taken(Session &s, std::shared_ptr<NativeBuild> &pen
 }
 
 /* the programs' code taken from their build (build_native) */
-void take_programs(Session &s, bool wait)
+void take_programs(const OptionParts &s, bool wait)
 {
     Model &m=s.model();
     const std::shared_ptr<NativeBuild> build=taken(s,m.native_build,wait);
@@ -1072,7 +1071,7 @@ void take_programs(Session &s, bool wait)
 
 /* the exact Jacobian's functions taken from their build (build_native): until then, and after a failure of MIR's
    (logged), its derivatives are evaluated from their graph, bit for bit the same */
-void take_jacobian(Session &s, bool wait)
+void take_jacobian(const OptionParts &s, bool wait)
 {
     ExactJacobian &j=s.model().jacobian;
     const std::shared_ptr<NativeBuild> build=taken(s,j.build,wait);
@@ -1100,16 +1099,16 @@ void take_jacobian(Session &s, bool wait)
 
 }
 
-void build_native(Session &s, bool wait)
+void build_native(const OptionParts &s, bool wait)
 {
     take_programs(s,wait);
     take_jacobian(s,wait);
 }
 
-bool native_ready(Session &s)
+bool native_ready(const OptionParts &s)
 {
     build_native(s,true);
-    return s.parser.host->pure_rhs_ready(s);
+    return s.parser.host->pure_rhs_ready(*s.parser.owner);
 }
 
 namespace {
@@ -1119,7 +1118,7 @@ namespace {
    their own (a build like the programs', W717), one function for the
    state's columns, one for the time's and one for each constant's that a
    right-hand side depends on; or why there is none. */
-ExactJacobian make_jacobian(Session &s, const std::vector<ModelProgram> &entries)
+ExactJacobian make_jacobian(const OptionParts &s, const std::vector<ModelProgram> &entries)
 {
     ExactJacobian j;
     if (!s.numerics->compile) {
@@ -1191,7 +1190,7 @@ std::vector<std::vector<int>> equation_reads(const Model &m)
     return reads;
 }
 
-std::string run_joined_by(const Session &s)
+std::string run_joined_by(const OptionParts &s)
 {
     if (s.numerics->subsystem_split != SubsystemSplit::run) return "";
     if (s.numerics->poincare_stop) return "a Poincare stop";
@@ -1199,12 +1198,12 @@ std::string run_joined_by(const Session &s)
     return "";
 }
 
-bool has_subsystems(const Session &s)
+bool has_subsystems(const OptionParts &s)
 {
     return !s.model().subsystems.empty() && run_joined_by(s).empty();
 }
 
-std::string describe_subsystems(const Session &s)
+std::string describe_subsystems(const OptionParts &s)
 {
     const Model &m=s.model();
     if (const std::string run=run_joined_by(s); !run.empty() && !m.subsystems.empty())
@@ -1226,7 +1225,7 @@ std::string describe_subsystems(const Session &s)
 
 namespace {
 /* the model's programs, each with its stack sized, for compile_programs */
-std::vector<ModelProgram> sized_programs(Session &s)
+std::vector<ModelProgram> sized_programs(const OptionParts &s)
 {
     Model &m=s.model();
     auto entries=model_programs(m);
@@ -1236,7 +1235,7 @@ std::vector<ModelProgram> sized_programs(Session &s)
 }
 }
 
-Result<std::vector<Error>> translate_model(Session &s)
+Result<std::vector<Error>> translate_model(const OptionParts &s)
 {
     Model &m=s.model();
     m.compile_pending=false;
@@ -1259,7 +1258,7 @@ Result<std::vector<Error>> translate_model(Session &s)
     return compiled;
 }
 
-void ensure_compiled(Session &s)
+void ensure_compiled(const OptionParts &s)
 {
     if (!s.model().compile_pending) return;
     const auto compiled=translate_model(s);
@@ -1267,7 +1266,7 @@ void ensure_compiled(Session &s)
     else for (const Error &warning:*compiled) log(XPP_LOG_WARN,"{}\n",warning.text());
 }
 
-bool ensure_exact_jacobian(Session &s)
+bool ensure_exact_jacobian(const OptionParts &s)
 {
     ensure_compiled(s); /* its derivatives need the programs compiled; compiling makes a new Jacobian, so before the reference */
     ExactJacobian &j=s.model().jacobian;
@@ -1280,7 +1279,7 @@ bool ensure_exact_jacobian(Session &s)
     return j.available();
 }
 
-Result<std::vector<Error>> compile_loaded(Session &s)
+Result<std::vector<Error>> compile_loaded(const OptionParts &s)
 {
     auto compiled=translate_model(s);
     if (!compiled) compiled=std::vector<Error>{compiled.error()};

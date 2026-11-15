@@ -47,7 +47,7 @@
 
 #include "model_failed.h"
 #include "xpp_globals.h"
-#include "session.h"
+#include "model_options.h"
 #include "model_numerics.h"
 #include "expr_program.h"
 #include "tabular.h"
@@ -61,6 +61,17 @@ using xpp::odex::Statement;
 
 namespace xpp {
 
+void size_variables(const OptionParts &s, int n)
+{
+  const std::size_t k=static_cast<std::size_t>(n);
+  s.model().size_variables(n);
+  if(s.last_ic.size()>=k)return;
+  s.last_ic.resize(k);
+  s.delay_string.resize(k,"0.0");
+  s.itor.resize(k);
+  s.bcs.resize(k);
+}
+
 /* the algebraic part of a model, at the load (a problem fails it at its line, model_failed): a solv variable, the
    names of them all, a 0= equation and compiling them; the solver's memory is the run's (init_dae_work) */
 namespace {
@@ -69,7 +80,7 @@ namespace {
 /* this adds an algebraically defined variable  and a formula
    for the first guess */
 
-void add_svar(xpp::Session &s, const char *name, const char *rhs)
+void add_svar(const OptionParts &s, const char *name, const char *rhs)
 {
   s.model().svars.resize(s.model().nsvar+1);
   s.model().svars[s.model().nsvar].name=name;
@@ -82,7 +93,7 @@ void add_svar(xpp::Session &s, const char *name, const char *rhs)
 
 /* adds algebraically define name to name list */
 
-void add_svar_names(xpp::Session &s)
+void add_svar_names(const OptionParts &s)
 {
   xpp::Model &m=s.model();
   int i;
@@ -96,7 +107,7 @@ void add_svar_names(xpp::Session &s)
 
 /* adds a right-hand side to slove for zero */
 
-void add_aeqn(xpp::Session &s, const char *rhs)
+void add_aeqn(const OptionParts &s, const char *rhs)
 {
   xpp::Model &m=s.model();
   m.aeqns.resize(m.naeqn+1);
@@ -106,7 +117,7 @@ void add_aeqn(xpp::Session &s, const char *rhs)
 }
 
 /* this compiles formulas to set to zero */
-void compile_svars(xpp::Session &s)
+void compile_svars(const OptionParts &s)
 {
   xpp::Model &m=s.model();
   int i,n;
@@ -186,7 +197,7 @@ void set_bc(xpp::Model &m, int i, std::string_view string)
 } // namespace
 
 /* the Session's boundary condition i is 0=string */
-void set_bc_formula(xpp::Session &s, int i, std::string_view string)
+void set_bc_formula(const OptionParts &s, int i, std::string_view string)
 {
   put_bc_text(s.bcs[i].string,string);
 }
@@ -258,7 +269,7 @@ void show_syms()
 
 /* string with its integral operators int[mu]{form} (or int{form}) made
    the kernel's name, K##n (a kernel added for each) */
-void find_ker(xpp::Session &s, std::string &string, int *alt)
+void find_ker(const OptionParts &s, std::string &string, int *alt)
 {
   std::string newstr,form;
   double mu=0.0;
@@ -315,7 +326,7 @@ void find_ker(xpp::Session &s, std::string &string, int *alt)
 
 /* a load's start: the parser's symbols and the counts from nothing, t
    the first variable */
-void begin_model(xpp::Session &s)
+void begin_model(const OptionParts &s)
 {
   xpp::Model &m=s.model();
   init_rpn(s.parser);
@@ -340,7 +351,7 @@ void begin_model(xpp::Session &s)
 
 /* ---- what a statement or an old-style line does (compiler uses them
    too) ---- */
-void add_parameter(xpp::Session &s, const std::string &name, double value)
+void add_parameter(const OptionParts &s, const std::string &name, double value)
 {
   xpp::Model &m=s.model();
   auto &entry=m.record->define_name(name,xpp::ModelRecord::NameKind::Param,m.nupar,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
@@ -355,7 +366,7 @@ void add_parameter(xpp::Session &s, const std::string &name, double value)
 }
 
 /* a constant (.ode's number), or with wiener a Wiener parameter */
-void add_constant(xpp::Session &s, const std::string &name, double value, bool wiener)
+void add_constant(const OptionParts &s, const std::string &name, double value, bool wiener)
 {
   xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
   s.model().record->define_name(name,wiener?xpp::ModelRecord::NameKind::Wiener:xpp::ModelRecord::NameKind::Const,s.parser.ncon,
@@ -373,16 +384,16 @@ void add_constant(xpp::Session &s, const std::string &name, double value, bool w
   model_failed(xpp::Error{"model",xpp::format("the options file <{}> is not supported: write its settings as @ lines, in the model or in a file it includes (#include opts.inc)",name),xpp::LoadSite::place()});
 }
 
-void add_boundary(xpp::Session &s, std::string_view formula)
+void add_boundary(const OptionParts &s, std::string_view formula)
 {
   xpp::Model &m=s.model();
-  s.size_variables(m.bc_defined+1);
+  size_variables(s,m.bc_defined+1);
   set_bc(m,m.bc_defined,formula);
   xpp::log(XPP_LOG_DEBUG, "|{}| |{}| \n",m.bcs[m.bc_defined].name.data(),m.bcs[m.bc_defined].string.data());
   m.bc_defined++;
 }
 
-void add_flag(xpp::Session &s, const std::string &cond, int sign, const std::vector<FlagEvent> &events)
+void add_flag(const OptionParts &s, const std::string &cond, int sign, const std::vector<FlagEvent> &events)
 {
   xpp::log(XPP_LOG_DEBUG, " GLOBAL: sign ={} condition = {} \n",sign,cond);
   if(add_global(s,cond.c_str(),sign,events)){
@@ -403,16 +414,16 @@ void add_only(xpp::Model &m, std::string_view s)
    declared so far: the tables grow with the lines read, never to a size
    its first line merely claims (the number of equations is the input's
    to claim, not to allocate for). */
-void room_for_declared(xpp::Session &s)
+void room_for_declared(const OptionParts &s)
 {
   const xpp::Model &m=s.model();
   const auto &b=s.parser.build;
-  s.size_variables(m.node+b.in_vars+m.nmarkov+m.fix_var+b.naux+2);
+  size_variables(s,m.node+b.in_vars+m.nmarkov+m.fix_var+b.naux+2);
 }
 
 /* One line of an old-style model (a command letter and its arguments),
    built as it is read. 0 at "done". */
-int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(std::string &)> &next_line)
+int compiler(const OptionParts &s, const std::string &bob, const std::function<bool(std::string &)> &next_line)
 {
   xpp::Model &m=s.model();
   double value,xlo,xhi;
@@ -700,7 +711,7 @@ void add_comment(xpp::Model &m, std::string_view line)
 /* a load's end, whichever the model's form: the counts checked, the
    boundary conditions filled up, the formulas and names in upper case,
    the primed variables, Markov chains, flags and aux quantities added */
-void finish_model(xpp::Session &s)
+void finish_model(const OptionParts &s)
 {
   xpp::Model &m=s.model();
   int i;
@@ -808,7 +819,7 @@ int disc(const xpp::Model &m)
   return end=="dis"||end=="dif";
 }
 
-void build_old_style(xpp::Session &s, int neq, const std::function<bool(std::string &)> &next_line)
+void build_old_style(const OptionParts &s, int neq, const std::function<bool(std::string &)> &next_line)
 {
   begin_model(s);
   s.model().neq=neq;
@@ -909,7 +920,7 @@ int ode_as_odex=0;
 /* ---- the builder ---- */
 class Builder {
 public:
-  Builder(xpp::Session &s, Parsed &p) : s_(s), m_(s.model()), p_(p) {}
+  Builder(const OptionParts &s, Parsed &p) : s_(s), m_(s.model()), p_(p) {}
 
   void run()
   {
@@ -920,7 +931,7 @@ public:
        statement's own): the tables are as large as the file */
     int declared=2;
     for(const Statement &st : p_.statements)declared+=1+static_cast<int>(st.bindings.size());
-    s_.size_variables(declared);
+    size_variables(s_,declared);
     find_derived(p_.derived||ode_as_odex>0);
     for(Statement &s : p_.statements){
       at(s);
@@ -1262,7 +1273,7 @@ private:
   void add_names()
   {
     xpp::Model &m=m_;
-    xpp::Session &s=s_;
+    const OptionParts &s=s_;
     const int nvar=static_cast<int>(vnames_.size());
     for(int i=0;i<nvar;i++){
       if(add_var(s_.parser,vnames_[i].c_str(),0.0))clash(vnames_[i]);
@@ -1482,7 +1493,7 @@ private:
     }
   }
 
-  xpp::Session &s_;
+  const OptionParts &s_;
   xpp::Model &m_;
   Parsed &p_;
   /* the names of the variables, the Markov variables, the fixed
@@ -1495,7 +1506,7 @@ private:
 
 } // namespace
 
-void build_model(xpp::Session &s, Parsed p)
+void build_model(const OptionParts &s, Parsed p)
 {
   Builder(s,p).run();
 }
@@ -1558,7 +1569,7 @@ std::string missing_initial_values_text(const Model &m)
   return states;
 }
 
-void set_initial_values(xpp::Session &s)
+void set_initial_values(const OptionParts &s)
 {
   xpp::Model &m=s.model();
   /* ran(x) as the evaluator draws it */
@@ -1577,12 +1588,12 @@ void set_initial_values(xpp::Session &s)
   }
 }
 
-void create_plot_list(xpp::Session &s)
+void create_plot_list(const OptionParts &s)
 {
   int k;
   s.plot_list.clear();
   for(const std::string &name : s.model().only){
-    k=data_column(s.model(),s.option_parts.added_columns,name);
+    k=data_column(s.model(),s.added_columns,name);
     if(k>=0)s.plot_list.push_back(k);
   }
 }

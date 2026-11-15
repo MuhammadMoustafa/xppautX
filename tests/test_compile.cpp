@@ -3,6 +3,7 @@
 #include "model_native.h"
 #include "expr_program.h"
 #include "session.h"
+#include "form_ode.h"
 #include "expr.h"
 #include "model_numerics.h"
 #include "xpp_log.h"
@@ -169,7 +170,7 @@ TEST_CASE("test_compile")
     m.record->statements.push_back(statement);
     xpp::index_model_places(m);
     m.node=1;
-    s.size_variables(1024); /* the programs below, one each */
+    xpp::size_variables(s, 1024); /* the programs below, one each */
     m.uvar_names[0]="x";
     int count=0;
     auto append=[&](std::vector<int> p) { m.programs[count++].rpn=std::move(p); };

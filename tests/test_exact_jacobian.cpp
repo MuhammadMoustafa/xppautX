@@ -15,6 +15,7 @@
 #include "jacobian.h"
 #include "model.h"
 #include "session.h"
+#include "form_ode.h"
 #include "autox_state.h"
 #include "integrate.h"
 #include "derived.h"
@@ -68,7 +69,7 @@ struct Fixture {
         par = s.parser.ncon;
         CHECK(xpp::add_con(s.parser, "par", 0.6) == 0);
         model->node = 2;
-        s.size_variables(2);
+        xpp::size_variables(s, 2);
         model->uvar_names[0] = "x";
         model->uvar_names[1] = "y";
         std::vector<int> zero = number(0);

@@ -223,7 +223,7 @@ struct ParserState {
   CompilerTables *compiler = nullptr;
   /* what a formula reads of the Session it runs in, set by the Session's constructor: the lookup tables its table
      terms read (and add_table_name sizes), the generator its random terms draw from, and the Session itself as
-     an opaque handle, given back to the ExprHost's functions and to native code, never read here */
+     an opaque handle, given back to the ExprHost's functions, never read here */
   std::vector<TABULAR> *tables = nullptr;
   Random *random = nullptr;
   Session *owner = nullptr;

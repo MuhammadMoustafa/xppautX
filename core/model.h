@@ -146,7 +146,7 @@ struct Model final : NameIndex {
      and when native_equations, the equations' into ydot (W469); none when
      a fixed variable is interpreted, or when there is none and
      native_equations is false */
-  void (*native_rhs)(double *c, double *v, Session *S, double *ydot)=nullptr;
+  void (*native_rhs)(double *c, double *v, ParserState *S, double *ydot)=nullptr;
   /* native_rhs writes the equations: each is native, and no network or DAE
      runs between them and the fixed variables */
   bool native_equations=false;

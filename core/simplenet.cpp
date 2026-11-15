@@ -136,7 +136,6 @@ special ydot=import(...) ran a compiled library's function: refused
 
 #include "model.h"
 #include "model_record.h"
-#include "session.h"
 #include "model_place.h"
 #include "xpp_math.h"
 
@@ -145,14 +144,14 @@ namespace xpp {
 /* simple network stuff */
 
 namespace {
-bool gilparse(const xpp::Session &s, std::string_view list, std::vector<int> &ind);
+bool gilparse(const OptionParts &s, std::string_view list, std::vector<int> &ind);
 
 } // namespace
 
 namespace {
 } // namespace
 
-int add_vectorizer(xpp::Session &s, std::string_view name,char *rhs)
+int add_vectorizer(const OptionParts &s, std::string_view name,char *rhs)
 {
   int ivar;
   Ends il,ir;
@@ -177,7 +176,7 @@ int add_vectorizer(xpp::Session &s, std::string_view name,char *rhs)
   return 1;
 
 }  
-void add_vectorizer_name(xpp::Session &s, std::string_view name, std::string_view rhs)
+void add_vectorizer_name(const OptionParts &s, std::string_view name, std::string_view rhs)
 {
   s.model().vectors.resize(static_cast<std::size_t>(s.model().nvector)+1);
   s.model().compiler.vector_count=s.model().vectors.size();
@@ -258,7 +257,7 @@ int next_positive_int(xpp::Tokens &args, const char *sep)
 enum class NameKind { table, variable };
 
 /* a table's or a variable's name in s (into name): its index */
-int next_index(const xpp::Session &s, xpp::Tokens &args, const char *net, const char *sep, std::string &name, NameKind kind)
+int next_index(const OptionParts &s, xpp::Tokens &args, const char *net, const char *sep, std::string &name, NameKind kind)
 {
   name=args.text(sep);
   if(kind==NameKind::table){
@@ -273,7 +272,7 @@ int next_index(const xpp::Session &s, xpp::Tokens &args, const char *net, const 
 
 /* table index (called tablename) holds at least needed values: the
    network reads them */
-void require_table_length(const xpp::Session &s, const char *net, std::string_view tablename, int index, long long needed)
+void require_table_length(const OptionParts &s, const char *net, std::string_view tablename, int index, long long needed)
 {
   const long long have=s.tables[index].n;
   if(have<needed)
@@ -320,7 +319,7 @@ Ends next_ends(xpp::Tokens &args, NetworkKind kind)
 }
 
 /* the arguments of a tabled form's call into the Model's network ind */
-void read_tabled(xpp::Session &s, const NetworkForm &form, int ind, const char *name, xpp::Tokens &args)
+void read_tabled(const OptionParts &s, const NetworkForm &form, int ind, const char *name, xpp::Tokens &args)
 {
   Network &net=s.model().networks[ind];
   net.kind=form.kind;
@@ -373,7 +372,7 @@ void read_tabled(xpp::Session &s, const NetworkForm &form, int ind, const char *
    values[0] the time of the next reaction, values[1..root] how many
    times each reaction took place, gcom the fixed quantities holding the
    reactions; false for a list that does not parse */
-bool read_gillespie(xpp::Session &s, int ind, xpp::Tokens &args)
+bool read_gillespie(const OptionParts &s, int ind, xpp::Tokens &args)
 {
   Network &net=s.model().networks[ind];
   net.kind=NetworkKind::gillespie;
@@ -399,7 +398,7 @@ bool read_gillespie(xpp::Session &s, int ind, xpp::Tokens &args)
 
 /* z=INTERP(meth,n,root): the n values root..root+n-1 interpolated at x in
    [0,n); the method (0, linear) is the only one */
-void read_interpolation(xpp::Session &s, int ind, const char *name, xpp::Tokens &args)
+void read_interpolation(const OptionParts &s, int ind, const char *name, xpp::Tokens &args)
 {
   Network &net=s.model().networks[ind];
   net.kind=NetworkKind::interpolation;
@@ -416,7 +415,7 @@ void read_interpolation(xpp::Session &s, int ind, const char *name, xpp::Tokens 
 /* z=FINDEXT(type,n,skip,root): the extremum of every skip-th of n variables,
    type names maximum, minimum or both: values[0..1] the maximum and
    its index, values[2..3] the minimum and its index */
-void read_extremum(xpp::Session &s, int ind, const char *name, xpp::Tokens &args)
+void read_extremum(const OptionParts &s, int ind, const char *name, xpp::Tokens &args)
 {
   Network &net=s.model().networks[ind];
   net.kind=NetworkKind::extremum;
@@ -444,7 +443,7 @@ void read_extremum(xpp::Session &s, int ind, const char *name, xpp::Tokens &args
 
 } // namespace
 
-xpp::Result<> check_network_table_length(const Session &s, int index, long long length)
+xpp::Result<> check_network_table_length(const OptionParts &s, int index, long long length)
 {
   for(const Network &net:s.model().networks){
     long long needed=0;
@@ -458,7 +457,7 @@ xpp::Result<> check_network_table_length(const Session &s, int index, long long 
   return {};
 }
 
-bool add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
+bool add_spec_fun(const OptionParts &s, std::string_view name_text, char *rhs)
 {
   /* the name as the messages print it */
   const std::string name_copy(name_text);
@@ -493,7 +492,7 @@ bool add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
   return false;
 }
 
-void add_special_name(xpp::Session &s, std::string_view name, char *rhs)
+void add_special_name(const OptionParts &s, std::string_view name, char *rhs)
 {
   if(is_network(rhs)){
     xpp::log(XPP_LOG_DEBUG, " netrhs = |{}| \n",rhs);
@@ -517,7 +516,7 @@ bool is_network(char *s)
 }
 
 
-void update_all_ffts(xpp::Session &s)
+void update_all_ffts(const OptionParts &s)
 {
   int i;
 
@@ -541,7 +540,7 @@ void update_all_ffts(xpp::Session &s)
  ranges meet without a shared or skipped index (n-1-n2 = n2-1); for n
  odd they are a plain reflection about the centre (n-1-n2 = n2).
 */
-void update_fft(xpp::Session &s, int ind)
+void update_fft(const OptionParts &s, int ind)
 {
   double *w=table_values(s.tables,s.model().networks[ind].weight_table);
   double *fftr=s.networks[ind].fftr.data();
@@ -589,7 +588,7 @@ bool g_namelist(std::string_view s, std::string &root, int &flag, int &i1, int &
 
 /* the reactions a gillespie chain lists, "x,y{1-3},...", as variable
    indices into ind */
-bool gilparse(const xpp::Session &s, std::string_view list, std::vector<int> &ind)
+bool gilparse(const OptionParts &s, std::string_view list, std::vector<int> &ind)
 {
   xpp::log(XPP_LOG_DEBUG, "s=|{}|", list);
   ind.clear();
@@ -628,7 +627,7 @@ bool gilparse(const xpp::Session &s, std::string_view list, std::vector<int> &in
 
 /* vector(var,length,e|z|p,e|z|p) (spaces removed from str first): the
    first variable, the length and the two ends' kinds */
-int get_vector_info(const xpp::Session &ses, char *str, std::string_view name,int *root, int *length, Ends *il, Ends *ir)
+int get_vector_info(const OptionParts &ses, char *str, std::string_view name,int *root, int *length, Ends *il, Ends *ir)
 {
   de_space(str);
   std::string_view s(str);
