@@ -5118,6 +5118,7 @@ step_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, Pr
   ntst = iap->ntst;
   ncol = iap->ncol;
   iads = iap->iads;
+  autox_solve_begins(*iap->run); /* once per continuation point, as solve_algebraic (W752) */
   iid = iap->iid;
   itnw = iap->itnw;
   nwtn = iap->nwtn;

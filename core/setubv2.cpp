@@ -86,7 +86,7 @@ void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
   /*      Partition the mesh intervals */
   /*jj will be replaced with loop_start and loop_end*/
   for (jj = larg->loop_start; jj < larg->loop_end; ++jj) {
-    if (!larg->iap->run->owner && larg->iap->run->setubv_stop && xpp::job::cancelled()) break; /* xppautX: cancel */
+    if (!larg->iap->run->owner && larg->iap->run->setubv_stop && autox_cancelled(*larg->iap->run)) break; /* xppautX: cancel (W752: the rule of autox_cancelled) */
     j = jj;
     jp1 = j + 1;
     dt = larg->dtm[j];
@@ -359,15 +359,15 @@ setup_boundary_system(std::ptrdiff_t ndim, xpp::AutoxProblem ips, std::ptrdiff_t
   
     auto &residual_parameters = iap->run->assembly.residual_parameters;
     std::copy_n(par, iap->run->parameter_count, residual_parameters.begin());
-    if (iap->run->setubv_stop && xpp::job::cancelled()) return 0;
+    if (iap->run->setubv_stop && autox_cancelled(*iap->run)) return 0;
     setubv_make_aa_bb_cc(&arglist);
-    if (iap->run->setubv_stop && xpp::job::cancelled()) return 0;
+    if (iap->run->setubv_stop && autox_cancelled(*iap->run)) return 0;
     // Boundary differencing can change PAR's last bits (notably HomCont).
     // Only then is the residual from the Jacobian visit no longer reusable.
     if (std::memcmp(par, residual_parameters.data(), xpp::size_product(iap->run->parameter_count, sizeof(double))) != 0) {
       arglist.jacobian = false;
       dispatch_mesh(&arglist, setubv_make_fa_aa_bb);
-      if (iap->run->setubv_stop && xpp::job::cancelled()) return 0;
+      if (iap->run->setubv_stop && autox_cancelled(*iap->run)) return 0;
     }
     setubv_make_fc_dd(arglist,dups,rlcur,rlold,rds);
   }

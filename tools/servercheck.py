@@ -956,6 +956,7 @@ def check_autox_branch_jobs():
     check_autox_stopped_replay()
     check_autox_stop_at_a_solve_replays()
     check_single_run_stop_at_a_solve_replays()
+    check_periodic_stop_at_a_solve_replays()
     check_autox_branch_recordings()
 
 
@@ -1049,14 +1050,60 @@ def check_single_run_stop_at_a_solve_replays():
             s.close()
 
 
-def check_single_run_replays(path, evs, what):
+def check_single_run_replays(path, evs, what, model=STOPPED_MODEL):
     """the recording at `path` of a stopped single run whose events are `evs` replays silently to the same diagram, ending stopped"""
-    code, replay, err = replayed_events(STOPPED_MODEL, path)
+    code, replay, err = replayed_events(model, path)
     errors = jobs_errors(replay) + [e['error'] for e in replay if e.get('ev') == 'done' and e.get('error')]
     last_done = [e for e in replay if e.get('ev') == 'done'][-1]
     check('W751: the stopped single run replays: no error, silently too (exit %s), %s' % (code, what),
           code == 0 and not errors and jobs_diagram(replay) == jobs_diagram(evs) and len(jobs_diagram(evs)) > 2 and last_done.get('status') == 'stopped',
           '%s %s %d vs %d points %s' % (errors, err[-200:], len(jobs_diagram(replay)), len(jobs_diagram(evs)), str(last_done)[:200]))
+
+
+# W752 (#831): a periodic run's Stop waits for two points too. Morris-Lecar at Rinzel and Ermentrout's class-II values
+# (tests/autox/ode_lecar_orbit_hopf.json): its stable cycle lies on the family born at the Hopf point near 0.2624, and the
+# run starts from that cycle's stored orbit, so no steady run finds the Hopf point first and the hook (process-wide) reaches
+# only this run
+PERIODIC_MODEL = 'examples/ode/lecar.odex'
+PERIODIC_START = [dict(kind='par', name=n, value=v) for n, v in (('iapp', 0.3), ('v3', 0), ('v4', 0.3), ('gca', 1.1), ('phi', 0.2))] + [
+    dict(kind='ic', name='v', value=-0.144), dict(kind='ic', name='w', value=0.03)]
+# mesh_adapt_every 0: a Stop at a step that adapts the mesh ends on the re-meshed point of the same parameter, which is no repeat
+# of the stored one (its orbit norm differs in the last digits), so the check keeps the mesh as it is
+PERIODIC_NUMERICS = dict(step_size=0.01, min_step_size=1e-5, max_step_size=0.01, max_steps=200, output_every=10, parameter_min=0.1,
+                         parameter_max=0.4, mesh_intervals=15, max_branch_switches=0, mesh_adapt_every=0)
+
+
+def periodic_session(env):
+    """A server on lecar with autoX open, recording from its start, the cycle settled and one period integrated (the orbit a
+    Periodic start from the current state takes), single-threaded, its autoX settings set"""
+    s = Server(args.server, autoxcompare.ROOT / PERIODIC_MODEL, env=env)
+    autoxcompare.completed(s)
+    autoxcompare.completed(s, dict(cmd='preferences.configure', threads=1))
+    autoxcompare.completed(s, dict(cmd='recording.start'))
+    autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info']))
+    autoxcompare.set_values(s, PERIODIC_START)
+    autoxcompare.settle(s, 100, 20)
+    autoxcompare.completed(s, dict(cmd='autox.open'))
+    autoxcompare.completed(s, dict(cmd='autox.configure_axes', parameter1='iapp'))
+    autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **PERIODIC_NUMERICS))
+    return s
+
+
+def check_periodic_stop_at_a_solve_replays():
+    """W752 (#831): W750 and W751's rule holds for a periodic run: a Stop asked as its Nth solve begins (XPP_AUTOX_CANCEL_AT_SOLVE,
+    counted once per continuation point of the boundary-value continuation) ends on a repeat of its last stored point, from its
+    third point on, and its recording replays to the same diagram"""
+    for solve in (1, 2, 3):
+        s = periodic_session({'XPP_AUTOX_CANCEL_AT_SOLVE': str(solve)})
+        try:
+            s.send(cmd='autox.run', kind='periodic')
+            evs, end = s.collect(lambda e: e.get('ev') == 'done', timeout=120 * SLOW)
+            points = jobs_diagram(evs)
+            check('W752: a periodic run stopped as its solve %d begins ends on a repeat of its last stored point, with three or more points' % solve,
+                  end.get('status') == 'stopped' and len(points) >= 3 and points[-1][2:4] == points[-2][2:4], '%s %s' % (end.get('status'), points))
+            check_single_run_replays(stopped_recording(s), evs, 'a periodic run stopped at solve %d: the same diagram' % solve, PERIODIC_MODEL)
+        finally:
+            s.close()
 
 
 def check_recorded_jobs_refused(text):
