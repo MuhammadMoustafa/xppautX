@@ -3,6 +3,7 @@
 #include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
+#include "model_numerics.h"
 #include "autox_state.h"
 #include "jacobian.h"
 #include "expr_native.h"

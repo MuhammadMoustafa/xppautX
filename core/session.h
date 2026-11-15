@@ -62,7 +62,7 @@ struct XppFrozenCurves; /* graf_par.h */
 struct Mov3d; /* graf_par.h */
 struct PhaseShown; /* phase_data.h */
 struct MarksShown; /* marks_data.h */
-struct AutoxView; /* display_state.h */
+struct AutoxView; /* autox_state.h */
 struct IntegratorState; /* integrate.h */
 struct SolverWork; /* storage.h */
 struct JacobianScratch; /* jacobian.h */
@@ -311,6 +311,15 @@ struct Session {
 private:
   Model *model_;
 };
+
+/* s's state vector, zeroed, for its Model's ODEs and Markov variables */
+void init_alloc_info(Session &s);
+
+/* s's stored data converted to numerics.storage_precision (the setting's `applied`): the data store's columns, and every
+   derived data set made from it (a histogram, the Fourier modes, the adjoint, the transposed data, the stochastic
+   statistics), in place and with no question, so what the data table shows stays what it was. A failure for want of
+   memory is shown and the setting goes back to what the store holds. */
+void storage_precision_changed(Session &s);
 
 /* The session list, the only global that holds a Session (AGENTS.md "No
    global state"): one Session per client. The process serves one client

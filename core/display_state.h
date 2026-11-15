@@ -1,7 +1,7 @@
 #pragma once
 /* What the page displays, held by the core (W65, docs/ui-v2.md "Display
    state"): each plot window's earlier runs until Erase, the zoom shown and
-   whether the earlier runs are drawn; autoX's hidden branches and zoom.
+   whether the earlier runs are drawn.
    Members of xpp::Session (session.h), set by the `display` and `autox`
    commands or by the runs themselves and sent as data (plot_data.cpp's
    `runs` and `plots` events, json_autox.cpp's `autoxview`), so a session
@@ -10,25 +10,12 @@
 #include <vector>
 
 #include "struct.h"
+#include "zoom.h"
 #include "storage.h"
 #include "colormap.h"
 #include "line_style.h"
 
 namespace xpp {
-
-/* one axis' visible range; unset: the window's own */
-struct AxisRange {
-    bool set = false;
-    double lo = 0, hi = 0;
-    bool operator==(const AxisRange &) const = default;
-};
-
-/* the zoom shown: the part of a window's (or autoX's) axes the page displays */
-struct Zoom {
-    AxisRange x, y;
-    bool any() const { return x.set || y.set; }
-    bool operator==(const Zoom &) const = default;
-};
 
 /* the curves a window plots: its series' identity */
 struct PlotCurves {
@@ -66,14 +53,6 @@ struct PlotDisplay {
     bool axes_seen = false;
     std::array<double, 4> axes{};
     PlotCurves axes_curves{};
-};
-
-/* autoX's diagram display: the points before `earlier` are the branches
-   computed before Clear, hidden unless `show_earlier` (in every view; each
-   view's zoom is its own, autox_state.h's AutoxDiagramView) */
-struct AutoxView {
-    int earlier = 0;
-    bool show_earlier = false;
 };
 
 } // namespace xpp

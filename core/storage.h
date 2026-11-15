@@ -11,8 +11,6 @@
 
 namespace xpp {
 
-struct Session; /* session.h */
-
 /* the integrator's state vector (the ODEs, then the Markov variables and
    the delay/Volterra extras) that the solvers step in place */
 struct XPPVEC {
@@ -20,11 +18,7 @@ struct XPPVEC {
   double *x;
 };
 
-/* the Session s's state vector, zeroed, for its Model's ODEs and Markov
-   variables */
-void init_alloc_info(Session &s);
-
-/* the integrator's state vector (init_alloc_info), a Session's
+/* the integrator's state vector (init_alloc_info, session.h), a Session's
    (session.h); each solver owns its own work memory (solver.h) */
 struct SolverWork {
   XPPVEC xpv{};             /* xpv.x points at state */
@@ -223,12 +217,6 @@ private:
   /* the view of the pool's column c */
   Column pool_column(int c) const noexcept;
 };
-
-/* The Session's stored data converted to numerics.storage_precision (the setting's `applied`): the data store's columns,
-   and every derived data set made from it (a histogram, the Fourier modes, the adjoint, the transposed data, the
-   stochastic statistics), in place and with no question, so what the data table shows stays what it was. A failure for
-   want of memory is shown and the setting goes back to what the store holds. */
-void storage_precision_changed(Session &s);
 
 /* A derived data set's columns (a histogram, the Fourier modes, the
    adjoint, its H function, the transposed data): n columns of its own,

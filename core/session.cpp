@@ -4,6 +4,7 @@
 #include "model_request.h"
 #include "model.h"
 #include "xpp_mem.h"
+#include "xpp_ui.h"
 #include "adj2.h"
 #include "ani_state.h"
 #include "autox_state.h"
@@ -235,6 +236,37 @@ void Load::commit()
   committed=true;
   previous_session.reset(); /* before the Model it points to */
   previous_model.reset();
+}
+
+void init_alloc_info(Session &s)
+{
+  SolverWork &w=*s.solver_work;
+  w.xpv.node=s.model().node+s.model().nmarkov;
+  w.xpv.nvec=0; /* this is just for now */
+  /* called again once the model's options are read: a fresh zeroed block */
+  try {
+    w.state.assign(w.xpv.nvec+w.xpv.node,0.0);
+  } catch (const std::bad_alloc &) {
+    xpp::out_of_memory("the state vector");
+  }
+  w.xpv.x=w.state.data();
+}
+
+void storage_precision_changed(Session &s)
+{
+  const StoragePrecision wanted=s.numerics->storage_precision;
+  const Result<> converted=s.data_store->set_precision(wanted);
+  if(!converted){
+    s.numerics->storage_precision=s.data_store->precision();
+    ok_or_show(converted);
+    return;
+  }
+  s.histogram->hist_columns.retype(*s.data_store);
+  s.histogram->four_columns.retype(*s.data_store);
+  s.adjoint->adjoint.retype(*s.data_store);
+  s.adjoint->h_function.retype(*s.data_store);
+  s.adjoint->transposed.retype(*s.data_store);
+  retype_stochastic(s);
 }
 
 }

@@ -42,10 +42,12 @@ MODULES = {
     'run control': ('the cancel token and progress a computation reports to, and the input queues of commands and cancels it sees, which the front ends and the platform fill (the stdin reader is the --server front end\'s own, json_io.cpp)', ['xpp_job', 'xpp_inbox']),
     'domain values': ('the numerics settings, method ids and autoX codes a model, a run and the XppUi seam carry: pure types, including only the kernel (W736)', [
         'model_numerics', 'autox_codes']),
+    'run data': ('the columns a run stores and the integrator\'s state vector, with their growth and precision: data only, no Session (W732); the errors it returns carry the command\'s place, so it sits above the XppUi seam', [
+        'storage']),
     'styles': ('the colors, color scales, line styles and text styles a model, a run and a plot carry: pure types and their words, which include only the kernel (W733)', [
         'colormap', 'line_style', 'text_style']),
-    'plot state': ('the export services a load is given (export_services, W737), the data of the plot windows a Session holds, a model\'s options give and a run reads: pure structs and the window handle type, with no drawing (W733), the data of the picture being recorded and the kinescope\'s counters (picture_state, W737)', [
-        'plot_state', 'picture_state', 'export_services', 'struct', 'xpp_types']),
+    'plot state': ('the export services a load is given (export_services, W737), the data of the plot windows a Session holds, a model\'s options give and a run reads: pure structs, the window handle type and the zoom values, with no drawing (W733), the data of the picture being recorded and the kinescope\'s counters (picture_state, W737)', [
+        'plot_state', 'picture_state', 'export_services', 'struct', 'xpp_types', 'zoom']),
     'ui seam': ('the XppUi table core code calls the front end through, the reading of the fields a form carries (typed_fields), the lists of choices it shows, and the events the core sends (their names, fields and the error event: the vocabulary the front end implements), the key codes Grab returns and a computation\'s abort check yields (mykeydef, W737: the seam\'s own vocabulary, a header xpp_ui.h names), and what this run of the program is (xpp_globals: whether a front end is up, the batch options), which the program\'s start sets', [
         'xpp_ui', 'mykeydef', 'menus', 'typed_fields', 'event_*', 'json_error', 'xpp_globals']),
     'expressions': ('the formula compiler, its evaluators, native code and derived quantities (the builders of a Model, form_ode and tabular, are model and loading\'s: W736)', [
@@ -54,7 +56,7 @@ MODULES = {
         'model', 'model_*', 'load_eqn', 'odex', 'odex_*', 'ode_read', 'newpars',
         'simplenet', 'options_panels', 'ani_state', 'userbut', 'plot_settings', 'comline', 'form_ode', 'tabular', 'typed_values']),
     'session': ('the Session, its stored data, display state and undo, and what a command asked to load and what a Reload carries over (model_request, W737: data the Session holds and the model switch carries out)', [
-        'session', 'session_values', 'model_request', 'storage', 'display_state', 'value_undo']),
+        'session', 'session_values', 'model_request', 'display_state', 'value_undo']),
     'session files': ('the session file, recordings and the settings they carry, and the XPPAUT .set file read into the same settings and applied to the Session (lunch-new, set_load: W737 moved them here, they take a Session and are called by the commands and the start)', [
         'recx', 'snapx', 'xpp_session', 'xpp_session_*', 'session_settings', 'lunch-new', 'set_load']),
     'commands': ('the command registry, its commands, keys and a model\'s buttons', [
@@ -96,6 +98,7 @@ LEVELS = [
     ('domain values', 'kernel', 'the numerics settings, method ids and autoX codes a model, a run and the XppUi seam carry: pure types, including only the kernel, below the seam that passes them'),
     ('ui seam', 'kernel', 'the XppUi table core code calls the front end through, owned inside, implemented outside'),
     ('expressions', 'domain model', 'the formula compiler and its evaluators, which need no run'),
+    ('run data', 'domain model', 'the stored columns and the state vector, which the model\'s loader, the solvers, the analyses and autoX all read or fill'),
     ('plot state', 'domain model', 'pure data of the plot windows (GRAPH, the split, the drawing, the nullclines) that a model\'s options set and a run reads: no drawing; above the XppUi seam, which reads none of it (W738)'),
     ('model and loading', 'domain model', 'a Model and the readers of model files, given their text'),
     ('integrators', 'domain services', 'the solvers, computing with a model'),
@@ -116,21 +119,21 @@ LEVELS = [
 INDEPENDENT = [('protocol front end', 'platform')]
 # (from, to) -> (include lines against the levels now, the card that removes them); exact
 ALLOWLIST = {
-    ('analysis', 'session'): (18, 'W732'),
+    ('analysis', 'session'): (8, 'W732'),
     ('autoX', 'commands'): (1, 'W753'),
     ('autoX', 'export'): (1, 'W753'),
-    ('autoX', 'session'): (21, 'W732'),
+    ('autoX', 'session'): (17, 'W732'),
     ('autoX', 'session files'): (1, 'W753'),
     ('expressions', 'integrators'): (6, 'W743'),
     ('expressions', 'model and loading'): (19, 'W743'),
     ('expressions', 'session'): (9, 'W732'),
     ('integrators', 'analysis'): (9, 'W745'),
     ('integrators', 'autoX'): (1, 'W745'),
-    ('integrators', 'session'): (29, 'W732'),
+    ('integrators', 'session'): (20, 'W732'),
     ('model and loading', 'analysis'): (8, 'W744'),
     ('model and loading', 'autoX'): (1, 'W744'),
     ('model and loading', 'integrators'): (17, 'W744'),
-    ('model and loading', 'session'): (22, 'W732'),
+    ('model and loading', 'session'): (17, 'W732'),
     ('ui seam', 'model and loading'): (1, 'W744'),
     ('ui seam', 'session'): (1, 'W732'),
 }

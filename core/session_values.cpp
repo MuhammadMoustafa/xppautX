@@ -66,17 +66,6 @@ void  get_max(const xpp::Session &s, int index, double *vmin, double *vmax)
  }
 
 
-void user_fun_info(const xpp::Model &m, xpp::Sink &fp)
-{
-  for(int j=0;j<m.nfun;j++){
-    std::string line=xpp::format("{}(",m.ufun_names[j]);
-    for(int i=0;i<m.narg_fun[j];i++)
-      line+=xpp::format("{}{}",m.ufun_args[j][i],i<m.narg_fun[j]-1?",":"");
-    line+=xpp::format(") = {}\n",m.ufun_defs[j]);
-    fp.print("{}",line);
-  }
-}
-
 void   set_default_params(xpp::Session &s, std::optional<int> only)
  {
  for(int i=0;i<s.model().nupar;i++){
@@ -98,36 +87,6 @@ void   set_default_ics(xpp::Session &s, std::optional<int> only)
   for(int i=0;i<s.model().node+s.model().nmarkov;i++)
     if(!only || *only==i)s.last_ic[i]=s.model().default_ic[i];
    redraw_ics();
-}
-
-/* why slider cannot be one of m's: a name that is no parameter or
-   variable (an empty one is an empty slot), a range not low < high, a
-   step outside it; nullopt when it can */
-std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider, bool check_names)
-{
-  int type, index;
-  if(check_names&&!slider.var.empty()&&!find_par_or_var(m,slider.var,&type,&index))
-    return xpp::format("slider name {}: the model has no parameter or variable",slider.var);
-  if(!std::isfinite(slider.lo)||!std::isfinite(slider.hi)||!(slider.lo<slider.hi))
-    return xpp::format("slider range {} {}: finite low < high required",slider.lo,slider.hi);
-  if(!std::isfinite(slider.step)||slider.step<0||slider.step>slider.hi-slider.lo)
-    return xpp::format("slider step {}: zero (automatic) or a positive step within the range required",slider.step);
-  return std::nullopt;
-}
-
-/* a slider names a parameter (PARAMBOX) or a variable (ICBOX); 0 if
-   neither */
-int find_par_or_var(const xpp::Model &m, std::string_view name,int *type,int *index)
-{
-  int status=find_user_name(m,PARAMBOX,name);
-  if(status==-1){
-    status=find_user_name(m,ICBOX,name);
-    if(status==-1)return 0;
-    *type=ICBOX;
-  }
-  else *type=PARAMBOX;
-  *index=status;
-  return 1;
 }
 
 void set_par_or_var(xpp::Session &s, std::string_view name,int type,int index,double val)

@@ -42,5 +42,8 @@ Result<double> typed_number(Session &s, std::string_view typed, std::string_view
 /* the index of parameter (type PARAMBOX) or variable (ICBOX) oname,
    blanks ignored and case not, -1 when there is none */
 int find_user_name(const Model &m, int type, std::string_view oname);
+/* a slider names a parameter (*type PARAMBOX) or a variable (ICBOX) of
+   m, *index its index; 0 if neither */
+int find_par_or_var(const Model &m, std::string_view name, int *type, int *index);
 
 } // namespace xpp

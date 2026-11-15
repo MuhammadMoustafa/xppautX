@@ -87,4 +87,19 @@ Result<double> typed_number(xpp::Session &s, std::string_view typed, std::string
   return v;
 }
 
+/* a slider names a parameter (PARAMBOX) or a variable (ICBOX); 0 if
+   neither */
+int find_par_or_var(const Model &m, std::string_view name,int *type,int *index)
+{
+  int status=find_user_name(m,PARAMBOX,name);
+  if(status==-1){
+    status=find_user_name(m,ICBOX,name);
+    if(status==-1)return 0;
+    *type=ICBOX;
+  }
+  else *type=PARAMBOX;
+  *index=status;
+  return 1;
+}
+
 } // namespace xpp

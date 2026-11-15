@@ -38,6 +38,7 @@
 #include "grobs.h"
 #include "session.h"
 #include "display_state.h"
+#include "autox_state.h"
 #include "expr.h"
 #include "marks_data.h"
 #include "phase_data.h"

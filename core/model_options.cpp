@@ -15,7 +15,6 @@
 #include "odex_block.h"
 #include "odex.h"
 #include "xpp_util.h"
-#include "session_values.h"
 #include "model_autox_numerics.h"
 #include "browse.h"
 #include "data_table.h"
@@ -1633,6 +1632,21 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
 }
 
 } // namespace
+
+/* why slider cannot be one of m's: a name that is no parameter or
+   variable (an empty one is an empty slot), a range not low < high, a
+   step outside it; nullopt when it can */
+std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider, bool check_names)
+{
+  int type, index;
+  if(check_names&&!slider.var.empty()&&!find_par_or_var(m,slider.var,&type,&index))
+    return xpp::format("slider name {}: the model has no parameter or variable",slider.var);
+  if(!std::isfinite(slider.lo)||!std::isfinite(slider.hi)||!(slider.lo<slider.hi))
+    return xpp::format("slider range {} {}: finite low < high required",slider.lo,slider.hi);
+  if(!std::isfinite(slider.step)||slider.step<0||slider.step>slider.hi-slider.lo)
+    return xpp::format("slider step {}: zero (automatic) or a positive step within the range required",slider.step);
+  return std::nullopt;
+}
 
 std::vector<XppSlider> read_sliders(const Model &m, xpp::odex::Block &file, bool check_names)
 {

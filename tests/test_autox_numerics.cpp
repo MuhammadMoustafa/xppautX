@@ -8,6 +8,7 @@
 #include "xpptest.h"
 #include "xpp_math.h"
 #include "session.h"
+#include "model_numerics.h"
 #include "autox_state.h"
 #include "autox_c.h"
 #include "xpp_io.h"

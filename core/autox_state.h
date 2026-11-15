@@ -24,7 +24,7 @@
 #include "autox_codim.h"
 #include "autox_parallel.h"
 #include "autox_script.h"
-#include "display_state.h"
+#include "zoom.h"
 #include "xAutox.h"
 #include "xpp_error.h"
 #include "xpp_lines.h"
@@ -495,6 +495,14 @@ inline void autox_solve_begins(AutoxRun &run)
 }
 
 namespace xpp {
+/* autoX's diagram display: the points before `earlier` are the branches
+   computed before Clear, hidden unless `show_earlier` (in every view; each
+   view's zoom is its own, autox_state.h's AutoxDiagramView) */
+struct AutoxView {
+    int earlier = 0;
+    bool show_earlier = false;
+};
+
 /* What autoX's numerics throw where they used to exit() (W63a): a
    dimension or setting autoX cannot run with (Ncol above 7, Ntst below
    the number of nodes), a singular solve, a BLAS routine's argument out

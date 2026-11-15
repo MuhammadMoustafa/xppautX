@@ -17,7 +17,7 @@
 #include <vector>
 #include <cstddef>
 
-#include "display_state.h" /* Zoom */
+#include "zoom.h"
 #include "struct.h"    /* GRAPH */
 #include "xpp_error.h"
 namespace xpp { namespace odex { class Block; } namespace odex { class Out; } namespace odex { struct StateFile; } struct AddedColumn; }

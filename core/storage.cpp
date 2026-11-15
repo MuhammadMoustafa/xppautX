@@ -1,10 +1,6 @@
 
 #include "storage.h"
 #include "xpp_ui.h"
-#include "session.h"
-#include "markov.h"
-#include "adj2.h"
-#include "histogram.h"
 #include "xpp_mem.h" /* xpp::out_of_memory */
 #include <stdlib.h> 
 #include <stdio.h>
@@ -16,24 +12,9 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include "model.h"
 #include "xpp_text.h"
 
 namespace xpp {
-
-void init_alloc_info(xpp::Session &s)
-{
-  SolverWork &w=*s.solver_work;
-  w.xpv.node=s.model().node+s.model().nmarkov;
-  w.xpv.nvec=0; /* this is just for now */
-  /* called again once the model's options are read: a fresh zeroed block */
-  try {
-    w.state.assign(w.xpv.nvec+w.xpv.node,0.0);
-  } catch (const std::bad_alloc &) {
-    xpp::out_of_memory("the state vector");
-  }
-  w.xpv.x=w.state.data();
-}
 
 std::vector<double> Column::values(std::ptrdiff_t from, std::ptrdiff_t n) const
 {
@@ -268,23 +249,6 @@ void LentColumns::retype(const DataStore &store)
     table_[c]=own_[c].view();
   }
   if(last_>=0)view(store);
-}
-
-void storage_precision_changed(Session &s)
-{
-  const StoragePrecision wanted=s.numerics->storage_precision;
-  const Result<> converted=s.data_store->set_precision(wanted);
-  if(!converted){
-    s.numerics->storage_precision=s.data_store->precision();
-    ok_or_show(converted);
-    return;
-  }
-  s.histogram->hist_columns.retype(*s.data_store);
-  s.histogram->four_columns.retype(*s.data_store);
-  s.adjoint->adjoint.retype(*s.data_store);
-  s.adjoint->h_function.retype(*s.data_store);
-  s.adjoint->transposed.retype(*s.data_store);
-  retype_stochastic(s);
 }
 
 void LentColumns::release()

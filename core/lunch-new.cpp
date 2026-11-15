@@ -56,6 +56,18 @@ void put_equation(const xpp::Session &s, xpp::Sink &fp, int i)
     fp.print("{}(n+1)={}\n",s.model().uvar_names[i],s.model().formulas[i]);
 }
 
+/* the model m's user functions, as the file info writes them */
+static void user_fun_info(const xpp::Model &m, xpp::Sink &fp)
+{
+  for(int j=0;j<m.nfun;j++){
+    std::string line=xpp::format("{}(",m.ufun_names[j]);
+    for(int i=0;i<m.narg_fun[j];i++)
+      line+=xpp::format("{}{}",m.ufun_args[j][i],i<m.narg_fun[j]-1?",":"");
+    line+=xpp::format(") = {}\n",m.ufun_defs[j]);
+    fp.print("{}",line);
+  }
+}
+
 /* do_info/dump_eqn's equations, fixed variables and functions */
 void put_equations(const xpp::Session &s, xpp::Sink &fp)
 {

@@ -38,6 +38,9 @@ struct PlotCurve; /* plot_settings.h */
 namespace odex { class Block; }
 /* Shared preset/session reader. Before model compilation, check_names is false;
    the .odex loader checks names against declarations instead. */
+/* why slider cannot be one of m's (the slider command and .snapx's sliders.set both ask); nullopt when it can, an empty
+   name an empty slot */
+std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider, bool check_names = true);
 std::vector<XppSlider> read_sliders(const Model &m, odex::Block &file, bool check_names = true);
 /* the sliders as the options block holds the list: `[ { name: iapp, low: 0, high: 1, step: 0 }, ... ]` */
 std::string sliders_text(const std::vector<XppSlider> &sliders);
