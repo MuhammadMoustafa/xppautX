@@ -4,7 +4,7 @@
 #include <deque>
 #include <tuple>
 #include "autox_jobs.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "autox_queue.h"
 #include "session.h"
 #include "autox_state.h"

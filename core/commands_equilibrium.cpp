@@ -57,7 +57,7 @@ std::string equilibrium_result(const Session &s)
 /* The old Equilibria entry prepared the numerical context before any of its searches. */
 Result<> prepare_equilibrium(Session &s,const Command &c,const Place &p)
 {
-    if(s.numerics->fft||s.numerics->hist||s.model().nkernel>0)
+    if(s.numerics->fft||s.numerics->hist||s.model().compiler.nkernel>0)
         return fail(c.name,"Equilibrium finding is unavailable for this model or data",p);
     s.numerics->storflag=false;
     s.numerics->poincare_map=PoincareMap::none;

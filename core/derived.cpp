@@ -8,7 +8,6 @@
 #include "session.h"
 #include "model_failed.h"
 #include "xpp_log.h"
-#include "model.h"
 #include "expr_program.h"
 #include "xpp_error.h"
 #include "xpp_text.h"
@@ -25,7 +24,7 @@ It is called only once during the session
 void compile_derived(xpp::Session &s)
 {
   int n;
-  for (xpp::Model::DerivedQuantity &d : s.model().derived) {
+  for (xpp::CompilerTables::DerivedQuantity &d : s.parser.compiler->derived) {
     if (add_expr(s, d.rhs, d.form.rpn, &n) == 1)
       model_failed(xpp::Error{"derived", xpp::format("Bad right-hand side for a derived parameter: {}", d.rhs), d.where});
   }
@@ -38,27 +37,27 @@ and after changing parameters and constants
 */
 void evaluate_derived(xpp::Session &s)
 {
-  for (const auto &d : s.model().derived)
+  for (const auto &d : s.parser.compiler->derived)
     s.parser.constants[d.index] = evaluate(s,d.form);
 }
 
 void evaluate_derived_pure(const Session &s, double *constants, double *variables)
 {
-  for (const auto &d : s.model().derived)
+  for (const auto &d : s.parser.compiler->derived)
     constants[d.index] = evaluate_pure(s,d.form,constants,variables);
 }
 
 /* this adds a derived quantity  */
 int add_derived(xpp::Session &s, std::string_view name, std::string_view rhs)
 {
-  xpp::Model::DerivedQuantity d;
+  xpp::CompilerTables::DerivedQuantity d;
   d.rhs = rhs;
   /* this is the constant to which it addresses */
   d.index = s.parser.ncon;
   d.where = xpp::LoadSite::place();
   /* add the name to the recognized symbols */
   xpp::log(XPP_LOG_INFO, " derived constant[{}] is {} = {}\n", s.parser.ncon, name, rhs);
-  s.model().derived.push_back(std::move(d));
+  s.parser.compiler->derived.push_back(std::move(d));
   return add_con(s, name, 0.0);
 }
 

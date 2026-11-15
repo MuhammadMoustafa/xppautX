@@ -19,7 +19,7 @@
 #include "browse.h"
 #include "data_table.h"
 #include "colormap.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "plot_state.h"
 #include "model.h"
 #include "model_files.h"
@@ -325,7 +325,7 @@ constexpr OptionRow rows[] = {
    .index = choice_member([](auto &s) -> auto & { return s.numerics->method; }),
    /* Integral equations require Volterra; otherwise the usual RK4 default. */
    .reset = [](Session &s) {
-     s.numerics->method = pick_method(s.model(), s.model().nkernel > 0 ? "Volterra" : "Runge-Kutta", command_place()).value();
+     s.numerics->method = pick_method(s.model(), s.model().compiler.nkernel > 0 ? "Volterra" : "Runge-Kutta", command_place()).value();
    },
    .key = "method", .label = "Method", .rule = OptionRule::method, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::choice, .odex = "subsystem_split", .help = "What splits the model into independent subsystems: its equations alone, or also the run (a Poincare section or stop).", .once = true,

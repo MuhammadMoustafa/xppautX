@@ -7,8 +7,6 @@
 #include "model_failed.h"
 #include "expr.h"
 #include "model_numerics.h"
-#include "model.h"
-#include "model_record.h"
 #include "xpp_log.h"
 #include "xpp_text.h"
 #include "xpp_math.h"
@@ -327,14 +325,14 @@ ParserState::ParserState()
 *************************************************************/
 
 /* INIT_RPN    */
-void init_rpn(xpp::Session &s)
+void init_rpn(xpp::Session &s, bool new_seed)
 {
 
     s.parser.errout = 1;
     s.parser.ncon = 0;
-    s.model().nfun = 0;
-    s.model().nvar = 0;
-    s.model().nkernel=0;
+    s.parser.compiler->nfun = 0;
+    s.parser.compiler->nvar = 0;
+    s.parser.compiler->nkernel=0;
 
     s.numerics->max_points=4000;
     s.parser.nsym = STDSYM;
@@ -352,7 +350,7 @@ void init_rpn(xpp::Session &s)
     /* end animator stuff */
 
     s.tables.clear();
-    if (s.model().record->command_line.new_seed) {
+    if (new_seed) {
       s.numerics->rand_seed=static_cast<int>(time(0));
       xpp::log(XPP_LOG_INFO,"--newseed: seed {}\n",s.numerics->rand_seed);
     }
@@ -432,7 +430,7 @@ int add_constant(ParserState &p, std::string_view junk)
 
 int get_var_index(const xpp::Session &s, std::string_view name)
 {
-  if(const auto *entry=s.model().record->name(name);entry && entry->kind!=ModelRecord::NameKind::Set)return entry->parser_var;
+  if(const NameSlots *slots=s.parser.compiler->names->slots(name,false))return slots->var;
 
   int type,com;
   find_name(s.parser,name,&type);
@@ -460,13 +458,13 @@ int add_con(xpp::Session &s, std::string_view name, double value)
  p.ncon++;
  const int result=add_constant(p,name);
  if(result==0)
-   if(auto it=s.model().record->names.find(converted(name));it!=s.model().record->names.end())it->second.parser_con=p.ncon-1;
+   if(NameSlots *slots=p.compiler->names->slots(name,true))slots->con=p.ncon-1;
  return result;
 }
 
 int add_kernel(xpp::Session &s, std::string_view name, double mu, std::string_view expr)
 {
-  xpp::Model &m=s.model();
+  CompilerTables &m=*s.parser.compiler;
   int in=-1;
   if(duplicate_name(s.parser,name)==1)return(1);
   if(mu<0||mu>=1.0){
@@ -507,7 +505,7 @@ int add_kernel(xpp::Session &s, std::string_view name, double mu, std::string_vi
 int add_var(xpp::Session &s, std::string_view junk, double value)
 {
  ParserState &p=s.parser;
- xpp::Model &m=s.model();
+ CompilerTables &m=*s.parser.compiler;
  if(duplicate_name(p,junk)==1)return(1);
  if(m.nvar>=MAXTYPE) /* an operand names its variable below MAXTYPE (COM) */
  {
@@ -518,7 +516,7 @@ int add_var(xpp::Session &s, std::string_view junk, double value)
  p.nsym++;
  if(p.variables.size()<=static_cast<size_t>(m.nvar))p.variables.resize(std::max<size_t>(64,2*p.variables.size()));
  p.variables[m.nvar]=value;
- if(auto it=m.record->names.find(converted(junk));it!=m.record->names.end())it->second.parser_var=m.nvar;
+ if(NameSlots *slots=m.names->slots(junk,true))slots->var=m.nvar;
  m.nvar++;
  return(0);
 }
@@ -568,7 +566,7 @@ void set_old_arg_names(ParserState &p, int narg)
    names (xpp::Model ufun_args), until set_old_arg_names puts them back */
 void set_ufun_arg_names(xpp::Session &session, int index)
 {
-  const std::vector<std::string> &args=session.model().ufun_args[index];
+  const std::vector<std::string> &args=session.parser.compiler->ufun_args[index];
   for(size_t i=0;i<args.size();i++){
     const int k=session.parser.arg_symbol(static_cast<int>(i));
     ExprSymbol &s=session.parser.symbols[k];
@@ -588,8 +586,8 @@ int add_ufun_name(xpp::Session &s, std::string_view name, int index, int narg)
  xpp::log(XPP_LOG_INFO, " Added user fun {} \n",name);
   if(set_symbol(s.parser,name,10,narg,COM(UFUNTYPE, index)))return 1;
   s.parser.nsym++;
-  s.model().room_for_function(index);
-  s.model().ufun_names[index]=name;
+  s.parser.compiler->room_for_function(index);
+  s.parser.compiler->ufun_names[index]=name;
   return (0);
 }
 
@@ -607,7 +605,7 @@ void fixup_endfun(std::vector<int> &program, int narg)
 }
 
 /* user function index's definition becomes def (Model::ufun_defs) */
-void set_ufun_def(xpp::Model &m, int index, std::string_view def)
+void set_ufun_def(CompilerTables &m, int index, std::string_view def)
 {
   m.ufun_defs[index]=def;
 }
@@ -616,7 +614,7 @@ void set_ufun_def(xpp::Model &m, int index, std::string_view def)
 
 int add_ufun_new(xpp::Session &s, int index, std::string_view rhs, std::span<const std::string> args)
 {
-  xpp::Model &m=s.model();
+  CompilerTables &m=*s.parser.compiler;
   int end;
   int narg=static_cast<int>(args.size());
   m.ufun_programs[index].rpn.clear();
@@ -642,7 +640,7 @@ int add_ufun_new(xpp::Session &s, int index, std::string_view rhs, std::span<con
 
 int add_ufun(xpp::Session &s, std::string_view junk, std::string_view expr, int narg)
 {
- xpp::Model &m=s.model();
+ CompilerTables &m=*s.parser.compiler;
  int i;
  int end;
 
@@ -675,7 +673,7 @@ int add_ufun(xpp::Session &s, std::string_view junk, std::string_view expr, int 
 
 int find_lookup(const xpp::Session &s, std::string_view name)
 {
- if(const auto *entry=s.model().record->name(name);entry && entry->kind!=ModelRecord::NameKind::Set)return entry->kind==ModelRecord::NameKind::Table?entry->index:-1;
+ if(const std::optional<int> table=s.parser.compiler->names->table(name))return *table;
  int index,com;
  find_name(s.parser,name,&index);
   if(index==-1)return(-1);
@@ -697,7 +695,7 @@ void find_name(const ParserState &p, std::string_view string, int *index)
 
 int get_param_index(const xpp::Session &s, std::string_view name)
 {
- if(const auto *entry=s.model().record->name(name);entry && entry->kind!=ModelRecord::NameKind::Set)return entry->parser_con;
+ if(const NameSlots *slots=s.parser.compiler->names->slots(name,false))return slots->con;
  int type,com;
   find_name(s.parser,name,&type);
   if(type<0)return(-1);
@@ -710,24 +708,16 @@ int get_param_index(const xpp::Session &s, std::string_view name)
     return(-1);
 }
 
-std::string_view parameter_name(const xpp::Session &s, int k)
-{
-  const Model &m=s.model();
-  for(int i=0;i<m.nupar;i++)
-    if(get_param_index(s,m.upar_names[i])==k)return m.upar_names[i];
-  return {};
-}
-
 namespace {
 
 /* where name's value lives in p, a parameter's or a variable's (nullptr
    when name is neither): const as p is */
 template <class Parser>
-auto slot_in(const Model &m, Parser &p, std::string_view name) -> decltype(&p.constants[0])
+auto slot_in(Parser &p, std::string_view name) -> decltype(&p.constants[0])
 {
-  if(const ModelRecord::Name *entry=m.record->name(name);entry && entry->kind!=ModelRecord::NameKind::Set){
-    if(entry->parser_con>=0)return &p.constants[entry->parser_con];
-    if(entry->parser_var>=0)return &p.variables[entry->parser_var];
+  if(const NameSlots *slots=p.compiler->names->slots(name,false)){
+    if(slots->con>=0)return &p.constants[slots->con];
+    if(slots->var>=0)return &p.variables[slots->var];
     return nullptr;
   }
   int type;
@@ -741,13 +731,13 @@ auto slot_in(const Model &m, Parser &p, std::string_view name) -> decltype(&p.co
 
 }
 
-double *value_slot(Session &s, std::string_view name) { return slot_in(s.model(),s.parser,name); }
+double *value_slot(Session &s, std::string_view name) { return slot_in(s.parser,name); }
 
 /* GET_VAL   */
 
 int get_val(const xpp::Session &s, std::string_view name, double *value)
 {
-  const double *v=slot_in(s.model(),s.parser,name);
+  const double *v=slot_in(s.parser,name);
   *value=v?*v:0.0;
   return v!=nullptr;
 }
@@ -756,7 +746,7 @@ int get_val(const xpp::Session &s, std::string_view name, double *value)
 
 int set_val(xpp::Session &s, std::string_view name, double value)
 {
-  double *v=slot_in(s.model(),s.parser,name);
+  double *v=slot_in(s.parser,name);
   if(v)*v=value;
   return v!=nullptr;
 }

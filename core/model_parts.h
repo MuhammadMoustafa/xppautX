@@ -10,22 +10,6 @@
 /* The pieces of a Model that a run's state (IntegratorState, Session) also
    holds by value, so integrate.h and session.h need them without model.h
    (a change to the Model then rebuilds only the files that read it). */
-/* a kernel that is a convolution (KERNEL's flag) */
-#define CONV 2
-
-/* An integral equation's kernel as the model declares it (expr_symbols.cpp
-   add_kernel; volterra2.cpp alloc_v_memory compiles it while the model
-   loads): K(t,t',u) with the constant mu, or a convolution kerexpr#expr
-   (flag CONV). xpp::Model's kernels hold them; the running integrals are
-   volterra2.cpp's (volterra.h's state). */
-struct KERNEL {
-  double mu=0.0;
-  xpp::Program formula,kerform; /* expr and kerexpr compiled */
-  xpp::Place where; /* the declaring line, including an anonymous inline kernel */
-  int flag=0;
-  std::string name,expr,kerexpr;
-};
-
 namespace xpp {
 
 /* the most events a global flag sets (Model::GlobalFlag, IntegratorState's FlagState) */

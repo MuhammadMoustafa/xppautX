@@ -9,7 +9,8 @@
 #include "xpptest.h"
 #include "expr.h"
 #include "expr_derivative.h"
-#include "expr_native.h"
+#include "model_derivatives.h"
+#include "model_native.h"
 #include "expr_program.h"
 #include "jacobian.h"
 #include "model.h"
@@ -60,7 +61,7 @@ struct Fixture {
     Fixture()
     {
         xpp::Session &s = *session;
-        xpp::init_rpn(s);
+        xpp::init_rpn(s,false);
         CHECK(xpp::add_var(s, "t", 0.0) == 0);
         CHECK(xpp::add_var(s, "x", 0.0) == 0);
         CHECK(xpp::add_var(s, "y", 0.0) == 0);

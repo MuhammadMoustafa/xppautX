@@ -4,7 +4,7 @@
 #include "expr.h"
 #include "autox_c.h"
 #include "my_rhs.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "solver.h"
 #include "xpp_cpu.h"
 #include "xpp_globals.h"

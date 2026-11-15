@@ -16,7 +16,7 @@
 #include "typed_values.h"
 #include "session_values.h"
 #include "expr.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "form_ode.h"
 #include "numerics.h"
 #include "jacobian.h"

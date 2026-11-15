@@ -1,6 +1,6 @@
 #include "load_args.h"
 #include "xpptest.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "expr_program.h"
 #include "session.h"
 #include "expr.h"
@@ -154,7 +154,7 @@ TEST_CASE("test_compile")
     auto session=std::make_unique<xpp::Session>(*model);
     auto &s=*session;
     auto &m=*model;
-    xpp::init_rpn(s);
+    xpp::init_rpn(s,false);
     CHECK(xpp::add_var(s,"t",0.0)==0);
     CHECK(xpp::add_var(s,"x",2.0)==0);
     for (const auto *name:{"z0","z1","z2","z3"}) CHECK(xpp::add_var(s,name,0.0)==0);
@@ -183,7 +183,7 @@ TEST_CASE("test_compile")
     for (const auto *text:{"par+x", "par-x", "par*x", "par/x", "1/0", "0/0",
          "if(x)then(if(par)then(0.1)else(1e-300))else(-0.0)",
          "2*if(x)then(3)else(4)+1", "if(x)then(3)else(if(par)then(4)else(5))"}) expression(text);
-    m.ieee_division=true;
+    m.compiler.ieee_division=true;
     expression("1/0"); expression("0/0"); expression("1/(-0.0)");
     /* Every pure built-in table entry, including noncommutative functions. */
     for (size_t i=0;i<xpp::expr::fun1.size();++i) {
@@ -199,7 +199,7 @@ TEST_CASE("test_compile")
     /* r draws and q sums: callers must call them in order, as statements */
     CHECK(xpp::add_ufun_name(s,"r",2,2)==0);
     CHECK(xpp::add_ufun_name(s,"q",3,1)==0);
-    m.nfun=4;
+    m.compiler.nfun=4;
     const std::array<std::string,2> args{"A","B"};
     CHECK(xpp::add_ufun_new(s,0,"a-b",args)==0);
     CHECK(xpp::add_ufun_new(s,1,"f(a,f(b,1))*2",args)==0);
@@ -302,13 +302,13 @@ TEST_CASE("test_compile")
         CHECK(m.programs[0].native==nullptr);
         CHECK(m.programs[1].native!=nullptr);
     }
-    const auto function=m.ufun_programs[0].rpn;
-    m.ufun_programs[0].rpn={COM(USTACKTYPE,0),COM(USTACKTYPE,1),COM(UFUNTYPE,0),2,ENDFUN,2,ENDEXP};
+    const auto function=m.compiler.ufun_programs[0].rpn;
+    m.compiler.ufun_programs[0].rpn={COM(USTACKTYPE,0),COM(USTACKTYPE,1),COM(UFUNTYPE,0),2,ENDFUN,2,ENDEXP};
     CHECK(compile_model(s).has_value());
-    CHECK(m.ufun_programs[0].native==nullptr);
-    CHECK(m.ufun_programs[1].native==nullptr); /* g calls f */
-    CHECK(m.ufun_programs[2].native!=nullptr);
-    m.ufun_programs[0].rpn=function;
+    CHECK(m.compiler.ufun_programs[0].native==nullptr);
+    CHECK(m.compiler.ufun_programs[1].native==nullptr); /* g calls f */
+    CHECK(m.compiler.ufun_programs[2].native!=nullptr);
+    m.compiler.ufun_programs[0].rpn=function;
     /* W715: translate_model leaves the programs interpreted, their purity known, and the compile on its thread
        starts when it is due (W717: when the interpreter has done as much work as the compile costs); the core
        thread takes the code once the thread is done (my_rhs), or waits for it (native_ready) */
@@ -338,7 +338,7 @@ TEST_CASE("test_compile")
        written, read by name, by a user function or by a shift; a set; a draw) or what may
        not run (a branch, a sum). w reads z1; f only its arguments. */
     CHECK(xpp::add_ufun_name(s,"w",4,1)==0);
-    m.nfun=5;
+    m.compiler.nfun=5;
     CHECK(xpp::add_ufun_new(s,4,"z1*a",{args.data(),1})==0);
     m.fix_var=4;
     for (const auto &fixed:std::vector<std::array<const char *,5>>{
@@ -392,11 +392,11 @@ TEST_CASE("test_compile")
                     /* A raw caller exercises the native function's argument-stack
                        bridge, then the interpreter exercises the same call. */
                     xpp::Program caller;
-                    for (int a=0;a<t.model().narg_fun[entry.user_index];++a) {
+                    for (int a=0;a<t.model().compiler.narg_fun[entry.user_index];++a) {
                         const auto arg=number(0.25+static_cast<double>(a));
                         caller.rpn.insert(caller.rpn.end(),arg.begin(),arg.end()-1);
                     }
-                    caller.rpn.insert(caller.rpn.end(),{COM(UFUNTYPE,entry.user_index),t.model().narg_fun[entry.user_index],ENDEXP});
+                    caller.rpn.insert(caller.rpn.end(),{COM(UFUNTYPE,entry.user_index),t.model().compiler.narg_fun[entry.user_index],ENDEXP});
                     same_both_ways(t,caller);
                 }
                 if (entry.dynamic_operands) {

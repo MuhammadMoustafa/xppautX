@@ -8,8 +8,6 @@
    saved and translated. */
 #include "expr_decode.h"
 #include "expr_derivative.h"
-#include "model.h"
-#include "model_place.h"
 #include "xpp_ui.h"
 #include "session.h"
 #include "expr.h"
@@ -146,7 +144,7 @@ std::expected<std::vector<expr::Op>, std::string> operations(Session &s, std::sp
       o.kind=expr::OpKind::Call; o.a=in; o.count=i.count;
       /* inlined when the function runs interpreted and is not being decoded up the chain: the body's
          instructions, its arguments read from the stack, its jumps moved */
-      const Program &function=s.model().ufun_programs[static_cast<std::size_t>(in)];
+      const Program &function=s.parser.compiler->ufun_programs[static_cast<std::size_t>(in)];
       const expr::Op *body=nullptr;
       if(!function.native&&std::find(decoding.begin(),decoding.end(),in)==decoding.end()){
         decoding.push_back(in);
@@ -213,8 +211,8 @@ inline const expr::Op *instructions(Session &s, const Program &program, int argu
 [[gnu::noinline]] void nested_too_deep(Session &s, int function)
 {
   stop_integration(s.parser,Error{"evaluation",
-      xpp::format("user function '{}' nests deeper than {} calls",s.model().ufun_names[function],MAX_UFUN_DEPTH),
-      model_place(s.model(),s.model().ufun_names[function])});
+      xpp::format("user function '{}' nests deeper than {} calls",s.parser.compiler->ufun_names[function],MAX_UFUN_DEPTH),
+      s.parser.compiler->names->place(s.parser.compiler->ufun_names[function])});
 }
 
 /* Runs the instructions from op of the program code on p's stacks and
@@ -301,9 +299,9 @@ double run(const expr::Op *code, const expr::Op *op, Session &s)
         st.nargs-=n;
       }else{
         st.ufun_depth++;
-        const Program &function=s.model().ufun_programs[o.a];
+        const Program &function=s.parser.compiler->ufun_programs[o.a];
         if(function.native){
-          /* the bridge drops the arguments itself (expr_native.cpp h_end) */
+          /* the bridge drops the arguments itself (model_native.cpp h_end) */
           value=mir::call(function.native,constants,variables,&s,function.rpn.data());
         }else if(const expr::Op *body=instructions(s,function,n)){
           p.interpreted_ops+=function.ops.size();
@@ -431,7 +429,7 @@ double evaluate_pure(const Session &s, const Program &code, double *constants, d
 void evaluate_derivatives(const Session &s, const expr::Symbolic &graph, const JacobianProgram &p, const double *c, const double *v,
                           std::vector<double> &values, std::span<double> out)
 {
-  /* each node the entries need, in the graph's order, as the Generator's derivatives writes it (expr_native.cpp):
+  /* each node the entries need, in the graph's order, as the Generator's derivatives writes it (model_native.cpp):
      the same operations in the same order, a Select's both values computed */
   if(values.size()<graph.size())values.resize(graph.size());
   for(const int id:p.nodes){

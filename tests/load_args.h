@@ -4,7 +4,7 @@
    the model is compiled as a computation's start would (W713), since a test
    reads the compiled code without one */
 #include "local_fs.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "model_load.h"
 #include "comline.h"
 #include "xpp_error.h"

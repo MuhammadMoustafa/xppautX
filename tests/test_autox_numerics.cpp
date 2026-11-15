@@ -14,7 +14,7 @@
 #include "xpp_io.h"
 #include "xpp_files.h"
 #include "jacobian.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "autox_unknowns.h"
 #include "xpp_error.h"
 #include "xpp_math_autox.h"

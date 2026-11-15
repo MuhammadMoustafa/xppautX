@@ -98,6 +98,7 @@ Session::Session(Model &m)
     model_(&m)
 {
   parser.host=&run_host;
+  parser.compiler=&m.compiler;
   selected_window=plot_windows->graph[0].name;
   plot_display.resize(1);
 }

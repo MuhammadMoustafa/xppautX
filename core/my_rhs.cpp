@@ -9,7 +9,7 @@
 #include "getvar.h"
 #include "simplenet.h"
 #include "model.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "expr_program.h"
 #include "session.h"
 #include "xpp_mir.h"

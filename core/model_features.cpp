@@ -18,9 +18,9 @@ bool has_feature(const Model &m, const std::vector<TABULAR> &tables, Feature f)
     switch (f) {
     case Feature::none: return true;
     case Feature::parameters: return m.nupar > 0;
-    case Feature::delays: return m.ndelays > 0;
+    case Feature::delays: return m.compiler.ndelays > 0;
     case Feature::boundary_conditions: return m.bc_defined > 0;
-    case Feature::integral_terms: return m.nkernel > 0;
+    case Feature::integral_terms: return m.compiler.nkernel > 0;
     case Feature::formula_tables: return !tables.empty();
     }
     return true;

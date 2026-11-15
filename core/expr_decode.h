@@ -4,7 +4,7 @@
    program (every operand's range, the stack's depth at every instruction,
    the if/then/else jumps, the sums' extents, a user function's argument
    count) and hands back the instructions decoded, for a walker over one
-   value domain to run: Generator::sequence (C text, expr_native.cpp) and
+   value domain to run: Generator::sequence (C text, model_native.cpp) and
    the differentiator's Reader (a Symbolic term, expr_derivative.cpp). A
    walker checks no structure of its own, only what its domain refuses.
    The interpreter (expr_eval.cpp) is the third walker: it decodes a

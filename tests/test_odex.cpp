@@ -1050,7 +1050,7 @@ TEST_CASE("test_odex")
     big += "aux last_table = t59(1)+f59(1)+n59(0)\n";
     CHECK(load_text(big.c_str()) == 1);
     xpp::Session &s = xpp::client_session();
-    CHECK(s.ntable == 61 && s.model().nfun == 60 && s.model().nnetwork == 60);
+    CHECK(s.ntable == 61 && s.model().compiler.nfun == 60 && s.model().nnetwork == 60);
     CHECK(s.model().intern_sets.size() == static_cast<std::size_t>(many) && s.model().flag_count() == 2100);
   }
   /* a network's tables hold the values it reads: a convolution of one tap each side reads three weights */

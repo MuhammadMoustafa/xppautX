@@ -12,7 +12,7 @@
 #include "expr_tables.h"
 #include "odex.h"
 #include "odex_write.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "form_ode.h"
 #include "ode_read.h"
 #include "model_declarations.h"
@@ -468,7 +468,7 @@ private:
        sum's index, the animator's mouse, parameters and derived quantities */
     std::set<int> moving = {xpp::expr::SUM_INDEX};
     for (int k = 0; k < m_.nupar; k++) moving.insert(m_.upar_con[k]);
-    for (const auto &d : m_.derived) moving.insert(d.index);
+    for (const auto &d : m_.compiler.derived) moving.insert(d.index);
     for (int k = 0; k < m_.nwiener; k++) moving.insert(m_.wiener[k]);
     for (const auto &o : m_.ou) moving.insert(o.slot);
     for (int j = 0; j < m_.flag_count(); j++)
@@ -616,7 +616,7 @@ private:
 
   std::string arg_name(int fun, int i) const
   {
-    const std::string spelled = spell_.arg(m_.ufun_names[fun], i, m_.ufun_args[fun][i]);
+    const std::string spelled = spell_.arg(m_.compiler.ufun_names[fun], i, m_.compiler.ufun_args[fun][i]);
     auto r = renames_.find(spelled);
     return r == renames_.end() ? spelled : r->second;
   }
@@ -633,8 +633,8 @@ private:
         if (sym.name != "PI" && !sym.name.starts_with("MOUSE_")) out.push_back(spell_.of(sym.name));
     }
     for (int i = 0; i < m_.neq; i++) out.push_back(spell_.of(m_.uvar_names[i]));
-    for (int f = 0; f < m_.nfun; f++)
-      for (int i = 0; i < m_.narg_fun[f]; i++) out.push_back(spell_.arg(m_.ufun_names[f], i, m_.ufun_args[f][i]));
+    for (int f = 0; f < m_.compiler.nfun; f++)
+      for (int i = 0; i < m_.compiler.narg_fun[f]; i++) out.push_back(spell_.arg(m_.compiler.ufun_names[f], i, m_.compiler.ufun_args[f][i]));
     return out;
   }
 
@@ -817,12 +817,12 @@ private:
         std::vector<Expr> args(n);
         for (int k = n; k-- > 0;) args[k] = st.pop(&first);
         if (n == 0) first = here;
-        call(name(m_.ufun_names[in]), std::move(args));
+        call(name(m_.compiler.ufun_names[in]), std::move(args));
         positive_index = false; /* a function may contain a sum */
         break;
       }
       case USTACKTYPE:
-        if (fun < 0 || in >= m_.narg_fun[fun]) refuse("an argument read outside its function");
+        if (fun < 0 || in >= m_.compiler.narg_fun[fun]) refuse("an argument read outside its function");
         st.push(name_expr(arg_name(fun, in)), here);
         break;
       case TABTYPE:
@@ -983,7 +983,7 @@ private:
   /* int{...} and int[mu]{...}: volterra(kernel, of=u, mu=m) */
   Expr kernel(int index) const
   {
-    const KERNEL &k = m_.kernels[index];
+    const KERNEL &k = m_.compiler.kernels[index];
     const bool conv = !k.kerexpr.empty();
     Expr e;
     e.kind = Expr::Kind::Call;
@@ -1074,9 +1074,9 @@ private:
     }
     case Statement::Kind::Fun: {
       const int f = nfun_++;
-      std::string out = "fun " + name(m_.ufun_names[f]) + "(";
-      for (int i = 0; i < m_.narg_fun[f]; i++) out += (i ? ", " : "") + arg_name(f, i);
-      return out + ") = " + text(m_.ufun_programs[f].rpn, f) + "\n";
+      std::string out = "fun " + name(m_.compiler.ufun_names[f]) + "(";
+      for (int i = 0; i < m_.compiler.narg_fun[f]; i++) out += (i ? ", " : "") + arg_name(f, i);
+      return out + ") = " + text(m_.compiler.ufun_programs[f].rpn, f) + "\n";
     }
     case Statement::Kind::Derived: {
       /* d = expr: the .odex's builder finds it reads only parameters,
@@ -1155,7 +1155,7 @@ private:
     for (const Binding &b : s.bindings) {
       const std::string upper = xpp::upper_case(b.name);
       const int i = find_user_name(m_, ICBOX, upper);
-      if (m_.ndelays > 0 && i >= 0 && i < m_.node)
+      if (m_.compiler.ndelays > 0 && i >= 0 && i < m_.node)
         out += "history " + name(upper) + " = " + text(compiled(b.value.text)) + "\n";
     }
     return out;
@@ -1885,10 +1885,10 @@ Fingerprint fingerprint(const xpp::Session &s, int guard = -1)
   const xpp::Model &m = s.model();
   Fingerprint f;
   f.values.push_back(s.numerics->method);
-  for (int c : {m.neq, m.node, m.nmarkov, m.fix_var, m.nupar, m.nfun - (guard >= 0 ? 1 : 0), m.flag_count(), m.naeqn, m.nsvar, m.nkernel, m.nwiener, static_cast<int>(m.ou.size())})
+  for (int c : {m.neq, m.node, m.nmarkov, m.fix_var, m.nupar, m.compiler.nfun - (guard >= 0 ? 1 : 0), m.flag_count(), m.naeqn, m.nsvar, m.compiler.nkernel, m.nwiener, static_cast<int>(m.ou.size())})
     f.values.push_back(c);
   for (int i = 0; i < m.node + m.fix_var + m.neq - m.node - m.nmarkov; i++) f.programs.push_back(normalized(m.programs[i].rpn, guard));
-  for (int i = 0; i < m.nfun; i++) if (i != guard) f.programs.push_back(normalized(m.ufun_programs[i].rpn, guard));
+  for (int i = 0; i < m.compiler.nfun; i++) if (i != guard) f.programs.push_back(normalized(m.compiler.ufun_programs[i].rpn, guard));
   for (int j = 0; j < m.flag_count(); j++) {
     f.programs.push_back(normalized(m.flags[j].comcond.rpn, guard));
     for (int e = 0; e < m.flags[j].nevents; e++) f.programs.push_back(normalized(m.flags[j].comrhs[e].rpn, guard));
@@ -2006,14 +2006,14 @@ Result<std::string> convert_text(FileSystem &fs, const ModelLoader &loader, cons
     [&](Session &s) -> std::optional<Error> {
       /* run() writes the guard last, so every other function keeps its
          .ode number and the programs' calls compare as they are */
-      const int guard = guard_name.empty() ? -1 : s.model().nfun - 1;
+      const int guard = guard_name.empty() ? -1 : s.model().compiler.nfun - 1;
       /* Check the helper's compiled guard before erasing its calls from
          fingerprints; function storage is padded beyond ENDEXP. */
       constexpr size_t guard_program_size = 13; /* argument, conditional, number and function terminator */
       bool guard_valid = guard_name.empty() || guard >= 0;
       if (guard >= 0) {
-        const auto program = normalized(s.model().ufun_programs[guard].rpn);
-        guard_valid = s.model().ufun_names[guard] == xpp::upper_case(guard_name) && s.model().narg_fun[guard] == 1
+        const auto program = normalized(s.model().compiler.ufun_programs[guard].rpn);
+        guard_valid = s.model().compiler.ufun_names[guard] == xpp::upper_case(guard_name) && s.model().compiler.narg_fun[guard] == 1
             && program.size() == guard_program_size && program[0] == COM(USTACKTYPE, 0) && program[1] == MYIF && program[2] == 3
             && program[3] == COM(USTACKTYPE, 0) && program[4] == MYTHEN && program[5] == 4 && program[6] == NUMSYM
             && xpp::expr::number_from_halves(program[8], program[7]) == xpp::expr::ZERO_DIVISOR

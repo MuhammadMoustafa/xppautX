@@ -17,7 +17,7 @@
 #include "xpp_path.h"
 #include "xpp_lines.h"
 
-#include "expr_native.h"
+#include "model_native.h"
 #include <stdio.h>
 #include <time.h>
 #include "model_options.h"
@@ -59,11 +59,11 @@ void put_equation(const xpp::Session &s, xpp::Sink &fp, int i)
 /* the model m's user functions, as the file info writes them */
 static void user_fun_info(const xpp::Model &m, xpp::Sink &fp)
 {
-  for(int j=0;j<m.nfun;j++){
-    std::string line=xpp::format("{}(",m.ufun_names[j]);
-    for(int i=0;i<m.narg_fun[j];i++)
-      line+=xpp::format("{}{}",m.ufun_args[j][i],i<m.narg_fun[j]-1?",":"");
-    line+=xpp::format(") = {}\n",m.ufun_defs[j]);
+  for(int j=0;j<m.compiler.nfun;j++){
+    std::string line=xpp::format("{}(",m.compiler.ufun_names[j]);
+    for(int i=0;i<m.compiler.narg_fun[j];i++)
+      line+=xpp::format("{}{}",m.compiler.ufun_args[j][i],i<m.compiler.narg_fun[j]-1?",":"");
+    line+=xpp::format(") = {}\n",m.compiler.ufun_defs[j]);
     fp.print("{}",line);
   }
 }
@@ -78,7 +78,7 @@ void put_equations(const xpp::Session &s, xpp::Sink &fp)
     for(int i=0;i<s.model().fix_var;i++)
       fp.print("{} = {} \n",s.model().fixinfo[i].name,s.model().fixinfo[i].value);
   }
-  if(s.model().nfun>0){
+  if(s.model().compiler.nfun>0){
     fp.print("\nUser-defined functions:\n");
     user_fun_info(s.model(),fp);
   }

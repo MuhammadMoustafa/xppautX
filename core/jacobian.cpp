@@ -16,7 +16,7 @@
 #include "model_numerics.h"
 #include "xpp_text.h"
 #include "expr.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "xpp_mem.h"
 #include "expr_program.h"
 #include "xpp_mir.h"
@@ -142,7 +142,7 @@ void exact_constant_derivative(const Session &s, JacobianScratch &scratch, const
   if (it == columns.end() || it->first != k) std::fill_n(out, n, 0.0);
   else column(s, scratch, it->second, c, t, x, f, n, [&]() -> std::string_view {
     /* the parameter constant k is: autoX's are the model's parameters */
-    const std::string_view name = parameter_name(s, k);
+    const std::string_view name = s.model().parameter_name(k);
     return name.empty() ? "a constant" : name;
   }, out);
 }

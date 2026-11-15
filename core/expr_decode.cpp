@@ -1,7 +1,6 @@
 /* The decoder of a program's instructions (expr_decode.h, W276). */
 #include <array>
 #include "expr_decode.h"
-#include "model.h"
 #include "session.h"
 #include "expr.h"
 #include "expr_tables.h"
@@ -26,7 +25,7 @@ struct Frame {
 std::expected<std::vector<Instr>, std::string> decode(const Session &s, std::span<const int> p, int arguments,
                                                    std::size_t *maximum_depth)
 {
-    const Model &m = s.model();
+    const CompilerTables &m = *s.parser.compiler;
     std::vector<Instr> out;
     out.reserve(p.size());
     std::vector<Frame> frames{{Frame::Kind::Program, 0, p.size()}};
@@ -133,7 +132,7 @@ std::expected<std::vector<Instr>, std::string> decode(const Session &s, std::spa
             if (i.count < 0 || !need(static_cast<std::size_t>(i.count))) return refuse("a stack underflow");
             depth = depth - static_cast<std::size_t>(i.count) + 1;
         } else if (type == TABTYPE || type == NETTYPE || type == VECTYPE) {
-            const std::size_t bound = type == TABTYPE ? s.tables.size() : type == NETTYPE ? m.networks.size() : m.vectors.size();
+            const std::size_t bound = type == TABTYPE ? s.tables.size() : type == NETTYPE ? m.network_count : m.vector_count;
             if (!in_range(in, bound)) return refuse("an out-of-range table, network or vectorizer");
             if (!need(1)) return refuse("a stack underflow");
         } else if (type == KERTYPE) {

@@ -6,7 +6,7 @@
 #include "xpptest.h"
 #include "model.h"
 #include "session.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "model_numerics.h"
 #include "xpp_math.h"
 #include "xpp_util.h"

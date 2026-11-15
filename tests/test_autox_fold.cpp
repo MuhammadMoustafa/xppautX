@@ -9,7 +9,7 @@
 #include "autox_c.h"
 #include "autox_unknowns.h"
 #include "jacobian.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include <utility>
 #include "xpp_files.h"
 #include "xpp_io.h"

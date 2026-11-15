@@ -1,5 +1,5 @@
 #pragma once
-/* The Generator's (expr_native.cpp) output: a model's programs as expression trees and flat statement lists,
+/* The Generator's (model_native.cpp) output: a model's programs as expression trees and flat statement lists,
    for core/xpp_mir.cpp to lower through MIR's API. No text is written or read anywhere: every name is an index,
    every number a double, and every function the code calls is a row of `callees` (a function of ours at an
    address we gave it, or a function of the module), so a back end calls nothing else. */
@@ -12,7 +12,7 @@
 namespace xpp {
 
 /* A function the code calls, returning a double. An external one (`address`) takes the Session first when
-   `session`, then `doubles` doubles, then one int when `index` (the helpers of expr_native.cpp and the math
+   `session`, then `doubles` doubles, then one int when `index` (the helpers of model_native.cpp and the math
    table's functions); one with no address is the module's function of that name, whose parameters its
    IrFunction::Kind gives. */
 struct IrCallee {

@@ -152,7 +152,7 @@ namespace {
    store-from time zero while it does, put back when it ends) */
 xpp::Result<> begin_shoot(xpp::Session &s)
 {
- if(s.model().nmarkov>0||s.model().nkernel>0)
+ if(s.model().nmarkov>0||s.model().compiler.nkernel>0)
    return xpp::fail("boundary_value","Can't do BVP with integral or markov eqns",xpp::command_place());
 
  if(s.numerics->fft||s.numerics->hist)

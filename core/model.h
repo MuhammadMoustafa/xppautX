@@ -32,6 +32,7 @@
 #include "xpp_mir.h"
 #include "expr_program.h"
 #include "model_parts.h"
+#include "expr_compiler.h"
 
 #include <array>
 #include <memory>
@@ -51,11 +52,27 @@ struct ModelRecord; /* model_record.h */
 
 class TempDir; /* xpp_files.h */
 
-struct Model {
+struct Model final : NameIndex {
+  /* what the formula compiler and the evaluators read of the model (expr_compiler.h): its user functions, kernels,
+     symbol counts and derived quantities, and the index of its names */
+  CompilerTables compiler;
+
   /* out of line (model_files.cpp), where ModelRecord is complete: what
      only loads and writes a Model includes it, not what reads one */
   Model();
   ~Model();
+  /* the name index the compiler reads and keeps current (NameIndex, expr_compiler.h): the record's slots and
+     model_place */
+  NameSlots *slots(std::string_view name, bool write) override;
+  Place place(std::string_view name) const override;
+  std::optional<int> table(std::string_view name) const override;
+  /* the model's parameter whose constant (its place in the parser's constants) is k, "" when it has none */
+  std::string_view parameter_name(int k) const
+  {
+    for(int i=0;i<nupar;i++)
+      if(upar_con[i]==k)return upar_names[i];
+    return {};
+  }
 
   /* what the load recorded of where the model came from (statements, name
      index, files, command line: model_record.h) */
@@ -102,8 +119,6 @@ struct Model {
   int fix_var=0;
   /* the parameters */
   int nupar=0;
-  /* the parser's variables (t, the model's variables, then its extras) */
-  int nvar=0;
   /* the Wiener parameters */
   int nwiener=0;
   /* the first constant and symbol after the model's own: an expression
@@ -112,11 +127,6 @@ struct Model {
   int ncon_start=0,nsym_start=0;
   /* the first primed symbol (a variable's x') */
   int prime_start=0;
-  /* the model's formulas divide as IEEE does (1/0 is inf, 0/0 NaN), where
-     an .ode's replace a zero divisor by ZERO_DIVISOR (expr_compile.cpp;
-     docs/odex.md, question 1): the builder's copy of its statement list's
-     Parsed::ieee_division, which only the .odex reader sets */
-  bool ieee_division=false;
   /* each variable's kind: 1 a Volterra integral equation (x(t)=...),
      0 an ODE or a map */
   std::vector<int> eq_type;
@@ -203,17 +213,6 @@ struct Model {
   std::vector<GlobalFlag> flags;
   int flag_count() const { return static_cast<int>(flags.size()); }
 
-  /* ---- the derived quantities (derived.cpp): each one's constant (its
-     place in the parser's constants) and formula, as text and compiled,
-     worked out in this order whenever a parameter changes ---- */
-  struct DerivedQuantity {
-    int index=0;
-    std::string rhs;
-    Program form;
-    Place where; /* its line, for an error */
-  };
-  std::vector<DerivedQuantity> derived;
-
   /* ---- the DAEs (dae_fun.cpp) ---- */
   /* an algebraic variable (solv): its name, the formula of its first
      guess (rhs, compiled form), its place in the parser's variables */
@@ -256,12 +255,6 @@ struct Model {
   std::vector<OptionLine> options;
 
   /* ---- delays, integral equations, Markov chains, networks ---- */
-  /* the delay terms the parser compiled (delay(), a delayed network) */
-  int ndelays=0;
-  /* the integral equations' kernels (nkernel of them) */
-  int nkernel=0;
-  std::vector<KERNEL> kernels;
-
   /* a Markov variable's chain: nstates states and their values, and the
      nstates x nstates transitions as typed (trans) and compiled
      (command), or as numbers (fixed) when type is 1 (fixed for all time;
@@ -301,36 +294,11 @@ struct Model {
   /* each parameter's place in the parser's constants (what its name finds
      there: the state event reads every parameter, without the lookups) */
   std::vector<int> upar_con;
-  /* the user functions' names (NFUN of them) */
-  std::vector<std::string> ufun_names;
-  /* each user function's argument names (narg_fun[i] of them) */
-  std::vector<std::vector<std::string>> ufun_args;
-
   /* ---- the networks and vectorizers (simplenet.cpp) ---- */
   int nnetwork=0,nvector=0;
   std::vector<Network> networks;
   std::vector<Vectorizer> vectors;
 
-  /* ---- the user functions (expr_symbols.cpp), nfun of them ---- */
-  int nfun=0;
-  /* each one's argument count */
-  std::vector<int> narg_fun;
-  /* each one's formula as typed */
-  std::vector<std::string> ufun_defs;
-  /* each one compiled: the formula then ENDFUN, its argument count and
-     ENDEXP */
-  std::vector<Program> ufun_programs;
-  /* room for user function index in each of the above (the functions have
-     no limit: the vectors grow with what the model defines) */
-  void room_for_function(int index) {
-    const std::size_t size = static_cast<std::size_t>(index) + 1;
-    if (ufun_names.size() >= size) return;
-    ufun_names.resize(size);
-    ufun_args.resize(size);
-    narg_fun.resize(size);
-    ufun_defs.resize(size);
-    ufun_programs.resize(size);
-  }
   /* ---- the source ---- */
   /* the model file's lines as read (strip_saveqn makes their control
      characters blanks at the end of the load) */

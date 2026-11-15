@@ -41,7 +41,7 @@ namespace {
 /* the fitted quantity ipar names (an initial condition, else a parameter's constant: parse_parlist) */
 std::string_view fit_parameter_name(const xpp::Session &s, int ipar)
 {
-  return ipar>=0?std::string_view(s.model().uvar_names[ipar]):parameter_name(s,-ipar);
+  return ipar>=0?std::string_view(s.model().uvar_names[ipar]):s.model().parameter_name(-ipar);
 }
 }
 

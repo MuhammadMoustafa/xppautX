@@ -32,6 +32,7 @@
 #include <stddef.h>
 #include <utility>
 #include "xpp_error.h"
+#include "expr_compiler.h"
 
 /* the built-in symbols, the symbol table's first entries (expr_symbols.cpp) */
 #define STDSYM 96
@@ -73,7 +74,7 @@ int do_num(std::string_view source, double *value, int *ind, int report);
 
 /* starts a load: the symbol table back to the built-ins, no parameters,
    variables, user functions or kernels, and the random generator seeded */
-void init_rpn(Session &s);
+void init_rpn(Session &s, bool new_seed);
 /* the symbol table's entries, each returning 0 when the name was added
    and 1 (said why) when it was not: a parameter of value, a kernel of
    mu and formula expr ("kerexpr#expr" is a convolution), network index's
@@ -133,8 +134,6 @@ std::optional<double> pure_builtin_value(std::string_view name, std::span<const 
 int get_var_index(const Session &s, std::string_view name);
 int find_lookup(const Session &s, std::string_view name);
 int get_param_index(const Session &s, std::string_view name);
-/* the model's parameter whose constant is k (get_param_index's number), "" when it has none */
-std::string_view parameter_name(const Session &s, int k);
 int get_val(const Session &s, std::string_view name, double *value);
 int set_val(Session &s, std::string_view name, double value);
 /* where a parameter's or variable's value lives (nullptr when name is not
@@ -217,13 +216,16 @@ struct ParserState {
   ExprStack stack;
   /* the run's functions the formulas call (ExprHost), set by the Session's constructor */
   const ExprHost *host = nullptr;
+  /* the model's user functions, kernels, symbol counts and name index (expr_compiler.h): the Model's, set by the
+     Session's constructor */
+  CompilerTables *compiler = nullptr;
   /* why a step or an evaluation cannot go on (a delay out of range, a DAE solve, a user function nested past
      MAX_UFUN_DEPTH, a program that cannot be run), the first one recorded by stop_integration: the integration
      ends after the step and returns it (integrate.cpp take_step_error); what no caller takes the command shows
      when it ends (ui_json.cpp) */
   std::optional<Error> step_error;
   /* how many instructions the interpreter has run (a program's count at each evaluation, a sum's body's at
-     each index, a called function's at each call): what says when a native build is due (expr_native.cpp
+     each index, a called function's at each call): what says when a native build is due (model_native.cpp
      NativeBuild) */
   std::uint64_t interpreted_ops = 0;
   /* the Model builder's count of variables read (in_vars) and the named

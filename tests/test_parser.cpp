@@ -34,7 +34,7 @@ static int close_to(double a, double b)
 TEST_CASE("test_parser")
 {
     int ok;
-    xpp::init_rpn(xpp::client_session());
+    xpp::init_rpn(xpp::client_session(),false);
 
     CHECK(close_to(calc("1+2", &ok), 3.0) && ok);
     CHECK(close_to(calc("2*3+4", &ok), 10.0) && ok);

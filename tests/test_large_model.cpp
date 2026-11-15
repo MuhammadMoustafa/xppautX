@@ -75,7 +75,7 @@ TEST_CASE("test_large_model")
     init_all_graph(s);
     const xpp::Model &m = s.model();
     CHECK(m.node == EQUATIONS && m.neq == EQUATIONS + 1 && m.nupar == PARAMETERS);
-    CHECK(m.nvar > 2 * EQUATIONS && s.parser.nsym > 10000 && s.parser.ncon > 400);
+    CHECK(m.compiler.nvar > 2 * EQUATIONS && s.parser.nsym > 10000 && s.parser.ncon > 400);
     CHECK(m.uvar_names[EQUATIONS - 1] == "X5199" && m.uvar_names[EQUATIONS] == "BOTH");
 
     /* W291: namespaces still resolve past the former fixed table sizes. */

@@ -36,7 +36,7 @@ TEST_CASE("test_names")
     int ok, where = 0;
 
     xpp::Session &s = xpp::client_session();
-    xpp::init_rpn(s);
+    xpp::init_rpn(s,false);
 
     /* the parser keeps the whole name: before, it cut every name to 10
        characters, so two names that began alike were one symbol */
@@ -94,7 +94,7 @@ TEST_CASE("test_names")
     const int parser_constant=xpp::get_param_index(s,p200);
     auto &indexed=s.model().record->define_name(p200,xpp::ModelRecord::NameKind::Param,0,{});
     indexed.parameter=0;
-    indexed.parser_con=parser_constant;
+    indexed.slots.con=parser_constant;
     CHECK(xpp::find_user_name(xpp::client_session().model(), PARAMBOX, " " + p200.substr(0, 100) + " " + p200.substr(100)) == 0);
     CHECK(xpp::find_user_name(xpp::client_session().model(), PARAMBOX, p200 + "x") == -1);
 
@@ -113,7 +113,7 @@ TEST_CASE("test_names")
     CHECK(xpp::add_con(s, "voltage_long", 17.0) == 0);
     CHECK(calc("voltage_long-voltage", &ok) == 6.0 && ok);
     CHECK(xpp::add_ufun_name(s, "indexed_function", 0, 1) == 0);
-    s.model().nfun = 1;
+    s.model().compiler.nfun = 1;
     const std::array<std::string, 1> args{"VOLTAGE"};
     CHECK(xpp::add_ufun_new(s, 0, "VOLTAGE+1", args) == 0);
     CHECK(calc("indexed_function(3)", &ok) == 4.0 && ok);

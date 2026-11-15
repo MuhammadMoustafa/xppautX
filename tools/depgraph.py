@@ -50,9 +50,9 @@ MODULES = {
         'plot_state', 'picture_state', 'export_services', 'struct', 'xpp_types', 'zoom']),
     'ui seam': ('the XppUi table core code calls the front end through, the reading of the fields a form carries (typed_fields), the lists of choices it shows, and the events the core sends (their names, fields and the error event: the vocabulary the front end implements), the key codes Grab returns and a computation\'s abort check yields (mykeydef, W737: the seam\'s own vocabulary, a header xpp_ui.h names), and what this run of the program is (xpp_globals: whether a front end is up, the batch options), which the program\'s start sets', [
         'xpp_ui', 'mykeydef', 'menus', 'typed_fields', 'event_*', 'json_error', 'xpp_globals']),
-    'expressions': ('the formula compiler, its evaluators, the lookup tables they read (expr_tables, W743), native code and derived quantities; what a formula calls that a run owns (delays, kernels, networks) is an ExprHost the Session fills (W743) (the builders of a Model, form_ode and tabular, are model and loading\'s: W736)', [
+    'expressions': ('the formula compiler, its evaluators, the lookup tables they read (expr_tables) and the symbolic graph of values (expr_derivative), derived quantities, and the tables of names the compiler reads and writes of a model (expr_compiler: W743); what a formula calls that a run owns (delays, kernels, networks) is an ExprHost the Session fills (W743) (the builders of a Model, form_ode and tabular, are model and loading\'s: W736)', [
         'expr', 'expr_*', 'xpp_mir', 'getvar', 'derived']),
-    'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets, among them the plot settings the model carries (W733), the buttons of a model (userbut: read and written as its options, the name of a command checked through command_known, which the commands define), the state data of the animation (ani_state, W737: the options, window, commands and grabs a Session holds of the animation, split from aniparse), and the command line a load takes (comline: the switches read once, a Model keeps them), the builders of a Model from what it reads (form_ode: the .ode lines, tabular: the lookup tables, model_markov and model_flags: the Markov variables and flags a load declares, W736) and the reading of a value a user typed as a formula (typed_values)', [
+    'model and loading': ('a Model, the readers of .ode and .odex, and its options and value sets, among them the plot settings the model carries (W733), the buttons of a model (userbut: read and written as its options, the name of a command checked through command_known, which the commands define), the state data of the animation (ani_state, W737: the options, window, commands and grabs a Session holds of the animation, split from aniparse), and the command line a load takes (comline: the switches read once, a Model keeps them), the translation of a Model\'s programs to native code and to their exact Jacobian (model_native, model_derivatives: they read the whole Model, programs, algebraic and Markov parts, flags and options, and writes its native build, and model_options and the .odex converter call them, W743), the builders of a Model from what it reads (form_ode: the .ode lines, tabular: the lookup tables, model_markov and model_flags: the Markov variables and flags a load declares, W736) and the reading of a value a user typed as a formula (typed_values)', [
         'model', 'model_*', 'load_eqn', 'odex', 'odex_*', 'ode_read', 'newpars',
         'simplenet', 'options_panels', 'ani_state', 'userbut', 'plot_settings', 'comline', 'form_ode', 'tabular', 'typed_values']),
     'session': ('the Session, its stored data, display state and undo, and what a command asked to load and what a Reload carries over (model_request, W737: data the Session holds and the model switch carries out)', [
@@ -124,15 +124,14 @@ ALLOWLIST = {
     ('autoX', 'export'): (1, 'W753'),
     ('autoX', 'session'): (17, 'W732'),
     ('autoX', 'session files'): (1, 'W753'),
-    ('expressions', 'model and loading'): (14, 'W743'),
-    ('expressions', 'session'): (9, 'W732'),
+    ('expressions', 'session'): (7, 'W732'),
     ('integrators', 'analysis'): (9, 'W745'),
     ('integrators', 'autoX'): (1, 'W745'),
     ('integrators', 'session'): (20, 'W732'),
     ('model and loading', 'analysis'): (8, 'W744'),
     ('model and loading', 'autoX'): (1, 'W744'),
     ('model and loading', 'integrators'): (17, 'W744'),
-    ('model and loading', 'session'): (15, 'W732'),
+    ('model and loading', 'session'): (17, 'W732'),
     ('ui seam', 'model and loading'): (1, 'W744'),
     ('ui seam', 'session'): (1, 'W732'),
 }

@@ -5,7 +5,7 @@
 
 #include "autox_settings.h"
 #include "expr.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "form_ode.h"
 #include "jacobian.h"
 #include "model.h"

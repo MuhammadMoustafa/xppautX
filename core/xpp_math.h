@@ -118,7 +118,7 @@ constexpr bool is_integer_power(double n)
 }
 
 /* x^n, n >= 1, by squaring, in the one order both the expression engine's
-   interpreter and its generated C (expr_native.cpp, V a C value there)
+   interpreter and its generated C (model_native.cpp, V a C value there)
    take, so the two agree bit for bit: over n's bits from the lowest, x
    squared to x^2, x^4, x^8, ..., the result the first of these n has,
    times each further one it has, in turn (x^3 is x*(x*x), x^6 is

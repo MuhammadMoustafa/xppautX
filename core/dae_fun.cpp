@@ -54,7 +54,7 @@ void add_svar_names(xpp::Session &s)
   xpp::Model &m=s.model();
   int i;
   for(i=0;i<m.nsvar;i++){
-     m.svars[i].index=m.nvar;
+     m.svars[i].index=m.compiler.nvar;
     if(add_var(s,m.svars[i].name.c_str(),0.0)==1)
       model_failed(xpp::Error{"DAE",xpp::format("{} is a name already, or one variable too many",m.svars[i].name),
                               m.svars[i].where});

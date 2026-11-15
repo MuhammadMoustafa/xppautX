@@ -3,7 +3,6 @@
    one before: check_syntax), then a program in reverse Polish order
    (alg_to_rpn), whose format expr_program.h documents. */
 #include "expr_internal.h"
-#include "model.h"
 #include "xpp_log.h"
 #include "xpp_mem.h"
 #include "xpp_math.h"
@@ -250,7 +249,7 @@ int alg_to_rpn(xpp::Session &s, int *toklist, std::vector<int> &command)
   Symbols &my_symb=s.parser.symbols;
   /* the compiler's temporary symbol: ParserState keeps it past nsym */
   const int temporary_token=static_cast<int>(my_symb.size())-2;
-  xpp::Model &m=s.model();
+  CompilerTables &m=*s.parser.compiler;
   std::vector<int> tokstak;
   int comptr=0,tokptr=0,lstptr=0,temp;
   int ncomma=0;
@@ -509,7 +508,7 @@ void size_expr_stack(Session &s, std::span<const int> code, int arguments)
     arguments of the call refused past it: cover that many of the largest
     frame (its value program or its argument frame, even unused args).
     This conservative bound also covers SUM bodies sharing the stack. */
- const Model &m=s.model();
+ const CompilerTables &m=*s.parser.compiler;
  std::size_t frame=0;
  for(std::size_t i=0;i<m.ufun_programs.size();++i)
    frame=std::max({frame,m.ufun_programs[i].rpn.size(),xpp::size_product(m.narg_fun[i])});

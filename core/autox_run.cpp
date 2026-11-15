@@ -653,7 +653,7 @@ const AutoxRunRow &autox_run_row_for(const GRABPT &point)
 Result<> autox_time_check(const Session &s)
 {
   const Model &m = s.model();
-  std::vector<char> checked_fixed(static_cast<std::size_t>(m.fix_var), 0), checked_function(static_cast<std::size_t>(m.nfun), 0);
+  std::vector<char> checked_fixed(static_cast<std::size_t>(m.fix_var), 0), checked_function(static_cast<std::size_t>(m.compiler.nfun), 0);
   /* whether the program reads t (the variable 0), directly or through a fixed variable or a user function */
   const auto reads_time = [&](const auto &self, const Program &program, int arguments) -> bool {
     const auto code = expr::decode(s, program.rpn, arguments);
@@ -666,11 +666,11 @@ Result<> autox_time_check(const Session &s)
         seen = 1;
         if (self(self, m.programs[static_cast<std::size_t>(i.in - 1)], -1)) return true;
       }
-      if (i.type == UFUNTYPE && i.in >= 0 && i.in < m.nfun) {
+      if (i.type == UFUNTYPE && i.in >= 0 && i.in < m.compiler.nfun) {
         char &seen = checked_function[static_cast<std::size_t>(i.in)];
         if (seen) continue;
         seen = 1;
-        if (self(self, m.ufun_programs[static_cast<std::size_t>(i.in)], m.narg_fun[static_cast<std::size_t>(i.in)])) return true;
+        if (self(self, m.compiler.ufun_programs[static_cast<std::size_t>(i.in)], m.compiler.narg_fun[static_cast<std::size_t>(i.in)])) return true;
       }
     }
     return false;

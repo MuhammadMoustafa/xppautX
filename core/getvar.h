@@ -1,6 +1,5 @@
 #pragma once
 #include <vector>
-#include "model.h"
 #include "session.h"
 #include "expr.h"
 /* the expression engine's variable i in the Session s (0 is t, then the
@@ -8,9 +7,9 @@
    it, getvar reads it (0 past the Model's variables) */
 inline void setvar(xpp::Session &s, int i, double x)
 {
-  if(i<s.model().nvar)s.parser.variables[i]=x;
+  if(i<s.parser.compiler->nvar)s.parser.variables[i]=x;
 }
 inline double getvar(const xpp::Session &s, int i)
 {
-  return i<s.model().nvar ? s.parser.variables[i] : 0.0;
+  return i<s.parser.compiler->nvar ? s.parser.variables[i] : 0.0;
 }

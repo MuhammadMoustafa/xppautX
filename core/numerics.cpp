@@ -51,7 +51,7 @@ Result<> check_numerics_extras(const xpp::Session &s, const NumericsExtras &extr
   const bool delay=extras.delay_real_guess||extras.delay_imaginary_guess||extras.delay_grid;
   if(volterra)if(auto r=needs(traits.integral_history,"vmaxpts","to the Volterra method");!r)return r;
   if(band)if(auto r=needs(traits.banded,"banded, bandlo and bandup","to a method that can be banded (CVODE)");!r)return r;
-  if(delay)if(auto r=needs(s.model().ndelays>0,"delay_real_guess, delay_imaginary_guess and delay_grid","to a model with delays");!r)return r;
+  if(delay)if(auto r=needs(s.model().compiler.ndelays>0,"delay_real_guess, delay_imaginary_guess and delay_grid","to a model with delays");!r)return r;
   if(extras.max_points&&(*extras.max_points<1||*extras.max_points>option_limit::history_points))
     return refuse(xpp::format("vmaxpts must be a whole number from 1 to {}",option_limit::history_points));
   for(const auto &[name,value]:{std::pair{"bandlo",extras.band_lower},std::pair{"bandup",extras.band_upper}})
@@ -80,7 +80,7 @@ Result<> set_numerics_extras(xpp::Session &s, const NumericsExtras &extras)
 void dt_changed(xpp::Session &s)
 {
   chk_delay(s);
-  if(s.model().nkernel>0){
+  if(s.model().compiler.nkernel>0){
     s.numerics->inflag=false;
     s.integrator->my_start=1;
     alloc_kernels(s,1);
@@ -108,7 +108,7 @@ void chk_delay(xpp::Session &s)
 
 void set_delay(xpp::Session &s)
 {
-  if(s.model().ndelays>0 && s.numerics->delay>0.0)chk_delay(s);
+  if(s.model().compiler.ndelays>0 && s.numerics->delay>0.0)chk_delay(s);
 }
 
 Result<> set_axis_shifts(xpp::Session &s, int x, int y, int z)

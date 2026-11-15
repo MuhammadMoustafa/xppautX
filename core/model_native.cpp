@@ -1,9 +1,9 @@
 /* The sole owner of translating validated RPN into native code. No model text enters the translation: every
    name and subscript is an index, every number a double (expr_ir.h), and xpp_mir.cpp compiles what is written
    here. */
-#include "expr_native.h"
+#include "model_native.h"
 #include "expr_decode.h"
-#include "expr_derivative.h"
+#include "model_derivatives.h"
 #include "expr_ir.h"
 #include "expr_program.h"
 #include "expr_tables.h"
@@ -257,7 +257,7 @@ struct Generator {
     }
     int user_call(int function, std::span<const int> args)
     {
-        return call(callee({xpp::concat("u", function), nullptr, false, s.model().narg_fun[function], false}, function), args);
+        return call(callee({xpp::concat("u", function), nullptr, false, s.model().compiler.narg_fun[function], false}, function), args);
     }
     bool atom(const Tree &n) const
     {
@@ -492,7 +492,7 @@ struct Generator {
                 stack.push_back({tree, left.mut || right.mut, 0});
             } else if (type == UFUNTYPE) {
                 if (!allowed.empty() && !allowed[in]) return refuse("calls a refused user function");
-                if (i.count != s.model().narg_fun[in]) return refuse("a call with the wrong number of arguments");
+                if (i.count != s.model().compiler.narg_fun[in]) return refuse("a call with the wrong number of arguments");
                 if (user) calls[index].insert(in);
                 const size_t first = stack.size() - static_cast<size_t>(i.count);
                 /* inlined: each argument once, a name as it is, an expression in a temporary that
@@ -548,7 +548,7 @@ struct Generator {
     Result<Tree> value(const std::vector<int> &p, int index, bool user)
     {
         if (p.empty()) return refuse("an invalid program length");
-        const auto code = expr::decode(s, p, user ? s.model().narg_fun[index] : -1);
+        const auto code = expr::decode(s, p, user ? s.model().compiler.narg_fun[index] : -1);
         if (!code) return refuse(code.error());
         size_t k = 0;
         return sequence(*code, k, user, index);
@@ -580,7 +580,7 @@ struct Generator {
                 inline_body[index] = result->ir;
         }
         IrFunction f = finish(user ? IrFunction::Kind::User : IrFunction::Kind::Equation, user ? xpp::concat("u", index) : std::string(name), result->ir);
-        if (user) f.doubles = s.model().narg_fun[index];
+        if (user) f.doubles = s.model().compiler.narg_fun[index];
         return f;
     }
 
@@ -590,9 +590,9 @@ struct Generator {
     {
         begin();
         std::vector<int> arguments;
-        for (int a = 0; a < s.model().narg_fun[index]; ++a) arguments.push_back(helper(Helper::Argument, {}, a));
+        for (int a = 0; a < s.model().compiler.narg_fun[index]; ++a) arguments.push_back(helper(Helper::Argument, {}, a));
         const Tree z = statement(user_call(index, arguments));
-        return finish(IrFunction::Kind::Equation, std::move(name), helper(Helper::FunctionEnd, {z.ir}, s.model().narg_fun[index]));
+        return finish(IrFunction::Kind::Equation, std::move(name), helper(Helper::FunctionEnd, {z.ir}, s.model().compiler.narg_fun[index]));
     }
 
     /* The calls made are all forgotten. */
@@ -780,16 +780,16 @@ std::vector<ModelProgram> model_programs(Model &m)
             :i<static_cast<size_t>(m.node+m.fix_var)?m.fixinfo[i-m.node].name:m.uvar_names[i-m.fix_var];
         add(m.programs[i],xpp::format("p_eq{}",i),model_place(m,name));
     }
-    for (size_t i=0;i<m.ufun_programs.size();++i)
-        if (!m.ufun_programs[i].rpn.empty()) add(m.ufun_programs[i],xpp::format("p_fun{}",i),model_place(m,m.ufun_names[i]),static_cast<int>(i));
+    for (size_t i=0;i<m.compiler.ufun_programs.size();++i)
+        if (!m.compiler.ufun_programs[i].rpn.empty()) add(m.compiler.ufun_programs[i],xpp::format("p_fun{}",i),model_place(m,m.compiler.ufun_names[i]),static_cast<int>(i));
     for (size_t i=0;i<m.svars.size();++i) add(m.svars[i].form,xpp::format("p_solv{}",i),m.svars[i].where);
     for (size_t i=0;i<m.aeqns.size();++i) add(m.aeqns[i].form,xpp::format("p_dae{}",i),m.aeqns[i].where);
     for (size_t i=0;i<m.markov.size();++i)
         for (size_t j=0;j<m.markov[i].command.size();++j)
             add(m.markov[i].command[j],xpp::format("p_markov{}_{}",i,j),model_place(m,m.markov[i].name));
-    for (size_t i=0;i<m.kernels.size();++i) {
-        add(m.kernels[i].formula,xpp::format("p_kernel{}",i),m.kernels[i].where);
-        add(m.kernels[i].kerform,xpp::format("p_convolution{}",i),m.kernels[i].where);
+    for (size_t i=0;i<m.compiler.kernels.size();++i) {
+        add(m.compiler.kernels[i].formula,xpp::format("p_kernel{}",i),m.compiler.kernels[i].where);
+        add(m.compiler.kernels[i].kerform,xpp::format("p_convolution{}",i),m.compiler.kernels[i].where);
     }
     for (size_t i=0;i<m.flags.size();++i) {
         if (m.flags[i].comcond.rpn.empty()) continue;
@@ -797,7 +797,7 @@ std::vector<ModelProgram> model_programs(Model &m)
         add(m.flags[i].comcond,xpp::format("p_condition{}",i),place);
         for (size_t j=0;j<m.flags[i].comrhs.size();++j) add(m.flags[i].comrhs[j],xpp::format("p_event{}_{}",i,j),place);
     }
-    for (size_t i=0;i<m.derived.size();++i) add(m.derived[i].form,xpp::format("p_derived{}",i),m.derived[i].where);
+    for (size_t i=0;i<m.compiler.derived.size();++i) add(m.compiler.derived[i].form,xpp::format("p_derived{}",i),m.compiler.derived[i].where);
     for (size_t i=0;i<m.networks.size();++i)
         if (!m.networks[i].f.rpn.empty()) add(m.networks[i].f,xpp::format("p_network{}",i),model_place(m,m.networks[i].name),-1,true);
     return entries;
@@ -814,11 +814,11 @@ std::string rhs_impurity(const Session &s)
 {
     const Model &m=s.model();
     if (m.nsvar>0) return "algebraic solve variables (a DAE)";
-    if (m.ndelays>0) return "delays";
+    if (m.compiler.ndelays>0) return "delays";
     if (m.naeqn>0) return "algebraic equations";
     if (m.nnetwork>0) return "networks";
     if (m.nmarkov>0) return "Markov variables";
-    if (m.nkernel>0) return "integral equations";
+    if (m.compiler.nkernel>0) return "integral equations";
     for (int i=0;i<s.ntable;++i) if (s.tables[i].flag==2) return "a function table that is rebuilt";
     for (int i=0;i<m.node+m.fix_var;++i) {
         const auto &p=m.programs[i];
@@ -828,7 +828,7 @@ std::string rhs_impurity(const Session &s)
         if (!std::all_of(p.native_reads.begin(),p.native_reads.end(),[&](int v){return v<=available;}))
             return "a fixed variable that reads one after it";
     }
-    for (const auto &d:m.derived)
+    for (const auto &d:m.compiler.derived)
         if (!d.form.compiled || !d.form.array_pure || !d.form.native_reads.empty()) return "a derived parameter that is not compiled or reads variables";
     return "";
 }
@@ -873,42 +873,42 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     if (!s.numerics->compile || entries.empty()) return {};
     Generator g{s};
     std::vector<Error> warnings;
-    if (m.nfun<0 || static_cast<size_t>(m.nfun)>m.ufun_programs.size()) return g.refuse("an out-of-range function count");
-    g.calls.resize(static_cast<size_t>(m.nfun));
-    g.pure_function.assign(static_cast<size_t>(m.nfun),0);
-    g.inline_body.assign(static_cast<size_t>(m.nfun),-1);
-    g.array_pure_function.assign(static_cast<size_t>(m.nfun),0);
-    g.function_reads.resize(static_cast<size_t>(m.nfun));
-    std::vector<IrFunction> bodies(static_cast<size_t>(m.nfun));
-    std::vector<char> written(static_cast<size_t>(m.nfun),0); /* the user functions that compiled alone */
-    std::vector<Error> refusals(static_cast<size_t>(m.nfun));
-    for (int i=0;i<m.nfun;++i) {
-        g.place=model_place(m,m.ufun_names[i]);
-        if (m.narg_fun[i]<0) {
+    if (m.compiler.nfun<0 || static_cast<size_t>(m.compiler.nfun)>m.compiler.ufun_programs.size()) return g.refuse("an out-of-range function count");
+    g.calls.resize(static_cast<size_t>(m.compiler.nfun));
+    g.pure_function.assign(static_cast<size_t>(m.compiler.nfun),0);
+    g.inline_body.assign(static_cast<size_t>(m.compiler.nfun),-1);
+    g.array_pure_function.assign(static_cast<size_t>(m.compiler.nfun),0);
+    g.function_reads.resize(static_cast<size_t>(m.compiler.nfun));
+    std::vector<IrFunction> bodies(static_cast<size_t>(m.compiler.nfun));
+    std::vector<char> written(static_cast<size_t>(m.compiler.nfun),0); /* the user functions that compiled alone */
+    std::vector<Error> refusals(static_cast<size_t>(m.compiler.nfun));
+    for (int i=0;i<m.compiler.nfun;++i) {
+        g.place=model_place(m,m.compiler.ufun_names[i]);
+        if (m.compiler.narg_fun[i]<0) {
             refusals[i]=g.refuse("an out-of-range argument count").error();
             continue;
         }
-        if (auto r=g.program(m.ufun_programs[i].rpn,i,true);!r) refusals[i]=r.error();
+        if (auto r=g.program(m.compiler.ufun_programs[i].rpn,i,true);!r) refusals[i]=r.error();
         else { bodies[i]=std::move(*r); written[i]=1; g.array_pure_function[i]=g.array_pure; g.function_reads[i]=g.variable_reads; }
     }
     /* Only functions whose entire dependency graph compiled are callable.
        Iterative topological removal also refuses recursion, without following
        untrusted input on the host stack. Impurity was conservative during
        translation, so removing a function cannot change a caller's ordering. */
-    g.allowed.assign(static_cast<size_t>(m.nfun),0);
-    for (int pass=0;pass<m.nfun;++pass)
-        for (int i=0;i<m.nfun;++i)
+    g.allowed.assign(static_cast<size_t>(m.compiler.nfun),0);
+    for (int pass=0;pass<m.compiler.nfun;++pass)
+        for (int i=0;i<m.compiler.nfun;++i)
             if (!g.allowed[i] && written[i]
                 && std::all_of(g.calls[i].begin(),g.calls[i].end(),[&](int j){return g.allowed[j];})) g.allowed[i]=1;
-    for (int pass=0;pass<m.nfun;++pass)
-        for (int i=0;i<m.nfun;++i)
+    for (int pass=0;pass<m.compiler.nfun;++pass)
+        for (int i=0;i<m.compiler.nfun;++i)
             if (!g.allowed[i] || std::any_of(g.calls[i].begin(),g.calls[i].end(),[&](int j){return !g.array_pure_function[j];})) g.array_pure_function[i]=0;
-    for (int pass=0;pass<m.nfun;++pass)
-        for (int i=0;i<m.nfun;++i)
+    for (int pass=0;pass<m.compiler.nfun;++pass)
+        for (int i=0;i<m.compiler.nfun;++i)
             for (int j:g.calls[i]) g.function_reads[i].insert(g.function_reads[j].begin(),g.function_reads[j].end());
-    for (int i=0;i<m.nfun;++i) {
+    for (int i=0;i<m.compiler.nfun;++i) {
         if (!g.allowed[i]) {
-            g.place=model_place(m,m.ufun_names[i]);
+            g.place=model_place(m,m.compiler.ufun_names[i]);
             const Error error=!written[i]?refusals[i]
                 :g.refuse("calls a refused or recursive user function").error();
             warnings.push_back(error);
@@ -922,7 +922,7 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
         g.place=entry.place;
         if (entry.user_index>=0) {
             const int i=entry.user_index;
-            if (i>=m.nfun || !g.allowed[i]) continue;
+            if (i>=m.compiler.nfun || !g.allowed[i]) continue;
             g.ir.functions.push_back(g.bridge(i,entry.symbol));
         } else {
             g.dynamic=entry.dynamic_operands;
@@ -974,7 +974,7 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     const size_t compiled_count=emitted.size();
     std::vector<Program *> in_rhs;
     const Program *const first_equation=m.programs.data(),*const first_fixed=first_equation+m.node,*const fixed_end=first_fixed+m.fix_var;
-    const bool equations_in_rhs=equations && m.nmarkov==0 && m.nkernel==0;
+    const bool equations_in_rhs=equations && m.nmarkov==0 && m.compiler.nkernel==0;
     if (equations_in_rhs || rhs) {
         /* one pass, in order: erasing each moved the rest of the functions and of the list every time */
         std::vector<char> dropped(g.ir.functions.size(),0);
@@ -1230,7 +1230,7 @@ std::vector<ModelProgram> sized_programs(Session &s)
     Model &m=s.model();
     auto entries=model_programs(m);
     for(const auto &entry:entries)
-        size_expr_stack(s,entry.code->rpn,entry.user_index<0?-1:m.narg_fun[entry.user_index]);
+        size_expr_stack(s,entry.code->rpn,entry.user_index<0?-1:m.compiler.narg_fun[entry.user_index]);
     return entries;
 }
 }

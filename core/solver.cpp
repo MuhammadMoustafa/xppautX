@@ -360,11 +360,11 @@ Result<method::Id> check_method(const Model &model, int id, Place place)
   if (id < 0 || id >= method::COUNT)
     return fail("method", xpp::format("{} is not a method's number (0 to {})", id, method::COUNT - 1), std::move(place));
   const SolverTraits &traits = registry[id].traits;
-  if (traits.integral_history && model.nkernel == 0)
+  if (traits.integral_history && model.compiler.nkernel == 0)
     return fail("method", "Volterra only for integral eqns", std::move(place));
   if (traits.paired_dimension && model.node % 2 != 0)
     return fail("method", "Symplectic is only for even dimensions", std::move(place));
-  if (model.nkernel > 0 && !traits.integral_history)
+  if (model.compiler.nkernel > 0 && !traits.integral_history)
     return fail("method", "a model with integral equations is integrated by Volterra", std::move(place));
   const char *noise = model.nwiener > 0 ? "Wiener" : !model.ou.empty() ? "Ornstein-Uhlenbeck" : nullptr;
   if (noise && !traits.wiener)

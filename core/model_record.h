@@ -9,6 +9,7 @@
 #include "odex_expr.h"
 #include "model_file_types.h"
 #include "comline.h"
+#include "expr_compiler.h"
 #include "xpp_zip.h"
 #include "xpp_lines.h"
 
@@ -65,7 +66,7 @@ struct ModelRecord {
     std::string written, array;
     int arity = 0;
     int index = -1, column = -1, parameter = -1, set = -1;
-    int parser_var = -1, parser_con = -1;
+    NameSlots slots; /* where the parser holds it (expr_compiler.h) */
     std::unordered_map<std::string,int> set_spellings; /* exact .ode set spellings can share a folded name */
     bool declared = false, variable_declared = false, markov_declared = false;
     int function_statement = -1;

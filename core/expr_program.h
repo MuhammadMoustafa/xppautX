@@ -217,7 +217,7 @@ struct ExactJacobian {
     /* where the model's own @ jacobian=exact is, for the error when there
        is none */
     Place requested;
-    /* made, or tried and failed: ensure_exact_jacobian (expr_native.h)
+    /* made, or tried and failed: ensure_exact_jacobian (model_native.h)
        makes it on first need */
     bool tried = false;
     bool available() const { return graph != nullptr; }

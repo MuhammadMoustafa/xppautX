@@ -8,7 +8,7 @@
 #include "autox_c.h"
 #include "autox_settings.h"
 #include "jacobian.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "autox_stability_autox.h"
 #include "autox_unknowns.h"
 #include "xpp_files.h"

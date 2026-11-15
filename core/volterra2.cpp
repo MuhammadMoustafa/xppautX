@@ -54,7 +54,7 @@ double ker_val(xpp::Session &s, int in)
 
 void alloc_v_memory(xpp::Session &s)  /* allocate stuff for volterra equations */
 {
-  std::vector<KERNEL> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().compiler.kernels;
   int i,len;
   /* add_expr's program, sized to its formula */
   std::vector<int> formula;
@@ -65,9 +65,9 @@ void alloc_v_memory(xpp::Session &s)  /* allocate stuff for volterra equations *
     return p;
   };
 
-  s.volterra->kernels.resize(s.model().nkernel);
+  s.volterra->kernels.resize(s.model().compiler.nkernel);
 /* First parse the kernels   since these were deferred */
-  for(i=0;i<s.model().nkernel;i++){
+  for(i=0;i<s.model().compiler.nkernel;i++){
      s.volterra->kernels[i].k_n=0.0;
      if(add_expr(s,kernels[i].expr,formula,&len)){
        model_failed(xpp::Error{"volterra",xpp::format("Illegal kernel {}={}",kernels[i].name,kernels[i].expr),
@@ -92,7 +92,7 @@ void allocate_volterra(xpp::Session &s, int npts, int flag)
   npts=abs(npts);
   s.numerics->max_points=npts;
   /* now allocate the memory   */
-  if(s.model().nkernel==0)return;
+  if(s.model().compiler.nkernel==0)return;
   /* flag==1 (a new grid) used to free the old blocks first; assigning the
      vectors again replaces them either way, so flag no longer matters */
   if(static_cast<int>(s.volterra->memory.size())<ntot)s.volterra->memory.resize(ntot);
@@ -106,11 +106,11 @@ void allocate_volterra(xpp::Session &s, int npts, int flag)
 
 void re_evaluate_kernels(xpp::Session &s)
 {
-  std::vector<KERNEL> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().compiler.kernels;
   int i,j,n=s.numerics->max_points;
 
   if(!s.numerics->auto_evaluate)return;
-  for(i=0;i<s.model().nkernel;i++){
+  for(i=0;i<s.model().compiler.nkernel;i++){
     if(kernels[i].flag==CONV){
       for(j=0;j<=n;j++){
 	if(xpp::job::cancelled())return;
@@ -123,11 +123,11 @@ void re_evaluate_kernels(xpp::Session &s)
 
 void alloc_kernels(xpp::Session &s, int flag)
 {
-  std::vector<KERNEL> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().compiler.kernels;
   int i,n=s.numerics->max_points;
   int j;
   double mu;
-  for(i=0;i<s.model().nkernel;i++){
+  for(i=0;i<s.model().compiler.nkernel;i++){
     if(kernels[i].flag==CONV){
       s.volterra->kernels[i].cnv.assign(n+1,0.0);
       for(j=0;j<=n;j++){
@@ -188,7 +188,7 @@ xpp::HistoryValues &history_values(xpp::Session &s)
   if(h.point.size()!=slots||h.constants!=s.parser.constants){
     h.point.assign(slots,-1);
     h.first.assign(slots,-1);
-    h.value.assign(slots*static_cast<std::size_t>(s.model().nkernel),0.0);
+    h.value.assign(slots*static_cast<std::size_t>(s.model().compiler.nkernel),0.0);
     h.constants=s.parser.constants;
   }
   return h;
@@ -197,13 +197,13 @@ xpp::HistoryValues &history_values(xpp::Session &s)
 
 void init_sums(xpp::Session &s, double t0, int n, double dt, int i0, int iend, int ishift)
 {
-  std::vector<KERNEL> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().compiler.kernels;
    double t=t0+n*dt,tp=t0+i0*dt;
-   std::vector<double> sum(static_cast<std::size_t>(s.model().nkernel));
+   std::vector<double> sum(static_cast<std::size_t>(s.model().compiler.nkernel));
    double al,alpbet,mu;
    int nvar=s.model().fix_var+s.model().node+s.model().nmarkov;
    int l,ioff,ker,i;
-   const int nkernel=s.model().nkernel;
+   const int nkernel=s.model().compiler.nkernel;
    std::vector<Keep> keep(static_cast<std::size_t>(nkernel));
    for(ker=0;ker<nkernel;ker++)keep[ker]=keep_formula(s,kernels[ker]);
    xpp::HistoryValues &history=history_values(s);
@@ -311,7 +311,7 @@ double betnn(double mu, double dt, double t0, double t)
 
 void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y to update Kn  */
 {
-  std::vector<KERNEL> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().compiler.kernels;
   int i;
 
   setvar(s,0,t);
@@ -319,7 +319,7 @@ void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y t
   for(i=0;i<s.model().node;i++)
     setvar(s,i+1,y[i]);
   fix_only(s);
-  for(i=0;i<s.model().nkernel;i++){
+  for(i=0;i<s.model().compiler.nkernel;i++){
     if(kernels[i].flag==CONV)
       s.volterra->kernels[i].k_n=s.volterra->kernels[i].sum+
 	s.volterra->kernels[i].betnn*evaluate(s,kernels[i].formula)*s.volterra->kernels[i].cnv[0];
@@ -330,7 +330,7 @@ void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y t
      
 int volterra(xpp::Session &s, double *y, double *t, double dt, int nt, int neq, int *istart, double *work)
 {
-  std::vector<KERNEL> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().compiler.kernels;
   double *jac,*yg,*yp,*yp2,*ytemp,*errvec;
   double z,mu,bet;
   int i,j;
@@ -346,7 +346,7 @@ int volterra(xpp::Session &s, double *y, double *t, double dt, int nt, int neq, 
     s.volterra->current_point=0;
     s.volterra->kn_flag=1;
     s.volterra->history.point.clear();
-    for(i=0;i<s.model().nkernel;i++){              /* zero the integrals              */
+    for(i=0;i<s.model().compiler.nkernel;i++){              /* zero the integrals              */
       s.volterra->kernels[i].k_n=0.0;
       s.volterra->kernels[i].k_n1=0.0;
       mu=kernels[i].mu;                 /*  compute bet_nn                 */

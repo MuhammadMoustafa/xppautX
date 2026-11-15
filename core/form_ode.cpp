@@ -223,7 +223,7 @@ void find_ker(xpp::Session &s, std::string &string, int *alt)
       continue;
     }
     if(ch=='}'){
-      std::string name=xpp::format("K##{}",s.model().nkernel);
+      std::string name=xpp::format("K##{}",s.model().compiler.nkernel);
       xpp::log(XPP_LOG_DEBUG, "Kernel mu={:f} {} = {} \n",mu,name,form);
       if(add_kernel(s,name,mu,form))model_failed();
       newstr+=name;
@@ -247,7 +247,7 @@ void find_ker(xpp::Session &s, std::string &string, int *alt)
 void begin_model(xpp::Session &s)
 {
   xpp::Model &m=s.model();
-  init_rpn(s);
+  init_rpn(s,m.record->command_line.new_seed);
   s.parser.build.in_vars=0;
   s.parser.build.naux=0;
   s.parser.build.aux_names.clear();
@@ -464,7 +464,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
       value=atof(tokens.text(" ").c_str());
       formula=tokens.text("$");
       xpp::log(XPP_LOG_DEBUG, "Kernel mu={:f} {} = {} \n",value,name,formula);
-      m.record->define_name(name,xpp::ModelRecord::NameKind::Kernel,m.nkernel,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
+      m.record->define_name(name,xpp::ModelRecord::NameKind::Kernel,m.compiler.nkernel,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
       if(add_kernel(s,name,value,formula)){
 	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
@@ -514,7 +514,7 @@ int compiler(xpp::Session &s, const std::string &bob, const std::function<bool(s
       narg=atoi(tokens.text(" ").c_str());
       formula=tokens.text("$");
       xpp::log(XPP_LOG_INFO, "{} {} :\n",name,narg);
-      m.record->define_name(name,xpp::ModelRecord::NameKind::Function,m.nfun,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
+      m.record->define_name(name,xpp::ModelRecord::NameKind::Function,m.compiler.nfun,{0,xpp::LoadSite::place().line,xpp::LoadSite::place().col});
       if(add_ufun(s,name,formula,narg)){
 	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
@@ -678,7 +678,7 @@ void finish_model(xpp::Session &s)
       entry.index=entry.kind==xpp::ModelRecord::NameKind::Variable?i:
                   entry.kind==xpp::ModelRecord::NameKind::Markov?i-m.node:i-m.node-m.nmarkov;
       const int symbol=s.parser.symbol_named(converted(uvar_names[i]));
-      if(symbol>=0 && s.parser.symbols[symbol].com/MAXTYPE==VARTYPE)entry.parser_var=s.parser.symbols[symbol].com%MAXTYPE;
+      if(symbol>=0 && s.parser.symbols[symbol].com/MAXTYPE==VARTYPE)entry.slots.var=s.parser.symbols[symbol].com%MAXTYPE;
     }
     if(entry.column<0)entry.column=i;
   }
@@ -686,12 +686,12 @@ void finish_model(xpp::Session &s)
     auto &entry=m.record->names[converted(m.upar_names[i])];
     entry.kind=xpp::ModelRecord::NameKind::Param;
     entry.parameter=i;
-    entry.parser_con=m.upar_con[i];
+    entry.slots.con=m.upar_con[i];
     entry.index=i;
   }
   /*
      add primed variables                              */
-  m.prime_start=m.nvar;
+  m.prime_start=m.compiler.nvar;
   add_var(s,"t'",0.0);
   for(i=0;i<m.node ;i++)
     add_var(s,xpp::format("{}'",uvar_names[i]),0.0);
@@ -836,7 +836,7 @@ public:
   void run()
   {
     xpp::Model &m=m_;
-    m.ieee_division=p_.ieee_division;
+    m.compiler.ieee_division=p_.ieee_division;
     begin_model(s_);
     /* every name the statements declare is one of their bindings (or the
        statement's own): the tables are as large as the file */
@@ -1214,7 +1214,7 @@ private:
     m.neq=nvar+m.nmarkov+s_.parser.build.naux;
     m.fix_var=static_cast<int>(fnames_.size());
     s.ntable=ntab_;
-    m.nfun=nufun_;
+    m.compiler.nfun=nufun_;
     ntab_=0;
     nufun_=0;
   }

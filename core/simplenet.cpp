@@ -199,6 +199,7 @@ int add_vectorizer(xpp::Session &s, std::string_view name,char *rhs)
 void add_vectorizer_name(xpp::Session &s, std::string_view name, std::string_view rhs)
 {
   s.model().vectors.resize(static_cast<std::size_t>(s.model().nvector)+1);
+  s.model().compiler.vector_count=s.model().vectors.size();
   s.model().vectors[s.model().nvector].name=name;
   if(add_net_name(s,s.model().nvector,name,1))
     model_failed();
@@ -409,7 +410,7 @@ void read_tabled(xpp::Session &s, const NetworkForm &form, int ind, const char *
     s.networks[ind].di.assign(net.ncon+2,0.0);
     update_fft(s,ind);
   }
-  if(form.delays)s.model().ndelays=1;
+  if(form.delays)s.model().compiler.ndelays=1;
   xpp::log(XPP_LOG_INFO, " Added network {} ({}) {} x {} using {}{}{}{}{}{}\n",
            name,form.keyword,net.n,net.ncon,wgtname,indname.empty()?"":" and ",indname,tauname.empty()?"":" with delays ",tauname,fname.empty()?"":" "+fname);
 }
@@ -545,6 +546,7 @@ void add_special_name(xpp::Session &s, std::string_view name, char *rhs)
     xpp::log(XPP_LOG_DEBUG, " netrhs = |{}| \n",rhs);
     const std::size_t index=static_cast<std::size_t>(s.model().nnetwork);
     s.model().networks.resize(index+1);
+    s.model().compiler.network_count=s.model().networks.size();
     s.networks.resize(index+1);
     s.model().networks[index].name=name;
     add_net_name(s,s.model().nnetwork,name,0);

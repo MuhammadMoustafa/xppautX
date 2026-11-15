@@ -241,7 +241,7 @@ void index_model_places(Model &m)
     }
 }
 
-Model::Model() : record(std::make_unique<ModelRecord>()) {}
+Model::Model() : record(std::make_unique<ModelRecord>()) { compiler.names=this; }
 Model::~Model() = default;
 ModelRecord::ModelRecord() = default;
 ModelRecord::~ModelRecord() = default;
@@ -260,6 +260,25 @@ const ModelRecord::Name *ModelRecord::name(std::string_view text) const
 {
     const auto it = names.find(converted(text));
     return it == names.end() ? nullptr : &it->second;
+}
+
+NameSlots *Model::slots(std::string_view name, bool write)
+{
+    const auto it=record->names.find(converted(name));
+    if(it==record->names.end() || (!write && it->second.kind==ModelRecord::NameKind::Set))return nullptr;
+    return &it->second.slots;
+}
+
+std::optional<int> Model::table(std::string_view name) const
+{
+    const ModelRecord::Name *entry=record->name(name);
+    if(!entry || entry->kind==ModelRecord::NameKind::Set)return std::nullopt;
+    return entry->kind==ModelRecord::NameKind::Table?entry->index:-1;
+}
+
+Place Model::place(std::string_view name) const
+{
+    return model_place(*this,name);
 }
 
 Place model_place(const Model &m, std::string_view name)

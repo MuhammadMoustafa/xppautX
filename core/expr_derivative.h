@@ -5,7 +5,7 @@
    right-hand side is differentiated there by the chain rule, with respect
    to the time, the state variables and the constants, through the fixed
    variables, the derived parameters and the user functions, each of them
-   read in place. translate_model (expr_native.cpp) writes the derivatives
+   read in place. translate_model (model_native.cpp) writes the derivatives
    as C, so they cost about what the right-hand side costs. C++ only. */
 #include "expr_program.h"
 #include "xpp_error.h"
@@ -15,7 +15,6 @@
 #include <span>
 #include <unordered_map>
 #include <vector>
-namespace xpp { struct ModelProgram; }
 
 namespace xpp {
 struct Session;
@@ -102,27 +101,9 @@ extern const std::array<Fun2Derivative, FUN2_COUNT> fun2_derivative;
 constexpr int constant_column(int k) { return -1 - k; }
 constexpr int column_constant(int column) { return -1 - column; }
 
-/* The model's right-hand sides differentiated: entry k says that
-   d f_row / d column is value, for each derivative not identically 0 */
-struct ModelDerivatives {
-    struct Entry {
-        int row = 0, column = 0;
-        Term value;
-    };
-    Symbolic graph;
-    std::vector<Entry> entries;
-};
-
 /* the nodes of g that the values terms need, each once, in the graph's
    order (a node's arguments before it): what evaluates them walks these */
 std::vector<int> needed_nodes(const Symbolic &g, std::span<const Term> terms);
-
-/* The derivatives of the Session's model, or why it has none: a model
-   with Markov variables, delays, integral equations, algebraic equations
-   or random numbers, an operation with no derivative, a function table,
-   a program translate_model did not compile (programs: model_programs'),
-   or a model too large (the place the reason is at). */
-Result<ModelDerivatives> differentiate_model(const xpp::Session &s, std::span<const ModelProgram> programs);
 
 } // namespace xpp::expr
 

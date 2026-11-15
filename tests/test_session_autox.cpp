@@ -13,7 +13,7 @@
    and its autoX members restore exactly what was imported. */
 #include "xpptest.h"
 #include "xpp_session_autox.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "autox_text.h"
 #include "snapx.h"
 #include "session.h"

@@ -14,6 +14,7 @@
 
 #include "autox_data.h"
 #include "jacobian.h"
+#include "model_numerics.h"
 #include "xpp_text.h"
 #include "json_number.h"
 #include "autox_stop.h"

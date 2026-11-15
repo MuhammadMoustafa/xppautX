@@ -15,7 +15,7 @@ balance, when the file has more than one top-level options statement, or when th
 be found again in the copy: a wrong copy is never written silently.
 
 Run it with the repo's environment: `uv run --locked python tools/interpreted_copy.py ...`.
-A run of the copy logs no "Compiled N of M programs" line at --verbose (expr_native.cpp).
+A run of the copy logs no "Compiled N of M programs" line at --verbose (model_native.cpp).
 """
 
 import os

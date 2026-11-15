@@ -218,7 +218,7 @@ TEST_CASE("test_options")
     const xpp::Place place{"pick.odex", 7, 1, "@ method=symplectic"};
     const std::string keys = "demragvbqsc582y";
     for (const auto &info : xpp::solvers()) {
-        model.nkernel = info.traits.integral_history ? 1 : 0;
+        model.compiler.nkernel = info.traits.integral_history ? 1 : 0;
         for (const std::string &text : {std::string(info.name), std::string(info.set_label),
                                       xpp::upper_case(std::string(info.name)), std::string(1, keys[info.id]),
                                       xpp::upper_case(std::string(1, keys[info.id]))}) {
@@ -228,7 +228,7 @@ TEST_CASE("test_options")
         const auto by_number = xpp::check_method(model, info.id, place);
         CHECK(by_number && *by_number == info.id);
     }
-    model.nkernel = 0;
+    model.compiler.nkernel = 0;
     for (const auto &alias : {std::pair{"disc", xpp::method::DISCRETE},
                              std::pair{"rk4", xpp::method::RK4},
                              std::pair{"qualrk4", xpp::method::RKQS},
@@ -246,13 +246,13 @@ TEST_CASE("test_options")
     model.node = 3;
     const auto refused = xpp::pick_method(model, "symplectic", place);
     CHECK(!refused && refused.error().what.find("even dimensions") != std::string::npos);
-    model.nkernel = 1;
+    model.compiler.nkernel = 1;
     CHECK(!xpp::pick_method(model, "euler", place));
-    model.nkernel = 0;
+    model.compiler.nkernel = 0;
     model.node = 2;
     model.nwiener = 1;
     for (const auto &info : xpp::solvers()) {
-        model.nkernel = info.traits.integral_history ? 1 : 0;
+        model.compiler.nkernel = info.traits.integral_history ? 1 : 0;
         const auto wiener_picked = xpp::pick_method(model, info.name, place);
         if (info.traits.wiener) {
             CHECK(wiener_picked && *wiener_picked == info.id);
@@ -261,7 +261,7 @@ TEST_CASE("test_options")
             if (!wiener_picked) CHECK(wiener_picked.error().what.find("Wiener") != std::string::npos);
         }
     }
-    model.nkernel = 0;
+    model.compiler.nkernel = 0;
     model.nwiener = 0;
 
     const std::span<const xpp::OptionRow> rows = xpp::option_rows();

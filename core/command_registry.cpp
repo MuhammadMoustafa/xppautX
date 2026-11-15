@@ -6,7 +6,7 @@
 #include "command_registry.h"
 #include "command_def.h"
 #include "event_registry.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "json_error.h"
 #include "json_number.h"
 #include "json_reader.h"

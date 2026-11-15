@@ -11,7 +11,7 @@
 #include "session.h"
 #include "autox_state.h"
 #include "model_parts.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "jacobian.h"
 #include "xpp_batch.h"
 #include "model_failed.h"
