@@ -119,18 +119,18 @@ LEVELS = [
 INDEPENDENT = [('protocol front end', 'platform')]
 # (from, to) -> (include lines against the levels now, the card that removes them); exact
 ALLOWLIST = {
-    ('analysis', 'session'): (8, 'W732'),
-    ('autoX', 'session'): (17, 'W732'),
-    ('expressions', 'session'): (7, 'W732'),
+    ('analysis', 'session'): (8, 'W760'),
+    ('autoX', 'session'): (17, 'W759'),
+    ('expressions', 'session'): (7, 'W761'),
     ('integrators', 'analysis'): (9, 'W745'),
     ('integrators', 'autoX'): (1, 'W745'),
-    ('integrators', 'session'): (20, 'W732'),
+    ('integrators', 'session'): (20, 'W760'),
     ('model and loading', 'analysis'): (8, 'W744'),
     ('model and loading', 'autoX'): (1, 'W744'),
     ('model and loading', 'integrators'): (17, 'W744'),
-    ('model and loading', 'session'): (17, 'W732'),
+    ('model and loading', 'session'): (17, 'W757, W758'),
     ('ui seam', 'model and loading'): (1, 'W744'),
-    ('ui seam', 'session'): (1, 'W732'),
+    ('ui seam', 'session'): (1, 'W761'),
 }
 
 INCLUDE = re.compile(r'\s*#\s*include\s*"([^"]+)"')
