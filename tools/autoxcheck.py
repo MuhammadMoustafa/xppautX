@@ -3078,7 +3078,7 @@ def section_script():
         check('script: --silent says why a script does not load and exits 1', p.returncode == 1 and 'bad.autox:' in p.stderr, '%s %s' % (p.returncode, p.stderr[:200]))
     finally:
         shutil.rmtree(folder, ignore_errors=True)
-    # the Python library (tools/xppautx.py): its own tests, over this binary
+    # the Python library (python/xppautx (arrays.py)): its own tests, over this binary
     env = dict(os.environ, XPPAUTX_BIN=os.path.abspath(args.server))
     p = subprocess.run([sys.executable, os.path.join(here, 'test_xppautx.py')], capture_output=True, text=True, env=env, timeout=600 * SLOW)
     check('script: the Python library passes its tests (tools/test_xppautx.py)', p.returncode == 0, (p.stdout + p.stderr)[-400:])

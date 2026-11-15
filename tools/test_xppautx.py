@@ -1,12 +1,15 @@
-"""Tests of the Python library tools/xppautx.py (W306, #365) against a built xppautX: XPPAUTX_BIN names it (default ./xppautX).
+"""Tests of the Python package python/xppautx (its Client; arrays.py, W306, #365) against a built xppautX: XPPAUTX_BIN names it (default ./xppautX).
 Run by autoxcheck's `script` section, so every platform's CI runs them. The models are AUTO-07p's ab demo (examples/tstauto/ab.odex)
 and the published Morris-Lecar model (examples/ode/lecar.odex)."""
-import os, shutil, tempfile, unittest
+import os, shutil, sys, tempfile, unittest
 import numpy as np
-from xppautx import Session, XppError, table
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, 'python'))
+from xppautx import Client, XppError
+from xppautx.arrays import Session, table
 
 BINARY = os.path.abspath(os.environ.get('XPPAUTX_BIN', './xppautX'))
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AB = os.path.join(ROOT, 'examples', 'tstauto', 'ab.odex')
 # autoX's settings for the ab model's first branch (tests/autox/tstauto_ab.json)
 AB_RUN = dict(step_size=0.02, min_step_size=1e-5, max_step_size=0.02, max_steps=100, output_every=20, parameter_min=0, parameter_max=1.5,
@@ -44,6 +47,18 @@ class Library(unittest.TestCase):
             self.assertEqual(s.set_initial(v=-0.2)['V'], -0.2)
             self.assertNotEqual(s.integrate()['V'][0], first[0])
 
+    def test_a_model_runs_in_a_scratch_copy_removed_at_close(self):
+        folder = tempfile.mkdtemp(prefix='xpplibrary')
+        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
+        shutil.copy(os.path.join(ROOT, 'examples', 'ode', 'lecar.odex'), folder)
+        with Session(os.path.join(folder, 'lecar.odex'), binary=BINARY) as s:
+            s.integrate(total_time=5)
+            scratch = s.cwd
+            self.assertNotEqual(os.path.abspath(scratch), folder)
+            self.assertTrue(os.path.isdir(scratch))
+        self.assertEqual(os.listdir(folder), ['lecar.odex'])
+        self.assertFalse(os.path.exists(scratch))
+
     def test_a_refused_command_raises_with_the_core_error(self):
         with Session(AB, binary=BINARY) as s:
             with self.assertRaises(XppError) as caught:
@@ -72,6 +87,63 @@ class Library(unittest.TestCase):
             self.assertIn('missing.autox', str(caught.exception))
         finally:
             shutil.rmtree(folder, ignore_errors=True)
+
+
+class ClientTests(unittest.TestCase):
+    """The package's own Client (python/xppautx): the process, the commands, the asks, the errors, the quit"""
+    LECAR = os.path.join(ROOT, 'examples', 'ode', 'lecar.odex')
+
+    def setUp(self):
+        self.folder = tempfile.mkdtemp(prefix='xppclientlib')
+        self.addCleanup(shutil.rmtree, self.folder, ignore_errors=True)
+        self.model = os.path.join(self.folder, 'lecar.odex')
+        shutil.copy(self.LECAR, self.folder)
+
+    def test_a_command_waits_for_its_done_and_returns_its_result(self):
+        with Client(self.model, binary=BINARY) as x:
+            x.start_events()
+            self.assertEqual(x.command('run.initial')['steps'], 601)
+            self.assertEqual(x.command('data.page', from_row=0, count=1)['total_rows'], 601)
+            self.assertEqual(x.events_of_last[-1]['ev'], 'done')
+
+    def test_an_error_keeps_its_fields_and_a_model_that_does_not_load_its_place(self):
+        with Client(self.model, binary=BINARY) as x:
+            x.start_events()
+            with self.assertRaises(XppError) as caught:
+                x.command('value.set_parameters', values={'nothere': 1})
+            self.assertTrue(caught.exception.error['error'])
+        bad = os.path.join(self.folder, 'bad.odex')
+        with open(bad, 'w', encoding='utf-8') as f:
+            f.write('version 4\npar a = 1\nv\' = nonsense(\n')
+        with self.assertRaises(XppError) as caught:
+            Client(bad, binary=BINARY).start_events()
+        self.assertIn('bad.odex:4', str(caught.exception))
+
+    def test_an_ask_is_answered_as_the_caller_says_or_refused(self):
+        with Client(self.model, binary=BINARY) as x:
+            x.start_events()
+            x.command('session.save_as', file='a.snapx', confirm=True)
+            with self.assertRaises(XppError) as caught:  # the replace question, with no answer given
+                x.command('session.save_as', file='a.snapx')
+            self.assertIn('asked a question', str(caught.exception))
+            self.assertEqual(x.command('run.initial')['steps'], 601)  # the program was not left waiting on it
+            asked = []
+            x.command('session.save_as', file='a.snapx', answers={'choice': lambda e: asked.append(e['kind']) or {'key': 'y'}})
+            self.assertTrue(asked)
+
+    def test_quit_ends_the_process_and_no_binary_is_searched_for(self):
+        x = Client(self.model, binary=BINARY)
+        x.start_events()
+        x.close()
+        self.assertFalse(x.alive())
+        self.assertEqual(x.proc.returncode, 0)
+        saved = os.environ.pop('XPPAUTX', None)
+        try:
+            with self.assertRaises(XppError):
+                Client(self.model)
+        finally:
+            if saved is not None:
+                os.environ['XPPAUTX'] = saved
 
 
 if __name__ == '__main__':

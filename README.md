@@ -120,6 +120,7 @@ browser and checks its state (docs/ui-v2.md).
 | `core/` | All C++ sources and headers. |
 | `docs/` | `manual/` (the current manual, Markdown), `upstream/` (the original TeX/PDF/HTML manual, historical reference), man page, upstream `HISTORY` and `README`. |
 | `examples/` | `ode/` example models, `canonical/`, `tstauto/` autoX tests. |
+| `python/` | `xppautx`, a Python client of `xppautX --server` (standard library only); `examples/python/poc.py` shows it. |
 | `tools/` | The build, check and measurement scripts (AGENTS.md lists them), each run through `uv run --locked python` when it is Python. |
 | `contrib/` | The CUDA experiment and the XppBetty Java GUI jars from upstream. |
 

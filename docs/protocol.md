@@ -1617,6 +1617,20 @@ REASON`, with the requested file in the error's place and the system or explicit
 reason in its text. Clients use the structured file/place fields, not this
 wording, to locate files.
 
+## Python client
+
+`python/xppautx/__init__.py` is a client of `--server`, Python standard library only (the seed of a pip package):
+`Client(model, binary=None)` starts the program (`binary`, else the `XPPAUTX` environment variable: nothing searches
+the disk) with an argument list, never a shell string, in the model's folder; `command(name, **arguments)` sends one
+command and returns its `done`'s result, waiting for that `done` and nothing else; an `ask` is answered by
+`answers={kind: function(ask) -> the answer's fields}` and otherwise cancelled (`ok` 0) and raised; a failed command
+or a model that does not load raises `XppError`, whose text is "Errors"' `file:line:col: what` and whose `.error`
+holds the event's fields; leaving a `with` (or `close()`) sends `session.quit` with `save` false and waits for the
+exit. `examples/python/poc.py` is the walk-through: load, parameters and variables, set values, integrate, read the
+rows (`data.page`), a parameter sweep on one server, an equilibrium, save the session, quit. `scratch=True` runs the model in a copy (removed at close). `python/xppautx/arrays.py`'s `Session` is a `Client` that
+reads the data and the diagram as numpy arrays. The checks' `Server` (tools/xppclient.py) is a `Client` with the checks'
+own additions.
+
 ## --silent
 
 `xppautX model.ode --silent` is a script of these same commands, built in
@@ -2826,7 +2840,7 @@ run's own, named by the run and the script (`run "cycles" of x.autox: ...`); a r
 naming both. The result is `runs_completed` and `points_computed`; the diagram is read as for any run (`autox.diagram`,
 `autox.export_csv`). A new diagram (a run with `replace_diagram`, Reset diagram, a loaded one) leaves no earlier run done.
 `--silent` on a script runs every run, then writes the diagram (`autox.export_csv`, to the script's `diagram` file).
-tools/xppautx.py is the Python library over this protocol (docs/manual/09-autox.md "Scripts").
+python/xppautx/arrays.py is the Python library over this protocol (docs/manual/09-autox.md "Scripts").
 
 **The file ask's mode.** `mode` says whether the command opens the file
 (`read`: Import XPPAUT session state, Load diagram, the browser's Load, Import, ...) or saves

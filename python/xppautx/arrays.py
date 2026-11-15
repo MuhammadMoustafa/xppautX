@@ -1,8 +1,8 @@
 """xppautX from Python (W306, #365): open a model or an .autox script, set values, integrate, run autoX and read the
 diagram and the data as numpy arrays, over the same `--server` protocol every front end uses (docs/protocol.md).
-Grown from xppclient.py, whose Server does the process and the events; this is the part a script or a notebook uses.
+A Client (python/xppautx) that reads its data as numpy arrays (numpy is imported here only); this is the part a script or a notebook uses.
 
-    from xppautx import Session
+    from xppautx.arrays import Session
     with Session('examples/tstauto/ab.odex', binary='./xppautX') as s:
         s.set_parameters(p1=14)
         s.autox_axes('p0')
@@ -19,19 +19,7 @@ Every method is one registry command (docs/protocol.md), so what a script does i
 """
 import csv, io, os, uuid
 import numpy as np
-from xppclient import Server, is_done, is_ask, placed
-
-# the safety bound on one command, seconds (a long run is the user's own: this only fails a hang)
-COMMAND_TIMEOUT = 3600
-
-
-class XppError(RuntimeError):
-    """A command the program refused or could not finish: str() is the error as the core renders it
-    (file:line:col: what); `.error` the `done` event's own fields (error, file, line, col, source)."""
-
-    def __init__(self, text, error=None):
-        super().__init__(text)
-        self.error = error or {}
+from . import Client, XppError, COMMAND_TIMEOUT
 
 
 def table(text):
@@ -48,45 +36,21 @@ def table(text):
     return out
 
 
-class Session:
-    """One xppautX --server process on a model (or an .autox script, which names its model)."""
+class Session(Client):
+    """One xppautX --server process on a model (or an .autox script, which names its model): a model runs in a scratch
+    copy, so the files it writes never land in the user's folder."""
 
-    def __init__(self, model, binary='./xppautX', timeout=COMMAND_TIMEOUT, extra_args=()):
+    def __init__(self, model, binary=None, timeout=COMMAND_TIMEOUT, extra_args=()):
         self.timeout = timeout
-        # a model runs in a scratch copy; an .autox script in its own folder, beside the model it names, as the window opens it
+        # an .autox script runs in its own folder, beside the model it names, as the window opens it
         in_place = model.endswith('.autox')
-        self.server = Server(binary, model, extra_args=extra_args, follow_one_branch=False,
-                             run=os.path.dirname(os.path.abspath(model)) if in_place else None)
+        super().__init__(model, binary=binary, extra_args=extra_args, scratch=not in_place)
         self.model = os.path.basename(model)
-        # the load's own events, up to its first completed command
-        self.hello, end = self.server.collect(is_done, timeout=timeout)
-        failed = [e for e in self.hello if e.get('ev') in ('session.error', 'error', 'eof')]
-        if end is None or failed:
-            text = '; '.join(placed(e) or e.get('ev', '') for e in failed) or 'xppautX did not start'
-            self.server.close()
-            raise XppError(text, failed[0] if failed else {})
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exception):
-        self.close()
-
-    def close(self):
-        self.server.close()
+        self.hello = self.start_events(timeout)
 
     def command(self, cmd, **arguments):
-        """One registry command, waited for: its result (a dict). The events it sent are `.events`."""
-        self.server.send(cmd=cmd, **arguments)
-        events, end = self.server.collect(lambda e: is_done(e) or is_ask(e), timeout=self.timeout)
-        self.events = events
-        if end is None:
-            raise XppError('%s: no completion (the process ended or the safety timeout passed)' % cmd)
-        if is_ask(end):
-            raise XppError('%s: the program asked a question (%s) that a script cannot answer' % (cmd, end.get('kind')), end)
-        if end.get('status') != 'ok':
-            raise XppError(placed(end) or '%s failed' % cmd, end)
-        return end.get('result', {})
+        """One registry command, waited for: its result (a dict). The events it sent are `.events_of_last`."""
+        return super().command(cmd, timeout=self.timeout, **arguments)
 
     # values
     def set_parameters(self, **values):
@@ -164,7 +128,7 @@ class _Exported:
 
     def __enter__(self):
         self.session.command(self.cmd, file=self.name, **self.arguments)
-        self.path = os.path.join(self.session.server.run, self.name)
+        self.path = os.path.join(self.session.cwd, self.name)
         return self.path
 
     def __exit__(self, *exception):

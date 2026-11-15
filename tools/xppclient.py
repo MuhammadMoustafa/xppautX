@@ -9,7 +9,13 @@ Each Server runs in its own scratch directory (the model is copied there),
 reads events on a thread and hands them out with collect().
 """
 import glob
-import atexit, base64, copy, hashlib, json, os, queue, re, shutil, struct, subprocess, tempfile, threading, time
+import atexit, base64, copy, hashlib, json, os, re, shutil, struct, subprocess, sys, tempfile, threading, time
+
+# the client of the protocol is the package (python/xppautx): the process, the command line and the events are read and
+# written there only; this file keeps what the checks add (scratch copies, waits, mirrors, recordings)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'python'))
+import xppautx
+from xppautx import Client, placed, is_done, is_ask, model_companions, copy_model
 
 # No check touches the user's own per-user settings (keymap.json, W211;
 # preferences.odex, W232): every xppautX a check script that imports this starts
@@ -88,14 +94,6 @@ class LogLines(list):
             return self.changed.wait_for(lambda: predicate(self), timeout)
 
 
-def _reject_non_finite(text):
-    """json.loads' parse_constant: NaN/Infinity/-Infinity are not valid
-    JSON (W35a, core/json_number.h); a strict parse must fail on them
-    instead of silently making a Python float, so a "-nan" that leaks
-    past the core's writer fails a check instead of round-tripping."""
-    raise ValueError('non-finite JSON constant: %s' % text)
-
-
 # the one format number of the protocol and every file of ours (core/format_version.h)
 FORMAT_VERSION = 4
 
@@ -111,10 +109,6 @@ def versioned(text):
 def versioned_anix(text):
     """an animation's: its version is a statement of its own, `version: N`"""
     return text if re.match(r'[ \t]*version[ \t]*:', text) else 'version: %d\n' % FORMAT_VERSION + text
-
-
-def is_done(e):
-    return e.get('ev') == 'done'
 
 
 # every heavy data event a client subscribes to (hello's `features`)
@@ -138,50 +132,25 @@ def save_permission(cmd):
     return cmd
 
 
-def is_ask(e):
-    return e.get('ev') == 'ask'
-
-
-def placed(e):
-    """An error event's text as the core renders an error (xpp::Error::text,
-    docs/protocol.md "Errors"): "file:line:col: error", leaving out what is
-    not known; "" for an event with no error."""
-    if not e.get('error'):
-        return ''
-    t, line, col = e.get('file') or '', e.get('line') or 0, e.get('col') or 0
-    if line > 0:
-        t += (':' if t else 'line ') + str(line)
-        if col > 0:
-            t += ':' + str(col)
-    return (t + ': ' if t else '') + e['error']
-
-
 def is_state(e):
     return e.get('ev') == 'session.state'
 
 
 def drain_stderr(proc, sink=None):
-    """Reads a server's stderr on a thread, each line to sink(line) when
-    given. With XPP_CHECK_STDERR (a directory; tools/asancheck.sh sets it)
-    every line also goes to DIR/server-PID.log: gcc's UBSan, built beside
-    ASan, ignores log_path and reports only on stderr, which asancheck
-    reads back from there."""
+    """The package's stderr reader (each line to sink(line) when given). With XPP_CHECK_STDERR (a directory;
+    tools/asancheck.sh sets it) every line also goes to DIR/server-PID.log: gcc's UBSan, built beside ASan, ignores
+    log_path and reports only on stderr, which asancheck reads back from there."""
     keep = os.environ.get('XPP_CHECK_STDERR')
+    out = open(os.path.join(keep, 'server-%d.log' % proc.pid), 'a', errors='replace') if keep else None
 
-    def run():
-        out = open(os.path.join(keep, 'server-%d.log' % proc.pid), 'a', errors='replace') if keep else None
-        for line in proc.stderr:
-            if out:
-                out.write(line)
-                out.flush()
-            if sink:
-                sink(line)
+    def each(line):
         if out:
-            out.close()
+            out.write(line)
+            out.flush()
+        if sink:
+            sink(line)
 
-    thread = threading.Thread(target=run, daemon=True)
-    thread.start()
-    return thread
+    return xppautx.drain_stderr(proc, each, then=out.close if out else None)
 
 
 def series_values(col, enc):
@@ -242,54 +211,24 @@ def whole_series(evs, win=None):
             and (win is None or e.get('win') == win)]
 
 
-def model_companions(source):
-    return glob.glob(os.path.join(os.path.dirname(source), '*.anix'))
-
-
 def staged_model_names(source):
     return sorted([os.path.basename(source), *map(os.path.basename, model_companions(source))])
 
 
-def copy_model(source, destination):
-    """Stage a model and its animation companions together in a check's scratch folder."""
-    target = shutil.copy(source, destination)
-    for animation in model_companions(source):
-        copied = shutil.copy(animation, os.path.dirname(target))
-        if os.path.basename(source) != os.path.basename(target):
-            # These canonical fixtures name the model being renamed by the check.
-            with open(copied, encoding='utf-8') as f: text = f.read()
-            text = text.replace('model: "' + os.path.basename(source) + '"', 'model: "' + os.path.basename(target) + '"')
-            with open(copied, 'w', encoding='utf-8', newline='') as f: f.write(text)
-    return target
-
-
-class Server:
-    def __init__(self, binary, ode, env=None, verbose=False, stdin=subprocess.PIPE, run=None, extra_args=(),
+class Server(Client):
+    """The package's Client with what the checks add: a scratch copy of the model, the checks' waits, the series mirror
+    and the branch the checks follow."""
+    def __init__(self, binary, ode, env=None, verbose=False, run=None, extra_args=(),
                  parse_float=float, parse_int=int, follow_one_branch=True):
         self.verbose = verbose
-        # the checks follow the one branch they ask for (FollowOneBranch); xppautx.py, for scripts, leaves the program's own choice
+        # the checks follow the one branch they ask for (FollowOneBranch); the package's Client, for scripts, leaves the program's own choice
         self.follow = FollowOneBranch() if follow_one_branch else None
-        self.parse_float = parse_float
-        self.parse_int = parse_int
-        self.owns_run = run is None
-        self.run = run or tempfile.mkdtemp(prefix='xppserver')
-        if os.path.abspath(ode) != os.path.abspath(os.path.join(self.run, os.path.basename(ode))):
-            copy_model(ode, self.run)
-        full = None
-        if env is not None:
-            full = dict(os.environ)
-            full.update(env)
-        self.started_at = time.monotonic()  # process launch, after scratch/model staging (comparison time-to-ready)
-        self.proc = subprocess.Popen([os.path.abspath(binary), '--server', os.path.basename(ode), *extra_args], cwd=self.run,
-                                     stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                     text=True, encoding='utf-8', bufsize=1, env=full)
-        self.events = queue.Queue()
         self.series = SeriesMirror()
         self.sent_at = {}
         self.grabbed_label = self.grabbed_type = None  # the label and type of the point the last autoX grab took: autoX runs start from it
-        threading.Thread(target=self._read, daemon=True).start()
-        self.log = []
-        self.log_thread = drain_stderr(self.proc, self.log.append)
+        super().__init__(ode, binary=binary, scratch=True, cwd=run, env=env, extra_args=extra_args, parse_float=parse_float,
+                         parse_int=parse_int, drain=drain_stderr)
+        self.run = self.cwd
 
     def autox_dirs(self):
         """autoX's scratch directories of this process (xpp::files::make_temp_dir)"""
@@ -297,20 +236,11 @@ class Server:
         pre = 'xppautoX-%d-' % self.proc.pid
         return [os.path.join(tmp, d) for d in os.listdir(tmp) if d.startswith(pre)]
 
-    def _read(self):
-        for line in self.proc.stdout:
-            try:
-                ev = json.loads(line, parse_float=self.parse_float, parse_int=self.parse_int,
-                                parse_constant=_reject_non_finite)
-            except ValueError:
-                ev = {'ev': 'bad', 'line': line[:300]}
-            ev['_t'] = time.monotonic()
-            result = ev.get('result') if ev.get('ev') == 'done' else None
-            if isinstance(result, dict) and result.get('grabbed') and isinstance(result.get('label'), int):
-                self.grabbed_label, self.grabbed_type = result['label'], result.get('type')
-            self.series.feed(ev)
-            self.events.put(ev)
-        self.events.put({'ev': 'eof', '_t': time.monotonic()})
+    def observe(self, ev):
+        result = ev.get('result') if ev.get('ev') == 'done' else None
+        if isinstance(result, dict) and result.get('grabbed') and isinstance(result.get('label'), int):
+            self.grabbed_label, self.grabbed_type = result['label'], result.get('type')
+        self.series.feed(ev)
 
     def send(self, **cmd):
         if self.follow:
@@ -318,28 +248,17 @@ class Server:
         save_permission(cmd)
         if self.verbose:
             print('  >', json.dumps(cmd))
-        self.proc.stdin.write(json.dumps(cmd) + '\n')
-        self.proc.stdin.flush()
-        return time.monotonic()
+        return super().send(**cmd)
 
     def collect(self, until, timeout=10 * SLOW):
         """events up to and including the first for which until(ev) is true;
         (events, None) on timeout or end of output"""
-        got = []
-        deadline = time.monotonic() + timeout  # safety bound, including a stream that never finishes
-        while True:
-            try:
-                ev = self.events.get(timeout=max(0, deadline - time.monotonic()))
-            except queue.Empty:
-                return got, None
-            if self.verbose:
+        got, end = super().collect(until, timeout)
+        if self.verbose:
+            for ev in got:
                 s = json.dumps(ev)
                 print('  <', s[:160] + ('...' if len(s) > 160 else ''))
-            got.append(ev)
-            if until(ev):
-                return got, ev
-            if ev.get('ev') == 'eof':
-                return got, None
+        return got, end
 
     def answer_asks(self, until, replies, timeout=20 * SLOW):
         """collect up to until(ev), answering asks whose kind is in replies
@@ -352,9 +271,6 @@ class Server:
                 return got, e
             self.send(cmd='answer', id=e['id'], **replies[e['kind']](e))
 
-    def alive(self):
-        return self.proc.poll() is None
-
     def close(self):
         if self.alive():
             try:
@@ -362,10 +278,7 @@ class Server:
                 self.proc.wait(timeout=5 * SLOW)
             except (OSError, subprocess.TimeoutExpired):
                 self.proc.kill()
-        self.proc.wait(timeout=5 * SLOW)
-        self.log_thread.join(timeout=5 * SLOW)
-        if self.owns_run:
-            shutil.rmtree(self.run, ignore_errors=True)
+        super().close()
 
 
 class FollowOneBranch:
