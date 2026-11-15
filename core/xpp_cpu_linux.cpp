@@ -1,5 +1,5 @@
 /* xpp_cpu.h's physical_cores on Linux: the topology sysfs keeps. */
-#include "xpp_cpu.h"
+#include "xpp_cpu_system.h"
 #include "xpp_io.h"
 #include <set>
 #include <algorithm>

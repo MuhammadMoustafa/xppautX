@@ -15,6 +15,7 @@
 #include "model_record.h"
 #include "model_files.h"
 #include "model_load.h"
+#include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
 #include "xpp_files.h"
@@ -703,7 +704,7 @@ TEST_CASE("test_odex")
     CHECK(constant("a") == 1 && constant("b") == 2 && constant("n") == 3);
     CHECK(xpp::client_session().model().nupar == 2);
     CHECK(xpp::client_session().model().record->files.front().bytes.find("# some words") != std::string::npos);
-    const std::string converted=*xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const std::string converted=*xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(converted.find("# some words\\ ignored continuation") != std::string::npos);
     CHECK(converted.find("# another comment") != std::string::npos);
     CHECK(model_error(converted.c_str()).empty());
@@ -728,7 +729,7 @@ TEST_CASE("test_odex")
 
   /* --convert: what the .ode's reader understood, its quirks explicit */
   {
-    const xpp::Result<std::string> converted = xpp::odex::convert_text(local_fs(), "tools/models/odex_quirks.ode");
+    const xpp::Result<std::string> converted = xpp::odex::convert_text(local_fs(), xpp::program_loader, "tools/models/odex_quirks.ode");
     CHECK(converted.has_value());
     const std::string text = converted ? *converted : "";
     auto has = [&text](const char *line) {
@@ -771,7 +772,7 @@ TEST_CASE("test_odex")
                     "aux g=1/a\naux z=1/0\naux k=1/c\naux q=1/(x*x+1)\n"
                     "aux e=1/exp(x)\naux ep=1/exp(x*x)\naux ss=sum(1,4)of(1/(i'*i'))\n"
                     "aux uu=sum(0,4)of(1/(i'*i'))\ndone\n", "ode") == 1);
-    const auto result = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const auto result = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(result.has_value());
     const std::string text = result ? *result : "";
     CHECK(text.find("aux g = 1/ode_divisor(a)") != std::string::npos);
@@ -788,13 +789,13 @@ TEST_CASE("test_odex")
   /* W175: the .ode and conversion share checked solver names and keys. */
   {
     CHECK(load_text("x'=-x\ny'=x\n@ meth=modeuler, total=1\ndone\n", "ode") == 1);
-    const auto result = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const auto result = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(result.has_value());
     const std::string text = result ? *result : "";
     CHECK(text.find("integration: { method: modified_euler, total_time: 1 }") != std::string::npos);
     CHECK(text.find("first letter") == std::string::npos);
     CHECK(load_text("x'=-x\ny'=x\n@ meth=symplectic\n@ total=2\n@ meth=euler\ndone\n", "ode") == 1);
-    const auto later = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const auto later = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(later && later->find("integration: { method: euler, total_time: 2 }") != std::string::npos);
   }
 
@@ -802,7 +803,7 @@ TEST_CASE("test_odex")
      takes dt=), the settings nested under options: by group; the result loads. */
   {
     CHECK(load_text("par dt=2\nx'=-x\ninit x=1\nset trial {dt=0.1,total=5,xlo=-2,x=3,xlo=-3}\ndone\n", "ode") == 1);
-    const auto result = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const auto result = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(result.has_value());
     const std::string text = result ? *result : "";
     CHECK(text.find("set \"trial\" { dt: 0.1, x: 3, options: { integration: { total_time: 5 }, plot: { axes.x_min: -3 } } }") != std::string::npos);
@@ -813,10 +814,10 @@ TEST_CASE("test_odex")
      one, and a .odex naming one of the old keys is refused at its line. */
   {
     CHECK(load_text("x'=-x\ny'=x\n@ xmin=-2,xlo=-3,yhi=4,total=2\ndone\n", "ode") == 1);
-    const auto flat = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const auto flat = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(flat && flat->find("axes.x_min: -3") != std::string::npos && flat->find("axes.y_max: 4") != std::string::npos);
     CHECK(load_text("x'=y\ny'=z\nz'=-x\n@ axes=3,xlo=-1.45,yhi=4,xmin=0,total=2\ndone\n", "ode") == 1);
-    const auto solid = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const auto solid = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(solid && solid->find("axes.x_min: 0") != std::string::npos && solid->find("axes.y_max") == std::string::npos
           && solid->find("-1.45") == std::string::npos);
     CHECK(model_error("version 4\nx'=-x\ninit x=1\noptions {\n  plot: { axes.x_low: -3 },\n}\n").find("`axes.x_low` is not an option") != std::string::npos);
@@ -825,14 +826,14 @@ TEST_CASE("test_odex")
   /* W167: keep ignored, spaced @ words visible in the conversion note. */
   {
     CHECK(load_text("x'=0\n@ total=7 dt=.5\n@ parmin = -.2 parmax = .5\ndone\n", "ode") == 1);
-    const auto result = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const auto result = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(result.has_value());
     const std::string text = result ? *result : "";
     CHECK(text.find("integration: { total_time: 7, dt: .5 }") != std::string::npos);
     CHECK(text.find("# @ parmin = -.2 parmax = .5 in the .ode: XPP ignores an option with spaces around its =, so parmin, parmax keep their values") != std::string::npos);
     CHECK(text.find("XPP ignores an option") == text.rfind("XPP ignores an option"));
     CHECK(load_text("x'=0\n@ total=7 dt=.5\ndone\n", "ode") == 1);
-    const auto clean = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const auto clean = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(clean.has_value());
     CHECK(clean && clean->find("XPP ignores an option") == std::string::npos);
   }
@@ -850,17 +851,17 @@ TEST_CASE("test_odex")
     xpp::set_val(xpp::client_session(), "A", 0);
     CHECK(xpp::evaluate(xpp::client_session(), xpp::client_session().model().programs[0]) == 1/xpp::expr::ZERO_DIVISOR);
     CHECK(load_text("par ode_divisor=2\nx'=1/x\ndone\n", "ode") == 1);
-    const auto collision = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const auto collision = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(collision && collision->find("fun ode_divisor_(value)") != std::string::npos);
     CHECK(load_text("x'=0\naux nested=sum(1,2)of(sum(0,0)of(i')+1/(i'*i'))\ndone\n", "ode") == 1);
-    const auto nested = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const auto nested = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(nested && nested->find("+1/ode_divisor(i'*i')") != std::string::npos);
   }
 
   {
     /* Function tables evaluate at load, including forward guard calls. */
     CHECK(load_text("table tab % 3 -1 1 exp(t/a)\npar a=2\nx'=0\n@ dt=.1 total=1\ndone\n", "ode") == 1);
-    const auto table = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const auto table = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(table && table->find("table tab exp(t/ode_divisor(a))") != std::string::npos);
     CHECK(table && table->find("integration: { dt: .1, total_time: 1 }") != std::string::npos);
   }
@@ -870,7 +871,7 @@ TEST_CASE("test_odex")
      parameter changes */
   {
     CHECK(load_text("par a=1\n!d=x*a\nx'=d\n", "ode") == 0);
-    const xpp::Result<std::string> converted = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const xpp::Result<std::string> converted = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(!converted && starts(converted.error().what, "!d = x*a reads t, a variable, a random function or a derived quantity after it"));
   }
 
@@ -981,14 +982,14 @@ TEST_CASE("test_odex")
     CHECK(missing.size() == 1 && missing[0]->name == "y" && missing[0]->pos.line == 3);
     CHECK(xpp::client_session().last_ic[1] == 0);
     put("build/test_odex_model.ode", "x'=0\ny'=0\ninit x=2\ndone\n");
-    const auto converted = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const auto converted = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(converted && converted->find("init y = 0\n") != std::string::npos);
     CHECK(converted && load_text(converted->c_str(), "odex"));
     CHECK(xpp::missing_initial_values(xpp::client_session().model()).empty());
     CHECK(load_text("x[j]'=0 for j in 1..4\ninit x[2]=1\n", "odex"));
     CHECK(xpp::missing_initial_values(xpp::client_session().model()).size() == 3);
     put("build/test_odex_model.ode", "x[1..3]'=0\nx[1..3](0)=2\ndone\n");
-    const auto array = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode");
+    const auto array = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");
     CHECK(array && load_text(array->c_str(), "odex"));
     CHECK(xpp::missing_initial_values(xpp::client_session().model()).empty());
   }
@@ -997,7 +998,7 @@ TEST_CASE("test_odex")
     CHECK(starts(model_error("options { output: { runnow: 1 } }\nx'=0\n"), "1:21 `runnow` is not an option"));
     put("build/test_odex_model.ode", "x'=0\n@ runnow=1\ndone\n");
     std::vector<xpp::odex::Diagnostic> notes;
-    const auto converted = xpp::odex::convert_text(local_fs(), "build/test_odex_model.ode", &notes);
+    const auto converted = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode", &notes);
     CHECK(converted && converted->find("batch:") == std::string::npos);
     CHECK(converted && converted->find("# @ runnow=1") != std::string::npos);
     CHECK(std::ranges::any_of(notes, [](const auto &n) { return n.id == "runnow-removed" && n.place.line == 2; }));

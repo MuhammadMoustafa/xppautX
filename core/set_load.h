@@ -26,6 +26,7 @@ namespace xpp {
 
 struct Session; /* session.h */
 class FileSystem; /* xpp_fs.h */
+struct ModelLoader; /* model_load.h */
 
 /* the most parts (and bytes of their text) set.list_file_contents lists in one reply: a file of many sets is chosen by name */
 inline constexpr std::size_t offered_parts_limit = 1000, offered_bytes_limit = 1024 * 1024;
@@ -73,6 +74,6 @@ Result<> load_values_from_file(Session &s, std::string_view path, std::string_vi
 /* xppautX --convert model.ode --statefile FILE: the model converted (an .odex is used as it is), then the values and
    numerics of FILE, an XPPAUT .par, .ic or .set, written into the .odex as its defaults, through the loading above and
    save_defaults: the one importer, written once; 0 when written, 1 (said why) when not */
-int convert_state_file(FileSystem &fs, const std::string &model, const std::string &state, const LoadServices &services);
+int convert_state_file(FileSystem &fs, const ModelLoader &loader, const std::string &model, const std::string &state, const LoadServices &services);
 
 }

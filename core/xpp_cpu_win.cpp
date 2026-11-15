@@ -1,7 +1,7 @@
 /* xpp_cpu.h's physical_cores on Windows: the processor topology. */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "xpp_cpu.h"
+#include "xpp_cpu_system.h"
 
 #include <cstddef>
 #include <vector>

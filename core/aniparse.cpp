@@ -1467,12 +1467,12 @@ Result<std::string> convert_animation(Session &s, std::string_view text, const s
       catch (const ReadFailed &e) { return std::unexpected(e.error); }
 }
 
-int convert_animation_file(FileSystem &fs, const std::string &file, const std::string &model)
+int convert_animation_file(FileSystem &fs, const ModelLoader &loader, const std::string &file, const std::string &model)
 {
     const std::string model_file = model.empty() ? include_path(file, files::output_name(file, ".odex")) : model;
     auto line = parse_command_line({"xppautX", model_file, "--convert"});
     if (!line) { show_error(line.error()); return 1; }
-    auto loaded = load_model(fs, std::move(*line), 1);
+    auto loaded = loader.load(fs, std::move(*line), 1, nullptr, {}, nullptr);
     if (!loaded) return 1;
     const std::optional<std::string> text = fs.read_within(file, files::split_path(file).first, {}, zip::archive_bytes_limit);
     if (!text) { show_error(files::open_error("animation", file)); return 1; }

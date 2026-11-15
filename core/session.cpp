@@ -120,8 +120,6 @@ union SessionList {
   SessionList &operator=(const SessionList &)=delete;
 };
 constinit SessionList sessions;
-/* the Load in progress */
-constinit Load *loading=nullptr;
 
 }
 
@@ -154,13 +152,12 @@ Load::Load(FileSystem &fs)
   session_=fresh.get();
   previous_session=std::exchange(c.session,std::move(fresh));
   previous_model=std::exchange(c.model,std::move(model));
-  loading=this;
 }
 
 Load::~Load()
 {
   write_kept(); /* what a failed load's error did not take */
-  loading=nullptr;
+  leave();
   if(committed)return;
   /* the failed Session, then its Model, give way to the ones before */
   Client &c=sessions.entry;
@@ -168,29 +165,31 @@ Load::~Load()
   c.model=std::move(previous_model);
 }
 
-bool Load::running() noexcept
+Load *Load::active() noexcept
 {
-  return loading!=nullptr;
+  return static_cast<Load *>(current());
 }
 
-void Load::add_source(Error &e)
+void Load::locate(Error &e)
 {
   Place &p=e.place;
-  if(!loading||p.line<=0||!p.source.empty()||p.file.empty())return;
+  if(p.line<=0||!p.source.empty()||p.file.empty())return;
   std::string text;
-  if(read_model_file(loading->model(),p.file,text))p.source=std::string(nth_line(text,p.line));
+  if(read_model_file(model(),p.file,text))p.source=std::string(nth_line(text,p.line));
 }
 
 void Load::at(std::string_view file, int line, int col)
 {
-  if(!loading)return;
-  loading->write_kept();
-  loading->where=Place{std::string(file),line,col};
+  Load *load=active();
+  if(!load)return;
+  load->write_kept();
+  load->where=Place{std::string(file),line,col};
 }
 
 Place Load::place()
 {
-  return loading?loading->where:Place();
+  const Load *load=active();
+  return load?load->where:Place();
 }
 
 std::string Load::kept() const
@@ -219,11 +218,10 @@ void Load::write_kept()
   }
 }
 
-Error Load::error(std::string_view also)
+Error Load::describe(std::string_view also)
 {
-  Load &load=*loading;
-  Error e{"load",load.kept(),load.where};
-  load.messages.clear();
+  Error e{"load",kept(),where};
+  messages.clear();
   if(!also.empty()){
     if(!e.what.empty())e.what+='\n';
     e.what+=also;
@@ -240,3 +238,8 @@ void Load::commit()
 }
 
 }
+
+/* the array plot's movie is a Writer (the files module's), which the plot state's header does not see: the Session, which holds
+   the state, is where it is made and destroyed */
+ArrayPlotState::ArrayPlotState()=default;
+ArrayPlotState::~ArrayPlotState()=default;

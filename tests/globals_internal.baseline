@@ -6,15 +6,15 @@ core/json_prompts.cpp 7 the JSON front end's ask in progress and its pacing cloc
 core/json_record.cpp 1 the session recording in progress (the protocol client's)
 core/json_windows.cpp 1 the JSON front end's array plot dirty flag (the protocol client's, file-local per AGENTS.md)
 core/marks_data.cpp 1 the protocol client's (one struct): its subscription, its sink and the content each window's last event said, which outlive a load (the records are the Session's marks_shown)
+core/model_failed.cpp 1 the Load in progress (LoadSite: the one a load makes registers itself, the readers below the Session meet it through model_failed)
 core/numerics_settings.cpp 1 the numerics subscription (the protocol client's, xpp::ChangedEvent)
 core/odex_convert.cpp 1 a const table built at first use
 core/phase_data.cpp 1 the protocol client's (one struct): its subscriptions, its sink and the fingerprint each window's record had when it got it, which outlive a load (the records are the Session's phase_shown)
 core/plot_data.cpp 1 the protocol client's (one struct): its subscriptions, its sink, what it holds of each window, the data version it was told (never repeated while connected) and the appends' pacing clock, which outlive a load (earlier runs and zoom are the Session's plot_display)
-core/session.cpp 2 the session list (the one global that holds Sessions, AGENTS.md) and the Load in progress
+core/session.cpp 1 the session list (the one global that holds Sessions, AGENTS.md)
 core/ui_json.cpp 1 the XppUi table installed (the protocol client's)
 core/xpp_about.cpp 1 About's text, a const string built at first use
 core/xppautx_main.cpp 1 the program's command line (process-wide: the window calls run_session with no argument)
-core/xpp_cpu.cpp 1 the const physical core count built once per process from CPU topology (W375, W434); the guard is excluded by globalcheck
 core/xpp_files.cpp 4 the files module's cache and the HTTP reader's hooks (process-wide, thread-shared)
 core/xpp_http.cpp 15 the HTTP server's threads, sockets and locks (process-wide)
 core/xpp_https_linux.cpp 1 libcurl, loaded at the first download and kept for the life of the program (a library handle is the process's, like the window library's)
@@ -26,3 +26,4 @@ core/xpp_mir.cpp 4 the compile in progress's escape (one struct, the thread's ow
 core/xpp_window.cpp 2 the desktop window's web view and its thread (process-wide, one window)
 core/xpp_window_loader.cpp 2 the window library loaded once (process-wide)
 core/commands_autox.cpp 3 the registry rows of autox.run and autox.configure_numerics: their Numerics arguments are built once at start-up from the option table's continuation rows (the keys and shapes have no second list), const and never written
+core/xpp_cpu_system.cpp 1 the const physical core count built once per process from CPU topology (W375, W434); the guard is excluded by globalcheck

@@ -1,5 +1,5 @@
 /* xpp_cpu.h's physical_cores on macOS: sysctl's physical core counts. */
-#include "xpp_cpu.h"
+#include "xpp_cpu_system.h"
 #include <cstddef>
 #include <sys/sysctl.h>
 

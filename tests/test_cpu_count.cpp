@@ -1,5 +1,5 @@
 #include "xpptest.h"
-#include "xpp_cpu.h"
+#include "xpp_cpu_system.h"
 #include "xpp_io.h"
 #include "autox_parallel.h"
 #include <thread>

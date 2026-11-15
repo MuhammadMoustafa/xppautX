@@ -16,6 +16,10 @@ struct XppProgram {
     /* where the page is shown: no page (--silent, --server), the desktop window or the user's browser (W622: a restart opens the same) */
     enum class Page { none, window, browser } page = Page::none;
     float version_major = 0, version_minor = 0; /* XPPAUT's version, for titles */
+    /* what measures the physical cores a run of jobs or of a sweep shares when the thread count is automatic: the platform's
+       (xpp_cpu_system.h, measuring on its first call only), given by the program's start; none (a unit test that sets none): 1 */
+    unsigned (*measure_physical_threads)() = nullptr;
+    unsigned physical_threads() const { return measure_physical_threads ? measure_physical_threads() : 1; }
 };
 extern XppProgram program;
 

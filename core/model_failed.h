@@ -8,18 +8,52 @@ namespace xpp {
 
 /* What a reader of a model calls when the model cannot be loaded. The readers
    (the parser, the compiler, the .odex and set readers) are inside, below the
-   Session; the load that catches the failure is the application's, so these
-   are implemented in xpp_batch.cpp, as XppUi is implemented outside. */
+   Session; the load that catches the failure is the application's. The
+   kernel owns what they need of it, the LoadSite below, which the Session's
+   Load implements, as XppUi is implemented outside. */
+
+/* what model_failed throws while a Load is in progress: the model
+   cannot be loaded (a parse or compile error), what is wrong and where */
+struct LoadFailed {
+  Error error;
+};
+
+/* The load in progress, as the readers meet it: the Session's Load is one
+   (session.h) and, while it lives, the only one. */
+class LoadSite {
+public:
+  /* a load is in progress */
+  static bool running() noexcept;
+  /* e.place.source, when empty, the line e.place.line of e.place.file as
+     the model of the load in progress reads it; nothing when no load is in
+     progress */
+  static void add_source(Error &e);
+  /* what went wrong where the load is (a load is in progress): the place it
+     is at, and as what failed the ERROR and WARN messages logged since (no
+     longer kept to be written), then also */
+  static Error error(std::string_view also = {});
+
+protected:
+  LoadSite() noexcept;
+  ~LoadSite();
+  LoadSite(const LoadSite &) = delete;
+  LoadSite &operator=(const LoadSite &) = delete;
+  /* the load ends before its members go */
+  static void leave() noexcept;
+  static LoadSite *current() noexcept;
+  virtual Error describe(std::string_view also) = 0;
+  virtual void locate(Error &e) = 0;
+};
 
 /* the model cannot be loaded (a parse or compile error, logged while the
-   load is at its place): model_failed(Load::error()), at the place the
+   load is at its place): model_failed(LoadSite::error()), at the place the
    load is: during a load, the load fails (LoadFailed, caught
    by load_model); otherwise the program exits with status 1. In browser
    and window mode the page stays open on the log until it is closed
    (xpp_http's at_exit). */
 [[noreturn]] void model_failed();
 /* the same, for the reason what (the parser's own): at the place the load
-   is, after what was logged there (Load::error(what)) */
+   is, after what was logged there (LoadSite::error(what)) */
 [[noreturn]] void model_failed(std::string_view what);
 /* the model cannot be loaded, for the reason e: during a load, the load
    fails (LoadFailed with e, the line e.place.line of e.place.file added

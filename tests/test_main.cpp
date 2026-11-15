@@ -16,6 +16,7 @@
 #include "local_fs.h"
 #include "session.h"
 #include "xpp_globals.h"
+#include "xpp_cpu_system.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
 #include "xpptest.h"
@@ -99,6 +100,9 @@ int main(int argc, char **argv)
     if (chosen.empty()) chosen = tests;
     if (reverse) std::reverse(chosen.begin(), chosen.end());
 
+    /* the program's start gives the machine's core count (xppautx_main.cpp), which the tests meet as it does: a run of jobs
+       shares the physical cores, and the snapshot below keeps it for every test */
+    program.measure_physical_threads = xpp::cpu::physical_threads;
     const SharedState shared;
     int failed = 0;
     for (const Test &t : chosen) {

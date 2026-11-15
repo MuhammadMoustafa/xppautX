@@ -4,7 +4,7 @@
 #include <string>
 #include <algorithm>
 
-/* physical_cores is once per platform: xpp_cpu_win.cpp, xpp_cpu_linux.cpp, xpp_cpu_mac.cpp */
+/* the system's own count, physical_cores, is the platform's (xpp_cpu_system.h); the program's start passes it in (XppProgram::measure_physical_threads) */
 
 namespace xpp::cpu {
 unsigned logical_processors() { return std::max(1u, std::thread::hardware_concurrency()); }
@@ -38,17 +38,6 @@ std::optional<std::vector<unsigned>> cpu_list(std::string_view text)
     }
     if (cpus.empty()) return std::nullopt;
     return cpus;
-}
-
-unsigned physical_threads()
-{
-    // Topology is process-wide and settings events ask for this repeatedly.
-    static const unsigned count = [] {
-        const auto physical = physical_cores();
-        // Logical processors are used only when there is no usable physical topology.
-        return physical ? *physical : logical_processors();
-    }();
-    return count;
 }
 
 std::optional<std::string> threads_problem(long long n)

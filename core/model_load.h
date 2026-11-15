@@ -13,9 +13,10 @@ namespace xpp {
 
 struct Session; /* session.h */
 
-/* The load, as the readers and the front ends ask for it: declared here, at
-   the model's level, and done by xpp_batch.cpp, the program's start, which
-   knows every module the load sets up. */
+/* The load, as the front ends ask for it: declared here, at the model's
+   level, and done by xpp_batch.cpp, the program's start, which knows every
+   module the load sets up. The readers and converters below the application
+   never call it: they are handed it (ModelLoader, below). */
 
 /* what a load gives: the Session it loaded (its Model the Session's),
    or what is wrong and where */
@@ -48,6 +49,16 @@ Result<std::vector<Error>> compile_loaded(Session &s);
 Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::function<void(Session &)> &read,
                       const std::function<std::optional<Error>(Session &)> &check = {},
                       const SavedModel *saved = nullptr, const LoadServices *services = nullptr);
+
+/* The load a converter or a checker runs a model through, handed to it by its
+   caller (the program's start, a unit test: program_loader): the load sets up
+   every module, so what is below the application cannot call it. */
+struct ModelLoader {
+  Loaded (*load)(FileSystem &fs, CommandLine cl, int batch, const SavedModel *saved,
+                 const std::function<std::optional<Error>(Session &)> &check, const Result<prefs::Preferences> *read_prefs);
+  Result<> (*inspect)(FileSystem &fs, const CommandLine &cl, const std::function<void(Session &)> &read,
+                      const std::function<std::optional<Error>(Session &)> &check, const SavedModel *saved, const LoadServices *services);
+};
 
 /* After a load with no interface (--silent, a unit test): s's browser,
    graphs and colors set up. What --silent then runs is its built-in

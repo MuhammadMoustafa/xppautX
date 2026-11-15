@@ -23,10 +23,12 @@
 #include "expr.h"
 #include "xpp_math.h"
 #include "xpp_error.h"
+#include "model_failed.h"
 #include "xpp_fs.h"
 #include "xpp_log.h"
 #include "model_options.h"
 #include "xpp_cpu.h"
+#include "xpp_globals.h"
 #include "model_parts.h" /* IWYU pragma: keep (a std::vector of its BoundaryCondition is destroyed by Session, which needs it complete) */
 
 #include <map>
@@ -177,7 +179,7 @@ struct Session {
   /* the colors the diagram, the nullclines and the manifolds are drawn in, a program preference like the thread count */
   Colors colors;
   /* the threads a set of jobs or runs shares: the count, or all the physical cores when automatic */
-  unsigned thread_budget() const { return threads != cpu::THREADS_AUTO ? threads : cpu::physical_threads(); }
+  unsigned thread_budget() const { return threads != cpu::THREADS_AUTO ? threads : program.physical_threads(); }
 
   /* autoX's settings, what its window shows and its scratch folder
      (autox_nox.cpp), and the diagram (diagram.cpp). A run's own state, its
@@ -323,12 +325,6 @@ private:
    fails a read anywhere else in core/. */
 Session &client_session();
 
-/* what model_failed throws while a Load is in progress: the model
-   cannot be loaded (a parse or compile error), what is wrong and where */
-struct LoadFailed {
-  Error error;
-};
-
 /* A load in progress: it builds a fresh Model and Session, which the
    parser and the load's set-up are handed (session(), model()) and fill;
    while it lives they are the client's in the session list too, for the
@@ -339,7 +335,7 @@ struct LoadFailed {
    keeps the process's autoX scratch folder. Model and Session memory is
    never freed while a pointer into it may be held: the old ones go at
    commit, when the new ones have replaced every use. */
-class Load {
+class Load : public LoadSite {
 public:
   /* the load's Model reads and writes its files through fs (Model::fs), which must outlive the Model:
      the program's, made at its start */
@@ -352,12 +348,6 @@ public:
      load's set-up are handed these (W47d3) */
   Session &session() noexcept { return *session_; }
   Model &model() noexcept { return session_->model(); }
-  /* a Load is in progress */
-  static bool running() noexcept;
-  /* e.place.source, when empty, the line e.place.line of e.place.file as
-     the model of the Load in progress reads it (model_files.h); nothing
-     when no Load is in progress */
-  static void add_source(Error &e);
   /* The load is at line (and column) of file: the model's readers and
      builder say where they are, so that a problem is reported there;
      line 0, the model as a whole. The ERROR and WARN messages logged
@@ -367,13 +357,13 @@ public:
      are its error's what, written once by load_model. Nothing when no
      Load is in progress. */
   static void at(std::string_view file, int line=0, int col=0);
-  /* what went wrong where the load is (a Load is in progress): the place
-     at() gave, and as what failed the ERROR and WARN messages logged
-     since (no longer kept to be written), then also */
-  static Error error(std::string_view also={});
   /* where the load is (at()'s place); empty when no Load is in progress */
   static Place place();
 private:
+  /* LoadSite's: the error at the place the load is, and the source line of an error's place */
+  Error describe(std::string_view also) override;
+  void locate(Error &e) override;
+  static Load *active() noexcept;
   /* the messages kept since at(), without the blank lines around them,
      each line without the blanks at its end (a caret line keeps those in
      front) */

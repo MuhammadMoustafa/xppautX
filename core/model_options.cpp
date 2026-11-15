@@ -31,6 +31,7 @@
 #include "typed_values.h"
 #include "userbut.h"
 #include "model_failed.h"
+#include "model_load.h"
 #include "xpp_error.h"
 #include "xpp_ui.h"
 #include "xpp_log.h"
@@ -1693,6 +1694,19 @@ std::vector<PlotCurve> read_starting_curves(const Session *s, xpp::odex::Block &
 std::string option_error_text(std::string_view name, std::string_view value, std::string_view why)
 {
   return xpp::format("the option `{}={}`: {}", name, value, why);
+}
+
+Result<std::vector<Error>> compile_loaded(Session &s)
+{
+    auto compiled=translate_model(s);
+    if (!compiled) compiled=std::vector<Error>{compiled.error()};
+    /* the exact Jacobian a model asks for is known to exist only now
+       (W260): none is an error at the @ line, not a quiet difference */
+    const Model &m=s.model();
+    if (s.numerics->jacobian==JACOBIAN_EXACT && !m.jacobian.available())
+        return std::unexpected(Error{"options",option_error_text("integration.jacobian.kind","exact","the model has no exact Jacobian: "+m.jacobian.unavailable),
+                                     m.jacobian.requested});
+    return compiled;
 }
 
 std::string foreign_path_option(const OptionRow &row, std::string_view model_file, std::string_view value)

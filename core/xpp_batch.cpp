@@ -153,19 +153,6 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, std::optiona
     if (!cl.convert) load_option_animation(s);
 }
 
-Result<std::vector<Error>> compile_loaded(Session &s)
-{
-    auto compiled=translate_model(s);
-    if (!compiled) compiled=std::vector<Error>{compiled.error()};
-    /* the exact Jacobian a model asks for is known to exist only now
-       (W260): none is an error at the @ line, not a quiet difference */
-    const Model &m=s.model();
-    if (s.numerics->jacobian==JACOBIAN_EXACT && !m.jacobian.available())
-        return std::unexpected(Error{"options",option_error_text("integration.jacobian.kind","exact","the model has no exact Jacobian: "+m.jacobian.unavailable),
-                                     m.jacobian.requested});
-    return compiled;
-}
-
 namespace {
 
 /* an .autox script opens with the model it names, its runs listed in the session (nothing computes) */
@@ -294,7 +281,7 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
     Loaded loaded = prepared;
     if (prepared) {
         if (xpp::files::has_extension(file, ".ode")) {
-            Result<bool> opened = odex::open_ode(fs, file, diagnostics, outside_paths, services);
+            Result<bool> opened = odex::open_ode(fs, program_loader, file, diagnostics, outside_paths, services);
             if (!opened) loaded = std::unexpected(opened.error());
             else {
                 converted = odex::odex_name(file);
@@ -329,27 +316,7 @@ Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::functio
     return {};
 }
 
-void model_failed(Error e)
-{
-    if (!xpp::Load::running()) {
-        if (!e.what.empty()) xpp::log(XPP_LOG_ERROR, "{}\n", e.text());
-        exit(1);
-    }
-    xpp::Load::add_source(e);
-    throw xpp::LoadFailed{std::move(e)};
-}
-
-void model_failed()
-{
-    xpp::model_failed(xpp::Load::running() ? xpp::Load::error() : xpp::Error());
-}
-
-void model_failed(std::string_view what)
-{
-    /* only the parser and the readers a load runs call this: a model is
-       built only by a load */
-    xpp::model_failed(xpp::Load::error(what));
-}
+const ModelLoader program_loader{load_model, inspect_model};
 
 void batch_start(xpp::Session &s)
 {

@@ -7,6 +7,7 @@
 #include "expr_native.h"
 #include "solver.h"
 #include "xpp_cpu.h"
+#include "xpp_globals.h"
 #include "xpp_job.h"
 #include "xpp_error.h"
 #include "xpp_text.h"
@@ -63,7 +64,7 @@ struct AutoxParallel::State {
     ~State() { stop(); }
 };
 
-unsigned AutoxParallel::automatic_threads() { return std::min(cpu::physical_threads(), max_threads); }
+unsigned AutoxParallel::automatic_threads() { return std::min(program.physical_threads(), max_threads); }
 AutoxParallel::AutoxParallel(unsigned threads) : threads_(std::max(threads, 1u)) {}
 AutoxParallel::~AutoxParallel() = default;
 

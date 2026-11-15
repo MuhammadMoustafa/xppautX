@@ -38,6 +38,7 @@
 namespace xpp {
 struct Session; /* session.h */
 class FileSystem; /* xpp_fs.h */
+struct ModelLoader; /* model_load.h */
 struct Model;   /* model.h */
 }
 
@@ -390,25 +391,25 @@ struct Diagnostic {
    (docs/protocol.md "Question answering": a declined question there is a
    diagnostic). */
 enum class DeclinedRename { refuse, report };
-xpp::Result<std::string> convert_text(xpp::FileSystem &fs, const std::string &ode,
+xpp::Result<std::string> convert_text(xpp::FileSystem &fs, const xpp::ModelLoader &loader, const std::string &ode,
                                      std::vector<Diagnostic> *diagnostics = nullptr,
                                      std::vector<std::string> *outside_paths = nullptr,
                                      DeclinedRename declined = DeclinedRename::refuse,
                                      const xpp::LoadServices *services = nullptr);
 /* Read and validate in memory; one JSON object on stdout, no files or window. */
-int check_file(xpp::FileSystem &fs, const std::string &file, const xpp::LoadServices &services);
+int check_file(xpp::FileSystem &fs, const xpp::ModelLoader &loader, const std::string &file, const xpp::LoadServices &services);
 /* The opening/convert command displays findings once through its existing log route. */
 void show_diagnostics(const std::vector<Diagnostic> &diagnostics);
 /* xppautX --convert [--yes] model.ode: the model loaded, written as
    model.odex (odex_name), which is loaded in turn and must compile to
    the same programs (exact by construction, checked); 0 when written, 1
    (said why) when not. Questions go through xpp_ui. */
-int convert_file(xpp::FileSystem &fs, const std::string &ode, const xpp::LoadServices &services);
+int convert_file(xpp::FileSystem &fs, const xpp::ModelLoader &loader, const std::string &ode, const xpp::LoadServices &services);
 /* Opening a .ode: its conversion, checked, written as odex_name(ode)
    (true), or the existing .odex opened as it is (false: the same text, or
    the user chose it); an error when cancelled or not written. outside_paths
    carries only exact approved paths; the native loader rechecks their kinds. */
-xpp::Result<bool> open_ode(xpp::FileSystem &fs, const std::string &ode, std::vector<Diagnostic> &diagnostics,
+xpp::Result<bool> open_ode(xpp::FileSystem &fs, const xpp::ModelLoader &loader, const std::string &ode, std::vector<Diagnostic> &diagnostics,
                          std::vector<std::string> &outside_paths, const xpp::LoadServices &services);
 /* The conversion text of the foreign file source written as out, beside
    it: true when written; false when out already holds this text, or the

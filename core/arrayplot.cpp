@@ -178,9 +178,6 @@ std::string get_root(std::string_view s, int *num)
 }
 
 
-ArrayPlotState::ArrayPlotState()=default;
-ArrayPlotState::~ArrayPlotState()=default;
-
 void close_aplot_files(xpp::Session &s, bool complete)
 {
   if(s.array_plot->still==0){

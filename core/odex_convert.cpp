@@ -1903,7 +1903,7 @@ Fingerprint fingerprint(const xpp::Session &s, int guard = -1)
 
 } // namespace
 
-int check_file(FileSystem &fs, const std::string &file, const LoadServices &services)
+int check_file(FileSystem &fs, const ModelLoader &loader, const std::string &file, const LoadServices &services)
 {
   std::vector<Diagnostic> diagnostics;
   std::optional<Error> error;
@@ -1919,10 +1919,10 @@ int check_file(FileSystem &fs, const std::string &file, const LoadServices &serv
       if (has_subsystems(s)) diagnostics.push_back({Place{file}, "subsystems", "info", describe_subsystems(s)});
       return std::nullopt;
     };
-    const Result<> loaded = line ? inspect_model(fs, *line, load_eqn, compiled, nullptr, &services) : std::unexpected(line.error());
+    const Result<> loaded = line ? loader.inspect(fs, *line, load_eqn, compiled, nullptr, &services) : std::unexpected(line.error());
     if (!loaded) error = loaded.error();
   } else {
-    const Result<std::string> converted = convert_text(fs, file, &diagnostics, nullptr, DeclinedRename::report, &services);
+    const Result<std::string> converted = convert_text(fs, loader, file, &diagnostics, nullptr, DeclinedRename::report, &services);
     if (!converted) error = converted.error();
   }
   capture.clear();
@@ -1961,7 +1961,7 @@ void show_diagnostics(const std::vector<Diagnostic> &diagnostics)
   }
 }
 
-Result<std::string> convert_text(FileSystem &fs, const std::string &ode, std::vector<Diagnostic> *diagnostics,
+Result<std::string> convert_text(FileSystem &fs, const ModelLoader &loader, const std::string &ode, std::vector<Diagnostic> *diagnostics,
                                std::vector<std::string> *outside_paths, DeclinedRename declined, const LoadServices *services)
 {
   if (is_odex(ode)) return xpp::fail_reading("convert", "is .odex already", ode);
@@ -1975,7 +1975,7 @@ Result<std::string> convert_text(FileSystem &fs, const std::string &ode, std::ve
   const OdeAsOdex as_odex;
   std::vector<Diagnostic> findings;
   std::vector<Diagnostic> &output = diagnostics ? *diagnostics : findings;
-  Result<> imported = xpp::inspect_model(fs, *line, [](Session &s) {
+  Result<> imported = loader.inspect(fs, *line, [](Session &s) {
     const std::string &file = s.model().this_file;
     xpp::Load::at(file);
     std::string bytes;
@@ -2001,7 +2001,7 @@ Result<std::string> convert_text(FileSystem &fs, const std::string &ode, std::ve
   const Result<CommandLine> converted_line = parse_command_line({"xppautX", model});
   if (!converted_line) return std::unexpected(converted_line.error());
   saved.files.push_back({model, text});
-  Result<> checked = xpp::inspect_model(fs, *converted_line, load_eqn,
+  Result<> checked = loader.inspect(fs, *converted_line, load_eqn,
     [&](Session &s) -> std::optional<Error> {
       /* run() writes the guard last, so every other function keeps its
          .ode number and the programs' calls compare as they are */
@@ -2021,7 +2021,7 @@ Result<std::string> convert_text(FileSystem &fs, const std::string &ode, std::ve
       if (!guard_valid || !(fingerprint(s, guard) == before))
         return Error{"convert", xpp::format("does not compile to what {} did: a bug in the converter", ode), Place{model}};
       return std::nullopt;
-    }, &saved);
+    }, &saved, nullptr);
   if (!checked) return std::unexpected(checked.error());
   return text;
 }
@@ -2073,18 +2073,18 @@ Result<bool> write_converted(FileSystem &fs, const std::string &source, const st
   return true;
 }
 
-Result<bool> open_ode(FileSystem &fs, const std::string &ode, std::vector<Diagnostic> &diagnostics,
+Result<bool> open_ode(FileSystem &fs, const ModelLoader &loader, const std::string &ode, std::vector<Diagnostic> &diagnostics,
                       std::vector<std::string> &outside_paths, const LoadServices &services)
 {
-  Result<std::string> text = convert_text(fs, ode, &diagnostics, &outside_paths, DeclinedRename::refuse, &services);
+  Result<std::string> text = convert_text(fs, loader, ode, &diagnostics, &outside_paths, DeclinedRename::refuse, &services);
   if (!text) return std::unexpected(text.error());
   return write_converted(fs, ode, odex_name(ode), *text);
 }
 
-int convert_file(FileSystem &fs, const std::string &ode, const LoadServices &services)
+int convert_file(FileSystem &fs, const ModelLoader &loader, const std::string &ode, const LoadServices &services)
 {
   std::vector<Diagnostic> diagnostics;
-  Result<std::string> text = convert_text(fs, ode, &diagnostics, nullptr, DeclinedRename::refuse, &services);
+  Result<std::string> text = convert_text(fs, loader, ode, &diagnostics, nullptr, DeclinedRename::refuse, &services);
   show_diagnostics(diagnostics);
   const std::string out = odex_name(ode);
   Result<> written;
