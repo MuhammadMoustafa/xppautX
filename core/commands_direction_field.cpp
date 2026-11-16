@@ -44,14 +44,14 @@ Result<std::string> export_file(Session &s,const Command &c,const Arguments &a,c
 {
     if(!s.nullclines->df_flag)return fail(c.name,"No direction field is shown",p);
     const auto &file=a.get<std::string>("file");
-    if(const auto saved=write_dfield(s,file,a.optional<bool>("confirm").value_or(false));!saved)return std::unexpected(saved.error());
+    if(const auto saved=write_dfield(s,file);!saved)return std::unexpected(saved.error());
     std::string result="{\"file\":";json_append_string(result,file);
     return result+",\"written\":true}";
 }
 constexpr Argument GRID={"grid",Type::integer,true,MAX_TEXT_BYTES,{},constant(2),constant(option_limit::mesh)};
 constexpr std::array COMPUTE={GRID,Argument{"scaled",Type::boolean,false}};
 constexpr std::array GRID_ARGS={GRID};
-constexpr std::array FILE={Argument{"file",Type::file,true},Argument{"confirm",Type::boolean,false}};
+constexpr std::array FILE={Argument{"file",Type::file,true}};
 constexpr std::array VECTORS={ResultField{"grid","integer"},ResultField{"vectors_drawn","integer"}};
 constexpr std::array TRAJECTORIES={ResultField{"grid","integer"},ResultField{"trajectories_run","integer"}};
 constexpr std::array CELLS={ResultField{"grid","integer"},ResultField{"cells_colored","integer"}};

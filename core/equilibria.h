@@ -102,7 +102,7 @@ Result<> do_sing(AnalysisParts &s, double *x, double eps, double err, double big
 Result<> shoot_this_now(AnalysisParts &s);
 /* Integrate the stored manifolds into file-stem-eigenN-stable/unstable.dat,
    using the export command's overwrite decision and returning its first error. */
-Result<> save_batch_shoot(AnalysisParts &s, std::string_view file, bool confirm, const RunReport &report);
+Result<> save_batch_shoot(AnalysisParts &s, std::string_view file, const RunReport &report);
 /* Sing pts' shooting (equilibria.cpp), a Session's (session.h): the initial
    conditions it found along the unstable and stable manifolds (count of
    ic, ic_flag once there are any) */

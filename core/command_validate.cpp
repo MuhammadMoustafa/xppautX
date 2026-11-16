@@ -325,6 +325,7 @@ Result<Arguments> validate(Session *session, const Command &command, const char 
             if (valid_id(value)) continue;
             return fail(command.name, "id must be text of at most 1024 bytes", place);
         }
+        if (key == REPLACE_KEY) continue;
         if (key == FILE_PICKER_KEY) {
             bool request = false;
             if (!parse_bool(json::js_raw(value), request) || !request ||

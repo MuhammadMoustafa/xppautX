@@ -75,7 +75,7 @@ Result<std::string> animate(Session &s,const Command &,const Arguments &a,const 
 Result<std::string> export_file(Session &s,const Command &,const Arguments &a,const Place &)
 {
     const auto &file=a.get<std::string>("file");
-    const auto written=export_nullclines(s,file,a.optional<std::string>("format").value_or(""),a.optional<bool>("confirm").value_or(false));
+    const auto written=export_nullclines(s,file,a.optional<std::string>("format").value_or(""));
     if(!written)return std::unexpected(written.error());
     std::string result="{\"file\":";json_append_string(result,file);
     return result+xpp::format(",\"points_written\":{}}}",*written);
@@ -91,7 +91,7 @@ constexpr std::array RANGE={Argument{"parameter",Type::model_name,true,MAX_COMMA
     Argument{"start",Type::real,true},Argument{"end",Type::real,true},
     Argument{"steps",Type::integer,true,MAX_TEXT_BYTES,{},constant(1),constant(max_frozen_clines-1)}};
 constexpr std::array DELAY={Argument{"delay_ms",Type::integer,false,MAX_TEXT_BYTES,{},constant(0),constant(std::numeric_limits<int>::max())}};
-constexpr std::array FILE={Argument{"file",Type::file,true},Argument{"format",Type::choice,false,MAX_TEXT_BYTES,data_format_ids},Argument{"confirm",Type::boolean,false}};
+constexpr std::array FILE={Argument{"file",Type::file,true},Argument{"format",Type::choice,false,MAX_TEXT_BYTES,data_format_ids}};
 constexpr std::array MESH={Argument{"mesh",Type::integer,true,MAX_TEXT_BYTES,{},constant(1),constant(option_limit::mesh)}};
 constexpr std::array COMPUTED={ResultField{"curves_computed","integer"}};
 constexpr std::array DRAWN={ResultField{"drawn","boolean"}};

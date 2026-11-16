@@ -198,7 +198,7 @@ SilentScript::SilentScript(xpp::Session &s) : session(s)
             if (runs_set(s, s.model().intern_sets[i].name)) add_run(static_cast<int>(i));
     steps.push_back([this] {
         if (batch_options.equilibria < 0) return;
-        lines.push_back(xpp::format("{{\"cmd\":\"equilibrium.export\",\"file\":\"equil.dat\",\"confirm\":true,\"shoot\":{}}}",batch_options.equilibria==1));
+        lines.push_back(xpp::format("{{\"cmd\":\"equilibrium.export\",\"file\":\"equil.dat\",\"replace\":1,\"shoot\":{}}}",batch_options.equilibria==1));
     });
 }
 

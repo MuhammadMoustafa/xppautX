@@ -116,13 +116,13 @@ ALL_EVENTS = ['plot.series', 'plot.shown', 'nullcline.curves', 'direction_field.
 
 
 def save_permission(cmd):
-    """Checks authorize their scratch saves explicitly (W129); replace=0 or
-    confirm=False exercises the core's question instead. Answers never
+    """Checks authorize their scratch saves explicitly (W129): replace 1 is the default of
+    the saves below, and replace 0 exercises the core's question instead. Answers never
     change policy."""
     kind, op = cmd.get('cmd'), cmd.get('op')
     if kind in ('equilibrium.export', 'nullcline.export', 'direction_field.export', 'session.save_as', 'session.save_copy',
                 'session.export_info', 'recording.stop', 'recording.set_step_note'):
-        cmd.setdefault('confirm', True)
+        cmd.setdefault('replace', 1)
         return cmd
     if op in {
             'session': ('save',),

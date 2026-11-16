@@ -143,7 +143,7 @@ Result<std::string> export_file(Session &s,const Command &,const Arguments &a,co
 {
     const auto &file=a.get<std::string>("file");
     const bool shoot=a.optional<bool>("shoot").value_or(s.equilibrium_shoot);
-    if(const auto saved=write_equilibrium(s,file.c_str(),shoot,a.optional<bool>("confirm").value_or(false),run_report(s));!saved)return std::unexpected(saved.error());
+    if(const auto saved=write_equilibrium(s,file.c_str(),shoot,run_report(s));!saved)return std::unexpected(saved.error());
     s.equilibrium_shoot=shoot;
     std::string result="{\"file\":";json_append_string(result,file);return result+",\"written\":true}";
 }
@@ -177,7 +177,7 @@ constexpr std::array RANGE={Argument{"parameter",Type::model_name,true,MAX_COMMA
 constexpr std::array SEARCH={Argument{"append",Type::boolean,false},Argument{"guesses",Type::integer,true,MAX_TEXT_BYTES,{},constant(1),constant(std::numeric_limits<int>::max())},
     Argument{"tolerance",Type::real,true,MAX_TEXT_BYTES,{},constant(std::numeric_limits<double>::denorm_min())},Argument{"shoot",Type::boolean,false},
     Argument{"bounds",Type::map,true,MAX_COMMAND_BYTES,{},{},{},NameSet::variable,Type::real_pair}};
-constexpr std::array FILE={Argument{"file",Type::file,true},Argument{"shoot",Type::boolean,false},Argument{"confirm",Type::boolean,false}};
+constexpr std::array FILE={Argument{"file",Type::file,true},Argument{"shoot",Type::boolean,false}};
 constexpr std::array CONFIG={Argument{"max_iterates",Type::integer,false,MAX_TEXT_BYTES,{},constant(1),constant(std::numeric_limits<int>::max())},
     Argument{"newton_tolerance",Type::real,false},Argument{"jacobian_epsilon",Type::real,false},Argument{"search_limit",Type::real,false},
     Argument{"print_eigenvalues",Type::boolean,false},Argument{"draw_invariant_sets",Type::boolean,false},Argument{"draw_strong_sets",Type::boolean,false}};

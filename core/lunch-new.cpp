@@ -611,10 +611,10 @@ Result<std::vector<std::string>> import_xppaut_state(xpp::Session &s, std::strin
   return changes;
 }
 
-Result<bool> write_info(xpp::Session &s, const std::string &filename, bool confirm)
+Result<bool> write_info(xpp::Session &s, const std::string &filename)
 {
   Result<> opened;
-  const std::unique_ptr<xpp::Sink> w=confirm?open_sink_replacing(*s.model().fs,filename,false,&opened):open_sink_asking(*s.model().fs,filename,false,&opened);
+  const std::unique_ptr<xpp::Sink> w=open_sink_asking(*s.model().fs,filename,false,&opened);
   if(!opened)return std::unexpected(opened.error());
   if(!w)return false;
   redraw_params();

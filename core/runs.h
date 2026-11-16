@@ -54,7 +54,7 @@ Result<int> run_range(AnalysisParts &s, RangeProgress *done, const RunReport &re
    Newton does not converge); shoot: also the invariant manifolds of a
    saddle, integrated into UMk.dat/SMk.dat (--silent's --equil 0/1, the
    protocol's `equilibrium` `write`) */
-Result<> write_equilibrium(AnalysisParts &s, const char *name, int shoot, bool confirm, const RunReport &report);
+Result<> write_equilibrium(AnalysisParts &s, const char *name, int shoot, const RunReport &report);
 
 /* Continue (W213), the one way to extend the trajectory: to the time `until`, or for `extra` more,
    either rounded up to the output grid (Dt times Store every N steps) and appending rows at that

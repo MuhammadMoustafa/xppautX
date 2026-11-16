@@ -439,16 +439,16 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
 
 } // namespace
 
-Result<int> export_nullclines(Session &s, const std::string &file, std::string_view format, bool confirm)
+Result<int> export_nullclines(Session &s, const std::string &file, std::string_view format)
 {
   if(!s.numerics->null_here)return fail("nullcline.export","No nullclines have been computed",command_place());
   const std::span<const DataFormat> formats=s.model().services.exports.data_formats;
   const DataFormat *selected=format.empty()?data_format_of_file(formats,file):data_format_named(formats,format);
   if(!selected)selected=data_format_named(formats,DATA_FORMAT_DAT);
   Result<> opened;
-  const std::unique_ptr<Sink> writer=confirm?open_sink_replacing(*s.model().fs,file,selected->binary,&opened):open_sink_asking(*s.model().fs,file,selected->binary,&opened);
+  const std::unique_ptr<Sink> writer=open_sink_asking(*s.model().fs,file,selected->binary,&opened);
   if(!opened)return std::unexpected(opened.error());
-  if(!writer)return fail("nullcline.export","Output was not opened",command_place());
+  if(!writer)return fail("nullcline.export",xpp::format("\"{}\" exists and replacing it was declined: nothing was written",file),command_place());
   if(const Result<> written=selected->write(nullclines_table(s.nullcline_state->x_null.data(),s.nullcline_state->num_x_n,
                                      s.nullcline_state->y_null.data(),s.nullcline_state->num_y_n),*writer);!written){
     abort_save(*writer);
@@ -525,7 +525,7 @@ void do_batch_nclines(xpp::Session &s)
   }
   compute_nullclines(s);
   if(!s.nullclines->file.empty()){
-    const auto saved=export_nullclines(s,s.nullclines->file,"",false);
+    const auto saved=export_nullclines(s,s.nullclines->file,"");
     if(!saved)show_error(saved.error());
   }
 }
@@ -630,7 +630,7 @@ void redraw_dfield(xpp::Session &s)
   if(dfield_shown(s))dfield_of_window(s,nullptr);
 }
 
-Result<> write_dfield(xpp::Session &s, std::string_view name, bool confirm)
+Result<> write_dfield(xpp::Session &s, std::string_view name)
 {
   if(!dfield_shown(s))return fail("direction_field.export","No direction field is shown",command_place());
   /* in XPPAUT's PostScript page, whatever the window's, as --silent always
@@ -638,9 +638,9 @@ Result<> write_dfield(xpp::Session &s, std::string_view name, bool confirm)
   const DrawingState drawn=*s.drawing;
   init_data_frame(s);
   Result<> opened;
-  const std::unique_ptr<Sink> w=confirm?open_sink_replacing(*s.model().fs,name,false,&opened):open_sink_asking(*s.model().fs,name,false,&opened);
+  const std::unique_ptr<Sink> w=open_sink_asking(*s.model().fs,name,false,&opened);
   if(!opened){*s.drawing=drawn;return opened;}
-  if(!w){*s.drawing=drawn;return fail("direction_field.export","Output was not opened",command_place());}
+  if(!w){*s.drawing=drawn;return fail("direction_field.export",xpp::format("\"{}\" exists and replacing it was declined: nothing was written",name),command_place());}
   dfield_of_window(s,w.get());
   *s.drawing=drawn;
   if(s.parser.step_error){abort_save(*w);return take_step_error(s);}

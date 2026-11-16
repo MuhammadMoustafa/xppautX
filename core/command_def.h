@@ -40,6 +40,9 @@ inline constexpr std::size_t MAX_ITEMS = 256;
 inline constexpr long long MAX_INTEGER = 9007199254740991LL;
 inline constexpr const char *COMMAND_KEY = "cmd";
 inline constexpr const char *ID_KEY = "id";
+/* The save decision every command takes (docs/protocol.md "Saving data"): 1 replaces an existing file it writes, -1 declines,
+   0 or left out asks. Read by reset_save_decision for every command line, so validation skips it as an argument. */
+inline constexpr const char *REPLACE_KEY = "replace";
 /* Explicitly request the existing authorized file dialog before executing a file command. */
 inline constexpr const char *FILE_PICKER_KEY = "file_picker";
 inline constexpr const char *PICKER_FILE = "selected_file";

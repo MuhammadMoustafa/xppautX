@@ -516,7 +516,7 @@ def save_diagram(s, name, written=None):
     """File > Save session as of name; the members of the .snapx it
     wrote, written (name when not given), by name ({} if not written)"""
     import zipfile
-    s.send(cmd='session.save_as', file=name, confirm=True)
+    s.send(cmd='session.save_as', file=name, replace=1)
     s.answer_asks(is_done, {'choice':lambda e:{'key':'y'}})
     path = os.path.join(s.run, written or name)
     if not os.path.exists(path) or not zipfile.is_zipfile(path):

@@ -33,7 +33,7 @@ void redraw_dfield(Session &s);
 Result<> draw_direction_field(Session &s, int c, int grid);
 void range_nullclines(Session &s);
 bool animate_nullclines(Session &s, int delay_ms);
-Result<int> export_nullclines(Session &s, const std::string &file, std::string_view format, bool confirm);
+Result<int> export_nullclines(Session &s, const std::string &file, std::string_view format);
 bool restore_nullclines(Session &s);
 void compute_nullclines(Session &s);
 void do_batch_nclines(Session &s);
@@ -41,7 +41,7 @@ void do_batch_dfield(Session &s);
 /* the direction field the current window shows, one arrow a line (x y
    and the arrow's end), in PostScript's frame (--silent's dirfields.dat,
    the protocol's `dfield` `write`); an error message when it shows none */
-Result<> write_dfield(Session &s, std::string_view name, bool confirm = false);
+Result<> write_dfield(Session &s, std::string_view name);
 /* the orbits' coloring (@ colorize=, colorvia=) of s in use */
 void set_colorization_stuff(Session &s);
 

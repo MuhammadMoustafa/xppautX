@@ -27,7 +27,6 @@ namespace {
 
 constexpr const char *FILE_KEY = "file";
 constexpr const char *DATA_KEY = "data";
-constexpr const char *CONFIRM_KEY = "confirm";
 constexpr const char *LANGUAGE_KEY = "language";
 
 /* the data table goes in (true), is left out (false), or goes in unless it is above 50 MB, when the user is asked (left out) */
@@ -49,15 +48,14 @@ Result<std::string> save(Session &s, const Command &, const Arguments &args, con
 
 Result<std::string> save_as(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    const bool saved = xpp_session_save(s, args.get<std::string>(FILE_KEY).c_str(), data_choice(args), false,
-                                        args.optional<bool>(CONFIRM_KEY).value_or(false)) != 0;
+    const bool saved = xpp_session_save(s, args.get<std::string>(FILE_KEY).c_str(), data_choice(args), false, false) != 0;
     return saved_result(s, saved);
 }
 
 Result<std::string> save_copy(Session &s, const Command &, const Arguments &args, const Place &)
 {
     const std::string &file = args.get<std::string>(FILE_KEY);
-    const bool copied = xpp_session_save(s, file.c_str(), data_choice(args), true, args.optional<bool>(CONFIRM_KEY).value_or(false)) != 0;
+    const bool copied = xpp_session_save(s, file.c_str(), data_choice(args), true, false) != 0;
     return ResultObject().text(FILE_KEY, snapx::session_file_name(file)).boolean("copied", copied).done();
 }
 
@@ -77,7 +75,7 @@ Result<std::string> import_xppaut_state_file(Session &s, const Command &, const 
 Result<std::string> export_info(Session &s, const Command &, const Arguments &args, const Place &)
 {
     const std::string &file = args.get<std::string>(FILE_KEY);
-    const Result<bool> written = write_info(s, file, args.optional<bool>(CONFIRM_KEY).value_or(false));
+    const Result<bool> written = write_info(s, file);
     if (!written) return std::unexpected<Error>(written.error());
     return ResultObject().text(FILE_KEY, file).boolean("written", *written).done();
 }
@@ -91,11 +89,10 @@ Result<std::string> export_model_as(Session &s, const Command &, const Arguments
 
 constexpr Argument FILE_REQUIRED = {FILE_KEY, Type::file, true};
 constexpr Argument DATA = {DATA_KEY, Type::boolean, false};
-constexpr Argument CONFIRM = {CONFIRM_KEY, Type::boolean, false};
 constexpr std::array SAVE_ARGUMENTS = {DATA};
-constexpr std::array SAVE_AS_ARGUMENTS = {FILE_REQUIRED, DATA, CONFIRM};
+constexpr std::array SAVE_AS_ARGUMENTS = {FILE_REQUIRED, DATA};
 constexpr std::array IMPORT_ARGUMENTS = {FILE_REQUIRED};
-constexpr std::array EXPORT_ARGUMENTS = {FILE_REQUIRED, CONFIRM};
+constexpr std::array EXPORT_ARGUMENTS = {FILE_REQUIRED};
 constexpr auto LANGUAGE_CHOICES = c_names(language_names);
 constexpr std::array MODEL_EXPORT_ARGUMENTS = {Argument{LANGUAGE_KEY, Type::choice, true, MAX_TEXT_BYTES, LANGUAGE_CHOICES}, Argument{FILE_KEY, Type::file, false}};
 constexpr std::array QUIT_ARGUMENTS = {Argument{"save", Type::boolean, false}};
@@ -120,7 +117,7 @@ constexpr std::array ROWS = {
             "Save the session to the file it was last saved to or opened from; data false leaves the data table out.", SAVE_RESULTS,
             SAVE_EVENTS, true, save, {}, KEY_1},
     Command{"session.save_as", SAVE_AS_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Save session as", "File",
-            "Save the session to a file of the model's folder (.snapx added); confirm true replaces an existing file without asking.",
+            "Save the session to a file of the model's folder (.snapx added).",
             SAVE_RESULTS, SAVE_EVENTS, true, save_as, {}, KEY_2, "write", "*.snapx"},
     Command{"session.save_copy", SAVE_AS_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Save a copy", "File",
             "Save a copy of the session, leaving the file it is saved to as it was.", COPY_RESULTS, DONE_EVENTS, true, save_copy, {}, {}, "write", "*.snapx"},

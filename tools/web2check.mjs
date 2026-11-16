@@ -2532,7 +2532,7 @@ async function autoxViews(dir) {
     JSON.stringify([target, await lastAnswer(), await S('[s.diagram.info, s.diagram.active]')]));
 
   /* the views go into a session file; a view closed; the file opened: both views as they were */
-  await cdp.eval(`__xpp.send({cmd: 'session.save_as', file: 'views', confirm: true})`);
+  await cdp.eval(`__xpp.send({cmd: 'session.save_as', file: 'views', replace: 1})`);
   await until('!s.busy', 'session saved');
   const saved = await S('JSON.stringify([s.diagram.active, s.diagram.views.map(v => [v.axes && v.axes.plot, v.axes && v.axes.ylabel, v.points.x.length])])');
   check('autoX views: the session file is written', fs.existsSync(path.join(dir, 'views.snapx')), saved);
@@ -2610,7 +2610,7 @@ async function reopenedSessionPlot(dir) {
   await runPeriodicFromDialog();
   await until('!s.busy && !s.ask', 'periodic', 120000 * SLOW);
   const points = await DS('d.points.x.length');
-  await cdp.eval(`__xpp.send({cmd: 'session.save_as', file: 'w102', confirm: true})`);
+  await cdp.eval(`__xpp.send({cmd: 'session.save_as', file: 'w102', replace: 1})`);
   await until('!s.busy', 'session saved');
   check('W102: the session file is written', fs.existsSync(path.join(dir, 'w102.snapx')));
 
@@ -7873,7 +7873,7 @@ async function layoutCheck(dir) {
       return e.contains(document.elementFromPoint(r.left + Math.min(20, r.width / 2), r.top + r.height / 2)); })()`));
 
   /* W102: a session with the run's rows and the autoX diagram, opened again, then Back */
-  await cdp.eval(`__xpp.send({cmd: 'session.save_as', file: 'w102', data: true, confirm: true})`);
+  await cdp.eval(`__xpp.send({cmd: 'session.save_as', file: 'w102', data: true, replace: 1})`);
   await until('!s.busy', 'session saved');
   check('layout: the session file is written', fs.existsSync(path.join(dir, 'w102.snapx')));
   await cdp.eval(`__xpp.send({cmd: 'session.open', file: 'w102'})`);

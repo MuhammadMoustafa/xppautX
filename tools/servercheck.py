@@ -2152,7 +2152,7 @@ def check_manifold_export_clock():
             t_before = [e for e in evs if e.get('ev') == 'session.state'][-1]['time']
             check('W533: the session clock is off zero before the export (store_from %g)' % store_from, t_before != 0,
                   str(t_before))
-            s.send(cmd='equilibrium.export', file='seed.dat', shoot=True, confirm=True)
+            s.send(cmd='equilibrium.export', file='seed.dat', shoot=True, replace=1)
             evs, _ = s.collect(lambda e: e.get('ev') == 'done')
             done = next((e for e in evs if e.get('ev') == 'done'), {})
             files = sorted(os.path.basename(f) for f in glob.glob(os.path.join(s.run, 'seed-eigen*.dat')))
@@ -2302,7 +2302,7 @@ def check_session_commands():
         done, evs = call(cmd='session.save', data=False)
         check('W528: session.save then saves to that file with no question', done['result'] == {'file': 'first.snapx', 'saved': True}
               and not any(e.get('ev') == 'ask' for e in evs), str(done))
-        done, evs = call(answers=[{'key': 'n'}], cmd='session.save_as', file='first', confirm=False)
+        done, evs = call(answers=[{'key': 'n'}], cmd='session.save_as', file='first', replace=0)
         check('W528: session.save_as asks before replacing without confirm, and a refusal saves nothing',
               done['result']['saved'] is False and any(e.get('ev') == 'ask' for e in evs), str(done))
         done, _ = call(cmd='session.save_copy', file='copy')
@@ -2365,7 +2365,7 @@ def check_session_commands():
             check('W528: recording.set_speed %s is outside 0.25 to 8' % speed, 'speed' in error_of(done), str(done))
         done, _ = call(cmd='recording.set_step_note', step=5, note='x')
         check('W528: recording.set_step_note refuses a step the recording lacks', 'no step 5' in error_of(done), str(done))
-        done, evs = call(cmd='recording.set_step_note', step=0, note='A note.', confirm=True)
+        done, evs = call(cmd='recording.set_step_note', step=0, note='A note.', replace=1)
         check('W528: recording.set_step_note answers the step and sends the player', done['result'] == {'step': 0} and any(e.get('ev') == 'recording.player' for e in evs), str(done))
         done, _ = call(cmd='recording.pause')
         check('W528: recording.pause answers', done['result'] == {'paused': True}, str(done))
@@ -2405,7 +2405,7 @@ def check_equilibrium_exports():
     try:
         s.collect(lambda e: e.get('ev') == 'done')
         def export(file):
-            s.send(cmd='equilibrium.export', file=file, shoot=True, confirm=True)
+            s.send(cmd='equilibrium.export', file=file, shoot=True, replace=1)
             events, end = s.collect(lambda e: e.get('ev') in ('ask', 'done'))
             if end and end.get('ev') == 'ask':
                 s.send(cmd='answer', id=end['id'], ok=0)
@@ -2435,6 +2435,98 @@ def check_equilibrium_exports():
     finally:
         s.close()
     check_manifold_export_clock()
+
+
+def check_replace_answer():
+    """W780: one answer for replacing a file. Every command takes the replace field (1 replaces without a question, -1
+    declines, 0 or left out asks), and confirm, the old spelling of eight commands, is an unknown argument."""
+    s = Server(args.server, 'tools/models/equilibrium_registry.odex')
+    try:
+        s.collect(lambda e: e.get('ev') == 'done')
+
+        def run_command(replace, command):
+            """the command with its replace field, its question (if it asks) answered No: (asked, its done, its events)"""
+            s.send(replace=replace, **command)
+            events, end = s.collect(lambda e: e.get('ev') in ('ask', 'done'))
+            asked = end is not None and end.get('ev') == 'ask'
+            if asked:
+                s.send(cmd='answer', id=end['id'], key='n')
+                tail, _ = s.collect(lambda e: e.get('ev') == 'done')
+                events += tail
+            return asked, next((e for e in reversed(events) if e.get('ev') == 'done'), {}), events
+
+        def content(name):
+            with open(os.path.join(s.run, name), 'rb') as f:
+                return f.read()
+
+        def answers(label, command, name, declined):
+            """the answers to replacing name, which exists: -1 declines, 0 asks (answered No), 1 replaces, and confirm is refused"""
+            before = content(name)
+            asked, done, _ = run_command(-1, command)
+            check('W780: %s with replace -1 declines without a question, keeps the file and says so' % label,
+                  not asked and content(name) == before and declined(done), str(done)[:300])
+            asked, done, _ = run_command(0, command)
+            check('W780: %s with replace 0 asks, and a No keeps the file' % label,
+                  asked and content(name) == before and declined(done), str(done)[:300])
+            asked, done, _ = run_command(1, command)
+            check('W780: %s with replace 1 replaces the file without a question' % label,
+                  not asked and content(name) != before and done.get('status') == 'ok', str(done)[:300])
+            s.send(replace=0, confirm=True, **command)
+            events, end = s.collect(lambda e: e.get('ev') in ('ask', 'done'))
+            done = next((e for e in reversed(events) if e.get('ev') == 'done'), {})
+            check('W780: %s refuses confirm as an unknown argument, asking nothing' % label,
+                  end is not None and end.get('ev') == 'done' and 'Unknown argument "confirm"' in done.get('error', ''), str(events)[-300:])
+
+        def marker(name):
+            with open(os.path.join(s.run, name), 'wb') as f:
+                f.write(b'existing')
+
+        def declined_result(field):
+            return lambda done: done.get('status') == 'ok' and done.get('result', {}).get(field) is False
+
+        def declined_error(done):
+            return 'declined' in done.get('error', '')
+
+        # the session files and the simulation information: a decline answers saved, copied or written false
+        for command, name, field in (
+                ({'cmd': 'session.save_as', 'file': 'answer.snapx'}, 'answer.snapx', 'saved'),
+                ({'cmd': 'session.save_copy', 'file': 'answer-copy.snapx'}, 'answer-copy.snapx', 'copied'),
+                ({'cmd': 'session.export_info', 'file': 'answer.pars'}, 'answer.pars', 'written')):
+            marker(name)
+            answers(command['cmd'], command, name, declined_result(field))
+
+        # a recording: its stop writes the file and ends the recording; a decline keeps it going
+        marker('answer.recx')
+        s.send(cmd='recording.start'); s.collect(lambda e: e.get('ev') == 'done')
+        answers('recording.stop', {'cmd': 'recording.stop', 'file': 'answer.recx'}, 'answer.recx', declined_error)
+
+
+        # the analysis exports: an equilibrium, its nullclines and its direction field
+        s.send(cmd='plot.set_variables', how='phase_plane', names=['V', 'W']); s.collect(lambda e: e.get('ev') == 'done')
+        s.send(cmd='nullcline.compute'); s.collect(lambda e: e.get('ev') == 'done')
+        s.send(cmd='direction_field.compute', grid=2, scaled=True); s.collect(lambda e: e.get('ev') == 'done')
+        for command, name in (
+                ({'cmd': 'equilibrium.export', 'file': 'answer-equilibrium.dat', 'shoot': False}, 'answer-equilibrium.dat'),
+                ({'cmd': 'nullcline.export', 'file': 'answer-nullclines.csv', 'format': 'csv'}, 'answer-nullclines.csv'),
+                ({'cmd': 'direction_field.export', 'file': 'answer-dirfield.dat'}, 'answer-dirfield.dat')):
+            marker(name)
+            answers(command['cmd'], command, name, declined_error)
+        # last: a recording open in the player reads and writes its own copy of the folder's files, so the exports above
+        # run before it (the player's own file system is a separate question, recorded in the report)
+        # a step note writes the recording the player has open
+        s.send(cmd='recording.start'); s.collect(lambda e: e.get('ev') == 'done')
+        s.send(cmd='window.new', name='note graph'); s.collect(lambda e: e.get('ev') == 'done')
+        s.send(cmd='recording.stop', file='note.recx', replace=1); s.collect(lambda e: e.get('ev') == 'done')
+        s.send(cmd='recording.open', file='note.recx', play=False)
+        opened, ask = s.collect(lambda e: e.get('ev') in ('ask', 'done'))
+        if ask and ask.get('ev') == 'ask':
+            s.send(cmd='answer', id=ask['id'], key='d')
+            tail, _ = s.collect(lambda e: e.get('ev') == 'done')
+            opened += tail
+        check('W780: the step note check has a recording to open', any(e.get('ev') == 'done' and e.get('status') == 'ok' for e in opened), str(opened)[-300:])
+        answers('recording.set_step_note', {'cmd': 'recording.set_step_note', 'step': 0, 'note': 'Answered.'}, 'note.recx', declined_error)
+    finally:
+        s.close()
 
 
 def check_data_value_set():
@@ -2959,7 +3051,7 @@ def check_atomic_commands():
             return done.get('result', {}).get('state', done.get('result'))
 
         def saved():
-            done, _ = call(cmd='session.save_copy', file='atomic.snapx', data=True, confirm=True)
+            done, _ = call(cmd='session.save_copy', file='atomic.snapx', data=True, replace=1)
             assert done.get('result', {}).get('copied'), done
             with zipfile.ZipFile(os.path.join(folder, 'atomic.snapx')) as archive:
                 return {name: archive.read(name) for name in archive.namelist()}
@@ -3096,7 +3188,7 @@ def check_atomic_commands():
         call(cmd='recording.start')
         call(cmd='recording.add_note', note='keep for the next successful step')
         refused(dict(cmd='run.configure', total_time=17, dt=0), archive=False)
-        call(cmd='recording.stop', file='atomic-note.recx', confirm=True)
+        call(cmd='recording.stop', file='atomic-note.recx', replace=1)
         # Refusing a numerics edit must not consume or clear redo history either.
         call(cmd='value.set_parameters', values={'iapp': 0.123})
         call(cmd='value.undo')
@@ -3294,7 +3386,7 @@ def check_options_panels():
 
 
 
-INDEPENDENT_SECTIONS = {'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -3308,6 +3400,7 @@ check_atomic_commands()
 check_registry()
 check_session_commands()
 check_equilibrium_exports()
+check_replace_answer()
 check_data_value_set()
 check_kinescope_animation_array_plot()
 check_diagram_subscription()
@@ -7319,8 +7412,14 @@ def check_save_owner():
               and before != open(os.path.join(r, 'same.csv'), 'rb').read(), str(evs)[-300:])
         snd(cmd='data.export', target='table', format='csv', file='same.csv', replace=1)
         evs, end = col(lambda e: is_done(e) or is_ask(e))
-        check('W526: a registry command carries no replace decision: it asks, or is refused naming the argument',
-              end is not None and is_done(end) and any('Unknown argument "replace"' in e.get('error', '') for e in evs), str(evs)[-300:])
+        check('W526: replace 1 on a registry command is the save decision: the file is replaced without a question',
+              end is not None and is_done(end) and not errors(evs) and not any(is_ask(e) for e in evs), str(evs)[-300:])
+        kept = open(os.path.join(r, 'same.csv'), 'rb').read()
+        snd(cmd='data.export', target='table', format='csv', file='same.csv', replace=-1)
+        evs, end = col(lambda e: is_done(e) or is_ask(e))
+        check('W526: replace -1 on a registry command declines: the file is kept, and the command says so',
+              end is not None and is_done(end) and not any(is_ask(e) for e in evs) and len(errors(evs)) == 1
+              and 'declined' in errors(evs)[0]['error'] and kept == open(os.path.join(r, 'same.csv'), 'rb').read(), str(evs)[-300:])
         os.mkdir(os.path.join(r, 'blocked.csv'))
         marker = os.path.join(r, 'blocked.csv', 'original')
         with open(marker, 'wb') as f: f.write(b'old bytes')
@@ -7378,7 +7477,7 @@ def check_output_names():
             if ask and is_ask(ask): snd(cmd='answer', id=ask['id'], ok=0)
             evs, _ = col(is_done)
             return evs
-        snd(cmd='session.save_as', file_picker=True, confirm=False)
+        snd(cmd='session.save_as', file_picker=True, replace=0)
         cancel_name('lecar.snapx')
         live_run(snd, col)
         # Every file-taking registry command can explicitly ask for the existing picker.
@@ -8017,7 +8116,7 @@ def check_subsystem_split():
         col(is_done)
 
         def info():
-            snd(cmd='session.export_info', file='info.txt', confirm=True)
+            snd(cmd='session.export_info', file='info.txt', replace=1)
             col(is_done)
             with open(os.path.join(r, 'info.txt')) as f:
                 return f.read()
@@ -9229,13 +9328,13 @@ def check_save_session():
             check('W209: Save session after %s clears it' % what, state(evs).get('changed') is False)
         evs = run(cmd='run.initial')
         check('W209: a run changes the data, so changed', state(evs).get('changed') is True, str(state(evs).get('changed')))
-        evs = run({'file': 'sv1'}, {'key': 'n'}, cmd='session.save_as', file_picker=True, confirm=False)
+        evs = run({'file': 'sv1'}, {'key': 'n'}, cmd='session.save_as', file_picker=True, replace=0)
         a = asks(evs)
         check('W209: Save session as asks for a path, then before replacing the file that is there',
               len(a) == 2 and a[0].get('kind') == 'file' and a[1].get('kind') == 'choice', str(a)[:300])
         check('W209: declining the replacement saves nothing and keeps changed',
               saved(evs) and saved(evs)[-1].get('saved') is False and state(evs).get('changed') is True, str(saved(evs)))
-        evs = run({'file': 'sv2'}, cmd='session.save_as', file_picker=True, confirm=False)
+        evs = run({'file': 'sv2'}, cmd='session.save_as', file_picker=True, replace=0)
         check('W209: Save session as a new name writes it, remembers it and clears changed',
               os.path.exists(snapx('sv2.snapx')) and state(evs).get('session') == {'file': 'sv2.snapx'}
               and state(evs).get('changed') is False, str(state(evs)))
@@ -9252,13 +9351,13 @@ def check_save_session():
               not asks(evs) and saved(evs) and saved(evs)[-1].get('saved') is True and state(evs).get('changed') is False
               and state(evs).get('session') == {'file': 'sv2.snapx'}, str(asks(evs))[:200])
         evs = run(cmd='value.set_parameters', values={'phi': 0.7})
-        evs = run({'file': 'cp1'}, cmd='session.save_copy', file_picker=True, confirm=False)
+        evs = run({'file': 'cp1'}, cmd='session.save_copy', file_picker=True, replace=0)
         a = asks(evs)
         check('W218: Save a copy asks for a path (the file picker), writes it, and leaves the file and changed as they were',
               len(a) == 1 and a[0].get('kind') == 'file' and a[0].get('wild') == '*.snapx' and os.path.exists(snapx('cp1.snapx'))
               and state(evs).get('session') == {'file': 'sv2.snapx'} and state(evs).get('changed') is True, str(a)[:200] + str(state(evs).get('session')))
         copy_bytes = open(snapx('cp1.snapx'), 'rb').read()
-        evs = run({'file': 'cp1'}, {'key': 'n'}, cmd='session.save_copy', file_picker=True, confirm=False)
+        evs = run({'file': 'cp1'}, {'key': 'n'}, cmd='session.save_copy', file_picker=True, replace=0)
         a = asks(evs)
         check('W218: Save a copy of a file that exists asks before replacing it; declined, nothing changes',
               len(a) == 2 and a[1].get('kind') == 'choice' and saved(evs) and saved(evs)[-1].get('saved') is False
@@ -9999,7 +10098,7 @@ def check_save_recording():
         run(cmd='recording.start')
         for name in ('first.snapx', 'second.snapx'):
             run(cmd='session.save_as', file=name)
-        snd(cmd='session.save_as', file_picker=True, confirm=False)
+        snd(cmd='session.save_as', file_picker=True, replace=0)
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], file='dialog-save.snapx')
         col(is_done)
@@ -10024,7 +10123,7 @@ def check_save_recording():
             snd(cmd='answer', id=end['id'], key='d')
             col(is_done)
         run(cmd='recording.set_speed', speed=8)
-        prepared = run(cmd='session.save_as', file='dialog-save.snapx', confirm=True)
+        prepared = run(cmd='session.save_as', file='dialog-save.snapx', replace=1)
         check('W129: the replay folder already contains the native dialog destination',
               any(e.get('ev') == 'session.saved' and e.get('saved') and e.get('file') == 'dialog-save.snapx' for e in prepared), str(prepared)[-200:])
         snd(cmd='data.export', target='table', format='csv', file='browser-new.csv')

@@ -37,7 +37,7 @@ xpp::Result<std::string> front_end_command(xpp::Session &s, const xpp::command::
     if (name == "session.get_source") return session_get_source(s);
     if (name == "session.quit") return quit(s, args);
     if (name == "recording.start") return recording_start(s);
-    if (name == "recording.stop") return recording_stop(s, args.optional<std::string>("file"), args.optional<bool>("confirm").value_or(false));
+    if (name == "recording.stop") return recording_stop(s, args.optional<std::string>("file"));
     if (name == "recording.add_note") return recording_add_note(args.get<std::string>("note"));
     if (name == "recording.open") return recording_open(s, args.get<std::string>("file"), args.get<bool>("play"));
     if (name == "recording.play") return recording_control("play", std::nullopt);
@@ -46,7 +46,7 @@ xpp::Result<std::string> front_end_command(xpp::Session &s, const xpp::command::
     if (name == "recording.set_speed") return recording_control("speed", args.get<double>("speed"));
     if (name == "recording.seek") return recording_seek(s, args.get<long long>("step"), args.optional<bool>("play"));
     if (name == "recording.close") return recording_close();
-    if (name == "recording.set_step_note") return recording_set_step_note(s, args.get<long long>("step"), args.get<std::string>("note"), args.optional<bool>("confirm").value_or(false));
+    if (name == "recording.set_step_note") return recording_set_step_note(s, args.get<long long>("step"), args.get<std::string>("note"));
     if (name == "keymap.get") return keymap_get(s);
     if (name == "keymap.set") return keymap_set(s, args);
     if (name == "keymap.reset") return keymap_reset(s);

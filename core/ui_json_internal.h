@@ -213,7 +213,7 @@ void send_hello(xpp::Session &s);
 
 /* the recording's commands (json_registry.cpp calls them) */
 xpp::Result<std::string> recording_start(xpp::Session &s);
-xpp::Result<std::string> recording_stop(const xpp::Session &s, const std::optional<std::string> &file, bool confirm);
+xpp::Result<std::string> recording_stop(const xpp::Session &s, const std::optional<std::string> &file);
 xpp::Result<std::string> recording_add_note(const std::string &note);
 bool j_recording(void);                /* a recording is in progress */
 bool j_save_recording(xpp::Session &s); /* Quit's Save: the recording saved (its name asked) and ended */
@@ -250,7 +250,7 @@ void buf_recording(std::string &b);
 xpp::Result<std::string> recording_open(xpp::Session &s, const std::string &file, bool play);
 xpp::Result<std::string> recording_control(const std::string &op, std::optional<double> speed);
 xpp::Result<std::string> recording_seek(xpp::Session &s, long long step, std::optional<bool> play);
-xpp::Result<std::string> recording_set_step_note(xpp::Session &s, long long step, const std::string &note, bool confirm);
+xpp::Result<std::string> recording_set_step_note(xpp::Session &s, long long step, const std::string &note);
 xpp::Result<std::string> recording_close();
 void j_play_recording(xpp::Session &s, std::string_view path); /* File/plaY recording, Open model of a .recx */
 /* a recording playing pauses (a quit's question is the user's to answer) */

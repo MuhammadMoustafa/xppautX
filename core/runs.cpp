@@ -729,7 +729,7 @@ int do_range(xpp::AnalysisParts &s, double *x, bool two, const xpp::RunReport &r
  return *r;
 }
 
-Result<> write_equilibrium(xpp::AnalysisParts &s, const char *name, int shoot, bool confirm, const RunReport &report)
+Result<> write_equilibrium(xpp::AnalysisParts &s, const char *name, int shoot, const RunReport &report)
 {
   const int n=s.model().node;
   std::vector<double> x(s.last_ic.begin(),s.last_ic.begin()+n),er(n),em(n);
@@ -739,13 +739,13 @@ Result<> write_equilibrium(xpp::AnalysisParts &s, const char *name, int shoot, b
   if(!found)return std::unexpected(found.error());
   if(ierr!=0)return fail("equilibrium.export","Could not compute equilibrium",command_place());
   Result<> opened;
-  const std::unique_ptr<xpp::Sink> w=confirm?open_sink_replacing(*s.model().fs,name,false,&opened):open_sink_asking(*s.model().fs,name,false,&opened);
+  const std::unique_ptr<xpp::Sink> w=open_sink_asking(*s.model().fs,name,false,&opened);
   if(!opened)return opened;
-  if(!w)return fail("equilibrium.export","Output was not opened",command_place());
+  if(!w)return fail("equilibrium.export",xpp::format("\"{}\" exists and replacing it was declined: nothing was written",name),command_place());
   for(int i=0;i<n;i++)
     w->print("{:g} {:g} {:g}\n",x[i],er[i],em[i]);
   if(const auto saved=commit_save(*w);!saved)return saved;
-  if(shoot)return save_batch_shoot(s,name,confirm,report);
+  if(shoot)return save_batch_shoot(s,name,report);
   return {};
 }
   

@@ -122,7 +122,7 @@ class ClientTests(unittest.TestCase):
     def test_an_ask_is_answered_as_the_caller_says_or_refused(self):
         with Client(self.model, binary=BINARY) as x:
             x.start_events()
-            x.command('session.save_as', file='a.snapx', confirm=True)
+            x.command('session.save_as', file='a.snapx', replace=1)
             with self.assertRaises(XppError) as caught:  # the replace question, with no answer given
                 x.command('session.save_as', file='a.snapx')
             self.assertIn('asked a question', str(caught.exception))

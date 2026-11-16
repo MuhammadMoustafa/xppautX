@@ -359,7 +359,7 @@ if(!s.numerics->par_fol)
  return failure.result();
 }
 
-Result<> save_batch_shoot(AnalysisParts &s,std::string_view file,bool confirm,const RunReport &report)
+Result<> save_batch_shoot(AnalysisParts &s,std::string_view file,const RunReport &report)
 {
   if(s.manifolds->count<1)return {};
   const double olddt=s.numerics->delta_t;
@@ -379,9 +379,9 @@ Result<> save_batch_shoot(AnalysisParts &s,std::string_view file,bool confirm,co
       if(job::cancelled())return {};
       const std::string name=files::output_name(file,".dat",xpp::format("eigen{}-{}",k,unstable?"unstable":"stable"));
       Result<> opened;
-      const std::unique_ptr<Sink> writer=confirm?open_sink_replacing(*s.model().fs,name,false,&opened):open_sink_asking(*s.model().fs,name,false,&opened);
+      const std::unique_ptr<Sink> writer=open_sink_asking(*s.model().fs,name,false,&opened);
       if(!opened)return opened;
-      if(!writer)return fail("equilibrium.export",xpp::format("Manifold output {} was not opened",name),command_place());
+      if(!writer)return fail("equilibrium.export",xpp::format("\"{}\" exists and replacing it was declined: nothing was written",name),command_place());
       if(const auto saved=save_mytable_data(s,*writer);!saved)return saved;
     }
     return {};

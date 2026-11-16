@@ -635,7 +635,7 @@ xpp::Result<std::string> recording_seek(xpp::Session &s, long long step, std::op
     return xpp::format("{{\"step\":{}}}", from);
 }
 
-xpp::Result<std::string> recording_set_step_note(xpp::Session &s, long long step, const std::string &text, bool confirm)
+xpp::Result<std::string> recording_set_step_note(xpp::Session &s, long long step, const std::string &text)
 {
     if (const xpp::Result<> open = need_player(); !open) return std::unexpected(open.error());
     if (step >= static_cast<long long>(player.steps.size()))
@@ -649,7 +649,7 @@ xpp::Result<std::string> recording_set_step_note(xpp::Session &s, long long step
         return std::unexpected(file.error());
     }
     xpp::Result<> opened;
-    const std::unique_ptr<xpp::Sink> w = confirm ? xpp::open_sink_replacing(*s.model().fs, player.path, false, &opened) : xpp::open_sink_asking(*s.model().fs, player.path, false, &opened);
+    const std::unique_ptr<xpp::Sink> w = xpp::open_sink_asking(*s.model().fs, player.path, false, &opened);
     if (!opened) {
         return std::unexpected(opened.error());
     }

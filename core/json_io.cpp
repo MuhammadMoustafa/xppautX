@@ -3,6 +3,7 @@
    lines that come in, from the inbox; and a small reader for the flat
    JSON objects they are. */
 #include "ui_json_internal.h"
+#include "command_def.h"
 #include "xpp_log.h"
 #include <algorithm>
 #include <cctype>
@@ -251,7 +252,7 @@ double js_num(const char *v, double def)
 
 xpp::Result<> read_save_replace(const char *line, int &decision)
 {
-    const char *permission = js_find(line, "replace");
+    const char *permission = js_find(line, xpp::command::REPLACE_KEY);
     if (!permission) return {};
     double replace;
     if (!js_number(permission, &replace) ||

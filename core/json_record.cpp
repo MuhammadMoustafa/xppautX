@@ -187,8 +187,8 @@ struct Saved {
 
 /* name.recx (asked for when name is empty, as the other File saves are), and the recording ends; nothing when a
    question is cancelled or declined, which keeps it going. from_menu: File/recorD or File/Quit, whose opening
-   of the File menu is no step. confirm: replace an existing file without asking. */
-xpp::Result<std::optional<Saved>> stop(const xpp::Session &s, const std::string &name, bool confirm = false)
+   of the File menu is no step. */
+xpp::Result<std::optional<Saved>> stop(const xpp::Session &s, const std::string &name)
 {
     if (!recorder.rec) return xpp::fail("recording", "Not recording", xpp::command_place());
     recorder.step.open = false; /* this command is no step */
@@ -203,7 +203,7 @@ xpp::Result<std::optional<Saved>> stop(const xpp::Session &s, const std::string 
     const xpp::Result<std::string> text = recx::text(*recorder.rec);
     if (!text) return std::unexpected(text.error());
     xpp::Result<> opened;
-    const std::unique_ptr<xpp::Sink> w = confirm ? open_sink_replacing(*s.model().fs, file, false, &opened) : open_sink_asking(*s.model().fs, file, false, &opened);
+    const std::unique_ptr<xpp::Sink> w = open_sink_asking(*s.model().fs, file, false, &opened);
     if (!opened) return std::unexpected(opened.error());
     if (!w) return std::nullopt;
     if (const xpp::Result<> written = w->write(*text); !written) {
@@ -235,9 +235,9 @@ xpp::Result<std::string> recording_start(xpp::Session &s)
     return std::string("{\"recording\":true}");
 }
 
-xpp::Result<std::string> recording_stop(const xpp::Session &s, const std::optional<std::string> &file, bool confirm)
+xpp::Result<std::string> recording_stop(const xpp::Session &s, const std::optional<std::string> &file)
 {
-    const xpp::Result<std::optional<Saved>> saved = stop(s, file.value_or(""), confirm);
+    const xpp::Result<std::optional<Saved>> saved = stop(s, file.value_or(""));
     if (!saved) return std::unexpected(saved.error());
     if (!*saved) return xpp::fail("recording.stop", "The recording was not saved: the question was cancelled or declined, and the recording goes on", xpp::command_place());
     std::string out = "{\"file\":";

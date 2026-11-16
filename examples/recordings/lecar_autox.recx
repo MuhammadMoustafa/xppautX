@@ -204,6 +204,6 @@ fun ode_divisor(value) = if value then value else 2.23e-15
 {"step":"autoX → Run → Equilibrium","cmd":{"cmd": "autox.run", "kind": "equilibrium", "replace_diagram": false, "follow_all_branches": false}}
 {"step":"autoX → Grab","cmd":{"cmd": "autox.grab", "type": "hopf", "index": 1}}
 {"step":"autoX → Run → Periodic","cmd":{"cmd": "autox.run", "kind": "periodic", "type": "hopf", "index": 1, "follow_all_branches": false}}
-{"step":"File → Save session as","cmd":{"cmd":"session.save_as","file":"lecar.snapx","confirm":true}}
+{"step":"File → Save session as","cmd":{"cmd":"session.save_as","file":"lecar.snapx","replace":1}}
 
-fingerprint: f79c0c50f226f209258b2346a782991053aa9635f77d2d5fbc85e8e77c24427e
+fingerprint: 650daf2f674d3e539258a59931f0a41a6f9a958c732fcb74e7c6728bbd249514
