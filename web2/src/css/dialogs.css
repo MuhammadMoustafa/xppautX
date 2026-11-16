@@ -222,7 +222,10 @@
 .keymap-dialog { width: min(60rem, 100%); }
 .keymap-live { min-height: 1.5em; margin: var(--space-2) 0; font-size: var(--text-sm); color: var(--fg-muted); }
 .keymap-conflict { margin: var(--space-2) 0; padding: var(--space-2); background: var(--warn-bg); border-radius: var(--radius); }
-.keymap-scroll { max-height: 55vh; overflow: auto; }
+/* the list takes the body's remaining height (a phone's full-screen sheet, a dialog that fills the window): the body is a column, and the list
+   scrolls in what the tools and notes above it leave (W785, #865) */
+.keymap-dialog .dialog-body { display: flex; flex-direction: column; }
+.keymap-dialog .dialog-body > .keymap-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .keymap-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .keymap-table th, .keymap-table td { text-align: left; padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); vertical-align: middle; }
 .keymap-key { display: inline-flex; align-items: center; }

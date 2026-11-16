@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only popout,options,fieldhelp,dock,viewtabs,splitview,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
+     [--only popout,options,fieldhelp,dock,viewtabs,splitview,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,keymapshots,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -5112,6 +5112,58 @@ async function keymapEditorCheck() {
   await until('!s.ask && !s.busy', 'the question cancelled again');
 }
 
+/* W785 (#865): the editor's list takes the dialog body's remaining height at each width of docs/ui-v2.md's R3 (a phone's full-screen
+   sheet below 48rem, a dialog above it): its bottom is the body's content bottom, the list scrolled to its end shows the last row
+   whole, and the dialog stays inside the viewport. Data only: the rectangles of the page's own elements. */
+async function keymapFitCheck() {
+  for (const [width, height] of [[375, 812], [768, 1024], [1280, 860]]) {
+    await metrics({width, height, deviceScaleFactor: 1, mobile: width < 500});
+    await clickRegistry('keymap.edit');
+    await until('s.keymap.editor.open && document.querySelectorAll("[data-keymap-row]").length > 0', `the editor at ${width}`);
+    const fit = await cdp.eval(`(() => {
+      const d = document.querySelector('[data-keymap-editor]'), body = d.querySelector('.dialog-body'), list = d.querySelector('.keymap-scroll');
+      const rows = list.querySelectorAll('tbody tr'), last = rows[rows.length - 1];
+      list.scrollTop = list.scrollHeight;
+      const bodyBox = body.getBoundingClientRect(), listBox = list.getBoundingClientRect(), lastBox = last.getBoundingClientRect();
+      const contentBottom = bodyBox.bottom - parseFloat(getComputedStyle(body).paddingBottom);
+      return {listBottom: listBox.bottom, contentBottom, lastTop: lastBox.top, lastBottom: lastBox.bottom, listTop: listBox.top,
+        dialogBottom: d.getBoundingClientRect().bottom, viewport: innerHeight};
+    })()`);
+    const fills = Math.abs(fit.listBottom - fit.contentBottom) <= 1;
+    const lastWhole = fit.lastBottom <= fit.listBottom + 0.5 && fit.lastTop >= fit.listTop - 0.5;
+    const inside = fit.dialogBottom <= fit.viewport + 0.5;
+    check(`W785: at ${width} the keymap list ends at the dialog body's bottom`, fills, JSON.stringify(fit));
+    check(`W785: at ${width} the last row of the keymap list is whole, not cut by the dialog`, lastWhole && inside, JSON.stringify(fit));
+    await key('Escape');
+    await until('!s.keymap.editor.open', 'editor closed');
+  }
+  await desktopMetrics();
+}
+
+/* The keymap editor's pictures for the UI review (W785; with --only keymapshots and XPP_SHOTS=folder): the dialog at 375, 768 and
+   1280 wide, light and dark. Never a check: it writes files only. */
+async function keymapEditorShots() {
+  const dir = process.env.XPP_SHOTS;
+  if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(dir, {recursive: true});
+  await until('s.hello && !s.busy', 'hello');
+  for (const [width, height] of [[375, 812], [768, 1024], [1280, 860]]) {
+    for (const scheme of ['light', 'dark']) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+      await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+      await clickRegistry('keymap.edit');
+      await until('s.keymap.editor.open', 'the editor');
+      await rendered();
+      const shot = await cdp.send('Page.captureScreenshot', {format: 'png'});
+      fs.writeFileSync(path.join(dir, `keymap-${width}-${scheme}.png`), Buffer.from(shot.data, 'base64'));
+      await key('Escape');
+      await until('!s.keymap.editor.open', 'editor closed');
+    }
+  }
+  await cdp.send('Emulation.setEmulatedMedia', {features: []}).catch(() => {});
+  await desktopMetrics();
+}
+
 
 async function keysCheck() {
   await desktopMetrics();
@@ -8049,7 +8101,7 @@ async function main() {
       await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     }
     /* every section name run() is asked about: an --only that names none of them ran nothing, which is a failure, never "all passed" */
-    const asked = new Set(['shots', 'popoutshots', 'splitshots']);
+    const asked = new Set(['shots', 'popoutshots', 'splitshots', 'keymapshots']);
     const run = name => { asked.add(name); return !opt.only || opt.only.split(',').includes(name); };
     if (run('desktop')) await session(ODE, async (dir) => {
       await desktop(want);
@@ -8110,6 +8162,8 @@ async function main() {
     if (run('keys')) await session(ODE, keysCheck);
     if (run('keymap')) await session(ODE, keymapCheck);
     if (run('keymapeditor')) await session(ODE, keymapEditorCheck);
+    if (run('keymapeditor')) await session(ODE, keymapFitCheck);
+    if (opt.only && opt.only.split(',').includes('keymapshots')) await session(ODE, keymapEditorShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('record')) await session(ODE, recordCheck);
     if (run('player')) await session(ODE, playerCheck);
     if (run('leave')) await session(ODE, leaveCheck);
