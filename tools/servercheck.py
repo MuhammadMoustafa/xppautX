@@ -2852,10 +2852,13 @@ def check_kinescope_animation_array_plot():
         for refused in [{'cmd': 'array_plot.scroll', 'first_row': -1}, {'cmd': 'array_plot.scroll'}, {'cmd': 'array_plot.scroll', 'first_row': 1.5},
                         {'cmd': 'array_plot.scroll', 'first_row': 2147483647}]:
             req(refused, False)
-        result, evs, _ = req({'cmd': 'array_plot.export', 'format': 'pdf', 'file': 'w527_ap.pdf', 'top_label': 'top', 'side_label': 'side', 'bottom_label': 'bottom'})
+        result, evs, _ = req({'cmd': 'array_plot.configure', 'top_label': 'top', 'side_label': 'side', 'bottom_label': 'bottom'})
+        check('W779: array_plot.configure takes the three labels and sets them alone', result == {'configured': True}, str(result))
+        result, evs, _ = req({'cmd': 'array_plot.export', 'format': 'pdf', 'file': 'w527_ap.pdf'})
         check('W527: array_plot.export format pdf writes the picture', result == {'file': 'w527_ap.pdf'} and head('w527_ap.pdf', 4) == b'%PDF', str(result))
-        req({'cmd': 'array_plot.export', 'format': 'gif', 'file': 'w527_apl.gif', 'top_label': 'top'}, False)
-        check('W527: array_plot.export format gif refuses a label, naming it, and writes nothing', not exists('w527_apl.gif'))
+        _, _, error = req({'cmd': 'array_plot.export', 'format': 'gif', 'file': 'w527_apl.gif', 'top_label': 'top'}, False)
+        check('W779: array_plot.export takes no label: format gif refuses top_label, naming it, and writes nothing',
+              'top_label' in error and not exists('w527_apl.gif'), error)
         result, evs, _ = req({'cmd': 'array_plot.export', 'format': 'gif', 'file': 'w527_ap.gif'})
         check('W527: array_plot.export format gif asks the picture and writes it', result.get('file') == 'w527_ap.gif'
               and result.get('bytes_written') == os.path.getsize(os.path.join(run_dir, 'w527_ap.gif')) > 20 and head('w527_ap.gif', 6) [:4] == b'GIF8', str(result))
@@ -3058,18 +3061,24 @@ def check_atomic_commands():
         for command in (
             dict(cmd='plot.export',format='pdf', file='blocked.pdf'),
             dict(cmd='plot.export',format='svg', file='blocked.svg'),
-            dict(cmd='array_plot.export', format='pdf', top_label='must not remain', file='blocked.pdf'),
         ):
             suffix = '.svg' if command.get('format') == 'svg' else '.pdf'
             before_file = 'before-' + command['cmd'] + suffix
             after_file = 'after-' + command['cmd'] + suffix
-            same = {'format': command['format']} if 'format' in command else {}
-            baseline = same or dict(top_label='original top', side_label='original side', bottom_label='original bottom')
-            call(cmd=command['cmd'], file=before_file, **baseline)
+            same = {'format': command['format']}
+            call(cmd=command['cmd'], file=before_file, **same)
             refused(command)
             call(cmd=command['cmd'], file=after_file, **same)
             with open(os.path.join(folder, before_file), 'rb') as before, open(os.path.join(folder, after_file), 'rb') as after:
                 check('W534: %s keeps export settings for the next file' % command['cmd'], before.read() == after.read())
+        # W779: the labels are settings: a configure refused as a whole leaves them, and the export that follows keeps them
+        call(cmd='array_plot.configure', top_label='original top', side_label='original side', bottom_label='original bottom')
+        call(cmd='array_plot.export', format='pdf', file='before-array_plot.pdf')
+        refused(dict(cmd='array_plot.configure', top_label='must not remain', z_min=2))
+        refused(dict(cmd='array_plot.export', format='pdf', file='blocked.pdf'))
+        call(cmd='array_plot.export', format='pdf', file='after-array_plot.pdf')
+        with open(os.path.join(folder, 'before-array_plot.pdf'), 'rb') as before, open(os.path.join(folder, 'after-array_plot.pdf'), 'rb') as after:
+            check('W779: a refused array_plot.configure keeps the labels for the next picture', before.read() == after.read())
         call(cmd='autox.open')
         call(cmd='autox.new_view')
         refused(dict(cmd='autox.set_display', view='diagram_1', x_range=[0, 1], y_range=[1, 0]))
@@ -7419,9 +7428,11 @@ def check_output_names():
               open(os.path.join(r, 'result.dat.1'), 'rb').read() == b'keep frozen')
         snd(cmd='plot.set_variables', how='array_plot', names=['V', 'W'])
         col(is_done)
-        row=next(c for c in h['commands'] if c['cmd'] == 'array_plot.export')
-        check('W492: array PDF labels are registry text fields, with no render type',
-              [a['name'] for a in row['arguments'] if a['type'] == 'text'] == ['top_label','side_label','bottom_label'] and not any(a['name'] == 'render' for a in row['arguments']))
+        row=next(c for c in h['commands'] if c['cmd'] == 'array_plot.configure')
+        exported=next(c for c in h['commands'] if c['cmd'] == 'array_plot.export')
+        check('W492: array PDF labels are registry text fields of array_plot.configure, with no render type; the export takes none (W779)',
+              [a['name'] for a in row['arguments'] if a['type'] == 'text'] == ['top_label','side_label','bottom_label'] and not any(a['name'] == 'render' for a in row['arguments'])
+              and not any(a['type'] == 'text' for a in exported['arguments']))
         snd(cmd='window.close', window='array_plot_1')
         col(is_done)
         # A long valid name is retained, while traversal/device names report an error.

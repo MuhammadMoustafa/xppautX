@@ -173,7 +173,10 @@
         "array_plot.rows": {"type": "integer", "minimum": 1, "maximum": 4096, "title": "Array plot rows", "description": "How many rows the array plot shows."},
         "array_plot.row_skip": {"type": "integer", "title": "Array plot row skip", "description": "The array plot shows every this many rows of the stored data."},
         "array_plot.z_min": {"type": "number", "title": "Array plot z min", "description": "The value the array plot gives the first color."},
-        "array_plot.z_max": {"type": "number", "title": "Array plot z max", "description": "The value the array plot gives the last color."}
+        "array_plot.z_max": {"type": "number", "title": "Array plot z max", "description": "The value the array plot gives the last color."},
+        "array_plot.top_label": {"type": "string", "title": "Array plot top label", "description": "The text above the array plot's PDF picture."},
+        "array_plot.side_label": {"type": "string", "title": "Array plot side label", "description": "The text beside the array plot's PDF picture, running up its side."},
+        "array_plot.bottom_label": {"type": "string", "title": "Array plot bottom label", "description": "The text under the array plot's PDF picture."}
       }
     },
     "analysis": {

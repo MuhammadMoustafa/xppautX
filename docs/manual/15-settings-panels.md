@@ -196,6 +196,9 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 - **Row skip** (`array_plot.row_skip`): The array plot shows every this many rows of the stored data.
 - **Z min** (`array_plot.z_min`): The value the array plot gives the first color.
 - **Z max** (`array_plot.z_max`): The value the array plot gives the last color.
+- **Top label** (`array_plot.top_label`): The text above the array plot's PDF picture.
+- **Side label** (`array_plot.side_label`): The text beside the array plot's PDF picture, running up its side.
+- **Bottom label** (`array_plot.bottom_label`): The text under the array plot's PDF picture.
 
 ## Analysis
 

@@ -1242,11 +1242,16 @@ async function aplotView() {
   check('the Windows menu\'s Open array plot opens the panel and the core\'s array plot window',
     await until('s.aplot.open && s.aplot.windowOpen', 'aplot window'));
   check('Array plot opens its registry argument form', await until(`s.commandForm?.id === 'array_plot.configure'`, 'array configuration'));
-  await formValues({first_column:'U0', columns:20, first_row:0, rows:10, row_skip:1, auto_redraw:false, column_skip:1});
+  /* W779: the three labels are fields of this form (the settings, not the export's arguments): set them here */
+  check('W779: the form holds the three labels as text fields',
+    await cdp.eval(`['top_label', 'side_label', 'bottom_label'].every(name => document.querySelector('.registry-form .registry-argument[data-argument="' + name + '"] input'))`));
+  await formValues({first_column:'U0', columns:20, first_row:0, rows:10, row_skip:1, auto_redraw:false, column_skip:1, top_label:'Ring', side_label:'Neuron', bottom_label:'Time'});
   await submitCommand();
   check('Edit sends the array plot: 20 columns (u0..u19), 10 rows',
     await until('!s.busy && s.aplot.event && s.aplot.event.nx === 20 && s.aplot.event.ny === 10', 'edited'),
     JSON.stringify(await S('s.aplot.event && [s.aplot.event.nx, s.aplot.event.ny, s.aplot.event.title]')));
+  check('W779: Edit sends the three labels with array_plot.configure',
+    await cdp.eval(`__xpp.sent().some(c => c.cmd === 'array_plot.configure' && c.top_label === 'Ring' && c.side_label === 'Neuron' && c.bottom_label === 'Time')`));
 
   /* the store's cells equal the event's values (ACCEPTANCE) */
   check('the store decodes `values` into its own cells, in the event\'s order',

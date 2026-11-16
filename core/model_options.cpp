@@ -852,6 +852,13 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.array_plot->plot.zmin; }), .saved = true, .wide = true},
   {.group = option_group::plot, .kind = OptionKind::number, .odex = "array_plot.z_max", .help = "The value the array plot gives the last color.",
    .real = member([](auto &s) -> auto & { return s.array_plot->plot.zmax; }), .saved = true, .wide = true},
+  /* a label may be empty, which a session file leaves out (an empty string is no .odex value) */
+  {.group = option_group::plot, .kind = OptionKind::text, .odex = "array_plot.top_label", .help = "The text above the array plot's PDF picture.",
+   .text = member([](auto &s) -> auto & { return s.array_plot->plot.xtitle; }), .saved = true, .optional = true, .wide = true},
+  {.group = option_group::plot, .kind = OptionKind::text, .odex = "array_plot.side_label", .help = "The text beside the array plot's PDF picture, running up its side.",
+   .text = member([](auto &s) -> auto & { return s.array_plot->plot.ytitle; }), .saved = true, .optional = true, .wide = true},
+  {.group = option_group::plot, .kind = OptionKind::text, .odex = "array_plot.bottom_label", .help = "The text under the array plot's PDF picture.",
+   .text = member([](auto &s) -> auto & { return s.array_plot->plot.bottom; }), .saved = true, .optional = true, .wide = true},
   {.group = option_group::analysis, .kind = OptionKind::text, .odex = "coupling", .help = "The coupling of the H function, one `variable = formula` for each differential equation.",
    .show = [](const SessionParts &s) {
      std::string lines;

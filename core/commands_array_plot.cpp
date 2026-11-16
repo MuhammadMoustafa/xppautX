@@ -32,9 +32,8 @@ namespace {
    at most this many cells (about the 1000 by 1000 of a large field), and none past the largest row number */
 constexpr long long MAX_ARRAY_CELLS = 1000000;
 
-/* the formats array_plot.export writes: a PDF picture, or the window as a GIF; the labels only the PDF takes */
+/* the formats array_plot.export writes: a PDF picture, or the window as a GIF */
 constexpr std::array<std::string_view, 2> aplot_format_names{"pdf", "gif"};
-constexpr std::array<const char *, 3> LABEL_KEYS = {"top_label", "side_label", "bottom_label"};
 
 Result<> shown_cells_fit(const Command &command, long long columns, long long rows, long long last_row, const Place &place)
 {
@@ -92,6 +91,9 @@ Result<std::string> configure(Session &s, const Command &command, const Argument
     ap.ndown = static_cast<int>(rows);
     ap.nskip = static_cast<int>(row_skip);
     ap.ncskip = static_cast<int>(column_skip);
+    ap.xtitle = args.optional<std::string>("top_label").value_or(ap.xtitle);
+    ap.ytitle = args.optional<std::string>("side_label").value_or(ap.ytitle);
+    ap.bottom = args.optional<std::string>("bottom_label").value_or(ap.bottom);
     s.array_plot->auto_redraw = args.optional<bool>("auto_redraw").value_or(s.array_plot->auto_redraw != 0) ? 1 : 0;
     ap.plotdef = 1;
     ui.aplot_reset_axes(s);
@@ -123,15 +125,10 @@ Result<std::string> range(Session &s, const Command &command, const Arguments &a
     return ResultObject().integer("steps_completed", done.runs).done();
 }
 
-Result<std::string> export_pdf(Session &s, const Command &command, const Arguments &args, const Place &place)
+Result<std::string> export_pdf(Session &s, const Command &command, const std::string &file, const Place &place)
 {
     if (const Result<> ready = aplot_ready(s, command.name); !ready) return std::unexpected<Error>(ready.error());
-    APLOT ap = s.array_plot->plot;
-    ap.xtitle = args.optional<std::string>("top_label").value_or(ap.xtitle);
-    ap.ytitle = args.optional<std::string>("side_label").value_or(ap.ytitle);
-    ap.bottom = args.optional<std::string>("bottom_label").value_or(ap.bottom);
-    const std::string &file = args.get<std::string>("file");
-    const Result<bool> written = write_aplot_pdf(s, file, &ap);
+    const Result<bool> written = write_aplot_pdf(s, file);
     if (!written) return std::unexpected<Error>(written.error());
     if (!*written) return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), place);
     return ResultObject().text("file", file).done();
@@ -148,16 +145,12 @@ Result<std::string> export_gif(Session &s, const Command &command, const std::st
     return ResultObject().text("file", file).integer("bytes_written", static_cast<long long>(*size)).done();
 }
 
-/* array_plot.export: the PDF takes the three labels; the GIF is the window's picture as it shows, so it takes none */
+/* array_plot.export: the PDF picture with the labels the settings hold, or the GIF of the window as it shows */
 Result<std::string> export_picture(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     const std::string &file = args.get<std::string>("file");
-    if (args.get<std::string>("format") == "gif") {
-        for (const char *label : LABEL_KEYS)
-            if (args.has(label)) return fail(command.name, xpp::format("{}: the labels are for format=pdf; the GIF is the window's picture as it shows", label), place);
-        return export_gif(s, command, file, place);
-    }
-    return export_pdf(s, command, args, place);
+    if (args.get<std::string>("format") == "gif") return export_gif(s, command, file, place);
+    return export_pdf(s, command, file, place);
 }
 
 Result<std::string> scroll(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -180,12 +173,12 @@ constexpr std::array CONFIGURE_ARGUMENTS = {
     Argument{"row_skip", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_INT)},
     Argument{"z_min", Type::real, false}, Argument{"z_max", Type::real, false},
     Argument{"auto_redraw", Type::boolean, false},
-    Argument{"column_skip", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_INT)}};
+    Argument{"column_skip", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_INT)},
+    Argument{"top_label", Type::text, false}, Argument{"side_label", Type::text, false}, Argument{"bottom_label", Type::text, false}};
 constexpr std::array RANGE_OWN_ARGUMENTS = {Argument{"still", Type::boolean, false}, Argument{"tag", Type::boolean, false}, Argument{"file", Type::file, true}};
 constexpr auto RANGE_ALL_ARGUMENTS = join(RANGE_OWN_ARGUMENTS, RUN_RANGE_ARGUMENTS);
 constexpr auto FORMAT_CHOICES = c_names(aplot_format_names);
-constexpr std::array EXPORT_ARGUMENTS = {Argument{"format", Type::choice, true, MAX_TEXT_BYTES, FORMAT_CHOICES}, Argument{"file", Type::file, true},
-                                         Argument{"top_label", Type::text, false}, Argument{"side_label", Type::text, false}, Argument{"bottom_label", Type::text, false}};
+constexpr std::array EXPORT_ARGUMENTS = {Argument{"format", Type::choice, true, MAX_TEXT_BYTES, FORMAT_CHOICES}, Argument{"file", Type::file, true}};
 constexpr std::array SCROLL_ARGUMENTS = {Argument{"first_row", Type::integer, true, MAX_TEXT_BYTES, {}, constant(0), constant(MAX_INT)}};
 constexpr std::array OPEN_RESULTS = {ResultField{"open", "boolean"}};
 constexpr std::array REDRAW_RESULTS = {ResultField{"redrawn", "boolean"}};
@@ -206,7 +199,7 @@ constexpr std::array ROWS = {
     Command{"array_plot.redraw", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Redraw array plot", "",
             "Draw the array plot again from the stored data.", REDRAW_RESULTS, APLOT_EVENTS, true, redraw, {}, {}},
     Command{"array_plot.configure", CONFIGURE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Array plot settings", "",
-            "Set the columns and rows the array plot shows and the ends of its color scale (z_min below z_max); what is left out stays.",
+            "Set the columns and rows the array plot shows, the ends of its color scale (z_min below z_max) and its three labels (the top, side and bottom text of its PDF); what is left out stays.",
             CONFIGURE_RESULTS, APLOT_EVENTS, true, configure, {}, {}},
     Command{"array_plot.fit", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Fit array plot", "",
             "Set the color scale's ends to the smallest and largest value shown.", FIT_RESULTS, APLOT_EVENTS, true, fit, {}, {}},
@@ -214,7 +207,7 @@ constexpr std::array ROWS = {
             "Run once for each value of a parameter or variable as run.range does, saving the array plot as GIF files of the model's folder: one movie, or with still one picture per run; tag writes the swept value on each.",
             RANGE_RESULTS, RANGE_EVENTS, true, range, {}, {}},
     Command{"array_plot.export", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Array plot as", "File/Export",
-            "Write the array plot into a file of the model's folder: format pdf (a PDF picture; the labels left out are the last ones) or gif (the picture as the window shows it).",
+            "Write the array plot into a file of the model's folder: format pdf (a PDF picture with the labels the settings hold) or gif (the picture as the window shows it).",
             EXPORT_RESULTS, DONE_EVENTS, true, export_picture, {}, {}, "write", "*", "", "", Feature::none, "format"},
     Command{"array_plot.scroll", SCROLL_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Scroll array plot", "",
             "Show the array plot from the stored row first_row on (row 0 is the first).", SCROLL_RESULTS, APLOT_EVENTS, true, scroll, {}, {}}};

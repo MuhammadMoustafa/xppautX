@@ -620,6 +620,23 @@ TEST_CASE("test_options")
         if (got != want) printf("  .set %s: %s, not %s\n", std::string(id(r)).c_str(), got.c_str(), want.c_str());
     }
 
+    /* W779: the array plot's labels are saved text settings; an empty one is left out of a session file and reads back empty */
+    for (const char *name : {"plot.array_plot.top_label", "plot.array_plot.side_label", "plot.array_plot.bottom_label"}) {
+        const xpp::OptionRow *label = xpp::saved_setting(name);
+        CHECK(label && label->kind == xpp::OptionKind::text && label->optional);
+    }
+    s->array_plot->plot.xtitle = "top text";
+    s->array_plot->plot.bottom = "";
+    const xpp::Result<std::string> labelled = xpp::settings_text(*s, xpp::capture_settings(*s, xpp::SettingsUse::session));
+    CHECK(labelled.has_value() && labelled->find("\"top text\"") != std::string::npos && labelled->find("array_plot.bottom_label") == std::string::npos);
+    if (labelled) {
+        s->array_plot->plot.xtitle = "";
+        const xpp::Result<xpp::Settings> read_back = settings_text::read(*s, set_file, *labelled);
+        CHECK(read_back.has_value());
+        if (read_back) xpp::apply_settings(*s, *read_back, false);
+        CHECK(s->array_plot->plot.xtitle == "top text" && s->array_plot->plot.bottom.empty());
+    }
+
     /* a model with no options: every option of the Session its default
        again */
     s = load(plain_ode);

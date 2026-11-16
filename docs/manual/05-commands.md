@@ -563,8 +563,9 @@ animation. The recording player's Speed buttons set the recording's speed.
   and its run happens if the animation file says so. The page sends it when the pointer is released.
   Close the window with `window.hide` or `window.close`.
 - `array_plot.open`, `array_plot.redraw`, `array_plot.configure` (`first_column`, `columns`,
-  `first_row`, `rows`, `row_skip`, `z_min` below `z_max`, `auto_redraw`, `column_skip`),
+  `first_row`, `rows`, `row_skip`, `z_min` below `z_max`, `auto_redraw`, `column_skip`, and the three labels
+  `top_label`, `side_label`, `bottom_label`, which are the array plot's settings and the PDF's text),
   `array_plot.fit`, `array_plot.scroll` (`first_row`: the page's drag, wheel and arrow keys),
-  `array_plot.export` (`format`: `pdf` with `file` and the three labels, or `gif` with `file`, which takes no labels:
+  `array_plot.export` (`format`: `pdf` with `file`, the PDF picture with the labels the settings hold, or `gif` with `file`:
   the GIF is the window's picture as it shows; File > Export > **Array plot as**, and the array plot's Export menu),
   and `array_plot.range` (`still`, `tag`, `file` and the arguments of `run.range`).
