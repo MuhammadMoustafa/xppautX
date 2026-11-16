@@ -34,12 +34,12 @@ export function frameBox(cw: number, ch: number, dim: readonly number[]): Box {
   return fitBox(cw, ch, aspectOf(dim), 8);
 }
 
-function paint(c: AniColor, dark: boolean): string {
-  return cssColor(c, dark);
+function paint(c: AniColor): string {
+  return cssColor(c);
 }
 
 /** draws `frame` (or only the empty box without one) on `canvas`, sized to cw x ch CSS pixels */
-export function drawAniFrame(canvas: HTMLCanvasElement, cw: number, ch: number, frame: AniFrame | null, dark: boolean,
+export function drawAniFrame(canvas: HTMLCanvasElement, cw: number, ch: number, frame: AniFrame | null,
   surface: string): void {
   const dpr = window.devicePixelRatio || 1;
   const pw = Math.max(1, Math.round(cw * dpr)), ph = Math.max(1, Math.round(ch * dpr));
@@ -63,7 +63,7 @@ export function drawAniFrame(canvas: HTMLCanvasElement, cw: number, ch: number, 
   g.lineCap = 'round';
   g.lineJoin = 'round';
   for (const p of frame.prims) {
-    const col = paint(p.color, dark);
+    const col = paint(p.color);
     g.strokeStyle = col;
     g.fillStyle = col;
     g.setLineDash('dash' in p ? dashPattern({draw: 'line', dash: p.dash, width: p.width * s,

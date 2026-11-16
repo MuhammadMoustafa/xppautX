@@ -58,7 +58,6 @@ export interface ControlProps {
   label: string;
   id?: string;
   disabled?: boolean;
-  dark: boolean;
   /** the dropdown's and the segmented control's names that cannot be chosen, with why (a method the model cannot use) */
   unavailable?: Record<string, string>;
   /** a dropdown's names shown as they are, not as a choice's words (the model's names) */
@@ -72,7 +71,7 @@ export interface ControlProps {
   placeholder?: string;
 }
 
-export function Control({spec, value, onChange, onBlur, label, id, disabled, dark, unavailable = {}, verbatim, invalid, file, onDropFile, placeholder}: ControlProps) {
+export function Control({spec, value, onChange, onBlur, label, id, disabled, unavailable = {}, verbatim, invalid, file, onDropFile, placeholder}: ControlProps) {
   const kind = file ? 'file' : controlOf(spec);
   if (kind === 'switch') {
     return <label class="switch"><input id={id} type="checkbox" role="switch" checked={value === 'true'} disabled={disabled} aria-label={label}
@@ -101,7 +100,7 @@ export function Control({spec, value, onChange, onBlur, label, id, disabled, dar
         onChange={e => onChange(spec.choices.filter(n => n === name ? e.currentTarget.checked : checked.includes(n)).join('\n'))} /><span>{name}</span></label>)}
     </div>;
   }
-  if (kind === 'color') return <ColorField value={value} dark={dark} label={label} onChange={onChange} />;
+  if (kind === 'color') return <ColorField value={value} label={label} onChange={onChange} />;
   if (kind === 'file') {
     /* the one file control (every file argument and every file option row): a name in the model's folder, typed or filled by a dropped file */
     return <span class="input-box file-box" onDragOver={onDropFile ? e => e.preventDefault() : undefined}

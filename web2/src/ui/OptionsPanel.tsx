@@ -10,7 +10,6 @@ import {choiceLabel, ruleMessage, specOfOption} from '../store/fieldKinds';
 import {Control, FormRow, focusFirstError, useFeedback, type Feedback} from './FormFields';
 import {useSession, useStore} from './context';
 import {Dialog} from './Dialog';
-import {useDark} from './theme';
 import {featureLack} from './navigation';
 
 /** the one registry command that holds a group's settings; the output group's has the file dialog's picker besides (core commands_options.cpp) */
@@ -35,7 +34,6 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
   const session = useSession();
   const stored = useStore(s => s.optionValues[group.group]);
   const lists = useStore(s => s.hello?.lists ?? []);
-  const dark = useDark(useStore(s => s.theme));
   const made = useFeedback();
   const feedback = own ?? made;
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -74,7 +72,7 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
     const help = <>{row.help}{shownDefault ? ` Default: ${shownDefault}.` : ''}{used(row) || values === null ? '' : ' Not used by this method or model.'}</>;
     const notes = Object.entries(unavailable[row.key] ?? {}).map(([name, why]) => <span key={name} class="unavailable-note" data-unavailable={name}>{choiceLabel(name)} is not available: {why}</span>);
     return <FormRow key={row.key} name={row.key} label={row.label} help={help} notes={notes.length ? notes : null} error={error}>
-      <Control spec={spec} value={value} label={row.label} dark={dark} disabled={disabled} unavailable={unavailable[row.key]} verbatim={row.kind === 'name'} invalid={!!error}
+      <Control spec={spec} value={value} label={row.label} disabled={disabled} unavailable={unavailable[row.key]} verbatim={row.kind === 'name'} invalid={!!error}
         file={row.kind === 'path'} onDropFile={row.kind === 'path' ? async f => { const name = await session.uploadArgument(f); if (name) set(name); } : undefined}
         onChange={set} onBlur={() => feedback.touch(row.key)} />
     </FormRow>;

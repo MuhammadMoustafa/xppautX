@@ -102,7 +102,7 @@ function drawAxisTitles(g: CanvasRenderingContext2D, f: Frame, model: Model3D, c
     cw x ch CSS pixels; returns what it drew, for a test (null with no
     model). `axisColor` is the wireframe's stroke, a muted foreground. */
 export function draw3d(
-  canvas: HTMLCanvasElement, cw: number, ch: number, model: Model3D | null, theta: number, phi: number, dark: boolean,
+  canvas: HTMLCanvasElement, cw: number, ch: number, model: Model3D | null, theta: number, phi: number,
   axisColor: string,
 ): Draw3DInfo | null {
   const dpr = window.devicePixelRatio || 1;
@@ -131,7 +131,7 @@ export function draw3d(
   g.lineJoin = 'round';
   for (const c of model.curves) {
     if (c.visible === false) continue;
-    g.strokeStyle = c.cssColor ?? cssColor(c.color, dark);
+    g.strokeStyle = c.cssColor ?? cssColor(c.color);
     g.fillStyle = g.strokeStyle;
     if (drawsLine(c.style)) {
       g.lineWidth = c.highlighted ? Math.max(3.5, c.style.width + 2) : c.style.width;

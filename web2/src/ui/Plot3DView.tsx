@@ -110,7 +110,7 @@ export function Plot3DView({win, dark, shown, focused, group, tabbed, windowRow}
   useEffect(() => {
     if (!shown || !chart.current || !view3d) return;
     const axis = cssVar('--fg-muted');
-    chart.current.set(model, view3d.theta, view3d.phi, dark, axis);
+    chart.current.set(model, view3d.theta, view3d.phi, axis);
   }, [model, view3d, dark, shown]);
 
   const rotate = (theta: number, phi: number) => session.rotate3d(win, theta, phi);
@@ -161,7 +161,7 @@ export function Plot3DView({win, dark, shown, focused, group, tabbed, windowRow}
               onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}
               onClick={() => setAppearance(a => ({...a, [traceKeys[i]]: {...a[traceKeys[i]], visible: c.visible === false}}))}
               onDblClick={() => setEditing(i)}>
-              <span class="swatch" style={{background: c.cssColor ?? cssColor(c.color, dark)}} aria-hidden="true" />
+              <span class="swatch" style={{background: c.cssColor ?? cssColor(c.color)}} aria-hidden="true" />
               <ShownName name={c.label} copy={false} />
             </button>
           ))}
@@ -199,7 +199,7 @@ export function Plot3DView({win, dark, shown, focused, group, tabbed, windowRow}
         )}
       </div>
       {editing !== null && model && <TraceDialog label={model.curves[editing].label}
-        color={model.curves[editing].cssColor ?? cssColor(model.curves[editing].color, dark)} close={() => setEditing(null)}
+        color={model.curves[editing].cssColor ?? cssColor(model.curves[editing].color)} close={() => setEditing(null)}
         apply={(label, color) => { setAppearance(a => ({...a, [traceKeys[editing]]: {...a[traceKeys[editing]], label, color}})); setEditing(null); }} />}
       <p id="plot-3d-keys-help" class="visually-hidden">
         {`Drag turns the view; the arrow keys turn it ${KEY_STEP} degrees at a time, Shift ${KEY_STEP_FINE}.`}

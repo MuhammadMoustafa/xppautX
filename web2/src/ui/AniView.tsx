@@ -77,7 +77,7 @@ export function AniView() {
   useEffect(() => {
     if (!open || !canvas.current || !size.w || !size.h) return;
     const surface = cssVar('--surface');
-    drawAniFrame(canvas.current, size.w, size.h, frame, dark, surface);
+    drawAniFrame(canvas.current, size.w, size.h, frame, surface);
   }, [open, frame, size.w, size.h, dark]);
 
   const playPause = () => (playing ? session.aniPause() : session.aniPlay());

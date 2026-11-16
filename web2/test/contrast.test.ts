@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {test} from 'node:test';
-import {cssColor} from '../src/plot/colors';
 
 function luminance(hex: string): number {
   const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
@@ -43,8 +42,8 @@ for (const theme of ['light', 'dark'] as const) {
       assert.ok(r >= min, `${fg} ${t[fg]} on ${bg} ${t[bg]}: ${r.toFixed(2)} < ${min}`);
     }
   });
-  test(`${theme} theme: the foreground color of curves and text 3:1 against the plot`, () => {
-    const surface = tokens()[theme]['--surface'], c = cssColor('foreground', theme === 'dark');
+  test(`${theme} theme: the foreground (--fg) of curves and text 3:1 against the plot`, () => {
+    const t = tokens()[theme], c = t['--fg'], surface = t['--surface'];
     assert.ok(contrast(c, surface) >= 3, `${c} on ${surface}: ${contrast(c, surface).toFixed(2)}`);
   });
 }

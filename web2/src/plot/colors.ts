@@ -1,17 +1,15 @@
 /* Colors as the core says them (core/colormap.h): `#rrggbb`, `#rrggbbaa` (alpha only when not opaque) or
    `foreground`, the color the page draws dark on a light theme and light on a dark one. Every color of a
    curve, a mark, a nullcline or a text arrives in that form and is drawn as it is (CSS reads `#rrggbbaa`),
-   the foreground by the theme; the pickers give it back in the same form. */
+   the foreground by the theme (--fg); the pickers give it back in the same form. */
 import type {CoreColor} from '../protocol/types';
+import {cssVar} from './css';
 
 export type {CoreColor};
 
-/** the foreground color of each theme (the plot's text and default curve) */
-const FOREGROUND = {light: '#1f2937', dark: '#ebebeb'} as const; /* dark: tokens.css's dark --fg */
-
-/** the color the canvas or CSS draws `c` in */
-export function cssColor(c: CoreColor, dark: boolean): string {
-  return c === 'foreground' ? (dark ? FOREGROUND.dark : FOREGROUND.light) : c;
+/** the color the canvas or CSS draws `c` in; `foreground` is the theme's --fg (tokens.css), read from the page */
+export function cssColor(c: CoreColor): string {
+  return c === 'foreground' ? cssVar('--fg') : c;
 }
 
 const CORE_HEX = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i;
@@ -20,8 +18,8 @@ const CORE_HEX = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i;
 export const CORE_COLOR = /^(foreground|#[0-9a-f]{6}([0-9a-f]{2})?)$/i;
 
 /** a color as a picker has it: its `#rrggbb` and its alpha, 0 to 255 (the foreground: the theme's, opaque) */
-export function splitColor(c: CoreColor, dark: boolean): {hex: string; alpha: number} {
-  const m = CORE_HEX.exec(cssColor(c, dark));
+export function splitColor(c: CoreColor): {hex: string; alpha: number} {
+  const m = CORE_HEX.exec(cssColor(c));
   return m ? {hex: '#' + m[1].toLowerCase(), alpha: m[2] ? parseInt(m[2], 16) : 255} : {hex: '#000000', alpha: 255};
 }
 

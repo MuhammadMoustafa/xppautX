@@ -108,7 +108,6 @@ function strokeShape(ctx: CanvasRenderingContext2D, shape: LabelShape, x: number
 export class DiagramChart {
   private u: uPlot | null = null;
   private model: DiagramModel | null = null;
-  private dark = false;
   private applying = false;
   /* the view last asked for (setView, fit), until applyViewport draws it */
   private requested: Ranges | null = null;
@@ -136,7 +135,6 @@ export class DiagramChart {
     const key = JSON.stringify([dark, model.xLabel, model.yLabel,
       model.curves.map(c => [c.color, c.width, c.dashed, c.cssColor, c.visible])]);
     this.model = model;
-    this.dark = dark;
     this.base = axes ?? fitRanges(model);
     if (!this.u || key !== this.styleKey) {
       this.styleKey = key;
@@ -179,7 +177,7 @@ export class DiagramChart {
     const facets: uPlot.Series.Facet[] = [{scale: 'x', auto: false}, {scale: 'y', auto: false}];
     const series: uPlot.Series[] = m.curves.map(c => ({
       label: `Branch ${c.branch}`,
-      stroke: c.cssColor ?? cssColor(c.color, this.dark), show: c.visible !== false,
+      stroke: c.cssColor ?? cssColor(c.color), show: c.visible !== false,
       width: c.width,
       dash: c.dashed ? DASH : undefined,
       paths: this.linePath,
@@ -348,7 +346,7 @@ export class DiagramChart {
     if (!u || !m) return null;
     return {
       curves: m.curves.map(c => ({branch: c.branch, type: c.type, kind: c.kind, stable: c.stable, which: c.which,
-        points: c.xs.length, dashed: c.dashed, width: c.width, color: c.cssColor ?? cssColor(c.color, this.dark), hopf: c.hopf,
+        points: c.xs.length, dashed: c.dashed, width: c.width, color: c.cssColor ?? cssColor(c.color), hopf: c.hopf,
         first: [c.xs[0], c.ys[0], c.idx[0]]})),
       labels: m.labels.map(l => ({point: l.point, lab: l.lab, sym: l.sym, x: l.x, y: l.y, y2: l.y2})),
       named: this.named,

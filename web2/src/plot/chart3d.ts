@@ -12,7 +12,6 @@ export class Chart3D {
   private model: Model3D | null = null;
   private theta = 0;
   private phi = 0;
-  private dark = false;
   private axisColor = '#888';
   private lastInfo: Draw3DInfo | null = null;
 
@@ -21,11 +20,10 @@ export class Chart3D {
   }
 
   /** the model to show, and the angles it was projected at (for the info the test hook reads) */
-  set(model: Model3D | null, theta: number, phi: number, dark: boolean, axisColor: string): void {
+  set(model: Model3D | null, theta: number, phi: number, axisColor: string): void {
     this.model = model;
     this.theta = theta;
     this.phi = phi;
-    this.dark = dark;
     this.axisColor = axisColor;
     this.redraw();
   }
@@ -38,7 +36,7 @@ export class Chart3D {
   private redraw(): void {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!w || !h) return;
-    this.lastInfo = draw3d(this.canvas, w, h, this.model, this.theta, this.phi, this.dark, this.axisColor);
+    this.lastInfo = draw3d(this.canvas, w, h, this.model, this.theta, this.phi, this.axisColor);
   }
 
   /** the picture as drawn now, for the core's `pixels` ask (kinescope, GIF) */

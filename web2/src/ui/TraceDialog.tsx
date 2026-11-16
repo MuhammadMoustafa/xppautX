@@ -1,10 +1,8 @@
 import {useState} from 'preact/hooks';
 import {browserColor, CORE_COLOR, cssToHex} from '../plot/colors';
 import {ColorField} from './ColorField';
-import {useStore} from './context';
 import {Dialog} from './Dialog';
 import {FormRow} from './FormFields';
-import {useDark} from './theme';
 
 /** what the picker shows for a color it cannot be given (never written back: Apply keeps the trace's own) */
 const PICKER_BLACK = '#000000';
@@ -16,7 +14,6 @@ export function TraceDialog({label, color, close, apply}: {
   /* the picker takes `#rrggbb` and an alpha: the color shown is that form of `color` (a CSS color of the
      page's own is converted), and Apply keeps `color` itself unless the user picked another (black is never
      written for a color that did not parse) */
-  const dark = useDark(useStore(s => s.theme));
   const [name, setName] = useState(label), [picked, setPicked] = useState<string | null>(null);
   const shown = picked ?? (CORE_COLOR.test(color) ? color : cssToHex(color, browserColor) ?? PICKER_BLACK);
   const ok = !!name.trim() && (picked === null || CORE_COLOR.test(picked));
@@ -26,6 +23,6 @@ export function TraceDialog({label, color, close, apply}: {
     <FormRow name="legend" label="Legend text" required>
       <span class="input-box"><input data-trace-name value={name} aria-label="Legend text" onInput={e => setName(e.currentTarget.value)} /></span>
     </FormRow>
-    <FormRow name="color" label="Color"><ColorField value={shown} dark={dark} label="Trace" onChange={setPicked} /></FormRow>
+    <FormRow name="color" label="Color"><ColorField value={shown} label="Trace" onChange={setPicked} /></FormRow>
   </Dialog>;
 }

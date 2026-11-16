@@ -13,7 +13,6 @@ import {panelSpec, registryRows} from './navigation';
 import {useOpenOptions, useOptionRows} from './OptionsPanel';
 import {argumentFieldSpec, argumentMessage, argumentValue, currentArguments, formValues, groupProblems, argumentControl, blankArgument} from './argumentFields';
 import {Dialog} from './Dialog';
-import {useDark} from './theme';
 import {SETS_OF_FORM, SetsRow} from './SetsRow';
 
 export function CommandForm() {
@@ -27,7 +26,6 @@ const GROUP_WORDS: Record<RegistryGroup['rule'], string> = {exactly_one: 'Give o
 function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown>; fixed: string[]}) {
   const session = useSession(), state = useStore(s => s);
   const row = registryRows(state.hello).find(row => row.id === id)!;
-  const dark = useDark(state.theme);
   const current = currentArguments(row, state);
   const blanks = Object.fromEntries((row.arguments ?? []).filter(a => a.required && ['boolean', 'map', 'list', 'list[text]'].includes(a.type)).map(a => [a.name, blankArgument(a)]));
   const [values, setValues] = useState<Record<string, unknown>>({...blanks, ...current, ...initial});
@@ -108,7 +106,7 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
     const isFile = kind === 'file';
     /* a file argument: the one file control; a read-mode file takes a dropped one (uploaded into the folder) */
     const dropFile = isFile && row.file_mode !== 'write' ? async (f: File) => { const name = await session.uploadArgument(f); if (name) change(name); } : undefined;
-    return <Control spec={fieldSpec} value={fieldSpec.kind === 'boolean' ? String(value === true) : text} label={label} dark={dark} invalid={invalid}
+    return <Control spec={fieldSpec} value={fieldSpec.kind === 'boolean' ? String(value === true) : text} label={label} invalid={invalid}
       file={isFile} placeholder={isFile ? pickerHelp : undefined} onDropFile={dropFile}
       onBlur={() => feedback.touch(arg.name)} onChange={t => change(fieldSpec.kind === 'boolean' ? t === 'true' : argumentValue(arg, t))} />;
   };

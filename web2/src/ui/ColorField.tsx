@@ -3,11 +3,11 @@
    shows (and takes) the text the core reads; the foreground button gives the theme's own color back. */
 import {CORE_COLOR, joinColor, splitColor} from '../plot/colors';
 
-export function ColorField({value, onChange, dark, label}: {
-  value: string; onChange(text: string): void; dark: boolean; label: string;
+export function ColorField({value, onChange, label}: {
+  value: string; onChange(text: string): void; label: string;
 }) {
   const valid = CORE_COLOR.test(value);
-  const {hex, alpha} = splitColor(valid ? value : 'foreground', dark);
+  const {hex, alpha} = splitColor(valid ? value : 'foreground');
   return <span class="color-field" data-color-field>
     <input type="color" value={hex} aria-label={`${label}: color`} data-color-hex
       onInput={e => onChange(joinColor(e.currentTarget.value, alpha))} />

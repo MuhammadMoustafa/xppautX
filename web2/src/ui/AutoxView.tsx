@@ -448,7 +448,7 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
           {legendOf(model).map(l => (
             <li key={`${l.text}/${l.color}`}>
               <span class={'autox-swatch' + (l.dashed ? ' dashed' : '')} aria-hidden="true"
-                style={{borderColor: cssColor(l.color, dark)}} />
+                style={{borderColor: cssColor(l.color)}} />
               {l.text}
             </li>
           ))}
@@ -485,7 +485,7 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
         {!compact && key}
         <div class="legend" role="group" aria-label="Branches">
           {entries.map(e => {
-            const a = appearance[e.key], off = a?.visible === false, color = a?.color ?? cssColor(e.color, dark);
+            const a = appearance[e.key], off = a?.visible === false, color = a?.color ?? cssColor(e.color);
             return (
               <button key={e.key} data-auto-trace={e.key}
                 class={'legend-item' + (off ? ' off' : '')} aria-pressed={!off}

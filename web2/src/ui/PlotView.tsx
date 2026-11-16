@@ -424,8 +424,8 @@ export function PlotView({win, dark, shown, focused, group, tabbed, windowRow}: 
       onMouseEnter={() => chart.current?.highlight({run, curve})}
       onMouseLeave={() => chart.current?.highlight(null)}
       onClick={() => setAppearance(a => ({...a, [key]: {...a[key], visible: c.visible === false}}))}
-      onDblClick={() => setEditing({key, label: c.label, color: c.cssColor ?? cssColor(c.color, dark)})}>
-      <span class="swatch" style={{background: c.cssColor ?? cssColor(c.color, dark)}} aria-hidden="true" />
+      onDblClick={() => setEditing({key, label: c.label, color: c.cssColor ?? cssColor(c.color)})}>
+      <span class="swatch" style={{background: c.cssColor ?? cssColor(c.color)}} aria-hidden="true" />
       <ShownName name={c.label} copy={false} />{run >= 0 && <small> · run {keys[run].slice(4)}</small>}
     </button>
   );
@@ -463,7 +463,7 @@ export function PlotView({win, dark, shown, focused, group, tabbed, windowRow}: 
                 chart.current!.setLayerVisible(l.key, !chart.current!.isLayerVisible(l.key));
                 setShown(n => n + 1);
               }}>
-              <span class={`swatch swatch-${l.key.replace(/-\d+$/, '')}`} style={{background: cssColor(l.color, dark)}}
+              <span class={`swatch swatch-${l.key.replace(/-\d+$/, '')}`} style={{background: cssColor(l.color)}}
                 aria-hidden="true" />
               {l.label}
             </button>

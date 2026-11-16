@@ -21,7 +21,6 @@ import {textPx} from '../plot/marks';
 import {Dialog} from './Dialog';
 import {Control, FormRow, focusFirstError, useFeedback} from './FormFields';
 import {useSession, useStore} from './context';
-import {useDark} from './theme';
 
 /** the action's text of an ask: the core's own when it names what the action does, else the kind's ("Apply"; never OK) */
 export function askAction(ask: AskEvent, fallback: string): string {
@@ -87,7 +86,6 @@ function askMessage(spec: FieldSpec, text: string): string | null {
 function FormAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
   const lists = useStore(s => s.hello?.lists);
-  const dark = useDark(useStore(s => s.theme));
   const feedback = useFeedback();
   const isString = ask.kind === 'string';
   const names = isString ? [ask.name ?? ''] : ask.names ?? [];
@@ -116,7 +114,7 @@ function FormAsk({ask}: {ask: AskEvent}) {
   /* a table cell: named by its column and row */
   const cell = (i: number, cellLabel: string) => {
     const typed = specs[i];
-    return <Control spec={typed} value={values[i] ?? ''} label={cellLabel} dark={dark} invalid={!!messages[i] && feedback.shows(String(i))}
+    return <Control spec={typed} value={values[i] ?? ''} label={cellLabel} invalid={!!messages[i] && feedback.shows(String(i))}
       onBlur={() => feedback.touch(String(i))} onChange={t => set(i, t)} />;
   };
   /* the field i: a select for a list (the X11 scroll list of variables, parameters, colors, markers or methods), else the typed control */
@@ -133,7 +131,7 @@ function FormAsk({ask}: {ask: AskEvent}) {
         </select></FormRow>;
     }
     return <FormRow key={i} name={n} label={spec.label} error={error}>
-      <Control spec={specs[i]} value={values[i] ?? ''} label={spec.label} dark={dark} invalid={!!error} verbatim
+      <Control spec={specs[i]} value={values[i] ?? ''} label={spec.label} invalid={!!error} verbatim
         onBlur={() => feedback.touch(String(i))} onChange={t => set(i, t)} />
     </FormRow>;
   };
@@ -195,7 +193,6 @@ function TextAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
   const limits = useStore(s => s.hello?.text) as HelloEvent['text'];
   const styles = useStore(s => s.hello?.text_styles) as HelloEvent['text_styles'];
-  const dark = useDark(useStore(s => s.theme));
   const feedback = useFeedback();
   const [text, setText] = useState(String(ask.value ?? ''));
   const [size, setSize] = useState(Number(ask.size)), [style, setStyle] = useState(ask.style as TextStyle), [color, setColor] = useState(String(ask.color));
@@ -225,7 +222,7 @@ function TextAsk({ask}: {ask: AskEvent}) {
       </select>
     </FormRow>
     <FormRow name="color" label="Color" error={feedback.shows('1') ? messages[1] : null}>
-      <Control spec={{kind: 'color'}} value={color} label="Text" dark={dark} onChange={setColor} onBlur={() => feedback.touch('1')} />
+      <Control spec={{kind: 'color'}} value={color} label="Text" onChange={setColor} onBlur={() => feedback.touch('1')} />
     </FormRow>
   </AskShell>;
 }

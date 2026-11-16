@@ -16,7 +16,6 @@ import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {Dialog} from './Dialog';
 import {Control, FormRow, useFeedback} from './FormFields';
-import {useDark} from './theme';
 
 const STEP: FieldSpec = {kind: 'number', positive: true};
 
@@ -66,7 +65,6 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
   const valid = !!picked && !errors.lo && !errors.hi && !errors.step;
 
   const feedback = useFeedback();
-  const dark = useDark(useStore(s => s.theme));
   const pickError = !picked ? 'Pick a parameter or variable' : null;
   const problems = [pickError, errors.lo, errors.hi, errors.step].filter((m, i) => m && (i === 0 ? feedback.attempted : feedback.shows(['pick', 'lo', 'hi', 'step'][i]))).length;
 
@@ -121,11 +119,11 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
         : feedback.attempted && <p class="field-error">{pickError}</p>}
       <div class="slider-dialog-fields">
         <FormRow name="lo" label="Min" required id="slider-lo" error={feedback.shows('lo') ? errors.lo : null}>
-          <Control id="slider-lo" spec={NUMBER} value={lo} label="Min" dark={dark} onBlur={() => feedback.touch('lo')} onChange={setLo} /></FormRow>
+          <Control id="slider-lo" spec={NUMBER} value={lo} label="Min" onBlur={() => feedback.touch('lo')} onChange={setLo} /></FormRow>
         <FormRow name="hi" label="Max" required id="slider-hi" error={feedback.shows('hi') ? errors.hi : null}>
-          <Control id="slider-hi" spec={NUMBER} value={hi} label="Max" dark={dark} onBlur={() => feedback.touch('hi')} onChange={setHi} /></FormRow>
+          <Control id="slider-hi" spec={NUMBER} value={hi} label="Max" onBlur={() => feedback.touch('hi')} onChange={setHi} /></FormRow>
         <FormRow name="step" label="Step" required id="slider-step" error={feedback.shows('step') ? errors.step : null}>
-          <Control id="slider-step" spec={STEP} value={step} label="Step" dark={dark} onBlur={() => feedback.touch('step')} onChange={setStep} /></FormRow>
+          <Control id="slider-step" spec={STEP} value={step} label="Step" onBlur={() => feedback.touch('step')} onChange={setStep} /></FormRow>
       </div>
     </Dialog>
   );

@@ -16,7 +16,6 @@ import {useSession, useStore} from './context';
 import {Dialog} from './Dialog';
 import {AskShell} from './AskDialog';
 import {Control, FormRow, focusFirstError, useFeedback} from './FormFields';
-import {useDark} from './theme';
 
 /** the replace confirm's text: the name is taken by other content */
 function ReplaceText() {
@@ -102,7 +101,6 @@ function OpenFromComputer({ask}: {ask: AskEvent}) {
 /* a file ask for writing: a name, then the core writes and the page copies */
 function SaveToComputer({ask}: {ask: AskEvent}) {
   const session = useSession();
-  const dark = useDark(useStore(s => s.theme));
   const feedback = useFeedback();
   const [name, setName] = useState(baseName(ask.file ?? ''));
   const message = name.trim() === '' ? 'Required' : ruleMessage(FILE, name);
@@ -132,7 +130,7 @@ function SaveToComputer({ask}: {ask: AskEvent}) {
           {picker ? 'then it is copied to where you choose.' : 'then your browser downloads it.'}
         </p>
         <FormRow name="file-name" label="File name" required id="file-name" error={feedback.shows('name') ? message : null}>
-          <Control spec={FILE} value={name} label="File name" id="file-name" dark={dark} invalid={!!message && feedback.shows('name')}
+          <Control spec={FILE} value={name} label="File name" id="file-name" invalid={!!message && feedback.shows('name')}
             onBlur={() => feedback.touch('name')} onChange={setName} />
         </FormRow>
       </div>
