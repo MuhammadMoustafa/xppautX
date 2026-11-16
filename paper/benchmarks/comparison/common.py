@@ -212,7 +212,7 @@ def summarize(records, folder):
         # work-precision or output-spacing row (none for the equal-accuracy rows), with the output step dt and the rows written.
         for key in ('sweep', 'tolerance', 'dt', 'points', 'reference_max_abs_error', 'reference_first_outside_time', 'converged_error', 'converged_error_ratio'):
             out[key] = runs[0].get(key)
-        for metric in ('wall_seconds', 'cpu_seconds', 'wall_per_point', 'cpu_per_point', 'wrapper_wall_seconds'):
+        for metric in ('wall_seconds', 'cpu_seconds', 'wall_per_point', 'cpu_per_point', 'wrapper_wall_seconds', 'per_run_seconds', 'startup_seconds'):
             numbers = [r[metric] for r in runs if r.get(metric) is not None]
             out[metric + '_mean'] = statistics.mean(numbers) if valid and len(numbers) == required else None
             out[metric + '_sample_sd'] = statistics.stdev(numbers) if valid and len(numbers) == required and required > 1 else None
@@ -274,7 +274,8 @@ def auto_sha(auto_dir):
 def executable_sha(a, engine):
     cache = a.__dict__.setdefault('_executable_sha', {})
     if engine not in cache:
-        cache[engine] = python_sha() if engine == 'python' else auto_sha(a.auto_dir) if engine == 'auto07p' else sha(getattr(a, engine))
+        # a study whose engines are not one program of --xppautx/--xppaut (W295: Python scripts driving it) names each one's hash
+        cache[engine] = a.program_sha[engine]() if engine in getattr(a, 'program_sha', {}) else python_sha() if engine == 'python' else auto_sha(a.auto_dir) if engine == 'auto07p' else sha(getattr(a, engine))
     return cache[engine]
 
 
@@ -398,7 +399,7 @@ def reachable_sha(text, roots):
 # (attempt-NNN: the driver's output, written for that one workload) and, once an attempt finished, done.json. A driver's
 # `--plan` says what an earlier attempt of the unit supplies; the keys are the rows' own (W452, W575), so a unit's done record
 # matches while its plan runs nothing.
-STUDIES = ('terman', 'screen', 'modeldb', 'research', 'izhikevich', 'python', 'continuation', 'scaling', 'large-stiff')  # settled order
+STUDIES = ('terman', 'screen', 'modeldb', 'research', 'izhikevich', 'python', 'continuation', 'scaling', 'large-stiff', 'server')  # settled order
 DONE = 'done.json'
 PLAN = 'plan.json'
 

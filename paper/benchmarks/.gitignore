@@ -41,6 +41,9 @@
 !/comparison/run.py
 !/comparison/terman-criteria.json
 !/comparison/terman.py
+!/comparison/server.py
+!/comparison/server_worker.py
+!/comparison/server_report.py
 !/comparison/watch.py
 !/compiler-study/README.md
 !/compiler-study/build_harness.sh

@@ -23,7 +23,6 @@ usage: tools/exportcheck.py [--bin ./xppautX]
 import argparse
 import ast
 import csv
-import math
 import os
 import re
 import shutil
@@ -32,6 +31,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from exportcompare import RELATIVE, first_difference, on_runge_kutta, with_double_storage  # noqa: E402
 from xppclient import Checker  # noqa: E402
 
 ap = argparse.ArgumentParser()
@@ -41,7 +41,6 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 binary = os.path.abspath(args.bin)
 ODE = os.path.join(root, 'examples', 'ode')
 MODELS = os.path.join(root, 'tools', 'models')
-RELATIVE, ABSOLUTE = 1e-9, 1e-12
 # a safety bound for a broken child, never a speed assertion
 LIMIT = 300
 
@@ -68,29 +67,7 @@ def read_rows(path):
         return list(csv.reader(f))
 
 
-def with_double_storage(text):
-    """the model's text with storage_precision: double in its options' integration group"""
-    i = text.find('options {')
-    if i < 0:
-        return text + 'options { integration: { storage_precision: double } }\n'
-    group = re.compile(r'integration:\s*\{').search(text, i)
-    at = group.end() if group else i + len('options {')
-    return text[:at] + (' storage_precision: double,' if group else ' integration: { storage_precision: double },') + text[at:]
-
-
 LANGUAGES = ('python', 'python_numpy', 'python_numba')
-
-
-def on_runge_kutta(total_time=None):
-    """a text edit: the model on the method the script integrates with, run for total_time when given (a chaotic model's last rows
-    would grow the ulp that the C library's functions differ by to the tolerance)"""
-    def edit(text):
-        if re.search(r'\bmethod:\s*\w+', text):
-            text = re.sub(r'\bmethod:\s*\w+', 'method: runge_kutta', text, count=1)
-        else:
-            text = text.replace('integration: {', 'integration: { method: runge_kutta,', 1)
-        return re.sub(r'\btotal_time:\s*[\d.]+', 'total_time: %g' % total_time, text, count=1) if total_time else text
-    return edit
 
 
 def compare(label, source, text_edit=None, exact=False, language='python'):
@@ -117,16 +94,7 @@ def compare(label, source, text_edit=None, exact=False, language='python'):
     check('%s: the same number of rows (%d) and columns (%d)' % (label, len(ours), len(header)),
           len(ours) == len(theirs) and all(len(a) == len(b) == len(header) for a, b in zip(ours, theirs)),
           '%d rows vs %d, header %s' % (len(ours), len(theirs), header))
-    worst, where, largest = 0.0, '', 0.0
-    for i, (a, b) in enumerate(zip(ours, theirs)):
-        for j, (x, y) in enumerate(zip(a, b)):
-            x, y = float(x), float(y)
-            if math.isnan(x) and math.isnan(y):
-                continue
-            largest = max(largest, abs(x - y) / max(abs(x), abs(y), 1e-300))
-            excess = (x != y) if exact else abs(x - y) - (RELATIVE * max(abs(x), abs(y)) + ABSOLUTE)
-            if excess > worst or (excess > 0 and not where):
-                worst, where = max(worst, excess), 'row %d column %s: xppautX %r, script %r' % (i, header[j], x, y)
+    where, largest = first_difference(ours, theirs, exact, names=header)
     check('%s: every value %s xppautX\'s' % (label, 'equals' if exact else 'is within %g relative of' % RELATIVE), not where, where)
     print('info: %s: largest relative difference %.3g' % (label, largest))
     return folder

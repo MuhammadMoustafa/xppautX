@@ -61,10 +61,10 @@ class Run:
 
     def argv(self, study, out, machine, *flags):
         a = self.a
-        script = HERE / ('terman.py' if study == 'terman' else 'continuation.py' if study == 'continuation' else 'integration.py')
+        script = HERE / ('terman.py' if study == 'terman' else 'continuation.py' if study == 'continuation' else 'server.py' if study == 'server' else 'integration.py')
         argv = [sys.executable, '-X', 'faulthandler', str(script), '--out', str(out), '--xppautx', str(a.xppautx.resolve()),
                 '--xppaut', str(a.xppaut.resolve()), '--auto-dir', str(a.auto_dir.resolve()), '--machine-record', str(machine), *flags]
-        if study not in ('terman', 'continuation'):
+        if study not in ('terman', 'continuation', 'server'):
             argv += ['--study', study]
         if a.check:
             argv += ['--check']

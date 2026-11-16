@@ -94,3 +94,46 @@ Drivers take `--only UNIT` (a unit's name, or its model's), `--list` and `--plan
   cases would change what the drift covers); `pilot` and `measure` are separate, so a measurement fix never repeats the pilot.
 - The planned limits: T1's and T2's sized modes (`adaptive-repeat-N`, `adaptive-sized`) are planned from their first mode, so
   their plan runs the pilots again on a resume.
+
+# The server study (W295, #353)
+
+`--server` driven from Python and run in parallel, against pure Python, as a study of run.py like the others: `server`, its unit a model
+(`lecar`, `lecdiff200`, `wave`: published models of examples/ode that the export accepts; `server.py`'s MODELS says each one's parameter,
+range and why), its folder `server/<model>/attempt-NNN/`, its rows' reuse keys (W452: a row reruns only when its arm's program, the
+measurement code, the study's settings, the inputs or the CPUs changed), `--plan` and `--check` as for the others:
+
+```sh
+uv run --locked python paper/benchmarks/comparison/run.py --out OUT --xppautx X --xppaut P --auto-dir A --study server [--plan | --check]
+uv run --locked python paper/benchmarks/comparison/server_report.py OUT [--out report.md]   # the study's report section
+```
+
+**The grid.** One parameter per model, `GRID_POINTS` = 64 values over its range (lecar and lecdiff200: the applied current `iapp`, 0 to
+0.3 and 0 to 0.2, from rest through oscillation (lecar: to its quenched end); wave: the coupling `d`, 0.05 to 0.4), on RK4 at the
+model's own dt with `storage_precision: double`. **Sweeps** of 1, 2, 4, 8 and 16 worker processes (#353 Q5), the grid dealt round-robin,
+each worker pinned to its own CPU (the physical cores first, then their hyperthreads: the i7-11700F's 8 cores, 16 threads). Each sweep is
+timed from outside, start-up included; each worker times its own start-up and runs.
+
+**The arms** (`server_worker.py` describes them in full):
+
+| arm | what a run is |
+|---|---|
+| `xppautx_server` | one persistent `xppautX --server` per worker, driven by python/xppautx's `Client`: `value.set_parameters`, `run.initial`, then the rows by `data.page` (the only way the data leaves, so it is in the run; `fetch_seconds` is that part) |
+| `xppautx_silent` | one `xppautX --silent` process per run, on a copy of the model whose `par` value holds the parameter (the command line has none), the rows `output.dat` |
+| `export_python`, `export_python_numpy`, `export_python_numba` | the script `xppautX --convert MODEL --to python`, `python_numpy`, `python_numba` wrote (W764, W766), imported as a module in the worker, its module-level parameter set, `run()` writing its CSV. numpy only for a model with an array line (the export's header says so) |
+| `scipy` | `solve_ivp` RK45 over the python script's own `rhs`, at a tolerance matched to RK4's error (below), rows written as CSV |
+
+A numba script compiles a module-level parameter in as a constant, so a changed value needs the compile again: the numba arm calls each
+function's `recompile()` for every value after the first (`server_worker.py`'s `recompile`), and its per-run time is therefore mostly the
+compile: that is what sweeping a parameter with the exported script costs, not a flaw of the arm.
+
+**Matched error for scipy.** RK45 is adaptive, RK4 fixed: they are compared at matched error, not matched tolerance. On the grid's middle value an
+untimed pilot integrates the script's rhs with DOP853 at 1e-12 (the accuracy reference of tools/python-integration), measures xppautX's RK4
+rows' largest absolute difference from it, and takes the loosest `rtol` of 1e-3 ... 1e-12 (`atol` equal) whose RK45 rows are no further. A tolerance
+whose solve fails (a trial step out of cosh's range) does not count. The rtol is in the rows (`tolerance`) and the agreement pass's file.
+
+**The check, untimed.** Before any timed sweep an agreement pass runs every arm over the whole grid on one process and compares every row
+with xppautX's own (`--silent`) through tools/exportcompare.py (the comparison tools/exportcheck.py also makes): the RK4 arms to 1e-9 relative
+(and 1e-12 absolute, an ulp of the C library's functions against xpp::math's), scipy to 10 x (RK4's error + RK45's error) absolute. A timed sweep
+is equal work when each worker's runs end with the agreement pass's row count and last row. `--check` is the study once on a 4-value grid with
+1 and 2 processes, untimed and labelled so (`check` in its provenance and done record): it shows the arms and the machinery work end to end and
+measures nothing. The full timed series runs in W718's quiet window, from the same binary.

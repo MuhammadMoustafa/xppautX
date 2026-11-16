@@ -317,9 +317,9 @@ def same_key(have, key, *, inputs=True):
     return have is not None and {k: v for k, v in have.items() if k not in skip} == {k: v for k, v in key.items() if k not in skip}
 
 
-def importable(a, name, engine, rep, models):
+def importable(a, name, engine, rep, models, key_of=current_key):
     # An engine's rows of one repetition from the earlier study: all of them (run, ready) valid, and each row's key equal to
-    # what this run would record. Returns ({row: (record, key)}, None) or (None, why).
+    # what this run would record (key_of(a, engine, model): the server study's own, W295). Returns ({row: (record, key)}, None) or (None, why).
     if not a.reuse:
         return None, 'no --reuse'
     rows = earlier_rows(a)
@@ -330,7 +330,7 @@ def importable(a, name, engine, rep, models):
             return None, 'no earlier %s row of repetition %d' % (row, rep)
         if not rec.get('valid'):
             return None, 'the earlier %s row of repetition %d was not valid' % (row, rep)
-        key = current_key(a, engine, model)
+        key = key_of(a, engine, model)
         have = earlier_key(a, rec, key, model.name)
         if not same_key(have, key):
             changed = [k for k in key if have is None or have.get(k) != key[k]]
