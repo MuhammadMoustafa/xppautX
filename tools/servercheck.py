@@ -2314,6 +2314,13 @@ def check_session_commands():
         script = os.path.join(run_dir, 'model_as.py')
         check('W764: model.export writes the model as a Python program and answers the file',
               done['result'] == {'file': 'model_as.py'} and os.path.exists(script) and 'def rhs(t, _y):' in open(script).read(), str(done))
+        for language, marker in (('python_numpy', 'import numpy as np'), ('python_numba', 'from numba import njit')):
+            name = 'model_as_%s.py' % language
+            done, _ = call(cmd='model.export', language=language, file=name)
+            written = open(os.path.join(run_dir, name)).read() if os.path.exists(os.path.join(run_dir, name)) else ''
+            check('W766: model.export with language %s writes the model with %s and answers the file' % (language, marker),
+                  done['result'] == {'file': name} and marker in written and 'def rhs(t, _y):' in written, str(done))
+        check('W766: python imports the standard library only', 'numpy' not in open(script).read(), '')
         done, evs = call(answers=[{'key': 'n'}], cmd='model.export', language='python', file='model_as.py')
         check('W764: model.export asks before replacing a file, and a refusal writes nothing',
               any(e.get('ev') == 'ask' for e in evs) and 'declined' in error_of(done), str(done))

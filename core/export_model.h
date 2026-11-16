@@ -27,7 +27,8 @@ struct Spelling {
 };
 
 /* A back end. Texts with {0}, {1}, {2} are filled with the arguments' text; the file's template with the named parts the
-   translator makes (export_model.cpp's script() lists them). */
+   translator makes (export_model.cpp's script() lists them). A language that is a variant of another (numpy and numba of python)
+   differs in its table and in `parts`, the named pieces of its template. */
 struct Language {
     std::string_view name;      /* the language's own name: the model.export choice and --to's word */
     std::string_view extension; /* of the file written, with its dot */
@@ -41,12 +42,24 @@ struct Language {
     /* statements: blocks open and close as these say (an empty closing is a language that closes by indenting) */
     std::string_view assign, loop_begin /* {0} counter, {1} first, {2} last (integers) */, loop_end, if_zero, else_branch, if_end, empty_block,
                      function_begin /* {0} name, {1} parameters */, function_return, function_end;
+    /* arrays: how a list of values is written ({0} the items, none: the empty one), and how the state vector (_y in the template)
+       is read, all at once ({0} the names; empty when the language reads each) or each by its place ({0} name, {1} place) */
+    std::string_view array_literal, empty_array, unpack_states, read_state;
+    /* A language that writes an array line of the model as one slice sets these (a language that does not leaves `slice` empty and
+       gets the scalar equations): the states a slice of the state vector reads ({0} first place, {1} one past the last), the whole
+       numbers an index runs through ({0} first, {1} one past the last, {2} step) and the value of a slice's equations, whatever the
+       shape of the expression ({0} it, {1} the number of equations). */
+    std::string_view slice, index_range, slice_value;
+    /* the language's own pieces of the template, a name and its text, which a part may use too ({name} of another part, one level) */
+    std::span<const Spelling> parts;
     std::string_view file; /* the template: one part for each thing of the model, and the run */
 };
 
-/* the languages there are: Python's */
+/* the languages there are: Python's, and its numpy and numba variants */
 const Language &python_language();
-inline constexpr std::array<std::string_view, 1> language_names{"python"};
+const Language &python_numpy_language();
+const Language &python_numba_language();
+inline constexpr std::array<std::string_view, 3> language_names{"python", "python_numpy", "python_numba"};
 /* the language of that name, nullptr when there is none */
 const Language *language_named(std::string_view name);
 

@@ -23,11 +23,14 @@
 #include "xpp_ui.h"
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -168,11 +171,19 @@ public:
     Result<std::string> script();
 
 private:
+    /* the equations of an array line that one expression writes: copies whose trees have one shape, their variables and numbers
+       stepping by a constant from copy to copy (`steps`, by node of the first copy's tree: only those that step) */
+    struct Run {
+        std::size_t first, count; /* the equations, from mir_.equations[first] */
+        std::size_t line;         /* mir_.arrays */
+        std::unordered_map<int, double> steps;
+    };
     /* the place an error is at, and where an expression is written */
     struct Frame {
         const Place *place;
         std::size_t loops = 0;   /* the sums open around it */
         bool variables = true;   /* the run's variables are in scope (not so for a derived parameter) */
+        const Run *run = nullptr; /* the equations written at once: its steps make slices and ranges */
     };
 
     std::unexpected<Error> cannot(const Frame &frame, std::string_view what) const
@@ -180,6 +191,21 @@ private:
         return fail("export model", xpp::format("{} cannot be written in {}", what, lang_.name), *frame.place);
     }
     void scan();
+    void find_runs();
+    /* the pairing of two trees made by `alike` */
+    struct Pairing {
+        std::set<std::pair<int, int>> seen;
+        std::unordered_map<int, double> steps;
+    };
+    bool alike(int a, int b, std::size_t depth, Pairing &pairing) const;
+    bool alike(const IrFunction &a, const IrFunction &b, Pairing &pairing) const;
+    /* a function that only names values, in order (the statements that hold a call's value): no loop, no conditional */
+    static bool temporaries_only(const IrFunction &f)
+    {
+        return f.loops == 0 && std::ranges::all_of(f.statements, [](const IrStatement &st) { return st.kind == IrStatement::Kind::Temporary; });
+    }
+    std::string slice(int variable, std::size_t count) const;
+    std::string range(double first, double step, std::size_t count) const;
     Result<> name_everything();
     Result<std::string> expression(int node, Frame &frame, std::size_t depth);
     Result<std::string> call(const IrNode &node, Frame &frame, std::size_t depth);
@@ -227,6 +253,16 @@ private:
     const std::string &constant_name(int index) const { return constant_names_.at(index); }
     std::string variable_name(int index) const { return variable_names_.at(static_cast<std::size_t>(index)); }
     std::string argument_list(std::size_t function, const std::vector<std::string> &arguments) const;
+    /* a variable the statements being written read as a name: the state vector's places a script that reads each one (read_state) unpacks */
+    void note_read(int variable)
+    {
+        if (variable >= 1 && variable <= m_.node) read_states_.insert(variable);
+    }
+    /* how the body just written gets the states it reads, as lines at depth 1 (the one line that reads them all, for a language that does) */
+    std::string unpack() const;
+    std::string part(std::string_view name) const;
+    /* a list of values as the language writes one */
+    std::string array_of(const std::vector<std::string> &items) const { return items.empty() ? std::string(lang_.empty_array) : spell(lang_.array_literal, {joined(items)}); }
 
     const SessionParts &s_;
     const Model &m_;
@@ -237,6 +273,10 @@ private:
     std::vector<Reads> reads_;                               /* by ir.functions: its own and, for a variable, through the functions it calls */
     std::unordered_map<std::string, std::size_t> function_by_callee_; /* a user function's callee name -> its ir.functions */
     std::set<std::size_t> reached_;                          /* the user functions some program calls */
+    std::vector<char> array_safe_;                           /* by ir.functions: a user function a slice may call (an expression of elementwise operations alone) */
+    std::vector<Run> runs_;                                  /* in the equations' order */
+    std::set<int> read_states_;                              /* the states the body being written reads by name */
+    Values parts_;                                           /* the language's parts of the template, their own parts filled in */
     std::vector<std::string> variable_names_;                /* by the trees' variable index: time, the states, the fixed variables */
     std::map<int, std::string> constant_names_;              /* by the trees' constant index */
     std::map<std::size_t, std::string> function_names_;      /* by ir.functions */
@@ -291,10 +331,143 @@ void Translation::scan()
                 if (reads.variables.size() + reads.functions.size() != before) grew = true;
             }
     }
+    /* a user function a slice may call: its statements only name values, and so are those of every function it calls (reads_ holds all it reaches) */
+    array_safe_.assign(ir_.functions.size(), 0);
+    for (std::size_t f = 0; f < ir_.functions.size(); ++f)
+        array_safe_[f] = temporaries_only(ir_.functions[f]) && std::ranges::all_of(reads_[f].functions, [&](std::size_t g) { return temporaries_only(ir_.functions[g]); });
     const auto reach = [&](std::size_t program) { reached_.insert(reads_[program].functions.begin(), reads_[program].functions.end()); };
     for (const auto *list : {&mir_.equations, &mir_.fixed, &mir_.aux})
         for (const std::size_t program : *list) reach(program);
     for (const ModelIr::Derived &d : mir_.derived) reach(d.function);
+}
+
+/* whether the trees at a and b have one shape: the same operations, constants and callees, their variables and numbers differing
+   by the steps the pairing records (the state a slice reads is the next one, a number is a whole number). A node is paired the same way
+   wherever the trees share it; the walk is as deep as an expression may be written. */
+bool Translation::alike(int a, int b, std::size_t depth, Pairing &pairing) const
+{
+    if (depth > MAX_EXPRESSION_DEPTH) return false;
+    if (!pairing.seen.emplace(a, b).second) return true;
+    const IrNode &x = ir_.nodes[static_cast<std::size_t>(a)], &y = ir_.nodes[static_cast<std::size_t>(b)];
+    if (x.op != y.op) return false;
+    const auto stepped = [&](double change) {
+        const auto [at, added] = pairing.steps.emplace(a, change);
+        return added || at->second == change;
+    };
+    const auto whole = [](double v) { return std::isfinite(v) && v == std::trunc(v) && std::fabs(v) < 1e9; };
+    switch (x.op) {
+    case IrOp::Number:
+        if (std::bit_cast<std::uint64_t>(x.number) == std::bit_cast<std::uint64_t>(y.number)) return stepped(0.0);
+        return whole(x.number) && whole(y.number) && stepped(y.number - x.number);
+    case IrOp::Variable: {
+        const double change = static_cast<double>(y.index) - static_cast<double>(x.index);
+        if (change == 0) return stepped(0.0);
+        return change > 0 && x.index >= 1 && y.index <= m_.node && stepped(change); /* the states, in order */
+    }
+    case IrOp::Constant: case IrOp::Temporary: return x.index == y.index;
+    case IrOp::Call: {
+        if (x.callee != y.callee || x.index != y.index || x.args[1] != y.args[1]) return false;
+        const IrCallee &callee = ir_.callees[static_cast<std::size_t>(x.callee)];
+        if (!callee.address) { /* a user function: one a slice may call */
+            const auto user = function_by_callee_.find(callee.name);
+            if (user == function_by_callee_.end() || !array_safe_[user->second]) return false;
+        }
+        const std::span<const int> left = ir_.arguments(x), right = ir_.arguments(y);
+        for (std::size_t i = 0; i < left.size(); ++i)
+            if (!alike(left[i], right[i], depth + 1, pairing)) return false;
+        return true;
+    }
+    case IrOp::Add: case IrOp::Subtract: case IrOp::Multiply: case IrOp::Divide: case IrOp::GuardedDivide: case IrOp::Select:
+        for (std::size_t i = 0; i < x.args.size(); ++i) {
+            if ((x.args[i] < 0) != (y.args[i] < 0)) return false;
+            if (x.args[i] >= 0 && !alike(x.args[i], y.args[i], depth + 1, pairing)) return false;
+        }
+        return true;
+    default: return false; /* a temporary, an argument, a loop's counter, a network's operand: no equation of one expression has one */
+    }
+}
+
+/* two equations' programs of one shape: the same temporaries, then the same value */
+bool Translation::alike(const IrFunction &a, const IrFunction &b, Pairing &pairing) const
+{
+    if (!temporaries_only(a) || !temporaries_only(b) || a.statements.size() != b.statements.size()) return false;
+    for (std::size_t i = 0; i < a.statements.size(); ++i)
+        if (a.statements[i].index != b.statements[i].index || !alike(a.statements[i].value, b.statements[i].value, 0, pairing)) return false;
+    return alike(a.result, b.result, 0, pairing);
+}
+
+/* the steps of a pairing that move (a node that is the same in both copies has none) */
+std::unordered_map<int, double> moving(const std::unordered_map<int, double> &steps)
+{
+    std::unordered_map<int, double> out;
+    for (const auto &[node, change] : steps)
+        if (change != 0) out.emplace(node, change);
+    return out;
+}
+
+/* The runs of each array line of the model (mir_.arrays): from a copy on, the next copies that are the first's tree with its
+   variables and numbers stepped by the same amount again (the line's index, and the neighbours it names: v[j-1], v[j+1]). The
+   copies at an end of the line, which read a fixed variable (v0, v201), are the scalars the language writes besides. */
+void Translation::find_runs()
+{
+    if (lang_.slice.empty()) return;
+    const auto function = [&](std::size_t equation) -> const IrFunction & { return ir_.functions[mir_.equations[equation]]; };
+    for (std::size_t line = 0; line < mir_.arrays.size(); ++line) {
+        const std::size_t end = mir_.arrays[line].first + mir_.arrays[line].count;
+        for (std::size_t i = mir_.arrays[line].first; i < end;) {
+            Run run{i, 1, line, {}};
+            Pairing pairing;
+            if (i + 1 < end && alike(function(i), function(i + 1), pairing)) {
+                run.steps = moving(pairing.steps);
+                /* a slice reads neighbouring states: a variable moves to the next one */
+                const bool next_state = std::ranges::all_of(run.steps, [&](const auto &step) { return ir_.nodes[static_cast<std::size_t>(step.first)].op != IrOp::Variable || step.second == 1; });
+                if (!run.steps.empty() && next_state) run.count = 2;
+            }
+            /* the copy n steps n times as much as the second copy, node for node */
+            for (; run.count > 1 && i + run.count < end; ++run.count) {
+                Pairing next;
+                if (!alike(function(i), function(i + run.count), next)) break;
+                const auto now = moving(next.steps);
+                if (now.size() != run.steps.size() ||
+                    !std::ranges::all_of(run.steps, [&](const auto &step) {
+                        const auto found = now.find(step.first);
+                        return found != now.end() && found->second == step.second * static_cast<double>(run.count);
+                    }))
+                    break;
+            }
+            if (run.count > 1) runs_.push_back(run);
+            i += run.count;
+        }
+    }
+}
+
+std::string Translation::slice(int variable, std::size_t count) const
+{
+    const std::size_t first = static_cast<std::size_t>(variable - 1); /* the state vector has no time */
+    return spell(lang_.slice, {std::to_string(first), std::to_string(first + count)});
+}
+
+std::string Translation::range(double first, double step, std::size_t count) const
+{
+    return spell(lang_.index_range, {*number(first), *number(first + step * static_cast<double>(count)), *number(step)});
+}
+
+std::string Translation::unpack() const
+{
+    std::string out;
+    if (!lang_.unpack_states.empty()) {
+        std::vector<std::string> names;
+        for (int i = 1; i <= m_.node; ++i) names.push_back(variable_name(i));
+        return line(1, spell(lang_.unpack_states, {joined(names)}));
+    }
+    for (const int variable : read_states_) out += line(1, spell(lang_.read_state, {variable_name(variable), std::to_string(variable - 1)}));
+    return out;
+}
+
+std::string Translation::part(std::string_view name) const
+{
+    const auto found = std::ranges::find_if(parts_, [&](const auto &p) { return p.first == name; });
+    return found == parts_.end() ? std::string() : found->second;
 }
 
 /* the names of everything the script writes, in the model's order */
@@ -362,6 +535,7 @@ Result<std::string> Translation::call(const IrNode &node, Frame &frame, std::siz
         const std::size_t function = function_by_callee_.at(callee.name);
         if (!frame.variables && !reads_[function].variables.empty())
             return cannot(frame, "a function of the run's variables in a derived parameter");
+        for (const int variable : reads_[function].variables) note_read(variable);
         return function_names_.at(function) + "(" + argument_list(function, arguments) + ")";
     }
     if (callee.symbol >= 0) return math_function(callee, arguments, frame);
@@ -384,6 +558,11 @@ Result<std::string> Translation::expression(int node_index, Frame &frame, std::s
     Result<std::string> text;
     switch (node.op) {
     case IrOp::Number: /* a negative one in parentheses: the language's own minus may bind otherwise */
+        if (frame.run)
+            if (const auto stepping = frame.run->steps.find(node_index); stepping != frame.run->steps.end()) {
+                text = range(node.number, stepping->second, frame.run->count);
+                break;
+            }
         text = number(node.number);
         if (text && std::signbit(node.number)) text = "(" + *text + ")";
         break;
@@ -393,6 +572,12 @@ Result<std::string> Translation::expression(int node_index, Frame &frame, std::s
         break;
     case IrOp::Variable:
         if (!frame.variables) return cannot(frame, "a derived parameter that reads a variable");
+        if (frame.run)
+            if (const auto stepping = frame.run->steps.find(node_index); stepping != frame.run->steps.end()) {
+                text = slice(node.index, frame.run->count);
+                break;
+            }
+        note_read(node.index);
         text = variable_name(node.index);
         break;
     case IrOp::Temporary: text = made("tmp", node.index); break;
@@ -488,7 +673,7 @@ Result<> Translation::program(std::size_t function, const std::string &target, F
     if (Result<> written = statements(f, frame, depth, out); !written) return written;
     const Result<std::string> value = expression(f.result, frame, 0);
     if (!value) return std::unexpected(value.error());
-    out += line(depth, spell(lang_.assign, {target, *value}));
+    out += line(depth, spell(lang_.assign, {target, frame.run ? spell(lang_.slice_value, {*value, std::to_string(frame.run->count)}) : *value}));
     return {};
 }
 
@@ -509,8 +694,13 @@ Result<std::string> Translation::user_function(std::size_t function)
 
 Result<std::string> Translation::script()
 {
+    Values own;
+    for (const Spelling &piece : lang_.parts) own.emplace_back(piece.name, std::string(piece.text));
+    parts_ = own;
+    for (auto &[name, text] : parts_) text = substitute(text, own); /* a part may use another's name */
     scan();
     if (Result<> named = name_everything(); !named) return std::unexpected(named.error());
+    find_runs();
     /* a fixed variable reads the ones set before it (a later one holds a value no step of the script has made) */
     for (std::size_t j = 0; j < mir_.fixed.size(); ++j)
         for (const int variable : reads_[mir_.fixed[j]].variables)
@@ -554,26 +744,30 @@ Result<std::string> Translation::script()
         }
         return {};
     };
+    read_states_.clear();
     if (Result<> fixed = fixed_variables(rhs_body); !fixed) return std::unexpected(fixed.error());
-    for (std::size_t i = 0; i < mir_.equations.size(); ++i) {
+    for (std::size_t i = 0; i < mir_.equations.size();) {
+        const auto run = std::ranges::find(runs_, i, &Run::first);
         Frame frame{&mir_.origin[mir_.equations[i]].place};
         derivatives.push_back(made("d", static_cast<int>(i)));
+        if (run != runs_.end()) frame.run = &*run; /* the copies are one program, over slices */
         if (Result<> written = program(mir_.equations[i], derivatives.back(), frame, 1, rhs_body); !written) return std::unexpected(written.error());
+        i += run == runs_.end() ? 1 : run->count;
     }
+    if (!rhs_body.empty()) rhs_body.pop_back(); /* the template ends the line */
+    rhs_body = unpack() + rhs_body;
+    read_states_.clear();
     if (Result<> fixed = fixed_variables(aux_body); !fixed) return std::unexpected(fixed.error());
     for (std::size_t i = 0; i < mir_.aux.size(); ++i) {
         Frame frame{&mir_.origin[mir_.aux[i]].place};
         aux_values.push_back(made("out", static_cast<int>(i)));
         if (Result<> written = program(mir_.aux[i], aux_values.back(), frame, 1, aux_body); !written) return std::unexpected(written.error());
     }
-    for (std::string *body : {&rhs_body, &aux_body})
-        if (!body->empty()) body->pop_back(); /* the template ends the line */
+    if (!aux_body.empty()) aux_body.pop_back();
+    aux_body = unpack() + aux_body;
 
-    std::vector<std::string> states, initial, columns;
-    for (int i = 0; i < m_.node; ++i) {
-        states.push_back(variable_name(i + 1));
-        initial.push_back(*number(s_.last_ic[static_cast<std::size_t>(i)]));
-    }
+    std::vector<std::string> initial, columns;
+    for (int i = 0; i < m_.node; ++i) initial.push_back(*number(s_.last_ic[static_cast<std::size_t>(i)]));
     for (int j = 0; j <= m_.neq; ++j) {
         std::string quoted;
         json_append_string(quoted, data_column_name(m_, {}, j));
@@ -582,11 +776,21 @@ Result<std::string> Translation::script()
 
     const NumericsSettings &n = *s_.numerics;
     std::string header = comment_block(xpp::format("xppautX export of \"{}\" as {}.", files::split_path(m_.this_file).second, lang_.name));
-    header += comment_block("The equations are the model's and the numbers are those it had when this file was written; the standard library is all it imports.\n"
+    header += comment_block("The equations are the model's and the numbers are those it had when this file was written; " + part("imports_note") + ".\n"
                             "It integrates with the classic fixed-step Runge-Kutta method (RK4) at step DT and writes the rows xppautX stores (T, each variable, then each\n"
                             "auxiliary quantity) to a CSV file beside itself, one row every STORE_EVERY steps.");
     if (n.method != method::RK4)
         header += comment_block(xpp::format("The model's own method is {} (integration.method): the numbers differ from xppautX's for that reason.", method_info(n.method).name));
+    if (!runs_.empty()) {
+        std::string written;
+        for (const Run &run : runs_) {
+            const ModelIr::ArrayLine &array = mir_.arrays[run.line];
+            const int low = array.low + array.step * static_cast<int>(run.first - array.first);
+            written += xpp::format("{}{}..{} ({} = {}..{})", written.empty() ? "" : ", ", m_.uvar_names[run.first], m_.uvar_names[run.first + run.count - 1], array.index, low,
+                                   low + array.step * static_cast<int>(run.count - 1));
+        }
+        header += comment_block("Equations written as slices, each run from one array line of the model: " + written);
+    }
     if (!names_.renames().empty()) {
         std::string renamed;
         for (const auto &[from, to] : names_.renames()) renamed += (renamed.empty() ? "" : ", ") + from + " -> " + to;
@@ -607,23 +811,29 @@ Result<std::string> Translation::script()
         {"store_from", *number(n.store_from)},
         {"state_limit", n.stop_at_limit ? *number(n.state_limit) : std::string(lang_.number_infinity)},
         {"zero_divisor", *number(expr::ZERO_DIVISOR)},
-        {"initial", joined(initial)},
+        {"initial", array_of(initial)},
         {"columns", joined(columns)},
         {"parameters", trimmed(parameters)},
         {"derived", trimmed(derived)},
         {"functions", trimmed(functions)},
-        {"states", joined(states)},
         {"rhs_body", rhs_body},
-        {"derivatives", joined(derivatives)},
+        {"derivatives", array_of(derivatives)},
         {"aux_body", aux_body},
-        {"aux_values", joined(aux_values)},
+        {"aux_values", array_of(aux_values)},
     };
-    return substitute(lang_.file, values);
+    Values all = values;
+    all.insert(all.end(), parts_.begin(), parts_.end());
+    return substitute(lang_.file, all);
 }
 
 } // namespace
 
-const Language *language_named(std::string_view name) { return name == python_language().name ? &python_language() : nullptr; }
+const Language *language_named(std::string_view name)
+{
+    for (const Language *language : {&python_language(), &python_numpy_language(), &python_numba_language()})
+        if (language->name == name) return language;
+    return nullptr;
+}
 
 Result<std::string> export_to_file(FileSystem &fs, const SessionParts &s, const Language &language, std::string_view file)
 {

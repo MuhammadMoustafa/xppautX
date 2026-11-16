@@ -47,6 +47,16 @@ struct ModelIr {
     };
     std::vector<Origin> origin;
     std::vector<size_t> equations, fixed, aux; /* the function of each ODE, fixed variable and aux column, in the model's order */
+    /* The equations that came from one array line of the model (`v[j]' = ... for j in 1..200`: the reader expanded it into one
+       equation for each index, odex.h's ArrayCopy), consecutive in `equations` from `first`, with the line's index and range
+       (`index` runs from `low` to `high` in steps of `step`; copy n of the line has low + n * step). Only an ODE's lines are kept, and
+       only those of two copies or more; a back end that writes arrays reads the copies' trees to see what they share. */
+    struct ArrayLine {
+        size_t first, count;
+        std::string index;
+        int low, high, step;
+    };
+    std::vector<ArrayLine> arrays;
     struct Derived {
         size_t function;
         int constant; /* the parser's constant the formula's value is */

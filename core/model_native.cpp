@@ -38,6 +38,8 @@
 #include "model_place.h"
 #include "model_options.h"
 #include "model_numerics.h"
+#include "model_record.h"
+#include "odex.h"
 #include "odex.h"
 
 namespace xpp {
@@ -843,6 +845,20 @@ Result<ModelIr> model_ir(const SessionParts &s)
     };
     for (int i=0;i<m.node;++i)
         if (const Result<> r=add(m.programs[static_cast<size_t>(i)],m.uvar_names[static_cast<size_t>(i)],model_place(m,m.uvar_names[static_cast<size_t>(i)]),&out.equations);!r) return std::unexpected(r.error());
+    /* the equations' statements are the model's Ode, Map and Volterra statements in order: the k-th is equation k */
+    size_t equation=0;
+    int open_group=0;
+    for (const odex::Statement &st:m.record->statements) {
+        if (st.kind!=odex::Statement::Kind::Ode && st.kind!=odex::Statement::Kind::Map && st.kind!=odex::Statement::Kind::Volterra) continue;
+        const odex::ArrayCopy &a=st.array;
+        if (st.kind==odex::Statement::Kind::Ode && a.group!=0 && !a.interleaved && equation<static_cast<size_t>(m.node)) {
+            if (a.group==open_group) ++out.arrays.back().count;
+            else out.arrays.push_back({equation,1,a.index,a.lo,a.hi,a.step});
+            open_group=a.group;
+        } else open_group=0;
+        ++equation;
+    }
+    std::erase_if(out.arrays,[](const ModelIr::ArrayLine &line){return line.count<2;});
     for (int i=m.node;i<m.node+m.fix_var;++i) {
         const std::string &name=m.fixinfo[static_cast<size_t>(i-m.node)].name;
         if (const Result<> r=add(m.programs[static_cast<size_t>(i)],name,model_place(m,name),&out.fixed);!r) return std::unexpected(r.error());

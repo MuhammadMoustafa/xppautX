@@ -32,7 +32,8 @@ without writing files (W75, [#123](https://github.com/MuhammadMoustafa/xppautX/i
 `xppautX --convert model.odex --to python` writes `model.py` beside the model (a `.ode` is converted to its `.odex` first, as
 `--convert` alone does): the model as a Python program, from the same expression trees the native compiler compiles, with the values
 the model has when it is read (W764, [#843](https://github.com/MuhammadMoustafa/xppautX/issues/843)). `--to` names the format of the file
-written: `odex` (the default, today's conversion), or a language: `python`. The File > Export > Model as a program command (`model.export`) is
+written: `odex` (the default, today's conversion), or a language: `python`, `python_numpy` (numpy arrays, an array line of the model as slices) or
+`python_numba` (the `python` script compiled by numba; W766, [#846](https://github.com/MuhammadMoustafa/xppautX/issues/846)). The File > Export > Model as a program command (`model.export`) is
 the same function for a running session, with its current values. What the script does, and what is refused, is in the
 [manual](manual/05-commands.md).
 

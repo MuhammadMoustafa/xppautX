@@ -127,7 +127,7 @@ constexpr std::array ROWS = {
     Command{"session.export_info", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Simulation information", "File/Export",
             "Write the equations, numerics, initial conditions and parameters to a file.", EXPORT_RESULTS, DONE_EVENTS, true, export_info, {}, {}, "write", "*.txt", "", "Export"},
     Command{"model.export", MODEL_EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Model as a program", "File/Export",
-            "Write the model, with the values it has now (parameters, initial data, the integration settings), as a program in a language that runs with no xppautX and writes the rows of a run to a CSV file beside itself; "
+            "Write the model, with the values it has now (parameters, initial data, the integration settings), as a program in a language that runs with no xppautX and writes the rows of a run to a CSV file beside itself (python: the standard library; python_numpy: numpy arrays, an array line of the model one slice; python_numba: python's statements compiled by numba); "
             "left out, file is asked for (the result's file is empty when that question was cancelled). A model the language cannot say (tables, delays, events, Markov variables, networks, ...) is refused, naming what and its line.",
             MODEL_EXPORT_RESULTS, DONE_EVENTS, true, export_model_as, {}, {}, "write", "*", "", "Export"},
     Command{"session.import_xppaut_state", IMPORT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "Import XPPAUT session state", "File/Sets",

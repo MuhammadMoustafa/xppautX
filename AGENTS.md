@@ -330,7 +330,10 @@ monotonically from the Hopf point).
 script (`xppautX --convert MODEL --to python`), runs it with the repo's interpreter and compares its CSV with the
 `output.dat` of `xppautX MODEL --silent` keeping doubles: exactly for a model of arithmetic alone (the same RK4 order, no
 fused multiply-add), else to 1e-9 relative (xppautX's correctly rounded functions against the C library's, an ulp each); it also checks the header of a model on another method, the renames,
-the refusals (a table, a delay, a shift, events, a map: what, the model line, no file) and `--to`'s words.
+the refusals (a table, a delay, a shift, events, a map: what, the model line, no file) and `--to`'s words. Since W766 (#846) every
+model runs in all three targets (`--to python`, `python_numpy`, `python_numba`; numpy and numba are in uv.lock for this) and the array models of
+examples/ode the export accepts (lecdiff200, wave, lamprey, lecsimp2, itoy, toy_ok) run in each, python_numpy's header naming the slices it wrote; numba compiles
+lecdiff200's 400 states in about 17 seconds, most of the check's time.
 
 `tools/goldencheck.py` (W31c, run by verify.sh) drives `xppautX --server`
 through lecar.ode and vanderpol.ode to write PDF (with a nullcline
