@@ -142,9 +142,9 @@ xpp::Result<> aplot_ready(const xpp::Session &s, const std::string &where, bool 
   return {};
 }
 
-xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file, const APLOT *given)
+xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file)
 {
-  APLOT candidate=given?*given:s.array_plot->plot;
+  APLOT candidate=s.array_plot->plot; /* a copy: the file name is this picture's, not the plot's */
   APLOT *ap=&candidate;
   if(const auto ready=aplot_ready(s,"array_plot.export");!ready)return std::unexpected(ready.error());
   const AplotTimes times=aplot_times(s,*ap);

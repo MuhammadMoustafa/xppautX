@@ -36,7 +36,7 @@ void scale_aplot(const xpp::Session &s, APLOT *ap, double *zmax, double *zmin);
 xpp::Result<> aplot_ready(const xpp::Session &s, const std::string &where, bool needs_data = true);
 /* the array plot as a PDF picture into `file` (its labels are the plot's xtitle, ytitle and bottom): false when
    replacing an existing file was declined */
-xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file, const APLOT *given = nullptr);
+xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file);
 /* the next range sweep saves the array plot at each run: as one GIF movie (still false) or a GIF per run,
    `tag`ged with the swept value, from the file `file` names */
 void begin_array_range(xpp::Session &s, bool still, bool tag, std::string_view file);
