@@ -7,7 +7,7 @@ import type {CoreColor} from '../protocol/types';
 export type {CoreColor};
 
 /** the foreground color of each theme (the plot's text and default curve) */
-const FOREGROUND = {light: '#1f2937', dark: '#e5e7eb'} as const;
+const FOREGROUND = {light: '#1f2937', dark: '#ebebeb'} as const; /* dark: tokens.css's dark --fg */
 
 /** the color the canvas or CSS draws `c` in */
 export function cssColor(c: CoreColor, dark: boolean): string {
