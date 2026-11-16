@@ -118,7 +118,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 /* the drop-down menus (DropDownMenu's, a plot's ⋯, the pinned commands' More) share one box and one placement (W777): from 48rem each hangs
    under its trigger, from the trigger's start, or its end where the trigger sits at the right end of its toolbar (the table's, the plot's ⋯ and the pinned
    commands' More set --menu-left/--menu-right), over the view and inside the viewport; below 48rem it opens in place (the phone rule below) */
-.sets-menu[data-sets-menu=save], .table-panel .sets-menu { --menu-left: auto; --menu-right: 0; } /* Save ends the sets row, the table's menus end its toolbar: both hang from their end */
+.sets-menu[data-sets-menu=save], .table-panel .sets-menu, .aplot-tools .sets-menu { --menu-left: auto; --menu-right: 0; } /* Save ends the sets row, the table's and the array plot's menus end their toolbars: they hang from their end */
 .sets-menu > ul, .plot-more-menu, .quick-more-list { position: absolute; z-index: var(--z-inline-menu); top: 100%; left: var(--menu-left, 0); right: var(--menu-right, auto); display: grid; gap: var(--space-1);
   min-width: 12rem; max-width: min(24rem, 90vw); max-height: 60vh; overflow: auto; margin: 0; padding: var(--space-2); list-style: none;
   background: var(--surface); color: var(--fg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }

@@ -35,15 +35,15 @@ export function choiceItems(row: CommandRow, separator: string, fixed = row.menu
   return choiceValues(row).map(value => ({...row, choice: {value, arguments: {...(fixed && {[fixed.argument]: fixed.value}), [row.menu_choice!]: value, ...(row.arguments?.some(a => a.type === 'file' && a.required) && {file_picker: true})}},
     name: `${row.name}${separator}${choiceLabel(value)}`}));
 }
-/** the items of a menu_choice row as a place shows them (the array plot's and the kinescope's Export menus): one list from choiceItems, none without a hello */
-export function rowChoiceItems(hello: HelloEvent | null, row: CommandRow | undefined): CommandRow[] {
-  return row && hello ? choiceItems(row, hello.menu_separator) : [];
+/** the items of a menu_choice row as a place shows them (the array plot's, the kinescope's, the table's and the plot's Export menus), with
+    `fixed` when the place knows more than the row's own fixed argument: one list from choiceItems, none without a hello */
+export function rowChoiceItems(hello: HelloEvent | null, row: CommandRow | undefined, fixed?: {argument: string; value: string}): CommandRow[] {
+  return row && hello ? choiceItems(row, hello.menu_separator, fixed) : [];
 }
 /** data.export's items for the data a place writes: the row's own target (the table), or `target` when the place knows another (the plot's
     curves, the table's output columns): one list for File > Export > Data as, the table's and the plot's Export menus */
 export function dataExportItems(hello: HelloEvent | null, target?: string): CommandRow[] {
-  const row = commandRow(hello, 'data.export');
-  return row && hello ? choiceItems(row, hello.menu_separator, target ? {argument: 'target', value: target} : row.menu_fixed) : [];
+  return rowChoiceItems(hello, commandRow(hello, 'data.export'), target ? {argument: 'target', value: target} : undefined);
 }
 export interface MenuNode {name: string; children: MenuNode[]; row?: CommandRow}
 export function menuTree(rows: CommandRow[], hello: HelloEvent | null): MenuNode[] {

@@ -44,7 +44,7 @@ function KinescopeBar() {
             title="Show the captured frames"><CommandLabel command="kinescope.play" /></button>
           <button class="small" disabled={!playing} onClick={() => session.kinescopeStop()}>Stop</button>
           <DropDownMenu id="kinescope-export" label={exportRow?.menu_path?.split('/').pop() ?? ''}>
-            {rowChoiceItems(hello, exportRow).map(item => <ChoiceItem key={item.choice!.value} item={item} />)}
+            {rowChoiceItems(hello, exportRow).map(item => <ChoiceItem key={item.choice!.value} item={item} disabled={playing} />)}
           </DropDownMenu>
           <button class="small" disabled={busy} onClick={() => session.kinescopeReset()}
             title="Clear the captured frames"><CommandLabel command="kinescope.reset" /></button>
