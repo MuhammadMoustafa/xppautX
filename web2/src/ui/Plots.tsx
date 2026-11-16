@@ -1,6 +1,9 @@
 import type {ComponentChildren} from 'preact';
 import {useState} from 'preact/hooks';
 import {CommandButton, CommandLabel, useCommandLabel} from './CommandButton';
+import {ChoiceItem} from './ChoiceItem';
+import {DropDownMenu} from './SetsRow';
+import {commandRow, rowChoiceItems} from './navigation';
 /* The plot windows (docs/ui-v2.md T6): one PlotView per core window, the one
    selected shown, each with its own zoom; the tabs that pick one are ui/ViewTabs.tsx's. In a split view (W720, ui/split.ts) the shown
    one of each group is drawn, placed by its group (css/plot.css), with the bar between them (ui/GroupSplitter.tsx) and, when the
@@ -27,6 +30,8 @@ function KinescopeBar() {
   const {frames, playing, shown} = useStore(s => s.kinescope);
   const mayMain = useMayMain();
   const busy = !mayMain('kinescope.capture'); /* the Kinescope menu's kind (W95) */
+  const hello = useStore(s => s.hello);
+  const exportRow = commandRow(hello, 'kinescope.export');
   return (
     <div class="kinescope-bar" role="group" aria-label="Kinescope">
       <button class="small" disabled={busy} onClick={() => session.kinescopeCapture()}
@@ -38,13 +43,11 @@ function KinescopeBar() {
           <button class="small" disabled={busy || playing} onClick={() => session.kinescopePlay()}
             title="Show the captured frames"><CommandLabel command="kinescope.play" /></button>
           <button class="small" disabled={!playing} onClick={() => session.kinescopeStop()}>Stop</button>
-          <button class="small" disabled={busy || playing} onClick={() => session.downloadKinescopeGif()}
-            title="Export the captured frames as an animated GIF">
-            <CommandLabel command="kinescope.export_gif" />
-          </button>
+          <DropDownMenu id="kinescope-export" label={exportRow?.menu_path?.split('/').pop() ?? ''}>
+            {rowChoiceItems(hello, exportRow).map(item => <ChoiceItem key={item.choice!.value} item={item} />)}
+          </DropDownMenu>
           <button class="small" disabled={busy} onClick={() => session.kinescopeReset()}
             title="Clear the captured frames"><CommandLabel command="kinescope.reset" /></button>
-          <CommandButton command="kinescope.export_frames" />
           <CommandButton command="kinescope.autoplay" />
         </>
       )}

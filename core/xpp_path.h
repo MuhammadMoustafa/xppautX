@@ -63,6 +63,9 @@ Error open_error(std::string where, std::string_view file, std::string_view why 
 namespace xpp {
 /* the vector picture formats' names: the extensions output.picture_file takes (the registry that writes them is picture.h's) */
 inline constexpr std::array<std::string_view, 2> picture_format_names{"pdf", "svg"};
+/* the output a movie export writes (kinescope.export, animation.export): one animated GIF file, or its frames as numbered files (the
+   kinescope's are GIFs, the animation's PPM) */
+inline constexpr std::array<std::string_view, 2> movie_output_names{"animated_gif", "frames"};
 /* path ends in the extension of a vector picture format */
 inline bool has_picture_extension(std::string_view path)
 {

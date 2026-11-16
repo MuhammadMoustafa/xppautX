@@ -496,7 +496,7 @@ This selects one of different types of graphs: a 2D box or a 3D Box; brings up a
 - The `Style` button does nothing yet. The `Edit` button lets you change ranges and arrays to plot. The `Redraw` button is obvious.
 - Since the animation option requires learning lots of new stuff, see [Creating Animations](10-animations.md) for a description of the animation language and what you can do with it.
 
-The plot's Graphic stuff > Freeze > Import diagram reads a six-column `.dat` or `.csv` table: x, low, high, type, branch and two-parameter flag. A CSV header is skipped. The richer autoX Export > CSV has a different layout.
+The plot's Graphic stuff > Freeze > Import diagram reads a six-column `.dat` or `.csv` table: x, low, high, type, branch and two-parameter flag. A CSV header is skipped. The richer autoX Export > Data > Diagram (CSV) has a different layout.
 
 ### Xi vs t
 
@@ -542,18 +542,20 @@ The Kinescope menu, the Animation window's buttons and the Array plot window's b
 and an argument left out keeps the current setting. A command that cannot do its work says why: playing an empty kinescope, an animation with no
 stored data, or a picture of an array plot that shows no columns yet.
 
-The Kinescope bar holds Capture, Play, Stop, Export kinescope GIF, Reset, and,
-once frames are captured, Export kinescope frames and Autoplay kinescope. The
+The Kinescope bar holds Capture, Play, Stop, Reset, and, once frames are captured, Autoplay
+kinescope and an Export menu: Animated gif (one GIF of the frames) or Frames (every frame as a GIF file). The
 Animation view holds its player (Play, Step, Seek, Delay, Grab point), Speed up
 animation, Slow down animation, Set frame skip, Draw animation live and Reset
 animation. The recording player's Speed buttons set the recording's speed.
 
 - `kinescope.capture`, `kinescope.reset`, `kinescope.play`, `kinescope.autoplay` (`cycles`, `frame_ms`),
-  `kinescope.export_frames` and `kinescope.export_gif` (`file`, a name in the model's folder).
+  and `kinescope.export` (`output`: `animated_gif` for one animated GIF or `frames` for every frame as a GIF file,
+  numbered from the first `file`; and `file`, a name in the model's folder). File > Export > **Kinescope as** and the
+  Kinescope bar's Export menu send it with the output clicked.
 - `animation.open`, `animation.load` (`file`), `animation.play`, `animation.reset`,
-  `animation.set_frame_skip` (`skip`, at least 1), `animation.export_frames` (`ppm` or
-  `animated_gif`, exactly one, and `file`: it plays the animation writing every frame, so the Mpeg
-  button now writes at once rather than arming the next Go), `animation.set_live_draw`,
+  `animation.set_frame_skip` (`skip`, at least 1), `animation.export` (`output`: `animated_gif` for one animated
+  GIF or `frames` for numbered PPM files, and `file`: it plays the animation writing every frame; File > Export >
+  **Animation as**), `animation.set_live_draw`,
   `animation.step` (`rows`), `animation.seek` (`row`) and the speed commands `animation.set_speed`
   (`ms`), `animation.faster` and `animation.slower`. `animation.pause` and the speed commands reach a
   Go that is playing. `animation.grab_point` presses at `x`, `y` (the animation's own coordinates),
@@ -563,5 +565,6 @@ animation. The recording player's Speed buttons set the recording's speed.
 - `array_plot.open`, `array_plot.redraw`, `array_plot.configure` (`first_column`, `columns`,
   `first_row`, `rows`, `row_skip`, `z_min` below `z_max`, `auto_redraw`, `column_skip`),
   `array_plot.fit`, `array_plot.scroll` (`first_row`: the page's drag, wheel and arrow keys),
-  `array_plot.export_pdf` (`file` and the three labels), `array_plot.export_gif` and
-  `array_plot.range` (`still`, `tag`, `file` and the arguments of `run.range`).
+  `array_plot.export` (`format`: `pdf` with `file` and the three labels, or `gif` with `file`, which takes no labels:
+  the GIF is the window's picture as it shows; File > Export > **Array plot as**, and the array plot's Export menu),
+  and `array_plot.range` (`still`, `tag`, `file` and the arguments of `run.range`).

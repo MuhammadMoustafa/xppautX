@@ -57,7 +57,7 @@ Result<std::string> autoplay(Session &s, const Command &command, const Arguments
     return ResultObject().integer("cycles_completed", s.kinescope->cycles).done();
 }
 
-Result<std::string> export_frames(Session &s, const Command &command, const Arguments &args, const Place &place)
+Result<std::string> save_frames(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     if (const Result<> ready = need_frames(s, command, place); !ready) return std::unexpected<Error>(ready.error());
     const std::string &file = args.get<std::string>("file");
@@ -68,7 +68,7 @@ Result<std::string> export_frames(Session &s, const Command &command, const Argu
     return ResultObject().text("file", file).integer("frames_saved", *saved).done();
 }
 
-Result<std::string> export_gif(Session &s, const Command &command, const Arguments &args, const Place &place)
+Result<std::string> save_anigif(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     if (const Result<> ready = need_frames(s, command, place); !ready) return std::unexpected<Error>(ready.error());
     const std::string &file = args.get<std::string>("file");
@@ -78,16 +78,24 @@ Result<std::string> export_gif(Session &s, const Command &command, const Argumen
     return ResultObject().text("file", file).integer("bytes_written", static_cast<long long>(*size)).done();
 }
 
+/* kinescope.export: the output's choice picks the one writer (movie_output_names) */
+Result<std::string> export_output(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    if (args.get<std::string>("output") == "frames") return save_frames(s, command, args, place);
+    return save_anigif(s, command, args, place);
+}
+
 constexpr std::array AUTOPLAY_ARGUMENTS = {
     Argument{"cycles", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(std::numeric_limits<int>::max())},
     Argument{"frame_ms", Type::integer, false, MAX_TEXT_BYTES, {}, constant(0), constant(std::numeric_limits<int>::max())}};
-constexpr std::array FILE_ARGUMENTS = {Argument{"file", Type::file, true}};
+constexpr auto OUTPUT_CHOICES = c_names(movie_output_names);
+constexpr std::array EXPORT_ARGUMENTS = {Argument{"output", Type::choice, true, MAX_TEXT_BYTES, OUTPUT_CHOICES}, Argument{"file", Type::file, true}};
 constexpr std::array CAPTURE_RESULTS = {ResultField{"frame_count", "integer"}};
 constexpr std::array RESET_RESULTS = {ResultField{"cleared", "boolean"}};
 constexpr std::array PLAY_RESULTS = {ResultField{"frames_played", "integer"}};
 constexpr std::array AUTOPLAY_RESULTS = {ResultField{"cycles_completed", "integer"}};
-constexpr std::array FRAMES_RESULTS = {ResultField{"file", "file"}, ResultField{"frames_saved", "integer"}};
-constexpr std::array GIF_RESULTS = {ResultField{"file", "file"}, ResultField{"bytes_written", "integer"}};
+/* the file, and the count of what it holds: bytes_written for animated_gif, frames_saved for frames */
+constexpr std::array EXPORT_RESULTS = {ResultField{"file", "file"}, ResultField{"bytes_written", "integer"}, ResultField{"frames_saved", "integer"}};
 constexpr std::array FILM_EVENTS = {xpp::events::KINESCOPE_FILM, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array DONE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
@@ -98,14 +106,12 @@ constexpr std::array ROWS = {
             "Show the captured frames once.", PLAY_RESULTS, FILM_EVENTS, true, play},
     Command{"kinescope.reset", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Reset kinescope", "",
             "Throw away every captured frame.", RESET_RESULTS, FILM_EVENTS, true, reset},
-    Command{"kinescope.export_gif", FILE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Export kinescope GIF", "",
-            "Write the captured frames as one animated GIF file of the model's folder.", GIF_RESULTS, DONE_EVENTS, true, export_gif, {}, {}, "write", "*"},
     Command{"kinescope.autoplay", AUTOPLAY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Autoplay kinescope", "",
             "Show the captured frames cycles times, frame_ms apart; what is left out is the last autoplay's setting.",
             AUTOPLAY_RESULTS, FILM_EVENTS, true, autoplay},
-    Command{"kinescope.export_frames", FILE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Export kinescope frames", "",
-            "Write every captured frame as a GIF file of the model's folder: file for the first, then its numbered names.",
-            FRAMES_RESULTS, DONE_EVENTS, true, export_frames, {}, {}, "write", "*"},};
+    Command{"kinescope.export", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Kinescope as", "File/Export",
+            "Write the captured frames into a file of the model's folder: output animated_gif for one animated GIF, frames for every frame as a GIF file, file for the first, then its numbered names.",
+            EXPORT_RESULTS, DONE_EVENTS, true, export_output, {}, {}, "write", "*", "", "", Feature::none, "output"}};
 
 } // namespace
 

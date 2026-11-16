@@ -25,7 +25,7 @@ constexpr KeyCommand key_commands[] = {
   {"nn", "nullcline.compute"}, {"nr", "nullcline.redraw"}, {"ns", "nullcline.export"},
   {"dd", "direction_field.compute"}, {"df", "direction_field.flow"}, {"dn", "direction_field.clear"}, {"dc", "direction_field.colorize"},
   {"ww", "window.set_bounds"}, {"wf", "window.fit"}, {"mc", "window.new"}, {"mk", "window.close_extra"}, {"md", "window.close"}, {"mb", "window.send_to_bottom"}, {"r", "window.redraw"}, {"e", "window.clear"}, {"x", "plot.variable_vs_time"},
-  {"kc", "kinescope.capture"}, {"kr", "kinescope.reset"}, {"kp", "kinescope.play"}, {"ka", "kinescope.autoplay"}, {"ks", "kinescope.export_frames"}, {"km", "kinescope.export_gif"},
+  {"kc", "kinescope.capture"}, {"kr", "kinescope.reset"}, {"kp", "kinescope.play"}, {"ka", "kinescope.autoplay"},
   {"ga", "plot.add_curve"}, {"gd", "plot.delete_curve"}, {"gr", "plot.delete_all_curves"}, {"ge", "plot.edit_curve"},
   {"p", "value.set_parameters"}, {"fa", "autox.open"}, {"fc", "calculator.evaluate"}, {"fs", "session.export_info"},
   {"fr", "session.import_xppaut_state"}, {"fq", "session.quit"}, {"ft", "data.transpose"}, {"fg", "set.apply"}};

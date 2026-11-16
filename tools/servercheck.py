@@ -1290,11 +1290,15 @@ def check_autox_registry():
         check('autox.configure_numerics: a level is a name', done['status'] == 'error' and 'loud' in done['error'], str(done))
         _, done = call(cmd='autox.configure_numerics', switch_one_direction=True, output_detail='extensive', special_points={'cusp': False})
         check('autox.configure_numerics: the levels and the boolean are set', done['status'] == 'ok', str(done))
-        _, done = call(cmd='autox.export_csv', file='w516.csv')
-        check('autox.export_csv: a file argument writes it and says how many points', done['status'] == 'ok'
+        _, done = call(cmd='autox.export_data', target='diagram', file='w516.csv')
+        check('autox.export_data: target diagram with a file writes it and says how many points', done['status'] == 'ok'
               and done['result']['points_written'] > 5 and (glob.glob(os.path.join(folder, 'w516*.csv')) or glob.glob(os.path.join(s.run, 'w516*.csv'))), str(done))
-        _, done = call(cmd='autox.export_csv', file='../w516.csv')
-        check('autox.export_csv: a file name is a base name', done['status'] == 'error', str(done))
+        _, done = call(cmd='autox.export_data', target='diagram', file='../w516.csv')
+        check('autox.export_data: a file name is a base name', done['status'] == 'error', str(done))
+        _, done = call(cmd='autox.export_data', file='w516.csv')
+        check('autox.export_data: a target is required', done['status'] == 'error' and 'target' in done['error'], str(done))
+        _, done = call(cmd='autox.export_data', target='csv', file='w516b.csv')
+        check('autox.export_data: a target outside its choices is refused', done['status'] == 'error', str(done))
         _, done = call(cmd='preferences.configure', threads=1)
         check('preferences.configure: a count', done['status'] == 'ok' and done['result']['threads'] == 1 and done['result']['automatic'] is False, str(done))
         _, done = call(cmd='preferences.configure', threads=1, automatic=True)
@@ -2710,20 +2714,21 @@ def check_kinescope_animation_array_plot():
         result, evs, _ = req({'cmd': 'kinescope.autoplay'})
         check('W527: kinescope.autoplay keeps the last settings', any(e.get('ev') == 'kinescope.film' and e.get('cycles') == 2 and e.get('delay') == 5 for e in evs), str(evs)[-300:])
         for refused in [{'cmd': 'kinescope.autoplay', 'cycles': 0}, {'cmd': 'kinescope.autoplay', 'frame_ms': -1}, {'cmd': 'kinescope.autoplay', 'cycles': 1.5},
-                        {'cmd': 'kinescope.export_frames'}, {'cmd': 'kinescope.export_frames', 'file': '../k.gif'}, {'cmd': 'kinescope.export_gif', 'file': 'a/b.gif'},
-                        {'cmd': 'kinescope.capture', 'file': 'x'}]:
+                        {'cmd': 'kinescope.export', 'output': 'frames'}, {'cmd': 'kinescope.export', 'output': 'frames', 'file': '../k.gif'},
+                        {'cmd': 'kinescope.export', 'output': 'animated_gif', 'file': 'a/b.gif'}, {'cmd': 'kinescope.export', 'file': 'x.gif'},
+                        {'cmd': 'kinescope.export', 'output': 'gif', 'file': 'x.gif'}, {'cmd': 'kinescope.capture', 'file': 'x'}]:
             req(refused, False)
-        result, evs, _ = req({'cmd': 'kinescope.export_frames', 'file': 'w527_kin.gif'})
-        check('W527: kinescope.export_frames asks the pictures and writes the GIFs, numbered from 0',
+        result, evs, _ = req({'cmd': 'kinescope.export', 'output': 'frames', 'file': 'w527_kin.gif'})
+        check('W527: kinescope.export output frames asks the pictures and writes the GIFs, numbered from 0',
               result == {'file': 'w527_kin.gif', 'frames_saved': 2} and exists('w527_kin_0000.gif', 'w527_kin_0001.gif')
               and not exists('w527_kin.gif') and head('w527_kin_0000.gif', 6) [:4] == b'GIF8', str(result))
-        req({'cmd': 'kinescope.export_frames', 'file': 'w673_kin'}, False)
+        req({'cmd': 'kinescope.export', 'output': 'frames', 'file': 'w673_kin'}, False)
         check('W673: frames named without the format\'s extension are refused, and none is written', not exists('w673_kin_0000') and not exists('w673_kin_0000.gif'))
         os.mkdir(os.path.join(run_dir, 'atomic_0001.gif'))
-        req({'cmd': 'kinescope.export_frames', 'file': 'atomic.gif'}, False)
+        req({'cmd': 'kinescope.export', 'output': 'frames', 'file': 'atomic.gif'}, False)
         check('W534: refusing the last frame file writes no earlier frame', not exists('atomic_0000.gif'))
-        result, evs, _ = req({'cmd': 'kinescope.export_gif', 'file': 'w527_movie.gif'})
-        check('W527: kinescope.export_gif writes one animated GIF', result.get('file') == 'w527_movie.gif' and exists('w527_movie.gif')
+        result, evs, _ = req({'cmd': 'kinescope.export', 'output': 'animated_gif', 'file': 'w527_movie.gif'})
+        check('W527: kinescope.export output animated_gif writes one animated GIF', result.get('file') == 'w527_movie.gif' and exists('w527_movie.gif')
               and result.get('bytes_written') == os.path.getsize(os.path.join(run_dir, 'w527_movie.gif')) > 20, str(result))
         result, evs, _ = req({'cmd': 'kinescope.reset'})
         check('W527: kinescope.reset clears the frames', result == {'cleared': True}
@@ -2731,8 +2736,8 @@ def check_kinescope_animation_array_plot():
         for empty in ('kinescope.play', 'kinescope.autoplay'):
             _, _, error = req({'cmd': empty}, False)
             check('W527: %s says the kinescope holds no frames' % empty, 'holds no frames' in error, error)
-        _, _, error = req({'cmd': 'kinescope.export_gif', 'file': 'none.gif'}, False)
-        check('W527: kinescope.export_gif with no frames writes nothing', 'holds no frames' in error and not exists('none.gif'), error)
+        _, _, error = req({'cmd': 'kinescope.export', 'output': 'animated_gif', 'file': 'none.gif'}, False)
+        check('W527: kinescope.export with no frames writes nothing', 'holds no frames' in error and not exists('none.gif'), error)
 
         # the animation
         snd(cmd='events.subscribe', events=['animation.frame'])
@@ -2782,15 +2787,16 @@ def check_kinescope_animation_array_plot():
         result, evs, _ = req({'cmd': 'animation.play'})
         frames = [e for e in evs if e.get('ev') == 'animation.frame']
         check('W527: animation.play plays to the last frame', result == {'playing': False} and frames, str(result))
-        result, evs, _ = req({'cmd': 'animation.export_frames', 'animated_gif': True, 'file': 'w527_an.gif'})
-        check('W527: animation.export_frames writes one animated GIF of the frames', result == {'frames_saved': 7} and exists('w527_an.gif')
+        result, evs, _ = req({'cmd': 'animation.export', 'output': 'animated_gif', 'file': 'w527_an.gif'})
+        check('W527: animation.export output animated_gif writes one animated GIF of the frames', result == {'frames_saved': 7} and exists('w527_an.gif')
               and head('w527_an.gif', 6) [:4] == b'GIF8', str(result))
-        result, evs, _ = req({'cmd': 'animation.export_frames', 'ppm': True, 'file': 'w527_an.ppm'})
-        check('W527: animation.export_frames writes PPM files, numbered from 0', result == {'frames_saved': 7}
+        result, evs, _ = req({'cmd': 'animation.export', 'output': 'frames', 'file': 'w527_an.ppm'})
+        check('W527: animation.export output frames writes PPM files, numbered from 0', result == {'frames_saved': 7}
               and exists('w527_an_0000.ppm', 'w527_an_0001.ppm', 'w527_an_0006.ppm') and not exists('w527_an.ppm')
               and head('w527_an_0000.ppm', 2) == b'P6', str(result))
-        for refused in [{'cmd': 'animation.export_frames', 'file': 'w527_x.ppm'}, {'cmd': 'animation.export_frames', 'ppm': True, 'animated_gif': True, 'file': 'w527_x.gif'},
-                        {'cmd': 'animation.export_frames', 'ppm': True}, {'cmd': 'animation.export_frames', 'ppm': True, 'file': '../x.ppm'}]:
+        for refused in [{'cmd': 'animation.export', 'file': 'w527_x.ppm'}, {'cmd': 'animation.export', 'output': 'gif', 'file': 'w527_x.gif'},
+                        {'cmd': 'animation.export', 'output': 'frames'}, {'cmd': 'animation.export', 'output': 'frames', 'file': '../x.ppm'},
+                        {'cmd': 'animation.export', 'output': 'animated_gif', 'file': 'w527_x.ppm'}]:
             req(refused, False)
         check('W527: a refused export writes nothing', not exists('w527_x.ppm', 'w527_x.gif'), str(os.listdir(run_dir)))
         _, _, error = req({'cmd': 'animation.grab_point', 'x': 0.5, 'y': 0.5, 'to_x': 0.5}, False)
@@ -2846,13 +2852,15 @@ def check_kinescope_animation_array_plot():
         for refused in [{'cmd': 'array_plot.scroll', 'first_row': -1}, {'cmd': 'array_plot.scroll'}, {'cmd': 'array_plot.scroll', 'first_row': 1.5},
                         {'cmd': 'array_plot.scroll', 'first_row': 2147483647}]:
             req(refused, False)
-        result, evs, _ = req({'cmd': 'array_plot.export_pdf', 'file': 'w527_ap.pdf', 'top_label': 'top', 'side_label': 'side', 'bottom_label': 'bottom'})
-        check('W527: array_plot.export_pdf writes the picture', result == {'file': 'w527_ap.pdf'} and head('w527_ap.pdf', 4) == b'%PDF', str(result))
-        result, evs, _ = req({'cmd': 'array_plot.export_gif', 'file': 'w527_ap.gif'})
-        check('W527: array_plot.export_gif asks the picture and writes it', result.get('file') == 'w527_ap.gif'
+        result, evs, _ = req({'cmd': 'array_plot.export', 'format': 'pdf', 'file': 'w527_ap.pdf', 'top_label': 'top', 'side_label': 'side', 'bottom_label': 'bottom'})
+        check('W527: array_plot.export format pdf writes the picture', result == {'file': 'w527_ap.pdf'} and head('w527_ap.pdf', 4) == b'%PDF', str(result))
+        req({'cmd': 'array_plot.export', 'format': 'gif', 'file': 'w527_apl.gif', 'top_label': 'top'}, False)
+        check('W527: array_plot.export format gif refuses a label, naming it, and writes nothing', not exists('w527_apl.gif'))
+        result, evs, _ = req({'cmd': 'array_plot.export', 'format': 'gif', 'file': 'w527_ap.gif'})
+        check('W527: array_plot.export format gif asks the picture and writes it', result.get('file') == 'w527_ap.gif'
               and result.get('bytes_written') == os.path.getsize(os.path.join(run_dir, 'w527_ap.gif')) > 20 and head('w527_ap.gif', 6) [:4] == b'GIF8', str(result))
-        for refused in [{'cmd': 'array_plot.export_pdf'}, {'cmd': 'array_plot.export_pdf', 'file': '../a.pdf'}, {'cmd': 'array_plot.export_gif'},
-                        {'cmd': 'array_plot.export_gif', 'file': 'a/b.gif'}, {'cmd': 'array_plot.range', 'file': 'r.gif', 'steps': 0}, {'cmd': 'array_plot.range'},
+        for refused in [{'cmd': 'array_plot.export', 'format': 'pdf'}, {'cmd': 'array_plot.export', 'format': 'pdf', 'file': '../a.pdf'}, {'cmd': 'array_plot.export', 'format': 'gif'},
+                        {'cmd': 'array_plot.export', 'format': 'gif', 'file': 'a/b.gif'}, {'cmd': 'array_plot.export', 'file': 'a.pdf'}, {'cmd': 'array_plot.export', 'format': 'svg', 'file': 'a.svg'}, {'cmd': 'array_plot.range', 'file': 'r.gif', 'steps': 0}, {'cmd': 'array_plot.range'},
                         {'cmd': 'array_plot.range', 'file': 'r.gif', 'still': 'yes'}, {'cmd': 'array_plot.range', 'file': 'r.gif', 'variable': 'nothing'}]:
             req(refused, False)
         check('W527: a refused range leaves the next run alone', not exists('r.gif'), str(os.listdir(run_dir)))
@@ -3050,7 +3058,7 @@ def check_atomic_commands():
         for command in (
             dict(cmd='plot.export',format='pdf', file='blocked.pdf'),
             dict(cmd='plot.export',format='svg', file='blocked.svg'),
-            dict(cmd='array_plot.export_pdf', top_label='must not remain', file='blocked.pdf'),
+            dict(cmd='array_plot.export', format='pdf', top_label='must not remain', file='blocked.pdf'),
         ):
             suffix = '.svg' if command.get('format') == 'svg' else '.pdf'
             before_file = 'before-' + command['cmd'] + suffix
@@ -4293,7 +4301,7 @@ for _ in range(2):
     evs, _ = collect(lambda e:e.get('ev')== 'kinescope.film')
     collect(is_done)
 check('Kinescope/Capture sends film captures', evs and evs[-1].get('count') == 2, str(evs[-1:]))
-send(cmd='kinescope.export_frames',file='kin_0.gif')
+send(cmd='kinescope.export',output='frames',file='kin_0.gif')
 evs, e = answer_asks(is_done, {'pixels':pixels})
 check('Kinescope/Save asks for the pixels and writes GIFs, numbered from 0',
       all(os.path.exists(os.path.join(run, n)) for n in ('kin_0_0000.gif', 'kin_0_0001.gif')), str(os.listdir(run)))
@@ -6401,7 +6409,7 @@ def check_ani_data():
         # W177: one sequence choice, then derived PPM names, even across 601 rows.
         ani('reset')
         ani('speed', ms=1)
-        send6(cmd='animation.export_frames', ppm=True, file='sequence.ppm')
+        send6(cmd='animation.export', output='frames', file='sequence.ppm')
         saved, file_asks = [], 0
         while True:
             evs, ask = collect6(lambda e: is_ask(e) or is_done(e), timeout=60 * SLOW)
@@ -7370,12 +7378,12 @@ def check_output_names():
             if ask and is_ask(ask): snd(cmd='answer', id=ask['id'], ok=0); col(is_done)
         for _ in range(3): snd(cmd='kinescope.capture'); col(is_done)
         before = sorted(os.listdir(r))
-        snd(cmd='kinescope.export_frames', file_picker=True)
+        snd(cmd='kinescope.export', output='frames', file_picker=True)
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], ok=0)
         evs,_ = col(is_done)
         check('W130: cancelled kinescope picker requests no pixels and writes nothing', sorted(os.listdir(r)) == before and not any(e.get('kind') == 'pixels' for e in evs))
-        snd(cmd='kinescope.export_frames', file='lecar.gif')
+        snd(cmd='kinescope.export', output='frames', file='lecar.gif')
         saved=[]
         while True:
             evs,e = col(lambda e: is_ask(e) or is_done(e))
@@ -7408,7 +7416,7 @@ def check_output_names():
               open(os.path.join(r, 'result.dat.1'), 'rb').read() == b'keep frozen')
         snd(cmd='plot.set_variables', how='array_plot', names=['V', 'W'])
         col(is_done)
-        row=next(c for c in h['commands'] if c['cmd'] == 'array_plot.export_pdf')
+        row=next(c for c in h['commands'] if c['cmd'] == 'array_plot.export')
         check('W492: array PDF labels are registry text fields, with no render type',
               [a['name'] for a in row['arguments'] if a['type'] == 'text'] == ['top_label','side_label','bottom_label'] and not any(a['name'] == 'render' for a in row['arguments']))
         snd(cmd='window.close', window='array_plot_1')

@@ -714,7 +714,7 @@ def lecar_csv(s):
     grab_hopf(s)
     evs += run_menu(s, 'p', timeout=120 * SLOW)
     dg = Diagram().apply(evs)
-    s.send(cmd='autox.export_csv', file='lecar.csv')
+    s.send(cmd='autox.export_data', target='diagram', file='lecar.csv')
     s.collect(is_done)
     dpath = os.path.join(s.run, 'lecar.csv')
     epath = os.path.join(s.run, 'lecar_eig.csv')

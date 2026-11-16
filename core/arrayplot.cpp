@@ -146,7 +146,7 @@ xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file, const 
 {
   APLOT candidate=given?*given:s.array_plot->plot;
   APLOT *ap=&candidate;
-  if(const auto ready=aplot_ready(s,"array_plot.export_pdf");!ready)return std::unexpected(ready.error());
+  if(const auto ready=aplot_ready(s,"array_plot.export");!ready)return std::unexpected(ready.error());
   const AplotTimes times=aplot_times(s,*ap);
   ap->filename=file;
   const xpp::ArrayPicture picture{

@@ -23,6 +23,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 
 namespace xpp::command {
 namespace {
@@ -30,6 +31,10 @@ namespace {
 /* every cell of the plot is sent as a number with each aplot event, and the rows it reads are int row numbers:
    at most this many cells (about the 1000 by 1000 of a large field), and none past the largest row number */
 constexpr long long MAX_ARRAY_CELLS = 1000000;
+
+/* the formats array_plot.export writes: a PDF picture, or the window as a GIF; the labels only the PDF takes */
+constexpr std::array<std::string_view, 2> aplot_format_names{"pdf", "gif"};
+constexpr std::array<const char *, 3> LABEL_KEYS = {"top_label", "side_label", "bottom_label"};
 
 Result<> shown_cells_fit(const Command &command, long long columns, long long rows, long long last_row, const Place &place)
 {
@@ -132,16 +137,27 @@ Result<std::string> export_pdf(Session &s, const Command &command, const Argumen
     return ResultObject().text("file", file).done();
 }
 
-Result<std::string> export_gif(Session &s, const Command &command, const Arguments &args, const Place &place)
+Result<std::string> export_gif(Session &s, const Command &command, const std::string &file, const Place &place)
 {
     if (const Result<> ready = aplot_ready(s, command.name); !ready) return std::unexpected<Error>(ready.error());
-    const std::string &file = args.get<std::string>("file");
     const Result<bool> written = ui.aplot_gif(s, file);
     if (!written) return std::unexpected<Error>(written.error());
     if (!*written) return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), place);
     const Result<unsigned long long> size = file_size(*s.model().fs, file, command, place);
     if (!size) return std::unexpected<Error>(size.error());
     return ResultObject().text("file", file).integer("bytes_written", static_cast<long long>(*size)).done();
+}
+
+/* array_plot.export: the PDF takes the three labels; the GIF is the window's picture as it shows, so it takes none */
+Result<std::string> export_picture(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const std::string &file = args.get<std::string>("file");
+    if (args.get<std::string>("format") == "gif") {
+        for (const char *label : LABEL_KEYS)
+            if (args.has(label)) return fail(command.name, xpp::format("{}: the labels are for format=pdf; the GIF is the window's picture as it shows", label), place);
+        return export_gif(s, command, file, place);
+    }
+    return export_pdf(s, command, args, place);
 }
 
 Result<std::string> scroll(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -165,19 +181,19 @@ constexpr std::array CONFIGURE_ARGUMENTS = {
     Argument{"z_min", Type::real, false}, Argument{"z_max", Type::real, false},
     Argument{"auto_redraw", Type::boolean, false},
     Argument{"column_skip", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_INT)}};
-constexpr std::array FILE_ARGUMENT = {Argument{"file", Type::file, true}};
 constexpr std::array RANGE_OWN_ARGUMENTS = {Argument{"still", Type::boolean, false}, Argument{"tag", Type::boolean, false}, Argument{"file", Type::file, true}};
 constexpr auto RANGE_ALL_ARGUMENTS = join(RANGE_OWN_ARGUMENTS, RUN_RANGE_ARGUMENTS);
-constexpr std::array PDF_ARGUMENTS = {Argument{"file", Type::file, true}, Argument{"top_label", Type::text, false},
-                                      Argument{"side_label", Type::text, false}, Argument{"bottom_label", Type::text, false}};
+constexpr auto FORMAT_CHOICES = c_names(aplot_format_names);
+constexpr std::array EXPORT_ARGUMENTS = {Argument{"format", Type::choice, true, MAX_TEXT_BYTES, FORMAT_CHOICES}, Argument{"file", Type::file, true},
+                                         Argument{"top_label", Type::text, false}, Argument{"side_label", Type::text, false}, Argument{"bottom_label", Type::text, false}};
 constexpr std::array SCROLL_ARGUMENTS = {Argument{"first_row", Type::integer, true, MAX_TEXT_BYTES, {}, constant(0), constant(MAX_INT)}};
 constexpr std::array OPEN_RESULTS = {ResultField{"open", "boolean"}};
 constexpr std::array REDRAW_RESULTS = {ResultField{"redrawn", "boolean"}};
 constexpr std::array CONFIGURE_RESULTS = {ResultField{"configured", "boolean"}};
 constexpr std::array FIT_RESULTS = {ResultField{"fitted_min", "real"}, ResultField{"fitted_max", "real"}};
 constexpr std::array RANGE_RESULTS = {ResultField{"steps_completed", "integer"}};
-constexpr std::array PDF_RESULTS = {ResultField{"file", "file"}};
-constexpr std::array GIF_RESULTS = {ResultField{"file", "file"}, ResultField{"bytes_written", "integer"}};
+/* the file, and bytes_written for the GIF */
+constexpr std::array EXPORT_RESULTS = {ResultField{"file", "file"}, ResultField{"bytes_written", "integer"}};
 constexpr std::array SCROLL_RESULTS = {ResultField{"first_row", "integer"}};
 constexpr std::array WINDOW_EVENTS = {xpp::events::WINDOW_CREATED, xpp::events::WINDOW_SELECTED, xpp::events::WINDOW_DESTROYED, xpp::events::ARRAY_PLOT_SHOWN, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array APLOT_EVENTS = {xpp::events::ARRAY_PLOT_SHOWN, xpp::events::SESSION_STATE, xpp::events::DONE};
@@ -197,11 +213,9 @@ constexpr std::array ROWS = {
     Command{"array_plot.range", RANGE_ALL_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Plot, "Array plot range", "",
             "Run once for each value of a parameter or variable as run.range does, saving the array plot as GIF files of the model's folder: one movie, or with still one picture per run; tag writes the swept value on each.",
             RANGE_RESULTS, RANGE_EVENTS, true, range, {}, {}},
-    Command{"array_plot.export_pdf", PDF_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Export array plot PDF", "",
-            "Write the array plot as a PDF picture into a file of the model's folder; the labels left out are the last ones.",
-            PDF_RESULTS, DONE_EVENTS, true, export_pdf, {}, {}, "write", "*"},
-    Command{"array_plot.export_gif", FILE_ARGUMENT, XPP_KIND_DATA, CommandCategory::Plot, "Export array plot GIF", "",
-            "Write the array plot as a GIF picture into a file of the model's folder.", GIF_RESULTS, DONE_EVENTS, true, export_gif, {}, {}, "write", "*"},
+    Command{"array_plot.export", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Array plot as", "File/Export",
+            "Write the array plot into a file of the model's folder: format pdf (a PDF picture; the labels left out are the last ones) or gif (the picture as the window shows it).",
+            EXPORT_RESULTS, DONE_EVENTS, true, export_picture, {}, {}, "write", "*", "", "", Feature::none, "format"},
     Command{"array_plot.scroll", SCROLL_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Scroll array plot", "",
             "Show the array plot from the stored row first_row on (row 0 is the first).", SCROLL_RESULTS, APLOT_EVENTS, true, scroll, {}, {}}};
 

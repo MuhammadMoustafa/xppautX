@@ -12,7 +12,7 @@
    script does not expect stops it (exit 1, silent_fail).
 
    For one run (no internal sets, or each set in turn):
-     (an .autox script instead runs its runs, autox.run_script, and writes the diagram, autox.export_csv)
+     (an .autox script instead runs its runs, autox.run_script, and writes the diagram, autox.export_data with target diagram)
      select the set          set.apply, scope all (the set by its name)
      run                     run.initial, run.range (the settings
                              the sweep options made) for a sweep that writes files, or
@@ -181,7 +181,7 @@ SilentScript::SilentScript(xpp::Session &s) : session(s)
         registry("autox.run_script");
         steps.push_back([this, file = script->diagram_file] {
             replace_files();
-            std::string line = "{\"cmd\":\"autox.export_csv\"";
+            std::string line = "{\"cmd\":\"autox.export_data\",\"target\":\"diagram\"";
             if (!file.empty()) {
                 line += ",\"file\":";
                 buf_str(line, file);

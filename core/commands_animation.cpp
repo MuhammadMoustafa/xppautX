@@ -65,10 +65,10 @@ Result<std::string> set_frame_skip(Session &s, const Command &, const Arguments 
     return ResultObject().integer("skip", s.animation->vcr.inc).done();
 }
 
-Result<std::string> export_frames(Session &s, const Command &command, const Arguments &args, const Place &place)
+/* animation.export: its output picks the file's format, PPM frames or one animated GIF (movie_output_names) */
+Result<std::string> export_output(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
-    const bool ppm = args.optional<bool>("ppm").value_or(false), gif = args.optional<bool>("animated_gif").value_or(false);
-    if (ppm == gif) return fail(command.name, "Choose PPM frames or an animated GIF: exactly one of ppm and animated_gif is true", place);
+    const bool gif = args.get<std::string>("output") == "animated_gif";
     const std::string &file = args.get<std::string>("file");
     /* the file is named as written, a frame's number before its extension (W673): it must be the format's */
     if (const std::string_view ext = gif ? ".gif" : ".ppm"; !files::has_extension(file, ext))
@@ -153,7 +153,8 @@ constexpr std::array FILE_ARGUMENT = {Argument{"file", Type::file, true}};
 /* a skip past the stored rows shows the first frame only: this keeps the row plus the skip a whole int */
 constexpr long long MAX_FRAME_SKIP = 100000000;
 constexpr std::array SKIP_ARGUMENTS = {Argument{"skip", Type::integer, true, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_FRAME_SKIP)}};
-constexpr std::array EXPORT_ARGUMENTS = {Argument{"ppm", Type::boolean, false}, Argument{"animated_gif", Type::boolean, false}, Argument{"file", Type::file, true}};
+constexpr auto OUTPUT_CHOICES = c_names(movie_output_names);
+constexpr std::array EXPORT_ARGUMENTS = {Argument{"output", Type::choice, true, MAX_TEXT_BYTES, OUTPUT_CHOICES}, Argument{"file", Type::file, true}};
 constexpr std::array LIVE_ARGUMENTS = {Argument{"enabled", Type::boolean, true}};
 constexpr std::array GRAB_ARGUMENTS = {Argument{"x", Type::real, false}, Argument{"y", Type::real, false}, Argument{"to_x", Type::real, false}, Argument{"to_y", Type::real, false}};
 constexpr std::array GRAB_TOGETHER = {"to_x", "to_y"};
@@ -177,9 +178,9 @@ constexpr std::array ANI_EVENTS = {xpp::events::ANIMATION_STATE, xpp::events::SE
 constexpr std::array GRAB_EVENTS = {xpp::events::ANIMATION_STATE, xpp::events::PLOT_SERIES, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
-    Command{"animation.export_frames", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Animation frames", "File/Export",
-            "Play the animation writing every frame, as numbered PPM files from file (ppm) or as one animated GIF file (animated_gif), one of the two, into the model's folder.",
-            EXPORT_RESULTS, ANI_EVENTS, true, export_frames, {}, {}, "write", "*", "", "Export"},
+    Command{"animation.export", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Animation as", "File/Export",
+            "Play the animation writing every frame into a file of the model's folder: output frames for numbered PPM files from file, animated_gif for one animated GIF file.",
+            EXPORT_RESULTS, ANI_EVENTS, true, export_output, {}, {}, "write", "*", "", "", Feature::none, "output"},
     Command{"animation.open", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Open animation", "Windows",
             "Open the animation window.", OPEN_RESULTS, WINDOW_EVENTS, true, open},
     Command{"animation.load", FILE_ARGUMENT, XPP_KIND_VIEW, CommandCategory::Plot, "Load animation", "",

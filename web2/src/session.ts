@@ -76,7 +76,7 @@ const rangesOf = (v: Viewport): DisplayPatch => ({
 /** one step of a planned dialogue: the answer to `ask`, or null when that ask is the user's */
 
 /** the array plot window's buttons (toolbarCommand names the registry command of each) */
-export type AplotOp = 'redraw' | 'edit' | 'fit' | 'range' | 'print' | 'gif';
+export type AplotOp = 'redraw' | 'edit' | 'fit' | 'range';
 
 /** how long the diagram's live points wait for more to arrive before one draw shows them all: five draws a second keep a live diagram moving */
 const DIAGRAM_HOLD_MS = 200;
@@ -1369,16 +1369,6 @@ export class Session {
     else this.cancel(ask);
   }
 
-  /** Make Anigif (Kinescope's own menu item, k then m): the core writes
-      the chosen GIF (json_windows.cpp j_movie_make_anigif), asking
-      `pixels` with `film` for every captured frame (answerPixels above);
-      the page only offers the result as a download, at the done that
-      follows (W66: the page built the GIF itself before this task). */
-  downloadKinescopeGif(): void {
-    if (!this.mayMain('kinescope.capture') || !this.store.getState().kinescope.frames.length) return;
-    this.chooseFile('kinescope.export_gif');
-  }
-
   /* ---- text views (docs/ui-v2.md T16, docs/protocol.md `equations`, `source`, ---- */
   /* `action`, `equilibrium`): equations, the source with its comment
      actions, and the last Sing pts equilibrium */
@@ -1628,7 +1618,7 @@ export class Session {
   }
 
   /** the classic array plot window's own buttons: Redraw, Edit (a form,
-      AskDialog), Fit, Range, Print, GIF (a file ask, FileDialog), Close */
+      AskDialog), Fit, Range; its Export menu (array_plot.export) is ChoiceItems */
   aplotOp(op: AplotOp): void {
     this.registryAction(toolbarCommand('aplot', op));
   }

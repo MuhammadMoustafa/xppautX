@@ -100,7 +100,7 @@ class Session(Client):
 
     def diagram(self):
         """The diagram's points as a dict of numpy arrays (branch, point, type, label, stability, the parameters' values, the
-        solution's extremes, ...), in the order they were stored: what autox.export_csv writes"""
+        solution's extremes, ...), in the order they were stored: what autox.export_data writes with target diagram"""
         return self._export_diagram()[0]
 
     def eigenvalues(self):
@@ -112,7 +112,7 @@ class Session(Client):
             raise XppError('autoX could not be opened for this model')
 
     def _export_diagram(self):
-        with self._exported('autox.export_csv', '.csv') as path:
+        with self._exported('autox.export_data', '.csv', target='diagram') as path:
             with open(path, encoding='utf-8', newline='') as f, open(path[:-4] + '_eig.csv', encoding='utf-8', newline='') as g:
                 return table(f.read()), table(g.read())
 

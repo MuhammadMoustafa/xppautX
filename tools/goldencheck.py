@@ -146,7 +146,7 @@ def run_lecar(home):
         s.send(cmd='plot.set_variables', how='array_plot', names=['V', 'W'])
         s.collect(is_done)
 
-        s.send(cmd='array_plot.export_pdf', file='lecar_array.pdf')
+        s.send(cmd='array_plot.export', format='pdf', file='lecar_array.pdf')
         s.collect(is_done)
         check_file('lecar_array.pdf', read(s.run, 'lecar_array.pdf'))
         s.send(cmd='window.close', window='array_plot_1')
@@ -158,7 +158,7 @@ def run_lecar(home):
             s.send(cmd='kinescope.capture')
             s.collect(lambda e: e.get('ev') == 'kinescope.film')
             s.collect(is_done)
-        s.send(cmd='kinescope.export_frames', file='kin.gif')
+        s.send(cmd='kinescope.export', output='frames', file='kin.gif')
         s.answer_asks(is_done, {'pixels': pixels})
         for name in ('kin_0000.gif', 'kin_0001.gif'):
             check_file(name, read(s.run, name))
@@ -222,7 +222,7 @@ def run_pictures(home):
         check_file('pictures.svg', read(s.run, 'pictures.svg'))
         s.send(cmd='plot.set_variables', how='array_plot', names=['v', 'w'])
         s.collect(is_done)
-        s.send(cmd='array_plot.export_pdf', file='pictures_array.pdf', top_label='top', side_label='side', bottom_label='bottom')
+        s.send(cmd='array_plot.export', format='pdf', file='pictures_array.pdf', top_label='top', side_label='side', bottom_label='bottom')
         s.collect(is_done)
         check_file('pictures_array.pdf', read(s.run, 'pictures_array.pdf'))
         s.send(cmd='window.close', window='array_plot_1')

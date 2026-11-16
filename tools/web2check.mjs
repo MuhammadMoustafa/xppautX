@@ -1302,6 +1302,16 @@ async function aplotView() {
     await until('!s.busy', 'key scroll') && await cdp.eval('__xpp.sentCount()') > sent1
     && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'array_plot.scroll')`));
 
+  /* Export (W778): the toolbar's Export menu holds the array plot's formats, each array_plot.export with its format; a PDF asks the file */
+  check('W778: the array plot\'s Export menu offers pdf and gif, each array_plot.export with its format',
+    JSON.stringify(await cdp.eval(`[...document.querySelectorAll('[data-sets-menu="aplot-export"] [data-command="array_plot.export"]')].map(b => b.dataset.choice)`)) === '["pdf","gif"]');
+  const exportMark = await S('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector('[data-sets-menu="aplot-export"] [data-command="array_plot.export"][data-choice="pdf"]').click()`);
+  await until("s.ask && s.ask.kind === 'file'", 'array plot PDF name');
+  await answerAsk({file: 'w778_aplot.pdf'});
+  check('W778: Export\'s pdf sends array_plot.export with format pdf, and the core writes the file',
+    await until(`__xpp.sent().slice(${exportMark}).some(c => c.cmd === 'array_plot.export' && c.format === 'pdf') && !s.busy`, 'aplot export done'));
+
   /* Redraw, then Back leaves the core's window alive */
   await cdp.eval(`document.querySelector('.aplot-tools [data-button="aplot:redraw"]').click()`);
   check('Redraw asks for a fresh picture', await until('!s.busy', 'redraw')
@@ -4785,19 +4795,30 @@ async function navigationCheck() {
   await requireUntil('!s.busy && s.core.rows === 601', 'the run for the export items');
   await menuRun('autox.open');
   await requireUntil('!s.busy && s.diagram.open', 'autoX for its export items');
+  /* the labels of the Export submenu named menu under the top menu's Export (the menu bar's items, in order) */
+  const submenuLabels = (top, menu) => cdp.eval(`JSON.stringify([...document.querySelectorAll('.app-menu [data-top-menu="${top}"] details > summary')].filter(d => d.textContent === 'Export')
+    .flatMap(d => [...d.parentElement.querySelectorAll('details')].filter(m => m.querySelector(':scope > summary').textContent === ${JSON.stringify(menu)})
+      .flatMap(m => [...m.querySelectorAll('[data-command]')].map(b => b.textContent.trim()))))`);
+  /* W778: autoX > Export > Data is autox.export_data, its target one item per value; the file is optional, so the core asks it
+     only once a diagram has points (the loop below clicks the items that always ask), and nothing is sent before then */
+  const autoxData = await S(`s.hello.commands.find(c => c.cmd === 'autox.export_data')`);
+  check('W778: autox.export_data is the submenu autoX > Export > Data with an item per target',
+    autoxData.label === 'Data' && autoxData.menu_choice === 'target' && autoxData.menu_fixed === undefined
+      && await submenuLabels('autoX', 'Data') === JSON.stringify(['Diagram', 'Points', 'All info', 'Initial data']), JSON.stringify(autoxData));
   /* W771: Data as sends target table with every format (no question), Graph as and Diagram as are the one command with a format pdf or svg */
   for (const [cmd, menu, argument, labels, top, fixed] of [['model.export', 'Model as', 'language', ['Python', 'Python numpy', 'Python numba'], 'File', {}],
       ['data.export', 'Data as', 'format', ['dat', 'csv', 'csv.gz', 'npz'], 'File', {target: 'table'}],
       ['plot.export', 'Graph as', 'format', ['pdf', 'svg'], 'File', {}],
-      ['autox.export', 'Diagram as', 'format', ['pdf', 'svg'], 'autoX', {}]]) {
+      ['autox.export', 'Diagram as', 'format', ['pdf', 'svg'], 'autoX', {}],
+      ['array_plot.export', 'Array plot as', 'format', ['pdf', 'gif'], 'File', {}],
+      ['kinescope.export', 'Kinescope as', 'output', ['Animated gif', 'Frames'], 'File', {}],
+      ['animation.export', 'Animation as', 'output', ['Animated gif', 'Frames'], 'File', {}]]) {
     const row = await S(`s.hello.commands.find(c => c.cmd === ${JSON.stringify(cmd)})`);
     const values = row.arguments.find(a => a.name === argument).choices;
     check(`W767: ${cmd} is the submenu File > Export > ${menu} with an item per ${argument}`,
       row.label === menu && row.menu_choice === argument && values.length === labels.length
         && JSON.stringify(row.menu_fixed ? {[row.menu_fixed.argument]: row.menu_fixed.value} : {}) === JSON.stringify(fixed)
-        && await cdp.eval(`JSON.stringify([...document.querySelectorAll('.app-menu [data-top-menu="${top}"] details > summary')].filter(d => d.textContent === 'Export')
-          .flatMap(d => [...d.parentElement.querySelectorAll('details')].filter(m => m.querySelector(':scope > summary').textContent === ${JSON.stringify(menu)})
-            .flatMap(m => [...m.querySelectorAll('[data-command]')].map(b => b.textContent.trim())))) === ${JSON.stringify(JSON.stringify(labels))}`), JSON.stringify(row));
+        && await submenuLabels(top, menu) === JSON.stringify(labels), JSON.stringify(row));
     await clickRegistry('command_palette.open');
     await until("document.querySelectorAll('.command-palette [data-command=\"" + cmd + "\"]').length > 0", 'palette items');
     check(`W767: Search commands lists each ${cmd} item by its full name`, await cdp.eval(`(() => {const names = [...document.querySelectorAll('.command-palette [data-command=${JSON.stringify(cmd)}]')].map(b => b.textContent.trim());
@@ -6680,8 +6701,17 @@ async function kinescope(dir) {
   check('kinescope: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
   check('kinescope: integrate once (601 rows)', await integrate(601, 30000));
 
+  /* kinescope.export (W778): an item of the Kinescope bar's Export menu sends the command with its output; the core asks the file */
+  const kinescopeExport = async (output, file) => {
+    const mark = await S('__xpp.sentCount()');
+    await cdp.eval(`document.querySelector('.kinescope-bar [data-command="kinescope.export"][data-choice=${JSON.stringify(output)}]').click()`);
+    await until("s.ask && s.ask.kind === 'file'", 'file ask');
+    await answerAsk({file});
+    return until(`__xpp.sent().slice(${mark}).some(c => c.cmd === 'kinescope.export' && c.output === ${JSON.stringify(output)})`, 'kinescope.export sent');
+  };
+
   const openKinescope = async item => {
-    const id = {c:'kinescope.capture',r:'kinescope.reset',p:'kinescope.play',a:'kinescope.autoplay',s:'kinescope.export_frames',m:'kinescope.export_gif'}[item];
+    const id = {c:'kinescope.capture',r:'kinescope.reset',p:'kinescope.play',a:'kinescope.autoplay'}[item];
     await clickRegistry(id);
     if (await S('!!s.commandForm')) {
       const hasFile = await cdp.eval(`!!document.querySelector('.registry-form [data-argument=file]')`);
@@ -6706,21 +6736,18 @@ async function kinescope(dir) {
   })()`);
   check('kinescope: the two captured frames hold different data', differ);
   /* W637: the bar's own controls for the Kinescope menu items */
-  check('W637: the Kinescope bar offers Autoplay kinescope and Export kinescope frames',
-    await cdp.eval(`!!document.querySelector('.kinescope-bar [data-command="kinescope.autoplay"]') && !!document.querySelector('.kinescope-bar [data-command="kinescope.export_frames"]')`));
+  check('W637: the Kinescope bar offers Autoplay kinescope and an Export menu of its two outputs (W778)',
+    await cdp.eval(`!!document.querySelector('.kinescope-bar [data-command="kinescope.autoplay"]') && JSON.stringify([...document.querySelectorAll('.kinescope-bar [data-command="kinescope.export"]')].map(b => b.dataset.choice)) === '["animated_gif","frames"]'`));
   check('W637: the Kinescope bar\'s Autoplay kinescope runs its command', await controlRuns('kinescope.autoplay', undefined, {}, '.kinescope-bar '));
-  check('W637: the Kinescope bar\'s Export kinescope frames runs its command', await controlRuns('kinescope.export_frames', 'kinescope_frames.gif', {}, '.kinescope-bar '));
+  check('W778: the Kinescope bar\'s Export menu writes the frames (kinescope.export output frames)', await kinescopeExport('frames', 'kinescope_frames.gif'));
 
-  /* Export GIF (Plots.tsx): the page's own button for Kinescope's Make
-     Anigif (k, m), which core/json_windows.cpp's j_movie_make_anigif
-     writes as anim.gif itself, asking `pixels` for every captured frame
-     (W66: the page built the GIF itself before this task) */
+  /* Export's Animated gif (Plots.tsx): the Kinescope bar's item for the one animated GIF, j_movie_make_anigif
+     in core/json_windows.cpp writes anim.gif itself, asking `pixels` for every captured frame (W66: the page
+     built the GIF itself before this task) */
   const animName = 'lecar.gif';
   const animPath = path.join(dir, animName);
   fs.rmSync(animPath, {force: true});
-  await cdp.eval(`[...document.querySelectorAll('.kinescope-bar button')].find(b => b.textContent.trim() === ${JSON.stringify(await labelOf('kinescope.export_gif'))}).click()`);
-  await until("s.ask && s.ask.kind === 'file'", 'GIF name');
-  await answerAsk({file: 'lecar.gif'});
+  check('kinescope: the Export menu\'s Animated gif writes lecar.gif, by the core', await kinescopeExport('animated_gif', 'lecar.gif'));
   check('kinescope: Export GIF offers lecar.gif, written by the core',
     await until("s.files.offered && s.files.offered.name === 'lecar.gif' && !s.busy", 'gif offered'));
   await waitFile(animPath);
@@ -6743,12 +6770,12 @@ async function kinescope(dir) {
     JSON.stringify({shown: shownSeq, kinescope: await S('({playing: s.kinescope.playing, shown: s.kinescope.shown, frames: s.kinescope.frames.length})'),
       busy: await S('s.busy'), sent: await cdp.eval('__xpp.sent().slice(-3)')}));
 
-  /* Make Anigif (k, m) directly, the raw protocol path the Export GIF
-     button above also drives: no prompt, so a plain menu pick */
+  /* the same GIF from the menu bar (File > Export > Kinescope as > Animated gif): the file question, then the core's writer */
   fs.rmSync(animPath, {force: true});
-  const openedGif = await openKinescope('m') && await until("s.ask && s.ask.kind === 'file'", 'GIF name');
-  if (openedGif) await answerAsk({file: 'lecar.gif'});
-  check('kinescope: Make Anigif (k, m) runs', openedGif && await until('!s.busy', 'anigif done'));
+  await clickRegistry('kinescope.export');
+  const asked = await until("s.ask && s.ask.kind === 'file'", 'GIF name');
+  if (asked) await answerAsk({file: 'lecar.gif'});
+  check('kinescope: File > Export > Kinescope as > Animated gif runs', asked && await until('!s.busy', 'anigif done'));
   await waitFile(animPath);
   check('kinescope: it wrote anim.gif from the pixels answer (a real GIF, not empty)',
     fs.existsSync(animPath) && fs.readFileSync(animPath).length > 20

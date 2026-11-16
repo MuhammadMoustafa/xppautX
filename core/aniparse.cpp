@@ -1571,7 +1571,7 @@ Result<> animation_ready(const Session &s, const std::string &where)
 
 Result<int> play_animation(Session &s, const AniExport &out)
 {
-    if (const Result<> ready = animation_ready(s, out.kind == AniExportKind::none ? "animation.play" : "animation.export_frames"); !ready)
+    if (const Result<> ready = animation_ready(s, out.kind == AniExportKind::none ? "animation.play" : "animation.export"); !ready)
         return std::unexpected(ready.error());
     return ui.ani_go(s, out);
 }

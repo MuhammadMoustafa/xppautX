@@ -1,10 +1,11 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {registryRows, menuTree, paletteRows, featureLack, choiceItems} from '../src/ui/navigation';
+import {registryRows, menuTree, paletteRows, featureLack, choiceItems, rowChoiceItems, toolbarCommand} from '../src/ui/navigation';
 import {argumentSpec, argumentNames, argumentProblem, commandValues, formValues, argumentControl, blankArgument} from '../src/ui/argumentFields';
 import {REGISTRY_HELLO} from './hello';
 import {initialState} from '../src/store/state';
-import type {RegistryArgument} from '../src/protocol/kinds';
+import type {CommandRow, RegistryArgument} from '../src/protocol/kinds';
+import type {HelloEvent} from '../src/protocol/types';
 
 const rows = registryRows(REGISTRY_HELLO);
 test('W517: every registry command with a menu place appears exactly once in the tree with its declared path (W637: the others are a view\'s)', () => {
@@ -101,4 +102,15 @@ test('W771: a menu_choice item of a command whose file is required asks the core
   const row = {id: 'plot.export', label: 'Graph as', name: 'File \u203a Export \u203a Graph as', menu_choice: 'format',
     arguments: [{name: 'format', type: 'choice', choices: ['pdf']}, {name: 'file', type: 'file', required: true}]} as unknown as Parameters<typeof choiceItems>[0];
   assert.deepEqual(choiceItems(row, ' \u203a ')[0].choice?.arguments, {format: 'pdf', file_picker: true});
+});
+
+test('W778: the array plot\'s and the kinescope\'s exports are one menu_choice row each, their items built by choiceItems', () => {
+  assert.equal(toolbarCommand('aplot', 'export'), 'array_plot.export');
+  const row = {id: 'kinescope.export', label: 'Kinescope as', name: 'File \u203a Export \u203a Kinescope as', menu_path: 'File/Export', menu_choice: 'output',
+    arguments: [{name: 'output', type: 'choice', choices: ['animated_gif', 'frames']}, {name: 'file', type: 'file', required: true}]} as unknown as CommandRow;
+  const hello = {menu_separator: ' \u203a '} as unknown as HelloEvent;
+  assert.deepEqual(rowChoiceItems(hello, row).map(i => i.choice), [
+    {value: 'animated_gif', arguments: {output: 'animated_gif', file_picker: true}}, {value: 'frames', arguments: {output: 'frames', file_picker: true}}]);
+  assert.deepEqual(rowChoiceItems(null, row), []);
+  assert.deepEqual(rowChoiceItems(hello, undefined), []);
 });

@@ -28,11 +28,13 @@ import {choiceLabel} from '../store/fieldKinds';
 import type {AplotOp} from '../session';
 import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
 import {FOCUSABLE} from './dialogFocus';
-import {toolbarRow} from './navigation';
+import {rowChoiceItems, toolbarRow} from './navigation';
+import {ChoiceItem} from './ChoiceItem';
+import {DropDownMenu} from './SetsRow';
 
 
 /** the buttons' ops, in order; each button is the row navigation.ts toolbarCommand names */
-const BUTTONS: AplotOp[] = ['redraw', 'edit', 'fit', 'range', 'print', 'gif'];
+const BUTTONS: AplotOp[] = ['redraw', 'edit', 'fit', 'range'];
 
 export function AplotView() {
   const session = useSession();
@@ -140,6 +142,7 @@ export function AplotView() {
   };
 
   const stops = ev ? legendStops(ev.ramp) : [];
+  const exportRow = toolbarRow(hello, 'aplot', 'export');
   const label = ev && hover ? aplotColumnName(ev, hover.col) : '';
 
   return (
@@ -160,6 +163,9 @@ export function AplotView() {
           const off = !mayKey('aplot', op);
           return <button key={op} data-button={`aplot:${op}`} title={off ? BUSY_TITLE : row?.description} disabled={off} onClick={() => session.aplotOp(op)}>{row?.label}</button>;
         })}
+        <DropDownMenu normal id="aplot-export" label={exportRow?.menu_path?.split('/').pop() ?? ''}>
+          {rowChoiceItems(hello, exportRow).map(item => <ChoiceItem key={item.choice!.value} item={item} />)}
+        </DropDownMenu>
       </div>
       <p class="aplot-info" role="status">
         {!windowOpen ? 'No array plot yet: use the Window/zoom menu (Axes, Array) to define one.'

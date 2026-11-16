@@ -54,9 +54,14 @@ namespace xpp::command {
 namespace {
 
 constexpr const char *VIEW_KEY = "view";
-constexpr const char *WINDOW_KEY = "window", *FORMAT_KEY = "format";
+constexpr const char *WINDOW_KEY = "window", *FORMAT_KEY = "format", *TARGET_KEY = "target";
 constexpr const char *FILE_KEY = "file";
 constexpr const char *LABEL_KEY = "label";
+
+/* what autox.export_data writes, in the Data submenu's order: the diagram as CSV, its points, every point's information, its initial data */
+enum class DataTarget { diagram, points, all_info, initial_data };
+constexpr std::array<std::string_view, 4> DATA_TARGET_NAMES{"diagram", "points", "all_info", "initial_data"};
+constexpr auto DATA_TARGET_CHOICES = c_names(DATA_TARGET_NAMES);
 
 /* ---- what every handler asks of the session ---- */
 
@@ -543,14 +548,15 @@ Result<std::string> export_points(Session &s, const Command &command, const Argu
     return export_file(s, command, args, place, "diagram", ".dat", [&](const std::string &f) { return write_pts(xpp::autox_parts(s), f); }, "points_written", diagram_count(*s.diagram));
 }
 
+/* every point, so the count written is the diagram's */
 Result<std::string> export_all_info(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
-    return export_file(s, command, args, place, "allinfo", ".dat", [&](const std::string &f) { return write_info_out(xpp::autox_parts(s), f); }, "written", 1);
+    return export_file(s, command, args, place, "allinfo", ".dat", [&](const std::string &f) { return write_info_out(xpp::autox_parts(s), f); }, "points_written", diagram_count(*s.diagram));
 }
 
 Result<std::string> export_initial_data(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
-    return export_file(s, command, args, place, "initdata", ".dat", [&](const std::string &f) { return write_init_data_file(xpp::autox_parts(s), f); }, "written", 1);
+    return export_file(s, command, args, place, "initdata", ".dat", [&](const std::string &f) { return write_init_data_file(xpp::autox_parts(s), f); }, "points_written", diagram_count(*s.diagram));
 }
 
 /* the diagram and its eigenvalues/multipliers as CSV (csv_export.h), pandas.read_csv/MATLAB readtable read with no options;
@@ -573,6 +579,18 @@ Result<std::string> export_picture(Session &s, const Command &command, const Arg
     const std::string &file = args.get<std::string>(FILE_KEY);
     if (const Result<> done = export_autox_picture(s, format, file, *view); !done) return std::unexpected<Error>(as_command_error(command, done.error(), place));
     return file_result(file);
+}
+
+/* autox.export_data: the target picks the file written, the four items of the Data submenu (DATA_TARGET_NAMES) */
+Result<std::string> export_data(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    switch (static_cast<DataTarget>(choice_index(DATA_TARGET_NAMES, args.get<std::string>(TARGET_KEY)))) {
+    case DataTarget::points: return export_points(s, command, args, place);
+    case DataTarget::all_info: return export_all_info(s, command, args, place);
+    case DataTarget::initial_data: return export_initial_data(s, command, args, place);
+    case DataTarget::diagram: break;
+    }
+    return export_csv(s, command, args, place);
 }
 
 Result<std::string> import_diagram(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -758,7 +776,7 @@ constexpr std::array LAST_PLOT_ARGUMENTS = {Argument{"parameters", Type::choice,
 constexpr std::array SCROLL_ARGUMENTS = {Argument{"dx", Type::real, true}, Argument{"dy", Type::real, true}, Argument{VIEW_KEY, Type::window, false}};
 constexpr std::array BOX_ARGUMENTS = {Argument{"x_min", Type::real, true}, Argument{"x_max", Type::real, true}, Argument{"y_min", Type::real, true},
                                       Argument{"y_max", Type::real, true}, Argument{VIEW_KEY, Type::window, false}};
-constexpr std::array FILE_OPTIONAL = {Argument{FILE_KEY, Type::file, false}};
+constexpr std::array DATA_ARGUMENTS = {Argument{TARGET_KEY, Type::choice, true, MAX_TEXT_BYTES, DATA_TARGET_CHOICES}, Argument{FILE_KEY, Type::file, false}};
 constexpr std::array FILE_REQUIRED = {Argument{FILE_KEY, Type::file, true}};
 constexpr auto PICTURE_FORMAT_CHOICES = c_names(picture_format_names);
 constexpr std::array PICTURE_ARGUMENTS = {Argument{FORMAT_KEY, Type::choice, true, MAX_TEXT_BYTES, PICTURE_FORMAT_CHOICES}, Argument{FILE_KEY, Type::file, true},
@@ -791,7 +809,6 @@ constexpr std::array RESULT_CLEARED = {ResultField{"cleared", "boolean"}};
 constexpr std::array RESULT_ORBIT = {ResultField{"orbit_loaded", "boolean"}, ResultField{"rows", "integer"}};
 constexpr std::array RESULT_FILE = {ResultField{FILE_KEY, "file"}};
 constexpr std::array RESULT_POINTS_FILE = {ResultField{FILE_KEY, "file"}, ResultField{"points_written", "integer"}};
-constexpr std::array RESULT_WRITTEN_FILE = {ResultField{FILE_KEY, "file"}, ResultField{"written", "integer"}};
 constexpr std::array RESULT_IMPORTED = {ResultField{FILE_KEY, "file"}, ResultField{"points_imported", "integer"}};
 constexpr std::array RESULT_RESET = {ResultField{"reset", "boolean"}};
 constexpr std::array RESULT_REDRAW_MODE = {ResultField{"auto_redraw", "boolean"}};
@@ -839,14 +856,9 @@ const std::array ROWS = {
             "Destroy the diagram and autoX's files.", RESULT_RESET, EVENTS_DIAGRAM, true, reset_diagram, {}, {}},
     Command{"autox.export", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Diagram as", "autoX/Export",
             "Write a view of the diagram as a picture (pdf or svg).", RESULT_FILE, EVENTS_BROWSER, true, export_picture, {}, {}, "write", "*", "", "Export", Feature::none, FORMAT_KEY},
-    Command{"autox.export_csv", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "CSV", "autoX/Export",
-            "Write the diagram and its eigenvalues as two CSV files.", RESULT_POINTS_FILE, EVENTS_BROWSER, true, export_csv, {}, {}, "write", "*", "", "Export"},
-    Command{"autox.export_points", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Points", "autoX/Export",
-            "Write the diagram's points as the view plots them.", RESULT_POINTS_FILE, EVENTS_BROWSER, true, export_points, {}, {}, "write", "*", "", "Export"},
-    Command{"autox.export_all_info", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "All info", "autoX/Export",
-            "Write every point with its parameters, extremes and eigenvalues.", RESULT_WRITTEN_FILE, EVENTS_BROWSER, true, export_all_info, {}, {}, "write", "*", "", "Export"},
-    Command{"autox.export_initial_data", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Initial data", "autoX/Export",
-            "Write every point's main parameter and solution as initial data.", RESULT_WRITTEN_FILE, EVENTS_BROWSER, true, export_initial_data, {}, {}, "write", "*", "", "Export"},
+    Command{"autox.export_data", DATA_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Data", "autoX/Export",
+            "Write the diagram in the target's form into a file: diagram (the points and their eigenvalues as two CSV files), points (as the view plots them), all_info (every point with its parameters, extremes and eigenvalues) or initial_data (every point's main parameter and solution as initial data).",
+            RESULT_POINTS_FILE, EVENTS_BROWSER, true, export_data, {}, {}, "write", "*", "", "", Feature::none, TARGET_KEY},
     Command{"autox.show_orbit", LABEL_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Show orbit in table", "autoX/Branch",
             "Load the stored orbit of a labelled point (the grabbed one without label) into the data table.", RESULT_ORBIT, EVENTS_BROWSER, true, load_orbit_into_data, {}, {}},
     Command{"autox.show_branch", STRETCH_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Show in table", "autoX/Branch",
