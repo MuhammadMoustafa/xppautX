@@ -4642,6 +4642,75 @@ async function dialogsCheck() {
   await key('Escape');
 }
 
+/* W777 (#857): every panel menu (a DropDownMenu, a plot's ⋯ and its Export and Sets) lies inside the viewport at a phone's width,
+   where the menus are a sheet at the screen's foot (one placement rule, controls.css): its box is measured, not its look. */
+async function panelMenusInsideCheck() {
+  await metrics({width: 375, height: 812, deviceScaleFactor: 1, mobile: true});
+  await cdp.eval(`[...document.querySelectorAll('button')].find(n => n.textContent.trim() === 'Table')?.click()`);
+  await rendered();
+  /* a menu opens in place under its button at a phone's width: its top is just below the button (a gap of a few pixels at most) */
+  const inside = async (name, box, button) => {
+    const r = await cdp.eval(`(() => { const b = document.querySelector(${JSON.stringify(box)}); if (!b) return null;
+      const r = b.getBoundingClientRect(), t = document.querySelector(${JSON.stringify(button)}).getBoundingClientRect();
+      return {left: r.left, right: r.right, width: r.width, vw: innerWidth, gap: r.top - t.bottom}; })()`);
+    check(`W777: at 375 px the ${name} menu lies inside the viewport`, !!r && r.width > 0 && r.left >= 0 && r.right <= r.vw, JSON.stringify(r));
+    check(`W777: at 375 px the ${name} menu opens just under its button`, !!r && r.gap >= 0 && r.gap <= 8, JSON.stringify(r));
+    /* W776: every item of the open menu is a plain row (no border of its own), and the menu starts at its button's left edge */
+    const items = await cdp.eval(`(() => { const b = document.querySelector(${JSON.stringify(box)}); if (!b) return null;
+      return [...b.querySelectorAll('button, summary, label.menu-check')].filter(n => n.getBoundingClientRect().width > 0)
+        .map(n => ({text: n.textContent.trim().slice(0, 12), border: getComputedStyle(n).borderTopWidth})); })()`);
+    check(`W776: at 375 px every item of the ${name} menu is a plain row`, !!items && items.length > 0 && items.every(i => i.border === '0px'), JSON.stringify(items?.filter(i => i.border !== '0px')));
+    const t = await cdp.eval(`document.querySelector(${JSON.stringify(button)}).getBoundingClientRect().left`);
+    check(`W776: at 375 px the ${name} menu starts at its button's left edge`, !!r && Math.abs(r.left - t) <= 8, `menu ${r?.left} button ${t}`);
+  };
+  const open = sel => cdp.eval(`document.querySelector(${JSON.stringify(sel)}).click()`);
+  const closeAll = () => cdp.eval(`document.querySelectorAll('details[open]').forEach(d => d.open = false)`);
+  await closeAll();
+  /* the sibling buttons of the open menu's row keep their place: Load data's top is the same before and after Export opens */
+  const loadTop = `(() => [...document.querySelectorAll('button')].find(n => n.textContent.trim() === 'Load data')?.getBoundingClientRect().top)()`;
+  const before = await cdp.eval(loadTop);
+  await open('[data-sets-menu=table-export] > summary');
+  await rendered();
+  const after = await cdp.eval(loadTop);
+  check('W777: at 375 px Load data keeps its top when the Table\'s Export opens under it', before !== undefined && Math.abs(before - after) < 1, `before ${before} after ${after}`);
+  await inside('table Export', '[data-sets-menu=table-export] > ul', '[data-sets-menu=table-export] > summary');
+  await closeAll();
+  /* the Table's dock is a sheet over the plot on a phone: hide it, so the plot's ⋯ can be reached */
+  await cdp.eval(`document.querySelector('.dock-close')?.click()`);
+  await rendered();
+  await open('.plot-more > summary');
+  await rendered();
+  await inside('plot ⋯', '.plot-more-menu', '.plot-more > summary');
+  await open('[data-sets-menu=plot-export] > summary');
+  await rendered();
+  await inside('plot ⋯ Export', '[data-sets-menu=plot-export] > ul', '[data-sets-menu=plot-export] > summary');
+  await open('.sets-fold > summary');
+  await rendered();
+  await open('[data-sets-menu=sets] > summary');
+  await rendered();
+  await inside('plot ⋯ Sets', '[data-sets-menu=sets] > ul', '[data-sets-menu=sets] > summary');
+  await inside('plot ⋯ with Sets open', '.plot-more-menu', '.plot-more > summary');
+  await closeAll();
+  /* the Table's Rows and Columns menus: the same two checks, and the Find button beside them keeps its top */
+  await cdp.eval(`[...document.querySelectorAll('button')].find(n => n.textContent.trim() === 'Table')?.click()`);
+  await rendered();
+  for (const label of ['Rows', 'Columns']) {
+    const sel = `[...document.querySelectorAll('summary')].find(n => n.textContent.trim().startsWith('${label}'))`;
+    const find = `[...document.querySelectorAll('button')].find(n => n.textContent.trim() === 'Find')`;
+    const beforeTop = await cdp.eval(`${find}?.getBoundingClientRect().top`);
+    await cdp.eval(`${sel}.click()`);
+    await rendered();
+    const afterTop = await cdp.eval(`${find}?.getBoundingClientRect().top`);
+    check(`W777: at 375 px Find keeps its top when the Table's ${label} menu opens`, beforeTop !== undefined && Math.abs(beforeTop - afterTop) < 1, `before ${beforeTop} after ${afterTop}`);
+    const box = await cdp.eval(`(() => { const s = ${sel}, u = s.parentElement.querySelector(':scope > ul'); if (!u) return null;
+      const r = u.getBoundingClientRect(), t = s.getBoundingClientRect(); return {left: r.left, right: r.right, vw: innerWidth, gap: r.top - t.bottom}; })()`);
+    check(`W777: at 375 px the Table's ${label} menu lies inside the viewport and opens just under its button`, !!box && box.left >= 0 && box.right <= box.vw && box.gap >= 0 && box.gap <= 8, JSON.stringify(box));
+    await closeAll();
+  }
+  await closeAll();
+  await desktopMetrics();
+}
+
 async function navigationCheck() {
   await desktopMetrics();
   /* W649: a command for a feature the model lacks has no menu entry (featuresCheck looks at those) */
@@ -7936,6 +8005,7 @@ async function main() {
     if (run('autoxviews')) await session(ODE, autoxViews);
     if (run('navigation')) await session(ODE, navigationCheck);
     if (run('navigation')) await session(ODE, menusByTaskCheck);
+    if (run('navigation')) await session(ODE, panelMenusInsideCheck);
     if (run('navigation')) await session(ODE, () => featuresCheck(['parameters'], ['boundary_conditions', 'formula_tables', 'delays', 'integral_terms']));
     if (run('navigation')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), () => featuresCheck(['parameters', 'boundary_conditions'], ['formula_tables', 'delays', 'integral_terms']));
     if (run('navigation')) await session(path.join(top, 'examples/ode/clustor.odex'), () => featuresCheck(['parameters', 'formula_tables'], ['boundary_conditions', 'delays', 'integral_terms']));

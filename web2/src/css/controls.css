@@ -115,8 +115,13 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 .sets-row, .keymap-keys, .run-time-controls label, .kinescope-bar { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; }
 .sets-menu { position: relative; }
 .sets-menu > summary { cursor: pointer; list-style: none; padding: .15rem .5rem; border: 1px solid var(--border); border-radius: var(--radius, .25rem); background: var(--surface); }
-.sets-menu > ul { position: absolute; z-index: var(--z-inline-menu); min-width: 12rem; max-width: min(24rem, 90vw); max-height: 60vh; overflow: auto; margin: 0; padding: .25rem; list-style: none;
-  background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
+/* the drop-down menus (DropDownMenu's, a plot's ⋯, the pinned commands' More) share one box and one placement (W777): from 48rem each hangs
+   under its trigger, from the trigger's start, or its end where the trigger sits at the right end of its toolbar (the table's, the plot's ⋯ and the pinned
+   commands' More set --menu-left/--menu-right), over the view and inside the viewport; below 48rem it opens in place (the phone rule below) */
+.sets-menu[data-sets-menu=save], .table-panel .sets-menu { --menu-left: auto; --menu-right: 0; } /* Save ends the sets row, the table's menus end its toolbar: both hang from their end */
+.sets-menu > ul, .plot-more-menu, .quick-more-list { position: absolute; z-index: var(--z-inline-menu); top: 100%; left: var(--menu-left, 0); right: var(--menu-right, auto); display: grid; gap: var(--space-1);
+  min-width: 12rem; max-width: min(24rem, 90vw); max-height: 60vh; overflow: auto; margin: 0; padding: var(--space-2); list-style: none;
+  background: var(--surface); color: var(--fg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
 /* a menu's items are rows of a list in every menu, the menu bar's and the drop-downs' (W776): no box until pointed at or focused, the label
    at the start; a nested menu's trigger and a checkbox row (menu-check) are rows too */
 .app-menu button, .sets-menu button, .plot-more-menu button, .plot-more-menu .sets-menu > summary {
@@ -124,11 +129,17 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   text-align: left; border: 0; border-radius: .375rem; background: none; cursor: pointer; }
 .app-menu button:hover:not(:disabled), .app-menu button:focus-visible, .sets-menu button:hover:not(:disabled), .sets-menu button:focus-visible,
 .plot-more-menu button:hover:not(:disabled), .plot-more-menu button:focus-visible, .plot-more-menu .sets-menu > summary:hover, .sets-menu .menu-check:hover { background: var(--surface-2); }
-.sets-menu .value-hint { margin: .25rem; }
 .sets-menu .menu-check { display: flex; align-items: center; gap: .4rem; min-height: var(--target); padding: 0 var(--space-3); border-radius: .375rem; cursor: pointer; }
+.sets-menu .value-hint { margin: .25rem; }
 /* a graph's sets row folded into one drop-down (its toolbar has no room for the row) */
 .sets-fold > .sets-row { position: absolute; right: 0; z-index: var(--z-inline-menu); width: max-content; max-width: min(24rem, 90vw); padding: .25rem;
   background: var(--surface); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
+/* below 48rem a menu opens in place, under its button, in the flow (the phone menu bar's drawer opens its submenus the same way: one list of
+   selectors for both), and the toolbar rows that hold one keep their buttons at the top, so the others stay where they were */
+@media (max-width: 47.99rem) {
+  .app-menu > details > ul, .sets-menu > ul, .plot-more-menu, .quick-more-list, .sets-fold > .sets-row { position: static; width: auto; max-height: none; min-width: 0; max-width: none; padding: 0; border: none; box-shadow: none; }
+  .table-panel .table-actions, .table-panel .table-tools, .plot-tools, div.sets-row { align-items: flex-start; }
+}
 
 /* ---- shapes several owners share: one rule each (csscheck) ---- */
 .shortcut-instruction, .text-hint, .help-result-heading, .player-keys-label {
