@@ -6593,27 +6593,173 @@ async function nativeFiles(dir) {
       && await until("s.toasts.some(t => t.kind === 'error' && /file dialog/.test(t.text))", 'toast'),
       JSON.stringify(await S('s.toasts')));
     check('no web2 file dialog appeared at any point', !(await cdp.eval('window.__fileDialogShown')));
-    /* W781: the folder picker asks the window's __xppPickFolder, answers its path or null, and releases through
-       __xppReleaseFolder; the core's grant itself is tests/test_folder_grant.cpp's (the OS dialog is checked by hand) */
-    /* a Chromium has showDirectoryPicker: hidden here, so only the window's own picker is checked */
-    await cdp.eval('window.showDirectoryPicker = undefined; true');
-    check('W781: no folder picker bound and none in the browser: none can be picked', !(await cdp.eval('window.__xpp.folders.canPick()')));
-    await cdp.eval(`(() => {
-      window.__folderAsked = []; window.__folderReleased = 0; window.__folderReply = ${JSON.stringify(elsewhere)};
-      window.__xppPickFolder = async r => { window.__folderAsked.push(r); return window.__folderReply; };
-      window.__xppReleaseFolder = async () => { window.__folderReleased++; return null; };
-      return true; })()`);
-    check('W781: a bound __xppPickFolder can be picked', await cdp.eval('window.__xpp.folders.canPick()'));
-    check('W781: the folder picked is its full path, asked with the title and folder',
-      JSON.stringify(await cdp.eval(`window.__xpp.folders.pick('Export several', '/m/')`)) === JSON.stringify({path: elsewhere})
-      && JSON.stringify(await cdp.eval('window.__folderAsked')) === JSON.stringify([{title: 'Export several', dir: '/m/'}]));
-    await cdp.eval('window.__folderReply = null; true');
-    check('W781: a cancelled folder pick is null', (await cdp.eval(`window.__xpp.folders.pick('x')`)) === null);
-    await cdp.eval('window.__xpp.folders.release()');
-    check('W781: the grant is released through __xppReleaseFolder', (await cdp.eval('window.__folderReleased')) === 1);
+    /* W774: File > Export > Several in the window, the folder by the window's own picker (stubbed here: the core grants a folder
+       only inside the window, so each full path is refused with the core's reason, and nothing is written) */
+    await exportWindowDesktop(dir, elsewhere, farSet);
   } finally {
     fs.rmSync(elsewhere, {recursive: true, force: true, maxRetries: 5});
   }
+}
+
+/* ---- File > Export > Several (W774, ui/ExportSeveral.tsx): the window read through its state, its rows' attributes and the
+   commands sent (sent()), never pixels ------------------------------------------------------------------------- */
+
+const exportWindowOpen = async () => {
+  await clickRegistry('export.several');
+  return until('s.exportSeveral.open', 'the Export several window');
+};
+const exportTick = key => cdp.eval(`document.querySelector('[data-export-tick=${JSON.stringify(key)}]').click(); true`);
+const exportClick = selector => cdp.eval(`document.querySelector(${JSON.stringify(selector)}).click(); true`);
+const exportGreyed = () => cdp.eval(`[...document.querySelectorAll('[data-export-row] [data-export-reason]')].map(e => e.textContent).join('|')`);
+const exportSent = async () => (await cdp.eval('__xpp.sent()')).filter(c => typeof c.id === 'string' && c.id.startsWith('export-'));
+/** the window's folder: a picked path is granted by the core only inside the window (see exportWindowDesktop) */
+const exportPickFolder = async folder => {
+  await exportClick('[data-export-pick]');
+  return until(`s.exportSeveral.folder === ${JSON.stringify(folder)}`, 'the folder picked');
+};
+
+/* the desktop window's folder: the native picker answers the stubbed path, the core refuses each full path it was not granted */
+async function exportWindowDesktop(dir, elsewhere, farSet) {
+  const names = await S('s.hello.output_names');
+  await cdp.eval(`(() => {
+    window.__folderAsked = []; window.__folderReleased = 0;
+    window.__xppPickFolder = async r => { window.__folderAsked.push(r); return ${JSON.stringify(elsewhere)}; };
+    window.__xppReleaseFolder = async () => { window.__folderReleased++; return null; };
+    return true; })()`);
+  check('W774: the File > Export menu holds Several…, which opens the window', await exportWindowOpen());
+  const unavailable = (await S('s.core.unavailable')).map(u => u.reason).join('|');
+  check('W774: the window greys each export the core says cannot run now, with the core\'s reason',
+    unavailable !== '' && (await exportGreyed()) === unavailable, `${await exportGreyed()} vs ${unavailable}`);
+  check('W774: the window offers the desktop\'s folder picker', await cdp.eval(`!!document.querySelector('[data-export-pick]')`));
+  check('W774: no format is ticked when the window opens', (await S('s.exportSeveral.ticks.length')) === 0);
+  await exportPickFolder(elsewhere);
+  const asked = await cdp.eval('window.__folderAsked[0]');
+  const modelFile = await S('s.hello.file'), cut = Math.max(modelFile.lastIndexOf('/'), modelFile.lastIndexOf('\\'));
+  check('W774: the folder is asked for with the title and the model\'s folder',
+    asked?.title === 'Export several' && asked?.dir === (cut > 0 ? modelFile.slice(0, cut) : ''), JSON.stringify(asked));
+  await exportTick('plot.export|pdf');
+  await exportTick('data.export|csv');
+  await exportTick('session.export_info|');
+  check('W774: the three ticks are the three formats the window was asked for',
+    (await S('s.exportSeveral.ticks.length')) === 3);
+  const mark = await cdp.eval('__xpp.sentCount()');
+  await exportClick('[data-export-start]');
+  const refused = await until(`s.toasts.some(t => t.kind === 'error' && /is not a plain file name in the model/.test(t.text))`, 'the core refusal');
+  check('W774: a full path in the folder the core did not grant is refused with the core\'s reason, and the window keeps its ticks',
+    refused && (await S('s.exportSeveral.phase')) === 'choose' && (await S('s.exportSeveral.ticks.length')) === 3,
+    JSON.stringify(await S('s.toasts')));
+  const checks = (await cdp.eval('__xpp.sentFrom(' + mark + ')')).filter(c => c.cmd === 'session.file_exists');
+  /* the batch asks first, for its first file, and stops at the core's refusal: nothing else is sent */
+  check('W774: the existence check goes first, for the first file, with its full path in the picked folder, and the batch stops there',
+    JSON.stringify(checks.map(c => c.file)) === JSON.stringify([path.join(elsewhere, names['session.export_info'])]),
+    JSON.stringify(checks.map(c => c.file)));
+  check('W774: no file is written in the folder when the core refuses the path',
+    fs.readdirSync(elsewhere).filter(n => n !== path.basename(farSet)).length === 0);
+  await exportClick('[data-export-cancel]');
+  check('W774: Cancel closes the window and releases the folder grant', (await S('s.exportSeveral.open')) === false
+    && (await cdp.eval('window.__folderReleased')) === 1);
+  await exportWindowOpen();
+  check('W774: the ticks are not remembered between uses', (await S('s.exportSeveral.ticks.length')) === 0);
+  await exportClick('[data-export-cancel]');
+}
+
+/* the browser with a folder picker (a stubbed directory handle the page writes into): the files the core writes in the model's
+   folder are copied there at their done; a name already there is asked once, with Replace, Skip those and Cancel */
+async function exportSeveral(dir) {
+  await desktopMetrics();
+  await until('!s.busy && !s.ask', 'idle');
+  await runInitial(); /* the data table holds the run: data.export has nothing to save before one */
+  const names = await S('s.hello.output_names');
+  await cdp.eval(`(() => {
+    window.__folderHas = []; window.__folderWrites = [];
+    window.__folder = {name: 'exports', async getFileHandle(name, o) {
+      if (!o?.create && !window.__folderHas.includes(name)) throw new DOMException(name, 'NotFoundError');
+      return {async createWritable() { return {
+        async write(b) { window.__folderWrites.push([name, await b.text()]); },
+        async close() { if (!window.__folderHas.includes(name)) window.__folderHas.push(name); }}; }};
+    }};
+    window.showDirectoryPicker = async () => window.__folder;
+    return true; })()`);
+  const folderWrites = () => cdp.eval('window.__folderWrites.map(w => w[0])');
+  check('W774: a browser with a directory picker offers Choose…', await exportWindowOpen() && await cdp.eval(`!!document.querySelector('[data-export-pick]')`));
+  await exportPickFolder('exports');
+  await exportTick('plot.export|pdf');
+  await exportTick('plot.export|svg');
+  await exportTick('data.export|csv');
+  await exportClick('[data-export-start]');
+  check('W774: three ticks write three files: the batch ends with a report of three written',
+    await until(`s.exportSeveral.phase === 'report' && document.querySelector('[data-export-summary]')`, 'the report'),
+    JSON.stringify(await S('s.exportSeveral.outcomes')));
+  check('W774: the report says each file was written', (await cdp.eval(`document.querySelector('[data-export-summary]').textContent`)) === '3 written, 0 failed, 0 skipped.',
+    JSON.stringify(await S('s.exportSeveral.outcomes')));
+  const sent = (await exportSent()).map(({id, ...rest}) => rest);
+  check('W774: one ordinary command per ticked format, each naming its file in the model\'s folder, nothing replaced',
+    JSON.stringify(sent) === JSON.stringify([
+      {cmd: 'plot.export', format: 'pdf', file: names['plot.export.pdf']},
+      {cmd: 'plot.export', format: 'svg', file: names['plot.export.svg']},
+      {cmd: 'data.export', target: 'table', format: 'csv', file: names['data.export.csv']}]), JSON.stringify(sent));
+  check('W774: the files exist in the model\'s folder', [names['plot.export.pdf'], names['plot.export.svg'], names['data.export.csv']]
+    .every(name => fs.existsSync(path.join(dir, name))));
+  check('W774: each file is copied into the picked folder', await until(`window.__folderWrites.length === 3`, 'the copies')
+    && JSON.stringify(await folderWrites()) === JSON.stringify([names['plot.export.pdf'], names['plot.export.svg'], names['data.export.csv']]));
+  check('W774: the copied CSV is the model\'s file, byte for byte', (await cdp.eval('window.__folderWrites[2][1]')) === fs.readFileSync(path.join(dir, names['data.export.csv']), 'utf8'));
+  await exportClick('[data-dialog-action]');
+  check('W774: Close closes the report', (await S('s.exportSeveral.open')) === false);
+
+  /* the replace question: the picked folder has the two names now, so Replace, Skip those and Cancel are asked once */
+  await exportWindowOpen();
+  await exportPickFolder('exports');
+  await exportTick('plot.export|pdf');
+  await exportTick('data.export|csv');
+  const mark = await cdp.eval('__xpp.sentCount()');
+  await exportClick('[data-export-start]');
+  check('W774: names that exist are asked once, all together', await until(`s.exportSeveral.phase === 'exists'`, 'the replace question')
+    && JSON.stringify(await S('s.exportSeveral.exists')) === JSON.stringify([names['plot.export.pdf'], names['data.export.csv']]));
+  check('W774: nothing is written before the question is answered', (await cdp.eval('__xpp.sentCount()')) === mark);
+  await exportClick('[data-export-cancel]');
+  check('W774: Cancel goes back to the ticks, with nothing sent', (await S('s.exportSeveral.phase')) === 'choose' && (await cdp.eval('__xpp.sentCount()')) === mark);
+  await exportClick('[data-export-start]');
+  await until(`s.exportSeveral.phase === 'exists'`, 'the question again');
+  await exportClick('[data-export-skip]');
+  check('W774: Skip those writes none of the two that exist, and reports them skipped',
+    await until(`s.exportSeveral.phase === 'report'`, 'the skip report')
+    && (await cdp.eval(`document.querySelector('[data-export-summary]').textContent`)) === '0 written, 0 failed, 2 skipped.'
+    && (await cdp.eval('__xpp.sentCount()')) === mark);
+  await exportClick('[data-dialog-action]');
+
+  await exportWindowOpen();
+  await exportPickFolder('exports');
+  await exportTick('plot.export|pdf');
+  await exportTick('data.export|csv');
+  const replaceMark = await cdp.eval('__xpp.sentCount()');
+  await exportClick('[data-export-start]');
+  await until(`s.exportSeveral.phase === 'exists'`, 'the question');
+  await exportClick('[data-export-replace]');
+  check('W774: Replace sends the answer to every command, and writes both files again',
+    await until(`s.exportSeveral.phase === 'report' && document.querySelector('[data-export-summary]')?.textContent === '2 written, 0 failed, 0 skipped.'`, 'the replace report')
+    && JSON.stringify((await exportSent()).slice(-2).map(c => c.replace)) === '[1,1]'
+    && (await cdp.eval('__xpp.sentCount()')) === replaceMark + 2, JSON.stringify(await S('s.exportSeveral.outcomes')));
+  await exportClick('[data-dialog-action]');
+
+  /* the browser without a folder picker: each file is a download (the browser's own; several may be blocked there) */
+  await cdp.eval('window.showDirectoryPicker = undefined; true');
+  await exportWindowOpen();
+  check('W774: without a directory picker the window says the files are downloads, and has no folder to choose',
+    (await cdp.eval(`document.querySelector('.export-note')?.textContent ?? ''`)).includes('download')
+    && !(await cdp.eval(`!!document.querySelector('[data-export-pick]')`)));
+  const downloadsBefore = fs.readdirSync(downloads).length;
+  await exportTick('plot.export|pdf');
+  await exportTick('plot.export|svg');
+  await exportClick('[data-export-start]');
+  /* the model's folder holds the copies of the earlier batches: one question about them, answered Replace */
+  await until(`s.exportSeveral.phase === 'exists' || s.exportSeveral.phase === 'report'`, 'the answer');
+  if (await S("s.exportSeveral.phase === 'exists'")) await exportClick('[data-export-replace]');
+  await until(`s.exportSeveral.phase === 'report'`, 'the download report');
+  const landed = await waitFor(async () => fs.readdirSync(downloads).length - downloadsBefore >= 2, 20000);
+  perf('export downloads: files that landed in the downloads folder of 2', fs.readdirSync(downloads).length - downloadsBefore);
+  check('W774: without a folder picker each file is offered as a download', !!landed || (await S('s.files.offered'))?.how === 'download',
+    JSON.stringify(await S('s.toasts')));
+  await exportClick('[data-dialog-action]');
 }
 
 /* ---- animation (docs/ui-v2.md T13) ---------------------------------------------- */
@@ -8178,7 +8324,9 @@ async function main() {
     if (run('marks')) await session(ODE, marks);
     if (run('aplot')) await session(APLOT_ODE, aplotView);
     if (run('files')) await session(ODE, opt.webview2 ? nativeFiles : files, ['gone.set: cannot open gone.set: No such file or directory']);
-    if (run('native')) await session(ODE, nativeFiles);
+    /* W774: the window's export into a folder the core did not grant is refused with that reason (exportWindowDesktop) */
+    if (run('native')) await session(ODE, nativeFiles, [/is not a plain file name in the model's folder/]);
+    if (run('export')) await session(ODE, exportSeveral);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);
     if (run('ani')) await session(ODE, animation);

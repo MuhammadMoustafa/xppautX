@@ -2400,6 +2400,42 @@ def check_session_commands():
         shutil.rmtree(config, ignore_errors=True)
 
 
+def check_export_several():
+    """W774: the File > Export > Several window's core parts: hello's default name of each export format, the state's commands that
+    cannot run now (the greyed rows: no animation, no captured frames, no array plot), and session.file_exists for a file of the model's
+    folder, refused for a path out of it."""
+    s = Server(args.server, 'examples/ode/lecar.ode')
+    try:
+        events, _ = s.collect(lambda e: e.get('ev') == 'done')
+        hello = next(e for e in events if e.get('ev') == 'hello')
+        names = hello.get('output_names', {})
+        check('W774: hello names every export format its file (the core rule: the model base, the format\'s extension, a second kind\'s qualifier)',
+              names.get('plot.export.pdf') == 'lecar.pdf' and names.get('array_plot.export.pdf') == 'lecar-array.pdf'
+              and names.get('model.export.python_numba') == 'lecar-python_numba.py' and names.get('session.export_info') == 'lecar.txt', str(names))
+        s.send(cmd='session.get_state')
+        events, _ = s.collect(lambda e: e.get('ev') == 'done')
+        state = next(e for e in reversed(events) if e.get('ev') == 'session.state')
+        reasons = {u.get('cmd'): u.get('reason') for u in state.get('unavailable', [])}
+        check('W774: the state names the three exports that cannot run now, each with its reason',
+              reasons == {'animation.export': 'needs an animation loaded', 'kinescope.export': 'needs captured frames',
+                          'array_plot.export': 'needs an array plot'}, str(reasons))
+        s.send(cmd='session.file_exists', file='lecar.txt')
+        _, done = s.collect(lambda e: e.get('ev') == 'done')
+        check('W774: session.file_exists says a file of the model\'s folder is not there before it is written',
+              done.get('status') == 'ok' and done.get('result', {}).get('exists') is False, str(done))
+        s.send(cmd='session.export_info', file='lecar.txt')
+        _, done = s.collect(lambda e: e.get('ev') == 'done')
+        s.send(cmd='session.file_exists', file='lecar.txt')
+        _, done = s.collect(lambda e: e.get('ev') == 'done')
+        check('W774: session.file_exists finds the file once the export has written it',
+              done.get('status') == 'ok' and done.get('result', {}).get('exists') is True, str(done))
+        s.send(cmd='session.file_exists', file='../lecar.txt')
+        _, done = s.collect(lambda e: e.get('ev') == 'done')
+        check('W774: session.file_exists refuses a path out of the model\'s folder, with the core\'s reason',
+              done.get('status') == 'error' and 'not a plain file name' in str(done.get('error', '')), str(done))
+    finally:
+        s.close()
+
 def check_equilibrium_exports():
     """W522: explicit side filenames and one error value, including a refused derived destination."""
     s = Server(args.server, 'tools/models/equilibrium_registry.odex')
@@ -3387,7 +3423,7 @@ def check_options_panels():
 
 
 
-INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -3762,6 +3798,7 @@ check('W773: the two commands each of a graph and a diagram picture became one, 
 LABEL_WORDS_OF_OTHER_THINGS = {
     ('ui/KeymapEditor.tsx', 'Replace'): "the answer that replaces a key's other command",
     ('ui/SliderDialog.tsx', 'Step'): "a slider's step size",
+    ('ui/ExportSeveral.tsx', 'Replace'): "the replace question's answer, which replaces each file that exists (no command of its own)",
 }
 # the window's own native menu, which no row describes
 NATIVE_MENU_ITEMS = {'Help/About', 'Help/Check for updates'}
@@ -7466,7 +7503,7 @@ def check_output_names():
         evs, _ = col(is_done)
         h = next(e for e in evs if e.get('ev') == 'hello')
         check('W130: hello supplies all page save names from the model base',
-              h.get('output_names') == {'csv': 'lecar.csv', 'curves': 'lecar-curves.csv'}, str(h.get('output_names')))
+              h.get('output_names', {}).get('csv') == 'lecar.csv' and h.get('output_names', {}).get('curves') == 'lecar-curves.csv', str(h.get('output_names')))
         def cancel_name(want):
             _, ask = col(lambda e: is_ask(e) or is_done(e))
             while ask and ask.get('kind') == 'form':
@@ -7561,6 +7598,7 @@ def check_output_names():
         stop_server(p, r, snd)
 
 check_output_names()
+check_export_several()
 
 
 

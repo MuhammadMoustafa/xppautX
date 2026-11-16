@@ -1157,8 +1157,17 @@ void send_hello(xpp::Session &s)
     buf_format(b, ",\"continue\":{{\"grid_tolerance\":{}}}", xpp::CONTINUE_GRID_TOLERANCE);
     buf_format(b, ",\"state_inspection\":{{\"tail_intervals\":{}}}", STATE_TAIL_INTERVALS);
     BUF_LIT(b, ",\"output_names\":{");
+    /* the defaults of the save buttons (csv, curves) and of every File > Export > Several export (W774: `<command>.<format>`, the
+       export without a format by its command): a second kind with the same extension takes its own `what`, so no two names meet */
     static constexpr struct { std::string_view key, ext, what; } names[]={
-        {"csv",".csv",""},{"curves",".csv","curves"}};
+        {"csv",".csv",""},{"curves",".csv","curves"},
+        {"session.export_info",".txt",""},
+        {"plot.export.pdf",".pdf",""},{"plot.export.svg",".svg",""},
+        {"data.export.csv",".csv",""},{"data.export.dat",".dat",""},{"data.export.csv.gz",".csv.gz",""},{"data.export.npz",".npz",""},
+        {"model.export.python",".py",""},{"model.export.python_numpy",".py","python_numpy"},{"model.export.python_numba",".py","python_numba"},
+        {"animation.export.animated_gif",".gif","animation"},{"animation.export.frames",".ppm","animation-frames"},
+        {"kinescope.export.animated_gif",".gif","kinescope"},{"kinescope.export.frames",".gif","kinescope-frames"},
+        {"array_plot.export.pdf",".pdf","array"},{"array_plot.export.gif",".gif","array"}};
     for (std::size_t n=0;n<std::size(names);++n){
         if(n)BUF_LIT(b,",");
         buf_str(b,names[n].key); BUF_LIT(b,":");

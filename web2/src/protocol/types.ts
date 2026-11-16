@@ -45,7 +45,9 @@ export interface HelloEvent {
   features: string[];
   title: string;
   file: string;
-  output_names: {csv: string; curves: string};
+  /** the default name of each file the page offers: csv and curves (the save buttons), then `<command>.<format>` of each File > Export
+      > Several export (W774; a command with no format by its name); the core names them (xpp_path output_name) */
+  output_names: Record<string, string>;
   state_inspection: {tail_intervals: number};
   continue: {grid_tolerance: number};
   steady: {max_decimals: number; default_decimals: number; default_hold: number};
@@ -257,6 +259,8 @@ export interface StateEvent {
   /** while a recording is open in the player (W59b): the next step, the one running (-1: none),
       whether it plays, its speed, running with no pace to a `from` step, the fingerprint matching */
   player?: {step: number; running: number; playing: boolean; speed: number; fast: boolean; intact: boolean};
+  /** the commands that cannot run now and why (W774): the export window greys their rows with the reason */
+  unavailable?: {cmd: string; reason: string}[];
 }
 
 /** a recorded step, as the player event lists it (docs/protocol.md "Recordings") */

@@ -11,6 +11,9 @@
 #include "json_number.h"
 #include "json_reader.h"
 #include "session.h"
+#include "ani_state.h"
+#include "kinescope.h"
+#include "plot_state.h"
 #include "xpp_path.h"
 #include "xpp_text.h"
 #include "xpp_ui.h"
@@ -351,6 +354,16 @@ const Command *find(std::string_view name)
         if (!found && name == command.name) found = &command;
     });
     return found;
+}
+
+/* why the command cannot run in this session now, "" when it can (W774): the export rows whose input the session does not hold yet. The
+   state event lists each one that cannot, and the export window greys its row with the reason. */
+std::string_view unavailable_reason(const Session &s, const Command &command)
+{
+    if (std::string_view(command.name) == "animation.export" && s.animation->ncom == 0) return "needs an animation loaded";
+    if (std::string_view(command.name) == "kinescope.export" && s.kinescope->frames == 0) return "needs captured frames";
+    if (std::string_view(command.name) == "array_plot.export" && !s.array_plot->plot.alive) return "needs an array plot";
+    return {};
 }
 
 std::string_view numerics_command(std::string_view key)

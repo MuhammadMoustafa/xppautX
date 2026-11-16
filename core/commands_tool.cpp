@@ -78,6 +78,9 @@ constexpr std::array ROWS = {
             "Read the manual.", {}, CALCULATOR_EVENTS, false, page_tool, {}, MANUAL_KEYS},
     Command{"about.open", {}, XPP_KIND_VIEW, CommandCategory::Tools, "About xppautX", "Help",
             "Show the version, commit and links of this program.", {}, CALCULATOR_EVENTS, false, page_tool},
+    /* the page's window of every export at once (W774): its ticks are not kept; each export it writes is one ordinary command */
+    Command{"export.several", {}, XPP_KIND_VIEW, CommandCategory::Files, "Several…", "File/Export",
+            "Open a window listing every export: each format of each one a tick, one folder for the files, one command per file written.", {}, CALCULATOR_EVENTS, false, page_tool},
     Command{"source.run_action", INDEX_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Run source action", "",
             "Run the action of an active comment of the model's source (a `{par=value,...}` block): comment `index` of session.get_source's list.",
             RAN_RESULTS, RAN_EVENTS, true, run_source_action},

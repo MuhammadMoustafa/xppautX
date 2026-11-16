@@ -14,7 +14,6 @@ import type {Session} from './session';
 import type {Action} from './store/state';
 import {logEntries} from './store/log';
 import {options} from 'preact';
-import {canPickFolder, pickFolder, releaseFolder} from './pickers';
 
 const KEEP = 200;
 
@@ -79,8 +78,6 @@ export function installTestHook(session: Session): void {
   };
   (window as unknown as {__xpp: unknown}).__xpp = {
     state: () => session.store.getState(),
-    /** the folder picker (pickers.ts), until the Export several window (W774) calls it itself */
-    folders: {canPick: canPickFolder, pick: pickFolder, release: releaseFolder},
     /** all scheduled component renders and effects have run (not core idle) */
     rendered: () => renderingObserved && renders === 0 && effects === 0,
     /** the log's entries, oldest first (the store keeps them in chunks: store/log.ts) */

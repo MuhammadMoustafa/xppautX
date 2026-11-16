@@ -244,3 +244,28 @@
 .form-control > * { min-width: 0; max-width: 100%; }
 /* a download's progress across its dialog (W622) */
 .dialog-progress { width: 100%; }
+
+/* File > Export > Several (ui/ExportSeveral.tsx, W774): the folder, a row per export with its formats as chips, the files the ticks
+   name under them, a greyed row's reason in place of the chips; on a phone each row is one column */
+.export-folder { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); }
+.export-folder code { flex: 1; min-width: 0; overflow-wrap: anywhere; background: var(--surface-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius); font-family: var(--mono); font-size: var(--text-sm); }
+.export-note { margin: 0 0 var(--space-2); color: var(--fg-muted); font-size: var(--text-sm); }
+.export-row { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: var(--space-1) var(--space-3); align-items: start; padding: var(--space-2) 0; border-top: 1px solid var(--border); }
+.export-row.off .export-name { color: var(--fg-muted); }
+.export-name { padding-top: var(--space-1); }
+.export-formats .chip { display: inline-flex; align-items: center; gap: var(--space-1); border: 1px solid var(--field-border); border-radius: 999px; padding: var(--space-1) var(--space-3); cursor: pointer; font-size: var(--text-sm); }
+.export-formats .chip.on { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); }
+.export-formats .chip input { accent-color: var(--accent); margin: 0; }
+.export-files { grid-column: 2; font-family: var(--mono); font-size: var(--text-sm); color: var(--fg-muted); overflow-wrap: anywhere; }
+.export-why { grid-column: 2; padding-top: var(--space-1); font-size: var(--text-sm); color: var(--fg-muted); }
+.export-count { margin-right: auto; align-self: center; font-size: var(--text-sm); color: var(--fg-muted); }
+.export-exists { margin: 0 0 var(--space-3); padding-left: var(--space-4); font-family: var(--mono); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.export-report { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; gap: var(--space-2); }
+.export-report li { overflow-wrap: anywhere; }
+.export-report li.failed .export-status { color: var(--danger); }
+.export-report li.written .export-status { color: var(--ok); }
+.export-text { font-family: var(--mono); font-size: var(--text-sm); color: var(--fg-muted); }
+@media (max-width: 47.99rem) {
+  .export-row { grid-template-columns: minmax(0, 1fr); }
+  .export-files, .export-why { grid-column: 1; }
+}

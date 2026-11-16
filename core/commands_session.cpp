@@ -80,6 +80,13 @@ Result<std::string> export_info(Session &s, const Command &, const Arguments &ar
     return ResultObject().text(FILE_KEY, file).boolean("written", *written).done();
 }
 
+/* session.file_exists: whether a file of the model's folder, or the folder a window granted (W774), is there now: the page asks before a several-file export */
+Result<std::string> file_exists(Session &s, const Command &, const Arguments &args, const Place &)
+{
+    const std::string &file = args.get<std::string>(FILE_KEY);
+    return ResultObject().text(FILE_KEY, file).boolean("exists", s.model().fs->exists(file)).done();
+}
+
 Result<std::string> export_model_as(Session &s, const Command &, const Arguments &args, const Place &)
 {
     const Result<std::string> written = export_model(s, *language_named(args.get<std::string>(LANGUAGE_KEY)), args.optional<std::string>(FILE_KEY).value_or(std::string{}));
@@ -93,6 +100,7 @@ constexpr std::array SAVE_ARGUMENTS = {DATA};
 constexpr std::array SAVE_AS_ARGUMENTS = {FILE_REQUIRED, DATA};
 constexpr std::array IMPORT_ARGUMENTS = {FILE_REQUIRED};
 constexpr std::array EXPORT_ARGUMENTS = {FILE_REQUIRED};
+constexpr std::array FILE_EXISTS_ARGUMENTS = {FILE_REQUIRED};
 constexpr auto LANGUAGE_CHOICES = c_names(language_names);
 constexpr std::array MODEL_EXPORT_ARGUMENTS = {Argument{LANGUAGE_KEY, Type::choice, true, MAX_TEXT_BYTES, LANGUAGE_CHOICES}, Argument{FILE_KEY, Type::file, false}};
 constexpr std::array QUIT_ARGUMENTS = {Argument{"save", Type::boolean, false}};
@@ -102,6 +110,7 @@ constexpr std::array COPY_RESULTS = {ResultField{"file", "file"}, ResultField{"c
 constexpr std::array IMPORT_RESULTS = {ResultField{"file", "file"}, ResultField{"applied", "boolean"}, ResultField{"changes", "list[text]"}};
 constexpr std::array EXPORT_RESULTS = {ResultField{"file", "file"}, ResultField{"written", "boolean"}};
 constexpr std::array MODEL_EXPORT_RESULTS = {ResultField{"file", "file"}};
+constexpr std::array FILE_EXISTS_RESULTS = {ResultField{"file", "file"}, ResultField{"exists", "boolean"}};
 constexpr std::array SOURCE_RESULTS = {ResultField{"source", "text"}, ResultField{"equations", "list[text]"}};
 constexpr std::array QUIT_RESULTS = {ResultField{"quitting", "boolean"}};
 constexpr std::array STATE_RESULTS = {ResultField{"state", "the state event's members"}};
@@ -127,6 +136,9 @@ constexpr std::array ROWS = {
             "Write the model, with the values it has now (parameters, initial data, the integration settings), as a program in a language that runs with no xppautX and writes the rows of a run to a CSV file beside itself (python: the standard library; python_numpy: numpy arrays, an array line of the model one slice; python_numba: python's statements compiled by numba); "
             "left out, file is asked for (the result's file is empty when that question was cancelled). A model the language cannot say (tables, delays, events, Markov variables, networks, ...) is refused, naming what and its line.",
             MODEL_EXPORT_RESULTS, DONE_EVENTS, true, export_model_as, {}, {}, "write", "*", "", "Export", Feature::none, LANGUAGE_KEY},
+    Command{"session.file_exists", FILE_EXISTS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Files, "File exists", "",
+            "Whether a file is there now: a base name of the model's folder, or a full path in the folder a file dialog granted; the page asks before it writes several files.",
+            FILE_EXISTS_RESULTS, DONE_EVENTS, false, file_exists},
     Command{"session.import_xppaut_state", IMPORT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "Import XPPAUT session state", "File/Sets",
             "Apply a whole set file XPPAUT wrote (its parameters, initial conditions, numerics, delays, boundary conditions, active graph and run position), all or nothing; the result names what it changed. Nothing is written beside it.",
             IMPORT_RESULTS, STATE_EVENTS, true, import_xppaut_state_file, {}, {}, "read", "*.set"},

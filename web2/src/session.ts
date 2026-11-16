@@ -4,6 +4,9 @@ import {registryRows} from './ui/navigation';
 /* The session: connects a transport to the store and is the one place that
    sends commands. Components call its methods, never the transport. */
 import {nativeFileDialog, nativeFileRequest, offerDownload, writeTo, type SaveHandle} from './pickers';
+import {canPickFolder, fileExistsIn, pickFolder, releaseFolder, type FolderHandle} from './pickers';
+import {exportCommand, exportRows, folderOf, joinFolder, type ExportItem, type ExportRow} from './exportSeveral';
+import type {ExportSeveralAction} from './store/exportSeveral';
 import {accumulateScroll, keyScroll} from './plot/aplotScroll';
 import {bytesToBase64} from './plot/gif';
 import {setLineGeometry} from './plot/linestyle';
@@ -35,6 +38,8 @@ import type {TextTab} from './store/text';
 import {PopOuts, popOutRequest, type ViewKey} from './popout';
 import {fieldKey, valueCommands, type ValueSet} from './store/values';
 import {autoxSettingsCommands, commandSettings, type AutoxSettingsPatch} from './store/autoxSettings';
+/** a command's done as the transport delivers it (File > Export > Several awaits its own by id) */
+type DoneEvent = Extract<XppEvent, {ev: 'done'}>;
 
 /** the data table's buttons (docs/protocol.md data.* commands; web/xpp-client.js's BROWSER_BUTTONS) */
 export type DataOp = 'find' | 'replace' | 'unreplace' | 'table' | 'load' | 'first' | 'last'
@@ -124,6 +129,13 @@ export class Session {
   private retrySaveDir: string | null = null;
   private nativeSaveDir = '';
   private pendingSave: {name: string; handle: SaveHandle | null; ahead: number; suffix?: string} | null = null;
+  /** File > Export > Several (W774): the folder the window writes into (a browser's handle; a desktop's grant is the core's),
+      whether the desktop granted it, the batch waiting for the replace question, and the commands awaiting their done by id */
+  private exportFolder: FolderHandle | null = null;
+  private exportDesktop = false;
+  private exportPending: {items: ExportItem[]; targets: string[]; existing: boolean[]} | null = null;
+  private exportWaits = new Map<string, (ev: DoneEvent | null) => void>();
+  private exportSerial = 0;
   /** the answer to the replace confirm, when it is open */
   private replaceChoice: ((c: ReplaceChoice) => void) | null = null;
   /** a command run again after "Add file…": the answers its prompts get, and
@@ -270,6 +282,8 @@ export class Session {
       }
       this.nativeSave = null;
     } else if (ev.ev === 'done') {
+      const waiting = ev.id === undefined ? undefined : this.exportWaits.get(ev.id);
+      if (waiting) { this.exportWaits.delete(ev.id!); waiting(ev); }
       /* `set.list_file_contents` (a section's Load from file, or File > Sets > Load from file): its done lists the parts to offer */
       const parts = ev.status === 'ok' ? ev.result?.parts : null;
       if (Array.isArray(parts))
@@ -374,6 +388,7 @@ export class Session {
     else if (id === 'session.get_source') {this.openText();}
     else if (id === 'manual.open') this.store.dispatch({type: 'help', action: {type: 'open'}});
     else if (id === 'about.open') this.store.dispatch({type: 'help', action: {type: 'about'}});
+    else if (id === 'export.several') this.store.dispatch({type: 'exportSeveral', action: {type: 'open', open: true}});
     else if (id === 'array_plot.open') this.openAplot();
     else if (id === 'animation.open') this.openAni();
     else if (id === 'annotation.list') {
@@ -1429,6 +1444,123 @@ export class Session {
   }
 
   /* ---- files (docs/ui-v2.md section 4, T5): the model's folder is the workspace ---- */
+
+  /** the window's exports now: the registry's rows, the ones the session cannot run greyed (File > Export > Several, W774) */
+  private exportRowsNow(): ExportRow[] {
+    const {hello, core} = this.store.getState();
+    return exportRows(registryRows(hello), hello?.menu_separator ?? '', hello?.output_names ?? {}, core?.unavailable ?? []);
+  }
+
+  /** a format ticked or unticked in the window */
+  exportSeveralTick(key: string, on: boolean): void {
+    this.store.dispatch({type: 'exportSeveral', action: {type: 'tick', key, on}});
+  }
+
+  /** the window's folder pick: the desktop's own dialog (the core grants that folder to the files written in it) or a browser's
+      directory picker; a cancelled pick clears the folder (the grant ends with it) */
+  async exportSeveralPick(): Promise<void> {
+    try {
+      const picked = await pickFolder('Export several', folderOf(this.store.getState().hello?.file ?? ''));
+      this.exportDesktop = !!picked && 'path' in picked;
+      this.exportFolder = picked && 'handle' in picked ? picked.handle : null;
+      this.store.dispatch({type: 'exportSeveral', action: {type: 'folder', folder: picked ? ('path' in picked ? picked.path : picked.handle.name) : null}});
+    } catch (e) {
+      this.failed(`The folder could not be picked: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  /** the window's Export button: each ticked file is checked for existing (in the desktop's folder by the core, in a browser's by the
+      listing and the folder), then either written or, when some exist, asked about once (phase exists) */
+  async exportSeveralStart(): Promise<void> {
+    const st = this.store.getState().exportSeveral;
+    const items = this.exportRowsNow().filter(row => !row.reason).flatMap(row => row.items).filter(item => st.ticks.includes(item.key));
+    if (!items.length || (canPickFolder() && !st.folder)) return;
+    const targets = items.map(item => this.exportDesktop && st.folder ? joinFolder(st.folder, item.file) : item.file);
+    const existing: boolean[] = [];
+    try {
+      if (this.exportDesktop) {
+        for (const file of targets) {
+          const ev = await this.exportCall({cmd: 'session.file_exists', file, id: `exists-${this.exportSerial++}`});
+          if (ev?.status !== 'ok') throw new Error(ev?.error ?? 'the check stopped');
+          existing.push(ev.result?.exists === true);
+        }
+      } else {
+        const listing = await this.files?.list().catch(() => []) ?? [];
+        for (const item of items)
+          existing.push(listing.some(f => f.name === item.file) || (!!this.exportFolder && await fileExistsIn(this.exportFolder, item.file)));
+      }
+    } catch (e) {
+      this.failed(`Export several: ${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
+    this.exportPending = {items, targets, existing};
+    const names = items.filter((_, i) => existing[i]).map(item => item.file);
+    if (names.length) this.store.dispatch({type: 'exportSeveral', action: {type: 'phase', phase: 'exists', exists: names, total: items.length}});
+    else await this.exportRun(items.map((item, i) => ({item, target: targets[i], skip: false})));
+  }
+
+  /** the replace question's answer: Replace writes every file (the answer passed to each command), Skip those writes the others,
+      Cancel goes back to the ticks */
+  exportSeveralAnswer(answer: 'replace' | 'skip' | 'cancel'): void {
+    const pending = this.exportPending;
+    this.exportPending = null;
+    if (!pending) return;
+    if (answer === 'cancel') {
+      this.store.dispatch({type: 'exportSeveral', action: {type: 'phase', phase: 'choose'}});
+      return;
+    }
+    void this.exportRun(pending.items.map((item, i) => ({item, target: pending.targets[i], skip: answer === 'skip' && pending.existing[i]})),
+      answer === 'replace' ? 1 : undefined);
+  }
+
+  /** the batch: one ordinary command per file, each awaited to its done, so the outcomes come in order; a browser's folder gets each
+      file it wrote (pendingSave: the core's file is the base name, copied at its done); the desktop's grant ends with the batch */
+  private async exportRun(plan: {item: ExportItem; target: string; skip: boolean}[], replace?: 1): Promise<void> {
+    const dispatch = (action: ExportSeveralAction) => this.store.dispatch({type: 'exportSeveral', action});
+    dispatch({type: 'phase', phase: 'running', total: plan.length});
+    for (const {item, target, skip} of plan) {
+      if (skip) {
+        dispatch({type: 'outcome', outcome: {file: item.file, status: 'skipped', text: 'it exists, and was kept'}});
+        continue;
+      }
+      const folder = this.exportFolder;
+      if (!this.exportDesktop && folder) {
+        const name = item.file;
+        this.pendingSave = {name, handle: {name, createWritable: async () => (await folder.getFileHandle(name, {create: true})).createWritable()}, ahead: this.donesOwed};
+      }
+      const ev = await this.exportCall(exportCommand(item, target, `export-${this.exportSerial++}`, replace));
+      if (ev?.status === 'ok') dispatch({type: 'outcome', outcome: {file: item.file, status: 'written', text: target}});
+      else dispatch({type: 'outcome', outcome: {file: item.file, status: 'failed', text: ev?.error ?? (ev ? 'stopped' : 'the command was not sent')}});
+    }
+    if (this.exportDesktop) {
+      void releaseFolder();
+      this.exportFolder = null;
+      this.exportDesktop = false;
+      dispatch({type: 'folder', folder: null});
+    }
+    dispatch({type: 'phase', phase: 'report'});
+  }
+
+  /** sends a command and resolves with its done (matched by its id), or null when it was not sent */
+  private exportCall(cmd: Command): Promise<DoneEvent | null> {
+    return new Promise(resolve => {
+      const id = String(cmd.id);
+      this.exportWaits.set(id, resolve);
+      if (!this.send(cmd)) {
+        this.exportWaits.delete(id);
+        resolve(null);
+      }
+    });
+  }
+
+  /** the window closes: a desktop's folder grant ends with it */
+  exportSeveralClose(): void {
+    if (this.exportDesktop) void releaseFolder();
+    this.exportFolder = null;
+    this.exportDesktop = false;
+    this.exportPending = null;
+    this.store.dispatch({type: 'exportSeveral', action: {type: 'open', open: false}});
+  }
 
   private failed(text: string): void {
     this.store.dispatch({type: 'toast', kind: 'error', text});

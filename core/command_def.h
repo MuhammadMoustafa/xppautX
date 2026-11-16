@@ -360,6 +360,8 @@ Result<Arguments> validate(Session *session, const Command &command, const char 
                            bool paths_allowed);
 /* The registry's row of that name, null when there is none. */
 const Command *find(std::string_view name);
+/* why the command cannot run now, "" when it can: see command_registry.cpp (W774) */
+std::string_view unavailable_reason(const Session &s, const Command &command);
 /* The registry rows in hello order, for the keymap as well as navigation. */
 std::vector<const Command *> rows();
 /* hello and help name a type this way. */

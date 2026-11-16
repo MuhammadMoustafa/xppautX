@@ -29,6 +29,7 @@ import {useDark} from './theme';
 import {TitleBar} from './TitleBar';
 import {ErrorDialog} from './ErrorDialog';
 import {KeymapEditor} from './KeymapEditor';
+import {ExportSeveral} from './ExportSeveral';
 import {ReplaceDialog} from './FileDialog';
 import {ErrorSource} from './ErrorSource';
 import {Toasts} from './Toasts';
@@ -126,6 +127,7 @@ function Shell() {
       <AskDialog />
       <ErrorDialog />
       <KeymapEditor />
+      <ExportSeveral />
       <ReplaceDialog />
     </div>
   );
@@ -156,6 +158,7 @@ function StartShell() {
       <AskDialog />
       <ErrorDialog />
       <KeymapEditor />
+      <ExportSeveral />
       <ReplaceDialog />
     </div>
   );

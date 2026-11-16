@@ -227,6 +227,21 @@ std::string build_state(xpp::Session &s)
     }
     buf_format(b, ",\"changed\":{},\"can_undo\":{},\"can_redo\":{}", xpp_session_changed(s) ? "true" : "false",
                s.value_undo->undo.empty() ? "false" : "true", s.value_undo->redo.empty() ? "false" : "true");
+    /* the commands that cannot run now and why (W774): the export window greys them */
+    BUF_LIT(b, ",\"unavailable\":[");
+    bool first_unavailable = true;
+    for (const xpp::command::Command *command : xpp::command::rows()) {
+        const std::string_view reason = xpp::command::unavailable_reason(s, *command);
+        if (reason.empty()) continue;
+        if (!first_unavailable) BUF_LIT(b, ",");
+        first_unavailable = false;
+        BUF_LIT(b, "{\"cmd\":");
+        buf_str(b, command->name);
+        BUF_LIT(b, ",\"reason\":");
+        buf_str(b, reason);
+        BUF_LIT(b, "}");
+    }
+    BUF_LIT(b, "]");
     buf_sets(b, s);
     buf_recording(b);
     buf_player(b);

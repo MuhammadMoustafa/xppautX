@@ -25,7 +25,7 @@ export interface SaveHandle {
 /** a folder the browser let the page write into (showDirectoryPicker) */
 export interface FolderHandle {
   name: string;
-  getFileHandle(name: string, o: {create: true}): Promise<SaveHandle>;
+  getFileHandle(name: string, o?: {create?: boolean}): Promise<SaveHandle>;
 }
 
 interface PickerWindow {
@@ -179,6 +179,17 @@ export async function pickFolder(title: string, dir = ''): Promise<PickedFolder 
     return {handle: await w().showDirectoryPicker!({mode: 'readwrite'})};
   } catch (e) {
     if (cancelled(e)) return null;
+    throw e;
+  }
+}
+
+/** whether a file of a browser-picked folder is there (a missing one is the browser's NotFoundError, any other failure is thrown) */
+export async function fileExistsIn(folder: FolderHandle, name: string): Promise<boolean> {
+  try {
+    await folder.getFileHandle(name);
+    return true;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'NotFoundError') return false;
     throw e;
   }
 }

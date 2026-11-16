@@ -29,6 +29,7 @@ import {initialText, reduceText, type TextAction, type TextState} from './text';
 import {initialHelp, reduceHelp, type HelpAction, type HelpState} from './help';
 import {initialPlayer, reducePlayer, type PlayerAction, type PlayerState} from './player';
 import {initialKeymap, reduceKeymap, type KeymapAction, type KeymapState} from './keymap';
+import {initialExportSeveral, reduceExportSeveral, type ExportSeveralAction, type ExportSeveralState} from './exportSeveral';
 import type {SteadyInput} from './steady';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
 import {defaultPanels, type Panels} from './panels';
@@ -200,6 +201,8 @@ export interface AppState {
   player: PlayerState;
   /** the user's keymap: effective keys, pinned commands and preset (W211), see store/keymap.ts */
   keymap: KeymapState;
+  /** the File > Export > Several window (W774) */
+  exportSeveral: ExportSeveralState;
 }
 
 export type Action =
@@ -233,6 +236,8 @@ export type Action =
   | {type: 'steadyEdit'; edit: Partial<SteadyInput>}
   /** the keymap editor (W212) */
   | {type: 'keymapUi'; action: KeymapAction}
+  /** the File > Export > Several window (W774) */
+  | {type: 'exportSeveral'; action: ExportSeveralAction}
   /** the page's own line in the status bar (a key that cannot act now says why) */
   | {type: 'bottom'; text: string}
   | {type: 'update'; offer: UpdateOffer | null}
@@ -308,6 +313,7 @@ export const initialState: AppState = {
   help: initialHelp,
   player: initialPlayer,
   keymap: initialKeymap,
+  exportSeveral: initialExportSeveral,
 };
 
 const TOASTS_KEEP = 4;
@@ -712,6 +718,10 @@ function reduceAction(state: AppState, action: Action): AppState {
       return state.update ? {...state, update: {...state.update, stage: action.stage}} : state;
     case 'steadyEdit':
       return {...state, steadyEdit: action.edit};
+    case 'exportSeveral': {
+      const exportSeveral = reduceExportSeveral(state.exportSeveral, action.action);
+      return exportSeveral === state.exportSeveral ? state : {...state, exportSeveral};
+    }
     case 'keymapUi': {
       const keymap = reduceKeymap(state.keymap, action.action);
       return keymap === state.keymap ? state : {...state, keymap};

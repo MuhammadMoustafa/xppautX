@@ -150,7 +150,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   min-height: var(--target);
   cursor: pointer;
 }
-.plot-tools, .messages-filters {
+.plot-tools, .messages-filters, .export-formats {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
