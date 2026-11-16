@@ -4,9 +4,12 @@ command's core function) runs by itself and gives the rows xppautX gives.
 
 Each model on the default method (Runge-Kutta, the program's classic RK4) is exported, the script run with this interpreter (the
 repo's uv environment's, since the check runs under `uv run --locked python`) and its CSV compared, row by row and column by column,
-with the output.dat `xppautX MODEL --silent` writes. The tolerance: xppautX stores each value as a float (6e-8 relative at most) and
-its xpp::math functions are correctly rounded where Python's math calls the C library (at most an ulp each); over the runs here
-the two stay within a few 1e-7, so 1e-6 relative (and 1e-9 absolute, for values near zero) fails what is wrong and nothing else.
+with the output.dat `xppautX MODEL --silent` writes, xppautX keeping doubles (storage_precision: double, so the comparison
+sees the integration, not the float a data table keeps by default). A model of arithmetic alone gives xppautX's numbers bit for
+bit, since the script steps RK4 in xppautX's own order and Python, like xppautX, fuses no multiply-add: it is compared exactly.
+A model that calls a function (exp, tanh, ...) may differ by xpp::math's correctly rounded result against the C library's, an
+ulp each, which a run grows to a few 1e-11 (lecar): 1e-9 relative (and 1e-12 absolute, for values near zero) fails what is wrong
+and nothing else.
 Then the rest of the card: a model on another method says so in its header, a model that uses a name Python reserves has it renamed
 (and listed in the header), a model with a table, a delay or a shift is refused with its line and no file, and --to takes only
 the words it names.
@@ -34,7 +37,7 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 binary = os.path.abspath(args.bin)
 ODE = os.path.join(root, 'examples', 'ode')
 MODELS = os.path.join(root, 'tools', 'models')
-RELATIVE, ABSOLUTE = 1e-6, 1e-9
+RELATIVE, ABSOLUTE = 1e-9, 1e-12
 # a safety bound for a broken child, never a speed assertion
 LIMIT = 300
 
@@ -61,10 +64,20 @@ def read_rows(path):
         return list(csv.reader(f))
 
 
-def compare(label, source, text_edit=None):
+def with_double_storage(text):
+    """the model's text with storage_precision: double in its options' integration group"""
+    i = text.find('options {')
+    if i < 0:
+        return text + 'options { integration: { storage_precision: double } }\n'
+    group = re.compile(r'integration:\s*\{').search(text, i)
+    at = group.end() if group else i + len('options {')
+    return text[:at] + (' storage_precision: double,' if group else ' integration: { storage_precision: double },') + text[at:]
+
+
+def compare(label, source, text_edit=None, exact=False):
     """exports the model (its text changed by text_edit), runs the script and compares; the scratch folder is the caller's to remove
     (it holds the script), or None when a step failed"""
-    folder, name = stage(source, text_edit)
+    folder, name = stage(source, lambda text: with_double_storage(text_edit(text) if text_edit else text))
     base = os.path.splitext(name)[0]
     silent = run([binary, name, '--silent'], folder)
     convert = run([binary, '--convert', name, '--to', 'python'], folder)
@@ -90,10 +103,10 @@ def compare(label, source, text_edit=None):
             x, y = float(x), float(y)
             if math.isnan(x) and math.isnan(y):
                 continue
-            excess = abs(x - y) - (RELATIVE * max(abs(x), abs(y)) + ABSOLUTE)
+            excess = (x != y) if exact else abs(x - y) - (RELATIVE * max(abs(x), abs(y)) + ABSOLUTE)
             if excess > worst or (excess > 0 and not where):
                 worst, where = max(worst, excess), 'row %d column %s: xppautX %r, script %r' % (i, header[j], x, y)
-    check('%s: every value is within %g relative of xppautX\'s' % (label, RELATIVE), not where, where)
+    check('%s: every value %s xppautX\'s' % (label, 'equals' if exact else 'is within %g relative of' % RELATIVE), not where, where)
     return folder
 
 
@@ -128,9 +141,10 @@ def refused(label, source, text_edit, what, line):
 
 # every model that runs on Runge-Kutta: a user function, a fixed variable and aux columns (lecar), a plain flow (vanderpol,
 # lorenz), a name Python reserves (lorenz2's `del`), user functions that call each other with conditionals, and a derived parameter
-published = ['lecar.odex', 'vanderpol.odex', 'lorenz.odex', 'lorenz2.odex']
-for model in published:
-    cleanup(compare(model, os.path.join(ODE, model)))
+# each with whether it is arithmetic alone (compared exactly)
+published = {'lecar.odex': False, 'vanderpol.odex': True, 'lorenz.odex': True, 'lorenz2.odex': True}
+for model, exact in published.items():
+    cleanup(compare(model, os.path.join(ODE, model), exact=exact))
 cleanup(compare('compile_inline.odex', os.path.join(MODELS, 'compile_inline.odex'), lambda t: t + 'options { integration: { total_time: 1 } }\n'))
 cleanup(compare('compile_derived.odex', os.path.join(MODELS, 'compile_derived.odex')))
 # a sum over an index (a loop in the script) on Runge-Kutta, as the model's own n and steps

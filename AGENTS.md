@@ -328,8 +328,8 @@ monotonically from the Hopf point).
 
 `tools/exportcheck.py` (W764, #843; run by verify.sh) exports each of a set of models on Runge-Kutta as a Python
 script (`xppautX --convert MODEL --to python`), runs it with the repo's interpreter and compares its CSV with the
-`output.dat` of `xppautX MODEL --silent`, to 1e-6 relative (xppautX stores floats, and its correctly rounded
-functions against the C library's, an ulp each); it also checks the header of a model on another method, the renames,
+`output.dat` of `xppautX MODEL --silent` keeping doubles: exactly for a model of arithmetic alone (the same RK4 order, no
+fused multiply-add), else to 1e-9 relative (xppautX's correctly rounded functions against the C library's, an ulp each); it also checks the header of a model on another method, the renames,
 the refusals (a table, a delay, a shift, events, a map: what, the model line, no file) and `--to`'s words.
 
 `tools/goldencheck.py` (W31c, run by verify.sh) drives `xppautX --server`
