@@ -19,6 +19,7 @@ last row, or the whole table for the agreement pass) comes after the clock stops
 """
 import csv
 import importlib.util
+import inspect
 import json
 import math
 import os
@@ -83,14 +84,6 @@ def import_script(path, name):
     return module
 
 
-def recompile(module):
-    """numba takes a module-level name as a constant when it compiles, so a changed parameter reaches a compiled function only by
-    compiling it again: every njit function of the script, in the order the script defines them (the callees first)."""
-    for f in list(vars(module).values()):
-        if hasattr(f, 'py_func') and hasattr(f, 'recompile'):
-            f.recompile()
-
-
 def times_of(module):
     """the stored times of the script's run: its steps' accumulated t, as the script and xppautX make them"""
     if module.STORE_EVERY != 1 or module.START_TIME != 0.0 or module.STORE_FROM != 0.0:
@@ -103,14 +96,23 @@ def times_of(module):
     return times
 
 
+def with_values(function, values):
+    """the script's function with the run's values as its `_p` argument, when it takes one (a function takes `_p` only when it reads a
+    parameter or a derived value: W770)"""
+    if '_p' not in inspect.signature(function).parameters:
+        return function
+    return lambda *args: function(*args, values)
+
+
 def scipy_rows(module, times, rtol, method='RK45'):
     """the script's rhs under solve_ivp at tolerance rtol (relative and absolute): rows as the script stores them (t, states, outputs)"""
     from scipy.integrate import solve_ivp
-    solution = solve_ivp(module.rhs, (times[0], times[-1]), list(module.INITIAL), method=method, t_eval=times, rtol=rtol, atol=rtol)
+    values = module.parameters()
+    rhs, outputs = with_values(module.rhs, values), with_values(module.outputs, values)
+    solution = solve_ivp(rhs, (times[0], times[-1]), list(module.INITIAL), method=method, t_eval=times, rtol=rtol, atol=rtol)
     if not solution.success:
         raise RuntimeError('solve_ivp %s: %s' % (method, solution.message))
-    return [[t] + list(y) + list(module.outputs(t, y)) for t, y in zip(solution.t, solution.y.T)]
-
+    return [[t] + list(y) + list(outputs(t, y)) for t, y in zip(solution.t, solution.y.T)]
 
 def write_csv(path, header, rows):
     with open(path, 'w', newline='') as f:
@@ -187,7 +189,6 @@ class Script(Arm):
         self.module = import_script(self.script, 'exported_' + self.language)
         self.output = self.folder / 'out.csv'
         self.module.OUTPUT = str(self.output)
-        self.runs = 0
 
     def set_value(self, value):
         name = self.job['parameter']
@@ -204,14 +205,9 @@ class Script(Arm):
 
 
 class Numba(Script):
+    """The script's numba compile is in its first run's time, as the start-up of the other arms is in theirs: the parameter is read
+    when run() starts, so the later runs need no compile of their own."""
     language = 'python_numba'
-
-    def run(self, i, value):
-        self.set_value(value)
-        if self.runs:  # the first call compiles with the value set; a later value needs the compile again
-            recompile(self.module)
-        self.runs += 1
-        self.module.run()
 
 
 class Numpy(Script):

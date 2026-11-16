@@ -20,7 +20,7 @@ constexpr auto RESERVED = std::to_array<std::string_view>({
     "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "nonlocal", "not", "or", "pass", "raise", "return", "try", "while",
     "with", "yield", "abs", "float", "int", "len", "list", "open", "range", "zip", "SystemExit",
     "csv", "math", "os", "START_TIME", "DT", "TOTAL_TIME", "STORE_EVERY", "STORE_FROM", "STATE_LIMIT", "ZERO_DIVISOR", "INITIAL", "COLUMNS",
-    "OUTPUT", "rhs", "outputs", "step", "stored", "row_of", "run",
+    "OUTPUT", "rhs", "outputs", "step", "stored", "row_of", "run", "parameters", "_p", "_derive",
     "_div", "_ieee_div", "_heav", "_sign", "_flr", "_max", "_min", "_mod"});
 
 /* the names the numpy and numba scripts add: the numpy module, numba's decorator and numpy's own helpers (the ones math has and numpy has not) */
@@ -168,12 +168,12 @@ OUTPUT = os.path.splitext(os.path.abspath(__file__))[0] + ".csv"
 {derived}
 
 
-{jit}def rhs(t, _y):
+{jit}def rhs(t, _y{rhs_p}):
 {rhs_body}
     return {derivatives}
 
 
-{jit}def outputs(t, _y):
+{jit}def outputs(t, _y{outputs_p}):
 {aux_body}
     return {aux_values}
 
@@ -185,12 +185,19 @@ def stored(t):
     return t <= STORE_FROM if DT < 0 else t >= STORE_FROM
 
 
-def row_of(t, _y):
+def row_of(t, _y{outputs_p}):
     return {row}
+
+
+def parameters():
+    # the values a run passes its functions: the module's parameters, then the derived values worked out from them
+    _p = {params}
+{derive}    return _p
 
 
 def run():
     t = START_TIME
+    _p = parameters()
     _y = {initial_state}
     steps = int((TOTAL_TIME + 0.1 * abs(DT)) / abs(DT))
     groups = (steps + STORE_EVERY - 1) // STORE_EVERY
@@ -198,12 +205,12 @@ def run():
         writer = csv.writer(_file)
         writer.writerow(COLUMNS)
         if stored(t):
-            writer.writerow(row_of(t, _y))
+            writer.writerow(row_of(t, _y{outputs_p}))
         for _group in range(groups):
             for _ in range(STORE_EVERY):
-                _y = step(t, _y)
+                _y = step(t, _y{rhs_p})
                 t = t + DT
-            row = row_of(t, _y)
+            row = row_of(t, _y{outputs_p})
             for column, value in zip(COLUMNS[1:], row[1:]):
                 if value != value:
                     raise SystemExit("%s is NaN at t = %s" % (column, t))
@@ -309,36 +316,36 @@ constexpr std::string_view NUMPY_MOD = R"PY(def _mod(x, y):
     z = np.fmod(x, y)
     return np.where(z < 0.0, z + y, z))PY";
 
-constexpr std::string_view LIST_STEP = R"PY(def step(t, _y):
+constexpr std::string_view LIST_STEP = R"PY(def step(t, _y{rhs_p}):
     # one step of the classic fixed-step Runge-Kutta method (RK4, four stages) of length DT
     _n = range(len(_y))
-    _k1 = rhs(t, _y)
+    _k1 = rhs(t, _y{rhs_p})
     _a = [_y[_i] + DT * _k1[_i] / 6.0 for _i in _n]
     _b = [_y[_i] + DT * _k1[_i] * 0.5 for _i in _n]
     _h = t + 0.5 * DT
-    _k2 = rhs(_h, _b)
+    _k2 = rhs(_h, _b{rhs_p})
     _a = [_a[_i] + DT * _k2[_i] / 3.0 for _i in _n]
     _b = [_y[_i] + 0.5 * DT * _k2[_i] for _i in _n]
-    _k3 = rhs(_h, _b)
+    _k3 = rhs(_h, _b{rhs_p})
     _a = [_a[_i] + DT * _k3[_i] / 3.0 for _i in _n]
     _b = [_y[_i] + DT * _k3[_i] for _i in _n]
-    _k4 = rhs(t + DT, _b)
+    _k4 = rhs(t + DT, _b{rhs_p})
     return [_a[_i] + DT * _k4[_i] / 6.0 for _i in _n])PY";
 
 /* the same steps, in the same order of operations, on arrays: every number is the list step's */
-constexpr std::string_view ARRAY_STEP = R"PY({jit}def step(t, _y):
+constexpr std::string_view ARRAY_STEP = R"PY({jit}def step(t, _y{rhs_p}):
     # one step of the classic fixed-step Runge-Kutta method (RK4, four stages) of length DT
-    _k1 = rhs(t, _y)
+    _k1 = rhs(t, _y{rhs_p})
     _a = _y + DT * _k1 / 6.0
     _b = _y + DT * _k1 * 0.5
     _h = t + 0.5 * DT
-    _k2 = rhs(_h, _b)
+    _k2 = rhs(_h, _b{rhs_p})
     _a = _a + DT * _k2 / 3.0
     _b = _y + 0.5 * DT * _k2
-    _k3 = rhs(_h, _b)
+    _k3 = rhs(_h, _b{rhs_p})
     _a = _a + DT * _k3 / 3.0
     _b = _y + DT * _k3
-    _k4 = rhs(t + DT, _b)
+    _k4 = rhs(t + DT, _b{rhs_p})
     return _a + DT * _k4 / 6.0)PY";
 
 constexpr auto PYTHON_PARTS = std::to_array<Spelling>({
@@ -348,7 +355,7 @@ constexpr auto PYTHON_PARTS = std::to_array<Spelling>({
     {"helpers", SCALAR_HELPERS},
     {"mod", PYTHON_MOD},
     {"step", LIST_STEP},
-    {"row", "[t] + list(_y) + outputs(t, _y)"},
+    {"row", "[t] + list(_y) + outputs(t, _y{outputs_p})"},
     {"initial_state", "list(INITIAL)"},
 });
 
@@ -359,7 +366,7 @@ constexpr auto NUMBA_PARTS = std::to_array<Spelling>({
     {"helpers", SCALAR_HELPERS},
     {"mod", NUMBA_MOD},
     {"step", ARRAY_STEP},
-    {"row", "[t] + _y.tolist() + outputs(t, _y).tolist()"},
+    {"row", "[t] + _y.tolist() + outputs(t, _y{outputs_p}).tolist()"},
     {"initial_state", "INITIAL.copy()"},
 });
 
@@ -370,7 +377,7 @@ constexpr auto NUMPY_PARTS = std::to_array<Spelling>({
     {"helpers", NUMPY_HELPERS},
     {"mod", NUMPY_MOD},
     {"step", ARRAY_STEP},
-    {"row", "[t] + _y.tolist() + outputs(t, _y).tolist()"},
+    {"row", "[t] + _y.tolist() + outputs(t, _y{outputs_p}).tolist()"},
     {"initial_state", "INITIAL.copy()"},
 });
 

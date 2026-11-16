@@ -258,8 +258,17 @@ private:
     {
         if (variable >= 1 && variable <= m_.node) read_states_.insert(variable);
     }
-    /* how the body just written gets the states it reads, as lines at depth 1 (the one line that reads them all, for a language that does) */
+    /* how the body just written gets the states it reads, as lines at depth 1 (the one line that reads them all, for a language that does),
+       then the run-time values it reads from _p */
     std::string unpack() const;
+    /* the run-time constants a body read by name, each bound from its slot of _p; parameters_only leaves out the derived ones (a
+       derived value is a local of _derive until its statement has written it) */
+    std::string bind_params(std::size_t depth, bool parameters_only) const;
+    /* a function takes _p when it reads a run-time constant, itself or through the functions it calls */
+    bool takes_p(std::size_t function) const
+    {
+        return std::ranges::any_of(reads_[function].constants, [&](const int constant) { return slot_.contains(constant); });
+    }
     std::string part(std::string_view name) const;
     /* a list of values as the language writes one */
     std::string array_of(const std::vector<std::string> &items) const { return items.empty() ? std::string(lang_.empty_array) : spell(lang_.array_literal, {joined(items)}); }
@@ -276,6 +285,9 @@ private:
     std::vector<char> array_safe_;                           /* by ir.functions: a user function a slice may call (an expression of elementwise operations alone) */
     std::vector<Run> runs_;                                  /* in the equations' order */
     std::set<int> read_states_;                              /* the states the body being written reads by name */
+    std::set<int> read_params_;                              /* the run-time constants (parameters, derived values) the body being written reads by name */
+    std::map<int, std::size_t> slot_;                        /* a run-time constant's place in the run's tuple _p: the parameters in order, then the derived values */
+    std::size_t parameter_count_ = 0;                        /* the parameters: the first of _p */
     Values parts_;                                           /* the language's parts of the template, their own parts filled in */
     std::vector<std::string> variable_names_;                /* by the trees' variable index: time, the states, the fixed variables */
     std::map<int, std::string> constant_names_;              /* by the trees' constant index */
@@ -325,10 +337,11 @@ void Translation::scan()
         grew = false;
         for (Reads &reads : reads_)
             for (const std::size_t callee : std::set<std::size_t>(reads.functions)) {
-                const std::size_t before = reads.variables.size() + reads.functions.size();
+                const std::size_t before = reads.variables.size() + reads.constants.size() + reads.functions.size();
                 reads.variables.insert(reads_[callee].variables.begin(), reads_[callee].variables.end());
+                reads.constants.insert(reads_[callee].constants.begin(), reads_[callee].constants.end());
                 reads.functions.insert(reads_[callee].functions.begin(), reads_[callee].functions.end());
-                if (reads.variables.size() + reads.functions.size() != before) grew = true;
+                if (reads.variables.size() + reads.constants.size() + reads.functions.size() != before) grew = true;
             }
     }
     /* a user function a slice may call: its statements only name values, and so are those of every function it calls (reads_ holds all it reaches) */
@@ -458,9 +471,21 @@ std::string Translation::unpack() const
     if (!lang_.unpack_states.empty()) {
         std::vector<std::string> names;
         for (int i = 1; i <= m_.node; ++i) names.push_back(variable_name(i));
-        return line(1, spell(lang_.unpack_states, {joined(names)}));
+        out = line(1, spell(lang_.unpack_states, {joined(names)}));
+    } else {
+        for (const int variable : read_states_) out += line(1, spell(lang_.read_state, {variable_name(variable), std::to_string(variable - 1)}));
     }
-    for (const int variable : read_states_) out += line(1, spell(lang_.read_state, {variable_name(variable), std::to_string(variable - 1)}));
+    return out + bind_params(1, false);
+}
+
+std::string Translation::bind_params(std::size_t depth, bool parameters_only) const
+{
+    std::string out;
+    for (const int constant : read_params_) {
+        const std::size_t slot = slot_.at(constant);
+        if (parameters_only && slot >= parameter_count_) continue;
+        out += line(depth, xpp::format("{} = _p[{}]", constant_name(constant), slot));
+    }
     return out;
 }
 
@@ -519,6 +544,7 @@ std::string Translation::argument_list(std::size_t function, const std::vector<s
 {
     std::vector<std::string> all = arguments;
     for (const int variable : reads_[function].variables) all.push_back(variable_name(variable));
+    if (takes_p(function)) all.push_back("_p");
     return joined(all);
 }
 
@@ -568,6 +594,7 @@ Result<std::string> Translation::expression(int node_index, Frame &frame, std::s
         break;
     case IrOp::Constant:
         if (node.index == expr::SUM_INDEX && frame.loops == 0) return cannot(frame, "the sum's index outside its sum");
+        if (slot_.contains(node.index)) read_params_.insert(node.index);
         text = constant_name(node.index);
         break;
     case IrOp::Variable:
@@ -683,21 +710,21 @@ Result<std::string> Translation::user_function(std::size_t function)
     Frame frame{&mir_.origin[function].place};
     std::vector<std::string> parameters;
     for (int i = 0; i < f.doubles; ++i) parameters.push_back(made("a", i));
-    std::string out = line(0, spell(lang_.function_begin, {function_names_.at(function), argument_list(function, parameters)}));
-    if (Result<> body = statements(f, frame, 1, out); !body) return std::unexpected(body.error());
+    read_params_.clear();
+    std::string body;
+    if (Result<> written = statements(f, frame, 1, body); !written) return std::unexpected(written.error());
     const Result<std::string> value = expression(f.result, frame, 0);
     if (!value) return std::unexpected(value.error());
-    out += line(1, spell(lang_.function_return, {*value}));
+    body += line(1, spell(lang_.function_return, {*value}));
+    std::string out = line(0, spell(lang_.function_begin, {function_names_.at(function), argument_list(function, parameters)}));
+    out += bind_params(1, false) + body;
     if (!lang_.function_end.empty()) out += line(0, lang_.function_end);
     return out;
 }
 
 Result<std::string> Translation::script()
 {
-    Values own;
-    for (const Spelling &piece : lang_.parts) own.emplace_back(piece.name, std::string(piece.text));
-    parts_ = own;
-    for (auto &[name, text] : parts_) text = substitute(text, own); /* a part may use another's name */
+    for (const Spelling &piece : lang_.parts) parts_.emplace_back(piece.name, std::string(piece.text));
     scan();
     if (Result<> named = name_everything(); !named) return std::unexpected(named.error());
     find_runs();
@@ -708,6 +735,30 @@ Result<std::string> Translation::script()
                 return fail("export model",
                             xpp::format("{} cannot be written in {}: it reads the fixed variable {}, which is set after it", m_.fixinfo[j].name, lang_.name, variable_name(variable)),
                             mir_.origin[mir_.fixed[j]].place);
+
+    /* the run's values: the parameters in the model's order, then the derived values in theirs (the slots of _p, the tuple a run
+       passes down); a function takes _p when it reads one of them, rhs and outputs when a program they hold does */
+    parameter_count_ = static_cast<std::size_t>(m_.nupar);
+    for (int i = 0; i < m_.nupar; ++i) slot_.emplace(m_.upar_con[static_cast<std::size_t>(i)], static_cast<std::size_t>(i));
+    for (std::size_t j = 0; j < mir_.derived.size(); ++j) slot_.emplace(mir_.derived[j].constant, parameter_count_ + j);
+    std::string tuple;
+    for (int i = 0; i < m_.nupar; ++i) tuple += (i ? ", " : "") + xpp::format("float({})", constant_name(m_.upar_con[static_cast<std::size_t>(i)]));
+    const auto any_takes_p = [&](std::initializer_list<const std::vector<std::size_t> *> lists) {
+        for (const auto *list : lists)
+            for (const std::size_t f : *list)
+                if (takes_p(f)) return true;
+        return false;
+    };
+    const Values signatures{
+        {"rhs_p", any_takes_p({&mir_.fixed, &mir_.equations}) ? ", _p" : ""},
+        {"outputs_p", any_takes_p({&mir_.fixed, &mir_.aux}) ? ", _p" : ""},
+        {"params", "(" + tuple + (m_.nupar == 1 ? "," : "") + ")"},
+        {"derive", mir_.derived.empty() ? std::string() : std::string("    _p = _derive(_p)\n")},
+    };
+    /* the language's parts, with their names and the signatures filled in (a part may use another's name, one level) */
+    Values pieces = signatures;
+    pieces.insert(pieces.end(), parts_.begin(), parts_.end());
+    for (auto &[name, text] : parts_) text = substitute(text, pieces);
 
     /* the parameters, then the other constants the trees read, then the derived parameters */
     std::string parameters = comment_block("Parameters, with the values the model had.");
@@ -721,11 +772,20 @@ Result<std::string> Translation::script()
     for (const auto &[k, name] : constant_names_)
         if (k != expr::SUM_INDEX && !parameter_constants.contains(k) && !derived_constants.contains(k))
             parameters += line(0, spell(lang_.assign, {name, *number(s_.parser.constants[static_cast<std::size_t>(k)])}));
+    /* the derived values, worked out from the parameters each time a run starts: _derive takes the parameters' tuple and returns it
+       with the derived values appended, so a function a derived value calls sees the ones before it */
     std::string derived;
-    if (!mir_.derived.empty()) derived += comment_block("Derived parameters, worked out from the parameters above.");
-    for (const ModelIr::Derived &d : mir_.derived) {
-        Frame frame{&mir_.origin[d.function].place, 0, false};
-        if (Result<> written = program(d.function, constant_name(d.constant), frame, 0, derived); !written) return std::unexpected(written.error());
+    if (!mir_.derived.empty()) {
+        std::string body;
+        read_params_.clear();
+        for (const ModelIr::Derived &d : mir_.derived) {
+            Frame frame{&mir_.origin[d.function].place, 0, false};
+            const std::string name = constant_name(d.constant);
+            if (Result<> written = program(d.function, name, frame, 1, body); !written) return std::unexpected(written.error());
+            body += line(1, "_p = _p + (float(" + name + "),)");
+        }
+        derived = comment_block("Derived parameters, worked out from the parameters when a run starts.") + line(0, "def _derive(_p):") + bind_params(1, true) + body +
+                  line(1, "return _p");
     }
     std::string functions;
     for (const std::size_t f : reached_) {
@@ -745,6 +805,7 @@ Result<std::string> Translation::script()
         return {};
     };
     read_states_.clear();
+    read_params_.clear();
     if (Result<> fixed = fixed_variables(rhs_body); !fixed) return std::unexpected(fixed.error());
     for (std::size_t i = 0; i < mir_.equations.size();) {
         const auto run = std::ranges::find(runs_, i, &Run::first);
@@ -757,6 +818,7 @@ Result<std::string> Translation::script()
     if (!rhs_body.empty()) rhs_body.pop_back(); /* the template ends the line */
     rhs_body = unpack() + rhs_body;
     read_states_.clear();
+    read_params_.clear();
     if (Result<> fixed = fixed_variables(aux_body); !fixed) return std::unexpected(fixed.error());
     for (std::size_t i = 0; i < mir_.aux.size(); ++i) {
         Frame frame{&mir_.origin[mir_.aux[i]].place};
@@ -778,7 +840,8 @@ Result<std::string> Translation::script()
     std::string header = comment_block(xpp::format("xppautX export of \"{}\" as {}.", files::split_path(m_.this_file).second, lang_.name));
     header += comment_block("The equations are the model's and the numbers are those it had when this file was written; " + part("imports_note") + ".\n"
                             "It integrates with the classic fixed-step Runge-Kutta method (RK4) at step DT and writes the rows xppautX stores (T, each variable, then each\n"
-                            "auxiliary quantity) to a CSV file beside itself, one row every STORE_EVERY steps.");
+                            "auxiliary quantity) to a CSV file beside itself, one row every STORE_EVERY steps.\n"
+                            "A parameter may be set on this module between runs (module.name = value, then run()): run() reads the parameters when it starts.");
     if (n.method != method::RK4)
         header += comment_block(xpp::format("The model's own method is {} (integration.method): the numbers differ from xppautX's for that reason.", method_info(n.method).name));
     if (!runs_.empty()) {
@@ -822,6 +885,7 @@ Result<std::string> Translation::script()
         {"aux_values", array_of(aux_values)},
     };
     Values all = values;
+    all.insert(all.end(), signatures.begin(), signatures.end());
     all.insert(all.end(), parts_.begin(), parts_.end());
     return substitute(lang_.file, all);
 }

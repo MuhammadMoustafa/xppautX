@@ -122,9 +122,9 @@ timed from outside, start-up included; each worker times its own start-up and ru
 | `export_python`, `export_python_numpy`, `export_python_numba` | the script `xppautX --convert MODEL --to python`, `python_numpy`, `python_numba` wrote (W764, W766), imported as a module in the worker, its module-level parameter set, `run()` writing its CSV. numpy only for a model with an array line (the export's header says so) |
 | `scipy` | `solve_ivp` RK45 over the python script's own `rhs`, at a tolerance matched to RK4's error (below), rows written as CSV |
 
-A numba script compiles a module-level parameter in as a constant, so a changed value needs the compile again: the numba arm calls each
-function's `recompile()` for every value after the first (`server_worker.py`'s `recompile`), and its per-run time is therefore mostly the
-compile: that is what sweeping a parameter with the exported script costs, not a flaw of the arm.
+A numba script reads its parameters when `run()` starts and passes them to its compiled functions (W770), so a sweep sets the parameter and
+calls `run()` again with no compile. The first run compiles the script, and that compile is in the numba arm's first run's time, as the
+start-up of the other arms is in theirs.
 
 **Matched error for scipy.** RK45 is adaptive, RK4 fixed: they are compared at matched error, not matched tolerance. On the grid's middle value an
 untimed pilot integrates the script's rhs with DOP853 at 1e-12 (the accuracy reference of tools/python-integration), measures xppautX's RK4

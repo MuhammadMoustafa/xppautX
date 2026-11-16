@@ -14,6 +14,8 @@ ulp each, which a run grows to a few 1e-11 (lecar): 1e-9 relative (and 1e-12 abs
 and nothing else.
 The published array models of examples/ode that the export does not refuse (lecdiff200, wave, lamprey, lecsimp2, itoy, toy_ok) run in all three targets
 on Runge-Kutta, and python_numpy must have written the array lines of the first three as slices (their runs are named in its header).
+A parameter set on a script's module and run() called again gives the rows a fresh export with that value gives (W770: numba compiles
+once, so the parameter is read at each run, not frozen at the compile).
 Then the rest of the card: a model on another method says so in its header, a model that uses a name Python reserves has it renamed
 (and listed in the header), a model with a table, a delay or a shift is refused with its line and no file, and --to takes only
 the words it names.
@@ -23,6 +25,7 @@ usage: tools/exportcheck.py [--bin ./xppautX]
 import argparse
 import ast
 import csv
+import importlib.util
 import os
 import re
 import shutil
@@ -249,6 +252,56 @@ try:
     check('--convert MODEL.ode --to python writes the .py beside it', os.path.exists(os.path.join(folder, 'lecar.py')), str(os.listdir(folder)))
 finally:
     cleanup(folder)
+
+# a parameter set on the script's module, then run() again, with no export and no recompile: numba compiles a module-level name as a
+# constant, so a compiled script would keep the value of its first run. The second run's rows must be a fresh export's with that value,
+# and the value must change the run (else the check proves nothing).
+def import_script(path, name):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def sweep(model, language, parameter, value, edit):
+    label = '%s [%s]: %s set on the module' % (os.path.basename(model), language, parameter)
+    folder, name = stage(model)
+    changed, changed_name = stage(model, edit)
+    base = os.path.splitext(name)[0]
+    try:
+        convert = run([binary, '--convert', name, '--to', language], folder)
+        convert_changed = run([binary, '--convert', changed_name, '--to', language], changed)
+        exported = convert.returncode == 0 and convert_changed.returncode == 0
+        check('%s: the model and the changed copy export' % label, exported, convert.stderr[-300:] + convert_changed.stderr[-300:])
+        if not exported:
+            return
+        module = import_script(os.path.join(folder, base + '.py'), 'sweep_%s_%s' % (language, base))
+        module.run()
+        first = read_rows(os.path.join(folder, base + '.csv'))
+        setattr(module, parameter, value)
+        module.run()
+        second = read_rows(os.path.join(folder, base + '.csv'))
+        fresh = run([sys.executable, os.path.join(changed, base + '.py')], changed)
+        check('%s: a fresh export with the value runs' % label, fresh.returncode == 0, fresh.stderr[-300:])
+        if fresh.returncode != 0:
+            return
+        fresh_rows = read_rows(os.path.join(changed, base + '.csv'))
+        where, largest = first_difference(second[1:], fresh_rows[1:], False, names=fresh_rows[0])
+        check('%s: the second run equals the fresh export (%d rows)' % (label, len(fresh_rows) - 1),
+              len(second) == len(fresh_rows) and not where, where or '%d rows vs %d' % (len(second), len(fresh_rows)))
+        check('%s: the value changed the run' % label, first[1:] != second[1:], 'the two runs are the same')
+    finally:
+        cleanup(folder, changed)
+
+
+# lecar on python and python_numba, lecdiff200 on python_numpy (its array lines are slices there)
+LECAR = os.path.join(ODE, 'lecar.odex')
+LECDIFF = os.path.join(ODE, 'lecdiff200.odex')
+for language, model, parameter, value, edit in (
+        ('python', LECAR, 'iapp', 0.1, lambda t: t.replace('par iapp = 0.05', 'par iapp = 0.1')),
+        ('python_numba', LECAR, 'iapp', 0.1, lambda t: t.replace('par iapp = 0.05', 'par iapp = 0.1')),
+        ('python_numpy', LECDIFF, 'iapp', 0.5, lambda t: t.replace('par iapp = 0,', 'par iapp = 0.5,'))):
+    sweep(model, language, parameter, value, edit)
 
 print('%d checks, %d failed' % (check.checks, check.failures))
 sys.exit(1 if check.failures else 0)
