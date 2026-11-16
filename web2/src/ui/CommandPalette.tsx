@@ -27,10 +27,10 @@ function Palette() {
   return <Dialog title={<CommandLabel command="command_palette.open" />} name={title} width="list" onClose={close} onKeyDown={arrows} className="command-palette"
     attrs={{id: 'command-palette'}}>
     <span class="input-box"><input id="command-search" type="search" data-autofocus value={query} aria-label={title} placeholder={title} onInput={e => setQuery(e.currentTarget.value)} /></span>
-    <ul>{rows.map(row => <li key={row.id}>
-      <button class="menu-item" data-command={row.id} disabled={!may({cmd: row.id}) || !!featureLack(hello, row.needs)} title={featureLack(hello, row.needs) ?? row.description}
-        onClick={() => {close(); session.registryAction(row.id);}}>{row.name} {featureLack(hello, row.needs) ? <small>{featureLack(hello, row.needs)}</small> : <kbd>{effectiveKeys(info, row).join(' / ')}</kbd>}</button>
-      {info && <button data-pin={row.id} aria-pressed={info.pinned.includes(row.id)} onClick={() => session.setKeymap(withPinned(info, togglePinned(info.pinned, row.id)))}>{info.pinned.includes(row.id) ? 'Unpin' : 'Pin'}</button>}
+    <ul>{rows.map(row => <li key={`${row.id}:${row.choice?.value ?? ''}`}>
+      <button class="menu-item" data-command={row.id} data-choice={row.choice?.value} disabled={!may({cmd: row.id}) || !!featureLack(hello, row.needs)} title={featureLack(hello, row.needs) ?? row.description}
+        onClick={() => {close(); if (row.choice) session.registryChoice(row.id, row.choice.argument, row.choice.value); else session.registryAction(row.id);}}>{row.name} {featureLack(hello, row.needs) ? <small>{featureLack(hello, row.needs)}</small> : row.choice ? null : <kbd>{effectiveKeys(info, row).join(' / ')}</kbd>}</button>
+      {info && !row.choice && <button data-pin={row.id} aria-pressed={info.pinned.includes(row.id)} onClick={() => session.setKeymap(withPinned(info, togglePinned(info.pinned, row.id)))}>{info.pinned.includes(row.id) ? 'Unpin' : 'Pin'}</button>}
     </li>)}</ul>
   </Dialog>;
 }

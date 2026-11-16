@@ -233,6 +233,10 @@ struct Command {
     /* the model feature the command is for (model_features.h): a model without it does not show the command in its menu, Search commands
        lists it greyed with the reason, and running it is an error saying so */
     Feature needs = Feature::none;
+    /* the name of one of the row's choice arguments, "" for none: the menu shows the row as a submenu named by its label with an item per value
+       of that choice (its label derived from the value), and an item runs the command with that value, so File > Export > Model as holds Python,
+       Python numpy and Python numba (W767); the palette lists each item and the arguments stay the ones scripts and recordings send */
+    const char *menu_choice = "";
 };
 
 /* The one file picked for a command; optional paths (Open model) have their own startup picker. */

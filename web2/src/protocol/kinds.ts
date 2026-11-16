@@ -42,6 +42,8 @@ export interface CommandKind {
   /** its full name everywhere else: the menu path and the label, derived by the core */
   name?: string;
   menu_path?: string;
+  /** the choice argument the menu shows as a submenu, an item per value (core Command::menu_choice) */
+  menu_choice?: string;
   /** the model feature it is for (hello.model_features) */
   needs?: string;
   /** the option group whose generated panel opens in place of this command's own form (core Command::panel) */
@@ -64,6 +66,10 @@ export interface CommandRow {
   file_wild?: string;
   /** the groups above the label in the menu bar (`File/Sets`), none for a row with no menu place */
   menu_path?: string;
+  /** the choice argument the menu shows as a submenu, an item per value (core Command::menu_choice) */
+  menu_choice?: string;
+  /** an item of that submenu (navigation.ts choiceItems): the command run with this one value, never a row of hello */
+  choice?: {argument: string; value: string};
   /** the model feature it is for (hello.model_features): without it the menu leaves it out and Search commands lists it greyed */
   needs?: string;
   /** the option group whose panel opens in place of a form */

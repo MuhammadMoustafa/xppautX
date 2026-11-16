@@ -209,6 +209,10 @@ void append_command(std::string &out, const Command &command)
         out += ",\"needs\":";
         json_append_string(out, feature_info(command.needs).name);
     }
+    if (*command.menu_choice) {
+        out += ",\"menu_choice\":";
+        json_append_string(out, command.menu_choice);
+    }
     if (*command.panel) {
         out += ",\"panel\":";
         json_append_string(out, command.panel);

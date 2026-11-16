@@ -4613,8 +4613,10 @@ async function navigationCheck() {
   const rows = everyRow.filter(c => !lacking.has(c.needs));
   check('W517: eight page menus in the specified order', await cdp.eval(`JSON.stringify([...document.querySelectorAll('.app-menu > details > summary')].map(n => n.textContent)) === JSON.stringify(['File','Run','Analysis','Plot','Data','autoX','Windows','Help'])`));
   const ids = await cdp.eval(`[...document.querySelectorAll('.app-menu [data-command]')].map(b => b.dataset.command).sort()`);
-  check('W517: one menu item per registry row with a menu place (W637: the rest are a view\'s controls and the palette\'s)',
-    JSON.stringify(ids) === JSON.stringify(rows.filter(c => c.menu_path).map(c => c.cmd).sort()), JSON.stringify(ids));
+  /* W767: a row with a menu_choice is a submenu with an item per value of that choice */
+  const choiceCount = c => c.menu_choice ? c.arguments.find(a => a.name === c.menu_choice).choices.length : 1;
+  check('W517: one menu item per registry row with a menu place (W637: the rest are a view\'s controls and the palette\'s), one per value for a menu_choice row',
+    JSON.stringify(ids) === JSON.stringify(rows.filter(c => c.menu_path).flatMap(c => Array(choiceCount(c)).fill(c.cmd)).sort()), JSON.stringify(ids));
   check('W517: Commands panel retired', !await exists('.menu-panel'));
   /* W647: Quit is the browser's command; the desktop window (its __xppCloseWindow bound) has its close box instead */
   check('W647: in a browser File > Quit is in the menu bar', await exists('.app-menu [data-command="session.quit"]'));
@@ -4636,7 +4638,7 @@ async function navigationCheck() {
   await cdp.eval(`document.querySelector('.dock-close').click()`);
   await until('!s.help.open', 'help closed');
   // Every command with arguments renders the same form, using every declared argument.
-  for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list')) {
+  for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list' && !c.menu_choice)) {
     await clickRegistry(row.cmd);
     if (row.panel) {
       /* W616: a group's generated panel in place of its form, or inside it when the command has more than settings (the options section checks the fields against the table) */
@@ -4656,7 +4658,7 @@ async function navigationCheck() {
   await clickRegistry('command_palette.open');
   check('W642: the menu bar entry, the dialog and its Help item say Search commands',
     await cdp.eval(`document.querySelector('.menu-search').textContent.trim() === 'Search commands' && document.querySelector('.command-palette h2').textContent.trim() === 'Search commands' && document.querySelector('.command-palette [data-command="command_palette.open"]').textContent.includes('Search commands')`));
-  check('W517: palette contains every registry command', await until(`s.drawerOpen && document.querySelectorAll('.command-palette [data-command]').length === ${everyRow.length}`, 'palette'));
+  check('W517: palette contains every registry command', await until(`s.drawerOpen && document.querySelectorAll('.command-palette [data-command]').length === ${everyRow.reduce((n, c) => n + choiceCount(c), 0)}`, 'palette'));
   /* W650: inside its menu a command is its short label, outside it (Search commands) its full name, both from hello's row */
   const exportPdf = await S(`s.hello.commands.find(c => c.cmd === 'plot.export_pdf')`);
   check('W650: the row has a short label and a full name made of its menu path and label',
@@ -4670,6 +4672,34 @@ async function navigationCheck() {
   await cdp.eval(`document.querySelector('.command-palette [data-command="session.save_as"]').click()`);
   check('W517: palette opens the same form', await until(`s.commandForm?.id === 'session.save_as' && !s.drawerOpen`, 'palette form'));
   await key('Escape');
+  /* W767: File > Export > Model as and Data as are submenus, an item per value; a click sends the command with that value, opens no form
+     and goes to the file question (the picker: the page's ask) */
+  for (const [cmd, menu, argument, labels] of [['model.export', 'Model as', 'language', ['Python', 'Python numpy', 'Python numba']],
+      ['data.export', 'Data as', 'format', ['dat', 'csv', 'csv.gz', 'npz']]]) {
+    const row = await S(`s.hello.commands.find(c => c.cmd === ${JSON.stringify(cmd)})`);
+    const values = row.arguments.find(a => a.name === argument).choices;
+    check(`W767: ${cmd} is the submenu File > Export > ${menu} with an item per ${argument}`,
+      row.label === menu && row.menu_choice === argument && values.length === labels.length
+        && await cdp.eval(`JSON.stringify([...document.querySelectorAll('.app-menu [data-top-menu="File"] details > summary')].filter(d => d.textContent === 'Export')
+          .flatMap(d => [...d.parentElement.querySelectorAll('details')].filter(m => m.querySelector(':scope > summary').textContent === ${JSON.stringify(menu)})
+            .flatMap(m => [...m.querySelectorAll('[data-command]')].map(b => b.textContent.trim())))) === ${JSON.stringify(JSON.stringify(labels))}`), JSON.stringify(row));
+    await clickRegistry('command_palette.open');
+    await until("document.querySelectorAll('.command-palette [data-command=\"" + cmd + "\"]').length > 0", 'palette items');
+    check(`W767: Search commands lists each ${cmd} item by its full name`, await cdp.eval(`(() => {const names = [...document.querySelectorAll('.command-palette [data-command=${JSON.stringify(cmd)}]')].map(b => b.textContent.trim());
+      return ${JSON.stringify(labels)}.every((label, i) => names[i]?.startsWith(${JSON.stringify(row.name)} + ' \u203a ' + label)) && names.length === ${labels.length};})()`));
+    await key('Escape');
+    for (const [i, value] of values.entries()) {
+      await key('Escape');
+      const pre = await S('__xpp.sentCount()');
+      await cdp.eval(`(() => {const item = [...document.querySelectorAll('.app-menu [data-command=${JSON.stringify(cmd)}]')][${i}];
+        for (let p = item.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true; item.click();})()`);
+      check(`W767: ${cmd} with ${argument} ${value}: sent with that value, no form, and the file asked for`,
+        await until(`!s.commandForm && __xpp.sentFrom(${pre}).some(c => c.cmd === ${JSON.stringify(cmd)} && c.${argument} === ${JSON.stringify(value)} && c.file === undefined) && !!s.ask`, 'export item'),
+        JSON.stringify(await S(`[s.commandForm, __xpp.sentFrom(${pre}), s.ask]`)));
+      await key('Escape');
+      await until('!s.busy && !s.ask', 'export cancelled');
+    }
+  }
   await menuRun('run.initial');
   check('W517: argument-free menu command runs once without an ask', await until('!s.busy && s.core.rows === 601 && !s.ask', 'menu run'));
   await menuRun('window.set_redraw_mode', {mode:'manual'});

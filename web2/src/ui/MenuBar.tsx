@@ -96,9 +96,9 @@ export function MenuBar() {
     if (pointed.current === d && d.open) e.preventDefault();
     pointed.current = null;
   };
-  const entry = (node: MenuNode): Entry => node.row ? {menu: false, el: <li key={node.row.id}><button role="menuitem" data-command={node.row.id} title={may({cmd: node.row.id}) ? node.row.description : BUSY_TITLE}
-    disabled={!may({cmd: node.row.id})} onClick={() => {close(); session.registryAction(node.row!.id);}}>
-    {node.name} {keyChip(effectiveKeys(info, node.row))}</button></li>}
+  const entry = (node: MenuNode): Entry => node.row ? {menu: false, el: <li key={node.row.id}><button role="menuitem" data-command={node.row.id} data-choice={node.row.choice?.value} title={may({cmd: node.row.id}) ? node.row.description : BUSY_TITLE}
+    disabled={!may({cmd: node.row.id})} onClick={() => {close(); const {choice} = node.row!; if (choice) session.registryChoice(node.row!.id, choice.argument, choice.value); else session.registryAction(node.row!.id);}}>
+    {node.name} {node.row.choice ? null : keyChip(effectiveKeys(info, node.row))}</button></li>}
     : {menu: true, el: <li key={node.name}><details><summary>{node.name}</summary><ul role="menu">{withRules(node.children.map(entry))}</ul></details></li>};
   const tree = menuTree(registryRows(hello), hello);
   const order = ['File', 'Run', 'Analysis', 'Plot', 'Data', 'autoX', 'Windows', 'Help'];

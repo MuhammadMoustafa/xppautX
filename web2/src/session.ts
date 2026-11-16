@@ -389,6 +389,13 @@ export class Session {
     else this.send({cmd: id});
   }
 
+  /** an item of a menu_choice row (File > Export > Model as > Python): the command with that one value and no form; what it still
+      needs (the file, a target) the core asks, as for the command sent by a script */
+  registryChoice(id: string, argument: string, value: string): void {
+    const cmd: Command = {cmd: id, [argument]: value};
+    if (this.may(cmd)) this.send(cmd);
+  }
+
   /** the opening's check (W622): never a dialog; an answer that fails is told to the core's log at INFO and shown nowhere */
   private async automaticUpdateCheck(): Promise<void> {
     try { this.offerUpdate(await this.checkForUpdate()); }
