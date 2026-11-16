@@ -71,9 +71,9 @@ MODULES = {
     'plot': ('the plot windows and what they show: curves, nullclines, marks, axes, and the encoding of a series for the page, the recorder of the picture an export writes and the array plot picture it builds (picture, array_print, W737)', [
         'plot_data', 'graf_par', 'many_pops', 'graphics', 'nullcline', 'phase_data', 'marks_data', 'grobs',
         'axes2', 'arrayplot', 'torus', 'series_enc', 'picture', 'array_print']),
-    'export': ('pictures (the diagram\'s among them, W742), movies and data files written out', [
+    'export': ('pictures (the diagram\'s among them, W742), movies, data files and a model as a program in another language (W764) written out', [
         'my_pdf', 'my_svg', 'scrngif', 'image_format', 'csv_export', 'data_formats',
-        'kinescope', 'diagram_export']),
+        'kinescope', 'diagram_export', 'export_model', 'export_python']),
     'animation': ('the animator and its .ani files', ['ani*', 'ani_data', 'aniparse']),
     'autoX': ('xppautX\'s continuation: its numerics, runs, diagram and settings', [
         'autox_*', 'xAutox', 'setubv*', 'gogoautox', 'diagram*', 'conpar2', 'xpp_math_eispack', 'xpp_math_autox', 'f2c_helpers']),

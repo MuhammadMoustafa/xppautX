@@ -21,6 +21,10 @@ struct IrCallee {
     bool parser = false;
     int doubles = 0;
     bool index = false;
+    /* what a back end that writes text (an export, export_model.h) needs to say it: a math function's symbol (the
+       expression compiler's COM(FUN1TYPE or FUN2TYPE, index), -1 for any other callee), and what a helper does in words */
+    int symbol = -1;
+    std::string what;
 };
 
 enum class IrOp : unsigned char {

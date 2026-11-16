@@ -1,5 +1,7 @@
 #pragma once
+#include "expr_ir.h"
 #include "xpp_error.h"
+#include <cstddef>
 #include <vector>
 #include <string>
 namespace xpp {
@@ -33,6 +35,25 @@ std::string run_joined_by(const SessionParts &s);
 std::string describe_subsystems(const SessionParts &s);
 /* the subsystems the model has under s's subsystem_split: several, or not */
 bool has_subsystems(const SessionParts &s);
+/* A model's programs as the Generator's expression trees, for a back end that writes them as text (export_model.cpp), without
+   compiling them or changing the model: the user functions, then each program a run evaluates in its place in the
+   run (an equation's right-hand side, a fixed variable's value, an aux column, a derived parameter's formula),
+   each one function of ir.functions with the model's name for it and its line (`origin`, by function). */
+struct ModelIr {
+    IrModule ir;
+    struct Origin {
+        std::string name;
+        Place place;
+    };
+    std::vector<Origin> origin;
+    std::vector<size_t> equations, fixed, aux; /* the function of each ODE, fixed variable and aux column, in the model's order */
+    struct Derived {
+        size_t function;
+        int constant; /* the parser's constant the formula's value is */
+    };
+    std::vector<Derived> derived; /* in the order a parameter change works them out */
+};
+Result<ModelIr> model_ir(const SessionParts &s);
 /* Translate the model's programs to native code: refuse unsupported programs independently (the warnings), decide
    what is native (Program::compiled, Model::rhs_impurity, the subsystems) and start MIR's compile of them on a
    thread (Model::native_build); a failure is the error. */

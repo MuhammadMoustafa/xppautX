@@ -20,7 +20,7 @@ constexpr int MAX_PORT = 65535;
 enum class Opt { silent, newseed, outfile, anifile, statefile, noout, dfdraw, ncdraw,
                  equil, verbose, debug,
                  /* the program's own (xppautx_main.cpp) */
-                 help, version, options_schema, convert, check, yes, no_open, browser, server, port };
+                 help, version, options_schema, convert, to, check, yes, no_open, browser, server, port };
 
 struct CommandOption {
   std::string_view name;
@@ -47,6 +47,7 @@ constexpr CommandOption my_cmd[] = {
   {"--version", Opt::version, false, true, true},
   {"--options-schema", Opt::options_schema, false, true, true},
   {"--convert", Opt::convert, false, true, true},
+  {"--to", Opt::to, true, false, true}, /* --convert's target: the format or language of the file written */
   {"--check", Opt::check, false, true, true},
   {"--yes", Opt::yes, false, true, true},
   {"-y", Opt::yes, false, true, true},
@@ -77,6 +78,7 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
   std::optional<Place> no_open_place;             /* --no-open's place: it needs --browser, checked after the pass */
   std::optional<Place> anifile_place;             /* --anifile's place: it needs --convert, checked after the pass */
   std::optional<Place> statefile_place;           /* --statefile's place: the same */
+  std::optional<Place> to_place;                  /* --to's place: it needs --convert, the same */
   const int count = static_cast<int>(cl.arguments.size());
   for (int i = 1; i < count; ++i) {
     const std::string_view word(cl.arguments[static_cast<std::size_t>(i)]);
@@ -117,6 +119,7 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
     case Opt::version: cl.version = true; break;
     case Opt::options_schema: cl.options_schema = true; break;
     case Opt::convert: cl.convert = true; break;
+    case Opt::to: cl.to = value; to_place = place; break;
     case Opt::check: cl.check = true; break;
     case Opt::yes: cl.yes = true; break;
     case Opt::no_open: cl.no_open = true; no_open_place = place; break;
@@ -161,6 +164,8 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
     return fail("options", "--anifile needs --convert (it is the .ani that --convert writes into a .anix)", *anifile_place);
   if (statefile_place && !cl.convert)
     return fail("options", "--statefile needs --convert (it is the XPPAUT file --convert writes into the .odex)", *statefile_place);
+  if (to_place && !cl.convert)
+    return fail("options", "--to needs --convert (it names what --convert writes)", *to_place);
   if (cl.state_file && cl.ani_file)
     return fail("options", "--statefile and --anifile both given: --convert takes one", *statefile_place);
   if (no_open_place && cl.interface != Interface::browser)

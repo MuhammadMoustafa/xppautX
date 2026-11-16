@@ -326,6 +326,12 @@ baselines and AUTO-07p), and `tools/wslrun.sh tools/autox-profile/modeldb_check.
 fold search and no step back in the default, LIBM=system and LAPACK builds: its parameter rises
 monotonically from the Hopf point).
 
+`tools/exportcheck.py` (W764, #843; run by verify.sh) exports each of a set of models on Runge-Kutta as a Python
+script (`xppautX --convert MODEL --to python`), runs it with the repo's interpreter and compares its CSV with the
+`output.dat` of `xppautX MODEL --silent`, to 1e-6 relative (xppautX stores floats, and its correctly rounded
+functions against the C library's, an ulp each); it also checks the header of a model on another method, the renames,
+the refusals (a table, a delay, a shift, events, a map: what, the model line, no file) and `--to`'s words.
+
 `tools/goldencheck.py` (W31c, run by verify.sh) drives `xppautX --server`
 through lecar.ode and vanderpol.ode to write PDF (with a nullcline
 and a direction field), SVG, kinescope GIFs and an array-print PDF,

@@ -69,6 +69,7 @@
 #include "xpp_update.h"
 #include "xpp_window.h"
 #include "odex.h"
+#include "export_model.h"
 #include "xpp_session.h"
 #include "xpp_prefs.h"
 #include "xpp_recent.h"
@@ -110,6 +111,8 @@ static std::string usage_tail()
     "                   --convert model.odex --anifile drawing.ani names another model\n"
     "                   --convert model.ode --statefile FILE writes an XPPAUT .set, .par or\n"
     "                   .ic file's values and numerics into model.odex as its defaults\n"
+    "                   --convert model.odex --to python writes model.py beside it: the model\n"
+    "                   as a Python program (--to takes odex, the default, or python)\n"
     "  --check          validate a model or .anix in memory; JSON diagnostics, no files or window\n"
     "  --options-schema print the JSON Schema of a .odex's options block\n"
     "  --silent          (an xppaut option) a headless run that writes output.dat\n"
@@ -129,6 +132,10 @@ static std::string usage_tail()
     "Word options require two dashes. X11 options are removed.\n", xpp::http::DEFAULT_PORT);
 }
 
+
+/* what --convert writes when --to is not given: the model's own xppautX format (the .odex of a .ode, the .anix of an .ani), so every
+   existing `--convert model.ode` keeps working */
+static constexpr std::string_view CONVERT_DEFAULT_TO = "odex";
 
 /* the session: load the model and serve it until Quit (the core exits);
    on the main thread (on macOS beside the window's: xpp_window.h) */
@@ -313,6 +320,21 @@ int main(int argc, char **argv)
         if (cl.model_file.empty() || cl.load_options != 0) {
             xpp::log(XPP_LOG_ERROR, "usage: xppautX --convert [--yes] model.ode\n");
             return 2;
+        }
+        const std::string to = cl.to.value_or(std::string(CONVERT_DEFAULT_TO));
+        if (to != CONVERT_DEFAULT_TO) {
+            const auto usage = [](std::string what) {
+                xpp::log(XPP_LOG_ERROR, "{}\n", xpp::Error{"options", std::move(what), xpp::Place{"command line"}}.text());
+                return 2;
+            };
+            const xpp::Language *language = xpp::language_named(to);
+            if (!language) {
+                std::string known(CONVERT_DEFAULT_TO);
+                for (const std::string_view name : xpp::language_names) known += ", " + std::string(name);
+                return usage(xpp::format("--to {} is not something --convert writes: one of {}", to, known));
+            }
+            if (cl.state_file || cl.ani_file) return usage(xpp::format("--to {} does not go with --statefile or --anifile, which write the {} format", to, CONVERT_DEFAULT_TO));
+            return xpp::convert_to_language(startup.files, xpp::program_loader, cl.model_file, *language, xpp::prefs::load_services(startup.files, &startup.prefs));
         }
         if (cl.state_file) return xpp::convert_state_file(startup.files, xpp::program_loader, cl.model_file, *cl.state_file, xpp::prefs::load_services(startup.files, &startup.prefs));
         if (cl.ani_file) return xpp::convert_animation_file(startup.files, xpp::program_loader, *cl.ani_file, cl.model_file);

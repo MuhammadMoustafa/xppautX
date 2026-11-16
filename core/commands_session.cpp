@@ -1,6 +1,7 @@
 /* The session resource's registry rows (W528): saving, importing settings, exporting the simulation information, the model's source, quitting and the state.
    A handler calls the core function the File menu's items call after their questions (xpp_session.h, lunch-new.h); the three the front end answers itself go through front_end. */
 #include "command_def.h"
+#include "export_model.h"
 #include "lunch-new.h"
 #include "recx.h"
 #include "session.h"
@@ -27,6 +28,7 @@ namespace {
 constexpr const char *FILE_KEY = "file";
 constexpr const char *DATA_KEY = "data";
 constexpr const char *CONFIRM_KEY = "confirm";
+constexpr const char *LANGUAGE_KEY = "language";
 
 /* the data table goes in (true), is left out (false), or goes in unless it is above 50 MB, when the user is asked (left out) */
 int data_choice(const Arguments &args)
@@ -80,6 +82,13 @@ Result<std::string> export_info(Session &s, const Command &, const Arguments &ar
     return ResultObject().text(FILE_KEY, file).boolean("written", *written).done();
 }
 
+Result<std::string> export_model_as(Session &s, const Command &, const Arguments &args, const Place &)
+{
+    const Result<std::string> written = export_model(s, *language_named(args.get<std::string>(LANGUAGE_KEY)), args.optional<std::string>(FILE_KEY).value_or(std::string{}));
+    if (!written) return std::unexpected<Error>(written.error());
+    return ResultObject().text(FILE_KEY, *written).done();
+}
+
 constexpr Argument FILE_REQUIRED = {FILE_KEY, Type::file, true};
 constexpr Argument DATA = {DATA_KEY, Type::boolean, false};
 constexpr Argument CONFIRM = {CONFIRM_KEY, Type::boolean, false};
@@ -87,12 +96,15 @@ constexpr std::array SAVE_ARGUMENTS = {DATA};
 constexpr std::array SAVE_AS_ARGUMENTS = {FILE_REQUIRED, DATA, CONFIRM};
 constexpr std::array IMPORT_ARGUMENTS = {FILE_REQUIRED};
 constexpr std::array EXPORT_ARGUMENTS = {FILE_REQUIRED, CONFIRM};
+constexpr auto LANGUAGE_CHOICES = c_names(language_names);
+constexpr std::array MODEL_EXPORT_ARGUMENTS = {Argument{LANGUAGE_KEY, Type::choice, true, MAX_TEXT_BYTES, LANGUAGE_CHOICES}, Argument{FILE_KEY, Type::file, false}};
 constexpr std::array QUIT_ARGUMENTS = {Argument{"save", Type::boolean, false}};
 
 constexpr std::array SAVE_RESULTS = {ResultField{"file", "file"}, ResultField{"saved", "boolean"}};
 constexpr std::array COPY_RESULTS = {ResultField{"file", "file"}, ResultField{"copied", "boolean"}};
 constexpr std::array IMPORT_RESULTS = {ResultField{"file", "file"}, ResultField{"applied", "boolean"}, ResultField{"changes", "list[text]"}};
 constexpr std::array EXPORT_RESULTS = {ResultField{"file", "file"}, ResultField{"written", "boolean"}};
+constexpr std::array MODEL_EXPORT_RESULTS = {ResultField{"file", "file"}};
 constexpr std::array SOURCE_RESULTS = {ResultField{"source", "text"}, ResultField{"equations", "list[text]"}};
 constexpr std::array QUIT_RESULTS = {ResultField{"quitting", "boolean"}};
 constexpr std::array STATE_RESULTS = {ResultField{"state", "the state event's members"}};
@@ -114,6 +126,10 @@ constexpr std::array ROWS = {
             "Save a copy of the session, leaving the file it is saved to as it was.", COPY_RESULTS, DONE_EVENTS, true, save_copy, {}, {}, "write", "*.snapx"},
     Command{"session.export_info", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Simulation information", "File/Export",
             "Write the equations, numerics, initial conditions and parameters to a file.", EXPORT_RESULTS, DONE_EVENTS, true, export_info, {}, {}, "write", "*.txt", "", "Export"},
+    Command{"model.export", MODEL_EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Model as a program", "File/Export",
+            "Write the model, with the values it has now (parameters, initial data, the integration settings), as a program in a language that runs with no xppautX and writes the rows of a run to a CSV file beside itself; "
+            "left out, file is asked for (the result's file is empty when that question was cancelled). A model the language cannot say (tables, delays, events, Markov variables, networks, ...) is refused, naming what and its line.",
+            MODEL_EXPORT_RESULTS, DONE_EVENTS, true, export_model_as, {}, {}, "write", "*", "", "Export"},
     Command{"session.import_xppaut_state", IMPORT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "Import XPPAUT session state", "File/Sets",
             "Apply a whole set file XPPAUT wrote (its parameters, initial conditions, numerics, delays, boundary conditions, active graph and run position), all or nothing; the result names what it changed. Nothing is written beside it.",
             IMPORT_RESULTS, STATE_EVENTS, true, import_xppaut_state_file, {}, {}, "read", "*.set"},

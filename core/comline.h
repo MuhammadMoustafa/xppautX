@@ -34,6 +34,7 @@ struct CommandLine {
   std::optional<XppLogLevel> log_threshold;    /* --verbose, --debug: the last one given */
   std::optional<int> equilibria;               /* --equil N */
   std::optional<std::string> out_file, ani_file, state_file; /* given or not */
+  std::optional<std::string> to;               /* --to: what --convert writes (the program's start checks the word) */
   std::string out_place;                       /* --outfile as written, for an error's place */
   std::vector<std::pair<std::string_view, std::string>> options; /* --dfdraw, --ncdraw through set_option, in order */
 };

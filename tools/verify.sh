@@ -106,6 +106,7 @@ tools/side_by_side.sh --prefix build/check- --jobs "$JOBS" \
   servercheck uv run --locked python tools/servercheck.py -- \
   webcheck uv run --locked python tools/webcheck.py -- \
   goldencheck uv run --locked python tools/goldencheck.py --keep build/golden-differ -- \
+  exportcheck uv run --locked python tools/exportcheck.py -- \
   modecheck sh tools/modecheck.sh -- \
   steadycheck uv run --locked python tools/steadycheck.py -- \
   spikecheck uv run --locked python tools/spikecheck.py -- \

@@ -2310,6 +2310,17 @@ def check_session_commands():
         done, _ = call(cmd='session.export_info', file='info.pars')
         check('W528: session.export_info writes the file', done['result'] == {'file': 'info.pars', 'written': True}
               and 'Equations' in open(os.path.join(run_dir, 'info.pars')).read(), str(done))
+        done, _ = call(cmd='model.export', language='python', file='model_as.py')
+        script = os.path.join(run_dir, 'model_as.py')
+        check('W764: model.export writes the model as a Python program and answers the file',
+              done['result'] == {'file': 'model_as.py'} and os.path.exists(script) and 'def rhs(t, _y):' in open(script).read(), str(done))
+        done, evs = call(answers=[{'key': 'n'}], cmd='model.export', language='python', file='model_as.py')
+        check('W764: model.export asks before replacing a file, and a refusal writes nothing',
+              any(e.get('ev') == 'ask' for e in evs) and 'declined' in error_of(done), str(done))
+        done, _ = call(cmd='model.export', language='julia', file='model_as.jl')
+        check('W764: model.export with a language it has not is refused, naming it', 'julia' in error_of(done) and not os.path.exists(os.path.join(run_dir, 'model_as.jl')), str(done))
+        done, _ = call(cmd='model.export', language='python', file='../up.py')
+        check('W764: model.export takes a file of the model\'s folder only', 'file' in error_of(done), str(done))
         done, _ = call(cmd='session.import_xppaut_state', file='absent.set')
         check('W528: session.import_xppaut_state names the file it cannot read', 'absent.set' in error_of(done), str(done))
         done, evs = call(answers=['d'], cmd='session.open', file='first.snapx')

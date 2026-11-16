@@ -70,23 +70,24 @@ struct HelperText {
     bool parser;
     int doubles;
     bool index;
+    std::string_view what; /* in words, for a back end with no spelling of it (IrCallee::what) */
 };
 constexpr std::array<HelperText, static_cast<size_t>(Helper::Count)> helper_text{{
-    {"h_tab", true, 1, true},
-    {"h_tabs", true, 1, true},
-    {"h_net", true, 1, true},
-    {"h_vec", true, 1, true},
-    {"h_ker", true, 0, true},
-    {"h_del", true, 2, false},
-    {"h_dsh", true, 3, false},
-    {"h_sft", true, 2, false},
-    {"h_ish", false, 2, false},
-    {"h_set", true, 3, false},
-    {"h_ru", true, 1, false},
-    {"h_rp", true, 1, false},
-    {"h_rn", true, 2, false},
-    {"h_arg", true, 0, true},
-    {"h_end", true, 1, true},
+    {"h_tab", true, 1, true, "a lookup table"},
+    {"h_tabs", true, 1, true, "a lookup table's slope"},
+    {"h_net", true, 1, true, "a network"},
+    {"h_vec", true, 1, true, "a vectorizer"},
+    {"h_ker", true, 0, true, "an integral equation's kernel"},
+    {"h_del", true, 2, false, "delay()"},
+    {"h_dsh", true, 3, false, "del_shft()"},
+    {"h_sft", true, 2, false, "shift()"},
+    {"h_ish", false, 2, false, "ishift()"},
+    {"h_set", true, 3, false, "set()"},
+    {"h_ru", true, 1, false, "ran()"},
+    {"h_rp", true, 1, false, "poisson()"},
+    {"h_rn", true, 2, false, "normal()"},
+    {"h_arg", true, 0, true, "a user function's argument"},
+    {"h_end", true, 1, true, "the end of a user function"},
 }};
 
 /* The helpers with the signatures of helper_text, so the generated code
@@ -248,12 +249,12 @@ struct Generator {
     int helper_call(Helper h, std::initializer_list<int> args, int index = 0)
     {
         const HelperText &t = helper_text[static_cast<size_t>(h)];
-        return call(callee({std::string(t.name), helper_address(h), t.parser, t.doubles, t.index}), std::span<const int>(args.begin(), args.size()), index);
+        return call(callee({std::string(t.name), helper_address(h), t.parser, t.doubles, t.index, -1, std::string(t.what)}), std::span<const int>(args.begin(), args.size()), index);
     }
     int math_call(bool binary, int i, std::initializer_list<int> args)
     {
         const void *address = binary ? xpp::math::resolve(expr::fun2[static_cast<size_t>(i)]) : xpp::math::resolve(expr::fun1[static_cast<size_t>(i)]);
-        return call(callee({xpp::format("f{}_{}", binary ? 2 : 1, i), address, false, binary ? 2 : 1, false}), std::span<const int>(args.begin(), args.size()));
+        return call(callee({xpp::format("f{}_{}", binary ? 2 : 1, i), address, false, binary ? 2 : 1, false, COM(binary ? FUN2TYPE : FUN1TYPE, i), {}}), std::span<const int>(args.begin(), args.size()));
     }
     int user_call(int function, std::span<const int> args)
     {
@@ -281,9 +282,11 @@ struct Generator {
         return node(n);
     }
 
+    /* how a refusal reads: the compile's (the program stays interpreted), or an export's (it is not written) */
+    std::string_view refusal_before = "not compiled: ", refusal_after = "; running the interpreter";
     std::unexpected<Error> refuse(std::string reason) const
     {
-        return fail("compile", "not compiled: " + reason + "; running the interpreter", place);
+        return fail("compile", std::string(refusal_before) + reason + std::string(refusal_after), place);
     }
 
     /* the helper's call, noted: only a table lookup keeps a function free of the parser's state */
@@ -763,7 +766,97 @@ struct Generator {
         ir.functions.push_back(finish(IrFunction::Kind::Jacobian, std::string(name), -1));
     }
 
+    /* Every user function written alone, then those whose whole dependency graph compiled kept (`allowed`): their
+       bodies are the first of ir.functions, in the functions' order; a refused one is a warning. */
+    Result<> user_functions(std::vector<Error> &warnings)
+    {
+        const Model &m=s.model();
+        if (m.compiler.nfun<0 || static_cast<size_t>(m.compiler.nfun)>m.compiler.ufun_programs.size()) return refuse("an out-of-range function count");
+        calls.resize(static_cast<size_t>(m.compiler.nfun));
+        pure_function.assign(static_cast<size_t>(m.compiler.nfun),0);
+        inline_body.assign(static_cast<size_t>(m.compiler.nfun),-1);
+        array_pure_function.assign(static_cast<size_t>(m.compiler.nfun),0);
+        function_reads.resize(static_cast<size_t>(m.compiler.nfun));
+        std::vector<IrFunction> bodies(static_cast<size_t>(m.compiler.nfun));
+        std::vector<char> written(static_cast<size_t>(m.compiler.nfun),0); /* the user functions that compiled alone */
+        std::vector<Error> refusals(static_cast<size_t>(m.compiler.nfun));
+        for (int i=0;i<m.compiler.nfun;++i) {
+            place=model_place(m,m.compiler.ufun_names[i]);
+            if (m.compiler.narg_fun[i]<0) {
+                refusals[i]=refuse("an out-of-range argument count").error();
+                continue;
+            }
+            if (auto r=program(m.compiler.ufun_programs[i].rpn,i,true);!r) refusals[i]=r.error();
+            else { bodies[i]=std::move(*r); written[i]=1; array_pure_function[i]=array_pure; function_reads[i]=variable_reads; }
+        }
+        /* Only functions whose entire dependency graph compiled are callable.
+           Iterative topological removal also refuses recursion, without following
+           untrusted input on the host stack. Impurity was conservative during
+           translation, so removing a function cannot change a caller's ordering. */
+        allowed.assign(static_cast<size_t>(m.compiler.nfun),0);
+        for (int pass=0;pass<m.compiler.nfun;++pass)
+            for (int i=0;i<m.compiler.nfun;++i)
+                if (!allowed[i] && written[i]
+                    && std::all_of(calls[i].begin(),calls[i].end(),[&](int j){return allowed[j];})) allowed[i]=1;
+        for (int pass=0;pass<m.compiler.nfun;++pass)
+            for (int i=0;i<m.compiler.nfun;++i)
+                if (!allowed[i] || std::any_of(calls[i].begin(),calls[i].end(),[&](int j){return !array_pure_function[j];})) array_pure_function[i]=0;
+        for (int pass=0;pass<m.compiler.nfun;++pass)
+            for (int i=0;i<m.compiler.nfun;++i)
+                for (int j:calls[i]) function_reads[i].insert(function_reads[j].begin(),function_reads[j].end());
+        for (int i=0;i<m.compiler.nfun;++i) {
+            if (!allowed[i]) {
+                place=model_place(m,m.compiler.ufun_names[i]);
+                const Error error=!written[i]?refusals[i]
+                    :refuse("calls a refused or recursive user function").error();
+                warnings.push_back(error);
+                continue;
+            }
+            ir.functions.push_back(std::move(bodies[i]));
+        }
+        return {};
+    }
+
 };
+}
+
+Result<ModelIr> model_ir(const SessionParts &s)
+{
+    const Model &m=s.model();
+    Generator g{s};
+    g.refusal_before="cannot be written: ";
+    g.refusal_after="";
+    std::vector<Error> unreachable; /* a user function that did not translate matters only to a program that calls it (the Generator refuses that call) */
+    if (const Result<> functions=g.user_functions(unreachable);!functions) return std::unexpected(functions.error());
+    ModelIr out;
+    for (int i=0;i<m.compiler.nfun;++i)
+        if (g.allowed[i]) out.origin.push_back({m.compiler.ufun_names[i],model_place(m,m.compiler.ufun_names[i])});
+    const auto add=[&](const Program &p,const std::string &name,Place place,std::vector<size_t> *list)->Result<> {
+        g.place=place;
+        g.dynamic=false;
+        auto function=g.program(p.rpn,0,false,name);
+        if (!function) return std::unexpected(function.error());
+        g.ir.functions.push_back(std::move(*function));
+        out.origin.push_back({name,std::move(place)});
+        if (list) list->push_back(g.ir.functions.size()-1);
+        return {};
+    };
+    for (int i=0;i<m.node;++i)
+        if (const Result<> r=add(m.programs[static_cast<size_t>(i)],m.uvar_names[static_cast<size_t>(i)],model_place(m,m.uvar_names[static_cast<size_t>(i)]),&out.equations);!r) return std::unexpected(r.error());
+    for (int i=m.node;i<m.node+m.fix_var;++i) {
+        const std::string &name=m.fixinfo[static_cast<size_t>(i-m.node)].name;
+        if (const Result<> r=add(m.programs[static_cast<size_t>(i)],name,model_place(m,name),&out.fixed);!r) return std::unexpected(r.error());
+    }
+    for (int i=m.node;i<m.neq;++i) { /* extra (my_rhs.cpp): the aux column i is program i + fix_var */
+        const std::string &name=m.uvar_names[static_cast<size_t>(i)];
+        if (const Result<> r=add(m.programs[static_cast<size_t>(i+m.fix_var)],name,model_place(m,name),&out.aux);!r) return std::unexpected(r.error());
+    }
+    for (const auto &d:m.compiler.derived) {
+        if (const Result<> r=add(d.form,"",d.where,nullptr);!r) return std::unexpected(r.error());
+        out.derived.push_back({g.ir.functions.size()-1,d.index});
+    }
+    out.ir=std::move(g.ir);
+    return out;
 }
 
 std::vector<ModelProgram> model_programs(Model &m)
@@ -873,49 +966,7 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
     if (!s.numerics->compile || entries.empty()) return {};
     Generator g{s};
     std::vector<Error> warnings;
-    if (m.compiler.nfun<0 || static_cast<size_t>(m.compiler.nfun)>m.compiler.ufun_programs.size()) return g.refuse("an out-of-range function count");
-    g.calls.resize(static_cast<size_t>(m.compiler.nfun));
-    g.pure_function.assign(static_cast<size_t>(m.compiler.nfun),0);
-    g.inline_body.assign(static_cast<size_t>(m.compiler.nfun),-1);
-    g.array_pure_function.assign(static_cast<size_t>(m.compiler.nfun),0);
-    g.function_reads.resize(static_cast<size_t>(m.compiler.nfun));
-    std::vector<IrFunction> bodies(static_cast<size_t>(m.compiler.nfun));
-    std::vector<char> written(static_cast<size_t>(m.compiler.nfun),0); /* the user functions that compiled alone */
-    std::vector<Error> refusals(static_cast<size_t>(m.compiler.nfun));
-    for (int i=0;i<m.compiler.nfun;++i) {
-        g.place=model_place(m,m.compiler.ufun_names[i]);
-        if (m.compiler.narg_fun[i]<0) {
-            refusals[i]=g.refuse("an out-of-range argument count").error();
-            continue;
-        }
-        if (auto r=g.program(m.compiler.ufun_programs[i].rpn,i,true);!r) refusals[i]=r.error();
-        else { bodies[i]=std::move(*r); written[i]=1; g.array_pure_function[i]=g.array_pure; g.function_reads[i]=g.variable_reads; }
-    }
-    /* Only functions whose entire dependency graph compiled are callable.
-       Iterative topological removal also refuses recursion, without following
-       untrusted input on the host stack. Impurity was conservative during
-       translation, so removing a function cannot change a caller's ordering. */
-    g.allowed.assign(static_cast<size_t>(m.compiler.nfun),0);
-    for (int pass=0;pass<m.compiler.nfun;++pass)
-        for (int i=0;i<m.compiler.nfun;++i)
-            if (!g.allowed[i] && written[i]
-                && std::all_of(g.calls[i].begin(),g.calls[i].end(),[&](int j){return g.allowed[j];})) g.allowed[i]=1;
-    for (int pass=0;pass<m.compiler.nfun;++pass)
-        for (int i=0;i<m.compiler.nfun;++i)
-            if (!g.allowed[i] || std::any_of(g.calls[i].begin(),g.calls[i].end(),[&](int j){return !g.array_pure_function[j];})) g.array_pure_function[i]=0;
-    for (int pass=0;pass<m.compiler.nfun;++pass)
-        for (int i=0;i<m.compiler.nfun;++i)
-            for (int j:g.calls[i]) g.function_reads[i].insert(g.function_reads[j].begin(),g.function_reads[j].end());
-    for (int i=0;i<m.compiler.nfun;++i) {
-        if (!g.allowed[i]) {
-            g.place=model_place(m,m.compiler.ufun_names[i]);
-            const Error error=!written[i]?refusals[i]
-                :g.refuse("calls a refused or recursive user function").error();
-            warnings.push_back(error);
-            continue;
-        }
-        g.ir.functions.push_back(std::move(bodies[i]));
-    }
+    if (const Result<> written=g.user_functions(warnings);!written) return std::unexpected(written.error());
     std::vector<const ModelProgram *> emitted;
     std::vector<size_t> function_of; /* each emitted program's function in g.ir.functions */
     for (const auto &entry:entries) {
