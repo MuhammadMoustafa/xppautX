@@ -89,14 +89,15 @@
 }
 
 :root[data-theme='dark'] {
-  --bg: #0f1216;
-  --surface: #171b21;
-  --surface-2: #222933;
-  --border: #343c48;
-  --field-border: #6b7584;
-  --fg: #e6e9ee;
-  --fg-muted: #a3adbb;
-  --grid: #262c35;
+  /* the greys carry no blue tint; each keeps the lightness it had, so text contrast does not drop */
+  --bg: #121212;
+  --surface: #1b1b1b;
+  --surface-2: #282828;
+  --border: #3a3a37;
+  --field-border: #747474;
+  --fg: #ecebe8;
+  --fg-muted: #acacac;
+  --grid: #2c2c2c;
   --accent: #6aa5ff;
   --accent-fg: #0b1220;
   --focus: #8fbcff;

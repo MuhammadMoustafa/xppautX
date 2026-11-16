@@ -533,7 +533,7 @@ section checks R1 and R3 at 390x844, 768x1024 and 1024x700):
 Target: WCAG 2.2 AA. Rules:
 
 - **A1 Contrast**: text at least 4.5:1 against its background (the tokens:
-  `--fg-muted` #525c6b is 6.8:1 on white, dark #a3adbb 7.6:1 on #171b21;
+  `--fg-muted` #525c6b is 6.8:1 on white, dark #acacac 7.6:1 on #1b1b1b (the dark greys are neutral, W768);
   white on the accent 5.5:1); the focus ring (6.5:1, dark 8.9:1), field
   edges (`--field-border`, 3.5:1 and 4:1) and every curve color at least
   3:1 against the plot. Buttons are identified by their text, so their
