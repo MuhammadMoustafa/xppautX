@@ -396,13 +396,14 @@ constexpr std::array DATA_EVENTS = {xpp::events::DATA_UPDATED, xpp::events::SESS
 constexpr std::array SHOWN_EVENTS = {xpp::events::DATA_UPDATED, xpp::events::PLOT_SHOWN, xpp::events::PLOT_SERIES, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array PLOT_EVENTS = {xpp::events::PLOT_SHOWN, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array DONE_EVENTS = {xpp::events::DONE};
+constexpr std::array HISTOGRAM_EVENTS = {xpp::events::JOB_COMPUTING, xpp::events::DATA_UPDATED, xpp::events::PLOT_SHOWN, xpp::events::PLOT_SERIES, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"poincare_map.set", POINCARE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Poincare map", "Run",
             "Set the Poincare map the runs store: none, the crossings of a section, the maxima and minima of a variable, or its period.",
             POINCARE_RESULTS, STATE_EVENTS, true, poincare_handler, {}, {}, "read", "*", "poincare"},
     Command{"histogram.compute", HISTOGRAM_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Histogram", "Analysis/Statistics",
-            "Make the histogram of a column of the stored data, counting the rows where the condition holds.", HISTOGRAM_RESULTS, SHOWN_EVENTS, true,
+            "Make the histogram of a column of the stored data, counting the rows where the condition holds.", HISTOGRAM_RESULTS, HISTOGRAM_EVENTS, true,
             histogram_handler, {}, {}, "read", "*", "analysis:histogram"},
     Command{"histogram.compute_2d", HISTOGRAM_2D_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "2D histogram", "Analysis/Statistics",
             "Make the two-dimensional histogram of two columns of the stored data.", HISTOGRAM_2D_RESULTS, SHOWN_EVENTS, true, histogram_2d_handler, {}, {}, "read", "*", "analysis:histogram,histogram2"},
@@ -425,7 +426,7 @@ constexpr std::array ROWS = {
             "Make the power spectral density of a column, the cross spectrum of two or their coherence, averaged over windows of the stored data.",
             POINTS_RESULTS, SHOWN_EVENTS, true, spectral_density_handler, {}, {}, "read", "*", "analysis:spectrum"},
     Command{"spectrum.autocorrelation", AUTOCORRELATION_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Autocorrelation", "Analysis/Spectra",
-            "Make the histogram of the differences of a column of the stored data with itself.", LAGS_RESULTS, SHOWN_EVENTS, true,
+            "Make the histogram of the differences of a column of the stored data with itself.", LAGS_RESULTS, HISTOGRAM_EVENTS, true,
             autocorrelation_handler},
     Command{"spectrum.cross_correlation", CROSS_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Cross-correlation", "Analysis/Spectra",
             "Make the correlation of two columns of the stored data at a number of lags either side of 0, directly or by the FFT.", LAGS_RESULTS,

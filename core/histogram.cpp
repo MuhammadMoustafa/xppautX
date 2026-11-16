@@ -14,6 +14,7 @@
 #include <cmath>
 #include <expected>
 #include <memory>
+#include <optional>
 #include <span>
 
 #include "adj2.h"
@@ -21,6 +22,7 @@
 
 #include "expr.h"
 #include "xpp_log.h"
+#include "xpp_job.h"
 #include "xpp_math.h"
 #include "xpp_ui.h"
 #include "expr_program.h"
@@ -246,6 +248,10 @@ xpp::Result<> new_hist(xpp::AnalysisParts &s, int nbins, double zlo, double zhi,
     }
     cond=1;
   }
+  /* the loops that check Stop (my_abort: histogram and pairwise differences) say they compute, as the other long
+     computations do (xpp_job.h); the correlations have no checkpoint and say nothing */
+  std::optional<xpp::Computation> computing;
+  if(which<2) computing.emplace();
   if(s.histogram->hist_here){
     data_back(s);
     s.histogram->hist_columns.release();

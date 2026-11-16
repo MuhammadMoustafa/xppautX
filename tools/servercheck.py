@@ -12335,9 +12335,11 @@ def check_stop_checks():
         snd(cmd='run.initial')
         col(is_done)
         snd(cmd='spectrum.autocorrelation', column='V', bins=10, low=0, high=10)
+        _, started = col(lambda e: e.get('ev') == 'job.computing' or is_done(e))
+        hist_started = started is not None and started.get('ev') == 'job.computing'
         snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
-        check('W388: pairwise histogram O(N^2) loop stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
+        check('W388: pairwise histogram O(N^2) loop stops on abort', hist_started and stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
         snd(cmd='run.configure', total_time=20)
         col(is_done)
 
