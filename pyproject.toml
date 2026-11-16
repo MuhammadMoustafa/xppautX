@@ -17,3 +17,14 @@ dependencies = [
 
 [tool.uv]
 package = false
+
+# W268 (#325): the GPU probes (paper/benchmarks/gpu/) compile CUDA C with NVRTC and launch it through CuPy's RawKernel: pip wheels
+# only, no CUDA toolkit or nvcc. Not in the default groups: `uv run --locked python` is unchanged; the probes run with
+# `uv run --locked --group gpu python`. The NVRTC and runtime wheels are held to 13.2.x, the CUDA version the driver (595) reports,
+# which a newer runtime wheel would exceed.
+[dependency-groups]
+gpu = [
+    "cupy-cuda13x",
+    "nvidia-cuda-nvrtc<13.3",
+    "nvidia-cuda-runtime<13.3",
+]

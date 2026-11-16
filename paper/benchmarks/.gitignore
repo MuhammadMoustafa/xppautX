@@ -3,6 +3,8 @@
 !*/
 !/.gitignore
 !/CHANGES-w354-rerun-fixes.md
+!/gpu/*.py
+!/gpu/kernels/*.cu
 !/auto-jacobian/README.md
 !/auto-jacobian/apply_jacobian.py
 !/auto-jacobian/compare.py
