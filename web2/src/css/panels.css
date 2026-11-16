@@ -57,7 +57,6 @@
 /* the columns keep their width (the first 6rem, the others 8rem): the grid scrolls sideways inside its own box, rows and header as wide as the columns */
 .table-group-label { font-size: var(--text-xs); color: var(--fg-muted); margin-right: var(--space-1); }
 .table-panel .panel-header .sets-menu > ul { right: 0; }
-.table-panel .sets-menu button { justify-content: flex-start; }
 .table-panel .sets-menu > summary { display: inline-flex; align-items: center; min-height: var(--target); padding: var(--space-1) var(--space-3); font-size: var(--text-sm); }
 .table-info { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); }
 @container table (max-width: 34rem) {

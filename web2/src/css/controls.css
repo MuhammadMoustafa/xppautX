@@ -117,9 +117,15 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 .sets-menu > summary { cursor: pointer; list-style: none; padding: .15rem .5rem; border: 1px solid var(--border); border-radius: var(--radius, .25rem); background: var(--surface); }
 .sets-menu > ul { position: absolute; z-index: var(--z-inline-menu); min-width: 12rem; max-width: min(24rem, 90vw); max-height: 60vh; overflow: auto; margin: 0; padding: .25rem; list-style: none;
   background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
-.sets-menu button { width: 100%; text-align: left; }
+/* a menu's items are rows of a list in every menu, the menu bar's and the drop-downs' (W776): no box until pointed at or focused, the label
+   at the start; a nested menu's trigger and a checkbox row (menu-check) are rows too */
+.app-menu button, .sets-menu button, .plot-more-menu button, .plot-more-menu .sets-menu > summary {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: var(--target); padding: 0 var(--space-3);
+  text-align: left; border: 0; border-radius: .375rem; background: none; cursor: pointer; }
+.app-menu button:hover:not(:disabled), .app-menu button:focus-visible, .sets-menu button:hover:not(:disabled), .sets-menu button:focus-visible,
+.plot-more-menu button:hover:not(:disabled), .plot-more-menu button:focus-visible, .plot-more-menu .sets-menu > summary:hover, .sets-menu .menu-check:hover { background: var(--surface-2); }
 .sets-menu .value-hint { margin: .25rem; }
-.sets-menu .menu-check { display: flex; align-items: center; gap: .4rem; min-height: var(--target); padding: 0 .5rem; cursor: pointer; }
+.sets-menu .menu-check { display: flex; align-items: center; gap: .4rem; min-height: var(--target); padding: 0 var(--space-3); border-radius: .375rem; cursor: pointer; }
 /* a graph's sets row folded into one drop-down (its toolbar has no room for the row) */
 .sets-fold > .sets-row { position: absolute; right: 0; z-index: var(--z-inline-menu); width: max-content; max-width: min(24rem, 90vw); padding: .25rem;
   background: var(--surface); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
