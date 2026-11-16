@@ -270,7 +270,7 @@ xpp::Result<int> j_movie_save(xpp::Session &s, std::string_view basename, int fm
         xpp::Result<> opened;
         auto output = xpp::open_sink_asking(*s.model().fs, file, true, &opened);
         if (!opened) return std::unexpected(opened.error());
-        if (!output) return xpp::fail("kinescope", xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), xpp::command_place());
+        if (!output) return xpp::replace_declined("kinescope", file, xpp::command_place());
         outputs.push_back(std::move(output));
     }
     for (int i = 0; i < s.kinescope->frames; i++) {
@@ -292,7 +292,7 @@ xpp::Result<> j_movie_make_anigif(xpp::Session &s, std::string_view file)
     xpp::Result<> opened;
     const std::unique_ptr<xpp::Sink> out = xpp::open_sink_asking(*s.model().fs, file, true, &opened);
     if (!opened) return std::unexpected(opened.error());
-    if (!out) return xpp::fail("kinescope", xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), xpp::command_place());
+    if (!out) return xpp::replace_declined("kinescope", file, xpp::command_place());
     for (int i = 0; i < k.frames; i++) {
         std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
         if (rgb.empty()) {

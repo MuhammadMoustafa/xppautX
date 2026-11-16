@@ -194,7 +194,7 @@ Result<std::string> export_picture(Session &s, const Command &command, const Arg
     const std::string &file = args.get<std::string>("file");
     const Result<bool> written = write_plot_picture(s, choice_index(picture_format_names, args.get<std::string>("format")), file);
     if (!written) return std::unexpected<Error>(written.error());
-    if (!*written) return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), place);
+    if (!*written) return replace_declined(command.name, file, place);
     const Result<unsigned long long> size = file_size(*s.model().fs, file, command, place);
     if (!size) return std::unexpected<Error>(size.error());
     return ResultObject().text("file", file).integer("bytes_written", static_cast<long long>(*size)).done();

@@ -16,6 +16,7 @@
 #include <expected>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -82,6 +83,12 @@ using Result = std::expected<T, Error>;
 inline std::unexpected<Error> fail(std::string where, std::string what, Place place = {})
 {
   return std::unexpected<Error>(Error{std::move(where), std::move(what), std::move(place)});
+}
+
+/* a write whose existing `file` the user chose not to keep: the replace decision (xpp_ui.h open_sink_asking) said no */
+inline std::unexpected<Error> replace_declined(std::string where, std::string_view file, Place place = {})
+{
+  return fail(std::move(where), "\"" + std::string(file) + "\" exists and replacing it was declined: nothing was written", std::move(place));
 }
 
 /* a failure to read `file` */

@@ -741,7 +741,7 @@ Result<> write_equilibrium(xpp::AnalysisParts &s, const char *name, int shoot, c
   Result<> opened;
   const std::unique_ptr<xpp::Sink> w=open_sink_asking(*s.model().fs,name,false,&opened);
   if(!opened)return opened;
-  if(!w)return fail("equilibrium.export",xpp::format("\"{}\" exists and replacing it was declined: nothing was written",name),command_place());
+  if(!w)return replace_declined("equilibrium.export", name, command_place());
   for(int i=0;i<n;i++)
     w->print("{:g} {:g} {:g}\n",x[i],er[i],em[i]);
   if(const auto saved=commit_save(*w);!saved)return saved;

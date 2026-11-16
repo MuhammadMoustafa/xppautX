@@ -381,7 +381,7 @@ Result<> save_batch_shoot(AnalysisParts &s,std::string_view file,const RunReport
       Result<> opened;
       const std::unique_ptr<Sink> writer=open_sink_asking(*s.model().fs,name,false,&opened);
       if(!opened)return opened;
-      if(!writer)return fail("equilibrium.export",xpp::format("\"{}\" exists and replacing it was declined: nothing was written",name),command_place());
+      if(!writer)return replace_declined("equilibrium.export", name, command_place());
       if(const auto saved=save_mytable_data(s,*writer);!saved)return saved;
     }
     return {};

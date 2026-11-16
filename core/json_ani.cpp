@@ -95,7 +95,7 @@ xpp::Result<int> ani_go(xpp::Session &s, const xpp::AniExport &out)
         xpp::Result<> opened;
         gif = xpp::open_sink_asking(*s.model().fs, out.file, true, &opened);
         if (!opened) return std::unexpected(opened.error());
-        if (!gif) return xpp::fail("animation", xpp::format("\"{}\" exists and replacing it was declined: nothing was written", out.file), xpp::command_place());
+        if (!gif) return xpp::replace_declined("animation", out.file, xpp::command_place());
     }
     while (!stop) {
         int row = s.animation->vcr.pos;

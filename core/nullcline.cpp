@@ -448,7 +448,7 @@ Result<int> export_nullclines(Session &s, const std::string &file, std::string_v
   Result<> opened;
   const std::unique_ptr<Sink> writer=open_sink_asking(*s.model().fs,file,selected->binary,&opened);
   if(!opened)return std::unexpected(opened.error());
-  if(!writer)return fail("nullcline.export",xpp::format("\"{}\" exists and replacing it was declined: nothing was written",file),command_place());
+  if(!writer)return replace_declined("nullcline.export", file, command_place());
   if(const Result<> written=selected->write(nullclines_table(s.nullcline_state->x_null.data(),s.nullcline_state->num_x_n,
                                      s.nullcline_state->y_null.data(),s.nullcline_state->num_y_n),*writer);!written){
     abort_save(*writer);
@@ -640,7 +640,7 @@ Result<> write_dfield(xpp::Session &s, std::string_view name)
   Result<> opened;
   const std::unique_ptr<Sink> w=open_sink_asking(*s.model().fs,name,false,&opened);
   if(!opened){*s.drawing=drawn;return opened;}
-  if(!w){*s.drawing=drawn;return fail("direction_field.export",xpp::format("\"{}\" exists and replacing it was declined: nothing was written",name),command_place());}
+  if(!w){*s.drawing=drawn;return replace_declined("direction_field.export", name, command_place());}
   dfield_of_window(s,w.get());
   *s.drawing=drawn;
   if(s.parser.step_error){abort_save(*w);return take_step_error(s);}

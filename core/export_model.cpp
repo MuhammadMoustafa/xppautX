@@ -909,7 +909,7 @@ Result<std::string> export_to_file(FileSystem &fs, const SessionParts &s, const 
     Result<> opened;
     const std::unique_ptr<Sink> sink = open_sink_asking(fs, file, false, &opened);
     if (!opened) return std::unexpected(opened.error());
-    if (!sink) return fail("export model", xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), command_place());
+    if (!sink) return replace_declined("export model", file, command_place());
     if (Result<> written = sink->write(*text); !written) {
         abort_save(*sink);
         return std::unexpected(written.error());

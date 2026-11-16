@@ -57,7 +57,7 @@ Result<std::string> tabulate(Session &s, const Command &command, const Arguments
     const std::string &file = args.get<std::string>(FILE_KEY);
     const Result<std::size_t> rows = tabulate_column(s, args.get<std::string>("variable"), args.get<double>("x_low"), args.get<double>("x_high"), file);
     if (!rows) return std::unexpected<Error>(rows.error());
-    if (*rows == 0) return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), place);
+    if (*rows == 0) return replace_declined(command.name, file, place);
     return ResultObject().text(FILE_KEY, file).integer("rows_written", static_cast<long long>(*rows)).done();
 }
 
@@ -108,7 +108,7 @@ Result<std::string> export_data(Session &s, const Command &command, const Argume
                                                    [&s] { return plot_curves_table(s); });
     if (!saved) return std::unexpected<Error>(saved.error());
     if (!saved->file.empty() && saved->rows == 0)
-        return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", saved->file), place);
+        return replace_declined(command.name, saved->file, place);
     return ResultObject().text(FILE_KEY, saved->file).integer("rows_written", static_cast<long long>(saved->rows)).done();
 }
 
