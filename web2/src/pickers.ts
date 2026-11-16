@@ -22,12 +22,19 @@ export interface SaveHandle {
   createWritable(): Promise<{write(data: Blob): Promise<void>; close(): Promise<void>}>;
 }
 
+/** a folder the browser let the page write into (showDirectoryPicker) */
+export interface FolderHandle {
+  name: string;
+  getFileHandle(name: string, o: {create: true}): Promise<SaveHandle>;
+}
+
 interface PickerWindow {
   showOpenFilePicker?: (o?: {
     multiple?: boolean;
     excludeAcceptAllOption?: boolean;
     types?: {description?: string; accept: Record<string, string[]>}[];
   }) => Promise<{getFile(): Promise<File>}[]>;
+  showDirectoryPicker?: (o?: {mode?: 'readwrite'}) => Promise<FolderHandle>;
   showSaveFilePicker?: (o?: {
     suggestedName?: string;
     types?: {description?: string; accept: Record<string, string[]>}[];
@@ -138,4 +145,51 @@ export function nativeFileRequest(ask: {title?: string; mode?: string; file?: st
     wild: ask.wild ?? '',
     exts: wildExtensions(ask.wild),
   };
+}
+
+/** the desktop window's own folder dialog (W781): bound as `__xppPickFolder` only where the platform has one
+    (the binding is how the page tells, not a platform guess). It resolves with the full path picked, which the
+    core has granted for files written directly in it, or null when the user cancelled (which ends an earlier
+    grant); it rejects when the dialog could not open. __xppReleaseFolder() ends the grant. */
+type NativeFolderDialog = (request: {title: string; dir: string}) => Promise<string | null>;
+
+const nativeFolderDialog = (): NativeFolderDialog | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  const f = (window as unknown as {__xppPickFolder?: unknown}).__xppPickFolder;
+  return typeof f === 'function' ? f as NativeFolderDialog : undefined;
+};
+
+/** a folder to write several files in: the desktop's full path (the core writes there itself, one command per
+    file, each naming `path/name`), or a browser directory handle (the page copies there what the core wrote,
+    writeInFolder) */
+export type PickedFolder = {path: string} | {handle: FolderHandle};
+
+/** a folder can be picked: the window's dialog, or the browser's directory picker. Where neither exists the files
+    are offered as downloads (offerDownload), which need no folder. */
+export const canPickFolder = () => nativeFolderDialog() !== undefined || typeof w().showDirectoryPicker === 'function';
+
+/** the folder the user picked, or null when the dialog was closed; `dir` is the folder shown first (desktop) */
+export async function pickFolder(title: string, dir = ''): Promise<PickedFolder | null> {
+  const native = nativeFolderDialog();
+  if (native) {
+    const path = await native({title, dir});
+    return path ? {path} : null;
+  }
+  try {
+    return {handle: await w().showDirectoryPicker!({mode: 'readwrite'})};
+  } catch (e) {
+    if (cancelled(e)) return null;
+    throw e;
+  }
+}
+
+/** a file into a browser-picked folder (a base name: the page has checked it with safeName) */
+export async function writeInFolder(folder: FolderHandle, name: string, data: Blob): Promise<void> {
+  await writeTo(await folder.getFileHandle(name, {create: true}), data);
+}
+
+/** the desktop folder grant is over (the batch is done); nothing for a browser's handle */
+export async function releaseFolder(): Promise<void> {
+  const f = typeof window === 'undefined' ? undefined : (window as unknown as {__xppReleaseFolder?: unknown}).__xppReleaseFolder;
+  if (typeof f === 'function') await (f as () => Promise<null>)();
 }

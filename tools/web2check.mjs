@@ -6541,6 +6541,22 @@ async function nativeFiles(dir) {
       && await until("s.toasts.some(t => t.kind === 'error' && /file dialog/.test(t.text))", 'toast'),
       JSON.stringify(await S('s.toasts')));
     check('no web2 file dialog appeared at any point', !(await cdp.eval('window.__fileDialogShown')));
+    /* W781: the folder picker asks the window's __xppPickFolder, answers its path or null, and releases through
+       __xppReleaseFolder; the core's grant itself is tests/test_folder_grant.cpp's (the OS dialog is checked by hand) */
+    check('W781: no folder picker bound: none can be picked', !(await cdp.eval('window.__xpp.folders.canPick()')));
+    await cdp.eval(`(() => {
+      window.__folderAsked = []; window.__folderReleased = 0; window.__folderReply = ${JSON.stringify(elsewhere)};
+      window.__xppPickFolder = async r => { window.__folderAsked.push(r); return window.__folderReply; };
+      window.__xppReleaseFolder = async () => { window.__folderReleased++; return null; };
+      return true; })()`);
+    check('W781: a bound __xppPickFolder can be picked', await cdp.eval('window.__xpp.folders.canPick()'));
+    check('W781: the folder picked is its full path, asked with the title and folder',
+      JSON.stringify(await cdp.eval(`window.__xpp.folders.pick('Export several', '/m/')`)) === JSON.stringify({path: elsewhere})
+      && JSON.stringify(await cdp.eval('window.__folderAsked')) === JSON.stringify([{title: 'Export several', dir: '/m/'}]));
+    await cdp.eval('window.__folderReply = null; true');
+    check('W781: a cancelled folder pick is null', (await cdp.eval(`window.__xpp.folders.pick('x')`)) === null);
+    await cdp.eval('window.__xpp.folders.release()');
+    check('W781: the grant is released through __xppReleaseFolder', (await cdp.eval('window.__folderReleased')) === 1);
   } finally {
     fs.rmSync(elsewhere, {recursive: true, force: true, maxRetries: 5});
   }

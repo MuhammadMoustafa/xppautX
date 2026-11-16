@@ -77,6 +77,14 @@ bool take_own_open(std::string_view line);
    OS save picker, bound to the prompt id. JSON replies cannot mint it. */
 void authorize_save(std::string_view prompt, std::string_view path);
 bool consume_save(int ask, std::string_view path);
+/* Native UI only (W781): the folder the OS folder dialog returned, granted for the base names directly in it, so
+   several commands can each write a file there with a full path. Replaced by the next pick, ended by
+   release_folder, and the one thing a JSON reply cannot mint. Refused (false, nothing granted) for a path that is
+   not absolute or is a root. in_granted_folder(path): path is a plain base name (xpp::files::name_ok) directly in
+   it, spelled as granted: no subfolder, no "..", no other folder. */
+bool authorize_folder(std::string_view path);
+void release_folder();
+bool in_granted_folder(std::string_view path);
 
 /* cls(line, seq) says where a line goes (Verdict). It runs on the pushing
    reader thread, before the line is queued, with no inbox lock held that

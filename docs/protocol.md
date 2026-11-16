@@ -1117,6 +1117,10 @@ The model's named sets, the values (parameters, sliders, XPPAUT's .par and .ic f
 A file the commands write is a base name in the model's folder; replacing one that is there asks (a `choice` ask), and a No is the error `... replacing it was declined: nothing was written`. Every registry command takes the
 `replace` field ("Saving data"): `1` replaces the file, `-1` declines, `0` or left out asks.
 
+### A folder for several files (W781, #861)
+
+The desktop window binds `__xppPickFolder({title, dir})` (the OS folder dialog: GTK and macOS, not yet Windows, W782; the page tells by the binding's presence) and `__xppReleaseFolder()`. A pick resolves with the full path, or null when cancelled, and rejects when the dialog could not open. The core grants that folder, and only the window's call to its host table can: no command, answer or `/files` request carries one. While it is granted, a command's `file` argument may be a full path directly in that folder (`<folder>/name`, the name a plain base name: `xpp::files::name_ok`), written through the usual path (temp file, then rename, the replace question as for any save), so several commands can each write a file in one folder. A path in any other folder, in a subfolder, with `..`, a link in the folder (a write never follows one) or in a root folder is refused as it always was, with "not a plain file name in the model's folder"; a root folder is refused at the pick. There is one grant: the next pick replaces it, a cancelled pick or `__xppReleaseFolder()` ends it (the page calls it when its batch is done), and it ends with the program. Recordings keep the paths their commands named; played where the grant is not, those commands are refused. In a browser the page picks a folder with `showDirectoryPicker` where there is one and copies there the files the core wrote into the model's folder (`/files`), else offers them as downloads (web2/src/pickers.ts `pickFolder`, `writeInFolder`).
+
 ## Saving data
 
 The data table's `data.export` (Save data) writes the data table or what the plot

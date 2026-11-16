@@ -45,24 +45,28 @@ std::string any_case(const std::string &ext)
 /* GtkFileChooserDialog, on the GTK thread */
 std::optional<std::string> pick_file(void *window, const FileDialog &d)
 {
-    GtkWidget *dlg = gtk_file_chooser_dialog_new(d.title.empty() ? nullptr : d.title.c_str(), GTK_WINDOW(window),
-                                                 d.save ? GTK_FILE_CHOOSER_ACTION_SAVE : GTK_FILE_CHOOSER_ACTION_OPEN,
+    const GtkFileChooserAction action = d.folder ? GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER
+                                        : d.save ? GTK_FILE_CHOOSER_ACTION_SAVE
+                                                 : GTK_FILE_CHOOSER_ACTION_OPEN;
+    GtkWidget *dlg = gtk_file_chooser_dialog_new(d.title.empty() ? nullptr : d.title.c_str(), GTK_WINDOW(window), action,
                                                  "_Cancel", GTK_RESPONSE_CANCEL, d.save ? "_Save" : "_Open",
                                                  GTK_RESPONSE_ACCEPT, nullptr);
     if (!dlg) return std::nullopt;
     GtkFileChooser *fc = GTK_FILE_CHOOSER(dlg);
     gtk_file_chooser_set_local_only(fc, TRUE);
     gtk_file_chooser_set_do_overwrite_confirmation(fc, TRUE);
-    if (!d.exts.empty()) {
+    if (!d.folder && !d.exts.empty()) {
         GtkFileFilter *types = gtk_file_filter_new();
         gtk_file_filter_set_name(types, d.filter.c_str());
         for (const std::string &e : d.exts) gtk_file_filter_add_pattern(types, any_case(e).c_str());
         gtk_file_chooser_add_filter(fc, types);
     }
-    GtkFileFilter *all = gtk_file_filter_new();
-    gtk_file_filter_set_name(all, "All files");
-    gtk_file_filter_add_pattern(all, "*");
-    gtk_file_chooser_add_filter(fc, all);
+    if (!d.folder) {
+        GtkFileFilter *all = gtk_file_filter_new();
+        gtk_file_filter_set_name(all, "All files");
+        gtk_file_filter_add_pattern(all, "*");
+        gtk_file_chooser_add_filter(fc, all);
+    }
     if (!d.dir.empty()) gtk_file_chooser_set_current_folder(fc, d.dir.c_str());
     if (d.save && !d.file.empty()) gtk_file_chooser_set_current_name(fc, d.file.c_str());
     std::optional<std::string> picked = std::string();

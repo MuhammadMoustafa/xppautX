@@ -15,6 +15,7 @@
    program: xpp::out_of_memory_now). */
 #include "xpp_inbox.h"
 #include "xpp_log.h"
+#include "xpp_path.h"
 #include "xpp_text.h"
 #include <cstdio>
 #include <cstdlib>
@@ -52,6 +53,7 @@ pthread_cond_t ready = PTHREAD_COND_INITIALIZER;
 struct Queues : std::array<std::deque<Item>, 2> {
     int save_ask = 0;
     std::string save_path; /* one native choice, consumed by its exact prompt */
+    std::string folder;    /* the native folder choice (W781), until replaced or released: empty is none */
     std::string own_open_line; /* the line push_open pushed, until the command that reads it takes it */
     size_t normal_bytes = 0; /* the bytes of the normal queue's lines */
     size_t kept_lines = 0, kept_bytes = 0; /* the command loop's own (set_kept) */
@@ -197,6 +199,34 @@ bool consume_save(int ask, std::string_view path)
     queues.save_path.clear();
     pthread_mutex_unlock(&lock);
     return allowed;
+}
+
+bool authorize_folder(std::string_view path)
+{
+    std::string choice(path);
+    while (choice.size() > 1 && (choice.back() == '/' || choice.back() == '\\')) choice.pop_back();
+    /* a root ("/", "C:\\") is no folder to hand out: its files are everyone's */
+    if (!xpp::files::is_absolute(choice) || xpp::files::split_path(choice).first == choice) return false;
+    pthread_mutex_lock(&lock);
+    queues.folder = std::move(choice);
+    pthread_mutex_unlock(&lock);
+    return true;
+}
+
+void release_folder()
+{
+    pthread_mutex_lock(&lock);
+    queues.folder.clear();
+    pthread_mutex_unlock(&lock);
+}
+
+bool in_granted_folder(std::string_view path)
+{
+    const auto [dir, base] = xpp::files::split_path(path);
+    pthread_mutex_lock(&lock);
+    const bool inside = !queues.folder.empty() && dir == queues.folder && xpp::files::name_ok(base);
+    pthread_mutex_unlock(&lock);
+    return inside;
 }
 
 void close()

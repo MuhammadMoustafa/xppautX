@@ -7,7 +7,7 @@ import {
   answerName, baseName, initialFiles, keepBothName, matchesWild, onSent, safeName, uploadPlan,
 } from '../src/store/files';
 import type {AskEvent} from '../src/protocol/types';
-import {nativeFileRequest, wildExtensions} from '../src/pickers';
+import {canPickFolder, nativeFileRequest, pickFolder, releaseFolder, wildExtensions, writeInFolder} from '../src/pickers';
 import {HELLO, READY} from './hello';
 import {reduce} from '../src/store/state';
 
@@ -100,4 +100,43 @@ test('the desktop window\'s own dialog (W88) is asked with the filter of wildExt
   /* a relative path keeps the ask's folder, the base name offered */
   assert.deepEqual([nativeFileRequest({file: 'sub/x.set', dir: '/m/'}).dir, nativeFileRequest({file: 'sub/x.set', dir: '/m/'}).file],
     ['/m/', 'x.set']);
+});
+
+test('a folder is picked by the window\'s own dialog (granted, a full path) or the browser\'s directory picker (a handle) (W781)', async () => {
+  const g = globalThis as unknown as {window?: Record<string, unknown>};
+  const asked: unknown[] = [];
+  const written: [string, string][] = [];
+  const handle = {
+    name: 'out',
+    getFileHandle: async (name: string, o: {create: true}) => {
+      assert.equal(o.create, true);
+      return {name, createWritable: async () => ({write: async (b: Blob) => { written.push([name, await b.text()]); }, close: async () => {}})};
+    },
+  };
+  try {
+    g.window = {};
+    assert.equal(canPickFolder(), false); /* neither: downloads */
+    g.window = {showDirectoryPicker: async (o: {mode: string}) => { assert.equal(o.mode, 'readwrite'); return handle; }};
+    assert.equal(canPickFolder(), true);
+    const picked = await pickFolder('Export', '/m/');
+    assert.ok(picked && 'handle' in picked && picked.handle === handle);
+    await writeInFolder(handle, 'a.csv', new Blob(['1,2']));
+    assert.deepEqual(written, [['a.csv', '1,2']]);
+    g.window = {showDirectoryPicker: async () => { throw new DOMException('closed', 'AbortError'); }};
+    assert.equal(await pickFolder('Export'), null);
+    g.window = {showDirectoryPicker: async () => { throw new DOMException('no', 'SecurityError'); }};
+    await assert.rejects(pickFolder('Export'));
+    /* the desktop's binding wins, and says only a path or null */
+    g.window = {__xppPickFolder: async (r: {title: string; dir: string}) => { asked.push(r); return '/home/u/out'; }, showDirectoryPicker: async () => handle};
+    assert.deepEqual(await pickFolder('Export', '/m/'), {path: '/home/u/out'});
+    assert.deepEqual(asked, [{title: 'Export', dir: '/m/'}]);
+    g.window = {__xppPickFolder: async () => null};
+    assert.equal(await pickFolder('Export'), null);
+    let released = 0;
+    g.window = {__xppReleaseFolder: async () => { released++; return null; }};
+    await releaseFolder();
+    assert.equal(released, 1);
+  } finally {
+    delete g.window;
+  }
 });

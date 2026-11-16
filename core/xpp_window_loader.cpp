@@ -55,7 +55,9 @@ const XppWindowHost host = {XPP_WINDOW_HOST_VERSION,
                             xpp::log_message,
                                   xpp::http::open_release_page,
                                   xpp::http::open_about_link,
-                                  xpp::inbox::authorize_save};
+                                  xpp::inbox::authorize_save,
+                                  xpp::inbox::authorize_folder,
+                                  xpp::inbox::release_folder};
 XppWindowApi api; /* the library's, once it is loaded */
 bool loaded;
 

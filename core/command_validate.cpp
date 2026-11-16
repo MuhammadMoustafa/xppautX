@@ -8,6 +8,7 @@
 #include "command_def.h"
 #include "json_reader.h"
 #include "browse.h"
+#include "xpp_inbox.h"
 #include "many_pops.h"
 #include "session.h"
 #include "typed_values.h"
@@ -157,7 +158,8 @@ Result<Scalar> read_text(const Check &c, const Argument &arg, Type type, const c
         }
         break;
     case Type::file:
-        if (!files::name_ok(text))
+        /* a base name in the model's folder, or a full path directly in the folder the OS dialog granted (W781) */
+        if (!files::name_ok(text) && !inbox::in_granted_folder(text))
             return bad(xpp::format("Argument \"{}\": \"{}\" is {}", label, text, files::NOT_A_PLAIN_NAME));
         break;
     case Type::path:

@@ -46,6 +46,7 @@ webview_t main_view();
 
 /* the file dialog the page asked for (W88): web2's __xppFileDialog */
 struct FileDialog {
+    bool folder = false;           /* pick a folder (W781): save, file, filter and exts mean nothing then */
     bool save = false;
     std::string title;
     std::string dir;               /* the folder shown first ("": the system's choice) */
@@ -68,6 +69,12 @@ bool run_on_ui_thread();
 
 /* whether a native file dialog exists (GTK 4 has none: web2 shows its own) */
 bool has_file_dialog();
+/* whether pick_file takes FileDialog::folder (W781); Windows' does with W782 (FOS_PICKFOLDERS) */
+#ifdef _WIN32
+inline constexpr bool HAS_FOLDER_DIALOG = false;
+#else
+inline constexpr bool HAS_FOLDER_DIALOG = true;
+#endif
 /* the platform's dialog, on the window's UI thread, owned by window (its native
    window): the path picked, "" when cancelled, nullopt when it could not open */
 std::optional<std::string> pick_file(void *window, const FileDialog &d);

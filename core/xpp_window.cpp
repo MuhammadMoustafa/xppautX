@@ -71,7 +71,9 @@ const XppWindowHost host_table = {XPP_WINDOW_HOST_VERSION,
                                   xpp::log_message,
                                   xpp::http::open_release_page,
                                   xpp::http::open_about_link,
-                                  xpp::inbox::authorize_save};
+                                  xpp::inbox::authorize_save,
+                                  xpp::inbox::authorize_folder,
+                                  xpp::inbox::release_folder};
 const XppWindowHost *const host = &host_table;
 #endif
 
@@ -258,10 +260,11 @@ void on_exit()
 
 /* the page's __xppFileDialog({mode, title, dir, file, wild, exts}), in
    webview's JSON (xpp_webview.h) */
-FileDialog file_dialog_of(const std::string &request)
+FileDialog file_dialog_of(const std::string &request, bool folder)
 {
     const std::string o = xpp::webview_json_value(request, "", 0);
     FileDialog d;
+    d.folder = folder;
     d.save = xpp::webview_json_value(o, "mode", 0) == "write";
     d.title = xpp::webview_json_value(o, "title", 0);
     d.dir = xpp::webview_json_value(o, "dir", 0);
@@ -276,22 +279,30 @@ FileDialog file_dialog_of(const std::string &request)
     return d;
 }
 
-/* __xppFileDialog's call, on the UI thread (webview dispatches it there,
+/* __xppFileDialog's and __xppPickFolder's call, on the UI thread (webview dispatches it there,
    out of the web view's own event): resolves with the path picked, null
    when cancelled, and rejects when the dialog could not open. Called from
-   the library: nothing may throw. */
-void file_dialog_cb(const char *id, const char *request, void *arg)
+   the library: nothing may throw. A save pick grants that one path to its ask; a folder pick
+   grants the folder (W781) and a cancelled one ends the grant before it. */
+void dialog_cb(const char *id, const char *request, void *arg, bool folder)
 {
     webview_t w = static_cast<webview_t>(arg);
     int status = 0;
     std::string reply = "null";
     try {
         const std::string input = request ? request : "";
-        const FileDialog dialog = file_dialog_of(input);
+        const FileDialog dialog = file_dialog_of(input, folder);
         std::optional<std::string> path = pick_file(webview_get_window(w), dialog);
         if (!path) {
             status = 1;
             reply = xpp::webview_json_quote("the file dialog could not open");
+        } else if (folder) {
+            if (path->empty()) host->release_folder();
+            else if (host->authorize_folder(*path)) reply = xpp::webview_json_quote(*path);
+            else {
+                status = 1;
+                reply = xpp::webview_json_quote("that folder cannot be written to (a root folder)");
+            }
         } else if (!path->empty()) {
             if (dialog.save) {
                 const std::string object = xpp::webview_json_value(input, "", 0);
@@ -305,6 +316,26 @@ void file_dialog_cb(const char *id, const char *request, void *arg)
         host->log(XPP_LOG_WARN, "xppautX: the file dialog failed: {}\n", e.what());
     }
     webview_return(w, id, status, reply.c_str());
+}
+
+void file_dialog_cb(const char *id, const char *request, void *arg) { dialog_cb(id, request, arg, false); }
+void folder_dialog_cb(const char *id, const char *request, void *arg) { dialog_cb(id, request, arg, true); }
+
+/* __xppReleaseFolder(): the page is done with the folder it picked (nothing to grant, so nothing to refuse) */
+void release_folder_cb(const char *id, const char *, void *arg)
+{
+    host->release_folder();
+    webview_return(static_cast<webview_t>(arg), id, 0, "null");
+}
+
+/* the page's native dialogs; the folder one only where the platform has it, so the page tells by the binding */
+void bind_file_dialogs(webview_t w)
+{
+    if (!has_file_dialog()) return;
+    webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
+    if (!HAS_FOLDER_DIALOG) return;
+    webview_bind(w, "__xppPickFolder", folder_dialog_cb, w);
+    webview_bind(w, "__xppReleaseFolder", release_folder_cb, w);
 }
 
 /* A binding that opens a URL in the system browser. It may be called by a
@@ -398,7 +429,7 @@ webview_t open_popout_view(const std::string &key, const std::string &title, std
     webview_set_title(w, title.c_str());
     webview_set_size(w, POPOUT_WIDTH, POPOUT_HEIGHT, WEBVIEW_HINT_NONE);
     prepare_popout(w);
-    if (has_file_dialog()) webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
+    bind_file_dialogs(w);
     webview_bind(w, "__xppClosePopOut", close_popout_cb, w);
     webview_navigate(w, (std::string(host->http_url()) + std::string(POPOUT_FRAGMENT) + key).c_str());
     return w;
@@ -460,7 +491,7 @@ webview_t open_view()
     prepare_window(w);
     place_window(w);
     /* before the page loads, so it is there from its first script */
-    if (has_file_dialog()) webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
+    bind_file_dialogs(w);
     webview_bind(w, "__xppCloseWindow", close_window_cb, w);
     webview_bind(w, "__xppPopOut", popout_cb, w);
     webview_bind(w, "__xppOpenRelease", open_release_cb, w);
