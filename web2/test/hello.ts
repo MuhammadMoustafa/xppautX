@@ -101,6 +101,7 @@ export const HELLO: HelloEvent = {
   ev: 'hello',
   point_types: POINT_TYPES,
   file_formats: FILE_FORMATS,
+  menu_separator: ' \u203a ',
   autox_run: {kinds: ['equilibrium', 'periodic'], current: ['equilibrium'], rows: []},
   model_features: [],
   state_inspection: {tail_intervals: 10}, protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: [], update: {install: 'release_page', asset_suffix: '', why: 'a test'},

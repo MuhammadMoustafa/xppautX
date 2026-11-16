@@ -90,6 +90,8 @@ export interface HelloEvent {
   point_types: PointType[];
   /** every file format's name as written, lowercase (csv, csv.gz, pdf): a choice that is one is labelled by it */
   file_formats: string[];
+  /** what joins the groups of a command's full name (core MENU_SEPARATOR): a menu_choice item's name is joined the same way */
+  menu_separator: string;
   /** the model's buttons: a label and the registry command each runs */
   userbuttons: {label: string; command: string}[];
   /** the color scales the core has, by name (the array plot's choice) */

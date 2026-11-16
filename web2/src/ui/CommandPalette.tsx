@@ -15,7 +15,7 @@ function Palette() {
   const [query, setQuery] = useState('');
   const title = useCommandLabel('command_palette.open');
   const close = () => session.store.dispatch({type: 'drawer', open: false});
-  const rows = paletteRows(registryRows(hello), query);
+  const rows = paletteRows(registryRows(hello), query, hello?.menu_separator ?? '');
   const arrows = (e: KeyboardEvent): boolean => {
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return false;
     const buttons = [...(document.querySelectorAll<HTMLButtonElement>('#command-palette .menu-item:not(:disabled)'))];

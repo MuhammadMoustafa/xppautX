@@ -46,9 +46,9 @@ test('W649: a row that needs a feature the model lacks has no place in the menu 
   assert.equal(featureLack(hello(false), undefined), null);
 });
 test('W517: palette matches each word in names, menu places and descriptions', () => {
-  assert.ok(paletteRows(rows, 'session save').some(r => r.id === 'session.save'));
-  assert.ok(paletteRows(rows, 'annotation move').some(r => r.id === 'annotation.move'));
-  assert.equal(paletteRows(rows, 'not-a-command').length, 0);
+  assert.ok(paletteRows(rows, 'session save', ' \u203a ').some(r => r.id === 'session.save'));
+  assert.ok(paletteRows(rows, 'annotation move', ' \u203a ').some(r => r.id === 'annotation.move'));
+  assert.equal(paletteRows(rows, 'not-a-command', ' \u203a ').length, 0);
 });
 const arg = (type: string): RegistryArgument => ({name: 'value', type, required: true, choices: ['last_state','initial_state'], min: 0, max: 3});
 test('W517: form fields use registry types, choices, bounds and model/window names', () => {

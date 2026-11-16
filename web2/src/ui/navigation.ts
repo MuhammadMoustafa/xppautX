@@ -25,13 +25,11 @@ export function commandRow(hello: HelloEvent | null, id: string): CommandRow | u
 export function toolbarRow(hello: HelloEvent | null, window: string, id: string): CommandRow | undefined {
   return commandRow(hello, toolbarCommand(window, id));
 }
-/** between the groups of a full name (core MENU_SEPARATOR, command_def.h) */
-const MENU_SEPARATOR = ' \u203a ';
 /** the values of the row's menu_choice argument */
 const choiceValues = (row: CommandRow): string[] => row.arguments?.find(a => a.name === row.menu_choice)?.choices ?? [];
 /** a row with a menu_choice as one item per value (File > Export > Model as > Python): the row with `choice` set and its name ending in the value's label */
-export function choiceItems(row: CommandRow): CommandRow[] {
-  return choiceValues(row).map(value => ({...row, choice: {argument: row.menu_choice!, value}, name: `${row.name}${MENU_SEPARATOR}${choiceLabel(value)}`}));
+export function choiceItems(row: CommandRow, separator: string): CommandRow[] {
+  return choiceValues(row).map(value => ({...row, choice: {argument: row.menu_choice!, value}, name: `${row.name}${separator}${choiceLabel(value)}`}));
 }
 export interface MenuNode {name: string; children: MenuNode[]; row?: CommandRow}
 export function menuTree(rows: CommandRow[], hello: HelloEvent | null): MenuNode[] {
@@ -44,14 +42,14 @@ export function menuTree(rows: CommandRow[], hello: HelloEvent | null): MenuNode
       if (!node) { node = {name, children: []}; children.push(node); }
       children = node.children;
     }
-    if (row.menu_choice) children.push({name: row.label, children: choiceItems(row).map(item => ({name: choiceLabel(item.choice!.value), children: [], row: item}))});
+    if (row.menu_choice) children.push({name: row.label, children: choiceItems(row, hello!.menu_separator).map(item => ({name: choiceLabel(item.choice!.value), children: [], row: item}))});
     else children.push({name: row.label, children: [], row});
   }
   return tree;
 }
-export function paletteRows(rows: CommandRow[], query: string): CommandRow[] {
+export function paletteRows(rows: CommandRow[], query: string, separator: string): CommandRow[] {
   const words = query.toLowerCase().trim().split(/\s+/);
-  return rows.flatMap(row => row.menu_choice ? choiceItems(row) : [row]).filter(row => words.every(word => `${row.id} ${row.name} ${row.description}`.toLowerCase().includes(word)));
+  return rows.flatMap(row => row.menu_choice ? choiceItems(row, separator) : [row]).filter(row => words.every(word => `${row.id} ${row.name} ${row.description}`.toLowerCase().includes(word)));
 }
 
 /** the registry command of each toolbar button; a button's text is the row's label, never written again */

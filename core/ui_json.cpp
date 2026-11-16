@@ -1251,6 +1251,8 @@ void send_hello(xpp::Session &s)
     buf_commands(b);
     buf_point_types(b);
     buf_file_formats(b);
+    BUF_LIT(b, ",\"menu_separator\":");
+    buf_str(b, std::string(xpp::command::MENU_SEPARATOR));
     BUF_LIT(b, ",\"autox_run\":");
     b += xpp::autox_run_table_json();
     /* The names accepted by a registry model_name of NameSet::any. */
