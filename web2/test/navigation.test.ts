@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {registryRows, menuTree, paletteRows, featureLack} from '../src/ui/navigation';
+import {registryRows, menuTree, paletteRows, featureLack, choiceItems} from '../src/ui/navigation';
 import {argumentSpec, argumentNames, argumentProblem, commandValues, formValues, argumentControl, blankArgument} from '../src/ui/argumentFields';
 import {REGISTRY_HELLO} from './hello';
 import {initialState} from '../src/store/state';
@@ -88,4 +88,17 @@ test('W323: the active graph a form fills in goes with the scopes all and plot o
   assert.deepEqual(formValues(args, {scope: 'plot', window: 'main'}), {scope: 'plot', window: 'main'});
   assert.deepEqual(formValues(args, {scope: 'all', window: 'main'}), {scope: 'all', window: 'main'});
   assert.deepEqual(formValues([args[1]], {window: 'main'}), {window: 'main'});
+});
+
+test('W771: a menu_choice item is the command with the value and the row\'s fixed argument, or the one a place gives', () => {
+  const row = {id: 'data.export', label: 'Data as', name: 'File \u203a Export \u203a Data as', menu_choice: 'format', menu_fixed: {argument: 'target', value: 'table'},
+    arguments: [{name: 'format', type: 'choice', choices: ['dat', 'csv']}]} as unknown as Parameters<typeof choiceItems>[0];
+  assert.deepEqual(choiceItems(row, ' \u203a ').map(i => i.choice), [{value: 'dat', arguments: {target: 'table', format: 'dat'}}, {value: 'csv', arguments: {target: 'table', format: 'csv'}}]);
+  assert.deepEqual(choiceItems(row, ' \u203a ', {argument: 'target', value: 'plot_curves'})[1].choice?.arguments, {target: 'plot_curves', format: 'csv'});
+});
+
+test('W771: a menu_choice item of a command whose file is required asks the core for it (file_picker)', () => {
+  const row = {id: 'plot.export', label: 'Graph as', name: 'File \u203a Export \u203a Graph as', menu_choice: 'format',
+    arguments: [{name: 'format', type: 'choice', choices: ['pdf']}, {name: 'file', type: 'file', required: true}]} as unknown as Parameters<typeof choiceItems>[0];
+  assert.deepEqual(choiceItems(row, ' \u203a ')[0].choice?.arguments, {format: 'pdf', file_picker: true});
 });

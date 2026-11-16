@@ -14,7 +14,7 @@ struct Model; /* model.h */
 struct TABULAR; /* tabular.h */
 
 /* none first: a row that needs no feature */
-enum class Feature { none, parameters, delays, boundary_conditions, integral_terms, formula_tables };
+enum class Feature { none, parameters, delays, boundary_conditions, integral_terms, formula_tables, output_columns };
 
 struct FeatureInfo {
     Feature feature;
@@ -27,7 +27,8 @@ inline constexpr std::array FEATURES = {
     FeatureInfo{Feature::delays, "delays", "needs a model with delays"},
     FeatureInfo{Feature::boundary_conditions, "boundary_conditions", "needs a model with boundary conditions"},
     FeatureInfo{Feature::integral_terms, "integral_terms", "needs a model with integral equations"},
-    FeatureInfo{Feature::formula_tables, "formula_tables", "needs a model with tables"}};
+    FeatureInfo{Feature::formula_tables, "formula_tables", "needs a model with tables"},
+    FeatureInfo{Feature::output_columns, "output_columns", "needs a model with an only list"}};
 
 const FeatureInfo &feature_info(Feature f);
 /* whether the model m, with the function tables a session made of it, has the feature (Feature::none: always) */

@@ -232,3 +232,4 @@
 .plot-more-menu { position: absolute; z-index: var(--z-inline-menu); right: 0; min-width: 12rem; display: grid; gap: var(--space-1); padding: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
 .plot-more:not([open]) > .plot-more-menu { display: none; }
 .plot-more-menu button { justify-content: flex-start; }
+.plot-more-menu .sets-menu > ul { position: static; box-shadow: none; }

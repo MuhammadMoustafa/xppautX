@@ -54,7 +54,7 @@ namespace xpp::command {
 namespace {
 
 constexpr const char *VIEW_KEY = "view";
-constexpr const char *WINDOW_KEY = "window";
+constexpr const char *WINDOW_KEY = "window", *FORMAT_KEY = "format";
 constexpr const char *FILE_KEY = "file";
 constexpr const char *LABEL_KEY = "label";
 
@@ -564,23 +564,15 @@ Result<std::string> export_csv(Session &s, const Command &command, const Argumen
     }, "points_written", diagram_count(*s.diagram));
 }
 
-Result<std::string> export_picture(Session &s, const Command &command, const Arguments &args, const Place &place, int format, const char *extension)
+Result<std::string> export_picture(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     const Result<int> view = target_view(s, command, args, place, WINDOW_KEY);
     if (!view) return std::unexpected<Error>(view.error());
-    const std::string file = *file_of(s, args, "diagram", extension);
+    const std::string &name = args.get<std::string>(FORMAT_KEY);
+    const int format = choice_index(picture_format_names, name);
+    const std::string &file = args.get<std::string>(FILE_KEY);
     if (const Result<> done = export_autox_picture(s, format, file, *view); !done) return std::unexpected<Error>(as_command_error(command, done.error(), place));
     return file_result(file);
-}
-
-Result<std::string> export_pdf(Session &s, const Command &command, const Arguments &args, const Place &place)
-{
-    return export_picture(s, command, args, place, IMAGE_FORMAT_PDF, ".pdf");
-}
-
-Result<std::string> export_svg(Session &s, const Command &command, const Arguments &args, const Place &place)
-{
-    return export_picture(s, command, args, place, IMAGE_FORMAT_SVG, ".svg");
 }
 
 Result<std::string> import_diagram(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -768,7 +760,9 @@ constexpr std::array BOX_ARGUMENTS = {Argument{"x_min", Type::real, true}, Argum
                                       Argument{"y_max", Type::real, true}, Argument{VIEW_KEY, Type::window, false}};
 constexpr std::array FILE_OPTIONAL = {Argument{FILE_KEY, Type::file, false}};
 constexpr std::array FILE_REQUIRED = {Argument{FILE_KEY, Type::file, true}};
-constexpr std::array PICTURE_ARGUMENTS = {Argument{FILE_KEY, Type::file, false}, Argument{WINDOW_KEY, Type::window, false}};
+constexpr auto PICTURE_FORMAT_CHOICES = c_names(picture_format_names);
+constexpr std::array PICTURE_ARGUMENTS = {Argument{FORMAT_KEY, Type::choice, true, MAX_TEXT_BYTES, PICTURE_FORMAT_CHOICES}, Argument{FILE_KEY, Type::file, true},
+                                          Argument{WINDOW_KEY, Type::window, false}};
 constexpr std::array REDRAW_ARGUMENTS = {Argument{"enabled", Type::boolean, true}};
 constexpr std::array STRETCH_ARGUMENTS = {Argument{"branch", Type::integer, true, MAX_TEXT_BYTES, {}, constant(1)}, Argument{"first_point", Type::integer, true, MAX_TEXT_BYTES, {}, constant(1)},
                                           Argument{"last_point", Type::integer, true, MAX_TEXT_BYTES, {}, constant(1)}};
@@ -843,10 +837,8 @@ const std::array ROWS = {
             "Import an XPPAUT diagram (.auto) into the open model.", RESULT_IMPORTED, EVENTS_RUN, true, import_diagram, {}, {}},
     Command{"autox.reset_diagram", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Reset diagram", "autoX/File",
             "Destroy the diagram and autoX's files.", RESULT_RESET, EVENTS_DIAGRAM, true, reset_diagram, {}, {}},
-    Command{"autox.export_pdf", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Diagram PDF", "autoX/Export",
-            "Write a view of the diagram as a PDF picture.", RESULT_FILE, EVENTS_BROWSER, true, export_pdf, {}, {}, "write", "*", "", "Export"},
-    Command{"autox.export_svg", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Diagram SVG", "autoX/Export",
-            "Write a view of the diagram as an SVG picture.", RESULT_FILE, EVENTS_BROWSER, true, export_svg, {}, {}, "write", "*", "", "Export"},
+    Command{"autox.export", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Diagram as", "autoX/Export",
+            "Write a view of the diagram as a picture (pdf or svg).", RESULT_FILE, EVENTS_BROWSER, true, export_picture, {}, {}, "write", "*", "", "Export", Feature::none, FORMAT_KEY},
     Command{"autox.export_csv", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "CSV", "autoX/Export",
             "Write the diagram and its eigenvalues as two CSV files.", RESULT_POINTS_FILE, EVENTS_BROWSER, true, export_csv, {}, {}, "write", "*", "", "Export"},
     Command{"autox.export_points", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Points", "autoX/Export",

@@ -237,6 +237,9 @@ struct Command {
        of that choice (its label derived from the value), and an item runs the command with that value, so File > Export > Model as holds Python,
        Python numpy and Python numba (W767); the palette lists each item and the arguments stay the ones scripts and recordings send */
     const char *menu_choice = "";
+    /* one other argument an item of that submenu sends with it, as its name and value ("target", "table": File > Export > Data as holds
+       the table's formats, and the table is not asked); "" for none. Scripts, recordings and clients still send the argument themselves */
+    const char *menu_fixed_argument = "", *menu_fixed_value = "";
 };
 
 /* The one file picked for a command; optional paths (Open model) have their own startup picker. */

@@ -79,30 +79,6 @@ test('W129: a committed destination with the dialog suffix delivers the core fil
 });
 
 
-test('W130: page saves use hello names, even when they differ from the model filename', () => {
-  const {s, sent} = saving();
-  s.writeDataFile('table', 'csv');
-  assert.equal(sent.at(-1)?.file, HELLO.output_names.csv);
-  s.writeDataFile('plot', 'csv');
-  assert.equal(sent.at(-1)?.file, HELLO.output_names.curves);
-});
-
-
-test('W177: desktop CSV buttons ask the core for a picker destination', () => {
-  const original = Object.getOwnPropertyDescriptor(globalThis, 'window');
-  Object.defineProperty(globalThis, 'window', {configurable: true, value: {__xppFileDialog: async () => null}});
-  try {
-    const {s, sent} = saving();
-    for (const [what, target] of [['table', 'table'], ['plot', 'plot_curves']] as const) {
-      s.writeDataFile(what, 'csv');
-      assert.deepEqual(sent.at(-1), {cmd: 'data.export', target, format: 'csv'});
-    }
-  } finally {
-    if (original) Object.defineProperty(globalThis, 'window', original);
-    else Reflect.deleteProperty(globalThis, 'window');
-  }
-});
-
 test('W177: same-name exports snapshot distinct bytes before answering the next file ask', async () => {
   const {s, emit, sent, files} = saving('data.dat');
   let bytes = 'orbit';
@@ -144,7 +120,7 @@ test('W303: a denied native save retries only after idle, in the writable model 
   try {
     const {s, sent, emit} = saving();
     emit({ev: 'done', status: 'ok'});
-    s.writeDataFile('table', 'csv');
+    s.registryChoice('data.export', {value: 'csv', arguments: {format: 'csv', target: 'table'}});
     const ask: AskEvent = {ev: 'ask', kind: 'file', id: 7, mode: 'write', file: '/protected/data.csv',
       dir: '/protected', save_dir: '/model', wild: '*.csv'};
     s.store.dispatch({type: 'event', ev: ask});

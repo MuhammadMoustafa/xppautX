@@ -692,12 +692,37 @@ async function sliderModelSwitch(dir) {
   check('W317: all five native presets reach the page', await S("s.values.sliders.length === 5 && s.core.sliders.length === 5 && s.values.sliders[4].hi === '6'"));
 }
 
+/** the Export menu's file question (the page's ask in a browser, the choice item sending no file) answered with the name it suggests */
+async function acceptExportName() {
+  await until(`s.ask?.kind === 'file' && s.ask.mode === 'write' && !!document.querySelector('#file-name')`, 'the export file question');
+  await cdp.eval(`document.querySelector('[data-ask] [data-dialog-action]').click(); true`);
+}
 /** page-side call: the Export data menu's entry of `format` (the menu opened first, as a click on its title does) */
-const EXPORT_AS = format => `(() => { const m = document.querySelector('[data-sets-menu="table-export"]'); m.open = true; m.querySelector('[data-export-format="${format}"]').click(); })()`;
+const EXPORT_AS = format => `(() => { window.showSaveFilePicker = undefined; const m = document.querySelector('[data-sets-menu="table-export"]'); m.open = true; m.querySelector('[data-choice="${format}"]').click(); })()`;
 
 /* the data table (docs/ui-v2.md T10): open it, scroll to row 500 by
    scrolling and by keyboard, check its values against output.dat, Get,
    CSV export, and Tab reachability of every button */
+/* W771: a model with an `only` list gives the table's Export menu the option Only output columns (target output); it starts off for every export */
+async function onlyColumnsExport() {
+  await until('s.hello && !s.busy', 'hello');
+  check('W771: the model has an only list (the feature output_columns)', await S(`s.hello.model_features.find(f => f.name === 'output_columns').present`));
+  await menuRun('run.initial');
+  check('W771: lin.odex integrates for the table', await until('s.core.rows > 10 && !s.busy', 'rows', 30000));
+  await clickRegistry('data.open');
+  await until('s.table.open && s.table.page && s.table.page.data.length > 10', 'table rows');
+  const option = `document.querySelector('[data-sets-menu="table-export"] [data-export-output]')`;
+  check('W771: the table\'s Export menu shows Only output columns, off', await cdp.eval(`!!${option} && ${option}.checked === false`));
+  const sent = await cdp.eval('__xpp.sentCount()');
+  await cdp.eval(`(() => { const m = document.querySelector('[data-sets-menu="table-export"]'); m.open = true; ${option}.click(); })()`);
+  await until(`${option}.checked === true`, 'the option on');
+  await cdp.eval(EXPORT_AS('csv'));
+  await acceptExportName();
+  check('W771: with the option on, Export sends data.export with target output',
+    await until('!s.busy', 'export done') && (await cdp.eval(`__xpp.sentFrom(${sent})`)).some(c => c.cmd === 'data.export' && c.target === 'output' && c.format === 'csv'));
+  check('W771: the option is not remembered: the next export sends target table', await cdp.eval(`${option}.checked === false`));
+}
+
 async function dataTable(want, dir) {
   await metrics({width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
   await rendered();
@@ -803,10 +828,10 @@ async function dataTable(want, dir) {
   /* W648: one Export data menu in the panel's header, an entry per format of data.export's `format` choice (the registry's), the
      last used first and marked; the page's own Export CSV button is gone. CSV: the core writes data.csv itself (data.export,
      target: table, format: csv; core/browse_data.cpp save_data_file), then the page offers it as a download (docs/roadmap.md W66) */
-  const exportEntries = () => cdp.eval(`[...document.querySelectorAll('[data-sets-menu="table-export"] [data-export-format]')].map(b => [b.dataset.exportFormat, b.textContent])`);
+  const exportEntries = () => cdp.eval(`[...document.querySelectorAll('[data-sets-menu="table-export"] [data-choice]')].map(b => [b.dataset.choice, b.textContent])`);
   const exportFormats = await cdp.eval(`__xpp.state().hello.commands.find(c => c.cmd === 'data.export').arguments.find(a => a.name === 'format').choices`);
-  check('W648: the Export data menu lists the registry\'s formats, none marked before one is used',
-    JSON.stringify((await exportEntries()).map(e => e[0])) === JSON.stringify(exportFormats) && exportFormats.length === 4 && (await exportEntries()).every(e => !e[1].startsWith('✓')), JSON.stringify(await exportEntries()));
+  check('W648: the Export data menu lists the registry\'s formats, one entry per format',
+    JSON.stringify((await exportEntries()).map(e => e[0])) === JSON.stringify(exportFormats) && exportFormats.length === 4, JSON.stringify(await exportEntries()));
   /* W653: a file format's entry reads its name as written, lowercase (dat, csv, csv.gz, npz), as the file carries it */
   check('W653: the Export data entries read the formats as written (dat, csv, csv.gz, npz)',
     JSON.stringify((await exportEntries()).map(e => e[1])) === JSON.stringify(['dat', 'csv', 'csv.gz', 'npz']), JSON.stringify(await exportEntries()));
@@ -821,11 +846,14 @@ async function dataTable(want, dir) {
   fs.rmSync(dataCsvPath, {force: true});
   const exportSent = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(EXPORT_AS('csv'));
+  await acceptExportName();
   check('Export data as CSV offers data.csv, written by the core, and sends data.export with that format',
     await until("s.files.offered && s.files.offered.name === s.hello.output_names.csv && !s.busy", 'csv offered')
-    && (await cdp.eval(`__xpp.sentFrom(${exportSent})`)).some(c => c.cmd === 'data.export' && c.target === 'table' && c.format === 'csv'));
-  const entriesAfter = await exportEntries();
-  check('W648: the format used last is listed first and marked', entriesAfter[0][0] === 'csv' && entriesAfter[0][1].startsWith('✓') && entriesAfter.slice(1).every(e => !e[1].startsWith('✓')), JSON.stringify(entriesAfter));
+    && (await cdp.eval(`__xpp.sentFrom(${exportSent})`)).some(c => c.cmd === 'data.export' && c.target === 'table' && c.format === 'csv'),
+    JSON.stringify(await S(`[s.ask, s.files.offered, s.busy, __xpp.sentFrom(${exportSent})]`)));
+  /* W771: the table's menu is made of the same items as File > Export > Data as (one builder, one send): the same commands, formats and labels */
+  const barItems = await cdp.eval(`[...document.querySelectorAll('.app-menu [data-command="data.export"]')].map(b => [b.dataset.choice, b.textContent.trim()])`);
+  check('W771: the table\'s Export menu has the items of File > Export > Data as', JSON.stringify(await exportEntries()) === JSON.stringify(barItems), JSON.stringify([await exportEntries(), barItems]));
   await waitFile(dataCsvPath);
   let csv = fs.existsSync(dataCsvPath) ? fs.readFileSync(dataCsvPath, 'utf8').trim().split('\n') : [];
   if (csv[0]?.startsWith('# seed ')) csv = csv.slice(1); /* the run's seed, when it used one (docs/protocol.md) */
@@ -833,14 +861,17 @@ async function dataTable(want, dir) {
   check('the exported CSV has the header and all 601 rows, row 500 as in output.dat',
     csv.length === 602 && r500.length >= 3 && r500.every((v, k) => Math.abs(v - want[500][k]) <= 1e-7 * Math.abs(want[500][k]) + 1e-30),
     `${csv.length} lines, row 500: ${csv[501]} vs ${want[500]}`);
+  check('W771: the table\'s Export menu has no Only output columns option for a model with no only list',
+    !(await S(`s.hello.model_features.find(f => f.name === 'output_columns').present`)) && !(await cdp.eval(`!!document.querySelector('[data-sets-menu="table-export"] [data-export-output]')`)));
   /* another format: its entry sends data.export with it and the file carries its extension */
   const npzName = dataCsvName.replace(/\.csv$/, '.npz');
   fs.rmSync(path.join(dir, npzName), {force: true});
   const npzSent = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(EXPORT_AS('npz'));
+  await acceptExportName();
   check('W648: Export data as NPZ offers the .npz file and sends data.export with format npz',
     await until(`s.files.offered && s.files.offered.name === ${JSON.stringify(npzName)} && !s.busy`, 'npz offered')
-    && (await cdp.eval(`__xpp.sentFrom(${npzSent})`)).some(c => c.cmd === 'data.export' && c.format === 'npz' && c.file === npzName));
+    && (await cdp.eval(`__xpp.sentFrom(${npzSent})`)).some(c => c.cmd === 'data.export' && c.format === 'npz'));
   await waitFile(path.join(dir, npzName));
 
   /* the plot's own CSV export (PlotView.tsx), the same core write with
@@ -848,9 +879,14 @@ async function dataTable(want, dir) {
   const curvesCsvName = await S('s.hello.output_names.curves');
   const curvesCsvPath = path.join(dir, curvesCsvName);
   fs.rmSync(curvesCsvPath, {force: true});
-  await cdp.eval(`document.querySelector('.plot-tools button[title^="Export the plotted numbers"]').click()`);
-  check('the plot\'s CSV button offers xpp-curves.csv, written by the core',
-    await until("s.files.offered && s.files.offered.name === s.hello.output_names.curves && !s.busy", 'plot csv offered'));
+  const plotEntries = await cdp.eval(`[...document.querySelectorAll('[data-sets-menu="plot-export"] [data-choice]')].map(b => b.dataset.choice)`);
+  check('W771: the plot\'s Export menu has an entry for every format of data.export', JSON.stringify(plotEntries) === JSON.stringify(exportFormats), JSON.stringify(plotEntries));
+  const plotSent = await cdp.eval('__xpp.sentCount()');
+  await cdp.eval(`window.showSaveFilePicker = undefined; document.querySelector('[data-sets-menu="plot-export"] [data-choice="csv"]').click()`);
+  await acceptExportName();
+  check('the plot\'s Export menu offers xpp-curves.csv, written by the core, and sends data.export with target plot_curves',
+    await until("s.files.offered && s.files.offered.name === s.hello.output_names.curves && !s.busy", 'plot csv offered')
+    && (await cdp.eval(`__xpp.sentFrom(${plotSent})`)).some(c => c.cmd === 'data.export' && c.target === 'plot_curves' && c.format === 'csv'));
   await waitFile(curvesCsvPath);
   check('xpp-curves.csv is not empty',
     fs.existsSync(curvesCsvPath) && fs.statSync(curvesCsvPath).size > 0);
@@ -4417,6 +4453,7 @@ async function tableShots() {
     await shoot('opened');
     /* one export first, so the menu shows the format used last, marked and first */
     await cdp.eval(EXPORT_AS('csv'));
+    await acceptExportName();
     await until("s.files.offered && !s.busy", 'exported');
     await cdp.eval(`document.querySelector('[data-sets-menu="table-export"]').open = true`);
     await rendered();
@@ -4496,7 +4533,7 @@ async function dialogsCheck() {
     outputFiles.count >= 3 && outputFiles.same && !outputFiles.looseButtons.some(b => /Choose|Browse/.test(b)) && outputFiles.inBox === 0, JSON.stringify(outputFiles));
   await key('Escape');
   await until('!s.optionsPanel', 'output closed');
-  await clickRegistry('plot.export_pdf');
+  await clickRegistry('data.load');
   await requireUntil(`!!s.commandForm`, 'the export form for its file control');
   const exportFile = await cdp.eval(`(() => { const row = document.querySelector('[data-dialog] [data-argument=file]'); return {box: row.querySelectorAll('.file-box').length, loose: [...row.querySelectorAll('button')].filter(b => !b.closest('.file-box')).length}; })()`);
   check('W641: the Export form\'s File is the same file control as Output\'s, with no button beside it', exportFile.box === 1 && exportFile.loose === 0, JSON.stringify(exportFile));
@@ -4522,7 +4559,7 @@ async function dialogsCheck() {
   await key('Escape');
   await until('!s.commandForm', 'Preferences closed');
   /* a file: one control, which also takes a dropped file; the footer's action is the only one */
-  await clickRegistry('plot.export_pdf');
+  await clickRegistry('data.load');
   await requireUntil(`!!s.commandForm`, 'the export form');
   const exportForm = await cdp.eval(`(() => {
     const d = document.querySelector('[data-dialog]');
@@ -4539,12 +4576,12 @@ async function dialogsCheck() {
     await cdp.eval(`(() => { const row = document.querySelector('[data-dialog] [data-argument=file]'); return !row.querySelector('.required') && !document.querySelector('[data-dialog] .file-pick'); })()`));
   const sentExport = await S('__xpp.sentCount()');
   await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
-  check('W641: Export with File empty sends plot.export_pdf with file_picker (the core\'s file ask chooses the place)',
+  check('W641: Load data with File empty sends data.load with file_picker (the core\'s file ask chooses the place; W771: Export is a submenu of items with no form)',
     await until(`s.ask?.kind === 'file'`, 'the file ask')
-    && await S(`__xpp.sentFrom(${sentExport}).some(c => c.cmd === 'plot.export_pdf' && c.file_picker === true && !('file' in c))`));
+    && await S(`__xpp.sentFrom(${sentExport}).some(c => c.cmd === 'data.load' && c.file_picker === true && !('file' in c))`));
   await cdp.eval(`document.querySelector('[data-dialog] .dialog-close').click()`);
   await until('!s.ask && !s.busy', 'export ask cancelled');
-  await clickRegistry('plot.export_pdf');
+  await clickRegistry('data.load');
   await requireUntil(`!!s.commandForm`, 'the export form again');
   await key('Escape');
   await until('!s.commandForm', 'export form closed');
@@ -4660,12 +4697,12 @@ async function navigationCheck() {
     await cdp.eval(`document.querySelector('.menu-search').textContent.trim() === 'Search commands' && document.querySelector('.command-palette h2').textContent.trim() === 'Search commands' && document.querySelector('.command-palette [data-command="command_palette.open"]').textContent.includes('Search commands')`));
   check('W517: palette contains every registry command', await until(`s.drawerOpen && document.querySelectorAll('.command-palette [data-command]').length === ${everyRow.reduce((n, c) => n + choiceCount(c), 0)}`, 'palette'));
   /* W650: inside its menu a command is its short label, outside it (Search commands) its full name, both from hello's row */
-  const exportPdf = await S(`s.hello.commands.find(c => c.cmd === 'plot.export_pdf')`);
+  const exportPdf = await S(`s.hello.commands.find(c => c.cmd === 'plot.export')`);
   check('W650: the row has a short label and a full name made of its menu path and label',
-    exportPdf.label === 'Graph PDF' && exportPdf.name === 'File \u203a Export \u203a Graph PDF', JSON.stringify(exportPdf));
-  check('W650: the menu entry shows the label and Search commands the full name',
-    await cdp.eval(`document.querySelector('.app-menu [data-command="plot.export_pdf"]').textContent.trim() === 'Graph PDF'
-      && document.querySelector('.command-palette [data-command="plot.export_pdf"]').textContent.trim().startsWith('File \u203a Export \u203a Graph PDF')`));
+    exportPdf.label === 'Graph as' && exportPdf.name === 'File \u203a Export \u203a Graph as', JSON.stringify(exportPdf));
+  check('W650: the menu item shows the value (a submenu named by the label) and Search commands the full name',
+    await cdp.eval(`document.querySelector('.app-menu [data-command="plot.export"]').textContent.trim() === 'pdf'
+      && document.querySelector('.command-palette [data-command="plot.export"]').textContent.trim().startsWith('File \u203a Export \u203a Graph as \u203a pdf')`));
   await cdp.eval(`(() => {const q = document.querySelector('#command-search'); q.value = 'session save'; q.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await rendered();
   check('W517: palette matches the registry name and menu path', await cdp.eval(`!!document.querySelector('.command-palette [data-command="session.save"]') && !document.querySelector('.command-palette [data-command="run.initial"]')`));
@@ -4674,13 +4711,22 @@ async function navigationCheck() {
   await key('Escape');
   /* W767: File > Export > Model as and Data as are submenus, an item per value; a click sends the command with that value, opens no form
      and goes to the file question (the picker: the page's ask) */
-  for (const [cmd, menu, argument, labels] of [['model.export', 'Model as', 'language', ['Python', 'Python numpy', 'Python numba']],
-      ['data.export', 'Data as', 'format', ['dat', 'csv', 'csv.gz', 'npz']]]) {
+  /* a run to save and autoX open, so each item reaches its file question (without them the command refuses first) */
+  await menuRun('run.initial');
+  await requireUntil('!s.busy && s.core.rows === 601', 'the run for the export items');
+  await menuRun('autox.open');
+  await requireUntil('!s.busy && s.diagram.open', 'autoX for its export items');
+  /* W771: Data as sends target table with every format (no question), Graph as and Diagram as are the one command with a format pdf or svg */
+  for (const [cmd, menu, argument, labels, top, fixed] of [['model.export', 'Model as', 'language', ['Python', 'Python numpy', 'Python numba'], 'File', {}],
+      ['data.export', 'Data as', 'format', ['dat', 'csv', 'csv.gz', 'npz'], 'File', {target: 'table'}],
+      ['plot.export', 'Graph as', 'format', ['pdf', 'svg'], 'File', {}],
+      ['autox.export', 'Diagram as', 'format', ['pdf', 'svg'], 'autoX', {}]]) {
     const row = await S(`s.hello.commands.find(c => c.cmd === ${JSON.stringify(cmd)})`);
     const values = row.arguments.find(a => a.name === argument).choices;
     check(`W767: ${cmd} is the submenu File > Export > ${menu} with an item per ${argument}`,
       row.label === menu && row.menu_choice === argument && values.length === labels.length
-        && await cdp.eval(`JSON.stringify([...document.querySelectorAll('.app-menu [data-top-menu="File"] details > summary')].filter(d => d.textContent === 'Export')
+        && JSON.stringify(row.menu_fixed ? {[row.menu_fixed.argument]: row.menu_fixed.value} : {}) === JSON.stringify(fixed)
+        && await cdp.eval(`JSON.stringify([...document.querySelectorAll('.app-menu [data-top-menu="${top}"] details > summary')].filter(d => d.textContent === 'Export')
           .flatMap(d => [...d.parentElement.querySelectorAll('details')].filter(m => m.querySelector(':scope > summary').textContent === ${JSON.stringify(menu)})
             .flatMap(m => [...m.querySelectorAll('[data-command]')].map(b => b.textContent.trim())))) === ${JSON.stringify(JSON.stringify(labels))}`), JSON.stringify(row));
     await clickRegistry('command_palette.open');
@@ -4694,7 +4740,7 @@ async function navigationCheck() {
       await cdp.eval(`(() => {const item = [...document.querySelectorAll('.app-menu [data-command=${JSON.stringify(cmd)}]')][${i}];
         for (let p = item.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true; item.click();})()`);
       check(`W767: ${cmd} with ${argument} ${value}: sent with that value, no form, and the file asked for`,
-        await until(`!s.commandForm && __xpp.sentFrom(${pre}).some(c => c.cmd === ${JSON.stringify(cmd)} && c.${argument} === ${JSON.stringify(value)} && c.file === undefined) && !!s.ask`, 'export item'),
+        await until(`!s.commandForm && __xpp.sentFrom(${pre}).some(c => c.cmd === ${JSON.stringify(cmd)} && c.${argument} === ${JSON.stringify(value)} && c.file === undefined && ${JSON.stringify(Object.entries(fixed))}.every(([k, v]) => c[k] === v)) && s.ask?.kind === 'file'`, 'export item'),
         JSON.stringify(await S(`[s.commandForm, __xpp.sentFrom(${pre}), s.ask]`)));
       await key('Escape');
       await until('!s.busy && !s.ask', 'export cancelled');
@@ -6346,7 +6392,7 @@ async function nativeFiles(dir) {
        rejection; a real OS picker grant remains a manual desktop check. */
     check('W177: integrate for the desktop CSV exports', await integrate(601, 30000));
     for (const [call, name] of [[EXPORT_AS('csv'), 'native-table.csv'],
-        ["document.querySelector('[title=\"Export the plotted numbers as a CSV file\"]').click()", 'native-plot.csv']]) {
+        ["document.querySelector('[data-sets-menu=\"plot-export\"] [data-choice=\"csv\"]').click()", 'native-plot.csv']]) {
       if (name === 'native-table.csv') {
         await cdp.eval(`document.querySelector('.table-toggle').click()`);
         await until('s.table.open && s.table.page && s.table.page.data.length', 'table rows');
@@ -7878,6 +7924,7 @@ async function main() {
       await windows();
       await textViews();
     });
+    if (run('desktop')) await session(path.join(top, 'examples/ode/lin.odex'), onlyColumnsExport, [/X out of bounds/]); /* its x grows until the state limit stops the run: rows enough for the table */
     if (run('desktop')) await session(ODE, sliderModelSwitch);
     if (run('desktop')) await session(ODE, reopenedSessionPlot);
     if (run('layout')) await session(ODE, layoutCheck, [BAD_IAPP]);

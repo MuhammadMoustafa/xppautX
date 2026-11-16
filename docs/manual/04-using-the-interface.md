@@ -390,7 +390,7 @@ run).
 The desktop's operating-system save dialog asks before replacing an
 existing file. Accepting that dialog authorizes only the chosen path for
 that prompt; the core does not ask again. Frozen nullcline destinations
-ask separately before replacement. Values Save and table/plot CSV buttons
+ask separately before replacement. Values Save and the table and plot Export menus
 use this same desktop picker. A recording keeps the dialog's answer, so replay uses
 the same decision even if the file now exists.
 

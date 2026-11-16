@@ -213,6 +213,13 @@ void append_command(std::string &out, const Command &command)
         out += ",\"menu_choice\":";
         json_append_string(out, command.menu_choice);
     }
+    if (*command.menu_fixed_argument) {
+        out += ",\"menu_fixed\":{\"argument\":";
+        json_append_string(out, command.menu_fixed_argument);
+        out += ",\"value\":";
+        json_append_string(out, command.menu_fixed_value);
+        out += '}';
+    }
     if (*command.panel) {
         out += ",\"panel\":";
         json_append_string(out, command.panel);

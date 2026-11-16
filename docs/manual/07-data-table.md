@@ -64,7 +64,7 @@ keeps all the data again, from the first row to the last, and replots it in the 
 
 ### Write: Save data
 
-Saves numbers to a file in the working directory (see [Using the interface](04-using-the-interface.md#saving-pictures-and-files) for how the browser gets it). It asks three things in turn:
+Saves numbers to a file in the working directory (see [Using the interface](04-using-the-interface.md#saving-pictures-and-files) for how the browser gets it). File > Export > **Data as** > dat, csv, csv.gz or npz, and the table panel's **Export** menu, write the table in that format and ask only for the file (`data.export` with `target` `table` and a `format`); the panel's menu also has **Only output columns**, shown when the model has an `only` list, off for every export, which writes the columns that list names (`target` `output`); the plot's **Export** menu (in its **⋯**) writes what the plot shows (`target` `plot_curves`). A script sends `data.export` with a `target`, a `format` and a `file`; what is left out is asked, in turn:
 
 1. **What to save**: *The data table* (the rows marked by `First` and `Last`, every column: T, the variables, the auxiliary quantities) or *What the plot shows* (the current plot window's curves, then its frozen curves, as one long table with the columns `curve`, `x`, `y` and, in a 3D plot, `z`: one row per point, the window's curves numbered 1, 2, ... in order and the frozen curves after them).
 2. **The format**, one of:

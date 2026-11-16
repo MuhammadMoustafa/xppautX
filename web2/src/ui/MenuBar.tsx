@@ -6,6 +6,7 @@ import {commandRow, menuTree, registryRows, type MenuNode} from './navigation';
 import {effectiveKeys} from '../store/keymap';
 import {closeMenuBar, openPanel} from './hotkeys';
 import {useFocusBackOnClose} from './focusBack';
+import {ChoiceItem} from './ChoiceItem';
 
 /** the title bar's Menu button: on a phone (below 48rem) the menu bar is a drawer this opens (css/layout.css) */
 export function MenuButton() {
@@ -96,9 +97,10 @@ export function MenuBar() {
     if (pointed.current === d && d.open) e.preventDefault();
     pointed.current = null;
   };
-  const entry = (node: MenuNode): Entry => node.row ? {menu: false, el: <li key={node.row.id}><button role="menuitem" data-command={node.row.id} data-choice={node.row.choice?.value} title={may({cmd: node.row.id}) ? node.row.description : BUSY_TITLE}
-    disabled={!may({cmd: node.row.id})} onClick={() => {close(); const {choice} = node.row!; if (choice) session.registryChoice(node.row!.id, choice.argument, choice.value); else session.registryAction(node.row!.id);}}>
-    {node.name} {node.row.choice ? null : keyChip(effectiveKeys(info, node.row))}</button></li>}
+  const entry = (node: MenuNode): Entry => node.row?.choice ? {menu: false, el: <ChoiceItem key={node.row.choice.value} item={node.row} onPick={close} />}
+    : node.row ? {menu: false, el: <li key={node.row.id}><button role="menuitem" data-command={node.row.id} data-choice={node.row.choice?.value} title={may({cmd: node.row.id}) ? node.row.description : BUSY_TITLE}
+    disabled={!may({cmd: node.row.id})} onClick={() => {close(); session.registryAction(node.row!.id);}}>
+    {node.name} {keyChip(effectiveKeys(info, node.row))}</button></li>}
     : {menu: true, el: <li key={node.name}><details><summary>{node.name}</summary><ul role="menu">{withRules(node.children.map(entry))}</ul></details></li>};
   const tree = menuTree(registryRows(hello), hello);
   const order = ['File', 'Run', 'Analysis', 'Plot', 'Data', 'autoX', 'Windows', 'Help'];

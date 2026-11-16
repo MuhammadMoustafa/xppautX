@@ -14,9 +14,7 @@
    on the selected row, grouped as Find, Rows, Columns (and More): where the
    panel is narrow (a container query, css/panels.css) Rows and Columns are
    two menus. Find and Replace prompt through the ordinary `ask`. Load data
-   and one Export data menu, one entry per format of data.export's
-   `format` choice (the last used first, marked), are in the header; Export
-   sends data.export through the session's one export path. */
+   and one Export menu (ExportMenu.tsx, the plot's too), are in the header. */
 import {openPanel} from './hotkeys';
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
@@ -24,12 +22,11 @@ import {ShownName} from './CutText';
 import {HELP} from '../help/links';
 import type {DataOp} from '../session';
 import {DropDownMenu} from './SetsRow';
-import {choiceLabel} from '../store/fieldKinds';
-import {readPref, writePref} from '../store/prefs';
+import {ChoiceItem} from './ChoiceItem';
 import {rowAt} from '../store/table';
 import {BUSY_TITLE, useMay, useMayKey, useSession, useStore} from './context';
 import {useCommandLabel} from './CommandButton';
-import {commandRow, toolbarRow} from './navigation';
+import {commandRow, dataExportItems, toolbarRow} from './navigation';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
 
@@ -38,9 +35,6 @@ import {FOCUSABLE} from './dialogFocus';
 const ROWS: DataOp[] = ['first', 'last', 'restore'];
 const COLUMNS: DataOp[] = ['addcol', 'replace', 'delcol'];
 const MORE_COLUMNS: DataOp[] = ['unreplace', 'table', 'transpose'];
-
-/** the format last exported, remembered per viewer (it is listed first and marked) */
-const FORMAT_KEY = 'xpp.table.exportFormat';
 
 /** a stored value (docs/protocol.md "The data table") as the core sent it, the store's shortest text (W613): whole where its
     column has room, cut with a tip only where it has not (CutText measures the box) */
@@ -199,16 +193,10 @@ export function TableView() {
     </>
   );
 
-  /* Export (the row's menu group): one entry per format of data.export's `format` choice, the last used first and marked */
-  const formats = commandRow(hello, 'data.export')?.arguments?.find(a => a.name === 'format')?.choices ?? [];
-  const [lastFormat, setLastFormat] = useState(() => readPref(FORMAT_KEY, v => (typeof v === 'string' ? v : null), ''));
-  const ordered = [...formats].sort((a, b) => Number(b === lastFormat) - Number(a === lastFormat));
-  const exportAs = (format: string) => {
-    setLastFormat(format);
-    writePref(FORMAT_KEY, format);
-    session.writeDataFile('table', format);
-  };
-  const exportOff = !page?.data.length || !may({cmd: 'data.export'});
+  /* Export (the row's menu group): data.export's format items (the menu bar's, navigation.ts), their target the table, or the model's
+     output columns while Only output columns is ticked (never remembered: each export puts it back off) */
+  const [onlyOutput, setOnlyOutput] = useState(false);
+  const outputOption = !!hello?.model_features.find(f => f.name === 'output_columns')?.present;
   const selectedT = rowAt(page, selected)?.[0];
   const sliced = page && (page.start > 0 || page.end < rows);
 
@@ -221,13 +209,14 @@ export function TableView() {
         <div class="table-actions">
         {button('load', false)}
         <DropDownMenu normal id="table-export" label={commandRow(hello, 'data.export')?.menu_path?.split('/').pop() ?? ''}>
-          {ordered.map(format => (
-            <li key={format}>
-              <button role="menuitem" data-export-format={format} disabled={exportOff}
-                title={exportOff ? BUSY_TITLE : `Export every stored row as ${choiceLabel(format)}${format === lastFormat ? ' (used last)' : ''}`}
-                onClick={() => exportAs(format)}>{format === lastFormat ? '✓ ' : ''}{choiceLabel(format)}</button>
+          {outputOption && (
+            <li onClick={e => e.stopPropagation()}>
+              <label class="menu-check" title="Write only the columns the model's only list names">
+                <input type="checkbox" data-export-output checked={onlyOutput} onChange={e => setOnlyOutput(e.currentTarget.checked)} /> Only output columns
+              </label>
             </li>
-          ))}
+          )}
+          {dataExportItems(hello, onlyOutput ? 'output' : undefined).map(item => <ChoiceItem key={item.choice!.value} item={item} onPick={() => setOnlyOutput(false)} />)}
         </DropDownMenu>
         </div>
       </div>

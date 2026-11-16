@@ -22,7 +22,7 @@
                              stochastic.show_mean or _variance
      then, unless each run of a range wrote its own file:
      output.dat              the output columns' data file, replacing it (save_data_file)
-     picture_file            plot.export_pdf or plot.export_svg, by the extension of output.picture_file
+     picture_file            plot.export, its format the extension of output.picture_file
    The core computes requested nullclines and direction fields after a run.
    After every run: --equil 0/1 (equilibrium write equil.dat). */
 #include "ui_json_internal.h"
@@ -156,7 +156,7 @@ void SilentScript::add_run(int set)
         if (writes_output()) {
             if (!trajectory_saved) save_output();
             if (const xpp::ImageFormat *format = xpp::picture_format_of_file(s.picture_file)) {
-                std::string line = xpp::format("{{\"cmd\":\"plot.export_{}\",\"file\":", format->extension);
+                std::string line = xpp::format("{{\"cmd\":\"plot.export\",\"format\":\"{}\",\"file\":", format->extension);
                 buf_str(line, s.picture_file);
                 line += '}';
                 lines.push_back(std::move(line));

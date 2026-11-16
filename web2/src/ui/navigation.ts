@@ -27,9 +27,19 @@ export function toolbarRow(hello: HelloEvent | null, window: string, id: string)
 }
 /** the values of the row's menu_choice argument */
 const choiceValues = (row: CommandRow): string[] => row.arguments?.find(a => a.name === row.menu_choice)?.choices ?? [];
-/** a row with a menu_choice as one item per value (File > Export > Model as > Python): the row with `choice` set and its name ending in the value's label */
-export function choiceItems(row: CommandRow, separator: string): CommandRow[] {
-  return choiceValues(row).map(value => ({...row, choice: {argument: row.menu_choice!, value}, name: `${row.name}${separator}${choiceLabel(value)}`}));
+/** a row with a menu_choice as one item per value (File > Export > Model as > Python): the row with `choice` set (the command's
+    arguments: the value, the row's fixed argument or `fixed`, which a place that knows more gives, as the table's Export menu its
+    target, and file_picker for a command whose file is required, which the core then asks for; one with an optional file asks itself) and its name ending in the value's label. The one builder of such items: the menu bar, Search commands and the
+    table's and the plot's Export menus all send what it makes. */
+export function choiceItems(row: CommandRow, separator: string, fixed = row.menu_fixed): CommandRow[] {
+  return choiceValues(row).map(value => ({...row, choice: {value, arguments: {...(fixed && {[fixed.argument]: fixed.value}), [row.menu_choice!]: value, ...(row.arguments?.some(a => a.type === 'file' && a.required) && {file_picker: true})}},
+    name: `${row.name}${separator}${choiceLabel(value)}`}));
+}
+/** data.export's items for the data a place writes: the row's own target (the table), or `target` when the place knows another (the plot's
+    curves, the table's output columns): one list for File > Export > Data as, the table's and the plot's Export menus */
+export function dataExportItems(hello: HelloEvent | null, target?: string): CommandRow[] {
+  const row = commandRow(hello, 'data.export');
+  return row && hello ? choiceItems(row, hello.menu_separator, target ? {argument: 'target', value: target} : row.menu_fixed) : [];
 }
 export interface MenuNode {name: string; children: MenuNode[]; row?: CommandRow}
 export function menuTree(rows: CommandRow[], hello: HelloEvent | null): MenuNode[] {

@@ -22,6 +22,7 @@ bool has_feature(const Model &m, const std::vector<TABULAR> &tables, Feature f)
     case Feature::boundary_conditions: return m.bc_defined > 0;
     case Feature::integral_terms: return m.compiler.nkernel > 0;
     case Feature::formula_tables: return !tables.empty();
+    case Feature::output_columns: return !m.only.empty();
     }
     return true;
 }

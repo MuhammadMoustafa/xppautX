@@ -44,6 +44,8 @@ export interface CommandKind {
   menu_path?: string;
   /** the choice argument the menu shows as a submenu, an item per value (core Command::menu_choice) */
   menu_choice?: string;
+  /** one other argument every item of that submenu sends (core Command::menu_fixed_argument): the table of File > Export > Data as */
+  menu_fixed?: {argument: string; value: string};
   /** the model feature it is for (hello.model_features) */
   needs?: string;
   /** the option group whose generated panel opens in place of this command's own form (core Command::panel) */
@@ -68,8 +70,11 @@ export interface CommandRow {
   menu_path?: string;
   /** the choice argument the menu shows as a submenu, an item per value (core Command::menu_choice) */
   menu_choice?: string;
-  /** an item of that submenu (navigation.ts choiceItems): the command run with this one value, never a row of hello */
-  choice?: {argument: string; value: string};
+  /** one other argument every item of that submenu sends (core Command::menu_fixed_argument): the table of File > Export > Data as */
+  menu_fixed?: {argument: string; value: string};
+  /** an item of that submenu (navigation.ts choiceItems, the one builder of them): the command run with these arguments (the value
+      of the choice and the fixed ones), `value` being the choice's, for the label; never a row of hello */
+  choice?: {value: string; arguments: Record<string, string | boolean>};
   /** the model feature it is for (hello.model_features): without it the menu leaves it out and Search commands lists it greyed */
   needs?: string;
   /** the option group whose panel opens in place of a form */

@@ -27,16 +27,18 @@ import type {Session} from '../session';
 import {TraceDialog} from './TraceDialog';
 import type {PlotSeries} from '../store/series';
 import {HOME, windowOf} from '../store/plots';
-import {SetsRow, useDropDown} from './SetsRow';
+import {DropDownMenu, SetsRow, useDropDown} from './SetsRow';
+import {ChoiceItem} from './ChoiceItem';
+import {commandRow, dataExportItems} from './navigation';
 import {ShownName, ShownNumber} from './CutText';
-import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
+import {BUSY_TITLE, useMayMain, useSession, useStore} from './context';
 
 /** the plot's ⋯: a pop-up holding the tools the plot's header has no room for (a pick, or a click outside, closes it) */
 export function PlotMore({children}: {children: ComponentChildren}) {
   const box = useDropDown();
   return (
     <details class="plot-more" ref={box}>
-      <summary aria-label="More plot tools" title="Reset zoom, use this view, CSV and sets">⋯</summary>
+      <summary aria-label="More plot tools" title="Reset zoom, use this view, export and sets">⋯</summary>
       <div class="plot-more-menu" onClick={e => { if ((e.target as Element).closest('button') && box.current) box.current.open = false; }}>{children}</div>
     </details>
   );
@@ -221,10 +223,9 @@ export function PlotView({win, dark, shown, focused, group, tabbed, windowRow}: 
   const view = useStore(s => s.core?.view);
   const hover = useStore(s => (focused ? s.hover : null));
   const busy = useStore(s => s.computing);
-  const may = useMay();
+  const hello = useStore(s => s.hello);
   const mayMain = useMayMain();
   const windowOff = !mayMain('window.set_bounds'); /* Window/zoom: a view (W95) */
-  const csvOff = !may({cmd: 'data.export'});
   const pick = useStore(s => (s.pick?.win === win ? s.pick : null));
   const picking = pick && !pick.waiting ? pick : null;
   const host = useRef<HTMLDivElement>(null);
@@ -483,8 +484,9 @@ export function PlotView({win, dark, shown, focused, group, tabbed, windowRow}: 
               title="Make this zoom the window's own axes (Window/Window), for PostScript/SVG export and Restore">
               Use this view
             </button>
-            <button disabled={noCurves || csvOff} onClick={() => session.writeDataFile('plot', 'csv')}
-              title="Export the plotted numbers as a CSV file">CSV</button>
+            <DropDownMenu normal id="plot-export" label={commandRow(hello, 'data.export')?.menu_path?.split('/').pop() ?? ''}>
+              {dataExportItems(hello, 'plot_curves').map(item => <ChoiceItem key={item.choice!.value} item={item} />)}
+            </DropDownMenu>
             <SetsRow scope="plot" window={win} />
           </PlotMore>
         </div>

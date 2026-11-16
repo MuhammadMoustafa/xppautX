@@ -119,6 +119,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
 .sets-menu button { width: 100%; text-align: left; }
 .sets-menu .value-hint { margin: .25rem; }
+.sets-menu .menu-check { display: flex; align-items: center; gap: .4rem; min-height: var(--target); padding: 0 .5rem; cursor: pointer; }
 /* a graph's sets row folded into one drop-down (its toolbar has no room for the row) */
 .sets-fold > .sets-row { position: absolute; right: 0; z-index: var(--z-inline-menu); width: max-content; max-width: min(24rem, 90vw); padding: .25rem;
   background: var(--surface); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }

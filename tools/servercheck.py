@@ -1960,22 +1960,22 @@ def check_registry():
         request({'cmd': 'plot.set_colormap', 'colormap': 'nothing'}, False)
         request({'cmd': 'plot.set_colormap'}, False)
         # the exports
-        result, _ = request({'cmd': 'plot.export_svg', 'file': 'plot.svg'})
+        result, _ = request({'cmd': 'plot.export', 'format': 'svg', 'file': 'plot.svg'})
         svg = open(os.path.join(folder, 'plot.svg')).read()
-        check('plot.export_svg writes the picture into the model folder', result['file'] == 'plot.svg' and result['bytes_written'] > 100 and
+        check('plot.export svg writes the picture into the model folder', result['file'] == 'plot.svg' and result['bytes_written'] > 100 and
               svg.lstrip().startswith(('<?xml', '<svg')), str(result))
         # W656: the panel as shown, its axes text at the page's 12 px and its curves in their colors
-        check('W656: plot.export_svg draws the axes text at the panel\'s size', 'font-size="12"' in svg, svg[:400])
-        result, _ = request({'cmd': 'plot.export_pdf', 'file': 'plot.pdf'})
-        check('plot.export_pdf writes the picture into the model folder', result['file'] == 'plot.pdf' and result['bytes_written'] > 100 and
+        check('W656: plot.export svg draws the axes text at the panel\'s size', 'font-size="12"' in svg, svg[:400])
+        result, _ = request({'cmd': 'plot.export', 'format': 'pdf', 'file': 'plot.pdf'})
+        check('plot.export pdf writes the picture into the model folder', result['file'] == 'plot.pdf' and result['bytes_written'] > 100 and
               open(os.path.join(folder, 'plot.pdf'), 'rb').read(4) == b'%PDF', str(result))
         result, _ = request({'cmd': 'data.export', 'target': 'plot_curves', 'file': 'plot.csv'})
         check('data.export of plot_curves writes what the plot shows in the format of the extension', result['file'] == 'plot.csv' and result['rows_written'] > 0 and
               'curve,x,y' in open(os.path.join(folder, 'plot.csv')).read().splitlines()[:2], str(result))
         result, _ = request({'cmd': 'data.export', 'target': 'plot_curves', 'file': 'plot.out', 'format': 'dat'})
         check('data.export of plot_curves takes the format by name', result['rows_written'] > 0, str(result))
-        for refused in [{'cmd': 'plot.export_svg'}, {'cmd': 'plot.export_svg', 'file': '../plot.svg'}, {'cmd': 'plot.export_pdf', 'file': 'plot.pdf', 'axes_font_size': 12},
-                        {'cmd': 'plot.export_pdf', 'file': 'plot.pdf', 'color': True}, {'cmd': 'plot.export_svg', 'file': 'plot.svg', 'color': False},
+        for refused in [{'cmd': 'plot.export', 'format': 'svg'}, {'cmd': 'plot.export', 'format': 'svg', 'file': '../plot.svg'}, {'cmd': 'plot.export', 'format': 'pdf', 'file': 'plot.pdf', 'axes_font_size': 12},
+                        {'cmd': 'plot.export', 'format': 'pdf', 'file': 'plot.pdf', 'color': True}, {'cmd': 'plot.export', 'format': 'svg', 'file': 'plot.svg', 'color': False},
                         {'cmd': 'data.export', 'target': 'plot_curves', 'file': 'plot.zip', 'format': 'zip'}]:
             request(refused, False)
         # the old forms are gone
@@ -3048,26 +3048,27 @@ def check_atomic_commands():
         os.mkdir(os.path.join(folder, 'blocked.pdf'))
         os.mkdir(os.path.join(folder, 'blocked.svg'))
         for command in (
-            dict(cmd='plot.export_pdf', file='blocked.pdf'),
-            dict(cmd='plot.export_svg', file='blocked.svg'),
+            dict(cmd='plot.export',format='pdf', file='blocked.pdf'),
+            dict(cmd='plot.export',format='svg', file='blocked.svg'),
             dict(cmd='array_plot.export_pdf', top_label='must not remain', file='blocked.pdf'),
         ):
-            suffix = '.svg' if command['cmd'].endswith('svg') else '.pdf'
+            suffix = '.svg' if command.get('format') == 'svg' else '.pdf'
             before_file = 'before-' + command['cmd'] + suffix
             after_file = 'after-' + command['cmd'] + suffix
-            baseline = {} if command['cmd'].startswith('plot.') else dict(top_label='original top', side_label='original side', bottom_label='original bottom')
+            same = {'format': command['format']} if 'format' in command else {}
+            baseline = same or dict(top_label='original top', side_label='original side', bottom_label='original bottom')
             call(cmd=command['cmd'], file=before_file, **baseline)
             refused(command)
-            call(cmd=command['cmd'], file=after_file)
+            call(cmd=command['cmd'], file=after_file, **same)
             with open(os.path.join(folder, before_file), 'rb') as before, open(os.path.join(folder, after_file), 'rb') as after:
                 check('W534: %s keeps export settings for the next file' % command['cmd'], before.read() == after.read())
         call(cmd='autox.open')
         call(cmd='autox.new_view')
         refused(dict(cmd='autox.set_display', view='diagram_1', x_range=[0, 1], y_range=[1, 0]))
         call(cmd='window.select', window='diagram_2')
-        refused(dict(cmd='autox.export_pdf', window='diagram_1', file='blocked.pdf'))
+        refused(dict(cmd='autox.export', format='pdf', window='diagram_1', file='blocked.pdf'))
         call(cmd='window.select', window='diagram_2')
-        refused(dict(cmd='autox.export_svg', window='diagram_1', file='blocked.svg'))
+        refused(dict(cmd='autox.export', format='svg', window='diagram_1', file='blocked.svg'))
         refused(dict(cmd='autox.run', kind='equilibrium', decimals=4, hold=1, maximum=1, parameter_min=10, parameter_max=1))
         call(cmd='window.new', name='second graph')
         call(cmd='window.select', window='diagram_2')
@@ -3590,7 +3591,7 @@ check_registry_labels([c for c in hello.get('commands', []) if 'arguments' in c]
 # W649 (#722): what a model has that some settings and commands need is one list, computed once in the core and sent in hello; a row
 # (an option's or a command's) names the feature it needs, and a command whose feature the model lacks is refused with the reason
 FEATURE_MODELS = {'lecar.odex': ['parameters'], 'dde.odex': ['parameters', 'delays'], 'dumbbvp.odex': ['parameters', 'boundary_conditions'],
-                  'voltex1.odex': ['integral_terms'], 'clustor.odex': ['parameters', 'formula_tables']}
+                  'voltex1.odex': ['integral_terms'], 'clustor.odex': ['parameters', 'formula_tables'], 'lin.odex': ['parameters', 'output_columns']}
 
 
 def check_model_features():
@@ -3630,6 +3631,18 @@ def check_model_features():
 
 
 check_model_features()
+
+
+# W771 (#851) and W773 (#853): File > Export > Data as is the table's formats with the target fixed in the core's row (menu_fixed), and a graph's or a
+# diagram's picture is one command with a format (no export_pdf or export_svg of either)
+_rows = {c['cmd']: c for c in hello.get('commands', [])}
+check('W771: data.export is a submenu of formats with the target table fixed in its row',
+      _rows['data.export'].get('menu_choice') == 'format' and _rows['data.export'].get('menu_fixed') == {'argument': 'target', 'value': 'table'}, str(_rows['data.export']))
+for _cmd in ('plot.export', 'autox.export'):
+    check('W773: %s is one command with a format choice pdf or svg, shown as a submenu' % _cmd,
+          _rows[_cmd].get('menu_choice') == 'format' and next(a for a in _rows[_cmd]['arguments'] if a['name'] == 'format')['choices'] == ['pdf', 'svg'], str(_rows[_cmd]))
+check('W773: the two commands each of a graph and a diagram picture became one, the old names are gone',
+      not any(c in _rows for c in ('plot.export_pdf', 'plot.export_svg', 'autox.export_pdf', 'autox.export_svg')))
 
 
 # W636 (#708): nothing writes a command's name again. In web2/src no string a control shows is a row's label (the
@@ -5936,7 +5949,7 @@ def check_view():
         # symmetric [-100,100] range makes make_tics() choose a 20-wide
         # tic, which lands exactly on the boundary).
         psname='t9view.pdf'
-        send6(cmd='plot.export_pdf',file=psname)
+        send6(cmd='plot.export',format='pdf',file=psname)
         collect6(is_done)
         pspath = os.path.join(run6, psname)
         ps = ''
@@ -7349,7 +7362,7 @@ def check_output_names():
         cancel_name('lecar.snapx')
         live_run(snd, col)
         # Every file-taking registry command can explicitly ask for the existing picker.
-        for command in [dict(cmd='plot.export_pdf'), dict(cmd='plot.export_svg'),
+        for command in [dict(cmd='plot.export',format='pdf'), dict(cmd='plot.export',format='svg'),
                         dict(cmd='data.tabulate_column', variable='V', x_low=0, x_high=30)]:
             snd(**command, file_picker=True)
             _, ask = col(lambda e: is_ask(e) or is_done(e))
@@ -8752,7 +8765,7 @@ def check_export_elements():
                 def form(e):
                     picture_values[:] = e['values']
                     return {'ok': 1, 'values': e['values']}
-                server.send(cmd='plot.export_'+fmt, file=name)
+                server.send(cmd='plot.export', format=fmt, file=name)
                 server.answer_asks(is_done, {
                     'choice': lambda e: {'key': 'p' if fmt == 'pdf' else 'v'},
                     'form': form, 'file': lambda e: {'file': name}})
@@ -8787,7 +8800,7 @@ def check_export_elements():
             check('W346: ' + fmt + ' holds all 25 requested field arrows', counts['dot', '#000000'] == 25, str(counts))
         annotations = go + [dict(cmd='annotation.add_text',window='main',x=.2,y=.4,text='W346label'),
             dict(cmd='plot.freeze_curve',color='#ffcd00',draw='line',dash='solid',width=1,marker='circle',marker_size=3,key='W346frozen',name='frz1')]
-        for fmt in ('pdf','svg'): annotations.append(dict(cmd='plot.export_'+fmt,file='annotated.'+fmt))
+        for fmt in ('pdf','svg'): annotations.append(dict(cmd='plot.export',format=fmt,file='annotated.'+fmt))
         result = run_commands(binary, model, annotations, root)
         annotated = {}
         for fmt in ('pdf', 'svg'):

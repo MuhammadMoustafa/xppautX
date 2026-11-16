@@ -15,7 +15,7 @@ import type {Ranges} from './plot/viewmath';
 import {HOME, windowOf, type Viewport} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
-import {kindOf, mayStart, type LayerWindow} from './protocol/kinds';
+import {kindOf, mayStart, type CommandRow, type LayerWindow} from './protocol/kinds';
 import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type UserKeymap, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import {activeView, autoxWindow} from './store/diagram';
@@ -391,8 +391,8 @@ export class Session {
 
   /** an item of a menu_choice row (File > Export > Model as > Python): the command with that one value and no form; what it still
       needs (the file, a target) the core asks, as for the command sent by a script */
-  registryChoice(id: string, argument: string, value: string): void {
-    const cmd: Command = {cmd: id, [argument]: value};
+  registryChoice(id: string, {arguments: args}: NonNullable<CommandRow['choice']>): void {
+    const cmd: Command = {cmd: id, ...args};
     if (this.may(cmd)) this.send(cmd);
   }
 
@@ -1218,24 +1218,6 @@ export class Session {
   /** Get: the selected row becomes the initial conditions (the next `state` has them) */
   getRow(): void {
     this.send({cmd: 'initial_conditions.set_from_data_row', row: this.store.getState().table.selected});
-  }
-
-  /** Save data (docs/protocol.md "Saving data"): the core itself writes
-      `what` (`table` or `plot`) as `format` (a data format's id is its extension, data_table.h) into `name`
-      (the model's own name with that extension) in the model's folder (browse_data.cpp data_write, skipping the format/name asks
-      since both are given), then, at the command's done, the page offers
-      it as a download -- the same `pendingSave`/`deliver` path a `file`
-      ask's Write uses (W66: the page itself builds no file). */
-  writeDataFile(what: 'table' | 'plot', format: string, name?: string): void {
-    const base = this.store.getState().hello?.output_names[what === 'plot' ? 'curves' : 'csv'];
-    name ??= base && `${base.replace(/\.csv$/, '')}.${format}`;
-    if (!name) return;
-    const target = what === 'plot' ? 'plot_curves' : 'table';
-    if (nativeFileDialog()) this.send({cmd: 'data.export', target, format});
-    else {
-      this.pendingSave = {name, handle: null, ahead: this.donesOwed};
-      this.send({cmd: 'data.export', target, format, file: name});
-    }
   }
 
   /* ---- animation (docs/ui-v2.md T13, docs/protocol.md `ani` and "The animation as data") ---- */

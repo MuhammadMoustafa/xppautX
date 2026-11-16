@@ -131,13 +131,13 @@ def run_lecar(home):
         # Graphic stuff/PDF: menu 'g', its submenu's 'p', the picture
         # parameters form (kept at its own defaults), then the file to
         # write it to
-        s.send(cmd='plot.export_pdf', file='lecar.pdf')
+        s.send(cmd='plot.export', format='pdf', file='lecar.pdf')
         s.collect(is_done)
         check_file('lecar.pdf', read(s.run, 'lecar.pdf'))
 
         # .../SVG: the same submenu's 'v' (the same parameters form), then
         # the file to write
-        s.send(cmd='plot.export_svg', file='lecar.svg')
+        s.send(cmd='plot.export', format='svg', file='lecar.svg')
         s.collect(is_done)
         check_file('lecar.svg', read(s.run, 'lecar.svg'))
 
@@ -189,7 +189,7 @@ def run_vanderpol(home):
         s.send(cmd='direction_field.compute', grid=16, scaled=False)
         s.collect(is_done)
 
-        s.send(cmd='plot.export_pdf', file='vanderpol.pdf')
+        s.send(cmd='plot.export', format='pdf', file='vanderpol.pdf')
         s.collect(is_done)
         check_file('vanderpol.pdf', read(s.run, 'vanderpol.pdf'))
     finally:
@@ -214,10 +214,10 @@ def run_pictures(home):
         s.collect(is_done)
         s.send(cmd='run.initial')
         s.collect(is_done)
-        s.send(cmd='plot.export_pdf', file='pictures.pdf')
+        s.send(cmd='plot.export', format='pdf', file='pictures.pdf')
         s.collect(is_done)
         check_file('pictures.pdf', read(s.run, 'pictures.pdf'))
-        s.send(cmd='plot.export_svg', file='pictures.svg')
+        s.send(cmd='plot.export', format='svg', file='pictures.svg')
         s.collect(is_done)
         check_file('pictures.svg', read(s.run, 'pictures.svg'))
         s.send(cmd='plot.set_variables', how='array_plot', names=['v', 'w'])
