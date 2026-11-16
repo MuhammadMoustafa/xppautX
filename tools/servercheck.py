@@ -12379,6 +12379,32 @@ def check_stop_checks():
     finally:
         stop_server(p, r, snd)
 
+    # 6b. Cross-correlation cancellation (core/histogram.cpp mycor2) on a server of its own, so the stored
+    #    rows are the ones this case set: the direct method is a pass over the rows for each of 4097 lags,
+    #    Stop is checked before each lag, and the warning says which lag it stopped before
+    lines = LogLines()
+    p, r, snd, col, _ = launch_server(log=lines)
+    try:
+        col(is_done)
+        snd(cmd='run.configure', store_every=1)
+        col(is_done)
+        snd(cmd='run.configure', total_time=W388_ROWS * 0.05)
+        col(is_done)
+        snd(cmd='run.initial')
+        _, ran = col(is_done, timeout=120 * SLOW)
+        ran_rows = (ran.get('result') or {}).get('steps', 0) if ran and ran.get('status') != 'error' else 0
+        snd(cmd='spectrum.cross_correlation', column1='V', column2='V', lags=4096, method='direct')
+        _, started = col(lambda e: e.get('ev') == 'job.computing' or is_done(e))
+        xcor_started = started is not None and started.get('ev') == 'job.computing'
+        snd(cmd='run.stop')
+        evs, _ = col(is_done, timeout=30 * SLOW)
+        said = 'the cross-correlation stopped by Stop before lag'
+        told = lines.wait_for(lambda ls: any(said in l for l in ls), timeout=20 * SLOW)
+        check('W388: cross-correlation loop stops on abort and says which lag', ran_rows >= W388_ROWS and xcor_started and stopped_in(evs) and told,
+              '%d rows; %s %s %s' % (ran_rows, str(started)[:300], [e.get('ev') for e in evs][-8:], lines[-2:]))
+    finally:
+        stop_server(p, r, snd)
+
     # 7. --silent: recx replay with armed abort on large store_every
     code, out, err = run_replay([
         {'cmd': 'run.configure', 'store_every': 1000000},

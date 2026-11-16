@@ -248,10 +248,8 @@ xpp::Result<> new_hist(xpp::AnalysisParts &s, int nbins, double zlo, double zhi,
     }
     cond=1;
   }
-  /* the loops that check Stop (my_abort: histogram and pairwise differences) say they compute, as the other long
-     computations do (xpp_job.h); the correlations have no checkpoint and say nothing */
-  std::optional<xpp::Computation> computing;
-  if(which<2) computing.emplace();
+  /* every loop here checks Stop (my_abort), so the job says it computes, as the other long computations do (xpp_job.h) */
+  const xpp::Computation computing;
   if(s.histogram->hist_here){
     data_back(s);
     s.histogram->hist_columns.release();
@@ -311,7 +309,9 @@ xpp::Result<> new_hist(xpp::AnalysisParts &s, int nbins, double zlo, double zhi,
     return {};
   }
   if(which==3){
-    with_value_type(s.data_store->col[col],[&](auto t){fftxcorr<decltype(t)>(s.data_store->col[col],s.data_store->col[col2],s.data_store->rows,(nbins-1)/2,s.histogram->hist()[1],1);});
+    /* the transforms are one step, so Stop is checked before them (a stop there leaves every lag 0) */
+    if(my_abort() == ESC) xpp::log(XPP_LOG_WARN,"the cross-correlation by the FFT stopped by Stop before its transforms: every lag is 0\n");
+    else with_value_type(s.data_store->col[col],[&](auto t){fftxcorr<decltype(t)>(s.data_store->col[col],s.data_store->col[col2],s.data_store->rows,(nbins-1)/2,s.histogram->hist()[1],1);});
     hist_back(s);
     ping();
     return {};
@@ -636,6 +636,11 @@ template<class T> void mycor2(Column x,Column y,int n,int nbins,Column z,int fla
     avy=avy/static_cast<T>(n);
   }
   for(j=0;j<=nbins;j++){
+    /* one lag is a pass over the n values: Stop is checked before each lag */
+    if(my_abort() == ESC){
+      xpp::log(XPP_LOG_WARN,"the cross-correlation stopped by Stop before lag {:d}, of lags -{:d} to {:d}: the lags from it on are 0\n",j-lag,lag,lag);
+      break;
+    }
     sum=0.0;
     count=0;
     for(i=0;i<n;i++){
