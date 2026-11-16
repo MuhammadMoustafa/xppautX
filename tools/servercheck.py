@@ -3693,6 +3693,9 @@ def check_names_from_rows(table):
         for number, line in enumerate(lines, 1):
             line = line.replace('\u2026', '').replace('**', '').replace('`', '')
             for m in path_in_text.finditer(line):
+                # a deeper level of the path just read (autoX > Export > Data > Diagram: a segment's greedy run ends the match at
+                # its second level), not a path of its own because it names a top menu (Data)
+                if line[:m.start()].rstrip().endswith(('>', '\u2192')): continue
                 segments = [part.strip() for part in re.split(r' (?:>|\u2192) |/', m.group(0))]
                 words = segments[-1].split(' ')
                 # the last segment may run on into the sentence: the longest start of it that is a place or a group

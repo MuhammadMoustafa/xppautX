@@ -496,7 +496,7 @@ This selects one of different types of graphs: a 2D box or a 3D Box; brings up a
 - The `Style` button does nothing yet. The `Edit` button lets you change ranges and arrays to plot. The `Redraw` button is obvious.
 - Since the animation option requires learning lots of new stuff, see [Creating Animations](10-animations.md) for a description of the animation language and what you can do with it.
 
-The plot's Graphic stuff > Freeze > Import diagram reads a six-column `.dat` or `.csv` table: x, low, high, type, branch and two-parameter flag. A CSV header is skipped. The richer autoX Export > Data > Diagram (CSV) has a different layout.
+The plot's Graphic stuff > Freeze > Import diagram reads a six-column `.dat` or `.csv` table: x, low, high, type, branch and two-parameter flag. A CSV header is skipped. The richer autoX > Export > Data > Diagram (CSV) has a different layout.
 
 ### Xi vs t
 
