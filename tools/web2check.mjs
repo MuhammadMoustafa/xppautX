@@ -5064,7 +5064,7 @@ async function keymapCheck() {
 async function keymapEditorCheck() {
   await desktopMetrics();
   await clickRegistry('keymap.edit');
-  check('W517: editor lists the registry', await until(`s.keymap.editor.open && document.querySelectorAll('[data-keymap-row]').length === s.hello.commands.filter(c => c.arguments !== undefined).length`, 'editor'));
+  check('W517: editor lists the registry', await until(`s.keymap.editor.open && document.querySelectorAll('[data-keymap-row]').length === s.hello.commands.filter(c => c.arguments !== undefined).reduce((n, c) => n + 1 + (c.menu_choice ? c.arguments.find(a => a.name === c.menu_choice).choices.length : 0), 0)`, 'editor'));
   check('W536: the editor has no XPPAUT key preset', !await exists('[data-keymap-xppaut]') && await S('!("preset" in s.keymap.info)'));
   await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
   check('W517: registry commands stay pinnable', await until(`s.keymap.info.pinned.includes('run.initial')`, 'pin'));
@@ -5078,12 +5078,38 @@ async function keymapEditorCheck() {
   await cdp.eval(`document.querySelector('[data-key-cell="session.reload_model"][data-index="0"]').click()`);
   await key('Escape');
   check('W517: Escape cancels key recording without changing its binding', await S(`s.keymap.editor.open && !s.keymap.editor.recording && s.keymap.info.commands.find(c => c.id === 'session.reload_model').keys.includes('Ctrl+B')`));
+  /* W772: an item of a choice submenu is a row beside its command, bound and pinned by its command value */
+  const item = 'model.export --language python';
+  check('W772: the editor lists an item of a choice submenu beside its command', await exists(`[data-keymap-row="${item}"]`) && await exists('[data-keymap-row="model.export"]'));
+  await cdp.eval(`document.querySelector('[data-key-cell="${item}"][data-index="0"]').click()`);
+  await key('e', 2);
+  check('W772: a recorded key for an item is saved by its command value, and the core says what runs it',
+    await until(`s.keymap.info.commands.find(c => c.id === '${item}')?.keys.includes('Ctrl+E') && s.keymap.info.values.some(v => v.value === '${item}' && v.run.cmd === 'model.export' && v.run.language === 'python')`, 'item key'));
+  check('W772: a bound item is one row of the editor, its own', await cdp.eval(`document.querySelectorAll('[data-keymap-row="${item}"]').length === 1 && new Set([...document.querySelectorAll('[data-keymap-row]')].map(r => r.dataset.keymapRow)).size === document.querySelectorAll('[data-keymap-row]').length`));
+  await cdp.eval(`document.querySelector('[data-key-pin="${item}"]').click()`);
+  check('W772: an item is pinnable', await until(`s.keymap.info.pinned.includes('${item}')`, 'item pin'));
   await key('Escape');
   await until('!s.keymap.editor.open', 'editor closed');
   check('W517: pin appears in quick access', await exists('[data-pinned="run.initial"]'));
   const before = await S('s.seriesCount');
   await cdp.eval(`document.querySelector('[data-pinned="run.initial"]').click()`);
   check('W517: pin runs the same registry command', await until(`s.seriesCount > ${before} && !s.busy`, 'pinned run'));
+  check('W772: the pinned item is in quick access', await exists(`[data-pinned="${item}"]`));
+  const itemMark = await cdp.eval('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector('[data-pinned="${item}"]').click()`);
+  check('W772: the pinned item sends the command with its argument, as the submenu does',
+    await until(`__xpp.sentFrom(${itemMark}).some(c => c.cmd === 'model.export' && c.language === 'python')`, 'item run'));
+  await until('!!s.ask', 'the export asks for its file');
+  await key('Escape');
+  await until('!s.ask && !s.busy', 'the question cancelled');
+  await focusPlot();
+  const keyMark = await cdp.eval('__xpp.sentCount()');
+  await key('e', 2);
+  check('W772: its key sends the same command',
+    await until(`__xpp.sentFrom(${keyMark}).some(c => c.cmd === 'model.export' && c.language === 'python')`, 'item key run'));
+  await until('!!s.ask', 'the export asks for its file again');
+  await key('Escape');
+  await until('!s.ask && !s.busy', 'the question cancelled again');
 }
 
 

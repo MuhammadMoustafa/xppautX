@@ -386,7 +386,7 @@ Loaded load_in(FileSystem &fs, const CommandLine &cl, int batch, const SavedMode
         Model &m = s.model();
         m.outside_paths = outside_paths;
         if (services) m.services = *services;
-        if (!m.services.command_exists) m.services.command_exists = command::command_known;
+        if (!m.services.check_command) m.services.check_command = command::check_value;
         if (!m.services.exports.begin_picture)
             m.services.exports = {data_formats(), std::span<const ImageFormat>(image_formats, n_image_formats), begin_picture, end_picture, write_picture};
         if (saved) {

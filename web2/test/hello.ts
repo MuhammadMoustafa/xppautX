@@ -114,7 +114,7 @@ export const HELLO: HelloEvent = {
   /* no keymap.json: every command with the table's keys (core/xpp_keymap.cpp effective_json) */
   keymap: {
     ok: true, path: '', pinned: [], reserved: RESERVED, limits: {keys: 8, key_bytes: 64},
-    commands: [],
+    commands: [], values: [],
   },
   commands: [
     {cmd: 'run.configure', kind: 's', step: true, arguments: [{name: 'total_time', type: 'real', required: false, choices: []}, {name: 'dt', type: 'real', required: false, choices: []},

@@ -1,4 +1,4 @@
-import {registryRows} from './navigation';
+import {bindableRows} from './navigation';
 /* The keymap editor (docs/command-design.md "Keymap editor"): a dialog listing every command with its
    keys and where they come from. Click a key, press the new combination (Esc cancels, Backspace clears);
    a key another command has asks "Replace / Cancel"; the keys the system keeps (hello.keymap.reserved) are
@@ -28,7 +28,7 @@ function Editor() {
   const dialogBox = () => document.querySelector<HTMLElement>('[data-keymap-editor]');
   const searchKeys = useRef(false);
   const ui = (action: KeymapAction) => session.store.dispatch({type: 'keymapUi', action});
-  const rows = registryRows(hello);
+  const rows = bindableRows(hello, info);
   /* a conflict is announced and its answer is a key away; after any change the focus stays in the dialog
      (the button that had it may be gone: Replace, a key removed), where the keys it records are heard */
   useLayoutEffect(() => {
@@ -36,12 +36,12 @@ function Editor() {
     if (!dialog) return;
     const rec = editor.recording;
     if (editor.conflict) dialog.querySelector<HTMLElement>('[data-conflict-replace]')?.focus();
-    else if (rec) dialog.querySelector<HTMLElement>(`[data-key-cell="${rec.id}"][data-index="${rec.index}"]`)?.focus();
+    else if (rec) dialog.querySelector<HTMLElement>(`[data-key-cell="${CSS.escape(rec.id)}"][data-index="${rec.index}"]`)?.focus();
     else if (!dialog.contains(document.activeElement)) dialog.querySelector<HTMLElement>('[data-keymap-search]')?.focus();
   }, [editor.conflict, info, editor.recording]);
   if (!info) return null;
   const close = () => ui({type: 'close'});
-  const rowOf = (id: string): CommandRow | undefined => rows.find(r => r.id === id);
+  const rowOf = (binding: string): CommandRow | undefined => rows.find(r => r.binding === binding);
 
   /* a key pressed while a key (or the search) is being recorded is the recording's, not the page's */
   const onKeyDown = (e: KeyboardEvent): boolean => {
@@ -114,34 +114,34 @@ function Editor() {
           <tbody>{shown.map(row => {
             const keys = effectiveKeys(info, row);
             const source = sourceLabel(info, row);
-            const pinned = info.pinned.includes(row.id);
-            const recording = editor.recording?.id === row.id ? editor.recording.index : -1;
-            const record = (index: number) => ui({type: 'record', recording: {id: row.id, index}});
-            return <tr key={row.id} data-keymap-row={row.id}>
+            const pinned = info.pinned.includes(row.binding);
+            const recording = editor.recording?.id === row.binding ? editor.recording.index : -1;
+            const record = (index: number) => ui({type: 'record', recording: {id: row.binding, index}});
+            return <tr key={row.binding} data-keymap-row={row.binding}>
               <th scope="row" title={row.description}>{row.name}</th>
               <td>{row.category}</td>
               <td class="keymap-keys">{[...keys, ...(recording === keys.length ? [''] : [])].map((key, i) =>
                 <span class="keymap-key" key={i}>
-                  <button type="button" data-key-cell={row.id} data-index={i} aria-label={`${row.name}: ${key || 'new key'}. Press Enter to change it`}
+                  <button type="button" data-key-cell={row.binding} data-index={i} aria-label={`${row.name}: ${key || 'new key'}. Press Enter to change it`}
                     onClick={e => { e.currentTarget.focus(); record(i); }}
-                    onBlur={() => { if (editor.recording?.id === row.id && editor.recording.index === i) ui({type: 'record', recording: null}); }}>
+                    onBlur={() => { if (editor.recording?.id === row.binding && editor.recording.index === i) ui({type: 'record', recording: null}); }}>
                     {recording === i ? <em>Press keys…</em> : <kbd>{key}</kbd>}</button>
-                  {key && <button type="button" class="keymap-remove" data-key-remove={row.id} aria-label={`Remove ${key} from ${row.name}`}
+                  {key && <button type="button" class="keymap-remove" data-key-remove={row.binding} aria-label={`Remove ${key} from ${row.name}`}
                     onClick={() => session.setKeymap(withoutKey(info, row, i))}>×</button>}
                 </span>)}
-                {keys.length === 0 && recording !== 0 && <button type="button" data-key-cell={row.id} data-index={0}
+                {keys.length === 0 && recording !== 0 && <button type="button" data-key-cell={row.binding} data-index={0}
                   aria-label={`${row.name}: no key. Press Enter to set one`} onClick={e => { e.currentTarget.focus(); record(0); }}>None</button>}
                 {keys.length > 0 && keys.length < info.limits.keys && recording < 0 &&
-                  <button type="button" data-key-add={row.id} aria-label={`Add a second key to ${row.name}`}
+                  <button type="button" data-key-add={row.binding} aria-label={`Add a second key to ${row.name}`}
                     onClick={e => { e.currentTarget.focus(); record(keys.length); }}>+</button>}
               </td>
               <td data-source={source}>{source}</td>
               <td class="keymap-actions">
-                {source !== 'default' && <button type="button" data-key-reset={row.id} aria-label={`Reset the keys of ${row.name}`}
-                  onClick={() => session.setKeymap(withoutBinding(info, row.id))}>Reset</button>}
-                {row.pinnable && <button type="button" data-key-pin={row.id} aria-pressed={pinned}
+                {source !== 'default' && <button type="button" data-key-reset={row.binding} aria-label={`Reset the keys of ${row.name}`}
+                  onClick={() => session.setKeymap(withoutBinding(info, row.binding))}>Reset</button>}
+                {row.pinnable && <button type="button" data-key-pin={row.binding} aria-pressed={pinned}
                   aria-label={`${pinned ? 'Unpin' : 'Pin'} ${row.name} ${pinned ? 'from' : 'to'} the toolbar`}
-                  onClick={() => session.setKeymap(withPinned(info, togglePinned(info.pinned, row.id)))}>{pinned ? 'Unpin' : 'Pin'}</button>}
+                  onClick={() => session.setKeymap(withPinned(info, togglePinned(info.pinned, row.binding)))}>{pinned ? 'Unpin' : 'Pin'}</button>}
               </td>
             </tr>;
           })}</tbody>

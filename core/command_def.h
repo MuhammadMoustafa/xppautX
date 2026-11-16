@@ -366,6 +366,18 @@ std::vector<const Command *> rows();
 const char *type_name(Type type);
 /* The row in the server text form: the `--name value` words after the command's name into the one JSON object the validator reads. */
 Result<std::string> tokenize_command(const Command &command, const char *words, const Place &place);
+/* A command value (W772): a command with fixed argument values, written as the server text form, the name and then `--argument value`
+   words in the row's own order, single values only (`model.export --language python`; no arguments is the bare name). What a key
+   binding, a pin and a model's button name, one spelling each. `run` is the command as the JSON a client sends, the file asked for
+   by the picker when the command needs one and the value gives none (as a menu item does). */
+struct CommandValue {
+    const Command *command;
+    std::string run;
+    bool has_arguments;
+};
+/* The value in `text`, checked as the command checks its arguments (no model, no path, no list or map), all or nothing; the error is
+   at `place`. A value not written as above is refused with the spelling to write. */
+Result<CommandValue> read_value(std::string_view text, const Place &place);
 /* The row as hello and help describe it, a JSON object appended to out. */
 void append_command(std::string &out, const Command &command);
 /* Whether the client id is text of at most MAX_TEXT_BYTES. */

@@ -2178,7 +2178,7 @@ def check_session_commands():
     folder = tempfile.mkdtemp(prefix='xppbuttons')
     model = os.path.join(folder, 'buttons.ode')
     with open(model, 'w') as f:
-        f.write("x'=-x\ninit x=1\n@ total=1,dt=0.1,but=Go:ig\ndone\n")
+        f.write("x'=-x\ninit x=1\n@ total=1,dt=0.1,but=Go:ig,but=Frames:ks\ndone\n")
     config = tempfile.mkdtemp(prefix='xppconfig')
     proc, run_dir, snd, col, _ = launch_server(ode=model, extra_env={'XPP_CONFIG_DIR': config})
     try:
@@ -2188,7 +2188,8 @@ def check_session_commands():
         initial, _ = col(lambda e: e.get('ev') == 'done')
         hello = next(e for e in initial if e.get('ev') == 'hello')
         check('W528: the model makes the button, and hello names every event stream the commands take',
-              hello.get('userbuttons') == [{'label': 'Go', 'command': 'run.initial'}] and 'recording.player' in hello.get('features', []) and 'features' in hello, str(hello.get('userbuttons')))
+              hello.get('userbuttons') == [{'label': 'Go', 'command': 'run.initial'}, {'label': 'Frames', 'command': 'kinescope.export --output frames', 'run': {'cmd': 'kinescope.export', 'output': 'frames', 'file_picker': True}}]
+              and 'recording.player' in hello.get('features', []) and 'features' in hello, str(hello.get('userbuttons')))
 
         def call(answers=(), **command):
             """the done of a command, answering its asks with `answers` (keys or fields), and every event up to it"""
@@ -11355,6 +11356,25 @@ def check_keymap():
         ev = keymap_events(evs)
         check('W211: set replaces a bad file whole', len(ev) == 1 and ev[0]['keymap']['ok'] is True
               and ev[0]['keymap']['pinned'] == ['calculator.evaluate'], str(evs)[-300:])
+
+        # W772: a binding and a pin name a command with its arguments, written as the text command; the page gets what runs it
+        value = 'model.export --language python'
+        snd(cmd='keymap.set', bindings={value: ['Ctrl+E']}, pinned=[value])
+        evs, _ = col(is_done)
+        ev = keymap_events(evs)
+        km = ev[0]['keymap'] if ev else {}
+        check('W772: set takes a command with arguments, bound and pinned by its value, and answers what runs it',
+              len(ev) == 1 and km.get('ok') is True and km['pinned'] == [value] and by_id(km)[value]['keys'] == ['Ctrl+E'] and by_id(km)[value]['source'] == 'user'
+              and km['values'] == [{'value': value, 'run': {'cmd': 'model.export', 'language': 'python'}}] and not errors(evs), str(evs)[-300:])
+        before = open(path, 'rb').read()
+        for what, bad, text in [('a value no choice has', {'bindings': {'model.export --language nosuch': ['Ctrl+E']}}, 'nosuch'),
+                                ('an argument the command lacks', {'pinned': ['model.export --nosuch python']}, 'nosuch'),
+                                ('another spelling', {'bindings': {'model.export  --language python': ['Ctrl+E']}}, 'write the value as')]:
+            snd(cmd='keymap.set', **bad)
+            evs, _ = col(is_done)
+            err = errors(evs)
+            check('W772: set refuses %s with the value, and writes nothing' % what,
+                  len(err) == 1 and text in err[0]['error'] and err[0]['file'] == 'the keymap sent' and not keymap_events(evs) and open(path, 'rb').read() == before, str(evs)[-300:])
 
         # a file too large is refused as it is read
         with open(path, 'w') as f:

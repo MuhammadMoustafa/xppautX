@@ -1,4 +1,4 @@
-import {registryRows} from './navigation';
+import {bindableRows} from './navigation';
 import {requestUpdateCheck} from '../help/updates';
 /* The Help view (docs/roadmap.md W12: the manual, step 3): a table of
    contents, a search box (help/search.ts, over the manual's headings and
@@ -82,7 +82,7 @@ function KeyTable() {
   const session = useSession();
   const hello = useStore(s => s.hello);
   const keymap = useStore(s => s.keymap.info);
-  const rows = registryRows(hello).filter(row => shortcutLabel(row, keymap) !== '');
+  const rows = bindableRows(hello, keymap).filter(row => shortcutLabel(row, keymap) !== '');
   return (
     <details class="help-keys">
       <summary><CommandLabel command="keymap.edit" /></summary>
@@ -90,7 +90,7 @@ function KeyTable() {
       <table>
         <tbody>
           {FIXED_KEYS.map(k => <tr key={k.key}><th scope="row"><kbd>{k.key}</kbd></th><td>{k.does}</td></tr>)}
-          {rows.map(row => <tr key={row.id}><th scope="row"><kbd>{shortcutLabel(row, keymap)}</kbd></th><td>{row.name}</td></tr>)}
+          {rows.map(row => <tr key={row.binding}><th scope="row"><kbd>{shortcutLabel(row, keymap)}</kbd></th><td>{row.name}</td></tr>)}
         </tbody>
       </table>
     </details>

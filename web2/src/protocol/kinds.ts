@@ -83,6 +83,9 @@ export interface CommandRow {
   action?: string;
   /** stable: the command's name */
   id: string;
+  /** the command value that names this row in the keymap and the pins (core read_value): `id` for a command, `id --argument value` for an item of
+      its submenu (navigation.ts commandValue) */
+  binding: string;
   /** the name inside the command's menu: the menu bar's entry */
   label: string;
   /** the full name, shown everywhere but in the menu itself (the palette, the keymap editor, the status line, buttons) */

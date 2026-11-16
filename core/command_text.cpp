@@ -180,6 +180,52 @@ Result<std::string> tokenize_command(const Command &command, const char *cursor,
     return out;
 }
 
+namespace {
+
+/* the canonical spelling of a tokenized value: the row's arguments in its order, a choice bare, any other value as the JSON holds it */
+Result<std::string> value_text(const Command &command, const char *json, const Place &place)
+{
+    std::string out(command.name);
+    for (const Argument &arg : command.arguments) {
+        const char *value = json::js_find(json, arg.name);
+        if (!value) continue;
+        if (arg.type == Type::list || arg.type == Type::map || arg.type == Type::text_list || arg.type == Type::real_pair)
+            return fail(command.name, xpp::format("A command value holds single values, not the list \"{}\"", arg.name), place);
+        out += xpp::format(" --{} ", arg.name);
+        std::string choice;
+        if (arg.type == Type::choice && json::js_string(value, choice)) out += choice;
+        else out += json::js_raw(value);
+    }
+    return out;
+}
+
+} // namespace
+
+Result<CommandValue> read_value(std::string_view text, const Place &place)
+{
+    if (text.size() > MAX_TEXT_BYTES) return fail("command", xpp::format("A command value is at most {} bytes", MAX_TEXT_BYTES), place);
+    const std::size_t blank_at = text.find_first_of(" \t");
+    const std::string_view name = text.substr(0, blank_at);
+    const Command *command = find(name);
+    if (!command) return fail("command", xpp::format("`{}` is no command of xppautX", name), place);
+    if (blank_at == std::string_view::npos) return CommandValue{command, xpp::format("{{\"cmd\":\"{}\"}}", command->name), false};
+    const std::string words(text.substr(blank_at));
+    Result<std::string> json = tokenize_command(*command, words.c_str(), place);
+    if (!json) return std::unexpected<Error>(json.error());
+    const std::string given = *json;
+    const Argument *file = picker_argument(*command);
+    if (file && file->required && !json::js_find(json->c_str(), file->name)) {
+        json->pop_back();
+        *json += xpp::format(",\"{}\":true}}", FILE_PICKER_KEY);
+    }
+    if (const Result<Arguments> checked = validate(nullptr, *command, json->c_str(), place, false); !checked)
+        return std::unexpected<Error>(checked.error());
+    const Result<std::string> spelled = value_text(*command, given.c_str(), place);
+    if (!spelled) return std::unexpected<Error>(spelled.error());
+    if (*spelled != text) return fail(command->name, xpp::format("write the value as `{}`", *spelled), place);
+    return CommandValue{command, std::move(*json), true};
+}
+
 Result<std::string> tokenize(const char *line, const Place &place)
 {
     if (std::strlen(line) > MAX_COMMAND_BYTES)

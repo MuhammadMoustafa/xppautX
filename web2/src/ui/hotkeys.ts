@@ -1,4 +1,4 @@
-import {registryRows} from './navigation';
+import {bindableRows} from './navigation';
 /* The page's keyboard layer (docs/command-design.md): one dispatcher from a key event to a command id.
    A key is normalised to a name ("Ctrl+Shift+S"), looked up among the commands' effective keys (the
    registry's defaults, or the user's), and the command runs through Session.registryAction, the path a
@@ -85,7 +85,7 @@ export function keyName(e: KeyboardEvent): string | null {
 
 /** the command whose effective keys (the table's, or the user's) include the key `name`, else null */
 export function commandOnKey(hello: HelloEvent | null, keymap: KeymapInfo | null, name: string): CommandRow | null {
-  return registryRows(hello).find(row => effectiveKeys(keymap, row).includes(name)) ?? null;
+  return bindableRows(hello, keymap).find(row => effectiveKeys(keymap, row).includes(name)) ?? null;
 }
 
 /** how a command's keys are written where the page lists it: its effective keys */
@@ -151,10 +151,10 @@ function escape(session: Session, target: Element | null): boolean {
   return false;
 }
 
-/** Run the command a key names, through the action a click on it takes; while a run forbids
+/** Run the command (or the item of its submenu) a key names, through the action a click on it takes; while a run forbids
     it (its kind, protocol/kinds.ts) the status bar says why. */
 function runCommand(session: Session, row: CommandRow): void {
-  if (session.may({cmd: row.id})) session.registryAction(row.id);
+  if (session.may({cmd: row.id})) session.registryRow(row);
   else session.store.dispatch({type: 'bottom', text: `${row.name}: ${noValueEdit(session.store.getState().core, row.id) ? `nothing to ${row.id}` : BUSY_TITLE}`});
 }
 

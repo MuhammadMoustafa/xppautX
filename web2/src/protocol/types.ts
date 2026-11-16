@@ -93,7 +93,7 @@ export interface HelloEvent {
   /** what joins the groups of a command's full name (core MENU_SEPARATOR): a menu_choice item's name is joined the same way */
   menu_separator: string;
   /** the model's buttons: a label and the registry command each runs */
-  userbuttons: {label: string; command: string}[];
+  userbuttons: {label: string; command: string; run?: {cmd: string} & Record<string, string | boolean>}[];
   /** the color scales the core has, by name (the array plot's choice) */
   colormaps: string[];
   /** the model file's own values, in the order of `state`'s pars and ics (what `default` restores) */
@@ -181,8 +181,10 @@ export interface KeymapInfo {
   ok: boolean;
   /** the settings file's path ('' when the system names no config folder) */
   path: string;
-  /** the quick-access toolbar's command ids, in order */
+  /** the quick-access toolbar's command values, in order */
   pinned: string[];
+  /** every command value with arguments that is bound or pinned, with the command the page sends to run it (core read_value's `run`) */
+  values: {value: string; run: {cmd: string} & Record<string, string | boolean>}[];
   /** keys no command may take (the page and the system keep them) */
   reserved: string[];
   /** the most keys of a command and bytes of a key string */

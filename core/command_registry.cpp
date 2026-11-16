@@ -337,7 +337,12 @@ const char *type_name(Type type)
     return index<NAMES.size()?NAMES[index]:"";
 }
 
-bool command_known(std::string_view name) { return find(name) != nullptr; }
+Result<> check_value(std::string_view text)
+{
+    const Result<CommandValue> value = read_value(text, Place{});
+    if (!value) return std::unexpected<Error>(value.error());
+    return {};
+}
 
 const Command *find(std::string_view name)
 {

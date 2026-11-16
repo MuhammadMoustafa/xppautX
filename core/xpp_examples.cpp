@@ -86,7 +86,7 @@ Result<std::string> install(FileSystem &fs, std::string_view name)
     try {
         Model model;
         model.this_file = source;
-        model.services.command_exists = command::command_known;
+        model.services.check_command = command::check_value;
         const auto parsed = odex::parse(model, members.front().bytes, source);
         for (const auto &statement : parsed.statements) {
             if (statement.kind != odex::Statement::Kind::Options) continue;

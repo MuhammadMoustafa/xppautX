@@ -25,6 +25,7 @@ constexpr KeyCommand key_commands[] = {
   {"nn", "nullcline.compute"}, {"nr", "nullcline.redraw"}, {"ns", "nullcline.export"},
   {"dd", "direction_field.compute"}, {"df", "direction_field.flow"}, {"dn", "direction_field.clear"}, {"dc", "direction_field.colorize"},
   {"ww", "window.set_bounds"}, {"wf", "window.fit"}, {"mc", "window.new"}, {"mk", "window.close_extra"}, {"md", "window.close"}, {"mb", "window.send_to_bottom"}, {"r", "window.redraw"}, {"e", "window.clear"}, {"x", "plot.variable_vs_time"},
+  {"ks", "kinescope.export --output frames"}, {"km", "kinescope.export --output animated_gif"},
   {"kc", "kinescope.capture"}, {"kr", "kinescope.reset"}, {"kp", "kinescope.play"}, {"ka", "kinescope.autoplay"},
   {"ga", "plot.add_curve"}, {"gd", "plot.delete_curve"}, {"gr", "plot.delete_all_curves"}, {"ge", "plot.edit_curve"},
   {"p", "value.set_parameters"}, {"fa", "autox.open"}, {"fc", "calculator.evaluate"}, {"fs", "session.export_info"},
@@ -43,8 +44,14 @@ std::vector<UserButton> read_buttons(odex::Block &file, const LoadServices &serv
     UserButton button;
     g.text("label", button.label);
     if (button.label.empty()) g.fail(*g.member("label"), "a button's label is not empty");
-    g.word("command", button.command);
-    if (services.command_exists && !services.command_exists(button.command)) g.fail(*g.member("command"), xpp::format("`{}` is no command of xppautX", button.command));
+    const odex::Member &command = *g.member("command");
+    /* a command value is one word when it has no arguments, else the user's text, a string */
+    if (command.value.kind == odex::Value::Kind::string) {
+      g.text("command", button.command);
+      if (!button.command.contains(' ')) g.fail(command, "a command with no arguments is written bare, without quotes");
+    } else g.word("command", button.command);
+    if (services.check_command)
+      if (const Result<> checked = services.check_command(button.command); !checked) g.fail(command, checked.error().what);
     if (std::ranges::any_of(buttons, [&](const UserButton &b) { return b.label == button.label; }))
       g.fail(*g.member("label"), xpp::format("two buttons are labelled \"{}\"", button.label));
     g.done();
@@ -56,7 +63,8 @@ std::vector<UserButton> read_buttons(odex::Block &file, const LoadServices &serv
 std::string buttons_text(const std::vector<UserButton> &buttons)
 {
   std::string text = "[";
-  for (const UserButton &b : buttons) text += xpp::format("{} {{ label: {}, command: {} }}", text.size() > 1 ? "," : "", odex::quote_string(b.label), b.command);
+  for (const UserButton &b : buttons) text += xpp::format("{} {{ label: {}, command: {} }}", text.size() > 1 ? "," : "", odex::quote_string(b.label),
+                                  b.command.contains(' ') ? odex::quote_string(b.command) : b.command);
   return text + (buttons.empty() ? "]" : " ]");
 }
 

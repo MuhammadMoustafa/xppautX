@@ -114,6 +114,12 @@ void check_bad_files()
         {"pinned a panel command", "{\"pinned\": [\n\"window\"]}", 2, "window"},
         {"pinned twice", "{\"pinned\": [\"session.reload_model\",\n\"session.reload_model\"]}", 2, "twice"},
         {"pinned not a string", "{\"pinned\": [true]}", 1, "true"},
+        /* W772: a command value is checked as the command checks its arguments, and names the binding and the value */
+        {"a bad value", "{\"bindings\": {\n\"model.export --language nosuch\": [\"Ctrl+E\"]}}", 2, "nosuch"},
+        {"an unknown argument", "{\"bindings\": {\n\"model.export --nosuch python\": [\"Ctrl+E\"]}}", 2, "nosuch"},
+        {"a value of another spelling", "{\"bindings\": {\n\"model.export  --language python\": [\"Ctrl+E\"]}}", 2, "write the value as `model.export --language python`"},
+        {"a pinned bad value", "{\"pinned\": [\n\"model.export --language nosuch\"]}", 2, "nosuch"},
+        {"a clash of two values", "{\"bindings\": {\"model.export --language python\": [\"Ctrl+E\"],\n\"model.export --language python_numpy\": [\"Ctrl+E\"]}}", 2, "both on key"},
     };
     for (const Bad &b : bad) {
         const xpp::Result<xpp::keymap::Keymap> r = xpp::keymap::parse_keymap(b.text == nul.c_str() ? std::string(nul) : keymap_text(b.text), FILE_LABEL);
@@ -199,6 +205,17 @@ void check_file(const std::string &dir)
     CHECK(json.starts_with("{\"ok\":true"));
     CHECK(json.find("{\"id\":\"session.reload_model\",\"keys\":[\"Ctrl+B\"],\"source\":\"user\"}") != std::string::npos);
     CHECK(json.find("{\"id\":\"session.open_model\",\"keys\":[\"Ctrl+O\"],\"source\":\"default\"}") != std::string::npos);
+
+    /* W772: a command with fixed arguments is bound and pinned by its value, and the page gets what runs it */
+    {
+        xpp::Writer w = xpp::Writer::binary(file);
+        CHECK(w && w.write(keymap_text("{\"pinned\": [\"model.export --language python\"], \"bindings\": {\"model.export --language python\": [\"Ctrl+E\"]}}")) && w.commit().has_value());
+    }
+    const auto valued = xpp::keymap::load_keymap(fs);
+    CHECK(valued.has_value());
+    const std::string valued_json = xpp::keymap::effective_json(fs, valued);
+    CHECK(valued_json.find("{\"id\":\"model.export --language python\",\"keys\":[\"Ctrl+E\"],\"source\":\"user\"}") != std::string::npos);
+    CHECK(valued_json.find("\"values\":[{\"value\":\"model.export --language python\",\"run\":{\"cmd\":\"model.export\",\"language\":\"python\"}}]") != std::string::npos);
 
     /* a bad file on disk is an error naming the file, and the effective keymap is the defaults, marked */
     {

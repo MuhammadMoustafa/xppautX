@@ -290,7 +290,7 @@ function UserButtonsBlock() {
     <section class="value-group" aria-label="Buttons">
       <div class="value-list value-buttons">
         {buttons.map((button, i) => (
-          <button key={i} onClick={() => session.registryAction(button.command)} disabled={busy}
+          <button key={i} onClick={() => { if (button.run) { const {cmd, ...args} = button.run; session.registryChoice(cmd, args); } else session.registryAction(button.command); }} disabled={busy}
             title={busy ? BUSY_TITLE : `A button of the model: runs ${button.command}`}>{button.label}</button>
         ))}
       </div>

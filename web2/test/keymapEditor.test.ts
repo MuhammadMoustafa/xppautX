@@ -148,6 +148,7 @@ function fake(keymap: KeymapInfo, extra: Partial<AppState> = {}) {
     store: {getState: () => state, dispatch: (a: Action) => { state = reduce(state, a); }},
     may: () => true,
     registryAction: (id: string) => { calls.push(id); },
+    registryRow: (row: {id: string}) => { calls.push(row.id); },
     typeKey: () => undefined,
     awaitingMenu: () => false,
   } as unknown as Session;

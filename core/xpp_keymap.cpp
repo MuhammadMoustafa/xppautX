@@ -142,11 +142,11 @@ private:
         return key;
     }
 
-    const command::Command &read_command(const std::string &id, const char *at) const
+    /* a binding or a pin names a command value (command_def.h): a command, with fixed arguments if it has any */
+    void read_command(const std::string &id, const char *at) const
     {
-        const command::Command *row = command::find(id);
-        if (!row) fail(at, xpp::format("unknown command {}", quoted(id)));
-        return *row;
+        if (const Result<command::CommandValue> value = command::read_value(id, Place{}); !value)
+            fail(at, xpp::format("{}: {}", quoted(id), value.error().what));
     }
 
     void read_version(const char *v) const
@@ -190,23 +190,31 @@ private:
 
     /* the effective map has no two commands on one key: the table's keys of the commands the file leaves alone,
        then the file's, in its order */
+    struct Owner { std::string id, key; const char *at; };
+
+    /* `key` of command value `id` is taken, or fails when another has it */
+    void take(std::vector<Owner> &owners, const std::string &id, const std::string &key) const
+    {
+        const auto placed = std::find_if(placed_.rbegin(), placed_.rend(), [&](const Placed &p) { return p.id == id && p.key == key; });
+        const char *at = placed == placed_.rend() ? text_.c_str() : placed->at;
+        for (const Owner &owner : owners) {
+            if (owner.key != key) continue;
+            fail(std::max(owner.at, at), xpp::format("{} and {} are both on key {}", quoted(owner.id), quoted(id), quoted(key)));
+        }
+        owners.push_back({id, key, at});
+    }
+
     void check_clashes(const Keymap &map) const
     {
-        struct Owner { std::string id, key; const char *at; };
         std::vector<Owner> owners;
         for (const command::Command *row : command::rows()) {
             const auto keys = effective_keys(map, *row);
             if (keys.size() > MAX_KEYS_PER_COMMAND) fail(text_.c_str(), xpp::format("{} has more than {} keys", quoted(row->name), MAX_KEYS_PER_COMMAND));
-            for (const std::string &key : keys) {
-                const auto placed = std::find_if(placed_.rbegin(), placed_.rend(), [&](const Placed &p) { return p.id == row->name && p.key == key; });
-                const char *at = placed == placed_.rend() ? text_.c_str() : placed->at;
-                for (const Owner &owner : owners) {
-                    if (owner.key != key) continue;
-                    fail(std::max(owner.at, at), xpp::format("{} and {} are both on key {}", quoted(owner.id), quoted(row->name), quoted(key)));
-                }
-                owners.push_back({row->name, key, at});
-            }
+            for (const std::string &key : keys) take(owners, std::string(row->name), key);
         }
+        for (const auto &[id, keys] : map.bindings)
+            if (!command::find(id))
+                for (const std::string &key : keys) take(owners, id, key);
     }
 
     std::string text_; /* NUL-terminated: the JSON reader reads pointers */
@@ -314,6 +322,28 @@ std::string effective_json(FileSystem &fs, const Result<Keymap> &loaded)
         out += ",\"keys\":[";
         append_strings(out, effective_keys(map, row), ",");
         out += map.bindings.contains(std::string(row.name)) ? "],\"source\":\"user\"}" : "],\"source\":\"default\"}";
+    }
+    /* the command values (a command with arguments) the user bound, beside the rows, and every one bound or pinned with what the page sends to run it */
+    std::set<std::string> values;
+    for (const auto &[id, keys] : map.bindings) {
+        if (command::find(id)) continue;
+        out += ",{\"id\":";
+        json_append_string(out, id);
+        out += ",\"keys\":[";
+        append_strings(out, keys, ",");
+        out += "],\"source\":\"user\"}";
+        values.insert(id);
+    }
+    values.insert(map.pinned.begin(), map.pinned.end());
+    out += "],\"values\":[";
+    first = true;
+    for (const std::string &id : values) {
+        const Result<command::CommandValue> value = command::read_value(id, Place{});
+        if (!value || !value->has_arguments) continue;
+        out += first ? "{\"value\":" : ",{\"value\":";
+        first = false;
+        json_append_string(out, id);
+        out += ",\"run\":" + value->run + "}";
     }
     return out + "]}";
 }

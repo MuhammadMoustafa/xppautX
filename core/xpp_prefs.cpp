@@ -262,7 +262,7 @@ LoadServices load_services(FileSystem &fs, const Result<Preferences> *read)
     services.keep = [&fs](const OutsideApproval &a) {
         return update_prefs(fs, [&](Preferences &q) { remember_newest(q.outside_paths, a, MAX_OUTSIDE_APPROVALS); });
     };
-    services.command_exists = command::command_known;
+    services.check_command = command::check_value;
     return services;
 }
 

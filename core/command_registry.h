@@ -12,8 +12,8 @@ namespace xpp::command {
 /* The registered command named by a JSON object or a server text line;
    empty when it is not registered. Safe on the inbox's reader thread. */
 std::string_view name(const char *line);
-/* whether a command of that name is registered: what the program gives a load to check a model's button against (LoadServices::command_exists) */
-bool command_known(std::string_view name);
+/* whether text is a command value (command_def.h read_value): what the program gives a load to check a model's button against (LoadServices::check_command) */
+Result<> check_value(std::string_view text);
 char kind(const char *line);
 /* Append registry rows to an existing JSON array (including a comma
    before each row). hello and help use the same metadata renderer. */

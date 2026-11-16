@@ -1,6 +1,6 @@
 #pragma once
 /* The buttons of a model: each has a label and runs one registry command (W663). A .odex lists them under `interface`:
-   `buttons: [ { label: "AUTO", command: autox.open } ]`; an XPPAUT .ode's `@ but=name:keys` (the letters of its menu
+   `buttons: [ { label: "AUTO", command: autox.open }, { label: "Frames", command: "kinescope.export --output frames" } ]`; an XPPAUT .ode's `@ but=name:keys` (the letters of its menu
    keys) is read on import only and written as that list. userbut.cpp. */
 #include <string>
 #include <string_view>
@@ -10,14 +10,15 @@ namespace xpp {
 namespace odex { class Block; }
 struct LoadServices; /* model_file_types.h */
 
-/* a button of the model's: its label and the registry command it runs */
+/* a button of the model's: its label and the command value it runs (command_def.h CommandValue: a registry command, with the
+   `--argument value` words it runs with, if any) */
 struct UserButton {
   std::string label, command;
 };
 
-/* the buttons of the `buttons` list of file: each has a label (not empty) and a command (a registry command), and no two have one
+/* the buttons of the `buttons` list of file: each has a label (not empty) and a command value (`command` is a bare word, or a string when it has arguments), and no two have one
    label; ReadFailed at the member that is wrong. The count has no limit but the file's. `services` gives the registry's answer
-   (LoadServices::command_exists) to whether a command exists; the Model of a state file read apart from its model has none and
+   (LoadServices::check_command) to a value; the Model of a state file read apart from its model has none and
    checks the shape only: the read that follows with the real Model checks the names. */
 std::vector<UserButton> read_buttons(odex::Block &file, const LoadServices &services);
 

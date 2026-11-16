@@ -1301,6 +1301,11 @@ void send_hello(xpp::Session &s)
         buf_str(b, button.label);
         BUF_LIT(b, ",\"command\":");
         buf_str(b, button.command);
+        /* what the button sends when the command has arguments (the page runs it as a menu item does), else the page opens the command's form */
+        if (const xpp::Result<xpp::command::CommandValue> value = xpp::command::read_value(button.command, xpp::Place{}); value && value->has_arguments) {
+            BUF_LIT(b, ",\"run\":");
+            b.append(value->run);
+        }
         BUF_LIT(b, "}");
     }
     /* the model file's values, what `default` restores, in state's order */

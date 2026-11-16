@@ -391,9 +391,15 @@ export class Session {
 
   /** an item of a menu_choice row (File > Export > Model as > Python): the command with that one value and no form; what it still
       needs (the file, a target) the core asks, as for the command sent by a script */
-  registryChoice(id: string, {arguments: args}: NonNullable<CommandRow['choice']>): void {
+  registryChoice(id: string, args: Record<string, string | boolean>): void {
     const cmd: Command = {cmd: id, ...args};
     if (this.may(cmd)) this.send(cmd);
+  }
+
+  /** what a row names, run as a click on it runs it: an item (a command with fixed arguments) as its submenu sends it, a command by its form */
+  registryRow(row: CommandRow): void {
+    if (row.choice) this.registryChoice(row.id, row.choice.arguments);
+    else this.registryAction(row.id);
   }
 
   /** the opening's check (W622): never a dialog; an answer that fails is told to the core's log at INFO and shown nowhere */

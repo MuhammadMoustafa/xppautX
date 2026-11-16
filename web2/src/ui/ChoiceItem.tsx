@@ -13,7 +13,7 @@ export function ChoiceItem({item, onPick, disabled = false}: {item: CommandRow; 
   return (
     <li>
       <button role="menuitem" data-command={item.id} data-choice={choice.value} title={open ? item.description : BUSY_TITLE} disabled={!open || disabled}
-        onClick={() => {onPick?.(); session.registryChoice(item.id, choice);}}>{choiceLabel(choice.value)}</button>
+        onClick={() => {onPick?.(); session.registryChoice(item.id, choice.arguments);}}>{choiceLabel(choice.value)}</button>
     </li>
   );
 }

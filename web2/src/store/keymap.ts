@@ -7,7 +7,7 @@
 import type {CommandRow} from '../protocol/kinds';
 import type {KeymapInfo, UserKeymap} from '../protocol/types';
 
-/** a key being recorded: command `id`'s key number `index` (`index` = its key count: a new second binding) */
+/** a key being recorded: the key number `index` of command value `id` (a row's `binding`; `index` = its key count: a new second binding) */
 export interface Recording {
   id: string;
   index: number;
@@ -18,7 +18,7 @@ export interface Conflict {
   id: string;
   index: number;
   key: string;
-  /** the command that has it */
+  /** the command value (row binding) that has it */
   other: string;
 }
 
@@ -85,9 +85,9 @@ function commandsById(info: KeymapInfo): Map<string, KeymapInfo['commands'][numb
   return map;
 }
 
-/** the effective keys of command `row` (its table keys before hello, or for a row the keymap lacks) */
-export function effectiveKeys(info: KeymapInfo | null, row: Pick<CommandRow, 'id' | 'default_keys'>): string[] {
-  return (info && commandsById(info).get(row.id)?.keys) ?? row.default_keys;
+/** the effective keys of `row`, a command or one of its items, by its binding (its table keys before hello, or for a row the keymap lacks) */
+export function effectiveKeys(info: KeymapInfo | null, row: Pick<CommandRow, 'binding' | 'default_keys'>): string[] {
+  return (info && commandsById(info).get(row.binding)?.keys) ?? row.default_keys;
 }
 
 /** whether command `id`'s keys are the user's */
@@ -113,12 +113,12 @@ export function withKeys(info: KeymapInfo, id: string, keys: string[]): UserKeym
 export function withKey(info: KeymapInfo, row: CommandRow, index: number, key: string): UserKeymap {
   const keys = effectiveKeys(info, row).slice();
   keys[index] = key;
-  return withKeys(info, row.id, keys);
+  return withKeys(info, row.binding, keys);
 }
 
 /** the keymap with command `id`'s key number `index` removed */
 export function withoutKey(info: KeymapInfo, row: CommandRow, index: number): UserKeymap {
-  return withKeys(info, row.id, effectiveKeys(info, row).filter((_, i) => i !== index));
+  return withKeys(info, row.binding, effectiveKeys(info, row).filter((_, i) => i !== index));
 }
 
 /** the keymap with command `id` back on the table's keys */
@@ -134,7 +134,7 @@ export function withPinned(info: KeymapInfo, pinned: string[]): UserKeymap {
 
 /** the command other than `id` that has `key`, if any */
 export function conflictOf(info: KeymapInfo, rows: readonly CommandRow[], id: string, key: string): CommandRow | undefined {
-  return rows.find(row => row.id !== id && effectiveKeys(info, row).includes(key));
+  return rows.find(row => row.binding !== id && effectiveKeys(info, row).includes(key));
 }
 
 /** the keymap with `key` given to command `row` as its key number `index`, and taken from every other
@@ -144,15 +144,15 @@ export function replaceKey(info: KeymapInfo, rows: readonly CommandRow[], row: C
   const bindings = {...user.bindings};
   for (const other of rows) {
     const keys = effectiveKeys(info, other);
-    if (other.id !== row.id && keys.includes(key)) bindings[other.id] = keys.filter(k => k !== key);
+    if (other.binding !== row.binding && keys.includes(key)) bindings[other.binding] = keys.filter(k => k !== key);
   }
   return {...user, bindings};
 }
 
 /** where a command's keys come from, as the editor says it: the table's (default), the user's own for a
     command that has none by default (user), or the user's instead of the table's (changed) */
-export function sourceLabel(info: KeymapInfo | null, row: Pick<CommandRow, 'id' | 'default_keys'>): 'default' | 'changed' | 'user' {
-  return !isChanged(info, row.id) ? 'default' : row.default_keys.length ? 'changed' : 'user';
+export function sourceLabel(info: KeymapInfo | null, row: Pick<CommandRow, 'binding' | 'default_keys'>): 'default' | 'changed' | 'user' {
+  return !isChanged(info, row.binding) ? 'default' : row.default_keys.length ? 'changed' : 'user';
 }
 
 /** what a recorded key is refused for, or null: a key the system keeps, or one more than a command may have */
@@ -176,12 +176,12 @@ export type Recorded =
 export function recordKey(info: KeymapInfo, rows: readonly CommandRow[], rec: Recording, name: string): Recorded {
   if (name === 'Escape') return {kind: 'cancel'};
   if (name === 'Backspace') return {kind: 'clear'};
-  const row = rows.find(r => r.id === rec.id);
+  const row = rows.find(r => r.binding === rec.id);
   if (!row) return {kind: 'cancel'};
   const problem = keyProblem(info, row, rec.index, name);
   if (problem) return {kind: 'refused', text: problem};
   const other = conflictOf(info, rows, rec.id, name);
-  if (other) return {kind: 'conflict', conflict: {...rec, key: name, other: other.id}};
+  if (other) return {kind: 'conflict', conflict: {...rec, key: name, other: other.binding}};
   return {kind: 'set', key: name};
 }
 
@@ -190,13 +190,13 @@ export function recordKey(info: KeymapInfo, rows: readonly CommandRow[], rec: Re
 export function editorRows(info: KeymapInfo | null, rows: readonly CommandRow[], query: string): CommandRow[] {
   const words = query.toLocaleLowerCase().split(/[\s+]+/).filter(Boolean);
   return rows.filter(row => words.every(word =>
-    `${row.name} ${row.description} ${row.category} ${row.id} ${effectiveKeys(info, row).join(' ')}`.toLocaleLowerCase().replace(/\+/g, ' ').includes(word)));
+    `${row.name} ${row.description} ${row.category} ${row.binding} ${effectiveKeys(info, row).join(' ')}`.toLocaleLowerCase().replace(/\+/g, ' ').includes(word)));
 }
 
-/** the quick-access toolbar: the pinned commands that exist and may be pinned, in order. The ids of
+/** the quick-access toolbar: the pinned command values that name a row and may be pinned, in order. The ids of
     `info.pinned` are the core's, already checked; a row the table lacks cannot be there */
 export function pinnedRows(info: KeymapInfo | null, rows: readonly CommandRow[]): CommandRow[] {
-  return (info?.pinned ?? []).flatMap(id => rows.filter(row => row.id === id && row.pinnable));
+  return (info?.pinned ?? []).flatMap(id => rows.filter(row => row.binding === id && row.pinnable));
 }
 
 /** `pinned` with `id` moved to position `to` (dragging a button before or after another) */

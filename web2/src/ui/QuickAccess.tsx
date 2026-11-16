@@ -1,4 +1,4 @@
-import {registryRows} from './navigation';
+import {bindableRows} from './navigation';
 /* The pinned commands of the quick-access toolbar (docs/command-design.md "Quick access"), after the
    fixed run buttons: the user's own commands (keymap.pinned) in order, each with its label, dragged to
    reorder, with a context menu (Unpin, Move earlier, Move later: also the keyboard's way, Shift+F10 or
@@ -20,12 +20,12 @@ export function QuickAccess() {
   const may = useMay();
   const hello = useStore(s => s.hello);
   const keymap = useStore(s => s.keymap.info);
-  const rows = pinnedRows(keymap, registryRows(hello));
+  const rows = pinnedRows(keymap, bindableRows(hello, keymap));
   const box = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(rows.length);
   const [menu, setMenu] = useState<{id: string; x: number; y: number} | null>(null);
   const dragged = useRef<string | null>(null);
-  const ids = rows.map(r => r.id).join(' ');
+  const ids = rows.map(r => r.binding).join('\n');
 
   /* how many fit: the buttons that do not are drawn invisible (still measurable) and listed in More */
   useLayoutEffect(() => {
@@ -45,7 +45,7 @@ export function QuickAccess() {
   if (!rows.length || !keymap) return null;
   const pinned = keymap.pinned;
   const save = (next: string[]) => session.setKeymap(withPinned(keymap, next));
-  const run = (row: CommandRow) => session.registryAction(row.id);
+  const run = (row: CommandRow) => session.registryRow(row);
   const dropOn = (target: string) => {
     const id = dragged.current;
     dragged.current = null;
@@ -54,26 +54,26 @@ export function QuickAccess() {
   const button = (row: CommandRow, hidden: boolean) => {
     const off = !may({cmd: row.id});
     const keys = effectiveKeys(keymap, row).join(' / ');
-    return <button type="button" class={'quick-button' + (hidden ? ' quick-over' : '')} data-pinned={row.id} draggable
+    return <button type="button" class={'quick-button' + (hidden ? ' quick-over' : '')} data-pinned={row.binding} draggable
       aria-disabled={off} aria-haspopup="menu" aria-keyshortcuts={effectiveKeys(keymap, row)[0]?.replace('Ctrl', 'Control')}
       title={off ? BUSY_TITLE : keys ? `${row.description} (${keys}). Right-click for more.` : `${row.description}. Right-click for more.`}
       onClick={() => { if (!off) run(row); }}
-      onContextMenu={e => { e.preventDefault(); setMenu({id: row.id, x: e.clientX, y: e.clientY}); }}
-      onDragStart={() => { dragged.current = row.id; }} onDragOver={e => e.preventDefault()}
-      onDrop={e => { e.preventDefault(); dropOn(row.id); }}>{row.name}</button>;
+      onContextMenu={e => { e.preventDefault(); setMenu({id: row.binding, x: e.clientX, y: e.clientY}); }}
+      onDragStart={() => { dragged.current = row.binding; }} onDragOver={e => e.preventDefault()}
+      onDrop={e => { e.preventDefault(); dropOn(row.binding); }}>{row.name}</button>;
   };
   const overflow = rows.slice(shown);
   return <div class="quick-access" role="toolbar" aria-label="Pinned commands" ref={box}>
     <div class="quick-pinned">{rows.map((row, i) => button(row, i >= shown))}</div>
     {overflow.length > 0 && <details class="quick-more">
       <summary aria-label={`More pinned commands (${overflow.length})`}>More</summary>
-      <ul class="quick-more-list">{overflow.map(row => <li key={row.id}>
-        <button type="button" data-pinned-more={row.id} aria-disabled={!may({cmd: row.id})}
+      <ul class="quick-more-list">{overflow.map(row => <li key={row.binding}>
+        <button type="button" data-pinned-more={row.binding} aria-disabled={!may({cmd: row.id})}
           onClick={e => {
             (e.currentTarget.closest('details') as HTMLDetailsElement).open = false;
             if (may({cmd: row.id})) run(row);
           }}
-          onContextMenu={e => { e.preventDefault(); setMenu({id: row.id, x: e.clientX, y: e.clientY}); }}>{row.name}</button></li>)}</ul>
+          onContextMenu={e => { e.preventDefault(); setMenu({id: row.binding, x: e.clientX, y: e.clientY}); }}>{row.name}</button></li>)}</ul>
     </details>}
     {menu && <PinMenu id={menu.id} x={menu.x} y={menu.y} pinned={pinned} close={() => setMenu(null)} save={save} />}
   </div>;

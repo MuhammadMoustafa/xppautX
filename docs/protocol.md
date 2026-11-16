@@ -749,8 +749,10 @@ never disagree.
       }
     }
 
-- `pinned`: the quick-access commands, in order; each a command whose `pinnable` is true, none twice.
-- `bindings`: a registry command name of `hello.commands` to its keys, which replace the table's `default_keys`; `[]` is no key. A command not named keeps the table's keys.
+- `pinned`: the quick-access commands, in order; each a command value (below), none twice.
+- `bindings`: a command value to its keys; for a bare command name these replace the table's `default_keys`, `[]` is no key, and a command not named keeps the table's keys.
+
+**A command value** (W772, #852) is a command with fixed argument values, written as the `--server` text command is, in one string: the command name, then `--argument value` words in the row's own argument order, single values only (no list or map), a choice bare and any text quoted with JSON escapes inside the string. `"model.export --language python": ["Ctrl+E"]` binds the item File > Export > Model as > Python; the bare `"model.export"` still opens the command's form. The text is read by the one text-command reader (core/command_text.cpp, `read_value`) and checked as the command checks its arguments (no model, no path argument: a binding never names a file); a value that is not written as the reader would spell it (another order, extra blanks) is refused with the spelling to write. A command whose file is required and not given is run with the file picker, as a submenu item does. Any command and any fixed arguments may be named, not only a `menu_choice` item; a key runs the value only when it is pressed, through the path a click on the item takes. A model's buttons name the same value ("Buttons").
 
 A key is one key press, never a sequence or chord (W536: no letter sequences
 and no XPPAUT key preset; a key with a space is refused): the
@@ -769,7 +771,7 @@ applied: not valid JSON, text after the value, nesting too deep, a NUL byte,
 a file over the size limit, an unknown top-level setting, a setting or a
 command twice, an unknown command id or a shortcut-layer row, a value of the
 wrong type, a malformed key, a key with a space (a sequence), a reserved key, a command
-with too many keys, two commands on one key (refused with both commands named), a pinned command twice or not pinnable, a `preset` (an unknown setting).
+with too many keys, two commands or values on one key (refused with both named), a pinned command twice, a binding or pin that is no command value (an unknown command or argument, a value the command refuses, a list or map, another spelling: the error names the value), a `preset` (an unknown setting).
 The effective map is checked: the keys of the commands the file leaves alone are
 the table's. A missing file is all defaults and no error; a bad one never
 falls back silently.
@@ -790,7 +792,8 @@ result as the page keeps it:
 | `pinned` | the user's (`[]` when `ok` is false) |
 | `reserved` | the keys no command may take |
 | `limits` | `keys` (per command), `key_bytes` |
-| `commands` | [{`id`, `keys`, `source`}...] for every command but the shortcut-layer rows: the effective keys, and whether they are the table's (`default`) or the user's (`user`) |
+| `commands` | [{`id`, `keys`, `source`}...] for every command but the shortcut-layer rows: the effective keys, and whether they are the table's (`default`) or the user's (`user`); then one entry with `source` `user` for each bound command value with arguments (`id` is the value) |
+| `values` | [{`value`, `run`}...] every bound or pinned command value with arguments, and the command a client sends to run it (`run`: `{"cmd": "model.export", "language": "python"}`, with `file_picker` when the command needs its file asked for) |
 
 When the file is bad, the page gets that error in `keymap` (in `hello`, and in
 the `keymap.changed` event `keymap.get` sends) and `commands` are the table's defaults with `source`
@@ -1023,7 +1026,7 @@ the command do one thing. What the rows leave to say:
   `run.numerics`, `window.list` and `recording.player` (see their sections below).
 - `source.run_action` runs the action of comment `index` of
   `source.comments`; `button.run` presses button `index` of the
-  model (`hello.userbuttons`: a `label` and the registry `command` each runs); the button runs that command with no argument, as the page's button runs it through the command's form.
+  model (`hello.userbuttons`: a `label`, the `command` value each runs and, for a value with arguments, the `run` command a client sends); a button of a bare command runs it with no argument, as the page's button runs it through the command's form, and a button of a command value runs the command with those arguments and no form (W772, #852). In a `.odex` the `command` of a button is a bare word for a command alone and a quoted string for a value with arguments: `{ label: "Frames", command: "kinescope.export --output frames" }`; it is checked as a keymap's value is, when the model loads.
 
 ## Action kinds
 

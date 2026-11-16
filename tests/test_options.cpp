@@ -516,6 +516,11 @@ TEST_CASE("test_options")
         CHECK(!xpp::option_problem(*s, "interface.buttons", "[ { label: \"Go\", command: run.initial } ]", false).has_value());
         CHECK(xpp::option_problem(*s, "interface.buttons", "[ { label: \"Go\", command: nosuch.command } ]", false).has_value());
         CHECK(xpp::option_problem(*s, "interface.buttons", "[ { label: \"\", command: run.initial } ]", false).has_value());
+        /* W772: a button names a command value, a string when it has arguments, checked as the command checks them; ks and km come back as such */
+        CHECK(!xpp::option_problem(*s, "interface.buttons", "[ { label: \"Frames\", command: \"kinescope.export --output frames\" } ]", false).has_value());
+        CHECK(xpp::option_problem(*s, "interface.buttons", "[ { label: \"Frames\", command: \"kinescope.export --output nosuch\" } ]", false).has_value());
+        CHECK(xpp::option_problem(*s, "interface.buttons", "[ { label: \"Go\", command: \"run.initial\" } ]", false).has_value());
+        CHECK(xpp::xppaut_button_command("ks") == "kinescope.export --output frames" && xpp::xppaut_button_command("km") == "kinescope.export --output animated_gif");
         CHECK(xpp::option_problem(*s, "interface.buttons", "[ { label: \"Go\", command: run.initial }, { label: \"Go\", command: run.last } ]", false).has_value());
         /* W662 review: a sequence no command of ours runs is refused, never accepted silently */
         CHECK(!xpp::option_problem(*s, "but", "quit:fq", true).has_value() && xpp::option_problem(*s, "but", "pdf:gp", true).has_value());
@@ -531,7 +536,7 @@ TEST_CASE("test_options")
                         const std::string_view command = xpp::xppaut_button_command(keys);
                         if (command.empty()) continue;
                         ++mapped;
-                        CHECK(xpp::command::find(command));
+                        CHECK(xpp::command::read_value(command, xpp::Place{}).has_value());
                     }
         CHECK(mapped > 30);
         CHECK(!xpp::option_problem(*s, "integration.method", "euler", false).has_value());

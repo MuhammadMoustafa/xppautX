@@ -120,7 +120,7 @@ test('W303: a denied native save retries only after idle, in the writable model 
   try {
     const {s, sent, emit} = saving();
     emit({ev: 'done', status: 'ok'});
-    s.registryChoice('data.export', {value: 'csv', arguments: {format: 'csv', target: 'table'}});
+    s.registryChoice('data.export', {format: 'csv', target: 'table'});
     const ask: AskEvent = {ev: 'ask', kind: 'file', id: 7, mode: 'write', file: '/protected/data.csv',
       dir: '/protected', save_dir: '/model', wild: '*.csv'};
     s.store.dispatch({type: 'event', ev: ask});

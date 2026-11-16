@@ -35,7 +35,7 @@ and keeps its partial results.
 
 **Help > Search commands** (Ctrl/Cmd+Shift+P), or **Search commands** at the top of the menu bar,
 searches every word in command names, menu paths and descriptions. Pick a
-result to run it or open its form. **Pin** adds the command to the quick-access
+result to run it or open its form. A command with a choice, such as File > Export > Model as, is listed once for each item (Model as > Python). **Pin** adds the command, or that one item, to the quick-access
 toolbar. Pins can be dragged into order; their context menu offers Unpin,
 Move earlier and Move later. Overflow stays in **More**.
 
@@ -53,11 +53,11 @@ and system keys, including F5, Ctrl+W, Ctrl+Q, Alt+F4, F11 and F12, stay theirs.
 
 **Help > Keyboard shortcuts** lists all commands and their effective keys.
 Click a key to record a replacement; Escape cancels recording and Backspace
-clears it. Reserved keys are refused; a key another command has offers Replace
+clears it. A command with a choice has a row for the command and one for each of its items (Model as > Python), and a key or a pin on an item runs it as a click on the menu item does. Reserved keys are refused; a key another command has offers Replace
 or Cancel. **Reset to defaults** clears custom bindings and keeps pins. **Reset
 all** also removes pins and asks first. The file `keymap.json` keeps changes for
 desktop and browser. A malformed file, or one holding a sequence of keys, is
-reported with its file and line, without partially applying it.
+reported with its file and line, without partially applying it. In `keymap.json` an item is bound by the command and its argument written as a text command, `"model.export --language python": ["Ctrl+E"]`.
 
 A key runs its command directly. A command that needs arguments opens the common
 form. Two commands cannot share a key: such a binding is refused with both

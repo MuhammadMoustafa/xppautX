@@ -1,5 +1,5 @@
 import type {CommandRow} from '../protocol/kinds';
-import type {HelloEvent} from '../protocol/types';
+import type {HelloEvent, KeymapInfo} from '../protocol/types';
 import {inDesktopWindow} from '../desktop';
 import {choiceLabel} from '../store/fieldKinds';
 
@@ -8,7 +8,7 @@ export function registryRows(hello: HelloEvent | null): CommandRow[] {
   const desktop = inDesktopWindow();
   return (hello?.commands ?? []).filter(row => row.arguments !== undefined && !(desktop && row.cmd === 'session.quit')).map(row => ({
     ...row, id: row.cmd, label: row.label!, name: row.name!,
-    description: row.description ?? '', category: row.category ?? '', pinnable: true,
+    binding: row.cmd, description: row.description ?? '', category: row.category ?? '', pinnable: true,
     default_keys: row.default_keys ?? [],
   }));
 }
@@ -32,8 +32,29 @@ const choiceValues = (row: CommandRow): string[] => row.arguments?.find(a => a.n
     target, and file_picker for a command whose file is required, which the core then asks for; one with an optional file asks itself) and its name ending in the value's label. The one builder of such items: the menu bar, Search commands and the
     table's and the plot's Export menus all send what it makes. */
 export function choiceItems(row: CommandRow, separator: string, fixed = row.menu_fixed): CommandRow[] {
-  return choiceValues(row).map(value => ({...row, choice: {value, arguments: {...(fixed && {[fixed.argument]: fixed.value}), [row.menu_choice!]: value, ...(row.arguments?.some(a => a.type === 'file' && a.required) && {file_picker: true})}},
-    name: `${row.name}${separator}${choiceLabel(value)}`}));
+  return choiceValues(row).map(value => {
+    const args = {...(fixed && {[fixed.argument]: fixed.value}), [row.menu_choice!]: value};
+    /* an item has no keys of its own: the row's are the bare command's */
+    return {...row, choice: {value, arguments: {...args, ...(row.arguments?.some(a => a.type === 'file' && a.required) && {file_picker: true})}},
+      binding: commandValue(row, args), default_keys: [], name: `${row.name}${separator}${choiceLabel(value)}`};
+  });
+}
+/** the command value of `row` run with `args` (core read_value: the name, then `--argument value` in the row's own order, a choice bare);
+    what an item is bound and pinned by */
+export function commandValue(row: CommandRow, args: Record<string, string | boolean>): string {
+  return row.id + (row.arguments ?? []).filter(a => a.name in args)
+    .map(a => ` --${a.name} ${a.type === 'choice' || typeof args[a.name] === 'boolean' ? args[a.name] : JSON.stringify(args[a.name])}`).join('');
+}
+/** every row a key or a pin may name: the commands, each followed by its menu_choice items, then the command values of the keymap
+    that no row lists (a binding or a pin the user wrote with arguments of their own), as rows of the command they run */
+export function bindableRows(hello: HelloEvent | null, info: KeymapInfo | null): CommandRow[] {
+  const rows = registryRows(hello).flatMap(row => row.menu_choice ? [row, ...choiceItems(row, hello!.menu_separator)] : [row]);
+  const known = new Set(rows.map(row => row.binding));
+  const extra = (info?.values ?? []).filter(({value}) => !known.has(value)).flatMap(({value, run: {cmd, ...args}}) => {
+    const base = rows.find(row => row.id === cmd && row.binding === cmd);
+    return base ? [{...base, binding: value, default_keys: [], choice: {value: value.slice(cmd.length + 1), arguments: args}, name: `${base.name} (${value.slice(cmd.length + 1)})`}] : [];
+  });
+  return [...rows, ...extra];
 }
 /** the items of a menu_choice row as a place shows them (the array plot's, the kinescope's, the table's and the plot's Export menus), with
     `fixed` when the place knows more than the row's own fixed argument: one list from choiceItems, none without a hello */

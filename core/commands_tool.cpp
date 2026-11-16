@@ -46,9 +46,9 @@ Result<std::string> run_user_button(Session &s, const Command &command, const Ar
     const long long index = args.get<long long>("index");
     if (static_cast<std::size_t>(index) >= s.user_buttons.size())
         return fail(command.name, xpp::format("The model has no button {} ({} buttons)", index, s.user_buttons.size()), place);
-    std::string line = "{\"cmd\":";
-    json_append_string(line, s.user_buttons[static_cast<std::size_t>(index)].command);
-    if (const Result<> ran = run_button(s, line + '}', place); !ran) return std::unexpected<Error>(ran.error());
+    const Result<CommandValue> value = read_value(s.user_buttons[static_cast<std::size_t>(index)].command, place);
+    if (!value) return std::unexpected<Error>(value.error());
+    if (const Result<> ran = run_button(s, value->run, place); !ran) return std::unexpected<Error>(ran.error());
     return ResultObject().boolean("ran", true).done();
 }
 

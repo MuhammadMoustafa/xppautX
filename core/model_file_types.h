@@ -34,8 +34,8 @@ struct OutsideApproval {
 };
 
 /* What the program gives a load (maintainer, 2026-11-14; W737): the "Allow always" answers, data
-   in, and an interface the loader owns for what comes out, and the registry's answer to whether a command exists (a model's
-   button names one: `command_exists`, which the program fills, never the registry itself). The program's
+   in, and an interface the loader owns for what comes out, and the registry's check of a command value (a model's
+   button names one: `check_command`, which the program fills, never the registry itself). The program's
    start fills it from the preferences (xpp_prefs.h: load_services): `kept`
    the answers kept before (or `unreadable`, why they cannot be read), and
    `keep` what remembers one more at the moment the user gives it; the
@@ -45,7 +45,7 @@ struct LoadServices {
     std::vector<OutsideApproval> kept;
     std::optional<Error> unreadable;
     std::function<Result<>(const OutsideApproval &)> keep;
-    std::function<bool(std::string_view name)> command_exists;
+    std::function<Result<>(std::string_view value)> check_command;
     /* the data and picture formats the export writes, and the operations that write a picture out (export_services.h) */
     ExportServices exports;
 };
