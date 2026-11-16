@@ -6543,7 +6543,9 @@ async function nativeFiles(dir) {
     check('no web2 file dialog appeared at any point', !(await cdp.eval('window.__fileDialogShown')));
     /* W781: the folder picker asks the window's __xppPickFolder, answers its path or null, and releases through
        __xppReleaseFolder; the core's grant itself is tests/test_folder_grant.cpp's (the OS dialog is checked by hand) */
-    check('W781: no folder picker bound: none can be picked', !(await cdp.eval('window.__xpp.folders.canPick()')));
+    /* a Chromium has showDirectoryPicker: hidden here, so only the window's own picker is checked */
+    await cdp.eval('window.showDirectoryPicker = undefined; true');
+    check('W781: no folder picker bound and none in the browser: none can be picked', !(await cdp.eval('window.__xpp.folders.canPick()')));
     await cdp.eval(`(() => {
       window.__folderAsked = []; window.__folderReleased = 0; window.__folderReply = ${JSON.stringify(elsewhere)};
       window.__xppPickFolder = async r => { window.__folderAsked.push(r); return window.__folderReply; };

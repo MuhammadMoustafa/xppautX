@@ -8,6 +8,7 @@
 #include "xpp_files.h"
 #include "xpp_inbox.h"
 #include "xpp_path.h"
+#include "xpp_text.h"
 #include <filesystem>
 #include <string>
 
@@ -15,7 +16,13 @@ namespace {
 
 const xpp::Place PLACE{"command", 1, 0, "line"};
 
-std::string line_for(const std::string &file) { return R"({"cmd":"session.save_as","file":")" + file + R"("})"; }
+/* the path escaped: a Windows one has backslashes */
+std::string line_for(const std::string &file)
+{
+    std::string line = R"({"cmd":"session.save_as","file":)";
+    xpp::json_append_string(line, file);
+    return line + "}";
+}
 
 } // namespace
 
