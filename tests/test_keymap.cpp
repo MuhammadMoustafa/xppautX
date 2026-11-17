@@ -167,7 +167,7 @@ void check_good_keymaps()
     auto map = parse_keymap(text, FILE_LABEL);
     CHECK(map.has_value());
     if (!map) return;
-    CHECK(xpp::keymap::pin_binding_id("Figures") == "pin \"Figures\"" && xpp::keymap::pin_binding_name("pin \"Figures\"") == "Figures"
+    CHECK(xpp::keymap::pin_binding_name("pin \"Figures\"") == "Figures"
           && !xpp::keymap::pin_binding_name("run.initial") && !xpp::keymap::pin_binding_name("pin Figures"));
     CHECK(map->pinned.size() == 2 && map->pinned[0].name == "Reload" && map->pinned[0].steps == std::vector<std::string>({"session.reload_model"})
           && map->pinned[1].name == "Figures"

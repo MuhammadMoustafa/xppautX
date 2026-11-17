@@ -202,7 +202,7 @@ export function editorRows(info: KeymapInfo | null, rows: readonly CommandRow[],
     `${row.name} ${row.description} ${row.category} ${row.binding} ${effectiveKeys(info, row).join(' ')}`.toLocaleLowerCase().replace(/\+/g, ' ').includes(word)));
 }
 
-/** the keymap's binding id of pin `name` (core keymap::pin_binding_id): `pin "Name"`, the name as JSON text */
+/** the keymap's binding id of pin `name` (core keymap::pin_binding_name reads it back): `pin "Name"`, the name as JSON text */
 export const pinBindingId = (name: string): string => `pin ${JSON.stringify(name)}`;
 
 /** the pins of several steps as rows beside the commands, bound and conflict-checked as they are (a pin of one step is its command's row):

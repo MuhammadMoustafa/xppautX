@@ -102,13 +102,6 @@ std::string bindings_json(const Keymap &map)
     return out + (first ? "}" : "\n    }");
 }
 
-std::string pin_binding_id(std::string_view name)
-{
-    std::string id(PIN_BINDING_PREFIX);
-    json_append_string(id, name);
-    return id;
-}
-
 std::optional<std::string> pin_binding_name(std::string_view id)
 {
     if (!id.starts_with(PIN_BINDING_PREFIX)) return std::nullopt;

@@ -78,8 +78,6 @@ std::vector<std::string> effective_keys(const Keymap &map, const command::Comman
    and no command id has a blank). The one binding table, key grammar, reserved keys and clash check serve commands and pins; a pin of one step is
    bound as its command is. */
 inline constexpr std::string_view PIN_BINDING_PREFIX = "pin ";
-/* the binding id of pin `name` */
-std::string pin_binding_id(std::string_view name);
 /* the pin name a binding id names (`pin "Name"`), or nothing when `id` is no pin's */
 std::optional<std::string> pin_binding_name(std::string_view id);
 
