@@ -50,6 +50,10 @@ int xpp_session_save(xpp::Session &s, const char *name, int data, bool copy = fa
    a path and before replacing an existing file (xpp_session_save with no
    name). Quit's "Save this session first?" saves the same way. */
 int xpp_session_save_here(xpp::Session &s, int data = -1);
+/* a browser's save (W796): the session, as a copy (the session's file and changed flag stay), written into a scratch folder and
+   offered as the pending download (xpp::files::offer_download) under the saved file's name, else the default one; the path, or ""
+   when nothing was written (not ready, a question cancelled, an error shown) */
+std::string xpp_session_save_download(xpp::Session &s);
 /* The unsaved-changes dot's definition, once (state's `changed`): the
    session's values differ from those it was last saved, opened or loaded
    with. A value is a parameter's, an initial condition's, a numerics

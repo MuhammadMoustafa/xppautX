@@ -3176,13 +3176,24 @@ async function leaveSaveCheck(dir) {
     await until(`s.ask && s.ask.id === -1 && s.ask.question === 'Quit xppautX? Save this session, and the recording in progress, first?'`,
       'page quit ask'), JSON.stringify(await S('s.ask')));
   await key('s');
-  await key('s');
-  /* KNOWN GAP (W786 round 3): a quit that saves writes the session into the model's folder itself (no file question, no download);
-     the page still has no download for it. The check holds what the core does now. */
-  check('leave save: Save session sends the quit that saves, and the run stops',
-    await until(`__xpp.sent().some(c => c.cmd === 'session.quit' && c.save === true) && !s.computing`, 'quit sent', 30000 * SLOW),
+  /* a run's large data table: the core asks whether to leave it out (the user's answer, as before), else the session goes at once */
+  await waitFor(async () => {
+    if (await cdp.eval(`!!(__xpp.state().ask && __xpp.state().ask.keys === 'ls')`)) { await key('l'); return true; }
+    return fs.existsSync(downloadedPath('lecar.snapx'));
+  }, 60000 * SLOW);
+  /* W796: in a browser the quit's Save session is a download: the core offers the session (the quit sent with download, still open), the
+     page fetches it, stops the recording (its download too) and only then sends the plain quit that ends the process */
+  check('leave save: Save session sends the quit that saves with download, and the run stops',
+    await until(`__xpp.sent().some(c => c.cmd === 'session.quit' && c.save === true && c.download === true) && !s.computing`, 'quit sent', 30000 * SLOW),
     JSON.stringify(await S('s.ask')));
-  /* whether the quit's session reaches a download is not checked here: the open item of W786 round 3 (the report) */
+  const session = downloadedPath('lecar.snapx');
+  check('leave save: the session is downloaded into the downloads folder, a session archive',
+    !!(await waitFile(session, 30000 * SLOW)) && fs.readFileSync(session).subarray(0, 2).toString() === 'PK', session);
+  const recording = downloadedPath('lecar.recx');
+  check('leave save: the recording in progress is downloaded too', !!(await waitFile(recording, 30000 * SLOW)), recording);
+  check('leave save: the plain quit that ends the session follows the downloads',
+    await until(`__xpp.sent().filter(c => c.cmd === 'session.quit').slice(-1)[0]?.save === false`, 'plain quit', 30000 * SLOW),
+    JSON.stringify(await cdp.eval(`__xpp.sent().slice(-4)`)));
   check('leave save: then xppautX exits', await exited(), JSON.stringify(await S('s.ask')));
 }
 

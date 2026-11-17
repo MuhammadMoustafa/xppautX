@@ -38,9 +38,9 @@ struct HelloInfo {
     /* the page the program serves (browser mode, the window), which the platform implements and the program's start wires in (xpp_http.h,
        xpp_window.h): whether one is up (the events then go to it, not to stdout), the one line it is sent, and the model's title for the window */
     /* what the program does that the front end asks for, from the model switch (model_switch.h, the application): File > Quit's
-       question and exit (`saving`: the page asked it already and the answer was Save), the question before a model replaces this
+       question and exit (`saving`: the page asked it already and the answer was Save; `download`: a browser takes the saved session as a download, W796, and the file comes back), the question before a model replaces this
        one (named by its file), and the load a command's request asks for */
-    std::function<void(Session &s, bool saving)> quit;
+    std::function<std::string(Session &s, bool saving, bool download)> quit;
     std::function<bool(Session &s, const std::string &file)> model_may_leave;
     std::function<Result<Session *>(const Session &now, const ModelRequest &req)> load_requested;
     /* what the front end asks of the system's standard streams (xpp_platform.h): up to n bytes of stdin, blocking (<= 0 at the end or on an

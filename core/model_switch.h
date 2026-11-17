@@ -92,8 +92,10 @@ bool xpp_model_may_leave(xpp::Session &s, const std::string &file);
    in progress is saved with the session. saving: the question was asked
    already, by the page, and answered Save session (W110: the page asks
    while a computation runs, {"cmd":"quit","save":true}); a save cancelled
-   or failing keeps the session. */
-void xpp_quit(xpp::Session &s, bool saving = false);
+   or failing keeps the session. download (a browser, W796): Save session writes the session as the pending download
+   (xpp_session_save_download) and returns its path with the session still open, for the page to fetch and then end it;
+   Don't save still exits, a cancel or a failed save returns "". */
+std::string xpp_quit(xpp::Session &s, bool saving = false, bool download = false);
 namespace xpp {
 
 /* loads what req, made in the session now, asks for: the new Session,

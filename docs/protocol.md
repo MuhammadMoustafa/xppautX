@@ -217,7 +217,7 @@ if the output could not be written.
 | `model.export` | `language`: required choice (python, python_numpy, python_numba), `file`: optional file (max 1024 bytes) | `d` / files | File/Export/Model as | `file`: `file` | `done` | Write the model, with the values it has now (parameters, initial data, the integration options), as a program in a language that runs with no xppautX and writes the rows of a run to a CSV file beside itself (python: the standard library; python_numpy: numpy arrays, an array line of the model one slice; python_numba: python's statements compiled by numba); left out, file is asked for (the result's file is empty when that question was cancelled). A model the language cannot say (tables, delays, events, Markov variables, networks, ...) is refused, naming what and its line. |
 | `session.file_exists` | `file`: required file (max 1024 bytes) | `v` / files | File exists | `file`: `file`, `exists`: `boolean` | `done` | Whether a file is there now: a base name of the model's folder, or a full path in the folder a file dialog granted; the page asks before it writes several files. |
 | `session.import_xppaut_state` | `file`: required file (max 1024 bytes) | `s` / files | File/Sets/Import XPPAUT session state | `file`: `file`, `applied`: `boolean`, `changes`: `list[text]` | `session.state`, `done` | Apply a whole set file XPPAUT wrote (its parameters, initial conditions, numerics, delays, boundary conditions, active graph and run position), all or nothing; the result names what it changed. Nothing is written beside it. |
-| `session.quit` | `save`: optional boolean | `c` / files | File/Quit | `quitting`: `boolean` | `done` | Quit: save true saves the session (and a recording in progress) first, false quits at once, and left out asks. |
+| `session.quit` | `save`: optional boolean, `download`: optional boolean | `c` / files | File/Quit | `file`: `file`, `quitting`: `boolean` | `done` | Quit: save true saves the session (and a recording in progress) first, false quits at once, and left out asks. download (a browser page) makes the saved session a download the page fetches, and the quit then waits for the page's own quit. |
 | `session.get_source` | none | `v` / files | Windows/Model source | `source`: `text`, `equations`: `list[text]` | `session.source`, `session.equations`, `done` | The model's source, its active comments and its equations. |
 | `session.get_state` | none | `v` / files | Get session state | `state`: `the state event's members` | `session.state`, `done` | The session's state: sliders, parameters, initial conditions, the view, the saved session and the recording. |
 | `initial_conditions.set` | `values`: required map [of variable, of real, at most 256] | `s` / run | Run/Initial conditions/Set | `applied`: `map[name, real]` | `session.state`, `done` | Set the initial values of some states; the others keep theirs. |
@@ -1068,6 +1068,14 @@ the command do one thing. What the rows leave to say:
   it stops the computation, saves the session and a recording in progress,
   then says `session.bye` and exits. A quit that saves or asks is a command of its
   own and ends with `session.state` and `done` only when it is cancelled.
+  With `download` true (the browser page: it has no folder to write into, W796) a Save session
+  does not exit: the core writes the session as a copy into its scratch folder (under the saved file's
+  name, else the default one), offers it as the pending download and answers `done` with that `file` and
+  `quitting` false, like any browser save (W786). The page fetches it once (`/download/NAME`, the page's
+  token) and only then sends `session.quit` with `save` false, which ends the session: a handshake, so the
+  process never exits while the file is still being fetched, and a page that closes instead ends it by its
+  leave. Don't save and Cancel are as without `download`. The desktop window and `--server` do not send it:
+  they write the session where it is saved.
 - `session.get_state` answers the `session.state` members as its result (and sends
   the `session.state` event); `session.get_source` sends `session.source` and `equations`
   and answers with the source text and the equation lines. Both, and the

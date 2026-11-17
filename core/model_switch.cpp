@@ -118,11 +118,20 @@ bool leave_as(xpp::Session &s, int key, bool with_recording)
 
 } // namespace
 
+namespace {
+
+/* the leave question's key: the start screen's session has nothing to save, so it may go */
+int leave_key(xpp::Session &s, const std::string &question)
+{
+  if(!s.model().loaded())return 'd';
+  return xpp::TwoChoice(xpp::LEAVE_SAVE,xpp::LEAVE_DONT_SAVE,question,xpp::LEAVE_KEYS);
+}
+
+} // namespace
+
 bool xpp_session_may_leave(xpp::Session &s, const std::string &question, bool with_recording)
 {
-  /* the start screen's session has nothing to save */
-  if(!s.model().loaded())return true;
-  return leave_as(s,xpp::TwoChoice(xpp::LEAVE_SAVE,xpp::LEAVE_DONT_SAVE,question,xpp::LEAVE_KEYS),with_recording);
+  return leave_as(s,leave_key(s,question),with_recording);
 }
 
 bool xpp_model_may_leave(xpp::Session &s, const std::string &file)
@@ -136,10 +145,18 @@ bool xpp_session_leave_saved(xpp::Session &s, bool save, bool with_recording)
   return !save||leave_as(s,'s',with_recording);
 }
 
-void xpp_quit(xpp::Session &s, bool saving)
+std::string xpp_quit(xpp::Session &s, bool saving, bool download)
 {
   const bool recording=xpp::recording_in_progress();
+  if(download){
+    /* a browser: the session is a download the page fetches before it ends the session (W796), so it does not leave here */
+    const int key=saving?'s':leave_key(s,xpp::leave_question(xpp::Leave::quit,recording));
+    if(key=='s')return xpp_session_save_download(s);
+    if(key=='d')xpp::bye_bye();
+    return {};
+  }
   if(saving?xpp_session_leave_saved(s,true,recording):xpp_session_may_leave(s,xpp::leave_question(xpp::Leave::quit,recording),recording))xpp::bye_bye();
+  return {};
 }
 
 xpp::Result<bool> xpp_model_reload(xpp::Session &s)

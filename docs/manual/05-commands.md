@@ -278,7 +278,9 @@ This brings up a menu with several options. Type `Esc` to abort.
   close box too; **open Model** and **Reload**
   ask it in their own words): **Save session** (`S`) writes the session
   first, as **Save session** does (to its remembered file with no question,
-  else it asks for a name), then quits; **Don't save** (`D`)
+  else it asks for a name), then quits (in a browser, which has no folder to write into, **Save session**
+  downloads the session under its file's name, or the default one, and quits once the browser has it);
+  **Don't save** (`D`)
   quits; **Cancel** (`Esc`) keeps working. A recording in progress is saved
   with the session (its name is asked as **Stop** asks it). The desktop
   window's close box asks while something computes without stopping it

@@ -15,6 +15,7 @@
 #include "xpp_session.h"
 #include "snapx.h"
 #include "model.h"
+#include "model_files.h"
 #include "model_record.h"
 #include "xpp_ui.h"
 #include "xpp_zip.h"
@@ -857,6 +858,25 @@ int xpp_session_save_here(xpp::Session &s, int data)
     if (s.saved_session->file.empty()) return xpp_session_save(s, nullptr, data);
     if (!xpp::save_ready(s.model().nlines() > 0)) return 0;
     return save_to(s, s.saved_session->file, data, true, false);
+}
+
+std::string xpp_session_save_download(xpp::Session &s)
+{
+    if (!xpp::save_ready(s.model().nlines() > 0)) return {};
+    xpp::FileSystem &fs = *s.model().fs;
+    const xpp::Result<std::string> folder = fs.make_temp_dir(xpp::model_folder(s.model()));
+    if (!folder) {
+        xpp::show_error(folder.error());
+        return {};
+    }
+    const std::string name = s.saved_session->file.empty() ? default_name(s.model()) : xpp::files::split_path(s.saved_session->file).second;
+    fs.offer_download(*folder, name);
+    const std::string file = xpp::files::append_path(*folder, name);
+    if (save_to(s, file, -1, true, true) == 0) {
+        fs.remove_temp_dir(*folder);
+        return {};
+    }
+    return file;
 }
 
 xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data, bool replace, bool copy)

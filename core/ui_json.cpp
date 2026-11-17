@@ -367,7 +367,8 @@ xpp::inbox::Verdict classify(const char *line, unsigned long seq)
     /* a quit that asks (W59d), or saves (the page asked, W110), stops a
        computation, then runs as a command of its own, in its turn */
     if (quit_waits(line)) {
-        if (xpp::job::computing() && !xpp::job::stopping()) xpp::job::cancel(seq);
+        /* the computation only: the quit's own line is not cancelled, or a save it makes would end stopped (W796) */
+        if (xpp::job::computing() && !xpp::job::stopping()) xpp::job::cancel(seq - 1);
         return xpp::inbox::Verdict::normal;
     }
     if (is_abort(line) || quits_now(line)) {

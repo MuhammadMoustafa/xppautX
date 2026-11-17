@@ -16,15 +16,18 @@ namespace xpp::json {
 namespace {
 
 /* session.quit: save true saves the session (and a recording in progress) first, false quits at once, left out asks
-   the leave question; a cancelled question leaves the session as it was */
+   the leave question; a cancelled question leaves the session as it was. download (a browser's page): the saved session is
+   offered as the download the done's file names, and the session stays for the page to end it after it fetched it (W796) */
 xpp::Result<std::string> quit(xpp::Session &s, const xpp::command::Arguments &args)
 {
     const std::optional<bool> save = args.optional<bool>("save");
     if (save && !*save) xpp::bye_bye();
     /* a recording playing waits: the question is the user's */
     player_hold();
-    session.hello.quit(s, save.value_or(false));
-    return xpp::command::ResultObject().boolean("quitting", false).done();
+    const std::string file = session.hello.quit(s, save.value_or(false), args.optional<bool>("download").value_or(false));
+    xpp::command::ResultObject result;
+    if (!file.empty()) result.text("file", file);
+    return result.boolean("quitting", false).done();
 }
 
 } // namespace

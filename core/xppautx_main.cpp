@@ -169,7 +169,7 @@ static xpp::HelloInfo hello_info()
     const xpp::update::Plan plan = xpp::update::running_plan();
     xpp::HelloInfo info{xpp_about_lines(), xpp_version_string(), std::string(xpp::update::install_name(plan.install)), plan.asset_suffix, plan.why,
             [] { return xpp::recent::start_json(startup.files, xpp::recent::load_recent(startup.files), ",\"examples\":" + xpp::examples::json()); }};
-    info.quit = [](xpp::Session &s, bool saving) { xpp_quit(s, saving); };
+    info.quit = [](xpp::Session &s, bool saving, bool download) { return xpp_quit(s, saving, download); };
     info.model_may_leave = [](xpp::Session &s, const std::string &file) { return xpp_model_may_leave(s, file); };
     info.load_requested = [](const xpp::Session &now, const xpp::ModelRequest &req) { return xpp::load_requested(now, req); };
     info.read_input = [](char *buf, std::size_t n) { return xpp::platform::read_input(buf, n); };

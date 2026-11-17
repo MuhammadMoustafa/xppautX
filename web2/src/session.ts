@@ -155,6 +155,8 @@ export class Session {
   private pendingSave: {name: string; ahead: number; scratch?: boolean} | null = null;
   /** the file names of a batch step's download (a browser's Export several), in the order the asks come (browserSave) */
   private downloadNames: string[] = [];
+  /** Quit's saved session was fetched and the recording in progress is being stopped: the session ends after its download (quitAfterDownload) */
+  private quitAfterRecording = false;
   /** the command sent last (an answer is none): the one whose file question is asked, for its default name (askedName) */
   private lastCommand: Command | null = null;
   /** File > Export > Several: whether the window granted a folder (a browser has none: its files are downloads) */
@@ -328,10 +330,17 @@ export class Session {
       this.dragQueue = [];
       this.dragEnded = false;
       if (this.replayDones > 0 && --this.replayDones === 0) this.replayAnswers = [];
+      /* Quit's Save session in a browser (W796): the core kept the session and offered it; the page fetches it, then ends the session */
+      if (ev.status === 'ok' && ev.result?.quitting === false && typeof ev.result.file === 'string') this.quitAfterDownload(ev.result.file);
       const save = this.pendingSave;
       /* a browser save (W786): the core wrote the file the command answers with (the one file, or the zip of numbered ones) into a scratch
          folder; the page fetches it under its name, once */
       if (save?.scratch && save.ahead === 0 && ev.status === 'ok' && typeof ev.result?.file === 'string') this.keepDownload(ev.result.file);
+      if (this.quitAfterRecording && (ev.status !== 'ok' || ev.result?.steps_recorded !== undefined)) {
+        this.quitAfterRecording = false;
+        /* the recording's download is the pending save's, fetched just above; a Stop that failed or was declined keeps the session */
+        if (ev.status === 'ok') void Promise.all([...this.savingReads]).then(() => this.send({cmd: 'session.quit', save: false}));
+      }
       if (save && save.ahead > 0) save.ahead--;
       else {
         this.pendingSave = null;
@@ -636,6 +645,8 @@ export class Session {
       False when it did not go. */
   send(cmd: Command): boolean {
     if (!this.may(cmd)) return false;
+    /* a browser takes Quit's saved session as a download (W796); the window's picker writes where the user picks */
+    if (cmd.cmd === 'session.quit' && cmd.save !== false && !nativeFileDialog()) cmd = {...cmd, download: true};
     if (cmd.cmd === 'autox.run') this.store.dispatch({type:'diagram',action:{type:'run',op:'start',at:Date.now()}});
     const patch = commandSettings(cmd);
     if (patch) this.store.dispatch({type: 'autoxSettings', action: {type: 'sent', patch, ahead: this.donesOwed}});
@@ -1878,7 +1889,7 @@ export class Session {
   }
 
   /** a browser save's file the core wrote into its scratch folder: the page fetches it once, under its name, and delivers it */
-  private keepDownload(file: string): void {
+  private keepDownload(file: string): Promise<Blob | null> {
     const name = baseName(file);
     const data = (this.files ? this.files.download(name) : Promise.resolve(null)).catch(e => {
       this.failed(`${name} could not be downloaded: ${e instanceof Error ? e.message : String(e)}`);
@@ -1887,6 +1898,17 @@ export class Session {
     this.savingReads.add(data);
     void data.then(() => this.savingReads.delete(data));
     this.savedOutputs.push({name, data, announce: this.store.getState().batch.phase !== 'running'}); /* a batch's report lists its files */
+    return data;
+  }
+
+  /** Quit's saved session (the done's file): fetched once, delivered as a download, and only then the session ends (a closed page ends it too, its leave) */
+  private quitAfterDownload(file: string): void {
+    void this.keepDownload(file).then(data => {
+      if (!data) return;
+      /* a recording in progress goes with it: Stop's download, then the end */
+      if (this.store.getState().core?.recording && this.send({cmd: 'recording.stop'})) this.quitAfterRecording = true;
+      else this.send({cmd: 'session.quit', save: false});
+    });
   }
 
   private async deliver(name: string, snapshot: Promise<Blob | null>, announce = false): Promise<void> {

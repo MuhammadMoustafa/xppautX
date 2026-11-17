@@ -104,7 +104,7 @@ constexpr std::array EXPORT_ARGUMENTS = {FILE_REQUIRED};
 constexpr std::array FILE_EXISTS_ARGUMENTS = {FILE_REQUIRED};
 constexpr auto LANGUAGE_CHOICES = c_names(language_names);
 constexpr std::array MODEL_EXPORT_ARGUMENTS = {Argument{LANGUAGE_KEY, Type::choice, true, MAX_TEXT_BYTES, LANGUAGE_CHOICES}, Argument{FILE_KEY, Type::file, false}};
-constexpr std::array QUIT_ARGUMENTS = {Argument{"save", Type::boolean, false}};
+constexpr std::array QUIT_ARGUMENTS = {Argument{"save", Type::boolean, false}, Argument{"download", Type::boolean, false}};
 
 constexpr std::array SAVE_RESULTS = {ResultField{"file", "file"}, ResultField{"saved", "boolean"}};
 constexpr std::array COPY_RESULTS = {ResultField{"file", "file"}, ResultField{"copied", "boolean"}};
@@ -113,7 +113,7 @@ constexpr std::array EXPORT_RESULTS = {ResultField{"file", "file"}, ResultField{
 constexpr std::array MODEL_EXPORT_RESULTS = {ResultField{"file", "file"}};
 constexpr std::array FILE_EXISTS_RESULTS = {ResultField{"file", "file"}, ResultField{"exists", "boolean"}};
 constexpr std::array SOURCE_RESULTS = {ResultField{"source", "text"}, ResultField{"equations", "list[text]"}};
-constexpr std::array QUIT_RESULTS = {ResultField{"quitting", "boolean"}};
+constexpr std::array QUIT_RESULTS = {ResultField{"file", "file"}, ResultField{"quitting", "boolean"}};
 constexpr std::array STATE_RESULTS = {ResultField{"state", "the state event's members"}};
 constexpr std::array SAVE_EVENTS = {xpp::events::SESSION_SAVED, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
@@ -144,7 +144,7 @@ constexpr std::array ROWS = {
             "Apply a whole set file XPPAUT wrote (its parameters, initial conditions, numerics, delays, boundary conditions, active graph and run position), all or nothing; the result names what it changed. Nothing is written beside it.",
             IMPORT_RESULTS, STATE_EVENTS, true, import_xppaut_state_file, {}, {}, "read", "*.set"},
     Command{"session.quit", QUIT_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Files, "Quit", "File",
-            "Quit: save true saves the session (and a recording in progress) first, false quits at once, and left out asks.",
+            "Quit: save true saves the session (and a recording in progress) first, false quits at once, and left out asks. download (a browser page) makes the saved session a download the page fetches, and the quit then waits for the page's own quit.",
             QUIT_RESULTS, DONE_EVENTS, false, front_end},
     Command{"session.get_source", {}, XPP_KIND_VIEW, CommandCategory::Files, "Model source", "Windows",
             "The model's source, its active comments and its equations.", SOURCE_RESULTS, SOURCE_EVENTS, true, front_end},

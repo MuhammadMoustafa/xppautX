@@ -2398,6 +2398,14 @@ def check_session_commands():
         done, evs = call(answers=[{'ok': 0}], cmd='session.quit')
         check('W528: session.quit with save left out asks the leave question, and a cancel keeps the session',
               done['result'] == {'quitting': False} and any(e.get('ev') == 'ask' and e.get('keys') == 'sd' for e in evs), str(done))
+        # W796: a browser's quit takes the saved session as a download: a copy in the scratch folder, offered, the session still open
+        for what, args, answers in (('the question answered Save session', {}, [{'key': 's'}]), ('save true', {'save': True}, [])):
+            done, evs = call(answers=answers, cmd='session.quit', download=True, **args)
+            offered = done.get('result', {}).get('file', '')
+            check('W796: session.quit with download and %s answers the session file and keeps the session open' % what,
+                  done.get('result', {}).get('quitting') is False and offered.endswith('.snapx') and not any(e.get('ev') in ('session.bye', 'exit') for e in evs), str(done))
+            check('W796: the offered file is a session archive in a scratch folder, not in the model\'s folder',
+                  os.path.isfile(offered) and open(offered, 'rb').read(2) == b'PK' and os.path.dirname(offered) != os.path.dirname(os.path.abspath(model)), offered)
         snd(cmd='session.quit', save=False)
         evs, bye = col(lambda e: e.get('ev') == 'session.bye')
         check('W528: session.quit with save false says bye and leaves at once, with no done',
