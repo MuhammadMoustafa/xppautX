@@ -1,4 +1,4 @@
-/* The values slice: edits sent (settings, W106) until their set's done,
+/* The values slice: edits sent (options, W106) until their set's done,
    error attribution, no undo (GitHub #110, #155; store/values.ts), without a
    browser (npm test). */
 import assert from 'node:assert/strict';

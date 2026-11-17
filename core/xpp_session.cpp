@@ -2,14 +2,14 @@
    files that carry a model (.snapx): see xpp_session.h. Their
    pure part (the members' names, the manifest, the model's members) is
    snapx.cpp; this file writes and reads the members, each through the
-   module that owns its format: the settings (session_settings.cpp), autoX's
+   module that owns its format: the options (session_options.cpp), autoX's
    state (xpp_session_autox.cpp), the nullclines (nullcline.cpp), NPZ (data_formats.cpp), the zip (xpp_zip.cpp).
    The state is one file in .odex syntax, the member session.odex: `version`, the par and init lines, the options
    block and one `session { ... }` statement (read by odex_block.h over odex.h's read_state_file).
    Opening one is all or nothing (W125): the state file is read whole and checked
    (read_session), its errors at the line of the file ("name.snapx/session.odex:12"),
    before anything is applied (apply_session). */
-#include "numerics_settings.h"
+#include "numerics_options.h"
 #include "model_numerics.h"
 #include "model_options.h"
 #include "xpp_session.h"
@@ -24,7 +24,7 @@
 #include "xpp_fs.h"
 #include "xpp_util.h"
 #include "many_pops.h"
-#include "session_settings.h"
+#include "session_options.h"
 #include "odex_block.h"
 #include "nullcline.h"
 #include "diagram.h" /* redraw_diagram; pulls in autox_nox.h */
@@ -129,7 +129,7 @@ void write_windows(xpp::odex::Out &out, const xpp::Session &s)
 
 /* one window as the session holds it */
 struct SavedWindow {
-    GRAPH graph{}; /* its settings and its curves */
+    GRAPH graph{}; /* its options and its curves */
     std::string xlabel, ylabel, zlabel;
     xpp::Zoom zoom;
     bool show_runs = true;
@@ -608,7 +608,7 @@ std::optional<std::string> data_wrong(const xpp::Session &s, const xpp::DataTabl
 
 /* a session file, read whole: every member, before any is applied */
 struct SessionRead {
-    xpp::Settings set;
+    xpp::Options set;
     std::optional<xpp::snapx::autox_members::Members> diagram;
     WindowsRead windows;
     std::optional<xpp::DataTable> data;
@@ -641,7 +641,7 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
             xpp::odex::Block nullclines = *session.group("nullclines");
             r.nullclines = xpp::read_nullclines(s.model(), nullclines);
         }
-        /* Every autoX-capable session holds its settings/views, with or without a diagram. */
+        /* Every autoX-capable session holds its options/views, with or without a diagram. */
         r.diagram = xpp::snapx::autox_members::members_read(s, mem, xpp::snapx::autox_folder, f.name, session);
 
         /* One expansion budget for all plot lists, including sparse runtime slots. */
@@ -745,18 +745,18 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
     return {};
 }
 
-/* the state file of s: the settings' version, par and init lines and options block, then the session statement
-   whose groups are the manifest, the settings, the random state, the nullclines, autoX's state, the
+/* the state file of s: the options' version, par and init lines and options block, then the session statement
+   whose groups are the manifest, the options, the random state, the nullclines, autoX's state, the
    windows and the marks; the error when it cannot be written */
 xpp::Result<std::string> state_text(xpp::Session &s, const xpp::snapx::Manifest &man)
 {
-    const xpp::Settings settings = xpp::capture_settings(s, xpp::SettingsUse::session);
-    xpp::Result<std::string> head = xpp::settings_statements(s, settings);
+    const xpp::Options options = xpp::capture_settings(s, xpp::SettingsUse::session);
+    xpp::Result<std::string> head = xpp::settings_statements(s, options);
     if (!head) return std::unexpected(head.error());
     xpp::odex::Out out;
     out.begin_statement("session");
     xpp::snapx::write_manifest(out, man);
-    xpp::write_settings(out, s, settings);
+    xpp::write_settings(out, s, options);
     write_random(out, s);
     xpp::write_nullclines(out, s);
     xpp::snapx::autox_members::write_state(out, s);
@@ -776,7 +776,7 @@ xpp::Result<std::string> session_bytes(xpp::Session &s, bool data)
     man.data = data;
     xpp::Result<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(s, man);
     if (!entries) return std::unexpected(entries.error());
-    xpp::redraw_params(); /* the values panel up to date, before the settings are taken */
+    xpp::redraw_params(); /* the values panel up to date, before the options are taken */
     xpp::Result<std::string> state = state_text(s, man);
     if (!state) {
         state.error().place.file = xpp::snapx::state_member;

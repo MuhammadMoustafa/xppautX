@@ -979,7 +979,7 @@ void *http_main(void *)
         const long long accepted_at = now_ms();
         no_inherit_socket(s);
         if (!set_recv_timeout(s, RECV_SECONDS * 1000) || !set_timeout(s, Timeout::send, SEND_SECONDS * 1000)) {
-            close_socket(s); /* never serve with an unbounded socket if setting a timeout failed */
+            close_socket(s); /* never serve with an unbounded socket if option a timeout failed */
             continue;
         }
         RequestSlot slot;

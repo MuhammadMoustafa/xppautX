@@ -23,12 +23,12 @@ class Sink;     /* xpp_fs.h */
    xpp_io.h's Lines (whole(), real(), next(), heading()), the one way a
    file is read (W125). */
 
-struct Settings; /* session_settings.h */
+struct Options; /* session_options.h */
 
 /* XPPAUT's set file at path read whole for s's model: every value and label
    checked, or the error at the line that is wrong; its model's equations
    after its last value ("RHS etc ...") are not read. Nothing of s changes. */
-Result<Settings> read_xppaut_set(Session &s, std::string_view path);
+Result<Options> read_xppaut_set(Session &s, std::string_view path);
 
 /* Import XPPAUT session state: the set file at path applied to s whole (its
    parameters, initial conditions, numerics, delays, boundary conditions, the

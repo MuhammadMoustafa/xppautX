@@ -3,7 +3,7 @@
    at once, in the page only (a zoom: Reset zoom or Fit take it back), so
    they work while autoX runs. What the axis plots (the parameter,
    the y axis's plot type and its variable or second parameter) is autoX's
-   Axes setting (T22: the `autoxsettings` data): a change goes to the core as
+   Axes option (T22: the `autoxoptions` data): a change goes to the core as
    an `autox` `set` with a Fit (session.autoxSettings), at any time: while a
    command runs it waits, shown dashed, and applies when the command ends.
    Not modal: Escape or Close closes it, the focus goes back to the axis
@@ -12,7 +12,7 @@ import {useEffect, useRef, useState} from 'preact/hooks';
 import {exactText} from '../store/values';
 import {axesNames, PROJECTIONS, spinStep, typedRange, yNeeds} from '../plot/axisDialog';
 import {HELP} from '../help/links';
-import {pendingFields, shownSettings} from '../store/autoxSettings';
+import {pendingFields, shownSettings} from '../store/autoxOptions';
 import type {Range, Viewport} from '../store/plots';
 import {choiceLabel, fieldError, NUMBER} from '../store/fieldKinds';
 import type {AutoxProjection} from '../store/diagram';
@@ -31,7 +31,7 @@ export function AutoxAxisDialog({axis, view, onClose}: {axis: AxisName; view: nu
   const viewport = useStore(s => s.diagram.views[view]?.viewport ?? WHOLE);
   const busy = useStore(s => s.busy);
   const settingsState = useStore(s => s.autoxSettings);
-  const settings = shownSettings(settingsState), pending = pendingFields(settingsState);
+  const options = shownSettings(settingsState), pending = pendingFields(settingsState);
   const ics = useStore(s => s.core?.ics);
   const vars = (ics ?? []).map(([n]) => n);
   /* the axes name two of autoX's parameters (Parameter sets which) */
@@ -76,13 +76,13 @@ export function AutoxAxisDialog({axis, view, onClose}: {axis: AxisName; view: nu
   const numbers = fieldError(NUMBER, minText) === null && fieldError(NUMBER, maxText) === null; /* else each box says so */
   const step = spinStep((r ?? shown() ?? {min: 0, max: 10}).max - (r ?? shown() ?? {min: 0, max: 10}).min);
 
-  const names = settings
-    ? {par1: settings.axes.par1 ?? '', yvar: settings.axes.var ?? '', par2: settings.axes.par2 ?? ''} : axesNames(axes);
-  const plot: AutoxProjection = settings?.axes.plot ?? axes?.plot ?? 'maximum';
+  const names = options
+    ? {par1: options.axes.par1 ?? '', yvar: options.axes.var ?? '', par2: options.axes.par2 ?? ''} : axesNames(axes);
+  const plot: AutoxProjection = options?.axes.plot ?? axes?.plot ?? 'maximum';
   const need = yNeeds(plot);
   /* the new quantities, then a Fit: the diagram's ranges follow what it plots */
   const change = (c: {plot?: AutoxProjection; var?: string; par1?: string; par2?: string}) => {
-    if (!settings) return;
+    if (!options) return;
     session.autoxSettings({axes: {...c, fit: true, view:session.store.getState().diagram.views[view].name}});
   };
   const waiting = ['plot', 'var', 'par1', 'par2'].some(k => pending.has(`axes.${k}`));

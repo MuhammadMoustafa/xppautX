@@ -28,8 +28,8 @@
 #include "graf_par.h"
 #include "browse.h"
 #include "data_table.h"
-#include "session_settings.h"
-#include "settings_text.h"
+#include "session_options.h"
+#include "options_text.h"
 #include "struct.h"
 #include "xpp_error.h"
 #include "xpp_types.h"
@@ -350,11 +350,11 @@ void check_plot_limits(const xpp::TempDir &tmp)
     CHECK(!rejected && rejected.error().what == "too many curves for the session memory limit");
     CHECK(!rejected && rejected.error().place.line == 2 && rejected.error().place.file == "limits.snapx/session.odex");
     CHECK(graph.yv == old_y && graph.nvars == curves && s.plot_windows->current->nvars == curves);
-    /* a file of the settings alone uses the same curve reader, independently of the archive. */
-    const auto settings=xpp::settings_text(s,xpp::capture_settings(s,xpp::SettingsUse::session));
-    CHECK(settings.has_value());
-    if(settings){
-        const auto read=settings_text::read(s,"limits.odex",*settings);
+    /* a file of the options alone uses the same curve reader, independently of the archive. */
+    const auto options=xpp::settings_text(s,xpp::capture_settings(s,xpp::SettingsUse::session));
+    CHECK(options.has_value());
+    if(options){
+        const auto read=settings_text::read(s,"limits.odex",*options);
         CHECK(read && read->graph.nvars==curves && read->graph.yv.back()==curves);
     }
     CHECK(write_file(tmp.file("limits.snapx"),*bytes));

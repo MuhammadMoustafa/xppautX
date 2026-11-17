@@ -1,4 +1,4 @@
-/* The settings syntax's typed reader and writer: see odex_block.h. The grammar
+/* The options syntax's typed reader and writer: see odex_block.h. The grammar
    itself is the .odex reader's (odex_parse.cpp). */
 #include "odex_block.h"
 
@@ -301,7 +301,7 @@ const Member *Block::member(std::string_view key) { return take(key); }
 void Block::done() const
 {
     for (std::size_t k = 0; k < read_.size(); k++)
-        if (!read_[k]) doc_->fail(group_->members[k], xpp::format("`{}` is not a setting of {}", group_->members[k].key, name_));
+        if (!read_[k]) doc_->fail(group_->members[k], xpp::format("`{}` is not an option of {}", group_->members[k].key, name_));
 }
 
 /* ---- Out ---- */
@@ -320,7 +320,7 @@ void Out::put(std::string_view text) { out_ += text; }
 
 void Out::entry(std::string_view key)
 {
-    if (!odex::is_name(key) && !bad_) bad_ = xpp::format("`{}` cannot be a key of the settings syntax", key);
+    if (!odex::is_name(key) && !bad_) bad_ = xpp::format("`{}` cannot be a key of the options syntax", key);
     out_.append(static_cast<std::size_t>(depth_) * 2, ' ');
     out_ += key;
     out_ += ": ";

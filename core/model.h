@@ -10,7 +10,7 @@
 
    A Model is what the .ode file defines, and a load is the only thing
    that should write it; what a person changes while working (parameter
-   values, initial conditions, the numerics settings) is the Session's
+   values, initial conditions, the numerics options) is the Session's
    (W47c), which the Model gives its defaults (default_val, default_ic,
    options, bcs). What still writes it after a load is the browser's
    added column (one more variable: neq, nvar, uvar_names, formulas,
@@ -245,7 +245,7 @@ struct Model final : NameIndex {
   /* its options, each line (an .ode's @ line, whole as read; a .odex's
      options entry) as the name=value items it makes, and where (no cause),
      for a value an option refuses: xpp_batch.cpp's set_internopts sets the
-     numerics and plot settings from them (their current values are the
+     numerics and plot options from them (their current values are the
      Session's) */
   struct OptionLine {
     std::string text;
@@ -317,9 +317,9 @@ struct Model final : NameIndex {
      "$ name=value ..." */
   struct InternalSet {
     std::string name,does;
-    /* a .odex set's settings, under its `options:` (name and value as the
+    /* a .odex set's options, under its `options:` (name and value as the
        options block's entries): never a model name, whatever the name is */
-    std::vector<std::pair<std::string,std::string>> settings;
+    std::vector<std::pair<std::string,std::string>> options;
     /* its line in the model, for an item that cannot be applied */
     Place place;
   };

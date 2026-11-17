@@ -40,12 +40,12 @@ int add_model_option(Model &m, std::string_view s1);
    own place (the file names the entries' Pos::file in files); a load error
    past the limit of options a model may set */
 void add_model_options(Model &m, std::span<const odex::Option> entries, const std::vector<std::string> &files);
-/* the torus settings read from or written to a set file (lunch-new.cpp) */
+/* the torus options read from or written to a set file (lunch-new.cpp) */
 /* the model's internal sets: one added (set name {does}), one's
-   "name=value ..." settings applied to s (extract_action for any such
-   text, a comment's action), one setting */
+   "name=value ..." options applied to s (extract_action for any such
+   text, a comment's action), one option */
 void add_intern_set(Model &m, std::string_view name, std::string_view does,
-                    std::vector<std::pair<std::string, std::string>> settings = {});
+                    std::vector<std::pair<std::string, std::string>> options = {});
 /* the model's sets and options lines again from the statements of its file
    read anew, once the file was edited (model_save.h): every set of the
    statements, an import's included, at its own place; the options block's

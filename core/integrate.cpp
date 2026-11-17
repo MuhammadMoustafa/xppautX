@@ -459,14 +459,14 @@ bool xpp::SteadyStateMonitor::observe(std::span<const double> state, double time
   return same&&unchanged_>=settings_.hold;
 }
 
-Result<> validate_steady_state(SteadyStateSettings settings, double dt, double start)
+Result<> validate_steady_state(SteadyStateSettings options, double dt, double start)
 {
-  if(settings.decimals<0||settings.decimals>MAX_STEADY_DECIMALS)
+  if(options.decimals<0||options.decimals>MAX_STEADY_DECIMALS)
     return fail("steady",format("Decimal places must be between 0 and {}",MAX_STEADY_DECIMALS),command_place());
   if(!std::isfinite(dt)||dt<=0||!std::isfinite(start)||!std::isfinite(start+dt)||start+dt<=start)
     return fail("steady","Dt must advance time with a finite positive step",command_place());
-  if(!std::isfinite(settings.hold)||!std::isfinite(settings.maximum)||settings.hold<dt||settings.maximum<settings.hold||
-     !std::isfinite(start+settings.maximum)||settings.maximum/dt>MAX_RUN_STEPS)
+  if(!std::isfinite(options.hold)||!std::isfinite(options.maximum)||options.hold<dt||options.maximum<options.hold||
+     !std::isfinite(start+options.maximum)||options.maximum/dt>MAX_RUN_STEPS)
     return fail("steady","Hold duration must be at least Dt, maximum duration must cover the hold, and the step count must fit the integrator",command_place());
   return {};
 }

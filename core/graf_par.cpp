@@ -30,7 +30,7 @@
 #include <math.h>
 #include "browse.h"
 #include "picture.h"
-#include "plot_settings.h"
+#include "plot_options.h"
 #include "session.h"
 #include "nullcline.h"
 #include "axes2.h"
@@ -231,12 +231,12 @@ void corner_cube(xpp::Session &s, double *xlo, double *xhi, double *ylo, double 
 void default_window(xpp::Session &s)
 {
  	if(s.plot_windows->current->ThreeDFlag){
-	      s.plot_windows->current->xmax=s.plot_settings->x_3d[1];
-    	      s.plot_windows->current->ymax=s.plot_settings->y_3d[1];
-    	      s.plot_windows->current->zmax=s.plot_settings->z_3d[1];
-              s.plot_windows->current->xmin=s.plot_settings->x_3d[0];
-              s.plot_windows->current->ymin=s.plot_settings->y_3d[0];
-              s.plot_windows->current->zmin=s.plot_settings->z_3d[0];  
+	      s.plot_windows->current->xmax=s.plot_options->x_3d[1];
+    	      s.plot_windows->current->ymax=s.plot_options->y_3d[1];
+    	      s.plot_windows->current->zmax=s.plot_options->z_3d[1];
+              s.plot_windows->current->xmin=s.plot_options->x_3d[0];
+              s.plot_windows->current->ymin=s.plot_options->y_3d[0];
+              s.plot_windows->current->zmin=s.plot_options->z_3d[0];  
 	      
 	      pretty(&(s.plot_windows->current->ymin),&(s.plot_windows->current->ymax));
 	      pretty(&(s.plot_windows->current->xmin),&(s.plot_windows->current->xmax));
@@ -248,11 +248,11 @@ void default_window(xpp::Session &s)
 	}
 	else  
     	{
-	      s.plot_windows->current->xmax=s.plot_settings->x_3d[1];
-    	      s.plot_windows->current->ymax=s.plot_settings->y_3d[1];
+	      s.plot_windows->current->xmax=s.plot_options->x_3d[1];
+    	      s.plot_windows->current->ymax=s.plot_options->y_3d[1];
     	      
-              s.plot_windows->current->xmin=s.plot_settings->x_3d[0];
-              s.plot_windows->current->ymin=s.plot_settings->y_3d[0];
+              s.plot_windows->current->xmin=s.plot_options->x_3d[0];
+              s.plot_windows->current->ymin=s.plot_options->y_3d[0];
 	      
 	      pretty(&(s.plot_windows->current->ymin),&(s.plot_windows->current->ymax)); 
 	      pretty(&(s.plot_windows->current->xmin),&(s.plot_windows->current->xmax));
@@ -496,29 +496,29 @@ CurveSettings curve_settings(const xpp::Session &s, int curve)
  return {g.xv[at],g.yv[at],g.zv[at],g.color[at],g.style[at]};
 }
 
-Result<> set_curve(xpp::Session &s, int curve, const CurveSettings &settings)
+Result<> set_curve(xpp::Session &s, int curve, const CurveSettings &options)
 {
  GRAPH &g=*s.plot_windows->current;
  if(curve<0||curve>=g.nvars)return fail("plots",xpp::format("no curve {}",curve),command_place());
- if(const Result<> checked=check_line_style("plots",settings.style);!checked)return checked;
+ if(const Result<> checked=check_line_style("plots",options.style);!checked)return checked;
  const auto at=static_cast<std::size_t>(curve);
- g.xv[at]=settings.x;
- g.yv[at]=settings.y;
- g.zv[at]=settings.z;
- g.color[at]=settings.color;
- g.style[at]=settings.style;
+ g.xv[at]=options.x;
+ g.yv[at]=options.y;
+ g.zv[at]=options.z;
+ g.color[at]=options.color;
+ g.style[at]=options.style;
  check_flags(g);
  redraw_the_graph(s);
  return {};
 }
 
-Result<int> add_curve(xpp::Session &s, const CurveSettings &settings)
+Result<int> add_curve(xpp::Session &s, const CurveSettings &options)
 {
- if(const Result<> checked=check_line_style("plots",settings.style);!checked)return std::unexpected<Error>(checked.error());
+ if(const Result<> checked=check_line_style("plots",options.style);!checked)return std::unexpected<Error>(checked.error());
  GRAPH &g=*s.plot_windows->current;
  const int count=g.nvars;
  g.resize_curves(count+1);
- if(const Result<> set=set_curve(s,count,settings);!set){
+ if(const Result<> set=set_curve(s,count,options);!set){
    g.resize_curves(count);
    return std::unexpected<Error>(set.error());
  }

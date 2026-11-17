@@ -4,7 +4,7 @@
 #include "session.h"
 #include "autox_state.h"
 #include "xpp_files.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "autox_nox.h"
 #include "autox_evd.h"
 #include "autox_run.h"
@@ -119,7 +119,7 @@ TEST_CASE("test_autox_limits")
     s.autox_state->follow_all_branches=false; /* one run, in the direction of the step */
     CHECK(xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{}));
     CHECK(diagram_count(*s.diagram)==4);
-    XAUTOX params; // the settings' marks, as the run copies them
+    XAUTOX params; // the options' marks, as the run copies them
     xpp::init_autox(*s.autox_state,params,s.model().node,false);
     CHECK(params.marks.size()==128 && params.marks.back().value==227);
     const xpp::DIAGRAM *last=last_diagram(*s.diagram);

@@ -2,7 +2,7 @@
    a parameter or variable with its own low end, high end and step. The
    model's `interface.sliders` presets start the list; the Add slider dialog
    (SliderDialog.tsx) appends or edits one, picking the parameter or
-   variable from a searchable list and setting Min, Max and Step. Pure. */
+   variable from a searchable list and option Min, Max and Step. Pure. */
 import {fieldError, NUMBER} from './fieldKinds';
 
 export interface SliderDef {

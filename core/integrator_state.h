@@ -1,6 +1,6 @@
 #pragma once
 /* The integrator's state a Session holds (integrate.cpp, flags.cpp, gear.cpp, ...): plain data the integrators work on (W744). What
-   the option table sets of it (the Range sweeps' settings) is model_integrator_settings.h's, its base (W757). The methods of
+   the option table sets of it (the Range sweeps' options) is model_integrator_options.h's, its base (W757). The methods of
    SteadyStateMonitor are integrate.cpp's. */
 #include <algorithm>
 #include <array>
@@ -9,7 +9,7 @@
 #include <span>
 #include <string>
 #include <vector>
-#include "model_integrator_settings.h"
+#include "model_integrator_options.h"
 #include "model_parts.h"
 #include "xpp_math.h"
 
@@ -39,7 +39,7 @@ struct SteadyDigits {
    places at every configured Dt interval, never the float plot samples. */
 class SteadyStateMonitor {
  public:
-  explicit SteadyStateMonitor(SteadyStateSettings settings): settings_(settings) {}
+  explicit SteadyStateMonitor(SteadyStateSettings options): settings_(options) {}
   void begin(std::span<const double> state, double time);
   bool observe(std::span<const double> state, double time);
  private:
@@ -70,7 +70,7 @@ struct FixedPointList {
   std::vector<std::vector<double>> x, er, em; /* MAXFP each, once flag is 1 */
 };
 
-/* the Monte Carlo search's settings: the number of guesses, the tolerance
+/* the Monte Carlo search's options: the number of guesses, the tolerance
    two points are one within, and each variable's range */
 struct FixedPointGuess {
   int n = 0;
@@ -89,7 +89,7 @@ struct FlagState {
   int hit = 0;
 };
 
-/* the integrator's state, a Session's (session.h), beside the settings the option table sets (Range, Sing pts' Range) */
+/* the integrator's state, a Session's (session.h), beside the options the option table sets (Range, Sing pts' Range) */
 struct IntegratorState : IntegratorSettings {
   /* Present only during an explicitly requested unchanged-digits run;
      its final result is session-local, cleared by the next ordinary run. */

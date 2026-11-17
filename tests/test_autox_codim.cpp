@@ -6,7 +6,7 @@
 #include "autox_state.h"
 #include "model_numerics.h"
 #include "autox_c.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "jacobian.h"
 #include "model_native.h"
 #include "autox_stability_autox.h"

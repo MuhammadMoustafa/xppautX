@@ -1,7 +1,7 @@
-"""One-shot W531 migration: AUTO's settings take readable names (core/auto_settings.cpp).
-Rewrites the repository's own files that hold a setting or a calculation kind:
+"""One-shot W531 migration: AUTO's options take readable names (core/auto_settings.cpp).
+Rewrites the repository's own files that hold an option or a calculation kind:
   - every .odex's `continuation: { ... }` block (ntst is mesh_intervals, ...);
-  - the autocompare descriptions' per-run `auto` settings (tests/auto/*.json);
+  - the autocompare descriptions' per-run `auto` options (tests/auto/*.json);
   - the diagram baselines' calculation columns (tests/auto/*.diagram.csv,
     tools/models/lecar_diagram.csv): equilibrium_fold is fold, periodic_fold is
     cycle_fold, torus is neimark_sacker;
@@ -23,11 +23,11 @@ OPTIONS = {'ntst': 'mesh_intervals', 'nmax': 'max_steps', 'npr': 'output_every',
            'ds': 'step_size', 'dsmin': 'min_step_size', 'dsmax': 'max_step_size', 'parmin': 'parameter_min',
            'parmax': 'parameter_max', 'normmin': 'norm_min', 'normmax': 'norm_max', 'epsl': 'parameter_tolerance',
            'epsu': 'state_tolerance', 'epss': 'special_point_tolerance',
-           # the descriptions' settings that are not options of a model
+           # the descriptions' options that are not options of a model
            'mxbf': 'max_branch_switches', 'iid': 'output_detail', 'iad': 'mesh_adapt_every',
            'itmx': 'max_location_iterations', 'itnw': 'max_newton_iterations', 'nwtn': 'full_newton_after',
            'iads': 'step_adapt_every', 'suppbp': 'suppress_branch_points'}
-# a session file's keys (settings.txt) to theirs
+# a session file's keys (options.txt) to theirs
 SESSION = {'ntst': 'mesh_intervals', 'nmx': 'max_steps', 'npr': 'output_every', 'ncol': 'collocation_points',
            'ds': 'step_size', 'dsmin': 'min_step_size', 'dsmax': 'max_step_size', 'rl0': 'parameter_min',
            'rl1': 'parameter_max', 'a0': 'norm_min', 'a1': 'norm_max', 'epsl': 'parameter_tolerance',
@@ -74,7 +74,7 @@ def migrate_odex(text):
 def migrate_description(text):
     def block(m):
         out = rename_keys(m[0])
-        # a negative max_branch_switches meant one direction only: its own setting now
+        # a negative max_branch_switches meant one direction only: its own option now
         negative = re.search(r'"max_branch_switches":\s*(-\d+)', out)
         if negative:
             out = out.replace(negative[0], '"max_branch_switches": %d,\n"switch_one_direction": true' % -int(negative[1]))
@@ -137,7 +137,7 @@ output = io.BytesIO()
 with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED) as dest:
     for member in source.infolist():
         data = source.read(member)
-        if member.filename == 'auto/settings.txt':
+        if member.filename == 'auto/options.txt':
             data = migrate_settings(data.decode()).encode()
         elif member.filename.endswith('.odex'):
             data = migrate_odex(data.decode()).encode()

@@ -25,8 +25,8 @@ Result<bool> array_print(const Session &s, const ArrayPicture &picture);
 }
 
 /* The array plot of the session s: its range saving's movie closed,
-   Plotvars' columns shown, Array range saving's settings, Fit, the range
-   of ap's values, Edit, Print, and its settings in a .set file (f: 1 read,
+   Plotvars' columns shown, Array range saving's options, Fit, the range
+   of ap's values, Edit, Print, and its options in a .set file (f: 1 read,
    else write) */
 void close_aplot_files(xpp::Session &s, bool complete);
 void optimize_aplot(xpp::Session &s, int *plist);

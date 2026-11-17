@@ -12,7 +12,7 @@ namespace xpp {
 struct AnalysisParts; /* analysis_parts.h */
 struct DataTable;
 
-/* Data's Fit settings (do_fit.cpp), a Session's (session.h): the data
+/* Data's Fit options (do_fit.cpp), a Session's (session.h): the data
    file, the variables and their columns, the parameters to fit, the
    dimension, points, iterations and tolerances */
 struct FitInfo {

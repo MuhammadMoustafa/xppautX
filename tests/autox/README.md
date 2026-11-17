@@ -27,7 +27,7 @@ skips; each diagram is the same at 1 and at automatic threads, which this driver
 optional `parameters` and `initial_conditions` set the starting state.
 `runs` lists named runs in order. Each names its `kind` in W306's terms,
 its `parameter` (or two `parameters` for `two_parameter` / `fixed_period`),
-and its per-run `autox` settings, under autoX's setting names (W531). `step_size` includes the direction.
+and its per-run `autox` options, under autoX's option names (W531). `step_size` includes the direction.
 `max_steps`, `output_every`, `mesh_intervals`, `min_step_size`, `max_step_size`, `parameter_min` and `parameter_max` are explicit. The driver
 maps these names to today's protocol fields, not to recording keys. Optional per-run
 `marks: [["parameter", value], ...]` locates user points (UZ); the same marks
@@ -109,7 +109,7 @@ HomCont runs it could not follow were skipped with PENDING W365 until W365 (#427
 were skipped with PENDING W405 until W405 (#467) located their resonances where the torus equations are singular.
 
 W565 (#630) adds `forced_pp_pd_ntst15` and `forced_pp_pd_ntst10`: `forced_pp_pd` with the mesh of the cycles and of `pd_up` cut to 15 and 10 intervals and
-`pd_up`'s step to 0.005 and 0.02, the two settings where the far R2 was lost (docs/auto-references.md W565, docs/studies/w557_r2_repro.py); the first has an AUTO-07p
+`pd_up`'s step to 0.005 and 0.02, the two options where the far R2 was lost (docs/auto-references.md W565, docs/studies/w557_r2_repro.py); the first has an AUTO-07p
 reference with traced differences, the second only its baseline (`auto07p_skip`), neither an XPPAUT reference.
 
 W404 (#466) runs the Henon-with-rotation map descriptions against AUTO-07p:

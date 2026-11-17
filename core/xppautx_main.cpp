@@ -39,7 +39,7 @@
 #include "graf_par.h"
 #include "grobs.h"
 #include "browse.h"
-#include "session_settings.h"
+#include "session_options.h"
 #include "xpp_util.h"
 #include "xpp_platform.h"
 #include "many_pops.h"

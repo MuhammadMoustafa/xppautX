@@ -9,7 +9,7 @@
    json_state.cpp    the state event, the data table, parameter and IC
                      edits, the data subscription, equations, source
    json_windows.cpp  plot windows, pixels, the kinescope, the array plot
-   json_autox.cpp     the autoX window, its diagram data and settings
+   json_autox.cpp     the autoX window, its diagram data and options
    json_ani.cpp      the animation window
 
    docs/protocol.md is the contract.
@@ -35,7 +35,7 @@
 #include "event_registry.h"
 #include "session.h"
 #include "autox_data.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "xpp_error.h"
 #include <stddef.h>
 #include <array>
@@ -139,7 +139,7 @@ struct ProtocolSession {
     /* autoX subscriptions, pacing and client view tracking */
     xpp::ChangedEvent<xpp::Session, int> autoxinfo{[](const xpp::Session &s, const int &point) { return xpp::autox_data_event_line(xpp::autox_parts(s), point); }, "sending autoX's info strip"};
     double autoxinfo_last = 0;
-    xpp::ChangedEvent<xpp::Session> autoxsettings{[](const xpp::Session &s) { return xpp::autox_settings_event_line(xpp::autox_parts(s)); }, "sending autoX's settings"};
+    xpp::ChangedEvent<xpp::Session> autoxoptions{[](const xpp::Session &s) { return xpp::autox_settings_event_line(xpp::autox_parts(s)); }, "sending autoX's options"};
     xpp::ChangedEvent<xpp::Session> autoxview{autox_view_event_line, "sending autoX's view"};
     xpp::ChangedEvent<xpp::Session> autoxscript{autox_script_event_line, "sending autoX's script runs"};
     xpp::ChangedEvent<xpp::Session> windows{windows_event_line, "sending the windows"};
@@ -173,7 +173,7 @@ xpp::Session &client();
 bool quit_waits(const char *line);
 int handle_async(xpp::Session &s, const char *line);   /* commands that make sense at any moment */
 int control_line(xpp::Session &s, const char *line);   /* a control line taken by a checkpoint */
-/* A setting (W106: a command of the setting kind, not a key) taken while
+/* An option (W106: a command of the option kind, not a key) taken while
    a job runs, by a checkpoint or a question's wait. Once the job has begun
    computing it is kept for after the job, as a command of its own
    (defer_line): it applies then, with its error if it is not valid, state
@@ -181,7 +181,7 @@ int control_line(xpp::Session &s, const char *line);   /* a control line taken b
    values it started with. A `set` taken before any computation (a
    question still open, the animation's Go) applies at once, and still ends
    with its own state and done after the job, so a client counts one done
-   per setting whenever it sends one. */
+   per option whenever it sends one. */
 void take_setting(xpp::Session &s, const char *line);
 xpp::inbox::Verdict during_run(const char *line);     /* what a running computation takes (ui_json.cpp) */
 /* keep the line read last (read_line) for after the running command;
@@ -234,7 +234,7 @@ void record_answer(const char *kind, const char *answer, bool ok);
 /* a key the running job read itself (control_line: / ending a range,
    Escape stopping the animation's Go), with where the job was */
 /* the menu m's item of key ch picked (j_menu_choose): the step's label */
-/* a setting a running command took and applied at once (take_setting): a
+/* an option a running command took and applied at once (take_setting): a
    step of its own, before that command's */
 void record_control(const char *line);
 void record_setting(const char *line);
@@ -325,8 +325,8 @@ void send_buf(std::string &b);
 void send_simple(std::string_view ev, const char *key = nullptr, std::string_view text = {});
 void json_flush(void);
 /* a data module's event line (plot_data, phase_data, marks_data, ani_data);
-   the (line, n) form is the emit of autox_data, autox_settings and
-   numerics_settings, whose callbacks still take a pointer and a length */
+   the (line, n) form is the emit of autox_data, autox_options and
+   numerics_options, whose callbacks still take a pointer and a length */
 void data_emit(std::string_view line);
 void data_emit(const char *line, size_t n);
 

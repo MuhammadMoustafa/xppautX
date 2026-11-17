@@ -226,15 +226,15 @@
 .autox-earlier.active { border-color: var(--accent); }
 .autox-empty { pointer-events: none; } /* the diagram under it still zooms and pans */
 
-/* T22: autoX's settings in the page's forms (ui/AutoxSettings.tsx) */
-.autox-settings-dialog { width: min(64rem, 100%); }
+/* T22: autoX's options in the page's forms (ui/AutoxSettings.tsx) */
+.autox-options-dialog { width: min(64rem, 100%); }
 .autox-num-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--space-3); }
 .autox-num-group, .autox-computer-group { margin: 0; padding: var(--space-2); border: 1px solid var(--border); border-radius: 0.5rem; min-width: 0; }
 .autox-num-group legend, .autox-computer-group legend { font-size: var(--text-xs); color: var(--fg-muted); padding: 0 var(--space-1); }
 .autox-num-group label, .autox-computer-group label { grid-template-columns: minmax(0, 1fr) 6.5rem; gap: var(--space-2); cursor: help; }
 .autox-num-group label > span, .autox-computer-group label > span { font-size: var(--text-sm); }
-.autox-settings-dialog label.queued input, .autox-settings-dialog label.queued select,
-.autox-settings-dialog .autox-mark-row.queued input, .autox-settings-dialog .autox-mark-row.queued select,
+.autox-options-dialog label.queued input, .autox-options-dialog label.queued select,
+.autox-options-dialog .autox-mark-row.queued input, .autox-options-dialog .autox-mark-row.queued select,
 .autox-axis-fields label.queued select { border-style: dashed; background: var(--surface-2); }
 .autox-mark-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; }
 .autox-mark-add { justify-self: start; }

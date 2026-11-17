@@ -1,4 +1,4 @@
-/* The array plot's registry rows (W527): its window, its settings (the columns, the rows and the color scale's
+/* The array plot's registry rows (W527): its window, its options (the columns, the rows and the color scale's
    ends), its time scroll, the range of runs it saves as GIFs and its pictures. Each handler calls the core
    function the array plot window's keys call too (arrayplot.h): one behaviour, whichever front end asks. */
 #include "graf_par.h"
@@ -145,7 +145,7 @@ Result<std::string> export_gif(Session &s, const Command &command, const std::st
     return ResultObject().text("file", file).integer("bytes_written", static_cast<long long>(*size)).done();
 }
 
-/* array_plot.export: the PDF picture with the labels the settings hold, or the GIF of the window as it shows */
+/* array_plot.export: the PDF picture with the labels the options hold, or the GIF of the window as it shows */
 /* what array_plot.export needs: an open array plot (SessionNeed) */
 bool array_plot_open(const Session &s) { return s.array_plot->plot.alive != 0; }
 
@@ -201,7 +201,7 @@ constexpr std::array ROWS = {
             "Open the array plot window.", OPEN_RESULTS, WINDOW_EVENTS, true, open},
     Command{"array_plot.redraw", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Redraw array plot", "",
             "Draw the array plot again from the stored data.", REDRAW_RESULTS, APLOT_EVENTS, true, redraw, {}, {}},
-    Command{"array_plot.configure", CONFIGURE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Array plot settings", "",
+    Command{"array_plot.configure", CONFIGURE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Array plot options", "",
             "Set the columns and rows the array plot shows, the ends of its color scale (z_min below z_max) and its three labels (the top, side and bottom text of its PDF); what is left out stays.",
             CONFIGURE_RESULTS, APLOT_EVENTS, true, configure, {}, {}},
     Command{"array_plot.fit", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Fit array plot", "",
@@ -210,7 +210,7 @@ constexpr std::array ROWS = {
             "Run once for each value of a parameter or variable as run.range does, saving the array plot as GIF files of the model's folder: one movie, or with still one picture per run; tag writes the swept value on each.",
             RANGE_RESULTS, RANGE_EVENTS, true, range, {}, {}},
     Command{"array_plot.export", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Array plot as", "File/Export",
-            "Write the array plot into a file of the model's folder: format pdf (a PDF picture with the labels the settings hold) or gif (the picture as the window shows it).",
+            "Write the array plot into a file of the model's folder: format pdf (a PDF picture with the labels the options hold) or gif (the picture as the window shows it).",
             EXPORT_RESULTS, DONE_EVENTS, true, export_picture, {}, {}, "write", "*", "", "", Feature::none, {array_plot_open, "needs an array plot"}, "format"},
     Command{"array_plot.scroll", SCROLL_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Scroll array plot", "",
             "Show the array plot from the stored row first_row on (row 0 is the first).", SCROLL_RESULTS, APLOT_EVENTS, true, scroll, {}, {}}};

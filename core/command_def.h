@@ -183,7 +183,7 @@ private:
 };
 
 /* a list of names as the C strings a row's choices are, made from the one list each choice has elsewhere (line_style.h,
-   grobs.h, colormap.h, numerics_settings.h) so no name is written twice */
+   grobs.h, colormap.h, numerics_options.h) so no name is written twice */
 template <std::size_t N> constexpr std::array<const char *, N> c_names(const std::array<std::string_view, N> &names)
 {
     std::array<const char *, N> out{};
@@ -237,7 +237,7 @@ struct Command {
        the one scripts and recordings send; "" for a command with a form of its own */
     const char *panel = "";
     /* the text of the action in the command's form (a footer button named for what it does: "Save set"); "" takes the default, "Apply" for
-       a setting and the label for the rest (command_registry.cpp), never Run or OK */
+       an option and the label for the rest (command_registry.cpp), never Run or OK */
     const char *action = "";
     /* the model feature the command is for (model_features.h): a model without it does not show the command in its menu, Search commands
        lists it greyed with the reason, and running it is an error saying so */
@@ -341,14 +341,14 @@ Result<std::string> front_end(Session &s, const Command &command, const Argument
 /* what session.open_model answers once the model it asked for is loaded: the model, its variables and its parameters */
 std::string opened_model_result(const Session &s);
 
-/* A command whose arguments are numerics settings (run.configure, boundary_value.configure): every argument given is the
-   setting `key_prefix` + its name, all checked together and set all or nothing; the result holds each one's
+/* A command whose arguments are numerics options (run.configure, boundary_value.configure): every argument given is the
+   option `key_prefix` + its name, all checked together and set all or nothing; the result holds each one's
    value now. */
 Result<std::string> configure_numerics(Session &s, const Command &command, const Arguments &args, const Place &place,
                                        std::string_view key_prefix);
-/* boundary_value.configure's arguments are the settings' keys without this prefix */
+/* boundary_value.configure's arguments are the options' keys without this prefix */
 inline constexpr std::string_view BVP_KEY_PREFIX = "bvp_";
-/* the registry command that sets the numerics setting `key`, "" when none does (`set` takes the others) */
+/* the registry command that sets the numerics option `key`, "" when none does (`set` takes the others) */
 std::string_view numerics_command(std::string_view key);
 std::span<const Command> equilibrium_commands();
 std::span<const Command> nullcline_commands();

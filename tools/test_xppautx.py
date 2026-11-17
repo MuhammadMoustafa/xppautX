@@ -14,7 +14,7 @@ from xppautx.arrays import Session, table
 
 BINARY = os.path.abspath(os.environ.get('XPPAUTX_BIN', './xppautX'))
 AB = os.path.join(ROOT, 'examples', 'tstauto', 'ab.odex')
-# autoX's settings for the ab model's first branch (tests/autox/tstauto_ab.json)
+# autoX's options for the ab model's first branch (tests/autox/tstauto_ab.json)
 AB_RUN = dict(step_size=0.02, min_step_size=1e-5, max_step_size=0.02, max_steps=100, output_every=20, parameter_min=0, parameter_max=1.5,
               mesh_intervals=15, max_branch_switches=0, follow_all_branches=False)
 
@@ -76,9 +76,9 @@ class Library(unittest.TestCase):
         try:
             shutil.copy(AB, folder)
             script = os.path.join(folder, 'ab.autox')
-            settings = ', '.join('%s: %s' % (k, str(v).lower() if isinstance(v, bool) else v) for k, v in AB_RUN.items())
+            options = ', '.join('%s: %s' % (k, str(v).lower() if isinstance(v, bool) else v) for k, v in AB_RUN.items())
             with open(script, 'w', encoding='utf-8') as f:
-                f.write('version: 4,\nmodel: "ab.odex",\nruns: [ { name: "steady", kind: equilibrium, parameters: ["p0"], settings: { %s } } ]\n' % settings)
+                f.write('version: 4,\nmodel: "ab.odex",\nruns: [ { name: "steady", kind: equilibrium, parameters: ["p0"], options: { %s } } ]\n' % options)
             with Session(script, binary=BINARY) as s:
                 self.assertEqual(s.script()['runs'], ['steady'])
                 self.assertEqual(s.script()['completed'], [])

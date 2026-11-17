@@ -102,7 +102,7 @@ def continuation_case(a, check):
 
 
 def auto_case(a, check):
-    """The older AUTO driver, on its original steady-state input and settings."""
+    """The older AUTO driver, on its original steady-state input and options."""
     sys.path.insert(0, str(BENCH / 'auto'))
     import hopf_xppautx
     from explore_xppautx import step, numerics

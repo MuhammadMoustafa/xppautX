@@ -5,7 +5,7 @@
 # value) by `xppautX --options-schema`, so the VS Code extension and linters
 # read what the program accepts.
 #   tools/optionschema.sh --check [--bin PATH]   fail when a committed file differs from the program
-#   tools/optionschema.sh --update [--bin PATH]  rewrite the committed files (and docs/manual/15-settings-panels.md, tools/optionsmanual.py)
+#   tools/optionschema.sh --update [--bin PATH]  rewrite the committed files (and docs/manual/15-options-panels.md, tools/optionsmanual.py)
 # --bin PATH is the program (default ./xppautX, or ./xppautX.exe); sourcecheck
 # runs --check with build/lto/xppautX, which its ltocheck has just linked.
 cd "$(dirname "$0")/.." || exit 1
@@ -36,6 +36,6 @@ else
   diff "$schema" "$tmp" | head -20
   status=1
 fi
-# the manual's settings pages, from the same table (W616)
+# the manual's options pages, from the same table (W616)
 uv run --locked python tools/optionsmanual.py "$mode" "$tmp" || status=1
 exit $status

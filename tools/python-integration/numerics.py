@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """tools/python-integration/numerics.py: the numerics of a run, as xppautX has them (W427, #489).
 
-A run's settings are the model's options block over xppautX's defaults (an XPPAUT set file is converted
+A run's options are the model's options block over xppautX's defaults (an XPPAUT set file is converted
 into the model's .odex once, `xppautX --convert model.ode --statefile FILE`). The defaults are xppautX's own, read from core/ where they are written
 (core/model_options.cpp's resets, the NumericsSettings struct, the method table and XPPAUT's method keys, found wherever
 core/ writes them), so the Python side has no default of its own.

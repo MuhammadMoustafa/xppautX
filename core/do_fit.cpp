@@ -314,7 +314,7 @@ Result<FitOutcome> test_fit(AnalysisParts &s, FitInfo fit)
 }
 
 xpp::Result<FitResult> run_fit(xpp::AnalysisParts &s, const DataTable &table, int npts, int npars, int nvars, int maxiter, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a)
-/* The data table and fitted columns were validated before the fit settings were applied. */
+/* The data table and fitted columns were validated before the fit options were applied. */
 {
   int i,j,k,ictrl=0;
   xpp::Result<> ok;

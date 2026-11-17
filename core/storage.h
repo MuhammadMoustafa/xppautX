@@ -139,7 +139,7 @@ private:
 
 /* The data store: the rows a run stores, one column per quantity (column 0
    the time, then the variables and auxiliaries: NEQ+1 columns in use), each
-   float or double by the `storage_precision` setting, read and written as
+   float or double by the `storage_precision` option, read and written as
    data_store.col[column][row] (Column); and the point where the last run
    ended. storage.cpp owns it; the data table shows it (browse_data.cpp)
    unless another data set (a histogram, the Fourier modes, the adjoint) is

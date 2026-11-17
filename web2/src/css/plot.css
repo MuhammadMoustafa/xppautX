@@ -24,9 +24,9 @@
 .run-time-controls { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); align-items: center; font-size: var(--text-xs); }
 .run-time-controls input { width: 5rem; min-width: 0; min-height: var(--target); padding: var(--space-1) var(--space-2); border: 1px solid var(--field-border); border-radius: var(--radius); font: inherit; color: var(--fg); background: var(--bg); }
 .run-time-controls select { width: 7rem; min-height: var(--target); padding: var(--space-1) var(--space-2); border: 1px solid var(--field-border); border-radius: var(--radius); font: inherit; color: var(--fg); background: var(--bg); }
-.run-toolbar > .steady-settings { flex: 1 1 auto; min-width: 0; margin-top: 0; }
-.run-toolbar > .steady-settings[open] { flex-basis: 100%; }
-.steady-settings summary { cursor: pointer; }
+.run-toolbar > .steady-options { flex: 1 1 auto; min-width: 0; margin-top: 0; }
+.run-toolbar > .steady-options[open] { flex-basis: 100%; }
+.steady-options summary { cursor: pointer; }
 .steady-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-2); margin-top: var(--space-2); }
 .steady-fields label, .form-control { display: grid; gap: var(--space-1); min-width: 0; }
 .steady-fields input { min-width: 0; width: 100%; min-height: var(--target); padding: var(--space-1) var(--space-2); border: 1px solid var(--field-border); border-radius: var(--radius); font: inherit; color: var(--fg); background: var(--bg); }
@@ -97,7 +97,7 @@
 /* the window row, in the plot's header */
 .plot-bar .plot-windows { margin-left: auto; }
 /* Keep the graph reachable in short, narrow workspaces. Less frequent window
-   settings expand on request instead of wrapping several rows above it. */
+   options expand on request instead of wrapping several rows above it. */
 .plot-window-options > summary { min-height: var(--target); padding: var(--space-1) var(--space-2); cursor: pointer; }
 .plot-window-options[open] { flex-basis: 100%; }
 .plot-window-options-menu { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); padding-block: var(--space-1); }

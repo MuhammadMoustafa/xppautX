@@ -5,7 +5,7 @@ import {Dialog} from './Dialog';
 
 /** what a part of a file of values is called: the file's defaults, one of its sets, or the whole XPPAUT file */
 function partLabel(part: ValuesPart, format: string): string {
-  if (part.from === 'defaults') return 'Defaults (its par and init lines and settings)';
+  if (part.from === 'defaults') return 'Defaults (its par and init lines and options)';
   if (part.from === 'set') return `Set “${part.name}”`;
   return `The whole .${format} file`;
 }

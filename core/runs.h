@@ -45,7 +45,7 @@ struct RangeProgress {
   int runs = 0;
   long steps = 0;
 };
-/* the sweep over the settings in s.integrator->range (one parameter or two), what it completed in `done`
+/* the sweep over the options in s.integrator->range (one parameter or two), what it completed in `done`
    when given; the sweep's end code (-1 when a run stopped early) or the error it failed with */
 Result<int> run_range(AnalysisParts &s, RangeProgress *done, const RunReport &report);
 
@@ -66,7 +66,7 @@ Result<bool> continue_total(AnalysisParts &s, const RunReport &report);
 
 Result<> run_allowed(const AnalysisParts &s, std::string_view command);
 
-/* the integration of x as the Session's settings say, after a run's start made: the one every run ends in */
+/* the integration of x as the Session's options say, after a run's start made: the one every run ends in */
 Result<bool> integrate_from(AnalysisParts &s, double *x, const RunReport &report);
 int usual_integrate_stuff(AnalysisParts &s, double *x, const RunReport &report); /* integrate_from, its error shown: 1 when it failed */
 
@@ -74,9 +74,9 @@ int usual_integrate_stuff(AnalysisParts &s, double *x, const RunReport &report);
    manifolds when ishoot), or the first manifold that failed */
 Result<> do_monte_carlo_search(AnalysisParts &s, int append, int stuffbrowse,int ishoot);
 
-Result<> run_to_steady_state(AnalysisParts &s, SteadyStateSettings settings, const RunReport &report);
+Result<> run_to_steady_state(AnalysisParts &s, SteadyStateSettings options, const RunReport &report);
 
-/* what a sweep over autoX's diagram gives in place of the Range settings: the parameter it varies, how many points
+/* what a sweep over autoX's diagram gives in place of the Range options: the parameter it varies, how many points
    the diagram has (the sweep makes one run at each, the first after the parameter's value at point 0) and what to do
    as each run begins (autoX marks the point). autoX makes it; the sweep, which is below autoX, only calls it. */
 struct DiagramRange {
@@ -84,7 +84,7 @@ struct DiagramRange {
   int points;
   std::function<void(int point)> mark;
 };
-/* the sweep of Range's settings (`two`: the second parameter too) as the command's Initialconds > Range does, or over
+/* the sweep of Range's options (`two`: the second parameter too) as the command's Initialconds > Range does, or over
    autoX's diagram when `diagram` is given: the sweep's end code (-1 when a run stopped early) */
 int do_range(AnalysisParts &s, double *x, bool two, const RunReport &report, const DiagramRange *diagram = nullptr);
 Result<int> equilibrium_range(AnalysisParts &s, const RunReport &report);

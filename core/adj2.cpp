@@ -51,7 +51,7 @@ constexpr double ADJ_EPS=1.e-8;
 
 namespace {
 
-/* the transposed data from the settings in s.adjoint->transpose, shown in the browser: every value it reads lies in
+/* the transposed data from the options in s.adjoint->transpose, shown in the browser: every value it reads lies in
    the stored data (transpose_data checked) */
 void create_transpose(xpp::AnalysisParts &s)
 {

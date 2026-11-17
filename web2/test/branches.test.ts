@@ -1,6 +1,6 @@
 /* W597, W620: the page for several branches. Feeds the contract's events: the points of several running jobs arriving
    interleaved (each job its own polyline, typed but not numbered), the join's reset and the labelled points that replace
-   them, `autox.jobs` (the progress line, each running job's points), and the setting. Data, never pixels. */
+   them, `autox.jobs` (the progress line, each running job's points), and the option. Data, never pixels. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {buildDiagramModel} from '../src/plot/diagramModel';

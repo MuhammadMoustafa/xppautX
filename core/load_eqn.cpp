@@ -17,7 +17,7 @@
 #include "typed_values.h"
 
 #include "model_place.h"
-#include "plot_settings.h"
+#include "plot_options.h"
 #include "load_eqn.h"
 #include "form_ode.h"
 
@@ -90,7 +90,7 @@ namespace {
 
 /* the set added at where (the line of its statement) */
 void add_set_at(xpp::Model &m, std::string_view name, std::string_view does,
-                std::vector<std::pair<std::string,std::string>> settings, const xpp::Place &where)
+                std::vector<std::pair<std::string,std::string>> options, const xpp::Place &where)
 {
   std::vector<xpp::Model::InternalSet> &sets=m.intern_sets;
   /* "$ " then does without its braces, commas as spaces */
@@ -109,7 +109,7 @@ void add_set_at(xpp::Model &m, std::string_view name, std::string_view does,
   }
   if(it->second.set<0)it->second.set=static_cast<int>(sets.size());
   it->second.set_spellings.try_emplace(std::string(name),static_cast<int>(sets.size()));
-  sets.push_back({std::string(name),bob,std::move(settings),where});
+  sets.push_back({std::string(name),bob,std::move(options),where});
  xpp::log(XPP_LOG_INFO, " added {} doing {} \n",
 	 sets.back().name.c_str(),sets.back().does.c_str());
 }
@@ -117,9 +117,9 @@ void add_set_at(xpp::Model &m, std::string_view name, std::string_view does,
 } // namespace
 
 void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does,
-                    std::vector<std::pair<std::string,std::string>> settings)
+                    std::vector<std::pair<std::string,std::string>> options)
 {
-  add_set_at(m,name,does,std::move(settings),xpp::LoadSite::place());
+  add_set_at(m,name,does,std::move(options),xpp::LoadSite::place());
 }
 
 void replace_intern_sets(xpp::Model &m, const xpp::odex::Parsed &parsed)
@@ -132,9 +132,9 @@ void replace_intern_sets(xpp::Model &m, const xpp::odex::Parsed &parsed)
   m.intern_sets.clear();
   for(const xpp::odex::Statement &st : parsed.statements){
     if(st.kind!=xpp::odex::Statement::Kind::Set)continue;
-    std::vector<std::pair<std::string,std::string>> settings;
-    for(const xpp::odex::Option &o : st.more().options)settings.emplace_back(xpp::odex_option_setting(o.group,o.name),o.value);
-    add_set_at(m,st.name,st.text,std::move(settings),xpp::Place{parsed.files.at(static_cast<std::size_t>(st.pos.file)),st.pos.line,st.pos.col});
+    std::vector<std::pair<std::string,std::string>> options;
+    for(const xpp::odex::Option &o : st.more().options)options.emplace_back(xpp::odex_option_setting(o.group,o.name),o.value);
+    add_set_at(m,st.name,st.text,std::move(options),xpp::Place{parsed.files.at(static_cast<std::size_t>(st.pos.file)),st.pos.line,st.pos.col});
   }
 }
 

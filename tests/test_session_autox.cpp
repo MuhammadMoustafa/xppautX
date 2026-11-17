@@ -2,9 +2,9 @@
 #include "load_args.h"
 #include "xpp_globals.h"
 #include "autox_unknowns.h"
-/* The session's autoX members (xpp_session_autox.h, W92, W103): its settings, diagram and
+/* The session's autoX members (xpp_session_autox.h, W92, W103): its options, diagram and
    views (W50) read back bit for bit, a file of another shape is refused,
-   and in a session the whole file (the model, settings, diagram,
+   and in a session the whole file (the model, options, diagram,
    solutions, two views)
    written and restored gives the same autoX state, in the same model or
    with its saved model loaded from it (the .ode on the disk edited); a
@@ -28,7 +28,7 @@
 #include "autox_nox.h"
 #include "autox_run.h"
 #include "autox_c.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
@@ -200,7 +200,7 @@ void check_settings_text()
     s.nmarks = 2;
     s.mark_name = {"T", "phi"};
     s.mark_value = {awk(4), awk(5)};
-    const xpp::Result<xpp::snapx::autox_members::SettingsRead> read = autox_text::parse_settings(autox_text::settings_text(s), "settings.odex");
+    const xpp::Result<xpp::snapx::autox_members::SettingsRead> read = autox_text::parse_settings(autox_text::settings_text(s), "options.odex");
     CHECK(read.has_value());
     if (!read) return;
     const xpp::AutoxSettingsSet *r = &read->set;
@@ -232,9 +232,9 @@ void check_settings_text()
     e = error(with_line(text, "marks:", "bogdanov_takens: true,\n  marks: ["));
     CHECK(e.what.find("`bogdanov_takens` is given twice") != std::string::npos);
     e = error(without_line(text, "bogdanov_takens:"));
-    CHECK(e.what == "settings has no `bogdanov_takens`");
+    CHECK(e.what == "options has no `bogdanov_takens`");
     e = error(with_line(text, "marks:", "later: 1,\n  marks: ["));
-    CHECK(e.what == "`later` is not a setting of settings" && e.place.line == after_key("marks"));
+    CHECK(e.what == "`later` is not an option of options" && e.place.line == after_key("marks"));
     std::string excessive = text.substr(0, text.find("  marks: ["));
     excessive += "  marks: [\n";
     for (int i = 0; i <= xpp::autox_file_marks_limit; i++) excessive += "    { name: T, value: 1 },\n";
@@ -336,7 +336,7 @@ void check_diagram_csv()
         const auto refused=xpp::snapx::autox_members::parse_diagram_csv(bad_calc,3,3,"sent.snapx/autox/diagram.csv");
         CHECK(!refused && refused.error().place.line==static_cast<int>(pts.size())+2);
     }
-    /* a jacobian that is neither setting, at its line; a diagram without the column (saved before W278) */
+    /* a jacobian that is neither option, at its line; a diagram without the column (saved before W278) */
     std::string wrong = csv;
     const std::size_t header=csv.find("calc,ibr");
     std::size_t at = csv.find('\n',header) + 1; /* the first row: its 13th field is the jacobian */
@@ -953,16 +953,16 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
     CHECK(!none && none.error().text() == "lecar.snapx: its autox/solutions.s is missing");
     /* all or nothing (W125): a value that does not read, or a value autoX refuses, is the error at its line, before
        anything is restored */
-    const std::string settings = state;
-    const auto keyed = [&](const std::string &key, const std::string &value) { return with_line(settings, key + ":", key + ": " + value + ","); };
+    const std::string options = state;
+    const auto keyed = [&](const std::string &key, const std::string &value) { return with_line(options, key + ":", key + ": " + value + ","); };
     const std::string last_bad = keyed("ymax", "nope");
     const xpp::Result<xpp::snapx::autox_members::Members> bad = autox_text::read_members(xpp::client_session(), members, "autox/", "lecar.snapx", last_bad, "lecar.snapx/session.odex");
-    CHECK(!bad && bad.error().place.file == "lecar.snapx/session.odex" && bad.error().place.line == line_of(settings, "ymax:") && bad.error().place.source == "    ymax: nope,");
+    CHECK(!bad && bad.error().place.file == "lecar.snapx/session.odex" && bad.error().place.line == line_of(options, "ymax:") && bad.error().place.source == "    ymax: nope,");
     const xpp::Result<xpp::snapx::autox_members::Members> refused = autox_text::read_members(xpp::client_session(), members, "autox/", "lecar.snapx", keyed("collocation_points", "9"), "lecar.snapx/session.odex");
-    CHECK(!refused && refused.error().place.line == line_of(settings, "collocation_points:") && refused.error().place.source == "    collocation_points: 9,");
+    CHECK(!refused && refused.error().place.line == line_of(options, "collocation_points:") && refused.error().place.source == "    collocation_points: 9,");
     const auto mesh_refused = autox_text::read_members(xpp::client_session(), members, "autox/", "lecar.snapx", keyed("mesh_intervals", std::to_string(xpp::autox_max_mesh_intervals + 1)), "lecar.snapx/session.odex");
     CHECK(!mesh_refused);
-    if (!mesh_refused) CHECK(mesh_refused.error().place.file == "lecar.snapx/session.odex" && mesh_refused.error().place.line == line_of(settings, "mesh_intervals:"));
+    if (!mesh_refused) CHECK(mesh_refused.error().place.file == "lecar.snapx/session.odex" && mesh_refused.error().place.line == line_of(options, "mesh_intervals:"));
     CHECK(same_diagram(s.diagram->points, imported));
     CHECK(file_text(xpp::autox_solutions_file(xpp::autox_parts(xpp::client_session()))) == solutions);
 
@@ -1274,7 +1274,7 @@ TEST_CASE("test_session_autox")
         const auto before = autox_text::settings_text(xpp::autox_settings_now(xpp::autox_parts(s)));
         const auto bytes = xpp_session_snapshot(s);
         CHECK(bytes.has_value());
-        const auto f = bytes ? xpp_saved_parse(tmp.file("settings.snapx"), "settings.snapx", *bytes, SavedKind::snapshot) : std::nullopt;
+        const auto f = bytes ? xpp_saved_parse(tmp.file("options.snapx"), "options.snapx", *bytes, SavedKind::snapshot) : std::nullopt;
         s.autox_state->bifur.nmx = 38;
         CHECK(f && xpp_saved_restore(s, *f));
         CHECK(autox_text::settings_text(xpp::autox_settings_now(xpp::autox_parts(s))) == before);

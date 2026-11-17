@@ -26,7 +26,7 @@ void h_back(AnalysisParts &s);
 
 /* Transpose data (File/Transpose): the stored data's `columns` columns from `first_column` in steps of
    `column_skip`, and `rows` rows from row `first_row` in steps of `row_skip` (the first is 0), shown in the browser
-   as rows of the table: each column becomes a row. Every one is in the data, else the error; the settings are kept
+   as rows of the table: each column becomes a row. Every one is in the data, else the error; the options are kept
    for the next one. */
 Result<> transpose_data(AnalysisParts &s, std::string_view first_column, int columns, int column_skip, int first_row, int rows, int row_skip);
 void alloc_h_stuff(AnalysisParts &s);
@@ -42,7 +42,7 @@ Result<> load_interaction(AnalysisParts &s);
 /* the adjoint's iterations and tolerance, or why they are not ones it takes */
 Result<> set_adjoint_parameters(AnalysisParts &s, int max_iterates, double tolerance);
 /* the maximal Liapunov exponent of the stored orbit or, with `over_range`, of the run at each value of the Range
-   settings' sweep (kept in the data table, the exponent given the largest one): the exponent, and the runs */
+   options' sweep (kept in the data table, the exponent given the largest one): the exponent, and the runs */
 struct LyapunovResult {
   double exponent;
   int runs;

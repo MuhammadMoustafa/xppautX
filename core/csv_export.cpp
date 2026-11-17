@@ -2,7 +2,7 @@
 #include "xpp_ui.h"
 /* CSV exports beside the old whitespace formats (W26, issue #42): a
    header row of names, "\n" line ends, full precision, that
-   pandas.read_csv and MATLAB readtable read with no options. See
+   pandas.read_csv and MATLAB readtable read with no option. See
    csv_export.h. */
 #include "model.h"
 #include "session.h"

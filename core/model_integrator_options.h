@@ -1,5 +1,5 @@
 #pragma once
-/* The integrator's settings the option table's rows set (Range, Sing pts' Range): plain data, which a Session's IntegratorState
+/* The integrator's options the option table's rows set (Range, Sing pts' Range): plain data, which a Session's IntegratorState
    (integrator_state.h, the integrators') extends with the run's state (W757). */
 #include <string>
 
@@ -7,7 +7,7 @@ namespace xpp {
 
 /* how many values a range varies (RangeVars::rtype): one, two together or two independently */
 inline constexpr int RANGE_SINGLE = 0, RANGE_TOGETHER = 1, RANGE_INDEPENDENT = 2;
-/* Initialconds/Range's settings (integrate.cpp's, set by the options): the one range over item (and item2 for the double range) */
+/* Initialconds/Range's options (integrate.cpp's, set by the options): the one range over item (and item2 for the double range) */
 struct RangeVars {
   std::string item, item2;
   bool write_files = false; // Opt in: reset runs otherwise keep no separate files.
@@ -18,7 +18,7 @@ struct RangeVars {
   int rtype;
 };
 
-/* Sing pts' Range settings */
+/* Sing pts' Range options */
 struct EquilibriumRange {
   std::string item;
   int steps = 10, shoot = 0, col = -1, movie = 0, mc = 0; /* Steps starts at 10, what the dialog's empty value fell back to */
@@ -27,7 +27,7 @@ struct EquilibriumRange {
 
 /* what the option table sets of the integrator, a base of IntegratorState */
 struct IntegratorSettings {
-  /* Initialconds/Range's settings */
+  /* Initialconds/Range's options */
   RangeVars range{};
   EquilibriumRange eq_range;
 };

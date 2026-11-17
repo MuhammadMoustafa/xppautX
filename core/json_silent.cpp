@@ -14,9 +14,9 @@
    For one run (no internal sets, or each set in turn):
      (an .autox script instead runs its runs, autox.run_script, and writes the diagram, autox.export_data with target diagram)
      select the set          set.apply, scope all (the set by its name)
-     run                     run.initial, run.range (the settings
+     run                     run.initial, run.range (the options
                              the sweep options made) for a sweep that writes files, or
-                             stochastic.compute (the sweep's settings) for
+                             stochastic.compute (the sweep's options) for
                              an after_run of mean_of_runs or variance_of_runs
      after_run               the analysis it names (histogram.compute, ...), or
                              stochastic.show_mean or _variance
@@ -82,7 +82,7 @@ private:
     void replace_files() { xpp::json::session.save_replace = SAVE_REPLACE; }
 };
 
-/* the model's after_run of the run's data: the analysis the option names, with the settings the model gave, and only the
+/* the model's after_run of the run's data: the analysis the option names, with the options the model gave, and only the
    time and its first column written after it; the mean or the variance of the runs of a stochastic sweep replaces the data */
 void SilentScript::post_process()
 {

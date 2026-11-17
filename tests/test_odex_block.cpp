@@ -1,4 +1,4 @@
-/* The settings syntax (odex_block.h, W284): .odex's options syntax read by the
+/* The options syntax (odex_block.h, W284): .odex's options syntax read by the
    same tokenizer and block grammar, plus lists. What Out writes reads back
    as the same values; every error names its line and column and the line as
    written; a key that is given twice, a value that is none, a group nested
@@ -135,7 +135,7 @@ TEST_CASE("test_odex_block")
     CHECK(error_of("a: 1,\n  a: 2,\n", whole_a) == "t.odex:2:3: `a` is given twice (the first is at line 1)");
     CHECK(error_of("a: x,\n", whole_a) == "t.odex:1:4: `a`: `x` is not a whole number");
     CHECK(error_of("a: 1.5,\n", whole_a) == "t.odex:1:4: `a`: `1.5` is not a whole number");
-    CHECK(error_of("a: 1, b: 2,\n", whole_a) == "t.odex:1:7: `b` is not a setting of the file");
+    CHECK(error_of("a: 1, b: 2,\n", whole_a) == "t.odex:1:7: `b` is not an option of the file");
     CHECK(error_of("b: 1,\n", whole_a) == "t.odex:1:1: the file has no `a`");
     CHECK(error_of("a: ,\n", whole_a).starts_with("t.odex:1:4:"));
     CHECK(error_of("a: 1 b: 2,\n", whole_a).starts_with("t.odex:1:6: expected `,`"));
@@ -159,7 +159,7 @@ TEST_CASE("test_odex_block")
     CHECK(error_of("a: \"one\",\n", word_a) == "t.odex:1:4: `a` takes a word, never in quotes: write one");
     /* partial: an absent key is left, a key nothing asks for is still refused */
     CHECK(error_of("", whole_a, false).empty());
-    CHECK(error_of("z: 1,\n", whole_a, false).find("`z` is not a setting") != std::string::npos);
+    CHECK(error_of("z: 1,\n", whole_a, false).find("`z` is not an option") != std::string::npos);
     /* a flag is true or false, a finite number is not inf or nan */
     CHECK(error_of("a: 2,\n", [](Block &b) { bool f = false; b.flag("a", f); return 0; }).find("`2` is not true or false") != std::string::npos);
     CHECK(error_of("a: nan,\n", [](Block &b) { double v = 0; b.real("a", v); return 0; }).find("not a finite number") != std::string::npos);

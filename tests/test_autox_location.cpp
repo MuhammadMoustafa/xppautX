@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 #include "autox_evd.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "autox_nox.h"
 #include "autox_run.h"
 #include "diagram.h"
@@ -376,20 +376,20 @@ TEST_CASE("test_autox_location")
     auto &events_session = xpp::client_session();
     events_session.autox_state->dir = temp.path();
     xpp::init_autox_win(xpp::autox_parts(events_session));
-    xpp::AutoxSettingsSet settings;
-    settings.par1 = "p";
+    xpp::AutoxSettingsSet options;
+    options.par1 = "p";
     for (const auto &[field, number] : {
         std::pair{xpp::AUTOX_NUM_MAX_STEPS, 8.0}, std::pair{xpp::AUTOX_NUM_STEP_SIZE, 0.2},
         std::pair{xpp::AUTOX_NUM_MAX_STEP_SIZE, 0.2}, std::pair{xpp::AUTOX_NUM_MAX_BRANCH_SWITCHES, 0.0},
         std::pair{xpp::AUTOX_NUM_SPECIAL_POINT_TOLERANCE, 1e-7}}) {
-        settings.has_num[field] = 1;
-        settings.num[field] = number;
+        options.has_num[field] = 1;
+        options.num[field] = number;
     }
-    settings.nmarks = 2;
-    settings.mark_name = {"p", "p"};
-    settings.mark_value = {0.35, 0.3};
+    options.nmarks = 2;
+    options.mark_name = {"p", "p"};
+    options.mark_value = {0.35, 0.3};
     std::string why;
-    CHECK(xpp::autox_settings_apply(xpp::autox_parts(events_session), settings, why) == 0);
+    CHECK(xpp::autox_settings_apply(xpp::autox_parts(events_session), options, why) == 0);
     events_session.autox_state->follow_all_branches = false; // one run, in the direction of the step
     CHECK(xpp::autox_run_start(xpp::autox_parts(events_session),xpp::AutoxRunRequest{}));
     std::vector<double> marks;

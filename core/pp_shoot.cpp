@@ -148,7 +148,7 @@ xpp::Result<int> do_sh_range(xpp::AnalysisParts &s, double *ystart, double *yend
 namespace {
 
 /* what a boundary-value command needs before it solves: a model it can solve for, the boundary
-   conditions compiled, the storage cleared, and the settings every solve runs under (the plot's
+   conditions compiled, the storage cleared, and the options every solve runs under (the plot's
    store-from time zero while it does, put back when it ends) */
 xpp::Result<> begin_shoot(xpp::AnalysisParts &s)
 {

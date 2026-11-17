@@ -41,7 +41,7 @@ constexpr int MARKER_SHAPE_COUNT = 6;
 inline constexpr std::array<std::string_view, MARKER_SHAPE_COUNT> marker_shape_names{"box", "diamond", "triangle", "plus", "cross", "circle"};
 
 
-/* an arrow's default size (plot_state.h's MarkInfo holds the markers' settings) */
+/* an arrow's default size (plot_state.h's MarkInfo holds the markers' options) */
 constexpr double ARROW_SIZE_DEFAULT = .1; /* XPPAUT's dialogs offered this */
 
 /* the glyph of marker shape 0..MARKER_SHAPE_COUNT-1 (marker_shape_names): its

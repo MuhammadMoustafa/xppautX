@@ -4,7 +4,7 @@
 #include "local_fs.h"
 #include "xpptest.h"
 #include "session.h"
-#include "numerics_settings.h"
+#include "numerics_options.h"
 #include "model_load.h"
 #include "comline.h"
 #include "integrate.h"

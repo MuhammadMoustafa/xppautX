@@ -13,7 +13,7 @@
 #include "lunch-new.h"
 #include "expr.h"
 #include "browse.h"
-#include "session_settings.h"
+#include "session_options.h"
 #include "xpp_fs.h"
 #include "xpp_path.h"
 #include "xpp_lines.h"
@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "model_options.h"
-#include "numerics_settings.h"
+#include "numerics_options.h"
 #include "model_numerics.h"
 #include "solver.h"
 #include "session.h"
@@ -100,39 +100,39 @@ void put_parameters(const xpp::Session &s, xpp::Sink &fp, const char *prefix)
 /* ---- XPPAUT's set file, read (an import only) ----
    Positional lines, a value and then its label, read by their order: the
    layout XPPAUT writes and nothing of ours writes. It is read into
-   session_settings.h's Settings, every value checked and every label compared. */
+   session_options.h's Options, every value checked and every label compared. */
 
 /* the Poincare map's names, as a set file labels its number with them */
 constexpr std::array<const char *, 4> poincare_names = {"Poincare None", "Poincare Section", "Poincare Max", "Period"};
 
-/* the name XPPAUT's set file gives the store-every setting */
+/* the name XPPAUT's set file gives the store-every option */
 constexpr std::string_view XPPAUT_STORE_EVERY="nout";
 
-/* the saved setting key's value v, from the line just read, kept as text in f:
-   refused (ReadFailed) when the setting's rule does not take it, and left
-   out when the model has no such setting (the delay of a model without
+/* the saved option key's value v, from the line just read, kept as text in f:
+   refused (ReadFailed) when the option's rule does not take it, and left
+   out when the model has no such option (the delay of a model without
    delays, the Volterra points of another method) */
-void keep_setting(const xpp::Session &s, Lines &l, Settings &f, int method, std::string_view key, double v)
+void keep_setting(const xpp::Session &s, Lines &l, Options &f, int method, std::string_view key, double v)
 {
   const OptionRow *row=saved_setting(key);
   if(const char *no=rule_problem(row->rule,v,row->maximum))l.fail(xpp::format("{} {}",row->label.empty()?key:row->label,no));
   if(setting_applies(s,*row,method))f.set_setting(row,xpp::number(v));
 }
 
-/* the line's whole number as the setting key, which keep_setting checks */
-void keep_whole(const xpp::Session &s, Lines &l, Settings &f, int method, std::string_view key, std::string_view label)
+/* the line's whole number as the option key, which keep_setting checks */
+void keep_whole(const xpp::Session &s, Lines &l, Options &f, int method, std::string_view key, std::string_view label)
 {
   keep_setting(s,l,f,method,key,l.whole(label,true));
 }
 
-void keep_real(const xpp::Session &s, Lines &l, Settings &f, int method, std::string_view key, std::string_view label)
+void keep_real(const xpp::Session &s, Lines &l, Options &f, int method, std::string_view key, std::string_view label)
 {
   keep_setting(s,l,f,method,key,l.real(label,true));
 }
 
-/* the line's whole number as the word of the choice setting key (its row's foreign spelling:
+/* the line's whole number as the word of the choice option key (its row's foreign spelling:
    a sign's, a yes or no's 0 and 1), refused when it is none of them */
-void keep_choice(const xpp::Session &s, Lines &l, Settings &f, int method, std::string_view key, std::string_view label)
+void keep_choice(const xpp::Session &s, Lines &l, Options &f, int method, std::string_view key, std::string_view label)
 {
   const OptionRow *row=saved_setting(key);
   const int v=l.whole(label,true);
@@ -143,7 +143,7 @@ void keep_choice(const xpp::Session &s, Lines &l, Settings &f, int method, std::
 
 /* the numerics, each checked as the Numerics menu checks it; the
    store-every line is named as XPPAUT's file names it */
-void read_numerics(const xpp::Session &s, Lines &l, Settings &f)
+void read_numerics(const xpp::Session &s, Lines &l, Options &f)
 {
   l.heading("# Numerical stuff");
   /* the method comes third: the lines before it are read as the model's own method takes them */
@@ -223,7 +223,7 @@ void check_column(const xpp::Session &s, Lines &l, std::string_view what, std::s
   if(variable_column(s,name)<0)l.fail(xpp::format("{} \"{}\" is not a column of the model",what,name));
 }
 
-void read_exprs(xpp::Session &s, Lines &l, Settings &f)
+void read_exprs(xpp::Session &s, Lines &l, Options &f)
 {
   const xpp::Model &m=s.model();
   l.heading("# Delays");
@@ -249,7 +249,7 @@ void read_exprs(xpp::Session &s, Lines &l, Settings &f)
   for(int i=0;i<m.nupar;i++)f.params[static_cast<std::size_t>(i)]=l.real(m.upar_names[static_cast<std::size_t>(i)],true);
 }
 
-/* a plot window's settings as XPPAUT's set file holds them, in its order:
+/* a plot window's options as XPPAUT's set file holds them, in its order:
    each member given to f with its name (the set file's label after it) */
 template <class G, class F>
 void graph_settings(G &g, std::array<int,10> &line_types, std::array<int,10> &colors, F &&f)
@@ -304,7 +304,7 @@ void graph_settings(G &g, std::array<int,10> &line_types, std::array<int,10> &co
 }
 
 /* the active window's graphics into g; the variables of its curves are
-   columns the model has (the settings file names them) */
+   columns the model has (the options file names them) */
 void read_graph(const xpp::Session &s, Lines &l, GRAPH &g)
 {
   l.heading("# Graphics");
@@ -332,7 +332,7 @@ void read_graph(const xpp::Session &s, Lines &l, GRAPH &g)
   }
 }
 
-/* Allocation dimensions share the native settings reader's rule and cap. */
+/* Allocation dimensions share the native options reader's rule and cap. */
 int read_dimension(Lines &l, std::string_view label)
 {
   const int v=l.whole(label,true);
@@ -341,7 +341,7 @@ int read_dimension(Lines &l, std::string_view label)
   return v;
 }
 
-void read_more(xpp::Session &s, Lines &l, Settings &f)
+void read_more(xpp::Session &s, Lines &l, Options &f)
 {
   /* the value of the row key as text */
   const auto put=[&](std::string_view key,std::string text){
@@ -432,10 +432,10 @@ void read_more(xpp::Session &s, Lines &l, Settings &f)
 /* XPPAUT's set file whose lines are l, for s; ReadFailed at a line that is
    wrong. It has its model's equations after it, "RHS etc ...", written for
    a reader and not read, and is refused without them. */
-Settings read_set(xpp::Session &s, Lines &l)
+Options read_set(xpp::Session &s, Lines &l)
 {
   const xpp::Model &m=s.model();
-  Settings f=capture_settings(s,SettingsUse::file);
+  Options f=capture_settings(s,SettingsUse::file);
   const std::string_view first=l.next("## Set file");
   if(!first.starts_with("## Set file"))l.fail(xpp::format("\"{}\" is not \"## Set file\"",first));
   const int ne=l.whole("Number of equations and auxiliaries",true);
@@ -521,7 +521,7 @@ std::vector<double> read_ics(const xpp::Model &m, Lines &l)
 
 } // namespace
 
-Result<Settings> read_xppaut_set(xpp::Session &s, std::string_view path)
+Result<Options> read_xppaut_set(xpp::Session &s, std::string_view path)
 {
   /* a set file a user may have been sent is read within a bound */
   return xpp::read_file_lines(*s.model().fs,"set file",path,[&s](Lines &l){ return read_set(s,l); },xpp::settings_bytes_limit);
@@ -547,47 +547,47 @@ bool in_a_part(const OptionRow &row)
   return in_rows(row,transpose_rows)||in_rows(row,coupling_rows)||in_rows(row,array_plot_rows)||in_rows(row,torus_rows)||in_rows(row,range_rows);
 }
 
-/* a part of the settings a set file holds: what it is called and the members of Settings it sets (`copy`), or the
-   option rows it sets (`rows`, the rows of no part when empty: the numerics and sweep settings) */
+/* a part of the options a set file holds: what it is called and the members of Options it sets (`copy`), or the
+   option rows it sets (`rows`, the rows of no part when empty: the numerics and sweep options) */
 struct SetPart {
   const char *name;
-  void (*copy)(Settings &to, const Settings &from);
+  void (*copy)(Options &to, const Options &from);
   std::span<const std::string_view> rows;
   bool numerics;
 };
 
 /* the option rows of from that part holds, set in to */
-void copy_rows(Settings &to,const Settings &from,const SetPart &part)
+void copy_rows(Options &to,const Options &from,const SetPart &part)
 {
   for(const auto &[row,text] : from.options)
     if(part.numerics?!in_a_part(*row):in_rows(*row,part.rows))to.set_setting(row,text);
 }
 
 constexpr std::array<SetPart,12> set_parts={{
-  {"the parameters",[](Settings &t,const Settings &f){ t.params=f.params; },{},false},
-  {"the initial conditions",[](Settings &t,const Settings &f){ t.last_ic=f.last_ic; },{},false},
-  {"the numerics and sweep settings",nullptr,{},true},
-  {"the delays",[](Settings &t,const Settings &f){ t.delays=f.delays; },{},false},
-  {"the boundary conditions",[](Settings &t,const Settings &f){ t.bcs=f.bcs; },{},false},
+  {"the parameters",[](Options &t,const Options &f){ t.params=f.params; },{},false},
+  {"the initial conditions",[](Options &t,const Options &f){ t.last_ic=f.last_ic; },{},false},
+  {"the numerics and sweep options",nullptr,{},true},
+  {"the delays",[](Options &t,const Options &f){ t.delays=f.delays; },{},false},
+  {"the boundary conditions",[](Options &t,const Options &f){ t.bcs=f.bcs; },{},false},
   {"the coupling",nullptr,coupling_rows,false},
-  {"the run position",[](Settings &t,const Settings &f){
+  {"the run position",[](Options &t,const Options &f){
     t.current_time=f.current_time; t.last_time=f.last_time; t.my_start=f.my_start; t.inflag=f.inflag; t.delay_flag=f.delay_flag; t.current=f.current; },{},false},
-  {"the active graph",[](Settings &t,const Settings &f){ t.graph=f.graph; },{},false},
-  {"the transpose settings",nullptr,transpose_rows,false},
+  {"the active graph",[](Options &t,const Options &f){ t.graph=f.graph; },{},false},
+  {"the transpose options",nullptr,transpose_rows,false},
   {"the array plot",nullptr,array_plot_rows,false},
-  {"the torus settings",nullptr,torus_rows,false},
-  {"the range settings",nullptr,range_rows,false},
+  {"the torus options",nullptr,torus_rows,false},
+  {"the range options",nullptr,range_rows,false},
 }};
 
-/* the parts of f that differ from what s holds now: a part differs when the settings written with it taken from f are
-   not the settings written as they are */
-std::vector<std::string> differing_parts(const xpp::Session &s, const Settings &f)
+/* the parts of f that differ from what s holds now: a part differs when the options written with it taken from f are
+   not the options written as they are */
+std::vector<std::string> differing_parts(const xpp::Session &s, const Options &f)
 {
-  const Settings now=capture_settings(s,SettingsUse::file);
+  const Options now=capture_settings(s,SettingsUse::file);
   const Result<std::string> before=settings_text(s,now);
   std::vector<std::string> changes;
   for(const SetPart &part : set_parts){
-    Settings with=now;
+    Options with=now;
     if(part.copy)part.copy(with,f);
     else copy_rows(with,f,part);
     const Result<std::string> after=settings_text(s,with);
@@ -600,7 +600,7 @@ std::vector<std::string> differing_parts(const xpp::Session &s, const Settings &
 
 Result<std::vector<std::string>> import_xppaut_state(xpp::Session &s, std::string_view path, bool redraw)
 {
-  const Result<Settings> f=read_xppaut_set(s,path);
+  const Result<Options> f=read_xppaut_set(s,path);
   if(!f)return std::unexpected(f.error());
   /* what the file changes, named for the user: found before anything is applied */
   std::vector<std::string> changes=differing_parts(s,*f);

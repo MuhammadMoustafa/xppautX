@@ -1,5 +1,5 @@
 /* The autoX view's hands-on fixes (docs/ui-v2.md T21): the status strip's
-   words, Clear's earlier branches, the settings file, the axis dialog's
+   words, Clear's earlier branches, the options file, the axis dialog's
    pure part, the label placement, the menu columns and where keys go. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """One option, one row (W293; AGENTS.md "Code quality": adding an option is
-one row of the option table plus its member in the settings struct, and
+one row of the option table plus its member in the options struct, and
 nothing else). The table is core/model_options.cpp. This fails when
 
   * a core/*.cpp or core/*.h other than the table passes an option's name
@@ -10,7 +10,7 @@ nothing else). The table is core/model_options.cpp. This fails when
     and a count may only drop (a menu's ask, a foreign file's import);
   * web2/src/store/steady.ts, the one place the page spells a numerics key,
     names a key the table does not have;
-  * a file of web2/src writes one of the table's `.odex` option keys as a string literal (W616: the settings panels are built from
+  * a file of web2/src writes one of the table's `.odex` option keys as a string literal (W616: the options panels are built from
     the table hello carries, so the page spells no setting; a key of one word, `dt` or `seed`, is only checked where it has a dot or an
     underscore, since the words are also plain words), except the lines in PAGE_ALLOWED, each with its reason;
   * a grouped row of the table has no `.odex` key, a key that is not snake_case (dots only between
@@ -75,9 +75,9 @@ def sites():
 
 
 # web2/src's lines that may name an option key (FILE: the key, why): the page's own spelling of a numerics key it must send, or a
-# word that is also a key by chance. Nothing else in web2/src names a setting.
+# word that is also a key by chance. Nothing else in web2/src names an option.
 PAGE_ALLOWED = {
-    "web2/src/store/autoxSettings.ts": "`special_points` is the autoxsettings event's member and autox.configure_numerics's argument (a map of booleans), not a row's text",
+    "web2/src/store/autoxOptions.ts": "`special_points` is the autoxoptions event's member and autox.configure_numerics's argument (a map of booleans), not a row's text",
     "web2/src/store/steady.ts": "the one place the page spells a numerics key it reads and sends (the run toolbar's Total and Dt, steady state); PAGE_KEYS",
 }
 

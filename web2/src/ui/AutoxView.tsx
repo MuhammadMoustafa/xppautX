@@ -21,7 +21,7 @@ import {openPanel} from './hotkeys';
    (ui/AutoxAxes.tsx).
 
    T22: Numerics and Mark values are the page's own forms on the
-   `autoxsettings` data (ui/AutoxSettings.tsx), and so is what the axis dialog
+   `autoxoptions` data (ui/AutoxSettings.tsx), and so is what the axis dialog
    plots: they work during a run too, their changes pending until it ends.
    Only Run, Grab, Axes (its menu: zoom, fit, scroll ...) and File wait.
 
@@ -68,7 +68,7 @@ import {plotKey} from '../plot/plotKeys';
 import type {Ranges} from '../plot/viewmath';
 import {HELP} from '../help/links';
 import type {AutoxOp, Session} from '../session';
-import {pendingFields} from '../store/autoxSettings';
+import {pendingFields} from '../store/autoxOptions';
 import {activeView, autoxWindow, EMPTY_VIEW, pointCount, type DiagramHover, type DiagramView} from '../store/diagram';
 import {branchesBefore} from '../store/diagram';
 import type {AppState} from '../store/state';
@@ -94,10 +94,10 @@ const BUTTONS: AutoxOp[] = ['axes', 'numerics', 'run', 'grab', 'usr', 'clear'];
 const TITLES: Partial<Record<AutoxOp, string>> = {
   axes: "The active view's axes: what they plot, zoom, Fit, and New view (another view of the diagram)",
   clear: 'Hide the branches computed so far: new runs draw alone (the key shows them again)',
-  numerics: "autoX's numerical settings: mesh, steps, limits, tolerances",
+  numerics: "autoX's numerical options: mesh, steps, limits, tolerances",
   usr: "Label the points where a parameter or the period reaches a value (autoX's user points, UZ)",
 };
-/** the buttons that open the page's own forms on autoX's settings (T22), and the pending edits each shows */
+/** the buttons that open the page's own forms on autoX's options (T22), and the pending edits each shows */
 const SETTINGS_DIALOG: Partial<Record<AutoxOp, AutoxSettingsDialogKind>> = {numerics: 'numerics', usr: 'marks'};
 const PENDING_OF: Record<AutoxSettingsDialogKind, (field: string) => boolean> = {
   numerics: f => f.startsWith('numerics.'), marks: f => f === 'marks',
@@ -223,7 +223,7 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
   const liveKeys = useStore(s => s.diagram.liveKeys);
   const joined = useStore(s => s.diagram.joined);
   const [appearance, setAppearance] = useState<Record<string, {label?: string; color?: string; visible?: boolean}>>({});
-  /* the join (W631): a job's legend settings follow it to its branch, the dropped jobs' and the live entries' go */
+  /* the join (W631): a job's legend options follow it to its branch, the dropped jobs' and the live entries' go */
   useEffect(() => {
     if (joined) setAppearance(a => carryAppearance(a, joined.jobs));
   }, [joined]);

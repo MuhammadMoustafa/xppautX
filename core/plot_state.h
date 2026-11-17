@@ -25,7 +25,7 @@
 namespace xpp { class Sink; }
 
 /* ---- arrayplot.h's: the array plot ---- */
-/* the array plot's settings */
+/* the array plot's options */
 struct APLOT {
   int index0 = 1, alive = 0, nacross = 1, ndown = 50, plotdef = 0;
   int height = 400, width = 400, ploth = 0, plotw = 0;
@@ -37,7 +37,7 @@ struct APLOT {
 
 
 /* ---- kinescope.h's: the kinescope, a Session's: the frames it holds (the front end keeps their pictures) and Autoplay's
-   settings, how many times it runs the film and how fast ---- */
+   options, how many times it runs the film and how fast ---- */
 struct XppKinescope {
     int frames = 0;     /* frames captured */
     int cycles = 1;     /* times through the film */
@@ -57,7 +57,7 @@ struct WindowSplit {
     std::array<std::string, 2> shown;       /* each group's shown window (split_upkeep keeps them true) */
 };
 
-/* The plot windows: every window's graph settings, the active one, and
+/* The plot windows: every window's graph options, the active one, and
    the windows a command draws on (all open ones under Simulplot). */
 struct XppPlotWindows {
     std::vector<GRAPH> graph{1};   /* graph[i].Use: window i is open */
@@ -126,7 +126,7 @@ struct DrawingState {
 };
 
 /* ---- nullcline.h's: the nullclines and the direction field ---- */
-/* nullcline.cpp's settings, a Session's (session.h): a run's requested
+/* nullcline.cpp's options, a Session's (session.h): a run's requested
    nullclines (nullclines.draw, nullclines.file) and direction field (@ dfdraw=), the nullclines'
    colors, the direction field's grid and kind (df_flag), set while it
    is drawn (for the SVG classes), and what colors an orbit
@@ -179,8 +179,8 @@ struct NullclineState {
   int dfield_type=0;
 };
 
-/* ---- grobs.h's: the marker settings ---- */
-/* Text,etc's marker settings: the last ones the Marker and Markers
+/* ---- grobs.h's: the marker options ---- */
+/* Text,etc's marker options: the last ones the Marker and Markers
    dialogs gave (type, color, size; the Markers' number, first row and
    skip) */
 constexpr double MARKER_SIZE_DEFAULT = 1.0; /* XPPAUT's dialogs offered this, and grobs.h's ARROW_SIZE_DEFAULT */
@@ -288,10 +288,10 @@ struct MarksShown {
 
 } // namespace xpp
 
-/* the array plot (arrayplot.h), a Session's (session.h): its settings;
+/* the array plot (arrayplot.h), a Session's (session.h): its options;
    range: the next range integration saves the array plot at each step
    (the array plot's range saving), integrate.cpp clears it when the range
-   ends; the range saving's settings (Array range saving: range_count,
+   ends; the range saving's options (Array range saving: range_count,
    still, tag, the first destination range_stem) and its open GIF file
    (json_windows.cpp writes it); Autoplot: redraw after each integration
    (auto_redraw) */

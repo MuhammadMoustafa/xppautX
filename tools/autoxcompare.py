@@ -32,7 +32,7 @@ TIMEOUT = 600 * SLOW
 DIAGRAM_MEMBER = 'autox/diagram.csv'  # the session file's diagram (core/xpp_session_autox.h)
 HOMCONT = ('homoclinic', 'heteroclinic')
 KINDS = {'equilibrium', 'periodic', 'two_parameter', 'fixed_period', 'bvp', *HOMCONT}
-# the per-run settings a description may give: autoX's settings by their names (core/autox_settings.cpp)
+# the per-run options a description may give: autoX's options by their names (core/autox_options.cpp)
 NUMERICS = ('step_size', 'min_step_size', 'max_step_size', 'max_steps', 'output_every', 'parameter_min', 'parameter_max',
             'mesh_intervals', 'collocation_points', 'parameter_tolerance', 'state_tolerance', 'special_point_tolerance',
             'max_branch_switches', 'switch_one_direction', 'output_detail', 'step_adapt_every', 'follow_all_branches')
@@ -162,7 +162,7 @@ def read_description(path):
             if connection['nunstab'] + connection['nstab'] != len(connection['left']):
                 raise ValueError('connection dimensions must span the phase space')
         elif 'connection' in r:
-            raise ValueError('connection settings require HomCont')
+            raise ValueError('connection options require HomCont')
         if r['kind'] in ('two_parameter', 'fixed_period', *HOMCONT):
             if not isinstance(r.get('parameters'), list) or len(r['parameters']) != 2 or len(set(r['parameters'])) != 2:
                 raise ValueError('two-parameter run needs two distinct parameters')
@@ -187,7 +187,7 @@ def read_description(path):
                 or 'max_branch_switches' in a and a['max_branch_switches'] < 0
                 or 'step_adapt_every' in a and a['step_adapt_every'] not in (0, 1)
                 or any(a[k] <= 0 for k in ('parameter_tolerance', 'state_tolerance', 'special_point_tolerance') if k in a)):
-            raise ValueError('invalid autoX setting (docs/protocol.md autoX settings): ' + str(a))
+            raise ValueError('invalid autoX option (docs/protocol.md autoX options): ' + str(a))
         for field in ('skip', 'xppaut_skip'):
             if field in r and (not isinstance(r[field], str) or not r[field].strip()):
                 raise ValueError('run %s needs its reason' % field)
@@ -277,7 +277,7 @@ def settle(s, total, orbit=None, step=None):
 
 
 def execute_run(s, r, diagram, ranges, diagram_data=True):
-    """One description's run as the registry's commands: its settings, then autox.run with its kind and start."""
+    """One description's run as the registry's commands: its options, then autox.run with its kind and start."""
     start = r['start']
     run = dict(cmd='autox.run', kind=r['kind'])
     if start.get('state') == 'current':
@@ -325,7 +325,7 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
     if not stops and 'expected_error' not in r:
         # An identical repeated branch can leave the info strip unchanged;
         # its change-only event then needs an explicit current-value request.
-        current = completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.settings'], diagram=diagram_data))
+        current = completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.options'], diagram=diagram_data))
         stops = [e['stop'] for e in current if e.get('ev') == 'autox.info' and e.get('stop')]
     if 'expected_error' not in r and (not stops or stops[-1]['why'].startswith('noconv')):
         raise RuntimeError('autoX failed to converge: ' + str(stops[-1:] or events[-3:]))
@@ -426,12 +426,12 @@ def compute(binary, d, threads, *, env=None, run=None, diagram_data=True, jacobi
         if jacobian is not None:
             completed(s, dict(cmd='set', kind='num', name='jacobian', text=jacobian))
         completed(s, dict(cmd='preferences.configure', **({'automatic': True} if threads == 'auto' else {'threads': threads})))
-        # Subscription returns the current settings even when a repeated
+        # Subscription returns the current options even when a repeated
         # threads=1 assignment changed nothing and emitted no change event.
-        events = completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.settings'], diagram=diagram_data))
-        setting = next(e for e in reversed(events) if e.get('ev') == 'autox.settings')
+        events = completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.options'], diagram=diagram_data))
+        setting = next(e for e in reversed(events) if e.get('ev') == 'autox.options')
         if setting['threads'] != threads:
-            raise RuntimeError('thread setting was not applied')
+            raise RuntimeError('thread option was not applied')
         values = [dict(kind=kind, name=k, value=v) for group, kind in
                   (('parameters', 'par'), ('initial_conditions', 'ic')) for k, v in d.get(group, {}).items()]
         if values:
@@ -1202,7 +1202,7 @@ def difference(name, want, got):
 
 
 class Report:
-    """What one model said at one thread setting, kept to be replayed in description order: models run side by
+    """What one model said at one thread option, kept to be replayed in description order: models run side by
     side (JOBS at a time), and a line printed when it was made would come in the order they finish."""
 
     def __init__(self):
@@ -1225,7 +1225,7 @@ class Report:
 
 
 def run_pass(binary, name, d, threads, first, refs, args):
-    """One model at one thread setting: a worker's whole job, its output a Report. `first` is the diagram the
+    """One model at one thread option: a worker's whole job, its output a Report. `first` is the diagram the
     1-thread pass stored (--update compares the auto-thread one with it)."""
     report = Report()
     path = BASE / (name + '.diagram.csv')

@@ -50,11 +50,11 @@ std::vector<std::string> grouped(const std::vector<GroupItem> &items, std::size_
 std::string options_block(const std::vector<GroupItem> &items);
 
 /* set "name" { items..., options: { group: { key: value } } } */
-std::string set_block(std::string_view name, const std::vector<std::string> &items, const std::vector<GroupItem> &settings);
+std::string set_block(std::string_view name, const std::vector<std::string> &items, const std::vector<GroupItem> &options);
 
 /* ---- the values a save writes ---- */
 
-/* a setting as the options block writes it: its group, key and value text
+/* an option as the options block writes it: its group, key and value text
    (a path or a text already in quotes) */
 struct Setting {
   std::string group, key, value;
@@ -67,7 +67,7 @@ struct Values {
   bool parameters = false, states = false;
   std::vector<std::string> groups;
   std::vector<std::pair<std::string, std::string>> parameter_values, state_values;
-  std::vector<Setting> settings;
+  std::vector<Setting> options;
   bool covers_group(std::string_view group) const;
 };
 

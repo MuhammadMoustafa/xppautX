@@ -14,17 +14,17 @@
 #include "xpp_error.h"
 namespace xpp { enum class AutoxProjection; }
 
-/* autoX's settings as data (docs/ui-v2.md T22, docs/protocol.md "autoX's
-   settings as data"): what the autoX window's Numerics, Axes
+/* autoX's options as data (docs/ui-v2.md T22, docs/protocol.md "autoX's
+   options as data"): what the autoX window's Numerics, Axes
    (its AutoxPlot form) and Mark values forms edit, sent as the
-   "autoxsettings" event and set by the `autox` `set` command, so a front end
+   "autox.options" event and set by the `autox` `set` command, so a front end
    edits them in forms of its own, at any time.
 
    The forms in autox_nox.cpp stay (scripts replay them); marks use this
    same validator and Session-owned list. A set with one bad value changes
    nothing.
 
-   autox_settings.cpp; nothing escapes it. */
+   autox_options.cpp; nothing escapes it. */
 
 namespace xpp {
 
@@ -51,20 +51,20 @@ inline constexpr double autox_mark_period_spacing = 3;
 // XPPAUT's foreign .auto schema always encodes nine rows, even when inactive.
 inline constexpr int autox_foreign_mark_rows = 9;
 
-/* the event: {"ev":"autoxsettings",...} with the settings now, whole; an
-   empty string when there is no model with variables (no settings) */
+/* the event: {"ev":"autox.options",...} with the options now, whole; an
+   empty string when there is no model with variables (no option) */
 std::string autox_settings_event_line(const AutoxParts &s);
 
-/* {"cmd":"data"} with or without "autoxsettings": sent (s's) at once, and
+/* {"cmd":"data"} with or without "autox.options": sent (s's) at once, and
    then at each update, whatever it holds */
 void autox_settings_subscribe(const Session &s, int on);
 
-/* send s's event if the settings changed since the one sent last */
+/* send s's event if the options changed since the one sent last */
 void autox_settings_update(const Session &s);
 
 /* One `autox` `set`: what it changes, each part only when given (a
    default-constructed set gives nothing). A name left empty keeps what is
-   there. Filled by json_autox.cpp, read by autox_settings.cpp. */
+   there. Filled by json_autox.cpp, read by autox_options.cpp. */
 struct AutoxSettingsSet {
     std::array<std::optional<bool>, autox_codim_kinds.size()> special_points{};
     std::array<int, AUTOX_NUM_N> has_num{};
@@ -80,12 +80,12 @@ struct AutoxSettingsSet {
     std::vector<double> mark_value;
 };
 
-/* the settings now, whole: every Numerics field, the
+/* the options now, whole: every Numerics field, the
    axes and the Mark values, names empty where there is none (the event's
    null). What the event sends and a .snapx's session.odex saves in its autox group (xpp_session_autox.h);
-   applied with autox_settings_apply, it gives the settings back. */
+   applied with autox_settings_apply, it gives the options back. */
 AutoxSettingsSet autox_settings_now(const AutoxParts &s);
-/* Reload carries settings already in memory; missing model names keep the
+/* Reload carries options already in memory; missing model names keep the
    new model's defaults. No diagram, grab or run state carries over. */
 void autox_settings_reload(AutoxParts s, const AutoxSettingsSet &kept);
 /* view `view`'s axes alone (W50, AutoxState::views; it must be one), as the
@@ -101,7 +101,7 @@ int autox_settings_apply(AutoxParts s, const AutoxSettingsSet &set, std::string 
    views views (-1: the views s has; a file's autox views restore them): the
    Error says why, its field the key of the value that is wrong ("ntst",
    "var", "par1", "xmax", "mark2", ...; "view"; "" for the whole set), for
-   a file of autoX's settings to name its line (xpp_session_autox_io.cpp) */
+   a file of autoX's options to name its line (xpp_session_autox_io.cpp) */
 Result<> autox_settings_check(const AutoxParts &s, const AutoxSettingsSet &set, int views);
 
 /* the diagram group's rows that are the active view's own (its variable and axes; the colors are the session's) and whose values the

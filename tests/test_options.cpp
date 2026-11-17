@@ -17,14 +17,14 @@
 #include "session.h"
 #include "xpp_platform.h"
 #include "xpp_ui.h"
-#include "plot_settings.h"
+#include "plot_options.h"
 #include "solver.h"
 #include "model.h"
 #include "command_def.h"
 #include "userbut.h"
 #include "model_options.h"
-#include "session_settings.h"
-#include "settings_text.h"
+#include "session_options.h"
+#include "options_text.h"
 #include "model_text.h"
 #include "model_load.h"
 #include "xpp_globals.h"
@@ -62,7 +62,7 @@ const char plain_ode[] = "build/test_options_plain.ode";
 const char options_ode[] = "build/test_options_set.ode";
 const char set_file[] = "build/test_options.odex";
 
-/* a model with three variables and no options */
+/* a model with three variables and no option */
 const char model_text[] = "x'=-x\ny'=x\nz'=y\npar a=1,b=2\n";
 
 bool write_file(const char *path, const std::string &text)
@@ -110,7 +110,7 @@ std::string value_of(xpp::Session &s, const xpp::OptionRow &r)
 }
 
 /* the member belongs to the Session (or a part of it), not to a process-wide
-   setting such as the command line's batch_options: another Session's row
+   option such as the command line's batch_options: another Session's row
    reaches another member */
 bool in_session(xpp::Session &s, const xpp::OptionRow &r)
 {
@@ -375,12 +375,12 @@ TEST_CASE("test_options")
     for (const int lt : {1, 0, -3}) {
         CHECK(write_file("build/test_lt.ode", xpp::format("x'=-x\n@ lt={}\ndone\n", lt)));
         const xpp::Session *l = load("build/test_lt.ode");
-        CHECK(l && l->plot_settings->start_line_style == *xpp::line_style_of_xppaut(lt));
+        CHECK(l && l->plot_options->start_line_style == *xpp::line_style_of_xppaut(lt));
     }
     CHECK(write_file("build/test_lt.odex", "x' = -x\noptions { plot: { line.draw: points, line.marker_size: 4 } }\n"));
     {
         const xpp::Session *l = load("build/test_lt.odex");
-        CHECK(l && l->plot_settings->start_line_style == *xpp::line_style_of_xppaut(-4));
+        CHECK(l && l->plot_options->start_line_style == *xpp::line_style_of_xppaut(-4));
     }
     CHECK(write_file("build/test_style.odex", "x' = -x\noptions { plot: { line.dash: dash_dot, line.width: 2.5, line.draw: both, line.marker: star, line.marker_size: 6 } }\n"));
     {
@@ -391,7 +391,7 @@ TEST_CASE("test_options")
         want.width = 2.5;
         want.marker = xpp::LineMarker::star;
         want.marker_size = 6;
-        CHECK(l && l->plot_settings->start_line_style == want);
+        CHECK(l && l->plot_options->start_line_style == want);
     }
     for (const char *bad : {"line.dash: dotted dashed", "line.width: 0", "line.marker: 5", "line.marker_size: -1", "line.draw: 1"}) {
         CHECK(write_file("build/test_bad_choice.odex", xpp::format("x' = -x\noptions {{ plot: {{ {} }} }}\n", bad)));
@@ -502,11 +502,11 @@ TEST_CASE("test_options")
         }
     }
 
-    /* the defaults a model with no options gets */
+    /* the defaults a model with no option gets */
     CHECK(write_file(plain_ode, std::string(model_text) + "done\n"));
     xpp::Session *s = load(plain_ode);
     CHECK(s != nullptr);
-    /* a model's own set or action takes the new names only; the command line's settings take XPPAUT's too */
+    /* a model's own set or action takes the new names only; the command line's options take XPPAUT's too */
     if (s) {
         CHECK(xpp::option_problem(*s, "total", "5", false).has_value());
         CHECK(!xpp::option_problem(*s, "total", "5", true).has_value());
@@ -593,7 +593,7 @@ TEST_CASE("test_options")
         if (xpp::option_name(r).empty() && r.key.empty()) continue;
         const bool held = in_set_file(r);
         CHECK(!held || r.show || in_session(*s, r)); /* a list row has no member, its text is its value */
-        if (!r.key.empty()) CHECK(held); /* every numerics setting the menu edits is in a session file */
+        if (!r.key.empty()) CHECK(held); /* every numerics option the menu edits is in a session file */
     }
     const xpp::Result<std::string> own = xpp::settings_text(*s, xpp::capture_settings(*s, xpp::SettingsUse::session));
     CHECK(own.has_value());
@@ -612,20 +612,20 @@ TEST_CASE("test_options")
     }
     std::vector<std::string> changed;
     for (const xpp::OptionRow &r : rows) changed.push_back(value_of(*s, r));
-    const xpp::Result<xpp::Settings> back = settings_text::read(*s, set_file, *own);
+    const xpp::Result<xpp::Options> back = settings_text::read(*s, set_file, *own);
     CHECK(back.has_value());
     if (back) xpp::apply_settings(*s, *back, false);
     for (std::size_t k = 0; k < rows.size(); k++) {
         const xpp::OptionRow &r = rows[k];
         if (!in_session(*s, r)) continue;
-        const bool restored = in_set_file(r) && r.use != xpp::OptionUse::integral_history && r.key != "delay"; /* a model without delays or an integral method has neither setting */
+        const bool restored = in_set_file(r) && r.use != xpp::OptionUse::integral_history && r.key != "delay"; /* a model without delays or an integral method has neither option */
         const std::string want = restored ? written[k] : changed[k];
         const std::string got = value_of(*s, r);
         CHECK(got == want);
         if (got != want) printf("  .set %s: %s, not %s\n", std::string(id(r)).c_str(), got.c_str(), want.c_str());
     }
 
-    /* W779: the array plot's labels are saved text settings; an empty one is left out of a session file and reads back empty */
+    /* W779: the array plot's labels are saved text options; an empty one is left out of a session file and reads back empty */
     for (const char *name : {"plot.array_plot.top_label", "plot.array_plot.side_label", "plot.array_plot.bottom_label"}) {
         const xpp::OptionRow *label = xpp::saved_setting(name);
         CHECK(label && label->kind == xpp::OptionKind::text && label->optional);
@@ -636,13 +636,13 @@ TEST_CASE("test_options")
     CHECK(labelled.has_value() && labelled->find("\"top text\"") != std::string::npos && labelled->find("array_plot.bottom_label") == std::string::npos);
     if (labelled) {
         s->array_plot->plot.xtitle = "";
-        const xpp::Result<xpp::Settings> read_back = settings_text::read(*s, set_file, *labelled);
+        const xpp::Result<xpp::Options> read_back = settings_text::read(*s, set_file, *labelled);
         CHECK(read_back.has_value());
         if (read_back) xpp::apply_settings(*s, *read_back, false);
         CHECK(s->array_plot->plot.xtitle == "top text" && s->array_plot->plot.bottom.empty());
     }
 
-    /* a model with no options: every option of the Session its default
+    /* a model with no option: every option of the Session its default
        again */
     s = load(plain_ode);
     CHECK(s != nullptr);
@@ -661,7 +661,7 @@ TEST_CASE("test_options")
     const char bad_odex[] = "build/test_options_bad.odex";
     for (const char *bad : {"dt=abc", "xp=nosuch", "meth=k", "nout=2.5", "rangereset=maybe",
                             "axes=4", "seed=-1", "lt=3", "histcol=nosuch", "xlo2=1e",
-                            /* a number the setting's rule refuses (OptionRule) */
+                            /* a number the option's rule refuses (OptionRule) */
                             "nout=0", "njmp=0", "dt=0", "nmesh=0", "bound=-1", "delay=-1", "tol=0"}) {
         CHECK(write_file(bad_ode, std::string(model_text) + "@ total=5\n@ " + bad + "\ndone\n"));
         char arg0[] = "test_options";

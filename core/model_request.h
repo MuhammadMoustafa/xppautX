@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "model_files.h"
 #include "model_numerics.h"
 
@@ -88,7 +88,7 @@ struct KeptValues {
   std::vector<std::pair<std::string,double>> pars, ics;
   std::vector<std::pair<std::string,std::string>> delays;
   NumericsSettings numerics;
-  AutoxSettingsSet autox_settings;
+  AutoxSettingsSet autox_options;
   std::string poincare_variable;
   /* the session file and the values it was saved with (W218): the next
      Ctrl+S saves to it, and the changed flag still compares with that

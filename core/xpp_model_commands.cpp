@@ -86,7 +86,7 @@ constexpr std::array ROWS = {
             "recent models by its place in hello.start.recent. Asks first whether to save this session.",
             OPEN_MODEL_RESULTS, LOAD_EVENTS, true, open_model, OPEN_MODEL_GROUPS, KEY_0},
     Command{"session.reload_model", {}, XPP_KIND_DATA, CommandCategory::Files, "Reload model", "File",
-            "Load the model's file again; the parameters, initial data, numerics and autoX settings keep their values by name.",
+            "Load the model's file again; the parameters, initial data, numerics and autoX options keep their values by name.",
             RELOAD_RESULTS, LOAD_EVENTS, true, reload_model},
     Command{"session.open", OPEN_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Open session", "File",
             "Open a session file (.snapx): its model, then everything as it was saved.", OPEN_RESULTS, LOAD_EVENTS, true, open_session, {}, {}, "read", "*.snapx"}};

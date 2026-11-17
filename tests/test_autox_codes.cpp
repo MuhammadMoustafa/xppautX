@@ -192,7 +192,7 @@ TEST_CASE("test_autox_codes")
     }
     CHECK(xpp::autox_point_kind_name(xpp::AutoxPointKind::MaxSteps) == "no_convergence");
     CHECK(xpp::autox_point_kind_name(xpp::AutoxPointKind::UserZero) == "user_point");
-    /* the codimension-two keys are the names of their kinds, in the settings' order */
+    /* the codimension-two keys are the names of their kinds, in the options' order */
     CHECK(xpp::autox_codim_keys[0] == "bogdanov_takens" && xpp::autox_codim_keys[11] == "double_neimark_sacker");
     CHECK(xpp::autox_codim_key_list().find("zero_hopf, generalized_hopf") != std::string::npos);
     /* a file's text: a name, or a name from another kind (a two-parameter start), and only a code autoX has */

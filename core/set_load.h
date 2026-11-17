@@ -8,7 +8,7 @@
    - an .odex (a model or a file of sets): its defaults (the par and init lines and the
      options a set may hold) and each of its sets;
    - XPPAUT's files, imported and never written: a .par (parameters), an .ic (initial
-     conditions), a .set (its parameters, initial conditions and numerics settings; its
+     conditions), a .set (its parameters, initial conditions and numerics options; its
      graphs, delays, boundary conditions and run position come in only through Import
      XPPAUT session state, lunch-new.h). C++ only. */
 #include "set_apply.h"
@@ -35,7 +35,7 @@ inline constexpr std::size_t offered_parts_limit = 1000, offered_bytes_limit = 1
 enum class ValuesOrigin { defaults, set, file };
 inline constexpr std::array<std::string_view, 3> values_origin_names = {"defaults", "set", "file"};
 
-/* a part of a file of values: its entries (parameters, states and settings, each at its
+/* a part of a file of values: its entries (parameters, states and options, each at its
    own line), where the part starts, and why it cannot be loaded when it cannot (an entry
    the model has no name for, a value that is not a number): the error is then the one
    loading it gives */
@@ -65,7 +65,7 @@ Result<ValuesSource> read_values_source(Session &s, std::string_view path);
 bool offers(const Session &s, const ValuesPart &part, std::string_view scope);
 
 /* the part of the file at path that origin and name choose (name: a set's), limited to
-   scope, applied as a patch over the current values, the plot settings to graph (the
+   scope, applied as a patch over the current values, the plot options to graph (the
    active one when none): all of it or nothing, one undo step, the error at the file and
    its line (and the line as written) */
 Result<> load_values_from_file(Session &s, std::string_view path, std::string_view scope, ValuesOrigin origin, std::string_view name,

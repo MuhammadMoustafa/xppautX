@@ -16,7 +16,7 @@
 
 /* Finite-difference scratch and HomCont state belong to iap->run. W247
    gives each collocation worker its own scratch and a copy of the HomCont
-   settings; boundary-condition updates stay on the calling thread. */
+   options; boundary-condition updates stay on the calling thread. */
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */

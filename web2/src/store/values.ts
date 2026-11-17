@@ -1,7 +1,7 @@
 /* Parameters, initial conditions, boundary conditions and delays
    (docs/protocol.md `value.set_parameters`, `set`; docs/ui-v2.md T3,
    GitHub #155): the values themselves stay in AppState.core (the `state`
-   event), sent by the core. They are settings (W106): an edit (a slider,
+   event), sent by the core. They are options (W106): an edit (a slider,
    a value field, Default/Reset, a numerics field) goes to the core at
    once as a `set`, busy or idle, and during a computation the core keeps
    it for when that ends (the run in progress keeps the values it started
@@ -171,7 +171,7 @@ function parameterValue(text: string): number | string {
   return trimmed !== '' && Number.isFinite(Number(trimmed)) ? Number(trimmed) : text;
 }
 
-/** the keys of the equilibria group's rows (the settings panel's, hello.options): the numerics the Sing pt settings are */
+/** the keys of the equilibria group's rows (the options panel's, hello.options): the numerics the Sing pt options are */
 const EQUILIBRIA_GROUP = 'equilibria';
 const equilibriaKeys = (hello: HelloEvent | null): string[] => (hello?.options ?? []).find(g => g.group === EQUILIBRIA_GROUP)?.rows.map(r => r.key) ?? [];
 
@@ -179,7 +179,7 @@ const equilibriaKeys = (hello: HelloEvent | null): string[] => (hello?.options ?
     `value.set_by_formula` (a %formula, one each); boundary conditions, delays and the numerics no registry
     command takes go in one `set` (one value, or `values`); initial conditions in `initial_conditions.set` (a number) or
     `initial_conditions.set_by_formula` (a %formula, one each); the run's and the shooting's numerics in `run.configure` and
-    `boundary_value.configure`; the nullcline mesh and the equilibria's settings in their own. */
+    `boundary_value.configure`; the nullcline mesh and the equilibria's options in their own. */
 export function valueCommands(hello: HelloEvent | null, sets: ValueSet[]): ValueCommand[] {
   const run = argumentTypes(hello, 'run.configure'), bvp = argumentTypes(hello, 'boundary_value.configure'), equilibriumKeys = equilibriaKeys(hello);
   const BVP = 'bvp_';

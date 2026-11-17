@@ -168,7 +168,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   formula reads only parameters, consts, pure functions (not `ran`,
   `normal`, `poisson`, nor a user function calling one) and the
   quantities before it, the loader works it out only when a parameter
-  changes (a slider, an event setting a parameter, each autoX evaluation),
+  changes (a slider, an event option a parameter, each autoX evaluation),
   as `.ode`'s `!` does, so the numbers are identical; otherwise at every
   evaluation (question 9).
 - `init NAME = VALUE, ...` — initial conditions: a fixed value, worked
@@ -219,7 +219,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   | `poincare` | `map`, `variable`, `sign`, `plane`, `stop` |
   | `equilibria` | `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets` (each `true` or `false`, W535) |
   | `sweep` | `variable`, `steps`, `low`, `high`, `reset`, `old_ic`, `write_files` (`true` writes each reset run to its own file in every mode, default `false`) |
-  | `continuation` | autoX run settings by their names: `mesh_intervals`, `max_steps`, `output_every`, `collocation_points`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance` (W531) and the ten that were Numerics-form settings only: `mesh_adapt_every`, `max_branch_switches`, `switch_one_direction`, `output_detail`, `max_location_iterations`, `max_newton_iterations`, `full_newton_after`, `step_adapt_every`, `suppress_branch_points`, `follow_all_branches` (each the autox.configure_numerics argument of its name); autoX's own names (`ntst`, `nmax`, `parmin`, ...) are XPPAUT's, read on `.ode` import only |
+  | `continuation` | autoX run options by their names: `mesh_intervals`, `max_steps`, `output_every`, `collocation_points`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance` (W531) and the ten that were Numerics-form options only: `mesh_adapt_every`, `max_branch_switches`, `switch_one_direction`, `output_detail`, `max_location_iterations`, `max_newton_iterations`, `full_newton_after`, `step_adapt_every`, `suppress_branch_points`, `follow_all_branches` (each the autox.configure_numerics argument of its name); autoX's own names (`ntst`, `nmax`, `parmin`, ...) are XPPAUT's, read on `.ode` import only |
   | `diagram` | `variable`, `x_min`, `x_max`, `y_min`, `y_max` |
   | `plot` | `colormap`; `axes.kind` (`2` or `3`), `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max` (the one pair of limits: a 2D plot's window, a 3D plot's box), `axes.z_min`, `axes.z_max` (the 3D box), `axes.phi`, `axes.theta` (the 3D view); `curves` (a list of at most 8 curves, each `{ x, y, z }`, a variable's name or `t`; the first holds the axes' variables, a model opens one graph and every curve is drawn in it); `line.draw`, `line.dash`, `line.width`, `line.marker`, `line.marker_size`; `nullclines.mesh`, `nullclines.draw`; `direction_field.grid`, `direction_field.draw`; `color_by.enabled`, `color_by.via`, `color_by.low`, `color_by.high` |
   | `analysis` | `histogram.low`, `histogram.high`, `histogram.bins`, `histogram.column`; `histogram2.low`, `histogram2.high`, `histogram2.bins`, `histogram2.column`; `spectrum.column`, `spectrum.column2`, `spectrum.width`, `spectrum.window` |
@@ -242,11 +242,11 @@ you wrote (`1/30`) alone while the value is unchanged.
   duration: `trans` of a `.ode`), `nullclines.mesh`, `step.min`, `poincare: { map, variable,
   sign, plane, stop }`, where a `.ode` says `total`, `t0`, `trans`, `nmesh`, `dtmin`,
   `poimap`, `poivar`, `poisgn`, `poipln`, `poistop`; `store_every` is `nout`/`njmp`.
-  The X11 window's settings (`bell`, `bigfont`, ...) are no options: the converter drops them.
-  A `.ode`'s `bound` is two settings of ours: `state_limit` (a variable past
+  The X11 window's options (`bell`, `bigfont`, ...) are no option: the converter drops them.
+  A `.ode`'s `bound` is two options of ours: `state_limit` (a variable past
   it is a blow-up, and `stop_at_limit: true`, the default, ends the run) and
   `search_limit` (the equilibria's search gives up past it), both read from
-  it; the DAE solver's own cap is a constant, no setting. A `.ode`'s
+  it; the DAE solver's own cap is a constant, no option. A `.ode`'s
   `ncdraw` is `nullclines.draw` (in `plot`) and `nullclines_file` (in `output`) (`1`: draw; `2`: not
   drawn and saved to `nullclines.dat`; `nullclines_file` is a file written
   like `data_file`, in the data format its extension names: `.dat`, `.csv`,
@@ -305,14 +305,14 @@ you wrote (`1/30`) alone while the value is unchanged.
   it with rows stored converts them in place. Every data file writes each stored value in the shortest text that
   reads back as exactly it.
 - `set "NAME" { key: value, ..., options: { group: { key: value } } }` — a named set. Its name is the user's text, so it is in double quotes even without spaces (`set "hopf" { ... }`; letters, digits and `_`, starting with a letter); a bare name is an error at its line. Its top-level keys are
-  parameters and states only (`g: 9.81`, `v: -0.3`), each a number. Settings go only under `options:`, in the options
+  parameters and states only (`g: 9.81`, `v: -0.3`), each a number. Options go only under `options:`, in the options
   block's shape and from the groups a set may hold: `integration`, `poincare`, `equilibria`, `continuation`, `plot`,
   `sweep` and `analysis` (each a graph's or a run's own configuration; `diagram`, `interface` and `output`
-  are the model's or the session's as a whole, and so are `simplot`, `multiwin` and `colormap`). A setting at the top
+  are the model's or the session's as a whole, and so are `simplot`, `multiwin` and `colormap`). An option at the top
   level, an unknown key or group, or a group or key a set does not hold is an error at its line and column, naming it;
   the whole set is checked when the model loads (values included), so a bad one stops the load. A parameter named like a
-  setting (`par dt = 2`) is unambiguous: `set "a" { dt: 0.1, options: { integration: { dt: 0.05 } } }` is one parameter
-  and one setting. A set's name is its own, apart from the model's names; two sets of one name, an imported file's
+  option (`par dt = 2`) is unambiguous: `set "a" { dt: 0.1, options: { integration: { dt: 0.05 } } }` is one parameter
+  and one option. A set's name is its own, apart from the model's names; two sets of one name, an imported file's
   included, are an error naming both places. `--convert` writes XPPAUT's flat set by XPPAUT's precedence (a model name
   first) and nests the rest under `options:`.
 - `table NAME EXPR, n=N, lo=A, hi=B [, auto_evaluate=false]` / `table NAME FILE` — as `.ode`; a formula table
@@ -358,18 +358,18 @@ The allocation-sized whole options have inclusive maxima (W296,
 | `spectrum.width` | 1 | 1000000 | Bounds spectral workspaces |
 | `continuation.mesh_intervals` | 1 | 10000 | Bounds autoX's mesh-sized matrices |
 | `continuation.max_steps` | 1 | 1000000 | Bounds a requested continuation diagram |
-| `continuation.collocation_points` | 2 | 7 | autoX's settings reader requires supported collocation orders 2 through 7 |
+| `continuation.collocation_points` | 2 | 7 | autoX's options reader requires supported collocation orders 2 through 7 |
 
-Settings that must keep an order are refused when it is broken, wherever they
+Options that must keep an order are refused when it is broken, wherever they
 come from (an `options` block, a session file, `set num`, the
 Numerics menu, the Window and histogram dialogs), with both names and values:
 `min_step` at most `max_step`, `xlo` below `xhi`, `ylo` below `yhi`, `xmin` below `xmax`, `ymin` below `ymax`, `zmin` below `zmax`, `histlo` below `histhi`,
-`histlo2` below `histhi2`, `autoxmin` below `autoxmax` and `autoymin` below `autoymax` (the settings' internal names, which the message names; the keys are `step.min`, `step.max`, `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max`, `axes.z_min`, `axes.z_max`, `histogram.low`, `histogram.high`, `histogram2.low`, `histogram2.high`, `x_min`, `x_max`, `y_min` and `y_max` of the diagram) (the continuation's pairs are autoX's own). `torus.period` is above 0 and
-`steps` of the sweep at least 1. The list, with each setting's range and the rule behind
-it, is [docs/studies/w494-numeric-settings.md](studies/w494-numeric-settings.md).
+`histlo2` below `histhi2`, `autoxmin` below `autoxmax` and `autoymin` below `autoymax` (the options' internal names, which the message names; the keys are `step.min`, `step.max`, `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max`, `axes.z_min`, `axes.z_max`, `histogram.low`, `histogram.high`, `histogram2.low`, `histogram2.high`, `x_min`, `x_max`, `y_min` and `y_max` of the diagram) (the continuation's pairs are autoX's own). `torus.period` is above 0 and
+`steps` of the sweep at least 1. The list, with each option's range and the rule behind
+it, is [docs/studies/w494-numeric-options.md](studies/w494-numeric-options.md).
 
 These maxima also apply through the corresponding saved numerics and autoX
-session settings. Iteration counts, output strides, seeds, flags and indices
+session options. Iteration counts, output strides, seeds, flags and indices
 remain whole numbers in their existing ranges; they do not size an allocation.
 The JSON schemas publish the maxima from the same option rows. Exceeding one
 is a load error at the file's offending line, before applying anything.
@@ -382,9 +382,9 @@ Both `.ode` and `.odex` ranges may expand to at most 100000 elements per
 statement; the length is checked before any copies are made. These caps
 allow large models while bounding compact hostile input's expansion.
 
-## Settings syntax, session files and preferences
+## Options syntax, session files and preferences
 
-The settings syntax is the options block's, and the session statement's and the preferences statement's with it (W284,
+The options syntax is the options block's, and the session statement's and the preferences statement's with it (W284,
 [#344](https://github.com/MuhammadMoustafa/xppautX/issues/344), design in
 [Discussion #341](https://github.com/MuhammadMoustafa/xppautX/discussions/341); W322,
 [#382](https://github.com/MuhammadMoustafa/xppautX/issues/382), design in
@@ -410,8 +410,8 @@ be one you were sent).
 ### Session files
 
 A session's state (a `.snapx`'s member `session.odex`, and a recording's header) is one file in `.odex` syntax, beside
-the model's own files. Its values and settings are ordinary `.odex` statements with the same names as a model's: the
-parameters are `par` lines, the initial values `init` lines (one for each name of the model), and every setting (the
+the model's own files. Its values and options are ordinary `.odex` statements with the same names as a model's: the
+parameters are `par` lines, the initial values `init` lines (one for each name of the model), and every option (the
 numerics, the sweep, the equilibria's and the BVP's ranges, Transpose, the array plot, the torus, the H function's
 coupling) the rows of an `options` block, under the groups and keys the option table gives them (the rows marked
 `saved`, core/model_options.cpp: `integration: { total_time: 30, dt: 0.05, method: runge_kutta, ... }`,
@@ -438,7 +438,7 @@ formula, a second `session`):
           boundary: { V: "0", W: "0" },
           sliders: [ { name: iapp, low: -1, high: 2, step: 0.01 } ],
           random: { seed: 12345678, wiener: [], ou: [], generator: "..." },
-          autox: { settings: { ... }, views: [ { name: "diagram_1", ... } ], active: "diagram_1" },
+          autox: { options: { ... }, views: [ { name: "diagram_1", ... } ], active: "diagram_1" },
           windows: [ { name: "main", curves: [ { x: V, y: W, ... } ], ... } ],
           active: "main",
           marks: { ... },
@@ -449,7 +449,7 @@ A session names every key (a missing one is an error; a session of the older lay
 model's own file as it names itself, and `data`, whether `data.npz` is in
 the file), `run` (the integrator's position and, in `ending`, the values the last run ended at), `delays`, `boundary`,
 the `sliders`, `random` (the next Go's seed, the Wiener and
-Ornstein-Uhlenbeck values and the generator's state), `nullclines`, `autox` (autoX's settings, views and the active view), every
+Ornstein-Uhlenbeck values and the generator's state), `nullclines`, `autox` (autoX's options, views and the active view), every
 open graph in `windows` (name, curves by variable name, axes, 3D view, zoom, previous runs) with the `active` one and the
 browser's and added columns' state, and `marks` (labels, arrows and markers, frozen curves). A session reopens exactly the
 graphs it saved. The `array_plot.columns`, `array_plot.rows`, `transpose.columns` and `transpose.rows` are whole numbers from 1 through 4096,
@@ -836,7 +836,7 @@ from):
 7. **Approximate equality** (decided, maintainer, 2026-09-28; W78): `==`
    and `!=` stay exact. `near(a, b)` is true when |a-b| <= tol ·
    max(1, |a|, |b|), tol being 1e-9, or the call's own `near(a, b, tol=...)` (a number or a
-   parameter; W623, W658 removed the model-wide `near_tolerance` setting). Not `~=` (MATLAB, Lua and Octave's
+   parameter; W623, W658 removed the model-wide `near_tolerance` option). Not `~=` (MATLAB, Lua and Octave's
    "not equal"), not `eps` (a common parameter name) and not `atol` (the
    integrator's tolerance: the solver must never change the model's
    logic). `near` is reserved.
@@ -855,7 +855,7 @@ from):
    formula's current value, and when it reads only parameters, consts
    and pure functions (not `ran`, `normal`, `poisson` or a function
    calling one) the loader computes it only when a parameter changes (a
-   slider, an event setting a parameter, each autoX evaluation), as
+   slider, an event option a parameter, each autoX evaluation), as
    .ode's `!` did, so the numbers are identical. `--convert` writes `!d =
    expr` as `d = expr` and refuses one reading t, a variable or a random
    function. No per-run snapshot (`hold`): that was a side effect of
@@ -1009,7 +1009,7 @@ Native autoX session diagrams likewise write calculation and curve names
 ## Animation companions (.anix)
 
 `options { animation: "pend.anix" }` names a companion in the model's own
-folder. This companion key belongs directly in `options`, outside the settings groups.
+folder. This companion key belongs directly in `options`, outside the options groups.
 The value is a quoted `.anix` base name, never a path or link. An animation
 starts with `version: 4` and can name its model with `model: "pend.odex"`. Opening either loads the pair (the
 model's own animation into a hidden window, shown on request);

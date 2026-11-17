@@ -46,7 +46,7 @@ void autox_show_live_point(AutoxParts s, const DIAGRAM &p, int live, bool new_se
 bool autox_start_points_away(double value, double rl0, double rl1, double ds);
 void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t ibrs, double *par,std::ptrdiff_t *icp,int labw, double *a, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> u0, std::span<const double> ubar);
 
-/* the autoX run's own parameters (run) from its settings (st.bifur,
+/* the autoX run's own parameters (run) from its options (st.bifur,
    the active view's parameters, the Mark values), for ndim variables;
    exact: user_right_hand_side gives the model's exact Jacobian (JAC=1, W260) */
 void init_autox(const AutoxState &st, XAUTOX &run, int ndim, bool exact);

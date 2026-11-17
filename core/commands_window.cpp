@@ -449,7 +449,7 @@ Result<std::string> send_to_bottom(Session &s, const Command &command, const Arg
     const std::string name = target_name(s, args);
     const auto target = find_window(s, name);
     if (!target) return unknown_window(command, name, place);
-    if (target->kind != WindowKind::graph) return fail(command.name, "This setting applies to a graph", place);
+    if (target->kind != WindowKind::graph) return fail(command.name, "This option applies to a graph", place);
     ui.lower_plot_window();
     return window_result(name) + '}';
 }
@@ -459,7 +459,7 @@ Result<std::string> set_redraw_mode(Session &s, const Command &command, const Ar
     const std::string name = target_name(s, args), &mode = args.get<std::string>("mode");
     const auto target = find_window(s, name);
     if (!target) return unknown_window(command, name, place);
-    if (target->kind != WindowKind::graph) return fail(command.name, "This setting applies to a graph", place);
+    if (target->kind != WindowKind::graph) return fail(command.name, "This option applies to a graph", place);
     s.plot_windows->graph[target->index].Nullrestore = mode == "auto";
     return "{\"redraw_mode\":\"" + mode + "\"}";
 }

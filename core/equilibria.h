@@ -46,14 +46,14 @@ struct NewtonRun {
   int worst = 0;        /* the variable whose equation was furthest from zero at the last iterate */
 };
 /* what stopped Newton's method, as words ("exceeded max_iterations = 100 ...") and the key of the
-   setting that did ("" when none): for n variables */
+   option that did ("" when none): for n variables */
 struct NewtonCause {
   std::string why;
   std::string_view setting;
 };
 NewtonCause newton_cause(const AnalysisParts &s, const NewtonRun &run, std::size_t variables);
-/* why Newton's method from start (the variables' values) found no equilibrium, with the setting that
-   stopped it and the model line (the setting's, else the worst equation's) */
+/* why Newton's method from start (the variables' values) found no equilibrium, with the option that
+   stopped it and the model line (the option's, else the worst equation's) */
 Error newton_error(const AnalysisParts &s, const NewtonRun &run, std::span<const double> start);
 
 /* the eigenvector of the Jacobian a (a copy, anew, is factored) for eval, into b and bp (inverse
@@ -61,11 +61,11 @@ Error newton_error(const AnalysisParts &s, const NewtonRun &run, std::span<const
 Result<> get_evec(AnalysisParts &s, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval);
 
 /* The equilibrium near a start (W518: where a long orbit lingers): Newton's method from it with the
-   session's equilibria settings, and the eigenvalues (re, im: one per variable) of the Jacobian at the
+   session's equilibria options, and the eigenvalues (re, im: one per variable) of the Jacobian at the
    root; when Newton finds no root, found is false and they are the Jacobian's at the start itself
    (an equilibrium that has just vanished, a fold's ghost, still has its near-zero eigenvalue). It marks
    nothing on the graph and integrates no manifold; an error is the model's own (a failed evaluation). The model is
-   evaluated by `model`; the settings are s's. */
+   evaluated by `model`; the options are s's. */
 struct EquilibriumNear {
   bool found = false;
   std::vector<double> x, re, im;

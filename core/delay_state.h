@@ -1,10 +1,10 @@
 #pragma once
 /* The delay equations' state a Session holds (delay_handle.cpp, del_stab.cpp): plain data the delay code works on (W744). What the
-   option table sets of it (the stability search's grid and bounds) is model_delay_settings.h's, its base (W757). */
+   option table sets of it (the stability search's grid and bounds) is model_delay_options.h's, its base (W757). */
 #include <array>
 #include <cstddef>
 #include <vector>
-#include "model_delay_settings.h"
+#include "model_delay_options.h"
 
 namespace xpp {
 

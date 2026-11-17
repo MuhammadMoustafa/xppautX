@@ -24,13 +24,13 @@ script and the engine all come from the same binary, so there is nothing
 to keep in step. Closing the panel kills the process; the process exits by
 itself ten seconds after its last page disconnects.
 
-Which `xppautX` runs: the `xpp-ode.xppautxPath` setting when it is set,
+Which `xppautX` runs: the `xpp-ode.xppautxPath` option when it is set,
 else the copy the extension's **Download xppautX** command fetched from the
 latest GitHub release into VS Code's global storage. With neither, the
 panel button is hidden and the command explains how to get the program.
 
 Once a day the extension compares `xppautX --version` with the latest
-release tag and offers the newer one (a setting turns this off).
+release tag and offers the newer one (an option turns this off).
 
 ## What xppautX promises
 

@@ -37,7 +37,7 @@ undoes Values edits; users can rebind keys and choose quick-access commands.
   Reset; conflicts shown by listing every command on the same key; chords
   (Ctrl+K Ctrl+S); the underlying file `keybindings.json` for power users,
   where `-command` removes a default binding.
-- **GNOME / KDE settings:** click a row, press the new combination (Esc
+- **GNOME / KDE options:** click a row, press the new combination (Esc
   cancels, Backspace clears), a conflict names the command that already has
   it and offers Replace; Reset all; shortcuts grouped by category.
 - **Blender / Emacs:** whole keymap presets; a keymap is data, not code.

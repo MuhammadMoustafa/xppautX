@@ -1,6 +1,6 @@
 /* W63a: what autoX's numerics used to exit() on throws xpp::AutoxFailed,
    which do_autox (autox_nox.cpp) catches and reports. tools/autoxcheck.py's
-   `errors` section drives the ones a model's settings reach (Ncol above
+   `errors` section drives the ones a model's options reach (Ncol above
    7, Ntst 0) through the protocol and runs autoX again afterwards; this
    covers every throw site directly, including the ones no model reaches:
    the dimension check (xppautX never frees more than a few parameters),

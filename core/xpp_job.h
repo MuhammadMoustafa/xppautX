@@ -75,7 +75,7 @@ private:
 };
 
 /* true when the running job has begun a computation, running or done (a
-   Flow's next trajectory, a range's next run): a setting taken now waits
+   Flow's next trajectory, a range's next run): an option taken now waits
    for the job's end (docs/protocol.md "Commands during a command"). Main
    thread. */
 bool computed();

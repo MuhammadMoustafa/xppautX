@@ -89,7 +89,7 @@ typedef struct {
 
 namespace xpp {
 
-/* the window's settings as a settings file holds them, each given to io
+/* the window's options as an options file holds them, each given to io
    with its key (its curves are write_curves' and read_curves') */
 template <class IO, class G> void graph_fields(IO &io, G &g)
 {
@@ -130,7 +130,7 @@ template <class IO, class G> void graph_fields(IO &io, G &g)
     io("old_yhi", g.oldyhi);
 }
 
-/* gathers the settings' values into a list / puts them back from it */
+/* gathers the options' values into a list / puts them back from it */
 class Gather {
 public:
     template <class T> void operator()(std::string_view, T &v) { values.push_back(static_cast<double>(v)); }
@@ -152,7 +152,7 @@ private:
     std::size_t next_ = 0;
 };
 
-/* those settings of from given to to, its other fields kept (a restored
+/* those options of from given to to, its other fields kept (a restored
    window, as made, takes the saved one's) */
 inline void copy_graph_settings(const GRAPH &from, GRAPH &to)
 {

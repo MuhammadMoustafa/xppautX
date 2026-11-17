@@ -1,7 +1,7 @@
 #pragma once
 /* autoX's part of a Session (session.h) and of one run. C++ only.
 
-   AutoxState is the Session's: autox_nox.cpp's autoX window, its settings
+   AutoxState is the Session's: autox_nox.cpp's autoX window, its options
    and the parameters it continues, the diagram's views, what the window
    shows (the last runs' stop, the info strip) and the folder the solutions
    are kept in.
@@ -9,7 +9,7 @@
    AutoxRun is one run's own (autox_lib1-5, gogoautox, setubv2): its
    parameters, its fort texts, its work arrays, why its branches
    ended, its stability values, and the parts of the Session whose model and
-   settings it reads (AutoxParts, taken once when the run starts). do_autox makes one per run and the numerical code reaches the
+   options it reads (AutoxParts, taken once when the run starts). do_autox makes one per run and the numerical code reaches the
    Session's parts only through it, so two runs share no state of their own. What a
    run still writes on the Session is what is not a run's: the model's
    evaluation state (Session::parser, the integrator), the diagram its points
@@ -34,7 +34,7 @@
 #include "autox_codes.h"
 #include "autox_ends.h"
 #include "autox_parts.h"
-#include "model_autox_settings.h"
+#include "model_autox_options.h"
 
 #include <algorithm>
 #include <array>
@@ -109,7 +109,7 @@ struct AutoxOrbitReturn {
 };
 
 struct AutoxState : AutoxSettings {
-  /* the autoX window and its settings */
+  /* the autoX window and its options */
   xpp::BIFUR bifur{};
   /* the views of the one diagram (W50), at least one, each plotting it at
      its own axes. The active one is the Axes menu's and its zoom's, the
@@ -270,14 +270,14 @@ struct AutoxEvaluation {
    their iap_type's run, and it is gone when the run ends. A collocation
    worker (autox_parallel.cpp) is a run too, with only its scratch. */
 struct AutoxRun {
-  /* the parts of the Session this run reads and writes (the model and the settings, which a run reads and never changes,
+  /* the parts of the Session this run reads and writes (the model and the options, which a run reads and never changes,
      and what the model's callbacks (autox_pp.cpp) evaluate on), taken once when the run starts (autox_bind_parts);
      none until then */
   std::optional<xpp::AutoxParts> parts;
   AutoxEvaluation evaluation;
   /* a collocation worker's: the run it works for; null for a run itself */
   AutoxRun *owner=nullptr;
-  /* the run's parameters, filled from the model and settings by do_autox
+  /* the run's parameters, filled from the model and options by do_autox
      (set_autox) before run_autox_problem (gogoautox.cpp) reads them */
   XAUTOX params{};
   std::ptrdiff_t parameter_count=0;
@@ -348,10 +348,10 @@ struct AutoxRun {
   std::vector<AutoxBufferedPoint> points;
   /* the job runs on a thread of its own: it never polls the front end or
      reports progress (the main thread does), and never touches the Session
-     but to read its model and settings */
+     but to read its model and options */
   bool on_thread=false;
   /* this job's collocation threads (the thread budget's share when it
-     started); 0: the Session's setting */
+     started); 0: the Session's option */
   unsigned collocation_threads=0;
   /* a job's start already refined by Newton's method, once for all the jobs, before they began
      (autox_jobs.cpp): the start check takes it instead of refining again */
@@ -425,7 +425,7 @@ struct AutoxRun {
      (autox_lib1.cpp's LocationState). Empty before the first. */
   std::function<void()> refactor;
   /* the homoclinic continuation's (HomCont's) common blocks
-     (autox_lib5.cpp): its settings, the projections, the equilibria's
+     (autox_lib5.cpp): its options, the projections, the equilibria's
      eigenvalues and vectors, and their previous values */
   struct {
     struct { std::ptrdiff_t itwist,istart,iequib,nfixed,npsi,nunstab,nstab,nrev; } homoclinic_constants{};  // blhom: common block BLHOM: HomCont's constants (autox_state.h)
@@ -469,7 +469,7 @@ struct AutoxView {
 };
 
 /* What autoX's numerics throw where they used to exit() (W63a): a
-   dimension or setting autoX cannot run with (Ncol above 7, Ntst below
+   dimension or option autoX cannot run with (Ncol above 7, Ntst below
    the number of nodes), a singular solve, a BLAS routine's argument out
    of range. do_autox (autox_nox.cpp), where every run starts, catches it
    and reports its Error; the run ends as a cancelled one does: gogoautox's

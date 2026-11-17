@@ -1,5 +1,5 @@
 #pragma once
-/* What a model has that some settings and commands need (W649): the one list of its features, computed from the loaded model in one
+/* What a model has that some options and commands need (W649): the one list of its features, computed from the loaded model in one
    function. An option row (OptionRow::needs) and a command row (Command::needs) name the feature they need; hello gives the list
    (`model_features`), the page hides what the model lacks and Search commands lists it greyed with the reason, and the core refuses
    a command whose feature the model lacks, with the same reason. */

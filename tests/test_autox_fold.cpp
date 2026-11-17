@@ -34,7 +34,7 @@ TEST_CASE("test_autox_fold")
     s.numerics->jacobian = xpp::JACOBIAN_EXACT;
     CHECK(xpp::ensure_exact_jacobian(s));
     AutoxRun run;
-    autox_bind_parts(run, xpp::autox_parts(s)); /* after the settings, as a run's set-up does */
+    autox_bind_parts(run, xpp::autox_parts(s)); /* after the options, as a run's set-up does */
     run.parameter_count = s.autox_state->parameter_layout.size();
     iap_type iap{};
     iap.run = &run; iap.ndm = 2; iap.ndim = 4; iap.nfpr = 4;

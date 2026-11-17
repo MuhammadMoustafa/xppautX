@@ -23,7 +23,7 @@ with tempfile.TemporaryDirectory(prefix='w412-' + commit[:8] + '-') as name:
     tree = Path(name)
     with tarfile.open(fileobj=io.BytesIO(subprocess.check_output(['git', 'archive', commit]))) as tar:
         tar.extractall(tree, filter='data')
-    # ccache's own settings, since an older Makefile does not set them
+    # ccache's own options, since an older Makefile does not set them
     env = {**os.environ, 'CCACHE_BASEDIR': str(tree), 'CCACHE_NOHASHDIR': '1', 'CCACHE_MAXSIZE': '15G'}
     with (out / 'build.log').open('w') as log:
         subprocess.run(['make', '-j4', 'xppautx', 'WERROR=1', 'CC=ccache gcc', 'CXX=ccache g++', 'CCACHE='],

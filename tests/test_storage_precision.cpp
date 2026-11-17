@@ -1,6 +1,6 @@
-/* W613 (#681): the data store's columns are floats or doubles by the storage_precision setting, read and written through
+/* W613 (#681): the data store's columns are floats or doubles by the storage_precision option, read and written through
    one accessor (Column). Checked: a column rounds on a write under single and keeps a double under double; the store
-   converts in place, with no question, when the setting changes (single to double exactly, double to single as storing
+   converts in place, with no question, when the option changes (single to double exactly, double to single as storing
    under single would have rounded it), its table and its added columns staying valid; a run under double holds the
    integrator's own values, which a single store holds rounded to floats. */
 #include "load_args.h"
@@ -11,7 +11,7 @@
 #include "storage.h"
 #include "model_load.h"
 #include "model.h"
-#include "numerics_settings.h"
+#include "numerics_options.h"
 #include <vector>
 #include <cstddef>
 #include <memory>

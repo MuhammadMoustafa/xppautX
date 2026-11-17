@@ -1,7 +1,7 @@
 /* The analysis resource's registry rows (W525): the stochastic runs and what is made of the stored data
    (histograms, correlations, spectra, Fourier series, statistics, curve fits, Liapunov exponents), the adjoint and
    H function, the Poincare map, the phase space's torus and the coloring of an orbit. Each handler sets the
-   settings it is given over the ones the session has (an argument left out keeps them) and calls the one core
+   options it is given over the ones the session has (an argument left out keeps them) and calls the one core
    function the Stochastic, Adjoint, Poincare map, Phase space and Color code menus' items call after their
    questions (histogram.h, markov.h, stochastic.h, adj2.h, do_fit.h, numerics.h, torus.h): one behaviour, whichever front
    end asks. */
@@ -77,7 +77,7 @@ Result<std::string> stochastic_integrate_handler(Session &s, const Command &, co
     RangeVars range=s.integrator->range;
     if(auto items=resolve_range_items(s,range,false); !items)return std::unexpected<Error>(items.error());
     if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
-    /* the runs are the Range settings' steps plus one: the sweep takes a run at each of the steps and at the start */
+    /* the runs are the Range options' steps plus one: the sweep takes a run at each of the steps and at the start */
     if (const auto trials = args.optional<long long>("trials")) s.integrator->range.steps = static_cast<int>(*trials - 1);
     const Result<int> runs = stochastic_integrate(s, range_report(s));
     if (!runs) return std::unexpected<Error>(runs.error());
@@ -223,7 +223,7 @@ Result<std::string> lyapunov_handler(Session &s, const Command &command, const A
     const bool over_range = args.optional<bool>("range_over_parameters").value_or(false);
     if (!over_range)
         for (const Argument &arg : RUN_RANGE_ARGUMENTS)
-            if (args.has(arg.name)) return fail(command.name, xpp::format("\"{}\" is a setting of the sweep: give range_over_parameters", arg.name), place);
+            if (args.has(arg.name)) return fail(command.name, xpp::format("\"{}\" is an option of the sweep: give range_over_parameters", arg.name), place);
     if (over_range) {
         RangeVars range=s.integrator->range;
         set_range_settings(range,args);
@@ -399,7 +399,7 @@ constexpr std::array DONE_EVENTS = {xpp::events::DONE};
 constexpr std::array COMPUTING_SHOWN_EVENTS = {xpp::events::JOB_COMPUTING, xpp::events::DATA_UPDATED, xpp::events::PLOT_SHOWN, xpp::events::PLOT_SERIES, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
-    Command{"poincare_map.set", POINCARE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Poincare map", "Run",
+    Command{"poincare_map.set", POINCARE_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Poincare map", "Run",
             "Set the Poincare map the runs store: none, the crossings of a section, the maxima and minima of a variable, or its period.",
             POINCARE_RESULTS, STATE_EVENTS, true, poincare_handler, {}, {}, "read", "*", "poincare"},
     Command{"histogram.compute", HISTOGRAM_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Histogram", "Analysis/Statistics",
@@ -415,7 +415,7 @@ constexpr std::array ROWS = {
             "Fit parameters and initial values so that variables of the model follow columns of a data file of the model's folder (Levenberg-Marquardt).",
             FIT_RESULTS, STATE_EVENTS, true, fit_curve},
     Command{"lyapunov_exponent.compute", LYAPUNOV_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Lyapunov exponent", "Analysis/Statistics",
-            "The maximal Liapunov exponent of the stored orbit, or with range_over_parameters one for each run of a sweep of the Range settings.",
+            "The maximal Liapunov exponent of the stored orbit, or with range_over_parameters one for each run of a sweep of the Range options.",
             LYAPUNOV_RESULTS, SHOWN_EVENTS, true, lyapunov_handler},
     Command{"spectrum.fourier_series", COLUMN_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Fourier series", "Analysis/Spectra",
             "Make the Fourier series of a column of the stored data.", HARMONICS_RESULTS, DATA_EVENTS, true, transform_handler<compute_fourier, HARMONICS>},
@@ -432,7 +432,7 @@ constexpr std::array ROWS = {
             "Make the correlation of two columns of the stored data at a number of lags either side of 0, directly or by the FFT.", LAGS_RESULTS,
             COMPUTING_SHOWN_EVENTS, true, cross_correlation_handler},
     Command{"stochastic.compute", TRIALS_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Compute runs", "Analysis/Stochastic",
-            "Run the model as many times as trials (the Range settings' steps plus one), keeping the mean and variance of the runs.",
+            "Run the model as many times as trials (the Range options' steps plus one), keeping the mean and variance of the runs.",
             TRIALS_RESULTS, RUN_EVENTS, true, stochastic_integrate_handler},
     Command{"stochastic.show_run", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Show last run data", "Analysis/Stochastic",
             "Show the data of the last run in the data table again.", LOADED_RESULTS, DATA_EVENTS, true, load_data},
@@ -456,7 +456,7 @@ constexpr std::array ROWS = {
             "Show the orbit in the data table.", LOADED_RESULTS, DATA_EVENTS, true, load_data},
     Command{"adjoint.show_h_function", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Show H function", "Analysis/Adjoint",
             "Show the interaction (H) function in the data table.", LOADED_RESULTS, DATA_EVENTS, true, done_with<load_interaction, LOADED>},
-    Command{"adjoint.configure", ADJOINT_CONFIGURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Settings", "Analysis/Adjoint",
+    Command{"adjoint.configure", ADJOINT_CONFIGURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Options", "Analysis/Adjoint",
             "Set the adjoint's maximum iterations and error tolerance.", UPDATED_RESULTS, STATE_EVENTS, true, adjoint_configure, {}, {}, "read", "*", "", "Apply"},
     Command{"plot.set_torus", TORUS_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Phase space torus", "Analysis",
             "Fold all, none or chosen variables of the phase space into a torus of the given period.", TORUS_RESULTS, STATE_EVENTS, true, torus_handler},

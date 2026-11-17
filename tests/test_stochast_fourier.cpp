@@ -46,7 +46,7 @@ TEST_CASE("test_stochast_fourier")
     CHECK(load_args(2, argv, 1).has_value());
     init_data(xpp::client_session());
     init_all_graph(xpp::client_session());
-    xpp::batch_options.check = true; /* Decline prompts; this numerical fixture supplies its settings. */
+    xpp::batch_options.check = true; /* Decline prompts; this numerical fixture supplies its options. */
 
     const int N = 64;
     xpp::client_session().data_store->rows = N;

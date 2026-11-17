@@ -120,10 +120,10 @@ struct CurveSettings {
 };
 /* curve `curve` of the active window now */
 CurveSettings curve_settings(const Session &s, int curve);
-/* the settings checked, set on curve `curve` of the active window and redrawn */
-Result<> set_curve(Session &s, int curve, const CurveSettings &settings);
-/* a curve added with these settings: its index */
-Result<int> add_curve(Session &s, const CurveSettings &settings);
+/* the options checked, set on curve `curve` of the active window and redrawn */
+Result<> set_curve(Session &s, int curve, const CurveSettings &options);
+/* a curve added with these options: its index */
+Result<int> add_curve(Session &s, const CurveSettings &options);
 /* curve `curve` removed; the first one is the window's own and stays */
 Result<> delete_curve(Session &s, int curve);
 /* every curve but the first removed */
@@ -147,9 +147,9 @@ struct FrozenSettings {
 inline constexpr std::size_t frozen_key_max = 19, frozen_name_max = 9;
 FrozenSettings frozen_settings(const Session &s, int slot);
 /* the style a width above 0 and a marker size not below 0, the key and the name not over their limits */
-Result<> check_frozen_settings(const FrozenSettings &settings);
-/* the settings checked, then set on the frozen curve in `slot`, redrawn */
-Result<> set_frozen_curve(Session &s, int slot, const FrozenSettings &settings);
+Result<> check_frozen_settings(const FrozenSettings &options);
+/* the options checked, then set on the frozen curve in `slot`, redrawn */
+Result<> set_frozen_curve(Session &s, int slot, const FrozenSettings &options);
 /* the error unless `slot` holds a frozen curve of window `w` */
 Result<> frozen_slot_in_window(const Session &s, XppWinId w, int slot, std::string_view command);
 /* the frozen curve in `slot` of window `w` deleted, redrawn */

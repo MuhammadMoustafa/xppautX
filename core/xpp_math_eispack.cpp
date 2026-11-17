@@ -4394,12 +4394,12 @@ singular_value_decomposition_detailed(double *x, std::ptrdiff_t *ldx, std::ptrdi
 /*               (expressed as abs(tol) * sigma-max) */
 /*            (abs(tol) should be less than 1 and greater than macheps) */
 
-/*     idbg = 0 for no debug output (normal setting) */
+/*     idbg = 0 for no debug output (normal option) */
 /*          = 1 convergence, shift decisions (written to standard output) 
 */
 /*          = 2 for above plus before, after qr */
 
-/*    ifull= 0 if decision to use zero-shift set normally (normal setting)
+/*    ifull= 0 if decision to use zero-shift set normally (normal option)
 */
 /*          = 1 if always set to nonzero-shift */
 /*          = 2 if always set to zero-shift */
@@ -4407,7 +4407,7 @@ singular_value_decomposition_detailed(double *x, std::ptrdiff_t *ldx, std::ptrdi
 /*     skip =-1 means standard code but do all work of bidiagonalization 
 */
 /*              (even if input bidiagonal) */
-/*            0 means standard code (normal setting) */
+/*            0 means standard code (normal option) */
 /*            1 means assume x is bidiagonal, and skip bidiagonalization 
 */
 /*              entirely */
@@ -4957,7 +4957,7 @@ L1003:
 /*       after one step */
 	++(*kount1);
 /*       shift = smallest_singular_value_2x2(s(m-1),e(m-1),s(m)) */
-/*       rotate, setting e(m-1)=0 and s(m)=+-shift */
+/*       rotate, option e(m-1)=0 and s(m)=+-shift */
 /*         f = 0.0d0 */
 /*         f = (abs(s(ll)) - shift)*(dsign(1.0d0,s(ll))+shift/s(ll)) 
 */

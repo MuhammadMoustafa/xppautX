@@ -162,7 +162,7 @@ why, and the model before goes on as it was.
 files it includes, its tables), the
 parameters, initial data and numerics, every plot window (its axes,
 variables, zoom and the earlier-runs toggle), the text, arrows, markers
-and frozen curves, autoX's diagram, settings and view, and the data
+and frozen curves, autoX's diagram, options and view, and the data
 table. File > Open session, a double-click on the file, or
 `xppautX name.snapx` loads the model saved in it, from the file alone
 (the `.ode` may have changed since, or be gone: the saved one is the one
@@ -177,7 +177,7 @@ not a number, a variable the model does not have): the error names the
 part and its line (`s1.snapx/session.odex:12:7: ...`), and the
 session open stays exactly as it was, nothing of the file taken. Every
 file of xppautX's loads this way, all or nothing: a set, parameter or
-initial-conditions file, an autoX file or autoX settings file and a
+initial-conditions file, an autoX file or autoX options file and a
 recording are read and checked whole first, and a bad value anywhere in
 one, even on its last line, is an error naming the file and that line,
 with nothing of the file applied. The
@@ -228,7 +228,7 @@ interpreter's own functions for these, so values and random sequences are the
 same. The expressions of events, boundary conditions, derived parameters,
 Markov chains, DAEs and integral-equation kernels stay interpreted. A model
 with a recursive user function runs entirely in the interpreter; a warning
-identifies the equation. The model's `compile` option (an `integration` setting, `compile: false` in its
+identifies the equation. The model's `compile` option (an `integration` option, `compile: false` in its
 `options`) runs every equation in the interpreter instead; a change applies when the model next loads.
 Compilation happens once per load and can speed up integration and autoX; the gain depends on the model, and a run of a few steps on a small model is shorter interpreted.
 
@@ -268,8 +268,8 @@ row-by-row record of what changed and why.
 
 ## Environment variables
 
-xppautX does not read a per-user options file: a `.xpprc` in your home directory is ignored.
-A model's settings are its own `options` (see [ODE files](02-ode-files.md)), and File >
+xppautX does not read a per-user settings file: a `.xpprc` in your home directory is ignored.
+A model's options are its own `options` (see [ODE files](02-ode-files.md)), and File >
 Preferences holds the rest.
 
 xppautX still reads a few environment variables, all optional:
@@ -281,7 +281,7 @@ xppautX still reads a few environment variables, all optional:
 Set them the usual way for your shell (`export XPPSTART=...` in
 `.bashrc` or a Windows Environment Variables
 dialog). Nothing else — no `DISPLAY`, no X resources, no font or window
-color settings — is needed or read any more.
+color options — is needed or read any more.
 
 ## License
 
@@ -297,7 +297,7 @@ on the project's [issue tracker](https://github.com/MuhammadMoustafa/xppautX/iss
   starting xppautX, the page layout, plots, dialogs, files, the log
 - [The main commands](05-commands.md) and
   [Numerical parameters](06-numerical-parameters.md) — every command and
-  every numerics setting
+  every numerics option
 - [The Data Table](07-data-table.md),
   [Functional equations](08-functional-equations.md),
   [autoX interface](09-autox.md) and

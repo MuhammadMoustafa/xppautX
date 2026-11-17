@@ -135,7 +135,7 @@ struct Reads {
     std::set<std::size_t> functions; /* the user functions it calls, by ir.functions */
 };
 
-/* the things a run does that the script does not, which no tree of an equation shows: refused first, with the model line or the setting */
+/* the things a run does that the script does not, which no tree of an equation shows: refused first, with the model line or the option */
 Result<> check_model(const SessionParts &s, const Language &language)
 {
     const Model &m_ = s.model();

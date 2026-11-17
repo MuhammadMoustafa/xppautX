@@ -27,7 +27,7 @@ struct SolverTraits {
   /* advances a number of steps of dt; otherwise it chooses its own steps
      on to an output time (its store_every is 1) */
   bool fixed_step = false;
-  /* the settings its steps read, which the numerics menu asks and the
+  /* the options its steps read, which the numerics menu asks and the
      Numerics form shows (W381 questions 5 and 8): relative_tolerance,
      absolute_tolerance, min_step, max_step */
   bool relative_tolerance = false;
@@ -138,7 +138,7 @@ constexpr SectionSign section_sign(double x) { return x < 0 ? SectionSign::negat
 /* the crossings' words, by the sign's number plus 1 (negative, both, positive); the .odex's and the commands' */
 inline constexpr std::array<std::string_view, 3> section_sign_names{"negative", "both", "positive"};
 
-/* The equilibria's settings (the nUmerics menu's Sing pt ctrl, the options'
+/* The equilibria's options (the nUmerics menu's Sing pt ctrl, the options'
    `equilibria` group): Newton's tolerance and iterations, the Jacobian's
    step and the limit past which a search gives up, and what a search shows
    beside the equilibrium it finds (off: the search asks nothing) */
@@ -148,7 +148,7 @@ struct EquilibriaSettings {
   bool print_eigenvalues = false, draw_invariant_sets = false, draw_strong_sets = false;
 };
 
-/* The numerics settings in use (the nUmerics menu, the model's @ options,
+/* The numerics options in use (the nUmerics menu, the model's @ options,
    the command line), a Session's (session.h) */
 struct NumericsSettings {
   /* the time span: from start_time for total_time, step delta_t, every store_every-th step
@@ -197,7 +197,7 @@ struct NumericsSettings {
      time. */
   int rand_seed = 12345678;
   std::optional<int> last_seed;
-  /* CVODE's banded Jacobian (the nUmerics menu's Stiff settings) */
+  /* CVODE's banded Jacobian (the nUmerics menu's Stiff options) */
   bool cv_bandflag = false;
   int cv_bandupper = 1, cv_bandlower = 1;
   /* how every Jacobian of the model is formed: JACOBIAN_DIFFERENCE or

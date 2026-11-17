@@ -65,7 +65,7 @@ its own behavioural regression test (`tools/web2check.mjs`).
       browser's commands (`browse_data.cpp`), the IC/parameter box values
       and sliders (`xpp_util.cpp`), the animation language and its drawing
       geometry (`aniparse.cpp`, drawing through `xpp_ui.ani_*`), array plot
-      settings and printing (`arrayplot.cpp`), autoX diagram grabbing
+      options and printing (`arrayplot.cpp`), autoX diagram grabbing
       (`autox_nox.cpp`), the GIF encoder (`scrngif.cpp`), user buttons
       (`userbut.cpp`) and the equilibrium import.
    3. *(done)* A protocol front end: `core/ui_json.cpp` is an `XppUi` table
@@ -136,7 +136,7 @@ the tag's source archive, which GitHub adds to the release page.
   administrator rights), adds a Start Menu shortcut, registers the `.ode`,
   `.odex`, `.snapx` and `.recx` file types for all users (double-click opens
   xppautX on the file; uninstalling removes them), and installing a later version
-  replaces this one; Settings > Apps removes it. The installer is not signed,
+  replaces this one; Options > Apps removes it. The installer is not signed,
   so SmartScreen may show "Windows protected your PC": choose "More info" and
   "Run anyway". On a machine where you cannot install, use
   `xppautX-<version>-windows-x64.zip` instead: unzip it anywhere, no
@@ -437,7 +437,7 @@ the source they were built from (each release attaches it). Software that
 only talks to `xppautX` over the protocol, in another process, is a separate
 program and can have its own licence, as the VS Code extension does.
 
-The embedded MIR compiler (by Vladimir Makarov, W714, [#789](https://github.com/MuhammadMoustafa/xppautX/issues/789)) is MIT licensed; its pinned source, build settings and
+The embedded MIR compiler (by Vladimir Makarov, W714, [#789](https://github.com/MuhammadMoustafa/xppautX/issues/789)) is MIT licensed; its pinned source, build options and
 executable-memory requirements are documented in
 [third_party/mir/XPPAUTX.md](third_party/mir/XPPAUTX.md), with its licence in
 [LICENSE](third_party/mir/LICENSE), to be shipped with the binaries.

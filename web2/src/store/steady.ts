@@ -28,7 +28,7 @@ export function runInterval(numerics: NumericsField[] | null): number {
 
 export interface SteadyInput {decimals: string; hold: string; maximum: string}
 
-/** Cross-field checks for the inline settings; the core independently
+/** Cross-field checks for the inline options; the core independently
     validates the command before changing any run state. */
 export function steadyError(input: SteadyInput, interval: number, maxDecimals: number): string | null {
   const decimals = Number(input.decimals), hold = Number(input.hold), maximum = Number(input.maximum);
@@ -40,7 +40,7 @@ export function steadyError(input: SteadyInput, interval: number, maxDecimals: n
   return null;
 }
 
-/** the inline settings before the user edits any, from hello's steady limits and the run's own
+/** the inline options before the user edits any, from hello's steady limits and the run's own
     duration and interval, so a changed Run duration or Dt never leaves an old limit behind */
 export function steadyDefaults(steady: HelloEvent['steady'], total: number, interval: number): SteadyInput {
   return {decimals: String(steady.default_decimals),
@@ -95,7 +95,7 @@ export function continuePlan(input: ContinueInput, numerics: NumericsField[] | n
   return {text, problem, end, command: core?.now && text !== null && !problem ? {cmd: 'run.continue', [input.mode]: value} : null};
 }
 
-/** The settings Run to steady state would run with now: the user's edits over the defaults, with the Dt
+/** The options Run to steady state would run with now: the user's edits over the defaults, with the Dt
     they are checked against and what is wrong with them (null: ready). Null before the numerics and hello
     arrive. The one place the toolbar's button and the command's key both read. */
 export function steadyRun(hello: HelloEvent | null, numerics: NumericsField[] | null, edit: Partial<SteadyInput>):

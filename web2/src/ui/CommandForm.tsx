@@ -1,6 +1,6 @@
 /* A registry command's form (W641): the one dialog shell (Dialog) with a field for each argument the command's row declares, drawn by the one
    field renderer (FormFields), its control decided from the argument's kind (store/fieldKinds.ts controlOf). Every field shows its current
-   value; only the fields the person changed (and a required argument, and what the opener fixed) are sent by a settings form; a command that does something (a run, a save) is sent its current values too, which are its inputs. A command whose row has a
+   value; only the fields the person changed (and a required argument, and what the opener fixed) are sent by an options form; a command that does something (a run, a save) is sent its current values too, which are its inputs. A command whose row has a
    `panel` shows that option group's rows in it too, through the same fields (W616), and leaves out the arguments those rows set. An error
    shows after a field was left or the action was pressed, names the rule and the value, and the footer counts the fields left to fix; the
    action is never disabled, and pressing it with errors moves the focus to the first. */
@@ -69,10 +69,10 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
   const shown = (arg: RegistryArgument, i: number) => feedback.shows(arg.name) ? messages[i] : null;
   const fixes = args.filter((arg, i) => feedback.shows(arg.name) && messages[i]).length + (feedback.attempted ? groupMessages.length : 0) + options.shownProblems;
   const send = (command: {cmd: string; [k: string]: unknown}) => {
-    const settings = options.settings();
-    if (settings) session.send(settings);
+    const groupCommand = options.options();
+    if (groupCommand) session.send(groupCommand);
     const given = Object.keys(command).filter(k => k !== 'cmd' && k !== 'window' && k !== 'file_picker');
-    return row.kind === 's' || row.kind === 'v' ? (given.length || !settings ? session.send(command) : true) : session.send(command);
+    return row.kind === 's' || row.kind === 'v' ? (given.length || !groupCommand ? session.send(command) : true) : session.send(command);
   };
   const submit = (e?: Event) => {
     e?.preventDefault();
@@ -132,7 +132,7 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
   return <Dialog title={row.name} name={row.name} description={row.description} onClose={close} onSubmit={submit} problems={fixes}
     action={{label: row.action || row.label}} className="registry-form" attrs={{'data-command-form': id}}>
     {SETS_OF_FORM[id] && <SetsRow scope={SETS_OF_FORM[id]} />}
-    {group && <div data-options-rows>{options.fields}{options.unused > 0 && <details class="unused-settings"><summary>Settings not used by this method or model</summary>{options.unusedFields}</details>}</div>}
+    {group && <div data-options-rows>{options.fields}{options.unused > 0 && <details class="unused-options"><summary>Options not used by this method or model</summary>{options.unusedFields}</details>}</div>}
     {group && body.some(Boolean) ? <fieldset class="form-group">{body}</fieldset> : body}
     {picker?.type === 'path' && <p class="form-help">{row.file_mode === 'write' ? 'Where to save it is chosen in the file dialog when you press the action.' : 'The file is chosen in the file dialog when you press the action.'}</p>}
     {feedback.attempted && groupMessages.map(problem => <p class="field-error">{problem}</p>)}

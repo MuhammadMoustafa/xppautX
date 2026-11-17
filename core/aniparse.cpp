@@ -761,7 +761,7 @@ bool animation_memory(std::size_t &used, const AnimationState &animation,
    until the whole read succeeds, including the extra lines of each grab. */
 xpp::Result<AnimationState> load_ani_file(xpp::Session &s, xpp::Lines &fp, const char *filename)
 {
-    /* Keep window/options/runtime settings; only the parsed contents reset. */
+    /* Keep window/options/runtime options; only the parsed contents reset. */
     AnimationState animation = *s.animation;
     init_ani_stuff(animation);
     animation.vcr.file = filename;
@@ -1071,7 +1071,7 @@ std::string animation_model_name(odex::Block &block)
 }
 
 /* A shape's formulas and literal fields are consumed separately; neither may
-   leave an unknown key behind. The settings reader supplies all typed literals. */
+   leave an unknown key behind. The options reader supplies all typed literals. */
 class AnimationFields {
 public:
     AnimationFields(Session &s, const odex::Statement &st, const odex::Value &fields,

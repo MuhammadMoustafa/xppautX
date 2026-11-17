@@ -1,20 +1,20 @@
 #pragma once
 /* An autoX script, name.autox (W306, #365; docs/manual/09-autox.md "Scripts", docs/protocol.md "autoX scripts"): the
-   runs of one analysis of one model, named and in order, in .odex syntax (docs/odex.md "Settings syntax"):
+   runs of one analysis of one model, named and in order, in .odex syntax (docs/odex.md "Options syntax"):
 
      version: 4,
      model: "ab.odex",
      diagram: "branches.csv",
      runs: [
-       { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["p0"], settings: { step_size: 0.01, parameter_max: 4 } },
-       { name: "cycles", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"], settings: { step_size: -0.01 } },
+       { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["p0"], options: { step_size: 0.01, parameter_max: 4 } },
+       { name: "cycles", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"], options: { step_size: -0.01 } },
      ]
 
    A run is one autox.run (commands_autox.cpp): `kind` and `switch`, its start (`start`: a point of an earlier run by
    its type and its index among that run's points of that type, since a label is assigned while a run goes and a
    script cannot know it; no `start`: the current state, settled first by `settle` {decimals, hold, maximum}), the
    `homoclinic` equilibria, `parameters` (the one or two model parameters it continues: autoX's axes, set as
-   autox.configure_axes sets them before the run), and `settings`, the Numerics by their names for that run only (step_size's sign is the
+   autox.configure_axes sets them before the run), and `options`, the Numerics by their names for that run only (step_size's sign is the
    direction: both directions are two runs). The script reads whole and each run is checked against the command's own
    validator before anything is applied (all or nothing, W125); nothing computes on open. The model named is the one
    opened (xpp::load_model), the diagram file is written by --silent. C++ only. */

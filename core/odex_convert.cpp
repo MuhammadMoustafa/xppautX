@@ -1221,7 +1221,7 @@ private:
   {
     const Model::InternalSet &set = m_.intern_sets[nset_++];
     std::vector<std::string> items;
-    std::vector<OptionEntry> settings;
+    std::vector<OptionEntry> options;
     for (const auto &[key, value] : option_items(set.does, true)) {
       const std::string upper = xpp::upper_case(key);
       if (find_user_name(m_, ICBOX, upper) >= 0 || find_user_name(m_, PARAMBOX, upper) >= 0) {
@@ -1231,7 +1231,7 @@ private:
       int index = 0;
       const OptionRow *row = xpp::find_option(upper, index, true);
       if (row && row->expand) {
-        add_expanded(*row, key, value, settings, true);
+        add_expanded(*row, key, value, options, true);
         continue;
       }
       const bool slider = row && xpp::xppaut_slider_option(*row);
@@ -1243,14 +1243,14 @@ private:
         option_note(xpp::format("{}={} in the .ode's set {}: XPP ignores it, so it is dropped", key, value, set.name), "set-value");
         continue;
       }
-      if (!xpp::set_holds(*row)) refuse(xpp::format("{}={}: a set does not hold this setting", key, value));
+      if (!xpp::set_holds(*row)) refuse(xpp::format("{}={}: a set does not hold this option", key, value));
       const std::string option_key = xpp::odex_key(*row, index);
       const std::string text = option_text(*row, key, value, "set-value");
-      const auto same = std::ranges::find_if(settings, [&](const OptionEntry &e) { return e.row == row && e.key == option_key; });
-      if (same != settings.end()) same->value = text; /* XPP applies the items in order: the last stays */
-      else settings.push_back({option_key, text, row});
+      const auto same = std::ranges::find_if(options, [&](const OptionEntry &e) { return e.row == row && e.key == option_key; });
+      if (same != options.end()) same->value = text; /* XPP applies the items in order: the last stays */
+      else options.push_back({option_key, text, row});
     }
-    return set_block(name(xpp::upper_case(set.name)), items, group_items(settings)) + "\n";
+    return set_block(name(xpp::upper_case(set.name)), items, group_items(options)) + "\n";
   }
 
   /* a set's or a comment's name: a variable's or a parameter's (spelled)
@@ -1620,7 +1620,7 @@ private:
       }
       const bool slider = row && xpp::xppaut_slider_option(*row);
       if (!row || (row->odex.empty() && !slider)) {
-        option_note(xpp::format("@ {}={} in the .ode: {}", key, value, row ? "an X11 window setting xppautX does not keep, dropped"
+        option_note(xpp::format("@ {}={} in the .ode: {}", key, value, row ? "an X11 window option xppautX does not keep, dropped"
                                                                            : "XPP does not know this option, so it ignores it"),
                     "option");
         continue;
@@ -1947,7 +1947,7 @@ int check_file(FileSystem &fs, const ModelLoader &loader, const std::string &fil
     json += '}';
   }
   json += "]}\n";
-  /* This command owns stdout, independently of model quiet/log settings. */
+  /* This command owns stdout, independently of model quiet/log options. */
   std::printf("%s", json.c_str());
   return error ? 2 : warning ? 1 : 0;
 }

@@ -13,7 +13,7 @@ struct RunReport; /* integrate.h */
 /* the mean or the variance of the stochastic runs in the browser, or why there are none */
 Result<> mean_back(AnalysisParts &s);
 Result<> variance_back(AnalysisParts &s);
-/* the Range settings' sweep as many independent runs whose mean and variance are kept: the runs completed */
+/* the Range options' sweep as many independent runs whose mean and variance are kept: the runs completed */
 Result<int> stochastic_integrate(AnalysisParts &s, const RunReport &report);
 void  free_stoch(AnalysisParts &s);
 void  init_stoch(AnalysisParts &s, int len);

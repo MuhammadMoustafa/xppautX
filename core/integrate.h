@@ -51,7 +51,7 @@ inline constexpr double DEFAULT_STEADY_HOLD = 1; /* One model-time unit of uncha
    a fraction of Dt, and still count as on the grid (the rounding noise of
    subtracting two times); any more rounds up to the next grid point. */
 inline constexpr double CONTINUE_GRID_TOLERANCE = 1e-6;
-Result<> validate_steady_state(SteadyStateSettings settings, double dt, double start);
+Result<> validate_steady_state(SteadyStateSettings options, double dt, double start);
 
 /* a global flag's event stops the integration (flags.cpp) */
 void send_halt(RunParts &s, int flag);
@@ -109,7 +109,7 @@ inline constexpr int MAX_RANGE_STEPS = std::numeric_limits<int>::max() - 1;
    a run's number and indices would overflow too (W682). */
 inline constexpr std::int64_t MAX_RANGE_RUNS = std::int64_t{1} << 24;
 /* A sweep's run count for steps and steps2 (steps2 0 for a single range), refused before the sweep starts when it is past
-   MAX_RANGE_RUNS, naming the steps and the setting they came from (W682). */
+   MAX_RANGE_RUNS, naming the steps and the option they came from (W682). */
 Result<std::int64_t> sweep_run_count(const RunParts &s, int steps, int steps2);
 
 

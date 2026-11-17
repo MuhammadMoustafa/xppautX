@@ -72,7 +72,7 @@ def fnum(v):
 # the constants xppautX fixes (core/autox_nox.cpp: advanced numerics and the run's own ISP, ILP, ISW)
 FIXED = dict(IAD=3, IID=2, ITMX=8, ITNW=7, NWTN=3, IADS=1, ILP=1, ISW=1, A0=0, A1=1000)
 DEFAULTS = dict(ncol=4, epsl=1e-4, epsu=1e-4, epss=1e-4, mxbf=5)
-# a description's setting (xppautX's name, W531) to AUTO's own constant it is given as
+# a description's option (xppautX's name, W531) to AUTO's own constant it is given as
 AUTO_NAMES = dict(mesh_intervals='ntst', max_steps='nmax', output_every='npr', collocation_points='ncol', step_size='ds',
                   min_step_size='dsmin', max_step_size='dsmax', parameter_min='parmin', parameter_max='parmax',
                   parameter_tolerance='epsl', state_tolerance='epsu', special_point_tolerance='epss',
@@ -80,7 +80,7 @@ AUTO_NAMES = dict(mesh_intervals='ntst', max_steps='nmax', output_every='npr', c
 
 
 def auto_constants(r):
-    """The run's settings under AUTO's constants (MXBF's sign is the description's switch_one_direction)."""
+    """The run's options under AUTO's constants (MXBF's sign is the description's switch_one_direction)."""
     a = {**DEFAULTS, **{AUTO_NAMES[k]: v for k, v in r['autox'].items() if k in AUTO_NAMES}}
     if r['autox'].get('switch_one_direction'):
         a['mxbf'] = -a['mxbf']

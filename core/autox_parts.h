@@ -8,7 +8,7 @@ struct AutoxState; /* autox_state.h */
 struct AutoxDiagram; /* diagram.h */
 namespace xpp {
 struct Model; /* model.h */
-struct NumericsSettings; /* numerics_settings.h */
+struct NumericsSettings; /* numerics_options.h */
 struct IntegratorState; /* integrate.h */
 struct DataStore; /* storage.h */
 struct ParserState; /* expr.h */
@@ -39,7 +39,7 @@ struct AutoxParts {
   Colors &colors;
   std::vector<double> &last_ic;
   std::string &selected_window;
-  const SessionParts &session_parts; /* the settings the option table reads, named in what autoX reports */
+  const SessionParts &session_parts; /* the options the option table reads, named in what autoX reports */
   unsigned threads;
   Model &model() const { return model_; }
 };

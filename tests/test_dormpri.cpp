@@ -9,7 +9,7 @@
 #include "delay_handle.h"
 #include "xpp_math.h"
 #include "model.h"
-#include "numerics_settings.h"
+#include "numerics_options.h"
 #include "solver.h"
 #include "xpp_error.h"
 #include <array>

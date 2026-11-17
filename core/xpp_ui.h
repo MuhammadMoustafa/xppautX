@@ -240,7 +240,7 @@ typedef struct XppUi {
     void (*redraw_bcs)(void);
     void (*redraw_delays)(void);
     void (*redraw_graph)(Session &s);
-    /* the plot settings were put in plot window `graph` (reset_graph): show it again with its new limits and axes */
+    /* the plot options were put in plot window `graph` (reset_graph): show it again with its new limits and axes */
     void (*graph_settings_changed)(Session &s, int graph);
     void (*redraw_screens)(Session &s);   /* every plot window */
     void (*clear_screens)(Session &s);

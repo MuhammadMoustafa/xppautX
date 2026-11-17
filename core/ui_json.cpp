@@ -44,8 +44,8 @@
 #include "marks_data.h"
 #include "ani_data.h"
 #include "autox_data.h"
-#include "autox_settings.h"
-#include "numerics_settings.h"
+#include "autox_options.h"
+#include "numerics_options.h"
 #include "model_numerics.h"
 #include <algorithm>
 #include <stdio.h>
@@ -264,10 +264,10 @@ int handle_async(xpp::Session &s, const char *line)
      from, ani pause/fast/slow/speed;
    - kept for its turn (Verdict::normal): an answer (the computation's own
      questions), every other command of the view kind (W95: data, a zoom,
-     a window picked, a menu that only shows) and of the setting kind
+     a window picked, a menu that only shows) and of the option kind
      (W106: set, values, auto set, a Numerics item's key, whose dialog
      opens then): it runs after the computation's done, in arrival order
-     with the rest, so the run in progress never sees a setting and each
+     with the rest, so the run in progress never sees an option and each
      line's done comes in the order the client sent it;
    - refused (Verdict::refuse), with one log line: a command of the data
      or computation kind (a key that computes or saves, a file written):
@@ -282,7 +282,7 @@ xpp::inbox::Verdict during_run(const char *line)
     if (c == "answer") return xpp::inbox::Verdict::normal;
     if (is_steering(line)) return xpp::inbox::Verdict::control;
     const char kind = line_kind(line);
-    if (kind == XPP_KIND_VIEW || kind == XPP_KIND_CONTROL || kind == XPP_KIND_SETTING) return xpp::inbox::Verdict::normal;
+    if (kind == XPP_KIND_VIEW || kind == XPP_KIND_CONTROL || kind == XPP_KIND_OPTION) return xpp::inbox::Verdict::normal;
     xpp::log(XPP_LOG_WARN, "refused during a computation: {}{}{}\n", c.empty() ? "(no cmd)" : c.c_str(),
             o.empty() ? "" : " ", o.c_str());
     return xpp::inbox::Verdict::refuse;
@@ -434,7 +434,7 @@ void run_now(xpp::Session &s, const char *line)
 
 /* a control line taken by a checkpoint: every kind classify() puts there
    is acted on, none dropped. Returns ESC for abort, the code of a key,
-   ANI_PAUSE for the animation's Pause, 64 otherwise. A setting: take_setting(). */
+   ANI_PAUSE for the animation's Pause, 64 otherwise. An option: take_setting(). */
 int control_line(xpp::Session &s, const char *line)
 {
     if (handle_async(s, line)) return KEY_NONE;
@@ -444,12 +444,12 @@ int control_line(xpp::Session &s, const char *line)
     }
     if (is_abort(line)) return ESC;
 
-    if (line_kind(line) == XPP_KIND_SETTING) {
+    if (line_kind(line) == XPP_KIND_OPTION) {
         take_setting(s, line);
         return KEY_NONE;
     }
     if (is_steering(line)) {
-        /* done now; its own `done` comes with the running command's end, as a setting's */
+        /* done now; its own `done` comes with the running command's end, as an option's */
         const xpp::Place place = j_command_place();
         const bool text = *skip_ws(line) != '{' && !session.silent && !page_active();
         const xpp::Result<std::string> request = text ? xpp::command::tokenize(line, place) : xpp::Result<std::string>(line);
@@ -738,7 +738,7 @@ struct CommandInfo {
     void (*run)(xpp::Session &s, const char *line);
 };
 
-constexpr char C = XPP_KIND_CONTROL, V = XPP_KIND_VIEW, S = XPP_KIND_SETTING, D = XPP_KIND_DATA;
+constexpr char C = XPP_KIND_CONTROL, V = XPP_KIND_VIEW, S = XPP_KIND_OPTION, D = XPP_KIND_DATA;
 
 const CommandInfo commands[] = {
     {"answer", nullptr, C, NOT_STEP,
@@ -1069,7 +1069,7 @@ void install(bool silent)
     marks_data_init(data_emit);
     ani_data_init(data_emit);
     session.autoxinfo.init(data_emit);
-    session.autoxsettings.init(data_emit);
+    session.autoxoptions.init(data_emit);
     session.autoxview.init(data_emit);
     session.autoxscript.init(data_emit);
     session.windows.init(data_emit);

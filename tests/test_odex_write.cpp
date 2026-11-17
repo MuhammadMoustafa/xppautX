@@ -59,7 +59,7 @@ Values group(std::string name, std::initializer_list<std::pair<std::string, std:
 {
     Values v;
     v.groups.push_back(name);
-    for (const auto &[key, value] : list) v.settings.push_back({name, key, value});
+    for (const auto &[key, value] : list) v.options.push_back({name, key, value});
     return v;
 }
 
@@ -193,7 +193,7 @@ TEST_CASE("test_odex_write")
         CHECK(opt.find("options {\n  integration: { dt: 0.05 },\n}\n") != std::string::npos);
         const std::string more = result(set_defaults(*m, model, file, group("plot", {{"axes.x_min", "1"}})));
         CHECK(more.find("options {\n  integration: { dt: 0.02, total_time: 9 },\n  plot: { axes.x_min: 1 },\n}\n") != std::string::npos);
-        /* a file with no options block gets one at its end */
+        /* a file with no option block gets one at its end */
         const std::string block = result(set_defaults(*m, "version 4\nx' = -x\npar a = 1\n", file, group("integration", {{"dt", "0.5"}})));
         CHECK(block == "version 4\nx' = -x\npar a = 1\n\noptions {\n  integration: { dt: 0.5 },\n}\n");
         /* a default that no line of this file declares cannot be written here */

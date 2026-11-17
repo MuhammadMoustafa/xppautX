@@ -19,7 +19,7 @@ struct Session; /* session.h */
 
 /* `set name { ... }` appended to the model file, holding the current values of
    scope (as apply_named_set's scopes: all, parameters, initial or a group of
-   settings), the plot settings of graph (the active one when none); last_state:
+   options), the plot options of graph (the active one when none); last_state:
    the initial values saved are the last state reached */
 Result<> save_new_set(Session &s, std::string_view name, std::string_view scope, std::optional<int> graph, bool last_state);
 /* the kind(s) of scope replaced in the model's own set `name` by the current
@@ -27,7 +27,7 @@ Result<> save_new_set(Session &s, std::string_view name, std::string_view scope,
    read-only: saving over it is the error that asks for a name of one's own. */
 Result<> save_into_set(Session &s, std::string_view name, std::string_view scope, std::optional<int> graph, bool last_state);
 /* the current values of scope written as the model's defaults: the par and init
-   lines, the options block's groups (all of them, the groups no set holds and the settings a set does not hold
+   lines, the options block's groups (all of them, the groups no set holds and the options a set does not hold
    included, W680). Restore defaults uses them at once. */
 Result<> save_defaults(Session &s, std::string_view scope, std::optional<int> graph, bool last_state);
 /* the current values of scope as the set `name` of the .odex file: a new file

@@ -14,7 +14,7 @@ struct RunReport; /* integrate.h */
 void do_bc(AnalysisParts &s, double *y__0, double t0, double *y__1, double t1, double *f, int n);
 /* the boundary conditions compiled, or the one that does not */
 Result<> compile_bvp(AnalysisParts &s);
-/* Range shoot over *s.shoot_range (the settings made): a solution for each parameter value, the values at its
+/* Range shoot over *s.shoot_range (the options made): a solution for each parameter value, the values at its
    `side`, stored as rows; the solutions found (rows stored), or the error that stopped the sweep (shown by the
    command). ystart and yend hold the model's states, room for neq each. */
 Result<int> do_sh_range(AnalysisParts &s, double *ystart, double *yend, const RunReport &report);
@@ -43,6 +43,6 @@ struct Shot {
    error, with the iterate it happened at */
 Result<Shot> bvshoot(AnalysisParts &s, double *y, double *yend, double err, double eps, int maxit, int n, int ishow, int iper, int ipar, int ivar, double sect);
 
-/* Range shoot's settings, over parameter s */
+/* Range shoot's options, over parameter s */
 
 } // namespace xpp

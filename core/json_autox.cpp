@@ -1,6 +1,6 @@
 /* The autoX window: its prompts and mouse, the diagram's points as data
-   ("diagram" events), and autoX's settings as data ({"cmd":"autox","op":"set"},
-   autox_settings.h). */
+   ("diagram" events), and autoX's options as data ({"cmd":"autox","op":"set"},
+   autox_options.h). */
 #include <map>
 #include "ui_json_internal.h"
 #include "session.h"
@@ -12,7 +12,7 @@
 #include "diagram.h"
 #include "jacobian.h"
 #include "autox_data.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "autox_script.h"
 #include "json_number.h"
 #include <array>
@@ -99,7 +99,7 @@ void diag_forget(void)
     session.client_views = 1;
     session.grab_key_after = 0;
     session.autoxinfo.want(session.autoxinfo.subscribed());
-    session.autoxsettings.want(session.autoxsettings.subscribed());
+    session.autoxoptions.want(session.autoxoptions.subscribed());
     session.autoxview.want(session.autoxview.subscribed());
     session.autoxscript.want(session.autoxscript.subscribed());
 }
@@ -536,12 +536,12 @@ void autox_data_update(const Session &s, int final)
 
 void autox_settings_subscribe(const Session &s, int on)
 {
-    json::session.autoxsettings.subscribe(on != 0, s);
+    json::session.autoxoptions.subscribe(on != 0, s);
 }
 
 void autox_settings_update(const Session &s)
 {
-    json::session.autoxsettings.update(s);
+    json::session.autoxoptions.update(s);
 }
 
 } // namespace xpp

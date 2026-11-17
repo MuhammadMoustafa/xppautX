@@ -16,7 +16,7 @@
 #include <memory>
 #include <vector>
 #include "xpp_text.h"
-#include "plot_settings.h"
+#include "plot_options.h"
 #include "xpp_math.h"
 #include "session.h"
 #include "picture.h"
@@ -190,7 +190,7 @@ void init_all_graph(xpp::Session &s)
 
 void set_extra_graphs(xpp::Session &s)
 {
-  const std::vector<PlotCurve> &curves=s.plot_settings->curves;
+  const std::vector<PlotCurve> &curves=s.plot_options->curves;
   if(curves.size()<2)return;
   s.plot_windows->current->resize_curves(static_cast<int>(curves.size()));
   for(std::size_t i=1;i<curves.size();i++){
@@ -204,17 +204,17 @@ void set_extra_graphs(xpp::Session &s)
 void init_graph(xpp::Session &s, int i)
 {
  int j,k;
- if(s.plot_settings->axes<=3)s.plot_settings->axes=0;
+ if(s.plot_options->axes<=3)s.plot_options->axes=0;
  for(j=0;j<3;j++)
   for(k=0;k<3;k++)
         if(k==j)s.plot_windows->graph[i].rm[k][j]=1.0;
 	else s.plot_windows->graph[i].rm[k][j]=0.0;
  s.plot_windows->graph[i].resize_curves(1);
   for(j=0;j<s.plot_windows->graph[i].nvars;j++){
-        s.plot_windows->graph[i].xv[j]=s.plot_settings->curves[0].x;
-	s.plot_windows->graph[i].yv[j]=s.plot_settings->curves[0].y;
-	s.plot_windows->graph[i].zv[j]=s.plot_settings->curves[0].z;
-        s.plot_windows->graph[i].style[j]=s.plot_settings->start_line_style;
+        s.plot_windows->graph[i].xv[j]=s.plot_options->curves[0].x;
+	s.plot_windows->graph[i].yv[j]=s.plot_options->curves[0].y;
+	s.plot_windows->graph[i].zv[j]=s.plot_options->curves[0].z;
+        s.plot_windows->graph[i].style[j]=s.plot_options->start_line_style;
 	s.plot_windows->graph[i].color[j]=xpp::foreground_color;
         }
      
@@ -227,24 +227,24 @@ void init_graph(xpp::Session &s, int i)
     s.plot_windows->graph[i].ZPlane=-1000.0;
     s.plot_windows->graph[i].ZView=1000.0;
     s.plot_windows->graph[i].PerspFlag=0;
-    s.plot_windows->graph[i].ThreeDFlag=s.plot_settings->plot_3d;
-    s.plot_windows->graph[i].TimeFlag=s.plot_settings->timplot;
+    s.plot_windows->graph[i].ThreeDFlag=s.plot_options->plot_3d;
+    s.plot_windows->graph[i].TimeFlag=s.plot_options->timplot;
     s.plot_windows->graph[i].ColorFlag=0;
-    s.plot_windows->graph[i].grtype=s.plot_settings->axes;
+    s.plot_windows->graph[i].grtype=s.plot_options->axes;
     s.plot_windows->graph[i].color_scale=1.0;
     s.plot_windows->graph[i].min_scale=0.0;
-    s.plot_windows->graph[i].xmax=s.plot_settings->x_3d[1];
-    s.plot_windows->graph[i].ymax=s.plot_settings->y_3d[1];
-    s.plot_windows->graph[i].zmax=s.plot_settings->z_3d[1];
-    s.plot_windows->graph[i].xbar=.5*(s.plot_settings->x_3d[1]+s.plot_settings->x_3d[0]);
-    s.plot_windows->graph[i].ybar=.5*(s.plot_settings->y_3d[1]+s.plot_settings->y_3d[0]);
-    s.plot_windows->graph[i].zbar=.5*(s.plot_settings->z_3d[1]+s.plot_settings->z_3d[0]);
-    s.plot_windows->graph[i].dx=2./(s.plot_settings->x_3d[1]-s.plot_settings->x_3d[0]);
-    s.plot_windows->graph[i].dy=2./(s.plot_settings->y_3d[1]-s.plot_settings->y_3d[0]);
-    s.plot_windows->graph[i].dz=2./(s.plot_settings->z_3d[1]-s.plot_settings->z_3d[0]);
-    s.plot_windows->graph[i].xmin=s.plot_settings->x_3d[0];
-    s.plot_windows->graph[i].ymin=s.plot_settings->y_3d[0];
-    s.plot_windows->graph[i].zmin=s.plot_settings->z_3d[0];
+    s.plot_windows->graph[i].xmax=s.plot_options->x_3d[1];
+    s.plot_windows->graph[i].ymax=s.plot_options->y_3d[1];
+    s.plot_windows->graph[i].zmax=s.plot_options->z_3d[1];
+    s.plot_windows->graph[i].xbar=.5*(s.plot_options->x_3d[1]+s.plot_options->x_3d[0]);
+    s.plot_windows->graph[i].ybar=.5*(s.plot_options->y_3d[1]+s.plot_options->y_3d[0]);
+    s.plot_windows->graph[i].zbar=.5*(s.plot_options->z_3d[1]+s.plot_options->z_3d[0]);
+    s.plot_windows->graph[i].dx=2./(s.plot_options->x_3d[1]-s.plot_options->x_3d[0]);
+    s.plot_windows->graph[i].dy=2./(s.plot_options->y_3d[1]-s.plot_options->y_3d[0]);
+    s.plot_windows->graph[i].dz=2./(s.plot_options->z_3d[1]-s.plot_options->z_3d[0]);
+    s.plot_windows->graph[i].xmin=s.plot_options->x_3d[0];
+    s.plot_windows->graph[i].ymin=s.plot_options->y_3d[0];
+    s.plot_windows->graph[i].zmin=s.plot_options->z_3d[0];
     s.plot_windows->graph[i].xorg=0.0;
     s.plot_windows->graph[i].yorg=0.0;
     s.plot_windows->graph[i].yorg=0.0;
@@ -256,10 +256,10 @@ void init_graph(xpp::Session &s, int i)
     s.plot_windows->graph[i].xshft=0;
     s.plot_windows->graph[i].yshft=0;
     s.plot_windows->graph[i].zshft=0;
-    s.plot_windows->graph[i].xlo=s.plot_windows->graph[i].oldxlo=s.plot_settings->x_3d[0];
-    s.plot_windows->graph[i].ylo=s.plot_windows->graph[i].oldylo=s.plot_settings->y_3d[0];
-    s.plot_windows->graph[i].xhi=s.plot_windows->graph[i].oldxhi=s.plot_settings->x_3d[1];
-    s.plot_windows->graph[i].yhi=s.plot_windows->graph[i].oldyhi=s.plot_settings->y_3d[1];
+    s.plot_windows->graph[i].xlo=s.plot_windows->graph[i].oldxlo=s.plot_options->x_3d[0];
+    s.plot_windows->graph[i].ylo=s.plot_windows->graph[i].oldylo=s.plot_options->y_3d[0];
+    s.plot_windows->graph[i].xhi=s.plot_windows->graph[i].oldxhi=s.plot_options->x_3d[1];
+    s.plot_windows->graph[i].yhi=s.plot_windows->graph[i].oldyhi=s.plot_options->y_3d[1];
     s.plot_windows->current=&s.plot_windows->graph[i];
     make_rot(s,s.drawing->theta0,s.drawing->phi0);
     

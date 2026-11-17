@@ -1,4 +1,4 @@
-/* The session resource's registry rows (W528): saving, importing settings, exporting the simulation information, the model's source, quitting and the state.
+/* The session resource's registry rows (W528): saving, importing options, exporting the simulation information, the model's source, quitting and the state.
    A handler calls the core function the File menu's items call after their questions (xpp_session.h, lunch-new.h); the three the front end answers itself go through front_end. */
 #include "command_def.h"
 #include "export_model.h"
@@ -133,13 +133,13 @@ constexpr std::array ROWS = {
     Command{"session.export_info", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Simulation information", "File/Export",
             "Write the equations, numerics, initial conditions and parameters to a file.", EXPORT_RESULTS, DONE_EVENTS, true, export_info, {}, {}, "write", "*.txt", "", "Export"},
     Command{"model.export", MODEL_EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Model as", "File/Export",
-            "Write the model, with the values it has now (parameters, initial data, the integration settings), as a program in a language that runs with no xppautX and writes the rows of a run to a CSV file beside itself (python: the standard library; python_numpy: numpy arrays, an array line of the model one slice; python_numba: python's statements compiled by numba); "
+            "Write the model, with the values it has now (parameters, initial data, the integration options), as a program in a language that runs with no xppautX and writes the rows of a run to a CSV file beside itself (python: the standard library; python_numpy: numpy arrays, an array line of the model one slice; python_numba: python's statements compiled by numba); "
             "left out, file is asked for (the result's file is empty when that question was cancelled). A model the language cannot say (tables, delays, events, Markov variables, networks, ...) is refused, naming what and its line.",
             MODEL_EXPORT_RESULTS, DONE_EVENTS, true, export_model_as, {}, {}, "write", "*", "", "Export", Feature::none, {}, LANGUAGE_KEY},
     Command{"session.file_exists", FILE_EXISTS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Files, "File exists", "",
             "Whether a file is there now: a base name of the model's folder, or a full path in the folder a file dialog granted; the page asks before it writes several files.",
             FILE_EXISTS_RESULTS, DONE_EVENTS, false, file_exists},
-    Command{"session.import_xppaut_state", IMPORT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "Import XPPAUT session state", "File/Sets",
+    Command{"session.import_xppaut_state", IMPORT_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Files, "Import XPPAUT session state", "File/Sets",
             "Apply a whole set file XPPAUT wrote (its parameters, initial conditions, numerics, delays, boundary conditions, active graph and run position), all or nothing; the result names what it changed. Nothing is written beside it.",
             IMPORT_RESULTS, STATE_EVENTS, true, import_xppaut_state_file, {}, {}, "read", "*.set"},
     Command{"session.quit", QUIT_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Files, "Quit", "File",

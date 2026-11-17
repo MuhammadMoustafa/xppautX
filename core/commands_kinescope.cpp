@@ -110,7 +110,7 @@ constexpr std::array ROWS = {
     Command{"kinescope.reset", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Reset kinescope", "",
             "Throw away every captured frame.", RESET_RESULTS, FILM_EVENTS, true, reset},
     Command{"kinescope.autoplay", AUTOPLAY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Autoplay kinescope", "",
-            "Show the captured frames cycles times, frame_ms apart; what is left out is the last autoplay's setting.",
+            "Show the captured frames cycles times, frame_ms apart; what is left out is the last autoplay's option.",
             AUTOPLAY_RESULTS, FILM_EVENTS, true, autoplay},
     Command{"kinescope.export", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Kinescope as", "File/Export",
             "Write the captured frames into a file of the model's folder: output animated_gif for one animated GIF, frames for every frame as a GIF file, file for the first, then its numbered names.",

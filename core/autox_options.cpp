@@ -1,8 +1,8 @@
 #include "event_registry.h"
 #include "autox_unknowns.h"
-/* autoX's settings as data: the "autoxsettings" event and the `autox` `set`
-   command's checks and writes (autox_settings.h, docs/protocol.md "autoX's
-   settings as data").
+/* autoX's options as data: the "autox.options" event and the `autox` `set`
+   command's checks and writes (autox_options.h, docs/protocol.md "autoX's
+   options as data").
 
    The same fields the autoX window's forms write (autox_nox.cpp autox_num_par,
    autox_plot_par, autox_per_par), with every value checked
@@ -15,7 +15,7 @@
 #include <strings.h>
 
 #include "model.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "model_options.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
@@ -42,7 +42,7 @@ namespace {
 
 constexpr int PARAM_BOX = 1; /* find_user_name's parameters */
 
-/* ---- the settings now ---- */
+/* ---- the options now ---- */
 
 void read_num(const AutoxParts &s, double v[AUTOX_NUM_N])
 {
@@ -132,7 +132,7 @@ AutoxSettingsSet settings_now(const AutoxParts &s)
 std::string event_text(const AutoxParts &s)
 {
     const AutoxSettingsSet set = settings_now(s);
-    std::string o = xpp::events::open(xpp::events::AUTOX_SETTINGS) + ",\"numerics\":{";
+    std::string o = xpp::events::open(xpp::events::AUTOX_OPTIONS) + ",\"numerics\":{";
     for (int i = 0; i < AUTOX_NUM_N; i++) {
         o += xpp::format("{}\"{}\":", i ? "," : "", autox_num_field(i).key);
         if (autox_num_field(i).shape == AutoxFieldShape::boolean) o += set.num[i] != 0 ? "true" : "false";
@@ -160,7 +160,7 @@ std::string event_text(const AutoxParts &s)
     }
     /* what each Numerics value takes and which must be in order, as `autox`
        `set` checks them (num_ok, apply), with the messages it refuses with */
-    /* the thread count (a preference, not a setting): "auto" or the number,
+    /* the thread count (a preference, not an option): "auto" or the number,
        what automatic gives now, and the most the preference takes */
     o += "],\"special_points\":{";
     for (std::size_t i=0;i<autox_codim_kinds.size();++i)
@@ -208,7 +208,7 @@ std::string event_text(const AutoxParts &s)
     return o;
 }
 
-/* A loaded model with variables has autoX settings. */
+/* A loaded model with variables has autoX options. */
 bool have_settings(const AutoxParts &s) { return s.model().node > 0; }
 
 /* what a set changes, checked (check), for commit to write */
@@ -237,7 +237,7 @@ Result<Checked> check(const AutoxParts &s, const AutoxSettingsSet *set, int view
         return std::unexpected(valid.error());
 
     /* the Axes: plot type, the variable, the two parameters among autoX's, the ranges */
-    /* of the view named (W50), else the active one: setting a view's axes makes it the active one */
+    /* of the view named (W50), else the active one: option a view's axes makes it the active one */
     const int view = set->view < 0 ? s.autox_state->active_view : set->view;
     c.view = view;
     if (view >= (views < 0 ? static_cast<int>(s.autox_state->views.size()) : views)) {
@@ -355,7 +355,7 @@ bool apply(AutoxParts s, const AutoxSettingsSet *set, std::string &why)
 
 } // namespace
 
-/* the event, none for a model with no settings */
+/* the event, none for a model with no option */
 std::string autox_settings_event_line(const AutoxParts &s) { return have_settings(s) ? event_text(s) : std::string(); }
 
 
@@ -403,7 +403,7 @@ AutoxSettingsSet autox_settings_now(const AutoxParts &s)
     try {
         return settings_now(s);
     } catch (...) {
-        xpp::out_of_memory("reading autoX's settings");
+        xpp::out_of_memory("reading autoX's options");
     }
 }
 
@@ -427,14 +427,14 @@ void autox_settings_reload(AutoxParts s, const AutoxSettingsSet &kept)
     set.mark_name.resize(*set.nmarks);
     set.mark_value.resize(*set.nmarks);
     /* The form can hold values that a run refuses (and a Fit can leave a
-       flat range). Check the names through the normal settings owner,
+       flat range). Check the names through the normal options owner,
        then commit the numbers and ranges already held in memory. */
     AutoxSettingsSet names = set;
     names.has_num.fill(0);
     names.has_range.fill(0);
     Result<Checked> checked = check(s, &names, -1);
     if (!checked) {
-        command_error("reload autoX settings", checked.error().what);
+        command_error("reload autoX options", checked.error().what);
         return;
     }
     Checked &c = *checked;
@@ -451,7 +451,7 @@ AutoxSettingsSet autox_settings_view(const AutoxParts &s, int view)
         set.view = view;
         return set;
     } catch (...) {
-        xpp::out_of_memory("reading autoX's settings");
+        xpp::out_of_memory("reading autoX's options");
     }
 }
 
@@ -466,7 +466,7 @@ int autox_settings_apply(AutoxParts s, const AutoxSettingsSet &set, std::string 
     try {
         if (apply(s, &set, why)) return 0;
     } catch (...) {
-        /* Validation builds held marks before any setting is written. */
+        /* Validation builds held marks before any option is written. */
         why.clear();
         try {
             why = "out of memory";

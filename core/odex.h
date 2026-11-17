@@ -328,7 +328,7 @@ struct StateFile {
 Result<StateFile> read_state_file(FileKind kind, std::string where, std::string file, std::string text);
 
 /* Animation statements share this parser's tokens, expressions, keyed blocks and ranges.
-   Expressions are bindings; literal/style fields use the settings value tree. */
+   Expressions are bindings; literal/style fields use the options value tree. */
 struct AnimationStatement {
   Statement expressions;
   Value fields;

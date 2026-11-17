@@ -13,7 +13,7 @@
 #include "runs.h"
 #include "model_options.h"
 #include "numerics.h"
-#include "numerics_settings.h"
+#include "numerics_options.h"
 #include "model_numerics.h"
 #include "solver.h"
 #include "value_undo.h"
@@ -143,7 +143,7 @@ Result<std::string> run_double_range_handler(Session &s, const Command &, const 
     if (const auto files = args.optional<bool>("write_each_run_to_file")) range.write_files = *files;
     if (const Result<> items = resolve_range_items(s, range, true); !items) return std::unexpected<Error>(items.error());
     if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
-    /* refused before the settings are applied: the command changes nothing when its runs are too many (W682) */
+    /* refused before the options are applied: the command changes nothing when its runs are too many (W682) */
     if (const Result<std::int64_t> runs = sweep_run_count(s, range.steps, range.rtype == RANGE_INDEPENDENT ? range.steps2 : 0); !runs)
         return std::unexpected<Error>(runs.error());
     s.integrator->range = range;
@@ -186,7 +186,7 @@ Result<std::string> run_abort(Session &s, const Command &, const Arguments &, co
 
 namespace {
 
-/* the numerics settings with no key in the main table: the method's own (numerics.h's NumericsExtras) */
+/* the numerics options with no key in the main table: the method's own (numerics.h's NumericsExtras) */
 constexpr std::array EXTRA_NAMES = {"vmaxpts", "bandlo", "bandup", "delay_real_guess", "delay_imaginary_guess", "delay_grid"};
 
 bool is_numerics_extra(std::string_view name)
@@ -212,7 +212,7 @@ bool has_numerics_extras(const NumericsExtras &e)
            e.delay_grid;
 }
 
-/* the extras the call gave, as "name":value members of the settings result */
+/* the extras the call gave, as "name":value members of the options result */
 std::string extras_json(const Session &s, const Arguments &args)
 {
     std::string members;
@@ -248,7 +248,7 @@ Result<std::string> configure_numerics(Session &s, const Command &command, const
         }
     }
     const NumericsExtras extras = numerics_extras(args);
-    if (keys.empty() && !has_numerics_extras(extras)) return fail(command.name, "Give at least one setting", place);
+    if (keys.empty() && !has_numerics_extras(extras)) return fail(command.name, "Give at least one option", place);
     std::vector<NumericsValue> values;
     for (std::size_t i = 0; i < keys.size(); ++i) values.push_back({keys[i], texts[i]});
     std::string why;
@@ -263,15 +263,15 @@ Result<std::string> configure_numerics(Session &s, const Command &command, const
     push_value_undo(s);
     if (!values.empty()) numerics_settings_set_all(s, values, why, &place);
     if (has_numerics_extras(extras)) static_cast<void>(set_numerics_extras(s, extras));
-    std::string settings = "{";
+    std::string options = "{";
     for (const std::string &key : keys) {
-        if (settings.size() > 1) settings += ',';
-        json_append_string(settings, key);
-        settings += ':';
-        settings += numerics_settings_json_value(s, key);
+        if (options.size() > 1) options += ',';
+        json_append_string(options, key);
+        options += ':';
+        options += numerics_settings_json_value(s, key);
     }
-    if (const std::string extra = extras_json(s, args); !extra.empty()) settings += (settings.size() > 1 ? "," : "") + extra;
-    return ResultObject().raw("settings", settings + '}').done();
+    if (const std::string extra = extras_json(s, args); !extra.empty()) options += (options.size() > 1 ? "," : "") + extra;
+    return ResultObject().raw("options", options + '}').done();
 }
 
 namespace {
@@ -305,8 +305,8 @@ constexpr std::array DOUBLE_RANGE_ARGUMENTS = {
     Argument{"write_each_run_to_file", Type::boolean, false}};
 constexpr std::array DAE_ARGUMENTS = {
     Argument{"guesses", Type::map, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::any, Type::expression}};
-/* run.configure's arguments are the numerics settings' keys (numerics_settings.h); the method is a word of the
-   settings' own list, which its owner checks (numerics.fields' choices) */
+/* run.configure's arguments are the numerics options' keys (numerics_options.h); the method is a word of the
+   options' own list, which its owner checks (numerics.fields' choices) */
 constexpr std::array CONFIGURE_ARGUMENTS = {
     Argument{"total_time", Type::real, false},
     Argument{"start_time", Type::real, false},
@@ -337,7 +337,7 @@ constexpr std::array RANGE_RESULTS = {ResultField{"runs_completed", "integer"}, 
 constexpr std::array DOUBLE_RANGE_RESULTS = {ResultField{"grid_points", "integer"}, ResultField{"total_steps", "integer"}};
 constexpr std::array DAE_RESULTS = {ResultField{"guesses", "map[name, real]"}};
 constexpr std::array ABORT_RESULTS = {ResultField{"stopped_at", "real"}};
-constexpr std::array CONFIGURE_RESULTS = {ResultField{"settings", "map[name, value]"}};
+constexpr std::array CONFIGURE_RESULTS = {ResultField{"options", "map[name, value]"}};
 
 constexpr std::array RUN_EVENTS = {xpp::events::JOB_COMPUTING, xpp::events::JOB_PROGRESS, xpp::events::PLOT_SERIES, xpp::events::JOB_STOPPED, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array CONTROL_EVENTS = {xpp::events::JOB_STOPPED, xpp::events::DONE};
@@ -365,10 +365,10 @@ constexpr std::array ROWS = {
     Command{"run.stop", {}, XPP_KIND_CONTROL, CommandCategory::Run, "Stop", "Run",
             "Stop the running command where it is; the stopped command ends with the status stopped.", ABORT_RESULTS, CONTROL_EVENTS, false,
             run_abort, {}, KEY_1},
-    Command{"run.configure", CONFIGURE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Settings", "Run",
-            "Set the integration's numerics (run length, step, method, tolerances, bounds, delay); the settings are checked together.",
+    Command{"run.configure", CONFIGURE_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Run, "Options", "Run",
+            "Set the integration's numerics (run length, step, method, tolerances, bounds, delay); the options are checked together.",
             CONFIGURE_RESULTS, STATE_EVENTS, true, run_configure, {}, {}, "read", "*", "integration"},
-    Command{"initial_conditions.set_dae_guess", DAE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set DAE guess", "Run/Initial conditions",
+    Command{"initial_conditions.set_dae_guess", DAE_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Run, "Set DAE guess", "Run/Initial conditions",
             "Set the initial guesses of the algebraic variables; none given keeps them.", DAE_RESULTS, GUESS_EVENTS, true,
             run_dae_guess},
     Command{"run.shoot", MANIFOLD_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Shoot", "Run/Initial conditions",

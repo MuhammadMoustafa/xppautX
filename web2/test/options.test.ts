@@ -1,4 +1,4 @@
-/* The settings panels' fields come from the option table's rows (store/fieldKinds.ts specOfOption, ui/OptionsPanel.tsx sectionsOf, W616). */
+/* The options panels' fields come from the option table's rows (store/fieldKinds.ts specOfOption, ui/OptionsPanel.tsx sectionsOf, W616). */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {OptionGroup, OptionRow} from '../src/protocol/types';

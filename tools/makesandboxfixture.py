@@ -134,4 +134,4 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         restored.close()
     for path in (rec, snap):
         shutil.copy2(path, output / path.name)
-    print('PASS: 8 live states; intact recording replays silently, fast and normally; snapshot restores %d trajectory rows and %d autoX diagram lines with identical settings and solutions' % (final['rows'], len(points)))
+    print('PASS: 8 live states; intact recording replays silently, fast and normally; snapshot restores %d trajectory rows and %d autoX diagram lines with identical options and solutions' % (final['rows'], len(points)))

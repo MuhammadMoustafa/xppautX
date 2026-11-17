@@ -1,10 +1,10 @@
-/* The session's autoX state: its settings and views written and read, its diagram's members: see xpp_session_autox.h. */
+/* The session's autoX state: its options and views written and read, its diagram's members: see xpp_session_autox.h. */
 #include "xpp_session_autox.h"
 #include "xpp_zip.h"
 #include "xpp_lines.h"
 #include "snapx.h"
 #include "jacobian.h"
-#include "session_settings.h"
+#include "session_options.h"
 #include "many_pops.h"
 #include "autox_codes.h"
 #include "autox_unknowns.h"
@@ -38,7 +38,7 @@ constexpr int n_ints = 13;
 
 void write_autox_settings(odex::Out &out, const AutoxSettingsSet &s)
 {
-    out.begin("settings");
+    out.begin("options");
     for (int i = 0; i < AUTOX_NUM_N; i++) out.word(autox_settings_num_key(i), autox_settings_num_text(i, s.num[i]));
     for (std::size_t i = 0; i < autox_codim_kinds.size(); ++i) out.flag(autox_codim_keys[i], *s.special_points[i]);
     out.word("plot", autox_projection_name(*s.plot));

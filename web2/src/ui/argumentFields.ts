@@ -1,4 +1,4 @@
-import {autoxSettingsCommands, shownSettings} from '../store/autoxSettings';
+import {autoxSettingsCommands, shownSettings} from '../store/autoxOptions';
 import {autoxWindow} from '../store/diagram';
 import {annotationRows} from '../store/marks';
 import type {RegistryArgument, CommandRow} from '../protocol/kinds';

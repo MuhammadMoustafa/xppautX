@@ -381,7 +381,7 @@ void add_constant(const SessionParts &s, const std::string &name, double value, 
    is refused rather than silently ignored */
 [[noreturn]] void refuse_options_file(const std::string &name)
 {
-  model_failed(xpp::Error{"model",xpp::format("the options file <{}> is not supported: write its settings as @ lines, in the model or in a file it includes (#include opts.inc)",name),xpp::LoadSite::place()});
+  model_failed(xpp::Error{"model",xpp::format("the options file <{}> is not supported: write its options as @ lines, in the model or in a file it includes (#include opts.inc)",name),xpp::LoadSite::place()});
 }
 
 void add_boundary(const SessionParts &s, std::string_view formula)
@@ -1043,7 +1043,7 @@ private:
      .odex model), a fixed variable whose formula reads only parameters,
      consts, pure functions and the derived quantities before it is worked
      out only when a parameter changes, as .ode's !name = expr is (a
-     slider, an event setting a parameter, each autoX evaluation): the same
+     slider, an event option a parameter, each autoX evaluation): the same
      numbers, worked out less often. One an aux quantity records under its
      name, delay, shift or a Volterra kernel needs as a variable, or a
      network or a vector may read (any name a word of theirs starts:
@@ -1177,9 +1177,9 @@ private:
       break;
     case Statement::Kind::OptionFile: refuse_options_file(s.text);
     case Statement::Kind::Set: {
-      std::vector<std::pair<std::string,std::string>> settings;
-      for(const odex::Option &o : s.more().options)settings.emplace_back(odex_option_setting(o.group,o.name),o.value);
-      add_intern_set(m,s.name,s.text,std::move(settings));
+      std::vector<std::pair<std::string,std::string>> options;
+      for(const odex::Option &o : s.more().options)options.emplace_back(odex_option_setting(o.group,o.name),o.value);
+      add_intern_set(m,s.name,s.text,std::move(options));
       break;
     }
     case Statement::Kind::Boundary: add_boundary(s_,text(s.expr)); break;

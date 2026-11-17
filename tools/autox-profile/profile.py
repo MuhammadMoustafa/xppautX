@@ -78,7 +78,7 @@ def converted(args, src, ode, dest, edits=()):
     return Path(dest) / (Path(ode).stem + '.odex')
 
 
-# W412's --periodic-settings names (autoX's, as the ModelDB studies write them) and the protocol's
+# W412's --periodic-options names (autoX's, as the ModelDB studies write them) and the protocol's
 # autox.configure_numerics fields (docs/protocol.md, the Numerics form's names)
 NUMERICS_FIELDS = {'ntst': 'mesh_intervals', 'nmx': 'max_steps', 'npr': 'output_every', 'ncol': 'collocation_points',
                    'ds': 'step_size', 'dsmin': 'min_step_size', 'dsmax': 'max_step_size',
@@ -86,17 +86,17 @@ NUMERICS_FIELDS = {'ntst': 'mesh_intervals', 'nmx': 'max_steps', 'npr': 'output_
                    'epsl': 'parameter_tolerance', 'epsu': 'state_tolerance', 'epss': 'special_point_tolerance'}
 
 
-def periodic_settings(s, settings, explore, auto):
+def periodic_options(s, options, explore, auto):
     """{"numerics": {autoX's names: values}, "marks": [[parameter, value], ...]} as autox.configure_numerics and
     autox.configure_marks; each command sets all its values or none"""
     numerics = {}
-    for name, value in settings.get('numerics', {}).items():
+    for name, value in options.get('numerics', {}).items():
         if name not in NUMERICS_FIELDS:
-            raise ValueError(f'--periodic-settings: no numerics field for {name!r}')
+            raise ValueError(f'--periodic-options: no numerics field for {name!r}')
         numerics[NUMERICS_FIELDS[name]] = value
     if numerics:
         auto._ok(explore.step(s, cmd='autox.configure_numerics', **numerics)[0], 'numerics')
-    marks = settings.get('marks', [])
+    marks = options.get('marks', [])
     if marks:
         auto._ok(explore.step(s, cmd='autox.configure_marks', parameters=[p for p, _ in marks],
                               values=[v for _, v in marks])[0], 'marks')
@@ -108,8 +108,8 @@ def periodic(args, prof, wrapper):
     real = hopf_xppautx.run
 
     def run(s, key, *a, **k):
-        if args.periodic_settings and key == 'p':  # W412: autoX's numerics or marks for the periodic run
-            periodic_settings(s, args.periodic_settings, explore_xppautx, autox_xppautx)
+        if args.periodic_options and key == 'p':  # W412: autoX's numerics or marks for the periodic run
+            periodic_options(s, args.periodic_options, explore_xppautx, autox_xppautx)
         if args.nmax and key == 'p':  # a section of the periodic branch (the steady run must reach its Hopf point): valgrind is 50-100 times slower
             explore_xppautx.numerics(s, max_steps=args.nmax)
         if key == 's':  # everything before autoX's first run (start-up, ModelDB's integrations)
@@ -152,7 +152,7 @@ def main():
     ap.add_argument('--tool', choices=('callgrind', 'gdb', 'newton'), default='callgrind',
                     help='callgrind: instruction counts; gdb: the matrices EISPACK is given (OUT/WORKLOAD.matrices); '
                          'newton: the BVP solves, steps and meshes (OUT/WORKLOAD.newton.jsonl)')
-    ap.add_argument('--periodic-settings', type=json.loads,
+    ap.add_argument('--periodic-options', type=json.loads,
                     help='JSON {"numerics": {autoX names: values}, "marks": [[parameter, value], ...]} for the periodic run')
     ap.add_argument('--paper', default=str(ROOT / 'paper' / 'benchmarks'))
     args = ap.parse_args()

@@ -76,7 +76,7 @@
 - `bdry <expression>` is a way to set boundary conditions for the boundary value solver. The BVP solver tries to zero the expression. Use the names of your variables for the left end conditions and primed versions for the right ends (see `gberg.ode`).
 - The pair `0= <expression>` and `solve <name>=<expression>` set up differential algebraic equations. The lines starting with `0=` will solve for the variables in the `solv` lines to make the expressions zero. See `huygens.ode` for an example where three accelerations are solved for to get the dynamics of two pendulums on a cart.
 - `only` is useful for silent mode (no GUI) as this puts out a bunch of data in a file. `only` restricts the output to a specified set of variables.
-- `set` creates a bunch of settings for numerics, variables, parameters that you can call by name within XPP.
+- `set` creates a bunch of options for numerics, variables, parameters that you can call by name within XPP.
 - Active comments allow you to create a little tutorial where you take care of changing parameters, numerics, etc. You invoke this in XPP with the File Printsrc command. See `lecar.ode` for an example.
 
 **Order of evaluation.**
@@ -196,7 +196,7 @@ or in a file it includes, is:
 
     @ name1=value1, name2=value2, ...
 
-where `name` is one of the following and `value` is either an integer, floating point, or string. (All names can be upper or lower case). A value an option does not take stops the load at its line; a numerical setting takes what the Numerics menu takes: DT any number but 0, NOUT, NMESH and NEWT_ITER a whole number of at least 1, BOUND, the tolerances, DTMIN, DTMAX, NEWT_TOL and JAC_EPS a number above 0, DELAY a number of at least 0.
+where `name` is one of the following and `value` is either an integer, floating point, or string. (All names can be upper or lower case). A value an option does not take stops the load at its line; a numerical option takes what the Numerics menu takes: DT any number but 0, NOUT, NMESH and NEWT_ITER a whole number of at least 1, BOUND, the tolerances, DTMIN, DTMAX, NEWT_TOL and JAC_EPS a number above 0, DELAY a number of at least 0.
 
 - QUIET=`0,1` dont print out stuff
 
@@ -300,7 +300,7 @@ The remaining options can be set from within the program. They are
 
 - PHI=value,THETA=value set the angles for the three-dimensional plots.
 
-- XLO=value,YLO=value,XHI=value,YHI=value set the limits for two-dimensional plots (defaults are 0,-2,20,2 respectively.) Note that for three-dimensional plots, the plot is scaled to a cube with vertices that are $`\pm1`$ and this cube is rotated and projected onto the plane so setting these to $`\pm2`$ works well for 3D plots.
+- XLO=value,YLO=value,XHI=value,YHI=value set the limits for two-dimensional plots (defaults are 0,-2,20,2 respectively.) Note that for three-dimensional plots, the plot is scaled to a cube with vertices that are $`\pm1`$ and this cube is rotated and projected onto the plane so option these to $`\pm2`$ works well for 3D plots.
 
 - XMAX=value, XMIN=value, YMAX=value, YMIN=value, ZMAX=value, ZMIN=value set the scaling for three-d plots.
 
@@ -334,7 +334,7 @@ The remaining options can be set from within the program. They are
 
 - SPECCOL=`name`, SPECCOL2=`name`, SPECWIDTH=`number`, SPECWIN=`0,1,2,3,4` (corresponding to square,parabolic,hamming,bartlett, or hanning windows), sets up relevant spectral stuff for use in conjunction with postprocessing.
 
-- autoX-stuff. The following autoX-specific variables can also be set: `NTST, NMAX, NPR, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within autoX. In a `.odex` file the continuation settings have xppautX's names (`mesh_intervals`, `max_steps`, `output_every`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`); the XPPAUT words above are read on `.ode` import only.
+- autoX-stuff. The following autoX-specific variables can also be set: `NTST, NMAX, NPR, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within autoX. In a `.odex` file the continuation options have xppautX's names (`mesh_intervals`, `max_steps`, `output_every`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`); the XPPAUT words above are read on `.ode` import only.
 
 - DFDRAW =`1, 2, or 3` computes a direction field after each run in the window, `--server` and `--silent`; 1 is unscaled, 2 is scaled, and 3 is colorized. The session keeps it for display and PS/SVG export. Values 4 and 5 also write `dirfields.dat` (unscaled and scaled respectively).
 

@@ -131,11 +131,11 @@ Result<const Statement *> local_set(const Parsed &p, const std::string &file, st
 /* a `key: value` entry */
 std::string entry(std::string_view key, std::string_view value) { return xpp::format("{}: {}", key, value); }
 
-/* the settings values holds, as the entries of the groups it covers */
+/* the options values holds, as the entries of the groups it covers */
 std::vector<GroupItem> new_settings(const Values &values)
 {
   std::vector<GroupItem> out;
-  for (const Setting &s : values.settings) out.push_back({s.group, entry(s.key, s.value)});
+  for (const Setting &s : values.options) out.push_back({s.group, entry(s.key, s.value)});
   return out;
 }
 
@@ -146,7 +146,7 @@ std::string slice(std::string_view text, std::size_t begin, std::size_t end) { r
    they were written, the covered kinds as values has them; parameters, then
    states, then what is neither */
 void set_items(const Statement &old, std::string_view text, const Values &values, const Classify &classify,
-               std::vector<std::string> &items, std::vector<GroupItem> &settings)
+               std::vector<std::string> &items, std::vector<GroupItem> &options)
 {
   std::vector<std::string> parameters, states, others;
   for (const Binding &b : old.bindings) {
@@ -159,8 +159,8 @@ void set_items(const Statement &old, std::string_view text, const Values &values
   if (values.states) for (const auto &[name, value] : values.state_values) states.push_back(entry(name, value));
   for (std::vector<std::string> *kind : {&parameters, &states, &others}) items.insert(items.end(), kind->begin(), kind->end());
   for (const Option &o : old.more().options)
-    if (!values.covers_group(o.group)) settings.push_back({o.group, slice(text, o.begin, o.end)});
-  for (GroupItem &g : new_settings(values)) settings.push_back(std::move(g));
+    if (!values.covers_group(o.group)) options.push_back({o.group, slice(text, o.begin, o.end)});
+  for (GroupItem &g : new_settings(values)) options.push_back(std::move(g));
 }
 
 /* the edit's text, checked as a model of its own */
@@ -279,10 +279,10 @@ std::string options_block(const std::vector<GroupItem> &items)
   return out.empty() ? std::string() : "options {\n" + out + "}\n";
 }
 
-std::string set_block(std::string_view name, const std::vector<std::string> &items, const std::vector<GroupItem> &settings)
+std::string set_block(std::string_view name, const std::vector<std::string> &items, const std::vector<GroupItem> &options)
 {
   std::vector<std::string> all = items;
-  if (!settings.empty()) all.push_back("options: " + braced(grouped(settings, 8 + name.size()), 6 + name.size()));
+  if (!options.empty()) all.push_back("options: " + braced(grouped(options, 8 + name.size()), 6 + name.size()));
   return "set \"" + std::string(name) + "\" " + braced(all, 4 + name.size());
 }
 
@@ -331,9 +331,9 @@ Result<Edited> replace_in_set(Model &m, std::string_view text, const std::string
   const Result<const Statement *> old = local_set(*p, file, name);
   if (!old) return std::unexpected(old.error());
   std::vector<std::string> items;
-  std::vector<GroupItem> settings;
-  set_items(**old, text, values, classify, items, settings);
-  const std::string block = in_file_newlines(set_block(name, items, settings), uses_crlf(text));
+  std::vector<GroupItem> options;
+  set_items(**old, text, values, classify, items, options);
+  const std::string block = in_file_newlines(set_block(name, items, options), uses_crlf(text));
   return checked(m, apply(text, {{(*old)->begin, (*old)->end, block}}), file, partial);
 }
 

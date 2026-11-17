@@ -1,5 +1,5 @@
 /* An autoX script's file (autox_script.h, W306): the runs read whole, each checked against autox.run's own validator, every fault
-   at its file and line; a run's line as it is sent (the start by type and index, the settings by their names). */
+   at its file and line; a run's line as it is sent (the start by type and index, the options by their names). */
 #include "xpptest.h"
 #include "autox_script.h"
 #include "command_registry.h"
@@ -16,8 +16,8 @@ const std::string good =
     "model: \"ab.odex\",\n"
     "diagram: \"branch.csv\",\n"
     "runs: [\n"
-    "  { name: \"steady\", kind: equilibrium, replace_diagram: true, parameters: [\"p0\"], settings: { step_size: 0.02, follow_all_branches: false } },\n"
-    "  { name: \"cycles\", kind: periodic, start: { run: \"steady\", type: hopf, index: 2 }, parameters: [\"p0\"], settings: { step_size: -0.01 } },\n"
+    "  { name: \"steady\", kind: equilibrium, replace_diagram: true, parameters: [\"p0\"], options: { step_size: 0.02, follow_all_branches: false } },\n"
+    "  { name: \"cycles\", kind: periodic, start: { run: \"steady\", type: hopf, index: 2 }, parameters: [\"p0\"], options: { step_size: -0.01 } },\n"
     "]\n";
 
 xpp::Result<> shape(const std::string &line, const xpp::Place &place) { return xpp::command::check_shape(line.c_str(), place); }
@@ -57,11 +57,11 @@ TEST_CASE("test_autox_script")
     CHECK(error(replaced("run: \"steady\"", "run: \"later\"")).find("\"later\" is not a run before this one") != std::string::npos);
     CHECK(error(replaced("type: hopf", "type: HB")).find("\"HB\" is not a point type") != std::string::npos);
     CHECK(error(replaced("index: 2", "index: 0")).find("the index counts from 1") != std::string::npos);
-    CHECK(error(replaced("settings: { step_size: -0.01 }", "settings: { kind: bvp }")).find("kind is not a setting") != std::string::npos);
+    CHECK(error(replaced("options: { step_size: -0.01 }", "options: { kind: bvp }")).find("kind is not an option") != std::string::npos);
     CHECK(error(replaced("step_size: -0.01", "step_size: -0.01, step_size: 0.5")).find("given twice") != std::string::npos);
     CHECK(error(replaced("step_size: -0.01", "step_size: wide")).find("step_size") != std::string::npos); /* the command's own validator */
     CHECK(error(replaced("kind: periodic", "kind: wobble")).find("wobble") != std::string::npos);
-    CHECK(error(replaced("parameters: [\"p0\"], settings: { step_size: -0.01 }", "parameters: [], settings: { step_size: -0.01 }")).find("parameters names") != std::string::npos);
+    CHECK(error(replaced("parameters: [\"p0\"], options: { step_size: -0.01 }", "parameters: [], options: { step_size: -0.01 }")).find("parameters names") != std::string::npos);
     CHECK(error("version: 4,\nmodel: \"ab.odex\",\nruns: [],\n").find("lists its runs") != std::string::npos);
     CHECK(error(replaced("version: 4,", "version: 4,\nextra: 1,")).find("extra") != std::string::npos);
     TEST_REPORT("test_autox_script");

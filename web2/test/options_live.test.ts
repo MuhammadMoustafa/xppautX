@@ -1,4 +1,4 @@
-/* Settings during a computation (W106, GitHub #155): the values panel's and
+/* Options during a computation (W106, GitHub #155): the values panel's and
    the autoX forms' edits go to the core at once, busy or not, and the field
    shows what was sent until that set's own done -- nothing is held, no
    "pending" (npm test, through session.ts with a transport that records). */
@@ -8,7 +8,7 @@ import {Session} from '../src/session';
 import type {Command, XppEvent} from '../src/protocol/types';
 import type {Transport} from '../src/protocol/transport';
 import {sentText} from '../src/store/values';
-import {shownSettings} from '../src/store/autoxSettings';
+import {shownSettings} from '../src/store/autoxOptions';
 import {HELLO} from './hello';
 
 function session(): {s: Session; sent: Command[]; ev: (e: object) => void} {
@@ -53,10 +53,10 @@ test('W106: a parameter or numerics edit during a computation is sent at once an
   assert.equal(st().busy, false);
 });
 
-test('W106: an autoX settings edit during a run is sent at once, shown until its own done', () => {
+test('W106: an autoX options edit during a run is sent at once, shown until its own done', () => {
   const {s, sent, ev} = session();
   ev(HELLO);
-  ev({ev: 'autox.settings', numerics: {max_steps: 200}, pars: [], axes: {plot: 'norm'}, marks: []});
+  ev({ev: 'autox.options', numerics: {max_steps: 200}, pars: [], axes: {plot: 'norm'}, marks: []});
   ev({ev: 'done', status: 'ok'});
   s.send({cmd: 'run.initial'});
   ev({ev: 'job.computing'});

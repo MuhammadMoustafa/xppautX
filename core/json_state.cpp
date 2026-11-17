@@ -27,8 +27,8 @@
 #include "marks_data.h"
 #include "ani_data.h"
 #include "autox_data.h"
-#include "autox_settings.h"
-#include "numerics_settings.h"
+#include "autox_options.h"
+#include "numerics_options.h"
 #include "model_numerics.h"
 #include "axes2.h"
 #include <cmath>
@@ -339,7 +339,7 @@ void apply_subscriptions(xpp::Session &s)
     ani_data_subscribe(s, on(xpp::events::ANIMATION_FRAME));
     autox_data_subscribe(on(xpp::events::AUTOX_INFO));
     autox_view_subscribe(on(xpp::events::AUTOX_INFO));
-    autox_settings_subscribe(s, on(xpp::events::AUTOX_SETTINGS));
+    autox_settings_subscribe(s, on(xpp::events::AUTOX_OPTIONS));
     autox_script_subscribe(on(xpp::events::AUTOX_SCRIPT_RUNS));
     numerics_settings_subscribe(s, on(xpp::events::RUN_NUMERICS));
     session.windows.subscribe(on(xpp::events::WINDOW_LIST), s);
@@ -458,7 +458,7 @@ std::string field_key(const std::string &kind, const std::string &name, int inde
 /* one value of a "set": {"kind":"bc|delay|num","name":...,"value":number
    or "text":...}. Text is what the user would type in the value's box: an
    expression for BCs and delays; for the numerics (num, W106) a number, or a
-   method's name, the field named by its key (numerics_settings.h; the run's
+   method's name, the field named by its key (numerics_options.h; the run's
    and the boundary value problem's are run.configure's and boundary_value.configure's;
    the parameters' are value.set_parameters'). Checks it all and changes
    nothing: the value, or the error (naming the field) of a kind or name the
@@ -484,7 +484,7 @@ xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
     else if (v.kind == "ic") return refuse(field, "set no longer takes initial conditions: send initial_conditions.set (a formula: initial_conditions.set_by_formula)");
     else if (v.kind != "num") return refuse("", xpp::format("set takes kind delay, bc or num, not \"{}\"", v.kind));
     else if (const std::string_view command = xpp::command::numerics_command(v.name); !command.empty())
-        return refuse(field, xpp::format("set no longer takes the numerics setting {}: send {}", v.name, command));
+        return refuse(field, xpp::format("set no longer takes the numerics option {}: send {}", v.name, command));
     else v.type = 0;
     if (!get_string(line, "text", v.text)) {
         if (!js_number(js_find(line, "value"), &z))
@@ -523,7 +523,7 @@ xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
 /* {"cmd":"set", one value's members (read_value), or "values":[{...}...]
    to set several in one command: every value is checked, then all are
    applied, or none, a refusal naming the field it is about (W131). Never
-   runs anything itself (W69). A setting (W106): sent during a computation
+   runs anything itself (W69). An option (W106): sent during a computation
    it applies when that ends, never to the run in progress (ui_json.cpp
    control_line). */
 void apply_set(xpp::Session &s, const char *line)

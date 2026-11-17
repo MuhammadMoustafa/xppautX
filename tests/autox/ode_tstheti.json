@@ -1,6 +1,6 @@
 {
   "model": "examples/ode/tstheti.odex",
-  "reason": "Expected failure: hom_bcs is deprecated and returns zero in XPPAUT 8.0 and xppautX, so the supplied projection BVP has three zero boundary rows (two deprecated projection conditions and the missing seventh boundary filled with zero) and is singular. HomCont (IPS=9) settings cannot repair this IPS=4 formulation; settle=1.01 supplies the finite orbit, not the missing constraints. No continued connection is validated.",
+  "reason": "Expected failure: hom_bcs is deprecated and returns zero in XPPAUT 8.0 and xppautX, so the supplied projection BVP has three zero boundary rows (two deprecated projection conditions and the missing seventh boundary filled with zero) and is singular. HomCont (IPS=9) options cannot repair this IPS=4 formulation; settle=1.01 supplies the finite orbit, not the missing constraints. No continued connection is validated.",
   "runs": [
     {
       "name": "connection",

@@ -1,4 +1,4 @@
-"""The manual's settings pages (W616): docs/manual/15-settings-panels.md has one section for each settings panel, the group's title, its
+"""The manual's options pages (W616): docs/manual/15-options-panels.md has one section for each option panel, the group's title, its
 sections and each row's label and help line, generated from the same option table as the panels (the schema `xppautX --options-schema`
 prints is built from it), so the manual, `help` and the page say one thing.
 
@@ -11,13 +11,13 @@ import json
 import os
 import sys
 
-PAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'docs', 'manual', '15-settings-panels.md')
-INTRO = """# The settings panels
+PAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'docs', 'manual', '15-options-panels.md')
+INTRO = """# The options panels
 
-Every group of settings has one panel, titled by the group's name, and its rows are in the order of the option table
+Every group of options has one panel, titled by the group's name, and its rows are in the order of the option table
 (the option table), the one source of a setting's key, label, choices, default, limits and help line. A dotted key
 (`step.min`) is a titled section inside the panel. The same keys are the `options` block of a `.odex`, the `help` of the program and
-the manual below. Each panel opens from the menu entry of its task: Integration from Run > Settings, Poincare from Run > Poincare map,
+the manual below. Each panel opens from the menu entry of its task: Integration from Run > Options, Poincare from Run > Poincare map,
 Sweep from Run > Over a range > One parameter (beside its Run button), Equilibria from Analysis > Equilibria, Analysis inside the
 histogram and spectrum commands' forms, Continuation from autoX > Numerics, Diagram from autoX > Axes (it changes the open view; the model's
 values only start a new one), Plot from Plot > Axes > Options (it changes the active graph), Export inside the picture export
@@ -59,14 +59,14 @@ def main():
     if mode == '--update':
         with open(PAGE, 'w', encoding='utf-8', newline='\n') as f:
             f.write(text)
-        print('optionsmanual: wrote docs/manual/15-settings-panels.md')
+        print('optionsmanual: wrote docs/manual/15-options-panels.md')
         return 0
     with open(PAGE, encoding='utf-8', newline='') as f:
         have = f.read().replace('\r\n', '\n')
     if have == text:
-        print('optionsmanual ok: docs/manual/15-settings-panels.md matches the table')
+        print('optionsmanual ok: docs/manual/15-options-panels.md matches the table')
         return 0
-    print('optionsmanual: docs/manual/15-settings-panels.md differs from the table (tools/optionschema.sh --update)')
+    print('optionsmanual: docs/manual/15-options-panels.md differs from the table (tools/optionschema.sh --update)')
     return 1
 
 

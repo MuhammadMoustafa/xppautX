@@ -1,10 +1,10 @@
 #pragma once
-/* The adjoint's derived data sets a Session holds (adj2.cpp): plain data the adjoint's code works on (W744). The settings the option
-   table sets are model_adjoint_settings.h's, its base (W757). */
+/* The adjoint's derived data sets a Session holds (adj2.cpp): plain data the adjoint's code works on (W744). The options the option
+   table sets are model_adjoint_options.h's, its base (W757). */
 #include <array>
 #include <vector>
 #include "expr_program.h"
-#include "model_adjoint_settings.h"
+#include "model_adjoint_options.h"
 #include "storage.h"
 
 namespace xpp {

@@ -109,7 +109,7 @@ def plot_time(rows, sizes, out):
         ax.set_title(FAMILY_TITLES[family], fontsize=10)
         ax.grid(True, which='major', alpha=0.3)
     axes[0].legend(fontsize=8, loc='upper left')
-    fig.suptitle('Whole-process wall time, equal-accuracy settings (5 runs each)', fontsize=10)
+    fig.suptitle('Whole-process wall time, equal-accuracy options (5 runs each)', fontsize=10)
     fig.tight_layout()
     fig.savefig(out/'w378-time.png', dpi=DPI)
     plt.close(fig)

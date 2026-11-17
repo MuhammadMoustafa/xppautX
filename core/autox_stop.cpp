@@ -40,7 +40,7 @@ std::string par_name(const AutoxParts &s, long ipar)
 /* a limit as a person typed it: autoX keeps some as floats (0.0009999999) */
 std::string num(double v) { return std::isfinite(v) ? xpp::format("{:g}", v) : std::string("?"); }
 
-/* the Newton settings that gave up, after the step's: "; ITNW 5, EPSL
+/* the Newton options that gave up, after the step's: "; ITNW 5, EPSL
    1e-07, EPSU 1e-07" (nothing for a solver without them) */
 std::string newton(const AutoxNoConvergence &nc)
 {

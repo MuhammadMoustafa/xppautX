@@ -232,7 +232,7 @@ ODE files consist of ascii readable text which XPP uses to describe the program 
 
 The typical ODE file contains some or all of the above types of lines. Continuous variables, auxiliary quantities, and Markov variables are all plottable quantities in XPP. That is, once you have solved your equation, you can plot or view any of the continuous and Markov variables or the auxiliary quantities.
 
-XPP has no options file: set the options with `@` lines, in the ODE file or in a file it includes with `#include opts.inc` (below). An `option <filename>` line, as XPPAUT's ODE files could have, is refused at load, with its line.
+XPP has no option file: set the options with `@` lines, in the ODE file or in a file it includes with `#include opts.inc` (below). An `option <filename>` line, as XPPAUT's ODE files could have, is refused at load, with its line.
 
 XPP lets you include files in the ODE file so that for example, you can create a library of functions which your XPP ode file can call. Here is an example of two files, the first is called `test.ode` and the second is called `test.inc`:
 
@@ -696,7 +696,7 @@ The remaining options can be set from within the program. They are
 
 - PHI=value,THETA=value set the angles for the three-dimensional plots.
 
-- XLO=value,YLO=value,XHI=value,YHI=value set the limits for two-dimensional plots (defaults are 0,-2,20,2 respectively.) Note that for three-dimensional plots, the plot is scaled to a cube with vertices that are $`\pm1`$ and this cube is rotated and projected onto the plane so setting these to $`\pm2`$ works well for 3D plots.
+- XLO=value,YLO=value,XHI=value,YHI=value set the limits for two-dimensional plots (defaults are 0,-2,20,2 respectively.) Note that for three-dimensional plots, the plot is scaled to a cube with vertices that are $`\pm1`$ and this cube is rotated and projected onto the plane so option these to $`\pm2`$ works well for 3D plots.
 
   In xppautX XLO, XHI, YLO and YHI are the limits `axes.x_min` to `axes.y_max` of a 2D plot (winning over XMIN to YMAX), and are dropped for a 3D plot, whose picture fits its box.
 
@@ -728,9 +728,9 @@ The remaining options can be set from within the program. They are
 
 - Picture options. `PS_COLOR` and `PS_FSIZE` are dropped: a picture is the graph as the panel shows it, in color at the panel's size; `PS_FONT` and `PS_LW` are read and ignored (a picture's font is Helvetica, and each curve has its own width). `PLOTFMT` is imported as `output: { picture_file }`, the model's name with the format (`ps` is `pdf`).
 
-- autoX-stuff. The following autoX-specific variables can also be set: `NTST, NMAX, NPR, EPSU, EPSS, EPSL, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within autoX. In a `.odex` file the continuation settings have xppautX's names (`mesh_intervals`, `max_steps`, `output_every`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`); the XPPAUT words above are read on `.ode` import only.
+- autoX-stuff. The following autoX-specific variables can also be set: `NTST, NMAX, NPR, EPSU, EPSS, EPSL, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within autoX. In a `.odex` file the continuation options have xppautX's names (`mesh_intervals`, `max_steps`, `output_every`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`); the XPPAUT words above are read on `.ode` import only.
 
-Sometimes, you want to prepare a bunch of simulations that use different initial data or parameter values or numerical methods, etc. You can, of course, change these within the program by choosing the desired option and changing it. Or, you can do the simulation and save the results in a “.set” file (see below). Another way to do this is by adding named sets holding parameters, initial values and settings to the ode file. The format for this is:
+Sometimes, you want to prepare a bunch of simulations that use different initial data or parameter values or numerical methods, etc. You can, of course, change these within the program by choosing the desired option and changing it. Or, you can do the simulation and save the results in a “.set” file (see below). Another way to do this is by adding named sets holding parameters, initial values and options to the ode file. The format for this is:
 
     set name {item1=value1, item2=value2, ..., }
 
@@ -920,9 +920,9 @@ These are mainly self-explanatory. The nonobvious ones are:
 
 The parser in this distribution is a great improvement over the old style parser. The parser distinguishes between the old style and the new style by whether or not the first line of the file contains a number. If the first line is a number, then the old style parser is used. Otherwise, the new style is used.
 
-### Settings groups in .odex
+### Options groups in .odex
 
-The options block groups settings by their work: `integration`, `poincare`,
+The options block groups options by their work: `integration`, `poincare`,
 `equilibria`, `continuation`, `diagram`, `plot`, `sweep`, `analysis`,
 `interface` and `output`. See [the options syntax](../odex.md) for their keys.
 Slider presets are an `interface` list, for example

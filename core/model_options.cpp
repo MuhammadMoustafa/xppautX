@@ -19,12 +19,12 @@
 #include "data_table.h"
 #include "colormap.h"
 #include "model_native.h"
-#include "model_adjoint_settings.h"
+#include "model_adjoint_options.h"
 #include "model_added_columns.h"
-#include "model_autox_settings.h"
-#include "model_delay_settings.h"
-#include "model_histogram_settings.h"
-#include "model_integrator_settings.h"
+#include "model_autox_options.h"
+#include "model_delay_options.h"
+#include "model_histogram_options.h"
+#include "model_integrator_options.h"
 #include "plot_state.h"
 #include "model.h"
 #include "model_files.h"
@@ -42,7 +42,7 @@
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "ani_state.h"
-#include "plot_settings.h"
+#include "plot_options.h"
 #include "expr_program.h"
 #include "line_style.h"
 #include "storage.h"
@@ -58,7 +58,7 @@ constexpr const char *nullclines_dump_file = "nullclines.dat";
 constexpr int max_plot_curves = 8;
 /* what a .ode's quiet and logfile become: a warning each */
 constexpr std::string_view log_level_is_the_users = "what the log shows is the user's, not a model's (the preferences' log_level, --verbose), so the option is dropped";
-constexpr std::string_view picture_as_shown = "an exported picture is the graph as the panel shows it, so its color and font size are not settings and the option is dropped";
+constexpr std::string_view picture_as_shown = "an exported picture is the graph as the panel shows it, so its color and font size are not options and the option is dropped";
 constexpr std::string_view log_file_is_the_users = "where the log goes is the user's, not a model's (the preferences' log_file), so the option is dropped";
 /* what a .ode's several starting graphs (multiwin, simplot, xlo2 to yhi8) become: one warning */
 constexpr std::string_view several_graphs = "xppautX opens one graph, so curves 2 to N join main and the options of several starting graphs are dropped: several graphs are a session's (window.new)";
@@ -68,7 +68,7 @@ constexpr double box_side = 12;
 /* a 2D window's default limits: the default total's span, 0 to 20, and -1 to 1 in y */
 constexpr double window_x_high = 20, window_y_half = 1;
 /* the plot is three-dimensional (axes.kind 3): its limits are a box's */
-bool three_dimensional(const SessionParts &s) { return s.plot_settings->axes >= 5; }
+bool three_dimensional(const SessionParts &s) { return s.plot_options->axes >= 5; }
 
 /* the value as a number (into x): why it is not one, nullptr when it is */
 const char *number_in(const OptionValue &v, double &x)
@@ -106,7 +106,7 @@ const char *whole_into(int &member, const OptionValue &v)
 const char *start_line_style_into(const SessionParts &s, const LineStyle &style, const OptionValue &v)
 {
   if (v.apply) {
-    s.plot_settings->start_line_style = style;
+    s.plot_options->start_line_style = style;
     for (GRAPH &g : s.plot_windows->graph)
       for (int k = 0; k < g.nvars; k++) g.style[static_cast<std::size_t>(k)] = style;
   }
@@ -723,7 +723,7 @@ constexpr OptionRow rows[] = {
   {.group = option_group::plot, .kind = OptionKind::curves, .odex = "curves", .help = "The curves of the starting graph, each with the variables on its axes; the first holds the axes' variables.", .xppaut_names = {"CURVES"}, .once = true,
    .maximum = max_plot_curves},
   {.group = option_group::plot, .kind = OptionKind::choice, .odex = "axes.kind", .help = "A two- or three-dimensional plot.", .xppaut_names = {"AXES"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.plot_settings->axes; }),
+   .whole = member([](auto &s) -> auto & { return s.plot_options->axes; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * {
      int axes = 0;
      switch (v.text[0]) {
@@ -731,81 +731,81 @@ constexpr OptionRow rows[] = {
      case '3': axes = 5; break;
      default: return "not 2 or 3";
      }
-     if (v.apply) s.plot_settings->axes = axes;
+     if (v.apply) s.plot_options->axes = axes;
      return nullptr;
    },
    /* a 2D plot */
-   .reset = [](const SessionParts &s) { s.plot_settings->axes = 0; },
+   .reset = [](const SessionParts &s) { s.plot_options->axes = 0; },
    .choices = axes_names},
   /* the one pair of limits: the window of a 2D plot, the box of a 3D one; a default is the plot kind's */
   {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.x_min", .help = "The low end of x: the window's left edge in a two-dimensional plot, the box's in a three-dimensional one.", .xppaut_names = {"XMIN"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_settings->x_3d[0]; }),
-   .reset = [](const SessionParts &s) { s.plot_settings->x_3d[0] = three_dimensional(s) ? -box_side : 0; }},
+   .real = member([](auto &s) -> auto & { return s.plot_options->x_3d[0]; }),
+   .reset = [](const SessionParts &s) { s.plot_options->x_3d[0] = three_dimensional(s) ? -box_side : 0; }},
   {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.x_max", .help = "The high end of x: the window's right edge in a two-dimensional plot, the box's in a three-dimensional one.", .xppaut_names = {"XMAX"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_settings->x_3d[1]; }),
-   .reset = [](const SessionParts &s) { s.plot_settings->x_3d[1] = three_dimensional(s) ? box_side : window_x_high; }},
+   .real = member([](auto &s) -> auto & { return s.plot_options->x_3d[1]; }),
+   .reset = [](const SessionParts &s) { s.plot_options->x_3d[1] = three_dimensional(s) ? box_side : window_x_high; }},
   {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.y_min", .help = "The low end of y: the window's bottom edge in a two-dimensional plot, the box's in a three-dimensional one.", .xppaut_names = {"YMIN"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_settings->y_3d[0]; }),
-   .reset = [](const SessionParts &s) { s.plot_settings->y_3d[0] = three_dimensional(s) ? -box_side : -window_y_half; }},
+   .real = member([](auto &s) -> auto & { return s.plot_options->y_3d[0]; }),
+   .reset = [](const SessionParts &s) { s.plot_options->y_3d[0] = three_dimensional(s) ? -box_side : -window_y_half; }},
   {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.y_max", .help = "The high end of y: the window's top edge in a two-dimensional plot, the box's in a three-dimensional one.", .xppaut_names = {"YMAX"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_settings->y_3d[1]; }),
-   .reset = [](const SessionParts &s) { s.plot_settings->y_3d[1] = three_dimensional(s) ? box_side : window_y_half; }},
+   .real = member([](auto &s) -> auto & { return s.plot_options->y_3d[1]; }),
+   .reset = [](const SessionParts &s) { s.plot_options->y_3d[1] = three_dimensional(s) ? box_side : window_y_half; }},
   {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.z_min", .help = "The low end of the three-dimensional box in z.", .xppaut_names = {"ZMIN"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_settings->z_3d[0]; }),
-   .reset = [](const SessionParts &s) { s.plot_settings->z_3d[0] = -box_side; }},
+   .real = member([](auto &s) -> auto & { return s.plot_options->z_3d[0]; }),
+   .reset = [](const SessionParts &s) { s.plot_options->z_3d[0] = -box_side; }},
   {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.z_max", .help = "The high end of the three-dimensional box in z.", .xppaut_names = {"ZMAX"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_settings->z_3d[1]; }),
-   .reset = [](const SessionParts &s) { s.plot_settings->z_3d[1] = box_side; }},
+   .real = member([](auto &s) -> auto & { return s.plot_options->z_3d[1]; }),
+   .reset = [](const SessionParts &s) { s.plot_options->z_3d[1] = box_side; }},
   {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.phi", .help = "The azimuth the three-dimensional plot is viewed from, in degrees.", .xppaut_names = {"PHI"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.drawing->phi0; })},
   {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.theta", .help = "The elevation the three-dimensional plot is viewed from, in degrees.", .xppaut_names = {"THETA"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.drawing->theta0; })},
   /* the line every new curve starts with */
   {.group = option_group::plot, .kind = OptionKind::choice, .odex = "line.draw", .help = "Whether a new curve is drawn as a line, as points or as both.", .once = true,
-   .index = choice_member([](auto &s) -> auto & { return s.plot_settings->start_line_style.draw; }),
+   .index = choice_member([](auto &s) -> auto & { return s.plot_options->start_line_style.draw; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * {
      const std::optional<LineDraw> draw = parse_line_draw(v.text);
      if (!draw) return "not line, points or both";
-     LineStyle style = s.plot_settings->start_line_style;
+     LineStyle style = s.plot_options->start_line_style;
      style.draw = *draw;
      return start_line_style_into(s, style, v);
    },
    .rule = OptionRule::choice, .choices = line_draw_names},
   {.group = option_group::plot, .kind = OptionKind::choice, .odex = "line.dash", .help = "The dash pattern of a new curve's line.", .once = true,
-   .index = choice_member([](auto &s) -> auto & { return s.plot_settings->start_line_style.dash; }),
+   .index = choice_member([](auto &s) -> auto & { return s.plot_options->start_line_style.dash; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * {
      const std::optional<LineDash> dash = parse_line_dash(v.text);
      if (!dash) return "not solid, dashed, dotted or dash_dot";
-     LineStyle style = s.plot_settings->start_line_style;
+     LineStyle style = s.plot_options->start_line_style;
      style.dash = *dash;
      return start_line_style_into(s, style, v);
    },
    .rule = OptionRule::choice, .choices = line_dash_names},
   {.group = option_group::plot, .kind = OptionKind::number, .odex = "line.width", .help = "The width of a new curve's line.", .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_settings->start_line_style.width; }),
+   .real = member([](auto &s) -> auto & { return s.plot_options->start_line_style.width; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * {
      const std::optional<double> width = parse_line_size(v.text, false);
      if (!width) return "not a number above 0";
-     LineStyle style = s.plot_settings->start_line_style;
+     LineStyle style = s.plot_options->start_line_style;
      style.width = *width;
      return start_line_style_into(s, style, v);
    }},
   {.group = option_group::plot, .kind = OptionKind::choice, .odex = "line.marker", .help = "The marker drawn at the points of a new curve.", .once = true,
-   .index = choice_member([](auto &s) -> auto & { return s.plot_settings->start_line_style.marker; }),
+   .index = choice_member([](auto &s) -> auto & { return s.plot_options->start_line_style.marker; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * {
      const std::optional<LineMarker> marker = parse_line_marker(v.text);
      if (!marker) return "not circle, square, triangle, diamond, cross, plus or star";
-     LineStyle style = s.plot_settings->start_line_style;
+     LineStyle style = s.plot_options->start_line_style;
      style.marker = *marker;
      return start_line_style_into(s, style, v);
    },
    .rule = OptionRule::choice, .choices = line_marker_names},
   {.group = option_group::plot, .kind = OptionKind::number, .odex = "line.marker_size", .help = "The size of the markers of a new curve.", .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_settings->start_line_style.marker_size; }),
+   .real = member([](auto &s) -> auto & { return s.plot_options->start_line_style.marker_size; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * {
      const std::optional<double> size = parse_line_size(v.text, true);
      if (!size) return "not a number of at least 0";
-     LineStyle style = s.plot_settings->start_line_style;
+     LineStyle style = s.plot_options->start_line_style;
      style.marker_size = *size;
      return start_line_style_into(s, style, v);
    }},
@@ -1066,11 +1066,11 @@ constexpr OptionRow rows[] = {
      xp2 to zp8 are the others (the converter writes the list: odex_convert.cpp); with no window of ours opened by a model, they
      only name the variables */
   {.kind = OptionKind::name, .name = "XP", .once = true, .curve_field = CurveField::x,
-   .parse = [](const SessionParts &s, const OptionValue &v) -> const char * { return variable_into(s, s.plot_settings->curves[0].x, v); }},
+   .parse = [](const SessionParts &s, const OptionValue &v) -> const char * { return variable_into(s, s.plot_options->curves[0].x, v); }},
   {.kind = OptionKind::name, .name = "YP", .once = true, .curve_field = CurveField::y,
-   .parse = [](const SessionParts &s, const OptionValue &v) -> const char * { return variable_into(s, s.plot_settings->curves[0].y, v); }},
+   .parse = [](const SessionParts &s, const OptionValue &v) -> const char * { return variable_into(s, s.plot_options->curves[0].y, v); }},
   {.kind = OptionKind::name, .name = "ZP", .once = true, .curve_field = CurveField::z,
-   .parse = [](const SessionParts &s, const OptionValue &v) -> const char * { return variable_into(s, s.plot_settings->curves[0].z, v); }},
+   .parse = [](const SessionParts &s, const OptionValue &v) -> const char * { return variable_into(s, s.plot_options->curves[0].z, v); }},
   {.kind = OptionKind::whole, .name = "NPLOT", .once = true, .curve_field = CurveField::count,
    .rule = OptionRule::whole_positive, .maximum = max_plot_curves},
   {.kind = OptionKind::name, .name = "XP", .first_digit = '2', .last_digit = '8', .curve_field = CurveField::x,
@@ -1266,7 +1266,7 @@ const OptionRow &once_option(std::string_view name)
   return *std::ranges::find_if(rows, [name](const OptionRow &r) { return r.once && is_own_name(r, name); });
 }
 
-/* the pairs of settings that keep an order (model_options.h), named by their rows */
+/* the pairs of options that keep an order (model_options.h), named by their rows */
 struct OptionPair {
   std::string_view lo, hi; /* row names (option_name) */
   bool strict;             /* lo must be below hi; else at most hi */
@@ -1602,7 +1602,7 @@ std::optional<std::string> option_value(const SessionParts &s, std::string_view 
     const auto curves = odex::read_block("options", s.model().this_file, "curves: " + text, false,
       [&](odex::Block &block) { return read_starting_curves(&s, block); });
     if (!curves) return curves.error().what;
-    if (apply) s.plot_settings->curves = *curves;
+    if (apply) s.plot_options->curves = *curves;
   }
   else if (row->kind == OptionKind::sliders) {
     const auto sliders = odex::read_block("options", s.model().this_file, "sliders: " + text, false,
@@ -1752,7 +1752,7 @@ void set_option_defaults(const SessionParts &s)
   }
 }
 
-/* ---- the rows' values as text and number: the words of the settings (model_options.h) ---- */
+/* ---- the rows' values as text and number: the words of the options (model_options.h) ---- */
 
 /* row f's number now */
 double row_number(const SessionParts &s, const OptionRow &f)
@@ -1802,9 +1802,9 @@ std::string named_settings(const SessionParts &s, std::initializer_list<std::str
     return text;
 }
 
-Place settings_place(const Model &m, std::initializer_list<std::string_view> settings)
+Place settings_place(const Model &m, std::initializer_list<std::string_view> options)
 {
-    for (const std::string_view name : settings)
+    for (const std::string_view name : options)
         if (Place place = model_place(m, name); place.line > 0) return place;
     return command_place();
 }

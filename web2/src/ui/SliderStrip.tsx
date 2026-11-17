@@ -4,7 +4,7 @@
    and high end shown as small muted labels, the current value as a
    box (Field.tsx: a number; ArrowUp/ArrowDown step by the slider's own step), a small edit
    icon (opens SliderDialog.tsx prefilled) and a remove button. A drag
-   sends each value as a `set` (session.ts slide), a setting (W106): during
+   sends each value as a `set` (session.ts slide), an option (W106): during
    a computation the core applies it when that ends. Typing or spinning the
    value box does not send on every keystroke or step: it waits ~400ms
    after the last one, or commits at once on blur/Enter, so a fast run of

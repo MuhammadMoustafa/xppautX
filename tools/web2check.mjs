@@ -50,7 +50,7 @@
    T21: autoX's status strip names the run and its point count, the axis
    dialog sets the range during a run (its plot type waits), an Axes change
    brings the diagram in the new quantities without reDraw, Clear hides the
-   branches so far, autoX settings are held in the session, grabbing a labelled periodic point plots its limit cycle, Tab in a
+   branches so far, autoX options are held in the session, grabbing a labelled periodic point plots its limit cycle, Tab in a
    form replaces a field's text; `keys`: I then G typed at once integrate,
    F acts from the plot and from a button, the theme switch is an icon, a
    long menu is in columns; `busy`: during an integration the autoX diagram
@@ -441,7 +441,7 @@ async function desktop(want) {
 }
 
 /* the values panel (docs/ui-v2.md T3, GitHub #155): parameters, a slider,
-   edits sent at once (settings, W106), layout */
+   edits sent at once (options, W106), layout */
 async function values() {
   await metrics({width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
   await rendered();
@@ -450,7 +450,7 @@ async function values() {
   check('at 1400px wide the values panel is a right column',
     box.width > 200 && box.right >= box.winWidth - 2 && box.top < 160, JSON.stringify(box));
 
-  /* edit a parameter: a setting (W106), sent at once as one `set` when committed */
+  /* edit a parameter: an option (W106), sent at once as one `set` when committed */
   const field = await cdp.eval(`(() => { const l = [...document.querySelectorAll('.value-field .value-name')]
     .find(e => e.textContent.toLowerCase() === 'iapp'); return l ? l.closest('.value-field').querySelector('input').id : null; })()`);
   check('the iapp field is in the panel', !!field, String(field));
@@ -1242,7 +1242,7 @@ async function aplotView() {
   check('the Windows menu\'s Open array plot opens the panel and the core\'s array plot window',
     await until('s.aplot.open && s.aplot.windowOpen', 'aplot window'));
   check('Array plot opens its registry argument form', await until(`s.commandForm?.id === 'array_plot.configure'`, 'array configuration'));
-  /* W779: the three labels are fields of this form (the settings, not the export's arguments): set them here */
+  /* W779: the three labels are fields of this form (the options, not the export's arguments): set them here */
   check('W779: the form holds the three labels as text fields',
     await cdp.eval(`['top_label', 'side_label', 'bottom_label'].every(name => document.querySelector('.registry-form .registry-argument[data-argument="' + name + '"] input'))`));
   await formValues({first_column:'U0', columns:20, first_row:0, rows:10, row_skip:1, auto_redraw:false, column_skip:1, top_label:'Ring', side_label:'Neuron', bottom_label:'Time'});
@@ -1883,9 +1883,9 @@ async function autoxView(dir) {
   await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
   await until(`!s.toasts.length`, 'toasts dismissed');
 
-  /* a dialog the view opens is on top of it, not behind (Numerics' form, T22: the page's own on the autoxsettings data) */
-  check("T22: the store holds autoX's settings (autoxsettings) before a run",
-    await until('s.autoxSettings.core && s.autoxSettings.core.numerics.max_steps > 0 && s.core.pars.length > 1', 'settings'),
+  /* a dialog the view opens is on top of it, not behind (Numerics' form, T22: the page's own on the autoxoptions data) */
+  check("T22: the store holds autoX's options (autoxoptions) before a run",
+    await until('s.autoxSettings.core && s.autoxSettings.core.numerics.max_steps > 0 && s.core.pars.length > 1', 'options'),
     JSON.stringify(await S('s.autoxSettings.core')).slice(0, 300));
   const sentNum = await cdp.eval('__xpp.sentCount()');
   await clickRegistry('autox.configure_numerics');
@@ -2187,8 +2187,8 @@ async function autoxView(dir) {
   await cdp.eval(`document.querySelector('.autox-earlier').click()`);
   check('T21: "Earlier branches" shows them again', await until(`__xpp.diagram().curves.length === ${nCurvesAll}`, 'earlier shown'));
 
-  check('W155: autoX has no standalone settings-file control',
-    await cdp.eval(`document.querySelector('#autox-settings-load') === null`));
+  check('W155: autoX has no standalone options-file control',
+    await cdp.eval(`document.querySelector('#autox-options-load') === null`));
   await menuRun('autox.configure_marks', {parameters:['iapp'], values:[0.2]});
   check('W517: common list rows set autoX marks', await until(`!s.busy && s.autoxSettings.core.marks.length === 1`, 'one mark'));
   await menuRun('autox.configure_marks', {parameters:[], values:[]});
@@ -2330,9 +2330,9 @@ async function autoxStopRace() {
   await cdp.eval(`document.querySelector('.autox-panel .plot-tools button:nth-child(2)').click()`);
   await until('dv.viewport.y === null', 'view reset');
 
-  /* T22, W106: an edit made mid-run is a setting: sent at once, the core applies it once the run ends */
+  /* T22, W106: an edit made mid-run is an option: sent at once, the core applies it once the run ends */
   const sentPre = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`__xpp.send({cmd: 'autox.configure_numerics', max_steps: 15})`); /* a panel's values come when the running command ends (W616); the setting itself is still sent at once */
+  await cdp.eval(`__xpp.send({cmd: 'autox.configure_numerics', max_steps: 15})`); /* a panel's values come when the running command ends (W616); the option itself is still sent at once */
   const setsSent = () => cdp.eval(`__xpp.sentFrom(${sentPre}).filter(c => c.cmd === 'autox.configure_numerics')`);
   check('W106: Numerics during a run: Nmax 15 is sent at once (one set), shown, the core\'s still 2000 (the run keeps it)',
     going && await S(`s.busy && s.autoxSettings.inflight.length === 1 && s.autoxSettings.inflight[0].patch.numerics.max_steps === 15
@@ -2563,8 +2563,8 @@ async function openAutoxAtFixedPoint() {
   await openAutoxPanel();
 }
 
-/* W535 (GitHub #600): the equilibrium search asks nothing. Its three settings are Numerics rows
-   of the Equilibrium settings form, off by default; the form sets them and Find runs with no
+/* W535 (GitHub #600): the equilibrium search asks nothing. Its three options are Numerics rows
+   of the Equilibrium options form, off by default; the form sets them and Find runs with no
    question. */
 async function equilibriumSettings() {
   await until('s.hello && s.numerics && !s.busy', 'hello');
@@ -2572,11 +2572,11 @@ async function equilibriumSettings() {
   const keys = ['print_eigenvalues', 'draw_invariant_sets', 'draw_strong_sets'];
   const off = [];
   for (const key of keys) off.push(await value(key));
-  check('W535: the three equilibrium settings are off by default', off.every(v => v === false), JSON.stringify(off));
+  check('W535: the three equilibrium options are off by default', off.every(v => v === false), JSON.stringify(off));
   await menuRun('equilibrium.configure', {print_eigenvalues: true, draw_strong_sets: true});
-  check('W535: the Equilibrium settings form sets the two it was given and keeps the third off',
+  check('W535: the Equilibrium options form sets the two it was given and keeps the third off',
     await until(`s.numerics.find(f => f.key === 'print_eigenvalues').value === true && s.numerics.find(f => f.key === 'draw_strong_sets').value === true
-      && s.numerics.find(f => f.key === 'draw_invariant_sets').value === false && !s.busy && !s.commandForm`, 'settings form'),
+      && s.numerics.find(f => f.key === 'draw_invariant_sets').value === false && !s.busy && !s.commandForm`, 'options form'),
     JSON.stringify(await S('s.numerics.filter(f => f.key.endsWith("_sets") || f.key === "print_eigenvalues")')));
   await menuRun('equilibrium.find');
   check('W535: Find asks no question and finds the equilibrium',
@@ -2807,7 +2807,7 @@ async function busyKeys() {
     };
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
-    + 'and data (Initialconds, Sing pts...) are disabled, Parameters and Load (settings, W106) are not',
+    + 'and data (Initialconds, Sing pts...) are disabled, Parameters and Load (options, W106) are not',
     running && ui.status === `${await nameOf('run.initial')}… Esc stops` && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.load
     && ['run.initial', 'equilibrium.find', 'run.shoot', 'session.save'].every(id => ui.off.includes(id)) && !ui.off.includes('value.set_parameters') && !ui.off.includes('run.configure'), JSON.stringify(ui));
   check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File, and the menus holding a view: Nullcline, Dir.field, Kinescope, Graphic stuff), New window and Stop stay enabled',
@@ -2832,7 +2832,7 @@ async function busyKeys() {
   const draggedTo = dragged.length ? parEditValue(dragged[dragged.length - 1]) : null;
   const shownDrag = await S(`s.values.inflight.some(f => f.set.name === 'iapp')
     && !document.querySelector('[data-slider="${sid}"]').classList.contains('queued') && !document.querySelector('.values-queued')`);
-  /* W106: a parameter field and a Numerics field are settings too: editable during the run, sent at once */
+  /* W106: a parameter field and a Numerics field are options too: editable during the run, sent at once */
   await editField('par', 'phi', '0.4');
   await editNumericsRow('store_every', '3');
   const edited = await cdp.eval(`__xpp.sent().slice(${sent0 + dragged.length})`);
@@ -2861,7 +2861,7 @@ async function busyKeys() {
   check('W106: after the run the core has the edits made during it (state and numerics)',
     await until(`!s.busy && !s.values.inflight.length && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9
       && s.core.pars.find(p => p[0] === "phi")[1] === 0.4 && s.numerics.find(f => f.key === 'store_every').value === 3`,
-    'settings applied after the run', 10000),
+    'options applied after the run', 10000),
     JSON.stringify(await S('[s.busy, s.values.inflight, s.core.pars, s.numerics]')));
   /* The window.new sent during the run has now completed. */
   check('W95: the view clicked during the run ran after it: window 2 exists',
@@ -3274,9 +3274,9 @@ async function menuRun(id, values = {}) {
   }
 }
 
-/* W616: every settings panel is built from the option table hello carries: for each group, its panel's title, sections, fields in order,
+/* W616: every option panel is built from the option table hello carries: for each group, its panel's title, sections, fields in order,
    labels, choices and defaults are the table's, and what it shows is what the core holds; the Output panel opens from File > Output and picks
-   its paths with the file dialog. Nothing here knows one setting: the table is the only list. */
+   its paths with the file dialog. Nothing here knows one option: the table is the only list. */
 async function optionsCheck() {
   await until('s.hello && !s.busy', 'hello');
   const groups = await S('s.hello.options ?? []');
@@ -3416,7 +3416,7 @@ async function optionsCheck() {
   await key('Escape');
   /* a panel opened from a menu item that had a form of its own sets the group's rows, checked all together */
   await menuRun('equilibrium.configure', {max_iterations: 77});
-  check('W616: the Equilibrium settings panel applies what was typed, by the row\'s key', await until(`!s.busy && !s.optionsPanel`, 'applied'));
+  check('W616: the Equilibrium options panel applies what was typed, by the row\'s key', await until(`!s.busy && !s.optionsPanel`, 'applied'));
   await cdp.eval(`__xpp.openOptions('equilibria')`);
   await requireUntil(`s.optionsPanel?.group === 'equilibria' && s.optionValues.equilibria`, 'the equilibria panel again');
   check('W616: and the core holds it', await S(`s.optionValues.equilibria.values.max_iterations === '77'`), JSON.stringify(await S('s.optionValues.equilibria')));
@@ -3498,8 +3498,8 @@ async function dockCheck() {
 const AB_SCRIPT = `version: 4,
 model: "ab.odex",
 runs: [
-  { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["p0"], settings: { step_size: 0.05, parameter_max: 1.5, follow_all_branches: false } },
-  { name: "back", kind: equilibrium, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"], settings: { step_size: -0.05, parameter_min: 0, follow_all_branches: false } },
+  { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["p0"], options: { step_size: 0.05, parameter_max: 1.5, follow_all_branches: false } },
+  { name: "back", kind: equilibrium, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"], options: { step_size: -0.05, parameter_min: 0, follow_all_branches: false } },
 ]
 `;
 async function autoxScriptCheck(dir) {
@@ -4070,7 +4070,7 @@ async function tabOrderShots() {
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
-/* W679: a field's help is behind a "?" after its label in a settings panel, in Preferences and in a command form: hidden, opened by a click, closed by a
+/* W679: a field's help is behind a "?" after its label in an options panel, in Preferences and in a command form: hidden, opened by a click, closed by a
    second, several open at once. Data only: the toggle's aria state, the help's hidden flag and the id they share. */
 async function fieldHelp() {
   await until('s.hello && !s.busy', 'hello');
@@ -4079,7 +4079,7 @@ async function fieldHelp() {
     return b && h ? {expanded: b.getAttribute('aria-expanded'), hidden: h.hidden, linked: b.getAttribute('aria-controls') === h.id && !!h.id, text: h.textContent.length > 0} : null; })()`);
   const toggle = (root, n) => cdp.eval(`document.querySelectorAll(${JSON.stringify(root + ' .form-row')})[${n}].querySelector('.field-help-toggle').click()`);
   const tests = [
-    ['a settings panel', async () => { await cdp.eval(`__xpp.openOptions('integration')`); await requireUntil(`s.optionsPanel?.group === 'integration' && s.optionValues.integration`, 'panel'); }, '[data-options-panel]'],
+    ['an options panel', async () => { await cdp.eval(`__xpp.openOptions('integration')`); await requireUntil(`s.optionsPanel?.group === 'integration' && s.optionValues.integration`, 'panel'); }, '[data-options-panel]'],
     ['Preferences', async () => { await clickRegistry('preferences.configure'); }, '[data-dialog]'],
     ['a command form', async () => { /* a command of the registry's own arguments (no group's panel) with their descriptions */
       const id = await S(`s.hello.commands.find(c => c.menu_path && !c.panel && !c.needs && (c.arguments ?? []).filter(a => a.description && !a.option && a.type !== 'path').length >= 2)?.cmd`);
@@ -4107,7 +4107,7 @@ async function fieldHelp() {
   }
 }
 
-/* The field help's pictures for the UI review (W679; with --only shots and XPP_SHOTS=folder): a settings panel, Preferences and a command form, each with
+/* The field help's pictures for the UI review (W679; with --only shots and XPP_SHOTS=folder): an options panel, Preferences and a command form, each with
    its first help opened, at 1280 wide light, 1440 dark, 768 and 390. Never a check: it writes files only. */
 async function fieldHelpShots() {
   const dir = process.env.XPP_SHOTS;
@@ -4134,7 +4134,7 @@ async function fieldHelpShots() {
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
-/* The dialogs' pictures for the UI review (W616, W641; run with --only shots and XPP_SHOTS=folder): every settings panel as its menu entry opens it
+/* The dialogs' pictures for the UI review (W616, W641; run with --only shots and XPP_SHOTS=folder): every option panel as its menu entry opens it
    and the other dialogs, at 1280 wide light, 1440 dark, 768 and 390. Never a check: it writes files only. */
 async function settingsShots() {
   const dir = process.env.XPP_SHOTS;
@@ -4496,12 +4496,12 @@ async function dialogsCheck() {
   const banned = ['OK', 'Run', 'Cancel', 'Close'];
   const sound = (name, d) => check(`W641: ${name}: one shell with a title and a ×, no ${banned.join('/')} button, the action never disabled`,
     !!d && d.count === 1 && !!d.title && d.close && !d.buttons.some(b => banned.includes(b)) && d.actionDisabled !== true, JSON.stringify(d));
-  /* a settings group's form */
+  /* an options group's form */
   await clickRegistry('run.configure');
-  await requireUntil(`!!document.querySelector('[data-options-panel=integration] [data-argument=dt] input') && !!s.optionValues.integration`, 'the run settings form');
+  await requireUntil(`!!document.querySelector('[data-options-panel=integration] [data-argument=dt] input') && !!s.optionValues.integration`, 'the run options form');
   let d = await shell();
-  sound('Run settings', d);
-  check('W641: Run settings: the action is the row\'s own text (Apply), and nothing is wrong before anything is typed', d.action === 'Apply' && d.errors === 0 && d.width === 'form', JSON.stringify(d));
+  sound('Run options', d);
+  check('W641: Run options: the action is the row\'s own text (Apply), and nothing is wrong before anything is typed', d.action === 'Apply' && d.errors === 0 && d.width === 'form', JSON.stringify(d));
   check('W641: every field shows its current value (Dt is the core\'s)', await cdp.eval(`document.querySelector('[data-options-panel=integration] [data-argument=dt] input').value`) === await S(`String(s.numerics.find(f => f.key === 'dt').value)`));
   const dt = `document.querySelector('[data-options-panel=integration] [data-argument=dt] input')`;
   await cdp.eval(`(() => { const el = ${dt}; el.focus(); el.value = '0'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
@@ -4521,7 +4521,7 @@ async function dialogsCheck() {
   await until('!s.optionsPanel', 'closed by Escape');
   /* a dropdown is a text field: the same height, type, fill, border and radius, in light and in dark */
   await clickRegistry('run.configure');
-  await requireUntil(`!!document.querySelector('[data-options-panel=integration] [data-argument=method] select') && !!s.optionValues.integration`, 'the run settings form again');
+  await requireUntil(`!!document.querySelector('[data-options-panel=integration] [data-argument=method] select') && !!s.optionValues.integration`, 'the run options form again');
   for (const scheme of ['light', 'dark']) {
     await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
     await rendered();
@@ -4535,7 +4535,7 @@ async function dialogsCheck() {
   }
   await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: 'light'}]});
   await key('Escape');
-  await until('!s.optionsPanel', 'run settings closed');
+  await until('!s.optionsPanel', 'run options closed');
   /* every file control, in Output and in Export, is the one component: the same class, its picker inside it, no separate Choose button */
   await cdp.eval(`__xpp.openOptions('output')`);
   await requireUntil(`s.optionsPanel?.group === 'output' && !!s.optionValues.output`, 'the Output form');
@@ -4585,7 +4585,7 @@ async function dialogsCheck() {
   })()`);
   check('W641: the export form has one file control and no second action (the footer\'s is the only one)',
     exportForm.fileControls === 1 && exportForm.buttonsInRow === 0 && exportForm.actions.length === 1 && !exportForm.buttonsInBody.some(b => /Choose file/.test(b)), JSON.stringify(exportForm));
-  check('W641: in the Export form every row\'s label starts at the same x (the form is the command\'s own arguments only since W656: no settings box)',
+  check('W641: in the Export form every row\'s label starts at the same x (the form is the command\'s own arguments only since W656: no option box)',
     exportForm.labelX.length >= 2 && new Set(exportForm.labelX).size === 1, JSON.stringify(exportForm.labelX));
   check('W641: Export\'s File is not marked required, and no form has a separate file button',
     await cdp.eval(`(() => { const row = document.querySelector('[data-dialog] [data-argument=file]'); return !row.querySelector('.required') && !document.querySelector('[data-dialog] .file-pick'); })()`));
@@ -4762,7 +4762,7 @@ async function navigationCheck() {
   for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list' && !c.menu_choice)) {
     await clickRegistry(row.cmd);
     if (row.panel) {
-      /* W616: a group's generated panel in place of its form, or inside it when the command has more than settings (the options section checks the fields against the table) */
+      /* W616: a group's generated panel in place of its form, or inside it when the command has more than options (the options section checks the fields against the table) */
       const inForm = row.panel.endsWith('+') || row.arguments.some(a => a.option);
       check(`W616: ${row.cmd} shows its group's panel ${inForm ? 'inside its form' : 'in place of its form'}`,
         await until(inForm ? `!!s.commandForm && !!document.querySelector('.registry-form [data-options-rows] [data-argument]')`
@@ -4859,7 +4859,7 @@ async function navigationCheck() {
 /* W634: one top menu open at a time; pointing at another title opens it while one is open; Left and
    Right move between the top menus, Up and Down through the open one's entries; Escape closes it and
    returns the focus to its title; a window's submenu closes its sibling and not Windows. */
-/* W649 (#722): what a model has decides what the page shows. `has` is the features the model has, `lacks` the ones it does not: a settings row, a menu
+/* W649 (#722): what a model has decides what the page shows. `has` is the features the model has, `lacks` the ones it does not: an options row, a menu
    entry (and a menu whose entries all go) for a feature it lacks are not there, and Search commands lists the command greyed with the reason. */
 async function featuresCheck(has, lacks) {
   await desktopMetrics();
@@ -4885,7 +4885,7 @@ async function featuresCheck(has, lacks) {
     /* Run > Boundary values keeps Solve periodic orbit, which no boundary condition is needed for */
     if (menu && !present && menu !== 'Boundary values') check(`W649: no ${menu} menu is left when its entries are all for a feature the model lacks`,
       await cdp.eval(`![...document.querySelectorAll('.app-menu summary')].some(n => n.textContent.trim() === ${JSON.stringify(menu)})`));
-    if (row) check(`W649: the settings row ${row} (${name}) is ${present ? 'shown' : 'not shown'}`, rowsShown.includes(row) === present, JSON.stringify(rowsShown));
+    if (row) check(`W649: the options row ${row} (${name}) is ${present ? 'shown' : 'not shown'}`, rowsShown.includes(row) === present, JSON.stringify(rowsShown));
   }
   await key('Escape');
 }
@@ -5017,11 +5017,11 @@ async function steadyCheck() {
   await rendered();
   check('steady: action and run duration are visible without opening a menu', await cdp.eval(`
     document.querySelector('[data-run=steady]').getAttribute('aria-disabled') === 'false' &&
-    !!document.querySelector('[data-run-duration]') && !document.querySelector('.steady-settings').open`));
-  await cdp.eval(`document.querySelector('.steady-settings summary').click()`);
+    !!document.querySelector('[data-run-duration]') && !document.querySelector('.steady-options').open`));
+  await cdp.eval(`document.querySelector('.steady-options summary').click()`);
   await cdp.eval(`(() => { const input = document.querySelector('[data-steady=maximum]'); input.value = '200'; input.dispatchEvent(new Event('input', {bubbles:true})); })()`);
   await rendered();
-  await cdp.eval(`document.querySelector('.steady-settings summary').click(); document.querySelector('[data-run=steady]').click()`);
+  await cdp.eval(`document.querySelector('.steady-options summary').click(); document.querySelector('[data-run=steady]').click()`);
   check('steady: one-click action completes with unchanged-digits status and no prompt', await until(`!s.busy && s.core.steady?.status === 'settled' && !s.ask`, 'settled UI', 30000));
   check('steady: final core precision and result are visible', await cdp.eval(`document.querySelector('.steady-result').textContent.includes('9 decimal places')`) && await S('s.core.steady.time === s.core.time'));
   await rendered();
@@ -5655,8 +5655,8 @@ async function valuesBusy() {
      unlike Stiff it honours Store every N steps instead of resetting it to one. */
   await cdp.eval(`__xpp.send({cmd: 'run.configure', method: 'runge_kutta', total_time: ${BUSY_TOTAL}, store_every: ${BUSY_JUMP}})`);
   if (!await until(`!s.busy && s.numerics.find(f => f.key === 'total_time')?.value === ${BUSY_TOTAL}
-    && s.numerics.find(f => f.key === 'store_every')?.value === ${BUSY_JUMP}`, 'heavy integration settings'))
-    throw new Error('heavy.odex: heavy integration settings were not applied');
+    && s.numerics.find(f => f.key === 'store_every')?.value === ${BUSY_JUMP}`, 'heavy integration options'))
+    throw new Error('heavy.odex: heavy integration options were not applied');
   const start = async () => {
     await focusPlot();
       await menuRun('run.initial');
@@ -6185,7 +6185,7 @@ async function setsRows() {
   const holding = await names('parameters');
   check('sets: the Parameters Sets list names the sets that hold parameters, not the plot-only one',
     ['hom', 'hopf', 'snic', 'vvst'].every(n => holding.includes(n)) && !holding.includes('pp'), JSON.stringify(holding));
-  check('sets: the plot Sets list names the sets that hold plot settings', JSON.stringify((await names('plot')).sort()) === JSON.stringify(['pp', 'vvst']), JSON.stringify(await names('plot')));
+  check('sets: the plot Sets list names the sets that hold plot options', JSON.stringify((await names('plot')).sort()) === JSON.stringify(['pp', 'vvst']), JSON.stringify(await names('plot')));
   check('sets: Initial values has no set to apply (lecar\'s sets hold none) and says so',
     (await names('initial')).length === 0 && await cdp.eval(`/No set holds/.test(document.querySelector('${row('initial')} [data-sets-menu=sets]').textContent)`));
 
@@ -6200,7 +6200,7 @@ async function setsRows() {
     && await S('JSON.stringify(s.core.ics)') === ic0, JSON.stringify(await sentAfter(n, 'set.apply')));
   n = await S('__xpp.sentCount()');
   await click('plot', 'sets', 'set.apply', 'pp');
-  check('sets: a graph\'s row applies its plot settings to that graph (scope plot, its window)',
+  check('sets: a graph\'s row applies its plot options to that graph (scope plot, its window)',
     await until('!s.busy', 'pp applied') && JSON.stringify(await sentAfter(n, 'set.apply')) === JSON.stringify([{cmd: 'set.apply', name: 'pp', scope: 'plot', window: plotWin}]),
     JSON.stringify(await sentAfter(n, 'set.apply')));
 

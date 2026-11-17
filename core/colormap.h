@@ -78,7 +78,7 @@ extern XppColorTable color_table;
 /* the colors the program draws with (W655): the user's (kept in the preferences, xpp_prefs.h), not a model's, one list for every model and every view. Each is
    read when something is drawn with it: a diagram point's by its kind when it is stored, a nullcline's and a manifold's
    when it is computed. The defaults are XPPAUT's. The names are the keys of the file and the arguments of
-   preferences.configure; their order is the option table's order of the settings they were (the diagram's, the nullclines',
+   preferences.configure; their order is the option table's order of the options they were (the diagram's, the nullclines',
    the manifolds'). */
 struct Colors {
     Color stable_equilibrium = xppaut_color(1), unstable_equilibrium = xppaut_color(0);

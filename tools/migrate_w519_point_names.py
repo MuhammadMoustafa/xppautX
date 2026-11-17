@@ -33,7 +33,7 @@ output = io.BytesIO()
 with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED) as dest:
     for member in source.infolist():
         data = source.read(member)
-        if member.filename == 'auto/settings.txt':
+        if member.filename == 'auto/options.txt':
             data = re.sub(rb'^([A-Z0-9]+) (true|false)$',
                           lambda m: (NAMES[m[1].decode()].encode() if m[1].decode() in NAMES else m[1]) + b' ' + m[2],
                           data, flags=re.M)

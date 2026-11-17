@@ -1,5 +1,5 @@
 /* The value resource's registry rows (W526): the parameters, the sliders that move them, the undo and redo of
-   value edits, and the Load of XPPAUT's .par and .ic files. They are settings: sent during a computation they apply when
+   value edits, and the Load of XPPAUT's .par and .ic files. They are options: sent during a computation they apply when
    it ends, never to the run in progress. A handler calls the same core function the main menu's keys do (the
    Parameters form, Undo and Redo): one behaviour, whichever front end asks. */
 #include "command_def.h"
@@ -174,27 +174,27 @@ constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DO
 constexpr std::array UNDO_KEYS = {"Ctrl+Z"};
 constexpr std::array REDO_KEYS = {"Ctrl+Shift+Z"};
 constexpr std::array ROWS = {
-    Command{"value.import_file", FILE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "Import values file", "Data",
+    Command{"value.import_file", FILE_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Files, "Import values file", "Data",
             "Import the parameters (.par) or the initial conditions (.ic) from a file XPPAUT wrote, in the model's folder, all or nothing; with no file, ask for one (the result's file is empty when that question was cancelled). Nothing of ours writes these files.",
             FILE_RESULTS, STATE_EVENTS, true, load_file},
-    Command{"value.set_parameters", PARAMETERS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set parameters", "Data",
+    Command{"value.set_parameters", PARAMETERS_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Run, "Set parameters", "Data",
             "Set the values of some parameters; the others keep theirs. Runs nothing.", PARAMETERS_RESULTS, STATE_EVENTS, true,
             set_parameters},
-    Command{"value.set_by_formula", FORMULA_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set parameter by formula", "Data",
+    Command{"value.set_by_formula", FORMULA_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Run, "Set parameter by formula", "Data",
             "Set a parameter to what a formula works out to now (once: the parameter keeps the number, not the formula).", FORMULA_RESULTS,
             STATE_EVENTS, true, set_by_formula},
-    Command{"value.undo", {}, XPP_KIND_SETTING, CommandCategory::Run, "Undo value edit", "Data",
+    Command{"value.undo", {}, XPP_KIND_OPTION, CommandCategory::Run, "Undo value edit", "Data",
             "Take back the last edit of the parameters, initial conditions or numerics (not runs, plots or files).", UNDO_RESULTS, STATE_EVENTS,
             true, undo, {}, UNDO_KEYS},
-    Command{"value.redo", {}, XPP_KIND_SETTING, CommandCategory::Run, "Redo value edit", "Data",
+    Command{"value.redo", {}, XPP_KIND_OPTION, CommandCategory::Run, "Redo value edit", "Data",
             "Put back the value edit that was undone.", REDO_RESULTS, STATE_EVENTS, true, redo, {}, REDO_KEYS},
-    Command{"value.slide", SLIDE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Slide value", "",
+    Command{"value.slide", SLIDE_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Run, "Slide value", "",
             "Set a parameter or a state's initial value to a number, as a slider does; moves of one slider in a row are one undo step.",
             SLIDE_RESULTS, STATE_EVENTS, true, slide},
-    Command{"value.configure_slider", SLIDER_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Configure slider", "",
+    Command{"value.configure_slider", SLIDER_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Run, "Configure slider", "",
             "Define a slider: its slot (an existing one, or the next), the parameter or state it moves, its range, and its step (0: the page picks one; left out: the slot's own).",
             SLIDER_RESULTS, STATE_EVENTS, true, configure_slider},
-    Command{"value.delete_slider", REMOVE_SLIDER_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Delete slider", "",
+    Command{"value.delete_slider", REMOVE_SLIDER_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Run, "Delete slider", "",
             "Empty a slider's slot.", REMOVE_SLIDER_RESULTS, STATE_EVENTS, true, remove_slider},};
 
 } // namespace

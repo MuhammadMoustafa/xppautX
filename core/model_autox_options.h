@@ -1,10 +1,10 @@
 #pragma once
-/* autoX's settings the option table's rows set (the continuation group's ntst, ds, ..., the advanced numerics, the codimension-two
+/* autoX's options the option table's rows set (the continuation group's ntst, ds, ..., the advanced numerics, the codimension-two
    kinds): plain data, which a Session's AutoxState (autox_state.h, autoX's) extends with the window's and the runs' state (W757). */
 #include <array>
 #include "autox_codes.h"
 
-/* the autoX settings the model's @ options give (autox_ntst=, ...), which
+/* the autoX options the model's @ options give (autox_ntst=, ...), which
    init_autox_win copies into AutoxState::bifur */
 // A nonnegative norm has no useful lower default; the upper bound leaves ordinary branches unrestricted.
 inline constexpr double autox_default_norm_min=0.0;

@@ -6,7 +6,7 @@
 namespace xpp {
 struct Session; /* session.h */
 struct Model; /* model.h */
-struct NumericsSettings; /* numerics_settings.h */
+struct NumericsSettings; /* numerics_options.h */
 struct IntegratorState; /* integrator_state.h */
 struct DataStore; /* storage.h */
 struct SolverWork; /* storage.h */
@@ -49,7 +49,7 @@ struct RunParts {
   std::vector<TABULAR> &tables;
   std::vector<NetworkValues> &networks;
   Random &random;
-  const SessionParts &session_parts; /* the settings the option table reads, named in what a run reports */
+  const SessionParts &session_parts; /* the options the option table reads, named in what a run reports */
   Model &model() const { return model_; }
 };
 

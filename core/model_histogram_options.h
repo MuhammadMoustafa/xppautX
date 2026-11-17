@@ -1,5 +1,5 @@
 #pragma once
-/* The histogram and spectrum settings the option table's rows and the dialogs set, and what a batch run makes of its data: plain
+/* The histogram and spectrum options the option table's rows and the dialogs set, and what a batch run makes of its data: plain
    data, which a Session's HistogramState (histogram_state.h, the analyses') extends with the results (W757). */
 #include <array>
 #include <string>
@@ -8,7 +8,7 @@
 
 namespace xpp {
 
-/* the histogram / spectrum settings the dialogs and the model's own
+/* the histogram / spectrum options the dialogs and the model's own
    @ options edit (load_eqn.cpp's option reader; cond, the histogram's
    condition, only the Histogram dialog) */
 struct HIST_INFO {
@@ -26,7 +26,7 @@ inline constexpr std::array<std::string_view, 10> after_run_names{"none", "histo
 /* the spectrum type (spec_type) an after_run analysis computes */
 inline constexpr int spectrum_type_of(AfterRun a) { return static_cast<int>(a) - static_cast<int>(AfterRun::spectral_density); }
 
-/* the histogram and spectrum settings (the model's own @ options set spec_*) and a batch run's post-processing, a base of
+/* the histogram and spectrum options (the model's own @ options set spec_*) and a batch run's post-processing, a base of
    HistogramState */
 struct HistogramSettings {
   HIST_INFO info{100,100,1,1,0,0,1,0,1,""};

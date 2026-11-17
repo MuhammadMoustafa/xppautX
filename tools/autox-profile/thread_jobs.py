@@ -19,7 +19,7 @@ sys.path.insert(0, str(ROOT / 'tools'))
 import autoxcompare as ac  # noqa: E402
 
 THREADS = (1, 2, 4, 8)
-# name: (description, its run, autox settings changed): the comparison's own models with every branch followed
+# name: (description, its run, autox options changed): the comparison's own models with every branch followed
 VARIANTS = {
     'mu26_follow_all': ('ode_mu26_control', 'steady', dict(max_steps=300)),
     'motoneuron6c_follow_all': ('ode_motoneuron6c', 'steady', dict(max_steps=600)),

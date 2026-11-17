@@ -217,7 +217,7 @@ def main():
         assert diagnostics[0]['severity'] == 'info' and '2 independent subsystems' in diagnostics[0]['message'], diagnostics
         code, diagnostics = run("x'=-y\ny'=x\nu'=-u*x\n", '.odex')
         assert code == 0 and diagnostics == [], diagnostics
-        # a Poincare stop on x: two subsystems by the equations (the default), one by the run, as the file's own setting says
+        # a Poincare stop on x: two subsystems by the equations (the default), one by the run, as the file's own option says
         stop = "x'=-x\ny'=-y\noptions { poincare: { map: section, variable: x, stop: true }%s }\n"
         code, diagnostics = run(stop % '', '.odex')
         assert code == 0 and [d['id'] for d in diagnostics] == ['subsystems'] and '2 independent subsystems' in diagnostics[0]['message'], diagnostics

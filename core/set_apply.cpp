@@ -1,5 +1,5 @@
-/* A model's sets and the settings applied to the Session as patches (set_apply.h): the model's own values back, a set applied, a
-   group of settings read, written or captured for a save. All or nothing, one undo step. */
+/* A model's sets and the options applied to the Session as patches (set_apply.h): the model's own values back, a set applied, a
+   group of options read, written or captured for a save. All or nothing, one undo step. */
 #include <algorithm>
 #include <ranges>
 #include <array>
@@ -20,10 +20,10 @@
 #include "xpp_text.h"
 
 #include "model_place.h"
-#include "plot_settings.h"
+#include "plot_options.h"
 #include "plot_state.h"
 #include "load_eqn.h"
-#include "numerics_settings.h"
+#include "numerics_options.h"
 #include "value_undo.h"
 
 #include "numerics.h"
@@ -121,7 +121,7 @@ void apply_set_items(xpp::Session &s, std::span<const SetItem> items)
   for(const SetItem &item : items){
     if(item.setting){
       set_option(s,item.name,item.value,1,NULL);
-      /* what a change of the setting needs besides its member (the step's recount, the stored rows' precision, the delay's storage) */
+      /* what a change of the option needs besides its member (the step's recount, the stored rows' precision, the delay's storage) */
       int index=0;
       if(const OptionRow *row=find_option(item.name,index,false))apply_option_effect(s,row->effect);
       xpp::do_meth(s);
@@ -140,7 +140,7 @@ std::vector<SetItem> set_items(std::string_view text)
 std::vector<SetItem> set_items(const xpp::Model::InternalSet &set)
 {
   std::vector<SetItem> items=set_items(set.does);
-  for(const auto &[name,value] : set.settings)items.push_back({name,value,true});
+  for(const auto &[name,value] : set.options)items.push_back({name,value,true});
   return items;
 }
 
@@ -162,27 +162,27 @@ xpp::Result<> graph_fits_scope(std::optional<int> graph, std::string_view scope,
   return {};
 }
 
-/* the plot settings put in graph `graph`, which the front end then shows again */
+/* the plot options put in graph `graph`, which the front end then shows again */
 void put_plot_settings(xpp::Session &s, int graph)
 {
-  xpp::reset_graph(*s.plot_settings,s.plot_windows->graph[static_cast<std::size_t>(graph)]);
+  xpp::reset_graph(*s.plot_options,s.plot_windows->graph[static_cast<std::size_t>(graph)]);
   ui.graph_settings_changed(s,graph);
 }
 
-/* the target graph's settings in the plot settings the options write; the destructor puts the settings of the graph that is
-   active (the window the user works in, which stays) in the plot settings again */
+/* the target graph's options in the plot options the options write; the destructor puts the options of the graph that is
+   active (the window the user works in, which stays) in the plot options again */
 class GraphTarget {
 public:
   GraphTarget(xpp::Session &s, int graph, bool used) : s_(s), graph_(graph), previous_(s.plot_windows->active), used_(used)
   {
-    if(used_)xpp::get_graph(*s_.plot_settings,s_.plot_windows->graph[static_cast<std::size_t>(graph_)]);
+    if(used_)xpp::get_graph(*s_.plot_options,s_.plot_windows->graph[static_cast<std::size_t>(graph_)]);
   }
-  /* the plot settings put in the graph */
+  /* the plot options put in the graph */
   void store() const { if(used_)put_plot_settings(s_,graph_); }
   ~GraphTarget()
   {
     if(!used_||graph_==previous_)return;
-    xpp::get_graph(*s_.plot_settings,s_.plot_windows->graph[static_cast<std::size_t>(previous_)]);
+    xpp::get_graph(*s_.plot_options,s_.plot_windows->graph[static_cast<std::size_t>(previous_)]);
   }
   GraphTarget(const GraphTarget &)=delete;
   GraphTarget &operator=(const GraphTarget &)=delete;
@@ -241,11 +241,11 @@ bool has_built_in(const OptionRow &row) { return row.reset||row.real||row.whole|
 /* a row with a member of its own holds a value to read; the others (numbered curves, ...) are set by their text only */
 bool has_member(const OptionRow &row) { return row.real||row.whole||row.boolean||row.index||row.text||row.show; }
 
-/* which settings of a group are wanted: a panel's (all that have a member), a set's (what a set holds: no `wide` row, a path left out
+/* which options of a group are wanted: a panel's (all that have a member), a set's (what a set holds: no `wide` row, a path left out
    none) or the model's file (all that have a member, as the file names them: a path from the model's folder, one left out none, W680) */
 enum class Rows { panel, set, model };
 
-/* the settings of group now, as their text: a row of the group with a member that the session's method and model use; the diagram's
+/* the options of group now, as their text: a row of the group with a member that the session's method and model use; the diagram's
    variable and axes are the open view's (the model's values only start a new one) */
 std::vector<std::pair<const OptionRow *,std::string>> group_settings(xpp::Session &s, std::string_view group, Rows wanted)
 {
@@ -302,7 +302,7 @@ xpp::Result<> extract_action(xpp::Session &s, std::string_view ptr, const xpp::P
 {
   const std::vector<SetItem> items=set_items(ptr);
   if(xpp::Result<> r=check_set_items(s,items,where,xppaut_names,"internal set");!r)return r;
-  if(graph_settings)xpp::get_graph(*s.plot_settings,*s.plot_windows->current);
+  if(graph_settings)xpp::get_graph(*s.plot_options,*s.plot_windows->current);
   apply_set_items(s,items);
   return {};
 }
@@ -374,8 +374,8 @@ xpp::Result<> restore_defaults(xpp::Session &s, std::string_view scope, std::str
   else if(single){
     int index=0;
     const OptionRow *row=find_odex_option(scope,field,index);
-    if(!row||row->wide)return fail(xpp::format("{} is not a setting of {}",field,scope));
-    if(!has_built_in(*row))return fail(xpp::format("{} has no default of its own: restore the {} settings together",field,scope));
+    if(!row||row->wide)return fail(xpp::format("{} is not an option of {}",field,scope));
+    if(!has_built_in(*row))return fail(xpp::format("{} has no default of its own: restore the {} options together",field,scope));
     rows.push_back(row);
   }
   else for(const OptionRow &row : option_rows())
@@ -429,7 +429,7 @@ xpp::Result<odex::Values> captured_values(xpp::Session &s, std::string_view scop
     if((!held&&!own)||(!all&&scope!=group))continue;
     values.groups.emplace_back(group);
     for(const auto &[row,text] : group_settings(s,group,model_wide?Rows::model:Rows::set)){
-      for(std::string &value : option_values(*row,text))values.settings.push_back({std::string(group),odex_key(*row,0),std::move(value)});
+      for(std::string &value : option_values(*row,text))values.options.push_back({std::string(group),odex_key(*row,0),std::move(value)});
     }
   }
   return values;
@@ -446,7 +446,7 @@ xpp::Result<std::vector<std::pair<const OptionRow *,std::string>>> option_group_
 xpp::Result<> apply_option_group(xpp::Session &s, std::string_view group, std::span<const SetItem> items, const xpp::Place &where, std::optional<int> graph, std::string_view command)
 {
   if(std::ranges::find(set_groups,group)!=set_groups.end())return apply_values(s,items,where,group,graph,command);
-  if(graph)return std::unexpected(xpp::Error{std::string(command),xpp::format("the {} settings belong to no graph",group),xpp::command_place()});
+  if(graph)return std::unexpected(xpp::Error{std::string(command),xpp::format("the {} options belong to no graph",group),xpp::command_place()});
   /* a group of the session as a whole: the same check of every item, then the same write; the diagram's variable and axes go to
      the open view, the rest of its rows as any */
   std::vector<SetItem> own;

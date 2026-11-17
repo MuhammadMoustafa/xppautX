@@ -28,7 +28,7 @@
 #include "xpp_zip.h"
 #include "xpp_path.h"
 #include "xpp_lines.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 
 
 #include "expr.h"
@@ -525,7 +525,7 @@ std::optional<xpp::Error> autox_end_run(AutoxParts s, AutoxRun &run, std::option
     e.what="autoX stopped: "+e.what;
     /* the run stored the last converged point as an end point (the
        cancel it made itself: autox_pp.cpp): the continuation goes on from
-       its label, with the settings of this run */
+       its label, with the options of this run */
     const DIAGRAM *last=s.autox_state->stop.last_why==xpp::AUTOX_STOP_JACOBIAN?last_diagram(*s.diagram):NULL;
     if(last!=NULL&&last->lab>0)
       e.action=xpp::switch_to_differences(xpp::format(R"({{"cmd":"autox.run","kind":"{}","label":{}}})",xpp::autox_run_kind_name(s.autox_state->run_kind),last->lab));
@@ -550,9 +550,9 @@ Result<> autox_set_up_run(AutoxParts s, AutoxRun &run, int iold, const AutoxFoun
   /* XPP_AUTOX_CANCEL_AT_SOLVE=N: every run (a job or a single run) asks Stop as its Nth solve begins, so servercheck's Stop
      lands at the same place every time (W750, W751); autox_solve_begins */
   run.cancel_at_solve=autox_check_count("XPP_AUTOX_CANCEL_AT_SOLVE");
-  init_autox(*s.autox_state,run.params,s.model().node,s.numerics->jacobian==JACOBIAN_EXACT); /* the continuation's initialization from the settings: what reading in AUTO's parameters and running its init did */
+  init_autox(*s.autox_state,run.params,s.model().node,s.numerics->jacobian==JACOBIAN_EXACT); /* the continuation's initialization from the options: what reading in AUTO's parameters and running its init did */
   run.orbit_start=s.autox_state->new_period_flag;
-  if(found){ /* the problem and the point of the job that found it, which are not the settings' */
+  if(found){ /* the problem and the point of the job that found it, which are not the options' */
     run.params.ips=found->ips;
     run.params.isw=found->isw;
     run.params.isp=found->isp;
@@ -590,7 +590,7 @@ xpp::Result<> do_autox(AutoxParts s, int iold, int isave, xpp::AutoxPointCode it
     std::optional<xpp::Error> reported; /* what the run says went wrong, for the command to return */
     int restart_label=0; /* the label a follow-up run goes on from, 0 for none */
     { /* the run lives in here: its memory and folder are gone before a follow-up run starts */
-    AutoxRun run; /* this run's own state: nothing of it is the Session's but the model and settings it reads */
+    AutoxRun run; /* this run's own state: nothing of it is the Session's but the model and options it reads */
     create_autox_file_name(s); /* where the run's solutions are kept: the dir may have changed since the last run */
     if(auto set_up=autox_set_up_run(s,run,iold);!set_up)return set_up;
     std::optional<xpp::Error> failed; /* the run reports its failure after cleanup */
@@ -707,7 +707,7 @@ std::string autox_screen_col(const AutoxParts &s, const std::string &col)
 
 
 
-/* Numerics field i as a typed form field of its shape (the value as the settings hold it) */
+/* Numerics field i as a typed form field of its shape (the value as the options hold it) */
 
 
 

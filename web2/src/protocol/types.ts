@@ -83,9 +83,9 @@ export interface HelloEvent {
   /** Initial surface names; plots and diagram views subsequently carry their exact names. */
   window_names: {main: string; autox: string; ani: string; aplot: string; data: string};
   lists: string[][];
-  /** every settings panel, built from the option table (core/options_panels.h): one per group, its rows in the table's order */
+  /** every option panel, built from the option table (core/options_panels.h): one per group, its rows in the table's order */
   options: OptionGroup[];
-  /** what the model has that some settings and commands need (core/model_features.h): `needs` is why a row for it is not for a model without it */
+  /** what the model has that some options and commands need (core/model_features.h): `needs` is why a row for it is not for a model without it */
   model_features: ModelFeature[];
   model_names: string[];
   /** every point type: its name (the only input), its label and its mark (core/autox_codes.h's one table) */
@@ -795,8 +795,8 @@ export type XppEvent =
   | {ev: 'autox.jobs'; [k: string]: unknown}
   /* the jobs a join kept, each with its branch (store/diagram.ts AutoxJoined) */
   | {ev: 'autox.joined'; [k: string]: unknown}
-  /* autoX's settings (store/autoxSettings.ts AutoxSettings) */
-  | {ev: 'autox.settings'; [k: string]: unknown}
+  /* autoX's options (store/autoxOptions.ts AutoxSettings) */
+  | {ev: 'autox.options'; [k: string]: unknown}
   /* the open .autox script's runs (store/autoxScript.ts AutoxScript) */
   | {ev: 'autox.script_runs'; [k: string]: unknown}
   /** the main numerics (docs/protocol.md "The numerics as data") */

@@ -1,4 +1,4 @@
-/* Direct run actions and inline settings; no mandatory intermediate dialog. */
+/* Direct run actions and inline options; no mandatory intermediate dialog. */
 import {useEffect} from 'preact/hooks';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {fieldKey, sentText} from '../store/values';
@@ -79,7 +79,7 @@ export function RunToolbar() {
         onInput={text => setContinue({...continueInput, text})} error={plan.problem} />
         {plan.end !== undefined && <span class="continue-end" data-continue-end="">will end at t={<ShownNumber value={plan.end} />}</span>}</label>
     </div>
-    {steady && hello && <details class="steady-settings">
+    {steady && hello && <details class="steady-options">
       <summary>Steady: {steady.decimals} decimal places · hold {steady.hold} · limit {steady.maximum}</summary>
       <div class="steady-fields">
         <label>Decimal places <Field data-steady="decimals" spec={{kind: 'integer', min: 0, max: hello.steady.max_decimals}} value={steady.decimals}

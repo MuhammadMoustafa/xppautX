@@ -1,5 +1,5 @@
 #pragma once
-/* The .odex reader's value tree and typed block reading (W284, docs/odex.md "Settings syntax"): the options
+/* The .odex reader's value tree and typed block reading (W284, docs/odex.md "Options syntax"): the options
    block's syntax, `key: value` entries separated by commas, groups `{ ... }`
    nested, a trailing comma allowed, a bare one-token value or a value in
    double quotes, plus lists `[ a, b ]`. It is the one syntax of the groups
@@ -63,7 +63,7 @@ inline constexpr int max_depth = 8;
 
 /* text, the contents of file, read whole: the unbraced group of its
    entries (a root at line 1), or the error at the token that is wrong.
-   where names the reader in the error ("settings", "session", ...). */
+   where names the reader in the error ("options", "session", ...). */
 Result<Value> read_tree(const std::string &where, const std::string &file, std::string_view text);
 
 /* the text a file holds, kept for the errors' lines as written */
@@ -151,7 +151,7 @@ public:
     [[noreturn]] void fail(std::string what) const { doc_->fail(*group_, std::move(what)); }
 
     /* every member was read: the first that was not is an error ("`k` is
-       not a setting of this group") */
+       not an option of this group") */
     void done() const;
 
 private:

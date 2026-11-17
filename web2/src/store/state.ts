@@ -36,7 +36,7 @@ import {defaultPanels, type Panels} from './panels';
 import {initialAutoxScript, type AutoxScript} from './autoxScript';
 import {
   initialAutoxSettings, reduceAutoxSettings, type AutoxSettings, type AutoxSettingsAction, type AutoxSettingsState,
-} from './autoxSettings';
+} from './autoxOptions';
 
 export type {Range, Viewport} from './plots';
 
@@ -93,7 +93,7 @@ export interface ValuesPart {from: 'defaults' | 'set' | 'file'; name: string; pr
 /** the file asked about, for which scope, what kind of file it is and its parts that hold that scope's kind */
 export interface ValuesFileOffer {file: string; scope: string; format: string; parts: ValuesPart[]}
 
-/** one group's settings as the core last gave them (`options.get`): each row's text the session's method and model use, and the choices the model cannot have */
+/** one group's options as the core last gave them (`options.get`): each row's text the session's method and model use, and the choices the model cannot have */
 export interface OptionValues {
   values: Record<string, string>;
   unavailable: Record<string, Record<string, string>>;
@@ -155,7 +155,7 @@ export interface AppState {
   menuOpen: boolean;
   /** a command's form: the values it starts with, and the arguments the place it was opened from settles (a section's scope), which it leaves out */
   commandForm: {id: string; values: Record<string, unknown>; fixed?: string[]} | null;
-  /** the settings panel open as a dialog (ui/OptionsPanel.tsx): the option group it shows */
+  /** the options panel open as a dialog (ui/OptionsPanel.tsx): the option group it shows */
   optionsPanel: {group: string} | null;
   /** each group's values as the core last gave them, for every place that edits the group's rows (a panel, a command's form, Values' Numerics) */
   optionValues: Record<string, OptionValues>;
@@ -166,7 +166,7 @@ export interface AppState {
   selectedAnnotation: number | null;
   /** the Continue field of the run toolbar, which the Continue command's key reads too (W213) */
   continueInput: ContinueInput;
-  /** the steady-state settings the user typed (RunToolbar), over steadyDefaults: kept here so the command
+  /** the steady-state options the user typed (RunToolbar), over steadyDefaults: kept here so the command
       Run to steady state, from a key or the toolbar, runs with them */
   steadyEdit: Partial<SteadyInput>;
   /** the controls sent (CONTROL_DONE) whose done has not come: each is answered at once, even in the middle of a computation whose own done comes later */
@@ -183,7 +183,7 @@ export interface AppState {
   files: FilesState;
   /** the autoX diagram and its view (T11a), see store/diagram.ts */
   diagram: DiagramState;
-  /** autoX's Numerics, parameters, axes and Mark values (T22), see store/autoxSettings.ts */
+  /** autoX's Numerics, parameters, axes and Mark values (T22), see store/autoxOptions.ts */
   autoxSettings: AutoxSettingsState;
   /** the open .autox script's runs (W684), see store/autoxScript.ts */
   autoxScript: AutoxScript;
@@ -596,7 +596,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'jobs', ev: ev as unknown as AutoxJobs})};
     case 'autox.joined':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'joined', ev: ev as unknown as AutoxJoined})};
-    case 'autox.settings':
+    case 'autox.options':
       return {...state, autoxSettings: reduceAutoxSettings(state.autoxSettings, {type: 'event', ev: ev as unknown as AutoxSettings})};
     case 'autox.script_runs':
       return {...state, autoxScript: ev as unknown as AutoxScript};
@@ -618,7 +618,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
            form's: the field or form shows it where it was typed and takes the focus back (WF-001),
            so it opens no error dialog (W104 review) -- it is still in Messages */
         const values = reduceValues(state.values, {type: 'error', text: ev.error, field: ev.field});
-        const autoxSettings = /^autoX settings: /.test(ev.error)
+        const autoxSettings = /^autoX options: /.test(ev.error)
           ? reduceAutoxSettings(state.autoxSettings, {type: 'error', text: ev.error}) : state.autoxSettings;
         const logged = addLog({...state, bottom: text, bottomHelp: null, files, values, autoxSettings}, {kind: 'error', text});
         /* a file-export batch (File > Export > Several, W774) shows its own failures in its report: while it runs, its commands' errors

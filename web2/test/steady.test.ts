@@ -4,7 +4,7 @@ import {CONTINUE_INPUT_DEFAULT, continueDefault, continueEnd, continuePlan, nume
 import {HELLO} from './hello';
 import {kindOf, mayStart} from '../src/protocol/kinds';
 
-test('steady settings reject incomplete precision, insufficient hold and invalid limits', () => {
+test('steady options reject incomplete precision, insufficient hold and invalid limits', () => {
   const valid = {decimals: '9', hold: '1', maximum: '30'};
   assert.equal(steadyError(valid, 0.05, 15), null);
   for (const decimals of ['', '9.5', '-1', '16']) assert.ok(steadyError({...valid, decimals}, 0.05, 15));

@@ -12,7 +12,7 @@
 #include "xpp_lines.h"
 #include "autox_data.h"
 #include "autox_nox.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "diagram.h"
 #include "many_pops.h"
 #include "autox_axis.h"
@@ -43,7 +43,7 @@ namespace {
 /* member name of a file whose autoX members are named prefix and theirs */
 std::string named(std::string_view prefix, const char *name) { return std::string(prefix) + name; }
 
-/* a saved view's axes as the settings that give view k them */
+/* a saved view's axes as the options that give view k them */
 AutoxSettingsSet view_settings(const SavedView &v, int k)
 {
     AutoxSettingsSet a;
@@ -92,7 +92,7 @@ void restore_views(xpp::Session &s, const SavedViews &saved)
 {
     s.autox_state->views.assign(saved.views.size(), AutoxDiagramView{s.autox_state->axes(), {}, false, {}});
     s.autox_state->active_view = 0;
-    /* the names first: applying a view's settings can flush the diagram to a client, which must be told
+    /* the names first: applying a view's options can flush the diagram to a client, which must be told
        the final names, never the default one of a view not yet named (W749: both views went out as diagram_1) */
     for (std::size_t k = 0; k < saved.views.size(); k++) {
         AutoxDiagramView &view = s.autox_state->views[k];
@@ -130,11 +130,11 @@ Members members_read(const Session &s, const std::map<std::string, std::string> 
             raise(xpp::fail("session autoX", "unknown autoX member", Place{name + "/" + member}));
     }
     odex::Block autox = *session.group("autox");
-    std::optional<odex::Block> group = autox.group("settings");
-    SettingsRead settings = read_autox_settings(*group);
-    if (const Result<> checked = autox_settings_check(xpp::autox_parts(s), settings.set, -1); !checked) {
-        const auto at = settings.places.find(checked.error().field);
-        if (at == settings.places.end()) raise(xpp::fail("autoX file", checked.error().what, Place{name}));
+    std::optional<odex::Block> group = autox.group("options");
+    SettingsRead options = read_autox_settings(*group);
+    if (const Result<> checked = autox_settings_check(xpp::autox_parts(s), options.set, -1); !checked) {
+        const auto at = options.places.find(checked.error().field);
+        if (at == options.places.end()) raise(xpp::fail("autoX file", checked.error().what, Place{name}));
         group->fail_at(at->second.first, at->second.second, checked.error().what);
     }
     const bool diagram = members.contains(named(prefix, diagram_member));
@@ -152,8 +152,8 @@ Members members_read(const Session &s, const std::map<std::string, std::string> 
     }
     ViewsRead views = read_views(autox);
     autox.done();
-    /* what autoX accepts for this model: the settings, then each view's
-       axes with the settings' parameters */
+    /* what autoX accepts for this model: the options, then each view's
+       axes with the options' parameters */
     if (points.size() > 1)
         for (const DIAGRAM &p : points)
             if (!p.icp1.is_parameter())
@@ -164,7 +164,7 @@ Members members_read(const Session &s, const std::map<std::string, std::string> 
         if (const Result<> checked = autox_settings_check(xpp::autox_parts(s), a, nviews); !checked)
             autox.fail_at(views.places[static_cast<std::size_t>(k)].first, views.places[static_cast<std::size_t>(k)].second, checked.error().what);
     }
-    return Members{std::move(settings.set), std::move(points), std::move(views.views), diagram ? std::string_view(text(solutions_member)) : std::string_view()};
+    return Members{std::move(options.set), std::move(points), std::move(views.views), diagram ? std::string_view(text(solutions_member)) : std::string_view()};
 }
 
 Result<> restore_members(Session &s, Members m)
@@ -180,7 +180,7 @@ Result<> restore_members(Session &s, Members m)
         open_diagram_window(s);
     }
     std::string why;
-    autox_settings_apply(xpp::autox_parts(s), m.settings, why); /* members_read checked it */
+    autox_settings_apply(xpp::autox_parts(s), m.options, why); /* members_read checked it */
     autox_data_forget(xpp::autox_parts(s)); /* the strip described the diagram this one replaces */
     if (!m.points.empty()) diagram_restore(xpp::autox_parts(s), std::move(m.points));
     // Foreign XPPAUT imports hold one active axis record, with no saved view list.

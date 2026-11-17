@@ -37,7 +37,7 @@ import type {DockTab} from './store/dock';
 import type {TextTab} from './store/text';
 import {PopOuts, popOutRequest, type ViewKey} from './popout';
 import {fieldKey, valueCommands, type ValueSet} from './store/values';
-import {autoxSettingsCommands, commandSettings, type AutoxSettingsPatch} from './store/autoxSettings';
+import {autoxSettingsCommands, commandSettings, type AutoxSettingsPatch} from './store/autoxOptions';
 /** a command's done as the transport delivers it (File > Export > Several awaits its own by id) */
 type DoneEvent = Extract<XppEvent, {ev: 'done'}>;
 
@@ -107,7 +107,7 @@ export class Session {
   private donesOwed = 0;
   /** W622: the page's opening checked for an update (once a page, not at each model's hello; a pop-out never: its main window does) */
   private updateChecked = false;
-  /** a planned dialogue (T21: the axis dialog, autoX settings save and load):
+  /** a planned dialogue (T21: the axis dialog, autoX options save and load):
       the asks its commands open are answered by these steps in order, until
       the commands' dones */
 
@@ -297,7 +297,7 @@ export class Session {
       /* `update.due` answered: when it is due the check runs; a newer release is a quiet notice, a failure only a log line */
       if (ev.status === 'ok' && ev.result?.due === true) void this.automaticUpdateCheck();
       this.updateAnswered(ev);
-      /* `options.get` answered: the group's values for every editor of its rows; a group's settings applied: its values again, as the core holds them */
+      /* `options.get` answered: the group's values for every editor of its rows; a group's options applied: its values again, as the core holds them */
       if (ev.status === 'ok' && typeof ev.result?.group === 'string') {
         if (ev.result.values) this.store.dispatch({type: 'optionValues', group: ev.result.group, values: {values: ev.result.values as Record<string, string>,
           unavailable: ev.result.unavailable as Record<string, Record<string, string>>}});
@@ -474,7 +474,7 @@ export class Session {
   /** File > Preferences was chosen and its values are on the way */
   private preferencesFormAsked = false;
 
-  /** the settings panel of an option group (ui/OptionsPanel.tsx): open at once, its values asked for (`options.get`) */
+  /** the options panel of an option group (ui/OptionsPanel.tsx): open at once, its values asked for (`options.get`) */
   openOptions(group: string): void {
     /* the values shown are the core's current ones: those of an earlier look are dropped, the fields wait for the answer */
     this.store.dispatch({type: 'optionValues', group, values: null});
@@ -487,7 +487,7 @@ export class Session {
     this.send({cmd: 'options.get', group});
   }
 
-  /** Run to steady state with the settings the toolbar holds (the user's edits over the defaults) */
+  /** Run to steady state with the options the toolbar holds (the user's edits over the defaults) */
   runSteady(): void {
     const {hello, numerics, steadyEdit} = this.store.getState();
     const run = steadyRun(hello, numerics, steadyEdit);
@@ -919,8 +919,8 @@ export class Session {
     this.send({cmd: 'autox.show_orbit'});
   }
 
-  /** autoX's settings edited in the page's forms (T22, store/autoxSettings.ts):
-      one `autox` `set` at once, busy or idle -- a setting (W106): during a
+  /** autoX's options edited in the page's forms (T22, store/autoxOptions.ts):
+      one `autox` `set` at once, busy or idle -- an option (W106): during a
       run the core applies it when the run ends, to the next one */
   autoxSettings(patch: AutoxSettingsPatch): void {
     for (const {command} of autoxSettingsCommands(patch)) this.send(command);
@@ -983,7 +983,7 @@ export class Session {
   }
 
   /* ---- values panel (docs/ui-v2.md T3, docs/protocol.md `set`/`slide`/`default`/`userbut`,
-     GitHub #155): every edit (a field, a slider, Reset, a numerics field) is a setting (W106) and
+     GitHub #155): every edit (a field, a slider, Reset, a numerics field) is an option (W106) and
      goes to the core at once as a `set`, busy or idle; during a computation the core applies it
      when that ends, never to the run in progress. The field shows it meanwhile (store/values.ts
      inflight): the value shown is the value. No undo (GitHub #110): Reset is the way back. ---- */

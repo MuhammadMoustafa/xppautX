@@ -137,7 +137,7 @@ FrozenSettings frozen_of(const Arguments &args, FrozenSettings frozen)
 Result<std::string> freeze_curve_command(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     ON_GRAPH(graph);
-    /* checked before the curve is made: a refused setting leaves no frozen curve behind */
+    /* checked before the curve is made: a refused option leaves no frozen curve behind */
     if (const Result<> checked = check_frozen_settings(frozen_of(args, FrozenSettings{})); !checked) return std::unexpected<Error>(checked.error());
     const Result<int> slot = freeze_curve(s, 0);
     if (!slot) return std::unexpected<Error>(slot.error());
@@ -427,12 +427,12 @@ constexpr std::array ROWS = {
             "Plot states of the model: time_series (each against time), phase_plane (two or three, the first on the x axis) or array_plot (from the first of two to the later).",
             VARIABLES_RESULTS, PLOT_EVENTS, true, set_variables},
     Command{"plot.add_data_markers", MARKERS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Add data markers", "Plot",
-            "Put count markers on the graph's first curve, every stride-th row from first_row; what is left out is the last Add markers' setting.",
+            "Put count markers on the graph's first curve, every stride-th row from first_row; what is left out is the last Add markers' option.",
             MARKERS_RESULTS, MARKS_EVENTS, true, add_data_markers_command},
     Command{"plot.variable_vs_time", VARIABLE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Variable vs time", "Plot",
             "Plot a data column against time in the graph, its view fitted to the data.", VARIABLE_RESULTS, PLOT_EVENTS, true,
             variable_vs_time_command},
-    Command{"plot.set_colormap", COLORMAP_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Plot, "Color map", "Plot",
+    Command{"plot.set_colormap", COLORMAP_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Plot, "Color map", "Plot",
             "Set the session's color scale, which the array plot, the direction field and the pictures use.", COLORMAP_RESULTS, PLOT_EVENTS, true,
             set_colormap_command},
     Command{"plot.set_2d", AXES_2D_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Set 2D plot", "Plot/Axes",
@@ -447,7 +447,7 @@ constexpr std::array ROWS = {
     Command{"plot.set_axes_origin", ORIGIN_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Options", "Plot/Axes",
             "Set where the graph's axes cross, whether each axis is drawn there, and the font size of the axes' text; what is left out stays.",
             ORIGIN_RESULTS, PLOT_EVENTS, true, set_axes_origin_command, {}, {}, "read", "*", "plot+"},
-    Command{"plot.set_shifted_axes", SHIFT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Ruelle plot", "Plot/Axes",
+    Command{"plot.set_shifted_axes", SHIFT_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Ruelle plot", "Plot/Axes",
             "Plot each axis of the graph that many rows behind (a Ruelle-Takens plot of delayed values); what is left out stays.", SHIFT_RESULTS,
             PLOT_EVENTS, true, set_shifted_axes},
     Command{"plot.add_curve", NEW_CURVE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Add", "Plot/Curves",
@@ -475,7 +475,7 @@ constexpr std::array ROWS = {
     Command{"plot.set_frozen_legend", LEGEND_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Key", "Plot/Freeze",
             "Show or hide the frozen curves' legend; x and y, the plot coordinates of its first line, move it.", LEGEND_RESULTS, PLOT_EVENTS, true,
             set_frozen_legend_command, LEGEND_GROUPS, {}, "read", "*", "", "Apply"},
-    Command{"plot.set_autox_freeze", ENABLED_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Plot, "Freeze after every run", "Plot/Freeze",
+    Command{"plot.set_autox_freeze", ENABLED_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Plot, "Freeze after every run", "Plot/Freeze",
             "Freeze the first curve of a graph after every run.", AUTOX_FREEZE_RESULTS, STATE_EVENTS, true, set_autox_freeze_command},
     Command{"plot.load_bifurcation", IMPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Load bifurcation diagram", "Plot/Freeze",
             "Show an autoX Write pts file of the model's folder (six columns, checked whole first) in the graph as curves by kind.", IMPORT_RESULTS,

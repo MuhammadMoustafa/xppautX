@@ -247,7 +247,7 @@ export function legendEntries(curves: DiagramCurve[], jobKeys: Record<number, nu
   return {entries, of};
 }
 
-/** the legend's settings (name, color, visibility; keyed by entry, see LegendEntry.key) after a join (W631): each job that
+/** the legend's options (name, color, visibility; keyed by entry, see LegendEntry.key) after a join (W631): each job that
     kept its points moves its entries from `job:<key>:...` to `branch:<its branch>:...`, replacing what that key held; a job the
     join dropped (a repeat) and a `live:` entry are gone with their curves. Pure. */
 export function carryAppearance<T>(appearance: Record<string, T>, joined: {key: number[]; branch: number}[]): Record<string, T> {

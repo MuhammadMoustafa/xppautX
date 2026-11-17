@@ -1,6 +1,6 @@
 #pragma once
-/* The settings panels as data (W616): the option table's grouped rows as `hello`'s "options", which the page builds one panel per
-   group from (docs/protocol.md "The settings panels"). Every label, section, kind, choice list, default, limit and help line is
+/* The options panels as data (W616): the option table's grouped rows as `hello`'s "options", which the page builds one panel per
+   group from (docs/protocol.md "The options panels"). Every label, section, kind, choice list, default, limit and help line is
    the row's; the page writes none. options_panels.cpp; the commands that read and write a panel's values are
    commands_options.cpp. */
 #include <string>

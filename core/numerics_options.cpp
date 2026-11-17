@@ -1,6 +1,6 @@
 /* The main numerics as data: the "numerics" event, `set` kind `num`'s
    checks and writes and the Numerics menu's questions
-   (numerics_settings.h, docs/protocol.md "The numerics as data"). The
+   (numerics_options.h, docs/protocol.md "The numerics as data"). The
    fields are the option table's numerics rows (model_options.h); each
    value is checked first, then applied as leaving the menu does
    (do_meth). */
@@ -19,7 +19,7 @@
 #include "event_registry.h"
 #include "model_method.h"
 #include "model_failed.h"
-#include "numerics_settings.h"
+#include "numerics_options.h"
 #include "model_numerics.h"
 #include "xpp_util.h"
 #include "session_values.h"
@@ -40,14 +40,14 @@ namespace xpp {
 
 namespace {
 
-/* the numerics settings: the option table's rows with a key, in the
+/* the numerics options: the option table's rows with a key, in the
    Numerics menu's order */
 auto fields()
 {
     return option_rows() | std::views::filter([](const OptionRow &r) { return !r.key.empty(); });
 }
 
-/* whether method (and s's model) uses setting f */
+/* whether method (and s's model) uses option f */
 bool uses(const xpp::Session &s, const OptionRow &f, int method)
 {
     const xpp::SolverTraits &t = xpp::solver_info(method).traits;
@@ -213,7 +213,7 @@ int numerics_settings_check(xpp::Session &s, std::string_view key, std::string_v
     const OptionRow *f = numerics_option(key);
     double v = 0;
     if (!f || !of_the_model(s, *f)) {
-        why = xpp::format("no numerics setting {}", key);
+        why = xpp::format("no numerics option {}", key);
         return -1;
     }
     return check(s, *f, text, v, why, command_place()) ? 0 : -1;
@@ -231,7 +231,7 @@ int check_values(Session &s, std::span<const NumericsValue> values, std::vector<
         const OptionRow *field = numerics_option(given.key);
         double value = 0;
         if (!field || !of_the_model(s, *field)) {
-            why = xpp::format("no numerics setting {}", given.key);
+            why = xpp::format("no numerics option {}", given.key);
             return -1;
         }
         if (!check(s, *field, given.text, value, why, place ? *place : command_place())) return -1;
@@ -292,7 +292,7 @@ std::string numerics_settings_json_value(const xpp::Session &s, std::string_view
 
 bool setting_applies(const xpp::Session &s, const OptionRow &row, int method)
 {
-    /* the files hold every setting of a model but those of what it has none of: the delays of one without delays, the parameter a range
+    /* the files hold every option of a model but those of what it has none of: the delays of one without delays, the parameter a range
        varies of one without parameters (the format's own rule: a session of a model with no boundary conditions still holds its bvp_ keys) */
     const bool held = (row.needs != xpp::Feature::delays && row.needs != xpp::Feature::parameters) || of_the_model(s, row);
     if (!row.key.empty()) return held;
@@ -312,7 +312,7 @@ namespace {
 std::optional<std::string> value_problem(xpp::Session &s, const OptionRow &row, std::string_view text)
 {
     if (by_option(row)) {
-        /* the rule's words, with the setting's label before them, as the Numerics menu says them */
+        /* the rule's words, with the option's label before them, as the Numerics menu says them */
         double v = 0;
         if (!row.label.empty() && xpp::parse_number(text, v))
             if (const char *no = rule_problem(row.rule, v, row.maximum)) return xpp::format("{} {}", row.label, no);

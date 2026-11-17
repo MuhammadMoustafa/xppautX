@@ -7,6 +7,6 @@ namespace xpp::cpu {
 // (XppProgram::measure_physical_threads); nothing below the application asks the system.
 std::optional<unsigned> physical_cores();
 // The physical cores (the logical processors when the topology is unknown): what a run of jobs or of a sweep shares.
-// Measured on the first call, process-wide, since settings events ask for it repeatedly.
+// Measured on the first call, process-wide, since options events ask for it repeatedly.
 unsigned physical_threads();
 }

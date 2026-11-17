@@ -1273,7 +1273,7 @@ static real CVYddNorm(CVodeMemRec *cv_mem, real hg)
  The main operations done here are as follows:
   * preliminary adjustments if a new step size was chosen;
   * prediction of the Nordsieck history array zn at tn + h;
-  * setting of multistep method coefficients and test quantities;
+  * option of multistep method coefficients and test quantities;
   * solution of the nonlinear system;
   * testing the local error;
   * updating zn and other state data if successful;
@@ -2162,7 +2162,7 @@ static void CVCompleteStep(CVodeMemRec *cv_mem)
 
 /************* CVPrepareNextStep **********************************
 
- This routine handles the setting of stepsize and order for the
+ This routine handles the option of stepsize and order for the
  next step -- hprime and qprime.  A  with hprime, it sets the
  ratio eta = hprime/h.  It also updates other state variables 
  related to a change of step size or order.  Finally, we rescale

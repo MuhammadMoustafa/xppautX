@@ -1,6 +1,6 @@
 #pragma once
 /* Export the model a Session holds as the source of a program in another language (W764): the equations and the values the model
-   has now (parameters, initial data, the integration settings) as a file that runs with no xppautX and writes the rows of a run.
+   has now (parameters, initial data, the integration options) as a file that runs with no xppautX and writes the rows of a run.
    One translator reads the model's expression trees (model_native.h's model_ir, the Generator's: no formula text is parsed here)
    and writes it through a Language: a back end is a table of names and spellings and one template for the file, so another language
    is its table and template (export_python.cpp is the model). A model the language cannot say is refused, naming what and the model

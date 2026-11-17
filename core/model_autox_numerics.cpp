@@ -32,7 +32,7 @@ AutoxFieldShape shape_of(const OptionRow &row)
 
 /* a value of the set that is wrong: what, and its key ("ntst", "var",
    "mark2", ...; "" for the whole set) as the Error's field; at the
-   command's place (a file of settings gives its own line instead) */
+   command's place (a file of options gives its own line instead) */
 Error autox_refused(std::string what, std::string key)
 {
     return Error{"autox set", std::move(what), command_place(), std::move(key)};
@@ -82,7 +82,7 @@ bool autox_num_ok(int i, double v, std::string &why)
 {
     try {
         if (i < 0 || i >= AUTOX_NUM_N) {
-            why = "no such autoX setting";
+            why = "no such autoX option";
             return false;
         }
         const AutoxNumField f = autox_num_field(i);

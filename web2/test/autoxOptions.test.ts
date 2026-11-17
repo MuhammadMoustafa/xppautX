@@ -1,5 +1,5 @@
-/* autoX's settings as data (docs/ui-v2.md T22, store/autoxSettings.ts): the
-   event into the store, edits sent at once (settings, W106) and shown
+/* autoX's options as data (docs/ui-v2.md T22, store/autoxOptions.ts): the
+   event into the store, edits sent at once (options, W106) and shown
    until their set's done, what the forms show, the core's rules (the event's) checked in the
    page with the core's messages. */
 import assert from 'node:assert/strict';
@@ -7,14 +7,14 @@ import {test} from 'node:test';
 import {
   pendingFields, autoxSettingsCommands, shownSettings, type AutoxSettings,
   type NumKey, type NumRule,
-} from '../src/store/autoxSettings';
+} from '../src/store/autoxOptions';
 import {reduce, type AppState} from '../src/store/state';
 import {READY} from './hello';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 const act = (s: AppState, action: object) => reduce(s, {type: 'autoxSettings', action: action as never});
 
-/* the core's rules as its event sends them (core/autox_settings.cpp num_fields) */
+/* the core's rules as its event sends them (core/autox_options.cpp num_fields) */
 const whole = (label: string, min?: number, max?: number): NumRule => ({label, integer: true, min, max,
   message: `${label} must be a whole number${min === undefined ? '' : max === undefined ? ` of at least ${min}` : ` from ${min} to ${max}`}`});
 const positive = (label: string): NumRule => ({label, positive: true, message: `${label} must be a number above 0`});
@@ -36,7 +36,7 @@ const rules: Record<NumKey, NumRule> = {
   suppress_branch_points: bool('Suppress branch points'), follow_all_branches: bool('Follow all branches'),
 };
 
-const settings: AutoxSettings = {
+const options: AutoxSettings = {
   special_points: {bogdanov_takens:true,cusp:true,zero_hopf:true,generalized_hopf:true,resonance_1_1:true,resonance_1_2:true,resonance_1_3:true,resonance_1_4:true,fold_flip:true,fold_neimark_sacker:true,flip_neimark_sacker:true,double_neimark_sacker:true},
   numerics: {mesh_intervals: 15, max_steps: 200, output_every: 50, collocation_points: 4, step_size: 0.02, min_step_size: 0.001,
     max_step_size: 0.5, parameter_min: 0, parameter_max: 2, norm_min: 0, norm_max: 1000, parameter_tolerance: 1e-4,
@@ -56,7 +56,7 @@ const settings: AutoxSettings = {
 };
 
 test('codim-2 detection booleans stay named while queued', () => {
-  const core = ev(READY, {ev: 'autox.settings', ...settings});
+  const core = ev(READY, {ev: 'autox.options', ...options});
   const sent = act(core, {type: 'sent', patch: {special_points: {generalized_hopf: false}}, ahead: 0});
   assert.equal(shownSettings(sent.autoxSettings)!.special_points.generalized_hopf, false);
   assert.equal(shownSettings(sent.autoxSettings)!.special_points.bogdanov_takens, true);
@@ -64,8 +64,8 @@ test('codim-2 detection booleans stay named while queued', () => {
 });
 
 test('the event is the store; an edit sent during a run shows until its own done', () => {
-  let s = ev(READY, {ev: 'autox.settings', ...settings});
-  assert.deepEqual(s.autoxSettings.core, {ev: 'autox.settings', ...settings});
+  let s = ev(READY, {ev: 'autox.options', ...options});
+  assert.deepEqual(s.autoxSettings.core, {ev: 'autox.options', ...options});
   /* sent during a computation: one done (the run's) ahead of each set's own */
   s = act(s, {type: 'sent', patch: {numerics: {max_steps: 20}}, ahead: 1});
   s = act(s, {type: 'sent', patch: {numerics: {output_every: 5}, axes: {plot: 'norm', fit: true}}, ahead: 2});
@@ -78,11 +78,11 @@ test('the event is the store; an edit sent during a run shows until its own done
   /* the run's done, then each set's own: the event has the core's values */
   s = ev(s, {ev: 'done', status: 'ok'});
   assert.equal(shownSettings(s.autoxSettings)!.numerics.max_steps, 25, 'still shown after the run ends');
-  s = ev(s, {ev: 'autox.settings', ...settings, numerics: {...settings.numerics, max_steps: 20}});
+  s = ev(s, {ev: 'autox.options', ...options, numerics: {...options.numerics, max_steps: 20}});
   s = ev(s, {ev: 'done', status: 'ok'});
-  s = ev(s, {ev: 'autox.settings', ...settings, numerics: {...settings.numerics, max_steps: 20, output_every: 5}});
+  s = ev(s, {ev: 'autox.options', ...options, numerics: {...options.numerics, max_steps: 20, output_every: 5}});
   s = ev(s, {ev: 'done', status: 'ok'});
-  s = ev(s, {ev: 'autox.settings', ...settings, numerics: {...settings.numerics, max_steps: 25, output_every: 5}});
+  s = ev(s, {ev: 'autox.options', ...options, numerics: {...options.numerics, max_steps: 25, output_every: 5}});
   s = ev(s, {ev: 'done', status: 'ok'});
   assert.deepEqual(s.autoxSettings.inflight, []);
   assert.equal(pendingFields(s.autoxSettings).size, 0);
@@ -90,16 +90,16 @@ test('the event is the store; an edit sent during a run shows until its own done
 });
 
 test("a refused set: the core's error is the forms', until the next edit", () => {
-  let s = ev(READY, {ev: 'autox.settings', ...settings});
+  let s = ev(READY, {ev: 'autox.options', ...options});
   s = act(s, {type: 'sent', patch: {numerics: {collocation_points: 9}}, ahead: 0});
-  s = ev(s, {ev: 'session.message', error: 'autoX settings: Collocation points must be a whole number from 2 to 7'});
+  s = ev(s, {ev: 'session.message', error: 'autoX options: Collocation points must be a whole number from 2 to 7'});
   s = ev(s, {ev: 'done', status: 'ok'});
   assert.match(s.autoxSettings.error!, /Collocation points/);
   assert.equal(shownSettings(s.autoxSettings)!.numerics.collocation_points, 4);
   s = act(s, {type: 'sent', patch: {numerics: {collocation_points: 5}}, ahead: 1});
   assert.equal(s.autoxSettings.error, null);
   /* an error with no set of the forms' running is not theirs */
-  s = ev(s, {ev: 'session.message', error: 'autoX settings: nope'});
+  s = ev(s, {ev: 'session.message', error: 'autoX options: nope'});
   assert.equal(s.autoxSettings.error, null);
 });
 

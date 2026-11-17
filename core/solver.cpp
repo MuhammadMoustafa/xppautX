@@ -263,7 +263,7 @@ Result<> Solver::failed(std::string what) const
   return fail(info_.name,std::move(what),command_place());
 }
 
-Result<> Solver::stopped(std::string_view what, double t, int variable, std::initializer_list<std::string_view> settings,
+Result<> Solver::stopped(std::string_view what, double t, int variable, std::initializer_list<std::string_view> options,
                          std::string_view detail) const
 {
   const Model &m=parts_.model();
@@ -274,9 +274,9 @@ Result<> Solver::stopped(std::string_view what, double t, int variable, std::ini
     text+=xpp::format(", in {}",name);
     place=model_place(m,name);
   }
-  if(settings.size()>0)text+=xpp::format(" ({})",named_settings(parts_.session_parts,settings));
+  if(options.size()>0)text+=xpp::format(" ({})",named_settings(parts_.session_parts,options));
   if(!detail.empty())text+=xpp::format("\n{}",detail);
-  if(place.line==0)place=settings_place(m,settings);
+  if(place.line==0)place=settings_place(m,options);
   return fail(info_.name,std::move(text),std::move(place));
 }
 
@@ -284,8 +284,8 @@ Result<> check_step_limits(const RunParts &s, const SolverInfo &info, double dt,
 {
   const double min_step=s.numerics->min_step;
   if(!info.traits.min_step)return {};
-  auto refuse=[&](std::string what,std::initializer_list<std::string_view> settings)->Result<>{
-    return fail(info.name,xpp::format("{}: {} ({})",info.name,what,named_settings(s.session_parts,settings)),settings_place(s.model(),settings));
+  auto refuse=[&](std::string what,std::initializer_list<std::string_view> options)->Result<>{
+    return fail(info.name,xpp::format("{}: {} ({})",info.name,what,named_settings(s.session_parts,options)),settings_place(s.model(),options));
   };
   if(std::fabs(dt)<min_step)
     return refuse(xpp::format("Dt = {} is below integration.step.min, so no step fits between two output times",dt),{"integration.step.min"});
@@ -295,12 +295,12 @@ Result<> check_step_limits(const RunParts &s, const SolverInfo &info, double dt,
 }
 
 Result<std::int64_t> count_steps(const RunParts &s, const SolverInfo &info, double steps,
-                                 std::initializer_list<std::string_view> settings)
+                                 std::initializer_list<std::string_view> options)
 {
   if(std::isfinite(steps)&&std::fabs(steps)<MAX_RUN_STEPS)return static_cast<std::int64_t>(steps);
-  std::string named=named_settings(s.session_parts,settings);
+  std::string named=named_settings(s.session_parts,options);
   return fail(info.name,xpp::format("{}: the run takes {} steps, more than a step count holds ({:g})",info.name,steps,MAX_RUN_STEPS)+
-              (named.empty()?"":xpp::format(" ({})",named)),settings_place(s.model(),settings));
+              (named.empty()?"":xpp::format(" ({})",named)),settings_place(s.model(),options));
 }
 
 Result<std::int64_t> step_count(const RunParts &s, const SolverInfo &info, double dt, double length)

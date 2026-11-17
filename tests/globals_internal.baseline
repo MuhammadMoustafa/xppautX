@@ -8,7 +8,7 @@ core/json_record.cpp 1 the session recording in progress (the protocol client's)
 core/json_windows.cpp 1 the JSON front end's array plot dirty flag (the protocol client's, file-local per AGENTS.md)
 core/marks_data.cpp 1 the protocol client's (one struct): its subscription, its sink and the content each window's last event said, which outlive a load (the records are the Session's marks_shown)
 core/model_failed.cpp 1 the Load in progress (LoadSite: the one a load makes registers itself, the readers below the Session meet it through model_failed)
-core/numerics_settings.cpp 1 the numerics subscription (the protocol client's, xpp::ChangedEvent)
+core/numerics_options.cpp 1 the numerics subscription (the protocol client's, xpp::ChangedEvent)
 core/odex_convert.cpp 1 a const table built at first use
 core/phase_data.cpp 1 the protocol client's (one struct): its subscriptions, its sink and the fingerprint each window's record had when it got it, which outlive a load (the records are the Session's phase_shown)
 core/plot_data.cpp 1 the protocol client's (one struct): its subscriptions, its sink, what it holds of each window, the data version it was told (never repeated while connected) and the appends' pacing clock, which outlive a load (earlier runs and zoom are the Session's plot_display)

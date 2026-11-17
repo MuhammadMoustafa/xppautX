@@ -214,7 +214,7 @@ std::string config_base();
 /* the file `name` in it ("" when there is no config folder), with the
    platform's separator */
 std::string config_path(std::string_view name);
-/* the override: tests and CI point the settings at a folder of their own so
+/* the override: tests and CI point the options at a folder of their own so
    they never read or write the user's real file */
 inline constexpr const char *CONFIG_DIR_ENV = "XPP_CONFIG_DIR";
 /* The folder the program's own read-only files are in (the bundled

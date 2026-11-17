@@ -4,7 +4,7 @@
 
 #include <utility>
 
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "expr.h"
 #include "model_native.h"
 #include "form_ode.h"
@@ -90,7 +90,7 @@ KeptValues keep_values(const Session &s)
   for(int i=0;i<m.node;i++)
     kept.delays.emplace_back(m.uvar_names[i],s.delay_string[i]);
   kept.numerics=*s.numerics;
-  kept.autox_settings=autox_settings_now(xpp::autox_parts(s));
+  kept.autox_options=autox_settings_now(xpp::autox_parts(s));
   kept.poincare_variable=poincare_name(m,s.numerics->poincare_variable);
   kept.saved=*s.saved_session;
   return kept;
@@ -99,9 +99,9 @@ KeptValues keep_values(const Session &s)
 void restore_values(Session &s, const KeptValues &kept)
 {
   const Model &m=s.model();
-  /* the numerics: the settings kept, what a run leaves (data stored, a
+  /* the numerics: the options kept, what a run leaves (data stored, a
      range's or shooting's state, the last seed) the new session's own */
-  autox_settings_reload(xpp::autox_parts(s), kept.autox_settings);
+  autox_settings_reload(xpp::autox_parts(s), kept.autox_options);
   const NumericsSettings loaded=*s.numerics;
   NumericsSettings &n=*s.numerics;
   n=kept.numerics;

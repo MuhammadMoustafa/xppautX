@@ -12,7 +12,7 @@
 #include "xpp_text.h"
 #include "model_options.h"
 #include "userbut.h"
-#include "plot_settings.h"
+#include "plot_options.h"
 #include "model.h"
 #include "model_files.h"
 #include "odex_block.h"
@@ -304,7 +304,7 @@ public:
     end_of_list("the version");
   }
 
-  /* a text of settings (odex_block.h): the entries of an unbraced group to the end
+  /* a text of options (odex_block.h): the entries of an unbraced group to the end
      of the text, read with the block grammar the options use */
   Value settings_file()
   {
@@ -317,7 +317,7 @@ public:
       expect_punct(":", xpp::format("after {}", key.text));
       setting_entry(root, keys, 0, key);
       if (at_end()) break;
-      expect_punct(",", "between the settings");
+      expect_punct(",", "between the options");
     }
     return root;
   }
@@ -633,7 +633,7 @@ private:
                               session ? "`par`, `init`, `options { ... }` and `session { ... }`" : "`preferences { ... }`", describe(t)));
   }
 
-  /* session { ... } or preferences { ... }: the group of settings, in a file of that kind only */
+  /* session { ... } or preferences { ... }: the group of options, in a file of that kind only */
   void block_statement(Statement &s)
   {
     const Token &word = take();
@@ -666,7 +666,7 @@ private:
     return take();
   }
 
-  /* a settings key: a name, or names joined by dots (nullclines.draw), kept as one token */
+  /* an options key: a name, or names joined by dots (nullclines.draw), kept as one token */
   const Token &key_token()
   {
     const Token &first = name_token("a key");
@@ -786,7 +786,7 @@ private:
     group.members.push_back(std::move(m));
   }
 
-  /* a settings value: a string, a { group }, a [ list ] or a bare word;
+  /* an options value: a string, a { group }, a [ list ] or a bare word;
      depth the groups and lists around it */
   Value setting_value(int depth)
   {
@@ -889,7 +889,7 @@ private:
                       : xpp::format("`{}` is not an option", o.name));
     }
     if (in_set && !set_holds(*row))
-      fail(key.pos, xpp::format("a set does not hold `{}`: it is a setting of the whole session, not of one graph or run", o.name));
+      fail(key.pos, xpp::format("a set does not hold `{}`: it is an option of the whole session, not of one graph or run", o.name));
     const auto [first, fresh] = keys.emplace(group + "/" + o.name, key.pos.line);
     if (!fresh && !row->repeatable)
       fail(key.pos, xpp::format("`{}` is given twice (the first is at line {})", o.name, first->second));
@@ -957,7 +957,7 @@ private:
 
   /* set "name" { key: value, ..., options: { group: { key: value } } }: a
      variable's or a parameter's value, a number or a name each, and the
-     settings under `options:`; the name is the user's text, in quotes */
+     options under `options:`; the name is the user's text, in quotes */
   void set_block(Statement &s)
   {
     s.kind = Statement::Kind::Set;
@@ -1547,7 +1547,7 @@ private:
     return false;
   }
 
-  /* the model an import reads its files through; none for a settings file */
+  /* the model an import reads its files through; none for an options file */
   xpp::Model *model_;
   Parsed &out_;
   int file_;

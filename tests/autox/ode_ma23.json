@@ -1,6 +1,6 @@
 {
   "model": "examples/ode/ma23.odex",
-  "reason": "W415 (#477), W424 (#486): the one-compartment fast-spiking parvalbumin interneuron of Ma et al. 2023 (5 states) with Table 1's E_Ca = 68 mV. The applied current SmStmplti is continued from rest through the saddle-node pair (35.18 and 34.21 pA) to the Hopf point (539.2 pA), then the cycles born there: the stable fast-spiking cycles down to the end of the spiking range (35.8 pA, period 124 ms and growing towards the fold at 35.18). Settings are the c-file of the source's AUTO-07p export (NTST 25, NCOL 4, EPS 1e-7/1e-7/1e-5) with DSMAX 2.",
+  "reason": "W415 (#477), W424 (#486): the one-compartment fast-spiking parvalbumin interneuron of Ma et al. 2023 (5 states) with Table 1's E_Ca = 68 mV. The applied current SmStmplti is continued from rest through the saddle-node pair (35.18 and 34.21 pA) to the Hopf point (539.2 pA), then the cycles born there: the stable fast-spiking cycles down to the end of the spiking range (35.8 pA, period 124 ms and growing towards the fold at 35.18). Options are the c-file of the source's AUTO-07p export (NTST 25, NCOL 4, EPS 1e-7/1e-7/1e-5) with DSMAX 2.",
   "parameters": {
     "SmStmplti": 0.0
   },

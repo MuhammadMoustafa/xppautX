@@ -205,12 +205,12 @@ Result<> write_config_file(std::string_view where, std::string_view name, std::s
    first half, the one way such a file is read. Every load of one of our
    files goes through it:
      - XPPAUT's set file (.set: File > Import XPPAUT session state, --convert --statefile; an import
-       only, read into session_settings.h's Settings) and a parameter file (.par: --convert --statefile,
+       only, read into session_options.h's Options) and a parameter file (.par: --convert --statefile,
        the values panel's Load): lunch-new.cpp's read_set and
        read_parameter_file;
      - a session's state (a session.odex of a .snapx, a recording's header) and the preferences
        file: odex.h's read_state_file over the .odex reader's own grammar
-       (session_settings.cpp's read_settings, xpp_session.cpp's read_windows, read_marks,
+       (session_options.cpp's read_settings, xpp_session.cpp's read_windows, read_marks,
        read_random, read_sliders, nullcline.cpp's read_nullclines, xpp_session_autox.cpp's
        read_settings and read_views, xpp_prefs.cpp's parse_prefs);
      - an initial-conditions file (.ic: --convert --statefile, Initialconds/File, the

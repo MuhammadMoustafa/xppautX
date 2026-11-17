@@ -6,7 +6,7 @@ namespace xpp {
 struct Session; /* session.h */
 }
 
-/* CSV exports pandas.read_csv and MATLAB readtable read with no options:
+/* CSV exports pandas.read_csv and MATLAB readtable read with no option:
    a header row of names, "\n" line ends, full precision (W26, issue #42).
    Beside the old whitespace formats (Write pts/diagram.dat, All info's
    allinfo.dat, Save/Load diagram): a new export, not a replacement.

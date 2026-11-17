@@ -8,7 +8,7 @@
 #include "xpptest.h"
 #include "session.h"
 #include "integrate.h"
-#include "numerics_settings.h"
+#include "numerics_options.h"
 #include "nullcline.h"
 #include "model.h"
 #include "model_load.h"

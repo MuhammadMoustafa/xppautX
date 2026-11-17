@@ -26,7 +26,7 @@ struct Model; /* model.h */
    its own. The menu (the keyboard, scripts) asks through the same
    checks (numerics_settings_ask): a bad value changes nothing and says
    why, whichever way it came. The fields are the option table's
-   numerics rows (model_options.h). numerics_settings.cpp; nothing
+   numerics rows (model_options.h). numerics_options.cpp; nothing
    escapes it. */
 
 /* the event: {"ev":"numerics","fields":[...]} with the values now */
@@ -54,7 +54,7 @@ int numerics_settings_set(Session &s, std::string_view key, std::string_view tex
    what the "numerics" event's and the panels' `unavailable` say; "" when the model can have them all */
 std::string unavailable_choices_json(const Session &s, const OptionRow &f);
 
-/* whether s's model, run by method, has the setting (the delay of a model
+/* whether s's model, run by method, has the option (the delay of a model
    with delays, the Volterra points of an integral-equation method); one it
    has not is not written and not accepted */
 bool setting_applies(const Session &s, const OptionRow &row, int method);
@@ -72,7 +72,7 @@ struct NumericsValue {
   std::string text;
 };
 /* set every value, all or nothing: each is checked first, then all are written together
-   (an order the settings keep, as min_step at most max_step, is judged on the result, so a
+   (an order the options keep, as min_step at most max_step, is judged on the result, so a
    pair given together may cross the old values) and applied once. 0 when set, -1 with why
    (a sentence naming the field) and nothing changed. */
 /* Check the proposed values and their pair rules without changing the session. */

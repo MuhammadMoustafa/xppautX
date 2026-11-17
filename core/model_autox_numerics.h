@@ -10,7 +10,7 @@
 
 /* autoX's Numerics fields as the option table names them: their indices, limits, the words of the output
    detail and what autoX accepts for each. Pure data, below both the option table (model_options.cpp) and
-   autoX's settings (autox_settings.cpp) that read it (W736). */
+   autoX's options (autox_options.cpp) that read it (W736). */
 namespace xpp {
 
 /* The most points a saved or running diagram holds (autox_diagram_points_limit, autox_evd.cpp): the bound where autoX's memory grows, and what a
@@ -45,7 +45,7 @@ enum class AutoxRule { any, positive, nonzero, range };
 
 constexpr int autox_output_detail_levels = static_cast<int>(autox_output_detail_names.size());
 
-/* what autoX accepts for each field, by AUTOX_NUM_*; the key and the shape are the option table's row (autox_settings.h) */
+/* what autoX accepts for each field, by AUTOX_NUM_*; the key and the shape are the option table's row (autox_options.h) */
 struct AutoxNumRule {
     AutoxRule rule;
     double lo, hi; /* AutoxRule::range, inclusive; a boolean's and a choice's index range too */
@@ -78,7 +78,7 @@ constexpr std::array<AutoxNumRule, AUTOX_NUM_N> autox_num_rules = {{
 }};
 
 /* what a field holds: a whole number, a real, a boolean, or one of named choices
-   (stored in the settings' numbers as the index, 0 or 1 for a boolean) */
+   (stored in the options' numbers as the index, 0 or 1 for a boolean) */
 enum class AutoxFieldShape { whole, real, boolean, choice };
 
 /* Numerics field i as the option table and the rules give it: its key (the row's), its shape, what autoX accepts */
@@ -111,8 +111,8 @@ std::string step_rule();
 std::string pair_message(const NumPair &p);
 /* the key of Numerics field i in the event, the command and the files ("mesh_intervals", ...); NULL out of range */
 const char *autox_settings_num_key(int i);
-/* a value of an autoX settings set that is wrong: what, and its key ("ntst", "var", "mark2", ...; "" for the whole set) as the
-   Error's field; at the command's place (a file of settings gives its own line instead) */
+/* a value of an autoX options set that is wrong: what, and its key ("ntst", "var", "mark2", ...; "" for the whole set) as the
+   Error's field; at the command's place (a file of options gives its own line instead) */
 Error autox_refused(std::string what, std::string key = {});
 /* Check supplied numbers together, including ordering and signed step magnitude. */
 Result<> autox_settings_numbers_check(std::span<const double, AUTOX_NUM_N> num,

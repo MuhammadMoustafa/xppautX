@@ -5,7 +5,7 @@
    check the Numerics menu and the protocol's `set num` use. What reads it:
    set_option (an "@ name=value" of the model, the command line or
    an internal set), the defaults a load gives what no source set
-   (set_option_defaults), and numerics_settings.cpp (the "numerics" event,
+   (set_option_defaults), and numerics_options.cpp (the "numerics" event,
    `set num` and the menu's questions). model_options.cpp. */
 
 #include <array>
@@ -22,18 +22,18 @@
 #include <utility>
 
 struct ArrayPlotState; /* plot_state.h */
-struct AutoxSettings; /* model_autox_settings.h */
+struct AutoxSettings; /* model_autox_options.h */
 
 namespace xpp {
 
 struct Place; /* xpp_error.h */
 struct Model;   /* model.h */
 struct NumericsSettings; /* model_numerics.h */
-struct PlotSettings; /* plot_settings.h */
-struct IntegratorSettings; /* model_integrator_settings.h */
-struct DelaySettings; /* model_delay_settings.h */
-struct HistogramSettings; /* model_histogram_settings.h */
-struct AdjointSettings; /* model_adjoint_settings.h */
+struct PlotSettings; /* plot_options.h */
+struct IntegratorSettings; /* model_integrator_options.h */
+struct DelaySettings; /* model_delay_options.h */
+struct HistogramSettings; /* model_histogram_options.h */
+struct AdjointSettings; /* model_adjoint_options.h */
 struct NullclineSettings; /* plot_state.h */
 struct ShootRange; /* model_analysis.h */
 struct AnimationState; /* ani_state.h */
@@ -57,7 +57,7 @@ struct XppSlider {
     double step = 0.0;         /* 0: the page picks one */
 };
 
-struct PlotCurve; /* plot_settings.h */
+struct PlotCurve; /* plot_options.h */
 namespace odex { class Block; }
 /* Shared preset/session reader. Before model compilation, check_names is false;
    the .odex loader checks names against declarations instead. */
@@ -94,7 +94,7 @@ private:
 
 /* The parts of a Session the option table's rows and the builders of a Model read and write, handed in where an option is read or set
    or a model is built (a Session converts to it where it is passed: session.h), so the table, its panels, the readers and the builders
-   never include session.h (W757, W758). Each is the Session's own part, not a copy: the settings the options set, the Model and the
+   never include session.h (W757, W758). Each is the Session's own part, not a copy: the options the options set, the Model and the
    parser that compiles its formulas, the tables and networks the builders size, the lists a row names (sliders, buttons, sets, the
    options a source set). Constness is as shallow as a Session's own pointers: a const Session converts too.
    The members keep the Session's names, so a row reads as `s.numerics->total_time`. */
@@ -102,7 +102,7 @@ struct SessionParts {
   Model &model_;
   ParserState &parser;
   NumericsSettings *numerics;
-  PlotSettings *plot_settings;
+  PlotSettings *plot_options;
   AutoxSettings *autox_state;
   IntegratorSettings *integrator;
   DelaySettings *delay;
@@ -166,11 +166,11 @@ constexpr ChoiceMember choice_member(F)
           [](const SessionParts &s, int i) { F{}(s) = static_cast<T>(i - Offset); }};
 }
 
-/* what the Numerics menu and `set num` accept for a numerics setting;
+/* what the Numerics menu and `set num` accept for a numerics option;
    allocation-sized rows also have an inclusive maximum */
 /* (choice: one of the row's choices, by name or number) */
 enum class OptionRule { any, nonzero, positive, nonnegative, whole_positive, whole_at_least_two, method, choice };
-/* which methods use a numerics setting (xpp::SolverTraits), so a front end
+/* which methods use a numerics option (xpp::SolverTraits), so a front end
    can say the others do not */
 enum class OptionUse { always, relative_tolerance, absolute_tolerance, min_step, max_step, newton, integral_history };
 
@@ -195,7 +195,7 @@ struct OptionValue {
 
 /* The groups of a .odex's `options` block (docs/odex.md): each row of the
    table belongs to one. A row with no group (the X11 window's leftovers,
-   a numerics setting the model cannot set) is no .odex option. */
+   a numerics option the model cannot set) is no .odex option. */
 namespace option_group {
 inline constexpr std::string_view integration = "integration";
 inline constexpr std::string_view poincare = "poincare";
@@ -221,8 +221,8 @@ inline constexpr std::array<std::string_view, 7> set_groups{
     option_group::integration, option_group::poincare, option_group::equilibria, option_group::continuation,
     option_group::plot, option_group::sweep, option_group::analysis};
 
-/* The groups with settings a set never holds (the model's own, W680): Save as defaults writes them beside the groups a set holds.
-   interface holds lists only (sliders, buttons) and has no settings of this kind. */
+/* The groups with options a set never holds (the model's own, W680): Save as defaults writes them beside the groups a set holds.
+   interface holds lists only (sliders, buttons) and has no option of this kind. */
 inline constexpr std::array<std::string_view, 2> model_groups{option_group::diagram, option_group::output};
 
 /* what a .odex writes as an option's value: a number, a whole number, a
@@ -248,7 +248,7 @@ inline constexpr std::size_t OPTION_HELP_MOST = 120;
 /* One option. Its name (option_name) matches as a prefix of the name given, ignoring case,
    the longest winning (so "integration.method" and "integration.methodx" are one, and
    "integration.dt" is not "integration.dtminimum"); a numbered one (xp2..xp8) is its name and one digit. */
-/* what a change of a numerics setting asks of the run, after its member is written */
+/* what a change of a numerics option asks of the run, after its member is written */
 enum class OptionEffect {
   none,
   step_size,         /* a new Dt: the delays' and the integrals' memory again */
@@ -324,7 +324,7 @@ struct OptionRow {
      cannot drift */
   std::span<const std::string_view> sets;
   std::string_view mapping;
-  /* a numerics setting: its key in the "numerics" event and `set num`,
+  /* a numerics option: its key in the "numerics" event and `set num`,
      the menu's label, what it accepts and which methods use it */
   std::string_view key, label;
   OptionRule rule = OptionRule::any;
@@ -332,7 +332,7 @@ struct OptionRow {
   int autox_numeric = -1;
   int maximum = 0; /* 0: no allocation-sized upper bound; otherwise inclusive */
   OptionUse use = OptionUse::always;
-  /* the model feature the row is for (model_features.h): a model without it has no such setting, and the panels do not show it */
+  /* the model feature the row is for (model_features.h): a model without it has no such option, and the panels do not show it */
   Feature needs = Feature::none;
   /* OptionRule::choice: the names of the values 0, 1, ..., and why a
      model cannot have value i ("" when it can) */
@@ -350,26 +350,26 @@ struct OptionRow {
   bool saved = false;
   /* a session file holds it only when it has a value (an empty string is no option value): its key may be missing there, meaning none */
   bool optional = false;
-  /* what a change of the numerics setting needs, after its member is
+  /* what a change of the numerics option needs, after its member is
      written (the dt's steps, the delay's storage, the stored rows' precision): named here, done by apply_option_effect (session.h),
      since what it does is the integrators' and the Session's */
   OptionEffect effect = OptionEffect::none;
-  /* a setting of the session or the window as a whole, not one graph's or one
+  /* an option of the session or the window as a whole, not one graph's or one
      run's own configuration: a set never holds it (sets-design.md section 2) */
   bool wide = false;
-  /* A file companion belongs directly in options, outside the settings groups. */
+  /* A file companion belongs directly in options, outside the options groups. */
   bool top_level = false;
 };
 
 /* why the number v is not one rule accepts ("must be a number above 0"),
-   nullptr when it is: the one check of a numerics setting's value, for
+   nullptr when it is: the one check of a numerics option's value, for
    an @ line, the Numerics menu, `set num` and a set file alike
-   (OptionRule::method's name is checked by numerics_settings.cpp) */
+   (OptionRule::method's name is checked by numerics_options.cpp) */
 const char *rule_problem(OptionRule rule, double v, int maximum = 0);
 
-/* the settings that keep an order (the lower end of a range below its upper
+/* the options that keep an order (the lower end of a range below its upper
    end, the smallest step not above the largest): the one rule every source
-   checks (an @ line, a settings file, the Numerics menu, `set num`, the
+   checks (an @ line, an options file, the Numerics menu, `set num`, the
    window dialogs); the pairs are model_options.cpp's table */
 /* why lo (named lo_name) and hi (named hi_name) break the order ("xlo (3) must be
    below xhi (1)"), nothing when they keep it */
@@ -386,7 +386,7 @@ std::optional<PairProblem> option_pairs_problem(const SessionParts &s);
 /* the value text names among choices (exactly), -1 when none */
 int choice_index(std::span<const std::string_view> choices, std::string_view text);
 
-/* the table, the numerics settings first, in the Numerics menu's order */
+/* the table, the numerics options first, in the Numerics menu's order */
 std::span<const OptionRow> option_rows();
 
 /* the row whose name (option_name, or its XPPAUT name) the name given starts with, ignoring case, the
@@ -423,7 +423,7 @@ bool model_has_set(const Model &m, std::string_view name);
 
 std::string option_setting_name(const OptionRow &row, int index);
 
-/* the setting name of the row a .odex key names in group, "" when none does */
+/* the option name of the row a .odex key names in group, "" when none does */
 std::string odex_option_setting(std::string_view group, std::string_view key);
 
 /* the row a .odex key names in group ("" for the options block itself), exactly (a numbered row's digit
@@ -435,7 +435,7 @@ const OptionRow *find_odex_option_anywhere(std::string_view key, int &index);
 /* a set may hold the row: its group is one of set_groups and it is no `wide` row */
 bool set_holds(const OptionRow &row);
 
-/* the curves of a model's `curves` list (a window's are session_settings.h's read_curves, with their colors and lines); the groups (x, y, z: a variable's name each); with the parts the names are
+/* the curves of a model's `curves` list (a window's are session_options.h's read_curves, with their colors and lines); the groups (x, y, z: a variable's name each); with the parts the names are
    checked and read as columns, without them only the shape of the list */
 std::vector<PlotCurve> read_starting_curves(const SessionParts *s, odex::Block &file);
 
@@ -473,14 +473,14 @@ std::string option_schema();
    autoX's own rule say; the schema's and the panels' one source of a limit */
 std::string option_limit_members(const OptionRow &row);
 /* one row's value as a JSON Schema: what its kind and rule say (the options
-   block's and a session's, session_settings.h) */
+   block's and a session's, session_options.h) */
 std::string option_value_schema(const OptionRow &row);
 
 /* the row with `once` named name (option_name): for an option whose parser
    sets or claims another's */
 const OptionRow &once_option(std::string_view name);
 
-/* the numerics setting with key, nullptr when none */
+/* the numerics option with key, nullptr when none */
 const OptionRow *numerics_option(std::string_view key);
 
 /* what an option's error says, in no file's syntax (the option may come
@@ -503,7 +503,7 @@ std::string foreign_path_option(const OptionRow &row, std::string_view model_fil
 std::optional<std::string> option_problem(const SessionParts &s, std::string_view name, std::string_view value, bool xppaut_names);
 
 /* each option no source set gets its default, in the table's order */
-/* ---- the settings a session holds (session_settings.h) ----
+/* ---- the options a session holds (session_options.h) ----
    The option table's rows marked `saved`, in the table's order; each is read and written as text under its
    group and .odex key. A repeatable row's text is its items, one a line. */
 std::vector<const OptionRow *> saved_settings();
@@ -512,12 +512,12 @@ const OptionRow *saved_setting(std::string_view name);
 /* s's value of row as text: a number, the method's or a choice's word, a
    variable's name, a name */
 std::string setting_text(const SessionParts &s, const OptionRow &row);
-/* the saved settings keys with s's values, for a message that names what
+/* the saved options keys with s's values, for a message that names what
    caused it (W480): "min_step = 1e-12, relative_tolerance = 0.001" */
 std::string named_settings(const SessionParts &s, std::initializer_list<std::string_view> keys);
-/* where an error about settings is: the line the model sets the first of them on, else the
+/* where an error about options is: the line the model sets the first of them on, else the
    command that ran the computation */
-Place settings_place(const Model &m, std::initializer_list<std::string_view> settings);
+Place settings_place(const Model &m, std::initializer_list<std::string_view> options);
 /* row f's value as a number (a real or whole row's, a boolean's 0 or 1) and as the number of its word (a choice row's, a boolean's 0 or 1) */
 double row_number(const SessionParts &s, const OptionRow &f);
 int row_index(const SessionParts &s, const OptionRow &f);

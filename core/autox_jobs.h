@@ -2,7 +2,7 @@
 #include "autox_parts.h"
 #include "xpp_error.h"
 /* autoX's jobs at once (W596, W605): a run from the current state with follow_all_branches on continues both directions,
-   +DS and -DS, as two jobs (the settings' step_size is the direction: the jobs take |step_size| with each sign), and each
+   +DS and -DS, as two jobs (the options' step_size is the direction: the jobs take |step_size| with each sign), and each
    branch point, Hopf point or end of cycles they find starts jobs too (autox_queue.h says which, and when a start is
    already made). Each job is an AutoxRun (autox_state.h) with its own evaluation constants, point buffer, table lines
    and fort folder, so the jobs share nothing they write; each runs on a thread of its own (at most as many at once as the

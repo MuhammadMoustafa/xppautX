@@ -84,12 +84,12 @@ protected:
   Result<> failed(std::string what, Place place) const { return fail(info_.name, std::move(what), std::move(place)); }
   /* An advance that stopped at time t (W480, "every stop says why"):
      "<method>: <what> at t = <t>", then the variable it stopped in
-     (", in X"; from 0, -1 when none is known), the settings that caused it
+     (", in X"; from 0, -1 when none is known), the options that caused it
      with their values (" (min_step = 1e-12)", the option table's keys) and
      detail, on a line of its own. It is at the variable's model line, else
-     at the line the model sets the first of the settings on, else at the
+     at the line the model sets the first of the options on, else at the
      command that ran the method. */
-  Result<> stopped(std::string_view what, double t, int variable, std::initializer_list<std::string_view> settings,
+  Result<> stopped(std::string_view what, double t, int variable, std::initializer_list<std::string_view> options,
                    std::string_view detail = {}) const;
 
 private:
@@ -117,11 +117,11 @@ inline constexpr double MAX_RUN_STEPS = 4.0e18;
    flow length/|dt| plus a tenth of a step. */
 Result<std::int64_t> step_count(const RunParts &s, const SolverInfo &info, double dt, double length);
 /* A step count computed by a caller: refused when it is not a count (NaN, infinite, past
-   MAX_RUN_STEPS), with the settings named that give it. */
+   MAX_RUN_STEPS), with the options named that give it. */
 Result<std::int64_t> count_steps(const RunParts &s, const SolverInfo &info, double steps,
-                                 std::initializer_list<std::string_view> settings);
+                                 std::initializer_list<std::string_view> options);
 /* A count of steps as a fixed-step method's one advance takes it: the method's loop counts in an
-   int, so a count past one is refused, naming the settings given (W678). */
+   int, so a count past one is refused, naming the options given (W678). */
 Result<int> steps_per_advance(const RunParts &s, const SolverInfo &info, std::int64_t steps);
 
 /* A run from start over length (both in the direction of dt) that stores

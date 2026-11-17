@@ -311,7 +311,7 @@ void show_stop_note(xpp::AnalysisParts &s)
   s.integrator->stop_note.clear();
 }
 
-/* What every run of a range reads (range_sweep): the settings made and the sweep's start. Run k is the grid point
+/* What every run of a range reads (range_sweep): the options made and the sweep's start. Run k is the grid point
    (i, j), k = j*(steps+1)+i (j counts the second parameter's values, i the first's): its values and its seed are
    functions of k alone, so the runs may be computed in any order, on any thread. */
 struct RangeRuns {
@@ -412,14 +412,14 @@ void compute_run(xpp::AnalysisParts &x, double *state, const RangeRuns &r, int i
 }
 
 /* Range's sweep (one parameter or two, or autoX's range over its
-   diagram when `diagram` is given), the settings made: one integration per step; -1 when one
+   diagram when `diagram` is given), the options made: one integration per step; -1 when one
    stopped early (the sweep ends there), else 0; or the error it failed
    with.
 
    Each run has a seed of its own, the sweep's seed stream's k-th (xpp::seed_stream), so a run's numbers are its own,
    whichever runs came before it or at the same time (W434). The runs that do not start where the last ended ("Use old
    I.C.s" on) and whose model allows it (sweep_serial_reason) are computed on as many worker threads as the thread
-   setting gives; every run, on a worker or here, is compute_run, and what comes after a run (its rows, files, messages,
+   option gives; every run, on a worker or here, is compute_run, and what comes after a run (its rows, files, messages,
    drawing) is done here, in run order, as each run is taken in. */
 xpp::Result<int> range_sweep(xpp::AnalysisParts &s, double *x, const xpp::DiagramRange *diagram, const xpp::RunReport &report, const ShowProgress &show_progress, RangeProgress &progress)
 {
@@ -702,7 +702,7 @@ s.plot_windows->current->color[0]=color;
 } // namespace
 
 namespace {
-/* the sweep over the range settings made: its integrations, the movie's frames; done (when given) what they completed */
+/* the sweep over the range options made: its integrations, the movie's frames; done (when given) what they completed */
 xpp::Result<int> sweep_range(xpp::AnalysisParts &s, double *x, const xpp::DiagramRange *diagram, RangeProgress *done, const xpp::RunReport &report)
 {
  RangeProgress progress;
@@ -1009,27 +1009,27 @@ Result<bool> continue_total(AnalysisParts &s, const RunReport &report)
   return continue_for(s,s.numerics->total_time,report);
 }
 
-Result<> run_to_steady_state(AnalysisParts &s, SteadyStateSettings settings, const RunReport &report)
+Result<> run_to_steady_state(AnalysisParts &s, SteadyStateSettings options, const RunReport &report)
 {
   const double interval=s.integrator->solver->traits().discrete?(s.numerics->delta_t>0?1:-1):s.numerics->delta_t;
-  if(auto valid=validate_steady_state(settings,interval,s.numerics->start_time);!valid)return valid;
+  if(auto valid=validate_steady_state(options,interval,s.numerics->start_time);!valid)return valid;
   if(s.model().node+s.model().nmarkov==0||s.numerics->poincare_map!=PoincareMap::none||s.numerics->fft||s.numerics->hist)
     return fail("steady","Needs model states and ordinary trajectory output (disable Poincare, FFT and histogram modes)",command_place());
   if(!s.integrator->solver->traits().fixed_step&&interval<std::fabs(s.numerics->min_step))
     return fail("steady","Dt must be at least the solver's minimum step",command_place());
   /* One core comparison per configured Dt, regardless of output stride.
-     Restore the user's duration/stride before deferred settings apply. */
+     Restore the user's duration/stride before deferred options apply. */
   struct Restore {
     AnalysisParts &s;
     double duration;
     int stride;
     ~Restore(){s.numerics->total_time=duration;s.numerics->store_every=stride;s.integrator->steady.reset();}
   } restore{s,s.numerics->total_time,s.numerics->store_every};
-  s.numerics->total_time=std::floor(settings.maximum/interval)*interval;
+  s.numerics->total_time=std::floor(options.maximum/interval)*interval;
   s.numerics->store_every=1;
   if(const Result<> room=s.data_store->fit(s.model().neq+1,DataStore::start_rows);!room)return std::unexpected(room.error()); /* it thins at start_rows */
-  s.integrator->steady.emplace(settings);
-  s.integrator->steady_result=SteadyStateResult{"failed",settings.decimals};
+  s.integrator->steady.emplace(options);
+  s.integrator->steady_result=SteadyStateResult{"failed",options.decimals};
   s.integrator->last_time=s.numerics->start_time;
   const Result<bool> run=run_from(s,RunFrom::initial,report);
   s.integrator->steady_result->time=s.integrator->last_time;

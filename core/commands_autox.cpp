@@ -1,4 +1,4 @@
-/* The auto resource's registry rows (W516): open autoX, run it (autox.run, with W306's kinds, starts and settings),
+/* The auto resource's registry rows (W516): open autoX, run it (autox.run, with W306's kinds, starts and options),
    grab a stored point, set its Numerics, axes, Mark values and threads, move and zoom the diagram's views, and the
    File menu's exports and imports. Each handler gets its arguments validated and typed (command_def.h) and calls the
    core function the autoX window's keys call after their questions, so a script, the page and the keys do one thing.
@@ -10,7 +10,7 @@
 #include "command_def.h"
 #include "command_registry.h"
 #include "autox_run.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "diagram.h"
 #include "picture.h"
 #include "integrate.h"
@@ -93,7 +93,7 @@ std::string view_result(const Session &s)
                        xpp::number(a.xmin), xpp::number(a.xmax), xpp::number(a.ymin), xpp::number(a.ymax));
 }
 
-/* the same Error as the setting's own refusal says it, as this command's */
+/* the same Error as the option's own refusal says it, as this command's */
 Error as_command_error(const Command &command, Error error, const Place &place)
 {
     error.where = command.name;
@@ -125,7 +125,7 @@ Result<> read_numerics(const Command &command, const Arguments &args, const Plac
     return {};
 }
 
-/* the settings a set changes applied, all or nothing, or why not */
+/* the options a set changes applied, all or nothing, or why not */
 Result<> apply_settings(Session &s, const Command &command, const AutoxSettingsSet &set, const Place &place)
 {
     if (const Result<> checked = autox_settings_check(xpp::autox_parts(s), set, -1); !checked) return std::unexpected<Error>(as_command_error(command, checked.error(), place));
@@ -219,7 +219,7 @@ Result<std::string> run_autox(Session &s, const Command &command, const Argument
         if (args.has("right_equilibrium")) start.right = args.list<double>("right_equilibrium");
         request.homoclinic = start;
     }
-    /* the settings given hold for this run only: the others and these afterwards are the session's */
+    /* the options given hold for this run only: the others and these afterwards are the session's */
     AutoxSettingsSet given;
     if (const Result<> read = read_numerics(command, args, place, given); !read) return std::unexpected<Error>(read.error());
     if(const auto checked=autox_settings_check(xpp::autox_parts(s),given,-1); !checked)return std::unexpected<Error>(as_command_error(command,checked.error(),place));
@@ -559,7 +559,7 @@ Result<std::string> export_initial_data(Session &s, const Command &command, cons
     return export_file(s, command, args, place, "initdata", ".dat", [&](const std::string &f) { return write_init_data_file(xpp::autox_parts(s), f); }, "points_written", diagram_count(*s.diagram));
 }
 
-/* the diagram and its eigenvalues/multipliers as CSV (csv_export.h), pandas.read_csv/MATLAB readtable read with no options;
+/* the diagram and its eigenvalues/multipliers as CSV (csv_export.h), pandas.read_csv/MATLAB readtable read with no option;
    one file answer names both files (csv_export_diagram_pair derives the second) */
 Result<std::string> export_csv(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
@@ -683,7 +683,7 @@ constexpr std::array<const char *, 7> PROJECTION_CHOICES = {"maximum", "norm", "
 constexpr std::array<const char *, 2> LAST_PLOT_CHOICES = {"one", "two"};
 constexpr std::array<const char *, 3> ORBIT_MODES = {"off", "draw", "clear_and_draw"};
 
-/* the Numerics arguments, from autox_settings.h's lists: each by its shape */
+/* the Numerics arguments, from autox_options.h's lists: each by its shape */
 constexpr Type numerics_type(AutoxFieldShape shape)
 {
     switch (shape) {
@@ -720,7 +720,7 @@ std::array<Argument, NUMERICS_COUNT + 1> configure_numerics_arguments()
 }
 const std::array<Argument, NUMERICS_COUNT + 1> CONFIGURE_NUMERICS_ARGUMENTS = configure_numerics_arguments();
 
-/* autox.run: its kind, its start and the settings of this run only (the Numerics, by their names) */
+/* autox.run: its kind, its start and the options of this run only (the Numerics, by their names) */
 constexpr std::size_t RUN_OWN = 13;
 std::array<Argument, RUN_OWN + NUMERICS_COUNT> run_arguments()
 {
@@ -818,12 +818,12 @@ constexpr std::array RESULT_SELECTED = {ResultField{"selected", "boolean"}};
 constexpr std::array RESULT_ORBITS_DRAWN = {ResultField{"orbits_drawn", "choice"}};
 
 constexpr std::array EVENTS_OPEN = {xpp::events::WINDOW_CREATED, xpp::events::WINDOW_SELECTED, xpp::events::WINDOW_DESTROYED, xpp::events::AUTOX_DIAGRAM, xpp::events::SESSION_STATE, xpp::events::DONE};
-constexpr std::array EVENTS_RUN = {xpp::events::AUTOX_JOBS, xpp::events::AUTOX_DIAGRAM, xpp::events::AUTOX_INFO, xpp::events::AUTOX_SETTINGS, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array EVENTS_RUN = {xpp::events::AUTOX_JOBS, xpp::events::AUTOX_DIAGRAM, xpp::events::AUTOX_INFO, xpp::events::AUTOX_OPTIONS, xpp::events::SESSION_STATE, xpp::events::DONE};
 /* a script's runs also send the list the autoX window's Script panel holds (W684) */
-constexpr std::array EVENTS_SCRIPT_RUN = {xpp::events::AUTOX_JOBS, xpp::events::AUTOX_DIAGRAM, xpp::events::AUTOX_INFO, xpp::events::AUTOX_SETTINGS,
+constexpr std::array EVENTS_SCRIPT_RUN = {xpp::events::AUTOX_JOBS, xpp::events::AUTOX_DIAGRAM, xpp::events::AUTOX_INFO, xpp::events::AUTOX_OPTIONS,
                                           xpp::events::AUTOX_SCRIPT_RUNS, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array EVENTS_GRAB = {xpp::events::AUTOX_INFO, xpp::events::AUTOX_DIAGRAM, xpp::events::SESSION_STATE, xpp::events::DONE};
-constexpr std::array EVENTS_SETTINGS = {xpp::events::AUTOX_SETTINGS, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array EVENTS_OPTIONS = {xpp::events::AUTOX_OPTIONS, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array EVENTS_DIAGRAM = {xpp::events::AUTOX_DIAGRAM, xpp::events::AUTOX_VIEW, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array EVENTS_INFO = {xpp::events::AUTOX_INFO, xpp::events::AUTOX_DIAGRAM, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array EVENTS_BROWSER = {xpp::events::SESSION_STATE, xpp::events::DONE};
@@ -832,7 +832,7 @@ const std::array ROWS = {
     Command{"autox.open", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "Open", "autoX",
             "Open the autoX window, the bifurcation package.", RESULT_OPEN, EVENTS_OPEN, true, open_autox},
     Command{"autox.run", RUN_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run", "autoX",
-            "Run autoX from the current state or a stored point: its kind (what is computed), switch for a branch switch, its start (a label, a point type and index, or the current state, optionally settled first), the settings of this run only (ds's sign is the direction) and the equilibria of a homoclinic start. The start point's type decides which kinds fit it: hello's autox_run table, and autoxinfo's start.",
+            "Run autoX from the current state or a stored point: its kind (what is computed), switch for a branch switch, its start (a label, a point type and index, or the current state, optionally settled first), the options of this run only (ds's sign is the direction) and the equilibria of a homoclinic start. The start point's type decides which kinds fit it: hello's autox_run table, and autoxinfo's start.",
             RESULT_RUN, EVENTS_RUN, true, run_autox, RUN_GROUPS, {}, "read", "*", "", "Start run"},
     Command{"autox.run_script", RUN_SCRIPT_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run all", "autoX/Script",
             "Run the runs of the open .autox script in order, or only the named one (its start from an earlier run's point needs that run done), each as the autox.run its entry says; nothing runs on opening a script.",
@@ -842,14 +842,14 @@ const std::array ROWS = {
             RESULT_SCRIPT, EVENTS_BROWSER, true, script_runs},
     Command{"autox.grab", GRAB_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Grab", "autoX",
             "Grab a stored point by label or type and index; omit both to pick it on the diagram.", RESULT_GRAB, EVENTS_GRAB, true, grab_point, GRAB_GROUPS, {}},
-    Command{"autox.configure_numerics", CONFIGURE_NUMERICS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Numerics", "autoX",
+    Command{"autox.configure_numerics", CONFIGURE_NUMERICS_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Numerics", "autoX",
             "Set autoX's Numerics by their names (mesh_intervals, step_size, ...) and the codimension-two points it detects (special_points), all or nothing.",
-            RESULT_SETTINGS, EVENTS_SETTINGS, true, configure_numerics, {}, {}, "read", "*", "continuation"},
-    Command{"autox.configure_axes", PLOT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Axes", "autoX",
+            RESULT_SETTINGS, EVENTS_OPTIONS, true, configure_numerics, {}, {}, "read", "*", "continuation"},
+    Command{"autox.configure_axes", PLOT_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Axes", "autoX",
             "Set what a view of the diagram plots: the plot type, the variable, the two parameters and the ranges, optionally fitted afterwards.",
-            RESULT_PLOT, EVENTS_SETTINGS, true, configure_axes, {}, {}, "read", "*", "diagram+"},
-    Command{"autox.configure_marks", MARKS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Mark values", "autoX",
-            "Set the Mark values: the parameters (or T, the period) and the values at which autoX labels a point.", RESULT_MARKS, EVENTS_SETTINGS, true, configure_marks, {}, {}},
+            RESULT_PLOT, EVENTS_OPTIONS, true, configure_axes, {}, {}, "read", "*", "diagram+"},
+    Command{"autox.configure_marks", MARKS_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Mark values", "autoX",
+            "Set the Mark values: the parameters (or T, the period) and the values at which autoX labels a point.", RESULT_MARKS, EVENTS_OPTIONS, true, configure_marks, {}, {}},
     Command{"autox.import_diagram", FILE_REQUIRED, XPP_KIND_DATA, CommandCategory::Analysis, "Import XPPAUT diagram", "autoX/File",
             "Import an XPPAUT diagram (.auto) into the open model.", RESULT_IMPORTED, EVENTS_RUN, true, import_diagram, {}, {}},
     Command{"autox.reset_diagram", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Reset diagram", "autoX/File",

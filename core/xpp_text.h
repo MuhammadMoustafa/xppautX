@@ -339,7 +339,7 @@ void json_encode_string(std::string &out, std::string_view s);
 
 /* Appends `s` as a whole JSON string, quotes included (json_encode_string
    between them); a null `s` as the empty string "". The data events'
-   text (plot_data, autox_data, ani_data, autox_settings) goes through this. */
+   text (plot_data, autox_data, ani_data, autox_options) goes through this. */
 void json_append_string(std::string &out, const char *s);
 void json_append_string(std::string &out, std::string_view s);
 

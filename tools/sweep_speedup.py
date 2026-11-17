@@ -4,7 +4,7 @@
     tools/heavy.sh --alone uv run --locked python tools/sweep_speedup.py --server ./xppautX.exe
 
 For each model and each thread count it starts a --server, sets the thread count (in a configuration folder of its
-own, never the user's preferences), runs one `run.range` of the model's own range settings with a stated number of
+own, never the user's preferences), runs one `run.range` of the model's own range options with a stated number of
 steps and prints the wall time from the command to its `done`, the best of REPEATS, and the speed-up over one thread.
 The runs are not written to files (the main thread writes them one at a time, which would be what is timed); that the
 runs are the same on every thread count is tools/servercheck.py's check_sweep_threads. The time is the number printed, never a pass or a fail (AGENTS.md "Checks that can be trusted").
@@ -18,7 +18,7 @@ from xppclient import Server, is_done
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPEATS = 3
-# the model, the range's variable and steps, and the run's own settings: Morris-Lecar as the file has it (a run of 2000
+# the model, the range's variable and steps, and the run's own options: Morris-Lecar as the file has it (a run of 2000
 # steps, short against what the main thread does for each run it takes in) and with a run 20 times longer
 RANGE = dict(variable='i', start=-.2, end=.5, steps=399)
 MODELS = [

@@ -54,7 +54,7 @@ enum AutoxStopWhy {
 };
 
 /* a "No convergence" NOTE: which one (an AUTOX_STOP_NOCONV_*), the step
-   size then, and the settings that gave up: Dsmin and the Newton
+   size then, and the options that gave up: Dsmin and the Newton
    iterations' ITNW, EPSL, EPSU (0 and NAN where a solver has none); the
    last linear solve's smallest pivot magnitude (xpp::gauss_eliminate; NAN: not known),
    which says a singular system when below autox_rsmall */
@@ -94,7 +94,7 @@ struct AutoxStop {
 };
 
 /* a "No convergence" NOTE; the branch end that follows says "no
-   convergence" in its words, with the settings */
+   convergence" in its words, with the options */
 void autox_stop_noconv(AutoxStop &st, const AutoxNoConvergence &noconv);
 
 /* the point at which store_diagram_algebraic/store_diagram_boundary end a branch, and what they saw */

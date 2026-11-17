@@ -12,7 +12,7 @@
 #include "odex.h"
 #include "odex_write.h"
 #include "session.h"
-#include "session_settings.h"
+#include "session_options.h"
 #include "model_load.h"
 #include "xpp_path.h"
 #include "xpp_lines.h"
@@ -97,7 +97,7 @@ void add_binding(const Model &m, ValuesPart &part, const Parsed &file, const ode
     part.items.push_back({b.name, number, false, file.at(b.pos)});
 }
 
-/* the settings entries as items of part. A set holds settings of some groups only (set_holds): in a set another is the
+/* the options entries as items of part. A set holds options of some groups only (set_holds): in a set another is the
    part's problem, among the defaults (the model's own interface and output) it is not a value to load */
 void add_options(ValuesPart &part, std::span<const odex::Option> entries, const Parsed &file, bool in_set)
 {
@@ -105,11 +105,11 @@ void add_options(ValuesPart &part, std::span<const odex::Option> entries, const 
         int index = 0;
         const OptionRow *row = find_odex_option(o.group, o.name, index);
         if (!row) {
-            keep_problem(part, file, o.pos, xpp::format("\"{}\" is not a setting", o.name));
+            keep_problem(part, file, o.pos, xpp::format("\"{}\" is not an option", o.name));
             continue;
         }
         if (!set_holds(*row)) {
-            if (in_set) keep_problem(part, file, o.pos, xpp::format("\"{}\" is a setting of {}, which no set holds", o.name, row->group));
+            if (in_set) keep_problem(part, file, o.pos, xpp::format("\"{}\" is an option of {}, which no set holds", o.name, row->group));
             continue;
         }
         part.items.push_back({option_setting_name(*row, index), o.value, true, file.at(o.pos)});
@@ -193,11 +193,11 @@ Error with_source(Error e, const ValuesSource &source, std::string_view path)
     return e;
 }
 
-/* an XPPAUT set's parameters, initial conditions and the numerics settings a set may hold; what no set holds (its graphs,
+/* an XPPAUT set's parameters, initial conditions and the numerics options a set may hold; what no set holds (its graphs,
    delays, boundary conditions, run position) is Import XPPAUT session state's */
 Result<ValuesSource> read_set_source(Session &s, std::string_view path)
 {
-    const Result<Settings> f = read_xppaut_set(s, path);
+    const Result<Options> f = read_xppaut_set(s, path);
     if (!f) return std::unexpected(f.error());
     const Model &m = s.model();
     ValuesPart part = whole_file(path);

@@ -3,7 +3,7 @@
    runs, in one file of the per-user config folder (files::config_dir),
    preferences.odex, in .odex syntax: `version` and one `preferences { ... }` statement, accepted in this file
    alone (odex.h's read_state_file, docs/odex.md "Preferences").
-   It is not a model's setting: a run's results never depend on what it
+   It is not a model's option: a run's results never depend on what it
    holds (the recent models are shown, a later group is a convenience).
 
    One owner for the file: this module reads it whole, checks every value,

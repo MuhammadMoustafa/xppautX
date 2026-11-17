@@ -1,8 +1,8 @@
-/* The session's settings (session_settings.h: par and init lines, options, the session statement's groups) and XPPAUT's set file, the import
+/* The session's options (session_options.h: par and init lines, options, the session statement's groups) and XPPAUT's set file, the import
    (lunch-new.h). XPPAUT's own examples/ode/lecar.ode.set is imported (File >
    Import XPPAUT session state): read and applied whole, nothing written
    beside it, and the session then holds every value the set file named.
-   The settings written again, read, applied and written once more give the
+   The options written again, read, applied and written once more give the
    same file. A file with a value that is wrong, a key that is not one of the
    model's or a group written twice is refused at its line and column and
    changes nothing (W125); so is an XPPAUT set file cut short, with a line
@@ -18,8 +18,8 @@
 #include "storage.h"
 #include "solver.h"
 #include "lunch-new.h"
-#include "session_settings.h"
-#include "settings_text.h"
+#include "session_options.h"
+#include "options_text.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
 #include "expr.h"
@@ -28,7 +28,7 @@
 #include "xpp_files.h"
 #include "model.h"
 #include "model_options.h"
-#include "numerics_settings.h"
+#include "numerics_options.h"
 #include "xpp_error.h"
 #include <stdio.h>
 #include <string>
@@ -55,7 +55,7 @@ void put(const char *path, const std::string &text)
     CHECK(w && w.write(text) && w.commit());
 }
 
-/* the settings of the session now, as the text of a file of its own */
+/* the options of the session now, as the text of a file of its own */
 std::string snapshot(const xpp::Session &s)
 {
     const xpp::Result<std::string> t = xpp::settings_text(s, xpp::capture_settings(s, xpp::SettingsUse::session));
@@ -101,17 +101,17 @@ int line_with(const std::string &text, const std::string &what, int after = 0)
     return 0;
 }
 
-/* the settings file at path read and applied (a session file's state is read the same way) */
+/* the options file at path read and applied (a session file's state is read the same way) */
 xpp::Result<> apply_state(xpp::Session &s, const char *path)
 {
     const std::string text = bytes_of(path);
-    const xpp::Result<xpp::Settings> f = settings_text::read(s, path, text);
+    const xpp::Result<xpp::Options> f = settings_text::read(s, path, text);
     if (!f) return std::unexpected(f.error());
     xpp::apply_settings(s, *f, false);
     return {};
 }
 
-/* the error of path (text put there) as a settings file, "" when it loads */
+/* the error of path (text put there) as an options file, "" when it loads */
 std::string state_error(xpp::Session &s, const char *path, const std::string &text)
 {
     put(path, text);
@@ -172,7 +172,7 @@ TEST_CASE("test_lunch")
     CHECK(xpp::import_xppaut_state(s,xs,false).has_value());
     CHECK(s.numerics->total_time==500);
 
-    /* the settings written again, read, applied and written once more: the same */
+    /* the options written again, read, applied and written once more: the same */
     const std::string first = snapshot(s);
     CHECK(first.size() > 500);
     put(own, first);
@@ -182,7 +182,7 @@ TEST_CASE("test_lunch")
     CHECK(first.find(" total_time: 500,") != std::string::npos && first.find(" jacobian.kind: difference,") != std::string::npos);
     CHECK(first.find(" map: period,") != std::string::npos && first.find("\npar iapp = 0.09\n") != std::string::npos);
 
-    /* Our settings refuse a negative Total without applying any values. */
+    /* Our options refuse a negative Total without applying any values. */
     for(const char *total : {"-5","-0.5"}){
         const int line=line_with(first," total_time:");
         const std::string bad=with_text(first,"total_time: 500,","total_time: "+std::string(total)+",");
@@ -266,7 +266,7 @@ TEST_CASE("test_lunch")
     CHECK(state_error(s, own, first + "session {}\n").find("is written once in a file") != std::string::npos);
     CHECK(state_error(s, own, first + "nosuch: {},\n").find("holds `par`, `init`, `options") != std::string::npos);
     CHECK(state_error(s, own, first + "import \"x.odex\"\n").find("holds `par`, `init`, `options") != std::string::npos); /* an import reads no file */
-    CHECK(state_error(s, own, with_text(first, "\nsession {", "\nsession { stray: 1,")).find("`stray` is not a setting of the session") != std::string::npos);
+    CHECK(state_error(s, own, with_text(first, "\nsession {", "\nsession { stray: 1,")).find("`stray` is not an option of the session") != std::string::npos);
     CHECK(!state_error(s, own, "total_time: 5,\n").empty()); /* no version first */
     CHECK(state_error(s, own, "version 4\nsession { run: { current_time: 5 \n").find("expected") != std::string::npos);
     CHECK(snapshot(s) == before);

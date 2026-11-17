@@ -13,7 +13,7 @@ columns), and runs CVODE twice into a step error and into the Poincare
 map's "Cannot zero RHS"; asancheck's build sees a freed column read or
 CVODE's memory leaked.
 errors checks that invalid Numerics values (Ncol 8, Ntst 0) are refused
-at input, leave settings intact and allow the next run to compute the
+at input, leave options intact and allow the next run to compute the
 same points. Unit tests cover the internal numerical error paths.
 scratch checks that a start removes an xppautoX-<pid>-N folder (autox_nox.cpp's
 autoX scratch directory) left by a dead pid, and leaves one alone whose pid is
@@ -32,7 +32,7 @@ docs/protocol.md (issue #11, W57): one session file, name.snapx, a long
 autoX run is picked back up from, carrying its model (W103): opened where
 no .ode is, its saved model loads, a file table with it, and a file
 without its model is refused; sessiondiagram checks autoX's File/Save
-and Load through .snapx, the exact diagram, settings, views and restart
+and Load through .snapx, the exact diagram, options, views and restart
 orbits, the saved model, and refusal of damaged members before replacing
 any state. recording plays
 examples/recordings/lecar_autox.recx with --silent and checks a broken recording exits 1; names loads
@@ -434,11 +434,11 @@ def section_abort():
     if gap is None:
         s.close()
         return
-    # W106: autoX's settings sent during its run (a setting) are kept for
+    # W106: autoX's options sent during its run (an option) are kept for
     # after it, each a command of its own then; the data subscription (a
     # view) runs after them
     s.send(cmd='autox.configure_numerics', **{'max_steps': 1500})
-    s.send(cmd='events.subscribe', events=['autox.info', 'autox.settings'])
+    s.send(cmd='events.subscribe', events=['autox.info', 'autox.options'])
     # periodic_run already observed two diagram points: the run is computing.
     # Abort now, without guessing the duration of a Newton step.
     t = s.send(cmd='run.stop')
@@ -450,8 +450,8 @@ def section_abort():
     set_evs, _ = s.collect(is_done, timeout=10 * SLOW)
     data_evs, _ = s.collect(is_done, timeout=10 * SLOW)
     errs = [x.get('error') for x in evs + set_evs if x.get('ev') == 'session.message' and 'error' in x]
-    st = [x for x in data_evs if x.get('ev') == 'autox.settings']
-    check('W106: autoX settings sent during its run: no error, applied after it with their own done',
+    st = [x for x in data_evs if x.get('ev') == 'autox.options']
+    check('W106: autoX options sent during its run: no error, applied after it with their own done',
           not errs and st and st[-1]['numerics']['max_steps'] == 1500, '%s %s' % (errs, st and st[-1]['numerics']))
 
     # the run ends on an end point (EP, not MX: no convergence), which is
@@ -683,14 +683,14 @@ def section_threads():
         for want in (1, 2):
             s = Server(args.server, LECAR, env={'XPP_CONFIG_DIR': os.path.join(config, str(want))}, verbose=args.v)
             s.collect(is_done)
-            s.send(cmd='events.subscribe', events=['autox.settings'])
+            s.send(cmd='events.subscribe', events=['autox.options'])
             evs, _ = s.collect(is_done)
-            most = [e for e in evs if e.get('ev') == 'autox.settings'][-1]['threads_max']
+            most = [e for e in evs if e.get('ev') == 'autox.options'][-1]['threads_max']
             count = min(want, most)
             s.send(cmd='preferences.configure', threads=count)
             evs, _ = s.collect(is_done)
             errors = [e.get('error') for e in evs if e.get('ev') == 'session.message' and e.get('error')]
-            shown = [e for e in evs if e.get('ev') == 'autox.settings'][-1]['threads']
+            shown = [e for e in evs if e.get('ev') == 'autox.options'][-1]['threads']
             check('threads: %d thread(s) set and shown' % count, not errors and shown == count, '%s %s' % (errors, shown))
             diagrams[want] = lecar_diagram(s)
             s.close()
@@ -1174,7 +1174,7 @@ def section_sessiondiagram():
     s = server()
     shutil.copy(OLD_AUTOX, os.path.join(s.run, 'old.auto'))
     with open(OLD_AUTOX) as f:
-        old_points = int(f.read().split('\n')[15]) + 1  # after the settings: the last point's index
+        old_points = int(f.read().split('\n')[15]) + 1  # after the options: the last point's index
     dg3 = Diagram().apply(import_diagram(s, 'old.auto')).pts
     check('sessiondiagram: Load diagram imports an XPPAUT .auto', len(dg3) > 10, '%d points' % len(dg3))
     got = save_diagram(s, 'old.snapx')
@@ -1304,25 +1304,25 @@ def section_sessiondiagram():
     state_rows = state.split('\n')
     line_of = lambda prefix, start=0: next(k + 1 for k in range(start, len(state_rows)) if state_rows[k].lstrip().startswith(prefix))
     set_state = lambda m, text: m.__setitem__('session.odex', text.encode())
-    settings_line = line_of('settings: {')
+    settings_line = line_of('options: {')
     views_line = line_of('views: [')
     for name, change, expect in (
             ('nosolutions.snapx', lambda m: m.pop('autox/solutions.s'), 'its autox/solutions.s is missing'),
-            ('noautoxsettings.snapx', lambda m: set_state(m, re.sub(r'\n  autox: \{.*?\n  \},', '', state, count=1, flags=re.S)),
-             'noautoxsettings.snapx/session.odex:%d:9: the session has no `autox`' % line_of('session {')),
+            ('noautoxoptions.snapx', lambda m: set_state(m, re.sub(r'\n  autox: \{.*?\n  \},', '', state, count=1, flags=re.S)),
+             'noautoxoptions.snapx/session.odex:%d:9: the session has no `autox`' % line_of('session {')),
             ('badsolution.snapx', lambda m: m.__setitem__('autox/solutions.s', b'1 1 4 1 2 0 1 9999 2 0 0 2\n0 1 2\n0 0\n'),
              'badsolution.snapx/autox/solutions.s:1: '),
             ('cutdiagram.snapx', lambda m: m.__setitem__('autox/diagram.csv', '\n'.join(rows_csv[:5])[:-7].encode()),
              'cutdiagram.snapx/autox/diagram.csv:5: '),
             ('latersettings.snapx', lambda m: set_state(m, state.replace('\n      marks: [', '\n      later: 1,\n      marks: [', 1)),
-             'latersettings.snapx/session.odex:%d:7: `later` is not a setting of settings' % line_of('marks: [', settings_line)),
+             'latersettings.snapx/session.odex:%d:7: `later` is not an option of options' % line_of('marks: [', settings_line)),
             # W125: a value autoX refuses (Ncol 9), at its line; a bad value on the last view's line
             ('badncol.snapx', lambda m: set_state(m, re.sub(r'(?m)^(\s+)collocation_points: .*$', r'\1collocation_points: 9,', state, count=1)),
              'badncol.snapx/session.odex:%d:27: collocation_points=9: Collocation points must be' % line_of('collocation_points:')),
             ('lastviews.snapx', lambda m: set_state(m, re.sub(r'(?m)^(\s+)active: "[^"]*",$', r'\1active: "x",', state, count=1)),
              'lastviews.snapx/session.odex:%d:5: Unknown window "x"' % line_of('active:', views_line)),
             ('latermanifest.snapx', lambda m: set_state(m, state.replace('\nsession {\n', '\nsession {\n  later: 1,\n', 1)),
-             'latermanifest.snapx/session.odex:%d:3: `later` is not a setting' % (line_of('session {') + 1))):
+             'latermanifest.snapx/session.odex:%d:3: `later` is not an option' % (line_of('session {') + 1))):
         damaged = dict(members)
         change(damaged)
         with zipfile.ZipFile(os.path.join(s.run, name), 'w') as out:
@@ -1333,24 +1333,24 @@ def section_sessiondiagram():
         expected_place, separator, expected_detail = expect.partition(': ')
         check('sessiondiagram: %s is refused before its model is kept (%s), the model open stays' % (name, expect),
               (expected_place + separator) in errors and expected_detail in errors and hello_title(evs) is None and s.alive(), errors[:300])
-    # W155: malformed autoX settings on the last line leave the session whole.
+    # W155: malformed autoX options on the last line leave the session whole.
     damaged = dict(members)
-    settings = damaged['session.odex'].decode()
-    lines = settings.replace('max_steps: 2000,', 'max_steps: 43,').split('\n')
+    options = damaged['session.odex'].decode()
+    lines = options.replace('max_steps: 2000,', 'max_steps: 43,').split('\n')
     ymax_line = next(k for k in range(len(lines)) if lines[k].lstrip().startswith('ymax:'))
     lines[ymax_line] = '      ymax: 1e999,'
     damaged['session.odex'] = '\n'.join(lines).encode()
     with zipfile.ZipFile(os.path.join(s.run, 'lastsettings.snapx'), 'w') as out:
         for n, b in damaged.items(): out.writestr(n, b)
-    s.send(cmd='events.subscribe', events=['autox.settings'])
+    s.send(cmd='events.subscribe', events=['autox.options'])
     before = s.collect(is_done)[0]
-    before_settings = next(e for e in before if e.get('ev') == 'autox.settings')
+    before_settings = next(e for e in before if e.get('ev') == 'autox.options')
     evs = open_file(s, 'lastsettings.snapx')
     errs = [e for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e]
-    s.send(cmd='events.subscribe', events=['autox.settings'])
+    s.send(cmd='events.subscribe', events=['autox.options'])
     after = s.collect(is_done)[0]
-    after_settings = next(e for e in after if e.get('ev') == 'autox.settings')
-    check('W155: bad last autoX settings line refuses the entire session, keeping the previous settings',
+    after_settings = next(e for e in after if e.get('ev') == 'autox.options')
+    check('W155: bad last autoX options line refuses the entire session, keeping the previous options',
           errs and errs[0].get('line') == ymax_line + 1 and errs[0].get('source') == lines[ymax_line]
           and hello_title(evs) is None
           and all(before_settings[k] == after_settings[k] for k in ('numerics', 'axes', 'marks')), str(errs)[:300])
@@ -1674,27 +1674,27 @@ def section_names():
     check('names: a longer name sets nothing', st is not None and dict(st['pars']).get(LONG_B) == 0.9,
           str(st and st['pars'])[:300])
 
-    # autoX's settings take and show the names whole (its forms too)
-    def autoxsettings(evs):
-        au = [e for e in evs if e.get('ev') == 'autox.settings']
+    # autoX's options take and show the names whole (its forms too)
+    def autoxoptions(evs):
+        au = [e for e in evs if e.get('ev') == 'autox.options']
         return au[-1] if au else None
 
     up = lambda names: [n.upper() for n in names]
-    s.send(cmd='events.subscribe', events=['autox.settings'])
+    s.send(cmd='events.subscribe', events=['autox.options'])
     evs, _ = s.collect(is_done)
-    au = autoxsettings(evs)
+    au = autoxoptions(evs)
     check("names: autoX's parameters are the long names", au is not None
           and 'pars' not in au and au['axes']['par1'].upper()==LONG_PAR.upper(), str(au)[:300])
     s.send(cmd='autox.configure_axes', **{'plot_type': 'norm', 'variable': LONG_V, 'parameter1': LONG_B})
     evs, _ = s.collect(is_done)
-    au = autoxsettings(evs)
+    au = autoxoptions(evs)
     errs = [e for e in evs if e.get('ev') == 'session.message' or (e.get('ev') == 'done' and e.get('error'))]
     check('names: auto set takes 200-character names for the parameters and the axes', not errs and au is not None
           and au['axes']['par1'].upper() == LONG_B.upper() and au['axes']['var'].upper() == LONG_V,
           '%s %s' % (errs, str(au)[:300]))
     s.send(cmd='autox.configure_axes', **{'parameter2':LONG_PAR})
     evs,_=s.collect(is_done)
-    au=autoxsettings(evs)
+    au=autoxoptions(evs)
     check('W339: both axes accept complete long model parameter names', au is not None
           and au['axes']['par1'].upper()==LONG_B.upper() and au['axes']['par2'].upper()==LONG_PAR.upper())
     s.send(cmd='autox.configure_axes', **{'plot_type': 'norm', 'variable': LONG_V, 'parameter1': LONG_PAR})
@@ -1728,13 +1728,13 @@ def section_names():
     check('names: Save data as CSV heads its columns with the whole names',
           bool(lines) and lines[0].split(',') == cols + [added.upper()], str(lines[:1])[:300])
 
-    # the settings of a session keep the values under the long names
+    # the options of a session keep the values under the long names
     import zipfile
     s.send(cmd='session.save_as', file='ln')
     s.collect(is_done, timeout=20 * SLOW)
     snap_path = os.path.join(s.run, 'ln.snapx')
     text = zipfile.ZipFile(snap_path).read('session.odex').decode() if os.path.exists(snap_path) else ''
-    check('names: the settings name the long parameter whole', LONG_B in text)
+    check('names: the options name the long parameter whole', LONG_B in text)
     s2 = Server(args.server, LONG, env={'HOME': home}, verbose=args.v)
     s2.collect(is_done)
     if os.path.exists(snap_path):
@@ -2019,19 +2019,19 @@ def errors_of(evs):
 def section_subscriptions():
     """W335: autoX's subscriptions are the protocol client's, its diagram the
     Session's. A reload (a new session) keeps the subscriptions, sends fresh
-    autoxsettings and no point of the diagram before; after it a grab answered
+    autoxoptions and no point of the diagram before; after it a grab answered
     with a point and Return in one answer takes that point (grab_key_after)."""
     s = Server(args.server, LECAR, verbose=args.v)
     s.collect(is_done)
-    s.send(cmd='events.subscribe', events=['autox.info', 'autox.settings'])
+    s.send(cmd='events.subscribe', events=['autox.info', 'autox.options'])
     s.collect(is_done)
     dg = Diagram().apply(hopf_steady(s))
     dg.apply(run_any(s, 's'))
     check('subscriptions: the steady branch gives points', len(dg.pts) > 10, '%d points' % len(dg.pts))
     s.send(cmd='session.reload_model')
     evs, end = s.answer_asks(is_done, {'choice': lambda e: {'key': 'd'}})
-    check('subscriptions: a reload keeps the subscriptions: fresh autoxsettings without asking again',
-          end is not None and any(e.get('ev') == 'autox.settings' for e in evs), str([e.get('ev') for e in evs])[:300])
+    check('subscriptions: a reload keeps the subscriptions: fresh autoxoptions without asking again',
+          end is not None and any(e.get('ev') == 'autox.options' for e in evs), str([e.get('ev') for e in evs])[:300])
     check('subscriptions: ... and sends no point of the diagram before',
           not any(e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for e in evs),
           str([e for e in evs if e.get('ev') == 'autox.diagram'])[:300])
@@ -2048,7 +2048,7 @@ def section_subscriptions():
 
 
 def section_errors():
-    """Invalid settings stop at their input; the existing settings and
+    """Invalid options stop at their input; the existing options and
     periodic branches survive. Internal error paths have unit tests."""
     s = Server(args.server, LECAR, verbose=args.v)
     s.collect(is_done)
@@ -2073,7 +2073,7 @@ def section_errors():
         check('errors: %s %d: the form refuses the value before a run' % (word, bad),
               len(errs) == 1 and word in errs[0] and '%s=%d' % (field, bad) in errs[0], str(errs))
         check('errors: %s %d: the session is still up' % (word, bad), s.proc.poll() is None)
-        s.send(cmd='events.subscribe', events=['autox.settings'])
+        s.send(cmd='events.subscribe', events=['autox.options'])
         evs, done = s.collect(is_done)
         check('errors: %s %d: a command after it answers' % (word, bad), done is not None)
         set_numerics(s, **{field: normal})
@@ -2270,7 +2270,7 @@ def series_of(evs, win='main'):
     return full[-1] if full else None
 
 
-PAGE_EVENTS = ['plot.series', 'plot.shown', 'nullcline.curves', 'direction_field.field', 'plot.marks', 'animation.frame', 'autox.info', 'autox.settings']  # web2's subscription
+PAGE_EVENTS = ['plot.series', 'plot.shown', 'nullcline.curves', 'direction_field.field', 'plot.marks', 'animation.frame', 'autox.info', 'autox.options']  # web2's subscription
 
 
 def section_sessiondata():
@@ -2544,15 +2544,15 @@ def section_codim():
         completed(s)
         diagram = autoxcompare.Diagram().apply(open_autox(s))
         ranges = {}
-        settings = completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.settings']))
-        flags = next(e['special_points'] for e in settings if e.get('ev') == 'autox.settings')
+        options = completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.options']))
+        flags = next(e['special_points'] for e in options if e.get('ev') == 'autox.options')
         check('codim: BT CP ZH GH enabled by default', flags == dict(bogdanov_takens=True, cusp=True, zero_hopf=True, generalized_hopf=True, resonance_1_1=True, resonance_1_2=True, resonance_1_3=True, resonance_1_4=True, fold_flip=True, fold_neimark_sacker=True, flip_neimark_sacker=True, double_neimark_sacker=True))
         for mode, changes in (('default', {}), ('ZH disabled', {'zero_hopf': False}),
                               ('all disabled', dict.fromkeys(flags, False)), ('restored', dict.fromkeys(flags, True))):
             s.close()
             s = Server(args.server, d['model'])
             completed(s)
-            completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.settings']))
+            completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.options']))
             diagram = autoxcompare.Diagram().apply(open_autox(s))
             ranges = {}
             execute_run(s, d['runs'][0], diagram, ranges)
@@ -2568,8 +2568,8 @@ def section_codim():
             s.send(cmd='autox.configure_numerics', special_points=bad, max_steps=7)
             events, _ = s.collect(is_done)
             check('codim: invalid named boolean refuses transaction ' + str(bad), len(errors_of(events)) == 1)
-            after = completed(s, dict(cmd='events.subscribe', events=['autox.settings']))
-            current = next(e for e in after if e.get('ev') == 'autox.settings')
+            after = completed(s, dict(cmd='events.subscribe', events=['autox.options']))
+            current = next(e for e in after if e.get('ev') == 'autox.options')
             check('codim: refusal applies nothing', current['numerics']['max_steps'] == 50 and current['special_points'] == flags)
     finally:
         s.close()
@@ -2616,7 +2616,7 @@ def section_codim():
     s = Server(args.server, cycles['model'])
     try:
         completed(s)
-        completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.settings']))
+        completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.options']))
         diagram = autoxcompare.Diagram().apply(open_autox(s)); intervals = {}
         for run in cycles['runs'][:2]: execute_run(s, run, diagram, intervals)
         completed(s, dict(cmd='autox.configure_numerics', special_points={'resonance_1_4': False}))
@@ -2665,7 +2665,7 @@ def section_codim():
                   [kind for kind, _ in labels] == kinds and
                   all(abs(abs(math.remainder(a, 2 * math.pi)) - folded[kind]) < 1e-3 for kind, a in labels))
     # A disabled map kind leaves the curve and the other tests active; all
-    # settings and typed point codes survive a session round trip.
+    # options and typed point codes survive a session round trip.
     maps = read_description(BASE / 'henon_rot_tr.json')
     maps['runs'][2].pop('skip',None)
     maps['runs'][2]['autox']['max_steps']=40 # includes R3 and R4; avoids the singular R1 endpoint
@@ -2676,7 +2676,7 @@ def section_codim():
         try:
             completed(s)
             completed(s, dict(cmd='value.set_parameters',values=dict(maps['parameters'])))
-            completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.settings']))
+            completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.options']))
             diagram=autoxcompare.Diagram().apply(open_autox(s)); intervals={}
             execute_run(s,maps['runs'][0],diagram,intervals)
             completed(s,dict(cmd='autox.configure_numerics', special_points={'double_neimark_sacker':False,'resonance_1_4':False}))
@@ -2689,8 +2689,8 @@ def section_codim():
             before=session_diagram(s)
             check('map codim: session load accepts current layout', not errors_of(open_session(s,path)))
             check('map codim: session restores typed diagram', session_diagram(s)==before)
-            events=completed(s,dict(cmd='events.subscribe', events=['autox.settings']))
-            flags=next(e['special_points'] for e in events if e.get('ev')== 'autox.settings')
+            events=completed(s,dict(cmd='events.subscribe', events=['autox.options']))
+            flags=next(e['special_points'] for e in events if e.get('ev')== 'autox.options')
             check('map codim: session restores named switches', not flags['double_neimark_sacker'] and not flags['resonance_1_4'] and flags['fold_flip'])
         finally:
             s.close()
@@ -2758,7 +2758,7 @@ def section_switch():
     s = Server(args.server, d['model'])
     try:
         completed(s)
-        completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.settings']))
+        completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.options']))
         diagram = autoxcompare.Diagram().apply(open_autox(s))
         intervals = {}
         execute_run(s, d['runs'][0], diagram, intervals)
@@ -2987,8 +2987,8 @@ def script_text(model, d, diagram=None):
             st = r['start']
             entries.append('start: { run: "%s", type: %s, index: %d }' % (st['run'], st['type'], st['index']))
         entries.append('parameters: [%s]' % ', '.join('"%s"' % p for p in r.get('parameters', [r.get('parameter')])))
-        settings = {**r['autox'], 'follow_all_branches': False}  # a description follows one branch (W596)
-        entries.append('settings: { %s }' % ', '.join('%s: %s' % (k, value(v)) for k, v in settings.items()))
+        options = {**r['autox'], 'follow_all_branches': False}  # a description follows one branch (W596)
+        entries.append('options: { %s }' % ', '.join('%s: %s' % (k, value(v)) for k, v in options.items()))
         runs.append('  { %s },' % ', '.join(entries))
     return 'version: 4,\nmodel: "%s",\n%sruns: [\n%s\n]\n' % (os.path.basename(model), 'diagram: "%s",\n' % diagram if diagram else '', '\n'.join(runs))
 
@@ -3066,9 +3066,9 @@ def section_script():
         bad = {
             'a start from a run after it': (good.replace('kind: equilibrium', 'kind: periodic, start: { run: "later", type: hopf, index: 1 }'), 'is not a run before this one'),
             'a kind that is none': (good.replace('kind: equilibrium', 'kind: wobble'), 'wobble'),
-            'a setting of another type': (good.replace('step_size: 0.02', 'step_size: "wide"'), 'step_size'),
+            'an option of another type': (good.replace('step_size: 0.02', 'step_size: "wide"'), 'step_size'),
             'a parameter the model lacks': (good.replace('parameters: ["p0"]', 'parameters: ["nothere"]'), 'nothere'),
-            'a setting that is the run\'s own key': (good.replace('settings: {', 'settings: { kind: bvp,'), 'is not a setting'),
+            'an option that is the run\'s own key': (good.replace('options: {', 'options: { kind: bvp,'), 'is not an option'),
             'another version': (good.replace('version: 4', 'version: 3'), 'version 3'),
         }
         for what, (text, word) in bad.items():

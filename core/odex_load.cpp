@@ -678,7 +678,7 @@ private:
 
   void formula(Expr &e, const Scope &sc) const { check(e, sc); }
 
-  /* a set's key: a variable (its initial value) or a parameter; a setting
+  /* a set's key: a variable (its initial value) or a parameter; an option
      is written under `options:` */
   void set_key(const Binding &b) const
   {
@@ -686,7 +686,7 @@ private:
     int index = 0;
     if (d && (d->kind == ModelRecord::NameKind::Variable || d->kind == ModelRecord::NameKind::Markov || d->kind == ModelRecord::NameKind::Param)) return;
     if (const OptionRow *row = xpp::find_odex_option_anywhere(b.name, index))
-      fail(b.pos, xpp::format("`{}` is a setting: a set holds it under `options: {{ {}: {{ {}: ... }} }}`", b.name, row->group, b.name));
+      fail(b.pos, xpp::format("`{}` is an option: a set holds it under `options: {{ {}: {{ {}: ... }} }}`", b.name, row->group, b.name));
     fail(b.pos, xpp::format("a set's keys are the model's parameters and states, and `{}` is neither", b.name));
   }
 

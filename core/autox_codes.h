@@ -285,7 +285,7 @@ constexpr AutoxPointKind autox_point_start_of(AutoxPointCode c)
 }
 
 /* One table per point type (W519, maintainer 2026-10-28): its name (the only
-   input: files, protocol, settings keys), its label (the menus, hover, legend,
+   input: files, protocol, options keys), its label (the menus, hover, legend,
    info strip, manual; written here, never derived) and its mark (the short text
    drawn at the point on plots and the log's table column; empty for none).
    Pending is a run's own state, listed for its display only: a file never
@@ -378,12 +378,12 @@ inline std::optional<AutoxPointCode> autox_point_from_text(std::string_view text
     return c;
 }
 
-// Settings and protocol names for codimension-two detection (W364, W400).
+// Options and protocol names for codimension-two detection (W364, W400).
 inline constexpr std::array<AutoxPointKind, 12> autox_codim_kinds = {
     AutoxPointKind::BogdanovTakens, AutoxPointKind::Cusp, AutoxPointKind::ZeroHopf, AutoxPointKind::GeneralizedHopf,
     AutoxPointKind::Resonance1, AutoxPointKind::Resonance2, AutoxPointKind::Resonance3, AutoxPointKind::Resonance4,
     AutoxPointKind::FoldFlip, AutoxPointKind::FoldNeimarkSacker, AutoxPointKind::FlipNeimarkSacker, AutoxPointKind::DoubleNeimarkSacker};
-/* the names of autox_codim_kinds, in the same order: the settings' keys */
+/* the names of autox_codim_kinds, in the same order: the options' keys */
 inline constexpr auto autox_codim_keys = [] {
     std::array<std::string_view, autox_codim_kinds.size()> keys{};
     for (std::size_t i = 0; i < keys.size(); ++i) keys[i] = autox_point_kind_name(autox_codim_kinds[i]);
@@ -397,7 +397,7 @@ constexpr bool autox_codim_enabled(const std::array<bool, autox_codim_kinds.size
     return false;
 }
 
-/* the settings' keys as one list, "bogdanov_takens, cusp, ...", for a message */
+/* the options' keys as one list, "bogdanov_takens, cusp, ...", for a message */
 inline std::string autox_codim_key_list()
 {
     std::string list;

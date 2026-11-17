@@ -22,13 +22,13 @@ namespace {
 
 constexpr std::string_view command_name = "autox.run";
 
-/* what a run's own keys write: a setting may not name them (it would be the same argument given twice, or a start a script cannot know) */
+/* what a run's own keys write: an option may not name them (it would be the same argument given twice, or a start a script cannot know) */
 constexpr std::array<std::string_view, 13> run_arguments = {"kind", "switch", "label", "type", "index", "decimals", "hold",
                                                             "maximum", "replace_diagram", "unstable_dimension", "stable_dimension",
                                                             "left_equilibrium", "right_equilibrium"};
 
 /* the value as JSON text: a number as the shortest text that reads back, true and false, a bare word (a choice) and a string
-   as a string, a list as a list; a group is no value of a setting */
+   as a string, a list as a list; a group is no value of an option */
 void append_value(std::string &out, const odex::Value &v, const odex::Block &where)
 {
     switch (v.kind) {
@@ -70,13 +70,13 @@ void append_member(std::string &out, std::string_view key, const odex::Value &va
 }
 
 /* the members of a group that has nothing but numbers or choices of autox.run's, each as an argument */
-void append_group(std::string &out, std::optional<odex::Block> &group, std::set<std::string> &given, bool settings)
+void append_group(std::string &out, std::optional<odex::Block> &group, std::set<std::string> &given, bool options)
 {
     if (!group) return;
     for (const odex::Member *m : group->members()) {
         const bool own = std::ranges::find(run_arguments, m->key) != run_arguments.end();
-        if (settings && own)
-            group->fail(*m, xpp::format("{} is not a setting: a run's kind, start and homoclinic equilibria are its own keys", m->key));
+        if (options && own)
+            group->fail(*m, xpp::format("{} is not an option: a run's kind, start and homoclinic equilibria are its own keys", m->key));
         if (!given.insert(m->key).second) group->fail(*m, xpp::format("{} is given twice in this run", m->key));
         append_member(out, m->key, m->value, *group);
     }
@@ -120,14 +120,14 @@ AutoxScriptRun read_run(odex::Block &r, const std::vector<AutoxScriptRun> &known
         start->done();
         run.from = std::move(from);
     }
-    std::optional<odex::Block> settle = r.group("settle"), homoclinic = r.group("homoclinic"), settings = r.group("settings");
+    std::optional<odex::Block> settle = r.group("settle"), homoclinic = r.group("homoclinic"), options = r.group("options");
     if (settle && run.from) settle->fail("a run from a stored point has no settling: it starts at the point");
     append_group(run.arguments, settle, given, false);
     append_group(run.arguments, homoclinic, given, false);
-    append_group(run.arguments, settings, given, true);
+    append_group(run.arguments, options, given, true);
     if (settle) settle->done();
     if (homoclinic) homoclinic->done();
-    if (settings) settings->done();
+    if (options) options->done();
     return run;
 }
 

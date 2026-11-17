@@ -4,7 +4,7 @@
    the model's user buttons. A right column from 48rem, a full-screen sheet
    with a Back button below that (R6). The sliders are in Parameters (SliderStrip.tsx).
 
-   Every field is a setting (W106): an edit goes to the core at once as a
+   Every field is an option (W106): an edit goes to the core at once as a
    `set`, during a computation too, when the core applies it as that
    computation ends (the run in progress keeps the values it started with,
    the next one uses the new ones). The field shows what was sent: the
@@ -156,7 +156,7 @@ function FileTools({kind}: {kind: 'par' | 'ic'}) {
   const session = useSession();
   const input = useRef<HTMLInputElement>(null);
   const what = kind === 'par' ? 'parameters' : 'initial conditions';
-  /* a file read: a setting, not while a computation runs (W95) */
+  /* a file read: an option, not while a computation runs (W95) */
   const loadOff = !useMay()({cmd: 'value.import_file'});
   return (
     <>
@@ -255,7 +255,7 @@ function IndexedSection({id, title, kind, entries, hint, startFolded}: {
   );
 }
 
-/** the main numerics (W106, docs/protocol.md "The numerics as data"): the integration group's rows, the same fields as Run > Settings, each change
+/** the main numerics (W106, docs/protocol.md "The numerics as data"): the integration group's rows, the same fields as Run > Options, each change
     sent at once like a parameter's; edits during a run apply to the next run, never the one in progress. A row the method or model does not
     use is in the closed list below, a choice the model cannot have says why. */
 function NumericsSection() {
@@ -272,8 +272,8 @@ function NumericsRows({group}: {group: OptionGroup}) {
     <Section id="num" title="Numerics" startFolded hint="Changes apply to the next run: a run in progress keeps its own."
       tools={<SetsRow scope="integration" />}>
       <div class="value-options">{fields}</div>
-      {unused > 0 && <details class="unused-settings">
-        <summary>Settings not used by this method or model</summary>
+      {unused > 0 && <details class="unused-options">
+        <summary>Options not used by this method or model</summary>
         <p class="value-hint">These values are kept for other solvers. Editing them does not change this method's results.</p>
         <div class="value-options">{unusedFields}</div>
       </details>}

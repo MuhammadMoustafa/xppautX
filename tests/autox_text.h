@@ -1,5 +1,5 @@
 #pragma once
-/* autoX's session state as text, for the unit tests: the settings, the views and the whole `autox` group of a
+/* autoX's session state as text, for the unit tests: the options, the views and the whole `autox` group of a
    session statement written and read as the session file's reader reads them (xpp_session_autox.h), each as the entries
    of a file of its own. */
 #include <map>
@@ -13,7 +13,7 @@ namespace autox_text {
 
 using namespace xpp::snapx::autox_members;
 
-/* the group `settings` of s as an entry of a file */
+/* the group `options` of s as an entry of a file */
 inline std::string settings_text(const xpp::AutoxSettingsSet &s)
 {
     xpp::odex::Out out;
@@ -22,8 +22,8 @@ inline std::string settings_text(const xpp::AutoxSettingsSet &s)
 }
 inline xpp::Result<SettingsRead> parse_settings(std::string_view text, std::string file)
 {
-    return xpp::odex::read_block("autoX's settings", std::move(file), text, true, [](xpp::odex::Block &b) {
-        xpp::odex::Block g = *b.group("settings");
+    return xpp::odex::read_block("autoX's options", std::move(file), text, true, [](xpp::odex::Block &b) {
+        xpp::odex::Block g = *b.group("options");
         return read_autox_settings(g);
     });
 }

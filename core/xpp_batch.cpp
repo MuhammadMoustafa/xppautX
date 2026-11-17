@@ -11,7 +11,7 @@
 #include "model.h"
 #include "model_record.h"
 #include "model_place.h"
-#include "plot_settings.h"
+#include "plot_options.h"
 #include "session.h"
 #include "autox_state.h"
 #include "model_parts.h"
@@ -40,7 +40,7 @@
 #include "graphics.h"
 #include "browse.h"
 #include "autox_nox.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "my_rhs.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,7 +72,7 @@ namespace {
 /* the registry's shape check, which the script reader is given */
 Result<> script_shape(const std::string &line, const Place &place) { return command::check_shape(line.c_str(), place); }
 
-/* every run's lines checked against the loaded model (its parameters' names, the settings' values): the first fault, at its run's line */
+/* every run's lines checked against the loaded model (its parameters' names, the options' values): the first fault, at its run's line */
 Result<> check_autox_script(Session &s, const AutoxScript &script)
 {
     for (const AutoxScriptRun &run : script.runs) {
@@ -158,7 +158,7 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
 
 void set_all_vals(xpp::Session &s)
 {
- s.plot_settings->plot_3d=0;
+ s.plot_options->plot_3d=0;
  xpp::set_option_defaults(s);
  /* internal options go here  */
  set_internopts(s,NULL);
@@ -171,14 +171,14 @@ void set_all_vals(xpp::Session &s)
 
  init_txtview();
 
- PlotCurve &axes_curve=s.plot_settings->curves[0];
+ PlotCurve &axes_curve=s.plot_options->curves[0];
  if(axes_curve.z>s.model().neq)axes_curve.z=s.model().neq;
  if(axes_curve.y>s.model().neq)axes_curve.y=s.model().neq;
  if(axes_curve.x==0||axes_curve.y==0)
-   s.plot_settings->timplot=1;
+   s.plot_options->timplot=1;
  else 
-   s.plot_settings->timplot=0;
- if(s.plot_settings->axes>=5)s.plot_settings->plot_3d=1;
+   s.plot_options->timplot=0;
+ if(s.plot_options->axes>=5)s.plot_options->plot_3d=1;
  set_initial_values(s); /* the initial values given as formulas */
 }
 
@@ -341,7 +341,7 @@ Loaded in_model(FileSystem &fs, const std::function<void(Session &)> &work, bool
     /* the parser and the set-up fill a fresh Model and Session, kept only
        when the load gets to the end: a failed one puts back those before */
     xpp::Load load(fs);
-    /* the process-wide settings a load writes, put back when it fails */
+    /* the process-wide options a load writes, put back when it fails */
     const XppProgram program_before = program;
     xpp::Model &m = load.model();
     try {

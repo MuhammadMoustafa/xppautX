@@ -33,7 +33,7 @@ Result<> eval_fun_table(const SessionParts &s, int index, int n, double xlo, dou
 void set_autox_eval_flags(std::vector<TABULAR> &tables, int f);
 /* the model's table of that name, or why there is none */
 Result<int> find_table(const SessionParts &s, std::string_view name);
-/* what a table's edit changes, a setting left out as the table has it: a function table's points, range and
+/* what a table's edit changes, an option left out as the table has it: a function table's points, range and
    formula, whether it is evaluated again when a parameter changes, or the file a file table is read from again */
 struct TableEdit {
   std::optional<int> points;

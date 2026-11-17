@@ -18,10 +18,10 @@ script does the same. Scripts use `window.rename`, `window.select` and
 
 Before a run, autoX checks the start. Initial conditions for a steady-state
 run whose largest equation residual is above `state_tolerance` are first refined by
-Newton's method, with the **Sing pts** settings, at the run's parameter
+Newton's method, with the **Sing pts** options, at the run's parameter
 values; the run starts from the converged point and the log says how the
 residual changed. Only when Newton does not converge is the run refused:
-the error names the worst equation, the residual and the Newton settings,
+the error names the worst equation, the residual and the Newton options,
 and suggests **Sing pts** or integration to a steady state. Labelled
 restarts and orbit starts are exempt from that test.
 The first parameter must lie within **`parameter_min`/`parameter_max`** (the second parameter of
@@ -117,7 +117,7 @@ it back. It has:
   labelled point (the special ones and the plain ones Numerics' `output_every`
   prints every `output_every` points) and why the branch stopped, one line each;
 - Numerics as a dialog in place of XPPAUT's Numerics window: every field
-  is named by its setting ("Max steps"), with autoX's own name (NMX) and its
+  is named by its option ("Max steps"), with autoX's own name (NMX) and its
   help in the tooltip, and a message beside it when its value is not one
   autoX takes, worded as the core refuses it (OK waits until every value
   is);
@@ -256,7 +256,7 @@ as they were when you open it.
 
 ## Numerical parameters
 
-Next, set the NUMERICAL parameters. Each setting has one name, the same in
+Next, set the NUMERICAL parameters. Each option has one name, the same in
 the Numerics dialog, a model's `continuation` options, the session file,
 the protocol and this manual; the dialog shows it with its
 underscores as spaces and a capital first letter. autoX's own name for it
@@ -270,7 +270,7 @@ options and session files use the same continuation rules. Invalid values are
 refused before application; autoX never repairs step limits or tolerances during
 a run:
 
-| Setting (autoX's name) | What it does | Valid values |
+| Option (autoX's name) | What it does | Valid values |
 |---|---|---|
 | `mesh_intervals` (NTST) | mesh intervals of a periodic orbit or boundary value solution; raise it when a periodic branch looks wrong or does not converge (doubled when following a period doubling) | whole number, at least 1 |
 | `max_steps` (NMX) | the most steps a branch may take; it ends (EP) at this many points | whole number, at least 1 |
@@ -298,7 +298,7 @@ Below the three groups the dialog has a fourth, **Computer**, with one choice,
 **Threads**: how many threads autoX uses to compute a periodic orbit or a
 boundary value problem, and how many a sweep (Initial conds Range, its two-parameter form,
 Stochastic Compute, the Lyapunov range) uses to compute its runs side by side (see
-Range in [the commands](05-commands.md)); one setting for both, since they never compute at the same time. A sweep with *Automatic* uses
+Range in [the commands](05-commands.md)); one option for both, since they never compute at the same time. A sweep with *Automatic* uses
 all the physical cores, autoX's collocation at most 4. *Automatic* (the default; the number it gives is
 shown) is the computer's physical cores, at most 4, and on a processor with
 performance and efficiency cores only the performance cores where the system
@@ -314,7 +314,7 @@ autoX uses workers once `dimension * dimension * mesh_intervals * collocation_po
 the overhead of workers on a small mesh; the selected preference and the
 results stay the same.
 
-The session keeps every autoX setting in the `autox` group of its `session.odex`, with
+The session keeps every autoX option in the `autox` group of its `session.odex`, with
 the names above (`max_steps`, `mesh_intervals`, ...); Reload keeps them too.
 The original window had the following items, under autoX's names:
 
@@ -469,17 +469,17 @@ model: "ab.odex",
 diagram: "branches.csv",
 runs: [
   { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["p0"],
-    settings: { step_size: 0.02, parameter_max: 1.5, follow_all_branches: false } },
+    options: { step_size: 0.02, parameter_max: 1.5, follow_all_branches: false } },
   { name: "cycles", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"],
-    settings: { step_size: 0.01 } },
+    options: { step_size: 0.01 } },
   { name: "cycles back", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"],
-    settings: { step_size: -0.01 } },
+    options: { step_size: -0.01 } },
 ]
 ```
 
-Each run is one Run: `kind` says what is computed (equilibrium, periodic, two_parameter, fixed_period, bvp, homoclinic, heteroclinic) and `switch: true` makes it a branch switch; `parameters` names the one or two model parameters it continues in; `settings` give the Numerics by their names for that run only, and the sign of `step_size` is the direction (going both ways is two runs). A run starts from the current state, settled first by `settle: { decimals, hold, maximum }` as Run > Run to steady state does, or from a point an earlier run stored: `start` names that run, a point type and the point's number among that run's points of the type (a label is given while a run goes, so a script cannot know it). A homoclinic or heteroclinic run gives `homoclinic: { unstable_dimension, stable_dimension, left_equilibrium, right_equilibrium }`. `diagram` is the file `--silent` writes.
+Each run is one Run: `kind` says what is computed (equilibrium, periodic, two_parameter, fixed_period, bvp, homoclinic, heteroclinic) and `switch: true` makes it a branch switch; `parameters` names the one or two model parameters it continues in; `options` give the Numerics by their names for that run only, and the sign of `step_size` is the direction (going both ways is two runs). A run starts from the current state, settled first by `settle: { decimals, hold, maximum }` as Run > Run to steady state does, or from a point an earlier run stored: `start` names that run, a point type and the point's number among that run's points of the type (a label is given while a run goes, so a script cannot know it). A homoclinic or heteroclinic run gives `homoclinic: { unstable_dimension, stable_dimension, left_equilibrium, right_equilibrium }`. `diagram` is the file `--silent` writes.
 
-A script is read whole before anything is applied: a version, a run's kind, a setting's name or value, a parameter the model lacks, a start from a run that does not come before it, each is an error naming the file, the line and the value, and nothing loads.
+A script is read whole before anything is applied: a version, a run's kind, an option's name or value, a parameter the model lacks, a start from a run that does not come before it, each is an error naming the file, the line and the value, and nothing loads.
 
 Open the script like a model (File > Open model, or `xppautX ab.autox`): the model it names loads and the runs are listed under autoX > Script > List runs; nothing is computed. autoX > Script > Run all runs them in order, or one run by its name (its start needs the run it names to be done). The autoX window's **Script** panel lists the runs in the same order, each with what it starts from and a **Done** mark once it has run, and a **Run** on each row; a run whose start has not run waits. The panel is there while a script is open. `xppautX ab.autox --silent` runs them all and writes the diagram as two CSV files (the points, and their eigenvalues). From Python, `python/xppautx/arrays.py` opens a model or a script, sets values, integrates, runs autoX and returns the diagram and the data as arrays.
 
@@ -558,7 +558,7 @@ is at least twice the shortest period of the branch, and the orbit lingers
 (some point of it is a millionth of the orbit's fastest speed, |f(x)|, from
 standing still), it looks for the equilibria the orbit lingers near. Each
 slow stretch of the orbit gives one: Newton's method from its slowest point
-with Sing pts' settings (`newton_tolerance`, `jacobian_step`,
+with Sing pts' options (`newton_tolerance`, `jacobian_step`,
 `search_limit`, `max_iterations`), and the eigenvalues of the Jacobian
 there. Then the end is
 
@@ -600,7 +600,7 @@ point, back along the same family, to the step limit; xppautX ends the branch
 there. It watches the amplitude of each point of a branch of cycles, the
 largest range of a variable relative to 1 plus its mean: when it has fallen
 over the last 3 points and is at most 0.001, it looks for the equilibrium at
-the orbit's mean (Newton's method with Sing pts' settings) and its
+the orbit's mean (Newton's method with Sing pts' options) and its
 eigenvalues. When there is one, with a complex pair whose real part is at
 most a hundredth of its imaginary part, the branch ends: a Hopf point,
 point type `hopf_end` (HBE). The stored point is the Hopf point as one point:
@@ -652,7 +652,7 @@ next to the end point's label when you hover it, and as `autox.info`'s
 | the norm reached norm_min / norm_max (*value*) | the solution's norm left its range | `norm_min` / `norm_max` (A0 / A1) |
 | the branch reached max_steps (*n*) | the branch has as many points as `max_steps` allows | `max_steps` (NMX), or a larger `max_step_size` (DSMAX) |
 | by the user (Stop) | Stop (or the view's tab ×) during the run | Run again from the end point |
-| the exact Jacobian is not finite (see the error) | with Numerics' Jacobian set to exact, a derivative was not finite where the right-hand side is (sqrt or log at 0, 1/x at 0); the run stopped as a Stop does, on an end point | the error offers "Switch to differences and continue": it sets the Jacobian to difference and runs again from that end point with the same settings |
+| the exact Jacobian is not finite (see the error) | with Numerics' Jacobian set to exact, a derivative was not finite where the right-hand side is (sqrt or log at 0, 1/x at 0); the run stopped as a Stop does, on an end point | the error offers "Switch to differences and continue": it sets the Jacobian to difference and runs again from that end point with the same options |
 | parameter *p* reached a Mark value set to stop | a user point marked as an end (autoX's UZR endpoint) | the Mark values |
 | parameter *p* = *value*: period growing without bound ... point type snic / homoclinic / heteroclinic | a branch of cycles whose period grew over 5 points to twice its shortest while the orbit lingers near equilibria (SNIC, HOC, HEC, above); without a type: the equilibria are no fold and no saddle | a homoclinic or heteroclinic run from the end point, or nothing: this is the end of the cycles |
 | parameter *p* = *value*: the cycles' amplitude fell to ... point type hopf_end | a branch of cycles whose amplitude fell over 3 points to at most 0.001 where the equilibrium at their mean has an imaginary pair (HBE, above) | nothing: autoX starts no run from this point (the Hopf point it ends at is on the equilibrium branch, whose own Hopf label starts the cycles again) |
@@ -661,7 +661,7 @@ next to the end point's label when you hover it, and as `autox.info`'s
 | no convergence with a fixed step size (step_adapt_every 0) | the solver failed and `step_adapt_every` (IADS) is 0, so the step is not reduced (MX) | `step_adapt_every` 1 |
 | no convergence switching branches, ... | the same while starting a bifurcating branch at a branch point | as above |
 
-A no convergence's words also name the Newton settings that gave up
+A no convergence's words also name the Newton options that gave up
 (`max_newton_iterations`, `parameter_tolerance`, `state_tolerance`) and, when the last linear system was singular, its
 smallest pivot. Recording the reason changes nothing autoX computes: the
 points, labels and saved diagrams are the same as before, except where a
@@ -759,7 +759,7 @@ If the grabbed point is a special one and is a periodic orbit, this loads the or
 ### Save diagram
 
 Saves this session as `name.snapx`, through File > Save session: the
-model and its values, plots and autoX's settings, every diagram point at
+model and its values, plots and autoX's options, every diagram point at
 full precision, its eigenvalues or Floquet multipliers, views and labelled
 orbits. The data table is included unless you choose to leave a large table
 out, as Save session offers. The archive's `autox/diagram.csv` opens in a
@@ -838,7 +838,7 @@ per diagram point.
 
 ### Export CSV
 
-In xppautX this is autoX > Export > Data > Diagram (`autox.export_data` with `target` `diagram`). Writes the whole stored diagram as two CSV files with LF line ends on every platform that `pandas.read_csv` and MATLAB's `readtable` read with no options (a header row of names, one row per point). The file named is the diagram itself: branch, point, type (`EP`, `HB`, `LP`, ...), label, stability, the point's curve kind, the active parameter(s) by name and value, the period, and every variable's max and min over the point (named), the same values `All info` writes. A second file, its name with `_eig` inserted before the extension, has the eigenvalues (a steady state) or Floquet multipliers (a periodic orbit) of every point, one row each, keyed by branch and point (`branch`, `point`, `index`, `re`, `im`, `kind`) rather than packed into a diagram row's cells. This is a new export beside `Write pts` and `All info`, not a replacement: the old whitespace files stay as they were.
+In xppautX this is autoX > Export > Data > Diagram (`autox.export_data` with `target` `diagram`). Writes the whole stored diagram as two CSV files with LF line ends on every platform that `pandas.read_csv` and MATLAB's `readtable` read with no option (a header row of names, one row per point). The file named is the diagram itself: branch, point, type (`EP`, `HB`, `LP`, ...), label, stability, the point's curve kind, the active parameter(s) by name and value, the period, and every variable's max and min over the point (named), the same values `All info` writes. A second file, its name with `_eig` inserted before the extension, has the eigenvalues (a steady state) or Floquet multipliers (a periodic orbit) of every point, one row each, keyed by branch and point (`branch`, `point`, `index`, `re`, `im`, `kind`) rather than packed into a diagram row's cells. This is a new export beside `Write pts` and `All info`, not a replacement: the old whitespace files stay as they were.
 
 ## Homoclinics and heteroclinics
 
@@ -862,7 +862,7 @@ Note that there are $`2n`$ differential equations and $`2n`$ boundary conditions
 ```
 This is *one* more condition which accounts for the need for an additional free parameter.
 
-XPP allows you to specify the projection boundary conditions and by setting a particular flag on in autoX, you can implement the integral condition. Since the XPP version of autoX does not allow you to have more conditions than there are differential equations, you should pick one parameter which will be slaved to all the other ones you vary and let this satisfy a trivial differential equation,
+XPP allows you to specify the projection boundary conditions and by option a particular flag on in autoX, you can implement the integral condition. Since the XPP version of autoX does not allow you to have more conditions than there are differential equations, you should pick one parameter which will be slaved to all the other ones you vary and let this satisfy a trivial differential equation,
 ``` math
 \alpha'=0.
 ```
@@ -983,7 +983,7 @@ is constant along solutions when $`a=0.5,c=0.`$) We will use this as a starting 
     @ epss=1e-7,epsu=1e-7,epsl=1e-7,parmax=60,dsmax=5,dsmin=1e-4,ntst=35
     done
 
-I have added a few autoX numerical settings so that I don’t have to set them later. Run XPP with this ODE file and integrate the equations. We will now continue this approximate heteroclinic in the parameter `per`. Fire up autoX (File autoX) and click on Axes Hi. Put `c` on the y-axis and make ` Xmin=0,Xmax=60,Ymin=-2,Ymax=2`. Then click OK. As above, we will also keep solutions at particular values of `per` by clicking on ` Usr period` `3`, choosing `per=20,per=40,per=60`, and then OK. Now we are ready to run. Click on Run Homoclinic. When the dialog box comes up set the following: `Left Eq: ULEFT, Right Eq: URIGHT, NUnstable:1, NStable:1` and then click OK. You should see a nice straight line go across the screen. Grab the point labeled ` per=40` and then click on File Import Orbit. Look at it in the XPP main window and freeze it. Now in the autoX window, click on Axes Hi and change the Main Parm to `a` and `Xmax=1`. Click OK and then click on Numerics to get the autoX Numerics dialog. Change ` Dsmax=0.1, Par Max=1` and click OK. Now click on Usr Period 4 and make the four user functions `a=.75,a=.9,a=.25,a=.1` and click OK. Now click on Run and watch a line drawn across the screen. This is the velocity, $`c`$ as a function of the threshold, $`a`$. Click on Grab and looking at the bottom of the screen, wait until you see `per=40` and then click on Enter. Now, open the Numerics dialog box and change `Ds=-.02` to go the other direction. Click on Run and you should see the rest of the line drawn across the screen. Click on Grab and move to the point labeled `a=0.25` Click on File Import Orbit and plot this in the main XPP window.
+I have added a few autoX numerical options so that I don’t have to set them later. Run XPP with this ODE file and integrate the equations. We will now continue this approximate heteroclinic in the parameter `per`. Fire up autoX (File autoX) and click on Axes Hi. Put `c` on the y-axis and make ` Xmin=0,Xmax=60,Ymin=-2,Ymax=2`. Then click OK. As above, we will also keep solutions at particular values of `per` by clicking on ` Usr period` `3`, choosing `per=20,per=40,per=60`, and then OK. Now we are ready to run. Click on Run Homoclinic. When the dialog box comes up set the following: `Left Eq: ULEFT, Right Eq: URIGHT, NUnstable:1, NStable:1` and then click OK. You should see a nice straight line go across the screen. Grab the point labeled ` per=40` and then click on File Import Orbit. Look at it in the XPP main window and freeze it. Now in the autoX window, click on Axes Hi and change the Main Parm to `a` and `Xmax=1`. Click OK and then click on Numerics to get the autoX Numerics dialog. Change ` Dsmax=0.1, Par Max=1` and click OK. Now click on Usr Period 4 and make the four user functions `a=.75,a=.9,a=.25,a=.1` and click OK. Now click on Run and watch a line drawn across the screen. This is the velocity, $`c`$ as a function of the threshold, $`a`$. Click on Grab and looking at the bottom of the screen, wait until you see `per=40` and then click on Enter. Now, open the Numerics dialog box and change `Ds=-.02` to go the other direction. Click on Run and you should see the rest of the line drawn across the screen. Click on Grab and move to the point labeled `a=0.25` Click on File Import Orbit and plot this in the main XPP window.
 
 ### Hopf curves at zero frequency
 

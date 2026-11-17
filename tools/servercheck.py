@@ -344,7 +344,7 @@ def stops_silent(path, rule):
 
 
 def check_stops():
-    """W480: a computation that stops early says what stopped, the setting with its value, and the
+    """W480: a computation that stops early says what stopped, the option with its value, and the
     model line (docs/studies/w480-stops.md). Known cases are listed in STOPS_KNOWN."""
     assert set(STOPS_KNOWN) <= {c['id'] for c in STOPS_CASES}, 'a known case has no model'
     for case in STOPS_CASES:
@@ -521,7 +521,7 @@ def check_autox_range_branch():
         stretch = [p for p in points if p[0] == 1 and first <= p[1] <= last]
         autoxcompare.completed(s, dict(cmd='run.configure', total_time=0.25, dt=0.25))
         s.send(cmd='autox.range_branch', branch=1, first_point=first, last_point=last)
-        # the Range dialog's answers: its own settings, with the storage kept (a reset would empty the data after each run)
+        # the Range dialog's answers: its own options, with the storage kept (a reset would empty the data after each run)
         evs, end = s.answer_asks(autoxcompare.is_done, {'form': lambda e: {'ok': 1, 'values': e['values'][:4] + ['false'] + e['values'][5:]}})
         autoxcompare.ensure_completed([e for e in evs if not is_ask(e)], end)
         page = autoxcompare.completed(s, dict(cmd='data.page', from_row=0, count=100, first_column=1, columns=3))
@@ -548,7 +548,7 @@ def check_autox_starts():
     # a start Newton cannot refine (no steady state) is refused; autox_start.odex's X = 1 is refined instead (below)
     no_root = os.path.join(STOPS_DIR, 'autox_start_no_root.odex')
     cases = [
-        ('residual', no_root, {}, {}, ['largest residual', 'did not converge', 'Newton settings', 'Sing pts']),
+        ('residual', no_root, {}, {}, ['largest residual', 'did not converge', 'Newton options', 'Sing pts']),
         ('parameter low', path, {'pars': {'a': -3}}, {'step_size': -0.02}, ['parameter "a" = -3', 'parameter_min = -2', 'parameter_max = 2']),
         ('parameter high', path, {'pars': {'a': 3}}, {}, ['parameter "a" = 3', 'parameter_min = -2', 'parameter_max = 2']),
         ('parameter below Par Min', path, {}, {'parameter_min': 0.2, 'parameter_max': 0.9, 'step_size': -0.02}, ['parameter "a" = 0', 'parameter_min = 0.2', 'parameter_max = 0.9']),
@@ -946,7 +946,7 @@ def check_autox_branch_jobs():
         first_error = next((i for i, e in enumerate(evs) if jobs_errors([e])), None)
         first_points = next((i for i, e in enumerate(evs) if e.get('ev') == 'autox.diagram' and e.get('op') == 'add'
                              and any('live' not in r for r in e['runs'])), None)  # the join's points (those drawn live come as they are stored)
-        check('W606: a job that fails ends alone: its reason is shown at once (the job, its start, its points, the setting), the run ends ok',
+        check('W606: a job that fails ends alone: its reason is shown at once (the job, its start, its points, the option), the run ends ok',
               len(errors) == 2 and all('the job of steady states from the point at r = 1.0000001' in m and 'ended early after 80 points' in m
                                        and 'XPP_AUTOX_FAIL_CHILD_AT=80' in m for m in errors) and end.get('status') == 'ok'
               and first_error is not None and first_points is not None and first_error < first_points, str(errors) + str(end)[:200])
@@ -1110,7 +1110,7 @@ PERIODIC_NUMERICS = dict(step_size=0.01, min_step_size=1e-5, max_step_size=0.01,
 
 def periodic_session(env):
     """A server on lecar with autoX open, recording from its start, the cycle settled and one period integrated (the orbit a
-    Periodic start from the current state takes), single-threaded, its autoX settings set"""
+    Periodic start from the current state takes), single-threaded, its autoX options set"""
     s = Server(args.server, autoxcompare.ROOT / PERIODIC_MODEL, env=env)
     autoxcompare.completed(s)
     autoxcompare.completed(s, dict(cmd='preferences.configure', threads=1))
@@ -1224,7 +1224,7 @@ def check_autox_registry():
         return evs, done
     try:
         autoxcompare.completed(s)
-        autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.settings']))
+        autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.options']))
         _, done = call(cmd='autox.run', kind='equilibrium')
         check('autox.run: autoX not open is refused naming autox.open', done['status'] == 'error' and 'autox.open' in done['error'], str(done))
         evs_open, done = call(cmd='autox.open')
@@ -1251,14 +1251,14 @@ def check_autox_registry():
               and 'must add up to the number of variables, 2' in done['error'] and 'unstable_dimension (1)' in done['error'], str(done))
         grab_events, done = call(cmd='autox.grab', type='hopf', index=1)
         check('autox.grab: the 1st hopf', done['status'] == 'ok' and done['result']['type'] == 'hopf', str(done))
-        before_numerics = next(e for e in call(cmd='events.subscribe', events=['autox.settings'])[0] if e.get('ev') == 'autox.settings')['numerics']
+        before_numerics = next(e for e in call(cmd='events.subscribe', events=['autox.options'])[0] if e.get('ev') == 'autox.options')['numerics']
         evs, done = call(cmd='autox.run', kind='periodic', type='hopf', index=1, max_steps=10, mesh_intervals=10)
         starts = [e['start'] for e in grab_events if e.get('ev') == 'autox.info' and e.get('start')]
         check('autox.run: a periodic run from the 1st hopf computes; autoxinfo says the kinds that fit the grabbed point',
               done['status'] == 'ok' and done['result']['points_computed'] > 2
               and any(x['type'] == 'hopf' and x['kinds'] == ['equilibrium', 'periodic', 'two_parameter'] for x in starts), str(done)[:200] + str(starts)[:200])
-        after_numerics = next(e for e in call(cmd='events.subscribe', events=['autox.settings'])[0] if e.get('ev') == 'autox.settings')['numerics']
-        check('autox.run: the settings given hold for that run only', after_numerics == before_numerics and before_numerics['max_steps'] != 10,
+        after_numerics = next(e for e in call(cmd='events.subscribe', events=['autox.options'])[0] if e.get('ev') == 'autox.options')['numerics']
+        check('autox.run: the options given hold for that run only', after_numerics == before_numerics and before_numerics['max_steps'] != 10,
               str((before_numerics['max_steps'], after_numerics['max_steps'])))
         _, done = call(cmd='autox.grab', label=999999)
         check('autox.grab: an unknown label is refused', done['status'] == 'error' and 'no point labelled 999999' in done['error'], str(done))
@@ -1841,7 +1841,7 @@ def check_registry():
         request({'cmd': 'annotation.add_marker', 'shape': 'circle', 'x': 1, 'y': 1})
         result, _ = request({'cmd': 'annotation.delete_all'})
         check('annotation.delete_all clears the graph', result == {'cleared': True}, str(result))
-        # W524: the plot's settings (curves, frozen curves, axes, exports) by name, in plot coordinates
+        # W524: the plot's options (curves, frozen curves, axes, exports) by name, in plot coordinates
         snd(cmd='events.subscribe', events=['plot.shown', 'plot.marks']); col(lambda e: e.get('ev') == 'done')
         request({'cmd': 'run.initial'})
         main_plot = lambda evs: next((w for e in evs if e.get('ev') == 'plot.shown' for w in e['windows'] if w['win'] == 'main'), None)
@@ -1888,7 +1888,7 @@ def check_registry():
         result, _ = request({'cmd': 'plot.delete_all_frozen'})
         check('plot.delete_all_frozen clears the graph of frozen curves', result == {'cleared': True}, str(result))
         result, _ = request({'cmd': 'plot.set_autox_freeze', 'enabled': True})
-        check('plot.set_autox_freeze reports the setting', result == {'autox_freeze': True}, str(result))
+        check('plot.set_autox_freeze reports the option', result == {'autox_freeze': True}, str(result))
         request({'cmd': 'plot.set_autox_freeze', 'enabled': False})
         for refused in [{'cmd': 'plot.delete_frozen', 'slot': slot}, {'cmd': 'plot.delete_frozen'}, {'cmd': 'plot.edit_frozen', 'slot': slot},
                         {'cmd': 'plot.freeze_curve', 'name': 'a name over nine'}, {'cmd': 'plot.freeze_curve', 'key': 'k' * 20},
@@ -1955,7 +1955,7 @@ def check_registry():
         result, evs = request({'cmd': 'plot.add_data_markers', 'shape': 'box', 'count': 3, 'first_row': 1, 'stride': 10, 'color': 'green', 'size': 2})
         check('plot.add_data_markers reports how many were put', result == {'count': 3}, str(result))
         result, _ = request({'cmd': 'plot.add_data_markers', 'count': 2})
-        check('plot.add_data_markers keeps the settings left out from the last time', result == {'count': 2}, str(result))
+        check('plot.add_data_markers keeps the options left out from the last time', result == {'count': 2}, str(result))
         for refused in [{'cmd': 'plot.add_data_markers', 'count': 3, 'stride': 100000}, {'cmd': 'plot.add_data_markers', 'shape': 'star'},
                         {'cmd': 'plot.add_data_markers', 'count': 0}, {'cmd': 'plot.add_data_markers', 'first_row': -1}]:
             request(refused, False)
@@ -2017,7 +2017,7 @@ def check_registry():
             ({'cmd': 'equilibrium.guess', 'coordinates': {'V': -0.5, 'W': 0.1}}, 'converged'),
             ({'cmd': 'initial_conditions.set_from_equilibrium'}, 'applied'),
             ({'cmd': 'equilibrium.export', 'file': 'w522-equilibrium.dat'}, 'written'),
-            ({'cmd': 'equilibrium.configure', 'max_iterates': 100}, 'settings'),
+            ({'cmd': 'equilibrium.configure', 'max_iterates': 100}, 'options'),
             ({'cmd': 'equilibrium.search', 'guesses': 2, 'tolerance': 0.001, 'bounds': bounds}, 'found'),
             ({'cmd': 'equilibrium.range', 'parameter': 'iapp', 'start': 0, 'end': 0.1, 'steps': 1}, 'points_found'),
             ({'cmd': 'nullcline.set_mesh', 'mesh': 20}, 'nullcline_mesh'),
@@ -2044,7 +2044,7 @@ def check_registry():
         request({'cmd': 'equilibrium.search', 'guesses': 1, 'tolerance': 0.001, 'bounds': {'V': [1, 0]}}, False)
         request({'cmd': 'equilibrium.configure', 'max_iterates': 20, 'newton_tolerance': -1}, False)
         result, _ = request({'cmd': 'equilibrium.configure'})
-        check('W522: configure is all or nothing', result.get('settings', {}).get('max_iterates') == 100, str(result))
+        check('W522: configure is all or nothing', result.get('options', {}).get('max_iterates') == 100, str(result))
         request('equilibrium.search --guesses 1 --tolerance 0.001 --bounds {"V" [0 0] "W" [0 0]}')
         request({'cmd': 'nullcline.export', 'file': '../outside.dat'}, False)
         for obsolete in [dict(cmd='equilibrium', op='write', name='old.dat'), dict(cmd='dfield', op='write', name='old.dat'),
@@ -2850,7 +2850,7 @@ def check_kinescope_animation_array_plot():
         check('W527: kinescope.autoplay takes the cycles and the delay', result == {'cycles_completed': 2}
               and any(e.get('ev') == 'kinescope.film' and e.get('op') == 'autoplay' and e.get('cycles') == 2 and e.get('delay') == 5 for e in evs), str(result))
         result, evs, _ = req({'cmd': 'kinescope.autoplay'})
-        check('W527: kinescope.autoplay keeps the last settings', any(e.get('ev') == 'kinescope.film' and e.get('cycles') == 2 and e.get('delay') == 5 for e in evs), str(evs)[-300:])
+        check('W527: kinescope.autoplay keeps the last options', any(e.get('ev') == 'kinescope.film' and e.get('cycles') == 2 and e.get('delay') == 5 for e in evs), str(evs)[-300:])
         for refused in [{'cmd': 'kinescope.autoplay', 'cycles': 0}, {'cmd': 'kinescope.autoplay', 'frame_ms': -1}, {'cmd': 'kinescope.autoplay', 'cycles': 1.5},
                         {'cmd': 'kinescope.export', 'output': 'frames'}, {'cmd': 'kinescope.export', 'output': 'frames', 'file': '../k.gif'},
                         {'cmd': 'kinescope.export', 'output': 'animated_gif', 'file': 'a/b.gif'}, {'cmd': 'kinescope.export', 'file': 'x.gif'},
@@ -3025,7 +3025,7 @@ def check_kinescope_animation_array_plot():
 
 def check_equilibrium_settings():
     """W535: the equilibrium search asks no questions. Print eigenvalues, draw invariant sets and draw
-    strong sets are numerics settings: equilibrium.configure sets them and the numerics event shows
+    strong sets are numerics options: equilibrium.configure sets them and the numerics event shows
     them, a bad value or an argument find no longer takes is refused and changes nothing, and find
     prints the eigenvalues exactly when print eigenvalues is on (the log, which --verbose shows)."""
     log = LogLines()
@@ -3066,13 +3066,13 @@ def check_equilibrium_settings():
         done, _ = call(cmd='equilibrium.find', print_eigenvalues=True)
         check('W535: find refuses the old print_eigenvalues argument', done.get('status') == 'error', str(done)[:300])
         done, _ = call(cmd='equilibrium.configure', print_eigenvalues='yes')
-        check('W535: configure refuses a word for a boolean and keeps the setting', done.get('status') == 'error' and setting('print_eigenvalues') is True, str(done)[:300])
+        check('W535: configure refuses a word for a boolean and keeps the option', done.get('status') == 'error' and setting('print_eigenvalues') is True, str(done)[:300])
 
         done, _ = call(cmd='equilibrium.configure', draw_strong_sets=True, newton_tolerance=-1)
-        check('W535: configure is all or nothing for the boolean settings', done.get('status') == 'error' and setting('draw_strong_sets') is False, str(done)[:300])
+        check('W535: configure is all or nothing for the boolean options', done.get('status') == 'error' and setting('draw_strong_sets') is False, str(done)[:300])
 
         done, _ = call(cmd='equilibrium.configure', print_eigenvalues=False, draw_invariant_sets=True, draw_strong_sets=True)
-        check('W535: configure sets all three settings at once',
+        check('W535: configure sets all three options at once',
               done.get('status') == 'ok' and setting('print_eigenvalues') is False and setting('draw_invariant_sets') is True
               and setting('draw_strong_sets') is True, str(done)[:300])
     finally:
@@ -3080,7 +3080,7 @@ def check_equilibrium_settings():
 
 
 def check_atomic_commands():
-    """W534: a bad final argument leaves values, windows, files and settings untouched."""
+    """W534: a bad final argument leaves values, windows, files and options untouched."""
     p, folder, send, collect, _ = launch_server()
     is_done = lambda event: event.get("ev") == "done"
     try:
@@ -3155,7 +3155,7 @@ def check_atomic_commands():
             refused(command, archive=False)
 
         # Handler/owner checks go beyond the schema's individual types. These cases reached apply-then-check
-        # paths before W534; the saved members expose settings that session.get_state does not list.
+        # paths before W534; the saved members expose options that session.get_state does not list.
         refused(dict(cmd='value.set_parameters', values={'iapp': 17, 'absent': 2}))
         refused(dict(cmd='initial_conditions.set', values={'v': 17, 'absent': 2}))
         refused(dict(cmd='equilibrium.configure', max_iterates=17, newton_tolerance=-1))
@@ -3183,14 +3183,14 @@ def check_atomic_commands():
             call(cmd='stochastic.show_run')
             refused(command)
             got, _ = call(cmd=setup['cmd'])
-            check('W534: %s keeps its earlier settings for the next call' % command['cmd'],
+            check('W534: %s keeps its earlier options for the next call' % command['cmd'],
                   got.get('status') == 'ok' and got.get('result') == expected.get('result'), got)
         call(cmd='stochastic.show_run')
         fit_probe = dict(cmd='fit.parameters', variables=['v'], parameters=['iapp'])
         expected, _ = call(**fit_probe)
         refused(dict(cmd='fit.parameters', variables=['v'], parameters=['iapp'], data_columns=[2], points=17, columns=3, file='absent.dat'))
         got, _ = call(**fit_probe)
-        check('W534: a refused fit keeps its earlier lists and file settings', got.get('error') == expected.get('error'), got)
+        check('W534: a refused fit keeps its earlier lists and file options', got.get('error') == expected.get('error'), got)
         refused(dict(cmd='adjoint.compute_h_function', couplings={'v': 'v', 'w': 'w'}))
         call(cmd='array_plot.open')
         call(cmd='array_plot.configure', first_column='v', columns=2, rows=10, z_min=-1, z_max=1)
@@ -3208,8 +3208,8 @@ def check_atomic_commands():
             refused(command)
             call(cmd=command['cmd'], file=after_file, **same)
             with open(os.path.join(folder, before_file), 'rb') as before, open(os.path.join(folder, after_file), 'rb') as after:
-                check('W534: %s keeps export settings for the next file' % command['cmd'], before.read() == after.read())
-        # W779: the labels are settings: a configure refused as a whole leaves them, and the export that follows keeps them
+                check('W534: %s keeps export options for the next file' % command['cmd'], before.read() == after.read())
+        # W779: the labels are options: a configure refused as a whole leaves them, and the export that follows keeps them
         call(cmd='array_plot.configure', top_label='original top', side_label='original side', bottom_label='original bottom')
         call(cmd='array_plot.export', format='pdf', file='before-array_plot.pdf')
         refused(dict(cmd='array_plot.configure', top_label='must not remain', z_min=2))
@@ -3261,7 +3261,7 @@ def check_atomic_commands():
 
 
 def check_options_panels():
-    """W616: the settings panels' data. hello carries the option table (every group, its rows with key, section, label, kind, help,
+    """W616: the options panels' data. hello carries the option table (every group, its rows with key, section, label, kind, help,
     default and limits); options.get gives a group's values as text and options.configure sets some of them, all or nothing, by their
     option keys; output.configure is the same for the output group, its path picked in the file dialog; preferences.configure keeps the
     log's level and file in the preferences."""
@@ -3282,7 +3282,7 @@ def check_options_panels():
         check('W616: a choice row lists its named choices, a yes/no is a boolean row',
               'runge_kutta' in method['choices'] and next(r for r in groups['integration']['rows'] if r['key'] == 'stop_at_limit').get('boolean') is True, str(method))
         commands = {c['cmd']: c for c in hello['commands'] if 'arguments' in c}
-        check('W641: every command row has the text of its action, never OK or Run, and a setting\'s is Apply', all(c.get('action') for c in commands.values())
+        check('W641: every command row has the text of its action, never OK or Run, and an option\'s is Apply', all(c.get('action') for c in commands.values())
               and not any(c['action'] in ('OK', 'Run') for c in commands.values()) and commands['run.configure']['action'] == 'Apply', str([c['cmd'] for c in commands.values() if not c.get('action')]))
         check('W641: an argument has its description where the row gives one', next(a for a in commands['preferences.configure']['arguments'] if a['name'] == 'log_file').get('description'))
         check('W616: no key twice in a group', all(len({r['key'] for r in g['rows']}) == len(g['rows']) for g in groups.values()))
@@ -3305,7 +3305,7 @@ def check_options_panels():
         after = call(cmd='options.get', group='integration')['result']['values']
         check('W616: one bad value refuses the whole set, and nothing changes', done.get('status') == 'error' and 'integration.step.min' in done.get('error', '') and after == before, str(done))
         done = call(cmd='options.configure', group='integration', values={'nonesuch': '1'})
-        check('W616: a key the group does not have is refused by name', done.get('status') == 'error' and 'nonesuch is no setting of integration' in done.get('error', ''), str(done))
+        check('W616: a key the group does not have is refused by name', done.get('status') == 'error' and 'nonesuch is no option of integration' in done.get('error', ''), str(done))
         done = call(cmd='options.configure', group='integration', values={'dt': '0.25', 'step.max': '0.5'})
         check('W616: a group the sets hold changes by its keys, with its numerics applied',
               done.get('status') == 'ok' and call(cmd='options.get', group='integration')['result']['values']['dt'] == '0.25')
@@ -3335,7 +3335,7 @@ def check_options_panels():
         done = call(cmd='output.configure', values={'picture_file': ''})
         values = call(cmd='options.get', group='output')['result']['values']
         check('W664: an empty picture_file is no picture', done.get('status') == 'ok' and values['picture_file'] == '', str(done) + str(values))
-        send(cmd='output.configure', setting='data_file', file_picker=True)
+        send(cmd='output.configure', option='data_file', file_picker=True)
         events, _ = collect(is_ask)
         ask = next(e for e in events if e.get('ev') == 'ask')
         check('W616: a path is picked in the core\'s file dialog (a write ask)', ask.get('kind') == 'file' and ask.get('mode') == 'write', str(ask))
@@ -3343,10 +3343,10 @@ def check_options_panels():
         _, done = collect(is_done)
         values = call(cmd='options.get', group='output')['result']['values']
         check('W616: the picked file is the path\'s value', done.get('status') == 'ok' and values['data_file'].endswith('picked.dat'), str(done) + str(values))
-        done = call(cmd='output.configure', setting='dt', file='x.dat')
-        check('W616: only an output path takes a picked file', done.get('status') == 'error' and 'no path setting of output' in done.get('error', ''), str(done))
-        done = call(cmd='output.configure', setting='data_file')
-        check('W616: a setting and its file go together', done.get('status') == 'error', str(done))
+        done = call(cmd='output.configure', option='dt', file='x.dat')
+        check('W616: only an output path takes a picked file', done.get('status') == 'error' and 'no path option of output' in done.get('error', ''), str(done))
+        done = call(cmd='output.configure', option='data_file')
+        check('W616: an option and its file go together', done.get('status') == 'error', str(done))
         done = call(cmd='preferences.configure', log_level='info', log_file='')
         check('W616: preferences.configure keeps the log level in the preferences beside the threads', done.get('status') == 'ok' and done['result']['log_level'] == 'info', str(done))
         done = call(cmd='preferences.get')
@@ -3669,7 +3669,7 @@ def check_hello_kinds():
             ('run.stop', None): 'c', ('run.initial', None): 'x', ('run.configure', None): 's', ('initial_conditions.set', None): 's', ('data.export', None): 'd', ('data.page', None): 'v', ('autox.configure_numerics', None): 's',
             ('autox.grab', None): 'd', ('autox.run', None): 'x', ('button.run', None): 'x',
             ('equilibrium.find', None): 'x', ('session.save', None): 'd', ('session.quit', None): 'c'}
-    check('W95, W106: kinds as decided: display a view, set/value.set_parameters/auto.configure_numerics settings, Save data and autox.grab data, autox.run a computation, '
+    check('W95, W106: kinds as decided: display a view, set/value.set_parameters/auto.configure_numerics options, Save data and autox.grab data, autox.run a computation, '
           'abort control, a user button a computation',
           all(kinds.get(k) == v for k, v in want.items()), str({k: kinds.get(k) for k in want}))
 
@@ -3744,7 +3744,7 @@ def check_registry_labels(table):
 check_registry_labels([c for c in hello.get('commands', []) if 'arguments' in c])
 
 
-# W649 (#722): what a model has that some settings and commands need is one list, computed once in the core and sent in hello; a row
+# W649 (#722): what a model has that some options and commands need is one list, computed once in the core and sent in hello; a row
 # (an option's or a command's) names the feature it needs, and a command whose feature the model lacks is refused with the reason
 FEATURE_MODELS = {'lecar.odex': ['parameters'], 'dde.odex': ['parameters', 'delays'], 'dumbbvp.odex': ['parameters', 'boundary_conditions'],
                   'voltex1.odex': ['integral_terms'], 'clustor.odex': ['parameters', 'formula_tables'], 'lin.odex': ['parameters', 'output_columns']}
@@ -3761,7 +3761,7 @@ def check_model_features():
             snd(cmd='events.subscribe', events=['run.numerics'])
             evs, _ = col(is_done)
             keys = {f['key'] for e in evs if e.get('ev') == 'run.numerics' for f in e['fields']}
-            check('W649: %s\'s numerics hold the delay and boundary value settings exactly when the model has the feature' % model,
+            check('W649: %s\'s numerics hold the delay and boundary value options exactly when the model has the feature' % model,
                   ('delay' in keys) == ('delays' in present) and ('bvp_tolerance' in keys) == ('boundary_conditions' in present), str(sorted(keys)))
             snd(cmd='boundary_value.solve', show=False)
             evs, _ = col(is_done)
@@ -3774,7 +3774,7 @@ def check_model_features():
                 evs, _ = col(is_done)
                 done = next(e for e in reversed(evs) if e.get('ev') == 'done')
                 check('W521: boundary_value.configure sets the shooting numerics together',
-                      done.get('result', {}).get('settings') == {'bvp_max_iterates': 7, 'bvp_tolerance': 1e-7, 'bvp_epsilon': 1e-5}, str(done))
+                      done.get('result', {}).get('options') == {'bvp_max_iterates': 7, 'bvp_tolerance': 1e-7, 'bvp_epsilon': 1e-5}, str(done))
         finally:
             stop_server(p, r, snd)
     needs = {c['cmd']: c.get('needs') for c in hello.get('commands', []) if c.get('needs')}
@@ -4187,7 +4187,7 @@ def check_import_xppaut_state():
         evs, done = col(is_done)
         snd(cmd='session.get_state')
         evs, _ = col(is_done)
-        check('W321: ... and its integration settings by that scope',
+        check('W321: ... and its integration options by that scope',
               done.get('status') == 'ok' and dict(last_state(evs)['pars'])['iapp'] == 0.33, str(done))
         # a .par of XPPAUT's loaded by scope parameters, and refused for a scope it does not hold
         snd(cmd='session.get_state')
@@ -4263,12 +4263,12 @@ check('file get of a missing file says so', ev.get('ok') == 0 and ev.get('error'
 check('refused file commands leave nothing behind', sorted(os.listdir(run)) == sorted(before + ['srv.bin'])
       and stat_of(outside) == above, str(sorted(os.listdir(run))))
 
-# UTF-8 file names (card W35b, MI-001/WF-002): "mu settings.set" ('μ',
+# UTF-8 file names (card W35b, MI-001/WF-002): "mu options.set" ('μ',
 # a Greek mu) written, listed and read back with its real name, not the
 # mojibake ('Î¼...') the old byte-as-Latin-1 JSON string
 # reader/writer produced -- and, on Windows, not mangled by the ANSI code
 # page either (assets/xppautx.manifest's activeCodePage UTF-8).
-utf8_name = 'μ settings.set'
+utf8_name = 'μ options.set'
 ev = file_cmd(op='put', name=utf8_name, data=base64.b64encode(b'hi').decode())
 check('file put takes a UTF-8 name and writes that file', ev.get('ok') == 1 and ev.get('name') == utf8_name
       and os.path.exists(os.path.join(run, utf8_name)), str(ev))
@@ -4378,7 +4378,7 @@ with tempfile.TemporaryDirectory(prefix='xppw678') as long_folder:
     check('W678: the stop keeps the armed rows, the last t being %d (row k at t = k)' % (LONG_RUN_ROWS - 1),
           long_at.get('what') == 'integrate' and long_at.get('rows') == LONG_RUN_ROWS
           and isinstance(long_at.get('t'), (int, float)) and abs(long_at['t'] - (LONG_RUN_ROWS - 1)) < 1e-6, str(long_at))
-    # a run past any step count is refused before it starts, with the settings and their values (every stop says why)
+    # a run past any step count is refused before it starts, with the options and their values (every stop says why)
     huge_model = os.path.join(long_folder, 'huge.odex')
     with open(huge_model, 'w') as f:
         f.write(versioned("x'=-x\ninit x=1\noptions { integration: { method: euler, dt: 1, total_time: 1e30 } }\n"))
@@ -4388,7 +4388,7 @@ with tempfile.TemporaryDirectory(prefix='xppw678') as long_folder:
         snd(cmd='run.initial')
         evs, _ = col(lambda e: e.get('ev') == 'done', timeout=60 * SLOW)
         errs = [e.get('error', '') for e in evs if e.get('error')]
-        check('W678: a run past any step count is refused before it starts, naming its settings and values',
+        check('W678: a run past any step count is refused before it starts, naming its options and values',
               any('more than a step count holds' in x and 'integration.total_time = 1e+30' in x and 'integration.dt = 1' in x for x in errs)
               and not any(e.get('ev') == 'job.stopped' for e in evs), str(errs)[:300])
     finally:
@@ -5222,13 +5222,13 @@ def check_values_protocol():
         evs = after(cmd='value.set_parameters', values={'nosuch': 1})
         check('value.set_parameters of a name the model does not have: refused naming the parameter',
               len(errs(evs)) == 1 and 'nosuch' in errs(evs)[0]['error'], str(errs(evs)))
-        # W494: a range or an order broken by `set num` is refused with the setting, its value and the rule
+        # W494: a range or an order broken by `set num` is refused with the option, its value and the rule
         for name, text, words in (('min_step', '1e9', 'integration.step.min (1e+09) must be at most integration.step.max'),
                                   ('relative_tolerance', '0', 'must be a number above 0'),
                                   ('max_iterations', '0', 'must be at least 1')):
             evs = (after(cmd='equilibrium.configure', max_iterates=int(text)) if name == 'max_iterations'
                    else after(cmd='run.configure', **{name: float(text)}))
-            check('W494: setting num %s=%s is refused naming %s' % (name, text, words),
+            check('W494: option num %s=%s is refused naming %s' % (name, text, words),
                   len(errs(evs)) == 1 and words in errs(evs)[0].get('error', '') and (name == 'max_iterations' or errs(evs)[0].get('field') == 'num:' + name),
                   str(errs(evs)))
         evs = after(cmd='run.configure', total_time='1O0')
@@ -5427,7 +5427,7 @@ def check_load_all_or_nothing():
     """W125, W321: loading values from a file is all or nothing. A file of sets (`set.load_file`), an XPPAUT
     parameter file and an initial-conditions file (`value.import_file`) whose last value is bad are refused at that
     line, naming the file and the line as written, and the session is exactly as it was (its state, and the
-    settings it writes). A model's internal set is checked whole when the model loads (W318), so none can fail
+    options it writes). A model's internal set is checked whole when the model loads (W318), so none can fail
     here."""
     model = os.path.join(tempfile.mkdtemp(prefix='w125m'), 'w125.odex')
     with open(model, 'w') as f:
@@ -5457,7 +5457,7 @@ def check_load_all_or_nothing():
     written = []
 
     def set_file():
-        """the settings the session saves now (the par, init and options statements and the session statement
+        """the options the session saves now (the par, init and options statements and the session statement
         up to its sliders: the values, the numerics, the run position, the delays, the boundary conditions); CR LF read as LF"""
         written.append('now%d' % len(written))
         answered((), cmd='session.save_as', file=written[-1], data=False)
@@ -5496,7 +5496,7 @@ def check_load_all_or_nothing():
                   os.path.basename(e.get('file', '')) == file and e.get('line') == line
                   and e.get('source') == source, str(errs))
             st, set1 = state(), set_file()
-            check('W125: after %s refused, the session is as it was (its state, its settings)' % what,
+            check('W125: after %s refused, the session is as it was (its state, its options)' % what,
                   st == st0 and set1 == set0, str([(k, st0.get(k), st.get(k)) for k in st0 if st.get(k) != st0.get(k)])[:300])
         # W310: foreign .par names determine the destination; rejection is atomic.
         with open(os.path.join(r, 'reordered.par'), 'w') as f:
@@ -5524,7 +5524,7 @@ def check_load_all_or_nothing():
                   and e.get('source') == source and (name is None or '"%s"' % name in e.get('error', '')),
                   str(errs))
             st, set1 = state(), set_file()
-            check('W310: %s leaves all values and settings unchanged' % file,
+            check('W310: %s leaves all values and options unchanged' % file,
                   st == st0 and set1 == set0, str(st))
         # W153, W321: another model's names; valid earlier changes must not apply.
         other_text = versioned('set "foreign" {\n  a: 9,\n  another_models_parameter: 9\n}\n')
@@ -5562,7 +5562,7 @@ def check_load_all_or_nothing():
         check('W321: a set with no initial values refuses to load them, at its file, line and source',
               len(errs) == 1 and 'holds no initial' in errs[0].get('error', '') and os.path.basename(errs[0].get('file', '')) == 'mix.odex'
               and errs[0].get('line') == mix_line and errs[0].get('source') == 'set "mix" { a: 2.5 }', str(errs))
-        # a value the model refuses, in a set's settings: the file, line and source of that entry
+        # a value the model refuses, in a set's options: the file, line and source of that entry
         bad_value = versioned('set "s" {\n  a: 5,\n  options: { integration: { dt: 0 } }\n}\n')
         with open(os.path.join(r, 'vals.odex'), 'w') as f:
             f.write(bad_value)
@@ -5595,7 +5595,7 @@ def check_load_all_or_nothing():
               len(errs) == 1 and 'more than' in errs[0].get('error', ''), str(errs))
         errs = errors(load_set('mix.odex', part='mix', scope='parameters'))
         st = state()
-        check('W321: a set file loads its parameters only, the initial values and the settings stay',
+        check('W321: a set file loads its parameters only, the initial values and the options stay',
               not errs and dict(st['pars'])['a'] == 2.5 and st['ics'] == st0['ics'], str(errs))
         errs = errors(load_set('mix.odex', from_='defaults', scope='all'))
         st = state()
@@ -5665,7 +5665,7 @@ def check_apply_restore():
               not errs(evs) and v[2] == 0.1 and v[3] == 7 and v[0]['a'] == 10 and v[4] == start[4], str(v))
         evs = run(cmd='set.apply', name='mix', scope='plot')
         v = view()
-        check('W319: scope plot applies only the plot settings, to the active graph',
+        check('W319: scope plot applies only the plot options, to the active graph',
               not errs(evs) and v[4] == {'main': (-3, 3)} and v[0]['a'] == 10, str(v))
         # restore a field, a section, then everything
         run(cmd='set.restore_defaults', scope='integration', field='dt')
@@ -5698,7 +5698,7 @@ def check_apply_restore():
                           (dict(cmd='set.apply', name='mix'), 'Missing argument "scope"'),
                           (dict(cmd='set.restore_defaults', scope='all', field='a'), 'restoring all takes no field'),
                           (dict(cmd='set.restore_defaults', scope='parameters', field='nosuch'), 'the model has no parameter nosuch'),
-                          (dict(cmd='set.restore_defaults', scope='integration', field='xlo'), 'xlo is not a setting of integration')):
+                          (dict(cmd='set.restore_defaults', scope='integration', field='xlo'), 'xlo is not an option of integration')):
             es = errs(run(**bad))
             check('W319: %s is refused (%s), nothing changed' % (json.dumps(bad), text),
                   len(es) == 1 and text in es[0] and view() == before, str(es))
@@ -5813,7 +5813,7 @@ def check_save_values():
         check('W320: the live model uses the replaced part', view()[1]['x'] == 0.1)
         evs = run(cmd='set.save_into', name='mix', scope='plot')
         mix = [text()[text().index('set "mix"'):]]
-        check('W320: replacing the plot settings leaves the rest of the set', not errs(evs) and mix and 'axes.x_min: -3' not in mix[0]
+        check('W320: replacing the plot options leaves the rest of the set', not errs(evs) and mix and 'axes.x_min: -3' not in mix[0]
               and 'x: 0.1' in mix[0] and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: {' in mix[0], str(mix) + str(errs(evs)))
         # the defaults: par and init lines in place, an options group
         run(cmd='value.set_parameters', values={'a': 4})
@@ -5833,11 +5833,11 @@ def check_save_values():
         run(cmd='run.configure', dt=0.5)
         run(cmd='set.restore_defaults', scope='integration')
         check('W320: Restore defaults gives the saved options', view()[2] == 0.05, str(view()))
-        # W680: the Output panel's settings are the model's: Save as defaults writes them (a path from the model's folder), as it does every group
+        # W680: the Output panel's options are the model's: Save as defaults writes them (a path from the model's folder), as it does every group
         evs = run(cmd='output.configure', values={'data_file': 'w680.dat'})
         evs = run(cmd='set.save_defaults', scope='output')
         new = text()
-        check('W680: Save as defaults writes the Output panel\'s settings into the model file, a path by its name',
+        check('W680: Save as defaults writes the Output panel\'s options into the model file, a path by its name',
               not errs(evs) and 'output: {' in new and 'data_file: "w680.dat"' in new and new.count('options {') == 1, new[new.index('options'):][:300] + str(errs(evs)))
         check('W680: and a scope no set holds is refused where a set is saved',
               errs(run(cmd='set.save_new', name='w680', scope='output')), '')
@@ -5907,9 +5907,9 @@ def check_save_values():
         evs = run(cmd='set.rename', **{'from': 's1', 'to': 's1b'})
         check('W320: File > Rename set asks which set and the new name', not errs(evs) and 'set "s1b" {' in text() and 'set "s1" {' not in text(), str(errs(evs)))
         old = text()
-        # a plot's settings saved and applied again
+        # a plot's options saved and applied again
         evs = run(cmd='set.apply', name='mix', scope='plot')
-        check('W320: the plot settings saved in a set apply again', not errs(evs), str(errs(evs)))
+        check('W320: the plot options saved in a set apply again', not errs(evs), str(errs(evs)))
         # a recording of the saves replays on the model it recorded (a saved model's copy changes, not the disk)
         run(cmd='recording.start')
         run(cmd='value.set_parameters', values={'a': 3})
@@ -6947,11 +6947,11 @@ def check_dialog_folder_after_autox():
 check_dialog_folder_after_autox()
 
 
-# autoX's settings as data (docs/protocol.md "autoX's settings as data", T22):
-# the autoxsettings event holds what the autoX forms show, and `auto` `set`
+# autoX's options as data (docs/protocol.md "autoX's options as data", T22):
+# the autoxoptions event holds what the autoX forms show, and `auto` `set`
 # writes the same fields, checked, all or nothing.
 def settings_of(evs):
-    got = [e for e in evs if e.get('ev') == 'autox.settings']
+    got = [e for e in evs if e.get('ev') == 'autox.options']
     return got[-1] if got else None
 
 
@@ -6959,7 +6959,7 @@ NUM_KEYS = ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points',
             'mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail', 'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points', 'follow_all_branches']
 
 
-def check_autoxsettings():
+def check_autoxoptions():
     pa, ra, snda, cola, _ = launch_server()
     pb, rb, sndb, colb, _ = launch_server()
     try:
@@ -6998,14 +6998,14 @@ def check_autoxsettings():
                     break
             return evs, settings_of(evs), autox_errors(evs)
 
-        snda(cmd='events.subscribe', events=['autox.settings'])
+        snda(cmd='events.subscribe', events=['autox.options'])
         evs, _ = cola(is_done)
         st = settings_of(evs)
-        check('autoxsettings: sent at once after data, before autoX is open', st is not None
+        check('autoxoptions: sent at once after data, before autoX is open', st is not None
               and sorted(st['numerics']) == sorted(NUM_KEYS) and 'pars' not in st
               and st['axes']['par1'] == 'iapp', str(st)[:300])
         rules = st.get('rules', {}) if st else {}
-        check('W118: autoxsettings carries each Numerics rule with the message its refusal says, the pairs and the step',
+        check('W118: autoxoptions carries each Numerics rule with the message its refusal says, the pairs and the step',
               sorted(rules) == sorted(NUM_KEYS) and rules['collocation_points'].get('min') == 2 and rules['collocation_points'].get('max') == 7
               and isinstance(st['numerics']['suppress_branch_points'], bool) and rules['suppress_branch_points'].get('boolean') is True
               and rules['collocation_points'].get('integer') is True and rules['min_step_size'].get('positive') is True
@@ -7020,7 +7020,7 @@ def check_autoxsettings():
         for value in (False, True):
             events, current, errors = autox_set(special_points={'generalized_hopf': value})
             check('W364: registry applies GH '+str(value), not errors and current['special_points']['generalized_hopf'] is value)
-        snda(cmd='events.subscribe', events=['hello', 'autox.settings'])
+        snda(cmd='events.subscribe', events=['hello', 'autox.options'])
         window_events, _ = cola(is_done)
         window_hello = next((e for e in window_events if e.get('ev') == 'hello'), {})
         check('W339: autoX has no Parameter form or pars field', 'pars' not in st
@@ -7030,9 +7030,9 @@ def check_autoxsettings():
         evs, all_axes, errs = autox_set(axes={'par1':'gk'})
         check('W339: Axes accepts a parameter beyond the old eight', not errs and all_axes and all_axes['axes']['par1']=='gk')
         autox_set(axes={'par1':'iapp'})
-        check('autoxsettings: no Mark values at first', st['marks'] == [])
+        check('autoxoptions: no Mark values at first', st['marks'] == [])
         evs, st2, errs = autox_set(numerics={'output_every': 40})
-        check('autoxsettings: typed numerics emits current values', not errs and st2['numerics']['output_every'] == 40)
+        check('autoxoptions: typed numerics emits current values', not errs and st2['numerics']['output_every'] == 40)
 
         # the set: every part, then read back through the forms
         p0, p1 = 'iapp', 'gca'
@@ -7049,9 +7049,9 @@ def check_autoxsettings():
         for bad_marks in (many_marks[:-1] + [['unknown', 0]], 'bad', [['T', 1, 2]]):
             evs, changed, errs = autox_set(numerics={'max_steps': 99}, marks=bad_marks)
             check('W331: bad mark command rejects its numerics too', len(errs) == 1 and changed is None)
-        snda(cmd='events.subscribe', events=['autox.settings'])
+        snda(cmd='events.subscribe', events=['autox.options'])
         unchanged = settings_of(cola(is_done)[0])
-        check('W331: settings stayed intact after bad forms and sets',
+        check('W331: options stayed intact after bad forms and sets',
               unchanged and unchanged['marks'] == many_marks and unchanged['numerics']['max_steps'] == 12)
         autox_set(marks=st3['marks'])
 
@@ -7083,15 +7083,15 @@ def check_autoxsettings():
         na, nb = len(rebuild_diagram(evs_a, [])), len(rebuild_diagram(evs_b, []))
         check('auto set: Nmax 12 makes the next run stop at 12 points (the default goes on to %d)' % nb,
               not errs and na == 12 and nb > 12, '%s: %d vs %d points' % (errs, na, nb))
-        # W155: Reload keeps autoX's settings without a settings file.
+        # W155: Reload keeps autoX's options without an options file.
         before_reload = settings_of(autox_set(numerics={'max_steps': 41}, marks=many_marks)[0])
         snda(cmd='session.reload_model')
         reload_ask = cola(lambda e: e.get('ev') == 'ask')[1]
         snda(cmd='answer', id=reload_ask['id'], key='d')
         cola(is_done)
-        snda(cmd='events.subscribe', events=['autox.settings'])
+        snda(cmd='events.subscribe', events=['autox.options'])
         after_reload = settings_of(cola(is_done)[0])
-        check('W155: Reload keeps autoX numerics, parameters, axes and marks without a settings file',
+        check('W155: Reload keeps autoX numerics, parameters, axes and marks without an options file',
               before_reload is not None and after_reload is not None
               and all(before_reload[k] == after_reload[k] for k in ('numerics', 'axes', 'marks')),
               str(after_reload))
@@ -7101,7 +7101,7 @@ def check_autoxsettings():
         stop_server(pb, rb, sndb)
 
 
-check_autoxsettings()
+check_autoxoptions()
 
 
 # Why a branch ended (T23, docs/protocol.md "The autoX diagram as data",
@@ -7516,7 +7516,7 @@ def check_output_names():
         def cancel_name(want):
             _, ask = col(lambda e: is_ask(e) or is_done(e))
             while ask and ask.get('kind') == 'form':
-                check('W130: settings forms contain no filename', 'file' not in ask.get('kinds', []), str(ask))
+                check('W130: options forms contain no filename', 'file' not in ask.get('kinds', []), str(ask))
                 snd(cmd='answer', id=ask['id'], values=ask['values'])
                 _, ask = col(lambda e: is_ask(e) or is_done(e))
             check('W130: file ask offers ' + want,
@@ -7649,7 +7649,7 @@ def check_seed_per_run():
         st4, ser4 = last_state(evs4), full(evs4)
         seed4 = st4.get('seed') if st4 else None
         data4 = ser4[-1]['columns'] if ser4 else None
-        check("setting run 2's logged seed reproduces it as the next run's seed",
+        check("option run 2's logged seed reproduces it as the next run's seed",
               seed4 == seed2, str((seed4, seed2)))
         check("...and its data byte for byte", data4 == data2, '')
     finally:
@@ -7770,7 +7770,7 @@ def check_refused_during_run():
               str([l for l in log if 'refused' in l]))
         snd(cmd='run.configure', total_time=20)
         evs, done = col(is_done)
-        check('W517: after the run a setting command works again', done is not None and not any('error' in e for e in evs))
+        check('W517: after the run an option command works again', done is not None and not any('error' in e for e in evs))
     finally:
         stop_server(p, r, snd)
 
@@ -7827,11 +7827,11 @@ def check_busy_flood():
 check_busy_flood()
 
 
-# W106 (GitHub #155, docs/protocol.md "Commands during a command"): a setting
+# W106 (GitHub #155, docs/protocol.md "Commands during a command"): an option
 # sent during a computation (a parameter, a numerics field) is taken at once
 # and kept for after it: the run in progress keeps the values it started
 # with (its rows are those of a run with the old values, stopped at the same
-# row: a .recx --silent with the stop armed there, not a race), and each setting
+# row: a .recx --silent with the stop armed there, not a race), and each option
 # then applies as a command of its own (state and done), before anything
 # else: the state after shows it, and the next run uses it. A bad numerics
 # value is an error message after the run, naming the field. The numerics
@@ -7948,13 +7948,13 @@ def check_jacobian_setting():
             errs += [e.get('error') for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e]
             check('W260: set num jacobian by name; a name that is no choice, a number too, is refused, naming them',
                   errs == ['Numerics: Jacobian must be difference or exact'] * 2 and jac.get('value') == 'difference', '%s %s' % (errs, jac))
-            # W274 (folded into W285): the setting is saved with the session and restored
+            # W274 (folded into W285): the option is saved with the session and restored
             snd(cmd='set', kind='num', name='jacobian', text='exact')
             col(is_done)
             snd(cmd='session.save_as', file='jac', data=False)
             col(is_done)
             with zipfile.ZipFile(os.path.join(r, 'jac.snapx')) as z:
-                check('W274: session.odex holds the Jacobian setting by its word', b' jacobian.kind: exact,' in z.read('session.odex'))
+                check('W274: session.odex holds the Jacobian option by its word', b' jacobian.kind: exact,' in z.read('session.odex'))
             snd(cmd='set', kind='num', name='jacobian', text='difference')
             col(is_done)
             snd(cmd='session.open_model', file='jac.snapx')
@@ -8007,12 +8007,12 @@ def check_jacobian_setting():
                                  cwd=model_dir, timeout=60 * SLOW)
             return out.stderr if out.returncode == 0 else 'exit %d: %s' % (out.returncode, out.stderr[-300:])
         log = load_log()
-        check('W260: a model loaded with the default setting has not made an exact Jacobian',
+        check('W260: a model loaded with the default option has not made an exact Jacobian',
               'Compiled ' in log and 'Made the exact Jacobian' not in log, log[-300:])
         with open(smooth, 'a') as f:
             f.write('options { integration: { jacobian.kind: exact } }\n')
         check('W260: its own jacobian.kind: exact makes it at load (its derivatives, compiled when the run is long: W717)', 'Made the exact Jacobian' in load_log())
-        # Reload keeps the setting; a model with no exact Jacobian says so and takes difference
+        # Reload keeps the option; a model with no exact Jacobian says so and takes difference
         lines = LogLines()
         p, r, snd, col, _ = launch_server(ode=smooth, log=lines)
         try:
@@ -8179,7 +8179,7 @@ def check_subsystem_split():
         evs, _ = col(is_done)
         errs = [e.get('error') for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e]
         text = info()
-        check('W433: it joins them under run, and the report follows the setting after the load',
+        check('W433: it joins them under run, and the report follows the option after the load',
               not errs and '1 subsystem, joined by a Poincare stop (subsystem_split: run)' in text, '%s %s' % (errs, text[-300:]))
         snd(cmd='set', kind='num', name='subsystem_split', text='both')
         evs, _ = col(is_done)
@@ -8269,7 +8269,7 @@ def check_autox_jacobian_failure():
     the last converged point is stored as an end point (EP) with a label.
     The error carries the action "Switch to differences and continue": the
     command that sets the Jacobian to difference, then the one that restarts
-    the continuation from that label with the run's own settings; sent as
+    the continuation from that label with the run's own options; sent as
     they come they take the branch on past the failure to Par Min, and a
     recording of it replays to the same diagram."""
     model_dir = tempfile.mkdtemp(prefix='xppautjacfail')
@@ -8439,21 +8439,21 @@ def check_settings_during_run():
         evs, _ = col(lambda e: e.get('ev') == 'data.updated')
         during = [e for e in evs if e.get('ev') == 'session.message']
         dones = [e for e in evs if e.get('ev') == 'done']  # the state's own, answered at once (session.get_state)
-        check('W106: settings sent during a run get no done or error while it runs; state still shows the '
+        check('W106: options sent during a run get no done or error while it runs; state still shows the '
               'values it runs with', prog is not None and not during and len(dones) == 1 and dones[0].get('status') == 'ok'
               and iapp(evs) == 0.05, str([e.get('ev') for e in evs]))
         snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         stopped = [e for e in evs if e.get('ev') == 'job.stopped']
         rows = next((e['rows'] for e in reversed(evs) if is_state(e)), 0)
-        check('W106: the run went on with Total 1e7 until the Abort (stopped), the settings not applied yet',
+        check('W106: the run went on with Total 1e7 until the Abort (stopped), the options not applied yet',
               stopped and rows > 1 and iapp(evs) == 0.05 and num(evs) is None, str(stopped))
         after = []
         for _ in range(3):
             more, _ = col(is_done)
             after.append(more)
         errs = [[e.get('error') for e in m if e.get('ev') in ('session.message', 'done') and e.get('error')] for m in after]
-        check('W106: then each setting is a command of its own, in order: the bad one an error after the run',
+        check('W106: then each option is a command of its own, in order: the bad one an error after the run',
               iapp(after[0]) == 0.3 and (num(after[1]) or {}).get('total_time') == 50
               and errs == [[], [], ['Argument "store_every" must be at least 1']], str(errs))
         snd(cmd='data.page', **{'from_row': rows - 1, 'count': 1})
@@ -8467,7 +8467,7 @@ def check_settings_during_run():
             {'cmd': 'run.stop', 'at': {'what': 'integrate', 'rows': rows, 't': 0}},
             {'cmd': 'data.page', 'from_row': rows - 1, 'count': 1}])
         ref = next((e['data'] for e in map(json.loads, out.splitlines()) if e.get('ev') == 'data.updated'), None)
-        check('W106: the rows the run stored are those of a run with the old values (the settings did not '
+        check('W106: the rows the run stored are those of a run with the old values (the options did not '
               'reach it)', code == 0 and live and live == ref, '%s vs %s (%s)' % (live, ref, err[-200:]))
         snd(cmd='run.initial')
         evs, _ = col(is_done, timeout=60 * SLOW)
@@ -9645,7 +9645,7 @@ def check_session_file():
               str(names))
         if names:
             z = zipfile.ZipFile(snap)
-            check('session save: session.odex holds the settings of lecar and names it',
+            check('session save: session.odex holds the options of lecar and names it',
                   b'\nversion 4\n' in b'\n' + z.read('session.odex') and b'\noptions {\n' in z.read('session.odex') and b' total_time: ' in z.read('session.odex')
                   and b'\n  model: "lecar.odex",\n' in z.read('session.odex'), str(z.read('session.odex')[:200]))
             check('W663: the session names its animation once, as the animation option of its options block, never in the session statement',
@@ -9893,16 +9893,16 @@ def check_session_file():
              ('badname.snapx/session.odex:%d:' % curve_x, 'the model has no variable "nosuch"')),
             # W125: a bad value on the last line of the session: refused at it, nothing applied
             ('lastmarks', edited(lambda text: '\n'.join(state_rows[:marks_line] + ['    more: 1,'] + state_rows[marks_line:])),
-             ('lastmarks.snapx/session.odex:%d:' % (marks_line + 1), '`more` is not a setting')),
+             ('lastmarks.snapx/session.odex:%d:' % (marks_line + 1), '`more` is not an option')),
             ('lastset', edited(lambda text: with_text('boundary_value.range_high: 1', 'boundary_value.range_high: 1e999')),
              ('lastset.snapx/session.odex:%d:' % high_line, '`1e999` is not a number')),
-            # W662: a session of the older layout (its moved settings still groups of the session statement) is refused at that line
+            # W662: a session of the older layout (its moved options still groups of the session statement) is refused at that line
             # every group W662 moved out of the session statement is refused at its line, none skipped
             *[('oldgroup_' + g, edited(lambda text, g=g: with_line(session_line + 1, '  %s: { item: iapp },\n' % g + state_rows[session_line])),
-               ('oldgroup_%s.snapx/session.odex:%d:' % (g, session_line + 1), '`%s` is not a setting' % g))
+               ('oldgroup_%s.snapx/session.odex:%d:' % (g, session_line + 1), '`%s` is not an option' % g))
               for g in ('transpose', 'coupling', 'array_plot', 'torus', 'sweep', 'equilibrium_range', 'bvp_range')],
             ('latermanifest', edited(lambda text: '\n'.join(state_rows[:session_line] + ['  later: 1,'] + state_rows[session_line:])),
-             ('latermanifest.snapx/session.odex:%d:' % (session_line + 1), '`later` is not a setting')),
+             ('latermanifest.snapx/session.odex:%d:' % (session_line + 1), '`later` is not an option')),
             # W145: every value checked by the rule that checks it anywhere else, before anything is applied
             ('zerostore_every', edited(lambda text: with_text('store_every: 1,', 'store_every: 0,')),
              ('zerostore_every.snapx/session.odex:%d:' % line_with(' store_every: 1,'), 'Store every N steps must be a whole number of at least 1')),
@@ -10075,31 +10075,31 @@ def check_autox_views():
 
 def check_autox_subscriptions():
     """W335: autoX's subscriptions are the protocol client's: subscribe,
-    unsubscribe and subscribe again send, stop and resend autoxsettings,
+    unsubscribe and subscribe again send, stop and resend autoxoptions,
     autoxinfo and autoxview (a reload and a grab after it: autoxcheck's
     subscriptions section)."""
     p, r, snd, col, _ = launch_server()
     try:
         col(is_done)
-        # 1. Subscribe to autoxinfo, autoxsettings
-        snd(cmd='events.subscribe', events=['autox.info', 'autox.settings'])
+        # 1. Subscribe to autoxinfo, autoxoptions
+        snd(cmd='events.subscribe', events=['autox.info', 'autox.options'])
         evs, _ = col(is_done)
-        st = [e for e in evs if e.get('ev') == 'autox.settings']
+        st = [e for e in evs if e.get('ev') == 'autox.options']
         info = [e for e in evs if e.get('ev') == 'autox.info']
         av = [e for e in evs if e.get('ev') == 'autox.view']
-        check('auto subscriptions: subscribe sends autoxsettings, autoxinfo and autoxview',
+        check('auto subscriptions: subscribe sends autoxoptions, autoxinfo and autoxview',
               len(st) > 0 and len(info) > 0 and len(av) > 0, str([len(st), len(info), len(av)]))
 
         # Unsubscribe
         snd(cmd='events.unsubscribe', events=ALL_EVENTS)
         evs, _ = col(is_done)
-        unsub_evs = [e for e in evs if e.get('ev') in ('autox.info', 'autox.settings', 'autox.view')]
+        unsub_evs = [e for e in evs if e.get('ev') in ('autox.info', 'autox.options', 'autox.view')]
         check('auto subscriptions: unsubscribe stops auto events', len(unsub_evs) == 0, str(unsub_evs))
 
         # Subscribe again
-        snd(cmd='events.subscribe', events=['autox.info', 'autox.settings'])
+        snd(cmd='events.subscribe', events=['autox.info', 'autox.options'])
         evs, _ = col(is_done)
-        st2 = [e for e in evs if e.get('ev') == 'autox.settings']
+        st2 = [e for e in evs if e.get('ev') == 'autox.options']
         info2 = [e for e in evs if e.get('ev') == 'autox.info']
         av2 = [e for e in evs if e.get('ev') == 'autox.view']
         check('auto subscriptions: subscribe again resends events',
@@ -10466,7 +10466,7 @@ def check_recording():
         check('record: a cancelled menu is a step (keys g, Escape)',
               len(s) > 1 and s[1] == {'step': 'Clear plot', 'cmd': {'cmd':'window.clear'}, 'view': True} and steps[1][1] == '', str(s[1:2]))
         check('record: run.configure is a step with its arguments',
-              s[2:3] == [{'step': 'Run \u203a Settings', 'cmd': {'cmd': 'run.configure', 'total_time': 1e7}}], str(s[2:3]))
+              s[2:3] == [{'step': 'Run \u203a Options', 'cmd': {'cmd': 'run.configure', 'total_time': 1e7}}], str(s[2:3]))
         check('record: an Abort belongs to its step, where it stopped as the stopped event said',
               len(s) > 3 and s[3].get('cmd') == {'cmd': 'run.initial'} and stopped and s[3].get('abort') == stopped[0]
               and stopped[0]['what'] == 'integrate', str(s[3:4]) + str(stopped))
@@ -11655,8 +11655,8 @@ def check_start_examples():
 check_start_examples()
 
 def check_threads():
-    """W267, docs/protocol.md "autoX's settings as data": the thread count is a program preference: the
-    autoxsettings event carries it ("auto" or the count, what automatic gives, the most), `auto` `set`
+    """W267, docs/protocol.md "autoX's options as data": the thread count is a program preference: the
+    autoxoptions event carries it ("auto" or the count, what automatic gives, the most), `auto` `set`
     `threads` saves it in preferences.odex (in a config folder of its own) and a server started later reads
     it; a count outside 1 to threads_max, or a word that is not "auto", is refused whole, nothing saved."""
     root = tempfile.mkdtemp(prefix='xppthreads')
@@ -11666,7 +11666,7 @@ def check_threads():
     errors = lambda evs: [e['error'] for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
 
     def threads_of(snd, col):
-        snd(cmd='events.subscribe', events=['autox.settings'])
+        snd(cmd='events.subscribe', events=['autox.options'])
         return settings_of(col(is_done)[0])
 
     def text():
@@ -11989,7 +11989,7 @@ def check_sweep_threads():
         p, r, snd, col, _ = launch_server(extra_env=env)
         try:
             col(is_done)
-            snd(cmd='events.subscribe', events=['autox.settings'])
+            snd(cmd='events.subscribe', events=['autox.options'])
             most = settings_of(col(is_done)[0])['threads_max']
         finally:
             stop_server(p, r, snd)
@@ -12121,7 +12121,7 @@ def check_create_folders():
 check_create_folders()
 
 def check_range_files():
-    """W349: range-owned files, persisted settings and foreign option import."""
+    """W349: range-owned files, persisted options and foreign option import."""
     with tempfile.TemporaryDirectory(prefix='w349') as folder:
         model = os.path.join(folder, 'range.odex')
         with open(model, 'w') as f:
@@ -12135,8 +12135,8 @@ def check_range_files():
                 s.send(cmd='session.save_as', file='before', data=False)
                 s.collect(is_done)
                 with zipfile.ZipFile(os.path.join(run, 'before.snapx')) as z:
-                    settings = z.read('session.odex').decode()
-                check('W349: session saves rangefiles by name', 'write_files: true' in settings, settings[-600:])
+                    options = z.read('session.odex').decode()
+                check('W349: session saves rangefiles by name', 'write_files: true' in options, options[-600:])
                 for enabled, reset, expected in (('Y', 'Y', 3), ('N', 'Y', 0), ('Y', 'N', 0)):
                     s.send(cmd='run.range', variable='a', steps=2, start=1, end=3, reset_storage=reset == 'Y', use_old_ic=True,
                            cycle_color=False, movie=False, write_each_run_to_file=enabled == 'Y')
@@ -12170,7 +12170,7 @@ def check_range_files():
                 s.send(cmd='set.save_defaults', scope='all')
                 s.answer_asks(is_done, {'choice': lambda e: {'key': 'y'}})
                 saved = open(os.path.join(run, 'range.odex')).read()
-                check('W349: saving .odex writes the named range setting', 'write_files: true' in saved, saved)
+                check('W349: saving .odex writes the named range option', 'write_files: true' in saved, saved)
                 s.send(cmd='session.open_model', file='range.odex')
                 s.answer_asks(is_done, {'choice': lambda e: {'key': 'd'}})
                 s.send(cmd='session.save_as', file='odex-roundtrip', data=False)
@@ -12237,7 +12237,7 @@ def check_range_files():
                 s.collect(is_done)
                 with zipfile.ZipFile(os.path.join(run, 'roundtrip.snapx')) as z:
                     text = z.read('session.odex').decode()
-                check('W349: converted .odex loads the named setting', 'write_files: true' in text, text[-600:])
+                check('W349: converted .odex loads the named option', 'write_files: true' in text, text[-600:])
             finally:
                 s.close()
 
@@ -12361,7 +12361,7 @@ def check_stop_checks():
         stopped = any(e.get('ev') == 'job.stopped' for e in evs)
         check('W388: fixed-step chunk with large store_every stops on abort', stopped, str([e.get('ev') for e in evs]))
 
-        # Restore standard settings
+        # Restore standard options
         snd(cmd='run.configure', store_every=1)
         col(is_done)
         snd(cmd='run.configure', total_time=20)
@@ -12539,7 +12539,7 @@ def check_run_registry():
         ok('run.shift continues the clock', {'cmd': 'run.shift'}, {'status': 'completed', 'steps': 601, 'time': None})
         ok('run.configure sets the numerics together and says their values',
            {'cmd': 'run.configure', 'total_time': 10, 'dt': 0.05, 'method': 'runge_kutta', 'store_every': 1, 'stop_at_limit': True},
-           {'settings': {'total_time': 10, 'dt': 0.05, 'method': 'runge_kutta', 'store_every': 1, 'stop_at_limit': True}})
+           {'options': {'total_time': 10, 'dt': 0.05, 'method': 'runge_kutta', 'store_every': 1, 'stop_at_limit': True}})
         ok('run.continue extends by a duration', {'cmd': 'run.continue', 'extra': 1}, {'status': 'completed', 'end_time': None})
         ok('run.continue with no value continues for another Total', {'cmd': 'run.continue'}, {'status': 'completed', 'end_time': None})
         ok('run.steady settles or reaches its limit',
@@ -12699,7 +12699,7 @@ def check_analysis_registry():
         got = ok('lyapunov_exponent.compute over a range gives the runs of the sweep',
                  {'cmd': 'lyapunov_exponent.compute', 'range_over_parameters': True, 'variable': 'iapp', 'start': 0, 'end': 0.1, 'steps': 2},
                  {'max_lyapunov_exponent': None, 'runs_completed': 3})
-        refused('lyapunov_exponent.compute with the sweep\'s settings and no range', {'cmd': 'lyapunov_exponent.compute', 'steps': 3}, 'range_over_parameters')
+        refused('lyapunov_exponent.compute with the sweep\'s options and no range', {'cmd': 'lyapunov_exponent.compute', 'steps': 3}, 'range_over_parameters')
         refused('lyapunov_exponent.compute over a range of a name the model does not have',
                 {'cmd': 'lyapunov_exponent.compute', 'range_over_parameters': True, 'variable': 'nosuch'}, 'nosuch')
         ok('poincare_map.set sets a section', {'cmd': 'poincare_map.set', 'type': 'section', 'variable': 'v', 'section': 0.1, 'direction': 'positive',
@@ -12786,7 +12786,7 @@ def check_analysis_registry():
         ok('adjoint.range on', {'cmd': 'adjoint.range', 'enabled': True}, {'adjoint_range': True})
         ok('adjoint.range off', {'cmd': 'adjoint.range', 'enabled': False}, {'adjoint_range': False})
         refused('adjoint.range with a number for its boolean', {'cmd': 'adjoint.range', 'enabled': 1}, 'enabled')
-        got = ok('histogram.compute of the model\'s own settings (@ histbins, histcol, histlo, histhi)', {'cmd': 'histogram.compute'}, {'bins': 20, 'total_samples': None})
+        got = ok('histogram.compute of the model\'s own options (@ histbins, histcol, histlo, histhi)', {'cmd': 'histogram.compute'}, {'bins': 20, 'total_samples': None})
         check('W525: that histogram counted the orbit', got.get('total_samples', 0) > 100, str(got))
     finally:
         stop_server(p, r, snd)
@@ -12849,7 +12849,7 @@ def check_numerics_extras():
     try:
         done = call(cmd='run.configure', delay_real_guess=1.5, delay_imaginary_guess=3, delay_grid=40)
         check('W521: run.configure sets the delay guesses and grid and says them',
-              done.get('status') == 'ok' and done['result']['settings'] == {'delay_real_guess': 1.5, 'delay_imaginary_guess': 3, 'delay_grid': 40}, str(done))
+              done.get('status') == 'ok' and done['result']['options'] == {'delay_real_guess': 1.5, 'delay_imaginary_guess': 3, 'delay_grid': 40}, str(done))
         done = call(cmd='run.configure', delay_grid=0)
         check('W521: a delay grid of 0 is refused naming the argument', done.get('status') == 'error' and 'delay_grid' in done.get('error', ''), str(done))
         done = call(cmd='run.configure', bandlo=2)
@@ -12857,8 +12857,8 @@ def check_numerics_extras():
               done.get('status') == 'error' and 'bandlo' in done.get('error', ''), str(done))
         done = call(cmd='run.configure', method='cvode', total_time=7, bandlo=2, bandup=3)
         check('W521: with CVODE the band is set together with the method',
-              done.get('status') == 'ok' and done['result']['settings'].get('bandlo') == 2 and done['result']['settings'].get('bandup') == 3
-              and done['result']['settings'].get('total_time') == 7, str(done))
+              done.get('status') == 'ok' and done['result']['options'].get('bandlo') == 2 and done['result']['options'].get('bandup') == 3
+              and done['result']['options'].get('total_time') == 7, str(done))
         done = call(cmd='run.configure', method='euler', vmaxpts=100)
         check('W521: a refused extra takes the whole call back (the method stays CVode)',
               done.get('status') == 'error' and 'vmaxpts' in done.get('error', ''), str(done))
@@ -12869,7 +12869,7 @@ def check_numerics_extras():
     try:
         done = call(cmd='run.configure', vmaxpts=5000)
         check('W521: run.configure sets the Volterra points',
-              done.get('status') == 'ok' and done['result']['settings'] == {'vmaxpts': 5000}, str(done))
+              done.get('status') == 'ok' and done['result']['options'] == {'vmaxpts': 5000}, str(done))
         done = call(cmd='run.configure', delay_grid=10)
         check('W521: a delay grid is refused for a model with no delays',
               done.get('status') == 'error' and 'delay_grid' in done.get('error', ''), str(done))

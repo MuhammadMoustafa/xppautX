@@ -26,7 +26,7 @@ namespace xpp::snapx {
 
 inline constexpr std::string_view extension = ".snapx";
 
-/* A settings list's staged records, checked before making its Blocks. Runtime
+/* An options list's staged records, checked before making its Blocks. Runtime
    slots and point storage are charged separately to the same byte estimate. */
 bool memory_groups(odex::Block &block, std::string_view key, std::vector<odex::Block> &out,
                    std::size_t bytes_each, std::size_t &used);

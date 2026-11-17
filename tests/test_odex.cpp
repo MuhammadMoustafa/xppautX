@@ -539,13 +539,13 @@ TEST_CASE("test_odex")
   CHECK_STR(lowered("x' = 1\nboundary x - x'\n").c_str(), "x'=1|bdry x-x'");
   CHECK_STR(lowered("x' = w\nw = x^2\naux w = w\n").c_str(), "x'=w|w=x^2|aux w=w");
   CHECK_STR(lowered("x' = 1\ntable f exp(-abs(t)), n=51, lo=-25, hi=25\n").c_str(), "x'=1|table f % 51 -25 25 exp((-abs(t)))");
-  /* W318: a set's keys are parameters and states, its settings are under options: */
+  /* W318: a set's keys are parameters and states, its options are under options: */
   CHECK_STR(lowered("x' = 1\nset \"s\" { x: -1, options: { integration: { method: stiff, dt: 0.1 } } }\n").c_str(),
             "x'=1|set s {x=-1} integration.method=stiff integration.dt=0.1");
   CHECK_STR(lowered("par dt = 2\nx' = 1\nset \"s\" { dt: 3, options: { integration: { dt: 0.05 } } }\n").c_str(),
             "par dt=2|x'=1|set s {dt=3} integration.dt=0.05");
   CHECK(starts(lowered("x' = 1\nset \"s\" { x: -1, method: stiff }\n"),
-               "error 2:18 `method` is a setting: a set holds it under `options: { integration: { method: ... } }`"));
+               "error 2:18 `method` is an option: a set holds it under `options: { integration: { method: ... } }`"));
   CHECK(starts(lowered("x' = 1\nset \"s\" { zz: 1 }\n"), "error 2:11 a set's keys are the model's parameters and states, and `zz` is neither"));
   CHECK(starts(lowered("x' = 1\nset \"s\" { options: { nosuch: { dt: 1 } } }\n"), "error 2:22 `nosuch` is not a group of options"));
   CHECK(starts(lowered("x' = 1\nset \"s\" { options: { output: { quiet: 1 } } }\n"), "error 2:22 a set does not hold the group `output`"));
@@ -600,9 +600,9 @@ TEST_CASE("test_odex")
   CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, eps=1e-6)\n"), "error 2:27 near has no argument named `eps`: only tol="));
   CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, tol=-1)\n"), "error 2:27 near's tol= is not a positive number or a parameter"));
   CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, tol=x)\n"), "error 2:27 near's tol= is not a positive number or a parameter"));
-  /* the model-wide near_tolerance setting is gone (W623): an ordinary unknown key, at its line */
+  /* the model-wide near_tolerance option is gone (W623): an ordinary unknown key, at its line */
   CHECK(starts(lowered("x' = 1\noptions { equilibria: { near_tolerance: 1e-6 } }\n"), "error 2:"));
-  /* W656: an export is the panel as shown, so its color and font size are no settings, and the picture-print button is gone */
+  /* W656: an export is the panel as shown, so its color and font size are no option, and the picture-print button is gone */
   CHECK(starts(lowered("x' = 1\noptions { export: { color: false } }\n"), "error 2:"));
   CHECK(starts(lowered("x' = 1\noptions { export: { font_size: 14 } }\n"), "error 2:"));
 
@@ -801,7 +801,7 @@ TEST_CASE("test_odex")
   }
 
   /* W318: --convert writes a set's model names flat (XPPAUT's precedence: a parameter named dt
-     takes dt=), the settings nested under options: by group; the result loads. */
+     takes dt=), the options nested under options: by group; the result loads. */
   {
     CHECK(load_text("par dt=2\nx'=-x\ninit x=1\nset trial {dt=0.1,total=5,xlo=-2,x=3,xlo=-3}\ndone\n", "ode") == 1);
     const auto result = xpp::odex::convert_text(local_fs(), xpp::program_loader, "build/test_odex_model.ode");

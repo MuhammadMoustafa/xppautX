@@ -26,7 +26,7 @@ ALLOWED_WORDS = {
 # (file, text): a model's own name or an XPPAUT name a model uses, with its reason
 ALLOWED = {
     ("02-ode-files.md", "DeltaT"): "a parameter's name in a model line",
-    ("09-autox.md", "SuppBP"): "autoX's own name for the setting, as AUTO spells it",
+    ("09-autox.md", "SuppBP"): "autoX's own name for the option, as AUTO spells it",
 }
 SOURCE_PATH = re.compile(r"[\w./-]+\.(?:tsx|ts|cpp|h|mjs)\b")
 CARD = re.compile(r"\bW\d{2,4}[a-z]?\b")

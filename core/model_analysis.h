@@ -4,14 +4,14 @@
 #include <string>
 #include <string_view>
 
-/* The words and settings of the analyses (shooting, spectra) that a model's options name and the analysis
+/* The words and options of the analyses (shooting, spectra) that a model's options name and the analysis
    modules read: pure data, below both (W736), so the option table needs no analysis header. */
 namespace xpp {
 
 /* which end of the interval Range shoot stores the solution's values at (ShootRange::side; a session keeps the number) */
 inline constexpr int SHOOT_SIDE_START = 0, SHOOT_SIDE_END = 1;
 inline constexpr std::array<const char *, 2> SHOOT_SIDE_NAMES = {"start", "end"};
-/* BVP's Range settings (pp_shoot.cpp) */
+/* BVP's Range options (pp_shoot.cpp) */
 struct ShootRange {
   std::string item;
   int steps = 10, side = SHOOT_SIDE_START, cycle = 0, movie = 0;

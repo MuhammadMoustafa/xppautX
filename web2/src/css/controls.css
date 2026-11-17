@@ -146,7 +146,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   font-size: var(--text-xs);
   color: var(--fg-muted);
 }
-.unused-settings > summary, .help-keys summary {
+.unused-options > summary, .help-keys summary {
   min-height: var(--target);
   cursor: pointer;
 }
@@ -180,7 +180,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   display: grid;
   gap: var(--space-2);
 }
-.autox-axis-dialog p, .autox-settings-note {
+.autox-axis-dialog p, .autox-options-note {
   margin: var(--space-2) 0 0;
   font-size: var(--text-xs);
 }
@@ -210,7 +210,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   width: 100%;
 }
 .argument-rows > * + * { margin-top: var(--space-1); }
-.steady-settings, .steady-settings p, .steady-result {
+.steady-options, .steady-options p, .steady-result {
   margin-top: var(--space-2);
   font-size: var(--text-xs);
 }

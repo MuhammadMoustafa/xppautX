@@ -159,7 +159,7 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
 | 5 | `dfield` (**done**) | phase plane | direction field: grid of `[x,y,ux,uy]` (unit direction in plot units) and each arrow's speed, scaled by the client; flow: the trajectories as `x`, `y` point lists per curve, NaN between two | `core/phase_data.cpp`, from `redraw_dfield`/`direct_field_com` and the integrator's `plot_one_graph` |
 | 6 | `marks` (**done**) | plot | equilibria found by Sing pts (x, y, stability type), labels, arrows and markers of Text,etc, frozen curves (Graphic stuff/Freeze) as series | `core/marks_data.cpp`, recorded where `eq_symb` (graphics.cpp), `draw_label` (grobs.cpp) and `draw_freeze`/`create_crv` (graf_par.cpp) draw them |
 | 7 | `diagram` + `autoxinfo` (**done**) | autoX view | the diagram's points (and `from`, the label a branch started from); the info strip as fields (branch, point, type, label, parameters, norm, the plotted variable, period) and the stability circle (e^λ or Floquet multipliers `[[re,im],...]`, and a steady state's eigenvalues); T23: `stop`, why the last branch ended | `core/autox_data.cpp`, reported by `autox_nox.c` where it draws the strip and the circle; `core/autox_stop.cpp`, told by autox_lib1.c where it ends a branch |
-| 7b | `autoxsettings` (**done**, T22) | autoX view's forms | autoX's Numerics (22 fields by autoX's names), its parameters (Par1..Par8), the axes (plot type, variable, main and second parameter, ranges) and the Mark values; set with `auto` `set`, checked, all or nothing | `core/autox_settings.cpp`: the same fields the autoX window's forms write |
+| 7b | `autoxoptions` (**done**, T22) | autoX view's forms | autoX's Numerics (22 fields by autoX's names), its parameters (Par1..Par8), the axes (plot type, variable, main and second parameter, ranges) and the Mark values; set with `auto` `set`, checked, all or nothing | `core/autox_options.cpp`: the same fields the autoX window's forms write |
 | 8 | `browser` (exists) | data table | rows and columns on request: already data | none |
 | 9 | `aplot` (exists) | array plot | cells as color indices; add `values` (the numbers) so the client picks its color map | small |
 | 10 | `ani` `frame` (**done**) | animation | the frame's primitives (line, rect, circle, ellipse, comet dot, text) in unit coordinates of the `.ani`'s `dimension` box (y up, not clamped), their colors (XPP index or `#rrggbb` of the color map), widths and fonts; the frame's row, time, box and the classic window's size; thinned to 25 a second while Go plays | `core/aniparse.cpp` computes a frame in the `.ani`'s coordinates and gives each primitive to the pixel ops and to `core/ani_data.cpp` (docs/protocol.md "The animation as data") |
@@ -250,7 +250,7 @@ files for the browser's Load, `--anifile`. The page runs on the same machine
 - **The working directory stays the workspace.** XPP keeps reading and
   writing there, so relative references resolve as they always have, and
   scripts, `--silent` and the VS Code extension see the same files.
-- **Open** (a `file` ask for reading: Import settings, Load diagram, the browser's
+- **Open** (a `file` ask for reading: Import options, Load diagram, the browser's
   Load, `session load`): the page shows the browser's picker
   (`showOpenFilePicker` where available, else `<input type=file multiple>`).
   The picked files are uploaded into the working directory; the ask is
@@ -574,14 +574,14 @@ Target: WCAG 2.2 AA. Rules:
   own (decision 2026-09-23): a view's close (×) means "done with it", and
   stops a running job first, while Stop keeps the view and its partial
   result (an autoX branch ending on its EP, to grab and continue). While
-  a computation runs only control, view and setting actions start (W68,
+  a computation runs only control, view and option actions start (W68,
   W95, W106, GitHub #116, #144, #155): each action's kind comes from the core in `hello`
   (protocol/kinds.ts; docs/protocol.md "Action kinds"), and the core's
   `job.computing` event, until the command's `done`, says a computation runs;
   data and computation buttons and menu items are disabled then, their
   keys do nothing and are not kept, and session.ts `may()` discards
   anything else at the source. The page's own catch-up commands (a held
-  zoom or tab pick, autoX's settings) make it busy but disable nothing;
+  zoom or tab pick, autoX's options) make it busy but disable nothing;
   the status bar says what runs ("Running Go… Esc stops").
   Typing ahead into a menu still works (a menu is a question, not a
   computation), and value edits wait for the next computation (W69). The
@@ -654,20 +654,20 @@ Target: WCAG 2.2 AA. Rules:
   core's axes are the box within a pixel). `tools/servercheck.py`: grab by
   index then Run gives the diagram grabbing by keys gives; `autoxinfo`
   equals the strip's text and autoX's printed eigenvalues and multipliers.
-  autoX's settings (T22): `tools/servercheck.py` checks that `autoxsettings`
+  autoX's options (T22): `tools/servercheck.py` checks that `autoxoptions`
   is what the Numerics, Parameter, Axes and Mark values forms show, that a
   form's OK and an `autox` `set` show in it (and the set in the forms), that
   a set with a bad value (Ncol 9, Ntst 1.5, Dsmin 0, Par Min above Par
   Max, a name the model lacks ...) is refused whole with an error naming
   it, that a set sent while a question is open applies at the command's
   end, and that Nmax 12 stops the next run at 12 points;
-  tests/test_autox_settings.cpp the rules and the all-or-nothing write.
+  tests/test_autox_options.cpp the rules and the all-or-nothing write.
   `tools/web2check.mjs` (`autox`): Numerics, Parameter and Mark values are
   the page's forms on the data (nothing asked of the core), the axis
-  dialog's plot type goes out as a set with a Fit, Save and Load settings
+  dialog's plot type goes out as a set with a Fit, Save and Load options
   on the data; during a periodic run Nmax 15 goes out at once as one set
-  (a setting, W106: the store's inflight, the button dashed), the core
-  applies it at the run's end, and the run after stops at 15 points; (`busy`) the settings'
+  (an option, W106: the store's inflight, the button dashed), the core
+  applies it at the run's end, and the run after stops at 15 points; (`busy`) the options'
   buttons stay enabled during an integration.
   Live: the store and the plot grow over several appends of a 20 001-row
   run and end equal to `output.dat`. Long runs (tools/models/million.ode,
@@ -695,7 +695,7 @@ Target: WCAG 2.2 AA. Rules:
   and list, refused names and data. `tests/test_files.cpp`: SHA-256
   vectors, names, the cap, abort and replace, every selector title's mode.
   `tools/web2check.mjs`: Save session lands in the folder and is downloaded
-  (the same bytes); Import settings by upload restores the parameters; the same
+  (the same bytes); Import options by upload restores the parameters; the same
   content is not copied again; the replace confirm (Cancel, Keep both as
   `name-2.set`); "Add file…" after a file the core could not open.
 - **Animation** (T13): `tools/servercheck.py`: with tools/gui_test.ani
@@ -728,7 +728,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T2 (**done**) | Live plotting: `series` `append` during integrations (throttled), store appends in place, binary option for long runs | T1 | yes | a 20 000-row run grows on screen; servercheck: the appended rows equal the final series; a 10^6-row series renders and zooms (draw times printed as `perf:` lines, W58) |
 | T3 (**done**) | Values panel: parameters, ICs, BCs, delays, sliders (`@ s1=`), user buttons, Reset, `%formula`, edits pending until the next computation (GitHub #117), no undo (GitHub #110) | T1 | no | web2check: edit a parameter, see it pending; move a slider, nothing sent; Go sends one set with the latest values, then runs; keyboard and 44 px targets; right column at 80 rem, sheet on a phone |
 | T4 (**done**) | Prompts complete: `*n` selects, checklist, mouse/rubber/drag asks as plot modes; core accepts data coordinates `xd`,`yd` | T1 | small | servercheck: an answer in data coordinates; web2check: Viewaxes form with a variable select; Window/Zoom by a box drawn on the plot, by mouse and by keyboard |
-| T5 (**done**) | Files: `/files` endpoints (list, get, put; streaming bodies), `file` asks through the browser's dialogs, the confirm on replace, "Add file…" for missing companions, `file` commands for `--server` | T4 | yes | webcheck: traversal and dot names refused, 64 MB cap, token required; web2check: Save session lands in the model's folder and is offered to the browser; Import settings by upload restores parameters |
+| T5 (**done**) | Files: `/files` endpoints (list, get, put; streaming bodies), `file` asks through the browser's dialogs, the confirm on replace, "Add file…" for missing companions, `file` commands for `--server` | T4 | yes | webcheck: traversal and dot names refused, 64 MB cap, token required; web2check: Save session lands in the model's folder and is offered to the browser; Import options by upload restores parameters |
 | T6 (**done**) | Plot windows: `plots` event, series per window, tabs, Makewindow create/kill/select | T2 | yes | servercheck: two windows, each with its curves; web2check: switch tabs, each keeps its zoom |
 | T7 (**done**) | Nullclines and direction fields as data (`nullclines`, `dfield`), drawn in uPlot's draw hook | T6 | yes | servercheck: segment counts equal the classic draw ops' lines for lecar; web2check: the store holds them, they toggle in the legend |
 | T8 (**done**) | Marks: Sing pts equilibria, Graphic stuff text/arrows/markers, frozen curves; Greek labels as Unicode | T6 | yes | servercheck: `marks` after Sing pts has the equilibrium's coordinates; web2check: marks listed in the store and the legend |
@@ -746,7 +746,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T19 (**done**) | From hands-on testing: runs accumulate until Erase (XPP's behaviour), Erase blanks web2's plot, any number of sliders under the plot with ranges from the value, edits while busy coalesce into one run, ICs show initial conditions, collapsible sections with Save/Load | T15 | yes | web2check: two runs keep two curves, Erase clears, 5 edits while busy give one run, slider range, section save/load round trip |
 | T20 (**done**) | Sliders from hands-on testing: compact sliders (label, value, edit icon), an Add/Edit slider dialog (searchable variable, min, max, step/precision as number spinners), ~3 per row on a laptop, responsive; a click on the plot never starts a run by itself | T19 | small | web2check: dialog sets min/max/step, the slider respects them, 3 per row at 1280px, a plot click sends nothing |
 | T21 (**done**) | autoX view and dialogs from hands-on testing (sandbox/PY_S1Bf.ode): autoX's own status strip and output log, axes edited by clicking an axis name (variable, min, max; ranges usable during a run), Numerics save/load, menus in columns without scrolling, dialog Tab selects the field, the theme button no longer reads "autoX", Stop not Abort, single-letter keys act instead of moving focus | T19 | yes | web2check: status strip names the run and its point count, axis dialog sets the range during a run, numerics round trip, Tab replaces a field's text, keys F and G act on the plot |
-| T22 (**done**) | autoX settings as data: the core sends autoX's Numerics, Parameter choice, axes and Mark values (user points) as a data event and takes a set command for them, so web2 edits them at any time (during a run too: marked pending, applied when idle) instead of through the core's forms; only Run, Grab, Clear and File wait for idle | T21 | yes | servercheck: the event matches the forms' values, a set changes the next run; web2check: edit Numerics during a run, applied at idle, the run after uses it |
+| T22 (**done**) | autoX options as data: the core sends autoX's Numerics, Parameter choice, axes and Mark values (user points) as a data event and takes a set command for them, so web2 edits them at any time (during a run too: marked pending, applied when idle) instead of through the core's forms; only Run, Grab, Clear and File wait for idle | T21 | yes | servercheck: the event matches the forms' values, a set changes the next run; web2check: edit Numerics during a run, applied at idle, the run after uses it |
 | T23 (**done**) | autoX in plain words: a stop reason code set where autox_lib1.c/autox_lib2 end a branch (Par Min/Max, Norm Min/Max, Npts reached, Stop, a stopping Mark value, no convergence at Dsmin: fort.9's NOTE) and sent to the page, shown in the status strip ("Stopped: parameter reached Par Max (20)") and written as a line in the autoX view's Output messages; label types spelled out on hover (EP End point, MX No convergence, LP Fold, HB Hopf, BP Branch point, PD Period doubling, TR Torus, UZ Marked value); every Numerics field named plainly with autoX's short name kept (e.g. "Max points (NMX)"), a tooltip (what it does, valid values, what each option means), integer or float validation and ranges (Dsmin <= |Ds| <= Dsmax), also checked in the core; docs/manual/09-autox.md updated | T22 | yes | servercheck: each stop reason on a model built to hit it (Par Max, Norm Max, Npts, Stop, MX); saved .b/.d and verify.sh unchanged; web2check: status names the reason, a float in an integer field is refused with a message |
 | T24 (**done**) | From hands-on testing: autoX's status line at the bottom of its window, where the main window has its status bar | T21 | no | web2check autox: the status line is the panel's last visible row |
 | T25 (**done**) | From hands-on testing (bug): autoX's Stop showed Stopping… and the run went on; reproduce (sandbox/PY_S1Bf.ode, the user's model: steady and periodic runs, Stop from the autoX strip and the status bar, browser and desktop window) and fix; in the same session, check that a first steady-state run stopping at point 1 on its Norm Max (the model's normmax=60) is autoX's own rule, and why the info strip listed all 8 eigenvalues as "none (below the smallest number)" | none | maybe | autoxcheck/web2check: Stop during an autoX run ends it within 1 s with an EP label |

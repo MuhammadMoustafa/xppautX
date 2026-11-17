@@ -1,13 +1,13 @@
-/* autoX's settings as data (docs/ui-v2.md T22, docs/protocol.md "autoX's
-   settings as data"): the Numerics, autoX's parameters, the axes and the
-   Mark values, from the `autoxsettings` event, edited in the page's own
-   forms at any time. They are settings (W106): an edit goes out at once
+/* autoX's options as data (docs/ui-v2.md T22, docs/protocol.md "autoX's
+   options as data"): the Numerics, autoX's parameters, the axes and the
+   Mark values, from the `autoxoptions` event, edited in the page's own
+   forms at any time. They are options (W106): an edit goes out at once
    as an `autox` `set`, during a run too, when the core keeps it for the
    run's end (the run in progress keeps what it started with). Each one
    sent is `inflight` until that set's own done, when the event has
    brought the core's values (or a `message` `error` said why not).
    What each value takes, and the messages a refusal says, are the core's
-   (the event's `rules`, `pairs` and `step`); the settings file is the
+   (the event's `rules`, `pairs` and `step`); the options file is the
    core's too (autoX's File menu, W118). Pure: no DOM, no I/O. */
 import type {Command} from '../protocol/types';
 import type {AutoxProjection} from './diagram';
@@ -15,7 +15,7 @@ import type {AutoxProjection} from './diagram';
 /** a Numerics field's key: its row's key in the continuation group (`hello.options`), the core's `autox_numeric` one; the page names none */
 export type NumKey = string;
 
-/** what a Numerics value takes (the event's `rules`: core/autox_settings.cpp field), and the
+/** what a Numerics value takes (the event's `rules`: core/autox_options.cpp field), and the
     message the core refuses another with; each flag only when it holds */
 export interface NumRule {
   /** the core's form label */
@@ -55,7 +55,7 @@ export interface AutoxAxesSettings {
   xmin: number; xmax: number; ymin: number; ymax: number;
 }
 
-/** the `autoxsettings` event's settings, with what the Numerics take */
+/** the `autoxoptions` event's options, with what the Numerics take */
 export const CODIM_KINDS = ['bogdanov_takens', 'cusp', 'zero_hopf', 'generalized_hopf', 'resonance_1_1', 'resonance_1_2', 'resonance_1_3', 'resonance_1_4',
   'fold_flip', 'fold_neimark_sacker', 'flip_neimark_sacker', 'double_neimark_sacker'] as const;
 export type CodimKind = typeof CODIM_KINDS[number];
@@ -145,7 +145,7 @@ function apply(base: AutoxSettings, p: AutoxSettingsPatch | null): AutoxSettings
   };
 }
 
-/** what the forms show: the core's settings with the edits sent and not yet applied over them */
+/** what the forms show: the core's options with the edits sent and not yet applied over them */
 export function shownSettings(s: AutoxSettingsState): AutoxSettings | null {
   return s.core ? s.inflight.reduce((base, f) => apply(base, f.patch), s.core) : null;
 }
@@ -189,7 +189,7 @@ export function autoxSettingsCommands(p: AutoxSettingsPatch): {command: Command;
   return out;
 }
 
-/** Track settings from the common command form and specialised plot gestures alike. */
+/** Track options from the common command form and specialised plot gestures alike. */
 export function commandSettings(command: Command): AutoxSettingsPatch | null {
   const {cmd, ...values} = command;
   if (cmd === 'autox.configure_numerics') {

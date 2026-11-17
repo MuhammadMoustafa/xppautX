@@ -93,7 +93,7 @@ TEST_CASE("test_data_table")
     s.data->block.count = 0;
     CHECK(xpp::data_block_rows(s) == "[]");
 
-    /* transposing: every column and row it reads is in the data, the settings are kept, nothing changed by a refusal */
+    /* transposing: every column and row it reads is in the data, the options are kept, nothing changed by a refusal */
     const int neq = s.model().neq;
     CHECK(!xpp::transpose_data(s, "nosuch", 2, 1, 0, 1, 1));
     CHECK(!xpp::transpose_data(s, "v", 0, 1, 0, 1, 1) && !xpp::transpose_data(s, "v", 2, 0, 0, 1, 1) && !xpp::transpose_data(s, "v", 2, 1, -1, 1, 1));

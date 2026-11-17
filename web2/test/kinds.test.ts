@@ -28,7 +28,7 @@ test('startup prompts accept answers and cancellation before hello', () => {
   assert.ok(!mayStart(kindOf(null, {cmd: 'run.steady'}), false, true));
 });
 
-test('W95: controls, views and settings run during a computation; questions allow controls and settings', () => {
+test('W95: controls, views and options run during a computation; questions allow controls and options', () => {
   for (const cmd of ['run.stop','window.new','run.configure','autox.configure_numerics']) assert.ok(may({cmd},true));
   for (const cmd of ['run.initial','data.export','autox.run','unknown']) assert.ok(!may({cmd},true));
   assert.ok(may({cmd:'run.configure'},true,true));

@@ -22,7 +22,7 @@ class FileSystem; /* xpp_fs.h */
    of ordinary files (snapx.h names them): the manifest, the model itself
    (W103: every file it read, model/<name>), the state file session.odex (.odex syntax,
    odex.h's read_state_file: the parameters and initial values as par and init lines, the numerics as an options block, and the
-   rest in one session statement: the manifest, the run position, delays, boundary conditions, autoX's settings and
+   rest in one session statement: the manifest, the run position, delays, boundary conditions, autoX's options and
    views, every plot window's axes, variables and zoom, sliders, nullclines, labels, arrows and markers, the random
    generator), autoX's diagram members (autox/: xpp_session_autox.h),
    frozen.npz (the frozen curves' points) and data.npz
@@ -53,7 +53,7 @@ int xpp_session_save_here(xpp::Session &s, int data = -1);
 /* The unsaved-changes dot's definition, once (state's `changed`): the
    session's values differ from those it was last saved, opened or loaded
    with. A value is a parameter's, an initial condition's, a numerics
-   setting of the time span, method, tolerances and bounds, or the run's
+   option of the time span, method, tolerances and bounds, or the run's
    data (the rows stored and where the run ended). A view, a window or an
    autoX diagram alone is not a change. */
 bool xpp_session_changed(const xpp::Session &s);

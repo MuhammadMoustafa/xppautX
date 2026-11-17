@@ -7,7 +7,7 @@
 #include "autox_c.h"
 #include "autox_nox.h"
 #include "autox_data.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "autox_axis.h"
 #include "model.h"
 #include "xpp_fs.h"
@@ -108,7 +108,7 @@ static xpp::Result<std::string> convert_autox_solutions(const xpp::Session &s, s
 
 namespace {
 struct ImportedAutox {
-  xpp::AutoxSettingsSet settings;
+  xpp::AutoxSettingsSet options;
   int mark_count=0;
   std::vector<int> parameters;
   std::deque<DIAGRAM> points;
@@ -120,7 +120,7 @@ xpp::Result<> import_autox_file(xpp::Session &s, std::string_view text, const st
 {
   auto read=xpp::read_lines("import autoX",file,text,[&](xpp::Lines &lines){
     ImportedAutox held;
-    auto &settings=held.settings;
+    auto &options=held.options;
     std::map<std::string,int> locations;
     auto first=xpp::TokenReader::of_text(lines.next("selected parameters and marks"));
     int count;
@@ -136,11 +136,11 @@ xpp::Result<> import_autox_file(xpp::Session &s, std::string_view text, const st
     if(!first.read(held.mark_count) || held.mark_count<0 || held.mark_count>xpp::autox_foreign_mark_rows || !first.at_end())
       lines.fail("foreign mark count exceeds the stored mark slots");
     // Validate every encoded row, including inactive foreign marks.
-    settings.nmarks=xpp::autox_foreign_mark_rows;
-    settings.mark_name.resize(*settings.nmarks);
-    settings.mark_value.resize(*settings.nmarks);
-    settings.par1=s.model().upar_names[held.parameters.front()];
-    if(count>1)settings.par2=s.model().upar_names[held.parameters[1]];
+    options.nmarks=xpp::autox_foreign_mark_rows;
+    options.mark_name.resize(*options.nmarks);
+    options.mark_value.resize(*options.nmarks);
+    options.par1=s.model().upar_names[held.parameters.front()];
+    if(count>1)options.par2=s.model().upar_names[held.parameters[1]];
     for(int k=0;k<xpp::autox_foreign_mark_rows;k++){
       int slot;
       double value;
@@ -149,24 +149,24 @@ xpp::Result<> import_autox_file(xpp::Session &s, std::string_view text, const st
       const int parameter=s.autox_state->parameter_layout.model_index(solver);
       if(slot<0 || (solver!=xpp::autox_unknown::period && parameter<0))
         lines.fail("invalid foreign mark parameter index");
-      settings.mark_value[k]=value;
-      settings.mark_name[k]=solver==xpp::autox_unknown::period ? "T" : s.model().upar_names[parameter];
+      options.mark_value[k]=value;
+      options.mark_name[k]=solver==xpp::autox_unknown::period ? "T" : s.model().upar_names[parameter];
       locations[xpp::format("mark{}",k)]=lines.line();
     }
     const auto numeric=[&](std::initializer_list<int> fields){
       auto row=xpp::TokenReader::of_text(lines.next("autoX numerics"));
       for(int field:fields){
-        auto &value=settings.num[field];
+        auto &value=options.num[field];
         if(!row.read(value))lines.fail("invalid or incomplete autoX numerics");
         if(field==xpp::AUTOX_NUM_MAX_BRANCH_SWITCHES){
           /* XPPAUT's MXBF is one signed number: its sign is the direction (W531 keeps them apart) */
-          settings.num[xpp::AUTOX_NUM_SWITCH_ONE_DIRECTION]=value<0;
-          settings.has_num[xpp::AUTOX_NUM_SWITCH_ONE_DIRECTION]=1;
+          options.num[xpp::AUTOX_NUM_SWITCH_ONE_DIRECTION]=value<0;
+          options.has_num[xpp::AUTOX_NUM_SWITCH_ONE_DIRECTION]=1;
           value=std::fabs(value);
         }
         std::string why;
         if(!xpp::autox_num_ok(field,value,why))lines.fail(why);
-        settings.has_num[field]=1;
+        options.has_num[field]=1;
         locations[xpp::autox_settings_num_key(field)]=lines.line();
       }
       if(!row.at_end())lines.fail("extra autoX numeric fields");
@@ -176,16 +176,16 @@ xpp::Result<> import_autox_file(xpp::Session &s, std::string_view text, const st
     numeric({xpp::AUTOX_NUM_PARAMETER_MIN,xpp::AUTOX_NUM_PARAMETER_MAX,xpp::AUTOX_NUM_NORM_MIN,xpp::AUTOX_NUM_NORM_MAX});
     numeric({xpp::AUTOX_NUM_MESH_ADAPT_EVERY,xpp::AUTOX_NUM_MAX_BRANCH_SWITCHES,xpp::AUTOX_NUM_OUTPUT_DETAIL,xpp::AUTOX_NUM_MAX_LOCATION_ITERATIONS,xpp::AUTOX_NUM_MAX_NEWTON_ITERATIONS,xpp::AUTOX_NUM_FULL_NEWTON_AFTER,xpp::AUTOX_NUM_STEP_ADAPT_EVERY});
     int var,plot;
-    xpp::numbers(lines, settings.range[0],settings.range[2],settings.range[1],settings.range[3],var,plot);
+    xpp::numbers(lines, options.range[0],options.range[2],options.range[1],options.range[3],var,plot);
     if(var<0 || var>=s.model().node)lines.fail("foreign axis variable is outside the model");
-    settings.var=s.model().uvar_names[var];
-    settings.plot=xpp::autox_projection_from_xppaut(plot);
-    if(!settings.plot)lines.fail(xpp::format("{} is not one of XPPAUT's plot types (0-4, 10, 11)",plot));
-    settings.has_range.fill(1);
+    options.var=s.model().uvar_names[var];
+    options.plot=xpp::autox_projection_from_xppaut(plot);
+    if(!options.plot)lines.fail(xpp::format("{} is not one of XPPAUT's plot types (0-4, 10, 11)",plot));
+    options.has_range.fill(1);
     // XPPAUT omits Ncol; the retained collocation order must still be supported.
-    settings.has_num[xpp::AUTOX_NUM_COLLOCATION_POINTS]=1;
-    settings.num[xpp::AUTOX_NUM_COLLOCATION_POINTS]=xpp::autox_settings_now(xpp::autox_parts(s)).num[xpp::AUTOX_NUM_COLLOCATION_POINTS];
-    if(const xpp::Result<> checked=xpp::autox_settings_check(xpp::autox_parts(s),settings,-1);!checked){
+    options.has_num[xpp::AUTOX_NUM_COLLOCATION_POINTS]=1;
+    options.num[xpp::AUTOX_NUM_COLLOCATION_POINTS]=xpp::autox_settings_now(xpp::autox_parts(s)).num[xpp::AUTOX_NUM_COLLOCATION_POINTS];
+    if(const xpp::Result<> checked=xpp::autox_settings_check(xpp::autox_parts(s),options,-1);!checked){
       const std::string &key=checked.error().field;
       lines.fail(locations.contains(key)?locations.at(key):lines.line(),checked.error().what);
     }
@@ -203,12 +203,12 @@ xpp::Result<> import_autox_file(xpp::Session &s, std::string_view text, const st
   });
   if(!read)return std::unexpected(read.error());
   auto held=std::move(*read);
-  held.settings.nmarks=held.mark_count;
-  held.settings.mark_name.resize(held.mark_count);
-  held.settings.mark_value.resize(held.mark_count);
+  held.options.nmarks=held.mark_count;
+  held.options.mark_name.resize(held.mark_count);
+  held.options.mark_value.resize(held.mark_count);
   // The session owner commits restart bytes before any held state, as for .snapx.
   auto restored=xpp::snapx::autox_members::restore_members(s,
-      {held.settings,std::move(held.points),{},held.solutions});
+      {held.options,std::move(held.points),{},held.solutions});
   if(!restored)return restored;
   s.autox_state->imported_parameters=std::move(held.parameters);
   forget_autox_diagram(xpp::autox_parts(s),false);

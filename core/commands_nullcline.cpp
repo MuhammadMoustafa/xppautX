@@ -5,7 +5,7 @@
 #include <limits>
 #include "nullcline.h"
 #include "data_table.h"
-#include "numerics_settings.h"
+#include "numerics_options.h"
 #include "model_numerics.h"
 #include "model_options.h"
 #include "graf_par.h"
@@ -108,7 +108,7 @@ constexpr std::array ROWS={
     Command{"nullcline.compute",{},XPP_KIND_COMPUTE,CommandCategory::Analysis,"Compute", "Analysis/Nullclines","Compute the phase plane's nullclines.",COMPUTED,EVENTS,true,compute},
     Command{"nullcline.redraw",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Redraw", "Analysis/Nullclines","Draw stored nullclines again.",DRAWN,EVENTS,true,redraw},
     Command{"nullcline.set_redraw_mode",ENABLED,XPP_KIND_VIEW,CommandCategory::Analysis,"Redraw mode", "Analysis/Nullclines","Set automatic nullcline redrawing.",AUTO,EVENTS,true,auto_mode, {}, {}, "read", "*", "", "Apply"},
-    Command{"nullcline.set_mesh",MESH,XPP_KIND_SETTING,CommandCategory::Analysis,"Mesh", "Analysis/Nullclines","Set the nullcline mesh.",MESH_RESULT,EVENTS,true,set_mesh},
+    Command{"nullcline.set_mesh",MESH,XPP_KIND_OPTION,CommandCategory::Analysis,"Mesh", "Analysis/Nullclines","Set the nullcline mesh.",MESH_RESULT,EVENTS,true,set_mesh},
     Command{"nullcline.export",FILE,XPP_KIND_DATA,CommandCategory::Analysis,"Export", "Analysis/Nullclines","Write the current nullcline segments.",EXPORTED,DONE,true,export_file,{}, {}, "write", "*.dat", "", "Export"},
     Command{"nullcline.freeze",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Freeze nullclines", "Analysis/Nullclines/Freeze","Freeze the current nullclines.",FROZEN,EVENTS,true,freeze},
     Command{"nullcline.delete_frozen",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Delete", "Analysis/Nullclines/Freeze","Clear frozen nullclines.",CLEARED,EVENTS,true,clear_frozen},

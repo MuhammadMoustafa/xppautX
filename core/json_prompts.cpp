@@ -14,7 +14,7 @@
 #include "xpp_files.h"
 #include "json_error.h"
 #include "autox_data.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "session.h"
 #include "autox_state.h"
 #include "json_reader.h"
@@ -127,9 +127,9 @@ int ask_wait(std::string &b, int id)
         /* for a script this line was supposed to answer this ask, and
            nothing after it can line up */
         if (session.generated) silent_fail("does not answer the open question", line, script_ask.c_str());
-        /* a setting (W106): at once before the command computes, else
+        /* an option (W106): at once before the command computes, else
            after it (take_setting) */
-        if (!session.generated && line_kind(line) == XPP_KIND_SETTING) {
+        if (!session.generated && line_kind(line) == XPP_KIND_OPTION) {
             take_setting(s, line);
             continue;
         }

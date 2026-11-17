@@ -1,4 +1,4 @@
-/* The value types of settings (W484, #548): the color (core/colormap.h), the line style
+/* The value types of options (W484, #548): the color (core/colormap.h), the line style
    (core/line_style.h) and the color scales' names. make test runs this from the top of the tree. */
 #include "xpptest.h"
 #include "colormap.h"

@@ -46,10 +46,10 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
         check('decay: both states approach their analytic equilibria',
               state and abs(state['now'][0]) < 1e-8 and abs(state['now'][1] - 2) < 1e-8, state)
         server.send(cmd='events.subscribe', events=['plot.series', 'run.numerics'])
-        settings, _ = server.collect(is_done)
+        options, _ = server.collect(is_done)
         check('decay: original duration and stride restored',
               any(e.get('ev') == 'run.numerics' and {f['key']: f['value'] for f in e['fields']}.get('total_time') == 30
-                  and {f['key']: f['value'] for f in e['fields']}.get('store_every') == 7 for e in settings), settings[-4:])
+                  and {f['key']: f['value'] for f in e['fields']}.get('store_every') == 7 for e in options), options[-4:])
         for invalid in [dict(decimals=9.5, hold=1, maximum=10), dict(decimals=True, hold=1, maximum=10),
                         dict(decimals=9, hold=0, maximum=10), dict(decimals=9, hold=2, maximum=1),
                         dict(decimals=9, hold=1, maximum=1e100), dict(decimals='9', hold=1, maximum=10)]:

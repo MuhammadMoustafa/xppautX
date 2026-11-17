@@ -10,7 +10,7 @@
    the ones before current, untouched, and says so. */
 
 #include "model_numerics.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "model_files.h"
 #include "xpp_session.h"
 #include "model_request.h"
@@ -69,7 +69,7 @@ xpp::Result<bool> xpp_model_open_example(xpp::Session &s, std::string_view name)
 /* File > Reload (key e) and {"cmd":"reload"}: asks first, as Open model
    does, then the model's file again, with
    the command line it was loaded with (a saved model's from its saved
-   files); the parameters, initial data, numerics and autoX settings keep their values by
+   files); the parameters, initial data, numerics and autoX options keep their values by
    name (restore_values). True when it asked for the load, false when the
    question was declined, the error when the model was not read from a file */
 xpp::Result<bool> xpp_model_reload(xpp::Session &s);

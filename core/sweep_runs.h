@@ -33,7 +33,7 @@ struct AnalysisParts; /* analysis_parts.h */
 std::string sweep_serial_reason(const AnalysisParts &s);
 
 /* says, at INFO, that the runs of the sweep named (Range, Range Equilibria, Range Shoot) go one after another though the
-   thread setting gave more than one thread, and why, when there is more than one run */
+   thread option gave more than one thread, and why, when there is more than one run */
 void say_sweep_serial(const AnalysisParts &s, std::string_view sweep, std::int64_t runs, std::string_view why);
 
 /* a worker for a sweep's runs: what holds a Session of s's Model with the numerics, the parser's constants and variables, the

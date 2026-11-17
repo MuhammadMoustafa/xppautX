@@ -5,7 +5,7 @@
    A Model (model.h) is what loading a .ode file produces and stays as the
    load left it; a Session is what a person does with it: the data a run
    stores, the plot windows and what is drawn in them, the numerics
-   settings in use, the integrator's state, autoX's, the data table's and the
+   options in use, the integrator's state, autoX's, the data table's and the
    kinescope's. Each part's type is defined by the module that owns it
    (storage.h's DataStore, many_pops.h's XppPlotWindows, ...), and the
    Session holds one of each.
@@ -70,8 +70,8 @@ struct IntegratorState; /* integrate.h */
 struct SolverWork; /* storage.h */
 struct JacobianScratch; /* jacobian.h */
 struct DataState; /* browse.h */
-struct NumericsSettings; /* numerics_settings.h */
-struct PlotSettings; /* plot_settings.h */
+struct NumericsSettings; /* numerics_options.h */
+struct PlotSettings; /* plot_options.h */
 struct DelayState; /* delay_handle.h */
 struct HistogramState; /* histogram.h */
 struct AdjointState; /* adj2.h */
@@ -118,7 +118,7 @@ struct Session {
   std::unique_ptr<ToolWindowsHidden> tools_hidden; // The data table, animation and array plot windows hidden (graphs and views keep their own).
   /* the frozen curves of every window (graf_par.cpp) */
   std::unique_ptr<XppFrozenCurves> frozen_curves;
-  /* 3D Params' movie settings (graf_par.cpp) */
+  /* 3D Params' movie options (graf_par.cpp) */
   std::unique_ptr<Mov3d> movie_3d;
   /* what the page displays of each window: earlier runs, zoom (display_state.h) */
   std::vector<PlotDisplay> plot_display; /* one per window; the constructor makes the first */
@@ -178,7 +178,7 @@ struct Session {
   /* the threads a set of jobs or runs shares: the count, or all the physical cores when automatic */
   unsigned thread_budget() const { return program.thread_budget(threads); }
 
-  /* autoX's settings, what its window shows and its scratch folder
+  /* autoX's options, what its window shows and its scratch folder
      (autox_nox.cpp), and the diagram (diagram.cpp). A run's own state, its
      parameters, fort files and work arrays, is an AutoxRun (autox_state.h)
      do_autox makes: none is kept here. */
@@ -190,9 +190,9 @@ struct Session {
   /* the kinescope (commands.cpp, json_windows.cpp) */
   std::unique_ptr<XppKinescope> kinescope;
 
-  /* the numerics and the main plot's settings in use (load_eqn.cpp) */
+  /* the numerics and the main plot's options in use (load_eqn.cpp) */
   std::unique_ptr<NumericsSettings> numerics;
-  std::unique_ptr<PlotSettings> plot_settings;
+  std::unique_ptr<PlotSettings> plot_options;
   /* the expression engine's constants, variables, counts, symbol table
      and evaluation stacks (expr.h) */
   ParserState parser;
@@ -248,7 +248,7 @@ struct Session {
 
   /* the delay equations' state (delay_handle.cpp) */
   std::unique_ptr<DelayState> delay;
-  /* the histogram and spectrum settings and results (histogram.cpp) */
+  /* the histogram and spectrum options and results (histogram.cpp) */
   std::unique_ptr<HistogramState> histogram;
   /* the adjoint, its H function and the transposed data (adj2.cpp) */
   std::unique_ptr<AdjointState> adjoint;
@@ -258,7 +258,7 @@ struct Session {
      poisson() and Monte Carlo draw from (xpp_math.h); a .snapx's
      the random group of a .snapx's session.odex saves and restores it */
   Random random;
-  /* the nullclines', direction field's and orbit coloring's settings
+  /* the nullclines', direction field's and orbit coloring's options
      (nullcline.cpp) */
   std::unique_ptr<NullclineSettings> nullclines;
   /* the columns a batch run writes, the "only" statement's or
@@ -267,15 +267,15 @@ struct Session {
   std::vector<int> plot_list;
   /* the integral equations' running state (volterra2.cpp) */
   std::unique_ptr<VolterraState> volterra;
-  /* Data's Fit settings (do_fit.cpp) */
+  /* Data's Fit options (do_fit.cpp) */
   std::unique_ptr<FitInfo> fit;
   /* the algebraic variables' solver (dae_fun.cpp) */
   std::unique_ptr<DaeState> dae;
   /* the nullclines and direction field computed, and the frozen ones */
   std::unique_ptr<NullclineState> nullcline_state;
-  /* BVP's Range settings (pp_shoot.cpp) */
+  /* BVP's Range options (pp_shoot.cpp) */
   std::unique_ptr<ShootRange> shoot_range;
-  /* Text,etc's marker settings (grobs.cpp) */
+  /* Text,etc's marker options (grobs.cpp) */
   std::unique_ptr<MarkInfo> marker;
   /* Sing pts' shooting (equilibria.cpp) */
   std::unique_ptr<ManifoldShots> manifolds;
@@ -331,12 +331,12 @@ AutoxParts autox_parts(const Session &s);
 /* s's state vector, zeroed, for its Model's ODEs and Markov variables */
 void init_alloc_info(Session &s);
 
-/* s's stored data converted to numerics.storage_precision (the setting's effect): the data store's columns, and every
+/* s's stored data converted to numerics.storage_precision (the option's effect): the data store's columns, and every
    derived data set made from it (a histogram, the Fourier modes, the adjoint, the transposed data, the stochastic
    statistics), in place and with no question, so what the data table shows stays what it was. A failure for want of
-   memory is shown and the setting goes back to what the store holds. */
+   memory is shown and the option goes back to what the store holds. */
 void storage_precision_changed(Session &s);
-/* what a change of a numerics setting asks of the run (the row's OptionEffect, model_options.h): the delays' and the integrals' memory
+/* what a change of a numerics option asks of the run (the row's OptionEffect, model_options.h): the delays' and the integrals' memory
    again for a new Dt, the delays' storage for a new maximal delay, the stored data converted for a new precision */
 void apply_option_effect(Session &s, OptionEffect effect);
 

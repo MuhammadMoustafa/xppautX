@@ -19,7 +19,7 @@
 #include "tabular.h"
 #include "torus.h"
 #include "model_load.h"
-#include "numerics_settings.h"
+#include "numerics_options.h"
 #include "struct.h"
 #include "xpp_math.h"
 #include <cmath>
@@ -142,7 +142,7 @@ TEST_CASE("test_analysis")
     CHECK(xpp::set_torus(s, xpp::TorusMode::choose, {}, std::vector<int>{}) && !s.numerics->torus);
     CHECK(xpp::set_torus(s, xpp::TorusMode::none, {}, {}) && !s.numerics->torus);
 
-    /* the Poincare map: its settings set as given and the others kept; none leaves them */
+    /* the Poincare map: its options set as given and the others kept; none leaves them */
     CHECK(xpp::set_poincare_map(s, xpp::PoincareMap::section, 2, 0.25, xpp::SectionSign::positive, true));
     CHECK(s.numerics->poincare_map == xpp::PoincareMap::section && s.numerics->poincare_variable == 2 && s.numerics->poincare_plane == 0.25 &&
           s.numerics->poincare_sign == xpp::SectionSign::positive && s.numerics->poincare_stop);
@@ -161,7 +161,7 @@ TEST_CASE("test_analysis")
     CHECK(xpp::set_color_coding(s, xpp::ColorBy::velocity, 0, {}) && g.ColorFlag == 1);
     CHECK(xpp::set_color_coding(s, xpp::ColorBy::none, 0, {}) && g.ColorFlag == 0);
 
-    /* the adjoint's settings */
+    /* the adjoint's options */
     CHECK(xpp::set_adjoint_parameters(s, 30, 1e-4) && s.adjoint->maxit == 30 && s.adjoint->err == 1e-4);
     CHECK(!xpp::set_adjoint_parameters(s, 0, 1e-4) && !xpp::set_adjoint_parameters(s, 30, 0) && s.adjoint->maxit == 30 && s.adjoint->err == 1e-4);
 

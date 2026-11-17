@@ -37,7 +37,7 @@ export interface DiagramAxes {
   ylabel: string;
 }
 
-/** the numerics' Jacobian setting (`set num jacobian`) */
+/** the numerics' Jacobian option (`set num jacobian`) */
 export type Jacobian = 'difference' | 'exact';
 
 /** one run of an `add`: points sharing branch, kind and style */
@@ -150,7 +150,7 @@ export interface AutoxInfo {
   /** the continuation parameter, and the second one of a two-parameter point */
   par: {name: string; value: number | null}[];
   norm: number | null;
-  /** the variable of the Axes setting and its value */
+  /** the variable of the Axes option and its value */
   var: string;
   u: number | null;
   per: number | null;
@@ -259,7 +259,7 @@ export interface DiagramState {
   run: AutoxRun | null;
   /** the last `autox.jobs` of a run (W597), null before one and when a run starts */
   jobs: AutoxJobs | null;
-  /** the last `autox.joined` (W631), null before one and when a run starts: the legend's settings follow each job to its branch */
+  /** the last `autox.joined` (W631), null before one and when a run starts: the legend's options follow each job to its branch */
   joined: AutoxJoined | null;
   /** each running job's key by its live id (`autox.jobs`, W620), kept from the event that lists it, so the
       job's live points can be named; emptied when a run starts and when a join leaves no live point in any view */

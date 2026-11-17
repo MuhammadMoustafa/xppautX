@@ -10,8 +10,8 @@ import {commandRow} from './navigation';
 
 /** what each scope's section holds, in the words of its buttons */
 const WHAT: Record<string, string> = {
-  parameters: 'parameters', initial: 'initial values', integration: 'numerics', continuation: 'autoX settings',
-  plot: 'plot settings', sweep: 'range settings', analysis: 'histogram settings',
+  parameters: 'parameters', initial: 'initial values', integration: 'numerics', continuation: 'autoX options',
+  plot: 'plot options', sweep: 'range options', analysis: 'histogram options',
 };
 
 /** calls `close` when a click lands outside `box` */
@@ -121,5 +121,5 @@ export function SetsRow({scope, window}: {scope: string; window?: string}) {
   return folded ? <details class="sets-menu sets-fold" ref={fold}><summary class="small">Sets ▾</summary>{row}</details> : row;
 }
 
-/** the dialogs that hold a settings group of their own (range, histogram), by command: their form carries the group's sets row */
+/** the dialogs that hold an options group of their own (range, histogram), by command: their form carries the group's sets row */
 export const SETS_OF_FORM: Record<string, string> = {'run.range': 'sweep', 'histogram.compute': 'analysis', 'histogram.compute_2d': 'analysis'};

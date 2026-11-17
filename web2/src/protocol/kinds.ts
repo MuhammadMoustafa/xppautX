@@ -18,13 +18,13 @@ export interface RegistryArgument {
 }
 
 /** control (Abort, Quit, an answer): always; view (only changes what is
-    shown) and setting (a parameter, an initial or boundary condition, a
+    shown) and option (a parameter, an initial or boundary condition, a
     delay, the numerics, autoX's forms: W106, applied when a computation
     ends, to the next one): also while a computation runs; data (saves,
     loads) and computation (starts one): only when none runs */
-export type Kind = 'control' | 'view' | 'setting' | 'data' | 'computation';
+export type Kind = 'control' | 'view' | 'option' | 'data' | 'computation';
 
-const OF_LETTER: Record<string, Kind> = {c: 'control', v: 'view', s: 'setting', d: 'data', x: 'computation'};
+const OF_LETTER: Record<string, Kind> = {c: 'control', v: 'view', s: 'option', d: 'data', x: 'computation'};
 
 /** a window with a toolbar of its own (navigation.ts toolbarCommand) */
 export type LayerWindow = 'autox' | 'data' | 'ani' | 'aplot';
@@ -128,13 +128,13 @@ export function kindOf(hello: HelloEvent | null, cmd: Command): Kind | null {
   return entry ? OF_LETTER[entry.kind] ?? null : null;
 }
 
-/** whether an action of `kind` may start: control and a setting always (a setting sent
+/** whether an action of `kind` may start: control and an option always (an option sent
     while a question is open or a computation runs applies when the core can: at once
     before the command computes, else when it ends); while a question is open nothing
     else (only answering or cancelling it applies); while a computation runs a view
     only. An unknown kind counts as a computation. */
 export function mayStart(kind: Kind | null, computing: boolean, asking: boolean): boolean {
-  if (kind === 'control' || kind === 'setting') return true;
+  if (kind === 'control' || kind === 'option') return true;
   if (asking) return false;
   return kind === 'view' || !computing;
 }

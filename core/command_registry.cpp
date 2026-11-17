@@ -204,7 +204,7 @@ void append_command(std::string &out, const Command &command)
         json_append_string(out, command.file_wild);
     }
     out += ",\"action\":";
-    json_append_string(out, *command.action ? command.action : command.kind == XPP_KIND_SETTING ? "Apply" : command.label);
+    json_append_string(out, *command.action ? command.action : command.kind == XPP_KIND_OPTION ? "Apply" : command.label);
     if (command.needs != Feature::none) {
         out += ",\"needs\":";
         json_append_string(out, feature_info(command.needs).name);

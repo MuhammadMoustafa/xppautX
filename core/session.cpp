@@ -18,7 +18,7 @@
 #include "display_state.h"
 #include "do_fit.h"
 #include "equilibria.h"
-#include "plot_settings.h"
+#include "plot_options.h"
 #include "plot_state.h"
 #include "histogram.h"
 #include "integrate.h"
@@ -121,7 +121,7 @@ Session::Session(Model &m)
     data(std::make_unique_for_overwrite<DataState>()),
     kinescope(std::make_unique_for_overwrite<XppKinescope>()),
     numerics(std::make_unique_for_overwrite<NumericsSettings>()),
-    plot_settings(std::make_unique_for_overwrite<PlotSettings>()),
+    plot_options(std::make_unique_for_overwrite<PlotSettings>()),
     delay(std::make_unique_for_overwrite<DelayState>()),
     histogram(std::make_unique_for_overwrite<HistogramState>()),
     adjoint(std::make_unique_for_overwrite<AdjointState>()),
@@ -141,7 +141,7 @@ Session::Session(Model &m)
     ani_shown(std::make_unique_for_overwrite<AniShown>()),
     saved_session(std::make_unique_for_overwrite<SavedSession>()),
     value_undo(std::make_unique_for_overwrite<ValueUndo>()),
-    session_parts{m,parser,numerics.get(),plot_settings.get(),autox_state.get(),integrator.get(),delay.get(),histogram.get(),adjoint.get(),
+    session_parts{m,parser,numerics.get(),plot_options.get(),autox_state.get(),integrator.get(),delay.get(),histogram.get(),adjoint.get(),
                  nullclines.get(),shoot_range.get(),animation.get(),drawing.get(),plot_windows.get(),array_plot.get(),data->added_columns,
                  sliders,user_buttons,tables,ntable,networks,bcs,last_ic,delay_string,plot_list,run_sets,itor,batch_out_file,picture_file,after_run_file,colormap,output_place,options_set,random},
     run_parts{*this,m,numerics.get(),integrator.get(),data_store.get(),solver_work.get(),jacobian_scratch.get(),delay.get(),volterra.get(),

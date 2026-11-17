@@ -16,8 +16,8 @@ make -j4 LINALG=lapack BUILDDIR=build/lapack xppautx
 marks='[["ampPar",0.5728],["ampPar",0.57284]]' # inside every build's 20-point span, past the searches near the HB
 tight='"epsl":1e-8,"epsu":1e-8,"epss":1e-8'
 runs='' tight_runs='' autox_runs=''
-trace() { # NAME BINARY [SETTINGS]
-  uv run --locked python "$here/profile.py" "$2" "$out/$1" modeldb --nmax 20 --tool newton ${3:+--periodic-settings "$3"} \
+trace() { # NAME BINARY [OPTIONS]
+  uv run --locked python "$here/profile.py" "$2" "$out/$1" modeldb --nmax 20 --tool newton ${3:+--periodic-options "$3"} \
     > "$out/$1.log" 2>&1
   runs="$runs $out/$1"
   case $1 in *-tight*) tight_runs="$tight_runs $out/$1" ;; esac

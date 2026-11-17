@@ -156,7 +156,7 @@ in the dock's first tab (a sheet on a phone):
 - Parameters and Numerics list their fields across the column, as many to a row as fit, in the model's order; a name column is as wide as the longest name in its list (up to 8 rem), and a narrow column keeps one field to a row.
 - A value is set when you leave the field (Tab, Enter or a click
   elsewhere): the field shows it, and the next computation uses it. The
-  values are *settings*: you can edit them while a computation runs too,
+  values are *options*: you can edit them while a computation runs too,
   and the edit is taken at once but applied when that computation ends —
   the run in progress keeps the values it started with, the next one
   uses yours. There is nothing pending to send: the value shown is the
@@ -175,7 +175,7 @@ in the dock's first tab (a sheet on a phone):
   nothing changes on an error. Initial-condition files (`.ic`) keep one
   value per differential equation in model order; too few or too many
   values report the file and line and change nothing.
-- **The sets row** is under the heading of Parameters, States and Numerics, of each graph's plot settings, of autoX's
+- **The sets row** is under the heading of Parameters, States and Numerics, of each graph's plot options, of autoX's
   panel and of the Range and Histogram dialogs, and acts on that section's kind only (a graph's on its own graph; in a
   graph's toolbar the row is folded into one **Sets ▾** drop-down, where the list of sets is called **Apply**):
   **Sets** lists the named sets that hold the section's kind (a set an import brought is marked with its file) and a pick
@@ -184,11 +184,11 @@ in the dock's first tab (a sheet on a phone):
   and keeps the set's other parts), *As defaults…* (the `par` or `init` lines, or the group in the `options` block) or
   *Export…* into another `.odex`; (when the panel is narrower than 24 rem, **Load from file…** and **Restore defaults** are behind a **⋯**) **Load from file…** offers the parts of an `.odex` (its defaults and each set) or of an
   XPPAUT file (`.par`, `.ic`, `.set`) that hold the kind and loads the one you choose; **Restore defaults** puts the
-  section's values back from the model file, as XPPAUT's Default button did (a setting returns to the
+  section's values back from the model file, as XPPAUT's Default button did (an option returns to the
   built-in value with the model's `options` block over it), through the core's `set.restore_defaults` command
   (scope `parameters`, `initial`, `integration`, ...), which redoes the tables once. A field's own reset is the same
   command for that field. **File > Sets** has the same operations for everything or one section (it asks the scope,
-  *all* by default, and for plot settings the graph), and Rename, Delete and Import XPPAUT session state.
+  *all* by default, and for plot options the graph), and Rename, Delete and Import XPPAUT session state.
 - The core reads a number in a box, a script's answer or a `set` the same
   way everywhere: all of the text must be one number (or a `%formula`),
   so `1O0` (a letter O) or `5x` is refused, with an error naming the
@@ -215,7 +215,7 @@ in the dock's first tab (a sheet on a phone):
   difference or exact) and the method's tolerances and
   step limits, the maximal delay (delay equations only) and the boundary
   value controls. A field the current method does not use is greyed. They
-  are settings like the others: editable during a run, for the next one.
+  are options like the others: editable during a run, for the next one.
   A value the program does not take is refused on the field with its
   reason (`Dt must be a number other than 0`).
 - **Table** opens the Table ([The Data Table](07-data-table.md)),
@@ -287,7 +287,7 @@ Every dialog and every question the core asks is one shell: a title with the des
 and a × (Escape and a click outside do the same, so there is no Cancel button); the footer holds the one action, named for what it does
 ("Apply", "Save", "Add slider"; never Run or OK) beside a count of the fields left to fix. A form is about 36 rem wide, a list or a table 52
 rem; below 48 rem a dialog is a full-screen sheet with the title and × on top and the action at the bottom. A field's label is left of it in a
-wide dialog and above it in a narrow one. Every field shows its current value and a settings form sends only the fields you changed. The control
+wide dialog and above it in a narrow one. Every field shows its current value and an options form sends only the fields you changed. The control
 comes from the kind of the value: a number box with its range beside it, a segmented control for up to three short choices and a dropdown for
 more, a switch for a yes/no, a picker (that also takes a dropped file) for a file, a swatch with its field for a color, monospace text for a
 formula. An error shows once you leave the field or press the action, says the rule and the value ("Must be a number above 0; got -0.05"),
@@ -342,7 +342,7 @@ panel. Nothing is silently changed back. The core's own asks say what
 each field wants (the protocol's `kinds`); a field they do not describe
 takes any text, as before.
 
-**A field's help.** In every settings panel, in Preferences and in every command form, a field with something to explain has a small ? after its label. Its help is hidden; click or tap the ? to show it under the field, and again to hide it. Several may be open at once, and Escape does not close them. A note about the field's value (its range, or a choice that is not available and why) stays shown.
+**A field's help.** In every option panel, in Preferences and in every command form, a field with something to explain has a small ? after its label. Its help is hidden; click or tap the ? to show it under the field, and again to hide it. Several may be open at once, and Escape does not close them. A note about the field's value (its range, or a choice that is not available and why) stays shown.
 
 **Escape, in order.** Each press does one thing, the innermost first: it closes an open menu (the menu bar's, then the plot's ⋯ or the Messages list), then the command drawer; then it cancels a pick or a grab; then a question the program asks is answered as cancelled (a dialog keeps its own Escape: it closes the dialog, and only that); then it closes the topmost open panel, the last one opened (Data, Text, Help, Array plot, Values, Animation, and autoX when nothing runs); and only when none of these is open does it stop a running command. So during a run the first Escape closes a panel and the next one stops the run; in the autoX view, where a continuation is watched, Escape stops it at once. A field with an edit to drop keeps its Escape for the drop (above).
 
@@ -366,7 +366,7 @@ action is; every button and menu item has one of five kinds:
 |---|---|---|
 | Control | Stop (Escape), Quit, answering a question | works |
 | View | zoom, pan, the legend, switching plot windows, New window, Window/zoom, Viewaxes, Xi vs t, Help, opening or closing a panel, a menu with anything in it that is a view (Nullcline, Dir.field, Kinescope, Graphic stuff) | works; one the program itself carries out (a menu item, New window) runs as soon as the computation ends |
-| Setting | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File > Sets > Apply set, File > Sets > Restore defaults, autoX's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
+| Option | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File > Sets > Apply set, File > Sets > Restore defaults, autoX's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
 | Data | Load of values' XPPAUT files, Import XPPAUT session state, every file written, Save session, autoX's Save and Load diagram, autoX's Grab | disabled |
 | Computation | Integrate and Initialconds, Continue, Range, autoX's Run, Nullclines, Dir.field and Flow, Sing pts (equilibria), Stochastic, a model's own buttons | disabled |
 
@@ -379,7 +379,7 @@ is busy for a moment otherwise (catching up with a zoom or a window you
 picked): a click then is carried out in its turn, never lost. While the
 program asks you something, only answering or cancelling that question
 applies. Typing ahead into menus still works: I then G typed quickly
-integrates, because the G answers the menu the I opens. Settings stay
+integrates, because the G answers the menu the I opens. Options stay
 usable during a run: an edit is sent at once and shown as the value,
 and it applies when the run ends, never to the run in progress; so do
 autoX's Parameter, Numerics and Mark values forms (for the next autoX
@@ -494,7 +494,7 @@ Numerics) take plain numbers only.
 
 Every output uses a file dialog, including array plots, animation GIFs,
 kinescope frames, eigenvector manifolds and periodic-orbit data. Cancel
-writes nothing. Settings forms contain settings; file names are asked
+writes nothing. Options forms contain options; file names are asked
 separately and kept whole. A bad name is an error.
 
 Defaults use the model's base: `lecar.csv`, `lecar.pdf`, `lecar.svg`,

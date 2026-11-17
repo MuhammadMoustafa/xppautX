@@ -1,5 +1,5 @@
-/* autox_settings: what an `autox` `set` accepts and that it sets all or
-   nothing (docs/protocol.md "autoX's settings as data"). A value autoX takes
+/* autox_options: what an `autox` `set` accepts and that it sets all or
+   nothing (docs/protocol.md "autoX's options as data"). A value autoX takes
    badly gets through to a run otherwise: Ncol above 7 exits the program.
    tools/servercheck.py checks the same through the protocol, against the
    forms. */
@@ -10,7 +10,7 @@
 #include "model.h"
 #include "model_record.h"
 #include "autox_nox.h"
-#include "autox_settings.h"
+#include "autox_options.h"
 #include "xpp_util.h"
 #include "autox_axis.h"
 #include "xpp_error.h"
@@ -60,7 +60,7 @@ bool ok(int field, double v)
 
 } // namespace
 
-TEST_CASE("test_autox_settings")
+TEST_CASE("test_autox_options")
 {
     std::string num_why;
     std::string why;
@@ -153,5 +153,5 @@ TEST_CASE("test_autox_settings")
     s.mark_name[1] = "v"; /* a variable is no user point */
     CHECK(xpp::autox_settings_apply(xpp::autox_parts(xpp::client_session()), s, why) == -1 && xpp::client_session().autox_state->bifur.marks[1].parameter == 10);
 
-    TEST_REPORT("autox_settings");
+    TEST_REPORT("autox_options");
 }

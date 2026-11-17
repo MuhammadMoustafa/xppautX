@@ -237,7 +237,7 @@ namespace {
 
 } // namespace
 
-/* markers at every skip-th row of the window's first curve, from row `start`: the settings are the session's
+/* markers at every skip-th row of the window's first curve, from row `start`: the options are the session's
    from now on, as the Add Markers form leaves them; all or nothing, the rows checked against the stored data */
 Result<int> add_data_markers(xpp::Session &s, const MarkInfo &m)
 {

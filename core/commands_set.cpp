@@ -2,7 +2,7 @@
    scope (W321), save the current values into the model file (a new set, a set's part, the defaults, another
    file), rename and delete a set, and restore the model's own values. Each handler gets its arguments validated and typed (command_def.h) and calls the same core
    function the File menu's picks do (set_apply.h, model_save.h): one behaviour, whichever front end asks. The
-   settings of a plot (scope plot, or all) are the graph `window` names, the active graph when it is left out; the
+   options of a plot (scope plot, or all) are the graph `window` names, the active graph when it is left out; the
    values saved are the initial ones unless `state` says last. */
 #include "command_def.h"
 #include "set_apply.h"
@@ -207,11 +207,11 @@ constexpr std::array ROWS = {
             "Rename one of the model file's own sets.", RENAME_RESULTS, STATE_EVENTS, true, set_rename},
     Command{"set.delete", DELETE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Delete", "File/Sets",
             "Delete one of the model file's own sets from the file.", DELETE_RESULTS, STATE_EVENTS, true, set_delete},
-    Command{"set.load_file", LOAD_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "Load a named part of a file", "File/Sets",
-            "Load values from a file by scope: the file's defaults (from defaults), one of its sets (from set, name) or an XPPAUT .par, .ic or .set (from file), limited to the scope, over the current values; the plot settings go to the graph window names. The whole file is checked against this model first and an unknown name refuses it; nothing runs and the model file is not changed.",
+    Command{"set.load_file", LOAD_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Files, "Load a named part of a file", "File/Sets",
+            "Load values from a file by scope: the file's defaults (from defaults), one of its sets (from set, name) or an XPPAUT .par, .ic or .set (from file), limited to the scope, over the current values; the plot options go to the graph window names. The whole file is checked against this model first and an unknown name refuses it; nothing runs and the model file is not changed.",
             LOAD_RESULTS, STATE_EVENTS, true, set_load_file, {}, {}, "read", "*.odex *.par *.ic *.set"},
-    Command{"set.apply", APPLY_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "Apply set", "",
-            "Apply one of the model's named sets over the current values: all of it, or only its parameters, initial values or one group of settings; the plot settings go to the graph window names.",
+    Command{"set.apply", APPLY_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Files, "Apply set", "",
+            "Apply one of the model's named sets over the current values: all of it, or only its parameters, initial values or one group of options; the plot options go to the graph window names.",
             APPLY_RESULTS, STATE_EVENTS, true, set_apply},
     Command{"set.save_new", SAVE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Save as new set", "",
             "Write the current values (all of them, or one scope) into the model file as a new set called name; state says whether the initial values or the last state reached are saved.",
@@ -220,10 +220,10 @@ constexpr std::array ROWS = {
             "Replace the scope's part of one of the model file's own sets by the current values; the set's other parts stay.",
             SAVE_INTO_RESULTS, STATE_EVENTS, true, set_save_into},
     Command{"set.save_defaults", DEFAULTS_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Save as defaults", "",
-            "Write the current values (all of them, or one scope) as the model's own: its par and init lines and options groups, the diagram's and the output's settings too.",
+            "Write the current values (all of them, or one scope) as the model's own: its par and init lines and options groups, the diagram's and the output's options too.",
             DEFAULTS_RESULTS, STATE_EVENTS, true, set_save_defaults},
-    Command{"set.restore_defaults", RESTORE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "Restore defaults", "",
-            "Put the model's own values back: everything, or one scope (the parameters, the initial values, one group of settings), or with field only that parameter, state or setting.",
+    Command{"set.restore_defaults", RESTORE_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Files, "Restore defaults", "",
+            "Put the model's own values back: everything, or one scope (the parameters, the initial values, one group of options), or with field only that parameter, state or option.",
             RESTORE_RESULTS, STATE_EVENTS, true, set_restore_defaults},
     Command{"set.list_file_contents", CONTENTS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Files, "List file contents", "",
             "Read a file of values whole (an .odex, or XPPAUT's .par, .ic or .set) and list its parts that hold the scope's kind: its defaults, each set, or the XPPAUT file; a part that cannot be loaded says why. Nothing is applied.",

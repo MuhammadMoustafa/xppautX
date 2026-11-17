@@ -49,7 +49,7 @@ inline constexpr char AUTOX_DIAGRAM[] = "autox.diagram";
 inline constexpr char AUTOX_INFO[] = "autox.info";
 inline constexpr char AUTOX_JOBS[] = "autox.jobs";
 inline constexpr char AUTOX_JOINED[] = "autox.joined";
-inline constexpr char AUTOX_SETTINGS[] = "autox.settings";
+inline constexpr char AUTOX_OPTIONS[] = "autox.options";
 inline constexpr char AUTOX_SCRIPT_RUNS[] = "autox.script_runs";
 inline constexpr char AUTOX_VIEW[] = "autox.view";
 inline constexpr char ARRAY_PLOT_SHOWN[] = "array_plot.shown";
@@ -87,6 +87,6 @@ inline std::string open(std::string_view name)
 
 /* the heavy data events a client may subscribe to (events.subscribe), in hello's `features` order */
 inline constexpr std::array<std::string_view, 12> STREAMS = {PLOT_SERIES, PLOT_SHOWN, NULLCLINE_CURVES, DIRECTION_FIELD_FIELD, PLOT_MARKS, ANIMATION_FRAME,
-                                                             AUTOX_INFO, AUTOX_SETTINGS, AUTOX_SCRIPT_RUNS, RUN_NUMERICS, WINDOW_LIST, RECORDING_PLAYER};
+                                                             AUTOX_INFO, AUTOX_OPTIONS, AUTOX_SCRIPT_RUNS, RUN_NUMERICS, WINDOW_LIST, RECORDING_PLAYER};
 
 } // namespace xpp::events

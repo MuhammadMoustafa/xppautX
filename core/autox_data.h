@@ -63,7 +63,7 @@ struct AutoxDataInfo {
     const char *p1name, *p2name;
     double p1, p2;
     double norm;
-    const char *vname; /* the variable of the Axes setting and its value (u0) */
+    const char *vname; /* the variable of the Axes option and its value (u0) */
     double u;
     double per;
     double x, y, y2; /* where the diagram plots it (autox_xy_plot) */

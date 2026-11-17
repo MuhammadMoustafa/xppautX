@@ -1,9 +1,9 @@
-/* A group's settings panel (W616, docs/protocol.md "The settings panels"): built from `hello.options`, the option table's rows, whatever
+/* A group's options panel (W616, docs/protocol.md "The options panels"): built from `hello.options`, the option table's rows, whatever
    the group. Its title is the group's label, its rows are in the table's order, a dotted section is a titled fieldset, and a field's
-   kind, label, choices, default, limits and help are the row's: nothing about one setting is written here. The values come from
+   kind, label, choices, default, limits and help are the row's: nothing about one option is written here. The values come from
    `options.get` and go out as one `options.configure` (or `output.configure`), all or nothing, of the rows changed; Apply closes the panel, as a command form's Run does. A field is the same
    one every command form has (Field, ColorField, a select), in the form's own markup; useOptionRows is the one place a row is turned into
-   a field: a panel of its own, the settings part of a command's form and Values' Numerics all use it. */
+   a field: a panel of its own, the options part of a command's form and Values' Numerics all use it. */
 import {useEffect, useLayoutEffect, useState} from 'preact/hooks';
 import type {OptionGroup, OptionRow} from '../protocol/types';
 import {choiceLabel, ruleMessage, specOfOption} from '../store/fieldKinds';
@@ -12,7 +12,7 @@ import {useSession, useStore} from './context';
 import {Dialog} from './Dialog';
 import {featureLack} from './navigation';
 
-/** the one registry command that holds a group's settings; the output group's has the file dialog's picker besides (core commands_options.cpp) */
+/** the one registry command that holds a group's options; the output group's has the file dialog's picker besides (core commands_options.cpp) */
 const OUTPUT_GROUP = 'output';
 const configureCommand = (group: string) => group === OUTPUT_GROUP ? 'output.configure' : 'options.configure';
 
@@ -58,10 +58,10 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
   const command = (keys: OptionRow[], texts: Record<string, string>) => ({cmd: configureCommand(group.group), ...(group.group === OUTPUT_GROUP ? {} : {group: group.group}),
     values: Object.fromEntries(keys.map(row => [row.key, texts[row.key]]))});
   /** the command that sets the rows changed, none when nothing was */
-  const settings = (): {cmd: string; [k: string]: unknown} | null => changed.length ? command(changed, drafts) : null;
+  const options = (): {cmd: string; [k: string]: unknown} | null => changed.length ? command(changed, drafts) : null;
   const rowBox = (row: OptionRow) => {
     const spec = specOfOption(row, names, sets), value = shown(row), disabled = values === null || !used(row);
-    /* live: the text stays shown as sent until the core's values come (a setting made during a run applies after it) */
+    /* live: the text stays shown as sent until the core's values come (an option made during a run applies after it) */
     const set = (text: string) => {
       setDrafts(old => ({...old, [row.key]: text}));
       if (live) session.send(command([row], {[row.key]: text}));
@@ -82,7 +82,7 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
     {inSection.map(rowBox)}
   </fieldset>);
   const usedRows = rows.filter(used), unusedRows = values === null ? [] : rows.filter(row => !used(row));
-  return {fields: fieldsOf(values === null ? rows : usedRows), unusedFields: fieldsOf(unusedRows), unused: unusedRows.length, invalid, settings, changed, shownProblems};
+  return {fields: fieldsOf(values === null ? rows : usedRows), unusedFields: fieldsOf(unusedRows), unused: unusedRows.length, invalid, options, changed, shownProblems};
 }
 
 /** a place that edits a group's rows asks the core for their values when it opens, and again when `again` changes */
@@ -103,7 +103,7 @@ export function OptionsPanel() {
 function Panel({group}: {group: OptionGroup}) {
   const session = useSession();
   const feedback = useFeedback();
-  const {fields, unusedFields, unused, invalid, settings, shownProblems} = useOptionRows(group, null, false, feedback);
+  const {fields, unusedFields, unused, invalid, options, shownProblems} = useOptionRows(group, null, false, feedback);
   const close = () => session.store.dispatch({type: 'optionsPanel', panel: null});
   const apply = (e: Event) => {
     e.preventDefault();
@@ -112,12 +112,12 @@ function Panel({group}: {group: OptionGroup}) {
       queueMicrotask(() => focusFirstError(document.querySelector('[data-options-panel]')));
       return;
     }
-    const command = settings();
+    const command = options();
     if (!command || session.send(command)) close();
   };
   return <Dialog title={group.label} name={group.label} onClose={close} onSubmit={apply} problems={shownProblems}
     action={{label: 'Apply'}} className="registry-form options-panel" attrs={{'data-options-panel': group.group}}>
     {fields}
-    {unused > 0 && <details class="unused-settings"><summary>Settings not used by this method or model</summary>{unusedFields}</details>}
+    {unused > 0 && <details class="unused-options"><summary>Options not used by this method or model</summary>{unusedFields}</details>}
   </Dialog>;
 }

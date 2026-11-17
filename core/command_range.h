@@ -1,8 +1,8 @@
 #pragma once
 
 /* What the registry commands that run the Range sweep share (commands_run.cpp's run.range,
-   commands_analysis.cpp's lyapunov_exponent.compute): the sweep's arguments, and the Range settings they set.
-   An argument left out keeps the setting the session has. */
+   commands_analysis.cpp's lyapunov_exponent.compute): the sweep's arguments, and the Range options they set.
+   An argument left out keeps the option the session has. */
 #include "command_def.h"
 #include "integrate.h"
 #include <array>
@@ -21,7 +21,7 @@ inline constexpr std::array RUN_RANGE_ARGUMENTS = {
     Argument{"movie", Type::boolean, false},
     set_by(Argument{"write_each_run_to_file", Type::boolean, false}, "write_files")};
 
-/* the single-parameter Range settings the arguments given set (and the sweep's type: one value) */
+/* the single-parameter Range options the arguments given set (and the sweep's type: one value) */
 void set_range_settings(RangeVars &range, const Arguments &args);
 
 } // namespace xpp::command

@@ -112,7 +112,7 @@ def versioned_anix(text):
 
 
 # every heavy data event a client subscribes to (hello's `features`)
-ALL_EVENTS = ['plot.series', 'plot.shown', 'nullcline.curves', 'direction_field.field', 'plot.marks', 'animation.frame', 'autox.info', 'autox.settings', 'run.numerics', 'window.list', 'recording.player']
+ALL_EVENTS = ['plot.series', 'plot.shown', 'nullcline.curves', 'direction_field.field', 'plot.marks', 'animation.frame', 'autox.info', 'autox.options', 'run.numerics', 'window.list', 'recording.player']
 
 
 def save_permission(cmd):
@@ -395,7 +395,7 @@ def read_recx(text):
     embedded files {name: lines}, the steps [(step, note)], the fingerprint
     written and the one its files and steps give"""
     lines = text.split('\n')
-    n = lines.index('')  # the header, in the settings syntax (W285), ends at the first blank line
+    n = lines.index('')  # the header, in the options syntax (W285), ends at the first blank line
     header, files, steps, hashed, note = lines[:n], {}, [], [], []
     name, body, in_steps, written = None, None, False, None
     for l in lines[n:]:

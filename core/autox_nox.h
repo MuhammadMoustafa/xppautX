@@ -223,7 +223,7 @@ struct AutoxFoundStart {
   const DIAGRAM *point;
   std::string solution_file; /* the file of the finding job's solutions, the point's among them: the run restarts from it */
 };
-/* a run made ready (the Session's settings into run.params, its restart text, where it started from and its
+/* a run made ready (the Session's options into run.params, its restart text, where it started from and its
    first point's stability); the error is what is wrong. After create_autox_file_name. */
 /* a count a check sets in the environment (XPP_AUTOX_FAIL_CHILD_AT, XPP_AUTOX_CANCEL_AT_SOLVE), or nothing when unset */
 std::optional<std::size_t> autox_check_count(const char *name);
@@ -241,14 +241,14 @@ Error autox_shown_failure(Error failed);
 std::optional<Error> autox_end_run(AutoxParts s, AutoxRun &run, std::optional<Error> failed, int isave);
 /* a run set up (set_autox) and made; the error is what went wrong, shown by the command that ran it */
 Result<> do_autox(AutoxParts s, int iold, int isave, AutoxPointCode itp);
-/* goes on from the point labelled `label` with the settings of the run
+/* goes on from the point labelled `label` with the options of the run
    before (W275: the action of an exact Jacobian's failure); an error, and
    nothing run, for a label no point has */
 /* Restore model slots from the label's branch before a restart solver uses
    them. Non-continued constants were deliberately absent from autoX's PAR. */
 void autox_label_parameters(const AutoxRun &run, int label, double *parameters);
 /* the model parameter k's name, NULL when k is outside the model: the one lookup the forms,
-   the settings event, the CSV export and the branch-end text share */
+   the options event, the CSV export and the branch-end text share */
 const char *autox_par_name(const AutoxParts &s, int k);
 void autox_fit(AutoxParts s);
 void autox_default(AutoxParts s);

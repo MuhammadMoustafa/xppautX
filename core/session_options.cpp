@@ -1,10 +1,10 @@
-/* A session's settings read, written and applied: see session_settings.h.
-   Every group of the session statement's settings is described once, by `describe`, which is given a
+/* A session's options read, written and applied: see session_options.h.
+   Every group of the session statement's options is described once, by `describe`, which is given a
    writer (Put) or a reader (Take) and says "this key, this member"; the
    same description writes and reads, so a key is never named twice. The values and
    the numerics are the file's par and init lines and options block (values_text,
    read_values, options_items, read_options). */
-#include "session_settings.h"
+#include "session_options.h"
 #include "model_method.h"
 #include "odex_write.h"
 #include "snapx.h"
@@ -26,7 +26,7 @@
 #include "model_record.h"
 #include "model_options.h"
 #include "numerics.h"
-#include "numerics_settings.h"
+#include "numerics_options.h"
 #include "model_numerics.h"
 #include "solver.h"
 #include "volterra2.h"
@@ -51,7 +51,7 @@ namespace xpp {
 
 namespace {
 
-/* the groups of a settings file, as it names them */
+/* the groups of an options file, as it names them */
 namespace group {
 constexpr std::string_view session = "session", run = "run", ending = "ending", delays = "delays", boundary = "boundary",
                            graphics = "graphics";
@@ -96,7 +96,7 @@ void read_named(const Model &model, odex::Block &g, std::span<const std::string>
 /* writes what a description names */
 class Put {
 public:
-    /* s: the session whose model names the keys; none for a window's settings alone */
+    /* s: the session whose model names the keys; none for a window's options alone */
     Put(odex::Out &out, const Session *s) : out_(out), s_(s) {}
     void operator()(std::string_view key, double v) { out_.real(key, v); }
     void operator()(std::string_view key, int v) { out_.whole(key, v); }
@@ -133,7 +133,7 @@ private:
 /* reads what a description names */
 class Take {
 public:
-    /* s: the session whose model names the keys; none for a window's settings alone */
+    /* s: the session whose model names the keys; none for a window's options alone */
     Take(odex::Block &block, Session *s) : block_(block), s_(s) {}
     void operator()(std::string_view key, double &v) { block_.number(key, v); }
     void operator()(std::string_view key, int &v) { block_.whole(key, v); }
@@ -180,7 +180,7 @@ private:
     Session *s_;
 };
 
-/* ---- a window's other settings ---- */
+/* ---- a window's other options ---- */
 
 /* the column name names: the time, a variable, or one of the columns
    added (a session's windows add them before the browser has them);
@@ -213,7 +213,7 @@ Names names_of(const Session &s)
     return n;
 }
 
-/* what the session statement holds of the settings, given to io: f is the Settings written from
+/* what the session statement holds of the options, given to io: f is the Options written from
    or read into. The parameters, the initial values and the numerics are the file's par and init
    lines and options block. */
 template <class IO, class S> void describe(IO &io, S &f, const Names &n)
@@ -237,7 +237,7 @@ template <class IO, class S> void describe(IO &io, S &f, const Names &n)
 
 } // namespace
 
-void Settings::set_setting(const OptionRow *row, std::string text)
+void Options::set_setting(const OptionRow *row, std::string text)
 {
     const auto at = std::ranges::find_if(options, [row](const Setting &r) { return r.first == row; });
     if (at != options.end()) at->second = std::move(text);
@@ -341,10 +341,10 @@ void read_curves(odex::Block &window, const Session &s, GRAPH &g, std::span<cons
     }
 }
 
-Settings capture_settings(const Session &s, SettingsUse use)
+Options capture_settings(const Session &s, SettingsUse use)
 {
     const Model &m = s.model();
-    Settings f;
+    Options f;
     f.graphics = use == SettingsUse::file;
     for (const OptionRow *row : saved_settings())
         if (setting_applies(s, *row, s.numerics->method)) f.options.emplace_back(row, setting_text(s, *row));
@@ -369,7 +369,7 @@ Settings capture_settings(const Session &s, SettingsUse use)
 namespace {
 
 /* the par and init lines of f: one statement for each value, the name as the model has it */
-Result<std::string> values_text(const Settings &f, const Names &n)
+Result<std::string> values_text(const Options &f, const Names &n)
 {
     std::string out;
     const auto put = [&](std::string_view keyword, std::span<const std::string> names, const std::vector<double> &values) -> Result<> {
@@ -388,7 +388,7 @@ Result<std::string> values_text(const Settings &f, const Names &n)
 }
 
 /* the options block of f: each row under its group and key, a path or a text in quotes */
-std::string options_text(const Settings &f)
+std::string options_text(const Options &f)
 {
     std::vector<odex::GroupItem> items;
     for (const auto &[row, text] : f.options)
@@ -430,7 +430,7 @@ void read_values(const odex::StateFile &file, const Model &m, odex::Statement::K
 
 /* the options block read into f's numerics and sweep rows, each checked as the Numerics menu and the @ lines check
    them (every one the model has, once; the file's method decides whether the Volterra points belong) */
-void read_options(Session &s, const odex::StateFile &file, Settings &f)
+void read_options(Session &s, const odex::StateFile &file, Options &f)
 {
     std::map<const OptionRow *, std::vector<const odex::Option *>> given;
     for (const odex::Statement &st : file.parsed.statements) {
@@ -439,7 +439,7 @@ void read_options(Session &s, const odex::StateFile &file, Settings &f)
             int index = 0;
             const OptionRow *row = find_odex_option(o.group, o.name, index);
             if (!row || !row->saved)
-                file.doc.fail(o.pos.line, o.pos.col, xpp::format("`{}` is not a setting a session holds", o.name));
+                file.doc.fail(o.pos.line, o.pos.col, xpp::format("`{}` is not an option a session holds", o.name));
             given[row].push_back(&o);
         }
     }
@@ -449,7 +449,7 @@ void read_options(Session &s, const odex::StateFile &file, Settings &f)
         const auto at = given.find(row);
         const std::vector<const odex::Option *> none, &items = at == given.end() ? none : at->second;
         if (!setting_applies(s, *row, method)) {
-            if (!items.empty()) file.doc.fail(items[0]->pos.line, items[0]->pos.col, xpp::format("`{}` is not a setting of this model", key));
+            if (!items.empty()) file.doc.fail(items[0]->pos.line, items[0]->pos.col, xpp::format("`{}` is not an option of this model", key));
             continue;
         }
         /* a repeatable row's list may be empty */
@@ -463,7 +463,7 @@ void read_options(Session &s, const odex::StateFile &file, Settings &f)
         if (row->rule == OptionRule::method) method = method_by_key(s.model(), text, command_place()).value();
         f.set_setting(row, text);
     }
-    /* the settings the file holds keep the orders the options keep */
+    /* the options the file holds keep the orders the options keep */
     const auto held = [&](const OptionRow &r) -> std::optional<double> {
         for (const auto &[row, text] : f.options) {
             double v = 0;
@@ -481,14 +481,14 @@ void read_options(Session &s, const odex::StateFile &file, Settings &f)
 
 } // namespace
 
-Result<std::string> settings_statements(const Session &s, const Settings &f)
+Result<std::string> settings_statements(const Session &s, const Options &f)
 {
     Result<std::string> values = values_text(f, names_of(s));
     if (!values) return std::unexpected(values.error());
     return odex::version_statement() + "\n" + *values + options_text(f);
 }
 
-Result<std::string> settings_text(const Session &s, const Settings &f)
+Result<std::string> settings_text(const Session &s, const Options &f)
 {
     Result<std::string> head = settings_statements(s, f);
     if (!head) return std::unexpected(head.error());
@@ -501,15 +501,15 @@ Result<std::string> settings_text(const Session &s, const Settings &f)
     return *head + *body;
 }
 
-void write_settings(odex::Out &out, const Session &s, const Settings &f)
+void write_settings(odex::Out &out, const Session &s, const Options &f)
 {
     Put io(out, &s);
     describe(io, f, names_of(s));
 }
 
-Settings read_settings(Session &s, const odex::StateFile &file, odex::Block &session)
+Options read_settings(Session &s, const odex::StateFile &file, odex::Block &session)
 {
-    Settings f = capture_settings(s, SettingsUse::session);
+    Options f = capture_settings(s, SettingsUse::session);
     const Names n = names_of(s);
     read_values(file, s.model(), odex::Statement::Kind::Par, n.parameters, f.params);
     read_values(file, s.model(), odex::Statement::Kind::Init, n.variables, f.last_ic);
@@ -519,14 +519,14 @@ Settings read_settings(Session &s, const odex::StateFile &file, odex::Block &ses
     return f;
 }
 
-void apply_storage_precision(Session &s, const Settings &f)
+void apply_storage_precision(Session &s, const Options &f)
 {
     for (const auto &[row, text] : f.options)
         if (row->effect == OptionEffect::storage_precision) setting_write(s, *row, text);
     storage_precision_changed(s);
 }
 
-void apply_settings(Session &s, const Settings &f, bool redraw)
+void apply_settings(Session &s, const Options &f, bool redraw)
 {
     const Model &m = s.model();
     NumericsSettings &n = *s.numerics;
@@ -534,7 +534,7 @@ void apply_settings(Session &s, const Settings &f, bool redraw)
         setting_write(s, *row, text);
         if (row->rule == OptionRule::method) do_meth(s);
     }
-    storage_precision_changed(s); /* the data held converted when the settings changed what it is kept as */
+    storage_precision_changed(s); /* the data held converted when the options changed what it is kept as */
     s.delay->flag = f.delay_flag;
     s.data_store->current_time = f.current_time;
     s.integrator->last_time = f.last_time;

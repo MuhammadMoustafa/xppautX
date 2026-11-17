@@ -1,4 +1,4 @@
-/* The settings panels as data (options_panels.h, W616). */
+/* The options panels as data (options_panels.h, W616). */
 #include "options_panels.h"
 
 #include <string>
