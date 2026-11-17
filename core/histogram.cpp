@@ -265,7 +265,10 @@ xpp::Result<> new_hist(xpp::AnalysisParts &s, int nbins, double zlo, double zhi,
   if(which==0){
     for(i=0;i<s.data_store->rows;i++)
       {
-	if(my_abort() == ESC) break;
+	if(my_abort() == ESC){
+	  xpp::log(XPP_LOG_WARN,"the histogram stopped by Stop before row {:d} of {:d}: the bins count the rows before it\n",i,s.data_store->rows);
+	  break;
+	}
 	flag=1;
 	if(cond){
 	  for(j=0;j<s.model().node+1;j++)setvar(s.parser,j,static_cast<double>(s.data_store->col[j][i]));
@@ -289,7 +292,10 @@ xpp::Result<> new_hist(xpp::AnalysisParts &s, int nbins, double zlo, double zhi,
   }
   if(which==1){
     for(i=0;i<s.data_store->rows;i++){
-      if(my_abort() == ESC) break;
+      if(my_abort() == ESC){
+	xpp::log(XPP_LOG_WARN,"the pairwise differences stopped by Stop before row {:d} of {:d}: the bins count the differences of the rows before it\n",i,s.data_store->rows);
+	break;
+      }
       for(j=0;j<s.data_store->rows;j++){
 	y=s.data_store->col[col][i]-s.data_store->col[col][j];
 	z=(y-zlo)/dz;

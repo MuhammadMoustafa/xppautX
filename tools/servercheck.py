@@ -12332,6 +12332,7 @@ def check_stop_checks():
     W388_GRID = 400        # flow: 2 x 401^2 trajectories
     W388_STEPS = 1000000   # range of nullclines / equilibria: points
     W388_ROWS = 400000     # stored rows (at dt 0.05) for the pairwise histogram
+    W388_HIST_ROWS = 4000000  # stored rows (at dt 0.05) for the histogram with a condition, long enough to stop in
     def stopped_in(evs):
         return any(e.get('ev') == 'job.stopped' for e in evs)
     p, r, snd, col, _ = launch_server()
@@ -12395,18 +12396,6 @@ def check_stop_checks():
         evs, _ = col(is_done, timeout=30 * SLOW)
         check('W388: range equilibria sweep stops on abort', eq_started and stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
 
-        # 5. Pairwise differences histogram cancellation (core/histogram.cpp):
-        #    W388_ROWS^2 differences
-        snd(cmd='run.configure', total_time=W388_ROWS * 0.05)
-        col(is_done)
-        snd(cmd='run.initial')
-        col(is_done)
-        snd(cmd='spectrum.autocorrelation', column='V', bins=10, low=0, high=10)
-        _, started = col(lambda e: e.get('ev') == 'job.computing' or is_done(e))
-        hist_started = started is not None and started.get('ev') == 'job.computing'
-        snd(cmd='run.stop')
-        evs, _ = col(is_done, timeout=30 * SLOW)
-        check('W388: pairwise histogram O(N^2) loop stops on abort', hist_started and stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
         snd(cmd='run.configure', total_time=20)
         col(is_done)
 
@@ -12449,6 +12438,55 @@ def check_stop_checks():
         told = lines.wait_for(lambda ls: any(said in l for l in ls), timeout=20 * SLOW)
         check('W388: cross-correlation loop stops on abort and says which lag', ran_rows >= W388_ROWS and xcor_started and stopped_in(evs) and told,
               '%d rows; %s %s %s' % (ran_rows, str(started)[:300], [e.get('ev') for e in evs][-8:], lines[-2:]))
+    finally:
+        stop_server(p, r, snd)
+
+    # 6c0. Histogram (core/histogram.cpp new_hist, which 0) on a server of its own: W388_HIST_ROWS rows, each
+    #    tested against a condition, so the loop runs long enough for Stop to land in it; the warning names the
+    #    row it stopped before
+    lines = LogLines()
+    p, r, snd, col, _ = launch_server(log=lines)
+    try:
+        col(is_done)
+        snd(cmd='run.configure', store_every=1)
+        col(is_done)
+        snd(cmd='run.configure', total_time=W388_HIST_ROWS * 0.05)
+        col(is_done)
+        snd(cmd='run.initial')
+        col(is_done, timeout=300 * SLOW)
+        snd(cmd='histogram.compute', column='V', bins=10, low=-100, high=100, condition='V*V+sin(t)')
+        _, started = col(lambda e: e.get('ev') == 'job.computing' or is_done(e))
+        hist_started = started is not None and started.get('ev') == 'job.computing'
+        snd(cmd='run.stop')
+        evs, _ = col(is_done, timeout=30 * SLOW)
+        said = 'the histogram stopped by Stop before row'
+        told = lines.wait_for(lambda ls: any(said in l for l in ls), timeout=20 * SLOW)
+        check('W388: histogram loop stops on abort and says which row', hist_started and stopped_in(evs) and told,
+              '%s %s %s' % (str(started)[:300], [e.get('ev') for e in evs][-8:], lines[-2:]))
+    finally:
+        stop_server(p, r, snd)
+
+    # 6c. Pairwise differences (core/histogram.cpp new_hist, which 1) on a server of its own: W388_ROWS^2
+    #    differences, Stop is checked before each row and the warning names the row it stopped before
+    lines = LogLines()
+    p, r, snd, col, _ = launch_server(log=lines)
+    try:
+        col(is_done)
+        snd(cmd='run.configure', store_every=1)
+        col(is_done)
+        snd(cmd='run.configure', total_time=W388_ROWS * 0.05)
+        col(is_done)
+        snd(cmd='run.initial')
+        col(is_done, timeout=120 * SLOW)
+        snd(cmd='spectrum.autocorrelation', column='V', bins=10, low=0, high=10)
+        _, started = col(lambda e: e.get('ev') == 'job.computing' or is_done(e))
+        hist_started = started is not None and started.get('ev') == 'job.computing'
+        snd(cmd='run.stop')
+        evs, _ = col(is_done, timeout=30 * SLOW)
+        said = 'the pairwise differences stopped by Stop before row'
+        told = lines.wait_for(lambda ls: any(said in l for l in ls), timeout=20 * SLOW)
+        check('W388: pairwise histogram O(N^2) loop stops on abort and says which row', hist_started and stopped_in(evs) and told,
+              '%s %s %s' % (str(started)[:300], [e.get('ev') for e in evs][-8:], lines[-2:]))
     finally:
         stop_server(p, r, snd)
 
