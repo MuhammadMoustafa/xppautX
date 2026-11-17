@@ -223,6 +223,8 @@
 .settings-dialog { width: min(56rem, 100%); height: min(40rem, 100%); grid-template-columns: minmax(0, 1fr); }
 .settings-dialog .dialog-body { display: flex; flex-direction: column; gap: var(--space-2); overflow: hidden; min-width: 0; }
 .settings-dialog .dialog-titles { flex: 0 0 auto; }
+/* the footer reads from the left, its label first, at every width (wrapped on a phone) */
+.settings-dialog .dialog-actions { justify-content: flex-start; }
 .dialog-head .seg { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; margin-left: auto; }
 .dialog-head .seg-item { display: inline-block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-groupsel { display: none; flex: 1 1 10rem; }
@@ -245,6 +247,8 @@
 .setting-color { border: 0; margin: 0; padding: 0; min-width: 0; }
 .setting-switch { width: 2.5rem; height: 1.5rem; accent-color: var(--accent); }
 .keymap-live { min-height: 1.5em; margin: var(--space-2) 0; font-size: var(--text-sm); color: var(--fg-muted); }
+/* an empty status takes no room above the list; it stays in the page for the screen reader */
+.keymap-live:empty { min-height: 0; margin: 0; }
 .keymap-conflict { margin: var(--space-2) 0; padding: var(--space-2); background: var(--warn-bg); border-radius: var(--radius); }
 .pin-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; }
 .pin-list li { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) 0; border-top: 1px solid var(--border); }
