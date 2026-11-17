@@ -136,7 +136,7 @@ void check_folder_files(const std::string &root)
     CHECK(xpp::settings::effective_settings(fs, user, "").has_value());
 
     /* a change to the folder's file (W792): made in `.xppautx` (with its .gitignore), in place after that, the comments kept; the update check is refused there */
-    const std::string target_file = folder + "/.xppautx/settings.json";
+    const std::string target_file = xpp::files::join(xpp::files::join(folder, xpp::files::MODEL_STATE_FOLDER), xpp::settings::SETTINGS_FILE); /* as the core joins it */
     std::filesystem::remove(target_file);
     const xpp::settings::Target in_folder{xpp::settings::Scope::folder, folder};
     CHECK(xpp::settings::set_settings(fs, {{"general", "threads", "2"}}, in_folder).has_value());

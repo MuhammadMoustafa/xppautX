@@ -11812,10 +11812,12 @@ def check_settings_window():
               and not os.path.exists(opened_log), str(done))
         check('W792: settings.get says whether the file shown is there', call(cmd='settings.get', scope='folder')['result']['file_exists'] is False
               and call(cmd='settings.get', scope='user')['result']['file_exists'] is True)
-        done = call(cmd='settings.open_file')
-        check('W792: settings.open_file opens the user\'s settings.json, the path its own, in the system\'s opener',
-              done.get('status') == 'ok' and done['result']['file'] == user
-              and open(opened_log).read().strip() == user, str(done))
+        # Windows opens it with ShellExecute, which no stand-in on PATH replaces: the check would start a real program there
+        if sys.platform != 'win32':
+            done = call(cmd='settings.open_file')
+            check('W792: settings.open_file opens the user\'s settings.json, the path its own, in the system\'s opener',
+                  done.get('status') == 'ok' and done['result']['file'] == user
+                  and open(opened_log).read().strip() == user, str(done))
         check('W792: a path from the page is no argument', call(cmd='settings.open_file', file='/etc/passwd').get('status') == 'error')
         done = call(cmd='settings.configure', group='general', values={'threads': '2'}, scope='folder')
         res = call(cmd='settings.get')['result']
