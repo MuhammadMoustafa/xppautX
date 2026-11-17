@@ -2744,9 +2744,10 @@ async function lostFRunning() {
 async function busyAutox() {
   await desktopMetrics();
   check('busy: the page connects', await until('s.hello && !s.busy', 'hello'));
-  /* nUmerics / Total 3000: an integration of about three seconds */
+  /* Total 1e6: the run does not end on its own while the checks below look at it, whatever the machine's speed
+     (a Total of 3000, about three seconds, ended first on a loaded machine); Stop ends it */
   await focusPlot();
-  await menuRun('run.configure', {total_time:3000});
+  await menuRun('run.configure', {total_time:1e6});
   await requireUntil('!s.busy', 'Total applied');
   await menuRun('autox.open');
   check('busy: File/autoX opens the autoX view', await until('s.diagram.open && dv.axes && !s.busy', 'auto open'));
@@ -2769,7 +2770,8 @@ async function busyAutox() {
     await cdp.eval(`['numerics','usr','axes','clear'].every(op => !document.querySelector('.autox-tools button[data-op=' + op + ']').disabled)`));
   check("busy: ... and the main window's menu waits the same way", !!menu && menu[0] === true
     && menu[1] === 'Not while a computation runs: available when it ends', JSON.stringify(menu));
-  await until('!s.busy', 'integration done', 30000);
+  await cdp.eval(`document.querySelector('.status-bar button.danger').click()`);
+  await requireUntil('!s.busy', 'the run stopped');
 }
 
 /* W68 (GitHub #116): while a run goes nothing new starts, discarded in the page: the
