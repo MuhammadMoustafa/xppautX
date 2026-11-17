@@ -34,6 +34,8 @@ export interface DialogProps {
   extra?: ComponentChildren;
   /** the count of fields left to fix, in the footer */
   problems?: number;
+  /** controls in the head, between the title and the ×  */
+  headExtra?: ComponentChildren;
   /** the dialog is a form: its body and footer are submitted by the action */
   onSubmit?: (e: Event) => void;
   role?: 'dialog' | 'alertdialog';
@@ -92,6 +94,7 @@ export function Dialog(p: DialogProps) {
             <h2 id={labelId}>{p.title}</h2>
             {p.description ? <p class="dialog-desc">{p.description}</p> : null}
           </div>
+          {p.headExtra}
           {p.help && <HelpButton target={p.help} label={p.name} />}
           {p.closable !== false && <button type="button" class="dialog-close" aria-label={`Close ${p.name}`} title="Close (Esc)" onClick={p.onClose}>×</button>}
         </header>

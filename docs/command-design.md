@@ -107,7 +107,7 @@ second error event); `set` replaces a bad file whole. The reserved list is
 core/xpp_keymap.h's `RESERVED_KEYS`, sent in `hello.keymap.reserved`. The
 three shortcut-layer rows take no keys.
 
-## Keymap editor (a dialog in the page)
+## Keymap editor (the Settings window's Keymap group, W792)
 
 Rows: command label, category, keys, source. Search matches label,
 description, id or pressed keys. Click a key cell, press the combination

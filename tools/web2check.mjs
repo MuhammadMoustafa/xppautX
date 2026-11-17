@@ -1903,11 +1903,11 @@ async function autoxView(dir) {
     await until(`!!document.querySelector('[data-argument=max_steps].bad .field-error') && document.querySelector('[data-problems]')?.textContent === '1 field to fix'`, 'error shown')
     && (await S('__xpp.sentCount()')) === sentApply && !(await cdp.eval(`document.querySelector('[data-dialog-action]').disabled`)));
   await key('Escape');
-  await clickRegistry('settings.configure'); await formValues({threads:1}); await submitCommand();
-  check('W267: the common thread form selects one thread', await until(`!s.busy && s.autoxSettings.core.threads === 1`, 'one thread'));
-  await clickRegistry('settings.configure');
-  await formValues({automatic:true}); await submitCommand();
+  await openSettings(); await settingsControl('general.threads', '1');
+  check('W267: the Settings window selects one thread', await until(`!s.busy && s.autoxSettings.core.threads === 1`, 'one thread'));
+  await settingsControl('general.threads', 'automatic');
   check('W267: the named automatic choice restores automatic threads', await until(`!s.busy && s.autoxSettings.core.threads === 'auto'`, 'automatic threads'));
+  await closeSettings();
   await autoxRun('equilibrium');
   check('Run sends autox.run equilibrium', await cdp.eval(`__xpp.sent().some(c => c.cmd === 'autox.run' && c.kind === 'equilibrium')`));
   check('the steady-state branch arrives', await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000));
@@ -2744,10 +2744,9 @@ async function lostFRunning() {
 async function busyAutox() {
   await desktopMetrics();
   check('busy: the page connects', await until('s.hello && !s.busy', 'hello'));
-  /* Total 1e6: the run does not end on its own while the checks below look at it, whatever the machine's speed
-     (a Total of 3000, about three seconds, ended first on a loaded machine); Stop ends it */
+  /* nUmerics / Total 3000: an integration of about three seconds */
   await focusPlot();
-  await menuRun('run.configure', {total_time:1e6});
+  await menuRun('run.configure', {total_time:3000});
   await requireUntil('!s.busy', 'Total applied');
   await menuRun('autox.open');
   check('busy: File/autoX opens the autoX view', await until('s.diagram.open && dv.axes && !s.busy', 'auto open'));
@@ -2770,8 +2769,7 @@ async function busyAutox() {
     await cdp.eval(`['numerics','usr','axes','clear'].every(op => !document.querySelector('.autox-tools button[data-op=' + op + ']').disabled)`));
   check("busy: ... and the main window's menu waits the same way", !!menu && menu[0] === true
     && menu[1] === 'Not while a computation runs: available when it ends', JSON.stringify(menu));
-  await cdp.eval(`document.querySelector('.status-bar button.danger').click()`);
-  await requireUntil('!s.busy', 'the run stopped');
+  await until('!s.busy', 'integration done', 30000);
 }
 
 /* W68 (GitHub #116): while a run goes nothing new starts, discarded in the page: the
@@ -3209,9 +3207,29 @@ async function clickRegistry(id) {
     for (let p = item.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true;
     item.click();
   })()`);
-  /* File > Settings opens on the current settings, which the core gives first */
-  if (id === 'settings.configure') await requireUntil(`s.commandForm?.id === 'settings.configure'`, 'the Settings form');
   await rendered();
+}
+/* W792: the Settings window open on `group`, both files' values loaded */
+async function openSettings(group = 'general') {
+  await clickRegistry('settings.open');
+  await requireUntil(`s.settings.open && s.settings.values.user && s.settings.values.folder`, 'the Settings window');
+  if (group !== 'general') await settingsGroup(group);
+  await rendered();
+}
+async function settingsGroup(group) {
+  await cdp.eval(`document.querySelector('[data-settings-group="${group}"]').click()`);
+  await requireUntil(`s.settings.group === '${group}'`, 'the ' + group + ' group');
+  await rendered();
+}
+async function closeSettings() {
+  await cdp.eval(`document.querySelector('[data-settings] .dialog-close').click()`);
+  await until('!s.settings.open', 'the Settings window closed');
+}
+/* a change of the control of setting "group.key": a select takes the value, a switch true or false */
+async function settingsControl(setting, value) {
+  await cdp.eval(`(() => { const el = document.querySelector('[data-setting="${setting}"] [data-setting-input]');
+    if (el.type === 'checkbox') el.checked = ${JSON.stringify(value)}; else el.value = ${JSON.stringify(String(value))};
+    el.dispatchEvent(new Event('change', {bubbles: true})); })()`);
 }
 async function formValues(values) {
   for (const [name, value] of Object.entries(values)) {
@@ -3292,7 +3310,7 @@ async function optionsCheck() {
     'output.configure': 'output'};
   check('W616: each panel opens from its task\'s menu entry, and only from there',
     JSON.stringify(Object.entries(await S(`Object.fromEntries(s.hello.commands.filter(c => c.panel).map(c => [c.cmd, c.panel]))`)).sort()) === JSON.stringify(Object.entries(opensFrom).sort()), JSON.stringify(await S(`s.hello.commands.filter(c => c.panel).map(c => c.cmd)`)));
-  check('W616: the threads and the log are one File > Settings entry', await S(`s.hello.commands.find(c => c.cmd === 'settings.configure').menu_path === 'File' && !s.hello.commands.some(c => c.cmd === 'settings.set_log')`));
+  check('W616: the threads and the log are one File > Settings entry (W792: the window, not a form)', await S(`s.hello.commands.find(c => c.cmd === 'settings.open').menu_path === 'File' && !s.hello.commands.find(c => c.cmd === 'settings.configure').menu_path && !s.hello.commands.some(c => c.cmd === 'settings.set_log')`));
   /* a choice's label: a file format as written (W653), any other capitalised */
   const formats = await S('s.hello.file_formats');
   const label = name => formats.includes(name) ? name : name.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
@@ -3402,21 +3420,23 @@ async function optionsCheck() {
   check('W672: unchecking every set leaves no run_set', await S(`s.optionValues.output.values.run_set === ''`), JSON.stringify(await S('s.optionValues.output.values.run_set')));
   await key('Escape');
   /* File > Settings opens on the settings as they stand, with no error before anything is typed */
-  await clickRegistry('settings.configure');
-  check('W616: the Settings form shows the current threads (or automatic), log level and log file, and no error',
-    await S(`s.commandForm.id === 'settings.configure' && s.commandForm.values.log_level === 'warn' && (s.commandForm.values.automatic === true || s.commandForm.values.threads > 0)`)
-    && await cdp.eval(`!document.querySelector('.registry-form .field-error, .registry-form [aria-invalid=true]')`), JSON.stringify(await S('s.commandForm.values')));
-  /* W655: the eight colors are in the form, in the option table's order, as the settings hold them; a change sent reaches the page's form */
-  check('W655: the Settings form lists the eight colors in order',
-    await S(`JSON.stringify(Object.keys(s.commandForm.values).filter(k => k.endsWith('_color'))) === JSON.stringify(['stable_equilibrium_color', 'unstable_equilibrium_color', 'stable_periodic_color', 'unstable_periodic_color', 'x_nullcline_color', 'y_nullcline_color', 'stable_manifold_color', 'unstable_manifold_color'])`));
-  await key('Escape');
+  await openSettings();
+  check('W616: the Settings window shows the current threads (or automatic), log level and log file, and no error',
+    await cdp.eval(`document.querySelector('[data-setting="general.log_level"] select').value === 'warn' && document.querySelector('[data-setting="general.threads"] select').value !== '' && !!document.querySelector('[data-setting="general.log_to_file"] input')
+      && !document.querySelector('[data-settings] .field-error')`));
+  /* W655: the eight colors are in the window, in the option table's order, as the settings hold them; a change sent reaches the window opened next */
+  await cdp.eval(`document.querySelector('[data-settings-group="colors"]').click()`);
+  await requireUntil(`s.settings.group === 'colors'`, 'the Colors group');
+  check('W655: the Settings window lists the eight colors in order',
+    await cdp.eval(`JSON.stringify([...document.querySelectorAll('[data-setting^="colors."]')].map(r => r.dataset.setting.slice(7))) === JSON.stringify(['stable_equilibrium_color', 'unstable_equilibrium_color', 'stable_periodic_color', 'unstable_periodic_color', 'x_nullcline_color', 'y_nullcline_color', 'stable_manifold_color', 'unstable_manifold_color'])`));
+  await closeSettings();
   await cdp.eval(`__xpp.send({cmd:'settings.configure', x_nullcline_color:'#123456'})`);
   await until('!s.busy', 'settings sent');
-  await clickRegistry('settings.configure');
-  check('W655: a color set reaches the form the page opens next', await S(`s.commandForm.values.x_nullcline_color === '#123456'`), JSON.stringify(await S('s.commandForm.values')));
+  await openSettings('colors');
+  check('W655: a color set reaches the window the page opens next', await S(`s.settings.values.user.x_nullcline_color === '#123456'`) && await cdp.eval(`document.querySelector('[data-setting="colors.x_nullcline_color"] [data-color-text]').value === '#123456'`));
   await cdp.eval(`__xpp.send({cmd:'settings.configure', x_nullcline_color:'#f06400'})`);
   await until('!s.busy', 'settings back');
-  await key('Escape');
+  await closeSettings();
   /* a panel opened from a menu item that had a form of its own sets the group's rows, checked all together */
   await menuRun('equilibrium.configure', {max_iterations: 77});
   check('W616: the Equilibrium options panel applies what was typed, by the row\'s key', await until(`!s.busy && !s.optionsPanel`, 'applied'));
@@ -4083,9 +4103,8 @@ async function fieldHelp() {
   const toggle = (root, n) => cdp.eval(`document.querySelectorAll(${JSON.stringify(root + ' .form-row')})[${n}].querySelector('.field-help-toggle').click()`);
   const tests = [
     ['an options panel', async () => { await cdp.eval(`__xpp.openOptions('integration')`); await requireUntil(`s.optionsPanel?.group === 'integration' && s.optionValues.integration`, 'panel'); }, '[data-options-panel]'],
-    ['Settings', async () => { await clickRegistry('settings.configure'); }, '[data-dialog]'],
     ['a command form', async () => { /* a command of the registry's own arguments (no group's panel) with their descriptions */
-      const id = await S(`s.hello.commands.find(c => c.menu_path && !c.panel && !c.needs && (c.arguments ?? []).filter(a => a.description && !a.option && a.type !== 'path').length >= 2)?.cmd`);
+      const id = await S(`s.hello.commands.find(c => c.cmd !== 'settings.configure' && !c.panel && !c.needs && (c.arguments ?? []).filter(a => a.description && !a.option && a.type !== 'path').length >= 2)?.cmd`);
       await clickRegistry(id); await requireUntil('!!s.commandForm', 'form'); }, '[data-dialog]'],
   ];
   for (const [what, open, root] of tests) {
@@ -4117,8 +4136,8 @@ async function fieldHelpShots() {
   if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
   fs.mkdirSync(dir, {recursive: true});
   await until('s.hello && !s.busy', 'hello');
-  const forms = [['panel', 'run.configure'], ['settings', 'settings.configure'],
-    ['command-form', await S(`s.hello.commands.find(c => c.menu_path && !c.panel && !c.needs && (c.arguments ?? []).filter(a => a.description && !a.option && a.type !== 'path').length >= 2)?.cmd`)]];
+  const forms = [['panel', 'run.configure'],
+    ['command-form', await S(`s.hello.commands.find(c => c.cmd !== 'settings.configure' && !c.panel && !c.needs && (c.arguments ?? []).filter(a => a.description && !a.option && a.type !== 'path').length >= 2)?.cmd`)]];
   const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['768', 768, 1024, 'light'], ['390', 390, 844, 'light']];
   for (const [size, width, height, scheme] of sizes) {
     await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
@@ -4148,7 +4167,7 @@ async function settingsShots() {
   const panels = [['integration', 'run.configure'], ['poincare', 'poincare_map.set'], ['sweep', 'run.range'], ['equilibria', 'equilibrium.configure'],
     ['analysis-histogram', 'histogram.compute'], ['analysis-spectrum', 'spectrum.density'], ['continuation', 'autox.configure_numerics'],
     ['diagram', 'autox.configure_axes'], ['plot', 'plot.set_axes_origin'], ['output', 'output.configure'],
-    ['settings', 'settings.configure'], ['command-form', 'plot.set_2d']].map(([name, id]) => [name, menu(id)]);
+    ['settings', 'settings.open'], ['command-form', 'plot.set_2d']].map(([name, id]) => [name, menu(id)]);
   const others = [
     ['ask-file', () => registryFile('session.save_as', 'write')],
     ['error', async () => { await cdp.eval(`__xpp.send({cmd: 'run.configure', total_time: -1})`); await until(`!!document.querySelector('[data-error-dialog]')`, 'error'); }],
@@ -4569,8 +4588,7 @@ async function dialogsCheck() {
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
   await rendered();
   /* the color field (File > Settings' since W655) is one row: the swatch, the text box in the field style, the opacity and Foreground */
-  await clickRegistry('settings.configure');
-  await rendered();
+  await openSettings('colors');
   const color = await cdp.eval(`(() => { const f = document.querySelector('[data-dialog] [data-color-field]'); const centres = [...f.children].map(c => { const r = c.getBoundingClientRect(); return r.top + r.height / 2; });
     return {oneRow: Math.max(...centres) - Math.min(...centres) < 3, centres, textInBox: !!f.querySelector('.input-box [data-color-text]')}; })()`);
   check('W641: a color row is one line (swatch, text box in the field style, opacity, Foreground) at 1280', color.oneRow && color.textInBox, JSON.stringify(color));
@@ -4624,12 +4642,11 @@ async function dialogsCheck() {
   await cdp.eval(`document.querySelector('[data-dialog] .dialog-close').click()`);
   await until('!s.commandForm', 'closed by the ×');
   /* Settings opens on the current values */
-  await clickRegistry('settings.configure');
+  await openSettings();
   d = await shell();
   sound('Settings', d);
-  check('W641: Settings: no error before input, one switch for Automatic', d.errors === 0 && await cdp.eval(`document.querySelectorAll('[data-dialog] [data-argument=automatic] input[type=checkbox]').length === 1`), JSON.stringify(d));
-  await key('Escape');
-  await until('!s.commandForm', 'closed');
+  check('W641: Settings: no error before input', d.errors === 0, JSON.stringify(d));
+  await closeSettings();
   /* a core ask: the same shell, named for what it does */
   await registryFile('session.save_as', 'write');
   d = await shell();
@@ -4762,7 +4779,7 @@ async function navigationCheck() {
   await cdp.eval(`document.querySelector('.dock-close').click()`);
   await until('!s.help.open', 'help closed');
   // Every command with arguments renders the same form, using every declared argument.
-  for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list' && !c.menu_choice)) {
+  for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list' && c.cmd !== 'settings.configure' && !c.menu_choice)) { /* W792: the Settings window is its form */
     await clickRegistry(row.cmd);
     if (row.panel) {
       /* W616: a group's generated panel in place of its form, or inside it when the command has more than options (the options section checks the fields against the table) */
@@ -5072,7 +5089,7 @@ async function keymapCheck() {
 async function keymapEditorCheck() {
   await desktopMetrics();
   await clickRegistry('keymap.edit');
-  check('W517: editor lists the registry', await until(`s.keymap.editor.open && document.querySelectorAll('[data-keymap-row]').length === s.hello.commands.filter(c => c.arguments !== undefined).reduce((n, c) => n + 1 + (c.menu_choice ? c.arguments.find(a => a.name === c.menu_choice).choices.length : 0), 0)`, 'editor'));
+  check('W517: editor lists the registry', await until(`s.settings.open && document.querySelectorAll('[data-keymap-row]').length === s.hello.commands.filter(c => c.arguments !== undefined).reduce((n, c) => n + 1 + (c.menu_choice ? c.arguments.find(a => a.name === c.menu_choice).choices.length : 0), 0)`, 'editor'));
   check('W536: the editor has no XPPAUT key preset', !await exists('[data-keymap-xppaut]') && await S('!("preset" in s.keymap.info)'));
   await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
   check('W517: registry commands stay pinnable', await until(`s.keymap.info.pinned.includes('run.initial')`, 'pin'));
@@ -5085,7 +5102,7 @@ async function keymapEditorCheck() {
   check('W517: recording a custom key saves the registry id', await until(`s.keymap.info.commands.find(c => c.id === 'session.reload_model').keys.includes('Ctrl+B')`, 'custom key'));
   await cdp.eval(`document.querySelector('[data-key-cell="session.reload_model"][data-index="0"]').click()`);
   await key('Escape');
-  check('W517: Escape cancels key recording without changing its binding', await S(`s.keymap.editor.open && !s.keymap.editor.recording && s.keymap.info.commands.find(c => c.id === 'session.reload_model').keys.includes('Ctrl+B')`));
+  check('W517: Escape cancels key recording without changing its binding', await S(`s.settings.open && !s.keymap.editor.recording && s.keymap.info.commands.find(c => c.id === 'session.reload_model').keys.includes('Ctrl+B')`));
   /* W772: an item of a choice submenu is a row beside its command, bound and pinned by its command value */
   const item = 'model.export --language python';
   check('W772: the editor lists an item of a choice submenu beside its command', await exists(`[data-keymap-row="${item}"]`) && await exists('[data-keymap-row="model.export"]'));
@@ -5097,7 +5114,7 @@ async function keymapEditorCheck() {
   await cdp.eval(`document.querySelector('[data-key-pin="${item}"]').click()`);
   check('W772: an item is pinnable', await until(`s.keymap.info.pinned.includes('${item}')`, 'item pin'));
   await key('Escape');
-  await until('!s.keymap.editor.open', 'editor closed');
+  await until('!s.settings.open', 'editor closed');
   check('W517: pin appears in quick access', await exists('[data-pinned="run.initial"]'));
   const before = await S('s.seriesCount');
   await cdp.eval(`document.querySelector('[data-pinned="run.initial"]').click()`);
@@ -5120,52 +5137,58 @@ async function keymapEditorCheck() {
   await until('!s.ask && !s.busy', 'the question cancelled again');
 }
 
-/* W785 (#865): the editor's list takes the dialog body's remaining height at each width of docs/ui-v2.md's R3 (a phone's full-screen
-   sheet below 48rem, a dialog above it): its bottom is the body's content bottom, the list scrolled to its end shows the last row
-   whole, and the dialog stays inside the viewport. Data only: the rectangles of the page's own elements. */
+/* W785 (#865), W792: the keymap list ends whole at each width of docs/ui-v2.md's R3 (a phone's full-screen sheet below 48rem, a dialog above it): the
+   window's scrolling part (the pane; on a phone the whole main area) scrolled to its end shows the last row whole inside it, and the dialog stays
+   inside the viewport. Data only: the rectangles of the page's own elements. */
 async function keymapFitCheck() {
   for (const [width, height] of [[375, 812], [768, 1024], [1280, 860]]) {
     await metrics({width, height, deviceScaleFactor: 1, mobile: width < 500});
     await clickRegistry('keymap.edit');
-    await until('s.keymap.editor.open && document.querySelectorAll("[data-keymap-row]").length > 0', `the editor at ${width}`);
+    await until('s.settings.open && document.querySelectorAll("[data-keymap-row]").length > 0', `the editor at ${width}`);
     const fit = await cdp.eval(`(() => {
-      const d = document.querySelector('[data-keymap-editor]'), body = d.querySelector('.dialog-body'), list = d.querySelector('.keymap-scroll');
-      const rows = list.querySelectorAll('tbody tr'), last = rows[rows.length - 1];
-      list.scrollTop = list.scrollHeight;
-      const bodyBox = body.getBoundingClientRect(), listBox = list.getBoundingClientRect(), lastBox = last.getBoundingClientRect();
-      const contentBottom = bodyBox.bottom - parseFloat(getComputedStyle(body).paddingBottom);
-      return {listBottom: listBox.bottom, contentBottom, lastTop: lastBox.top, lastBottom: lastBox.bottom, listTop: listBox.top,
-        dialogBottom: d.getBoundingClientRect().bottom, viewport: innerHeight};
+      const d = document.querySelector('[data-settings]'), pane = d.querySelector('.settings-pane'), main = d.querySelector('.settings-main');
+      const scroller = getComputedStyle(pane).overflowY === 'auto' ? pane : main;
+      const rows = d.querySelectorAll('.keymap-table tbody tr'), last = rows[rows.length - 1];
+      scroller.scrollTop = scroller.scrollHeight;
+      const box = scroller.getBoundingClientRect(), lastBox = last.getBoundingClientRect();
+      return {scrollerBottom: box.bottom, scrollerTop: box.top, lastTop: lastBox.top, lastBottom: lastBox.bottom, dialogBottom: d.getBoundingClientRect().bottom,
+        viewport: innerHeight, dialogRight: d.getBoundingClientRect().right, viewportWidth: innerWidth, pageScroll: document.documentElement.scrollWidth > innerWidth};
     })()`);
-    const fills = Math.abs(fit.listBottom - fit.contentBottom) <= 1;
-    const lastWhole = fit.lastBottom <= fit.listBottom + 0.5 && fit.lastTop >= fit.listTop - 0.5;
-    const inside = fit.dialogBottom <= fit.viewport + 0.5;
-    check(`W785: at ${width} the keymap list ends at the dialog body's bottom`, fills, JSON.stringify(fit));
-    check(`W785: at ${width} the last row of the keymap list is whole, not cut by the dialog`, lastWhole && inside, JSON.stringify(fit));
+    const lastWhole = fit.lastBottom <= fit.scrollerBottom + 0.5 && fit.lastTop >= fit.scrollerTop - 0.5;
+    const inside = fit.dialogBottom <= fit.viewport + 0.5 && fit.dialogRight <= fit.viewportWidth + 0.5 && !fit.pageScroll;
+    check(`W785: at ${width} the last row of the keymap list is whole, not cut by the window`, lastWhole, JSON.stringify(fit));
+    check(`W792: at ${width} the Settings window stays inside the viewport`, inside, JSON.stringify(fit));
     await key('Escape');
-    await until('!s.keymap.editor.open', 'editor closed');
+    await until('!s.settings.open', 'editor closed');
   }
   await desktopMetrics();
 }
 
-/* The keymap editor's pictures for the UI review (W785; with --only shots and XPP_SHOTS=folder): the dialog at 375, 768 and
-   1280 wide, light and dark. Never a check: it writes files only. */
-async function keymapEditorShots() {
+/* The Settings window's pictures for the UI review (W785, W792; with --only shots and XPP_SHOTS=folder): the General and Keymap groups, the user's file and
+   the model folder's (a few keys set there), at 375, 768 and 1280 wide, light and dark. Never a check: it writes files only. */
+async function settingsWindowShots() {
   const dir = process.env.XPP_SHOTS;
   if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
   fs.mkdirSync(dir, {recursive: true});
   await until('s.hello && !s.busy', 'hello');
+  await cdp.eval(`__xpp.send({cmd: 'settings.set', group: 'general', key: 'threads', value: '2', scope: 'folder'})`);
+  await cdp.eval(`__xpp.send({cmd: 'settings.set', group: 'general', key: 'log_level', value: '"info"', scope: 'user'})`);
+  await until('!s.busy', 'the settings set');
   for (const [width, height] of [[375, 812], [768, 1024], [1280, 860]]) {
     for (const scheme of ['light', 'dark']) {
       await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
       await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
-      await clickRegistry('keymap.edit');
-      await until('s.keymap.editor.open', 'the editor');
-      await rendered();
-      const shot = await cdp.send('Page.captureScreenshot', {format: 'png'});
-      fs.writeFileSync(path.join(dir, `keymap-${width}-${scheme}.png`), Buffer.from(shot.data, 'base64'));
-      await key('Escape');
-      await until('!s.keymap.editor.open', 'editor closed');
+      for (const [group, scope] of [['general', 'user'], ['general', 'folder'], ['keymap', 'user'], ['keymap', 'folder']]) {
+        await clickRegistry(group === 'keymap' ? 'keymap.edit' : 'settings.open');
+        await requireUntil(`s.settings.open && s.settings.values.user && s.settings.values.folder && s.settings.group === '${group}'`, 'the window');
+        await cdp.eval(`document.querySelector('[data-settings-scope="${scope}"]').click()`);
+        await until(`s.settings.scope === '${scope}'`, 'scope');
+        await rendered();
+        const shot = await cdp.send('Page.captureScreenshot', {format: 'png'});
+        fs.writeFileSync(path.join(dir, `settings-${group}-${scope}-${width}-${scheme}.png`), Buffer.from(shot.data, 'base64'));
+        await cdp.eval(`document.querySelector('[data-settings] .dialog-close').click()`);
+        await until('!s.settings.open', 'closed');
+      }
     }
   }
   await cdp.send('Emulation.setEmulatedMedia', {features: []}).catch(() => {});
@@ -7334,10 +7357,10 @@ async function openingCheck() {
     fs.writeFileSync(prefsFile, `{"version": 4, "updates": {"check_for_updates": ${on}}}\n`);
     fs.writeFileSync(stateFile, '{"version": 4}\n'); /* no check made yet: the last one is the program's own state, kept in state.json */
   };
-  await clickRegistry('settings.configure');
-  check('updates: the Settings form has the check_for_updates switch',
-    await cdp.eval(`document.querySelector('[data-argument=check_for_updates]') !== null`));
-  await key('Escape');
+  await openSettings('updates');
+  check('updates: the Settings window has the check_for_updates switch',
+    await cdp.eval(`document.querySelector('[data-setting="updates.check_for_updates"] input') !== null`));
+  await closeSettings();
   /* a failed check shows nothing and says so in the log at INFO (the page's log, in browser mode) */
   await setAnswer('http'); writePrefs(true);
   await reopen();
@@ -7628,6 +7651,58 @@ async function settingsCheck() {
   check('W790: the rest of settings.json is kept: the theme and the dock width still there',
     JSON.parse(fs.readFileSync(file, 'utf8')).page.theme === 'dark' && JSON.parse(fs.readFileSync(file, 'utf8')).page.dock_width === 320);
 }
+/* W792: the Settings window. File > Settings… and Help > Keyboard shortcuts (at Keymap) open it; a change is settings.set for the file shown (the scope
+   sent), the ↺ is settings.reset, each value says where it comes from, and the files hold the change with their comments */
+async function settingsWindowCheck(dir) {
+  const userFile = path.join(sessionDirectory, 'xpp-config', 'settings.json');
+  const folderFile = path.join(dir, '.xppautx', 'settings.json');
+  await openSettings();
+  check('W792: File > Settings opens the window on General, the rows of the group listed with their sources',
+    await S(`s.settings.group === 'general' && s.settings.scope === 'user'`)
+    && await cdp.eval(`[...document.querySelectorAll('[data-setting]')].map(r => r.dataset.setting).join() === 'general.threads,general.log_level,general.log_to_file'`));
+  check('W792: the groups of settings.json are listed in the file\'s order',
+    await cdp.eval(`[...document.querySelectorAll('[data-settings-group]')].map(b => b.dataset.settingsGroup).join() === 'general,colors,keymap,page,updates'`));
+  await closeSettings();
+  await clickRegistry('keymap.edit');
+  check('W792: Help > Keyboard shortcuts opens the window at Keymap: the Pins, then the Keys',
+    await until(`s.settings.open && s.settings.group === 'keymap' && !!document.querySelector('[data-settings] [data-pins]') && document.querySelectorAll('[data-keymap-row]').length > 0`, 'keymap group'));
+  await closeSettings();
+  await openSettings();
+  const mark = await S('__xpp.sentCount()');
+  await settingsControl('general.log_level', 'info');
+  check('W792: a change sends settings.set with the scope of the file shown',
+    await until(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'settings.set' && c.group === 'general' && c.key === 'log_level' && c.value === '"info"' && c.scope === 'user')`, 'set sent'));
+  check('W792: ... the user\'s file holds it and the window says it is set here, with a ↺',
+    await untilFile(userFile, t => JSON.parse(t).general?.log_level === 'info', 'saved')
+    && await until(`document.querySelector('[data-setting="general.log_level"]').dataset.source === 'user' && !!document.querySelector('[data-setting-reset="general.log_level"]')`, 'source shown'));
+  const resetMark = await S('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector('[data-setting-reset="general.log_level"]').click()`);
+  check('W792: the ↺ sends settings.reset and the key leaves the file',
+    await until(`__xpp.sentFrom(${resetMark}).some(c => c.cmd === 'settings.reset' && c.key === 'log_level' && c.scope === 'user')`, 'reset sent')
+    && await untilFile(userFile, t => JSON.parse(t).general?.log_level === undefined, 'key removed')
+    && await until(`document.querySelector('[data-setting="general.log_level"]').dataset.source === 'default' && !document.querySelector('[data-setting-reset="general.log_level"]')`, 'default shown'));
+  await cdp.eval(`document.querySelector('[data-settings-scope="folder"]').click()`);
+  await until(`s.settings.scope === 'folder'`, 'folder scope');
+  check('W792: Open file is off with its reason while the folder has no settings file yet',
+    await cdp.eval(`(() => { const b = document.querySelector('[data-settings-open-file]'); return b.disabled && b.title.startsWith('No file yet'); })()`));
+  const folderMark = await S('__xpp.sentCount()');
+  await settingsControl('general.threads', '1');
+  check('W792: in the Folder view a change is sent with scope folder, and lands in .xppautx/settings.json, not the user\'s',
+    await until(`__xpp.sentFrom(${folderMark}).some(c => c.cmd === 'settings.set' && c.key === 'threads' && c.scope === 'folder')`, 'folder set sent')
+    && await untilFile(folderFile, t => JSON.parse(t).general?.threads === 1, 'folder saved')
+    && !fs.readFileSync(userFile, 'utf8').includes('threads'));
+  check('W792: the window says the value is set in the folder, and names the file shown',
+    await until(`document.querySelector('[data-setting="general.threads"]').dataset.source === 'folder' && document.querySelector('[data-settings-file]').textContent.endsWith('settings.json') && s.settings.values.folder.file.includes('.xppautx')`, 'folder source'));
+  check('W792: ... and on once the file is there',
+    await until(`!document.querySelector('[data-settings-open-file]').disabled`, 'open file enabled'));
+  check('W792: the User / Folder switch is in the window\'s head, beside the close button',
+    await cdp.eval(`!!document.querySelector('[data-settings] .dialog-head [data-settings-scope="folder"]')`));
+  await settingsGroup('updates');
+  check('W792: the update check is the user\'s: its control is off in the Folder view',
+    await cdp.eval(`document.querySelector('[data-setting="updates.check_for_updates"] input').disabled`));
+  await closeSettings();
+}
+
 /* a file's text, read again until `ok` takes it (a wait for a saved change, polled; a page's save is one command) */
 async function untilFile(file, ok, what) {
   for (let i = 0; i < 200; i++) {
@@ -8035,11 +8110,11 @@ async function dialogOverEverything(opener, view, what) {
 }
 async function quickMenuOnTop() {
   await clickRegistry('keymap.edit');
-  await until('s.keymap.editor.open', 'editor');
+  await until('s.settings.open', 'editor');
   await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
   await until(`s.keymap.info.pinned.includes('run.initial')`, 'pinned');
   await key('Escape');
-  await until('!s.keymap.editor.open && !!document.querySelector(\'[data-pinned="run.initial"]\')', 'editor closed');
+  await until('!s.settings.open && !!document.querySelector(\'[data-pinned="run.initial"]\')', 'editor closed');
   /* the pinned command's context menu */
   await cdp.eval(`document.querySelector('[data-pinned="run.initial"]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 40, clientY: 40}))`);
   await until(`!!document.querySelector('.quick-menu')`, 'quick menu');
@@ -8055,11 +8130,11 @@ async function quickMenuOnTop() {
   await key('Escape');
   await until(`!document.querySelector('.quick-menu')`, 'quick menu closed');
   await clickRegistry('keymap.edit');
-  await until('s.keymap.editor.open', 'editor');
+  await until('s.settings.open', 'editor');
   await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
   await until(`!s.keymap.info.pinned.includes('run.initial')`, 'unpinned');
   await key('Escape');
-  await until('!s.keymap.editor.open', 'editor closed');
+  await until('!s.settings.open', 'editor closed');
 }
 
 async function layoutCheck(dir) {
@@ -8320,7 +8395,7 @@ async function main() {
       await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     }
     /* every section name run() is asked about: an --only that names none of them ran nothing, which is a failure, never "all passed" */
-    const asked = new Set(['shots', 'popoutshots', 'splitshots']);
+    const asked = new Set(['shots', 'popoutshots', 'splitshots', 'settingsshots']);
     const run = name => { asked.add(name); return !opt.only || opt.only.split(',').includes(name); };
     if (run('desktop')) await session(ODE, async (dir) => {
       await desktop(want);
@@ -8374,7 +8449,7 @@ async function main() {
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'splitshots')) { await session(ODE, splitViewShots); await session(ODE, splitViewAutoxShots); }
     if (opt.only && opt.only.split(',').includes('shots')) await session(AB_ODE, autoxScriptShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'popoutshots')) await session(ODE, popOutShots);
-    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, keymapEditorShots);
+    if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'settingsshots')) await session(ODE, settingsWindowShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, tableShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('windows')) await session(ODE, windows);
     if (run('annotations')) await session(ODE, marks);
@@ -8382,6 +8457,7 @@ async function main() {
     if (run('keys')) await session(ODE, keysCheck);
     if (run('keymap')) await session(ODE, keymapCheck);
     if (run('settings')) await session(ODE, settingsCheck);
+    if (run('settings')) await session(ODE, settingsWindowCheck);
     if (run('keymapeditor')) await session(ODE, keymapEditorCheck);
     if (run('keymapeditor')) await session(ODE, keymapFitCheck);
     if (run('record')) await session(ODE, recordCheck);

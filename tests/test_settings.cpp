@@ -134,6 +134,44 @@ void check_folder_files(const std::string &root)
     /* a bad user file is the error whatever the folder holds, and no folder is the user's */
     CHECK(!xpp::settings::effective_settings(fs, xpp::Result<xpp::settings::Settings>(std::unexpected(xpp::Error{"s", "bad", {}})), folder));
     CHECK(xpp::settings::effective_settings(fs, user, "").has_value());
+
+    /* a change to the folder's file (W792): made in `.xppautx` (with its .gitignore), in place after that, the comments kept; the update check is refused there */
+    const std::string target_file = folder + "/.xppautx/settings.json";
+    std::filesystem::remove(target_file);
+    const xpp::settings::Target in_folder{xpp::settings::Scope::folder, folder};
+    CHECK(xpp::settings::set_settings(fs, {{"general", "threads", "2"}}, in_folder).has_value());
+    CHECK(read_text(target_file) == "{\n  \"version\": 4,\n  \"general\": {\n    \"threads\": 2\n  }\n}\n");
+    write_text(target_file, "{\n  // this model's\n  \"version\": 4,\n  \"general\": {\n    \"threads\": 2, // two\n    \"log_level\": \"info\"\n  }\n}\n");
+    CHECK(xpp::settings::set_settings(fs, {{"general", "log_level", "\"debug\""}}, in_folder).has_value());
+    CHECK(read_text(target_file).find("// this model's") != std::string::npos && read_text(target_file).find("\"debug\"") != std::string::npos);
+    const std::string before_refused = read_text(target_file);
+    CHECK(!xpp::settings::set_settings(fs, {{"updates", "check_for_updates", "false"}}, in_folder));
+    CHECK(read_text(target_file) == before_refused);
+    CHECK(!xpp::settings::set_settings(fs, {{"general", "threads", "2"}}, {xpp::settings::Scope::folder, ""})); /* no model folder */
+    const xpp::settings::KeysSet set = xpp::settings::keys_set(fs, folder);
+    CHECK(set.folder == std::vector<std::string>({"general.threads", "general.log_level"}));
+    /* a key removed: its comma and line go, the comments and the other keys stay; the one that is not there is nothing to do */
+    CHECK(xpp::settings::reset_setting(fs, in_folder, "general", "threads").has_value());
+    CHECK(read_text(target_file) == "{\n  // this model's\n  \"version\": 4,\n  \"general\": {\n     // two\n    \"log_level\": \"debug\"\n  }\n}\n");
+    CHECK(xpp::settings::reset_setting(fs, in_folder, "general", "log_level").has_value());
+    CHECK(read_text(target_file) == "{\n  // this model's\n  \"version\": 4,\n  \"general\": {\n     // two\n  }\n}\n");
+    CHECK(xpp::settings::reset_setting(fs, in_folder, "general", "threads").has_value() && xpp::settings::reset_setting(fs, in_folder, "nosuch", "x").has_value());
+    std::filesystem::remove(target_file);
+    CHECK(xpp::settings::reset_setting(fs, in_folder, "general", "threads").has_value() && !xpp::files::exists(target_file)); /* no file is made */
+    /* the file as it is on disk (settings.open_file): absent is nothing, a file is its path, a link in its place is refused */
+    const auto absent = xpp::settings::existing_file(fs, in_folder);
+    CHECK(absent && !*absent);
+    write_text(target_file, "{\"version\": 4}\n");
+    const auto there = xpp::settings::existing_file(fs, in_folder);
+    CHECK(there && *there && **there == target_file);
+    std::filesystem::remove(target_file);
+    std::error_code link_error;
+    std::filesystem::create_symlink(root + "/elsewhere.json", target_file, link_error);
+    if (!link_error) {
+        write_text(root + "/elsewhere.json", "{\"version\": 4}\n");
+        CHECK(!xpp::settings::existing_file(fs, in_folder));
+        std::filesystem::remove(target_file);
+    }
 #ifndef _WIN32
     /* a file sent in a folder: a link in the file's place is refused, never read (its first line would be shown by the error) */
     std::filesystem::remove(folder + "/.xppautx/settings.json");
@@ -195,6 +233,12 @@ void check_files(const std::string &dir)
     CHECK(read_text(file) == expected);
     const auto now = xpp::settings::load_settings(fs);
     CHECK(now && now->threads == 1 && now->page.theme == "dark" && !now->check_for_updates);
+
+    /* the user's key removed: the comment on its line stays, nothing else changes */
+    CHECK(xpp::settings::reset_setting(fs, {}, "general", "threads").has_value());
+    CHECK(read_text(file).find("// two threads") != std::string::npos && read_text(file).find("\"threads\"") == std::string::npos &&
+          read_text(file).find("\"log_level\": \"warn\"\n  }") != std::string::npos);
+    CHECK(xpp::settings::load_settings(fs).has_value());
 
     /* a key a group does not have yet is added in its group; an empty group takes it with no comma */
     write_text(file, "{\"version\": 4, \"page\": {}}\n");

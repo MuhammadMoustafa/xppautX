@@ -86,7 +86,7 @@ function KeyTable() {
   return (
     <details class="help-keys">
       <summary><CommandLabel command="keymap.edit" /></summary>
-      <p><button type="button" onClick={() => session.store.dispatch({type: 'keymapUi', action: {type: 'open'}})}>Change shortcuts…</button></p>
+      <p><button type="button" onClick={() => session.openSettings('keymap')}>Change shortcuts…</button></p>
       <table>
         <tbody>
           {FIXED_KEYS.map(k => <tr key={k.key}><th scope="row"><kbd>{k.key}</kbd></th><td>{k.does}</td></tr>)}

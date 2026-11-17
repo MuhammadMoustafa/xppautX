@@ -187,12 +187,26 @@ export interface PageSettings {
   folds: string[];
 }
 
+/** one setting the Settings window lists (core/xpp_settings.h `rows()`): its group and key (the label is derived from the key), the kind of control, the
+    choices of a `choice`, a line of help, and whether a model folder's file may hold it */
+export interface SettingRow {
+  group: string;
+  key: string;
+  kind: 'choice' | 'flag' | 'color' | 'threads' | 'width';
+  choices: string[];
+  help: string;
+  in_folder: boolean;
+}
+
 /** The `settings` of hello. `ok` false is a settings.json that could not be read: the error (the `error` event's fields) and the
     page's defaults, which the page shows and never saves over the file. */
 export interface SettingsInfo {
   ok: boolean;
   path: string;
   page: PageSettings;
+  /** the groups of settings.json in the file's order, and the rows of each (the keymap group has its own pane) */
+  groups: string[];
+  rows: SettingRow[];
   error?: string;
   file?: string;
   line?: number;

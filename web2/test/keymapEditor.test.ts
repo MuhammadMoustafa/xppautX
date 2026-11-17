@@ -124,7 +124,7 @@ test('the overflow: every button that fits shows, the rest go to More, none is d
 
 test('the editor\'s state: open, search, record, conflict, refusal; the core\'s answer ends them', () => {
   let state = reduceKeymap({...initialKeymap, info}, {type: 'open'});
-  assert.equal(state.editor.open, true);
+  assert.equal(state.editor.query, '');
   state = reduceKeymap(state, {type: 'query', query: 'run'});
   state = reduceKeymap(state, {type: 'record', recording: {id: 'session.open_model', index: 0}});
   assert.deepEqual(state.editor.recording, {id: 'session.open_model', index: 0});
@@ -136,8 +136,8 @@ test('the editor\'s state: open, search, record, conflict, refusal; the core\'s 
   assert.equal(state.editor.refusal, 'no');
   state = reduceKeymap(state, {type: 'confirmReset', on: true});
   const answered = reduceKeymap(state, {type: 'info', info: bound('session.open_model', ['Ctrl+B'])});
-  assert.deepEqual([answered.editor.refusal, answered.editor.confirmingReset, answered.editor.query, answered.editor.open], ['', false, 'run', true]);
-  assert.equal(reduceKeymap(answered, {type: 'close'}).editor.open, false);
+  assert.deepEqual([answered.editor.refusal, answered.editor.confirmingReset, answered.editor.query], ['', false, 'run']);
+  assert.equal(reduceKeymap(answered, {type: 'close'}).editor.query, '');
 });
 
 /* the dispatcher reads the effective keys */

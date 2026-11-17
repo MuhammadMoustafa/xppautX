@@ -53,13 +53,5 @@ long read_fd(int fd, char *buf, std::size_t n);
 void random_bytes(std::span<unsigned char> out);
 /* ends the process at once, whatever the core's thread holds (exit() would run at_exit and wait on a lock) */
 [[noreturn]] void end_process();
-/* the system's browser on url, without a shell; true when it started */
-bool open_in_browser(const std::string &url);
-/* the program that opens an address on Linux ("xdg-open") and macOS ("open"): xpp_http_posix.cpp starts it */
-#ifdef __APPLE__
-inline constexpr const char *browser_opener = "open";
-#else
-inline constexpr const char *browser_opener = "xdg-open";
-#endif
 
 } // namespace xpp::http

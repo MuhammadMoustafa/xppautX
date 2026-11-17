@@ -253,12 +253,11 @@ Result<std::optional<std::string>> read_model_state_file(std::string_view where,
     return read_plain_within(where, model_folder, files::join(files::join(model_folder, files::MODEL_STATE_FOLDER), name), limit);
 }
 
-Result<> write_config_file(std::string_view where, std::string_view name, std::string_view bytes)
+namespace {
+
+/* the temp-then-rename write of `bytes` to `file` */
+Result<> write_whole(std::string_view where, const std::string &file, std::string_view bytes)
 {
-    const std::string file = files::config_path(name);
-    if (file.empty()) return std::unexpected(no_config_folder(where, name));
-    if (!files::make_dirs(files::config_dir(), files::config_base()))
-        return fail(std::string(where), "cannot be saved: its folder cannot be made", Place{files::config_dir()});
     Writer w = Writer::binary(file);
     if (!w) return fail(std::string(where), "cannot be saved: the file cannot be opened for writing", Place{file});
     if (!w.write(bytes)) {
@@ -266,6 +265,24 @@ Result<> write_config_file(std::string_view where, std::string_view name, std::s
         return fail(std::string(where), "cannot be saved: the write failed", Place{file});
     }
     return w.commit();
+}
+
+} // namespace
+
+Result<> write_config_file(std::string_view where, std::string_view name, std::string_view bytes)
+{
+    const std::string file = files::config_path(name);
+    if (file.empty()) return std::unexpected(no_config_folder(where, name));
+    if (!files::make_dirs(files::config_dir(), files::config_base()))
+        return fail(std::string(where), "cannot be saved: its folder cannot be made", Place{files::config_dir()});
+    return write_whole(where, file, bytes);
+}
+
+Result<> write_model_state_file(std::string_view where, std::string_view model_folder, std::string_view name, std::string_view bytes)
+{
+    const Result<std::string> dir = files::model_state_dir(model_folder);
+    if (!dir) return std::unexpected(dir.error());
+    return write_whole(where, files::join(*dir, name), bytes);
 }
 
 } // namespace xpp

@@ -19,6 +19,7 @@ import {HOME, windowOf, type Viewport} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
 import {kindOf, mayStart, type CommandRow, type LayerWindow} from './protocol/kinds';
+import type {SettingsValues} from './store/settings';
 import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type PageSettings, type SettingsInfo, type UserKeymap, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import {activeView, autoxWindow} from './store/diagram';
@@ -140,7 +141,7 @@ export class Session {
   private exportDesktop = false;
   private exportPending: {items: ExportItem[]; targets: string[]; existing: boolean[]} | null = null;
   private exportWaits = new Map<string, (ev: DoneEvent | null) => void>();
-  private exportSerial = 0;
+  private callSerial = 0;
   /** the answer to the replace confirm, when it is open */
   private replaceChoice: ((c: ReplaceChoice) => void) | null = null;
   /** a command run again after "Add file…": the answers its prompts get, and
@@ -294,12 +295,6 @@ export class Session {
       const parts = ev.status === 'ok' ? ev.result?.parts : null;
       if (Array.isArray(parts))
         this.store.dispatch({type: 'valuesFile', offer: {file: String(ev.result?.file), scope: String(ev.result?.scope), format: String(ev.result?.format), parts: parts as ValuesPart[]}});
-      /* `settings.get` answered for File > Settings: its form, with the current values in it */
-      if (this.settingsFormAsked && ev.status === 'ok' && typeof ev.result?.log_level === 'string') {
-        this.settingsFormAsked = false;
-        const {threads, automatic, ...rest} = ev.result as {threads: number; automatic: boolean} & Record<string, string>; /* the log's and the colors' */
-        this.store.dispatch({type: 'commandForm', form: {id: 'settings.configure', values: {...(automatic ? {automatic: true} : {threads}), ...rest}, fixed: []}});
-      }
       /* `update.due` answered: when it is due the check runs; a newer release is a quiet notice, a failure only a log line */
       if (ev.status === 'ok' && ev.result?.due === true) void this.automaticUpdateCheck();
       this.updateAnswered(ev);
@@ -390,7 +385,6 @@ export class Session {
     if (id === 'values.open') this.selectDockTab('values');
     else if (id === 'data.open') this.openTable();
     else if (id === 'command_palette.open') this.store.dispatch({type: 'drawer', open: true});
-    else if (id === 'keymap.edit') this.store.dispatch({type: 'keymapUi', action: {type: 'open'}});
     else if (id === 'session.get_source') {this.openText();}
     else if (id === 'manual.open') this.store.dispatch({type: 'help', action: {type: 'open'}});
     else if (id === 'about.open') this.store.dispatch({type: 'help', action: {type: 'about'}});
@@ -401,11 +395,8 @@ export class Session {
       this.store.dispatch({type: 'annotations', open: true});
       this.send({cmd:'window.select', window:this.store.getState().plots.active});
       this.send({cmd: id, window:this.store.getState().plots.active});
-    } else if (id === 'settings.configure' && !fixed.length && !Object.keys(values).length) {
-      /* the form opens on the settings as they stand: asked for first, the form opens when they arrive (the done below) */
-      this.settingsFormAsked = true;
-      this.send({cmd: 'settings.get'});
-    } else if (row.panel && !row.arguments?.some(a => a.option) && !row.panel.endsWith('+')) this.openOptions(panelSpec(row.panel)!.group);
+    } else if (id === 'settings.open' || (id === 'settings.configure' && !fixed.length && !Object.keys(values).length)) this.openSettings('general');
+    else if (id === 'keymap.edit') this.openSettings('keymap'); else if (row.panel && !row.arguments?.some(a => a.option) && !row.panel.endsWith('+')) this.openOptions(panelSpec(row.panel)!.group);
     else if (row.arguments?.length) this.store.dispatch({type: 'commandForm', form: {id, values, fixed}});
     else this.send({cmd: id});
   }
@@ -478,7 +469,6 @@ export class Session {
   }
 
   /** File > Settings was chosen and its values are on the way */
-  private settingsFormAsked = false;
 
   /** the options panel of an option group (ui/OptionsPanel.tsx): open at once, its values asked for (`options.get`) */
   openOptions(group: string): void {
@@ -512,11 +502,57 @@ export class Session {
   private pageTimer: ReturnType<typeof setTimeout> | null = null;
 
   private adoptPage(info: SettingsInfo): void {
-    this.page = {...info.page};
-    this.pageSent = {...info.page};
-    this.store.dispatch({type: 'theme', theme: info.page.theme});
-    this.store.dispatch({type: 'panels', panels: {dockHidden: info.page.dock_hidden, dockWidth: info.page.dock_width}});
+    this.showPage(info.page);
     this.store.dispatch({type: 'folds', folds: info.page.folds});
+  }
+
+  /** the page's theme and panels as the core says they are (hello's, or the Settings window's effective values after a change) */
+  private showPage(page: PageSettings): void {
+    this.page = {...page};
+    this.pageSent = {...page};
+    this.store.dispatch({type: 'theme', theme: page.theme});
+    this.store.dispatch({type: 'panels', panels: {dockHidden: page.dock_hidden, dockWidth: page.dock_width}});
+  }
+
+  /** The Settings window (W792, store/settings.ts): opens on `group`, with both files' values asked for. A change is `settings.set` (or
+      `settings.reset`, the ↺) for the file shown, and the values are asked for again, so what the window shows is the core's. */
+  openSettings(group: string): void {
+    this.store.dispatch({type: 'keymapUi', action: {type: 'open'}});
+    this.store.dispatch({type: 'settingsUi', action: {type: 'open', group}});
+    this.fetchSettings();
+  }
+
+  closeSettings(): void {
+    this.store.dispatch({type: 'keymapUi', action: {type: 'close'}});
+    this.store.dispatch({type: 'settingsUi', action: {type: 'close'}});
+  }
+
+  private fetchSettings(): void {
+    for (const scope of ['user', 'folder'] as const) {
+      void this.callDone({cmd: 'settings.get', scope, id: `settings-${this.callSerial++}`}).then(ev => {
+        if (ev?.status !== 'ok' || !ev.result) return;
+        this.store.dispatch({type: 'settingsUi', action: {type: 'values', values: ev.result as unknown as SettingsValues}});
+        const r = ev.result;
+        if (scope === 'folder' && this.page)
+          this.showPage({...this.page, theme: r.theme as PageSettings['theme'], dock_hidden: r.dock_hidden as boolean, dock_width: r.dock_width as number | null});
+      });
+    }
+  }
+
+  /** the file the window shows, in the system's own program for it (the core makes the path: the page names only the scope) */
+  openSettingsFile(): void {
+    void this.callDone({cmd: 'settings.open_file', scope: this.store.getState().settings.scope, id: `settings-${this.callSerial++}`}).then(ev => {
+      if (ev?.status === 'error') this.store.dispatch({type: 'settingsUi', action: {type: 'error', text: ev.error ?? 'the file could not be opened'}});
+    });
+  }
+
+  /** a value of the file the window shows (`json` is its JSON text), or, with null, the key taken out of that file */
+  async changeSetting(group: string, key: string, json: string | null): Promise<void> {
+    const scope = this.store.getState().settings.scope;
+    const id = `settings-${this.callSerial++}`;
+    const ev = await this.callDone(json === null ? {cmd: 'settings.reset', group, key, scope, id} : {cmd: 'settings.set', group, key, value: json, scope, id});
+    this.store.dispatch({type: 'settingsUi', action: {type: 'error', text: ev?.status === 'error' ? ev.error ?? 'the change was refused' : ''}});
+    this.fetchSettings();
   }
 
   /** Saves the changed page settings (settings.set, one command per value; the core checks and writes each whole). A dock
@@ -1522,7 +1558,7 @@ export class Session {
     try {
       if (this.exportDesktop) {
         for (const file of targets) {
-          const ev = await this.exportCall({cmd: 'session.file_exists', file, id: `exists-${this.exportSerial++}`});
+          const ev = await this.callDone({cmd: 'session.file_exists', file, id: `exists-${this.callSerial++}`});
           if (ev?.status !== 'ok') throw new Error(ev?.error ?? 'the check stopped');
           existing.push(ev.result?.exists === true);
         }
@@ -1570,7 +1606,7 @@ export class Session {
         const name = item.file;
         this.pendingSave = {name, handle: {name, createWritable: async () => (await folder.getFileHandle(name, {create: true})).createWritable()}, ahead: this.donesOwed};
       }
-      const ev = await this.exportCall(exportCommand(item, target, `export-${this.exportSerial++}`, replace));
+      const ev = await this.callDone(exportCommand(item, target, `export-${this.callSerial++}`, replace));
       if (ev?.status === 'ok') dispatch({type: 'outcome', outcome: {file: item.file, status: 'written', text: target}});
       else dispatch({type: 'outcome', outcome: {file: item.file, status: 'failed', text: ev?.error ?? (ev ? 'stopped' : 'the command was not sent')}});
     }
@@ -1584,7 +1620,7 @@ export class Session {
   }
 
   /** sends a command and resolves with its done (matched by its id), or null when it was not sent */
-  private exportCall(cmd: Command): Promise<DoneEvent | null> {
+  private callDone(cmd: Command): Promise<DoneEvent | null> {
     return new Promise(resolve => {
       const id = String(cmd.id);
       this.exportWaits.set(id, resolve);

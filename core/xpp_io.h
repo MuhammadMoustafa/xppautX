@@ -196,6 +196,8 @@ Result<std::optional<std::string>> read_config_file(std::string_view where, std:
 Result<> write_config_file(std::string_view where, std::string_view name, std::string_view bytes);
 /* the same read for the file `name` in a model folder's `.xppautx` (W791): inside the model folder, never through a link below it */
 Result<std::optional<std::string>> read_model_state_file(std::string_view where, std::string_view model_folder, std::string_view name, std::size_t limit);
+/* and the write of one: `.xppautx` made first when it is not there (files::model_state_dir: never through a link), then the temp-then-rename */
+Result<> write_model_state_file(std::string_view where, std::string_view model_folder, std::string_view name, std::string_view bytes);
 
 /* ---- A file of ours, loaded: all or nothing, strict (W125) ------------
    Loading one of xppautX's own files is one operation, the same for each

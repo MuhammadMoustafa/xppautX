@@ -126,10 +126,4 @@ void end_process()
     _exit(0);
 }
 
-bool open_in_browser(const std::string &url)
-{
-    constexpr INT_PTR SHELL_ERROR_MAX = 32; /* ShellExecute returns an error code up to 32, success above it */
-    return reinterpret_cast<INT_PTR>(ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > SHELL_ERROR_MAX;
-}
-
 } // namespace xpp::http

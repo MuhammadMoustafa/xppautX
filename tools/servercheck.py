@@ -3809,7 +3809,7 @@ check('W773: the two commands each of a graph and a diagram picture became one, 
 # few that are the same words for another thing are named here, each with its reason), and no menu path the manual
 # names (`File > Sets`, `File/Save session`) is one that no row has. A name on the page comes from the row.
 LABEL_WORDS_OF_OTHER_THINGS = {
-    ('ui/KeymapEditor.tsx', 'Replace'): "the answer that replaces a key's other command",
+    ('ui/KeymapPane.tsx', 'Replace'): "the answer that replaces a key's other command",
     ('ui/SliderDialog.tsx', 'Step'): "a slider's step size",
     ('ui/ExportSeveral.tsx', 'Replace'): "the replace question's answer, which replaces each file that exists (no command of its own)",
 }
@@ -11728,6 +11728,103 @@ def check_model_folder():
 
 
 check_model_folder()
+
+def check_settings_window():
+    """W792: the Settings window's commands. settings.set takes a scope (the user's settings.json, or the model folder's .xppautx/settings.json), in
+    place and keeping the file's comments; the update check is the user's and is refused in the folder's; settings.reset takes a key out of either
+    file, keeping the comments; settings.get gives each value with where it comes from (user or folder; a key in neither is the default), the
+    user's file alone with scope user; hello carries the groups and the rows the window lists."""
+    config = os.path.join(CONFIG_ROOT, 'settings-window', 'xppautX')
+    os.makedirs(config, exist_ok=True)
+    user = os.path.join(config, 'settings.json')
+    with open(user, 'w', newline='\n') as f:
+        f.write('{\n  // the user\'s\n  "version": 4,\n  "general": {"log_level": "info"}, // info\n  "page": {"theme": "light"}\n}\n')
+    # the system's opener is a stand-in that records its argument: no program is opened by a check
+    fake = tempfile.mkdtemp(prefix='xppopener')
+    opened_log = os.path.join(fake, 'opened.txt')
+    opener = os.path.join(fake, 'xdg-open' if sys.platform != 'darwin' else 'open')
+    with open(opener, 'w', newline='\n') as f:
+        f.write('#!/bin/sh\nprintf "%%s\\n" "$1" > "%s"\n' % opened_log)
+    os.chmod(opener, 0o755)
+    p, r, snd, col, _ = launch_server(extra_env={'XPP_CONFIG_DIR': config, 'PATH': fake + os.pathsep + os.environ['PATH']})
+    try:
+        evs, _ = col(is_done)
+        hello = next(e for e in evs if e.get('ev') == 'hello')
+        rows = hello['settings']['rows']
+        check('W792: hello carries the groups of settings.json in its order and the rows the window lists',
+              hello['settings']['groups'] == ['general', 'colors', 'keymap', 'page', 'updates']
+              and [x['key'] for x in rows if x['group'] == 'general'] == ['threads', 'log_level', 'log_to_file']
+              and len([x for x in rows if x['group'] == 'colors']) == 8 and not next(x for x in rows if x['key'] == 'check_for_updates')['in_folder']
+              and next(x for x in rows if x['key'] == 'log_level')['choices'] == ['error', 'warn', 'info', 'debug'], str(rows)[:300])
+
+        def call(**command):
+            snd(**command)
+            return col(is_done)[1]
+
+        folder_file = os.path.join(r, '.xppautx', 'settings.json')
+        done = call(cmd='settings.set', group='general', key='threads', value='1', scope='folder')
+        check('W792: settings.set with scope folder makes the model folder\'s .xppautx/settings.json', done.get('status') == 'ok' and os.path.exists(folder_file)
+              and json.load(open(folder_file))['general'] == {'threads': 1} and os.path.exists(os.path.join(r, '.xppautx', '.gitignore')), str(done))
+        check('W792: ... and leaves the user\'s file as it was', open(user).read().count('threads') == 0 and '// info' in open(user).read())
+        done = call(cmd='settings.get')
+        res = done['result']
+        check('W792: settings.get says where each key is set: the folder\'s, the user\'s, a key in neither is the default',
+              res['sources'] == {'general.log_level': 'user', 'page.theme': 'user', 'general.threads': 'folder'} and res['scope'] == 'folder' and res['threads'] == 1
+              and res['log_level'] == 'info' and res['folder'] == r and res['file'] == folder_file and res['theme'] == 'light' and res['threads_max'] >= 1, str(res))
+        res = call(cmd='settings.get', scope='user')['result']
+        check('W792: settings.get with scope user is the user\'s file alone, its file named',
+              res['sources'] == {'general.log_level': 'user', 'page.theme': 'user'} and res['automatic'] is True and res['scope'] == 'user' and res['file'] == user, str(res))
+        with open(folder_file, 'w', newline='\n') as f:
+            f.write('{\n  // this model\'s\n  "version": 4,\n  "general": {\n    "threads": 1, // one\n    "log_level": "debug"\n  }\n}\n')
+        done = call(cmd='settings.set', group='page', key='theme', value='"dark"', scope='folder')
+        text = open(folder_file).read()
+        check('W792: a folder write is in place: the comments and the other keys stay, the group is added',
+              done.get('status') == 'ok' and "// this model's" in text and '// one' in text and '"log_level": "debug"' in text and json.loads(re.sub(r'//.*', '', text))['page'] == {'theme': 'dark'}, text)
+        before = open(folder_file).read()
+        done = call(cmd='settings.set', group='updates', key='check_for_updates', value='false', scope='folder')
+        check('W792: the update check is the user\'s: refused in the folder\'s file, nothing written', done.get('status') == 'error' and 'update check' in done['error']
+              and open(folder_file).read() == before, str(done))
+        done = call(cmd='settings.set', group='general', key='threads', value='true', scope='folder')
+        check('W792: a value the file would not take is refused in the folder\'s file too', done.get('status') == 'error' and open(folder_file).read() == before, str(done))
+        check('W792: a scope is one of its names', call(cmd='settings.set', group='general', key='threads', value='1', scope='everywhere').get('status') == 'error')
+        done = call(cmd='settings.reset', group='general', key='log_level', scope='folder')
+        text = open(folder_file).read()
+        check('W792: settings.reset takes the key out of the folder\'s file: its comments and the other keys stay',
+              done.get('status') == 'ok' and 'log_level' not in text and '// one' in text and '"threads": 1' in text and "// this model's" in text, text)
+        res = call(cmd='settings.get')['result']
+        check('W792: ... and the setting is then the user\'s', res['log_level'] == 'info' and res['sources']['general.log_level'] == 'user', str(res))
+        done = call(cmd='settings.reset', group='general', key='log_level')
+        text = open(user).read()
+        check('W792: settings.reset in the user\'s file keeps its comments', done.get('status') == 'ok' and 'log_level' not in text and '// the user\'s' in text and '// info' in text
+              and '"theme": "light"' in text, text)
+        kept = open(folder_file).read()
+        check('W792: a key that is not there is nothing to do: no error, no change',
+              call(cmd='settings.reset', group='general', key='log_to_file', scope='folder').get('status') == 'ok' and open(folder_file).read() == kept)
+        shutil.rmtree(os.path.join(r, '.xppautx'))
+        done = call(cmd='settings.reset', group='general', key='threads', scope='folder')
+        check('W792: removing a key from a folder file that is not there makes no file', done.get('status') == 'ok' and not os.path.exists(folder_file), str(done))
+        done = call(cmd='settings.open_file', scope='folder')
+        check('W792: settings.open_file refuses a file that is not there yet, and starts no program', done.get('status') == 'error' and 'No file yet' in done['error']
+              and not os.path.exists(opened_log), str(done))
+        check('W792: settings.get says whether the file shown is there', call(cmd='settings.get', scope='folder')['result']['file_exists'] is False
+              and call(cmd='settings.get', scope='user')['result']['file_exists'] is True)
+        done = call(cmd='settings.open_file')
+        check('W792: settings.open_file opens the user\'s settings.json, the path its own, in the system\'s opener',
+              done.get('status') == 'ok' and done['result']['file'] == user
+              and open(opened_log).read().strip() == user, str(done))
+        check('W792: a path from the page is no argument', call(cmd='settings.open_file', file='/etc/passwd').get('status') == 'error')
+        done = call(cmd='settings.set', group='general', key='threads', value='2', scope='folder')
+        res = call(cmd='settings.get')['result']
+        check('W792: the thread count a change gives is the session\'s at once', res['threads'] == 2 and res['automatic'] is False, str(res))
+        call(cmd='settings.reset', group='general', key='threads', scope='folder')
+        res = call(cmd='settings.get')['result']
+        check('W792: ... and a reset gives the user\'s back', res['automatic'] is True, str(res))
+    finally:
+        stop_server(p, r, snd)
+        shutil.rmtree(fake, ignore_errors=True)
+
+
+check_settings_window()
 
 def recent_text(models):
     """W287: a state.json holding these recent models (a quoted string is JSON's)"""

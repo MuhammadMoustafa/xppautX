@@ -10,6 +10,14 @@
 
 namespace xpp::process {
 
+Result<> open_with_system(std::string_view target)
+{
+    constexpr INT_PTR SHELL_ERROR_MAX = 32; /* ShellExecute returns an error code up to 32, success above it */
+    const std::string text(target);
+    if (reinterpret_cast<INT_PTR>(ShellExecuteA(nullptr, "open", text.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > SHELL_ERROR_MAX) return {};
+    return fail(std::string(WHERE), "the system could not open it", Place{text});
+}
+
 Result<> start_program(std::span<const std::string> argv, Wait wait_for, Quoting quoting)
 {
     std::string line;

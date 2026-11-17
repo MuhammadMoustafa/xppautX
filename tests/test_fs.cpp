@@ -70,6 +70,11 @@ public:
         const auto it = files.find(xpp::files::join(xpp::files::join(model_folder, xpp::files::MODEL_STATE_FOLDER), name));
         return it == files.end() ? std::optional<std::string>() : std::optional<std::string>(it->second);
     }
+    xpp::Result<> write_model_state(std::string_view, std::string_view model_folder, std::string_view name, std::string_view bytes) override
+    {
+        files[xpp::files::join(xpp::files::join(model_folder, xpp::files::MODEL_STATE_FOLDER), name)] = std::string(bytes);
+        return {};
+    }
     void remove_temp_dir(std::string_view) override {}
     std::string config_path(std::string_view name) override { return "config/" + std::string(name); }
     xpp::Result<std::optional<std::string>> read_config(std::string_view, std::string_view name, std::size_t) override

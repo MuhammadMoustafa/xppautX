@@ -1095,7 +1095,7 @@ void start_serving(int got, bool show, bool open)
     pthread_create(&http_thread, nullptr, http_main, nullptr);
     pthread_create(&watchdog_thread, nullptr, watchdog_main, nullptr);
     atexit(at_exit);
-    if (open && !open_in_browser(srv.page_url)) xpp::log(XPP_LOG_WARN, "open {} in a browser\n", srv.page_url);
+    if (open && !xpp::process::open_with_system(srv.page_url).has_value()) xpp::log(XPP_LOG_WARN, "open {} in a browser\n", srv.page_url);
 }
 
 } // namespace
@@ -1116,7 +1116,7 @@ xpp::Result<> open_release_page(std::string_view url)
     for (char c : tail)
         if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
               || c == '.' || c == '-' || c == '_')) return refused();
-    if (!open_in_browser(std::string(url)))
+    if (!xpp::process::open_with_system(url).has_value())
         return xpp::fail("update check", "the system browser could not open", xpp::Place{"Check for updates", 1});
     return {};
 }
@@ -1126,7 +1126,7 @@ xpp::Result<> open_about_link(std::string_view url)
     /* exactly one of the About links' targets, never a URL of the caller's making */
     if (!srv.is_about_link || !srv.is_about_link(url))
         return xpp::fail("About", "link refused", xpp::Place{"About", 1});
-    if (!open_in_browser(std::string(url)))
+    if (!xpp::process::open_with_system(url).has_value())
         return xpp::fail("About", "the system browser could not open", xpp::Place{"About", 1});
     return {};
 }
@@ -1165,7 +1165,7 @@ void show(bool open)
     print_address(srv.page_url.c_str());
     if (open) {
         try {
-            if (!open_in_browser(srv.page_url)) xpp::log(XPP_LOG_WARN, "open {} in a browser\n", srv.page_url);
+            if (!xpp::process::open_with_system(srv.page_url).has_value()) xpp::log(XPP_LOG_WARN, "open {} in a browser\n", srv.page_url);
         } catch (...) {
             xpp::out_of_memory_now("in the HTTP server");
         }

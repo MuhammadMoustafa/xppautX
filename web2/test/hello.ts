@@ -112,7 +112,7 @@ export const HELLO: HelloEvent = {
     restart: {question: 'Restart?', recording: 'Restart and stop recording?'}, install: {question: 'Install?', recording: 'Install and stop recording?'}},
   model_names: [], lists: [], options: [], userbuttons: [], defaults: {pars: [], ics: []},
   /* no settings.json: the page defaults, and every command with the table's keys (core/xpp_keymap.cpp effective_json) */
-  settings: {ok: true, path: '', page: {theme: 'system', dock_hidden: false, dock_width: null, folds: []}},
+  settings: {ok: true, path: '', page: {theme: 'system', dock_hidden: false, dock_width: null, folds: []}, groups: ['general', 'colors', 'keymap', 'page', 'updates'], rows: []},
   keymap: {
     ok: true, path: '', pinned: [], reserved: RESERVED, limits: {keys: 8, key_bytes: 64},
     commands: [], values: [],

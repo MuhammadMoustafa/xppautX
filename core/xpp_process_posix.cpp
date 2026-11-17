@@ -2,6 +2,7 @@
 #include "xpp_process_internal.h"
 
 #include <cerrno>
+#include <cstdlib>
 #include <span>
 #include <string>
 #include <vector>
@@ -15,6 +16,25 @@
 extern char **environ; /* posix_spawnp passes the environment on */
 
 namespace xpp::process {
+
+namespace {
+/* the program that opens an address or a file on Linux and macOS */
+#ifdef __APPLE__
+constexpr const char *OPENER = "open";
+#else
+constexpr const char *OPENER = "xdg-open";
+#endif
+} // namespace
+
+Result<> open_with_system(std::string_view target)
+{
+    std::vector<std::string> argv{OPENER};
+    /* WSL: rundll32.exe takes the URL as one command-line argument and starts the Windows default browser
+       with no command interpreter (cmd.exe /c start would parse & ^ % in it); it exits 0 when it started */
+    if (getenv("WSL_DISTRO_NAME")) argv = {"rundll32.exe", "url.dll,FileProtocolHandler"};
+    argv.emplace_back(target);
+    return spawn(argv, Wait::until_it_ends);
+}
 
 Result<> start_program(std::span<const std::string> argv, Wait wait, Quoting)
 {

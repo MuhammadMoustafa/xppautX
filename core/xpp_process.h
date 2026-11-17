@@ -29,4 +29,9 @@ std::string quote_argument(std::string_view arg, Quoting quoting = Quoting::runt
 /* an error says what could not be started or what status it ended with; place is the file or command the user was working on */
 Result<> spawn(std::span<const std::string> argv, Wait wait, Quoting quoting = Quoting::runtime);
 
+/* the system's own handler on `target` (a URL, or the path of a file: the browser for a page, the editor for a .json), without a shell: the
+   target is one argument of the opener, whatever characters it holds (xdg-open or open; ShellExecute; on WSL rundll32). The caller checks what
+   the target may be. Ok when the opener started. */
+Result<> open_with_system(std::string_view target);
+
 } // namespace xpp::process

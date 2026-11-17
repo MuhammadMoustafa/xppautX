@@ -51,7 +51,7 @@ other command can be bound to a key in the editor below. Text fields retain
 their own Undo. F6 and Shift+F6 cycle visible work panes. Reserved browser
 and system keys, including F5, Ctrl+W, Ctrl+Q, Alt+F4, F11 and F12, stay theirs.
 
-**Help > Keyboard shortcuts** lists all commands and their effective keys.
+**Help > Keyboard shortcuts** opens the Settings window at its Keymap group (File > Settings, [Settings](04-using-the-interface.md)): the pinned commands as one list (move up or down, unpin), then all commands and their effective keys.
 Click a key to record a replacement; Escape cancels recording and Backspace
 clears it. A command with a choice has a row for the command and one for each of its items (Model as > Python), and a key or a pin on an item runs it as a click on the menu item does. Reserved keys are refused; a key another command has offers Replace
 or Cancel. **Reset to defaults** clears custom bindings and keeps pins. **Reset

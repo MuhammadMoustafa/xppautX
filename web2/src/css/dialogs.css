@@ -218,19 +218,63 @@
 [data-trace-dialog] form > label { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-block: .8rem; }
 [data-trace-dialog] input[type=color] { width: 4rem; height: 2.4rem; padding: .2rem; }
 
-/* ---- the keymap editor (ui/KeymapEditor.tsx) ---- */
-.keymap-dialog { width: min(60rem, 100%); }
+/* ---- the Settings window (ui/SettingsWindow.tsx, W792) and its Keymap group (ui/KeymapPane.tsx) ----
+   the window has a size of its own: the groups' list at the side, one pane that scrolls; below 48 rem a select takes the list's place */
+.settings-dialog { width: min(56rem, 100%); height: min(40rem, 100%); grid-template-columns: minmax(0, 1fr); }
+.settings-dialog .dialog-body { display: flex; flex-direction: column; gap: var(--space-2); overflow: hidden; min-width: 0; }
+.settings-dialog .dialog-titles { flex: 0 0 auto; }
+.dialog-head .seg { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; margin-left: auto; }
+.dialog-head .seg-item { display: inline-block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-groupsel { display: none; flex: 1 1 10rem; }
+.settings-main { display: flex; flex: 1 1 auto; min-width: 0; min-height: 0; gap: var(--space-3); }
+.keymap-pane { min-width: 0; }
+.settings-nav { display: flex; flex-direction: column; flex: none; width: 10rem; gap: var(--space-1); padding-right: var(--space-2); border-right: 1px solid var(--border); }
+.settings-nav button { display: block; width: 100%; text-align: left; border: 0; background: transparent; }
+.settings-pane:focus-visible { outline: none; }
+.settings-nav button[aria-current="page"] { background: color-mix(in srgb, var(--accent) 14%, transparent); font-weight: 650; }
+.settings-pane { flex: 1 1 auto; min-width: 0; overflow: auto; }
+.settings-heading { margin: var(--space-3) 0 var(--space-1); font-size: var(--text-xs); letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg-muted); }
+.settings-note { color: var(--fg-muted); }
+.settings-saved { margin-right: 0; font-size: var(--text-sm); color: var(--fg-muted); }
+.settings-file { flex: 1 1 8rem; min-width: 0; overflow-wrap: anywhere; font-family: var(--mono); font-size: var(--text-sm); color: var(--fg-muted); }
+.setting-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--space-4); align-items: center; padding: var(--space-3) 0; border-top: 1px solid var(--border); }
+.setting-label { grid-column: 1; font-weight: 500; }
+.setting-help, .setting-source { grid-column: 1; color: var(--fg-muted); font-size: var(--text-sm); }
+.setting-control { grid-column: 2; grid-row: 1 / span 3; display: flex; align-items: center; gap: var(--space-2); }
+.setting-reset { border: 0; background: transparent; color: var(--fg-muted); min-width: var(--target); min-height: var(--target); }
+.setting-color { border: 0; margin: 0; padding: 0; min-width: 0; }
+.setting-switch { width: 2.5rem; height: 1.5rem; accent-color: var(--accent); }
 .keymap-live { min-height: 1.5em; margin: var(--space-2) 0; font-size: var(--text-sm); color: var(--fg-muted); }
 .keymap-conflict { margin: var(--space-2) 0; padding: var(--space-2); background: var(--warn-bg); border-radius: var(--radius); }
-/* the list takes the body's remaining height (a phone's full-screen sheet, a dialog that fills the window): the body is a column, and the list
-   scrolls in what the tools and notes above it leave (W785, #865) */
-.keymap-dialog .dialog-body { display: flex; flex-direction: column; }
-.keymap-dialog .dialog-body > .keymap-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.pin-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; }
+.pin-list li { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) 0; border-top: 1px solid var(--border); }
+.pin-list .pin-none { color: var(--fg-muted); }
+.keymap-scroll { overflow-x: auto; }
 .keymap-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .keymap-table th, .keymap-table td { text-align: left; padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); vertical-align: middle; }
 .keymap-key { display: inline-flex; align-items: center; }
 .keymap-actions { white-space: nowrap; }
 .keymap-actions button, .keymap-keys button { font-size: var(--text-xs); }
+@media (max-width: 47.99rem) {
+  .settings-dialog { width: 100%; height: 100dvh; }
+  .settings-nav { display: none; }
+  .settings-groupsel { display: block; }
+  .settings-main { display: block; overflow: auto; }
+  .settings-pane { overflow: visible; }
+  .scope-name { display: none; }
+}
+
+/* the Keymap list is stacked where the pane is narrower than its table: the command on a line, its keys and Pin under it */
+@media (max-width: 79.99rem) {
+  .keymap-table .keymap-category, .keymap-table .keymap-source { display: none; }
+  .keymap-table, .keymap-table tbody { display: block; }
+  .keymap-table thead { display: none; }
+  .keymap-table tr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
+  .keymap-table th { flex: 1 0 100%; padding: 0; border: 0; }
+  .keymap-table td { padding: 0; border: 0; }
+  .keymap-keys { flex: 1 1 auto; }
+  .keymap-actions { white-space: normal; }
+}
 
 .command-palette{ width: min(50rem, 95vw); }
 

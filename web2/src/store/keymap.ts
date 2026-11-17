@@ -22,9 +22,8 @@ export interface Conflict {
   other: string;
 }
 
-/** the editor's state, in the store so a check can read it (window.__xpp.state()) */
+/** the keymap pane's state (the Settings window's Keymap group), in the store so a check can read it (window.__xpp.state()); `open` and `close` clear it */
 export interface KeymapEditor {
-  open: boolean;
   query: string;
   recording: Recording | null;
   conflict: Conflict | null;
@@ -40,7 +39,7 @@ export interface KeymapState {
   editor: KeymapEditor;
 }
 
-const closedEditor: KeymapEditor = {open: false, query: '', recording: null, conflict: null, refusal: '', confirmingReset: false};
+const closedEditor: KeymapEditor = {query: '', recording: null, conflict: null, refusal: '', confirmingReset: false};
 export const initialKeymap: KeymapState = {info: null, editor: closedEditor};
 
 export type KeymapAction =
@@ -61,7 +60,6 @@ export function reduceKeymap(state: KeymapState, action: KeymapAction): KeymapSt
       return action.info === state.info ? state
         : {info: action.info, editor: {...editor, recording: null, conflict: null, refusal: '', confirmingReset: false}};
     case 'open':
-      return {...state, editor: {...closedEditor, open: true}};
     case 'close':
       return {...state, editor: closedEditor};
     case 'query':

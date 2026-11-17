@@ -24,7 +24,9 @@
 
    A model's folder may hold `.xppautx/settings.json` (W791), the same syntax and the same reader: its keys are put on top of
    the user's one by one, every key but updates.check_for_updates (what a folder sends must not turn the update check on or
-   off). The settings a model runs with are effective_settings. settings.set and the commands built on it write the user's file only.
+   off). The settings a model runs with are effective_settings. A change is made to one of the two files, named by its Target
+   (W792): the user's (the default) or the model folder's, in place in either, and a key can be removed from either (its value is
+   then the one below it: the user's, the default).
 
    A group or key is added by one row of the readers below and one of the
    writer's; the tests show both. */
@@ -32,6 +34,7 @@
 #include <cstddef>
 #include <functional>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -138,9 +141,49 @@ Read read_all(FileSystem &fs);
 /* one of the two files as a load reads it: the defaults for a missing file, the error when it is bad */
 Result<Settings> load_settings(FileSystem &fs);
 Result<State> load_state(FileSystem &fs);
-/* settings.json as the page keeps it: hello's `settings` object, {"ok", "path", "page": {...}} and, when the file is bad, its error
-   fields and the defaults of the page */
+/* settings.json as the page keeps it: hello's `settings` object, {"ok", "path", "page": {...}, "groups", "rows"} (the Settings window's
+   groups and the rows of each, `setting_rows()`) and, when the file is bad, its error fields and the defaults of the page */
 std::string hello_json(FileSystem &fs, const Result<Settings> &loaded);
+
+/* which of the two files a change is made to: the user's settings.json or the one in the model folder's `.xppautx` */
+enum class Scope { user, folder };
+inline constexpr std::array<std::string_view, 2> scope_names = {"user", "folder"};
+struct Target {
+    Scope scope = Scope::user;
+    /* the model's folder, for Scope::folder (the core's, never a path the page sends) */
+    std::string model_folder;
+};
+
+/* the groups of settings.json in the order the file and the Settings window give them */
+inline constexpr std::array<std::string_view, 5> GROUPS = {"general", "colors", "keymap", "page", "updates"};
+
+/* what kind of control a setting has: one of `choices`, a yes or no, a color, a thread count or "automatic", a width or null */
+enum class Kind { choice, flag, color, threads, width };
+inline constexpr std::array<std::string_view, 5> kind_names = {"choice", "flag", "color", "threads", "width"};
+/* a setting the Settings window lists (the keymap group has its own pane; the page's folds are the page's own bookkeeping) */
+struct Row {
+    std::string_view group;
+    std::string_view key;
+    Kind kind;
+    std::span<const std::string_view> choices;
+    std::string_view help;
+    /* false for what a model folder's file may not hold (updates.check_for_updates) */
+    bool in_folder;
+};
+std::vector<Row> setting_rows();
+
+/* where each key stands: the keys ("group.key") the user's file holds and the model folder's file holds; a file that is missing
+   or bad holds none (its error is shown where the file is read) */
+struct KeysSet {
+    std::vector<std::string> user;
+    std::vector<std::string> folder;
+};
+KeysSet keys_set(FileSystem &fs, std::string_view model_folder);
+/* the file a target names as it is on disk: its path when it is there (a plain file inside its folder, never a link: the reader's rule), nothing
+   when it is not, the error when it cannot be read or is a link */
+Result<std::optional<std::string>> existing_file(FileSystem &fs, const Target &target);
+/* the path of the file a target names ("" when there is none: no config folder, no model folder) */
+std::string target_path(FileSystem &fs, const Target &target);
 
 /* one value of settings.json: its group and key, and the value as JSON text (a string, a number, true or false, null, an array of
    strings) */
@@ -151,8 +194,12 @@ struct Change {
 };
 /* applies the changes to settings.json in one step: each is checked (the file's kind, the key's and value's rules) and the whole
    file is checked again before it is written; a file that is bad is the error and is not overwritten, a change that is wrong is the
-   error and nothing is written. A missing file is made. */
-Result<> set_settings(FileSystem &fs, const std::vector<Change> &changes);
+   error and nothing is written. A missing file is made (a folder's file in `.xppautx`, made when it is not there). A change to a model folder's file
+   is checked by the folder's reader: updates.check_for_updates is an error there. */
+Result<> set_settings(FileSystem &fs, const std::vector<Change> &changes, const Target &target = {});
+/* removes the key from the file (the comments and every other key stay; a file or key that is not there is nothing to do, and no file is
+   made): the setting is then the one below it. All or nothing, a bad file is the error and is left as it is. */
+Result<> reset_setting(FileSystem &fs, const Target &target, std::string_view group, std::string_view key);
 /* the keymap as one whole change of settings.json's `keymap` group, checked as the keymap the user sent (its errors name it) */
 Result<> set_keymap(FileSystem &fs, const keymap::Keymap &map);
 /* the keymap alone, checked the same way without writing (for a keymap a page sends) */

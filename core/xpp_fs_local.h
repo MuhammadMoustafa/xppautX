@@ -27,6 +27,7 @@ public:
     Result<std::string> make_temp_dir(std::string_view model_folder) override;
     Result<std::optional<std::string>> read_model_state(std::string_view where, std::string_view model_folder, std::string_view name,
                                                         std::size_t limit) override;
+    Result<> write_model_state(std::string_view where, std::string_view model_folder, std::string_view name, std::string_view bytes) override;
     void remove_temp_dir(std::string_view dir) override;
     std::string config_path(std::string_view name) override;
     Result<std::optional<std::string>> read_config(std::string_view where, std::string_view name, std::size_t limit) override;

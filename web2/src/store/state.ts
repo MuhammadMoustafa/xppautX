@@ -28,6 +28,7 @@ import {appendLog, emptyLog, lastEntry, type Log, type LogEntry} from './log';
 import {initialText, reduceText, type TextAction, type TextState} from './text';
 import {initialHelp, reduceHelp, type HelpAction, type HelpState} from './help';
 import {initialPlayer, reducePlayer, type PlayerAction, type PlayerState} from './player';
+import {initialSettings, reduceSettings, type SettingsAction, type SettingsState} from './settings';
 import {initialKeymap, reduceKeymap, type KeymapAction, type KeymapState} from './keymap';
 import {initialExportSeveral, reduceExportSeveral, type ExportSeveralAction, type ExportSeveralState} from './exportSeveral';
 import type {SteadyInput} from './steady';
@@ -203,6 +204,8 @@ export interface AppState {
   player: PlayerState;
   /** the user's keymap: effective keys, pinned commands and preset (W211), see store/keymap.ts */
   keymap: KeymapState;
+  /** the Settings window (W792), see store/settings.ts */
+  settings: SettingsState;
   /** the File > Export > Several window (W774) */
   exportSeveral: ExportSeveralState;
 }
@@ -238,6 +241,7 @@ export type Action =
   | {type: 'steadyEdit'; edit: Partial<SteadyInput>}
   /** the keymap editor (W212) */
   | {type: 'keymapUi'; action: KeymapAction}
+  | {type: 'settingsUi'; action: SettingsAction}
   /** the File > Export > Several window (W774) */
   | {type: 'exportSeveral'; action: ExportSeveralAction}
   /** the page's own line in the status bar (a key that cannot act now says why) */
@@ -317,6 +321,7 @@ export const initialState: AppState = {
   help: initialHelp,
   player: initialPlayer,
   keymap: initialKeymap,
+  settings: initialSettings,
   exportSeveral: initialExportSeveral,
 };
 
@@ -727,6 +732,10 @@ function reduceAction(state: AppState, action: Action): AppState {
     case 'exportSeveral': {
       const exportSeveral = reduceExportSeveral(state.exportSeveral, action.action);
       return exportSeveral === state.exportSeveral ? state : {...state, exportSeveral};
+    }
+    case 'settingsUi': {
+      const settings = reduceSettings(state.settings, action.action);
+      return {...state, settings};
     }
     case 'keymapUi': {
       const keymap = reduceKeymap(state.keymap, action.action);

@@ -435,6 +435,25 @@ void read_approvals(const Doc &d, const char *arr, std::vector<OutsideApproval> 
     }
 }
 
+/* ---- where a key is set ---------------------------------------------------- */
+
+/* "group.key" of every member of every group of the file text, nothing for a text that is not a settings file */
+std::vector<std::string> keys_in(const std::optional<std::string> &text, const std::string &file)
+{
+    std::vector<std::string> keys;
+    if (!text) return keys;
+    try {
+        const Doc d = prepare(*text, file);
+        each_member(d, json::skip_ws(d.start()), [&](const std::string &group, const char *v) {
+            if (*v != '{') return;
+            each_member(d, v, [&](const std::string &key, const char *) { keys.push_back(group + "." + key); });
+        });
+    } catch (ReadFailed &) {
+        keys.clear();
+    }
+    return keys;
+}
+
 /* ---- writing ---------------------------------------------------------------- */
 
 void append_strings(std::string &out, const std::vector<std::string> &strings)
@@ -464,9 +483,9 @@ std::string state_text(const State &s)
 }
 
 /* the value of one change as a whole file of its own, checked as a file of ours (its errors name `file`) */
-Result<> check_text(const std::string &text, const std::string &file)
+Result<> check_text(const std::string &text, const std::string &file, bool folder = false)
 {
-    const Result<Settings> checked = parse_settings(text, file);
+    const Result<Settings> checked = folder ? parse_folder_settings(text, file, Settings{}) : parse_settings(text, file);
     if (!checked) return std::unexpected(checked.error());
     return {};
 }
@@ -482,9 +501,9 @@ std::string one_change_text(const Change &c)
 }
 
 /* the known group and key a change names, else the error: settings.set and the keymap refuse what the file would not hold */
-Result<> check_change(const Change &c)
+Result<> check_change(const Change &c, bool folder)
 {
-    return check_text(one_change_text(c), std::string(SETTING_SENT));
+    return check_text(one_change_text(c), std::string(SETTING_SENT), folder);
 }
 
 /* the change applied to `text` in place: the value of its key replaced where it is, else the member added before the closing brace of
@@ -520,6 +539,53 @@ void apply_change(std::string &text, const Change &c)
         add += "\n  " + name + ": {\n    " + member + "\n  }";
     }
     text.insert(static_cast<std::size_t>(last - base) + 1, add);
+}
+
+/* the member `key` of `group` taken out of `text` in place (nothing when it is not there): its comma goes with it, the line when it held
+   nothing else, every comment and other member stays. true when something was removed. */
+bool remove_member(std::string &text, std::string_view group, std::string_view key)
+{
+    std::string shadow = text;
+    std::size_t open = 0;
+    json::blank_comments(shadow, open); /* the text was checked, so every comment closes */
+    const char *base = shadow.c_str();
+    const std::string group_name(group), key_name(key);
+    const char *obj = json::js_find(json::skip_ws(base), group_name.c_str());
+    if (!obj) return false;
+    const char *value = json::js_find(obj, key_name.c_str());
+    if (!value) return false;
+    std::size_t end = static_cast<std::size_t>(value - base) + json::js_raw(value).size();
+    std::size_t begin = static_cast<std::size_t>(value - base);
+    while (begin > 0 && std::isspace(static_cast<unsigned char>(shadow[begin - 1]))) begin--;
+    if (begin > 0 && shadow[begin - 1] == ':') begin--;
+    while (begin > 0 && std::isspace(static_cast<unsigned char>(shadow[begin - 1]))) begin--;
+    if (begin > 0 && shadow[begin - 1] == '"') { /* the key's closing quote: back to its opening one (a backslash escapes) */
+        begin--;
+        while (begin > 0 && !(shadow[begin - 1] == '"' && (begin < 2 || shadow[begin - 2] != '\\'))) begin--;
+        if (begin > 0) begin--;
+    }
+    /* the comma after it goes (a comment beside it is not blanked here: it stays); when there is none, the one before it (the member was the last) */
+    std::size_t after = end;
+    while (after < text.size() && (text[after] == ' ' || text[after] == '\t')) after++;
+    std::size_t comma_before = std::string::npos;
+    if (after < text.size() && text[after] == ',') {
+        end = after + 1;
+    } else {
+        std::size_t back = begin;
+        while (back > 0 && std::isspace(static_cast<unsigned char>(shadow[back - 1]))) back--; /* past a comment too */
+        if (back > 0 && shadow[back - 1] == ',') comma_before = back - 1;
+    }
+    /* the line goes too when nothing else is on it */
+    std::size_t line_begin = begin, line_end = end;
+    while (line_begin > 0 && (text[line_begin - 1] == ' ' || text[line_begin - 1] == '\t')) line_begin--;
+    while (line_end < text.size() && (text[line_end] == ' ' || text[line_end] == '\t' || text[line_end] == '\r')) line_end++;
+    if ((line_begin == 0 || text[line_begin - 1] == '\n') && line_end < text.size() && text[line_end] == '\n') {
+        begin = line_begin;
+        end = line_end + 1;
+    }
+    text.erase(begin, end - begin);
+    if (comma_before != std::string::npos) text.erase(comma_before, 1);
+    return true;
 }
 
 /* the text of settings.json, a new file's template when there is none */
@@ -583,6 +649,20 @@ Result<std::string> serialize_state(const State &s, std::string_view file)
     return text;
 }
 
+std::vector<Row> setting_rows()
+{
+    std::vector<Row> out = {
+        {"general", "threads", Kind::threads, {}, "How many threads autoX's collocation and a sweep's runs use.", true},
+        {"general", "log_level", Kind::choice, log_level_names, "What the log shows; it applies from the next start.", true},
+        {"general", "log_to_file", Kind::flag, {}, "Write the log to xppautx.log in the model folder's .xppautx folder; off is the terminal.", true}};
+    for (const ColorKey &c : COLOR_KEYS) out.push_back({"colors", c.key, Kind::color, {}, c.description, true});
+    out.push_back({"page", "theme", Kind::choice, THEMES, "The page's colors: the system's, light or dark.", true});
+    out.push_back({"page", "dock_hidden", Kind::flag, {}, "Hide the Values panel.", true});
+    out.push_back({"page", "dock_width", Kind::width, {}, "The Values panel's width in pixels; empty is the stylesheet's.", true});
+    out.push_back({"updates", "check_for_updates", Kind::flag, {}, "Look for a newer release when the window or the browser page opens, at most once a day.", false});
+    return out;
+}
+
 std::string settings_path(FileSystem &fs) { return fs.config_path(SETTINGS_FILE); }
 std::string state_path(FileSystem &fs) { return fs.config_path(STATE_FILE); }
 
@@ -614,25 +694,119 @@ std::string hello_json(FileSystem &fs, const Result<Settings> &loaded)
     out += p.dock_width ? xpp::format(",\"dock_width\":{}", *p.dock_width) : std::string(",\"dock_width\":null");
     out += ",\"folds\":[";
     append_strings(out, p.folds);
-    return out + "]}}";
+    out += "]},\"groups\":[";
+    append_strings(out, std::vector<std::string>(GROUPS.begin(), GROUPS.end()));
+    out += "],\"rows\":[";
+    bool first = true;
+    for (const Row &r : setting_rows()) {
+        out += first ? "" : ",";
+        first = false;
+        out += "{\"group\":";
+        json_append_string(out, r.group);
+        out += ",\"key\":";
+        json_append_string(out, r.key);
+        out += ",\"kind\":";
+        json_append_string(out, kind_names[static_cast<std::size_t>(r.kind)]);
+        out += ",\"help\":";
+        json_append_string(out, r.help);
+        out += ",\"choices\":[";
+        append_strings(out, std::vector<std::string>(r.choices.begin(), r.choices.end()));
+        out += xpp::format("],\"in_folder\":{}}}", r.in_folder ? "true" : "false");
+    }
+    return out + "]}";
 }
 
-Result<> set_settings(FileSystem &fs, const std::vector<Change> &changes)
+namespace {
+
+/* the file a target names, its text (nullopt when it is not there) and where an error puts it */
+struct TargetFile {
+    std::string path;
+    std::optional<std::string> text;
+    bool folder = false;
+};
+
+Result<TargetFile> read_target(FileSystem &fs, const Target &target)
 {
-    const Result<std::optional<std::string>> read = fs.read_config(WHERE, SETTINGS_FILE, MAX_FILE_BYTES);
-    if (!read) return std::unexpected(read.error());
-    const std::string file = fs.config_path(SETTINGS_FILE);
-    std::string text = *read ? **read : settings_template();
-    /* a bad file is the error and is never overwritten */
-    if (*read) {
-        if (const Result<Settings> kept = parse_settings(text, file); !kept) return std::unexpected(kept.error());
+    TargetFile file;
+    if (target.scope == Scope::user) {
+        file.path = settings_path(fs);
+        const Result<std::optional<std::string>> read = fs.read_config(WHERE, SETTINGS_FILE, MAX_FILE_BYTES);
+        if (!read) return std::unexpected(read.error());
+        file.text = *read;
+        return file;
     }
+    if (target.model_folder.empty()) return fail(std::string(WHERE), "no model is open, so there is no model folder to keep settings in", Place{std::string(SETTINGS_FILE)});
+    file.folder = true;
+    file.path = files::join(files::join(target.model_folder, files::MODEL_STATE_FOLDER), SETTINGS_FILE);
+    const Result<std::optional<std::string>> read = fs.read_model_state(WHERE, target.model_folder, SETTINGS_FILE, MAX_FILE_BYTES);
+    if (!read) return std::unexpected(read.error());
+    file.text = *read;
+    return file;
+}
+
+/* a file that is there is checked as it stands: a bad one is the error and is never overwritten */
+Result<> check_kept(const TargetFile &file)
+{
+    if (file.text) return check_text(*file.text, file.path, file.folder);
+    return {};
+}
+
+Result<> write_target(FileSystem &fs, const Target &target, const std::string &text)
+{
+    if (target.scope == Scope::user) return fs.write_config(WHERE, SETTINGS_FILE, text);
+    return fs.write_model_state(WHERE, target.model_folder, SETTINGS_FILE, text);
+}
+
+} // namespace
+
+Result<std::optional<std::string>> existing_file(FileSystem &fs, const Target &target)
+{
+    const Result<TargetFile> file = read_target(fs, target);
+    if (!file) return std::unexpected(file.error());
+    return file->text ? std::optional<std::string>(file->path) : std::nullopt;
+}
+
+std::string target_path(FileSystem &fs, const Target &target)
+{
+    if (target.scope == Scope::user) return settings_path(fs);
+    return target.model_folder.empty() ? std::string() : files::join(files::join(target.model_folder, files::MODEL_STATE_FOLDER), SETTINGS_FILE);
+}
+
+KeysSet keys_set(FileSystem &fs, std::string_view model_folder)
+{
+    KeysSet keys;
+    for (const Scope scope : {Scope::user, Scope::folder}) {
+        const Target target{scope, std::string(model_folder)};
+        const Result<TargetFile> file = scope == Scope::folder && model_folder.empty() ? Result<TargetFile>(TargetFile{}) : read_target(fs, target);
+        if (file) (scope == Scope::user ? keys.user : keys.folder) = keys_in(file->text, file->path);
+    }
+    return keys;
+}
+
+Result<> set_settings(FileSystem &fs, const std::vector<Change> &changes, const Target &target)
+{
+    const Result<TargetFile> file = read_target(fs, target);
+    if (!file) return std::unexpected(file.error());
+    std::string text = file->text ? *file->text : settings_template();
+    if (const Result<> kept = check_kept(*file); !kept) return std::unexpected(kept.error());
     for (const Change &c : changes) {
-        if (const Result<> ok = check_change(c); !ok) return std::unexpected(ok.error());
+        if (const Result<> ok = check_change(c, file->folder); !ok) return std::unexpected(ok.error());
         apply_change(text, c);
     }
-    if (const Result<> checked = check_text(text, file); !checked) return std::unexpected(checked.error());
-    return fs.write_config(WHERE, SETTINGS_FILE, text);
+    if (const Result<> checked = check_text(text, file->path, file->folder); !checked) return std::unexpected(checked.error());
+    return write_target(fs, target, text);
+}
+
+Result<> reset_setting(FileSystem &fs, const Target &target, std::string_view group, std::string_view key)
+{
+    const Result<TargetFile> file = read_target(fs, target);
+    if (!file) return std::unexpected(file.error());
+    if (const Result<> kept = check_kept(*file); !kept) return std::unexpected(kept.error());
+    if (!file->text) return {};
+    std::string text = *file->text;
+    if (!remove_member(text, group, key)) return {};
+    if (const Result<> checked = check_text(text, file->path, file->folder); !checked) return std::unexpected(checked.error());
+    return write_target(fs, target, text);
 }
 
 Result<> check_keymap(const keymap::Keymap &map)

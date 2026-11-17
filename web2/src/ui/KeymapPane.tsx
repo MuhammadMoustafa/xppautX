@@ -1,26 +1,19 @@
 import {bindableRows} from './navigation';
-/* The keymap editor (docs/command-design.md "Keymap editor"): a dialog listing every command with its
-   keys and where they come from. Click a key, press the new combination (Esc cancels, Backspace clears);
+/* The Settings window's Keymap group (docs/command-design.md "Keymap editor", W792): the pinned commands as one list, then every command
+   with its keys and where they come from. Click a key, press the new combination (Esc cancels, Backspace clears);
    a key another command has asks "Replace / Cancel"; the keys the system keeps (hello.keymap.reserved) are
    refused. Every change is the `keymap` command's `set`: the answer is what the page then shows. The
    state (query, the key being recorded, the conflict) is the store's (store/keymap.ts), so a check reads it. */
 import {useLayoutEffect, useRef} from 'preact/hooks';
 import type {CommandRow} from '../protocol/kinds';
 import {
-  editorRows, effectiveKeys, recordKey, replaceKey, sourceLabel, togglePinned, withKey, withoutBinding, withoutKey,
+  editorRows, effectiveKeys, movePinned, recordKey, replaceKey, sourceLabel, togglePinned, withKey, withoutBinding, withoutKey,
   withPinned, userKeymap, type KeymapAction,
 } from '../store/keymap';
-import {Dialog} from './Dialog';
 import {useSession, useStore} from './context';
-import {CommandLabel} from './CommandButton';
 import {keyName} from './hotkeys';
 
-export function KeymapEditor() {
-  const open = useStore(s => s.keymap.editor.open);
-  return open ? <Editor /> : null;
-}
-
-function Editor() {
+export function KeymapPane() {
   const session = useSession();
   const hello = useStore(s => s.hello);
   const info = useStore(s => s.keymap.info);
@@ -29,7 +22,7 @@ function Editor() {
   const searchKeys = useRef(false);
   const ui = (action: KeymapAction) => session.store.dispatch({type: 'keymapUi', action});
   const rows = bindableRows(hello, info);
-  /* a conflict is announced and its answer is a key away; after any change the focus stays in the dialog
+  /* a conflict is announced and its answer is a key away; after any change the focus stays in the pane
      (the button that had it may be gone: Replace, a key removed), where the keys it records are heard */
   useLayoutEffect(() => {
     const dialog = dialogBox();
@@ -40,10 +33,10 @@ function Editor() {
     else if (!dialog.contains(document.activeElement)) dialog.querySelector<HTMLElement>('[data-keymap-search]')?.focus();
   }, [editor.conflict, info, editor.recording]);
   if (!info) return null;
-  const close = () => ui({type: 'close'});
   const rowOf = (binding: string): CommandRow | undefined => rows.find(r => r.binding === binding);
 
-  /* a key pressed while a key (or the search) is being recorded is the recording's, not the page's */
+  /* a key pressed while a key (or the search) is being recorded is the recording's, not the page's: the event stops here, so the
+     window's Escape and Tab do not see it */
   const onKeyDown = (e: KeyboardEvent): boolean => {
     const rec = editor.recording;
     const name = keyName(e);
@@ -70,7 +63,7 @@ function Editor() {
       else session.setKeymap(withKey(info, row, rec.index, result.key));
       return true;
     }
-    /* Escape answers a conflict first; the shell's own Escape closes the editor */
+    /* Escape answers a conflict first; the window's own Escape closes it */
     if (e.key === 'Escape' && editor.conflict) {
       e.preventDefault();
       e.stopPropagation();
@@ -85,10 +78,25 @@ function Editor() {
   const otherRow = conflict ? rowOf(conflict.other) : undefined;
   const recordingRow = editor.recording ? rowOf(editor.recording.id) : undefined;
   const shown = editorRows(info, rows, editor.query);
-  return <Dialog title={<CommandLabel command="keymap.edit" />} name="keyboard shortcuts" width="list" onClose={close} onKeyDown={onKeyDown}
-    attrs={{'data-keymap-editor': ''}} className="keymap-dialog">
+  const pins = (info.pinned.map(rowOf).filter(Boolean) as CommandRow[]);
+  return <div class="keymap-pane" data-keymap-editor onKeyDown={e => { if (onKeyDown(e)) e.stopPropagation(); }}>
       {!info.ok && <p class="field-error" role="alert" data-keymap-error>
         The keymap file could not be loaded ({info.file}{info.line ? `:${info.line}` : ''}): {info.error}. The default keys are shown; changing a key replaces the file.</p>}
+      <h3 class="settings-heading">Pins</h3>
+      <ol class="pin-list" data-pins>
+        {pins.map((row, i) => <li key={row.binding} data-pinned={row.binding}>
+          <span class="pin-name">{row.name}</span>
+          {effectiveKeys(info, row).map(key => <kbd key={key}>{key}</kbd>)}
+          <button type="button" aria-label={`Move ${row.name} up`} disabled={i === 0} data-pin-up={row.binding}
+            onClick={() => session.setKeymap(withPinned(info, movePinned(info.pinned, row.binding, i - 1)))}>↑</button>
+          <button type="button" aria-label={`Move ${row.name} down`} disabled={i === pins.length - 1} data-pin-down={row.binding}
+            onClick={() => session.setKeymap(withPinned(info, movePinned(info.pinned, row.binding, i + 1)))}>↓</button>
+          <button type="button" aria-label={`Unpin ${row.name}`} data-pin-remove={row.binding}
+            onClick={() => session.setKeymap(withPinned(info, togglePinned(info.pinned, row.binding)))}>✕</button>
+        </li>)}
+        {pins.length === 0 && <li class="pin-none">Nothing is pinned: use Pin in the list below.</li>}
+      </ol>
+      <h3 class="settings-heading">Keys</h3>
       <div class="keymap-tools">
         <label class="search-field"><span>Search</span><span class="input-box"><input type="search" data-autofocus data-keymap-search value={editor.query} placeholder="Name, id or keys"
           onInput={e => ui({type: 'query', query: e.currentTarget.value})} /></span></label>
@@ -110,7 +118,7 @@ function Editor() {
         <button type="button" data-conflict-cancel onClick={() => ui({type: 'conflict', conflict: null})}>Cancel</button></p>}
       <div class="keymap-scroll">
         <table class="keymap-table">
-          <thead><tr><th scope="col">Command</th><th scope="col">Category</th><th scope="col">Keys</th><th scope="col">Source</th><th scope="col">Actions</th></tr></thead>
+          <thead><tr><th scope="col">Command</th><th scope="col" class="keymap-category">Category</th><th scope="col">Keys</th><th scope="col" class="keymap-source">Source</th><th scope="col">Actions</th></tr></thead>
           <tbody>{shown.map(row => {
             const keys = effectiveKeys(info, row);
             const source = sourceLabel(info, row);
@@ -119,7 +127,7 @@ function Editor() {
             const record = (index: number) => ui({type: 'record', recording: {id: row.binding, index}});
             return <tr key={row.binding} data-keymap-row={row.binding}>
               <th scope="row" title={row.description}>{row.name}</th>
-              <td>{row.category}</td>
+              <td class="keymap-category">{row.category}</td>
               <td class="keymap-keys">{[...keys, ...(recording === keys.length ? [''] : [])].map((key, i) =>
                 <span class="keymap-key" key={i}>
                   <button type="button" data-key-cell={row.binding} data-index={i} aria-label={`${row.name}: ${key || 'new key'}. Press Enter to change it`}
@@ -135,7 +143,7 @@ function Editor() {
                   <button type="button" data-key-add={row.binding} aria-label={`Add a second key to ${row.name}`}
                     onClick={e => { e.currentTarget.focus(); record(keys.length); }}>+</button>}
               </td>
-              <td data-source={source}>{source}</td>
+              <td class="keymap-source" data-source={source}>{source}</td>
               <td class="keymap-actions">
                 {source !== 'default' && <button type="button" data-key-reset={row.binding} aria-label={`Reset the keys of ${row.name}`}
                   onClick={() => session.setKeymap(withoutBinding(info, row.binding))}>Reset</button>}
@@ -148,5 +156,5 @@ function Editor() {
         </table>
         {!shown.length && <p role="status">No command matches.</p>}
       </div>
-  </Dialog>;
+  </div>;
 }

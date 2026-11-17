@@ -106,6 +106,10 @@ Result<std::optional<std::string>> LocalFileSystem::read_model_state(std::string
 {
     return read_model_state_file(where, model_folder, name, limit);
 }
+Result<> LocalFileSystem::write_model_state(std::string_view where, std::string_view model_folder, std::string_view name, std::string_view bytes)
+{
+    return write_model_state_file(where, model_folder, name, bytes);
+}
 std::string LocalFileSystem::config_path(std::string_view name) { return files::config_path(name); }
 
 Result<std::optional<std::string>> LocalFileSystem::read_config(std::string_view where, std::string_view name, std::size_t limit)
