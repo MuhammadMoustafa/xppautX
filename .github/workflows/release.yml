@@ -209,7 +209,17 @@ jobs:
           m = re.search(r"^## \[" + re.escape(version) + r"\][^\n]*$(.*?)(?=^## \[|\Z)", text, re.M | re.S)
           if not m or not m.group(1).strip():
               sys.exit("CHANGELOG.md has no section for " + version)
-          print(m.group(1).strip())
+          section = m.group(1).strip()
+          # GitHub refuses a release body over 125000 characters: a longer section keeps its summary, the text
+          # before its first list of changes ("Every change is listed below."), and links the full list at the tag
+          BODY_LIMIT = 120000
+          if len(section) > BODY_LIMIT:
+              summary, found, _ = section.partition("Every change is listed below.")
+              if not found:
+                  sys.exit("CHANGELOG.md's section for " + version + " is longer than a release body and has no summary")
+              tag = "v" + version
+              section = summary.strip() + "\n\nEvery change is listed in [CHANGELOG.md](https://github.com/MuhammadMoustafa/xppautX/blob/" + tag + "/CHANGELOG.md)."
+          print(section)
           print()
           print("GPL v2, as upstream XPPAUT (Bard Ermentrout). The source of these binaries is the source archive of this tag, on this release page.")
           PY
