@@ -67,7 +67,7 @@ export interface AutoxSettings {
   numerics: Record<NumKey, number | boolean | string>;
   axes: AutoxAxesSettings;
   marks: [string, number][];
-  /** the thread count of autoX and sweeps, a program preference (W267, W434): "auto" or the count */
+  /** the thread count of autoX and sweeps, a program setting (W267, W434): "auto" or the count */
   threads: 'auto' | number;
   /** the count "auto" gives now, and the most a count may be (the computer's logical processors) */
   threads_auto: number;
@@ -184,7 +184,7 @@ export function autoxSettingsCommands(p: AutoxSettingsPatch): {command: Command;
     out.push({command: {cmd: 'autox.configure_marks', parameters: p.marks.map(m => m[0]), values: p.marks.map(m => m[1])}, patch: {marks: p.marks}});
   }
   if (p.threads !== undefined) {
-    out.push({command: {cmd: 'preferences.configure', ...(p.threads === 'auto' ? {automatic: true} : {threads: p.threads})}, patch: {threads: p.threads}});
+    out.push({command: {cmd: 'settings.configure', ...(p.threads === 'auto' ? {automatic: true} : {threads: p.threads})}, patch: {threads: p.threads}});
   }
   return out;
 }
@@ -201,6 +201,6 @@ export function commandSettings(command: Command): AutoxSettingsPatch | null {
     return {axes: Object.fromEntries(Object.entries(values).filter(([key]) => key in names).map(([key,value]) => [names[key],value]))};
   }
   if (cmd === 'autox.configure_marks') return {marks: (command.parameters as string[] ?? []).map((name,i) => [name, (command.values as number[])[i]])};
-  if (cmd === 'preferences.configure') return {threads: command.automatic === true ? 'auto' : command.threads as number};
+  if (cmd === 'settings.configure') return {threads: command.automatic === true ? 'auto' : command.threads as number};
   return null;
 }

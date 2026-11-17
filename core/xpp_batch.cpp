@@ -58,13 +58,13 @@
 #include "aniparse.h"
 #include "xpp_ui.h"
 #include "expr_program.h"
-#include "xpp_prefs.h"
+#include "xpp_settings.h"
 
 namespace xpp {
 
 void install_application_commands()
 {
-    command::install_application(command::model_commands(), command::preferences_commands(), command::update_commands());
+    command::install_application(command::model_commands(), command::settings_commands(), command::update_commands());
 }
 
 namespace {
@@ -215,15 +215,14 @@ void apply_command_line(Session &s, CommandLine cl)
 }
 
 
-/* the thread count and the colors the preferences file holds into s (a recording's replay
-   keeps the user's preferences out of it, and reads none); a bad file leaves
+/* the thread count and the colors settings.json holds into s (a recording's replay   keeps the user's settings out of it, and reads none); a bad file leaves
    the automatic count and the default colors (the file's error is shown by the recent models' note,
-   once). Called by the load (load_and_set_up), with the preferences the program's start read
+   once). Called by the load (load_and_set_up), with the settings the program's start read
    (read), or null to read the file now: a reload reads it again. */
-void preferences_load(Session &s, const Result<prefs::Preferences> *read)
+void settings_load(Session &s, const settings::Read *read)
 {
     if (files::serving_reads()) return;
-    const Result<prefs::Preferences> p = read ? *read : prefs::load_prefs(*s.model().fs);
+    const Result<settings::Settings> p = read ? read->settings : settings::load_settings(*s.model().fs);
     if (p) {
         s.threads = p->threads;
         s.colors = p->colors;
@@ -258,7 +257,7 @@ static void set_up_run(Session &s)
 /* everything both the batch run and an interactive front end do: options,
    the ODE file, numerics set-up. batch forces XPPBatch. */
 static void load_and_set_up(xpp::Session &s, const CommandLine &cl, std::optional<AutoxScript> script, int batch,
-                            const std::function<void(Session &)> &read, const Result<prefs::Preferences> *read_prefs)
+                            const std::function<void(Session &)> &read, const settings::Read *read_settings)
 {
     xpp::Model &m = s.model();
     program.interactive = 0;
@@ -290,7 +289,7 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, std::optiona
     if (s.autox_state->script.script)
         if (const Result<> checked = check_autox_script(s, *s.autox_state->script.script); !checked) model_failed(checked.error());
     init_autox_win(xpp::autox_parts(s));
-    preferences_load(s, read_prefs);
+    settings_load(s, read_settings);
     if (disc(m)) {
         const auto picked = pick_method(m, "Discrete", LoadSite::place());
         if (!picked) model_failed(picked.error());
@@ -379,7 +378,7 @@ Loaded in_model(FileSystem &fs, const std::function<void(Session &)> &work, bool
 Loaded load_in(FileSystem &fs, const CommandLine &cl, int batch, const SavedModel *saved,
                const std::function<std::optional<Error>(Session &)> &check,
                const std::function<void(Session &)> &read, bool commit,
-               const std::vector<std::string> &outside_paths = {}, const Result<prefs::Preferences> *read_prefs = nullptr,
+               const std::vector<std::string> &outside_paths = {}, const settings::Read *read_settings = nullptr,
                std::optional<AutoxScript> script = {}, const LoadServices *services = nullptr)
 {
     return in_model(fs, [&](Session &s) {
@@ -393,7 +392,7 @@ Loaded load_in(FileSystem &fs, const CommandLine &cl, int batch, const SavedMode
             m.saved_in = saved->in;
             m.record->files = saved->files;
         }
-        load_and_set_up(s, cl, std::move(script), batch, read, read_prefs);
+        load_and_set_up(s, cl, std::move(script), batch, read, read_settings);
         if (check)
             if (std::optional<Error> wrong = check(s)) model_failed(std::move(*wrong));
     }, commit);
@@ -402,7 +401,7 @@ Loaded load_in(FileSystem &fs, const CommandLine &cl, int batch, const SavedMode
 } // namespace
 
 Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *saved,
-                  const std::function<std::optional<Error>(Session &)> &check, const Result<prefs::Preferences> *read_prefs)
+                  const std::function<std::optional<Error>(Session &)> &check, const settings::Read *read_settings)
 {
     auto resolved = animation_command_line(fs, std::move(cl));
     std::optional<AutoxScript> script;
@@ -417,8 +416,8 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
     bool existing = false;
     std::vector<odex::Diagnostic> diagnostics;
     std::vector<std::string> outside_paths;
-    /* the "Allow always" answers the load works with (xpp_prefs.h) */
-    const LoadServices services = prefs::load_services(fs, read_prefs);
+    /* the "Allow always" answers the load works with (xpp_settings.h) */
+    const LoadServices services = settings::load_services(fs, read_settings);
     Loaded prepared = in_model(fs, [&](Session &s) {
         apply_command_line(s, cl);
         if (batch) batch_options.enabled = 1;
@@ -445,7 +444,7 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
                 cl.model_file = converted;
             }
         }
-        if (loaded) loaded = load_in(fs, cl, batch, saved, check, load_eqn, true, outside_paths, read_prefs, std::move(script), &services);
+        if (loaded) loaded = load_in(fs, cl, batch, saved, check, load_eqn, true, outside_paths, read_settings, std::move(script), &services);
     }
     /* the one place a model that does not load is written to the log */
     if (!loaded) {

@@ -17,7 +17,7 @@
    (GitHub #110): Reset is the way back. Each section folds (remembered
    per viewer), and Parameters, States and Numerics each have a sets row (SetsRow.tsx, W323). */
 import {openPanel} from './hotkeys';
-import {useEffect, useRef, useState} from 'preact/hooks';
+import {useEffect, useRef} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import type {ComponentChildren, JSX} from 'preact';
 import {HELP} from '../help/links';
@@ -37,7 +37,6 @@ import {Field} from './Field';
 import {ShownName, ShownNumber} from './CutText';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
-import {readPref, writePref} from '../store/prefs';
 import {DOCK_SHEET_WIDTH} from '../store/dock';
 
 const NUMBER_HINT = fieldMessage(FORMULA_HINT);
@@ -53,23 +52,20 @@ function fillStyle(names: string[], marked: boolean): JSX.CSSProperties {
 }
 const STATE_HINT = 'Edits apply on Enter or leaving the field, to the next run. Run from initial uses Initial; Run from last state uses the last state and starts a new trajectory.';
 
-/* ---- folded sections, remembered per viewer ---- */
-
-const FOLD_KEY = 'xpp.values.folded';
-
-const readFolded = (): string[] =>
-  readPref(FOLD_KEY, v => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : null), []);
+/* ---- folded sections, kept in settings.json (page.folds) ---- */
 
 /* a section that starts folded (startFolded) is remembered by what the person opened:
    its entry is "+id", the others' is "id" for folded */
 function useFolded(id: string, startFolded = false): [boolean, () => void] {
+  const session = useSession();
+  const folds = useStore(s => s.folds);
   const key = foldKey(id, startFolded);
-  const [folded, setFolded] = useState(() => isFolded(readFolded(), id, startFolded));
+  const folded = isFolded(folds, id, startFolded);
   const toggle = () => {
-    const next = !folded;
-    setFolded(next);
-    const all = readFolded().filter(x => x !== key);
-    writePref(FOLD_KEY, next !== startFolded ? [...all, key] : all);
+    const all = folds.filter(x => x !== key);
+    const next = folded === startFolded ? [...all, key] : all;
+    session.store.dispatch({type: 'folds', folds: next});
+    session.setPage({folds: next});
   };
   return [folded, toggle];
 }

@@ -10,7 +10,7 @@ import {AskDialog} from './AskDialog';
 import {AutoxView} from './AutoxView';
 import {useEffect} from 'preact/hooks';
 import {dockIsShown, dockTab} from '../store/dock';
-import {PANEL_LIMITS, savePanels, type PanelSize, type Panels} from '../store/panels';
+import {PANEL_LIMITS, type PanelSize, type Panels} from '../store/panels';
 import {SessionContext, useSession, useStore} from './context';
 import {Splitter} from './Splitter';
 import {UpdateDialog} from './UpdateDialog';
@@ -84,6 +84,7 @@ function panelStyle(p: Panels, dockShown: boolean): Record<string, string> {
 }
 
 function Shell() {
+  const session = useSession();
   const theme = useStore(s => s.theme);
   const modelFile = useStore(s => s.hello?.file);
   const playerOpen = useStore(s => s.player.open);
@@ -94,7 +95,7 @@ function Shell() {
   const autoxShown = useStore(s => s.diagram.open && s.diagram.shown) && !drawn;
   const tab = useStore(dockTab);
   useSplitTracks();
-  useEffect(() => savePanels(panels), [panels]);
+  useEffect(() => session.setPage({dock_hidden: panels.dockHidden, dock_width: panels.dockWidth}), [panels]);
   /* the autoX view takes the whole width (its info and views wrap when narrow), so beside it the dock is there only for the
      panels the user opened (Table, Model, Help), not for Values, which are on the graph's tab */
   const dockShown = dockIsShown(panels.dockHidden, autoxShown, tab);

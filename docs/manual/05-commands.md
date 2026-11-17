@@ -55,9 +55,9 @@ and system keys, including F5, Ctrl+W, Ctrl+Q, Alt+F4, F11 and F12, stay theirs.
 Click a key to record a replacement; Escape cancels recording and Backspace
 clears it. A command with a choice has a row for the command and one for each of its items (Model as > Python), and a key or a pin on an item runs it as a click on the menu item does. Reserved keys are refused; a key another command has offers Replace
 or Cancel. **Reset to defaults** clears custom bindings and keeps pins. **Reset
-all** also removes pins and asks first. The file `keymap.json` keeps changes for
+all** also removes pins and asks first. The file `settings.json` keeps changes for
 desktop and browser. A malformed file, or one holding a sequence of keys, is
-reported with its file and line, without partially applying it. In `keymap.json` an item is bound by the command and its argument written as a text command, `"model.export --language python": ["Ctrl+E"]`.
+reported with its file and line, without partially applying it. In `settings.json` an item is bound by the command and its argument written as a text command, `"model.export --language python": ["Ctrl+E"]`.
 
 A key runs its command directly. A command that needs arguments opens the common
 form. Two commands cannot share a key: such a binding is refused with both

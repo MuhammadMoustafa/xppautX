@@ -31,10 +31,10 @@ class FileSystem; /* xpp_fs.h */
    Session: the recent models and the bundled examples (xpp_recent.cpp,
    xpp_examples.cpp, the application's), which implement these. */
 namespace xpp::recent {
-/* the entries of the preferences file: none when it is not there, the error when it is bad */
+/* the entries of state.json: none when it is not there, the error when it is bad */
 Result<std::vector<std::string>> load_recent(FileSystem &fs);
 /* `model` (an absolute path) first in the file, the rest after it without a
-   repeat of it and cut at prefs::MAX_RECENT_MODELS. The file is read first: a bad one is
+   repeat of it and cut at settings::MAX_RECENT_MODELS. The file is read first: a bad one is
    the error, left as it is. Nothing is kept while a recording plays
    (files::serving_reads): that is not the user opening it. */
 Result<> note(FileSystem &fs, std::string_view model);

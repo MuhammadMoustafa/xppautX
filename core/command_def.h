@@ -323,8 +323,8 @@ std::span<const Command> data_commands();
 std::span<const Command> set_commands();
 std::span<const Command> value_commands();
 std::span<const Command> session_commands();
-/* the model resource (xpp_model_commands.cpp: the program's application, which carries a load out), the preferences resource
-   (xpp_prefs_commands.cpp: the application, with the file it keeps) and the update resource (xpp_update_commands.cpp): defined above
+/* the model resource (xpp_model_commands.cpp: the program's application, which carries a load out), the settings resource
+   (xpp_settings_commands.cpp: the application, with the settings it keeps) and the update resource (xpp_update_commands.cpp): defined above
    the registry, so handed to it once at the start (install_application_commands, xpp_batch.h), where each stands in `help`'s order */
 std::span<const Command> model_commands();
 std::span<const Command> recording_commands();
@@ -333,8 +333,8 @@ std::span<const Command> options_commands();
 std::span<const Command> events_commands();
 std::span<const Command> tool_commands();
 std::span<const Command> update_commands();
-std::span<const Command> preferences_commands();
-void install_application(std::span<const Command> model, std::span<const Command> preferences, std::span<const Command> update);
+std::span<const Command> settings_commands();
+void install_application(std::span<const Command> model, std::span<const Command> settings, std::span<const Command> update);
 
 /* the handler of a command the front end answers itself (xpp::ui.front_end_command): the row names the command, its arguments and its result */
 Result<std::string> front_end(Session &s, const Command &command, const Arguments &args, const Place &place);

@@ -284,7 +284,6 @@ public:
   /* what the file is called in a message, as one file or as many */
   std::string file_kind_name(bool plural) const
   {
-    if (kind_ == FileKind::preferences) return plural ? "preferences files" : "the preferences file";
     if (kind_ == FileKind::session) return plural ? "session files" : "a session file";
     return plural ? "model files" : "a model file";
   }
@@ -540,7 +539,7 @@ private:
     } else if (word == "options") {
       take();
       options(s);
-    } else if ((word == "session" || word == "preferences") && at_punct("{", 1)) {
+    } else if (word == "session" && at_punct("{", 1)) {
       block_statement(s);
     } else if (word == "set") {
       take();
@@ -621,27 +620,22 @@ private:
     }
   }
 
-  /* a session file holds par, init, options and session; the preferences file preferences (an import, a formula or
-     any other statement reads no file and is refused at its line) */
+  /* a session file holds par, init, options and session (an import, a formula or any other statement reads no file and is
+     refused at its line) */
   void only_state_statement(const Token &t) const
   {
-    const bool session = kind_ == FileKind::session;
     const bool ok = t.kind == Token::Kind::Name && !t.primed &&
-                    (session ? t.text == "par" || t.text == "init" || t.text == "options" || t.text == "session" : t.text == "preferences");
-    if (!ok)
-      fail(t.pos, xpp::format("{} holds {} only, found {}", file_kind_name(false),
-                              session ? "`par`, `init`, `options { ... }` and `session { ... }`" : "`preferences { ... }`", describe(t)));
+                    (t.text == "par" || t.text == "init" || t.text == "options" || t.text == "session");
+    if (!ok) fail(t.pos, xpp::format("{} holds `par`, `init`, `options {{ ... }}` and `session {{ ... }}` only, found {}", file_kind_name(false), describe(t)));
   }
 
-  /* session { ... } or preferences { ... }: the group of options, in a file of that kind only */
+  /* session { ... }: the group of a session file's state, in a session file only */
   void block_statement(Statement &s)
   {
     const Token &word = take();
-    const bool session = word.text == "session";
-    s.kind = session ? Statement::Kind::Session : Statement::Kind::Preferences;
-    if (kind_ != (session ? FileKind::session : FileKind::preferences))
-      fail(s.pos, xpp::format("`{} {{ ... }}` is accepted only in {}, not in {}", word.text,
-                              session ? "a session file" : "the preferences file", kind_ == FileKind::model ? "a model" : file_kind_name(false)));
+    s.kind = Statement::Kind::Session;
+    if (kind_ != FileKind::session)
+      fail(s.pos, xpp::format("`{} {{ ... }}` is accepted only in a session file, not in {}", word.text, kind_ == FileKind::model ? "a model" : file_kind_name(false)));
     if (block_at_) fail(s.pos, xpp::format("`{}` is written once in a file (the first is at line {})", word.text, block_at_));
     block_at_ = s.pos.line;
     s.more_mut().block = setting_value(0);
@@ -1559,7 +1553,7 @@ private:
   int last_line_ = 0;
   /* the line of this file's options block, 0 before it */
   int options_at_ = 0;
-  /* the line of the session or preferences statement, 0 before it */
+  /* the line of the session statement, 0 before it */
   int block_at_ = 0;
   int expression_depth_ = 0;
 };

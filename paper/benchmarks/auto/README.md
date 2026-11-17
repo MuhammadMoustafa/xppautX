@@ -111,9 +111,9 @@ evaluates into the Session's shared state today), and then at most ~2x on
 The same periodic run (steady state from Iapp = 20000 pA to the HB, then the
 periodic branch to Iapp = 200 pA), timed again after xppautX began compiling
 each model at load (W258/W259/W266, TinyCC), running AUTO's collocation on
-threads (W247; the count is the `auto_threads` preference, set per run with
+threads (W247; the count is the `auto_threads` setting, set per run with
 `{"cmd":"auto","op":"set","threads":N}` in a fresh `XPP_CONFIG_DIR`, so a
-user's own preference is never read) and offering an exact Jacobian
+user's own setting is never read) and offering an exact Jacobian
 (W260/W275: the Numerics' `jacobian` set to `exact` before AUTO opens,
 which then runs with JAC 1). Engines (`bench.py --engines`):
 

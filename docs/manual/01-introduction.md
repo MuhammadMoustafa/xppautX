@@ -125,15 +125,15 @@ first; starting the app on its own shows the start screen below.
 launcher with no model named, xppautX shows the **start screen** and asks
 nothing: an **Open model…** button (the same dialog File > Open model… shows:
 it takes `.ode`, `.odex`, a `.snapx` session or a `.recx` recording) and the models you opened lately, newest first (up to
-ten, kept in `preferences.odex` beside `keymap.json`). Click one to open it; one
+ten, kept in `state.json` beside `settings.json`). Click one to open it; one
 whose file is gone is listed as missing and cannot be opened (move or restore
-the file, or open another). If `preferences.odex` cannot be read, the screen says
+the file, or open another). If `state.json` cannot be read, the screen says
 which line is wrong and lists none; the file is left as it is for you to fix or
 delete. Under **Examples** are the `.odex` models of the release's `examples/`
 folder, beside the program (in `xppautX.app`, `Contents/Resources/examples`).
 Click one to open it: an installed folder is read-only, and a model writes
 its outputs beside itself, so xppautX opens a copy of the example in
-`examples/` of the settings folder (beside `keymap.json`) and says where it
+`examples/` of the settings folder (beside `settings.json`) and says where it
 is. If a copy is there already (you may have changed it), it asks before
 replacing it. A program with no `examples/` folder beside it (a build run
 from a source checkout) says so instead of listing any.
@@ -210,7 +210,7 @@ and stops playback with exit 1. `--yes` replaces them without asking.
 startup banner, autoX's table, solver chatter); by default it logs only
 warnings and errors. That log goes to the page's Messages panel, live; the
 terminal gets the warnings and errors (a page may be closed), and everything
-with `--verbose` or `--debug`. What the log shows and where it goes are yours, not a model's: the preferences file (`preferences.odex`) holds `log_level` (`error`, `warn`, `info` or `debug`) and `log_file` (an absolute path, which sends the log to that file instead), and `--verbose` and `--debug` win over `log_level`; XPPAUT's `@ quiet=` and `@ logfile=` of a `.ode` are dropped with a warning. See
+with `--verbose` or `--debug`. What the log shows and where it goes are yours, not a model's: `settings.json` holds `log_level` (`error`, `warn`, `info` or `debug`) and `log_file` (an absolute path, which sends the log to that file instead), and `--verbose` and `--debug` win over `log_level`; XPPAUT's `@ quiet=` and `@ logfile=` of a `.ode` are dropped with a warning. See
 [Using the interface: the log](04-using-the-interface.md#the-log).
 
 ### Command-line options
@@ -270,7 +270,7 @@ row-by-row record of what changed and why.
 
 xppautX does not read a per-user settings file: a `.xpprc` in your home directory is ignored.
 A model's options are its own `options` (see [ODE files](02-ode-files.md)), and File >
-Preferences holds the rest.
+Settings holds the rest.
 
 xppautX still reads a few environment variables, all optional:
 

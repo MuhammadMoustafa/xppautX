@@ -160,8 +160,8 @@ std::string event_text(const AutoxParts &s)
     }
     /* what each Numerics value takes and which must be in order, as `autox`
        `set` checks them (num_ok, apply), with the messages it refuses with */
-    /* the thread count (a preference, not an option): "auto" or the number,
-       what automatic gives now, and the most the preference takes */
+    /* the thread count (a setting, not an option): "auto" or the number,
+       what automatic gives now, and the most the setting takes */
     o += "],\"special_points\":{";
     for (std::size_t i=0;i<autox_codim_kinds.size();++i)
         o += xpp::format("{}\"{}\":{}",i ? "," : "",autox_codim_keys[i],*set.special_points[i] ? "true" : "false");

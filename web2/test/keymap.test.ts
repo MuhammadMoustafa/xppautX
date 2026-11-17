@@ -35,7 +35,7 @@ test('a keymap event replaces it, and the differences go back as a set sends the
 });
 
 test('a bad file arrives as an error with its place, the commands the table\'s', () => {
-  const bad: KeymapInfo = {...HELLO.keymap, ok: false, error: '"Ctrl+W" is reserved', file: '/c/keymap.json', line: 3, col: 5, source: '  "x": ["Ctrl+W"]'};
+  const bad: KeymapInfo = {...HELLO.keymap, ok: false, error: '"Ctrl+W" is reserved', file: '/c/settings.json', line: 3, col: 5, source: '  "x": ["Ctrl+W"]'};
   const state = reduce(READY, {type: 'event', ev: {ev: 'keymap.changed', op: 'get', keymap: bad}});
   assert.equal(state.keymap.info?.ok, false);
   assert.equal(state.keymap.info?.line, 3);

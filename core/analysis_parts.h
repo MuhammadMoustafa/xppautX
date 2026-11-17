@@ -28,7 +28,7 @@ struct SweepWorker; /* sweep_runs.h */
    as it is. The Session holds one, made with it, and converts to it where it is passed (session.cpp), as it does to RunParts. The members
    are the Session's own parts, not copies, and keep the Session's names. `make_worker` is the Session module's (a sweep's worker is a
    Session of the same Model: make_sweep_worker, session.cpp): the analyses call it and never name a Session's construction.
-   `threads` is the program preference's value as the Session holds it. */
+   `threads` is the program setting's value as the Session holds it. */
 struct AnalysisParts : RunParts {
   HistogramState *histogram;
   AdjointState *adjoint;

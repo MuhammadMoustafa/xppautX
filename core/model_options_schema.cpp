@@ -24,13 +24,6 @@ namespace {
 /* a bare value: the characters a number, a name or a font name is made of */
 constexpr std::string_view bare_pattern = "^[A-Za-z0-9_.+-]+$";
 
-std::string quoted(std::string_view text)
-{
-  std::string out;
-  json_append_string(out, text);
-  return out;
-}
-
 bool all_digits(const std::string &w)
 {
   return !w.empty() && std::ranges::all_of(w, [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
@@ -80,7 +73,7 @@ std::string option_value_schema(const OptionRow &row)
   switch (row.kind) {
   case OptionKind::number: out += "\"type\": \"number\""; break;
   case OptionKind::whole: out += "\"type\": \"integer\""; break;
-  case OptionKind::name: out += "\"type\": \"string\", \"pattern\": " + quoted(bare_pattern); break;
+  case OptionKind::name: out += "\"type\": \"string\", \"pattern\": " + json_quoted(bare_pattern); break;
   case OptionKind::path:
     out += "\"type\": \"string\", \"x-kind\": \"path\"";
     break;
@@ -93,7 +86,7 @@ std::string option_value_schema(const OptionRow &row)
   case OptionKind::buttons:
     out += "\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, "
            "\"required\": [\"label\", \"command\"], \"properties\": {"
-           "\"label\": {\"type\": \"string\", \"minLength\": 1}, \"command\": {\"type\": \"string\", \"pattern\": " + quoted(bare_pattern) + "}}}";
+           "\"label\": {\"type\": \"string\", \"minLength\": 1}, \"command\": {\"type\": \"string\", \"pattern\": " + json_quoted(bare_pattern) + "}}}";
     break;
   case OptionKind::curves:
     out += "\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, "
@@ -108,14 +101,14 @@ std::string option_value_schema(const OptionRow &row)
     const std::vector<std::string> words = option_choices(row);
     const bool numbers = std::ranges::all_of(words, all_digits);
     out += numbers ? "\"type\": \"integer\", \"enum\": [" : "\"type\": \"string\", \"enum\": [";
-    for (std::size_t i = 0; i < words.size(); ++i) out += (i ? ", " : "") + (numbers ? words[i] : quoted(words[i]));
+    for (std::size_t i = 0; i < words.size(); ++i) out += (i ? ", " : "") + (numbers ? words[i] : json_quoted(words[i]));
     out += "]";
     break;
   }
   }
   if (row.zero_or_one) out += ", \"enum\": [0, 1]";
   out += option_limit_members(row);
-  if (!row.odex.empty()) out += ", \"title\": " + quoted(option_label(row)) + ", \"description\": " + quoted(option_help(row));
+  if (!row.odex.empty()) out += ", \"title\": " + json_quoted(option_label(row)) + ", \"description\": " + json_quoted(option_help(row));
   if (row.repeatable) out += ", \"x-repeatable\": true";
   return out + "}";
 }
@@ -134,20 +127,20 @@ std::string option_schema()
       "  \"additionalProperties\": false,\n"
       "  \"properties\": {\n";
   for (const OptionRow &row : option_rows())
-    if (row.top_level) out += "    " + quoted(odex_key(row, 0)) + ": " + option_value_schema(row) + ",\n";
+    if (row.top_level) out += "    " + json_quoted(odex_key(row, 0)) + ": " + option_value_schema(row) + ",\n";
   for (std::size_t g = 0; g < option_groups.size(); ++g) {
-    out += "    " + quoted(option_groups[g]) + ": {\n      \"type\": \"object\",\n      \"additionalProperties\": false,\n      \"properties\": {\n";
+    out += "    " + json_quoted(option_groups[g]) + ": {\n      \"type\": \"object\",\n      \"additionalProperties\": false,\n      \"properties\": {\n";
     bool first = true;
     for (const OptionRow &row : option_rows()) {
       if (row.top_level || row.group != option_groups[g]) continue;
       if (row.first_digit) {
         for (char d = row.first_digit; d <= row.last_digit; ++d) {
-          out += std::string(first ? "" : ",\n") + "        " + quoted(odex_key(row, d - '0')) + ": " + option_value_schema(row);
+          out += std::string(first ? "" : ",\n") + "        " + json_quoted(odex_key(row, d - '0')) + ": " + option_value_schema(row);
           first = false;
         }
         continue;
       }
-      out += std::string(first ? "" : ",\n") + "        " + quoted(odex_key(row, 0)) + ": " + option_value_schema(row);
+      out += std::string(first ? "" : ",\n") + "        " + json_quoted(odex_key(row, 0)) + ": " + option_value_schema(row);
       first = false;
     }
     out += "\n      }\n    }";

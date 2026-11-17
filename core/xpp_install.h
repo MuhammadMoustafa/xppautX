@@ -11,7 +11,7 @@
    - a portable archive is read whole and checked (xpp_zip.h's readers: plain names, no link, bounded sizes); only its
      one program, `<folder>/xppautX[.exe]`, is taken, written beside the running one and renamed into place; the archive's
      digest is checked again just before, so a file changed in the temp folder is never installed;
-   - an installer's file is kept (kept_folder, beside the preferences) with a record of its size and digest and checked
+   - an installer's file is kept (kept_folder, beside the settings) with a record of its size and digest and checked
      again before it is offered at the next start and before the installer is started with it;
    - the installer and the new program are started by xpp_process.h: no shell, fixed arguments, the file as one argument.
    C++ only. */
@@ -83,7 +83,7 @@ Result<Ready> prepare(const Plan &plan, const ReleaseFile &file, std::string_vie
    `running`; the archive is checked against `file`'s size and sha256 again first */
 Result<> swap_program(const Plan &plan, const ReleaseFile &file, std::string_view staged, const std::string &running);
 
-/* the folder an installer's file is kept in: beside the preferences ("" when there is no config folder) */
+/* the folder an installer's file is kept in: beside the settings ("" when there is no config folder) */
 std::string kept_folder();
 /* an installer's file kept at the last start or the last download, which still is what its record says */
 struct Pending {

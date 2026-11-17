@@ -772,7 +772,7 @@ def jobs_session(model, start, env=None, threads=None, record=None):
     s = Server(args.server, autoxcompare.ROOT / model, env=env)
     autoxcompare.completed(s)
     if threads is not None:
-        autoxcompare.completed(s, dict(cmd='preferences.configure', **({'automatic': True} if threads == 'auto' else {'threads': threads})))
+        autoxcompare.completed(s, dict(cmd='settings.configure', **({'automatic': True} if threads == 'auto' else {'threads': threads})))
     autoxcompare.set_values(s, start)
     if record:
         autoxcompare.completed(s, dict(cmd='recording.start'))
@@ -1113,7 +1113,7 @@ def periodic_session(env):
     Periodic start from the current state takes), single-threaded, its autoX options set"""
     s = Server(args.server, autoxcompare.ROOT / PERIODIC_MODEL, env=env)
     autoxcompare.completed(s)
-    autoxcompare.completed(s, dict(cmd='preferences.configure', threads=1))
+    autoxcompare.completed(s, dict(cmd='settings.configure', threads=1))
     autoxcompare.completed(s, dict(cmd='recording.start'))
     autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info']))
     autoxcompare.set_values(s, PERIODIC_START)
@@ -1299,10 +1299,10 @@ def check_autox_registry():
         check('autox.export_data: a target is required', done['status'] == 'error' and 'target' in done['error'], str(done))
         _, done = call(cmd='autox.export_data', target='csv', file='w516b.csv')
         check('autox.export_data: a target outside its choices is refused', done['status'] == 'error', str(done))
-        _, done = call(cmd='preferences.configure', threads=1)
-        check('preferences.configure: a count', done['status'] == 'ok' and done['result']['threads'] == 1 and done['result']['automatic'] is False, str(done))
-        _, done = call(cmd='preferences.configure', threads=1, automatic=True)
-        check('preferences.configure: a count and automatic are refused together', done['status'] == 'error', str(done))
+        _, done = call(cmd='settings.configure', threads=1)
+        check('settings.configure: a count', done['status'] == 'ok' and done['result']['threads'] == 1 and done['result']['automatic'] is False, str(done))
+        _, done = call(cmd='settings.configure', threads=1, automatic=True)
+        check('settings.configure: a count and automatic are refused together', done['status'] == 'error', str(done))
         for old in ({'cmd': 'autox', 'op': 'grab', 'label': 1}, {'cmd': 'autox', 'op': 'set', 'numerics': {}}, {'cmd': 'autox', 'op': 'restart', 'label': 1}):
             s.send(**old)
             evs, _ = s.collect(stops_done)
@@ -2255,7 +2255,7 @@ def check_session_commands():
         km = next((e['keymap'] for e in evs if e.get('ev') == 'keymap.changed'), {})
         check('W528: keymap.set writes the parts given and sends the effective keymap',
               done['result'] == {'saved': True} and 'preset' not in km and km.get('pinned') == ['calculator.evaluate']
-              and os.path.exists(os.path.join(config, 'keymap.json')), str(done) + str(km)[:200])
+              and os.path.exists(os.path.join(config, 'settings.json')), str(done) + str(km)[:200])
         done, _ = call(cmd='keymap.set', pinned=['session.reload_model'])
         done2, _ = call(cmd='keymap.get')
         check('W528: keymap.set leaves out what it is not given: the bindings stay',
@@ -2272,8 +2272,8 @@ def check_session_commands():
             check('W528: keymap.set %s is refused, the keymap as it was' % json.dumps(bad),
                   text in error_of(done) and kept['result'] == done2['result'], str(done)[:300])
         done, evs = call(cmd='keymap.reset')
-        check('W528: keymap.reset removes the file', done['result'] == {'reset': True}
-              and not os.path.exists(os.path.join(config, 'keymap.json')) and any(e.get('ev') == 'keymap.changed' and e['op'] == 'reset' for e in evs), str(done))
+        check('W528: keymap.reset clears the differences, the file stays', done['result'] == {'reset': True}
+              and 'bindings' in open(os.path.join(config, 'settings.json')).read() and any(e.get('ev') == 'keymap.changed' and e['op'] == 'reset' for e in evs), str(done))
         # the recording and the player
         done, _ = call(cmd='recording.add_note', note='no recording yet')
         check('W528: recording.add_note refuses while not recording', 'Not recording' in error_of(done), str(done))
@@ -3263,8 +3263,8 @@ def check_atomic_commands():
 def check_options_panels():
     """W616: the options panels' data. hello carries the option table (every group, its rows with key, section, label, kind, help,
     default and limits); options.get gives a group's values as text and options.configure sets some of them, all or nothing, by their
-    option keys; output.configure is the same for the output group, its path picked in the file dialog; preferences.configure keeps the
-    log's level and file in the preferences."""
+    option keys; output.configure is the same for the output group, its path picked in the file dialog; settings.configure keeps the
+    log's level and file in the settings."""
     is_done = lambda e: e.get('ev') == 'done'  # this section also runs alone (--only), before the module's helper below is defined
     proc, run, send, collect, _ = launch_server()
     try:
@@ -3284,7 +3284,7 @@ def check_options_panels():
         commands = {c['cmd']: c for c in hello['commands'] if 'arguments' in c}
         check('W641: every command row has the text of its action, never OK or Run, and an option\'s is Apply', all(c.get('action') for c in commands.values())
               and not any(c['action'] in ('OK', 'Run') for c in commands.values()) and commands['run.configure']['action'] == 'Apply', str([c['cmd'] for c in commands.values() if not c.get('action')]))
-        check('W641: an argument has its description where the row gives one', next(a for a in commands['preferences.configure']['arguments'] if a['name'] == 'log_file').get('description'))
+        check('W641: an argument has its description where the row gives one', next(a for a in commands['settings.configure']['arguments'] if a['name'] == 'log_file').get('description'))
         check('W616: no key twice in a group', all(len({r['key'] for r in g['rows']}) == len(g['rows']) for g in groups.values()))
 
         def call(**command):
@@ -3347,29 +3347,29 @@ def check_options_panels():
         check('W616: only an output path takes a picked file', done.get('status') == 'error' and 'no path option of output' in done.get('error', ''), str(done))
         done = call(cmd='output.configure', option='data_file')
         check('W616: an option and its file go together', done.get('status') == 'error', str(done))
-        done = call(cmd='preferences.configure', log_level='info', log_file='')
-        check('W616: preferences.configure keeps the log level in the preferences beside the threads', done.get('status') == 'ok' and done['result']['log_level'] == 'info', str(done))
-        done = call(cmd='preferences.get')
-        check('W616: preferences.get gives the threads, whether automatic, the log level and file', done.get('status') == 'ok' and done['result']['log_level'] == 'info' and 'automatic' in done['result'] and 'log_file' in done['result'], str(done))
-        # W655: the eight colors are preferences: set, read back, kept in the file, refused in a model's options
-        kept = call(cmd='preferences.get')['result']
-        done = call(cmd='preferences.configure', x_nullcline_color='#123456', unstable_manifold_color='red')
-        check('W655: preferences.configure sets colors and answers with them', done.get('status') == 'ok' and done['result']['x_nullcline_color'] == '#123456'
+        done = call(cmd='settings.configure', log_level='info', log_file='')
+        check('W616: settings.configure keeps the log level in the settings beside the threads', done.get('status') == 'ok' and done['result']['log_level'] == 'info', str(done))
+        done = call(cmd='settings.get')
+        check('W616: settings.get gives the threads, whether automatic, the log level and file', done.get('status') == 'ok' and done['result']['log_level'] == 'info' and 'automatic' in done['result'] and 'log_file' in done['result'], str(done))
+        # W655: the eight colors are settings: set, read back, kept in the file, refused in a model's options
+        kept = call(cmd='settings.get')['result']
+        done = call(cmd='settings.configure', x_nullcline_color='#123456', unstable_manifold_color='red')
+        check('W655: settings.configure sets colors and answers with them', done.get('status') == 'ok' and done['result']['x_nullcline_color'] == '#123456'
               and done['result']['unstable_manifold_color'] == '#ff0000', str(done))
-        done = call(cmd='preferences.get')
-        check('W655: preferences.get lists the eight colors', done.get('status') == 'ok' and done['result']['x_nullcline_color'] == '#123456'
+        done = call(cmd='settings.get')
+        check('W655: settings.get lists the eight colors', done.get('status') == 'ok' and done['result']['x_nullcline_color'] == '#123456'
               and sum(k.endswith('_color') for k in done['result']) == 8, str(done))
-        check('W655: a color is a color', call(cmd='preferences.configure', y_nullcline_color='notacolor').get('status') == 'error')
+        check('W655: a color is a color', call(cmd='settings.configure', y_nullcline_color='notacolor').get('status') == 'error')
         check('W655: the diagram group has no color rows', 'colors.stable_equilibrium' not in call(cmd='options.get', group='diagram')['result']['values'])
-        call(cmd='preferences.configure', x_nullcline_color=kept['x_nullcline_color'], unstable_manifold_color=kept['unstable_manifold_color'])  # the preferences file is shared by the later servers: back to what it held
-        check('W616: a log level is one of the words', call(cmd='preferences.configure', log_level='loud').get('status') == 'error')
-        call(cmd='preferences.configure', log_level='warn')  # the preferences file is shared by every server this check starts: back to the default
-        # W622: the opening's update check: the switch is a preference, the core decides once a day whether it is due and records it
-        check('W622: preferences.get gives check_for_updates, on by default', call(cmd='preferences.get')['result'].get('check_for_updates') is True)
-        call(cmd='preferences.configure', check_for_updates=False)
-        check('W622: preferences.configure switches the opening check off', call(cmd='preferences.get')['result'].get('check_for_updates') is False)
+        call(cmd='settings.configure', x_nullcline_color=kept['x_nullcline_color'], unstable_manifold_color=kept['unstable_manifold_color'])  # the settings file is shared by the later servers: back to what it held
+        check('W616: a log level is one of the words', call(cmd='settings.configure', log_level='loud').get('status') == 'error')
+        call(cmd='settings.configure', log_level='warn')  # the settings file is shared by every server this check starts: back to the default
+        # W622: the opening's update check: the switch is a setting, the core decides once a day whether it is due and records it
+        check('W622: settings.get gives check_for_updates, on by default', call(cmd='settings.get')['result'].get('check_for_updates') is True)
+        call(cmd='settings.configure', check_for_updates=False)
+        check('W622: settings.configure switches the opening check off', call(cmd='settings.get')['result'].get('check_for_updates') is False)
         check('W622: with the switch off no check is due', call(cmd='update.due')['result'] == {'due': False})
-        call(cmd='preferences.configure', check_for_updates=True)
+        call(cmd='settings.configure', check_for_updates=True)
         first = call(cmd='update.due')
         second = call(cmd='update.due')
         check('W622: with the switch on a check is due once, the second asking the same day is not',
@@ -5040,7 +5040,7 @@ def check_import_only_options():
         with open(os.path.join(run, 'log.odex'), 'w', encoding='utf-8') as source:
             source.write("version 4\nx' = 1\noptions { output: { log_file: \"x.log\" } }\n")
         moved = subprocess.run([os.path.abspath(args.server), 'log.odex', '--check'], cwd=run, capture_output=True, text=True, timeout=60 * SLOW)
-        check('W619: log_file is no key of a model (the preferences hold it)', 'log_file' in moved.stdout + moved.stderr and moved.returncode != 0, moved.stdout + moved.stderr)
+        check('W619: log_file is no key of a model (the settings hold it)', 'log_file' in moved.stdout + moved.stderr and moved.returncode != 0, moved.stdout + moved.stderr)
 
 
 check_import_only_options()
@@ -6988,7 +6988,7 @@ def check_autoxoptions():
             if 'pars' in c:
                 commands.append(dict(cmd='autox.configure_axes', pars=c['pars']))
             if 'threads' in c:
-                commands.append(dict(cmd='preferences.configure', **({'automatic': True} if c['threads'] == 'auto' else {'threads': c['threads']})))
+                commands.append(dict(cmd='settings.configure', **({'automatic': True} if c['threads'] == 'auto' else {'threads': c['threads']})))
             evs = []
             for command in commands:
                 snda(**command)
@@ -11273,7 +11273,7 @@ def check_question_policy():
                 if case == 'recording replacement':
                     ok = ok and open(saved, 'rb').read() == (b'new' if mode in ('stdin', 'yes') else b'keep')
                 if case == 'outside path':
-                    prefs = os.path.join(env['XPP_CONFIG_DIR'], 'preferences.odex')
+                    prefs = os.path.join(env['XPP_CONFIG_DIR'], 'state.json')
                     ok = ok and (not os.path.exists(prefs) or table not in open(prefs, encoding='utf-8').read().replace('\\', '/'))
                 check('W304: %s / %s' % (case, mode), ok, detail)
         # The converter's write-only replacement has terminal policies; there is no server command for it.
@@ -11291,13 +11291,21 @@ def check_question_policy():
 
 check_question_policy()
 
+def keymap_file_text(keymap_file):
+    """W790: a keymap file of the old form, as the keymap group of a settings.json: the object keeps its lines (line 1 opens it)"""
+    head = '{"version": 4,'
+    assert keymap_file.startswith(head), keymap_file[:40]
+    body = keymap_file[len(head):].rstrip()
+    assert body.endswith('}')
+    return '{"version": 4, "keymap": {' + body[:-1] + '}}\n'
+
 def check_keymap():
-    """W211, docs/protocol.md "Keymap": keymap.json is one file in the config folder; hello carries its
+    """W211, docs/protocol.md "Keymap": the keymap is the keymap group of settings.json in the config folder; hello carries its
     effective keys; `keymap` get / set / reset read, replace (checked whole, then written) and remove it;
     a bad file is an error with its place and the defaults shown as marked, never applied in part; a
     second server reads what the first wrote."""
     folder = os.path.join(CONFIG_ROOT, 'nested', 'xppautX')     # the first start or save makes it
-    path = os.path.join(folder, 'keymap.json')
+    path = os.path.join(folder, 'settings.json')
     env = {'XPP_CONFIG_DIR': folder}
     same = lambda a, b: os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
     keymap_events = lambda evs: [e for e in evs if e.get('ev') == 'keymap.changed']
@@ -11315,8 +11323,8 @@ def check_keymap():
         check('W211: hello gives the reserved keys and the limits the editor keeps to',
               'Ctrl+W' in km['reserved'] and 'F12' in km['reserved'] and km['limits'] == {'keys': 8, 'key_bytes': 64},
               str(km['limits']))
-        # W232: the start made the folder for preferences.odex (the model it was started with); reading the keymap made no file
-        check('W211: reading the keymap makes no keymap.json', not os.path.exists(path))
+        # W232: the start made the folder for state.json (the model it was started with); reading the keymap made no file
+        check('W211: reading the keymap makes no settings.json', not os.path.exists(path))
         snd(cmd='keymap.get')
         evs, _ = col(is_done)
         check('W211: get answers a keymap event with the same effective keymap, then state and done',
@@ -11336,9 +11344,9 @@ def check_keymap():
               and cmds['session.save'] == {'id': 'session.save', 'keys': [], 'source': 'user'}
               and cmds['session.open_model']['source'] == 'default' and os.path.isfile(path), str(evs)[-300:])
         written = open(path, 'rb').read()
-        check('W211: the file holds only the differences, one binding to a line, and no other file is left beside it',
-              b'"session.reload_model": ["Ctrl+B", "Ctrl+K"]' in written and b'session.open_model' not in written
-              and sorted(os.listdir(folder)) == ['keymap.json', 'preferences.odex'], repr(written[:200]))
+        check('W211: the file holds only the differences, one binding to a line, and no other file is left beside it but state.json',
+              b'"bindings": {\n      "run.continue": ["Alt+I"],\n      "session.reload_model": ["Ctrl+B", "Ctrl+K"]' in written and b'session.open_model' not in written
+              and sorted(os.listdir(folder)) == ['settings.json', 'state.json'], repr(written[:200]))
 
         for what, bad, line, value in [
                 ('a reserved key', {'bindings': {'session.reload_model': ['Ctrl+W']}}, 1, 'Ctrl+W'),
@@ -11378,7 +11386,7 @@ def check_keymap():
 
         # a bad file, written by hand: shown as an error at its line, the defaults marked, nothing applied
         with open(path, 'w', newline='\n') as f:
-            f.write('{"version": 4,\n  "pinned": ["session.reload_model"],\n  "bindings": {"session.reload_model": ["Ctrl+Q"]}\n}\n')
+            f.write(keymap_file_text('{"version": 4,\n  "pinned": ["session.reload_model"],\n  "bindings": {"session.reload_model": ["Ctrl+Q"]}\n}\n'))
         snd(cmd='keymap.get')
         evs, _ = col(is_done)
         ev = keymap_events(evs)
@@ -11390,7 +11398,7 @@ def check_keymap():
         for what, text, line, value in [('a preset', '{"version": 4,\n  "preset": "xppaut"\n}\n', 2, 'preset'),
                                         ('a chord', '{"version": 4,\n  "bindings": {\n    "calculator.evaluate": ["F S"]\n  }\n}\n', 3, 'F S')]:
             with open(path, 'w', newline='\n') as f:
-                f.write(text)
+                f.write(keymap_file_text(text))
             snd(cmd='keymap.get')
             evs, _ = col(is_done)
             ev = keymap_events(evs)
@@ -11401,7 +11409,13 @@ def check_keymap():
         snd(cmd='keymap.set', pinned=['calculator.evaluate'])
         evs, _ = col(is_done)
         ev = keymap_events(evs)
-        check('W211: set replaces a bad file whole', len(ev) == 1 and ev[0]['keymap']['ok'] is True
+        check('W790: set refuses to replace a bad settings.json: the error names the file, nothing is written', len(ev) == 0 and len(errors(evs)) == 1 and same(errors(evs)[0]['file'], path), str(evs)[-300:])
+        with open(path, 'w', newline='\n') as f:
+            f.write(keymap_file_text('{"version": 4,\n  "pinned": ["calculator.evaluate"]}\n'))
+        snd(cmd='keymap.set', pinned=['calculator.evaluate'])
+        evs, _ = col(is_done)
+        ev = keymap_events(evs)
+        check('W211: set replaces the keymap of a good file, the rest left as it is', len(ev) == 1 and ev[0]['keymap']['ok'] is True
               and ev[0]['keymap']['pinned'] == ['calculator.evaluate'], str(evs)[-300:])
 
         # W772: a binding and a pin name a command with its arguments, written as the text command; the page gets what runs it
@@ -11425,35 +11439,133 @@ def check_keymap():
 
         # a file too large is refused as it is read
         with open(path, 'w') as f:
-            f.write(' ' * 70000 + '{}')
+            f.write(' ' * 300000 + '{}')
         snd(cmd='keymap.get')
         evs, _ = col(is_done)
         ev = keymap_events(evs)
         check('W211: a file over the limit is an error naming the file', len(ev) == 1 and ev[0]['keymap']['ok'] is False
               and same(ev[0]['keymap']['file'], path), str(evs)[-300:])
 
+        # each check from its own clean file: the oversized one is replaced by a small one with a pin and another setting
+        with open(path, 'w') as f:
+            f.write('{"version": 4, "page": {"theme": "dark"}, "keymap": {"pinned": ["session.reload_model"]}}\n')
         snd(cmd='keymap.reset')
         evs, _ = col(is_done)
         ev = keymap_events(evs)
-        check('W211: reset removes the file and answers the defaults',
+        check('W211: reset clears the differences and answers the defaults; the file stays with its other settings',
               len(ev) == 1 and ev[0]['op'] == 'reset' and ev[0]['keymap']['ok'] is True and ev[0]['keymap']['pinned'] == []
-              and not os.path.exists(path), str(evs)[-300:])
+              and os.path.exists(path) and '"pinned": []' in open(path, encoding='utf-8').read()
+              and '"theme": "dark"' in open(path, encoding='utf-8').read(), str(evs)[-300:])
+        os.remove(path)
         snd(cmd='keymap.reset')
         evs, _ = col(is_done)
         check('W211: reset with no file is fine', len(keymap_events(evs)) == 1 and not errors(evs), str(evs)[-200:])
     finally:
         stop_server(p, r, snd)
 
+def check_settings():
+    """W790, Discussion #873: settings.json is the user's settings in the config folder. hello carries its page group (theme,
+    dock, folds) and an error when the file is bad; `settings.set` sets one value, the value as JSON text, checked and written
+    whole: a refused value names itself and writes nothing, the file's comments and layout stay, and another server reads it."""
+    folder = os.path.join(CONFIG_ROOT, 'settings', 'xppautX')
+    path = os.path.join(folder, 'settings.json')
+    env = {'XPP_CONFIG_DIR': folder}
+    errors = lambda evs: [e for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
+    hello_settings = lambda evs: next(e for e in evs if e.get('ev') == 'hello')['settings']
+    p, r, snd, col, _ = launch_server(extra_env=env)
+    try:
+        evs, _ = col(is_done)
+        st = hello_settings(evs)
+        check('W790: hello carries the settings: ok, the path of settings.json, the page defaults',
+              st['ok'] is True and st['path'].endswith('settings.json') and st['page'] == {'theme': 'system', 'dock_hidden': False, 'dock_width': None, 'folds': []},
+              str(st)[:300])
+        snd(cmd='settings.set', group='page', key='theme', value='"dark"')
+        evs, _ = col(is_done)
+        check('W790: settings.set writes one value into settings.json, no error', not errors(evs) and os.path.isfile(path)
+              and b'"theme": "dark"' in open(path, 'rb').read(), str(evs)[-300:])
+        before = open(path, 'rb').read()
+        for what, group, key, value, text in [('a theme no choice has', 'page', 'theme', '"blue"', 'none of system, light or dark'),
+                                              ('a dock width outside the limits', 'page', 'dock_width', '100', 'dock_width is 288 to 800'),
+                                              ('a value of the wrong kind', 'updates', 'check_for_updates', '"yes"', 'true or false'),
+                                              ('the keymap, which has its own commands', 'keymap', 'pinned', '[]', 'keymap commands'),
+                                              ('a setting that does not exist', 'page', 'nosuch', '1', 'unknown setting')]:
+            snd(cmd='settings.set', group=group, key=key, value=value)
+            evs, _ = col(is_done)
+            err = errors(evs)
+            check('W790: settings.set refuses %s with the value, and writes nothing' % what,
+                  len(err) == 1 and text in err[0]['error'] and open(path, 'rb').read() == before, str(evs)[-300:])
+        snd(cmd='settings.set', group='page', key='dock_width', value='300')
+        evs, _ = col(is_done)
+        snd(cmd='settings.set', group='page', key='folds', value='["par", "values"]')
+        evs, _ = col(is_done)
+        check('W790: settings.set takes a number and a list of section ids', not errors(evs) and b'"folds": ["par", "values"]' in open(path, 'rb').read()
+              and b'"dock_width": 300' in open(path, 'rb').read(), str(evs)[-300:])
+    finally:
+        stop_server(p, r, snd)
+
+    # another server reads what the first wrote; the file's comments and layout are kept by a change
+    p, r, snd, col, _ = launch_server(extra_env=env)
+    try:
+        evs, _ = col(is_done)
+        st = hello_settings(evs)
+        check('W790: another server reads the same settings.json: the theme, the dock width and the folds it wrote',
+              st['ok'] is True and st['page']['theme'] == 'dark' and st['page']['dock_width'] == 300 and st['page']['folds'] == ['par', 'values'], str(st)[:300])
+    finally:
+        stop_server(p, r, snd)
+    commented = ('{\n  // the user\'s settings, kept as written\n  "version": 4,\n  "general": {"threads": 2}, // threads\n'
+                 '  "page": {"theme": "light"} /* the theme */,\n  /* last */ "updates": {"check_for_updates": false}\n}\n')
+    with open(path, 'w', newline='\n') as f:
+        f.write(commented)
+    p, r, snd, col, _ = launch_server(extra_env=env)
+    try:
+        evs, _ = col(is_done)
+        check('W790: a settings.json with comments is read: the theme light', hello_settings(evs)['page']['theme'] == 'light', str(evs)[-200:])
+        snd(cmd='settings.set', group='page', key='folds', value='["a"]')
+        evs, _ = col(is_done)
+        kept = open(path, encoding='utf-8', newline='').read()
+        check('W790: a change keeps every comment and byte, a new key goes on its own line after the last one of its group, indented four spaces',
+              not errors(evs) and kept == commented.replace('"page": {"theme": "light"}', '"page": {"theme": "light",\n    "folds": ["a"]}'), repr(kept)[:300])
+    finally:
+        stop_server(p, r, snd)
+    # a keymap write keeps the comments too: the group is made at the end, its members indented like every group's, nested ones one step more
+    keymap_commented = '{\n  // top\n  "version": 4, /* v */\n  "page": {"theme": "light"}\n  /* end */\n}\n'
+    with open(path, 'w', newline='\n') as f:
+        f.write(keymap_commented)
+    p, r, snd, col, _ = launch_server(extra_env=env)
+    try:
+        col(is_done)
+        snd(cmd='keymap.set', bindings={'run.continue': ['Alt+I']}, pinned=[])
+        evs, _ = col(is_done)
+        kept = open(path, encoding='utf-8', newline='').read()
+        check('W790: a keymap write keeps every comment and byte, the group and its bindings indented like the other groups',
+              not errors(evs) and kept == keymap_commented.replace('"theme": "light"}', '"theme": "light"},\n  "keymap": {\n    "bindings": {\n      "run.continue": ["Alt+I"]\n    },\n    "pinned": []\n  }'), repr(kept)[:400])
+    finally:
+        stop_server(p, r, snd)
+    with open(path, 'w', newline='\n') as f:
+        f.write('{"version": 4,\n  "page": {"theme": "blue"}\n}\n')
+    p, r, snd, col, _ = launch_server(extra_env=env)
+    try:
+        evs, _ = col(is_done)
+        st = hello_settings(evs)
+        check('W790: a bad settings.json is an error at its file and line, the page defaults shown, and never overwritten',
+              st['ok'] is False and st['line'] == 2 and 'blue' in st['error'] and st['page']['theme'] == 'system', str(st)[:300])
+        snd(cmd='settings.set', group='page', key='theme', value='"light"')
+        evs, _ = col(is_done)
+        check('W790: settings.set refuses to write over a bad settings.json', len(errors(evs)) == 1 and '"theme": "blue"' in open(path).read(), str(evs)[-200:])
+    finally:
+        stop_server(p, r, snd)
+
+
 check_keymap()
+check_settings()
 
 def recent_text(models):
-    """W287: a preferences.odex holding these recent models (a quoted string is JSON's)"""
-    return 'version 4\npreferences {\n  recent_models: [%s],\n}\n' % ', '.join(json.dumps(m) for m in models)
+    """W287: a state.json holding these recent models (a quoted string is JSON's)"""
+    return '{"version": 4, "recent_models": [%s]}\n' % ', '.join(json.dumps(m) for m in models)
 
 def recent_models(path):
-    """W287: the recent_models of a preferences.odex the program wrote"""
-    m = re.search(r'recent_models: (\[.*?\]),\n', open(path, encoding='utf-8').read(), re.S)
-    return json.loads(m.group(1)) if m else []
+    """W287: the recent_models of the state.json the program wrote"""
+    return json.load(open(path, encoding='utf-8')).get('recent_models', []) if os.path.exists(path) else []
 
 def check_start_screen():
     """W232, docs/protocol.md "Start screen": a program started with no file has a session with no model.
@@ -11461,10 +11573,10 @@ def check_start_screen():
     state; nothing is asked until the user opens a model (maintainer, 2026-11-09); Open model asks for the
     file (the filter takes .ode, .odex, .snapx and .recx); Cancel leaves the start screen (no error, no exit); a command that needs a model is
     refused; Open model of a file, from the screen, is a normal open (new hello with no `start`, the model
-    in preferences.odex); a bad preferences.odex is an error with its file and line, no entries listed, and is not
+    in state.json); a bad state.json is an error with its file and line, no entries listed, and is not
     overwritten by an open; a hostile file is refused whole."""
     folder = os.path.join(CONFIG_ROOT, 'start', 'xppautX')
-    path = os.path.join(folder, 'preferences.odex')
+    path = os.path.join(folder, 'state.json')
     env = {'XPP_CONFIG_DIR': folder}
     errors = lambda evs: [e for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
     model = os.path.abspath(args.ode)
@@ -11508,7 +11620,7 @@ def check_start_screen():
         hello = next((e for e in evs if e.get('ev') == 'hello'), {})
         check('W232: Open model of a file loads it: a hello with no start screen, its state, no question, no error',
               hello and 'start' not in hello and last_state(evs) and not [e for e in evs if e.get('ev') == 'ask'] and not errors(evs), str(evs)[-300:])
-        check('W232: the opened model is the first of recent_models in preferences.odex, an absolute path',
+        check('W232: the opened model is the first of recent_models in state.json, an absolute path',
               same(recent_models(path)[0], model), '')
     finally:
         stop_server(p, r, snd)
@@ -11532,15 +11644,15 @@ def check_start_screen():
     finally:
         stop_server(p, r, snd)
 
-    # a bad preferences.odex: an error at its line, nothing listed, never overwritten
-    bad = 'version 4\npreferences {\n  recent_models: [%s,\n    "relative.odex"],\n}\n' % json.dumps(model)
+    # a bad state.json: an error at its line, nothing listed, never overwritten
+    bad = '{"version": 4,\n  "recent_models": [%s,\n    "relative.odex"]}\n' % json.dumps(model)
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(bad)
     p, r, snd, col, evs = start_up()
     try:
         start = next(e for e in evs if e.get('ev') == 'hello')['start']
-        check('W232: a bad preferences.odex is an error with its file, line and value, and nothing is listed',
-              start['recent'] == [] and same(start['file'], path) and start['line'] == 4
+        check('W232: a bad state.json is an error with its file, line and value, and nothing is listed',
+              start['recent'] == [] and same(start['file'], path) and start['line'] == 3
               and 'relative.odex' in start['error'] and 'relative.odex' in start['source'], str(start))
         snd(cmd='session.open_model', file=model)
         evs, _ = col(is_done)
@@ -11623,7 +11735,7 @@ def check_start_examples():
                 same_bytes = a.read() == b.read()
             check('W233: opening an example copies it into the config folder and opens the copy: a hello with no start, a state, no error, no question',
                   hello and 'start' not in hello and last_state(evs) and not errors(evs) and not [e for e in evs if e.get('ev') == 'ask']
-                  and same_bytes and same(recent_models(os.path.join(config, 'preferences.odex'))[0], copied),
+                  and same_bytes and same(recent_models(os.path.join(config, 'state.json'))[0], copied),
                   str(evs)[-300:])
             check('W233: and says where the copy is', any(same(e['bottom'].split(' is copied to ')[1].split(';')[0], copied) for e in evs if e.get('ev') in ('session.message', 'done') and ' is copied to ' in e.get('bottom', '')), str(evs)[-300:])
             # a changed copy is asked about before it is replaced; No keeps it as it is
@@ -11655,14 +11767,14 @@ def check_start_examples():
 check_start_examples()
 
 def check_threads():
-    """W267, docs/protocol.md "autoX's options as data": the thread count is a program preference: the
+    """W267, docs/protocol.md "autoX's options as data": the thread count is a program setting: the
     autoxoptions event carries it ("auto" or the count, what automatic gives, the most), `auto` `set`
-    `threads` saves it in preferences.odex (in a config folder of its own) and a server started later reads
+    `threads` saves it in state.json (in a config folder of its own) and a server started later reads
     it; a count outside 1 to threads_max, or a word that is not "auto", is refused whole, nothing saved."""
     root = tempfile.mkdtemp(prefix='xppthreads')
     config = os.path.join(root, 'config')
     env = {'XPP_CONFIG_DIR': config}
-    prefs = os.path.join(config, 'preferences.odex')
+    prefs = os.path.join(config, 'settings.json')
     errors = lambda evs: [e['error'] for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
 
     def threads_of(snd, col):
@@ -11680,21 +11792,21 @@ def check_threads():
             most = st['threads_max']
             check('W267: the event gives threads "auto" at first, what automatic gives (1 to 4) and the most (the logical processors)',
                   st['threads'] == 'auto' and 1 <= st['threads_auto'] <= min(4, most) and most >= 1, str(st)[-200:])
-            snd(cmd='preferences.configure', threads=most)
+            snd(cmd='settings.configure', threads=most)
             evs, _ = col(is_done)
             st = settings_of(evs)
-            check('W267: set threads (the most) shows in the event and is saved in preferences.odex',
-                  not errors(evs) and st and st['threads'] == most and 'threads: %d' % most in text(), str(evs)[-300:])
+            check('W267: set threads (the most) shows in the event and is saved in settings.json',
+                  not errors(evs) and st and st['threads'] == most and '"threads": %d' % most in text(), str(evs)[-300:])
             before = text()
             for bad in (0, most + 1, -1, 1.5, 'many', 'autoX', [2]):
-                snd(cmd='preferences.configure', threads=bad)
+                snd(cmd='settings.configure', threads=bad)
                 evs, _ = col(is_done)
                 err = errors(evs)
                 check('W267: set threads %r is refused naming the rule, the file is as it was' % (bad,),
                       len(err) == 1 and 'threads' in err[0] and text() == before, str(evs)[-300:])
             check('W267: and the shown count is the one before', threads_of(snd, col)['threads'] == most)
-            snd(cmd='preferences.configure', threads=1)
-            check('W267: set threads 1', col(is_done) and 'threads: 1' in text())
+            snd(cmd='settings.configure', threads=1)
+            check('W267: set threads 1', col(is_done) and '"threads": 1' in text())
         finally:
             stop_server(p, r, snd)
         # a later start reads it, and "auto" puts the word back
@@ -11702,24 +11814,25 @@ def check_threads():
         try:
             col(is_done)
             check('W267: a later server starts with the saved count', threads_of(snd, col)['threads'] == 1)
-            snd(cmd='preferences.configure', automatic=True)
+            snd(cmd='settings.configure', automatic=True)
             evs, _ = col(is_done)
-            check('W267: set threads "auto" is saved as the word and shown', not errors(evs) and 'threads: auto' in text()
+            check('W267: set threads "auto" is saved as the word and shown', not errors(evs) and '"threads": "auto"' in text()
                   and settings_of(evs)['threads'] == 'auto', str(evs)[-300:])
         finally:
             stop_server(p, r, snd)
         # a file with a bad count is an error at its line on start and is never overwritten
-        bad_text = 'version 4\npreferences {\n  recent_models: [],\n  threads: 0,\n}\n'
+        bad_text = '{"version": 4,\n"general": {\n  "threads": 0\n}}\n'
         with open(prefs, 'w') as f:
             f.write(bad_text)
         p, r, snd, col, _ = launch_server(extra_env=env)
         try:
             evs, _ = col(is_done)
-            snd(cmd='preferences.configure', threads=2)
+            snd(cmd='settings.configure', threads=2)
             evs2, _ = col(is_done)
             err = errors(evs2)
             check('W267: a bad count in the file is refused with its file and line, the set is refused with it and the file is left as it is',
-                  len(err) == 1 and 'preferences.odex:4' in err[0] and text() == bad_text, str(err) + str(evs)[-200:])
+                  len(err) == 1 and 'thread count' in err[0] and text() == bad_text
+                  and any(e.get('file', '').endswith('settings.json') and e.get('line') == 3 for e in evs2 if e.get('ev') == 'done'), str(err) + str(evs2)[-300:])
         finally:
             stop_server(p, r, snd)
     finally:
@@ -11728,7 +11841,7 @@ def check_threads():
 
 def check_outside_paths():
     """W286, docs/protocol.md "Paths outside the model's folder": a path a model names outside its folder is
-    a question (`ask` kind `choice`, keys `aor`): Allow always is kept in the preferences for this model file and
+    a question (`ask` kind `choice`, keys `aor`): Allow always is kept in the settings for this model file and
     this exact path, Allow once is for this load, Refuse (and --silent with no answer) stops the load at the
     model's line. --yes allows once, printed."""
     binary = os.path.abspath(args.server)
@@ -11736,7 +11849,7 @@ def check_outside_paths():
     root = os.path.realpath(tempfile.mkdtemp(prefix='xppoutside'))
     config = os.path.join(root, 'config')
     env = {'XPP_CONFIG_DIR': config}
-    prefs = os.path.join(config, 'preferences.odex')
+    prefs = os.path.join(config, 'state.json')
     table = os.path.join(root, 'w.tab').replace(os.sep, '/')
     table2 = os.path.join(root, 'w2.tab').replace(os.sep, '/')
     for t in (table, table2):
@@ -11750,7 +11863,7 @@ def check_outside_paths():
             f.write(versioned(chr(10).join(['table w "' + path + '"', 'par a=1.5', "x'=w(a)-x", 'init x=0',
                                   'options { integration: { total_time: 4 } }', ''])))
         return full
-    # the preferences keep the resolved path, on Windows with backslashes (written \\): read them as / to
+    # the settings keep the resolved path, on Windows with backslashes (written \\): read them as / to
     # compare with the path as the model names it
     kept = lambda: open(prefs, encoding='utf-8').read().replace('\\\\', '/') if os.path.exists(prefs) else ''
     is_hello = lambda e: e.get('ev') == 'hello'
@@ -11792,7 +11905,7 @@ def check_outside_paths():
             check('W286: Allow once kept nothing, so the same model asks again', ask and ask.get('kind') == 'choice', str(ask))
             s.send(cmd='answer', id=ask['id'], key='a')
             evs, _ = s.collect(is_done)
-            check('W286: Allow always loads the model and keeps the model file and the path in the preferences',
+            check('W286: Allow always loads the model and keeps the model file and the path in the settings',
                   any(e.get('ev') == 'session.state' for e in evs) and table in kept(), str(evs)[-300:] + kept())
         finally:
             s.close()
@@ -11828,7 +11941,7 @@ def check_outside_paths():
             s.collect(is_done)
         finally:
             s.close()
-        check('W741: an Allow always given after the load is kept in the preferences', runtime_out in kept(), kept())
+        check('W741: an Allow always given after the load is kept in the settings', runtime_out in kept(), kept())
         s = start(plain)
         try:
             s.collect(is_done)
@@ -11842,7 +11955,7 @@ def check_outside_paths():
             return subprocess.run([binary, 'tab.odex', '--silent'] + flags, cwd=proj, input=answer,
                                   capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW, env=dict(os.environ, **env))
         with open(prefs, 'w', encoding='utf-8') as f:
-            f.write('version 4\n')
+            f.write('{"version": 4}\n')
         result = silent([])
         check('W286: --silent with no answer refuses and quits with the error at the model\'s line',
               result.returncode == 1 and '(60 s)' in result.stderr and 'tab.odex:2' in result.stderr and 'refused' in result.stderr, result.stderr)
@@ -11879,7 +11992,7 @@ def check_outside_paths():
             finally:
                 s.close()
         with open(prefs, 'w', encoding='utf-8') as f:
-            f.write('version 4\n')
+            f.write('{"version": 4}\n')
         result = subprocess.run([binary, ode, '--silent', '--yes'], cwd=proj, input='',
                                 capture_output=True, text=True, timeout=60 * SLOW, env=dict(os.environ, **env))
         check('W297: --silent --yes .ode prints exactly one outside approval',
@@ -11901,7 +12014,7 @@ def check_outside_paths():
         finally:
             s.close()
 
-        # The log is the user's, not a model's: the preferences' log_file refuses a link and names it.
+        # The log is the user's, not a model's: the settings' log_file refuses a link and names it.
         log = os.path.join(root, 'swapped.log').replace(os.sep, '/')
         target = os.path.join(root, 'target.txt')
         with open(target, 'w') as f:
@@ -11915,12 +12028,12 @@ def check_outside_paths():
         else:
             log_config = os.path.join(root, 'log-config')
             os.makedirs(log_config)
-            with open(os.path.join(log_config, 'preferences.odex'), 'w', encoding='utf-8') as f:
-                f.write('version 4\npreferences {\n  log_file: "%s",\n}\n' % log)
+            with open(os.path.join(log_config, 'settings.json'), 'w', encoding='utf-8') as f:
+                f.write('{"version": 4, "general": {"log_file": %s}}\n' % json.dumps(log))
             result = subprocess.run([binary, 'tab.odex', '--silent'], cwd=proj, input='',
                                     capture_output=True, text=True, timeout=60 * SLOW,
                                     env=dict(os.environ, XPP_CONFIG_DIR=log_config))
-            check('W297: the preferences log file refuses a link and names file',
+            check('W297: the settings log file refuses a link and names file',
                   result.returncode != 0 and 'swapped.log' in result.stderr and open(target).read() == 'keep target', result.stderr)
 
     finally:
@@ -11972,7 +12085,7 @@ def check_sweep_threads():
         s = Server(args.server, odex, run=folder, env=env, extra_args=('--verbose',))
         try:
             s.collect(is_done)
-            s.send(cmd='preferences.configure', threads=threads)
+            s.send(cmd='settings.configure', threads=threads)
             s.collect(is_done)
             if set_sig:
                 s.send(cmd='value.set_parameters', values={'sig': .05})
@@ -12031,7 +12144,7 @@ def check_sweep_threads():
         s = Server(args.server, model, run=folder, env=env)
         try:
             s.collect(is_done)
-            s.send(cmd='preferences.configure', threads=many)
+            s.send(cmd='settings.configure', threads=many)
             s.collect(is_done)
             s.send(cmd='run.configure', total_time=1e7, store_every=100000)
             s.collect(is_done)

@@ -189,9 +189,9 @@ TEST_CASE("test_odex_block")
     bad_key.whole("not a key", 1);
     CHECK(!bad_key.result("test").has_value());
 
-    /* the session and preferences statements (W322): the one reader reads them in a file of their own kind only, so a
+    /* the session statement (W322): the one reader reads them in a session file only, so a
        model has no `session`, a session file has nothing but its statements (no import reads a file from it) and
-       the preferences file nothing but its own */
+        */
     using xpp::odex::FileKind;
     const auto state_error = [](FileKind kind, const std::string &text) {
         const auto r = xpp::odex::read_state_file(kind, "test", "s.odex", text);
@@ -204,18 +204,15 @@ TEST_CASE("test_odex_block")
     CHECK(state_error(FileKind::session, "version 4\nsession { a: 1 }\nsession { b: 2 }\n") == "s.odex:3:1: `session` is written once in a file (the first is at line 2)");
     CHECK(state_error(FileKind::session, "version 4\nx' = -x\n").starts_with("s.odex:2:1: a session file holds `par`, `init`, `options { ... }` and `session { ... }` only, found"));
     CHECK(state_error(FileKind::session, "version 4\nimport \"/etc/passwd\"\n").starts_with("s.odex:2:1: a session file holds"));
-    CHECK(state_error(FileKind::session, "version 4\npreferences { }\n").starts_with("s.odex:2:1: a session file holds"));
+    CHECK(state_error(FileKind::session, "version 4\nsettings { }\n").starts_with("s.odex:2:1: a session file holds"));
     CHECK(state_error(FileKind::session, "session { }\n").starts_with("s.odex:1:1: a session file starts with `version 4`"));
     CHECK(state_error(FileKind::session, "version 3\nsession { }\n").find("version 3: this program reads session files of version 4") != std::string::npos);
-    CHECK(state_error(FileKind::preferences, "version 4\npreferences { threads: auto }\n").empty());
-    CHECK(state_error(FileKind::preferences, "version 4\nsession { a: 1 }\n").starts_with("s.odex:2:1: the preferences file holds `preferences { ... }` only"));
-    CHECK(state_error(FileKind::preferences, "version 4\npar a = 1\n").starts_with("s.odex:2:1: the preferences file holds"));
     CHECK(state_error(FileKind::session, "version 4\nsession { a: { b: { c: { d: { e: { f: { g: { h: { i: 1 } } } } } } } } }\n").find("nested at most 8 deep") != std::string::npos);
     const auto model = std::make_unique<xpp::Model>();
     const auto in_model = xpp::odex::read_statements(*model, "version 4\nx' = -x\nsession { a: 1 }\n", "m.odex");
     CHECK(!in_model && in_model.error().place.line == 3 && in_model.error().what == "`session { ... }` is accepted only in a session file, not in a model");
-    const auto prefs_in_model = xpp::odex::read_statements(*model, "version 4\npreferences { }\n", "m.odex");
-    CHECK(!prefs_in_model && prefs_in_model.error().what == "`preferences { ... }` is accepted only in the preferences file, not in a model");
+    const auto session_in_model = xpp::odex::read_statements(*model, "version 4\nsession { }\n", "m.odex");
+    CHECK(!session_in_model && session_in_model.error().what == "`session { ... }` is accepted only in a session file, not in a model");
     CHECK(xpp::odex::read_statements(*model, "version 4\nsession = 1\n", "m.odex").has_value()); /* a name, not the statement: `session` is no reserved word */
     TEST_REPORT("test_odex_block");
 }

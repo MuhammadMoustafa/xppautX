@@ -19,12 +19,8 @@ import {installTestHook} from './testhook';
 import {App} from './ui/App';
 import {PopOutApp} from './ui/PopOut';
 import {popOutRequest} from './popout';
-import {savedPanels} from './store/panels';
-import {savedTheme} from './ui/theme';
 
 const session = new Session(new HttpTransport(), new HttpFiles());
-session.store.dispatch({type: 'theme', theme: savedTheme()});
-session.store.dispatch({type: 'panels', panels: savedPanels()});
 installTestHook(session);
 installDesktopHooks(session);
 /* a view in a window of its own (popout.ts, W645): the same page, at the address with the view named */

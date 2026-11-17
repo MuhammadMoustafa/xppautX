@@ -339,7 +339,7 @@ struct Model final : NameIndex {
   /* the user's "Allow always" answers this load works with, kept before and as given (model_file_types.h) */
   LoadServices services;
   /* a Model made to parse a file of values in (set_load.cpp, scratch_model) holds whether a path outside the folder the user
-     allows is for this read only (asked every time, never kept in the preferences) */
+     allows is for this read only (asked every time, never kept in the settings) */
   bool outside_once_only = false;
   /* the file system this model reads its files from and writes them to (xpp_fs.h): the one it was loaded
      with, handed in by the program's start and kept for the commands that read or write later. Set by

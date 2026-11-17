@@ -488,6 +488,8 @@ void j_autox_refresh(xpp::Session &s);
 
 /* the user's keymap as the page keeps it: hello's `keymap` object (xpp_keymap.h) */
 std::string hello_keymap(const xpp::Model &m);
+/* settings.json as the page keeps it: hello's `settings` object (xpp_settings.h: the page group, the error when the file is bad) */
+std::string hello_settings(const xpp::Model &m);
 /* the keymap commands: the user's keymap, replaced in the parts given, or reset */
 xpp::Result<std::string> keymap_get(xpp::Session &s);
 xpp::Result<std::string> keymap_set(xpp::Session &s, const xpp::command::Arguments &args);

@@ -102,7 +102,7 @@ Wall seconds, mean +/- sample SD of five measured runs. Valid runs 30/30; every 
 
 Engines: `xppaut` (XPPAUT 8.0, Xvfb `:93`), `xppautx-interp-1t`
 (the interpreter (compile false)), `xppautx-fd-Nt` / `xppautx-exact-Nt` (compiled; N = 1, 2,
-4 threads, the `auto_threads` preference set per run in a fresh
+4 threads, the `auto_threads` setting set per run in a fresh
 `XPP_CONFIG_DIR`; the Numerics' Jacobian set before AUTO opens), and
 `auto07p-Nt` (AUTO-07p, finite differences, OMP_NUM_THREADS = N). AUTO-07p
 has no exact-Jacobian run here: its Jacobian would have to be written by hand

@@ -64,6 +64,8 @@ export interface HelloEvent {
   quit: {question: string; recording: string; choices: string[]; keys: string; restart: LeaveQuestion; install: LeaveQuestion};
   /** the user's keymap as the core read it (W211, store/keymap.ts) */
   keymap: KeymapInfo;
+  /** the page's settings as settings.json holds them (core/xpp_settings.h, docs/protocol.md, settings and state) */
+  settings: SettingsInfo;
   /** autoX's Run: the kinds, the kinds a start from the current state takes, and one row for each start point type (core/autox_run.h) */
   autox_run: AutoxRunTable;
   /** every command, with its kind (a key's is its menu item's: "") and whether it is a step */
@@ -140,7 +142,7 @@ export interface OptionGroup {
   rows: OptionRow[];
 }
 
-/** one model of recent_models in preferences.odex: `missing` when its file is no longer there (listed, never dropped) */
+/** one model of recent_models in state.json: `missing` when its file is no longer there (listed, never dropped) */
 export interface RecentModel {
   path: string;
   missing: boolean;
@@ -155,7 +157,7 @@ export interface StartExamples {
 }
 
 /** hello.start: the models opened lately, newest first, `limit` the most kept; `error` (and the
-    `error` event's other fields) when preferences.odex could not be read, with no models listed */
+    `error` event's other fields) when state.json could not be read, with no models listed */
 export interface StartInfo {
   path: string;
   limit: number;
@@ -176,8 +178,30 @@ export interface KeymapCommand {
   source: 'default' | 'user';
 }
 
+/** the page's own settings: settings.json's `page` group (core/xpp_settings.h). The theme, the Values panel's dock and the folded sections */
+export interface PageSettings {
+  theme: 'system' | 'light' | 'dark';
+  dock_hidden: boolean;
+  /** CSS px, or null for the stylesheet's size */
+  dock_width: number | null;
+  folds: string[];
+}
+
+/** The `settings` of hello. `ok` false is a settings.json that could not be read: the error (the `error` event's fields) and the
+    page's defaults, which the page shows and never saves over the file. */
+export interface SettingsInfo {
+  ok: boolean;
+  path: string;
+  page: PageSettings;
+  error?: string;
+  file?: string;
+  line?: number;
+  col?: number;
+  source?: string;
+}
+
 /** The `keymap` of hello and of a `keymap` event (core/xpp_keymap.h, docs/protocol.md "Keymap"). `ok`
-    false is a keymap.json that could not be loaded: the error, its file, line and value (the
+    false is a settings.json that could not be loaded: the error, its file, line and value (the
     `error` event's fields), and the commands are the table's defaults, nothing of the file applied. */
 export interface KeymapInfo {
   ok: boolean;
@@ -200,7 +224,7 @@ export interface KeymapInfo {
   field?: string;
 }
 
-/** the user's differences, as keymap.json holds them and `set` replaces them */
+/** the user's differences, as settings.json holds them and `set` replaces them */
 export interface UserKeymap {
   pinned: string[];
   /** command id -> its keys instead of the table's ([] = none) */

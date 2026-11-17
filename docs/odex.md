@@ -44,7 +44,7 @@ no window, integration, or written `.odex`. Reserved names take the
 converter's suggested replacements. `--check model.odex` uses the `.odex`
 reader and reports only errors, and what the compiler warns of (id `compile`, a load's WARN lines), and, when the loaded model's states fall into
 several independent subsystems (W433), one `info` diagnostic with id
-`subsystems` that lists them (a `.ode` is converted, not loaded, and reports none). Inspection asks nothing: a path outside the model's folder that the preferences
+`subsystems` that lists them (a `.ode` is converted, not loaded, and reports none). Inspection asks nothing: a path outside the model's folder that the settings
 do not already allow is a load error at its line (a load would ask, W286).
 Stdout is one UTF-8 JSON object followed by a newline:
 
@@ -255,7 +255,7 @@ you wrote (`1/30`) alone while the value is unchanged.
 
   A value is one bare word or number (letters, digits, `_ . + -`), no
   quotes, except a **path**, a **text** or a **color**, which is a double-quoted string
-  (`data_file: "out/run 1.dat"`, `nullclines_file: "données.dat"`; a color, which only the preferences file and the protocol hold, is
+  (`data_file: "out/run 1.dat"`, `nullclines_file: "données.dat"`; a color, which only settings.json and the protocol hold, is
   `"foreground"`, a quoted CSS color name or `"#rrggbb"` (`#rrggbbaa` with alpha, drawn by the page,
   SVG and PDF), and every color is double quoted, including names; a name is read and written back as hex): `\"` and `\\`
   are its only escapes, a path is written with `/` on every system, and a
@@ -374,7 +374,7 @@ remain whole numbers in their existing ranges; they do not size an allocation.
 The JSON schemas publish the maxima from the same option rows. Exceeding one
 is a load error at the file's offending line, before applying anything.
 
-The shared `.odex` lexer (a session file's and the preferences file's too) accepts at most 1,048,576 tokens per file,
+The shared `.odex` lexer (a session file's too) accepts at most 1,048,576 tokens per file,
 including the end token: at most 80 MiB of token objects on 64-bit builds,
 plus token text bounded by the input's length. A punctuation-only file
 exceeding that cap is refused at the next token's file, line and column.
@@ -382,9 +382,9 @@ Both `.ode` and `.odex` ranges may expand to at most 100000 elements per
 statement; the length is checked before any copies are made. These caps
 allow large models while bounding compact hostile input's expansion.
 
-## Options syntax, session files and preferences
+## Options syntax and session files
 
-The options syntax is the options block's, and the session statement's and the preferences statement's with it (W284,
+The options syntax is the options block's, and the session statement's with it (W284,
 [#344](https://github.com/MuhammadMoustafa/xppautX/issues/344), design in
 [Discussion #341](https://github.com/MuhammadMoustafa/xppautX/discussions/341); W322,
 [#382](https://github.com/MuhammadMoustafa/xppautX/issues/382), design in
@@ -457,15 +457,15 @@ limiting their rectangle to about 16 million cells. A session is applied the sam
 `--silent`. The checks of the numerics and of every value are the ones the Numerics menu and `set num` make, with the
 offending key's file and line.
 
-### Preferences
+### Settings
 
-The program's preferences (W287) are one file in the per-user configuration folder, `preferences.odex`: `version 4` and one
-`preferences { recent_models: [...], threads: auto, log_level: warn, ... }` statement, accepted only in that file. It is
-read by the same reader, all or nothing, and written whole, temp-then-rename. No older file is read.
-It holds the eight colors of the diagram's stability kinds (`stable_equilibrium_color`, `unstable_equilibrium_color`,
-`stable_periodic_color`, `unstable_periodic_color`), the nullclines (`x_nullcline_color`, `y_nullcline_color`) and the saddles'
-manifolds (`stable_manifold_color`, `unstable_manifold_color`), each a double-quoted color (W655): they were the options
-`colors.*` of the `diagram` group, `nullclines.x_color`, `nullclines.y_color`, `manifolds.stable_color` and
+The program's own files are not `.odex` (W790, Discussion #873): the user's settings are `settings.json` and the program's state is
+`state.json`, both JSON in the per-user configuration folder, with `"version": 4`. They are read all or nothing with the
+protocol's rules (docs/protocol.md "Settings and state"), and `settings.odex` and `keymap.json` are no longer read. The
+eight colors of the diagram's stability kinds (`colors.stable_equilibrium_color`, ...), the nullclines and the saddles'
+manifolds are the `colors` group of `settings.json`, each a double-quoted color (W655): they were the options `colors.*`
+of the `diagram` group, `nullclines.x_color`, `nullclines.y_color`, `manifolds.stable_color` and `manifolds.unstable_color`
+of `plot`, which a model's `options` no longer takes (an error at its line).
 `manifolds.unstable_color` of `plot`, which a model's `options` no longer takes (an error at its line).
 
 XPPAUT's `.set` (positional lines, a value and then its label, read by their

@@ -75,10 +75,10 @@ struct XppColorTable {
 };
 extern XppColorTable color_table;
 
-/* the colors the program draws with (W655): the user's (kept in the preferences, xpp_prefs.h), not a model's, one list for every model and every view. Each is
+/* the colors the program draws with (W655): the user's (kept in the settings, xpp_settings.h), not a model's, one list for every model and every view. Each is
    read when something is drawn with it: a diagram point's by its kind when it is stored, a nullcline's and a manifold's
    when it is computed. The defaults are XPPAUT's. The names are the keys of the file and the arguments of
-   preferences.configure; their order is the option table's order of the options they were (the diagram's, the nullclines',
+   settings.configure; their order is the option table's order of the options they were (the diagram's, the nullclines',
    the manifolds'). */
 struct Colors {
     Color stable_equilibrium = xppaut_color(1), unstable_equilibrium = xppaut_color(0);
@@ -87,7 +87,7 @@ struct Colors {
     Color stable_manifold = xppaut_color(8), unstable_manifold = xppaut_color(5);
 };
 
-/* one color's key (the file's, preferences.configure's argument and result field) and what it is: the one list the
+/* one color's key (the file's, settings.configure's argument and result field) and what it is: the one list the
    file, the command and the dialog read */
 struct ColorKey {
     std::string_view key;

@@ -22,7 +22,7 @@ namespace xpp {
 
 /* The parts of a Session that autoX reads and writes, handed in where an autoX operation starts (xpp::autox_parts(Session &), made by
    the Session module: session.h) and held by the run (AutoxRun::parts), so autoX's files never include session.h. The references are
-   the Session's own parts, not copies; `threads` is the program preference's value when it was made, which a command never changes.
+   the Session's own parts, not copies; `threads` is the program setting's value when it was made, which a command never changes.
    `analysis` is what the integrators and the analyses take (a RunParts too); its `session` is only a handle, handed on to the XppUi
    seam's callbacks and to the functions of other modules that still take a Session; autoX itself reads nothing through it.
    Constness is as shallow as a Session's own pointers: a function that only reads takes it const. */

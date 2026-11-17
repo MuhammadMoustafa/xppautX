@@ -16,9 +16,9 @@ public:
     static unsigned automatic_threads();
     // Choose once after autoX has established the run's dimension and mesh.
     static void select_run(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_t ntst, std::ptrdiff_t ncol);
-    // The count a preference gives: 0 is automatic, else the number itself.
+    // The count a setting gives: 0 is automatic, else the number itself.
     static unsigned threads_for(unsigned preferred) { return preferred ? preferred : automatic_threads(); }
-    // threads is at least 1; the callers' sources keep it within the logical processors (xpp_prefs.h).
+    // threads is at least 1; the callers' sources keep it within the logical processors (xpp_settings.h).
     explicit AutoxParallel(unsigned threads);
     ~AutoxParallel();
     AutoxParallel(const AutoxParallel &) = delete;

@@ -4,7 +4,7 @@
     tools/heavy.sh --alone uv run --locked python tools/sweep_speedup.py --server ./xppautX.exe
 
 For each model and each thread count it starts a --server, sets the thread count (in a configuration folder of its
-own, never the user's preferences), runs one `run.range` of the model's own range options with a stated number of
+own, never the user's settings), runs one `run.range` of the model's own range options with a stated number of
 steps and prints the wall time from the command to its `done`, the best of REPEATS, and the speed-up over one thread.
 The runs are not written to files (the main thread writes them one at a time, which would be what is timed); that the
 runs are the same on every thread count is tools/servercheck.py's check_sweep_threads. The time is the number printed, never a pass or a fail (AGENTS.md "Checks that can be trusted").
@@ -31,7 +31,7 @@ def timed(binary, model, command, configure, threads, folder, config):
     s = Server(binary, model, run=folder, env={'XPP_CONFIG_DIR': config})
     try:
         s.collect(is_done)
-        s.send(cmd='preferences.configure', threads=threads)
+        s.send(cmd='settings.configure', threads=threads)
         s.collect(is_done)
         if configure:
             s.send(cmd='run.configure', **configure)

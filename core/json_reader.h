@@ -1,10 +1,13 @@
 #pragma once
 /* The JSON reader (json_reader.cpp): reads text in place through pointers
    into it, with no tree. The protocol's command lines (json_io.cpp's
-   get_string, get_num ...) and keymap.json (xpp_keymap.cpp) read with it. */
+   get_string, get_num ...) and settings.json (xpp_settings.cpp) read with it. */
+#include <cstddef>
 #include <initializer_list>
 #include <string>
 #include <string_view>
+
+#include "xpp_error.h"
 
 namespace xpp::json {
 
@@ -35,6 +38,17 @@ const char *js_element(const char *&cursor);
 bool js_member(const char *&cursor, std::string &key, const char *&value);
 /* the line (from 1) of `at` in text, for an error's place */
 int js_line(const char *text, const char *at);
+/* the place of `at`, a pointer into text, in file: its line and column (from 1) */
+Place place_at(const std::string &file, std::string_view text, const char *at);
+/* text with its comments blanked to spaces (`//` to the line's end, and a
+   slash-star pair), every other byte and every newline where it was, so a
+   pointer into the result is one into text. A comment is a comment outside
+   a string only. false when a comment is never closed, with `at` the offset
+   of its start. Only a file a user writes (settings.json) has comments; the
+   protocol's lines do not. */
+bool blank_comments(std::string &text, std::size_t &at);
+/* a value as an error shows it: its first line, cut at 40 bytes, in quotes */
+std::string shown(std::string_view text);
 
 } // namespace xpp::json
 

@@ -304,14 +304,14 @@ shown) is the computer's physical cores, at most 4, and on a processor with
 performance and efficiency cores only the performance cores where the system
 says which. Any count from 1 to the computer's logical processors may be
 chosen. The results are the same to the last bit for every count; only the
-time differs. It is a preference of the program, not of the model or the
-session: it is kept in `preferences.odex` in the per-user configuration
+time differs. It is a setting of the program, not of the model or the
+session: it is kept in `settings.json` in the per-user configuration
 folder (as `threads: auto` or `threads: 4`), applies to every model
 and every run, and is not in a session file. A model that is interpreted, not
 compiled, or that uses random numbers or delays has its collocation computed on one thread
 whatever the count. Small collocation problems also compute on one thread:
 autoX uses workers once `dimension * dimension * mesh_intervals * collocation_points` reaches 1024. This avoids
-the overhead of workers on a small mesh; the selected preference and the
+the overhead of workers on a small mesh; the selected setting and the
 results stay the same.
 
 The session keeps every autoX option in the `autox` group of its `session.odex`, with

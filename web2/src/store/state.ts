@@ -147,8 +147,10 @@ export interface AppState {
   flash: number;
   nextToast: number;
   theme: Theme;
-  /** the side panels' collapsed state and sizes (W226), kept per viewer */
+  /** the side panels' collapsed state and sizes (W226), kept in settings.json (page.dock_hidden, page.dock_width) */
   panels: Panels;
+  /** the folded Values sections, as settings.json's page.folds keeps them (each id, "+id" for a section that starts folded) */
+  folds: string[];
   /** the command palette (Search commands) */
   drawerOpen: boolean;
   /** the menu bar's drawer on a phone (below 48rem; the bar is always shown above that) */
@@ -244,6 +246,7 @@ export type Action =
   | {type: 'updateStage'; stage: UpdateOffer['stage']}
   | {type: 'theme'; theme: Theme}
   | {type: 'panels'; panels: Partial<Panels>}
+  | {type: 'folds'; folds: string[]}
   | {type: 'values'; action: ValuesAction}
   | {type: 'dockPanel'; open: boolean}
   | {type: 'popout'; key: string; out: boolean}
@@ -291,6 +294,7 @@ export const initialState: AppState = {
   nextToast: 1,
   theme: 'system',
   panels: defaultPanels,
+  folds: [],
   drawerOpen: false, menuOpen: false, commandForm: null, optionsPanel: null, optionValues: {}, valuesFile: null, annotationsOpen: false, selectedAnnotation: null,
   continueInput: CONTINUE_INPUT_DEFAULT,
   steadyEdit: {},
@@ -746,6 +750,8 @@ function reduceAction(state: AppState, action: Action): AppState {
       return {...state, theme: action.theme};
     case 'panels':
       return {...state, panels: {...state.panels, ...action.panels}};
+    case 'folds':
+      return {...state, folds: action.folds};
     case 'values':
       return {...state, values: reduceValues(state.values, action.action)};
     case 'dockPanel':

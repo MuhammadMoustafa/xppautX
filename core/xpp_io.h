@@ -182,7 +182,7 @@ private:
     std::unique_ptr<State, Free> state_;
 };
 
-/* ---- A per-user settings file (keymap.json, preferences.odex) ----------------
+/* ---- A per-user settings file (settings.json, state.json) ----------------
    The file `name` in the config folder (files::config_dir), the one way
    the settings files are read and written. `where` is the Error's
    `where`. No config folder (no HOME or APPDATA, or an XPP_CONFIG_DIR that
@@ -208,11 +208,11 @@ Result<> write_config_file(std::string_view where, std::string_view name, std::s
        only, read into session_options.h's Options) and a parameter file (.par: --convert --statefile,
        the values panel's Load): lunch-new.cpp's read_set and
        read_parameter_file;
-     - a session's state (a session.odex of a .snapx, a recording's header) and the preferences
+     - a session's state (a session.odex of a .snapx, a recording's header) and the settings
        file: odex.h's read_state_file over the .odex reader's own grammar
        (session_options.cpp's read_settings, xpp_session.cpp's read_windows, read_marks,
        read_random, read_sliders, nullcline.cpp's read_nullclines, xpp_session_autox.cpp's
-       read_settings and read_views, xpp_prefs.cpp's parse_prefs);
+       read_settings and read_views, xpp_settings.cpp's parse_settings);
      - an initial-conditions file (.ic: --convert --statefile, Initialconds/File, the
        values panel's Load): lunch-new.cpp's read_ic_file;
      - a session's state read with the rest of its members (read_session) before any is applied

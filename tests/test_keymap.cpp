@@ -1,7 +1,6 @@
-/* keymap.json (W211, core/xpp_keymap.h): the key grammar, every kind of bad
-   file refused whole with its file, line and value, the effective keys, and
-   the file's load, save and reset in a folder of its own (XPP_CONFIG_DIR:
-   the user's real file is never touched). The protocol side (get, set,
+/* the keymap (W211, W790, core/xpp_keymap.h and its group of settings.json): the key grammar, every kind of bad
+   keymap refused whole with its file, line and value, the effective keys, and the keymap's load, save and reset in a
+   config folder of its own (XPP_CONFIG_DIR: the user's real file is never touched). The protocol side (get, set,
    reset, hello) is tools/servercheck.py's keymap section. */
 #include "xpptest.h"
 #include "test_support.h"
@@ -10,35 +9,38 @@
 #include "xpp_fs_local.h"
 #include "xpp_io.h"
 #include "xpp_keymap.h"
-#include "format_version.h"
+#include "xpp_settings.h"
 #include "xpp_error.h"
 
+#include <expected>
 #include <filesystem>
 #include <set>
 #include <string>
 #include <cstdio>
-#include <map>
-#include <span>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 namespace {
 
-constexpr const char *FILE_LABEL = "k.json";
+constexpr const char *FILE_LABEL = "s.json";
 
-/* the registry's rows are what the grammar and the file rules are checked against: every default key is a key,
-   none is reserved, and no two commands share one (the keymap's own check, which loading a file runs too) */
-/* a keymap file's text with the format version as its first member, on its first line (the version is what every file of
-   ours says; a test writes only what it tests) */
-std::string keymap_text(std::string_view text)
+/* a keymap group's object, read as the keymap of a settings file (its first line is the file's first: the errors'
+   lines are the object's) */
+xpp::Result<xpp::keymap::Keymap> parse_keymap(std::string_view object, std::string file)
 {
-    const std::size_t brace = text.find('{');
-    if (text.empty() || text[0] != '{' || brace == std::string_view::npos) return std::string(text);
-    const std::string_view rest = text.substr(brace + 1);
-    const std::size_t next = rest.find_first_not_of(" \r\n\t");
-    const bool empty = next != std::string_view::npos && rest[next] == '}';
-    return "{\"version\": " + std::to_string(xpp::format_version) + (empty ? "" : ",") + std::string(rest);
+    const xpp::Result<xpp::settings::Settings> s = xpp::settings::parse_settings("{\"version\": 4, \"keymap\": " + std::string(object) + "}", file);
+    if (!s) return std::unexpected(s.error());
+    return s->keymap;
+}
+
+/* a settings file holding that keymap object */
+std::string settings_text(std::string_view object) { return "{\"version\": 4, \"keymap\": " + std::string(object) + "}\n"; }
+
+xpp::Result<xpp::keymap::Keymap> keymap_of(xpp::FileSystem &fs)
+{
+    const xpp::Result<xpp::settings::Settings> s = xpp::settings::load_settings(fs);
+    if (!s) return std::unexpected(s.error());
+    return s->keymap;
 }
 
 void check_table()
@@ -51,7 +53,7 @@ void check_table()
             CHECK(keys.insert(key).second); /* no two defaults on one key */
         }
     }
-    const auto map = xpp::keymap::parse_keymap(keymap_text("{}"), FILE_LABEL);
+    const auto map = parse_keymap("{}", FILE_LABEL);
     if (!map) std::printf("the defaults: %s\n", map.error().text().c_str());
     CHECK(map.has_value());
 }
@@ -74,19 +76,15 @@ struct Bad {
     const char *value; /* in the error's text: the value the user must see */
 };
 
-void check_bad_files()
+void check_bad_keymaps()
 {
-    const std::string too_long = std::string(xpp::keymap::MAX_FILE_BYTES + 10, ' ') + "{}";
     const std::string nul("{}\0{", 4);
     const std::string deep = "{\"pinned\": " + std::string(100, '[') + std::string(100, ']') + "}";
     const std::string many_keys = "{\"bindings\": {\"session.reload_model\": [\"A\",\"B\",\"C\",\"D\",\"E\",\"F\",\"G\",\"H\",\n\"I\"]}}";
     const Bad bad[] = {
         {"empty", "", 1, "not valid JSON"},
         {"trailing comma", "{\"pinned\": [],}", 1, "not valid JSON"},
-        {"text after", "{}\n{}", 2, "after its value"},
-        {"top is an array", "[]", 1, "one JSON object"},
         {"too deep", deep.c_str(), 1, "nested too deeply"},
-        {"too long", too_long.c_str(), 1, "longer than"},
         {"NUL", nul.c_str(), 1, "NUL"},
         {"unknown setting", "{\n  \"pinned\": [],\n  \"color\": 1\n}", 3, "color"},
         {"setting twice", "{\n\"pinned\": [],\n\"pinned\": []}", 3, "pinned"},
@@ -122,9 +120,9 @@ void check_bad_files()
         {"a clash of two values", "{\"bindings\": {\"model.export --language python\": [\"Ctrl+E\"],\n\"model.export --language python_numpy\": [\"Ctrl+E\"]}}", 2, "both on key"},
     };
     for (const Bad &b : bad) {
-        const xpp::Result<xpp::keymap::Keymap> r = xpp::keymap::parse_keymap(b.text == nul.c_str() ? std::string(nul) : keymap_text(b.text), FILE_LABEL);
+        const xpp::Result<xpp::keymap::Keymap> r = parse_keymap(b.text == nul.c_str() ? std::string_view(nul) : std::string_view(b.text), FILE_LABEL);
         if (r) {
-            CHECK(!"a bad file was accepted");
+            CHECK(!"a bad keymap was accepted");
             std::printf("  ... %s\n", b.name);
             continue;
         }
@@ -137,30 +135,21 @@ void check_bad_files()
     }
 }
 
-void check_good_files()
+void check_good_keymaps()
 {
-    const auto clash = xpp::keymap::parse_keymap(keymap_text(R"({"bindings":{"run.continue":["Ctrl+R"]}})"), FILE_LABEL);
+    const auto clash = parse_keymap(R"({"bindings":{"run.continue":["Ctrl+R"]}})", FILE_LABEL);
     CHECK(!clash);
     if (!clash)
         for (const char *name : {"run.continue", "run.initial", "Ctrl+R"})
             CHECK(clash.error().what.find(name) != std::string::npos);
 
-    auto empty = xpp::keymap::parse_keymap(keymap_text("{}"), FILE_LABEL);
+    auto empty = parse_keymap("{}", FILE_LABEL);
     CHECK(empty && empty->bindings.empty() && empty->pinned.empty());
-    CHECK(xpp::keymap::parse_keymap("", FILE_LABEL).has_value() == false);
-    /* the version: none, another, or not a number is refused, naming both versions */
-    for (const auto &[file, wanted] : {std::pair<const char *, const char *>{"{}", "this program reads keymaps of version 4"},
-                                       {"{\"version\": 3}", "version 3: this program reads keymaps of version 4"},
-                                       {"{\"version\": \"4\"}", "the version is a whole number"},
-                                       {"{\"version\": 4, \"version\": 4}", "is given twice"}}) {
-        const auto refused = xpp::keymap::parse_keymap(file, FILE_LABEL);
-        CHECK(!refused && refused.error().what.find(wanted) != std::string::npos);
-    }
 
-    const std::string text = keymap_text(
+    const std::string text =
         "{\r\n \"pinned\": [\"session.reload_model\", \"calculator.evaluate\"],\r\n"
-        " \"bindings\": {\"session.reload_model\": [\"Ctrl+B\"], \"session.save\": [], \"run.continue\": [\"Ctrl+K\", \"Alt+I\"]}}\r\n");
-    auto map = xpp::keymap::parse_keymap(text, FILE_LABEL);
+        " \"bindings\": {\"session.reload_model\": [\"Ctrl+B\"], \"session.save\": [], \"run.continue\": [\"Ctrl+K\", \"Alt+I\"]}}\r\n";
+    auto map = parse_keymap(text, FILE_LABEL);
     CHECK(map.has_value());
     if (!map) return;
     CHECK(map->pinned == std::vector<std::string>({"session.reload_model", "calculator.evaluate"}));
@@ -169,39 +158,36 @@ void check_good_files()
     CHECK(xpp::keymap::effective_keys(*map, *xpp::command::find("session.open_model")) == std::vector<std::string>({"Ctrl+O"})); /* the table's */
     CHECK(xpp::keymap::effective_keys(*map, *xpp::command::find("calculator.evaluate")).empty());
     /* a key a user took from a command that kept no other: free for another one */
-    CHECK(xpp::keymap::parse_keymap(keymap_text("{\"bindings\": {\"session.open_model\": [], \"session.reload_model\": [\"Ctrl+O\"]}}"), FILE_LABEL).has_value());
+    CHECK(parse_keymap("{\"bindings\": {\"session.open_model\": [], \"session.reload_model\": [\"Ctrl+O\"]}}", FILE_LABEL).has_value());
     /* a default key moved back to the command that has it */
-    CHECK(xpp::keymap::parse_keymap(keymap_text("{\"bindings\": {\"session.open_model\": [\"Ctrl+O\"]}}"), FILE_LABEL).has_value());
+    CHECK(parse_keymap("{\"bindings\": {\"session.open_model\": [\"Ctrl+O\"]}}", FILE_LABEL).has_value());
 
     /* what is written reads back the same, and is the one text */
-    const std::string again = xpp::keymap::serialize(*map);
-    auto back = xpp::keymap::parse_keymap(again, FILE_LABEL);
+    const std::string again = "{\"bindings\": " + xpp::keymap::bindings_json(*map) + ", \"pinned\": " + xpp::keymap::pinned_json(*map) + "}";
+    const auto back = parse_keymap(again, FILE_LABEL);
     CHECK(back && back->bindings == map->bindings && back->pinned == map->pinned);
-    CHECK(back && xpp::keymap::serialize(*back) == again);
-    CHECK(xpp::keymap::parse_keymap(xpp::keymap::serialize({}), FILE_LABEL).has_value());
+    CHECK(back && xpp::keymap::bindings_json(*back) == xpp::keymap::bindings_json(*map));
 }
 
 void check_file(const std::string &dir)
 {
     xpp::LocalFileSystem fs;
-    CHECK(xpp::files::config_dir() == dir); /* the override names the folder */
-    const std::string file = xpp::keymap::path(fs);
-    CHECK(file == dir + std::string(1, std::filesystem::path::preferred_separator) + "keymap.json");
+    const std::string file = xpp::settings::settings_path(fs);
+    CHECK(file == dir + std::string(1, std::filesystem::path::preferred_separator) + "settings.json");
 
-    auto none = xpp::keymap::load_keymap(fs); /* no file: all defaults, not an error */
+    auto none = keymap_of(fs); /* no file: all defaults, not an error */
     CHECK(none && none->bindings.empty() && none->pinned.empty());
-    CHECK(xpp::keymap::reset(fs).has_value()); /* nothing to remove is fine */
+    CHECK(xpp::settings::set_keymap(fs, {}).has_value()); /* the reset: no differences */
 
     xpp::keymap::Keymap map;
     map.bindings["session.reload_model"] = {"Ctrl+B"};
     map.pinned = {"calculator.evaluate"};
-    const auto saved = xpp::keymap::save(fs, map);
+    const auto saved = xpp::settings::set_keymap(fs, map);
     if (!saved) std::fprintf(stderr, "save: %s\n", saved.error().text().c_str()); /* why, when it fails (W220) */
     CHECK(saved.has_value());
-    CHECK(xpp::files::exists(file));
-    auto loaded = xpp::keymap::load_keymap(fs);
+    auto loaded = keymap_of(fs);
     CHECK(loaded && loaded->bindings == map.bindings && loaded->pinned == map.pinned);
-    const std::string json = xpp::keymap::effective_json(fs, loaded);
+    const std::string json = xpp::keymap::effective_json(file, loaded);
     CHECK(json.starts_with("{\"ok\":true"));
     CHECK(json.find("{\"id\":\"session.reload_model\",\"keys\":[\"Ctrl+B\"],\"source\":\"user\"}") != std::string::npos);
     CHECK(json.find("{\"id\":\"session.open_model\",\"keys\":[\"Ctrl+O\"],\"source\":\"default\"}") != std::string::npos);
@@ -209,35 +195,36 @@ void check_file(const std::string &dir)
     /* W772: a command with fixed arguments is bound and pinned by its value, and the page gets what runs it */
     {
         xpp::Writer w = xpp::Writer::binary(file);
-        CHECK(w && w.write(keymap_text("{\"pinned\": [\"model.export --language python\"], \"bindings\": {\"model.export --language python\": [\"Ctrl+E\"]}}")) && w.commit().has_value());
+        CHECK(w && w.write(settings_text("{\"pinned\": [\"model.export --language python\"], \"bindings\": {\"model.export --language python\": [\"Ctrl+E\"]}}")) && w.commit().has_value());
     }
-    const auto valued = xpp::keymap::load_keymap(fs);
+    const auto valued = keymap_of(fs);
     CHECK(valued.has_value());
-    const std::string valued_json = xpp::keymap::effective_json(fs, valued);
+    const std::string valued_json = xpp::keymap::effective_json(file, valued);
     CHECK(valued_json.find("{\"id\":\"model.export --language python\",\"keys\":[\"Ctrl+E\"],\"source\":\"user\"}") != std::string::npos);
     CHECK(valued_json.find("\"values\":[{\"value\":\"model.export --language python\",\"run\":{\"cmd\":\"model.export\",\"language\":\"python\"}}]") != std::string::npos);
 
     /* a bad file on disk is an error naming the file, and the effective keymap is the defaults, marked */
     {
         xpp::Writer w = xpp::Writer::binary(file);
-        CHECK(w && w.write(keymap_text("{\"bindings\": {\"session.reload_model\": [\"Ctrl+W\"]}}")) && w.commit().has_value());
+        CHECK(w && w.write("{\"version\": 4,\n\"keymap\": {\"bindings\": {\"session.reload_model\": [\"Ctrl+W\"]}}}\n") && w.commit().has_value());
     }
-    auto bad = xpp::keymap::load_keymap(fs);
-    CHECK(!bad && bad.error().place.file == file && bad.error().place.line == 1);
-    const std::string marked = xpp::keymap::effective_json(fs, bad);
+    auto bad = keymap_of(fs);
+    CHECK(!bad && bad.error().place.file == file && bad.error().place.line == 2);
+    const std::string marked = xpp::keymap::effective_json(file, bad);
     CHECK(marked.starts_with("{\"ok\":false,\"error\":"));
     CHECK(marked.find("\"keys\":[\"Ctrl+W\"]") == std::string::npos);
     CHECK(marked.find("{\"id\":\"session.open_model\",\"keys\":[\"Ctrl+O\"],\"source\":\"default\"}") != std::string::npos);
+    /* the keymap a bad file holds is not replaced by a set: the error is the answer */
+    CHECK(!xpp::settings::set_keymap(fs, map));
+    CHECK(xpp::settings::set_keymap(fs, {}).has_value() == false);
     /* a file over the limit is refused as it is read */
     {
         xpp::Writer w = xpp::Writer::binary(file);
-        CHECK(w && w.write(std::string(xpp::keymap::MAX_FILE_BYTES * 2, ' ')) && w.commit().has_value());
+        CHECK(w && w.write(std::string(xpp::settings::MAX_FILE_BYTES * 2, ' ')) && w.commit().has_value());
     }
-    CHECK(!xpp::keymap::load_keymap(fs));
-
-    CHECK(xpp::keymap::reset(fs).has_value());
-    CHECK(!xpp::files::exists(file));
-    CHECK(xpp::keymap::load_keymap(fs).has_value());
+    CHECK(!keymap_of(fs));
+    xpp::files::remove(file.c_str());
+    CHECK(keymap_of(fs).has_value());
 }
 
 } // namespace
@@ -246,8 +233,8 @@ TEST_CASE("test_keymap")
 {
     check_table();
     check_keys();
-    check_bad_files();
-    check_good_files();
+    check_bad_keymaps();
+    check_good_keymaps();
 
     /* the config folder is made on the first save, with its missing parents */
     xpp::LocalFileSystem fs;
@@ -259,9 +246,9 @@ TEST_CASE("test_keymap")
     std::filesystem::remove_all(temp.path() + "/config");
     /* a relative override would follow the working folder: it is an error, never a guess */
     CHECK(set_config_dir("relative/folder"));
-    CHECK(xpp::files::config_dir().empty() && xpp::keymap::path(fs).empty());
-    auto none = xpp::keymap::load_keymap(fs);
-    CHECK(!none && none.error().what.find("XPP_CONFIG_DIR") != std::string::npos && !xpp::keymap::save(fs, {}));
+    CHECK(xpp::files::config_dir().empty() && xpp::settings::settings_path(fs).empty());
+    auto none = keymap_of(fs);
+    CHECK(!none && none.error().what.find("XPP_CONFIG_DIR") != std::string::npos && !xpp::settings::set_keymap(fs, {}));
     set_config_dir(nullptr);
     TEST_REPORT("keymap");
 }

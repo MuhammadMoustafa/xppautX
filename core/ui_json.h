@@ -7,7 +7,7 @@
 #include <vector>
 #include "xpp_error.h"
 #include "model_files.h"
-namespace xpp { namespace prefs { struct Preferences; } struct CommandLine; struct ModelLoader; /* model_load.h */ }
+namespace xpp { namespace settings { struct Read; } struct CommandLine; struct ModelLoader; /* model_load.h */ }
 
 /* a run of the About text: plain, or a link when `url` is not empty */
 struct AboutPart {
@@ -57,7 +57,7 @@ void json_ui_loop(void);           /* read and run commands until EOF */
    the built-in script its options make (core/json_silent.cpp) through
    this front end, its events going nowhere; exits 0 when the script
    ends, 1 when the model does not load */
-int json_ui_silent(FileSystem &fs, const ModelLoader &loader, CommandLine cl, const Result<prefs::Preferences> *read_prefs, HelloInfo hello);
+int json_ui_silent(FileSystem &fs, const ModelLoader &loader, CommandLine cl, const settings::Read *read_settings, HelloInfo hello);
 
 /* the command line run at once, as if the client had sent it; the
    Session it ended in: the client's, or the one a model it loaded (a

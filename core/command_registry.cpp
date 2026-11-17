@@ -44,15 +44,15 @@ std::span<const Command> help_commands() { return HELP_ROWS; }
 /* every resource's table, in the order `help` lists them; a menu's entries follow it, the rows of one table in their order */
 /* the tables the application defines (install_application) */
 struct ApplicationTables {
-    std::span<const Command> model, preferences, update;
+    std::span<const Command> model, settings, update;
 } application;
 std::span<const Command> application_model() { return application.model; }
-std::span<const Command> application_preferences() { return application.preferences; }
+std::span<const Command> application_settings() { return application.settings; }
 std::span<const Command> application_update() { return application.update; }
 
 constexpr std::array TABLES = {keymap_commands, application_model, session_commands, initial_conditions_commands, recording_commands, equilibrium_commands, nullcline_commands,
                               annotation_commands, run_commands, direction_field_commands, plot_commands, analysis_commands, kinescope_commands,
-                              table_commands, data_commands, help_commands, tool_commands, window_commands, autox_commands, application_preferences, animation_commands,
+                              table_commands, data_commands, help_commands, tool_commands, window_commands, autox_commands, application_settings, animation_commands,
                               array_plot_commands, set_commands, boundary_value_commands, value_commands, options_commands, events_commands, application_update};
 
 template <class Visit> void each_command(Visit visit)
@@ -398,9 +398,9 @@ void append_commands(std::string &out)
     });
 }
 
-void install_application(std::span<const Command> model, std::span<const Command> preferences, std::span<const Command> update)
+void install_application(std::span<const Command> model, std::span<const Command> settings, std::span<const Command> update)
 {
-    application = {model, preferences, update};
+    application = {model, settings, update};
 }
 
 Result<> check_shape(const char *line, const Place &place, Session *session)

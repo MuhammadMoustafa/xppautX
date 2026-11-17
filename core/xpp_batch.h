@@ -16,7 +16,7 @@ struct Session; /* session.h */
    file into its Model's this_file; the Model keeps cl. */
 void apply_command_line(Session &s, CommandLine cl);
 
-/* the commands the application defines (a load, the preferences, the updates) handed to the registry, which is below it; once at the start, before any command is looked up */
+/* the commands the application defines (a load, the settings, the updates) handed to the registry, which is below it; once at the start, before any command is looked up */
 void install_application_commands();
 
 /* load_model and inspect_model, as the ModelLoader (model_load.h) the converters are handed */

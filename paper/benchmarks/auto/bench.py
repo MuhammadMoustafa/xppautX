@@ -62,7 +62,7 @@ def auto07p(src, threads, jac=0, name='py_s1bf'):
 
 def xppautx_run(measure, binary, tmp, threads, jacobian, extra_args=()):
     """W269: measure(binary, ...) of xppautX on threads CPUs from CPU, with a fresh HOME and
-    XPP_CONFIG_DIR (the thread count is a preference: never the user's own), AUTO's threads
+    XPP_CONFIG_DIR (the thread count is a setting: never the user's own), AUTO's threads
     and the model's Jacobian set"""
     home = Path(tempfile.mkdtemp(prefix='w269-home-'))
     try:

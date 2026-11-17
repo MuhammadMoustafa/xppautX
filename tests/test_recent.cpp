@@ -1,4 +1,4 @@
-/* The recent models (W232, core/xpp_recent.h) in the preferences file: the
+/* The recent models (W232, core/xpp_recent.h) in the settings file: the
    newest-first list kept to its limit, a bad file left as it is, and the
    hello `start` object, in a config folder of its own (XPP_CONFIG_DIR: the
    user's real file is never touched). What the file may hold is
@@ -9,7 +9,7 @@
 #include "test_support.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
-#include "xpp_prefs.h"
+#include "xpp_settings.h"
 #include "xpp_recent.h"
 #include "model_switch.h"
 #include "xpp_error.h"
@@ -27,7 +27,7 @@ namespace {
 
 void check_file(const std::string &dir)
 {
-    const std::string file = xpp::prefs::prefs_path(fs);
+    const std::string file = xpp::settings::state_path(fs);
     CHECK(!file.empty() && file.find(dir.substr(dir.rfind("config"))) != std::string::npos);
     CHECK(!xpp::files::exists(file));
     CHECK(xpp::recent::load_recent(fs).value().empty()); /* a missing file is no entries */
@@ -40,9 +40,9 @@ void check_file(const std::string &dir)
     CHECK((xpp::recent::load_recent(fs).value() == std::vector<std::string>{a, b})); /* moved up, not repeated */
 
     /* the list is cut at the limit, the oldest going */
-    for (std::size_t i = 0; i < xpp::prefs::MAX_RECENT_MODELS + 3; i++) CHECK(xpp::recent::note(fs, abs_path("n" + std::to_string(i) + ".odex")).has_value());
+    for (std::size_t i = 0; i < xpp::settings::MAX_RECENT_MODELS + 3; i++) CHECK(xpp::recent::note(fs, abs_path("n" + std::to_string(i) + ".odex")).has_value());
     const auto full = xpp::recent::load_recent(fs);
-    CHECK(full && full->size() == xpp::prefs::MAX_RECENT_MODELS && full->front() == abs_path("n" + std::to_string(xpp::prefs::MAX_RECENT_MODELS + 2) + ".odex"));
+    CHECK(full && full->size() == xpp::settings::MAX_RECENT_MODELS && full->front() == abs_path("n" + std::to_string(xpp::settings::MAX_RECENT_MODELS + 2) + ".odex"));
 
     /* hello's start: every entry listed, one that is not there marked missing, not dropped */
     const std::string start = xpp::recent::start_json(fs, full);
@@ -71,7 +71,7 @@ TEST_CASE("test_recent")
     std::filesystem::remove_all(temp.path() + "/config");
     /* a relative override would follow the working folder: an error, never a guess */
     CHECK(set_config_dir("relative/folder"));
-    CHECK(xpp::prefs::prefs_path(fs).empty());
+    CHECK(xpp::settings::state_path(fs).empty());
     const auto none = xpp::recent::load_recent(fs);
     CHECK(!none && none.error().what.find("XPP_CONFIG_DIR") != std::string::npos && !xpp::recent::note(fs, abs_path("a.odex")));
     set_config_dir(nullptr);

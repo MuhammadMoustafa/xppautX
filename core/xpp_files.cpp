@@ -433,7 +433,7 @@ struct FileServer {
 
 /* a file in the per-user settings folder (the keymap): the user's, not the model's, so a replay neither serves
    it from the recording nor records it as a file the model read (W220: the keymap hello sent while a
-   recording opened could not read keymap.json and said "default") */
+   recording opened could not read settings.json and said "default") */
 bool user_settings(std::string_view path)
 {
     const std::string folder = xpp::files::config_dir();

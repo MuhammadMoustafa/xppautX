@@ -36,10 +36,10 @@ struct OutsideApproval {
 /* What the program gives a load (maintainer, 2026-11-14; W737): the "Allow always" answers, data
    in, and an interface the loader owns for what comes out, and the registry's check of a command value (a model's
    button names one: `check_command`, which the program fills, never the registry itself). The program's
-   start fills it from the preferences (xpp_prefs.h: load_services): `kept`
+   start fills it from the settings (xpp_settings.h: load_services): `kept`
    the answers kept before (or `unreadable`, why they cannot be read), and
    `keep` what remembers one more at the moment the user gives it; the
-   loader reaches no file of the preferences itself. A Model with no `keep`
+   loader reaches no file of the settings itself. A Model with no `keep`
    (a unit test) remembers an answer only in `kept`. */
 struct LoadServices {
     std::vector<OutsideApproval> kept;

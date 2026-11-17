@@ -5,8 +5,7 @@
    double quotes, plus lists `[ a, b ]`. It is the one syntax of the groups
    a file of ours holds beside its formulas: the options block, the `session { ... }`
    statement of a session file (.snapx's session.odex, a recording's header,
-   odex.h's read_state_file) and the preferences file's `preferences { ... }`,
-   the animation's fields. They are read by the .odex reader's own tokenizer and
+   odex.h's read_state_file), the animation's fields. They are read by the .odex reader's own tokenizer and
    statement grammar (odex_parse.cpp): there is one reader, not two.
 
    Reading is all or nothing (W125): parse() reads the whole text into a
@@ -213,10 +212,9 @@ public:
        quotes for a user's column named with more (Block::name_of) */
     void name(std::string_view key, std::string_view text);
     void reals(std::string_view key, std::span<const double> v);
-    void texts(std::string_view key, std::span<const std::string> v);
     void begin(std::string_view key);
     void end();
-    /* a statement of the file, `keyword {`, its entries nested and `}` (session, preferences) */
+    /* a statement of the file, `keyword {`, its entries nested and `}` (session) */
     void begin_statement(std::string_view keyword);
     void end_statement();
     /* a list of groups: begin_list, then each as begin_item ... end_item */

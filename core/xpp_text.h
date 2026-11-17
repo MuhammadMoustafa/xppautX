@@ -342,6 +342,8 @@ void json_encode_string(std::string &out, std::string_view s);
    text (plot_data, autox_data, ani_data, autox_options) goes through this. */
 void json_append_string(std::string &out, const char *s);
 void json_append_string(std::string &out, std::string_view s);
+/* the same string as a value of its own: json_append_string into a new string */
+std::string json_quoted(std::string_view s);
 
 /* Decodes the JSON string value at *v (which must point to its opening
    '"'): unescapes \", \\, \/, \n, \t, \r, \b, \f and \uXXXX (a surrogate

@@ -111,7 +111,8 @@ export const HELLO: HelloEvent = {
   quit: {question: 'Quit?', recording: 'Quit and stop recording?', choices: ['Save session', "Don't save"], keys: 'sd',
     restart: {question: 'Restart?', recording: 'Restart and stop recording?'}, install: {question: 'Install?', recording: 'Install and stop recording?'}},
   model_names: [], lists: [], options: [], userbuttons: [], defaults: {pars: [], ics: []},
-  /* no keymap.json: every command with the table's keys (core/xpp_keymap.cpp effective_json) */
+  /* no settings.json: the page defaults, and every command with the table's keys (core/xpp_keymap.cpp effective_json) */
+  settings: {ok: true, path: '', page: {theme: 'system', dock_hidden: false, dock_width: null, folds: []}},
   keymap: {
     ok: true, path: '', pinned: [], reserved: RESERVED, limits: {keys: 8, key_bytes: 64},
     commands: [], values: [],

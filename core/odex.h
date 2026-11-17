@@ -188,8 +188,7 @@ struct Statement {
     Only,     /* only names */
     Group,    /* .ode's group (its lines skipped) */
     Comment,  /* "text": a comment the model shows (text) */
-    Session,  /* session { ... }: a session file's state (block), only in a session file */
-    Preferences /* preferences { ... }: the preferences' (block), only in the preferences file */
+    Session /* session { ... }: a session file's state (block), only in a session file */
   };
   Kind kind = Kind::Fixed;
   Pos pos;
@@ -234,7 +233,7 @@ struct Statement {
     bool has_body = false;
     std::vector<BlockStmt> body;
     std::vector<Option> options;
-    /* a session's or the preferences' group */
+    /* a session's group */
     std::optional<Value> block;
     /* an event's sign, a Markov variable's number of states, a formula
        table's number of points */
@@ -306,9 +305,8 @@ std::vector<Statement> import_statements(std::vector<Statement> file, const Impo
 Parsed parse(xpp::Model &m, std::string_view text, const std::string &file);
 
 /* the files that hold the statement of their own kind besides a model's: a session file (a .snapx's session.odex and a
-   .recx's header: `version`, then par and init lines, `options { ... }` and one `session { ... }`) and the preferences file
-   (`version` and one `preferences { ... }`). A model has neither statement. */
-enum class FileKind { model, session, preferences };
+   .recx's header: `version`, then par and init lines, `options { ... }` and one `session { ... }`). A model has neither statement. */
+enum class FileKind { model, session };
 
 /* text, the contents of file, of the kind (not a model) read whole by the same tokenizer and statements as a model:
    no other statement than its kind's is accepted (no import, no formula), so no file is read from it. Errors at the
@@ -316,8 +314,8 @@ enum class FileKind { model, session, preferences };
 Result<Parsed> read_state(FileKind kind, std::string_view text, const std::string &file);
 
 /* a file of one of those kinds read whole: its statements, the text its errors show their lines from, and the group of
-   its `session` or `preferences` statement (empty when it has none). The Blocks made of it read the group; it outlives
-   them and is not moved while they exist. where names the reader in an error ("session", "preferences"). */
+   its `session` statement (empty when it has none). The Blocks made of it read the group; it outlives
+   them and is not moved while they exist. where names the reader in an error ("session"). */
 struct StateFile {
   Parsed parsed;
   Document doc;

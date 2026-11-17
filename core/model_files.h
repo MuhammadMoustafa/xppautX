@@ -37,7 +37,7 @@ std::string include_path(const std::string &including, const std::string &name);
 std::string relative_to_model(const std::string &including, const std::string &path);
 
 /* The answers of the question a model's path outside its folder asks
-   (W286), as keys: Allow always (kept in the preferences for this model file
+   (W286), as keys: Allow always (kept in the settings for this model file
    and this path; a .ode uses its generated .odex), Allow once (this load),
    Refuse (or no answer). */
 inline constexpr std::string_view OUTSIDE_PATH_KEYS = "aor", OUTSIDE_PATH_KEYS_ONCE_ONLY = "or";

@@ -57,9 +57,9 @@ constexpr const char *nullclines_dump_file = "nullclines.dat";
 /* XPPAUT's most curves in one window (xp2 to xp8 and the first) */
 constexpr int max_plot_curves = 8;
 /* what a .ode's quiet and logfile become: a warning each */
-constexpr std::string_view log_level_is_the_users = "what the log shows is the user's, not a model's (the preferences' log_level, --verbose), so the option is dropped";
+constexpr std::string_view log_level_is_the_users = "what the log shows is the user's, not a model's (the settings' log_level, --verbose), so the option is dropped";
 constexpr std::string_view picture_as_shown = "an exported picture is the graph as the panel shows it, so its color and font size are not options and the option is dropped";
-constexpr std::string_view log_file_is_the_users = "where the log goes is the user's, not a model's (the preferences' log_file), so the option is dropped";
+constexpr std::string_view log_file_is_the_users = "where the log goes is the user's, not a model's (the settings' log_file), so the option is dropped";
 /* what a .ode's several starting graphs (multiwin, simplot, xlo2 to yhi8) become: one warning */
 constexpr std::string_view several_graphs = "xppautX opens one graph, so curves 2 to N join main and the options of several starting graphs are dropped: several graphs are a session's (window.new)";
 
@@ -170,7 +170,7 @@ const char *add_xppaut_button(const SessionParts &s, std::string_view spec, bool
 
 /* the file a path option names, from the model's folder, into path: inside
    it, or outside it when the user allows (approve_model_path, which asks
-   once); else why not. A stored bad preferences file stops the load. */
+   once); else why not. A stored bad settings file stops the load. */
 const char *own_file(const SessionParts &s, const OptionValue &v, std::string &path)
 {
   path = include_path(s.model().this_file, v.text);
@@ -1013,7 +1013,7 @@ constexpr OptionRow rows[] = {
      /* named like data_file, from the model's folder */
      return data_file_into(s, v, s.after_run_file);
    }},
-  /* XPPAUT's quiet and logfile (import only): the log is the user's, not a model's (the preferences' log_level and log_file) */
+  /* XPPAUT's quiet and logfile (import only): the log is the user's, not a model's (the settings' log_level and log_file) */
   {.name = "QUIET", .dropped = log_level_is_the_users},
   {.name = "LOGFILE", .dropped = log_file_is_the_users},
   /* XPPAUT's autoeval (import only): each formula table's own auto_evaluate, which `--convert` writes in its `table` statement */
@@ -1096,8 +1096,8 @@ constexpr OptionRow rows[] = {
   {.name = "XHI", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.x_max", std::string(v)}}, nullptr}; }, .flat_only = true, .sets = xhi_sets, .mapping = "wins over the key\'s other name when both are given; a 2D plot only"},
   {.name = "YLO", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.y_min", std::string(v)}}, nullptr}; }, .flat_only = true, .sets = ylo_sets, .mapping = "wins over the key\'s other name when both are given; a 2D plot only"},
   {.name = "YHI", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.y_max", std::string(v)}}, nullptr}; }, .flat_only = true, .sets = yhi_sets, .mapping = "wins over the key\'s other name when both are given; a 2D plot only"},
-  /* XPPAUT's colors of the diagram's stability kinds, the nullclines and the manifolds (import only): the user's preferences
-     (xpp_prefs.h Colors), never a model's; no demo sets one, so they are dropped without a note */
+  /* XPPAUT's colors of the diagram's stability kinds, the nullclines and the manifolds (import only): the user's settings
+     (xpp_settings.h Colors), never a model's; no demo sets one, so they are dropped without a note */
   {.name = "SEC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
   {.name = "UEC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
   {.name = "SPC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},

@@ -7,7 +7,7 @@
 #include <functional>
 #include <optional>
 #include <vector>
-namespace xpp { namespace prefs { struct Preferences; } struct SavedModel; struct LoadServices; class FileSystem; }
+namespace xpp { namespace settings { struct Read; } struct SavedModel; struct LoadServices; class FileSystem; }
 
 namespace xpp {
 
@@ -36,7 +36,7 @@ using Loaded = std::expected<Session *, Error>;
    log here (Error::text()), once. */
 Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *saved = nullptr,
                   const std::function<std::optional<Error>(Session &)> &check = {},
-                  const Result<prefs::Preferences> *read_prefs = nullptr);
+                  const settings::Read *read_settings = nullptr);
 /* Import and validate in a temporary Model and Session, using the shared
    setup. Never commits; the converter alone supplies the .ode reader. */
 /* A load in a Model that is discarded. services, when given, are the
@@ -50,7 +50,7 @@ Result<> inspect_model(FileSystem &fs, const CommandLine &cl, const std::functio
    every module, so what is below the application cannot call it. */
 struct ModelLoader {
   Loaded (*load)(FileSystem &fs, CommandLine cl, int batch, const SavedModel *saved,
-                 const std::function<std::optional<Error>(Session &)> &check, const Result<prefs::Preferences> *read_prefs);
+                 const std::function<std::optional<Error>(Session &)> &check, const settings::Read *read_settings);
   Result<> (*inspect)(FileSystem &fs, const CommandLine &cl, const std::function<void(const SessionParts &)> &read,
                       const std::function<std::optional<Error>(const SessionParts &)> &check, const SavedModel *saved, const LoadServices *services);
   void (*batch_start)(Session &s);

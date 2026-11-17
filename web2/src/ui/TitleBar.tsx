@@ -3,7 +3,6 @@
 import type {Theme} from '../store/state';
 import {useSession, useStore} from './context';
 import {CommandLabel} from './CommandButton';
-import {saveTheme} from './theme';
 import {baseName} from '../store/files';
 import {MenuButton} from './MenuBar';
 import {dockIsShown, dockTab} from '../store/dock';
@@ -61,8 +60,8 @@ export function TitleBar() {
   const helpOpen = useStore(s => s.help.open);
   const setTheme = () => {
     const t = NEXT_THEME[theme];
-    saveTheme(t);
     session.store.dispatch({type: 'theme', theme: t});
+    session.setPage({theme: t});
   };
   /* Data, Model and Help: the title bar's buttons (css/layout.css .title-only: hidden on a phone, where the menu bar has them) */
   const panelButtons = [

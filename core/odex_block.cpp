@@ -34,7 +34,7 @@ Result<StateFile> read_state_file(FileKind kind, std::string where, std::string 
         }
         return std::unexpected(std::move(e));
     }
-    const Statement::Kind own = kind == FileKind::session ? Statement::Kind::Session : Statement::Kind::Preferences;
+    const Statement::Kind own = Statement::Kind::Session;
     Value group;
     group.kind = Value::Kind::group;
     group.line = group.col = 1;
@@ -396,17 +396,6 @@ void Out::reals(std::string_view key, std::span<const double> v)
             put(", ");
         }
         put(xpp::number(v[k]));
-    }
-    put("],\n");
-}
-
-void Out::texts(std::string_view key, std::span<const std::string> v)
-{
-    entry(key);
-    put("[");
-    for (std::size_t k = 0; k < v.size(); k++) {
-        put(k == 0 ? "" : ", ");
-        quote(v[k]);
     }
     put("],\n");
 }

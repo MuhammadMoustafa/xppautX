@@ -256,7 +256,7 @@ The contents of `test.inc` will be included into the ODE file as if you had writ
 
 In `#include filename` and `options filename` (as in this list) `filename` stands for the name, which is written as it is, with no brackets or quotes (`#include test.inc`). The file is looked for in the folder of the file that holds the line (the model's, or an included file's for a nested include); the `--include` flag's name is relative to the working folder. A file that cannot be read stops the load, with the model's file and the `#include` line.
 
-A file that lies outside the model's folder (a name with `..`, or an absolute path) is not read until you say so. This holds for every file a model names: an include, an import, a file table, the animation file, and the `output` and `logfile` options. xppautX asks while the model loads, naming the model, its line and the path, with three answers: **Allow always** (kept in the program's preferences for this model file and this exact path, so a changed path asks again), **Allow once** (for this load) and **Refuse**. Refusing, closing the question, or giving no answer stops the load with the model's file and line. With no window (`--silent`, `--convert`) the question is asked on the terminal and waits 60 seconds; `--yes` allows it once and prints that it did. A link on the way is refused without a question.
+A file that lies outside the model's folder (a name with `..`, or an absolute path) is not read until you say so. This holds for every file a model names: an include, an import, a file table, the animation file, and the `output` and `logfile` options. xppautX asks while the model loads, naming the model, its line and the path, with three answers: **Allow always** (kept in the program's settings for this model file and this exact path, so a changed path asks again), **Allow once** (for this load) and **Refuse**. Refusing, closing the question, or giving no answer stops the load with the model's file and line. With no window (`--silent`, `--convert`) the question is asked on the terminal and waits 60 seconds; `--yes` allows it once and prints that it did. A link on the way is refused without a question.
 
 **NOTES:** (1) At the end of every include file you have to have the statement `#done` (2) include files can include other files.
 
@@ -640,7 +640,7 @@ A `.odex` (what a `.ode` is converted to) spells these options in full words, th
 
 - YNC={0,...,10} sets the Y-nullcline color
 
-  In xppautX these colors (SMC, UMC, XNC, YNC, and SEC, UEC, SPC, UPC of autoX's diagram) are the user's preferences, in File > Preferences, not a model's: a `.ode` that sets one is converted without it, with no note.
+  In xppautX these colors (SMC, UMC, XNC, YNC, and SEC, UEC, SPC, UPC of autoX's diagram) are the user's settings, in File > Settings, not a model's: a `.ode` that sets one is converted without it, with no note.
 
 - BUT=s1:s2 defines a user button. You can use this many times in the same ODE file. The first string is the name of the button.The second is the set of key stroke short cuts. For example: ` BUT=mouse:im` will put a button on the main window labeled `mouse` and when you press it, it will act as though you had clicked ` Initial conds Mouse`.
 

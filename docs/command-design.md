@@ -82,7 +82,7 @@ their label (icon-only is not used: labels are the discoverability fix).
 
 ## Settings file
 
-`keymap.json` is the user's, in the per-user config folder, owned by one
+`settings.json` is the user's, in the per-user config folder, owned by one
 module in the core (`xpp_keymap`), served to the page in `hello`. It stores
 only the user's differences: `bindings` (command id → keys, `[]` = removed),
 `pinned` (ordered command ids).
@@ -124,7 +124,7 @@ All of it reachable by keyboard and announced for screen readers.
 | W208 | Page keyboard layer: one dispatcher from key to command id, reserved keys; remove the sticky shortcut modes (its chords and XPPAUT preset went at W536) |
 | W209 | Ctrl+S / Save as: Session remembers its file; unsaved dot; Ctrl+Shift+S; native menus use the same ids |
 | W210 | Value undo/redo stack (bounded snapshots of parameters, initial conditions and numerics) replacing the checkpoint; Run from last state pushes the old values |
-| W211 | `keymap.json` owner module, all-or-nothing load, protocol command, security checks |
+| W211 | `settings.json` owner module, all-or-nothing load, protocol command, security checks |
 | W212 | Keymap editor dialog and pinned quick-access toolbar |
 | W213 | One Continue (honours the output stride, remove the legacy `C` prompt), docs and servercheck (done: Alt+Enter is `continue`'s default key) |
 

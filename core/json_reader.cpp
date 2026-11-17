@@ -1,4 +1,4 @@
-/* The JSON reader the protocol's command lines and keymap.json share: it
+/* The JSON reader the protocol's command lines and settings.json share: it
    reads text in place (a pointer into it), with no tree, strict where a
    file's text is checked (js_problem). Split out of json_io.cpp (W211) so a
    core module that is no part of the front end (xpp_keymap) reads JSON with
@@ -6,6 +6,7 @@
 #include "json_reader.h"
 #include "xpp_text.h"
 #include "xpp_mem.h"
+#include "xpp_lines.h"
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -250,6 +251,55 @@ bool js_member(const char *&cursor, std::string &key, const char *&value)
 int js_line(const char *text, const char *at)
 {
     return 1 + static_cast<int>(std::count(text, at, '\n'));
+}
+
+Place place_at(const std::string &file, std::string_view text, const char *at)
+{
+    const char *start = text.data();
+    Place place = line_place(file, text, js_line(start, at));
+    const char *line_start = at;
+    while (line_start > start && line_start[-1] != '\n') line_start--;
+    place.col = static_cast<int>(at - line_start) + 1;
+    return place;
+}
+
+bool blank_comments(std::string &text, std::size_t &at)
+{
+    const std::size_t n = text.size();
+    bool in_string = false;
+    for (std::size_t i = 0; i < n; i++) {
+        const char c = text[i];
+        if (in_string) {
+            if (c == '\\') i++;
+            else if (c == '"') in_string = false;
+        } else if (c == '"') {
+            in_string = true;
+        } else if (c == '/' && i + 1 < n && text[i + 1] == '/') {
+            for (; i < n && text[i] != '\n'; i++) text[i] = ' ';
+            i--; /* the newline that ends the comment is kept: the loop reads it next */
+        } else if (c == '/' && i + 1 < n && text[i + 1] == '*') {
+            const std::size_t open = i;
+            text[i] = text[i + 1] = ' ';
+            for (i += 2; i < n && !(text[i] == '*' && i + 1 < n && text[i + 1] == '/'); i++)
+                if (text[i] != '\n') text[i] = ' ';
+            if (i >= n) {
+                at = open;
+                return false;
+            }
+            text[i] = text[i + 1] = ' ';
+            i++;
+        }
+    }
+    return true;
+}
+
+std::string shown(std::string_view text)
+{
+    constexpr std::size_t MAX_SHOWN = 40;
+    const std::size_t newline = text.find('\n');
+    if (newline != std::string_view::npos) text = text.substr(0, newline);
+    const std::string cut = text.size() > MAX_SHOWN ? std::string(text.substr(0, MAX_SHOWN)) + "..." : std::string(text);
+    return "\"" + cut + "\"";
 }
 
 } // namespace xpp::json

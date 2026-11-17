@@ -86,7 +86,7 @@
 #include "xpp_mem.h"
 #include "xpp_types.h"
 #include "xpp_ui.h"
-namespace xpp { namespace prefs { struct Preferences; } }
+namespace xpp { namespace settings { struct Read; } }
 
 /* the core's own globals and functions that have no header of their own */
 
@@ -1094,12 +1094,12 @@ void json_ui_install(HelloInfo hello, bool silent)
     install(silent);
 }
 
-int json_ui_silent(FileSystem &fs, const ModelLoader &loader, CommandLine cl, const Result<prefs::Preferences> *read_prefs, HelloInfo hello)
+int json_ui_silent(FileSystem &fs, const ModelLoader &loader, CommandLine cl, const settings::Read *read_settings, HelloInfo hello)
 {
     session.hello = std::move(hello);
     /* the model loads as with no interface at all: a model that does not
        load exits 1, its reason logged */
-    const xpp::Loaded loaded = loader.load(fs, std::move(cl), 1, nullptr, {}, read_prefs);
+    const xpp::Loaded loaded = loader.load(fs, std::move(cl), 1, nullptr, {}, read_settings);
     if (!loaded) exit(1);
     xpp::Session &s = **loaded;
     loader.batch_start(s);
@@ -1227,6 +1227,9 @@ void send_hello(xpp::Session &s)
     BUF_LIT(b, ",\"keymap\":");
     const std::string keymap = hello_keymap(m);
     buf_add(b, keymap.data(), keymap.size());
+    BUF_LIT(b, ",\"settings\":");
+    const std::string settings_json = hello_settings(m);
+    buf_add(b, settings_json.data(), settings_json.size());
     /* a session with no model: what the start screen shows (xpp_recent.h) */
     if (!m.loaded()) {
         BUF_LIT(b, ",\"start\":");

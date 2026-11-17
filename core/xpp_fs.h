@@ -113,7 +113,7 @@ public:
     /* a scratch folder of its own (its path, "" when none could be made), and removing it with what it holds */
     virtual std::string make_temp_dir() = 0;
     virtual void remove_temp_dir(std::string_view dir) = 0;
-    /* the per-user settings folder's files (keymap.json): the path of `name` in it ("" when the system names no
+    /* the per-user settings folder's files (settings.json, state.json): the path of `name` in it ("" when the system names no
        folder), its whole text (nullopt when it is not there; an error when it cannot be read, is longer than
        limit, or there is no folder), written whole (the folder made first, temp-then-rename), and removed (no
        file is all defaults; an error when it stays). `where` is the Error's */

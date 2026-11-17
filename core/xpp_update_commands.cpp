@@ -8,7 +8,7 @@
 #include "xpp_globals.h"
 #include "xpp_job.h"
 #include "xpp_log.h"
-#include "xpp_prefs.h"
+#include "xpp_settings.h"
 #include "xpp_ui.h"
 #include "xpp_install.h"
 #include "xpp_update.h"
@@ -28,14 +28,14 @@
 namespace xpp::command {
 namespace {
 
-/* the page's opening asks whether to check for a newer release now: a recording's replay leaves the user's preferences alone,
+/* the page's opening asks whether to check for a newer release now: a recording's replay leaves the user's settings alone,
    so it never is */
 Result<std::string> due(Session &s, const Command &, const Arguments &, const Place &)
 {
     ResultObject result;
     if (files::serving_reads()) return result.boolean("due", false).done();
-    const Result<bool> now = prefs::update_check_due(*s.model().fs);
-    /* a bad preferences file is shown by the commands that use it; here the check is simply not made */
+    const Result<bool> now = settings::update_check_due(*s.model().fs);
+    /* a bad settings file is shown by the commands that use it; here the check is simply not made */
     if (!now) xpp::log(XPP_LOG_INFO, "{}\n", now.error().text());
     return result.boolean("due", now.value_or(false)).done();
 }
@@ -159,7 +159,7 @@ constexpr std::array DOWNLOAD_EVENTS = {xpp::events::JOB_COMPUTING, xpp::events:
 
 constexpr std::array ROWS = {
     Command{"update.due", {}, XPP_KIND_CONTROL, CommandCategory::Tools, "Update check due", "",
-            "Whether the check for a newer release is due now: the preference is on and none began today (UTC). When it is, the check is recorded as begun. The page asks once when it opens.",
+            "Whether the check for a newer release is due now: the setting is on and none began today (UTC). When it is, the check is recorded as begun. The page asks once when it opens.",
             RESULT_DUE, ANSWER_EVENTS, false, due, {}, {}},
     Command{"update.report_failure", FAILURE_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Tools, "Update check failed", "",
             "The page's check for a newer release failed: the log says why at INFO; nothing is shown.", RESULT_LOGGED, ANSWER_EVENTS, false, report_failure, {}, {}},

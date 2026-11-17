@@ -31,7 +31,7 @@
 #include "xpp_batch.h"
 #include "xpp_io.h"
 #include "xpp_files.h"
-#include "xpp_prefs.h"
+#include "xpp_settings.h"
 #include "browse.h"
 #include "graphics.h"
 #include "comline.h"
@@ -726,7 +726,7 @@ TEST_CASE("test_options")
         CHECK(&xpp::client_session() == s);
         if (!loaded) CHECK(loaded.error().place.file == bad_odex && loaded.error().place.line == 3);
     }
-    /* W655: the eight colors are the user's preferences, so a .odex naming one is refused at its line */
+    /* W655: the eight colors are the user's settings, so a .odex naming one is refused at its line */
     for (const std::string key : {"plot: { nullclines.x_color", "plot: { nullclines.y_color", "plot: { manifolds.stable_color", "plot: { manifolds.unstable_color",
                                   "diagram: { colors.stable_equilibrium", "diagram: { colors.unstable_equilibrium", "diagram: { colors.stable_periodic",
                                   "diagram: { colors.unstable_periodic"}) {
@@ -906,7 +906,7 @@ TEST_CASE("test_options")
         CHECK(answer_with(""));
         CHECK(load_output(outside).has_value()); /* kept: no question */
         CHECK(!load_output(other).has_value());  /* another path asks again */
-        CHECK(xpp::files::exists(xpp::prefs::prefs_path(fs)));
+        CHECK(xpp::files::exists(xpp::settings::state_path(fs)));
         set_config_dir(nullptr);
     }
 

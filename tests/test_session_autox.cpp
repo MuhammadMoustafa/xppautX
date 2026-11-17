@@ -995,7 +995,7 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
     s.autox_state->dir=tmp.path();
     xpp::init_autox_win(xpp::autox_parts(s));
     s.autox_state->follow_all_branches=false; /* these tests start one run each */
-    s.threads=threads; /* the preference's count, selected once for the run */
+    s.threads=threads; /* the setting's count, selected once for the run */
     CHECK(xpp::autox_run_start(xpp::autox_parts(s),xpp::AutoxRunRequest{}));
     CHECK(xpp::autox_grab_type_index(xpp::autox_parts(s),xpp::AutoxPointKind::Hopf,1)==1);
     const auto start=std::chrono::steady_clock::now();

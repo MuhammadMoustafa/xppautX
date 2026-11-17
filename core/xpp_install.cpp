@@ -279,7 +279,7 @@ Result<Ready> prepare(const Plan &plan, const ReleaseFile &file, std::string_vie
         return Ready::restart;
     }
     const std::string folder = kept_folder();
-    if (folder.empty()) return fail(std::string(WHERE), "there is no folder of the preferences to keep the update in", place);
+    if (folder.empty()) return fail(std::string(WHERE), "there is no folder of the settings to keep the update in", place);
     if (!files::make_dirs(folder, files::config_base())) return fail(std::string(WHERE), xpp::format("cannot make the folder {}", folder), place);
     discard_pending();
     const std::string kept = kept_path(file.name);

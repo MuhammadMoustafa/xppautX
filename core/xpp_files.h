@@ -200,7 +200,7 @@ void move(std::string_view from, std::string_view to);
    path, or empty on failure */
 std::string make_temp_dir();
 std::string temp_base(); /* The platform temp folder, shared by scratch files and the window loader. */
-/* The per-user settings folder (keymap.json, xpp_keymap.h): $XPP_CONFIG_DIR
+/* The per-user settings folder (settings.json, state.json: xpp_settings.h): $XPP_CONFIG_DIR
    when set, else the system's: %APPDATA%\xppautX on Windows,
    $XDG_CONFIG_HOME/xppautX or ~/.config/xppautX on Linux, and
    ~/Library/Application Support/xppautX on macOS. Empty when the system

@@ -19,7 +19,7 @@ import {HOME, windowOf, type Viewport} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
 import {kindOf, mayStart, type CommandRow, type LayerWindow} from './protocol/kinds';
-import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type UserKeymap, type XppEvent} from './protocol/types';
+import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type PageSettings, type SettingsInfo, type UserKeymap, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import {activeView, autoxWindow} from './store/diagram';
 import {
@@ -95,6 +95,11 @@ const TABLE_VIEW: ViewKey = {kind: 'dock', name: 'table'};
 /** an update's restart or install given its save: the leave question's answer, which may go while a computation runs (the core
     stops it, then runs the command, W689) */
 const answeredSwitch = (cmd: Command): boolean => (cmd.cmd === 'update.restart' || cmd.cmd === 'update.install') && cmd.save !== undefined;
+
+/* the page's settings keys (settings.json's page group) and the wait after a dock drag before its width is saved: a pause of the
+   user's hand, not a check's wait */
+const PAGE_KEYS = ['theme', 'dock_hidden', 'dock_width', 'folds'] as const;
+const PAGE_SETTLE_MS = 300;
 
 export class Session {
   readonly store: Store<AppState, Action>;
@@ -222,6 +227,7 @@ export class Session {
     }
     this.flushDiagram(); /* what came before goes in first: the order is the core's */
     this.store.dispatch({type: 'event', ev: this.unguarded(ev)});
+    if (ev.ev === 'hello') this.adoptPage(ev.settings);
     if (ev.ev === 'hello') {
       this.displayHeld.clear();
       this.displayGuard.clear();
@@ -235,7 +241,7 @@ export class Session {
       this.send({cmd: 'events.subscribe', events: ev.features, encoding: 'f32'});
       if (!this.updateChecked && popOutRequest(globalThis.location?.hash ?? '') === null) {
         this.updateChecked = true;
-        /* W622: the opening's check for a newer release, when the core says one is due (preference on, none today) */
+        /* W622: the opening's check for a newer release, when the core says one is due (setting on, none today) */
         this.send({cmd: 'update.due'});
         /* and an installer's file an earlier download kept (Later) is offered again until it is installed */
         this.send({cmd: 'update.pending'});
@@ -288,11 +294,11 @@ export class Session {
       const parts = ev.status === 'ok' ? ev.result?.parts : null;
       if (Array.isArray(parts))
         this.store.dispatch({type: 'valuesFile', offer: {file: String(ev.result?.file), scope: String(ev.result?.scope), format: String(ev.result?.format), parts: parts as ValuesPart[]}});
-      /* `preferences.get` answered for File > Preferences: its form, with the current values in it */
-      if (this.preferencesFormAsked && ev.status === 'ok' && typeof ev.result?.log_level === 'string') {
-        this.preferencesFormAsked = false;
+      /* `settings.get` answered for File > Settings: its form, with the current values in it */
+      if (this.settingsFormAsked && ev.status === 'ok' && typeof ev.result?.log_level === 'string') {
+        this.settingsFormAsked = false;
         const {threads, automatic, ...rest} = ev.result as {threads: number; automatic: boolean} & Record<string, string>; /* the log's and the colors' */
-        this.store.dispatch({type: 'commandForm', form: {id: 'preferences.configure', values: {...(automatic ? {automatic: true} : {threads}), ...rest}, fixed: []}});
+        this.store.dispatch({type: 'commandForm', form: {id: 'settings.configure', values: {...(automatic ? {automatic: true} : {threads}), ...rest}, fixed: []}});
       }
       /* `update.due` answered: when it is due the check runs; a newer release is a quiet notice, a failure only a log line */
       if (ev.status === 'ok' && ev.result?.due === true) void this.automaticUpdateCheck();
@@ -395,10 +401,10 @@ export class Session {
       this.store.dispatch({type: 'annotations', open: true});
       this.send({cmd:'window.select', window:this.store.getState().plots.active});
       this.send({cmd: id, window:this.store.getState().plots.active});
-    } else if (id === 'preferences.configure' && !fixed.length && !Object.keys(values).length) {
-      /* the form opens on the preferences as they stand: asked for first, the form opens when they arrive (the done below) */
-      this.preferencesFormAsked = true;
-      this.send({cmd: 'preferences.get'});
+    } else if (id === 'settings.configure' && !fixed.length && !Object.keys(values).length) {
+      /* the form opens on the settings as they stand: asked for first, the form opens when they arrive (the done below) */
+      this.settingsFormAsked = true;
+      this.send({cmd: 'settings.get'});
     } else if (row.panel && !row.arguments?.some(a => a.option) && !row.panel.endsWith('+')) this.openOptions(panelSpec(row.panel)!.group);
     else if (row.arguments?.length) this.store.dispatch({type: 'commandForm', form: {id, values, fixed}});
     else this.send({cmd: id});
@@ -471,8 +477,8 @@ export class Session {
     }
   }
 
-  /** File > Preferences was chosen and its values are on the way */
-  private preferencesFormAsked = false;
+  /** File > Settings was chosen and its values are on the way */
+  private settingsFormAsked = false;
 
   /** the options panel of an option group (ui/OptionsPanel.tsx): open at once, its values asked for (`options.get`) */
   openOptions(group: string): void {
@@ -497,6 +503,42 @@ export class Session {
     }
     const {decimals, hold, maximum} = run.input;
     this.send({cmd: 'run.steady', decimals: Number(decimals), hold: Number(hold), maximum: Number(maximum)});
+  }
+
+  /** the page's own settings as settings.json holds them (hello's `settings`, docs/protocol.md, settings and state): what the page shows
+      (page), and what the core has (sent), so only a value that changed is sent. Before hello there is no file's value to keep. */
+  private page: PageSettings | null = null;
+  private pageSent: PageSettings | null = null;
+  private pageTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private adoptPage(info: SettingsInfo): void {
+    this.page = {...info.page};
+    this.pageSent = {...info.page};
+    this.store.dispatch({type: 'theme', theme: info.page.theme});
+    this.store.dispatch({type: 'panels', panels: {dockHidden: info.page.dock_hidden, dockWidth: info.page.dock_width}});
+    this.store.dispatch({type: 'folds', folds: info.page.folds});
+  }
+
+  /** Saves the changed page settings (settings.set, one command per value; the core checks and writes each whole). A dock
+      width is saved once the drag has settled (PAGE_SETTLE_MS), the others at once. The store is the caller's to update. */
+  setPage(change: Partial<PageSettings>): void {
+    if (!this.page) return;
+    this.page = {...this.page, ...change};
+    if (this.pageTimer !== null) clearTimeout(this.pageTimer);
+    this.pageTimer = null;
+    if ('dock_width' in change) this.pageTimer = setTimeout(() => this.sendPage(), PAGE_SETTLE_MS);
+    else this.sendPage();
+  }
+
+  private sendPage(): void {
+    this.pageTimer = null;
+    if (!this.page || !this.pageSent) return;
+    const page = this.page, sent = this.pageSent;
+    for (const key of PAGE_KEYS) {
+      if (JSON.stringify(page[key]) === JSON.stringify(sent[key])) continue;
+      this.send({cmd: 'settings.set', group: 'page', key, value: JSON.stringify(page[key])});
+    }
+    this.pageSent = {...page};
   }
 
   /** Replace the user's keymap (docs/protocol.md "Keymap"): the answer is a `keymap` event, which is how the

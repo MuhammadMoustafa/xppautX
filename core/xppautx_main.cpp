@@ -71,7 +71,7 @@
 #include "odex.h"
 #include "export_model.h"
 #include "xpp_session.h"
-#include "xpp_prefs.h"
+#include "xpp_settings.h"
 #include "xpp_recent.h"
 #include "xpp_examples.h"
 #include "model_switch.h"
@@ -139,10 +139,10 @@ static constexpr std::string_view CONVERT_DEFAULT_TO = "odex";
 
 /* the session: load the model and serve it until Quit (the core exits);
    on the main thread (on macOS beside the window's: xpp_window.h) */
-/* what the start read once: the command line and the preferences (the first load takes both; a reload reads them again) */
+/* what the start read once: the command line and the settings (the first load takes both; a reload reads them again) */
 static struct {
     xpp::CommandLine line;
-    xpp::Result<xpp::prefs::Preferences> prefs;
+    xpp::settings::Read read;
     xpp::LocalFileSystem files; /* the disk: every load and the Models it makes read and write through it (xpp_fs.h) */
 } startup;
 
@@ -231,7 +231,7 @@ static void run_session(void)
     std::function<std::optional<xpp::Error>(xpp::Session &)> check;
     if (saved) check = [&saved](xpp::Session &fresh) { return xpp_saved_check(fresh, *saved); };
     const xpp::Loaded loaded = xpp::load_model(startup.files, std::move(cl), 0,
-                                               saved ? &saved->model : recording ? &recording->saved : nullptr, check, &startup.prefs);
+                                               saved ? &saved->model : recording ? &recording->saved : nullptr, check, &startup.read);
     if (!loaded && !silent && xpp::is_no_model(loaded.error())) {
         /* no file named: the start screen, whose Open model is File > Open model's */
         xpp::json_ui_start_screen();
@@ -246,8 +246,8 @@ static void run_session(void)
     if (!silent) {
         const xpp::Model &m = (**loaded).model();
         const auto noted = xpp::recent::note(startup.files, opened.empty() ? xpp::files::absolute(m.this_file, m.load_dir) : opened);
-        /* a preferences file that cannot be read was said once already, with what it costs (preferences_load) */
-        if (!noted && startup.prefs) xpp::log(XPP_LOG_WARN, "{}\n", noted.error().text());
+        /* a settings file that cannot be read was said once already, with what it costs (settings_load) */
+        if (!noted && startup.read.state) xpp::log(XPP_LOG_WARN, "{}\n", noted.error().text());
     }
     /* the session the load made, the program's until the redraw (a protocol
        command chooses its own, ui_json.cpp handle_line) */
@@ -282,12 +282,12 @@ int main(int argc, char **argv)
         return 2;
     }
     startup.line = std::move(*parsed);
-    startup.prefs = xpp::prefs::load_prefs(startup.files);
+    startup.read = xpp::settings::read_all(startup.files);
     program.measure_physical_threads = xpp::cpu::physical_threads;
     const xpp::CommandLine &cl = startup.line;
     {
-        /* what the log shows and where it goes: the command line's, else the preferences' (a bad file is said by the load, preferences_load) */
-        const xpp::Result<xpp::prefs::Preferences> &kept = startup.prefs;
+        /* what the log shows and where it goes: the command line's, else the settings' (a bad file is said by the load, settings_load) */
+        const xpp::Result<xpp::settings::Settings> &kept = startup.read.settings;
         xpp::log_set_threshold(cl.log_threshold.value_or(kept ? kept->log_level : XPP_LOG_WARN));
         if (kept && !kept->log_file.empty() && !xpp::log_open_file(kept->log_file))
             xpp::log(XPP_LOG_WARN, "{}\n", xpp::files::write_error("log_file", kept->log_file).text());
@@ -308,7 +308,7 @@ int main(int argc, char **argv)
     }
     if (cl.check && !cl.convert && !cl.model_file.empty() && cl.load_options == 0) {
         xpp::batch_options.check = true;
-        return xpp::odex::check_file(startup.files, xpp::program_loader, cl.model_file, xpp::prefs::load_services(startup.files, &startup.prefs));
+        return xpp::odex::check_file(startup.files, xpp::program_loader, cl.model_file, xpp::settings::load_services(startup.files, &startup.read));
     }
     if (cl.check) {
         xpp::log(XPP_LOG_ERROR, "usage: xppautX --check model.ode (or model.odex)\n");
@@ -334,12 +334,12 @@ int main(int argc, char **argv)
                 return usage(xpp::format("--to {} is not something --convert writes: one of {}", to, known));
             }
             if (cl.state_file || cl.ani_file) return usage(xpp::format("--to {} does not go with --statefile or --anifile, which write the {} format", to, CONVERT_DEFAULT_TO));
-            return xpp::convert_to_language(startup.files, xpp::program_loader, cl.model_file, *language, xpp::prefs::load_services(startup.files, &startup.prefs));
+            return xpp::convert_to_language(startup.files, xpp::program_loader, cl.model_file, *language, xpp::settings::load_services(startup.files, &startup.read));
         }
-        if (cl.state_file) return xpp::convert_state_file(startup.files, xpp::program_loader, cl.model_file, *cl.state_file, xpp::prefs::load_services(startup.files, &startup.prefs));
+        if (cl.state_file) return xpp::convert_state_file(startup.files, xpp::program_loader, cl.model_file, *cl.state_file, xpp::settings::load_services(startup.files, &startup.read));
         if (cl.ani_file) return xpp::convert_animation_file(startup.files, xpp::program_loader, *cl.ani_file, cl.model_file);
         if (xpp::files::has_extension(cl.model_file, ".ani")) return xpp::convert_animation_file(startup.files, xpp::program_loader, cl.model_file);
-        return xpp::odex::convert_file(startup.files, xpp::program_loader, cl.model_file, xpp::prefs::load_services(startup.files, &startup.prefs));
+        return xpp::odex::convert_file(startup.files, xpp::program_loader, cl.model_file, xpp::settings::load_services(startup.files, &startup.read));
     }
     /* issue #32: the folders of runs that ended without their atexit (a
        kill, Ctrl+C, the watchdog's _exit) go at the next start, --silent
@@ -356,7 +356,7 @@ int main(int argc, char **argv)
                                 xpp::Place{cl.model_file}}.text());
             return 2;
         }
-        return xpp::json_ui_silent(startup.files, xpp::program_loader, startup.line, &startup.prefs, hello_info());
+        return xpp::json_ui_silent(startup.files, xpp::program_loader, startup.line, &startup.read, hello_info());
     }
     /* a build without a window is browser mode (--no-open needs --browser: comline.cpp) */
     xpp::Interface interface = cl.interface.value_or(xpp::Interface::window);

@@ -45,7 +45,7 @@ xpp::Result<> model_file_ok(xpp::FileSystem &fs, const std::string &file)
 }
 
 /* the model the user opened is the newest of the recent ones; the open goes
-   on when the list cannot be kept (a bad preferences.odex is shown, not changed) */
+   on when the list cannot be kept (a bad state.json is shown, not changed) */
 void remember_opened(xpp::FileSystem &fs, const std::string &file)
 {
   if(const auto noted=xpp::recent::note(fs,fs.absolute(file));!noted)xpp::show_error(noted.error());

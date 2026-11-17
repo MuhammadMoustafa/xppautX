@@ -9,31 +9,31 @@
 #include "json_error.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
-#include "xpp_prefs.h"
+#include "xpp_settings.h"
 
 namespace xpp::recent {
 
 Result<std::vector<std::string>> load_recent(FileSystem &fs)
 {
-    Result<prefs::Preferences> p = prefs::load_prefs(fs);
-    if (!p) return std::unexpected(p.error());
-    return std::move(p->recent_models);
+    Result<settings::State> s = settings::load_state(fs);
+    if (!s) return std::unexpected(s.error());
+    return std::move(s->recent_models);
 }
 
 Result<> note(FileSystem &fs, std::string_view model)
 {
     /* a recording playing is not the user opening models: it keeps no list of theirs */
     if (files::serving_reads()) return {};
-    return prefs::update_prefs(fs, [&](prefs::Preferences &p) {
-        prefs::remember_newest(p.recent_models, std::string(model), prefs::MAX_RECENT_MODELS);
+    return settings::update_state(fs, [&](settings::State &s) {
+        settings::remember_newest(s.recent_models, std::string(model), settings::MAX_RECENT_MODELS);
     });
 }
 
 std::string start_json(FileSystem &fs, const Result<std::vector<std::string>> &loaded, std::string_view more)
 {
     std::string out = "{\"path\":";
-    json_append_string(out, prefs::prefs_path(fs));
-    out += xpp::format(",\"limit\":{},\"recent\":[", prefs::MAX_RECENT_MODELS);
+    json_append_string(out, settings::state_path(fs));
+    out += xpp::format(",\"limit\":{},\"recent\":[", settings::MAX_RECENT_MODELS);
     if (loaded) {
         bool first = true;
         for (const std::string &entry : *loaded) {

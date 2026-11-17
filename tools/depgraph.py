@@ -36,9 +36,9 @@ TESTS = 'tests'
 MODULES = {
     'kernel': ('the innermost ring (Discussion #808): errors (the failure of a load among them, model_failed, and the LoadSite the Session\'s Load implements) and their log, memory, text formatting and the pure helpers on text (the JSON number writer and reader among them: text in, text out), a file of ours read as lines and numbers from the text it is given (xpp_lines: Lines and TokenReader, W731, W739), the text of a file name (xpp_path) and the FileSystem and Sink the inner rings read and write through (xpp_fs: an interface the kernel owns, the files module implements, W731), bytes in and bytes out (zip and gzip archives, SHA-256: W731 moved them here, they open no file), the plain table of numbers the data formats read and write (data_table, W737: with the declarations of the formats that write it, defined by data_formats.cpp, the export), the UTF-8 <-> UTF-16 conversion the *_win.cpp files share (xpp_win, W737: text, declaring no Windows type; only xpp_win.cpp includes windows.h), the one format number every file of ours and the protocol carry (format_version, W737: constants and a message, text only), and math, and the ChangedEvent template (data_event: a sink and a text, pure); it includes nothing outside itself (W726)', [
         'xpp_error', 'model_failed', 'xpp_log', 'xpp_mem', 'xpp_text', 'xpp_lines', 'xpp_path', 'xpp_fs', 'xpp_zip', 'xpp_sha256', 'xpp_win', 'format_version', 'data_table', 'xpp_util', 'xpp_math', 'xpp_cpu', 'json_number', 'json_reader', 'data_event']),
-    'files': ('the file system, outside the kernel: the file handles (LineReader, Writer), folders, the log file, and the files command\'s result as the protocol shows it (json_files)', [
+    'files': ('the file system, outside the kernel: the file handles (LineReader, Writer), folders, the log file, the files command\'s result as the protocol shows it (json_files), and the per-user settings.json and state.json (xpp_settings: they read and write through the file system and reach the commands\' keys only)', [
         'xpp_io', 'xpp_io_internal', 'xpp_files', 'xpp_files_dir', 'xpp_files_internal', 'xpp_files_win', 'xpp_files_posix',
-        'xpp_files_linux', 'xpp_files_mac', 'xpp_fs_local', 'json_files']),
+        'xpp_files_linux', 'xpp_files_mac', 'xpp_fs_local', 'json_files', 'xpp_settings']),
     'run control': ('the cancel token and progress a computation reports to, and the input queues of commands and cancels it sees, which the front ends and the platform fill (the stdin reader is the --server front end\'s own, json_io.cpp)', ['xpp_job', 'xpp_inbox']),
     'domain values': ('the numerics options, method ids and autoX codes a model, a run and the XppUi seam carry: pure types, including only the kernel (W736)', [
         'model_numerics', 'autox_codes']),
@@ -79,9 +79,8 @@ MODULES = {
         'autox_*', 'xAutox', 'setubv*', 'gogoautox', 'diagram*', 'conpar2', 'xpp_math_eispack', 'xpp_math_autox', 'f2c_helpers']),
     'protocol front end': ('the JSON protocol: input, commands, events, windows and state, and the leave question and its answers hello carries (xpp_leave, W737: the application asks them too)', [
         'json_*', 'ui_json*', 'xpp_leave']),
-    'application': ('the program\'s start, its preferences, recent models, updates and About', [
-        'xppautx_main', 'xpp_batch', 'model_switch', 'open_model', 'xpp_about', 'xpp_prefs',
-        'xpp_recent', 'xpp_examples', 'xpp_update', 'xpp_install', 'xpp_prefs_commands', 'xpp_update_commands', 'xpp_model_commands']),
+    'application': ('the program\'s start, its settings, recent models, updates and About', [
+        'xppautx_main', 'xpp_batch', 'model_switch', 'open_model', 'xpp_about',         'xpp_recent', 'xpp_examples', 'xpp_update', 'xpp_install', 'xpp_settings_commands', 'xpp_update_commands', 'xpp_model_commands']),
     'platform': ('the system: HTTP, the window, WebView, Windows, starting a process, the page assets, and the platform files of other modules', [
         'xpp_http*', 'xpp_https*', 'xpp_window*', 'xpp_webview', 'xpp_process*', 'xpp_assets', 'xpp_platform*', 'xpp_cpu_win', 'xpp_cpu_linux', 'xpp_cpu_mac', 'xpp_cpu_system']),
 }

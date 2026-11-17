@@ -342,7 +342,7 @@ panel. Nothing is silently changed back. The core's own asks say what
 each field wants (the protocol's `kinds`); a field they do not describe
 takes any text, as before.
 
-**A field's help.** In every option panel, in Preferences and in every command form, a field with something to explain has a small ? after its label. Its help is hidden; click or tap the ? to show it under the field, and again to hide it. Several may be open at once, and Escape does not close them. A note about the field's value (its range, or a choice that is not available and why) stays shown.
+**A field's help.** In every option panel, in Settings and in every command form, a field with something to explain has a small ? after its label. Its help is hidden; click or tap the ? to show it under the field, and again to hide it. Several may be open at once, and Escape does not close them. A note about the field's value (its range, or a choice that is not available and why) stays shown.
 
 **Escape, in order.** Each press does one thing, the innermost first: it closes an open menu (the menu bar's, then the plot's ⋯ or the Messages list), then the command drawer; then it cancels a pick or a grab; then a question the program asks is answered as cancelled (a dialog keeps its own Escape: it closes the dialog, and only that); then it closes the topmost open panel, the last one opened (Data, Text, Help, Array plot, Values, Animation, and autoX when nothing runs); and only when none of these is open does it stop a running command. So during a run the first Escape closes a panel and the next one stops the run; in the autoX view, where a continuation is watched, Escape stops it at once. A field with an edit to drop keeps its Escape for the drop (above).
 
@@ -470,14 +470,14 @@ view) — goes to **Messages** at the bottom of the page, quiet by default
 (warnings and errors); `--verbose`/`--debug` raise the level.
 The terminal that started it gets only what the page cannot show: the
 warnings and errors, since the page may be closed, and the browser's
-address; with `--verbose` or `--debug`, or the preferences' `log_file`, everything
+address; with `--verbose` or `--debug`, or the settings' `log_file`, everything
 (the file gets all of it either way). The
 core never prints to stdout or stderr directly, so nothing bypasses
 Messages.
 
-**File > Preferences** also holds the eight colors the program draws with: the continuation diagram's stable and unstable
+**File > Settings** also holds the eight colors the program draws with: the continuation diagram's stable and unstable
 equilibria and periodic orbits, the x and y nullclines, and the stable and unstable manifolds of a saddle. They are the user's, one
-list for every model, kept in `preferences.odex`, and apply to what is drawn or computed after they are changed (a diagram point keeps
+list for every model, kept in `settings.json`, and apply to what is drawn or computed after they are changed (a diagram point keeps
 the color of its kind when it was stored).
 
 ## Formulas as values
@@ -511,7 +511,7 @@ the desktop's save dialog can choose a destination on disk.
 ### Check for updates
 
 xppautX also looks for a newer release when the window or the browser page opens, at most once a day, unless
-the **Check for updates** switch of Preferences is off (`check_for_updates` in `preferences.odex`). A newer release shows as a
+the **Check for updates** switch of Settings is off (`check_for_updates` in `settings.json`). A newer release shows as a
 quiet notice in the status bar, "xppautX X.Y.Z is available", never a dialog; clicking it opens the dialog below. A check
 that fails shows nothing and is told in the log at INFO. `--silent` and `--server` never check.
 
@@ -524,7 +524,7 @@ GitHub's release list, and then:
 
 - a portable copy (the Linux .tar.gz, the Windows .zip, in a folder xppautX can write) has its program swapped in from the
   archive; the notice becomes "Restart to use version X" with **Restart now** and **Later** (Later: the next start runs it);
-- an .msi (Windows) or a .deb (Linux) is kept beside the preferences and offered as "Install X and restart" with **Install and
+- an .msi (Windows) or a .deb (Linux) is kept beside the settings and offered as "Install X and restart" with **Install and
   restart** and **Later**; it is checked again before it is offered at the next start and before the installer starts. The
   installer asks for permission itself (Windows' installer, the system's software installer); xppautX never uses sudo and
   quits so the program can be replaced. The Windows installer starts xppautX again when it is done, reopening the session or

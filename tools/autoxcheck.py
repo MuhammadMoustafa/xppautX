@@ -674,7 +674,7 @@ def section_jacobian():
 
 
 def section_threads():
-    """W267: autoX's thread count (a program preference, set by `auto` `set` `threads`, kept in a
+    """W267: autoX's thread count (a program setting, set by `auto` `set` `threads`, kept in a
     config folder of its own) never changes a result: lecar's steady and periodic branches, run with 1
     thread and with 2 (as many as the computer has, if fewer), save the same diagram.csv to the bit"""
     config = tempfile.mkdtemp(prefix='xppthreads')
@@ -687,7 +687,7 @@ def section_threads():
             evs, _ = s.collect(is_done)
             most = [e for e in evs if e.get('ev') == 'autox.options'][-1]['threads_max']
             count = min(want, most)
-            s.send(cmd='preferences.configure', threads=count)
+            s.send(cmd='settings.configure', threads=count)
             evs, _ = s.collect(is_done)
             errors = [e.get('error') for e in evs if e.get('ev') == 'session.message' and e.get('error')]
             shown = [e for e in evs if e.get('ev') == 'autox.options'][-1]['threads']

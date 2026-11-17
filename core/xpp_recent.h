@@ -1,14 +1,10 @@
 #pragma once
-/* The recent models (W232): the models the user opened lately, newest
-   first, kept in the preferences file (xpp_prefs.h, W287: its
-   `recent_models`); the start screen lists them (hello's `start`,
-   docs/protocol.md "Start screen"). The file loads all or nothing: a value
-   that is wrong is an error naming the file, the line and the path, and
-   nothing of it is used, so the start screen lists none and says why; the
-   next Open model does not overwrite a file it could not read. A path in
-   it is only ever opened through File > Open model's one owner
-   (model_switch.h), which checks it again; a path that is no longer there
-   is listed as missing, never dropped. C++ only. */
+/* The recent models (W232, W790): the models the user opened lately, newest first, kept in state.json (xpp_settings.h: its
+   `recent_models`); the start screen lists them (hello's `start`, docs/protocol.md "Start screen"). The file loads all or nothing:
+   a value that is wrong is an error naming the file, the line and the path, and nothing of it is used, so the start screen lists
+   none and says why; the next Open model does not overwrite a file it could not read. A path in it is only ever opened through
+   File > Open model's one owner (model_switch.h), which checks it again; a path that is no longer there is listed as missing,
+   never dropped. C++ only. */
 #include <string>
 #include <string_view>
 #include <vector>
@@ -28,4 +24,3 @@ namespace xpp::recent {
 std::string start_json(FileSystem &fs, const Result<std::vector<std::string>> &loaded, std::string_view more = {});
 
 } // namespace xpp::recent
-

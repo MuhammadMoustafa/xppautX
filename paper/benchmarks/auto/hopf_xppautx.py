@@ -63,7 +63,7 @@ def run(s, key, limit=RUN_LIMIT, scratch=None):
 def measure(binary, model=str(HERE / 'models' / 'PY_S1Bf_bench.ode'), threads=None, jacobian=None,
             extra_args=(), env=None, run_dir=None, limit=RUN_LIMIT, ready=None, go=None, out=None):
     """{run: {wall, cpu, labels: [(pt, type, Iapp)]}} for the steady-state and periodic runs.
-    W269 (#326): threads (AUTO's thread count, W247/W267: a preference, so env should name a
+    W269 (#326): threads (AUTO's thread count, W247/W267: a setting, so env should name a
     fresh XPP_CONFIG_DIR), jacobian ('difference' or 'exact', W260/W275: set before AUTO opens,
     which reads it), extra_args (none is needed for the interpreter: its model is a compile-false copy, W661);
     the defaults are W246's run.
@@ -87,7 +87,7 @@ def _measure(s, threads, jacobian, limit, ready, go, out):
     s.send(cmd='events.subscribe', events=[], diagram=True)
     step(s)
     if threads is not None:
-        step(s, cmd='preferences.configure', **({'automatic': True} if threads == 0 else {'threads': threads}))
+        step(s, cmd='settings.configure', **({'automatic': True} if threads == 0 else {'threads': threads}))
     if jacobian is not None:
         step(s, cmd='set', kind='num', name='jacobian', text=jacobian)
     open_autox(s)

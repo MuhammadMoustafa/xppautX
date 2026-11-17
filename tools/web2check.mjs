@@ -1903,9 +1903,9 @@ async function autoxView(dir) {
     await until(`!!document.querySelector('[data-argument=max_steps].bad .field-error') && document.querySelector('[data-problems]')?.textContent === '1 field to fix'`, 'error shown')
     && (await S('__xpp.sentCount()')) === sentApply && !(await cdp.eval(`document.querySelector('[data-dialog-action]').disabled`)));
   await key('Escape');
-  await clickRegistry('preferences.configure'); await formValues({threads:1}); await submitCommand();
+  await clickRegistry('settings.configure'); await formValues({threads:1}); await submitCommand();
   check('W267: the common thread form selects one thread', await until(`!s.busy && s.autoxSettings.core.threads === 1`, 'one thread'));
-  await clickRegistry('preferences.configure');
+  await clickRegistry('settings.configure');
   await formValues({automatic:true}); await submitCommand();
   check('W267: the named automatic choice restores automatic threads', await until(`!s.busy && s.autoxSettings.core.threads === 'auto'`, 'automatic threads'));
   await autoxRun('equilibrium');
@@ -2396,7 +2396,7 @@ async function autoxLiveJobs() {
   await menuRun('autox.open');
   await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
   const send = cmd => cdp.eval(`__xpp.send(${JSON.stringify(cmd)})`);
-  await send({cmd: 'preferences.configure', threads: 2});
+  await send({cmd: 'settings.configure', threads: 2});
   await send({cmd: 'value.set_parameters', values: {p0: 0.05}});
   await send({cmd: 'initial_conditions.set', values: {U1: 0.06282240276322631, U2: 0.2931712128950587}});
   await until('!s.busy', 'values set');
@@ -3206,8 +3206,8 @@ async function clickRegistry(id) {
     for (let p = item.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true;
     item.click();
   })()`);
-  /* File > Preferences opens on the current preferences, which the core gives first */
-  if (id === 'preferences.configure') await requireUntil(`s.commandForm?.id === 'preferences.configure'`, 'the Preferences form');
+  /* File > Settings opens on the current settings, which the core gives first */
+  if (id === 'settings.configure') await requireUntil(`s.commandForm?.id === 'settings.configure'`, 'the Settings form');
   await rendered();
 }
 async function formValues(values) {
@@ -3289,7 +3289,7 @@ async function optionsCheck() {
     'output.configure': 'output'};
   check('W616: each panel opens from its task\'s menu entry, and only from there',
     JSON.stringify(Object.entries(await S(`Object.fromEntries(s.hello.commands.filter(c => c.panel).map(c => [c.cmd, c.panel]))`)).sort()) === JSON.stringify(Object.entries(opensFrom).sort()), JSON.stringify(await S(`s.hello.commands.filter(c => c.panel).map(c => c.cmd)`)));
-  check('W616: the threads and the log are one File > Preferences entry', await S(`s.hello.commands.find(c => c.cmd === 'preferences.configure').menu_path === 'File' && !s.hello.commands.some(c => c.cmd === 'preferences.set_log')`));
+  check('W616: the threads and the log are one File > Settings entry', await S(`s.hello.commands.find(c => c.cmd === 'settings.configure').menu_path === 'File' && !s.hello.commands.some(c => c.cmd === 'settings.set_log')`));
   /* a choice's label: a file format as written (W653), any other capitalised */
   const formats = await S('s.hello.file_formats');
   const label = name => formats.includes(name) ? name : name.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
@@ -3398,21 +3398,21 @@ async function optionsCheck() {
   await requireUntil(`s.optionsPanel?.group === 'output' && s.optionValues.output`, 'the Output panel once more for run_set');
   check('W672: unchecking every set leaves no run_set', await S(`s.optionValues.output.values.run_set === ''`), JSON.stringify(await S('s.optionValues.output.values.run_set')));
   await key('Escape');
-  /* File > Preferences opens on the preferences as they stand, with no error before anything is typed */
-  await clickRegistry('preferences.configure');
-  check('W616: the Preferences form shows the current threads (or automatic), log level and log file, and no error',
-    await S(`s.commandForm.id === 'preferences.configure' && s.commandForm.values.log_level === 'warn' && (s.commandForm.values.automatic === true || s.commandForm.values.threads > 0)`)
+  /* File > Settings opens on the settings as they stand, with no error before anything is typed */
+  await clickRegistry('settings.configure');
+  check('W616: the Settings form shows the current threads (or automatic), log level and log file, and no error',
+    await S(`s.commandForm.id === 'settings.configure' && s.commandForm.values.log_level === 'warn' && (s.commandForm.values.automatic === true || s.commandForm.values.threads > 0)`)
     && await cdp.eval(`!document.querySelector('.registry-form .field-error, .registry-form [aria-invalid=true]')`), JSON.stringify(await S('s.commandForm.values')));
-  /* W655: the eight colors are in the form, in the option table's order, as the preferences hold them; a change sent reaches the page's form */
-  check('W655: the Preferences form lists the eight colors in order',
+  /* W655: the eight colors are in the form, in the option table's order, as the settings hold them; a change sent reaches the page's form */
+  check('W655: the Settings form lists the eight colors in order',
     await S(`JSON.stringify(Object.keys(s.commandForm.values).filter(k => k.endsWith('_color'))) === JSON.stringify(['stable_equilibrium_color', 'unstable_equilibrium_color', 'stable_periodic_color', 'unstable_periodic_color', 'x_nullcline_color', 'y_nullcline_color', 'stable_manifold_color', 'unstable_manifold_color'])`));
   await key('Escape');
-  await cdp.eval(`__xpp.send({cmd:'preferences.configure', x_nullcline_color:'#123456'})`);
-  await until('!s.busy', 'preferences sent');
-  await clickRegistry('preferences.configure');
+  await cdp.eval(`__xpp.send({cmd:'settings.configure', x_nullcline_color:'#123456'})`);
+  await until('!s.busy', 'settings sent');
+  await clickRegistry('settings.configure');
   check('W655: a color set reaches the form the page opens next', await S(`s.commandForm.values.x_nullcline_color === '#123456'`), JSON.stringify(await S('s.commandForm.values')));
-  await cdp.eval(`__xpp.send({cmd:'preferences.configure', x_nullcline_color:'#f06400'})`);
-  await until('!s.busy', 'preferences back');
+  await cdp.eval(`__xpp.send({cmd:'settings.configure', x_nullcline_color:'#f06400'})`);
+  await until('!s.busy', 'settings back');
   await key('Escape');
   /* a panel opened from a menu item that had a form of its own sets the group's rows, checked all together */
   await menuRun('equilibrium.configure', {max_iterations: 77});
@@ -4070,7 +4070,7 @@ async function tabOrderShots() {
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
-/* W679: a field's help is behind a "?" after its label in an options panel, in Preferences and in a command form: hidden, opened by a click, closed by a
+/* W679: a field's help is behind a "?" after its label in an options panel, in Settings and in a command form: hidden, opened by a click, closed by a
    second, several open at once. Data only: the toggle's aria state, the help's hidden flag and the id they share. */
 async function fieldHelp() {
   await until('s.hello && !s.busy', 'hello');
@@ -4080,7 +4080,7 @@ async function fieldHelp() {
   const toggle = (root, n) => cdp.eval(`document.querySelectorAll(${JSON.stringify(root + ' .form-row')})[${n}].querySelector('.field-help-toggle').click()`);
   const tests = [
     ['an options panel', async () => { await cdp.eval(`__xpp.openOptions('integration')`); await requireUntil(`s.optionsPanel?.group === 'integration' && s.optionValues.integration`, 'panel'); }, '[data-options-panel]'],
-    ['Preferences', async () => { await clickRegistry('preferences.configure'); }, '[data-dialog]'],
+    ['Settings', async () => { await clickRegistry('settings.configure'); }, '[data-dialog]'],
     ['a command form', async () => { /* a command of the registry's own arguments (no group's panel) with their descriptions */
       const id = await S(`s.hello.commands.find(c => c.menu_path && !c.panel && !c.needs && (c.arguments ?? []).filter(a => a.description && !a.option && a.type !== 'path').length >= 2)?.cmd`);
       await clickRegistry(id); await requireUntil('!!s.commandForm', 'form'); }, '[data-dialog]'],
@@ -4107,14 +4107,14 @@ async function fieldHelp() {
   }
 }
 
-/* The field help's pictures for the UI review (W679; with --only shots and XPP_SHOTS=folder): an options panel, Preferences and a command form, each with
+/* The field help's pictures for the UI review (W679; with --only shots and XPP_SHOTS=folder): an options panel, Settings and a command form, each with
    its first help opened, at 1280 wide light, 1440 dark, 768 and 390. Never a check: it writes files only. */
 async function fieldHelpShots() {
   const dir = process.env.XPP_SHOTS;
   if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
   fs.mkdirSync(dir, {recursive: true});
   await until('s.hello && !s.busy', 'hello');
-  const forms = [['panel', 'run.configure'], ['preferences', 'preferences.configure'],
+  const forms = [['panel', 'run.configure'], ['settings', 'settings.configure'],
     ['command-form', await S(`s.hello.commands.find(c => c.menu_path && !c.panel && !c.needs && (c.arguments ?? []).filter(a => a.description && !a.option && a.type !== 'path').length >= 2)?.cmd`)]];
   const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['768', 768, 1024, 'light'], ['390', 390, 844, 'light']];
   for (const [size, width, height, scheme] of sizes) {
@@ -4145,7 +4145,7 @@ async function settingsShots() {
   const panels = [['integration', 'run.configure'], ['poincare', 'poincare_map.set'], ['sweep', 'run.range'], ['equilibria', 'equilibrium.configure'],
     ['analysis-histogram', 'histogram.compute'], ['analysis-spectrum', 'spectrum.density'], ['continuation', 'autox.configure_numerics'],
     ['diagram', 'autox.configure_axes'], ['plot', 'plot.set_axes_origin'], ['output', 'output.configure'],
-    ['preferences', 'preferences.configure'], ['command-form', 'plot.set_2d']].map(([name, id]) => [name, menu(id)]);
+    ['settings', 'settings.configure'], ['command-form', 'plot.set_2d']].map(([name, id]) => [name, menu(id)]);
   const others = [
     ['ask-file', () => registryFile('session.save_as', 'write')],
     ['error', async () => { await cdp.eval(`__xpp.send({cmd: 'run.configure', total_time: -1})`); await until(`!!document.querySelector('[data-error-dialog]')`, 'error'); }],
@@ -4565,14 +4565,14 @@ async function dialogsCheck() {
   await until('!s.commandForm', 'spectrum closed');
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
   await rendered();
-  /* the color field (File > Preferences' since W655) is one row: the swatch, the text box in the field style, the opacity and Foreground */
-  await clickRegistry('preferences.configure');
+  /* the color field (File > Settings' since W655) is one row: the swatch, the text box in the field style, the opacity and Foreground */
+  await clickRegistry('settings.configure');
   await rendered();
   const color = await cdp.eval(`(() => { const f = document.querySelector('[data-dialog] [data-color-field]'); const centres = [...f.children].map(c => { const r = c.getBoundingClientRect(); return r.top + r.height / 2; });
     return {oneRow: Math.max(...centres) - Math.min(...centres) < 3, centres, textInBox: !!f.querySelector('.input-box [data-color-text]')}; })()`);
   check('W641: a color row is one line (swatch, text box in the field style, opacity, Foreground) at 1280', color.oneRow && color.textInBox, JSON.stringify(color));
   await key('Escape');
-  await until('!s.commandForm', 'Preferences closed');
+  await until('!s.commandForm', 'Settings closed');
   /* a file: one control, which also takes a dropped file; the footer's action is the only one */
   await clickRegistry('data.load');
   await requireUntil(`!!s.commandForm`, 'the export form');
@@ -4620,11 +4620,11 @@ async function dialogsCheck() {
   check('W641: a command form shows its description under its title, and no error before input', await cdp.eval(`!!document.querySelector('[data-dialog] .dialog-desc')`) && d.errors === 0, JSON.stringify(d));
   await cdp.eval(`document.querySelector('[data-dialog] .dialog-close').click()`);
   await until('!s.commandForm', 'closed by the ×');
-  /* Preferences opens on the current values */
-  await clickRegistry('preferences.configure');
+  /* Settings opens on the current values */
+  await clickRegistry('settings.configure');
   d = await shell();
-  sound('Preferences', d);
-  check('W641: Preferences: no error before input, one switch for Automatic', d.errors === 0 && await cdp.eval(`document.querySelectorAll('[data-dialog] [data-argument=automatic] input[type=checkbox]').length === 1`), JSON.stringify(d));
+  sound('Settings', d);
+  check('W641: Settings: no error before input, one switch for Automatic', d.errors === 0 && await cdp.eval(`document.querySelectorAll('[data-dialog] [data-argument=automatic] input[type=checkbox]').length === 1`), JSON.stringify(d));
   await key('Escape');
   await until('!s.commandForm', 'closed');
   /* a core ask: the same shell, named for what it does */
@@ -5488,7 +5488,7 @@ async function runsCheck(dir) {
   /* folding a section is remembered by the viewer */
   await cdp.eval(`document.querySelector('[data-section="par"] .value-fold').click()`);
   check('runs: a section folds, and the page remembers it',
-    await until(`document.getElementById('values-sec-par').hidden && JSON.parse(localStorage.getItem('xpp.values.folded')).includes('par')`, 'fold'));
+    await until(`document.getElementById('values-sec-par').hidden && window.__xpp.state().folds.includes('par')`, 'fold'));
   await cdp.eval(`document.querySelector('[data-section="par"] .value-fold').click()`);
 }
 
@@ -7108,7 +7108,8 @@ async function startScreenCheck() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-start-'));
   const gone = path.join(dir, 'gone.odex');
   fs.mkdirSync(path.join(dir, 'xpp-config'));
-  fs.writeFileSync(path.join(dir, 'xpp-config', 'preferences.odex'), `version 4\npreferences {\n  check_for_updates: false,\n  recent_models: [${[ODE, gone].map(p => JSON.stringify(p)).join(', ')}],\n}\n`);
+  fs.writeFileSync(path.join(dir, 'xpp-config', 'state.json'), `{"version": 4, "recent_models": [${[ODE, gone].map(p => JSON.stringify(p)).join(', ')}]}\n`);
+  fs.writeFileSync(path.join(dir, 'xpp-config', 'settings.json'), '{"version": 4, "updates": {"check_for_updates": false}}\n');
   const server = await startServer(bin, dir, []);
   try {
     await cdp.eval('window.__left = true').catch(() => {});
@@ -7307,7 +7308,7 @@ async function warningFlashCheck() {
   }
 }
 
-/* W622: the check at opening: the preference's own form turns it on; the page then asks the core whether one is due,
+/* W622: the check at opening: the setting's own form turns it on; the page then asks the core whether one is due,
    checks, and shows a newer release as a quiet notice (never a dialog); a day's second opening and a failed check show nothing */
 async function openingCheck() {
   const reopen = async () => {
@@ -7319,15 +7320,19 @@ async function openingCheck() {
   const setAnswer = answer => cdp.eval(`sessionStorage.setItem('__updateAnswer', ${JSON.stringify(JSON.stringify(answer))}); true`);
   /* the core has answered the page's own question once a command sent after it is done (the core takes them in order) */
   const settled = async () => {
-    await cdp.eval(`__xpp.send({cmd: 'preferences.configure', log_level: 'warn'})`);
-    await until(`!s.busy && __xpp.sent().some(c => c.cmd === 'preferences.configure')`, 'the core answered');
+    await cdp.eval(`__xpp.send({cmd: 'settings.configure', log_level: 'warn'})`);
+    await until(`!s.busy && __xpp.sent().some(c => c.cmd === 'settings.configure')`, 'the core answered');
   };
   const newer = {tag_name: 'v999.0.0', html_url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v999.0.0'};
-  /* the preferences file as a first opening finds it: the check on, none made yet (the core reads the file at each use) */
-  const prefsFile = path.join(sessionDirectory, 'xpp-config', 'preferences.odex');
-  const writePrefs = on => fs.writeFileSync(prefsFile, `version 4\npreferences {\n  check_for_updates: ${on},\n}\n`);
-  await clickRegistry('preferences.configure');
-  check('updates: the Preferences form has the check_for_updates switch',
+  /* the settings file as a first opening finds it: the check on, none made yet (the core reads the file at each use) */
+  const prefsFile = path.join(sessionDirectory, 'xpp-config', 'settings.json');
+  const stateFile = path.join(sessionDirectory, 'xpp-config', 'state.json');
+  const writePrefs = on => {
+    fs.writeFileSync(prefsFile, `{"version": 4, "updates": {"check_for_updates": ${on}}}\n`);
+    fs.writeFileSync(stateFile, '{"version": 4}\n'); /* no check made yet: the last one is the program's own state, kept in state.json */
+  };
+  await clickRegistry('settings.configure');
+  check('updates: the Settings form has the check_for_updates switch',
     await cdp.eval(`document.querySelector('[data-argument=check_for_updates]') !== null`));
   await key('Escape');
   /* a failed check shows nothing and says so in the log at INFO (the page's log, in browser mode) */
@@ -7443,7 +7448,7 @@ async function switchDuringRunCheck() {
 }
 
 async function updatesCheck() {
-  check('updates: no startup request while the preference is off', await cdp.eval('window.__updateRequests === 0'));
+  check('updates: no startup request while the setting is off', await cdp.eval('window.__updateRequests === 0'));
   /* a restart is a portable copy's: this program, built from a checkout, is updated from the release page, so the core refuses
      update.restart before it asks anything or starts a program (review of W689) */
   await S(`__xpp.send({cmd: 'update.restart'})`);
@@ -7603,11 +7608,42 @@ async function updatesCheck() {
 /* an error a check made happen: given exactly, or as a pattern when part of it changes (a version) */
 const isExpected = (expected, text) => expected.some(x => (x instanceof RegExp ? x.test(text) : x === text));
 
+/* W790, Discussion #873: the page's theme, the Values panel's dock and its folded sections come from settings.json (hello's
+   `settings`), and a change the page makes is saved in it, so the next start shows what the user left */
+const SETTINGS_START = {version: 4, page: {theme: 'dark', dock_hidden: false, dock_width: 320, folds: ['par']}};
+async function settingsCheck() {
+  const file = path.join(sessionDirectory, 'xpp-config', 'settings.json');
+  check('W790: the page starts with the theme, the dock width and the folds settings.json gives',
+    await until(`window.__xpp.state().theme === 'dark' && window.__xpp.state().panels.dockWidth === 320 && window.__xpp.state().folds.includes('par')`, 'settings'));
+  check('W790: the folded section is folded at the start, from settings.json',
+    await until(`document.getElementById('values-sec-par').hidden`, 'settings folded'));
+  await cdp.eval(`document.documentElement.dataset.theme === 'dark'`);
+  await cdp.eval(`document.querySelector('[data-section="par"] .value-fold').click()`);
+  check('W790: opening a folded section saves it: the page forgets the fold and settings.json no longer holds it',
+    await until(`!window.__xpp.state().folds.includes('par') && !document.getElementById('values-sec-par').hidden`, 'settings unfolded')
+    && await untilFile(file, text => !JSON.parse(text).page.folds.includes('par'), 'folds saved'));
+  check('W790: the rest of settings.json is kept: the theme and the dock width still there',
+    JSON.parse(fs.readFileSync(file, 'utf8')).page.theme === 'dark' && JSON.parse(fs.readFileSync(file, 'utf8')).page.dock_width === 320);
+}
+/* a file's text, read again until `ok` takes it (a wait for a saved change, polled; a page's save is one command) */
+async function untilFile(file, ok, what) {
+  for (let i = 0; i < 200; i++) {
+    try { if (ok(fs.readFileSync(file, 'utf8'))) return true; } catch { /* not written yet */ }
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  console.log(`FAIL: ${what}`);
+  return false;
+}
+
 async function sessionAttempt(ode, fn, expected, attempts) {
   const rec = record = [];
   attempts.push(rec); /* its lost commands (rec.lost) count even if it throws */
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-'));
   copyModel(ode, path.join(dir, path.basename(ode)));
+  if (fn === settingsCheck) {
+    fs.mkdirSync(path.join(dir, 'xpp-config'));
+    fs.writeFileSync(path.join(dir, 'xpp-config', 'settings.json'), JSON.stringify(SETTINGS_START) + '\n');
+  }
   let server;
   try {
     sessionDirectory = dir;
@@ -8342,6 +8378,7 @@ async function main() {
     if (run('steady')) await session(ODE, steadyCheck);
     if (run('keys')) await session(ODE, keysCheck);
     if (run('keymap')) await session(ODE, keymapCheck);
+    if (run('settings')) await session(ODE, settingsCheck);
     if (run('keymapeditor')) await session(ODE, keymapEditorCheck);
     if (run('keymapeditor')) await session(ODE, keymapFitCheck);
     if (run('record')) await session(ODE, recordCheck);

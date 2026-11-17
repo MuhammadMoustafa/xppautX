@@ -129,6 +129,13 @@ void json_append_string(std::string &out, const char *s)
     json_append_string(out, s ? std::string_view(s) : std::string_view());
 }
 
+std::string json_quoted(std::string_view s)
+{
+    std::string out;
+    json_append_string(out, s);
+    return out;
+}
+
 void json_append_string(std::string &out, std::string_view s)
 {
     out += '"';

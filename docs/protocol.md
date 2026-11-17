@@ -415,8 +415,9 @@ if the output could not be written.
 | `autox.pick` | `x`: required real, `y`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | Pick point | `x`: `real`, `y`: `real` | `autox.info`, `autox.diagram`, `session.state`, `done` | A point of the diagram in its plotted quantities: shown, and stored for select_2parameter_point in a two-parameter plot. |
 | `autox.set_display` | `view`: optional window (max 1024 bytes), `x_range`: optional list [of real, at most 2], `y_range`: optional list [of real, at most 2], `show_earlier`: optional boolean | `v` / analysis | Set diagram display | `x_range`: `list`, `y_range`: `list` | `autox.diagram`, `autox.view`, `session.state`, `done` | Set what the page shows of a view: its zoom (a [low, high] range, [] for the whole range of an axis) and whether the hidden branches are drawn. |
 | `autox.fit` | `view`: optional window (max 1024 bytes) | `v` / analysis | Fit diagram | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `autox.diagram`, `autox.view`, `session.state`, `done` | Fit the view to the diagram. |
-| `preferences.get` | none | `c` / analysis | Get preferences | `threads`: `integer`, `automatic`: `boolean`, `log_level`: `choice`, `log_file`: `text`, `check_for_updates`: `boolean`, `stable_equilibrium_color`: `text`, `unstable_equilibrium_color`: `text`, `stable_periodic_color`: `text`, `unstable_periodic_color`: `text`, `x_nullcline_color`: `text`, `y_nullcline_color`: `text`, `stable_manifold_color`: `text`, `unstable_manifold_color`: `text` | `session.state`, `done` | The program's preferences as they stand: the thread count and whether it is automatic, the log level and the log file. |
-| `preferences.configure` | `threads`: optional integer [at least 1, at most the session's threads_max], `automatic`: optional boolean, `log_level`: optional choice (error, warn, info, debug), `log_file`: optional text (max 1024 bytes), `check_for_updates`: optional boolean, `stable_equilibrium_color`: optional color (max 1024 bytes), `unstable_equilibrium_color`: optional color (max 1024 bytes), `stable_periodic_color`: optional color (max 1024 bytes), `unstable_periodic_color`: optional color (max 1024 bytes), `x_nullcline_color`: optional color (max 1024 bytes), `y_nullcline_color`: optional color (max 1024 bytes), `stable_manifold_color`: optional color (max 1024 bytes), `unstable_manifold_color`: optional color (max 1024 bytes); at most one of `threads`, `automatic` | `s` / analysis | File/Preferences | `threads`: `integer`, `automatic`: `boolean`, `log_level`: `choice`, `log_file`: `text`, `check_for_updates`: `boolean`, `stable_equilibrium_color`: `text`, `unstable_equilibrium_color`: `text`, `stable_periodic_color`: `text`, `unstable_periodic_color`: `text`, `x_nullcline_color`: `text`, `y_nullcline_color`: `text`, `stable_manifold_color`: `text`, `unstable_manifold_color`: `text` | `autox.options`, `session.state`, `done` | Set the program's preferences, kept in its preferences file: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and the file it goes to (empty: the terminal), and the colors the diagram, the nullclines and the manifolds are drawn with, and whether the window and the page look for a newer release when they open; the log applies from the next start. |
+| `settings.get` | none | `c` / analysis | Get settings | `threads`: `integer`, `automatic`: `boolean`, `log_level`: `choice`, `log_file`: `text`, `check_for_updates`: `boolean`, `stable_equilibrium_color`: `text`, `unstable_equilibrium_color`: `text`, `stable_periodic_color`: `text`, `unstable_periodic_color`: `text`, `x_nullcline_color`: `text`, `y_nullcline_color`: `text`, `stable_manifold_color`: `text`, `unstable_manifold_color`: `text` | `session.state`, `done` | The program's settings as they stand: the thread count and whether it is automatic, the log level and the log file. |
+| `settings.configure` | `threads`: optional integer [at least 1, at most the session's threads_max], `automatic`: optional boolean, `log_level`: optional choice (error, warn, info, debug), `log_file`: optional text (max 1024 bytes), `check_for_updates`: optional boolean, `stable_equilibrium_color`: optional color (max 1024 bytes), `unstable_equilibrium_color`: optional color (max 1024 bytes), `stable_periodic_color`: optional color (max 1024 bytes), `unstable_periodic_color`: optional color (max 1024 bytes), `x_nullcline_color`: optional color (max 1024 bytes), `y_nullcline_color`: optional color (max 1024 bytes), `stable_manifold_color`: optional color (max 1024 bytes), `unstable_manifold_color`: optional color (max 1024 bytes); at most one of `threads`, `automatic` | `s` / analysis | File/Settings | `threads`: `integer`, `automatic`: `boolean`, `log_level`: `choice`, `log_file`: `text`, `check_for_updates`: `boolean`, `stable_equilibrium_color`: `text`, `unstable_equilibrium_color`: `text`, `stable_periodic_color`: `text`, `unstable_periodic_color`: `text`, `x_nullcline_color`: `text`, `y_nullcline_color`: `text`, `stable_manifold_color`: `text`, `unstable_manifold_color`: `text` | `autox.options`, `session.state`, `done` | Set the program's settings, kept in settings.json: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and the file it goes to (empty: the terminal), and the colors the diagram, the nullclines and the manifolds are drawn with, and whether the window and the page look for a newer release when they open; the log applies from the next start. |
+| `settings.set` | `group`: required text (max 1024 bytes), `key`: required text (max 1024 bytes), `value`: required text (max 1024 bytes) | `s` / analysis | Set a setting | `group`: `text`, `key`: `text`, `value`: `text` | `session.state`, `done` | Set one value of settings.json by its group and key, the value as JSON text, checked and written whole; the answer is the value it has now. |
 | `animation.export` | `output`: required choice (animated_gif, frames), `file`: required file (max 1024 bytes) | `d` / plot | File/Export/Animation as | `frames_saved`: `integer` | `animation.state`, `session.state`, `done` | Play the animation writing every frame into a file of the model's folder: output frames for numbered PPM files from file, animated_gif for one animated GIF file. |
 | `animation.open` | none | `v` / plot | Windows/Open animation | `open`: `boolean` | `window.created`, `window.selected`, `window.destroyed`, `animation.state`, `session.state`, `done` | Open the animation window. |
 | `animation.load` | `file`: required file (max 1024 bytes) | `v` / plot | Load animation | `file`: `file`, `loaded`: `boolean` | `animation.state`, `session.state`, `done` | Load an animation file (.anix or .ani) of the model's folder; its first frame shows when there is data. |
@@ -465,7 +466,7 @@ if the output could not be written.
 | `output.configure` | `values`: optional map [of text, at most 256], `option`: optional text (max 1024 bytes), `file`: optional file (max 1024 bytes); all or none of `option`, `file` | `s` / files | File/Output | `group`: `choice`, `applied`: `list[text]` | `run.numerics`, `autox.options`, `plot.shown`, `session.state`, `done` | Set what a run writes by itself (the data file, the nullclines file, what a batch run makes of its data), by the output group's option keys; a path can be picked in the file dialog. |
 | `events.subscribe` | `events`: required list (plot.series, plot.shown, nullcline.curves, direction_field.field, plot.marks, animation.frame, autox.info, autox.options, autox.script_runs, run.numerics, window.list, recording.player) [of choice, at most 256], `encoding`: optional choice (json, f32), `diagram`: optional boolean | `v` / panels | Subscribe to events | `subscribed`: `list[text]` | `session.state`, `done` | Send the heavy data events named (hello.features lists them) from now on, each at the end of this command; encoding f32 sends their value arrays as base64 float32 (what is left out stays as it was); diagram says whether autoX's diagram points are sent. |
 | `events.unsubscribe` | `events`: required list (plot.series, plot.shown, nullcline.curves, direction_field.field, plot.marks, animation.frame, autox.info, autox.options, autox.script_runs, run.numerics, window.list, recording.player) [of choice, at most 256] | `v` / panels | Unsubscribe from events | `unsubscribed`: `list[text]` | `session.state`, `done` | Stop sending the data events named. |
-| `update.due` | none | `c` / tools | Update check due | `due`: `boolean` | `session.state`, `done` | Whether the check for a newer release is due now: the preference is on and none began today (UTC). When it is, the check is recorded as begun. The page asks once when it opens. |
+| `update.due` | none | `c` / tools | Update check due | `due`: `boolean` | `session.state`, `done` | Whether the check for a newer release is due now: the setting is on and none began today (UTC). When it is, the check is recorded as begun. The page asks once when it opens. |
 | `update.report_failure` | `reason`: required text (max 1024 bytes) | `c` / tools | Update check failed | `logged`: `boolean` | `session.state`, `done` | The page's check for a newer release failed: the log says why at INFO; nothing is shown. |
 | `update.download` | `url`: required text (max 1024 bytes), `name`: required text (max 1024 bytes), `size`: required integer [at least 1, at most 536870912], `digest`: required text (max 1024 bytes), `version`: required text (max 1024 bytes) | `x` / tools | Download update | `downloaded`: `boolean`, `bytes`: `integer`, `ready`: `text` | `job.computing`, `job.progress`, `job.stopped`, `session.state`, `done` | Download the release file the release list named for this installation, from GitHub's file hosts only, over the system's HTTPS: no more than its size, refused if its size or sha256 digest differs, into a folder the program makes and removes. Then a portable copy's program is swapped in (ready: restart) or an installer's file is kept (ready: install). Progress comes as job.progress; Stop ends it. |
 | `update.pending` | none | `c` / tools | Kept update | `pending`: `boolean`, `version`: `text` | `session.state`, `done` | Whether an update's installer file was kept by an earlier download (Later): it is checked again against its recorded size and sha256 and offered only when it still is that file; one that is not is removed and the log says why. The page asks once when it opens. |
@@ -499,19 +500,19 @@ its `file` ask (title `Open model`, `wild` `*.ode *.odex *.snapx *.recx`)
 answered with a file loads that model (a new `hello`), and cancelled leaves the
 start screen: no error, the program keeps running.
 
-`start`: `{"path": the preferences.odex file ("" when there is no config folder),
+`start`: `{"path": the state.json file ("" when there is no config folder),
 "limit": how many models are kept, "recent": [{"path": absolute path,
 "missing": the file is no longer there}, ...], "examples": {"folder": ...,
 "names": [...], "reason": ...}}`, newest first. A recent model
 that is missing is listed as missing, never dropped; opening it is an
-ordinary `session.open_model` that fails with the file named. When `preferences.odex` cannot be
+ordinary `session.open_model` that fails with the file named. When `state.json` cannot be
 read (a relative or repeated path, a control character, a path or a file
 longer than the limits, more entries than `limit`, any other bad value), `recent` is `[]` and
 `start` carries the common error fields (`error`, `file`, `line`, `col`,
 `source`, `field`: "Errors"); nothing of the file is used and the next Open
 model leaves it as it is (it is shown once more, as an error, and the model
 still opens). The file is the program's, in the per-user config folder
-beside `keymap.json`, `preferences.odex` ("Preferences", below): its
+beside `settings.json` ("Settings and state", above): its
 `recent_models`, absolute paths newest first; a model is
 put first when it is opened from Open model (the dialog, a path, a recent
 entry), from the command line or by the OS (a `.ode` is listed by the `.odex`
@@ -671,7 +672,7 @@ part. A file that cannot be read at all is the error with line 0 (above).
 
 **One format version** (W529, Discussion #415 decision 9): the protocol (`hello.protocol`) and every file of ours
 carry one number, 4 (core/format_version.h), and each reader takes exactly that version. A model (`.odex`, an imported
-file too) starts with the statement `version 4`; an animation (`.anix`) with `version: 4`; `preferences.odex` and a session's `session.odex` (and a recording's header) start with the statement `version 4`; `keymap.json` the member `"version": 4`;
+file too) starts with the statement `version 4`; an animation (`.anix`) with `version: 4`; `settings.json` and a session's `session.odex` (and a recording's header) start with the statement `version 4`; `settings.json` the member `"version": 4`;
 a recording (`.recx`) has it in its header. A file with no version, or with another one, is refused as any bad file is,
 at its first line, naming both versions (`version 3: this program reads model files of version 4`): there is no
 upgrader and no older reading. The repository's own files were migrated once by tools/migrate_w529_version.py; the
@@ -711,33 +712,57 @@ A command with no arguments runs at once; one with arguments opens one form, the
 (each argument by its type: a choice a select with its names' labels, a boolean a checkbox, a window a pick of
 the open windows, a name a pick of the model's names, a file the picker, a color the color field, a list or a map rows).
 
-## Preferences
+## Settings and state
 
-`preferences.odex` (W287, [#342](https://github.com/MuhammadMoustafa/xppautX/issues/342),
-core/xpp_prefs.h) is the program's own file for what it keeps for the user
-across runs, in the per-user config folder (`XPP_CONFIG_DIR` overrides it)
-beside `keymap.json`, in `.odex` syntax (docs/odex.md "Preferences"): `version 4` and one `preferences { ... }` statement. It is not
-a model's option: nothing a run computes depends on it. A missing file is the
-defaults; a bad one (a key that is not a preference, a value of the wrong
-kind, a list or path past its limit, a file past 256 KiB) is an error at its
-file, line and value and none of it is used; it is read whole and written
-whole, temp then rename, and never overwritten while it is bad. With no
-config folder (no `HOME` or `APPDATA`, or a relative `XPP_CONFIG_DIR`) the
-error names the variable to set. Its keys: `recent_models` (a list of at most
-ten absolute paths, newest first: "Start screen");
-`threads` (`auto` or a whole number from 1 to the logical processors:
-the thread count of autoX and sweeps, "autoX's options as data"). A later group is one
-member of the Preferences struct and one line of the description that reads
-and writes it.
+Two files in the per-user config folder (`XPP_CONFIG_DIR` overrides it; the
+folder itself is `%APPDATA%\xppautX`, `$XDG_CONFIG_HOME/xppautX` or
+`~/.config/xppautX`, `~/Library/Application Support/xppautX` on macOS), both
+JSON with `"version": 4` (W790, [#870](https://github.com/MuhammadMoustafa/xppautX/issues/870),
+Discussion #873, core/xpp_settings.h; `Settings` and `State` are the owner's
+structs). The words: *options* are a model's, *settings* are the user's, *state*
+is what the program records itself.
+
+- `settings.json` (JSON with comments, `//` and slash-star): the groups
+  `general` {`threads` (`"auto"` or a whole number), `log_level` (a word of
+  error, warn, info, debug), `log_file` (`""` or an absolute path)}, `colors`
+  {the eight diagram colors, each a name or `"#rrggbb"`}, `keymap` {`bindings`,
+  `pinned`: "Keymap" below}, `page` {`theme` (`system`, `light`, `dark`),
+  `dock_hidden` (true or false), `dock_width` (`null` or 288 to 800), `folds`
+  (a list of section ids)}, `updates` {`check_for_updates`}. A group or key
+  the file does not have is an error at its line; a value of the wrong kind,
+  out of its limits or not a choice is an error at its line and value.
+- `state.json`: `recent_models` (at most ten absolute paths, newest first:
+  "Start screen"), `last_update_check` (a UTC time, `""` for never),
+  `outside_paths` (the "Allow always" answers: `model` and `path` each).
+  Written whole by the program, never edited by hand.
+
+Both files load all or nothing: a bad value is an error naming the file, its
+line and the value, and none of that file is used; a missing file is the
+defaults. A change (`settings.set`, `settings.configure`, the keymap
+commands) edits the one value in place, keeping the file's comments and
+layout, and the whole file is checked again before it is written (temp then
+rename); a bad file is never overwritten.
+
+`settings.set` (group, key, value): one value of `settings.json`, the value as
+JSON text (`"dark"`, `300`, `null`, `true`, `["par"]`). It answers the group,
+the key and the value it has. A refused value, a key the file does not have
+and the `keymap` group (its own commands) are errors that write nothing. The
+page's theme, the Values panel's dock and its folded sections are kept here:
+hello carries them as `settings` (`{"ok", "path", "page": {theme, dock_hidden,
+dock_width, folds}}`, with the error fields when the file is bad; the page then
+shows the defaults and saves nothing over the file), and the page sends
+`settings.set` for each value it changes.
 
 ## Keymap
 
-`keymap.json` (W211, #265, core/xpp_keymap.h) holds the user's own differences
-from the command table's keys, nothing else, in the per-user config folder:
-`%APPDATA%\xppautX` on Windows, `$XDG_CONFIG_HOME/xppautX` or
-`~/.config/xppautX` on Linux, `~/Library/Application Support/xppautX` on
-macOS. `XPP_CONFIG_DIR` names the folder instead (tests and CI use it so they
-never touch the real file). That fixed path is the only one: nothing the file
+The keys are the `keymap` group of `settings.json` (W211, #265,
+core/xpp_keymap.h): `bindings` (a command id with its keys, `[]` for none) and
+`pinned` (the quick-access commands, in order). They hold only the user's own
+differences from the command table's keys. `keymap.get`, `keymap.set` and
+`keymap.reset` read, replace (checked whole, then written) and clear them; a
+bad file is an error with its file, line and value and the defaults are shown
+marked, and `keymap.set` refuses to write over a bad `settings.json`.
+The keymap lives in the config folder's settings.json (above): nothing the file
 says names another. The folder is made by the first save. The window and the
 browser page both read and write it through the `keymap.*` commands, so they
 never disagree.
@@ -1013,7 +1038,7 @@ the command do one thing. What the rows leave to say:
   file) and `play` says whether it starts at once; `recording.seek` runs the
   steps before `step` at once and plays on when `play` is true; a note may
   hold line breaks (at most 4096 bytes).
-- `keymap.get` reads the user's `keymap.json`, `keymap.set` replaces the
+- `keymap.get` reads the user's `settings.json`, `keymap.set` replaces the
   bindings or the pinned commands given (what is left out
   stays; the keymap is checked whole, then written) and `keymap.reset`
   removes the file; each sends the `keymap.changed` event ("Keymap") before its
@@ -1112,7 +1137,7 @@ A graph's curves, frozen curves, axes and exports are the `plot.*` commands of t
 
 The model's named sets, the values (parameters, sliders, XPPAUT's .par and .ic files) and the data table are the `set.*`, `value.*` and `data.*` commands of the table above (W526, #590); each is one command in every front end. Each ask what it needs, then calls the same core functions.
 
-- **`set.*`**: `set.apply` applies a set of the model as a patch over the current values, limited to `scope`: `all`, `parameters`, `initial` (the states) or one of the groups a set holds (`integration`, `poincare`, `equilibria`, `continuation`, `plot`, `sweep`, `analysis`; docs/odex.md); `window` is the graph the plot options go to (the active one when left out) and only a scope of `all` or `plot` takes one; a parameter-only apply leaves the initial values alone; all or nothing, one undo step. `set.save_new` appends `set "NAME" { ... }` to the model file with the current values of `scope`; `set.save_into` replaces that scope's part of one of the file's own sets (an imported set is read-only); `session.state` says whether the initial values saved are the initial ones (`initial`, what is left out means) or the last state reached (`last`). `set.save_defaults` writes the values as the model's own (its `par` and `init` lines, an `options` group), `set.export` as a set of another `.odex` file (a set of that name there asks before it is replaced), `set.rename` and `set.delete` change the file's own sets. Every save builds the new text, checks it parses, checks the file has not changed on disk since the load, replaces it atomically, and only then updates the live model; a refusal changes neither. `set.restore_defaults` puts the model's own values back for `scope` (or one `field` of it, not with `all`). `set.list_file_contents` and `set.load_file` (W321) load values from another file by scope. `set.list_file_contents` reads the whole `file` and checks it against this model, then lists its `parts` that hold `scope`'s kind, each `{from, name}`: `from` is `defaults` (an `.odex`'s `par` and `init` lines and the options a set may hold, `name` empty), `set` (one of its sets, `name` its name) or `file` (the whole of an XPPAUT `.par`, `.ic` or `.set`); a part that cannot be loaded carries `problem`, which is the error loading it gives. The `format` is `odex`, `par`, `ic` or `set`. `set.load_file` takes the `file`, a `scope`, `from` (`defaults`, `set` with its `name`, or `file`) and, for the plot options, `window`; it applies that part limited to the scope as a patch over the current values, exactly as `set.apply` applies one of the model's sets (all or nothing, one undo step), runs nothing and changes no file. An unknown name, a value that is not a number, an array's element or an option no set holds refuses the load at its file and line; a part with nothing of the scope is an error, never a silent no-op. An XPPAUT `.set` offers its parameters, initial conditions and the numerics options a set may hold; its graph, delays, boundary conditions and run position come in only through `session.import_xppaut_state` (a `.set` stores a graph as raw curve numbers and scales, which no plot option of a set names). The whole read of an `.odex`, its imports included, is within 4 MiB; an import of a path outside the model's folder asks each time and is never kept in the preferences; `set.list_file_contents` lists at most 1000 parts (1 MiB of them) and refuses a file with more, which `set.load_file` takes by name; it changes nothing. `value.import_file` and the `--parfile`/`--icfile` loads are the same apply as `set.load_file` of a `file` part, one undo step.
+- **`set.*`**: `set.apply` applies a set of the model as a patch over the current values, limited to `scope`: `all`, `parameters`, `initial` (the states) or one of the groups a set holds (`integration`, `poincare`, `equilibria`, `continuation`, `plot`, `sweep`, `analysis`; docs/odex.md); `window` is the graph the plot options go to (the active one when left out) and only a scope of `all` or `plot` takes one; a parameter-only apply leaves the initial values alone; all or nothing, one undo step. `set.save_new` appends `set "NAME" { ... }` to the model file with the current values of `scope`; `set.save_into` replaces that scope's part of one of the file's own sets (an imported set is read-only); `session.state` says whether the initial values saved are the initial ones (`initial`, what is left out means) or the last state reached (`last`). `set.save_defaults` writes the values as the model's own (its `par` and `init` lines, an `options` group), `set.export` as a set of another `.odex` file (a set of that name there asks before it is replaced), `set.rename` and `set.delete` change the file's own sets. Every save builds the new text, checks it parses, checks the file has not changed on disk since the load, replaces it atomically, and only then updates the live model; a refusal changes neither. `set.restore_defaults` puts the model's own values back for `scope` (or one `field` of it, not with `all`). `set.list_file_contents` and `set.load_file` (W321) load values from another file by scope. `set.list_file_contents` reads the whole `file` and checks it against this model, then lists its `parts` that hold `scope`'s kind, each `{from, name}`: `from` is `defaults` (an `.odex`'s `par` and `init` lines and the options a set may hold, `name` empty), `set` (one of its sets, `name` its name) or `file` (the whole of an XPPAUT `.par`, `.ic` or `.set`); a part that cannot be loaded carries `problem`, which is the error loading it gives. The `format` is `odex`, `par`, `ic` or `set`. `set.load_file` takes the `file`, a `scope`, `from` (`defaults`, `set` with its `name`, or `file`) and, for the plot options, `window`; it applies that part limited to the scope as a patch over the current values, exactly as `set.apply` applies one of the model's sets (all or nothing, one undo step), runs nothing and changes no file. An unknown name, a value that is not a number, an array's element or an option no set holds refuses the load at its file and line; a part with nothing of the scope is an error, never a silent no-op. An XPPAUT `.set` offers its parameters, initial conditions and the numerics options a set may hold; its graph, delays, boundary conditions and run position come in only through `session.import_xppaut_state` (a `.set` stores a graph as raw curve numbers and scales, which no plot option of a set names). The whole read of an `.odex`, its imports included, is within 4 MiB; an import of a path outside the model's folder asks each time and is never kept in the settings; `set.list_file_contents` lists at most 1000 parts (1 MiB of them) and refuses a file with more, which `set.load_file` takes by name; it changes nothing. `value.import_file` and the `--parfile`/`--icfile` loads are the same apply as `set.load_file` of a `file` part, one undo step.
 - **`value.*`**: `value.set_parameters` sets some parameters (a map of numbers, all or nothing, one undo step) and `value.set_by_formula` one parameter to what a formula works out to now; `value.undo` and `value.redo` are the Ctrl+Z and Ctrl+Y of value edits (an error when there is nothing to undo or redo); `value.slide` sets a parameter or a state's initial value, a drag's steps being one undo step. `value.configure_slider` defines a slider slot (an existing one or the next; `step` 0 lets the page pick one, left out keeps the slot's), `value.delete_slider` empties one. `value.import_file` imports XPPAUT's `.par` (`kind` `parameters`) or `.ic` (`initial_conditions`) file from the model's folder (nothing of ours writes either: W321); with no `file` the core asks for one (the desktop window's own dialog), and a question answered with Cancel ends the command with an empty `file`. A load is all or nothing, one undo step.
 - **`data.*`**: `data.page` chooses the block of the table the client shows (`from_row` to `count` rows, 0 stopping the block's `data.updated` events; the columns after `T` from `first_column`, `columns` of them) and is answered at once, even during a computation, with the rows in its `done` and the `data.updated` event; a `from_row` past the data is the last row. `data.find` selects the row nearest a value, from the selected row on. `data.set_slice_start` and `data.set_slice_end` choose the rows First..Last that `data.tabulate_column` and `data.export` keep (the last inclusive; a first row not before the last, or a last row before the first, is refused); `data.restore_full_slice` keeps all the data and replots it. `data.add_column` adds a column computed from a formula of the others and recomputed after every run, `data.delete_column` removes one (not one a graph plots), `data.replace_column` replaces a column by a formula, `'&column'` (its running integral), `'@column'` (its derivative), `'a:b'` (from a to b) or `'a;b'` (from a in steps of b), and `data.undo_replace` puts it back. `data.transpose` shows the stored data on its side (`columns` columns from `first_column` in steps of `column_skip`, `rows` rows from `first_row` in steps of `row_skip`; every one it reads must be in the data, at most one fewer rows than the model has columns; what is left out keeps the last values). `data.export` and `data.load` write and read a data file ("Saving data" below; `target` `table`, `output` or `plot_curves`, `format` by name or by the file's extension, a missing file, target or format asked for as there). `browser.postprocess` runs the model's `@ postprocess` and shows its result. Getting a row as the initial conditions is `initial_conditions.set_from_data_row`.
 
@@ -2068,7 +2093,7 @@ sends no `live` run.
 | `axes.xmin` .. `ymax` | the diagram's axes |
 | `axes` | all of it the active view's (see "Views of the diagram") |
 | `marks` | Mark values: `[name, value]` per user point, where the parameter `name` (any model parameter) or the period `T` reaches `value` autoX labels the point (UZ) |
-| `threads` | the thread count of autoX and sweeps, a program preference (W267) and not an option of the model or the session: `"auto"` or a whole number from 1 to `threads_max`; the same for every model, read from `preferences.odex` (`threads`) when a model is loaded |
+| `threads` | the thread count of autoX and sweeps, a program setting (W267) and not an option of the model or the session: `"auto"` or a whole number from 1 to `threads_max`; the same for every model, read from `settings.json` (`threads`) when a model is loaded |
 | `threads_auto` | the count `"auto"` gives autoX's collocation on this computer: its physical cores (the performance cores where the system says which), at most 4; a sweep's runs and autoX's two directions use all the physical cores for `"auto"` |
 | `threads_max` | the most `threads` may be: the computer's logical processors |
 | `rules` | what each `numerics` value takes, by key (W118): `label` (the form's, derived from the key: underscores as spaces and a capital first letter), `boolean`, `choices`, `integer`, `positive`, `nonzero`, `min`, `max` (each only when it holds) and `message`, what a `set` of a value it does not take is refused with; the same table `set` checks with (core/autox_options.cpp num_fields) |
@@ -2111,10 +2136,10 @@ says what the core would.
 
 `threads` (`"auto"` or a whole number from 1 to `threads_max`) is the thread
 count (W267). It is checked with the rest, and saved by `prefs::update_prefs`
-into the per-user `preferences.odex` (`threads: auto` or
+into the per-user `settings.json` (`threads: auto` or
 `threads: 4`; `$XPP_CONFIG_DIR` names the folder) before anything of the
 set is applied: a count outside the range, a word other than `"auto"`, or a
-`preferences.odex` that cannot be read or written (it is never overwritten
+`settings.json` that cannot be read or written (it is never overwritten
 while it is bad) refuses the whole set (`the thread count must be
 "auto" or a whole number from 1 to 16 (this computer's logical processors)`).
 A pool already running keeps its count until the next run. The results never
@@ -2153,8 +2178,8 @@ session's method and model use, its value as text (a boolean `true` or `false`, 
 the choices the model cannot have, by row and name, with why. **`options.configure`** (`group`, `values`: a map of keys to texts, `window`)
 sets some of them: every value is checked first, a bad one or a key the group has no row for refuses the whole set naming it, and a
 good set is one undo step. **`output.configure`** is the same for the output group (`values`), and with `option` (a path row's key)
-and `file_picker` asks for the file dialog and sets that path to what is picked; File > Output opens its panel. **`preferences.configure`**
-(`threads`, `automatic`, `log_level`, `log_file` and the eight colors `stable_equilibrium_color`, `unstable_equilibrium_color`, `stable_periodic_color`, `unstable_periodic_color`, `x_nullcline_color`, `y_nullcline_color`, `stable_manifold_color`, `unstable_manifold_color`) keeps what the log shows and its file, and the colors of the diagram, the nullclines and the manifolds (W655), in the preferences with the thread count; the log applies from the next start, a color to what is drawn or computed after it. A
+and `file_picker` asks for the file dialog and sets that path to what is picked; File > Output opens its panel. **`settings.configure`**
+(`threads`, `automatic`, `log_level`, `log_file` and the eight colors `stable_equilibrium_color`, `unstable_equilibrium_color`, `stable_periodic_color`, `unstable_periodic_color`, `x_nullcline_color`, `y_nullcline_color`, `stable_manifold_color`, `unstable_manifold_color`) keeps what the log shows and its file, and the colors of the diagram, the nullclines and the manifolds (W655), in the settings with the thread count; the log applies from the next start, a color to what is drawn or computed after it. A
 command row that has a panel carries its group in `hello.commands[].panel` (`run`'s peers `equilibrium.configure` and
 `poincare_map.set` do): the page opens the group's panel in place of the command's form (`panel` is the group, `group:section,section` for the sections a command uses, a `+` when the command keeps its own arguments beside the rows; an argument with `option` is the row of that key, shown in the panel and left out of the form), and the command itself stays the
 one scripts and recordings send. `tools/servercheck.py --only options` checks all of it.
@@ -2954,7 +2979,7 @@ asked while the model loads, before anything is applied: an `ask` of kind
 names the model file, the model's line (and the line as written) and the
 path with the text it resolves to, `choices` `["Allow always","Allow once","Refuse"]`
 and `keys` `aor`. `a` keeps the pair of the model file's absolute path and the
-resolved path in the preferences (`outside_paths` of `preferences.odex`, at
+resolved path in the state (`outside_paths` of `state.json`, at
 most 24, newest first, the oldest dropped), so that model and that exact
 path are not asked again; a changed path or another model asks again. `o`
 allows it for this load, including the conversion and native load of a `.ode`.
@@ -3077,9 +3102,9 @@ when known; transport failures name the API without inventing a line.
 
 ### The check at opening and the download (W622, [#693](https://github.com/MuhammadMoustafa/xppautX/issues/693))
 
-The preferences gain `check_for_updates` (a boolean, on by default; `preferences.get` and `preferences.configure` carry it) and
+The settings gain `check_for_updates` (a boolean, on by default; `settings.get` and `settings.configure` carry it) and
 `last_update_check` (the time the last opening's check began, as `utc_now` writes it, kept by the core only). When the page opens
-it sends `update.due` after `events.subscribe`: the core answers `{"due":true}` once a UTC day when the preference is on, and
+it sends `update.due` after `events.subscribe`: the core answers `{"due":true}` once a UTC day when the setting is on, and
 records the check as begun in the same step (a failed check waits for tomorrow too), and `{"due":false}` otherwise, always in a
 recording's replay. Only then does the page ask GitHub for the release list, as Check for updates does; a newer release is a quiet
 status-bar notice, and a failure is sent as `update.report_failure` (`reason`), which the core logs at INFO and nothing shows.
@@ -3108,7 +3133,7 @@ the page takes that one from the release list and `update.download` refuses any 
 read whole by the core's tar or zip reader (plain relative names, no link, device or extended-header member, sizes bounded by the
 archive's and the limits, no name twice), its digest is checked again, and only its one program, `<folder>/xppautX[.exe]`, is
 written beside the running one and renamed into place (Windows renames the running program to `.old` first; the next start
-removes it): `ready` is `restart`. For `msi` and `deb` the checked file moves to the folder `update` beside the preferences with a
+removes it): `ready` is `restart`. For `msi` and `deb` the checked file moves to the folder `update` beside the settings with a
 four-line record (version, name, size, sha256) and `ready` is `install`. `update.pending` answers `{"pending":true,"version":V}` when
 such a file is kept and still is its record (size and sha256 checked again; one that is not is removed and logged), and
 `update.discard` removes it (the page does when V is not newer than this program). `update.restart` and `update.install`

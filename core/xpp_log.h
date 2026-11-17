@@ -16,11 +16,11 @@
    more (retired at W25): call xpp::log(level, fmt, args...) (a
    std::format-checked call, below). Dynamic widths and precisions use
    nested replacement fields (`{:{}}`, `{:.{}}`). What the log shows and where
-   it goes are the user's, not a model's (W619): the preferences' log_level and
+   it goes are the user's, not a model's (W619): the settings' log_level and
    log_file, or --verbose and --debug.
 
    Messages follow printf: the caller writes the newline, so a line can be
-   built in pieces. They go to the preferences' log_file when one is set, else to
+   built in pieces. They go to the settings' log_file when one is set, else to
    stderr. That is enough for both front ends: browser mode turns stderr
    into the page's log panel, and --server mode writes its protocol to a
    separate descriptor. With a page, the terminal gets only what the page
@@ -57,12 +57,12 @@ typedef enum {
 
 namespace xpp {
 
-/* the words of the levels, as the preferences' log_level names them (in the enum's order) */
+/* the words of the levels, as the settings' log_level names them (in the enum's order) */
 inline constexpr std::array<std::string_view, 4> log_level_names{"error", "warn", "info", "debug"};
 
 /* Where the log goes. */
 struct LogSettings {
-    FILE *file;                  /* the log file (preferences); NULL or stdout: stderr */
+    FILE *file;                  /* the log file (settings); NULL or stdout: stderr */
     FILE *terminal;              /* the terminal's copy while a page takes the log (log_set_terminal); NULL: none */
     std::atomic<unsigned> errors{0}; /* errors reported, even when output is suppressed */
 };

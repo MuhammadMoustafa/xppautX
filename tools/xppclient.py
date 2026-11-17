@@ -17,8 +17,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 import xppautx
 from xppautx import Client, placed, is_done, is_ask, model_companions, copy_model
 
-# No check touches the user's own per-user settings (keymap.json, W211;
-# preferences.odex, W232): every xppautX a check script that imports this starts
+# No check touches the user's own per-user settings (settings.json, W211, W790;
+# state.json, W232): every xppautX a check script that imports this starts
 # reads and writes a folder of its own (XPP_CONFIG_DIR, core/xpp_files.h),
 # removed at exit
 CONFIG_ROOT = tempfile.mkdtemp(prefix='xppconfig')

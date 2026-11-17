@@ -170,10 +170,10 @@ struct Session {
      period (the nUmerics menu's Torus) */
   std::vector<int> itor;
 
-  /* the thread count of autoX's collocation and of a sweep's runs (W267, W434), a program preference
-     (xpp_prefs.h) kept here for the run: cpu::THREADS_AUTO, or the count */
+  /* the thread count of autoX's collocation and of a sweep's runs (W267, W434), a program setting
+     (xpp_settings.h) kept here for the run: cpu::THREADS_AUTO, or the count */
   unsigned threads = cpu::THREADS_AUTO;
-  /* the colors the diagram, the nullclines and the manifolds are drawn in, a program preference like the thread count */
+  /* the colors the diagram, the nullclines and the manifolds are drawn in, a program setting like the thread count */
   Colors colors;
   /* the threads a set of jobs or runs shares: the count, or all the physical cores when automatic */
   unsigned thread_budget() const { return program.thread_budget(threads); }
