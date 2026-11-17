@@ -75,6 +75,10 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
   a memory growth, a driver bug) gets its card at once and is worked to a fix, never left as a finding;
   the affected workloads are then rerun. Only a measured cause outside xppautX (XPPAUT's or AUTO-07p's
   own, the machine) closes a card without a fix, and it says so with the evidence.
+- Nothing waits on a merge (maintainer, 2026-11-17: "don't hold everything ever again to wait
+  for merging"): while a card waits for the maintainer's yes (screenshots, a question), ready cards
+  start, and a card blocked only by it starts on a branch cut from its reviewed tip, rebased once it
+  merges.
 - Before any merge, push or report to the maintainer: the background-task
   register holds no finished work.
 
