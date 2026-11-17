@@ -243,6 +243,13 @@ void read_colors(const Doc &d, const char *obj, Colors &c)
     });
 }
 
+/* why `text` cannot be the next step of a pin, or nothing: it is a command value (command_def.h) */
+std::optional<std::string> step_problem(std::span<const std::string>, std::string_view text)
+{
+    if (const Result<command::CommandValue> value = command::read_value(text, Place{}); !value) return xpp::format("{}: {}", json::shown(text), value.error().what);
+    return std::nullopt;
+}
+
 /* the keymap group: its bindings and pinned commands, each checked as keymap.h says (the key grammar, the reserved keys, a command
    that exists, no key on two commands) */
 class KeymapReader {
@@ -256,6 +263,7 @@ public:
             else if (key == "pinned") read_pinned(v);
             else unknown(d_, v, "keymap", key);
         });
+        check_pin_bindings();
         check_clashes();
     }
 
@@ -285,8 +293,23 @@ private:
     /* a binding or a pin names a command value (command_def.h): a command, with fixed arguments if it has any */
     void read_command(const std::string &id, const char *at) const
     {
-        if (const Result<command::CommandValue> value = command::read_value(id, Place{}); !value)
-            fail(at, xpp::format("{}: {}", json::shown(id), value.error().what));
+        /* a pin of several steps is bound by `pin "Name"`: the pin itself is checked once both members are read (check_pin_bindings) */
+        if (keymap::pin_binding_name(id)) return;
+        if (const auto why = step_problem({}, id)) fail(at, *why);
+    }
+
+    /* a binding that names a pin names one this file has, of several steps (a pin of one is bound as its command is) */
+    void check_pin_bindings() const
+    {
+        for (const auto &[id, keys] : map_.bindings) {
+            const auto name = keymap::pin_binding_name(id);
+            if (!name) continue;
+            const auto pin = std::ranges::find(map_.pinned, *name, &keymap::Pin::name);
+            const auto at = std::ranges::find_if(placed_, [&](const Placed &p) { return p.id == id; });
+            const char *where = at == placed_.end() ? d_.start() : at->at;
+            if (pin == map_.pinned.end()) fail(where, xpp::format("{} is bound, but no pin has that name", json::shown(id)));
+            if (pin->steps.size() < 2) fail(where, xpp::format("{} has one step: bind its command instead", json::shown(id)));
+        }
     }
 
     void read_bindings(const char *v)
@@ -311,18 +334,32 @@ private:
         }
     }
 
+    /* the pins: an array of {"name", "steps"}, the name unique, each step a command value */
     void read_pinned(const char *v)
     {
-        if (*v != '[') fail(v, xpp::format("pinned is an array of command ids, not {}", json::shown(json::js_raw(v))));
+        if (*v != '[') fail(v, xpp::format("pinned is an array of pins ({{\"name\", \"steps\"}}), not {}", json::shown(json::js_raw(v))));
         map_.pinned.clear();
         const char *cur = v;
         for (const char *elem = json::js_element(cur); elem; elem = json::js_element(cur)) {
-            if (map_.pinned.size() == keymap::MAX_PINNED) fail(elem, xpp::format("pinned has more than {} commands", keymap::MAX_PINNED));
-            std::string id;
-            if (!json::js_string(elem, id)) fail(elem, xpp::format("a pinned command is a string, not {}", json::shown(json::js_raw(elem))));
-            read_command(id, elem);
-            if (std::ranges::find(map_.pinned, id) != map_.pinned.end()) fail(elem, xpp::format("{} is pinned twice", json::shown(id)));
-            map_.pinned.push_back(std::move(id));
+            if (map_.pinned.size() == keymap::MAX_PINNED) fail(elem, xpp::format("pinned has more than {} pins", keymap::MAX_PINNED));
+            keymap::Pin pin;
+            bool named = false, stepped = false;
+            each_member(d_, elem, [&](const std::string &key, const char *value) {
+                if (key == "name") {
+                    pin.name = string_value(d_, value, "a pin's name");
+                    if (const std::string why = keymap::pin_name_problem(pin.name); !why.empty()) fail(value, why);
+                    named = true;
+                } else if (key == "steps") {
+                    pin.steps = string_list(d_, value, "the steps of a pin", keymap::MAX_PIN_STEPS, step_problem);
+                    stepped = true;
+                } else {
+                    fail(value, xpp::format("unknown member {} of a pin (a pin has a name and its steps)", json::shown(key)));
+                }
+            });
+            if (!named) fail(elem, "a pin has no name");
+            if (!stepped || pin.steps.empty()) fail(elem, xpp::format("the pin {} has no steps", json::shown(pin.name)));
+            if (std::ranges::any_of(map_.pinned, [&](const keymap::Pin &p) { return p.name == pin.name; })) fail(elem, xpp::format("{} is pinned twice", json::shown(pin.name)));
+            map_.pinned.push_back(std::move(pin));
         }
     }
 
@@ -783,19 +820,28 @@ KeysSet keys_set(FileSystem &fs, std::string_view model_folder)
     return keys;
 }
 
-Result<> set_settings(FileSystem &fs, const std::vector<Change> &changes, const Target &target)
+namespace {
+
+/* the changes made in the file and the whole written, checked as one: what set_settings and set_keymap share (each caller has checked the
+   changes it sends, one by one or all together) */
+Result<> write_changes(FileSystem &fs, const std::vector<Change> &changes, const Target &target, bool check_each)
 {
     const Result<TargetFile> file = read_target(fs, target);
     if (!file) return std::unexpected(file.error());
     std::string text = file->text ? *file->text : settings_template();
     if (const Result<> kept = check_kept(*file); !kept) return std::unexpected(kept.error());
     for (const Change &c : changes) {
-        if (const Result<> ok = check_change(c, file->folder); !ok) return std::unexpected(ok.error());
+        if (check_each)
+            if (const Result<> ok = check_change(c, file->folder); !ok) return std::unexpected(ok.error());
         apply_change(text, c);
     }
     if (const Result<> checked = check_text(text, file->path, file->folder); !checked) return std::unexpected(checked.error());
     return write_target(fs, target, text);
 }
+
+} // namespace
+
+Result<> set_settings(FileSystem &fs, const std::vector<Change> &changes, const Target &target) { return write_changes(fs, changes, target, true); }
 
 Result<> reset_setting(FileSystem &fs, const Target &target, std::string_view group, std::string_view key)
 {
@@ -819,7 +865,8 @@ Result<> check_keymap(const keymap::Keymap &map)
 Result<> set_keymap(FileSystem &fs, const keymap::Keymap &map)
 {
     if (const Result<> ok = check_keymap(map); !ok) return std::unexpected(ok.error());
-    return set_settings(fs, {{"keymap", "bindings", keymap::bindings_json(map)}, {"keymap", "pinned", keymap::pinned_json(map)}});
+    /* the two members are checked together (check_keymap): a pin's keys name a pin of the other member, so neither stands alone */
+    return write_changes(fs, {{"keymap", "bindings", keymap::bindings_json(map)}, {"keymap", "pinned", keymap::pinned_json(map)}}, {}, false);
 }
 
 Result<> update_state(FileSystem &fs, const std::function<void(State &)> &change)

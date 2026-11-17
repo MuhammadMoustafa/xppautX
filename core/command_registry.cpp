@@ -164,6 +164,20 @@ std::string full_name(const Command &command)
     return name + command.label;
 }
 
+namespace {
+
+/* the refusal of a command a session cannot run now: its name, then what it needs ("File › Export › Array plot needs an array plot"). A row
+   whose label is the head of a submenu ("Array plot as", whose items are Python, GIF...) is named without that connective */
+std::string refusal(const Command &command, std::string_view needs)
+{
+    std::string name = full_name(command);
+    constexpr std::string_view CONNECTIVE = " as";
+    if (*command.menu_choice && name.ends_with(CONNECTIVE)) name.resize(name.size() - CONNECTIVE.size());
+    return xpp::format("{} {}", name, needs);
+}
+
+} // namespace
+
 std::vector<const Command *> rows()
 {
     std::vector<const Command *> result;
@@ -422,8 +436,8 @@ Result<std::string> run(Session &s, const char *line, const Place &place, bool p
     if (!command) return fail("command", "Unknown registry command", place);
     Result<Arguments> args = validate(&s, *command, line, place, paths_allowed);
     if (!args) return std::unexpected<Error>(args.error());
-    if (!has_feature(s.model(), s.tables, command->needs)) return fail(command->name, xpp::format("{} {}", full_name(*command), feature_info(command->needs).needs), place);
-    if (command->requires_session.met && !command->requires_session.met(s)) return fail(command->name, xpp::format("{} {}", full_name(*command), command->requires_session.needs), place);
+    if (!has_feature(s.model(), s.tables, command->needs)) return fail(command->name, refusal(*command, feature_info(command->needs).needs), place);
+    if (command->requires_session.met && !command->requires_session.met(s)) return fail(command->name, refusal(*command, command->requires_session.needs), place);
     if (args->has(FILE_PICKER_KEY)) {
         const Argument *file_arg = picker_argument(*command);
         std::string file = args->get<std::string>(file_arg->name);

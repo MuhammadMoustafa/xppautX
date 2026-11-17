@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only popout,options,fieldhelp,dock,viewtabs,splitview,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
+     [--only popout,options,fieldhelp,dock,viewtabs,splitview,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,pins,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -5090,15 +5090,18 @@ async function keymapCheck() {
    run's own (cdp.mjs), and the section ends by removing what it wrote. */
 async function keymapEditorCheck() {
   await desktopMetrics();
+  /* a pin is named as its command is: the toolbar button and the Settings card carry that name */
+  const runName = await S("s.hello.commands.find(c => c.cmd === 'run.initial').name");
+  const itemName = await S("s.hello.commands.find(c => c.cmd === 'model.export').name + s.hello.menu_separator + 'Python'");
   await clickRegistry('keymap.edit');
   check('W517: editor lists the registry', await until(`s.settings.open && document.querySelectorAll('[data-keymap-row]').length === s.hello.commands.filter(c => c.arguments !== undefined).reduce((n, c) => n + 1 + (c.menu_choice ? c.arguments.find(a => a.name === c.menu_choice).choices.length : 0), 0)`, 'editor'));
   check('W536: the editor has no XPPAUT key preset', !await exists('[data-keymap-xppaut]') && await S('!("preset" in s.keymap.info)'));
   await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
-  check('W517: registry commands stay pinnable', await until(`s.keymap.info.pinned.includes('run.initial')`, 'pin'));
+  check('W517: registry commands stay pinnable', await until(`s.keymap.info.pinned.some(p => p.steps.length === 1 && p.steps[0] === 'run.initial')`, 'pin'));
   /* Reset's own answer, a new info: the pin and Ctrl+R hold before it too, and an answer arriving after the
      click below would end the key recording that click starts */
   await cdp.eval(`(window.__pinnedInfo = __xpp.state().keymap.info, document.querySelector('[data-keymap-default]').click())`);
-  check('W517: Reset to defaults retains pins and restores logical keys', await until(`s.keymap.info !== window.__pinnedInfo && s.keymap.info.pinned.includes('run.initial') && s.keymap.info.commands.find(c => c.id === 'run.initial').keys.includes('Ctrl+R')`, 'defaults'));
+  check('W517: Reset to defaults retains pins and restores logical keys', await until(`s.keymap.info !== window.__pinnedInfo && s.keymap.info.pinned.some(p => p.steps.length === 1 && p.steps[0] === 'run.initial') && s.keymap.info.commands.find(c => c.id === 'run.initial').keys.includes('Ctrl+R')`, 'defaults'));
   await cdp.eval(`document.querySelector('[data-key-cell="session.reload_model"][data-index="0"]').click()`);
   await key('b',2);
   check('W517: recording a custom key saves the registry id', await until(`s.keymap.info.commands.find(c => c.id === 'session.reload_model').keys.includes('Ctrl+B')`, 'custom key'));
@@ -5114,21 +5117,19 @@ async function keymapEditorCheck() {
     await until(`s.keymap.info.commands.find(c => c.id === '${item}')?.keys.includes('Ctrl+E') && s.keymap.info.values.some(v => v.value === '${item}' && v.run.cmd === 'model.export' && v.run.language === 'python')`, 'item key'));
   check('W772: a bound item is one row of the editor, its own', await cdp.eval(`document.querySelectorAll('[data-keymap-row="${item}"]').length === 1 && new Set([...document.querySelectorAll('[data-keymap-row]')].map(r => r.dataset.keymapRow)).size === document.querySelectorAll('[data-keymap-row]').length`));
   await cdp.eval(`document.querySelector('[data-key-pin="${item}"]').click()`);
-  check('W772: an item is pinnable', await until(`s.keymap.info.pinned.includes('${item}')`, 'item pin'));
+  check('W772: an item is pinnable', await until(`s.keymap.info.pinned.some(p => p.steps.length === 1 && p.steps[0] === '${item}')`, 'item pin'));
   await key('Escape');
   await until('!s.settings.open', 'editor closed');
-  check('W517: pin appears in quick access', await exists('[data-pinned="run.initial"]'));
+  check('W517: pin appears in quick access', await exists(`[data-pinned="${runName}"]`));
   const before = await S('s.seriesCount');
-  await cdp.eval(`document.querySelector('[data-pinned="run.initial"]').click()`);
+  await cdp.eval(`document.querySelector('[data-pinned="${runName}"]').click()`);
   check('W517: pin runs the same registry command', await until(`s.seriesCount > ${before} && !s.busy`, 'pinned run'));
-  check('W772: the pinned item is in quick access', await exists(`[data-pinned="${item}"]`));
+  check('W772: the pinned item is in quick access', await exists(`[data-pinned="${itemName}"]`));
   const itemMark = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`document.querySelector('[data-pinned="${item}"]').click()`);
-  check('W772: the pinned item sends the command with its argument, as the submenu does',
-    await until(`__xpp.sentFrom(${itemMark}).some(c => c.cmd === 'model.export' && c.language === 'python')`, 'item run'));
-  await until('!!s.ask', 'the export asks for its file');
-  await key('Escape');
-  await until('!s.ask && !s.busy', 'the question cancelled');
+  await cdp.eval(`document.querySelector('[data-pinned="${itemName}"]').click()`);
+  check('W775: the pinned item sends the command with its argument and its file, named by the core\'s output rule: no ask',
+    await until(`__xpp.sentFrom(${itemMark}).some(c => c.cmd === 'model.export' && c.language === 'python' && typeof c.file === 'string' && !c.file_picker) && !s.busy && s.batch.phase === 'idle'`, 'item run')
+    && !await S('!!s.ask'));
   await focusPlot();
   const keyMark = await cdp.eval('__xpp.sentCount()');
   await key('e', 2);
@@ -5164,6 +5165,70 @@ async function keymapFitCheck() {
     await key('Escape');
     await until('!s.settings.open', 'editor closed');
   }
+  await desktopMetrics();
+}
+
+/* The pins' pictures for the UI review (W775; with --only pinshots and XPP_SHOTS=folder): at 375, 768 and 1280 wide, light and dark, the Settings
+   window's pins list (a pin of one step and a pin of five with its own key: a step that writes a file, one whose file exists, one that cannot run
+   now), a step being edited with a bad one shown under it, the replace question, the status bar while a pin runs, and the one message after a
+   failing step. Never a check: it writes files only. */
+async function pinsShots() {
+  const dir = process.env.XPP_SHOTS;
+  if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(dir, {recursive: true});
+  await desktopMetrics();
+  await until('s.hello && !s.busy', 'hello');
+  await runInitial();
+  await until('s.seriesCount > 0 && !s.busy', 'a run');
+  const steps = ['run.initial', 'plot.export --format pdf', 'plot.export --format svg --file "fig1.svg"', 'data.export --format csv', 'array_plot.export --format gif'];
+  const pins = {'Run from initial': ['run.initial'], Figures: steps, Broken: ['array_plot.export --format gif', 'plot.export --format pdf']};
+  const pinId = 'pin "Figures"';
+  await cdp.eval(`__xpp.send({cmd: 'keymap.set', pinned: ${JSON.stringify(Object.keys(pins))}, steps: ${JSON.stringify(pins)}, bindings: {${JSON.stringify(pinId)}: ['Ctrl+Shift+F']}})`);
+  await until(`s.keymap.info.pinned.length === 3`, 'the pins');
+  /* fig1.svg is written once, so its step says it exists */
+  await cdp.eval(`__xpp.send({cmd: 'plot.export', format: 'svg', file: 'fig1.svg'})`);
+  await until('!s.busy', 'fig1.svg written');
+  await menuRun('run.configure', {total_time: 1e6});
+  await requireUntil('!s.busy', 'Total applied');
+  const shoot = async (name, keep = false) => {
+    if (!keep) await cdp.eval(`document.querySelectorAll('.toast button[aria-label="Dismiss"]').forEach(b => b.click())`);
+    await rendered();
+    const shot = await cdp.send('Page.captureScreenshot', {format: 'png'});
+    fs.writeFileSync(path.join(dir, `pins-${name}.png`), Buffer.from(shot.data, 'base64'));
+  };
+  for (const [width, height] of [[375, 812], [768, 1024], [1280, 860]]) {
+    for (const scheme of ['light', 'dark']) {
+      const at = `${width}-${scheme}`;
+      await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+      await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+      await clickRegistry('keymap.edit');
+      await requireUntil(`s.settings.open && !!document.querySelector('[data-pinned="Figures"]')`, 'the window');
+      await until(`!!document.querySelector('[data-pin-step="Figures:2"] [data-step-status="warn"]')`, 'the exists check');
+      await shoot(`list-${at}`);
+      await cdp.eval(`document.querySelector('[data-pin-step="Figures:3"] [data-step-edit]').click()`);
+      await until(`!!document.querySelector('[data-step-input]')`, 'the editor');
+      await cdp.eval(`(() => { const i = document.querySelector('[data-step-input]'); i.value = 'data.export --format cvs'; i.dispatchEvent(new Event('input', {bubbles: true})); return true; })()`);
+      await until(`!!document.querySelector('[data-step-status="error"]')`, 'the bad step');
+      await cdp.eval(`document.querySelector('[data-pin-step="Figures:3"]').scrollIntoView({block: 'center'})`);
+      await shoot(`edit-${at}`);
+      await cdp.eval(`document.querySelector('[data-settings] .dialog-close').click()`);
+      await until('!s.settings.open', 'closed');
+      await cdp.eval(`document.querySelector('[data-pinned="Figures"]').click()`);
+      await until(`s.batch.phase === 'exists'`, 'the question');
+      await shoot(`question-${at}`);
+      await cdp.eval(`document.querySelector('[data-batch-replace]').click()`);
+      await until(`s.busy && s.batch.phase === 'running' && w.series && w.series.rows > 0`, 'the first step', 30000);
+      await shoot(`running-${at}`);
+      await cdp.eval(`document.querySelector('.status-run button.danger').click()`);
+      await until(`s.batch.phase === 'idle' && !s.busy`, 'stopped');
+      await cdp.eval(`document.querySelector('[data-pinned="Broken"], [data-pinned-more="Broken"]').click()`);
+      await until(`s.batch.phase === 'idle' && !s.busy && s.toasts.some(t => t.text.startsWith('Pin "Broken" stopped'))`, 'the failure message');
+      await shoot(`failure-${at}`, true);
+      await cdp.eval(`(document.querySelector('[data-dialog-action]') ?? document.querySelector('.dialog-close')).click()`);
+      await until(`!s.toasts.some(t => t.kind === 'error')`, 'the message dismissed').catch(() => {});
+    }
+  }
+  await cdp.send('Emulation.setEmulatedMedia', {features: []}).catch(() => {});
   await desktopMetrics();
 }
 
@@ -6646,7 +6711,7 @@ const exportWindowOpen = async () => {
 const exportTick = key => cdp.eval(`document.querySelector('[data-export-tick=${JSON.stringify(key)}]').click(); true`);
 const exportClick = selector => cdp.eval(`document.querySelector(${JSON.stringify(selector)}).click(); true`);
 const exportGreyed = () => cdp.eval(`[...document.querySelectorAll('[data-export-row] [data-export-reason]')].map(e => e.textContent).join('|')`);
-const exportSent = async () => (await cdp.eval('__xpp.sent()')).filter(c => typeof c.id === 'string' && c.id.startsWith('export-'));
+const exportSent = async () => (await cdp.eval('__xpp.sent()')).filter(c => typeof c.id === 'string' && c.id.startsWith('batch-'));
 /** the window's folder: a picked path is granted by the core only inside the window (see exportWindowDesktop) */
 const exportPickFolder = async folder => {
   await exportClick('[data-export-pick]');
@@ -6681,7 +6746,7 @@ async function exportWindowDesktop(dir, elsewhere, farSet) {
   await exportClick('[data-export-start]');
   const refused = await until(`s.toasts.some(t => t.kind === 'error' && /is not a plain file name in the model/.test(t.text))`, 'the core refusal');
   check('W774: a full path in the folder the core did not grant is refused with the core\'s reason, and the window keeps its ticks',
-    refused && (await S('s.exportSeveral.phase')) === 'choose' && (await S('s.exportSeveral.ticks.length')) === 3,
+    refused && (await S('s.batch.phase')) === 'idle' && (await S('s.exportSeveral.ticks.length')) === 3,
     JSON.stringify(await S('s.toasts')));
   const checks = (await cdp.eval('__xpp.sentFrom(' + mark + ')')).filter(c => c.cmd === 'session.file_exists');
   /* the batch asks first, for its first file, and stops at the core's refusal: nothing else is sent */
@@ -6729,10 +6794,10 @@ async function exportSeveral(dir) {
   await exportTick('data.export|csv');
   await exportClick('[data-export-start]');
   check('W774: three ticks write three files: the batch ends with a report of three written',
-    await until(`s.exportSeveral.phase === 'report' && document.querySelector('[data-export-summary]')`, 'the report'),
-    JSON.stringify(await S('s.exportSeveral.outcomes')));
+    await until(`s.batch.phase === 'report' && document.querySelector('[data-export-summary]')`, 'the report'),
+    JSON.stringify(await S('s.batch.outcomes')));
   check('W774: the report says each file was written', (await cdp.eval(`document.querySelector('[data-export-summary]').textContent`)) === '3 written, 0 failed, 0 skipped.',
-    JSON.stringify(await S('s.exportSeveral.outcomes')));
+    JSON.stringify(await S('s.batch.outcomes')));
   const sent = (await exportSent()).map(({id, ...rest}) => rest);
   check('W774: one ordinary command per ticked format, each naming its file in the model\'s folder, nothing replaced',
     JSON.stringify(sent) === JSON.stringify([
@@ -6754,16 +6819,16 @@ async function exportSeveral(dir) {
   await exportTick('data.export|csv');
   const mark = await cdp.eval('__xpp.sentCount()');
   await exportClick('[data-export-start]');
-  check('W774: names that exist are asked once, all together', await until(`s.exportSeveral.phase === 'exists'`, 'the replace question')
-    && JSON.stringify(await S('s.exportSeveral.exists')) === JSON.stringify([names['plot.export.pdf'], names['data.export.csv']]));
+  check('W774: names that exist are asked once, all together', await until(`s.batch.phase === 'exists'`, 'the replace question')
+    && JSON.stringify(await S('s.batch.exists')) === JSON.stringify([names['plot.export.pdf'], names['data.export.csv']]));
   check('W774: nothing is written before the question is answered', (await cdp.eval('__xpp.sentCount()')) === mark);
-  await exportClick('[data-export-cancel]');
-  check('W774: Cancel goes back to the ticks, with nothing sent', (await S('s.exportSeveral.phase')) === 'choose' && (await cdp.eval('__xpp.sentCount()')) === mark);
+  await exportClick('[data-batch-cancel]');
+  check('W774: Cancel goes back to the ticks, with nothing sent', (await S('s.batch.phase')) === 'idle' && (await cdp.eval('__xpp.sentCount()')) === mark);
   await exportClick('[data-export-start]');
-  await until(`s.exportSeveral.phase === 'exists'`, 'the question again');
-  await exportClick('[data-export-skip]');
+  await until(`s.batch.phase === 'exists'`, 'the question again');
+  await exportClick('[data-batch-skip]');
   check('W774: Skip those writes none of the two that exist, and reports them skipped',
-    await until(`s.exportSeveral.phase === 'report'`, 'the skip report')
+    await until(`s.batch.phase === 'report'`, 'the skip report')
     && (await cdp.eval(`document.querySelector('[data-export-summary]').textContent`)) === '0 written, 0 failed, 2 skipped.'
     && (await cdp.eval('__xpp.sentCount()')) === mark);
   await exportClick('[data-dialog-action]');
@@ -6774,12 +6839,12 @@ async function exportSeveral(dir) {
   await exportTick('data.export|csv');
   const replaceMark = await cdp.eval('__xpp.sentCount()');
   await exportClick('[data-export-start]');
-  await until(`s.exportSeveral.phase === 'exists'`, 'the question');
-  await exportClick('[data-export-replace]');
+  await until(`s.batch.phase === 'exists'`, 'the question');
+  await exportClick('[data-batch-replace]');
   check('W774: Replace sends the answer to every command, and writes both files again',
-    await until(`s.exportSeveral.phase === 'report' && document.querySelector('[data-export-summary]')?.textContent === '2 written, 0 failed, 0 skipped.'`, 'the replace report')
+    await until(`s.batch.phase === 'report' && document.querySelector('[data-export-summary]')?.textContent === '2 written, 0 failed, 0 skipped.'`, 'the replace report')
     && JSON.stringify((await exportSent()).slice(-2).map(c => c.replace)) === '[1,1]'
-    && (await cdp.eval('__xpp.sentCount()')) === replaceMark + 2, JSON.stringify(await S('s.exportSeveral.outcomes')));
+    && (await cdp.eval('__xpp.sentCount()')) === replaceMark + 2, JSON.stringify(await S('s.batch.outcomes')));
   await exportClick('[data-dialog-action]');
 
   /* the browser without a folder picker: each file is a download (the browser's own; several may be blocked there) */
@@ -6793,9 +6858,9 @@ async function exportSeveral(dir) {
   await exportTick('plot.export|svg');
   await exportClick('[data-export-start]');
   /* the model's folder holds the copies of the earlier batches: one question about them, answered Replace */
-  await until(`s.exportSeveral.phase === 'exists' || s.exportSeveral.phase === 'report'`, 'the answer');
-  if (await S("s.exportSeveral.phase === 'exists'")) await exportClick('[data-export-replace]');
-  await until(`s.exportSeveral.phase === 'report'`, 'the download report');
+  await until(`s.batch.phase === 'exists' || s.batch.phase === 'report'`, 'the answer');
+  if (await S("s.batch.phase === 'exists'")) await exportClick('[data-batch-replace]');
+  await until(`s.batch.phase === 'report'`, 'the download report');
   const landed = await waitFor(async () => fs.readdirSync(downloads).length - downloadsBefore >= 2, 20000);
   perf('export downloads: files that landed in the downloads folder of 2', fs.readdirSync(downloads).length - downloadsBefore);
   check('W774: without a folder picker each file is offered as a download', !!landed || (await S('s.files.offered'))?.how === 'download',
@@ -6814,9 +6879,9 @@ async function exportFailureDialog(dir) {
   await exportWindowOpen();
   await exportTick('plot.export|svg');
   await exportClick('[data-export-start]');
-  await until(`s.exportSeveral.phase === 'exists' || s.exportSeveral.phase === 'report'`, 'the answer');
-  if (await S("s.exportSeveral.phase === 'exists'")) await exportClick('[data-export-replace]');
-  const reported = await until(`s.exportSeveral.phase === 'report' && document.querySelector('[data-export-summary]')?.textContent === '0 written, 1 failed, 0 skipped.'`, 'the failure report');
+  await until(`s.batch.phase === 'exists' || s.batch.phase === 'report'`, 'the answer');
+  if (await S("s.batch.phase === 'exists'")) await exportClick('[data-batch-replace]');
+  const reported = await until(`s.batch.phase === 'report' && document.querySelector('[data-export-summary]')?.textContent === '0 written, 1 failed, 0 skipped.'`, 'the failure report');
   const dialogs = await cdp.eval(`document.querySelectorAll('[data-dialog]').length`);
   const logged = await cdp.eval(`__xpp.log().some(e => /not a plain file|Cannot save/.test(JSON.stringify(e)))`);
   check('W774: a batch with a failure opens one dialog, its report; the core\'s error is in Messages only', reported && dialogs === 1
@@ -8112,14 +8177,15 @@ async function dialogOverEverything(opener, view, what) {
   await until(`!document.querySelector('[data-trace-dialog]')`, `${what}: trace dialog closed`);
 }
 async function quickMenuOnTop() {
+  const runName = await S("s.hello.commands.find(c => c.cmd === 'run.initial').name");
   await clickRegistry('keymap.edit');
   await until('s.settings.open', 'editor');
   await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
-  await until(`s.keymap.info.pinned.includes('run.initial')`, 'pinned');
+  await until(`s.keymap.info.pinned.some(p => p.steps.length === 1 && p.steps[0] === 'run.initial')`, 'pinned');
   await key('Escape');
-  await until('!s.settings.open && !!document.querySelector(\'[data-pinned="run.initial"]\')', 'editor closed');
+  await until(`!s.settings.open && !!document.querySelector('[data-pinned="${runName}"]')`, 'editor closed');
   /* the pinned command's context menu */
-  await cdp.eval(`document.querySelector('[data-pinned="run.initial"]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 40, clientY: 40}))`);
+  await cdp.eval(`document.querySelector('[data-pinned="${runName}"]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 40, clientY: 40}))`);
   await until(`!!document.querySelector('.quick-menu')`, 'quick menu');
   check('W632: a pinned command\'s menu is a modal <dialog> (in the top layer)',
     await cdp.eval(`!!document.querySelector('dialog.dialog-backdrop:modal > .quick-menu')`));
@@ -8135,9 +8201,154 @@ async function quickMenuOnTop() {
   await clickRegistry('keymap.edit');
   await until('s.settings.open', 'editor');
   await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
-  await until(`!s.keymap.info.pinned.includes('run.initial')`, 'unpinned');
+  await until(`!s.keymap.info.pinned.some(p => p.steps.length === 1 && p.steps[0] === 'run.initial')`, 'unpinned');
   await key('Escape');
   await until('!s.settings.open', 'editor closed');
+}
+
+/* ---- W775: pins with several steps, run by the batch runner Export several uses (session.ts batchRun). A step is a command in
+   W772's written form, checked by the core as it is edited; no step asks (its file is named by the core's output rule), one replace
+   question covers the files that exist, a failing step or Stop ends the pin with one message. Read through the store and the commands
+   sent, never pixels; each wait is for a condition. ------------------------------------------------------------------------ */
+async function pinsCheck(dir) {
+  await desktopMetrics();
+  await until('!s.busy && !s.ask', 'idle');
+  await runInitial();
+  await until('s.seriesCount > 0 && !s.busy', 'a run, so the exports have data');
+  const names = await S('s.hello.output_names');
+  const pdf = names['plot.export.pdf'];
+  const sendPins = (pinned, steps) => cdp.eval(`__xpp.send({cmd: 'keymap.set', pinned: ${JSON.stringify(pinned)}, steps: ${JSON.stringify(steps)}})`);
+  const figures = ['run.initial', 'plot.export --format pdf'];
+  await sendPins(['Figures'], {Figures: figures});
+  check('W775: set keeps a pin of two steps, in order', await until(`JSON.stringify(s.keymap.info.pinned) === ${JSON.stringify(JSON.stringify([{name: 'Figures', steps: figures}]))}`, 'the pin'));
+
+  /* the Settings window: each step shows its own check, and a bad edit is shown under the step and not saved */
+  await clickRegistry('keymap.edit');
+  await until(`s.settings.open && !!document.querySelector('[data-pinned="Figures"]')`, 'the pin in Settings');
+  const status = i => cdp.eval(`(e => e && [e.dataset.stepStatus, e.textContent])(document.querySelector('[data-pin-step="Figures:${i}"] [data-step-status]'))`);
+  check('W775: step 1 says it runs', JSON.stringify(await status(0)) === JSON.stringify(['ok', '✓ runs']), JSON.stringify(await status(0)));
+  const second = await status(1);
+  check('W775: step 2 says which file it writes, the core\'s output name', second?.[0] === 'ok' && second[1] === `✓ writes ${pdf}`, JSON.stringify(second));
+  const setStep = text => cdp.eval(`(() => { const i = document.querySelector('[data-step-input]'); i.value = ${JSON.stringify(text)}; i.dispatchEvent(new Event('input', {bubbles: true})); return true; })()`);
+  await cdp.eval(`document.querySelector('[data-pin-step="Figures:1"] [data-step-edit]').click()`);
+  await until(`!!document.querySelector('[data-step-input]')`, 'the step editor');
+  await setStep('data.export --format cvs');
+  check('W775: a bad step is shown under it with the core\'s reason, as not saved, and Save is off',
+    await until(`document.querySelector('[data-pin-step="Figures:1"] [data-step-status="error"]')?.textContent.includes('cvs') && document.querySelector('[data-step-save]').disabled`, 'the error')
+    && await S(`s.keymap.info.pinned[0].steps[1] === 'plot.export --format pdf'`));
+  await setStep('data.export --format csv');
+  check('W775: a step the core reads is accepted, and saved as written', await until(`!document.querySelector('[data-step-save]').disabled`, 'the step reads')
+    && await cdp.eval(`document.querySelector('[data-step-save]').click(), true`)
+    && await until(`s.keymap.info.pinned[0].steps[1] === 'data.export --format csv'`, 'the step saved'));
+  await cdp.eval(`document.querySelector('[data-pinned="Figures"] [data-step-add]').click()`);
+  await until(`!!document.querySelector('[data-step-search]')`, 'the add step field');
+  await cdp.eval(`(() => { const i = document.querySelector('[data-step-search]'); i.value = 'plot.export --format pdf'; i.dispatchEvent(new Event('input', {bubbles: true})); return true; })()`);
+  check('W775: a step written as text is added once the core reads it', await until(`!!document.querySelector('[data-step-add-text]')`, 'the text step checked')
+    && await cdp.eval(`document.querySelector('[data-step-add-text]').click(), true`)
+    && await until(`s.keymap.info.pinned[0].steps.length === 3 && s.keymap.info.pinned[0].steps[2] === 'plot.export --format pdf'`, 'the step added'));
+  await sendPins(['Figures'], {Figures: figures});
+  await until(`s.keymap.info.pinned[0].steps.length === 2`, 'back to two steps');
+  await key('Escape');
+  await until('!s.settings.open', 'Settings closed');
+
+  /* Run: two ordinary commands, the second with its file in the model's folder, nothing asked */
+  const mark = await cdp.eval('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector('[data-pinned="Figures"]').click()`);
+  check('W775: running a pin of two steps sends each as an ordinary command, the export with its file, in order, and asks nothing',
+    await until(`s.batch.phase === 'idle' && !s.busy && __xpp.sentFrom(${mark}).filter(c => typeof c.id === 'string' && c.id.startsWith('batch-')).length === 2`, 'the pin ran')
+    && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${mark})`)).filter(c => typeof c.id === 'string' && c.id.startsWith('batch-')).map(c => [c.cmd, c.file ?? null]))
+      === JSON.stringify([['run.initial', null], ['plot.export', pdf]]) && !await S('!!s.ask'));
+  await cdp.eval(`document.querySelector('.messages summary').click()`);
+  check('W775: Messages has a line as each step starts and ends',
+    await until(`[...document.querySelectorAll('.message-text')].some(e => e.textContent.startsWith('Pin "Figures": step 2 of 2, plot.export --format pdf')) && [...document.querySelectorAll('.message-text')].some(e => e.textContent === 'Pin "Figures": step 2 of 2 written')`, 'the lines'));
+  await cdp.eval(`document.querySelector('.messages summary').click()`);
+
+  await clickRegistry('keymap.edit');
+  check('W775: once its file exists, the step\'s check says so and that the replace question will come',
+    await until(`document.querySelector('[data-pin-step="Figures:1"] [data-step-status="warn"]')?.textContent.includes('${pdf}, which exists')`, 'the exists check'));
+  await key('Escape');
+  await until('!s.settings.open', 'Settings closed again');
+
+  /* the file now exists: one question, Skip those, Replace, Cancel */
+  const again = await cdp.eval('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector('[data-pinned="Figures"]').click()`);
+  check('W775: a file that exists is asked about once, before any step is sent',
+    await until(`s.batch.phase === 'exists' && JSON.stringify(s.batch.exists) === ${JSON.stringify(JSON.stringify([pdf]))}`, 'the question') && (await cdp.eval('__xpp.sentCount()')) === again);
+  await cdp.eval(`document.querySelector('[data-batch-cancel]').click()`);
+  check('W775: Cancel sends nothing', await until(`s.batch.phase === 'idle'`, 'cancelled') && (await cdp.eval('__xpp.sentCount()')) === again);
+  await cdp.eval(`document.querySelector('[data-pinned="Figures"]').click()`);
+  await until(`s.batch.phase === 'exists'`, 'the question again');
+  await cdp.eval(`document.querySelector('[data-batch-skip]').click()`);
+  await until(`s.batch.phase === 'idle' && !s.busy`, 'skip ran');
+  const skipped = (await cdp.eval(`__xpp.sentFrom(${again})`)).filter(c => typeof c.id === 'string' && c.id.startsWith('batch-'));
+  check('W775: Skip those runs the steps that write no existing file and not the others', JSON.stringify(skipped.map(c => c.cmd)) === JSON.stringify(['run.initial']), JSON.stringify(skipped));
+  const replaceMark = await cdp.eval('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector('[data-pinned="Figures"]').click()`);
+  await until(`s.batch.phase === 'exists'`, 'the question a third time');
+  await cdp.eval(`document.querySelector('[data-batch-replace]').click()`);
+  await until(`s.batch.phase === 'idle' && !s.busy`, 'replace ran');
+  const replaced = (await cdp.eval(`__xpp.sentFrom(${replaceMark})`)).filter(c => c.cmd === 'plot.export');
+  check('W775: Replace sends the export with replace set', replaced.length === 1 && replaced[0].replace === 1, JSON.stringify(replaced));
+
+  /* a pin of several steps is bound like a command, by pin "Name": its row is in the Keys list, a key another command has asks Replace or
+     Cancel as for any command, and its key runs the pin */
+  const pinId = 'pin "Figures"';
+  await clickRegistry('keymap.edit');
+  const pinCell = () => cdp.eval(`[...document.querySelectorAll('[data-key-cell]')].find(e => e.dataset.keyCell === ${JSON.stringify(pinId)} && e.dataset.index === '0').click()`);
+  await until(`s.settings.open && [...document.querySelectorAll('[data-keymap-row]')].some(e => e.dataset.keymapRow === ${JSON.stringify(pinId)})`, 'the pin\'s row in the Keys list');
+  await pinCell();
+  await until('!!s.keymap.editor.recording', 'recording started');
+  await key('o', 2);
+    check('W775: a key another command has asks Replace or Cancel for a pin too', await until(`s.keymap.editor.conflict?.other === 'session.open_model'`, 'the conflict'));
+  await until(`!!document.querySelector('[data-conflict-cancel]')`, 'the Cancel answer');
+  await cdp.eval(`document.querySelector('[data-conflict-cancel]').click()`);
+  await until('!s.keymap.editor.conflict', 'the conflict answered');
+  await pinCell();
+  await key('F', 10);
+  check('W775: a recorded key is the pin\'s, shown on its card in the pins list',
+    await until(`s.keymap.info.commands.find(c => c.id === ${JSON.stringify(pinId)})?.keys[0] === 'Ctrl+Shift+F'
+      && !!document.querySelector('[data-pinned="Figures"] .pin-head kbd')`, 'the key saved'));
+  await key('Escape');
+  await until('!s.settings.open', 'Settings closed for the key');
+  await focusPlot();
+  const keyPin = await cdp.eval('__xpp.sentCount()');
+  await key('F', 10);
+  check('W775: the pin\'s key runs the pin: its first step goes out', await until(`s.batch.phase === 'exists' || __xpp.sentFrom(${keyPin}).some(c => c.cmd === 'run.initial')`, 'the pin ran from its key'));
+  if (await S(`s.batch.phase === 'exists'`)) await cdp.eval(`document.querySelector('[data-batch-replace]').click()`);
+  await until(`s.batch.phase === 'idle' && !s.busy`, 'the keyed run ended');
+
+  /* a failing step ends the pin with one message naming it; the steps after it are not sent */
+  await sendPins(['Figures', 'Broken'], {Figures: figures, Broken: ['run.initial', 'array_plot.export --format gif', 'data.export --format csv']});
+  await until(`s.keymap.info.pinned.length === 2`, 'the second pin');
+  const failMark = await cdp.eval('__xpp.sentCount()');
+  const toastsBefore = await S('s.toasts.filter(t => t.kind === "error").length');
+  await cdp.eval(`document.querySelector('[data-pinned="Broken"]').click()`);
+  check('W775: a failing step ends the pin: the next step is not sent',
+    await until(`s.batch.phase === 'idle' && !s.busy && s.toasts.some(t => t.text.startsWith('Pin "Broken" stopped at step 2 of 3, array_plot.export --format gif'))`, 'the failure message')
+    && !(await cdp.eval(`__xpp.sentFrom(${failMark})`)).some(c => c.cmd === 'data.export'));
+  const message = await S(`s.toasts.find(t => t.text.startsWith('Pin "Broken" stopped')).text`);
+  check('W775: the one message names the pin, the step, its reason, the steps done and those not run',
+    /^Pin "Broken" stopped at step 2 of 3, array_plot\.export --format gif: .+\. Done: 1 step \(1\)\. Not run: 3\.$/.test(message), message);
+  check('W775: the failure is that one message: the core\'s own error is in Messages only',
+    (await S('s.toasts.filter(t => t.kind === "error").length')) === toastsBefore + 1);
+  await cdp.eval(`__xpp.send({cmd: 'keymap.set', pinned: ['Figures'], steps: {}})`);
+  await until(`s.keymap.info.pinned.length === 1`, 'the broken pin removed');
+
+  /* Stop ends the running step and the pin; the second step is not run */
+  await menuRun('run.configure', {total_time: 1e6});
+  await requireUntil('!s.busy', 'Total applied');
+  const stopMark = await cdp.eval('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector('[data-pinned="Figures"]').click()`);
+  await until(`s.batch.phase === 'exists'`, 'the question: the file exists');
+  await cdp.eval(`document.querySelector('[data-batch-replace]').click()`);
+  await until(`s.busy && s.batch.phase === 'running' && w.series && w.series.rows > 0`, 'the first step under way', 30000);
+  check('W775: the status bar shows the step running', await cdp.eval(`document.querySelector('[data-testid=status]').textContent === 'Pin "Figures": step 1 of 2' && document.querySelector('[data-batch-step]').textContent === 'run.initial'`));
+  await cdp.eval(`document.querySelector('.status-run button.danger').click()`);
+  check('W775: Stop ends the pin with one message: the step stopped, the steps not run',
+    await until(`s.batch.phase === 'idle' && !s.busy && s.toasts.some(t => t.text.startsWith('Pin "Figures" stopped at step 1 of 2, run.initial: '))`, 'the stop message')
+    && !(await cdp.eval(`__xpp.sentFrom(${stopMark})`)).some(c => c.cmd === 'plot.export')
+    && (await S(`s.toasts.find(t => t.text.startsWith('Pin "Figures" stopped')).text`)).endsWith('Done: none. Not run: 2.'));
+  fs.rmSync(path.join(dir, pdf), {force: true});
 }
 
 async function layoutCheck(dir) {
@@ -8398,7 +8609,7 @@ async function main() {
       await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     }
     /* every section name run() is asked about: an --only that names none of them ran nothing, which is a failure, never "all passed" */
-    const asked = new Set(['shots', 'popoutshots', 'splitshots', 'settingsshots']);
+    const asked = new Set(['shots', 'popoutshots', 'splitshots', 'settingsshots', 'pinshots']);
     const run = name => { asked.add(name); return !opt.only || opt.only.split(',').includes(name); };
     if (run('desktop')) await session(ODE, async (dir) => {
       await desktop(want);
@@ -8453,6 +8664,7 @@ async function main() {
     if (opt.only && opt.only.split(',').includes('shots')) await session(AB_ODE, autoxScriptShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'popoutshots')) await session(ODE, popOutShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'settingsshots')) await session(ODE, settingsWindowShots);
+    if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'pinshots')) await session(ODE, pinsShots, [/Pin "Figures"|needs an array plot|Invalid choice/]);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, tableShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('windows')) await session(ODE, windows);
     if (run('annotations')) await session(ODE, marks);
@@ -8480,6 +8692,7 @@ async function main() {
     /* W774: the window's export into a folder the core did not grant is refused with that reason (exportWindowDesktop) */
     if (run('native')) await session(ODE, nativeFiles, [/is not a plain file name in the model's folder/]);
     /* the failure check makes the core refuse one file on purpose (exportFailureDialog) */
+    if (run('pins')) await session(ODE, pinsCheck, [/Invalid choice "cvs" for format/, /needs an array plot/]);
     if (run('export')) await session(ODE, exportSeveral, [/Cannot save lecar\.svg: not a plain file/]);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);

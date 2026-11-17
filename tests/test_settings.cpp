@@ -98,14 +98,14 @@ void check_refused()
 void check_folder()
 {
     const auto user = parse_settings("{\"version\": 4, \"general\": {\"threads\": 3, \"log_level\": \"info\"}, \"page\": {\"theme\": \"dark\", \"folds\": [\"a\"]},\n"
-                                     "\"keymap\": {\"pinned\": [\"session.reload_model\"]}, \"updates\": {\"check_for_updates\": false}}", "user.json");
+                                     "\"keymap\": {\"pinned\": [{\"name\": \"Reload\", \"steps\": [\"session.reload_model\"]}]}, \"updates\": {\"check_for_updates\": false}}", "user.json");
     CHECK(user.has_value());
     if (!user) return;
     /* the keys the folder holds win, the rest stay the user's (a list is replaced whole) */
     const auto merged = xpp::settings::parse_folder_settings("{\"version\": 4, \"general\": {\"log_to_file\": true, \"threads\": 2}, \"page\": {\"folds\": [\"b\", \"c\"]}}", "f.json", *user);
     CHECK(merged && merged->threads == 2 && merged->log_to_file && merged->log_level == XPP_LOG_INFO);
     CHECK(merged && merged->page.theme == "dark" && merged->page.folds == std::vector<std::string>({"b", "c"}) && !merged->check_for_updates);
-    CHECK(merged && merged->keymap.pinned == user->keymap.pinned);
+    CHECK(merged && merged->keymap.pinned.size() == 1 && merged->keymap.pinned[0].name == user->keymap.pinned[0].name);
     /* the update check is the user's: an error at its line, and nothing of the file is used */
     CHECK(refused(xpp::settings::parse_folder_settings("{\"version\": 4,\n\"updates\": {\"check_for_updates\": true}}", "f.json", *user), 2, "cannot turn the update check on or off"));
     CHECK(refused(xpp::settings::parse_folder_settings("{\"version\": 4,\n\"general\": {\"log_file\": \"/x\"}}", "f.json", *user), 2, "unknown setting \"log_file\""));

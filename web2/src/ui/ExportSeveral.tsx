@@ -8,6 +8,8 @@ import {registryRows} from './navigation';
 import {useSession, useStore} from './context';
 import {Dialog} from './Dialog';
 import {choiceLabel} from '../store/fieldKinds';
+import type {BatchOutcome} from '../store/batch';
+import {EXPORT_TITLE} from '../exportSeveral';
 
 export function ExportSeveral() {
   const open = useStore(s => s.exportSeveral.open);
@@ -17,13 +19,17 @@ export function ExportSeveral() {
 function Window() {
   const session = useSession();
   const st = useStore(s => s.exportSeveral);
+  const batch = useStore(s => s.batch);
   const hello = useStore(s => s.hello);
   const unavailable = useStore(s => s.core?.unavailable);
   const rows = exportRows(registryRows(hello), hello?.menu_separator ?? '', hello?.output_names ?? {}, unavailable ?? []);
   const close = () => session.exportSeveralClose();
-  if (st.phase === 'running') return <Running total={st.total} done={st.outcomes.length} />;
-  if (st.phase === 'report') return <Report outcomes={st.outcomes} onClose={close} />;
-  if (st.phase === 'exists') return <Exists names={st.exists} onClose={close} />;
+  /* the batch is the runner's (store/batch.ts): its replace question is BatchQuestion's, its report and progress are shown here */
+  if (batch.title === EXPORT_TITLE) {
+    if (batch.phase === 'running') return <Running total={batch.steps.length} done={batch.outcomes.length} />;
+    if (batch.phase === 'report') return <Report outcomes={batch.outcomes} onClose={close} />;
+    if (batch.phase === 'exists') return null;
+  }
   return <Choose rows={rows} ticks={st.ticks} folder={st.folder} onClose={close} />;
 }
 
@@ -73,22 +79,6 @@ function Choose({rows, ticks, folder, onClose}: {rows: ExportRow[]; ticks: strin
   );
 }
 
-function Exists({names, onClose}: {names: string[]; onClose(): void}) {
-  const session = useSession();
-  return (
-    <Dialog title="Export several" name="export several" width="form" onClose={onClose} attrs={{'data-export-several': 'exists'}}
-      extra={<>
-        <button type="button" data-export-cancel onClick={() => session.exportSeveralAnswer('cancel')}>Cancel</button>
-        <button type="button" data-export-skip onClick={() => session.exportSeveralAnswer('skip')}>Skip those</button>
-        <button type="button" class="primary" data-export-replace onClick={() => session.exportSeveralAnswer('replace')}>Replace</button>
-      </>}>
-      <p>{names.length === 1 ? '1 file already exists' : `${names.length} files already exist`} in the folder:</p>
-      <ul class="export-exists">{names.map(name => <li key={name}>{name}</li>)}</ul>
-      <p>Replace them, skip those and write the rest, or cancel?</p>
-    </Dialog>
-  );
-}
-
 function Running({total, done}: {total: number; done: number}) {
   return (
     <Dialog title="Export several" name="export several" width="form" onClose={() => undefined} closable={false} attrs={{'data-export-several': 'running'}}>
@@ -97,7 +87,7 @@ function Running({total, done}: {total: number; done: number}) {
   );
 }
 
-function Report({outcomes, onClose}: {outcomes: {file: string; status: string; text: string}[]; onClose(): void}) {
+function Report({outcomes, onClose}: {outcomes: BatchOutcome[]; onClose(): void}) {
   const count = (status: string) => outcomes.filter(o => o.status === status).length;
   return (
     <Dialog title="Export several" name="export several" width="list" onClose={onClose} attrs={{'data-export-several': 'report'}}
@@ -105,8 +95,8 @@ function Report({outcomes, onClose}: {outcomes: {file: string; status: string; t
       <p data-export-summary>{`${count('written')} written, ${count('failed')} failed, ${count('skipped')} skipped.`}</p>
       <ul class="export-report">{outcomes.map((o, i) => (
         <li key={i} data-export-outcome={o.status} class={o.status}>
-          <strong>{o.file}</strong> <span class="export-status">{choiceLabel(o.status)}</span>
-          {o.text && (o.status !== 'written' || o.text !== o.file) && <span class="export-text"> {o.text}</span>}
+          <strong>{o.step}</strong> <span class="export-status">{choiceLabel(o.status)}</span>
+          {o.text && (o.status !== 'written' || o.text !== o.step) && <span class="export-text"> {o.text}</span>}
         </li>))}</ul>
     </Dialog>
   );

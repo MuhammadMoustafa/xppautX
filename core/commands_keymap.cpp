@@ -11,19 +11,26 @@ namespace {
 
 constexpr std::array SET_ARGUMENTS = {
     Argument{"bindings", Type::map, false, MAX_COMMAND_BYTES, {}, {}, {}, NameSet::none, Type::text_list},
-    Argument{"pinned", Type::list, false, MAX_COMMAND_BYTES, {}, {}, {}, NameSet::none, Type::text}};
-constexpr std::array GET_RESULTS = {ResultField{"bindings", "map[text, list[text]]"}, ResultField{"pinned", "list[text]"}};
+    Argument{"pinned", Type::list, false, MAX_COMMAND_BYTES, {}, {}, {}, NameSet::none, Type::text},
+    Argument{"steps", Type::map, false, MAX_COMMAND_BYTES, {}, {}, {}, NameSet::none, Type::text_list}};
+constexpr std::array CHECK_ARGUMENTS = {Argument{"step", Type::text, true, MAX_COMMAND_BYTES}};
+constexpr std::array GET_RESULTS = {ResultField{"bindings", "map[text, list[text]]"}, ResultField{"pinned", "list[text]"}, ResultField{"steps", "map[text, list[text]]"}};
+constexpr std::array CHECK_RESULTS = {ResultField{"run", "map"}};
 constexpr std::array SET_RESULTS = {ResultField{"saved", "boolean"}};
 constexpr std::array RESET_RESULTS = {ResultField{"reset", "boolean"}};
 constexpr std::array GET_EVENTS = {xpp::events::KEYMAP_CHANGED, xpp::events::DONE};
+constexpr std::array DONE_ONLY = {xpp::events::DONE};
 constexpr std::array SET_EVENTS = {xpp::events::KEYMAP_CHANGED, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"keymap.get", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Get keymap", "",
-            "The user's keymap: the keys of the commands they changed, and the pinned commands.", GET_RESULTS, GET_EVENTS, false, front_end},
+            "The user's keymap: the keys of the commands they changed, and the pins (their names in order, and their steps by name).", GET_RESULTS, GET_EVENTS, false, front_end},
     Command{"keymap.set", SET_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Panels, "Set keymap", "",
-            "Replace the bindings or the pinned commands given (what is left out stays); the keymap is checked whole, then written.",
+            "Replace the bindings or the pins given (what is left out stays): `pinned` the pins' names in order, `steps` each pin's steps by name, a name only `steps` has added at the end; the keymap is checked whole, then written.",
             SET_RESULTS, SET_EVENTS, false, front_end},
+    Command{"keymap.check_step", CHECK_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Panels, "Check a pin's step", "",
+            "Check a command value as a pin's step (the one reader of command_def.h's read_value) and answer the command that runs it; nothing is written.",
+            CHECK_RESULTS, DONE_ONLY, false, front_end},
     Command{"keymap.reset", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Reset keymap", "", "Remove the user's keymap: every command has its default keys.",
             RESET_RESULTS, SET_EVENTS, false, front_end}};
 

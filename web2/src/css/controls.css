@@ -77,7 +77,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 .banner.error { background: var(--danger-bg); border-color: var(--danger); }
 
 .banner.warn { background: var(--warn-bg); border-color: var(--warn); display: flex; gap: var(--space-3); align-items: flex-start; }
-.banner.warn > span, .autox-axis-head h3, .dialog-titles { flex: 1; min-width: 0; }
+.banner.warn > span, .autox-axis-head h3, .dialog-titles, .pin-head .input-box input, .pin-step .input-box input, .pin-add .input-box input { flex: 1; min-width: 0; }
 .banner.warn b { color: var(--warn); }
 
 /* the "?" every menu and dialog gets (docs/roadmap.md W12b), opening Help at

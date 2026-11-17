@@ -11,6 +11,7 @@
 #include <array>
 #include <cstddef>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -31,6 +32,9 @@ inline constexpr std::size_t MAX_KEYS_PER_COMMAND = 8;
    each is a few bytes, so these bounds are generous and stop a hostile file's count before any allocation */
 inline constexpr std::size_t MAX_PINNED = 64;
 inline constexpr std::size_t MAX_BINDINGS = 1024;
+/* the steps of one pin and the bytes of a pin's name (W775): a pin is a handful of commands, and its name a label on a button */
+inline constexpr std::size_t MAX_PIN_STEPS = MAX_KEYS_PER_COMMAND; /* the registry's limit on a list of texts inside a map (command_validate.cpp), as a command's keys */
+inline constexpr std::size_t MAX_PIN_NAME_BYTES = 64;
 
 /* Keys the page and the system keep (docs/command-design.md "Principles" 4):
    Alt+F4, Ctrl+W, Ctrl+Q, F11, F12 and the browser's own tab, window,
@@ -41,12 +45,20 @@ inline constexpr std::array<std::string_view, 16> RESERVED_KEYS = {
     "Alt+F4", "Ctrl+W", "Ctrl+Q", "F11", "F12", "F5", "Ctrl+T", "Ctrl+N", "Ctrl+Shift+N", "Ctrl+Shift+T",
     "Ctrl+Tab", "Ctrl+Shift+Tab", "Alt+ArrowLeft", "Alt+ArrowRight", "Ctrl+L", "Ctrl+Shift+I"};
 
+/* a pin (W775): a name and its steps, each a command value (command_def.h) in the order they run. One kind of pin: a pin of one step is
+   the command a toolbar button runs, a pin of several is a sequence the page runs as a batch of ordinary commands */
+struct Pin {
+    std::string name;
+    std::vector<std::string> steps;
+    bool operator==(const Pin &) const = default;
+};
+
 /* the user's keymap: its differences from the table, as settings.json holds them */
 struct Keymap {
     /* command id -> its keys instead of the table's ([] = none) */
     std::map<std::string, std::vector<std::string>> bindings;
-    /* the quick-access toolbar's pinned commands, in order */
-    std::vector<std::string> pinned;
+    /* the quick-access toolbar's pins, in order */
+    std::vector<Pin> pinned;
 };
 
 /* "" when `key` is a key string, else why not. The grammar, once: one key
@@ -61,6 +73,18 @@ bool is_reserved_key(std::string_view key);
 
 /* the effective keys of command `row`: the user's when map binds it, else the table's defaults */
 std::vector<std::string> effective_keys(const Keymap &map, const command::Command &row);
+
+/* A pin of several steps is bound like a command, in `bindings`, by the id `pin "Name"` (the pin's name quoted as JSON text: user text is quoted,
+   and no command id has a blank). The one binding table, key grammar, reserved keys and clash check serve commands and pins; a pin of one step is
+   bound as its command is. */
+inline constexpr std::string_view PIN_BINDING_PREFIX = "pin ";
+/* the binding id of pin `name` */
+std::string pin_binding_id(std::string_view name);
+/* the pin name a binding id names (`pin "Name"`), or nothing when `id` is no pin's */
+std::optional<std::string> pin_binding_name(std::string_view id);
+
+/* "" when `name` can name a pin, else why not: not empty, at most MAX_PIN_NAME_BYTES, no control character */
+std::string pin_name_problem(std::string_view name);
 
 /* the keymap's two members as settings.json writes them: the bindings object and the pinned array, one line each */
 std::string bindings_json(const Keymap &map);

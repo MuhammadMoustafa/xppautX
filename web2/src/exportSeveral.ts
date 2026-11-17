@@ -5,8 +5,12 @@
 import type {CommandRow} from './protocol/kinds';
 import {choiceItems} from './ui/navigation';
 import type {Command} from './protocol/types';
+import {stepCommand} from './batch';
 import {choiceLabel} from './store/fieldKinds';
 import {unavailableReason} from './ui/navigation';
+
+/** the batch's title (store/batch.ts): what the status bar and Messages call it, and how the window knows the batch is its own */
+export const EXPORT_TITLE = 'Export several';
 
 /** the exports the window lists, in its order: a command with a format each (its choice), or the one that has none */
 export const EXPORT_ROWS = ['session.export_info', 'plot.export', 'data.export', 'model.export', 'animation.export', 'kinescope.export', 'array_plot.export'];
@@ -64,7 +68,7 @@ const stringArgs = (args: Record<string, string | boolean>): Record<string, stri
 /** the command that writes `item` to `file` (a base name in the model's folder, or a full path in the picked folder), with the batch's id
     and the replace answer when there is one (1: replace an existing file; left out: the file is new, or asked about as any save) */
 export function exportCommand(item: ExportItem, file: string, id: string, replace?: 1): Command {
-  return {cmd: item.cmd, ...item.args, file, id, ...(replace !== undefined && {replace})};
+  return stepCommand({cmd: item.cmd, ...item.args}, file, id, replace);
 }
 
 /** `name` in `folder`: the folder's own separator (a Windows folder has backslashes), the folder with no trailing separator */

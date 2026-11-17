@@ -21,14 +21,14 @@ test('hello gives the keymap: the table\'s keys, nothing pinned, all default', (
 
 test('a keymap event replaces it, and the differences go back as a set sends them', () => {
   const info: KeymapInfo = {
-    ...HELLO.keymap, pinned: ['session.reload_model'],
+    ...HELLO.keymap, pinned: [{name: 'Reload', steps: ['session.reload_model']}],
     commands: HELLO.keymap.commands.map(c => c.id === 'session.reload_model' ? {...c, keys: ['Ctrl+B'], source: 'user'} : c.id === 'session.save' ? {...c, keys: [], source: 'user'} : c),
   };
   const state = reduce(READY, {type: 'event', ev: {ev: 'keymap.changed', op: 'set', keymap: info}});
   assert.equal(state.keymap.info, info);
   assert.deepEqual(effectiveKeys(state.keymap.info, row('session.reload_model')), ['Ctrl+B']);
   assert.deepEqual(effectiveKeys(state.keymap.info, row('session.save')), []);
-  assert.deepEqual(userKeymap(info), {pinned: ['session.reload_model'], bindings: {'session.reload_model': ['Ctrl+B'], 'session.save': []}});
+  assert.deepEqual(userKeymap(info), {pinned: [{name: 'Reload', steps: ['session.reload_model']}], bindings: {'session.reload_model': ['Ctrl+B'], 'session.save': []}});
   /* the same keymap again changes nothing; a new hello (File > Open model) takes the file's again */
   assert.equal(reduce(state, {type: 'event', ev: {ev: 'keymap.changed', op: 'get', keymap: info}}), state);
   assert.equal(reduce(state, {type: 'event', ev: HELLO}).keymap.info, HELLO.keymap);

@@ -1,5 +1,5 @@
 import {bindableRows} from './navigation';
-/* The Settings window's Keymap group (docs/command-design.md "Keymap editor", W792): the pinned commands as one list, then every command
+/* The Settings window's Keymap group (docs/command-design.md "Keymap editor", W792): the pins as one list (each a name and its steps: PinsPane.tsx), then every command
    with its keys and where they come from. Click a key, press the new combination (Esc cancels, Backspace clears);
    a key another command has asks "Replace / Cancel"; the keys the system keeps (hello.keymap.reserved) are
    refused. Every change is the `keymap` command's `set`: the answer is what the page then shows. The
@@ -7,11 +7,12 @@ import {bindableRows} from './navigation';
 import {useLayoutEffect, useRef} from 'preact/hooks';
 import type {CommandRow} from '../protocol/kinds';
 import {
-  editorRows, effectiveKeys, movePinned, recordKey, replaceKey, sourceLabel, togglePinned, withKey, withoutBinding, withoutKey,
+  editorRows, effectiveKeys, pinOf, recordKey, replaceKey, sourceLabel, togglePinned, withKey, withoutBinding, withoutKey,
   withPinned, userKeymap, type KeymapAction,
 } from '../store/keymap';
 import {useSession, useStore} from './context';
 import {keyName} from './hotkeys';
+import {PinsPane} from './PinsPane';
 
 export function KeymapPane() {
   const session = useSession();
@@ -30,7 +31,7 @@ export function KeymapPane() {
     const rec = editor.recording;
     if (editor.conflict) dialog.querySelector<HTMLElement>('[data-conflict-replace]')?.focus();
     else if (rec) dialog.querySelector<HTMLElement>(`[data-key-cell="${CSS.escape(rec.id)}"][data-index="${rec.index}"]`)?.focus();
-    else if (!dialog.contains(document.activeElement)) dialog.querySelector<HTMLElement>('[data-keymap-search]')?.focus();
+    else if (!dialog.contains(document.activeElement)) dialog.querySelector<HTMLElement>('[data-keymap-search]')?.focus({preventScroll: true});
   }, [editor.conflict, info, editor.recording]);
   if (!info) return null;
   const rowOf = (binding: string): CommandRow | undefined => rows.find(r => r.binding === binding);
@@ -78,27 +79,14 @@ export function KeymapPane() {
   const otherRow = conflict ? rowOf(conflict.other) : undefined;
   const recordingRow = editor.recording ? rowOf(editor.recording.id) : undefined;
   const shown = editorRows(info, rows, editor.query);
-  const pins = (info.pinned.map(rowOf).filter(Boolean) as CommandRow[]);
   return <div class="keymap-pane" data-keymap-editor onKeyDown={e => { if (onKeyDown(e)) e.stopPropagation(); }}>
       {!info.ok && <p class="field-error" role="alert" data-keymap-error>
         The keymap file could not be loaded ({info.file}{info.line ? `:${info.line}` : ''}): {info.error}. The default keys are shown; changing a key replaces the file.</p>}
       <h3 class="settings-heading">Pins</h3>
-      <ol class="pin-list" data-pins>
-        {pins.map((row, i) => <li key={row.binding} data-pinned={row.binding}>
-          <span class="pin-name">{row.name}</span>
-          {effectiveKeys(info, row).map(key => <kbd key={key}>{key}</kbd>)}
-          <button type="button" aria-label={`Move ${row.name} up`} disabled={i === 0} data-pin-up={row.binding}
-            onClick={() => session.setKeymap(withPinned(info, movePinned(info.pinned, row.binding, i - 1)))}>↑</button>
-          <button type="button" aria-label={`Move ${row.name} down`} disabled={i === pins.length - 1} data-pin-down={row.binding}
-            onClick={() => session.setKeymap(withPinned(info, movePinned(info.pinned, row.binding, i + 1)))}>↓</button>
-          <button type="button" aria-label={`Unpin ${row.name}`} data-pin-remove={row.binding}
-            onClick={() => session.setKeymap(withPinned(info, togglePinned(info.pinned, row.binding)))}>✕</button>
-        </li>)}
-        {pins.length === 0 && <li class="pin-none">Nothing is pinned: use Pin in the list below.</li>}
-      </ol>
+      <PinsPane />
       <h3 class="settings-heading">Keys</h3>
       <div class="keymap-tools">
-        <label class="search-field"><span>Search</span><span class="input-box"><input type="search" data-autofocus data-keymap-search value={editor.query} placeholder="Name, id or keys"
+        <label class="search-field"><span>Search</span><span class="input-box"><input type="search" data-keymap-search value={editor.query} placeholder="Name, id or keys"
           onInput={e => ui({type: 'query', query: e.currentTarget.value})} /></span></label>
         <button type="button" data-keymap-search-keys title="Press a key combination to find the commands on it"
           onClick={() => { searchKeys.current = true; dialogBox()?.querySelector<HTMLElement>('[data-keymap-search]')?.focus(); }}>Record keys</button>
@@ -122,7 +110,7 @@ export function KeymapPane() {
           <tbody>{shown.map(row => {
             const keys = effectiveKeys(info, row);
             const source = sourceLabel(info, row);
-            const pinned = info.pinned.includes(row.binding);
+            const pinned = !!pinOf(info.pinned, row.binding);
             const recording = editor.recording?.id === row.binding ? editor.recording.index : -1;
             const record = (index: number) => ui({type: 'record', recording: {id: row.binding, index}});
             return <tr key={row.binding} data-keymap-row={row.binding}>
@@ -132,7 +120,11 @@ export function KeymapPane() {
                 <span class="keymap-key" key={i}>
                   <button type="button" data-key-cell={row.binding} data-index={i} aria-label={`${row.name}: ${key || 'new key'}. Press Enter to change it`}
                     onClick={e => { e.currentTarget.focus(); record(i); }}
-                    onBlur={() => { if (editor.recording?.id === row.binding && editor.recording.index === i) ui({type: 'record', recording: null}); }}>
+                    onBlur={() => {
+                      /* the recording as it is now, not as this render saw it: a cell that goes away when its key is set or in conflict blurs, and that must not end the answer */
+                      const now = session.store.getState().keymap.editor.recording;
+                      if (now?.id === row.binding && now.index === i) ui({type: 'record', recording: null});
+                    }}>
                     {recording === i ? <em>Press keys…</em> : <kbd>{key}</kbd>}</button>
                   {key && <button type="button" class="keymap-remove" data-key-remove={row.binding} aria-label={`Remove ${key} from ${row.name}`}
                     onClick={() => session.setKeymap(withoutKey(info, row, i))}>×</button>}
@@ -149,7 +141,7 @@ export function KeymapPane() {
                   onClick={() => session.setKeymap(withoutBinding(info, row.binding))}>Reset</button>}
                 {row.pinnable && <button type="button" data-key-pin={row.binding} aria-pressed={pinned}
                   aria-label={`${pinned ? 'Unpin' : 'Pin'} ${row.name} ${pinned ? 'from' : 'to'} the toolbar`}
-                  onClick={() => session.setKeymap(withPinned(info, togglePinned(info.pinned, row.binding)))}>{pinned ? 'Unpin' : 'Pin'}</button>}
+                  onClick={() => session.setKeymap(withPinned(info, togglePinned(info.pinned, row)))}>{pinned ? 'Unpin' : 'Pin'}</button>}
               </td>
             </tr>;
           })}</tbody>

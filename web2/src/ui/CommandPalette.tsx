@@ -2,7 +2,7 @@ import {useState} from 'preact/hooks';
 import {useMay, useSession, useStore} from './context';
 import {CommandLabel, useCommandLabel} from './CommandButton';
 import {featureLack, paletteRows, registryRows} from './navigation';
-import {effectiveKeys, togglePinned, withPinned} from '../store/keymap';
+import {effectiveKeys, pinOf, togglePinned, withPinned} from '../store/keymap';
 import {Dialog} from './Dialog';
 
 export function CommandPalette() {
@@ -30,7 +30,7 @@ function Palette() {
     <ul>{rows.map(row => <li key={row.binding}>
       <button class="menu-item" data-command={row.id} data-choice={row.choice?.value} disabled={!may({cmd: row.id}) || !!featureLack(hello, row.needs)} title={featureLack(hello, row.needs) ?? row.description}
         onClick={() => {close(); session.registryRow(row);}}>{row.name} {featureLack(hello, row.needs) ? <small>{featureLack(hello, row.needs)}</small> : <kbd>{effectiveKeys(info, row).join(' / ')}</kbd>}</button>
-      {info && <button data-pin={row.binding} aria-pressed={info.pinned.includes(row.binding)} onClick={() => session.setKeymap(withPinned(info, togglePinned(info.pinned, row.binding)))}>{info.pinned.includes(row.binding) ? 'Unpin' : 'Pin'}</button>}
+      {info && <button data-pin={row.binding} aria-pressed={!!pinOf(info.pinned, row.binding)} onClick={() => session.setKeymap(withPinned(info, togglePinned(info.pinned, row)))}>{pinOf(info.pinned, row.binding) ? 'Unpin' : 'Pin'}</button>}
     </li>)}</ul>
   </Dialog>;
 }

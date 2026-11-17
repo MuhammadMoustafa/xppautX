@@ -203,8 +203,9 @@ if the output could not be written.
 <!-- registry:start -->
 | Command | Arguments | Kind / category | Menu | Result | Events | Description |
 |---|---|---|---|---|---|---|
-| `keymap.get` | none | `c` / panels | Get keymap | `bindings`: `map[text, list[text]]`, `pinned`: `list[text]` | `keymap.changed`, `done` | The user's keymap: the keys of the commands they changed, and the pinned commands. |
-| `keymap.set` | `bindings`: optional map [of list[text], at most 256], `pinned`: optional list [of text, at most 256] | `c` / panels | Set keymap | `saved`: `boolean` | `keymap.changed`, `session.state`, `done` | Replace the bindings or the pinned commands given (what is left out stays); the keymap is checked whole, then written. |
+| `keymap.get` | none | `c` / panels | Get keymap | `bindings`: `map[text, list[text]]`, `pinned`: `list[text]`, `steps`: `map[text, list[text]]` | `keymap.changed`, `done` | The user's keymap: the keys of the commands they changed, and the pins (their names in order, and their steps by name). |
+| `keymap.set` | `bindings`: optional map [of list[text], at most 256], `pinned`: optional list [of text, at most 256], `steps`: optional map [of list[text], at most 256] | `c` / panels | Set keymap | `saved`: `boolean` | `keymap.changed`, `session.state`, `done` | Replace the bindings or the pins given (what is left out stays): `pinned` the pins' names in order, `steps` each pin's steps by name, a name only `steps` has added at the end; the keymap is checked whole, then written. |
+| `keymap.check_step` | `step`: required text (max 16384 bytes) | `c` / panels | Check a pin's step | `run`: `map` | `done` | Check a command value as a pin's step (the one reader of command_def.h's read_value) and answer the command that runs it; nothing is written. |
 | `keymap.reset` | none | `c` / panels | Reset keymap | `reset`: `boolean` | `keymap.changed`, `session.state`, `done` | Remove the user's keymap: every command has its default keys. |
 | `session.open_model` | `file`: optional path (max 1024 bytes), `example`: optional text (max 1024 bytes), `recent`: optional integer [at least 0]; at most one of `file`, `example`, `recent` | `d` / files | File/Open model | `model`: `text`, `variables`: `list[name]`, `parameters`: `list[name]` | `hello`, `session.state`, `done` | Open a model: a model file by its path (--server's own input only), a bundled example by its name, or one of the recent models by its place in hello.start.recent. Asks first whether to save this session. |
 | `session.reload_model` | none | `d` / files | File/Reload model | `reloaded`: `boolean` | `hello`, `session.state`, `done` | Load the model's file again; the parameters, initial data, numerics and autoX options keep their values by name. |
@@ -808,14 +809,17 @@ never disagree.
 
     {
       "version": 4,
-      "pinned": ["session.reload_model", "calculator.evaluate"],
+      "pinned": [
+        {"name": "Reload", "steps": ["session.reload_model"]},
+        {"name": "Figures", "steps": ["run.initial", "plot.export --format pdf"]}
+      ],
       "bindings": {
         "session.reload_model": ["Ctrl+B", "F9"],
         "session.save": []
       }
     }
 
-- `pinned`: the quick-access commands, in order; each a command value (below), none twice.
+- `pinned`: the pins, in order (W775, [#855](https://github.com/MuhammadMoustafa/xppautX/issues/855)): each `{"name", "steps"}`, the name unique (1 to 64 bytes, no control character), the steps one to 8 command values (below) the page runs in order, one ordinary command each, through the batch runner File > Export > Several uses (no command of the core runs a pin: a recording holds the steps as the commands they are). A pin of one step is a toolbar button for that command, and bound as its command is. A pin of several steps is bound like a command, in `bindings`, by the id `pin "Name"` (the name quoted as JSON text), through the one binding table: the same key grammar, reserved keys and clash check (a key another command has is refused with both named), listed in `hello.keymap.commands` with its keys and run from its key as the pin's toolbar button runs it; the binding must name a pin of several steps the same file has, and `keymap.set` sends the pins and their bindings together. A step that would ask for its file takes the model's output name in the model's folder (a step with no output name and no `--file` is refused by the page); `--file` names the file. `keymap.set` sends `pinned` as the names in order and `steps` as name to steps (a name only `steps` has is added at the end), `keymap.get` answers both, and `keymap.check_step` (`step`) reads a command value as a step would be, answering `run` (the command that runs it) or the error, writing nothing. hello's `keymap.pinned` is the list of pins.
 - `bindings`: a command value to its keys; for a bare command name these replace the table's `default_keys`, `[]` is no key, and a command not named keeps the table's keys.
 
 **A command value** (W772, #852) is a command with fixed argument values, written as the `--server` text command is, in one string: the command name, then `--argument value` words in the row's own argument order, single values only (no list or map), a choice bare and any text quoted with JSON escapes inside the string. `"model.export --language python": ["Ctrl+E"]` binds the item File > Export > Model as > Python; the bare `"model.export"` still opens the command's form. The text is read by the one text-command reader (core/command_text.cpp, `read_value`) and checked as the command checks its arguments (no model, no path argument: a binding never names a file); a value that is not written as the reader would spell it (another order, extra blanks) is refused with the spelling to write. A command whose file is required and not given is run with the file picker, as a submenu item does. Any command and any fixed arguments may be named, not only a `menu_choice` item; a key runs the value only when it is pressed, through the path a click on the item takes. A model's buttons name the same value ("Buttons").
@@ -837,7 +841,7 @@ applied: not valid JSON, text after the value, nesting too deep, a NUL byte,
 a file over the size limit, an unknown top-level option, an option or a
 command twice, an unknown command id or a shortcut-layer row, a value of the
 wrong type, a malformed key, a key with a space (a sequence), a reserved key, a command
-with too many keys, two commands or values on one key (refused with both named), a pinned command twice, a binding or pin that is no command value (an unknown command or argument, a value the command refuses, a list or map, another spelling: the error names the value), a `preset` (an unknown option).
+with too many keys, two commands or values on one key (refused with both named), a pin without a name, a name twice, a pin with no steps or more than 8, a binding or a step that is no command value (an unknown command or argument, a value the command refuses, a list or map, another spelling: the error names the value), a `preset` (an unknown option).
 The effective map is checked: the keys of the commands the file leaves alone are
 the table's. A missing file is all defaults and no error; a bad one never
 falls back silently.
@@ -855,7 +859,7 @@ result as the page keeps it:
 | `ok` | false when the file could not be loaded |
 | `error`, `file`, `line`, `col`, `source`, `field` | only when `ok` is false: the common error shape ("Errors"), at the file's line (an unreadable or oversized file at no line) |
 | `path` | the settings file ("" when the system names no config folder) |
-| `pinned` | the user's (`[]` when `ok` is false) |
+| `pinned` | the user's pins, [{`name`, `steps`}...] (`[]` when `ok` is false) |
 | `reserved` | the keys no command may take |
 | `limits` | `keys` (per command), `key_bytes` |
 | `commands` | [{`id`, `keys`, `source`}...] for every command but the shortcut-layer rows: the effective keys, and whether they are the table's (`default`) or the user's (`user`); then one entry with `source` `user` for each bound command value with arguments (`id` is the value) |

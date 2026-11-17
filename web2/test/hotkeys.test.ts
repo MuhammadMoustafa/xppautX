@@ -3,8 +3,7 @@ import assert from 'node:assert/strict';
 import {commandOnKey, handleKey, keyName} from '../src/ui/hotkeys';
 import {REGISTRY_HELLO as HELLO} from './hello';
 import {bindableRows, registryRows} from '../src/ui/navigation';
-import {pinnedRows} from '../src/store/keymap';
-import type {HelloEvent} from '../src/protocol/types';
+import type {HelloEvent, Pin} from '../src/protocol/types';
 import {initialState, reduce, type Action} from '../src/store/state';
 import type {Session} from '../src/session';
 
@@ -56,7 +55,7 @@ test('W517: palette is a customizable registry key, and no default uses a reserv
 const EXPORT = {cmd: 'model.export', kind: 'd', step: true, label: 'Model as', name: 'File \u203a Export \u203a Model as', description: 'Write the model.', category: 'files',
   menu_choice: 'language', default_keys: [], arguments: [{name: 'language', type: 'choice', required: true, choices: ['python', 'python_numpy']}, {name: 'file', type: 'file', required: false}]};
 const WITH_EXPORT = {...HELLO, menu_separator: ' \u203a ', commands: [...HELLO.commands.filter(c => c.cmd !== 'model.export'), EXPORT]} as unknown as HelloEvent;
-function valued(keys: Record<string, string[]>, pinned: string[] = [], values: HelloEvent['keymap']['values'] = []) {
+function valued(keys: Record<string, string[]>, pinned: Pin[] = [], values: HelloEvent['keymap']['values'] = []) {
   const on = session();
   const commands = [...registryRows(WITH_EXPORT).map(row => ({id: row.id, keys: row.default_keys, source: 'default' as const})),
     ...Object.entries(keys).map(([id, k]) => ({id, keys: k, source: 'user' as const}))];
@@ -78,16 +77,18 @@ test('W772: a key bound to an item runs it as the submenu click does; the bare c
   handleKey(s, event('e', {ctrlKey: true}));
   assert.deepEqual(calls, ['model.export {"language":"python"}']);
 });
-test('W772: a pin names an item, or a command value no row lists, and both become rows', () => {
+test('W772: a pin names an item, or a command value no row lists, and the second becomes a row', () => {
   const other = 'model.export --language python --file "a.py"';
-  const {info} = valued({}, ['model.export --language python_numpy', other], [{value: other, run: {cmd: 'model.export', language: 'python', file: 'a.py'}}]);
-  const rows = pinnedRows(info, bindableRows(WITH_EXPORT, info));
-  assert.deepEqual(rows.map(r => r.binding), ['model.export --language python_numpy', other]);
-  assert.deepEqual(rows[1].choice?.arguments, {language: 'python', file: 'a.py'});
+  const {info} = valued({}, [{name: 'A', steps: ['model.export --language python_numpy']}, {name: 'B', steps: [other]}],
+    [{value: other, run: {cmd: 'model.export', language: 'python', file: 'a.py'}}]);
+  const rows = bindableRows(WITH_EXPORT, info);
+  const row = rows.find(r => r.binding === other)!;
+  assert.deepEqual(row.choice?.arguments, {language: 'python', file: 'a.py'});
+  assert.ok(rows.some(r => r.binding === 'model.export --language python_numpy'));
 });
 test('W772: a bound item is one row (the item\'s own), whether or not the core lists its value', () => {
   const item = 'model.export --language python';
-  const {info} = valued({[item]: ['Ctrl+E']}, [item], [{value: item, run: {cmd: 'model.export', language: 'python'}}]);
+  const {info} = valued({[item]: ['Ctrl+E']}, [{name: 'Python', steps: [item]}], [{value: item, run: {cmd: 'model.export', language: 'python'}}]);
   const rows = bindableRows(WITH_EXPORT, info).filter(r => r.binding === item);
   assert.equal(rows.length, 1);
   assert.equal(bindableRows(WITH_EXPORT, info).length, new Set(bindableRows(WITH_EXPORT, info).map(r => r.binding)).size);

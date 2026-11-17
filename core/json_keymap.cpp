@@ -1,6 +1,7 @@
 /* The `keymap` command and hello's `keymap` and `settings` (docs/protocol.md "Keymap"): the protocol's side of xpp_keymap.h and
    xpp_settings.h, which own the keys and the file. Window and browser mode both come through here, so they read and write the one
    settings.json. */
+#include <algorithm>
 #include <cstddef>
 #include <expected>
 #include <string>
@@ -67,12 +68,23 @@ std::string keymap_result(const xpp::keymap::Keymap &map)
         }
         bindings += ']';
     }
-    std::string pinned = "[";
+    /* the pins in order: their names, and their steps by name */
+    std::string pinned = "[", steps = "{";
     for (std::size_t i = 0; i < map.pinned.size(); ++i) {
-        if (i) pinned += ',';
-        json_append_string(pinned, map.pinned[i]);
+        if (i) {
+            pinned += ',';
+            steps += ',';
+        }
+        json_append_string(pinned, map.pinned[i].name);
+        json_append_string(steps, map.pinned[i].name);
+        steps += ":[";
+        for (std::size_t k = 0; k < map.pinned[i].steps.size(); ++k) {
+            if (k) steps += ',';
+            json_append_string(steps, map.pinned[i].steps[k]);
+        }
+        steps += ']';
     }
-    return xpp::command::ResultObject().raw("bindings", bindings + '}').raw("pinned", pinned + ']').done();
+    return xpp::command::ResultObject().raw("bindings", bindings + '}').raw("pinned", pinned + ']').raw("steps", steps + '}').done();
 }
 
 } // namespace
@@ -95,11 +107,35 @@ xpp::Result<std::string> keymap_set(xpp::Session &s, const xpp::command::Argumen
         map.bindings.clear();
         for (auto &[command, keys] : args.map<std::vector<std::string>>("bindings")) map.bindings.emplace(command, std::move(keys));
     }
-    if (args.has("pinned")) map.pinned = args.list<std::string>("pinned");
+    if (args.has("pinned") || args.has("steps")) {
+        /* the pins are `pinned`'s names in order, each with its steps from `steps` or else as it is; a name only `steps` has is added at the end */
+        const std::vector<xpp::keymap::Pin> before = std::move(map.pinned);
+        std::vector<std::string> names;
+        if (args.has("pinned")) names = args.list<std::string>("pinned");
+        else for (const xpp::keymap::Pin &pin : before) names.push_back(pin.name);
+        auto given = args.has("steps") ? args.map<std::vector<std::string>>("steps") : decltype(args.map<std::vector<std::string>>("steps")){};
+        for (const auto &[name, steps] : given)
+            if (std::ranges::find(names, name) == names.end()) names.push_back(name);
+        map.pinned.clear();
+        for (std::string &name : names) {
+            const auto sent = std::ranges::find(given, name, &decltype(given)::value_type::first);
+            const auto kept = std::ranges::find(before, name, &xpp::keymap::Pin::name);
+            std::vector<std::string> steps = sent != given.end() ? std::move(sent->second) : kept != before.end() ? kept->steps : std::vector<std::string>{};
+            map.pinned.push_back({std::move(name), std::move(steps)});
+        }
+    }
     /* checked whole, then written: nothing of an unusable keymap is kept */
     if (const xpp::Result<> saved = xpp::settings::set_keymap(*s.model().fs, map); !saved) return std::unexpected(saved.error());
     send_keymap(s, "set");
     return xpp::command::ResultObject().boolean("saved", true).done();
+}
+
+xpp::Result<std::string> keymap_check_step(const xpp::command::Arguments &args)
+{
+    const std::string step = args.get<std::string>("step");
+    const xpp::Result<xpp::command::CommandValue> value = xpp::command::read_value(step, xpp::command_place());
+    if (!value) return std::unexpected(value.error());
+    return xpp::command::ResultObject().raw("run", value->run).done();
 }
 
 xpp::Result<std::string> keymap_reset(xpp::Session &s)

@@ -30,6 +30,7 @@ import {TitleBar} from './TitleBar';
 import {ErrorDialog} from './ErrorDialog';
 import {SettingsWindow} from './SettingsWindow';
 import {ExportSeveral} from './ExportSeveral';
+import {BatchQuestion} from './BatchQuestion';
 import {ReplaceDialog} from './FileDialog';
 import {ErrorSource} from './ErrorSource';
 import {Toasts} from './Toasts';
@@ -129,6 +130,7 @@ function Shell() {
       <ErrorDialog />
       <SettingsWindow />
       <ExportSeveral />
+      <BatchQuestion />
       <ReplaceDialog />
     </div>
   );
@@ -160,6 +162,7 @@ function StartShell() {
       <ErrorDialog />
       <SettingsWindow />
       <ExportSeveral />
+      <BatchQuestion />
       <ReplaceDialog />
     </div>
   );

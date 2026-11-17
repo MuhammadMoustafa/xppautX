@@ -96,6 +96,8 @@ export interface CommandRow {
   /** a CommandCategory id */
   category: string;
   pinnable: boolean;
+  /** a pin of several steps listed as a row (store/keymap.ts pinRows): its name; the row runs the pin, and its binding is the pin's id in the keymap */
+  pin?: string;
   /** keys that run it from the page ("Ctrl+O": Ctrl, or Cmd on macOS) */
   default_keys: string[];
 }

@@ -73,7 +73,7 @@ html.player-docked .shell { padding-top: var(--player-dock-h, 0); } /* the shell
 .player-progress-text { font-size: var(--text-xs); color: var(--fg-muted); display: flex; justify-content: space-between; gap: var(--space-2); }
 .player-steps { flex: 0 1 20rem; min-width: 14rem; max-height: 70vh; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 .player-steps-title { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); padding: var(--space-3) var(--space-3) var(--space-1); }
-.player-steps ol { list-style: none; margin: 0; padding: 0 var(--space-2); }
+.player-steps ol, .pin-steps { list-style: none; margin: 0; padding: 0 var(--space-2); }
 .player-step { width: 100%; display: block; text-align: left; white-space: normal; border: 1px solid transparent; background: none; padding: var(--space-1) var(--space-2); border-radius: 0.375rem; min-height: var(--target); }
 .player-step:hover { background: var(--surface-2); }
 .player-step-note { display: block; font-size: var(--text-xs); color: var(--fg-muted); font-style: italic; }

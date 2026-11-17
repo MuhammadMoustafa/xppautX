@@ -23,6 +23,16 @@ args = ap.parse_args()
 SLOW = float(os.environ.get('XPP_CHECK_SLOW', '1'))
 MAX_VALUE_UNDO = 100  # core/value_undo.h
 
+def P(*cmds):
+    """W775: keymap.set's pins, one pin of one step for each command value, named as it is"""
+    return {'pinned': list(cmds), 'steps': {c: [c] for c in cmds}}
+
+
+def PINS(*cmds):
+    """the pins of the keymap object that P(*cmds) makes"""
+    return [{'name': c, 'steps': [c]} for c in cmds]
+
+
 def _reject_non_finite(text):
     """json.loads' parse_constant: NaN/Infinity/-Infinity are not valid
     JSON (W35a, json_number.h); a strict parse must fail on them instead
@@ -2257,16 +2267,16 @@ def check_session_commands():
         # the keymap
         done, evs = call(cmd='keymap.get')
         check('W528: keymap.get answers the user\'s own differences, and sends the keymap event',
-              done['result'] == {'bindings': {}, 'pinned': []} and any(e.get('ev') == 'keymap.changed' and e['op'] == 'get' for e in evs), str(done))
-        done, evs = call(cmd='keymap.set', bindings={'session.reload_model': ['Ctrl+B']}, pinned=['calculator.evaluate'])
+              done['result'] == {'bindings': {}, 'pinned': [], 'steps': {}} and any(e.get('ev') == 'keymap.changed' and e['op'] == 'get' for e in evs), str(done))
+        done, evs = call(cmd='keymap.set', bindings={'session.reload_model': ['Ctrl+B']}, **P('calculator.evaluate'))
         km = next((e['keymap'] for e in evs if e.get('ev') == 'keymap.changed'), {})
         check('W528: keymap.set writes the parts given and sends the effective keymap',
-              done['result'] == {'saved': True} and 'preset' not in km and km.get('pinned') == ['calculator.evaluate']
+              done['result'] == {'saved': True} and 'preset' not in km and km.get('pinned') == PINS('calculator.evaluate')
               and os.path.exists(os.path.join(config, 'settings.json')), str(done) + str(km)[:200])
-        done, _ = call(cmd='keymap.set', pinned=['session.reload_model'])
+        done, _ = call(cmd='keymap.set', **P('session.reload_model'))
         done2, _ = call(cmd='keymap.get')
         check('W528: keymap.set leaves out what it is not given: the bindings stay',
-              done2['result'] == {'bindings': {'session.reload_model': ['Ctrl+B']}, 'pinned': ['session.reload_model']}, str(done2))
+              done2['result'] == {'bindings': {'session.reload_model': ['Ctrl+B']}, 'pinned': ['session.reload_model'], 'steps': {'session.reload_model': ['session.reload_model']}}, str(done2))
         for bad, text in ((dict(bindings={'session.reload_model': 'Ctrl+B'}), 'bindings'), (dict(bindings={'nosuch': ['Ctrl+B']}), 'nosuch'),
                           (dict(bindings={'session.reload_model': ['ctrl+b']}), 'ctrl+b'), (dict(bindings={'session.reload_model': ['Ctrl+W']}), 'Ctrl+W'),
                           (dict(bindings={'session.reload_model': ['Ctrl+B'], 'calculator.evaluate': ['Ctrl+B']}), 'Ctrl+B'), (dict(pinned=['quit']), 'quit'),
@@ -2427,12 +2437,12 @@ def check_export_several():
               reasons == {'animation.export': 'needs an animation loaded', 'kinescope.export': 'needs captured frames',
                           'array_plot.export': 'needs an array plot'}, str(reasons))
         for command, extra, label in [
-                ('animation.export', {'output': 'animated_gif', 'file': 'lecar.gif'}, 'Animation as'),
-                ('kinescope.export', {'output': 'animated_gif', 'file': 'lecar.gif'}, 'Kinescope as'),
-                ('array_plot.export', {'format': 'pdf', 'file': 'lecar.pdf'}, 'Array plot as')]:
+                ('animation.export', {'output': 'animated_gif', 'file': 'lecar.gif'}, 'Animation'),
+                ('kinescope.export', {'output': 'animated_gif', 'file': 'lecar.gif'}, 'Kinescope'),
+                ('array_plot.export', {'format': 'pdf', 'file': 'lecar.pdf'}, 'Array plot')]:
             s.send(cmd=command, **extra)
             _, done = s.collect(lambda e: e.get('ev') == 'done')
-            want = 'File \u203a Export \u203a %s %s' % (label, reasons[command])
+            want = 'File \u203a Export \u203a %s %s' % (label, reasons[command])  # W775: the submenu's "as" is not part of the sentence
             check('W774: %s refuses with the reason the window greys it with, before it runs' % command,
                   done.get('status') == 'error' and str(done.get('error', '')).startswith(want), str(done))
         s.send(cmd='session.file_exists', file='lecar.txt')
@@ -3814,7 +3824,7 @@ check('W773: the two commands each of a graph and a diagram picture became one, 
 LABEL_WORDS_OF_OTHER_THINGS = {
     ('ui/KeymapPane.tsx', 'Replace'): "the answer that replaces a key's other command",
     ('ui/SliderDialog.tsx', 'Step'): "a slider's step size",
-    ('ui/ExportSeveral.tsx', 'Replace'): "the replace question's answer, which replaces each file that exists (no command of its own)",
+    ('ui/BatchQuestion.tsx', 'Replace'): "the replace question's answer, which replaces each file that exists (no command of its own)",
 }
 # the window's own native menu, which no row describes
 NATIVE_MENU_ITEMS = {'Help/About', 'Help/Check for updates'}
@@ -11337,7 +11347,7 @@ def check_keymap():
               [e.get('op') for e in keymap_events(evs)] == ['get'] and keymap_events(evs)[0]['keymap'] == km
               and not errors(evs), str(evs)[-300:])
 
-        good = {'pinned': ['session.reload_model', 'calculator.evaluate'],
+        good = {**P('session.reload_model', 'calculator.evaluate'),
                 'bindings': {'session.reload_model': ['Ctrl+B', 'Ctrl+K'], 'session.save': [], 'run.continue': ['Alt+I']}}
         snd(cmd='keymap.set', **good)
         evs, _ = col(is_done)
@@ -11345,7 +11355,7 @@ def check_keymap():
         cmds = by_id(ev[0]['keymap']) if ev else {}
         check('W211: set checks the map, makes the folder, writes the file and answers the effective keymap',
               len(ev) == 1 and ev[0]['op'] == 'set' and ev[0]['keymap']['ok'] is True and not errors(evs)
-              and 'preset' not in ev[0]['keymap'] and ev[0]['keymap']['pinned'] == ['session.reload_model', 'calculator.evaluate']
+              and 'preset' not in ev[0]['keymap'] and ev[0]['keymap']['pinned'] == PINS('session.reload_model', 'calculator.evaluate')
               and cmds['session.reload_model'] == {'id': 'session.reload_model', 'keys': ['Ctrl+B', 'Ctrl+K'], 'source': 'user'}
               and cmds['session.save'] == {'id': 'session.save', 'keys': [], 'source': 'user'}
               and cmds['session.open_model']['source'] == 'default' and os.path.isfile(path), str(evs)[-300:])
@@ -11358,10 +11368,10 @@ def check_keymap():
                 ('a reserved key', {'bindings': {'session.reload_model': ['Ctrl+W']}}, 1, 'Ctrl+W'),
                 ('a key two commands would share', {'bindings': {'calculator.evaluate': ['Ctrl+O']}}, 1, 'session.open_model'),
                 ('a sequence of keys', {'bindings': {'calculator.evaluate': ['F S']}}, 1, 'F S'),
-                ('an unknown command', {'pinned': ['nosuch']}, 1, 'nosuch'),
-                ('a removed command pinned', {'pinned': ['retired_help']}, 1, 'retired_help'),
+                ('an unknown command', P('nosuch'), 1, 'nosuch'),
+                ('a removed command pinned', P('retired_help'), 1, 'retired_help'),
                 ('a removed command bound', {'bindings': {'tutorial': ['Ctrl+T']}}, 1, 'tutorial'),
-                ('a command that cannot be pinned', {'pinned': ['quit']}, 1, 'quit'),
+                ('a command that cannot be pinned', P('quit'), 1, 'quit'),
                 ('a malformed key', {'bindings': {'session.reload_model': ['ctrl+r']}}, 1, 'ctrl+r'),
                 ]:
             snd(cmd='keymap.set', **bad)
@@ -11388,11 +11398,11 @@ def check_keymap():
         evs, _ = col(is_done)
         km = next(e for e in evs if e.get('ev') == 'hello')['keymap']
         check('W211: another server reads the same file: window and browser never disagree',
-              km['ok'] is True and by_id(km)['session.reload_model']['keys'] == ['Ctrl+B', 'Ctrl+K'] and km['pinned'] == ['session.reload_model', 'calculator.evaluate'], str(km)[:200])
+              km['ok'] is True and by_id(km)['session.reload_model']['keys'] == ['Ctrl+B', 'Ctrl+K'] and km['pinned'] == PINS('session.reload_model', 'calculator.evaluate'), str(km)[:200])
 
         # a bad file, written by hand: shown as an error at its line, the defaults marked, nothing applied
         with open(path, 'w', newline='\n') as f:
-            f.write(keymap_file_text('{"version": 4,\n  "pinned": ["session.reload_model"],\n  "bindings": {"session.reload_model": ["Ctrl+Q"]}\n}\n'))
+            f.write(keymap_file_text('{"version": 4,\n  "pinned": [{"name": "A", "steps": ["session.reload_model"]}],\n  "bindings": {"session.reload_model": ["Ctrl+Q"]}\n}\n'))
         snd(cmd='keymap.get')
         evs, _ = col(is_done)
         ev = keymap_events(evs)
@@ -11412,36 +11422,102 @@ def check_keymap():
             check('W536: a file with %s is refused with its file, line and value, nothing applied' % what,
                   len(ev) == 1 and km.get('ok') is False and same(km['file'], path) and km['line'] == line and value in km['error']
                   and by_id(km)['calculator.evaluate']['keys'] == [], str(evs)[-400:])
-        snd(cmd='keymap.set', pinned=['calculator.evaluate'])
+        snd(cmd='keymap.set', **P('calculator.evaluate'))
         evs, _ = col(is_done)
         ev = keymap_events(evs)
         check('W790: set refuses to replace a bad settings.json: the error names the file, nothing is written', len(ev) == 0 and len(errors(evs)) == 1 and same(errors(evs)[0]['file'], path), str(evs)[-300:])
         with open(path, 'w', newline='\n') as f:
-            f.write(keymap_file_text('{"version": 4,\n  "pinned": ["calculator.evaluate"]}\n'))
-        snd(cmd='keymap.set', pinned=['calculator.evaluate'])
+            f.write(keymap_file_text('{"version": 4,\n  "pinned": [{"name": "A", "steps": ["calculator.evaluate"]}]}\n'))
+        snd(cmd='keymap.set', **P('calculator.evaluate'))
         evs, _ = col(is_done)
         ev = keymap_events(evs)
         check('W211: set replaces the keymap of a good file, the rest left as it is', len(ev) == 1 and ev[0]['keymap']['ok'] is True
-              and ev[0]['keymap']['pinned'] == ['calculator.evaluate'], str(evs)[-300:])
+              and ev[0]['keymap']['pinned'] == PINS('calculator.evaluate'), str(evs)[-300:])
 
         # W772: a binding and a pin name a command with its arguments, written as the text command; the page gets what runs it
         value = 'model.export --language python'
-        snd(cmd='keymap.set', bindings={value: ['Ctrl+E']}, pinned=[value])
+        snd(cmd='keymap.set', bindings={value: ['Ctrl+E']}, **P(value))
         evs, _ = col(is_done)
         ev = keymap_events(evs)
         km = ev[0]['keymap'] if ev else {}
         check('W772: set takes a command with arguments, bound and pinned by its value, and answers what runs it',
-              len(ev) == 1 and km.get('ok') is True and km['pinned'] == [value] and by_id(km)[value]['keys'] == ['Ctrl+E'] and by_id(km)[value]['source'] == 'user'
+              len(ev) == 1 and km.get('ok') is True and km['pinned'] == PINS(value) and by_id(km)[value]['keys'] == ['Ctrl+E'] and by_id(km)[value]['source'] == 'user'
               and km['values'] == [{'value': value, 'run': {'cmd': 'model.export', 'language': 'python'}}] and not errors(evs), str(evs)[-300:])
         before = open(path, 'rb').read()
         for what, bad, text in [('a value no choice has', {'bindings': {'model.export --language nosuch': ['Ctrl+E']}}, 'nosuch'),
-                                ('an argument the command lacks', {'pinned': ['model.export --nosuch python']}, 'nosuch'),
+                                ('an argument the command lacks', P('model.export --nosuch python'), 'nosuch'),
                                 ('another spelling', {'bindings': {'model.export  --language python': ['Ctrl+E']}}, 'write the value as')]:
             snd(cmd='keymap.set', **bad)
             evs, _ = col(is_done)
             err = errors(evs)
             check('W772: set refuses %s with the value, and writes nothing' % what,
                   len(err) == 1 and text in err[0]['error'] and err[0]['file'] == 'the keymap sent' and not keymap_events(evs) and open(path, 'rb').read() == before, str(evs)[-300:])
+
+        # W775: a pin is a name and its steps, each a command value; keymap.check_step reads a step as the one reader does, writing nothing
+        steps = ['run.initial', 'plot.export --format pdf', 'plot.export --format svg --file "fig1.svg"']
+        snd(cmd='keymap.set', pinned=['Figures'], steps={'Figures': steps})
+        evs, _ = col(is_done)
+        ev = keymap_events(evs)
+        km = ev[0]['keymap'] if ev else {}
+        check('W775: set takes a pin of several steps, and answers it with its steps in order',
+              len(ev) == 1 and km.get('ok') is True and km['pinned'] == [{'name': 'Figures', 'steps': steps}] and not errors(evs), str(evs)[-300:])
+        check('W775: the command each step runs is given for a step with arguments (a file the step names is kept)',
+              {'value': steps[2], 'run': {'cmd': 'plot.export', 'format': 'svg', 'file': 'fig1.svg'}} in km['values']
+              and {'value': steps[1], 'run': {'cmd': 'plot.export', 'format': 'pdf', 'file_picker': True}} in km['values'], str(km['values']))
+        snd(cmd='keymap.get')
+        evs, _ = col(is_done)
+        done = next(e for e in evs if e.get('ev') == 'done')
+        check('W775: get answers the pins as names in order and steps by name', done['result']['pinned'] == ['Figures'] and done['result']['steps'] == {'Figures': steps}, str(done))
+        snd(cmd='keymap.set', steps={'Figures': steps[:1], 'Other': steps[1:2]})
+        evs, _ = col(is_done)
+        km = keymap_events(evs)[0]['keymap']
+        check('W775: set with steps changes those pins: the steps of one given, a pin only steps has added at the end',
+              km['pinned'] == [{'name': 'Figures', 'steps': steps[:1]}, {'name': 'Other', 'steps': steps[1:2]}], str(km['pinned']))
+        before = open(path, 'rb').read()
+        for what, bad, text in [('a pin with no steps', dict(pinned=['None']), 'no steps'),
+                                ('a pin twice', dict(pinned=['Figures', 'Figures']), 'twice'),
+                                ('an empty name', dict(pinned=['']), 'name'),
+                                ('a step that is no command', dict(steps={'Figures': ['run.initial', 'nosuch']}), 'nosuch'),
+                                ('a step with a bad argument', dict(steps={'Figures': ['data.export --format cvs']}), 'cvs'),
+                                ('a step of another spelling', dict(steps={'Figures': ['plot.export  --format pdf']}), 'write the value as'),
+                                ('too many steps', dict(steps={'Figures': ['run.initial'] * 9}), 'more than 8')]:
+            snd(cmd='keymap.set', **bad)
+            evs, _ = col(is_done)
+            err = errors(evs)
+            # a list too long is the command's own check, placed at the command
+            check('W775: set refuses %s with its value, and writes nothing' % what,
+                  len(err) == 1 and text in err[0]['error'] and err[0]['file'] in ('the keymap sent', 'command') and not keymap_events(evs) and open(path, 'rb').read() == before, str(evs)[-300:])
+        for step, run, text in [('plot.export --format pdf', {'cmd': 'plot.export', 'format': 'pdf', 'file_picker': True}, None),
+                                ('plot.export --format svg --file "a.svg"', {'cmd': 'plot.export', 'format': 'svg', 'file': 'a.svg'}, None),
+                                ('run.initial', {'cmd': 'run.initial'}, None),
+                                ('data.export --format cvs', None, 'cvs'), ('nosuch', None, 'nosuch'), ('plot.export  --format pdf', None, 'write the value as')]:
+            snd(cmd='keymap.check_step', step=step)
+            evs, _ = col(is_done)
+            done = next(e for e in evs if e.get('ev') == 'done')
+            check('W775: check_step reads %r %s' % (step, 'as the command it runs' if run else 'and refuses it with the reason'),
+                  (done['status'] == 'ok' and done['result'] == {'run': run}) if run else (done['status'] == 'error' and text in done['error']), str(done))
+        check('W775: check_step writes nothing', open(path, 'rb').read() == before)
+
+        # W775: a pin of several steps is bound like a command, by pin "Name" in the one binding table
+        pid = 'pin "Figures"'
+        snd(cmd='keymap.set', pinned=['Figures'], steps={'Figures': steps}, bindings={pid: ['Ctrl+Shift+F']})
+        evs, _ = col(is_done)
+        ev = keymap_events(evs)
+        km = ev[0]['keymap'] if ev else {}
+        check('W775: a pin of several steps takes keys by its id pin "Name", answered with the commands',
+              len(ev) == 1 and km.get('ok') is True and by_id(km).get(pid) == {'id': pid, 'keys': ['Ctrl+Shift+F'], 'source': 'user'} and not errors(evs), str(evs)[-300:])
+        before = open(path, 'rb').read()
+        for what, bad, text in [('a key another command has', dict(bindings={pid: ['Ctrl+O']}), 'session.open_model'),
+                                ('the keys of a pin that is not there', dict(bindings={'pin "Nope"': ['Ctrl+K']}), 'no pin has that name'),
+                                ('a pin removed while its keys stay', dict(pinned=[]), 'no pin has that name'),
+                                ('a pin cut to one step while its keys stay', dict(steps={'Figures': steps[:1]}), 'one step')]:
+            snd(cmd='keymap.set', **bad)
+            evs, _ = col(is_done)
+            err = errors(evs)
+            check('W775: set refuses %s, naming it, and writes nothing' % what,
+                  len(err) == 1 and text in err[0]['error'] and not keymap_events(evs) and open(path, 'rb').read() == before, str(evs)[-300:])
+        snd(cmd='keymap.set', pinned=[], bindings={})
+        evs, _ = col(is_done)
 
         # a file too large is refused as it is read
         with open(path, 'w') as f:
@@ -11454,7 +11530,7 @@ def check_keymap():
 
         # each check from its own clean file: the oversized one is replaced by a small one with a pin and another setting
         with open(path, 'w') as f:
-            f.write('{"version": 4, "page": {"theme": "dark"}, "keymap": {"pinned": ["session.reload_model"]}}\n')
+            f.write('{"version": 4, "page": {"theme": "dark"}, "keymap": {"pinned": [{"name": "A", "steps": ["session.reload_model"]}]}}\n')
         snd(cmd='keymap.reset')
         evs, _ = col(is_done)
         ev = keymap_events(evs)

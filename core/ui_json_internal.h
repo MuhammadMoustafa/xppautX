@@ -493,6 +493,7 @@ std::string hello_settings(const xpp::Model &m);
 /* the keymap commands: the user's keymap, replaced in the parts given, or reset */
 xpp::Result<std::string> keymap_get(xpp::Session &s);
 xpp::Result<std::string> keymap_set(xpp::Session &s, const xpp::command::Arguments &args);
+xpp::Result<std::string> keymap_check_step(const xpp::command::Arguments &args);
 xpp::Result<std::string> keymap_reset(xpp::Session &s);
 
 /* ---- json_model.cpp ---- */

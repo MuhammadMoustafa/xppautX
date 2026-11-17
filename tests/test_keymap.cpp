@@ -110,13 +110,27 @@ void check_bad_keymaps()
         {"pinned unknown", "{\"pinned\": [\n\"nosuch\"]}", 2, "nosuch"},
         {"pinned not pinnable", "{\"pinned\": [\"quit\"]}", 1, "quit"},
         {"pinned a panel command", "{\"pinned\": [\n\"window\"]}", 2, "window"},
-        {"pinned twice", "{\"pinned\": [\"session.reload_model\",\n\"session.reload_model\"]}", 2, "twice"},
+        {"pinned twice", "{\"pinned\": [{\"name\": \"A\", \"steps\": [\"run.initial\"]},\n{\"name\": \"A\", \"steps\": [\"run.initial\"]}]}", 2, "twice"},
+        /* W775: a pin is a name and its steps, each a command value */
+        {"a pin with no name", "{\"pinned\": [\n{\"steps\": [\"run.initial\"]}]}", 2, "no name"},
+        {"a pin with an empty name", "{\"pinned\": [{\"name\":\n\"\", \"steps\": [\"run.initial\"]}]}", 2, "empty"},
+        {"a pin with no steps", "{\"pinned\": [\n{\"name\": \"A\"}]}", 2, "no steps"},
+        {"a pin with an empty list of steps", "{\"pinned\": [\n{\"name\": \"A\", \"steps\": []}]}", 2, "no steps"},
+        {"a pin member that is none", "{\"pinned\": [{\"name\": \"A\", \"steps\": [\"run.initial\"],\n\"keys\": []}]}", 2, "keys"},
+        {"a step that is no command", "{\"pinned\": [{\"name\": \"A\", \"steps\": [\"run.initial\",\n\"nosuch\"]}]}", 2, "nosuch"},
+        {"a step not a string", "{\"pinned\": [{\"name\": \"A\", \"steps\": [\n7]}]}", 2, "7"},
+        {"a step of another spelling", "{\"pinned\": [{\"name\": \"A\", \"steps\": [\n\"plot.export  --format pdf\"]}]}", 2, "write the value as"},
+        {"a step with a bad argument", "{\"pinned\": [{\"name\": \"A\", \"steps\": [\n\"data.export --format cvs\"]}]}", 2, "cvs"},
+        /* W775: a pin of several steps is bound by pin "Name" */
+        {"a binding of no pin", "{\"bindings\": {\n\"pin \\\"Nope\\\"\": [\"Ctrl+K\"]}}", 2, "no pin has that name"},
+        {"a binding of a pin of one step", "{\"pinned\": [{\"name\": \"A\", \"steps\": [\"run.initial\"]}],\n\"bindings\": {\"pin \\\"A\\\"\": [\"Ctrl+K\"]}}", 2, "one step"},
+        {"a pin's key another command has", "{\"pinned\": [{\"name\": \"A\", \"steps\": [\"run.initial\", \"run.initial\"]}],\n\"bindings\": {\"pin \\\"A\\\"\": [\"Ctrl+O\"]}}", 2, "both on key"},
         {"pinned not a string", "{\"pinned\": [true]}", 1, "true"},
         /* W772: a command value is checked as the command checks its arguments, and names the binding and the value */
         {"a bad value", "{\"bindings\": {\n\"model.export --language nosuch\": [\"Ctrl+E\"]}}", 2, "nosuch"},
         {"an unknown argument", "{\"bindings\": {\n\"model.export --nosuch python\": [\"Ctrl+E\"]}}", 2, "nosuch"},
         {"a value of another spelling", "{\"bindings\": {\n\"model.export  --language python\": [\"Ctrl+E\"]}}", 2, "write the value as `model.export --language python`"},
-        {"a pinned bad value", "{\"pinned\": [\n\"model.export --language nosuch\"]}", 2, "nosuch"},
+        {"a pinned bad value", "{\"pinned\": [{\"name\": \"A\", \"steps\": [\n\"model.export --language nosuch\"]}]}", 2, "nosuch"},
         {"a clash of two values", "{\"bindings\": {\"model.export --language python\": [\"Ctrl+E\"],\n\"model.export --language python_numpy\": [\"Ctrl+E\"]}}", 2, "both on key"},
     };
     for (const Bad &b : bad) {
@@ -147,12 +161,17 @@ void check_good_keymaps()
     CHECK(empty && empty->bindings.empty() && empty->pinned.empty());
 
     const std::string text =
-        "{\r\n \"pinned\": [\"session.reload_model\", \"calculator.evaluate\"],\r\n"
+        "{\r\n \"pinned\": [{\"name\": \"Reload\", \"steps\": [\"session.reload_model\"]},\r\n"
+        " {\"steps\": [\"run.initial\", \"plot.export --format svg --file \\\"fig1.svg\\\"\"], \"name\": \"Figures\"}],\r\n"
         " \"bindings\": {\"session.reload_model\": [\"Ctrl+B\"], \"session.save\": [], \"run.continue\": [\"Ctrl+K\", \"Alt+I\"]}}\r\n";
     auto map = parse_keymap(text, FILE_LABEL);
     CHECK(map.has_value());
     if (!map) return;
-    CHECK(map->pinned == std::vector<std::string>({"session.reload_model", "calculator.evaluate"}));
+    CHECK(xpp::keymap::pin_binding_id("Figures") == "pin \"Figures\"" && xpp::keymap::pin_binding_name("pin \"Figures\"") == "Figures"
+          && !xpp::keymap::pin_binding_name("run.initial") && !xpp::keymap::pin_binding_name("pin Figures"));
+    CHECK(map->pinned.size() == 2 && map->pinned[0].name == "Reload" && map->pinned[0].steps == std::vector<std::string>({"session.reload_model"})
+          && map->pinned[1].name == "Figures"
+          && map->pinned[1].steps == std::vector<std::string>({"run.initial", "plot.export --format svg --file \"fig1.svg\""}));
     CHECK(xpp::keymap::effective_keys(*map, *xpp::command::find("session.reload_model")) == std::vector<std::string>({"Ctrl+B"}));
     CHECK(xpp::keymap::effective_keys(*map, *xpp::command::find("session.save")).empty());       /* removed */
     CHECK(xpp::keymap::effective_keys(*map, *xpp::command::find("session.open_model")) == std::vector<std::string>({"Ctrl+O"})); /* the table's */
@@ -181,7 +200,7 @@ void check_file(const std::string &dir)
 
     xpp::keymap::Keymap map;
     map.bindings["session.reload_model"] = {"Ctrl+B"};
-    map.pinned = {"calculator.evaluate"};
+    map.pinned = {{"Evaluate", {"calculator.evaluate"}}, {"Two", {"run.initial", "plot.export --format pdf"}}};
     const auto saved = xpp::settings::set_keymap(fs, map);
     if (!saved) std::fprintf(stderr, "save: %s\n", saved.error().text().c_str()); /* why, when it fails (W220) */
     CHECK(saved.has_value());
@@ -195,7 +214,7 @@ void check_file(const std::string &dir)
     /* W772: a command with fixed arguments is bound and pinned by its value, and the page gets what runs it */
     {
         xpp::Writer w = xpp::Writer::binary(file);
-        CHECK(w && w.write(settings_text("{\"pinned\": [\"model.export --language python\"], \"bindings\": {\"model.export --language python\": [\"Ctrl+E\"]}}")) && w.commit().has_value());
+        CHECK(w && w.write(settings_text("{\"pinned\": [{\"name\": \"Python\", \"steps\": [\"model.export --language python\"]}], \"bindings\": {\"model.export --language python\": [\"Ctrl+E\"]}}")) && w.commit().has_value());
     }
     const auto valued = keymap_of(fs);
     CHECK(valued.has_value());

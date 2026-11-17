@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {KeymapInfo} from '../src/protocol/types';
 import {
-  conflictOf, editorRows, effectiveKeys, initialKeymap, movePinned, pinnedRows, recordKey, reduceKeymap, replaceKey,
+  conflictOf, editorRows, effectiveKeys, initialKeymap, freshName, pinBindingId, pinRows, withRenamedPin, movePinned, moveStep, pinOf, pinKeys, recordKey, reduceKeymap, replaceKey,
   sourceLabel, togglePinned, userKeymap, visibleCount, withKey, withoutBinding, withoutKey, withPinned,
 } from '../src/store/keymap';
 import {handleKey} from '../src/ui/hotkeys';
@@ -13,6 +13,7 @@ import {initialState, reduce, type Action, type AppState} from '../src/store/sta
 import type {Session} from '../src/session';
 import {REGISTRY_HELLO, ROWS} from './hello';
 
+const CALC = {name: 'Evaluate', steps: ['calculator.evaluate']};
 const info: KeymapInfo = REGISTRY_HELLO.keymap;
 const rows = ROWS;
 const row = (id: string) => rows.find(r => r.id === id)!;
@@ -68,12 +69,12 @@ test('an edit is the user\'s differences with that change: set, add, remove, res
   const changed = bound('session.open_model', ['Ctrl+B']);
   assert.deepEqual(withoutBinding(changed, 'session.open_model').bindings, {});
   /* the other commands' bindings, the pins are carried */
-  const mixed: KeymapInfo = {...bound('calculator.evaluate', ['F9']), pinned: ['calculator.evaluate']};
+  const mixed: KeymapInfo = {...bound('calculator.evaluate', ['F9']), pinned: [CALC]};
   assert.deepEqual(withKey(mixed, row('session.open_model'), 0, 'Ctrl+B'),
-    {pinned: ['calculator.evaluate'], bindings: {'calculator.evaluate': ['F9'], 'session.open_model': ['Ctrl+B']}});
+    {pinned: [CALC], bindings: {'calculator.evaluate': ['F9'], 'session.open_model': ['Ctrl+B']}});
   /* Replace gives the key to the command and takes it from the one that had it */
   assert.deepEqual(replaceKey(info, rows, row('session.open_model'), 0, 'Ctrl+S').bindings, {'session.open_model': ['Ctrl+S'], 'session.save': []});
-  assert.deepEqual(withPinned(info, ['calculator.evaluate']).pinned, ['calculator.evaluate']);
+  assert.deepEqual(withPinned(info, [CALC]).pinned, [CALC]);
 });
 
 test('where a command\'s keys come from: default, changed (instead of the table\'s) or user (it had none)', () => {
@@ -98,18 +99,22 @@ test('the editor\'s search matches label, description, id and the keys pressed',
   assert.equal(editorRows(info, rows, '').length, rows.length);
 });
 
-test('pins: the pinned commands that may be pinned, in order; toggled, moved', () => {
-  const pinned: KeymapInfo = {...info, pinned: ['calculator.evaluate', 'session.open_model', 'run.steady']};
-  assert.deepEqual(pinnedRows(pinned, rows).map(r => r.id), ['calculator.evaluate', 'session.open_model', 'run.steady']);
-  assert.deepEqual(pinnedRows(null, rows), []);
-  assert.deepEqual(pinnedRows({...info, pinned: ['nosuch', 'calculator.evaluate']}, rows).map(r => r.id), ['calculator.evaluate']);
-  assert.deepEqual(togglePinned(['a', 'b'], 'c'), ['a', 'b', 'c']);
-  assert.deepEqual(togglePinned(['a', 'b'], 'a'), ['b']);
-  assert.deepEqual(movePinned(['a', 'b', 'c'], 'c', 0), ['c', 'a', 'b']);
-  assert.deepEqual(movePinned(['a', 'b', 'c'], 'a', 2), ['b', 'c', 'a']);
-  assert.deepEqual(movePinned(['a', 'b', 'c'], 'b', 99), ['a', 'c', 'b']);
-  assert.deepEqual(movePinned(['a', 'b', 'c'], 'b', -3), ['b', 'a', 'c']);
-  assert.deepEqual(movePinned(['a', 'b'], 'z', 0), ['a', 'b']);
+test('pins: a command is pinned as a pin of one step, toggled, moved, renamed apart', () => {
+  const a = {name: 'A', steps: ['a']}, b = {name: 'B', steps: ['b', 'c']}, c = {name: 'C', steps: ['c']};
+  assert.deepEqual(togglePinned([a, b], {binding: 'x', name: 'X'}), [a, b, {name: 'X', steps: ['x']}]);
+  assert.deepEqual(togglePinned([a, b], {binding: 'a', name: 'Other'}), [b]); /* the pin of exactly that one step goes */
+  assert.deepEqual(togglePinned([a], {binding: 'q', name: 'A'}).map(p => p.name), ['A', 'A (2)']); /* a name is unique */
+  assert.equal(pinOf([a, b], 'b'), undefined); /* b is the first of two steps: not the pin of that command */
+  assert.equal(freshName([a, c], 'D'), 'D');
+  assert.deepEqual(movePinned([a, b, c], 'C', 0).map(p => p.name), ['C', 'A', 'B']);
+  assert.deepEqual(movePinned([a, b, c], 'A', 2).map(p => p.name), ['B', 'C', 'A']);
+  assert.deepEqual(movePinned([a, b, c], 'B', 99).map(p => p.name), ['A', 'C', 'B']);
+  assert.deepEqual(movePinned([a, b], 'Z', 0), [a, b]);
+  assert.deepEqual(moveStep(['x', 'y', 'z'], 2, 0), ['z', 'x', 'y']);
+  assert.deepEqual(moveStep(['x', 'y', 'z'], 0, 9), ['y', 'z', 'x']);
+  /* the keys of a pin of one step are its command's; a sequence has none */
+  assert.deepEqual(pinKeys(info, rows, {name: 'Open', steps: ['session.open_model']}), ['Ctrl+O']);
+  assert.deepEqual(pinKeys(info, rows, {name: 'Two', steps: ['session.open_model', 'run.steady']}), []);
 });
 
 test('the overflow: every button that fits shows, the rest go to More, none is dropped', () => {
@@ -169,4 +174,21 @@ test('a key the core reserves is never run, even if a keymap bound it', () => {
   const hostile = fake(bound('session.open_model', ['Ctrl+W']));
   handleKey(hostile.session, press('w', {ctrlKey: true}));
   assert.deepEqual(hostile.calls, []);
+});
+
+const bound_ = (id: string, keys: string[]): KeymapInfo => ({...info, commands: [...info.commands, {id, keys, source: 'user'}]});
+test('a pin of several steps is a row bound by `pin "Name"`: its keys go with it when it is renamed and are dropped when it goes or shrinks to one step', () => {
+  const figures = {name: 'Figures', steps: ['run.initial', 'plot.export --format pdf']};
+  const id = pinBindingId('Figures');
+  assert.equal(id, 'pin "Figures"');
+  const bound: KeymapInfo = {...bound_(id, ['Ctrl+Shift+F']), pinned: [figures, {name: 'One', steps: ['run.initial']}]};
+  assert.deepEqual(pinRows(bound).map(r => [r.binding, r.pin, r.name]), [[id, 'Figures', 'Pin "Figures"']]); /* a pin of one step is its command's row */
+  assert.deepEqual(effectiveKeys(bound, pinRows(bound)[0]), ['Ctrl+Shift+F']);
+  assert.deepEqual(pinKeys(bound, pinRows(bound), figures), ['Ctrl+Shift+F']);
+  assert.deepEqual(withRenamedPin(bound, 'Figures', {...figures, name: 'Plots'}).bindings, {'pin "Plots"': ['Ctrl+Shift+F']});
+  assert.deepEqual(withPinned(bound, [{name: 'One', steps: ['run.initial']}]).bindings, {});
+  assert.deepEqual(withPinned(bound, [{...figures, steps: ['run.initial']}]).bindings, {});
+  assert.deepEqual(withPinned(bound, [figures]).bindings, {[id]: ['Ctrl+Shift+F']});
+  /* a key another command has is the conflict the editor already asks about */
+  assert.equal(conflictOf(bound, [...rows, ...pinRows(bound)], id, 'Ctrl+O')?.binding, 'session.open_model');
 });

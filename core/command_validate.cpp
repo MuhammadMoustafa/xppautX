@@ -187,7 +187,7 @@ Result<Scalar> read_scalar(const Check &c, const Argument &arg, Type type, const
         std::vector<std::string> keys;
         const char *cursor=value;
         while(const char *item=json::js_element(cursor)) {
-            if(keys.size()>=strings.max_items)return refuse(c,"Too many keys for a command");
+            if(keys.size()>=strings.max_items)return refuse(c,xpp::format("Argument \"{}\" has more than {} texts in a list",label,strings.max_items));
             auto key=read_text(c,strings,Type::text,item,label);
             if(!key)return std::unexpected(key.error());
             keys.push_back(std::get<std::string>(*key));

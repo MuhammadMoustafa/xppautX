@@ -49,6 +49,7 @@ xpp::Result<std::string> front_end_command(xpp::Session &s, const xpp::command::
     if (name == "recording.set_step_note") return recording_set_step_note(s, args.get<long long>("step"), args.get<std::string>("note"));
     if (name == "keymap.get") return keymap_get(s);
     if (name == "keymap.set") return keymap_set(s, args);
+    if (name == "keymap.check_step") return keymap_check_step(args);
     if (name == "keymap.reset") return keymap_reset(s);
     if (name == "events.subscribe") return events_subscribe(s, args);
     if (name == "events.unsubscribe") return events_unsubscribe(s, args);

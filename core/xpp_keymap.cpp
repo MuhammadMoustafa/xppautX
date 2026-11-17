@@ -102,11 +102,52 @@ std::string bindings_json(const Keymap &map)
     return out + (first ? "}" : "\n    }");
 }
 
+std::string pin_binding_id(std::string_view name)
+{
+    std::string id(PIN_BINDING_PREFIX);
+    json_append_string(id, name);
+    return id;
+}
+
+std::optional<std::string> pin_binding_name(std::string_view id)
+{
+    if (!id.starts_with(PIN_BINDING_PREFIX)) return std::nullopt;
+    const std::string quoted(id.substr(PIN_BINDING_PREFIX.size()));
+    std::string name;
+    if (!json::js_valid(quoted.c_str()) || !json::js_string(quoted.c_str(), name)) return std::nullopt;
+    return name;
+}
+
+std::string pin_name_problem(std::string_view name)
+{
+    if (name.empty()) return "a pin's name is empty";
+    if (name.size() > MAX_PIN_NAME_BYTES) return xpp::format("a pin's name is longer than {} bytes", MAX_PIN_NAME_BYTES);
+    if (std::ranges::any_of(name, [](char c) { return static_cast<unsigned char>(c) < ' ' || c == 0x7f; })) return "a pin's name has a control character";
+    return {};
+}
+
+namespace {
+
+/* one pin as an object: its name, its steps */
+void append_pin(std::string &out, const Pin &pin, std::string_view separator)
+{
+    out += "{\"name\": ";
+    json_append_string(out, pin.name);
+    out += ", \"steps\": [";
+    append_strings(out, pin.steps, separator);
+    out += "]}";
+}
+
+} // namespace
+
 std::string pinned_json(const Keymap &map)
 {
     std::string out = "[";
-    append_strings(out, map.pinned, ", ");
-    return out + "]";
+    for (std::size_t i = 0; i < map.pinned.size(); i++) {
+        out += i ? ",\n      " : "\n      ";
+        append_pin(out, map.pinned[i], ", ");
+    }
+    return out + (map.pinned.empty() ? "]" : "\n    ]");
 }
 
 std::string effective_json(std::string_view path, const Result<Keymap> &loaded)
@@ -118,7 +159,10 @@ std::string effective_json(std::string_view path, const Result<Keymap> &loaded)
     out += ",\"path\":";
     json_append_string(out, path);
     out += ",\"pinned\":[";
-    append_strings(out, map.pinned, ",");
+    for (std::size_t i = 0; i < map.pinned.size(); i++) {
+        if (i) out += ',';
+        append_pin(out, map.pinned[i], ",");
+    }
     out += "],\"reserved\":[";
     for (std::size_t i = 0; i < RESERVED_KEYS.size(); i++) {
         if (i) out += ',';
@@ -147,7 +191,7 @@ std::string effective_json(std::string_view path, const Result<Keymap> &loaded)
         out += "],\"source\":\"user\"}";
         values.insert(id);
     }
-    values.insert(map.pinned.begin(), map.pinned.end());
+    for (const Pin &pin : map.pinned) values.insert(pin.steps.begin(), pin.steps.end());
     out += "],\"values\":[";
     first = true;
     for (const std::string &id : values) {

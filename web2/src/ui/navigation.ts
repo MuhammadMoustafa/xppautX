@@ -2,6 +2,7 @@ import type {CommandRow} from '../protocol/kinds';
 import type {HelloEvent, KeymapInfo} from '../protocol/types';
 import {inDesktopWindow} from '../desktop';
 import {choiceLabel} from '../store/fieldKinds';
+import {pinRows} from '../store/keymap';
 
 /** why command `id` cannot run in this session now, from the state event's list (state.unavailable: the core's own words), null when it can */
 export function unavailableReason(unavailable: {cmd: string; reason: string}[] | undefined, id: string): string | null {
@@ -58,7 +59,7 @@ export function bindableRows(hello: HelloEvent | null, info: KeymapInfo | null):
     const base = rows.find(row => row.id === cmd && row.binding === cmd);
     return base ? [{...base, binding: value, default_keys: [], choice: {value: value.slice(cmd.length + 1), arguments: args}, name: `${base.name} (${value.slice(cmd.length + 1)})`}] : [];
   });
-  return [...rows, ...extra];
+  return [...rows, ...extra, ...pinRows(info)];
 }
 /** the items of a menu_choice row as a place shows them (the array plot's, the kinescope's, the table's and the plot's Export menus), with
     `fixed` when the place knows more than the row's own fixed argument: one list from choiceItems, none without a hello */

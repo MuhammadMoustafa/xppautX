@@ -5,7 +5,7 @@
    differences a `set` sends: all of them pure functions of the keymap the core last sent, so the page
    keeps no second copy of the user's settings. Pure: no DOM, no I/O. */
 import type {CommandRow} from '../protocol/kinds';
-import type {KeymapInfo, UserKeymap} from '../protocol/types';
+import type {KeymapInfo, Pin, UserKeymap} from '../protocol/types';
 
 /** a key being recorded: the key number `index` of command value `id` (a row's `binding`; `index` = its key count: a new second binding) */
 export interface Recording {
@@ -125,9 +125,20 @@ export function withoutBinding(info: KeymapInfo, id: string): UserKeymap {
   return {...user, bindings: Object.fromEntries(Object.entries(user.bindings).filter(([bound]) => bound !== id))};
 }
 
-/** the keymap with `pinned` the quick-access toolbar's commands, in order */
-export function withPinned(info: KeymapInfo, pinned: string[]): UserKeymap {
-  return {...userKeymap(info), pinned};
+/** the keymap with `pinned` the quick-access toolbar's pins, in order */
+export function withPinned(info: KeymapInfo, pinned: Pin[]): UserKeymap {
+  const user = userKeymap(info);
+  /* a pin's keys go with it: the core refuses a binding of a pin that is gone (or no longer of several steps) */
+  const kept = new Set(pinned.filter(pin => pin.steps.length > 1).map(pin => pinBindingId(pin.name)));
+  const bindings = Object.fromEntries(Object.entries(user.bindings).filter(([id, _]) => !id.startsWith('pin ') || kept.has(id)));
+  return {...user, pinned, bindings};
+}
+
+/** the keymap with pin `from` replaced by `pin` (a rename keeps its keys: the binding moves to the new name) */
+export function withRenamedPin(info: KeymapInfo, from: string, pin: Pin): UserKeymap {
+  const user = withPinned(info, replacePin(info.pinned, from, pin));
+  const old = userKeymap(info).bindings[pinBindingId(from)];
+  return old && pin.steps.length > 1 ? {...user, bindings: {...user.bindings, [pinBindingId(pin.name)]: old}} : user;
 }
 
 /** the command other than `id` that has `key`, if any */
@@ -191,24 +202,62 @@ export function editorRows(info: KeymapInfo | null, rows: readonly CommandRow[],
     `${row.name} ${row.description} ${row.category} ${row.binding} ${effectiveKeys(info, row).join(' ')}`.toLocaleLowerCase().replace(/\+/g, ' ').includes(word)));
 }
 
-/** the quick-access toolbar: the pinned command values that name a row and may be pinned, in order. The ids of
-    `info.pinned` are the core's, already checked; a row the table lacks cannot be there */
-export function pinnedRows(info: KeymapInfo | null, rows: readonly CommandRow[]): CommandRow[] {
-  return (info?.pinned ?? []).flatMap(id => rows.filter(row => row.binding === id && row.pinnable));
+/** the keymap's binding id of pin `name` (core keymap::pin_binding_id): `pin "Name"`, the name as JSON text */
+export const pinBindingId = (name: string): string => `pin ${JSON.stringify(name)}`;
+
+/** the pins of several steps as rows beside the commands, bound and conflict-checked as they are (a pin of one step is its command's row):
+    named `Pin "Name"`, running the pin, with no keys of their own until the user gives one */
+export function pinRows(info: KeymapInfo | null): CommandRow[] {
+  return (info?.pinned ?? []).filter(pin => pin.steps.length > 1).map(pin => ({
+    id: pinBindingId(pin.name), binding: pinBindingId(pin.name), pin: pin.name, label: pin.name, name: `Pin "${pin.name}"`,
+    description: `Runs ${pin.steps.length} steps: ${pin.steps.join(', ')}`, kind: 'd', category: 'pins', pinnable: false, default_keys: [],
+  }));
 }
 
-/** `pinned` with `id` moved to position `to` (dragging a button before or after another) */
-export function movePinned(pinned: readonly string[], id: string, to: number): string[] {
-  const from = pinned.indexOf(id);
+/** the pin of one step that is exactly command value `binding` (what the Pin button of a command makes), if any */
+export function pinOf(pinned: readonly Pin[], binding: string): Pin | undefined {
+  return pinned.find(pin => pin.steps.length === 1 && pin.steps[0] === binding);
+}
+
+/** `base` as a pin's name that no pin of `pinned` has: `base`, then `base (2)`, `base (3)`... */
+export function freshName(pinned: readonly Pin[], base: string): string {
+  const taken = new Set(pinned.map(pin => pin.name));
+  let name = base;
+  for (let n = 2; taken.has(name); n++) name = `${base} (${n})`;
+  return name;
+}
+
+/** `pinned` with command `row` pinned (a pin of its one step, named as the command is) or, when it is, unpinned */
+export function togglePinned(pinned: readonly Pin[], row: Pick<CommandRow, 'binding' | 'name'>): Pin[] {
+  const pin = pinOf(pinned, row.binding);
+  return pin ? pinned.filter(p => p !== pin) : [...pinned, {name: freshName(pinned, row.name), steps: [row.binding]}];
+}
+
+/** `pinned` with pin `name` moved to position `to` (dragging a button before or after another) */
+export function movePinned(pinned: readonly Pin[], name: string, to: number): Pin[] {
+  const from = pinned.findIndex(p => p.name === name);
   if (from < 0) return pinned.slice();
-  const rest = pinned.filter(p => p !== id);
-  rest.splice(Math.max(0, Math.min(to, rest.length)), 0, id);
+  const rest = pinned.filter(p => p.name !== name);
+  rest.splice(Math.max(0, Math.min(to, rest.length)), 0, pinned[from]);
   return rest;
 }
 
-/** `pinned` with `id` added at the end, or removed when it is there */
-export function togglePinned(pinned: readonly string[], id: string): string[] {
-  return pinned.includes(id) ? pinned.filter(p => p !== id) : [...pinned, id];
+/** `pinned` with pin `name` replaced by `pin` (the same place), or removed when `pin` is null */
+export function replacePin(pinned: readonly Pin[], name: string, pin: Pin | null): Pin[] {
+  return pinned.flatMap(p => p.name !== name ? [p] : pin ? [pin] : []);
+}
+
+/** `steps` with step `from` moved to position `to` */
+export function moveStep(steps: readonly string[], from: number, to: number): string[] {
+  const rest = steps.filter((_, i) => i !== from);
+  rest.splice(Math.max(0, Math.min(to, rest.length)), 0, steps[from]);
+  return rest;
+}
+
+/** the effective keys of a pin: those of its command when it has one step (a key runs that command), its own for a sequence */
+export function pinKeys(info: KeymapInfo | null, rows: readonly CommandRow[], pin: Pin): string[] {
+  const row = rows.find(r => r.binding === (pin.steps.length === 1 ? pin.steps[0] : pinBindingId(pin.name)));
+  return row ? effectiveKeys(info, row) : [];
 }
 
 /** How many of the pinned commands show in a row `room` wide, the others going into the overflow menu
@@ -224,4 +273,10 @@ export function visibleCount(widths: readonly number[], room: number, more: numb
     n++;
   }
   return n;
+}
+
+/** whether an error event is the answer to a live check of a pin's step (keymap.check_step): the step shows it under itself, so it is
+    no message, toast or dialog (a bad step is the user still typing). `source` is the command line the core refused */
+export function isStepCheck(ev: {source?: string}): boolean {
+  return !!ev.source && /^\s*\{\s*"cmd"\s*:\s*"keymap\.check_step"/.test(ev.source);
 }

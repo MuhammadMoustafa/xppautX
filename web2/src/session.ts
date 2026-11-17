@@ -5,8 +5,10 @@ import {registryRows} from './ui/navigation';
    sends commands. Components call its methods, never the transport. */
 import {nativeFileDialog, nativeFileRequest, offerDownload, writeTo, type SaveHandle} from './pickers';
 import {canPickFolder, fileExistsIn, pickFolder, releaseFolder, type FolderHandle} from './pickers';
-import {exportCommand, exportRows, folderOf, joinFolder, type ExportItem, type ExportRow} from './exportSeveral';
-import type {ExportSeveralAction} from './store/exportSeveral';
+import {EXPORT_TITLE, exportRows, folderOf, joinFolder, type ExportRow} from './exportSeveral';
+import {doneMessage, endLine, startLine, stepCommand, stoppedMessage, type BatchStep} from './batch';
+import {pinSteps, stepRun} from './pins';
+import type {BatchAction, BatchOutcome} from './store/batch';
 import {accumulateScroll, keyScroll} from './plot/aplotScroll';
 import {bytesToBase64} from './plot/gif';
 import {setLineGeometry} from './plot/linestyle';
@@ -102,6 +104,23 @@ const answeredSwitch = (cmd: Command): boolean => (cmd.cmd === 'update.restart' 
 const PAGE_KEYS = ['theme', 'dock_hidden', 'dock_width', 'folds'] as const;
 const PAGE_SETTLE_MS = 300;
 
+/** one step of a batch in the runner: the step, the file name to ask about, a hook before it is sent, and (once asked) whether its file exists
+    and whether the answer skips it */
+interface BatchPlan {
+  step: BatchStep;
+  name: string;
+  before?: () => void;
+  exists?: boolean;
+  skip?: boolean;
+}
+
+/** how a batch ends: whether its window reports (else one message), whether the first failure ends it, and what runs after it */
+interface BatchOptions {
+  report: boolean;
+  stopOnFailure: boolean;
+  after?: () => void;
+}
+
 export class Session {
   readonly store: Store<AppState, Action>;
   /** what the leave question's answer goes with (leaveQuestion) */
@@ -139,7 +158,9 @@ export class Session {
       whether the desktop granted it, the batch waiting for the replace question, and the commands awaiting their done by id */
   private exportFolder: FolderHandle | null = null;
   private exportDesktop = false;
-  private exportPending: {items: ExportItem[]; targets: string[]; existing: boolean[]} | null = null;
+  /** the batch waiting for the replace answer (batchStart), and whether Stop was pressed during the one that runs */
+  private batchPending: {title: string; plan: BatchPlan[]; options: BatchOptions} | null = null;
+  private batchStopped = false;
   private exportWaits = new Map<string, (ev: DoneEvent | null) => void>();
   private callSerial = 0;
   /** the answer to the replace confirm, when it is open */
@@ -582,7 +603,7 @@ export class Session {
   /** Replace the user's keymap (docs/protocol.md "Keymap"): the answer is a `keymap` event, which is how the
       page learns the effective keys, so nothing is changed here */
   setKeymap(map: UserKeymap): void {
-    this.send({cmd: 'keymap.set', bindings: map.bindings, pinned: map.pinned});
+    this.send({cmd: 'keymap.set', bindings: map.bindings, pinned: map.pinned.map(p => p.name), steps: Object.fromEntries(map.pinned.map(p => [p.name, p.steps]))});
   }
 
   /** Remove the user's keymap file: all keys and pins back to the defaults */
@@ -954,6 +975,7 @@ export class Session {
 
   /** stops the running command; it still ends with its done */
   abort(): void {
+    this.batchStopped = true;
     this.store.dispatch({type: 'aborting'});
     this.transport.send({cmd: 'run.stop'});
   }
@@ -1549,76 +1571,141 @@ export class Session {
     }
   }
 
-  /** the window's Export button: each ticked file is checked for existing (in the desktop's folder by the core, in a browser's by the
-      listing and the folder), then either written or, when some exist, asked about once (phase exists) */
+  /** the window's Export button: its ticked files go to the batch runner, each one ordinary export command */
   async exportSeveralStart(): Promise<void> {
     const st = this.store.getState().exportSeveral;
     const items = this.exportRowsNow().filter(row => !row.reason).flatMap(row => row.items).filter(item => st.ticks.includes(item.key));
     if (!items.length || (canPickFolder() && !st.folder)) return;
-    const targets = items.map(item => this.exportDesktop && st.folder ? joinFolder(st.folder, item.file) : item.file);
-    const existing: boolean[] = [];
-    try {
+    const folder = this.exportFolder;
+    const plan = items.map(item => {
+      const target = this.exportDesktop && st.folder ? joinFolder(st.folder, item.file) : item.file;
+      return {step: {label: item.file, command: {cmd: item.cmd, ...item.args}, file: target}, name: item.file,
+        /* a browser's folder gets each file it wrote (pendingSave: the core's file is the base name, copied at its done) */
+        before: !this.exportDesktop && folder ? () => {
+          this.pendingSave = {name: item.file, handle: {name: item.file, createWritable: async () => (await folder.getFileHandle(item.file, {create: true})).createWritable()}, ahead: this.donesOwed};
+        } : undefined};
+    });
+    const exists = async (): Promise<boolean[]> => {
       if (this.exportDesktop) {
-        for (const file of targets) {
-          const ev = await this.callDone({cmd: 'session.file_exists', file, id: `exists-${this.callSerial++}`});
+        const found: boolean[] = [];
+        for (const {step} of plan) {
+          const ev = await this.callDone({cmd: 'session.file_exists', file: step.file!, id: `exists-${this.callSerial++}`});
           if (ev?.status !== 'ok') throw new Error(ev?.error ?? 'the check stopped');
-          existing.push(ev.result?.exists === true);
+          found.push(ev.result?.exists === true);
         }
-      } else {
-        const listing = await this.files?.list().catch(() => []) ?? [];
-        for (const item of items)
-          existing.push(listing.some(f => f.name === item.file) || (!!this.exportFolder && await fileExistsIn(this.exportFolder, item.file)));
+        return found;
       }
-    } catch (e) {
-      this.failed(`Export several: ${e instanceof Error ? e.message : String(e)}`);
-      return;
-    }
-    this.exportPending = {items, targets, existing};
-    const names = items.filter((_, i) => existing[i]).map(item => item.file);
-    if (names.length) this.store.dispatch({type: 'exportSeveral', action: {type: 'phase', phase: 'exists', exists: names, total: items.length}});
-    else await this.exportRun(items.map((item, i) => ({item, target: targets[i], skip: false})));
-  }
-
-  /** the replace question's answer: Replace writes every file (the answer passed to each command), Skip those writes the others,
-      Cancel goes back to the ticks */
-  exportSeveralAnswer(answer: 'replace' | 'skip' | 'cancel'): void {
-    const pending = this.exportPending;
-    this.exportPending = null;
-    if (!pending) return;
-    if (answer === 'cancel') {
-      this.store.dispatch({type: 'exportSeveral', action: {type: 'phase', phase: 'choose'}});
-      return;
-    }
-    void this.exportRun(pending.items.map((item, i) => ({item, target: pending.targets[i], skip: answer === 'skip' && pending.existing[i]})),
-      answer === 'replace' ? 1 : undefined);
-  }
-
-  /** the batch: one ordinary command per file, each awaited to its done, so the outcomes come in order; a browser's folder gets each
-      file it wrote (pendingSave: the core's file is the base name, copied at its done); the desktop's grant ends with the batch */
-  private async exportRun(plan: {item: ExportItem; target: string; skip: boolean}[], replace?: 1): Promise<void> {
-    const dispatch = (action: ExportSeveralAction) => this.store.dispatch({type: 'exportSeveral', action});
-    dispatch({type: 'phase', phase: 'running', total: plan.length});
-    for (const {item, target, skip} of plan) {
-      if (skip) {
-        dispatch({type: 'outcome', outcome: {file: item.file, status: 'skipped', text: 'it exists, and was kept'}});
-        continue;
-      }
-      const folder = this.exportFolder;
-      if (!this.exportDesktop && folder) {
-        const name = item.file;
-        this.pendingSave = {name, handle: {name, createWritable: async () => (await folder.getFileHandle(name, {create: true})).createWritable()}, ahead: this.donesOwed};
-      }
-      const ev = await this.callDone(exportCommand(item, target, `export-${this.callSerial++}`, replace));
-      if (ev?.status === 'ok') dispatch({type: 'outcome', outcome: {file: item.file, status: 'written', text: target}});
-      else dispatch({type: 'outcome', outcome: {file: item.file, status: 'failed', text: ev?.error ?? (ev ? 'stopped' : 'the command was not sent')}});
-    }
-    if (this.exportDesktop) {
+      const listing = await this.files?.list().catch(() => []) ?? [];
+      return Promise.all(plan.map(async ({name}) => listing.some(f => f.name === name) || (!!folder && await fileExistsIn(folder, name))));
+    };
+    await this.batchStart(EXPORT_TITLE, plan, exists, {report: true, stopOnFailure: false, after: () => {
+      if (!this.exportDesktop) return;
       void releaseFolder();
       this.exportFolder = null;
       this.exportDesktop = false;
-      dispatch({type: 'folder', folder: null});
+      this.store.dispatch({type: 'exportSeveral', action: {type: 'folder', folder: null}});
+    }});
+  }
+
+  /** the replace question's answer (Export several's and a pin's): Replace writes every file (the answer passed to each command), Skip
+      those writes the others, Cancel ends the batch with nothing sent */
+  batchAnswer(answer: 'replace' | 'skip' | 'cancel'): void {
+    const pending = this.batchPending;
+    this.batchPending = null;
+    if (!pending) return;
+    if (answer === 'cancel') {
+      this.store.dispatch({type: 'batch', action: {type: 'clear'}});
+      return;
     }
-    dispatch({type: 'phase', phase: 'report'});
+    void this.batchRun(pending.title, pending.plan.map(p => ({...p, skip: answer === 'skip' && p.exists === true})), pending.options, answer === 'replace' ? 1 : undefined);
+  }
+
+  /** runs pin `name` (the toolbar's button, Settings' Run): its steps are ordinary commands, each with the file it writes in the model's
+      folder, through the batch runner that Export several uses; no step asks, and one replace question covers the files that exist */
+  async runPin(name: string): Promise<void> {
+    const {keymap, hello} = this.store.getState();
+    const pin = keymap.info?.pinned.find(p => p.name === name);
+    if (!pin || this.store.getState().batch.phase !== 'idle') return;
+    const items = this.exportRowsNow().flatMap(row => row.items);
+    const {steps, problem} = pinSteps(pin, step => stepRun(keymap.info, hello, step), items);
+    if (problem) {
+      this.failed(`Pin "${name}" did not start: ${problem}`);
+      return;
+    }
+    const plan = steps.map(step => ({step, name: step.file ?? ''}));
+    const exists = async (): Promise<boolean[]> => {
+      const listing = await this.files?.list().catch(() => []) ?? [];
+      return plan.map(({name: file}) => !!file && listing.some(f => f.name === file));
+    };
+    await this.batchStart(`Pin "${name}"`, plan, exists, {report: false, stopOnFailure: true});
+  }
+
+  /** the model's folder as it is now, for what the page says about files (a step's check says its file exists) */
+  async refreshListing(): Promise<void> {
+    const listing = await this.files?.list().catch(() => null);
+    if (listing) this.store.dispatch({type: 'files', action: {type: 'listing', files: listing}});
+  }
+
+  /** asks the core to read a step as a command value (keymap.check_step, the one reader): its run, or the error to show under the step */
+  async checkStep(text: string): Promise<{run: Record<string, string | boolean>} | {error: string}> {
+    const ev = await this.callDone({cmd: 'keymap.check_step', step: text, id: `step-${this.callSerial++}`});
+    if (ev?.status === 'ok') return {run: ev.result?.run as Record<string, string | boolean>};
+    return {error: ev?.error ?? 'the check was not sent'};
+  }
+
+  /** a batch: the files that exist are asked about once (phase exists), else every step runs at once */
+  private async batchStart(title: string, plan: BatchPlan[], exists: () => Promise<boolean[]>, options: BatchOptions): Promise<void> {
+    let found: boolean[];
+    try {
+      found = await exists();
+    } catch (e) {
+      this.failed(`${title}: ${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
+    const withExists = plan.map((p, i) => ({...p, exists: found[i]}));
+    const names = withExists.filter(p => p.exists).map(p => p.name);
+    if (names.length) {
+      this.batchPending = {title, plan: withExists, options};
+      this.store.dispatch({type: 'batch', action: {type: 'ask', title, steps: plan.map(p => p.step.label), exists: names}});
+    } else await this.batchRun(title, withExists, options);
+  }
+
+  /** the batch runner (Export several's and the pins'): one ordinary command per step, each awaited to its done, so the outcomes come in
+      order. The status bar shows the step running and Messages a line as each starts and ends; Stop or a failing step (stopOnFailure) ends
+      a batch with one message naming the step, those done and those not run. Steps that ran stay done: nothing is undone */
+  private async batchRun(title: string, plan: BatchPlan[], options: BatchOptions, replace?: 1): Promise<void> {
+    const dispatch = (action: BatchAction) => this.store.dispatch({type: 'batch', action});
+    const all = plan.map(p => p.step.label);
+    const outcomes: BatchOutcome[] = [];
+    this.batchStopped = false;
+    dispatch({type: 'run', title, steps: all});
+    for (const [i, {step, skip, before}] of plan.entries()) {
+      if (this.batchStopped) break;
+      dispatch({type: 'step', index: i});
+      let outcome: BatchOutcome;
+      if (skip) outcome = {step: step.label, status: 'skipped', text: 'it exists, and was kept'};
+      else {
+        this.store.dispatch({type: 'note', text: startLine(title, i, plan.length, step.label)});
+        before?.();
+        const ev = await this.callDone(stepCommand(step.command, step.file, `batch-${this.callSerial++}`, replace));
+        outcome = ev?.status === 'ok' ? {step: step.label, status: step.file ? 'written' : 'ran', text: step.file ?? ''}
+          : {step: step.label, status: 'failed', text: ev?.error ?? (ev ? 'Stop was pressed' : 'the command was not sent')};
+        this.store.dispatch({type: 'note', text: endLine(title, i, plan.length, outcome)});
+      }
+      outcomes.push(outcome);
+      dispatch({type: 'outcome', outcome});
+      if (outcome.status === 'failed' && options.stopOnFailure) break;
+    }
+    options.after?.();
+    void this.refreshListing();
+    const message = options.stopOnFailure ? stoppedMessage(title, all, outcomes) : null;
+    dispatch({type: 'end', report: options.report});
+    if (message) this.store.dispatch({type: 'toast', kind: this.batchStopped ? 'info' : 'error', text: message}); /* Stop is the user's own: a notice, not an error dialog */
+    else if (!options.report) {
+      this.store.dispatch({type: 'note', text: doneMessage(title, plan.length)});
+      this.store.dispatch({type: 'bottom', text: doneMessage(title, plan.length)});
+    }
+    this.batchStopped = false;
   }
 
   /** sends a command and resolves with its done (matched by its id), or null when it was not sent */
@@ -1638,7 +1725,8 @@ export class Session {
     if (this.exportDesktop) void releaseFolder();
     this.exportFolder = null;
     this.exportDesktop = false;
-    this.exportPending = null;
+    this.batchPending = null;
+    this.store.dispatch({type: 'batch', action: {type: 'clear'}});
     this.store.dispatch({type: 'exportSeveral', action: {type: 'open', open: false}});
   }
 

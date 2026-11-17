@@ -73,7 +73,7 @@ test('a folder path joins a name with its own separator, and a model path gives 
   assert.equal(folderOf('lecar.ode'), '');
 });
 
-test('the window opens with nothing ticked, the ticks toggle, and the batch shows its outcomes', () => {
+test('the window opens with nothing ticked and the ticks toggle', () => {
   let s = reduceExportSeveral(initialExportSeveral, {type: 'open', open: true});
   s = reduceExportSeveral(s, {type: 'tick', key: 'plot.export|pdf', on: true});
   s = reduceExportSeveral(s, {type: 'tick', key: 'plot.export|pdf', on: true});
@@ -81,13 +81,9 @@ test('the window opens with nothing ticked, the ticks toggle, and the batch show
   s = reduceExportSeveral(s, {type: 'tick', key: 'plot.export|pdf', on: false});
   assert.deepEqual(s.ticks, []);
   s = reduceExportSeveral(s, {type: 'tick', key: 'data.export|csv', on: true});
-  s = reduceExportSeveral(s, {type: 'phase', phase: 'running', total: 2});
-  s = reduceExportSeveral(s, {type: 'outcome', outcome: {file: 'lecar.csv', status: 'written', text: '/o/lecar.csv'}});
-  assert.equal(s.total, 2);
-  assert.equal(s.outcomes.length, 1);
   s = reduceExportSeveral(s, {type: 'open', open: false});
   s = reduceExportSeveral(s, {type: 'open', open: true});
-  assert.deepEqual([s.ticks, s.outcomes, s.phase], [[], [], 'choose']); /* not remembered between uses */
+  assert.deepEqual(s.ticks, []); /* not remembered between uses */
 });
 
 test('a stored row with no format in a fixture the registry lacks is left out, not thrown', () => {

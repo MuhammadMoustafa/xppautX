@@ -83,6 +83,9 @@ h1, h2 { margin: 0; }
 .status-flash { position: absolute; inset: 0; pointer-events: none; background: var(--warn); opacity: 0; animation: status-flash 1.2s ease-out; }
 @keyframes status-flash { from { opacity: 0.45; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .status-flash { animation-duration: 0.01s; } }
+.status-short { display: none; }
+.status-text { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-step { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 0.78rem var(--mono); color: var(--fg-muted); }
 .status-message { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .update-notice { flex: none; white-space: nowrap; }
 .status-dot { flex: none; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--fg-muted); }
@@ -150,8 +153,10 @@ h1, h2 { margin: 0; }
   .menu-scrim.open { visibility: visible; }
   .workspace { padding: var(--space-2); }
   .status-bar .rows { display: none; }
-  .status-run { width: 8rem; }
-  .status-run progress { width: 2.5rem; }
+  .status-run { width: 4.5rem; }
+  .status-run progress, .status-step, .status-long { display: none; }
+  .status-short { display: inline-flex; flex: 0 1 auto; min-width: 0; white-space: nowrap; }
+  .status-name { overflow: hidden; text-overflow: ellipsis; margin-right: 0.25em; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }

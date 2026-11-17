@@ -221,8 +221,8 @@ export interface KeymapInfo {
   ok: boolean;
   /** the settings file's path ('' when the system names no config folder) */
   path: string;
-  /** the quick-access toolbar's command values, in order */
-  pinned: string[];
+  /** the quick-access toolbar's pins, in order */
+  pinned: Pin[];
   /** every command value with arguments that is bound or pinned, with the command the page sends to run it (core read_value's `run`) */
   values: {value: string; run: {cmd: string} & Record<string, string | boolean>}[];
   /** keys no command may take (the page and the system keep them) */
@@ -238,9 +238,16 @@ export interface KeymapInfo {
   field?: string;
 }
 
+/** a pin (W775, core/xpp_keymap.h): a name and its steps, each a command value in W772's written form, run in order; a pin of one step
+    is the command a toolbar button runs */
+export interface Pin {
+  name: string;
+  steps: string[];
+}
+
 /** the user's differences, as settings.json holds them and `set` replaces them */
 export interface UserKeymap {
-  pinned: string[];
+  pinned: Pin[];
   /** command id -> its keys instead of the table's ([] = none) */
   bindings: Record<string, string[]>;
 }

@@ -154,6 +154,13 @@ function escape(session: Session, target: Element | null): boolean {
 /** Run the command (or the item of its submenu) a key names, through the action a click on it takes; while a run forbids
     it (its kind, protocol/kinds.ts) the status bar says why. */
 function runCommand(session: Session, row: CommandRow): void {
+  if (row.pin) {
+    /* a pin's key runs the pin as its toolbar button does */
+    const first = session.store.getState().keymap.info?.pinned.find(p => p.name === row.pin)?.steps[0].split(' ')[0];
+    if (first && session.may({cmd: first})) void session.runPin(row.pin);
+    else session.store.dispatch({type: 'bottom', text: `${row.name}: ${BUSY_TITLE}`});
+    return;
+  }
   if (session.may({cmd: row.id})) session.registryRow(row);
   else session.store.dispatch({type: 'bottom', text: `${row.name}: ${noValueEdit(session.store.getState().core, row.id) ? `nothing to ${row.id}` : BUSY_TITLE}`});
 }

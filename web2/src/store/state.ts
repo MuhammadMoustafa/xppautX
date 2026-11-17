@@ -29,7 +29,8 @@ import {initialText, reduceText, type TextAction, type TextState} from './text';
 import {initialHelp, reduceHelp, type HelpAction, type HelpState} from './help';
 import {initialPlayer, reducePlayer, type PlayerAction, type PlayerState} from './player';
 import {initialSettings, reduceSettings, type SettingsAction, type SettingsState} from './settings';
-import {initialKeymap, reduceKeymap, type KeymapAction, type KeymapState} from './keymap';
+import {initialKeymap, isStepCheck, reduceKeymap, type KeymapAction, type KeymapState} from './keymap';
+import {initialBatch, reduceBatch, type BatchAction, type BatchState} from './batch';
 import {initialExportSeveral, reduceExportSeveral, type ExportSeveralAction, type ExportSeveralState} from './exportSeveral';
 import type {SteadyInput} from './steady';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
@@ -208,6 +209,7 @@ export interface AppState {
   settings: SettingsState;
   /** the File > Export > Several window (W774) */
   exportSeveral: ExportSeveralState;
+  batch: BatchState;
 }
 
 export type Action =
@@ -244,6 +246,8 @@ export type Action =
   | {type: 'settingsUi'; action: SettingsAction}
   /** the File > Export > Several window (W774) */
   | {type: 'exportSeveral'; action: ExportSeveralAction}
+  | {type: 'batch'; action: BatchAction}
+  | {type: 'note'; text: string}
   /** the page's own line in the status bar (a key that cannot act now says why) */
   | {type: 'bottom'; text: string}
   | {type: 'update'; offer: UpdateOffer | null}
@@ -323,6 +327,7 @@ export const initialState: AppState = {
   keymap: initialKeymap,
   settings: initialSettings,
   exportSeveral: initialExportSeveral,
+  batch: initialBatch,
 };
 
 const TOASTS_KEEP = 4;
@@ -616,6 +621,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'job.computing':
       return {...state, computing: true};
     case 'session.message':
+      if (ev.error !== undefined && isStepCheck(ev)) return state;
       if (ev.error !== undefined) {
         /* a file the command could not read (the core names it, with no line): the notification offers to add it */
         const unread = unreadFile(ev);
@@ -630,9 +636,9 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         const autoxSettings = /^autoX options: /.test(ev.error)
           ? reduceAutoxSettings(state.autoxSettings, {type: 'error', text: ev.error}) : state.autoxSettings;
         const logged = addLog({...state, bottom: text, bottomHelp: null, files, values, autoxSettings}, {kind: 'error', text});
-        /* a file-export batch (File > Export > Several, W774) shows its own failures in its report: while it runs, its commands' errors
-           are Messages only, not an error dialog on top of the report */
-        const claimed = values !== state.values || autoxSettings !== state.autoxSettings || state.exportSeveral.phase === 'running';
+        /* a batch (File > Export > Several, a pin, W774, W775) shows its own failures (its report, its one message): while it runs, its
+           commands' errors are Messages only, not an error dialog on top */
+        const claimed = values !== state.values || autoxSettings !== state.autoxSettings || state.batch.phase === 'running';
         return claimed ? logged : addToast(logged, 'error', ev.error, action, errorPlace(ev), ev.action);
       }
       if (ev.bottom !== undefined) return {...state, bottom: ev.bottom, bottomHelp: ev.help ?? null};
@@ -733,6 +739,12 @@ function reduceAction(state: AppState, action: Action): AppState {
       const exportSeveral = reduceExportSeveral(state.exportSeveral, action.action);
       return exportSeveral === state.exportSeveral ? state : {...state, exportSeveral};
     }
+    case 'batch': {
+      const batch = reduceBatch(state.batch, action.action);
+      return batch === state.batch ? state : {...state, batch};
+    }
+    case 'note':
+      return addLog(state, {kind: 'info', text: action.text});
     case 'settingsUi': {
       const settings = reduceSettings(state.settings, action.action);
       return {...state, settings};

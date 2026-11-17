@@ -251,7 +251,22 @@
 .keymap-live:empty { min-height: 0; margin: 0; }
 .keymap-conflict { margin: var(--space-2) 0; padding: var(--space-2); background: var(--warn-bg); border-radius: var(--radius); }
 .pin-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; }
-.pin-list li { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) 0; border-top: 1px solid var(--border); }
+.pin-card { border: 1px solid var(--border); border-radius: var(--radius); margin: var(--space-2) 0; padding-bottom: var(--space-2); }
+.pin-head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2); }
+.pin-head .pin-name { font-weight: 600; min-width: 8rem; }
+.pin-step { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-1) var(--space-2); margin-top: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.pin-step.bad { border-color: var(--danger); background: transparent; }
+.pin-n { width: 1.4em; text-align: right; color: var(--fg-muted); }
+.pin-code, .pin-step .pin-code input { flex: 1 1 10rem; min-width: 0; font: 0.8125rem var(--mono); overflow-wrap: anywhere; }
+.pin-step .input-box.pin-code { flex: 1 1 14rem; }
+.pin-add .input-box { flex: 1 1 14rem; }
+.pin-status { flex-basis: 100%; padding-left: calc(1.4em + var(--space-2)); font-size: var(--text-xs); }
+.pin-status.ok { color: var(--ok); }
+.pin-status.warn { color: var(--warn); }
+.pin-status.no { color: var(--danger); }
+.pin-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-2) 0; }
+.pin-found { flex-basis: 100%; list-style: none; margin: 0; padding: 0; }
+.pin-found button { width: 100%; text-align: left; }
 .pin-list .pin-none { color: var(--fg-muted); }
 .keymap-scroll { overflow-x: auto; }
 .keymap-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
