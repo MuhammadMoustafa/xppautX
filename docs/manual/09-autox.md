@@ -298,8 +298,8 @@ Below the three groups the dialog has a fourth, **Computer**, with one choice,
 **Threads**: how many threads autoX uses to compute a periodic orbit or a
 boundary value problem, and how many a sweep (Initial conds Range, its two-parameter form,
 Stochastic Compute, the Lyapunov range) uses to compute its runs side by side (see
-Range in [the commands](05-commands.md)); one option for both, since they never compute at the same time. A sweep with *Automatic* uses
-all the physical cores, autoX's collocation at most 4. *Automatic* (the default; the number it gives is
+Range in [the commands](05-commands.md)); one option for both, since they never compute at the same time. A sweep with *Auto* uses
+all the physical cores, autoX's collocation at most 4. *Auto* (the default; the number it gives is
 shown) is the computer's physical cores, at most 4, and on a processor with
 performance and efficiency cores only the performance cores where the system
 says which. Any count from 1 to the computer's logical processors may be

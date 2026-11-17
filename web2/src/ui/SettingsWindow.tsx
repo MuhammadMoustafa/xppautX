@@ -17,7 +17,8 @@ import {KeymapPane} from './KeymapPane';
 
 /** how long a color or a number is left alone after the last edit before it is saved (a color picker sends a value at every move) */
 const SETTLE_MS = 500;
-const AUTOMATIC = 'automatic';
+/** the threads setting's word for "as many as pay": the core's (xpp_cpu.h THREADS_AUTO_WORD), as settings.json and the protocol write it */
+const THREADS_AUTO = 'auto';
 
 export function SettingsWindow() {
   const open = useStore(s => s.settings.open);
@@ -27,7 +28,7 @@ export function SettingsWindow() {
 /** a row's value as text, from one of the two answers (the control's value, and the user's value shown beside a folder's) */
 function valueText(row: SettingRow, values: SettingsValues | null): string {
   const v = values?.[row.key];
-  if (row.kind === 'threads') return values?.automatic ? AUTOMATIC : String(values?.threads ?? '');
+  if (row.kind === 'threads') return values?.automatic ? THREADS_AUTO : String(values?.threads ?? '');
   if (row.kind === 'flag') return v ? 'on' : 'off';
   if (row.kind === 'width') return v === null || v === undefined ? '' : String(v);
   return String(v ?? '');
@@ -130,8 +131,8 @@ function Control({row, current, label, off, threadsMax, save}: {row: SettingRow;
   if (row.kind === 'threads') {
     const counts = Array.from({length: threadsMax}, (_, i) => String(i + 1));
     return <select data-setting-input value={current} disabled={off} aria-label={label}
-      onChange={e => save(e.currentTarget.value === AUTOMATIC ? JSON.stringify(AUTOMATIC) : e.currentTarget.value)}>
-      <option value={AUTOMATIC}>{choiceLabel(AUTOMATIC)}</option>{counts.map(c => <option key={c} value={c}>{c}</option>)}</select>;
+      onChange={e => save(e.currentTarget.value === THREADS_AUTO ? JSON.stringify(THREADS_AUTO) : e.currentTarget.value)}>
+      <option value={THREADS_AUTO}>{choiceLabel(THREADS_AUTO)}</option>{counts.map(c => <option key={c} value={c}>{c}</option>)}</select>;
   }
   if (row.kind === 'color') return <ColorSetting current={current} label={label} off={off} save={save} />;
   return <WidthSetting current={current} label={label} off={off} save={save} />;

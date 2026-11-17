@@ -1905,7 +1905,7 @@ async function autoxView(dir) {
   await key('Escape');
   await openSettings(); await settingsControl('general.threads', '1');
   check('W267: the Settings window selects one thread', await until(`!s.busy && s.autoxSettings.core.threads === 1`, 'one thread'));
-  await settingsControl('general.threads', 'automatic');
+  await settingsControl('general.threads', 'auto');
   check('W267: the named automatic choice restores automatic threads', await until(`!s.busy && s.autoxSettings.core.threads === 'auto'`, 'automatic threads'));
   await closeSettings();
   await autoxRun('equilibrium');
