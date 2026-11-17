@@ -7,6 +7,9 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'python'))
 from xppautx import Client, XppError
+# no test touches the user's own settings (preferences.odex's recent models, keymap.json): importing xppclient gives every
+# xppautX started here a config folder of its own (XPP_CONFIG_DIR), removed at exit (W788)
+import xppclient  # noqa: F401
 from xppautx.arrays import Session, table
 
 BINARY = os.path.abspath(os.environ.get('XPPAUTX_BIN', './xppautX'))
