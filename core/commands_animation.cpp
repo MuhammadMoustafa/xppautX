@@ -65,13 +65,16 @@ Result<std::string> set_frame_skip(Session &s, const Command &, const Arguments 
     return ResultObject().integer("skip", s.animation->vcr.inc).done();
 }
 
+/* what animation.export needs: an animation loaded (SessionNeed) */
+bool animation_loaded(const Session &s) { return s.animation->ncom != 0; }
+
 /* animation.export: its output picks the file's format, PPM frames or one animated GIF (movie_output_names) */
 Result<std::string> export_output(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     const bool gif = args.get<std::string>("output") == "animated_gif";
     const std::string &file = args.get<std::string>("file");
     /* the file is named as written, a frame's number before its extension (W673): it must be the format's */
-    if (const std::string_view ext = gif ? ".gif" : ".ppm"; !files::has_extension(file, ext))
+    if (const std::string_view ext = gif ? xpp::GIF_EXTENSION : xpp::PPM_EXTENSION; !files::has_extension(file, ext))
         return fail(command.name, xpp::format("{}: {} end in {}", file, gif ? "an animated GIF's file must" : "PPM frames' files must", ext), place);
     const Result<int> written = play_animation(s, {gif ? AniExportKind::gif : AniExportKind::ppm, file});
     if (!written) return std::unexpected<Error>(written.error());
@@ -180,7 +183,7 @@ constexpr std::array GRAB_EVENTS = {xpp::events::ANIMATION_STATE, xpp::events::P
 constexpr std::array ROWS = {
     Command{"animation.export", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Animation as", "File/Export",
             "Play the animation writing every frame into a file of the model's folder: output frames for numbered PPM files from file, animated_gif for one animated GIF file.",
-            EXPORT_RESULTS, ANI_EVENTS, true, export_output, {}, {}, "write", "*", "", "", Feature::none, "output"},
+            EXPORT_RESULTS, ANI_EVENTS, true, export_output, {}, {}, "write", "*", "", "", Feature::none, {animation_loaded, "needs an animation loaded"}, "output"},
     Command{"animation.open", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Open animation", "Windows",
             "Open the animation window.", OPEN_RESULTS, WINDOW_EVENTS, true, open},
     Command{"animation.load", FILE_ARGUMENT, XPP_KIND_VIEW, CommandCategory::Plot, "Load animation", "",

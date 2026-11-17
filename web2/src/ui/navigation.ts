@@ -3,6 +3,10 @@ import type {HelloEvent, KeymapInfo} from '../protocol/types';
 import {inDesktopWindow} from '../desktop';
 import {choiceLabel} from '../store/fieldKinds';
 
+/** why command `id` cannot run in this session now, from the state event's list (state.unavailable: the core's own words), null when it can */
+export function unavailableReason(unavailable: {cmd: string; reason: string}[] | undefined, id: string): string | null {
+  return unavailable?.find(u => u.cmd === id)?.reason ?? null;
+}
 export function registryRows(hello: HelloEvent | null): CommandRow[] {
   /* the window leaves by its close box: Quit is the browser's command (W647) */
   const desktop = inDesktopWindow();

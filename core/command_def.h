@@ -200,6 +200,12 @@ template <std::size_t A, std::size_t B> constexpr std::array<Argument, A + B> jo
     return out;
 }
 
+/* what a session must hold for a command to run: met tells it, needs says why in words (the refusal, the greyed item, the state's list) */
+struct SessionNeed {
+    bool (*met)(const xpp::Session &s) = nullptr;
+    std::string_view needs;
+};
+
 struct Command;
 /* A handler runs after validation: the session, its row, the typed
    arguments and the command's place (for the errors it returns). */
@@ -236,6 +242,9 @@ struct Command {
     /* the model feature the command is for (model_features.h): a model without it does not show the command in its menu, Search commands
        lists it greyed with the reason, and running it is an error saying so */
     Feature needs = Feature::none;
+    /* a thing of the session the command needs (an animation loaded, captured frames, an open array plot): a session without it refuses the
+       command with `needs`, the menus grey its item with it and the state event names it (SessionNeed; met null for none) */
+    SessionNeed requires_session = {};
     /* the name of one of the row's choice arguments, "" for none: the menu shows the row as a submenu named by its label with an item per value
        of that choice (its label derived from the value), and an item runs the command with that value, so File > Export > Model as holds Python,
        Python numpy and Python numba (W767); the palette lists each item and the arguments stay the ones scripts and recordings send */
@@ -360,8 +369,6 @@ Result<Arguments> validate(Session *session, const Command &command, const char 
                            bool paths_allowed);
 /* The registry's row of that name, null when there is none. */
 const Command *find(std::string_view name);
-/* why the command cannot run now, "" when it can: see command_registry.cpp (W774) */
-std::string_view unavailable_reason(const Session &s, const Command &command);
 /* The registry rows in hello order, for the keymap as well as navigation. */
 std::vector<const Command *> rows();
 /* hello and help name a type this way. */

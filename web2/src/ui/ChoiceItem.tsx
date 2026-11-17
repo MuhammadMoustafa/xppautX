@@ -2,17 +2,20 @@
    send (registryChoice). The menu bar's submenus (File > Export > Data as > csv) and the table's and the plot's Export menus are made of it. */
 import {choiceLabel} from '../store/fieldKinds';
 import type {CommandRow} from '../protocol/kinds';
-import {BUSY_TITLE, useMay, useSession} from './context';
+import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {unavailableReason} from './navigation';
 
 /** `disabled` for what only the place knows (the kinescope's frames playing); the core's busy state is may's */
 export function ChoiceItem({item, onPick, disabled = false}: {item: CommandRow; onPick?: () => void; disabled?: boolean}) {
   const session = useSession();
   const may = useMay();
   const choice = item.choice!;
+  /* the session's own requirement (an animation to export, captured frames): the core's reason, which the item shows */
+  const why = unavailableReason(useStore(s => s.core?.unavailable), item.id);
   const open = may({cmd: item.id});
   return (
     <li>
-      <button role="menuitem" data-command={item.id} data-choice={choice.value} title={open ? item.description : BUSY_TITLE} disabled={!open || disabled}
+      <button role="menuitem" data-command={item.id} data-choice={choice.value} title={why ?? (open ? item.description : BUSY_TITLE)} disabled={!open || disabled || why !== null}
         onClick={() => {onPick?.(); session.registryChoice(item.id, choice.arguments);}}>{choiceLabel(choice.value)}</button>
     </li>
   );

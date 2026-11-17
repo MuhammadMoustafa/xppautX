@@ -231,8 +231,8 @@ std::string build_state(xpp::Session &s)
     BUF_LIT(b, ",\"unavailable\":[");
     bool first_unavailable = true;
     for (const xpp::command::Command *command : xpp::command::rows()) {
-        const std::string_view reason = xpp::command::unavailable_reason(s, *command);
-        if (reason.empty()) continue;
+        if (!command->requires_session.met || command->requires_session.met(s)) continue;
+        const std::string_view reason = command->requires_session.needs;
         if (!first_unavailable) BUF_LIT(b, ",");
         first_unavailable = false;
         BUF_LIT(b, "{\"cmd\":");

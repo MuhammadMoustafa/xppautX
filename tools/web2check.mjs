@@ -6681,6 +6681,12 @@ async function exportSeveral(dir) {
     window.showDirectoryPicker = async () => window.__folder;
     return true; })()`);
   const folderWrites = () => cdp.eval('window.__folderWrites.map(w => w[0])');
+  /* the File menu greys an export the core says cannot run now, with the core's reason (the same list the window reads); no frames
+     are captured in this session, so the kinescope's items are the ones it cannot run */
+  await cdp.eval(`(() => { for (const d of document.querySelectorAll('.app-menu details')) d.open = true; return true; })()`);
+  await until(`!!document.querySelector('.app-menu [data-command="kinescope.export"][data-choice="animated_gif"]')?.disabled`, 'the greyed menu item');
+  const greyed = await cdp.eval(`(() => { const b = document.querySelector('.app-menu [data-command="kinescope.export"][data-choice="animated_gif"]'); return b && {disabled: b.disabled, title: b.title}; })()`);
+  check('W774: File > Export > Kinescope as greys its items with the reason the core gives', greyed?.disabled === true && greyed.title === 'needs captured frames', JSON.stringify(greyed));
   check('W774: a browser with a directory picker offers Choose…', await exportWindowOpen() && await cdp.eval(`!!document.querySelector('[data-export-pick]')`));
   await exportPickFolder('exports');
   await exportTick('plot.export|pdf');

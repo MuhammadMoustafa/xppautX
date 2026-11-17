@@ -66,6 +66,8 @@ inline constexpr std::array<std::string_view, 2> picture_format_names{"pdf", "sv
 /* the output a movie export writes (kinescope.export, animation.export): one animated GIF file, or its frames as numbered files (the
    kinescope's are GIFs, the animation's PPM) */
 inline constexpr std::array<std::string_view, 2> movie_output_names{"animated_gif", "frames"};
+/* the extensions of a movie's files: one animated GIF, and the PPM frames of an animation (kinescope's frames are GIFs, as its file is) */
+inline constexpr std::string_view GIF_EXTENSION = ".gif", PPM_EXTENSION = ".ppm";
 /* path ends in the extension of a vector picture format */
 inline bool has_picture_extension(std::string_view path)
 {

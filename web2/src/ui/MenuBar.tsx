@@ -2,7 +2,7 @@ import {useEffect, useRef} from 'preact/hooks';
 import type {ComponentChildren} from 'preact';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {CommandLabel} from './CommandButton';
-import {commandRow, menuTree, registryRows, type MenuNode} from './navigation';
+import {commandRow, menuTree, registryRows, unavailableReason, type MenuNode} from './navigation';
 import {effectiveKeys} from '../store/keymap';
 import {closeMenuBar, openPanel} from './hotkeys';
 import {useFocusBackOnClose} from './focusBack';
@@ -34,6 +34,8 @@ export function MenuBar() {
   const drawer = useStore(s => s.menuOpen);
   const may = useMay();
   const windows = useStore(s => s.windows);
+  /* what the session cannot run now and why (state.unavailable): those items are greyed with the reason */
+  const unavailable = useStore(s => s.core?.unavailable);
   /* the main graph is the first graph window: always open, so its Hide is off (W696) */
   const mainName = windows.find(w => w.kind === 'graph')?.name;
   const bar = useRef<HTMLElement>(null);
@@ -98,8 +100,9 @@ export function MenuBar() {
     pointed.current = null;
   };
   const entry = (node: MenuNode): Entry => node.row?.choice ? {menu: false, el: <ChoiceItem key={node.row.choice.value} item={node.row} onPick={close} />}
-    : node.row ? {menu: false, el: <li key={node.row.id}><button role="menuitem" data-command={node.row.id} data-choice={node.row.choice?.value} title={may({cmd: node.row.id}) ? node.row.description : BUSY_TITLE}
-    disabled={!may({cmd: node.row.id})} onClick={() => {close(); session.registryAction(node.row!.id);}}>
+    : node.row ? {menu: false, el: <li key={node.row.id}><button role="menuitem" data-command={node.row.id} data-choice={node.row.choice?.value}
+    title={unavailableReason(unavailable, node.row.id) ?? (may({cmd: node.row.id}) ? node.row.description : BUSY_TITLE)}
+    disabled={!may({cmd: node.row.id}) || unavailableReason(unavailable, node.row.id) !== null} onClick={() => {close(); session.registryAction(node.row!.id);}}>
     {node.name} {keyChip(effectiveKeys(info, node.row))}</button></li>}
     : {menu: true, el: <li key={node.name}><details><summary>{node.name}</summary><ul role="menu">{withRules(node.children.map(entry))}</ul></details></li>};
   const tree = menuTree(registryRows(hello), hello);

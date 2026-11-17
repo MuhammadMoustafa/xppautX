@@ -62,7 +62,7 @@ Result<std::string> save_frames(Session &s, const Command &command, const Argume
     if (const Result<> ready = need_frames(s, command, place); !ready) return std::unexpected<Error>(ready.error());
     const std::string &file = args.get<std::string>("file");
     /* the frames are named from the file, its extension last (W673): it must be the format's */
-    if (!files::has_extension(file, ".gif")) return fail(command.name, xpp::format("{}: the kinescope's frames are GIF files, so the file ends in .gif", file), place);
+    if (!files::has_extension(file, xpp::GIF_EXTENSION)) return fail(command.name, xpp::format("{}: the kinescope's frames are GIF files, so the file ends in .gif", file), place);
     const Result<int> saved = ui.movie_save(s, file, IMAGE_FORMAT_GIF);
     if (!saved) return std::unexpected<Error>(saved.error());
     return ResultObject().text("file", file).integer("frames_saved", *saved).done();
@@ -77,6 +77,9 @@ Result<std::string> save_anigif(Session &s, const Command &command, const Argume
     if (!size) return std::unexpected<Error>(size.error());
     return ResultObject().text("file", file).integer("bytes_written", static_cast<long long>(*size)).done();
 }
+
+/* what kinescope.export needs: captured frames (SessionNeed) */
+bool kinescope_has_frames(const Session &s) { return s.kinescope->frames != 0; }
 
 /* kinescope.export: the output's choice picks the one writer (movie_output_names) */
 Result<std::string> export_output(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -111,7 +114,7 @@ constexpr std::array ROWS = {
             AUTOPLAY_RESULTS, FILM_EVENTS, true, autoplay},
     Command{"kinescope.export", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Kinescope as", "File/Export",
             "Write the captured frames into a file of the model's folder: output animated_gif for one animated GIF, frames for every frame as a GIF file, file for the first, then its numbered names.",
-            EXPORT_RESULTS, DONE_EVENTS, true, export_output, {}, {}, "write", "*", "", "", Feature::none, "output"}};
+            EXPORT_RESULTS, DONE_EVENTS, true, export_output, {}, {}, "write", "*", "", "", Feature::none, {kinescope_has_frames, "needs captured frames"}, "output"}};
 
 } // namespace
 

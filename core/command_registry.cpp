@@ -11,9 +11,6 @@
 #include "json_number.h"
 #include "json_reader.h"
 #include "session.h"
-#include "ani_state.h"
-#include "kinescope.h"
-#include "plot_state.h"
 #include "xpp_path.h"
 #include "xpp_text.h"
 #include "xpp_ui.h"
@@ -356,16 +353,6 @@ const Command *find(std::string_view name)
     return found;
 }
 
-/* why the command cannot run in this session now, "" when it can (W774): the export rows whose input the session does not hold yet. The
-   state event lists each one that cannot, and the export window greys its row with the reason. */
-std::string_view unavailable_reason(const Session &s, const Command &command)
-{
-    if (std::string_view(command.name) == "animation.export" && s.animation->ncom == 0) return "needs an animation loaded";
-    if (std::string_view(command.name) == "kinescope.export" && s.kinescope->frames == 0) return "needs captured frames";
-    if (std::string_view(command.name) == "array_plot.export" && !s.array_plot->plot.alive) return "needs an array plot";
-    return {};
-}
-
 std::string_view numerics_command(std::string_view key)
 {
     for (const auto &[command_name, prefix] : {std::pair<std::string_view, std::string_view>{"run.configure", {}}, {"boundary_value.configure", BVP_KEY_PREFIX}}) {
@@ -436,6 +423,7 @@ Result<std::string> run(Session &s, const char *line, const Place &place, bool p
     Result<Arguments> args = validate(&s, *command, line, place, paths_allowed);
     if (!args) return std::unexpected<Error>(args.error());
     if (!has_feature(s.model(), s.tables, command->needs)) return fail(command->name, xpp::format("{} {}", full_name(*command), feature_info(command->needs).needs), place);
+    if (command->requires_session.met && !command->requires_session.met(s)) return fail(command->name, xpp::format("{} {}", full_name(*command), command->requires_session.needs), place);
     if (args->has(FILE_PICKER_KEY)) {
         const Argument *file_arg = picker_argument(*command);
         std::string file = args->get<std::string>(file_arg->name);

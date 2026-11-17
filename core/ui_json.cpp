@@ -25,6 +25,8 @@
 #include "image_format.h"
 #include "picture.h"
 #include "data_formats.h"
+#include "export_model.h"
+#include "xpp_path.h"
 #include "json_error.h"
 #include "xpp_log.h"
 #include "xpp_inbox.h"
@@ -1157,21 +1159,26 @@ void send_hello(xpp::Session &s)
     buf_format(b, ",\"continue\":{{\"grid_tolerance\":{}}}", xpp::CONTINUE_GRID_TOLERANCE);
     buf_format(b, ",\"state_inspection\":{{\"tail_intervals\":{}}}", STATE_TAIL_INTERVALS);
     BUF_LIT(b, ",\"output_names\":{");
-    /* the defaults of the save buttons (csv, curves) and of every File > Export > Several export (W774: `<command>.<format>`, the
-       export without a format by its command): a second kind with the same extension takes its own `what`, so no two names meet */
-    static constexpr struct { std::string_view key, ext, what; } names[]={
-        {"csv",".csv",""},{"curves",".csv","curves"},
-        {"session.export_info",".txt",""},
-        {"plot.export.pdf",".pdf",""},{"plot.export.svg",".svg",""},
-        {"data.export.csv",".csv",""},{"data.export.dat",".dat",""},{"data.export.csv.gz",".csv.gz",""},{"data.export.npz",".npz",""},
-        {"model.export.python",".py",""},{"model.export.python_numpy",".py","python_numpy"},{"model.export.python_numba",".py","python_numba"},
-        {"animation.export.animated_gif",".gif","animation"},{"animation.export.frames",".ppm","animation-frames"},
-        {"kinescope.export.animated_gif",".gif","kinescope"},{"kinescope.export.frames",".gif","kinescope-frames"},
-        {"array_plot.export.pdf",".pdf","array"},{"array_plot.export.gif",".gif","array"}};
-    for (std::size_t n=0;n<std::size(names);++n){
-        if(n)BUF_LIT(b,",");
-        buf_str(b,names[n].key); BUF_LIT(b,":");
-        buf_str(b,xpp::files::output_name(m.this_file,names[n].ext,names[n].what));
+    /* the defaults of the save buttons (csv, curves) and of every File > Export > Several… format (`<command>.<format>`): each extension
+       is its owner's (the data format's, the language's, the picture and movie formats' in xpp_path.h, the info command's own wild); a second
+       kind with the same extension takes its own `what`, so no two names meet */
+    struct DefaultName { std::string key, ext, what; };
+    std::vector<DefaultName> names = {{"csv", ".csv", ""}, {"curves", ".csv", "curves"}};
+    if (const xpp::command::Command *info = xpp::command::find("session.export_info")) names.push_back({"session.export_info", std::string(info->file_wild).substr(1), ""});
+    for (const xpp::DataFormat &format : xpp::data_formats()) names.push_back({"data.export." + std::string(format.id), format.extension, ""});
+    for (const std::string_view language : xpp::language_names)
+        names.push_back({"model.export." + std::string(language), std::string(xpp::language_named(language)->extension), language == "python" ? "" : std::string(language)});
+    for (const std::string_view format : xpp::picture_format_names) names.push_back({"plot.export." + std::string(format), "." + std::string(format), ""});
+    names.push_back({"array_plot.export.pdf", ".pdf", "array"});
+    names.push_back({"array_plot.export.gif", std::string(xpp::GIF_EXTENSION), "array"});
+    names.push_back({"animation.export.animated_gif", std::string(xpp::GIF_EXTENSION), "animation"});
+    names.push_back({"animation.export.frames", std::string(xpp::PPM_EXTENSION), "animation-frames"});
+    names.push_back({"kinescope.export.animated_gif", std::string(xpp::GIF_EXTENSION), "kinescope"});
+    names.push_back({"kinescope.export.frames", std::string(xpp::GIF_EXTENSION), "kinescope-frames"});
+    for (const DefaultName &name : names) {
+        if (&name != &names.front()) BUF_LIT(b, ",");
+        buf_str(b, name.key); BUF_LIT(b, ":");
+        buf_str(b, xpp::files::output_name(m.this_file, name.ext, name.what));
     }
     BUF_LIT(b,"}");
     BUF_LIT(b, ",\"about\":");

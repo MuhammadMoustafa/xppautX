@@ -6,6 +6,7 @@ import type {CommandRow} from './protocol/kinds';
 import {choiceItems} from './ui/navigation';
 import type {Command} from './protocol/types';
 import {choiceLabel} from './store/fieldKinds';
+import {unavailableReason} from './ui/navigation';
 
 /** the exports the window lists, in its order: a command with a format each (its choice), or the one that has none */
 export const EXPORT_ROWS = ['session.export_info', 'plot.export', 'data.export', 'model.export', 'animation.export', 'kinescope.export', 'array_plot.export'];
@@ -41,7 +42,7 @@ export function exportRows(rows: CommandRow[], separator: string, outputNames: R
   return EXPORT_ROWS.flatMap(id => {
     const row = rows.find(r => r.id === id);
     if (!row) return [];
-    const reason = unavailable.find(u => u.cmd === id)?.reason ?? null;
+    const reason = unavailableReason(unavailable, id);
     /* a format is one item of the menu (choiceItems); an export with none is the command with no arguments but its file */
     const formats = row.menu_choice
       ? choiceItems(row, separator).map(item => ({value: item.choice!.value, args: stringArgs(item.choice!.arguments)}))

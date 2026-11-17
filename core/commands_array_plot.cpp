@@ -146,6 +146,9 @@ Result<std::string> export_gif(Session &s, const Command &command, const std::st
 }
 
 /* array_plot.export: the PDF picture with the labels the settings hold, or the GIF of the window as it shows */
+/* what array_plot.export needs: an open array plot (SessionNeed) */
+bool array_plot_open(const Session &s) { return s.array_plot->plot.alive != 0; }
+
 Result<std::string> export_picture(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     const std::string &file = args.get<std::string>("file");
@@ -208,7 +211,7 @@ constexpr std::array ROWS = {
             RANGE_RESULTS, RANGE_EVENTS, true, range, {}, {}},
     Command{"array_plot.export", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Array plot as", "File/Export",
             "Write the array plot into a file of the model's folder: format pdf (a PDF picture with the labels the settings hold) or gif (the picture as the window shows it).",
-            EXPORT_RESULTS, DONE_EVENTS, true, export_picture, {}, {}, "write", "*", "", "", Feature::none, "format"},
+            EXPORT_RESULTS, DONE_EVENTS, true, export_picture, {}, {}, "write", "*", "", "", Feature::none, {array_plot_open, "needs an array plot"}, "format"},
     Command{"array_plot.scroll", SCROLL_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Scroll array plot", "",
             "Show the array plot from the stored row first_row on (row 0 is the first).", SCROLL_RESULTS, APLOT_EVENTS, true, scroll, {}, {}}};
 

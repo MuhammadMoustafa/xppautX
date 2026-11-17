@@ -2419,6 +2419,15 @@ def check_export_several():
         check('W774: the state names the three exports that cannot run now, each with its reason',
               reasons == {'animation.export': 'needs an animation loaded', 'kinescope.export': 'needs captured frames',
                           'array_plot.export': 'needs an array plot'}, str(reasons))
+        for command, extra, label in [
+                ('animation.export', {'output': 'animated_gif', 'file': 'lecar.gif'}, 'Animation as'),
+                ('kinescope.export', {'output': 'animated_gif', 'file': 'lecar.gif'}, 'Kinescope as'),
+                ('array_plot.export', {'format': 'pdf', 'file': 'lecar.pdf'}, 'Array plot as')]:
+            s.send(cmd=command, **extra)
+            _, done = s.collect(lambda e: e.get('ev') == 'done')
+            want = 'File \u203a Export \u203a %s %s' % (label, reasons[command])
+            check('W774: %s refuses with the reason the window greys it with, before it runs' % command,
+                  done.get('status') == 'error' and str(done.get('error', '')).startswith(want), str(done))
         s.send(cmd='session.file_exists', file='lecar.txt')
         _, done = s.collect(lambda e: e.get('ev') == 'done')
         check('W774: session.file_exists says a file of the model\'s folder is not there before it is written',
@@ -2866,7 +2875,7 @@ def check_kinescope_animation_array_plot():
             _, _, error = req({'cmd': empty}, False)
             check('W527: %s says the kinescope holds no frames' % empty, 'holds no frames' in error, error)
         _, _, error = req({'cmd': 'kinescope.export', 'output': 'animated_gif', 'file': 'none.gif'}, False)
-        check('W527: kinescope.export with no frames writes nothing', 'holds no frames' in error and not exists('none.gif'), error)
+        check('W527: kinescope.export with no frames writes nothing, and says what it needs (the window\'s reason)', 'needs captured frames' in error and not exists('none.gif'), error)
 
         # the animation
         snd(cmd='events.subscribe', events=['animation.frame'])
