@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
-      - uses: astral-sh/setup-uv@v6.4.3
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
       # the runner image (ubuntu24, ubuntu26 ...) in the cache's key: ImageOS is
@@ -92,7 +92,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
-      - uses: astral-sh/setup-uv@v6.4.3
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
       # zip has no pre-installed equivalent on the runner (7zip's -tzip
@@ -157,7 +157,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
-      - uses: astral-sh/setup-uv@v6.4.3
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
       # the newest Xcode the runner has, as build.yml's macos-latest builds
@@ -204,7 +204,7 @@ jobs:
             uv.lock
             .python-version
           sparse-checkout-cone-mode: false
-      - uses: astral-sh/setup-uv@v6.4.3
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
       - uses: actions/download-artifact@v8
