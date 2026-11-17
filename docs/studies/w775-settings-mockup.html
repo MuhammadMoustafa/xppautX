@@ -1,0 +1,121 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<style>
+:root{--bg:#f7f7f7;--surface:#fff;--s2:#f0f0f0;--border:#d9d9d9;--fb:#838383;--fg:#232323;--mut:#5b5b5b;--acc:#2563d6;--accbg:#e8efff;--ok:#1f7a3a}
+@media (prefers-color-scheme:dark){:root{--bg:#161616;--surface:#1f1f1f;--s2:#2a2a2a;--border:#3a3a3a;--fb:#8a8a8a;--fg:#ebebeb;--mut:#a8a8a8;--acc:#5b8def;--accbg:#1e2a44;--ok:#5cc27e}}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;font:15px/1.4 Inter,system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+.app{position:fixed;inset:0;display:flex;flex-direction:column}
+.top{height:48px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:8px;background:var(--surface)}
+.top b{font-size:15px}.top span{color:var(--mut);font-size:13px}
+.work{flex:1;background:var(--bg)}
+.status{height:34px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 12px;font-size:13px;background:var(--surface);white-space:nowrap;overflow:hidden}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--acc);flex:none}
+.status code{font:12.5px ui-monospace,monospace;color:var(--mut);overflow:hidden;text-overflow:ellipsis}
+.status .sp{flex:1}
+.scrim{position:fixed;inset:0 0 34px 0;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;padding:16px}
+.dlg{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:min(860px,100%);height:min(620px,100%);display:flex;flex-direction:column;box-shadow:0 8px 30px rgba(0,0,0,.2)}
+.head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.head h2{font-size:17px;margin:0;margin-right:auto}
+.seg{display:inline-flex;border:1px solid var(--fb);border-radius:7px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:5px 12px}.seg .on{background:var(--accbg);color:var(--fg);font-weight:600}
+button{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--fb);border-radius:6px;padding:5px 10px}
+.x{width:32px;height:32px;padding:0}
+.main{flex:1;display:flex;min-height:0}
+nav{width:11rem;border-right:1px solid var(--border);padding:8px}
+nav a{display:block;padding:7px 10px;border-radius:6px;color:var(--fg);text-decoration:none}
+nav a.on{background:var(--accbg);font-weight:600}
+.pane{flex:1;overflow:auto;padding:4px 18px 16px;min-width:0}
+.pane h3{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);margin:16px 0 4px}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 16px;padding:10px 0;border-top:1px solid var(--border);align-items:center}
+.row .lab{font-weight:500}.row .help{grid-column:1;color:var(--mut);font-size:13px}
+.row .src{grid-column:1;font-size:12.5px;color:var(--mut)}.row .src.here{color:var(--acc)}
+.ctl{grid-row:1/span 3;grid-column:2;display:flex;gap:6px;align-items:center}
+select,input[type=text]{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--fb);border-radius:6px;padding:5px 8px}
+.reset{border:0;color:var(--mut);padding:4px}
+.tog{width:38px;height:22px;border-radius:11px;background:var(--fb);position:relative;display:inline-block}
+.tog::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff}
+.tog.on{background:var(--acc)}.tog.on::after{left:19px}
+.foot{display:flex;gap:8px;align-items:center;padding:10px 16px;border-top:1px solid var(--border);font-size:13px;color:var(--mut)}
+.foot code{font:12.5px ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.foot .sp{flex:1}
+.wf{border:1px solid var(--border);border-radius:8px;margin:8px 0}
+.wfh{display:flex;gap:8px;align-items:center;padding:8px 10px;flex-wrap:wrap}
+.wfh input{flex:1;min-width:8rem;font-weight:600}
+.kbd{font:12.5px ui-monospace,monospace;border:1px solid var(--fb);border-radius:5px;padding:2px 6px}
+.steps{list-style:none;margin:0;padding:0 10px 8px}
+.steps li{display:flex;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--border);border-radius:6px;margin-top:6px;background:var(--s2)}
+.steps .n{color:var(--mut);font-size:13px;width:1.4em;text-align:right}
+.steps code{font:13px ui-monospace,monospace;flex:1;min-width:0;overflow-wrap:anywhere}
+.grip{color:var(--mut);cursor:grab}
+.small{color:var(--mut);font-size:13px;padding:2px 10px 8px}
+.pinrow{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--border)}
+.pinrow .nm{flex:1}
+.chip{display:inline-flex;gap:4px;align-items:center;font-size:12.5px;border:1px solid var(--fb);border-radius:999px;padding:1px 8px;color:var(--mut)}
+.groupsel{display:none}
+.steps li.bad{border-color:#c62828;background:transparent}.steps input.code{font:13px ui-monospace,monospace;flex:1;min-width:0;border:1px solid #c62828}
+.err{color:#c62828;font-size:12.5px;padding:2px 0 0 3.4em}
+.chk{margin:0 10px 10px;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px}
+.st{font-size:12.5px;padding:2px 0 0 3.4em}.st.ok{color:var(--ok)}.st.no{color:#c62828}.st.warn{color:#b26a00}
+@media (prefers-color-scheme:dark){.st.no{color:#ff6b6b}.st.warn{color:#f0b35a}}
+.chk div{display:flex;gap:8px;padding:2px 0}.chk .ok{color:var(--ok)}.chk .no{color:#c62828}.chk .warn{color:#b26a00}
+@media (prefers-color-scheme:dark){.err,.chk .no{color:#ff6b6b}.steps li.bad,.steps input.code{border-color:#ff6b6b}.chk .warn{color:#f0b35a}}
+@media (max-width:47.99rem){
+ .scrim{padding:0;align-items:stretch}.dlg{border-radius:0;border:none;height:100%;width:100%}
+ nav{display:none}.groupsel{display:block;padding:8px 16px 0}.groupsel select{width:100%}
+ .pane{padding:0 16px 16px}
+}
+</style></head><body>
+<div class="app">
+ <div class="top"><b>lecar.odex</b><span>main</span></div>
+ <div class="work"></div>
+ <div class="status"><span class="dot"></span><span>Pin “Figures”: step 2 of 4</span><code>plot.export --format pdf</code></div>
+</div>
+<div class="scrim"><div class="dlg" role="dialog">
+ <div class="head"><h2>Settings</h2>
+  <div class="seg" id="scope"><button data-s="user">User</button><button data-s="folder">Folder: lecar/</button></div>
+  <button class="x" aria-label="Close">✕</button></div>
+ <div class="groupsel"><select id="gsel"><option>General</option><option>Colors</option><option>Keymap</option><option>Page</option><option>Updates</option></select></div>
+ <div class="main">
+  <nav id="nav"><a data-g="general">General</a><a>Colors</a><a data-g="keymap">Keymap</a><a>Page</a><a>Updates</a></nav>
+  <div class="pane" id="general">
+   <h3>General</h3>
+   <div class="row"><span class="lab">Threads</span><span class="help">autoX's collocation and a sweep's runs</span><span class="src here" data-f>Set here · user's: automatic</span>
+     <span class="ctl"><select><option>2</option><option>automatic</option></select><button class="reset" title="Back to the user's">↺</button></span></div>
+   <div class="row"><span class="lab">Log level</span><span class="help">what the log shows</span><span class="src" data-f>From user</span>
+     <span class="ctl"><select><option>warn</option><option>info</option><option>debug</option></select></span></div>
+   <div class="row"><span class="lab">Log to file</span><span class="help">writes the model folder's .xppautx/xppautx.log</span><span class="src" data-f>From user</span>
+     <span class="ctl"><span class="tog on"></span></span></div>
+  </div>
+  <div class="pane" id="keymap">
+   <h3>Pins</h3>
+   <div class="wf">
+    <div class="wfh"><span class="grip">⠿</span><input type="text" value="Run from initial" aria-label="Name"><span class="kbd">I</span><button>Run</button><button class="reset" title="Unpin">✕</button></div>
+    <ol class="steps"><li><span class="n">1</span><code>run.initial</code></li><div class="st ok">✓ runs</div></ol>
+   </div>
+   <div class="wf">
+    <div class="wfh"><span class="grip">⠿</span><input type="text" value="Figures" aria-label="Name"><span class="kbd">Ctrl+Shift+F</span><button>Run</button><button class="reset" title="Unpin">✕</button></div>
+    <ol class="steps">
+     <li><span class="grip">⠿</span><span class="n">1</span><code>run.initial</code><button class="reset">✕</button></li><div class="st ok">✓ runs</div>
+     <li><span class="grip">⠿</span><span class="n">2</span><code>plot.export --format pdf</code><button class="reset">✕</button></li><div class="st ok">✓ writes lecar.pdf</div>
+     <li><span class="grip">⠿</span><span class="n">3</span><code>plot.export --format svg --file "fig1.svg"</code><button class="reset">✕</button></li><div class="st warn">! writes fig1.svg, which exists: Replace / Skip those / Cancel will be asked</div>
+     <li class="bad"><span class="grip">⠿</span><span class="n">4</span><input class="code" type="text" value="data.export --format cvs"><button class="reset">✕</button></li><div class="st no">✕ Argument "format": "cvs" is not one of dat, csv, csv.gz, npz · not saved</div>
+     <li><span class="grip">⠿</span><span class="n">5</span><code>array_plot.export --format gif</code><button class="reset">✕</button></li><div class="st no">✕ cannot run now: needs an array plot</div>
+    </ol>
+    <div class="small"><button>+ Add step…</button></div>
+   </div>
+   <button>+ New pin</button>
+   <h3>Keys</h3>
+   <div class="pinrow"><span class="nm">Continue</span><span class="kbd">C</span></div>
+   <div class="pinrow"><span class="nm">Model as › Python</span><span class="kbd">Ctrl+Alt+P</span></div>
+  </div>
+ </div>
+ <div class="foot"><span>Saved as you change, comments kept:</span><code id="path">~/.config/xppautX/settings.json</code><span class="sp"></span><button>Open file</button></div>
+</div></div>
+<script>
+const [g,s]=(location.hash.slice(1)||'general-user').split('-');
+document.getElementById(g==='keymap'?'general':'keymap').style.display='none';
+document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.g===g));
+document.getElementById('gsel').value=g==='keymap'?'Keymap':'General';
+document.querySelectorAll('#scope button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
+if(s==='folder')document.getElementById('path').textContent='lecar/.xppautx/settings.json';
+else document.querySelectorAll('[data-f]').forEach(e=>e.remove());
+</script></body></html>
