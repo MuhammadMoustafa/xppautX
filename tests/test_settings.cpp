@@ -129,7 +129,8 @@ void check_folder_files(const std::string &root)
     CHECK(effective && effective->threads == 2);
     write_text(folder + "/.xppautx/settings.json", "{\"version\": 4,\n\"general\": {\"threads\": \"many\"}}\n");
     const auto bad = xpp::settings::effective_settings(fs, user, folder);
-    CHECK(!bad && bad.error().place.line == 2 && bad.error().place.file == folder + "/.xppautx/settings.json");
+    CHECK(!bad && bad.error().place.line == 2 && bad.error().place.file
+          == xpp::files::join(xpp::files::join(folder, xpp::files::MODEL_STATE_FOLDER), xpp::settings::SETTINGS_FILE)); /* the system's separator */
     /* a bad user file is the error whatever the folder holds, and no folder is the user's */
     CHECK(!xpp::settings::effective_settings(fs, xpp::Result<xpp::settings::Settings>(std::unexpected(xpp::Error{"s", "bad", {}})), folder));
     CHECK(xpp::settings::effective_settings(fs, user, "").has_value());
