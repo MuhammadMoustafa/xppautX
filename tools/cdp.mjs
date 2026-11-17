@@ -37,6 +37,9 @@ export class Cdp {
     this.id = 0;
     this.pending = new Map();
     this.notes = [];
+    /* the browser's downloads, from Browser.downloadWillBegin and downloadProgress (startBrowser asks for them): one record each, in the
+       order they began, so a check waits for Chrome's own end of a file (state completed or canceled), never for a guessed time */
+    this.downloads = [];
     /* why the connection closed, once it has: a send after it fails at once, since a
        closed WebSocket drops what is sent without a word and its answer would never come
        (W168: a browser that died left every call pending, and Node exited 0, a pass) */
@@ -49,7 +52,7 @@ export class Cdp {
     };
     this.ws.onmessage = m => {
       const d = JSON.parse(m.data);
-      if (d.method) this.note(d);
+      if (d.method) { this.note(d); this.noteDownload(d); }
       if (d.method && this.onEvent) this.onEvent(d);
       const p = d.id && this.pending.get(d.id);
       if (!p) return;
@@ -83,6 +86,32 @@ export class Cdp {
     if (text === null) return;
     this.notes.push(text);
     if (this.notes.length > NOTES_KEPT) this.notes.shift();
+  }
+  noteDownload(d) {
+    const p = d.params;
+    if (d.method === 'Browser.downloadWillBegin') this.downloads.push({guid: p.guid, name: p.suggestedFilename, state: 'inProgress'});
+    else if (d.method === 'Browser.downloadProgress') {
+      const rec = this.downloads.find(r => r.guid === p.guid);
+      if (rec) { rec.state = p.state; rec.reason = p.reason; rec.filePath = p.filePath; }
+    }
+  }
+  /* wait for the download of `name` that began after `since` (a downloads.length taken before what starts it) to end: its file's bytes, or
+     null with the reason printed when Chrome canceled it or `ms` (a safety ceiling, never a result) passed. Chrome's events are the
+     signal; where they never came, the final file's appearing is (Chrome writes NAME.crdownload and renames it at the end) */
+  async waitDownload(file, since, ms = 30000 * Number(process.env.XPP_CHECK_SLOW || 1)) {
+    const name = path.basename(file);
+    let seen = false;
+    const bytes = await waitFor(() => {
+      const rec = this.downloads.slice(since).find(r => r.name === name);
+      if (rec) seen = true;
+      if (rec?.state === 'canceled') return {canceled: rec.reason || 'no reason given'};
+      if (rec && rec.state !== 'completed') return null;
+      const at = rec?.filePath || file; /* Chrome's own saved path where it says (a name taken becomes "name (1).ext") */
+      return fs.existsSync(at) && fs.statSync(at).size > 0 && fs.readFileSync(at);
+    }, ms);
+    if (bytes?.canceled) console.log(`  (download of ${name} canceled: ${bytes.canceled})`);
+    else if (!bytes) console.log(`  (download of ${name} did not end in ${ms / 1000} s: ${seen ? 'Chrome began it' : 'Chrome never began it'}; ${fs.existsSync(path.dirname(file)) ? fs.readdirSync(path.dirname(file)).join(', ') : 'no folder'})`);
+    return bytes?.canceled ? null : bytes;
   }
   /* what the page holds right now, and what it did before: for an error */
   async report() {
@@ -324,7 +353,7 @@ export async function startBrowser(browser, profile) {
      chrome-error page Cdp.report() shows) */
 
   /* Set download behavior once at browser start, for all sections */
-  await cdp.send('Browser.setDownloadBehavior', {behavior: 'allow', downloadPath: downloads})
+  await cdp.send('Browser.setDownloadBehavior', {behavior: 'allow', downloadPath: downloads, eventsEnabled: true})
     .catch(() => cdp.send('Page.setDownloadBehavior', {behavior: 'allow', downloadPath: downloads}))
     .catch(() => undefined);
 

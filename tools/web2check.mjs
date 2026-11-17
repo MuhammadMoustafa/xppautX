@@ -840,7 +840,7 @@ async function dataTable(want, dir) {
   check('W648: the header has the ? left, Load data and Export data on one row under the title when narrow', Object.values(head).every(Boolean), JSON.stringify(head));
   const dataCsvName = await S('s.hello.output_names.csv');
   const dataCsvPath = downloadedPath(dataCsvName); /* a browser export is a download (W786): the file lands in the downloads folder */
-  fs.rmSync(dataCsvPath, {force: true});
+  const csvSince = downloadMark(dataCsvPath);
   const exportSent = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(EXPORT_AS('csv'));
   await acceptExportName();
@@ -851,7 +851,7 @@ async function dataTable(want, dir) {
   /* W771: the table's menu is made of the same items as File > Export > Data as (one builder, one send): the same commands, formats and labels */
   const barItems = await cdp.eval(`[...document.querySelectorAll('.app-menu [data-command="data.export"]')].map(b => [b.dataset.choice, b.textContent.trim()])`);
   check('W771: the table\'s Export menu has the items of File > Export > Data as', JSON.stringify(await exportEntries()) === JSON.stringify(barItems), JSON.stringify([await exportEntries(), barItems]));
-  await waitFile(dataCsvPath);
+  await waitDownload(dataCsvPath, csvSince);
   let csv = fs.existsSync(dataCsvPath) ? fs.readFileSync(dataCsvPath, 'utf8').trim().split('\n') : [];
   if (csv[0]?.startsWith('# seed ')) csv = csv.slice(1); /* the run's seed, when it used one (docs/protocol.md) */
   const r500 = csv[501] ? csv[501].split(',').map(Number) : [];
@@ -862,20 +862,21 @@ async function dataTable(want, dir) {
     !(await S(`s.hello.model_features.find(f => f.name === 'output_columns').present`)) && !(await cdp.eval(`!!document.querySelector('[data-sets-menu="table-export"] [data-export-output]')`)));
   /* another format: its entry sends data.export with it and the file carries its extension */
   const npzName = dataCsvName.replace(/\.csv$/, '.npz');
-  fs.rmSync(path.join(dir, npzName), {force: true});
+  const npzSince = downloadMark(downloadedPath(npzName));
   const npzSent = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(EXPORT_AS('npz'));
   await acceptExportName();
   check('W648: Export data as NPZ offers the .npz file and sends data.export with format npz',
     await until(`s.files.offered && s.files.offered.name === ${JSON.stringify(npzName)} && !s.busy`, 'npz offered')
     && (await cdp.eval(`__xpp.sentFrom(${npzSent})`)).some(c => c.cmd === 'data.export' && c.format === 'npz'));
-  await waitFile(path.join(dir, npzName));
+  await waitDownload(downloadedPath(npzName), npzSince);
 
   /* the plot's own CSV export (PlotView.tsx), the same core write with
      what: plot instead of table (docs/protocol.md "Saving data") */
   const curvesCsvName = await S('s.hello.output_names.curves');
   const curvesCsvPath = downloadedPath(curvesCsvName);
   fs.rmSync(curvesCsvPath, {force: true});
+  const curvesSince = downloadMark(curvesCsvPath);
   const plotEntries = await cdp.eval(`[...document.querySelectorAll('[data-sets-menu="plot-export"] [data-choice]')].map(b => b.dataset.choice)`);
   check('W771: the plot\'s Export menu has an entry for every format of data.export', JSON.stringify(plotEntries) === JSON.stringify(exportFormats), JSON.stringify(plotEntries));
   const plotSent = await cdp.eval('__xpp.sentCount()');
@@ -884,7 +885,7 @@ async function dataTable(want, dir) {
   check('the plot\'s Export menu offers xpp-curves.csv, written by the core, and sends data.export with target plot_curves',
     await until("s.files.offered && s.files.offered.name === s.hello.output_names.curves && !s.busy", 'plot csv offered')
     && (await cdp.eval(`__xpp.sentFrom(${plotSent})`)).some(c => c.cmd === 'data.export' && c.target === 'plot_curves' && c.format === 'csv'));
-  await waitFile(curvesCsvPath);
+  await waitDownload(curvesCsvPath, curvesSince);
   check('xpp-curves.csv is not empty',
     fs.existsSync(curvesCsvPath) && fs.statSync(curvesCsvPath).size > 0);
 
@@ -2959,12 +2960,14 @@ async function recordCheck(dir) {
     && await cdp.eval(`document.querySelector('.recbar textarea').value === '' && document.querySelector('.recbar .rec-count').textContent.trim() === '1 step'`),
     JSON.stringify(await S('s.core.recording')));
   check('record: Integrate sends run.initial', await cdp.eval(`__xpp.sent().some(c => c.cmd === 'run.initial')`));
+  const stopSince = downloadMark(downloadedPath('lecar.recx'));
   await cdp.eval(`document.querySelector('.recbar .rec-stop').click()`);
   /* a browser save is a download under the default name (W786): no name question */
   check('record: Stop downloads the recording under its default name', await until("s.toasts.some(t => t.text === 'lecar.recx downloaded')", 'recording downloaded', 30000), JSON.stringify(await S('s.toasts')));
   check('record: the recording ends and the bar goes',
     await until(`!s.core.recording && !s.busy`, 'stopped') && !(await cdp.eval(`!!document.querySelector('.recbar')`)));
   const file = downloadedPath('lecar.recx');
+  await waitDownload(file, stopSince);
   const lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split(/\r?\n/) : [];
   const at = lines.indexOf('@steps');
   const initialLabel = await nameOf('run.initial');
@@ -3010,11 +3013,13 @@ async function playerCheck(dir) {
   await until(`s.core.recording.steps === 1 && !s.busy`, 'integrated', 20000);
   await cdp.eval(`__xpp.send({cmd: 'window.clear', window: 'main'})`);
   await until(`s.core.recording.steps === 2 && !s.busy`, 'erased');
+  const playSince = downloadMark(downloadedPath('lecar.recx'));
   await cdp.eval(`document.querySelector('.recbar .rec-stop').click()`);
   /* a browser save is a download under the default name (W786): the recording is downloaded as lecar.recx, no name question */
   await until("s.toasts.some(t => t.text === 'lecar.recx downloaded')", 'recording downloaded', 30000);
-  fs.copyFileSync(downloadedPath('lecar.recx'), path.join(dir, 'play.recx')); /* the test uploads the download back, as a user opening it would */
-  fs.copyFileSync(downloadedPath('lecar.recx'), path.join(dir, 'play.recx')); /* the test uploads the download back, as a user opening it would */
+  const playBytes = await waitDownload(downloadedPath('lecar.recx'), playSince);
+  if (playBytes) fs.writeFileSync(path.join(dir, 'play.recx'), playBytes); /* the test uploads the download back, as a user opening it would */
+  check('player: the recording was downloaded to upload back', !!playBytes);
   await until(`!s.core.recording && !s.busy`, 'stopped');
   check('player: the File menu offers Open recording', await cdp.eval(`!!document.querySelector('.app-menu [data-command="recording.open"]')`));
   await clickRegistry('recording.open');
@@ -3175,6 +3180,7 @@ async function leaveSaveCheck(dir) {
   check('leave save: the page\'s question names the recording in progress',
     await until(`s.ask && s.ask.id === -1 && s.ask.question === 'Quit xppautX? Save this session, and the recording in progress, first?'`,
       'page quit ask'), JSON.stringify(await S('s.ask')));
+  const leaveSince = downloadMark(downloadedPath('lecar.snapx'), downloadedPath('lecar.recx'));
   await key('s');
   /* a run's large data table: the core asks whether to leave it out (the user's answer, as before), else the session goes at once */
   await waitFor(async () => {
@@ -3188,9 +3194,9 @@ async function leaveSaveCheck(dir) {
     JSON.stringify(await S('s.ask')));
   const session = downloadedPath('lecar.snapx');
   check('leave save: the session is downloaded into the downloads folder, a session archive',
-    !!(await waitFile(session, 30000 * SLOW)) && fs.readFileSync(session).subarray(0, 2).toString() === 'PK', session);
+    !!(await waitDownload(session, leaveSince)) && fs.readFileSync(session).subarray(0, 2).toString() === 'PK', session);
   const recording = downloadedPath('lecar.recx');
-  check('leave save: the recording in progress is downloaded too', !!(await waitFile(recording, 30000 * SLOW)), recording);
+  check('leave save: the recording in progress is downloaded too', !!(await waitDownload(recording, leaveSince)), recording);
   check('leave save: the plain quit that ends the session follows the downloads',
     await until(`__xpp.sent().filter(c => c.cmd === 'session.quit').slice(-1)[0]?.save === false`, 'plain quit', 30000 * SLOW),
     JSON.stringify(await cdp.eval(`__xpp.sent().slice(-4)`)));
@@ -3644,7 +3650,6 @@ async function exportShots(dir) {
    name (headless Chrome has no picker), the core's copy sits in a scratch folder and nowhere in the model's folder, and that scratch copy
    is gone once the page has the file */
 async function browserSaveCheck(dir) {
-  const downloads = path.join(top, 'build', 'web2check-downloads', String(process.pid));
   const named = (root, name) => {
     let found = false;
     const walk = d => { for (const e of fs.readdirSync(d, {withFileTypes: true})) { if (found) return; const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else if (e.name === name) found = true; } };
@@ -3654,10 +3659,11 @@ async function browserSaveCheck(dir) {
   await until('s.hello && !s.busy', 'hello');
   await clickRegistry('session.export_info');
   await requireUntil(`!!s.commandForm`, 'the export form');
+  const since = downloadMark(downloadedPath('lecar.txt'));
   await submitCommand();
   await until(`s.toasts.some(t => t.text.endsWith(' downloaded'))`, 'the download notice', 30000);
   const text = await S("s.toasts.map(t => t.text).find(t => t.endsWith(' downloaded')) || ''");
-  check('W786: a browser save downloads under the default name, and the notice names it', text === 'lecar.txt downloaded' && fs.existsSync(path.join(downloads, 'lecar.txt')), String(text));
+  check('W786: a browser save downloads under the default name, and the notice names it', text === 'lecar.txt downloaded' && !!(await waitDownload(downloadedPath('lecar.txt'), since)), String(text));
   check("W786: a browser save leaves no copy in the model's folder", !fs.existsSync(path.join(dir, 'lecar.txt')));
   check('W786: the scratch copy is gone once the page has the file', !named(path.join(dir, '.xppautx'), 'lecar.txt'));
 }
@@ -6482,9 +6488,16 @@ function downloadedPath(name) {
   return path.join(top, 'build', 'web2check-downloads', String(process.pid), name);
 }
 
-async function waitFile(p, ms = 10000) {
-  return waitFor(() => fs.existsSync(p) && fs.statSync(p).size > 0 && fs.readFileSync(p), ms);
-}
+/* every wait for a browser download goes through these two (a download is Chrome's, not the page's: the page's notice comes when it
+   starts the download, Chrome writes NAME.crdownload and renames it at the end): `since = downloadMark(...the files)` (it removes any earlier
+   file of those names) before what starts the
+   download, then `waitDownload(file, since)` for Chrome's own end of it (cdp.mjs Cdp.waitDownload): the file's bytes, or null (printed
+   why) when Chrome canceled it or a SLOW-scaled safety ceiling passed */
+const downloadMark = (...files) => {
+  for (const f of files) fs.rmSync(f, {force: true}); /* an earlier download of the name would be read for this one, or make Chrome save it as "name (1).ext" */
+  return cdp.downloads.length;
+};
+const waitDownload = (file, since, ms) => cdp.waitDownload(file, since, ms);
 
 /** the .set XPPAUT wrote for an older lecar.odex (examples/ode/lecar.ode.set: iapp 0.09, equations after
     the values), its count of equations and auxiliaries made the model's today */
@@ -6528,10 +6541,10 @@ async function files(dir) {
     await cdp.eval("window.__pickerCalls = 0; window.showSaveFilePicker = async () => { window.__pickerCalls++; return {name: 'CON.snapx'}; }; true");
     const iapp0 = await par('iapp');
     const savedName = (await S('s.hello.file')).replace(/\.[^.]*$/, '') + '.snapx';
-    fs.rmSync(path.join(downloads, savedName), {force: true});
+    const savedSince = downloadMark(path.join(downloads, savedName));
     check('File > Save session as downloads the session at once (no question)', await registryFile('session.save_as', 'write') && await S('!s.ask'),
       JSON.stringify(await S('s.ask')));
-    const got = await waitFile(path.join(downloads, savedName));
+    const got = await waitDownload(path.join(downloads, savedName), savedSince);
     check('... the browser downloaded it under the default name, a session file', got && got.length > 100, String(got && got.length));
     check('... the answer was the default name, asking the core for a scratch copy, with no model-copy decision',
       (await lastFileAnswer())?.file === savedName && (await lastFileAnswer())?.scratch === true && !Object.hasOwn(await lastFileAnswer(), 'replace'),
@@ -6543,9 +6556,9 @@ async function files(dir) {
       off?.name === savedName && off.how === 'download' && off.size === got.length && off.sha256 === sha256(got), JSON.stringify(off));
 
     /* a second save asks nothing either: a download collides with nothing (W129's replace question was the model's folder's) */
-    fs.rmSync(path.join(downloads, savedName), {force: true});
+    const againSince = downloadMark(path.join(downloads, savedName));
     await registryFile('session.save_as', 'write');
-    check('a second save downloads again, with no replace question', !!(await waitFile(path.join(downloads, savedName))) && await until('!s.busy && !s.ask', 'second save finished'));
+    check('a second save downloads again, with no replace question', !!(await waitDownload(path.join(downloads, savedName), againSince)) && await until('!s.busy && !s.ask', 'second save finished'));
     await cdp.eval('window.showSaveFilePicker = undefined; true');
 
     /* the .set XPPAUT wrote for lecar.odex (its equations after the values): iapp 0.09, the model's 0.05 */
@@ -6879,10 +6892,10 @@ async function exportSeveral(dir) {
   check('W786: the browser window has no folder to choose or dialog, and says each file is downloaded',
     await exportWindowOpen() && !(await cdp.eval(`!!document.querySelector('[data-export-pick], [data-export-folder]')`))
     && (await cdp.eval(`document.querySelector('[data-export-note]')?.textContent ?? ''`)).includes('downloaded'));
-  for (const n of wanted) fs.rmSync(path.join(downloads, n), {force: true}); /* an earlier section's downloads of these names */
   await exportTick('plot.export|pdf');
   await exportTick('plot.export|svg');
   await exportTick('data.export|csv');
+  const batchSince = downloadMark(...wanted.map(n => path.join(downloads, n)));
   await exportClick('[data-export-start]');
   check('W774: three ticks write three files: the batch ends with a report of three written',
     await until(`s.batch.phase === 'report' && document.querySelector('[data-export-summary]')`, 'the report', 60000),
@@ -6897,7 +6910,7 @@ async function exportSeveral(dir) {
       {cmd: 'plot.export', format: 'pdf', file_picker: true},
       {cmd: 'plot.export', format: 'svg', file_picker: true},
       {cmd: 'data.export', target: 'table', format: 'csv', file_picker: true}]), JSON.stringify(sent));
-  check('W786: each file lands in the downloads folder under its name', await waitFor(async () => wanted.every(n => fs.existsSync(path.join(downloads, n))), 20000), JSON.stringify(fs.readdirSync(downloads)));
+  check('W786: each file lands in the downloads folder under its name', (await Promise.all(wanted.map(n => waitDownload(path.join(downloads, n), batchSince)))).every(Boolean), JSON.stringify(fs.readdirSync(downloads)));
   check("W786: no file is written in the model's folder", wanted.every(n => !fs.existsSync(path.join(dir, n))));
   const csv = fs.readFileSync(path.join(downloads, names['data.export.csv']), 'utf8').split('\n').filter(Boolean);
   check('W786: the downloaded CSV is the data table: a header and a row per stored point', csv.length > 100 && csv.at(-1).split(',').length > 1, `${csv.length} lines, ${csv.at(-1)}`);
@@ -7120,11 +7133,11 @@ async function kinescope(dir) {
   const kinescopeExport = async output => {
     const name = (await S('s.hello.output_names'))[`kinescope.export.${output}`];
     const downloaded = path.join(downloads, name);
-    fs.rmSync(downloaded, {force: true});
+    const since = downloadMark(downloaded);
     const mark = await S('__xpp.sentCount()');
     await cdp.eval(`document.querySelector('.kinescope-bar [data-command="kinescope.export"][data-choice=${JSON.stringify(output)}]').click()`);
     const sent = await until(`__xpp.sent().slice(${mark}).some(c => c.cmd === 'kinescope.export' && c.output === ${JSON.stringify(output)})`, 'kinescope.export sent');
-    return sent && await waitFile(downloaded) ? downloaded : null;
+    return sent && await waitDownload(downloaded, since) ? downloaded : null;
   };
 
   const openKinescope = async item => {
@@ -7159,9 +7172,9 @@ async function kinescope(dir) {
   /* the frames output writes one numbered GIF per frame; a browser downloads them as one zip named from the file, holding frames_saved entries */
   {
     const zip = path.join(downloads, (await S('s.hello.output_names'))['kinescope.export.frames'].replace(/\.[^.]*$/, '.zip'));
-    fs.rmSync(zip, {force: true});
+    const zipSince = downloadMark(zip);
     await cdp.eval(`document.querySelector('.kinescope-bar [data-command="kinescope.export"][data-choice="frames"]').click()`);
-    const got = await waitFile(zip);
+    const got = await waitDownload(zip, zipSince);
     const entries = got ? got.readUInt16LE(got.lastIndexOf(Buffer.from([0x50, 0x4b, 5, 6])) + 10) : -1; /* the end record's entry count */
     check('W778: the Kinescope bar\'s Export menu downloads the frames as one zip holding a GIF per frame', !!got && got.readUInt32LE(0) === 0x04034b50
       && entries === (await S('s.kinescope.frames.length')), `${got && got.length} bytes, ${entries} entries`);
@@ -7194,14 +7207,15 @@ async function kinescope(dir) {
       busy: await S('s.busy'), sent: await cdp.eval('__xpp.sent().slice(-3)')}));
 
   /* the same GIF from the menu bar (File > Export > Kinescope as > Animated gif): no question, the core's writer and the download */
-  fs.rmSync(animPath, {force: true});
+  const menuGif = animPath ?? path.join(downloads, (await S('s.hello.output_names'))['kinescope.export.animated_gif']);
+  const gifSince = downloadMark(menuGif);
   await clickRegistry('kinescope.export');
   check('kinescope: File > Export > Kinescope as > Animated gif runs', await until('!s.busy', 'anigif done'));
-  await waitFile(animPath);
+  await waitDownload(menuGif, gifSince);
   check('kinescope: it wrote the GIF from the pixels answer (a real GIF, not empty)',
-    fs.existsSync(animPath) && fs.readFileSync(animPath).length > 20
-    && fs.readFileSync(animPath).toString('ascii', 0, 3) === 'GIF',
-    fs.existsSync(animPath) ? String(fs.statSync(animPath).size) : 'missing');
+    fs.existsSync(menuGif) && fs.readFileSync(menuGif).length > 20
+    && fs.readFileSync(menuGif).toString('ascii', 0, 3) === 'GIF',
+    fs.existsSync(menuGif) ? String(fs.statSync(menuGif).size) : 'missing');
 
   check('kinescope: Reset (k, r) empties the frames', await openKinescope('r')
     && await until('s.kinescope.frames.length === 0 && s.kinescope.shown === null && !s.busy', 'reset'));
