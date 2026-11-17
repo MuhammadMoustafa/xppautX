@@ -24,7 +24,7 @@ button.icon { border: none; background: none; font-size: var(--text-lg); padding
 
 /* focus: always visible for the keyboard (WCAG 2.4.7, 2.4.11) */
 :focus { outline: none; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+:focus-visible, .export-formats .chip:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 .plot-host:focus-visible { outline-offset: -2px; }
 
 kbd {
