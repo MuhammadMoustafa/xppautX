@@ -34,6 +34,10 @@ using Loaded = std::expected<Session *, Error>;
    it (xpp_saved_check, xpp_session.h): what it finds wrong fails the load
    as a model that does not load does. What is wrong is written to the
    log here (Error::text()), once. */
+/* what the log shows and where it goes: `forced` (--verbose, --debug) else `level`; with `to_file` and a model folder, the log is that
+   folder's .xppautx/xppautx.log (the file before closed), else stderr. A file that cannot be opened is said in the log, on stderr.
+   The program's start calls it for the model its command line names, and every load that keeps a model calls it for that model's folder. */
+void apply_log_settings(XppLogLevel level, bool to_file, std::optional<XppLogLevel> forced, std::string_view model_folder);
 Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *saved = nullptr,
                   const std::function<std::optional<Error>(Session &)> &check = {},
                   const settings::Read *read_settings = nullptr);

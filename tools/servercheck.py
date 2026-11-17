@@ -9,7 +9,7 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, copy, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import FollowOneBranch, versioned, versioned_anix, copy_model, staged_model_names, CONFIG_ROOT, Server, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, file_bytes, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission, ALL_EVENTS
+from xppclient import wait_until, scratch_dirs, FollowOneBranch, versioned, versioned_anix, copy_model, staged_model_names, CONFIG_ROOT, Server, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, file_bytes, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission, ALL_EVENTS
 import autoxcompare
 
 ap = argparse.ArgumentParser()
@@ -80,7 +80,7 @@ def xppaut_ic(ics):
     return ''.join('%r\n' % value for _, value in ics)
 
 
-def launch_server(extra_env=None, ode=None, log=None, extra_args=None, no_model=False, server=None):
+def launch_server(extra_env=None, ode=None, log=None, extra_args=None, no_model=False, server=None, prepare=None):
     """Start one xppautX --server instance in its own scratch directory and
     return (proc, run_dir, send, collect, events) -- send/collect work just
     like the module-level ones below but are bound to this instance, so a
@@ -88,10 +88,13 @@ def launch_server(extra_env=None, ode=None, log=None, extra_args=None, no_model=
     can be driven the same way without disturbing the main session. With
     `log` (a list), the server's stderr lines are appended to it. With
     `no_model` the program starts with no file (the start screen, W232). `server` is another
-    copy of the program to run (W233: the bundled examples are found beside the executable)."""
+    copy of the program to run (W233: the bundled examples are found beside the executable). `prepare(run_dir)` runs
+    once the model is copied and before the program starts (W791: a model folder's .xppautx)."""
     ode = ode or args.ode
     run_dir = tempfile.mkdtemp(prefix='xppserver')
     copy_model(ode, run_dir)
+    if prepare:
+        prepare(run_dir)
     env = None
     if extra_env is not None:
         env = dict(os.environ)
@@ -104,6 +107,7 @@ def launch_server(extra_env=None, ode=None, log=None, extra_args=None, no_model=
     proc = subprocess.Popen([os.path.abspath(server or args.server), '--server'] + ([] if no_model else [os.path.basename(ode)]) + (extra_args or []), cwd=run_dir,
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, encoding='utf-8', bufsize=1, env=env)
+    proc.run_dir = run_dir  # where its model is: autoX's scratch is in its .xppautx/tmp (W791)
     events = queue.Queue()
     mirror = SeriesMirror()
 
@@ -3284,7 +3288,7 @@ def check_options_panels():
         commands = {c['cmd']: c for c in hello['commands'] if 'arguments' in c}
         check('W641: every command row has the text of its action, never OK or Run, and an option\'s is Apply', all(c.get('action') for c in commands.values())
               and not any(c['action'] in ('OK', 'Run') for c in commands.values()) and commands['run.configure']['action'] == 'Apply', str([c['cmd'] for c in commands.values() if not c.get('action')]))
-        check('W641: an argument has its description where the row gives one', next(a for a in commands['settings.configure']['arguments'] if a['name'] == 'log_file').get('description'))
+        check('W641: an argument has its description where the row gives one', next(a for a in commands['settings.configure']['arguments'] if a['name'] == 'log_to_file').get('description'))
         check('W616: no key twice in a group', all(len({r['key'] for r in g['rows']}) == len(g['rows']) for g in groups.values()))
 
         def call(**command):
@@ -3347,10 +3351,10 @@ def check_options_panels():
         check('W616: only an output path takes a picked file', done.get('status') == 'error' and 'no path option of output' in done.get('error', ''), str(done))
         done = call(cmd='output.configure', option='data_file')
         check('W616: an option and its file go together', done.get('status') == 'error', str(done))
-        done = call(cmd='settings.configure', log_level='info', log_file='')
+        done = call(cmd='settings.configure', log_level='info', log_to_file=False)
         check('W616: settings.configure keeps the log level in the settings beside the threads', done.get('status') == 'ok' and done['result']['log_level'] == 'info', str(done))
         done = call(cmd='settings.get')
-        check('W616: settings.get gives the threads, whether automatic, the log level and file', done.get('status') == 'ok' and done['result']['log_level'] == 'info' and 'automatic' in done['result'] and 'log_file' in done['result'], str(done))
+        check('W616: settings.get gives the threads, whether automatic, the log level and whether it goes to a file', done.get('status') == 'ok' and done['result']['log_level'] == 'info' and 'automatic' in done['result'] and 'log_to_file' in done['result'], str(done))
         # W655: the eight colors are settings: set, read back, kept in the file, refused in a model's options
         kept = call(cmd='settings.get')['result']
         done = call(cmd='settings.configure', x_nullcline_color='#123456', unstable_manifold_color='red')
@@ -6650,10 +6654,9 @@ check_ani_data()
 # point, then the periodic branch from the Hopf point, as
 # examples/recordings/lecar_autox.recx does it.
 def autox_scratch(p):
-    """autoX's private scratch directories of server process p (xpp::files::make_temp_dir)"""
-    tmp = tempfile.gettempdir() if os.name == 'nt' else (os.environ.get('TMPDIR') or '/tmp')
-    pre = 'xppautoX-%d-' % p.pid
-    return [os.path.join(tmp, d) for d in os.listdir(tmp) if d.startswith(pre)]
+    """the private scratch directories of server process p (xpp::files::make_temp_dir): autoX's, in its model folder's .xppautx/tmp, and a
+    recording replay's, in the system's temp folder"""
+    return scratch_dirs(p.run_dir, p.pid, replay=True)
 
 
 NUM = r'([-+]?\d\.\d+E[-+]\d+)'
@@ -9743,7 +9746,7 @@ def check_session_file():
         restored_as_saved('open session with the .ode edited')
         with open(os.path.join(r, 'lecar.odex')) as f:
             check('open session with the .ode edited: the .ode on the disk is left as it was, nothing written beside it',
-                  'phi2' in f.read() and sorted(os.listdir(r)) == sorted(staged_model_names(args.ode) + ['s1.snapx']), str(os.listdir(r)))
+                  'phi2' in f.read() and sorted(os.listdir(r)) == sorted(staged_model_names(args.ode) + ['s1.snapx', '.xppautx']), str(os.listdir(r)))  # .xppautx: autoX's scratch (W791)
         # a zip opened as a model: refused, its bytes never shown, nothing changes
         shutil.copy(os.path.join(r, 's1.snapx'), os.path.join(r, 'zip.ode'))
         del allev[:]
@@ -11559,6 +11562,173 @@ def check_settings():
 check_keymap()
 check_settings()
 
+def check_model_folder():
+    """W791: a model's folder may hold `.xppautx`: its settings.json goes on top of the user's, key by key (never the update check), the log
+    is xppautx.log in it when `general.log_to_file` is on, autoX's scratch is its tmp, emptied at exit, with a dead run's folder removed at
+    the next start; its .gitignore holds tmp/ and *.log. A bad file is refused with its file and line and nothing of it used; a read-only
+    folder is an error naming it."""
+    config = os.path.join(CONFIG_ROOT, 'model-folder', 'xppautX')
+    os.makedirs(config, exist_ok=True)
+    user = os.path.join(config, 'settings.json')
+    env = {'XPP_CONFIG_DIR': config}
+    errors = lambda evs: [e for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
+    hello_settings = lambda evs: next(e for e in evs if e.get('ev') == 'hello')['settings']
+
+    def folder_file(text):
+        def prepare(run):
+            os.makedirs(os.path.join(run, '.xppautx'))
+            with open(os.path.join(run, '.xppautx', 'settings.json'), 'w', newline='\n') as f:
+                f.write(text)
+        return prepare
+
+    def quit_and_wait(p, snd):
+        snd(cmd='session.quit', save=False)
+        try:
+            p.wait(timeout=10 * SLOW)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            p.wait()
+
+    with open(user, 'w', newline='\n') as f:
+        f.write('{"version": 4, "page": {"theme": "light", "dock_width": 500}, "updates": {"check_for_updates": false}}\n')
+    # the folder's keys on top of the user's, the rest the user's
+    p, r, snd, col, _ = launch_server(extra_env=env, prepare=folder_file('{"version": 4, "page": {"theme": "dark"}}\n'))
+    try:
+        evs, _ = col(is_done)
+        st = hello_settings(evs)
+        check('W791: a folder\'s settings.json overrides the user\'s key by key: its theme, the user\'s dock width',
+              st['ok'] is True and st['page']['theme'] == 'dark' and st['page']['dock_width'] == 500, str(st)[:300])
+        snd(cmd='settings.get')
+        evs, _ = col(is_done)
+        check('W791: nothing made a .xppautx tmp or log for a model that needs none', not os.path.exists(os.path.join(r, '.xppautx', 'tmp'))
+              and not os.path.exists(os.path.join(r, '.xppautx', 'xppautx.log')), str(os.listdir(os.path.join(r, '.xppautx'))))
+    finally:
+        stop_server(p, r, snd)
+    # refused: a bad value, the update check, the old log_file: the load fails (no model opens) with the file and line, none of it used
+    for what, text, word in [('a bad value', '{"version": 4,\n"page": {"theme": "blue"}}\n', 'blue'),
+                             ('the update check', '{"version": 4,\n"updates": {"check_for_updates": true}}\n', 'update check'),
+                             ('the old log_file', '{"version": 4,\n"general": {"log_file": "/tmp/x.log"}}\n', 'log_file')]:
+        lines = []
+        p, r, snd, col, _ = launch_server(extra_env=env, prepare=folder_file(text), log=lines)
+        try:
+            p.wait(timeout=30 * SLOW)
+            wait_until(lambda: any('settings.json:2' in l.replace(os.sep, '/') for l in lines))  # the stderr reader's lines arrive after the exit
+            joined = '\n'.join(lines).replace(os.sep, '/')
+            check('W791: a folder file with %s fails the load at its file and line, none of it used' % what,
+                  p.returncode != 0 and '.xppautx/settings.json:2' in joined and word in joined, str(p.returncode) + joined[:300])
+        finally:
+            shutil.rmtree(r, ignore_errors=True)
+    # the log is the folder's xppautx.log, with the .gitignore of the folder the log made
+    with open(user, 'w', newline='\n') as f:
+        f.write('{"version": 4, "general": {"log_level": "info", "log_to_file": true}}\n')
+    log_lines = []
+    p, r, snd, col, _ = launch_server(extra_env=env, log=log_lines)
+    try:
+        col(is_done)
+    finally:
+        quit_and_wait(p, snd)
+    folder = os.path.join(r, '.xppautx')
+    with open(os.path.join(folder, '.gitignore'), newline='') as f:
+        ignore = f.read()
+    check('W791: .xppautx holds a .gitignore of tmp/ and *.log', ignore == 'tmp/\n*.log\n', repr(ignore))
+    logged = open(os.path.join(folder, 'xppautx.log'), encoding='utf-8').read() if os.path.exists(os.path.join(folder, 'xppautx.log')) else ''
+    check('W791: the log is written into .xppautx/xppautx.log, not the terminal', logged != '' and logged.splitlines()[0] not in log_lines,
+          logged[:200] + ' | ' + str(log_lines[:3]))
+    shutil.rmtree(r, ignore_errors=True)
+    # autoX's scratch folder is in the folder's tmp and gone at exit; a dead run's is removed at the next start
+    dead = subprocess.Popen([sys.executable, '-c', 'pass'])
+    dead.wait()
+    stale = []
+
+    def leftover(run):
+        stale.append(os.path.join(run, '.xppautx', 'tmp', 'xppautoX-%d-0' % dead.pid))
+        os.makedirs(stale[0])
+
+    p, r, snd, col, _ = launch_server(extra_env=env, prepare=leftover)
+    try:
+        col(is_done)
+        check('W791: a dead run\'s scratch folder is removed at the start', not os.path.exists(stale[0]), str(os.listdir(os.path.join(r, '.xppautx', 'tmp'))))
+        lecar_to_autox(snd, col)
+        dirs = scratch_dirs(r, p.pid)
+        check('W791: autoX\'s scratch folder is in the model folder\'s .xppautx/tmp', len(dirs) == 1, str(dirs))
+    finally:
+        quit_and_wait(p, snd)
+    check('W791: the scratch folders are gone once the program exits', scratch_dirs(r, p.pid) == [] and os.path.isdir(os.path.join(r, '.xppautx', 'tmp')),
+          str(os.listdir(os.path.join(r, '.xppautx', 'tmp'))))
+    shutil.rmtree(r, ignore_errors=True)
+    # a model opened later from another folder takes that folder's settings and log, a bad folder file refuses the load
+    with open(user, 'w', newline='\n') as f:
+        f.write('{"version": 4, "general": {"log_level": "info", "log_to_file": true}}\n')
+    other = []
+    for text in ['{"version": 4, "general": {"threads": 2}}\n', '{"version": 4,\n"general": {"threads": "many"}}\n']:
+        folder = tempfile.mkdtemp(prefix='xppother')
+        other.append(folder)
+        copy_model(args.ode, folder)
+        os.makedirs(os.path.join(folder, '.xppautx'))
+        with open(os.path.join(folder, '.xppautx', 'settings.json'), 'w', newline='\n') as f:
+            f.write(text)
+    first, bad = other
+    model = os.path.basename(args.ode)
+
+    def open_model(path):
+        snd(cmd='session.open_model', file=path)
+        seen = []
+        while True:
+            evs, end = col(lambda e: is_done(e) or e.get('ev') == 'ask', timeout=60 * SLOW)
+            seen += evs
+            if not end or end.get('ev') != 'ask':
+                return seen
+            snd(cmd='answer', id=end['id'], key='d')
+
+    p, r, snd, col, _ = launch_server(extra_env=env, prepare=folder_file('{"version": 4, "general": {"threads": 3}}\n'))
+    try:
+        col(is_done)
+        snd(cmd='settings.get')
+        evs, _ = col(is_done)
+        threads = lambda evs: next(e for e in evs if e.get('ev') == 'done')['result']['threads']
+        check('W791: the first model has its folder\'s threads', threads(evs) == 3, str(evs)[-200:])
+        evs = open_model(os.path.join(first, model))
+        snd(cmd='settings.get')
+        evs, _ = col(is_done)
+        check('W791: a model opened from another folder takes that folder\'s settings.json', threads(evs) == 2, str(evs)[-200:])
+        evs = open_model(os.path.join(bad, model))
+        err = errors(evs)
+        check('W791: a bad folder file refuses the load with its file and line',
+              len(err) == 1 and err[0].get('file', '').replace(os.sep, '/').endswith('.xppautx/settings.json') and err[0].get('line') == 2 and 'many' in err[0]['error'], str(evs)[-300:])
+        snd(cmd='settings.get')
+        evs, _ = col(is_done)
+        check('W791: ... and the model before stays, with its settings', threads(evs) == 2, str(evs)[-200:])
+        check('W791: the log moved to the opened model\'s .xppautx/xppautx.log, where the load error was written',
+              os.path.exists(os.path.join(first, '.xppautx', 'xppautx.log')) and 'many' in open(os.path.join(first, '.xppautx', 'xppautx.log'), encoding='utf-8').read(),
+              str(os.listdir(os.path.join(first, '.xppautx'))))
+    finally:
+        stop_server(p, r, snd)
+        for folder in other:
+            shutil.rmtree(folder, ignore_errors=True)
+    # a read-only folder: an error naming it where something needs .xppautx, never a fall back elsewhere
+    if os.name != 'nt' and os.geteuid() != 0:
+        log_lines = []
+        p, r, snd, col, _ = launch_server(extra_env=env, log=log_lines, prepare=lambda run: os.chmod(run, 0o555))
+        try:
+            col(is_done)
+            check('W791: a read-only model folder is an error naming it where the log needs .xppautx', any(r in l and 'xppautx' in l for l in log_lines), str(log_lines[:5]))
+            snd(cmd='set.apply', name='hopf', scope='all')
+            col(is_done)
+            for command in [dict(cmd='equilibrium.find'), dict(cmd='initial_conditions.set_from_equilibrium'), dict(cmd='autox.open')]:
+                snd(**command)
+                col(is_done, timeout=60 * SLOW)
+            snd(cmd='autox.run', kind='equilibrium')
+            evs, _ = col(is_done, timeout=60 * SLOW)
+            err = errors(evs)
+            check('W791: autoX in a read-only model folder is an error naming the folder, and makes nothing elsewhere',
+                  len(err) == 1 and r in err[0]['error'] and not os.path.exists(os.path.join(r, '.xppautx')), str(evs)[-300:])
+        finally:
+            os.chmod(r, 0o755)
+            stop_server(p, r, snd)
+
+
+check_model_folder()
+
 def recent_text(models):
     """W287: a state.json holding these recent models (a quoted string is JSON's)"""
     return '{"version": 4, "recent_models": [%s]}\n' % ', '.join(json.dumps(m) for m in models)
@@ -12014,8 +12184,9 @@ def check_outside_paths():
         finally:
             s.close()
 
-        # The log is the user's, not a model's: the settings' log_file refuses a link and names it.
-        log = os.path.join(root, 'swapped.log').replace(os.sep, '/')
+        # The log is the user's, not a model's: the model folder's xppautx.log refuses a link and names it.
+        os.makedirs(os.path.join(proj, '.xppautx'), exist_ok=True)
+        log = os.path.join(proj, '.xppautx', 'xppautx.log')
         target = os.path.join(root, 'target.txt')
         with open(target, 'w') as f:
             f.write('keep target')
@@ -12029,12 +12200,12 @@ def check_outside_paths():
             log_config = os.path.join(root, 'log-config')
             os.makedirs(log_config)
             with open(os.path.join(log_config, 'settings.json'), 'w', encoding='utf-8') as f:
-                f.write('{"version": 4, "general": {"log_file": %s}}\n' % json.dumps(log))
+                f.write('{"version": 4, "general": {"log_to_file": true}}\n')
             result = subprocess.run([binary, 'tab.odex', '--silent'], cwd=proj, input='',
                                     capture_output=True, text=True, timeout=60 * SLOW,
                                     env=dict(os.environ, XPP_CONFIG_DIR=log_config))
             check('W297: the settings log file refuses a link and names file',
-                  result.returncode != 0 and 'swapped.log' in result.stderr and open(target).read() == 'keep target', result.stderr)
+                  result.returncode != 0 and 'xppautx.log' in result.stderr and open(target).read() == 'keep target', result.stderr)
 
     finally:
         shutil.rmtree(root, ignore_errors=True)

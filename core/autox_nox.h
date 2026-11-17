@@ -358,9 +358,12 @@ void get_autox_str(const AutoxParts &s, const AUTOAX &ax, std::string &xlabel, s
    folder (autox_state.h) if it is set, and clears it */
 void cleanup_autox_dir(FileSystem &fs, AutoxParts s);
 
-/* another model is loaded (File > Open model, Reload): a new, empty autoX
-   scratch folder in place of the Session s's, whose files (<model>.s, .b,
-   .d) were the model before's */
+/* s's autoX scratch folder, made when a run or a restored session first needs it, in the model folder's
+   `.xppautx/tmp` (W791); the error names the folder that cannot hold it, a read-only one included */
+Result<> ensure_autox_dir(AutoxParts s);
+
+/* another model is loaded (File > Open model, Reload): the Session s's autoX scratch folder, whose files
+   (<model>.s, .b, .d) were the model before's, goes; the next run makes the new model's own */
 void renew_autox_dir(FileSystem &fs, AutoxParts s);
 
 } // namespace xpp

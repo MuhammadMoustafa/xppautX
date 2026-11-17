@@ -446,8 +446,17 @@ bool user_settings(std::string_view path)
    model read (W294: a replay refused autoX's start for want of /sys/devices/system/cpu/online) */
 bool machine_file(std::string_view path) { return path.starts_with("/sys/") || path.starts_with("/proc/"); }
 
+/* a file the program keeps for a model in its folder's `.xppautx` (the folder's settings, the log, the scratch): the program's, not the
+   model's, so a recording neither holds nor serves it (W791) */
+bool model_state(std::string_view path)
+{
+    for (const auto &part : std::filesystem::path(path))
+        if (part == xpp::files::MODEL_STATE_FOLDER) return true;
+    return false;
+}
+
 /* a file a recording neither holds nor serves */
-bool not_the_models(std::string_view path) { return user_settings(path) || machine_file(path); }
+bool not_the_models(std::string_view path) { return user_settings(path) || machine_file(path) || model_state(path); }
 
 /* a read the server has a say in */
 bool served_read(std::string_view path) { return read_server.read && !not_the_models(path) && !xpp::files::is_scratch(path); }
@@ -670,9 +679,21 @@ bool log_open_file(std::string_view path)
     if (log_settings.file != nullptr && log_settings.file != stdout && log_settings.file != stderr)
         std::fclose(log_settings.file); /* a log file of its own is closed (never stdout or stderr) */
     log_settings.file = nullptr; /* A folder question must not log through the closed stream. */
+    log_settings.file_path.clear();
     if (path.empty()) return true;
     log_settings.file = files::open_write_plain(path);
+    if (log_settings.file != nullptr) log_settings.file_path = path;
     return log_settings.file != nullptr;
+}
+
+Result<> log_to_model_folder(std::string_view model_folder)
+{
+    const Result<std::string> dir = files::model_state_dir(model_folder);
+    if (!dir) return std::unexpected(dir.error());
+    const std::string file = files::join(*dir, files::MODEL_LOG_FILE);
+    if (log_settings.file != nullptr && log_settings.file_path == file) return {}; /* the model's folder is the one the log is in: it goes on */
+    if (!log_open_file(file)) return std::unexpected(files::write_error("log", file));
+    return {};
 }
 
 } // namespace xpp

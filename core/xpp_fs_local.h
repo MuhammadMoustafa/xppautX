@@ -24,7 +24,9 @@ public:
     Result<unsigned long long> size_of(std::string_view path) override;
     bool dir_writable(std::string_view dir) override;
     int remove_file(std::string_view path) override;
-    std::string make_temp_dir() override;
+    Result<std::string> make_temp_dir(std::string_view model_folder) override;
+    Result<std::optional<std::string>> read_model_state(std::string_view where, std::string_view model_folder, std::string_view name,
+                                                        std::size_t limit) override;
     void remove_temp_dir(std::string_view dir) override;
     std::string config_path(std::string_view name) override;
     Result<std::optional<std::string>> read_config(std::string_view where, std::string_view name, std::size_t limit) override;

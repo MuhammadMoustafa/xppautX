@@ -300,12 +300,18 @@ struct AutoxRun {
      (find_restart_label). */
   std::string branches_text,solutions_text,diagnostics_text;
   struct Outputs {
-    /* the run's scratch folder (FileSystem::make_temp_dir), removed with its files when reset or the run goes: declared before
+    /* the run's scratch folder (FileSystem::make_temp_dir: the model folder's .xppautx/tmp), removed with its files when reset or the run goes: declared before
        the sinks, which close first */
     struct Folder {
       xpp::FileSystem *fs=nullptr;
       std::string path;
-      void open(xpp::FileSystem &where){ fs=&where; path=where.make_temp_dir(); }
+      xpp::Result<> open(xpp::FileSystem &where,std::string_view model_folder){
+        fs=&where;
+        xpp::Result<std::string> made=where.make_temp_dir(model_folder);
+        if(!made)return std::unexpected(made.error());
+        path=std::move(*made);
+        return {};
+      }
       void reset(){ if(fs&&!path.empty())fs->remove_temp_dir(path); path.clear(); }
       Folder()=default;
       Folder(const Folder &)=delete;

@@ -145,11 +145,68 @@ bool scratch_dir_pid(std::string_view name, long long *pid)
 
 } // namespace
 
-std::string make_temp_dir()
+namespace {
+
+/* the folders a killed run left in `parent` (named by make_temp_dir, their pid running no longer) are removed */
+void sweep_stale(const std::string &parent)
+{
+    DIR *d = opendir(parent.c_str());
+    if (d == nullptr) return;
+    while (struct dirent *e = readdir(d)) {
+        long long pid;
+        if (!scratch_dir_pid(e->d_name, &pid)) continue;
+        if (!pid_gone(pid)) continue; /* still running, or cannot tell: leave it alone */
+        std::string path = parent;
+        path += SEP;
+        path += e->d_name;
+        Stat st;
+        /* a link is never followed (lstat; is_link for Windows' reparse points) */
+        if (is_link(path.c_str()) || stat_name(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) continue;
+        if (owned_by_another(st)) continue; /* a folder another user made under our name is not ours to empty */
+        remove_temp_dir(path);
+    }
+    closedir(d);
+}
+
+/* the model folder's scratch parent, `.xppautx/tmp`, when it is there (nothing is made); links below the folder are never followed */
+std::string existing_model_tmp(std::string_view model_folder)
+{
+    const std::string tmp = join(join(model_folder, MODEL_STATE_FOLDER), MODEL_TMP_FOLDER);
+    return check_dirs(tmp, model_folder) ? tmp : std::string();
+}
+
+} // namespace
+
+Result<std::string> model_state_dir(std::string_view model_folder)
+{
+    const std::string dir = join(model_folder, MODEL_STATE_FOLDER);
+    if (check_dirs(dir, model_folder)) return dir;
+    if (errno != ENOENT || !make_dirs(dir, model_folder)) return std::unexpected(write_error("folder", dir));
+    /* the scratch and the log are never committed: written when the folder is made */
+    /* the program's own folder, so not through the replay's write guard (a recording's replay makes its scratch in the recording's folder) */
+    const std::string ignore = join(dir, ".gitignore");
+    xpp::UniqueFile file(create_plain(ignore, true));
+    if (!file || std::fwrite(MODEL_STATE_GITIGNORE.data(), 1, MODEL_STATE_GITIGNORE.size(), file.get()) != MODEL_STATE_GITIGNORE.size() ||
+        std::fflush(file.get()) != 0)
+        return std::unexpected(write_error("folder", ignore));
+    return dir;
+}
+
+Result<std::string> make_temp_dir(std::string_view model_folder)
 {
     try {
-        std::string base = temp_base();
-        if (base.empty()) return {};
+        std::string base;
+        if (model_folder.empty() || is_scratch(model_folder, true)) {  /* a scratch folder (a replay's) holds no .xppautx of its own */
+            base = temp_base();
+        } else {
+            const Result<std::string> state = model_state_dir(model_folder);
+            if (!state) return std::unexpected(state.error());
+            base = join(*state, MODEL_TMP_FOLDER);
+            if (!check_dirs(base, model_folder) && (errno != ENOENT || !make_dirs(base, model_folder)))
+                return std::unexpected(write_error("folder", base));
+            sweep_stale(base);
+        }
+        if (base.empty()) return fail("scratch folder", "the system names no temp folder", Place{"the system's temp folder"});
         for (int i = 0; i < SCRATCH_ATTEMPTS; i++) {
             std::string path = xpp::format("{}{}xppautoX-{}-{}", base, SEP, own_pid(), i);
             if (make_dir(path.c_str()) == 0) {
@@ -159,14 +216,14 @@ std::string make_temp_dir()
                 const std::string real = std::filesystem::canonical(path, error).generic_string();
                 if (!error) return real;
                 remove_dir(path.c_str());
-                return {};
+                return fail("scratch folder", xpp::format("cannot resolve {}: {}", path, error.message()), Place{path});
             }
             if (errno != EEXIST) break;
         }
+        return std::unexpected(write_error("scratch folder", join(base, "xppautoX")));
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("making the scratch folder");
     }
-    return {};
 }
 
 bool is_scratch(std::string_view path, bool root_only)
@@ -189,7 +246,9 @@ bool is_scratch(std::string_view path, bool root_only)
             long long pid;
             if (scratch_dir_pid(folder.filename().string(), &pid) && pid == own_pid()) {
                 const auto parent = std::filesystem::canonical(folder.parent_path(), error);
-                return !error && parent == base && is_dir(folder.string());
+                /* in the system's temp folder, or in a model folder's .xppautx/tmp (make_temp_dir) */
+                const bool in_model_tmp = parent.filename() == MODEL_TMP_FOLDER && parent.parent_path().filename() == MODEL_STATE_FOLDER;
+                return !error && (parent == base || in_model_tmp) && is_dir(folder.string());
             }
             if (root_only || folder == folder.parent_path()) return false;
             folder = folder.parent_path();
@@ -245,27 +304,12 @@ void remove_temp_dir(std::string_view dir_view)
     }
 }
 
-void cleanup_stale_temp_dirs()
+void cleanup_stale_temp_dirs(std::string_view model_folder)
 {
     try {
-        std::string base = temp_base();
-        if (base.empty()) return;
-        DIR *d = opendir(base.c_str());
-        if (d == nullptr) return;
-        while (struct dirent *e = readdir(d)) {
-            long long pid;
-            if (!scratch_dir_pid(e->d_name, &pid)) continue;
-            if (!pid_gone(pid)) continue; /* still running, or cannot tell: leave it alone */
-            std::string path = base;
-            path += SEP;
-            path += e->d_name;
-            Stat st;
-            /* a link is never followed (lstat; is_link for Windows' reparse points) */
-            if (is_link(path.c_str()) || stat_name(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) continue;
-            if (owned_by_another(st)) continue; /* a folder another user made under our name is not ours to empty */
-            remove_temp_dir(path);
-        }
-        closedir(d);
+        if (const std::string base = temp_base(); !base.empty()) sweep_stale(base);
+        if (!model_folder.empty())
+            if (const std::string tmp = existing_model_tmp(model_folder); !tmp.empty()) sweep_stale(tmp);
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("sweeping old scratch folders");
     }

@@ -29,19 +29,27 @@ void send_keymap(xpp::Session &s, std::string_view op)
     data_emit(event);
 }
 
-/* the user's keymap as settings.json holds it: the error when the file is bad */
-xpp::Result<xpp::keymap::Keymap> load_map(xpp::FileSystem &fs)
+/* the settings the model runs with (the user's, the model folder's on top) */
+xpp::Result<xpp::settings::Settings> effective(const xpp::Model &m)
 {
-    const xpp::Result<xpp::settings::Settings> loaded = xpp::settings::load_settings(fs);
+    return xpp::settings::effective_settings(*m.fs, xpp::settings::load_settings(*m.fs), xpp::model_folder(m));
+}
+
+/* the keymap of settings, or the error when they are bad */
+xpp::Result<xpp::keymap::Keymap> keymap_of(const xpp::Result<xpp::settings::Settings> &loaded)
+{
     if (!loaded) return std::unexpected(loaded.error());
     return loaded->keymap;
 }
 
+/* the user's keymap as their settings.json holds it (what the keymap commands change) */
+xpp::Result<xpp::keymap::Keymap> load_map(xpp::FileSystem &fs) { return keymap_of(xpp::settings::load_settings(fs)); }
+
 } // namespace
 
-std::string hello_keymap(const xpp::Model &m) { return xpp::keymap::effective_json(xpp::settings::settings_path(*m.fs), load_map(*m.fs)); }
+std::string hello_keymap(const xpp::Model &m) { return xpp::keymap::effective_json(xpp::settings::settings_path(*m.fs), keymap_of(effective(m))); }
 
-std::string hello_settings(const xpp::Model &m) { return xpp::settings::hello_json(*m.fs, xpp::settings::load_settings(*m.fs)); }
+std::string hello_settings(const xpp::Model &m) { return xpp::settings::hello_json(*m.fs, effective(m)); }
 
 namespace {
 

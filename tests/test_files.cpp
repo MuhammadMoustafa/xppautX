@@ -8,6 +8,7 @@
 #include "xpp_files.h"
 #include "xpp_files_internal.h" /* IWYU pragma: keep (xpp_files.h is the public face; the implementation needs its internals) */
 #include "xpp_io.h"
+#include "xpp_log.h"
 #include "json_files.h"
 #include "snapx.h"
 #include "odex.h"
@@ -76,6 +77,63 @@ std::string last_event;
 void keep(std::string_view line) { last_event = line; }
 
 } // namespace
+
+/* a model folder's .xppautx (W791): made on need with its .gitignore, scratch folders in its tmp, swept when stale, a read-only folder and a
+   link where it belongs named as errors, and the log in it */
+static void check_model_state()
+{
+    xpp::TempDir t;
+    CHECK(!t.path().empty());
+    const std::string model = t.path() + "/model";
+    std::filesystem::create_directories(model);
+    CHECK(!xpp::files::exists(model + "/.xppautx")); /* nothing makes it until something needs it */
+    const auto made = xpp::files::make_temp_dir(model);
+    CHECK(made.has_value());
+    if (!made) return;
+    CHECK(made->find("/.xppautx/tmp/xppautoX-") != std::string::npos);
+    CHECK(xpp::files::is_dir(*made));
+    std::string ignore;
+    CHECK(xpp::read_bytes(model + "/.xppautx/.gitignore", ignore) && ignore == "tmp/\n*.log\n");
+    xpp::files::remove_temp_dir(*made);
+    CHECK(!xpp::files::exists(*made) && xpp::files::is_dir(model + "/.xppautx/tmp"));
+    /* a folder left by a killed run goes at the next start; a live one's stays; the folder's .gitignore is not rewritten */
+    std::filesystem::create_directories(model + "/.xppautx/tmp/xppautoX-999999999-0");
+    std::filesystem::create_directories(model + "/.xppautx/tmp/xppautoX-" + std::to_string(getpid()) + "-5");
+    std::filesystem::remove(model + "/.xppautx/.gitignore");
+    xpp::files::cleanup_stale_temp_dirs(model);
+    CHECK(!xpp::files::exists(model + "/.xppautx/tmp/xppautoX-999999999-0"));
+    CHECK(xpp::files::exists(model + "/.xppautx/tmp/xppautoX-" + std::to_string(getpid()) + "-5"));
+    CHECK(!xpp::files::exists(model + "/.xppautx/.gitignore"));
+    /* with no model folder the scratch is the system's */
+    const auto system = xpp::files::make_temp_dir();
+    CHECK(system && system->find(".xppautx") == std::string::npos);
+    if (system) xpp::files::remove_temp_dir(*system);
+    /* the log goes into the folder */
+    CHECK(xpp::log_to_model_folder(model).has_value());
+    xpp::log(XPP_LOG_ERROR, "into the model folder\n");
+    CHECK(xpp::log_open_file(""));
+    std::string logged;
+    CHECK(xpp::read_bytes(model + "/.xppautx/xppautx.log", logged) && logged.find("into the model folder") != std::string::npos);
+#ifndef _WIN32
+    /* a link where .xppautx belongs is refused, never followed; a read-only folder is an error naming it */
+    const std::string linked = t.path() + "/linked", elsewhere = t.path() + "/elsewhere";
+    std::filesystem::create_directories(linked);
+    std::filesystem::create_directories(elsewhere);
+    std::filesystem::create_directory_symlink(elsewhere, linked + "/.xppautx");
+    const auto refused = xpp::files::make_temp_dir(linked);
+    CHECK(!refused && !std::filesystem::exists(elsewhere + "/tmp") && !std::filesystem::exists(elsewhere + "/.gitignore"));
+    const std::string closed = t.path() + "/closed";
+    std::filesystem::create_directories(closed);
+    std::filesystem::permissions(closed, std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec, std::filesystem::perm_options::replace);
+    if (access(closed.c_str(), W_OK) != 0) { /* root writes anywhere: the check needs a folder the user cannot write */
+        const auto denied = xpp::files::make_temp_dir(closed);
+        CHECK(!denied && denied.error().what.find(closed) != std::string::npos);
+        CHECK(!std::filesystem::exists(closed + "/.xppautx"));
+        CHECK(!xpp::log_to_model_folder(closed));
+    }
+    std::filesystem::permissions(closed, std::filesystem::perms::owner_all, std::filesystem::perm_options::replace);
+#endif
+}
 
 TEST_CASE("test_files")
 {
@@ -500,7 +558,7 @@ TEST_CASE("test_files")
     CHECK(folder().find(".tmp-") == std::string::npos); /* no temp file left behind */
 
     /* the scratch folder: made, emptied and removed */
-    std::string scratch = xpp::files::make_temp_dir();
+    std::string scratch = xpp::files::make_temp_dir().value_or(std::string());
     CHECK(!scratch.empty());
     if (!scratch.empty()) {
         CHECK(scratch.find("xppautoX-") != std::string::npos);
@@ -548,7 +606,7 @@ TEST_CASE("test_files")
         const std::string alias = real_base + "-link";
         CHECK(symlink(real_base.c_str(), alias.c_str()) == 0);
         CHECK(setenv("TMPDIR", alias.c_str(), 1) == 0);
-        const std::string real_scratch = xpp::files::make_temp_dir();
+        const std::string real_scratch = xpp::files::make_temp_dir().value_or(std::string());
         CHECK(!real_scratch.empty());
         const std::string linked_scratch = alias + "/" + xpp::files::split_path(real_scratch).second;
         CHECK(real_scratch == std::filesystem::canonical(linked_scratch).string());
@@ -624,5 +682,6 @@ TEST_CASE("test_files")
     CHECK(rmdir("sub") == 0);
     CHECK(chdir(here) == 0);
     CHECK(rmdir(dir) == 0);
+    check_model_state();
     TEST_REPORT("test_files");
 }

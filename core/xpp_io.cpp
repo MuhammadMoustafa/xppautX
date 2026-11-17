@@ -225,17 +225,32 @@ Error no_config_folder(std::string_view where, std::string_view name)
                  Place{std::string(name)}};
 }
 
+namespace {
+
+/* the plain file `file` inside `anchor` (no link below it) as text, nullopt when it is not there */
+Result<std::optional<std::string>> read_plain_within(std::string_view where, std::string_view anchor, const std::string &file, std::size_t limit)
+{
+    if (!files::exists(file)) return std::optional<std::string>();
+    UniqueFile f(files::open_read_within(file, anchor, {}));
+    std::string text;
+    if (!f || !read_bytes(f.get(), text, limit + 1))
+        return std::unexpected(files::open_error(std::string(where), file,
+                                                  xpp::format("it cannot be read (a link, or not a plain file), or is longer than {} bytes", limit)));
+    return std::optional<std::string>(std::move(text));
+}
+
+} // namespace
+
 Result<std::optional<std::string>> read_config_file(std::string_view where, std::string_view name, std::size_t limit)
 {
     const std::string file = files::config_path(name);
     if (file.empty()) return std::unexpected(no_config_folder(where, name));
-    if (!files::exists(file)) return std::optional<std::string>();
-    UniqueFile f(files::open_read_within(file, files::config_dir(), {}));
-    std::string text;
-    if (!f || !read_bytes(f.get(), text, limit + 1))
-        return std::unexpected(files::open_error(std::string(where), file,
-                                                  xpp::format("it cannot be read, or is longer than {} bytes", limit)));
-    return std::optional<std::string>(std::move(text));
+    return read_plain_within(where, files::config_dir(), file, limit);
+}
+
+Result<std::optional<std::string>> read_model_state_file(std::string_view where, std::string_view model_folder, std::string_view name, std::size_t limit)
+{
+    return read_plain_within(where, model_folder, files::join(files::join(model_folder, files::MODEL_STATE_FOLDER), name), limit);
 }
 
 Result<> write_config_file(std::string_view where, std::string_view name, std::string_view bytes)

@@ -60,8 +60,10 @@ Result<std::string> download(Session &, const Command &command, const Arguments 
     if (!update::fits(plan, file.name))
         return fail(command.name, xpp::format("\"{}\" is not the release file for this installation (its name ends with {})", file.name, plan.asset_suffix), place);
     const Computation computing;
+    /* the system's temp folder, not a model folder's .xppautx/tmp: the download belongs to the program, not to a model (the update's
+       command has no model folder, and one may be read-only or none loaded) */
     const TempDir folder;
-    if (folder.path().empty()) return fail(command.name, "a folder for the download could not be made", place);
+    if (folder.path().empty()) return fail(command.name, "a folder for the download could not be made: " + (folder.failure() ? folder.failure()->what : std::string()), place);
     const Result<update::Downloaded> done = update::download(
         file, folder.path(), https::get, [](unsigned long long got, unsigned long long of) {
             job::report_bytes(got, of);

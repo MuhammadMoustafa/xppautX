@@ -55,6 +55,14 @@ std::string join(std::string_view dir, std::string_view name);
    absolute() once the folder is known */
 std::string append_path(std::string_view dir, std::string_view path);
 
+/* a model's folder keeps what the program makes for it in the folder `.xppautx` (W791): the folder settings.json (xpp_settings.h), the log, the scratch
+   folders. The names are written once, here: the files module makes the folder and the settings module reads its file. */
+inline constexpr std::string_view MODEL_STATE_FOLDER = ".xppautx";
+inline constexpr std::string_view MODEL_LOG_FILE = "xppautx.log";
+inline constexpr std::string_view MODEL_TMP_FOLDER = "tmp";
+/* what the folder's .gitignore holds: the scratch and the log are never committed */
+inline constexpr std::string_view MODEL_STATE_GITIGNORE = "tmp/\n*.log\n";
+
 /* Every failed open names the requested file and the system or explicit reason. */
 Error open_error(std::string where, std::string_view file, std::string_view why = {});
 

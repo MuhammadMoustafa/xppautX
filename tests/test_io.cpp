@@ -38,7 +38,7 @@ struct ScratchDir {
     bool made;
     ScratchDir()
     {
-        path = xpp::files::make_temp_dir();
+        path = xpp::files::make_temp_dir().value_or(std::string());
         made = !path.empty();
         if (!made)
             path = ".";

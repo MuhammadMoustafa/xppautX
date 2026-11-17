@@ -210,7 +210,7 @@ and stops playback with exit 1. `--yes` replaces them without asking.
 startup banner, autoX's table, solver chatter); by default it logs only
 warnings and errors. That log goes to the page's Messages panel, live; the
 terminal gets the warnings and errors (a page may be closed), and everything
-with `--verbose` or `--debug`. What the log shows and where it goes are yours, not a model's: `settings.json` holds `log_level` (`error`, `warn`, `info` or `debug`) and `log_file` (an absolute path, which sends the log to that file instead), and `--verbose` and `--debug` win over `log_level`; XPPAUT's `@ quiet=` and `@ logfile=` of a `.ode` are dropped with a warning. See
+with `--verbose` or `--debug`. What the log shows and where it goes are yours, not a model's: `settings.json` holds `log_level` (`error`, `warn`, `info` or `debug`) and `log_to_file` (yes sends the log to `xppautx.log` in the `.xppautx` folder of the model's folder instead; with no model open it stays on the terminal), and `--verbose` and `--debug` win over `log_level`; XPPAUT's `@ quiet=` and `@ logfile=` of a `.ode` are dropped with a warning. See
 [Using the interface: the log](04-using-the-interface.md#the-log).
 
 ### Command-line options

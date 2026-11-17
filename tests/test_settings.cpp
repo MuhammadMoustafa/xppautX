@@ -74,7 +74,9 @@ void check_refused()
     CHECK(refused(parse_settings(with_version("\"colors\": {\"stable_equilibrium_color\": \"notacolor\"}"), "s.json"), 2, "is not a color"));
     CHECK(refused(parse_settings(with_version("\"page\": {\"theme\": \"blue\"}"), "s.json"), 2, "none of system, light or dark"));
     CHECK(refused(parse_settings(with_version("\"page\": {\"dock_width\": 100}"), "s.json"), 2, "dock_width is 288 to 800 pixels"));
-    CHECK(refused(parse_settings(with_version("\"general\": {\"log_file\": \"relative.log\"}"), "s.json"), 2, "not an absolute path"));
+    /* log_file is gone (W791): no alias, an error at its line */
+    CHECK(refused(parse_settings(with_version("\"general\": {\"log_file\": \"/tmp/x.log\"}"), "s.json"), 2, "unknown setting \"log_file\" in \"general\""));
+    CHECK(refused(parse_settings(with_version("\"general\": {\"log_to_file\": \"yes\"}"), "s.json"), 2, "true or false"));
     CHECK(refused(parse_settings(with_version("\"updates\": {\"check_for_updates\": 1}"), "s.json"), 2, "true or false"));
     CHECK(refused(parse_settings("{\"general\": {}}", "s.json"), 1, "has no \"version\""));
     CHECK(refused(parse_settings("{\"version\": 3}", "s.json"), 1, "version 3: this program reads settings files of version 4"));
@@ -90,6 +92,66 @@ void check_refused()
     for (std::size_t i = 0; i <= xpp::settings::MAX_FOLDS; i++) folds += (i ? ",\"s" : "\"s") + std::to_string(i) + "\"";
     CHECK(refused(parse_settings(with_version(folds + "]}"), "s.json"), 2, "folds has more than 256 entries"));
     CHECK(refused(parse_settings(with_version("\"page\": {\"folds\": [\"a\", \"a\"]}"), "s.json"), 2, "listed twice"));
+}
+
+/* a model folder's settings.json on top of the user's: key by key, never the update check */
+void check_folder()
+{
+    const auto user = parse_settings("{\"version\": 4, \"general\": {\"threads\": 3, \"log_level\": \"info\"}, \"page\": {\"theme\": \"dark\", \"folds\": [\"a\"]},\n"
+                                     "\"keymap\": {\"pinned\": [\"session.reload_model\"]}, \"updates\": {\"check_for_updates\": false}}", "user.json");
+    CHECK(user.has_value());
+    if (!user) return;
+    /* the keys the folder holds win, the rest stay the user's (a list is replaced whole) */
+    const auto merged = xpp::settings::parse_folder_settings("{\"version\": 4, \"general\": {\"log_to_file\": true, \"threads\": 2}, \"page\": {\"folds\": [\"b\", \"c\"]}}", "f.json", *user);
+    CHECK(merged && merged->threads == 2 && merged->log_to_file && merged->log_level == XPP_LOG_INFO);
+    CHECK(merged && merged->page.theme == "dark" && merged->page.folds == std::vector<std::string>({"b", "c"}) && !merged->check_for_updates);
+    CHECK(merged && merged->keymap.pinned == user->keymap.pinned);
+    /* the update check is the user's: an error at its line, and nothing of the file is used */
+    CHECK(refused(xpp::settings::parse_folder_settings("{\"version\": 4,\n\"updates\": {\"check_for_updates\": true}}", "f.json", *user), 2, "cannot turn the update check on or off"));
+    CHECK(refused(xpp::settings::parse_folder_settings("{\"version\": 4,\n\"general\": {\"log_file\": \"/x\"}}", "f.json", *user), 2, "unknown setting \"log_file\""));
+    CHECK(refused(xpp::settings::parse_folder_settings("{\"version\": 4,\n\"general\": {\"threads\": 2}, \"page\": {\"theme\": \"blue\"}}", "f.json", *user), 2, "none of system, light or dark"));
+    /* the user's own file may hold the update check as ever */
+    CHECK(!user->check_for_updates);
+}
+
+/* the folder's file through a FileSystem: absent is the user's, a bad one is the error naming it, a link or a folder in its place is refused */
+void check_folder_files(const std::string &root)
+{
+    xpp::LocalFileSystem fs;
+    const xpp::Result<xpp::settings::Settings> user = xpp::settings::Settings{};
+    const std::string folder = root + "/model";
+    std::filesystem::create_directories(folder);
+    CHECK(xpp::settings::effective_settings(fs, user, folder).has_value()); /* no .xppautx: the user's */
+    CHECK(!xpp::files::exists(folder + "/.xppautx")); /* reading makes nothing */
+    std::filesystem::create_directories(folder + "/.xppautx");
+    write_text(folder + "/.xppautx/settings.json", "{\"version\": 4, \"general\": {\"threads\": 2}}\n");
+    const auto effective = xpp::settings::effective_settings(fs, user, folder);
+    CHECK(effective && effective->threads == 2);
+    write_text(folder + "/.xppautx/settings.json", "{\"version\": 4,\n\"general\": {\"threads\": \"many\"}}\n");
+    const auto bad = xpp::settings::effective_settings(fs, user, folder);
+    CHECK(!bad && bad.error().place.line == 2 && bad.error().place.file == folder + "/.xppautx/settings.json");
+    /* a bad user file is the error whatever the folder holds, and no folder is the user's */
+    CHECK(!xpp::settings::effective_settings(fs, xpp::Result<xpp::settings::Settings>(std::unexpected(xpp::Error{"s", "bad", {}})), folder));
+    CHECK(xpp::settings::effective_settings(fs, user, "").has_value());
+#ifndef _WIN32
+    /* a file sent in a folder: a link in the file's place is refused, never read (its first line would be shown by the error) */
+    std::filesystem::remove(folder + "/.xppautx/settings.json");
+    write_text(root + "/secret", "not settings\n");
+    std::filesystem::create_symlink(root + "/secret", folder + "/.xppautx/settings.json");
+    const auto linked = xpp::settings::effective_settings(fs, user, folder);
+    CHECK(!linked && linked.error().what.find("not settings") == std::string::npos && linked.error().place.source.find("not settings") == std::string::npos);
+    /* the folder itself a link: refused too */
+    std::filesystem::remove_all(folder + "/.xppautx");
+    std::filesystem::create_directories(root + "/elsewhere");
+    write_text(root + "/elsewhere/settings.json", "{\"version\": 4, \"general\": {\"threads\": 2}}\n");
+    std::filesystem::create_symlink(root + "/elsewhere", folder + "/.xppautx");
+    CHECK(!xpp::settings::effective_settings(fs, user, folder));
+    /* a file over the limit is refused without being read whole */
+    std::filesystem::remove(folder + "/.xppautx");
+    std::filesystem::create_directories(folder + "/.xppautx");
+    write_text(folder + "/.xppautx/settings.json", std::string(xpp::settings::MAX_FILE_BYTES + 1, ' '));
+    CHECK(!xpp::settings::effective_settings(fs, user, folder));
+#endif
 }
 
 void check_state()
@@ -171,9 +233,11 @@ TEST_CASE("test_settings")
     check_comments();
     check_refused();
     check_state();
+    check_folder();
 
     xpp::TempDir temp;
     CHECK(!temp.path().empty());
+    check_folder_files(temp.path() + "/folders");
     const std::string dir = temp.path() + "/config/xppautX";
     CHECK(set_config_dir(dir.c_str()));
     xpp::LocalFileSystem fs;

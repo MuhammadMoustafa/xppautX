@@ -99,8 +99,13 @@ Result<unsigned long long> LocalFileSystem::size_of(std::string_view path)
 
 bool LocalFileSystem::dir_writable(std::string_view dir) { return files::dir_writable(dir); }
 int LocalFileSystem::remove_file(std::string_view path) { return files::remove(path); }
-std::string LocalFileSystem::make_temp_dir() { return files::make_temp_dir(); }
+Result<std::string> LocalFileSystem::make_temp_dir(std::string_view model_folder) { return files::make_temp_dir(model_folder); }
 void LocalFileSystem::remove_temp_dir(std::string_view dir) { files::remove_temp_dir(dir); }
+Result<std::optional<std::string>> LocalFileSystem::read_model_state(std::string_view where, std::string_view model_folder,
+                                                                    std::string_view name, std::size_t limit)
+{
+    return read_model_state_file(where, model_folder, name, limit);
+}
 std::string LocalFileSystem::config_path(std::string_view name) { return files::config_path(name); }
 
 Result<std::optional<std::string>> LocalFileSystem::read_config(std::string_view where, std::string_view name, std::size_t limit)

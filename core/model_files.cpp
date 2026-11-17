@@ -310,6 +310,11 @@ std::string model_title(const Model &m)
     return m.this_file + " (saved in " + xpp::files::split_path(m.saved_in).second + ")";
 }
 
+std::string model_folder(const Model &m)
+{
+    return m.loaded() ? xpp::files::split_path(m.fs->absolute(m.this_file)).first : std::string();
+}
+
 std::unique_ptr<Model> scratch_model(const Model &m)
 {
     std::unique_ptr<Model> scratch = std::make_unique<Model>();

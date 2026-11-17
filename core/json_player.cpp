@@ -103,7 +103,7 @@ struct Player {
     bool intact = true;
     std::vector<PlayStep> steps;
     std::unique_ptr<xpp::TempDir> work;   /* the replay's working folder */
-    std::unique_ptr<xpp::TempDir> copies; /* the served files' copies */
+    std::unique_ptr<xpp::TempDir> copies; /* the served files' copies; both folders are in the recording's folder's .xppautx/tmp (W791) */
     std::vector<std::string> copy_of;     /* per section: its copy, "" not written */
     bool loading = false;                 /* its model's load is requested */
     bool play_after_load = false;
@@ -412,8 +412,7 @@ bool copy_of(size_t section, std::string &copy)
 {
     std::string &c = player.copy_of[section];
     if (c.empty()) {
-        if (!player.copies) player.copies = std::make_unique<xpp::TempDir>();
-        if (player.copies->path().empty()) return false;
+        if (!player.copies || player.copies->path().empty()) return false; /* made with the working folder, before reads are served */
         const std::string path = player.copies->file(std::to_string(section));
         xpp::Writer w = xpp::Writer::binary(path.c_str());
         if (!w || !w.write(player.rec.files[section].bytes) || !w.commit()) return false;
@@ -484,6 +483,17 @@ bool serve(const std::string &path, std::string *copy)
     return true;
 }
 
+/* the working and copies folders of a replay, in the .xppautx/tmp of the recording's folder (the model's folder, the system's temp
+   folder with none); the error when one cannot be made, naming the folder. Made before reads are served: that guard is the replay's. */
+std::optional<xpp::Error> make_folders(const std::string &recording)
+{
+    const std::string folder = xpp::files::split_path(xpp::files::absolute(recording)).first;
+    player.work = std::make_unique<xpp::TempDir>(folder);
+    player.copies = std::make_unique<xpp::TempDir>(folder);
+    if (player.work->failure()) return player.work->failure();
+    return player.copies->failure();
+}
+
 /* the player ends: its model stays, in its folder */
 void close_player()
 {
@@ -501,9 +511,8 @@ void close_player()
 void load(xpp::Session &s, int from, bool play)
 {
     std::unique_ptr<xpp::TempDir> before = std::move(player.work);
-    player.work = std::make_unique<xpp::TempDir>();
-    if (player.work->path().empty()) {
-        j_command_error("play", "Cannot make a folder to play the recording in");
+    if (const std::optional<xpp::Error> why = make_folders(player.path)) {
+        j_command_error("play", "Cannot make a folder to play the recording in: " + why->what);
         player.work = std::move(before);
         return;
     }
@@ -716,9 +725,8 @@ std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
     if (!snapshot) return std::nullopt; /* the error said why */
     json::session.reading = xpp::Place{xpp::files::absolute(path), 1, 0, odex::version_statement()};
     json::close_player();
-    json::player.work = std::make_unique<xpp::TempDir>();
-    if (json::player.work->path().empty()) {
-        json::j_command_error("play", "Cannot make a folder to load the recording in");
+    if (const std::optional<xpp::Error> why = json::make_folders(path)) {
+        json::j_command_error("play", "Cannot make a folder to load the recording in: " + why->what);
         return std::nullopt;
     }
     /* The first load also crosses the recording's trust boundary: model

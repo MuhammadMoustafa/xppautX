@@ -5,6 +5,10 @@ sandbox/
 # committed one was being copied into every run directory
 output.dat
 
+# what the program keeps for a model run in place (W791: its .xppautx; the checks run some in examples/tstauto and tools/models)
+/examples/**/.xppautx/
+/tools/models/.xppautx/
+
 *.o
 *.a
 *.so

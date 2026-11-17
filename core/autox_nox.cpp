@@ -1,6 +1,7 @@
 #include "autox_unknowns.h"
 #include "autox_state.h"
 #include "model.h"
+#include "model_files.h"
 #include "integrate.h"
 #include "runs.h"
 #include "storage.h"
@@ -348,9 +349,7 @@ xpp::Result<> open_autox(AutoxParts s, AutoxRun &run, int flg) /* compatible wit
   if(!fs.dir_writable(solutions))
     return xpp::fail("autox",xpp::format("cannot write autoX's files: the folder {} is not writable",solutions),xpp::command_place());
   AutoxRun::Outputs &out=run.outputs;
-  out.folder.open(fs);
-  if(out.folder.path.empty())
-    return xpp::fail("autox","Cannot make autoX's scratch folder for the run",xpp::command_place());
+  if(auto opened=out.folder.open(fs,xpp::model_folder(s.model()));!opened)return opened;
   out.branches=xpp::format("{}/fort.7",out.folder.path);
   out.solutions=xpp::format("{}/fort.8",out.folder.path);
   out.diagnostics=xpp::format("{}/fort.9",out.folder.path);
@@ -570,6 +569,7 @@ Result<> autox_set_up_run(AutoxParts s, AutoxRun &run, int iold, const AutoxFoun
 
 xpp::Result<> autox_run_prologue(AutoxParts s, int &isave)
 {
+    if(auto made=ensure_autox_dir(s);!made)return made; /* the folder the run keeps its solutions in (.xppautx/tmp of the model's folder) */
     // A model parameter must exist before run setup selects its solver index.
     if(s.model().nupar==0)
       return xpp::fail("autox", "autoX continuation needs a model parameter", command_place());
@@ -1171,6 +1171,7 @@ void forget_autox_diagram(AutoxParts s, bool remove_solutions)
   s.autox_state->grabpt.flag=0;
   s.autox_state->diagram_mark.state=0;
   xpp::FileSystem &fs=*s.model().fs;
+  if(s.autox_state->dir.empty())return; /* no run or session made its folder: there are no files to remove */
   fs.remove_file(s.autox_state->file+".b");
   fs.remove_file(s.autox_state->file+".d");
   if(remove_solutions){
@@ -1851,8 +1852,8 @@ void autox_point_xy(AutoxParts s, double x,double y)
 }
 
 
-/* ---- autoX's private scratch directory (session.h: AutoxState::dir),
-   made by xpp::files::make_temp_dir ---- */
+/* ---- autoX's private scratch directory (session.h: AutoxState::dir), made by ensure_autox_dir
+   (FileSystem::make_temp_dir: the model folder's .xppautx/tmp) when a run or a restored session needs it ---- */
 void cleanup_autox_dir(xpp::FileSystem &fs, AutoxParts s)
 {
   std::string &dir=s.autox_state->dir;
@@ -1862,12 +1863,20 @@ void cleanup_autox_dir(xpp::FileSystem &fs, AutoxParts s)
   }
 }
 
-void renew_autox_dir(xpp::FileSystem &fs, AutoxParts s)
+xpp::Result<> ensure_autox_dir(AutoxParts s)
 {
   std::string &dir=s.autox_state->dir;
-  if (dir.empty()) return; /* none was made: autoX writes beside the model */
-  fs.remove_temp_dir(dir);
-  dir=fs.make_temp_dir();
+  if (!dir.empty()) return {};
+  xpp::Result<std::string> made=s.model().fs->make_temp_dir(xpp::model_folder(s.model()));
+  if (!made) return std::unexpected(made.error());
+  dir=std::move(*made);
+  create_autox_file_name(s); /* the files are the folder's from now on */
+  return {};
+}
+
+void renew_autox_dir(xpp::FileSystem &fs, AutoxParts s)
+{
+  cleanup_autox_dir(fs,s); /* the next run makes the new model's own, in its folder */
 }
 
 } // namespace xpp

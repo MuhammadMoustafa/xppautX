@@ -173,6 +173,9 @@ struct Session {
   /* the thread count of autoX's collocation and of a sweep's runs (W267, W434), a program setting
      (xpp_settings.h) kept here for the run: cpu::THREADS_AUTO, or the count */
   unsigned threads = cpu::THREADS_AUTO;
+  /* what the log shows and whether it goes to the model folder's .xppautx/xppautx.log, as the model's settings have them (settings_load); apply_log_settings puts them to work */
+  XppLogLevel log_level = XPP_LOG_WARN;
+  bool log_to_file = false;
   /* the colors the diagram, the nullclines and the manifolds are drawn in, a program setting like the thread count */
   Colors colors;
   /* the threads a set of jobs or runs shares: the count, or all the physical cores when automatic */

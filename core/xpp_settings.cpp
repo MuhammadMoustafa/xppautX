@@ -223,11 +223,8 @@ void read_general(const Doc &d, const char *obj, Settings &s)
             const int i = choice_index(log_level_names, text);
             if (i < 0) d.fail(v, xpp::format("log_level: {} is none of error, warn, info or debug", json::shown(text)));
             s.log_level = static_cast<XppLogLevel>(i);
-        } else if (key == "log_file") {
-            const std::string file = string_value(d, v, key);
-            if (!file.empty())
-                if (const auto why = path_problem(file)) d.fail(v, *why);
-            s.log_file = file;
+        } else if (key == "log_to_file") {
+            s.log_to_file = bool_value(d, v, key);
         } else {
             unknown(d, v, "general", key);
         }
@@ -295,6 +292,7 @@ private:
     void read_bindings(const char *v)
     {
         if (*v != '{') fail(v, xpp::format("bindings is an object of command id: keys, not {}", json::shown(json::js_raw(v))));
+        map_.bindings.clear(); /* a file that holds bindings holds them whole (a folder's replace the user's) */
         std::string id;
         const char *cursor = v, *value = nullptr;
         while (json::js_member(cursor, id, value)) {
@@ -316,6 +314,7 @@ private:
     void read_pinned(const char *v)
     {
         if (*v != '[') fail(v, xpp::format("pinned is an array of command ids, not {}", json::shown(json::js_raw(v))));
+        map_.pinned.clear();
         const char *cur = v;
         for (const char *elem = json::js_element(cur); elem; elem = json::js_element(cur)) {
             if (map_.pinned.size() == keymap::MAX_PINNED) fail(elem, xpp::format("pinned has more than {} commands", keymap::MAX_PINNED));
@@ -386,23 +385,24 @@ void read_page(const Doc &d, const char *obj, Page &p)
     });
 }
 
-void read_updates(const Doc &d, const char *obj, bool &check)
+void read_updates(const Doc &d, const char *obj, bool &check, bool folder)
 {
     each_member(d, obj, [&](const std::string &key, const char *v) {
-        if (key == "check_for_updates") check = bool_value(d, v, key);
+        if (key == "check_for_updates" && folder) d.fail(v, "a model folder's settings cannot turn the update check on or off: it is the user's (their settings.json)");
+        else if (key == "check_for_updates") check = bool_value(d, v, key);
         else unknown(d, v, "updates", key);
     });
 }
 
-Settings read_settings_file(const Doc &d)
+/* the settings of a file on top of `s` (the defaults for the user's file, the user's for a model folder's, whose `folder` refuses the update check) */
+Settings read_settings_file(const Doc &d, Settings s, bool folder)
 {
-    Settings s;
     read_top(d, "settings files", [&](const std::string &key, const char *v) {
         if (key == "general") read_general(d, v, s);
         else if (key == "colors") read_colors(d, v, s.colors);
         else if (key == "keymap") KeymapReader(d, s.keymap).read(v);
         else if (key == "page") read_page(d, v, s.page);
-        else if (key == "updates") read_updates(d, v, s.check_for_updates);
+        else if (key == "updates") read_updates(d, v, s.check_for_updates, folder);
         else d.fail(v, xpp::format("unknown group {} (the groups are general, colors, keymap, page and updates)", json::shown(key)));
     });
     return s;
@@ -538,7 +538,17 @@ Result<Settings> parse_settings(std::string_view text, std::string file)
 {
     try {
         const Doc d = prepare(text, file);
-        return read_settings_file(d);
+        return read_settings_file(d, Settings{}, false);
+    } catch (ReadFailed &e) {
+        return std::unexpected(std::move(e.error));
+    }
+}
+
+Result<Settings> parse_folder_settings(std::string_view text, std::string file, const Settings &user)
+{
+    try {
+        const Doc d = prepare(text, file);
+        return read_settings_file(d, user, true);
     } catch (ReadFailed &e) {
         return std::unexpected(std::move(e.error));
     }
@@ -578,6 +588,15 @@ std::string state_path(FileSystem &fs) { return fs.config_path(STATE_FILE); }
 
 Result<Settings> load_settings(FileSystem &fs) { return load_config<Settings>(fs, WHERE, SETTINGS_FILE, MAX_FILE_BYTES, parse_settings); }
 Result<State> load_state(FileSystem &fs) { return load_config<State>(fs, WHERE, STATE_FILE, MAX_FILE_BYTES, parse_state); }
+
+Result<Settings> effective_settings(FileSystem &fs, const Result<Settings> &user, std::string_view model_folder)
+{
+    if (!user || model_folder.empty()) return user;
+    const Result<std::optional<std::string>> text = fs.read_model_state(WHERE, model_folder, SETTINGS_FILE, MAX_FILE_BYTES);
+    if (!text) return std::unexpected(text.error());
+    if (!*text) return user;
+    return parse_folder_settings(**text, files::join(files::join(model_folder, files::MODEL_STATE_FOLDER), SETTINGS_FILE), *user);
+}
 
 Read read_all(FileSystem &fs) { return Read{load_settings(fs), load_state(fs)}; }
 

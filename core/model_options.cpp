@@ -59,7 +59,7 @@ constexpr int max_plot_curves = 8;
 /* what a .ode's quiet and logfile become: a warning each */
 constexpr std::string_view log_level_is_the_users = "what the log shows is the user's, not a model's (the settings' log_level, --verbose), so the option is dropped";
 constexpr std::string_view picture_as_shown = "an exported picture is the graph as the panel shows it, so its color and font size are not options and the option is dropped";
-constexpr std::string_view log_file_is_the_users = "where the log goes is the user's, not a model's (the settings' log_file), so the option is dropped";
+constexpr std::string_view log_file_is_the_users = "where the log goes is the user's, not a model's (the settings' log_to_file), so the option is dropped";
 /* what a .ode's several starting graphs (multiwin, simplot, xlo2 to yhi8) become: one warning */
 constexpr std::string_view several_graphs = "xppautX opens one graph, so curves 2 to N join main and the options of several starting graphs are dropped: several graphs are a session's (window.new)";
 
@@ -1013,7 +1013,7 @@ constexpr OptionRow rows[] = {
      /* named like data_file, from the model's folder */
      return data_file_into(s, v, s.after_run_file);
    }},
-  /* XPPAUT's quiet and logfile (import only): the log is the user's, not a model's (the settings' log_level and log_file) */
+  /* XPPAUT's quiet and logfile (import only): the log is the user's, not a model's (the settings' log_level and log_to_file) */
   {.name = "QUIET", .dropped = log_level_is_the_users},
   {.name = "LOGFILE", .dropped = log_file_is_the_users},
   /* XPPAUT's autoeval (import only): each formula table's own auto_evaluate, which `--convert` writes in its `table` statement */

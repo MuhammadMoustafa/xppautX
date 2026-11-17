@@ -195,10 +195,16 @@ void copy(std::string_view from, std::string_view to);
    source still open elsewhere) a copy, then from is removed if it can be */
 void move(std::string_view from, std::string_view to);
 
-/* autoX's private scratch folder: "xppautoX-<pid>-<N>", mode 0700, under
-   $TMPDIR or /tmp (POSIX) or the system temp path (Windows): its absolute
-   path, or empty on failure */
-std::string make_temp_dir();
+/* autoX's private scratch folder: "xppautoX-<pid>-<N>", mode 0700, in the folder `.xppautx/tmp` of the model's folder
+   (model_folder, made when it is not there: model_state_dir), or, with no model folder (none is loaded, or a recording's
+   replay, which keeps everything in a scratch folder of its own), under $TMPDIR or /tmp (POSIX) or the system temp path
+   (Windows): its absolute path, or the error naming the folder that cannot hold it. The folders a killed run left in
+   that parent are removed first. */
+Result<std::string> make_temp_dir(std::string_view model_folder = {});
+/* the model's folder keeps what the program makes for it in `.xppautx` (xpp_path.h's MODEL_STATE_FOLDER): its path,
+   made (with its .gitignore) when it is not there. The error names the folder when it cannot be made (a read-only
+   model folder, or a link where the folder belongs: never followed). */
+Result<std::string> model_state_dir(std::string_view model_folder);
 std::string temp_base(); /* The platform temp folder, shared by scratch files and the window loader. */
 /* The per-user settings folder (settings.json, state.json: xpp_settings.h): $XPP_CONFIG_DIR
    when set, else the system's: %APPDATA%\xppautX on Windows,
@@ -249,8 +255,9 @@ bool is_scratch(std::string_view path, bool root_only = false);
 void remove_temp_dir(std::string_view dir);
 /* issue #32: removes the scratch folders of runs that were killed before
    they could remove their own (make_temp_dir's naming, whose pid names no
-   running process); called once at start */
-void cleanup_stale_temp_dirs();
+   running process), in the system's temp folder and in the model folder's `.xppautx/tmp` when it has one;
+   called once at start */
+void cleanup_stale_temp_dirs(std::string_view model_folder = {});
 
 /* a folder's entry: its name, and whether it is a folder itself (a link
    followed) */
@@ -285,7 +292,13 @@ namespace xpp {
    files in it when this goes; path() is empty when none could be made */
 class TempDir {
 public:
-    TempDir() : path_(files::make_temp_dir()) {}
+    /* in model_folder's .xppautx/tmp (the system's temp folder for ""); failure() is why none was made */
+    explicit TempDir(std::string_view model_folder = {})
+    {
+        Result<std::string> made = files::make_temp_dir(model_folder);
+        if (made) path_ = std::move(*made);
+        else failure_ = std::move(made.error());
+    }
     ~TempDir()
     {
         if (!path_.empty()) files::remove_temp_dir(path_);
@@ -293,15 +306,20 @@ public:
     TempDir(const TempDir &) = delete;
     TempDir &operator=(const TempDir &) = delete;
     const std::string &path() const noexcept { return path_; }
+    const std::optional<Error> &failure() const noexcept { return failure_; }
     /* the path of the file name in it */
     std::string file(const std::string &name) const { return path_ + "/" + name; }
 private:
     std::string path_;
+    std::optional<Error> failure_;
 };
 
 /* The log goes to the file path from now on: the one it went to before is closed, unless that
    was stdout or stderr. An empty path is stderr again. The log (xpp_log.h) is the kernel's; its
    file is opened here, outside it. */
 bool log_open_file(std::string_view path);
+/* the log goes to xppautx.log in the model folder's `.xppautx` (files::model_state_dir) from now on, or the error */
+Result<> log_to_model_folder(std::string_view model_folder);
+
 } // namespace xpp
 

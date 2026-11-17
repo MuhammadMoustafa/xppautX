@@ -9,6 +9,7 @@
 #include "set_apply.h"
 #include "solver.h"
 #include "model.h"
+#include "model_files.h"
 #include "model_record.h"
 #include "model_place.h"
 #include "plot_options.h"
@@ -215,18 +216,35 @@ void apply_command_line(Session &s, CommandLine cl)
 }
 
 
-/* the thread count and the colors settings.json holds into s (a recording's replay   keeps the user's settings out of it, and reads none); a bad file leaves
+/* the thread count and the colors the model's settings hold into s: the user's settings.json with the model folder's .xppautx/settings.json
+   on top (a recording's replay keeps the user's settings out of it, and reads none); a bad file, the folder's too, leaves
    the automatic count and the default colors (the file's error is shown by the recent models' note,
    once). Called by the load (load_and_set_up), with the settings the program's start read
    (read), or null to read the file now: a reload reads it again. */
+void apply_log_settings(XppLogLevel level, bool to_file, std::optional<XppLogLevel> forced, std::string_view model_folder)
+{
+    log_set_threshold(forced.value_or(level));
+    if (!to_file || model_folder.empty()) {
+        log_open_file(""); /* stderr: the file of the model before is closed */
+        return;
+    }
+    if (const Result<> opened = log_to_model_folder(model_folder); !opened) xpp::log(XPP_LOG_WARN, "{}\n", opened.error().text());
+}
+
 void settings_load(Session &s, const settings::Read *read)
 {
     if (files::serving_reads()) return;
-    const Result<settings::Settings> p = read ? read->settings : settings::load_settings(*s.model().fs);
+    const Result<settings::Settings> user = read ? read->settings : settings::load_settings(*s.model().fs);
+    const bool read_user_bad = !user;
+    const Result<settings::Settings> p = settings::effective_settings(*s.model().fs, user, model_folder(s.model()));
     if (p) {
         s.threads = p->threads;
         s.colors = p->colors;
+        s.log_level = p->log_level;
+        s.log_to_file = p->log_to_file;
     }
+    /* the model folder's file is the load's: it is not loaded, and the model before stays */
+    else if (!read_user_bad) model_failed(p.error());
     /* the count stays automatic and the colors the defaults until the file is fixed (a `set` of the count refuses until then); said in the
        log, as --silent shows no recent models' note to carry the file's error */
     else xpp::log(XPP_LOG_WARN, "{}: the thread count stays automatic and the colors the defaults\n", p.error().text());
@@ -456,6 +474,8 @@ Loaded load_model(FileSystem &fs, CommandLine cl, int batch, const SavedModel *s
         else xpp::bottom_msg(0, message, "02-ode-files", "odex");
     }
     odex::show_diagnostics(diagnostics);
+    /* the log follows the model that is open now, wherever it was loaded from (a replay keeps the user's settings out) */
+    if (loaded && !files::serving_reads()) apply_log_settings((*loaded)->log_level, (*loaded)->log_to_file, cl.log_threshold, model_folder((*loaded)->model()));
     return loaded;
 }
 

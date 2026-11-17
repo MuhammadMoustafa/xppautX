@@ -146,15 +146,21 @@ static struct {
     xpp::LocalFileSystem files; /* the disk: every load and the Models it makes read and write through it (xpp_fs.h) */
 } startup;
 
-/* autoX's files in a directory of this session's own, removed at exit
-   (issue #11); a model's --silent command list runs no autoX */
+/* autoX's files are in a directory of this session's own, in the model folder's .xppautx/tmp, made when a run first needs it
+   (xpp::ensure_autox_dir) and removed at exit (issue #11); a model's --silent command list runs no autoX */
 static void start_autox_dir(void)
 {
-    std::string &dir = xpp::client_session().autox_state->dir;
-    dir = xpp::files::make_temp_dir();
     /* at exit the folder is the session list's client's: every load hands
        it on to the Session it makes (session.cpp) */
-    if (!dir.empty()) atexit([] { xpp::cleanup_autox_dir(startup.files, xpp::autox_parts(xpp::client_session())); });
+    atexit([] { xpp::cleanup_autox_dir(startup.files, xpp::autox_parts(xpp::client_session())); });
+}
+
+/* the folder of the model the command line names, where its .xppautx is ("" when it names none or the folder is not there) */
+static std::string start_model_folder(const xpp::CommandLine &cl)
+{
+    if (cl.model_file.empty()) return {};
+    const std::string folder = xpp::files::split_path(startup.files.absolute(cl.model_file)).first;
+    return startup.files.is_dir(folder) ? folder : std::string();
 }
 
 /* what the front end's hello carries that only the program's start knows (ui_json.h) */
@@ -285,12 +291,12 @@ int main(int argc, char **argv)
     startup.read = xpp::settings::read_all(startup.files);
     program.measure_physical_threads = xpp::cpu::physical_threads;
     const xpp::CommandLine &cl = startup.line;
+    const std::string model_folder = start_model_folder(cl);
     {
-        /* what the log shows and where it goes: the command line's, else the settings' (a bad file is said by the load, settings_load) */
-        const xpp::Result<xpp::settings::Settings> &kept = startup.read.settings;
-        xpp::log_set_threshold(cl.log_threshold.value_or(kept ? kept->log_level : XPP_LOG_WARN));
-        if (kept && !kept->log_file.empty() && !xpp::log_open_file(kept->log_file))
-            xpp::log(XPP_LOG_WARN, "{}\n", xpp::files::write_error("log_file", kept->log_file).text());
+        /* the log of the model the command line names, as its load will have it (the user's settings, the model folder's on top; a bad file
+           is said by the load, settings_load); every load that keeps a model sets it again for its folder (load_model). No folder: stderr. */
+        const xpp::Result<xpp::settings::Settings> kept = xpp::settings::effective_settings(startup.files, startup.read.settings, model_folder);
+        xpp::apply_log_settings(kept ? kept->log_level : XPP_LOG_WARN, kept && kept->log_to_file, cl.log_threshold, model_folder);
     }
     if (cl.version) {
         /* the release tag (v1.2.0); the VS Code extension compares it with the latest release */
@@ -345,7 +351,7 @@ int main(int argc, char **argv)
        kill, Ctrl+C, the watchdog's _exit) go at the next start, --silent
        included: cleaning up in a signal handler or from another thread is
        neither safe nor needed (W573: --silent used to skip this) */
-    xpp::files::cleanup_stale_temp_dirs();
+    xpp::files::cleanup_stale_temp_dirs(model_folder);
     /* the program an update swapped out at the last run, which Windows could not remove while it ran */
     xpp::update::remove_replaced_program();
     const bool recording_batch = cl.silent && xpp::files::has_extension(cl.model_file, xpp::recx::extension);

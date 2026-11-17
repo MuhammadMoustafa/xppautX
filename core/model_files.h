@@ -93,5 +93,8 @@ std::vector<std::string> model_source_lines(const Model &m, const std::string &n
    ("lecar.ode (saved in lecar.snapx)") */
 std::string model_title(const Model &m);
 
+/* the folder m's file is in, absolute: where its `.xppautx` is (W791); "" when no model is loaded */
+std::string model_folder(const Model &m);
+
 } // namespace xpp
 

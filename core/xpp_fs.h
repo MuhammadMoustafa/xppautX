@@ -110,9 +110,15 @@ public:
     virtual bool dir_writable(std::string_view dir) = 0;
     /* deletes the file path: 0 on success */
     virtual int remove_file(std::string_view path) = 0;
-    /* a scratch folder of its own (its path, "" when none could be made), and removing it with what it holds */
-    virtual std::string make_temp_dir() = 0;
+    /* a scratch folder of its own, and removing it with what it holds. It is made in the model folder's
+       `.xppautx/tmp` (the folder made when it is not there; the system's temp folder when model_folder is ""),
+       and the error names the folder that cannot hold it, a read-only model folder included (W791) */
+    virtual Result<std::string> make_temp_dir(std::string_view model_folder) = 0;
     virtual void remove_temp_dir(std::string_view dir) = 0;
+    /* the file `name` in the model folder's `.xppautx` (nothing is made): its whole text (nullopt when it is not there; an
+       error when it is a link or not a plain file, cannot be read, or is longer than limit). `where` is the Error's */
+    virtual Result<std::optional<std::string>> read_model_state(std::string_view where, std::string_view model_folder, std::string_view name,
+                                                                std::size_t limit) = 0;
     /* the per-user settings folder's files (settings.json, state.json): the path of `name` in it ("" when the system names no
        folder), its whole text (nullopt when it is not there; an error when it cannot be read, is longer than
        limit, or there is no folder), written whole (the folder made first, temp-then-rename), and removed (no

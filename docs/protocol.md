@@ -415,8 +415,8 @@ if the output could not be written.
 | `autox.pick` | `x`: required real, `y`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | Pick point | `x`: `real`, `y`: `real` | `autox.info`, `autox.diagram`, `session.state`, `done` | A point of the diagram in its plotted quantities: shown, and stored for select_2parameter_point in a two-parameter plot. |
 | `autox.set_display` | `view`: optional window (max 1024 bytes), `x_range`: optional list [of real, at most 2], `y_range`: optional list [of real, at most 2], `show_earlier`: optional boolean | `v` / analysis | Set diagram display | `x_range`: `list`, `y_range`: `list` | `autox.diagram`, `autox.view`, `session.state`, `done` | Set what the page shows of a view: its zoom (a [low, high] range, [] for the whole range of an axis) and whether the hidden branches are drawn. |
 | `autox.fit` | `view`: optional window (max 1024 bytes) | `v` / analysis | Fit diagram | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `autox.diagram`, `autox.view`, `session.state`, `done` | Fit the view to the diagram. |
-| `settings.get` | none | `c` / analysis | Get settings | `threads`: `integer`, `automatic`: `boolean`, `log_level`: `choice`, `log_file`: `text`, `check_for_updates`: `boolean`, `stable_equilibrium_color`: `text`, `unstable_equilibrium_color`: `text`, `stable_periodic_color`: `text`, `unstable_periodic_color`: `text`, `x_nullcline_color`: `text`, `y_nullcline_color`: `text`, `stable_manifold_color`: `text`, `unstable_manifold_color`: `text` | `session.state`, `done` | The program's settings as they stand: the thread count and whether it is automatic, the log level and the log file. |
-| `settings.configure` | `threads`: optional integer [at least 1, at most the session's threads_max], `automatic`: optional boolean, `log_level`: optional choice (error, warn, info, debug), `log_file`: optional text (max 1024 bytes), `check_for_updates`: optional boolean, `stable_equilibrium_color`: optional color (max 1024 bytes), `unstable_equilibrium_color`: optional color (max 1024 bytes), `stable_periodic_color`: optional color (max 1024 bytes), `unstable_periodic_color`: optional color (max 1024 bytes), `x_nullcline_color`: optional color (max 1024 bytes), `y_nullcline_color`: optional color (max 1024 bytes), `stable_manifold_color`: optional color (max 1024 bytes), `unstable_manifold_color`: optional color (max 1024 bytes); at most one of `threads`, `automatic` | `s` / analysis | File/Settings | `threads`: `integer`, `automatic`: `boolean`, `log_level`: `choice`, `log_file`: `text`, `check_for_updates`: `boolean`, `stable_equilibrium_color`: `text`, `unstable_equilibrium_color`: `text`, `stable_periodic_color`: `text`, `unstable_periodic_color`: `text`, `x_nullcline_color`: `text`, `y_nullcline_color`: `text`, `stable_manifold_color`: `text`, `unstable_manifold_color`: `text` | `autox.options`, `session.state`, `done` | Set the program's settings, kept in settings.json: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and the file it goes to (empty: the terminal), and the colors the diagram, the nullclines and the manifolds are drawn with, and whether the window and the page look for a newer release when they open; the log applies from the next start. |
+| `settings.get` | none | `c` / analysis | Get settings | `threads`: `integer`, `automatic`: `boolean`, `log_level`: `choice`, `log_to_file`: `boolean`, `check_for_updates`: `boolean`, `stable_equilibrium_color`: `text`, `unstable_equilibrium_color`: `text`, `stable_periodic_color`: `text`, `unstable_periodic_color`: `text`, `x_nullcline_color`: `text`, `y_nullcline_color`: `text`, `stable_manifold_color`: `text`, `unstable_manifold_color`: `text` | `session.state`, `done` | The program's settings as they stand: the thread count and whether it is automatic, the log level and whether the log goes to the model folder's file. |
+| `settings.configure` | `threads`: optional integer [at least 1, at most the session's threads_max], `automatic`: optional boolean, `log_level`: optional choice (error, warn, info, debug), `log_to_file`: optional boolean, `check_for_updates`: optional boolean, `stable_equilibrium_color`: optional color (max 1024 bytes), `unstable_equilibrium_color`: optional color (max 1024 bytes), `stable_periodic_color`: optional color (max 1024 bytes), `unstable_periodic_color`: optional color (max 1024 bytes), `x_nullcline_color`: optional color (max 1024 bytes), `y_nullcline_color`: optional color (max 1024 bytes), `stable_manifold_color`: optional color (max 1024 bytes), `unstable_manifold_color`: optional color (max 1024 bytes); at most one of `threads`, `automatic` | `s` / analysis | File/Settings | `threads`: `integer`, `automatic`: `boolean`, `log_level`: `choice`, `log_to_file`: `boolean`, `check_for_updates`: `boolean`, `stable_equilibrium_color`: `text`, `unstable_equilibrium_color`: `text`, `stable_periodic_color`: `text`, `unstable_periodic_color`: `text`, `x_nullcline_color`: `text`, `y_nullcline_color`: `text`, `stable_manifold_color`: `text`, `unstable_manifold_color`: `text` | `autox.options`, `session.state`, `done` | Set the program's settings, kept in settings.json: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and whether it goes to xppautx.log in the model folder's .xppautx folder (no: the terminal), and the colors the diagram, the nullclines and the manifolds are drawn with, and whether the window and the page look for a newer release when they open; the log applies from the next start. |
 | `settings.set` | `group`: required text (max 1024 bytes), `key`: required text (max 1024 bytes), `value`: required text (max 1024 bytes) | `s` / analysis | Set a setting | `group`: `text`, `key`: `text`, `value`: `text` | `session.state`, `done` | Set one value of settings.json by its group and key, the value as JSON text, checked and written whole; the answer is the value it has now. |
 | `animation.export` | `output`: required choice (animated_gif, frames), `file`: required file (max 1024 bytes) | `d` / plot | File/Export/Animation as | `frames_saved`: `integer` | `animation.state`, `session.state`, `done` | Play the animation writing every frame into a file of the model's folder: output frames for numbered PPM files from file, animated_gif for one animated GIF file. |
 | `animation.open` | none | `v` / plot | Windows/Open animation | `open`: `boolean` | `window.created`, `window.selected`, `window.destroyed`, `animation.state`, `session.state`, `done` | Open the animation window. |
@@ -724,7 +724,7 @@ is what the program records itself.
 
 - `settings.json` (JSON with comments, `//` and slash-star): the groups
   `general` {`threads` (`"auto"` or a whole number), `log_level` (a word of
-  error, warn, info, debug), `log_file` (`""` or an absolute path)}, `colors`
+  error, warn, info, debug), `log_to_file` (true: the log goes to `.xppautx/xppautx.log` in the model's folder; false: stderr)}, `colors`
   {the eight diagram colors, each a name or `"#rrggbb"`}, `keymap` {`bindings`,
   `pinned`: "Keymap" below}, `page` {`theme` (`system`, `light`, `dark`),
   `dock_hidden` (true or false), `dock_width` (`null` or 288 to 800), `folds`
@@ -742,6 +742,37 @@ defaults. A change (`settings.set`, `settings.configure`, the keymap
 commands) edits the one value in place, keeping the file's comments and
 layout, and the whole file is checked again before it is written (temp then
 rename); a bad file is never overwritten.
+
+**A model's folder** (W791, #871) keeps what the program makes for the model in
+`.xppautx/`, made only when something needs it (a read-only model folder is
+an error naming it, never a fall back elsewhere), with a `.gitignore` of `tmp/` and
+`*.log` written when it is made:
+
+- `settings.json`: the same syntax and the same reader as the user's. Its keys go on
+  top of the user's one by one (a list, `bindings`, `pinned` or `folds`, replaces
+  the user's whole), and they are what the model runs with: hello's `settings`,
+  `settings.get`, the thread count and colors a load takes. `updates.check_for_updates`
+  is an error at its line there: a folder's file must not turn the update check on
+  or off. A bad file is an error at its file and line and none of it is used; a link
+  or a folder in its place, or a file over 256 KiB, is refused. `settings.set` and
+  `settings.configure` write the user's file only.
+- `xppautx.log`: the log, when `general.log_to_file` is true (the program's start
+  reads it with the folder's file on top, for the model the command line names; with
+  none, the log stays on stderr). `log_file` is no setting any more: a settings.json that has
+  it is an error at its line.
+- `tmp/`: autoX's scratch folders (`xppautoX-<pid>-<N>`), made when a run or a
+  restored session first needs one and removed when the program exits; a start removes
+  those of a run that was killed. A recording's replay makes its working and copies
+  folders in the `.xppautx/tmp` of the recording's folder (what the replay's model writes
+  lands in its working folder; the model's own autoX scratch stays in the system's temp
+  folder, the replay being a scratch folder itself). A model with no folder (none loaded), and an
+  update's download, use the system's temp folder.
+
+The settings and the log follow the model that is open: every load that keeps a model (the
+program's start, File > Open model, Reload, a session or recording, `--server`'s) reads the
+new model folder's `.xppautx/settings.json` on top of the user's, a bad one being that load's
+error (the model before stays), and with `log_to_file` moves the log to the new folder's
+`xppautx.log` (the old file closed). A recording's replay leaves both alone.
 
 `settings.set` (group, key, value): one value of `settings.json`, the value as
 JSON text (`"dark"`, `300`, `null`, `true`, `["par"]`). It answers the group,
@@ -2179,7 +2210,7 @@ the choices the model cannot have, by row and name, with why. **`options.configu
 sets some of them: every value is checked first, a bad one or a key the group has no row for refuses the whole set naming it, and a
 good set is one undo step. **`output.configure`** is the same for the output group (`values`), and with `option` (a path row's key)
 and `file_picker` asks for the file dialog and sets that path to what is picked; File > Output opens its panel. **`settings.configure`**
-(`threads`, `automatic`, `log_level`, `log_file` and the eight colors `stable_equilibrium_color`, `unstable_equilibrium_color`, `stable_periodic_color`, `unstable_periodic_color`, `x_nullcline_color`, `y_nullcline_color`, `stable_manifold_color`, `unstable_manifold_color`) keeps what the log shows and its file, and the colors of the diagram, the nullclines and the manifolds (W655), in the settings with the thread count; the log applies from the next start, a color to what is drawn or computed after it. A
+(`threads`, `automatic`, `log_level`, `log_to_file` and the eight colors `stable_equilibrium_color`, `unstable_equilibrium_color`, `stable_periodic_color`, `unstable_periodic_color`, `x_nullcline_color`, `y_nullcline_color`, `stable_manifold_color`, `unstable_manifold_color`) keeps what the log shows and whether it goes to the model folder's file, and the colors of the diagram, the nullclines and the manifolds (W655), in the settings with the thread count; the log applies from the next start, a color to what is drawn or computed after it. A
 command row that has a panel carries its group in `hello.commands[].panel` (`run`'s peers `equilibrium.configure` and
 `poincare_map.set` do): the page opens the group's panel in place of the command's form (`panel` is the group, `group:section,section` for the sections a command uses, a `+` when the command keeps its own arguments beside the rows; an argument with `option` is the row of that key, shown in the panel and left out of the form), and the command itself stays the
 one scripts and recordings send. `tools/servercheck.py --only options` checks all of it.

@@ -470,10 +470,12 @@ view) — goes to **Messages** at the bottom of the page, quiet by default
 (warnings and errors); `--verbose`/`--debug` raise the level.
 The terminal that started it gets only what the page cannot show: the
 warnings and errors, since the page may be closed, and the browser's
-address; with `--verbose` or `--debug`, or the settings' `log_file`, everything
+address; with `--verbose` or `--debug`, or when the settings send the log to a file (`log_to_file`, `.xppautx/xppautx.log` in the model's folder), everything
 (the file gets all of it either way). The
 core never prints to stdout or stderr directly, so nothing bypasses
 Messages.
+
+**A model's folder** may hold a `.xppautx` folder (made only when something needs it, with a `.gitignore` of `tmp/` and `*.log`): its `settings.json` has the same keys as yours and is put on top of them, key by key, for that model (never the update check; a bad one is reported with its file and line, and none of it is used), `xppautx.log` is the log when `log_to_file` is on, and `tmp/` holds autoX's scratch files while the program runs. A model in a folder you cannot write to gets an error naming the folder where `.xppautx` is needed.
 
 **File > Settings** also holds the eight colors the program draws with: the continuation diagram's stable and unstable
 equilibria and periodic orbits, the x and y nullclines, and the stable and unstable manifolds of a saddle. They are the user's, one

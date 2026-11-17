@@ -13,6 +13,7 @@
 #include "xpp_error.h"
 #include "xpp_files.h"
 #include "xpp_log.h"
+#include "model_files.h"
 #include "xpp_settings.h"
 #include <algorithm>
 #include <array>
@@ -27,16 +28,17 @@
 namespace xpp::command {
 namespace {
 
-/* the settings as they stand: the thread count (and whether it is automatic), what the log shows and the file it goes to, and the colors */
+/* the settings as they stand for the model (the user's, the model folder's on top): the thread count (and whether it is automatic), what the log
+   shows and whether it goes to the model folder's file, and the colors */
 Result<std::string> settings_now(const Session &s)
 {
-    const Result<settings::Settings> kept = settings::load_settings(*s.model().fs);
+    const Result<settings::Settings> kept = settings::effective_settings(*s.model().fs, settings::load_settings(*s.model().fs), model_folder(s.model()));
     const settings::Settings defaults;
     const settings::Settings &now = kept ? *kept : defaults;
     const bool automatic = s.threads == cpu::THREADS_AUTO;
     ResultObject result;
     result.integer("threads", automatic ? AutoxParallel::automatic_threads() : s.threads).boolean("automatic", automatic)
-        .text("log_level", log_level_names[static_cast<std::size_t>(now.log_level)]).text("log_file", now.log_file)
+        .text("log_level", log_level_names[static_cast<std::size_t>(now.log_level)]).boolean("log_to_file", now.log_to_file)
         .boolean("check_for_updates", now.check_for_updates);
     for (const ColorKey &c : COLOR_KEYS) result.text(c.key, print_color(s.colors.*c.member));
     return result.done();
@@ -44,13 +46,13 @@ Result<std::string> settings_now(const Session &s)
 
 Result<std::string> get_settings(Session &s, const Command &, const Arguments &, const Place &) { return settings_now(s); }
 
-/* the program's settings: the thread count autoX and sweeps use, and what the log shows and the file it goes to (settings.json; the log applies
+/* the program's settings: the thread count autoX and sweeps use, and what the log shows and whether it goes to the model folder's xppautx.log (settings.json; the log applies
    from the next start, and --verbose and --debug win over it; a color applies to what is drawn or computed after it) */
 Result<std::string> configure_settings(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
-    const bool threads = args.has("threads") || args.has("automatic"), log = args.has("log_level") || args.has("log_file") || args.has("check_for_updates");
+    const bool threads = args.has("threads") || args.has("automatic"), log = args.has("log_level") || args.has("log_to_file") || args.has("check_for_updates");
     const bool colors = std::ranges::any_of(COLOR_KEYS, [&](const ColorKey &c) { return args.has(std::string(c.key)); });
-    if (!threads && !log && !colors) return fail(command.name, "Give the thread count, the log level, the log file, whether to check for updates or a color", place);
+    if (!threads && !log && !colors) return fail(command.name, "Give the thread count, the log level, whether the log goes to a file, whether to check for updates or a color", place);
     if ((log || colors) && files::serving_reads()) return fail(command.name, "a recording's replay leaves the user's settings alone", place);
     std::vector<settings::Change> changes;
     unsigned count = s.threads;
@@ -66,7 +68,7 @@ Result<std::string> configure_settings(Session &s, const Command &command, const
     }
     if (log) {
         if (const auto level = args.optional<std::string>("log_level")) changes.push_back({"general", "log_level", json_quoted(*level)});
-        if (const auto file = args.optional<std::string>("log_file")) changes.push_back({"general", "log_file", json_quoted(*file)});
+        if (const auto file = args.optional<bool>("log_to_file")) changes.push_back({"general", "log_to_file", *file ? "true" : "false"});
         if (const auto check = args.optional<bool>("check_for_updates")) changes.push_back({"updates", "check_for_updates", *check ? "true" : "false"});
     }
     if (colors)
@@ -111,14 +113,15 @@ constexpr std::array THREAD_AND_LOG_ARGUMENTS = {
     Argument{.name = "automatic", .type = Type::boolean, .required = false, .description = "Let the program choose: all the physical cores."},
     Argument{.name = "log_level", .type = Type::choice, .required = false, .choices = LOG_LEVELS,
              .description = "What the log shows; it applies from the next start."},
-    Argument{.name = "log_file", .type = Type::text, .required = false, .description = "The file the log goes to, an absolute path; empty is the terminal."},
+    Argument{.name = "log_to_file", .type = Type::boolean, .required = false,
+             .description = "Write the log to xppautx.log in the model folder's .xppautx folder; no is the terminal."},
     Argument{.name = "check_for_updates", .type = Type::boolean, .required = false,
              .description = "Look for a newer release when the window or the browser page opens, at most once a day."}};
 constexpr auto THREADS_ARGUMENTS = join(THREAD_AND_LOG_ARGUMENTS, COLOR_ARGUMENTS);
 constexpr std::array<Group, 1> THREADS_GROUPS = {Group{GroupRule::at_most_one, THREADS_ONE}};
 
 constexpr auto RESULT_THREADS = []<std::size_t... I>(std::index_sequence<I...>) {
-    return std::array{ResultField{"threads", "integer"}, ResultField{"automatic", "boolean"}, ResultField{"log_level", "choice"}, ResultField{"log_file", "text"}, ResultField{"check_for_updates", "boolean"},
+    return std::array{ResultField{"threads", "integer"}, ResultField{"automatic", "boolean"}, ResultField{"log_level", "choice"}, ResultField{"log_to_file", "boolean"}, ResultField{"check_for_updates", "boolean"},
                       ResultField{COLOR_KEYS[I].key.data(), "text"}...};
 }(std::make_index_sequence<COLOR_KEYS.size()>{});
 constexpr std::array EVENTS_OPTIONS = {xpp::events::AUTOX_OPTIONS, xpp::events::SESSION_STATE, xpp::events::DONE};
@@ -132,9 +135,9 @@ constexpr std::array RESULT_SETTING = {ResultField{"group", "text"}, ResultField
 
 constexpr std::array ROWS = {
     Command{"settings.get", {}, XPP_KIND_CONTROL, CommandCategory::Analysis, "Get settings", "",
-            "The program's settings as they stand: the thread count and whether it is automatic, the log level and the log file.", RESULT_THREADS, EVENTS_BROWSER, false, get_settings, {}, {}},
+            "The program's settings as they stand: the thread count and whether it is automatic, the log level and whether the log goes to the model folder's file.", RESULT_THREADS, EVENTS_BROWSER, false, get_settings, {}, {}},
     Command{"settings.configure", THREADS_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Settings", "File",
-            "Set the program's settings, kept in settings.json: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and the file it goes to (empty: the terminal), and the colors the diagram, the nullclines and the manifolds are drawn with, and whether the window and the page look for a newer release when they open; the log applies from the next start.", RESULT_THREADS, EVENTS_OPTIONS, true, configure_settings, THREADS_GROUPS, {}},
+            "Set the program's settings, kept in settings.json: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and whether it goes to xppautx.log in the model folder's .xppautx folder (no: the terminal), and the colors the diagram, the nullclines and the manifolds are drawn with, and whether the window and the page look for a newer release when they open; the log applies from the next start.", RESULT_THREADS, EVENTS_OPTIONS, true, configure_settings, THREADS_GROUPS, {}},
     Command{"settings.set", SETTING_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Set a setting", "",
             "Set one value of settings.json by its group and key, the value as JSON text, checked and written whole; the answer is the value it has now.", RESULT_SETTING, EVENTS_BROWSER, true, set_setting, {}, {}}};
 

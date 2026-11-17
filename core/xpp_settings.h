@@ -4,7 +4,7 @@
 
    settings.json, JSON with comments (`//` and slash-star), what the user
    sets: how the program runs and looks.
-     general  {threads, log_level, log_file}
+     general  {threads, log_level, log_to_file}
      colors   {the eight diagram colors}
      keymap   {bindings, pinned}                 (xpp_keymap.h)
      page     {theme, dock_hidden, dock_width, folds}
@@ -21,6 +21,10 @@
    keeping the file's comments, order and spacing: the new file is checked
    whole before it is written (temp then rename, FileSystem::write_config), so
    a bad file is never overwritten. state.json is written whole. C++ only.
+
+   A model's folder may hold `.xppautx/settings.json` (W791), the same syntax and the same reader: its keys are put on top of
+   the user's one by one, every key but updates.check_for_updates (what a folder sends must not turn the update check on or
+   off). The settings a model runs with are effective_settings. settings.set and the commands built on it write the user's file only.
 
    A group or key is added by one row of the readers below and one of the
    writer's; the tests show both. */
@@ -84,9 +88,10 @@ struct Page {
 struct Settings {
     /* cpu::THREADS_AUTO, or the number of threads autoX's collocation and a sweep's runs use */
     unsigned threads = cpu::THREADS_AUTO;
-    /* what the log shows (log_level_names) and the file it goes to ("" is stderr, an absolute path); --verbose and --debug win */
+    /* what the log shows (log_level_names) and whether it goes to xppautx.log in the model folder's `.xppautx` (else stderr);
+       --verbose and --debug win over the level */
     XppLogLevel log_level = XPP_LOG_WARN;
-    std::string log_file;
+    bool log_to_file = false;
     Colors colors;
     keymap::Keymap keymap;
     Page page;
@@ -114,6 +119,9 @@ struct Read {
    key it names, the defaults for the rest; a key that is not one of the file's, a value of the wrong kind, a list longer than its
    maximum, a path or time that is not one, is an error at that value, and nothing of the file is used */
 Result<Settings> parse_settings(std::string_view text, std::string file);
+/* the text of a model folder's settings.json on top of `user`: the keys it holds replace the user's (a list, bindings or pinned, whole),
+   the rest stay; updates.check_for_updates is an error at its line there. All or nothing, as parse_settings. */
+Result<Settings> parse_folder_settings(std::string_view text, std::string file, const Settings &user);
 Result<State> parse_state(std::string_view text, std::string file);
 /* state.json's text for `s` (parse_state gives it back), or the error for a value that cannot be written */
 Result<std::string> serialize_state(const State &s, std::string_view file);
@@ -121,6 +129,10 @@ Result<std::string> serialize_state(const State &s, std::string_view file);
 /* the paths of the two files ("" when the system names no config folder) */
 std::string settings_path(FileSystem &fs);
 std::string state_path(FileSystem &fs);
+/* the settings a model runs with: `user` (the user's file as the program read it, its error when it is bad), then the keys of the
+   settings.json in the `.xppautx` of model_folder ("" for none) on top. A folder's file that is bad (or a link, or too long) is the
+   error and nothing of it is used. */
+Result<Settings> effective_settings(FileSystem &fs, const Result<Settings> &user, std::string_view model_folder);
 /* both files as the program's start reads them */
 Read read_all(FileSystem &fs);
 /* one of the two files as a load reads it: the defaults for a missing file, the error when it is bad */

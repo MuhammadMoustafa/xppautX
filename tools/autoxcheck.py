@@ -1013,7 +1013,7 @@ def section_session():
           'lecar.odex (saved in s1.snapx)' in (hello_title(evs) or ''), str(hello_title(evs)))
     check('session load where no .ode is: the parameters and the diagram are the saved ones',
           st is not None and dict(st['pars']) == pars1 and any(is_point(e) for e in evs), str(st and st['pars']))
-    check('session load writes nothing beside the file', sorted(os.listdir(s3.run)) == ['heavy.odex', 's1.snapx'],
+    check('session load writes nothing beside the file', sorted(os.listdir(s3.run)) == ['.xppautx', 'heavy.odex', 's1.snapx'],
           str(os.listdir(s3.run)))
     # a session file without its model: refused, the model open stays
     import zipfile as zf
@@ -1285,7 +1285,7 @@ def section_sessiondiagram():
     pts = Diagram().apply(evs).pts
     check('sessiondiagram: open of an .snapx with another model open loads its saved model and diagram',
           'lecar.odex (saved in d1.snapx)' in (hello_title(evs) or '') and pts == dg1, '%s; %d points' % (hello_title(evs), len(pts)))
-    check('sessiondiagram: nothing is written beside it', sorted(os.listdir(s.run)) == ['d1.snapx', 'heavy.odex'], str(os.listdir(s.run)))
+    check('sessiondiagram: nothing is written beside it', sorted(os.listdir(s.run)) == ['.xppautx', 'd1.snapx', 'heavy.odex'], str(os.listdir(s.run)))
     # a file without its model: an error, nothing changes
     import zipfile
     z = zipfile.ZipFile(d1)
@@ -1973,7 +1973,10 @@ def section_replay():
 # live pid's (issue #32) ------------------------------------------------------
 
 def section_scratch():
-    tmp = tempfile.gettempdir() if os.name == 'nt' else (os.environ.get('TMPDIR') or '/tmp')
+    # the model's folder, where a start looks for them: its .xppautx/tmp (W791)
+    folder = tempfile.mkdtemp(prefix='xppscratch')
+    tmp = os.path.join(folder, '.xppautx', 'tmp')
+    os.makedirs(tmp)
 
     # a pid that is definitely not running any more: a child reaped before
     # xppautX starts (pid reuse in that instant is not realistic here)
@@ -1991,14 +1994,14 @@ def section_scratch():
         f.write('a live session, not to be touched')
 
     try:
-        s = Server(args.server, LECAR, verbose=args.v)
+        s = Server(args.server, LECAR, verbose=args.v, run=folder)
         s.collect(is_done)
         check('a dead pid\'s leftover scratch folder is gone after a start', not os.path.isdir(dead_dir))
         check('a live pid\'s scratch folder is left alone', os.path.isdir(live_dir))
+        check('a start that runs no autoX makes no scratch folder of its own', s.autox_dirs() == [], str(s.autox_dirs()))
         s.close()
     finally:
-        shutil.rmtree(live_dir, ignore_errors=True)
-        shutil.rmtree(dead_dir, ignore_errors=True)
+        shutil.rmtree(folder, ignore_errors=True)
 
 
 # ---- errors: a failed autoX computation ends the run, not the program ----
@@ -2091,6 +2094,7 @@ def section_errors():
     try:
         s.collect(is_done)
         hopf_steady(s)
+        run_any(s, 's')  # a run makes the session's scratch folder (W791: when it first needs it)
         folders = s.autox_dirs()
         assert len(folders) == 1, folders
         scratch = folders[0]
@@ -2102,7 +2106,8 @@ def section_errors():
             os.chmod(scratch, 0o555)
             denied = True
         if denied:
-            evs = run_any(s, 's')
+            s.send(cmd='autox.run', kind='equilibrium', replace_diagram=True)  # the first run's diagram is replaced: only the folder fails the run
+            evs, _ = s.collect(is_done, timeout=120 * SLOW)
             errors = [e for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
             check('W328: a folder autoX cannot write to is reported once, with the original Place',
                   len(errors) == 1 and scratch.replace(os.sep, '/') in errors[0]['error']  # the error names the folder with / on Windows too

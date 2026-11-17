@@ -36,7 +36,7 @@ TEST_CASE("test_folder_grant")
     xpp::Session &s = **loaded;
     xpp::batch_start(s);
 
-    const std::filesystem::path root = xpp::files::make_temp_dir();
+    const std::filesystem::path root = xpp::files::make_temp_dir().value_or(std::string());
     const std::filesystem::path granted = root / "granted", other = root / "other";
     std::filesystem::create_directories(granted / "sub");
     std::filesystem::create_directories(other);

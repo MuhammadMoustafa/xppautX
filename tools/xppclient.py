@@ -78,6 +78,16 @@ def macos_thread_states(output):
     return states
 
 
+def scratch_dirs(model_folder, pid, replay=False):
+    """the scratch directories process pid made in the .xppautx/tmp of model_folder (core/xpp_files_dir.cpp's make_temp_dir); with
+    replay, a recording's replay's too, which keeps its own in the system's temp folder"""
+    places = [os.path.join(model_folder, '.xppautx', 'tmp')]
+    if replay:
+        places.append(tempfile.gettempdir() if os.name == 'nt' else (os.environ.get('TMPDIR') or '/tmp'))
+    pre = 'xppautoX-%d-' % pid
+    return [os.path.join(tmp, d) for tmp in places if os.path.isdir(tmp) for d in os.listdir(tmp) if d.startswith(pre)]
+
+
 class LogLines(list):
     """stderr's reader signals each appended line; checks never delay for logging."""
     def __init__(self):
@@ -231,10 +241,8 @@ class Server(Client):
         self.run = self.cwd
 
     def autox_dirs(self):
-        """autoX's scratch directories of this process (xpp::files::make_temp_dir)"""
-        tmp = tempfile.gettempdir() if os.name == 'nt' else (os.environ.get('TMPDIR') or '/tmp')
-        pre = 'xppautoX-%d-' % self.proc.pid
-        return [os.path.join(tmp, d) for d in os.listdir(tmp) if d.startswith(pre)]
+        """autoX's scratch directories of this process (xpp::files::make_temp_dir): in the model folder's .xppautx/tmp (W791)"""
+        return scratch_dirs(self.cwd, self.proc.pid)
 
     def observe(self, ev):
         result = ev.get('result') if ev.get('ev') == 'done' else None

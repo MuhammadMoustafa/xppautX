@@ -171,6 +171,7 @@ Result<> restore_members(Session &s, Members m)
 {
     if (!m.points.empty()) {
         /* Write the restart file before applying any held state. */
+        if (const Result<> made = ensure_autox_dir(xpp::autox_parts(s)); !made) return made;
         const std::string solutions_path = autox_solutions_file(xpp::autox_parts(s));
         Result<std::unique_ptr<Sink>> sink = s.model().fs->open_sink(solutions_path, true, {});
         if (!sink) return std::unexpected(sink.error());
