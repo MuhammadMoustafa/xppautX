@@ -7461,7 +7461,9 @@ async function openingCheck() {
   /* the core has answered the page's own question once a command sent after it is done (the core takes them in order) */
   const settled = async () => {
     await cdp.eval(`__xpp.send({cmd: 'settings.configure', group: 'general', values: {log_level: '"warn"'}})`);
-    await until(`!s.busy && __xpp.sent().some(c => c.cmd === 'settings.configure')`, 'the core answered');
+    /* every command's done is in owed(): busy clears at the first done, so a command sent before this one (the page's update.due) could end the wait
+       while this one still runs and writes the settings file (W797: the next writePrefs then lost to the core's write) */
+    await until(`__xpp.owed() === 0 && __xpp.sent().some(c => c.cmd === 'settings.configure')`, 'the core answered');
   };
   const newer = {tag_name: 'v999.0.0', html_url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v999.0.0'};
   /* the settings file as a first opening finds it: the check on, none made yet (the core reads the file at each use) */
