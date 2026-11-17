@@ -534,7 +534,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "matplotlib" },
     { name = "mpmath" },
-    { name = "numba" },
+    { name = "numba", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "numpy" },
     { name = "pillow" },
     { name = "scipy" },
@@ -551,7 +551,7 @@ gpu = [
 requires-dist = [
     { name = "matplotlib" },
     { name = "mpmath" },
-    { name = "numba" },
+    { name = "numba", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "numpy" },
     { name = "pillow" },
     { name = "scipy" },

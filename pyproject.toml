@@ -13,7 +13,9 @@ dependencies = [
     "mpmath",      # tools/autox-profile/eig_accuracy.py
     "scipy",       # tools/python-integration/scipy_integrate.py: DOP853, the accuracy reference (W427, #489)
     "pillow",      # tools/make_icons.py
-    "numba",       # tools/exportcheck.py: the exported python_numba script (W766, #846)
+    # tools/exportcheck.py: the exported python_numba script (W766, #846); llvmlite has no macOS Intel wheel, and the
+    # release's Intel Mac checks (servercheck, webcheck, examples) need no numba
+    "numba; sys_platform != 'darwin' or platform_machine != 'x86_64'",
 ]
 
 [tool.uv]
