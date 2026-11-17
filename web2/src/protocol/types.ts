@@ -48,6 +48,8 @@ export interface HelloEvent {
   /** the default name of each file the page offers: csv and curves (the save buttons), then `<command>.<format>` of each File > Export
       > Several export (W774; a command with no format by its name); the core names them (xpp_path output_name) */
   output_names: Record<string, string>;
+  /** the model's base every output name starts with (core xpp_path output_stem): Export > Several's typed name replaces it (W794) */
+  output_stem: string;
   state_inspection: {tail_intervals: number};
   continue: {grid_tolerance: number};
   steady: {max_decimals: number; default_decimals: number; default_hold: number};

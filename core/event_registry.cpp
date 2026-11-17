@@ -6,7 +6,7 @@ namespace xpp::events {
 namespace {
 
 constexpr std::array EVENTS = {
-    Event{HELLO, "protocol, features, title, file, output_names, commands, lists, userbuttons, keymap, about, quit, window_names",
+    Event{HELLO, "protocol, features, title, file, output_stem, output_names, commands, lists, userbuttons, keymap, about, quit, window_names",
           "The first event, and again after Open model or Reload loaded a model in its place."},
     Event{DONE, "job, id, status, result, error, file, line, col, source, field",
           "A command's end: every command sends one, with its result when status is ok."},

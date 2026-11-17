@@ -201,10 +201,9 @@ bool consume_save(int ask, std::string_view path)
     return allowed;
 }
 
-bool authorize_folder(std::string_view path)
+bool authorize_folder(std::string_view picked)
 {
-    std::string choice(path);
-    while (choice.size() > 1 && (choice.back() == '/' || choice.back() == '\\')) choice.pop_back();
+    std::string choice = xpp::files::split_path(picked).first;
     /* a root ("/", "C:\\") is no folder to hand out: its files are everyone's */
     if (!xpp::files::is_absolute(choice) || xpp::files::split_path(choice).first == choice) return false;
     pthread_mutex_lock(&lock);

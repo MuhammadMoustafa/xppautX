@@ -260,11 +260,10 @@ void on_exit()
 
 /* the page's __xppFileDialog({mode, title, dir, file, wild, exts}), in
    webview's JSON (xpp_webview.h) */
-FileDialog file_dialog_of(const std::string &request, bool folder)
+FileDialog file_dialog_of(const std::string &request)
 {
     const std::string o = xpp::webview_json_value(request, "", 0);
     FileDialog d;
-    d.folder = folder;
     d.save = xpp::webview_json_value(o, "mode", 0) == "write";
     d.title = xpp::webview_json_value(o, "title", 0);
     d.dir = xpp::webview_json_value(o, "dir", 0);
@@ -279,36 +278,36 @@ FileDialog file_dialog_of(const std::string &request, bool folder)
     return d;
 }
 
-/* __xppFileDialog's and __xppPickFolder's call, on the UI thread (webview dispatches it there,
+/* __xppFileDialog's call, on the UI thread (webview dispatches it there,
    out of the web view's own event): resolves with the path picked, null
    when cancelled, and rejects when the dialog could not open. Called from
-   the library: nothing may throw. A save pick grants that one path to its ask; a folder pick
-   grants the folder (W781) and a cancelled one ends the grant before it. */
-void dialog_cb(const char *id, const char *request, void *arg, bool folder)
+   the library: nothing may throw. A save pick grants that one path to its ask; a save of several files
+   (File > Export > Several, W794: `several`, the name written is their stem) grants the folder of the path
+   picked (W781) to the files written directly in it, until __xppReleaseFolder. */
+void file_dialog_cb(const char *id, const char *request, void *arg)
 {
     webview_t w = static_cast<webview_t>(arg);
     int status = 0;
     std::string reply = "null";
     try {
         const std::string input = request ? request : "";
-        const FileDialog dialog = file_dialog_of(input, folder);
+        const FileDialog dialog = file_dialog_of(input);
         std::optional<std::string> path = pick_file(webview_get_window(w), dialog);
         if (!path) {
             status = 1;
             reply = xpp::webview_json_quote("the file dialog could not open");
-        } else if (folder) {
-            if (path->empty()) host->release_folder();
-            else if (host->authorize_folder(*path)) reply = xpp::webview_json_quote(*path);
-            else {
-                status = 1;
-                reply = xpp::webview_json_quote("that folder cannot be written to (a root folder)");
-            }
         } else if (!path->empty()) {
-            if (dialog.save) {
-                const std::string object = xpp::webview_json_value(input, "", 0);
-                host->authorize_save(xpp::webview_json_value(object, "ask", 0), *path);
+            const std::string object = xpp::webview_json_value(input, "", 0);
+            if (dialog.save && xpp::webview_json_value(object, "several", 0) == "true") {
+                if (host->authorize_folder(*path)) reply = xpp::webview_json_quote(*path);
+                else {
+                    status = 1;
+                    reply = xpp::webview_json_quote("that folder cannot be written to (a root folder)");
+                }
+            } else {
+                if (dialog.save) host->authorize_save(xpp::webview_json_value(object, "ask", 0), *path);
+                reply = xpp::webview_json_quote(*path);
             }
-            reply = xpp::webview_json_quote(*path);
         }
     } catch (const std::exception &e) {
         status = 1;
@@ -318,23 +317,18 @@ void dialog_cb(const char *id, const char *request, void *arg, bool folder)
     webview_return(w, id, status, reply.c_str());
 }
 
-void file_dialog_cb(const char *id, const char *request, void *arg) { dialog_cb(id, request, arg, false); }
-void folder_dialog_cb(const char *id, const char *request, void *arg) { dialog_cb(id, request, arg, true); }
-
-/* __xppReleaseFolder(): the page is done with the folder it picked (nothing to grant, so nothing to refuse) */
+/* __xppReleaseFolder(): the page is done with the folder its several-files save granted (nothing to grant, so nothing to refuse) */
 void release_folder_cb(const char *id, const char *, void *arg)
 {
     host->release_folder();
     webview_return(static_cast<webview_t>(arg), id, 0, "null");
 }
 
-/* the page's native dialogs; the folder one only where the platform has it, so the page tells by the binding */
+/* the page's native dialogs */
 void bind_file_dialogs(webview_t w)
 {
     if (!has_file_dialog()) return;
     webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
-    if (!HAS_FOLDER_DIALOG) return;
-    webview_bind(w, "__xppPickFolder", folder_dialog_cb, w);
     webview_bind(w, "__xppReleaseFolder", release_folder_cb, w);
 }
 

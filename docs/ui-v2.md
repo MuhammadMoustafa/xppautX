@@ -315,9 +315,9 @@ files for the browser's Load, `--anifile`. The page runs on the same machine
   section stubs the binding in the page and checks the answer carries the
   stub's path, the core read and wrote there, Cancel cancels and no web2
   dialog appeared; the dialogs themselves are checked by hand.
-  W781 adds `__xppPickFolder({title, dir})` and `__xppReleaseFolder()` the same way (GTK and macOS; the page tells
-  by the binding): a folder pick is the core's grant for files written directly in that folder (docs/protocol.md,
-  "A folder for several files"); pickers.ts `pickFolder` gives the path, or in a browser a directory handle.
+  W781 and W794: a request with `several: true` (File > Export > Several: pickers.ts `pickStem`, a save dialog with no filter,
+  titled "Export 3 files") makes the window grant the folder of the path picked to the files written directly in it
+  (docs/protocol.md, "A folder for several files"); `__xppReleaseFolder()` ends the grant. A browser has no such dialog.
 - **Endpoints** (xpp_http.cpp, token-protected like `/cmd`, base names only,
   no separators, no `..`, no dot files, a size cap of 64 MB):
   `GET /files` (listing: name, size, mtime, sha-256), `GET /files/NAME`,

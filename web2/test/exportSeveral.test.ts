@@ -1,8 +1,8 @@
-/* File > Export > Several (W774): the window's rows, what each tick sends, the folder paths it writes to, and the window's state
+/* File > Export > Several (W774): the window's rows, what each tick sends, the stem a typed name gives, the folder paths it writes to, and the window's state
    (store/exportSeveral.ts). The rows are the registry's: a format is a choice's value, its file the core's output name. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {EXPORT_ROWS, defaultFileName, exportCommand, exportRows, folderOf, joinFolder, type ExportRow} from '../src/exportSeveral';
+import {EXPORT_ROWS, defaultFileName, exportCommand, exportDialogTitle, exportRows, folderOf, joinFolder, restem, typedStem, type ExportRow} from '../src/exportSeveral';
 import {initialExportSeveral, reduceExportSeveral} from '../src/store/exportSeveral';
 import type {CommandRow} from '../src/protocol/kinds';
 import {setFileFormats} from '../src/store/fieldKinds';
@@ -80,6 +80,19 @@ test('a folder path joins a name with its own separator, and a model path gives 
   assert.equal(folderOf('/home/u/m/lecar.ode'), '/home/u/m');
   assert.equal(folderOf('C:\\m\\lecar.ode'), 'C:\\m');
   assert.equal(folderOf('lecar.ode'), '');
+});
+
+test('the name written in the save dialog is the stem of every file: its folder and extension dropped, a bad one refused with the reason', () => {
+  assert.deepEqual(typedStem('/home/u/out/fig1'), {stem: 'fig1'});
+  assert.deepEqual(typedStem('C:\\out\\fig1.csv'), {stem: 'fig1'});
+  assert.deepEqual(typedStem('/o/my.v2.pdf'), {stem: 'my.v2'});
+  assert.deepEqual(typedStem('/o/'), {error: 'no name was written'});
+  assert.deepEqual(typedStem('/o/con'), {error: '“con” is not a plain file name'});
+  assert.equal(restem('lecar.csv', 'lecar', 'fig1'), 'fig1.csv');
+  assert.equal(restem('lecar-kinescope-frames.gif', 'lecar', 'fig1'), 'fig1-kinescope-frames.gif');
+  assert.equal(restem('lecar-array.pdf', 'lecar', 'a'.repeat(300)), null);
+  assert.equal(exportDialogTitle(3), 'Export 3 files');
+  assert.equal(exportDialogTitle(1), 'Export 1 file');
 });
 
 test('the window opens with nothing ticked and the ticks toggle', () => {

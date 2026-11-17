@@ -30,6 +30,11 @@ inline constexpr std::string_view SEPARATORS = "/";
 inline constexpr bool DRIVE_LETTERS = false;
 #endif
 
+/* the model file's base name without its last extension: what every output name starts with */
+std::string output_stem(std::string_view model_file);
+/* the one naming rule of an output file: `<stem>[-<what>]<ext>`. The stem is the model's (output_name) or the name a user typed for
+   Export > Several's files (W794: the page takes it from the save dialog, hello's output_stem is the model's it replaces) */
+std::string stem_name(std::string_view stem, std::string_view ext, std::string_view what = {});
 /* All offered defaults: model base without its extension, optional qualifier, extension. */
 std::string output_name(std::string_view model_file, std::string_view ext,
                         std::string_view what = {});

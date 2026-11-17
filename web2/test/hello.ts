@@ -105,6 +105,7 @@ export const HELLO: HelloEvent = {
   autox_run: {kinds: ['equilibrium', 'periodic'], current: ['equilibrium'], rows: []},
   model_features: [],
   state_inspection: {tail_intervals: 10}, protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: [], update: {install: 'release_page', asset_suffix: '', why: 'a test'},
+  output_stem: 'lecar',
   output_names: {csv: 'lecar.csv', curves: 'lecar-curves.csv'},
   continue: {grid_tolerance: 1e-6},
   steady: {max_decimals: 15, default_decimals: 9, default_hold: 1},

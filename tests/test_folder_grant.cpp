@@ -1,4 +1,4 @@
-/* W781: the folder the OS dialog granted (xpp_inbox.h authorize_folder) lets a command's `file` be a full path directly
+/* W781, W794: the folder of the path the OS save dialog returned for several files (xpp_inbox.h authorize_folder) lets a command's `file` be a full path directly
    in that folder, written by the usual save path, and nothing else: no other folder, no subfolder, no "..", no link,
    no root, and nothing once it is replaced or released. The grant is what the window's host table calls with the
    dialog's answer; a command line cannot make one. */
@@ -47,7 +47,7 @@ TEST_CASE("test_folder_grant")
     CHECK(!ran(dir + "/a.snapx") && !std::filesystem::exists(granted / "a.snapx"));
     CHECK(!xpp::inbox::in_granted_folder(dir + "/a.snapx"));
 
-    CHECK(xpp::inbox::authorize_folder(dir + "/")); /* a dialog may end its answer with a separator */
+    CHECK(xpp::inbox::authorize_folder(dir + "/fig1")); /* the path picked: its folder is granted */
     CHECK(xpp::inbox::in_granted_folder(dir + "/a.snapx"));
     CHECK(ran(dir + "/a.snapx") && std::filesystem::exists(granted / "a.snapx"));
     CHECK(ran(dir + "/b.snapx") && std::filesystem::exists(granted / "b.snapx")); /* several files, one pick */
@@ -71,12 +71,12 @@ TEST_CASE("test_folder_grant")
     }
 
     /* a root is no folder to grant; a relative path neither; a refused pick leaves the grant as it was */
-    CHECK(!xpp::inbox::authorize_folder("/") && !xpp::inbox::authorize_folder("//") && !xpp::inbox::authorize_folder("rel"));
-    CHECK(!xpp::inbox::authorize_folder(""));
+    CHECK(!xpp::inbox::authorize_folder("/fig1") && !xpp::inbox::authorize_folder("//fig1") && !xpp::inbox::authorize_folder("rel/fig1"));
+    CHECK(!xpp::inbox::authorize_folder("fig1") && !xpp::inbox::authorize_folder(""));
     CHECK(xpp::inbox::in_granted_folder(dir + "/a.snapx"));
 
     /* the next pick replaces the grant; release ends it */
-    CHECK(xpp::inbox::authorize_folder(far));
+    CHECK(xpp::inbox::authorize_folder(far + "/fig2"));
     CHECK(!ran(dir + "/d.snapx") && ran(far + "/d.snapx") && std::filesystem::exists(other / "d.snapx"));
     xpp::inbox::release_folder();
     CHECK(!ran(far + "/e.snapx") && !std::filesystem::exists(other / "e.snapx") && !xpp::inbox::in_granted_folder(far + "/e.snapx"));

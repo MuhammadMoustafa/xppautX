@@ -1158,6 +1158,8 @@ void send_hello(xpp::Session &s)
         xpp::MAX_STEADY_DECIMALS,xpp::DEFAULT_STEADY_DECIMALS,xpp::DEFAULT_STEADY_HOLD);
     buf_format(b, ",\"continue\":{{\"grid_tolerance\":{}}}", xpp::CONTINUE_GRID_TOLERANCE);
     buf_format(b, ",\"state_inspection\":{{\"tail_intervals\":{}}}", STATE_TAIL_INTERVALS);
+    BUF_LIT(b, ",\"output_stem\":");
+    buf_str(b, xpp::files::output_stem(m.this_file));
     BUF_LIT(b, ",\"output_names\":{");
     /* the defaults of the save buttons (csv, curves) and of every File > Export > Several… format (`<command>.<format>`): each extension
        is its owner's (the data format's, the language's, the picture and movie formats' in xpp_path.h, the info command's own wild); a second

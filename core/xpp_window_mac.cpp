@@ -172,11 +172,6 @@ std::optional<std::string> pick_file(void *, const FileDialog &d)
 {
     id panel = d.save ? msg(cls("NSSavePanel"), "savePanel") : msg(cls("NSOpenPanel"), "openPanel");
     if (!panel) return std::nullopt;
-    if (d.folder) { /* W781, not tested either: directories only */
-        msg<void>(panel, "setCanChooseFiles:", static_cast<BOOL>(NO));
-        msg<void>(panel, "setCanChooseDirectories:", static_cast<BOOL>(YES));
-        msg<void>(panel, "setCanCreateDirectories:", static_cast<BOOL>(YES));
-    }
     if (!d.title.empty()) {
         msg<void>(panel, "setTitle:", ns_string(d.title));
         msg<void>(panel, "setMessage:", ns_string(d.title));

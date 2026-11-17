@@ -49,13 +49,24 @@ bool name_ok(std::string_view name, bool allow_hidden)
     return !device_name(name);
 }
 
-std::string output_name(std::string_view model_file, std::string_view ext, std::string_view what)
+std::string output_stem(std::string_view model_file)
 {
     std::string base = split_path(model_file).second;
     const std::size_t dot = base.rfind('.');
     if (dot != std::string::npos && dot > 0) base.resize(dot);
-    if (!what.empty()) { base += '-'; base += what; }
-    return base + std::string(ext);
+    return base;
+}
+
+std::string stem_name(std::string_view stem, std::string_view ext, std::string_view what)
+{
+    std::string name(stem);
+    if (!what.empty()) { name += '-'; name += what; }
+    return name + std::string(ext);
+}
+
+std::string output_name(std::string_view model_file, std::string_view ext, std::string_view what)
+{
+    return stem_name(output_stem(model_file), ext, what);
 }
 
 std::string run_file_name(std::string_view path, int i)

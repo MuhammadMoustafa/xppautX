@@ -33,7 +33,7 @@ typedef struct XppWindowHost {
     xpp::Result<> (*open_release_page)(std::string_view url); /* checked in the core before opening */
     xpp::Result<> (*open_about_link)(std::string_view url); /* only an About link's exact target */
     void (*authorize_save)(std::string_view ask, std::string_view path); /* the OS picker's exact choice */
-    bool (*authorize_folder)(std::string_view path); /* the OS folder dialog's choice; false: refused (a root) */
+    bool (*authorize_folder)(std::string_view path); /* the folder of the OS save dialog's choice for several files; false: refused (a root) */
     void (*release_folder)(void);
     template <class... Args>
     void log(XppLogLevel level, std::format_string<Args...> fmt, Args &&...args) const noexcept

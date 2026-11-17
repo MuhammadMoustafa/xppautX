@@ -7,7 +7,7 @@ import {
   answerName, baseName, initialFiles, keepBothName, matchesWild, onSent, safeName, uploadPlan,
 } from '../src/store/files';
 import type {AskEvent} from '../src/protocol/types';
-import {canPickFolder, nativeFileRequest, pickFolder, releaseFolder, wildExtensions} from '../src/pickers';
+import {nativeFileRequest, pickStem, releaseFolder, wildExtensions} from '../src/pickers';
 import {HELLO, READY} from './hello';
 import {reduce} from '../src/store/state';
 
@@ -102,19 +102,17 @@ test('the desktop window\'s own dialog (W88) is asked with the filter of wildExt
     ['/m/', 'x.set']);
 });
 
-test('a folder is picked by the window\'s own dialog only (W781; a browser has none: its exports are downloads)', async () => {
+test('Export several\'s one name is asked by the window\'s own save dialog only (W794; a browser has none: its exports are downloads)', async () => {
   const g = globalThis as unknown as {window?: unknown};
-  const asked: {title: string; dir: string}[] = [];
+  const asked: unknown[] = [];
   try {
     g.window = {};
-    assert.equal(canPickFolder(), false);
-    assert.equal(await pickFolder('Export'), null);
-    g.window = {__xppPickFolder: async (r: {title: string; dir: string}) => { asked.push(r); return '/home/u/out'; }};
-    assert.equal(canPickFolder(), true);
-    assert.equal(await pickFolder('Export', '/m/'), '/home/u/out');
-    assert.deepEqual(asked, [{title: 'Export', dir: '/m/'}]);
-    g.window = {__xppPickFolder: async () => null};
-    assert.equal(await pickFolder('Export'), null);
+    assert.equal(pickStem('Export 3 files', '/m', 'lecar'), undefined);
+    g.window = {__xppFileDialog: async (r: unknown) => { asked.push(r); return '/home/u/out/fig1'; }};
+    assert.equal(await pickStem('Export 3 files', '/m', 'lecar'), '/home/u/out/fig1');
+    assert.deepEqual(asked, [{mode: 'write', title: 'Export 3 files', dir: '/m', file: 'lecar', wild: '', exts: [], several: true}]);
+    g.window = {__xppFileDialog: async () => null};
+    assert.equal(await pickStem('Export 1 file', '', ''), null);
     let released = 0;
     g.window = {__xppReleaseFolder: async () => { released++; return null; }};
     await releaseFolder();

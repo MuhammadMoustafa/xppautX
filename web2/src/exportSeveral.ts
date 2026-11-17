@@ -7,6 +7,7 @@ import {choiceItems} from './ui/navigation';
 import type {Command} from './protocol/types';
 import {stepCommand} from './batch';
 import {choiceLabel} from './store/fieldKinds';
+import {baseName, safeName} from './store/files';
 import {unavailableReason} from './ui/navigation';
 
 /** the batch's title (store/batch.ts): what the status bar and Messages call it, and how the window knows the batch is its own */
@@ -79,13 +80,33 @@ export function defaultFileName(rows: CommandRow[], outputNames: Record<string, 
   return outputNames[typeof value === 'string' ? `${command.cmd}.${value}` : command.cmd] ?? '';
 }
 
+/** the name the save dialog answered (a path) as the stem of the window's files: its folder and its extension dropped (the core's output_stem
+    rule: a typed `fig1.csv` is `fig1`), or why it cannot name files */
+export function typedStem(path: string): {stem: string} | {error: string} {
+  const base = baseName(path);
+  if (!base) return {error: 'no name was written'};
+  const dot = base.lastIndexOf('.');
+  const stem = dot > 0 ? base.slice(0, dot) : base;
+  return safeName(stem) ? {stem} : {error: `“${stem}” is not a plain file name`};
+}
+
+/** a default file name (hello's output_names) with `stem` in place of the model's: the one rule's text after the stem is kept (`-curves`, `.csv`);
+    null when the result is not a name the core accepts */
+export function restem(name: string, modelStem: string, stem: string): string | null {
+  const named = stem + name.slice(modelStem.length);
+  return name.startsWith(modelStem) && safeName(named) ? named : null;
+}
+
+/** the title of the window's save dialog: how many files the one name serves */
+export const exportDialogTitle = (count: number): string => `Export ${count} ${count === 1 ? 'file' : 'files'}`;
+
 /** `name` in `folder`: the folder's own separator (a Windows folder has backslashes), the folder with no trailing separator */
 export function joinFolder(folder: string, name: string): string {
   const sep = folder.includes('\\') && !folder.includes('/') ? '\\' : '/';
   return folder.replace(/[\\/]+$/, '') + sep + name;
 }
 
-/** the folder of a model's path (hello.file), for the folder dialog to open in: '' when the path has none */
+/** the folder of a model's path (hello.file), for the save dialog to open in: '' when the path has none */
 export function folderOf(path: string): string {
   const cut = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
   return cut > 0 ? path.slice(0, cut) : '';

@@ -310,8 +310,6 @@
 
 /* File > Export > Several (ui/ExportSeveral.tsx, W774): the folder, a row per export with its formats as chips, the files the ticks
    name under them, a greyed row's reason in place of the chips; on a phone each row is one column */
-.export-folder { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); }
-.export-folder code { flex: 1; min-width: 0; overflow-wrap: anywhere; background: var(--surface-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius); font-family: var(--mono); font-size: var(--text-sm); }
 .export-note { margin: 0 0 var(--space-2); color: var(--fg-muted); font-size: var(--text-sm); }
 .export-row { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: var(--space-1) var(--space-3); align-items: start; padding: var(--space-2) 0; border-top: 1px solid var(--border); }
 .export-row.off .export-name { color: var(--fg-muted); }

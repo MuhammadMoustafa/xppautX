@@ -3618,6 +3618,15 @@ async function exportShots(dir) {
   await cdp.eval(`(() => { const b = document.querySelector('.registry-form button[type=submit]'); if (b && !b.disabled) b.click(); })()`);
   await until("s.toasts.some(t => t.text.endsWith(' downloaded'))", 'the download notice during Play', 30000);
   await shoot('play-download');
+  /* W794: Export > Several in the desktop window (the picker stubs stand in for its host bindings; the window before had Folder and Choose…) */
+  await cdp.eval(`(() => { window.__xppFileDialog = async () => null; window.__xppPickFolder = async () => '/home/user/figures'; window.__xppReleaseFolder = async () => null; return true; })()`);
+  await key('Escape');
+  await exportWindowOpen();
+  await exportTick('plot.export|pdf');
+  await exportTick('data.export|csv');
+  await exportTick('session.export_info|');
+  await shoot('several-desktop');
+  await exportClick('[data-export-cancel]');
 }
 
 /* W786 (round 3, #866): a save the page starts in a browser is the browser's own: no name dialog, the file downloads under the default
@@ -6769,52 +6778,72 @@ const exportTick = key => cdp.eval(`document.querySelector('[data-export-tick=${
 const exportClick = selector => cdp.eval(`document.querySelector(${JSON.stringify(selector)}).click(); true`);
 const exportGreyed = () => cdp.eval(`[...document.querySelectorAll('[data-export-row] [data-export-reason]')].map(e => e.textContent).join('|')`);
 const exportSent = async () => (await cdp.eval('__xpp.sent()')).filter(c => typeof c.id === 'string' && c.id.startsWith('batch-'));
-/** the window's folder: a picked path is granted by the core only inside the window (see exportWindowDesktop) */
-const exportPickFolder = async folder => {
-  await exportClick('[data-export-pick]');
-  return until(`s.exportSeveral.folder === ${JSON.stringify(folder)}`, 'the folder picked');
-};
-
-/* the desktop window's folder: the native picker answers the stubbed path, the core refuses each full path it was not granted */
+/* the desktop window: its one save dialog (stubbed here, like the `native` section's) answers a path, and the core refuses every full path
+   it was not granted (the grant is the window's own host call), so nothing is written; the dialog's request, the stem, the refusals and
+   Cancel are what is checked here, the grant by tests/test_folder_grant.cpp */
 async function exportWindowDesktop(dir, elsewhere, farSet) {
   const names = await S('s.hello.output_names');
+  const stem = await S('s.hello.output_stem');
   await cdp.eval(`(() => {
-    window.__folderAsked = []; window.__folderReleased = 0;
-    window.__xppPickFolder = async r => { window.__folderAsked.push(r); return ${JSON.stringify(elsewhere)}; };
+    window.__stemAsked = []; window.__stemReply = null; window.__folderReleased = 0;
+    window.__xppFileDialog = async r => { window.__stemAsked.push(r); return window.__stemReply; };
     window.__xppReleaseFolder = async () => { window.__folderReleased++; return null; };
     return true; })()`);
+  const reply = value => cdp.eval(`window.__stemReply = ${JSON.stringify(value)}; true`);
   check('W774: the File > Export menu holds Several…, which opens the window', await exportWindowOpen());
   const unavailable = (await S('s.core.unavailable')).map(u => u.reason).join('|');
   check('W774: the window greys each export the core says cannot run now, with the core\'s reason',
     unavailable !== '' && (await exportGreyed()) === unavailable, `${await exportGreyed()} vs ${unavailable}`);
-  check('W774: the window offers the desktop\'s folder picker', await cdp.eval(`!!document.querySelector('[data-export-pick]')`));
+  check('W794: the desktop window has no folder row or Choose…, and says one name is asked',
+    !(await cdp.eval(`!!document.querySelector('[data-export-pick], [data-export-folder]')`))
+    && (await cdp.eval(`document.querySelector('[data-export-note]')?.textContent ?? ''`)).includes('one name'));
   check('W774: no format is ticked when the window opens', (await S('s.exportSeveral.ticks.length')) === 0);
-  await exportPickFolder(elsewhere);
-  const asked = await cdp.eval('window.__folderAsked[0]');
-  const modelFile = await S('s.hello.file'), cut = Math.max(modelFile.lastIndexOf('/'), modelFile.lastIndexOf('\\'));
-  check('W774: the folder is asked for with the title and the model\'s folder',
-    asked?.title === 'Export several' && asked?.dir === (cut > 0 ? modelFile.slice(0, cut) : ''), JSON.stringify(asked));
+  check('W794: Export waits for a tick', await cdp.eval(`document.querySelector('[data-export-start]').disabled`));
   await exportTick('plot.export|pdf');
   await exportTick('data.export|csv');
   await exportTick('session.export_info|');
   check('W774: the three ticks are the three formats the window was asked for',
-    (await S('s.exportSeveral.ticks.length')) === 3);
-  const mark = await cdp.eval('__xpp.sentCount()');
+    (await S('s.exportSeveral.ticks.length')) === 3 && !(await cdp.eval(`document.querySelector('[data-export-start]').disabled`)));
+  /* Cancel in the dialog: back to the ticks, nothing sent or written */
+  let mark = await cdp.eval('__xpp.sentCount()');
   await exportClick('[data-export-start]');
-  const refused = await until(`s.toasts.some(t => t.kind === 'error' && /is not a plain file name in the model/.test(t.text))`, 'the core refusal');
-  check('W774: a full path in the folder the core did not grant is refused with the core\'s reason, and the window keeps its ticks',
+  await until('window.__stemAsked.length === 1', 'the save dialog');
+  const modelFile = await S('s.hello.file'), cut = Math.max(modelFile.lastIndexOf('/'), modelFile.lastIndexOf('\\'));
+  const asked = await cdp.eval('window.__stemAsked[0]');
+  check('W794: one save dialog, titled with the count, no type filter, in the model\'s folder with the model\'s name, for several files',
+    JSON.stringify(asked) === JSON.stringify({mode: 'write', title: 'Export 3 files', dir: cut > 0 ? modelFile.slice(0, cut) : '', file: stem, wild: '', exts: [], several: true}), JSON.stringify(asked));
+  check('W794: Cancel in the dialog goes back to the ticks: nothing sent, the window and its ticks stay',
+    (await cdp.eval('__xpp.sentFrom(' + mark + ')')).length === 0 && (await S('s.exportSeveral.open')) && (await S('s.exportSeveral.ticks.length')) === 3 && (await S('s.batch.phase')) === 'idle');
+  /* a name that cannot name files is refused with the reason, nothing sent, the grant released */
+  for (const [picked, why] of [[path.join(elsewhere, 'x') + '/', /no name was written/], [path.join(elsewhere, 'con.csv'), /“con” is not a plain file name/]]) {
+    mark = await cdp.eval('__xpp.sentCount()');
+    await reply(picked);
+    await exportClick('[data-export-start]');
+    const refused = await until(`s.toasts.some(t => t.kind === 'error' && /^Export several: .*${why.source}/.test(t.text))`, 'the refusal');
+    const text = await S("s.toasts.filter(t => t.text.startsWith('Export several: ')).map(t => t.text).pop()");
+    check(`W794: ${picked.endsWith('/') ? 'an empty' : 'a reserved'} name is refused with its reason, nothing sent`,
+      refused && why.test(text) && (await cdp.eval('__xpp.sentFrom(' + mark + ')')).length === 0, text);
+  }
+  check('W794: a refused name releases the folder the dialog granted', (await cdp.eval('window.__folderReleased')) === 2);
+  /* a typed extension is dropped and the stem replaces the model's in every name: the first file asked about is the stem's */
+  mark = await cdp.eval('__xpp.sentCount()');
+  await reply(path.join(elsewhere, 'fig1.csv'));
+  await exportClick('[data-export-start]');
+  const refused = await until(`s.toasts.some(t => t.kind === 'error' && /is not a plain file name in the model/.test(t.text))`, 'the core refusal', 20000);
+  check('W774: a full path in a folder the core did not grant is refused with the core\'s reason, and the window keeps its ticks',
     refused && (await S('s.batch.phase')) === 'idle' && (await S('s.exportSeveral.ticks.length')) === 3,
     JSON.stringify(await S('s.toasts')));
   const checks = (await cdp.eval('__xpp.sentFrom(' + mark + ')')).filter(c => c.cmd === 'session.file_exists');
+  const first = names['session.export_info'];
   /* the batch asks first, for its first file, and stops at the core's refusal: nothing else is sent */
-  check('W774: the existence check goes first, for the first file, with its full path in the picked folder, and the batch stops there',
-    JSON.stringify(checks.map(c => c.file)) === JSON.stringify([path.join(elsewhere, names['session.export_info'])]),
+  check('W794: the existence check goes first, for the first file named with the typed stem (fig1.csv gives fig1), in the folder picked',
+    JSON.stringify(checks.map(c => c.file)) === JSON.stringify([path.join(elsewhere, 'fig1' + first.slice(stem.length))]),
     JSON.stringify(checks.map(c => c.file)));
   check('W774: no file is written in the folder when the core refuses the path',
     fs.readdirSync(elsewhere).filter(n => n !== path.basename(farSet)).length === 0);
+  check('W794: a core refusal of the check releases the folder too', (await cdp.eval('window.__folderReleased')) === 3);
   await exportClick('[data-export-cancel]');
-  check('W774: Cancel closes the window and releases the folder grant', (await S('s.exportSeveral.open')) === false
-    && (await cdp.eval('window.__folderReleased')) === 1);
+  check('W774: Cancel closes the window', (await S('s.exportSeveral.open')) === false);
   await exportWindowOpen();
   check('W774: the ticks are not remembered between uses', (await S('s.exportSeveral.ticks.length')) === 0);
   await exportClick('[data-export-cancel]');
@@ -6836,7 +6865,7 @@ async function exportSeveral(dir) {
   await until(`!!document.querySelector('.app-menu [data-command="kinescope.export"][data-choice="animated_gif"]')?.disabled`, 'the greyed menu item');
   const greyed = await cdp.eval(`(() => { const b = document.querySelector('.app-menu [data-command="kinescope.export"][data-choice="animated_gif"]'); return b && {disabled: b.disabled, title: b.title}; })()`);
   check('W774: File > Export > Kinescope as greys its items with the reason the core gives', greyed?.disabled === true && greyed.title === 'needs captured frames', JSON.stringify(greyed));
-  check('W786: the browser window has no folder to choose, and says each file is downloaded',
+  check('W786: the browser window has no folder to choose or dialog, and says each file is downloaded',
     await exportWindowOpen() && !(await cdp.eval(`!!document.querySelector('[data-export-pick], [data-export-folder]')`))
     && (await cdp.eval(`document.querySelector('[data-export-note]')?.textContent ?? ''`)).includes('downloaded'));
   for (const n of wanted) fs.rmSync(path.join(downloads, n), {force: true}); /* an earlier section's downloads of these names */

@@ -3,9 +3,8 @@ import {panelSpec, toolbarCommand} from './ui/navigation';
 import {registryRows} from './ui/navigation';
 /* The session: connects a transport to the store and is the one place that
    sends commands. Components call its methods, never the transport. */
-import {nativeFileDialog, nativeFileRequest, offerDownload} from './pickers';
-import {canPickFolder, pickFolder, releaseFolder} from './pickers';
-import {EXPORT_TITLE, defaultFileName, exportRows, folderOf, joinFolder, type ExportRow} from './exportSeveral';
+import {nativeFileDialog, nativeFileRequest, offerDownload, pickStem, releaseFolder} from './pickers';
+import {EXPORT_TITLE, defaultFileName, exportDialogTitle, exportRows, folderOf, joinFolder, restem, typedStem, type ExportRow} from './exportSeveral';
 import {doneMessage, endLine, startLine, stepCommand, stoppedMessage, type BatchStep} from './batch';
 import {pinSteps, stepRun} from './pins';
 import type {BatchAction, BatchOutcome} from './store/batch';
@@ -1561,28 +1560,41 @@ export class Session {
     this.store.dispatch({type: 'exportSeveral', action: {type: 'tick', key, on}});
   }
 
-  /** the window's folder pick: the desktop's own dialog (the core grants that folder to the files written in it) or a browser's
-      directory picker; a cancelled pick clears the folder (the grant ends with it) */
-  async exportSeveralPick(): Promise<void> {
-    try {
-      const picked = await pickFolder('Export several', folderOf(this.store.getState().hello?.file ?? ''));
-      this.exportDesktop = picked !== null;
-      this.store.dispatch({type: 'exportSeveral', action: {type: 'folder', folder: picked}});
-    } catch (e) {
-      this.failed(`The folder could not be picked: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
-
-  /** the window's Export button: its ticked files go to the batch runner, each one ordinary export command */
+  /** the window's Export button: its ticked files go to the batch runner, each one ordinary export command. On the desktop one save dialog,
+      titled with the count, names every file: the name written is the stem in place of the model's, its folder where they go (the window
+      grants it to those files); Cancel there goes back to the ticks. A browser downloads each file under the model's base */
   async exportSeveralStart(): Promise<void> {
     const st = this.store.getState().exportSeveral;
     const items = this.exportRowsNow().filter(row => !row.reason).flatMap(row => row.items).filter(item => st.ticks.includes(item.key));
-    if (!items.length || (canPickFolder() && !st.folder)) return;
-    /* the window writes into the folder picked; a browser downloads each file under its name (the core asks for it, browserSave) */
-    const download = !this.exportDesktop;
-    const plan = items.map(item => ({
-      step: {label: item.file, command: {cmd: item.cmd, ...item.args, ...(download && {file_picker: true})}, file: download ? null : joinFolder(st.folder!, item.file)},
-      name: item.file, download}));
+    if (!items.length) return;
+    const hello = this.store.getState().hello;
+    const asking = pickStem(exportDialogTitle(items.length), folderOf(hello?.file ?? ''), hello?.output_stem ?? '');
+    let folder = '';
+    let names = items.map(item => item.file);
+    if (asking) {
+      let picked: string | null;
+      try {
+        picked = await asking;
+      } catch (e) {
+        this.failed(`The file dialog could not open: ${e instanceof Error ? e.message : String(e)}`);
+        return;
+      }
+      if (picked === null) return; /* Cancel: back to the ticks, nothing written */
+      this.exportDesktop = true; /* the window granted the folder: released with the batch (exportSeveralClose, after) */
+      const typed = typedStem(picked);
+      const stemmed = 'stem' in typed ? items.map(item => restem(item.file, hello?.output_stem ?? '', typed.stem)) : [];
+      if ('error' in typed || stemmed.includes(null)) {
+        this.failed(`Export several: ${'error' in typed ? typed.error : 'the name gives a file name the core does not accept'}`);
+        this.releaseExportFolder();
+        return;
+      }
+      folder = folderOf(picked);
+      names = stemmed as string[];
+    }
+    const download = !asking;
+    const plan = items.map((item, i) => ({
+      step: {label: names[i], command: {cmd: item.cmd, ...item.args, ...(download && {file_picker: true})}, file: download ? null : joinFolder(folder, names[i])},
+      name: names[i], download}));
     const exists = async (): Promise<boolean[]> => {
       if (download) return plan.map(() => false); /* a download never collides with what is there */
       const found: boolean[] = [];
@@ -1593,12 +1605,14 @@ export class Session {
       }
       return found;
     };
-    await this.batchStart(EXPORT_TITLE, plan, exists, {report: true, stopOnFailure: false, after: () => {
-      if (!this.exportDesktop) return;
-      void releaseFolder();
-      this.exportDesktop = false;
-      this.store.dispatch({type: 'exportSeveral', action: {type: 'folder', folder: null}});
-    }});
+    await this.batchStart(EXPORT_TITLE, plan, exists, {report: true, stopOnFailure: false, after: () => this.releaseExportFolder()});
+  }
+
+  /** the folder the save dialog granted to the window's files is released (the batch ended, the window closed or the name was refused) */
+  private releaseExportFolder(): void {
+    if (!this.exportDesktop) return;
+    void releaseFolder();
+    this.exportDesktop = false;
   }
 
   /** the replace question's answer (Export several's and a pin's): Replace writes every file (the answer passed to each command), Skip
@@ -1654,6 +1668,7 @@ export class Session {
       found = await exists();
     } catch (e) {
       this.failed(`${title}: ${e instanceof Error ? e.message : String(e)}`);
+      options.after?.();
       return;
     }
     const withExists = plan.map((p, i) => ({...p, exists: found[i]}));
@@ -1719,8 +1734,7 @@ export class Session {
 
   /** the window closes: a desktop's folder grant ends with it */
   exportSeveralClose(): void {
-    if (this.exportDesktop) void releaseFolder();
-    this.exportDesktop = false;
+    this.releaseExportFolder();
     this.batchPending = null;
     this.store.dispatch({type: 'batch', action: {type: 'clear'}});
     this.store.dispatch({type: 'exportSeveral', action: {type: 'open', open: false}});

@@ -7622,6 +7622,9 @@ def check_output_names():
         h = next(e for e in evs if e.get('ev') == 'hello')
         check('W130: hello supplies all page save names from the model base',
               h.get('output_names', {}).get('csv') == 'lecar.csv' and h.get('output_names', {}).get('curves') == 'lecar-curves.csv', str(h.get('output_names')))
+        names = h.get('output_names', {})
+        check('W794: hello gives the stem the names start with, so a typed stem can replace it (one naming rule)',
+              h.get('output_stem') == 'lecar' and all(n.startswith(h['output_stem']) for n in names.values()), str(h.get('output_stem')))
         def cancel_name(want):
             _, ask = col(lambda e: is_ask(e) or is_done(e))
             while ask and ask.get('kind') == 'form':

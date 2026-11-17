@@ -1,8 +1,8 @@
-/* File > Export > Several (W774, docs/ui-v2.md): one window listing every export, each format of it a tick (a chip), one folder
-   picked for the files, and the one replace question for the files that exist. Every tick is one ordinary export command when Export
+/* File > Export > Several (W774, docs/ui-v2.md): one window listing every export, each format of it a tick (a chip), the one save dialog
+   that names every file on the desktop (W794), and the one replace question for the files that exist. Every tick is one ordinary export command when Export
    runs (session.ts exportSeveralStart); the window shows the batch's outcome after its last command, the core's reason for each file
    that failed. A row whose export cannot run now is greyed with the reason the core gives (state.unavailable). */
-import {canPickFolder} from '../pickers';
+import {nativeFileDialog} from '../pickers';
 import {exportRows, type ExportRow} from '../exportSeveral';
 import {registryRows} from './navigation';
 import {useSession, useStore} from './context';
@@ -30,7 +30,7 @@ function Window() {
     if (batch.phase === 'report') return <Report outcomes={batch.outcomes} onClose={close} />;
     if (batch.phase === 'exists') return null;
   }
-  return <Choose rows={rows} ticks={st.ticks} folder={st.folder} onClose={close} />;
+  return <Choose rows={rows} ticks={st.ticks} onClose={close} />;
 }
 
 /** the items of the rows the ticks name, in the window's order, when they can run */
@@ -38,26 +38,20 @@ function ticked(rows: ExportRow[], ticks: string[]) {
   return rows.filter(row => !row.reason).flatMap(row => row.items).filter(item => ticks.includes(item.key));
 }
 
-function Choose({rows, ticks, folder, onClose}: {rows: ExportRow[]; ticks: string[]; folder: string | null; onClose(): void}) {
+function Choose({rows, ticks, onClose}: {rows: ExportRow[]; ticks: string[]; onClose(): void}) {
   const session = useSession();
-  const picks = canPickFolder();
   const files = ticked(rows, ticks);
-  const ready = files.length > 0 && (!picks || !!folder);
   return (
     <Dialog title="Export several" name="export several" width="list" onClose={onClose} attrs={{'data-export-several': 'choose'}}
       extra={<>
         <span class="export-count" data-export-count>{files.length === 1 ? '1 file' : `${files.length} files`}</span>
         <button type="button" data-export-cancel onClick={onClose}>Cancel</button>
-        <button type="button" class="primary" data-export-start disabled={!ready} title={picks && !folder ? 'Choose a folder first' : undefined}
+        <button type="button" class="primary" data-export-start disabled={files.length === 0}
           onClick={() => void session.exportSeveralStart()}>Export</button>
       </>}>
-      {picks
-        ? <div class="export-folder">
-          <span>Folder</span>
-          <code data-export-folder>{folder ?? 'none chosen'}</code>
-          <button type="button" data-export-pick onClick={() => void session.exportSeveralPick()}>Choose…</button>
-        </div>
-        : <p class="export-note" data-export-note>Each file is downloaded under its name.</p>}
+      <p class="export-note" data-export-note>{nativeFileDialog()
+        ? 'Export asks for one name, in the folder you choose: each file starts with it.'
+        : 'Each file is downloaded under its name.'}</p>
       {rows.map(row => (
         <section class={'export-row' + (row.reason ? ' off' : '')} data-export-row={row.id} key={row.id}>
           <div class="export-name">{row.label}</div>

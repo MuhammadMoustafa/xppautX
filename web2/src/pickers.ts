@@ -79,6 +79,9 @@ export interface NativeFileRequest {
   wild: string;
   /** what it filters by (wildExtensions); All files stays */
   exts: string[];
+  /** the name written is the stem of several files (W794): the window grants the picked path's folder to the files written in it, in place of
+      the one path of a save; __xppReleaseFolder ends the grant */
+  several?: boolean;
 }
 
 /** the operating system's own open or save dialog (docs/ui-v2.md section 4,
@@ -110,30 +113,14 @@ export function nativeFileRequest(ask: {title?: string; mode?: string; file?: st
   };
 }
 
-/** the desktop window's own folder dialog (W781): bound as `__xppPickFolder` only where the platform has one
-    (the binding is how the page tells, not a platform guess). It resolves with the full path picked, which the
-    core has granted for files written directly in it, or null when the user cancelled (which ends an earlier
-    grant); it rejects when the dialog could not open. __xppReleaseFolder() ends the grant. */
-type NativeFolderDialog = (request: {title: string; dir: string}) => Promise<string | null>;
-
-const nativeFolderDialog = (): NativeFolderDialog | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  const f = (window as unknown as {__xppPickFolder?: unknown}).__xppPickFolder;
-  return typeof f === 'function' ? f as NativeFolderDialog : undefined;
-};
-
-
-/** the desktop window's folder for File > Export > Several (the core grants it to the files written there); a browser has none:
-    its exports are downloads */
-export const canPickFolder = () => nativeFolderDialog() !== undefined;
-
-/** the folder the user picked in the window, or null when the dialog was closed (or there is none); `dir` is the folder shown first */
-export async function pickFolder(title: string, dir = ''): Promise<string | null> {
-  const native = nativeFolderDialog();
-  const path = native ? await native({title, dir}) : null;
-  return path || null;
+/** the save dialog of File > Export > Several (W794): one name for every file, no type filter, `dir` shown first and `file` offered; the full
+    path picked (the window has granted its folder to the files written in it), or null when the user cancelled. A browser has no such
+    dialog: undefined there, its exports are downloads. */
+export function pickStem(title: string, dir: string, file: string): Promise<string | null> | undefined {
+  const dialog = nativeFileDialog();
+  return dialog?.({mode: 'write', title, dir, file, wild: '', exts: [], several: true});
 }
-/** the desktop folder grant is over (the batch is done); nothing for a browser's handle */
+/** the folder grant of pickStem is over (the batch is done) */
 export async function releaseFolder(): Promise<void> {
   const f = typeof window === 'undefined' ? undefined : (window as unknown as {__xppReleaseFolder?: unknown}).__xppReleaseFolder;
   if (typeof f === 'function') await (f as () => Promise<null>)();

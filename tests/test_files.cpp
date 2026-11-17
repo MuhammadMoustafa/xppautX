@@ -255,6 +255,8 @@ TEST_CASE("test_files")
         CHECK(xpp::files::output_name("folder/lecar.odex",ext)==std::string("lecar")+ext);
     }
     CHECK(xpp::files::output_name("lecar.ode",".csv","curves")=="lecar-curves.csv");
+    CHECK(xpp::files::output_stem("folder/my.model.ode")=="my.model");
+    CHECK(xpp::files::stem_name("fig1",".pdf","array")=="fig1-array.pdf"&&xpp::files::stem_name("fig1",".csv")=="fig1.csv");
     CHECK(xpp::files::output_name("lecar.ode",".dat","eigen1")=="lecar-eigen1.dat");
     CHECK(xpp::files::output_name(std::string(100,'a')+".ode",".ps")==std::string(100,'a')+".ps");
     CHECK(xpp::files::output_name("folder/model",".dat")=="model.dat");
