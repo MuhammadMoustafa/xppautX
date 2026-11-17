@@ -93,9 +93,10 @@ void apply_effective(Session &s)
 
 /* settings.configure group values [scope]: some values of one group of settings.json (the user's, or with scope folder the model folder's
    `.xppautx/settings.json`), each key with its value as JSON text (a string, a number, true or false, null or an array of strings). All
-   are checked, then written in one step: a wrong one changes nothing. The answer is the values as they now stand. The keymap has its own
+   are checked, then written in one step: a wrong one changes nothing. The answer is the values as written. Not a recording's step:
+   the settings are the user's, not the session's, as the keymap's are. The keymap has its own
    commands. */
-Result<std::string> set_setting(Session &s, const Command &command, const Arguments &args, const Place &place)
+Result<std::string> configure_settings(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     const std::string group = args.get<std::string>(GROUP_KEY);
     if (files::serving_reads()) return fail(command.name, "a recording's replay leaves the settings files alone", place);
@@ -173,11 +174,11 @@ constexpr std::array ROWS = {
     Command{"settings.get", GET_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Analysis, "Get settings", "",
             "The program's settings as they stand: the thread count and whether it is automatic, the log level and whether the log goes to the model folder's file, the colors, the page's, the update check, and where each key is set (user or folder; a key in neither has its default).", RESULT_GET, EVENTS_BROWSER, false, get_settings, {}, {}},
     Command{"settings.configure", CONFIGURE_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Configure settings", "",
-            "Set some values of one group of the user's settings.json, or of the model folder's .xppautx/settings.json with scope folder: each key with its value as JSON text, all checked, then written in one step, in place (the comments stay); the answer is the values as they now stand.",RESULT_CONFIGURE, EVENTS_OPTIONS, true, set_setting, {}, {}},
+            "Set some values of one group of the user's settings.json, or of the model folder's .xppautx/settings.json with scope folder: each key with its value as JSON text, all checked, then written in one step, in place (the comments stay); the answer is the values as written.", RESULT_CONFIGURE, EVENTS_OPTIONS, false, configure_settings, {}, {}},
     Command{"settings.open_file", GET_ARGUMENTS_USER, XPP_KIND_VIEW, CommandCategory::Tools, "Open settings file", "",
             "Open the settings file the Settings window shows in the system's own program for it: the user's settings.json, or with scope folder the model folder's .xppautx/settings.json. The path is the program's own; a file that is not there yet is refused.", RESULT_OPEN_FILE, EVENTS_BROWSER, false, open_settings_file, {}, {}},
     Command{"settings.reset", RESET_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Reset a setting", "",
-            "Remove one key from the user's settings.json, or from the model folder's .xppautx/settings.json with scope folder: the setting is then the one below it (the user's, the default). The comments and the other keys stay.", RESULT_RESET, EVENTS_OPTIONS, true, reset_setting, {}, {}}};
+            "Remove one key from the user's settings.json, or from the model folder's .xppautx/settings.json with scope folder: the setting is then the one below it (the user's, the default). The comments and the other keys stay.", RESULT_RESET, EVENTS_OPTIONS, false, reset_setting, {}, {}}};
 
 } // namespace
 

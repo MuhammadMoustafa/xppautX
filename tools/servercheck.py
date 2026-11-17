@@ -2065,6 +2065,8 @@ def check_registry():
         # These are real recorded steps, whose JSON commands retain names.
         snd(cmd='recording.start'); col(lambda e: e.get('ev') == 'done')
         request({'cmd': 'window.new', 'name': 'Recorded graph'})
+        # W793: a setting changed while recording (the page folds a panel) is the user's, not a step: the replay would refuse it
+        request({'cmd': 'settings.configure', 'group': 'page', 'values': {'folds': '["+num"]'}})
         request({'cmd': 'window.rename', 'window': 'Recorded graph', 'name': 'Recorded phase plane'})
         request({'cmd': 'window.select', 'window': 'main'})
         request({'cmd': 'window.close', 'window': 'Recorded phase plane'})
