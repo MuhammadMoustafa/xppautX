@@ -139,9 +139,11 @@ jobs:
     strategy:
       matrix:
         include:
-          # macos-14's Apple clang has no -std=c++23
-          - runner: macos-15
+          # the runner build.yml's macOS jobs build and check on
+          - runner: macos-latest
             arch: macos-arm64
+          # GitHub's Intel runner; its default Xcode (16.4) lacks C++23
+          # library parts CI's builds use, so the step below picks the newest
           - runner: macos-15-intel
             arch: macos-x64
     runs-on: ${{ matrix.runner }}
@@ -156,6 +158,12 @@ jobs:
       - uses: astral-sh/setup-uv@v6.4.3
         with:
           enable-cache: true
+      # the newest Xcode the runner has, as build.yml's macos-latest builds
+      # with (a beta never ships)
+      - name: Use the newest Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | grep -iv beta | sort -V | tail -1)"
+          c++ --version
       - name: Build
         run: make -j3 xppautx RELEASE=1
       - name: Check

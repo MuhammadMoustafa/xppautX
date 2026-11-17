@@ -70,6 +70,11 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
   workloads whose keys it changes, in the same results folder, never a new one). No heavy job of any kind runs while a timed series runs. Every issue and
   fix found goes into the final report's "Issues found and fixes made" (make_report.py's
   SERIES_CARDS) (maintainer, 2026-10-20/21).
+- A release ships with every problem its runs found closed (maintainer, 2026-11-17: "any problems
+  detected by the release should be closed before the release"): a failure or a FLAKY in the release
+  run or in CI on its commit holds the release; each gets its card, is fixed and merged, and the tag
+  is set again on the fixed commit. Before tagging, release.yml runs as a dry run (workflow_dispatch
+  on master: every platform's build and checks, nothing published).
 - Every issue a run finds is resolved (maintainer, 2026-11-11): a comparison, timed or check run that
   turns up a problem of ours (a wrong number, a slowdown against the frozen run or another program,
   a memory growth, a driver bug) gets its card at once and is worked to a fix, never left as a finding;
