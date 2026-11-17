@@ -213,10 +213,10 @@ export async function waitForAppPage(cdp, what, ready = 'true', timeoutMs = WAIT
    can be met by the old page, and the next read then hits the new one while it
    loads (GitHub #210). The old page is marked and the new one waited for (the
    page has its hello); `ready` is a further condition on the new page. */
-export async function navigatePage(cdp, url, ready = 'true') {
+export async function navigatePage(cdp, url, ready = 'true', timeoutMs = WAIT_TIMEOUT_MS) {
   await cdp.eval('window.__left = true').catch(() => undefined);
   await cdp.send('Page.navigate', {url});
-  await waitForAppPage(cdp, `the page at ${url}`, ready);
+  await waitForAppPage(cdp, `the page at ${url}`, ready, timeoutMs);
 }
 
 /* AGENTS.md "Checks that can be trusted": a check that failed and passed on a
