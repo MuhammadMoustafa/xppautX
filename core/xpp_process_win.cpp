@@ -2,6 +2,7 @@
    folder) with the arguments quoted into one command line, no shell, the child's streams the null device. */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shellapi.h> /* ShellExecuteA, which WIN32_LEAN_AND_MEAN leaves out of windows.h */
 #include "xpp_process_internal.h"
 
 #include <span>

@@ -11770,7 +11770,8 @@ def check_settings_window():
         res = done['result']
         check('W792: settings.get says where each key is set: the folder\'s, the user\'s, a key in neither is the default',
               res['sources'] == {'general.log_level': 'user', 'page.theme': 'user', 'general.threads': 'folder'} and res['scope'] == 'folder' and res['threads'] == 1
-              and res['log_level'] == 'info' and res['folder'] == r and res['file'] == folder_file and res['theme'] == 'light' and res['threads_max'] >= 1, str(res))
+              and res['log_level'] == 'info' and os.path.realpath(res['folder']) == os.path.realpath(r)
+              and os.path.realpath(res['file']) == os.path.realpath(folder_file) and res['theme'] == 'light' and res['threads_max'] >= 1, str(res))
         res = call(cmd='settings.get', scope='user')['result']
         check('W792: settings.get with scope user is the user\'s file alone, its file named',
               res['sources'] == {'general.log_level': 'user', 'page.theme': 'user'} and res['automatic'] is True and res['scope'] == 'user' and res['file'] == user, str(res))

@@ -63,7 +63,7 @@ EXE      = .exe
 # the system libraries core/ itself calls, linked into every program the core
 # library is (xppautX and the unit-test program): WinHTTP, for xpp_https_win.cpp's update
 # check (W622), and winpthreads, for xpp_inbox.cpp's lock (in the core since W781)
-CORE_SYSLIBS = -lwinhttp -lpthread
+CORE_SYSLIBS = -lwinhttp -lshell32 -lpthread
 LDSTATIC = -static
 # -mwindows: a GUI-subsystem exe, so Explorer and a file association start
 # it with no console window (xpp_platform_win.cpp's attach_parent_console()

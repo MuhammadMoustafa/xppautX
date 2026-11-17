@@ -5156,7 +5156,8 @@ async function keymapFitCheck() {
       return {scrollerBottom: box.bottom, scrollerTop: box.top, lastTop: lastBox.top, lastBottom: lastBox.bottom, dialogBottom: d.getBoundingClientRect().bottom,
         viewport: innerHeight, dialogRight: d.getBoundingClientRect().right, viewportWidth: innerWidth, pageScroll: document.documentElement.scrollWidth > innerWidth};
     })()`);
-    const lastWhole = fit.lastBottom <= fit.scrollerBottom + 0.5 && fit.lastTop >= fit.scrollerTop - 0.5;
+    /* within a pixel: scrollTop is a whole number, so a scroller at its end may leave a fractional row edge under a pixel past it (macOS, 0.55) */
+    const lastWhole = fit.lastBottom <= fit.scrollerBottom + 1 && fit.lastTop >= fit.scrollerTop - 1;
     const inside = fit.dialogBottom <= fit.viewport + 0.5 && fit.dialogRight <= fit.viewportWidth + 0.5 && !fit.pageScroll;
     check(`W785: at ${width} the last row of the keymap list is whole, not cut by the window`, lastWhole, JSON.stringify(fit));
     check(`W792: at ${width} the Settings window stays inside the viewport`, inside, JSON.stringify(fit));
