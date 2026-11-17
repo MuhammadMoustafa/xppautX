@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only popout,options,fieldhelp,dock,viewtabs,splitview,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,keymapshots,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
+     [--only popout,options,fieldhelp,dock,viewtabs,splitview,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -5140,7 +5140,7 @@ async function keymapFitCheck() {
   await desktopMetrics();
 }
 
-/* The keymap editor's pictures for the UI review (W785; with --only keymapshots and XPP_SHOTS=folder): the dialog at 375, 768 and
+/* The keymap editor's pictures for the UI review (W785; with --only shots and XPP_SHOTS=folder): the dialog at 375, 768 and
    1280 wide, light and dark. Never a check: it writes files only. */
 async function keymapEditorShots() {
   const dir = process.env.XPP_SHOTS;
@@ -8101,7 +8101,7 @@ async function main() {
       await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     }
     /* every section name run() is asked about: an --only that names none of them ran nothing, which is a failure, never "all passed" */
-    const asked = new Set(['shots', 'popoutshots', 'splitshots', 'keymapshots']);
+    const asked = new Set(['shots', 'popoutshots', 'splitshots']);
     const run = name => { asked.add(name); return !opt.only || opt.only.split(',').includes(name); };
     if (run('desktop')) await session(ODE, async (dir) => {
       await desktop(want);
@@ -8155,6 +8155,7 @@ async function main() {
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'splitshots')) { await session(ODE, splitViewShots); await session(ODE, splitViewAutoxShots); }
     if (opt.only && opt.only.split(',').includes('shots')) await session(AB_ODE, autoxScriptShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'popoutshots')) await session(ODE, popOutShots);
+    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, keymapEditorShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, tableShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('windows')) await session(ODE, windows);
     if (run('annotations')) await session(ODE, marks);
@@ -8163,7 +8164,6 @@ async function main() {
     if (run('keymap')) await session(ODE, keymapCheck);
     if (run('keymapeditor')) await session(ODE, keymapEditorCheck);
     if (run('keymapeditor')) await session(ODE, keymapFitCheck);
-    if (opt.only && opt.only.split(',').includes('keymapshots')) await session(ODE, keymapEditorShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('record')) await session(ODE, recordCheck);
     if (run('player')) await session(ODE, playerCheck);
     if (run('leave')) await session(ODE, leaveCheck);
