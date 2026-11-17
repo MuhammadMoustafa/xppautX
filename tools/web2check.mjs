@@ -93,7 +93,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {devtoolsPages, findBrowser, installPerfObserver, popupPage, waitFor, waitForExit, startBrowser, startServer, startWebView2, stopServer} from './cdp.mjs';
+import {devtoolsPages, findBrowser, installPerfObserver, popupPage, waitFor, waitForAppPage, waitForExit, startBrowser, startServer, startWebView2, stopServer} from './cdp.mjs';
 
 const top = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const opt = {bin: `xppautX${process.platform === 'win32' ? '.exe' : ''}`};
@@ -252,8 +252,7 @@ async function requireUntil(expr, what, ms) {
 async function reloadPage() {
   await cdp.eval('window.__left = true').catch(() => {});
   await cdp.send('Page.reload');
-  const loaded = await until('!window.__left && s.hello', 'the reloaded page', 30000 * SLOW);
-  return loaded;
+  await waitForAppPage(cdp, 'the reloaded page', 'true', 30000 * SLOW);
 }
 
 async function metrics(value) {
@@ -7449,7 +7448,7 @@ async function warningFlashCheck() {
   try {
     await cdp.eval('window.__left = true').catch(() => {});
     await cdp.send('Page.navigate', {url: server.url});
-    await until('!window.__left && s.hello && s.core && !s.busy', 'the new page', 60000);
+    await waitForAppPage(cdp, 'the new page', 's.core && !s.busy', 60000 * SLOW);
     check('warning: the status bar flashes (state), and no dialog opens',
       await until('s.flash > 0', 'flash') && !(await cdp.eval(`!!document.querySelector('.error-dialog')`))
       && !(await S(`s.toasts.length`)), JSON.stringify(await S('[s.flash, __xpp.log().slice(-3)]')));
@@ -7467,7 +7466,7 @@ async function openingCheck() {
     const href = await cdp.eval('location.href');
     await cdp.eval('window.__left = true').catch(() => {});
     await cdp.send('Page.navigate', {url: href});
-    await until('!window.__left && s.hello && s.core && !s.busy', 'the reopened page', 60000);
+    await waitForAppPage(cdp, 'the reopened page', 's.core && !s.busy', 60000 * SLOW);
   };
   const setAnswer = answer => cdp.eval(`sessionStorage.setItem('__updateAnswer', ${JSON.stringify(JSON.stringify(answer))}); true`);
   /* the core has answered the page's own question once a command sent after it is done (the core takes them in order) */
@@ -7893,7 +7892,7 @@ async function sessionAttempt(ode, fn, expected, attempts) {
        new document's first state read the last page's store, and a key typed then was lost (W20) */
     await cdp.eval('window.__left = true').catch(() => {});
     await cdp.send('Page.navigate', {url: server.url});
-    await until('!window.__left && s.hello && s.core && !s.busy', 'the new page', 60000);
+    await waitForAppPage(cdp, 'the new page', 's.core && !s.busy', 60000 * SLOW);
     await fn(dir);
     const errors = (await S('__xpp.log().filter(l => l.kind === "error").map(l => l.text)')).filter(e => !isExpected(expected, e));
     check(`${path.basename(ode)}: no errors reported by the core`, errors.length === 0, JSON.stringify(errors));

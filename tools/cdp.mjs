@@ -197,6 +197,18 @@ export async function waitFor(read, timeoutMs = WAIT_TIMEOUT_MS) {
   }
 }
 
+/* The one wait for a page of the app to be up (GitHub #881): the page's script
+   has run (window.__xpp exists), it has its hello, `ready` (a condition on `s`,
+   the store's state) holds, and the caller's mark on the old page is gone. Until
+   then the condition is "not yet", never an error: the page may have no script
+   yet, and an evaluation can fail while a document is replaced. A page whose
+   script never runs (a request that failed) is only the ceiling's timeout. */
+export async function waitForAppPage(cdp, what, ready = 'true', timeoutMs = WAIT_TIMEOUT_MS) {
+  const up = await waitFor(() => cdp.eval(`(() => { try { const s = window.__xpp?.state();
+    return !window.__left && !!s?.hello && !!(${ready}); } catch { return false; } })()`).catch(() => false), timeoutMs);
+  if (!up) throw new Error(`${what} did not load within ${timeoutMs / 1000} s (its app never mounted)`);
+}
+
 /* Page.navigate returns before the old document is gone: a wait right after it
    can be met by the old page, and the next read then hits the new one while it
    loads (GitHub #210). The old page is marked and the new one waited for (the
@@ -204,8 +216,7 @@ export async function waitFor(read, timeoutMs = WAIT_TIMEOUT_MS) {
 export async function navigatePage(cdp, url, ready = 'true') {
   await cdp.eval('window.__left = true').catch(() => undefined);
   await cdp.send('Page.navigate', {url});
-  if (!await waitFor(() => cdp.eval(`!window.__left && !!window.__xpp?.state().hello && !!(${ready})`)))
-    throw new Error(`the page at ${url} did not load`);
+  await waitForAppPage(cdp, `the page at ${url}`, ready);
 }
 
 /* AGENTS.md "Checks that can be trusted": a check that failed and passed on a
