@@ -2835,7 +2835,8 @@ async function busyKeys() {
   /* W106: a parameter field and a Numerics field are options too: editable during the run, sent at once */
   await editField('par', 'phi', '0.4');
   await editNumericsRow('store_every', '3');
-  const edited = await cdp.eval(`__xpp.sent().slice(${sent0 + dragged.length})`);
+  /* opening Numerics saves the page's folds (settings.set, W790): the page's own view, not an edit of the run */
+  const edited = await cdp.eval(`__xpp.sent().slice(${sent0 + dragged.length}).filter(c => c.cmd !== 'settings.set')`);
   const stillBusy = await S('s.busy');
   check('busy keys: computation keys typed during a run (Ctrl+R) send nothing',
     typed.length === 0 && stillBusy, JSON.stringify({typed, stillBusy}));
@@ -2852,7 +2853,7 @@ async function busyKeys() {
   await cdp.eval(`document.querySelector('.status-bar button.danger').click()`);
   const stopped = await until(`__xpp.actions().slice(${n0}).some(e => e === 'event:done') && !s.busy`, 'the run stopped', 30000);
   /* Stop goes straight to the transport (session.abort), so sent() has nothing: the run's `stopped` shows it */
-  const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set' && c !== 'value.set_parameters' && c !== 'options.configure' && c !== 'options.get')`);
+  const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set' && c !== 'value.set_parameters' && c !== 'options.configure' && c !== 'options.get' && c !== 'settings.set')`);
   const cancelled = await cdp.eval(`__xpp.actions().slice(${n0}).includes('event:job.stopped')`);
   check('busy keys: Escape during a run stops it (stopped) and sends nothing else; the run kept its values (the state '
     + 'during it had the parameters it started with)',
