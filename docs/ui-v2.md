@@ -260,14 +260,10 @@ files for the browser's Load, `--anifile`. The page runs on the same machine
   without a confirm (Replace, Keep both as `name-2.ext`, Cancel); one with
   the same content is not copied.
 - **Save** (a `file` ask for writing: Save session, Save diagram, the browser's
-  Write, `session save`, Save info, PDF/SVG): where the File System
-  Access API exists (Chrome, Edge, the VS Code webview), the page shows
-  `showSaveFilePicker` with the ask's name suggested; the core writes the
-  file into the working directory under that base name, and the page copies
-  it to the picked location. Elsewhere (Firefox, Safari) the page asks for
-  the name, the core writes it, and the page offers it as a download. Either
-  way the working directory has the latest copy, so a later Import by name
-  finds it.
+  Write, `session save`, Save info, PDF/SVG, an export): in the browser the page answers the ask at once with the default name and
+  `scratch` true (W786): the file downloads under that name (no save picker: the maintainer, 2026-11-17, every browser export is a download). The core writes the
+  file into a scratch folder of the model (`files::make_temp_dir`), and the page fetches it once from `/download/NAME`; the folder goes
+  after the file was sent. No copy is written into the model's folder. The desktop window keeps its own save dialog.
 - **Missing companions.** When the core reports it cannot open a file (an
   error naming it), the notification offers "Add file…", which uploads it
   under that name and repeats the command.

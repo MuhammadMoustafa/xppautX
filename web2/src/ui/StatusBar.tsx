@@ -11,7 +11,7 @@ import {Messages} from './Messages';
 
 /* the connection, when it is not simply up (AutoxStatus.tsx says it too) */
 export function connectionText(connected: boolean, exited: number | null): string | null {
-  return exited !== null ? 'XPP has stopped' : !connected ? 'Connecting…' : null;
+  return exited !== null ? 'xppautX has stopped' : !connected ? 'Connecting…' : null;
 }
 
 export function StatusBar() {

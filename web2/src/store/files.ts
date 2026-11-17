@@ -48,8 +48,8 @@ export interface Offered {
   name: string;
   size: number;
   sha256: string;
-  /** into the location showSaveFilePicker gave, or as a download */
-  how: 'picker' | 'download';
+  /** every file the page hands over is a download (W786: no save picker) */
+  how: 'download';
 }
 
 /** an answer of the running command, with the prompt it answered */

@@ -394,11 +394,8 @@ ask separately before replacement. Values Save and the table and plot Export men
 use this same desktop picker. A recording keeps the dialog's answer, so replay uses
 the same decision even if the file now exists.
 
-In a browser, the save picker chooses where the finished file will be
-delivered. The core also writes a copy in the model's folder, which that
-picker never saw. If this copy exists, the core asks **“<file> exists.
-Replace it?”**, with **Yes** and **No**. A new copy needs no question. The
-download fallback and saves with no filename dialog follow this core rule.
+In a browser, every export and save is a download under its default name. The core writes it into a scratch folder of the
+model, never the model's folder, and the page takes it from there, so there is no copy to replace and no replace question. The core's scratch copy is removed once the browser has the file.
 Recordings keep each core decision too, so replay does not gain a question
 or turn No into a write when the destination's existence changes.
 No keeps the destination as it was and delivers nothing. A failed save
@@ -425,12 +422,7 @@ browser never silently downloads anything on its own.
   again. Nothing is copied while a computation runs: the copy is refused
   with "Not while a computation runs", so a run never has a file it
   reads replaced under it.
-- **Save** (Save session, Save diagram, PDF/SVG, ...): where the
-  browser supports it, a native Save dialog is offered with the name
-  suggested; xppautX writes the file into the working directory and the
-  page then offers (or directly saves) that same copy. Elsewhere the page
-  offers the file as a download. Either way the working directory has
-  the latest copy, so a later Open by name finds it.
+- **Save** (Save session, Save diagram, PDF/SVG, ...): in the desktop window, the window's own Save dialog, with the name suggested, and xppautX writes the file where it is chosen. In a browser the save is the browser's own (the picker under the default name where it can pick, else a download under that name); xppautX writes the file into a scratch folder and the page takes it from there, so the model's folder gets no copy. Cancelling the browser's dialog writes nothing.
 - **Missing companions**: when xppautX reports it cannot open a file, the
   notification offers "Add file…", which uploads it under that name and
   repeats the command (a different file already there under that name
@@ -507,8 +499,7 @@ once, then number the frames `_0000`, `_0001`, etc. before its extension (the
 run file rule); an existing file still needs its own replacement decision. Kinescope
 Make Anigif saves all captured frames into one GIF. The browser delivers
 every committed output, capturing its bytes before answering the next
-export prompt even when both picker destinations use the same basename. Typed browser names stay in the model's folder;
-the desktop's save dialog can choose a destination on disk.
+export prompt even when both picker destinations use the same basename. Browser saves are downloads under the default name; the desktop window's save dialog names the file and its folder, starting in the model's folder; the desktop's save dialog can choose a destination on disk.
 
 ### Check for updates
 

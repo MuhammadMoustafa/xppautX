@@ -1,5 +1,6 @@
 /* Direction fields and flows' typed commands (W522). */
 #include "command_def.h"
+#include "command_registry.h"
 #include "xpp_ui.h"
 #include "nullcline.h"
 #include "session.h"
@@ -45,7 +46,7 @@ Result<std::string> export_file(Session &s,const Command &c,const Arguments &a,c
     if(!s.nullclines->df_flag)return fail(c.name,"No direction field is shown",p);
     const auto &file=a.get<std::string>("file");
     if(const auto saved=write_dfield(s,file);!saved)return std::unexpected(saved.error());
-    std::string result="{\"file\":";json_append_string(result,file);
+    std::string result="{\"file\":";json_append_string(result,answered_file(s,file));
     return result+",\"written\":true}";
 }
 constexpr Argument GRID={"grid",Type::integer,true,MAX_TEXT_BYTES,{},constant(2),constant(option_limit::mesh)};

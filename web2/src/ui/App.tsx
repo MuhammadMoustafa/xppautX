@@ -63,7 +63,7 @@ export function Banner() {
   if (exited !== null) {
     return (
       <div class="banner error" role="alert">
-        XPP has stopped{exited ? ' with an error' : ''}. Messages below show what it printed; start it again to
+        xppautX has stopped{exited ? ' with an error' : ''}. Messages below show what it printed; start it again to
         continue.
       </div>
     );

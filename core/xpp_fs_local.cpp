@@ -89,10 +89,8 @@ bool LocalFileSystem::exists(std::string_view path) { return files::exists(path)
 bool LocalFileSystem::is_dir(std::string_view path) { return files::is_dir(path); }
 Result<unsigned long long> LocalFileSystem::size_of(std::string_view path)
 {
-    ::FILE *opened = nullptr;
     unsigned long long size = 0;
-    const int status = files::open(path, opened, size);
-    const UniqueFile closer(opened);
+    const int status = files::size_of(path, size);
     if (status != XPP_FILES_OK) return std::unexpected(Error{"file size", files::status_text(status), Place{std::string(path)}});
     return size;
 }
@@ -101,6 +99,8 @@ bool LocalFileSystem::dir_writable(std::string_view dir) { return files::dir_wri
 int LocalFileSystem::remove_file(std::string_view path) { return files::remove(path); }
 Result<std::string> LocalFileSystem::make_temp_dir(std::string_view model_folder) { return files::make_temp_dir(model_folder); }
 void LocalFileSystem::remove_temp_dir(std::string_view dir) { files::remove_temp_dir(dir); }
+bool LocalFileSystem::is_download(std::string_view path) { return files::is_download(path); }
+void LocalFileSystem::offer_download(std::string_view folder, std::string_view name) { files::offer_download(folder, name); }
 Result<std::optional<std::string>> LocalFileSystem::read_model_state(std::string_view where, std::string_view model_folder,
                                                                     std::string_view name, std::size_t limit)
 {

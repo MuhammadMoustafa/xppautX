@@ -5,6 +5,7 @@
    options of a plot (scope plot, or all) are the graph `window` names, the active graph when it is left out; the
    values saved are the initial ones unless `state` says last. */
 #include "command_def.h"
+#include "command_registry.h"
 #include "set_apply.h"
 #include "command_graph.h"
 #include "model_options.h"
@@ -144,7 +145,7 @@ Result<std::string> set_export(Session &s, const Command &command, const Argumen
     const Result<bool> exported = export_values(s, name, args.get<std::string>(SCOPE_KEY), file, *graph, last_state_of(args));
     if (!exported) return std::unexpected<Error>(exported.error());
     if (!*exported) return fail(command.name, xpp::format("\"{}\" exists with a set \"{}\" and replacing it was declined: nothing was written", file, name), place);
-    return ResultObject().text(FILE_KEY, file).text(NAME_KEY, name).boolean("exported", true).done();
+    return ResultObject().text(FILE_KEY, answered_file(s, file)).text(NAME_KEY, name).boolean("exported", true).done();
 }
 
 Result<std::string> set_rename(Session &s, const Command &, const Arguments &args, const Place &)

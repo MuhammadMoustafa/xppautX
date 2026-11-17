@@ -4,18 +4,14 @@
    the folder XPP reads (a name taken by other content asks first: Replace,
    Keep both, Cancel); a picker needs a user gesture, and the ask comes from
    the core, so the dialog is one prompt with "Choose file…" (focused: Enter
-   opens the picker, Esc cancels). Saving lets XPP write into the folder and
-   hands the file to the location picked (showSaveFilePicker) or to the
-   browser as a download. */
+   opens the picker, Esc cancels). A save has no dialog here: the page answers
+   it at once and the browser downloads the file (session.ts browserSave). */
 import {useRef, useState} from 'preact/hooks';
-import {canPickOpen, canPickSave, pickOpen, pickSave, wildExtensions} from '../pickers';
+import {canPickOpen, pickOpen, wildExtensions} from '../pickers';
 import type {AskEvent} from '../protocol/types';
-import {baseName, safeName} from '../store/files';
-import {FILE, ruleMessage} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
 import {Dialog} from './Dialog';
 import {AskShell} from './AskDialog';
-import {Control, FormRow, focusFirstError, useFeedback} from './FormFields';
 
 /** the replace confirm's text: the name is taken by other content */
 function ReplaceText() {
@@ -82,7 +78,7 @@ function OpenFromComputer({ask}: {ask: AskEvent}) {
       <div class="file-ask" data-mode="read"
         onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); open([...(e.dataTransfer?.files ?? [])]); }}>
         <p>
-          Pick the file to open{ask.wild && ask.wild !== '*' ? <> ({ask.wild})</> : null}, or drop it here. XPP reads it from the model's
+          Pick the file to open{ask.wild && ask.wild !== '*' ? <> ({ask.wild})</> : null}, or drop it here. xppautX reads it from the model's
           folder, so it is copied there first. Pick the files it refers to at the same time (tables, included files)
           to copy them too{wildExtensions(ask.wild).length ? <> (All files in the dialog's type list shows them)</> : null}.
         </p>
@@ -98,46 +94,6 @@ function OpenFromComputer({ask}: {ask: AskEvent}) {
   );
 }
 
-/* a file ask for writing: a name, then the core writes and the page copies */
-function SaveToComputer({ask}: {ask: AskEvent}) {
-  const session = useSession();
-  const feedback = useFeedback();
-  const [name, setName] = useState(baseName(ask.file ?? ''));
-  const message = name.trim() === '' ? 'Required' : ruleMessage(FILE, name);
-  const picker = canPickSave();
-  const save = async (e: Event) => {
-    e.preventDefault();
-    if (!safeName(name)) {
-      feedback.attempt();
-      queueMicrotask(() => focusFirstError(document.querySelector('[data-ask]')));
-      return;
-    }
-    if (!picker) {
-      session.saveFile(ask, name, null);
-      return;
-    }
-    const handle = await pickSave(name, ask.wild).catch(() => null);
-    if (!handle) return;
-    setName(handle.name);
-    if (!safeName(handle.name)) { feedback.attempt(); return; } /* show the picked name's field error */
-    session.saveFile(ask, handle.name, handle);
-  };
-  return (
-    <AskShell ask={ask} onSubmit={e => void save(e)} action={{label: picker ? 'Save…' : 'Save'}} problems={message && feedback.shows('name') ? 1 : 0}>
-      <div class="file-ask" data-mode="write">
-        <p>
-          XPP writes the file into the model's folder,{' '}
-          {picker ? 'then it is copied to where you choose.' : 'then your browser downloads it.'}
-        </p>
-        <FormRow name="file-name" label="File name" required id="file-name" error={feedback.shows('name') ? message : null}>
-          <Control spec={FILE} value={name} label="File name" id="file-name" invalid={!!message && feedback.shows('name')}
-            onBlur={() => feedback.touch('name')} onChange={setName} />
-        </FormRow>
-      </div>
-    </AskShell>
-  );
-}
-
 export function FileAsk({ask}: {ask: AskEvent}) {
-  return ask.mode === 'write' ? <SaveToComputer ask={ask} /> : <OpenFromComputer ask={ask} />;
+  return <OpenFromComputer ask={ask} />;
 }

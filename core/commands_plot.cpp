@@ -6,6 +6,7 @@
    asks. A graph is named by `window` (the selected one when it is left out); an argument left out keeps the
    setting the graph has. */
 #include "browse.h"
+#include "command_registry.h"
 #include "command_def.h"
 #include "command_graph.h"
 #include "graf_par.h"
@@ -197,7 +198,7 @@ Result<std::string> export_picture(Session &s, const Command &command, const Arg
     if (!*written) return replace_declined(command.name, file, place);
     const Result<unsigned long long> size = file_size(*s.model().fs, file, command, place);
     if (!size) return std::unexpected<Error>(size.error());
-    return ResultObject().text("file", file).integer("bytes_written", static_cast<long long>(*size)).done();
+    return ResultObject().text("file", answered_file(s, file)).integer("bytes_written", static_cast<long long>(*size)).done();
 }
 
 Result<std::string> set_axes_origin_command(Session &s, const Command &command, const Arguments &args, const Place &place)

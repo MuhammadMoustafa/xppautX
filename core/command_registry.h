@@ -35,5 +35,11 @@ Result<> check_shape(const char *line,const Place &place,Session *s=nullptr);
 /* job: the number of the job this done ends (xpp::job::number()), 0 for a command that is no job's own, such as a control
    command answered while a job runs */
 std::string done(const char *line, const Result<std::string> &result, bool stopped, unsigned long job = 0);
+/* the full path an export answers with (W786): the file as the model's folder names it, where the write went (a replay's is its scratch folder) */
+std::string answered_file(const Session &s, std::string_view file);
+/* the answer of an export that wrote `count` numbered files of `file` (files::run_file_name): the full path of `file`, except in a browser's
+   scratch folder, where they are zipped into one `<file without its extension>.zip`, the one file the page downloads (the numbered files
+   go), and that zip's path is the answer */
+Result<std::string> answered_frames(Session &s, std::string_view file, int count, const Place &place);
 
 } // namespace xpp::command

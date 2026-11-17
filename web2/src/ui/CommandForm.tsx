@@ -48,6 +48,7 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
   const sentValues = () => {
     const out: Record<string, unknown> = {};
     for (const arg of args) {
+      if (arg === dialogOnly) continue;
       const v = values[arg.name];
       /* an empty box is not set, unless a text the person emptied (clearing a label is a value) */
       if (v === undefined || (v === '' && !(edited.includes(arg.name) && ['text', 'expression'].includes(arg.type)))) continue;
@@ -62,9 +63,12 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
   };
   /* the argument the core's file dialog fills (command_registry picker_argument): left empty, the action opens the dialog */
   const picker = args.find(a => a.type === 'file' || (a.type === 'path' && a.required));
+  /* a save the page starts (W786: every write of a file, exports included) is named in the file dialog only, where its name and folder
+     are chosen: the form has no field for it, and no name is sent */
+  const dialogOnly = picker && row.file_mode === 'write' ? picker : undefined;
   const pickerHelp = row.file_mode === 'write' ? 'Leave empty to choose where to save it' : 'Leave empty to choose a file, or drop one here';
   const sent = sentValues();
-  const messages = args.map(arg => fixed.includes(arg.name) || arg === picker ? (arg === picker && sent[arg.name] ? argumentMessage(arg, sent[arg.name], specOf(arg)) : null) : argumentMessage(arg, arg.required ? values[arg.name] : sent[arg.name], specOf(arg)));
+  const messages = args.map(arg => arg === dialogOnly ? null : fixed.includes(arg.name) || arg === picker ? (arg === picker && sent[arg.name] ? argumentMessage(arg, sent[arg.name], specOf(arg)) : null) : argumentMessage(arg, arg.required ? values[arg.name] : sent[arg.name], specOf(arg)));
   const groupMessages = groupProblems(row, sent);
   const shown = (arg: RegistryArgument, i: number) => feedback.shows(arg.name) ? messages[i] : null;
   const fixes = args.filter((arg, i) => feedback.shows(arg.name) && messages[i]).length + (feedback.attempted ? groupMessages.length : 0) + options.shownProblems;
@@ -81,7 +85,7 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
       queueMicrotask(() => focusFirstError(document.querySelector('[data-command-form]')));
       return;
     }
-    const picking = !!picker && !sent[picker.name];
+    const picking = !!picker && (!!dialogOnly || !sent[picker.name]);
     if (send({cmd: id, ...formValues(args, sent), ...(picking ? {file_picker: true} : {})})) close();
   };
   const control = (arg: RegistryArgument, value: unknown, change: (value: unknown) => void, label: string, invalid?: boolean) => {
@@ -120,11 +124,11 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
       {control(arg, values[arg.name], value => set(arg.name, value), label, !!shown(arg, i))}
     </FormRow>;
   };
-  const body = args.filter(a => !fixed.includes(a.name) && a.type !== 'path').map(arg => {
+  const body = args.filter(a => !fixed.includes(a.name) && a.type !== 'path' && a !== dialogOnly).map(arg => {
     if (rendered.has(arg.name)) return null;
     const g = (row.groups ?? []).find(g => g.arguments.includes(arg.name));
     if (!g) return field(arg);
-    const members = args.filter(a => g.arguments.includes(a.name) && !fixed.includes(a.name) && !rendered.has(a.name) && a.type !== 'path');
+    const members = args.filter(a => g.arguments.includes(a.name) && !fixed.includes(a.name) && !rendered.has(a.name) && a.type !== 'path' && a !== dialogOnly);
     members.forEach(a => rendered.add(a.name));
     if (!members.length) return null;
     return <fieldset class="form-group" key={`group-${arg.name}`}><legend>{GROUP_WORDS[g.rule]}</legend>{members.map(field)}</fieldset>;
@@ -134,7 +138,7 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
     {SETS_OF_FORM[id] && <SetsRow scope={SETS_OF_FORM[id]} />}
     {group && <div data-options-rows>{options.fields}{options.unused > 0 && <details class="unused-options"><summary>Options not used by this method or model</summary>{options.unusedFields}</details>}</div>}
     {group && body.some(Boolean) ? <fieldset class="form-group">{body}</fieldset> : body}
-    {picker?.type === 'path' && <p class="form-help">{row.file_mode === 'write' ? 'Where to save it is chosen in the file dialog when you press the action.' : 'The file is chosen in the file dialog when you press the action.'}</p>}
+    {picker && (picker.type === 'path' || dialogOnly) && <p class="form-help">{row.file_mode === 'write' ? 'Where to save it is chosen in the file dialog when you press the action.' : 'The file is chosen in the file dialog when you press the action.'}</p>}
     {feedback.attempted && groupMessages.map(problem => <p class="field-error">{problem}</p>)}
   </Dialog>;
 }

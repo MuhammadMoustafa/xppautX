@@ -53,6 +53,9 @@ const char *status_text(int status); /* in words, for an error */
 /* opens a file for reading ("rb"); size its length */
 int open(std::string_view name, FILE *&fp, unsigned long long &size);
 
+/* the length of the plain file at `path` (a name, or a full path: a scratch folder's, a granted folder's); a link, a folder or a device is refused */
+int size_of(std::string_view path, unsigned long long &size);
+
 /* a write in steps: begin, write the bytes as they come (more than `cap`
    in all fails with XPP_FILES_TOO_LARGE), then commit, or abort. Commit
    and abort end the Put whatever they return; after a failed write,
@@ -253,6 +256,17 @@ bool is_scratch(std::string_view path, bool root_only = false);
 /* Removes every file directly in dir (no folders are expected there),
    then dir itself. "" does nothing. */
 void remove_temp_dir(std::string_view dir);
+/* A browser save (W786): the file a page's save asks for is written into a scratch folder (make_temp_dir), which the page fetches
+   once (the /download/NAME route). offer_download makes it the pending one, removing an earlier pending folder; download_path is the
+   file's path when name is the pending file's name, else "" (nothing is served under another name); download_done removes the
+   folder once the page has the file. */
+void offer_download(std::string_view folder, std::string_view name);
+/* path is the pending download's file (its folder and its name): a save that went into the browser's scratch folder */
+bool is_download(std::string_view path);
+std::string download_path(std::string_view name);
+/* the pending download opened for sending: XPP_FILES_NOT_FOUND when name is not the pending file (the scratch path is not a plain model file, so open does not serve it) */
+int open_download(std::string_view name, FILE *&fp, unsigned long long &size);
+void download_done();
 /* issue #32: removes the scratch folders of runs that were killed before
    they could remove their own (make_temp_dir's naming, whose pid names no
    running process), in the system's temp folder and in the model folder's `.xppautx/tmp` when it has one;

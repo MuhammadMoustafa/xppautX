@@ -6,13 +6,16 @@ import type {FilesApi} from '../src/protocol/files';
 import type {Transport} from '../src/protocol/transport';
 import {HELLO} from './hello';
 
-function saving(name = 'old.snapx') {
+/* a session that has its hello: the core's asks and events come through `emit`, its commands are in `sent` */
+function saving() {
   let emit: (ev: XppEvent) => void = () => {};
   const reads: string[] = [];
+  const downloads: string[] = [];
   const sent: Command[] = [];
   const files: FilesApi = {
     list: async () => [],
     get: async name => { reads.push(name); return null; },
+    download: async name => { downloads.push(name); return null; },
     put: async () => { throw new Error('unexpected upload'); },
   };
   const transport: Transport = {send: cmd => { sent.push(cmd); }, close: () => {}, open: on => { emit = on; }};
@@ -20,24 +23,33 @@ function saving(name = 'old.snapx') {
   s.start();
   emit(HELLO);
   emit({ev: 'done', status: 'ok'});
-  const ask: AskEvent = {ev: 'ask', kind: 'file', id: 1, mode: 'write', wild: '*.snapx'};
-  s.store.dispatch({type: 'event', ev: ask});
-  s.saveFile(ask, name, null);
-  return {emit, reads, sent, s, files};
+  return {emit, reads, downloads, sent, s, files};
 }
 
-test('W129: a declined save, failure or missing save result never fetches the old file', () => {
+/* W786 (#866, round 3): in a browser every save the core asks for is a download under its default name: answered at once, into the
+   scratch folder the core wrote (scratch: true), fetched by that name once the command is done */
+test('W786: a browser save is answered at once under the default name, into the scratch folder', () => {
+  const {emit, sent} = saving();
+  emit({ev: 'ask', kind: 'file', id: 1, mode: 'write', wild: '*.snapx', file: 'lecar.snapx'} as XppEvent);
+  assert.deepEqual(sent.at(-1), {cmd: 'answer', id: 1, file: 'lecar.snapx', scratch: true});
+});
+
+test('W786: a browser save is fetched by its name once the core has written it, and downloaded', async () => {
+  const {emit, downloads} = saving();
+  emit({ev: 'ask', kind: 'file', id: 2, mode: 'write', wild: '*.dat', file: 'fig1.dat'} as XppEvent);
+  emit({ev: 'done', status: 'ok', result: {file: '/model/.xppautx/tmp/xppautoX-1-1/fig1.dat'}} as XppEvent);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual(downloads, ['fig1.dat']);
+});
+
+test('W129: a declined save, failure or missing save result fetches nothing', () => {
   for (const result of [undefined, false]) {
-    const {emit, reads} = saving();
+    const {emit, reads, downloads} = saving();
     if (result !== undefined) emit({ev: 'session.saved', saved: result, file: 'old.snapx'});
     emit({ev: 'done', status: 'ok'});
     assert.deepEqual(reads, []);
+    assert.deepEqual(downloads, []);
   }
-});
-
-test('W129: a browser file answer carries no decision for the model-folder copy', () => {
-  const {sent} = saving();
-  assert.deepEqual(sent.at(-1), {cmd: 'answer', id: 1, file: 'old.snapx'});
 });
 
 test('W129: native save answers authorize the picked path; open answers do not', async () => {
@@ -59,55 +71,6 @@ test('W129: native save answers authorize the picked path; open answers do not',
     if (original) Object.defineProperty(globalThis, 'window', original);
     else Reflect.deleteProperty(globalThis, 'window');
   }
-});
-
-test('W177: every committed output is captured before the next prompt', () => {
-  const {emit, reads} = saving();
-  emit({ev: 'session.saved', saved: true, file: 'other.snapx'});
-  assert.deepEqual(reads, ['other.snapx']);
-  emit({ev: 'session.saved', saved: true, file: 'old.snapx'});
-  assert.deepEqual(reads, ['other.snapx', 'old.snapx']);
-  emit({ev: 'done', status: 'ok'});
-  assert.deepEqual(reads, ['other.snapx', 'old.snapx']);
-});
-
-test('W129: a committed destination with the dialog suffix delivers the core filename', () => {
-  const {emit, reads} = saving('session');
-  emit({ev: 'session.saved', saved: true, file: 'session.snapx'});
-  emit({ev: 'done', status: 'ok'});
-  assert.deepEqual(reads, ['session.snapx']);
-});
-
-
-test('W177: same-name exports snapshot distinct bytes before answering the next file ask', async () => {
-  const {s, emit, sent, files} = saving('data.dat');
-  let bytes = 'orbit';
-  const captured: string[] = [];
-  let finish: () => void = () => {};
-  Object.assign(files, {get: () => {
-    const snapshot = new Blob([bytes]);
-    return new Promise<Blob>(resolve => { finish = () => resolve(snapshot); });
-  }});
-  let done: () => void = () => {};
-  const delivered = new Promise<void>(resolve => { done = resolve; });
-  const handle = {name: 'data.dat', createWritable: async () => ({
-    write: async (data: Blob) => { captured.push(await data.text()); if (captured.length === 2) done(); }, close: async () => {},
-  })};
-  const first: AskEvent = {ev: 'ask', kind: 'file', mode: 'write', id: 3};
-  s.saveFile(first, 'data.dat', handle);
-  emit({ev: 'session.saved', saved: true, file: 'data.dat'});
-  const second = {...first, id: 4};
-  s.saveFile(second, 'data.dat', handle);
-  assert.equal(sent.at(-1)?.id, 3, 'the next answer waits for the orbit read');
-  finish();
-  await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
-  assert.equal(sent.at(-1)?.id, 4);
-  bytes = 'adjoint';
-  emit({ev: 'session.saved', saved: true, file: 'data.dat'});
-  finish();
-  emit({ev: 'done', status: 'ok'});
-  await delivered;
-  assert.deepEqual(captured, ['orbit', 'adjoint']);
 });
 
 

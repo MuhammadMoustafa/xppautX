@@ -265,6 +265,10 @@ bool player_begin(const char *line);
 /* an ask of kind (ask_begin's) was sent, the user's: the player's step
    answers it with the recording's next key or answer */
 void player_asked(const char *kind);
+/* a recording's step is running (W786): its file asks are the recording's, and its writes stay in scratch */
+bool player_step_running();
+/* a recording is open in the player (loading or open): the model is its replay's scratch copy (W786) */
+bool player_open();
 /* the step's job ends with its recorded interruption still armed */
 int player_controls(xpp::Session &s);
 void player_stop_missed(void);

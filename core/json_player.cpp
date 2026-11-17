@@ -31,6 +31,7 @@
 #include "recx.h"
 #include "session.h"
 #include "model.h"
+#include "model_files.h"
 #include "snapx.h"
 #include "xpp_files.h"
 #include "xpp_inbox.h"
@@ -450,6 +451,13 @@ bool output_write(std::string_view path, bool opening, int kind)
     return true;
 }
 
+/* the write guard of an interactive replay (W786): a step's own writes stay in its scratch folder; the user's commands and dialogs, while no step runs, write as they do outside a replay */
+bool interactive_write(std::string_view path, bool, int)
+{
+    if (player.running < 0) return true;
+    return xpp::files::is_scratch(xpp::files::split_path(xpp::files::absolute(path)).first, true);
+}
+
 /* xpp::files::serve_reads' server: while the player's model loads, the
    recording's first file of that name; while a step runs, the next of
    the sections it read that has that name (again the last, read again) */
@@ -504,6 +512,17 @@ void close_player()
     player.work = std::move(work);
 }
 
+/* the folder a Play's file dialogs start in (W786): the recorded model's own folder when the recording keeps an absolute path to the
+   model and that folder is on this machine, else the folder of the model open before Play (before); never the recording's folder or a
+   scratch folder. A recording keeps the model as it names itself (Model::this_file), so a bare name has no folder of its own. */
+std::string dialog_home(const xpp::Session &before)
+{
+    const std::string recorded = xpp::files::split_path(player.rec.model).first;
+    if (xpp::files::is_absolute(player.rec.model) && !xpp::files::is_scratch(recorded, true) && before.model().fs->is_dir(recorded))
+        return recorded;
+    return xpp::model_folder(before.model());
+}
+
 /* the recording's model loads (handle_line, once this command returned),
    in a fresh scratch folder, as its snapshot has it, the session restored
    as it was when the recording began (W59d): from step 0, running with no
@@ -517,14 +536,14 @@ void load(xpp::Session &s, int from, bool play)
         return;
     }
     s.model_request = std::make_unique<xpp::ModelRequest>(xpp::saved_request(s, player.work->path(), *player.snapshot));
-    s.model_request->home = xpp::files::split_path(player.path).first; /* dialogs stay in the recording's folder */
+    s.model_request->home = dialog_home(s);
     player.loading = true;
     player.fast_to = from;
     player.play_after_load = play || from > 0;
     player.pause_at = !play;
     player.what = Next::none;
     player.running = -1;
-    xpp::files::serve_reads(serve, session.silent ? output_write : nullptr); /* embedded reads; guarded outputs */
+    xpp::files::serve_reads(serve, session.silent ? output_write : interactive_write); /* embedded reads; guarded outputs */
 }
 
 /* {"ev":"player",...}: the recording, its steps and notes */
@@ -734,7 +753,7 @@ std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
     json::player.rec = std::move(got->rec);
     json::player.copy_of.assign(json::player.rec.files.size(), std::string());
     json::player.loading = true;
-    xpp::files::serve_reads(json::serve, json::session.silent ? json::output_write : nullptr);
+    xpp::files::serve_reads(json::serve, json::session.silent ? json::output_write : json::interactive_write);
     return RecordingLaunch{std::move(snapshot->model), snapshot->manifest.model_name,
                           json::session.silent ? json::session.output_folder : json::player.work->path()};
 }
@@ -822,6 +841,9 @@ int player_save_replace(int decision)
     player.input_last=last_input(st);
     return static_cast<int>(saved);
 }
+
+bool player_step_running() { return player.running >= 0; }
+bool player_open() { return player.open || player.loading; }
 
 void player_asked(const char *kind)
 {

@@ -2,6 +2,7 @@
    ends), its time scroll, the range of runs it saves as GIFs and its pictures. Each handler calls the core
    function the array plot window's keys call too (arrayplot.h): one behaviour, whichever front end asks. */
 #include "graf_par.h"
+#include "command_registry.h"
 #include "arrayplot.h"
 #include "xpp_job.h"
 #include "command_def.h"
@@ -131,7 +132,7 @@ Result<std::string> export_pdf(Session &s, const Command &command, const std::st
     const Result<bool> written = write_aplot_pdf(s, file);
     if (!written) return std::unexpected<Error>(written.error());
     if (!*written) return replace_declined(command.name, file, place);
-    return ResultObject().text("file", file).done();
+    return ResultObject().text("file", answered_file(s, file)).done();
 }
 
 Result<std::string> export_gif(Session &s, const Command &command, const std::string &file, const Place &place)
@@ -142,7 +143,7 @@ Result<std::string> export_gif(Session &s, const Command &command, const std::st
     if (!*written) return replace_declined(command.name, file, place);
     const Result<unsigned long long> size = file_size(*s.model().fs, file, command, place);
     if (!size) return std::unexpected<Error>(size.error());
-    return ResultObject().text("file", file).integer("bytes_written", static_cast<long long>(*size)).done();
+    return ResultObject().text("file", answered_file(s, file)).integer("bytes_written", static_cast<long long>(*size)).done();
 }
 
 /* array_plot.export: the PDF picture with the labels the options hold, or the GIF of the window as it shows */

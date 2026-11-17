@@ -3,9 +3,9 @@ import {panelSpec, toolbarCommand} from './ui/navigation';
 import {registryRows} from './ui/navigation';
 /* The session: connects a transport to the store and is the one place that
    sends commands. Components call its methods, never the transport. */
-import {nativeFileDialog, nativeFileRequest, offerDownload, writeTo, type SaveHandle} from './pickers';
-import {canPickFolder, fileExistsIn, pickFolder, releaseFolder, type FolderHandle} from './pickers';
-import {EXPORT_TITLE, exportRows, folderOf, joinFolder, type ExportRow} from './exportSeveral';
+import {nativeFileDialog, nativeFileRequest, offerDownload} from './pickers';
+import {canPickFolder, pickFolder, releaseFolder} from './pickers';
+import {EXPORT_TITLE, defaultFileName, exportRows, folderOf, joinFolder, type ExportRow} from './exportSeveral';
 import {doneMessage, endLine, startLine, stepCommand, stoppedMessage, type BatchStep} from './batch';
 import {pinSteps, stepRun} from './pins';
 import type {BatchAction, BatchOutcome} from './store/batch';
@@ -26,7 +26,7 @@ import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type PageSettings
 import type {AplotHover} from './store/aplot';
 import {activeView, autoxWindow} from './store/diagram';
 import {
-  answerName, keepBothName, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type RunRecord, type Upload,
+  answerName, baseName, keepBothName, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type RunRecord, type Upload,
 } from './store/files';
 import {createStore, type Store} from './store/store';
 import {initialState, LEAVE_ASK, noDone, type LeaveThen, reduce, type Action, type AppState, type ValuesFileOffer, type ValuesPart} from './store/state';
@@ -104,12 +104,12 @@ const answeredSwitch = (cmd: Command): boolean => (cmd.cmd === 'update.restart' 
 const PAGE_KEYS = ['theme', 'dock_hidden', 'dock_width', 'folds'] as const;
 const PAGE_SETTLE_MS = 300;
 
-/** one step of a batch in the runner: the step, the file name to ask about, a hook before it is sent, and (once asked) whether its file exists
-    and whether the answer skips it */
+/** one step of a batch in the runner: the step, the file name to ask about, whether the browser downloads its file (the core asks where, the
+    page answers with the name), and (once asked) whether its file exists and whether the answer skips it */
 interface BatchPlan {
   step: BatchStep;
   name: string;
-  before?: () => void;
+  download?: boolean;
   exists?: boolean;
   skip?: boolean;
 }
@@ -146,17 +146,19 @@ export class Session {
   /* a file the core writes, offered at its command's done: `ahead` counts the
      dones of the commands sent before it, which come first (W95's click right
      behind a redraw delivered it at the redraw's done, before it was written) */
-  private savedOutputs: {name: string; handle: SaveHandle | null; data: Promise<Blob | null>}[] = [];
+  private savedOutputs: {name: string; data: Promise<Blob | null>; announce?: boolean}[] = [];
   private savingReads = new Set<Promise<Blob | null>>();
   private nativeSave: string | null = null;
   private nativeRun: RunRecord | null = null;
   private retrySave: RunRecord | null = null;
   private retrySaveDir: string | null = null;
   private nativeSaveDir = '';
-  private pendingSave: {name: string; handle: SaveHandle | null; ahead: number; suffix?: string} | null = null;
-  /** File > Export > Several (W774): the folder the window writes into (a browser's handle; a desktop's grant is the core's),
-      whether the desktop granted it, the batch waiting for the replace question, and the commands awaiting their done by id */
-  private exportFolder: FolderHandle | null = null;
+  private pendingSave: {name: string; ahead: number; scratch?: boolean} | null = null;
+  /** the file names of a batch step's download (a browser's Export several), in the order the asks come (browserSave) */
+  private downloadNames: string[] = [];
+  /** the command sent last (an answer is none): the one whose file question is asked, for its default name (askedName) */
+  private lastCommand: Command | null = null;
+  /** File > Export > Several: whether the window granted a folder (a browser has none: its files are downloads) */
   private exportDesktop = false;
   /** the batch waiting for the replace answer (batchStart), and whether Stop was pressed during the one that runs */
   private batchPending: {title: string; plan: BatchPlan[]; options: BatchOptions} | null = null;
@@ -285,19 +287,13 @@ export class Session {
         else this.cancel(ev);
       } else if (this.replayAnswers.length) this.continueReplay(ev);
       else if (ev.kind === 'file' && nativeFileDialog()) void this.nativeFile(ev);
+      else if (ev.kind === 'file' && ev.mode === 'write') this.browserSave(ev);
 
     } else if (ev.ev === 'session.message' && ev.error?.includes('Permission denied:') && this.nativeRun) {
       this.retrySave = this.nativeRun;
       this.retrySaveDir = this.nativeSaveDir;
       this.nativeRun = null;
-    } else if (ev.ev === 'session.saved') {
-      const save = this.pendingSave;
-      let handle: SaveHandle | null = null;
-      if (save && save.ahead === 0 && (ev.file === save.name
-          || (save.suffix && ev.file === save.name + save.suffix))) {
-        handle = save.handle;
-        save.name = ev.file; /* use the core's destination when it appended the dialog's suffix */
-      }
+    } else if (ev.ev === 'session.saved' && !this.pendingSave?.scratch) {
       if (ev.saved && safeName(ev.file) && ev.file !== this.nativeSave && this.files) {
         /* Start reading at commit; the next answer waits for this snapshot. */
         const data = this.files.get(ev.file).catch(e => {
@@ -306,7 +302,10 @@ export class Session {
         });
         this.savingReads.add(data);
         void data.then(() => this.savingReads.delete(data));
-        this.savedOutputs.push({name: ev.file, handle, data});
+        this.savedOutputs.push({name: ev.file, data});
+      } else if (ev.saved && ev.file && ev.file !== this.nativeSave) {
+        /* written where the page cannot copy it from (a Play's model folder, a full path): the message names where it is (W786) */
+        this.store.dispatch({type: 'toast', kind: 'info', text: `Saved ${ev.file}`});
       }
       this.nativeSave = null;
     } else if (ev.ev === 'done') {
@@ -331,11 +330,14 @@ export class Session {
       this.dragEnded = false;
       if (this.replayDones > 0 && --this.replayDones === 0) this.replayAnswers = [];
       const save = this.pendingSave;
+      /* a browser save (W786): the core wrote the file the command answers with (the one file, or the zip of numbered ones) into a scratch
+         folder; the page fetches it under its name, once */
+      if (save?.scratch && save.ahead === 0 && ev.status === 'ok' && typeof ev.result?.file === 'string') this.keepDownload(ev.result.file);
       if (save && save.ahead > 0) save.ahead--;
       else {
         this.pendingSave = null;
         this.nativeSave = null;
-        for (const output of this.savedOutputs.splice(0)) void this.deliver(output.name, output.handle, output.data);
+        for (const output of this.savedOutputs.splice(0)) void this.deliver(output.name, output.data, output.announce);
       }
       const next = this.afterDone;
       this.afterDone = null;
@@ -639,6 +641,7 @@ export class Session {
     const patch = commandSettings(cmd);
     if (patch) this.store.dispatch({type: 'autoxSettings', action: {type: 'sent', patch, ahead: this.donesOwed}});
     if (cmd.cmd !== 'answer' && !noDone(cmd)) this.donesOwed++;
+    if (cmd.cmd !== 'answer') this.lastCommand = cmd;
     this.store.dispatch({type: 'sent', cmd});
     this.transport.send(cmd);
     return true;
@@ -1563,9 +1566,8 @@ export class Session {
   async exportSeveralPick(): Promise<void> {
     try {
       const picked = await pickFolder('Export several', folderOf(this.store.getState().hello?.file ?? ''));
-      this.exportDesktop = !!picked && 'path' in picked;
-      this.exportFolder = picked && 'handle' in picked ? picked.handle : null;
-      this.store.dispatch({type: 'exportSeveral', action: {type: 'folder', folder: picked ? ('path' in picked ? picked.path : picked.handle.name) : null}});
+      this.exportDesktop = picked !== null;
+      this.store.dispatch({type: 'exportSeveral', action: {type: 'folder', folder: picked}});
     } catch (e) {
       this.failed(`The folder could not be picked: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -1576,32 +1578,24 @@ export class Session {
     const st = this.store.getState().exportSeveral;
     const items = this.exportRowsNow().filter(row => !row.reason).flatMap(row => row.items).filter(item => st.ticks.includes(item.key));
     if (!items.length || (canPickFolder() && !st.folder)) return;
-    const folder = this.exportFolder;
-    const plan = items.map(item => {
-      const target = this.exportDesktop && st.folder ? joinFolder(st.folder, item.file) : item.file;
-      return {step: {label: item.file, command: {cmd: item.cmd, ...item.args}, file: target}, name: item.file,
-        /* a browser's folder gets each file it wrote (pendingSave: the core's file is the base name, copied at its done) */
-        before: !this.exportDesktop && folder ? () => {
-          this.pendingSave = {name: item.file, handle: {name: item.file, createWritable: async () => (await folder.getFileHandle(item.file, {create: true})).createWritable()}, ahead: this.donesOwed};
-        } : undefined};
-    });
+    /* the window writes into the folder picked; a browser downloads each file under its name (the core asks for it, browserSave) */
+    const download = !this.exportDesktop;
+    const plan = items.map(item => ({
+      step: {label: item.file, command: {cmd: item.cmd, ...item.args, ...(download && {file_picker: true})}, file: download ? null : joinFolder(st.folder!, item.file)},
+      name: item.file, download}));
     const exists = async (): Promise<boolean[]> => {
-      if (this.exportDesktop) {
-        const found: boolean[] = [];
-        for (const {step} of plan) {
-          const ev = await this.callDone({cmd: 'session.file_exists', file: step.file!, id: `exists-${this.callSerial++}`});
-          if (ev?.status !== 'ok') throw new Error(ev?.error ?? 'the check stopped');
-          found.push(ev.result?.exists === true);
-        }
-        return found;
+      if (download) return plan.map(() => false); /* a download never collides with what is there */
+      const found: boolean[] = [];
+      for (const {step} of plan) {
+        const ev = await this.callDone({cmd: 'session.file_exists', file: step.file!, id: `exists-${this.callSerial++}`});
+        if (ev?.status !== 'ok') throw new Error(ev?.error ?? 'the check stopped');
+        found.push(ev.result?.exists === true);
       }
-      const listing = await this.files?.list().catch(() => []) ?? [];
-      return Promise.all(plan.map(async ({name}) => listing.some(f => f.name === name) || (!!folder && await fileExistsIn(folder, name))));
+      return found;
     };
     await this.batchStart(EXPORT_TITLE, plan, exists, {report: true, stopOnFailure: false, after: () => {
       if (!this.exportDesktop) return;
       void releaseFolder();
-      this.exportFolder = null;
       this.exportDesktop = false;
       this.store.dispatch({type: 'exportSeveral', action: {type: 'folder', folder: null}});
     }});
@@ -1679,16 +1673,19 @@ export class Session {
     const outcomes: BatchOutcome[] = [];
     this.batchStopped = false;
     dispatch({type: 'run', title, steps: all});
-    for (const [i, {step, skip, before}] of plan.entries()) {
+    for (const [i, {step, skip, download}] of plan.entries()) {
       if (this.batchStopped) break;
       dispatch({type: 'step', index: i});
       let outcome: BatchOutcome;
       if (skip) outcome = {step: step.label, status: 'skipped', text: 'it exists, and was kept'};
       else {
         this.store.dispatch({type: 'note', text: startLine(title, i, plan.length, step.label)});
-        before?.();
+        if (download) this.downloadNames = [step.label];
         const ev = await this.callDone(stepCommand(step.command, step.file, `batch-${this.callSerial++}`, replace));
-        outcome = ev?.status === 'ok' ? {step: step.label, status: step.file ? 'written' : 'ran', text: step.file ?? ''}
+        this.downloadNames = [];
+        /* a file question that ended with no file (the core could not make the scratch folder: its error is in Messages) is `cancelled`, an ok done */
+        outcome = ev?.status === 'ok' && ev.result?.cancelled === true ? {step: step.label, status: 'failed', text: 'no file was written'}
+          : ev?.status === 'ok' ? {step: step.label, status: download ? 'downloaded' : step.file ? 'written' : 'ran', text: step.file ?? ''}
           : {step: step.label, status: 'failed', text: ev?.error ?? (ev ? 'Stop was pressed' : 'the command was not sent')};
         this.store.dispatch({type: 'note', text: endLine(title, i, plan.length, outcome)});
       }
@@ -1723,7 +1720,6 @@ export class Session {
   /** the window closes: a desktop's folder grant ends with it */
   exportSeveralClose(): void {
     if (this.exportDesktop) void releaseFolder();
-    this.exportFolder = null;
     this.exportDesktop = false;
     this.batchPending = null;
     this.store.dispatch({type: 'batch', action: {type: 'clear'}});
@@ -1759,7 +1755,7 @@ export class Session {
       const taken = new Set(listing.map(f => f.name)), uploads: Upload[] = [];
       for (const {file, name: wanted} of files) {
         if (!safeName(wanted)) {
-          this.failed(`XPP cannot use a file named “${wanted}” in the model's folder.`
+          this.failed(`xppautX cannot use a file named “${wanted}” in the model's folder.`
             + (wanted === file.name ? ' Rename it and pick it again.' : ''));
           return null;
         }
@@ -1820,7 +1816,7 @@ export class Session {
   async nativeFile(ask: AskEvent): Promise<void> {
     let path: unknown = null;
     try {
-      const request = nativeFileRequest(ask);
+      const request = nativeFileRequest({...ask, file: this.askedName(ask)});
       if (ask.mode === 'write' && this.retrySaveDir !== null) {
         request.dir = this.retrySaveDir;
         this.retrySaveDir = null;
@@ -1849,26 +1845,45 @@ export class Session {
     done?.(choice);
   }
 
-  /** a `file` ask for writing answered with `name`: the core writes it into
-      the model's folder, then, at the command's done, the page copies it to
-      `handle` (showSaveFilePicker's) or offers it as a download */
-  saveFile(ask: AskEvent, name: string, handle: SaveHandle | null): void {
-    /* the ask belongs to the command running now: its done is the next one */
-    const suffix = ask.wild?.match(/^\*(\.[^*? /\\]+)$/)?.[1];
-    this.pendingSave = {name, handle, ahead: 0, suffix};
-    this.answer(ask, {file: name});
+  /** a `file` ask for writing, answered at once (the maintainer, 2026-11-17: in a browser every export is a download): the core writes
+      `name` into its scratch folder, and the page fetches it under that name (keepDownload) and downloads it */
+  private saveFile(ask: AskEvent, name: string): void {
+    this.pendingSave = {name, ahead: 0, scratch: true};
+    this.answer(ask, {file: name, scratch: true});
   }
 
-  private async deliver(name: string, handle: SaveHandle | null, snapshot: Promise<Blob | null>): Promise<void> {
+  /** the browser's save ask: the file's name is the one a command of Export several was given (downloadNames), else the ask's default */
+  private browserSave(ask: AskEvent): void {
+    this.saveFile(ask, baseName(this.downloadNames.shift() ?? this.askedName(ask)));
+  }
+
+  /** the name a file question starts with: the core's, else the command's default (hello's output_names: the one table of default names) */
+  private askedName(ask: AskEvent): string {
+    const {hello} = this.store.getState();
+    return ask.file || (this.lastCommand && hello ? defaultFileName(registryRows(hello), hello.output_names ?? {}, this.lastCommand) : '');
+  }
+
+  /** a browser save's file the core wrote into its scratch folder: the page fetches it once, under its name, and delivers it */
+  private keepDownload(file: string): void {
+    const name = baseName(file);
+    const data = (this.files ? this.files.download(name) : Promise.resolve(null)).catch(e => {
+      this.failed(`${name} could not be downloaded: ${e instanceof Error ? e.message : String(e)}`);
+      return null;
+    });
+    this.savingReads.add(data);
+    void data.then(() => this.savingReads.delete(data));
+    this.savedOutputs.push({name, data, announce: this.store.getState().batch.phase !== 'running'}); /* a batch's report lists its files */
+  }
+
+  private async deliver(name: string, snapshot: Promise<Blob | null>, announce = false): Promise<void> {
     try {
       const data = await snapshot;
       if (!data) return; /* not written: the command stopped before it */
-      if (handle) await writeTo(handle, data);
-      else offerDownload(name, data);
-      const how = handle ? 'picker' as const : 'download' as const;
-      this.store.dispatch({type: 'files', action: {type: 'offered', offered: {name, size: data.size, sha256: await sha256Hex(data), how}}});
+      offerDownload(name, data);
+      if (announce) this.store.dispatch({type: 'toast', kind: 'info', text: `${name} downloaded`});
+      this.store.dispatch({type: 'files', action: {type: 'offered', offered: {name, size: data.size, sha256: await sha256Hex(data), how: 'download'}}});
     } catch (e) {
-      this.failed(`${name} is in the model's folder, but copying it failed: ${e instanceof Error ? e.message : String(e)}`);
+      this.failed(`${name} could not be delivered: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 

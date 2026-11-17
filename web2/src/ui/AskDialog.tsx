@@ -36,7 +36,7 @@ export function AskShell({ask, action, onSubmit, extra, problems, children, widt
 }) {
   const session = useSession();
   const table = useStore(s => s.table);
-  const title = ask.title || ask.name || 'XPP';
+  const title = ask.title || ask.name || 'xppautX';
   return <Dialog title={title} name={title} description={ask.question as string | undefined} help={askHelp({table}, ask.kind)} width={width} focusKey={ask.id}
     onClose={onClose ?? (() => session.cancel(ask))} action={action} extra={extra} onSubmit={onSubmit} problems={problems} attrs={{'data-ask': ask.kind}}>
     {children}
@@ -250,7 +250,7 @@ export function askIsModal(ask: AskEvent | null, pick: {ask: number} | null, aut
   if (!ask || ask.kind === 'pixels') return false;
   if (pick && pick.ask === ask.id) return false;
   if (ask.kind === 'grab' && autoxOpen) return false;
-  return !(ask.kind === 'file' && nativeFileDialog());
+  return !(ask.kind === 'file' && (nativeFileDialog() || ask.mode === 'write')); /* a browser save is answered at once (session.ts browserSave) */
 }
 
 /* the texts typed so far of `full`, over `ms` (the press's pace, W59b):
@@ -287,7 +287,7 @@ function PlayedAsk({ask}: {ask: AskEvent}) {
   const press = useStore(s => s.player.press);
   const token = useStore(s => s.player.presses);
   const {typed, done} = useTyping(fill, press?.ms ?? 0, token);
-  const title = ask.title || ask.name || 'XPP';
+  const title = ask.title || ask.name || 'xppautX';
   const items = ask.kind === 'choice' ? ask.choices ?? [] : [];
   const keys = ask.keys ?? '';
   const names = ask.kind === 'string' ? [ask.name ?? ''] : ask.kind === 'form' ? ask.names ?? [] : ask.kind === 'file' ? ['File'] : [];

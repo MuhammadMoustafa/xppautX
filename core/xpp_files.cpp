@@ -286,6 +286,24 @@ int open(std::string_view name, FILE *&fp, unsigned long long &size)
     return st;
 }
 
+int size_of(std::string_view path, unsigned long long &size)
+{
+    Stat st;
+    const int status = kind_of(std::string(path).c_str(), &st);
+    if (status == XPP_FILES_OK) size = static_cast<unsigned long long>(st.st_size);
+    return status;
+}
+
+int open_download(std::string_view name, FILE *&fp, unsigned long long &size)
+{
+    const std::string path = download_path(name);
+    if (path.empty()) return XPP_FILES_NOT_FOUND;
+    xpp::UniqueFile f;
+    int st = open_plain(path.c_str(), f, size);
+    fp = f.release();
+    return st;
+}
+
 int output_status(std::string_view path)
 {
     if(!name_ok(split_path(path).second))return XPP_FILES_BAD_NAME;

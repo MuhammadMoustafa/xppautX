@@ -115,6 +115,9 @@ public:
        and the error names the folder that cannot hold it, a read-only model folder included (W791) */
     virtual Result<std::string> make_temp_dir(std::string_view model_folder) = 0;
     virtual void remove_temp_dir(std::string_view dir) = 0;
+    /* a browser save's scratch file (W786): path is the file the page fetches once; offering `name` in `folder` makes it the one served */
+    virtual bool is_download(std::string_view path) = 0;
+    virtual void offer_download(std::string_view folder, std::string_view name) = 0;
     /* the file `name` in the model folder's `.xppautx` (nothing is made): its whole text (nullopt when it is not there; an
        error when it is a link or not a plain file, cannot be read, or is longer than limit). `where` is the Error's */
     virtual Result<std::optional<std::string>> read_model_state(std::string_view where, std::string_view model_folder, std::string_view name,

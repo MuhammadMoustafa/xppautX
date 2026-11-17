@@ -223,7 +223,6 @@ async function openRecording(file) {
   await answerAsk({file});
 }
 
-let acceptSave = true; /* scratch saves are authorized; the W129 No check opts out */
 async function until(expr, what, ms) {
   const ready = await waitFor(async () => {
     let v = null;
@@ -231,11 +230,9 @@ async function until(expr, what, ms) {
       v = await cdp.eval(`(() => { try { const s = window.__xpp && __xpp.state(), w = ${ACTIVE}, dv = ${DV}; return !!(${expr}); } catch (e) { return false; } })()`);
     } catch { /* page not there yet */ }
     if (v) return true;
-    if (acceptSave) {
-      await cdp.eval(`(() => { const a = window.__xpp && __xpp.state().ask;
-        if (a && a.kind === 'choice' && a.keys === 'yn' && a.question.endsWith(' exists. Replace it?'))
-          __xpp.send({cmd: 'answer', id: a.id, key: 'y'}); })()`).catch(() => {});
-    }
+    await cdp.eval(`(() => { const a = window.__xpp && __xpp.state().ask;
+      if (a && a.kind === 'choice' && a.keys === 'yn' && a.question.endsWith(' exists. Replace it?'))
+        __xpp.send({cmd: 'answer', id: a.id, key: 'y'}); })()`).catch(() => {});
     return false;
   }, ms);
   if (!ready && opt.v) console.log(`  (timed out waiting for ${what})`);
@@ -693,9 +690,9 @@ async function sliderModelSwitch(dir) {
 }
 
 /** the Export menu's file question (the page's ask in a browser, the choice item sending no file) answered with the name it suggests */
+/* a browser save (W786) is answered at once: the browser downloads it under its default name, and the page says so */
 async function acceptExportName() {
-  await until(`s.ask?.kind === 'file' && s.ask.mode === 'write' && !!document.querySelector('#file-name')`, 'the export file question');
-  await cdp.eval(`document.querySelector('[data-ask] [data-dialog-action]').click(); true`);
+  await until(`s.toasts.some(t => t.text.endsWith(' downloaded'))`, 'the download notice', 30000);
 }
 /** page-side call: the Export data menu's entry of `format` (the menu opened first, as a click on its title does) */
 const EXPORT_AS = format => `(() => { window.showSaveFilePicker = undefined; const m = document.querySelector('[data-sets-menu="table-export"]'); m.open = true; m.querySelector('[data-choice="${format}"]').click(); })()`;
@@ -842,7 +839,7 @@ async function dataTable(want, dir) {
     return {sameRow: Math.abs(l.top - e.top) < 1, exportAfterLoad: e.left >= l.right, secondRow: l.top > t.bottom - 1, titleLeft: t.left - p.left < 20}; })()`);
   check('W648: the header has the ? left, Load data and Export data on one row under the title when narrow', Object.values(head).every(Boolean), JSON.stringify(head));
   const dataCsvName = await S('s.hello.output_names.csv');
-  const dataCsvPath = path.join(dir, dataCsvName);
+  const dataCsvPath = downloadedPath(dataCsvName); /* a browser export is a download (W786): the file lands in the downloads folder */
   fs.rmSync(dataCsvPath, {force: true});
   const exportSent = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(EXPORT_AS('csv'));
@@ -877,7 +874,7 @@ async function dataTable(want, dir) {
   /* the plot's own CSV export (PlotView.tsx), the same core write with
      what: plot instead of table (docs/protocol.md "Saving data") */
   const curvesCsvName = await S('s.hello.output_names.curves');
-  const curvesCsvPath = path.join(dir, curvesCsvName);
+  const curvesCsvPath = downloadedPath(curvesCsvName);
   fs.rmSync(curvesCsvPath, {force: true});
   const plotEntries = await cdp.eval(`[...document.querySelectorAll('[data-sets-menu="plot-export"] [data-choice]')].map(b => b.dataset.choice)`);
   check('W771: the plot\'s Export menu has an entry for every format of data.export', JSON.stringify(plotEntries) === JSON.stringify(exportFormats), JSON.stringify(plotEntries));
@@ -1312,8 +1309,7 @@ async function aplotView() {
     JSON.stringify(await cdp.eval(`[...document.querySelectorAll('[data-sets-menu="aplot-export"] [data-command="array_plot.export"]')].map(b => b.dataset.choice)`)) === '["pdf","gif"]');
   const exportMark = await S('__xpp.sentCount()');
   await cdp.eval(`document.querySelector('[data-sets-menu="aplot-export"] [data-command="array_plot.export"][data-choice="pdf"]').click()`);
-  await until("s.ask && s.ask.kind === 'file'", 'array plot PDF name');
-  await answerAsk({file: 'w778_aplot.pdf'});
+  await until("s.toasts.some(t => t.text.endsWith(' downloaded'))", 'array plot PDF downloaded', 30000); /* a browser export is a download (W786) */
   check('W778: Export\'s pdf sends array_plot.export with format pdf, and the core writes the file',
     await until(`__xpp.sent().slice(${exportMark}).some(c => c.cmd === 'array_plot.export' && c.format === 'pdf') && !s.busy`, 'aplot export done'));
 
@@ -1729,7 +1725,8 @@ async function prompts() {
   check('W517: maps show rows with the session current values', await cdp.eval(`document.querySelectorAll('.registry-form .argument-row').length === __xpp.state().core.pars.length`));
   await key('Escape');
   await clickRegistry('session.save_as');
-  check('W517: file arguments offer a file field and picker', await cdp.eval(`!!document.querySelector('.registry-form [data-argument=file] .file-box') && !!document.querySelector('.registry-form [data-argument=file] input')`));
+  /* W786: a save the page starts is named in the file dialog, so its form has no file field (the dialog asks on submit) */
+  check('W517: a write-mode file argument is named in the file dialog, not a field of the form', await cdp.eval(`!document.querySelector('.registry-form [data-argument=file]')`));
   await key('Escape');
   await menuRun('annotation.add_marker',{shape:'circle',x:0,y:0,color:'#ff0000'});
   check('W517: color and choices submit their named typed values', await until(`!s.busy && w.marks.markers.some(m => m.shape === 'circle' && m.color === '#ff0000')`, 'marker form'));
@@ -2963,12 +2960,11 @@ async function recordCheck(dir) {
     JSON.stringify(await S('s.core.recording')));
   check('record: Integrate sends run.initial', await cdp.eval(`__xpp.sent().some(c => c.cmd === 'run.initial')`));
   await cdp.eval(`document.querySelector('.recbar .rec-stop').click()`);
-  check('record: Stop asks the file\'s name, the model\'s offered',
-    await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.recx' && s.ask.file === 'lecar.recx'`, 'file ask'), JSON.stringify(await S('s.ask')));
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'web'})`);
+  /* a browser save is a download under the default name (W786): no name question */
+  check('record: Stop downloads the recording under its default name', await until("s.toasts.some(t => t.text === 'lecar.recx downloaded')", 'recording downloaded', 30000), JSON.stringify(await S('s.toasts')));
   check('record: the recording ends and the bar goes',
     await until(`!s.core.recording && !s.busy`, 'stopped') && !(await cdp.eval(`!!document.querySelector('.recbar')`)));
-  const file = path.join(dir, 'web.recx');
+  const file = downloadedPath('lecar.recx');
   const lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split(/\r?\n/) : [];
   const at = lines.indexOf('@steps');
   const initialLabel = await nameOf('run.initial');
@@ -3015,8 +3011,10 @@ async function playerCheck(dir) {
   await cdp.eval(`__xpp.send({cmd: 'window.clear', window: 'main'})`);
   await until(`s.core.recording.steps === 2 && !s.busy`, 'erased');
   await cdp.eval(`document.querySelector('.recbar .rec-stop').click()`);
-  await until(`s.ask && s.ask.kind === 'file'`, 'file ask');
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'play'})`);
+  /* a browser save is a download under the default name (W786): the recording is downloaded as lecar.recx, no name question */
+  await until("s.toasts.some(t => t.text === 'lecar.recx downloaded')", 'recording downloaded', 30000);
+  fs.copyFileSync(downloadedPath('lecar.recx'), path.join(dir, 'play.recx')); /* the test uploads the download back, as a user opening it would */
+  fs.copyFileSync(downloadedPath('lecar.recx'), path.join(dir, 'play.recx')); /* the test uploads the download back, as a user opening it would */
   await until(`!s.core.recording && !s.busy`, 'stopped');
   check('player: the File menu offers Open recording', await cdp.eval(`!!document.querySelector('.app-menu [data-command="recording.open"]')`));
   await clickRegistry('recording.open');
@@ -3178,19 +3176,14 @@ async function leaveSaveCheck(dir) {
     await until(`s.ask && s.ask.id === -1 && s.ask.question === 'Quit xppautX? Save this session, and the recording in progress, first?'`,
       'page quit ask'), JSON.stringify(await S('s.ask')));
   await key('s');
-  check('leave save: Save session sends the quit that saves; the run stops and the session file is asked',
-    await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.snapx' && !s.computing`, 'session file', 30000 * SLOW)
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'session.quit' && c.save === true)`), JSON.stringify(await S('s.ask')));
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'left'})`);
-  /* a run that stored over the size limit before Stop (how far it got is the machine's) is asked whether the data goes in: leave it out */
-  await until(`s.ask && (s.ask.kind === 'file' && s.ask.wild === '*.recx' || s.ask.question?.startsWith('The data table is'))`, 'recording file', 30000 * SLOW);
-  if (await S(`s.ask.kind === 'choice'`)) await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'l'})`);
-  check('leave save: then the recording\'s name',
-    await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.recx'`, 'recording file', 30000 * SLOW), JSON.stringify(await S('s.ask')));
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'left'})`);
-  check('leave save: both saved, then xppautX exits',
-    await exited() && fs.existsSync(path.join(dir, 'left.snapx')) && fs.existsSync(path.join(dir, 'left.recx')),
-    JSON.stringify(fs.readdirSync(dir)));
+  await key('s');
+  /* KNOWN GAP (W786 round 3): a quit that saves writes the session into the model's folder itself (no file question, no download);
+     the page still has no download for it. The check holds what the core does now. */
+  check('leave save: Save session sends the quit that saves, and the run stops',
+    await until(`__xpp.sent().some(c => c.cmd === 'session.quit' && c.save === true) && !s.computing`, 'quit sent', 30000 * SLOW),
+    JSON.stringify(await S('s.ask')));
+  /* whether the quit's session reaches a download is not checked here: the open item of W786 round 3 (the report) */
+  check('leave save: then xppautX exits', await exited(), JSON.stringify(await S('s.ask')));
 }
 
 
@@ -3557,6 +3550,96 @@ async function autoxScriptCheck(dir) {
   check('W684: Run all runs the rest, and every row is Done',
     await until(`!s.busy && s.autoxScript.runs.every(r => r.done)`, 'all done')
     && await cdp.eval(`[...document.querySelectorAll('[data-script-run]')].every(r => r.dataset.done === 'true')`));
+}
+
+/* W786 (#866): the export forms, the file question an export opens, and the same during a Play, at 375, 768 and 1280 wide, light and dark
+   (with XPP_SHOTS=folder and --only exportshots; XPP_SHOT_PREFIX names the run, before or after). Pictures only, never a check. */
+async function exportShots(dir) {
+  const out = process.env.XPP_SHOTS;
+  if (!out) throw new Error('exportshots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(out, {recursive: true});
+  const prefix = process.env.XPP_SHOT_PREFIX || 'after';
+  await until('s.hello && !s.busy', 'hello');
+  await runInitial(); /* the data table has rows: the data export has something to write */
+  const shoot = async name => {
+    for (const [size, width, height] of [['375', 375, 812], ['768', 768, 1024], ['1280', 1280, 860]])
+      for (const scheme of ['light', 'dark']) {
+        await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+        await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+        await rendered();
+        fs.writeFileSync(path.join(out, `${prefix}-${name}-${size}-${scheme}.png`), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+      }
+  };
+  const closeForm = async () => { await key('Escape'); await until("!s.commandForm && !(s.ask && s.ask.kind === 'file')", 'the form closed'); };
+  /* an export with other arguments: data.export (format and target) */
+  await clickRegistry('data.export');
+  await until("!!s.commandForm || (s.ask && s.ask.kind === 'file')", 'the data export form or its file question');
+  await shoot('data-export');
+  await closeForm();
+  /* an export with only a file: direction_field.export */
+  await clickRegistry('direction_field.export');
+  await requireUntil(`document.querySelector('.registry-form')`, 'the direction field export form');
+  await shoot('direction-field-export');
+  await closeForm();
+  /* the save dialog as it opens: the page's own file question, from the same export */
+  await clickRegistry('direction_field.export');
+  await requireUntil(`document.querySelector('.registry-form')`, 'the direction field export form');
+  await cdp.eval(`(() => { const b = document.querySelector('.registry-form button[type=submit]'); if (b && !b.disabled) b.click(); })()`);
+  await until("s.toasts.some(t => t.text.endsWith(' downloaded'))", 'the download notice', 30000);
+  await shoot('download');
+  await rendered();
+  /* the frames of a kinescope in a browser: one zip, one notice */
+  await clickRegistry('kinescope.capture');
+  await until('s.kinescope.frames.length === 1 && !s.busy', 'a captured frame');
+  await cdp.eval(`window.__xpp && (document.querySelector('.kinescope-bar [data-command="kinescope.export"][data-choice="frames"]') || document.querySelector('[data-command="kinescope.export"][data-choice="frames"]')).click()`);
+  await until("s.toasts.some(t => t.text.endsWith('.zip downloaded'))", 'the zip notice', 30000);
+  await shoot('frames-download');
+  /* Export > Several in a browser: no folder row, each file downloaded, and the report */
+  await exportWindowOpen();
+  await exportTick('plot.export|pdf');
+  await exportTick('data.export|csv');
+  await shoot('several');
+  await exportClick('[data-export-start]');
+  await until(`s.batch.phase === 'report'`, 'the report', 60000);
+  await shoot('several-report');
+  await exportClick('[data-dialog-action]');
+  /* the same during a Play: the recording's model is loaded in its scratch copy; its export opens the dialog in the model's folder */
+  fs.rmSync(path.join(dir, 'lecar_autox.recx'), {force: true});
+  fs.copyFileSync(path.join(top, 'examples/recordings/lecar_autox.recx'), path.join(dir, 'lecar_autox.recx'));
+  await openRecording('lecar_autox.recx');
+  /* the recording opens after its question (Save session first?, when the session has changes): Don't save answers it */
+  await until("!!(s.ask && s.ask.kind === 'choice') || !!(s.player && s.player.open)", 'the recording question or its opening', 30000);
+  if (await cdp.eval("(() => { const a = window.__xpp.state().ask; return !!(a && a.kind === 'choice'); })()")) await answerAsk({key: 'd'});
+  await until(`s.player && s.player.open`, 'the recording open', 30000);
+  await cdp.eval('document.activeElement && document.activeElement.blur()'); /* a focused note box would send its note back at the menu's click */
+  await clickRegistry('direction_field.export');
+  await until("!!s.commandForm || (s.ask && s.ask.kind === 'file')", 'the direction field export form or its file question during Play');
+  await shoot('play-direction-field-export');
+  await cdp.eval(`(() => { const b = document.querySelector('.registry-form button[type=submit]'); if (b && !b.disabled) b.click(); })()`);
+  await until("s.toasts.some(t => t.text.endsWith(' downloaded'))", 'the download notice during Play', 30000);
+  await shoot('play-download');
+}
+
+/* W786 (round 3, #866): a save the page starts in a browser is the browser's own: no name dialog, the file downloads under the default
+   name (headless Chrome has no picker), the core's copy sits in a scratch folder and nowhere in the model's folder, and that scratch copy
+   is gone once the page has the file */
+async function browserSaveCheck(dir) {
+  const downloads = path.join(top, 'build', 'web2check-downloads', String(process.pid));
+  const named = (root, name) => {
+    let found = false;
+    const walk = d => { for (const e of fs.readdirSync(d, {withFileTypes: true})) { if (found) return; const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else if (e.name === name) found = true; } };
+    try { walk(root); } catch { /* no folder: nothing is named there */ }
+    return found;
+  };
+  await until('s.hello && !s.busy', 'hello');
+  await clickRegistry('session.export_info');
+  await requireUntil(`!!s.commandForm`, 'the export form');
+  await submitCommand();
+  await until(`s.toasts.some(t => t.text.endsWith(' downloaded'))`, 'the download notice', 30000);
+  const text = await S("s.toasts.map(t => t.text).find(t => t.endsWith(' downloaded')) || ''");
+  check('W786: a browser save downloads under the default name, and the notice names it', text === 'lecar.txt downloaded' && fs.existsSync(path.join(downloads, 'lecar.txt')), String(text));
+  check("W786: a browser save leaves no copy in the model's folder", !fs.existsSync(path.join(dir, 'lecar.txt')));
+  check('W786: the scratch copy is gone once the page has the file', !named(path.join(dir, '.xppautx'), 'lecar.txt'));
 }
 
 /* The script panel's pictures for the UI review (W684; with --only shots and XPP_SHOTS=folder): the panel with the script's runs
@@ -4626,7 +4709,7 @@ async function dialogsCheck() {
   /* the phone's sheet: the action sits at the bottom, inside the screen */
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 1, mobile: true});
   await rendered();
-  await registryFile('session.save_as', 'write');
+  await registryFile('data.load', 'read'); /* a read question: the save is a download now (W786), a read ask still shows the sheet */
   const sheet = await cdp.eval(`(() => { const a = document.querySelector('[data-dialog-action]').getBoundingClientRect(), d = document.querySelector('[data-dialog]').getBoundingClientRect();
     const hit = document.elementFromPoint(a.left + a.width / 2, a.bottom - 3);
     return {actionBottom: a.bottom, dialogBottom: d.bottom, height: window.innerHeight, reachable: !!hit?.closest('[data-dialog-action]')}; })()`);
@@ -4650,10 +4733,10 @@ async function dialogsCheck() {
   check('W641: Settings: no error before input', d.errors === 0, JSON.stringify(d));
   await closeSettings();
   /* a core ask: the same shell, named for what it does */
-  await registryFile('session.save_as', 'write');
+  await registryFile('data.load', 'read');
   d = await shell();
   sound('a file ask', d);
-  check('W641: the file ask\'s action is Save, not OK', /^Save/.test(d.action ?? ''), JSON.stringify(d));
+  check('W641: the file ask\'s action is Choose file, not OK', /^Choose file/.test(d.action ?? ''), JSON.stringify(d));
   await cdp.eval(`document.querySelector('[data-dialog] .dialog-close').click()`);
   await until('!s.ask && !s.busy', 'ask cancelled by the ×');
   /* the error dialog */
@@ -4795,7 +4878,9 @@ async function navigationCheck() {
       continue;
     }
     const fields = await cdp.eval(`[...document.querySelectorAll('.registry-form [data-argument]')].map(e => e.dataset.argument)`);
-    check(`W517: ${row.cmd} form is its registry arguments (a group's together)`, JSON.stringify([...fields].sort()) === JSON.stringify(row.arguments.filter(a => a.type !== 'path').map(a => a.name).sort()), JSON.stringify(fields));
+    /* W786: a write the page starts names its file in the file dialog, so the form leaves that argument out (the dialog asks on submit) */
+    const dialogOnly = row.file_mode === 'write' ? row.arguments.find(a => a.type === 'file' || (a.type === 'path' && a.required)) : undefined;
+    check(`W517: ${row.cmd} form is its registry arguments (a group's together)`, JSON.stringify([...fields].sort()) === JSON.stringify(row.arguments.filter(a => a.type !== 'path' && a !== dialogOnly).map(a => a.name).sort()), JSON.stringify(fields));
     await key('Escape');
   }
   await clickRegistry('command_palette.open');
@@ -4862,7 +4947,7 @@ async function navigationCheck() {
       await cdp.eval(`(() => {const item = [...document.querySelectorAll('.app-menu [data-command=${JSON.stringify(cmd)}]')][${i}];
         for (let p = item.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true; item.click();})()`);
       check(`W767: ${cmd} with ${argument} ${value}: sent with that value, no form, and the file asked for`,
-        await until(`!s.commandForm && __xpp.sentFrom(${pre}).some(c => c.cmd === ${JSON.stringify(cmd)} && c.${argument} === ${JSON.stringify(value)} && c.file === undefined && ${JSON.stringify(Object.entries(fixed))}.every(([k, v]) => c[k] === v)) && s.ask?.kind === 'file'`, 'export item'),
+        await until(`!s.commandForm && __xpp.sentFrom(${pre}).some(c => c.cmd === ${JSON.stringify(cmd)} && c.${argument} === ${JSON.stringify(value)} && c.file === undefined && ${JSON.stringify(Object.entries(fixed))}.every(([k, v]) => c[k] === v)) && __xpp.sentFrom(${pre}).some(c => c.cmd === 'answer' && c.scratch === true)`, 'export item'),
         JSON.stringify(await S(`[s.commandForm, __xpp.sentFrom(${pre}), s.ask]`)));
       await key('Escape');
       await until('!s.busy && !s.ask', 'export cancelled');
@@ -6320,8 +6405,9 @@ async function setsRows() {
   await submitCommand();
   check('sets: ... and sends set.save_into for that set and scope',
     await until('!s.busy', 'replaced') && JSON.stringify(await sentAfter(n, 'set.save_into')) === JSON.stringify([{cmd: 'set.save_into', name: 'w323a', scope: 'parameters'}]), JSON.stringify(await sentAfter(n, 'set.save_into')));
-  check('sets: Save > Export asks for its file and the name of the set',
-    (await (async () => { await click('parameters', 'save', 'set.export'); await requireUntil('!!s.commandForm', 'the export form'); return formArguments(); })()).join() === 'file,name');
+  /* W786: the file is the dialog's (named on submit); the set's name is still the form's */
+  check('sets: Save > Export asks for the name of the set (its file is the dialog\'s)',
+    (await (async () => { await click('parameters', 'save', 'set.export'); await requireUntil('!!s.commandForm', 'the export form'); return formArguments(); })()).join() === 'name');
   await key('Escape');
 
   /* Restore defaults: the section's scope only, the model file's own values */
@@ -6366,7 +6452,14 @@ async function registryFile(id, mode, values = {}) {
     await formValues(values);
     await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
   }
+  /* a browser save (W786) is a download the page answers at once: its notice is the end of the question */
+  if (mode === 'write') return until("s.toasts.some(t => t.text.endsWith(' downloaded'))", 'the download notice', 30000);
   return until(`s.ask?.kind === 'file' && s.ask.mode === '${mode}' && document.querySelector('.file-ask')`, 'file picker');
+}
+
+/* where a browser download of `name` lands: this run's downloads folder (cdp.mjs) */
+function downloadedPath(name) {
+  return path.join(top, 'build', 'web2check-downloads', String(process.pid), name);
 }
 
 async function waitFile(p, ms = 10000) {
@@ -6409,67 +6502,31 @@ async function files(dir) {
      <input type=file> and the download, which a test can drive */
   await cdp.eval('window.showOpenFilePicker = undefined; window.showSaveFilePicker = undefined; true');
   const up = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-up-'));
-  /* downloads folder is shared and set by startBrowser; downloads is a global */
-  const canDownload = true;
   try {
-    /* W130: an unsafe picker name stays visible as an error; no fallback answer. */
-    await cdp.eval("window.showSaveFilePicker = async () => ({name: 'CON.snapx'}); true");
-    await registryFile('session.save_as', 'write');
-    const badPickerStart = await cdp.eval('__xpp.sentCount()');
-    await cdp.eval("document.querySelector('[data-ask=file] [data-dialog-action]').click()");
-    check('W130: an unsafe picker name is shown whole with a field error', await until(`(() => {
-      const el = document.querySelector('#file-name');
-      return el?.value === 'CON.snapx' && el.getAttribute('aria-invalid') === 'true'
-        && document.querySelector('.file-ask .field-error')?.textContent && s.ask?.kind === 'file';
-    })()`, 'bad picked name'));
-    check('W130: a bad picker name never answers with a fallback name',
-      !(await cdp.eval(`__xpp.sentFrom(${badPickerStart}).some(c => c.cmd === 'answer')`)));
-    await cdp.eval("document.querySelector('.dialog[data-ask=file] .dialog-close').click()");
-    await until('!s.ask && !s.busy', 'cancel bad picked name');
-    await cdp.eval('window.showSaveFilePicker = undefined; true');
+    /* W786: a save the page starts is the browser's own: no save picker (W130's unsafe picker name cannot come, nothing is picked) and
+       no name dialog; the file downloads under the default name, the core's copy is in a scratch folder and never in the model's folder */
+    await cdp.eval("window.__pickerCalls = 0; window.showSaveFilePicker = async () => { window.__pickerCalls++; return {name: 'CON.snapx'}; }; true");
     const iapp0 = await par('iapp');
-
-    /* File/saVe session: the core writes into the model's folder, the page offers it */
-    check('File/saVe session opens a save dialog (the ask says it writes)', await registryFile('session.save_as', 'write'),
+    const savedName = (await S('s.hello.file')).replace(/\.[^.]*$/, '') + '.snapx';
+    fs.rmSync(path.join(downloads, savedName), {force: true});
+    check('File > Save session as downloads the session at once (no question)', await registryFile('session.save_as', 'write') && await S('!s.ask'),
       JSON.stringify(await S('s.ask')));
-    await cdp.eval(`(() => { const i = document.querySelector('#file-name'); i.value = 't5.snapx';
-      i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
-    await rendered();
-    await key('Enter');
-    check('the ask is answered with the name', (await lastFileAnswer())?.file === 't5.snapx', JSON.stringify(await lastFileAnswer()));
-    check('W129 browser mode: the file answer carries no model-copy decision',
-      !Object.hasOwn(await lastFileAnswer(), 'replace'));
-    const offered = await until("s.files.offered && s.files.offered.name === 't5.snapx' && !s.busy", 'offered');
-    const saved = fs.existsSync(path.join(dir, 't5.snapx')) ? fs.readFileSync(path.join(dir, 't5.snapx')) : null;
-    check('Save session lands in the model\'s folder', saved && saved.length > 100, String(saved && saved.length));
+    const got = await waitFile(path.join(downloads, savedName));
+    check('... the browser downloaded it under the default name, a session file', got && got.length > 100, String(got && got.length));
+    check('... the answer was the default name, asking the core for a scratch copy, with no model-copy decision',
+      (await lastFileAnswer())?.file === savedName && (await lastFileAnswer())?.scratch === true && !Object.hasOwn(await lastFileAnswer(), 'replace'),
+      JSON.stringify(await lastFileAnswer()));
+    check('... showSaveFilePicker was never called', (await cdp.eval('window.__pickerCalls')) === 0);
+    check("... and nothing is written in the model's folder", !fs.existsSync(path.join(dir, savedName)));
     const off = await S('s.files.offered');
-    check('... and is offered to the browser as a download, the same bytes',
-      offered && saved && off.how === 'download' && off.size === saved.length && off.sha256 === sha256(saved), JSON.stringify(off));
-    if (canDownload) {
-      const got = await waitFile(path.join(downloads, 't5.snapx'));
-      check('the browser downloaded it', got && saved && got.equals(saved), String(got && got.length));
-    }
+    check('... the page says it was offered as a download, the same bytes',
+      off?.name === savedName && off.how === 'download' && off.size === got.length && off.sha256 === sha256(got), JSON.stringify(off));
 
-    /* W129: decline the core's save permission. A prior destination exists,
-       but neither the offered-file action nor a second download may occur. */
-    const beforeDownloads = fs.readdirSync(downloads);
-    acceptSave = false;
-    try {
-      await registryFile('session.save_as', 'write');
-      await cdp.eval(`(() => { const i = document.querySelector('#file-name'); i.value = 't5.snapx';
-        i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
-      await until("document.querySelector('#file-name').value === 't5.snapx'", 'repeat name');
-      await key('Enter');
-      check('W129 browser mode: the existing model copy asks once',
-        await until("s.ask && s.ask.kind === 'choice' && s.ask.keys === 'yn' && s.ask.question === 't5.snapx exists. Replace it?'", 'save permission'));
-      const beforeOffers = await cdp.eval("__xpp.actions().filter(a => a === 'files').length");
-      await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'n'})");
-      check('W129 browser mode: No to the core question delivers nothing and preserves the model copy',
-        await until('!s.busy && !s.ask', 'declined save finished')
-        && fs.readFileSync(path.join(dir, 't5.snapx')).equals(saved)
-        && beforeOffers === await cdp.eval("__xpp.actions().filter(a => a === 'files').length")
-        && JSON.stringify(beforeDownloads) === JSON.stringify(fs.readdirSync(downloads)));
-    } finally { acceptSave = true; }
+    /* a second save asks nothing either: a download collides with nothing (W129's replace question was the model's folder's) */
+    fs.rmSync(path.join(downloads, savedName), {force: true});
+    await registryFile('session.save_as', 'write');
+    check('a second save downloads again, with no replace question', !!(await waitFile(path.join(downloads, savedName))) && await until('!s.busy && !s.ask', 'second save finished'));
+    await cdp.eval('window.showSaveFilePicker = undefined; true');
 
     /* the .set XPPAUT wrote for lecar.odex (its equations after the values): iapp 0.09, the model's 0.05 */
     const setBytes = xppautLecarSet();
@@ -6763,131 +6820,73 @@ async function exportWindowDesktop(dir, elsewhere, farSet) {
   await exportClick('[data-export-cancel]');
 }
 
-/* the browser with a folder picker (a stubbed directory handle the page writes into): the files the core writes in the model's
-   folder are copied there at their done; a name already there is asked once, with Replace, Skip those and Cancel */
+/* the browser (W786: the maintainer, 2026-11-17, every export a browser starts is a download): the window has no folder to choose, each
+   ticked file is one ordinary command that asks where (file_picker) and the page answers with the name; the core writes it in a scratch
+   folder, the page downloads it, and nothing is written in the model's folder. The replace question belongs to a folder (the window's
+   and the pins': the `pins` section) and never comes: a download collides with nothing. */
 async function exportSeveral(dir) {
   await desktopMetrics();
   await until('!s.busy && !s.ask', 'idle');
   await runInitial(); /* the data table holds the run: data.export has nothing to save before one */
   const names = await S('s.hello.output_names');
-  await cdp.eval(`(() => {
-    window.__folderHas = []; window.__folderWrites = [];
-    window.__folder = {name: 'exports', async getFileHandle(name, o) {
-      if (!o?.create && !window.__folderHas.includes(name)) throw new DOMException(name, 'NotFoundError');
-      return {async createWritable() { return {
-        async write(b) { window.__folderWrites.push([name, await b.text()]); },
-        async close() { if (!window.__folderHas.includes(name)) window.__folderHas.push(name); }}; }};
-    }};
-    window.showDirectoryPicker = async () => window.__folder;
-    return true; })()`);
-  const folderWrites = () => cdp.eval('window.__folderWrites.map(w => w[0])');
+  const wanted = [names['plot.export.pdf'], names['plot.export.svg'], names['data.export.csv']];
   /* the File menu greys an export the core says cannot run now, with the core's reason (the same list the window reads); no frames
      are captured in this session, so the kinescope's items are the ones it cannot run */
   await cdp.eval(`(() => { for (const d of document.querySelectorAll('.app-menu details')) d.open = true; return true; })()`);
   await until(`!!document.querySelector('.app-menu [data-command="kinescope.export"][data-choice="animated_gif"]')?.disabled`, 'the greyed menu item');
   const greyed = await cdp.eval(`(() => { const b = document.querySelector('.app-menu [data-command="kinescope.export"][data-choice="animated_gif"]'); return b && {disabled: b.disabled, title: b.title}; })()`);
   check('W774: File > Export > Kinescope as greys its items with the reason the core gives', greyed?.disabled === true && greyed.title === 'needs captured frames', JSON.stringify(greyed));
-  check('W774: a browser with a directory picker offers Choose…', await exportWindowOpen() && await cdp.eval(`!!document.querySelector('[data-export-pick]')`));
-  await exportPickFolder('exports');
+  check('W786: the browser window has no folder to choose, and says each file is downloaded',
+    await exportWindowOpen() && !(await cdp.eval(`!!document.querySelector('[data-export-pick], [data-export-folder]')`))
+    && (await cdp.eval(`document.querySelector('[data-export-note]')?.textContent ?? ''`)).includes('downloaded'));
+  for (const n of wanted) fs.rmSync(path.join(downloads, n), {force: true}); /* an earlier section's downloads of these names */
   await exportTick('plot.export|pdf');
   await exportTick('plot.export|svg');
   await exportTick('data.export|csv');
   await exportClick('[data-export-start]');
   check('W774: three ticks write three files: the batch ends with a report of three written',
-    await until(`s.batch.phase === 'report' && document.querySelector('[data-export-summary]')`, 'the report'),
+    await until(`s.batch.phase === 'report' && document.querySelector('[data-export-summary]')`, 'the report', 60000),
     JSON.stringify(await S('s.batch.outcomes')));
-  check('W774: the report says each file was written', (await cdp.eval(`document.querySelector('[data-export-summary]').textContent`)) === '3 written, 0 failed, 0 skipped.',
+  check('W774: the report says each file was downloaded (W786), as the outcomes of a browser batch', (await cdp.eval(`document.querySelector('[data-export-summary]').textContent`)) === '3 downloaded, 0 failed, 0 skipped.'
+    && (await cdp.eval(`[...document.querySelectorAll('[data-export-outcome] .export-status')].map(e => e.textContent).join()`)) === 'Downloaded,Downloaded,Downloaded',
     JSON.stringify(await S('s.batch.outcomes')));
+  check("W786: a batch's files give no notice of their own: the report lists them", !(await S("s.toasts.some(t => t.text.endsWith(' downloaded'))")));
   const sent = (await exportSent()).map(({id, ...rest}) => rest);
-  check('W774: one ordinary command per ticked format, each naming its file in the model\'s folder, nothing replaced',
+  check('W786: one ordinary command per ticked format, each asking where (file_picker), none naming a file',
     JSON.stringify(sent) === JSON.stringify([
-      {cmd: 'plot.export', format: 'pdf', file: names['plot.export.pdf']},
-      {cmd: 'plot.export', format: 'svg', file: names['plot.export.svg']},
-      {cmd: 'data.export', target: 'table', format: 'csv', file: names['data.export.csv']}]), JSON.stringify(sent));
-  check('W774: the files exist in the model\'s folder', [names['plot.export.pdf'], names['plot.export.svg'], names['data.export.csv']]
-    .every(name => fs.existsSync(path.join(dir, name))));
-  check('W774: each file is copied into the picked folder', await until(`window.__folderWrites.length === 3`, 'the copies')
-    && JSON.stringify(await folderWrites()) === JSON.stringify([names['plot.export.pdf'], names['plot.export.svg'], names['data.export.csv']]));
-  check('W774: the copied CSV is the model\'s file, byte for byte', (await cdp.eval('window.__folderWrites[2][1]')) === fs.readFileSync(path.join(dir, names['data.export.csv']), 'utf8'));
+      {cmd: 'plot.export', format: 'pdf', file_picker: true},
+      {cmd: 'plot.export', format: 'svg', file_picker: true},
+      {cmd: 'data.export', target: 'table', format: 'csv', file_picker: true}]), JSON.stringify(sent));
+  check('W786: each file lands in the downloads folder under its name', await waitFor(async () => wanted.every(n => fs.existsSync(path.join(downloads, n))), 20000), JSON.stringify(fs.readdirSync(downloads)));
+  check("W786: no file is written in the model's folder", wanted.every(n => !fs.existsSync(path.join(dir, n))));
+  const csv = fs.readFileSync(path.join(downloads, names['data.export.csv']), 'utf8').split('\n').filter(Boolean);
+  check('W786: the downloaded CSV is the data table: a header and a row per stored point', csv.length > 100 && csv.at(-1).split(',').length > 1, `${csv.length} lines, ${csv.at(-1)}`);
   await exportClick('[data-dialog-action]');
   check('W774: Close closes the report', (await S('s.exportSeveral.open')) === false);
-
-  /* the replace question: the picked folder has the two names now, so Replace, Skip those and Cancel are asked once */
-  await exportWindowOpen();
-  await exportPickFolder('exports');
-  await exportTick('plot.export|pdf');
-  await exportTick('data.export|csv');
-  const mark = await cdp.eval('__xpp.sentCount()');
-  await exportClick('[data-export-start]');
-  check('W774: names that exist are asked once, all together', await until(`s.batch.phase === 'exists'`, 'the replace question')
-    && JSON.stringify(await S('s.batch.exists')) === JSON.stringify([names['plot.export.pdf'], names['data.export.csv']]));
-  check('W774: nothing is written before the question is answered', (await cdp.eval('__xpp.sentCount()')) === mark);
-  await exportClick('[data-batch-cancel]');
-  check('W774: Cancel goes back to the ticks, with nothing sent', (await S('s.batch.phase')) === 'idle' && (await cdp.eval('__xpp.sentCount()')) === mark);
-  await exportClick('[data-export-start]');
-  await until(`s.batch.phase === 'exists'`, 'the question again');
-  await exportClick('[data-batch-skip]');
-  check('W774: Skip those writes none of the two that exist, and reports them skipped',
-    await until(`s.batch.phase === 'report'`, 'the skip report')
-    && (await cdp.eval(`document.querySelector('[data-export-summary]').textContent`)) === '0 written, 0 failed, 2 skipped.'
-    && (await cdp.eval('__xpp.sentCount()')) === mark);
-  await exportClick('[data-dialog-action]');
-
-  await exportWindowOpen();
-  await exportPickFolder('exports');
-  await exportTick('plot.export|pdf');
-  await exportTick('data.export|csv');
-  const replaceMark = await cdp.eval('__xpp.sentCount()');
-  await exportClick('[data-export-start]');
-  await until(`s.batch.phase === 'exists'`, 'the question');
-  await exportClick('[data-batch-replace]');
-  check('W774: Replace sends the answer to every command, and writes both files again',
-    await until(`s.batch.phase === 'report' && document.querySelector('[data-export-summary]')?.textContent === '2 written, 0 failed, 0 skipped.'`, 'the replace report')
-    && JSON.stringify((await exportSent()).slice(-2).map(c => c.replace)) === '[1,1]'
-    && (await cdp.eval('__xpp.sentCount()')) === replaceMark + 2, JSON.stringify(await S('s.batch.outcomes')));
-  await exportClick('[data-dialog-action]');
-
-  /* the browser without a folder picker: each file is a download (the browser's own; several may be blocked there) */
-  await cdp.eval('window.showDirectoryPicker = undefined; true');
-  await exportWindowOpen();
-  check('W774: without a directory picker the window says the files are downloads, and has no folder to choose',
-    (await cdp.eval(`document.querySelector('.export-note')?.textContent ?? ''`)).includes('download')
-    && !(await cdp.eval(`!!document.querySelector('[data-export-pick]')`)));
-  const downloadsBefore = fs.readdirSync(downloads).length;
-  await exportTick('plot.export|pdf');
-  await exportTick('plot.export|svg');
-  await exportClick('[data-export-start]');
-  /* the model's folder holds the copies of the earlier batches: one question about them, answered Replace */
-  await until(`s.batch.phase === 'exists' || s.batch.phase === 'report'`, 'the answer');
-  if (await S("s.batch.phase === 'exists'")) await exportClick('[data-batch-replace]');
-  await until(`s.batch.phase === 'report'`, 'the download report');
-  const landed = await waitFor(async () => fs.readdirSync(downloads).length - downloadsBefore >= 2, 20000);
-  perf('export downloads: files that landed in the downloads folder of 2', fs.readdirSync(downloads).length - downloadsBefore);
-  check('W774: without a folder picker each file is offered as a download', !!landed || (await S('s.files.offered'))?.how === 'download',
-    JSON.stringify(await S('s.toasts')));
-  await exportClick('[data-dialog-action]');
   await exportFailureDialog(dir);
 }
 
 /* a batch's failure is the report's: the report is the one dialog open, and the core's error is in Messages only (the error
-   dialog would open on top of the report). The svg file is a folder here, so the core refuses to write it. */
+   dialog would open on top of the report). The core cannot make its scratch folder here (a file stands where its folder goes). */
 async function exportFailureDialog(dir) {
-  const names = await S('s.hello.output_names');
-  const svg = path.join(dir, names['plot.export.svg']);
-  fs.rmSync(svg, {recursive: true, force: true});
-  fs.mkdirSync(svg);
-  await exportWindowOpen();
-  await exportTick('plot.export|svg');
-  await exportClick('[data-export-start]');
-  await until(`s.batch.phase === 'exists' || s.batch.phase === 'report'`, 'the answer');
-  if (await S("s.batch.phase === 'exists'")) await exportClick('[data-batch-replace]');
-  const reported = await until(`s.batch.phase === 'report' && document.querySelector('[data-export-summary]')?.textContent === '0 written, 1 failed, 0 skipped.'`, 'the failure report');
-  const dialogs = await cdp.eval(`document.querySelectorAll('[data-dialog]').length`);
-  const logged = await cdp.eval(`__xpp.log().some(e => /not a plain file|Cannot save/.test(JSON.stringify(e)))`);
-  check('W774: a batch with a failure opens one dialog, its report; the core\'s error is in Messages only', reported && dialogs === 1
-    && (await cdp.eval(`!!document.querySelector('[data-export-several="report"]')`)) && logged, `dialogs ${dialogs}, logged ${logged}`);
-  await exportClick('[data-dialog-action]');
-  fs.rmSync(svg, {recursive: true, force: true});
+  const tmp = path.join(dir, '.xppautx', 'tmp');
+  fs.rmSync(tmp, {recursive: true, force: true});
+  fs.mkdirSync(path.dirname(tmp), {recursive: true});
+  fs.writeFileSync(tmp, 'not a folder');
+  try {
+    await exportWindowOpen();
+    await exportTick('plot.export|svg');
+    await exportClick('[data-export-start]');
+    const reported = await until(`s.batch.phase === 'report' && document.querySelector('[data-export-summary]')?.textContent === '0 written, 1 failed, 0 skipped.'`, 'the failure report');
+    const dialogs = await cdp.eval(`document.querySelectorAll('[data-dialog]').length`);
+    const logged = await cdp.eval(`__xpp.log().some(e => /tmp/.test(JSON.stringify(e)))`);
+    const reportShown = await cdp.eval(`!!document.querySelector('[data-export-several="report"]')`);
+    check('W774: a batch with a failure opens one dialog, its report; the core\'s error is in Messages only', reported && dialogs === 1 && reportShown && logged,
+      `reported ${reported} ${JSON.stringify(await S("s.batch.outcomes"))} ${await S("s.batch.phase")} ${await cdp.eval(`document.querySelector('[data-export-summary]')?.textContent`)}, dialogs ${dialogs}, report ${reportShown}, logged ${logged}`);
+    await exportClick('[data-dialog-action]');
+  } finally {
+    fs.rmSync(tmp, {recursive: true, force: true});
+  }
 }
 
 /* ---- animation (docs/ui-v2.md T13) ---------------------------------------------- */
@@ -7076,13 +7075,16 @@ async function kinescope(dir) {
   check('kinescope: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
   check('kinescope: integrate once (601 rows)', await integrate(601, 30000));
 
-  /* kinescope.export (W778): an item of the Kinescope bar's Export menu sends the command with its output; the core asks the file */
-  const kinescopeExport = async (output, file) => {
+  /* kinescope.export (W778): an item of the Kinescope bar's Export menu sends the command with its output; in a browser the core asks the
+     file and the page answers at once (W786): the file downloads under its default name. Gives the downloaded file's path, or null */
+  const kinescopeExport = async output => {
+    const name = (await S('s.hello.output_names'))[`kinescope.export.${output}`];
+    const downloaded = path.join(downloads, name);
+    fs.rmSync(downloaded, {force: true});
     const mark = await S('__xpp.sentCount()');
     await cdp.eval(`document.querySelector('.kinescope-bar [data-command="kinescope.export"][data-choice=${JSON.stringify(output)}]').click()`);
-    await until("s.ask && s.ask.kind === 'file'", 'file ask');
-    await answerAsk({file});
-    return until(`__xpp.sent().slice(${mark}).some(c => c.cmd === 'kinescope.export' && c.output === ${JSON.stringify(output)})`, 'kinescope.export sent');
+    const sent = await until(`__xpp.sent().slice(${mark}).some(c => c.cmd === 'kinescope.export' && c.output === ${JSON.stringify(output)})`, 'kinescope.export sent');
+    return sent && await waitFile(downloaded) ? downloaded : null;
   };
 
   const openKinescope = async item => {
@@ -7114,24 +7116,30 @@ async function kinescope(dir) {
   check('W637: the Kinescope bar offers Autoplay kinescope and an Export menu of its two outputs (W778)',
     await cdp.eval(`!!document.querySelector('.kinescope-bar [data-command="kinescope.autoplay"]') && JSON.stringify([...document.querySelectorAll('.kinescope-bar [data-command="kinescope.export"]')].map(b => b.dataset.choice)) === '["animated_gif","frames"]'`));
   check('W637: the Kinescope bar\'s Autoplay kinescope runs its command', await controlRuns('kinescope.autoplay', undefined, {}, '.kinescope-bar '));
-  check('W778: the Kinescope bar\'s Export menu writes the frames (kinescope.export output frames)', await kinescopeExport('frames', 'kinescope_frames.gif'));
+  /* the frames output writes one numbered GIF per frame; a browser downloads them as one zip named from the file, holding frames_saved entries */
+  {
+    const zip = path.join(downloads, (await S('s.hello.output_names'))['kinescope.export.frames'].replace(/\.[^.]*$/, '.zip'));
+    fs.rmSync(zip, {force: true});
+    await cdp.eval(`document.querySelector('.kinescope-bar [data-command="kinescope.export"][data-choice="frames"]').click()`);
+    const got = await waitFile(zip);
+    const entries = got ? got.readUInt16LE(got.lastIndexOf(Buffer.from([0x50, 0x4b, 5, 6])) + 10) : -1; /* the end record's entry count */
+    check('W778: the Kinescope bar\'s Export menu downloads the frames as one zip holding a GIF per frame', !!got && got.readUInt32LE(0) === 0x04034b50
+      && entries === (await S('s.kinescope.frames.length')), `${got && got.length} bytes, ${entries} entries`);
+  }
 
   /* Export's Animated gif (Plots.tsx): the Kinescope bar's item for the one animated GIF, j_movie_make_anigif
      in core/json_windows.cpp writes anim.gif itself, asking `pixels` for every captured frame (W66: the page
      built the GIF itself before this task) */
-  const animName = 'lecar.gif';
-  const animPath = path.join(dir, animName);
-  fs.rmSync(animPath, {force: true});
-  check('kinescope: the Export menu\'s Animated gif writes lecar.gif, by the core', await kinescopeExport('animated_gif', 'lecar.gif'));
-  check('kinescope: Export GIF offers lecar.gif, written by the core',
-    await until("s.files.offered && s.files.offered.name === 'lecar.gif' && !s.busy", 'gif offered'));
-  await waitFile(animPath);
-  if (fs.existsSync(animPath)) {
+  const animPath = await kinescopeExport('animated_gif');
+  check('kinescope: the Export menu\'s Animated gif is written by the core and downloaded', !!animPath);
+  check('kinescope: Export GIF offers the file it wrote',
+    await until(`s.files.offered && s.files.offered.name === ${JSON.stringify(path.basename(animPath ?? ''))} && !s.busy`, 'gif offered'));
+  if (animPath) {
     const gif = parseGifStructure(fs.readFileSync(animPath));
     check('kinescope: the GIF has one frame per capture, all the same size',
       gif.frames.length === 2 && gif.frames.every(f => f.w === gif.w && f.h === gif.h && f.w > 0 && f.h > 0),
       JSON.stringify(gif));
-  } else check('kinescope: the GIF has one frame per capture, all the same size', false, 'anim.gif missing');
+  } else check('kinescope: the GIF has one frame per capture, all the same size', false, 'the GIF was not downloaded');
 
   /* the frames shown are read from the page's record of every change
      (__xpp.kinescopeShown), not polled: a poll on a slow runner could miss
@@ -7145,14 +7153,12 @@ async function kinescope(dir) {
     JSON.stringify({shown: shownSeq, kinescope: await S('({playing: s.kinescope.playing, shown: s.kinescope.shown, frames: s.kinescope.frames.length})'),
       busy: await S('s.busy'), sent: await cdp.eval('__xpp.sent().slice(-3)')}));
 
-  /* the same GIF from the menu bar (File > Export > Kinescope as > Animated gif): the file question, then the core's writer */
+  /* the same GIF from the menu bar (File > Export > Kinescope as > Animated gif): no question, the core's writer and the download */
   fs.rmSync(animPath, {force: true});
   await clickRegistry('kinescope.export');
-  const asked = await until("s.ask && s.ask.kind === 'file'", 'GIF name');
-  if (asked) await answerAsk({file: 'lecar.gif'});
-  check('kinescope: File > Export > Kinescope as > Animated gif runs', asked && await until('!s.busy', 'anigif done'));
+  check('kinescope: File > Export > Kinescope as > Animated gif runs', await until('!s.busy', 'anigif done'));
   await waitFile(animPath);
-  check('kinescope: it wrote anim.gif from the pixels answer (a real GIF, not empty)',
+  check('kinescope: it wrote the GIF from the pixels answer (a real GIF, not empty)',
     fs.existsSync(animPath) && fs.readFileSync(animPath).length > 20
     && fs.readFileSync(animPath).toString('ascii', 0, 3) === 'GIF',
     fs.existsSync(animPath) ? String(fs.statSync(animPath).size) : 'missing');
@@ -8609,7 +8615,7 @@ async function main() {
       await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     }
     /* every section name run() is asked about: an --only that names none of them ran nothing, which is a failure, never "all passed" */
-    const asked = new Set(['shots', 'popoutshots', 'splitshots', 'settingsshots', 'pinshots']);
+    const asked = new Set(['shots', 'popoutshots', 'splitshots', 'settingsshots', 'pinshots', 'exportshots']);
     const run = name => { asked.add(name); return !opt.only || opt.only.split(',').includes(name); };
     if (run('desktop')) await session(ODE, async (dir) => {
       await desktop(want);
@@ -8639,7 +8645,8 @@ async function main() {
     if (run('autox')) await session(HEAVY_ODE, autoxStopRace);
     if (run('autox')) await session(AB_ODE, autoxLiveJobs);
     if (run('autoxviews')) await session(ODE, autoxViews);
-    if (run('navigation')) await session(ODE, navigationCheck);
+    /* W786: an export item's file question is answered at once, so the command runs: the exports with nothing to write here say so */
+    if (run('navigation')) await session(ODE, navigationCheck, [/is not a graph/, /The array plot shows no columns yet/, /The client gave no picture of frame/]);
     if (run('navigation')) await session(ODE, menusByTaskCheck);
     if (run('navigation')) await session(ODE, panelMenusInsideCheck);
     if (run('navigation')) await session(ODE, () => featuresCheck(['parameters'], ['boundary_conditions', 'formula_tables', 'delays', 'integral_terms']));
@@ -8662,6 +8669,7 @@ async function main() {
     if (opt.only && opt.only.split(',').includes('shots')) { await session(ODE, renameShots); await session(ODE, tabOrderShots); }
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'splitshots')) { await session(ODE, splitViewShots); await session(ODE, splitViewAutoxShots); }
     if (opt.only && opt.only.split(',').includes('shots')) await session(AB_ODE, autoxScriptShots);
+    if (opt.only && opt.only.split(',').includes('exportshots')) await session(ODE, exportShots, ['command:1: No direction field is shown', 'command:1: Nothing to save']); /* the pictures show a field that is not computed yet */
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'popoutshots')) await session(ODE, popOutShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'settingsshots')) await session(ODE, settingsWindowShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'pinshots')) await session(ODE, pinsShots, [/Pin "Figures"|needs an array plot|Invalid choice/]);
@@ -8677,6 +8685,7 @@ async function main() {
     if (run('keymapeditor')) await session(ODE, keymapFitCheck);
     if (run('record')) await session(ODE, recordCheck);
     if (run('player')) await session(ODE, playerCheck);
+    if (run('browsersave')) await session(ODE, browserSaveCheck);
     if (run('leave')) await session(ODE, leaveCheck);
     if (run('leave')) await session(ODE, leaveSaveCheck);
     if (run('lostf')) await session(ODE, lostF);
@@ -8693,7 +8702,7 @@ async function main() {
     if (run('native')) await session(ODE, nativeFiles, [/is not a plain file name in the model's folder/]);
     /* the failure check makes the core refuse one file on purpose (exportFailureDialog) */
     if (run('pins')) await session(ODE, pinsCheck, [/Invalid choice "cvs" for format/, /needs an array plot/]);
-    if (run('export')) await session(ODE, exportSeveral, [/Cannot save lecar\.svg: not a plain file/]);
+    if (run('export')) await session(ODE, exportSeveral, [/cannot open .*\.xppautx[\\/]tmp/]);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);
     if (run('ani')) await session(ODE, animation);

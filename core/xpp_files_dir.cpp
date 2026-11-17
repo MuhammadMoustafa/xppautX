@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -277,6 +278,12 @@ void remove_entry(const char *path)
 
 } // namespace
 
+/* the pending browser save (xpp_files.h offer_download): its folder and file name, under one lock (the HTTP thread asks, the core sets) */
+namespace {
+std::mutex download_lock;
+std::string download_folder, download_name;
+}  // namespace
+
 void remove_temp_dir(std::string_view dir_view)
 {
     if (dir_view.empty()) return;
@@ -469,6 +476,40 @@ int change_dir(std::string_view path)
         return 1;
     }
     return 0;
+}
+
+} // namespace xpp::files
+
+namespace xpp::files {
+
+void offer_download(std::string_view folder, std::string_view name)
+{
+    std::lock_guard<std::mutex> hold(download_lock);
+    if (!download_folder.empty() && download_folder != folder) remove_temp_dir(download_folder);
+    download_folder = folder;
+    download_name = name;
+}
+
+bool is_download(std::string_view path)
+{
+    std::lock_guard<std::mutex> hold(download_lock);
+    const auto [folder, name] = split_path(path);
+    return !download_folder.empty() && folder == download_folder && name == download_name;
+}
+
+std::string download_path(std::string_view name)
+{
+    std::lock_guard<std::mutex> hold(download_lock);
+    if (download_folder.empty() || name != download_name) return {};
+    return join(download_folder, download_name);
+}
+
+void download_done()
+{
+    std::lock_guard<std::mutex> hold(download_lock);
+    remove_temp_dir(download_folder);
+    download_folder.clear();
+    download_name.clear();
 }
 
 } // namespace xpp::files

@@ -76,6 +76,8 @@ public:
         return {};
     }
     void remove_temp_dir(std::string_view) override {}
+    bool is_download(std::string_view) override { return false; }
+    void offer_download(std::string_view, std::string_view) override {}
     std::string config_path(std::string_view name) override { return "config/" + std::string(name); }
     xpp::Result<std::optional<std::string>> read_config(std::string_view, std::string_view name, std::size_t) override
     {

@@ -23,6 +23,7 @@ async function session(folder: Map<string, string>) {
     list: async () => Promise.all([...folder].map(async ([name, text]): Promise<FolderFile> =>
       ({name, size: text.length, mtime: 0, sha256: await sha256Hex(new Blob([text]))}))),
     get: async () => null,
+    download: async () => null,
     put: async (name, data) => {
       puts.push(name);
       folder.set(name, await data.text());

@@ -1,5 +1,6 @@
 /* Nullclines' typed commands (W522), sharing nullcline.cpp's numerical routines. */
 #include "command_def.h"
+#include "command_registry.h"
 #include "many_pops.h"
 #include "integrate.h"
 #include <limits>
@@ -77,7 +78,7 @@ Result<std::string> export_file(Session &s,const Command &,const Arguments &a,co
     const auto &file=a.get<std::string>("file");
     const auto written=export_nullclines(s,file,a.optional<std::string>("format").value_or(""));
     if(!written)return std::unexpected(written.error());
-    std::string result="{\"file\":";json_append_string(result,file);
+    std::string result="{\"file\":";json_append_string(result,answered_file(s,file));
     return result+xpp::format(",\"points_written\":{}}}",*written);
 }
 Result<std::string> set_mesh(Session &s,const Command &c,const Arguments &a,const Place &p)

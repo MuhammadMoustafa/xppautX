@@ -13,6 +13,8 @@
 #include "session.h"
 #include "xpp_path.h"
 #include "xpp_text.h"
+#include "xpp_zip.h"
+#include "xpp_fs.h"
 #include "xpp_ui.h"
 #include "model.h"
 #include "command_category.h"
@@ -151,6 +153,38 @@ const Argument *picker_argument(const Command &command)
             file = &arg;
         }
     return file;
+}
+
+std::string answered_file(const Session &s, std::string_view file)
+{
+    return s.model().fs->absolute(file);
+}
+
+Result<std::string> answered_frames(Session &s, std::string_view file, int count, const Place &place)
+{
+    FileSystem &fs = *s.model().fs;
+    if (!fs.is_download(file)) return answered_file(s, file);
+    constexpr std::string_view WHERE = "frames download";
+    std::vector<zip::Entry> entries;
+    std::vector<std::string> numbered;
+    for (int i = 0; i < count; i++) {
+        numbered.push_back(files::run_file_name(file, i));
+        Result<std::string> bytes = fs.read(std::string(WHERE), numbered.back(), zip::archive_bytes_limit);
+        if (!bytes) return std::unexpected<Error>(bytes.error());
+        entries.push_back({files::split_path(numbered.back()).second, std::move(*bytes)});
+    }
+    const auto [folder, base] = files::split_path(file);
+    const std::string name = base.substr(0, base.rfind('.')) + ".zip";
+    Result<std::unique_ptr<Sink>> sink = fs.open_sink(files::append_path(folder, name), true, place);
+    if (!sink) return std::unexpected<Error>(sink.error());
+    if (const Result<> written = (*sink)->write(zip::make_zip(entries)); !written) {
+        (*sink)->abort();
+        return std::unexpected<Error>(written.error());
+    }
+    if (const Result<> saved = (*sink)->commit(); !saved) return std::unexpected<Error>(saved.error());
+    for (const std::string &each : numbered) fs.remove_file(each);
+    fs.offer_download(folder, name);
+    return answered_file(s, files::append_path(folder, name));
 }
 
 std::string full_name(const Command &command)

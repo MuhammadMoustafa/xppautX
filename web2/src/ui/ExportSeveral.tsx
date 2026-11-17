@@ -51,12 +51,13 @@ function Choose({rows, ticks, folder, onClose}: {rows: ExportRow[]; ticks: strin
         <button type="button" class="primary" data-export-start disabled={!ready} title={picks && !folder ? 'Choose a folder first' : undefined}
           onClick={() => void session.exportSeveralStart()}>Export</button>
       </>}>
-      <div class="export-folder">
-        <span>Folder</span>
-        <code data-export-folder>{folder ?? (picks ? 'none chosen' : 'downloads')}</code>
-        {picks && <button type="button" data-export-pick onClick={() => void session.exportSeveralPick()}>Choose…</button>}
-      </div>
-      {!picks && <p class="export-note">This browser has no folder picker: each file is offered as a download.</p>}
+      {picks
+        ? <div class="export-folder">
+          <span>Folder</span>
+          <code data-export-folder>{folder ?? 'none chosen'}</code>
+          <button type="button" data-export-pick onClick={() => void session.exportSeveralPick()}>Choose…</button>
+        </div>
+        : <p class="export-note" data-export-note>Each file is downloaded under its name.</p>}
       {rows.map(row => (
         <section class={'export-row' + (row.reason ? ' off' : '')} data-export-row={row.id} key={row.id}>
           <div class="export-name">{row.label}</div>
@@ -92,7 +93,7 @@ function Report({outcomes, onClose}: {outcomes: BatchOutcome[]; onClose(): void}
   return (
     <Dialog title="Export several" name="export several" width="list" onClose={onClose} attrs={{'data-export-several': 'report'}}
       action={{label: 'Close', onClick: onClose}}>
-      <p data-export-summary>{`${count('written')} written, ${count('failed')} failed, ${count('skipped')} skipped.`}</p>
+      <p data-export-summary>{`${count('written') + count('downloaded')} ${count('downloaded') ? 'downloaded' : 'written'}, ${count('failed')} failed, ${count('skipped')} skipped.`}</p>
       <ul class="export-report">{outcomes.map((o, i) => (
         <li key={i} data-export-outcome={o.status} class={o.status}>
           <strong>{o.step}</strong> <span class="export-status">{choiceLabel(o.status)}</span>

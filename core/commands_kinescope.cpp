@@ -2,6 +2,7 @@
    saving them as files or one animated GIF. The captured pictures live in the front end; each handler is the
    core function the Kinescope menu's items call. */
 #include "command_def.h"
+#include "command_registry.h"
 #include "picture.h"
 #include "kinescope.h"
 #include "session.h"
@@ -65,7 +66,9 @@ Result<std::string> save_frames(Session &s, const Command &command, const Argume
     if (!files::has_extension(file, xpp::GIF_EXTENSION)) return fail(command.name, xpp::format("{}: the kinescope's frames are GIF files, so the file ends in .gif", file), place);
     const Result<int> saved = ui.movie_save(s, file, IMAGE_FORMAT_GIF);
     if (!saved) return std::unexpected<Error>(saved.error());
-    return ResultObject().text("file", file).integer("frames_saved", *saved).done();
+    const Result<std::string> answer = answered_frames(s, file, *saved, place);
+    if (!answer) return std::unexpected<Error>(answer.error());
+    return ResultObject().text("file", *answer).integer("frames_saved", *saved).done();
 }
 
 Result<std::string> save_anigif(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -75,7 +78,7 @@ Result<std::string> save_anigif(Session &s, const Command &command, const Argume
     if (const Result<> written = ui.movie_make_anigif(s, file); !written) return std::unexpected<Error>(written.error());
     const Result<unsigned long long> size = file_size(*s.model().fs, file, command, place);
     if (!size) return std::unexpected<Error>(size.error());
-    return ResultObject().text("file", file).integer("bytes_written", static_cast<long long>(*size)).done();
+    return ResultObject().text("file", answered_file(s, file)).integer("bytes_written", static_cast<long long>(*size)).done();
 }
 
 /* what kinescope.export needs: captured frames (SessionNeed) */

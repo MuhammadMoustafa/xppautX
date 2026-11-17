@@ -2,7 +2,7 @@
    (store/exportSeveral.ts). The rows are the registry's: a format is a choice's value, its file the core's output name. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {EXPORT_ROWS, exportCommand, exportRows, folderOf, joinFolder, type ExportRow} from '../src/exportSeveral';
+import {EXPORT_ROWS, defaultFileName, exportCommand, exportRows, folderOf, joinFolder, type ExportRow} from '../src/exportSeveral';
 import {initialExportSeveral, reduceExportSeveral} from '../src/store/exportSeveral';
 import type {CommandRow} from '../src/protocol/kinds';
 import {setFileFormats} from '../src/store/fieldKinds';
@@ -47,6 +47,15 @@ test('the window lists the exports in its order, each format a tick, the file it
   assert.deepEqual(model.items.map(i => [i.label, i.file]), [['Python', 'lecar.py'], ['Python numpy', 'lecar-python_numpy.py'], ['Python numba', 'lecar-python_numba.py']]);
   const info = out.find(r => r.id === 'session.export_info')!;
   assert.deepEqual([info.items[0].label, info.items[0].file, info.items[0].args], ['txt', 'lecar.txt', {}]);
+});
+
+test('a file question with no name of its own starts with the command\'s default: its choice\'s value, or the command alone', () => {
+  const name = (cmd: Record<string, unknown>) => defaultFileName(rows, names, cmd as never);
+  assert.equal(name({cmd: 'plot.export', format: 'svg', file_picker: true}), 'lecar.svg');
+  assert.equal(name({cmd: 'data.export', target: 'table', format: 'csv', file_picker: true}), 'lecar.csv');
+  assert.equal(name({cmd: 'kinescope.export', output: 'animated_gif', file_picker: true}), 'lecar-kinescope.gif');
+  assert.equal(name({cmd: 'session.export_info', file_picker: true}), 'lecar.txt');
+  assert.equal(name({cmd: 'session.save_as', file_picker: true}), '');
 });
 
 test('a row the session cannot run now is greyed with the reason the core gave', () => {

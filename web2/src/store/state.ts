@@ -670,7 +670,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'exit':
       return {...state, exited: ev.code, busy: false, computing: false, running: null, stopping: false};
     case 'session.bye':
-      return addLog(state, {kind: 'info', text: 'XPP has exited.'});
+      return addLog(state, {kind: 'info', text: 'xppautX has exited.'});
     default:
       return state;
   }

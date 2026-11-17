@@ -361,7 +361,9 @@ int j_file_selector(std::string_view title, std::string &file, std::string_view 
     if (!mode) mode = xpp::files::ask_mode(title);
     std::string pattern(wild), cd;
     const auto last = s.file_dialogs.last.find(pattern);
-    std::string dir = last != s.file_dialogs.last.end() ? last->second
+    /* a folder a replay's own dialog chose is its scratch folder: a dialog never starts there (W786) */
+    const bool kept = last != s.file_dialogs.last.end() && !xpp::files::is_scratch(last->second, true);
+    std::string dir = kept ? last->second
                       : !s.file_dialogs.home.empty()   ? s.file_dialogs.home
                                                        : xpp::files::working_dir();
     bool entered = false;
@@ -401,6 +403,23 @@ int j_file_selector(std::string_view title, std::string &file, std::string_view 
         if (!js_find(answer.c_str(), "file")) continue; /* a new pattern alone lists again */
         get_string(answer.c_str(), "file", file); /* a name in the folder or a full path, whole (W88) */
         if (file.empty()) return 0;
+        /* a browser save (W786): the page's default name, written into a scratch folder the page fetches once (/download/NAME), never the
+           model's folder; no replace question, the folder is new */
+        const char *scratch = js_find(answer.c_str(), "scratch");
+        if (strcmp(mode, "write") == 0 && scratch && std::string_view(scratch).starts_with("true")) {
+            if (!xpp::files::name_ok(file)) {
+                j_command_error("save", xpp::format("{} is not a plain base name", file));
+                return 0;
+            }
+            const xpp::Result<std::string> made = xpp::files::make_temp_dir(xpp::model_folder(s.model()));
+            if (!made) {
+                j_command_error("save", made.error().what);
+                return 0;
+            }
+            xpp::files::offer_download(*made, file);
+            file = xpp::files::absolute(file, *made);
+            return 1;
+        }
         if (strcmp(mode, "write") == 0 &&
             !xpp::ok_or_show(read_save_replace(answer.c_str(), session.save_replace))) return 0;
         /* Only the native picker's single-use path grant permits a disk path.
@@ -411,10 +430,10 @@ int j_file_selector(std::string_view title, std::string &file, std::string_view 
             j_command_error("save",xpp::format("{} is not a plain base name in the model folder",file));
             return 0;
         }
-        /* a name in a folder the page went into is a path in it; one in the
-           folder it started in stays as answered (a replay's own scratch
-           folder is where its relative names go) */
-        if (entered) file = xpp::files::absolute(file, dir);
+        /* a name in a folder the page went into is a path in it. During a Play (W786) a save the user makes is a path in the dialog's
+           folder too, not the replay's scratch folder a bare name would go to; a replayed step's own name keeps going there, as recorded */
+        const bool playing_save = strcmp(mode, "write") == 0 && player_open() && !player_step_running();
+        if (entered || playing_save) file = xpp::files::absolute(file, dir);
         const std::string folder = xpp::files::split_path(xpp::files::absolute(file, dir)).first;
         if (!folder.empty()) s.file_dialogs.last[pattern] = folder;
         return 1;

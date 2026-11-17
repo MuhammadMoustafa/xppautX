@@ -17,6 +17,7 @@ core/ui_json.cpp 1 the XppUi table installed (the protocol client's)
 core/xpp_about.cpp 1 About's text, a const string built at first use
 core/xppautx_main.cpp 1 the program's command line (process-wide: the window calls run_session with no argument)
 core/xpp_files.cpp 4 the files module's cache and the HTTP reader's hooks (process-wide, thread-shared)
+core/xpp_files_dir.cpp 3 the pending browser save (W786: its scratch folder and file name, under one lock; the core sets it, the HTTP thread takes it)
 core/xpp_http.cpp 15 the HTTP server's threads, sockets and locks (process-wide)
 core/xpp_https_linux.cpp 1 libcurl, loaded at the first download and kept for the life of the program (a library handle is the process's, like the window library's)
 core/xpp_inbox.cpp 9 the input queues the reader threads fill (process-wide, thread-shared)

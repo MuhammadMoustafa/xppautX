@@ -7,6 +7,8 @@ import type {FolderFile} from '../store/files';
 export interface FilesApi {
   list(): Promise<FolderFile[]>;
   get(name: string): Promise<Blob | null>;
+  /** the one file a browser save wrote (the core's /download route, once): null when there is none */
+  download(name: string): Promise<Blob | null>;
   /** the file's size and SHA-256 as the core stored them */
   put(name: string, data: Blob): Promise<{name: string; size: number; sha256: string}>;
 }
@@ -28,6 +30,13 @@ export class HttpFiles implements FilesApi {
     const r = await fetch(this.url(name), {cache: 'no-store'});
     if (r.status === 404) return null;
     if (!r.ok) throw new Error(`reading ${name}: ${r.status} ${await r.text()}`);
+    return r.blob();
+  }
+
+  async download(name: string): Promise<Blob | null> {
+    const r = await fetch(`${this.base}download/${encodeURIComponent(name)}${this.token}`, {cache: 'no-store'});
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(`downloading ${name}: ${r.status} ${await r.text()}`);
     return r.blob();
   }
 

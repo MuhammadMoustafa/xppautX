@@ -540,7 +540,7 @@ Result<std::string> export_file(Session &s, const Command &command, const Argume
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
     const std::string file = *file_of(s, args, what, extension);
     if (const Result<> done = write(file); !done) return std::unexpected<Error>(as_command_error(command, done.error(), place));
-    return file_result(file, count_name, count);
+    return file_result(answered_file(s, file), count_name, count);
 }
 
 Result<std::string> export_points(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -578,7 +578,7 @@ Result<std::string> export_picture(Session &s, const Command &command, const Arg
     const int format = choice_index(picture_format_names, name);
     const std::string &file = args.get<std::string>(FILE_KEY);
     if (const Result<> done = export_autox_picture(s, format, file, *view); !done) return std::unexpected<Error>(as_command_error(command, done.error(), place));
-    return file_result(file);
+    return file_result(answered_file(s, file));
 }
 
 /* autox.export_data: the target picks the file written, the four items of the Data submenu (DATA_TARGET_NAMES) */

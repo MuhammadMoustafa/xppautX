@@ -1,5 +1,6 @@
 /* Equilibria's registry commands (W522). The numerical routines remain in their owners. */
 #include "command_def.h"
+#include "command_registry.h"
 #include "delay_handle.h"
 #include "equilibria.h"
 #include "integrate.h"
@@ -145,7 +146,7 @@ Result<std::string> export_file(Session &s,const Command &,const Arguments &a,co
     const bool shoot=a.optional<bool>("shoot").value_or(s.equilibrium_shoot);
     if(const auto saved=write_equilibrium(s,file.c_str(),shoot,run_report(s));!saved)return std::unexpected(saved.error());
     s.equilibrium_shoot=shoot;
-    std::string result="{\"file\":";json_append_string(result,file);return result+",\"written\":true}";
+    std::string result="{\"file\":";json_append_string(result,answered_file(s,file));return result+",\"written\":true}";
 }
 /* the first CONFIG_NUMBERS keys are numbers (the first a whole one), the rest booleans */
 constexpr std::size_t CONFIG_NUMBERS=4;

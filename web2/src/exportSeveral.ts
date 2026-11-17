@@ -71,6 +71,14 @@ export function exportCommand(item: ExportItem, file: string, id: string, replac
   return stepCommand({cmd: item.cmd, ...item.args}, file, id, replace);
 }
 
+/** the default file name of `command` as hello's output_names has it (the core's one rule: `<command>.<its choice's value>`, or `<command>` when it
+    has no choice), for a file question the core asks with no name of its own; '' when the command has none */
+export function defaultFileName(rows: CommandRow[], outputNames: Record<string, string>, command: Command): string {
+  const choice = rows.find(r => r.id === command.cmd)?.menu_choice;
+  const value = choice ? (command as Record<string, unknown>)[choice] : undefined;
+  return outputNames[typeof value === 'string' ? `${command.cmd}.${value}` : command.cmd] ?? '';
+}
+
 /** `name` in `folder`: the folder's own separator (a Windows folder has backslashes), the folder with no trailing separator */
 export function joinFolder(folder: string, name: string): string {
   const sep = folder.includes('\\') && !folder.includes('/') ? '\\' : '/';

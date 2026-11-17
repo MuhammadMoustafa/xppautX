@@ -716,14 +716,18 @@ const char *files_status(int st)
     }
 }
 
-void get_file(sock_t s, const std::string &name)
+/* the file at name (xpp::files::open's name), sent whole; false when it could not be opened (the reply says why) or the send failed */
+/* an opened file (xpp::files::open or open_download's status and file) sent whole; false when it could not be opened (the reply says why)
+   or the send failed */
+bool send_opened(sock_t s, int st, FILE *raw, unsigned long long size)
 {
-    FILE *raw = nullptr;
-    unsigned long long size;
-    int st = xpp::files::open(name, raw, size);
     if (st != XPP_FILES_OK) {
         reply_text(s, files_status(st), xpp::files::status_text(st));
-        return;
+        return false;
+    }
+    if (!raw) {
+        reply_text(s, "500 Internal Server Error", "the file could not be opened");
+        return false;
     }
     xpp::UniqueFile fp(raw);
     std::string head = xpp::format("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\n"
@@ -733,6 +737,7 @@ void get_file(sock_t s, const std::string &name)
     std::vector<char> buf(CHUNK);
     size_t n;
     while (ok && (n = std::fread(buf.data(), 1, buf.size(), fp.get())) > 0) ok = send_all(s, {buf.data(), n});
+    return ok;
 }
 
 /* PUT /files/NAME: the body streams into a temporary file that becomes
@@ -809,9 +814,34 @@ void serve_files(Request &q)
         reply_text(q.s, files_status(XPP_FILES_BAD_NAME), xpp::files::status_text(XPP_FILES_BAD_NAME));
         return;
     }
-    if (q.method == "GET") get_file(q.s, *name);
+    if (q.method == "GET") {
+        FILE *raw = nullptr;
+        unsigned long long size = 0;
+        const int st = xpp::files::open(*name, raw, size);
+        send_opened(q.s, st, raw, size);
+    }
     else if (q.method == "PUT") put_file(q, *name);
     else reply_text(q.s, "405 Method Not Allowed", "GET or PUT");
+}
+
+/* GET /download/NAME: the one file a browser save wrote (xpp::files::offer_download), sent once: its scratch folder goes after it
+   was sent whole. Only the pending name is served, so the route reads nothing else (token checked, as /files is). */
+void serve_download(Request &q)
+{
+    const size_t n = path_len(q.target);
+    std::optional<std::string> name = url_decode(std::string_view(q.target).substr(10, n - 10));
+    if (q.method != "GET") {
+        reply_text(q.s, "405 Method Not Allowed", "GET only");
+        return;
+    }
+    if (!name || !xpp::files::name_ok(name->c_str())) {
+        reply_text(q.s, "404 Not Found", "no such download");
+        return;
+    }
+    FILE *raw = nullptr;
+    unsigned long long size = 0;
+    const int st = xpp::files::open_download(*name, raw, size);
+    if (send_opened(q.s, st, raw, size)) xpp::files::download_done();
 }
 
 /* a bookmark of an old path, /v2/ (web2 moved to / at T17) or /v1/ (the
@@ -898,9 +928,10 @@ void handle(sock_t s, bool connection_limited, long long head_deadline)
     const bool events = q->method == "GET" && q->target.starts_with("/events");
     const bool leave = q->method == "POST" && q->target.starts_with("/leave");
     const bool files = n >= 6 && q->target.starts_with("/files") && (n == 6 || q->target[6] == '/');
+    const bool download = q->method == "GET" && q->target.starts_with("/download/");
     /* Static page assets are public; every protected route authenticates
        before validation, admission, serialization, or any body read. */
-    if ((command || events || leave || files) && !token_ok(q->target)) {
+    if ((command || events || leave || files || download) && !token_ok(q->target)) {
         reply_text(s, "403 Forbidden", BAD_TOKEN);
         if (!connection_limited) drain(*q);
         close_socket(s);
@@ -934,6 +965,8 @@ void handle(sock_t s, bool connection_limited, long long head_deadline)
         serve_cmd(*q);
     } else if (files) {
         serve_files(*q);
+    } else if (download) {
+        serve_download(*q);
     } else if (q->method == "GET") {
         serve_asset(*q);
     } else reply(s, "405 Method Not Allowed", "text/plain", {});

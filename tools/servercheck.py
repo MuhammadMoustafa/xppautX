@@ -1915,7 +1915,7 @@ def check_registry():
         with open(os.path.join(folder, 'diagram.dat'), 'w') as f:
             f.write('0 0 0 1 1 0\n1 1 1 1 1 0\n2 3 3 2 1 0\n3 4 4 2 1 0\n')
         result, _ = request({'cmd': 'plot.load_bifurcation', 'file': 'diagram.dat'})
-        check('plot.load_bifurcation reports the curves made', result == {'file': 'diagram.dat', 'curves_imported': 2}, str(result))
+        check('plot.load_bifurcation reports the curves made', {**result, 'file': os.path.basename(result['file'])} == {'file': 'diagram.dat', 'curves_imported': 2}, str(result))
         with open(os.path.join(folder, 'bad.dat'), 'w') as f:
             f.write('0 0 0\n')
         for name, line in (('bad.dat', 1), ('missing.dat', 0)):  # a file's own error names that file and its line
@@ -1981,15 +1981,15 @@ def check_registry():
         # the exports
         result, _ = request({'cmd': 'plot.export', 'format': 'svg', 'file': 'plot.svg'})
         svg = open(os.path.join(folder, 'plot.svg')).read()
-        check('plot.export svg writes the picture into the model folder', result['file'] == 'plot.svg' and result['bytes_written'] > 100 and
+        check('plot.export svg writes the picture into the model folder', os.path.basename(result['file']) == 'plot.svg' and result['bytes_written'] > 100 and
               svg.lstrip().startswith(('<?xml', '<svg')), str(result))
         # W656: the panel as shown, its axes text at the page's 12 px and its curves in their colors
         check('W656: plot.export svg draws the axes text at the panel\'s size', 'font-size="12"' in svg, svg[:400])
         result, _ = request({'cmd': 'plot.export', 'format': 'pdf', 'file': 'plot.pdf'})
-        check('plot.export pdf writes the picture into the model folder', result['file'] == 'plot.pdf' and result['bytes_written'] > 100 and
+        check('plot.export pdf writes the picture into the model folder', os.path.basename(result['file']) == 'plot.pdf' and result['bytes_written'] > 100 and
               open(os.path.join(folder, 'plot.pdf'), 'rb').read(4) == b'%PDF', str(result))
         result, _ = request({'cmd': 'data.export', 'target': 'plot_curves', 'file': 'plot.csv'})
-        check('data.export of plot_curves writes what the plot shows in the format of the extension', result['file'] == 'plot.csv' and result['rows_written'] > 0 and
+        check('data.export of plot_curves writes what the plot shows in the format of the extension', os.path.basename(result['file']) == 'plot.csv' and result['rows_written'] > 0 and
               'curve,x,y' in open(os.path.join(folder, 'plot.csv')).read().splitlines()[:2], str(result))
         result, _ = request({'cmd': 'data.export', 'target': 'plot_curves', 'file': 'plot.out', 'format': 'dat'})
         check('data.export of plot_curves takes the format by name', result['rows_written'] > 0, str(result))
@@ -2309,39 +2309,39 @@ def check_session_commands():
         call(cmd='run.initial')
         done, evs = call(cmd='recording.stop', file='mine.recx')
         check('W528: recording.stop answers the file and the steps, and ends the recording',
-              done['result'] == {'file': 'mine.recx', 'steps_recorded': 1} and 'recording' not in last_state(evs)
+              {**done['result'], 'file': os.path.basename(done['result']['file'])} == {'file': 'mine.recx', 'steps_recorded': 1} and 'recording' not in last_state(evs)
               and os.path.exists(os.path.join(run_dir, 'mine.recx')), str(done))
         # the session files
         done, evs = call(answers=[{'ok':0}], cmd='session.save')
         check('W517: first session.save asks for its filename and allows cancel', any(is_ask(e) and e.get('kind') == 'file' for e in evs) and done.get('status') == 'ok', str(done))
         done, _ = call(cmd='session.save_as', file='first', data=False)
         check('W528: session.save_as writes name.snapx and answers it',
-              done['result'] == {'file': 'first.snapx', 'saved': True} and os.path.exists(os.path.join(run_dir, 'first.snapx')), str(done))
+              {**done['result'], 'file': os.path.basename(done['result']['file'])} == {'file': 'first.snapx', 'saved': True} and os.path.exists(os.path.join(run_dir, 'first.snapx')), str(done))
         done, evs = call(cmd='session.save', data=False)
-        check('W528: session.save then saves to that file with no question', done['result'] == {'file': 'first.snapx', 'saved': True}
+        check('W528: session.save then saves to that file with no question', {**done['result'], 'file': os.path.basename(done['result']['file'])} == {'file': 'first.snapx', 'saved': True}
               and not any(e.get('ev') == 'ask' for e in evs), str(done))
         done, evs = call(answers=[{'key': 'n'}], cmd='session.save_as', file='first', replace=0)
         check('W528: session.save_as asks before replacing without confirm, and a refusal saves nothing',
               done['result']['saved'] is False and any(e.get('ev') == 'ask' for e in evs), str(done))
         done, _ = call(cmd='session.save_copy', file='copy')
-        check('W528: session.save_copy answers the file and leaves the session\'s own file', done['result'] == {'file': 'copy.snapx', 'copied': True}
+        check('W528: session.save_copy answers the file and leaves the session\'s own file', {**done['result'], 'file': os.path.basename(done['result']['file'])} == {'file': 'copy.snapx', 'copied': True}
               and last_state(call(cmd='session.get_state')[1])['session']['file'].endswith('first.snapx'), str(done))
         for bad in (dict(file='../up'), dict(file='/tmp/x'), dict()):
             done, _ = call(cmd='session.save_as', **bad)
             check('W528: session.save_as %s is refused' % json.dumps(bad), error_of(done) != '' and 'file' in error_of(done), str(done))
         done, _ = call(cmd='session.export_info', file='info.pars')
-        check('W528: session.export_info writes the file', done['result'] == {'file': 'info.pars', 'written': True}
+        check('W528: session.export_info writes the file', {**done['result'], 'file': os.path.basename(done['result']['file'])} == {'file': 'info.pars', 'written': True}
               and 'Equations' in open(os.path.join(run_dir, 'info.pars')).read(), str(done))
         done, _ = call(cmd='model.export', language='python', file='model_as.py')
         script = os.path.join(run_dir, 'model_as.py')
         check('W764: model.export writes the model as a Python program and answers the file',
-              done['result'] == {'file': 'model_as.py'} and os.path.exists(script) and 'def rhs(t, _y):' in open(script).read(), str(done))
+              {**done['result'], 'file': os.path.basename(done['result']['file'])} == {'file': 'model_as.py'} and os.path.exists(script) and 'def rhs(t, _y):' in open(script).read(), str(done))
         for language, marker in (('python_numpy', 'import numpy as np'), ('python_numba', 'from numba import njit')):
             name = 'model_as_%s.py' % language
             done, _ = call(cmd='model.export', language=language, file=name)
             written = open(os.path.join(run_dir, name)).read() if os.path.exists(os.path.join(run_dir, name)) else ''
             check('W766: model.export with language %s writes the model with %s and answers the file' % (language, marker),
-                  done['result'] == {'file': name} and marker in written and 'def rhs(t, _y):' in written, str(done))
+                  {**done['result'], 'file': os.path.basename(done['result']['file'])} == {'file': name} and marker in written and 'def rhs(t, _y):' in written, str(done))
         check('W766: python imports the standard library only', 'numpy' not in open(script).read(), '')
         done, evs = call(answers=[{'key': 'n'}], cmd='model.export', language='python', file='model_as.py')
         check('W764: model.export asks before replacing a file, and a refusal writes nothing',
@@ -2354,7 +2354,7 @@ def check_session_commands():
         check('W528: session.import_xppaut_state names the file it cannot read', 'absent.set' in error_of(done), str(done))
         done, evs = call(answers=['d'], cmd='session.open', file='first.snapx')
         check('W528: session.open loads the saved session and sends a new hello',
-              done['result'] == {'file': 'first.snapx', 'loaded': True} and any(e.get('ev') == 'hello' for e in evs), str(done))
+              {**done['result'], 'file': os.path.basename(done['result']['file'])} == {'file': 'first.snapx', 'loaded': True} and any(e.get('ev') == 'hello' for e in evs), str(done))
         done, _ = call(cmd='session.open', file='missing.snapx')
         check('W528: session.open names a session file that is not there', 'missing.snapx' in error_of(done), str(done))
         done, evs = call(answers=['d'], cmd='session.reload_model')
@@ -2633,7 +2633,9 @@ def check_data_value_set():
     def good(request, what, expect, **command):
         evs, done, _ = request(**command)
         result = done.get('result')
-        check('W526: %s' % what, done.get('status') == 'ok' and (expect(result) if callable(expect) else result == expect),
+        # the answer names the full path of the file (W786): the expectation names it by its base name
+        named = {**result, 'file': os.path.basename(result['file'])} if isinstance(result, dict) and 'file' in result else result
+        check('W526: %s' % what, done.get('status') == 'ok' and (expect(result) if callable(expect) else named == expect),
               json.dumps(done)[:400])
         return result
 
@@ -2875,7 +2877,7 @@ def check_kinescope_animation_array_plot():
             req(refused, False)
         result, evs, _ = req({'cmd': 'kinescope.export', 'output': 'frames', 'file': 'w527_kin.gif'})
         check('W527: kinescope.export output frames asks the pictures and writes the GIFs, numbered from 0',
-              result == {'file': 'w527_kin.gif', 'frames_saved': 2} and exists('w527_kin_0000.gif', 'w527_kin_0001.gif')
+              {**result, 'file': os.path.basename(result['file'])} == {'file': 'w527_kin.gif', 'frames_saved': 2} and exists('w527_kin_0000.gif', 'w527_kin_0001.gif')
               and not exists('w527_kin.gif') and head('w527_kin_0000.gif', 6) [:4] == b'GIF8', str(result))
         req({'cmd': 'kinescope.export', 'output': 'frames', 'file': 'w673_kin'}, False)
         check('W673: frames named without the format\'s extension are refused, and none is written', not exists('w673_kin_0000') and not exists('w673_kin_0000.gif'))
@@ -2883,7 +2885,7 @@ def check_kinescope_animation_array_plot():
         req({'cmd': 'kinescope.export', 'output': 'frames', 'file': 'atomic.gif'}, False)
         check('W534: refusing the last frame file writes no earlier frame', not exists('atomic_0000.gif'))
         result, evs, _ = req({'cmd': 'kinescope.export', 'output': 'animated_gif', 'file': 'w527_movie.gif'})
-        check('W527: kinescope.export output animated_gif writes one animated GIF', result.get('file') == 'w527_movie.gif' and exists('w527_movie.gif')
+        check('W527: kinescope.export output animated_gif writes one animated GIF', os.path.basename(result.get('file', '')) == 'w527_movie.gif' and exists('w527_movie.gif')
               and result.get('bytes_written') == os.path.getsize(os.path.join(run_dir, 'w527_movie.gif')) > 20, str(result))
         result, evs, _ = req({'cmd': 'kinescope.reset'})
         check('W527: kinescope.reset clears the frames', result == {'cleared': True}
@@ -2907,7 +2909,7 @@ def check_kinescope_animation_array_plot():
         frames = [e for e in evs if e.get('ev') == 'animation.frame']
         _, evs_bad, _ = req({'cmd': 'animation.load', 'file': 'missing.ani'}, False)
         check('W527: animation.load loads the file and its first frame shows; a missing file is an error naming it',
-              result == {'file': 'gui_test.ani', 'loaded': True} and frames and frames[-1]['pos'] == 0 and evs_bad[-1].get('file') == 'missing.ani', str((result, evs_bad[-1:])))
+              {**result, 'file': os.path.basename(result['file'])} == {'file': 'gui_test.ani', 'loaded': True} and frames and frames[-1]['pos'] == 0 and evs_bad[-1].get('file') == 'missing.ani', str((result, evs_bad[-1:])))
         for refused in [{'cmd': 'animation.load'}, {'cmd': 'animation.load', 'file': '../gui_test.ani'}]:
             req(refused, False)
         result, _, _ = req({'cmd': 'animation.step', 'rows': 3})
@@ -2943,10 +2945,10 @@ def check_kinescope_animation_array_plot():
         frames = [e for e in evs if e.get('ev') == 'animation.frame']
         check('W527: animation.play plays to the last frame', result == {'playing': False} and frames, str(result))
         result, evs, _ = req({'cmd': 'animation.export', 'output': 'animated_gif', 'file': 'w527_an.gif'})
-        check('W527: animation.export output animated_gif writes one animated GIF of the frames', result == {'frames_saved': 7} and exists('w527_an.gif')
+        check('W527: animation.export output animated_gif writes one animated GIF of the frames', result.get('frames_saved') == 7 and exists('w527_an.gif')
               and head('w527_an.gif', 6) [:4] == b'GIF8', str(result))
         result, evs, _ = req({'cmd': 'animation.export', 'output': 'frames', 'file': 'w527_an.ppm'})
-        check('W527: animation.export output frames writes PPM files, numbered from 0', result == {'frames_saved': 7}
+        check('W527: animation.export output frames writes PPM files, numbered from 0', result.get('frames_saved') == 7
               and exists('w527_an_0000.ppm', 'w527_an_0001.ppm', 'w527_an_0006.ppm') and not exists('w527_an.ppm')
               and head('w527_an_0000.ppm', 2) == b'P6', str(result))
         for refused in [{'cmd': 'animation.export', 'file': 'w527_x.ppm'}, {'cmd': 'animation.export', 'output': 'gif', 'file': 'w527_x.gif'},
@@ -3010,12 +3012,12 @@ def check_kinescope_animation_array_plot():
         result, evs, _ = req({'cmd': 'array_plot.configure', 'top_label': 'top', 'side_label': 'side', 'bottom_label': 'bottom'})
         check('W779: array_plot.configure takes the three labels and sets them alone', result == {'configured': True}, str(result))
         result, evs, _ = req({'cmd': 'array_plot.export', 'format': 'pdf', 'file': 'w527_ap.pdf'})
-        check('W527: array_plot.export format pdf writes the picture', result == {'file': 'w527_ap.pdf'} and head('w527_ap.pdf', 4) == b'%PDF', str(result))
+        check('W527: array_plot.export format pdf writes the picture', {**result, 'file': os.path.basename(result['file'])} == {'file': 'w527_ap.pdf'} and head('w527_ap.pdf', 4) == b'%PDF', str(result))
         _, _, error = req({'cmd': 'array_plot.export', 'format': 'gif', 'file': 'w527_apl.gif', 'top_label': 'top'}, False)
         check('W779: array_plot.export takes no label: format gif refuses top_label, naming it, and writes nothing',
               'top_label' in error and not exists('w527_apl.gif'), error)
         result, evs, _ = req({'cmd': 'array_plot.export', 'format': 'gif', 'file': 'w527_ap.gif'})
-        check('W527: array_plot.export format gif asks the picture and writes it', result.get('file') == 'w527_ap.gif'
+        check('W527: array_plot.export format gif asks the picture and writes it', os.path.basename(result.get('file', '')) == 'w527_ap.gif'
               and result.get('bytes_written') == os.path.getsize(os.path.join(run_dir, 'w527_ap.gif')) > 20 and head('w527_ap.gif', 6) [:4] == b'GIF8', str(result))
         for refused in [{'cmd': 'array_plot.export', 'format': 'pdf'}, {'cmd': 'array_plot.export', 'format': 'pdf', 'file': '../a.pdf'}, {'cmd': 'array_plot.export', 'format': 'gif'},
                         {'cmd': 'array_plot.export', 'format': 'gif', 'file': 'a/b.gif'}, {'cmd': 'array_plot.export', 'file': 'a.pdf'}, {'cmd': 'array_plot.export', 'format': 'svg', 'file': 'a.svg'}, {'cmd': 'array_plot.range', 'file': 'r.gif', 'steps': 0}, {'cmd': 'array_plot.range'},
@@ -6963,6 +6965,97 @@ def check_dialog_folder_after_autox():
 check_dialog_folder_after_autox()
 
 
+def check_play_export_folders():
+    """W786 (#866): during Play an export answers with the full path of the file it wrote, in the replay's scratch folder when
+    the command gives its name (no question); a page's export (file_picker) asks where, starting in the model's own folder
+    (the launch folder here), never the replay's scratch folder, and the file is written there."""
+    p, r, snd, col, _ = launch_server(NO_THROTTLE)
+    try:
+        col(is_done)
+        want = os.path.realpath(r)
+        snd(cmd='recording.start')
+        col(is_done, timeout=30 * SLOW)
+        snd(cmd='recording.add_note', note='note')
+        col(is_done, timeout=30 * SLOW)
+        snd(cmd='recording.stop', file='exprec')
+        col(is_done, timeout=30 * SLOW)
+        snd(cmd='recording.open', play=False, file='exprec.recx')
+        evs, ask = col(lambda e: e.get('ev') == 'ask' or is_done(e), timeout=30 * SLOW)
+        if ask and ask.get('ev') == 'ask':
+            snd(cmd='answer', id=ask['id'], key='d')
+            col(is_done, timeout=30 * SLOW)
+        snd(cmd='session.export_info', file='info_rec.txt')
+        evs, _ = col(is_done, timeout=30 * SLOW)
+        done = next((e for e in reversed(evs) if e.get('ev') == 'done'), {})
+        full = (done.get('result') or {}).get('file', '')
+        check('W786: an export with its file given writes it (in the replay) and answers with the full path of that file',
+              done.get('status') == 'ok' and os.path.isabs(full) and os.path.basename(full) == 'info_rec.txt'
+              and os.path.isfile(full) and os.path.realpath(full) != os.path.join(want, 'info_rec.txt'), str(done)[:400])
+        snd(cmd='session.export_info', file_picker=True)
+        evs, ask = col(lambda e: is_ask(e) or is_done(e), timeout=30 * SLOW)
+        check('W786: a page export during Play asks where, starting in the model folder (not the scratch or the recording folder)',
+              ask and is_ask(ask) and ask.get('kind') == 'file' and ask.get('mode') == 'write' and ask.get('file', '').endswith('.txt')
+              and os.path.realpath(ask.get('dir', '')) == want, str(ask)[:400])
+        snd(cmd='answer', id=ask['id'], file='pick_rec.txt', replace=0)
+        evs, _ = col(is_done, timeout=30 * SLOW)
+        done = next((e for e in reversed(evs) if e.get('ev') == 'done'), {})
+        full = (done.get('result') or {}).get('file', '')
+        check('W786: the name typed in the dialog is written in the model folder, and the answer names that path',
+              done.get('status') == 'ok' and os.path.realpath(full) == os.path.join(want, 'pick_rec.txt')
+              and os.path.isfile(os.path.join(want, 'pick_rec.txt')), str(done)[:400] + ' ' + want)
+    finally:
+        stop_server(p, r, snd)
+
+
+check_play_export_folders()
+
+
+def check_browser_save_scratch():
+    """W786 (round 3, #866): a browser save's answer with scratch names the file the core writes into a scratch folder (under the
+    model's .xppautx), never the model's folder; the answer names that path. A cancelled answer writes nothing."""
+    p, r, snd, col, _ = launch_server(NO_THROTTLE)
+    try:
+        col(is_done)
+        snd(cmd='session.export_info', file_picker=True)
+        _, ask = col(lambda e: is_ask(e) or is_done(e), timeout=30 * SLOW)
+        snd(cmd='answer', id=ask['id'], file='fig1.txt', scratch=True)
+        evs, _ = col(is_done, timeout=30 * SLOW)
+        done = next((e for e in reversed(evs) if e.get('ev') == 'done'), {})
+        full = (done.get('result') or {}).get('file', '')
+        check('W786: a browser save writes its file into a scratch folder: the answer names it, the model folder has no copy',
+              done.get('status') == 'ok' and os.path.basename(full) == 'fig1.txt' and os.path.isabs(full)
+              and os.path.isfile(full) and '.xppautx' in full and not os.path.exists(os.path.join(r, 'fig1.txt')), str(done)[:400])
+        snd(cmd='session.export_info', file_picker=True)
+        _, ask = col(lambda e: is_ask(e) or is_done(e), timeout=30 * SLOW)
+        snd(cmd='answer', id=ask['id'], file='', scratch=True)
+        evs, _ = col(is_done, timeout=30 * SLOW)
+        done = next((e for e in reversed(evs) if e.get('ev') == 'done'), {})
+        check('W786: a browser save the user cancels writes nothing: no file in the model folder or a new scratch file',
+              not os.path.exists(os.path.join(r, 'fig1.txt')) and not os.path.exists(os.path.join(os.path.dirname(full), 'info.txt')),
+              str(done)[:400])
+        # a picture is read back for its size by the same path (a scratch folder's is a full path, not a name in the model's folder)
+        snd(cmd='plot.export', format='pdf', file_picker=True)
+        _, ask = col(lambda e: is_ask(e) or is_done(e), timeout=30 * SLOW)
+        snd(cmd='answer', id=ask['id'], file='fig2.pdf', scratch=True)
+        evs, _ = col(is_done, timeout=30 * SLOW)
+        done = next((e for e in reversed(evs) if e.get('ev') == 'done'), {})
+        full = (done.get('result') or {}).get('file', '')
+        check('W786: a browser picture is written into the scratch folder and its size read back from that full path',
+              done.get('status') == 'ok' and os.path.basename(full) == 'fig2.pdf' and os.path.getsize(full) > 0
+              and (done.get('result') or {}).get('bytes_written') == os.path.getsize(full) and not os.path.exists(os.path.join(r, 'fig2.pdf')),
+              str(done)[:400])
+    finally:
+        stop_server(p, r, snd)
+
+
+check_browser_save_scratch()
+
+
+
+
+
+
+
 # autoX's options as data (docs/protocol.md "autoX's options as data", T22):
 # the autoxoptions event holds what the autoX forms show, and `auto` `set`
 # writes the same fields, checked, all or nothing.
@@ -7604,7 +7697,7 @@ def check_output_names():
         snd(cmd='answer', id=ask['id'], file=long)
         evs, _ = col(is_done)
         check('W130: a filename over 24 characters is written whole',
-              os.path.isfile(os.path.join(r, long)) and any(e.get('file') == long and e.get('saved') for e in evs), str(evs)[-300:])
+              os.path.isfile(os.path.join(r, long)) and any(os.path.basename(e.get('file', '')) == long and e.get('saved') for e in evs), str(evs)[-300:])
         for bad in ('../escape.csv', 'CON.csv', '.hidden.csv'):
             snd(cmd='data.export', target='table', format='csv')
             _, ask = col(is_ask)
@@ -9374,7 +9467,7 @@ def check_save_session():
         check('W209: the first Save session asks for a path (the file picker), as Save as does',
               len(a) == 1 and a[0].get('kind') == 'file' and a[0].get('wild') == '*.snapx', str(a))
         check('W209: it writes sv1.snapx and the Session remembers it, unchanged',
-              os.path.exists(snapx('sv1.snapx')) and state(evs).get('session') == {'file': 'sv1.snapx'}
+              os.path.exists(snapx('sv1.snapx')) and os.path.basename(state(evs).get('session', {}).get('file', '')) == 'sv1.snapx'
               and state(evs).get('changed') is False, str(state(evs)))
         evs = run(cmd='value.set_parameters', values={'phi': 0.4})
         check('W209: a parameter edit sets changed', state(evs).get('changed') is True, str(state(evs).get('changed')))
@@ -9383,7 +9476,7 @@ def check_save_session():
         after = open(snapx('sv1.snapx'), 'rb').read()
         check('W209: the second Save session asks nothing, replaces sv1.snapx and clears changed',
               not asks(evs) and saved(evs) and saved(evs)[-1].get('saved') is True and before != after
-              and state(evs).get('changed') is False and state(evs).get('session') == {'file': 'sv1.snapx'}, str(asks(evs))[:200])
+              and state(evs).get('changed') is False and os.path.basename(state(evs).get('session', {}).get('file', '')) == 'sv1.snapx', str(asks(evs))[:200])
         for what, command in (('an initial condition', dict(cmd='initial_conditions.set', values={'V': -0.3})),
                               ('the time span', dict(cmd='run.configure', total_time=77))):
             evs = run(**command)

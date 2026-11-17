@@ -9,7 +9,7 @@ export type BatchPhase = 'idle' | 'exists' | 'running' | 'report';
     (its file existed and the user chose so) */
 export interface BatchOutcome {
   step: string;
-  status: 'written' | 'ran' | 'failed' | 'skipped';
+  status: 'written' | 'downloaded' | 'ran' | 'failed' | 'skipped';
   text: string;
 }
 

@@ -1,6 +1,7 @@
 /* The session resource's registry rows (W528): saving, importing options, exporting the simulation information, the model's source, quitting and the state.
    A handler calls the core function the File menu's items call after their questions (xpp_session.h, lunch-new.h); the three the front end answers itself go through front_end. */
 #include "command_def.h"
+#include "command_registry.h"
 #include "export_model.h"
 #include "lunch-new.h"
 #include "recx.h"
@@ -77,7 +78,7 @@ Result<std::string> export_info(Session &s, const Command &, const Arguments &ar
     const std::string &file = args.get<std::string>(FILE_KEY);
     const Result<bool> written = write_info(s, file);
     if (!written) return std::unexpected<Error>(written.error());
-    return ResultObject().text(FILE_KEY, file).boolean("written", *written).done();
+    return ResultObject().text(FILE_KEY, answered_file(s, file)).boolean("written", *written).done();
 }
 
 /* session.file_exists: whether a file of the model's folder, or the folder a window granted (W774), is there now: the page asks before a several-file export */
@@ -91,7 +92,7 @@ Result<std::string> export_model_as(Session &s, const Command &, const Arguments
 {
     const Result<std::string> written = export_model(s, *language_named(args.get<std::string>(LANGUAGE_KEY)), args.optional<std::string>(FILE_KEY).value_or(std::string{}));
     if (!written) return std::unexpected<Error>(written.error());
-    return ResultObject().text(FILE_KEY, *written).done();
+    return ResultObject().text(FILE_KEY, answered_file(s, *written)).done();
 }
 
 constexpr Argument FILE_REQUIRED = {FILE_KEY, Type::file, true};

@@ -3,6 +3,7 @@
    Each handler calls the core function the animation window's keys call too (aniparse.h): one behaviour,
    whichever front end asks. The window itself is closed with window.close or window.hide. */
 #include "aniparse.h"
+#include "command_registry.h"
 #include "command_def.h"
 #include "session.h"
 #include "xpp_path.h"
@@ -78,7 +79,10 @@ Result<std::string> export_output(Session &s, const Command &command, const Argu
         return fail(command.name, xpp::format("{}: {} end in {}", file, gif ? "an animated GIF's file must" : "PPM frames' files must", ext), place);
     const Result<int> written = play_animation(s, {gif ? AniExportKind::gif : AniExportKind::ppm, file});
     if (!written) return std::unexpected<Error>(written.error());
-    return ResultObject().integer("frames_saved", *written).done();
+    /* a GIF is one file; PPM frames are numbered files, zipped in a browser's scratch folder */
+    const Result<std::string> answer = gif ? Result<std::string>(answered_file(s, file)) : answered_frames(s, file, *written, place);
+    if (!answer) return std::unexpected<Error>(answer.error());
+    return ResultObject().text("file", *answer).integer("frames_saved", *written).done();
 }
 
 Result<std::string> set_live_draw(Session &s, const Command &, const Arguments &args, const Place &)
@@ -171,7 +175,7 @@ constexpr std::array LOAD_RESULTS = {ResultField{"file", "file"}, ResultField{"l
 constexpr std::array PLAY_RESULTS = {ResultField{"playing", "boolean"}};
 constexpr std::array RESET_RESULTS = {ResultField{"frame", "integer"}};
 constexpr std::array SKIP_RESULTS = {ResultField{"skip", "integer"}};
-constexpr std::array EXPORT_RESULTS = {ResultField{"frames_saved", "integer"}};
+constexpr std::array EXPORT_RESULTS = {ResultField{"file", "file"}, ResultField{"frames_saved", "integer"}};
 constexpr std::array LIVE_RESULTS = {ResultField{"live_draw", "boolean"}};
 constexpr std::array GRAB_RESULTS = {ResultField{"grabbed", "boolean"}};
 constexpr std::array ROW_RESULTS = {ResultField{"row", "integer"}};

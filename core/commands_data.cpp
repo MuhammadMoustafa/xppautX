@@ -4,6 +4,7 @@
    A handler calls the same core function the browser window's keys do after their forms (browse.h, adj2.h):
    one behaviour, whichever front end asks. Get (a row made the initial conditions) is initial_conditions.set_from_data_row. */
 #include "adj2.h"
+#include "command_registry.h"
 #include "browse.h"
 #include "graf_par.h"
 #include "command_def.h"
@@ -58,7 +59,7 @@ Result<std::string> tabulate(Session &s, const Command &command, const Arguments
     const Result<std::size_t> rows = tabulate_column(s, args.get<std::string>("variable"), args.get<double>("x_low"), args.get<double>("x_high"), file);
     if (!rows) return std::unexpected<Error>(rows.error());
     if (*rows == 0) return replace_declined(command.name, file, place);
-    return ResultObject().text(FILE_KEY, file).integer("rows_written", static_cast<long long>(*rows)).done();
+    return ResultObject().text(FILE_KEY, answered_file(s, file)).integer("rows_written", static_cast<long long>(*rows)).done();
 }
 
 Result<std::string> set_slice_start(Session &s, const Command &, const Arguments &args, const Place &)
