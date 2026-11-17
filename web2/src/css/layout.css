@@ -154,7 +154,7 @@ h1, h2 { margin: 0; }
   .workspace { padding: var(--space-2); }
   .status-bar .rows { display: none; }
   .status-run { width: 4.5rem; }
-  .status-run progress, .status-step, .status-long { display: none; }
+  .status-run progress, .status-step, .status-long, .status-short ~ .status-message { display: none; }
   .status-short { display: inline-flex; flex: 0 1 auto; min-width: 0; white-space: nowrap; }
   .status-name { overflow: hidden; text-overflow: ellipsis; margin-right: 0.25em; }
 }
