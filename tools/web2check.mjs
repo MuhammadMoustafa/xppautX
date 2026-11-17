@@ -5814,15 +5814,16 @@ async function valuesLive() {
   check('values: the page connects', connected);
   if (!connected) return;
   const ics0 = await S(icsOf), fields0 = await icFields();
-  /* the ICs sampled every frame (they must not change); Now recorded at
-     every change of its text while the run goes, whatever the frame rate
-     (macos-ui drew too few frames during the run to see it move, W93) */
+  /* the ICs (they must not change) and Now recorded at every change of the
+     page while the run goes, whatever the frame rate: macos-ui drew too few
+     frames during the run to see Now move (W93), and a fast machine ends
+     the run before its first frame, so a per-frame sampler saw nothing */
   await cdp.eval(`window.__icSeen = []; window.__nowSeen = []; window.__sampling = true;
-    (function tick() { const s = __xpp.state();
-      if (s.busy) __icSeen.push(JSON.stringify(s.core.ics.map(p => p[1])) + [...document.querySelectorAll('[data-section="ic"] .value-field input')].map(i => i.value).join());
-      if (window.__sampling) requestAnimationFrame(tick); })();
+    const icText = () => { const s = __xpp.state();
+      return JSON.stringify(s.core.ics.map(p => p[1])) + [...document.querySelectorAll('[data-section="ic"] .value-field input')].map(i => i.value).join(); };
     const nowText = () => [...document.querySelectorAll('.value-now')].map(o => o.textContent.replace('\\u2026', '')).join();
-    window.__nowObserver = new MutationObserver(() => { if (window.__sampling && __xpp.state().busy) __nowSeen.push(nowText()); });
+    window.__nowObserver = new MutationObserver(() => {
+      if (window.__sampling && __xpp.state().busy) { __icSeen.push(icText()); __nowSeen.push(nowText()); } });
     __nowObserver.observe(document.body,
       {subtree: true, childList: true, characterData: true});
     __nowSeen.push(nowText()); true`);
