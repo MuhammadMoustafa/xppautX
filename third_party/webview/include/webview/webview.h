@@ -2644,30 +2644,30 @@ private:
     m_manager = objc::msg_send<id>(config, "userContentController"_sel);
     m_webview = objc::msg_send<id>("WKWebView"_cls, "alloc"_sel);
 
-    auto settings = objc::msg_send<id>(config, "settings"_sel);
+    auto preferences = objc::msg_send<id>(config, "preferences"_sel);
     auto yes_value =
         objc::msg_send<id>("NSNumber"_cls, "numberWithBool:"_sel, YES);
 
     if (m_debug) {
       // Equivalent Obj-C:
-      // [[config settings] setValue:@YES forKey:@"developerExtrasEnabled"];
-      objc::msg_send<id>(settings, "setValue:forKey:"_sel, yes_value,
+      // [[config preferences] setValue:@YES forKey:@"developerExtrasEnabled"];
+      objc::msg_send<id>(preferences, "setValue:forKey:"_sel, yes_value,
                          "developerExtrasEnabled"_str);
     }
 
     // Equivalent Obj-C:
-    // [[config settings] setValue:@YES forKey:@"fullScreenEnabled"];
-    objc::msg_send<id>(settings, "setValue:forKey:"_sel, yes_value,
+    // [[config preferences] setValue:@YES forKey:@"fullScreenEnabled"];
+    objc::msg_send<id>(preferences, "setValue:forKey:"_sel, yes_value,
                        "fullScreenEnabled"_str);
 
     // Equivalent Obj-C:
-    // [[config settings] setValue:@YES forKey:@"javaScriptCanAccessClipboard"];
-    objc::msg_send<id>(settings, "setValue:forKey:"_sel, yes_value,
+    // [[config preferences] setValue:@YES forKey:@"javaScriptCanAccessClipboard"];
+    objc::msg_send<id>(preferences, "setValue:forKey:"_sel, yes_value,
                        "javaScriptCanAccessClipboard"_str);
 
     // Equivalent Obj-C:
-    // [[config settings] setValue:@YES forKey:@"DOMPasteAllowed"];
-    objc::msg_send<id>(settings, "setValue:forKey:"_sel, yes_value,
+    // [[config preferences] setValue:@YES forKey:@"DOMPasteAllowed"];
+    objc::msg_send<id>(preferences, "setValue:forKey:"_sel, yes_value,
                        "DOMPasteAllowed"_str);
 
     auto ui_delegate = create_webkit_ui_delegate();
