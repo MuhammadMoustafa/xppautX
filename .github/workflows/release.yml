@@ -137,6 +137,8 @@ jobs:
     # binaries are unsigned, so macOS asks the user to allow them
     # (Gatekeeper). Signing and notarizing need an Apple account.
     strategy:
+      # one Mac's failure does not cancel the other's build: a dry run shows both
+      fail-fast: false
       matrix:
         include:
           # the runner build.yml's macOS jobs build and check on

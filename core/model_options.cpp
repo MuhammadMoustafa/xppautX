@@ -986,7 +986,12 @@ constexpr OptionRow rows[] = {
    /* XPPAUT's plotfmt names a format, not a file: the picture is the model's name with that extension (ps is pdf: PostScript went with W479, #542) */
    .foreign = [](std::string_view v) { return v == "ps" ? std::string("pdf") : std::ranges::contains(picture_format_names, v) ? std::string(v) : std::string(); }},
   {.group = option_group::output, .kind = OptionKind::text, .odex = "run_set", .help = "The sets a batch run runs, one run each in the model's order; with none, one run with no set.",
-   .show = [](const SessionParts &s) { return std::ranges::to<std::string>(s.run_sets | std::views::join_with('\n')); },
+   /* a loop, not views::join_with: the libc++ of GitHub's last Intel macOS image (Xcode 26.3) has none */
+   .show = [](const SessionParts &s) {
+     std::string text;
+     for (std::size_t i = 0; i < s.run_sets.size(); ++i) text += (i ? "\n" : "") + s.run_sets[i];
+     return text;
+   },
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * {
      /* one set's name: a .odex line, or one of the panel's checked names (apply_option_group splits the list); a load checks it once the sets are read (xpp_batch.cpp) */
      if (!LoadSite::running() && !model_has_set(s.model(), v.text)) return "is not one of the model's sets";
