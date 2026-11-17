@@ -1,7 +1,7 @@
 /* The Settings window (W792, docs/ui-v2.md, docs/manual "Settings"): File > Settings…, and Help > Keyboard shortcuts at its Keymap group.
    The groups of settings.json at the side (a select on a phone), a User / Folder switch for the file shown (the user's settings.json or the
    model folder's .xppautx/settings.json, which goes on top of it key by key), each value with where it comes from (default, user, folder) and a
-   ↺ that takes the key out of the file shown. A change is saved as it is made, in place (settings.set; the core keeps the file's comments);
+   ↺ that takes the key out of the file shown. A change is saved as it is made, in place (settings.configure; the core keeps the file's comments);
    what is shown is what `settings.get` last answered (store/settings.ts), never a copy the page keeps. */
 import {useEffect, useRef, useState} from 'preact/hooks';
 import type {SettingRow} from '../protocol/types';
@@ -101,7 +101,7 @@ function SettingControl({row, scope}: {row: SettingRow; scope: SettingsScope}) {
   const user = st.values.user;
   const source = sourceOf(values, row.group, row.key);
   const locked = scope === 'folder' && !row.in_folder;
-  const off = !may({cmd: 'settings.set'}) || locked;
+  const off = !may({cmd: 'settings.configure'}) || locked;
   const label = choiceLabel(row.key);
   const current = valueText(row, values);
   const save = (json: string) => void session.changeSetting(row.group, row.key, json);

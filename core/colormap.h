@@ -87,7 +87,7 @@ struct Colors {
     Color stable_manifold = xppaut_color(8), unstable_manifold = xppaut_color(5);
 };
 
-/* one color's key (the file's, settings.configure's argument and result field) and what it is: the one list the
+/* one color's key (the file's, settings.configure's value key and the get result field) and what it is: the one list the
    file, the command and the dialog read */
 struct ColorKey {
     std::string_view key;

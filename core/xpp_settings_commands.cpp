@@ -1,6 +1,8 @@
 /* The settings resource's registry rows (W287, W622, W790): the user's settings (xpp_settings.h: settings.json) that the program
-   keeps for each run, and the one command that sets one value of them by its group and key (`settings.set`, the page's theme, panels
-   and folds). The rows are the application's, so they are declared in command_def.h and joined into the registry by command_registry.cpp. */
+   keeps for each run, and the commands that read and set them: `settings.get` reads them, `settings.configure` sets some values of one
+   group by their keys (the one way a setting is set: the Settings window, the page's theme, panels and folds, scripts), and
+   `settings.reset` takes a key out of a file. The rows are the application's, so they are declared in command_def.h and joined into
+   the registry by command_registry.cpp. */
 #include "command_def.h"
 #include "autox_parallel.h"
 #include "colormap.h"
@@ -13,10 +15,10 @@
 #include "xpp_error.h"
 #include "xpp_files.h"
 #include "xpp_log.h"
+#include "xpp_text.h"
 #include "model_files.h"
 #include "xpp_process.h"
 #include "xpp_settings.h"
-#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <expected>
@@ -28,6 +30,9 @@
 
 namespace xpp::command {
 namespace {
+
+/* the arguments of settings.configure that name the group and its values (the same shape as options.configure) */
+constexpr const char *GROUP_KEY = "group", *VALUES_KEY = "values";
 
 /* the target of a command's `scope` (the user's file when it gives none), the model folder from the Session, never from the page */
 settings::Target target_of(const Session &s, const Arguments &args)
@@ -86,60 +91,29 @@ void apply_effective(Session &s)
     s.colors = now->colors;
 }
 
-/* the program's settings: the thread count autoX and sweeps use, and what the log shows and whether it goes to the model folder's xppautx.log (settings.json; the log applies
-   from the next start, and --verbose and --debug win over it; a color applies to what is drawn or computed after it) */
-Result<std::string> configure_settings(Session &s, const Command &command, const Arguments &args, const Place &place)
-{
-    const bool threads = args.has("threads") || args.has("automatic"), log = args.has("log_level") || args.has("log_to_file") || args.has("check_for_updates");
-    const bool colors = std::ranges::any_of(COLOR_KEYS, [&](const ColorKey &c) { return args.has(std::string(c.key)); });
-    if (!threads && !log && !colors) return fail(command.name, "Give the thread count, the log level, whether the log goes to a file, whether to check for updates or a color", place);
-    if ((log || colors) && files::serving_reads()) return fail(command.name, "a recording's replay leaves the user's settings alone", place);
-    std::vector<settings::Change> changes;
-    unsigned count = s.threads;
-    if (threads) {
-        count = cpu::THREADS_AUTO;
-        if (const auto given = args.optional<long long>("threads")) {
-            if (const auto problem = cpu::threads_problem(*given)) return fail(command.name, *problem, place);
-            count = static_cast<unsigned>(*given);
-        } else if (!args.get<bool>("automatic")) return fail(command.name, "automatic is true; give threads for a count", place);
-        /* a recording's replay changes the session's count, never the user's settings */
-        if (!files::serving_reads())
-            changes.push_back({"general", "threads", count == cpu::THREADS_AUTO ? json_quoted(cpu::THREADS_AUTO_WORD) : std::to_string(count)});
-    }
-    if (log) {
-        if (const auto level = args.optional<std::string>("log_level")) changes.push_back({"general", "log_level", json_quoted(*level)});
-        if (const auto file = args.optional<bool>("log_to_file")) changes.push_back({"general", "log_to_file", *file ? "true" : "false"});
-        if (const auto check = args.optional<bool>("check_for_updates")) changes.push_back({"updates", "check_for_updates", *check ? "true" : "false"});
-    }
-    if (colors)
-        for (const ColorKey &c : COLOR_KEYS)
-            if (const auto color = args.optional<Color>(std::string(c.key))) changes.push_back({"colors", std::string(c.key), json_quoted(print_color(*color))});
-    if (!changes.empty()) {
-        const Result<> saved = settings::set_settings(*s.model().fs, changes);
-        if (!saved) return std::unexpected<Error>(saved.error());
-    }
-    /* a recording's replay changes the session's count and colors, never the user's settings */
-    if (threads) s.threads = count;
-    if (colors)
-        for (const ColorKey &c : COLOR_KEYS)
-            if (const auto color = args.optional<Color>(std::string(c.key))) s.colors.*c.member = *color;
-    return settings_now(s, Arguments());
-}
-
-/* settings.set group key value [scope]: one value of settings.json (the user's, or with scope folder the model folder's `.xppautx/settings.json`), the value as
-   JSON text (a string, a number, true or false, null or an array of strings), checked as the file checks it and written in place; the answer is the
-   value it now has. The keymap has its own commands. */
+/* settings.configure group values [scope]: some values of one group of settings.json (the user's, or with scope folder the model folder's
+   `.xppautx/settings.json`), each key with its value as JSON text (a string, a number, true or false, null or an array of strings). All
+   are checked, then written in one step: a wrong one changes nothing. The answer is the values as they now stand. The keymap has its own
+   commands. */
 Result<std::string> set_setting(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
-    const std::string group = args.get<std::string>("group");
-    const std::string key = args.get<std::string>("key");
-    const std::string value = args.get<std::string>("value");
+    const std::string group = args.get<std::string>(GROUP_KEY);
     if (files::serving_reads()) return fail(command.name, "a recording's replay leaves the settings files alone", place);
     if (group == "keymap") return fail(command.name, "the keymap is set by the keymap commands", place);
-    const Result<> saved = settings::set_settings(*s.model().fs, {{group, key, value}}, target_of(s, args));
-    if (!saved) return fail(command.name, saved.error().text(), place);
+    const std::vector<std::pair<std::string, std::string>> given = args.map<std::string>(VALUES_KEY);
+    if (given.empty()) return fail(command.name, "Give at least one value", place);
+    std::vector<settings::Change> changes;
+    for (const auto &[key, json] : given) changes.push_back({group, key, json});
+    const Result<> saved = settings::set_settings(*s.model().fs, changes, target_of(s, args));
+    if (!saved) return std::unexpected<Error>(saved.error()); /* the file's error keeps its file and line */
     apply_effective(s);
-    return ResultObject().text("group", group).text("key", key).raw("value", value).done();
+    std::string values = "{";
+    for (const auto &[key, json] : given) {
+        if (values.size() > 1) values += ',';
+        json_append_string(values, key);
+        values += ':' + json;
+    }
+    return ResultObject().text(GROUP_KEY, group).raw(VALUES_KEY, values + '}').done();
 }
 
 /* settings.reset group key [scope]: the key taken out of the file (its comments and the other keys stay): the setting is then the one below it, the user's
@@ -167,30 +141,6 @@ Result<std::string> open_settings_file(Session &s, const Command &command, const
     return ResultObject().text("file", **file).done();
 }
 
-double threads_maximum(const Session &) { return static_cast<double>(cpu::logical_processors()); }
-
-constexpr std::array<const char *, 2> THREADS_ONE = {"threads", "automatic"};
-constexpr auto LOG_LEVELS = c_names(log_level_names);
-constexpr auto COLOR_ARGUMENTS = []<std::size_t... I>(std::index_sequence<I...>) {
-    return std::array{Argument{.name = COLOR_KEYS[I].key.data(), .type = Type::color, .required = false, .description = COLOR_KEYS[I].description.data()}...};
-}(std::make_index_sequence<COLOR_KEYS.size()>{});
-constexpr std::array THREAD_AND_LOG_ARGUMENTS = {
-    Argument{.name = "threads", .type = Type::integer, .required = false, .min = constant(1), .max = session_quantity("threads_max", threads_maximum),
-             .description = "How many threads autoX and a sweep's runs use, at most the computer's logical processors."},
-    Argument{.name = "automatic", .type = Type::boolean, .required = false, .description = "Let the program choose: all the physical cores."},
-    Argument{.name = "log_level", .type = Type::choice, .required = false, .choices = LOG_LEVELS,
-             .description = "What the log shows; it applies from the next start."},
-    Argument{.name = "log_to_file", .type = Type::boolean, .required = false,
-             .description = "Write the log to xppautx.log in the model folder's .xppautx folder; no is the terminal."},
-    Argument{.name = "check_for_updates", .type = Type::boolean, .required = false,
-             .description = "Look for a newer release when the window or the browser page opens, at most once a day."}};
-constexpr auto THREADS_ARGUMENTS = join(THREAD_AND_LOG_ARGUMENTS, COLOR_ARGUMENTS);
-constexpr std::array<Group, 1> THREADS_GROUPS = {Group{GroupRule::at_most_one, THREADS_ONE}};
-
-constexpr auto RESULT_THREADS = []<std::size_t... I>(std::index_sequence<I...>) {
-    return std::array{ResultField{"threads", "integer"}, ResultField{"automatic", "boolean"}, ResultField{"log_level", "choice"}, ResultField{"log_to_file", "boolean"}, ResultField{"check_for_updates", "boolean"},
-                      ResultField{COLOR_KEYS[I].key.data(), "text"}...};
-}(std::make_index_sequence<COLOR_KEYS.size()>{});
 constexpr auto RESULT_GET = []<std::size_t... I>(std::index_sequence<I...>) {
     return std::array{ResultField{"threads", "integer"}, ResultField{"automatic", "boolean"}, ResultField{"log_level", "choice"}, ResultField{"log_to_file", "boolean"}, ResultField{"check_for_updates", "boolean"},
                       ResultField{COLOR_KEYS[I].key.data(), "text"}..., ResultField{"theme", "choice"}, ResultField{"dock_hidden", "boolean"}, ResultField{"dock_width", "integer"},
@@ -200,15 +150,16 @@ constexpr std::array EVENTS_OPTIONS = {xpp::events::AUTOX_OPTIONS, xpp::events::
 constexpr std::array EVENTS_BROWSER = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr auto SCOPES = c_names(settings::scope_names);
+constexpr auto GROUP_CHOICES = c_names(settings::GROUPS);
 constexpr Argument SCOPE_ARGUMENT = {.name = "scope", .type = Type::choice, .required = false, .choices = SCOPES,
                                       .description = "Which file: user is the user's settings.json (the default), folder is the model folder's .xppautx/settings.json."};
 constexpr std::array GET_ARGUMENTS = {Argument{.name = "scope", .type = Type::choice, .required = false, .choices = SCOPES,
                                                .description = "user: the user's settings.json alone; folder (the default): what the model runs with, the model folder's file on top of the user's."}};
 constexpr std::array GET_ARGUMENTS_USER = {SCOPE_ARGUMENT};
-constexpr std::array SETTING_ARGUMENTS = {
-    Argument{.name = "group", .type = Type::text, .required = true, .description = "The group of settings.json: general, colors, page or updates."},
-    Argument{.name = "key", .type = Type::text, .required = true, .description = "The setting's key in that group."},
-    Argument{.name = "value", .type = Type::text, .required = true, .description = "The new value as JSON text: a string, a number, true or false, null or an array of strings."},
+constexpr std::array CONFIGURE_ARGUMENTS = {
+    Argument{.name = GROUP_KEY, .type = Type::choice, .required = true, .choices = GROUP_CHOICES, .description = "The group of settings.json the values are in."},
+    Argument{.name = VALUES_KEY, .type = Type::map, .required = true, .max_length = MAX_COMMAND_BYTES, .element = Type::text, .max_items = MAX_ITEMS,
+             .description = "Each key of the group with its value as JSON text; a key's label, help and limits are in hello's settings rows."},
     SCOPE_ARGUMENT};
 constexpr std::array RESET_ARGUMENTS = {
     Argument{.name = "group", .type = Type::text, .required = true, .description = "The group of settings.json: general, colors, page or updates."},
@@ -216,15 +167,13 @@ constexpr std::array RESET_ARGUMENTS = {
     SCOPE_ARGUMENT};
 constexpr std::array RESULT_OPEN_FILE = {ResultField{"file", "text"}};
 constexpr std::array RESULT_RESET = {ResultField{"group", "text"}, ResultField{"key", "text"}, ResultField{"reset", "boolean"}};
-constexpr std::array RESULT_SETTING = {ResultField{"group", "text"}, ResultField{"key", "text"}, ResultField{"value", "text"}};
+constexpr std::array RESULT_CONFIGURE = {ResultField{GROUP_KEY, "text"}, ResultField{VALUES_KEY, "map[text, text]"}};
 
 constexpr std::array ROWS = {
     Command{"settings.get", GET_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Analysis, "Get settings", "",
             "The program's settings as they stand: the thread count and whether it is automatic, the log level and whether the log goes to the model folder's file, the colors, the page's, the update check, and where each key is set (user or folder; a key in neither has its default).", RESULT_GET, EVENTS_BROWSER, false, get_settings, {}, {}},
-    Command{"settings.configure", THREADS_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Configure settings", "",
-            "Set the program's settings, kept in settings.json: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and whether it goes to xppautx.log in the model folder's .xppautx folder (no: the terminal), and the colors the diagram, the nullclines and the manifolds are drawn with, and whether the window and the page look for a newer release when they open; the log applies from the next start.", RESULT_THREADS, EVENTS_OPTIONS, true, configure_settings, THREADS_GROUPS, {}},
-    Command{"settings.set", SETTING_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Set a setting", "",
-            "Set one value of the user's settings.json, or of the model folder's .xppautx/settings.json with scope folder, by its group and key, the value as JSON text, checked and written in place (the comments stay); the answer is the value it has now.", RESULT_SETTING, EVENTS_OPTIONS, true, set_setting, {}, {}},
+    Command{"settings.configure", CONFIGURE_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Configure settings", "",
+            "Set some values of one group of the user's settings.json, or of the model folder's .xppautx/settings.json with scope folder: each key with its value as JSON text, all checked, then written in one step, in place (the comments stay); the answer is the values as they now stand.",RESULT_CONFIGURE, EVENTS_OPTIONS, true, set_setting, {}, {}},
     Command{"settings.open_file", GET_ARGUMENTS_USER, XPP_KIND_VIEW, CommandCategory::Tools, "Open settings file", "",
             "Open the settings file the Settings window shows in the system's own program for it: the user's settings.json, or with scope folder the model folder's .xppautx/settings.json. The path is the program's own; a file that is not there yet is refused.", RESULT_OPEN_FILE, EVENTS_BROWSER, false, open_settings_file, {}, {}},
     Command{"settings.reset", RESET_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Reset a setting", "",

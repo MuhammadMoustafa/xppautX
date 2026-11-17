@@ -87,7 +87,7 @@ def _measure(s, threads, jacobian, limit, ready, go, out):
     s.send(cmd='events.subscribe', events=[], diagram=True)
     step(s)
     if threads is not None:
-        step(s, cmd='settings.configure', **({'automatic': True} if threads == 0 else {'threads': threads}))
+        step(s, cmd='settings.configure', group='general', values={'threads': '"auto"' if threads == 0 else str(threads)})
     if jacobian is not None:
         step(s, cmd='set', kind='num', name='jacobian', text=jacobian)
     open_autox(s)

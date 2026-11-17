@@ -2396,7 +2396,7 @@ async function autoxLiveJobs() {
   await menuRun('autox.open');
   await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
   const send = cmd => cdp.eval(`__xpp.send(${JSON.stringify(cmd)})`);
-  await send({cmd: 'settings.configure', threads: 2});
+  await send({cmd: 'settings.configure', group: 'general', values: {threads: '2'}});
   await send({cmd: 'value.set_parameters', values: {p0: 0.05}});
   await send({cmd: 'initial_conditions.set', values: {U1: 0.06282240276322631, U2: 0.2931712128950587}});
   await until('!s.busy', 'values set');
@@ -2837,8 +2837,8 @@ async function busyKeys() {
   /* W106: a parameter field and a Numerics field are options too: editable during the run, sent at once */
   await editField('par', 'phi', '0.4');
   await editNumericsRow('store_every', '3');
-  /* opening Numerics saves the page's folds (settings.set, W790): the page's own view, not an edit of the run */
-  const edited = await cdp.eval(`__xpp.sent().slice(${sent0 + dragged.length}).filter(c => c.cmd !== 'settings.set')`);
+  /* opening Numerics saves the page's folds (settings.configure, W790): the page's own view, not an edit of the run */
+  const edited = await cdp.eval(`__xpp.sent().slice(${sent0 + dragged.length}).filter(c => c.cmd !== 'settings.configure')`);
   const stillBusy = await S('s.busy');
   check('busy keys: computation keys typed during a run (Ctrl+R) send nothing',
     typed.length === 0 && stillBusy, JSON.stringify({typed, stillBusy}));
@@ -2855,7 +2855,7 @@ async function busyKeys() {
   await cdp.eval(`document.querySelector('.status-bar button.danger').click()`);
   const stopped = await until(`__xpp.actions().slice(${n0}).some(e => e === 'event:done') && !s.busy`, 'the run stopped', 30000);
   /* Stop goes straight to the transport (session.abort), so sent() has nothing: the run's `stopped` shows it */
-  const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set' && c !== 'value.set_parameters' && c !== 'options.configure' && c !== 'options.get' && c !== 'settings.set')`);
+  const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set' && c !== 'value.set_parameters' && c !== 'options.configure' && c !== 'options.get' && c !== 'settings.configure')`);
   const cancelled = await cdp.eval(`__xpp.actions().slice(${n0}).includes('event:job.stopped')`);
   check('busy keys: Escape during a run stops it (stopped) and sends nothing else; the run kept its values (the state '
     + 'during it had the parameters it started with)',
@@ -3432,11 +3432,11 @@ async function optionsCheck() {
   check('W655: the Settings window lists the eight colors in order',
     await cdp.eval(`JSON.stringify([...document.querySelectorAll('[data-setting^="colors."]')].map(r => r.dataset.setting.slice(7))) === JSON.stringify(['stable_equilibrium_color', 'unstable_equilibrium_color', 'stable_periodic_color', 'unstable_periodic_color', 'x_nullcline_color', 'y_nullcline_color', 'stable_manifold_color', 'unstable_manifold_color'])`));
   await closeSettings();
-  await cdp.eval(`__xpp.send({cmd:'settings.configure', x_nullcline_color:'#123456'})`);
+  await cdp.eval(`__xpp.send({cmd:'settings.configure', group:'colors', values:{x_nullcline_color:'"#123456"'}})`);
   await until('!s.busy', 'settings sent');
   await openSettings('colors');
   check('W655: a color set reaches the window the page opens next', await S(`s.settings.values.user.x_nullcline_color === '#123456'`) && await cdp.eval(`document.querySelector('[data-setting="colors.x_nullcline_color"] [data-color-text]').value === '#123456'`));
-  await cdp.eval(`__xpp.send({cmd:'settings.configure', x_nullcline_color:'#f06400'})`);
+  await cdp.eval(`__xpp.send({cmd:'settings.configure', group:'colors', values:{x_nullcline_color:'"#f06400"'}})`);
   await until('!s.busy', 'settings back');
   await closeSettings();
   /* a panel opened from a menu item that had a form of its own sets the group's rows, checked all together */
@@ -5174,8 +5174,8 @@ async function settingsWindowShots() {
   if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
   fs.mkdirSync(dir, {recursive: true});
   await until('s.hello && !s.busy', 'hello');
-  await cdp.eval(`__xpp.send({cmd: 'settings.set', group: 'general', key: 'threads', value: '2', scope: 'folder'})`);
-  await cdp.eval(`__xpp.send({cmd: 'settings.set', group: 'general', key: 'log_level', value: '"info"', scope: 'user'})`);
+  await cdp.eval(`__xpp.send({cmd: 'settings.configure', group: 'general', values: {threads: '2'}, scope: 'folder'})`);
+  await cdp.eval(`__xpp.send({cmd: 'settings.configure', group: 'general', values: {log_level: '"info"'}, scope: 'user'})`);
   await until('!s.busy', 'the settings set');
   for (const [width, height] of [[375, 812], [768, 1024], [1280, 860]]) {
     for (const scheme of ['light', 'dark']) {
@@ -7349,7 +7349,7 @@ async function openingCheck() {
   const setAnswer = answer => cdp.eval(`sessionStorage.setItem('__updateAnswer', ${JSON.stringify(JSON.stringify(answer))}); true`);
   /* the core has answered the page's own question once a command sent after it is done (the core takes them in order) */
   const settled = async () => {
-    await cdp.eval(`__xpp.send({cmd: 'settings.configure', log_level: 'warn'})`);
+    await cdp.eval(`__xpp.send({cmd: 'settings.configure', group: 'general', values: {log_level: '"warn"'}})`);
     await until(`!s.busy && __xpp.sent().some(c => c.cmd === 'settings.configure')`, 'the core answered');
   };
   const newer = {tag_name: 'v999.0.0', html_url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v999.0.0'};
@@ -7654,7 +7654,7 @@ async function settingsCheck() {
   check('W790: the rest of settings.json is kept: the theme and the dock width still there',
     JSON.parse(fs.readFileSync(file, 'utf8')).page.theme === 'dark' && JSON.parse(fs.readFileSync(file, 'utf8')).page.dock_width === 320);
 }
-/* W792: the Settings window. File > Settings… and Help > Keyboard shortcuts (at Keymap) open it; a change is settings.set for the file shown (the scope
+/* W792: the Settings window. File > Settings… and Help > Keyboard shortcuts (at Keymap) open it; a change is settings.configure for the file shown (the scope
    sent), the ↺ is settings.reset, each value says where it comes from, and the files hold the change with their comments */
 async function settingsWindowCheck(dir) {
   const userFile = path.join(sessionDirectory, 'xpp-config', 'settings.json');
@@ -7673,8 +7673,8 @@ async function settingsWindowCheck(dir) {
   await openSettings();
   const mark = await S('__xpp.sentCount()');
   await settingsControl('general.log_level', 'info');
-  check('W792: a change sends settings.set with the scope of the file shown',
-    await until(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'settings.set' && c.group === 'general' && c.key === 'log_level' && c.value === '"info"' && c.scope === 'user')`, 'set sent'));
+  check('W792: a change sends settings.configure with the scope of the file shown',
+    await until(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'settings.configure' && c.group === 'general' && c.values?.log_level === '"info"' && c.scope === 'user')`, 'set sent'));
   check('W792: ... the user\'s file holds it and the window says it is set here, with a ↺',
     await untilFile(userFile, t => JSON.parse(t).general?.log_level === 'info', 'saved')
     && await until(`document.querySelector('[data-setting="general.log_level"]').dataset.source === 'user' && !!document.querySelector('[data-setting-reset="general.log_level"]')`, 'source shown'));
@@ -7691,7 +7691,7 @@ async function settingsWindowCheck(dir) {
   const folderMark = await S('__xpp.sentCount()');
   await settingsControl('general.threads', '1');
   check('W792: in the Folder view a change is sent with scope folder, and lands in .xppautx/settings.json, not the user\'s',
-    await until(`__xpp.sentFrom(${folderMark}).some(c => c.cmd === 'settings.set' && c.key === 'threads' && c.scope === 'folder')`, 'folder set sent')
+    await until(`__xpp.sentFrom(${folderMark}).some(c => c.cmd === 'settings.configure' && c.values?.threads !== undefined && c.scope === 'folder')`, 'folder set sent')
     && await untilFile(folderFile, t => JSON.parse(t).general?.threads === 1, 'folder saved')
     && !fs.readFileSync(userFile, 'utf8').includes('threads'));
   check('W792: the window says the value is set in the folder, and names the file shown',

@@ -500,7 +500,7 @@ std::string one_change_text(const Change &c)
     return out;
 }
 
-/* the known group and key a change names, else the error: settings.set and the keymap refuse what the file would not hold */
+/* the known group and key a change names, else the error: settings.configure and the keymap refuse what the file would not hold */
 Result<> check_change(const Change &c, bool folder)
 {
     return check_text(one_change_text(c), std::string(SETTING_SENT), folder);

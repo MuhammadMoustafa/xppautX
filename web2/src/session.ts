@@ -395,7 +395,7 @@ export class Session {
       this.store.dispatch({type: 'annotations', open: true});
       this.send({cmd:'window.select', window:this.store.getState().plots.active});
       this.send({cmd: id, window:this.store.getState().plots.active});
-    } else if (id === 'settings.open' || (id === 'settings.configure' && !fixed.length && !Object.keys(values).length)) this.openSettings('general');
+    } else if (id === 'settings.open') this.openSettings('general');
     else if (id === 'keymap.edit') this.openSettings('keymap'); else if (row.panel && !row.arguments?.some(a => a.option) && !row.panel.endsWith('+')) this.openOptions(panelSpec(row.panel)!.group);
     else if (row.arguments?.length) this.store.dispatch({type: 'commandForm', form: {id, values, fixed}});
     else this.send({cmd: id});
@@ -514,7 +514,7 @@ export class Session {
     this.store.dispatch({type: 'panels', panels: {dockHidden: page.dock_hidden, dockWidth: page.dock_width}});
   }
 
-  /** The Settings window (W792, store/settings.ts): opens on `group`, with both files' values asked for. A change is `settings.set` (or
+  /** The Settings window (W792, store/settings.ts): opens on `group`, with both files' values asked for. A change is `settings.configure` (or
       `settings.reset`, the ↺) for the file shown, and the values are asked for again, so what the window shows is the core's. */
   openSettings(group: string): void {
     this.store.dispatch({type: 'keymapUi', action: {type: 'open'}});
@@ -550,12 +550,12 @@ export class Session {
   async changeSetting(group: string, key: string, json: string | null): Promise<void> {
     const scope = this.store.getState().settings.scope;
     const id = `settings-${this.callSerial++}`;
-    const ev = await this.callDone(json === null ? {cmd: 'settings.reset', group, key, scope, id} : {cmd: 'settings.set', group, key, value: json, scope, id});
+    const ev = await this.callDone(json === null ? {cmd: 'settings.reset', group, key, scope, id} : {cmd: 'settings.configure', group, values: {[key]: json}, scope, id});
     this.store.dispatch({type: 'settingsUi', action: {type: 'error', text: ev?.status === 'error' ? ev.error ?? 'the change was refused' : ''}});
     this.fetchSettings();
   }
 
-  /** Saves the changed page settings (settings.set, one command per value; the core checks and writes each whole). A dock
+  /** Saves the changed page settings (one settings.configure for the changed keys; the core checks them all and writes once). A dock
       width is saved once the drag has settled (PAGE_SETTLE_MS), the others at once. The store is the caller's to update. */
   setPage(change: Partial<PageSettings>): void {
     if (!this.page) return;
@@ -570,10 +570,12 @@ export class Session {
     this.pageTimer = null;
     if (!this.page || !this.pageSent) return;
     const page = this.page, sent = this.pageSent;
+    const values: Record<string, string> = {};
     for (const key of PAGE_KEYS) {
       if (JSON.stringify(page[key]) === JSON.stringify(sent[key])) continue;
-      this.send({cmd: 'settings.set', group: 'page', key, value: JSON.stringify(page[key])});
+      values[key] = JSON.stringify(page[key]);
     }
+    if (Object.keys(values).length) this.send({cmd: 'settings.configure', group: 'page', values});
     this.pageSent = {...page};
   }
 

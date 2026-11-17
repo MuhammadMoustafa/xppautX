@@ -417,8 +417,7 @@ if the output could not be written.
 | `autox.set_display` | `view`: optional window (max 1024 bytes), `x_range`: optional list [of real, at most 2], `y_range`: optional list [of real, at most 2], `show_earlier`: optional boolean | `v` / analysis | Set diagram display | `x_range`: `list`, `y_range`: `list` | `autox.diagram`, `autox.view`, `session.state`, `done` | Set what the page shows of a view: its zoom (a [low, high] range, [] for the whole range of an axis) and whether the hidden branches are drawn. |
 | `autox.fit` | `view`: optional window (max 1024 bytes) | `v` / analysis | Fit diagram | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `autox.diagram`, `autox.view`, `session.state`, `done` | Fit the view to the diagram. |
 | `settings.get` | `scope`: optional choice (user, folder) | `c` / analysis | Get settings | `threads`: `integer`, `automatic`: `boolean`, `log_level`: `choice`, `log_to_file`: `boolean`, `check_for_updates`: `boolean`, `stable_equilibrium_color`: `text`, `unstable_equilibrium_color`: `text`, `stable_periodic_color`: `text`, `unstable_periodic_color`: `text`, `x_nullcline_color`: `text`, `y_nullcline_color`: `text`, `stable_manifold_color`: `text`, `unstable_manifold_color`: `text`, `theme`: `choice`, `dock_hidden`: `boolean`, `dock_width`: `integer`, `threads_max`: `integer`, `scope`: `choice`, `folder`: `text`, `file`: `text`, `file_exists`: `boolean`, `sources`: `map[text, choice]` | `session.state`, `done` | The program's settings as they stand: the thread count and whether it is automatic, the log level and whether the log goes to the model folder's file, the colors, the page's, the update check, and where each key is set (user or folder; a key in neither has its default). |
-| `settings.configure` | `threads`: optional integer [at least 1, at most the session's threads_max], `automatic`: optional boolean, `log_level`: optional choice (error, warn, info, debug), `log_to_file`: optional boolean, `check_for_updates`: optional boolean, `stable_equilibrium_color`: optional color (max 1024 bytes), `unstable_equilibrium_color`: optional color (max 1024 bytes), `stable_periodic_color`: optional color (max 1024 bytes), `unstable_periodic_color`: optional color (max 1024 bytes), `x_nullcline_color`: optional color (max 1024 bytes), `y_nullcline_color`: optional color (max 1024 bytes), `stable_manifold_color`: optional color (max 1024 bytes), `unstable_manifold_color`: optional color (max 1024 bytes); at most one of `threads`, `automatic` | `s` / analysis | Configure settings | `threads`: `integer`, `automatic`: `boolean`, `log_level`: `choice`, `log_to_file`: `boolean`, `check_for_updates`: `boolean`, `stable_equilibrium_color`: `text`, `unstable_equilibrium_color`: `text`, `stable_periodic_color`: `text`, `unstable_periodic_color`: `text`, `x_nullcline_color`: `text`, `y_nullcline_color`: `text`, `stable_manifold_color`: `text`, `unstable_manifold_color`: `text` | `autox.options`, `session.state`, `done` | Set the program's settings, kept in settings.json: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and whether it goes to xppautx.log in the model folder's .xppautx folder (no: the terminal), and the colors the diagram, the nullclines and the manifolds are drawn with, and whether the window and the page look for a newer release when they open; the log applies from the next start. |
-| `settings.set` | `group`: required text (max 1024 bytes), `key`: required text (max 1024 bytes), `value`: required text (max 1024 bytes), `scope`: optional choice (user, folder) | `s` / analysis | Set a setting | `group`: `text`, `key`: `text`, `value`: `text` | `autox.options`, `session.state`, `done` | Set one value of the user's settings.json, or of the model folder's .xppautx/settings.json with scope folder, by its group and key, the value as JSON text, checked and written in place (the comments stay); the answer is the value it has now. |
+| `settings.configure` | `group`: required choice (general, colors, keymap, page, updates), `values`: required map [of text, at most 256], `scope`: optional choice (user, folder) | `s` / analysis | Configure settings | `group`: `text`, `values`: `map[text, text]` | `autox.options`, `session.state`, `done` | Set some values of one group of the user's settings.json, or of the model folder's .xppautx/settings.json with scope folder: each key with its value as JSON text, all checked, then written in one step, in place (the comments stay); the answer is the values as they now stand. |
 | `settings.open_file` | `scope`: optional choice (user, folder) | `v` / tools | Open settings file | `file`: `text` | `session.state`, `done` | Open the settings file the Settings window shows in the system's own program for it: the user's settings.json, or with scope folder the model folder's .xppautx/settings.json. The path is the program's own; a file that is not there yet is refused. |
 | `settings.reset` | `group`: required text (max 1024 bytes), `key`: required text (max 1024 bytes), `scope`: optional choice (user, folder) | `s` / analysis | Reset a setting | `group`: `text`, `key`: `text`, `reset`: `boolean` | `autox.options`, `session.state`, `done` | Remove one key from the user's settings.json, or from the model folder's .xppautx/settings.json with scope folder: the setting is then the one below it (the user's, the default). The comments and the other keys stay. |
 | `animation.export` | `output`: required choice (animated_gif, frames), `file`: required file (max 1024 bytes) | `d` / plot | File/Export/Animation as | `frames_saved`: `integer` | `animation.state`, `session.state`, `done` | Play the animation writing every frame into a file of the model's folder: output frames for numbered PPM files from file, animated_gif for one animated GIF file. |
@@ -741,7 +740,7 @@ is what the program records itself.
 
 Both files load all or nothing: a bad value is an error naming the file, its
 line and the value, and none of that file is used; a missing file is the
-defaults. A change (`settings.set`, `settings.reset`, `settings.configure`, the keymap
+defaults. A change (`settings.configure`, `settings.reset`, the keymap
 commands) edits the one value in place, keeping the file's comments and
 layout, and the whole file is checked again before it is written (temp then
 rename); a bad file is never overwritten.
@@ -757,7 +756,7 @@ an error naming it, never a fall back elsewhere), with a `.gitignore` of `tmp/` 
   `settings.get`, the thread count and colors a load takes. `updates.check_for_updates`
   is an error at its line there: a folder's file must not turn the update check on
   or off. A bad file is an error at its file and line and none of it is used; a link
-  or a folder in its place, or a file over 256 KiB, is refused. `settings.set` and
+  or a folder in its place, or a file over 256 KiB, is refused. `settings.configure` and
   `settings.reset` take a `scope` (`user`, the default, or `folder`: this file, made in `.xppautx` when it
   is not there; the folder is the session's, never a path the page sends), and `settings.get` with
   `scope` user gives the user's file alone, else what the model runs with, plus `sources` (`group.key` to
@@ -766,7 +765,6 @@ an error naming it, never a fall back elsewhere), with a `.gitignore` of `tmp/` 
   (File > Settings, `settings.open`; Help > Keyboard shortcuts, `keymap.edit`, opens it at Keymap).
   `settings.open_file` (`scope`) opens that file in the system's opener (`xdg-open`, `open`, ShellExecute): the path is
   the program's own, a file not there yet or a link in its place is refused, and no path is an argument.
-  `settings.configure` (no menu place now) writes the user's file only.
 - `xppautx.log`: the log, when `general.log_to_file` is true (the program's start
   reads it with the folder's file on top, for the model the command line names; with
   none, the log stays on stderr). `log_file` is no setting any more: a settings.json that has
@@ -785,15 +783,14 @@ new model folder's `.xppautx/settings.json` on top of the user's, a bad one bein
 error (the model before stays), and with `log_to_file` moves the log to the new folder's
 `xppautx.log` (the old file closed). A recording's replay leaves both alone.
 
-`settings.set` (group, key, value): one value of `settings.json`, the value as
-JSON text (`"dark"`, `300`, `null`, `true`, `["par"]`). It answers the group,
-the key and the value it has. A refused value, a key the file does not have
-and the `keymap` group (its own commands) are errors that write nothing. The
-page's theme, the Values panel's dock and its folded sections are kept here:
+`settings.configure` (group, values, scope): some values of one group of `settings.json`, `values` a map of each key to the value as
+JSON text (`"dark"`, `300`, `null`, `true`, `["par"]`, `"auto"` for the threads). All are checked, then written in one step: a wrong
+value, a key the group does not have, or the `keymap` group (its own commands) is an error that writes nothing. The answer is the
+group and the values it has now, as sent. The page's theme, the Values panel's dock and its folded sections are kept here:
 hello carries them as `settings` (`{"ok", "path", "page": {theme, dock_hidden,
 dock_width, folds}}`, with the error fields when the file is bad; the page then
-shows the defaults and saves nothing over the file), and the page sends
-`settings.set` for each value it changes.
+shows the defaults and saves nothing over the file), and the page sends one
+`settings.configure` for the page's values it changes. Each key's label, help and limits are hello's `settings` rows, the one table.
 
 ## Keymap
 
@@ -2220,9 +2217,7 @@ session's method and model use, its value as text (a boolean `true` or `false`, 
 the choices the model cannot have, by row and name, with why. **`options.configure`** (`group`, `values`: a map of keys to texts, `window`)
 sets some of them: every value is checked first, a bad one or a key the group has no row for refuses the whole set naming it, and a
 good set is one undo step. **`output.configure`** is the same for the output group (`values`), and with `option` (a path row's key)
-and `file_picker` asks for the file dialog and sets that path to what is picked; File > Output opens its panel. **`settings.configure`**
-(`threads`, `automatic`, `log_level`, `log_to_file` and the eight colors `stable_equilibrium_color`, `unstable_equilibrium_color`, `stable_periodic_color`, `unstable_periodic_color`, `x_nullcline_color`, `y_nullcline_color`, `stable_manifold_color`, `unstable_manifold_color`) keeps what the log shows and whether it goes to the model folder's file, and the colors of the diagram, the nullclines and the manifolds (W655), in the settings with the thread count; the log applies from the next start, a color to what is drawn or computed after it. A
-command row that has a panel carries its group in `hello.commands[].panel` (`run`'s peers `equilibrium.configure` and
+and `file_picker` asks for the file dialog and sets that path to what is picked; File > Output opens its panel. The program's settings are set by `settings.configure` (one group, some of its keys with their values, all or nothing; below), not by a command of their own. command row that has a panel carries its group in `hello.commands[].panel` (`run`'s peers `equilibrium.configure` and
 `poincare_map.set` do): the page opens the group's panel in place of the command's form (`panel` is the group, `group:section,section` for the sections a command uses, a `+` when the command keeps its own arguments beside the rows; an argument with `option` is the row of that key, shown in the panel and left out of the form), and the command itself stays the
 one scripts and recordings send. `tools/servercheck.py --only options` checks all of it.
 
@@ -3144,7 +3139,7 @@ when known; transport failures name the API without inventing a line.
 
 ### The check at opening and the download (W622, [#693](https://github.com/MuhammadMoustafa/xppautX/issues/693))
 
-The settings gain `check_for_updates` (a boolean, on by default; `settings.get` and `settings.configure` carry it) and
+The settings gain `check_for_updates` (a boolean, on by default; `settings.get` carries it) and
 `last_update_check` (the time the last opening's check began, as `utc_now` writes it, kept by the core only). When the page opens
 it sends `update.due` after `events.subscribe`: the core answers `{"due":true}` once a UTC day when the setting is on, and
 records the check as begun in the same step (a failed check waits for tomorrow too), and `{"due":false}` otherwise, always in a

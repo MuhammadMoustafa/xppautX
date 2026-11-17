@@ -687,7 +687,7 @@ def section_threads():
             evs, _ = s.collect(is_done)
             most = [e for e in evs if e.get('ev') == 'autox.options'][-1]['threads_max']
             count = min(want, most)
-            s.send(cmd='settings.configure', threads=count)
+            s.send(cmd='settings.configure', group='general', values={'threads': str(count)})
             evs, _ = s.collect(is_done)
             errors = [e.get('error') for e in evs if e.get('ev') == 'session.message' and e.get('error')]
             shown = [e for e in evs if e.get('ev') == 'autox.options'][-1]['threads']

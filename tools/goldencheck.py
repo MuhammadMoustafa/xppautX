@@ -202,7 +202,7 @@ def run_pictures(home):
     s = Server(binary, 'tools/models/pictures.odex', env={'HOME': home}, verbose=args.v)
     try:
         # the nullclines' colors are the user's settings (W655), set in this run's own home
-        s.send(cmd='settings.configure', x_nullcline_color='#e8590c80', y_nullcline_color='#2b9348')
+        s.send(cmd='settings.configure', group='colors', values={'x_nullcline_color': '"#e8590c80"', 'y_nullcline_color': '"#2b9348"'})
         s.collect(is_done)
         run_and_go(s)
         s.send(cmd='nullcline.compute')

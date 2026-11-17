@@ -776,7 +776,7 @@ def jobs_session(model, start, env=None, threads=None, record=None):
     s = Server(args.server, autoxcompare.ROOT / model, env=env)
     autoxcompare.completed(s)
     if threads is not None:
-        autoxcompare.completed(s, dict(cmd='settings.configure', **({'automatic': True} if threads == 'auto' else {'threads': threads})))
+        autoxcompare.completed(s, dict(cmd='settings.configure', group='general', values={'threads': '"auto"' if threads == 'auto' else str(threads)}))
     autoxcompare.set_values(s, start)
     if record:
         autoxcompare.completed(s, dict(cmd='recording.start'))
@@ -1117,7 +1117,7 @@ def periodic_session(env):
     Periodic start from the current state takes), single-threaded, its autoX options set"""
     s = Server(args.server, autoxcompare.ROOT / PERIODIC_MODEL, env=env)
     autoxcompare.completed(s)
-    autoxcompare.completed(s, dict(cmd='settings.configure', threads=1))
+    autoxcompare.completed(s, dict(cmd='settings.configure', group='general', values={'threads': '1'}))
     autoxcompare.completed(s, dict(cmd='recording.start'))
     autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info']))
     autoxcompare.set_values(s, PERIODIC_START)
@@ -1303,10 +1303,11 @@ def check_autox_registry():
         check('autox.export_data: a target is required', done['status'] == 'error' and 'target' in done['error'], str(done))
         _, done = call(cmd='autox.export_data', target='csv', file='w516b.csv')
         check('autox.export_data: a target outside its choices is refused', done['status'] == 'error', str(done))
-        _, done = call(cmd='settings.configure', threads=1)
-        check('settings.configure: a count', done['status'] == 'ok' and done['result']['threads'] == 1 and done['result']['automatic'] is False, str(done))
-        _, done = call(cmd='settings.configure', threads=1, automatic=True)
-        check('settings.configure: a count and automatic are refused together', done['status'] == 'error', str(done))
+        _, done = call(cmd='settings.configure', group='general', values={'threads': '1'})
+        check('settings.configure: a count', done['status'] == 'ok' and done['result']['values']['threads'] == 1, str(done))
+        _, done = call(cmd='settings.configure', group='general', values={'threads': '2', 'log_level': '"loud"'})
+        _, now = call(cmd='settings.get')
+        check('settings.configure: one bad value refuses the whole command', done['status'] == 'error' and now['result']['threads'] == 1, str(done))
         for old in ({'cmd': 'autox', 'op': 'grab', 'label': 1}, {'cmd': 'autox', 'op': 'set', 'numerics': {}}, {'cmd': 'autox', 'op': 'restart', 'label': 1}):
             s.send(**old)
             evs, _ = s.collect(stops_done)
@@ -3288,7 +3289,7 @@ def check_options_panels():
         commands = {c['cmd']: c for c in hello['commands'] if 'arguments' in c}
         check('W641: every command row has the text of its action, never OK or Run, and an option\'s is Apply', all(c.get('action') for c in commands.values())
               and not any(c['action'] in ('OK', 'Run') for c in commands.values()) and commands['run.configure']['action'] == 'Apply', str([c['cmd'] for c in commands.values() if not c.get('action')]))
-        check('W641: an argument has its description where the row gives one', next(a for a in commands['settings.configure']['arguments'] if a['name'] == 'log_to_file').get('description'))
+        check('W641: an argument has its description where the row gives one', next(a for a in commands['settings.configure']['arguments'] if a['name'] == 'values').get('description'))
         check('W616: no key twice in a group', all(len({r['key'] for r in g['rows']}) == len(g['rows']) for g in groups.values()))
 
         def call(**command):
@@ -3351,29 +3352,29 @@ def check_options_panels():
         check('W616: only an output path takes a picked file', done.get('status') == 'error' and 'no path option of output' in done.get('error', ''), str(done))
         done = call(cmd='output.configure', option='data_file')
         check('W616: an option and its file go together', done.get('status') == 'error', str(done))
-        done = call(cmd='settings.configure', log_level='info', log_to_file=False)
-        check('W616: settings.configure keeps the log level in the settings beside the threads', done.get('status') == 'ok' and done['result']['log_level'] == 'info', str(done))
+        done = call(cmd='settings.configure', group='general', values={'log_level': '"info"', 'log_to_file': 'false'})
+        check('W616: settings.configure keeps the log level in the settings beside the threads', done.get('status') == 'ok' and done['result']['values']['log_level'] == 'info', str(done))
         done = call(cmd='settings.get')
         check('W616: settings.get gives the threads, whether automatic, the log level and whether it goes to a file', done.get('status') == 'ok' and done['result']['log_level'] == 'info' and 'automatic' in done['result'] and 'log_to_file' in done['result'], str(done))
         # W655: the eight colors are settings: set, read back, kept in the file, refused in a model's options
         kept = call(cmd='settings.get')['result']
-        done = call(cmd='settings.configure', x_nullcline_color='#123456', unstable_manifold_color='red')
-        check('W655: settings.configure sets colors and answers with them', done.get('status') == 'ok' and done['result']['x_nullcline_color'] == '#123456'
-              and done['result']['unstable_manifold_color'] == '#ff0000', str(done))
+        done = call(cmd='settings.configure', group='colors', values={'x_nullcline_color': '"#123456"', 'unstable_manifold_color': '"red"'})
+        check('W655: settings.configure sets colors and answers with them', done.get('status') == 'ok' and done['result']['values']['x_nullcline_color'] == '#123456'
+              and done['result']['values']['unstable_manifold_color'] == 'red', str(done))
         done = call(cmd='settings.get')
         check('W655: settings.get lists the eight colors', done.get('status') == 'ok' and done['result']['x_nullcline_color'] == '#123456'
               and sum(k.endswith('_color') for k in done['result']) == 8, str(done))
-        check('W655: a color is a color', call(cmd='settings.configure', y_nullcline_color='notacolor').get('status') == 'error')
+        check('W655: a color is a color', call(cmd='settings.configure', group='colors', values={'y_nullcline_color': '"notacolor"'}).get('status') == 'error')
         check('W655: the diagram group has no color rows', 'colors.stable_equilibrium' not in call(cmd='options.get', group='diagram')['result']['values'])
-        call(cmd='settings.configure', x_nullcline_color=kept['x_nullcline_color'], unstable_manifold_color=kept['unstable_manifold_color'])  # the settings file is shared by the later servers: back to what it held
-        check('W616: a log level is one of the words', call(cmd='settings.configure', log_level='loud').get('status') == 'error')
-        call(cmd='settings.configure', log_level='warn')  # the settings file is shared by every server this check starts: back to the default
+        call(cmd='settings.configure', group='colors', values={'x_nullcline_color': json.dumps(kept['x_nullcline_color']), 'unstable_manifold_color': json.dumps(kept['unstable_manifold_color'])})  # the settings file is shared by the later servers: back to what it held
+        check('W616: a log level is one of the words', call(cmd='settings.configure', group='general', values={'log_level': '"loud"'}).get('status') == 'error')
+        call(cmd='settings.configure', group='general', values={'log_level': '"warn"'})  # the settings file is shared by every server this check starts: back to the default
         # W622: the opening's update check: the switch is a setting, the core decides once a day whether it is due and records it
         check('W622: settings.get gives check_for_updates, on by default', call(cmd='settings.get')['result'].get('check_for_updates') is True)
-        call(cmd='settings.configure', check_for_updates=False)
+        call(cmd='settings.configure', group='updates', values={'check_for_updates': 'false'})
         check('W622: settings.configure switches the opening check off', call(cmd='settings.get')['result'].get('check_for_updates') is False)
         check('W622: with the switch off no check is due', call(cmd='update.due')['result'] == {'due': False})
-        call(cmd='settings.configure', check_for_updates=True)
+        call(cmd='settings.configure', group='updates', values={'check_for_updates': 'true'})
         first = call(cmd='update.due')
         second = call(cmd='update.due')
         check('W622: with the switch on a check is due once, the second asking the same day is not',
@@ -6991,7 +6992,7 @@ def check_autoxoptions():
             if 'pars' in c:
                 commands.append(dict(cmd='autox.configure_axes', pars=c['pars']))
             if 'threads' in c:
-                commands.append(dict(cmd='settings.configure', **({'automatic': True} if c['threads'] == 'auto' else {'threads': c['threads']})))
+                commands.append(dict(cmd='settings.configure', group='general', values={'threads': '"auto"' if c['threads'] == 'auto' else str(c['threads'])}))
             evs = []
             for command in commands:
                 snda(**command)
@@ -11468,7 +11469,7 @@ def check_keymap():
 
 def check_settings():
     """W790, Discussion #873: settings.json is the user's settings in the config folder. hello carries its page group (theme,
-    dock, folds) and an error when the file is bad; `settings.set` sets one value, the value as JSON text, checked and written
+    dock, folds) and an error when the file is bad; `settings.configure` sets one value, the value as JSON text, checked and written
     whole: a refused value names itself and writes nothing, the file's comments and layout stay, and another server reads it."""
     folder = os.path.join(CONFIG_ROOT, 'settings', 'xppautX')
     path = os.path.join(folder, 'settings.json')
@@ -11482,9 +11483,9 @@ def check_settings():
         check('W790: hello carries the settings: ok, the path of settings.json, the page defaults',
               st['ok'] is True and st['path'].endswith('settings.json') and st['page'] == {'theme': 'system', 'dock_hidden': False, 'dock_width': None, 'folds': []},
               str(st)[:300])
-        snd(cmd='settings.set', group='page', key='theme', value='"dark"')
+        snd(cmd='settings.configure', group='page', values={'theme': '"dark"'})
         evs, _ = col(is_done)
-        check('W790: settings.set writes one value into settings.json, no error', not errors(evs) and os.path.isfile(path)
+        check('W790: settings.configure writes one value into settings.json, no error', not errors(evs) and os.path.isfile(path)
               and b'"theme": "dark"' in open(path, 'rb').read(), str(evs)[-300:])
         before = open(path, 'rb').read()
         for what, group, key, value, text in [('a theme no choice has', 'page', 'theme', '"blue"', 'none of system, light or dark'),
@@ -11492,16 +11493,16 @@ def check_settings():
                                               ('a value of the wrong kind', 'updates', 'check_for_updates', '"yes"', 'true or false'),
                                               ('the keymap, which has its own commands', 'keymap', 'pinned', '[]', 'keymap commands'),
                                               ('a setting that does not exist', 'page', 'nosuch', '1', 'unknown setting')]:
-            snd(cmd='settings.set', group=group, key=key, value=value)
+            snd(cmd='settings.configure', group=group, values={key: value})
             evs, _ = col(is_done)
             err = errors(evs)
-            check('W790: settings.set refuses %s with the value, and writes nothing' % what,
+            check('W790: settings.configure refuses %s with the value, and writes nothing' % what,
                   len(err) == 1 and text in err[0]['error'] and open(path, 'rb').read() == before, str(evs)[-300:])
-        snd(cmd='settings.set', group='page', key='dock_width', value='300')
+        snd(cmd='settings.configure', group='page', values={'dock_width': '300'})
         evs, _ = col(is_done)
-        snd(cmd='settings.set', group='page', key='folds', value='["par", "values"]')
+        snd(cmd='settings.configure', group='page', values={'folds': '["par", "values"]'})
         evs, _ = col(is_done)
-        check('W790: settings.set takes a number and a list of section ids', not errors(evs) and b'"folds": ["par", "values"]' in open(path, 'rb').read()
+        check('W790: settings.configure takes a number and a list of section ids', not errors(evs) and b'"folds": ["par", "values"]' in open(path, 'rb').read()
               and b'"dock_width": 300' in open(path, 'rb').read(), str(evs)[-300:])
     finally:
         stop_server(p, r, snd)
@@ -11523,7 +11524,7 @@ def check_settings():
     try:
         evs, _ = col(is_done)
         check('W790: a settings.json with comments is read: the theme light', hello_settings(evs)['page']['theme'] == 'light', str(evs)[-200:])
-        snd(cmd='settings.set', group='page', key='folds', value='["a"]')
+        snd(cmd='settings.configure', group='page', values={'folds': '["a"]'})
         evs, _ = col(is_done)
         kept = open(path, encoding='utf-8', newline='').read()
         check('W790: a change keeps every comment and byte, a new key goes on its own line after the last one of its group, indented four spaces',
@@ -11552,9 +11553,9 @@ def check_settings():
         st = hello_settings(evs)
         check('W790: a bad settings.json is an error at its file and line, the page defaults shown, and never overwritten',
               st['ok'] is False and st['line'] == 2 and 'blue' in st['error'] and st['page']['theme'] == 'system', str(st)[:300])
-        snd(cmd='settings.set', group='page', key='theme', value='"light"')
+        snd(cmd='settings.configure', group='page', values={'theme': '"light"'})
         evs, _ = col(is_done)
-        check('W790: settings.set refuses to write over a bad settings.json', len(errors(evs)) == 1 and '"theme": "blue"' in open(path).read(), str(evs)[-200:])
+        check('W790: settings.configure refuses to write over a bad settings.json', len(errors(evs)) == 1 and '"theme": "blue"' in open(path).read(), str(evs)[-200:])
     finally:
         stop_server(p, r, snd)
 
@@ -11730,7 +11731,7 @@ def check_model_folder():
 check_model_folder()
 
 def check_settings_window():
-    """W792: the Settings window's commands. settings.set takes a scope (the user's settings.json, or the model folder's .xppautx/settings.json), in
+    """W792: the Settings window's commands. settings.configure takes a scope (the user's settings.json, or the model folder's .xppautx/settings.json), in
     place and keeping the file's comments; the update check is the user's and is refused in the folder's; settings.reset takes a key out of either
     file, keeping the comments; settings.get gives each value with where it comes from (user or folder; a key in neither is the default), the
     user's file alone with scope user; hello carries the groups and the rows the window lists."""
@@ -11762,8 +11763,8 @@ def check_settings_window():
             return col(is_done)[1]
 
         folder_file = os.path.join(r, '.xppautx', 'settings.json')
-        done = call(cmd='settings.set', group='general', key='threads', value='1', scope='folder')
-        check('W792: settings.set with scope folder makes the model folder\'s .xppautx/settings.json', done.get('status') == 'ok' and os.path.exists(folder_file)
+        done = call(cmd='settings.configure', group='general', values={'threads': '1'}, scope='folder')
+        check('W792: settings.configure with scope folder makes the model folder\'s .xppautx/settings.json', done.get('status') == 'ok' and os.path.exists(folder_file)
               and json.load(open(folder_file))['general'] == {'threads': 1} and os.path.exists(os.path.join(r, '.xppautx', '.gitignore')), str(done))
         check('W792: ... and leaves the user\'s file as it was', open(user).read().count('threads') == 0 and '// info' in open(user).read())
         done = call(cmd='settings.get')
@@ -11777,17 +11778,17 @@ def check_settings_window():
               res['sources'] == {'general.log_level': 'user', 'page.theme': 'user'} and res['automatic'] is True and res['scope'] == 'user' and res['file'] == user, str(res))
         with open(folder_file, 'w', newline='\n') as f:
             f.write('{\n  // this model\'s\n  "version": 4,\n  "general": {\n    "threads": 1, // one\n    "log_level": "debug"\n  }\n}\n')
-        done = call(cmd='settings.set', group='page', key='theme', value='"dark"', scope='folder')
+        done = call(cmd='settings.configure', group='page', values={'theme': '"dark"'}, scope='folder')
         text = open(folder_file).read()
         check('W792: a folder write is in place: the comments and the other keys stay, the group is added',
               done.get('status') == 'ok' and "// this model's" in text and '// one' in text and '"log_level": "debug"' in text and json.loads(re.sub(r'//.*', '', text))['page'] == {'theme': 'dark'}, text)
         before = open(folder_file).read()
-        done = call(cmd='settings.set', group='updates', key='check_for_updates', value='false', scope='folder')
+        done = call(cmd='settings.configure', group='updates', values={'check_for_updates': 'false'}, scope='folder')
         check('W792: the update check is the user\'s: refused in the folder\'s file, nothing written', done.get('status') == 'error' and 'update check' in done['error']
               and open(folder_file).read() == before, str(done))
-        done = call(cmd='settings.set', group='general', key='threads', value='true', scope='folder')
+        done = call(cmd='settings.configure', group='general', values={'threads': 'true'}, scope='folder')
         check('W792: a value the file would not take is refused in the folder\'s file too', done.get('status') == 'error' and open(folder_file).read() == before, str(done))
-        check('W792: a scope is one of its names', call(cmd='settings.set', group='general', key='threads', value='1', scope='everywhere').get('status') == 'error')
+        check('W792: a scope is one of its names', call(cmd='settings.configure', group='general', values={'threads': '1'}, scope='everywhere').get('status') == 'error')
         done = call(cmd='settings.reset', group='general', key='log_level', scope='folder')
         text = open(folder_file).read()
         check('W792: settings.reset takes the key out of the folder\'s file: its comments and the other keys stay',
@@ -11814,7 +11815,7 @@ def check_settings_window():
               done.get('status') == 'ok' and done['result']['file'] == user
               and open(opened_log).read().strip() == user, str(done))
         check('W792: a path from the page is no argument', call(cmd='settings.open_file', file='/etc/passwd').get('status') == 'error')
-        done = call(cmd='settings.set', group='general', key='threads', value='2', scope='folder')
+        done = call(cmd='settings.configure', group='general', values={'threads': '2'}, scope='folder')
         res = call(cmd='settings.get')['result']
         check('W792: the thread count a change gives is the session\'s at once', res['threads'] == 2 and res['automatic'] is False, str(res))
         call(cmd='settings.reset', group='general', key='threads', scope='folder')
@@ -12060,20 +12061,20 @@ def check_threads():
             most = st['threads_max']
             check('W267: the event gives threads "auto" at first, what automatic gives (1 to 4) and the most (the logical processors)',
                   st['threads'] == 'auto' and 1 <= st['threads_auto'] <= min(4, most) and most >= 1, str(st)[-200:])
-            snd(cmd='settings.configure', threads=most)
+            snd(cmd='settings.configure', group='general', values={'threads': str(most)})
             evs, _ = col(is_done)
             st = settings_of(evs)
             check('W267: set threads (the most) shows in the event and is saved in settings.json',
                   not errors(evs) and st and st['threads'] == most and '"threads": %d' % most in text(), str(evs)[-300:])
             before = text()
             for bad in (0, most + 1, -1, 1.5, 'many', 'autoX', [2]):
-                snd(cmd='settings.configure', threads=bad)
+                snd(cmd='settings.configure', group='general', values={'threads': json.dumps(bad)})
                 evs, _ = col(is_done)
                 err = errors(evs)
                 check('W267: set threads %r is refused naming the rule, the file is as it was' % (bad,),
-                      len(err) == 1 and 'threads' in err[0] and text() == before, str(evs)[-300:])
+                      len(err) == 1 and 'thread' in err[0] and text() == before, str(evs)[-300:])
             check('W267: and the shown count is the one before', threads_of(snd, col)['threads'] == most)
-            snd(cmd='settings.configure', threads=1)
+            snd(cmd='settings.configure', group='general', values={'threads': '1'})
             check('W267: set threads 1', col(is_done) and '"threads": 1' in text())
         finally:
             stop_server(p, r, snd)
@@ -12082,7 +12083,7 @@ def check_threads():
         try:
             col(is_done)
             check('W267: a later server starts with the saved count', threads_of(snd, col)['threads'] == 1)
-            snd(cmd='settings.configure', automatic=True)
+            snd(cmd='settings.configure', group='general', values={'threads': '"auto"'})
             evs, _ = col(is_done)
             check('W267: set threads "auto" is saved as the word and shown', not errors(evs) and '"threads": "auto"' in text()
                   and settings_of(evs)['threads'] == 'auto', str(evs)[-300:])
@@ -12095,7 +12096,7 @@ def check_threads():
         p, r, snd, col, _ = launch_server(extra_env=env)
         try:
             evs, _ = col(is_done)
-            snd(cmd='settings.configure', threads=2)
+            snd(cmd='settings.configure', group='general', values={'threads': '2'})
             evs2, _ = col(is_done)
             err = errors(evs2)
             check('W267: a bad count in the file is refused with its file and line, the set is refused with it and the file is left as it is',
@@ -12354,7 +12355,7 @@ def check_sweep_threads():
         s = Server(args.server, odex, run=folder, env=env, extra_args=('--verbose',))
         try:
             s.collect(is_done)
-            s.send(cmd='settings.configure', threads=threads)
+            s.send(cmd='settings.configure', group='general', values={'threads': str(threads)})
             s.collect(is_done)
             if set_sig:
                 s.send(cmd='value.set_parameters', values={'sig': .05})
@@ -12413,7 +12414,7 @@ def check_sweep_threads():
         s = Server(args.server, model, run=folder, env=env)
         try:
             s.collect(is_done)
-            s.send(cmd='settings.configure', threads=many)
+            s.send(cmd='settings.configure', group='general', values={'threads': str(many)})
             s.collect(is_done)
             s.send(cmd='run.configure', total_time=1e7, store_every=100000)
             s.collect(is_done)
