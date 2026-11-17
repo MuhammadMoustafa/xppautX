@@ -94,13 +94,59 @@ bool is_dir(std::string_view path)
     return stat_follow(std::string(path).c_str(), &st) == 0 && S_ISDIR(st.st_mode);
 }
 
+namespace {
+
+constexpr std::string_view SCRATCH_PREFIX = "xppautoX-";        /* autoX's scratch folders: <prefix><pid>-<N> */
+constexpr std::string_view PROBE_PREFIX = ".xppautx-homecheck-"; /* dir_writable's probe file: <prefix><pid>-<N> */
+
+/* name is exactly "<prefix><pid>-<N>" (digits; the pid may be negative
+   as %ld reads it): *pid */
+bool named_pid(std::string_view name, std::string_view prefix, long long *pid)
+{
+    if (!name.starts_with(prefix)) return false;
+    const char *p = name.data() + prefix.size(), *end = name.data() + name.size();
+    std::from_chars_result r = std::from_chars(p, end, *pid);
+    if (r.ec != std::errc() || r.ptr == end || *r.ptr != '-') return false;
+    int idx;
+    r = std::from_chars(r.ptr + 1, end, idx);
+    return r.ec == std::errc() && r.ptr == end;
+}
+
+/* the entries of `parent` named "<prefix><pid>-<N>" whose pid is no longer running are removed: a killed run's scratch
+   folders (folder true) or a killed probe's plain file. A link is never followed; nothing else is touched. */
+void sweep_stale(const std::string &parent, std::string_view prefix, bool folder)
+{
+    DIR *d = opendir(parent.c_str());
+    if (d == nullptr) return;
+    while (struct dirent *e = readdir(d)) {
+        long long pid;
+        if (!named_pid(e->d_name, prefix, &pid)) continue;
+        if (!pid_gone(pid)) continue; /* still running, or cannot tell: leave it alone */
+        std::string path = parent;
+        path += SEP;
+        path += e->d_name;
+        Stat st;
+        /* a link is never followed (lstat; is_link for Windows' reparse points) */
+        if (is_link(path.c_str()) || stat_name(path.c_str(), &st) != 0) continue;
+        if (folder ? !S_ISDIR(st.st_mode) : !S_ISREG(st.st_mode)) continue;
+        if (owned_by_another(st)) continue; /* a folder another user made under our name is not ours to empty */
+        if (folder) remove_temp_dir(path);
+        else std::remove(path.c_str());
+    }
+    closedir(d);
+}
+
+} // namespace
+
 bool dir_writable(std::string_view dir)
 {
     if (dir.empty() || !check_dirs(dir)) return false;
     try {
+        /* a probe a killed process left between its create and its remove (any pid no longer running) goes first */
+        sweep_stale(std::string(dir), PROBE_PREFIX, false);
         constexpr int probe_attempts = 100; /* Skip exclusive names left by an interrupted probe. */
         for (int attempt = 0; attempt < probe_attempts; ++attempt) {
-            const std::string probe = xpp::format("{}/.xppautx-homecheck-{}-{}", dir, own_pid(), attempt);
+            const std::string probe = xpp::format("{}/{}{}-{}", dir, PROBE_PREFIX, own_pid(), attempt);
             xpp::UniqueFile fp(create_plain(probe, true));
             if (!fp) {
                 if (errno == EEXIST || errno == ELOOP) continue;
@@ -128,45 +174,6 @@ std::string writable_save_folder(std::string_view model_folder)
 namespace {
 
 constexpr int SCRATCH_ATTEMPTS = 1000; /* a crashed process with our reused pid may have left names */
-
-/* name is exactly "xppautoX-<pid>-<N>" (digits; the pid may be negative
-   as %ld reads it): *pid */
-bool scratch_dir_pid(std::string_view name, long long *pid)
-{
-    constexpr std::string_view prefix = "xppautoX-";
-    if (!name.starts_with(prefix)) return false;
-    const char *p = name.data() + prefix.size(), *end = name.data() + name.size();
-    std::from_chars_result r = std::from_chars(p, end, *pid);
-    if (r.ec != std::errc() || r.ptr == end || *r.ptr != '-') return false;
-    int idx;
-    r = std::from_chars(r.ptr + 1, end, idx);
-    return r.ec == std::errc() && r.ptr == end;
-}
-
-} // namespace
-
-namespace {
-
-/* the folders a killed run left in `parent` (named by make_temp_dir, their pid running no longer) are removed */
-void sweep_stale(const std::string &parent)
-{
-    DIR *d = opendir(parent.c_str());
-    if (d == nullptr) return;
-    while (struct dirent *e = readdir(d)) {
-        long long pid;
-        if (!scratch_dir_pid(e->d_name, &pid)) continue;
-        if (!pid_gone(pid)) continue; /* still running, or cannot tell: leave it alone */
-        std::string path = parent;
-        path += SEP;
-        path += e->d_name;
-        Stat st;
-        /* a link is never followed (lstat; is_link for Windows' reparse points) */
-        if (is_link(path.c_str()) || stat_name(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) continue;
-        if (owned_by_another(st)) continue; /* a folder another user made under our name is not ours to empty */
-        remove_temp_dir(path);
-    }
-    closedir(d);
-}
 
 /* the model folder's scratch parent, `.xppautx/tmp`, when it is there (nothing is made); links below the folder are never followed */
 std::string existing_model_tmp(std::string_view model_folder)
@@ -204,11 +211,11 @@ Result<std::string> make_temp_dir(std::string_view model_folder)
             base = join(*state, MODEL_TMP_FOLDER);
             if (!check_dirs(base, model_folder) && (errno != ENOENT || !make_dirs(base, model_folder)))
                 return std::unexpected(write_error("folder", base));
-            sweep_stale(base);
+            sweep_stale(base, SCRATCH_PREFIX, true);
         }
         if (base.empty()) return fail("scratch folder", "the system names no temp folder", Place{"the system's temp folder"});
         for (int i = 0; i < SCRATCH_ATTEMPTS; i++) {
-            std::string path = xpp::format("{}{}xppautoX-{}-{}", base, SEP, own_pid(), i);
+            std::string path = xpp::format("{}{}{}{}-{}", base, SEP, SCRATCH_PREFIX, own_pid(), i);
             if (make_dir(path.c_str()) == 0) {
                 /* getcwd resolves linked ancestors such as macOS's /var;
                    keep the same real name from the moment it is made. */
@@ -244,7 +251,7 @@ bool is_scratch(std::string_view path, bool root_only)
         if (error) return false;
         while (!folder.empty()) {
             long long pid;
-            if (scratch_dir_pid(folder.filename().string(), &pid) && pid == own_pid()) {
+            if (named_pid(folder.filename().string(), SCRATCH_PREFIX, &pid) && pid == own_pid()) {
                 const auto parent = std::filesystem::canonical(folder.parent_path(), error);
                 /* in the system's temp folder, or in a model folder's .xppautx/tmp (make_temp_dir) */
                 const bool in_model_tmp = parent.filename() == MODEL_TMP_FOLDER && parent.parent_path().filename() == MODEL_STATE_FOLDER;
@@ -307,9 +314,9 @@ void remove_temp_dir(std::string_view dir_view)
 void cleanup_stale_temp_dirs(std::string_view model_folder)
 {
     try {
-        if (const std::string base = temp_base(); !base.empty()) sweep_stale(base);
+        if (const std::string base = temp_base(); !base.empty()) sweep_stale(base, SCRATCH_PREFIX, true);
         if (!model_folder.empty())
-            if (const std::string tmp = existing_model_tmp(model_folder); !tmp.empty()) sweep_stale(tmp);
+            if (const std::string tmp = existing_model_tmp(model_folder); !tmp.empty()) sweep_stale(tmp, SCRATCH_PREFIX, true);
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("sweeping old scratch folders");
     }

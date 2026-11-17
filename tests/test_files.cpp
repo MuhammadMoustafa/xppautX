@@ -462,6 +462,23 @@ TEST_CASE("test_files")
         CHECK(std::remove(".xppautx_homecheck") == 0);
     }
 
+    /* W795: a probe a killed process left (its pid no longer running) is removed by the next probe in that folder;
+       a probe of a live pid is another process's and stays. 999999999 is no running pid on either system. */
+    {
+        const std::string dead = ".xppautx-homecheck-999999999-0";
+        const std::string live = ".xppautx-homecheck-" + std::to_string(xpp::files::own_pid()) + "-7";
+        std::FILE *df = std::fopen(dead.c_str(), "w");
+        CHECK(df != nullptr);
+        if (df) std::fclose(df);
+        std::FILE *lf = std::fopen(live.c_str(), "w");
+        CHECK(lf != nullptr);
+        if (lf) std::fclose(lf);
+        CHECK(xpp::files::dir_writable("."));
+        CHECK(!xpp::files::exists(dead.c_str()));
+        CHECK(xpp::files::exists(live.c_str()));
+        CHECK(std::remove(live.c_str()) == 0);
+    }
+
     /* where a path a model names lies against its folder (W286): inside, outside (for the user to allow) or
        refused for good; an outside file is read only when its resolved text was approved */
     {
