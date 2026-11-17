@@ -40,7 +40,7 @@ export function stepRun(info: KeymapInfo | null, hello: HelloEvent | null, step:
   return info?.values.find(v => v.value === step)?.run ?? (hello?.commands?.some(c => c.cmd === step) ? {cmd: step} : null);
 }
 
-/** a step's check line: its kind (for the colour and the mark) and its words */
+/** a step's check line: its kind (for the color and the mark) and its words */
 export interface StepStatus {
   kind: 'ok' | 'warn' | 'no';
   text: string;
