@@ -34,8 +34,9 @@ RELEASE_LD = -O2 -flto=auto
 endif
 DEFS     = -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)
 # what `xppautX --version` prints: the release tag (release.yml sets
-# XPP_VERSION), else git describe
-XPPAUTX_VERSION ?= $(or $(XPP_VERSION),$(shell git describe --tags --always 2>/dev/null),dev)
+# XPP_VERSION), else git describe --long: a build at a release's own commit
+# still reads v0.1.0-beta.3-0-g<hash>, a source checkout, never the release
+XPPAUTX_VERSION ?= $(or $(XPP_VERSION),$(shell git describe --tags --long --always 2>/dev/null),dev)
 # and the commit, for the window's Help > About
 XPPAUTX_COMMIT ?= $(or $(shell git rev-parse --short HEAD 2>/dev/null),unknown)
 INCS     = -Icore

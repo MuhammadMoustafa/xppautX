@@ -9,7 +9,6 @@
 
 #include <algorithm>
 #include <array>
-#include <charconv>
 #include <cmath>
 #include <set>
 #include <expected>
@@ -39,8 +38,7 @@ void append_value(std::string &out, const odex::Value &v, const odex::Block &whe
             return;
         }
         double number = 0;
-        const auto [end, error] = std::from_chars(v.text.data(), v.text.data() + v.text.size(), number);
-        if (error != std::errc() || end != v.text.data() + v.text.size()) {
+        if (!parse_number(v.text, number)) {
             json_append_string(out, v.text);
             return;
         }
