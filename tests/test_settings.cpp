@@ -6,6 +6,7 @@
 #include "test_support.h"
 #include "xpp_fs_local.h"
 #include "xpp_files.h"
+#include "xpp_path.h"
 #include "xpp_settings.h"
 #include "format_version.h"
 
@@ -115,7 +116,7 @@ void check_files(const std::string &dir)
     std::filesystem::create_directories(dir); /* a test writes its own file before the program makes the folder */
     xpp::LocalFileSystem fs;
     const std::string file = xpp::settings::settings_path(fs);
-    CHECK(!file.empty() && file == dir + "/settings.json");
+    CHECK(!file.empty() && file == xpp::files::join(dir, xpp::settings::SETTINGS_FILE) /* the system's separator */);
     CHECK(!xpp::files::exists(file));
     const auto fresh = xpp::settings::load_settings(fs);
     CHECK(fresh && fresh->threads == xpp::cpu::THREADS_AUTO);
@@ -124,13 +125,13 @@ void check_files(const std::string &dir)
     const std::string commented = "{\n  // the user's settings\n  \"version\": 4,\n  \"general\": {\n    \"threads\": 2, // two threads\n"
                                   "    \"log_level\": \"warn\"\n  },\n  /* the colors are the defaults */\n  \"page\": {\"theme\": \"system\"}\n}\n";
     write_text(file, commented);
-    CHECK(xpp::settings::set_settings(fs, {{"general", "threads", "5"}, {"page", "theme", "\"dark\""}, {"updates", "check_for_updates", "false"}}).has_value());
-    const std::string expected = "{\n  // the user's settings\n  \"version\": 4,\n  \"general\": {\n    \"threads\": 5, // two threads\n"
+    CHECK(xpp::settings::set_settings(fs, {{"general", "threads", "1"} /* a count every machine has */, {"page", "theme", "\"dark\""}, {"updates", "check_for_updates", "false"}}).has_value());
+    const std::string expected = "{\n  // the user's settings\n  \"version\": 4,\n  \"general\": {\n    \"threads\": 1, // two threads\n"
                                  "    \"log_level\": \"warn\"\n  },\n  /* the colors are the defaults */\n  \"page\": {\"theme\": \"dark\"},\n"
                                  "  \"updates\": {\n    \"check_for_updates\": false\n  }\n}\n";
     CHECK(read_text(file) == expected);
     const auto now = xpp::settings::load_settings(fs);
-    CHECK(now && now->threads == 5 && now->page.theme == "dark" && !now->check_for_updates);
+    CHECK(now && now->threads == 1 && now->page.theme == "dark" && !now->check_for_updates);
 
     /* a key a group does not have yet is added in its group; an empty group takes it with no comma */
     write_text(file, "{\"version\": 4, \"page\": {}}\n");
