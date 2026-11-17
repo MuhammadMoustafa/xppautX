@@ -6766,6 +6766,28 @@ async function exportSeveral(dir) {
   check('W774: without a folder picker each file is offered as a download', !!landed || (await S('s.files.offered'))?.how === 'download',
     JSON.stringify(await S('s.toasts')));
   await exportClick('[data-dialog-action]');
+  await exportFailureDialog(dir);
+}
+
+/* a batch's failure is the report's: the report is the one dialog open, and the core's error is in Messages only (the error
+   dialog would open on top of the report). The svg file is a folder here, so the core refuses to write it. */
+async function exportFailureDialog(dir) {
+  const names = await S('s.hello.output_names');
+  const svg = path.join(dir, names['plot.export.svg']);
+  fs.rmSync(svg, {recursive: true, force: true});
+  fs.mkdirSync(svg);
+  await exportWindowOpen();
+  await exportTick('plot.export|svg');
+  await exportClick('[data-export-start]');
+  await until(`s.exportSeveral.phase === 'exists' || s.exportSeveral.phase === 'report'`, 'the answer');
+  if (await S("s.exportSeveral.phase === 'exists'")) await exportClick('[data-export-replace]');
+  const reported = await until(`s.exportSeveral.phase === 'report' && document.querySelector('[data-export-summary]')?.textContent === '0 written, 1 failed, 0 skipped.'`, 'the failure report');
+  const dialogs = await cdp.eval(`document.querySelectorAll('[data-dialog]').length`);
+  const logged = await cdp.eval(`__xpp.log().some(e => /not a plain file|Cannot save/.test(JSON.stringify(e)))`);
+  check('W774: a batch with a failure opens one dialog, its report; the core\'s error is in Messages only', reported && dialogs === 1
+    && (await cdp.eval(`!!document.querySelector('[data-export-several="report"]')`)) && logged, `dialogs ${dialogs}, logged ${logged}`);
+  await exportClick('[data-dialog-action]');
+  fs.rmSync(svg, {recursive: true, force: true});
 }
 
 /* ---- animation (docs/ui-v2.md T13) ---------------------------------------------- */
@@ -8332,7 +8354,8 @@ async function main() {
     if (run('files')) await session(ODE, opt.webview2 ? nativeFiles : files, ['gone.set: cannot open gone.set: No such file or directory']);
     /* W774: the window's export into a folder the core did not grant is refused with that reason (exportWindowDesktop) */
     if (run('native')) await session(ODE, nativeFiles, [/is not a plain file name in the model's folder/]);
-    if (run('export')) await session(ODE, exportSeveral);
+    /* the failure check makes the core refuse one file on purpose (exportFailureDialog) */
+    if (run('export')) await session(ODE, exportSeveral, [/Cannot save lecar\.svg: not a plain file/]);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);
     if (run('ani')) await session(ODE, animation);

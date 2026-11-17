@@ -621,7 +621,9 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         const autoxSettings = /^autoX settings: /.test(ev.error)
           ? reduceAutoxSettings(state.autoxSettings, {type: 'error', text: ev.error}) : state.autoxSettings;
         const logged = addLog({...state, bottom: text, bottomHelp: null, files, values, autoxSettings}, {kind: 'error', text});
-        const claimed = values !== state.values || autoxSettings !== state.autoxSettings;
+        /* a file-export batch (File > Export > Several, W774) shows its own failures in its report: while it runs, its commands' errors
+           are Messages only, not an error dialog on top of the report */
+        const claimed = values !== state.values || autoxSettings !== state.autoxSettings || state.exportSeveral.phase === 'running';
         return claimed ? logged : addToast(logged, 'error', ev.error, action, errorPlace(ev), ev.action);
       }
       if (ev.bottom !== undefined) return {...state, bottom: ev.bottom, bottomHelp: ev.help ?? null};

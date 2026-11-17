@@ -106,7 +106,7 @@ function Report({outcomes, onClose}: {outcomes: {file: string; status: string; t
       <ul class="export-report">{outcomes.map((o, i) => (
         <li key={i} data-export-outcome={o.status} class={o.status}>
           <strong>{o.file}</strong> <span class="export-status">{choiceLabel(o.status)}</span>
-          {o.text && <span class="export-text"> {o.text}</span>}
+          {o.text && (o.status !== 'written' || o.text !== o.file) && <span class="export-text"> {o.text}</span>}
         </li>))}</ul>
     </Dialog>
   );
