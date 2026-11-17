@@ -4800,6 +4800,11 @@ async function navigationCheck() {
   await requireUntil('!s.busy && s.core.rows === 601', 'the run for the export items');
   await menuRun('autox.open');
   await requireUntil('!s.busy && s.diagram.open', 'autoX for its export items');
+  /* W774: an export with nothing to write is greyed (an array plot shown, captured frames): give both, so their items are live */
+  await cdp.eval(`__xpp.send({cmd: 'kinescope.capture'})`);
+  await requireUntil('!s.busy', 'a kinescope frame for its export items');
+  await cdp.eval(`__xpp.send({cmd: 'array_plot.open'})`);
+  await requireUntil('!s.busy && s.aplot.windowOpen', 'an array plot for its export items');
   /* the labels of the Export submenu named menu under the top menu's Export (the menu bar's items, in order) */
   const submenuLabels = (top, menu) => cdp.eval(`JSON.stringify([...document.querySelectorAll('.app-menu [data-top-menu="${top}"] details > summary')].filter(d => d.textContent === 'Export')
     .flatMap(d => [...d.parentElement.querySelectorAll('details')].filter(m => m.querySelector(':scope > summary').textContent === ${JSON.stringify(menu)})
