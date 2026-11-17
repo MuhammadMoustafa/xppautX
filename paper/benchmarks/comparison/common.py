@@ -108,7 +108,7 @@ def physical_cores(record):
     return cpus
 
 
-READY_POLL_SECONDS = 10  # the poll interval of the wait for an idle machine, not a delay before a measurement
+READY_POLL_SECONDS = 60  # a busy machine is checked again a minute later (maintainer, 2026-11-17): the poll interval of the wait for idle, not a delay before a measurement
 READY_LIMIT_SECONDS = 1800  # safety limit only: a machine busy for half an hour is a refusal, never a measurement
 
 
