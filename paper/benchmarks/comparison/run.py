@@ -10,13 +10,14 @@ earlier attempt as its --reuse, and goes on after a failure. Resuming a folder s
 import argparse
 import functools
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
 
-from common import BENCH, DONE, HERE, PLAN, REPO, STUDIES, TOOLS, module, physical_cores, save, sha, wait_until_ready
+from common import BENCH, DONE, FOREIGN_ENTRY, FROM_SCRATCH, HERE, PLAN, REPO, SHA_CACHE, STUDIES, TOOLS, module, physical_cores, save, sha, wait_until_ready
 
 LOG_TAIL = 40  # lines of a failed attempt's log kept in its failure.json
 
@@ -52,6 +53,7 @@ class Run:
     def __init__(self, a):
         self.a = a
         self.scratch = Path(tempfile.mkdtemp(prefix='w699-'))
+        os.environ[SHA_CACHE] = str(self.scratch / 'digests.json')  # every driver of this run reads the same binaries and models
         self.untimed = machine_record(self.scratch / 'machine.json', False)
 
     @functools.cached_property
@@ -170,21 +172,29 @@ class Run:
         return True
 
     def done_record(self, study, unit, attempt, code):
-        # The result and what it ran with: the binaries, the commit and the keys the rows (or the unit) recorded (W452, W575).
+        # The result and what it ran with: the binaries, the commit and the keys the rows recorded (W452, W575).
         a = self.a
         keys = []
         if (attempt / 'runs.json').exists():
             for r in json.loads((attempt / 'runs.json').read_text()):
                 if r.get('reuse_key') and r['reuse_key'] not in keys:
                     keys.append(r['reuse_key'])
-        if (attempt / 'unit-key.json').exists():
-            keys.append(json.loads((attempt / 'unit-key.json').read_text()))
         record = dict(attempt=attempt.name, exit_code=code, check=a.check, keys=keys,
                       commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPO, text=True).strip(),
                       binaries={str(b.resolve()): sha(b) for b in (a.xppautx, a.xppaut)})
         if study == 'large-stiff':
             record['identity'] = self.stiff.identity(a.worker.resolve())
         return record
+
+
+def rows_to_run(todo):
+    # (study, unit, entry) of every row of another program than xppautX that a plan would run, or a unit with no earlier attempt at all.
+    blocked = []
+    for (study, unit), would_run in todo.items():
+        if would_run is None and study not in FROM_SCRATCH:
+            blocked.append((study, unit, 'no earlier attempt: every row of every program would run'))
+        blocked += [(study, unit, entry) for entry in would_run or [] if FOREIGN_ENTRY.match(entry)]
+    return blocked
 
 
 def main():
@@ -197,7 +207,7 @@ def main():
     p.add_argument('--study', choices=STUDIES, action='append', help='run only these studies, in settled order')
     p.add_argument('--stop-on-failure', action='store_true', help='stop at the first failed unit')
     p.add_argument('--reuse', type=Path, help='an earlier results folder (it may be unfinished): a unit of it that has no attempt here supplies its rows whose program, measurement code and inputs are unchanged, so they are imported, not run again')
-    p.add_argument('--plan', action='store_true', help='only plan: for every unit, what its earlier attempt supplies and what would run; no timing, nothing run')
+    p.add_argument('--plan', action='store_true', help='only plan: for every unit, what its earlier attempt supplies and what would run; no timing, nothing run (W802: a plan that would run a row of XPPAUT, AUTO-07p or Python also stops, listing it)')
     p.add_argument('--check', action='store_true')
     p.add_argument('--repeats', type=int, help='counted repetitions per row (W460); the drivers default to five')
     p.add_argument('--only', help='select units by name (short checks: names within a study)')
@@ -214,6 +224,10 @@ def main():
                 todo[study, unit] = run.plan(study, unit)
         for (study, unit), would_run in todo.items():
             print('plan %s/%s: %s' % (study, unit, 'nothing earlier' if would_run is None else '%d would run' % len(would_run) if would_run else 'nothing would run'), flush=True)
+        blocked = [] if a.check else rows_to_run(todo)  # a check times nothing: its smoke rows are the point
+        if blocked:
+            sys.exit('Stopped before anything was run: these rows of XPPAUT, AUTO-07p and Python cannot be reused, and none is ever run again '
+                     '(W802); fix the reader or the key, or the maintainer decides to run them:\n' + '\n'.join('  %s/%s: %s' % row for row in blocked))
         if a.plan:
             return
         for (study, unit), would_run in todo.items():
@@ -227,6 +241,7 @@ def main():
                 if a.stop_on_failure:
                     break
     finally:
+        os.environ.pop(SHA_CACHE, None)
         shutil.rmtree(run.scratch, ignore_errors=True)
     if failed:
         sys.exit('Failed units (results retained, the rest were run; rerun the same command to resume): ' + ', '.join(failed))

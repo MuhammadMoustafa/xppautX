@@ -92,8 +92,23 @@ Drivers take `--only UNIT` (a unit's name, or its model's), `--list` and `--plan
 - **The protocol is unchanged**: repetition order inside a workload, warm-ups, drift checks, `comparison-setup.sh --ready` before
   each timed unit. Large-stiff's drift calibration brackets all of `measure`'s cases, so `measure` stays one unit (isolating its
   cases would change what the drift covers); `pilot` and `measure` are separate, so a measurement fix never repeats the pilot.
-- The planned limits: T1's and T2's sized modes (`adaptive-repeat-N`, `adaptive-sized`) are planned from their first mode, so
-  their plan runs the pilots again on a resume.
+- **No row of XPPAUT, AUTO-07p or Python is ever run again** (maintainer, 2026-11-17; W802, #883): their programs ran in W617. After
+  the plans, a plan whose `would_run` holds any entry of another program than xppautX (an entry names its program first: `row
+  auto07p-fd-1: ...`, `xppaut repetition 2: ...`, `python dop853 reference: ...`), or a unit with no earlier attempt, stops run.py
+  before anything is run or timed: it prints each such row (study/unit, entry with its reason) and exits non-zero. No option allows
+  it: the reader or the key is fixed, or the maintainer rules on a real change of that program's own files. Only `large-stiff`
+  (W378's kit) and `server` (W295's own series) have no earlier rows, and a `--check` times nothing and is not stopped.
+  What the keys leave out is what no program is given: a continuation description's `reason` text and its `differences` (the gate's),
+  and an earlier row's description hash is taken from the description that attempt kept (`window.json`, `description.json`), through
+  the current `description_sha`, not from the hash it recorded in its day. The python study's dopri8 ladders are reused only with
+  every program unchanged (its rungs follow every program's pilots), so they stop the run while xppautX changes.
+- **Imports are references.** An imported row's folder is linked into the new attempt (`common.link_tree`: hard links, so no space and
+  no second copy; another file system is an error, not a silent copy), and the `--reuse` folder may be `w617-units`' symlinks. Terman's XPPAUT
+  convergence runs and its Python dop853 reference are imported the same way, by the keys of the files XPPAUT reads (`.ode`, `.set`),
+  its command line and its program, derived from what the earlier attempt kept.
+- T1's and E1's repetition windows come from the earlier attempt's `window.json`; T2's sized mode (`adaptive-sized`) is planned as
+  its earlier attempt sized it (its pilot wall), so the plan names its rows; an unsupported program (`pilot-xppaut-unsupported.json`)
+  has no rows to plan. An earlier row that finished but was not equal work is imported with that verdict, not run again.
 
 # The server study (W295, #353)
 

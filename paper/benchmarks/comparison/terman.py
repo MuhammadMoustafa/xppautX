@@ -3,14 +3,14 @@
 import gzip
 import json
 from pathlib import Path
-import shutil
 import sys
 
 import math
 import statistics
 
-from common import BENCH, HERE, executable_sha, initialize, measure_sha, parser, plan_unit_key, save, sha
-from integration import PYTHON, convert, engine_argv, launch, setfile_patch, stage, variant
+from common import (BENCH, HERE, derived_program_sha, executable_sha, initialize, inputs_sha, link_tree, parser, progress, save, sha,
+                    write_plan)
+from integration import PYTHON, argv_unchanged, convert, launch, setfile_patch, stage, variant
 from odex_model import Odex
 
 CRITERIA = HERE / 'terman-criteria.json'
@@ -103,6 +103,81 @@ def stage0(a, criteria, names):
     return records
 
 
+def configurations(a, criteria):
+    # (label, SET values, method, initial-state perturbation) of every convergence run.
+    if a.check:
+        return [('short', {'Tolerance': 1e-9, 'total': 2.0}, None, 0)]
+    result = [('tol-%.0e' % 10.0 ** -k, dict(Tolerance=10.0 ** -k), None, 0) for k in range(3, 10)]
+    result += [('dtmax-%s' % h, {'Tolerance': 1e-9, 'DtMax': h}, None, 0) for h in (1, .5, .25)]
+    result += [('dtmin-%s' % h, {'Tolerance': 1e-9, 'DtMin': h}, None, 0) for h in (1e-12, 1e-13)]
+    result += [('dt-%s' % h, {'Tolerance': 1e-9, 'DeltaT': h}, None, 0) for h in (.4, .1)]
+    result += [('method-dopri8', {'Tolerance': 1e-9}, 'dopri8', 0)]
+    return result + [('perturb-%s' % h, {'Tolerance': 1e-9}, None, h) for h in criteria['sensitivity_initial_perturbations']]
+
+
+def configured(a, source, label, values, method, perturb):
+    # The model of one convergence run: its folder with the SET patched and the initial states perturbed.
+    model = variant(a, source, label, method=method, total=2.0 if a.check else None)
+    setting = model.parent / 'episodic.ode.set'
+    setfile_patch(setting, values)
+    if perturb:
+        lines = setting.read_text().splitlines()
+        lo = lines.index('# Old ICs') + 1
+        hi = next(i for i in range(lo, len(lines)) if lines[i].startswith('#'))
+        for i in range(lo, hi):
+            value, name = lines[i].split(maxsplit=1)
+            lines[i] = '%.17g  %s' % (float(value) + perturb, name)
+        setting.write_text('\n'.join(lines) + '\n')
+    return model
+
+
+# W802: XPPAUT's and Python's rows of an earlier attempt are never run again. The convergence runs are untimed, so a row's key is
+# the program, the files XPPAUT reads (the .ode and its SET) and its command line; an earlier attempt keeps no key (W617 predates
+# them), so it is derived from what the attempt kept (common.derived_program_sha), as for the other studies' earlier rows.
+XPPAUT_FILES = ('.ode', '.set')
+
+
+def reusable_xppaut(a, label, model):
+    # (the earlier attempt's folder of this XPPAUT run, None) when it is valid and the same work, else (None, why).
+    folder = a.reuse / 'convergence' / label / 'xppaut'
+    result = folder / 'result.json'
+    if not result.exists():
+        return None, 'no earlier run'
+    if not json.loads(result.read_text()).get('valid'):
+        return None, 'the earlier run was not valid'
+    changed = [name for name, now, then in (('program', executable_sha(a, 'xppaut'), derived_program_sha(a, 'xppaut')),
+                                            ('inputs', inputs_sha(model.parent, XPPAUT_FILES), inputs_sha(folder, XPPAUT_FILES)))
+               if now != then]
+    if not changed and not argv_unchanged(a, 'xppaut', folder, model.name):
+        changed = ['command line']
+    return (None, 'differs in ' + ', '.join(changed)) if changed else (folder, None)
+
+
+def reusable_reference(a, source):
+    # (the earlier attempt's dop853 reference rows, None) when Python's files and the model are unchanged, else (None, why).
+    rows, earlier_model = a.reuse / 'dop853-reference.dat', a.reuse / 'models/episodic.odex'
+    if not rows.exists() or not earlier_model.exists():
+        return None, 'no earlier reference'
+    changed = [name for name, now, then in (('program', executable_sha(a, 'python'), derived_program_sha(a, 'python')),
+                                            ('model', sha(source.with_suffix('.odex')), sha(earlier_model))) if now != then]
+    return (None, 'differs in ' + ', '.join(changed)) if changed else (rows, None)
+
+
+def plan(a, criteria, source):
+    # --plan: what an earlier attempt supplies and what would run, by the keys a run uses; xppautX's own runs always run.
+    would_run, imported = [], 0
+    for label, values, method, perturb in configurations(a, criteria):
+        earlier, why = reusable_xppaut(a, label, configured(a, source, label, values, method, perturb)) if a.reuse else (None, 'no --reuse')
+        imported += bool(earlier)
+        if not earlier:
+            would_run.append('xppaut %s: %s' % (label, why))
+    earlier, why = reusable_reference(a, source) if a.reuse else (None, 'no --reuse')
+    imported += bool(earlier)
+    if not earlier:
+        would_run.append('python dop853 reference: ' + why)
+    write_plan(a, 'episodic', would_run, imported)
+
+
 def main():
     p = parser(__doc__)
     p.add_argument('--readouts-only', action='store_true')
@@ -110,14 +185,6 @@ def main():
     initialize(a)
     if a.list:
         print(json.dumps(['episodic']))  # one unit: the convergence study is one claim about one network (W699)
-        return
-    # What the study depended on, for a run to be imported whole (W699): both programs, the predeclared criteria, the code that stages,
-    # launches and reads a run.
-    key = dict(xppautx=executable_sha(a, 'xppautx'), xppaut=executable_sha(a, 'xppaut'), criteria=sha(CRITERIA),
-               measure=measure_sha(engine_argv, launch, variant, setfile_patch, readouts, compare), check=a.check)
-    save(a.out / 'unit-key.json', key)
-    if a.plan:
-        plan_unit_key(a, 'episodic', key)
         return
     if not CRITERIA.exists():
         sys.exit('refusing Terman runs: terman-criteria.json must be written before the first run')
@@ -131,36 +198,26 @@ def main():
     source = next(p for p in stage(a, 'screen') if p.stem == 'episodic')
     a.check = old_check
     names = Odex(source.with_suffix('.odex')).states  # the staged, freshly converted model (the git-ignored models/ of the screen kit is stale)
+    if a.plan:
+        return plan(a, criteria, source)
     saved = stage0(a, criteria, names)
     if a.readouts_only:
         save(a.out / 'completion.json', dict(saved_arrays=len(saved), convergence_run=False))
         return
     runs, read = {}, {}
     tolerances = [10.0 ** -k for k in range(3, 10)]
-    configurations = [('tol-%.0e' % tol, dict(Tolerance=tol), None, 0) for tol in tolerances]
-    configurations += [('dtmax-%s' % h, {'Tolerance': 1e-9, 'DtMax': h}, None, 0) for h in (1, .5, .25)]
-    configurations += [('dtmin-%s' % h, {'Tolerance': 1e-9, 'DtMin': h}, None, 0) for h in (1e-12, 1e-13)]
-    configurations += [('dt-%s' % h, {'Tolerance': 1e-9, 'DeltaT': h}, None, 0) for h in (.4, .1)]
-    configurations += [('method-dopri8', {'Tolerance': 1e-9}, 'dopri8', 0)]
-    configurations += [('perturb-%s' % h, {'Tolerance': 1e-9}, None, h) for h in criteria['sensitivity_initial_perturbations']]
-    if a.check:
-        configurations = [('short', {'Tolerance': 1e-9, 'total': 2.0}, None, 0)]
-    for label, values, method, perturb in configurations:
-        model = variant(a, source, label, method=method, total=2.0 if a.check else None)
-        setting = model.parent / 'episodic.ode.set'
-        setfile_patch(setting, values)
-        if perturb:
-            lines = setting.read_text().splitlines()
-            lo = lines.index('# Old ICs') + 1
-            hi = next(i for i in range(lo, len(lines)) if lines[i].startswith('#'))
-            for i in range(lo, hi):
-                value, name = lines[i].split(maxsplit=1)
-                lines[i] = '%.17g  %s' % (float(value) + perturb, name)
-            setting.write_text('\n'.join(lines) + '\n')
+    for label, values, method, perturb in configurations(a, criteria):
+        model = configured(a, source, label, values, method, perturb)
         convert(a, model)  # xppautX's .odex takes the patched SET: it is converted once, after the patches
         for engine in ('xppautx', 'xppaut'):
             folder = a.out / 'convergence' / label / engine
-            process = launch(a, model, engine, folder, False)
+            earlier, why = reusable_xppaut(a, label, model) if engine == 'xppaut' and a.reuse else (None, None)
+            if earlier:
+                link_tree(earlier, folder)
+                process = json.loads((folder / 'result.json').read_text())
+                progress(a, '%s %s REUSED from %s: program, command and inputs unchanged' % (label, engine, a.reuse))
+            else:
+                process = launch(a, model, engine, folder, False)
             runs[label, engine] = process
             if not process['valid']:
                 sys.exit('Terman failed: ' + str(folder))
@@ -170,15 +227,20 @@ def main():
     if a.check:
         save(a.out / 'acceptance.json', dict(passed=True, check_only=True, saved_arrays=len(saved), rows=len(runs), claim=criteria['claim']))
         return
-    import numpy as np
-    from driver import load
-    from scipy_integrate import run_dop853
-    model, numerics = load(source.with_suffix('.odex'))
-    times = np.arange(0, 1999, .4)
-    rows, _ = run_dop853(model, numerics, times)
-    reference = readouts(rows, names, criteria)
+    reference_rows = a.out / 'dop853-reference.dat'
+    earlier, why = reusable_reference(a, source) if a.reuse else (None, None)
+    if earlier:
+        link_tree(earlier, reference_rows)  # the python row is referenced, not run again
+        progress(a, 'the dop853 reference REUSED from %s: Python and the model unchanged' % a.reuse)
+    else:
+        import numpy as np
+        from driver import load
+        from scipy_integrate import run_dop853
+        model, numerics = load(source.with_suffix('.odex'))
+        rows, _ = run_dop853(model, numerics, np.arange(0, 1999, .4))
+        np.savetxt(reference_rows, rows, fmt='%.17g')
+    reference = readouts(array(reference_rows), names, criteria)
     save(a.out / 'dop853-reference.json', reference)
-    np.savetxt(a.out / 'dop853-reference.dat', rows, fmt='%.17g')
     statistics_only = any(not compare(read['tol-1e-09', engine], read['perturb-1e-09', engine], criteria)['passed']
                           for engine in ('xppautx', 'xppaut'))
     comparisons = {}

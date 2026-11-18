@@ -12,6 +12,7 @@ from unittest import mock
 
 COMPARISON = Path(__file__).resolve().parents[1] / 'paper/benchmarks/comparison'
 sys.path.insert(0, str(COMPARISON))
+import common
 import run
 
 FAKE = '''
@@ -36,7 +37,7 @@ if a.plan:
         sys.exit('the reuse path raised')
     rows = Path(a.reuse) / 'runs.json'  # a failed attempt may have written none, as the real drivers allow
     earlier = [r['reuse_key'] for r in json.loads(rows.read_text())] if rows.exists() else []
-    would_run = [] if earlier == [dict(v=key)] else ['key changed']
+    would_run = control['entries'].get(unit) or ([] if earlier == [dict(v=key)] else ['key changed'])
     (out / 'plan.json').write_text(json.dumps(dict(workload=unit, would_run=would_run, imported=len(earlier))))
     sys.exit(0)
 with open(control['log'], 'a') as log:
@@ -61,13 +62,13 @@ class Units(unittest.TestCase):
     def tearDown(self):
         self.scratch.cleanup()
 
-    def drive(self, *flags, fail=(), keys=None, plan_crash=False):
+    def drive(self, *flags, fail=(), keys=None, plan_crash=False, entries=None, check=True):
         # run.py's main against the fake driver; returns (units the driver ran, the exit message or None).
         log = self.root / 'ran.log'
         log.unlink(missing_ok=True)
-        self.control.write_text(json.dumps(dict(fail=list(fail), keys=keys or {}, log=str(log), plan_crash=plan_crash)))
+        self.control.write_text(json.dumps(dict(fail=list(fail), keys=keys or {}, log=str(log), plan_crash=plan_crash, entries=entries or {})))
         argv = ['run.py', '--out', str(self.out), '--xppautx', str(self.root / 'xppautx'), '--xppaut', str(self.root / 'xppaut'),
-                '--auto-dir', str(self.root), '--study', 'screen', '--check', *flags]
+                '--auto-dir', str(self.root), '--study', 'screen', *(['--check'] if check else []), *flags]
         message = None
         with mock.patch.object(sys, 'argv', argv), mock.patch.object(run, 'HERE', self.root / 'drivers'), \
                 mock.patch.dict(os.environ, FAKE_CONTROL=str(self.control)):
@@ -114,6 +115,31 @@ class Units(unittest.TestCase):
         ran, _ = self.drive('--plan', keys={'a': 2})
         self.assertEqual(ran, [])
         self.assertEqual(json.loads((self.out / 'screen/a/plan.json').read_text())['would_run'], ['key changed'])
+
+    def test_a_row_of_another_program_that_cannot_be_reused_stops_the_run(self):
+        # W802: xppautX's own rows may run; a row of XPPAUT, AUTO-07p or Python never does, so the run stops, naming each one.
+        self.drive()
+        entries = {'a': ['xppautx repetition 0: earlier run row differs in program', 'row xppautx-fd-1: differs in program'],
+                   'b': ['python repetition 1: earlier run row differs in program', 'row auto07p-fd-2: differs in inputs', 'xppaut pilot: no earlier pilot']}
+        ran, message = self.drive('--plan', entries=entries, check=False)
+        self.assertEqual(ran, [])
+        self.assertEqual(run.rows_to_run({('screen', 'a'): entries['a'], ('screen', 'b'): entries['b'], ('server', 'x'): None, ('screen', 'c'): None}),
+                         [('screen', 'b', e) for e in entries['b']] + [('screen', 'c', 'no earlier attempt: every row of every program would run')])
+        for expected in ('screen/b: python repetition 1', 'screen/b: row auto07p-fd-2', 'screen/b: xppaut pilot'):
+            self.assertIn(expected, message)
+        self.assertNotIn('screen/a', message)
+        ran, message = self.drive(entries=entries)  # a check times nothing: it is not stopped
+        self.assertIsNone(message)
+
+    def test_an_import_is_a_hard_link_not_a_copy(self):
+        # W802: an imported run takes no space of its own and survives the removal of the attempt it came from.
+        earlier = self.root / 'earlier/run'
+        earlier.mkdir(parents=True)
+        (earlier / 'output.dat').write_text('1 2\n')
+        common.link_tree(earlier, self.root / 'new/run')
+        common.link_tree(earlier / 'output.dat', self.root / 'new/one.dat')
+        self.assertEqual((earlier / 'output.dat').stat().st_ino, (self.root / 'new/run/output.dat').stat().st_ino)
+        self.assertEqual((earlier / 'output.dat').stat().st_ino, (self.root / 'new/one.dat').stat().st_ino)
 
 
 if __name__ == '__main__':

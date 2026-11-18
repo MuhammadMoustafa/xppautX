@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import resource
 import shutil
 import statistics
@@ -42,8 +43,25 @@ def save(path, value):
     temp.replace(path)
 
 
+SHA_CACHE = 'XPP_COMPARISON_SHA_CACHE'  # W802: a JSON file shared by the drivers of one run.py (it makes it); unset, nothing is kept
+_digests = {}
+
+
 def sha(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    # A file's digest, kept by its path, size and modification time: every driver of a run hashes the same binaries and models again
+    # (a 184-unit plan spent a quarter of its time on it), so the digest is remembered in the process and, through SHA_CACHE, by
+    # the next driver.
+    path = Path(path).resolve()
+    status = path.stat()
+    key = '%s|%d|%d' % (path, status.st_size, status.st_mtime_ns)
+    file = os.environ.get(SHA_CACHE)
+    if file and not _digests and Path(file).exists():
+        _digests.update(json.loads(Path(file).read_text()))
+    if key not in _digests:
+        _digests[key] = hashlib.sha256(path.read_bytes()).hexdigest()
+        if file:
+            save(file, _digests)
+    return _digests[key]
 
 
 def module(name, path):
@@ -254,8 +272,8 @@ def measure_sha(*functions):
                     + [(f.__name__, inspect.getsource(f).encode()) for f in (command, environment, *functions)])
 
 
-def inputs_sha(folder):
-    return tree_sha((f.name, f.read_bytes()) for f in Path(folder).iterdir() if f.suffix in INPUT_SUFFIXES)
+def inputs_sha(folder, suffixes=INPUT_SUFFIXES):
+    return tree_sha((f.name, f.read_bytes()) for f in Path(folder).iterdir() if f.suffix in suffixes)
 
 
 AUTO_DIRS = ('bin', 'lib', 'python', 'src', 'cmds')  # the parts of an AUTO-07p build that run
@@ -332,13 +350,14 @@ def derived_key(a, rec, folder, measure, cpus):
 
 
 def link_tree(src, dest):
-    # Hard links where the filesystem allows, so an imported run costs no space; never a second program run.
-    def link(s, d):
-        try:
-            os.link(s, d)
-        except OSError:
-            shutil.copy2(s, d)
-    shutil.copytree(src, dest, copy_function=link)
+    # An imported run is referenced, never copied (W802): hard links, so it costs no space and survives the earlier attempt's removal;
+    # a different file system is the OSError, not a silent copy. A file's own link is replaced by `save`, never written through.
+    src = Path(src)
+    if src.is_dir():
+        shutil.copytree(src, dest, copy_function=os.link)
+    else:
+        Path(dest).parent.mkdir(parents=True, exist_ok=True)
+        os.link(src, dest)
 
 
 def mark_reused(a, rec):
@@ -412,17 +431,17 @@ def done_attempts(root, study):
     return found
 
 
+# W802: no row of XPPAUT, AUTO-07p or Python is run again (their programs ran in W617; the maintainer, 2026-11-17). A plan's entry names
+# its program first (a row's label, or "row " and the label): this picks the entries that are not xppautX's own.
+FOREIGN_ENTRY = re.compile(r'(row )?(xppaut|auto07p|python)\b')
+FROM_SCRATCH = ('large-stiff', 'server')  # the studies with no earlier attempt: W378's kit and W295's own series
+
+
 def write_plan(a, name, would_run, imported):
     # would_run: one reason per row (or step) the earlier attempt does not supply; imported: how many it does.
     for why in would_run:
         progress(a, 'plan: %s: runs: %s' % (name, why))
     progress(a, 'plan: %s: %d imported, %d would run' % (name, imported, len(would_run)))
-    save(a.out / PLAN, dict(workload=name, would_run=would_run, imported=imported))
-
-
-def plan_unit_key(a, name, key):
-    # A unit with no per-row keys (Terman's convergence, large-stiff's set-up) is imported whole when its recorded key is the one
-    # now; `--plan` writes the plan, a run records the key (unit-key.json) for the next.
-    earlier = a.reuse / 'unit-key.json' if a.reuse else None
-    same = earlier is not None and earlier.exists() and json.loads(earlier.read_text()) == json.loads(json.dumps(key))
-    write_plan(a, name, [] if same else ['the earlier attempt\'s unit key differs or is missing'], int(same))
+    # a workload planned in two modes (continuation's T2: its pilots, then its sized run) is one plan
+    earlier = json.loads((a.out / PLAN).read_text()) if (a.out / PLAN).exists() else dict(would_run=[], imported=0)
+    save(a.out / PLAN, dict(workload=name, would_run=earlier['would_run'] + would_run, imported=earlier['imported'] + imported))

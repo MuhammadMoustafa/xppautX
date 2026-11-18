@@ -13,10 +13,12 @@ from collections import Counter, defaultdict
 import csv
 import json
 import math
+import os
 from pathlib import Path
 import re
 import shutil
 import sys
+import traceback
 
 import numpy as np
 
@@ -816,6 +818,31 @@ def views(data):
     return charts
 
 
+def in_children(items, work, jobs):
+    """work(item) for every item, `jobs` forked children each taking every jobs-th (the figures are independent files, and 82 of them
+    took 45 of the report's 48 seconds); in this process where fork is missing. A child that raises fails the whole."""
+    if jobs < 2 or not hasattr(os, 'fork'):
+        for item in items:
+            work(item)
+        return
+    children = []
+    for k in range(jobs):
+        pid = os.fork()
+        if pid == 0:
+            code = 0
+            try:
+                for item in items[k::jobs]:
+                    work(item)
+            except BaseException:
+                traceback.print_exc()
+                code = 1
+            os._exit(code)
+        children.append(pid)
+    failed = [pid for pid in children if os.waitpid(pid, 0)[1]]
+    if failed:
+        raise RuntimeError('%d of %d figure children failed (their tracebacks are above)' % (len(failed), jobs))
+
+
 def static(charts, out, ratio_limit):
     import matplotlib
     matplotlib.use('Agg')
@@ -967,7 +994,7 @@ def static(charts, out, ratio_limit):
         fig.legend(handles=[Line2D([0], [0], color=COLORS[q], marker='o', linewidth=2.4, label=NAMES[q]) for q in programs],
                    loc='outside upper center', ncol=len(programs), frameon=False)
         return fig
-    for view in charts:
+    def render(view):
         if view.get('kind') == 'forest':
             fig = forest(view)
         elif view.get('kind') == 'panels':
@@ -992,6 +1019,7 @@ def static(charts, out, ratio_limit):
         for suffix in ('png', 'svg'):
             fig.savefig(directory / (view['key'] + '.' + suffix), dpi=PNG_DPI, bbox_inches='tight', pad_inches=.05)  # nothing clipped at the edge
         plt.close(fig)
+    in_children(charts, render, max(1, int(os.environ.get('JOBS', '4'))))  # JOBS is tools/jobs.sh's
 
 
 def issue_history():

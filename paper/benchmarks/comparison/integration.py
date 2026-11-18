@@ -285,6 +285,11 @@ def earlier_rows(a):
     return context['rows']
 
 
+def earlier_diverged(a, name):
+    # Whether the earlier study found every engine aborting on this workload (its diverged/ marker): it was then run in its warm-up only.
+    return bool(a.reuse) and (a.reuse / 'diverged' / (name + '.json')).exists()
+
+
 def earlier_folder(a, rec):
     return a.reuse / 'runs' / rec['workload'] / str(rec['repetition']) / rec['engine'] / rec['row']
 
@@ -323,12 +328,13 @@ def importable(a, name, engine, rep, models, key_of=current_key):
     if not a.reuse:
         return None, 'no --reuse'
     rows = earlier_rows(a)
+    aborted = earlier_diverged(a, name)
     found = {}
     for row, model in models.items():
         rec = rows.get((name, engine, rep, row))
         if rec is None:
             return None, 'no earlier %s row of repetition %d' % (row, rep)
-        if not rec.get('valid'):
+        if not rec.get('valid') and not aborted:  # where every engine aborted, each one's abort is the result
             return None, 'the earlier %s row of repetition %d was not valid' % (row, rep)
         key = key_of(a, engine, model)
         have = earlier_key(a, rec, key, model.name)
@@ -398,10 +404,10 @@ def reuse_whole(a, name, model, ready, records):
                 if src.name in (w, w + '.json'):
                     dest = a.out / kind / src.name
                     dest.parent.mkdir(parents=True, exist_ok=True)
-                    link_tree(src, dest) if src.is_dir() else shutil.copy2(src, dest)
+                    link_tree(src, dest)
         for src in (a.reuse / 'gates').glob(w + '-[0-9]*.json'):
             (a.out / 'gates').mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, a.out / 'gates' / src.name)
+            link_tree(src, a.out / 'gates' / src.name)
     records.extend(imported)
     save(a.out / 'done' / (name + '.json'), dict(records=imported))
     save(a.out / 'runs.json', records)
@@ -608,11 +614,16 @@ def plan_series(a, source, name, method, native_only):
     if marker:
         return write_plan(a, name, [], len(marker['records']))
     if a.study == 'python' and method in LADDER_METHODS:
-        return write_plan(a, name, ['not reused whole (%s), and a ladder\'s inputs follow its pilots' % why], 0)
+        # A ladder's rungs and rows are reused only with every program unchanged (its inputs follow every program's pilots): each
+        # program but xppautX is named, so a run with a changed xppautX stops here (W802).
+        return write_plan(a, name, ['%s ladder: not reused whole (%s), and a ladder\'s inputs follow its pilots' % (engine, why)
+                                    for engine in study_engines(a, native_only)], 0)
     imported, would_run = 0, []
     rows = dict(zip(('run', 'ready'), (model, ready)))
     for engine in study_engines(a, native_only):
         for rep in repetitions(a):
+            if rep > 0 and earlier_diverged(a, name):
+                break  # every engine aborted in the warm-up: no repetition follows
             found, why = importable(a, name, engine, rep, rows)
             if found:
                 imported += len(found)

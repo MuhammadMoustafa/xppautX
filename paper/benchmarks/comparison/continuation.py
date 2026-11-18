@@ -457,12 +457,18 @@ def by_original(d, ranges):
 
 def exact_equations(a, name, d, eqs, start, rhs, out):
     """The equation file AUTO-07p's exact rows run: PY_S1Bf's by hand, or the model's generated (W459) and checked against
-    central differences and the Fortran right-hand side; None where AUTO-07p has no exact row."""
+    central differences and the Fortran right-hand side (`rhs` None: a plan, which keys the generated text and runs no check,
+    W802); None where AUTO-07p has no exact row."""
     if name not in EXACT_AUTO07P:
         return None
     if name in ('P1', 'E1'):
         return HAND_WRITTEN
-    check = exact_source.check(exact_source.source(eqs, start, d), eqs, d, out / 'exact', a.auto_dir, rhs)
+    text = exact_source.source(eqs, start, d)
+    if rhs is None:
+        (out / 'exact').mkdir(parents=True, exist_ok=True)
+        (out / 'exact/exact.c').write_text(text)
+        return out / 'exact/exact.c'
+    check = exact_source.check(text, eqs, d, out / 'exact', a.auto_dir, rhs)
     if not check['passed']:
         raise RuntimeError('the generated derivatives of %s fail their check: %s' % (name, out / 'exact/exact-check.json'))
     return out / 'exact/exact.c'
@@ -607,13 +613,15 @@ def description_sha(d, engine):
     # What a program is asked to do: the description with the model's contents in place of where this attempt put it (for
     # xppautX, which reads the .odex; XPPAUT and AUTO-07p read the files made from it, their key's inputs), its settings under
     # AUTO's names (W531 renamed them in the descriptions, not in what a program is given) and without what only the gate
-    # reads: the explained differences and whether our pilot refined a run's start (W495) (W575).
+    # reads: the explained differences, whether our pilot refined a run's start (W495) and the reason, the description's prose
+    # (autoxcompare's required text, which no program is given) (W575, W802).
     d = given(copy.deepcopy(d), engine)
     if engine == 'xppautx':
         d['model'] = sha(d['model'])
     else:
         del d['model']
     d.pop('differences', None)
+    d.pop('reason', None)
     for r in d['runs']:
         r.pop('start_refined', None)
         for key in ('auto', 'autox'):  # 'auto' in a description written before W599 renamed it
@@ -720,14 +728,17 @@ def earlier_start(a, name, mode):
 
 def earlier_key(a, name, mode, engine, recorded, description_file, row, cpus, folder):
     # The recorded key (a foreign one only when it has the given files'), else the one derived from the earlier attempt's
-    # files; None when there is nothing to derive it from.
-    if recorded and (engine == 'xppautx' or 'inputs' in recorded):
-        return recorded
+    # files; None when there is nothing to derive it from. The description part is always the earlier attempt's kept description
+    # through description_sha as it is now (W802): a recorded hash is of the description_sha of its day, which a change of what
+    # the hash leaves out (the prose) would make unequal for the very same description.
     window = earlier_mode_file(a, name, mode, description_file)
+    earlier_d = None if window is None else window['description'] if description_file == 'window.json' else window
+    if recorded and (engine == 'xppautx' or 'inputs' in recorded):
+        return recorded if earlier_d is None else dict(recorded, description=description_sha(earlier_d, engine))
     start = earlier_start(a, name, mode)
-    if window is None or start is None:
+    if earlier_d is None or start is None:
         return None
-    return derived_row_key(a, engine, window['description'] if description_file == 'window.json' else window, start, row, cpus, folder)
+    return derived_row_key(a, engine, earlier_d, start, row, cpus, folder)
 
 
 def key_differences(have, key):
@@ -744,8 +755,8 @@ def reusable_row(a, name, mode, rep, label, engine, key, row, cpus):
     runs = [r for r in recs if r['row'] == 'run']
     if not runs or not (folder / 'gate.json').exists():
         return None, 'no earlier row'
-    if not all(r.get('valid') and r.get('equal_work') for r in runs):
-        return None, 'the earlier row was not valid equal work'
+    if not all(r.get('valid') for r in runs):
+        return None, 'the earlier row was not valid'
     have = earlier_key(a, name, mode, engine, next((r['reuse_key'] for r in runs if r.get('reuse_key')), None), 'window.json', row, runs[0]['pinned_cpus'], folder)
     if not same_key(have, key):
         return None, 'differs in ' + ', '.join(key_differences(have, key))
@@ -761,11 +772,14 @@ def reusable_pilot(a, name, mode, program, key):
     return (folder, None) if same_key(have, key) else (None, 'differs in ' + ', '.join(key_differences(have, key)))
 
 
-def plan_reuse(a, name, mode, d, targets, timed, initial, start, phase):
+def plan_reuse(a, name, mode, d, targets, timed, initial, start, phase, pilots_only=False):
     # --plan (a dry run): what an earlier attempt would supply of this workload and what would run, decided by the same
     # keys and checks the series uses. Nothing but xppautX's pilot has run. The plan (common.write_plan) lists what would run.
-    imported, would_run = 0, []
+    imported, would_run, unsupported = 0, [], set()
     for program in ('xppaut', 'auto07p'):
+        if refused(name, d, program, timed):  # a program that cannot run the description is recorded, not run (a run's own pilots)
+            unsupported.add(program)
+            continue
         rd = copy.deepcopy(d)
         key = row_key(a, program, rd, start, dict(label='pilot-' + program, measured=timed), a.cores[:1])  # as a series measures it
         earlier, why = reusable_pilot(a, name, mode, program, key) if a.reuse else (None, 'no --reuse')
@@ -773,23 +787,51 @@ def plan_reuse(a, name, mode, d, targets, timed, initial, start, phase):
         imported += bool(earlier)
         if not earlier:
             would_run.append('%s pilot: %s' % (program, why))
-    if not a.measures or not timed:
-        return write_plan(a, name + '/' + mode, would_run, imported)  # no row is measured: the workload ends after its pilots
-    if not a.measures or not timed:
-        return write_plan(a, name + '/' + mode, would_run, imported)  # no row is measured: the workload ends after its pilots
+    if pilots_only or not a.measures or not timed:
+        return write_plan(a, name + '/' + mode, would_run, imported)  # no row is measured here: the workload ends after its pilots
     sized = earlier_mode_file(a, name, mode, 'window.json') if a.reuse else None
     count = sized['branch_repetitions'] if name in ('E1', 'T1') and sized else 1
     run_d = repeats_description(d, targets, count)
+    exact = exact_equations(a, name, d, reference.Equations(Odex(REPO / d['model']), d.get('parameters', {})), start, None, a.out / name / mode)
     for label, program, threads, events, jac in variants(name, timed, False):
+        if program in unsupported:
+            continue
         cpus = a.cores[:initial['threads_auto'] if threads == 'auto' else threads]
         row = dict(label=label, threads=threads, jacobian=jac, events=events, measured=True)
-        key = row_key(a, program, run_d, start, row, cpus, HAND_WRITTEN if jac == 'exact' and name in ('P1', 'E1') else None)
-        found = [reusable_row(a, name, mode, rep, label, program, key, row, cpus) if a.reuse else (None, 'no --reuse') for rep in repetitions(a)]
-        reasons = sorted({why for recs, why in found if not recs})
-        phase('plan: row %s: %d of %d repetitions imported%s' % (label, sum(1 for recs, _ in found if recs), len(found), '; runs: ' + '; '.join(reasons) if reasons else ''))
-        imported += sum(1 for recs, _ in found if recs)
-        would_run += ['row %s: %s' % (label, why) for why in reasons]
+        key = row_key(a, program, run_d, start, row, cpus, exact if jac == 'exact' else None)
+        reasons, eligible, counted = set(), True, 0
+        for rep in repetitions(a):
+            if rep > 0 and not eligible:  # a row that was not equal work in its warm-up has no later repetition
+                continue
+            recs, why = reusable_row(a, name, mode, rep, label, program, key, row, cpus) if a.reuse else (None, 'no --reuse')
+            counted += bool(recs)
+            if not recs:
+                reasons.add(why)
+            elif rep == 0:
+                eligible = all(r['equal_work'] for r in recs)
+        phase('plan: row %s: %d repetitions imported%s' % (label, counted, '; runs: ' + '; '.join(sorted(reasons)) if reasons else ''))
+        imported += counted
+        would_run += ['row %s: %s' % (label, why) for why in sorted(reasons)]
     write_plan(a, name + '/' + mode, would_run, imported)
+
+
+def sized_t2(d, targets, fastest):
+    """T2 grows its point count by untimed pilots: (the description at T2_SIZED_POINTS, its old points) when our pilot took
+    `fastest` seconds, less than MIN_WINDOW, else (None, old points)."""
+    old = d['runs'][-1]['autox']['max_steps']
+    if fastest >= MIN_WINDOW or old >= T2_SIZED_POINTS:
+        return None, old
+    larger, new = copy.deepcopy(d), T2_SIZED_POINTS
+    # Keep both physical parameter windows fixed while taking more steps.
+    for r in larger['runs']:
+        if r['name'] in targets:
+            r['autox']['max_steps'] = new
+            for key in ('step_size', 'max_step_size', 'min_step_size'):
+                r['autox'][key] *= old / new
+    # AUTO-07p's spurious GH (finding 2) come from the Newton residual, so their count follows the step: at the doubled
+    # points and halved steps it labels four, not five (series 22e, 2026-10-22); the traced entries follow it
+    larger['differences'] = [k for k in larger.get('differences', []) if not (k['type'] == 'GH' and k['index'] > T2_SIZED_GH)]
+    return larger, old
 
 
 def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repetitions=1):
@@ -819,8 +861,11 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
         start = start_values(initial['data'])
         inputs = odex, eqs, start, False
         if a.plan:
-            plan_reuse(a, name, mode, d, targets, timed, initial, start, phase)
-            return True
+            # a plan times nothing: T2 is sized as the earlier attempt's pilot was (as a run's own pilot decides), then planned in its sized mode
+            sizing = earlier_mode_file(a, name, mode, 'pilot-sizing.json') if name == 'T2' and a.reuse else None
+            larger = sized_t2(d, targets, sizing['pilot_wall'])[0] if sizing else None
+            plan_reuse(a, name, mode, d, targets, timed, initial, start, phase, pilots_only=bool(larger))  # a sized T2's own mode has the rows
+            return workload(a, name, larger, targets, timed, records, mode + '-sized') if larger else True
         rhs = reference.check_rhs(a.xppautx, eqs, start, out / 'rhs')
         phase('RHS check %s' % ('passed' if rhs['passed'] else 'FAILED'))
         digest_history(name, initial, out)
@@ -916,21 +961,9 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
             count = max(count, math.ceil(MIN_WINDOW / fastest))
         if name == 'T2':
             fastest = min(r['wall_seconds'] for r in initial['runs'] if r['run'] in targets)
-            if fastest < MIN_WINDOW and d['runs'][-1]['autox']['max_steps'] < T2_SIZED_POINTS:
-                larger = copy.deepcopy(d)
-                old = larger['runs'][-1]['autox']['max_steps']
-                new = T2_SIZED_POINTS
-                larger['runs'][-1]['autox']['max_steps'] = new
-                # Keep both physical parameter windows fixed while taking more steps.
-                for r in larger['runs']:
-                    if r['name'] in targets:
-                        r['autox']['max_steps'] = new
-                        for key in ('step_size', 'max_step_size', 'min_step_size'):
-                            r['autox'][key] *= old / new
-                # AUTO-07p's spurious GH (finding 2) come from the Newton residual, so their count follows the step: at the doubled
-                # points and halved steps it labels four, not five (series 22e, 2026-10-22); the traced entries follow it
-                larger['differences'] = [k for k in larger.get('differences', []) if not (k['type'] == 'GH' and k['index'] > T2_SIZED_GH)]
-                save(out / 'pilot-sizing.json', dict(old_points=old, chosen_points=new, pilot_wall=fastest))
+            larger, old = sized_t2(d, targets, fastest)
+            if larger:
+                save(out / 'pilot-sizing.json', dict(old_points=old, chosen_points=T2_SIZED_POINTS, pilot_wall=fastest))
                 return workload(a, name, larger, targets, timed, records, mode + '-sized')
         run_d = repeats_description(d, targets, count)
         save(out / 'window.json', dict(branch_repetitions=count, nominal_min_seconds=MIN_WINDOW, description=run_d))
