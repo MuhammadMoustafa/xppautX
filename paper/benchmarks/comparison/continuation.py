@@ -721,6 +721,15 @@ def earlier_mode_file(a, name, mode, file):
     return json.loads(path.read_text()) if path.exists() else None
 
 
+def kept_description(a, d):
+    # An earlier description names a model its attempt wrote by that attempt's path, a folder since moved or deleted (W807):
+    # the model is read from the earlier attempt's own copy, at the same place under it (models/...). A model of the repository
+    # (tools/models/...) keeps its path.
+    if '/attempt-' not in d['model']:
+        return d
+    return dict(d, model=str(a.reuse / d['model'].split('/attempt-', 1)[1].split('/', 1)[1]))
+
+
 def earlier_start(a, name, mode):
     path = a.reuse / name / mode / 'pilot-xppautx' / 'diagram.csv'
     return start_values(path.read_bytes()) if path.exists() else None
@@ -732,7 +741,7 @@ def earlier_key(a, name, mode, engine, recorded, description_file, row, cpus, fo
     # through description_sha as it is now (W802): a recorded hash is of the description_sha of its day, which a change of what
     # the hash leaves out (the prose) would make unequal for the very same description.
     window = earlier_mode_file(a, name, mode, description_file)
-    earlier_d = None if window is None else window['description'] if description_file == 'window.json' else window
+    earlier_d = None if window is None else kept_description(a, window['description'] if description_file == 'window.json' else window)
     if recorded and (engine == 'xppautx' or 'inputs' in recorded):
         return recorded if earlier_d is None else dict(recorded, description=description_sha(earlier_d, engine))
     start = earlier_start(a, name, mode)
