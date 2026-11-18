@@ -116,7 +116,9 @@ Drivers take `--only UNIT` (a unit's name, or its model's), `--list` and `--plan
 - **Imports are references.** An imported row's folder is linked into the new attempt (`common.link_tree`: hard links, so no space and
   no second copy; another file system is an error, not a silent copy), and the `--reuse` folder is `~/xppautx-comparison/results` (every file a real hard link, W807). Terman's XPPAUT
   convergence runs and its Python dop853 reference are imported the same way, by the keys of the files XPPAUT reads (`.ode`, `.set`),
-  its command line and its program, derived from what the earlier attempt kept.
+  its command line and its program, derived from what the earlier attempt kept. The dop853 reference's model is compared without the
+  array plot's three labels (`terman.DISPLAY_OPTIONS`, each named with its reason; W806): a label-only change of `episodic.odex` keeps
+  the key, and any other change of the model changes it.
 - T1's and E1's repetition windows come from the earlier attempt's `window.json`; T2's sized mode (`adaptive-sized`) is planned as
   its earlier attempt sized it (its pilot wall), so the plan names its rows; an unsupported program (`pilot-xppaut-unsupported.json`)
   has no rows to plan. An earlier row that finished but was not equal work is imported with that verdict, not run again.

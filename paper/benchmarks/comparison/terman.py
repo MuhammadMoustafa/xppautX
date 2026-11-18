@@ -3,13 +3,14 @@
 import gzip
 import json
 from pathlib import Path
+import re
 import sys
 
 import math
 import statistics
 
 from common import (BENCH, HERE, derived_program_sha, executable_sha, initialize, inputs_sha, link_tree, parser, progress, save, sha,
-                    write_plan)
+                    tree_sha, write_plan)
 from integration import PYTHON, argv_unchanged, convert, launch, setfile_patch, stage, variant
 from odex_model import Odex
 
@@ -153,13 +154,34 @@ def reusable_xppaut(a, label, model):
     return (None, 'differs in ' + ', '.join(changed)) if changed else (folder, None)
 
 
+# .odex options that change no number, only the picture the array plot draws: each is the text of one of its titles
+# (core/commands_array_plot.cpp). A reference's model key leaves exactly these out, each one named with its reason (W806).
+DISPLAY_OPTIONS = {
+    'array_plot.top_label': 'the text above the picture (its x title)',
+    'array_plot.side_label': 'the text beside it, up its side (its y title)',
+    'array_plot.bottom_label': 'the text under it (its bottom title)',
+}
+
+
+def model_key(path):
+    # The .odex's digest without its DISPLAY_OPTIONS items. The generated .odex writes a comma after each item of a group, so an
+    # item is taken out with the comma before it: a label-only change keeps the key, a number's change does not. A label that is
+    # first in its group is not taken out, so its change changes the key (the safe side).
+    path = Path(path)
+    text = path.read_text(encoding='utf-8')
+    for key in DISPLAY_OPTIONS:
+        text = re.sub(r',\s*%s\s*:\s*(?:"[^"]*"|[^,}\n]*)' % re.escape(key), '', text)
+    return tree_sha([(path.name, text.encode('utf-8'))])
+
+
 def reusable_reference(a, source):
     # (the earlier attempt's dop853 reference rows, None) when Python's files and the model are unchanged, else (None, why).
+    # The model is compared without its display options (model_key), so a change of labels alone reuses the rows (W806).
     rows, earlier_model = a.reuse / 'dop853-reference.dat', a.reuse / 'models/episodic.odex'
     if not rows.exists() or not earlier_model.exists():
         return None, 'no earlier reference'
     changed = [name for name, now, then in (('program', executable_sha(a, 'python'), derived_program_sha(a, 'python')),
-                                            ('model', sha(source.with_suffix('.odex')), sha(earlier_model))) if now != then]
+                                            ('model', model_key(source.with_suffix('.odex')), model_key(earlier_model))) if now != then]
     return (None, 'differs in ' + ', '.join(changed)) if changed else (rows, None)
 
 

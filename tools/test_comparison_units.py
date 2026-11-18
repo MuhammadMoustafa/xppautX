@@ -207,6 +207,39 @@ class LadderReuse(unittest.TestCase):
         self.assertEqual((rows, reason), (None, 'rung 1e-06 differs in inputs'))
 
 
+class ReferenceModelKey(unittest.TestCase):
+    # W806: a reference's model key leaves out the array plot's labels (DISPLAY_OPTIONS, each named with its reason) and nothing else.
+    def setUp(self):
+        import terman
+        self.terman = terman
+        self.scratch = tempfile.TemporaryDirectory(prefix='w806-test-')
+        self.root = Path(self.scratch.name)
+
+    def tearDown(self):
+        self.scratch.cleanup()
+
+    def odex(self, text):
+        path = self.root / 'episodic.odex'
+        path.write_text(text)
+        return path
+
+    def test_a_label_only_difference_keeps_the_key_and_a_number_changes_it(self):
+        before = '  plot: {\n    colormap: jet, array_plot.row_skip: 8, array_plot.z_min: 0, array_plot.z_max: 1,\n  },\n'
+        labelled = '  plot: {\n    colormap: jet, array_plot.row_skip: 8, array_plot.z_min: 0, array_plot.z_max: 1, array_plot.top_label: "index",\n' \
+                   '    array_plot.side_label: "time, s",\n  },\n'
+        other_labels = labelled.replace('index', 'column').replace('time, s', 'seconds')
+        key = self.terman.model_key
+        self.assertEqual(key(self.odex(before)), key(self.odex(labelled)))
+        self.assertEqual(key(self.odex(labelled)), key(self.odex(other_labels)))
+        self.assertNotEqual(key(self.odex(before)), key(self.odex(before.replace('z_max: 1', 'z_max: 2'))))
+        self.assertNotEqual(key(self.odex(before)), key(self.odex(labelled.replace('z_max: 1', 'z_max: 2'))))
+        self.assertNotEqual(key(self.odex(before)), key(self.odex(before.replace('colormap: jet', 'colormap: hot'))))
+
+    def test_every_display_option_is_named_with_its_reason(self):
+        self.assertTrue(all(reason.strip() for reason in self.terman.DISPLAY_OPTIONS.values()))
+        self.assertEqual(sorted(self.terman.DISPLAY_OPTIONS), ['array_plot.bottom_label', 'array_plot.side_label', 'array_plot.top_label'])
+
+
 class ArgvPaths(unittest.TestCase):
     # W805: an earlier row's command line is compared without the program's own paths: a Python run's interpreter and script (a
     # worktree's files) differ between checkouts, its program hash covers them; its model and the pinned CPU must still agree.
