@@ -76,9 +76,8 @@ class Run:
 
     def units(self, study):
         if study == 'large-stiff':
-            if self.a.check:
-                return self.stiff.UNITS[:1]  # a check is the pilot's smoke run alone; measure and cache need the pilot's folder
-            return [u for u in self.stiff.UNITS if not self.a.only or u in self.a.only.split(',')]
+            names = self.stiff.CHECK_UNITS if self.a.check else self.stiff.UNITS  # a check is the stage-1 smoke gate alone (W815)
+            return [u for u in names if not self.a.only or u in self.a.only.split(',')]
         out = self.scratch / ('list-' + study)
         p = subprocess.run(self.argv(study, out, self.untimed, '--list'), cwd=REPO, capture_output=True, text=True)
         if p.returncode:
@@ -91,8 +90,8 @@ class Run:
         # A unit's set-up, another unit that must be done first: (study, unit) with the flag it is given as, or None.
         if study in ('screen', 'python') and unit.split('-')[0] == 'episodic' and not self.a.check:  # the Terman network, whatever the method
             return 'terman', 'episodic', '--terman'
-        if study == 'large-stiff' and unit != 'pilot':
-            return 'large-stiff', 'pilot', '--pilot'
+        if study == 'large-stiff' and self.stiff.pilot_of(unit):
+            return 'large-stiff', self.stiff.pilot_of(unit), '--pilot'  # a measure or cache unit reads its size's pilot (W815)
         return None
 
     def setup_flag(self, study, unit):
@@ -104,17 +103,26 @@ class Run:
         if not done.exists():
             return [], 'its set-up unit %s/%s is not done' % need[:2]
         attempt = done.parent / json.loads(done.read_text())['attempt']
-        return [need[2], str(attempt / 'pilot' if need[2] == '--pilot' else attempt)], None
+        return [need[2], str(attempt)], None
+
+    def stiff_identity(self, unit):
+        # A large-stiff unit's identity: the worker, the kit and the pilot it reads (never the commit, W815).
+        flag, _ = self.setup_flag('large-stiff', unit)
+        return self.stiff.unit_identity(self.a.worker.resolve(), Path(flag[1]) if flag else None)
 
     def stiff_argv(self, unit, out, machine, extra):
+        # study.py's mode, family and size for the unit (W815); a check is the stage-1 gate, without KLU.
         a = self.a
-        argv = [sys.executable, '-X', 'faulthandler', str(BENCH / 'large-stiff/study.py'), unit, '--worker', str(a.worker.resolve()), '--out', str(out)]
+        mode, family, n = self.stiff.unit_args(unit)
+        argv = [sys.executable, '-X', 'faulthandler', str(BENCH / 'large-stiff/study.py'), 'check' if a.check else mode,
+                '--worker', str(a.worker.resolve()), '--out', str(out), '--family', family, '--sizes', str(n)]
         if a.check:
-            return argv[:4] + ['check', '--sizes', '50', '--allow-no-klu'] + argv[5:]
-        if unit == 'measure':
-            argv += ['--cpu', str(physical_cores(json.loads(Path(machine).read_text()))[0]), '--machine-record', str(machine), '--repeats', str(a.repeats or self.stiff.REPEATS)]
-        if unit == 'cache':
-            argv += ['--cpu', str(physical_cores(json.loads(Path(machine).read_text()))[0])]
+            return argv + ['--allow-no-klu']
+        cpu = str(physical_cores(json.loads(Path(machine).read_text()))[0]) if mode in ('measure', 'cache') else None
+        if mode == 'measure':
+            argv += ['--cpu', cpu, '--machine-record', str(machine), '--repeats', str(a.repeats or self.stiff.REPEATS)]
+        if mode == 'cache':
+            argv += ['--cpu', cpu]
         return argv + extra
 
     def plan(self, study, unit):
@@ -124,13 +132,16 @@ class Run:
         source = earlier_attempt(unit_dir, a.reuse, study) if study != 'large-stiff' else None
         done = unit_dir / DONE
         if study == 'large-stiff':
-            # study.py's own identity (the worker, its sources, the commit) is its key; there are no rows to plan.
-            # Read even for a unit not yet done: a worker older than its sources stops the plan, not the series hours in (W812).
-            identity = self.stiff.identity(a.worker.resolve())
+            # study.py's identity (the worker, its sources, its pilot) is its key; there are no rows to plan. Its pilot not done
+            # yet: nothing earlier to plan against. Read even for a unit not yet done: a worker older than its sources stops
+            # the plan, not the series hours in (W812).
+            if self.setup_flag(study, unit)[1]:
+                return None
+            identity = self.stiff_identity(unit)
             if not done.exists():
                 return None
             same = json.loads(done.read_text())['identity'] == identity
-            return [] if same else ['the worker, its sources or the commit changed since the unit finished']
+            return [] if same else ['the worker, its sources or its pilot changed since the unit finished']
         if source is None:
             return None
         flag, why = self.setup_flag(study, unit)
@@ -187,7 +198,7 @@ class Run:
                       commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPO, text=True).strip(),
                       binaries={str(b.resolve()): sha(b) for b in (a.xppautx, a.xppaut)})
         if study == 'large-stiff':
-            record['identity'] = self.stiff.identity(a.worker.resolve())
+            record['identity'] = self.stiff_identity(unit)
         return record
 
 

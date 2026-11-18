@@ -39,7 +39,7 @@ class Protocol(unittest.TestCase):
             (pilot/'models').mkdir(parents=True)
             cases = []
             text=''.join(str(k/100)+' '+' '.join(['0']*6)+'\n' for k in range(101))
-            for family in ('cable', 'ring'):
+            for family in ('cable',):  # one unit is one model and size (W815)
                 path=pilot/'models'/f'{family}-6.odex'
                 path.write_text('# synthetic\n')
                 study.save(path.with_suffix('.json'), dict(n=6, total=1.))
@@ -63,7 +63,7 @@ class Protocol(unittest.TestCase):
                 return dict(solver=solver, folder=str(folder), tolerance=tol,
                             wall=1., cpu=.9, peak_rss_kib=100, stats={})
 
-            args=argparse.Namespace(worker=base/'worker', out=base/'results', pilot=pilot,
+            args=argparse.Namespace(worker=base/'worker', out=base/'results', pilot=pilot, family='cable',
                                     sizes=[6], cpu=2, machine_record=base/'machine.json')
             with patch.object(study, 'available', return_value=study.SOLVERS), \
                  patch.object(study, 'identity', return_value=dict(test=True)), \
@@ -73,16 +73,15 @@ class Protocol(unittest.TestCase):
                  patch.object(study.subprocess, 'check_output', return_value=''):
                 study.measure(args)
             results=json.loads((args.out/'runs.json').read_text())
-            self.assertEqual(len(results), 48)
-            self.assertEqual(sum(r['warmup'] for r in results), 8)
+            self.assertEqual(len(results), 24)
+            self.assertEqual(sum(r['warmup'] for r in results), 4)
             self.assertEqual(sum(not r['accuracy_pass'] for r in results), int(fail))
-            for family in ('cable', 'ring'):
-                for rep in range(5):
-                    group=[r['solver'] for r in results if r['family']==family and r['repetition']==rep]
-                    shift=rep%4
-                    self.assertEqual(group, study.SOLVERS[shift:]+study.SOLVERS[:shift])
+            for rep in range(5):
+                group=[r['solver'] for r in results if r['repetition']==rep]
+                shift=rep%4
+                self.assertEqual(group, study.SOLVERS[shift:]+study.SOLVERS[:shift])
             factors=[c for c in calls if c[2].get('factors')]
-            self.assertEqual(len(factors), 8)
+            self.assertEqual(len(factors), 4)
             self.assertTrue(all(not c[2].get('measure') for c in factors))
             self.assertTrue(all(c[2]['cpu']==2 for c in calls))
             self.assertEqual(len({str(c[1]) for c in calls}), len(calls))
@@ -90,13 +89,39 @@ class Protocol(unittest.TestCase):
             klu=next(r for r in summary if r['family']=='cable' and r['solver']=='klu')
             self.assertEqual(klu['passed'], 4 if fail else 5)
             self.assertEqual('wall_mean' in klu, not fail)
-            self.assertEqual(len(json.loads((args.out/'crossings.json').read_text())), 12)
 
     def test_rotating_fresh_runs(self):
         self.exercise(False)
 
     def test_failed_run_is_kept_and_not_summarized(self):
         self.exercise(True)
+
+    def test_units_name_their_model_size_and_pilot(self):
+        self.assertEqual(study.unit_args('measure-ring-5000'), ('measure', 'ring', 5000))
+        self.assertEqual(study.unit_args('cache-ring'), ('cache', 'ring', study.CACHE_SIZE))
+        self.assertEqual(study.pilot_of('measure-cable-1000'), 'pilot-cable-1000')
+        self.assertEqual(study.pilot_of('cache-cable'), f'pilot-cable-{study.CACHE_SIZE}')
+        self.assertIsNone(study.pilot_of('pilot-ring-5000'))
+        self.assertEqual(len(study.UNITS), 2*len(study.FAMILIES)*len(study.PILOT_SIZES)+len(study.FAMILIES))
+
+    def test_identity_is_what_a_unit_depends_on_not_the_commit(self):
+        # W815: no git call and no commit in the identity, so a commit alone never changes a unit's key.
+        with tempfile.TemporaryDirectory(dir='build') as tmp:
+            worker=Path(tmp)/'worker'
+            worker.write_text('binary')
+            (Path(tmp)/'libstudy.so').write_text('bridge')
+            (Path(tmp)/'build.json').write_text(json.dumps(dict(sources={})))
+            with patch.object(study.subprocess, 'check_output', side_effect=AssertionError('no git')):
+                value=study.identity(worker)
+            self.assertNotIn('commit', value)
+            self.assertEqual(study.unit_identity(worker, None), value)
+            pilot=Path(tmp)/'pilot'
+            pilot.mkdir()
+            (pilot/'correctness.json').write_text('{}')
+            self.assertEqual(study.unit_identity(worker, pilot)['pilot_sha256'], study.digest(pilot/'correctness.json'))
+
+    def test_check_units_are_the_smoke_gate(self):
+        self.assertEqual(study.CHECK_UNITS, ('pilot-cable-50', 'pilot-ring-50'))
 
 
 if __name__ == '__main__':

@@ -27,7 +27,13 @@ LOOSE_TOL = 1e-5  # 1e-4 failed the unchanged loose limit on the 200-state ring
 REPEATS = 5  # section 4, excluded warm-up then five fresh processes
 SMOKE_SIZES = [50, 200]  # the pilot's untimed smoke run, both families
 PILOT_SIZES = [1000, 2000, 3000, 5000]  # the measured size ladder, calibrated by the pilot
-UNITS = ('pilot', 'measure', 'cache')  # W699: each its own unit of the comparison run; measure and cache need the pilot's folder
+FAMILIES = ('cable', 'ring')
+CACHE_SIZE = PILOT_SIZES[-1]  # the cache diagnostic's model: the largest size of the ladder
+# W815: one unit per model and size, its pilot and then its measure (which reads that size's pilot), and one cache unit per
+# family at CACHE_SIZE (which reads that pilot). run.py gives each its own done record, so a series stops after any unit.
+UNITS = (tuple(f'pilot-{f}-{n}' for f in FAMILIES for n in PILOT_SIZES) + tuple(f'measure-{f}-{n}' for f in FAMILIES for n in PILOT_SIZES)
+         + tuple(f'cache-{f}' for f in FAMILIES))
+CHECK_UNITS = tuple(f'pilot-{f}-{SMOKE_SIZES[0]}' for f in FAMILIES)  # a check is the stage-1 gate at the smallest smoke size
 ROWS = 101  # common nominal times, including both ends
 CACHE_FACTORIZATIONS = 3  # matches bridge.cpp; stop the run at this setup count
 THREAD_ENV = dict(LC_ALL='C', OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1',
@@ -43,12 +49,32 @@ def digest(path):
 
 
 def identity(worker):
+    # What a unit depends on: the worker and its bridge, and the kit's own sources (measuring code and generator). Not the commit (W815).
     built=json.loads((worker.parent/'build.json').read_text())
     if any(digest(HERE/name) != value for name, value in built['sources'].items()):
         raise RuntimeError('adapter sources changed after the build; rebuild the worker')
     return dict(worker_sha256=digest(worker), bridge_sha256=digest(worker.parent/'libstudy.so'),
-                sources={p.name: digest(p) for p in HERE.iterdir() if p.suffix in ('.py', '.cpp', '.h')},
-                commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip())
+                sources={p.name: digest(p) for p in HERE.iterdir() if p.suffix in ('.py', '.cpp', '.h')})
+
+
+def unit_identity(worker, pilot=None):
+    # A unit's identity: identity() plus, for a measure or a cache, the pilot attempt whose gate and models it reads.
+    value = identity(worker)
+    if pilot is not None:
+        value['pilot_sha256'] = digest(pilot/'correctness.json')
+    return value
+
+
+def pilot_of(unit):
+    # The pilot unit a measure or cache unit reads ('measure-ring-5000' -> 'pilot-ring-5000'); None for a pilot.
+    kind, family, n = unit_args(unit)
+    return None if kind == 'pilot' else f'pilot-{family}-{n}'
+
+
+def unit_args(unit):
+    # A unit's mode, family and size: 'measure-ring-5000' -> ('measure', 'ring', 5000); 'cache-ring' -> ('cache', 'ring', CACHE_SIZE).
+    kind, family, *size = unit.split('-')
+    return kind, family, int(size[0]) if size else CACHE_SIZE
 
 
 def trajectory(path, n, total):
@@ -186,60 +212,60 @@ def available(worker, allow):
     return [s for s in SOLVERS if build['klu'] or s != 'klu']
 
 
-def prepare(args, sizes):
+def prepare(args, family, sizes):
+    # The correctness gate of one family's models at the given sizes, in a new folder (a unit's attempt, W815).
     worker, root = args.worker.resolve(), args.out.resolve()
     solvers = available(worker, args.allow_no_klu)
     root.mkdir(parents=True, exist_ok=False)
     save(root/'identity.json', identity(worker))
     models = root/'models'
     cases = []
-    for family in ('cable', 'ring'):
-        for n in sizes:
-            model = generate(family, n, models)
-            meta = json.loads(model.with_suffix('.json').read_text())
-            folder = root/f'{family}-{n}'
-            case = dict(model=str(model), model_sha256=digest(model),
-                        metadata_sha256=digest(model.with_suffix('.json')),
-                        family=family, n=n, solvers={}, status='preparing')
-            cases.append(case)
-            save(root/'correctness.json', dict(cases=cases, omitted=['klu'] if 'klu' not in solvers else []))
-            run(worker, model, 'probe', 1e-4, folder/'probe')
-            probe = json.loads((folder/'probe/stats.json').read_text())
-            if probe['band'] > meta['expected_band']:
-                raise ValueError(f'{model}: unexpected exact-Jacobian band {probe}')
-            case['pattern'] = probe
-            refs = []
-            for tag, tol in [('reference', REFERENCE_TOL), ('reference-half', REFERENCE_TOL/2)]:
-                run(worker, model, 'reference', tol, folder/tag)
-                refs.append(trajectory(folder/tag/'trajectory.dat', n, meta['total']))
-            case['reference_convergence'] = error(refs[0], refs[1])
-            case['reference_sha256'] = digest(folder/'reference-half/trajectory.dat')
-            if case['reference_convergence']['along'] > TARGET/100:
-                raise ValueError(f'{model}: reference not converged')
-            for solver in solvers:
-                tol = LOOSE_TOL
-                for level in range(7):
-                    result = run(worker, model, solver, tol, folder/f'{solver}-{level}')
-                    values = trajectory(Path(result['folder'])/'trajectory.dat', n, meta['total'])
-                    result['error'] = error(values, refs[1])
+    for n in sizes:
+        model = generate(family, n, models)
+        meta = json.loads(model.with_suffix('.json').read_text())
+        folder = root/f'{family}-{n}'
+        case = dict(model=str(model), model_sha256=digest(model),
+                    metadata_sha256=digest(model.with_suffix('.json')),
+                    family=family, n=n, solvers={}, status='preparing')
+        cases.append(case)
+        save(root/'correctness.json', dict(cases=cases, omitted=['klu'] if 'klu' not in solvers else []))
+        run(worker, model, 'probe', 1e-4, folder/'probe')
+        probe = json.loads((folder/'probe/stats.json').read_text())
+        if probe['band'] > meta['expected_band']:
+            raise ValueError(f'{model}: unexpected exact-Jacobian band {probe}')
+        case['pattern'] = probe
+        refs = []
+        for tag, tol in [('reference', REFERENCE_TOL), ('reference-half', REFERENCE_TOL/2)]:
+            run(worker, model, 'reference', tol, folder/tag)
+            refs.append(trajectory(folder/tag/'trajectory.dat', n, meta['total']))
+        case['reference_convergence'] = error(refs[0], refs[1])
+        case['reference_sha256'] = digest(folder/'reference-half/trajectory.dat')
+        if case['reference_convergence']['along'] > TARGET/100:
+            raise ValueError(f'{model}: reference not converged')
+        for solver in solvers:
+            tol = LOOSE_TOL
+            for level in range(7):
+                result = run(worker, model, solver, tol, folder/f'{solver}-{level}')
+                values = trajectory(Path(result['folder'])/'trajectory.dat', n, meta['total'])
+                result['error'] = error(values, refs[1])
+                save(Path(result['folder'])/'result.json', result)
+                if level == 0 and result['error']['along'] > LOOSE_LIMIT:
+                    explained, shift = timing_explains(values, refs[1], LOOSE_LIMIT)
+                    result['loose_timing_shift_steps'] = shift
+                    if not explained:
+                        raise ValueError(f'{model}: loose {solver} fails {result["error"]}; not a time shift (worst {shift:.3g} output steps)')
                     save(Path(result['folder'])/'result.json', result)
-                    if level == 0 and result['error']['along'] > LOOSE_LIMIT:
-                        explained, shift = timing_explains(values, refs[1], LOOSE_LIMIT)
-                        result['loose_timing_shift_steps'] = shift
-                        if not explained:
-                            raise ValueError(f'{model}: loose {solver} fails {result["error"]}; not a time shift (worst {shift:.3g} output steps)')
-                        save(Path(result['folder'])/'result.json', result)
-                    if result['error']['along'] <= TARGET:
-                        case['solvers'][solver] = result
-                        break
-                    tol /= 10
-                else:
-                    raise ValueError(f'{model}: {solver} cannot meet target {TARGET}')
-            case['status'] = 'pass'
-            save(root/'correctness.json', dict(cases=cases, omitted=['klu'] if 'klu' not in solvers else [],
-                                               target=TARGET, loose_limit=LOOSE_LIMIT, reference_tolerance=REFERENCE_TOL))
-            print(f'{family} n={n}: PASS; reference delta={case["reference_convergence"]["along"]:.3g}; '
-                  + ', '.join(f'{s}={v["error"]["along"]:.3g}@{v["tolerance"]:g}' for s, v in case['solvers'].items()), flush=True)
+                if result['error']['along'] <= TARGET:
+                    case['solvers'][solver] = result
+                    break
+                tol /= 10
+            else:
+                raise ValueError(f'{model}: {solver} cannot meet target {TARGET}')
+        case['status'] = 'pass'
+        save(root/'correctness.json', dict(cases=cases, omitted=['klu'] if 'klu' not in solvers else [],
+                                           target=TARGET, loose_limit=LOOSE_LIMIT, reference_tolerance=REFERENCE_TOL))
+        print(f'{family} n={n}: PASS; reference delta={case["reference_convergence"]["along"]:.3g}; '
+              + ', '.join(f'{s}={v["error"]["along"]:.3g}@{v["tolerance"]:g}' for s, v in case['solvers'].items()), flush=True)
     return cases
 
 
@@ -264,9 +290,10 @@ def measure(args):
     gate = json.loads((args.pilot/'correctness.json').read_text())
     if gate['omitted'] or any(c['status'] != 'pass' for c in gate['cases']):
         raise RuntimeError('pilot must pass with KLU enabled')
-    if sorted({c['n'] for c in gate['cases']}) != sorted(args.sizes):
-        raise RuntimeError('pilot size ladder differs from measurement')
-    for case in gate['cases']:
+    if [(c['family'], c['n']) for c in gate['cases']] != [(args.family, args.sizes[0])]:
+        raise RuntimeError('pilot unit differs from this measurement: its model and size')
+    cases = gate['cases']
+    for case in cases:
         model=args.pilot/'models'/Path(case['model']).name
         ref=args.pilot/f'{case["family"]}-{case["n"]}'/'reference-half/trajectory.dat'
         if (digest(model) != case['model_sha256'] or digest(model.with_suffix('.json')) != case['metadata_sha256']
@@ -277,7 +304,6 @@ def measure(args):
         raise RuntimeError('tracked checkout must be clean')
     root.mkdir(parents=True, exist_ok=False)
     shutil.copytree(args.pilot, root/'pilot')
-    cases = gate['cases']
     for case in cases:
         case['model'] = str(root/'pilot/models'/Path(case['model']).name)
     machine(args, root)
@@ -335,21 +361,18 @@ def summarize(root):
     with (root/'summary.csv').open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=list(dict.fromkeys(k for r in summary for k in r)))
         writer.writeheader(); writer.writerows(summary)
-    # A measured crossing on this finite ladder is not an interpolated break-even.
-    crossings = []
-    for family in ('cable', 'ring'):
-        for solver in ('legacy-band', 'klu', 'gmres'):
-            for metric in ('wall_mean', 'peak_rss_kib_mean'):
-                pairs = []
-                for r in summary:
-                    if r['family'] == family and r['solver'] == solver and metric in r:
-                        dense = next(x for x in summary if x['family'] == family and x['n'] == r['n'] and x['solver'] == 'legacy-dense')
-                        if metric in dense:
-                            pairs.append((r['n'], r[metric] < dense[metric]))
-                winners = [n for n, wins in pairs if wins]
-                crossings.append(dict(family=family, solver=solver, metric=metric,
-                                      first_measured_win=min(winners) if winners else None, ladder=pairs))
-    save(root/'crossings.json', crossings)
+
+
+def cache(args, family):
+    # The cache diagnostic of one family's pilot model at CACHE_SIZE: its own unit (W815).
+    wait_until_ready()
+    root = args.out.resolve()
+    gate = json.loads((args.pilot/'correctness.json').read_text())
+    case = next(c for c in gate['cases'] if (c['family'], c['n']) == (family, CACHE_SIZE))
+    model = args.pilot/'models'/Path(case['model']).name
+    result = run(args.worker.resolve(), model, 'legacy-dense', case['solvers']['legacy-dense']['tolerance'],
+                 root/'cache'/family, cpu=args.cpu, callgrind=True)
+    save(root/'cache-summary.json', [dict(family=family, n=CACHE_SIZE, **result['cache'])])
 
 
 def main():
@@ -358,44 +381,34 @@ def main():
     ap.add_argument('mode', choices=['check', 'pilot', 'measure', 'cache', 'summarize'])
     ap.add_argument('--worker', type=Path, default=Path('build/w378/worker'))
     ap.add_argument('--out', type=Path, required=True)
-    ap.add_argument('--sizes', nargs='+', type=int)
+    ap.add_argument('--family', choices=FAMILIES, help='the model family of a pilot, measure or cache unit (W815)')
+    ap.add_argument('--sizes', nargs='+', type=int, help='the size of a pilot or measure unit: one size (W815)')
     ap.add_argument('--allow-no-klu', action='store_true', help='stage 1 only; records KLU as unvalidated')
     ap.add_argument('--cpu', type=int, default=2)
     ap.add_argument('--machine-record', type=Path)
-    ap.add_argument('--pilot', type=Path, help='completed untimed check folder with the measurement size ladder')
+    ap.add_argument('--pilot', type=Path, help='the completed pilot unit of the same model and size (its attempt folder)')
     ap.add_argument('--repeats', type=int, default=REPEATS, help='measured processes after the warm-up (W460)')
     a = ap.parse_args()
     REPEATS = a.repeats  # read by measure and summarize
-    if a.mode == 'check':
-        prepare(a, a.sizes or SMOKE_SIZES)
-    elif a.mode == 'pilot':
-        # The set-up of the measurement (W699's first unit): the smoke sizes, then the size ladder that calibrates each solver.
-        base = a.out.resolve()
-        base.mkdir()
-        for folder, sizes in (('check', SMOKE_SIZES), ('pilot', PILOT_SIZES)):
-            a.out = base / folder
-            prepare(a, sizes)
-    elif a.mode == 'measure':
-        if a.allow_no_klu or not a.machine_record or not a.pilot:
-            ap.error('measure requires --machine-record and --pilot, and forbids --allow-no-klu')
-        a.sizes = a.sizes or PILOT_SIZES
-        measure(a)
-    elif a.mode == 'summarize':
+    if a.mode == 'summarize':
         summarize(a.out.resolve())
-    else:
+        return
+    if not a.family:
+        ap.error(f'{a.mode} needs --family')
+    if a.mode == 'cache':
         if not a.pilot:
             ap.error('cache requires --pilot')
-        wait_until_ready()
-        root = a.out.resolve()
-        gate = json.loads((a.pilot/'correctness.json').read_text())
-        summaries=[]
-        for case in gate['cases']:
-            if case['n'] == max(c['n'] for c in gate['cases']):
-                model=a.pilot/'models'/Path(case['model']).name
-                result=run(a.worker.resolve(), model, 'legacy-dense', case['solvers']['legacy-dense']['tolerance'],
-                           root/'cache'/case['family'], cpu=a.cpu, callgrind=True)
-                summaries.append(dict(family=case['family'], n=case['n'], **result['cache']))
-                save(root/'cache-summary.json', summaries)
+        a.sizes = [CACHE_SIZE]
+        cache(a, a.family)
+        return
+    if not a.sizes or len(a.sizes) != 1:
+        ap.error(f'{a.mode} needs one --sizes value')
+    if a.mode == 'measure':
+        if a.allow_no_klu or not a.machine_record or not a.pilot:
+            ap.error('measure requires --machine-record and --pilot, and forbids --allow-no-klu')
+        measure(a)
+    else:
+        prepare(a, a.family, a.sizes)  # pilot: with KLU; check: stage 1, without it (--allow-no-klu)
 
 
 if __name__ == '__main__':

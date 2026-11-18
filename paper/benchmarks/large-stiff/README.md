@@ -143,21 +143,27 @@ to performance as the maintainer, fix and record turbo state, then:
 KIT=paper/benchmarks/large-stiff
 uv run --locked python -m py_compile "$KIT"/*.py
 uv run --locked python "$KIT/study.py" check --worker build/w378/worker \
-  --sizes 50 200 --out build/w378/check-ubuntu
-# Large untimed calibration/reference pass, separate from the timed series:
-uv run --locked python "$KIT/study.py" check --worker build/w378/worker \
-  --sizes 1000 2000 3000 5000 --out build/w378/pilot-ubuntu
+  --family cable --sizes 50 --allow-no-klu --out build/w378/check-ubuntu-cable
+# Large untimed calibration/reference pass, one unit per model and size (W815; run.py does this
+# for the whole series, one unit after another, each with its own done record):
+for f in cable ring; do for n in 1000 2000 3000 5000; do
+  uv run --locked python "$KIT/study.py" pilot --worker build/w378/worker --family $f --sizes $n \
+    --out build/w378/pilot-ubuntu-$f-$n
+done; done
 tools/comparison-setup.sh --record
 # Set MACHINE to the exact path printed by --record, not a wildcard.
 MACHINE="$HOME/xppautx-comparison/provenance/machine-YYYYMMDDTHHMMSSZ.json"
 tools/comparison-setup.sh --ready
-uv run --locked python "$KIT/study.py" measure --worker build/w378/worker --cpu 2 \
-  --pilot build/w378/pilot-ubuntu --machine-record "$MACHINE" \
-  --out build/w378/results-w354-ubuntu
-# Separate cache-simulation diagnostic, never a timed repeat:
-uv run --locked python "$KIT/study.py" cache --worker build/w378/worker --cpu 2 \
-  --out build/w378/results-w354-ubuntu
-uv run --locked python "$KIT/study.py" summarize --out build/w378/results-w354-ubuntu
+for f in cable ring; do for n in 1000 2000 3000 5000; do
+  uv run --locked python "$KIT/study.py" measure --worker build/w378/worker --cpu 2 --family $f --sizes $n \
+    --pilot build/w378/pilot-ubuntu-$f-$n --machine-record "$MACHINE" \
+    --out build/w378/results-w354-ubuntu-$f-$n
+done; done
+# Separate cache-simulation diagnostic, one per family, never a timed repeat:
+for f in cable ring; do
+  uv run --locked python "$KIT/study.py" cache --worker build/w378/worker --cpu 2 --family $f \
+    --pilot build/w378/pilot-ubuntu-$f-5000 --out build/w378/cache-ubuntu-$f
+done
 ```
 
 `measure` itself calls `--ready` before the warm-up/measurement series;
@@ -219,9 +225,10 @@ implement or time an alternative LU layout.
 
 Artifacts: commands, stdout/stderr, all trajectories, stats, failures,
 input/source/binary hashes, machine.json, build.json, runs.json,
-summary.csv/JSON and crossings.json. Only complete five-pass rows receive
-timing summaries; failed runs remain. A first measured win on this ladder
-is not an interpolated crossing. Report nonmonotonic wins, uncertainty,
+summary.csv/JSON per measure unit (one model and size; the report pools
+them). Only complete five-pass rows receive timing summaries; failed runs
+remain. No crossing is computed per unit (a ladder of one size has none),
+and a measured win on the ladder is not an interpolated crossing. Report nonmonotonic wins, uncertainty,
 the banded baseline, and memory's process/model overhead before making
 any recommendation. The human study conclusion belongs in the committed
 page after stage 2; nothing is vendored by this kit.

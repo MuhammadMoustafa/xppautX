@@ -402,10 +402,11 @@ def compute(final):
                                                         low=p['low'] / baseline['high'], high=p['high'] / baseline['low']) for p in pts]
                                        if target and target > 0 else []))
     large = []
-    if 'measure' in studies['large-stiff']:  # a run whose measure has not run yet reports none (W718, maintainer 2026-11-18)
-        with (studies['large-stiff']['measure'] / 'summary.csv').open(newline='') as stream:
-            for r in csv.DictReader(stream):
-                large.append({k: (v if k in ('family', 'solver') else float(v)) for k, v in r.items()})
+    for name, measure in sorted(studies['large-stiff'].items()):  # one measure unit per model and size (W815); none until measured (W718)
+        if name.startswith('measure-'):
+            with (measure / 'summary.csv').open(newline='') as stream:
+                for r in csv.DictReader(stream):
+                    large.append({k: (v if k in ('family', 'solver') else float(v)) for k, v in r.items()})
     # Audit includes ready rows and excluded/untimed samples, without rendering
     # pilot/warm-up wall times as performance measurements.
     audit = {s: pooled(fs, 'summary.json') for s, fs in folders.items() if s not in OWN_SECTIONS and any((f / 'summary.json').exists() for f in fs)}
