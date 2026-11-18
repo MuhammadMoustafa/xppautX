@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --locked python
 """W589: offline W583 comparison report and paper figures, computed once.
 
-uv run --locked python paper/benchmarks/comparison/final_report.py --final ~/xppautx-comparison/w617-units --out DIR
+uv run --locked python paper/benchmarks/comparison/final_report.py --final ~/xppautx-comparison/results --out DIR
 
 Readers consolidate report-20261031/scripts/{load,tables,labels}.py and
 report-20261101/scripts/w557_load.py. No historical report is imported.

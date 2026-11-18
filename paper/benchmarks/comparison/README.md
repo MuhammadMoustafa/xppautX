@@ -3,9 +3,16 @@
 From the checkout root:
 
 ```sh
-uv run --locked python paper/benchmarks/comparison/final_report.py --final ~/xppautx-comparison/w617-units --out paper/benchmarks/results/report-w617
+uv run --locked python paper/benchmarks/comparison/final_report.py --final ~/xppautx-comparison/results --out paper/benchmarks/results/report-w617
 uv run --locked python tools/test_final_report.py
 ```
+
+`~/xppautx-comparison/results/` is the comparison's one folder of record (W807, #888): the per-unit layout with every
+file a real hard link (one inode each, no space), what `final_report.py --final` reads and what `run.py --reuse` imports.
+It is built once, from the older per-unit tree whose entries were symlinks, by
+`uv run --locked python paper/benchmarks/comparison/build_results.py --from ~/xppautx-comparison/w617-units --to ~/xppautx-comparison/results`
+(refuses an existing `--to`; a dangling link is an error). The files a unit's study shares (`models/`, `provenance.json`,
+`machine.json`) appear under each of its units' attempts as the same inode.
 
 W589 (#654) reads the W583 frozen series without changing it or running a
 benchmark. It reads the per-unit records of a run.py results folder directly
@@ -103,7 +110,7 @@ Drivers take `--only UNIT` (a unit's name, or its model's), `--list` and `--plan
   the current `description_sha`, not from the hash it recorded in its day. The python study's dopri8 ladders are reused only with
   every program unchanged (its rungs follow every program's pilots), so they stop the run while xppautX changes.
 - **Imports are references.** An imported row's folder is linked into the new attempt (`common.link_tree`: hard links, so no space and
-  no second copy; another file system is an error, not a silent copy), and the `--reuse` folder may be `w617-units`' symlinks. Terman's XPPAUT
+  no second copy; another file system is an error, not a silent copy), and the `--reuse` folder is `~/xppautx-comparison/results` (every file a real hard link, W807). Terman's XPPAUT
   convergence runs and its Python dop853 reference are imported the same way, by the keys of the files XPPAUT reads (`.ode`, `.set`),
   its command line and its program, derived from what the earlier attempt kept.
 - T1's and E1's repetition windows come from the earlier attempt's `window.json`; T2's sized mode (`adaptive-sized`) is planned as
