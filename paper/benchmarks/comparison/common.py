@@ -511,6 +511,8 @@ def reachable_sha(text, roots):
 STUDIES = ('terman', 'screen', 'modeldb', 'research', 'izhikevich', 'python', 'continuation', 'scaling', 'large-stiff', 'server')  # settled order
 DONE = 'done.json'
 PLAN = 'plan.json'
+PASS1 = 'pass1.json'  # W818: a unit's pass-1 verdict, kept with the binaries it was judged for (its pass1/ folder is never counted)
+STOPPED = 'stopped.json'  # W818: written when a series ends with a slower unit; the next run of the folder starts again from its first unit
 
 
 def done_attempts(root, study):
@@ -519,6 +521,46 @@ def done_attempts(root, study):
     for record in sorted((Path(root) / study).glob('*/' + DONE)):
         found[record.parent.name] = record.parent / json.loads(record.read_text())['attempt']
     return found
+
+
+def pooled(folders, name):
+    # A study's rows: its units' own files, one after another (a unit has its own folder, W699).
+    return [row for f in folders if (f / name).exists() for row in json.loads((f / name).read_text(encoding='utf-8'))]
+
+
+# W818 (#899): a unit's verdict against the same unit of the reference run (run.py's --reuse). The time ratio is the new mean over
+# the reference's (above 1: slower). The threshold is the reference's own spread: three of its sample SDs relative to its mean,
+# and never less than VERDICT_MARGIN, since one reference repetition has no SD and a difference under a tenth is not judged.
+VERDICT_MARGIN = 0.10
+VERDICT_SD_FACTOR = 3
+
+
+def timed_rows(folder):
+    # {(workload, engine, row): summary row} of an attempt's counted xppautX rows; none when the folder is None or has no summary.
+    if folder is None:
+        return {}
+    return {(r['workload'], r['engine'], r['row']): r for r in pooled([Path(folder)], 'summary.json')
+            if r['engine'].split('-')[0] == 'xppautx' and not r.get('sweep') and r.get('wall_seconds_mean') is not None}
+
+
+def judge_row(new, ref):
+    ratio = new['wall_seconds_mean'] / ref['wall_seconds_mean']
+    spread = max(VERDICT_MARGIN, VERDICT_SD_FACTOR * (ref['wall_seconds_sample_sd'] or 0) / ref['wall_seconds_mean'])
+    verdict = 'slower' if ratio > 1 + spread else 'faster' if ratio < 1 - spread else 'same'
+    return dict(workload=new['workload'], engine=new['engine'], row=new['row'], repetitions=new['counted_repetitions'],
+                mean=new['wall_seconds_mean'], reference_mean=ref['wall_seconds_mean'], reference_sd=ref['wall_seconds_sample_sd'],
+                ratio=ratio, spread=spread, verdict=verdict)
+
+
+def judge(folder, reference):
+    # The unit's verdict: slower when any row is, else faster when any is, else same; 'no reference' when the reference
+    # attempt (None when there is none) has no counted xppautX row this attempt also has.
+    new, ref = timed_rows(folder), timed_rows(reference)
+    rows = [judge_row(new[key], ref[key]) for key in sorted(new) if key in ref]
+    if not rows:
+        return dict(verdict='no reference', rows=[])
+    kinds = {r['verdict'] for r in rows}
+    return dict(verdict='slower' if 'slower' in kinds else 'faster' if 'faster' in kinds else 'same', rows=rows)
 
 
 # W802: no row of XPPAUT, AUTO-07p or Python is run again (their programs ran in W617; the maintainer, 2026-11-17). A plan's entry names

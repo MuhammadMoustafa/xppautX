@@ -26,7 +26,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
 import continuation
-from common import DONE, STUDIES, done_attempts, save
+from common import DONE, STUDIES, done_attempts, pooled, save
 from integration import SCALING_CASES, effective_numerics, scaling_costs, screen
 
 # Okabe-Ito colours; identities stay fixed across every renderer and panel.
@@ -122,11 +122,6 @@ def method_of(study, workload, engine=''):
     if study == 'scaling':
         return workload.rsplit('-', 1)[1]
     raise ValueError('no method encoded by study/workload: ' + study + '/' + workload)
-
-
-def pooled(folders, name):
-    # A study's rows: its units' own files, one after another (a unit has its own folder, W699).
-    return [row for f in folders if (f / name).exists() for row in read(f / name)]
 
 
 def found(folders, pattern):

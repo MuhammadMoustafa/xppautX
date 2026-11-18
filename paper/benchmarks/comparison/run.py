@@ -6,6 +6,11 @@ A unit (a study's own name for a workload: common.py's comment) has the folder <
 unit (a driver's --plan: what the unit's earlier attempt, or --reuse's, supplies, by the rows' own keys) and stops if a plan
 fails, so a bug in the reuse path shows in minutes; it then runs each unit whose plan says something would run, with the
 earlier attempt as its --reuse, and goes on after a failure. Resuming a folder skips the units whose plan runs nothing.
+
+W818: each unit with a reference (the --reuse folder's counted xppautX rows) gets a verdict, faster, same or slower, against it,
+written to run.log and the unit's done record. Pass 1 runs one repetition of those units (its pass1/ folder, never counted); pass 2
+runs the rest of every pending unit, and only when pass 1 has no slower unit. A slower unit ends the series (--keep-going goes on
+past it, to the end of pass 1); the next run of the folder starts again from its first unit.
 """
 import argparse
 import functools
@@ -17,7 +22,7 @@ import subprocess
 import sys
 import tempfile
 
-from common import BENCH, DONE, FOREIGN_ENTRY, FROM_SCRATCH, HERE, PLAN, REPO, SHA_CACHE, STUDIES, TOOLS, module, physical_cores, save, sha, wait_until_ready
+from common import BENCH, DONE, FOREIGN_ENTRY, FROM_SCRATCH, HERE, PASS1, PLAN, REPO, SHA_CACHE, STOPPED, STUDIES, TOOLS, done_attempts, judge, module, physical_cores, save, sha, timed_rows, wait_until_ready
 
 LOG_TAIL = 40  # lines of a failed attempt's log kept in its failure.json
 
@@ -61,7 +66,7 @@ class Run:
         sys.path.insert(0, str(BENCH / 'large-stiff'))  # study.py imports its generator beside it
         return module('stiff_study', BENCH / 'large-stiff/study.py')
 
-    def argv(self, study, out, machine, *flags):
+    def argv(self, study, out, machine, *flags, repeats=None):
         a = self.a
         script = HERE / ('terman.py' if study == 'terman' else 'continuation.py' if study == 'continuation' else 'server.py' if study == 'server' else 'integration.py')
         argv = [sys.executable, '-X', 'faulthandler', str(script), '--out', str(out), '--xppautx', str(a.xppautx.resolve()),
@@ -70,9 +75,28 @@ class Run:
             argv += ['--study', study]
         if a.check:
             argv += ['--check']
-        if a.repeats is not None and study != 'terman':
-            argv += ['--repeats', str(a.repeats)]
+        repeats = a.repeats if repeats is None else repeats
+        if repeats is not None and study != 'terman':
+            argv += ['--repeats', str(repeats)]
         return argv
+
+    def binaries(self):
+        return {str(b.resolve()): sha(b) for b in (self.a.xppautx, self.a.xppaut)}
+
+    def reference(self, study, unit):
+        # The unit's attempt in the --reuse run, when it has counted xppautX rows to judge against (W818), else None.
+        if self.a.check or not self.a.reuse:
+            return None
+        found = done_attempts(self.a.reuse, study).get(unit)
+        return found if timed_rows(found) else None
+
+    def pass1_current(self, study, unit):
+        # The unit's pass-1 verdict, when it was judged for the binaries this run uses (else it runs again).
+        record = self.a.out / study / unit / PASS1
+        if not record.exists():
+            return None
+        value = json.loads(record.read_text())
+        return value if value['binaries'] == self.binaries() else None
 
     def units(self, study):
         if study == 'large-stiff':
@@ -156,23 +180,29 @@ class Run:
         shutil.rmtree(out)
         return plan['would_run']
 
-    def execute(self, study, unit):
-        # One attempt of the unit, foreground. True when it finished.
+    def execute(self, study, unit, quick=False):
+        # One run of the unit, foreground: pass 1's quick check (one counted repetition, in unit/pass1: never a result, never
+        # counted) or the next attempt, which is the unit's result. Returns (True when it finished, its verdict or None).
         a = self.a
         unit_dir = a.out / study / unit
-        (unit_dir / DONE).unlink(missing_ok=True)
-        attempt = unit_dir / ('attempt-%03d' % (len(attempts(unit_dir)) + 1))
+        if quick:
+            attempt = unit_dir / 'pass1'
+            shutil.rmtree(attempt, ignore_errors=True)
+        else:
+            (unit_dir / DONE).unlink(missing_ok=True)
+            attempt = unit_dir / ('attempt-%03d' % (len(attempts(unit_dir)) + 1))
         attempt.parent.mkdir(parents=True, exist_ok=True)
         flag, why = self.setup_flag(study, unit)
         if why:
             save(attempt.with_suffix('.failure.json'), dict(unit=unit, error='not run: ' + why))
-            return False
+            return False, None
         machine = machine_record(attempt.with_suffix('.machine.json'), not a.check)
         if study == 'large-stiff':
             argv = self.stiff_argv(unit, attempt, machine, flag)
         else:
             source = earlier_attempt(unit_dir, a.reuse, study)
-            argv = self.argv(study, attempt, machine, '--only', unit, *flag, *(['--reuse', str(source)] if source else []))
+            argv = self.argv(study, attempt, machine, '--only', unit, *flag, *(['--reuse', str(source)] if source else []),
+                             repeats=1 if quick else None)
             if a.stop_on_failure:
                 argv += ['--stop-on-failure']
         # Foreground, serial, with the log kept even if the unit raises.
@@ -182,21 +212,25 @@ class Run:
         if code:
             tail = log.read_text(errors='replace').splitlines()[-LOG_TAIL:]
             save(attempt.with_suffix('.failure.json'), dict(unit=unit, exit_code=code, command=argv, log_tail=tail))
-            return False
-        save(unit_dir / DONE, self.done_record(study, unit, attempt, code))
-        return True
+            return False, None
+        verdict = judge(attempt, self.reference(study, unit))  # W818: each unit against the same unit of the reference run
+        if quick:
+            save(unit_dir / PASS1, dict(verdict, binaries=self.binaries()))
+        else:
+            save(unit_dir / DONE, self.done_record(study, unit, attempt, code, verdict))
+        return True, verdict
 
-    def done_record(self, study, unit, attempt, code):
-        # The result and what it ran with: the binaries, the commit and the keys the rows recorded (W452, W575).
+    def done_record(self, study, unit, attempt, code, verdict):
+        # The result and what it ran with: the binaries, the commit and the keys the rows recorded (W452, W575), and the verdict (W818).
         a = self.a
         keys = []
         if (attempt / 'runs.json').exists():
             for r in json.loads((attempt / 'runs.json').read_text()):
                 if r.get('reuse_key') and r['reuse_key'] not in keys:
                     keys.append(r['reuse_key'])
-        record = dict(attempt=attempt.name, exit_code=code, check=a.check, keys=keys,
+        record = dict(attempt=attempt.name, exit_code=code, check=a.check, keys=keys, verdict=verdict['verdict'], rows=verdict['rows'],
                       commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPO, text=True).strip(),
-                      binaries={str(b.resolve()): sha(b) for b in (a.xppautx, a.xppaut)})
+                      binaries=self.binaries())
         if study == 'large-stiff':
             record['identity'] = self.stiff_identity(unit)
         return record
@@ -212,6 +246,60 @@ def rows_to_run(todo):
     return blocked
 
 
+def note(a, text):
+    # A line of the terminal and of the series' run.log (W818: the verdicts and the stop).
+    print(text, flush=True)
+    with (a.out / 'run.log').open('a') as stream:
+        stream.write(text + '\n')
+
+
+def verdict_lines(label, study, unit, verdict):
+    # The unit's verdict and, per xppautX row, its mean, the reference's, the ratio and the threshold it was judged by (W818).
+    lines = ['%s %s/%s: %s' % (label, study, unit, verdict['verdict'])]
+    for r in verdict['rows']:
+        lines.append('    %s %s %s: %.4g s, reference %.4g s, ratio %.3f, threshold +/-%.0f%%: %s'
+                     % (r['engine'], r['workload'], r['row'], r['mean'], r['reference_mean'], r['ratio'], 100 * r['spread'], r['verdict']))
+    return lines
+
+
+def restart_after_stop(a):
+    # W818 (the maintainer, 2026-11-18): a series that stopped at a slower unit starts again from its first unit once the fix is in.
+    # The units done before the stop are not kept: their done and pass-1 records go (their attempts stay as history).
+    marker = a.out / STOPPED
+    if not marker.exists():
+        return
+    for record in list(a.out.glob('*/*/' + DONE)) + list(a.out.glob('*/*/' + PASS1)):
+        record.unlink()
+    marker.unlink()
+    note(a, 'restart: the series stopped at a slower unit; every unit runs again from its first')
+
+
+def run_pass(run, units, quick, slower, failed):
+    # One pass over (study, unit) in order, each unit once, its verdict noted as it comes. A slower unit ends the pass unless
+    # --keep-going; a failed unit goes on to the next unless --stop-on-failure. quick: pass 1, one repetition, reused when judged.
+    a = run.a
+    label = 'pass 1' if quick else 'pass 2'
+    for study, unit in units:
+        kept = run.pass1_current(study, unit) if quick else None
+        if kept is not None:
+            verdict = kept
+            note(a, 'pass 1 kept: %s/%s was judged for these binaries' % (study, unit))
+        else:
+            ok, verdict = run.execute(study, unit, quick=quick)
+            if not ok:
+                failed.append('%s/%s' % (study, unit))
+                note(a, '%s %s/%s FAILED' % (label, study, unit))
+                if a.stop_on_failure:
+                    break
+                continue
+        for line in verdict_lines(label, study, unit, verdict):
+            note(a, line)
+        if verdict['verdict'] == 'slower':
+            slower.append('%s/%s' % (study, unit))
+            if not a.keep_going:
+                break
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--out', type=Path, required=True)
@@ -221,6 +309,7 @@ def main():
     p.add_argument('--worker', type=Path, default=Path('build/w378/worker'))
     p.add_argument('--study', choices=STUDIES, action='append', help='run only these studies, in settled order')
     p.add_argument('--stop-on-failure', action='store_true', help='stop at the first failed unit')
+    p.add_argument('--keep-going', action='store_true', help='go on past a unit slower than its reference (W818; a slower unit still ends pass 1, so pass 2 does not run)')
     p.add_argument('--reuse', type=Path, help='an earlier results folder (it may be unfinished): a unit of it that has no attempt here supplies its rows whose program, measurement code and inputs are unchanged, so they are imported, not run again')
     p.add_argument('--plan', action='store_true', help='only plan: for every unit, what its earlier attempt supplies and what would run; no timing, nothing run (W802: a plan that would run a row of XPPAUT, AUTO-07p or Python also stops, listing it)')
     p.add_argument('--check', action='store_true')
@@ -230,8 +319,10 @@ def main():
     a.out = a.out.resolve()
     a.out.mkdir(parents=True, exist_ok=True)
     run = Run(a)
-    failed = []
+    failed, slower = [], []
     try:
+        if not a.plan:
+            restart_after_stop(a)  # before the plan: a restarted series plans against no done record
         studies = [s for s in STUDIES if not a.study or s in a.study]
         todo = {}
         for study in studies:
@@ -245,19 +336,25 @@ def main():
                      '(W802); fix the reader or the key, or the maintainer decides to run them:\n' + '\n'.join('  %s/%s: %s' % row for row in blocked))
         if a.plan:
             return
+        pending = []
         for (study, unit), would_run in todo.items():
             if would_run == [] and (a.out / study / unit / DONE).exists():
                 print('RESUME done', study, unit, flush=True)
-                continue
-            ok = run.execute(study, unit)
-            print(study, unit, 'done' if ok else 'FAILED', flush=True)
-            if not ok:
-                failed.append('%s/%s' % (study, unit))
-                if a.stop_on_failure:
-                    break
+            else:
+                pending.append((study, unit))
+        # W818: pass 1, one repetition of each unit that has a reference to judge against; pass 2, every pending unit's rest,
+        # only when pass 1 has no slower unit. Pass 1's runs are a check: the report never counts them.
+        run_pass(run, [u for u in pending if run.reference(*u)], True, slower, failed)
+        if not slower:
+            run_pass(run, pending, False, slower, failed)
+        if slower:
+            save(a.out / STOPPED, dict(slower=slower, binaries=run.binaries()))
     finally:
         os.environ.pop(SHA_CACHE, None)
         shutil.rmtree(run.scratch, ignore_errors=True)
+    if slower:
+        sys.exit('Slower than the reference (ratios in run.log): ' + ', '.join(slower) + '. Fix it, then run the same command again: '
+                 'the series starts from its first unit.')
     if failed:
         sys.exit('Failed units (results retained, the rest were run; rerun the same command to resume): ' + ', '.join(failed))
 

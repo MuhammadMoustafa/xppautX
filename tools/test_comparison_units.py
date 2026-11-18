@@ -20,7 +20,7 @@ FAKE = '''
 import argparse, json, os, sys
 from pathlib import Path
 p = argparse.ArgumentParser()
-for flag in ('--out', '--only', '--reuse'):
+for flag in ('--out', '--only', '--reuse', '--repeats'):
     p.add_argument(flag)
 p.add_argument('--list', action='store_true')
 p.add_argument('--plan', action='store_true')
@@ -46,7 +46,17 @@ with open(control['log'], 'a') as log:
 if unit in control['fail']:
     sys.exit('the unit raised')
 (out / 'runs.json').write_text(json.dumps([dict(workload=unit, reuse_key=dict(v=key))]))
+times = control.get('times', {}).get(unit)  # [mean, sd], or {repetitions: [mean, sd]} for a unit whose pass 1 and rest differ
+if times is not None:
+    times = times[str(a.repeats or 5)] if isinstance(times, dict) else times
+    (out / 'summary.json').write_text(json.dumps([dict(workload=unit, engine='xppautx', row='run', wall_seconds_mean=times[0],
+                                                       wall_seconds_sample_sd=times[1], counted_repetitions=int(a.repeats or 5))]))
 '''
+
+
+def fake_machine(path, timed):
+    common.save(path, dict(check_only=True))
+    return path
 
 
 class Units(unittest.TestCase):
@@ -63,15 +73,18 @@ class Units(unittest.TestCase):
     def tearDown(self):
         self.scratch.cleanup()
 
-    def drive(self, *flags, fail=(), keys=None, plan_crash=False, entries=None, check=True):
+    def drive(self, *flags, fail=(), keys=None, plan_crash=False, entries=None, check=True, times=None, out=None):
         # run.py's main against the fake driver; returns (units the driver ran, the exit message or None).
         log = self.root / 'ran.log'
         log.unlink(missing_ok=True)
-        self.control.write_text(json.dumps(dict(fail=list(fail), keys=keys or {}, log=str(log), plan_crash=plan_crash, entries=entries or {})))
-        argv = ['run.py', '--out', str(self.out), '--xppautx', str(self.root / 'xppautx'), '--xppaut', str(self.root / 'xppaut'),
+        self.control.write_text(json.dumps(dict(fail=list(fail), keys=keys or {}, log=str(log), plan_crash=plan_crash, entries=entries or {},
+                                                times=times or {})))
+        argv = ['run.py', '--out', str(out or self.out), '--xppautx', str(self.root / 'xppautx'), '--xppaut', str(self.root / 'xppaut'),
                 '--auto-dir', str(self.root), '--study', 'screen', *(['--check'] if check else []), *flags]
         message = None
+        # the machine record of a timed run comes from the setup script on the Ubuntu machine: the fake records its own
         with mock.patch.object(sys, 'argv', argv), mock.patch.object(run, 'HERE', self.root / 'drivers'), \
+                mock.patch.object(run, 'machine_record', side_effect=fake_machine), \
                 mock.patch.dict(os.environ, FAKE_CONTROL=str(self.control)):
             try:
                 run.main()
@@ -328,6 +341,101 @@ class PythonEquivalence(unittest.TestCase):
     def test_no_record_licenses_nothing(self):
         with tempfile.TemporaryDirectory() as folder, mock.patch.object(common, 'EQUIVALENCE', Path(folder) / 'none.json'):
             self.assertEqual(common.earlier_program('python', 'old'), 'old')
+
+
+class Verdicts(unittest.TestCase):
+    # W818 (#899): each unit's verdict against the same unit of a reference run, the two passes, the stop and the restart after it.
+    setUp, tearDown, drive, done = Units.setUp, Units.tearDown, Units.drive, Units.done
+    SAME = [1.0, 0.02]  # the reference's mean and sample SD: a difference under the 10% margin is the same
+    ALL = dict(a=SAME, b=SAME, c=SAME)
+
+    def make_reference(self, *timed):
+        # The reference run as an earlier series left it (W802 forbids a first run with no earlier attempt, so it is written
+        # directly): every unit done with its attempt, the counted rows only for the units named in `timed`.
+        self.reference_dir = self.root / 'reference'
+        for unit in 'abc':
+            attempt = self.reference_dir / 'screen' / unit / 'attempt-001'
+            attempt.mkdir(parents=True)
+            common.save(attempt / 'provenance.json', {})
+            common.save(attempt / 'runs.json', [dict(workload=unit, reuse_key=dict(v=1))])
+            if unit in (timed or 'abc'):
+                common.save(attempt / 'summary.json', [dict(workload=unit, engine='xppautx', row='run', wall_seconds_mean=self.SAME[0],
+                                                            wall_seconds_sample_sd=self.SAME[1], counted_repetitions=5)])
+            common.save(attempt.parent / common.DONE, dict(attempt='attempt-001'))
+
+    def series(self, times, *flags):
+        return self.drive('--reuse', str(self.reference_dir), *flags, times=times, check=False)
+
+    def verdict(self, unit):
+        return json.loads((self.out / 'screen' / unit / 'done.json').read_text())['verdict']
+
+    def test_units_the_same_as_the_reference_pass_two_and_record_the_verdict(self):
+        self.make_reference()
+        ran, message = self.series(self.ALL)
+        self.assertIsNone(message)
+        self.assertEqual(ran, ['a reuse=attempt-001', 'b reuse=attempt-001', 'c reuse=attempt-001'] * 2)  # pass 1, then pass 2
+        self.assertEqual([self.verdict(u) for u in 'abc'], ['same'] * 3)
+        self.assertEqual(json.loads((self.out / 'screen/a/done.json').read_text())['attempt'], 'attempt-001')
+        self.assertTrue((self.out / 'screen/a/pass1/summary.json').exists())  # pass 1's check is kept, not counted
+        self.assertEqual(sorted(p.name for p in (self.out / 'screen/a').glob('attempt-*') if p.is_dir()), ['attempt-001'])
+        log = (self.out / 'run.log').read_text()
+        self.assertIn('pass 1 screen/a: same', log)
+        self.assertIn('pass 2 screen/c: same', log)
+        ran, message = self.series(self.ALL)  # a resume: every unit is done
+        self.assertEqual((ran, message), ([], None))
+
+    def test_a_faster_unit_is_faster_and_the_series_goes_on(self):
+        self.make_reference()
+        ran, message = self.series(dict(a=[0.5, 0.01], b=self.SAME, c=self.SAME))
+        self.assertIsNone(message)
+        self.assertEqual(self.verdict('a'), 'faster')
+        self.assertEqual(self.verdict('b'), 'same')
+        ratio = json.loads((self.out / 'screen/a/done.json').read_text())['rows'][0]['ratio']
+        self.assertAlmostEqual(ratio, 0.5)
+
+    def test_a_slower_unit_stops_the_series_and_no_pass_two_runs(self):
+        self.make_reference()
+        ran, message = self.series(dict(a=self.SAME, b=[2.0, 0.02], c=self.SAME))
+        self.assertIn('screen/b', message)
+        self.assertEqual(ran, ['a reuse=attempt-001', 'b reuse=attempt-001'])  # c never ran, pass 2 never ran
+        self.assertEqual(json.loads((self.out / 'stopped.json').read_text())['slower'], ['screen/b'])
+        self.assertEqual(list((self.out / 'screen').glob('*/done.json')), [])
+        self.assertIn('pass 1 screen/b: slower', (self.out / 'run.log').read_text())
+
+    def test_keep_going_judges_every_unit_of_pass_one_and_still_runs_no_pass_two(self):
+        self.make_reference()
+        ran, message = self.series(dict(a=self.SAME, b=[2.0, 0.02], c=self.SAME), '--keep-going')
+        self.assertEqual(ran, ['a reuse=attempt-001', 'b reuse=attempt-001', 'c reuse=attempt-001'])
+        self.assertIn('screen/b', message)
+        self.assertTrue((self.out / 'stopped.json').exists())
+
+    def test_a_unit_the_reference_does_not_have_is_no_reference_never_a_failure(self):
+        self.make_reference('a', 'b')  # c's reference has no counted row
+        ran, message = self.series(self.ALL)
+        self.assertIsNone(message)
+        self.assertEqual(ran, ['a reuse=attempt-001', 'b reuse=attempt-001'] + ['a reuse=attempt-001', 'b reuse=attempt-001', 'c reuse=attempt-001'])
+        self.assertEqual(self.verdict('c'), 'no reference')
+        self.assertEqual(self.verdict('a'), 'same')
+
+    def test_after_a_stop_the_fix_starts_the_series_again_from_its_first_unit(self):
+        # b is the same on its pass 1 and slower on its pass 2: a and b are done before the stop (pass 2 reached them).
+        self.make_reference()
+        slower_later = dict(a=self.SAME, b={'1': self.SAME, '5': [2.0, 0.02]}, c=self.SAME)
+        ran, message = self.series(slower_later)
+        self.assertIn('screen/b', message)
+        self.assertEqual(ran, ['a reuse=attempt-001', 'b reuse=attempt-001', 'c reuse=attempt-001', 'a reuse=attempt-001', 'b reuse=attempt-001'])
+        self.assertEqual(self.verdict('b'), 'slower')
+        self.assertTrue((self.out / 'screen/a/done.json').exists())
+        # The fix: a new binary, the same units now the same. The series starts from its first unit, and nothing done
+        # before the stop is kept: a is run again as its second attempt.
+        (self.root / 'xppautx').write_text('fixed binary')
+        ran, message = self.series(self.ALL)
+        self.assertIsNone(message)
+        self.assertEqual([r.split()[0] for r in ran], ['a', 'b', 'c', 'a', 'b', 'c'])  # pass 1 and pass 2, from the first unit
+        self.assertEqual(json.loads((self.out / 'screen/a/done.json').read_text())['attempt'], 'attempt-002')
+        self.assertFalse((self.out / 'stopped.json').exists())
+        self.assertIn('restart: the series stopped at a slower unit', (self.out / 'run.log').read_text())
+        self.assertEqual([self.verdict(u) for u in 'abc'], ['same'] * 3)
 
 
 if __name__ == '__main__':
