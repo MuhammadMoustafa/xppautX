@@ -150,7 +150,7 @@ Result<std::string> export_file(Session &s,const Command &,const Arguments &a,co
 }
 /* the first CONFIG_NUMBERS keys are numbers (the first a whole one), the rest booleans */
 constexpr std::size_t CONFIG_NUMBERS=4;
-constexpr std::array CONFIG_KEYS={"newton.max_iterations","newton.tolerance","newton.jacobian_step","newton.search_limit","print_eigenvalues","draw_invariant_sets","draw_strong_sets"};
+constexpr std::array CONFIG_KEYS={"max_iterations","newton_tolerance","jacobian_step","search_limit","print_eigenvalues","draw_invariant_sets","draw_strong_sets"};
 constexpr std::array CONFIG_ARGS={"newton.max_iterations","newton.tolerance","newton.jacobian_step","newton.search_limit","print_eigenvalues","draw_invariant_sets","draw_strong_sets"};
 Result<std::string> configure(Session &s,const Command &c,const Arguments &a,const Place &p)
 {

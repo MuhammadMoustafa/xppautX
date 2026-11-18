@@ -294,8 +294,76 @@ def measure_sha(*functions):
                     + [(f.__name__, inspect.getsource(f).encode()) for f in (command, environment, *functions)])
 
 
+# W809 (#890) named the equilibrium and continuation options by their sections and put the table's rows in the sections' order:
+# {group: {name before: name now}}, in the order before it (an unchanged name maps to itself). The same settings: an earlier
+# row's key, a description or a .odex written before it, is read under these (continuation's description_sha, odex_before_w809).
+W809_NAMES = dict(
+    equilibria={'max_iterations': 'newton.max_iterations', 'newton_tolerance': 'newton.tolerance', 'jacobian_step': 'newton.jacobian_step',
+                'search_limit': 'newton.search_limit', 'print_eigenvalues': 'print_eigenvalues', 'draw_invariant_sets': 'draw_invariant_sets',
+                'draw_strong_sets': 'draw_strong_sets', 'range_parameter': 'range.parameter', 'range_steps': 'range.steps', 'range_low': 'range.low',
+                'range_high': 'range.high', 'range_shoot': 'range.shoot', 'range_stability_column': 'range.stability_column'},
+    continuation={'mesh_intervals': 'mesh.intervals', 'max_steps': 'limits.steps', 'output_every': 'output.every',
+                  'collocation_points': 'mesh.collocation_points', 'min_step_size': 'step.min', 'max_step_size': 'step.max',
+                  'step_size': 'step.initial', 'parameter_min': 'limits.parameter_min', 'parameter_max': 'limits.parameter_max',
+                  'norm_min': 'limits.norm_min', 'norm_max': 'limits.norm_max', 'parameter_tolerance': 'newton.parameter_tolerance',
+                  'state_tolerance': 'newton.state_tolerance', 'special_point_tolerance': 'newton.special_point_tolerance',
+                  'mesh_adapt_every': 'mesh.adapt_every', 'max_branch_switches': 'max_branch_switches',
+                  'switch_one_direction': 'one_way_branch_switch', 'output_detail': 'output.detail',
+                  'max_location_iterations': 'newton.max_location_iterations', 'max_newton_iterations': 'newton.max_iterations',
+                  'full_newton_after': 'newton.full_after_steps', 'step_adapt_every': 'step.adapt_every',
+                  'suppress_branch_points': 'suppress_branch_points', 'follow_all_branches': 'follow_all_branches',
+                  'special_points': 'special_points'})
+W809_GROUP = re.compile(r'^( *)(%s): \{([^{}]*)\}' % '|'.join(W809_NAMES), re.M)
+ODEX_ITEM = re.compile(r'\s*([a-z_][a-z_.]*): ("[^"]*"|[^,"]*?)\s*(?:,|$)')  # a group's item: a name and one value, a quoted one with its commas
+ODEX_LINE_WIDTH = 100  # core/odex_write.cpp's line_width: a group's items wrap at it
+
+
+def odex_braced(items, indent):
+    # core/odex_write.cpp's braced(): a group's items on one line, or wrapped at ODEX_LINE_WIDTH, the way the converter writes them
+    line = '{ ' + ', '.join(items) + ' }'
+    if indent + len(line) <= ODEX_LINE_WIDTH:
+        return line
+    pad, out, row = ' ' * (indent + 2), '{\n', ''
+    for item in items:
+        if row and len(pad) + len(row) + 2 + len(item) > ODEX_LINE_WIDTH:
+            out, row = out + pad + row + ',\n', ''
+        row += (', ' if row else '') + item
+    return out + pad + row + ',\n' + ' ' * indent + '}'
+
+
+def table_order(group, names):
+    # whether these options of the group are in the option table's order today (the schema lists each group's in it): a writer
+    # that writes the table's rows, a session's .odex, put them so; a converted .ode keeps its own statements' order
+    order = list(json.loads((REPO / 'docs/odex-options.schema.json').read_text())['properties'][group]['properties'])
+    return [order.index(n) for n in names] == sorted(order.index(n) for n in names)
+
+
+def odex_before_w809(text):
+    # A .odex's text with its equilibria and continuation options named, ordered (where written in the table's order) and
+    # wrapped as before W809: the rows recorded before it hashed those bytes, and a .odex written now differs from them in these only. A group this cannot read whole
+    # (an item it does not know) is left as written.
+    def group(m):
+        names = W809_NAMES[m.group(2)]
+        back = {now: before for before, now in names.items()}
+        body = m.group(3).strip()
+        found = list(ODEX_ITEM.finditer(body))
+        items = [(back.get(i.group(1)), i.group(2)) for i in found]
+        if not body or ''.join(i.group(0) for i in found) != body or any(name is None for name, _ in items):
+            return m.group(0)
+        if table_order(m.group(2), [names[name] for name, _ in items]):  # a whole table written (a session's), not a converted .ode's
+            order = list(names)
+            items = sorted(items, key=lambda item: order.index(item[0]))
+        return '%s%s: %s' % (m.group(1), m.group(2), odex_braced(['%s: %s' % item for item in items], len(m.group(1))))
+    return W809_GROUP.sub(group, text)
+
+
+def input_bytes(f):
+    # what a run's input file is keyed by: its bytes, a .odex's under the names before W809 (odex_before_w809)
+    return odex_before_w809(f.read_text(encoding='utf-8')).encode('utf-8') if f.suffix == '.odex' else f.read_bytes()
+
+
 def inputs_sha(folder, suffixes=INPUT_SUFFIXES):
-    return tree_sha((f.name, f.read_bytes()) for f in Path(folder).iterdir() if f.suffix in suffixes)
+    return tree_sha((f.name, input_bytes(f)) for f in Path(folder).iterdir() if f.suffix in suffixes)
 
 
 AUTO_DIRS = ('bin', 'lib', 'python', 'src', 'cmds')  # the parts of an AUTO-07p build that run

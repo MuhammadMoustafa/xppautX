@@ -16,7 +16,7 @@ from types import SimpleNamespace
 
 from common import (BENCH, REPO, TOOLS, before_series, command, derived_program_sha, earlier_context, environment, executable_sha,
                     initialize, link_tree, mark_reused, measure_sha, progress, module, parser, reachable_sha, repetitions, rotation,
-                    save, selected, sha, short_home, summarize, tracked_text, tree_sha, write_plan)
+                    save, selected, sha, short_home, summarize, tracked_text, tree_sha, write_plan, W809_NAMES)
 import autoxcompare as comparison
 import auto_reference as reference
 from comparison_measure import RunClock, process_cpu
@@ -626,7 +626,7 @@ def description_sha(d, engine):
         r.pop('start_refined', None)
         for key in ('auto', 'autox'):  # 'auto' in a description written before W599 renamed it
             if key in r:
-                r['autox'] = {reference.AUTO_NAMES.get(k, k): v for k, v in r.pop(key).items()}
+                r['autox'] = {reference.AUTO_NAMES.get(n := W809_NAMES['continuation'].get(k, k), n): v for k, v in r.pop(key).items()}
     return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()
 
 

@@ -537,22 +537,22 @@ constexpr OptionRow rows[] = {
    .whole = member([](auto &s) -> auto & { return s.numerics->equilibria.max_iterations; }),
    /* Newton's method converges in far fewer or not at all */
    .reset = [](const SessionParts &s) { s.numerics->equilibria.max_iterations = 100; },
-   .key = "newton.max_iterations", .label = "Equilibria: maximum iterations", .rule = OptionRule::whole_positive, .saved = true},
+   .key = "max_iterations", .label = "Equilibria: maximum iterations", .rule = OptionRule::whole_positive, .saved = true},
   {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "newton.tolerance", .advanced = true, .help = "The tolerance the search for an equilibrium stops at.", .xppaut_names = {"NEWT_TOL"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics->equilibria.newton_tolerance; }),
    /* XPPAUT's */
    .reset = [](const SessionParts &s) { s.numerics->equilibria.newton_tolerance = .001; },
-   .key = "newton.tolerance", .label = "Equilibria: Newton tolerance", .rule = OptionRule::positive, .saved = true},
+   .key = "newton_tolerance", .label = "Equilibria: Newton tolerance", .rule = OptionRule::positive, .saved = true},
   {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "newton.jacobian_step", .advanced = true, .help = "The step that differences the Jacobian of the equilibrium search.", .xppaut_names = {"JAC_EPS"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics->equilibria.jacobian_step; }),
    /* XPPAUT's */
    .reset = [](const SessionParts &s) { s.numerics->equilibria.jacobian_step = .001; },
-   .key = "newton.jacobian_step", .label = "Equilibria: Jacobian step", .rule = OptionRule::positive, .saved = true},
+   .key = "jacobian_step", .label = "Equilibria: Jacobian step", .rule = OptionRule::positive, .saved = true},
   {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "newton.search_limit", .advanced = true, .help = "A state beyond plus or minus this value ends the equilibrium search.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics->equilibria.search_limit; }),
    /* XPPAUT's bound: the search gives up where a variable passes it */
    .reset = [](const SessionParts &s) { s.numerics->equilibria.search_limit = 100; },
-   .key = "newton.search_limit", .label = "Equilibria: search limit", .rule = OptionRule::positive, .saved = true},
+   .key = "search_limit", .label = "Equilibria: search limit", .rule = OptionRule::positive, .saved = true},
   {.group = option_group::equilibria, .kind = OptionKind::name, .odex = "range.parameter", .help = "The parameter Range equilibria varies.", .once = true,
    .text = member([](auto &s) -> auto & { return s.integrator->eq_range.item; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * { return range_item_into(s, s.integrator->eq_range.item, v, false); },

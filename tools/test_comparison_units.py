@@ -240,6 +240,29 @@ class ReferenceModelKey(unittest.TestCase):
         self.assertEqual(sorted(self.terman.DISPLAY_OPTIONS), ['array_plot.bottom_label', 'array_plot.side_label', 'array_plot.top_label'])
 
 
+class OdexBeforeW809(unittest.TestCase):
+    # W809 renamed and reordered the equilibria and continuation options: a .odex converted now is read as the one written before
+    # it (its bytes keyed an earlier row), and a .odex written before it reads as itself.
+    BEFORE = ('options {\n  equilibria: { search_limit: 5000, range_low: 0 },\n'
+              '  continuation: { max_steps: 200, step_size: 0.02, special_points: "cusp,zero_hopf" },\n}\n')
+    NOW = ('options {\n  equilibria: { newton.search_limit: 5000, range.low: 0 },\n'
+           '  continuation: { special_points: "cusp,zero_hopf", limits.steps: 200, step.initial: 0.02 },\n}\n')
+
+    def test_a_odex_converted_now_reads_as_before(self):
+        self.assertEqual(common.odex_before_w809(self.NOW), self.BEFORE)
+
+    def test_a_odex_written_before_reads_as_itself(self):
+        self.assertEqual(common.odex_before_w809(self.BEFORE), self.BEFORE)
+
+    def test_a_converted_group_keeps_its_order_and_wraps_where_the_converter_wrapped_it(self):
+        # examples/ode/ma23.ode's continuation options, converted now and before W809 (research/ma23's earlier inputs)
+        now = ('  continuation: {\n    limits.parameter_max: 1, limits.parameter_min: -10, output.every: 100000, limits.steps: 1000,\n'
+               '    mesh.intervals: 100, step.max: 0.1,\n  }')
+        self.assertEqual(common.odex_before_w809(now),
+                         '  continuation: {\n    parameter_max: 1, parameter_min: -10, output_every: 100000, max_steps: 1000, mesh_intervals: 100,\n'
+                         '    max_step_size: 0.1,\n  }')
+
+
 class ArgvPaths(unittest.TestCase):
     # W805: an earlier row's command line is compared without the program's own paths: a Python run's interpreter and script (a
     # worktree's files) differ between checkouts, its program hash covers them; its model and the pinned CPU must still agree.

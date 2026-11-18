@@ -9,7 +9,7 @@ import sys
 import math
 import statistics
 
-from common import (BENCH, HERE, PYTHON_DIR, derived_program_sha, executable_sha, initialize, inputs_sha, link_tree, parser, progress, save, sha,
+from common import (BENCH, HERE, PYTHON_DIR, odex_before_w809, derived_program_sha, executable_sha, initialize, inputs_sha, link_tree, parser, progress, save, sha,
                     tree_sha, write_plan)
 from integration import PYTHON, argv_unchanged, convert, launch, setfile_patch, stage, variant
 from odex_model import Odex
@@ -179,7 +179,7 @@ def model_key(path):
     # label-only change keeps the key, a number's change does not. An item first in its group is not taken out, so its change
     # changes the key (the safe side).
     path = Path(path)
-    text = path.read_text(encoding='utf-8')
+    text = odex_before_w809(path.read_text(encoding='utf-8'))
     for key in DISPLAY_OPTIONS:
         text = re.sub(r',\s*%s\s*:\s*(?:"[^"]*"|[^,}\n]*)' % re.escape(key), '', text)
     for key, default in at_default(path).items():
