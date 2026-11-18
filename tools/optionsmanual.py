@@ -16,7 +16,12 @@ INTRO = """# The options panels
 
 Every group of options has one panel, titled by the group's name, and its rows are in the order of the option table
 (the option table), the one source of an option's key, label, choices, default, limits and help line. A dotted key
-(`step.min`) is a titled section inside the panel. The same keys are the `options` block of a `.odex`, the `help` of the program and
+(`step.min`) is a titled section inside the panel: each section has a chevron and its option count, and folds on its own. A section starts
+folded when all its options are advanced (they tune how a method works inside, and their defaults suit nearly every model) or when none of its
+options applies to the method, and it starts open when it mixes the two; a fold you make is kept while the page is open. An option the method
+does not use stays in its section, disabled, with "Not used by this method or model" in its help. A low and a high option of one range
+(`limits.parameter_min` and `limits.parameter_max`, `step.min` and `step.max`, `range.low` and `range.high`) show as one field, the low input
+first. A switch keeps its label beside it, and each "?" sits after its field's input. The same keys are the `options` block of a `.odex`, the `help` of the program and
 the manual below. Each panel opens from the menu entry of its task: Integration from Run > Options, Poincare from Run > Poincare map,
 Sweep from Run > Over a range > One parameter (beside its Run button), Equilibria from Analysis > Equilibria, Analysis inside the
 histogram and spectrum commands' forms, Continuation from autoX > Numerics, Diagram from autoX > Axes (it changes the open view; the model's
