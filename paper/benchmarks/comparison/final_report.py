@@ -338,11 +338,16 @@ def agreements(folders):
     return cells, gates
 
 
+# the studies whose results this report does not tabulate as method rows: Terman's and large-stiff's have their own sections, the
+# server study its own report (server_report.py)
+OWN_SECTIONS = ('terman', 'large-stiff', 'server')
+
+
 def compute(final):
     studies = {s: done_attempts(final, s) for s in STUDIES}  # {study: {unit: its done attempt's folder}}
     folders = {s: list(units.values()) for s, units in studies.items()}
     unequal = exceptions(folders, final)
-    rows = [r for s, fs in folders.items() if s not in ('terman', 'large-stiff') for r in summary_rows(fs, s)]
+    rows = [r for s, fs in folders.items() if s not in OWN_SECTIONS for r in summary_rows(fs, s)]
     groups = defaultdict(list)
     for r in rows:
         groups[(r['study'], r['workload'], r['method'])].append(r)
@@ -397,12 +402,13 @@ def compute(final):
                                                         low=p['low'] / baseline['high'], high=p['high'] / baseline['low']) for p in pts]
                                        if target and target > 0 else []))
     large = []
-    with (studies['large-stiff']['measure'] / 'summary.csv').open(newline='') as stream:
-        for r in csv.DictReader(stream):
-            large.append({k: (v if k in ('family', 'solver') else float(v)) for k, v in r.items()})
+    if 'measure' in studies['large-stiff']:  # a run whose measure has not run yet reports none (W718, maintainer 2026-11-18)
+        with (studies['large-stiff']['measure'] / 'summary.csv').open(newline='') as stream:
+            for r in csv.DictReader(stream):
+                large.append({k: (v if k in ('family', 'solver') else float(v)) for k, v in r.items()})
     # Audit includes ready rows and excluded/untimed samples, without rendering
     # pilot/warm-up wall times as performance measurements.
-    audit = {s: pooled(fs, 'summary.json') for s, fs in folders.items() if s not in ('terman', 'large-stiff') and any((f / 'summary.json').exists() for f in fs)}
+    audit = {s: pooled(fs, 'summary.json') for s, fs in folders.items() if s not in OWN_SECTIONS and any((f / 'summary.json').exists() for f in fs)}
     terman = {name: read(studies['terman']['episodic'] / (name + '.json')) for name in ('acceptance', 'convergence', 'saved-readouts')}
     inventory = [dict(study=r['study'], workload=r['workload'], model=r['model'], method=r['method']) for r in overview]
     inventory += [dict(study='large-stiff', workload=r['family'] + str(int(r['n'])), model=r['family'], method=r['solver']) for r in large]
@@ -553,6 +559,8 @@ LARGE_STIFF_SOLVERS = {'legacy-dense': 'Dense (CVODE)', 'legacy-band': 'Band (CV
 
 def large_stiff_text(rows):
     """W378's finding for the paper's text (W590: no figure): each solver's time and memory at the largest size."""
+    if not rows:
+        return '\n## Large stiff networks\n\nNot measured in this run: its measure has not run yet.\n'
     n = max(r['n'] for r in rows)
     at = {(r['family'], r['solver']): r for r in rows if r['n'] == n}
     table = ['| Solver | Cable time (s) | Cable memory (MiB) | Ring time (s) | Ring memory (MiB) |', '|---|---|---|---|---|']
@@ -762,7 +770,7 @@ def views(data):
                                    [r['time'] for r in rr], p, [r['low'] for r in rr], [r['high'] for r in rr]))
             charts.append(dict(key=f'scaling-{family}-{kind}', title=scaling_title(rows, family, kind), traces=traces,
                                xlabel='N (model size)', ylabel='Wall time (s)', xlog=True, ylog=True))
-    for family in ('cable', 'ring'):
+    for family in ('cable', 'ring') if data['large_stiff'] else ():  # no charts until large-stiff's measure has run
         for metric, unit in [('wall', 'Wall time (s)'), ('peak_rss_kib', 'Peak memory (KiB)')]:
             traces = []
             for style, solver in enumerate(sorted({r['solver'] for r in data['large_stiff']})):

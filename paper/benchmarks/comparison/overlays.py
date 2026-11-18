@@ -247,8 +247,9 @@ def integration_jobs(series, only=None, extra=None):
             jobs.append(('terman', folder.name, base, [('xppaut', other)]))
         else:
             skipped.append(('terman/' + folder.name, 'xppautX or XPPAUT output.dat missing'))
-    stiff = done_attempts(series, 'large-stiff')['measure'] / 'runs'
-    for folder in sorted(stiff.iterdir()) if stiff.is_dir() else []:
+    measure = done_attempts(series, 'large-stiff').get('measure')  # none until the measure has run (W718)
+    stiff = measure / 'runs' if measure else None
+    for folder in sorted(stiff.iterdir()) if stiff and stiff.is_dir() else []:
         base = folder / '0-klu' / 'trajectory.dat'
         found = [(s, folder / ('0-' + s) / 'trajectory.dat') for s in ('gmres', 'legacy-band', 'legacy-dense')
                  if (folder / ('0-' + s) / 'trajectory.dat').exists()]
