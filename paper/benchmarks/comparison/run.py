@@ -123,9 +123,11 @@ class Run:
         done = unit_dir / DONE
         if study == 'large-stiff':
             # study.py's own identity (the worker, its sources, the commit) is its key; there are no rows to plan.
+            # Read even for a unit not yet done: a worker older than its sources stops the plan, not the series hours in (W812).
+            identity = self.stiff.identity(a.worker.resolve())
             if not done.exists():
                 return None
-            same = json.loads(done.read_text())['identity'] == self.stiff.identity(a.worker.resolve())
+            same = json.loads(done.read_text())['identity'] == identity
             return [] if same else ['the worker, its sources or the commit changed since the unit finished']
         if source is None:
             return None
