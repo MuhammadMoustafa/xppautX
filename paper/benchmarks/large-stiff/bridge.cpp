@@ -4,10 +4,12 @@
 #include "model.h"
 #include "model_load.h"
 #include "my_rhs.h"
-#include "expr_native.h"
+#include "model_native.h"
 #include "cvdense.h"
 #include "cvband.h"
 #include "xpp_math.h"
+#include "xpp_mir.h"
+#include "xpp_fs_local.h"
 #include <valgrind/callgrind.h>
 #include <algorithm>
 #include <cmath>
@@ -23,7 +25,7 @@ struct CacheComplete {};
 struct Study {
     xpp::Session *session=nullptr; // owned by load_model's session list
     std::string error;
-    std::vector<double> point, workspace, values;
+    std::vector<double> point, values;
     int band=0;
     int cache_factors=0;
     std::chrono::steady_clock::time_point cache_start;
@@ -68,16 +70,18 @@ extern "C" void *study_load(const char *path) {
     guard(*p,[&] {
         auto line=xpp::parse_command_line({"w378",path});
         if(!line) throw std::runtime_error(line.error().text());
-        auto loaded=xpp::load_model(std::move(*line),1);
+        static xpp::LocalFileSystem files; // the disk, for the Model this load makes; it outlives every Study
+        auto loaded=xpp::load_model(files,std::move(*line),1);
         if(!loaded) throw std::runtime_error(loaded.error().text());
         p->session=*loaded;
         if(!xpp::ensure_exact_jacobian(**loaded)) throw std::runtime_error((*loaded)->model().jacobian.unavailable);
+        xpp::build_native(**loaded,true); // the compiled derivative program, never the graph evaluator
+        if(!(*loaded)->model().jacobian.states.function) throw std::runtime_error("no compiled exact Jacobian");
         const auto &m=(*loaded)->model();
         const auto &j=m.jacobian.states;
         for(std::size_t k=0;k<j.rows.size();++k)
             p->band=std::max(p->band,std::abs(j.rows[k]-j.columns[k]));
         p->point.resize(static_cast<std::size_t>(m.node)+1);
-        p->workspace.resize(m.jacobian.workspace);
         p->values.resize(j.rows.size());
     });
     return p.release();
@@ -128,7 +132,7 @@ extern "C" int study_sparse(void *p,double t,double *y,int *row,int *col,double 
         std::copy_n(y,study_size(p),s.point.begin()+1);
         const auto &j=s.session->model().jacobian.states;
         // Evaluate the compiled sparse derivative program, no dense allocation.
-        j.function(s.session->parser.constants.data(),s.point.data(),s.session,s.workspace.data(),s.values.data());
+        xpp::mir::call(j.function,s.session->parser.constants.data(),s.point.data(),&s.session->parser,s.values.data());
         for(std::size_t k=0;k<s.values.size();++k) {
             if(!std::isfinite(s.values[k])) throw std::runtime_error("nonfinite exact Jacobian entry");
             row[k]=j.rows[k]; col[k]=j.columns[k]; value[k]=s.values[k];

@@ -68,6 +68,7 @@ class Protocol(unittest.TestCase):
             with patch.object(study, 'available', return_value=study.SOLVERS), \
                  patch.object(study, 'identity', return_value=dict(test=True)), \
                  patch.object(study, 'machine'), patch.object(study, 'run', side_effect=fake_run), \
+                 patch.object(study, 'wait_until_ready'), \
                  patch.object(study.subprocess, 'run'), \
                  patch.object(study.subprocess, 'check_output', return_value=''):
                 study.measure(args)
