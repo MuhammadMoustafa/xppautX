@@ -9,7 +9,7 @@ import sys
 import math
 import statistics
 
-from common import (BENCH, HERE, derived_program_sha, executable_sha, initialize, inputs_sha, link_tree, parser, progress, save, sha,
+from common import (BENCH, HERE, PYTHON_DIR, derived_program_sha, executable_sha, initialize, inputs_sha, link_tree, parser, progress, save, sha,
                     tree_sha, write_plan)
 from integration import PYTHON, argv_unchanged, convert, launch, setfile_patch, stage, variant
 from odex_model import Odex
@@ -163,14 +163,29 @@ DISPLAY_OPTIONS = {
 }
 
 
+def at_default(path):
+    # The numeric options the schema gives a default (core/model_options.cpp, W804), {.odex name: default}: an option written at
+    # its default and an option not written are one model to every program, so a converter that starts writing one (W804's
+    # global.min_step_fraction) changes no key.
+    sys.path.insert(0, str(PYTHON_DIR))
+    from numerics import option_rows
+    return {name: float(prop['default']) for name, _, prop in option_rows()
+            if prop.get('type') in ('number', 'integer') and 'default' in prop}
+
+
 def model_key(path):
-    # The .odex's digest without its DISPLAY_OPTIONS items. The generated .odex writes a comma after each item of a group, so an
-    # item is taken out with the comma before it: a label-only change keeps the key, a number's change does not. A label that is
-    # first in its group is not taken out, so its change changes the key (the safe side).
+    # The .odex's digest without its DISPLAY_OPTIONS items and without any numeric option written at its default (at_default).
+    # The generated .odex writes a comma after each item of a group, so an item is taken out with the comma before it: a
+    # label-only change keeps the key, a number's change does not. An item first in its group is not taken out, so its change
+    # changes the key (the safe side).
     path = Path(path)
     text = path.read_text(encoding='utf-8')
     for key in DISPLAY_OPTIONS:
         text = re.sub(r',\s*%s\s*:\s*(?:"[^"]*"|[^,}\n]*)' % re.escape(key), '', text)
+    for key, default in at_default(path).items():
+        text = re.sub(r',\s*%s\s*:\s*([-+.\deE]+)(?=\s*[,}\n])' % re.escape(key),
+                      lambda m: '' if float(m.group(1)) == default else m.group(0), text)
+    text = re.sub(r',\s+', ', ', text)  # the converter wraps an options group's items at its width: an item taken out reflows the lines
     return tree_sha([(path.name, text.encode('utf-8'))])
 
 
