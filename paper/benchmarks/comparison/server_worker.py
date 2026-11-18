@@ -12,7 +12,7 @@ what only the worker sees: its start-up and each run. The arms:
   export_python, export_python_numpy, export_python_numba
                        the script `xppautX --convert --to python | python_numpy | python_numba` wrote, imported as a module in this
                        process, its module-level parameter set, run() writing its CSV
-  scipy                solve_ivp, RK45, at the tolerance the pilot matched to RK4's error, over the python script's own rhs
+  scipy                solve_ivp, RK45, at each value the tolerance the pilot matched to RK4's error there, over the python script's own rhs
 
 A run's time is from the value to the rows being delivered (a file written, or the rows in the client). What reads the rows back (the
 last row, or the whole table for the agreement pass) comes after the clock stops. Not a check: this file decides nothing; it reports.
@@ -46,9 +46,9 @@ PAGE_COLUMNS = 500
 REFERENCE_TOLERANCE = 1e-12
 # the scipy RK45 tolerances the pilot tries, loosest first: the first whose error against the reference is no larger than RK4's is used
 RTOL_LADDER = [10.0 ** -k for k in range(3, 13)]
-# scipy's rows are compared with xppautX's to this multiple of (RK4's error + RK45's error), both measured at the pilot's grid value:
-# the errors at another value of the parameter differ in size, never by this factor on these models
-ENVELOPE_FACTOR = 10.0
+# the agreement pass's slack on the triangle bound |scipy - xppautX| <= scipy's error + RK4's error (both against the reference): the
+# rounding of the differences themselves, exportcompare's absolute
+SLACK = 1e-12
 
 
 def parameter_text(text, name, value):
@@ -223,7 +223,7 @@ class Scipy(Script):
 
     def run(self, i, value):
         self.set_value(value)
-        write_csv(self.output, self.header, scipy_rows(self.module, self.times, self.job['rtol']))
+        write_csv(self.output, self.header, scipy_rows(self.module, self.times, self.job['rtols'][i]))
 
 
 ARMS = dict(xppautx_server=Server, xppautx_silent=Silent, export_python=Script, export_python_numpy=Numpy, export_python_numba=Numba, scipy=Scipy)
@@ -234,21 +234,29 @@ def compare(job, i, rows):
     reference = read_table(Path(job['reference']) / ('run%d' % i) / 'output.dat')
     if len(reference) != len(rows) or any(len(a) != len(b) for a, b in zip(reference, rows)):
         return 'the rows are %d x %d, xppautX\'s %d x %d' % (len(rows), len(rows[0]) if rows else 0, len(reference), len(reference[0])), None
-    if job['arm'] == 'scipy':
-        return first_difference(reference, rows, relative=0.0, absolute=job['envelope'], other='scipy')
+    if job['arm'] == 'scipy':  # its rows are the pilot's: within the triangle bound of the two errors the pilot measured at this value
+        return first_difference(reference, rows, relative=0.0, absolute=job['bounds'][i] + SLACK, other='scipy')
     return first_difference(reference, rows, other=job['arm'])
 
 
 def pilot(job):
-    """The scipy tolerance that matches RK4's error (the arm scipy's input; not timed): the loosest RTOL_LADDER entry whose RK45 rows
-    are no further from DOP853's reference than xppautX's RK4 rows are (a tolerance whose solve fails does not count). The rows' columns are compared whole, every state and output,
-    by their largest absolute difference."""
+    """The scipy tolerance that matches RK4's error at every value of the grid (the arm scipy's input; not timed), so the two are
+    timed at equal accuracy everywhere (W814, #895: one tolerance from the middle value made scipy do more work than RK4 where RK4's
+    error is larger, lecdiff200's near its threshold 47 times, and less where it is smaller): at each value the loosest RTOL_LADDER
+    entry whose RK45 rows are no further from DOP853's reference than xppautX's RK4 rows are (a tolerance whose solve fails does not
+    count). The rows' columns are compared whole, every state and output, by their largest absolute difference."""
     module = import_script(Path(job['inputs']) / 'python' / (Path(job['model']).stem + '.py'), 'exported_pilot')
     module.OUTPUT = os.devnull
-    setattr(module, job['parameter'], job['value'])
     times = times_of(module)
+    return dict(points=[matched(job, module, times, i, value) for i, value in zip(job['indices'], job['values'])],
+                reference_tolerance=REFERENCE_TOLERANCE)
+
+
+def matched(job, module, times, i, value):
+    """pilot's tolerance at the grid's value i"""
+    setattr(module, job['parameter'], value)
     reference = scipy_rows(module, times, REFERENCE_TOLERANCE, method='DOP853')
-    rk4 = read_table(Path(job['reference']) / ('run%d' % job['index']) / 'output.dat')
+    rk4 = read_table(Path(job['reference']) / ('run%d' % i) / 'output.dat')
 
     def error(rows):
         return max(abs(x - y) for a, b in zip(rows, reference) for x, y in zip(a, b))
@@ -263,9 +271,8 @@ def pilot(job):
             continue
         ladder.append(dict(rtol=rtol, error=e))
         if e <= rk4_error:
-            return dict(rtol=rtol, rk4_error=rk4_error, scipy_error=e, envelope=ENVELOPE_FACTOR * (rk4_error + e), ladder=ladder,
-                        reference_tolerance=REFERENCE_TOLERANCE)
-    raise RuntimeError('RK45 never reaches RK4\'s error %g (ladder %s)' % (rk4_error, ladder))
+            return dict(index=i, value=value, rtol=rtol, rk4_error=rk4_error, scipy_error=e, ladder=ladder)
+    raise RuntimeError('value %d (%g): RK45 never reaches RK4\'s error %g (ladder %s)' % (i, value, rk4_error, ladder))
 
 
 def main():

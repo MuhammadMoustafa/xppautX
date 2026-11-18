@@ -9,8 +9,8 @@ What the timed run will read: the per-run overhead (a persistent --server agains
 throughput as processes are added.
 
 Before any timed sweep an untimed agreement pass runs every arm over the whole grid on one process and compares every row with
-xppautX's own (`--silent`, storage_precision double): the RK4 arms to exportcompare's 1e-9, scipy to the envelope its pilot sets (the
-tolerance at which RK45's error against DOP853 is no more than RK4's, picked on the grid's middle value). A timed sweep is equal work
+xppautX's own (`--silent`, storage_precision double): the RK4 arms to exportcompare's 1e-9, scipy within the sum of the two errors its pilot measured (at
+each value the tolerance at which RK45's error against DOP853 is no more than RK4's there, W814). A timed sweep is equal work
 when its workers' last rows are the agreement pass's. `--check` is the whole study once, untimed, on a small grid with 1 and 2
 processes: a check of the arms and the machinery, never a measurement.
 """
@@ -52,7 +52,7 @@ MODELS = {
                  why='XPPAUT\'s wave demo, a chain of 21 coupled excitable cells, array lines and a threshold function (heav): a second array '
                      'model with another kind of right-hand side; the coupling d'),
 }
-# the scipy envelope's headroom, the matched tolerance's ladder and the reference are server_worker.py's, with their reasons
+# the matched tolerance's ladder, the reference and the agreement's slack are server_worker.py's, with their reasons
 
 
 def grid(a, model):
@@ -170,16 +170,16 @@ def agreement(a, name, folder, arms, values, base):
         if arm != 'xppautx_silent':
             job['reference'] = str(root / 'xppautx_silent/w0')
             if arm == 'scipy':
-                middle = len(values) // 2
                 pilot_folder = root / 'pilot'
                 pilot_folder.mkdir(parents=True)
-                save(pilot_folder / 'job.json', dict(base, arm='pilot', value=values[middle], index=middle, reference=job['reference'], keep_rows=False))
+                save(pilot_folder / 'job.json', dict(base, arm='pilot', values=values, indices=list(range(len(values))), reference=job['reference'], keep_rows=False))
                 code = command([sys.executable, WORKER, 'job.json'], pilot_folder, cpus=[cpu_for(a, 0)], env=environment(pilot_folder / 'home'))
                 if code['exit_code']:
                     raise RuntimeError('%s: the scipy pilot failed: %s' % (name, (pilot_folder / 'run.log').read_text()[-1500:]))
-                pilot = json.loads((pilot_folder / 'result.json').read_text())
-                job.update(rtol=pilot['rtol'], envelope=pilot['envelope'])
-                progress(a, '%s: scipy matched at rtol %g (RK4 error %.3g, RK45 error %.3g)' % (name, pilot['rtol'], pilot['rk4_error'], pilot['scipy_error']))
+                points = json.loads((pilot_folder / 'result.json').read_text())['points']
+                job.update(rtols=[p['rtol'] for p in points], bounds=[p['rk4_error'] + p['scipy_error'] for p in points])
+                rk4 = [p['rk4_error'] for p in points]
+                progress(a, '%s: scipy matched at each value, rtol %g to %g (RK4 error %.3g to %.3g)' % (name, max(job['rtols']), min(job['rtols']), min(rk4), max(rk4)))
         result = sweep(a, root / arm, arm, 1, values, job)
         runs = runs_of(result)
         bad = [r for r in runs if r['where']] if arm != 'xppautx_silent' else []
@@ -187,7 +187,7 @@ def agreement(a, name, folder, arms, values, base):
         valid = result['exit_codes'] == [0] and len(runs) == len(values) and all(r['finite'] for r in runs)
         summary[arm] = dict(valid=valid and not bad, runs=len(runs), largest_relative_difference=None if arm == 'xppautx_silent' else largest,
                             disagreements=[dict(index=r['index'], where=r['where']) for r in bad[:5]], rows={r['index']: r['rows'] for r in runs},
-                            last_rows={str(r['index']): r['last_row'] for r in runs}, **({'tolerance': job['rtol'], 'envelope': job['envelope']} if arm == 'scipy' else {}))
+                            last_rows={str(r['index']): r['last_row'] for r in runs}, **({'tolerances': job['rtols'], 'bounds': job['bounds']} if arm == 'scipy' else {}))
         progress(a, '%s: agreement %s: %s over %d runs%s' % (name, arm, 'ok' if summary[arm]['valid'] else 'DISAGREES', len(runs),
                                                            '' if arm == 'xppautx_silent' else ', largest relative difference %.3g' % largest))
         if not summary[arm]['valid']:
@@ -212,7 +212,7 @@ def record_of(name, arm, n, rep, result, summary, values, key):
                runs_per_second=len(values) / result['wall_seconds'], per_run_seconds=mean([r['seconds'] for r in runs]),
                startup_seconds=mean([w['startup_seconds'] for w in workers]), first_run_seconds=mean([w['runs'][0]['seconds'] for w in workers if w['runs']]),
                fetch_seconds=mean([r['fetch_seconds'] for r in runs if r['fetch_seconds'] is not None]) if arm == 'xppautx_server' else None,
-               reuse_key=key, tolerance=summary.get('tolerance'))
+               reuse_key=key, tolerances=summary.get('tolerances'))
     return rec
 
 
@@ -244,7 +244,7 @@ def run_unit(a, name, records):
                     records.extend(import_rows(a, found, workload, arm, rep))
                     progress(a, '%s %s rep %d: imported from %s' % (workload, arm, rep, a.reuse))
                     continue
-                job = dict(base, **({'rtol': summary[arm]['tolerance']} if arm == 'scipy' else {}))
+                job = dict(base, **({'rtols': summary[arm]['tolerances']} if arm == 'scipy' else {}))
                 result = sweep(a, a.out / 'runs' / workload / str(rep) / arm / 'run', arm, n, values, job)
                 rec = record_of(name, arm, n, rep, result, summary[arm], values, key)
                 if is_long(rec):
