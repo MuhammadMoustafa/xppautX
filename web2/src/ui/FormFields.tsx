@@ -73,9 +73,11 @@ export interface ControlProps {
   /** a dropped file fills the name (read-mode files) */
   onDropFile?: (file: File) => void;
   placeholder?: string;
+  /** a small word before the text inside the box (a range pair's "min" and "max") */
+  prefix?: string;
 }
 
-export function Control({spec, value, onChange, onBlur, label, id, disabled, unavailable = {}, verbatim, invalid, file, onDropFile, placeholder}: ControlProps) {
+export function Control({spec, value, onChange, onBlur, label, id, disabled, unavailable = {}, verbatim, invalid, file, onDropFile, placeholder, prefix}: ControlProps) {
   const kind = file ? 'file' : controlOf(spec);
   if (kind === 'switch') {
     return <label class="switch"><input id={id} type="checkbox" role="switch" checked={value === 'true'} disabled={disabled} aria-label={label}
@@ -115,6 +117,7 @@ export function Control({spec, value, onChange, onBlur, label, id, disabled, una
   }
   const note = rangeNote(spec);
   return <span class={'input-box' + (kind === 'mono' ? ' mono' : '')}>
+    {prefix && <span class="range-word">{prefix}</span>}
     <Field id={id} spec={spec} value={value} disabled={disabled} aria-label={label} aria-invalid={invalid ? 'true' : undefined}
       check={() => null} onInput={onChange} onBlur={onBlur} />
     {note && <span class="unit">{note}</span>}

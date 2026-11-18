@@ -16,8 +16,8 @@ test('a low and a high row of one range are one pair, low first, named by the sh
   assert.equal(parameter.label, 'Parameter');
   assert.equal(parameter.low.key, 'limits.parameter_min');
   assert.equal(parameter.high.key, 'limits.parameter_max');
-  assert.equal(parameter.lowWord, 'Min');
-  assert.equal(parameter.highWord, 'Max');
+  assert.equal(parameter.lowWord, 'min');
+  assert.equal(parameter.highWord, 'max');
   assert.equal(norm.label, 'Norm');
 });
 
@@ -27,7 +27,7 @@ test('the range words and stems: step.min and step.max name the section, low/hig
   assert.equal(step[0].kind === 'pair' && step[0].label, 'Step');
   const range = panelItems([row('boundary_value.range_low'), row('boundary_value.range_high')]);
   assert.equal(range[0].kind === 'pair' && range[0].label, 'Range');
-  assert.equal(range[0].kind === 'pair' && range[0].highWord, 'High');
+  assert.equal(range[0].kind === 'pair' && range[0].highWord, 'high');
 });
 
 test('a range word with no partner, or a word that is not a range word, stays one row', () => {

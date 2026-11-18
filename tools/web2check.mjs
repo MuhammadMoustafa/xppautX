@@ -3336,12 +3336,17 @@ async function optionsCheck() {
       if (!panel) return null;
       const rows = [...panel.querySelectorAll('[data-argument]')];
       const radios = r => [...r.querySelectorAll('[role=radio]')];
-      const sections = [...panel.querySelectorAll('fieldset[data-section]')];
+      const sections = [...panel.querySelectorAll('.options-section[data-section]')];
       return {title: panel.querySelector('h2').textContent,
         sections: sections.map(f => f.dataset.section), folds: sections.map(f => f.dataset.folded),
         headers: sections.map(f => f.querySelector('.options-section-fold')?.textContent ?? ''),
-        openBodies: sections.map(f => !f.querySelector(':scope > div').hidden),
+        openBodies: sections.map(f => !f.querySelector('.options-section-body').hidden),
         unusedDisclosure: !!panel.querySelector('.unused-options'),
+        /* W811: every row's "?" at one x, a pair's two inputs inside the input column (each a half), a card per section and one for the rows with no section */
+        helpX: [...new Set([...panel.querySelectorAll('.field-help-toggle, .help-slot')].filter(h => h.offsetParent).map(h => Math.round(h.getBoundingClientRect().left)))],
+        pairs: [...panel.querySelectorAll('[data-pair]')].map(r => { const c = r.querySelector('.form-cell').getBoundingClientRect(), b = [...r.querySelectorAll('.range-pair .input-box')].map(i => i.getBoundingClientRect());
+          return {two: b.length === 2, inside: b.every(x => x.left >= c.left - 1 && x.right <= c.right + 1), prefixes: r.querySelectorAll('.range-pair .input-box > .range-word').length, outside: r.querySelectorAll('.range-pair > .range-word').length}; }),
+        plainCards: panel.querySelectorAll('[data-plain]').length, emptyFolded: sections.filter(f => f.dataset.folded === 'true').every(f => f.getBoundingClientRect().height < 60),
         keys: rows.map(r => r.dataset.argument), paired: rows.map(r => r.dataset.pair ?? null),
         /* W811: the "?" is the row's last cell, after the control, and a switch's row is inline */
         helpLast: rows.map(r => r.lastElementChild.matches('.field-help-toggle, .help-slot')),
@@ -3387,6 +3392,10 @@ async function optionsCheck() {
     check(`W679: ${g.group}: every field's help starts hidden behind a "?" named for its label`,
       at('closed').every(Boolean) && plain.every((r, i) => at('toggleNames')[i] === 'Help for ' + r.label), JSON.stringify([at('closed'), at('toggleNames')]));
     check(`W811: ${g.group}: each "?" follows its control in the row`, shown.helpLast.every(Boolean));
+    check(`W811: ${g.group}: every row's "?" is at one x, the sections' and the top rows' alike`, shown.helpX.length === 1, JSON.stringify(shown.helpX));
+    check(`W811: ${g.group}: a range pair's two inputs share the input column, "min"/"max" inside each, none outside`,
+      shown.pairs.every(p => p.two && p.inside && p.prefixes === 2 && p.outside === 0), JSON.stringify(shown.pairs));
+    check(`W811: ${g.group}: a folded section is just its header line`, shown.emptyFolded);
     /* W811: the sections are the table's, in order, each with its title and count; a section starts folded when all its options are advanced or
        none of them is used by the method (a mixed one starts open) */
     const sectionOrder = g.rows.map(r => r.section).filter((x, i, all) => x && x !== all[i - 1]);

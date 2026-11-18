@@ -257,6 +257,7 @@ export type Action =
   | {type: 'theme'; theme: Theme}
   | {type: 'panels'; panels: Partial<Panels>}
   | {type: 'folds'; folds: string[]}
+  /** the sections the person opened or folded, added to those kept */
   | {type: 'optionFolds'; folds: Record<string, boolean>}
   | {type: 'values'; action: ValuesAction}
   | {type: 'dockPanel'; open: boolean}
@@ -778,7 +779,7 @@ function reduceAction(state: AppState, action: Action): AppState {
     case 'folds':
       return {...state, folds: action.folds};
     case 'optionFolds':
-      return {...state, optionFolds: action.folds};
+      return {...state, optionFolds: {...state.optionFolds, ...action.folds}};
     case 'values':
       return {...state, values: reduceValues(state.values, action.action)};
     case 'dockPanel':

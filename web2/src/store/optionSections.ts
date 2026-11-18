@@ -3,7 +3,8 @@
 import type {OptionRow} from '../protocol/types';
 import {choiceLabel} from './fieldKinds';
 
-/** a range pair's two rows: the low side first (min or low), the high side after; `label` is the shared part of the two names */
+/** a range pair's two rows: the low side first (min or low), the high side after; `label` is the shared part of the two names, the words
+    (`min`, `max`, `low`, `high`) the small prefixes inside the two inputs */
 export interface RangePair {
   kind: 'pair';
   label: string;
@@ -52,7 +53,7 @@ export function panelItems(rows: OptionRow[]): PanelItem[] {
     if (range && low && high) {
       const stem = range.stem.replace(/_$/, '');
       items.push({kind: 'pair', label: stem ? choiceLabel(stem) : rowSectionLabel(row), low, high,
-        lowWord: choiceLabel(rangeWordOf(low.key)!.word), highWord: choiceLabel(rangeWordOf(high.key)!.word)});
+        lowWord: rangeWordOf(low.key)!.word, highWord: rangeWordOf(high.key)!.word});
       placed.add(low);
       placed.add(high);
     } else {

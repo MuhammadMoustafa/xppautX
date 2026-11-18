@@ -76,14 +76,14 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
     const shownDefault = row.boolean ? (row.default === 'true' ? 'on' : 'off') : row.kind === 'choice' ? choiceLabel(row.default) : row.default;
     const help = <>{row.help}{shownDefault ? ` Default: ${shownDefault}.` : ''}{used(row) || values === null ? '' : ' Not used by this method or model.'}</>;
     const notes = Object.entries(unavailable[row.key] ?? {}).map(([name, why]) => <span key={name} class="unavailable-note" data-unavailable={name}>{choiceLabel(name)} is not available: {why}</span>);
-    const control = <Control spec={spec} value={value} label={row.label} disabled={disabled} unavailable={unavailable[row.key]} verbatim={row.kind === 'name'} invalid={!!error}
+    const control = (prefix?: string) => <Control spec={spec} prefix={prefix} value={value} label={row.label} disabled={disabled} unavailable={unavailable[row.key]} verbatim={row.kind === 'name'} invalid={!!error}
       file={row.kind === 'path'} onDropFile={row.kind === 'path' ? async f => { const name = await session.uploadArgument(f); if (name) set(name); } : undefined}
       onChange={set} onBlur={() => feedback.touch(row.key)} />;
     return {help, notes, error, control};
   };
   const rowBox = (row: OptionRow) => {
     const {help, notes, error, control} = member(row);
-    return <FormRow key={row.key} name={row.key} label={row.label} help={help} notes={notes.length ? notes : null} error={error} inline={row.boolean}>{control}</FormRow>;
+    return <FormRow key={row.key} name={row.key} label={row.label} help={help} notes={notes.length ? notes : null} error={error} inline={row.boolean}>{control()}</FormRow>;
   };
   /* a range pair: one label, the low side's input first, both helps behind one "?", an error of either side under the pair */
   const pairBox = (pair: RangePair) => {
@@ -92,18 +92,18 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
     return <FormRow key={pair.low.key} name={pair.low.key} paired={pair.high.key} label={pair.label} help={<>{low.help} {high.help}</>}
       notes={notes.length ? notes : null} error={low.error ?? high.error}>
       <div class="range-pair">
-        <div class="range-part"><span class="range-word">{pair.lowWord}</span>{low.control}</div>
-        <div class="range-part"><span class="range-word">{pair.highWord}</span>{high.control}</div>
+        {low.control(pair.lowWord)}
+        {high.control(pair.highWord)}
       </div>
     </FormRow>;
   };
   const itemBox = (item: PanelItem) => item.kind === 'pair' ? pairBox(item) : rowBox(item.row);
-  /* the rows in sections: a section with a name is a folding box of its own; the rows with no section are drawn at the top, unboxed */
+  /* the rows in sections: a section with a name is a folding box of its own; the rows with no section are one card of their own at the top */
   const fieldsOf = (shownRows: OptionRow[]) => sectionsOf({...group, rows: shownRows}).map(({section, rows: inSection}) => {
     const items = panelItems(inSection).map(itemBox);
     return section
       ? <OptionSection key={section} group={group.group} section={section} label={inSection[0].section_label} rows={inSection} applies={row => values === null || used(row)}>{items}</OptionSection>
-      : <>{items}</>;
+      : <div class="form-group options-section" key="" data-plain>{items}</div>;
   });
   return {fields: fieldsOf(rows), invalid, options, changed, shownProblems};
 }
@@ -118,16 +118,16 @@ function OptionSection({group, section, label, rows, applies, children}: {
   const bodyId = useId();
   const key = sectionFoldKey(group, section);
   const folded = folds[key] === undefined ? sectionStartsFolded(rows, applies) : !folds[key];
-  const toggle = () => session.store.dispatch({type: 'optionFolds', folds: {...folds, [key]: folded}});
+  const toggle = () => session.store.dispatch({type: 'optionFolds', folds: {[key]: folded}});
   const count = `${rows.length} option${rows.length === 1 ? '' : 's'}${rows.every(row => row.advanced) ? ', advanced' : ''}`;
-  return <fieldset class={'form-group options-section' + (folded ? ' folded' : '')} data-section={section} data-folded={folded ? 'true' : 'false'}>
-    <legend class="options-section-head">
+  return <div class={'form-group options-section' + (folded ? ' folded' : '')} data-section={section} data-folded={folded ? 'true' : 'false'}>
+    <div class="options-section-head">
       <button type="button" class="options-section-fold" aria-expanded={!folded} aria-controls={bodyId} onClick={toggle}>
         <span class="value-fold-mark" aria-hidden="true">{folded ? '▸' : '▾'}</span>{label}<span class="options-section-count">{count}</span>
       </button>
-    </legend>
-    <div id={bodyId} hidden={folded}>{children}</div>
-  </fieldset>;
+    </div>
+    <div class="options-section-body" id={bodyId} hidden={folded}>{children}</div>
+  </div>;
 }
 
 /** a place that edits a group's rows asks the core for their values when it opens, and again when `again` changes */

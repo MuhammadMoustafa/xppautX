@@ -167,12 +167,13 @@
 .help-slot { grid-area: help; flex: none; width: 1.5rem; margin-top: 0.4375rem; }
 .required { color: var(--danger); }
 .form-row.wide { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label label" "control help"; }
-.form-row.inline { grid-template-columns: 9.5rem minmax(0, 1fr) auto; grid-template-areas: "label control help"; }
-.range-pair { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); min-width: 0; }
-.range-part { display: flex; flex: 1 1 9rem; align-items: center; gap: var(--space-2); min-width: 0; }
+.range-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-2); min-width: 0; container-type: inline-size; }
+/* a half too narrow for its value and its hint keeps the value (the hint is the row's help too) */
+@container (max-width: 22rem) { .range-pair .unit { display: none; } }
 .range-word { flex: none; font-size: var(--text-sm); color: var(--fg-muted); }
-.options-section > legend.options-section-head { padding: 0 var(--space-1); font-size: var(--text-md); font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--fg); }
-.options-section-fold { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--target); padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.options-section.folded { padding-block: 0; }
+.options-section-head { font-size: var(--text-md); font-weight: 600; color: var(--fg); }
+.options-section-fold { display: flex; justify-content: flex-start; width: 100%; text-align: left; align-items: center; gap: var(--space-2); min-height: var(--target); padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .options-section-count { font-size: var(--text-sm); font-weight: 400; color: var(--fg-muted); }
 .form-help { color: var(--fg-muted); font-size: var(--text-sm); }
 .form-row .field-error { color: var(--danger); font-size: var(--text-sm); }
@@ -181,11 +182,10 @@
 .form-group > legend { padding: 0 var(--space-1); font-size: var(--text-xs); font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-muted); }
 @container (max-width: 30rem) {
   .form-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label label" "control help"; }
-  .form-row.inline { grid-template-columns: 9.5rem minmax(0, 1fr) auto; grid-template-areas: "label control help"; }
-  .form-label { font-weight: 550; }
-}
-@media (max-width: 47.99rem) {
-  .range-part .unit { display: none; }
+  .form-row.inline { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "label control help"; }
+  .form-row.inline .form-cell { justify-self: end; }
+  .form-label { min-height: 0; font-weight: 550; }
+  .form-row.inline .form-label { min-height: 2.375rem; }
 }
 /* the controls: one height, one radius */
 /* one rule for a text box and a dropdown: the same height, type, border, fill and focus ring in light and dark */
