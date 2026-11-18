@@ -206,7 +206,22 @@ export async function waitFor(read, timeoutMs = WAIT_TIMEOUT_MS) {
 export async function waitForAppPage(cdp, what, ready = 'true', timeoutMs = WAIT_TIMEOUT_MS) {
   const up = await waitFor(() => cdp.eval(`(() => { try { const s = window.__xpp?.state();
     return !window.__left && !!s?.hello && !!(${ready}); } catch { return false; } })()`).catch(() => false), timeoutMs);
-  if (!up) throw new Error(`${what} did not load within ${timeoutMs / 1000} s (its app never mounted)`);
+  if (!up) throw new Error(`${what} did not load within ${timeoutMs / 1000} s (its app never mounted); ${tcpSummary()}`);
+}
+
+/* The machine's TCP table as counts by state, for a failure to name itself (W801: a page's app.js failed with ERR_NO_BUFFER_SPACE in CI, and
+   whether the table was full could not be told afterwards: a local full run peaks near 1000 sockets in TIME_WAIT, the table's limit 16384). */
+const TCP_STATES = new Set(['ESTABLISHED', 'TIME_WAIT', 'CLOSE_WAIT', 'FIN_WAIT_1', 'FIN_WAIT_2', 'SYN_SENT', 'SYN_RECEIVED', 'SYN_RCVD', 'LAST_ACK', 'LISTENING', 'LISTEN', 'CLOSING']);
+function tcpSummary() {
+  const args = win ? ['-ano', '-p', 'tcp'] : process.platform === 'darwin' ? ['-an', '-p', 'tcp'] : ['-an'];
+  const r = spawnSync('netstat', args, {encoding: 'utf8', maxBuffer: 1 << 24, timeout: REPORT_TIMEOUT_MS});
+  if (r.error || r.status !== 0) return 'no TCP table (netstat failed)';
+  const counts = new Map();
+  for (const line of r.stdout.split('\n')) {
+    const state = line.trim().split(/\s+/).find(w => TCP_STATES.has(w));
+    if (state) counts.set(state, (counts.get(state) || 0) + 1);
+  }
+  return `TCP sockets by state: ${[...counts].map(([k, v]) => `${k} ${v}`).join(', ') || 'none'}`;
 }
 
 /* Page.navigate returns before the old document is gone: a wait right after it
