@@ -7158,6 +7158,14 @@ async function kinescope(dir) {
   check('kinescope: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
   check('kinescope: integrate once (601 rows)', await integrate(601, 30000));
 
+  /* the Export item of `output`, clicked once the page enables it: it is greyed while the core runs a command and while the film plays, and a
+     click on a greyed button does nothing, so a click made right after Autoplay's own command was never an export (W810) */
+  const clickExport = async output => {
+    const item = `document.querySelector('.kinescope-bar [data-command="kinescope.export"][data-choice=${JSON.stringify(output)}]')`;
+    await requireUntil(`${item} && !${item}.disabled`, `the ${output} export item enabled`);
+    await cdp.eval(`${item}.click()`);
+  };
+
   /* kinescope.export (W778): an item of the Kinescope bar's Export menu sends the command with its output; in a browser the core asks the
      file and the page answers at once (W786): the file downloads under its default name. Gives the downloaded file's path, or null */
   const kinescopeExport = async output => {
@@ -7165,7 +7173,7 @@ async function kinescope(dir) {
     const downloaded = path.join(downloads, name);
     const since = downloadMark(downloaded);
     const mark = await S('__xpp.sentCount()');
-    await cdp.eval(`document.querySelector('.kinescope-bar [data-command="kinescope.export"][data-choice=${JSON.stringify(output)}]').click()`);
+    await clickExport(output);
     const sent = await until(`__xpp.sent().slice(${mark}).some(c => c.cmd === 'kinescope.export' && c.output === ${JSON.stringify(output)})`, 'kinescope.export sent');
     return sent && await cdp.waitDownload(downloaded, since) ? downloaded : null;
   };
@@ -7203,7 +7211,7 @@ async function kinescope(dir) {
   {
     const zip = path.join(downloads, (await S('s.hello.output_names'))['kinescope.export.frames'].replace(/\.[^.]*$/, '.zip'));
     const zipSince = downloadMark(zip);
-    await cdp.eval(`document.querySelector('.kinescope-bar [data-command="kinescope.export"][data-choice="frames"]').click()`);
+    await clickExport('frames');
     const got = await cdp.waitDownload(zip, zipSince);
     const entries = got ? got.readUInt16LE(got.lastIndexOf(Buffer.from([0x50, 0x4b, 5, 6])) + 10) : -1; /* the end record's entry count */
     check('W778: the Kinescope bar\'s Export menu downloads the frames as one zip holding a GIF per frame', !!got && got.readUInt32LE(0) === 0x04034b50
