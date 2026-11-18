@@ -26,7 +26,7 @@ from common import BENCH, REPO, before_series, done_attempts, environment, physi
 from continuation import aggregate, native
 from integration import convert
 
-FROZEN = Path.home() / 'xppautx-comparison/final'
+FROZEN = Path.home() / 'xppautx-comparison/results'  # the folder of record (W807): the frozen run's rows went with final/
 OLD_ROOT, NEW_ROOT = '/home/muhammad/xppautx-comparison/w583-final-2/', str(FROZEN) + '/'  # the series moved its folder after it ran
 # The continuation workloads with enough work per mesh interval to gain: workload, mode folder, target runs (None: every run).
 THREAD_WORKLOADS = (('P1', 'adaptive', ['periodic']), ('P1', 'fixed', ['periodic']), ('P2', 'adaptive', ['periodic']),

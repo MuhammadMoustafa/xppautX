@@ -21,7 +21,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
-DEFAULT_DATA = Path.home()/'xppautx-comparison/final/large-stiff/attempt-001/results'
+DEFAULT_DATA = Path.home()/'xppautx-comparison/results/extra-runs/w557-frozen/large-stiff/results'  # the frozen run's, kept at W807
 DEFAULT_OUT = REPO/'docs/studies/w378'
 FAMILIES = ('cable', 'ring')
 FAMILY_TITLES = {'cable': 'Cable (Dirichlet ends, 1 coupling)', 'ring': 'Morris-Lecar ring (half-bandwidth 4)'}

@@ -108,7 +108,7 @@ def integration(a):
     save(a.out / 'integration.json', results)
 
 
-OLD_ROOT, NEW_ROOT = '/home/muhammad/xppautx-comparison/w583-final-2/', str(Path.home() / 'xppautx-comparison/final') + '/'
+OLD_ROOT, NEW_ROOT = '/home/muhammad/xppautx-comparison/w583-final-2/', str(Path.home() / 'xppautx-comparison/results') + '/'
 PEAKS = {}
 
 
@@ -235,7 +235,7 @@ def continuation(a):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('part', choices=('integration', 'continuation'))
-    p.add_argument('--final', type=Path, default=Path.home() / 'xppautx-comparison/final')
+    p.add_argument('--final', type=Path, default=Path.home() / 'xppautx-comparison/results')  # the folder of record (W807): the frozen run's rows went with final/
     p.add_argument('--out', type=Path, required=True)
     p.add_argument('--programs', nargs='+', choices=('xppautx', 'xppaut', 'auto07p', 'python'), default=('xppautx', 'xppaut', 'auto07p', 'python'))
     p.add_argument('--xppautx', type=Path)

@@ -17,7 +17,7 @@
     uv run --locked python docs/studies/w578_converged_check.py
 
 The Mu26 cycles' norms and multipliers are docs/studies/floquet_check.py's (--norm). The values compared are the programs'
-own, from the W557 timed series (~/xppautx-comparison/final/continuation/attempt-001).
+own, from the W557 timed series (its E1, kept in ~/xppautx-comparison/results/extra-runs/w557-frozen/continuation, W807).
 """
 from pathlib import Path
 import sys

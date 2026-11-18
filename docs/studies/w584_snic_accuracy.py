@@ -1,7 +1,7 @@
 """xppautX's and AUTO-07p's error along Mu26's to_snic, against the model's own cycles (W584, #649).
 
 Both programs at the same constants (NTST 50, NCOL 4, EPSL = EPSU 1e-7, EPSS 1e-5, difference Jacobians, AUTO-07p's JAC=0),
-from the W557 timed series' pilots (~/xppautx-comparison/final/continuation/attempt-001/ode_mu26_{blocked,control}/adaptive:
+from the W557 timed series' pilots (~/xppautx-comparison/results/extra-runs/w557-frozen/continuation/ode_mu26_{blocked,control}/adaptive:
 pilot-xppautx/diagram.csv, pilot-auto07p/files/series/b.r2 and d.r2). Every third point of each program's to_snic with a period
 over 300 is checked at that program's own parameter by docs/studies/floquet_check.py --norm (the model's equations, exact
 derivatives, no collocation). First print the parameters, then give floquet_check.py's output for each program:
