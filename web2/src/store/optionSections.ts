@@ -52,7 +52,7 @@ export function panelItems(rows: OptionRow[]): PanelItem[] {
     const low = pair?.get(0), high = pair?.get(1);
     if (range && low && high) {
       const stem = range.stem.replace(/_$/, '');
-      items.push({kind: 'pair', label: stem ? choiceLabel(stem) : rowSectionLabel(row), low, high,
+      items.push({kind: 'pair', label: stem ? choiceLabel(stem) : row.section_label, low, high,  // step.min/step.max: the section's title
         lowWord: rangeWordOf(low.key)!.word, highWord: rangeWordOf(high.key)!.word});
       placed.add(low);
       placed.add(high);
@@ -62,11 +62,6 @@ export function panelItems(rows: OptionRow[]): PanelItem[] {
     }
   }
   return items;
-}
-
-/** a section with no word of its own to name a pair (step.min, step.max): the section's title */
-function rowSectionLabel(row: OptionRow): string {
-  return row.section_label;
 }
 
 /** a section starts folded when every one of its rows is advanced, or when none of its rows applies to the method (`applies`: the row is
