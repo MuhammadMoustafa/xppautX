@@ -1,0 +1,1667 @@
+{
+ "all_identical": true,
+ "current_program_sha256": "4d07d70c1d121b805ef32e5fce5f6edb0244dadee55343175710dc5c4077e1aa",
+ "earlier_commit": "9885a178ae3ab8f365c49ed62d2d723aad727ded",
+ "earlier_program_sha256": "b1c0f42a992c1230c94ab4d5d29a7c5863d3540a9f5209fd55234ec7fae0984a",
+ "units": [
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 0.1,
+   "identical": true,
+   "kind": "python study",
+   "mode": "prefix",
+   "numerics_equal": true,
+   "odex_sha256": "ffeb809781f6fb04423589200344795860bb1531a1e0eedcc7462669980341a0",
+   "output_sha256": {
+    "current": "65ea630a0267fe11e2a0f9ee3f00a5a5ee2d374ecc23a1f00f3c68e2db0e10c2",
+    "earlier": "65ea630a0267fe11e2a0f9ee3f00a5a5ee2d374ecc23a1f00f3c68e2db0e10c2"
+   },
+   "rows": 201,
+   "stderr_equal": true,
+   "units": [
+    "amari-backward_euler/amari-backward_euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "b3fb50fee7c9c28119df08496b3b9cbea1259368438756d939ad7d335ebec354",
+   "output_sha256": {
+    "current": "944b1e8c7de409514d6e58adf3a568c59edc1adbdc4cad3479657ceaf5f6e705",
+    "earlier": "944b1e8c7de409514d6e58adf3a568c59edc1adbdc4cad3479657ceaf5f6e705"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "amari-backward_euler/amari-backward_euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "f72717b298cbd215a878d7476e69bd4d4574f8c6f5a5e8ce6fd7554ff6562fac",
+   "output_sha256": {
+    "current": "012f9dc8525524902a396aa02c90167122a4343c797d6ba8030768057554cab0",
+    "earlier": "012f9dc8525524902a396aa02c90167122a4343c797d6ba8030768057554cab0"
+   },
+   "rows": 2001,
+   "stderr_equal": true,
+   "units": [
+    "amari-dopri8/amari-dopri8"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "066823a214827fa06d7be1b9e67a75f143e298f7be66c9ff2658a8f5f86d6640",
+   "output_sha256": {
+    "current": "93d34a6be5c79ea2bf6e2303e45ebb6ed1a670e4483a6d4d0174f6ea6510a861",
+    "earlier": "93d34a6be5c79ea2bf6e2303e45ebb6ed1a670e4483a6d4d0174f6ea6510a861"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "amari-dopri8/amari-dopri8-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "c63708cdad02710a475dffa6c974be07fce7cbcf0dc3f1a82904b01195214696",
+   "output_sha256": {
+    "current": "5c28f0d13c12c09fd36e0a9fd2b2383a7248866eac0a81ec84df5e3049d6bed9",
+    "earlier": "5c28f0d13c12c09fd36e0a9fd2b2383a7248866eac0a81ec84df5e3049d6bed9"
+   },
+   "rows": 2001,
+   "stderr_equal": true,
+   "units": [
+    "amari-dopri8/amari-dopri8-tol1e-12"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "e8c3b65a6cba7418a0e785c031cffa8d6bde3ab3d3a8317c21175489035792ec",
+   "output_sha256": {
+    "current": "c4c81324b69c5d299b00e71c4d3202633802305e7ee02bdb0e4e62737ae80f8b",
+    "earlier": "c4c81324b69c5d299b00e71c4d3202633802305e7ee02bdb0e4e62737ae80f8b"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "amari-dopri8/amari-dopri8-tol1e-12-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "bf8d19f59a5ac8a288ade2709b47ba41a8000542413c846354494ff224996ae5",
+   "output_sha256": {
+    "current": "a9d3902b1bf418131076630a14b34317dd6091b294ff348b3904155ee2235d8a",
+    "earlier": "a9d3902b1bf418131076630a14b34317dd6091b294ff348b3904155ee2235d8a"
+   },
+   "rows": 2001,
+   "stderr_equal": true,
+   "units": [
+    "amari-euler/amari-euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "bfd83fb4d3f207a040efe855db70816578208d2712a5a528dd4d4481d810dd1d",
+   "output_sha256": {
+    "current": "de4e1379cc0fdbba231ef0ad59706e7c489405a01806c350aaa0f7fe56404f1e",
+    "earlier": "de4e1379cc0fdbba231ef0ad59706e7c489405a01806c350aaa0f7fe56404f1e"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "amari-euler/amari-euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "1674bf2475b994185df4861782c56fd8a472e5e7150eb62d3c0c92ef38dcab4e",
+   "output_sha256": {
+    "current": "f4083bfc04838a954e907daf4ae242171157cca4928debf9fc040b3c78f8b629",
+    "earlier": "f4083bfc04838a954e907daf4ae242171157cca4928debf9fc040b3c78f8b629"
+   },
+   "rows": 2001,
+   "stderr_equal": true,
+   "units": [
+    "amari-qualrk/amari-qualrk"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "33f9cda5bc5f2ec80cdd8d7c6595273e05a76e8ba27440f12cbdb57df3d2789a",
+   "output_sha256": {
+    "current": "0d79c7e0eb0a93d04a30ee74722666d82b5aeaf332d93279dc7f3cc72ba6ab7e",
+    "earlier": "0d79c7e0eb0a93d04a30ee74722666d82b5aeaf332d93279dc7f3cc72ba6ab7e"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "amari-qualrk/amari-qualrk-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "15aa14fd72024813e999f932afed13989996598b56b51fbe6608f16a8eb0fa50",
+   "output_sha256": {
+    "current": "52cc66117017e70daeb62923035a42b5e6be1fd5d23eff4f42c190db747bca1b",
+    "earlier": "52cc66117017e70daeb62923035a42b5e6be1fd5d23eff4f42c190db747bca1b"
+   },
+   "rows": 2001,
+   "stderr_equal": true,
+   "units": [
+    "amari-runge_kutta/amari-runge_kutta"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "01b09e1a522f24cecfbe68da8b56628653ae4034f6432f80b75c7a171efe11db",
+   "output_sha256": {
+    "current": "9f0a63fc26d6bc46d28a10439552b31474153c047b69470a8da64e6e0b8c14cb",
+    "earlier": "9f0a63fc26d6bc46d28a10439552b31474153c047b69470a8da64e6e0b8c14cb"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "amari-runge_kutta/amari-runge_kutta-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "055957f2980d13675d939f71cf124f11746b621967ec74271375b501af79e3c9",
+   "output_sha256": {
+    "current": "0242ddbeec5bc707509d585af3c18264ba21d1b3414b1468812de8c2ba2056d7",
+    "earlier": "0242ddbeec5bc707509d585af3c18264ba21d1b3414b1468812de8c2ba2056d7"
+   },
+   "rows": 501,
+   "stderr_equal": true,
+   "units": [
+    "clustor-backward_euler/clustor-backward_euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "5cdee914e12e33ec9669316c617c887337b435a51a550c0a92843c0bae43da47",
+   "output_sha256": {
+    "current": "d7a88953ff8f51aa28eea879281178ce8c1c227c6b9eb1396ff24b0d772bf2b1",
+    "earlier": "d7a88953ff8f51aa28eea879281178ce8c1c227c6b9eb1396ff24b0d772bf2b1"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "clustor-backward_euler/clustor-backward_euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "c01bfcb852e38e479406aa618c65992b8bc727d139ee3afe8a5e6abbf1b4c133",
+   "output_sha256": {
+    "current": "6e77da4349fe06fa76a4c0f8a89df64f6c4f95139975d44dcf5dce057fd8db47",
+    "earlier": "6e77da4349fe06fa76a4c0f8a89df64f6c4f95139975d44dcf5dce057fd8db47"
+   },
+   "rows": 501,
+   "stderr_equal": true,
+   "units": [
+    "clustor-dopri8/clustor-dopri8"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "cd28af381c78b54a5b6c722f91ba5dca2a617851166a3e6d161f82255b4742fe",
+   "output_sha256": {
+    "current": "eb836c8adb96c1918f6fd70435c9b8ab56143ae289f72c96ce2b20b6be34bc44",
+    "earlier": "eb836c8adb96c1918f6fd70435c9b8ab56143ae289f72c96ce2b20b6be34bc44"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "clustor-dopri8/clustor-dopri8-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "5ea49cf31c21f43664d53f4d52fa0bad1104e4f64dac949eedd3fbe5c65cacfa",
+   "output_sha256": {
+    "current": "6914fcbbecb23e1640aeb0a1f8113afbe250637bee2a450b6e3537bbb5e89497",
+    "earlier": "6914fcbbecb23e1640aeb0a1f8113afbe250637bee2a450b6e3537bbb5e89497"
+   },
+   "rows": 501,
+   "stderr_equal": true,
+   "units": [
+    "clustor-euler/clustor-euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "2056dd6841de64d7ed01c02be07740c09501077e4a0e5e771f1bb8267da85fcb",
+   "output_sha256": {
+    "current": "c4e0172435c7158642ce3f88dfccca2b649c05991974da56172c9a2b65112249",
+    "earlier": "c4e0172435c7158642ce3f88dfccca2b649c05991974da56172c9a2b65112249"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "clustor-euler/clustor-euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "dad232aa9c27aa9295a12a32a0b046b74de18ae01e9c934cdbdb48c5d27690e2",
+   "output_sha256": {
+    "current": "6e77da4349fe06fa76a4c0f8a89df64f6c4f95139975d44dcf5dce057fd8db47",
+    "earlier": "6e77da4349fe06fa76a4c0f8a89df64f6c4f95139975d44dcf5dce057fd8db47"
+   },
+   "rows": 501,
+   "stderr_equal": true,
+   "units": [
+    "clustor-qualrk/clustor-qualrk"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "293a20e337cbe850ed9e85e171b9e57ac80011638210c8ef2f05e472b8524612",
+   "output_sha256": {
+    "current": "eb836c8adb96c1918f6fd70435c9b8ab56143ae289f72c96ce2b20b6be34bc44",
+    "earlier": "eb836c8adb96c1918f6fd70435c9b8ab56143ae289f72c96ce2b20b6be34bc44"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "clustor-qualrk/clustor-qualrk-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "9eaeaf64dfd0fac026cbb8606abbc6e03b2853c2189baa0a6851a92ef65ff204",
+   "output_sha256": {
+    "current": "fa28b868d69937744c6e9d1f458cf551b77dc174c114d022f2e4284a227c8324",
+    "earlier": "fa28b868d69937744c6e9d1f458cf551b77dc174c114d022f2e4284a227c8324"
+   },
+   "rows": 501,
+   "stderr_equal": true,
+   "units": [
+    "clustor-runge_kutta/clustor-runge_kutta"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "8dae8ef11a015a9f5cf6038eeddcb08bcf99d9048928ca3d3ab075dcb067aa7f",
+   "output_sha256": {
+    "current": "eb836c8adb96c1918f6fd70435c9b8ab56143ae289f72c96ce2b20b6be34bc44",
+    "earlier": "eb836c8adb96c1918f6fd70435c9b8ab56143ae289f72c96ce2b20b6be34bc44"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "clustor-runge_kutta/clustor-runge_kutta-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 1,
+    "earlier": 1
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "afa7a6c8b5abade4719257840d3e4eff03d2b5a067ee7ed1fa8eb8e0a1b65ef4",
+   "output_sha256": {
+    "current": "2acd64c1cca87fe843dbccbd2c7ac3cf6a8ba94a641ccfe2f2edc7d72c0a768b",
+    "earlier": "2acd64c1cca87fe843dbccbd2c7ac3cf6a8ba94a641ccfe2f2edc7d72c0a768b"
+   },
+   "rows": 602,
+   "stderr_equal": true,
+   "units": [
+    "episodic-backward_euler/episodic-backward_euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "b61c185df8b6a2e9e04be9bafc41c33a3d88612e22d56cbb0f508c14cf89394d",
+   "output_sha256": {
+    "current": "427a1bb661c46ccbcd206833fefbbdf6464a4ba66e0b8d80f5aaa968b1040431",
+    "earlier": "427a1bb661c46ccbcd206833fefbbdf6464a4ba66e0b8d80f5aaa968b1040431"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "episodic-backward_euler/episodic-backward_euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "e3e03870185f121b6dabb322562c67db42ea491943c2e1dadc9dd684a3a03609",
+   "output_sha256": {
+    "current": "91a863bc7f34c9d415998fec9d167dd50a67c97f5b046d879ba4b953abf77234",
+    "earlier": "91a863bc7f34c9d415998fec9d167dd50a67c97f5b046d879ba4b953abf77234"
+   },
+   "rows": 4998,
+   "stderr_equal": true,
+   "units": [
+    "episodic-dopri8/episodic-dopri8"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "e749cca10d0f2b4d87eaf00663f27f708f23fdbc74037129e17244e28578ccec",
+   "output_sha256": {
+    "current": "c14c7d2d04fe84719527ff328a30f37dc1c4a444aad81c0b56b4835fcc43e855",
+    "earlier": "c14c7d2d04fe84719527ff328a30f37dc1c4a444aad81c0b56b4835fcc43e855"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "episodic-dopri8/episodic-dopri8-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 1,
+    "earlier": 1
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "75b3a4976fec009b0fa0337877c539777412a65b7ddff60441338c1e90101ec0",
+   "output_sha256": {
+    "current": "940244448ee930377479444c2091e5e742c3f170895f7b3b089f6c6904a30ba9",
+    "earlier": "940244448ee930377479444c2091e5e742c3f170895f7b3b089f6c6904a30ba9"
+   },
+   "rows": 612,
+   "stderr_equal": true,
+   "units": [
+    "episodic-euler/episodic-euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "90fef07bcdf8e7478153092c0fc6ce11717f5b81e1de7d1a97f14b632c8b0e40",
+   "output_sha256": {
+    "current": "41c9a638a89ab345991f33522dd318980ff2cd369204fab761d663bbbdb1a6d7",
+    "earlier": "41c9a638a89ab345991f33522dd318980ff2cd369204fab761d663bbbdb1a6d7"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "episodic-euler/episodic-euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "c22793417279fb7987336861a35f00ed5022ef867c0b25c82da5200db70f241b",
+   "output_sha256": {
+    "current": "0e5b66793eed520128f49be97490fde4204d537584a54f304696bba90eb35323",
+    "earlier": "0e5b66793eed520128f49be97490fde4204d537584a54f304696bba90eb35323"
+   },
+   "rows": 4998,
+   "stderr_equal": true,
+   "units": [
+    "episodic-qualrk/episodic-qualrk"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "0251b273f9ddc5751287cdccf03c3b0d10166db2cc5fd580d51724a45feedc66",
+   "output_sha256": {
+    "current": "c14c7d2d04fe84719527ff328a30f37dc1c4a444aad81c0b56b4835fcc43e855",
+    "earlier": "c14c7d2d04fe84719527ff328a30f37dc1c4a444aad81c0b56b4835fcc43e855"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "episodic-qualrk/episodic-qualrk-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 1,
+    "earlier": 1
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "0ae793a7f75b61d4424293c5a366f33c94884692a26a782271e5b5d1cd822050",
+   "output_sha256": {
+    "current": "61126199d4e61ac59342171552568556edf4f3d050b09c217835f0f477b1f9f3",
+    "earlier": "61126199d4e61ac59342171552568556edf4f3d050b09c217835f0f477b1f9f3"
+   },
+   "rows": 3173,
+   "stderr_equal": true,
+   "units": [
+    "episodic-runge_kutta/episodic-runge_kutta"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "2fd1c930b3e034e348a9ac6d363a0611a3da2c40b8c3f5125865da72d96eb672",
+   "output_sha256": {
+    "current": "bc03087d70877e41349eae4e7ebafe563d63aad33057e999b11a49f52f1e2752",
+    "earlier": "bc03087d70877e41349eae4e7ebafe563d63aad33057e999b11a49f52f1e2752"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "episodic-runge_kutta/episodic-runge_kutta-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 0.01,
+   "identical": true,
+   "kind": "python study",
+   "mode": "prefix",
+   "numerics_equal": true,
+   "odex_sha256": "62886f00d137543b2ebd9078ec5bc8ab9157a223d7684c32ee0708c49dcd7447",
+   "output_sha256": {
+    "current": "8f0ce6a3aabd73f3504796eb6a5f03b4e260904975ca82c95785ff2bc0c660e5",
+    "earlier": "8f0ce6a3aabd73f3504796eb6a5f03b4e260904975ca82c95785ff2bc0c660e5"
+   },
+   "rows": 21,
+   "stderr_equal": true,
+   "units": [
+    "kuramot100-backward_euler/kuramot100-backward_euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "ab0a3f6186c565a9eebef3b5e4919461a9fab3cbdff82dbae7a279051175189f",
+   "output_sha256": {
+    "current": "bbc4361e1b392b2744eb696dab2059972658b7bad3c37e2a3a10cb6893a8c2ce",
+    "earlier": "bbc4361e1b392b2744eb696dab2059972658b7bad3c37e2a3a10cb6893a8c2ce"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "kuramot100-backward_euler/kuramot100-backward_euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "734905b216e9cafc09547b11da9ce5ec7def4eef2035f6dab9d15bf718726b59",
+   "output_sha256": {
+    "current": "9e33a55f70874f4e4f7640e2a1b37cd45253f80bc039fdef739c38cb8eb19ba2",
+    "earlier": "9e33a55f70874f4e4f7640e2a1b37cd45253f80bc039fdef739c38cb8eb19ba2"
+   },
+   "rows": 2001,
+   "stderr_equal": true,
+   "units": [
+    "kuramot100-dopri8/kuramot100-dopri8"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "9914332ad4a71b1b763e8e781ef826f353b15c729187844c8b0684d9acc44db5",
+   "output_sha256": {
+    "current": "766219e3c4d4e7d2349d13a5e65fda0832a53b26eb8857632b6535a58e6a107e",
+    "earlier": "766219e3c4d4e7d2349d13a5e65fda0832a53b26eb8857632b6535a58e6a107e"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "kuramot100-dopri8/kuramot100-dopri8-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "e6f9d910d32ef41201bbadad1aefefc40d7a1aa2bb6408fcff920442cfb53d49",
+   "output_sha256": {
+    "current": "aa0d421a31d4bec3db1ab3ab8fe0ce65aff1df9baa45f20d1d0b53f71b860a65",
+    "earlier": "aa0d421a31d4bec3db1ab3ab8fe0ce65aff1df9baa45f20d1d0b53f71b860a65"
+   },
+   "rows": 2001,
+   "stderr_equal": true,
+   "units": [
+    "kuramot100-euler/kuramot100-euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "15195c0af93bfc23a310f9d5034cf676513fb041bd732984ae50e76bb769cbc7",
+   "output_sha256": {
+    "current": "ba8249a5702d5eef272f8badab43f1289308f16b5f28884e7880e4402e3b4fd8",
+    "earlier": "ba8249a5702d5eef272f8badab43f1289308f16b5f28884e7880e4402e3b4fd8"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "kuramot100-euler/kuramot100-euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 1,
+    "earlier": 1
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "14b9286e1213aa1b54cfa5543572529c557a03e29c4c5e29da34d44e68d1a070",
+   "output_sha256": {
+    "current": "4a4a7dacd68d62916df322b917e47168fefad1b9942cfca50fa9233dc5cd3695",
+    "earlier": "4a4a7dacd68d62916df322b917e47168fefad1b9942cfca50fa9233dc5cd3695"
+   },
+   "rows": 1,
+   "stderr_equal": true,
+   "units": [
+    "kuramot100-qualrk/kuramot100-qualrk"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 1,
+    "earlier": 1
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "5fd6d08d4406951234f48f3976fbe998c34a38d8fba9c3c38df04f8b7ba4a041",
+   "output_sha256": {
+    "current": "4a4a7dacd68d62916df322b917e47168fefad1b9942cfca50fa9233dc5cd3695",
+    "earlier": "4a4a7dacd68d62916df322b917e47168fefad1b9942cfca50fa9233dc5cd3695"
+   },
+   "rows": 1,
+   "stderr_equal": true,
+   "units": [
+    "kuramot100-qualrk/kuramot100-qualrk-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "b307add9c81a02ee03f698d342c9d9e7cf8a63d4d6f18ba213305ceabad2ad5c",
+   "output_sha256": {
+    "current": "d1f2d0bce69c454232710e5ca7796e6f5c5cb03fd5ceefd425906b8cc25f4464",
+    "earlier": "d1f2d0bce69c454232710e5ca7796e6f5c5cb03fd5ceefd425906b8cc25f4464"
+   },
+   "rows": 2001,
+   "stderr_equal": true,
+   "units": [
+    "kuramot100-runge_kutta/kuramot100-runge_kutta"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "61c34141907a110871fddb00e26e2ab510d68c2735779ca2fa6075028cb2ab75",
+   "output_sha256": {
+    "current": "1d1b3f1ca1099a10ea387706b70089c3140e2dbc5ea9b3f785b0d6a2eb7e4fdc",
+    "earlier": "1d1b3f1ca1099a10ea387706b70089c3140e2dbc5ea9b3f785b0d6a2eb7e4fdc"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "kuramot100-runge_kutta/kuramot100-runge_kutta-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "6e730ef941363cf247ddd3962cb0014ef6d825dd34340fda35a93a07d0fc82af",
+   "output_sha256": {
+    "current": "011fdc4f1f3f293395f0f145327883ec32ff601e5f6be3b4610eaa95334658c3",
+    "earlier": "011fdc4f1f3f293395f0f145327883ec32ff601e5f6be3b4610eaa95334658c3"
+   },
+   "rows": 401,
+   "stderr_equal": true,
+   "units": [
+    "lecdiff200-backward_euler/lecdiff200-backward_euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "a7ceb1a1ac610daad107cb1ff2ed0c222c24f6b1f5d6ff273a95d622cdd7dcc4",
+   "output_sha256": {
+    "current": "e7e460c4f10a427779933c4a9a4c71cf190dcd967454f75370639b52b795202e",
+    "earlier": "e7e460c4f10a427779933c4a9a4c71cf190dcd967454f75370639b52b795202e"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "lecdiff200-backward_euler/lecdiff200-backward_euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "4b6fbc2c78fcb8b6a4d6d6508cbdbf8bce24d18b756d9a2526c6c431ff067a7c",
+   "output_sha256": {
+    "current": "e0bc664d566cfce61f7e82e97830faf09cc0ce7dc7afda03fe555b744bbc425d",
+    "earlier": "e0bc664d566cfce61f7e82e97830faf09cc0ce7dc7afda03fe555b744bbc425d"
+   },
+   "rows": 401,
+   "stderr_equal": true,
+   "units": [
+    "lecdiff200-dopri8/lecdiff200-dopri8"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "f640c3ecbe5e4c3226d2d66436822a462575fe0f8167763619ec0c33c8af097b",
+   "output_sha256": {
+    "current": "01abd76ef63c62a1f701ab45d93f021da518974af8437376cb01fd127fb670b7",
+    "earlier": "01abd76ef63c62a1f701ab45d93f021da518974af8437376cb01fd127fb670b7"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "lecdiff200-dopri8/lecdiff200-dopri8-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "482bd3a89e3e6b4511e0a4f48c1e551f86563daa3ce23ffd8be80f1ff6aba456",
+   "output_sha256": {
+    "current": "334b3b7ec0077635d66d90cc90e63a7f6929590007623d86540801ac6ba36900",
+    "earlier": "334b3b7ec0077635d66d90cc90e63a7f6929590007623d86540801ac6ba36900"
+   },
+   "rows": 401,
+   "stderr_equal": true,
+   "units": [
+    "lecdiff200-dopri8/lecdiff200-dopri8-tol1e-09"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "858d08747899504cd592506b0730402170765d853f105e365be988f17fad3d6d",
+   "output_sha256": {
+    "current": "2e2fa5fe9a3402ea63028349a6772e115958cb58c210cfbae068eb7af04ffc6a",
+    "earlier": "2e2fa5fe9a3402ea63028349a6772e115958cb58c210cfbae068eb7af04ffc6a"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "lecdiff200-dopri8/lecdiff200-dopri8-tol1e-09-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "78a095eae63a7b314cefed23474d294b0e9371ed3837937d1458369796b0871e",
+   "output_sha256": {
+    "current": "3a0873ff7c7f6ade63709d7e23a09cbef29eb110b19941e23bc2a60db97d9617",
+    "earlier": "3a0873ff7c7f6ade63709d7e23a09cbef29eb110b19941e23bc2a60db97d9617"
+   },
+   "rows": 401,
+   "stderr_equal": true,
+   "units": [
+    "lecdiff200-euler/lecdiff200-euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "3b944931addabdc67a1f4b063aa8e456b04a089adadc6179d21e149c9d4281c2",
+   "output_sha256": {
+    "current": "4e0d1df8d8eedb210c21dc1ed1a0922704a37319cb83c7fe9f856a831f7c554f",
+    "earlier": "4e0d1df8d8eedb210c21dc1ed1a0922704a37319cb83c7fe9f856a831f7c554f"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "lecdiff200-euler/lecdiff200-euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "f03e9b944825e4e4b4689d5b07cc9c2148c8bde8f96a46bf86101fe7d706f53f",
+   "output_sha256": {
+    "current": "1f3650372c2acc10b5de5a6bb9a0e56adddde328543985dcf4bed530c92263fc",
+    "earlier": "1f3650372c2acc10b5de5a6bb9a0e56adddde328543985dcf4bed530c92263fc"
+   },
+   "rows": 401,
+   "stderr_equal": true,
+   "units": [
+    "lecdiff200-qualrk/lecdiff200-qualrk"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "94a7415b4b92da5d26295ab13764e9288dfc7f410c49a20efd379659b1439853",
+   "output_sha256": {
+    "current": "b6589f76629e42b2c8531ea558322582595d0180cd890fa72a8eb0ce19bf3df2",
+    "earlier": "b6589f76629e42b2c8531ea558322582595d0180cd890fa72a8eb0ce19bf3df2"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "lecdiff200-qualrk/lecdiff200-qualrk-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "e8c83bce1cb582db2ae6cfa128749b8364d6619dc0405f6ebb2d92592f842a31",
+   "output_sha256": {
+    "current": "f86a665bd2f662c64238163da09235498e4373d6adbb1a67e51fba48c8fee037",
+    "earlier": "f86a665bd2f662c64238163da09235498e4373d6adbb1a67e51fba48c8fee037"
+   },
+   "rows": 401,
+   "stderr_equal": true,
+   "units": [
+    "lecdiff200-runge_kutta/lecdiff200-runge_kutta"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "9e8935b87c22f4e28b9f4c09ce708eaa5aeda274990aa0d34083426a14c7183f",
+   "output_sha256": {
+    "current": "8b088318c544183462db189aadc2f6d77132b1e92f889097c4209b640738f16c",
+    "earlier": "8b088318c544183462db189aadc2f6d77132b1e92f889097c4209b640738f16c"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "lecdiff200-runge_kutta/lecdiff200-runge_kutta-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "1a3eb0ca395591604b65e4b57c341e3d4d4f405712849ca6133c87db38ab02a7",
+   "output_sha256": {
+    "current": "ef9a7aa9df27f3429b38f620cbc5380944c9b723c7b275c9a8575903d66ff8c0",
+    "earlier": "ef9a7aa9df27f3429b38f620cbc5380944c9b723c7b275c9a8575903d66ff8c0"
+   },
+   "rows": 5001,
+   "stderr_equal": true,
+   "units": [
+    "ma23-backward_euler/ma23-backward_euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "c186e155b1d67dc4950c9b4e7b1ba2ef5d7af970f857664cd2b7cf86366c5ddd",
+   "output_sha256": {
+    "current": "75cdbae94cca4637d122ec703718d531c92dd60739cd197ab9b3dd1061d17fda",
+    "earlier": "75cdbae94cca4637d122ec703718d531c92dd60739cd197ab9b3dd1061d17fda"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "ma23-backward_euler/ma23-backward_euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "4ea58f3d35501b6a2c7b3269b02a0ee0d0fdb82a4d69c118a24b6e4a3cec323d",
+   "output_sha256": {
+    "current": "b9718a94600886f1d21884fad264a28db4a29a2e4ac04636d9a0f077e92ce2ea",
+    "earlier": "b9718a94600886f1d21884fad264a28db4a29a2e4ac04636d9a0f077e92ce2ea"
+   },
+   "rows": 100001,
+   "stderr_equal": true,
+   "units": [
+    "ma23-dopri8/ma23-dopri8"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "d0d2466e9719e02dcc4eb0fb28036efca58190daab32836c35ebdf11de3efe67",
+   "output_sha256": {
+    "current": "6db1f44522db1969b86c030de471ebe7d7b5d7a84bbbaa47e98a9f10ba1d1264",
+    "earlier": "6db1f44522db1969b86c030de471ebe7d7b5d7a84bbbaa47e98a9f10ba1d1264"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "ma23-dopri8/ma23-dopri8-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "6ed0c0b53282834db01a1df79d619ebf09a3522a3251d84a23cc51f9ab90f0cc",
+   "output_sha256": {
+    "current": "a9d1720b0de79b6cd1d9b401a76d9c958d58af1353beeaf5662713919bab3861",
+    "earlier": "a9d1720b0de79b6cd1d9b401a76d9c958d58af1353beeaf5662713919bab3861"
+   },
+   "rows": 100001,
+   "stderr_equal": true,
+   "units": [
+    "ma23-dopri8/ma23-dopri8-tol1e-12"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "3818bba2b6cf17e9701cd5c6bb1237c6bf66e14ea6035648b70cf968dc764c72",
+   "output_sha256": {
+    "current": "6db1f44522db1969b86c030de471ebe7d7b5d7a84bbbaa47e98a9f10ba1d1264",
+    "earlier": "6db1f44522db1969b86c030de471ebe7d7b5d7a84bbbaa47e98a9f10ba1d1264"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "ma23-dopri8/ma23-dopri8-tol1e-12-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "d4f39bab068cafa3f33bc3b1ec709195488fb07935a40610df5ea2523ed53297",
+   "output_sha256": {
+    "current": "9f2a140bd00d0c23f8ea89a780d3fe76f5cb701bb95de326474efac3578b4f8c",
+    "earlier": "9f2a140bd00d0c23f8ea89a780d3fe76f5cb701bb95de326474efac3578b4f8c"
+   },
+   "rows": 5001,
+   "stderr_equal": true,
+   "units": [
+    "ma23-euler/ma23-euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "c97b302c9ff3104a5f62d83ee9e42b89afca3d9b278c97d9b6b4f257500fcbaa",
+   "output_sha256": {
+    "current": "531dee19665f1aa77b8b794fd52866b0f3431e915103af46617b58c032ff6427",
+    "earlier": "531dee19665f1aa77b8b794fd52866b0f3431e915103af46617b58c032ff6427"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "ma23-euler/ma23-euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "303ccad410f967be7dcd40146b3e7ea5bee71a371ee3973917f0b5c13e937fa5",
+   "output_sha256": {
+    "current": "29d9efe357a53a8ef989317a4cae23fea0d7da54246ef2055bca76d9072f1d82",
+    "earlier": "29d9efe357a53a8ef989317a4cae23fea0d7da54246ef2055bca76d9072f1d82"
+   },
+   "rows": 100001,
+   "stderr_equal": true,
+   "units": [
+    "ma23-qualrk/ma23-qualrk"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "cbcc894d8faaa65b4d0cd7cbc75c8fd28c6bf8669b9ff2db4b17fa34cddef8ac",
+   "output_sha256": {
+    "current": "6db1f44522db1969b86c030de471ebe7d7b5d7a84bbbaa47e98a9f10ba1d1264",
+    "earlier": "6db1f44522db1969b86c030de471ebe7d7b5d7a84bbbaa47e98a9f10ba1d1264"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "ma23-qualrk/ma23-qualrk-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "6a81d894671a286720fd827bcc3388df3567de37e96d7df331b35b25f77ce187",
+   "output_sha256": {
+    "current": "32f3518f09e2cbaa51aacda15857c9e66f823807cb2a0d4d572291986cfdc31d",
+    "earlier": "32f3518f09e2cbaa51aacda15857c9e66f823807cb2a0d4d572291986cfdc31d"
+   },
+   "rows": 5001,
+   "stderr_equal": true,
+   "units": [
+    "ma23-runge_kutta/ma23-runge_kutta"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "bb3dc9f1cf9cc10630cf2ebb7bafe3f28e3a1eefe9ba24ddccb91cc95ed1846b",
+   "output_sha256": {
+    "current": "6db1f44522db1969b86c030de471ebe7d7b5d7a84bbbaa47e98a9f10ba1d1264",
+    "earlier": "6db1f44522db1969b86c030de471ebe7d7b5d7a84bbbaa47e98a9f10ba1d1264"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "ma23-runge_kutta/ma23-runge_kutta-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "426f4bc97f1b8978ebb0fc293230c74c0fd73ef07b0b5b9878f8498827a9765c",
+   "output_sha256": {
+    "current": "d96e79672bae23389dfd7218511816b5085990468a9aa97e70b4a153aeb62656",
+    "earlier": "d96e79672bae23389dfd7218511816b5085990468a9aa97e70b4a153aeb62656"
+   },
+   "rows": 801,
+   "stderr_equal": true,
+   "units": [
+    "mu26-backward_euler/mu26-backward_euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "8c57148e2a37866e6faf4872d8745c544448dcd3668307467218a723b7e7f0fb",
+   "output_sha256": {
+    "current": "69a8f93c0a5553838a97bafe69c30ba6750cc3b75a96a93d93609c8e923789f1",
+    "earlier": "69a8f93c0a5553838a97bafe69c30ba6750cc3b75a96a93d93609c8e923789f1"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "mu26-backward_euler/mu26-backward_euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "59b937eda45bcecde83789b0d41f6220ae1085c4434a749fed3ae3935e8117b2",
+   "output_sha256": {
+    "current": "43dedfe5113b73738973cfd5730054473d0ee8199ff4a7f50b2a4a67801bcb74",
+    "earlier": "43dedfe5113b73738973cfd5730054473d0ee8199ff4a7f50b2a4a67801bcb74"
+   },
+   "rows": 8001,
+   "stderr_equal": true,
+   "units": [
+    "mu26-dopri8/mu26-dopri8"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "8c5972c44cb15bd7f69a81149134b636d3ee3b744c00bb42678b9c866f216a8a",
+   "output_sha256": {
+    "current": "250ab6da57aa076552f99605b43e3df952275d6c1d5125e730c30deb228ccce0",
+    "earlier": "250ab6da57aa076552f99605b43e3df952275d6c1d5125e730c30deb228ccce0"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "mu26-dopri8/mu26-dopri8-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "3faaa63375e1de108b77204079a3d72650b3f5250e32335b0a064c656d10aecf",
+   "output_sha256": {
+    "current": "4a8a04a3e97443a3e23fa116b31ff696736bfb47e96efb4f50010286d9afcefa",
+    "earlier": "4a8a04a3e97443a3e23fa116b31ff696736bfb47e96efb4f50010286d9afcefa"
+   },
+   "rows": 8001,
+   "stderr_equal": true,
+   "units": [
+    "mu26-dopri8/mu26-dopri8-tol1e-09"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "a75e669490cc9df1977b11a80e5d0d957d10cf9554cba06354e52b294aac48d7",
+   "output_sha256": {
+    "current": "33191d2eb018a5bbafd200cab0ba4485ff3ccd4ac5752b7451081e74fc2ab362",
+    "earlier": "33191d2eb018a5bbafd200cab0ba4485ff3ccd4ac5752b7451081e74fc2ab362"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "mu26-dopri8/mu26-dopri8-tol1e-09-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "179461f94a23ffd516cf0d0e7276d3d9e4812c8ce328cf8ad161242a350f014f",
+   "output_sha256": {
+    "current": "1adaa95cf78f447c222e7f29d6b18a386a4ed8657597a243a29c9a7bb4302dd1",
+    "earlier": "1adaa95cf78f447c222e7f29d6b18a386a4ed8657597a243a29c9a7bb4302dd1"
+   },
+   "rows": 801,
+   "stderr_equal": true,
+   "units": [
+    "mu26-euler/mu26-euler"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "b000a432fa876ba3f9370a494363780a9f98e5eff81ee8975e2b6c62d8c69c4a",
+   "output_sha256": {
+    "current": "3f6476070aae0383ccfda5c6ee9466455d9c7d886847f63893968960afcfb4c9",
+    "earlier": "3f6476070aae0383ccfda5c6ee9466455d9c7d886847f63893968960afcfb4c9"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "mu26-euler/mu26-euler-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "4564d10406fb4914f1cd28fddd7efa59f6ec758cceacfe14de00bfef9d3190d5",
+   "output_sha256": {
+    "current": "5e4eb9c69b5b1251c311f9f9e98baf3f317711239bd8fbe23496fc8f2e489070",
+    "earlier": "5e4eb9c69b5b1251c311f9f9e98baf3f317711239bd8fbe23496fc8f2e489070"
+   },
+   "rows": 8001,
+   "stderr_equal": true,
+   "units": [
+    "mu26-qualrk/mu26-qualrk"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "8d7b5a6f036d40588c391c3efb9b4fba6f68e562f9b8c4595025c2c686197c14",
+   "output_sha256": {
+    "current": "33191d2eb018a5bbafd200cab0ba4485ff3ccd4ac5752b7451081e74fc2ab362",
+    "earlier": "33191d2eb018a5bbafd200cab0ba4485ff3ccd4ac5752b7451081e74fc2ab362"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "mu26-qualrk/mu26-qualrk-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "20b55a09888bd4666d278d7ed92fd99928a7806d14ff8c7c7d26cd912199aac1",
+   "output_sha256": {
+    "current": "98f3ab553bd4bd16ef1a72d44d69076fba295f07bf0261ec6b76d67465e68853",
+    "earlier": "98f3ab553bd4bd16ef1a72d44d69076fba295f07bf0261ec6b76d67465e68853"
+   },
+   "rows": 801,
+   "stderr_equal": true,
+   "units": [
+    "mu26-runge_kutta/mu26-runge_kutta"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "python study",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "6d1f3e1516eb9212c7ba7d58e4965ac8e111095184540b87bb46471d407391e5",
+   "output_sha256": {
+    "current": "0bbc8c8ffbc4c8aeb67269dcc60306bae4d9b6b91f3abdac472ec89b743be7d9",
+    "earlier": "0bbc8c8ffbc4c8aeb67269dcc60306bae4d9b6b91f3abdac472ec89b743be7d9"
+   },
+   "rows": 2,
+   "stderr_equal": true,
+   "units": [
+    "mu26-runge_kutta/mu26-runge_kutta-ready"
+   ]
+  },
+  {
+   "exit_codes": {
+    "current": 0,
+    "earlier": 0
+   },
+   "fraction": 1.0,
+   "identical": true,
+   "kind": "terman dop853 reference",
+   "mode": "full",
+   "numerics_equal": true,
+   "odex_sha256": "80fa81e347e8bc9b8e0d83e6b9a1492b378a66bcc397dcc2cbfdc1638db42bc0",
+   "output_sha256": {
+    "current": "d1dadfbe667a05c6c5b8f631a31847cb01df9ecc3ab220fcc5062e46f68a4806",
+    "earlier": "d1dadfbe667a05c6c5b8f631a31847cb01df9ecc3ab220fcc5062e46f68a4806"
+   },
+   "rows": 4998,
+   "stderr_equal": true,
+   "units": [
+    "terman dop853 reference"
+   ]
+  }
+ ]
+}

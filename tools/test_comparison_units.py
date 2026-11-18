@@ -280,5 +280,32 @@ class ArgvPaths(unittest.TestCase):
         self.assertFalse(self.integration.argv_unchanged(self.a, 'xppautx', self.folder, 'episodic.ode'))
 
 
+class PythonEquivalence(unittest.TestCase):
+    """W803: python_equivalence.py's record licenses an earlier program hash as today's for the Python arm only, and only when
+    every unit was identical and both hashes are still the ones the record names."""
+
+    def check(self, **changes):
+        record = dict(all_identical=True, earlier_program_sha256='old', current_program_sha256='now')
+        record.update(changes)
+        with tempfile.TemporaryDirectory() as folder, mock.patch.object(common, 'EQUIVALENCE', Path(folder) / 'e.json'), \
+                mock.patch.object(common, 'python_sha', return_value='now'):
+            common.EQUIVALENCE.write_text(json.dumps(record))
+            return {engine: common.earlier_program(engine, 'old') for engine in ('python', 'xppautx', 'xppaut', 'auto07p')}
+
+    def test_the_python_arm_alone_takes_the_earlier_hash_as_current(self):
+        self.assertEqual(self.check(), dict(python='now', xppautx='old', xppaut='old', auto07p='old'))
+
+    def test_a_record_with_a_difference_licenses_nothing(self):
+        self.assertEqual(self.check(all_identical=False)['python'], 'old')
+
+    def test_a_record_of_other_hashes_licenses_nothing(self):
+        self.assertEqual(self.check(current_program_sha256='other')['python'], 'old')
+        self.assertEqual(self.check(earlier_program_sha256='other')['python'], 'old')
+
+    def test_no_record_licenses_nothing(self):
+        with tempfile.TemporaryDirectory() as folder, mock.patch.object(common, 'EQUIVALENCE', Path(folder) / 'none.json'):
+            self.assertEqual(common.earlier_program('python', 'old'), 'old')
+
+
 if __name__ == '__main__':
     unittest.main()

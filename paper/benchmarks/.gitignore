@@ -38,6 +38,8 @@
 !/comparison/continuation.py
 !/comparison/integration.py
 !/comparison/overlays.py
+!/comparison/python_equivalence.py
+!/comparison/python-equivalence.json
 !/comparison/run.py
 !/comparison/terman-criteria.json
 !/comparison/terman.py

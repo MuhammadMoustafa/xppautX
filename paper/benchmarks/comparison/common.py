@@ -267,6 +267,25 @@ def python_sha():
     return tree_sha([(f.name, f.read_bytes()) for f in PYTHON_DIR.glob('*.py')] + [('numerics-defaults.json', json.dumps(defaults(), sort_keys=True).encode())])
 
 
+# W803 (#884): python_equivalence.py proves an earlier hash of the Python integrators gave the very bytes of today's and writes
+# python-equivalence.json. It stands for the Python arm only: an earlier row's program hash is read as today's when the
+# record says every unit was identical and both hashes are still the ones it names; no other program's hash goes through it.
+EQUIVALENCE = HERE / 'python-equivalence.json'
+
+
+def proven_python_program(program):
+    # `program`, an earlier row's hash of the Python integrators, as today's hash when the record proves them equal, else itself.
+    if EQUIVALENCE.exists():
+        record = json.loads(EQUIVALENCE.read_text())
+        if record['all_identical'] and program == record['earlier_program_sha256'] and python_sha() == record['current_program_sha256']:
+            return python_sha()
+    return program
+
+
+def earlier_program(engine, program):
+    return proven_python_program(program) if engine == 'python' else program
+
+
 def measure_sha(*functions):
     # The measurement code: tools/comparison_measure.py (the clock and the process wait), common.py's command() and
     # environment() (pinning, environment, accounting) and the driver's own argv builder, which the caller passes. Not the
@@ -330,7 +349,7 @@ def derived_program_sha(a, engine):
         return executable_sha(a, engine) if same_folder and all(f.stat().st_mtime <= started for f in auto_files(a.auto_dir)) else None
     if engine == 'python':
         names = subprocess.check_output(['git', 'ls-tree', '--name-only', provenance['commit'], 'tools/python-integration/'], cwd=REPO, text=True).split()
-        return tree_sha((Path(n).name, git_text(provenance['commit'], n)) for n in names if n.endswith('.py'))
+        return proven_python_program(tree_sha((Path(n).name, git_text(provenance['commit'], n)) for n in names if n.endswith('.py')))
     return list(provenance['binaries'].values())[('xppautx', 'xppaut').index(engine)]
 
 

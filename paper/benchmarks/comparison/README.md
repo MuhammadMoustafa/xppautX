@@ -113,6 +113,16 @@ Drivers take `--only UNIT` (a unit's name, or its model's), `--list` and `--plan
   interpreter, so its key is the Python tree's, not any compared program's (`integration.reference_key`, kept beside the reference
   as `reference-key.json`; a reference that changes reruns every climb). A changed xppautX reruns only its own climb and rows; a
   changed Python tree (its program is every file of `tools/python-integration`) changes the reference and reruns every climb.
+- **The Python integrators are proven unchanged since W617** (W803, #884). tools/python-integration's files were renamed and
+  re-read from core/ after W617 (its rows are keyed by the hash of those files as of commit 9885a178), though no number changed.
+  `python_equivalence.py` (one command, `uv run --locked python paper/benchmarks/comparison/python_equivalence.py`, rerun it
+  whenever tools/python-integration changes) runs W617's tree (`git archive` of its commit) and this one on every distinct model the
+  python study staged and on Terman's dop853 reference, untimed, with the driver's argv, and compares the numerics each tree builds
+  (every field) and the output bytes; a run over 120 s goes on the first prefix (a tenth, a hundredth ...) both trees finish, named in
+  the record. `python-equivalence.json` holds both program hashes and each unit's mode, row count and output hashes.
+  `common.earlier_program` reads an earlier row's Python program hash as today's only for the python arm, only when the record says
+  `all_identical` and both hashes are still the ones it names (`earlier_key`, `reuse_whole`, `derived_program_sha`); no row of XPPAUT,
+  AUTO-07p or xppautX goes through it. W617's data and records are never rewritten.
 - **Imports are references.** An imported row's folder is linked into the new attempt (`common.link_tree`: hard links, so no space and
   no second copy; another file system is an error, not a silent copy), and the `--reuse` folder is `~/xppautx-comparison/results` (every file a real hard link, W807). Terman's XPPAUT
   convergence runs and its Python dop853 reference are imported the same way, by the keys of the files XPPAUT reads (`.ode`, `.set`),

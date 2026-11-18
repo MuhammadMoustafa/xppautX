@@ -13,7 +13,7 @@ import subprocess
 import sys
 import traceback
 
-from common import (BENCH, INPUT_SUFFIXES, HERE, LONG_RUN_REASON, LONG_RUN_SECONDS, REPO, TOOLS, before_series, progress, command, derived_key, earlier_context, environment,
+from common import (BENCH, INPUT_SUFFIXES, HERE, LONG_RUN_REASON, LONG_RUN_SECONDS, REPO, TOOLS, before_series, progress, command, derived_key, earlier_context, earlier_program, environment,
                     initialize, inputs_sha, is_long, link_tree, mark_reused, measure_sha, module, parser, repetitions, required_repetitions,
                     reuse_key, rotation, save, selected, sha, short_home, summarize, wanted, write_plan)
 
@@ -306,14 +306,21 @@ def argv_unchanged(a, engine, folder, source_name):
     return old[:3] + old[3 + own:] == new[:3] + new[3 + own:] and len(old) > 3
 
 
-def earlier_key(a, rec, key, source_name):
+def recorded_key(rec):
+    # a row's recorded key, its program as today's where W803's record proves the Python arm unchanged (common.earlier_program)
+    key = rec['reuse_key']
+    return dict(key, program=earlier_program(rec['engine'], key['program'])) if 'program' in key else key
+
+
+def earlier_key(a, rec, key, source_name, folder=None):
     # The earlier row's reuse key as recorded, or, for a row of a series before W452, derived from what is on disk
-    # (common.derived_key). None when its command line is not the one built now.
-    folder = earlier_folder(a, rec)
+    # (common.derived_key). None when its command line is not the one built now. `folder`: the row's run folder when it is
+    # not a headline row's (a ladder rung's, W803: W617's rungs kept no key).
+    folder = folder or earlier_folder(a, rec)
     if not folder.is_dir():
         return None
     if rec.get('reuse_key'):
-        return rec['reuse_key']
+        return recorded_key(rec)
     if not argv_unchanged(a, rec['engine'], folder, source_name):
         return None
     cpus = [int(c) for c in json.loads((folder / 'command.json').read_text())[2].split(',')]
@@ -395,7 +402,7 @@ def reuse_whole(a, name, model, ready, records):
     imported = []
     for r in marker['records']:
         folder = earlier_folder(a, r)
-        have = r.get('reuse_key') or derived_key(a, r, folder, current_key(a, r['engine'], model)['measure'],
+        have = recorded_key(r) if r.get('reuse_key') else derived_key(a, r, folder, current_key(a, r['engine'], model)['measure'],
                                                   [int(c) for c in json.loads((folder / 'command.json').read_text())[2].split(',')])
         imported.append(dict(mark_reused(a, r), reuse_key=have))
         dest = a.out / 'runs' / r['workload'] / str(r['repetition']) / r['engine'] / r['row']
@@ -463,7 +470,7 @@ def reference_reused(a, folder, model):
         return False
     earlier = a.reuse / folder.relative_to(a.out)
     if (earlier / REFERENCE_KEY).exists():
-        return json.loads((earlier / REFERENCE_KEY).read_text()) == reference_key(a, model)
+        return recorded_key(dict(engine='python', reuse_key=json.loads((earlier / REFERENCE_KEY).read_text()))) == reference_key(a, model)
     if not (earlier / 'result.json').exists() or not json.loads((earlier / 'result.json').read_text())['valid']:
         return False
     if not argv_unchanged(a, 'reference', earlier, model.name):
@@ -513,7 +520,8 @@ def ladder_import(a, name, engine, rungs, reference_unchanged):
         tolerance = row['tolerance']
         if tolerance not in models:
             return None, 'rung %g is not one of this ladder\'s' % tolerance
-        key, have = current_key(a, engine, models[tolerance]), row.get('reuse_key')
+        key = current_key(a, engine, models[tolerance])
+        have = earlier_key(a, row, key, models[tolerance].name, a.reuse / 'ladder' / name / ('%g' % tolerance) / engine)
         if not same_key(have, key):
             changed = [k for k in key if have is None or have.get(k) != key[k]]
             return None, 'rung %g differs in %s' % (tolerance, ', '.join(changed) or 'its command line')
