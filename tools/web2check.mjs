@@ -1911,7 +1911,7 @@ async function autoxView(dir) {
   const stop = await DS('d.stop');
   check('T21, T23: the status strip says why the run stopped (the core\'s reason), steady states, its branch and point, its points, its last label, the time',
     await until(`document.querySelector('.autox-status').dataset.phase === 'done'`, 'strip done')
-    && stop && stop.br === 1 && /^(parameter iapp reached parameter_(min|max)|the norm reached|the branch reached limits.steps)/.test(stop.text)
+    && stop && stop.br === 1 && /^(parameter iapp reached limits.parameter_(min|max)|the norm reached|the branch reached limits.steps)/.test(stop.text)
     && new RegExp(`^Stopped: ${stop.text.replace(/[()]/g, '\\$&')} · steady states · branch 1, point ${stop.pt} · ${nSteady} points `
       + `· last label End of branch \\d+ at point \\d+ · [\\d.:]+ s?`).test(await autoxStatus())
     && await cdp.eval(`document.querySelector('[data-testid=autox-status]').dataset.why`) === stop.why,
@@ -3564,8 +3564,8 @@ async function dockCheck() {
 const AB_SCRIPT = `version: 4,
 model: "ab.odex",
 runs: [
-  { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["p0"], options: { "step.initial": 0.05, "limits.parameter_max": 1.5, follow_all_branches: false } },
-  { name: "back", kind: equilibrium, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"], options: { "step.initial": -0.05, "limits.parameter_min": 0, follow_all_branches: false } },
+  { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["p0"], options: { step.initial: 0.05, limits.parameter_max: 1.5, follow_all_branches: false } },
+  { name: "back", kind: equilibrium, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"], options: { step.initial: -0.05, limits.parameter_min: 0, follow_all_branches: false } },
 ]
 `;
 async function autoxScriptCheck(dir) {
