@@ -2289,7 +2289,7 @@ is the words of its label, and the XPPAUT words (`total`, `nmesh`, `newt_tol`, .
 (W216). A choice's `value` is its name, as are its `choices` (a page shows each as its name with
 underscores as spaces and a capital first letter, `runge_kutta` as "Runge kutta"; a label is never
 written apart from the name); a yes or no is `"boolean":true` with a `true` or `false` value. `integer` marks a whole-number
-field; `unused` one the current method does not use; `unavailable` the choices the model
+field; `unused` one the current method does not use; `advanced` one that tunes how a method works inside (W808; the page folds a section of such rows); `unavailable` the choices the model
 cannot have, each by its name with why (`{"exact":"noisy.odex:2:1: uses random numbers"}`: a
 model with no exact Jacobian, "Numerics" in docs/manual/06-numerical-parameters.md). The exact
 Jacobian is made only when asked for (the model's own `jacobian: exact` option, or `set num jacobian exact`),

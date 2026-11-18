@@ -263,16 +263,11 @@ function NumericsSection() {
 function NumericsRows({group}: {group: OptionGroup}) {
   /* the values are asked for once when the numerics arrive, and again only when what the numerics event says changed (an edit made elsewhere) */
   useOpenOptions(group.group, useStore(s => JSON.stringify(s.numerics)));
-  const {fields, unusedFields, unused} = useOptionRows(group, null, true);
+  const {fields} = useOptionRows(group, null, true);
   return (
     <Section id="num" title="Numerics" startFolded hint="Changes apply to the next run: a run in progress keeps its own."
       tools={<SetsRow scope="integration" />}>
       <div class="value-options">{fields}</div>
-      {unused > 0 && <details class="unused-options">
-        <summary>Options not used by this method or model</summary>
-        <p class="value-hint">These values are kept for other solvers. Editing them does not change this method's results.</p>
-        <div class="value-options">{unusedFields}</div>
-      </details>}
     </Section>
   );
 }

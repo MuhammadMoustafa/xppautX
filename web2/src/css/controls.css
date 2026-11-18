@@ -146,7 +146,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   font-size: var(--text-xs);
   color: var(--fg-muted);
 }
-.unused-options > summary, .help-keys summary {
+.help-keys summary {
   min-height: var(--target);
   cursor: pointer;
 }

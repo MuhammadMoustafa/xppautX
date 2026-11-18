@@ -41,7 +41,6 @@ h1, h2 { margin: 0; }
 .start-path { font-size: var(--text-xs); }
 .start-missing { color: var(--danger); }
 #command-search { width: 100%; min-height: var(--target); margin-bottom: var(--space-2); padding: var(--space-1) var(--space-2); font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius); }
-.unused-options { margin-top: var(--space-3); }
 .spacer { flex: 1; }
 .menu-toggle, .values-toggle, .app-menu .menu-search, .menu-scrim { display: none; }
 /* the wide layouts' collapse buttons and splitters (W226): not on a phone, where the drawers do this */

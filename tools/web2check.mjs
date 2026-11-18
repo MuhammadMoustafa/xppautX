@@ -3336,10 +3336,17 @@ async function optionsCheck() {
       if (!panel) return null;
       const rows = [...panel.querySelectorAll('[data-argument]')];
       const radios = r => [...r.querySelectorAll('[role=radio]')];
+      const sections = [...panel.querySelectorAll('fieldset[data-section]')];
       return {title: panel.querySelector('h2').textContent,
-        sections: [...panel.querySelectorAll('fieldset')].map(f => f.dataset.section),
-        legends: [...panel.querySelectorAll('fieldset > legend')].map(l => l.textContent),
-        keys: rows.map(r => r.dataset.argument), labels: rows.map(r => r.querySelector('.form-label').textContent.replace(/ \\*$/, '')),
+        sections: sections.map(f => f.dataset.section), folds: sections.map(f => f.dataset.folded),
+        headers: sections.map(f => f.querySelector('.options-section-fold')?.textContent ?? ''),
+        openBodies: sections.map(f => !f.querySelector(':scope > div').hidden),
+        unusedDisclosure: !!panel.querySelector('.unused-options'),
+        keys: rows.map(r => r.dataset.argument), paired: rows.map(r => r.dataset.pair ?? null),
+        /* W811: the "?" is the row's last cell, after the control, and a switch's row is inline */
+        helpLast: rows.map(r => r.lastElementChild.matches('.field-help-toggle, .help-slot')),
+        inline: rows.map(r => r.classList.contains('inline')),
+        labels: rows.map(r => r.querySelector('.form-label').textContent.replace(/ \\*$/, '')),
         defaults: rows.map(r => /Default: (.*?)\\.( |$)/.exec(r.querySelector('.form-help').textContent)?.[1]),
         helps: rows.map(r => r.querySelector('.form-help').textContent),
         /* W679: a field's help is behind its "?", closed until it is clicked */
@@ -3354,29 +3361,46 @@ async function optionsCheck() {
     })()`);
     check(`W616: ${g.group}: the panel is open`, shown !== null);
     if (!shown) continue;
-    /* the rows the method and model use come first, in the table's order; the others follow in a closed list, in the table's order too */
     const held = await S('s.optionValues[' + JSON.stringify(g.group) + '].values');
-    const ordered = [...g.rows.filter(r => r.key in held), ...g.rows.filter(r => !(r.key in held))];
     const names = await S('[...new Set([...(s.hello.lists[0] ?? []), ...(s.hello.lists[3] ?? [])])]');
-    const inSections = rows => rows.map(r => r.section).filter((x, i, all) => x !== all[i - 1]);
+    const byKey = Object.fromEntries(g.rows.map(r => [r.key, r]));
+    /* W811: a range's low and high rows are one row (the low one's key, paired with the high one's): every table row is drawn once, alone or as a pair */
+    const highs = shown.paired.filter(Boolean);
+    check(`W811: ${g.group}: every option is drawn once, a range's two as one row`,
+      shown.keys.length + highs.length === g.rows.length && highs.every(h => byKey[h] && !shown.keys.includes(h)) && JSON.stringify(shown.keys) === JSON.stringify(g.rows.map(r => r.key).filter(k => !highs.includes(k))),
+      JSON.stringify([shown.keys, highs]));
+    check(`W811: ${g.group}: the old "not used" disclosure is gone`, !shown.unusedDisclosure);
+    /* the rows the others are checked by: the ones with no pair (a pair's label and help are its two rows', not one of them alone) */
+    const plainIdx = shown.paired.flatMap((p, i) => p === null ? [i] : []);
+    const plain = plainIdx.map(i => byKey[shown.keys[i]]);
+    const at = part => plainIdx.map(i => shown[part][i]);
     const want = {
-      title: g.label, keys: ordered.map(r => r.key), labels: ordered.map(r => r.label),
-      sections: [...inSections(g.rows.filter(r => r.key in held)), ...inSections(g.rows.filter(r => !(r.key in held)))],
-      legends: [],
-      defaults: ordered.map(r => { const d = r.boolean ? (r.default === 'true' ? 'on' : 'off') : r.kind === 'choice' ? label(r.default) : r.default; return d || undefined; }),
-      choices: ordered.map(r => r.kind === 'choice' && !r.boolean ? r.choices : r.kind === 'name' ? (!held[r.key] || names.includes(held[r.key]) ? names : [held[r.key], ...names]) : []),
-      checkbox: ordered.map(r => !!r.boolean), color: ordered.map(r => r.kind === 'color'),
+      labels: plain.map(r => r.label),
+      defaults: plain.map(r => { const d = r.boolean ? (r.default === 'true' ? 'on' : 'off') : r.kind === 'choice' ? label(r.default) : r.default; return d || undefined; }),
+      choices: plain.map(r => r.kind === 'choice' && !r.boolean ? r.choices : r.kind === 'name' ? (!held[r.key] || names.includes(held[r.key]) ? names : [held[r.key], ...names]) : []),
+      checkbox: plain.map(r => !!r.boolean), color: plain.map(r => r.kind === 'color'), inline: plain.map(r => !!r.boolean),
     };
-    const legendsOf = rows => rows.filter((r, i, all) => r.section !== all[i - 1]?.section && r.section).map(r => r.section_label);
-    want.legends = [...legendsOf(g.rows.filter(r => r.key in held)), ...legendsOf(g.rows.filter(r => !(r.key in held)))];
     for (const part of Object.keys(want))
-      check(`W616: ${g.group}: the panel's ${part} are the table's`, JSON.stringify(shown[part]) === JSON.stringify(want[part]), JSON.stringify([shown[part], want[part]]));
-    check(`W616: ${g.group}: each row's help line is the table's`, ordered.every((r, i) => shown.helps[i]?.startsWith(r.help)));
+      check(`W616: ${g.group}: the panel's ${part} are the table's`, JSON.stringify(at(part)) === JSON.stringify(want[part]), JSON.stringify([at(part), want[part]]));
+    check(`W616: ${g.group}: the panel's title is the group's label`, shown.title === g.label);
+    check(`W616: ${g.group}: each row's help line is the table's`, plain.every((r, i) => at('helps')[i]?.startsWith(r.help)));
     check(`W679: ${g.group}: every field's help starts hidden behind a "?" named for its label`,
-      shown.closed.every(Boolean) && ordered.every((r, i) => shown.toggleNames[i] === 'Help for ' + r.label), JSON.stringify([shown.closed, shown.toggleNames]));
-    const values = held;
-    check(`W616: ${g.group}: a field shows the core's value for its key`, ordered.every((r, i) => !(r.key in values) || shown.values[i] === values[r.key]),
-      JSON.stringify(ordered.filter((r, i) => r.key in values && shown.values[i] !== values[r.key]).map(r => [r.key, values[r.key]])));
+      at('closed').every(Boolean) && plain.every((r, i) => at('toggleNames')[i] === 'Help for ' + r.label), JSON.stringify([at('closed'), at('toggleNames')]));
+    check(`W811: ${g.group}: each "?" follows its control in the row`, shown.helpLast.every(Boolean));
+    /* W811: the sections are the table's, in order, each with its title and count; a section starts folded when all its options are advanced or
+       none of them is used by the method (a mixed one starts open) */
+    const sectionOrder = g.rows.map(r => r.section).filter((x, i, all) => x && x !== all[i - 1]);
+    check(`W811: ${g.group}: the sections are the table's, in order`, JSON.stringify(shown.sections) === JSON.stringify(sectionOrder), JSON.stringify([shown.sections, sectionOrder]));
+    const inSection = sec => g.rows.filter(r => r.section === sec);
+    const startsFolded = sec => inSection(sec).every(r => r.advanced === true) || !inSection(sec).some(r => r.key in held);
+    check(`W811: ${g.group}: each section's title and option count`, sectionOrder.every((sec, i) => shown.headers[i].replace(/^[▸▾]/, '').startsWith(inSection(sec)[0].section_label)
+      && shown.headers[i].includes(`${inSection(sec).length} option`)), JSON.stringify(shown.headers));
+    check(`W811: ${g.group}: the sections start folded when all advanced or none used, open when mixed`,
+      sectionOrder.every((sec, i) => shown.folds[i] === (startsFolded(sec) ? 'true' : 'false') && shown.openBodies[i] === !startsFolded(sec)),
+      JSON.stringify(sectionOrder.map(sec => [sec, startsFolded(sec), shown.folds[sectionOrder.indexOf(sec)]])));
+    check(`W811: ${g.group}: a switch's label stays beside it (its row is inline)`, JSON.stringify(at('inline')) === JSON.stringify(want.inline));
+    check(`W616: ${g.group}: a field shows the core's value for its key`, plain.every((r, i) => !(r.key in held) || at('values')[i] === held[r.key]),
+      JSON.stringify(plain.filter((r, i) => r.key in held && at('values')[i] !== held[r.key]).map(r => [r.key, held[r.key]])));
     await key('Escape');
     await until('!s.optionsPanel', 'panel closed');
   }

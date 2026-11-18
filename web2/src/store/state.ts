@@ -153,6 +153,8 @@ export interface AppState {
   panels: Panels;
   /** the folded Values sections, as settings.json's page.folds keeps them (each id, "+id" for a section that starts folded) */
   folds: string[];
+  /** the options panels' sections the person opened or folded (W811): "group/section" -> open; kept while the page lives, never in a file */
+  optionFolds: Record<string, boolean>;
   /** the command palette (Search commands) */
   drawerOpen: boolean;
   /** the menu bar's drawer on a phone (below 48rem; the bar is always shown above that) */
@@ -255,6 +257,7 @@ export type Action =
   | {type: 'theme'; theme: Theme}
   | {type: 'panels'; panels: Partial<Panels>}
   | {type: 'folds'; folds: string[]}
+  | {type: 'optionFolds'; folds: Record<string, boolean>}
   | {type: 'values'; action: ValuesAction}
   | {type: 'dockPanel'; open: boolean}
   | {type: 'popout'; key: string; out: boolean}
@@ -303,6 +306,7 @@ export const initialState: AppState = {
   theme: 'system',
   panels: defaultPanels,
   folds: [],
+  optionFolds: {},
   drawerOpen: false, menuOpen: false, commandForm: null, optionsPanel: null, optionValues: {}, valuesFile: null, annotationsOpen: false, selectedAnnotation: null,
   continueInput: CONTINUE_INPUT_DEFAULT,
   steadyEdit: {},
@@ -773,6 +777,8 @@ function reduceAction(state: AppState, action: Action): AppState {
       return {...state, panels: {...state.panels, ...action.panels}};
     case 'folds':
       return {...state, folds: action.folds};
+    case 'optionFolds':
+      return {...state, optionFolds: action.folds};
     case 'values':
       return {...state, values: reduceValues(state.values, action.action)};
     case 'dockPanel':

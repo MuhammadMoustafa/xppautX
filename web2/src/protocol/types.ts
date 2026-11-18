@@ -122,6 +122,8 @@ export interface OptionRow {
   /** the value a fresh session of the model holds, as text */
   default: string;
   boolean?: boolean;
+  /** an advanced option tunes how a method works inside; its default is right for almost every model (W808) */
+  advanced?: boolean;
   choices?: string[];
   nonzero?: boolean;
   minimum?: number;

@@ -23,28 +23,32 @@ export interface FormRowProps {
   error?: string | null;
   /** the control is wider than a line: it takes the row's whole width (a list of rows, a table) */
   wide?: boolean;
+  /** a switch: the label stays beside it at every width (W811) */
+  inline?: boolean;
+  /** a range pair's high row: the control is both rows' (data-pair names it; the row's name is the low one) */
+  paired?: string;
   /** the id of the control, for the label */
   id?: string;
   className?: string;
   children: ComponentChildren;
 }
 
-export function FormRow({name, label, required, help, notes, error, wide, id, className, children}: FormRowProps) {
+export function FormRow({name, label, required, help, notes, error, wide, inline, paired, id, className, children}: FormRowProps) {
   const helpId = `${useId()}-help`;
   const [open, setOpen] = useState(false);
+  /* the three cells of a row: the label, the control and the "?" after it; the "?" column is kept (a blank span) so the controls line up */
   return (
-    <div class={'form-row registry-argument' + (wide ? ' wide' : '') + (error ? ' bad' : '') + (className ? ` ${className}` : '')} data-argument={name} data-num={name}>
-      <div class="form-head">
-        <label class="form-label" htmlFor={id}>{label}{required && <span class="required" title="Required" aria-hidden="true"> *</span>}</label>
-        {help ? <button type="button" class="help-link field-help-toggle" aria-expanded={open} aria-controls={helpId} aria-label={`Help for ${label}`}
-          onClick={() => setOpen(!open)}>?</button> : null}
-      </div>
-      <div class="form-control">
+    <div class={'form-row registry-argument' + (wide ? ' wide' : '') + (inline ? ' inline' : '') + (error ? ' bad' : '') + (className ? ` ${className}` : '')}
+      data-argument={name} data-num={name} data-pair={paired}>
+      <label class="form-label" htmlFor={id}>{label}{required && <span class="required" title="Required" aria-hidden="true"> *</span>}</label>
+      <div class="form-cell">
         {children}
         {help ? <small class="value-hint form-help" id={helpId} hidden={!open}>{help}</small> : null}
         {notes ? <small class="value-hint">{notes}</small> : null}
         {error ? <span class="field-error" role="alert">{error}</span> : null}
       </div>
+      {help ? <button type="button" class="help-link field-help-toggle" aria-expanded={open} aria-controls={helpId} aria-label={`Help for ${label}`}
+        onClick={() => setOpen(!open)}>?</button> : <span class="help-slot" aria-hidden="true" />}
     </div>
   );
 }

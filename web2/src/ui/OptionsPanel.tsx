@@ -3,10 +3,14 @@
    kind, label, choices, default, limits and help are the row's: nothing about one option is written here. The values come from
    `options.get` and go out as one `options.configure` (or `output.configure`), all or nothing, of the rows changed; Apply closes the panel, as a command form's Run does. A field is the same
    one every command form has (Field, ColorField, a select), in the form's own markup; useOptionRows is the one place a row is turned into
-   a field: a panel of its own, the options part of a command's form and Values' Numerics all use it. */
-import {useEffect, useLayoutEffect, useState} from 'preact/hooks';
+   a field: a panel of its own, the options part of a command's form and Values' Numerics all use it. Its rows are in sections (a dotted
+   name's first part): each section folds on its own, starting folded when all its rows are advanced or none of them applies to the method
+   (store/optionSections.ts, W811), and a low and a high row of one range are one field (a range pair). */
+import {useEffect, useLayoutEffect, useId, useState} from 'preact/hooks';
+import type {ComponentChildren} from 'preact';
 import type {OptionGroup, OptionRow} from '../protocol/types';
 import {choiceLabel, ruleMessage, specOfOption} from '../store/fieldKinds';
+import {panelItems, sectionFoldKey, sectionStartsFolded, type PanelItem, type RangePair} from '../store/optionSections';
 import {Control, FormRow, focusFirstError, useFeedback, type Feedback} from './FormFields';
 import {useSession, useStore} from './context';
 import {Dialog} from './Dialog';
@@ -29,7 +33,7 @@ export function sectionsOf(group: OptionGroup): {section: string; rows: OptionRo
 
 /** the rows of a group a panel (or a command form, or Values' Numerics) edits, drawn by the one field renderer, with the drafts typed over what the core
     holds and the command that sends them. `live`: a change is sent at once (Values: as its fields always were); else the drafts wait for the action.
-    The rows the method or model do not use are `unused`, for the caller to separate. */
+    A row the method or model does not use is drawn disabled, in its section (folded when none of the section's rows is used). */
 export function useOptionRows(group: OptionGroup, sections: string[] | null, live = false, own?: Feedback) {
   const session = useSession();
   const stored = useStore(s => s.optionValues[group.group]);
@@ -59,7 +63,8 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
     values: Object.fromEntries(keys.map(row => [row.key, texts[row.key]]))});
   /** the command that sets the rows changed, none when nothing was */
   const options = (): {cmd: string; [k: string]: unknown} | null => changed.length ? command(changed, drafts) : null;
-  const rowBox = (row: OptionRow) => {
+  /* one row's control and what goes with it (its help, notes and error), the same for a row and for each side of a range pair */
+  const member = (row: OptionRow) => {
     const spec = specOfOption(row, names, sets), value = shown(row), disabled = values === null || !used(row);
     /* live: the text stays shown as sent until the core's values come (an option made during a run applies after it) */
     const set = (text: string) => {
@@ -71,18 +76,58 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
     const shownDefault = row.boolean ? (row.default === 'true' ? 'on' : 'off') : row.kind === 'choice' ? choiceLabel(row.default) : row.default;
     const help = <>{row.help}{shownDefault ? ` Default: ${shownDefault}.` : ''}{used(row) || values === null ? '' : ' Not used by this method or model.'}</>;
     const notes = Object.entries(unavailable[row.key] ?? {}).map(([name, why]) => <span key={name} class="unavailable-note" data-unavailable={name}>{choiceLabel(name)} is not available: {why}</span>);
-    return <FormRow key={row.key} name={row.key} label={row.label} help={help} notes={notes.length ? notes : null} error={error}>
-      <Control spec={spec} value={value} label={row.label} disabled={disabled} unavailable={unavailable[row.key]} verbatim={row.kind === 'name'} invalid={!!error}
-        file={row.kind === 'path'} onDropFile={row.kind === 'path' ? async f => { const name = await session.uploadArgument(f); if (name) set(name); } : undefined}
-        onChange={set} onBlur={() => feedback.touch(row.key)} />
+    const control = <Control spec={spec} value={value} label={row.label} disabled={disabled} unavailable={unavailable[row.key]} verbatim={row.kind === 'name'} invalid={!!error}
+      file={row.kind === 'path'} onDropFile={row.kind === 'path' ? async f => { const name = await session.uploadArgument(f); if (name) set(name); } : undefined}
+      onChange={set} onBlur={() => feedback.touch(row.key)} />;
+    return {help, notes, error, control};
+  };
+  const rowBox = (row: OptionRow) => {
+    const {help, notes, error, control} = member(row);
+    return <FormRow key={row.key} name={row.key} label={row.label} help={help} notes={notes.length ? notes : null} error={error} inline={row.boolean}>{control}</FormRow>;
+  };
+  /* a range pair: one label, the low side's input first, both helps behind one "?", an error of either side under the pair */
+  const pairBox = (pair: RangePair) => {
+    const low = member(pair.low), high = member(pair.high);
+    const notes = [...low.notes, ...high.notes];
+    return <FormRow key={pair.low.key} name={pair.low.key} paired={pair.high.key} label={pair.label} help={<>{low.help} {high.help}</>}
+      notes={notes.length ? notes : null} error={low.error ?? high.error}>
+      <div class="range-pair">
+        <div class="range-part"><span class="range-word">{pair.lowWord}</span>{low.control}</div>
+        <div class="range-part"><span class="range-word">{pair.highWord}</span>{high.control}</div>
+      </div>
     </FormRow>;
   };
-  const fieldsOf = (shownRows: OptionRow[]) => sectionsOf({...group, rows: shownRows}).map(({section, rows: inSection}) => <fieldset class="form-group options-section" key={section} data-section={section}>
-    {section && <legend>{inSection[0].section_label}</legend>}
-    {inSection.map(rowBox)}
-  </fieldset>);
-  const usedRows = rows.filter(used), unusedRows = values === null ? [] : rows.filter(row => !used(row));
-  return {fields: fieldsOf(values === null ? rows : usedRows), unusedFields: fieldsOf(unusedRows), unused: unusedRows.length, invalid, options, changed, shownProblems};
+  const itemBox = (item: PanelItem) => item.kind === 'pair' ? pairBox(item) : rowBox(item.row);
+  /* the rows in sections: a section with a name is a folding box of its own; the rows with no section are drawn at the top, unboxed */
+  const fieldsOf = (shownRows: OptionRow[]) => sectionsOf({...group, rows: shownRows}).map(({section, rows: inSection}) => {
+    const items = panelItems(inSection).map(itemBox);
+    return section
+      ? <OptionSection key={section} group={group.group} section={section} label={inSection[0].section_label} rows={inSection} applies={row => values === null || used(row)}>{items}</OptionSection>
+      : <>{items}</>;
+  });
+  return {fields: fieldsOf(rows), invalid, options, changed, shownProblems};
+}
+
+/** a section of a group's rows: its title with the count of its options, folded by its chevron. It starts folded when every row is
+    advanced or none applies (sectionStartsFolded); a fold the person made is kept in the store (optionFolds) while the page lives. */
+function OptionSection({group, section, label, rows, applies, children}: {
+  group: string; section: string; label: string; rows: OptionRow[]; applies: (row: OptionRow) => boolean; children: ComponentChildren;
+}) {
+  const session = useSession();
+  const folds = useStore(s => s.optionFolds);
+  const bodyId = useId();
+  const key = sectionFoldKey(group, section);
+  const folded = folds[key] === undefined ? sectionStartsFolded(rows, applies) : !folds[key];
+  const toggle = () => session.store.dispatch({type: 'optionFolds', folds: {...folds, [key]: folded}});
+  const count = `${rows.length} option${rows.length === 1 ? '' : 's'}${rows.every(row => row.advanced) ? ', advanced' : ''}`;
+  return <fieldset class={'form-group options-section' + (folded ? ' folded' : '')} data-section={section} data-folded={folded ? 'true' : 'false'}>
+    <legend class="options-section-head">
+      <button type="button" class="options-section-fold" aria-expanded={!folded} aria-controls={bodyId} onClick={toggle}>
+        <span class="value-fold-mark" aria-hidden="true">{folded ? '▸' : '▾'}</span>{label}<span class="options-section-count">{count}</span>
+      </button>
+    </legend>
+    <div id={bodyId} hidden={folded}>{children}</div>
+  </fieldset>;
 }
 
 /** a place that edits a group's rows asks the core for their values when it opens, and again when `again` changes */
@@ -103,7 +148,7 @@ export function OptionsPanel() {
 function Panel({group}: {group: OptionGroup}) {
   const session = useSession();
   const feedback = useFeedback();
-  const {fields, unusedFields, unused, invalid, options, shownProblems} = useOptionRows(group, null, false, feedback);
+  const {fields, invalid, options, shownProblems} = useOptionRows(group, null, false, feedback);
   const close = () => session.store.dispatch({type: 'optionsPanel', panel: null});
   const apply = (e: Event) => {
     e.preventDefault();
@@ -118,6 +163,5 @@ function Panel({group}: {group: OptionGroup}) {
   return <Dialog title={group.label} name={group.label} onClose={close} onSubmit={apply} problems={shownProblems}
     action={{label: 'Apply'}} className="registry-form options-panel" attrs={{'data-options-panel': group.group}}>
     {fields}
-    {unused > 0 && <details class="unused-options"><summary>Options not used by this method or model</summary>{unusedFields}</details>}
   </Dialog>;
 }

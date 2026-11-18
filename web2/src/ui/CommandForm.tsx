@@ -120,7 +120,7 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
     const i = args.indexOf(arg);
     const label = choiceLabel(arg.name);
     return <FormRow key={arg.name} name={arg.name} label={label} required={arg.required && arg.type !== 'boolean' && arg !== picker} help={arg.description} error={shown(arg, i)}
-      wide={['list', 'map', 'list[real, 2]', 'list[text]'].includes(arg.type)}>
+      wide={['list', 'map', 'list[real, 2]', 'list[text]'].includes(arg.type)} inline={arg.type === 'boolean'}>
       {control(arg, values[arg.name], value => set(arg.name, value), label, !!shown(arg, i))}
     </FormRow>;
   };
@@ -136,7 +136,7 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
   return <Dialog title={row.name} name={row.name} description={row.description} onClose={close} onSubmit={submit} problems={fixes}
     action={{label: row.action || row.label}} className="registry-form" attrs={{'data-command-form': id}}>
     {SETS_OF_FORM[id] && <SetsRow scope={SETS_OF_FORM[id]} />}
-    {group && <div data-options-rows>{options.fields}{options.unused > 0 && <details class="unused-options"><summary>Options not used by this method or model</summary>{options.unusedFields}</details>}</div>}
+    {group && <div data-options-rows>{options.fields}</div>}
     {group && body.some(Boolean) ? <fieldset class="form-group">{body}</fieldset> : body}
     {picker && (picker.type === 'path' || dialogOnly) && <p class="form-help">{row.file_mode === 'write' ? 'Where to save it is chosen in the file dialog when you press the action.' : 'The file is chosen in the file dialog when you press the action.'}</p>}
     {feedback.attempted && groupMessages.map(problem => <p class="field-error">{problem}</p>)}

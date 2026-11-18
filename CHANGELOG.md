@@ -11,6 +11,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Added
 
+- The options panels group their rows in sections that fold on their own, with the option count: a section starts folded when all its options are advanced or none applies to the method, a low and a high option of one range show as one field, and each switch keeps its label beside it. The "Options not used by this method or model" disclosure is gone (W811, [#892](https://github.com/MuhammadMoustafa/xppautX/issues/892)).
 - The option `global.min_step_fraction` (key `global_min_step_fraction`, default 1e-10): the smallest fraction of a step a global event's crossing is placed at. XPPAUT has only the fixed STOL (W804, [#885](https://github.com/MuhammadMoustafa/xppautX/issues/885)).
 
 ### Changed
