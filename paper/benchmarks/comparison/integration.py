@@ -295,12 +295,14 @@ def earlier_folder(a, rec):
 
 
 def argv_unchanged(a, engine, folder, source_name):
-    # An earlier row's command.json against the command line the driver would build now (the program's own path and the
-    # interpreter aside, which the program and interpreter hashes cover; the pinned CPU stays in).
+    # An earlier row's command.json against the command line the driver would build now. The program's own paths are left out:
+    # the binary of an XPPAUT or xppautX run (one item), the interpreter and the script of a Python run (two items, the script
+    # being another worktree's file, not the program's name); the program and interpreter hashes cover them. The pinned CPU stays in.
     old = json.loads((folder / 'command.json').read_text())
     model = folder / source_name
     new = ['taskset', '-c', str(a.cores[0]), *engine_argv(a, model, engine, folder / (model.stem + '.ode.set'))]
-    return old[:3] + old[4:] == new[:3] + new[4:] and len(old) > 3
+    own = 2 if engine in ('python', 'reference') else 1
+    return old[:3] + old[3 + own:] == new[:3] + new[3 + own:] and len(old) > 3
 
 
 def earlier_key(a, rec, key, source_name):
@@ -444,31 +446,123 @@ def reaches_reference(c):
     return c['same_shape'] and not c['non_finite_error'] and c['outside_tolerance'] == 0
 
 
+REFERENCE_KEY = 'reference-key.json'  # beside a reference run: the key its program, inputs and interpreter had (W805)
+
+
+def reference_key(a, model):
+    # The reference is scipy_integrate.py, a file of the Python tree (its driver and numerics with it), run by this interpreter:
+    # its key is Python's, so no compared program's key (xppautX's included) is part of it (W805).
+    return current_key(a, 'python', model)
+
+
+def reference_reused(a, folder, model):
+    # Whether an earlier attempt's reference run of this folder had the same Python tree, inputs and interpreter (W805). An
+    # attempt from before REFERENCE_KEY kept its key as derived_key derives a row's: from its provenance, command line and inputs.
+    if not a.reuse:
+        return False
+    earlier = a.reuse / folder.relative_to(a.out)
+    if (earlier / REFERENCE_KEY).exists():
+        return json.loads((earlier / REFERENCE_KEY).read_text()) == reference_key(a, model)
+    if not (earlier / 'result.json').exists() or not json.loads((earlier / 'result.json').read_text())['valid']:
+        return False
+    if not argv_unchanged(a, 'reference', earlier, model.name):
+        return False
+    cpus = [int(c) for c in json.loads((earlier / 'command.json').read_text())[2].split(',')]
+    have = derived_key(a, dict(engine='python'), earlier, measure_sha(engine_argv), cpus)
+    return same_key(have, reference_key(a, model))
+
+
+def reference_run(a, model, folder):
+    # The untimed reference run of `model` into `folder`, or the earlier attempt's run of it when reference_reused (W805).
+    # Returns (result, reused).
+    if reference_reused(a, folder, model):
+        progress(a, 'reference %s REUSED from %s: Python tree and inputs unchanged' % (folder.relative_to(a.out), a.reuse))
+        link_tree(a.reuse / folder.relative_to(a.out), folder)
+        return json.loads((folder / 'result.json').read_text()), True
+    result = launch(a, model, 'reference', folder, False)
+    if result['valid']:
+        save(folder / REFERENCE_KEY, reference_key(a, model))
+    return result, False
+
+
+def ladder_rungs(a, name, build):
+    # The ladder's inputs, built without a run: the study's own model (its pilot, the reference's input) and one model per rung
+    # below its tolerance, the loosest first.
+    own = build(name + '-pilot-own', None, full=True)
+    own_tolerance = effective_numerics(own).relative_tolerance
+    return own, [(own_tolerance, own)] + [(t, build('%s-pilot-%g' % (name, t), t, full=True)) for t in LADDER_TOLERANCES if t < own_tolerance]
+
+
+def ladder_import(a, name, engine, rungs, reference_unchanged):
+    # One program's climb in an earlier ladder of this workload (W805): (its rung rows, the tolerance it reached or None), when its
+    # program, measurement and inputs are unchanged at every rung it tried and the reference is unchanged; else (None, why). A
+    # program's climb depends on no other program's, so the rows and where it stopped are its own.
+    if not a.reuse:
+        return None, 'no --reuse'
+    earlier = a.reuse / 'ladder' / (name + '.json')
+    if not earlier.exists():
+        return None, 'no earlier ladder'
+    if not reference_unchanged:
+        return None, 'the reference differs'
+    rows = [r for r in json.loads(earlier.read_text())['rungs'] if r['engine'] == engine]
+    if not rows:
+        return None, 'no earlier rung'
+    models = dict(rungs)
+    for row in rows:
+        tolerance = row['tolerance']
+        if tolerance not in models:
+            return None, 'rung %g is not one of this ladder\'s' % tolerance
+        key, have = current_key(a, engine, models[tolerance]), row.get('reuse_key')
+        if not same_key(have, key):
+            changed = [k for k in key if have is None or have.get(k) != key[k]]
+            return None, 'rung %g differs in %s' % (tolerance, ', '.join(changed) or 'its command line')
+        if not (a.reuse / 'ladder' / name / ('%g' % tolerance) / engine).is_dir():
+            return None, 'rung %g has no earlier run folder' % tolerance
+    reached = next((r['tolerance'] for r in rows if r['reached']), None)
+    if reached is None and len(rows) != len(rungs):
+        return None, 'the earlier climb stopped before the last rung'
+    return rows, reached
+
+
 def ladder(a, name, build, engines):
     # Untimed pilots: each program's loosest tolerance, the study's own then LADDER_TOLERANCES, whose full run reaches the
     # reference within the screen tolerance (the judge of the other comparisons). A program stops climbing at its first pass.
-    # Returns {engine: tolerance, or None when no rung reached}, saving every rung's error beside it.
+    # Returns {engine: tolerance, or None when no rung reached}, saving every rung's error beside it. A program whose ladder an
+    # earlier attempt ran with the same program, measurement and inputs, and the same reference, takes that climb (W805); the
+    # others climb here, rung by rung, on their own.
     folder = a.out / 'ladder' / name
-    own = build(name + '-pilot-own', None, full=True)
-    reference = launch(a, own, 'reference', folder / 'reference', False)
+    own, rungs = ladder_rungs(a, name, build)
+    reference, reference_same = reference_run(a, own, folder / 'reference')
     if not reference['valid']:
         raise RuntimeError('%s: the reference run failed, so no program can be placed on the ladder' % name)
-    own_tolerance = effective_numerics(own).relative_tolerance
-    rungs = [(own_tolerance, own)] + [(t, build('%s-pilot-%g' % (name, t), t, full=True)) for t in LADDER_TOLERANCES if t < own_tolerance]
-    chosen, tried = {}, []
+    chosen, tried, decided = {}, [], set()
+    for engine in engines:
+        rows, reached = ladder_import(a, name, engine, rungs, reference_same)
+        if rows is None:
+            if a.reuse:
+                progress(a, '%s: %s climbs its ladder: %s' % (name, engine, reached))
+            continue
+        for row in rows:
+            link_tree(a.reuse / 'ladder' / name / ('%g' % row['tolerance']) / engine, folder / ('%g' % row['tolerance']) / engine)
+            tried.append(mark_reused(a, row))
+        decided.add(engine)
+        if reached is not None:
+            chosen[engine] = reached
+        progress(a, '%s: %s REUSED its ladder from %s (%d rungs)' % (name, engine, a.reuse, len(rows)))
     for tolerance, model in rungs:
-        for engine in [e for e in engines if e not in chosen]:
+        if len(decided) == len(engines):
+            break
+        for engine in [e for e in engines if e not in decided]:
             run = folder / ('%g' % tolerance) / engine
             result = launch(a, model, engine, run, measured=False)
-            row = dict(engine=engine, tolerance=tolerance, valid=result['valid'], reached=False)
+            row = dict(engine=engine, tolerance=tolerance, valid=result['valid'], reached=False, reuse_key=current_key(a, engine, model))
             if result['valid']:
                 c = screen.compare(run / 'output.dat.gz', folder / 'reference/output.dat.gz')
                 row.update(reached=reaches_reference(c), max_abs_error=c['max_abs_error'], first_outside_time=c.get('first_outside_time'))
             tried.append(row)
             if row['reached']:
                 chosen[engine] = tolerance
-        if len(chosen) == len(engines):
-            break
+                decided.add(engine)
     result = {e: chosen.get(e) for e in engines}
     save(a.out / 'ladder' / (name + '.json'), dict(workload=name, chosen=result, rungs=tried, never=[e for e in engines if e not in chosen],
          note='never: no rung up to %g reached the reference within the screen tolerance' % LADDER_TOLERANCES[-1]))
@@ -482,13 +576,56 @@ def ladder(a, name, build, engines):
 SPACING_FACTORS = (1, 4, 16, 64)
 
 
+def earlier_sweeps(a):
+    # The earlier study's valid sweep rows by (workload, engine, repetition, row) (W805).
+    context = earlier_context(a)
+    if 'sweeps' not in context:
+        context['sweeps'] = {(r['workload'], r['engine'], r['repetition'], r['row']): r
+                             for r in context['records'] if r.get('sweep') and r.get('valid')}
+    return context['sweeps']
+
+
+def imported_sweep(a, name, p, kind):
+    # A sweep point's timed rows of an earlier attempt, one per repetition it counted (W805): (their records, None) when the point's
+    # program, measurement and inputs are unchanged, else (None, why). A long point was counted once (its repetitions_reason).
+    if not a.reuse:
+        return None, 'no --reuse'
+    row = '%s-%s' % (kind, p['key'])
+    reps = list(repetitions(a))
+    earlier = earlier_sweeps(a)
+    found = [earlier.get((name, p['engine'], rep, row)) for rep in reps]
+    present = [r for r in found if r is not None]
+    missing = [rep for rep, r in zip(reps, found) if r is None]
+    if not present:
+        return None, 'no earlier %s row' % row
+    if missing and not (min(missing) > 1 and any(r.get('repetitions_reason') for r in present)):
+        return None, 'the earlier %s row has no repetition %d' % (row, min(missing))
+    key = current_key(a, p['engine'], p['model'])
+    for r in present:
+        have = earlier_key(a, r, key, p['model'].name)
+        if not same_key(have, key):
+            changed = [k for k in key if have is None or have.get(k) != key[k]]
+            return None, 'the earlier %s row differs in %s' % (row, ', '.join(changed) or 'its command line')
+    return [dict(mark_reused(a, r), reuse_key=key) for r in present], None
+
+
 def timed_points(a, name, records, kind, points):
     # Times each point with the study's protocol (warm-up, repetitions, rotating order) and puts its error against its
     # reference beside every row. A point: key, engine, model, tolerance, dt, reference (a folder). Rows carry `sweep`=kind.
+    # A point an earlier attempt timed with the same program, measurement and inputs is imported, not timed again (W805).
+    todo = []
+    for p in points:
+        found, _ = imported_sweep(a, name, p, kind)
+        if found is None:
+            todo.append(p)
+            continue
+        for rec in found:
+            link_tree(earlier_folder(a, rec), a.out / 'runs' / name / str(rec['repetition']) / rec['engine'] / rec['row'])
+        records.extend(found)
     errors, long_points = {}, set()
     for rep in repetitions(a):
         progress(a, '%s: %s repetition %d of %d%s' % (name, kind, rep, a.repeats, ' (warm-up, not counted)' if rep == 0 else ''))
-        for p in rotation([p for p in points if rep < 2 or (p['engine'], p['key']) not in long_points], rep):
+        for p in rotation([p for p in todo if rep < 2 or (p['engine'], p['key']) not in long_points], rep):
             row = '%s-%s' % (kind, p['key'])
             folder = a.out / 'runs' / name / str(rep) / p['engine'] / row
             result = launch(a, p['model'], p['engine'], folder, measured=not a.check)
@@ -499,7 +636,8 @@ def timed_points(a, name, records, kind, points):
                 errors[(p['engine'], row)] = dict(reference_max_abs_error=c['max_abs_error'], reference_first_outside_time=c.get('first_outside_time'),
                                                   output_spacing=c['final_time'] / result['points'])
             rec = dict(workload=name, engine=p['engine'], row=row, repetition=rep, **result, equal_work=True, sweep=kind,
-                       tolerance=p['tolerance'], dt=p['dt'], timing_scope='whole silent process', **errors[(p['engine'], row)])
+                       tolerance=p['tolerance'], dt=p['dt'], timing_scope='whole silent process', reuse_key=current_key(a, p['engine'], p['model']),
+                       **errors[(p['engine'], row)])
             if (p['engine'], p['key']) in long_points or is_long(rec):
                 long_points.add((p['engine'], p['key']))
                 rec['repetitions_reason'] = LONG_RUN_REASON
@@ -535,9 +673,9 @@ def point_of(model, engine, key, tolerance, reference):
     return dict(key=key, engine=engine, model=model, tolerance=tolerance, dt=numerics.dt, reference=reference)
 
 
-def work_precision(a, name, records, rungs, chosen, engines):
-    # Every ladder rung timed for every program, to show what the tolerance buys each. A program's equal-accuracy point is
-    # the headline series, timed already, so it is read from there and not timed again (a check times everything, untimed).
+def work_points(a, name, records, rungs, chosen, engines):
+    # The points work-precision times: every ladder rung for every program. A program's equal-accuracy point is the headline
+    # series, timed already, so it is read from there (reused) and not timed again (a check times everything, untimed).
     reference = a.out / 'ladder' / name / 'reference'
     points, reused = [], []
     for tolerance, model in rungs:
@@ -547,9 +685,33 @@ def work_precision(a, name, records, rungs, chosen, engines):
                 reused.append((p, equal_accuracy_rows(a, records, name, e)))
             else:
                 points.append(p)
+    return points, reused
+
+
+def work_precision(a, name, records, rungs, chosen, engines):
+    points, reused = work_points(a, name, records, rungs, chosen, engines)
     progress(a, '%s: work-precision, %d points timed, %d read from the equal-accuracy rows' % (name, len(points), len(reused)))
     timed_points(a, name, records, 'wp', points)
     write_curve(a, records, name, 'wp', 'work-precision', points, reused, 'time against max abs error versus the reference, per program, at every ladder tolerance')
+
+
+def dt_points(a, name, build, records, rungs, chosen, engines):
+    # The dt sweep's points at one fixed tolerance, the study's own (the loosest rung), and the (model, reference folder) pairs whose
+    # reference runs they need. Returns (points, reused, references).
+    tolerance = effective_numerics(rungs[0][1]).relative_tolerance
+    base = effective_numerics(rungs[0][1]).dt
+    points, reused, references = [], [], []
+    for factor in SPACING_FACTORS:
+        model = build('%s-dt%g' % (name, factor), tolerance, full=True, step=base * factor)
+        reference = a.out / 'dt-sweep' / name / ('reference-x%g' % factor)
+        references.append((model, reference))
+        for e in engines:
+            p = point_of(model, e, 'x%g' % factor, tolerance, reference)
+            if factor == 1 and not a.check and chosen[e] == tolerance:
+                reused.append((p, equal_accuracy_rows(a, records, name, e)))
+            else:
+                points.append(p)
+    return points, reused, references
 
 
 def dt_sweep(a, name, records, build, rungs, chosen, engines):
@@ -558,18 +720,10 @@ def dt_sweep(a, name, records, build, rungs, chosen, engines):
     # xppautX's stay put. A tolerance every program already meets (the ladder's) would put all at the error floor.
     tolerance = effective_numerics(rungs[0][1]).relative_tolerance
     base = effective_numerics(rungs[0][1]).dt
-    points, reused = [], []
-    for factor in SPACING_FACTORS:
-        model = build('%s-dt%g' % (name, factor), tolerance, full=True, step=base * factor)
-        reference = a.out / 'dt-sweep' / name / ('reference-x%g' % factor)
-        if not launch(a, model, 'reference', reference, False)['valid']:
-            raise RuntimeError('%s: the reference run at dt/%g failed' % (name, factor))
-        for e in engines:
-            p = point_of(model, e, 'x%g' % factor, tolerance, reference)
-            if factor == 1 and not a.check and chosen[e] == tolerance:
-                reused.append((p, equal_accuracy_rows(a, records, name, e)))
-            else:
-                points.append(p)
+    points, reused, references = dt_points(a, name, build, records, rungs, chosen, engines)
+    for model, reference in references:
+        if not reference_run(a, model, reference)[0]['valid']:
+            raise RuntimeError('%s: the reference run at %s failed' % (name, reference.name))
     progress(a, '%s: dt sweep at tolerance %g, dt multiplied by %s, %d points timed' % (name, tolerance, ', '.join('%g' % f for f in SPACING_FACTORS), len(points)))
     timed_points(a, name, records, 'dt', points)
     write_curve(a, records, name, 'dt', 'dt-sweep', points, reused,
@@ -604,6 +758,18 @@ def study_engines(a, native_only):
     return ['xppautx'] if native_only else ['xppautx', 'xppaut'] + (['python'] if a.study == 'python' else [])
 
 
+def tolerance_inputs(build, name, model, ready, chosen, engines):
+    # Each program's input pair (model, ready): the study's own at its tolerance, or the pair at the tolerance its ladder chose.
+    by_tolerance = {effective_numerics(model).relative_tolerance: (model, ready)}
+    inputs = {}
+    for e in engines:
+        t = chosen[e]
+        if t not in by_tolerance:
+            by_tolerance[t] = (build('%s-tol%g' % (name, t), t), build('%s-tol%g-ready' % (name, t), t, ready=True))
+        inputs[e] = by_tolerance[t]
+    return inputs
+
+
 def plan_series(a, source, name, method, native_only):
     # --plan: what an earlier attempt of this workload supplies and what would run, by the keys the run uses (nothing is run).
     if not a.reuse:
@@ -614,21 +780,57 @@ def plan_series(a, source, name, method, native_only):
     if marker:
         return write_plan(a, name, [], len(marker['records']))
     if a.study == 'python' and method in LADDER_METHODS:
-        # A ladder's rungs and rows are reused only with every program unchanged (its inputs follow every program's pilots): each
-        # program but xppautX is named, so a run with a changed xppautX stops here (W802).
-        return write_plan(a, name, ['%s ladder: not reused whole (%s), and a ladder\'s inputs follow its pilots' % (engine, why)
-                                    for engine in study_engines(a, native_only)], 0)
+        return plan_ladder(a, name, build, model, ready, study_engines(a, native_only))
     imported, would_run = 0, []
     rows = dict(zip(('run', 'ready'), (model, ready)))
     for engine in study_engines(a, native_only):
-        for rep in repetitions(a):
-            if rep > 0 and earlier_diverged(a, name):
-                break  # every engine aborted in the warm-up: no repetition follows
-            found, why = importable(a, name, engine, rep, rows)
-            if found:
-                imported += len(found)
-            elif not (rep > 1 and any(r.get('repetitions_reason') for r in earlier_rows(a).values() if r['workload'] == name and r['engine'] == engine)):
-                would_run.append('%s repetition %d: %s' % (engine, rep, why))  # a long run has only one counted repetition (W452)
+        imported += plan_timed(a, name, engine, rows, would_run)
+    write_plan(a, name, would_run, imported)
+
+
+def plan_timed(a, name, engine, rows, would_run):
+    # One program's timed rows, repetition by repetition: imported when importable, else named in would_run. Returns how many it imports.
+    imported = 0
+    for rep in repetitions(a):
+        if rep > 0 and earlier_diverged(a, name):
+            break  # every engine aborted in the warm-up: no repetition follows
+        found, why = importable(a, name, engine, rep, rows)
+        if found:
+            imported += len(found)
+        elif not (rep > 1 and any(r.get('repetitions_reason') for r in earlier_rows(a).values() if r['workload'] == name and r['engine'] == engine)):
+            would_run.append('%s repetition %d: %s' % (engine, rep, why))  # a long run has only one counted repetition (W452)
+    return imported
+
+
+def plan_ladder(a, name, build, model, ready, engines):
+    # --plan of a ladder workload, by the checks the run makes (W805): each program's climb, then its timed rows at the tolerance
+    # it reached and its sweep points are imported or named. A program whose climb would run is named by its climb alone: the
+    # rows that follow it are the run's, not the plan's.
+    own, rungs = ladder_rungs(a, name, build)
+    reference_same = reference_reused(a, a.out / 'ladder' / name / 'reference', own)
+    would_run, imported, chosen = [], 0, {}
+    for engine in engines:
+        rows, reached = ladder_import(a, name, engine, rungs, reference_same)
+        if rows is None:
+            would_run.append('%s ladder: %s' % (engine, reached))
+            continue
+        imported += len(rows)
+        chosen[engine] = reached
+    climbed = [e for e in engines if e in chosen]
+    timed = [e for e in climbed if chosen[e]]
+    inputs = tolerance_inputs(build, name, model, ready, chosen, timed)
+    for engine in timed:
+        imported += plan_timed(a, name, engine, dict(zip(('run', 'ready'), inputs[engine])), would_run)
+    if climbed:
+        points = {'wp': work_points(a, name, [], rungs, chosen, climbed)[0],
+                  'dt': dt_points(a, name, build, [], rungs, chosen, climbed)[0]}
+        for kind, kind_points in points.items():
+            for p in kind_points:
+                found, why = imported_sweep(a, name, p, kind)
+                if found:
+                    imported += len(found)
+                else:
+                    would_run.append('%s %s %s: %s' % (p['engine'], kind, p['key'], why))
     write_plan(a, name, would_run, imported)
 
 
@@ -639,7 +841,6 @@ def _series(a, source, name, records, method=None, native_only=False, horizon=No
         return True
     engines = study_engines(a, native_only)
     # By default one input for every program; a ladder method gives each program the tolerance at which it reaches the reference.
-    inputs = {e: (model, ready) for e in engines}
     by_ladder = a.study == 'python' and method in LADDER_METHODS
     if by_ladder:
         chosen, rungs = ladder(a, name, build, engines)
@@ -647,13 +848,9 @@ def _series(a, source, name, records, method=None, native_only=False, horizon=No
         engines = [e for e in engines if chosen[e]]
         if not engines:
             return True
-        own = effective_numerics(model).relative_tolerance
-        by_tolerance = {own: (model, ready)}
-        for e in engines:
-            t = chosen[e]
-            if t not in by_tolerance:
-                by_tolerance[t] = (build('%s-tol%g' % (name, t), t), build('%s-tol%g-ready' % (name, t), t, ready=True))
-            inputs[e] = by_tolerance[t]
+        inputs = tolerance_inputs(build, name, model, ready, chosen, engines)
+    else:
+        inputs = {e: (model, ready) for e in engines}
     before_series(a)
     allowed, baseline = True, None
     accuracy = {e: dict(tolerance=effective_numerics(inputs[e][0]).relative_tolerance) for e in engines} if a.study == 'python' else {}
@@ -752,7 +949,7 @@ def _series(a, source, name, records, method=None, native_only=False, horizon=No
             baseline = {e: sha(outputs[e] / 'output.dat') for e in engines if (outputs[e] / 'output.dat').exists()}
             if a.study == 'python':
                 # W427's independent solver is outside the timed programs.
-                ref = launch(a, model, 'reference', a.out / 'reference' / name, False)
+                ref, _ = reference_run(a, model, a.out / 'reference' / name)
                 comparisons = {e: screen.compare(outputs[e] / 'output.dat.gz', a.out / 'reference' / name / 'output.dat.gz')
                                for e in engines if (outputs[e] / 'output.dat.gz').exists()} if ref['valid'] else {}
                 save(a.out / 'reference' / name / 'comparison.json', dict(process=ref, comparisons=comparisons))

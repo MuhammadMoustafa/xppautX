@@ -107,8 +107,12 @@ Drivers take `--only UNIT` (a unit's name, or its model's), `--list` and `--plan
   (W378's kit) and `server` (W295's own series) have no earlier rows, and a `--check` times nothing and is not stopped.
   What the keys leave out is what no program is given: a continuation description's `reason` text and its `differences` (the gate's),
   and an earlier row's description hash is taken from the description that attempt kept (`window.json`, `description.json`), through
-  the current `description_sha`, not from the hash it recorded in its day. The python study's dopri8 ladders are reused only with
-  every program unchanged (its rungs follow every program's pilots), so they stop the run while xppautX changes.
+  the current `description_sha`, not from the hash it recorded in its day. The python study's dopri8 ladders are reused per program
+  (W805): a program's rungs, the tolerance it reached and its timed and sweep rows are imported when its own program, measurement and
+  inputs are unchanged at each rung it tried and the reference is unchanged. The reference is `scipy_integrate.py` run by Python's
+  interpreter, so its key is the Python tree's, not any compared program's (`integration.reference_key`, kept beside the reference
+  as `reference-key.json`; a reference that changes reruns every climb). A changed xppautX reruns only its own climb and rows; a
+  changed Python tree (its program is every file of `tools/python-integration`) changes the reference and reruns every climb.
 - **Imports are references.** An imported row's folder is linked into the new attempt (`common.link_tree`: hard links, so no space and
   no second copy; another file system is an error, not a silent copy), and the `--reuse` folder is `~/xppautx-comparison/results` (every file a real hard link, W807). Terman's XPPAUT
   convergence runs and its Python dop853 reference are imported the same way, by the keys of the files XPPAUT reads (`.ode`, `.set`),

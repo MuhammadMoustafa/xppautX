@@ -2,6 +2,7 @@
 """W699: the comparison's units run on their own. A fake driver (the drivers' unit protocol: --list, --plan, --only, --reuse) stands in
 for integration.py: one unit fails and the others finish, a resume reruns only that unit, a change to one unit's key reruns only it,
 and a plan that fails stops the run before any unit runs. No program, no timing."""
+import argparse
 import json
 import os
 from pathlib import Path
@@ -140,6 +141,110 @@ class Units(unittest.TestCase):
         common.link_tree(earlier / 'output.dat', self.root / 'new/one.dat')
         self.assertEqual((earlier / 'output.dat').stat().st_ino, (self.root / 'new/run/output.dat').stat().st_ino)
         self.assertEqual((earlier / 'output.dat').stat().st_ino, (self.root / 'new/one.dat').stat().st_ino)
+
+
+class LadderReuse(unittest.TestCase):
+    # W805: a program's climb (its rungs, the tolerance it reached, its timed rows) is taken from an earlier ladder when its program,
+    # measurement and inputs are unchanged and the reference is; a changed program's climb is not, and the others' still are.
+    def setUp(self):
+        import integration
+        self.integration = integration
+        self.scratch = tempfile.TemporaryDirectory(prefix='w805-test-')
+        self.root = Path(self.scratch.name)
+        self.hashes = {'xppautx': 'x1', 'xppaut': 'p1', 'python': 'y1'}
+        self.a = argparse.Namespace(out=self.root / 'out', reuse=self.root / 'earlier', cores=[0], check=False, study='python',
+                                    program_sha={e: (lambda e=e: self.hashes[e]) for e in self.hashes})
+        self.rungs = []
+        for tolerance in (1e-4, 1e-6):
+            folder = self.root / 'inputs' / ('%g' % tolerance)
+            folder.mkdir(parents=True)
+            (folder / 'episodic.odex').write_text('dt=0.05 tol=%g\n' % tolerance)
+            self.rungs.append((tolerance, folder / 'episodic.ode'))
+        self.reuse_ladder()
+
+    def tearDown(self):
+        self.scratch.cleanup()
+
+    def reuse_ladder(self):
+        # An earlier ladder: xppaut reaches at the first rung, python at the second, xppautX at the second too.
+        earlier = self.a.reuse / 'ladder'
+        rows = []
+        for engine, reached_at in (('xppautx', 1e-6), ('xppaut', 1e-4), ('python', 1e-6)):
+            for tolerance, model in self.rungs:
+                folder = earlier / 'episodic' / ('%g' % tolerance) / engine
+                folder.mkdir(parents=True)
+                reached = tolerance == reached_at
+                rows.append(dict(engine=engine, tolerance=tolerance, valid=True, reached=reached,
+                                 reuse_key=self.integration.current_key(self.a, engine, model)))
+                if reached:
+                    break
+        earlier.mkdir(parents=True, exist_ok=True)
+        (earlier / 'episodic.json').write_text(json.dumps(dict(rungs=rows)))
+
+    def test_a_climb_is_imported_for_each_program_whose_key_is_unchanged(self):
+        ladder = self.integration.ladder_import
+        rows, reached = ladder(self.a, 'episodic', 'python', self.rungs, True)
+        self.assertEqual((len(rows), reached), (2, 1e-6))
+        rows, reached = ladder(self.a, 'episodic', 'xppaut', self.rungs, True)
+        self.assertEqual((len(rows), reached), (1, 1e-4))
+
+    def test_a_changed_program_climbs_again_and_the_others_do_not(self):
+        self.hashes['xppautx'] = 'x2'  # xppautX changed: its own rungs run, and only its own
+        self.a.__dict__.pop('_executable_sha')  # the program hashes are read once per run
+        ladder = self.integration.ladder_import
+        rows, reason = ladder(self.a, 'episodic', 'xppautx', self.rungs, True)
+        self.assertEqual((rows, reason), (None, 'rung 0.0001 differs in program'))
+        self.assertIsNotNone(ladder(self.a, 'episodic', 'python', self.rungs, True)[0])
+        self.assertIsNotNone(ladder(self.a, 'episodic', 'xppaut', self.rungs, True)[0])
+
+    def test_a_changed_reference_takes_no_climb(self):
+        rows, reason = self.integration.ladder_import(self.a, 'episodic', 'python', self.rungs, False)
+        self.assertEqual((rows, reason), (None, 'the reference differs'))
+
+    def test_a_changed_input_takes_no_climb(self):
+        (self.rungs[1][1].parent / 'episodic.odex').write_text('dt=0.05 tol=2e-6\n')
+        rows, reason = self.integration.ladder_import(self.a, 'episodic', 'python', self.rungs, True)
+        self.assertEqual((rows, reason), (None, 'rung 1e-06 differs in inputs'))
+
+
+class ArgvPaths(unittest.TestCase):
+    # W805: an earlier row's command line is compared without the program's own paths: a Python run's interpreter and script (a
+    # worktree's files) differ between checkouts, its program hash covers them; its model and the pinned CPU must still agree.
+    def setUp(self):
+        import integration
+        self.integration = integration
+        self.scratch = tempfile.TemporaryDirectory(prefix='w805-argv-')
+        self.root = Path(self.scratch.name)
+        self.a = argparse.Namespace(cores=[0], xppautx=self.root / 'xppautX', xppaut=self.root / 'xppaut')
+        self.folder = self.root / 'row'
+        self.folder.mkdir()
+        (self.folder / 'episodic.ode').write_text('')
+        (self.folder / 'episodic.odex').write_text('')
+
+    def tearDown(self):
+        self.scratch.cleanup()
+
+    def write(self, argv):
+        (self.folder / 'command.json').write_text(json.dumps(argv))
+
+    def test_a_python_run_from_another_checkout_has_the_same_command_line(self):
+        now = self.integration.engine_argv(self.a, self.folder / 'episodic.ode', 'python', self.folder / 'x.set')
+        self.write(['taskset', '-c', '0', '/elsewhere/.venv/bin/python3', '/elsewhere/tools/python-integration/integrate.py', *now[2:]])
+        self.assertTrue(self.integration.argv_unchanged(self.a, 'python', self.folder, 'episodic.ode'))
+
+    def test_a_changed_model_or_cpu_is_a_different_command_line(self):
+        now = self.integration.engine_argv(self.a, self.folder / 'episodic.ode', 'python', self.folder / 'x.set')
+        self.write(['taskset', '-c', '0', '/elsewhere/python3', '/elsewhere/integrate.py', 'other.odex'])
+        self.assertFalse(self.integration.argv_unchanged(self.a, 'python', self.folder, 'episodic.ode'))
+        self.write(['taskset', '-c', '3', '/elsewhere/python3', '/elsewhere/integrate.py', *now[2:]])
+        self.assertFalse(self.integration.argv_unchanged(self.a, 'python', self.folder, 'episodic.ode'))
+
+    def test_an_xppautx_run_drops_only_its_binary(self):
+        now = self.integration.engine_argv(self.a, self.folder / 'episodic.ode', 'xppautx', self.folder / 'x.set')
+        self.write(['taskset', '-c', '0', '/elsewhere/xppautX', *now[1:]])
+        self.assertTrue(self.integration.argv_unchanged(self.a, 'xppautx', self.folder, 'episodic.ode'))
+        self.write(['taskset', '-c', '0', '/elsewhere/xppautX', 'other.odex', '--silent'])
+        self.assertFalse(self.integration.argv_unchanged(self.a, 'xppautx', self.folder, 'episodic.ode'))
 
 
 if __name__ == '__main__':
