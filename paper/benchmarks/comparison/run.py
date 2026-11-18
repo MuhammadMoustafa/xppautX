@@ -76,7 +76,9 @@ class Run:
 
     def units(self, study):
         if study == 'large-stiff':
-            return self.stiff.UNITS[:1] if self.a.check else list(self.stiff.UNITS)  # a check is the pilot's smoke run alone; measure and cache need the pilot's folder
+            if self.a.check:
+                return self.stiff.UNITS[:1]  # a check is the pilot's smoke run alone; measure and cache need the pilot's folder
+            return [u for u in self.stiff.UNITS if not self.a.only or u in self.a.only.split(',')]
         out = self.scratch / ('list-' + study)
         p = subprocess.run(self.argv(study, out, self.untimed, '--list'), cwd=REPO, capture_output=True, text=True)
         if p.returncode:
