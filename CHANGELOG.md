@@ -9,6 +9,14 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+### Added
+
+- The option `global.min_step_fraction` (key `global_min_step_fraction`, default 1e-10): the smallest fraction of a step a global event's crossing is placed at. XPPAUT has only the fixed STOL (W804, [#885](https://github.com/MuhammadMoustafa/xppautX/issues/885)).
+
+### Changed
+
+- The JSON Schema of a .odex's options block gives each option its `default` (the value a session with no model gives it), each numeric option and the method its `x-key` (the numerics event's key), and the method its `x-methods` (names, set-file labels and XPPAUT keys). The Python integrators read their defaults from the schema, not from the C++ source (W804, [#885](https://github.com/MuhammadMoustafa/xppautX/issues/885)).
+
 ## [0.1.0-beta.3] - 2026-11-17
 
 Third beta, six weeks of work since beta.2. The largest changes:

@@ -195,7 +195,8 @@ def python_verdict(a, model, left, right):
     # SENSITIVITY_PROBES more Python runs, made only when the two runs differ).
     import numpy as np
     from driver import load, Run
-    code = hashlib.sha256(b''.join(f.read_bytes() for f in sorted(PYTHON.glob('*.py')))).hexdigest()
+    from numerics import defaults as python_defaults  # the numerics the Python side starts from, read from the options schema (W804)
+    code = hashlib.sha256(b''.join(f.read_bytes() for f in sorted(PYTHON.glob('*.py'))) + json.dumps(python_defaults(), sort_keys=True).encode()).hexdigest()
     key = dict(xppautx=sha(left / 'output.dat'), python=sha(right / 'output.dat'), model=sha(model.with_suffix('.odex')),
                code=code)
     name = model.parent.name + '.json'

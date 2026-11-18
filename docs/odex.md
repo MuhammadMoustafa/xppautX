@@ -197,7 +197,13 @@ you wrote (`1/30`) alone while the value is unchanged.
   Schema generated from it is
   [odex-options.schema.json](odex-options.schema.json) (`xppautX
   --options-schema` prints it; `tools/optionschema.sh --check` fails when
-  the file differs, W281):
+  the file differs, W281). Each property of the schema gives the option's `default`: the value a
+  session with no model gives it, after its reset (an option whose value a model sets, a name or a
+  node count, has none, and a list has none); a numeric option or the method also has `x-key`, the
+  key the numerics event and `set num` use. The method has `x-methods`: each method's name, its
+  set-file label, its key and XPPAUT's one-letter `@ meth` key, in the set file's numbering.
+  tools/python-integration/numerics.py reads these defaults from the schema, never from core/ (W804
+  - stol, which no option names, is the one value still read from core/model_numerics.h).
 
         options {
           integration: { total_time: 100, method: stiff, jacobian.kind: exact },
@@ -215,7 +221,7 @@ you wrote (`1/30`) alone while the value is unchanged.
 
   | group | keys |
   |---|---|
-  | `integration` | `total_time`, `start_time`, `dt`, `store_every`, `store_from`, `storage_precision`, `state_limit`, `stop_at_limit`, `method`, `subsystem_split`, `compile` (`false` runs the interpreter; read when the model loads), `seed`; `step.relative_tolerance`, `step.absolute_tolerance`, `step.min`, `step.max`; `jacobian.kind` (`difference` or `exact`), `jacobian.band_upper`, `jacobian.band_lower`; `delay.max_delay`, `delay.history_points`; `euler.tolerance`, `euler.iterations`; `boundary_value.max_iterates`, `boundary_value.tolerance`, `boundary_value.epsilon`; `torus.period`, `torus.fold` |
+  | `integration` | `total_time`, `start_time`, `dt`, `store_every`, `store_from`, `storage_precision`, `state_limit`, `stop_at_limit`, `method`, `subsystem_split`, `compile` (`false` runs the interpreter; read when the model loads), `seed`; `step.relative_tolerance`, `step.absolute_tolerance`, `step.min`, `step.max`; `global.min_step_fraction`; `jacobian.kind` (`difference` or `exact`), `jacobian.band_upper`, `jacobian.band_lower`; `delay.max_delay`, `delay.history_points`; `euler.tolerance`, `euler.iterations`; `boundary_value.max_iterates`, `boundary_value.tolerance`, `boundary_value.epsilon`; `torus.period`, `torus.fold` |
   | `poincare` | `map`, `variable`, `sign`, `plane`, `stop` |
   | `equilibria` | `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets` (each `true` or `false`, W535) |
   | `sweep` | `variable`, `steps`, `low`, `high`, `reset`, `old_ic`, `write_files` (`true` writes each reset run to its own file in every mode, default `false`) |

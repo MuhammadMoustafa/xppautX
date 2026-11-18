@@ -61,6 +61,9 @@ struct MethodInfo {
   SolverTraits traits;
 };
 
+/* XPPAUT's one-letter @ meth key of each method, in methods order (load_eqn.c:1116): pick_method reads it, the schema lists it */
+inline constexpr std::string_view xppaut_method_keys = "demragvbqsc582y";
+
 /* traits */
 inline constexpr SolverTraits map{.discrete=true,.fixed_step=true,.wiener=true};
 inline constexpr SolverTraits steps{.fixed_step=true,.wiener=true};

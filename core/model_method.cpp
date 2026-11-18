@@ -41,15 +41,13 @@ Result<method::Id> method_by_key(const Model &model, std::string_view key, Place
 
 Result<method::Id> pick_method(const Model &model, std::string_view text, Place place)
 {
-  /* XPPAUT's @ meth keys in methods order (load_eqn.c:1116). */
-  constexpr std::string_view keys = "demragvbqsc582y";
-  static_assert(keys.size() == methods.size());
+  static_assert(xppaut_method_keys.size() == methods.size());
   const MethodInfo *chosen = nullptr;
   const std::string name = lower_case(std::string(trim_blanks(text)));
   for (const MethodInfo &info : methods)
     if (equal_ignoring_case(name, info.name) || equal_ignoring_case(name, info.set_label) || name == info.key) chosen = &info;
   if (!chosen && name.size() == 1) {
-    const auto i = keys.find(name[0]);
+    const auto i = xppaut_method_keys.find(name[0]);
     if (i != std::string_view::npos) chosen = &methods[i];
   }
   /* Spellings used by shipped models and the long descriptive names. */

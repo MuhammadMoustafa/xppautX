@@ -305,7 +305,9 @@ int main(int argc, char **argv)
     }
     if (cl.options_schema) {
         /* the JSON Schema of a .odex's options block, from the option table (docs/odex.md) */
-        printf("%s", xpp::option_schema().c_str());
+        xpp::Model model; /* no model: the schema gives the defaults a session with none has */
+        const xpp::Session fresh(model);
+        printf("%s", xpp::option_schema(fresh).c_str());
         return 0;
     }
     if (cl.help) {

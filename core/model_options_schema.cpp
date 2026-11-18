@@ -4,6 +4,7 @@
    output; tools/optionschema.sh checks it is current. */
 #include "model_options.h"
 #include "model_autox_numerics.h"
+#include "model_numerics.h"
 
 #include "xpp_text.h"
 
@@ -14,6 +15,7 @@
 #include <vector>
 #include <array>
 #include <climits>
+#include <optional>
 #include <cstddef>
 #include <span>
 
@@ -27,6 +29,38 @@ constexpr std::string_view bare_pattern = "^[A-Za-z0-9_.+-]+$";
 bool all_digits(const std::string &w)
 {
   return !w.empty() && std::ranges::all_of(w, [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
+}
+
+/* a choice whose words are all numbers is written as a JSON integer (its enum), else as strings */
+bool words_are_numbers(const std::vector<std::string> &words)
+{
+  return std::ranges::all_of(words, all_digits);
+}
+
+/* a row's default as a JSON value: the value its reset gives a session with no model (fresh); nothing when the row has none
+   (a list, a name) or its reset reads the model (model_default) */
+std::optional<std::string> default_json(const SessionParts &fresh, const OptionRow &row)
+{
+  if (row.model_default) return std::nullopt;
+  if (row.boolean) return std::string(row.boolean(fresh) ? "true" : "false");
+  switch (row.kind) {
+  case OptionKind::number:
+  case OptionKind::whole:
+    if (!row.real && !row.whole) return std::nullopt;
+    return setting_text(fresh, row);
+  case OptionKind::choice:
+    if (!row.index && !row.whole) return std::nullopt;
+    return words_are_numbers(option_choices(row)) ? setting_text(fresh, row) : json_quoted(setting_text(fresh, row));
+  case OptionKind::text:
+  case OptionKind::path:
+    if (!row.text) return std::nullopt;
+    return json_quoted(setting_text(fresh, row));
+  case OptionKind::name:
+  case OptionKind::sliders:
+  case OptionKind::curves:
+  case OptionKind::buttons: break;
+  }
+  return std::nullopt;
 }
 
 } // namespace
@@ -67,7 +101,20 @@ std::string option_limit_members(const OptionRow &row)
   return out;
 }
 
-std::string option_value_schema(const OptionRow &row)
+/* the method table as the schema lists it, in methods order (the set file's numbers): each method's name, set-file label, key and
+   XPPAUT's one-letter @ key, which numerics.py reads for the set files it writes */
+static std::string method_table_schema()
+{
+  std::string out = "[";
+  for (std::size_t i = 0; i < methods.size(); ++i) {
+    const MethodInfo &m = methods[i];
+    out += std::string(i ? ", " : "") + "{\"name\": " + json_quoted(m.name) + ", \"set_label\": " + json_quoted(m.set_label) +
+           ", \"key\": " + json_quoted(m.key) + ", \"xppaut\": " + json_quoted(xppaut_method_keys.substr(i, 1)) + "}";
+  }
+  return out + "]";
+}
+
+std::string option_value_schema(const OptionRow &row, const SessionParts *fresh)
 {
   std::string out = "{";
   switch (row.kind) {
@@ -99,10 +146,11 @@ std::string option_value_schema(const OptionRow &row)
       break;
     }
     const std::vector<std::string> words = option_choices(row);
-    const bool numbers = std::ranges::all_of(words, all_digits);
+    const bool numbers = words_are_numbers(words);
     out += numbers ? "\"type\": \"integer\", \"enum\": [" : "\"type\": \"string\", \"enum\": [";
     for (std::size_t i = 0; i < words.size(); ++i) out += (i ? ", " : "") + (numbers ? words[i] : json_quoted(words[i]));
     out += "]";
+    if (row.rule == OptionRule::method) out += ", \"x-methods\": " + method_table_schema();
     break;
   }
   }
@@ -110,11 +158,18 @@ std::string option_value_schema(const OptionRow &row)
   out += option_limit_members(row);
   if (!row.odex.empty()) out += ", \"title\": " + json_quoted(option_label(row)) + ", \"description\": " + json_quoted(option_help(row));
   if (row.repeatable) out += ", \"x-repeatable\": true";
+  if (!row.key.empty()) out += ", \"x-key\": " + json_quoted(row.key);
+  if (fresh)
+    if (const std::optional<std::string> value = default_json(*fresh, row)) out += ", \"default\": " + *value;
   return out + "}";
 }
 
-std::string option_schema()
+std::string option_schema(const SessionParts &fresh)
 {
+  /* the defaults the schema gives: each reset that reads no model (model_default), in the table's order, as set_option_defaults runs them
+     (a repeatable row's reset empties its list, so it is not run) */
+  for (const OptionRow &row : option_rows())
+    if (row.reset && !row.model_default && !row.repeatable) row.reset(fresh);
   std::string out =
       "{\n"
       "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n"
@@ -122,12 +177,14 @@ std::string option_schema()
       "  \"description\": \"The options block of a .odex model: options { group: { key: value, ... }, ... }. "
       "Generated from core/model_options.cpp by xppautX --options-schema; the JSON form of the block's "
       "dictionary. A key marked x-repeatable may be written more than once; a path or a text is a "
-      "double-quoted string, sliders a list of presets, curves a list of curves, every other value one bare word.\",\n"
+      "double-quoted string, sliders a list of presets, curves a list of curves, every other value one bare word. "
+      "default is the value a session with no model gives the key (a value a model sets, a name or a node count, has none); "
+      "x-key is the key of the numerics event and of set num.\",\n"
       "  \"type\": \"object\",\n"
       "  \"additionalProperties\": false,\n"
       "  \"properties\": {\n";
   for (const OptionRow &row : option_rows())
-    if (row.top_level) out += "    " + json_quoted(odex_key(row, 0)) + ": " + option_value_schema(row) + ",\n";
+    if (row.top_level) out += "    " + json_quoted(odex_key(row, 0)) + ": " + option_value_schema(row, &fresh) + ",\n";
   for (std::size_t g = 0; g < option_groups.size(); ++g) {
     out += "    " + json_quoted(option_groups[g]) + ": {\n      \"type\": \"object\",\n      \"additionalProperties\": false,\n      \"properties\": {\n";
     bool first = true;
@@ -135,12 +192,12 @@ std::string option_schema()
       if (row.top_level || row.group != option_groups[g]) continue;
       if (row.first_digit) {
         for (char d = row.first_digit; d <= row.last_digit; ++d) {
-          out += std::string(first ? "" : ",\n") + "        " + json_quoted(odex_key(row, d - '0')) + ": " + option_value_schema(row);
+          out += std::string(first ? "" : ",\n") + "        " + json_quoted(odex_key(row, d - '0')) + ": " + option_value_schema(row, &fresh);
           first = false;
         }
         continue;
       }
-      out += std::string(first ? "" : ",\n") + "        " + json_quoted(odex_key(row, 0)) + ": " + option_value_schema(row);
+      out += std::string(first ? "" : ",\n") + "        " + json_quoted(odex_key(row, 0)) + ": " + option_value_schema(row, &fresh);
       first = false;
     }
     out += "\n      }\n    }";

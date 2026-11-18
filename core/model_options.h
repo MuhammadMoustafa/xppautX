@@ -306,6 +306,9 @@ struct OptionRow {
   /* the default a load gives it when no source set it, nullptr: the
      member's own initial value */
   void (*reset)(const SessionParts &) = nullptr;
+  /* the reset reads the model (a name it has, the node count), so a session with no model has no default for the row: the
+     schema gives none */
+  bool model_default = false;
   /* a choice row's word for the value XPPAUT's files spell otherwise (a first
      letter, a number), "" when it is none: a .ode and the command
      line only, never our own files; nullptr: the row's words alone (a boolean's
@@ -467,14 +470,14 @@ std::string option_choice(const OptionRow &row, std::string_view value);
 
 /* the JSON Schema of a .odex's options block, built from the table: what
    `xppautX --options-schema` prints and docs/odex-options.schema.json holds
-   (tools/optionschema.sh checks they agree) */
-std::string option_schema();
+   (tools/optionschema.sh checks they agree). fresh is a session of no model: the rows' defaults are its resets' values (`default`) */
+std::string option_schema(const SessionParts &fresh);
 /* the members of a row's JSON Schema that bound its value, each led by a comma (`, "minimum": 1`): what its rule, its maximum and
    autoX's own rule say; the schema's and the panels' one source of a limit */
 std::string option_limit_members(const OptionRow &row);
 /* one row's value as a JSON Schema: what its kind and rule say (the options
-   block's and a session's, session_options.h) */
-std::string option_value_schema(const OptionRow &row);
+   block's and a session's, session_options.h); with fresh, the row's default too (option_schema) */
+std::string option_value_schema(const OptionRow &row, const SessionParts *fresh = nullptr);
 
 /* the row with `once` named name (option_name): for an option whose parser
    sets or claims another's */

@@ -34,6 +34,10 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 - **Min** (`step.min`): The smallest step an adaptive method takes before it gives up. From an XPPAUT .ode: DTMIN.
 - **Max** (`step.max`): The largest step an adaptive method takes. From an XPPAUT .ode: DTMAX.
 
+### Global
+
+- **Min step fraction** (`global.min_step_fraction`): The smallest fraction of a step a global event's crossing is placed at; a crossing is moved this far past its root.
+
 ### Jacobian
 
 - **Kind** (`jacobian.kind`): Whether an implicit method gets the Jacobian by differences or from the exact derivatives.

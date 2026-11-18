@@ -367,6 +367,10 @@ constexpr OptionRow rows[] = {
    /* one time unit */
    .reset = [](const SessionParts &s) { s.numerics->max_step = 1; },
    .key = "max_step", .label = "Maximum step", .rule = OptionRule::positive, .use = OptionUse::max_step, .saved = true},
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "global.min_step_fraction", .help = "The smallest fraction of a step a global event's crossing is placed at; a crossing is moved this far past its root.", .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics->stol; }),
+   /* the member's own initial value, 1e-10 (XPPAUT's STOL, flags.c) */
+   .key = "global_min_step_fraction", .label = "Global minimum step fraction", .rule = OptionRule::positive, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::choice, .odex = "jacobian.kind", .help = "Whether an implicit method gets the Jacobian by differences or from the exact derivatives.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics->jacobian; }),
    /* during a load, exact is checked once the model is compiled
@@ -446,7 +450,7 @@ constexpr OptionRow rows[] = {
    .text = member([](auto &s) -> auto & { return s.shoot_range->item; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * { return range_item_into(s, s.shoot_range->item, v, false); },
    /* the first parameter */
-   .reset = [](const SessionParts &s) { s.shoot_range->item = s.model().upar_names[0]; }, .needs = Feature::parameters, .saved = true},
+   .reset = [](const SessionParts &s) { s.shoot_range->item = s.model().upar_names[0]; }, .model_default = true, .needs = Feature::parameters, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::whole, .odex = "boundary_value.range_steps", .help = "How many steps Range shoot makes between its ends.",
    .whole = member([](auto &s) -> auto & { return s.shoot_range->steps; }), .rule = OptionRule::whole_positive, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .odex = "boundary_value.range_low", .help = "The value Range shoot starts at.",
@@ -554,7 +558,7 @@ constexpr OptionRow rows[] = {
    .text = member([](auto &s) -> auto & { return s.integrator->eq_range.item; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * { return range_item_into(s, s.integrator->eq_range.item, v, false); },
    /* the first parameter */
-   .reset = [](const SessionParts &s) { s.integrator->eq_range.item = s.model().upar_names[0]; }, .needs = Feature::parameters, .saved = true},
+   .reset = [](const SessionParts &s) { s.integrator->eq_range.item = s.model().upar_names[0]; }, .model_default = true, .needs = Feature::parameters, .saved = true},
   {.group = option_group::equilibria, .kind = OptionKind::whole, .odex = "range_steps", .help = "How many steps Range equilibria makes between its ends.",
    .whole = member([](auto &s) -> auto & { return s.integrator->eq_range.steps; }), .rule = OptionRule::whole_positive, .saved = true},
   {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "range_low", .help = "The value Range equilibria starts at.",
@@ -569,7 +573,7 @@ constexpr OptionRow rows[] = {
   {.group = option_group::sweep, .kind = OptionKind::name, .odex = "variable", .help = "The parameter or variable a sweep varies.", .xppaut_names = {"RANGEOVER"}, .once = true,
    .text = member([](auto &s) -> auto & { return s.integrator->range.item; }),
    /* the first variable */
-   .reset = [](const SessionParts &s) { s.integrator->range.item = s.model().uvar_names[0]; }, .saved = true},
+   .reset = [](const SessionParts &s) { s.integrator->range.item = s.model().uvar_names[0]; }, .model_default = true, .saved = true},
   {.group = option_group::sweep, .kind = OptionKind::whole, .odex = "steps", .help = "How many steps the sweep makes between its ends.", .xppaut_names = {"RANGESTEP"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.integrator->range.steps; }),
    /* twenty runs */
@@ -599,7 +603,7 @@ constexpr OptionRow rows[] = {
    .text = member([](auto &s) -> auto & { return s.integrator->range.item2; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * { return range_item_into(s, s.integrator->range.item2, v, true); },
    /* the first variable */
-   .reset = [](const SessionParts &s) { s.integrator->range.item2 = s.model().uvar_names[0]; }, .saved = true},
+   .reset = [](const SessionParts &s) { s.integrator->range.item2 = s.model().uvar_names[0]; }, .model_default = true, .saved = true},
   {.group = option_group::sweep, .kind = OptionKind::number, .odex = "second_low", .help = "The value the second sweep starts at.",
    .real = member([](auto &s) -> auto & { return s.integrator->range.plow2; }), .saved = true},
   {.group = option_group::sweep, .kind = OptionKind::number, .odex = "second_high", .help = "The value the second sweep ends at.",
@@ -839,7 +843,7 @@ constexpr OptionRow rows[] = {
    .text = member([](auto &s) -> auto & { return s.array_plot->plot.name; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * { return column_name_into(s, s.array_plot->plot.name, v); },
    /* the first variable */
-   .reset = [](const SessionParts &s) { s.array_plot->plot.name = s.model().uvar_names[0]; }, .saved = true, .wide = true},
+   .reset = [](const SessionParts &s) { s.array_plot->plot.name = s.model().uvar_names[0]; }, .model_default = true, .saved = true, .wide = true},
   {.group = option_group::plot, .kind = OptionKind::whole, .odex = "array_plot.columns", .help = "How many columns the array plot shows.",
    .whole = member([](auto &s) -> auto & { return s.array_plot->plot.nacross; }), .rule = OptionRule::whole_positive, .maximum = option_limit::matrix_side, .saved = true, .wide = true},
   {.group = option_group::plot, .kind = OptionKind::whole, .odex = "array_plot.first_row", .help = "The stored row the array plot starts at, counted from 0.",
@@ -881,7 +885,7 @@ constexpr OptionRow rows[] = {
      return nullptr;
    },
    /* no coupling: 0 for each equation */
-   .reset = [](const SessionParts &s) { s.adjoint->coup_string.assign(static_cast<std::size_t>(s.model().node), "0"); },
+   .reset = [](const SessionParts &s) { s.adjoint->coup_string.assign(static_cast<std::size_t>(s.model().node), "0"); }, .model_default = true,
    .repeatable = true, .saved = true, .wide = true},
   {.group = option_group::analysis, .kind = OptionKind::number, .odex = "histogram.low", .help = "The low end of the histogram's range.", .xppaut_names = {"HISTLO"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.histogram->info.xlo; })},
@@ -923,7 +927,7 @@ constexpr OptionRow rows[] = {
    .text = member([](auto &s) -> auto & { return s.adjoint->transpose.firstcol; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * { return column_name_into(s, s.adjoint->transpose.firstcol, v); },
    /* the first variable */
-   .reset = [](const SessionParts &s) { s.adjoint->transpose.firstcol = s.model().uvar_names[0]; }, .saved = true, .wide = true},
+   .reset = [](const SessionParts &s) { s.adjoint->transpose.firstcol = s.model().uvar_names[0]; }, .model_default = true, .saved = true, .wide = true},
   {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "transpose.columns", .help = "How many data columns Transpose takes.",
    .whole = member([](auto &s) -> auto & { return s.adjoint->transpose.ncol; }), .rule = OptionRule::whole_positive, .maximum = option_limit::matrix_side, .saved = true, .wide = true},
   {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "transpose.column_skip", .help = "Transpose takes every this many columns of the stored data.",

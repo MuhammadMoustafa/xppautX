@@ -43,7 +43,7 @@ def run_model(model, numerics, method=None):
         raise Refused('the method %s is not translated (%s are)' % (method, ', '.join(METHODS)))
     if numerics.dt <= 0:
         raise Refused('a step dt of %g: only a forward step is translated' % numerics.dt)
-    flags = Flags(model, numerics.stol)
+    flags = Flags(model, numerics.global_min_step_fraction)
     t, y = numerics.start_time, flags.start(numerics.start_time, model.y0.copy())
     names = ['t'] + model.states + model.aux_names
     rows, times = [], []

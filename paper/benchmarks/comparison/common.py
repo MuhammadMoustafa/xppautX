@@ -261,7 +261,10 @@ def tree_sha(items):
 
 
 def python_sha():
-    return tree_sha((f.name, f.read_bytes()) for f in PYTHON_DIR.glob('*.py'))
+    # the Python arm's program: its files, and the numerics defaults it starts from, which it reads from the options schema (W804)
+    sys.path.insert(0, str(PYTHON_DIR))
+    from numerics import defaults
+    return tree_sha([(f.name, f.read_bytes()) for f in PYTHON_DIR.glob('*.py')] + [('numerics-defaults.json', json.dumps(defaults(), sort_keys=True).encode())])
 
 
 def measure_sha(*functions):
