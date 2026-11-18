@@ -209,7 +209,7 @@ bool autox_branch_closes(iap_type &iap, double epss, const double *par, const st
 
 std::string autox_closure_text(double gap, double epss)
 {
-    return xpp::format("the branch closed on itself: back at its start, every parameter and state within {} times special_point_tolerance = {} times (1 + the start's value, a cycle's at most its own size) of the start's, the largest difference {} of that: point type {} ({})",
+    return xpp::format("the branch closed on itself: back at its start, every parameter and state within {} times newton.special_point_tolerance = {} times (1 + the start's value, a cycle's at most its own size) of the start's, the largest difference {} of that: point type {} ({})",
                        autox_number_text(autox_same_point_factor), autox_number_text(epss), autox_number_text(gap),
                        autox_point_kind_name(AutoxPointKind::BranchClosed), autox_point_kind_mark(AutoxPointKind::BranchClosed));
 }

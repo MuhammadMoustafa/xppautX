@@ -318,9 +318,20 @@ bool is_bare_word(std::string_view text)
 
 void Out::put(std::string_view text) { out_ += text; }
 
+/* a key of an options group: names joined by dots (step.min, axes.x_min), each part a name */
+static bool is_entry_key(std::string_view key)
+{
+    for (std::size_t start = 0;;) {
+        const std::size_t dot = key.find('.', start);
+        if (!odex::is_name(key.substr(start, dot == std::string_view::npos ? std::string_view::npos : dot - start))) return false;
+        if (dot == std::string_view::npos) return true;
+        start = dot + 1;
+    }
+}
+
 void Out::entry(std::string_view key)
 {
-    if (!odex::is_name(key) && !bad_) bad_ = xpp::format("`{}` cannot be a key of the options syntax", key);
+    if (!is_entry_key(key) && !bad_) bad_ = xpp::format("`{}` cannot be a key of the options syntax", key);
     out_.append(static_cast<std::size_t>(depth_) * 2, ' ');
     out_ += key;
     out_ += ": ";

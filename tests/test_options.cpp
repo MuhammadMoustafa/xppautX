@@ -142,7 +142,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"SLO1", {"-1", ""}}, {"SLO2", {"-1", ""}}, {"SLO3", {"-1", ""}},
         {"SHI1", {"2", ""}}, {"SHI2", {"2", ""}}, {"SHI3", {"2", ""}},
         {"diagram.x_min", {"-0.5", "-0.5"}}, {"diagram.y_min", {"-0.5", "-0.5"}}, /* below their maxima, which come first in the table */
-        {"continuation.min_step_size", {"0.001", "0.001"}}, {"continuation.step_size", {"0.02", "0.02"}}, {"continuation.max_step_size", {"0.5", "0.5"}},
+        {"continuation.step.min", {"0.001", "0.001"}}, {"continuation.step.initial", {"0.02", "0.02"}}, {"continuation.step.max", {"0.5", "0.5"}},
         {"integration.method", {"e", "1"}},            /* the Euler method */
         {"poincare.map", {"m", "2"}},          /* max */
         {"poincare.variable", {"y", "2"}},
@@ -166,9 +166,9 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"integration.torus.fold", {"x", "X"}},
         {"analysis.coupling", {"y=x", "X = 0\nY = x\nZ = 0"}},
         {"analysis.transpose.first_column", {"y", "y"}}, {"plot.array_plot.first_column", {"z", "z"}},
-        {"integration.boundary_value.range_parameter", {"b", "b"}}, {"equilibria.range_parameter", {"b", "b"}},
+        {"integration.boundary_value.range_parameter", {"b", "b"}}, {"equilibria.range.parameter", {"b", "b"}},
         {"sweep.second_variable", {"z", "z"}}, {"integration.boundary_value.range_side", {"end", "1"}},
-        {"sweep.cycle_color", {"true", "1"}}, {"equilibria.range_shoot", {"true", "1"}}, {"integration.boundary_value.range_cycle_color", {"true", "1"}},
+        {"sweep.cycle_color", {"true", "1"}}, {"equilibria.range.shoot", {"true", "1"}}, {"integration.boundary_value.range_cycle_color", {"true", "1"}},
         {"AUTOEVAL", {"1", ""}},
         {"integration.jacobian.kind", {"exact", "1"}},
         {"integration.subsystem_split", {"run", "1"}},
@@ -358,7 +358,7 @@ TEST_CASE("test_options")
 
     /* the limits and the nullclines' options: our own words in a .odex, XPPAUT's bound and ncdraw
        (each several of ours) in a .ode */
-    CHECK(write_file("build/test_limits.odex", "x' = -x\noptions { integration: { state_limit: 7, stop_at_limit: false }, equilibria: { search_limit: 9 }, "
+    CHECK(write_file("build/test_limits.odex", "x' = -x\noptions { integration: { state_limit: 7, stop_at_limit: false }, equilibria: { newton.search_limit: 9 }, "
                                                "plot: { nullclines.draw: true }, output: { nullclines_file: \"nc.dat\" } }\n"));
     {
         const xpp::Session *l = load("build/test_limits.odex");
@@ -496,7 +496,7 @@ TEST_CASE("test_options")
         const xpp::OptionRow *limit = row_named("integration.state_limit"), *total = row_named("integration.total_time"), *on = row_named("integration.torus.on");
         CHECK(limit && total && on);
         if (limit && total && on) {
-            CHECK(xpp::option_help(*limit) == std::string(limit->help) + " From an XPPAUT .ode: BOUND (which also sets equilibria.search_limit): the one value is both limits.");
+            CHECK(xpp::option_help(*limit) == std::string(limit->help) + " From an XPPAUT .ode: BOUND (which also sets equilibria.newton.search_limit): the one value is both limits.");
             CHECK(xpp::option_help(*total) == std::string(total->help) + " From an XPPAUT .ode: TOTAL.");
             CHECK(xpp::option_help(*on) == on->help);
         }

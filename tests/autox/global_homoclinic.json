@@ -17,14 +17,14 @@
       },
       "parameter": "mu",
       "autox": {
-        "step_size": 0.02,
-        "min_step_size": 1e-05,
-        "max_step_size": 0.05,
-        "max_steps": 200,
-        "output_every": 100,
-        "parameter_min": -1,
-        "parameter_max": 0.2,
-        "mesh_intervals": 20,
+        "step.initial": 0.02,
+        "step.min": 1e-05,
+        "step.max": 0.05,
+        "limits.steps": 200,
+        "output.every": 100,
+        "limits.parameter_min": -1,
+        "limits.parameter_max": 0.2,
+        "mesh.intervals": 20,
         "max_branch_switches": 0
       }
     },
@@ -38,14 +38,14 @@
       },
       "parameter": "mu",
       "autox": {
-        "step_size": 0.01,
-        "min_step_size": 1e-09,
-        "max_step_size": 0.05,
-        "max_steps": 300,
-        "output_every": 100,
-        "parameter_min": -1,
-        "parameter_max": 1.5,
-        "mesh_intervals": 30,
+        "step.initial": 0.01,
+        "step.min": 1e-09,
+        "step.max": 0.05,
+        "limits.steps": 300,
+        "output.every": 100,
+        "limits.parameter_min": -1,
+        "limits.parameter_max": 1.5,
+        "mesh.intervals": 30,
         "max_branch_switches": 0
       }
     }

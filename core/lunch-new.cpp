@@ -172,16 +172,16 @@ void read_numerics(const xpp::Session &s, Lines &l, Options &f)
   /* XPPAUT's one bound is both limits */
   const double bound=l.real("Bound",true);
   keep_setting(s,l,f,method,"integration.state_limit",bound);
-  keep_setting(s,l,f,method,"equilibria.search_limit",bound);
+  keep_setting(s,l,f,method,"equilibria.newton.search_limit",bound);
   keep_real(s,l,f,method,"integration.step.min","DtMin");
   keep_real(s,l,f,method,"integration.step.max","DtMax");
   keep_real(s,l,f,method,"integration.step.relative_tolerance","Tolerance");
   keep_real(s,l,f,method,"integration.step.absolute_tolerance","Abs. Tolerance");
   keep_real(s,l,f,method,"integration.delay.max_delay","Max Delay");
-  keep_whole(s,l,f,method,"equilibria.max_iterations","Eigenvector iterates");
-  keep_real(s,l,f,method,"equilibria.newton_tolerance","Eigenvector tolerance");
+  keep_whole(s,l,f,method,"equilibria.newton.max_iterations","Eigenvector iterates");
+  keep_real(s,l,f,method,"equilibria.newton.tolerance","Eigenvector tolerance");
   /* XPPAUT's set file labels the Jacobian's epsilon with Newton's name */
-  keep_real(s,l,f,method,"equilibria.jacobian_step","Newton tolerance");
+  keep_real(s,l,f,method,"equilibria.newton.jacobian_step","Newton tolerance");
   keep_real(s,l,f,method,"poincare.plane","Poincare plane");
   keep_real(s,l,f,method,"integration.boundary_value.tolerance","Boundary value tolerance");
   keep_real(s,l,f,method,"integration.boundary_value.epsilon","Boundary value epsilon");
@@ -403,12 +403,12 @@ void read_more(xpp::Session &s, Lines &l, Options &f)
   }
 
   l.heading("# Range information");
-  put("equilibria.range_parameter",std::string(l.next("the equilibrium range's parameter")));
-  whole("equilibria.range_stability_column",l.whole("eq-range stab col",true));
-  yes_no("equilibria.range_shoot","shoot flag 1=on");
-  whole("equilibria.range_steps",l.whole("eq-range steps",true));
-  real("equilibria.range_low",l.real("eq_range low",true));
-  real("equilibria.range_high",l.real("eq_range high",true));
+  put("equilibria.range.parameter",std::string(l.next("the equilibrium range's parameter")));
+  whole("equilibria.range.stability_column",l.whole("eq-range stab col",true));
+  yes_no("equilibria.range.shoot","shoot flag 1=on");
+  whole("equilibria.range.steps",l.whole("eq-range steps",true));
+  real("equilibria.range.low",l.real("eq_range low",true));
+  real("equilibria.range.high",l.real("eq_range high",true));
   put("sweep.variable",std::string(l.next("the range's parameter")));
   put("sweep.second_variable",std::string(l.next("the range's second parameter")));
   whole("sweep.steps",l.whole("Range steps",true));
@@ -534,7 +534,7 @@ constexpr std::array<std::string_view,1> transpose_rows={"analysis.transpose."};
 constexpr std::array<std::string_view,1> coupling_rows={"analysis.coupling"};
 constexpr std::array<std::string_view,1> array_plot_rows={"plot.array_plot."};
 constexpr std::array<std::string_view,1> torus_rows={"integration.torus."};
-constexpr std::array<std::string_view,4> range_rows={"equilibria.range_","sweep.second_","sweep.cycle_color","integration.boundary_value.range_"};
+constexpr std::array<std::string_view,4> range_rows={"equilibria.range.","sweep.second_","sweep.cycle_color","integration.boundary_value.range_"};
 
 bool in_rows(const OptionRow &row,std::span<const std::string_view> prefixes)
 {

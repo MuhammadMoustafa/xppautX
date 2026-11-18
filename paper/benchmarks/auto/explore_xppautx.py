@@ -47,8 +47,8 @@ def main():
         step(s, cmd='equilibrium.find')
         step(s, cmd='initial_conditions.set_from_equilibrium')
         open_autox(s)
-        print(numerics(s, parameter_max=float(parmax), parameter_min=float(parmin), norm_min=-200,
-                       norm_max=200, max_step_size=float(dsmax), max_steps=int(nmax)))
+        print(numerics(s, **{'limits.parameter_max': float(parmax)}, **{'limits.parameter_min': float(parmin)}, **{'limits.norm_min': -200},
+                       **{'limits.norm_max': 200}, **{'step.max': float(dsmax)}, **{'limits.steps': int(nmax)}))
         evs, _ = step(s, cmd='autox.run', kind='equilibrium', timeout=600)
         for lab in labels(evs):
             print(lab)

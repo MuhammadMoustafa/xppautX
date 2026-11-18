@@ -221,9 +221,9 @@ void check_settings_text()
         return e ? xpp::Error{} : e.error();
     };
     const auto after_key = [&](const std::string &key) { return line_of(text, key + ":"); };
-    xpp::Error e = error(with_line(text, "step_size:", "step_size: not-a-number,"));
-    CHECK(e.what == "Step size must be a number" && e.place.file == "a.snapx/session.odex" && e.place.line == after_key("step_size") &&
-          e.place.source == "  step_size: not-a-number,");
+    xpp::Error e = error(with_line(text, "step.initial:", "step.initial: not-a-number,"));
+    CHECK(e.what == "Step initial must be a number" && e.place.file == "a.snapx/session.odex" && e.place.line == after_key("step.initial") &&
+          e.place.source == "  step.initial: not-a-number,");
     e = error(with_line(text, "plot:", "plot: 1,"));
     CHECK(e.place.line == after_key("plot") && e.what.starts_with("\"1\" is not a projection (maximum, norm, maximum_and_minimum"));
     /* every key there once, none it does not have */
@@ -241,7 +241,7 @@ void check_settings_text()
     excessive += "  ],\n},\n";
     e = error(excessive);
     CHECK(e.place.line == after_key("marks") && e.what.find("at most") != std::string::npos);
-    CHECK(read->places.at("mesh_intervals").first == after_key("mesh_intervals") && read->places.at("mark1").first == line_of(text, "name: phi") - 1);
+    CHECK(read->places.at("mesh.intervals").first == after_key("mesh.intervals") && read->places.at("mark1").first == line_of(text, "name: phi") - 1);
 }
 
 /* the views (W50): the views read back bit for bit, a degenerate range
@@ -958,11 +958,11 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
     const std::string last_bad = keyed("ymax", "nope");
     const xpp::Result<xpp::snapx::autox_members::Members> bad = autox_text::read_members(xpp::client_session(), members, "autox/", "lecar.snapx", last_bad, "lecar.snapx/session.odex");
     CHECK(!bad && bad.error().place.file == "lecar.snapx/session.odex" && bad.error().place.line == line_of(options, "ymax:") && bad.error().place.source == "    ymax: nope,");
-    const xpp::Result<xpp::snapx::autox_members::Members> refused = autox_text::read_members(xpp::client_session(), members, "autox/", "lecar.snapx", keyed("collocation_points", "9"), "lecar.snapx/session.odex");
-    CHECK(!refused && refused.error().place.line == line_of(options, "collocation_points:") && refused.error().place.source == "    collocation_points: 9,");
-    const auto mesh_refused = autox_text::read_members(xpp::client_session(), members, "autox/", "lecar.snapx", keyed("mesh_intervals", std::to_string(xpp::autox_max_mesh_intervals + 1)), "lecar.snapx/session.odex");
+    const xpp::Result<xpp::snapx::autox_members::Members> refused = autox_text::read_members(xpp::client_session(), members, "autox/", "lecar.snapx", keyed("mesh.collocation_points", "9"), "lecar.snapx/session.odex");
+    CHECK(!refused && refused.error().place.line == line_of(options, "mesh.collocation_points:") && refused.error().place.source == "    mesh.collocation_points: 9,");
+    const auto mesh_refused = autox_text::read_members(xpp::client_session(), members, "autox/", "lecar.snapx", keyed("mesh.intervals", std::to_string(xpp::autox_max_mesh_intervals + 1)), "lecar.snapx/session.odex");
     CHECK(!mesh_refused);
-    if (!mesh_refused) CHECK(mesh_refused.error().place.file == "lecar.snapx/session.odex" && mesh_refused.error().place.line == line_of(options, "mesh_intervals:"));
+    if (!mesh_refused) CHECK(mesh_refused.error().place.file == "lecar.snapx/session.odex" && mesh_refused.error().place.line == line_of(options, "mesh.intervals:"));
     CHECK(same_diagram(s.diagram->points, imported));
     CHECK(file_text(xpp::autox_solutions_file(xpp::autox_parts(xpp::client_session()))) == solutions);
 

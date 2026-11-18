@@ -19,7 +19,7 @@ par scale = 0.0083333
 options {
   animation: "pend.anix",
   integration: { state_limit: 1000 },
-  equilibria: { search_limit: 1000 },
+  equilibria: { newton.search_limit: 1000 },
   plot: { curves: [ { x: x, y: xp } ], axes.x_min: -4, axes.x_max: 4, axes.y_min: -8, axes.y_max: 8 },
 }
 init x = 2

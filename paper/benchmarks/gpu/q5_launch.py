@@ -44,7 +44,7 @@ def interval_work(ndim, ncol, ncb, nint=1):
 def main():
     d = json.loads(DESCRIPTION.read_text())
     cycles = next(r for r in d['runs'] if r['name'] == 'cycles')['autox']
-    ntst, ncol = cycles['mesh_intervals'], cycles.get('collocation_points', 4)  # 4: the setting's default
+    ntst, ncol = cycles['mesh.intervals'], cycles.get('mesh.collocation_points', 4)  # 4: the setting's default
     w = interval_work(NDIM, ncol, PARAMETERS)
     print('== work of one mesh interval (%s run "cycles": NTST %d, NCOL %d, ndim %d, %d free parameters)' % (DESCRIPTION.name, ntst, ncol, NDIM, PARAMETERS))
     for k, v in w.items():

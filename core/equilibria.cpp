@@ -173,12 +173,12 @@ NewtonCause newton_cause(const AnalysisParts &s, const NewtonRun &run, std::size
    return {xpp::format("met a singular Jacobian after {} iterations",run.iterations),""};
  case NewtonEnd::left_box:
    return {xpp::format("went out of the search box after {} iterations (a step of {} per variable is above {})",
-                       run.iterations,xpp::number(run.change/static_cast<double>(variables)),named_settings(s.session_parts,{"equilibria.search_limit"})),
-           "equilibria.search_limit"};
+                       run.iterations,xpp::number(run.change/static_cast<double>(variables)),named_settings(s.session_parts,{"equilibria.newton.search_limit"})),
+           "equilibria.newton.search_limit"};
  case NewtonEnd::max_iterates:
-   return {xpp::format("exceeded {} with the last change {} not below {}",named_settings(s.session_parts,{"equilibria.max_iterations"}),
-                       xpp::number(run.change),named_settings(s.session_parts,{"equilibria.newton_tolerance"})),
-           "equilibria.max_iterations"};
+   return {xpp::format("exceeded {} with the last change {} not below {}",named_settings(s.session_parts,{"equilibria.newton.max_iterations"}),
+                       xpp::number(run.change),named_settings(s.session_parts,{"equilibria.newton.tolerance"})),
+           "equilibria.newton.max_iterations"};
  case NewtonEnd::cancelled:
    return {xpp::format("was stopped after {} iterations",run.iterations),""};
  case NewtonEnd::converged:
@@ -517,7 +517,7 @@ xpp::Result<> get_evec(xpp::AnalysisParts &s, double *a, double *anew, double *b
     xpp::lu_factor(anew,n,n,ipivot,&ierr);
     if(ierr!=-1)
       return xpp::fail("equilibrium",xpp::format("No eigenvector for the eigenvalue {}: the Jacobian shifted by it is singular ({})",
-                       xpp::number(eval),named_settings(s.session_parts,{"equilibria.newton_tolerance"})),settings_place(s.model(),{"equilibria.newton_tolerance"}));
+                       xpp::number(eval),named_settings(s.session_parts,{"equilibria.newton.tolerance"})),settings_place(s.model(),{"equilibria.newton.tolerance"}));
     for(j=0;j<n;j++)
     {
      b[j]=1+.1*s.random.uniform();
@@ -554,8 +554,8 @@ xpp::Result<> get_evec(xpp::AnalysisParts &s, double *a, double *anew, double *b
       iter++;
       if(iter>maxit)
         return xpp::fail("equilibrium",xpp::format("No eigenvector for the eigenvalue {}: the inverse iteration exceeded {} with the last change {} not below {}",
-                         xpp::number(eval),named_settings(s.session_parts,{"equilibria.max_iterations"}),xpp::number(temp),named_settings(s.session_parts,{"equilibria.newton_tolerance"})),
-                         settings_place(s.model(),{"equilibria.max_iterations","equilibria.newton_tolerance"}));
+                         xpp::number(eval),named_settings(s.session_parts,{"equilibria.newton.max_iterations"}),xpp::number(temp),named_settings(s.session_parts,{"equilibria.newton.tolerance"})),
+                         settings_place(s.model(),{"equilibria.newton.max_iterations","equilibria.newton.tolerance"}));
      }
     {
       temp=fabs(b[0]);

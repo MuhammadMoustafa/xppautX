@@ -80,10 +80,10 @@ def converted(args, src, ode, dest, edits=()):
 
 # W412's --periodic-options names (autoX's, as the ModelDB studies write them) and the protocol's
 # autox.configure_numerics fields (docs/protocol.md, the Numerics form's names)
-NUMERICS_FIELDS = {'ntst': 'mesh_intervals', 'nmx': 'max_steps', 'npr': 'output_every', 'ncol': 'collocation_points',
-                   'ds': 'step_size', 'dsmin': 'min_step_size', 'dsmax': 'max_step_size',
-                   'parmin': 'parameter_min', 'parmax': 'parameter_max', 'normmin': 'norm_min', 'normmax': 'norm_max',
-                   'epsl': 'parameter_tolerance', 'epsu': 'state_tolerance', 'epss': 'special_point_tolerance'}
+NUMERICS_FIELDS = {'ntst': 'mesh.intervals', 'nmx': 'limits.steps', 'npr': 'output.every', 'ncol': 'mesh.collocation_points',
+                   'ds': 'step.initial', 'dsmin': 'step.min', 'dsmax': 'step.max',
+                   'parmin': 'limits.parameter_min', 'parmax': 'limits.parameter_max', 'normmin': 'limits.norm_min', 'normmax': 'limits.norm_max',
+                   'epsl': 'newton.parameter_tolerance', 'epsu': 'newton.state_tolerance', 'epss': 'newton.special_point_tolerance'}
 
 
 def periodic_options(s, options, explore, auto):
@@ -111,7 +111,7 @@ def periodic(args, prof, wrapper):
         if args.periodic_options and key == 'p':  # W412: autoX's numerics or marks for the periodic run
             periodic_options(s, args.periodic_options, explore_xppautx, autox_xppautx)
         if args.nmax and key == 'p':  # a section of the periodic branch (the steady run must reach its Hopf point): valgrind is 50-100 times slower
-            explore_xppautx.numerics(s, max_steps=args.nmax)
+            explore_xppautx.numerics(s, **{'limits.steps': args.nmax})
         if key == 's':  # everything before autoX's first run (start-up, ModelDB's integrations)
             prof.cut(s, 'setup')
         wall, cpu, labs, pts = real(s, key, *a, **k)

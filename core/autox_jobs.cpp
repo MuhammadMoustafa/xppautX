@@ -392,7 +392,7 @@ void skip_if_away(Queue &q, QueuedJob &job, double start)
   job.skipped=true;
   const int principal=state.axes().icp1;
   const LogHold hold(job.table,job.warnings);
-  autox_stop_note(*job.run,xpp::format("step_size = {} is not followed: the start {} = {} is at or outside parameter_min = {} and parameter_max = {}, where that direction leaves the window",
+  autox_stop_note(*job.run,xpp::format("step.initial = {} is not followed: the start {} = {} is at or outside limits.parameter_min = {} and limits.parameter_max = {}, where that direction leaves the window",
                                        xpp::number(ds),q.s.model().upar_names[principal],xpp::number(start),xpp::number(state.bifur.rl0),xpp::number(state.bifur.rl1)));
 }
 
@@ -684,7 +684,7 @@ std::string job_text(const Queue &q, const QueuedJob &job)
 {
   const AutoxJobStart &start=job.start;
   const std::string from=job.parent?xpp::format("the point at {} = {}",q.s.model().upar_names[q.s.autox_state->axes().icp1],xpp::number(start.id->parameters[0])):"the start";
-  const std::string direction=start.sign?(*start.sign>0?", +step_size":", -step_size"):"";
+  const std::string direction=start.sign?(*start.sign>0?", +step.initial":", -step_size"):"";
   return xpp::format("the job of {} from {}{}",start.ips==AutoxProblem::Periodic?"cycles":"steady states",from,direction);
 }
 

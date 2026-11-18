@@ -35,8 +35,9 @@ init uleft = 1, upleft = 0, uright = 0, upright = 0
 options {
   integration: { total_time: 1.01, dt: .01 },
   continuation: {
-    special_point_tolerance: 1e-7, state_tolerance: 1e-7, parameter_tolerance: 1e-7,
-    parameter_max: 60, max_step_size: 5, min_step_size: 1e-4, mesh_intervals: 35,
+    newton.special_point_tolerance: 1e-7, newton.state_tolerance: 1e-7,
+    newton.parameter_tolerance: 1e-7, limits.parameter_max: 60, step.max: 5, step.min: 1e-4,
+    mesh.intervals: 35,
   },
   plot: { curves: [ { x: u, y: up } ], axes.x_min: -.25, axes.x_max: 1.25, axes.y_min: -.75, axes.y_max: .25 },
 }

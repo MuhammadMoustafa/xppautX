@@ -3,7 +3,7 @@
    orbits, a two-parameter curve) or stopping, the branch and point it got
    to, how many points the run added, the last label it found and how long
    it took, and (T23) why its last branch ended: "Stopped: parameter iapp
-   reached parameter_max (0.45)", from `autoxinfo` `stop`. Read from the store: the
+   reached limits.parameter_max (0.45)", from `autoxinfo` `stop`. Read from the store: the
    run (store/diagram.ts AutoxRun) and the diagram's points from the run's
    first on. Pure. */
 import type {AutoxJobs, AutoxRun, AutoxStop, DiagramLabel, DiagramPoints} from '../store/diagram';
@@ -14,7 +14,7 @@ export interface RunStatus {
   /** 'idle' | 'starting' | 'running' | 'stopping' | 'done' | 'stopped' */
   phase: 'idle' | 'starting' | 'running' | 'stopping' | 'done' | 'stopped';
   /** the phase in words, with what is computed: "Running: periodic orbits", or why
-      the run's last branch ended: "Stopped: parameter iapp reached parameter_max (0.45)" */
+      the run's last branch ended: "Stopped: parameter iapp reached limits.parameter_max (0.45)" */
   text: string;
   /** what was computed when `text` is the reason ("steady states"), else '' */
   detail: string;

@@ -492,7 +492,7 @@ xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
         v.text = xpp::format("{:.16g}", z);
     }
     if (v.type == 0) {
-        if(v.name=="nullcline_mesh"||v.name=="max_iterations"||v.name=="newton_tolerance"||v.name=="jacobian_step"||v.name=="search_limit")
+        if(v.name=="nullcline_mesh"||v.name=="newton.max_iterations"||v.name=="newton.tolerance"||v.name=="newton.jacobian_step"||v.name=="newton.search_limit")
             return refuse(field,xpp::format("Unknown command set num {}: use nullcline.set_mesh or equilibrium.configure",v.name));
         std::string why;
         if (xpp::numerics_settings_check(s, v.name, v.text, why) == 0) return v;

@@ -1881,22 +1881,22 @@ async function autoxView(dir) {
 
   /* a dialog the view opens is on top of it, not behind (Numerics' form, T22: the page's own on the autoxoptions data) */
   check("T22: the store holds autoX's options (autoxoptions) before a run",
-    await until('s.autoxSettings.core && s.autoxSettings.core.numerics.max_steps > 0 && s.core.pars.length > 1', 'options'),
+    await until('s.autoxSettings.core && s.autoxSettings.core.numerics["limits.steps"] > 0 && s.core.pars.length > 1', 'options'),
     JSON.stringify(await S('s.autoxSettings.core')).slice(0, 300));
   const sentNum = await cdp.eval('__xpp.sentCount()');
   await clickRegistry('autox.configure_numerics');
   await requireUntil(`s.optionsPanel?.group === 'continuation' && s.optionValues.continuation && document.activeElement.closest('.registry-form')`, 'Numerics panel focus');
   await rendered();
   check('W616: autoX > Numerics is the continuation panel: current values from the core\'s rows, named choices, no core ask',
-    await S(`!s.ask && String(s.autoxSettings.core.numerics.max_steps) === document.querySelector('[data-argument=max_steps] input:not([type=checkbox])').value`)
+    await S(`!s.ask && String(s.autoxSettings.core.numerics["limits.steps"]) === document.querySelector('[data-argument="limits.steps"] input:not([type=checkbox])').value`)
       && (await cdp.eval('__xpp.sentCount()')) - sentNum === 1);
   check('W616: its boolean and choice rows are checkboxes and selects',
-    await cdp.eval(`document.querySelector('[data-argument=suppress_branch_points] input[type=checkbox]') && document.querySelector('[data-argument=output_detail] select')`));
-  await formValues({max_steps:''});
+    await cdp.eval(`document.querySelector('[data-argument=suppress_branch_points] input[type=checkbox]') && document.querySelector('[data-argument="output.detail"] select')`));
+  await formValues({"limits.steps":''});
   const sentApply = await S('__xpp.sentCount()');
   await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
   check('W641: Apply with an empty whole number sends nothing, marks the field with its rule, counts it in the footer and is never disabled',
-    await until(`!!document.querySelector('[data-argument=max_steps].bad .field-error') && document.querySelector('[data-problems]')?.textContent === '1 field to fix'`, 'error shown')
+    await until(`!!document.querySelector('[data-argument="limits.steps"].bad .field-error') && document.querySelector('[data-problems]')?.textContent === '1 field to fix'`, 'error shown')
     && (await S('__xpp.sentCount()')) === sentApply && !(await cdp.eval(`document.querySelector('[data-dialog-action]').disabled`)));
   await key('Escape');
   await openSettings(); await settingsControl('general.threads', '1');
@@ -1911,7 +1911,7 @@ async function autoxView(dir) {
   const stop = await DS('d.stop');
   check('T21, T23: the status strip says why the run stopped (the core\'s reason), steady states, its branch and point, its points, its last label, the time',
     await until(`document.querySelector('.autox-status').dataset.phase === 'done'`, 'strip done')
-    && stop && stop.br === 1 && /^(parameter iapp reached parameter_(min|max)|the norm reached|the branch reached max_steps)/.test(stop.text)
+    && stop && stop.br === 1 && /^(parameter iapp reached parameter_(min|max)|the norm reached|the branch reached limits.steps)/.test(stop.text)
     && new RegExp(`^Stopped: ${stop.text.replace(/[()]/g, '\\$&')} · steady states · branch 1, point ${stop.pt} · ${nSteady} points `
       + `· last label End of branch \\d+ at point \\d+ · [\\d.:]+ s?`).test(await autoxStatus())
     && await cdp.eval(`document.querySelector('[data-testid=autox-status]').dataset.why`) === stop.why,
@@ -1978,10 +1978,10 @@ async function autoxView(dir) {
     JSON.stringify(await lastAnswer()));
   /* lecar's cycles from this Hopf point come back to it at point 109 and the branch ends there (W604's
      branch_closed); steps of 0.005 (about 490 points) make it longer than the store's first buffers (web2/src/store/diagram.ts
-     MIN_CAPACITY, 256 points), so the equality below covers their growth, and output_every 50 gives it plain
+     MIN_CAPACITY, 256 points), so the equality below covers their growth, and output.every 50 gives it plain
      labels for T27 (lecar's own 500 never comes). Sent directly, so the sent() checks below see only the run. */
-  await cdp.eval(`__xpp.send({cmd: 'autox.configure_numerics', step_size: 0.005, max_step_size: 0.005, output_every: 50})`);
-  await requireUntil('!s.busy && s.autoxSettings.core.numerics.output_every === 50', 'periodic numerics');
+  await cdp.eval(`__xpp.send({cmd: 'autox.configure_numerics', "step.initial": 0.005, "step.max": 0.005, "output.every": 50})`);
+  await requireUntil('!s.busy && s.autoxSettings.core.numerics["output.every"] === 50', 'periodic numerics');
   await cdp.eval(`document.querySelector('.autox-host').focus()`);
   await clickRegistry('autox.run');
   check('W517: the common autoX form offers Periodic and retains the grabbed label', await until(`s.commandForm?.id === 'autox.run' && document.querySelector('[data-argument=kind] option[value=periodic]') && document.querySelector('[data-argument=label] input:not([type=checkbox])').value !== ''`, 'periodic start'));
@@ -2328,13 +2328,13 @@ async function autoxStopRace() {
 
   /* T22, W106: an edit made mid-run is an option: sent at once, the core applies it once the run ends */
   const sentPre = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`__xpp.send({cmd: 'autox.configure_numerics', max_steps: 15})`); /* a panel's values come when the running command ends (W616); the option itself is still sent at once */
+  await cdp.eval(`__xpp.send({cmd: 'autox.configure_numerics', "limits.steps": 15})`); /* a panel's values come when the running command ends (W616); the option itself is still sent at once */
   const setsSent = () => cdp.eval(`__xpp.sentFrom(${sentPre}).filter(c => c.cmd === 'autox.configure_numerics')`);
   check('W106: Numerics during a run: Nmax 15 is sent at once (one set), shown, the core\'s still 2000 (the run keeps it)',
-    going && await S(`s.busy && s.autoxSettings.inflight.length === 1 && s.autoxSettings.inflight[0].patch.numerics.max_steps === 15
-      && s.autoxSettings.core.numerics.max_steps === 2000`)
+    going && await S(`s.busy && s.autoxSettings.inflight.length === 1 && s.autoxSettings.inflight[0].patch.numerics["limits.steps"] === 15
+      && s.autoxSettings.core.numerics["limits.steps"] === 2000`)
     && await cdp.eval(`document.querySelector('.autox-tools button[data-op=numerics]').classList.contains('autox-pending')`)
-    && (await setsSent()).length === 1 && (await setsSent())[0].max_steps === 15,
+    && (await setsSent()).length === 1 && (await setsSent())[0]["limits.steps"] === 15,
     JSON.stringify([going, await S('[s.busy, s.autoxSettings]'), await setsSent()]));
 
   /* T25: a connection the browser opened and sent nothing on yet (a
@@ -2360,9 +2360,9 @@ async function autoxStopRace() {
     runningAtStop && stopBtn && stopped && (await DS('d.labels.length')) > labsPre && lastLab === 'end',
     JSON.stringify([runningAtStop, stopBtn, stopped, tookStop, labsPre, lastLab]));
   check('W106: once the run ends the set applies: the core\'s Nmax is 15, nothing in flight, no second set',
-    await until(`!s.busy && s.autoxSettings.core.numerics.max_steps === 15 && !s.autoxSettings.inflight.length`,
+    await until(`!s.busy && s.autoxSettings.core.numerics["limits.steps"] === 15 && !s.autoxSettings.inflight.length`,
       'applied at idle', 60000 * SLOW)
-    && (await setsSent()).length === 1 && (await setsSent())[0].max_steps === 15
+    && (await setsSent()).length === 1 && (await setsSent())[0]["limits.steps"] === 15
     && !(await cdp.eval(`document.querySelector('.autox-tools button[data-op=numerics]').classList.contains('autox-pending')`)),
     JSON.stringify([await S('s.autoxSettings'), await setsSent()]));
   check('T23: after Stop the status strip says so: "Stopped: by the user (Stop)"',
@@ -2396,8 +2396,8 @@ async function autoxLiveJobs() {
   await send({cmd: 'value.set_parameters', values: {p0: 0.05}});
   await send({cmd: 'initial_conditions.set', values: {U1: 0.06282240276322631, U2: 0.2931712128950587}});
   await until('!s.busy', 'values set');
-  await send({cmd: 'autox.run', kind: 'equilibrium', replace_diagram: false, follow_all_branches: true, max_steps: 1000000,
-    output_every: 1000, parameter_min: 0, parameter_max: 1.5, step_size: 1e-6, min_step_size: 1e-7, max_step_size: 1e-6});
+  await send({cmd: 'autox.run', kind: 'equilibrium', replace_diagram: false, follow_all_branches: true, "limits.steps": 1000000,
+    "output.every": 1000, "limits.parameter_min": 0, "limits.parameter_max": 1.5, "step.initial": 1e-6, "step.min": 1e-7, "step.max": 1e-6});
   const live = await until(`s.busy && s.diagram.jobs && s.diagram.jobs.running === 2 && [...dv.points.lv].includes(1)
     && [...dv.points.lv].includes(2) && s.diagram.jobs.jobs.every(j => j.points > 0)`, 'both jobs drawn live', 60000 * SLOW);
   const jobs = await S('s.diagram.jobs');
@@ -3448,11 +3448,11 @@ async function optionsCheck() {
   await until('!s.busy', 'settings back');
   await closeSettings();
   /* a panel opened from a menu item that had a form of its own sets the group's rows, checked all together */
-  await menuRun('equilibrium.configure', {max_iterations: 77});
+  await menuRun('equilibrium.configure', {'newton.max_iterations': 77});
   check('W616: the Equilibrium options panel applies what was typed, by the row\'s key', await until(`!s.busy && !s.optionsPanel`, 'applied'));
   await cdp.eval(`__xpp.openOptions('equilibria')`);
   await requireUntil(`s.optionsPanel?.group === 'equilibria' && s.optionValues.equilibria`, 'the equilibria panel again');
-  check('W616: and the core holds it', await S(`s.optionValues.equilibria.values.max_iterations === '77'`), JSON.stringify(await S('s.optionValues.equilibria')));
+  check('W616: and the core holds it', await S(`s.optionValues.equilibria.values['newton.max_iterations'] === '77'`), JSON.stringify(await S('s.optionValues.equilibria')));
   await key('Escape');
 }
 
@@ -3531,8 +3531,8 @@ async function dockCheck() {
 const AB_SCRIPT = `version: 4,
 model: "ab.odex",
 runs: [
-  { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["p0"], options: { step_size: 0.05, parameter_max: 1.5, follow_all_branches: false } },
-  { name: "back", kind: equilibrium, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"], options: { step_size: -0.05, parameter_min: 0, follow_all_branches: false } },
+  { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["p0"], options: { "step.initial": 0.05, "limits.parameter_max": 1.5, follow_all_branches: false } },
+  { name: "back", kind: equilibrium, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"], options: { "step.initial": -0.05, "limits.parameter_min": 0, follow_all_branches: false } },
 ]
 `;
 async function autoxScriptCheck(dir) {
@@ -7379,7 +7379,7 @@ async function jacobianOfferCheck(dir) {
   await until(`!s.busy && !s.ask && s.hello.file === 'w275root.odex'`, 'the autoX model opened');
   await menuRun('autox.open');
   await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
-  await cdp.eval(`__xpp.send({cmd: 'autox.configure_numerics', step_size: -0.1, max_step_size: 0.1, parameter_min: -0.5, parameter_max: 2, max_steps: 100})`);
+  await cdp.eval(`__xpp.send({cmd: 'autox.configure_numerics', "step.initial": -0.1, "step.max": 0.1, "limits.parameter_min": -0.5, "limits.parameter_max": 2, "limits.steps": 100})`);
   await until('!s.busy', 'autoX numerics');
   await cdp.eval(`__xpp.send({cmd: 'autox.configure_axes', plot_type: 'norm', variable: 'x', parameter1: 'a'})`);
   await until('!s.busy', 'autoX axes');

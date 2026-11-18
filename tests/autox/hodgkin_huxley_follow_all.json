@@ -16,14 +16,14 @@
       },
       "parameter": "I",
       "autox": {
-        "step_size": 1,
-        "min_step_size": 1e-07,
-        "max_step_size": 4,
-        "max_steps": 600,
-        "output_every": 100,
-        "parameter_min": -10,
-        "parameter_max": 200,
-        "mesh_intervals": 30,
+        "step.initial": 1,
+        "step.min": 1e-07,
+        "step.max": 4,
+        "limits.steps": 600,
+        "output.every": 100,
+        "limits.parameter_min": -10,
+        "limits.parameter_max": 200,
+        "mesh.intervals": 30,
         "max_branch_switches": 0,
         "follow_all_branches": true
       }

@@ -14,5 +14,5 @@ an[j] = bend*sin(x[j])+an[j-1] for j in 2..20
 options {
   animation: "fish.anix",
   integration: { state_limit: 1000, total_time: 50 },
-  equilibria: { search_limit: 1000 },
+  equilibria: { newton.search_limit: 1000 },
 }

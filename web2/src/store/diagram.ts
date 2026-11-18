@@ -171,10 +171,10 @@ export interface AutoxStab {
 
 /** `autoxinfo` `stop` (T23): why the run's last branch ended */
 export interface AutoxStop {
-  /** parameter_min, parameter_max, norm_min, norm_max, max_steps, user, mark, noconv, noconv-fixed, noconv-min,
+  /** limits.parameter_min, limits.parameter_max, limits.norm_min, limits.norm_max, limits.steps, user, mark, noconv, noconv-fixed, noconv-min,
       noconv-switch-fixed, noconv-switch-min, jacobian (docs/protocol.md) */
   why: string;
-  /** in words, to follow "Stopped: " ("parameter iapp reached parameter_max (0.45)") */
+  /** in words, to follow "Stopped: " ("parameter iapp reached limits.parameter_max (0.45)") */
   text: string;
   /** autoX's branch and point number of the end */
   br: number;

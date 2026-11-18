@@ -23,7 +23,7 @@ namespace xpp {
 namespace {
 
 const char *const keys[AUTOX_STOP_N] = {
-    "", "parameter_min", "parameter_max", "norm_min", "norm_max", "max_steps", "user", "mark",
+    "", "limits.parameter_min", "limits.parameter_max", "limits.norm_min", "limits.norm_max", "limits.steps", "user", "mark",
     "noconv", "noconv-fixed", "noconv-min", "noconv-switch-fixed", "noconv-switch-min", "jacobian",
     "period_unbounded", "snic", "homoclinic", "heteroclinic", "hopf_end", "branch_closed",
 };
@@ -45,7 +45,7 @@ std::string num(double v) { return std::isfinite(v) ? xpp::format("{:g}", v) : s
 std::string newton(const AutoxNoConvergence &nc)
 {
     if (nc.itnw <= 0) return "";
-    return "; max_newton_iterations " + std::to_string(nc.itnw) + ", parameter_tolerance " + num(nc.epsl) + ", state_tolerance " + num(nc.epsu);
+    return "; newton.max_iterations " + std::to_string(nc.itnw) + ", newton.parameter_tolerance " + num(nc.epsl) + ", newton.state_tolerance " + num(nc.epsu);
 }
 
 /* the linear system the last Newton step solved was singular */
@@ -62,19 +62,19 @@ std::string describe(const AutoxParts &s, const AutoxStop &st, int why, const Au
     switch (why) {
     case AUTOX_STOP_PAR_MIN:
         value = at.par, limit = at.rl0;
-        return par_name(s, at.ipar) + " reached parameter_min (" + num(at.rl0) + ")";
+        return par_name(s, at.ipar) + " reached limits.parameter_min (" + num(at.rl0) + ")";
     case AUTOX_STOP_PAR_MAX:
         value = at.par, limit = at.rl1;
-        return par_name(s, at.ipar) + " reached parameter_max (" + num(at.rl1) + ")";
+        return par_name(s, at.ipar) + " reached limits.parameter_max (" + num(at.rl1) + ")";
     case AUTOX_STOP_NORM_MIN:
         value = at.norm, limit = at.a0;
-        return "the norm reached norm_min (" + num(at.a0) + ")";
+        return "the norm reached limits.norm_min (" + num(at.a0) + ")";
     case AUTOX_STOP_NORM_MAX:
         value = at.norm, limit = at.a1;
-        return "the norm reached norm_max (" + num(at.a1) + ")";
+        return "the norm reached limits.norm_max (" + num(at.a1) + ")";
     case AUTOX_STOP_NPTS:
         value = static_cast<double>(at.pt), limit = static_cast<double>(at.nmx);
-        return "the branch reached max_steps (" + std::to_string(at.nmx) + ")";
+        return "the branch reached limits.steps (" + std::to_string(at.nmx) + ")";
     case AUTOX_STOP_USER:
         return "by the user (Stop)";
     case AUTOX_STOP_MARK:
@@ -82,18 +82,18 @@ std::string describe(const AutoxParts &s, const AutoxStop &st, int why, const Au
         return par_name(s, at.ipar) + " reached a Mark value set to stop (" + num(at.par) + ")";
     case AUTOX_STOP_NOCONV_FIXED:
         value = st.noconv.ds;
-        return "no convergence with a fixed step size (step_adapt_every 0" + newton(st.noconv) + ")" + singular(st.noconv);
+        return "no convergence with a fixed step size (step.adapt_every 0" + newton(st.noconv) + ")" + singular(st.noconv);
     case AUTOX_STOP_NOCONV_MIN:
         value = st.noconv.ds, limit = st.noconv.dsmin;
-        return "no convergence even at the smallest step (min_step_size " + num(st.noconv.dsmin) + newton(st.noconv) + ")" +
+        return "no convergence even at the smallest step (step.min " + num(st.noconv.dsmin) + newton(st.noconv) + ")" +
                singular(st.noconv);
     case AUTOX_STOP_NOCONV_SWITCH_FIXED:
         value = st.noconv.ds;
-        return "no convergence switching branches with a fixed step size (step_adapt_every 0" + newton(st.noconv) + ")" +
+        return "no convergence switching branches with a fixed step size (step.adapt_every 0" + newton(st.noconv) + ")" +
                singular(st.noconv);
     case AUTOX_STOP_NOCONV_SWITCH_MIN:
         value = st.noconv.ds, limit = st.noconv.dsmin;
-        return "no convergence switching branches, even at the smallest step (min_step_size " + num(st.noconv.dsmin) +
+        return "no convergence switching branches, even at the smallest step (step.min " + num(st.noconv.dsmin) +
                newton(st.noconv) + ")" + singular(st.noconv);
     case AUTOX_STOP_NOCONV:
         return "no convergence";

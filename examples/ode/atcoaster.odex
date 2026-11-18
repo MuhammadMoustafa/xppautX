@@ -42,7 +42,7 @@ set "Pluto" { g: 0.42 }
 options {
   animation: "atcoaster.anix",
   integration: { state_limit: 100000, dt: .05, method: cvode, step.relative_tolerance: 1e-10, step.absolute_tolerance: 1e-10, total_time: 50 },
-  equilibria: { search_limit: 100000 },
+  equilibria: { newton.search_limit: 100000 },
   plot: { curves: [ { x: X, y: Z } ], axes.x_min: -3.25, axes.x_max: 3.25, axes.y_min: -3.25, axes.y_max: 3.25 },
 }
 

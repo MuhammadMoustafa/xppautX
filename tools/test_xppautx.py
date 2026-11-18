@@ -15,8 +15,8 @@ from xppautx.arrays import Session, table
 BINARY = os.path.abspath(os.environ.get('XPPAUTX_BIN', './xppautX'))
 AB = os.path.join(ROOT, 'examples', 'tstauto', 'ab.odex')
 # autoX's options for the ab model's first branch (tests/autox/tstauto_ab.json)
-AB_RUN = dict(step_size=0.02, min_step_size=1e-5, max_step_size=0.02, max_steps=100, output_every=20, parameter_min=0, parameter_max=1.5,
-              mesh_intervals=15, max_branch_switches=0, follow_all_branches=False)
+AB_RUN = dict(**{'step.initial': 0.02}, **{'step.min': 1e-5}, **{'step.max': 0.02}, **{'limits.steps': 100}, **{'output.every': 20}, **{'limits.parameter_min': 0}, **{'limits.parameter_max': 1.5},
+              **{'mesh.intervals': 15}, max_branch_switches=0, follow_all_branches=False)
 
 
 class Table(unittest.TestCase):

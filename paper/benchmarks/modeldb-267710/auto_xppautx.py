@@ -76,7 +76,7 @@ def _measure(s, threads, jacobian, limit):
         if key == 'p':
             k, x = rightmost_hb(out['steady']['labels'])
             _ok(step(s, cmd='autox.grab', type='hopf', index=k)[0], 'grab')
-            numerics(s, step_size=-PERIODIC_DS)
+            numerics(s, **{'step.initial': -PERIODIC_DS})
             out['grabbed'] = {'index': k, 'ampPar': x}
         wall, cpu, labs, pts = run(s, key, limit)
         out[name] = {'wall': wall, 'cpu': cpu, 'labels': [(pt, sym, x) for _, pt, _, sym, x, _ in labs if sym],

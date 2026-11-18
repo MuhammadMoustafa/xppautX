@@ -20,7 +20,7 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 - **Store every** (`store_every`): Keep one step of every this many in the data table. From an XPPAUT .ode: NOUT, NJMP.
 - **Store from** (`store_from`): Keep no data before this time; the run before it is a transient. From an XPPAUT .ode: TRANS.
 - **Storage precision** (`storage_precision`): What the data table keeps each value as: a single-precision float as XPPAUT does, or the integrator's double.
-- **State limit** (`state_limit`): A state beyond plus or minus this value stops the run. From an XPPAUT .ode: BOUND (which also sets equilibria.search_limit): the one value is both limits.
+- **State limit** (`state_limit`): A state beyond plus or minus this value stops the run. From an XPPAUT .ode: BOUND (which also sets equilibria.newton.search_limit): the one value is both limits.
 - **Stop at limit** (`stop_at_limit`): Whether a state beyond the state limit stops the run, or only marks it.
 - **Method** (`method`): The integration method. From an XPPAUT .ode: METH, METHOD.
 - **Subsystem split** (`subsystem_split`): What splits the model into independent subsystems: its equations alone, or also the run (a Poincare section or stop).
@@ -85,19 +85,25 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 
 ## Equilibria
 
-- **Max iterations** (`max_iterations`): The most Newton iterations the search for an equilibrium makes. From an XPPAUT .ode: NEWT_ITER.
-- **Newton tolerance** (`newton_tolerance`): The tolerance the search for an equilibrium stops at. From an XPPAUT .ode: NEWT_TOL.
-- **Jacobian step** (`jacobian_step`): The step that differences the Jacobian of the equilibrium search. From an XPPAUT .ode: JAC_EPS.
-- **Search limit** (`search_limit`): A state beyond plus or minus this value ends the equilibrium search. From an XPPAUT .ode: BOUND (which also sets integration.state_limit): the one value is both limits.
 - **Print eigenvalues** (`print_eigenvalues`): Whether the eigenvalues of an equilibrium are printed.
 - **Draw invariant sets** (`draw_invariant_sets`): Whether the stable and unstable sets of a saddle are drawn.
 - **Draw strong sets** (`draw_strong_sets`): Whether the strong stable and unstable sets are drawn.
-- **Range parameter** (`range_parameter`): The parameter Range equilibria varies.
-- **Range steps** (`range_steps`): How many steps Range equilibria makes between its ends.
-- **Range low** (`range_low`): The value Range equilibria starts at.
-- **Range high** (`range_high`): The value Range equilibria ends at.
-- **Range shoot** (`range_shoot`): Whether Range equilibria finds each equilibrium by shooting from the last one.
-- **Range stability column** (`range_stability_column`): The data column Range equilibria stores each equilibrium's stability in.
+
+### Newton
+
+- **Max iterations** (`newton.max_iterations`): The most Newton iterations the search for an equilibrium makes. From an XPPAUT .ode: NEWT_ITER.
+- **Tolerance** (`newton.tolerance`): The tolerance the search for an equilibrium stops at. From an XPPAUT .ode: NEWT_TOL.
+- **Jacobian step** (`newton.jacobian_step`): The step that differences the Jacobian of the equilibrium search. From an XPPAUT .ode: JAC_EPS.
+- **Search limit** (`newton.search_limit`): A state beyond plus or minus this value ends the equilibrium search. From an XPPAUT .ode: BOUND (which also sets integration.state_limit): the one value is both limits.
+
+### Range
+
+- **Parameter** (`range.parameter`): The parameter Range equilibria varies.
+- **Steps** (`range.steps`): How many steps Range equilibria makes between its ends.
+- **Low** (`range.low`): The value Range equilibria starts at.
+- **High** (`range.high`): The value Range equilibria ends at.
+- **Shoot** (`range.shoot`): Whether Range equilibria finds each equilibrium by shooting from the last one.
+- **Stability column** (`range.stability_column`): The data column Range equilibria stores each equilibrium's stability in.
 
 ## Sweep
 
@@ -115,31 +121,46 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 
 ## Continuation
 
-- **Mesh intervals** (`mesh_intervals`): How many mesh intervals a periodic orbit or boundary value solution has. From an XPPAUT .ode: NTST.
-- **Max steps** (`max_steps`): The most continuation steps a run takes before it stops. From an XPPAUT .ode: NMAX.
-- **Output every** (`output_every`): A diagram point is kept every this many steps. From an XPPAUT .ode: NPR.
-- **Collocation points** (`collocation_points`): The collocation points in each mesh interval. From an XPPAUT .ode: NCOL.
-- **Min step size** (`min_step_size`): The smallest continuation step. From an XPPAUT .ode: DSMIN.
-- **Max step size** (`max_step_size`): The largest continuation step. From an XPPAUT .ode: DSMAX.
-- **Step size** (`step_size`): The first continuation step. From an XPPAUT .ode: DS.
-- **Parameter min** (`parameter_min`): A continuation run stops when the parameter falls below this. From an XPPAUT .ode: PARMIN.
-- **Parameter max** (`parameter_max`): A continuation run stops when the parameter rises above this. From an XPPAUT .ode: PARMAX.
-- **Norm min** (`norm_min`): A continuation run stops when the solution's norm falls below this. From an XPPAUT .ode: NORMMIN.
-- **Norm max** (`norm_max`): A continuation run stops when the solution's norm rises above this. From an XPPAUT .ode: NORMMAX.
-- **Parameter tolerance** (`parameter_tolerance`): The tolerance the parameter converges to in the Newton iteration. From an XPPAUT .ode: EPSL.
-- **State tolerance** (`state_tolerance`): The tolerance the state converges to in the Newton iteration. From an XPPAUT .ode: EPSU.
-- **Special point tolerance** (`special_point_tolerance`): The tolerance the special points of a branch are located to. From an XPPAUT .ode: EPSS.
-- **Mesh adapt every** (`mesh_adapt_every`): The mesh is adapted every this many steps; 0 keeps it as it is.
 - **Max branch switches** (`max_branch_switches`): The most times a run switches to another branch.
-- **Switch one direction** (`switch_one_direction`): Whether a branch switch continues in one direction only.
-- **Output detail** (`output_detail`): How much of each point the run writes to the Output.
-- **Max location iterations** (`max_location_iterations`): The most iterations that locate a special point.
-- **Max newton iterations** (`max_newton_iterations`): The most Newton iterations in one continuation step.
-- **Full newton after** (`full_newton_after`): A full Newton iteration is taken after this many steps; before it the Jacobian is kept.
-- **Step adapt every** (`step_adapt_every`): The step size is adapted every this many steps.
+- **One way branch switch** (`one_way_branch_switch`): A branch autoX switches to is followed from the switch point in its starting step's direction only, not both ways.
 - **Suppress branch points** (`suppress_branch_points`): Whether branch points are left out of the diagram.
 - **Follow all branches** (`follow_all_branches`): Whether a run follows every branch it finds, not only the one it started on.
 - **Special points** (`special_points`): The codimension-two points a run detects: a comma-separated list of their names, empty for none.
+
+### Limits
+
+- **Steps** (`limits.steps`): The most continuation steps a run takes before it stops. From an XPPAUT .ode: NMAX.
+- **Parameter min** (`limits.parameter_min`): A continuation run stops when the parameter falls below this. From an XPPAUT .ode: PARMIN.
+- **Parameter max** (`limits.parameter_max`): A continuation run stops when the parameter rises above this. From an XPPAUT .ode: PARMAX.
+- **Norm min** (`limits.norm_min`): A continuation run stops when the solution's norm falls below this. From an XPPAUT .ode: NORMMIN.
+- **Norm max** (`limits.norm_max`): A continuation run stops when the solution's norm rises above this. From an XPPAUT .ode: NORMMAX.
+
+### Step
+
+- **Initial** (`step.initial`): The first continuation step. From an XPPAUT .ode: DS.
+- **Min** (`step.min`): The smallest continuation step. From an XPPAUT .ode: DSMIN.
+- **Max** (`step.max`): The largest continuation step. From an XPPAUT .ode: DSMAX.
+- **Adapt every** (`step.adapt_every`): The step size is adapted every this many steps.
+
+### Mesh
+
+- **Intervals** (`mesh.intervals`): How many mesh intervals a periodic orbit or boundary value solution has. From an XPPAUT .ode: NTST.
+- **Collocation points** (`mesh.collocation_points`): The collocation points in each mesh interval. From an XPPAUT .ode: NCOL.
+- **Adapt every** (`mesh.adapt_every`): The mesh is adapted every this many steps; 0 keeps it as it is.
+
+### Newton
+
+- **Parameter tolerance** (`newton.parameter_tolerance`): The tolerance the parameter converges to in the Newton iteration. From an XPPAUT .ode: EPSL.
+- **State tolerance** (`newton.state_tolerance`): The tolerance the state converges to in the Newton iteration. From an XPPAUT .ode: EPSU.
+- **Special point tolerance** (`newton.special_point_tolerance`): The tolerance the special points of a branch are located to. From an XPPAUT .ode: EPSS.
+- **Max iterations** (`newton.max_iterations`): The most Newton iterations in one continuation step.
+- **Max location iterations** (`newton.max_location_iterations`): The most iterations that locate a special point.
+- **Full after steps** (`newton.full_after_steps`): A full Newton iteration is taken after this many steps; before it the Jacobian is kept.
+
+### Output
+
+- **Every** (`output.every`): A diagram point is kept every this many steps. From an XPPAUT .ode: NPR.
+- **Detail** (`output.detail`): How much of each point the run writes to the Output.
 
 ## Diagram
 

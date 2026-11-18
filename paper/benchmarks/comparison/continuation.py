@@ -80,8 +80,8 @@ def workloads(a):
     py = models / 'PY_S1Bf.ode'
     shutil.copy2(BENCH / 'auto/models/PY_S1Bf_bench.ode', py)
     convert(a, py)
-    eq = dict(step_size=-1, min_step_size=1e-4, max_step_size=50, max_steps=5000, output_every=5000, parameter_min=200, parameter_max=20001,
-              mesh_intervals=100, collocation_points=4, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4, max_branch_switches=5)
+    eq = dict(**{'step.initial': -1}, **{'step.min': 1e-4}, **{'step.max': 50}, **{'limits.steps': 5000}, **{'output.every': 5000}, **{'limits.parameter_min': 200}, **{'limits.parameter_max': 20001},
+              **{'mesh.intervals': 100}, **{'mesh.collocation_points': 4}, **{'newton.parameter_tolerance': 1e-4}, **{'newton.state_tolerance': 1e-4}, **{'newton.special_point_tolerance': 1e-4}, max_branch_switches=5)
     d = comparison.codes_of_types(dict(model=str(py.with_suffix('.odex')), reason='P1/E1: W269 PY_S1Bf, freshly converted by final tip', runs=[
         dict(name='steady', kind='equilibrium', start=dict(state='current'), parameter='Iapp', autox=eq),
         dict(name='periodic', kind='periodic', start=dict(run='steady', type='hopf', index=1), parameter='Iapp', autox=copy.deepcopy(eq))]))
@@ -102,13 +102,13 @@ def workloads(a):
     d['differences'] = [dict(reference=suffix, run='periodic', side='reference', type='BP', index=1, cause=p1_cause) for suffix in ('.xppaut', '.auto07p')]
     fixed = copy.deepcopy(d)
     for r in fixed['runs']:
-        r['autox'].update(min_step_size=abs(r['autox']['step_size']), max_step_size=abs(r['autox']['step_size']), step_adapt_every=0, max_steps=FIXED_POINT_BUDGET)
+        r['autox'].update(**{'step.min': abs(r['autox']['step.initial'])}, **{'step.max': abs(r['autox']['step.initial'])}, **{'step.adapt_every': 0}, **{'limits.steps': FIXED_POINT_BUDGET})
     result = [('P1', d, ['periodic'], True), ('P1-fixed', fixed, ['periodic'], True), ('E1', closure(d, ['steady']), ['steady'], True)]
     mdb = description('ode_motoneuron6c')
     p2 = closure(mdb, ['periodic'])
     # A common parameter-bound window on the ascending cycles, before the
     # legacy spurious BP/failure near .6211; it is not an NMX comparison.
-    p2['runs'][-1]['autox'].update(parameter_max=.62, max_steps=100000)
+    p2['runs'][-1]['autox'].update(**{'limits.parameter_max': .62}, **{'limits.steps': 100000})
     result += [('P2', p2, ['periodic'], True), ('E2', closure(mdb, ['steady']), ['steady'], True)]
     for n in (50, 100, 200, 350):
         model = models / ('E3-%d.ode' % n)
@@ -124,7 +124,7 @@ def workloads(a):
         r['parameters'] = ['CaDen_Max', 'ampPar']
         # DS is arclength of the extended system, not a density increment.
         # Preserve W431's +/-0.1 and DSMAX .5; bound the density in both directions.
-        r['autox'].update(parameter_min=0, parameter_max=.000336)
+        r['autox'].update(**{'limits.parameter_min': 0}, **{'limits.parameter_max': .000336})
     # The former traces belong to another parameter order/window. Fresh
     # discrepancies are reported by the pilot, never silently transferred;
     # W456 traced the one this window's pilot reported.
@@ -148,12 +148,12 @@ def workloads(a):
         result.append((name, d, [r['name'] for r in d['runs']], True))
     if a.check:
         restart = copy.deepcopy(next(d for name, d, _, _ in result if name == 'E3-50'))
-        restart['runs'][0]['autox']['max_steps'] = SMOKE_POINTS
+        restart['runs'][0]['autox']['limits.steps'] = SMOKE_POINTS
         restart = repeats_description(restart, ['steady'], 2)
         result.append(('V1-E1-restart', restart, [r['name'] for r in restart['runs']], False))
         fixed = description('tstauto_simplefold')
         for r in fixed['runs']:
-            r['autox'].update(min_step_size=abs(r['autox']['step_size']), max_step_size=abs(r['autox']['step_size']), step_adapt_every=0)
+            r['autox'].update(**{'step.min': abs(r['autox']['step.initial'])}, **{'step.max': abs(r['autox']['step.initial'])}, **{'step.adapt_every': 0})
         result.append(('V1-fixed', fixed, ['steady'], False))
     if a.list:
         for name, *_ in result:
@@ -185,7 +185,7 @@ def workloads(a):
                     r['start'].pop('step', None)
             if name.startswith(('V1-', 'E3-')):
                 for r in d['runs']:
-                    r['autox']['max_steps'] = SMOKE_POINTS
+                    r['autox']['limits.steps'] = SMOKE_POINTS
             d.pop('differences', None)
         if name in ('P1', 'P1-fixed', 'E1'):
             o = Odex(REPO / d['model'])
@@ -265,7 +265,7 @@ def gate(name, d, native_result, refs):
             endpoints += [(suffix, run['curve'][-1][0]) for suffix, ref in refs.items() for run in ref['runs']
                           if run['name'] == r['name'] and 'unavailable' not in run and run.get('curve')]
             for program, value in endpoints:
-                if a['parameter_min'] < value < a['parameter_max']:
+                if a['limits.parameter_min'] < value < a['limits.parameter_max']:
                     diffs.append('%s %s/%s ended inside the parameter bounds at %s; not the requested bounded workload' % (name, program, r['name'], value))
     unexpected = [u for u in unavailable if not (u['program'] == '.xppaut' and u['run'] in ('lpc_soma', 'lpc_dend'))]
     return dict(passed=not diffs and not unexpected, differences=diffs, measures=measures, unavailable=unavailable,
@@ -303,12 +303,12 @@ def tightened(d):
     out.pop('differences', None)
     for r in out['runs']:
         a = r['autox']
-        for k in ('parameter_tolerance', 'state_tolerance', 'special_point_tolerance'):
+        for k in ('newton.parameter_tolerance', 'newton.state_tolerance', 'newton.special_point_tolerance'):
             a[k] = a.get(k, reference.DEFAULTS[reference.AUTO_NAMES[k]]) / TIGHTENING
-        for k in ('step_size', 'min_step_size', 'max_step_size'):
+        for k in ('step.initial', 'step.min', 'step.max'):
             a[k] /= REFINEMENT
-        a['max_steps'] *= REFINEMENT
-        a['max_newton_iterations'] = max(a.get('max_newton_iterations', 0), CONVERGED_NEWTON)
+        a['limits.steps'] *= REFINEMENT
+        a['newton.max_iterations'] = max(a.get('newton.max_iterations', 0), CONVERGED_NEWTON)
     return out
 
 
@@ -827,15 +827,15 @@ def plan_reuse(a, name, mode, d, targets, timed, initial, start, phase, pilots_o
 def sized_t2(d, targets, fastest):
     """T2 grows its point count by untimed pilots: (the description at T2_SIZED_POINTS, its old points) when our pilot took
     `fastest` seconds, less than MIN_WINDOW, else (None, old points)."""
-    old = d['runs'][-1]['autox']['max_steps']
+    old = d['runs'][-1]['autox']['limits.steps']
     if fastest >= MIN_WINDOW or old >= T2_SIZED_POINTS:
         return None, old
     larger, new = copy.deepcopy(d), T2_SIZED_POINTS
     # Keep both physical parameter windows fixed while taking more steps.
     for r in larger['runs']:
         if r['name'] in targets:
-            r['autox']['max_steps'] = new
-            for key in ('step_size', 'max_step_size', 'min_step_size'):
+            r['autox']['limits.steps'] = new
+            for key in ('step.initial', 'step.max', 'step.min'):
                 r['autox'][key] *= old / new
     # AUTO-07p's spurious GH (finding 2) come from the Newton residual, so their count follows the step: at the doubled
     # points and halved steps it labels four, not five (series 22e, 2026-10-22); the traced entries follow it

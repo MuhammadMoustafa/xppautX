@@ -73,16 +73,16 @@ def fnum(v):
 FIXED = dict(IAD=3, IID=2, ITMX=8, ITNW=7, NWTN=3, IADS=1, ILP=1, ISW=1, A0=0, A1=1000)
 DEFAULTS = dict(ncol=4, epsl=1e-4, epsu=1e-4, epss=1e-4, mxbf=5)
 # a description's option (xppautX's name, W531) to AUTO's own constant it is given as
-AUTO_NAMES = dict(mesh_intervals='ntst', max_steps='nmax', output_every='npr', collocation_points='ncol', step_size='ds',
-                  min_step_size='dsmin', max_step_size='dsmax', parameter_min='parmin', parameter_max='parmax',
-                  parameter_tolerance='epsl', state_tolerance='epsu', special_point_tolerance='epss',
-                  step_adapt_every='iads', max_branch_switches='mxbf')
+AUTO_NAMES = dict(**{'mesh.intervals': 'ntst'}, **{'limits.steps': 'nmax'}, **{'output.every': 'npr'}, **{'mesh.collocation_points': 'ncol'}, **{'step.initial': 'ds'},
+                  **{'step.min': 'dsmin'}, **{'step.max': 'dsmax'}, **{'limits.parameter_min': 'parmin'}, **{'limits.parameter_max': 'parmax'},
+                  **{'newton.parameter_tolerance': 'epsl'}, **{'newton.state_tolerance': 'epsu'}, **{'newton.special_point_tolerance': 'epss'},
+                  **{'step.adapt_every': 'iads'}, max_branch_switches='mxbf')
 
 
 def auto_constants(r):
-    """The run's options under AUTO's constants (MXBF's sign is the description's switch_one_direction)."""
+    """The run's options under AUTO's constants (MXBF's sign is the description's one_way_branch_switch)."""
     a = {**DEFAULTS, **{AUTO_NAMES[k]: v for k, v in r['autox'].items() if k in AUTO_NAMES}}
-    if r['autox'].get('switch_one_direction'):
+    if r['autox'].get('one_way_branch_switch'):
         a['mxbf'] = -a['mxbf']
     return a
 ISP = {'equilibrium': 1, 'periodic': 2, 'bvp': 2, 'homoclinic': 0, 'heteroclinic': 0}

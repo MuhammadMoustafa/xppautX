@@ -10,5 +10,5 @@ v' = (a+b*cos(x))*sin(y)
 init x = -30, y = -50, u = 1, v = 0.5
 options {
   integration: { total_time: 8000, dt: .25, state_limit: 100000, method: qualrk },
-  equilibria: { search_limit: 100000 },
+  equilibria: { newton.search_limit: 100000 },
 }

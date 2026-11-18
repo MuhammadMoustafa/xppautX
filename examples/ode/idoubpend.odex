@@ -10,7 +10,7 @@ par L1 = 4, L2 = 1, m1 = 2, m2 = 1, g = 9.8, mu = 0.01
 options {
   animation: "idoubpend.anix",
   integration: { total_time: 200, state_limit: 100000 },
-  equilibria: { search_limit: 100000 },
+  equilibria: { newton.search_limit: 100000 },
 }
 init t1 = 1.5, t2 = 0
 fun th1(x, y) = atan2(x-0.5, 0.5-y)

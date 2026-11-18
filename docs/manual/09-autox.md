@@ -17,18 +17,18 @@ script does the same. Scripts use `window.rename`, `window.select` and
 `window.close` with the same quoted name.
 
 Before a run, autoX checks the start. Initial conditions for a steady-state
-run whose largest equation residual is above `state_tolerance` are first refined by
+run whose largest equation residual is above `newton.state_tolerance` are first refined by
 Newton's method, with the **Sing pts** options, at the run's parameter
 values; the run starts from the converged point and the log says how the
 residual changed. Only when Newton does not converge is the run refused:
 the error names the worst equation, the residual and the Newton options,
 and suggests **Sing pts** or integration to a steady state. Labelled
 restarts and orbit starts are exempt from that test.
-The first parameter must lie within **`parameter_min`/`parameter_max`** (the second parameter of
+The first parameter must lie within **`limits.parameter_min`/`limits.parameter_max`** (the second parameter of
 a two-parameter run is not bounded, as in AUTO-07p). At a primary parameter
-bound, **`step_size`** must point inward. The two parameters must differ. A periodic restart needs a
+bound, **`step.initial`** must point inward. The two parameters must differ. A periodic restart needs a
 Hopf point or a periodic orbit; two-parameter starts need a supported special
-point. The start norm must lie within **`norm_min`/`norm_max`**, whose defaults are
+point. The start norm must lie within **`limits.norm_min`/`limits.norm_max`**, whose defaults are
 0 and 1e100. Tighten these to end a branch when its norm leaves your interval.
 Errors name the value and bound and how to fix the start.
 
@@ -100,7 +100,7 @@ it back. It has:
 - any number of **views** of the one diagram (see "Views of the diagram"
   below), side by side;
 - once a run ends, the status strip says **why it stopped**, in words:
-  "Stopped: parameter iapp reached parameter_max (0.5)" (see "Why a branch
+  "Stopped: parameter iapp reached limits.parameter_max (0.5)" (see "Why a branch
   stopped" below), and autoX's Output gets the same as a line for every
   branch that ends ("Branch 1 stopped at point 49: ...");
 - the diagram's **key** lists the label types it has, spelled out with its label and mark (End of branch EP,
@@ -114,8 +114,8 @@ it back. It has:
   names its type; the point where the last run ended also says why;
 - an **Output** panel with autoX's printed table (`xpp_log_autox()`, always
   written in the window and in browser mode): the header, a row for every
-  labelled point (the special ones and the plain ones Numerics' `output_every`
-  prints every `output_every` points) and why the branch stopped, one line each;
+  labelled point (the special ones and the plain ones Numerics' `output.every`
+  prints every `output.every` points) and why the branch stopped, one line each;
 - Numerics as a dialog in place of XPPAUT's Numerics window: every field
   is named by its option ("Max steps"), with autoX's own name (NMX) and its
   help in the tooltip, and a message beside it when its value is not one
@@ -272,27 +272,27 @@ a run:
 
 | Option (autoX's name) | What it does | Valid values |
 |---|---|---|
-| `mesh_intervals` (NTST) | mesh intervals of a periodic orbit or boundary value solution; raise it when a periodic branch looks wrong or does not converge (doubled when following a period doubling) | whole number, at least 1 |
-| `max_steps` (NMX) | the most steps a branch may take; it ends (EP) at this many points | whole number, at least 1 |
-| `output_every` (NPR) | label and save the whole solution every this many points, besides the special points | whole number, at least 1 |
-| `collocation_points` (NCOL) | collocation points per mesh interval | whole number, 2 to 7 (4 is usual) |
-| `step_size` (DS) | the first step; its sign is the direction the main parameter goes | not 0, from `min_step_size` to `max_step_size` in size |
-| `min_step_size` (DSMIN) | the smallest step: a point that does not converge is retried with half the step until it would go below this, then the branch ends (MX) | above 0, at most `max_step_size` |
-| `max_step_size` (DSMAX) | the largest step; too large jumps over folds and Hopf points | above 0 |
-| `parameter_min`, `parameter_max` (RL0, RL1) | the main parameter's range: a branch that leaves it ends (EP) | `parameter_min` below `parameter_max` |
-| `norm_min`, `norm_max` (A0, A1) | the norm's range: a branch whose norm leaves it ends (EP) | `norm_min` below `norm_max` |
-| `parameter_tolerance`, `state_tolerance` (EPSL, EPSU) | Newton's relative convergence tolerances for the parameters and the solution | above 0, often 1e-4 to 1e-7 |
-| `special_point_tolerance` (EPSS) | how closely special points are located; usually 100 to 1000 times the two tolerances | above 0 |
-| `mesh_adapt_every` (IAD) | adapt a periodic orbit's mesh every this many steps; 0 keeps it fixed | whole number, 0 or more (3 is usual) |
+| `mesh.intervals` (NTST) | mesh intervals of a periodic orbit or boundary value solution; raise it when a periodic branch looks wrong or does not converge (doubled when following a period doubling) | whole number, at least 1 |
+| `limits.steps` (NMX) | the most steps a branch may take; it ends (EP) at this many points | whole number, at least 1 |
+| `output.every` (NPR) | label and save the whole solution every this many points, besides the special points | whole number, at least 1 |
+| `mesh.collocation_points` (NCOL) | collocation points per mesh interval | whole number, 2 to 7 (4 is usual) |
+| `step.initial` (DS) | the first step; its sign is the direction the main parameter goes | not 0, from `step.min` to `step.max` in size |
+| `step.min` (DSMIN) | the smallest step: a point that does not converge is retried with half the step until it would go below this, then the branch ends (MX) | above 0, at most `step.max` |
+| `step.max` (DSMAX) | the largest step; too large jumps over folds and Hopf points | above 0 |
+| `limits.parameter_min`, `limits.parameter_max` (RL0, RL1) | the main parameter's range: a branch that leaves it ends (EP) | `limits.parameter_min` below `limits.parameter_max` |
+| `limits.norm_min`, `limits.norm_max` (A0, A1) | the norm's range: a branch whose norm leaves it ends (EP) | `limits.norm_min` below `limits.norm_max` |
+| `newton.parameter_tolerance`, `newton.state_tolerance` (EPSL, EPSU) | Newton's relative convergence tolerances for the parameters and the solution | above 0, often 1e-4 to 1e-7 |
+| `newton.special_point_tolerance` (EPSS) | how closely special points are located; usually 100 to 1000 times the two tolerances | above 0 |
+| `mesh.adapt_every` (IAD) | adapt a periodic orbit's mesh every this many steps; 0 keeps it fixed | whole number, 0 or more (3 is usual) |
 | `max_branch_switches` (MXBF) | steady states: at how many branch points autoX follows the other branch by itself; 0: none | whole number, 0 or more |
-| `switch_one_direction` (MXBF below 0) | the branches autoX switches to by itself are followed in one direction only (checked) or in both (unchecked) | boolean |
-| `output_detail` (IID) | how much autoX writes to its diagnostics (.d file): `none`, `little`, `normal` (the usual), `start_jacobian` (also the Jacobian and residuals of the start), `extensive`, `debugging` | one of the six names |
-| `max_location_iterations` (ITMX) | the most iterations of the secant search that locates a special point; a search that uses them up then halves its bracket until it is as narrow as `special_point_tolerance` says | whole number, at least 1 |
-| `max_newton_iterations` (ITNW) | the most Newton iterations for a point, before the step is halved (`step_adapt_every` above 0) or the branch ends | whole number, at least 1 |
-| `full_newton_after` (NWTN) | after this many iterations the Jacobian is kept (chord method) | whole number, at least 1 |
-| `step_adapt_every` (IADS) | adapt the step every this many steps; 0 keeps it at `step_size`, and a point that does not converge then ends the branch (MX) | whole number, 0 or more (1 is usual) |
+| `one_way_branch_switch` (MXBF below 0) | the branches autoX switches to by itself are followed in one direction only (checked) or in both (unchecked) | boolean |
+| `output.detail` (IID) | how much autoX writes to its diagnostics (.d file): `none`, `little`, `normal` (the usual), `start_jacobian` (also the Jacobian and residuals of the start), `extensive`, `debugging` | one of the six names |
+| `newton.max_location_iterations` (ITMX) | the most iterations of the secant search that locates a special point; a search that uses them up then halves its bracket until it is as narrow as `newton.special_point_tolerance` says | whole number, at least 1 |
+| `newton.max_iterations` (ITNW) | the most Newton iterations for a point, before the step is halved (`step.adapt_every` above 0) or the branch ends | whole number, at least 1 |
+| `newton.full_after_steps` (NWTN) | after this many iterations the Jacobian is kept (chord method) | whole number, at least 1 |
+| `step.adapt_every` (IADS) | adapt the step every this many steps; 0 keeps it at `step.initial`, and a point that does not converge then ends the branch (MX) | whole number, 0 or more (1 is usual) |
 | `suppress_branch_points` (SuppBP) | checked: do not look for branch points (and for periodic orbits no Floquet multipliers, period doublings or tori); unchecked: look for them | boolean checkbox |
-| `follow_all_branches` | checked (the default): a run from the current state, an equilibrium start or a Periodic start from an integrated orbit, continues in both directions, +`step_size` and -`step_size`, as two jobs at once, and every branch they find as one more (see "Following all the branches" below); unchecked: only the direction the sign of `step_size` gives, as XPPAUT does | boolean checkbox |
+| `follow_all_branches` | checked (the default): a run from the current state, an equilibrium start or a Periodic start from an integrated orbit, continues in both directions, +`step.initial` and -`step.initial`, as two jobs at once, and every branch they find as one more (see "Following all the branches" below); unchecked: only the direction the sign of `step.initial` gives, as XPPAUT does | boolean checkbox |
 
 Below the three groups the dialog has a fourth, **Computer**, with one choice,
 **Threads**: how many threads autoX uses to compute a periodic orbit or a
@@ -310,12 +310,12 @@ folder (as `threads: auto` or `threads: 4`), applies to every model
 and every run, and is not in a session file. A model that is interpreted, not
 compiled, or that uses random numbers or delays has its collocation computed on one thread
 whatever the count. Small collocation problems also compute on one thread:
-autoX uses workers once `dimension * dimension * mesh_intervals * collocation_points` reaches 1024. This avoids
+autoX uses workers once `dimension * dimension * mesh.intervals * mesh.collocation_points` reaches 1024. This avoids
 the overhead of workers on a small mesh; the selected setting and the
 results stay the same.
 
 The session keeps every autoX option in the `autox` group of its `session.odex`, with
-the names above (`max_steps`, `mesh_intervals`, ...); Reload keeps them too.
+the names above (`limits.steps`, `mesh.intervals`, ...); Reload keeps them too.
 The original window had the following items, under autoX's names:
 
 ### Mesh intervals (NTST)
@@ -332,7 +332,7 @@ Give complete info every this many steps.
 
 ### Step size (DS)
 
-This is the initial step size for the bifurcation calculation. *The sign of `step_size` tells autoX the direction to change the parameter.* Since stepsize is adaptive, `step_size` is just a “suggestion.”
+This is the initial step size for the bifurcation calculation. *The sign of `step.initial` tells autoX the direction to change the parameter.* Since stepsize is adaptive, `step.initial` is just a “suggestion.”
 
 ### Min step size (DSMIN)
 
@@ -358,7 +358,7 @@ The lower bound for the $`L_2`$ norm of the solution. If it is less than this th
 
 The upper bound for the $`L_2`$ norm of the solution. If it is greater than this the calculation will stop.
 
-For the present model, you should set `max_step_size` to be 0.05, `parameter_min` to -0.45 and `parameter_max` to 0.45.
+For the present model, you should set `step.max` to be 0.05, `limits.parameter_min` to -0.45 and `limits.parameter_max` to 0.45.
 
 ## User functions
 
@@ -388,24 +388,24 @@ The diagram,itself, has two different lines and two different circles. Stable fi
 ### Following all the branches
 
 With `follow_all_branches` checked, Run from the current state continues the start in both directions, and then every
-branch the jobs find: one job takes +`step_size`, the other -`step_size` (the size is `step_size`'s without its sign),
+branch the jobs find: one job takes +`step.initial`, the other -`step.initial` (the size is `step.initial`'s without its sign),
 and each of what they find is a job of its own. The jobs run at once on the computer's physical cores (Threads in the
 Numerics dialog is the total they share, each job taking at most four for its own collocation; with Threads at 1 they
 run one after another and give the same diagram), and the diagram is shown when all have ended. A model whose equations
 use function tables, networks or delays runs its jobs one after another on its own, the same result. A direction that
-leaves the parameter window at the start (the start at `parameter_min` with the step pointing below it) is not run and
+leaves the parameter window at the start (the start at `limits.parameter_min` with the step pointing below it) is not run and
 says so; when both leave it the run is refused as a single one is.
 
 What a job finds starts new jobs, each from the point's own solution:
 
 | a job finds | it starts |
 |---|---|
-| a branch point (BP) of equilibria | the new branch, two jobs: +`step_size` and -`step_size` |
+| a branch point (BP) of equilibria | the new branch, two jobs: +`step.initial` and -`step.initial` |
 | a branch point of cycles (BPC) | the new branch of cycles, the same two jobs |
 | a Hopf point (HB) of equilibria | its cycles, one job (the family has one way to leave the point) |
 | cycles that end at a Hopf point (HBE) or at a SNIC | the equilibria through that point, both directions |
 
-There is no limit on the depth or the number of jobs: each ends at `max_steps` or at the parameter window, a point is
+There is no limit on the depth or the number of jobs: each ends at `limits.steps` or at the parameter window, a point is
 never started twice (below), and Stop ends them all. A model with many symmetries has many branch points, and the jobs
 multiply with them. Nothing starts from a fold (LP), a period doubling (PD), a torus point (TR), the end of cycles at a
 homoclinic or heteroclinic orbit, or a point of a two-parameter curve: continuing a fold, a SNIC, a homoclinic or a
@@ -420,7 +420,7 @@ autoX's own switching there would follow each branch twice.
 
 A point is never started twice. A job is not started for a start that an earlier job already made: the same problem and
 direction at the same point (the same kind of point, the same parameters, every state within 8 times
-`special_point_tolerance` times 1 + its value, a Hopf point also its frequency). Two jobs reach one branch point from
+`newton.special_point_tolerance` times 1 + its value, a Hopf point also its frequency). Two jobs reach one branch point from
 its two branches and one job starts the branch; cycles that end at a Hopf point have made that Hopf point's cycles;
 a Hopf point or a fold found on a branch has made the equilibria through it. Two neighbouring Hopf points of one branch
 whose cycles grow towards each other (the two ends of one family, as Hodgkin and Huxley's equations have) are held: the
@@ -431,7 +431,7 @@ started. Which jobs run never changes the diagram: a job counts for the later on
 ended and found its jobs, so the diagram is the same at every thread count.
 
 The jobs are joined in the order a queue served one after another would run them: the two directions of the start (+
-first), then the jobs the first found, in the order of their points (a point's +`step_size` before its -`step_size`),
+first), then the jobs the first found, in the order of their points (a point's +`step.initial` before its -`step.initial`),
 then the jobs of those, and so on. The branches and labels are numbered in that order, whichever job finished first, a
 job that a job before it in that order made unnecessary (one that ran in vain, because it started before the other
 ended) is dropped, and the diagram, the `.b`, `.s` and `.d` files do not depend on the timing or on Threads. The
@@ -457,7 +457,7 @@ and a client shows how many jobs run, wait and have ended (the `autox.jobs` even
 
 ### Run, by command
 
-In web2 the Run button opens a dialog: the kind of continuation the point takes (the core's own table: which kinds a Hopf point, a fold, a periodic point or the current state starts), and, where the point has branches to switch to, a Switch branches box. It sends `autox.run`, which a script sends directly (docs/protocol.md): `{"cmd":"autox.run","kind":"periodic","type":"hopf","index":1}` continues from the first Hopf point, `{"cmd":"autox.run","kind":"equilibrium","replace_diagram":true}` begins from the current state, and the Numerics may be given by their names for that run only (`"max_steps": 500`, `"step_size": -0.02`: the sign is the direction). A kind the start point does not take is an error naming the kind and the point's type. A start that is not a steady state is refined by Newton's method, and the log names the equation of the largest residual.
+In web2 the Run button opens a dialog: the kind of continuation the point takes (the core's own table: which kinds a Hopf point, a fold, a periodic point or the current state starts), and, where the point has branches to switch to, a Switch branches box. It sends `autox.run`, which a script sends directly (docs/protocol.md): `{"cmd":"autox.run","kind":"periodic","type":"hopf","index":1}` continues from the first Hopf point, `{"cmd":"autox.run","kind":"equilibrium","replace_diagram":true}` begins from the current state, and the Numerics may be given by their names for that run only (`"limits.steps": 500`, `"step.initial": -0.02`: the sign is the direction). A kind the start point does not take is an error naming the kind and the point's type. A start that is not a steady state is refined by Newton's method, and the log names the equation of the largest residual.
 
 ### Scripts
 
@@ -469,15 +469,15 @@ model: "ab.odex",
 diagram: "branches.csv",
 runs: [
   { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["p0"],
-    options: { step_size: 0.02, parameter_max: 1.5, follow_all_branches: false } },
+    options: { step.initial: 0.02, limits.parameter_max: 1.5, follow_all_branches: false } },
   { name: "cycles", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"],
-    options: { step_size: 0.01 } },
+    options: { step.initial: 0.01 } },
   { name: "cycles back", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"],
-    options: { step_size: -0.01 } },
+    options: { step.initial: -0.01 } },
 ]
 ```
 
-Each run is one Run: `kind` says what is computed (equilibrium, periodic, two_parameter, fixed_period, bvp, homoclinic, heteroclinic) and `switch: true` makes it a branch switch; `parameters` names the one or two model parameters it continues in; `options` give the Numerics by their names for that run only, and the sign of `step_size` is the direction (going both ways is two runs). A run starts from the current state, settled first by `settle: { decimals, hold, maximum }` as Run > Run to steady state does, or from a point an earlier run stored: `start` names that run, a point type and the point's number among that run's points of the type (a label is given while a run goes, so a script cannot know it). A homoclinic or heteroclinic run gives `homoclinic: { unstable_dimension, stable_dimension, left_equilibrium, right_equilibrium }`. `diagram` is the file `--silent` writes.
+Each run is one Run: `kind` says what is computed (equilibrium, periodic, two_parameter, fixed_period, bvp, homoclinic, heteroclinic) and `switch: true` makes it a branch switch; `parameters` names the one or two model parameters it continues in; `options` give the Numerics by their names for that run only, and the sign of `step.initial` is the direction (going both ways is two runs). A run starts from the current state, settled first by `settle: { decimals, hold, maximum }` as Run > Run to steady state does, or from a point an earlier run stored: `start` names that run, a point type and the point's number among that run's points of the type (a label is given while a run goes, so a script cannot know it). A homoclinic or heteroclinic run gives `homoclinic: { unstable_dimension, stable_dimension, left_equilibrium, right_equilibrium }`. `diagram` is the file `--silent` writes.
 
 A script is read whole before anything is applied: a version, a run's kind, an option's name or value, a parameter the model lacks, a start from a run that does not come before it, each is an error naming the file, the line and the value, and nothing loads.
 
@@ -489,8 +489,8 @@ autoX evaluates the equations at a fixed t = 0, so a model whose equations use `
 
 ### End of branch (EP)
 
-Where a branch starts or ends normally: a limit (`parameter_min`/`parameter_max`,
-`norm_min`/`norm_max`), `max_steps`, Stop or a Mark value set to stop. The status strip
+Where a branch starts or ends normally: a limit (`limits.parameter_min`/`limits.parameter_max`,
+`limits.norm_min`/`limits.norm_max`), `limits.steps`, Stop or a Mark value set to stop. The status strip
 and Output say which (see "Why a branch stopped").
 
 ### No convergence (MX)
@@ -558,8 +558,8 @@ is at least twice the shortest period of the branch, and the orbit lingers
 (some point of it is a millionth of the orbit's fastest speed, |f(x)|, from
 standing still), it looks for the equilibria the orbit lingers near. Each
 slow stretch of the orbit gives one: Newton's method from its slowest point
-with Sing pts' options (`newton_tolerance`, `jacobian_step`,
-`search_limit`, `max_iterations`), and the eigenvalues of the Jacobian
+with Sing pts' options (`newton.tolerance`, `newton.jacobian_step`,
+`newton.search_limit`, `newton.max_iterations`), and the eigenvalues of the Jacobian
 there. Then the end is
 
 - a **SNIC** (saddle-node on invariant circle, mark SNIC) when the one
@@ -588,7 +588,7 @@ eigenvalues) at "X" = ..., "Y" = 0: point type homoclinic (HOC)"). A cycle
 that spends long on a slow stretch but never comes within a millionth of
 standing still (a model with a slow calcium variable, say) goes on.
 The end is as near as the first point whose orbit is that slow: ask a
-smaller `max_step_size` for a closer one, or follow the global bifurcation
+smaller `step.max` for a closer one, or follow the global bifurcation
 itself with a homoclinic or heteroclinic run from it.
 
 ### End at a Hopf point (HBE)
@@ -621,7 +621,7 @@ point and, as a test of its own that is never stored or labelled, locates
 every crossing of the start's parameter value (also with fold detection
 off). At each crossing it compares the point with the start: the same
 parameter values and every state within 8 times the special point tolerance
-(`special_point_tolerance`, EPSS) times 1 plus the value (a cycle by the
+(`newton.special_point_tolerance`, EPSS) times 1 plus the value (a cycle by the
 maximum and minimum of each variable and its period). A crossing that is not
 the start leaves nothing in the diagram, not even a step; one that is ends
 the branch there with point type `branch_closed` (CL): the point is the crossing,
@@ -634,7 +634,7 @@ cycle of no size and crosses the start's parameter again on its first steps.
 A point where a parameter, or the period T, reaches one of the Mark values
 (user functions).
 
-- : Output every `output_every`-th point.
+- : Output every `output.every`-th point.
 
 ## Why a branch stopped
 
@@ -648,21 +648,21 @@ next to the end point's label when you hover it, and as `autox.info`'s
 
 | Stopped: | Why | What to change to go further |
 |---|---|---|
-| parameter *p* reached parameter_min / parameter_max (*value*) | the main parameter left the range in Numerics | `parameter_min` / `parameter_max` (RL0 / RL1) |
-| the norm reached norm_min / norm_max (*value*) | the solution's norm left its range | `norm_min` / `norm_max` (A0 / A1) |
-| the branch reached max_steps (*n*) | the branch has as many points as `max_steps` allows | `max_steps` (NMX), or a larger `max_step_size` (DSMAX) |
+| parameter *p* reached limits.parameter_min / limits.parameter_max (*value*) | the main parameter left the range in Numerics | `limits.parameter_min` / `limits.parameter_max` (RL0 / RL1) |
+| the norm reached limits.norm_min / limits.norm_max (*value*) | the solution's norm left its range | `limits.norm_min` / `limits.norm_max` (A0 / A1) |
+| the branch reached limits.steps (*n*) | the branch has as many points as `limits.steps` allows | `limits.steps` (NMX), or a larger `step.max` (DSMAX) |
 | by the user (Stop) | Stop (or the view's tab ×) during the run | Run again from the end point |
 | the exact Jacobian is not finite (see the error) | with Numerics' Jacobian set to exact, a derivative was not finite where the right-hand side is (sqrt or log at 0, 1/x at 0); the run stopped as a Stop does, on an end point | the error offers "Switch to differences and continue": it sets the Jacobian to difference and runs again from that end point with the same options |
 | parameter *p* reached a Mark value set to stop | a user point marked as an end (autoX's UZR endpoint) | the Mark values |
 | parameter *p* = *value*: period growing without bound ... point type snic / homoclinic / heteroclinic | a branch of cycles whose period grew over 5 points to twice its shortest while the orbit lingers near equilibria (SNIC, HOC, HEC, above); without a type: the equilibria are no fold and no saddle | a homoclinic or heteroclinic run from the end point, or nothing: this is the end of the cycles |
 | parameter *p* = *value*: the cycles' amplitude fell to ... point type hopf_end | a branch of cycles whose amplitude fell over 3 points to at most 0.001 where the equilibrium at their mean has an imaginary pair (HBE, above) | nothing: autoX starts no run from this point (the Hopf point it ends at is on the equilibrium branch, whose own Hopf label starts the cycles again) |
 | parameter *p* = *value*: the branch closed on itself ... point type branch_closed | a branch that came back to its start (CL, above) | nothing: the branch is complete |
-| no convergence even at the smallest step (min_step_size *value*) | the solver failed and halving the step reached `min_step_size` (DSMIN): a sharp turn, a jump, or a singular point (MX) | a smaller `min_step_size` or `max_step_size`, a larger `mesh_intervals`, looser tolerances |
-| no convergence with a fixed step size (step_adapt_every 0) | the solver failed and `step_adapt_every` (IADS) is 0, so the step is not reduced (MX) | `step_adapt_every` 1 |
+| no convergence even at the smallest step (step.min *value*) | the solver failed and halving the step reached `step.min` (DSMIN): a sharp turn, a jump, or a singular point (MX) | a smaller `step.min` or `step.max`, a larger `mesh.intervals`, looser tolerances |
+| no convergence with a fixed step size (step.adapt_every 0) | the solver failed and `step.adapt_every` (IADS) is 0, so the step is not reduced (MX) | `step.adapt_every` 1 |
 | no convergence switching branches, ... | the same while starting a bifurcating branch at a branch point | as above |
 
 A no convergence's words also name the Newton options that gave up
-(`max_newton_iterations`, `parameter_tolerance`, `state_tolerance`) and, when the last linear system was singular, its
+(`newton.max_iterations`, `newton.parameter_tolerance`, `newton.state_tolerance`) and, when the last linear system was singular, its
 smallest pivot. Recording the reason changes nothing autoX computes: the
 points, labels and saved diagrams are the same as before, except where a
 branch of cycles ends on a SNIC, a homoclinic or a heteroclinic orbit, or at a Hopf point, or a
@@ -677,20 +677,20 @@ What a run loses on the way is a warning in Output (and `autox.info`'s
 `notes` for a client), the branch going on: a special point autoX gave up
 locating ("Br 1 Pt 12: a fold (LP) between points 12 and 13 was not
 located (the corrector did not converge); it is missing from the diagram":
-lower `max_step_size`), a special point whose test is a jump, noise or a
+lower `step.max`), a special point whose test is a jump, noise or a
 double zero rather than a smooth crossing ("Br 3 Pt 36: a fold (LP) between
 points 36 and 37 was not accepted at parameter 0.7080731095: its test is not a
 smooth crossing: across the last 6.4e-05 of the search its slope is 51.9 times
 its slope across the step, more than 3 either way; it is missing from the
 diagram": the branch is followed on a mesh too coarse for its folds, raise
-`mesh_intervals`), a branch point of cycles whose test is beyond its scale
+`mesh.intervals`), a branch point of cycles whose test is beyond its scale
 ("Br 2 Pt 29: a branch point (BP) between points 29 and 30 was not accepted at
 parameter 0.3314459819: its test is a ratio of consecutive determinants, and
 its values -9.03e+08 and 2.43e+13 at the ends of the step are beyond what a
 crossing within it gives; it is missing from the diagram": the determinant is
 at its noise, as near a homoclinic or heteroclinic end), and Floquet multipliers that turn inaccurate
 (period doubling and torus detection are off until they are accurate
-again: raise `mesh_intervals` or `collocation_points`).
+again: raise `mesh.intervals` or `mesh.collocation_points`).
 
 ## Grabbing
 

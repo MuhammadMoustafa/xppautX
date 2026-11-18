@@ -10,14 +10,14 @@
       },
       "parameter": "Q2",
       "autox": {
-        "step_size": -0.01,
-        "min_step_size": 1e-05,
-        "max_step_size": 0.025,
-        "max_steps": 400,
-        "output_every": 20,
-        "parameter_min": 0.5,
-        "parameter_max": 2.5,
-        "mesh_intervals": 20,
+        "step.initial": -0.01,
+        "step.min": 1e-05,
+        "step.max": 0.025,
+        "limits.steps": 400,
+        "output.every": 20,
+        "limits.parameter_min": 0.5,
+        "limits.parameter_max": 2.5,
+        "mesh.intervals": 20,
         "max_branch_switches": 0
       }
     },
@@ -34,14 +34,14 @@
         "K"
       ],
       "autox": {
-        "step_size": -0.01,
-        "min_step_size": 1e-05,
-        "max_step_size": 0.02,
-        "max_steps": 300,
-        "output_every": 25,
-        "parameter_min": 0.1,
-        "parameter_max": 1.42,
-        "mesh_intervals": 20,
+        "step.initial": -0.01,
+        "step.min": 1e-05,
+        "step.max": 0.02,
+        "limits.steps": 300,
+        "output.every": 25,
+        "limits.parameter_min": 0.1,
+        "limits.parameter_max": 1.42,
+        "mesh.intervals": 20,
         "max_branch_switches": 0
       }
     },
@@ -58,14 +58,14 @@
         "K"
       ],
       "autox": {
-        "step_size": 0.01,
-        "min_step_size": 1e-05,
-        "max_step_size": 0.02,
-        "max_steps": 60,
-        "output_every": 25,
-        "parameter_min": 0.9,
-        "parameter_max": 1.1625,
-        "mesh_intervals": 20,
+        "step.initial": 0.01,
+        "step.min": 1e-05,
+        "step.max": 0.02,
+        "limits.steps": 60,
+        "output.every": 25,
+        "limits.parameter_min": 0.9,
+        "limits.parameter_max": 1.1625,
+        "mesh.intervals": 20,
         "max_branch_switches": 0
       }
     },
@@ -82,14 +82,14 @@
         "K"
       ],
       "autox": {
-        "step_size": -0.01,
-        "min_step_size": 1e-05,
-        "max_step_size": 0.02,
-        "max_steps": 200,
-        "output_every": 25,
-        "parameter_min": 0.1,
-        "parameter_max": 1.6,
-        "mesh_intervals": 20,
+        "step.initial": -0.01,
+        "step.min": 1e-05,
+        "step.max": 0.02,
+        "limits.steps": 200,
+        "output.every": 25,
+        "limits.parameter_min": 0.1,
+        "limits.parameter_max": 1.6,
+        "mesh.intervals": 20,
         "max_branch_switches": 0
       }
     },
@@ -106,14 +106,14 @@
         "K"
       ],
       "autox": {
-        "step_size": 0.01,
-        "min_step_size": 1e-05,
-        "max_step_size": 0.02,
-        "max_steps": 200,
-        "output_every": 25,
-        "parameter_min": 0.1,
-        "parameter_max": 1.6,
-        "mesh_intervals": 20,
+        "step.initial": 0.01,
+        "step.min": 1e-05,
+        "step.max": 0.02,
+        "limits.steps": 200,
+        "output.every": 25,
+        "limits.parameter_min": 0.1,
+        "limits.parameter_max": 1.6,
+        "mesh.intervals": 20,
         "max_branch_switches": 0
       }
     }

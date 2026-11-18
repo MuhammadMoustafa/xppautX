@@ -450,7 +450,7 @@ two sides of the swap: a jump of the size of the imposed multiplier's error (1e-
 multiplier crosses -1. A pair that splits complex and joins again (finding 6) adds noise of the square root of the perturbation to the
 test (1e-4 to 1e-3 at the description's tolerances). The secant and Mueller location then follows the jump or the noise, not a crossing.
 
-**Evidence** (tools/models/forced_predator_prey.odex; tests/autox/forced_pp_pd.json with `mesh_intervals` 15 for the cycles and pd_up, new
+**Evidence** (tools/models/forced_predator_prey.odex; tests/autox/forced_pp_pd.json with `mesh.intervals` 15 for the cycles and pd_up, new
 description forced_pp_pd_ntst15): at the stored points around the far R2 the pair is real and complex by turns,
 (-1.0000026, -0.9998117), a pair -0.99981 +- 9.3e-4 i, (-0.999991, -1.0017344), (-0.999526, -1.000476), a pair -0.99993 +- 4.2e-4 i; the test
 values -1.9e-4, -1.9e-4, +1.7e-3, +4.8e-4, -6.8e-5, -1.4e-4, -1.6e-4, -2.1e-4: the sign change is a jump between -1.4e-4 and +4.8e-4 inside 7e-6 of

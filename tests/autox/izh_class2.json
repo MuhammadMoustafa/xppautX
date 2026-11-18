@@ -21,14 +21,14 @@
       },
       "parameter": "Ib",
       "autox": {
-        "step_size": 0.05,
-        "min_step_size": 1e-05,
-        "max_step_size": 0.05,
-        "max_steps": 300,
-        "output_every": 20,
-        "parameter_min": -1,
-        "parameter_max": 1,
-        "mesh_intervals": 15,
+        "step.initial": 0.05,
+        "step.min": 1e-05,
+        "step.max": 0.05,
+        "limits.steps": 300,
+        "output.every": 20,
+        "limits.parameter_min": -1,
+        "limits.parameter_max": 1,
+        "mesh.intervals": 15,
         "max_branch_switches": 0
       }
     }

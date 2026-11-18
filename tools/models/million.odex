@@ -10,6 +10,6 @@ y' = mu*(1-x^2)*y-x
 init x = 2, y = 0
 options {
   integration: { total_time: 10000, dt: .01, method: euler, state_limit: 100 },
-  equilibria: { search_limit: 100 },
+  equilibria: { newton.search_limit: 100 },
   plot: { axes.x_min: -2.5, axes.x_max: 2.5, axes.y_min: -3, axes.y_max: 3, curves: [ { x: x, y: y } ] },
 }

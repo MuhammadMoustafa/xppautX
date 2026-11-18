@@ -207,7 +207,7 @@ def continuation(a):
         one = next(f for f in found if f[0].parent.name == 'E3-50')
         d = copy.deepcopy(one[1])
         for r in d['runs']:
-            r['autox']['max_steps'] = START_POINTS  # XPPAUT 8.0 never ends a run with NMX 1; five points compute next to nothing
+            r['autox']['limits.steps'] = START_POINTS  # XPPAUT 8.0 never ends a run with NMX 1; five points compute next to nothing
         for program in () if startup else chosen:
             startup[program] = [xppautx_peak(a, d)[0] if program == 'xppautx' else foreign_peak(a, d, program, inputs(one[0], d), scratch) for _ in range(2)]
             print('startup', program, startup[program], flush=True)

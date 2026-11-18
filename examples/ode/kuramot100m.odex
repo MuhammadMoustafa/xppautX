@@ -12,5 +12,5 @@ network mxh = fmmult(100, 100, mm, x0, x0, h)
 x[j]' = w(j)+k*mxh(j) for j in 0..99
 options {
   integration: { total_time: 100, state_limit: 100000 },
-  equilibria: { search_limit: 100000 },
+  equilibria: { newton.search_limit: 100000 },
 }

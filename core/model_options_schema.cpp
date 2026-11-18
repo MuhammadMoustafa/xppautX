@@ -159,6 +159,7 @@ std::string option_value_schema(const OptionRow &row, const SessionParts *fresh)
   if (!row.odex.empty()) out += ", \"title\": " + json_quoted(option_label(row)) + ", \"description\": " + json_quoted(option_help(row));
   if (row.repeatable) out += ", \"x-repeatable\": true";
   if (!row.key.empty()) out += ", \"x-key\": " + json_quoted(row.key);
+  if (row.advanced) out += ", \"x-advanced\": true";
   if (fresh)
     if (const std::optional<std::string> value = default_json(*fresh, row)) out += ", \"default\": " + *value;
   return out + "}";
@@ -179,7 +180,7 @@ std::string option_schema(const SessionParts &fresh)
       "dictionary. A key marked x-repeatable may be written more than once; a path or a text is a "
       "double-quoted string, sliders a list of presets, curves a list of curves, every other value one bare word. "
       "default is the value a session with no model gives the key (a value a model sets, a name or a node count, has none); "
-      "x-key is the key of the numerics event and of set num.\",\n"
+      "x-key is the key of the numerics event and of set num; x-advanced marks an option that tunes a method's inside (a tolerance, an iteration cap, a step floor), whose default is right for almost every model.\",\n"
       "  \"type\": \"object\",\n"
       "  \"additionalProperties\": false,\n"
       "  \"properties\": {\n";

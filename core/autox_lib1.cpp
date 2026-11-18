@@ -139,7 +139,7 @@ void special_point_lost(const iap_type &iap, std::ptrdiff_t ibr, std::ptrdiff_t 
   xpp::autox_stop_note(*iap.run,
                       xpp::format("Br {} Pt {}: {} between points {} and {} was not located ({}); it is missing from the diagram",
                                   f2c::abs(ibr), ntot, kind, ntot, ntot + 1,
-                                  why ? std::string(why) : xpp::format("not in max_location_iterations = {} iterations", iap.itmx)));
+                                  why ? std::string(why) : xpp::format("not in newton.max_location_iterations = {} iterations", iap.itmx)));
 }
 
 /* autox_locating = 1 for a scope: cleared however it ends, a failed solve
@@ -3625,7 +3625,7 @@ collocation_point_positions(const std::ptrdiff_t ncol, double *zm)
 
   /* Generates the collocation points with respect to [0,1]. */
   if (ncol > 7) {
-    xpp::autox_fail(xpp::format("collocation_points is {}: autoX has collocation weights for at most 7; set collocation_points (Numerics) to 7 or smaller", ncol));
+    xpp::autox_fail(xpp::format("mesh.collocation_points is {}: autoX has collocation weights for at most 7; set mesh.collocation_points (Numerics) to 7 or smaller", ncol));
   }
 
   switch (static_cast<int>(ncol - 1)) {
@@ -6062,7 +6062,7 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, s
     }
     xpp::autox_stop_note(*iap->run,
                         xpp::format("Br {} Pt {}: the Floquet multipliers are inaccurate (the one at 1 is off by {:.3g}); "
-                                    "period doubling and torus detection are off until they are accurate again (try a larger mesh_intervals or collocation_points)",
+                                    "period doubling and torus detection are off until they are accurate again (try a larger mesh.intervals or mesh.collocation_points)",
                                     f2c::abs(ibr), ntop, amin));
     for (i = 0; i < ndim; ++i) {
       xpp::format_append(iap->run->diagnostics_text,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);

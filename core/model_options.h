@@ -269,6 +269,9 @@ struct OptionRow {
      The rows run in the order of option_groups, then their sections (a section's rows together,
      after the group's unsectioned ones), the order the panels show them. */
   std::string_view odex;
+  /* an advanced option tunes how a method works inside (a tolerance, an iteration cap, a step floor or ceiling); its default is right for
+     almost every model. The panels fold such a section away by default; the .odex and the protocol do not change with it. */
+  bool advanced = false;
   /* what the option does, in one line (a sentence, no more than OPTION_HELP_MOST characters): the schema's description and the
      panels' help; every .odex row has it (optioncheck) */
   std::string_view help;

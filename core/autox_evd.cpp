@@ -89,14 +89,14 @@ void autox_check_start_parameters(const iap_type &iap, const rap_type &rap, cons
   /* outside or on a bound, a start is refused only when Ds leads away from
      the interval: extending a branch that ended just past a bound goes back in */
   if(autox_start_points_away(value,rap.rl0,rap.rl1,rap.ds))
-    autox_fail(Error{"autox",xpp::format("Start parameter \"{}\" = {} is at or outside [parameter_min = {}, parameter_max = {}] with step_size = {} pointing away; change the start, the bounds or the sign of step_size",
+    autox_fail(Error{"autox",xpp::format("Start parameter \"{}\" = {} is at or outside [limits.parameter_min = {}, limits.parameter_max = {}] with step.initial = {} pointing away; change the start, the bounds or the sign of step.initial",
         s.model().upar_names[k],value,rap.rl0,rap.rl1,rap.ds),command_place()});
 }
 
 void autox_check_start_norm(const iap_type &iap, const rap_type &rap, double norm)
 {
   if(!std::isfinite(norm) || norm<rap.a0 || norm>rap.a1)
-    autox_fail(Error{"autox",xpp::format("Start norm = {} is outside [norm_min = {}, norm_max = {}]; change the start or widen the norm bounds",norm,rap.a0,rap.a1),command_place()});
+    autox_fail(Error{"autox",xpp::format("Start norm = {} is outside [limits.norm_min = {}, limits.norm_max = {}]; change the start or widen the norm bounds",norm,rap.a0,rap.a1),command_place()});
 }
 
 /* A steady-state start from initial conditions (irs 0) is refined by Newton
@@ -130,8 +130,8 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
     std::copy(start.begin(),start.end(),u);
     const std::string &name=s.model().uvar_names[worst];
     const std::string why=xpp::newton_cause(s.analysis,newton,static_cast<std::size_t>(n)).why;
-    autox_fail(Error{"autox",xpp::format("The initial conditions are not a steady state, and Newton's method from them did not converge ({}); equation \"{}\" has the largest residual |f(x,p)| = {}, above state_tolerance = {}. Newton options: {}. Use Sing pts or integrate to a steady state before starting autoX",
-        why,name,xpp::number(start_value),xpp::number(rap.epsu),xpp::named_settings(s.session_parts,{"equilibria.newton_tolerance","equilibria.jacobian_step", "equilibria.search_limit","equilibria.max_iterations"})),model_place(s.model(),name)});
+    autox_fail(Error{"autox",xpp::format("The initial conditions are not a steady state, and Newton's method from them did not converge ({}); equation \"{}\" has the largest residual |f(x,p)| = {}, above newton.state_tolerance = {}. Newton options: {}. Use Sing pts or integrate to a steady state before starting autoX",
+        why,name,xpp::number(start_value),xpp::number(rap.epsu),xpp::named_settings(s.session_parts,{"equilibria.newton.tolerance","equilibria.newton.jacobian_step", "equilibria.newton.search_limit","equilibria.newton.max_iterations"})),model_place(s.model(),name)});
   }
 
   user_right_hand_side(*iap.run,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr);

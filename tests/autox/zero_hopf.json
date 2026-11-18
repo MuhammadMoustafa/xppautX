@@ -4,11 +4,11 @@
   "runs": [
     {
       "name": "steady", "kind": "equilibrium", "start": {"state": "current"}, "parameter": "a",
-      "autox": {"step_size": 0.02, "min_step_size": 0.00001, "max_step_size": 0.05, "max_steps": 100, "output_every": 25, "parameter_min": -1.1, "parameter_max": 0.1, "mesh_intervals": 15, "max_branch_switches": 0}
+      "autox": {"step.initial": 0.02, "step.min": 0.00001, "step.max": 0.05, "limits.steps": 100, "output.every": 25, "limits.parameter_min": -1.1, "limits.parameter_max": 0.1, "mesh.intervals": 15, "max_branch_switches": 0}
     },
     {
       "name": "fold", "kind": "two_parameter", "start": {"run": "steady", "type": "fold", "index": 1}, "parameters": ["b", "a"],
-      "autox": {"step_size": 0.02, "min_step_size": 0.00001, "max_step_size": 0.05, "max_steps": 50, "output_every": 25, "parameter_min": -0.2, "parameter_max": 0.2, "mesh_intervals": 15, "max_branch_switches": 0}
+      "autox": {"step.initial": 0.02, "step.min": 0.00001, "step.max": 0.05, "limits.steps": 50, "output.every": 25, "limits.parameter_min": -0.2, "limits.parameter_max": 0.2, "mesh.intervals": 15, "max_branch_switches": 0}
     }
   ],
   "differences": [

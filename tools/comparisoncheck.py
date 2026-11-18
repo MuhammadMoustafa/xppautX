@@ -114,7 +114,7 @@ def auto_case(a, check):
         step(s, cmd='events.subscribe', events=[], diagram=True)
         step(s, cmd='settings.configure', group='general', values={'threads': '1'})
         open_autox(s)
-        numerics(s, max_steps=AUTO_POINTS)
+        numerics(s, **{'limits.steps': AUTO_POINTS})
         _, _, _, points = hopf_xppautx.run(s, 's', limit=LIMIT)
         check('auto/steady driver', len(points) == AUTO_POINTS, points)
     finally:
@@ -134,7 +134,7 @@ def modeldb_auto_case(a, check):
             events = completed(s, dict(cmd=command))
             check('modeldb-auto/' + command, any(e.get('ev') == 'job.computing' for e in events))
         open_autox(s)
-        driver.numerics(s, max_steps=AUTO_POINTS)
+        driver.numerics(s, **{'limits.steps': AUTO_POINTS})
         _, _, _, points = driver.run(s, 's', limit=LIMIT)
         check('modeldb-auto/steady driver', len(points) == AUTO_POINTS, points)
     finally:

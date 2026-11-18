@@ -33,9 +33,9 @@ DIAGRAM_MEMBER = 'autox/diagram.csv'  # the session file's diagram (core/xpp_ses
 HOMCONT = ('homoclinic', 'heteroclinic')
 KINDS = {'equilibrium', 'periodic', 'two_parameter', 'fixed_period', 'bvp', *HOMCONT}
 # the per-run options a description may give: autoX's options by their names (core/autox_options.cpp)
-NUMERICS = ('step_size', 'min_step_size', 'max_step_size', 'max_steps', 'output_every', 'parameter_min', 'parameter_max',
-            'mesh_intervals', 'collocation_points', 'parameter_tolerance', 'state_tolerance', 'special_point_tolerance',
-            'max_branch_switches', 'switch_one_direction', 'output_detail', 'step_adapt_every', 'follow_all_branches')
+NUMERICS = ('step.initial', 'step.min', 'step.max', 'limits.steps', 'output.every', 'limits.parameter_min', 'limits.parameter_max',
+            'mesh.intervals', 'mesh.collocation_points', 'newton.parameter_tolerance', 'newton.state_tolerance', 'newton.special_point_tolerance',
+            'max_branch_switches', 'one_way_branch_switch', 'output.detail', 'step.adapt_every', 'follow_all_branches')
 OUTPUT_DETAILS = ('none', 'little', 'normal', 'start_jacobian', 'extensive', 'debugging')
 
 
@@ -168,25 +168,25 @@ def read_description(path):
                 raise ValueError('two-parameter run needs two distinct parameters')
         elif not isinstance(r.get('parameter'), str) or not r['parameter']:
             raise ValueError('run needs its parameter')
-        members(r['autox'], NUMERICS, ('step_size', 'max_steps', 'output_every', 'parameter_min', 'parameter_max', 'mesh_intervals', 'min_step_size', 'max_step_size'))
+        members(r['autox'], NUMERICS, ('step.initial', 'limits.steps', 'output.every', 'limits.parameter_min', 'limits.parameter_max', 'mesh.intervals', 'step.min', 'step.max'))
         for k, v in r['autox'].items():
-            if k == 'output_detail':
+            if k == 'output.detail':
                 continue
-            if k in ('switch_one_direction', 'follow_all_branches'):
+            if k in ('one_way_branch_switch', 'follow_all_branches'):
                 if not isinstance(v, bool):
                     raise ValueError(k + ' must be boolean')
                 continue
-            finite(v, k, integer=k in ('max_steps', 'output_every', 'mesh_intervals', 'collocation_points', 'max_branch_switches'))
+            finite(v, k, integer=k in ('limits.steps', 'output.every', 'mesh.intervals', 'mesh.collocation_points', 'max_branch_switches'))
         a = r['autox']
-        if not 0 < a['min_step_size'] <= abs(a['step_size']) <= a['max_step_size'] or a['parameter_min'] >= a['parameter_max']:
+        if not 0 < a['step.min'] <= abs(a['step.initial']) <= a['step.max'] or a['limits.parameter_min'] >= a['limits.parameter_max']:
             raise ValueError('invalid continuation step or parameter range')
-        if any(a[k] < 1 for k in ('max_steps', 'output_every', 'mesh_intervals')):
-            raise ValueError('max_steps, output_every and mesh_intervals must be positive')
-        if ('collocation_points' in a and not 2 <= a['collocation_points'] <= 7
-                or 'output_detail' in a and a['output_detail'] not in OUTPUT_DETAILS
+        if any(a[k] < 1 for k in ('limits.steps', 'output.every', 'mesh.intervals')):
+            raise ValueError('limits.steps, output.every and mesh.intervals must be positive')
+        if ('mesh.collocation_points' in a and not 2 <= a['mesh.collocation_points'] <= 7
+                or 'output.detail' in a and a['output.detail'] not in OUTPUT_DETAILS
                 or 'max_branch_switches' in a and a['max_branch_switches'] < 0
-                or 'step_adapt_every' in a and a['step_adapt_every'] not in (0, 1)
-                or any(a[k] <= 0 for k in ('parameter_tolerance', 'state_tolerance', 'special_point_tolerance') if k in a)):
+                or 'step.adapt_every' in a and a['step.adapt_every'] not in (0, 1)
+                or any(a[k] <= 0 for k in ('newton.parameter_tolerance', 'newton.state_tolerance', 'newton.special_point_tolerance') if k in a)):
             raise ValueError('invalid autoX option (docs/protocol.md autoX options): ' + str(a))
         for field in ('skip', 'xppaut_skip'):
             if field in r and (not isinstance(r[field], str) or not r[field].strip()):
@@ -708,7 +708,7 @@ def labelled(rows, kind):
 
 def location_tolerance(auto):
     """The arclength within which autoX takes a zero as found (core/autox_lib1.cpp location_tolerance): EPSS (1 + sqrt(|DS DSMAX|))."""
-    return auto.get('special_point_tolerance', 1e-4) * (1 + math.sqrt(abs(auto['step_size'] * auto['max_step_size'])))
+    return auto.get('newton.special_point_tolerance', 1e-4) * (1 + math.sqrt(abs(auto['step.initial'] * auto['step.max'])))
 
 
 def row_position(row):
@@ -747,8 +747,8 @@ def compare_run(rows, auto, kind, ref_points, who, known=(), compare_start=True)
     The second is the Newton convergence of each point (EPSL for the parameter, EPSU for the
     rest), twice. The third is the finite-difference Jacobian's accuracy. The tolerance is never
     widened to make a point pass: a difference beyond it is traced (docs/auto-references.md)."""
-    epss, epsl, epsu = auto.get('special_point_tolerance', 1e-4), auto.get('parameter_tolerance', 1e-4), auto.get('state_tolerance', 1e-4)
-    loc = epss * (1 + auto['max_step_size'])
+    epss, epsl, epsu = auto.get('newton.special_point_tolerance', 1e-4), auto.get('newton.parameter_tolerance', 1e-4), auto.get('newton.state_tolerance', 1e-4)
+    loc = epss * (1 + auto['step.max'])
     ours = labelled(rows, kind)
     if not compare_start:
         ours = [(symbol, i) for symbol, i in ours if not (symbol == 'EP' and i == 0)]
@@ -949,13 +949,13 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
     out too. `head`: the run starts from the end of another run cut at its step limit (to_snic from the cycles' last point),
     which is not where the converged run's step limit left it, so the other side's samples before the converged side's first
     are not compared either."""
-    epsl, epsu = auto.get('parameter_tolerance', 1e-4), auto.get('state_tolerance', 1e-4)
+    epsl, epsu = auto.get('newton.parameter_tolerance', 1e-4), auto.get('newton.state_tolerance', 1e-4)
     ours = curve_samples(rows, two_parameter)
     ref = [tuple(v) for v in ref_curve]
     diffs, worst = [], {}
     if len(ours) < 2 or len(ref) < 2:
         return ['%s: fewer than two branch samples' % who], []
-    both_end_at_nmax = len(ours) == len(ref) == auto.get('max_steps')
+    both_end_at_nmax = len(ours) == len(ref) == auto.get('limits.steps')
     first, last = {'ours': 0, 'reference': 0}, {'ours': len(ours), 'reference': len(ref)}
     if converged:
         row, conv = ('ours', 'reference') if converged['side'] == 'reference' else ('reference', 'ours')
@@ -1007,7 +1007,7 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
 
         for n in range(first[side], min(compared, last[side])):
             point = source[n]
-            if not auto['parameter_min'] <= point[0] <= auto['parameter_max']:
+            if not auto['limits.parameter_min'] <= point[0] <= auto['limits.parameter_max']:
                 continue
             i, residual, tolerances = matcher.project(np.array(point), lambda rows: bounds_of(point, rows))
             for k, q in enumerate(CURVE_QUANTITIES):

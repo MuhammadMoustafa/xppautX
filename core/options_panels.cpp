@@ -86,6 +86,7 @@ std::string row_json(const SessionParts &fresh, bool model_loaded, const OptionR
         out += ']';
     }
     if (row.rule == OptionRule::nonzero) out += ",\"nonzero\":true";
+    if (row.advanced) out += ",\"advanced\":true";
     out += option_limit_members(row);
     return out + '}';
 }

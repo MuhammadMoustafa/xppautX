@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT / 'tools'))
 import autoxcompare as ac  # noqa: E402
 
 THREADS = (1, 2, 4)
-COLLOCATION_POINTS = 4  # autoX's default when a run does not set collocation_points
+COLLOCATION_POINTS = 4  # autoX's default when a run does not set mesh.collocation_points
 POINTS = 30  # steps of the cycle run: enough to time, the same at every size
 # (description, run, states): published models; the run's runs before it stay (they find its start)
 CASES = (('ode_lecar', 'cycles', 2), ('lrz_cycles', 'cycles_hb1', 3), ('hodgkin_huxley_hopf_pair', 'cycles', 4))
@@ -26,7 +26,7 @@ MESHES = (8, 12, 16, 32, 64, 128, 256)
 def description(name, run, mesh):
     d = ac.read_description(ac.BASE / (name + '.json'))
     d['runs'] = d['runs'][:[r['name'] for r in d['runs']].index(run) + 1]
-    d['runs'][-1]['autox'].update(mesh_intervals=mesh, max_steps=POINTS)
+    d['runs'][-1]['autox'].update(**{'mesh.intervals': mesh}, **{'limits.steps': POINTS})
     return d
 
 

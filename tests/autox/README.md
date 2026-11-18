@@ -27,8 +27,8 @@ skips; each diagram is the same at 1 and at automatic threads, which this driver
 optional `parameters` and `initial_conditions` set the starting state.
 `runs` lists named runs in order. Each names its `kind` in W306's terms,
 its `parameter` (or two `parameters` for `two_parameter` / `fixed_period`),
-and its per-run `autox` options, under autoX's option names (W531). `step_size` includes the direction.
-`max_steps`, `output_every`, `mesh_intervals`, `min_step_size`, `max_step_size`, `parameter_min` and `parameter_max` are explicit. The driver
+and its per-run `autox` options, under autoX's option names (W531). `step.initial` includes the direction.
+`limits.steps`, `output.every`, `mesh.intervals`, `step.min`, `step.max`, `limits.parameter_min` and `limits.parameter_max` are explicit. The driver
 maps these names to today's protocol fields, not to recording keys. Optional per-run
 `marks: [["parameter", value], ...]` locates user points (UZ); the same marks
 are passed to AUTO-07p as UZR and to XPPAUT through AutoPer (W437).

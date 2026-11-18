@@ -437,7 +437,7 @@ def section_abort():
     # W106: autoX's options sent during its run (an option) are kept for
     # after it, each a command of its own then; the data subscription (a
     # view) runs after them
-    s.send(cmd='autox.configure_numerics', **{'max_steps': 1500})
+    s.send(cmd='autox.configure_numerics', **{'limits.steps': 1500})
     s.send(cmd='events.subscribe', events=['autox.info', 'autox.options'])
     # periodic_run already observed two diagram points: the run is computing.
     # Abort now, without guessing the duration of a Newton step.
@@ -452,7 +452,7 @@ def section_abort():
     errs = [x.get('error') for x in evs + set_evs if x.get('ev') == 'session.message' and 'error' in x]
     st = [x for x in data_evs if x.get('ev') == 'autox.options']
     check('W106: autoX options sent during its run: no error, applied after it with their own done',
-          not errs and st and st[-1]['numerics']['max_steps'] == 1500, '%s %s' % (errs, st and st[-1]['numerics']))
+          not errs and st and st[-1]['numerics']['limits.steps'] == 1500, '%s %s' % (errs, st and st[-1]['numerics']))
 
     # the run ends on an end point (EP, not MX: no convergence), which is
     # where it can be continued from
@@ -857,7 +857,7 @@ def section_stability():
     # Test inheritance from a computed endpoint. A long near-homoclinic run
     # can disable stability detection (inaccurate unit multiplier), leaving
     # its endpoint legitimately uncomputed; W326's restore changes that path.
-    evs, _ = step(s, cmd='autox.configure_numerics', **{'max_steps': 10, 'output_every': 5, 'step_size': 0.01, 'max_step_size': 0.01})
+    evs, _ = step(s, cmd='autox.configure_numerics', **{'limits.steps': 10, 'output.every': 5, 'step.initial': 0.01, 'step.max': 0.01})
     check('stability: the short periodic restart fixture is configured', not errors_of(evs), str(errors_of(evs)))
     r2 = run('p')
     end2 = len(dg.pts) - 1
@@ -1112,7 +1112,7 @@ def section_sessiondiagram():
           '\nsession {\n  model: "lecar.odex",\n  data: false,\n' in state and state.count('animation: "ml.anix"') == 1
           and got.get('model/lecar.odex') == open(LECAR).read(), state[:300])
     check('sessiondiagram: session.odex has the numerics, the parameters and the axes of autoX',
-          all(re.search(r'(^|\n)\s+%s: ' % k, state) for k in ('mesh_intervals', 'step_size', 'plot', 'xmin')) and state.startswith('version 4\npar '),
+          all(re.search(r'(^|\n)\s+%s: ' % k, state) for k in ('mesh.intervals', 'step.initial', 'plot', 'xmin')) and state.startswith('version 4\npar '),
           state[:300])
     rows = diagram_rows(got.get('autox/diagram.csv', '').encode('utf-8'))
     check("sessiondiagram: diagram.csv has branch records and the diagram's points", len(rows) == len(dg1) > 50
@@ -1233,7 +1233,7 @@ def section_sessiondiagram():
             load_diagram(s, path)
         if reference is None:
             continue
-        s.send(cmd='autox.configure_numerics', **{'max_steps': 4, 'output_every': 1})
+        s.send(cmd='autox.configure_numerics', **{'limits.steps': 4, 'output.every': 1})
         s.collect(is_done)
         s.send(cmd='autox.grab', label=int(reference['lab']))
         grabbed, _ = s.collect(is_done)
@@ -1317,8 +1317,8 @@ def section_sessiondiagram():
             ('latersettings.snapx', lambda m: set_state(m, state.replace('\n      marks: [', '\n      later: 1,\n      marks: [', 1)),
              'latersettings.snapx/session.odex:%d:7: `later` is not an option of options' % line_of('marks: [', settings_line)),
             # W125: a value autoX refuses (Ncol 9), at its line; a bad value on the last view's line
-            ('badncol.snapx', lambda m: set_state(m, re.sub(r'(?m)^(\s+)collocation_points: .*$', r'\1collocation_points: 9,', state, count=1)),
-             'badncol.snapx/session.odex:%d:27: collocation_points=9: Collocation points must be' % line_of('collocation_points:')),
+            ('badncol.snapx', lambda m: set_state(m, re.sub(r'(?m)^(\s+)mesh.collocation_points: .*$', r'\1mesh.collocation_points: 9,', state, count=1)),
+             'badncol.snapx/session.odex:%d:32: mesh.collocation_points=9: Mesh collocation points must be' % line_of('mesh.collocation_points:')),
             ('lastviews.snapx', lambda m: set_state(m, re.sub(r'(?m)^(\s+)active: "[^"]*",$', r'\1active: "x",', state, count=1)),
              'lastviews.snapx/session.odex:%d:5: Unknown window "x"' % line_of('active:', views_line)),
             ('latermanifest.snapx', lambda m: set_state(m, state.replace('\nsession {\n', '\nsession {\n  later: 1,\n', 1)),
@@ -1336,7 +1336,7 @@ def section_sessiondiagram():
     # W155: malformed autoX options on the last line leave the session whole.
     damaged = dict(members)
     options = damaged['session.odex'].decode()
-    lines = options.replace('max_steps: 2000,', 'max_steps: 43,').split('\n')
+    lines = options.replace('limits.steps: 2000,', 'limits.steps: 43,').split('\n')
     ymax_line = next(k for k in range(len(lines)) if lines[k].lstrip().startswith('ymax:'))
     lines[ymax_line] = '      ymax: 1e999,'
     damaged['session.odex'] = '\n'.join(lines).encode()
@@ -1601,7 +1601,7 @@ def section_orbit_start():
     # run starts at the Hopf point (near 0.2624), goes down past its fold near 0.2484, and comes back up through 0.3.
     # Its stored order after the fold is the upper side. A point of the orbit run is compared with that side interpolated
     # at its iapp; the orbit run's start point is left out (its first point is not converged, W603).
-    # Tolerances, each with its reason: the period within 1e-3 relative (the corrector stops at parameter_tolerance 1e-4 on
+    # Tolerances, each with its reason: the period within 1e-3 relative (the corrector stops at newton.parameter_tolerance 1e-4 on
     # 15-interval meshes; the largest difference measured is 1.3e-3 absolute on a period of about 15, 8e-5 relative), and the
     # amplitude within 2e-3 absolute (1e-3 measured, the same corrector).
     description = read_description(BASE / 'ode_lecar_orbit_hopf.json')
@@ -2006,7 +2006,7 @@ def section_scratch():
 
 # ---- errors: a failed autoX computation ends the run, not the program ----
 
-NUMERICS = ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points']  # the Numerics form's first fields, in its order
+NUMERICS = ['mesh.intervals', 'limits.steps', 'output.every', 'mesh.collocation_points']  # the Numerics form's first fields, in its order
 
 
 def set_numerics(s, **values):
@@ -2069,8 +2069,8 @@ def section_errors():
 
     _, good = periodic()
     check('errors: a periodic run from the Hopf point computes points', len(good) > 2, '%d points' % len(good))
-    for field, bad, word in (('collocation_points', 8, 'Collocation points'), ('mesh_intervals', 0, 'Mesh intervals')):
-        normal = {'collocation_points': 4, 'mesh_intervals': 15}[field]
+    for field, bad, word in (('mesh.collocation_points', 8, 'Mesh collocation points'), ('mesh.intervals', 0, 'Mesh intervals')):
+        normal = {'mesh.collocation_points': 4, 'mesh.intervals': 15}[field]
         evs = set_numerics(s, **{field: bad})
         errs = errors_of(evs)
         check('errors: %s %d: the form refuses the value before a run' % (word, bad),
@@ -2131,18 +2131,18 @@ def section_errors():
     # Inject immediately before the periodic autoX/Run step.
     insert = next(i for i, step in enumerate(body) if isinstance(step.get('cmd'), dict)
                   and step['cmd'].get('cmd') == 'autox.run' and step['cmd'].get('kind') == 'periodic')
-    body = body[:insert] + [{'cmd':dict(cmd='autox.configure_numerics',collocation_points=8)}] + body[insert:insert + 1]
+    body = body[:insert] + [{'cmd':dict(cmd='autox.configure_numerics',**{'mesh.collocation_points': 8})}] + body[insert:insert + 1]
     code, out, run = run_recording(steps=body)
     try:
         errors = [json.loads(line) for line in out.splitlines() if line.startswith('{')
                   and json.loads(line).get('ev') in ('session.message', 'done') and json.loads(line).get('error')]
         place = run_recording.places[insert]
         check('W328: a refused autoX value names its recorded form step once in server and silent',
-              code == 1 and len(errors) == 1 and 'Collocation points' in errors[0]['error']
+              code == 1 and len(errors) == 1 and 'Mesh collocation points' in errors[0]['error']
               and errors[0].get('file', '').endswith('run.recx')
               and (errors[0].get('line'), errors[0].get('source')) == place
               and 'run.recx:%d:' % place[0] in run_recording.stderr
-              and run_recording.stderr.count('Collocation points must be a whole number from 2 to 7') == 1
+              and run_recording.stderr.count('Mesh collocation points must be a whole number from 2 to 7') == 1
               and 'autoX stopped' not in run_recording.stderr,
               str((code, errors, run_recording.stderr[-300:])))
     finally:
@@ -2434,7 +2434,7 @@ def section_limits():
               len((last_state(startup) or {}).get('ics', [])) == 401
               and len((last_state(startup) or {}).get('pars', [])) == 40)
         open_autox(s)
-        completed(s, dict(cmd='autox.configure_numerics', max_steps=4, output_every=1, suppress_branch_points=True))
+        completed(s, dict(cmd='autox.configure_numerics', **{'limits.steps': 4}, **{'output.every': 1}, suppress_branch_points=True))
         s.send(cmd='autox.configure_axes', parameter1='P39', variable='X400')
         evs, _ = s.collect(is_done)
         check('limits: the fortieth model parameter is available without selection', not errors_of(evs), str(errors_of(evs)))
@@ -2482,7 +2482,7 @@ def section_nagumo():
         u = 1 / (1 + math.exp(-interval / (2 * math.sqrt(2))))
         d['initial_conditions'] = dict(u=u, up=-u * (1-u) / math.sqrt(2))
         for r in d['runs']:
-            r['autox']['mesh_intervals'] = ntst
+            r['autox']['mesh.intervals'] = ntst
         data, count, _, ranges = compute(args.server, d, 1)
         rows = diagram_rows(data)
         parameters = [float(r['par1']) for r in rows]
@@ -2516,13 +2516,13 @@ def section_hopf_reduced():
         model = os.path.join(folder, 'bt.odex')
         with open(model, 'w') as f:
             f.write(versioned("x'=y\ny'=a+b*y+x*x\npar a=-0.25,b=-0.1\ninit x=-0.5,y=0\n"))
-        constants = dict(step_size=.02, min_step_size=1e-6, max_step_size=.05, max_steps=40, output_every=5,
-                         parameter_min=-.2, parameter_max=.2, mesh_intervals=15, max_branch_switches=0, parameter_tolerance=1e-9, state_tolerance=1e-9, special_point_tolerance=1e-8)
+        constants = dict(**{'step.initial': .02}, **{'step.min': 1e-6}, **{'step.max': .05}, **{'limits.steps': 40}, **{'output.every': 5},
+                         **{'limits.parameter_min': -.2}, **{'limits.parameter_max': .2}, **{'mesh.intervals': 15}, max_branch_switches=0, **{'newton.parameter_tolerance': 1e-9}, **{'newton.state_tolerance': 1e-9}, **{'newton.special_point_tolerance': 1e-8})
         d = dict(model=model, runs=[
             dict(name='steady', kind='equilibrium', start=dict(state='current'),
                  parameter='b', autox=constants),
             dict(name='hopf', kind='two_parameter', start=dict(run='steady', type='hopf', index=1),
-                 parameters=['a', 'b'], autox=dict(constants, step_size=.03, max_step_size=.1, max_steps=70, parameter_min=-2, parameter_max=1))])
+                 parameters=['a', 'b'], autox=dict(constants, **{'step.initial': .03}, **{'step.max': .1}, **{'limits.steps': 70}, **{'limits.parameter_min': -2}, **{'limits.parameter_max': 1}))])
         data, _, _, ranges = compute(args.server, d, 1)
         rows = diagram_rows(data)[slice(*ranges['hopf'])]
         x = [float(r['u0.X']) for r in rows]
@@ -2570,12 +2570,12 @@ def section_codim():
             check('codim: ' + mode, len(zh) == (1 if expected else 0)
                   and (not zh or abs(float(zh[0]['continued_parameter'])) < 1e-4))
         for bad in ({'zero_hopf': 0}, {'zero_hopf': 'false'}, {'unknown': False}):
-            s.send(cmd='autox.configure_numerics', special_points=bad, max_steps=7)
+            s.send(cmd='autox.configure_numerics', special_points=bad, **{'limits.steps': 7})
             events, _ = s.collect(is_done)
             check('codim: invalid named boolean refuses transaction ' + str(bad), len(errors_of(events)) == 1)
             after = completed(s, dict(cmd='events.subscribe', events=['autox.options']))
             current = next(e for e in after if e.get('ev') == 'autox.options')
-            check('codim: refusal applies nothing', current['numerics']['max_steps'] == 50 and current['special_points'] == flags)
+            check('codim: refusal applies nothing', current['numerics']['limits.steps'] == 50 and current['special_points'] == flags)
     finally:
         s.close()
 
@@ -2583,9 +2583,9 @@ def section_codim():
     # The same zero-Hopf point reached along the Hopf curve.
     hopf = copy.deepcopy(d)
     hopf['runs'][0]['parameter'] = 'b'
-    hopf['runs'][0]['autox'].update(parameter_min=-.2, parameter_max=.2)
+    hopf['runs'][0]['autox'].update(**{'limits.parameter_min': -.2}, **{'limits.parameter_max': .2})
     hopf['runs'][1].update(name='hopf', start=dict(run='steady', type='hopf', index=1), parameters=['a','b'])
-    hopf['runs'][1]['autox'].update(max_steps=200, parameter_min=-2, parameter_max=.1)
+    hopf['runs'][1]['autox'].update(**{'limits.steps': 200}, **{'limits.parameter_min': -2}, **{'limits.parameter_max': .1})
     data, _, _, intervals = compute(args.server, hopf, 1)
     rows = diagram_rows(data)[slice(*intervals['hopf'])]
     zh = [r for r in rows if r['itp']=='zero_hopf_from_hopf']
@@ -2594,8 +2594,8 @@ def section_codim():
         model = os.path.join(folder, 'bautin.odex')
         with open(model, 'w') as f:
             f.write(versioned("x'=-y+a*x+b*x*(x*x+y*y)\ny'=x+a*y+b*y*(x*x+y*y)\npar a=-0.1,b=-0.1\ninit x=0,y=0\n"))
-        constants = dict(step_size=.02, min_step_size=1e-6, max_step_size=.05, max_steps=30, output_every=10,
-                         parameter_min=-.2, parameter_max=.2, mesh_intervals=15, max_branch_switches=0, parameter_tolerance=1e-9, state_tolerance=1e-9, special_point_tolerance=1e-8)
+        constants = dict(**{'step.initial': .02}, **{'step.min': 1e-6}, **{'step.max': .05}, **{'limits.steps': 30}, **{'output.every': 10},
+                         **{'limits.parameter_min': -.2}, **{'limits.parameter_max': .2}, **{'mesh.intervals': 15}, max_branch_switches=0, **{'newton.parameter_tolerance': 1e-9}, **{'newton.state_tolerance': 1e-9}, **{'newton.special_point_tolerance': 1e-8})
         normal = dict(model=model, runs=[
             dict(name='steady',kind='equilibrium',start=dict(state='current'),parameter='a',autox=constants),
             dict(name='hopf',kind='two_parameter',start=dict(run='steady',type='hopf',index=1),parameters=['b','a'],autox=constants)])
@@ -2608,13 +2608,13 @@ def section_codim():
     # W400: independent closed forms for the uncoupled Hill equation.
     cycles = read_description(BASE / 'hill_cycles_torus.json')
     cycles['parameters'] = {'q': 0.0}
-    cycles['runs'][3]['autox']['max_steps'] = 15  # reaches R3 before the degenerate 1:2 endpoint
+    cycles['runs'][3]['autox']['limits.steps'] = 15  # reaches R3 before the degenerate 1:2 endpoint
     data, _, _, intervals = compute(args.server, cycles, 1)
     rows = autoxcompare.stored_rows(data, intervals)
     for run, kind, exact in (('torus_up', 'resonance_1_4_from_neimark_sacker', 9/16), ('torus_down', 'resonance_1_3_from_neimark_sacker', 4/9)):
         labels = [r for r in rows[run] if r['itp'] == kind]
         constants = next(r['autox'] for r in cycles['runs'] if r['name'] == run)
-        location_tolerance = 2 * constants['special_point_tolerance'] * (1 + constants['max_step_size'])
+        location_tolerance = 2 * constants['newton.special_point_tolerance'] * (1 + constants['step.max'])
         check('cycle codim: q=0 ' + kind + ' at closed-form d=' + str(exact),
               len(labels) == 1 and abs(float(labels[0]['continued_parameter2']) - exact) < location_tolerance)
     cycles = read_description(BASE / 'hill_cycles_torus.json')
@@ -2638,7 +2638,7 @@ def section_codim():
         maps = read_description(BASE / ('henon_rot_' + curve + '.json'))
         if curve=='tr':
             maps['runs'][2].pop('skip',None)
-            maps['runs'][2]['autox']['max_steps']=48 # before the traced singular R1 endpoint
+            maps['runs'][2]['autox']['limits.steps']=48 # before the traced singular R1 endpoint
         data, _, _, intervals = compute(args.server, maps, 1)
         runs = autoxcompare.stored_rows(data, intervals)
         for direction in ('up','down'):
@@ -2673,7 +2673,7 @@ def section_codim():
     # options and typed point codes survive a session round trip.
     maps = read_description(BASE / 'henon_rot_tr.json')
     maps['runs'][2].pop('skip',None)
-    maps['runs'][2]['autox']['max_steps']=40 # includes R3 and R4; avoids the singular R1 endpoint
+    maps['runs'][2]['autox']['limits.steps']=40 # includes R3 and R4; avoids the singular R1 endpoint
     # The server stops before its session's folder goes: Windows cannot
     # remove a folder a running process still holds (CI run 38913397765).
     with tempfile.TemporaryDirectory() as folder:
@@ -2768,7 +2768,7 @@ def section_switch():
         intervals = {}
         execute_run(s, d['runs'][0], diagram, intervals)
         d['runs'][1]['parameter'] = 'par1'
-        d['runs'][1]['autox'].update(parameter_min=0, parameter_max=5)  # par1 = 3 starts inside
+        d['runs'][1]['autox'].update(**{'limits.parameter_min': 0}, **{'limits.parameter_max': 5})  # par1 = 3 starts inside
         s_events = None
         try:
             execute_run(s, d['runs'][1], diagram, intervals)
@@ -2805,9 +2805,9 @@ def section_first_steps():
 
     def run_settings(r, **values):
         r['autox'].update(values)
-        if 'step_size' in values:
-            r['autox']['max_step_size'] = abs(values['step_size'])
-        r['autox']['output_every'] = 1
+        if 'step.initial' in values:
+            r['autox']['step.max'] = abs(values['step.initial'])
+        r['autox']['output.every'] = 1
         return r
 
     # pp2 (Doedel 1984; AUTO-07p's and XPPAUT's demo), the equilibria u0 = 1/3 and u1 = 0 (the exact solutions of its equations)
@@ -2817,7 +2817,7 @@ def section_first_steps():
         d = read_description(BASE / 'tstauto_pp2.json')
         d['runs'] = d['runs'][:1]
         d['parameters'], d['initial_conditions'] = {'par0': par0}, {'u0': u0, 'u1': u1}
-        r = run_settings(d['runs'][0], step_size=step, max_steps=steps)
+        r = run_settings(d['runs'][0], **{'step.initial': step}, **{'limits.steps': steps})
         if marks:
             r['marks'] = marks
         return d
@@ -2892,10 +2892,10 @@ def section_first_steps():
     d = read_description(BASE / 'lrz_cycles.json')
     steady = copy.deepcopy(d['runs'][0])
     steady['start'] = {'state': 'current'}
-    steady['autox'].update(step_size=0.1, max_step_size=0.1, max_steps=30, output_every=5, parameter_min=-1, parameter_max=40, mesh_intervals=15)
+    steady['autox'].update(**{'step.initial': 0.1}, **{'step.max': 0.1}, **{'limits.steps': 30}, **{'output.every': 5}, **{'limits.parameter_min': -1}, **{'limits.parameter_max': 40}, **{'mesh.intervals': 15})
     switched = copy.deepcopy(steady)
     switched.update(name='switched', start={'run': 'steady', 'type': 'branch_point', 'index': 1}, switch=True)
-    run_settings(switched, step_size=10., max_steps=5)
+    run_settings(switched, **{'step.initial': 10.}, **{'limits.steps': 5})
     d['runs'] = [steady, switched]
     d['parameters'], d['initial_conditions'] = {'r': 0., 's': sigma, 'b': b}, {'x': 0., 'y': 0., 'z': 0.}
     rows = rows_of(d, 'switched')
@@ -2914,9 +2914,9 @@ def section_first_steps():
         d = read_description(BASE / base)
         first, second = copy.deepcopy(d['runs'][1]), copy.deepcopy(d['runs'][1])
         d['runs'] = [d['runs'][0], first, second]
-        run_settings(first, max_steps=steps)
+        run_settings(first, **{'limits.steps': steps})
         second.update(name='restart', start={'run': first['name'], 'type': 'EP', 'index': 1})
-        run_settings(second, step_size=step, max_steps=4)
+        run_settings(second, **{'step.initial': step}, **{'limits.steps': 4})
         if marks:
             second['marks'] = marks
         d.pop('differences', None)
@@ -3071,7 +3071,7 @@ def section_script():
         bad = {
             'a start from a run after it': (good.replace('kind: equilibrium', 'kind: periodic, start: { run: "later", type: hopf, index: 1 }'), 'is not a run before this one'),
             'a kind that is none': (good.replace('kind: equilibrium', 'kind: wobble'), 'wobble'),
-            'an option of another type': (good.replace('step_size: 0.02', 'step_size: "wide"'), 'step_size'),
+            'an option of another type': (good.replace('step.initial: 0.02', 'step.initial: "wide"'), 'step.initial'),
             'a parameter the model lacks': (good.replace('parameters: ["p0"]', 'parameters: ["nothere"]'), 'nothere'),
             'an option that is the run\'s own key': (good.replace('options: {', 'options: { kind: bvp,'), 'is not an option'),
             'another version': (good.replace('version: 4', 'version: 3'), 'version 3'),

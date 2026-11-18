@@ -13,7 +13,7 @@ aux ly = ln(abs(y))
 aux lz = ln(abs(z))
 options {
   integration: { method: cvode, total_time: 1000, dt: .5, step.relative_tolerance: 1e-8, step.absolute_tolerance: 1e-7, state_limit: 1e7 },
-  equilibria: { search_limit: 1e7 },
+  equilibria: { newton.search_limit: 1e7 },
   plot: { axes.x_min: 0, axes.x_max: 1000, axes.y_min: 0, axes.y_max: 12, curves: [ { y: lz } ] },
 }
 

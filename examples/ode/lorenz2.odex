@@ -18,7 +18,7 @@ x1 = x-del*(s*(-x+y))
 options {
   animation: "lorenz.anix",
   integration: { dt: .025, total_time: 40, state_limit: 10000 },
-  equilibria: { search_limit: 10000 },
+  equilibria: { newton.search_limit: 10000 },
   plot: {
     curves: [ { x: x, y: y, z: z } ], axes.kind: 3, axes.x_min: -20, axes.x_max: 20, axes.y_min: -30, axes.y_max: 30, axes.z_min: 0, axes.z_max: 50,
   },

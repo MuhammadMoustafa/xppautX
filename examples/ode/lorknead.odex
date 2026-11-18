@@ -20,5 +20,5 @@ aux ss = s
 # color by p
 options {
   integration: { dt: .001, store_every: 10, total_time: 40, store_from: 1000, state_limit: 100000 },
-  equilibria: { search_limit: 100000 },
+  equilibria: { newton.search_limit: 100000 },
 }

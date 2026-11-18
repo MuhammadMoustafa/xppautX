@@ -272,7 +272,7 @@ constexpr std::array slider_slot_parsers{
 
 /* the rows an expanding import row sets (OptionRow::sets) */
 constexpr std::array<std::string_view, 1> stoch_sets{"output.after_run"};
-constexpr std::array<std::string_view, 2> bound_sets{"integration.state_limit", "equilibria.search_limit"};
+constexpr std::array<std::string_view, 2> bound_sets{"integration.state_limit", "equilibria.newton.search_limit"};
 constexpr std::array<std::string_view, 3> lt_sets{"plot.line.draw", "plot.line.marker", "plot.line.marker_size"};
 constexpr std::array<std::string_view, 2> ncdraw_sets{"plot.nullclines.draw", "output.nullclines_file"};
 constexpr std::array<std::string_view, 1> xlo_sets{"plot.axes.x_min"}, xhi_sets{"plot.axes.x_max"}, ylo_sets{"plot.axes.y_min"}, yhi_sets{"plot.axes.y_max"};
@@ -305,7 +305,7 @@ constexpr OptionRow rows[] = {
    /* store from the start */
    .reset = [](const SessionParts &s) { s.numerics->store_from = 0; },
    .key = "store_from", .label = "Store from", .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::choice, .odex = "storage_precision", .help = "What the data table keeps each value as: a single-precision float as XPPAUT does, or the integrator's double.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::choice, .odex = "storage_precision", .advanced = true, .help = "What the data table keeps each value as: a single-precision float as XPPAUT does, or the integrator's double.", .once = true,
    .index = choice_member([](auto &s) -> auto & { return s.numerics->storage_precision; }),
    /* single: XPPAUT's float, half the memory */
    .reset = [](const SessionParts &s) { s.numerics->storage_precision = StoragePrecision::single; },
@@ -327,12 +327,12 @@ constexpr OptionRow rows[] = {
      s.numerics->method = pick_method(s.model(), s.model().compiler.nkernel > 0 ? "Volterra" : "Runge-Kutta", command_place()).value();
    },
    .key = "method", .label = "Method", .rule = OptionRule::method, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::choice, .odex = "subsystem_split", .help = "What splits the model into independent subsystems: its equations alone, or also the run (a Poincare section or stop).", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::choice, .odex = "subsystem_split", .advanced = true, .help = "What splits the model into independent subsystems: its equations alone, or also the run (a Poincare section or stop).", .once = true,
    .index = choice_member([](auto &s) -> auto & { return s.numerics->subsystem_split; }),
    /* the equations alone: a Poincare section or stop does not join the states */
    .reset = [](const SessionParts &s) { s.numerics->subsystem_split = SubsystemSplit::equations; },
    .key = "subsystem_split", .label = "Subsystem split", .rule = OptionRule::choice, .choices = subsystem_split_names, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::choice, .odex = "compile", .help = "Whether the equations run as compiled code or in the interpreter; a change applies when the model next loads.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::choice, .odex = "compile", .advanced = true, .help = "Whether the equations run as compiled code or in the interpreter; a change applies when the model next loads.", .once = true,
    .boolean = member([](auto &s) -> auto & { return s.numerics->compile; }),
    /* XPPAUT interprets; compiled code is xppautX's (W258) */
    .reset = [](const SessionParts &s) { s.numerics->compile = true; },
@@ -347,31 +347,31 @@ constexpr OptionRow rows[] = {
      s.random.seed(s.numerics->rand_seed);
      return nullptr;
    }},
-  {.group = option_group::integration, .kind = OptionKind::number, .odex = "step.relative_tolerance", .help = "The relative error an adaptive method accepts in one step.", .xppaut_names = {"TOL"}, .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "step.relative_tolerance", .advanced = true, .help = "The relative error an adaptive method accepts in one step.", .xppaut_names = {"TOL"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics->relative_tolerance; }),
    /* XPPAUT's */
    .reset = [](const SessionParts &s) { s.numerics->relative_tolerance = .001; },
    .key = "relative_tolerance", .label = "Relative tolerance", .rule = OptionRule::positive, .use = OptionUse::relative_tolerance, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .odex = "step.absolute_tolerance", .help = "The absolute error an adaptive method accepts in one step.", .xppaut_names = {"ATOL"}, .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "step.absolute_tolerance", .advanced = true, .help = "The absolute error an adaptive method accepts in one step.", .xppaut_names = {"ATOL"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics->absolute_tolerance; }),
    /* XPPAUT's */
    .reset = [](const SessionParts &s) { s.numerics->absolute_tolerance = .001; },
    .key = "absolute_tolerance", .label = "Absolute tolerance", .rule = OptionRule::positive, .use = OptionUse::absolute_tolerance, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .odex = "step.min", .help = "The smallest step an adaptive method takes before it gives up.", .xppaut_names = {"DTMIN"}, .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "step.min", .advanced = true, .help = "The smallest step an adaptive method takes before it gives up.", .xppaut_names = {"DTMIN"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics->min_step; }),
    /* as small as an adaptive method may need */
    .reset = [](const SessionParts &s) { s.numerics->min_step = 1e-12; },
    .key = "min_step", .label = "Minimum step", .rule = OptionRule::positive, .use = OptionUse::min_step, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .odex = "step.max", .help = "The largest step an adaptive method takes.", .xppaut_names = {"DTMAX"}, .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "step.max", .advanced = true, .help = "The largest step an adaptive method takes.", .xppaut_names = {"DTMAX"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics->max_step; }),
    /* one time unit */
    .reset = [](const SessionParts &s) { s.numerics->max_step = 1; },
    .key = "max_step", .label = "Maximum step", .rule = OptionRule::positive, .use = OptionUse::max_step, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .odex = "global.min_step_fraction", .help = "The smallest fraction of a step a global event's crossing is placed at; a crossing is moved this far past its root.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "global.min_step_fraction", .advanced = true, .help = "The smallest fraction of a step a global event's crossing is placed at; a crossing is moved this far past its root.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics->stol; }),
    /* the member's own initial value, 1e-10 (XPPAUT's STOL, flags.c) */
    .key = "global_min_step_fraction", .label = "Global minimum step fraction", .rule = OptionRule::positive, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::choice, .odex = "jacobian.kind", .help = "Whether an implicit method gets the Jacobian by differences or from the exact derivatives.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::choice, .odex = "jacobian.kind", .advanced = true, .help = "Whether an implicit method gets the Jacobian by differences or from the exact derivatives.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics->jacobian; }),
    /* during a load, exact is checked once the model is compiled
       (xpp_batch.cpp), at the place kept here */
@@ -394,54 +394,54 @@ constexpr OptionRow rows[] = {
      return i == JACOBIAN_EXACT && m.jacobian.tried && !m.jacobian.available() ? std::string_view(m.jacobian.unavailable) : std::string_view();
    },
    .prepare = [](const SessionParts &s, int i) { if (i == JACOBIAN_EXACT) ensure_exact_jacobian(s); }, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "jacobian.band_upper", .help = "The diagonals above the main one that a banded Jacobian keeps.", .xppaut_names = {"BANDUP"}, .once = true,
+  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "jacobian.band_upper", .advanced = true, .help = "The diagonals above the main one that a banded Jacobian keeps.", .xppaut_names = {"BANDUP"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics->cv_bandupper; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * {
      if (const char *why = whole_into(s.numerics->cv_bandupper, v)) return why;
      if (v.apply) s.numerics->cv_bandflag=true;
      return nullptr;
    }, .rule = OptionRule::nonnegative, .maximum = option_limit::bandwidth},
-  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "jacobian.band_lower", .help = "The diagonals below the main one that a banded Jacobian keeps.", .xppaut_names = {"BANDLO"}, .once = true,
+  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "jacobian.band_lower", .advanced = true, .help = "The diagonals below the main one that a banded Jacobian keeps.", .xppaut_names = {"BANDLO"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics->cv_bandlower; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * {
      if (const char *why = whole_into(s.numerics->cv_bandlower, v)) return why;
      if (v.apply) s.numerics->cv_bandflag=true;
      return nullptr;
    }, .rule = OptionRule::nonnegative, .maximum = option_limit::bandwidth},
-  {.group = option_group::integration, .kind = OptionKind::number, .odex = "delay.max_delay", .help = "The longest delay a model uses; it sets how much history is kept.", .xppaut_names = {"DELAY"}, .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "delay.max_delay", .advanced = true, .help = "The longest delay a model uses; it sets how much history is kept.", .xppaut_names = {"DELAY"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics->delay; }),
    /* no delays kept */
    .reset = [](const SessionParts &s) { s.numerics->delay = 0; },
    .key = "delay", .label = "Maximal delay", .rule = OptionRule::nonnegative, .needs = Feature::delays, .saved = true, .effect = OptionEffect::delay},
-  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "delay.history_points", .help = "How many past points of the history the Volterra method keeps for an integral equation.", .xppaut_names = {"VMAXPTS"}, .once = true,
+  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "delay.history_points", .advanced = true, .help = "How many past points of the history the Volterra method keeps for an integral equation.", .xppaut_names = {"VMAXPTS"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics->max_points; }), .rule = OptionRule::whole_positive, .maximum = option_limit::history_points, .use = OptionUse::integral_history, .needs = Feature::integral_terms, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .odex = "delay.real_guess", .help = "The largest real part the search for a delay equilibrium's eigenvalues looks for.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "delay.real_guess", .advanced = true, .help = "The largest real part the search for a delay equilibrium's eigenvalues looks for.", .once = true,
    .real = member([](auto &s) -> auto & { return s.delay->alpha_max; }), .needs = Feature::delays},
-  {.group = option_group::integration, .kind = OptionKind::number, .odex = "delay.imaginary_guess", .help = "The largest imaginary part the search for a delay equilibrium's eigenvalues looks for.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "delay.imaginary_guess", .advanced = true, .help = "The largest imaginary part the search for a delay equilibrium's eigenvalues looks for.", .once = true,
    .real = member([](auto &s) -> auto & { return s.delay->omega_max; }), .needs = Feature::delays},
-  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "delay.grid", .help = "How many points a side the grid of a delay equilibrium's eigenvalue search has.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "delay.grid", .advanced = true, .help = "How many points a side the grid of a delay equilibrium's eigenvalue search has.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.delay->grid; }), .rule = OptionRule::whole_positive, .needs = Feature::delays},
-  {.group = option_group::integration, .kind = OptionKind::number, .odex = "euler.tolerance", .help = "The Newton tolerance of the implicit Euler method.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "euler.tolerance", .advanced = true, .help = "The Newton tolerance of the implicit Euler method.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics->eul_tol; }),
    /* XPPAUT's */
    .reset = [](const SessionParts &s) { s.numerics->eul_tol = 1e-7; },
    .key = "eul_tol", .label = "Newton tolerance", .rule = OptionRule::positive, .use = OptionUse::newton, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "euler.iterations", .help = "The most Newton iterations the implicit Euler method makes in a step.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "euler.iterations", .advanced = true, .help = "The most Newton iterations the implicit Euler method makes in a step.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics->max_eul_iter; }),
    /* XPPAUT's */
    .reset = [](const SessionParts &s) { s.numerics->max_eul_iter = 10; },
    .key = "eul_iter", .label = "Newton iterations", .rule = OptionRule::whole_positive, .use = OptionUse::newton, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "boundary_value.max_iterates", .help = "The most Newton iterates a boundary value solve makes.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "boundary_value.max_iterates", .advanced = true, .help = "The most Newton iterates a boundary value solve makes.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics->bvp_max_iterates; }),
    /* XPPAUT's */
    .reset = [](const SessionParts &s) { s.numerics->bvp_max_iterates = 20; },
    .key = "bvp_max_iterates", .label = "BVP maximum iterates", .rule = OptionRule::whole_positive, .needs = Feature::boundary_conditions, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .odex = "boundary_value.tolerance", .help = "The tolerance a boundary value solve stops at.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "boundary_value.tolerance", .advanced = true, .help = "The tolerance a boundary value solve stops at.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics->bvp_tolerance; }),
    /* XPPAUT's */
    .reset = [](const SessionParts &s) { s.numerics->bvp_tolerance = 1e-5; },
    .key = "bvp_tolerance", .label = "BVP tolerance", .rule = OptionRule::positive, .needs = Feature::boundary_conditions, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .odex = "boundary_value.epsilon", .help = "The step that differences the boundary value problem's Jacobian.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "boundary_value.epsilon", .advanced = true, .help = "The step that differences the boundary value problem's Jacobian.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics->bvp_epsilon; }),
    /* XPPAUT's */
    .reset = [](const SessionParts &s) { s.numerics->bvp_epsilon = 1e-5; },
@@ -521,26 +521,6 @@ constexpr OptionRow rows[] = {
    /* a section does not stop the run */
    .reset = [](const SessionParts &s) { s.numerics->poincare_stop = false; },
    .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
-  {.group = option_group::equilibria, .kind = OptionKind::whole, .odex = "max_iterations", .help = "The most Newton iterations the search for an equilibrium makes.", .xppaut_names = {"NEWT_ITER"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.numerics->equilibria.max_iterations; }),
-   /* Newton's method converges in far fewer or not at all */
-   .reset = [](const SessionParts &s) { s.numerics->equilibria.max_iterations = 100; },
-   .key = "max_iterations", .label = "Equilibria: maximum iterations", .rule = OptionRule::whole_positive, .saved = true},
-  {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "newton_tolerance", .help = "The tolerance the search for an equilibrium stops at.", .xppaut_names = {"NEWT_TOL"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.numerics->equilibria.newton_tolerance; }),
-   /* XPPAUT's */
-   .reset = [](const SessionParts &s) { s.numerics->equilibria.newton_tolerance = .001; },
-   .key = "newton_tolerance", .label = "Equilibria: Newton tolerance", .rule = OptionRule::positive, .saved = true},
-  {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "jacobian_step", .help = "The step that differences the Jacobian of the equilibrium search.", .xppaut_names = {"JAC_EPS"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.numerics->equilibria.jacobian_step; }),
-   /* XPPAUT's */
-   .reset = [](const SessionParts &s) { s.numerics->equilibria.jacobian_step = .001; },
-   .key = "jacobian_step", .label = "Equilibria: Jacobian step", .rule = OptionRule::positive, .saved = true},
-  {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "search_limit", .help = "A state beyond plus or minus this value ends the equilibrium search.", .once = true,
-   .real = member([](auto &s) -> auto & { return s.numerics->equilibria.search_limit; }),
-   /* XPPAUT's bound: the search gives up where a variable passes it */
-   .reset = [](const SessionParts &s) { s.numerics->equilibria.search_limit = 100; },
-   .key = "search_limit", .label = "Equilibria: search limit", .rule = OptionRule::positive, .saved = true},
   {.group = option_group::equilibria, .kind = OptionKind::choice, .odex = "print_eigenvalues", .help = "Whether the eigenvalues of an equilibrium are printed.", .once = true,
    .boolean = member([](auto &s) -> auto & { return s.numerics->equilibria.print_eigenvalues; }),
    .reset = [](const SessionParts &s) { s.numerics->equilibria.print_eigenvalues = false; },
@@ -553,22 +533,41 @@ constexpr OptionRow rows[] = {
    .boolean = member([](auto &s) -> auto & { return s.numerics->equilibria.draw_strong_sets; }),
    .reset = [](const SessionParts &s) { s.numerics->equilibria.draw_strong_sets = false; },
    .key = "draw_strong_sets", .label = "Equilibria: draw strong sets", .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
-  /* ---- the range integration and a batch run ---- */
-  {.group = option_group::equilibria, .kind = OptionKind::name, .odex = "range_parameter", .help = "The parameter Range equilibria varies.", .once = true,
+  {.group = option_group::equilibria, .kind = OptionKind::whole, .odex = "newton.max_iterations", .advanced = true, .help = "The most Newton iterations the search for an equilibrium makes.", .xppaut_names = {"NEWT_ITER"}, .once = true,
+   .whole = member([](auto &s) -> auto & { return s.numerics->equilibria.max_iterations; }),
+   /* Newton's method converges in far fewer or not at all */
+   .reset = [](const SessionParts &s) { s.numerics->equilibria.max_iterations = 100; },
+   .key = "newton.max_iterations", .label = "Equilibria: maximum iterations", .rule = OptionRule::whole_positive, .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "newton.tolerance", .advanced = true, .help = "The tolerance the search for an equilibrium stops at.", .xppaut_names = {"NEWT_TOL"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics->equilibria.newton_tolerance; }),
+   /* XPPAUT's */
+   .reset = [](const SessionParts &s) { s.numerics->equilibria.newton_tolerance = .001; },
+   .key = "newton.tolerance", .label = "Equilibria: Newton tolerance", .rule = OptionRule::positive, .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "newton.jacobian_step", .advanced = true, .help = "The step that differences the Jacobian of the equilibrium search.", .xppaut_names = {"JAC_EPS"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics->equilibria.jacobian_step; }),
+   /* XPPAUT's */
+   .reset = [](const SessionParts &s) { s.numerics->equilibria.jacobian_step = .001; },
+   .key = "newton.jacobian_step", .label = "Equilibria: Jacobian step", .rule = OptionRule::positive, .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "newton.search_limit", .advanced = true, .help = "A state beyond plus or minus this value ends the equilibrium search.", .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics->equilibria.search_limit; }),
+   /* XPPAUT's bound: the search gives up where a variable passes it */
+   .reset = [](const SessionParts &s) { s.numerics->equilibria.search_limit = 100; },
+   .key = "newton.search_limit", .label = "Equilibria: search limit", .rule = OptionRule::positive, .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::name, .odex = "range.parameter", .help = "The parameter Range equilibria varies.", .once = true,
    .text = member([](auto &s) -> auto & { return s.integrator->eq_range.item; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * { return range_item_into(s, s.integrator->eq_range.item, v, false); },
    /* the first parameter */
    .reset = [](const SessionParts &s) { s.integrator->eq_range.item = s.model().upar_names[0]; }, .model_default = true, .needs = Feature::parameters, .saved = true},
-  {.group = option_group::equilibria, .kind = OptionKind::whole, .odex = "range_steps", .help = "How many steps Range equilibria makes between its ends.",
+  {.group = option_group::equilibria, .kind = OptionKind::whole, .odex = "range.steps", .help = "How many steps Range equilibria makes between its ends.",
    .whole = member([](auto &s) -> auto & { return s.integrator->eq_range.steps; }), .rule = OptionRule::whole_positive, .saved = true},
-  {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "range_low", .help = "The value Range equilibria starts at.",
+  {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "range.low", .help = "The value Range equilibria starts at.",
    .real = member([](auto &s) -> auto & { return s.integrator->eq_range.plow; }), .saved = true},
-  {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "range_high", .help = "The value Range equilibria ends at.",
+  {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "range.high", .help = "The value Range equilibria ends at.",
    .real = member([](auto &s) -> auto & { return s.integrator->eq_range.phigh; }), .saved = true},
-  {.group = option_group::equilibria, .kind = OptionKind::choice, .odex = "range_shoot", .help = "Whether Range equilibria finds each equilibrium by shooting from the last one.",
+  {.group = option_group::equilibria, .kind = OptionKind::choice, .odex = "range.shoot", .help = "Whether Range equilibria finds each equilibrium by shooting from the last one.",
    .index = choice_member([](auto &s) -> auto & { return s.integrator->eq_range.shoot; }),
    .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
-  {.group = option_group::equilibria, .kind = OptionKind::whole, .odex = "range_stability_column", .help = "The data column Range equilibria stores each equilibrium's stability in.",
+  {.group = option_group::equilibria, .kind = OptionKind::whole, .odex = "range.stability_column", .help = "The data column Range equilibria stores each equilibrium's stability in.",
    .whole = member([](auto &s) -> auto & { return s.integrator->eq_range.col; }), .saved = true},
   {.group = option_group::sweep, .kind = OptionKind::name, .odex = "variable", .help = "The parameter or variable a sweep varies.", .xppaut_names = {"RANGEOVER"}, .once = true,
    .text = member([](auto &s) -> auto & { return s.integrator->range.item; }),
@@ -612,67 +611,11 @@ constexpr OptionRow rows[] = {
    .index = choice_member([](auto &s) -> auto & { return s.integrator->range.cycle; }),
    .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
   /* ---- autoX ---- */
-  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "mesh_intervals", .help = "How many mesh intervals a periodic orbit or boundary value solution has.",
-   .xppaut_names = {"NTST"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.autox_state->options.ntst; }), .autox_numeric = AUTOX_NUM_MESH_INTERVALS},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "max_steps", .help = "The most continuation steps a run takes before it stops.",
-   .xppaut_names = {"NMAX"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.autox_state->options.nmx; }), .autox_numeric = AUTOX_NUM_MAX_STEPS},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "output_every", .help = "A diagram point is kept every this many steps.",
-   .xppaut_names = {"NPR"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.autox_state->options.npr; }), .autox_numeric = AUTOX_NUM_OUTPUT_EVERY},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "collocation_points", .help = "The collocation points in each mesh interval.",
-   .xppaut_names = {"NCOL"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.autox_state->options.ncol; }), .autox_numeric = AUTOX_NUM_COLLOCATION_POINTS},
-  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "min_step_size", .help = "The smallest continuation step.",
-   .xppaut_names = {"DSMIN"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.autox_state->options.dsmin; }), .autox_numeric = AUTOX_NUM_MIN_STEP_SIZE},
-  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "max_step_size", .help = "The largest continuation step.",
-   .xppaut_names = {"DSMAX"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.autox_state->options.dsmax; }), .autox_numeric = AUTOX_NUM_MAX_STEP_SIZE},
-  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "step_size", .help = "The first continuation step.",
-   .xppaut_names = {"DS"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.autox_state->options.ds; }), .autox_numeric = AUTOX_NUM_STEP_SIZE},
-  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "parameter_min", .help = "A continuation run stops when the parameter falls below this.",
-   .xppaut_names = {"PARMIN"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.autox_state->options.rl0; }), .autox_numeric = AUTOX_NUM_PARAMETER_MIN},
-  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "parameter_max", .help = "A continuation run stops when the parameter rises above this.",
-   .xppaut_names = {"PARMAX"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.autox_state->options.rl1; }), .autox_numeric = AUTOX_NUM_PARAMETER_MAX},
-  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "norm_min", .help = "A continuation run stops when the solution's norm falls below this.",
-   .xppaut_names = {"NORMMIN"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.autox_state->options.a0; }), .autox_numeric = AUTOX_NUM_NORM_MIN},
-  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "norm_max", .help = "A continuation run stops when the solution's norm rises above this.",
-   .xppaut_names = {"NORMMAX"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.autox_state->options.a1; }), .autox_numeric = AUTOX_NUM_NORM_MAX},
-  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "parameter_tolerance", .help = "The tolerance the parameter converges to in the Newton iteration.",
-   .xppaut_names = {"EPSL"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.autox_state->options.epsl; }), .autox_numeric = AUTOX_NUM_PARAMETER_TOLERANCE},
-  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "state_tolerance", .help = "The tolerance the state converges to in the Newton iteration.",
-   .xppaut_names = {"EPSU"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.autox_state->options.epsu; }), .autox_numeric = AUTOX_NUM_STATE_TOLERANCE},
-  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "special_point_tolerance", .help = "The tolerance the special points of a branch are located to.",
-   .xppaut_names = {"EPSS"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.autox_state->options.epss; }), .autox_numeric = AUTOX_NUM_SPECIAL_POINT_TOLERANCE},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "mesh_adapt_every", .help = "The mesh is adapted every this many steps; 0 keeps it as it is.", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.autox_state->advanced.iad; }), .autox_numeric = AUTOX_NUM_MESH_ADAPT_EVERY},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "max_branch_switches", .help = "The most times a run switches to another branch.", .once = true,
+  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "max_branch_switches", .advanced = true, .help = "The most times a run switches to another branch.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state->advanced.max_branch_switches; }), .autox_numeric = AUTOX_NUM_MAX_BRANCH_SWITCHES},
-  {.group = option_group::continuation, .kind = OptionKind::choice, .odex = "switch_one_direction", .help = "Whether a branch switch continues in one direction only.", .once = true,
+  {.group = option_group::continuation, .kind = OptionKind::choice, .odex = "one_way_branch_switch", .help = "A branch autoX switches to is followed from the switch point in its starting step's direction only, not both ways.", .once = true,
    .boolean = member([](auto &s) -> auto & { return s.autox_state->advanced.switch_one_direction; }),
-   .rule = OptionRule::choice, .autox_numeric = AUTOX_NUM_SWITCH_ONE_DIRECTION, .choices = boolean_names},
-  {.group = option_group::continuation, .kind = OptionKind::choice, .odex = "output_detail", .help = "How much of each point the run writes to the Output.", .once = true,
-   .index = choice_member([](auto &s) -> auto & { return s.autox_state->advanced.iid; }),
-   .foreign = [](std::string_view v) { return numbered_word(autox_output_detail_words, v); },
-   .rule = OptionRule::choice, .autox_numeric = AUTOX_NUM_OUTPUT_DETAIL, .choices = autox_output_detail_words},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "max_location_iterations", .help = "The most iterations that locate a special point.", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.autox_state->advanced.itmx; }), .autox_numeric = AUTOX_NUM_MAX_LOCATION_ITERATIONS},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "max_newton_iterations", .help = "The most Newton iterations in one continuation step.", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.autox_state->advanced.itnw; }), .autox_numeric = AUTOX_NUM_MAX_NEWTON_ITERATIONS},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "full_newton_after", .help = "A full Newton iteration is taken after this many steps; before it the Jacobian is kept.", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.autox_state->advanced.nwtn; }), .autox_numeric = AUTOX_NUM_FULL_NEWTON_AFTER},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "step_adapt_every", .help = "The step size is adapted every this many steps.", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.autox_state->advanced.iads; }), .autox_numeric = AUTOX_NUM_STEP_ADAPT_EVERY},
+   .label = "Switched branches: one way", .rule = OptionRule::choice, .autox_numeric = AUTOX_NUM_SWITCH_ONE_DIRECTION, .choices = boolean_names},
   {.group = option_group::continuation, .kind = OptionKind::choice, .odex = "suppress_branch_points", .help = "Whether branch points are left out of the diagram.", .once = true,
    .boolean = member([](auto &s) -> auto & { return s.autox_state->suppress_bp; }),
    .rule = OptionRule::choice, .autox_numeric = AUTOX_NUM_SUPPRESS_BRANCH_POINTS, .choices = boolean_names},
@@ -702,6 +645,62 @@ constexpr OptionRow rows[] = {
      if (v.apply) s.autox_state->special_points = on;
      return nullptr;
    }},
+  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "limits.steps", .help = "The most continuation steps a run takes before it stops.",
+   .xppaut_names = {"NMAX"}, .once = true,
+   .whole = member([](auto &s) -> auto & { return s.autox_state->options.nmx; }), .autox_numeric = AUTOX_NUM_MAX_STEPS},
+  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "limits.parameter_min", .help = "A continuation run stops when the parameter falls below this.",
+   .xppaut_names = {"PARMIN"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.autox_state->options.rl0; }), .autox_numeric = AUTOX_NUM_PARAMETER_MIN},
+  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "limits.parameter_max", .help = "A continuation run stops when the parameter rises above this.",
+   .xppaut_names = {"PARMAX"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.autox_state->options.rl1; }), .autox_numeric = AUTOX_NUM_PARAMETER_MAX},
+  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "limits.norm_min", .help = "A continuation run stops when the solution's norm falls below this.",
+   .xppaut_names = {"NORMMIN"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.autox_state->options.a0; }), .autox_numeric = AUTOX_NUM_NORM_MIN},
+  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "limits.norm_max", .help = "A continuation run stops when the solution's norm rises above this.",
+   .xppaut_names = {"NORMMAX"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.autox_state->options.a1; }), .autox_numeric = AUTOX_NUM_NORM_MAX},
+  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "step.initial", .advanced = true, .help = "The first continuation step.",
+   .xppaut_names = {"DS"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.autox_state->options.ds; }), .autox_numeric = AUTOX_NUM_STEP_SIZE},
+  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "step.min", .advanced = true, .help = "The smallest continuation step.",
+   .xppaut_names = {"DSMIN"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.autox_state->options.dsmin; }), .autox_numeric = AUTOX_NUM_MIN_STEP_SIZE},
+  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "step.max", .advanced = true, .help = "The largest continuation step.",
+   .xppaut_names = {"DSMAX"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.autox_state->options.dsmax; }), .autox_numeric = AUTOX_NUM_MAX_STEP_SIZE},
+  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "step.adapt_every", .advanced = true, .help = "The step size is adapted every this many steps.", .once = true,
+   .whole = member([](auto &s) -> auto & { return s.autox_state->advanced.iads; }), .autox_numeric = AUTOX_NUM_STEP_ADAPT_EVERY},
+  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "mesh.intervals", .advanced = true, .help = "How many mesh intervals a periodic orbit or boundary value solution has.",
+   .xppaut_names = {"NTST"}, .once = true,
+   .whole = member([](auto &s) -> auto & { return s.autox_state->options.ntst; }), .autox_numeric = AUTOX_NUM_MESH_INTERVALS},
+  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "mesh.collocation_points", .advanced = true, .help = "The collocation points in each mesh interval.",
+   .xppaut_names = {"NCOL"}, .once = true,
+   .whole = member([](auto &s) -> auto & { return s.autox_state->options.ncol; }), .autox_numeric = AUTOX_NUM_COLLOCATION_POINTS},
+  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "mesh.adapt_every", .advanced = true, .help = "The mesh is adapted every this many steps; 0 keeps it as it is.", .once = true,
+   .whole = member([](auto &s) -> auto & { return s.autox_state->advanced.iad; }), .autox_numeric = AUTOX_NUM_MESH_ADAPT_EVERY},
+  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "newton.parameter_tolerance", .advanced = true, .help = "The tolerance the parameter converges to in the Newton iteration.",
+   .xppaut_names = {"EPSL"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.autox_state->options.epsl; }), .autox_numeric = AUTOX_NUM_PARAMETER_TOLERANCE},
+  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "newton.state_tolerance", .advanced = true, .help = "The tolerance the state converges to in the Newton iteration.",
+   .xppaut_names = {"EPSU"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.autox_state->options.epsu; }), .autox_numeric = AUTOX_NUM_STATE_TOLERANCE},
+  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "newton.special_point_tolerance", .advanced = true, .help = "The tolerance the special points of a branch are located to.",
+   .xppaut_names = {"EPSS"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.autox_state->options.epss; }), .autox_numeric = AUTOX_NUM_SPECIAL_POINT_TOLERANCE},
+  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "newton.max_iterations", .advanced = true, .help = "The most Newton iterations in one continuation step.", .once = true,
+   .whole = member([](auto &s) -> auto & { return s.autox_state->advanced.itnw; }), .autox_numeric = AUTOX_NUM_MAX_NEWTON_ITERATIONS},
+  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "newton.max_location_iterations", .advanced = true, .help = "The most iterations that locate a special point.", .once = true,
+   .whole = member([](auto &s) -> auto & { return s.autox_state->advanced.itmx; }), .autox_numeric = AUTOX_NUM_MAX_LOCATION_ITERATIONS},
+  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "newton.full_after_steps", .advanced = true, .help = "A full Newton iteration is taken after this many steps; before it the Jacobian is kept.", .once = true,
+   .whole = member([](auto &s) -> auto & { return s.autox_state->advanced.nwtn; }), .label = "Full after steps", .autox_numeric = AUTOX_NUM_FULL_NEWTON_AFTER},
+  {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "output.every", .help = "A diagram point is kept every this many steps.",
+   .xppaut_names = {"NPR"}, .once = true,
+   .whole = member([](auto &s) -> auto & { return s.autox_state->options.npr; }), .autox_numeric = AUTOX_NUM_OUTPUT_EVERY},
+  {.group = option_group::continuation, .kind = OptionKind::choice, .odex = "output.detail", .advanced = true, .help = "How much of each point the run writes to the Output.", .once = true,
+   .index = choice_member([](auto &s) -> auto & { return s.autox_state->advanced.iid; }),
+   .foreign = [](std::string_view v) { return numbered_word(autox_output_detail_words, v); },
+   .rule = OptionRule::choice, .autox_numeric = AUTOX_NUM_OUTPUT_DETAIL, .choices = autox_output_detail_words},
   {.group = option_group::diagram, .kind = OptionKind::name, .odex = "variable", .help = "The variable the continuation diagram plots up.", .xppaut_names = {"AUTOVAR"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state->options.var; }),
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * {
@@ -813,7 +812,7 @@ constexpr OptionRow rows[] = {
      style.marker_size = *size;
      return start_line_style_into(s, style, v);
    }},
-  {.group = option_group::plot, .kind = OptionKind::whole, .odex = "nullclines.mesh", .help = "How many points a side the nullclines are found on.", .xppaut_names = {"NMESH"}, .once = true,
+  {.group = option_group::plot, .kind = OptionKind::whole, .odex = "nullclines.mesh", .advanced = true, .help = "How many points a side the nullclines are found on.", .xppaut_names = {"NMESH"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics->nullcline_mesh; }),
    /* a 40 by 40 grid: smooth nullclines, quickly */
    .reset = [](const SessionParts &s) { s.numerics->nullcline_mesh = 40; },
@@ -821,7 +820,7 @@ constexpr OptionRow rows[] = {
   {.group = option_group::plot, .kind = OptionKind::choice, .odex = "nullclines.draw", .help = "Whether the nullclines are drawn after a run.", .once = true,
    .boolean = member([](auto &s) -> auto & { return s.nullclines->draw; }),
    .rule = OptionRule::choice, .choices = boolean_names},
-  {.group = option_group::plot, .kind = OptionKind::whole, .odex = "direction_field.grid", .help = "How many arrows a side the direction field has.", .xppaut_names = {"DFGRID"}, .once = true,
+  {.group = option_group::plot, .kind = OptionKind::whole, .odex = "direction_field.grid", .advanced = true, .help = "How many arrows a side the direction field has.", .xppaut_names = {"DFGRID"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.nullclines->df_grid; }),
    .rule = OptionRule::whole_at_least_two, .maximum = option_limit::mesh},
   {.group = option_group::plot, .kind = OptionKind::choice, .odex = "direction_field.draw", .help = "What a run draws of the direction field, and whether it also saves it.", .xppaut_names = {"DFDRAW"}, .once = true,
@@ -919,7 +918,7 @@ constexpr OptionRow rows[] = {
    .parse = [](const SessionParts &s, const OptionValue &v) -> const char * {
      return variable_into(s, s.histogram->spec_col2, v);
    }},
-  {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "spectrum.width", .help = "How many points the spectrum's windows are long.", .xppaut_names = {"SPECWIDTH"}, .once = true,
+  {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "spectrum.width", .advanced = true, .help = "How many points the spectrum's windows are long.", .xppaut_names = {"SPECWIDTH"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.histogram->spec_wid; }), .rule = OptionRule::whole_positive, .maximum = option_limit::spectrum_samples},
   {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "spectrum.window", .help = "The window the spectrum's segments are weighted with.", .xppaut_names = {"SPECWIN"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.histogram->spec_win; })},
@@ -1049,7 +1048,7 @@ constexpr OptionRow rows[] = {
      double x = 0;
      if (!parse_number(value, x)) return {{}, "not a number"};
      if (const char *why = rule_problem(OptionRule::positive, x)) return {{}, why};
-     return {{{"integration.state_limit", std::string(value)}, {"equilibria.search_limit", std::string(value)}}, nullptr};
+     return {{{"integration.state_limit", std::string(value)}, {"equilibria.newton.search_limit", std::string(value)}}, nullptr};
    }, .sets = bound_sets, .mapping = "the one value is both limits"},
   /* XPPAUT's lt (import only): 1 a solid line, 0 a dot at each point, -n a circle of radius n at each point */
   {.name = "LT", .once = true,

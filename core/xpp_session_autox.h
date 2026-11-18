@@ -46,7 +46,7 @@ inline constexpr const char *solutions_member = "solutions.s"; /* autoX's soluti
    `ymin`, `ymax`, then the `marks` list of groups of `name` and `value`. Numbers are the shortest text that reads
    back as the same double. */
 void write_autox_settings(odex::Out &out, const AutoxSettingsSet &s);
-/* the options group read, and where each key is ("mesh_intervals", "var", "xmax", "mark0", ...), as a line and a
+/* the options group read, and where each key is ("mesh.intervals", "var", "xmax", "mark0", ...), as a line and a
    column, for a check against a session (autox_settings_check) to name the place of the value it refuses */
 struct SettingsRead {
     AutoxSettingsSet set;

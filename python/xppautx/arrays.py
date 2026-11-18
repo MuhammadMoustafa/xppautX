@@ -6,7 +6,7 @@ A Client (python/xppautx) that reads its data as numpy arrays (numpy is imported
     with Session('examples/tstauto/ab.odex', binary='./xppautX') as s:
         s.set_parameters(p1=14)
         s.autox_axes('p0')
-        s.autox_run('equilibrium', replace_diagram=True, step_size=0.02, parameter_max=1.5, follow_all_branches=False)
+        s.autox_run('equilibrium', replace_diagram=True, **{'step.initial': 0.02, 'limits.parameter_max': 1.5}, follow_all_branches=False)
         d = s.diagram()
         d['param1'], d['type'], d['stability']
 
@@ -84,7 +84,7 @@ class Session(Client):
 
     def autox_run(self, kind, **arguments):
         """One autoX run (autox.run): its kind, its start (label=, or type= with index=, or the current state, settled first
-        by decimals=, hold=, maximum=) and its settings for this run only, step_size's sign the direction. Opens the
+        by decimals=, hold=, maximum=) and its settings for this run only, step.initial's sign the direction. Opens the
         autoX window when it is not open. The result: points_computed and branches_tracked."""
         self._open_autox()
         return self.command('autox.run', kind=kind, **arguments)

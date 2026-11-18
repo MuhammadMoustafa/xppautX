@@ -168,7 +168,7 @@ check = Checker()
 def check_diagram_subscription():
     """W439: delivery is presentation only; resubscribe recovers every point."""
     d = copy.deepcopy(autoxcompare.read_description(autoxcompare.BASE / 'tstauto_simplefold.json'))
-    d['runs'][0]['autox']['max_steps'] = 5
+    d['runs'][0]['autox']['limits.steps'] = 5
     with_events = autoxcompare.compute(args.server, d, 1)[0]
     without_events = autoxcompare.compute(args.server, d, 1, diagram_data=False)[0]
     check('data.diagram: opt-out keeps every saved number', with_events == without_events)
@@ -225,9 +225,9 @@ STOPS_CASES = [
     dict(id='section_no_crossing', model='section_no_crossing', command=STOPS_RUN, at=None, bottom=True,
          says=[r'No crossing found', r'poincare\.variable', r'poincare\.plane = 10', r'0, 2', r'integrate longer']),
     dict(id='monte_carlo', model='monte_carlo', command=dict(cmd='equilibrium.search', guesses=4, tolerance=0.001, append=False, shoot=False, bounds={'x': [-1, 1]}), replies=[], at=None, bottom=True,
-         says=[r'Monte Carlo: 0 of 4 guesses converged to 0 distinct equilibria', r'max_iterations', r'newton_tolerance']),
-    dict(id='monte_carlo_manifold', model='manifold', command=dict(cmd='equilibrium.search', guesses=4, tolerance=0.001, append=False, shoot=False, bounds={'x': [0, 0], 'y': [0, 0]}), replies=[], at='newton_tolerance: 1e-200', bottom=True,
-         says=[r'No eigenvector', r'singular', r'newton_tolerance = 1e-200',
+         says=[r'Monte Carlo: 0 of 4 guesses converged to 0 distinct equilibria', r'newton\.max_iterations', r'newton\.tolerance']),
+    dict(id='monte_carlo_manifold', model='manifold', command=dict(cmd='equilibrium.search', guesses=4, tolerance=0.001, append=False, shoot=False, bounds={'x': [0, 0], 'y': [0, 0]}), replies=[], at='newton.tolerance: 1e-200', bottom=True,
+         says=[r'No eigenvector', r'singular', r'newton.tolerance = 1e-200',
                r'Monte Carlo: 4 of 4 guesses converged to 1 distinct equilibria']),
     dict(id='nan', model='nan_sqrt', command=STOPS_RUN, at="x' = sqrt",
          says=[r'X is NaN', r't ?= ?']),
@@ -262,7 +262,7 @@ STOPS_CASES = [
          says=[r'DoPri5', r'rounding limit', r't ?= ?(0\.9|1\.0)', r'relative_tolerance'],
          silent=dict(says=[r'DoPri5', r'rounding limit'], forbids=[r'Exit of dopri5'])),
     dict(id='dae_no_root', model='dae_no_root', command=STOPS_RUN, at='0 = y^2+1',
-         says=[r'algebraic equations', r't ?= ?0\b', r'max_iterations ?= ?100\b', r'newton_tolerance']),
+         says=[r'algebraic equations', r't ?= ?0\b', r'newton\.max_iterations ?= ?100\b', r'newton\.tolerance']),
     dict(id='event_halt', model='event_halt', command=STOPS_RUN, at=None, bottom=True,
          says=[r'Stopped at t ?= ?3:', r'global event \\"x-3\\"', r'arret', r'model line 6']),
     dict(id='store_from_past_end', model='store_from_past_end', command=STOPS_RUN, at='store_from: 20',
@@ -270,7 +270,7 @@ STOPS_CASES = [
     dict(id='store_from_backward', model='store_from_backward', command=STOPS_RUN, at='store_from: -20',
          says=[r'store_from ?= ?-20\b', r'starts at t ?= ?0\b', r'ends at t ?= ?-10\b']),
     dict(id='sing_pts', model='sing_pts', command=dict(cmd='equilibrium.find'), replies=[], at="x' = x^2+1",
-         says=[r'X ?= ?0\.5', r'max_iterations ?= ?100\b', r'newton_tolerance', r'iterations']),
+         says=[r'X ?= ?0\.5', r'newton\.max_iterations ?= ?100\b', r'newton\.tolerance', r'iterations']),
     dict(id='bvp_max_iterates', model='bvp_max_iterates', command={'cmd': 'boundary_value.solve', 'show': False}, at=None,
          first=[{'cmd': 'boundary_value.configure', 'max_iterates': 1, 'tolerance': 1e-12}],
          says=[r'Shoot', r'integration\.boundary_value\.max_iterates ?= ?1\b', r'integration\.boundary_value\.tolerance ?= ?1e-12', r'residual']),
@@ -393,7 +393,7 @@ def autox_lost_points(itmx):
         autoxcompare.completed(s)
         autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info']))
         diagram = autoxcompare.Diagram().apply(autoxcompare.open_autox(s))
-        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'max_location_iterations': itmx}))
+        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'newton.max_location_iterations': itmx}))
         r = d['runs'][0]
         autoxcompare.restore_start(s, r, [], {})
         infos = [e for e in autoxcompare.execute_run(s, r, diagram, {}) if e.get('ev') == 'autox.info']
@@ -411,9 +411,9 @@ def check_autox_stops():
     tests/test_autox_restart.cpp also covers direct short reads."""
     notes, stop, labelled = autox_lost_points(1)
     notes8, _, labelled8 = autox_lost_points(8)
-    check('stops autoX special point: max_location_iterations 1 no longer loses the folds, the bracket is bisected: they are located and labelled as with 8, no note',
+    check('stops autoX special point: newton.max_location_iterations 1 no longer loses the folds, the bracket is bisected: they are located and labelled as with 8, no note',
           notes == [] and notes8 == [] and 'LP' in labelled8 and labelled == labelled8
-          and isinstance(stop, dict) and stop.get('why') == 'parameter_max', '%s %s %s %s' % (notes, stop, labelled, labelled8))
+          and isinstance(stop, dict) and stop.get('why') == 'limits.parameter_max', '%s %s %s %s' % (notes, stop, labelled, labelled8))
     d = autoxcompare.read_description(autoxcompare.BASE / 'pp2_heteroclinic_coarse.json')
 
     class Notes:
@@ -508,7 +508,7 @@ def check_autox_closed_branch():
         check('stops autoX branch_closed: the isola of equilibria ends where it started, says why and marks the end CL',
               stop.get('why') == 'branch_closed' and labels[-1] == 'branch_closed' and labels.count('fold') == 2
               and all(w in stop.get('text', '') for w in ['parameter s0 = 25.617: the branch closed on itself: back at its start, every parameter and state within ',
-                                                         ' times special_point_tolerance = ', 'point type branch_closed (CL)']), str(seen['isola']))
+                                                         ' times newton.special_point_tolerance = ', 'point type branch_closed (CL)']), str(seen['isola']))
         stop, labels = seen['from_label']
         check("stops autoX branch_closed: a run restarted from the isola's start label closes at its start again",
               stop.get('why') == 'branch_closed' and labels[-1] == 'branch_closed', str(seen['from_label']))
@@ -563,12 +563,12 @@ def check_autox_starts():
     no_root = os.path.join(STOPS_DIR, 'autox_start_no_root.odex')
     cases = [
         ('residual', no_root, {}, {}, ['largest residual', 'did not converge', 'Newton options', 'Sing pts']),
-        ('parameter low', path, {'pars': {'a': -3}}, {'step_size': -0.02}, ['parameter "a" = -3', 'parameter_min = -2', 'parameter_max = 2']),
-        ('parameter high', path, {'pars': {'a': 3}}, {}, ['parameter "a" = 3', 'parameter_min = -2', 'parameter_max = 2']),
-        ('parameter below Par Min', path, {}, {'parameter_min': 0.2, 'parameter_max': 0.9, 'step_size': -0.02}, ['parameter "a" = 0', 'parameter_min = 0.2', 'parameter_max = 0.9']),
-        ('bound outward', path, {}, {'parameter_min': 0, 'step_size': -0.02}, ['step_size = -0.02', 'pointing away']),
-        ('norm low', path, {}, {'norm_min': 1}, ['Start norm = 0', 'norm_min = 1', 'widen']),
-        ('norm high', path, {'ics': {'X': 1}, 'pars': {'a': 1}}, {'norm_max': 0.5}, ['Start norm = 1', 'norm_max = 0.5', 'widen']),
+        ('parameter low', path, {'pars': {'a': -3}}, {'step.initial': -0.02}, ['parameter "a" = -3', 'limits.parameter_min = -2', 'limits.parameter_max = 2']),
+        ('parameter high', path, {'pars': {'a': 3}}, {}, ['parameter "a" = 3', 'limits.parameter_min = -2', 'limits.parameter_max = 2']),
+        ('parameter below Par Min', path, {}, {'limits.parameter_min': 0.2, 'limits.parameter_max': 0.9, 'step.initial': -0.02}, ['parameter "a" = 0', 'limits.parameter_min = 0.2', 'limits.parameter_max = 0.9']),
+        ('bound outward', path, {}, {'limits.parameter_min': 0, 'step.initial': -0.02}, ['step.initial = -0.02', 'pointing away']),
+        ('norm low', path, {}, {'limits.norm_min': 1}, ['Start norm = 0', 'limits.norm_min = 1', 'widen']),
+        ('norm high', path, {'ics': {'X': 1}, 'pars': {'a': 1}}, {'limits.norm_max': 0.5}, ['Start norm = 1', 'limits.norm_max = 0.5', 'widen']),
     ]
     for name, case_path, values, limits, words in cases:
         s = Server(args.server, case_path)
@@ -579,7 +579,7 @@ def check_autox_starts():
                 autoxcompare.completed(s, dict(cmd='initial_conditions.set', values=values['ics']))
             if values.get('pars'):
                 autoxcompare.completed(s, dict(cmd='value.set_parameters', values=dict(values['pars'])))
-            autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'parameter_min': -2, 'parameter_max': 2, **limits}))
+            autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'limits.parameter_min': -2, 'limits.parameter_max': 2, **limits}))
             evs = autoxcompare.run_any(s, 's')
             errors = [e for e in evs if e.get('error')]
             text = errors[0]['error'] if len(errors) == 1 else str(errors)
@@ -597,7 +597,7 @@ def check_autox_starts():
         autoxcompare.completed(s)
         autoxcompare.open_autox(s)
         autoxcompare.completed(s, dict(cmd='initial_conditions.set', values={'X': 1}))
-        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', parameter_min=-2, parameter_max=2))
+        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'limits.parameter_min': -2}, **{'limits.parameter_max': 2}))
         evs = autoxcompare.run_any(s, 's')
         errors = [e for e in evs if e.get('error')]
         check('stops autoX start refined by Newton: X = 1 is refined and the run starts',
@@ -660,7 +660,7 @@ def check_autox_directions():
         up['autox'].pop('follow_all_branches', None)
         down = copy.deepcopy(up)
         down['name'] = 'down'
-        down['autox']['step_size'] = -up['autox']['step_size']
+        down['autox']['step.initial'] = -up['autox']['step.initial']
         d['runs'] = [up, down]
         return d
 
@@ -692,8 +692,8 @@ def check_autox_directions():
         # the steady state at p0 = 0.05 (tstauto_ab_both's first point), so the start needs no Newton refinement
         autoxcompare.set_values(s, [dict(kind='par', name='p0', value=0.05), dict(kind='ic', name='U1', value=0.06282240276322631),
                                     dict(kind='ic', name='U2', value=0.2931712128950587)])
-        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', max_steps=1000000, output_every=1000, parameter_min=0, parameter_max=1.5,
-                                       step_size=1e-6, min_step_size=1e-7, max_step_size=1e-6))
+        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'limits.steps': 1000000}, **{'output.every': 1000}, **{'limits.parameter_min': 0}, **{'limits.parameter_max': 1.5},
+                                       **{'step.initial': 1e-6}, **{'step.min': 1e-7}, **{'step.max': 1e-6}))
         s.send(cmd='autox.run', kind='equilibrium', replace_diagram=False, follow_all_branches=True)
         s.send(cmd='run.stop')
         evs, end = s.collect(is_done, timeout=60 * SLOW)
@@ -722,15 +722,15 @@ def orbit_directions(model, parameter, values, orbit, numerics, settle=None):
             else:
                 autoxcompare.integrate(s, orbit)
             autoxcompare.completed(s, dict(cmd='autox.configure_axes', parameter1=parameter))
-            step = numerics.pop('step_size') if 'step_size' in numerics else 0.01
+            step = numerics.pop('step.initial') if 'step.initial' in numerics else 0.01
             for sign in ((1,) if follow else (1, -1)):
-                autoxcompare.completed(s, dict(cmd='autox.configure_numerics', step_size=sign * step, follow_all_branches=follow, **numerics))
+                autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'step.initial': sign * step}, follow_all_branches=follow, **numerics))
                 s.send(cmd='autox.run', kind='periodic')
                 events, end = s.collect(lambda e: is_done(e) or is_ask(e), timeout=600 * SLOW)
                 autoxcompare.ensure_completed(events, end)
                 autoxcompare.set_values(s, [v for v in values if v['kind'] == 'par'])  # the second run starts from the same parameter
             results.append((autoxcompare.saved_member(s), autoxcompare.run_files(s)))
-            numerics['step_size'] = step
+            numerics['step.initial'] = step
         finally:
             s.close()
     return results
@@ -745,16 +745,16 @@ def check_autox_directions_from_orbit():
     Hopf point's equilibrium must run on each job's own evaluation, at the parameter the end is at"""
     lecar = dict(iapp=0.3, v3=0, v4=0.3, gca=1.1, phi=0.2)
     values = [dict(kind='par', name=n, value=v) for n, v in lecar.items()] + [dict(kind='ic', name='v', value=-0.144), dict(kind='ic', name='w', value=0.03)]
-    numerics = dict(min_step_size=1e-5, max_step_size=0.01, max_steps=20, output_every=10, parameter_min=0.1, parameter_max=0.4,
-                    mesh_intervals=15, max_branch_switches=0)
+    numerics = dict(**{'step.min': 1e-5}, **{'step.max': 0.01}, **{'limits.steps': 20}, **{'output.every': 10}, **{'limits.parameter_min': 0.1}, **{'limits.parameter_max': 0.4},
+                    **{'mesh.intervals': 15}, max_branch_switches=0)
     (diagram, files), (turn_diagram, turn_files) = orbit_directions('examples/ode/lecar.odex', 'iapp', values, 20, numerics, settle=100)
     check('W596: a Periodic start from an integrated orbit continues both directions: the diagram and the autoX .b, .s and .d files are the two runs in turn, byte for byte',
           diagram == turn_diagram and files == turn_files and sorted(files) == ['.b', '.d', '.s'] and len(diagram) > 1000,
           '%d vs %d bytes; %s' % (len(diagram), len(turn_diagram), {k: (len(v), len(turn_files.get(k, b''))) for k, v in files.items()}))
     states = dict(V=8.585767401388178, m=0.12087667611762813, n=0.5133969213640369, h=0.2520504470303479)
     values = [dict(kind='par', name='I', value=49.119058076613086)] + [dict(kind='ic', name=n, value=v) for n, v in states.items()]
-    numerics = dict(min_step_size=1e-5, max_step_size=4, max_steps=400, output_every=100, parameter_min=-10, parameter_max=200,
-                    mesh_intervals=30, max_branch_switches=0, step_size=2)
+    numerics = dict(**{'step.min': 1e-5}, **{'step.max': 4}, **{'limits.steps': 400}, **{'output.every': 100}, **{'limits.parameter_min': -10}, **{'limits.parameter_max': 200},
+                    **{'mesh.intervals': 30}, max_branch_switches=0, **{'step.initial': 2})
     (diagram, files), (turn_diagram, turn_files) = orbit_directions('tools/models/hodgkin_huxley.odex', 'I', values, 12, numerics)
     rows = lambda d, *prefixes: [line for line in d.decode().splitlines() if line.startswith(prefixes)]
     first_two = ('periodic,-1,', 'periodic,-2,')
@@ -770,15 +770,15 @@ def check_autox_directions_from_orbit():
 # end every job, the counts they say, and a stopped run and the shipped recordings replayed
 LORENZ = 'tools/models/lorenz_homoclinic.odex'  # the Lorenz equations, AUTO-07p's lrz demo (tests/autox/lrz_follow_all.json)
 LORENZ_START = [dict(kind='par', name='r', value=0.0)] + [dict(kind='ic', name=n, value=0.0) for n in ('x', 'y', 'z')]
-LORENZ_RUN = dict(kind='equilibrium', replace_diagram=False, follow_all_branches=True, step_size=0.5, min_step_size=1e-5,
-                  max_step_size=0.5, max_steps=300, output_every=100, parameter_min=0, parameter_max=31, mesh_intervals=35,
+LORENZ_RUN = dict(kind='equilibrium', replace_diagram=False, follow_all_branches=True, **{'step.initial': 0.5}, **{'step.min': 1e-5},
+                  **{'step.max': 0.5}, **{'limits.steps': 300}, **{'output.every': 100}, **{'limits.parameter_min': 0}, **{'limits.parameter_max': 31}, **{'mesh.intervals': 35},
                   max_branch_switches=0)
 # AUTO-07p's tstauto ab at p0 = 0.05, run with a step too small to end in the time a check takes: the jobs run until they are stopped
 STOPPED_MODEL = 'examples/tstauto/ab.odex'
 STOPPED_START = [dict(kind='par', name='p0', value=0.05), dict(kind='ic', name='U1', value=0.06282240276322631),
                  dict(kind='ic', name='U2', value=0.2931712128950587)]
-STOPPED_RUN = dict(kind='equilibrium', replace_diagram=False, follow_all_branches=True, max_steps=1000000, output_every=1000,
-                   parameter_min=0, parameter_max=1.5, step_size=1e-6, min_step_size=1e-7, max_step_size=1e-6)
+STOPPED_RUN = dict(kind='equilibrium', replace_diagram=False, follow_all_branches=True, **{'limits.steps': 1000000}, **{'output.every': 1000},
+                   **{'limits.parameter_min': 0}, **{'limits.parameter_max': 1.5}, **{'step.initial': 1e-6}, **{'step.min': 1e-7}, **{'step.max': 1e-6})
 
 
 def jobs_session(model, start, env=None, threads=None, record=None):
@@ -1077,8 +1077,8 @@ def check_autox_stop_at_a_solve_replays():
 
 
 # W751 (#830): the same run as STOPPED_RUN without follow_all_branches, a single run that is not a branch job
-SINGLE_RUN = dict(kind='equilibrium', replace_diagram=False, max_steps=1000000, output_every=1000, parameter_min=0, parameter_max=1.5,
-                  step_size=1e-6, min_step_size=1e-7, max_step_size=1e-6)
+SINGLE_RUN = dict(kind='equilibrium', replace_diagram=False, **{'limits.steps': 1000000}, **{'output.every': 1000}, **{'limits.parameter_min': 0}, **{'limits.parameter_max': 1.5},
+                  **{'step.initial': 1e-6}, **{'step.min': 1e-7}, **{'step.max': 1e-6})
 
 
 def check_single_run_stop_at_a_solve_replays():
@@ -1116,10 +1116,10 @@ def check_single_run_replays(path, evs, what, model=STOPPED_MODEL):
 PERIODIC_MODEL = 'examples/ode/lecar.odex'
 PERIODIC_START = [dict(kind='par', name=n, value=v) for n, v in (('iapp', 0.3), ('v3', 0), ('v4', 0.3), ('gca', 1.1), ('phi', 0.2))] + [
     dict(kind='ic', name='v', value=-0.144), dict(kind='ic', name='w', value=0.03)]
-# mesh_adapt_every 0: a Stop at a step that adapts the mesh ends on the re-meshed point of the same parameter, which is no repeat
+# mesh.adapt_every 0: a Stop at a step that adapts the mesh ends on the re-meshed point of the same parameter, which is no repeat
 # of the stored one (its orbit norm differs in the last digits), so the check keeps the mesh as it is
-PERIODIC_NUMERICS = dict(step_size=0.01, min_step_size=1e-5, max_step_size=0.01, max_steps=200, output_every=10, parameter_min=0.1,
-                         parameter_max=0.4, mesh_intervals=15, max_branch_switches=0, mesh_adapt_every=0)
+PERIODIC_NUMERICS = dict(**{'step.initial': 0.01}, **{'step.min': 1e-5}, **{'step.max': 0.01}, **{'limits.steps': 200}, **{'output.every': 10}, **{'limits.parameter_min': 0.1},
+                         **{'limits.parameter_max': 0.4}, **{'mesh.intervals': 15}, max_branch_switches=0, **{'mesh.adapt_every': 0})
 
 
 def periodic_session(env):
@@ -1266,14 +1266,14 @@ def check_autox_registry():
         grab_events, done = call(cmd='autox.grab', type='hopf', index=1)
         check('autox.grab: the 1st hopf', done['status'] == 'ok' and done['result']['type'] == 'hopf', str(done))
         before_numerics = next(e for e in call(cmd='events.subscribe', events=['autox.options'])[0] if e.get('ev') == 'autox.options')['numerics']
-        evs, done = call(cmd='autox.run', kind='periodic', type='hopf', index=1, max_steps=10, mesh_intervals=10)
+        evs, done = call(cmd='autox.run', kind='periodic', type='hopf', index=1, **{'limits.steps': 10}, **{'mesh.intervals': 10})
         starts = [e['start'] for e in grab_events if e.get('ev') == 'autox.info' and e.get('start')]
         check('autox.run: a periodic run from the 1st hopf computes; autoxinfo says the kinds that fit the grabbed point',
               done['status'] == 'ok' and done['result']['points_computed'] > 2
               and any(x['type'] == 'hopf' and x['kinds'] == ['equilibrium', 'periodic', 'two_parameter'] for x in starts), str(done)[:200] + str(starts)[:200])
         after_numerics = next(e for e in call(cmd='events.subscribe', events=['autox.options'])[0] if e.get('ev') == 'autox.options')['numerics']
-        check('autox.run: the options given hold for that run only', after_numerics == before_numerics and before_numerics['max_steps'] != 10,
-              str((before_numerics['max_steps'], after_numerics['max_steps'])))
+        check('autox.run: the options given hold for that run only', after_numerics == before_numerics and before_numerics['limits.steps'] != 10,
+              str((before_numerics['limits.steps'], after_numerics['limits.steps'])))
         _, done = call(cmd='autox.grab', label=999999)
         check('autox.grab: an unknown label is refused', done['status'] == 'error' and 'no point labelled 999999' in done['error'], str(done))
         _, done = call(cmd='autox.grab', label=1, type='hopf', index=1)
@@ -1300,9 +1300,9 @@ def check_autox_registry():
         check('autox.configure_marks: parameters and values of one length', done['status'] == 'error' and '2 parameters but 1 values' in done['error'], str(done))
         _, done = call(cmd='autox.configure_marks', parameters=['iapp', 'T'], values=[0.02, 30])
         check('autox.configure_marks: the marks are set', done['status'] == 'ok' and done['result'] == {'marks_count': 2}, str(done))
-        _, done = call(cmd='autox.configure_numerics', output_detail='loud')
+        _, done = call(cmd='autox.configure_numerics', **{'output.detail': 'loud'})
         check('autox.configure_numerics: a level is a name', done['status'] == 'error' and 'loud' in done['error'], str(done))
-        _, done = call(cmd='autox.configure_numerics', switch_one_direction=True, output_detail='extensive', special_points={'cusp': False})
+        _, done = call(cmd='autox.configure_numerics', **{'one_way_branch_switch': True}, **{'output.detail': 'extensive'}, special_points={'cusp': False})
         check('autox.configure_numerics: the levels and the boolean are set', done['status'] == 'ok', str(done))
         _, done = call(cmd='autox.export_data', target='diagram', file='w516.csv')
         check('autox.export_data: target diagram with a file writes it and says how many points', done['status'] == 'ok'
@@ -1370,7 +1370,7 @@ def check_fit_stops():
             autoxcompare.completed(s)
             with open(os.path.join(s.run, 'fit.dat'), 'w') as f:
                 f.write(''.join('%d %.17g\n' % (i, math.exp(0.5*i)) for i in range(6)))
-            s.send(cmd='fit.parameters',variables=['x'],parameters=parameters.split(','),tolerance=1e-12,points=6,columns=2,data_columns=[2],epsilon=1e-6,max_iterations=maxiter,file='fit.dat')
+            s.send(cmd='fit.parameters',variables=['x'],parameters=parameters.split(','),tolerance=1e-12,points=6,columns=2,data_columns=[2],epsilon=1e-6,**{'max_iterations': maxiter},file='fit.dat')
             evs,end=s.collect(stops_done)
             msgs = [e for e in evs if e.get('ev') in ('session.message', 'done')]
             text = ' | '.join(str(e) for e in msgs)
@@ -1403,7 +1403,7 @@ def check_autox_restart_file_stops():
     try:
         autoxcompare.completed(s)
         autoxcompare.open_autox(s)
-        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'parameter_min': -2, 'parameter_max': 2, 'max_steps': 4}))
+        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'limits.parameter_min': -2, 'limits.parameter_max': 2, 'limits.steps': 4}))
         evs = autoxcompare.run_any(s, 's')
         snapshot = os.path.join(s.run, 'base.snapx')
         autoxcompare.completed(s, dict(cmd='session.save_as', file='base.snapx', data=False))
@@ -1453,13 +1453,13 @@ def check_autox_multiplier_note():
         autoxcompare.restore_start(s, d['runs'][0], [], {})
         autoxcompare.execute_run(s, d['runs'][0], diagram, {})
         r = copy.deepcopy(d['runs'][1])
-        r['autox'].update(mesh_intervals=2, collocation_points=2, max_steps=50, step_size=0.05, max_step_size=0.1)
+        r['autox'].update(**{'mesh.intervals': 2}, **{'mesh.collocation_points': 2}, **{'limits.steps': 50}, **{'step.initial': 0.05}, **{'step.max': 0.1})
         # The coarse mesh intentionally loses the unit Floquet multiplier.
         evs = autoxcompare.execute_run(s, r, diagram, {})
         notes = [n for e in evs if e.get('ev') == 'autox.info' for n in e.get('notes', [])]
         check('stops autoX A8: inaccurate Floquet multipliers name the point and mesh fix',
               any(re.search(r'Br \d+ Pt \d+: the Floquet multipliers are inaccurate', n)
-                  and 'mesh_intervals or collocation_points' in n and 'detection are off' in n for n in notes), str(notes))
+                  and 'mesh.intervals or mesh.collocation_points' in n and 'detection are off' in n for n in notes), str(notes))
     finally:
         s.close()
 
@@ -1472,7 +1472,7 @@ def check_autox_singular_pivot():
         evs, _ = s.collect(stops_done)
         autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info']))
         autoxcompare.open_autox(s)
-        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'parameter_min': -1, 'parameter_max': 1, 'max_steps': 4, 'step_adapt_every': 0, 'max_newton_iterations': 1, 'state_tolerance': 1e-30, 'parameter_tolerance': 1e-30}))
+        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'limits.parameter_min': -1, 'limits.parameter_max': 1, 'limits.steps': 4, 'step.adapt_every': 0, 'newton.max_iterations': 1, 'newton.state_tolerance': 1e-30, 'newton.parameter_tolerance': 1e-30}))
         evs = autoxcompare.run_any(s, 'p')
         stops = [e['stop'] for e in evs if e.get('ev') == 'autox.info' and e.get('stop')]
         check('stops autoX A7: a singular periodic solve names its pivot and bound',
@@ -2032,7 +2032,7 @@ def check_registry():
             ({'cmd': 'equilibrium.guess', 'coordinates': {'V': -0.5, 'W': 0.1}}, 'converged'),
             ({'cmd': 'initial_conditions.set_from_equilibrium'}, 'applied'),
             ({'cmd': 'equilibrium.export', 'file': 'w522-equilibrium.dat'}, 'written'),
-            ({'cmd': 'equilibrium.configure', 'max_iterates': 100}, 'options'),
+            ({'cmd': 'equilibrium.configure', 'newton.max_iterations': 100}, 'options'),
             ({'cmd': 'equilibrium.search', 'guesses': 2, 'tolerance': 0.001, 'bounds': bounds}, 'found'),
             ({'cmd': 'equilibrium.range', 'parameter': 'iapp', 'start': 0, 'end': 0.1, 'steps': 1}, 'points_found'),
             ({'cmd': 'nullcline.set_mesh', 'mesh': 20}, 'nullcline_mesh'),
@@ -2057,9 +2057,9 @@ def check_registry():
         request({'cmd': 'equilibrium.configure', 'print_eigenvalues': 'yes'}, False)
         request({'cmd': 'equilibrium.search', 'guesses': 1, 'tolerance': 0.001, 'bounds': {'V': [0, 1, 2]}}, False)
         request({'cmd': 'equilibrium.search', 'guesses': 1, 'tolerance': 0.001, 'bounds': {'V': [1, 0]}}, False)
-        request({'cmd': 'equilibrium.configure', 'max_iterates': 20, 'newton_tolerance': -1}, False)
+        request({'cmd': 'equilibrium.configure', 'newton.max_iterations': 20, 'newton.tolerance': -1}, False)
         result, _ = request({'cmd': 'equilibrium.configure'})
-        check('W522: configure is all or nothing', result.get('options', {}).get('max_iterates') == 100, str(result))
+        check('W522: configure is all or nothing', result.get('options', {}).get('newton.max_iterations') == 100, str(result))
         request('equilibrium.search --guesses 1 --tolerance 0.001 --bounds {"V" [0 0] "W" [0 0]}')
         request({'cmd': 'nullcline.export', 'file': '../outside.dat'}, False)
         for obsolete in [dict(cmd='equilibrium', op='write', name='old.dat'), dict(cmd='dfield', op='write', name='old.dat'),
@@ -3095,7 +3095,7 @@ def check_equilibrium_settings():
         done, _ = call(cmd='equilibrium.configure', print_eigenvalues='yes')
         check('W535: configure refuses a word for a boolean and keeps the option', done.get('status') == 'error' and setting('print_eigenvalues') is True, str(done)[:300])
 
-        done, _ = call(cmd='equilibrium.configure', draw_strong_sets=True, newton_tolerance=-1)
+        done, _ = call(cmd='equilibrium.configure', draw_strong_sets=True, **{'newton.tolerance': -1})
         check('W535: configure is all or nothing for the boolean options', done.get('status') == 'error' and setting('draw_strong_sets') is False, str(done)[:300])
 
         done, _ = call(cmd='equilibrium.configure', print_eigenvalues=False, draw_invariant_sets=True, draw_strong_sets=True)
@@ -3185,7 +3185,7 @@ def check_atomic_commands():
         # paths before W534; the saved members expose options that session.get_state does not list.
         refused(dict(cmd='value.set_parameters', values={'iapp': 17, 'absent': 2}))
         refused(dict(cmd='initial_conditions.set', values={'v': 17, 'absent': 2}))
-        refused(dict(cmd='equilibrium.configure', max_iterates=17, newton_tolerance=-1))
+        refused(dict(cmd='equilibrium.configure', **{'newton.max_iterations': 17}, **{'newton.tolerance': -1}))
         refused(dict(cmd='run.configure', total_time=17, delay_grid=3))
         refused(dict(cmd='run.configure', total_time=17, min_step=10, max_step=1))
         refused(dict(cmd='boundary_value.configure', max_iterates=17, tolerance=-1))
@@ -3251,13 +3251,13 @@ def check_atomic_commands():
         refused(dict(cmd='autox.export', format='pdf', window='diagram_1', file='blocked.pdf'))
         call(cmd='window.select', window='diagram_2')
         refused(dict(cmd='autox.export', format='svg', window='diagram_1', file='blocked.svg'))
-        refused(dict(cmd='autox.run', kind='equilibrium', decimals=4, hold=1, maximum=1, parameter_min=10, parameter_max=1))
+        refused(dict(cmd='autox.run', kind='equilibrium', decimals=4, hold=1, maximum=1, **{'limits.parameter_min': 10}, **{'limits.parameter_max': 1}))
         call(cmd='window.new', name='second graph')
         call(cmd='window.select', window='diagram_2')
         refused(dict(cmd='plot.set_2d', window='main', x_min=0, x_max=1, y_min=1, y_max=0))
         selection, _ = call(cmd='window.set_redraw_mode', mode='auto')
         check('W534: a refused graph edit preserves the selected autoX window', selection.get('status') == 'error', selection)
-        refused(dict(cmd='autox.configure_numerics', max_steps=17, parameter_min=10, parameter_max=1))
+        refused(dict(cmd='autox.configure_numerics', **{'limits.steps': 17}, **{'limits.parameter_min': 10}, **{'limits.parameter_max': 1}))
         call(cmd='recording.start')
         call(cmd='recording.add_note', note='keep for the next successful step')
         refused(dict(cmd='run.configure', total_time=17, dt=0), archive=False)
@@ -3301,6 +3301,10 @@ def check_options_panels():
         check('W616: hello carries the table: every group a panel has, titled by its name as words',
               list(groups) == ['integration', 'poincare', 'equilibria', 'sweep', 'continuation', 'diagram', 'plot', 'analysis', 'output']
               and groups['integration']['label'] == 'Integration' and all(g['rows'] for g in groups.values()), str(list(groups)))
+        advanced = sorted(r['key'] for g in hello['options'] for r in g['rows'] if r.get('advanced'))
+        check('W809: hello marks the advanced rows: 43 of the table, the Numerics ones among them, the basic ones not',
+              len(advanced) == 43 and 'global.min_step_fraction' in advanced and 'newton.max_iterations' in advanced
+              and 'range.steps' not in advanced and 'print_eigenvalues' not in advanced, str(advanced))
         step_min = next((r for r in groups['integration']['rows'] if r['key'] == 'step.min'), {})
         check('W616: a row has its key, section, label, kind, help, default and limit',
               step_min.get('section') == 'step' and step_min.get('label') == 'Min' and step_min.get('kind') == 'number'
@@ -3322,11 +3326,11 @@ def check_options_panels():
         values = done.get('result', {}).get('values', {})
         check('W616: options.get gives each row of a group its value as text, in the table\'s keys',
               done.get('status') == 'ok' and list(values) == [r['key'] for r in groups['equilibria']['rows']]
-              and values['max_iterations'] == groups['equilibria']['rows'][0]['default'], str(done)[:400])
-        done = call(cmd='options.configure', group='equilibria', values={'max_iterations': '77', 'print_eigenvalues': 'true'})
-        check('W616: options.configure sets the rows it names', done.get('status') == 'ok' and done['result']['applied'] == ['max_iterations', 'print_eigenvalues'], str(done))
+              and values['newton.max_iterations'] == next(r for r in groups['equilibria']['rows'] if r['key'] == 'newton.max_iterations')['default'], str(done)[:400])
+        done = call(cmd='options.configure', group='equilibria', values={'newton.max_iterations': '77', 'print_eigenvalues': 'true'})
+        check('W616: options.configure sets the rows it names', done.get('status') == 'ok' and done['result']['applied'] == ['newton.max_iterations', 'print_eigenvalues'], str(done))
         values = call(cmd='options.get', group='equilibria')['result']['values']
-        check('W616: and the group holds them', values['max_iterations'] == '77' and values['print_eigenvalues'] == 'true' and values['search_limit'] == '100', str(values))
+        check('W616: and the group holds them', values['newton.max_iterations'] == '77' and values['print_eigenvalues'] == 'true' and values['newton.search_limit'] == '100', str(values))
         before = call(cmd='options.get', group='integration')['result']['values']
         done = call(cmd='options.configure', group='integration', values={'dt': '0.25', 'step.min': '-1'})
         after = call(cmd='options.get', group='integration')['result']['values']
@@ -5252,11 +5256,11 @@ def check_values_protocol():
         # W494: a range or an order broken by `set num` is refused with the option, its value and the rule
         for name, text, words in (('min_step', '1e9', 'integration.step.min (1e+09) must be at most integration.step.max'),
                                   ('relative_tolerance', '0', 'must be a number above 0'),
-                                  ('max_iterations', '0', 'must be at least 1')):
-            evs = (after(cmd='equilibrium.configure', max_iterates=int(text)) if name == 'max_iterations'
+                                  ('newton.max_iterations', '0', 'must be at least 1')):
+            evs = (after(cmd='equilibrium.configure', **{'newton.max_iterations': int(text)}) if name == 'newton.max_iterations'
                    else after(cmd='run.configure', **{name: float(text)}))
             check('W494: option num %s=%s is refused naming %s' % (name, text, words),
-                  len(errs(evs)) == 1 and words in errs(evs)[0].get('error', '') and (name == 'max_iterations' or errs(evs)[0].get('field') == 'num:' + name),
+                  len(errs(evs)) == 1 and words in errs(evs)[0].get('error', '') and (name == 'newton.max_iterations' or errs(evs)[0].get('field') == 'num:' + name),
                   str(errs(evs)))
         evs = after(cmd='run.configure', total_time='1O0')
         check('run.configure with a total time that is not a number is refused, naming the argument',
@@ -6857,7 +6861,7 @@ def check_autoxinfo():
         for snd, col, diag in ((snda, cola, diag_a), (sndb, colb, diag_b)):
             # W338: keep the circle fixture short. W341 (#402) also preserves
             # the restored solution's multipliers at a failed-step MX endpoint.
-            snd(cmd='autox.configure_numerics', **{'max_steps': 20})
+            snd(cmd='autox.configure_numerics', **{'limits.steps': 20})
             evs, _ = col(is_done)
             check('W338: the short periodic circle fixture is configured',
                   not any(e.get('ev') in ('session.message', 'done') and 'error' in e for e in evs), str(evs)[-300:])
@@ -7072,8 +7076,8 @@ def settings_of(evs):
     return got[-1] if got else None
 
 
-NUM_KEYS = ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points', 'step_size', 'min_step_size', 'max_step_size', 'parameter_min', 'parameter_max', 'norm_min', 'norm_max', 'parameter_tolerance', 'state_tolerance', 'special_point_tolerance',
-            'mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail', 'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points', 'follow_all_branches']
+NUM_KEYS = ['mesh.intervals', 'limits.steps', 'output.every', 'mesh.collocation_points', 'step.initial', 'step.min', 'step.max', 'limits.parameter_min', 'limits.parameter_max', 'limits.norm_min', 'limits.norm_max', 'newton.parameter_tolerance', 'newton.state_tolerance', 'newton.special_point_tolerance',
+            'mesh.adapt_every', 'max_branch_switches', 'one_way_branch_switch', 'output.detail', 'newton.max_location_iterations', 'newton.max_iterations', 'newton.full_after_steps', 'step.adapt_every', 'suppress_branch_points', 'follow_all_branches']
 
 
 def check_autoxoptions():
@@ -7123,15 +7127,15 @@ def check_autoxoptions():
               and st['axes']['par1'] == 'iapp', str(st)[:300])
         rules = st.get('rules', {}) if st else {}
         check('W118: autoxoptions carries each Numerics rule with the message its refusal says, the pairs and the step',
-              sorted(rules) == sorted(NUM_KEYS) and rules['collocation_points'].get('min') == 2 and rules['collocation_points'].get('max') == 7
+              sorted(rules) == sorted(NUM_KEYS) and rules['mesh.collocation_points'].get('min') == 2 and rules['mesh.collocation_points'].get('max') == 7
               and isinstance(st['numerics']['suppress_branch_points'], bool) and rules['suppress_branch_points'].get('boolean') is True
-              and rules['collocation_points'].get('integer') is True and rules['min_step_size'].get('positive') is True
-              and rules['step_size'].get('nonzero') is True and rules['max_branch_switches'].get('min') == 0
-              and rules['output_detail'].get('choices') == ['none', 'little', 'normal', 'start_jacobian', 'extensive', 'debugging']
-              and rules['collocation_points'].get('message') == 'Collocation points must be a whole number from 2 to 7'
+              and rules['mesh.collocation_points'].get('integer') is True and rules['step.min'].get('positive') is True
+              and rules['step.initial'].get('nonzero') is True and rules['max_branch_switches'].get('min') == 0
+              and rules['output.detail'].get('choices') == ['none', 'little', 'normal', 'start_jacobian', 'extensive', 'debugging']
+              and rules['mesh.collocation_points'].get('message') == 'Mesh collocation points must be a whole number from 2 to 7'
               and [(p['lo'], p['hi'], p['strict']) for p in st.get('pairs', [])]
-              == [('min_step_size', 'max_step_size', False), ('parameter_min', 'parameter_max', True), ('norm_min', 'norm_max', True)]
-              and st.get('step', {}).get('key') == 'step_size', str(st and (st.get('pairs'), st.get('step')))[:300])
+              == [('step.min', 'step.max', False), ('limits.parameter_min', 'limits.parameter_max', True), ('limits.norm_min', 'limits.norm_max', True)]
+              and st.get('step', {}).get('key') == 'step.initial', str(st and (st.get('pairs'), st.get('step')))[:300])
         point_keys = ('bogdanov_takens', 'cusp', 'zero_hopf', 'generalized_hopf', 'resonance_1_1', 'resonance_1_2', 'resonance_1_3', 'resonance_1_4', 'fold_flip', 'fold_neimark_sacker', 'flip_neimark_sacker', 'double_neimark_sacker')
         check('W364: named detection booleans enabled by default', st.get('special_points') == dict.fromkeys(point_keys, True))
         for value in (False, True):
@@ -7148,15 +7152,15 @@ def check_autoxoptions():
         check('W339: Axes accepts a parameter beyond the old eight', not errs and all_axes and all_axes['axes']['par1']=='gk')
         autox_set(axes={'par1':'iapp'})
         check('autoxoptions: no Mark values at first', st['marks'] == [])
-        evs, st2, errs = autox_set(numerics={'output_every': 40})
-        check('autoxoptions: typed numerics emits current values', not errs and st2['numerics']['output_every'] == 40)
+        evs, st2, errs = autox_set(numerics={'output.every': 40})
+        check('autoxoptions: typed numerics emits current values', not errs and st2['numerics']['output.every'] == 40)
 
         # the set: every part, then read back through the forms
         p0, p1 = 'iapp', 'gca'
-        evs, st3, errs = autox_set(numerics={'max_steps': 12, 'step_size': -0.01}, axes={'plot': 'norm', 'var': 'W', 'par1': p1},
+        evs, st3, errs = autox_set(numerics={'limits.steps': 12, 'step.initial': -0.01}, axes={'plot': 'norm', 'var': 'W', 'par1': p1},
                                   marks=[[p0, 0.25], ['T', 30]])
         check('auto set: numerics, pars, axes and marks set, the event says so', not errs and st3
-              and st3['numerics']['max_steps'] == 12 and st3['numerics']['step_size'] == -0.01
+              and st3['numerics']['limits.steps'] == 12 and st3['numerics']['step.initial'] == -0.01
               and st3['axes']['plot'] == 'norm' and st3['axes']['var'] == 'W' and st3['axes']['par1'] == p1
               and st3['marks'] == [[p0, 0.25], ['T', 30]], '%s %s' % (errs, st3))
         # W331: protocol and legacy forms agree beyond all previous mark capacities.
@@ -7164,21 +7168,21 @@ def check_autoxoptions():
         evs, many, errs = autox_set(marks=many_marks)
         check('W331: protocol sets 128 marks', not errs and many and many['marks'] == many_marks)
         for bad_marks in (many_marks[:-1] + [['unknown', 0]], 'bad', [['T', 1, 2]]):
-            evs, changed, errs = autox_set(numerics={'max_steps': 99}, marks=bad_marks)
+            evs, changed, errs = autox_set(numerics={'limits.steps': 99}, marks=bad_marks)
             check('W331: bad mark command rejects its numerics too', len(errs) == 1 and changed is None)
         snda(cmd='events.subscribe', events=['autox.options'])
         unchanged = settings_of(cola(is_done)[0])
         check('W331: options stayed intact after bad forms and sets',
-              unchanged and unchanged['marks'] == many_marks and unchanged['numerics']['max_steps'] == 12)
+              unchanged and unchanged['marks'] == many_marks and unchanged['numerics']['limits.steps'] == 12)
         autox_set(marks=st3['marks'])
 
         # refused: bad values change nothing, and say why
         for bad, why in (({'numerics': {'suppress_branch_points': 1}}, 'must be boolean'), ({'numerics': {'suppress_branch_points': 'true'}}, 'must be boolean'),
-                         ({'numerics': {'collocation_points': 9}}, 'Collocation points'), ({'numerics': {'mesh_intervals': 1.5}}, 'mesh_intervals'),
-                         ({'numerics': {'max_steps': 30, 'min_step_size': 0}}, 'Min step size'), ({'numerics': {'parameter_min': 5, 'parameter_max': 1}}, 'Parameter min'),
-                         ({'numerics': {'step_size': -0.9, 'max_step_size': 0.5}}, 'The size of Step size must be from Min step size to Max step size'),
-                         ({'numerics': {'min_step_size': 0.5, 'max_step_size': 1, 'step_size': 0.1}}, 'The size of Step size must be from Min step size to Max step size'),
-                         ({'numerics': {'max_steps': 'many'}}, 'max_steps'), ({'pars': ['nosuch']}, 'pars'),
+                         ({'numerics': {'mesh.collocation_points': 9}}, 'Mesh collocation points'), ({'numerics': {'mesh.intervals': 1.5}}, 'mesh.intervals'),
+                         ({'numerics': {'limits.steps': 30, 'step.min': 0}}, 'Step min'), ({'numerics': {'limits.parameter_min': 5, 'limits.parameter_max': 1}}, 'Limits parameter min'),
+                         ({'numerics': {'step.initial': -0.9, 'step.max': 0.5}}, 'The size of Step initial must be from Step min to Step max'),
+                         ({'numerics': {'step.min': 0.5, 'step.max': 1, 'step.initial': 0.1}}, 'The size of Step initial must be from Step min to Step max'),
+                         ({'numerics': {'limits.steps': 'many'}}, 'limits.steps'), ({'pars': ['nosuch']}, 'pars'),
                          ({'axes': {'par1': 'nosuch'}}, 'nosuch'),
                          ({'axes': {'var': 'nosuch'}}, 'nosuch'), ({'axes': {'plot': 'sideways'}}, 'sideways'), ({'axes': {'plot': 7}}, 'plot_type'),
                          ({'axes': {'xmin': 1, 'xmax': 0}}, 'Xmin'), ({'marks': [['W', 1]]}, 'W')):
@@ -7189,19 +7193,19 @@ def check_autoxoptions():
         check('W499: SuppBP accepts and publishes a boolean',
               not errs and boolean_set and boolean_set['numerics']['suppress_branch_points'] is True)
         autox_set(numerics={'suppress_branch_points': False})
-        evs, st4, errs = autox_set(numerics={'collocation_points': 9})
+        evs, st4, errs = autox_set(numerics={'mesh.collocation_points': 9})
         check('W118: a refused value says the message the event gave its rule',
-              errs == ['collocation_points=9: ' + rules.get('collocation_points', {}).get('message', '?')], str(errs))
+              errs == ['mesh.collocation_points=9: ' + rules.get('mesh.collocation_points', {}).get('message', '?')], str(errs))
 
         # a set changes the next run: Nmax 12 against the default on the other server
-        evs, st6, errs = autox_set(numerics={'max_steps': 12}, axes={'plot': 'maximum_and_minimum', 'var': 'V', 'par1': p0}, marks=[])
+        evs, st6, errs = autox_set(numerics={'limits.steps': 12}, axes={'plot': 'maximum_and_minimum', 'var': 'V', 'par1': p0}, marks=[])
         evs_a = lecar_to_autox(snda, cola)
         evs_b = lecar_to_autox(sndb, colb)
         na, nb = len(rebuild_diagram(evs_a, [])), len(rebuild_diagram(evs_b, []))
         check('auto set: Nmax 12 makes the next run stop at 12 points (the default goes on to %d)' % nb,
               not errs and na == 12 and nb > 12, '%s: %d vs %d points' % (errs, na, nb))
         # W155: Reload keeps autoX's options without an options file.
-        before_reload = settings_of(autox_set(numerics={'max_steps': 41}, marks=many_marks)[0])
+        before_reload = settings_of(autox_set(numerics={'limits.steps': 41}, marks=many_marks)[0])
         snda(cmd='session.reload_model')
         reload_ask = cola(lambda e: e.get('ev') == 'ask')[1]
         snda(cmd='answer', id=reload_ask['id'], key='d')
@@ -7254,21 +7258,21 @@ def autox_stop_run(numerics, abort=False):
 
 
 def check_autox_stop():
-    wide = {'parameter_min': -0.5, 'parameter_max': 0.9, 'norm_min': -1, 'norm_max': 100, 'max_steps': 200}
+    wide = {'limits.parameter_min': -0.5, 'limits.parameter_max': 0.9, 'limits.norm_min': -1, 'limits.norm_max': 100, 'limits.steps': 200}
     for numerics, why, text, abort in (
-            ({**wide, 'parameter_max': 0.5}, 'parameter_max', 'parameter a reached parameter_max (0.5)', False),
-            ({**wide, 'parameter_min': -0.3, 'step_size': -0.01}, 'parameter_min', 'parameter a reached parameter_min (-0.3)', False),
-            ({**wide, 'norm_max': 0.3}, 'norm_max', 'the norm reached norm_max (0.3)', False),
-            ({**wide, 'max_steps': 5}, 'max_steps', 'the branch reached max_steps (5)', False),
-            ({**wide, 'parameter_max': 10}, 'noconv-min', 'no convergence even at the smallest step (min_step_size 0.001; max_newton_iterations 7, parameter_tolerance 0.0001, state_tolerance 0.0001)', False),
-            ({**wide, 'parameter_max': 10, 'step_adapt_every': 0}, 'noconv-fixed', 'no convergence with a fixed step size (step_adapt_every 0; max_newton_iterations 7, parameter_tolerance 0.0001, state_tolerance 0.0001)', False),
-            ({**wide, 'max_steps': 1000000, 'step_size': 1e-7, 'min_step_size': 1e-8, 'max_step_size': 1e-7}, 'user', 'by the user (Stop)', True)):
+            ({**wide, 'limits.parameter_max': 0.5}, 'limits.parameter_max', 'parameter a reached limits.parameter_max (0.5)', False),
+            ({**wide, 'limits.parameter_min': -0.3, 'step.initial': -0.01}, 'limits.parameter_min', 'parameter a reached limits.parameter_min (-0.3)', False),
+            ({**wide, 'limits.norm_max': 0.3}, 'limits.norm_max', 'the norm reached limits.norm_max (0.3)', False),
+            ({**wide, 'limits.steps': 5}, 'limits.steps', 'the branch reached limits.steps (5)', False),
+            ({**wide, 'limits.parameter_max': 10}, 'noconv-min', 'no convergence even at the smallest step (step.min 0.001; newton.max_iterations 7, newton.parameter_tolerance 0.0001, newton.state_tolerance 0.0001)', False),
+            ({**wide, 'limits.parameter_max': 10, 'step.adapt_every': 0}, 'noconv-fixed', 'no convergence with a fixed step size (step.adapt_every 0; newton.max_iterations 7, newton.parameter_tolerance 0.0001, newton.state_tolerance 0.0001)', False),
+            ({**wide, 'limits.steps': 1000000, 'step.initial': 1e-7, 'step.min': 1e-8, 'step.max': 1e-7}, 'user', 'by the user (Stop)', True)):
         stop, n = autox_stop_run(numerics, abort)
         ok = isinstance(stop, dict) and stop.get('why') == why and stop.get('text') == text and stop.get('br') == 1
-        if ok and why in ('parameter_max', 'parameter_min', 'norm_max'):
+        if ok and why in ('limits.parameter_max', 'limits.parameter_min', 'limits.norm_max'):
             ok = abs(stop['limit'] - numerics[why]) < 1e-9 and (
-                stop['value'] < stop['limit'] if why == 'parameter_min' else stop['value'] > stop['limit'])
-        if ok and why == 'max_steps':
+                stop['value'] < stop['limit'] if why == 'limits.parameter_min' else stop['value'] > stop['limit'])
+        if ok and why == 'limits.steps':
             ok = stop['pt'] == 5 and n == 5
         if ok and why == 'user':
             ok = 1 < stop['pt'] < 1000000
@@ -7288,7 +7292,7 @@ def check_autox_points_limit():
         col(is_done)
         snd(cmd='autox.open')
         col(is_done)
-        snd(cmd='autox.configure_numerics', **{'parameter_min': -0.5, 'parameter_max': 0.9, 'norm_min': -1, 'norm_max': 100, 'max_steps': 10000000})
+        snd(cmd='autox.configure_numerics', **{'limits.parameter_min': -0.5, 'limits.parameter_max': 0.9, 'limits.norm_min': -1, 'limits.norm_max': 100, 'limits.steps': 10000000})
         evs, _ = col(is_done)
         check('W432: Nmax 10000000 is accepted', not [e for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e], str(evs[-3:]))
         snd(cmd='autox.run', kind='equilibrium')
@@ -7318,7 +7322,7 @@ def check_autox_no_nan_par():
     the run's last "state" must show the continuation parameter 'a'
     finite, not left over from a diverged Newton step (core/autox_nox.cpp's
     autox_restore_finite_pars)."""
-    wide = {'parameter_min': -0.5, 'parameter_max': 0.9, 'norm_min': -1, 'norm_max': 100, 'max_steps': 200}
+    wide = {'limits.parameter_min': -0.5, 'limits.parameter_max': 0.9, 'limits.norm_min': -1, 'limits.norm_max': 100, 'limits.steps': 200}
     p, r, snd, col, evq = launch_server(ode=STOP_ODE)
     try:
         col(is_done)
@@ -7326,7 +7330,7 @@ def check_autox_no_nan_par():
         col(is_done)
         snd(cmd='autox.open')
         col(is_done)
-        snd(cmd='autox.configure_numerics', **{**wide, 'parameter_max': 10})
+        snd(cmd='autox.configure_numerics', **{**wide, 'limits.parameter_max': 10})
         col(is_done)
         snd(cmd='autox.run', kind='equilibrium')
         evs, _ = col(is_done, timeout=60*SLOW)
@@ -8407,7 +8411,7 @@ def check_autox_jacobian_failure():
             snd(cmd='autox.open')
             col(lambda e: e.get('ev') == 'window.created' and e.get('win') == 'diagram_1')
             col(is_done)
-            snd(cmd='autox.configure_numerics', step_size=-0.1, max_step_size=0.1, parameter_min=-0.5, parameter_max=2, max_steps=100)
+            snd(cmd='autox.configure_numerics', **{'step.initial': -0.1}, **{'step.max': 0.1}, **{'limits.parameter_min': -0.5}, **{'limits.parameter_max': 2}, **{'limits.steps': 100})
             col(is_done)
             snd(cmd='autox.configure_axes', plot_type='norm', variable='x', parameter1='a')
             col(is_done)
@@ -8441,7 +8445,7 @@ def check_autox_jacobian_failure():
             xs = [x for e in went if e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for run in e['runs'] for x in run['x']]
             info = [e['stop'] for e in went if e.get('ev') == 'autox.info' and e.get('stop')]
             check('W275: sending them takes the branch on, past the failure (a below 0.5) to Par Min, with no error',
-                  not errs and xs and min(xs) < 0.4 and info and info[-1].get('why') == 'parameter_min', '%s %s %s' % (errs, xs[-3:], info))
+                  not errs and xs and min(xs) < 0.4 and info and info[-1].get('why') == 'limits.parameter_min', '%s %s %s' % (errs, xs[-3:], info))
             branch_jacobians = lambda evs: sorted({(run['br'], run['jac']) for e in evs if e.get('ev') == 'autox.diagram' and e.get('op') == 'add'
                                                    for run in e['runs']})
             first = branch_jacobians(evs)
@@ -9155,7 +9159,7 @@ def check_outcomes_once():
                     r.quiet_stdout = quiet.stdout
             return r, [json.loads(line) for line in r.stdout.splitlines() if line.startswith('{')]
         def fit(name):
-            return [dict(cmd='fit.parameters',variables=['x'],parameters=['a'],tolerance=1e-6,points=6,columns=2,data_columns=[2],epsilon=1e-5,max_iterations=50,file=name)]
+            return [dict(cmd='fit.parameters',variables=['x'],parameters=['a'],tolerance=1e-6,points=6,columns=2,data_columns=[2],epsilon=1e-5,**{'max_iterations': 50},file=name)]
         r, evs = run(fit('fit.dat'))
         results = [e.get('bottom', '').strip() for e in evs if e.get('ev') in ('session.message', 'done')]
         errors = [e for e in evs if e.get('error')]
@@ -12974,7 +12978,7 @@ def check_stop_checks():
         with open(fit_path, 'w') as f:
             for i in range(20):
                 f.write(f'{i * W388_ROWS * 0.05 / 20} {-0.5 + i * 0.05}\n')
-        snd(cmd='fit.parameters', variables=['V'], parameters=['iapp'], tolerance=1e-9, points=20, columns=2, data_columns=[2], epsilon=1e-4, max_iterations=1000, file='fit_data.dat')
+        snd(cmd='fit.parameters', variables=['V'], parameters=['iapp'], tolerance=1e-9, points=20, columns=2, data_columns=[2], epsilon=1e-4, **{'max_iterations': 1000}, file='fit_data.dat')
         snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         msgs = [e.get('bottom') for e in evs if e.get('ev') in ('session.message', 'done') and 'bottom' in e]

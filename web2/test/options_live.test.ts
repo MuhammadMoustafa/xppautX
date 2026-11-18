@@ -56,16 +56,16 @@ test('W106: a parameter or numerics edit during a computation is sent at once an
 test('W106: an autoX options edit during a run is sent at once, shown until its own done', () => {
   const {s, sent, ev} = session();
   ev(HELLO);
-  ev({ev: 'autox.options', numerics: {max_steps: 200}, pars: [], axes: {plot: 'norm'}, marks: []});
+  ev({ev: 'autox.options', numerics: {'limits.steps': 200}, pars: [], axes: {plot: 'norm'}, marks: []});
   ev({ev: 'done', status: 'ok'});
   s.send({cmd: 'run.initial'});
   ev({ev: 'job.computing'});
   sent.length = 0;
-  s.autoxSettings({numerics: {max_steps: 25}});
-  assert.deepEqual(sent, [{cmd: 'autox.configure_numerics', max_steps: 25}]);
-  assert.equal(shownSettings(s.store.getState().autoxSettings)!.numerics.max_steps, 25);
+  s.autoxSettings({numerics: {'limits.steps': 25}});
+  assert.deepEqual(sent, [{cmd: 'autox.configure_numerics', 'limits.steps': 25}]);
+  assert.equal(shownSettings(s.store.getState().autoxSettings)!.numerics['limits.steps'], 25);
   ev({ev: 'done', status: 'ok'});
-  assert.equal(shownSettings(s.store.getState().autoxSettings)!.numerics.max_steps, 25);
+  assert.equal(shownSettings(s.store.getState().autoxSettings)!.numerics['limits.steps'], 25);
 });
 
 test('W622: the opening asks whether an update check is due; a due one that fails tells the core, shows nothing', async () => {

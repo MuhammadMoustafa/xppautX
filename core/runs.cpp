@@ -151,7 +151,7 @@ xpp::Result<> do_monte_carlo_search(xpp::AnalysisParts &s, int append, int stuff
   }
   bottom_msg(0,xpp::format("Monte Carlo: {} of {} guesses converged to {} distinct equilibria ({} requested; {}); {}",
       converged,attempted,s.integrator->fixptlist.n,n,
-      xpp::named_settings(s.session_parts,{"equilibria.max_iterations","equilibria.newton_tolerance", "equilibria.search_limit"}),
+      xpp::named_settings(s.session_parts,{"equilibria.newton.max_iterations","equilibria.newton.tolerance", "equilibria.newton.search_limit"}),
       xpp::job::cancelled()?"stopped by the user":attempted<n?"stopped early":"search finished"));
   return failure.result();
 }

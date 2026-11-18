@@ -84,7 +84,7 @@ TEST_CASE("test_autox_errors")
 
     /* collocation_point_positions: collocation weights exist for Ncol up to 7 */
     std::array<double, 8> zm{};
-    CHECK(has(failure([&] { collocation_point_positions(8, zm.data()); }), "collocation_points is 8"));
+    CHECK(has(failure([&] { collocation_point_positions(8, zm.data()); }), "mesh.collocation_points is 8"));
     CHECK(failure([&] { collocation_point_positions(4, zm.data()); }).empty());
 
     /* gauss_eliminate: a singular system (the second row twice the first) */

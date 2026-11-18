@@ -11,8 +11,8 @@ init u = 0.9991513950372889, up = -0.0005995451146046094
 options {
   integration: { total_time: 20, dt: .01 },
   continuation: {
-    parameter_tolerance: 1e-9, state_tolerance: 1e-9, special_point_tolerance: 1e-9,
-    mesh_intervals: 80, collocation_points: 4,
+    newton.parameter_tolerance: 1e-9, newton.state_tolerance: 1e-9,
+    newton.special_point_tolerance: 1e-9, mesh.intervals: 80, mesh.collocation_points: 4,
   },
   plot: { curves: [ { x: u, y: up } ], axes.x_min: 0, axes.x_max: 1, axes.y_min: -.2, axes.y_max: 0 },
 }

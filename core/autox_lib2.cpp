@@ -174,7 +174,7 @@ solve_boundary(std::ptrdiff_t *ifst, iap_type *iap, rap_type *rap, double *par, 
   nclm = nrow + ndim;
   
   if (ntst < 1) {
-    xpp::autox_fail(xpp::format("mesh_intervals is {}, less than 1; set mesh_intervals (Numerics) to 1 or more", ntst));
+    xpp::autox_fail(xpp::format("mesh.intervals is {}, less than 1; set mesh.intervals (Numerics) to 1 or more", ntst));
   }
   
   if (*ifst == 1) {

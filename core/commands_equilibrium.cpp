@@ -150,8 +150,8 @@ Result<std::string> export_file(Session &s,const Command &,const Arguments &a,co
 }
 /* the first CONFIG_NUMBERS keys are numbers (the first a whole one), the rest booleans */
 constexpr std::size_t CONFIG_NUMBERS=4;
-constexpr std::array CONFIG_KEYS={"max_iterations","newton_tolerance","jacobian_step","search_limit","print_eigenvalues","draw_invariant_sets","draw_strong_sets"};
-constexpr std::array CONFIG_ARGS={"max_iterates","newton_tolerance","jacobian_epsilon","search_limit","print_eigenvalues","draw_invariant_sets","draw_strong_sets"};
+constexpr std::array CONFIG_KEYS={"newton.max_iterations","newton.tolerance","newton.jacobian_step","newton.search_limit","print_eigenvalues","draw_invariant_sets","draw_strong_sets"};
+constexpr std::array CONFIG_ARGS={"newton.max_iterations","newton.tolerance","newton.jacobian_step","newton.search_limit","print_eigenvalues","draw_invariant_sets","draw_strong_sets"};
 Result<std::string> configure(Session &s,const Command &c,const Arguments &a,const Place &p)
 {
     std::array<std::string,CONFIG_KEYS.size()> values;
@@ -167,7 +167,7 @@ Result<std::string> configure(Session &s,const Command &c,const Arguments &a,con
         if(numerics_settings_set(s,CONFIG_KEYS[i],values[i],why,&p)<0)return fail(c.name,why,p);
     }
     const auto &n=s.numerics->equilibria;
-    return xpp::format("{{\"options\":{{\"max_iterates\":{},\"newton_tolerance\":{},\"jacobian_epsilon\":{},\"search_limit\":{}}},\"print_eigenvalues\":{},\"draw_invariant_sets\":{},\"draw_strong_sets\":{}}}",
+    return xpp::format("{{\"options\":{{\"newton.max_iterations\":{},\"newton.tolerance\":{},\"newton.jacobian_step\":{},\"newton.search_limit\":{}}},\"print_eigenvalues\":{},\"draw_invariant_sets\":{},\"draw_strong_sets\":{}}}",
         n.max_iterations,n.newton_tolerance,n.jacobian_step,n.search_limit,n.print_eigenvalues,n.draw_invariant_sets,n.draw_strong_sets);
 }
 constexpr std::array GUESS={Argument{"coordinates",Type::map,true,MAX_COMMAND_BYTES,{},{},{},NameSet::variable,Type::real},Argument{"window",Type::window,false}};
@@ -179,8 +179,8 @@ constexpr std::array SEARCH={Argument{"append",Type::boolean,false},Argument{"gu
     Argument{"tolerance",Type::real,true,MAX_TEXT_BYTES,{},constant(std::numeric_limits<double>::denorm_min())},Argument{"shoot",Type::boolean,false},
     Argument{"bounds",Type::map,true,MAX_COMMAND_BYTES,{},{},{},NameSet::variable,Type::real_pair}};
 constexpr std::array FILE={Argument{"file",Type::file,true},Argument{"shoot",Type::boolean,false}};
-constexpr std::array CONFIG={Argument{"max_iterates",Type::integer,false,MAX_TEXT_BYTES,{},constant(1),constant(std::numeric_limits<int>::max())},
-    Argument{"newton_tolerance",Type::real,false},Argument{"jacobian_epsilon",Type::real,false},Argument{"search_limit",Type::real,false},
+constexpr std::array CONFIG={Argument{"newton.max_iterations",Type::integer,false,MAX_TEXT_BYTES,{},constant(1),constant(std::numeric_limits<int>::max())},
+    Argument{"newton.tolerance",Type::real,false},Argument{"newton.jacobian_step",Type::real,false},Argument{"newton.search_limit",Type::real,false},
     Argument{"print_eigenvalues",Type::boolean,false},Argument{"draw_invariant_sets",Type::boolean,false},Argument{"draw_strong_sets",Type::boolean,false}};
 constexpr std::array FOUND={ResultField{"converged","boolean"},ResultField{"equilibrium","map[name, real]"},ResultField{"eigenvalues","list[map[string, real]]"},ResultField{"stability","choice"}};
 constexpr std::array POINTS={ResultField{"points_found","integer"}};

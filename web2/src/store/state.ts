@@ -64,7 +64,7 @@ export type {LogEntry} from './log';
     (core/autox_stop.cpp, "Branch 1 stopped at point 57: ..."). Anything else stays
     plain `log`; this never sees `message` `error` text (handled separately). */
 const AUTOX_ROW = /^\s*-?\d+\s+-?\d+\s+([A-Za-z]+\s+)?-?\d+(\s+-?\d+(\.\d+)?([eE][+-]?\d+)?){2,}\s*$/;
-const AUTOX_PHRASE = /BR\s+PT\s+TY\s+LAB|Generating starting data|Restart at EP label|Hopf point|Limit point|Periodic point|Max point|End point|NPARX|NCOL=|min_step_size|max_step_size|Division by Zero|Initialization Error CRASH|Restart label|Branch \d+ stopped at point \d+:/;
+const AUTOX_PHRASE = /BR\s+PT\s+TY\s+LAB|Generating starting data|Restart at EP label|Hopf point|Limit point|Periodic point|Max point|End point|NPARX|NCOL=|step.min|step.max|Division by Zero|Initialization Error CRASH|Restart label|Branch \d+ stopped at point \d+:/;
 export function classifyLogText(text: string): 'log' | 'autox' {
   return AUTOX_ROW.test(text) || AUTOX_PHRASE.test(text) ? 'autox' : 'log';
 }

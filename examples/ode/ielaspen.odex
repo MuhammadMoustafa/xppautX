@@ -24,7 +24,7 @@ aux e = 0.5*(rp^2+(r*thp)^2+a*(r-1)^2)-r*(cos(th)-1)
 options {
   animation: "ielaspen.anix",
   integration: { total_time: 100, method: qualrk, dt: .1, state_limit: 100000 },
-  equilibria: { search_limit: 100000 },
+  equilibria: { newton.search_limit: 100000 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

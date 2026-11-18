@@ -3,4 +3,4 @@ version 4
 x' = x
 y' = -y
 init x = 0, y = 0
-options { equilibria: { newton_tolerance: 1e-200 } }
+options { equilibria: { newton.tolerance: 1e-200 } }

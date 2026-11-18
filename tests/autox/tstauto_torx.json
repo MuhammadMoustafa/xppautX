@@ -10,18 +10,18 @@
       },
       "parameter": "rn",
       "autox": {
-        "step_size": 0.01,
-        "min_step_size": 1e-05,
-        "max_step_size": 0.01,
-        "max_steps": 100,
-        "output_every": 20,
-        "parameter_min": -0.9,
-        "parameter_max": -0.4,
-        "mesh_intervals": 15,
+        "step.initial": 0.01,
+        "step.min": 1e-05,
+        "step.max": 0.01,
+        "limits.steps": 100,
+        "output.every": 20,
+        "limits.parameter_min": -0.9,
+        "limits.parameter_max": -0.4,
+        "mesh.intervals": 15,
         "max_branch_switches": 0,
-        "parameter_tolerance": 1e-07,
-        "state_tolerance": 1e-07,
-        "special_point_tolerance": 1e-05
+        "newton.parameter_tolerance": 1e-07,
+        "newton.state_tolerance": 1e-07,
+        "newton.special_point_tolerance": 1e-05
       }
     },
     {
@@ -34,18 +34,18 @@
       },
       "parameter": "rn",
       "autox": {
-        "step_size": 0.005,
-        "min_step_size": 1e-05,
-        "max_step_size": 0.005,
-        "max_steps": 30,
-        "output_every": 10,
-        "parameter_min": -0.9,
-        "parameter_max": -0.4,
-        "mesh_intervals": 15,
+        "step.initial": 0.005,
+        "step.min": 1e-05,
+        "step.max": 0.005,
+        "limits.steps": 30,
+        "output.every": 10,
+        "limits.parameter_min": -0.9,
+        "limits.parameter_max": -0.4,
+        "mesh.intervals": 15,
         "max_branch_switches": 0,
-        "parameter_tolerance": 1e-07,
-        "state_tolerance": 1e-07,
-        "special_point_tolerance": 1e-05
+        "newton.parameter_tolerance": 1e-07,
+        "newton.state_tolerance": 1e-07,
+        "newton.special_point_tolerance": 1e-05
       }
     }
   ]

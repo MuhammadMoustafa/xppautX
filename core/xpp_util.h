@@ -35,8 +35,8 @@ std::string short_name(std::string_view name, int width);
    nodes ascending, the components by their least node. By union-find. */
 std::vector<std::vector<int>> connected_components(const std::vector<std::vector<int>> &edges);
 
-/* a name's label: its underscores as spaces and a capital first letter
-   ("mesh_intervals" is "Mesh intervals"), derived and never written apart
+/* a name's label: its underscores and dots as spaces and a capital first letter
+   ("mesh_intervals" is "Mesh intervals", "limits.steps" is "Limits steps"), derived and never written apart
    (W381; web2's choiceLabel is the page's) */
 std::string name_label(std::string_view name);
 

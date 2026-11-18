@@ -32,7 +32,7 @@ This is a deliberate behaviour difference, not a conversion rewrite
 XPPAUT's `bound` is one number for three things: the limit past which a
 solution is taken to blow up, the limit its equilibria search gives up at, and
 (unnamed) the cap of the DAE solver's Newton update, `n` times it. Conversion
-writes `state_limit` and `search_limit`, both the `bound` value, and the DAE
+writes `state_limit` and `newton.search_limit`, both the `bound` value, and the DAE
 cap follows `state_limit`. XPPAUT's choices spelled by
 number or letter (`poisgn=-1`, `poimap=s`, `colormap=3`, `lt=-2`, `sec=22`,
 `rangereset=y`, colors 0 to 10) convert to the words of the `.odex`

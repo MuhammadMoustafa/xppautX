@@ -98,8 +98,8 @@ SmV' = (-ISmLe-ISmNa-ISmKv-ISmK1-ISmCa-ISmSk+ISmSt)/ode_divisor(Smcpctncr)
 options {
   integration: { dt: 0.01, store_every: 20, method: backward_euler, total_time: 1000.0 },
   continuation: {
-    parameter_max: 1, parameter_min: -10, output_every: 100000, max_steps: 1000, mesh_intervals: 100,
-    max_step_size: 0.1,
+    limits.parameter_max: 1, limits.parameter_min: -10, output.every: 100000, limits.steps: 1000,
+    mesh.intervals: 100, step.max: 0.1,
   },
   diagram: { variable: SmV, x_min: -0.1, x_max: 1.1, y_min: -90, y_max: 20 },
   plot: { axes.x_min: 0, axes.x_max: 1000.0, axes.y_min: -90, axes.y_max: 50, curves: [ { y: SmV } ] },

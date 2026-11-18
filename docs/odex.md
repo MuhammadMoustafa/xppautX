@@ -200,7 +200,8 @@ you wrote (`1/30`) alone while the value is unchanged.
   the file differs, W281). Each property of the schema gives the option's `default`: the value a
   session with no model gives it, after its reset (an option whose value a model sets, a name or a
   node count, has none, and a list has none); a numeric option or the method also has `x-key`, the
-  key the numerics event and `set num` use. The method has `x-methods`: each method's name, its
+  key the numerics event and `set num` use. An advanced option (one that tunes a method's inside, whose
+  default is right for almost every model; W809) has `x-advanced: true`. The method has `x-methods`: each method's name, its
   set-file label, its key and XPPAUT's one-letter `@ meth` key, in the set file's numbering.
   tools/python-integration/numerics.py reads these defaults from the schema, never from core/ (W804
   - stol, which no option names, is the one value still read from core/model_numerics.h).
@@ -208,7 +209,7 @@ you wrote (`1/30`) alone while the value is unchanged.
         options {
           integration: { total_time: 100, method: stiff, jacobian.kind: exact },
           plot:     { curves: [ { x: v, y: w } ], axes.x_min: -0.6, axes.x_max: 1.2 },
-          continuation: { mesh_intervals: 50, parameter_max: 10 },
+          continuation: { mesh.intervals: 50, limits.parameter_max: 10 },
         }
 
   Groups, in the order a run, its analysis, the continuation, the pictures and the files
@@ -223,9 +224,9 @@ you wrote (`1/30`) alone while the value is unchanged.
   |---|---|
   | `integration` | `total_time`, `start_time`, `dt`, `store_every`, `store_from`, `storage_precision`, `state_limit`, `stop_at_limit`, `method`, `subsystem_split`, `compile` (`false` runs the interpreter; read when the model loads), `seed`; `step.relative_tolerance`, `step.absolute_tolerance`, `step.min`, `step.max`; `global.min_step_fraction`; `jacobian.kind` (`difference` or `exact`), `jacobian.band_upper`, `jacobian.band_lower`; `delay.max_delay`, `delay.history_points`; `euler.tolerance`, `euler.iterations`; `boundary_value.max_iterates`, `boundary_value.tolerance`, `boundary_value.epsilon`; `torus.period`, `torus.fold` |
   | `poincare` | `map`, `variable`, `sign`, `plane`, `stop` |
-  | `equilibria` | `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets` (each `true` or `false`, W535) |
+  | `equilibria` | `newton.max_iterations`, `newton.tolerance`, `newton.jacobian_step`, `newton.search_limit`, `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets` (each `true` or `false`, W535) |
   | `sweep` | `variable`, `steps`, `low`, `high`, `reset`, `old_ic`, `write_files` (`true` writes each reset run to its own file in every mode, default `false`) |
-  | `continuation` | autoX run options by their names: `mesh_intervals`, `max_steps`, `output_every`, `collocation_points`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance` (W531) and the ten that were Numerics-form options only: `mesh_adapt_every`, `max_branch_switches`, `switch_one_direction`, `output_detail`, `max_location_iterations`, `max_newton_iterations`, `full_newton_after`, `step_adapt_every`, `suppress_branch_points`, `follow_all_branches` (each the autox.configure_numerics argument of its name); autoX's own names (`ntst`, `nmax`, `parmin`, ...) are XPPAUT's, read on `.ode` import only |
+  | `continuation` | autoX run options by their names: `mesh.intervals`, `limits.steps`, `output.every`, `mesh.collocation_points`, `step.initial`, `step.min`, `step.max`, `limits.parameter_min`, `limits.parameter_max`, `limits.norm_min`, `limits.norm_max`, `newton.parameter_tolerance`, `newton.state_tolerance`, `newton.special_point_tolerance` (W531) and the ten that were Numerics-form options only: `mesh.adapt_every`, `max_branch_switches`, `one_way_branch_switch`, `output.detail`, `newton.max_location_iterations`, `newton.max_iterations`, `newton.full_after_steps`, `step.adapt_every`, `suppress_branch_points`, `follow_all_branches` (each the autox.configure_numerics argument of its name); autoX's own names (`ntst`, `nmax`, `parmin`, ...) are XPPAUT's, read on `.ode` import only |
   | `diagram` | `variable`, `x_min`, `x_max`, `y_min`, `y_max` |
   | `plot` | `colormap`; `axes.kind` (`2` or `3`), `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max` (the one pair of limits: a 2D plot's window, a 3D plot's box), `axes.z_min`, `axes.z_max` (the 3D box), `axes.phi`, `axes.theta` (the 3D view); `curves` (a list of at most 8 curves, each `{ x, y, z }`, a variable's name or `t`; the first holds the axes' variables, a model opens one graph and every curve is drawn in it); `line.draw`, `line.dash`, `line.width`, `line.marker`, `line.marker_size`; `nullclines.mesh`, `nullclines.draw`; `direction_field.grid`, `direction_field.draw`; `color_by.enabled`, `color_by.via`, `color_by.low`, `color_by.high` |
   | `analysis` | `histogram.low`, `histogram.high`, `histogram.bins`, `histogram.column`; `histogram2.low`, `histogram2.high`, `histogram2.bins`, `histogram2.column`; `spectrum.column`, `spectrum.column2`, `spectrum.width`, `spectrum.window` |
@@ -251,7 +252,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   The X11 window's options (`bell`, `bigfont`, ...) are no option: the converter drops them.
   A `.ode`'s `bound` is two options of ours: `state_limit` (a variable past
   it is a blow-up, and `stop_at_limit: true`, the default, ends the run) and
-  `search_limit` (the equilibria's search gives up past it), both read from
+  `newton.search_limit` (the equilibria's search gives up past it), both read from
   it; the DAE solver's own cap is a constant, no option. A `.ode`'s
   `ncdraw` is `nullclines.draw` (in `plot`) and `nullclines_file` (in `output`) (`1`: draw; `2`: not
   drawn and saved to `nullclines.dat`; `nullclines_file` is a file written
@@ -268,8 +269,8 @@ you wrote (`1/30`) alone while the value is unchanged.
   path outside the model's folder is a question the user answers (W175, W286). Only `data_file`, `picture_file`, `nullclines_file`, `after_run_file` are paths, and the `coupling` items (`"variable = formula"`) texts. Every
   writer of options (the converter, Save values) writes them so.
   Continuation numbers use the same ranges as the autoX form, protocol and session reader:
-  `min_step_size`, `max_step_size`, `parameter_tolerance`, `state_tolerance` and `special_point_tolerance` are positive; `min_step_size <= max_step_size`,
-  `min_step_size <= abs(step_size) <= max_step_size`, `parameter_min < parameter_max` and `norm_min < norm_max`.
+  `step.min`, `step.max`, `newton.parameter_tolerance`, `newton.state_tolerance` and `newton.special_point_tolerance` are positive; `step.min <= step.max`,
+  `step.min <= abs(step.initial) <= step.max`, `limits.parameter_min < limits.parameter_max` and `limits.norm_min < limits.norm_max`.
   A bad value is refused at its line, before the model is installed (W494).
   Slider presets use `interface: { sliders: [ { name: v, low: -1, high: 1, step: 0.01 }, ... ] }`.
   The list may have any length, including zero; each name must be a parameter or state,
@@ -362,9 +363,9 @@ The allocation-sized whole options have inclusive maxima (W296,
 | `jacobian.band_upper`, `jacobian.band_lower` | 0 | 100000 | Large banded models without int-sized bandwidths |
 | `histogram.bins`, `histogram2.bins` | 2 | 4096 | About 16 million cells in two dimensions |
 | `spectrum.width` | 1 | 1000000 | Bounds spectral workspaces |
-| `continuation.mesh_intervals` | 1 | 10000 | Bounds autoX's mesh-sized matrices |
-| `continuation.max_steps` | 1 | 1000000 | Bounds a requested continuation diagram |
-| `continuation.collocation_points` | 2 | 7 | autoX's options reader requires supported collocation orders 2 through 7 |
+| `continuation.mesh.intervals` | 1 | 10000 | Bounds autoX's mesh-sized matrices |
+| `continuation.limits.steps` | 1 | 1000000 | Bounds a requested continuation diagram |
+| `continuation.mesh.collocation_points` | 2 | 7 | autoX's options reader requires supported collocation orders 2 through 7 |
 
 Options that must keep an order are refused when it is broken, wherever they
 come from (an `options` block, a session file, `set num`, the

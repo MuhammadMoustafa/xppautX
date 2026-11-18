@@ -79,8 +79,8 @@ TEST_CASE("test_autox_options")
     CHECK(ok(xpp::AUTOX_NUM_OUTPUT_DETAIL, 5) && !ok(xpp::AUTOX_NUM_OUTPUT_DETAIL, 6));
     CHECK(!ok(xpp::AUTOX_NUM_MAX_STEPS, 3e9)); /* no int holds it */
     xpp::autox_num_ok(xpp::AUTOX_NUM_COLLOCATION_POINTS, 9, num_why);
-    CHECK_STR(num_why.c_str(), "collocation_points=9: Collocation points must be a whole number from 2 to 7");
-    CHECK_STR(xpp::autox_settings_num_key(xpp::AUTOX_NUM_PARAMETER_MIN), "parameter_min");
+    CHECK_STR(num_why.c_str(), "mesh.collocation_points=9: Mesh collocation points must be a whole number from 2 to 7");
+    CHECK_STR(xpp::autox_settings_num_key(xpp::AUTOX_NUM_PARAMETER_MIN), "limits.parameter_min");
     CHECK(xpp::autox_settings_num_key(xpp::AUTOX_NUM_N) == nullptr);
 
     /* W531: a name's label is derived from it; a choice and a boolean are written and read by their words */
@@ -111,7 +111,7 @@ TEST_CASE("test_autox_options")
     s.has_num[xpp::AUTOX_NUM_PARAMETER_MAX] = 1;
     s.num[xpp::AUTOX_NUM_PARAMETER_MAX] = -1;
     CHECK(xpp::autox_settings_apply(xpp::autox_parts(xpp::client_session()), s, why) == -1 && xpp::client_session().autox_state->bifur.rl1 == 2);
-    CHECK(why.starts_with("Parameter min must be below Parameter max (parameter_min="));
+    CHECK(why.starts_with("Limits parameter min must be below Limits parameter max (limits.parameter_min="));
 
     /* Dsmin <= |Ds| <= Dsmax, checked when one of the three is given (T23) */
     xpp::client_session().autox_state->bifur.ds = 0.02;
@@ -119,7 +119,7 @@ TEST_CASE("test_autox_options")
     s.has_num[xpp::AUTOX_NUM_STEP_SIZE] = 1;
     s.num[xpp::AUTOX_NUM_STEP_SIZE] = -0.6;
     CHECK(xpp::autox_settings_apply(xpp::autox_parts(xpp::client_session()), s, why) == -1 && xpp::client_session().autox_state->bifur.ds == 0.02);
-    CHECK(why.starts_with("The size of Step size must be from Min step size to Max step size (its sign is the direction) (step_size=-0.6,"));
+    CHECK(why.starts_with("The size of Step initial must be from Step min to Step max (its sign is the direction) (step.initial=-0.6,"));
     s.num[xpp::AUTOX_NUM_STEP_SIZE] = -0.5;
     CHECK(xpp::autox_settings_apply(xpp::autox_parts(xpp::client_session()), s, why) == 0 && xpp::client_session().autox_state->bifur.ds == -0.5);
     s = xpp::AutoxSettingsSet{};

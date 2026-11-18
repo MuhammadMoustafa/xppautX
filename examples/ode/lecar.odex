@@ -25,8 +25,8 @@ options {
   animation: "ml.anix",
   integration: { total_time: 30, dt: .05 },
   continuation: {
-    min_step_size: 1e-5, max_step_size: .02, parameter_min: -.2, parameter_max: .5,
-    output_every: 500, max_steps: 2000,
+    step.min: 1e-5, step.max: .02, limits.parameter_min: -.2, limits.parameter_max: .5,
+    output.every: 500, limits.steps: 2000,
   },
   diagram: { y_max: .4, y_min: -.5, x_min: -.2, x_max: .5 },
   plot: {

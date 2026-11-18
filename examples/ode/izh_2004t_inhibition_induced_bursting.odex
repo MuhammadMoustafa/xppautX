@@ -25,5 +25,5 @@ aux I = I
 # the .ode is a map: x' = f with the discrete method is x(t+1) = f
 options {
   integration: { total_time: 700, state_limit: 1000000, method: discrete },
-  equilibria: { search_limit: 1000000 },
+  equilibria: { newton.search_limit: 1000000 },
 }

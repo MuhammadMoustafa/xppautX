@@ -66,7 +66,7 @@ class AutoxCompare(unittest.TestCase):
             if edit == 'unknown':
                 d['runs'][0]['autox']['nmx'] = 10
             elif edit == 'zero_step':
-                d['runs'][0]['autox']['step_size'] = 0
+                d['runs'][0]['autox']['step.initial'] = 0
             elif edit == 'future_run':
                 d['runs'][0]['start'] = dict(run='future', type='HB', index=1)
             elif edit == 'nan':
@@ -93,7 +93,7 @@ class AutoxCompare(unittest.TestCase):
 
 
 class References(unittest.TestCase):
-    autoX = dict(step_size=0.01, max_step_size=0.1, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4)
+    autoX = dict(**{'step.initial': 0.01}, **{'step.max': 0.1}, **{'newton.parameter_tolerance': 1e-4}, **{'newton.state_tolerance': 1e-4}, **{'newton.special_point_tolerance': 1e-4})
 
     def row(self, itp, par, norm, per=0.0, ev=(0.0, 0.0)):
         return dict(itp=str(itp), continued_parameter=str(par), norm=str(norm), per=str(per), evr1=str(ev[0]), evi1=str(ev[1]))
@@ -130,7 +130,7 @@ class References(unittest.TestCase):
     def test_labels_at_one_point_are_one_set_whatever_their_stored_order(self):
         # W587: a torus curve's BP and R2 at its 1:2 point, stored in either order, 2e-8 apart (henon_rot_th's
         # converged run); an R3 a step later and a BP and R2 farther apart than the location tolerance keep their order
-        auto = dict(special_point_tolerance=1e-7, step_size=0.002, max_step_size=0.01)
+        auto = dict(**{'newton.special_point_tolerance': 1e-7}, **{'step.initial': 0.002}, **{'step.max': 0.01})
         def sorted_labels(rows, auto):
             labels = labelled(rows, 'two_parameter')
             return autoxcompare.coincident_sorted(labels, [autoxcompare.row_position(rows[i]) for _, i in labels], autoxcompare.location_tolerance(auto))
@@ -298,8 +298,8 @@ class Projection(unittest.TestCase):
 
 
 class Curves(unittest.TestCase):
-    autoX = dict(step_size=0.01, max_step_size=0.1, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4, parameter_min=0.05, parameter_max=1.4)
-    WIDE = dict(autoX, parameter_min=0.0, parameter_max=3.0)
+    autoX = dict(**{'step.initial': 0.01}, **{'step.max': 0.1}, **{'newton.parameter_tolerance': 1e-4}, **{'newton.state_tolerance': 1e-4}, **{'newton.special_point_tolerance': 1e-4}, **{'limits.parameter_min': 0.05}, **{'limits.parameter_max': 1.4})
+    WIDE = dict(autoX, **{'limits.parameter_min': 0.0}, **{'limits.parameter_max': 3.0})
 
     @staticmethod
     def rows(vertices):
@@ -318,7 +318,7 @@ class Curves(unittest.TestCase):
             ref = [list(v) for v in np.array(ours)[rng.permutation(len(ours))[:int(rng.integers(2, len(ours) + 1))]] + rng.integers(-1, 2, size=3) * 1e-4]
             if trial % 3 == 0:
                 ref = [list(v) for v in ours[::-1]]
-            for auto in (self.WIDE, dict(self.WIDE, max_steps=len(ours)), dict(self.WIDE, parameter_min=0.02, parameter_max=0.1)):
+            for auto in (self.WIDE, dict(self.WIDE, **{'limits.steps': len(ours)}), dict(self.WIDE, **{'limits.parameter_min': 0.02}, **{'limits.parameter_max': 0.1})):
                 for digits in (None, 6):
                     whole = compare_curve(self.rows(ours), auto, ref, 'm', digits)
                     with mock.patch.object(autoxcompare, 'INDEXED_FROM', 0):
@@ -350,7 +350,7 @@ class Curves(unittest.TestCase):
         # A constant norm has zero chord error: %14.5E alone loses these digits.
         ours = [(x, 0.3, 0.41826665768) for x in (0.2, 0.4, 0.8)]
         ref = [[x, y, float('%14.5E' % n)] for x, y, n in ours]
-        auto = dict(self.autoX, parameter_tolerance=1e-9, state_tolerance=1e-9)
+        auto = dict(self.autoX, **{'newton.parameter_tolerance': 1e-9}, **{'newton.state_tolerance': 1e-9})
         self.assertTrue(compare_curve(self.rows(ours), auto, ref, 'rounded')[0])
         self.assertEqual(compare_curve(self.rows(ours), auto, ref, 'rounded', printed_digits=6)[0], [])
         for point in ref:
@@ -361,7 +361,7 @@ class Curves(unittest.TestCase):
         # Crossing a decimal power must not borrow the unrounded side's tenfold larger unit.
         ours = [(x, 0.3, 0.1000002) for x in (0.2, 0.4, 0.8)]
         ref = [[x, y, 0.0999999] for x, y, _ in ours]
-        auto = dict(self.autoX, parameter_tolerance=1e-9, state_tolerance=1e-9)
+        auto = dict(self.autoX, **{'newton.parameter_tolerance': 1e-9}, **{'newton.state_tolerance': 1e-9})
         self.assertTrue(compare_curve(self.rows(ours), auto, ref, 'boundary', printed_digits=6)[0])
 
     def test_straight_curve_does_not_project_on_newton_roundoff(self):
@@ -390,7 +390,7 @@ class Curves(unittest.TestCase):
     def test_two_runs_of_nmax_steps_are_compared_where_both_went(self):
         ours = self.parabola(40)
         longer = [(a, a + a * a, 2 * a) for a in (0.051 * i for i in range(40))]  # longer steps, same curve
-        nmax = dict(self.WIDE, max_steps=40)
+        nmax = dict(self.WIDE, **{'limits.steps': 40})
         self.assertTrue(compare_curve(self.rows(ours), self.WIDE, [list(v) for v in longer], 'm')[0])
         self.assertEqual(compare_curve(self.rows(ours), nmax, [list(v) for v in longer], 'm')[0], [])
         self.assertEqual(compare_curve(self.rows(longer), nmax, [list(v) for v in ours], 'm')[0], [])
@@ -403,7 +403,7 @@ class Curves(unittest.TestCase):
         ours = self.parabola(40)
         ref = [list(v) for v in self.parabola(60)]
         self.assertTrue(compare_curve(self.rows(ours), self.WIDE, ref, 'm')[0])
-        diffs, _ = compare_curve(self.rows(ours), dict(self.WIDE, parameter_max=1.9), ref, 'm')
+        diffs, _ = compare_curve(self.rows(ours), dict(self.WIDE, **{'limits.parameter_max': 1.9}), ref, 'm')
         self.assertEqual(diffs, [])
 
     def test_the_two_arcs_of_a_cusp_are_told_apart_by_their_norm(self):
@@ -472,7 +472,7 @@ class Curves(unittest.TestCase):
 
 
 class Arms(unittest.TestCase):
-    autoX = dict(step_size=0.01, max_step_size=0.1, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4, parameter_min=-3.0, parameter_max=3.0)
+    autoX = dict(**{'step.initial': 0.01}, **{'step.max': 0.1}, **{'newton.parameter_tolerance': 1e-4}, **{'newton.state_tolerance': 1e-4}, **{'newton.special_point_tolerance': 1e-4}, **{'limits.parameter_min': -3.0}, **{'limits.parameter_max': 3.0})
 
     @staticmethod
     def arm(sign):

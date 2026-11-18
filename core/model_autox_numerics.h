@@ -51,13 +51,13 @@ struct AutoxNumRule {
     double lo, hi; /* AutoxRule::range, inclusive; a boolean's and a choice's index range too */
 };
 constexpr std::array<AutoxNumRule, AUTOX_NUM_N> autox_num_rules = {{
-    {AutoxRule::range, 1, autox_max_mesh_intervals},       /* mesh_intervals */
-    {AutoxRule::range, 1, INT_MAX},                       /* max_steps */
-    {AutoxRule::range, 1, INT_MAX},                       /* output_every */
+    {AutoxRule::range, 1, autox_max_mesh_intervals},       /* mesh.intervals */
+    {AutoxRule::range, 1, INT_MAX},                       /* limits.steps */
+    {AutoxRule::range, 1, INT_MAX},                       /* output.every */
     {AutoxRule::range, autox_min_collocation_points, autox_max_collocation_points}, /* collocation_points */
-    {AutoxRule::nonzero, 0, 0},                           /* step_size */
-    {AutoxRule::positive, 0, 0},                          /* min_step_size */
-    {AutoxRule::positive, 0, 0},                          /* max_step_size */
+    {AutoxRule::nonzero, 0, 0},                           /* step.initial */
+    {AutoxRule::positive, 0, 0},                          /* step.min */
+    {AutoxRule::positive, 0, 0},                          /* step.max */
     {AutoxRule::any, 0, 0},                               /* parameter_min */
     {AutoxRule::any, 0, 0},                               /* parameter_max */
     {AutoxRule::any, 0, 0},                               /* norm_min */
@@ -109,7 +109,7 @@ constexpr NumPair num_pairs[] = {
 /* what the ordering of a pair, and the first step's size within the step sizes (whichever its sign), say when they fail */
 std::string step_rule();
 std::string pair_message(const NumPair &p);
-/* the key of Numerics field i in the event, the command and the files ("mesh_intervals", ...); NULL out of range */
+/* the key of Numerics field i in the event, the command and the files ("mesh.intervals", ...); NULL out of range */
 const char *autox_settings_num_key(int i);
 /* a value of an autoX options set that is wrong: what, and its key ("ntst", "var", "mark2", ...; "" for the whole set) as the
    Error's field; at the command's place (a file of options gives its own line instead) */

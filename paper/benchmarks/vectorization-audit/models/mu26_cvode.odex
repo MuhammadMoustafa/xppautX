@@ -314,8 +314,8 @@ HxV' = (-IHxCa-IHxCt-IHxHx-IHxKa-IHxKv-IHxLe-IHxMx-IHxNa-IHxNp-IHxSk+HxIapp+IcnS
 options {
   integration: { dt: 0.05, store_every: 10, method: cvode, total_time: 2000 },
   continuation: {
-    parameter_max: 300, parameter_min: -80, output_every: 100000, max_steps: 1000,
-    mesh_intervals: 100, max_step_size: 0.1,
+    limits.parameter_max: 300, limits.parameter_min: -80, output.every: 100000, limits.steps: 1000,
+    mesh.intervals: 100, step.max: 0.1,
   },
   diagram: { variable: SmV, x_min: -80, x_max: 310, y_min: -90, y_max: 20 },
   plot: { axes.x_min: 0, axes.x_max: 400.0, axes.y_min: -90, axes.y_max: 50, curves: [ { y: SmV } ] },

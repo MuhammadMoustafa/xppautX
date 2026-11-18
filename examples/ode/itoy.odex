@@ -91,7 +91,7 @@ fun t1dot(x, y, xp, yp) = (yp*x-xp*y)/ode_divisor(x^2+y^2)
 options {
   animation: "itoy.anix",
   integration: { state_limit: 10000, method: cvode, dt: .05, step.absolute_tolerance: 1e-4, step.relative_tolerance: 1e-5, total_time: 100 },
-  equilibria: { search_limit: 10000 },
+  equilibria: { newton.search_limit: 10000 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

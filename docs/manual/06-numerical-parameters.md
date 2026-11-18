@@ -61,7 +61,7 @@ will prompt you for the grid size for computing nullclines.
 
 ### sing pt ctrl
 
-This prompts you for errors and epsilons for eigenvalues and equilibria calculations (`newton_tolerance`, `jacobian_step`) as well as the maximum iterates (`max_iterations`) and the search limit (`search_limit`). If you have global flags, then you will be asked for `smin` as well. The search's three display options, `print_eigenvalues`, `draw_invariant_sets` and `draw_strong_sets`, are listed with these and are off by default; the search asks nothing.
+This prompts you for errors and epsilons for eigenvalues and equilibria calculations (`newton.tolerance`, `newton.jacobian_step`) as well as the maximum iterations (`newton.max_iterations`) and the search limit (`newton.search_limit`). If you have global flags, then you will be asked for `smin` as well. The search's three display options, `print_eigenvalues`, `draw_invariant_sets` and `draw_strong_sets`, are listed with these and are off by default; the search asks nothing.
 
 ### nout
 
@@ -69,7 +69,7 @@ This sets the number of integration steps to perform between output to storage. 
 
 ### Bounds
 
-This sets the state limit (`state_limit`, XPPAUT's bound): if any variable exceeds this value in magnitude, a message appears and the integration stops, unless `stop_at_limit` is `false` (an option of the values panel and of a model's options). The equilibria's search has its own limit, `search_limit` (asked with Sing pt ctrl), which a `.ode`'s `bound` also sets.
+This sets the state limit (`state_limit`, XPPAUT's bound): if any variable exceeds this value in magnitude, a message appears and the integration stops, unless `stop_at_limit` is `false` (an option of the values panel and of a model's options). The equilibria's search has its own limit, `newton.search_limit` (asked with Sing pt ctrl), which a `.ode`'s `bound` also sets.
 
 ### Method
 

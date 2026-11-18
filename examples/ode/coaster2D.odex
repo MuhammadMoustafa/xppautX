@@ -37,7 +37,7 @@ set "Pluto" { g: 0.42 }
 options {
   animation: "coaster2D.anix",
   integration: { state_limit: 100000 },
-  equilibria: { search_limit: 100000 },
+  equilibria: { newton.search_limit: 100000 },
   plot: { curves: [ { x: X, y: Z } ], axes.x_min: -1, axes.x_max: 1, axes.y_min: -1, axes.y_max: 1 },
 }
 

@@ -11,14 +11,14 @@
       },
       "parameter": "iapp",
       "autox": {
-        "step_size": 0.02,
-        "min_step_size": 1e-05,
-        "max_step_size": 0.02,
-        "max_steps": 100,
-        "output_every": 20,
-        "parameter_min": -0.2,
-        "parameter_max": 0.5,
-        "mesh_intervals": 15,
+        "step.initial": 0.02,
+        "step.min": 1e-05,
+        "step.max": 0.02,
+        "limits.steps": 100,
+        "output.every": 20,
+        "limits.parameter_min": -0.2,
+        "limits.parameter_max": 0.5,
+        "mesh.intervals": 15,
         "max_branch_switches": 0
       }
     },
@@ -32,14 +32,14 @@
       },
       "parameter": "iapp",
       "autox": {
-        "step_size": 0.01,
-        "min_step_size": 1e-05,
-        "max_step_size": 0.01,
-        "max_steps": 30,
-        "output_every": 10,
-        "parameter_min": -0.2,
-        "parameter_max": 0.5,
-        "mesh_intervals": 15,
+        "step.initial": 0.01,
+        "step.min": 1e-05,
+        "step.max": 0.01,
+        "limits.steps": 30,
+        "output.every": 10,
+        "limits.parameter_min": -0.2,
+        "limits.parameter_max": 0.5,
+        "mesh.intervals": 15,
         "max_branch_switches": 0
       }
     }

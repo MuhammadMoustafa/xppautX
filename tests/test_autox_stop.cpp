@@ -77,13 +77,13 @@ TEST_CASE("test_autox_stop")
     xpp::autox_stop_branch_end(run, &at);
     xpp::autox_stop_last(stop, &st);
     CHECK(st.why == xpp::AUTOX_STOP_PAR_MAX && st.br == 1 && st.pt == 7 && st.value == 2.25 && st.limit == 2);
-    CHECK_STR(st.key, "parameter_max");
-    CHECK_STR(st.text, "parameter iapp reached parameter_max (2)");
+    CHECK_STR(st.key, "limits.parameter_max");
+    CHECK_STR(st.text, "parameter iapp reached limits.parameter_max (2)");
     at.ipar = xpp::autox_unknown::period;
     at.par = -0.5;
     xpp::autox_stop_branch_end(run, &at);
     xpp::autox_stop_last(stop, &st);
-    CHECK_STR(st.text, "the period T reached parameter_min (0)");
+    CHECK_STR(st.text, "the period T reached limits.parameter_min (0)");
 
     /* a NOTE says how the solver failed; it counts for the next end only */
     at = inside();
@@ -94,7 +94,7 @@ TEST_CASE("test_autox_stop")
     xpp::autox_stop_last(stop, &st);
     CHECK(st.why == xpp::AUTOX_STOP_NOCONV_MIN && st.br == 2 && st.value == 1e-5 && st.limit == 0.0001);
     CHECK_STR(st.key, "noconv-min");
-    CHECK_STR(st.text, "no convergence even at the smallest step (min_step_size 0.0001; max_newton_iterations 5, parameter_tolerance 1e-07, state_tolerance 1e-06): "
+    CHECK_STR(st.text, "no convergence even at the smallest step (step.min 0.0001; newton.max_iterations 5, newton.parameter_tolerance 1e-07, newton.state_tolerance 1e-06): "
                        "the linear system is singular (smallest pivot 1e-31 < 1e-30)");
     xpp::autox_stop_branch_end(run, &at);
     xpp::autox_stop_last(stop, &st);
@@ -104,7 +104,7 @@ TEST_CASE("test_autox_stop")
     at.nmx = 7;
     xpp::autox_stop_branch_end(run, &at);
     xpp::autox_stop_last(stop, &st);
-    CHECK_STR(st.text, "the branch reached max_steps (7)");
+    CHECK_STR(st.text, "the branch reached limits.steps (7)");
 
     at = inside();
     at.noconv = 1;
