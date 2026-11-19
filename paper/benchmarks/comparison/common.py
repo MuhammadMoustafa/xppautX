@@ -3,6 +3,7 @@ import argparse
 import ast
 from contextlib import contextmanager
 import csv
+import functools
 import hashlib
 import importlib.util
 import inspect
@@ -376,7 +377,8 @@ DISPLAY_OPTIONS = {
 }
 
 
-def at_default(path):
+@functools.cache
+def numeric_defaults():
     # The numeric options the schema gives a default (core/model_options.cpp, W804), {.odex name: default}: an option written at
     # its default and an option not written are one model to every program, so a converter that starts writing one (W804's
     # global.min_step_fraction) changes no key.
@@ -387,7 +389,7 @@ def at_default(path):
 
 
 def model_key(path):
-    # The .odex's digest without its DISPLAY_OPTIONS items and without any numeric option written at its default (at_default).
+    # The .odex's digest without its DISPLAY_OPTIONS items and without any numeric option written at its default (numeric_defaults).
     # The generated .odex writes a comma after each item of a group, so an item is taken out with the comma before it: a
     # label-only change keeps the key, a number's change does not. An item first in its group is not taken out, so its change
     # changes the key (the safe side).
@@ -395,7 +397,7 @@ def model_key(path):
     text = odex_before_w809(path.read_text(encoding='utf-8'))
     for key in DISPLAY_OPTIONS:
         text = re.sub(r',\s*%s\s*:\s*(?:"[^"]*"|[^,}\n]*)' % re.escape(key), '', text)
-    for key, default in at_default(path).items():
+    for key, default in numeric_defaults().items():
         text = re.sub(r',\s*%s\s*:\s*([-+.\deE]+)(?=\s*[,}\n])' % re.escape(key),
                       lambda m: '' if float(m.group(1)) == default else m.group(0), text)
     text = re.sub(r',\s+', ', ', text)  # the converter wraps an options group's items at its width: an item taken out reflows the lines
