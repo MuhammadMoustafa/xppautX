@@ -151,6 +151,15 @@
       "index": 1,
       "quantity": "spectrum",
       "cause": "W578 (#643): at the R2 the two multipliers near -1 form a Jordan block, so their split is the square root of the monodromy's error: ours -0.99999982 +- 6.9e-4i (EPS 1e-7), the converged run's -0.9999999999 +- 1.5e-5i (EPS 1e-10), a ratio of 47 for EPS 1000 times smaller. Against the model's own Poincare map (docs/studies/w578_converged_check.py; the true R2, trace -2 and det 1 at the run's m) both R2 lie within 3.5e-9 of the true one, whose monodromy has an off-diagonal of 109: a relative perturbation of 1e-10 splits its pair by 1.1e-3. As the W565 entry for AUTO-07p: the place agrees, the split is not a property of the point. No tolerance is widened."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "pd_down",
+      "side": "ours",
+      "type": "resonance_1_2",
+      "index": 1,
+      "quantity": "spectrum",
+      "cause": "W832 (#913): the same coalesced pair near -1 as the pd_up entry above (W565, W578): the monodromy's off-diagonal of about 100 turns a 1e-10 relative perturbation into a split of 1e-3, so the split is not a property of the point. Since the period-doubling system's Jacobian takes the model's own derivatives for the orbit's block, as AUTO-07p's does, xppautX's pair is -1.0000684 and -0.9999474 (AUTO-07p's -1 +- 4.9e-5i) and the difference, 8.42e-5, is 0.4% over the tolerance 8.39e-5, where the Jacobian differenced for those blocks it was just under. The R2's place moved by 8e-9 in b0 (0.3401285005 before, 0.3401284927 after; its error against the tutorial's R2 is the mesh's, 1.8e-6). No tolerance is widened."
     }
   ]
 }

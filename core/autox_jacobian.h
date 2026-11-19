@@ -193,6 +193,67 @@ int problem(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim,
                        iap->run->scratch.ff1.data(), iap->run->scratch.ff2.data(), evaluate);
 }
 
+// The period-doubling and torus systems: `copies` blocks of the model's n = ndm states, the first the
+// orbit's, each later one the variational equation f_i = period * (A u_i) with A the model's
+// Jacobian, as AUTO-07p's FNPD and FNTR build them (periodic.f90). The Jacobian's blocks A are
+// the model's own, scaled by the period; only the columns of the first block are
+// differenced (central, rows of the later blocks), and a parameter's column takes the model's
+// derivatives for the first block's rows and a forward difference for the others; the period's
+// column is f / period. The solution of the later blocks does not enter the first block's
+// equations, and A does not depend on it, so nothing else is differenced (W832: the whole
+// system's 2*ndim evaluations of the Jacobian-bearing function fell to 2*n).
+// eval(state, value, jac, dfu, dfp) is the system's function with the model's derivatives for jac > 0.
+template <class Eval>
+int stacked(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold,
+            const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp,
+            std::ptrdiff_t copies, Eval eval) {
+  const std::ptrdiff_t n = iap->ndm;
+  AutoxRun &run = *iap->run;
+  double *dfu = run.scratch.dfu.data(), *dfp = run.scratch.dfp.data();
+  const auto evaluate = [&](const double *state, double *value, std::ptrdiff_t jac) {
+    eval(iap, rap, ndim, state, uold, icp, par, jac, value, n, dfu, dfp);
+  };
+  evaluate(u, f, ijac);
+  if (ijac == 0) return 0;
+  const double period = par[xpp::autox_unknown::period];
+  const Matrix<double> jac({dfdu, static_cast<size_t>(ndim * ndim)}, ndim, ndim);
+  std::fill_n(dfdu, ndim * ndim, 0.);
+  const Matrix<const double> a({dfu, static_cast<size_t>(n * n)}, n, n);
+  for (std::ptrdiff_t c = 0; c < copies; ++c)
+    for (std::ptrdiff_t i = 0; i < n; ++i)
+      for (std::ptrdiff_t j = 0; j < n; ++j) jac(c * n + i, c * n + j) = period * a(i, j);
+  const double ep = central_step(ndim, u);
+  std::vector<double> state(u, u + ndim), low(ndim), high(ndim);
+  for (std::ptrdiff_t i = 0; i < n; ++i) {
+    state[i] = u[i] - ep;
+    evaluate(state.data(), low.data(), 0);
+    state[i] = u[i] + ep;
+    evaluate(state.data(), high.data(), 0);
+    state[i] = u[i];
+    for (std::ptrdiff_t j = n; j < ndim; ++j) jac(j, i) = (high[j] - low[j]) / (ep * 2);
+  }
+  if (ijac == 1) return 0;
+  // dfdp keeps the model's derivatives from dfp (n rows) and the differences below the first block
+  const Matrix<double> dp({dfdp, static_cast<size_t>(ndim * run.parameter_count)}, ndim, run.parameter_count);
+  const Matrix<const double> model_dp({dfp, static_cast<size_t>(n * run.parameter_count)}, n, run.parameter_count);
+  for (std::ptrdiff_t k = 0; k < iap->nfpr; ++k) {
+    const std::ptrdiff_t slot = icp[k];
+    if (slot == xpp::autox_unknown::period) {
+      for (std::ptrdiff_t j = 0; j < ndim; ++j) dp(j, slot) = f[j] / period;
+    } else if (run.evaluation.parameter_layout.model_index(static_cast<int>(slot)) < 0) {
+      for (std::ptrdiff_t j = 0; j < ndim; ++j) dp(j, slot) = 0.;
+    } else {
+      for (std::ptrdiff_t j = 0; j < n; ++j) dp(j, slot) = period * model_dp(j, slot);
+      const double saved = par[slot];
+      par[slot] = saved + ep;
+      evaluate(u, low.data(), 0);
+      for (std::ptrdiff_t j = n; j < ndim; ++j) dp(j, slot) = (low[j] - f[j]) / ep;
+      par[slot] = saved;
+    }
+  }
+  return 0;
+}
+
 // Structured equilibrium fold/Hopf Jacobian, reimplemented from AUTO-07p
 // toolboxae.f90:171-265 and equilibrium.f90:84-187. Only derivatives of
 // A*v (or (A*A+kappa*I)*v and phase) need numerical second derivatives.

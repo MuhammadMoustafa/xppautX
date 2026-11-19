@@ -1632,12 +1632,12 @@ periodic_fold_starting_data(iap_type *iap, rap_type *rap, double *par, std::ptrd
 int 
 period_doubling_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
-  return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, period_doubling_function);
+  return xpp::autox_jacobian::stacked(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, 2, period_doubling_function);
 } /* fnpd_ */
 
 /* ffpd: XPPAUT's AUTO's function evaluation of the problem kind period_doubling (periodic.f90:1459 STPNPD: 2-parameter continuation of period doublings) */
 int 
-period_doubling_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
+period_doubling_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
 {
   std::ptrdiff_t dfdu_dim1;
 
@@ -1647,7 +1647,7 @@ period_doubling_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_
   dfdu_dim1 = ndm;
     
   period = par[xpp::autox_unknown::period];
-  problem_function(iap, rap, ndm, u, uold, icp, par, 1, f, dfdu, dfdp);
+  problem_function(iap, rap, ndm, u, uold, icp, par, std::max<std::ptrdiff_t>(ijac, 1), f, dfdu, dfdp);
 
   for (i = 0; i < ndm; ++i) {
     f[ndm + i] = 0.;
@@ -1842,12 +1842,12 @@ period_doubling_starting_data(iap_type *iap, rap_type *rap, double *par, std::pt
 int 
 torus_equations(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
-  return xpp::autox_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, torus_function);
+  return xpp::autox_jacobian::stacked(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, 3, torus_function);
 } /* fntr_ */
 
 /* fftr: XPPAUT's AUTO's function evaluation of the problem kind torus (periodic.f90:1728 STPNTR: 2-parameter continuation of torus bifurcations) */
 int 
-torus_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
+torus_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, const double *u, const double *uold, const std::ptrdiff_t *icp, double *par, std::ptrdiff_t ijac, double *f, std::ptrdiff_t ndm, double *dfdu, double *dfdp)
 {
   std::ptrdiff_t dfdu_dim1;
 
@@ -1858,7 +1858,7 @@ torus_function(const iap_type *iap, const rap_type *rap, std::ptrdiff_t ndim, co
   dfdu_dim1 = ndm;
     
   period = par[xpp::autox_unknown::period];
-  problem_function(iap, rap, ndm, u, uold, icp, par, 1, f, dfdu, dfdp);
+  problem_function(iap, rap, ndm, u, uold, icp, par, std::max<std::ptrdiff_t>(ijac, 1), f, dfdu, dfdp);
 
   ndm2 = ndm * 2;
   for (i = 0; i < ndm; ++i) {
