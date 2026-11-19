@@ -3,6 +3,9 @@
 #include "xpp_io.h"
 #include "autox_parallel.h"
 #include <thread>
+#ifdef __linux__
+#include <sched.h>
+#endif
 #include <algorithm>
 #include <stdio.h>
 #include <optional>
@@ -33,6 +36,20 @@ TEST_CASE("test_cpu_count")
     const unsigned logical = std::thread::hardware_concurrency();
     const unsigned available = physical.value_or(logical);
     CHECK(xpp::AutoxParallel::automatic_threads() == std::clamp(available, 1u, xpp::AutoxParallel::max_threads));
+#ifdef __linux__
+    /* a process kept to one processor has one core, whatever the machine has (W817: a run on one CPU compiles in its own thread) */
+    cpu_set_t kept, one;
+    if (sched_getaffinity(0, sizeof(kept), &kept) == 0) {
+        CPU_ZERO(&one);
+        for (int cpu = 0; cpu < CPU_SETSIZE && CPU_COUNT(&one) == 0; ++cpu)
+            if (CPU_ISSET(cpu, &kept)) CPU_SET(cpu, &one);
+        if (sched_setaffinity(0, sizeof(one), &one) == 0) {
+            const auto pinned = xpp::cpu::physical_cores();
+            CHECK(!pinned || *pinned == 1);
+            CHECK(sched_setaffinity(0, sizeof(kept), &kept) == 0);
+        }
+    }
+#endif
     xpp::print(stdout, "CPU count: logical {}, physical/performance {}, autoX used {}\n",
                logical, physical.value_or(0), xpp::AutoxParallel::automatic_threads());
     TEST_REPORT("cpu count");

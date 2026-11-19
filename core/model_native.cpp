@@ -11,6 +11,7 @@
 #include "xpp_util.h"
 #include "xpp_text.h"
 #include "xpp_math.h"
+#include "xpp_globals.h"
 #include <array>
 #include <bit>
 #include <cstdint>
@@ -984,26 +985,35 @@ std::string subsystem_joined_by(const SessionParts &s)
     return rhs_impurity(s);
 }
 
-/* A build of module ir, due once the interpreter has done the work of a short run after the translation: a
-   compile on its thread costs the run nothing but the thread's start and its end with the process, about
-   0.25 ms (W717, measured: the memory the compile touches), which a run of a few milliseconds would feel and a
-   long one does not; a million interpreted instructions is a step of a large model (mu26's 0.8 M), or a small
-   model's whole run with its nullclines (lecar's 1 M), and a longer run pays at most their interpretation
-   (some 8 M instructions, a millisecond) before its code is on its way. A build that waits for the compile at
-   the thread's cost (ParserState::interpreted_ops counted against the compile's cost, the ski-rental trade)
-   was measured and rejected: mu26's 400 time units lost 18% waiting for a compile the thread would have made
-   in the first 2%.
-   W817, one pinned CPU, instructions (perf): a build due at once, against this million, takes lecar from 21 M to
-   27 M (MIR's set-up is some 4 M, more than lecar's run gains) and izh_2003_rs from 34 M to 20 M; a due of 100
-   ops a node (lecar 25 M, izh 22 M) trades the same way. The large models do not move (lecdiff1600 10.06 G either
-   way), so the threshold stays; what W817 changed is MIR's level (xpp_mir.cpp). */
+/* when the interpreter has done the work that makes a build worth starting (ParserState::interpreted_ops, the
+   ops a build is due after), and whether the compile runs beside the run. A processor to spare: the compile is on
+   a thread that costs the run nothing but the thread's start and its end with the process, about 0.25 ms (W717,
+   measured: the memory the compile touches), which a run of a few milliseconds would feel and a long one does not;
+   a million interpreted instructions is a step of a large model (mu26's 0.8 M), or a small model's whole run with
+   its nullclines (lecar's 1 M), and a longer run pays at most their interpretation (some 8 M instructions, a
+   millisecond) before its code is on its way. A build that waits for the compile at the thread's cost (the
+   ski-rental trade) was measured and rejected there: mu26's 400 time units lost 18% waiting for a compile the thread
+   would have made in the first 2%.
+   No processor to spare (the run is kept to one, by taskset or a cpuset, as the comparison's are: the thread and the
+   run share it, W817): the compile is paid by the run, and a run that goes on interpreting while it compiles does
+   its steps at the interpreter's price for the compile's whole length (lecdiff1600: 10.1 G instructions, 8.1 G
+   without the thread, 7.3 G with the build at once) and one that ends first has paid for a compile it never used
+   (clustor's 2.2 G, the interpreter alone 1.4 G). So the build is made by the run, at once it is due, and due after
+   a hundredth of its cost: MIR costs some 30-60 k instructions a node and the interpreter some 20 an op, so 100
+   ops a node bounds what a run that ends first wastes at a few percent of the compile. Measured on one pinned CPU
+   (instructions; at once / 100 / 400 / 1500 ops a node): lecdiff1600 7.25 / 7.32 / 7.50 / 8.13 G, mu26 141 / 146 /
+   160 / 209 M, lecdiff200 447 / 456 / 477 / 558 M, izh_2003_rs 16.2 / 16.4 / 17.0 / 19.3 M, lecar 19.5 / 19.7 /
+   20.3 / 22.6 M (lecar's whole run is 8 M of interpretation against MIR's 4 M of set-up and compile: the build
+   saves it nothing, and no node count tells it from izh_2003_rs, a model of 71 nodes whose run is 17 M). */
 constexpr std::uint64_t INTERPRETED_OPS_BEFORE_BUILD=1000000;
+constexpr std::uint64_t INTERPRETED_OPS_PER_NODE_BEFORE_BUILD=100;
+bool spare_processor() { return program.physical_threads()>1; }
 std::shared_ptr<NativeBuild> pending_build(const SessionParts &s, IrModule ir, Place place)
 {
     auto build=std::make_shared<NativeBuild>();
     build->ir=std::move(ir);
     build->place=std::move(place);
-    build->due=s.parser.interpreted_ops+INTERPRETED_OPS_BEFORE_BUILD;
+    build->due=s.parser.interpreted_ops+(spare_processor()?INTERPRETED_OPS_BEFORE_BUILD:INTERPRETED_OPS_PER_NODE_BEFORE_BUILD*build->ir.nodes.size());
     return build;
 }
 
@@ -1106,7 +1116,7 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
     return warnings;
 }
 
-/* the build's thread, detached: it reads the module the build holds and writes only the build's result, then
+/* the build's thread, detached (a run with no processor to spare waits for it in `taken`): it reads the module the build holds and writes only the build's result, then
    says so; an allocation it cannot make ends the program as one on the core thread would, since no exception
    may leave a thread. A run that ends first leaves it to end with the process (xpp_mir.cpp `compiling`). */
 void start_build(const SessionParts &s, std::shared_ptr<NativeBuild> build)
@@ -1133,6 +1143,7 @@ std::shared_ptr<NativeBuild> taken(const SessionParts &s, std::shared_ptr<Native
     if (!pending->started) {
         if (!wait && s.parser.interpreted_ops<pending->due) return nullptr;
         start_build(s,pending);
+        wait=wait||!spare_processor(); /* with no processor to spare the run waits for its compile */
     }
     if (!wait && !pending->finished.load(std::memory_order_acquire)) return nullptr;
     const std::shared_ptr<NativeBuild> build=std::move(pending);

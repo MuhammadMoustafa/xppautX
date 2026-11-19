@@ -46,6 +46,8 @@ constexpr size_t MESSAGE_MAX = 512;
    2756 M), and a run that compiles at all is faster at level 1 for the compile it no longer pays (lecdiff1600 43 G to
    10 G instructions, screen 1254 M to 731 M). */
 constexpr unsigned OPTIMIZE_LEVEL = 1;
+/* the statements of a chunk: about 50 equations of a right-hand side (an equation is a statement or two) */
+constexpr size_t CHUNK_STATEMENTS = 100;
 
 /* MIR reports an error through a function that must not return and has no user data: `raised` (ours
    and MIR's both) records the text and jumps back to the compile that called MIR (`run`): the thread's own, since
@@ -81,33 +83,81 @@ void generate(MIR_context_t ctx, MIR_item_t item)
 }
 } // namespace
 
-/* MIR's heap, kept in a list so that a compile MIR failed inside (its state unknown, so it cannot be
-   finished) frees every block it holds without MIR's help. Each block is a header and the bytes MIR sees,
-   aligned as malloc's are. MIR_alloc's callbacks must not throw: an allocation that fails is nullptr, which MIR
-   reports as its own error. */
+/* MIR's heap, kept in lists so that a compile MIR failed inside (its state unknown, so it cannot be finished)
+   frees every block it holds without MIR's help. MIR allocates and frees millions of small blocks (a compile is
+   mostly that: malloc and free were a fifth of its instructions, W817), so a block of up to SMALL_MAX bytes comes from
+   a chunk, with a free list for each size, never to malloc; a larger one is its own block in a list. Each block
+   has a header ending in its size, so that a free finds the way it came; both are aligned as malloc's are.
+   MIR_alloc's callbacks must not throw: an allocation that fails is nullptr, which MIR reports as its own error. */
 struct Arena {
-    struct alignas(16) Block {
-        Block *previous, *next;
+    struct alignas(16) Small {
+        size_t unused;
         size_t size;
     };
-    static constexpr size_t HEADER = sizeof(Block);
-    Block *last = nullptr;
+    struct alignas(16) Large {
+        Large *previous, *next;
+        size_t unused;
+        size_t size;
+    };
+    struct alignas(16) Chunk {
+        Chunk *next;
+    };
+    static constexpr size_t GRAIN = 16;                      /* the size classes' step, and MIR's alignment */
+    static constexpr size_t SMALL_MAX = 1024;                /* the largest block of a class: MIR's tables and instructions are smaller */
+    static constexpr size_t CHUNK_BYTES = 256 * 1024;        /* what small blocks are cut from: few mallocs, and a fit for the cache */
+    static constexpr size_t CLASSES = SMALL_MAX / GRAIN;
+    static_assert(sizeof(Small) == GRAIN && sizeof(Chunk) == GRAIN);
+    struct Free {
+        Free *next;
+    };
+    std::array<Free *, CLASSES> free_small{};
+    Chunk *chunks = nullptr;
+    char *cut = nullptr, *cut_end = nullptr;
+    Large *last = nullptr;
 
     static Arena &of(void *self) { return *static_cast<Arena *>(self); }
+    static size_t round(size_t size) { return std::max(GRAIN, (size + GRAIN - 1) / GRAIN * GRAIN); }
+    static size_t &size_of(void *memory) { return *reinterpret_cast<size_t *>(static_cast<char *>(memory) - sizeof(size_t)); }
     static void *allocate(size_t size, void *self) noexcept
     {
         Arena &arena = of(self);
-        void *memory = ::operator new(HEADER + size, std::nothrow);
+        if (size > SMALL_MAX) return arena.allocate_large(size);
+        const size_t bytes = round(size), cls = bytes / GRAIN - 1;
+        if (Free *reused = arena.free_small[cls]) {
+            arena.free_small[cls] = reused->next;
+            return reused;
+        }
+        if (static_cast<size_t>(arena.cut_end - arena.cut) < sizeof(Small) + bytes && !arena.new_chunk()) return nullptr;
+        Small *block = reinterpret_cast<Small *>(arena.cut);
+        block->size = bytes;
+        arena.cut += sizeof(Small) + bytes;
+        return block + 1;
+    }
+    bool new_chunk() noexcept
+    {
+        void *memory = ::operator new(CHUNK_BYTES, std::nothrow);
+        if (memory == nullptr) return false;
+        Chunk *chunk = static_cast<Chunk *>(memory);
+        chunk->next = chunks;
+        chunks = chunk;
+        cut = reinterpret_cast<char *>(chunk + 1);
+        cut_end = static_cast<char *>(memory) + CHUNK_BYTES;
+        return true;
+    }
+    void *allocate_large(size_t size) noexcept
+    {
+        if (size > SIZE_MAX - sizeof(Large)) return nullptr;
+        void *memory = ::operator new(sizeof(Large) + size, std::nothrow);
         if (memory == nullptr) return nullptr;
-        Block *block = static_cast<Block *>(memory);
-        *block = {arena.last, nullptr, size};
-        if (arena.last) arena.last->next = block;
-        arena.last = block;
-        return static_cast<char *>(memory) + HEADER;
+        Large *block = static_cast<Large *>(memory);
+        *block = {last, nullptr, 0, size};
+        if (last) last->next = block;
+        last = block;
+        return block + 1;
     }
     static void *allocate_zeroed(size_t count, size_t size, void *self) noexcept
     {
-        if (size != 0 && count > (SIZE_MAX - HEADER) / size) return nullptr;
+        if (size != 0 && count > SIZE_MAX / size) return nullptr;
         void *memory = allocate(count * size, self);
         if (memory != nullptr) std::memset(memory, 0, count * size);
         return memory;
@@ -116,7 +166,14 @@ struct Arena {
     {
         if (memory == nullptr) return;
         Arena &arena = of(self);
-        Block *block = reinterpret_cast<Block *>(static_cast<char *>(memory) - HEADER);
+        const size_t size = size_of(memory);
+        if (size <= SMALL_MAX) {
+            Free *freed = static_cast<Free *>(memory);
+            freed->next = arena.free_small[size / GRAIN - 1];
+            arena.free_small[size / GRAIN - 1] = freed;
+            return;
+        }
+        Large *block = static_cast<Large *>(memory) - 1;
         if (block->previous) block->previous->next = block->next;
         if (block->next) block->next->previous = block->previous;
         else arena.last = block->previous;
@@ -132,7 +189,14 @@ struct Arena {
     }
     void release_all() noexcept
     {
-        while (last != nullptr) release(reinterpret_cast<char *>(last) + HEADER, this);
+        while (last != nullptr) release(last + 1, this);
+        while (chunks != nullptr) {
+            Chunk *next = chunks->next;
+            ::operator delete(chunks);
+            chunks = next;
+        }
+        free_small.fill(nullptr);
+        cut = cut_end = nullptr;
     }
 };
 
@@ -181,7 +245,8 @@ struct Lowering {
     /* the function being lowered */
     MIR_item_t item = nullptr;
     MIR_reg_t c = 0, v = 0, parser = 0, rpn = 0, output = 0; /* the pointers a kind has */
-    std::vector<MIR_reg_t> arguments, temporaries;
+    std::vector<MIR_reg_t> arguments, temporaries; /* the temporaries a function uses are made at their first use: 0 is none yet */
+    MIR_item_t chunk_proto = nullptr;              /* the prototype of a chunk's call, once a function needs one */
     struct Loop {
         MIR_reg_t low = 0, high = 0, counter = 0;
         MIR_insn_t top = nullptr, done = nullptr;
@@ -196,14 +261,42 @@ struct Lowering {
     std::string name; /* the name being made for MIR, which copies it: a member, since a jump out of MIR skips a local's destructor */
     std::vector<MIR_op_t> operands; /* the call being assembled: a stack, a nested call's arguments above it */
     int registers = 0;
+    std::vector<MIR_reg_t> spare;   /* the double registers made by fresh whose value was used */
+    std::vector<char> scratch;      /* by register: made by fresh (the named temporaries and arguments are not) */
     std::string failure; /* why the module cannot be built, when it cannot: found by us, so MIR is finished normally */
 
     MIR_reg_t fresh(MIR_type_t type)
     {
+        if (type == MIR_T_D && !spare.empty()) {
+            const MIR_reg_t r = spare.back();
+            spare.pop_back();
+            return r;
+        }
         name = xpp::format("r{}", registers++);
-        return MIR_new_func_reg(ctx, item->u.func, type, name.c_str());
+        const MIR_reg_t r = MIR_new_func_reg(ctx, item->u.func, type, name.c_str());
+        if (type == MIR_T_D) {
+            if (scratch.size() <= r) scratch.resize(r + 1, 0);
+            scratch[r] = 1;
+        }
+        return r;
+    }
+    /* a value's register once its one use is emitted: a later value takes it, so a function holds the registers
+       its deepest expression needs, not one for each node (MIR's cost grows with the registers it tracks) */
+    bool is_scratch(MIR_op_t operand) const { return operand.mode == MIR_OP_REG && operand.u.reg < scratch.size() && scratch[operand.u.reg]; }
+    void done_with(MIR_op_t operand)
+    {
+        if (is_scratch(operand)) spare.push_back(operand.u.reg);
     }
     MIR_op_t reg(MIR_reg_t r) { return MIR_new_reg_op(ctx, r); }
+    MIR_reg_t temporary(int index)
+    {
+        MIR_reg_t &r = temporaries[static_cast<size_t>(index)];
+        if (r == 0) {
+            name = xpp::format("t{}", index);
+            r = MIR_new_func_reg(ctx, item->u.func, MIR_T_D, name.c_str());
+        }
+        return r;
+    }
     MIR_op_t number(double x) { return MIR_new_double_op(ctx, x); }
     void emit(MIR_insn_t insn) { MIR_append_insn(ctx, item, insn); }
     void emit(MIR_insn_code_t code, MIR_op_t a, MIR_op_t b) { emit(MIR_new_insn(ctx, code, a, b)); }
@@ -219,7 +312,12 @@ struct Lowering {
         emit(MIR_DMOV, reg(r), operand);
         return reg(r);
     }
-    void store(MIR_op_t destination, MIR_op_t value) { emit(MIR_DMOV, destination, value.mode == MIR_OP_MEM ? in_register(value) : value); }
+    void store(MIR_op_t destination, MIR_op_t value)
+    {
+        const MIR_op_t source = value.mode == MIR_OP_MEM ? in_register(value) : value;
+        emit(MIR_DMOV, destination, source);
+        done_with(source);
+    }
 
     /* a parameter of a prototype or function, named `name` or p0, p1, ...; the names are fixed by name_parameters
        once all are added (the storage may move while they are) */
@@ -283,7 +381,7 @@ struct Lowering {
         case IrOp::Number: return number(n.number);
         case IrOp::Constant: return slot(c, n.index);
         case IrOp::Variable: return slot(v, n.index);
-        case IrOp::Temporary: return reg(temporaries[static_cast<size_t>(n.index)]);
+        case IrOp::Temporary: return reg(temporary(n.index));
         case IrOp::Argument: return reg(arguments[static_cast<size_t>(n.index)]);
         case IrOp::LoopCounter: {
             const MIR_reg_t r = fresh(MIR_T_D);
@@ -304,13 +402,17 @@ struct Lowering {
             /* l / (r==0 ? zero_divisor : r): the divisor is chosen in a register of its own; a NaN divisor is not
                0, as in C (dbne) */
             const MIR_op_t left = operand(n.args[0], depth + 1), right = operand(n.args[1], depth + 1);
-            const MIR_reg_t divisor = fresh(MIR_T_D), r = fresh(MIR_T_D);
+            const MIR_reg_t divisor = fresh(MIR_T_D);
             const MIR_insn_t keep = MIR_new_label(ctx);
             emit(MIR_DMOV, reg(divisor), right);
+            done_with(right);
             jump(MIR_DBNE, keep, reg(divisor), number(0.0));
             emit(MIR_DMOV, reg(divisor), number(ir.zero_divisor));
             emit(keep);
+            const MIR_reg_t r = fresh(MIR_T_D);
             emit(MIR_DDIV, reg(r), left, reg(divisor));
+            done_with(left);
+            done_with(reg(divisor));
             return reg(r);
         }
         case IrOp::Select: {
@@ -319,10 +421,15 @@ struct Lowering {
             const MIR_reg_t r = fresh(MIR_T_D);
             const MIR_insn_t otherwise = MIR_new_label(ctx), done = MIR_new_label(ctx);
             jump(MIR_DBNE, otherwise, cond, number(0.0));
-            emit(MIR_DMOV, reg(r), operand(n.args[1], depth + 1));
+            done_with(cond);
+            const MIR_op_t then_value = operand(n.args[1], depth + 1);
+            emit(MIR_DMOV, reg(r), then_value);
+            done_with(then_value);
             emit(MIR_new_insn(ctx, MIR_JMP, MIR_new_label_op(ctx, done)));
             emit(otherwise);
-            emit(MIR_DMOV, reg(r), operand(n.args[2], depth + 1));
+            const MIR_op_t else_value = operand(n.args[2], depth + 1);
+            emit(MIR_DMOV, reg(r), else_value);
+            done_with(else_value);
             emit(done);
             return reg(r);
         }
@@ -333,7 +440,16 @@ struct Lowering {
     MIR_op_t arithmetic(MIR_insn_code_t code, const IrNode &n, int depth)
     {
         const MIR_op_t a = operand(n.args[0], depth + 1), b = operand(n.args[1], depth + 1);
-        const MIR_reg_t r = fresh(MIR_T_D);
+        /* the result goes into an operand's register that is not used again */
+        MIR_reg_t r;
+        if (is_scratch(a)) {
+            r = a.u.reg;
+            done_with(b);
+        } else if (is_scratch(b)) {
+            r = b.u.reg;
+        } else {
+            r = fresh(MIR_T_D);
+        }
         emit(code, reg(r), a, b);
         return reg(r);
     }
@@ -361,6 +477,7 @@ struct Lowering {
         }
         if (target.address != nullptr && target.index) operands.push_back(MIR_new_int_op(ctx, n.index));
         emit(MIR_new_insn_arr(ctx, MIR_CALL, operands.size() - base, operands.data() + base));
+        for (size_t i = base + 3; i < operands.size(); ++i) done_with(operands[i]); /* after the prototype, the callee and the result */
         operands.resize(base);
         return reg(r);
     }
@@ -368,7 +485,12 @@ struct Lowering {
     void statement(const IrStatement &s, MIR_insn_t finish)
     {
         switch (s.kind) {
-        case IrStatement::Kind::Temporary: emit(MIR_DMOV, reg(temporaries[static_cast<size_t>(s.index)]), operand(s.value, 0)); break;
+        case IrStatement::Kind::Temporary: {
+            const MIR_op_t value = operand(s.value, 0);
+            emit(MIR_DMOV, reg(temporary(s.index)), value);
+            done_with(value);
+            break;
+        }
         case IrStatement::Kind::Variable: store(slot(v, s.index), operand(s.value, 0)); break;
         case IrStatement::Kind::Constant: store(slot(c, s.index), operand(s.value, 0)); break;
         case IrStatement::Kind::Output: store(slot(output, s.index), operand(s.value, 0)); break;
@@ -382,11 +504,13 @@ struct Lowering {
             loop.counter = fresh(MIR_T_I64);
             const MIR_op_t low = in_register(operand(s.value, 0));
             emit(MIR_D2I, reg(loop.low), low);
+            done_with(low);
             emit(MIR_EXT32, reg(loop.low), reg(loop.low));
             const MIR_op_t high = in_register(operand(s.other, 0));
             emit(MIR_D2I, reg(loop.high), high);
+            done_with(high);
             emit(MIR_EXT32, reg(loop.high), reg(loop.high));
-            emit(MIR_DMOV, reg(temporaries[static_cast<size_t>(s.slot)]), number(0.0));
+            emit(MIR_DMOV, reg(temporary(s.slot)), number(0.0));
             loop.top = MIR_new_label(ctx);
             loop.done = MIR_new_label(ctx);
             jump(MIR_BGT, loop.done, reg(loop.low), reg(loop.high));
@@ -396,8 +520,10 @@ struct Lowering {
         }
         case IrStatement::Kind::LoopEnd: {
             const Loop &loop = loops[static_cast<size_t>(s.index)];
-            const MIR_op_t total = reg(temporaries[static_cast<size_t>(s.slot)]);
-            emit(MIR_DADD, total, total, operand(s.value, 0));
+            const MIR_op_t total = reg(temporary(s.slot));
+            const MIR_op_t value = operand(s.value, 0);
+            emit(MIR_DADD, total, total, value);
+            done_with(value);
             jump(MIR_BEQ, loop.done, reg(loop.counter), reg(loop.high));
             emit(MIR_ADD, reg(loop.counter), reg(loop.counter), MIR_new_int_op(ctx, 1));
             emit(MIR_new_insn(ctx, MIR_JMP, MIR_new_label_op(ctx, loop.top)));
@@ -409,6 +535,7 @@ struct Lowering {
             const MIR_op_t cond = in_register(operand(s.value, 0));
             branches.push_back({MIR_new_label(ctx), MIR_new_label(ctx)});
             jump(MIR_DBNE, branches.back().otherwise, cond, number(0.0));
+            done_with(cond);
             break;
         }
         case IrStatement::Kind::IfElse:
@@ -422,8 +549,91 @@ struct Lowering {
         }
     }
 
-    /* one function: its parameters, its registers, its statements, its return */
-    void lower(const IrFunction &f)
+    /* where a long function (the right-hand side of thousands of equations, its exact Jacobian) is cut: into
+       runs of about CHUNK_STATEMENTS statements, each its own MIR function, called in order by the function itself.
+       MIR's cost per instruction grows with the instructions and registers of one function (its liveness sets are
+       bitmaps over all of them, and a function's working set leaves the cache): lecdiff's right-hand side of 200,
+       400, 800, 1600 and 3200 cells compiled in 38, 112, 278, 681 and 1544 M cycles as one function (2.3 to 2.9 times
+       for each doubling) and in 33, 88, 196, 432 and 885 M cut into chunks of 100 statements (2.05 at the large end:
+       linear), 1.7 times faster at 3200 (W817, one pinned CPU). A cut falls only between statements outside a loop
+       or a conditional, with no temporary used on both sides and not at a ReturnWithoutOutput, which stays in the
+       function with the runs shorter than a chunk. Empty when the function is short. */
+    std::vector<std::pair<size_t, size_t>> chunks_of(const IrFunction &f)
+    {
+        std::vector<std::pair<size_t, size_t>> chunks;
+        const size_t count = f.statements.size();
+        if (count <= 2 * CHUNK_STATEMENTS || f.kind == IrFunction::Kind::User || f.kind == IrFunction::Kind::Equation) return chunks;
+        /* by temporary, the first and the last statement that uses it: a cut inside is refused */
+        std::vector<size_t> first(static_cast<size_t>(f.temporaries), count), last(static_cast<size_t>(f.temporaries), 0);
+        std::vector<int> pending;
+        std::vector<size_t> seen(ir.nodes.size(), count); /* the statement a node was last walked for */
+        const auto use = [&](int temporary, size_t at) {
+            const size_t t = static_cast<size_t>(temporary);
+            first[t] = std::min(first[t], at);
+            last[t] = std::max(last[t], at);
+        };
+        for (size_t i = 0; i < count; ++i) {
+            const IrStatement &st = f.statements[i];
+            if (st.kind == IrStatement::Kind::Temporary) use(st.index, i);
+            if (st.slot >= 0) use(st.slot, i);
+            for (int root : {st.value, st.other}) {
+                if (root >= 0) pending.push_back(root);
+            }
+            while (!pending.empty()) { /* a walk with its own stack: a deep tree cannot exhaust ours */
+                const int node = pending.back();
+                pending.pop_back();
+                if (seen[static_cast<size_t>(node)] == i) continue;
+                seen[static_cast<size_t>(node)] = i;
+                const IrNode &n = ir.nodes[static_cast<size_t>(node)];
+                if (n.op == IrOp::Temporary) use(n.index, i);
+                if (n.op == IrOp::Call) {
+                    for (int a : ir.arguments(n)) pending.push_back(a);
+                } else if (n.op == IrOp::Add || n.op == IrOp::Subtract || n.op == IrOp::Multiply || n.op == IrOp::Divide ||
+                           n.op == IrOp::GuardedDivide || n.op == IrOp::Select) {
+                    for (int a : n.args) {
+                        if (a >= 0) pending.push_back(a);
+                    }
+                }
+            }
+        }
+        /* by position i (between statement i - 1 and i), how many temporaries span it: a running sum of their ends */
+        std::vector<int> spanning(count + 2, 0);
+        for (size_t t = 0; t < first.size(); ++t) {
+            if (first[t] >= last[t]) continue;
+            ++spanning[first[t] + 1];
+            --spanning[last[t] + 1];
+        }
+        std::vector<char> blocked(count + 1, 0);
+        int open = 0;
+        for (size_t i = 0; i <= count; ++i) {
+            open += spanning[i];
+            blocked[i] = open != 0;
+        }
+        size_t start = 0;
+        int depth = 0;
+        for (size_t i = 0; i < count; ++i) {
+            const IrStatement::Kind kind = f.statements[i].kind;
+            if (kind == IrStatement::Kind::ReturnWithoutOutput) {
+                if (depth != 0) return {}; /* never written by the Generator inside a nest: not cut at all */
+                if (i - start >= CHUNK_STATEMENTS) chunks.emplace_back(start, i);
+                start = i + 1;
+                continue;
+            }
+            if (kind == IrStatement::Kind::LoopBegin || kind == IrStatement::Kind::IfBegin) ++depth;
+            if (kind == IrStatement::Kind::LoopEnd || kind == IrStatement::Kind::IfEnd) --depth;
+            if (depth == 0 && i + 1 - start >= CHUNK_STATEMENTS && !blocked[i + 1]) {
+                chunks.emplace_back(start, i + 1);
+                start = i + 1;
+            }
+        }
+        if (count - start >= CHUNK_STATEMENTS) chunks.emplace_back(start, count);
+        return chunks;
+    }
+
+    /* the function f's statements from `first` to `last`, named `fname`: its parameters, its registers, its
+       statements, its return. A function that was cut calls its chunks (cut, their functions) where they were. */
+    MIR_item_t lower(const IrFunction &f, size_t first_statement, size_t last_statement, const std::string &fname,
+                     const std::vector<std::pair<size_t, size_t>> &cut, const std::vector<MIR_item_t> &chunk_items)
     {
         parameters.clear();
         parameter_names.clear();
@@ -440,7 +650,7 @@ struct Lowering {
         const bool returns = f.kind == IrFunction::Kind::User || f.kind == IrFunction::Kind::Equation;
         MIR_type_t result = MIR_T_D;
         function_open = true; /* MIR makes the function current before it can refuse its name */
-        item = MIR_new_func_arr(ctx, f.name.c_str(), returns ? 1 : 0, &result, parameters.size(), parameters.data());
+        item = MIR_new_func_arr(ctx, fname.c_str(), returns ? 1 : 0, &result, parameters.size(), parameters.data());
         const MIR_func_t machine = item->u.func;
         c = MIR_reg(ctx, "c", machine);
         v = MIR_reg(ctx, "v", machine);
@@ -453,20 +663,53 @@ struct Lowering {
             arguments.push_back(MIR_reg(ctx, name.c_str(), machine));
         }
         registers = 0;
-        temporaries.clear();
-        for (int t = 0; t < f.temporaries; ++t) {
-            name = xpp::format("t{}", t);
-            temporaries.push_back(MIR_new_func_reg(ctx, machine, MIR_T_D, name.c_str()));
-        }
+        spare.clear();
+        scratch.clear();
+        temporaries.assign(static_cast<size_t>(f.temporaries), 0);
         loops.assign(static_cast<size_t>(f.loops), Loop{});
         branches.clear();
         const MIR_insn_t finish = MIR_new_label(ctx);
-        for (const IrStatement &s : f.statements) statement(s, finish);
+        size_t next_chunk = 0;
+        for (size_t i = first_statement; i < last_statement;) {
+            if (next_chunk < cut.size() && i == cut[next_chunk].first) {
+                call_chunk(chunk_items[next_chunk]);
+                i = cut[next_chunk++].second;
+            } else {
+                statement(f.statements[i++], finish);
+            }
+        }
         emit(finish);
         if (returns) emit(MIR_new_ret_insn(ctx, 1, in_register(operand(f.result, 0))));
         else emit(MIR_new_ret_insn(ctx, 0));
         MIR_finish_func(ctx);
         function_open = false;
+        return item;
+    }
+
+    /* the call of a chunk of the function being lowered: the same four pointers */
+    void call_chunk(MIR_item_t chunk)
+    {
+        if (chunk_proto == nullptr) {
+            parameters.clear();
+            parameter_names.clear();
+            for (int p = 0; p < 4; ++p) parameter(MIR_T_P);
+            name_parameters();
+            chunk_proto = MIR_new_proto_arr(ctx, "proto_chunk", 0, nullptr, parameters.size(), parameters.data());
+        }
+        std::array<MIR_op_t, 6> operands = {MIR_new_ref_op(ctx, chunk_proto), MIR_new_ref_op(ctx, chunk), reg(c), reg(v), reg(parser), reg(output)};
+        emit(MIR_new_insn_arr(ctx, MIR_CALL, operands.size(), operands.data()));
+    }
+
+    /* one function of the module, or the chunks it is cut into and the function that calls them */
+    void lower(const IrFunction &f)
+    {
+        const auto cut = chunks_of(f);
+        std::vector<MIR_item_t> chunk_items;
+        for (size_t k = 0; k < cut.size(); ++k) {
+            name = f.name + "." + std::to_string(k);
+            chunk_items.push_back(lower(f, cut[k].first, cut[k].second, std::string(name), {}, {}));
+        }
+        lower(f, 0, f.statements.size(), f.name, cut, chunk_items);
     }
 
     void build()

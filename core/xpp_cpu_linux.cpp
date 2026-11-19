@@ -1,6 +1,8 @@
-/* xpp_cpu.h's physical_cores on Linux: the topology sysfs keeps. */
+/* xpp_cpu.h's physical_cores on Linux: the topology sysfs keeps, of the processors this process may run on (taskset,
+   a cpuset: a run pinned to one processor has one core, whatever the machine has; W817). */
 #include "xpp_cpu_system.h"
 #include "xpp_io.h"
+#include <sched.h>
 #include <set>
 #include <algorithm>
 #include <string>
@@ -35,8 +37,14 @@ std::optional<unsigned> physical_cores()
         performance = cpu_list(*line);
         if (!performance) return std::nullopt;
     }
+    cpu_set_t allowed;
+    const bool restricted = sched_getaffinity(0, sizeof(allowed), &allowed) == 0; /* not for a machine of over CPU_SETSIZE processors */
+    const auto may_run = [&](unsigned cpu) { return !restricted || (cpu < CPU_SETSIZE && CPU_ISSET(cpu, &allowed)); };
+    // A process kept to efficiency cores counts those: no performance core is its own.
+    if (performance && std::none_of(performance->begin(), performance->end(), may_run)) performance.reset();
     std::set<std::pair<unsigned, unsigned>> cores;
     for (unsigned cpu : *online) {
+        if (!may_run(cpu)) continue;
         if (performance && !std::binary_search(performance->begin(), performance->end(), cpu)) continue;
         const auto base = format("/sys/devices/system/cpu/cpu{}/topology/", cpu);
         const auto package_text = system_line(LineReader(base + "physical_package_id"));

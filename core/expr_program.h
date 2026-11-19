@@ -175,7 +175,8 @@ struct Program {
    (native_ready); the core thread takes the finished Program at the start of a right-hand side
    (my_rhs, build_native), never mid-evaluation. The thread is detached and holds the build with the Model (a
    shared_ptr each): when the Model goes first (a reload, a quit while it compiles) the thread finishes on its own
-   and its result goes with the build. */
+   and its result goes with the build. A run with no processor to spare waits for the thread at once it is
+   started (model_native.cpp, W817). */
 struct NativeBuild {
     IrModule ir;            /* the thread's alone once started */
     Place place;            /* where MIR's error is reported */

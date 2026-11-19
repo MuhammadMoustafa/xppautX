@@ -6,6 +6,7 @@
 #include <bit>
 #include <cstdint>
 #include <stdio.h>
+#include <algorithm>
 #include <array>
 #include <memory>
 #include <string>
@@ -47,6 +48,53 @@ int call(IrModule &m, int callee, std::initializer_list<int> arguments)
     return add(m, n);
 }
 bool same(double a, double b) { return std::bit_cast<std::uint64_t>(a) == std::bit_cast<std::uint64_t>(b); }
+/* a right-hand side of hundreds of equations is compiled as chunks (W817) and gives the one function's values: each
+   equation a temporary and an output, a fixed variable and the early return before them; a temporary kept from the first
+   statement to the last forbids every cut: the rest is one chunk */
+void chunks()
+{
+    const xpp::Place place{"model.ode", 1, 0, "x[i]' = x[i] * 2"};
+    constexpr int equations = 300;
+    double c[1] = {0.5}, v[4] = {0.25, -2.0, 3.0, 1.0}, o[equations + 1] = {};
+    IrModule m;
+    const auto rhs = [&](const char *name, bool kept) {
+        IrFunction f;
+        f.kind = IrFunction::Kind::Rhs;
+        f.name = name;
+        f.temporaries = equations + 1;
+        f.statements.push_back({IrStatement::Kind::Variable, 3, op(m, IrOp::Multiply, op(m, IrOp::Constant, -1, -1, -1, 0), number(m, 2.0))});
+        f.statements.push_back({IrStatement::Kind::ReturnWithoutOutput});
+        if (kept) f.statements.push_back({IrStatement::Kind::Temporary, equations, op(m, IrOp::Add, op(m, IrOp::Variable, -1, -1, -1, 0), number(m, 1.0))});
+        for (int i = 0; i < equations; ++i) {
+            f.statements.push_back({IrStatement::Kind::Temporary, i, op(m, IrOp::Multiply, op(m, IrOp::Variable, -1, -1, -1, i % 3), number(m, i + 1.0))});
+            f.statements.push_back({IrStatement::Kind::Output, i, op(m, IrOp::Add, op(m, IrOp::Temporary, -1, -1, -1, i), op(m, IrOp::Constant, -1, -1, -1, 0))});
+        }
+        if (kept) f.statements.push_back({IrStatement::Kind::Output, equations, op(m, IrOp::Temporary, -1, -1, -1, equations)});
+        m.functions.push_back(f);
+    };
+    rhs("cut", false);
+    rhs("whole", true);
+    auto program = xpp::mir::Program::compile(m, place);
+    CHECK(program.has_value());
+    if (!program) return;
+    CHECK((*program)->function("cut.0").has_value() && (*program)->function("cut.1").has_value());
+    CHECK((*program)->function("cut.2").has_value() && !(*program)->function("whole.1")); /* the kept temporary: one chunk, not cut */
+    for (const char *name : {"cut", "whole"}) {
+        auto address = (*program)->function(name);
+        CHECK(address.has_value());
+        if (!address) continue;
+        auto run = reinterpret_cast<void (*)(double *, double *, void *, double *)>(*address);
+        v[3] = 0.0;
+        std::fill(std::begin(o), std::end(o), 0.0);
+        xpp::mir::call(run, c, v, nullptr, nullptr);
+        CHECK(v[3] == 1.0 && o[0] == 0.0 && o[equations - 1] == 0.0); /* no output array: the fixed variable only */
+        xpp::mir::call(run, c, v, nullptr, o);
+        bool all = true;
+        for (int i = 0; i < equations; ++i) all = all && same(o[i], v[i % 3] * (i + 1.0) + 0.5);
+        CHECK(all);
+        if (std::string(name) == "whole") CHECK(same(o[equations], 1.25));
+    }
+}
 } // namespace
 
 TEST_CASE("test_mir")
@@ -180,5 +228,6 @@ TEST_CASE("test_mir")
         CHECK(address.has_value());
         if (address) CHECK(xpp::mir::call(reinterpret_cast<double (*)(void *, void *, void *)>(*address), nullptr, nullptr, nullptr) == 7.0);
     }
+    chunks();
     TEST_REPORT("MIR");
 }
