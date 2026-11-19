@@ -178,14 +178,14 @@ std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> *
 begin_condensation_log(AutoxRun &run, std::ptrdiff_t nov, std::ptrdiff_t na, std::ptrdiff_t nra, std::ptrdiff_t nca, std::ptrdiff_t ncb, std::ptrdiff_t nbc, std::ptrdiff_t nrc)
 {
   if (!run.collocation || run.collocation->threads() == 1 || nca - 2 * nov == 0) return nullptr;
-  std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> &log = run.solve_boundary_work.dlog;
-  log.resize(na);
+  std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> &terms_by_interval = run.solve_boundary_work.dlog;
+  terms_by_interval.resize(na);
   const auto terms = xpp::size_product(nra - nov, nrc - nbc, ncb);
-  for (auto &interval : log) {
+  for (auto &interval : terms_by_interval) {
     interval.clear();
     interval.reserve(terms);
   }
-  return &log;
+  return &terms_by_interval;
 }
 
 void
