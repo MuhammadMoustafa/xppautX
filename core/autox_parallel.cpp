@@ -155,6 +155,11 @@ void AutoxParallel::intervals(std::ptrdiff_t n, const std::function<void(std::pt
     // An exact Jacobian a worker found not finite (autox_pp.cpp): its failure is
     // its run's, and the job's cancel, which the main thread alone reads,
     // ends the run as a Stop does.
+    // What the workers evaluated joins the caller's count (the tiers' ski rental), in worker order.
+    for (auto &run : state_->runs) {
+        run->owner->native_work_count() += run->native_work;
+        run->native_work = 0;
+    }
     for (auto &run : state_->runs) if (run->jacobian_failure) {
         AutoxRun &main = *run->owner;
         if (!main.jacobian_failure) main.jacobian_failure = std::move(run->jacobian_failure);

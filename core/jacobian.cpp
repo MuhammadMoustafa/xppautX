@@ -29,7 +29,7 @@ namespace {
    where the right-hand side f is, else JacobianFailed; wrt(k) names the
    variable entry k differentiates by */
 template <class By>
-std::span<const double> entries(const RunParts &s, JacobianScratch &scratch, const JacobianProgram &p, const double *c, double t, const double *x, const double *f, int n, By &&wrt)
+std::span<const double> entries(const RunParts &s, JacobianScratch &scratch, std::uint64_t &native_work, const JacobianProgram &p, const double *c, double t, const double *x, const double *f, int n, By &&wrt)
 {
   const Model &m = s.model();
   auto &v = scratch.point;
@@ -40,7 +40,7 @@ std::span<const double> entries(const RunParts &s, JacobianScratch &scratch, con
   std::copy_n(x, m.node, v.begin() + 1);
   /* the helpers only read the Session (its tables); until MIR's code is built, the graph (W717) */
   if (p.function) {
-    s.parser.native_work += p.native_nodes;
+    native_work += p.native_nodes;
     native::call(p.function, c, v.data(), &s.parser, out.data());
   }
   else evaluate_derivatives(s.tables, *m.jacobian.graph, p, c, v.data(), scratch.graph, out);
@@ -61,10 +61,10 @@ std::span<const double> entries(const RunParts &s, JacobianScratch &scratch, con
 
 /* a column's entries into out[0..n), by the variable by() names */
 template <class By>
-void column(const RunParts &s, JacobianScratch &scratch, const JacobianProgram &p, const double *c, double t, const double *x, const double *f, int n, By &&by,
+void column(const RunParts &s, JacobianScratch &scratch, std::uint64_t &native_work, const JacobianProgram &p, const double *c, double t, const double *x, const double *f, int n, By &&by,
             double *out)
 {
-  const auto e = entries(s, scratch, p, c, t, x, f, n, [&by](size_t) { return by(); });
+  const auto e = entries(s, scratch, native_work, p, c, t, x, f, n, [&by](size_t) { return by(); });
   std::fill_n(out, n, 0.0);
   for (size_t k = 0; k < e.size(); k++)
     if (p.rows[k] < n) out[p.rows[k]] = e[k];
@@ -113,11 +113,11 @@ ErrorAction switch_to_differences(std::string resume)
                       std::move(resume)}};
 }
 
-void exact_jacobian(const RunParts &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, const JacobianForm &form, double *out)
+void exact_jacobian(const RunParts &s, JacobianScratch &scratch, std::uint64_t &native_work, const double *c, double t, const double *x, const double *f, int n, const JacobianForm &form, double *out)
 {
   const Model &m = s.model();
   const JacobianProgram &p = m.jacobian.states;
-  const auto e = entries(s, scratch, p, c, t, x, f, n, [&](size_t k) -> std::string_view { return m.uvar_names[p.columns[k]]; });
+  const auto e = entries(s, scratch, native_work, p, c, t, x, f, n, [&](size_t k) -> std::string_view { return m.uvar_names[p.columns[k]]; });
   const int mt = form.lower + form.upper + 1;
   /* where d f_row / d x_col goes in the form, -1 outside a band */
   auto at = [&](int row, int col) -> long {
@@ -138,21 +138,21 @@ void exact_jacobian(const RunParts &s, JacobianScratch &scratch, const double *c
     for (int i = 0; i < n; i++) out[at(i, i)] -= 1;
 }
 
-void exact_constant_derivative(const RunParts &s, JacobianScratch &scratch, const double *c, int k, double t, const double *x, const double *f, int n, double *out)
+void exact_constant_derivative(const RunParts &s, JacobianScratch &scratch, std::uint64_t &native_work, const double *c, int k, double t, const double *x, const double *f, int n, double *out)
 {
   const auto &columns = s.model().jacobian.by_constant;
   const auto it = std::ranges::lower_bound(columns, k, {}, [](const auto &e) { return e.first; });
   if (it == columns.end() || it->first != k) std::fill_n(out, n, 0.0);
-  else column(s, scratch, it->second, c, t, x, f, n, [&]() -> std::string_view {
+  else column(s, scratch, native_work, it->second, c, t, x, f, n, [&]() -> std::string_view {
     /* the parameter constant k is: autoX's are the model's parameters */
     const std::string_view name = s.model().parameter_name(k);
     return name.empty() ? "a constant" : name;
   }, out);
 }
 
-void exact_time_derivative(const RunParts &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, double *out)
+void exact_time_derivative(const RunParts &s, JacobianScratch &scratch, std::uint64_t &native_work, const double *c, double t, const double *x, const double *f, int n, double *out)
 {
-  column(s, scratch, s.model().jacobian.time, c, t, x, f, n, []() -> std::string_view { return "t"; }, out);
+  column(s, scratch, native_work, s.model().jacobian.time, c, t, x, f, n, []() -> std::string_view { return "t"; }, out);
 }
 
 double difference_step(double eps, double x)
@@ -209,7 +209,7 @@ void jacobian(RunParts &s, double t, const double *x, const double *f0, int n, d
     for (int i = 0; i < n; i++) dfdt[i] = (f1[i] - f0[i]) / r;
   }
   model_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), t, [&](double *xp, double *f) { s.integrator->rhs(t, xp, f, n); }, x, f0, n, eps, form, out);
-  if (dfdt && exact) exact_time_derivative(s, *s.jacobian_scratch, s.parser.constants.data(), t, x, f0, n, dfdt);
+  if (dfdt && exact) exact_time_derivative(s, *s.jacobian_scratch, s.parser.native_work, s.parser.constants.data(), t, x, f0, n, dfdt);
 }
 
 void model_jacobian(const RunParts &s, JacobianScratch &scratch, const double *c, double t,
@@ -217,7 +217,7 @@ void model_jacobian(const RunParts &s, JacobianScratch &scratch, const double *c
                     const JacobianForm &form, double *out)
 {
   if (s.numerics->jacobian == JACOBIAN_EXACT) {
-    exact_jacobian(s, scratch, c, t, x, f0, n, form, out);
+    exact_jacobian(s, scratch, s.parser.native_work, c, t, x, f0, n, form, out);
     return;
   }
   std::vector<double> xp(x, x + n);

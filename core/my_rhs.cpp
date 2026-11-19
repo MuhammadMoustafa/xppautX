@@ -427,11 +427,11 @@ bool pure_rhs_ready(const xpp::RunParts &s)
   return s.model().rhs_impurity.empty() && !s.model().native_build && s.integrator->rhs.function==my_rhs;
 }
 
-void pure_rhs(const xpp::RunParts &s, const double *y, double *ydot, double *c, double *v)
+void pure_rhs(const xpp::RunParts &s, const double *y, double *ydot, double *c, double *v, std::uint64_t &native_work)
 {
-  /* the native code only reads s's tables (Model::rhs_impurity); a collocation worker counts no native_work, which the
-     core thread's counter alone keeps (every worker writing one counter ping-ponged its cache line, 60% of pd_down's cache misses) */
-  rhs_order(s.model(),0.0,y,ydot,c,v,&s.parser,nullptr,[&](int i,double value){v[i]=value;},
+  /* the native code only reads s's tables (Model::rhs_impurity); a collocation worker counts into its own native_work, never the
+     Session's parser (every worker writing that one counter was a data race and ping-ponged its cache line, 60% of pd_down's cache misses) */
+  rhs_order(s.model(),0.0,y,ydot,c,v,&s.parser,&native_work,[&](int i,double value){v[i]=value;},
             [&](const xpp::Program &p){return xpp::evaluate_pure(s.parser,p,c,v);},[]{});
 }
 

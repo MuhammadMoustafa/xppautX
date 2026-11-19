@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 /* The model's right-hand side (my_rhs.cpp), in the Session s: the run's,
    which the solvers reach through IntegratorState::rhs (integrate.h).
    C++ only. */
@@ -20,7 +21,7 @@ int my_rhs(xpp::RunParts &s, double t, double *y, double *ydot, int neq);
    a copy of the Session's state gives the Session's numbers (autoX's collocation workers, a sweep's runs) */
 bool pure_rhs_ready(const xpp::RunParts &s);
 /* autoX only, after translate_model proved this path uses only its arrays. */
-void pure_rhs(const xpp::RunParts &s, const double *y, double *ydot, double *c, double *v);
+void pure_rhs(const xpp::RunParts &s, const double *y, double *ydot, double *c, double *v, std::uint64_t &native_work);
 /* the fixed quantities and networks from the variables as they are */
 void update_based_on_current(xpp::RunParts &s);
 /* the fixed quantities from the variables as they are */

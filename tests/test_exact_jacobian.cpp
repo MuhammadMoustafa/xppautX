@@ -97,15 +97,15 @@ struct Fixture {
         j.states.function = nullptr;
         j.time.function = nullptr;
         for (auto &[k, column] : j.by_constant) column.function = nullptr;
-        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, interpreted);
+        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.native_work, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, interpreted);
         j.states.function = states;
         j.time.function = time;
-        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, tiny);
+        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.native_work, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, tiny);
         for (int k = 0; k < 4; ++k) CHECK(std::bit_cast<std::uint64_t>(interpreted[k]) == std::bit_cast<std::uint64_t>(tiny[k]));
         s.parser.native_work = model->jacobian.build->due_work; /* MIR's build is due after its work */
         xpp::build_native(s, true);
         CHECK(!model->jacobian.build && model->jacobian.code->compiler() == xpp::native::Compiler::MIR);
-        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, compiled);
+        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.native_work, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, compiled);
         for (int k = 0; k < 4; ++k) CHECK(std::bit_cast<std::uint64_t>(interpreted[k]) == std::bit_cast<std::uint64_t>(compiled[k]));
         return true;
     }
@@ -127,7 +127,7 @@ struct Fixture {
         const double point[2] = {x, y};
         double exact[4];
         const double fxy[2] = {f(0, x, y), 0};
-        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, exact);
+        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.native_work, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, exact);
         const double hx = 1e-6 * std::max(1.0, std::fabs(x)), hy = 1e-6 * std::max(1.0, std::fabs(y));
         const double dx = (f(0, x + hx, y) - f(0, x - hx, y)) / (2 * hx), dy = (f(0, x, y + hy) - f(0, x, y - hy)) / (2 * hy);
         const bool ok = close(exact[0], dx) && close(exact[1], dy) && exact[2] == 0 && exact[3] == 0;
@@ -179,7 +179,7 @@ void check_operations()
         xpp::Session &s = *fx.session;
         const double point[2] = {-0.83, 0.7}, fxy[2] = {fx.f(0, point[0], point[1]), 0};
         double exact[4];
-        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, exact);
+        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.native_work, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, exact);
         CHECK(exact[0] == n * (n == 2 ? point[0] : xpp::math::integer_power(point[0], n - 1)));
     }
     /* if, a constant, the time */
@@ -194,11 +194,11 @@ void check_operations()
     xpp::Session &s = *fx.session;
     const double point[2] = {0.25, 0.0};
     double column[2] = {-1, -1};
-    xpp::exact_constant_derivative(s, *s.jacobian_scratch, s.parser.constants.data(), fx.par, 0.4, point, point, 2, column);
+    xpp::exact_constant_derivative(s, *s.jacobian_scratch, s.parser.native_work, s.parser.constants.data(), fx.par, 0.4, point, point, 2, column);
     CHECK(column[0] == 0.25 && column[1] == 0);
-    xpp::exact_time_derivative(s, *s.jacobian_scratch, s.parser.constants.data(), 0.4, point, point, 2, column);
+    xpp::exact_time_derivative(s, *s.jacobian_scratch, s.parser.native_work, s.parser.constants.data(), 0.4, point, point, 2, column);
     CHECK(close(column[0], std::cos(0.4)) && column[1] == 0);
-    xpp::exact_constant_derivative(s, *s.jacobian_scratch, s.parser.constants.data(), fx.par + 1, 0.4, point, point, 2, column);
+    xpp::exact_constant_derivative(s, *s.jacobian_scratch, s.parser.native_work, s.parser.constants.data(), fx.par + 1, 0.4, point, point, 2, column);
     CHECK(column[0] == 0 && column[1] == 0);
     /* sqrt(x) at x=0: an exact derivative not finite where f is stops the
        computation, the equation's line named, no difference instead */
@@ -208,7 +208,7 @@ void check_operations()
         double out[4];
         bool stopped = false;
         try {
-            xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, at, f0, 2, {xpp::JacobianLayout::RowMajor}, out);
+            xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.native_work, s.parser.constants.data(), 0.0, at, f0, 2, {xpp::JacobianLayout::RowMajor}, out);
         } catch (const xpp::JacobianFailed &failed) {
             stopped = failed.error.where == xpp::JACOBIAN_FAILED
                 && failed.error.what == "the exact Jacobian's dx'/dx is inf at t=0 (x=0, y=0), where x' is 0: switch the Numerics' Jacobian to difference";
@@ -296,7 +296,7 @@ void check_model(const char *path, bool map, bool forward = true)
         s.integrator->rhs(t, x.data(), fm.data(), n);
         s.parser.constants[static_cast<std::size_t>(k)] = c;
         xpp::evaluate_derived(s.parser);
-        xpp::exact_constant_derivative(s, *s.jacobian_scratch, s.parser.constants.data(), k, t, x.data(), f.data(), n, column.data());
+        xpp::exact_constant_derivative(s, *s.jacobian_scratch, s.parser.native_work, s.parser.constants.data(), k, t, x.data(), f.data(), n, column.data());
         for (int i = 0; i < n; ++i) {
             const double d = (fp[static_cast<std::size_t>(i)] - fm[static_cast<std::size_t>(i)]) / (2 * h);
             worst = std::max(worst, std::fabs(column[static_cast<std::size_t>(i)] - d) / std::max(1.0, std::fabs(d)));

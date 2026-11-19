@@ -345,6 +345,11 @@ struct AutoxRun {
      (a collocation worker, or a job run at once with others) and never writes
      the Session's parser; autox_constants says which constants a run reads */
   bool pure_rhs=false;
+  /* The native node evaluations (ParserState::native_work, which says when MIR's build is due) a pure_rhs run made: counted here,
+     never in the Session's parser, which every worker would share (a data race); the caller adds them after the dispatch
+     (AutoxParallel::intervals). A run that is not pure_rhs counts in the parser itself. */
+  std::uint64_t native_work=0;
+  std::uint64_t &native_work_count();
   xpp::AutoxCodim codim;
   std::vector<double> rhs_constants; /* the parser's constants and variables, copied for a worker or a job */
   std::vector<double> rhs_variables;

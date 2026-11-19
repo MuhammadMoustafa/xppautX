@@ -6,6 +6,7 @@
 #include <functional>
 #include <string_view>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include "xpp_error.h"
 
@@ -114,11 +115,12 @@ ErrorAction switch_to_differences(std::string resume);
    collocation worker gives its own constants and gets the same bits as
    the caller's thread. f is the right-hand side there (for a map's form,
    f(x)-x): an entry not finite where f is throws JacobianFailed. The
-   model must have one (Model::jacobian). */
-void exact_jacobian(const RunParts &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, const JacobianForm &form, double *out);
+   model must have one (Model::jacobian). Each call adds the IR nodes it evaluates to native_work: the core thread's ParserState::native_work,
+   or a worker's own count, which its caller adds (AutoxRun::native_work), never one counter shared by threads. */
+void exact_jacobian(const RunParts &s, JacobianScratch &scratch, std::uint64_t &native_work, const double *c, double t, const double *x, const double *f, int n, const JacobianForm &form, double *out);
 /* d f/d c[k] at (t, x) with the constants c into out[0..n), 0 where no
    equation depends on constant k; d f/dt for the time; checked as above */
-void exact_constant_derivative(const RunParts &s, JacobianScratch &scratch, const double *c, int k, double t, const double *x, const double *f, int n, double *out);
-void exact_time_derivative(const RunParts &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, double *out);
+void exact_constant_derivative(const RunParts &s, JacobianScratch &scratch, std::uint64_t &native_work, const double *c, int k, double t, const double *x, const double *f, int n, double *out);
+void exact_time_derivative(const RunParts &s, JacobianScratch &scratch, std::uint64_t &native_work, const double *c, double t, const double *x, const double *f, int n, double *out);
 
 } // namespace xpp
