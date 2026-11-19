@@ -37,6 +37,31 @@ https://gitlab.inria.fr/core-math/core-math), MIT licence (`LICENSE`).
   bit: tests/test_math.cpp compares them at 20000 inputs each, on a CPU with
   FMA, and the plain copy is what runs on one without.
   CORE_MATH_SUPPORT_ERRNO is not defined: no errno, as the core never reads it.
-- To update: copy the same files from a newer CORE-MATH checkout, change
+- Our one change from that commit (W833, #914): `sin/sin.c` has a new first
+  path, `sin_small_fast`, for 0x1.7137449123ef6p-26 < |x| < 2^-4. Upstream's
+  fast path tests its rounding against an absolute error bound (`eps =
+  0x1.dep-64`), which for 2^-16 < |x| < ~0.1 is a large part of an ulp of the
+  result, so the test fails for nearly every argument there and the call takes
+  the 128-bit `sin_large_accurate` (44 ns against 9 ns): kuramot100-dopri8's
+  phase differences of 1e-4 to 1e-2 spent half of its cycles in it (the
+  same bound is in CORE-MATH master of 2026-11-19, commit 1fdc53360d). The new
+  path evaluates x + x^3*q(x^2), q the Taylor polynomial to x^9, in plain
+  doubles and tests against a bound relative to the correction (2^-49|l|, the
+  derivation of the 5.4u error and the margin is in the function's comment);
+  when the test fails, the existing code runs as before, so the result stays
+  the correctly rounded one, bit for bit, in both builds (it was compared
+  with upstream's cr_sin, plain and FMA copies, on 5*10^8 random arguments of
+  2^-26 to 1 and 456076 neighbours, 3000 ulps each way, both signs, of 38
+  points at the ends of the ranges and CORE-MATH's hard cases, and with
+  mpmath at 200 bits on 3*10^6 of them). The test fails for 1% of [2^-5,
+  2^-4), 0.06% of [2^-7, 2^-6), less below; a call takes 2.3 ns (29 to 42
+  before).
+  The other functions are upstream's: on the arguments the examples and
+  autoX's descriptions pass, exp falls back for 0.1% of its calls, pow for
+  0.08%, and cos for 2%, nearly all of them near its zeros (koho's and
+  wcring's cos of pi/2 rounded: a result near 1e-9, which an absolute bound
+  cannot round without the slow path); none of the comparison's models does.
+- To update: copy the same files from a newer CORE-MATH checkout (sin.c: apply
+  sin_small_fast again, unless upstream's test has become relative), change
   the commit above, and rerun tools/examples_check.sh and goldencheck (a
   fixed bug in a function changes its results for the inputs it fixes).

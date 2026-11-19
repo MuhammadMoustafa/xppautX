@@ -84,6 +84,21 @@ TEST_CASE("test_math")
     CHECK(same(xpp::math::sin(0x1.00f620e3203b4p-7), 0x3f800f5744a7cb3aULL));
     CHECK(same(xpp::math::sin(0x1.01a1c30445418p-4), 0x3fb01764856366baULL));
     CHECK(same(xpp::math::sin(0x1.02a31aed55ef6p-9), 0x3f602a30fed68bc7ULL));
+    /* |x| < 2^-4 takes sin_small_fast's relative rounding test (W833; mpmath at
+       200 bits): the first seven pass it, the others fall back to the 128-bit path */
+    CHECK(same(xpp::math::sin(0x1.a36e2eb1c432dp-14), 0x3f1a36e2ea609cc8ULL));
+    CHECK(same(xpp::math::sin(0x1.0624dd2f1a9fcp-10), 0x3f50624da5218a62ULL));
+    CHECK(same(xpp::math::sin(0x1.930be0ded288dp-7), 0x3f8930946d85ec23ULL));
+    CHECK(same(xpp::math::sin(-0x1.758e219652bd4p-5), 0xbfa756cfe39a7535ULL));
+    CHECK(same(xpp::math::sin(0x1p-20), 0x3eaffffffffffaabULL));
+    CHECK(same(xpp::math::sin(0x1.fffffffffffffp-5), 0x3faffaaaeeed4edaULL));
+    CHECK(same(xpp::math::sin(-0x1p-17), 0xbedffffffffeaaabULL));
+    CHECK(same(xpp::math::sin(0x1.7137449123ef7p-26), 0x3e57137449123ef6ULL));
+    CHECK(same(xpp::math::sin(0x1.00f620e3203b4p-7), 0x3f800f5744a7cb3aULL));
+    CHECK(same(xpp::math::sin(0x1.76d13e6b1c0efp-6), 0x3f976c8dfd749ef0ULL));
+    CHECK(same(xpp::math::sin(0x1.c1fa1eb8c74f5p-6), 0x3f9c1eba38b29d96ULL));
+    CHECK(same(xpp::math::sin(0x1.594c6f28688d9p-5), 0x3fa593242da643c0ULL));
+    CHECK(same(xpp::math::sin(0x1.6a344b687ed6fp-5), 0x3fa6a161611a822aULL));
     CHECK(same(xpp::math::cos(0x1.0009effd4bedap-12), 0x3fefffffeffec1fcULL));
     CHECK(same(xpp::math::cos(0x1.00c82b482ed92p-10), 0x3feffffefe6f0e46ULL));
     CHECK(same(xpp::math::cos(0x1.018eea667029bp-8), 0x3fefffefcdfd370fULL));

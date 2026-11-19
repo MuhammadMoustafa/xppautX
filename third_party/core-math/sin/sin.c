@@ -893,6 +893,53 @@ cr_sin_large (double x)
   return sin_large_accurate (x);
 }
 
+// fast path for 0x1.7137449123ef6p-26 < |x| < 2^-4 (xppautX's change, W833,
+// see third_party/core-math/README.md): the rounding test is relative to the
+// result, where cr_sin_moderate's is absolute (eps = 0x1.dep-64, a large part
+// of an ulp of sin(x) once |x| < 0.1, so it almost always fails and the call
+// takes the 128-bit path). Returns 1 and the correctly rounded sin(x) in *res
+// when the test passes, else 0 (the caller then takes the existing paths).
+static inline int
+sin_small_fast (double x, double *res)
+{
+  /* sin(x) = x + x^3*q(x^2) with q(t) = -1/6 + t/120 - t^2/5040 + t^3/362880
+     - ..., the coefficients below being those of 1/3!, 1/5!, 1/7!, 1/9!
+     rounded to nearest. Let u = 2^-53 (2^-52 for the other rounding modes:
+     every error below is then at most twice as large, still within the margin
+     of the test). We compute, with one rounding each (no FMA: the build has
+     -ffp-contract=off):
+       t = x*x             relative error <= u
+       xt = x*t            relative error <= u (+ that of t)
+       p = c3 + t*(c5 + t*(c7 + t*c9))
+       l = xt*p            relative error <= u
+     p approximates q(t): c3 has relative error <= u (1/6 is not a double),
+     the final addition adds u, and the rest of the polynomial is at most
+     |t*c5/c3| = t/20 <= 2^-12.3 of c3 and carries errors of a few u of
+     that, i.e. below 0.001u; so p = q(x^2)*(1+e) with |e| <= 2.001u.
+     The terms dropped (x^11/11! on) are at most 6*x^8/11! < 2^-54.7 of
+     x^3/6 for |x| < 2^-4, which is 0.32u. Altogether
+       |l - (sin(x) - x)| <= ((1+u)^3*(1+2.001u)-1 + 0.32u)*|l| < 5.4u*|l|
+     (< 10.8u*|l| with the other rounding modes). The test below uses
+     e = 2^-49*|l| = 16u*|l|: the roundings of l-e and l+e add at most
+     2u*(1+16u)*|l|, so the computed lower bound x+(l-e) is at most the
+     exact sin(x), and the upper one at least. Both are monotone roundings
+     of numbers on either side of sin(x), so when they agree, the rounding of
+     sin(x) is that value. |l| >= 2^-80 here (x > 2^-25.5): no underflow, and
+     e is exact. Measured with mpmath (200 bits) on 3*10^6 arguments of
+     2^-26 < |x| < 2^-4: the largest error of l was 2^-51.15*|l|, within the
+     5.4u = 2^-50.6 above. The test fails for 1% of the arguments of
+     [2^-5, 2^-4), 0.06% of [2^-7, 2^-6), 0.0003% of [2^-12, 2^-11). */
+  static const double c3 = -0x1.5555555555555p-3, c5 = 0x1.1111111111111p-7,
+    c7 = -0x1.a01a01a01a01ap-13, c9 = 0x1.71de3a556c734p-19;
+  double t = x * x;
+  double p = c3 + t * (c5 + t * (c7 + t * c9));
+  double l = (x * t) * p;
+  double e = 0x1p-49 * __builtin_fabs (l);
+  double lb = x + (l - e), ub = x + (l + e);
+  *res = lb;
+  return lb == ub;
+}
+
 double
 cr_sin (double x)
 {
@@ -914,6 +961,11 @@ cr_sin (double x)
     return res;
   }
   int e = (t.u>>52)&0x7ff;
+  if (e < 1019) { // |x| < 2^-4
+    double r;
+    if (__builtin_expect (sin_small_fast (x, &r), 1)) return r;
+    if (e < 1007) return sin_small_accurate (x); // |x| < 2^-16
+  }
   if (__builtin_expect(e < 1054, 1)) return cr_sin_moderate(x, t.u>>63); // |x| < 2^31
   if (__builtin_expect (e == 0x7ff, 0)) /* NaN, +Inf and -Inf. */
     {
