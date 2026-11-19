@@ -680,32 +680,82 @@ VERDICT_MARGIN = 0.25
 VERDICT_SD_FACTOR = 3
 
 
-def timed_rows(folder):
-    # {(workload, engine, row): summary row} of an attempt's counted xppautX rows; none when the folder is None or has no summary.
+def program_of(engine):
+    # The program an engine runs: its name's part before the first dash ('xppautx', 'xppaut', 'auto07p', 'python').
+    return engine.split('-')[0]
+
+
+def counted_rows(folder, xppautx):
+    # {(workload, engine, row): summary row} of an attempt's counted rows: xppautX's when xppautx is True, the other programs' when
+    # False. None when the folder is None; a sweep and a row with no mean are not counted. large-stiff's summary (W378's kit) has its
+    # own layout with no engine: its rows are not comparison rows, so they are not counted.
     if folder is None:
         return {}
     return {(r['workload'], r['engine'], r['row']): r for r in pooled([Path(folder)], 'summary.json')
-            if r['engine'].split('-')[0] == 'xppautx' and not r.get('sweep') and r.get('wall_seconds_mean') is not None}
+            if 'engine' in r and (program_of(r['engine']) == 'xppautx') == xppautx and not r.get('sweep')
+            and r.get('wall_seconds_mean') is not None}
+
+
+def timed_rows(folder):
+    # {(workload, engine, row): summary row} of an attempt's counted xppautX rows; none when the folder is None or has no summary.
+    return counted_rows(folder, True)
+
+
+def fastest_by_program(rows):
+    # {(workload, row, program): summary row} of counted rows: each program's fastest engine's row for each workload and row (W830).
+    best = {}
+    for (workload, engine, row), r in rows.items():
+        key = (workload, row, program_of(engine))
+        if key not in best or r['wall_seconds_mean'] < best[key]['wall_seconds_mean']:
+            best[key] = r
+    return best
+
+
+def compare(new, ref, names):
+    # The ratio of two rows' means and the spread it must pass: three SDs of the reference relative to its mean, never less than
+    # VERDICT_MARGIN. names: the words for a ratio above the spread, below it, and within it.
+    ratio = new['wall_seconds_mean'] / ref['wall_seconds_mean']
+    spread = max(VERDICT_MARGIN, VERDICT_SD_FACTOR * (ref['wall_seconds_sample_sd'] or 0) / ref['wall_seconds_mean'])
+    return ratio, spread, names[0] if ratio > 1 + spread else names[1] if ratio < 1 - spread else names[2]
 
 
 def judge_row(new, ref):
-    ratio = new['wall_seconds_mean'] / ref['wall_seconds_mean']
-    spread = max(VERDICT_MARGIN, VERDICT_SD_FACTOR * (ref['wall_seconds_sample_sd'] or 0) / ref['wall_seconds_mean'])
-    verdict = 'slower' if ratio > 1 + spread else 'faster' if ratio < 1 - spread else 'same'
+    ratio, spread, verdict = compare(new, ref, ('slower', 'faster', 'same'))
     return dict(workload=new['workload'], engine=new['engine'], row=new['row'], repetitions=new['counted_repetitions'],
                 mean=new['wall_seconds_mean'], reference_mean=ref['wall_seconds_mean'], reference_sd=ref['wall_seconds_sample_sd'],
                 ratio=ratio, spread=spread, verdict=verdict)
 
 
+def judge_against(folder):
+    # W830: each workload's and row's xppautX row (its fastest engine) against the same row of each other program's fastest engine,
+    # both from this attempt (the other programs' rows are W617's own, never rerun). ratio above 1 is xppautX slower: 'behind' when
+    # past the spread, 'ahead' below it, else 'level'. Reported, never a stop: a gap that grew since W617 is a slower verdict.
+    mine = fastest_by_program(counted_rows(folder, True))
+    out = []
+    for (workload, row, program), theirs in sorted(fastest_by_program(counted_rows(folder, False)).items()):
+        ours = mine.get((workload, row, 'xppautx'))
+        if ours is None:
+            continue
+        ratio, spread, verdict = compare(ours, theirs, ('behind', 'ahead', 'level'))
+        out.append(dict(workload=workload, row=row, engine=ours['engine'], mean=ours['wall_seconds_mean'], program=program,
+                        other_engine=theirs['engine'], other_mean=theirs['wall_seconds_mean'], other_sd=theirs['wall_seconds_sample_sd'],
+                        ratio=ratio, spread=spread, verdict=verdict))
+    return out
+
+
 def judge(folder, reference):
     # The unit's verdict: slower when any row is, else faster when any is, else same; 'no reference' when the reference
-    # attempt (None when there is none) has no counted xppautX row this attempt also has.
+    # attempt (None when there is none) has no counted xppautX row this attempt also has. `against`: judge_against's rows;
+    # `behind`: how many of them are behind another program (the verdict does not change for them).
     new, ref = timed_rows(folder), timed_rows(reference)
     rows = [judge_row(new[key], ref[key]) for key in sorted(new) if key in ref]
+    against = judge_against(folder)
+    behind = sum(1 for r in against if r['verdict'] == 'behind')
     if not rows:
-        return dict(verdict='no reference', rows=[])
+        return dict(verdict='no reference', rows=[], against=against, behind=behind)
     kinds = {r['verdict'] for r in rows}
-    return dict(verdict='slower' if 'slower' in kinds else 'faster' if 'faster' in kinds else 'same', rows=rows)
+    return dict(verdict='slower' if 'slower' in kinds else 'faster' if 'faster' in kinds else 'same', rows=rows, against=against,
+                behind=behind)
 
 
 # W802: no row of XPPAUT, AUTO-07p or Python is run again (their programs ran in W617; the maintainer, 2026-11-17). A plan's entry names

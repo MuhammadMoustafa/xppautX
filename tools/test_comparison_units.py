@@ -590,6 +590,79 @@ class Verdicts(unittest.TestCase):
         self.assertEqual([self.verdict(u) for u in 'abc'], ['same'] * 3)
 
 
+class AgainstPrograms(unittest.TestCase):
+    # W830: judge also compares xppautX's fastest row with each other program's fastest row of the same attempt (W617's own
+    # times, never rerun). Behind is reported in `against` and `behind`; the unit's verdict stays slower, faster, same or no reference.
+
+    def setUp(self):
+        self.scratch = tempfile.TemporaryDirectory(prefix='w830-test-')
+        self.root = Path(self.scratch.name)
+        self.count = 0
+
+    def tearDown(self):
+        self.scratch.cleanup()
+
+    def attempt(self, *rows):
+        # An attempt folder whose summary.json holds rows given as (engine, mean, sd, sweep); workload 'm', row 'run'.
+        self.count += 1
+        folder = self.root / ('attempt-%03d' % self.count)
+        folder.mkdir()
+        common.save(folder / 'summary.json', [dict(workload='m', engine=e, row='run', wall_seconds_mean=m, wall_seconds_sample_sd=sd,
+                                                   counted_repetitions=5, sweep=sweep) for e, m, sd, sweep in rows])
+        return folder
+
+    def against(self, result, program):
+        return [r for r in result['against'] if r['program'] == program]
+
+    def test_a_row_slower_than_the_reference_is_slower_and_also_behind_another_program(self):
+        ref = self.attempt(('xppautx', 1.0, 0.02, False))
+        folder = self.attempt(('xppautx', 2.0, 0.02, False), ('xppaut', 1.5, 0.02, False))
+        result = common.judge(folder, ref)
+        self.assertEqual(result['verdict'], 'slower')
+        self.assertEqual(result['behind'], 1)
+        self.assertEqual([(r['program'], r['verdict']) for r in result['against']], [('xppaut', 'behind')])
+        self.assertAlmostEqual(result['against'][0]['ratio'], 2.0 / 1.5)
+
+    def test_a_row_behind_another_program_is_reported_and_the_unit_keeps_its_verdict(self):
+        ref = self.attempt(('xppautx', 1.0, 0.02, False))
+        folder = self.attempt(('xppautx', 1.0, 0.02, False), ('xppaut', 0.5, 0.02, False), ('auto07p-fd', 0.9, 0.02, False))
+        result = common.judge(folder, ref)
+        self.assertEqual(result['verdict'], 'same')  # the verdict against W617 is unchanged: behind is not a stop
+        self.assertEqual(result['behind'], 1)
+        self.assertEqual([(r['program'], r['verdict']) for r in result['against']], [('auto07p', 'level'), ('xppaut', 'behind')])
+        self.assertEqual(self.against(result, 'xppaut')[0]['other_mean'], 0.5)
+
+    def test_a_row_within_the_spread_of_another_program_is_level(self):
+        ref = self.attempt(('xppautx', 1.0, 0.02, False))
+        folder = self.attempt(('xppautx', 1.0, 0.02, False), ('xppaut', 1.1, 0.02, False))  # 0.909 is within 25% either way
+        result = common.judge(folder, ref)
+        self.assertEqual(result['verdict'], 'same')
+        self.assertEqual((result['behind'], [r['verdict'] for r in result['against']]), (0, ['level']))
+
+    def test_a_unit_with_no_reference_is_judged_against_the_other_programs_alone(self):
+        folder = self.attempt(('xppautx', 1.0, 0.02, False), ('xppautx-threads', 0.8, 0.02, False), ('python-numpy', 0.5, 0.02, False),
+                              ('python-numba', 2.0, 0.02, False))
+        result = common.judge(folder, None)
+        self.assertEqual(result['verdict'], 'no reference')
+        self.assertEqual(result['rows'], [])
+        self.assertEqual(result['behind'], 1)
+        [row] = result['against']
+        self.assertEqual((row['engine'], row['program'], row['other_engine']), ('xppautx-threads', 'python', 'python-numpy'))
+        self.assertAlmostEqual(row['ratio'], 1.6)
+
+    def test_a_unit_with_no_reference_and_no_other_programs_is_no_reference_with_nothing_behind(self):
+        folder = self.attempt(('xppautx', 1.0, 0.02, False))
+        result = common.judge(folder, None)
+        self.assertEqual((result['verdict'], result['against'], result['behind']), ('no reference', [], 0))
+
+    def test_sweep_rows_are_never_compared(self):
+        folder = self.attempt(('xppautx', 1.0, 0.02, False), ('xppaut', 0.1, 0.0, True), ('xppaut', 1.0, 0.02, False),
+                              ('xppautx', 0.1, 0.0, True))
+        result = common.judge(folder, None)
+        self.assertEqual([(r['other_mean'], r['verdict']) for r in result['against']], [(1.0, 'level')])
+        self.assertEqual(result['behind'], 0)
+
+
 class Disturbance(unittest.TestCase):
     # W829 (#910): a timed unit during which other processes used the CPU is disturbed: not judged, run again once --ready passes,
     # and the series stops with its reason when a rerun is disturbed too. The snapshots are stubs (Sampler), so nothing is timed.

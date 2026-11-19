@@ -18,6 +18,10 @@ timed rows to judge has no verdict of its own, so it stops nothing. The set-up's
 W829 (#910): while a timed unit runs, the CPU other processes used is measured from /proc (common.competing_record) and kept in
 the attempt's `.competing.json`. A unit whose competing CPU passes DISTURBED_CPU_FRACTION is disturbed: no verdict, no done or
 pass-1 record, run again once --ready passes; disturbed again, the series stops with the reason (DISTURBED_RUNS).
+
+W830: a unit's verdict also compares each xppautX row with the same row of every other program in its attempt (XPPAUT, AUTO-07p,
+Python: W617's own times, never rerun). A row behind another program is reported (run.log, done.json's `against` and `behind`,
+and the end-of-pass summary), never stopped on: a gap that grew since W617 is a slower verdict, which does stop the series.
 """
 import argparse
 import functools
@@ -114,7 +118,8 @@ class Run:
         if not record.exists() or not (self.a.out / study / unit / 'pass1').is_dir():
             return None
         value = json.loads(record.read_text())
-        return value if value['binaries'] == self.binaries() else None
+        # W830: a record from before the comparison with the other programs has no `against`, so the unit runs again
+        return value if value['binaries'] == self.binaries() and 'against' in value else None
 
     def pass1_units(self, pending):
         # W826: the units pass 1 runs, in order: each unit with a reference to judge against, preceded by its set-up unit when that
@@ -286,6 +291,7 @@ class Run:
                 if r.get('reuse_key') and r['reuse_key'] not in keys:
                     keys.append(r['reuse_key'])
         record = dict(attempt=attempt.name, exit_code=code, check=a.check, keys=keys, verdict=verdict['verdict'], rows=verdict['rows'],
+                      against=verdict['against'], behind=verdict['behind'],
                       commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPO, text=True).strip(),
                       binaries=self.binaries(), competing=competing)
         if study == 'large-stiff':
@@ -334,6 +340,15 @@ def verdict_lines(label, study, unit, verdict):
     for r in verdict['rows']:
         lines.append('    %s %s %s: %.4g s, reference %.4g s, ratio %.3f, threshold +/-%.0f%%: %s'
                      % (r['engine'], r['workload'], r['row'], r['mean'], r['reference_mean'], r['ratio'], 100 * r['spread'], r['verdict']))
+    against = verdict['against']
+    if against:
+        lines.append('    against the other programs: %d behind, %d level, %d ahead (reported, not a stop)'
+                     % tuple(sum(1 for r in against if r['verdict'] == v) for v in ('behind', 'level', 'ahead')))
+    for r in against:
+        if r['verdict'] == 'behind':
+            lines.append('    behind %s %s %s: xppautX %s %.4g s, %s %.4g s, ratio %.3f, threshold +/-%.0f%%'
+                         % (r['program'], r['workload'], r['row'], r['engine'], r['mean'], r['other_engine'], r['other_mean'],
+                            r['ratio'], 100 * r['spread']))
     return lines
 
 
@@ -349,10 +364,11 @@ def restart_after_stop(a):
     note(a, 'restart: the series stopped at a slower unit; every unit runs again from its first')
 
 
-def run_pass(run, units, quick, slower, failed, disturbed):
+def run_pass(run, units, quick, slower, behind, failed, disturbed):
     # One pass over (study, unit) in order, each unit once, its verdict noted as it comes. A slower unit ends the pass unless
     # --keep-going; a failed unit goes on to the next unless --stop-on-failure; a disturbed unit (W829, disturbed again after its
-    # rerun) always ends the pass. quick: pass 1, one repetition, reused when judged.
+    # rerun) always ends the pass. A unit behind another program (W830) is collected in behind and stops nothing. quick: pass 1,
+    # one repetition, reused when judged.
     a = run.a
     label = 'pass 1' if quick else 'pass 2'
     for study, unit in units:
@@ -374,6 +390,8 @@ def run_pass(run, units, quick, slower, failed, disturbed):
                 break
         for line in verdict_lines(label, study, unit, verdict):
             note(a, line)
+        if verdict['behind'] and '%s/%s' % (study, unit) not in behind:  # pass 1 and pass 2 may both judge a unit
+            behind.append('%s/%s' % (study, unit))
         if verdict['verdict'] == 'slower':
             slower.append('%s/%s' % (study, unit))
             if not a.keep_going:
@@ -399,7 +417,7 @@ def main():
     a.out = a.out.resolve()
     a.out.mkdir(parents=True, exist_ok=True)
     run = Run(a)
-    failed, slower, disturbed = [], [], []
+    failed, slower, behind, disturbed = [], [], [], []
     try:
         if not a.plan:
             restart_after_stop(a)  # before the plan: a restarted series plans against no done record
@@ -424,9 +442,9 @@ def main():
                 pending.append((study, unit))
         # W818: pass 1, one repetition of each unit that has a reference to judge against; pass 2, every pending unit's rest,
         # only when pass 1 has no slower unit. Pass 1's runs are a check: the report never counts them.
-        run_pass(run, run.pass1_units(pending), True, slower, failed, disturbed)
+        run_pass(run, run.pass1_units(pending), True, slower, behind, failed, disturbed)
         if not slower and not disturbed:
-            run_pass(run, pending, False, slower, failed, disturbed)
+            run_pass(run, pending, False, slower, behind, failed, disturbed)
         if slower:
             save(a.out / STOPPED, dict(slower=slower, binaries=run.binaries()))
     finally:
@@ -436,6 +454,8 @@ def main():
     count = sum(1 for f in a.out.glob('*/*/*.competing.json') if json.loads(f.read_text())['verdict'] == 'disturbed')
     if count:
         note(a, 'disturbed: %d timed run(s) in this folder met other processes on the CPU (their .competing.json says disturbed)' % count)
+    if behind:
+        note(a, 'behind another program (W830, reported, not a stop; each needs its card): ' + ', '.join(behind))
     if slower:
         sys.exit('Slower than the reference (ratios in run.log): ' + ', '.join(slower) + '. Fix it, then run the same command again: '
                  'the series starts from its first unit.')

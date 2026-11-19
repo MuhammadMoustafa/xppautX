@@ -32,6 +32,9 @@ def main():
                 print('     verdicts: ' + ', '.join('%d %s' % (n, v) for v, n in sorted(Counter(judged.values()).items())))
             for name in sorted(n for n, v in judged.items() if v == 'slower'):
                 print('     SLOWER %s (run.log has its ratios)' % name)
+            behind = {u.name: json.loads((u / DONE).read_text()).get('behind', 0) for u in done}  # W830: reported, not a stop
+            for name in sorted(n for n, b in behind.items() if b):
+                print('     BEHIND another program %s: %d row(s) (run.log has the ratios)' % (name, behind[name]))
             for u in units:
                 if u not in done and (u / PASS1).exists():
                     print('     pass 1 %s: %s' % (u.name, json.loads((u / PASS1).read_text())['verdict']))
