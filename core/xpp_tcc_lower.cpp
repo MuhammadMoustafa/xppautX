@@ -16,14 +16,6 @@
 namespace xpp::tcc {
 namespace {
 
-/* A value of the expression being written: C text that reads it where it is used. A computed value (an arithmetic operation)
-   is what MIR computes where it stands: when a later statement of the same expression is written, it is taken into a local
-   first, so its reads stay where MIR's are. A stored value (a memory operand, a local, a number) is read where it is used. */
-struct Lowered {
-    std::string text;
-    bool computed = false;
-};
-
 /* the C type of a hidden parameter */
 const char *c_type(ir::Hidden h)
 {
@@ -73,15 +65,19 @@ private:
     bool declare(size_t callee);
     void statement(const IrStatement &s);
     void assign(const std::string &target, int node);
-    Lowered operand(int node, int depth);
-    Lowered binary(const char *op, const IrNode &n, int depth);
-    Lowered guarded(const IrNode &n, int depth);
-    Lowered select(const IrNode &n, int depth);
-    Lowered call(const IrNode &n, int depth);
-    std::string element(const char *base, int index, int stride);
+    /* A value of an expression is appended to `text`, which reads it where it is used; the return says whether it is computed
+       (an arithmetic operation, which MIR computes where it stands: when a later statement of the same expression is written,
+       it is taken into a local first, so its reads stay where MIR's are). A stored value (a memory operand, a local, a number)
+       is read where it is used. */
+    bool operand(int node, int depth, std::string &text);
+    bool binary(const char *op, const IrNode &n, int depth, std::string &text);
+    bool guarded(const IrNode &n, int depth, std::string &text);
+    bool select(const IrNode &n, int depth, std::string &text);
+    bool call(const IrNode &n, int depth, std::string &text);
+    void element(std::string &text, const char *base, int index, int stride);
     void repeat_begin(const IrStatement &s);
     void repeat_end();
-    Lowered taken(Lowered value, size_t mark);
+    void take(std::string &text, size_t start, size_t end, size_t mark);
     std::string next_local();
     std::string hidden_value(ir::Hidden h) const;
     int number_index(double x);
@@ -128,8 +124,9 @@ void Lowering::function_text(size_t k)
     body_ += "finish: ;\n";
     if (returns(*f_)) {
         locals_ = 0;
-        const Lowered result = operand(f_->result, 0);
-        body_ += "return " + result.text + ";\n";
+        std::string result;
+        operand(f_->result, 0, result);
+        body_ += "return " + result + ";\n";
     }
     /* the locals are declared here, all at the top: a jump (a label, a loop's or a conditional's) never enters a declaration's scope */
     std::string text = signature(k) + "\n{\n";
@@ -182,7 +179,12 @@ void Lowering::statement(const IrStatement &s)
     case IrStatement::Kind::Temporary: assign("t" + std::to_string(s.index), s.value); break;
     case IrStatement::Kind::Variable: assign("v[" + std::to_string(s.index) + "]", s.value); break;
     case IrStatement::Kind::Constant: assign("c[" + std::to_string(s.index) + "]", s.value); break;
-    case IrStatement::Kind::Output: assign(element("o", s.index, s.stride), s.value); break;
+    case IrStatement::Kind::Output: {
+        std::string target;
+        element(target, "o", s.index, s.stride);
+        assign(target, s.value);
+        break;
+    }
     case IrStatement::Kind::RepeatBegin: repeat_begin(s); break;
     case IrStatement::Kind::RepeatEnd: repeat_end(); break;
     case IrStatement::Kind::ReturnWithoutOutput: body_ += "if (o == 0) goto finish;\n"; break;
@@ -191,10 +193,12 @@ void Lowering::statement(const IrStatement &s)
            runs from low to high inclusive, and not at all when low > high */
         const int label = labels_++;
         loop_labels_[static_cast<size_t>(s.index)] = label;
-        const Lowered low = operand(s.value, 0);
-        body_ += xpp::concat("lo", std::to_string(s.index), " = (int)(long long)(", low.text, ");\n");
-        const Lowered high = operand(s.other, 0);
-        body_ += xpp::concat("hi", std::to_string(s.index), " = (int)(long long)(", high.text, ");\n");
+        std::string low;
+        operand(s.value, 0, low);
+        body_ += xpp::concat("lo", std::to_string(s.index), " = (int)(long long)(", low, ");\n");
+        std::string high;
+        operand(s.other, 0, high);
+        body_ += xpp::concat("hi", std::to_string(s.index), " = (int)(long long)(", high, ");\n");
         body_ += "t" + std::to_string(s.slot) + " = 0.0;\n";
         const std::string i = "i" + std::to_string(s.index), lo = "lo" + std::to_string(s.index), hi = "hi" + std::to_string(s.index);
         const std::string l = std::to_string(label);
@@ -203,9 +207,10 @@ void Lowering::statement(const IrStatement &s)
     }
     case IrStatement::Kind::LoopEnd: {
         const int label = loop_labels_[static_cast<size_t>(s.index)];
-        const Lowered value = operand(s.value, 0);
+        std::string value;
+        operand(s.value, 0, value);
         const std::string total = "t" + std::to_string(s.slot);
-        body_ += xpp::concat(total, " = ", total, " + (", value.text, ");\n");
+        body_ += xpp::concat(total, " = ", total, " + (", value, ");\n");
         const std::string i = "i" + std::to_string(s.index), hi = "hi" + std::to_string(s.index), l = std::to_string(label);
         body_ += xpp::concat("if (", i, " == ", hi, ") goto done", l, ";\n", i, " = ", i, " + 1;\ngoto top", l, ";\ndone", l, ": ;\n");
         break;
@@ -214,8 +219,9 @@ void Lowering::statement(const IrStatement &s)
         /* the then arm runs when the condition is 0; a NaN is not 0, so it takes the else arm, as MIR's branch does */
         const int label = labels_++;
         branches_.push_back(label);
-        const Lowered cond = operand(s.value, 0);
-        body_ += xpp::concat("if ((", cond.text, ") != 0.0) goto else", std::to_string(label), ";\n");
+        std::string cond;
+        operand(s.value, 0, cond);
+        body_ += xpp::concat("if ((", cond, ") != 0.0) goto else", std::to_string(label), ";\n");
         break;
     }
     case IrStatement::Kind::IfElse:
@@ -238,16 +244,17 @@ void Lowering::statement(const IrStatement &s)
 
 void Lowering::assign(const std::string &target, int node)
 {
-    const Lowered value = operand(node, 0);
+    std::string value;
+    const bool computed = operand(node, 0, value);
     /* a call's result is used once, by this statement: the call's own statement stores it where it goes (a local less to copy) */
-    if (ir_.nodes[static_cast<size_t>(node)].op == IrOp::Call && !value.computed) {
+    if (ir_.nodes[static_cast<size_t>(node)].op == IrOp::Call && !computed) {
         const size_t line = body_.rfind('\n', body_.size() - 2) + 1; /* npos + 1 is 0: the first line */
-        if (body_.compare(line, value.text.size() + 3, value.text + " = ") == 0) {
-            body_.replace(line, value.text.size(), target);
+        if (body_.compare(line, value.size() + 3, value + " = ") == 0) {
+            body_.replace(line, value.size(), target);
             return;
         }
     }
-    body_ += target + " = " + value.text + ";\n";
+    body_ += target + " = " + value + ";\n";
 }
 
 std::string Lowering::next_local()
@@ -256,13 +263,13 @@ std::string Lowering::next_local()
     return "r" + std::to_string(locals_ - 1);
 }
 
-/* the value of a computed one taken into a local, when statements were written after it: `mark` is where they start */
-Lowered Lowering::taken(Lowered value, size_t mark)
+/* the computed value text[start, end) taken into a local, written at body_'s `mark`, where the statements written after it
+   begin: the value is read there, as MIR reads it, and the text reads the local */
+void Lowering::take(std::string &text, size_t start, size_t end, size_t mark)
 {
-    if (!value.computed || body_.size() == mark) return value;
     const std::string local = next_local();
-    body_.insert(mark, local + " = " + value.text + ";\n");
-    return {local, false};
+    body_.insert(mark, local + " = " + text.substr(start, end - start) + ";\n");
+    text.replace(start, end - start, local);
 }
 
 int Lowering::number_index(double x)
@@ -273,16 +280,25 @@ int Lowering::number_index(double x)
 
 /* element `index` of the array `base`: in a Repeat, the element `index` + stride * the counter, as MIR's lowering computes it (a
    negative stride, or one outside a Repeat, is refused) */
-std::string Lowering::element(const char *base, int index, int stride)
+void Lowering::element(std::string &text, const char *base, int index, int stride)
 {
-    const std::string text = std::string(base) + "[" + std::to_string(index);
-    if (stride == 0) return text + "]";
+    text += base;
+    text += '[';
+    text += std::to_string(index);
+    if (stride == 0) {
+        text += ']';
+        return;
+    }
     if (stride < 0 || !repeating_) {
         failure_ = "an element stride outside a repeat or negative";
-        return text + "]";
+        text += ']';
+        return;
     }
-    if (stride == 1) return text + " + rp]";
-    return text + " + rp * " + std::to_string(stride) + "]";
+    if (stride == 1) {
+        text += " + rp]";
+        return;
+    }
+    text += " + rp * " + std::to_string(stride) + "]";
 }
 
 /* a pass of the Repeat: its counter starts at 0 and steps to its count (at least 1), the body running that many times */
@@ -309,96 +325,121 @@ void Lowering::repeat_end()
     body_ += "rp = rp + 1;\nif (rp < " + std::to_string(repeat_count_) + ") goto top" + l + ";\n";
 }
 
-Lowered Lowering::operand(int node, int depth)
+bool Lowering::operand(int node, int depth, std::string &text)
 {
-    if (!failure_.empty()) return {"0.0", false};
+    if (!failure_.empty()) {
+        text += "0.0";
+        return false;
+    }
     if (depth > ir::MAX_TREE_DEPTH) {
         failure_ = xpp::format("an expression nested deeper than {}", ir::MAX_TREE_DEPTH);
-        return {"0.0", false};
+        text += "0.0";
+        return false;
     }
     const IrNode &n = ir_.nodes[static_cast<size_t>(node)];
     switch (n.op) {
-    case IrOp::Number: return {"N[" + std::to_string(number_index(n.number)) + "]", false};
-    case IrOp::Constant: return {element("c", n.index, n.stride), false};
-    case IrOp::Variable: return {element("v", n.index, n.stride), false};
-    case IrOp::Temporary: return {"t" + std::to_string(n.index), false};
-    case IrOp::Argument: return {"a" + std::to_string(n.index), false};
-    case IrOp::LoopCounter: return {"((double)i" + std::to_string(n.index) + ")", false};
-    case IrOp::Operand: return {"((double)R[" + std::to_string(n.index) + "])", false};
-    case IrOp::Add: return binary("+", n, depth);
-    case IrOp::Subtract: return binary("-", n, depth);
-    case IrOp::Multiply: return binary("*", n, depth);
-    case IrOp::Divide: return binary("/", n, depth);
-    case IrOp::GuardedDivide: return guarded(n, depth);
-    case IrOp::Select: return select(n, depth);
-    case IrOp::Call: return call(n, depth);
+    case IrOp::Number: text += "N[" + std::to_string(number_index(n.number)) + "]"; return false;
+    case IrOp::Constant: element(text, "c", n.index, n.stride); return false;
+    case IrOp::Variable: element(text, "v", n.index, n.stride); return false;
+    case IrOp::Temporary: text += "t" + std::to_string(n.index); return false;
+    case IrOp::Argument: text += "a" + std::to_string(n.index); return false;
+    case IrOp::LoopCounter: text += "((double)i" + std::to_string(n.index) + ")"; return false;
+    case IrOp::Operand: text += "((double)R[" + std::to_string(n.index) + "])"; return false;
+    case IrOp::Add: return binary("+", n, depth, text);
+    case IrOp::Subtract: return binary("-", n, depth, text);
+    case IrOp::Multiply: return binary("*", n, depth, text);
+    case IrOp::Divide: return binary("/", n, depth, text);
+    case IrOp::GuardedDivide: return guarded(n, depth, text);
+    case IrOp::Select: return select(n, depth, text);
+    case IrOp::Call: return call(n, depth, text);
     }
-    return {"0.0", false};
+    text += "0.0";
+    return false;
 }
 
-Lowered Lowering::binary(const char *op, const IrNode &n, int depth)
+/* (args[0] op args[1]): the left operand is taken into a local when the right one's statements come after it */
+bool Lowering::binary(const char *op, const IrNode &n, int depth, std::string &text)
 {
-    Lowered left = operand(n.args[0], depth + 1);
+    text += '(';
+    const size_t left_start = text.size();
+    const bool left_computed = operand(n.args[0], depth + 1, text);
+    const size_t left_end = text.size();
     const size_t mark = body_.size();
-    const Lowered right = operand(n.args[1], depth + 1);
-    left = taken(std::move(left), mark);
-    return {"(" + left.text + " " + op + " " + right.text + ")", true};
+    text += ' ';
+    text += op;
+    text += ' ';
+    operand(n.args[1], depth + 1, text);
+    if (left_computed && body_.size() != mark) take(text, left_start, left_end, mark);
+    text += ')';
+    return true;
 }
 
 /* args[0] / (args[1] == 0 ? zero_divisor : args[1]): both operands first, then the divisor (a NaN is not 0, so it is kept), then
    the division where MIR's stands */
-Lowered Lowering::guarded(const IrNode &n, int depth)
+bool Lowering::guarded(const IrNode &n, int depth, std::string &text)
 {
-    Lowered left = operand(n.args[0], depth + 1);
+    std::string left;
+    const bool left_computed = operand(n.args[0], depth + 1, left);
     const size_t mark = body_.size();
-    const Lowered right = operand(n.args[1], depth + 1);
-    left = taken(std::move(left), mark);
+    std::string right;
+    operand(n.args[1], depth + 1, right);
+    if (left_computed && body_.size() != mark) take(left, 0, left.size(), mark);
     const std::string divisor = next_local();
-    body_ += divisor + " = " + right.text + ";\n";
+    body_ += divisor + " = " + right + ";\n";
     body_ += "if (" + divisor + " == 0.0) " + divisor + " = N[0];\n";
     const std::string result = next_local();
-    body_ += result + " = " + left.text + " / " + divisor + ";\n";
-    return {result, false};
+    body_ += result + " = " + left + " / " + divisor + ";\n";
+    text += result;
+    return false;
 }
 
 /* args[0] == 0 ? args[1] : args[2]: the condition is taken first, and only the arm chosen runs (a NaN condition is not 0) */
-Lowered Lowering::select(const IrNode &n, int depth)
+bool Lowering::select(const IrNode &n, int depth, std::string &text)
 {
-    const Lowered cond = operand(n.args[0], depth + 1);
+    std::string cond;
+    operand(n.args[0], depth + 1, cond);
     const std::string condition = next_local();
-    body_ += condition + " = " + cond.text + ";\n";
+    body_ += condition + " = " + cond + ";\n";
     const std::string result = next_local();
     body_ += "if (" + condition + " == 0.0) {\n";
-    const Lowered then_value = operand(n.args[1], depth + 1);
-    body_ += result + " = " + then_value.text + ";\n} else {\n";
-    const Lowered else_value = operand(n.args[2], depth + 1);
-    body_ += result + " = " + else_value.text + ";\n}\n";
-    return {result, false};
+    std::string then_value;
+    operand(n.args[1], depth + 1, then_value);
+    body_ += result + " = " + then_value + ";\n} else {\n";
+    std::string else_value;
+    operand(n.args[2], depth + 1, else_value);
+    body_ += result + " = " + else_value + ";\n}\n";
+    text += result;
+    return false;
 }
 
 /* the call with its arguments taken in order, each before the next (the callee and its doubles as the call shape gives them) */
-Lowered Lowering::call(const IrNode &n, int depth)
+bool Lowering::call(const IrNode &n, int depth, std::string &text)
 {
-    if (!declare(static_cast<size_t>(n.callee))) return {"0.0", false};
+    if (!declare(static_cast<size_t>(n.callee))) {
+        text += "0.0";
+        return false;
+    }
     const size_t callee = static_cast<size_t>(n.callee);
     const ir::CallShape shape = ir::call_shape(ir_.callees[callee], callee_module_[callee]);
     std::vector<std::string> arguments;
     for (ir::Hidden h : shape.before) arguments.push_back(hidden_value(h));
     const std::span<const int> given = ir_.arguments(n);
     for (int a : given) {
-        const Lowered value = operand(a, depth + 1);
+        std::string value;
+        operand(a, depth + 1, value);
         if (given.size() == 1) { /* nothing runs between the argument's value and the call: no local to hold it */
-            arguments.push_back(value.text);
+            arguments.push_back(value);
             break;
         }
         const std::string local = next_local();
-        body_ += local + " = " + value.text + ";\n";
+        body_ += local + " = " + value + ";\n";
         arguments.push_back(local);
     }
     if (shape.index) arguments.push_back(std::to_string(n.index));
     const std::string result = next_local();
     body_ += result + " = " + callee_name_[callee] + "(" + parameter_list(arguments) + ");\n";
-    return {result, false};
+    text += result;
+    return false;
 }
 
 /* what a call passes for a hidden parameter: the caller's own pointers, and null for the RPN and the output (as MIR's call does) */

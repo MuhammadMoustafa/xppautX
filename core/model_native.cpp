@@ -152,14 +152,41 @@ constexpr size_t MIN_REPEAT_COPIES = 4;
 /* a node's tree size is counted up to this, no further */
 constexpr int TREE_SIZE_CAP = 1 << 20;
 
-template <class T> void put(std::string &key, T value) { key.append(reinterpret_cast<const char *>(&value), sizeof value); }
+/* A node's hash, from its fields as they are (a number by its bits): a call's identity is its arguments, its own args being
+   where they sit in the module's list, so a call hashes its arguments and no more. */
+std::uint64_t node_hash(const IrNode &n, std::span<const int> arguments)
+{
+    std::uint64_t h = std::bit_cast<std::uint64_t>(n.number);
+    const auto mix = [&h](std::uint64_t x) { h = (h ^ x) * 0x9E3779B97F4A7C15ULL; };
+    const auto word = [](int lo, int hi) { return static_cast<std::uint64_t>(static_cast<std::uint32_t>(hi)) << 32 | static_cast<std::uint32_t>(lo); };
+    mix(word(static_cast<int>(n.op), n.index));
+    mix(word(n.callee, n.stride));
+    if (n.op == IrOp::Call) {
+        for (const int a : arguments) mix(static_cast<std::uint32_t>(a));
+        mix(arguments.size());
+    } else {
+        mix(word(n.args[0], n.args[1]));
+        mix(static_cast<std::uint32_t>(n.args[2]));
+    }
+    return h ^ (h >> 29);
+}
 
 struct Generator {
     const SessionParts &s;
     Place place;
     IrModule ir;
     std::vector<int> tree_size;                     /* of each ir.nodes entry, up to TREE_SIZE_CAP */
-    std::unordered_map<std::string, int> node_of;   /* the function being written: one node for one expression (a node's fields are its key) */
+    /* the function being written: one node for one expression, found by its fields in an open-addressing table of node ids. A slot
+       belongs to the function it was filled for (its stamp), so a new function starts with every slot empty; each node's hash is
+       kept by id, so the table grows without hashing a node again. */
+    struct NodeSlot {
+        int node = -1;
+        int function = -1;
+    };
+    std::vector<NodeSlot> node_slots_ = std::vector<NodeSlot>(1024); /* a power of two, at least twice the nodes in the function */
+    std::vector<std::uint64_t> node_hashes_;                       /* by node: its fields' hash */
+    int stamp_ = 0;                                                /* the function being written */
+    size_t nodes_in_function_ = 0;
     std::unordered_map<std::string, int> callee_of; /* by callee name */
     std::vector<int> callee_user;                   /* by callee: the user function it calls, else -1 */
     std::vector<std::set<int>> calls; /* the user functions each user function calls */
@@ -201,20 +228,45 @@ struct Generator {
 
     explicit Generator(const SessionParts &session) : s(session) { ir.zero_divisor = expr::ZERO_DIVISOR; }
 
+    /* the id of the node with these fields, or -1 when there is none; `slot` is where it is, or the empty slot it goes in */
+    int find_node(const IrNode &n, std::span<const int> arguments, std::uint64_t hash, size_t &slot) const
+    {
+        const size_t mask = node_slots_.size() - 1;
+        for (slot = hash & mask;; slot = (slot + 1) & mask) {
+            const NodeSlot &s = node_slots_[slot];
+            if (s.function != stamp_) return -1;
+            if (node_hashes_[static_cast<size_t>(s.node)] == hash && same_node(s.node, n, arguments)) return s.node;
+        }
+    }
+    bool same_node(int id, const IrNode &n, std::span<const int> arguments) const
+    {
+        const IrNode &s = ir.nodes[static_cast<size_t>(id)];
+        if (s.op != n.op || s.index != n.index || s.callee != n.callee || s.stride != n.stride
+            || std::bit_cast<std::uint64_t>(s.number) != std::bit_cast<std::uint64_t>(n.number))
+            return false;
+        if (n.op == IrOp::Call) return std::ranges::equal(ir.arguments(s), arguments);
+        return s.args == n.args;
+    }
+    void grow_nodes()
+    {
+        const std::vector<NodeSlot> old = std::exchange(node_slots_, std::vector<NodeSlot>(2 * node_slots_.size()));
+        const size_t mask = node_slots_.size() - 1;
+        for (const NodeSlot &s : old) {
+            if (s.function != stamp_) continue;
+            size_t slot = node_hashes_[static_cast<size_t>(s.node)] & mask;
+            while (node_slots_[slot].function == stamp_) slot = (slot + 1) & mask;
+            node_slots_[slot] = s;
+        }
+    }
+
     /* The node for this expression: made once, however often it is written (so two writings of one
        expression are one node, which is what lets a call be recognized as made before). A call's arguments
        are the nodes it is given. */
     int node(IrNode n, std::span<const int> arguments = {})
     {
-        std::string key;
-        put(key, n.op);
-        put(key, n.index);
-        put(key, n.callee);
-        put(key, n.stride);
-        put(key, std::bit_cast<std::uint64_t>(n.number));
-        for (const int a : n.args) put(key, a);
-        for (const int a : arguments) put(key, a);
-        if (const auto found = node_of.find(key); found != node_of.end()) return found->second;
+        const std::uint64_t hash = node_hash(n, arguments);
+        size_t slot = 0;
+        if (const int found = find_node(n, arguments, hash, slot); found >= 0) return found;
         int size = 1;
         const auto add = [&](int a) { size = std::min(size + tree_size[static_cast<size_t>(a)], TREE_SIZE_CAP); };
         for (const int a : n.args)
@@ -227,7 +279,9 @@ struct Generator {
         const int id = static_cast<int>(ir.nodes.size());
         ir.nodes.push_back(n);
         tree_size.push_back(size);
-        node_of.emplace(std::move(key), id);
+        node_hashes_.push_back(hash);
+        node_slots_[slot] = {id, stamp_};
+        if (2 * ++nodes_in_function_ > node_slots_.size()) grow_nodes();
         return id;
     }
     int op(IrOp o, int a = -1, int b = -1, int c = -1, int index = 0)
@@ -567,7 +621,8 @@ struct Generator {
     void begin()
     {
         out.clear();
-        node_of.clear();
+        ++stamp_;
+        nodes_in_function_ = 0;
         forget_calls();
         temps = loops = depth = 0;
         impure = false;
