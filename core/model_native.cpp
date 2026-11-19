@@ -992,7 +992,11 @@ std::string subsystem_joined_by(const SessionParts &s)
    (some 8 M instructions, a millisecond) before its code is on its way. A build that waits for the compile at
    the thread's cost (ParserState::interpreted_ops counted against the compile's cost, the ski-rental trade)
    was measured and rejected: mu26's 400 time units lost 18% waiting for a compile the thread would have made
-   in the first 2%. */
+   in the first 2%.
+   W817, one pinned CPU, instructions (perf): a build due at once, against this million, takes lecar from 21 M to
+   27 M (MIR's set-up is some 4 M, more than lecar's run gains) and izh_2003_rs from 34 M to 20 M; a due of 100
+   ops a node (lecar 25 M, izh 22 M) trades the same way. The large models do not move (lecdiff1600 10.06 G either
+   way), so the threshold stays; what W817 changed is MIR's level (xpp_mir.cpp). */
 constexpr std::uint64_t INTERPRETED_OPS_BEFORE_BUILD=1000000;
 std::shared_ptr<NativeBuild> pending_build(const SessionParts &s, IrModule ir, Place place)
 {

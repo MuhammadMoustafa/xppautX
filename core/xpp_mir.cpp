@@ -38,14 +38,14 @@ constexpr int INT_BYTES = 4;
 /* what one diagnostic is cut to */
 constexpr size_t MESSAGE_MAX = 512;
 
-/* The optimization level of MIR's generator for each kind of function (IrFunction::Kind order), chosen by
-   measurement (W714, docs/studies/w570-faster-compiler.md): 2 for what runs at every step, the right-hand
-   side, the equations and the user functions it calls (level 1 costs 2-11% more instructions than level 2 over
-   a full run of mu26, ma23 and kuramot100, level 0 more than TinyCC's code did); 1 for the exact Jacobian, a
-   long straight line of its values in registers (W715): on mu26 its level 2 compile costs 56 M cycles against
-   level 1's 33 M and gains nothing in the run (1351 M instructions against 1248 M over 400 time units), and
-   level 0's compile saves 24 M only to lose them in the run (1250 M), and more over a longer one. */
-constexpr std::array<unsigned, 4> LEVEL{2, 2, 2, 1};
+/* The optimization level of MIR's generator, for every function (W817, measured with one pinned CPU on the comparison's
+   models): 1, register allocation without GVN, copy propagation, dead store elimination and LICM. Level 2 compiled
+   lecdiff1600's 45k-node right-hand side in about 1.6 s of CPU (perf), most of it in dse's memory liveness
+   (make_live_from_mem and update_call_mem_live); level 1 takes about 0.4 s. A run of the models' code is
+   0-6% longer at level 1 (mu26's 400 time units: 2742 M instructions with its compile, 2593 M at level 2, TinyCC's
+   2756 M), and a run that compiles at all is faster at level 1 for the compile it no longer pays (lecdiff1600 43 G to
+   10 G instructions, screen 1254 M to 731 M). */
+constexpr unsigned OPTIMIZE_LEVEL = 1;
 
 /* MIR reports an error through a function that must not return and has no user data: `raised` (ours
    and MIR's both) records the text and jumps back to the compile that called MIR (`run`): the thread's own, since
@@ -53,7 +53,6 @@ constexpr std::array<unsigned, 4> LEVEL{2, 2, 2, 1};
 struct Escape {
     std::jmp_buf exit{};
     std::array<char, MESSAGE_MAX> text{};
-    const std::unordered_map<std::string, unsigned> *levels = nullptr; /* by function, for `generate` */
 };
 constinit thread_local Escape escape{};
 /* One compile at a time: MIR's generator sorts its static pattern table at each MIR_gen_init
@@ -74,10 +73,10 @@ void MIR_NO_RETURN raised(MIR_error_type_t, const char *format, ...)
     std::longjmp(escape.exit, 1);
 }
 
-/* MIR_link's per-function step: the level of the function's kind, then MIR's own generation */
+/* MIR_link's per-function step: the optimization level, then MIR's own generation */
 void generate(MIR_context_t ctx, MIR_item_t item)
 {
-    if (item != nullptr && item->item_type == MIR_func_item) MIR_gen_set_optimize_level(ctx, escape.levels->at(item->u.func->name));
+    if (item != nullptr && item->item_type == MIR_func_item) MIR_gen_set_optimize_level(ctx, OPTIMIZE_LEVEL);
     MIR_set_gen_interface(ctx, item);
 }
 } // namespace
@@ -178,7 +177,6 @@ struct Lowering {
     MIR_context_t ctx = nullptr;
     bool module_open = false, function_open = false;
     std::unordered_map<std::string, const IrFunction *> function_named;
-    std::unordered_map<std::string, unsigned> levels;
     std::vector<MIR_item_t> protos, targets; /* by callee, made at its first call: its prototype and its import or forward */
     /* the function being lowered */
     MIR_item_t item = nullptr;
@@ -476,11 +474,7 @@ struct Lowering {
         ctx = MIR_init2(&state.alloc, nullptr);
         state.context = ctx;
         MIR_set_error_func(ctx, raised);
-        for (const IrFunction &f : ir.functions) {
-            function_named.emplace(f.name, &f);
-            levels.emplace(f.name, LEVEL[static_cast<size_t>(f.kind)]);
-        }
-        escape.levels = &levels;
+        for (const IrFunction &f : ir.functions) function_named.emplace(f.name, &f);
         protos.assign(ir.callees.size(), nullptr);
         targets.assign(ir.callees.size(), nullptr);
         for (const IrCallee &callee : ir.callees)
