@@ -346,7 +346,7 @@ class PythonEquivalence(unittest.TestCase):
 class Verdicts(unittest.TestCase):
     # W818 (#899): each unit's verdict against the same unit of a reference run, the two passes, the stop and the restart after it.
     setUp, tearDown, drive, done = Units.setUp, Units.tearDown, Units.drive, Units.done
-    SAME = [1.0, 0.02]  # the reference's mean and sample SD: a difference under the 10% margin is the same
+    SAME = [1.0, 0.02]  # the reference's mean and sample SD: a difference under the 25% margin is the same
     ALL = dict(a=SAME, b=SAME, c=SAME)
 
     def make_reference(self, *timed):

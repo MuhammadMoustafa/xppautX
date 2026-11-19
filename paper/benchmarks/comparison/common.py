@@ -530,8 +530,10 @@ def pooled(folders, name):
 
 # W818 (#899): a unit's verdict against the same unit of the reference run (run.py's --reuse). The time ratio is the new mean over
 # the reference's (above 1: slower). The threshold is the reference's own spread: three of its sample SDs relative to its mean,
-# and never less than VERDICT_MARGIN, since one reference repetition has no SD and a difference under a tenth is not judged.
-VERDICT_MARGIN = 0.10
+# and never less than VERDICT_MARGIN: one reference repetition has no SD, and a pass-1 run is a single repetition, so a stop on
+# a smaller difference would stop the series on noise (W718 against W617 drifted up to 15% in medians); a quarter is the bar that
+# found W817's 85 slower workloads.
+VERDICT_MARGIN = 0.25
 VERDICT_SD_FACTOR = 3
 
 
