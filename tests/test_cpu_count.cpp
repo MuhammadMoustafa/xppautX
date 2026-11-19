@@ -6,6 +6,10 @@
 #ifdef __linux__
 #include <sched.h>
 #endif
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include <algorithm>
 #include <stdio.h>
 #include <optional>
@@ -47,6 +51,18 @@ TEST_CASE("test_cpu_count")
             const auto pinned = xpp::cpu::physical_cores();
             CHECK(!pinned || *pinned == 1);
             CHECK(sched_setaffinity(0, sizeof(kept), &kept) == 0);
+        }
+    }
+#endif
+#ifdef _WIN32
+    /* likewise on Windows (W819): a process kept to one processor of its group has one core */
+    DWORD_PTR process = 0, system = 0;
+    if (GetProcessAffinityMask(GetCurrentProcess(), &process, &system) && process != 0) {
+        const DWORD_PTR one = process & (~process + 1); /* its lowest processor */
+        if (SetProcessAffinityMask(GetCurrentProcess(), one)) {
+            const auto pinned = xpp::cpu::physical_cores();
+            CHECK(pinned && *pinned == 1);
+            CHECK(SetProcessAffinityMask(GetCurrentProcess(), process));
         }
     }
 #endif
