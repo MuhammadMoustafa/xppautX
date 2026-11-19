@@ -23,16 +23,12 @@
 #include "mir.h"
 #include "mir-gen.h"
 #include "expr_ir.h"
+#include "ir_shape.h"
+#include "native_functions.h"
 
 namespace xpp::mir {
 
 namespace {
-/* A tree deeper than this is refused: the lowering recurses on it, so a hostile deep expression cannot exhaust
-   the host's stack (8 MB on every platform, Makefile's MAINSTACK). The parser's own limit is 256 levels
-   (odex_parse.cpp max_expression_depth, long operator chains included) and an inlined user function adds at
-   most its 64 nodes at a call; a level costs about 0.7 KB of stack, 5 KB under AddressSanitizer, so 1024 fits
-   all of them. */
-constexpr int MAX_TREE_DEPTH = 1024;
 constexpr int DOUBLE_BYTES = 8;
 constexpr int INT_BYTES = 4;
 /* what one diagnostic is cut to */
@@ -363,16 +359,11 @@ struct Lowering {
                 return false;
             }
             module_function = found->second;
-            parameter(MIR_T_P);
-            parameter(MIR_T_P);
-            parameter(MIR_T_P);
-            if (module_function->kind == IrFunction::Kind::Equation) parameter(MIR_T_P);
-            for (int a = 0; a < module_function->doubles; ++a) parameter(MIR_T_D);
-        } else {
-            if (target.parser) parameter(MIR_T_P);
-            for (int a = 0; a < target.doubles; ++a) parameter(MIR_T_D);
-            if (target.index) parameter(MIR_T_I32);
         }
+        const ir::CallShape shape = ir::call_shape(target, module_function);
+        for (size_t p = 0; p < shape.before.size(); ++p) parameter(MIR_T_P);
+        for (int a = 0; a < shape.doubles; ++a) parameter(MIR_T_D);
+        if (shape.index) parameter(MIR_T_I32);
         name_parameters();
         name = "proto_" + target.name;
         MIR_type_t result = MIR_T_D;
@@ -387,8 +378,8 @@ struct Lowering {
     MIR_op_t operand(int node, int depth)
     {
         if (!failure.empty()) return number(0.0);
-        if (depth > MAX_TREE_DEPTH) {
-            failure = xpp::format("an expression nested deeper than {}", MAX_TREE_DEPTH);
+        if (depth > ir::MAX_TREE_DEPTH) {
+            failure = xpp::format("an expression nested deeper than {}", ir::MAX_TREE_DEPTH);
             return number(0.0);
         }
         const IrNode &n = ir.nodes[static_cast<size_t>(node)];
@@ -468,6 +459,18 @@ struct Lowering {
         emit(code, reg(r), a, b);
         return reg(r);
     }
+    /* a hidden parameter's operand in a call: the caller's own pointers, and null for the RPN and the output */
+    MIR_op_t hidden_operand(ir::Hidden h)
+    {
+        switch (h) {
+        case ir::Hidden::Constants: return reg(c);
+        case ir::Hidden::Variables: return reg(v);
+        case ir::Hidden::Parser: return reg(parser);
+        case ir::Hidden::Rpn:
+        case ir::Hidden::Output: return MIR_new_int_op(ctx, 0);
+        }
+        return MIR_new_int_op(ctx, 0);
+    }
     MIR_op_t call(const IrNode &n, int depth)
     {
         if (!declare(n.callee)) return number(0.0);
@@ -478,19 +481,13 @@ struct Lowering {
         operands.push_back(MIR_new_ref_op(ctx, protos[k]));
         operands.push_back(MIR_new_ref_op(ctx, targets[k]));
         operands.push_back(reg(r));
-        if (target.address == nullptr) {
-            operands.push_back(reg(c));
-            operands.push_back(reg(v));
-            operands.push_back(reg(parser));
-            if (function_named.at(target.name)->kind == IrFunction::Kind::Equation) operands.push_back(MIR_new_int_op(ctx, 0));
-        } else if (target.parser) {
-            operands.push_back(reg(parser));
-        }
+        const ir::CallShape shape = ir::call_shape(target, target.address == nullptr ? function_named.at(target.name) : nullptr);
+        for (ir::Hidden h : shape.before) operands.push_back(hidden_operand(h));
         for (int a : ir.arguments(n)) {
             const MIR_op_t value = in_register(operand(a, depth + 1));
             operands.push_back(value);
         }
-        if (target.address != nullptr && target.index) operands.push_back(MIR_new_int_op(ctx, n.index));
+        if (shape.index) operands.push_back(MIR_new_int_op(ctx, n.index));
         emit(MIR_new_insn_arr(ctx, MIR_CALL, operands.size() - base, operands.data() + base));
         for (size_t i = base + 3; i < operands.size(); ++i) done_with(operands[i]); /* after the prototype, the callee and the result */
         operands.resize(base);
@@ -673,11 +670,7 @@ struct Lowering {
     {
         parameters.clear();
         parameter_names.clear();
-        parameter(MIR_T_P, "c");
-        parameter(MIR_T_P, "v");
-        parameter(MIR_T_P, "S");
-        if (f.kind == IrFunction::Kind::Equation) parameter(MIR_T_P, "R");
-        if (f.kind == IrFunction::Kind::Rhs || f.kind == IrFunction::Kind::Jacobian) parameter(MIR_T_P, "o");
+        for (ir::Hidden h : ir::own_hidden(f)) parameter(MIR_T_P, ir::hidden_name(h));
         for (int a = 0; a < f.doubles; ++a) {
             name = xpp::format("a{}", a);
             parameter(MIR_T_D, name.c_str());
@@ -815,9 +808,7 @@ Result<std::unique_ptr<Program>> Program::compile(const IrModule &module, Place 
 
 Result<void *> Program::function(const std::string &name) const
 {
-    const auto found = state_->functions.find(name);
-    if (found == state_->functions.end()) return fail("MIR", "function not found: " + name, state_->place);
-    return found->second;
+    return native::function_at(state_->functions, name, state_->place, "MIR");
 }
 
 } // namespace xpp::mir

@@ -13,6 +13,7 @@
 #include "model_files.h"
 #include "odex.h"
 #include "xpp_error.h"
+#include "xpp_globals.h"
 #include "xpp_math.h"
 #include <algorithm>
 #include <bit>
@@ -310,23 +311,25 @@ TEST_CASE("test_compile")
     CHECK(m.compiler.ufun_programs[1].native==nullptr); /* g calls f */
     CHECK(m.compiler.ufun_programs[2].native!=nullptr);
     m.compiler.ufun_programs[0].rpn=function;
-    /* W715: translate_model leaves the programs interpreted, their purity known, and the compile on its thread
-       starts when it is due (W717: when the interpreter has done as much work as the compile costs); the core
-       thread takes the code once the thread is done (my_rhs), or waits for it (native_ready) */
+    /* W821: translate_model installs TinyCC's code at once (the run starts on it), and MIR's build is pending: due after as many
+       calls of TinyCC's code as its compile is worth (no processor to spare here); the core thread takes MIR's code once the
+       thread is done (my_rhs), and a run on threads keeps the code it has (native_ready) */
+    /* one processor (the build waits for the run's calls, not for a spare CPU), whatever the machine: the test's own counts decide */
+    const auto measured_threads=program.measure_physical_threads;
+    program.measure_physical_threads=[] { return 1u; };
     CHECK(xpp::translate_model(s).has_value());
-    CHECK(m.native_build && !m.native_build->started && !m.native_program && m.native_rhs==nullptr);
-    CHECK(m.programs[1].compiled && m.programs[1].native==nullptr);
+    CHECK(m.native_build && !m.native_build->started && m.native_program && m.native_program->compiler()==xpp::native::Compiler::TinyCC);
+    CHECK(m.programs[1].compiled && m.programs[1].native!=nullptr);
     CHECK(!pure_rhs_ready(s));
     xpp::build_native(s,false); /* not due: nothing starts */
     CHECK(m.native_build && !m.native_build->started);
-    s.parser.interpreted_ops=m.native_build->due;
-    xpp::build_native(s,false); /* due: the thread starts, the code is not taken before it is done */
-    CHECK(m.native_build && m.native_build->started);
-    m.native_build->finished.wait(false); /* the thread's own end, then the take a right-hand side would make */
+    s.parser.native_work=m.native_build->due_work;
+    /* due, with no processor to spare: the thread starts and the run waits for its code at once (W817), taken here */
     xpp::build_native(s,false);
-    CHECK(!m.native_build && m.native_program && m.programs[1].native!=nullptr);
-    CHECK(xpp::translate_model(s).has_value() && m.native_build && !m.native_program);
+    CHECK(!m.native_build && m.native_program && m.native_program->compiler()==xpp::native::Compiler::MIR && m.programs[1].native!=nullptr);
+    CHECK(xpp::translate_model(s).has_value() && m.native_build && m.native_program->compiler()==xpp::native::Compiler::TinyCC);
     CHECK(xpp::native_ready(s)==m.rhs_impurity.empty() && !m.native_build && m.native_program);
+    program.measure_physical_threads=measured_threads;
     s.numerics->compile=false;
     m.programs[0].rpn=number(0.1);
     CHECK(compile_model(s).has_value());

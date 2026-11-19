@@ -58,7 +58,7 @@
                 COM(FUN1TYPE,RANDOM_UNIFORM) ..., random_instruction)
      ENDEXP     the end: the program's value is the stack's top */
 #include "xpp_error.h"
-#include "xpp_mir.h"
+#include "native_code.h"
 #include "expr_ir.h"
 
 #include <array>
@@ -161,31 +161,33 @@ struct Program {
     std::vector<int> native_reads; /* variables read by this code and its user functions */
     bool array_pure = false; /* native code only uses c/v and immutable lookup tables */
     double (*native)(double *, double *, ParserState *, const int *) = nullptr;
+    std::uint64_t native_nodes = 0; /* the IR nodes of `native`'s function: what one call evaluates (ParserState::native_work) */
     bool compiled = false; /* translate_model made native code for it (W715): `native` once build_native built the model's code */
     bool in_rhs = false; /* compiled only inside the model's one right-hand side function (W708): no native of its own */
     /* the RPN was rewritten at run time (a user function redefined, a DAE guess edited): neither the native code
        nor the interpreter's form holds any more */
-    void forget_code() { native = nullptr; compiled = false; ops.clear(); }
+    void forget_code() { native = nullptr; native_nodes = 0; compiled = false; ops.clear(); }
 };
 
 /* A module MIR compiles on a thread of its own (W715; the programs' translate_model found native, or the exact
-   Jacobian's derivatives), from the IrModule the build holds, while the run goes on interpreted, bit for bit
-   the same. The thread starts once the interpreter has done the work of a short run (`due`, against
-   ParserState::interpreted_ops: W717, so a short run never pays for a thread), or at once for a run on threads
-   (native_ready); the core thread takes the finished Program at the start of a right-hand side
-   (my_rhs, build_native), never mid-evaluation. The thread is detached and holds the build with the Model (a
-   shared_ptr each): when the Model goes first (a reload, a quit while it compiles) the thread finishes on its own
-   and its result goes with the build. A run with no processor to spare waits for the thread at once it is
-   started (model_native.cpp, W817). */
+   Jacobian's derivatives), from the IrModule the build holds (W821: after TinyCC's code, which runs first, or while the run
+   goes on interpreted, bit for bit the same). The thread starts once the run has done its work (`due` against
+   ParserState::interpreted_ops, W717: a short run never pays for a thread; `due_work` against ParserState::native_work,
+   W821: TinyCC's code is the run's, counted in the nodes it evaluates), or at once for a run on threads (native_ready); the core thread
+   takes the finished Program at the start of a right-hand side (my_rhs, build_native), never mid-evaluation. The thread is
+   detached and holds the build with the Model (a shared_ptr each): when the Model goes first (a reload, a quit while it
+   compiles) the thread finishes on its own and its result goes with the build. A run with no processor to spare waits for
+   the thread at once it is started (model_native.cpp, W817). */
 struct NativeBuild {
     IrModule ir;            /* the thread's alone once started */
     Place place;            /* where MIR's error is reported */
     std::string rhs_symbol; /* the programs' build: the right-hand side's function (native_rhs), "" when there is none */
     bool equations = false; /* the programs' build: native_equations once built */
-    std::uint64_t due = 0;  /* the interpreted_ops count the thread starts at */
+    std::uint64_t due = 0;       /* the interpreted_ops count the thread starts at */
+    std::uint64_t due_work = 0;  /* the native_work count the thread starts at */
     bool started = false;
     std::atomic<bool> finished{false}; /* set by the thread once `result` is written; waited on with atomic wait */
-    Result<std::unique_ptr<mir::Program>> result;
+    Result<std::unique_ptr<native::Code>> result;
 };
 
 /* Derivatives of the exact Jacobian (W260, expr_derivative.h): entry k is
@@ -210,7 +212,7 @@ struct JacobianProgram {
 struct ExactJacobian {
     std::shared_ptr<expr::Symbolic> graph; /* the derivatives' values (expr_derivative.h), when the model has them */
     std::shared_ptr<NativeBuild> build;  /* MIR's compile of them, until taken (build_native) */
-    std::unique_ptr<mir::Program> code;
+    std::unique_ptr<native::Code> code;
     JacobianProgram states, time;
     std::vector<std::pair<int, JacobianProgram>> by_constant;
     /* why there is none, when there is no graph */

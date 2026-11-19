@@ -1,9 +1,12 @@
 #include "xpptest.h"
 #include "expr_ir.h"
 #include "xpp_math.h"
+#include "native_code.h"
 #include "xpp_mir.h"
 #include "xpp_error.h"
 #include <bit>
+#include <cstddef>
+#include <limits>
 #include <cstdint>
 #include <stdio.h>
 #include <algorithm>
@@ -86,9 +89,9 @@ void chunks()
         auto run = reinterpret_cast<void (*)(double *, double *, void *, double *)>(*address);
         v[3] = 0.0;
         std::fill(std::begin(o), std::end(o), 0.0);
-        xpp::mir::call(run, c, v, nullptr, nullptr);
+        xpp::native::call(run, c, v, nullptr, nullptr);
         CHECK(v[3] == 1.0 && o[0] == 0.0 && o[equations - 1] == 0.0); /* no output array: the fixed variable only */
-        xpp::mir::call(run, c, v, nullptr, o);
+        xpp::native::call(run, c, v, nullptr, o);
         bool all = true;
         for (int i = 0; i < equations; ++i) all = all && same(o[i], v[i % 3] * (i + 1.0) + 0.5);
         CHECK(all);
@@ -97,11 +100,10 @@ void chunks()
 }
 /* the copies of an array equation as one Repeat (W820): o[2 + n] = v[1 + n] * c[0 + n] - c[4] for n in 0..4, the constant a single
    one (stride 0) and a conditional value kept in a temporary of the body, each element the one the unrolled copy reads */
-void repeat_loop()
+/* the copies of one array equation: a Repeat of `copies` passes whose strided operands and output step with its counter */
+constexpr int repeat_copies = 5;
+IrModule repeat_module()
 {
-    const xpp::Place place{"model.ode", 1, 0, "x[j]' = x[j-1] * a[j] - b for j in 2..6"};
-    constexpr int copies = 5;
-    double c[5] = {1.5, -2.0, 0.25, 4.0, 0.125}, v[8] = {9.0, 0.5, -1.0, 3.0, 2.0, -0.75, 6.0, 1.0}, o[8] = {};
     IrModule m;
     const auto element = [&](IrOp kind, int index, int stride) {
         IrNode n;
@@ -115,18 +117,28 @@ void repeat_loop()
     f.name = "p_rhs";
     f.temporaries = 1;
     f.statements.push_back({IrStatement::Kind::ReturnWithoutOutput});
-    f.statements.push_back({IrStatement::Kind::RepeatBegin, copies});
+    f.statements.push_back({IrStatement::Kind::RepeatBegin, repeat_copies});
     f.statements.push_back({IrStatement::Kind::Temporary, 0, op(m, IrOp::Multiply, element(IrOp::Variable, 1, 1), element(IrOp::Constant, 0, 1))});
     f.statements.push_back({IrStatement::Kind::Output, 2, op(m, IrOp::Subtract, op(m, IrOp::Temporary, -1, -1, -1, 0), element(IrOp::Constant, 4, 0)), -1, -1, 1});
     f.statements.push_back({IrStatement::Kind::RepeatEnd});
     m.functions.push_back(f);
+    return m;
+}
+
+void repeat_loop()
+{
+    const xpp::Place place{"model.ode", 1, 0, "x[j]' = x[j-1] * a[j] - b for j in 2..6"};
+    constexpr int copies = repeat_copies;
+    double c[5] = {1.5, -2.0, 0.25, 4.0, 0.125}, v[8] = {9.0, 0.5, -1.0, 3.0, 2.0, -0.75, 6.0, 1.0}, o[8] = {};
+    IrModule m = repeat_module();
+    IrFunction &f = m.functions[0];
     auto program = xpp::mir::Program::compile(m, place);
     CHECK(program.has_value());
     if (!program) return;
     auto address = (*program)->function("p_rhs");
     CHECK(address.has_value());
     if (!address) return;
-    xpp::mir::call(reinterpret_cast<void (*)(double *, double *, void *, double *)>(*address), c, v, nullptr, o);
+    xpp::native::call(reinterpret_cast<void (*)(double *, double *, void *, double *)>(*address), c, v, nullptr, o);
     bool all = o[0] == 0.0 && o[1] == 0.0 && o[2 + copies] == 0.0;
     for (int n = 0; n < copies; ++n) all = all && same(o[2 + n], v[1 + n] * c[n] - c[4]);
     CHECK(all);
@@ -141,6 +153,103 @@ void repeat_loop()
     IrModule empty = m;
     empty.functions[0].statements[1].index = 0;
     CHECK(!xpp::mir::Program::compile(empty, place));
+    /* the same module, compiled by TinyCC's text, refused the same way */
+    CHECK(!xpp::native::Code::compile(outside, xpp::native::Compiler::TinyCC, place));
+    CHECK(!xpp::native::Code::compile(empty, xpp::native::Compiler::TinyCC, place));
+}
+
+double with_index(double x, int i) { return x * 0.5 + i; }
+
+/* W821: a module's functions give the same bits from TinyCC's C text as from MIR's code. Every Rhs, Jacobian, User and Equation
+   function runs on the same inputs (finite, zeros, a NaN and infinities, drawn in a fixed order) and writes and returns the same
+   values; the module is one a model's can be (the Repeat's strides, a loop, a select, a guarded division, an external call with
+   an index, the calls of module functions). */
+void same_as_tinycc(const IrModule &m, const xpp::Place &place)
+{
+    auto mir_code = xpp::native::Code::compile(m, xpp::native::Compiler::MIR, place);
+    auto tiny_code = xpp::native::Code::compile(m, xpp::native::Compiler::TinyCC, place);
+    CHECK(mir_code.has_value());
+    if (!tiny_code) printf("%s\n", tiny_code.error().text().c_str());
+    CHECK(tiny_code.has_value());
+    if (!mir_code || !tiny_code) return;
+    const double specials[] = {0.0, -0.0, 1.0, -2.5, 0.75, 1e-300, 3e8, std::numeric_limits<double>::quiet_NaN(),
+                               std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()};
+    constexpr size_t kinds = std::size(specials);
+    unsigned seed = 20261119;
+    const auto draw = [&] {
+        seed = seed * 1103515245u + 12345u;
+        return specials[(seed >> 16) % kinds];
+    };
+    bool all = true;
+    for (const IrFunction &f : m.functions) {
+        auto mir_address = (*mir_code)->function(f.name), tiny_address = (*tiny_code)->function(f.name);
+        CHECK(mir_address.has_value() && tiny_address.has_value());
+        if (!mir_address || !tiny_address) return;
+        for (int trial = 0; trial < 60; ++trial) {
+            double c[8], v[8], o_mir[16] = {}, o_tiny[16] = {}, v_mir[8], v_tiny[8];
+            for (double &x : c) x = draw();
+            for (double &x : v) x = draw();
+            std::copy(std::begin(v), std::end(v), v_mir);
+            std::copy(std::begin(v), std::end(v), v_tiny);
+            const double a0 = draw(), a1 = draw();
+            double r_mir = 0.0, r_tiny = 0.0;
+            switch (f.kind) {
+            case IrFunction::Kind::Rhs:
+            case IrFunction::Kind::Jacobian: {
+                auto run = [](void *address, double *cc, double *vv, double *o) {
+                    xpp::native::call(reinterpret_cast<void (*)(double *, double *, void *, double *)>(address), cc, vv, nullptr, o);
+                };
+                run(*mir_address, c, v_mir, o_mir);
+                run(*tiny_address, c, v_tiny, o_tiny);
+                break;
+            }
+            case IrFunction::Kind::Equation:
+                r_mir = xpp::native::call(reinterpret_cast<double (*)(double *, double *, void *, const int *)>(*mir_address), c, v_mir, nullptr, nullptr);
+                r_tiny = xpp::native::call(reinterpret_cast<double (*)(double *, double *, void *, const int *)>(*tiny_address), c, v_tiny, nullptr, nullptr);
+                break;
+            case IrFunction::Kind::User:
+                if (f.doubles == 2) {
+                    using Fn = double (*)(double *, double *, void *, double, double);
+                    r_mir = xpp::native::call(reinterpret_cast<Fn>(*mir_address), c, v_mir, nullptr, a0, a1);
+                    r_tiny = xpp::native::call(reinterpret_cast<Fn>(*tiny_address), c, v_tiny, nullptr, a0, a1);
+                } else {
+                    using Fn = double (*)(double *, double *, void *, double);
+                    r_mir = xpp::native::call(reinterpret_cast<Fn>(*mir_address), c, v_mir, nullptr, a0);
+                    r_tiny = xpp::native::call(reinterpret_cast<Fn>(*tiny_address), c, v_tiny, nullptr, a0);
+                }
+                break;
+            }
+            bool same_bits = same(r_mir, r_tiny);
+            for (int k = 0; k < 8; ++k) same_bits = same_bits && same(v_mir[k], v_tiny[k]);
+            for (int k = 0; k < 16; ++k) same_bits = same_bits && same(o_mir[k], o_tiny[k]);
+            all = all && same_bits;
+        }
+    }
+    CHECK(all);
+}
+
+void tinycc_agrees()
+{
+    const xpp::Place place{"model.ode", 1, 0, "x[j]' = x[j-1] * a[j] - b for j in 2..6"};
+    /* the copies of an array equation, with an external call of an index, a select and an exp of a strided operand in them, and a
+       guarded division after them */
+    IrModule m = repeat_module();
+    m.zero_divisor = 2.23e-15;
+    m.callees.push_back({"exp", reinterpret_cast<const void *>(&xpp::math::exp), false, 1, false}); /* 0 */
+    m.callees.push_back({"with_index", reinterpret_cast<const void *>(&with_index), false, 1, true}); /* 1 */
+    const auto strided = [&](IrOp kind, int index, int stride) {
+        const int id = op(m, kind, -1, -1, -1, index);
+        m.nodes[static_cast<size_t>(id)].stride = stride;
+        return id;
+    };
+    IrFunction &f = m.functions[0];
+    const int indexed = call(m, 1, {strided(IrOp::Constant, 1, 1)});
+    m.nodes[static_cast<size_t>(indexed)].index = 2;
+    f.statements.insert(f.statements.end() - 1, {IrStatement::Kind::Output, 3, indexed, -1, -1, 1});
+    f.statements.insert(f.statements.end() - 1, {IrStatement::Kind::Output, 6, op(m, IrOp::Select, strided(IrOp::Constant, 2, 1), number(m, 1.5), op(m, IrOp::Variable, -1, -1, -1, 3)), -1, -1, 1});
+    f.statements.insert(f.statements.end() - 1, {IrStatement::Kind::Output, 0, call(m, 0, {strided(IrOp::Variable, 0, 1)}), -1, -1, 1});
+    f.statements.push_back({IrStatement::Kind::Output, 9, op(m, IrOp::GuardedDivide, op(m, IrOp::Constant, -1, -1, -1, 0), op(m, IrOp::Variable, -1, -1, -1, 3))});
+    same_as_tinycc(m, place);
 }
 } // namespace
 
@@ -220,21 +329,22 @@ TEST_CASE("test_mir")
         CHECK(rhs.has_value() && jacobian.has_value());
         if (rhs && jacobian) {
             auto run = reinterpret_cast<void (*)(double *, double *, void *, double *)>(*rhs);
-            xpp::mir::call(run, c, v, nullptr, nullptr); /* no output array: only the fixed variable */
+            xpp::native::call(run, c, v, nullptr, nullptr); /* no output array: only the fixed variable */
             CHECK(same(v[2], 0.5 / 2.23e-15));
             CHECK(o[0] == 0.0);
-            xpp::mir::call(run, c, v, nullptr, o);
+            xpp::native::call(run, c, v, nullptr, o);
             /* the sum is 3.0 * (1 + 2 + 3), nonzero: the else arm u0(v[0], total) = (total + v0) * 1.25 / v0 */
             const double total = ((3.0 * 1.0 + 0.0) + 3.0 * 2.0) + 3.0 * 3.0;
             CHECK(same(o[0], (total + 0.25) * 1.25 / 0.25));
             CHECK(o[1] == 2.0); /* c[2] is 7, not 0: the select takes its third operand */
             auto derivative = reinterpret_cast<void (*)(double *, double *, void *, double *)>(*jacobian);
-            xpp::mir::call(derivative, c, v, nullptr, o);
+            xpp::native::call(derivative, c, v, nullptr, o);
             CHECK(same(o[0], 4.0 - 0.5));
         }
         CHECK(!(*program)->function("absent"));
     }
 
+    same_as_tinycc(m, place); /* the module of every construct, through TinyCC's text as through MIR's code */
     /* the errors are values at the place, and a failed compile leaves nothing behind that poisons the next
        (a call of a function the module lacks; a name MIR refuses as repeated; a tree too deep to lower) */
     IrModule undefined = m;
@@ -273,9 +383,10 @@ TEST_CASE("test_mir")
     if (next) {
         auto address = (*next)->function("seven");
         CHECK(address.has_value());
-        if (address) CHECK(xpp::mir::call(reinterpret_cast<double (*)(void *, void *, void *)>(*address), nullptr, nullptr, nullptr) == 7.0);
+        if (address) CHECK(xpp::native::call(reinterpret_cast<double (*)(void *, void *, void *)>(*address), nullptr, nullptr, nullptr) == 7.0);
     }
     chunks();
     repeat_loop();
+    tinycc_agrees();
     TEST_REPORT("MIR");
 }

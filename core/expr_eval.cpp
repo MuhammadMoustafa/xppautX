@@ -14,7 +14,7 @@
 #include "expr_program.h"
 #include "xpp_error.h"
 #include "xpp_text.h"
-#include "xpp_mir.h"
+#include "native_code.h"
 
 #include <algorithm>
 #include <utility>
@@ -300,7 +300,8 @@ double run(const expr::Op *code, const expr::Op *op, ParserState &p)
         const Program &function=p.compiler->ufun_programs[o.a];
         if(function.native){
           /* the bridge drops the arguments itself (model_native.cpp h_end) */
-          value=mir::call(function.native,constants,variables,const_cast<ParserState *>(&p),function.rpn.data());
+          p.native_work+=function.native_nodes;
+          value=native::call(function.native,constants,variables,const_cast<ParserState *>(&p),function.rpn.data());
         }else if(const expr::Op *body=instructions(p,function,n)){
           p.interpreted_ops+=function.ops.size();
           value=run(body,body,p);
@@ -398,8 +399,10 @@ double run(const expr::Op *code, const expr::Op *op, ParserState &p)
 
 double evaluate(ParserState &p, const Program &code)
 {
-  if (code.native)
-    return mir::call(code.native,p.constants.data(),p.variables.data(),&p,code.rpn.data());
+  if (code.native) {
+    p.native_work+=code.native_nodes;
+    return native::call(code.native,p.constants.data(),p.variables.data(),&p,code.rpn.data());
+  }
   const expr::Op *ops=instructions(p,code,-1);
   if(!ops)return 0.0;
   p.interpreted_ops+=code.ops.size();
@@ -420,7 +423,7 @@ double evaluate_pure(const ParserState &p, const Program &code, double *constant
 {
   /* The native function's signature takes the ParserState (the helpers read its tables and, for the general
      programs, its stacks); an array_pure one never writes through it. */
-  return mir::call(code.native,constants,variables,const_cast<ParserState *>(&p),code.rpn.data());
+  return native::call(code.native,constants,variables,const_cast<ParserState *>(&p),code.rpn.data());
 }
 
 void evaluate_derivatives(const std::vector<TABULAR> &tables, const expr::Symbolic &graph, const JacobianProgram &p, const double *c, const double *v,

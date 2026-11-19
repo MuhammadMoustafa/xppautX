@@ -86,12 +86,24 @@ struct Fixture {
         CHECK(compile_model(*session).has_value());
         if (!xpp::ensure_exact_jacobian(*session)) return false;
         xpp::Session &s = *session;
-        CHECK(model->jacobian.build && !model->jacobian.states.function);
+        /* W821: TinyCC's functions are in use from the start, MIR's build is pending; the graph's values are the reference, read
+           with the functions taken away */
+        CHECK(model->jacobian.build && model->jacobian.code && model->jacobian.code->compiler()==xpp::native::Compiler::TinyCC && model->jacobian.states.function);
         const double point[2] = {0.3, 0.7}, fxy[2] = {f(0, 0.3, 0.7), 0};
-        double interpreted[4], compiled[4];
+        double interpreted[4], tiny[4], compiled[4];
+        auto &j = model->jacobian;
+        const auto states = j.states.function, time = j.time.function;
+        j.states.function = nullptr;
+        j.time.function = nullptr;
+        for (auto &[k, column] : j.by_constant) column.function = nullptr;
         xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, interpreted);
+        j.states.function = states;
+        j.time.function = time;
+        xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, tiny);
+        for (int k = 0; k < 4; ++k) CHECK(std::bit_cast<std::uint64_t>(interpreted[k]) == std::bit_cast<std::uint64_t>(tiny[k]));
+        s.parser.native_work = model->jacobian.build->due_work; /* MIR's build is due after its work */
         xpp::build_native(s, true);
-        CHECK(!model->jacobian.build && model->jacobian.states.function);
+        CHECK(!model->jacobian.build && model->jacobian.code->compiler() == xpp::native::Compiler::MIR);
         xpp::exact_jacobian(s, *s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, compiled);
         for (int k = 0; k < 4; ++k) CHECK(std::bit_cast<std::uint64_t>(interpreted[k]) == std::bit_cast<std::uint64_t>(compiled[k]));
         return true;

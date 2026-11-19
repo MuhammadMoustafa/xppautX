@@ -29,7 +29,7 @@
 #include "xpp_fs.h"
 #include "model_file_types.h"
 #include "simplenet.h"
-#include "xpp_mir.h"
+#include "native_code.h"
 #include "expr_program.h"
 #include "model_parts.h"
 #include "expr_compiler.h"
@@ -139,14 +139,16 @@ struct Model final : NameIndex {
      takes the next one. An unused index has "" and no program. */
   std::vector<std::string> formulas;
   std::vector<Program> programs;
-  /* W258: executable code has exactly this Model's lifetime. */
-  std::unique_ptr<mir::Program> native_program;
+  /* W258: executable code has exactly this Model's lifetime (W821: the code in use, of either compiler). */
+  std::unique_ptr<native::Code> native_program;
   /* translate_model: the right-hand side in its order as one function: the
      fixed variables' values into the variables v (W468), then, given ydot
      and when native_equations, the equations' into ydot (W469); none when
      a fixed variable is interpreted, or when there is none and
      native_equations is false */
   void (*native_rhs)(double *c, double *v, ParserState *S, double *ydot)=nullptr;
+  /* the IR nodes native_rhs evaluates per call (ParserState::native_work) */
+  std::uint64_t native_rhs_nodes=0;
   /* native_rhs writes the equations: each is native, and no network or DAE
      runs between them and the fixed variables */
   bool native_equations=false;

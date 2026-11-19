@@ -236,6 +236,11 @@ struct ParserState {
      each index, a called function's at each call): what says when a native build is due (model_native.cpp
      NativeBuild) */
   std::uint64_t interpreted_ops = 0;
+  /* the node evaluations of native code the run made on the core thread: each call adds the IR nodes of the function it runs
+     (Program::native_nodes, Model::native_rhs_nodes), so a model of many small equations and one of one native right-hand side
+     count alike. What says when MIR's build is worth its compile while TinyCC's code runs (model_native.cpp
+     NATIVE_EVALUATIONS_BEFORE_BUILD) */
+  std::uint64_t native_work = 0;
   /* the Model builder's count of variables read (in_vars) and the named
      auxiliary variables (naux of aux_names) (form_ode.cpp) */
   struct {

@@ -7,7 +7,7 @@
 #include "expr_ir.h"
 #include "expr_program.h"
 #include "expr_tables.h"
-#include "xpp_mir.h"
+#include "native_code.h"
 #include "xpp_util.h"
 #include "xpp_text.h"
 #include "xpp_math.h"
@@ -27,6 +27,7 @@
 #include <cstddef>
 #include <expected>
 #include <format>
+#include <limits>
 #include <memory>
 #include <new>
 #include <tuple>
@@ -1038,36 +1039,136 @@ std::string subsystem_joined_by(const SessionParts &s)
     return rhs_impurity(s);
 }
 
-/* when the interpreter has done the work that makes a build worth starting (ParserState::interpreted_ops, the
-   ops a build is due after), and whether the compile runs beside the run. A processor to spare: the compile is on
-   a thread that costs the run nothing but the thread's start and its end with the process, about 0.25 ms (W717,
-   measured: the memory the compile touches), which a run of a few milliseconds would feel and a long one does not;
-   a million interpreted instructions is a step of a large model (mu26's 0.8 M), or a small model's whole run with
-   its nullclines (lecar's 1 M), and a longer run pays at most their interpretation (some 8 M instructions, a
-   millisecond) before its code is on its way. A build that waits for the compile at the thread's cost (the
-   ski-rental trade) was measured and rejected there: mu26's 400 time units lost 18% waiting for a compile the thread
-   would have made in the first 2%.
-   No processor to spare (the run is kept to one, by taskset or a cpuset, as the comparison's are: the thread and the
-   run share it, W817): the compile is paid by the run, and a run that goes on interpreting while it compiles does
-   its steps at the interpreter's price for the compile's whole length (lecdiff1600: 10.1 G instructions, 8.1 G
-   without the thread, 7.3 G with the build at once) and one that ends first has paid for a compile it never used
-   (clustor's 2.2 G, the interpreter alone 1.4 G). So the build is made by the run, at once it is due, and due after
-   a hundredth of its cost: MIR costs some 30-60 k instructions a node and the interpreter some 20 an op, so 100
-   ops a node bounds what a run that ends first wastes at a few percent of the compile. Measured on one pinned CPU
-   (instructions; at once / 100 / 400 / 1500 ops a node): lecdiff1600 7.25 / 7.32 / 7.50 / 8.13 G, mu26 141 / 146 /
-   160 / 209 M, lecdiff200 447 / 456 / 477 / 558 M, izh_2003_rs 16.2 / 16.4 / 17.0 / 19.3 M, lecar 19.5 / 19.7 /
-   20.3 / 22.6 M (lecar's whole run is 8 M of interpretation against MIR's 4 M of set-up and compile: the build
-   saves it nothing, and no node count tells it from izh_2003_rs, a model of 71 nodes whose run is 17 M). */
+/* The tiers (W821). TinyCC compiles a model's code at once, on the core thread (compile_programs, make_jacobian), and a run starts
+   on it: the work it does is counted in the IR nodes each call evaluates (ParserState::native_work). MIR's build follows
+   (pending_build): with a processor to spare it starts on its thread at once and takes over at the next right-hand side, as
+   before; with none, the thread and the run would share one CPU, so the build is due after the run has evaluated the whole
+   model NATIVE_EVALUATIONS_BEFORE_BUILD times with TinyCC's code: MIR's compile costs some 30-60 k instructions a node, and a
+   model's whole evaluation some few instructions a node, so the break-even is a count of whole evaluations, whatever the
+   model's size (measured on one pinned CPU, see the constant).
+   Without TinyCC's code (the interpreter runs until MIR is ready) the rule before W821 holds (W717, W817): a processor to spare
+   starts the build after INTERPRETED_OPS_BEFORE_BUILD interpreted instructions; none, after INTERPRETED_OPS_PER_NODE_BEFORE_BUILD
+   ops a node (measured on one pinned CPU, instructions at once / 100 / 400 / 1500 ops a node: lecdiff1600 7.25 / 7.32 / 7.50 /
+   8.13 G, mu26 141 / 146 / 160 / 209 M, lecdiff200 447 / 456 / 477 / 558 M, izh_2003_rs 16.2 / 16.4 / 17.0 / 19.3 M, lecar 19.5 /
+   19.7 / 20.3 / 22.6 M). */
 constexpr std::uint64_t INTERPRETED_OPS_BEFORE_BUILD=1000000;
 constexpr std::uint64_t INTERPRETED_OPS_PER_NODE_BEFORE_BUILD=100;
+/* Measured (W821, instructions on one pinned CPU, `taskset -c 2`, the mean of 3 runs, in G; W617's binary, master, and this
+   build at the threshold 300 / 1000 / 2000 / 3000 evaluations; never = MIR never starts):
+     workload      W617   master   300    1000   2000   3000
+     clustor       0.845  1.454    1.507  1.497  1.500  1.501   (MIR starts at any of these: its 672 M compile is worth more than the run)
+     lecdiff200    0.402  0.479    0.350  0.381  0.397  0.395
+     mu26 euler    2.768  2.620    2.626  2.625  2.627  2.628
+     lecar         0.0268 0.0293   0.0308 0.0308 0.0310 0.0314 (never: 0.0237)
+     izh_2003_rs   0.0255 0.0246   0.0255 0.0257 0.0258 0.0260
+     lecdiff800    4.975  4.41     3.99   4.13   4.33   4.52
+     lecdiff1600   4.71   4.77     3.73   4.02   4.42   4.84
+     kuramot100    31.6   28.07    (never) 28.59 29.12  29.59
+     mu26 400      2.77   2.62     2.624  2.625  2.627  2.629
+   and on two pinned CPUs (`taskset -c 2,3`, the long workloads, 1000 evaluations): lecdiff800 W617 4.95 / master 5.03 / now 3.96 G,
+   lecdiff1600 4.67 / 6.05 / 3.65 G, kuramot100 31.6 / 28.2 / 28.1 G, mu26 400 2.77 / 2.68 / 2.64 G. The threshold is 1000: the
+   best of the four over the nine workloads; clustor and lecar are not met at any of them (see the report). A model's evaluation
+   is the native right-hand side's weight when it has one (ParserState::native_work counts it per call), else its programs'. */
+constexpr std::uint64_t NATIVE_EVALUATIONS_BEFORE_BUILD=1000;
+constexpr std::uint64_t NO_WORK_DUE=std::numeric_limits<std::uint64_t>::max();
+/* the IR nodes one run through a function evaluates, counted by their trees (a shared node counts at each use, as the work
+   is done): what one native call of the function costs in ParserState::native_work. A Repeat's body counts once per pass
+   (its count), a loop's once per pass when both bounds are numbers (the count they make; one for a computed bound), a
+   conditional's both arms (an upper bound): the array equations of one line are one loop, so the count is theirs. */
+std::uint64_t ir_size(const IrModule &ir, const IrFunction &f)
+{
+    const auto tree = [&](int root) {
+        std::uint64_t size = 0;
+        std::vector<int> pending{root};
+        while (!pending.empty()) {
+            const IrNode &n = ir.nodes[static_cast<size_t>(pending.back())];
+            pending.pop_back();
+            ++size;
+            if (n.op == IrOp::Call) {
+                for (int a : ir.arguments(n)) pending.push_back(a);
+            } else {
+                for (int a : n.args)
+                    if (a >= 0) pending.push_back(a);
+            }
+        }
+        return size;
+    };
+    std::uint64_t size = 0, factor = 1;
+    std::vector<std::uint64_t> outer; /* the factor outside each open Repeat or loop */
+    for (const IrStatement &s : f.statements) {
+        const int roots[2] = {s.value, s.other};
+        switch (s.kind) {
+        case IrStatement::Kind::RepeatBegin:
+            outer.push_back(factor);
+            factor *= static_cast<std::uint64_t>(std::max(1, s.index));
+            break;
+        case IrStatement::Kind::LoopBegin: {
+            size += factor * (roots[0] >= 0 ? tree(roots[0]) : 0) + factor * (roots[1] >= 0 ? tree(roots[1]) : 0);
+            outer.push_back(factor);
+            std::uint64_t count = 1;
+            if (roots[0] >= 0 && roots[1] >= 0 && ir.nodes[static_cast<size_t>(roots[0])].op == IrOp::Number && ir.nodes[static_cast<size_t>(roots[1])].op == IrOp::Number) {
+                const long long low = static_cast<long long>(ir.nodes[static_cast<size_t>(roots[0])].number), high = static_cast<long long>(ir.nodes[static_cast<size_t>(roots[1])].number);
+                count = high >= low ? static_cast<std::uint64_t>(high - low + 1) : 1;
+            }
+            factor *= count;
+            break;
+        }
+        case IrStatement::Kind::RepeatEnd:
+        case IrStatement::Kind::LoopEnd:
+            if (roots[0] >= 0) size += factor * tree(roots[0]);
+            factor = outer.back();
+            outer.pop_back();
+            break;
+        default:
+            for (int r : roots)
+                if (r >= 0) size += factor * tree(r);
+            break;
+        }
+    }
+    if (f.result >= 0) size += tree(f.result);
+    return size;
+}
+
 bool spare_processor() { return program.physical_threads()>1; }
-std::shared_ptr<NativeBuild> pending_build(const SessionParts &s, IrModule ir, Place place)
+std::shared_ptr<NativeBuild> pending_build(const SessionParts &s, IrModule ir, Place place, bool tier_one, std::uint64_t evaluation)
 {
     auto build=std::make_shared<NativeBuild>();
     build->ir=std::move(ir);
     build->place=std::move(place);
     build->due=s.parser.interpreted_ops+(spare_processor()?INTERPRETED_OPS_BEFORE_BUILD:INTERPRETED_OPS_PER_NODE_BEFORE_BUILD*build->ir.nodes.size());
+    build->due_work=!tier_one?NO_WORK_DUE:s.parser.native_work+(spare_processor()?0:NATIVE_EVALUATIONS_BEFORE_BUILD*evaluation);
     return build;
+}
+/* whether a pending build is due: the interpreter's work or TinyCC's calls have reached its count */
+bool due_now(const SessionParts &s, const NativeBuild &build)
+{
+    return s.parser.interpreted_ops>=build.due || s.parser.native_work>=build.due_work;
+}
+
+/* The programs' code placed in the model: each program's function and the right-hand side's, every address found before any is
+   set, so code that lacks one changes nothing; the code in use before (TinyCC's, when MIR's comes) is released by the
+   assignment, which no call runs across (the core thread, at the start of a right-hand side, or before the threads start) */
+Result<> place_programs(Model &m, std::unique_ptr<native::Code> &code, const std::string &rhs_symbol, bool equations)
+{
+    const auto entries=model_programs(m);
+    std::vector<std::pair<Program *,void *>> functions;
+    for (const auto &entry:entries) {
+        if (!entry.code->compiled) continue;
+        auto address=code->function(entry.symbol);
+        if (!address) return std::unexpected(address.error());
+        functions.emplace_back(entry.code,*address);
+    }
+    void *rhs=nullptr;
+    if (!rhs_symbol.empty()) {
+        auto address=code->function(rhs_symbol);
+        if (!address) return std::unexpected(address.error());
+        rhs=*address;
+    }
+    for (const auto &[program,address]:functions) program->native=reinterpret_cast<decltype(Program::native)>(address);
+    if (!rhs_symbol.empty()) m.native_rhs=reinterpret_cast<decltype(Model::native_rhs)>(rhs);
+    m.native_equations=equations;
+    m.native_program=std::move(code);
+    return {};
 }
 
 Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::vector<ModelProgram> &entries)
@@ -1076,6 +1177,7 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
     /* every program from its RPN again: no code of before, native or the interpreter's (a test rewrites RPN and translates) */
     for (const auto &entry:entries) { entry.code->forget_code(); entry.code->in_rhs=false; entry.code->array_pure=false; entry.code->native_reads.clear(); }
     m.native_rhs=nullptr;
+    m.native_rhs_nodes=0;
     m.native_equations=false;
     m.native_program.reset();
     m.native_build.reset();
@@ -1103,6 +1205,7 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
         entry.code->array_pure=entry.user_index<0 && g.array_pure;
         if (entry.user_index<0) entry.code->native_reads.assign(g.variable_reads.begin(),g.variable_reads.end());
         if (g.loops>0 && entry.user_index<0) g.called.emplace(entry.code,entry.symbol);
+        entry.code->native_nodes=ir_size(g.ir,g.ir.functions.back());
         emitted.push_back(&entry);
         function_of.push_back(g.ir.functions.size()-1);
     }
@@ -1125,8 +1228,10 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
         g.dynamic=false;
         const std::span<const Program> equation_programs=equations?std::span<const Program>{m.programs.data(),static_cast<size_t>(m.node)}:std::span<const Program>{};
         auto r=g.rhs({m.programs.data()+m.node,static_cast<size_t>(m.fix_var)},m.node+1,equation_programs,rhs_symbol);
-        if (r) g.ir.functions.push_back(std::move(*r));
-        else {
+        if (r) {
+            m.native_rhs_nodes=ir_size(g.ir,*r);
+            g.ir.functions.push_back(std::move(*r));
+        } else {
             warnings.push_back(r.error());
             rhs=equations=false;
         }
@@ -1162,10 +1267,22 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
     if (emitted.empty() && !rhs) return warnings;
     for (const auto *entry:emitted) entry->code->compiled=true;
     for (Program *code:in_rhs) code->in_rhs=true;
-    m.native_build=pending_build(s,std::move(g.ir),entries.front().place);
+    const Place place=entries.front().place;
+    const std::string placed_rhs=rhs?rhs_symbol:std::string();
+    /* TinyCC's code first (W821): the run starts on it at once; MIR's build follows */
+    bool tier_one=false;
+    if (auto tiny=native::Code::compile(g.ir,native::Compiler::TinyCC,place)) {
+        if (auto placed=place_programs(m,*tiny,placed_rhs,equations)) tier_one=true;
+        else log(XPP_LOG_WARN,"{}; MIR compiles instead\n",placed.error().text());
+    } else log(XPP_LOG_WARN,"{}; MIR compiles instead\n",tiny.error().text());
+    /* one evaluation of the model: the right-hand side when it is one native function, else the programs that run each time */
+    std::uint64_t evaluation=0;
+    if (rhs) evaluation=m.native_rhs_nodes;
+    else for (const auto *entry:emitted) evaluation+=entry->code->native_nodes;
+    m.native_build=pending_build(s,std::move(g.ir),place,tier_one,evaluation);
     if (rhs) m.native_build->rhs_symbol=rhs_symbol;
     m.native_build->equations=equations;
-    log(XPP_LOG_INFO,"Compiled {} of {} programs ({} nodes)\n",compiled_count,entries.size(),m.native_build->ir.nodes.size());
+    log(XPP_LOG_INFO,"Compiled {} of {} programs ({} nodes{})\n",compiled_count,entries.size(),m.native_build->ir.nodes.size(),tier_one?", TinyCC's code in use":"");
     return warnings;
 }
 
@@ -1175,10 +1292,10 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
 void start_build(const SessionParts &s, std::shared_ptr<NativeBuild> build)
 {
     build->started=true;
-    log(XPP_LOG_INFO,"MIR compiles {} nodes on a thread, after {} interpreted instructions\n",build->ir.nodes.size(),s.parser.interpreted_ops);
+    log(XPP_LOG_INFO,"MIR compiles {} nodes on a thread, after {} interpreted instructions and {} native node evaluations\n",build->ir.nodes.size(),s.parser.interpreted_ops,s.parser.native_work);
     std::thread([build=std::move(build)]() mutable noexcept {
         try {
-            build->result=mir::Program::compile(build->ir,build->place);
+            build->result=native::Code::compile(build->ir,native::Compiler::MIR,build->place);
         } catch (const std::bad_alloc &) {
             out_of_memory("the model's native code");
         }
@@ -1194,7 +1311,7 @@ std::shared_ptr<NativeBuild> taken(const SessionParts &s, std::shared_ptr<Native
 {
     if (!pending) return nullptr;
     if (!pending->started) {
-        if (!wait && s.parser.interpreted_ops<pending->due) return nullptr;
+        if (!wait && !due_now(s,*pending)) return nullptr;
         start_build(s,pending);
         wait=wait||!spare_processor(); /* with no processor to spare the run waits for its compile */
     }
@@ -1204,65 +1321,67 @@ std::shared_ptr<NativeBuild> taken(const SessionParts &s, std::shared_ptr<Native
     return build;
 }
 
+/* a compile that failed (MIR's, or TinyCC's placed): logged once with its place; the code in use stays, and with none the
+   programs are interpreted (rhs_impurity says why) */
+void compile_failed(const SessionParts &s, const Error &error)
+{
+    Model &m=s.model();
+    log(XPP_LOG_WARN,"{}\n",error.text());
+    if (m.native_program) return;
+    for (const auto &entry:model_programs(m)) {entry.code->compiled=false;entry.code->native=nullptr;}
+    m.rhs_impurity=error.text();
+}
+
 /* the programs' code taken from their build (build_native) */
 void take_programs(const SessionParts &s, bool wait)
 {
     Model &m=s.model();
     const std::shared_ptr<NativeBuild> build=taken(s,m.native_build,wait);
     if (!build) return;
-    Result<std::unique_ptr<mir::Program>> &compiled=build->result;
     /* the programs by their names again, not by pointers kept since the translation: a vector of them may have
        grown (a derived parameter added, the browser's column), and a program edited since (dae_fun.cpp's guess)
        is no longer compiled */
-    const auto entries=model_programs(m);
-    const auto interpreted=[&](const Error &error) {
-        log(XPP_LOG_WARN,"{}\n",Error{"MIR",error.what,error.place}.text());
-        for (const auto &entry:entries) {entry.code->compiled=false;entry.code->native=nullptr;}
-        m.rhs_impurity="MIR: "+error.what;
-    };
-    if (!compiled) return interpreted(compiled.error());
-    for (const auto &entry:entries) {
-        if (!entry.code->compiled) continue;
-        auto address=(*compiled)->function(entry.symbol);
-        if (!address) return interpreted(address.error());
-        entry.code->native=reinterpret_cast<decltype(Program::native)>(*address);
-    }
-    if (!build->rhs_symbol.empty()) {
-        auto address=(*compiled)->function(build->rhs_symbol);
-        if (!address) return interpreted(address.error());
-        m.native_rhs=reinterpret_cast<decltype(Model::native_rhs)>(*address);
-    }
-    m.native_equations=build->equations;
-    m.native_program=std::move(*compiled);
-    log(XPP_LOG_INFO,"The native code is in use ({})\n",wait?"waited for":"built while the run went on");
+    if (!build->result) return compile_failed(s,build->result.error());
+    if (auto placed=place_programs(m,*build->result,build->rhs_symbol,build->equations); !placed) return compile_failed(s,placed.error());
+    log(XPP_LOG_INFO,"The native code is in use (MIR, {})\n",wait?"waited for":"built while the run went on");
 }
 
-/* the exact Jacobian's functions taken from their build (build_native): until then, and after a failure of MIR's
-   (logged), its derivatives are evaluated from their graph, bit for bit the same */
+/* the exact Jacobian's functions placed (place_programs' rule): each one's address first, then all set */
+Result<> place_jacobian(ExactJacobian &j, std::unique_ptr<native::Code> &code)
+{
+    std::vector<std::pair<JacobianProgram *,void *>> functions;
+    const auto address=[&](const std::string &name,JacobianProgram &p) -> Result<> {
+        auto found=code->function(name);
+        if (!found) return std::unexpected(found.error());
+        functions.emplace_back(&p,*found);
+        return {};
+    };
+    for (auto &[k,column]:j.by_constant)
+        if (auto r=address(xpp::format("j_c{}",k),column); !r) return r;
+    if (auto r=address("j_time",j.time); !r) return r;
+    if (auto r=address("j_states",j.states); !r) return r;
+    for (const auto &[p,fn]:functions) p->function=reinterpret_cast<decltype(JacobianProgram::function)>(fn);
+    j.code=std::move(code);
+    return {};
+}
+
+/* the exact Jacobian's functions taken from their build (build_native): until then, and after a failure of MIR's (logged),
+   the code in use stays, or its derivatives are evaluated from their graph, bit for bit the same */
 void take_jacobian(const SessionParts &s, bool wait)
 {
     ExactJacobian &j=s.model().jacobian;
     const std::shared_ptr<NativeBuild> build=taken(s,j.build,wait);
     if (!build) return;
-    Result<std::unique_ptr<mir::Program>> &compiled=build->result;
-    const auto interpreted=[&](const Error &error) {
-        log(XPP_LOG_WARN,"{}\n",Error{"MIR",error.what,error.place}.text());
+    const auto failed=[&](const Error &error) {
+        log(XPP_LOG_WARN,"{}\n",error.text());
+        if (j.code) return;
         j.states.function=nullptr;
         j.time.function=nullptr;
         for (auto &[k,column]:j.by_constant) column.function=nullptr;
     };
-    if (!compiled) return interpreted(compiled.error());
-    const auto function=[&](const std::string &name, JacobianProgram &p) {
-        const auto address=(*compiled)->function(name);
-        if (address) p.function=reinterpret_cast<decltype(JacobianProgram::function)>(*address);
-        else interpreted(address.error());
-        return address.has_value();
-    };
-    for (auto &[k,column]:j.by_constant)
-        if (!function(xpp::format("j_c{}",k),column)) return;
-    if (!function("j_time",j.time) || !function("j_states",j.states)) return;
-    j.code=std::move(*compiled);
-    log(XPP_LOG_INFO,"The exact Jacobian's native code is in use\n");
+    if (!build->result) return failed(build->result.error());
+    if (auto placed=place_jacobian(j,*build->result); !placed) return failed(placed.error());
+    log(XPP_LOG_INFO,"The exact Jacobian's native code is in use (MIR, {})\n",wait?"waited for":"built while the run went on");
 }
 
 }
@@ -1275,7 +1394,13 @@ void build_native(const SessionParts &s, bool wait)
 
 bool native_ready(const SessionParts &s)
 {
-    build_native(s,true);
+    Model &m=s.model();
+    /* a run on threads never has its code swapped while they run: with TinyCC's in use, MIR's build is dropped and the threads run
+       TinyCC's code (W821); otherwise the build is waited for, as before (W715) */
+    if (m.native_program && m.native_program->compiler()==native::Compiler::TinyCC) m.native_build.reset();
+    else take_programs(s,true);
+    if (m.jacobian.code && m.jacobian.code->compiler()==native::Compiler::TinyCC) m.jacobian.build.reset();
+    else take_jacobian(s,true);
     return s.parser.host->pure_rhs_ready(*s.parser.owner);
 }
 
@@ -1329,7 +1454,16 @@ ExactJacobian make_jacobian(const SessionParts &s, const std::vector<ModelProgra
         j.by_constant.emplace_back(k, JacobianProgram{nullptr, std::move(column.second), {}});
         program(j.by_constant.back().second, std::move(column.first), xpp::format("j_c{}", k));
     }
-    j.build = pending_build(s, std::move(g.ir), entries.empty() ? Place{} : entries.front().place);
+    const Place place = entries.empty() ? Place{} : entries.front().place;
+    /* TinyCC's code first (W821): the Jacobian runs on it from its first step; MIR's build follows */
+    bool tier_one = false;
+    if (auto tiny = native::Code::compile(g.ir, native::Compiler::TinyCC, place)) {
+        if (auto placed = place_jacobian(j, *tiny); placed) tier_one = true;
+        else log(XPP_LOG_WARN, "{}; MIR compiles instead\n", placed.error().text());
+    } else log(XPP_LOG_WARN, "{}; MIR compiles instead\n", tiny.error().text());
+    std::uint64_t evaluation=0; /* the derivatives' functions once: the Jacobian's whole evaluation */
+    for (const IrFunction &f:g.ir.functions) evaluation+=ir_size(g.ir,f);
+    j.build = pending_build(s, std::move(g.ir), place, tier_one, evaluation);
     j.graph = std::make_shared<expr::Symbolic>(std::move(derived->graph));
     log(XPP_LOG_INFO, "Made the exact Jacobian: {} values, {} derivatives ({} nodes to compile)\n", j.graph->size(), derived->entries.size(), j.build->ir.nodes.size());
     return j;

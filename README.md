@@ -441,3 +441,6 @@ The embedded MIR compiler (by Vladimir Makarov, W714, [#789](https://github.com/
 executable-memory requirements are documented in
 [third_party/mir/XPPAUTX.md](third_party/mir/XPPAUTX.md), with its licence in
 [LICENSE](third_party/mir/LICENSE), to be shipped with the binaries.
+
+The embedded TinyCC (mob, by Fabrice Bellard and Michael Matz, W254, [#311](https://github.com/MuhammadMoustafa/xppautX/issues/311), W821 [#902](https://github.com/MuhammadMoustafa/xppautX/issues/902)) is LGPL-2.1 licensed: it compiles a model's code first, so a run starts at once, and its source is vendored unmodified in
+[third_party/tinycc](third_party/tinycc), with its licence in [COPYING](third_party/tinycc/COPYING), to be shipped with the binaries; the object files are built from it by this repository's Makefile, and the source of the binaries is this repository.

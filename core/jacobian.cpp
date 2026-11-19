@@ -19,7 +19,7 @@
 #include "model_native.h"
 #include "xpp_mem.h"
 #include "expr_program.h"
-#include "xpp_mir.h"
+#include "native_code.h"
 
 namespace xpp {
 
@@ -39,7 +39,7 @@ std::span<const double> entries(const RunParts &s, JacobianScratch &scratch, con
   v[0] = t;
   std::copy_n(x, m.node, v.begin() + 1);
   /* the helpers only read the Session (its tables); until MIR's code is built, the graph (W717) */
-  if (p.function) mir::call(p.function, c, v.data(), &s.parser, out.data());
+  if (p.function) native::call(p.function, c, v.data(), &s.parser, out.data());
   else evaluate_derivatives(s.tables, *m.jacobian.graph, p, c, v.data(), scratch.graph, out);
   for (size_t k = 0; k < out.size(); k++) {
     const int row = p.rows[k];

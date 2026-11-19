@@ -20,7 +20,7 @@
 #include "model_native.h"
 #include "expr_program.h"
 #include "run_parts.h"
-#include "xpp_mir.h"
+#include "native_code.h"
 
 /* ---- the networks a right-hand side evaluates (simplenet.h: the Model's networks, read by simplenet.cpp) ---- */
 namespace xpp {
@@ -351,7 +351,8 @@ template <class Set, class Evaluate>
 void fixed_values(const xpp::Model &m, double *c, double *v, xpp::ParserState *s, Set &&set, Evaluate &&evaluate)
 {
   if (m.native_rhs) {
-    xpp::mir::call(m.native_rhs,c,v,s,nullptr);
+    s->native_work+=m.native_rhs_nodes;
+    xpp::native::call(m.native_rhs,c,v,s,nullptr);
     return;
   }
   for (int i=m.node;i<m.node+m.fix_var;++i) set(i+1,evaluate(m.programs[i]));
@@ -373,7 +374,8 @@ void rhs_order(const xpp::Model &m, double t, const double *y, double *ydot, dou
      and writes nothing they do (do_daes only records that no DAE failed) */
   if (m.native_equations) {
     between();
-    xpp::mir::call(m.native_rhs,c,v,s,ydot);
+    s->native_work+=m.native_rhs_nodes;
+    xpp::native::call(m.native_rhs,c,v,s,ydot);
     return;
   }
   fixed_values(m,c,v,s,set,evaluate);
