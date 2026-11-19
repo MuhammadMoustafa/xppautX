@@ -8617,6 +8617,38 @@ def check_settings_during_run():
 check_settings_during_run()
 
 
+# W825 (#906): session.get_state sent during a computation answers its session.state, the values the run
+# runs with, before its done, as at the end of every command. The state is waited for as the command's own
+# answer: the run's first stored row also sends a session.state, which lands in the stream at a moment the
+# client does not control, so the check first waits for the run's second job.progress (a later step, past
+# that row) and only then reads the answer to its own get_state.
+def check_state_answer_during_run():
+    is_prog = lambda e: e.get('ev') == 'job.progress'
+    p, r, snd, col, _ = launch_server()
+    try:
+        col(is_done)
+        snd(cmd='run.configure', total_time=1e7)
+        col(is_done)
+        snd(cmd='run.initial')
+        col(is_prog, timeout=30 * SLOW)
+        col(is_prog, timeout=30 * SLOW)
+        snd(cmd='value.set_parameters', values={'iapp': 0.3})  # kept for after the run: the state shows 0.05
+        snd(cmd='session.get_state')
+        evs, end = col(is_done, timeout=30 * SLOW)
+        states = [e for e in evs if is_state(e)]
+        check('W825: session.get_state during a run sends its session.state (the values it runs with) before its done',
+              end is not None and end.get('status') == 'ok' and len(states) == 1
+              and dict(states[0]['pars']).get('iapp') == 0.05,
+              'events %s' % [e.get('ev') for e in evs])
+        snd(cmd='run.stop')
+        col(is_done, timeout=30 * SLOW)
+    finally:
+        stop_server(p, r, snd)
+
+
+check_state_answer_during_run()
+
+
 # W95: a command sent right behind one that asks, before the client saw the
 # question, is kept for after that command, never lost: its own done comes
 # (the key g opens a menu; the state behind it runs once the menu is answered)

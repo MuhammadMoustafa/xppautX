@@ -1356,7 +1356,9 @@ in the input.
     `value.import_file`, `autox.configure_*`; "Action kinds"). The computation
     runs on with the values it started with (the right-hand side, the
     integrator and autoX read nothing the option changed); `session.state` sent
-    meanwhile still shows those. When the running command ends (its
+    meanwhile still shows those, and a `session.get_state` taken during the run
+    sends its `session.state` then its `done` at the check that takes it (W825).
+    When the running command ends (its
     `done`), each option taken runs as a command of its own, in the
     order sent and before any other line: it applies then (an invalid
     one gets its `session.message` `error` then, as a refused command's), with

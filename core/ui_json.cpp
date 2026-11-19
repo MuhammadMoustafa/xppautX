@@ -423,12 +423,14 @@ bool paths_allowed(bool played, const char *line)
     return played || (!session.silent && !page_active());
 }
 
-/* a registry command run at once, during a computation (the state, a player control): its done is sent here */
+/* a registry command run at once, during a computation (the state, a player control): its session.state and done are sent
+   here, the state first, as at the end of every command (W825: a state answer taken during a run was sent without one) */
 void run_now(xpp::Session &s, const char *line)
 {
     const xpp::Place place = j_command_place();
     const xpp::Result<std::string> request = request_of(line, place);
     const xpp::Result<std::string> result = request ? xpp::command::run(s, request->c_str(), place, false) : std::unexpected(request.error());
+    send_state(s);
     std::string event = xpp::command::done(request ? request->c_str() : "{}", result, false);
     send_buf(event);
 }

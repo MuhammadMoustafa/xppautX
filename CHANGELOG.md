@@ -17,6 +17,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Fixed
 
+- A `session.get_state` taken during a computation sends its `session.state` before its `done`, as every command does, showing the values the run runs with. Before, it sent only the `done`, and a state event came from the run's first stored row, whenever that fell in the client's window (W825, [#906](https://github.com/MuhammadMoustafa/xppautX/issues/906)).
 - The native code of a large exact Jacobian compiles in time linear in its size (W816, [#897](https://github.com/MuhammadMoustafa/xppautX/issues/897)): the terms are written as each is computed, in an order that holds few values at once, so MIR's register allocation no longer grows quadratically: a 1000-state ring's Jacobian compiles in 0.4 s (was 2.5 s), 2000 in 0.8 s (was 15.9 s), 5000 in 2.3 s (about 18 min); the values are unchanged.
 
 ### Changed
