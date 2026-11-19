@@ -357,10 +357,11 @@ int solve_boundary(std::ptrdiff_t *ifst, iap_type *iap, rap_type *rap, double *p
 int transpose_right_hand_side(double *ff, double *fa, std::ptrdiff_t *ntst, std::ptrdiff_t *nrow, std::ptrdiff_t *ndxloc);
 int build_right_hand_side(std::ptrdiff_t *ndim, xpp::AutoxProblem *ips, std::ptrdiff_t *na, std::ptrdiff_t *ncol, std::ptrdiff_t *nbc, std::ptrdiff_t *nint, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, std::ptrdiff_t *ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, double *rds, double *fa, double *fc, double *rlcur, double *rlold, double *rldot, double *ups, double *uoldps, double *udotps, double *upoldp, double *dups, double *dtm, double *thl, double *thu, double *p0, double *p1);
 int solve_bordered_block_diagonal(AutoxRun &run, double *fa, double *fc, double *p0, double *p1, std::ptrdiff_t *ifst, std::ptrdiff_t *idb, std::ptrdiff_t *nllv, double *det, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nbc, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc);
-int zero_right_hand_side(double *fa, double *fc, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nrc);
-int condense_right_hand_side(AutoxRun &run, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *fa, double *fc, std::ptrdiff_t *irf, std::ptrdiff_t *icf);
-int copy_condensed_system(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *ncb, double *b, std::ptrdiff_t *nrc, double *c, double *a1, double *a2, double *bb, double *cc, double *c2, std::ptrdiff_t *irf);
-int copy_right_hand_side(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *nra, double *faa, double *fa, std::ptrdiff_t *irf);
+int zero_right_hand_side(double *fa, std::ptrdiff_t *nra, std::ptrdiff_t begin, std::ptrdiff_t end);
+int condense_right_hand_side(std::ptrdiff_t *nov, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, double *fa, std::ptrdiff_t *irf, std::ptrdiff_t *icf, std::ptrdiff_t begin, std::ptrdiff_t end);
+int condense_right_hand_side_conditions(std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *fa, double *fc, std::ptrdiff_t *irf, std::ptrdiff_t *icf);
+int copy_condensed_system(std::ptrdiff_t *nov, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *ncb, double *b, std::ptrdiff_t *nrc, double *c, double *a1, double *a2, double *bb, double *cc, double *c2, std::ptrdiff_t *irf, std::ptrdiff_t begin, std::ptrdiff_t end);
+int copy_right_hand_side(std::ptrdiff_t *nov, std::ptrdiff_t *nra, double *faa, double *fa, std::ptrdiff_t *irf, std::ptrdiff_t begin, std::ptrdiff_t end);
 int solve_end_system(AutoxRun &run, double *e, double *cc, double *c2, double *d, double *fc, std::ptrdiff_t *ifst, std::ptrdiff_t *na, std::ptrdiff_t *nrc, std::ptrdiff_t *nov, std::ptrdiff_t *ncb, std::ptrdiff_t *idb, std::ptrdiff_t *nllv, double *fcc, double *p0, double *p1, double *det, double *a1, double *a2, double *faa, double *bb);
 int print_system(std::string &diagnostics, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *ncb, std::ptrdiff_t *nrc, double *a, double *b, double *c, double *d, double *fa, double *fc);
 /* autox_lib3.cpp */
@@ -454,7 +455,9 @@ int user_objective(std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *i
 	 double *fs, double *dfdu, double *dfdp);
 int user_output_parameters(std::ptrdiff_t ndim, const double *u, double *par);
 /* conpar2.cpp */
-int condense_parameters(AutoxRun &run, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *ncb, double *b, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *d, std::ptrdiff_t *irf, std::ptrdiff_t *icf);
+int condense_parameters(AutoxRun &worker, std::ptrdiff_t *nov, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *ncb, double *b, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *d, std::ptrdiff_t *irf, std::ptrdiff_t *icf, std::ptrdiff_t begin, std::ptrdiff_t end, std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> *log);
+std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> *begin_condensation_log(AutoxRun &run, std::ptrdiff_t nov, std::ptrdiff_t na, std::ptrdiff_t nra, std::ptrdiff_t nca, std::ptrdiff_t ncb, std::ptrdiff_t nbc, std::ptrdiff_t nrc);
+void replay_condensation_log(const std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> *log, double *d);
 /* setubv2.cpp */
 int setup_boundary_system(std::ptrdiff_t ndim, xpp::AutoxProblem ips, std::ptrdiff_t na, std::ptrdiff_t ncol, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t ncb, std::ptrdiff_t nrc, std::ptrdiff_t nra, std::ptrdiff_t nca, 
 	   ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, std::ptrdiff_t ndxloc, iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 

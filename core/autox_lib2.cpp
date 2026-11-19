@@ -452,38 +452,19 @@ void chunk_ranges(std::ptrdiff_t lo, std::ptrdiff_t hi, int levels, std::array<B
   chunk_ranges(mid + 1, hi, levels - 1, chunks, count);
 }
 
-/* Runs work on n independent blocks, on the collocation workers when there
-   are some; the result does not depend on how they are shared. */
-void for_blocks(AutoxRun &run, std::ptrdiff_t n, const std::function<void(std::ptrdiff_t begin, std::ptrdiff_t end)> &work)
-{
-  if (run.collocation && run.collocation->threads() > 1)
-    run.collocation->intervals(n, [&](std::ptrdiff_t begin, std::ptrdiff_t end, AutoxRun &) { work(begin, end); });
-  else work(0, n);
-}
-
-/* Runs walk on each chunk of blocks 0..na-1, a chunk on one thread. */
-void for_chunks(AutoxRun &run, std::ptrdiff_t na, const std::function<void(std::ptrdiff_t lo, std::ptrdiff_t hi)> &walk)
+/* Runs walk on each chunk of blocks 0..na-1 (lo..hi), a chunk on one thread: on the collocation workers when
+   there are some (each with its own AutoxRun), else on run itself; the result does not depend on how they are shared. */
+void for_chunks(AutoxRun &run, std::ptrdiff_t na, const std::function<void(std::ptrdiff_t lo, std::ptrdiff_t hi, AutoxRun &worker)> &walk)
 {
   std::array<BlockRange, solve_chunks> chunks{};
   std::size_t count = 0;
   chunk_ranges(0, na - 1, solve_chunk_levels, chunks, count);
-  for_blocks(run, static_cast<std::ptrdiff_t>(count), [&](std::ptrdiff_t begin, std::ptrdiff_t end) {
-    for (std::ptrdiff_t k = begin; k < end; ++k) walk(chunks[k].lo, chunks[k].hi);
-  });
-}
-
-/* The chunks' merges, then the merges above them on the caller. */
-void reduce_tree(AutoxRun &run, std::ptrdiff_t na, const RangeWork &merge)
-{
-  for_chunks(run, na, [&](std::ptrdiff_t lo, std::ptrdiff_t hi) { tree_up(lo, hi, whole_subtree, merge); });
-  tree_up(0, na - 1, solve_chunk_levels, merge);
-}
-
-/* The back substitution: the same tree from the root down. */
-void backsubstitute_tree(AutoxRun &run, std::ptrdiff_t na, const RangeWork &solve)
-{
-  tree_down(0, na - 1, solve_chunk_levels, solve);
-  for_chunks(run, na, [&](std::ptrdiff_t lo, std::ptrdiff_t hi) { tree_down(lo, hi, whole_subtree, solve); });
+  const auto walk_chunks = [&](std::ptrdiff_t begin, std::ptrdiff_t end, AutoxRun &worker) {
+    for (std::ptrdiff_t k = begin; k < end; ++k) walk(chunks[k].lo, chunks[k].hi, worker);
+  };
+  if (run.collocation && run.collocation->threads() > 1)
+    run.collocation->intervals(static_cast<std::ptrdiff_t>(count), walk_chunks);
+  else walk_chunks(0, static_cast<std::ptrdiff_t>(count), run);
 }
 
 /* The condensed system copy_condensed_system builds, by block slot: nov x nov blocks
@@ -643,38 +624,55 @@ void bcksub_merge(const CondensedBlocks &m, const double *parameters, double *so
   }
 }
 
-/* The reduction of the blocks; what it subtracts from the conditions' d is
-   gathered by range and added once, at the root. */
+/* The reduction of a chunk's blocks lo..hi; what it subtracts from the conditions' d is gathered by slot
+   (the chunk's start at zero) and added once, at the root. */
 /* reduce: AUTO-07p solvebv.f90:1031: reduces the non-overlapping, then overlapping, pieces of the condensation tree */
-void reduce_condensation(AutoxRun &run, const CondensedBlocks &m, std::ptrdiff_t na, double *d)
+void reduce_chunk(const CondensedBlocks &m, std::ptrdiff_t lo, std::ptrdiff_t hi)
 {
-  std::fill_n(m.dd, na * m.ncb * m.nrc, 0.);
-  reduce_tree(run, na, [&](std::ptrdiff_t lo, std::ptrdiff_t mid, std::ptrdiff_t hi) { reduce_merge(m, lo, mid, hi); });
+  std::fill_n(m.dd + lo * m.ncb * m.nrc, (hi - lo + 1) * m.ncb * m.nrc, 0.);
+  tree_up(lo, hi, whole_subtree, [&](std::ptrdiff_t first, std::ptrdiff_t mid, std::ptrdiff_t last) { reduce_merge(m, first, mid, last); });
+}
+
+/* The merges above the chunks, on the caller, and the root's share of d. */
+void reduce_condensation(const CondensedBlocks &m, std::ptrdiff_t na, double *d)
+{
+  tree_up(0, na - 1, solve_chunk_levels, [&](std::ptrdiff_t lo, std::ptrdiff_t mid, std::ptrdiff_t hi) { reduce_merge(m, lo, mid, hi); });
   const double *root = m.dd + (na - 1) * m.ncb * m.nrc;
   for (std::ptrdiff_t ir = m.nbc; ir < m.nrc; ++ir)
     for (std::ptrdiff_t l = 0; l < m.ncb; ++l) d[l + ir * m.ncb] += root[l + ir * m.ncb];
 }
 
-/* The right-hand side through the same tree; fc's share added at the root. */
+/* The right-hand side through the same tree, a chunk's own part (its fcfc slots start at zero)... */
 /* redrhs: reduction of the right-hand side in the condensation tree (autox_lib2.cpp) */
-void reduce_right_hand_side(AutoxRun &run, const CondensedBlocks &m, std::ptrdiff_t na, double *fc)
+void reduce_right_hand_side_chunk(const CondensedBlocks &m, std::ptrdiff_t lo, std::ptrdiff_t hi)
 {
-  std::fill_n(m.fcfc, na * m.nrc, 0.);
-  reduce_tree(run, na, [&](std::ptrdiff_t, std::ptrdiff_t mid, std::ptrdiff_t hi) { redrhs_merge(m, mid, hi); });
+  std::fill_n(m.fcfc + lo * m.nrc, (hi - lo + 1) * m.nrc, 0.);
+  tree_up(lo, hi, whole_subtree, [&](std::ptrdiff_t, std::ptrdiff_t mid, std::ptrdiff_t last) { redrhs_merge(m, mid, last); });
+}
+
+/* ... then the merges above the chunks, with fc's share added at the root. */
+void reduce_right_hand_side(const CondensedBlocks &m, std::ptrdiff_t na, double *fc)
+{
+  tree_up(0, na - 1, solve_chunk_levels, [&](std::ptrdiff_t, std::ptrdiff_t mid, std::ptrdiff_t hi) { redrhs_merge(m, mid, hi); });
   const double *root = m.fcfc + (na - 1) * m.nrc;
   for (std::ptrdiff_t ir = m.nbc; ir < m.nrc; ++ir) fc[ir] += root[ir];
 }
 
-/* x(0) and x(na) from solve_end_system's solution fcc (and fc = fcc after x(0)),
-   then every other x(k) down the tree, into sol (nov x (na+1)). */
+/* x(0) and x(na) from solve_end_system's solution fcc (and fc = fcc after x(0)), then the merges
+   above the chunks down to them; the chunks' own, to sol (nov x (na+1)), are back_substitute_chunk's. */
 /* bcksub: AUTO-07p solvebv.f90:1510: back substitution */
-void back_substitute(AutoxRun &run, const CondensedBlocks &m, std::ptrdiff_t na, const double *fc, const double *fcc, double *sol)
+void back_substitute(const CondensedBlocks &m, std::ptrdiff_t na, const double *fc, const double *fcc, double *sol)
 {
   for (std::ptrdiff_t l = 0; l < m.nov; ++l) {
     sol[l] = fcc[l];
     sol[l + na * m.nov] = fc[l];
   }
-  backsubstitute_tree(run, na, [&](std::ptrdiff_t lo, std::ptrdiff_t mid, std::ptrdiff_t hi) { bcksub_merge(m, fc + m.nov, sol, lo, mid, hi); });
+  tree_down(0, na - 1, solve_chunk_levels, [&](std::ptrdiff_t lo, std::ptrdiff_t mid, std::ptrdiff_t hi) { bcksub_merge(m, fc + m.nov, sol, lo, mid, hi); });
+}
+
+void back_substitute_chunk(const CondensedBlocks &m, const double *fc, double *sol, std::ptrdiff_t lo, std::ptrdiff_t hi)
+{
+  tree_down(lo, hi, whole_subtree, [&](std::ptrdiff_t first, std::ptrdiff_t mid, std::ptrdiff_t last) { bcksub_merge(m, fc + m.nov, sol, first, mid, last); });
 }
 
 /* Determine the local variables by backsubstitution, blocks begin..end-1:
@@ -725,103 +723,91 @@ solve_bordered_block_diagonal(AutoxRun &run, double *fa, double *fc, double *p0,
   if (*idb > 4) {
     print_system(diagnostics, nov, na, nra, nca, ncb, nrc, a, b, c, d, fa, fc);
   }
-  if (*ifst == 1) {
-    condense_parameters(run, nov, na, nra, nca, a, ncb, b, nbc, nrc, c, d, irf, icf);
-    copy_condensed_system(na, nov, nra, nca, a, ncb, b, nrc, c, blocks.a1, blocks.a2, blocks.bb, blocks.cc, blocks.c2, irf);
-  }
-
-  if (*nllv == 0) {
-    condense_right_hand_side(run, nov, na, nra, nca, a, nbc, nrc, c, fa, fc, irf, icf);
-  } else {
-    zero_right_hand_side(fa, fc, na, nra, nrc);
-  }
-  copy_right_hand_side(na, nov, nra, blocks.faa, fa, irf);
-
-  if (*ifst == 1) {
-    reduce_condensation(run, blocks, *na, d);
-  }
-  if (*nllv == 0) {
-    reduce_right_hand_side(run, blocks, *na, fc);
-  }
+  /* One dispatch condenses and reduces every chunk of blocks: the intervals' own work (conpar, conrhs, the copies,
+     the chunk's merges) touches nothing outside the chunk. What spans chunks is kept for the caller, in the serial
+     loop's order: d's and fc's sums, the merges above the chunks. */
+  const bool factor = *ifst == 1, with_rhs = *nllv == 0;
+  auto *log = factor ? begin_condensation_log(run, *nov, *na, *nra, *nca, *ncb, *nbc, *nrc) : nullptr;
+  for_chunks(run, *na, [&](std::ptrdiff_t lo, std::ptrdiff_t hi, AutoxRun &worker) {
+    const std::ptrdiff_t end = hi + 1;
+    if (factor) {
+      condense_parameters(worker, nov, nra, nca, a, ncb, b, nbc, nrc, c, d, irf, icf, lo, end, log);
+      copy_condensed_system(nov, nra, nca, a, ncb, b, nrc, c, blocks.a1, blocks.a2, blocks.bb, blocks.cc, blocks.c2, irf, lo, end);
+    }
+    if (with_rhs) condense_right_hand_side(nov, nra, nca, a, fa, irf, icf, lo, end);
+    else zero_right_hand_side(fa, nra, lo, end);
+    copy_right_hand_side(nov, nra, blocks.faa, fa, irf, lo, end);
+    if (factor) reduce_chunk(blocks, lo, hi);
+    if (with_rhs) reduce_right_hand_side_chunk(blocks, lo, hi);
+  });
+  if (factor) replay_condensation_log(log, d);
+  if (with_rhs) condense_right_hand_side_conditions(nov, na, nra, nca, nbc, nrc, c, fa, fc, irf, icf);
+  else std::fill_n(fc, *nrc, 0.);
+  if (factor) reduce_condensation(blocks, *na, d);
+  if (with_rhs) reduce_right_hand_side(blocks, *na, fc);
 
   solve_end_system(run, work.e.data(), blocks.cc, blocks.c2, d, fc, ifst, na,
 	 nrc, nov, ncb, idb, nllv, work.fcc.data(), p0, p1, det, blocks.a1, blocks.a2,
 	 blocks.faa, blocks.bb);
 
-  back_substitute(run, blocks, *na, fc, work.fcc.data(), work.sol.data());
-
-  for_blocks(run, *na, [&](std::ptrdiff_t begin, std::ptrdiff_t end) {
-    determine_local_variables(a, b, fa, work.sol.data(), fc, begin, end, *nov, *nra, *nca, *ncb, irf, icf);
+  /* The back substitution, one dispatch: a chunk's own x and then its blocks' local variables, which need no other chunk. */
+  back_substitute(blocks, *na, fc, work.fcc.data(), work.sol.data());
+  for_chunks(run, *na, [&](std::ptrdiff_t lo, std::ptrdiff_t hi, AutoxRun &) {
+    back_substitute_chunk(blocks, fc, work.sol.data(), lo, hi);
+    determine_local_variables(a, b, fa, work.sol.data(), fc, lo, hi + 1, *nov, *nra, *nca, *ncb, irf, icf);
   });
 
   return 0;
 } /* brbd_ */
 
-/* setzero: zeroes the right-hand side blocks */
+/* setzero: zeroes the right-hand side blocks begin..end-1 */
 int 
-zero_right_hand_side(double *fa, double *fc, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nrc)
+zero_right_hand_side(double *fa, std::ptrdiff_t *nra, std::ptrdiff_t begin, std::ptrdiff_t end)
 {
-  std::ptrdiff_t fa_dim1;
-
-  std::ptrdiff_t i, j;
-
-  fa_dim1 = *nra;
-    
-  for (i = 0; i < *na; ++i) {
-    for (j = 0; j < *nra; ++j) {
-      ARRAY2D(fa, j, i) = 0.;
-    }
-  }
-
-  for (i = 0; i < *nrc; ++i) {
-    fc[i] = 0.;
-  }
-
+  std::fill(fa + begin * *nra, fa + end * *nra, 0.);
   return 0;
 } /* setzero_ */
 
-/* conrhs: AUTO-07p solvebv.f90:931 CONRHS: condensation of the right-hand side */
+/* conrhs: AUTO-07p solvebv.f90:931 CONRHS: condensation of the right-hand side of blocks begin..end-1. Each
+   interval's fa is its own. A pivot row's fa is final before its fc terms are taken (condense_right_hand_side_conditions):
+   later pivots change only the rows below it. */
 int 
-condense_right_hand_side(AutoxRun &run, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *fa, double *fc, std::ptrdiff_t *irf, std::ptrdiff_t *icf)
+condense_right_hand_side(std::ptrdiff_t *nov, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, double *fa, std::ptrdiff_t *irf, std::ptrdiff_t *icf, std::ptrdiff_t begin, std::ptrdiff_t end)
 {
-  std::ptrdiff_t icf_dim1, irf_dim1, a_dim1, a_dim2, c_dim1, c_dim2, fa_dim1;
-
-  std::ptrdiff_t m2, nex;
-
-  irf_dim1 = *nra;
-  fa_dim1 = *nra;
-  icf_dim1 = *nca;
-  a_dim1 = *nca;
-  a_dim2 = *nra;
-  c_dim1 = *nca;
-  c_dim2 = *nrc;
-    
-  nex = *nca - (*nov * 2);
+  const std::ptrdiff_t irf_dim1 = *nra, fa_dim1 = *nra, icf_dim1 = *nca, a_dim1 = *nca, a_dim2 = *nra;
+  const std::ptrdiff_t nex = *nca - (*nov * 2);
+  const std::ptrdiff_t m2 = *nov + nex;
   if (nex == 0) {
     return 0;
   }
 
-  /* Condensation of right hand side. Each interval's fa is its own, so the intervals share the workers; fc
-     is every interval's in turn, summed serially in the order the serial loop used (the same bits). A pivot
-     row's fa is final before its fc terms are taken: later pivots change only the rows below it. */
-
-  m2 = *nov + nex;
-
-  for_blocks(run, *na, [&](std::ptrdiff_t begin, std::ptrdiff_t end) {
-    for (std::ptrdiff_t i = begin; i < end; ++i) {
-      for (std::ptrdiff_t ic = *nov; ic < m2; ++ic) {
-        const std::ptrdiff_t irp = ic - *nov;
-        const std::ptrdiff_t irfirp = ARRAY2D(irf, irp, i);
-        const std::ptrdiff_t icfic = ARRAY2D(icf, ic, i);
-        for (std::ptrdiff_t ir = irp + 1; ir < *nra; ++ir) {
-          const std::ptrdiff_t irfir = ARRAY2D(irf, ir, i);
-          if (ARRAY3D(a, (icfic - 1), (irfir - 1), i) != 0.) {
-            ARRAY2D(fa, (irfir - 1), i) -= ARRAY3D(a, (icfic - 1), (irfir - 1), i) * ARRAY2D(fa, (irfirp - 1), i);
-          }
+  for (std::ptrdiff_t i = begin; i < end; ++i) {
+    for (std::ptrdiff_t ic = *nov; ic < m2; ++ic) {
+      const std::ptrdiff_t irp = ic - *nov;
+      const std::ptrdiff_t irfirp = ARRAY2D(irf, irp, i);
+      const std::ptrdiff_t icfic = ARRAY2D(icf, ic, i);
+      for (std::ptrdiff_t ir = irp + 1; ir < *nra; ++ir) {
+        const std::ptrdiff_t irfir = ARRAY2D(irf, ir, i);
+        if (ARRAY3D(a, (icfic - 1), (irfir - 1), i) != 0.) {
+          ARRAY2D(fa, (irfir - 1), i) -= ARRAY3D(a, (icfic - 1), (irfir - 1), i) * ARRAY2D(fa, (irfirp - 1), i);
         }
       }
     }
-  });
+  }
+  return 0;
+} /* conrhs_ */
+
+/* conrhs's fc terms, every interval's in turn, summed serially in the order the serial loop used (the same bits). */
+int 
+condense_right_hand_side_conditions(std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *fa, double *fc, std::ptrdiff_t *irf, std::ptrdiff_t *icf)
+{
+  const std::ptrdiff_t irf_dim1 = *nra, fa_dim1 = *nra, icf_dim1 = *nca, c_dim1 = *nca, c_dim2 = *nrc;
+  const std::ptrdiff_t nex = *nca - (*nov * 2);
+  const std::ptrdiff_t m2 = *nov + nex;
+  if (nex == 0) {
+    return 0;
+  }
+
   for (std::ptrdiff_t i = 0; i < *na; ++i) {
     for (std::ptrdiff_t ic = *nov; ic < m2; ++ic) {
       const std::ptrdiff_t irfirp = ARRAY2D(irf, ic - *nov, i);
@@ -833,13 +819,12 @@ condense_right_hand_side(AutoxRun &run, std::ptrdiff_t *nov, std::ptrdiff_t *na,
       }
     }
   }
-
   return 0;
-} /* conrhs_ */
+}
 
-/* copycp: AUTO-07p solvebv.f90:970: copies the condensed system CONPAR made into workspace */
+/* copycp: AUTO-07p solvebv.f90:970: copies the condensed system CONPAR made, blocks begin..end-1, into workspace */
 int 
-copy_condensed_system(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *ncb, double *b, std::ptrdiff_t *nrc, double *c, double *a1, double *a2, double *bb, double *cc, double *c2, std::ptrdiff_t *irf)
+copy_condensed_system(std::ptrdiff_t *nov, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *ncb, double *b, std::ptrdiff_t *nrc, double *c, double *a1, double *a2, double *bb, double *cc, double *c2, std::ptrdiff_t *irf, std::ptrdiff_t begin, std::ptrdiff_t end)
 {
   std::ptrdiff_t irf_dim1, a_dim1, a_dim2, b_dim1, b_dim2, c_dim1, c_dim2, a1_dim1, a1_dim2,
     a2_dim1, a2_dim2, bb_dim1, bb_dim2, cc_dim1, cc_dim2, c2_dim1, c2_dim2;
@@ -868,7 +853,7 @@ copy_condensed_system(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *n
   c_dim1 = *nca;
   c_dim2 = *nrc;
     
-  for (i = 0; i < *na; ++i) {
+  for (i = begin; i < end; ++i) {
     for (ir = 0; ir < *nov; ++ir) {
       irfir = ARRAY2D(irf, *nra - *nov + ir, i);
       for (ic = 0; ic < *nov; ++ic) {
@@ -882,7 +867,7 @@ copy_condensed_system(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *n
     }
   }
 
-  for (i = 0; i < *na; ++i) {
+  for (i = begin; i < end; ++i) {
     for (ir = 0; ir < *nrc; ++ir) {
       for (ic = 0; ic < *nov; ++ic) {
 	ARRAY3D(cc, ic, ir, i) = ARRAY3D(c, ic, ir, i);
@@ -896,7 +881,7 @@ copy_condensed_system(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *n
 
 /* cpyrhs: AUTO-07p solvebv.f90:1009: copies the right-hand side */
 int 
-copy_right_hand_side(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *nra, double *faa, double *fa, std::ptrdiff_t *irf)
+copy_right_hand_side(std::ptrdiff_t *nov, std::ptrdiff_t *nra, double *faa, double *fa, std::ptrdiff_t *irf, std::ptrdiff_t begin, std::ptrdiff_t end)
 {
   std::ptrdiff_t irf_dim1, fa_dim1, faa_dim1;
 
@@ -907,7 +892,7 @@ copy_right_hand_side(std::ptrdiff_t *na, std::ptrdiff_t *nov, std::ptrdiff_t *nr
   irf_dim1 = *nra;
   fa_dim1 = *nra;
 
-  for (i = 0; i < *na; ++i) {
+  for (i = begin; i < end; ++i) {
     for (ir = 0; ir < *nov; ++ir) {
       irfir = ARRAY2D(irf, *nra - *nov + ir, i);
       ARRAY2D(faa, ir, i) = ARRAY2D(fa, (irfir - 1), i);

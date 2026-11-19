@@ -48,6 +48,10 @@ struct setubv_parallel_arglist {
   double *rldot; /* parameter_count entries */
   BoundaryFunction boundary_function;
   bool jacobian = true;
+  /* Set when the integral conditions are pure (integral_conditions_are_pure): each interval's workers evaluate them once, as the
+     Jacobian is built, into cc and into these terms of fc and dd (the product added to each, by interval, point, condition:
+     fc's, then dd's ncb), which setubv_make_fc_dd adds in that order, the serial loop's. Null: both loops call them serially. */
+  double *integral_terms = nullptr;
 };
 
 /* setup_boundary_system's steps (the original autoX also ran them on pthreads or MPI
@@ -64,6 +68,80 @@ void setubv_parallel_arglist_constructor(std::ptrdiff_t ndim, std::ptrdiff_t na,
 					 double *wp, double *wt, double *wi,
 					 double *thu, double *thl, double *rldot, BoundaryFunction boundary_function,
 					 setubv_parallel_arglist *data);
+
+/* Calls the integral conditions at each of interval jj's ncol + 1 collocation points, on larg's own run's arrays, and
+   hands visit(k) their values (that run's ficd and dicd). */
+template <class Visit>
+void for_integral_points(const setubv_parallel_arglist &larg, std::ptrdiff_t jj, double *par, Visit &&visit)
+{
+  const std::ptrdiff_t ups_dim1 = larg.ndxloc, uoldps_dim1 = larg.ndxloc, udotps_dim1 = larg.ndxloc, upoldp_dim1 = larg.ndxloc;
+  const double *ups = larg.ups, *uoldps = larg.uoldps, *udotps = larg.udotps, *upoldp = larg.upoldp;
+  auto &a = larg.iap->run->assembly;
+  for (std::ptrdiff_t k = 0; k <= larg.ncol; ++k) {
+    const bool last = k == larg.ncol;
+    const std::ptrdiff_t j1 = (last ? jj + 1 : jj) + larg.loop_offset;
+    for (std::ptrdiff_t i = 0; i < larg.ndim; ++i) {
+      const std::ptrdiff_t i1 = last ? i : k * larg.ndim + i;
+      a.uic[i] = ARRAY2D(ups, j1, i1);
+      a.uio[i] = ARRAY2D(uoldps, j1, i1);
+      a.uid[i] = ARRAY2D(udotps, j1, i1);
+      a.uip[i] = ARRAY2D(upoldp, j1, i1);
+    }
+    (*larg.integral_function)(larg.iap, larg.rap, larg.ndim, par, larg.icp, larg.nint,
+        a.uic.data(), a.uio.data(), a.uid.data(), a.uip.data(), a.ficd.data(), 2, a.dicd.data());
+    visit(k);
+  }
+}
+
+/* The integral conditions' rows of cc at interval jj's collocation point k, from the point's dicd. */
+void set_integral_rows(const setubv_parallel_arglist &larg, std::ptrdiff_t jj, std::ptrdiff_t k)
+{
+  const double *dicd = larg.iap->run->assembly.dicd.data();
+  const std::ptrdiff_t dicd_dim1 = larg.nint;
+  for (std::ptrdiff_t m = 0; m < larg.nint; ++m)
+    for (std::ptrdiff_t i = 0; i < larg.ndim; ++i)
+      larg.cc(k * larg.ndim + i, larg.nbc + m, jj) = larg.dtm[jj] * larg.wi[k] * ARRAY2D(dicd, m, i);
+}
+
+/* Interval jj's integral conditions on a worker: cc's rows and the terms of fc and dd (see setubv_parallel_arglist). */
+void set_integral_terms(const setubv_parallel_arglist &larg, std::ptrdiff_t jj)
+{
+  auto &a = larg.iap->run->assembly;
+  const double *dicd = a.dicd.data();
+  const std::ptrdiff_t dicd_dim1 = larg.nint;
+  double *terms = larg.integral_terms + jj * (larg.ncol + 1) * larg.nint * (1 + larg.ncb);
+  std::copy_n(larg.par, larg.iap->run->parameter_count, a.prm.begin());
+  for_integral_points(larg, jj, a.prm.data(), [&](std::ptrdiff_t k) {
+    set_integral_rows(larg, jj, k);
+    for (std::ptrdiff_t m = 0; m < larg.nint; ++m) {
+      *terms++ = larg.dtm[jj] * larg.wi[k] * a.ficd[m];
+      for (std::ptrdiff_t i = 0; i < larg.ncb; ++i)
+        *terms++ = larg.dtm[jj] * larg.wi[k] * ARRAY2D(dicd, m, larg.ndim + larg.icp[i]);
+    }
+  });
+}
+
+/* The pseudo-arclength equation's row of cc, interval jj's part. */
+void set_arclength_row(const setubv_parallel_arglist &larg, std::ptrdiff_t jj)
+{
+  const std::ptrdiff_t udotps_dim1 = larg.ndxloc;
+  const double *udotps = larg.udotps;
+  for (std::ptrdiff_t i = 0; i < larg.ndim; ++i) {
+    for (std::ptrdiff_t k = 0; k < larg.ncol; ++k) {
+      const std::ptrdiff_t k1 = k * larg.ndim + i;
+      larg.cc(k1, larg.nrc - 1, jj) = larg.dtm[jj] * larg.thu[i] * larg.wi[k] * ARRAY2D(udotps, jj + larg.loop_offset, k1);
+    }
+    larg.cc(larg.nra + i, larg.nrc - 1, jj) = larg.dtm[jj] * larg.thu[i] * larg.wi[larg.ncol] * ARRAY2D(udotps, jj + 1 + larg.loop_offset, i);
+  }
+}
+
+/* The integral conditions that read nothing but their arguments, the run's rotation counts and the parameters, which they leave
+   as they are: the periodic family's (with their boundary conditions, analytic too), so a worker may evaluate them, once, in any order. */
+bool integral_conditions_are_pure(IntegralFunction f)
+{
+  return f == periodic_integral_conditions || f == periodic_fold_integral_conditions
+      || f == period_doubling_integral_conditions || f == torus_integral_conditions;
+}
 
 void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
 {
@@ -89,6 +167,12 @@ void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
     if (!larg->iap->run->owner && larg->iap->run->setubv_stop && autox_cancelled(*larg->iap->run)) break; /* xppautX: cancel (W752: the rule of autox_cancelled) */
     j = jj;
     jp1 = j + 1;
+    if (larg->jacobian) {
+      // this interval's blocks start at zero (the later stages fill what they set)
+      std::ranges::fill(larg->aa.plane(jj), 0.);
+      std::ranges::fill(larg->bb.plane(jj), 0.);
+      std::ranges::fill(larg->cc.plane(jj), 0.);
+    }
     dt = larg->dtm[j];
     ddt = 1. / dt;
     for (ic = 0; ic < larg->ncol; ++ic) {
@@ -148,7 +232,10 @@ void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
         }
       }
     }
-  
+    if (larg->jacobian) {
+      set_arclength_row(*larg, jj);
+      if (larg->integral_terms) set_integral_terms(*larg, jj);
+    }
   }
 
 }
@@ -177,40 +264,20 @@ void dispatch_mesh(const setubv_parallel_arglist *larg,
 
 void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 {
-  std::ptrdiff_t ups_dim1,
-    uoldps_dim1, udotps_dim1, upoldp_dim1,
-    dbc_dim1, dicd_dim1;
-
-  std::ptrdiff_t i, j, k, m;
-  std::ptrdiff_t k1;
-  std::ptrdiff_t i1,j1;
-
+  std::ptrdiff_t dbc_dim1;
+  std::ptrdiff_t i, k;
   std::ptrdiff_t jj;
-  std::ptrdiff_t jp1;
 
   double *ups = larg->ups;
-  double *upoldp = larg->upoldp;
-  double *udotps = larg->udotps;
-  double *uoldps = larg->uoldps;
+  const std::ptrdiff_t ups_dim1 = larg->ndxloc;
 
   const xpp::Matrix3<double> cc = larg->cc;
 
-  auto &dicd = larg->iap->run->assembly.dicd;
-  auto &ficd = larg->iap->run->assembly.ficd;
   auto &dbc = larg->iap->run->assembly.dbc;
   auto &fbc = larg->iap->run->assembly.fbc;
-  auto &uic = larg->iap->run->assembly.uic;
-  auto &uio = larg->iap->run->assembly.uio;
-  auto &uid = larg->iap->run->assembly.uid;
-  auto &uip = larg->iap->run->assembly.uip;
   auto &ubc0 = larg->iap->run->assembly.ubc0;
   auto &ubc1 = larg->iap->run->assembly.ubc1;
 
-  upoldp_dim1 = larg->ndxloc;
-  udotps_dim1 = larg->ndxloc;
-  uoldps_dim1 = larg->ndxloc;
-  ups_dim1 = larg->ndxloc;
-  dicd_dim1 = larg->nint;
   dbc_dim1 = larg->nbc;
 
   dispatch_mesh(larg,setubv_make_fa_aa_bb);
@@ -242,56 +309,11 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
     }
   }
   
-  /*     Integral constraints : */
-  if (larg->nint > 0) {
-    for (jj = larg->loop_start; jj < larg->loop_end; ++jj) {
-      j = jj;
-      jp1 = j + 1;
-      for (k = 0; k < (larg->ncol + 1); ++k) {
-	for (i = 0; i < larg->ndim; ++i) {
-	  i1 = k * larg->ndim + i;
-	  j1 = j;
-	  if (k+1 == (larg->ncol + 1)) {
-	    i1 = i;
-	  }
-	  if (k+1 == (larg->ncol + 1)) {
-	    j1 = jp1;
-	  }
-	  uic[i] = ARRAY2D(ups, j1 + larg->loop_offset, i1);
-	  uio[i] = ARRAY2D(uoldps, j1 + larg->loop_offset, i1);
-	  uid[i] = ARRAY2D(udotps, j1 + larg->loop_offset, i1);
-	  uip[i] = ARRAY2D(upoldp, j1 + larg->loop_offset, i1);
-	}
-	
-	(*(larg->integral_function))(larg->iap, larg->rap, larg->ndim, larg->par, 
-		larg->icp, larg->nint, 
-		uic.data(), uio.data(), uid.data(), uip.data(), ficd.data(), 2, dicd.data());
-
-	for (m = 0; m < larg->nint; ++m) {
-	  for (i = 0; i < larg->ndim; ++i) {
-	    k1 = k * larg->ndim + i;
-	    cc(k1, larg->nbc + m, jj) = 
-	      larg->dtm[j] * larg->wi[k ] * ARRAY2D(dicd, m, i);
-	  }
-	}
-      }
-    }
+  /*     Integral constraints (the pseudo-arclength equation's row is set by each interval's collocation) : */
+  if (larg->nint > 0 && !larg->integral_terms) {
+    for (jj = larg->loop_start; jj < larg->loop_end; ++jj)
+      for_integral_points(*larg, jj, larg->par, [&](std::ptrdiff_t k) { set_integral_rows(*larg, jj, k); });
   }
-  /*     Pseudo-arclength equation : */
-  for (jj = larg->loop_start; jj < larg->loop_end; ++jj) {
-    for (i = 0; i < larg->ndim; ++i) {
-      for (k = 0; k < larg->ncol; ++k) {
-	k1 = k * larg->ndim + i;
-	cc(k1 , larg->nrc - 1, jj) = 
-	  larg->dtm[jj] * larg->thu[i] * larg->wi[k] * 
-	  ARRAY2D(udotps, jj + larg->loop_offset, k1);
-      }
-      cc(larg->nra + i, larg->nrc -1, jj) = 
-	larg->dtm[jj] * larg->thu[i] * larg->wi[larg->ncol] * 
-	ARRAY2D(udotps, jj + 1 + larg->loop_offset, i);
-    }
-  }
-
 }
 
 } // namespace
@@ -305,13 +327,13 @@ setup_boundary_system(std::ptrdiff_t ndim, xpp::AutoxProblem ips, std::ptrdiff_t
        double *dtm, double *thl, double *thu, double *p0, double *p1)
 {
   iap->run->assembly.resize(ndim, ncol, nbc, nint, iap->run->parameter_count);
-  std::ptrdiff_t i, j, k;
+  std::ptrdiff_t i, k;
 
   auto &wi = iap->run->assembly.wi;
   auto &wp = iap->run->assembly.wp;
   auto &wt = iap->run->assembly.wt;
 
-  /* Initialize to zero. */
+  /* Initialize to zero (the blocks of aa, bb and cc are each interval's own, zeroed where it is set up). */
   for (i = 0; i < nrc; ++i) {
     fc[i] = 0.;
     for (k = 0; k < ncb; ++k) {
@@ -324,26 +346,6 @@ setup_boundary_system(std::ptrdiff_t ndim, xpp::AutoxProblem ips, std::ptrdiff_t
     par[icp[i]] = rlcur[i];
   }
   
-  /*  NA is the local node's mesh interval number. */
-  
-  for (i = 0; i < na; ++i) {
-    for (j = 0; j < nra; ++j) {
-      for (k = 0; k < nca; ++k) {
-	aa(k, j, i) = 0.;
-      }
-    }
-    for (j = 0; j < nra; ++j) {
-      for (k = 0; k < ncb; ++k) {
-	bb(k, j, i) = 0.;
-      }
-    }
-    for (j = 0; j < nca; ++j) {
-      for (k = 0; k < nrc; ++k) {
-	cc(j, k, i) = 0.;
-      }
-    }
-  }
-
   /*     ** Time evolution computations (parabolic systems) */
   if (xpp::problem_is_parabolic_evolution(ips)) {
     rap->tivp = rlold[0];
@@ -357,6 +359,10 @@ setup_boundary_system(std::ptrdiff_t ndim, xpp::AutoxProblem ips, std::ptrdiff_t
 					uoldps, udotps, upoldp, dtm, wp.data(), wt.data(), wi.data(), 
 					thu, thl, rldot, boundary_function, &arglist);
   
+    if (nint > 0 && integral_conditions_are_pure(integral_function)) {
+      iap->run->assembly.integral_terms.resize(xpp::size_product(na, ncol + 1, nint, 1 + ncb));
+      arglist.integral_terms = iap->run->assembly.integral_terms.data();
+    }
     auto &residual_parameters = iap->run->assembly.residual_parameters;
     std::copy_n(par, iap->run->parameter_count, residual_parameters.begin());
     if (iap->run->setubv_stop && autox_cancelled(*iap->run)) return 0;
@@ -379,7 +385,7 @@ namespace {
 
 void setubv_make_fc_dd(const setubv_parallel_arglist &larg, double *dups, double *rlcur, 
 	     double *rlold, double rds) {
-  std::ptrdiff_t i,j,jj,jp1,k,i1,m,j1;
+  std::ptrdiff_t i,j,jj,k,m;
   double rlsum;
 
   std::ptrdiff_t dups_dim1 = larg.ndxloc;
@@ -392,24 +398,11 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, double *dups, double
   double *uoldps = larg.uoldps;
   std::ptrdiff_t uoldps_dim1 = larg.ndxloc;
   
-  double *udotps = larg.udotps;
-  std::ptrdiff_t udotps_dim1 = larg.ndxloc;
-  
-  double *upoldp = larg.upoldp;
-  std::ptrdiff_t upoldp_dim1 = larg.ndxloc;
-  
   std::ptrdiff_t dbc_dim1 = larg.nbc;
   auto &dbc = larg.iap->run->assembly.dbc;
   auto &fbc = larg.iap->run->assembly.fbc;
   auto &ubc0 = larg.iap->run->assembly.ubc0;
   auto &ubc1 = larg.iap->run->assembly.ubc1;
-  std::ptrdiff_t dicd_dim1 = larg.nint;
-  auto &dicd = larg.iap->run->assembly.dicd;
-  auto &ficd = larg.iap->run->assembly.ficd;
-  auto &uic = larg.iap->run->assembly.uic;
-  auto &uio = larg.iap->run->assembly.uio;
-  auto &uid = larg.iap->run->assembly.uid;
-  auto &uip = larg.iap->run->assembly.uip;
 
   /* Boundary condition part of FC */
   if (larg.nbc > 0) {
@@ -436,39 +429,26 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, double *dups, double
   }
 
   /* Integral constraint part of FC */
-  if (larg.nint > 0) {
-    for (jj = larg.loop_start; jj < larg.loop_end; ++jj) {
-      j = jj;
-      jp1 = j + 1;
-      for (k = 0; k < (larg.ncol + 1); ++k) {
-	for (i = 0; i < larg.ndim; ++i) {
-	  i1 = k * larg.ndim + i;
-	  j1 = j;
-	  if (k+1 == (larg.ncol + 1)) {
-	    i1 = i;
-	  }
-	  if (k+1 == (larg.ncol + 1)) {
-	    j1 = jp1;
-	  }
-	  uic[i] = ARRAY2D(ups, j1, i1);
-	  uio[i] = ARRAY2D(uoldps, j1, i1);
-	  uid[i] = ARRAY2D(udotps, j1, i1);
-	  uip[i] = ARRAY2D(upoldp, j1, i1);
-	}
-	
-	(*(larg.integral_function))(larg.iap, larg.rap, larg.ndim, larg.par, 
-		larg.icp, larg.nint, 
-		uic.data(), uio.data(), uid.data(), uip.data(), ficd.data(), 2, dicd.data());
-	
-	for (m = 0; m < larg.nint; ++m) {
-	  larg.fc[larg.nbc + m] -= larg.dtm[j] * larg.wi[k] * ficd[m];
-	  for (i = 0; i < larg.ncb; ++i) {
-	    dd(i, larg.nbc + m) += 
-	      larg.dtm[j] * larg.wi[k] * ARRAY2D(dicd, m, larg.ndim + larg.icp[i]);
-	  }
-	}
-      }
-    }
+  if (larg.nint > 0 && larg.integral_terms) {
+    const double *term = larg.integral_terms;
+    for (jj = larg.loop_start; jj < larg.loop_end; ++jj)
+      for (k = 0; k <= larg.ncol; ++k)
+        for (m = 0; m < larg.nint; ++m) {
+          larg.fc[larg.nbc + m] -= *term++;
+          for (i = 0; i < larg.ncb; ++i) dd(i, larg.nbc + m) += *term++;
+        }
+  } else if (larg.nint > 0) {
+    for (jj = larg.loop_start; jj < larg.loop_end; ++jj)
+      for_integral_points(larg, jj, larg.par, [&](std::ptrdiff_t k) {
+        const auto &a = larg.iap->run->assembly;
+        const double *dicd = a.dicd.data();
+        const std::ptrdiff_t dicd_dim1 = larg.nint;
+        for (std::ptrdiff_t m = 0; m < larg.nint; ++m) {
+          larg.fc[larg.nbc + m] -= larg.dtm[jj] * larg.wi[k] * a.ficd[m];
+          for (std::ptrdiff_t i = 0; i < larg.ncb; ++i)
+            dd(i, larg.nbc + m) += larg.dtm[jj] * larg.wi[k] * ARRAY2D(dicd, m, larg.ndim + larg.icp[i]);
+        }
+      });
   }
 
   for (i = 0; i < larg.ncb; ++i) {

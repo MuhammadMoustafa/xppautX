@@ -193,6 +193,7 @@ struct AutoxState : AutoxSettings {
 // Collocation assembly scratch; each worker AutoxRun owns its own buffers.
 struct AutoxAssemblyScratch {
   std::vector<double> dfdp, dfdu, uold, f, u, wploc, prm, residual_parameters, wi, wp, wt;
+  std::vector<double> integral_terms; /* setubv2.cpp: the terms of fc and dd the integral conditions give, by interval */
   std::vector<double> dicd, ficd, dbc, fbc, uic, uio, uid, uip, ubc0, ubc1;
   void resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t nbc,
               std::ptrdiff_t nint, std::ptrdiff_t parameters);
@@ -225,7 +226,7 @@ struct SolveBoundaryWork {
   double pivot=NAN; /* the last reduced linear solve, for a BVP no-convergence diagnostic */
   std::vector<double> a,b,c,d,a1,a2,s1,s2,bb,cc,c2,dd,faa,fcfc;
   std::vector<double> ft,e,fcc,sol,xe;
-  std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> dlog;
+  std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> dlog; /* the terms of d each block of a condensation subtracts (conpar2.cpp), by block */
   std::vector<std::ptrdiff_t> icf,irf,ipr,icf2;
   /* for ndim variables, ncol collocation points, ntst intervals, nbc
      boundary conditions, nint integral constraints and nfpr continuation

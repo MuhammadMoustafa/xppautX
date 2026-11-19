@@ -318,6 +318,8 @@ public:
             throw std::length_error("a matrix view larger than its storage");
     }
     T &operator()(std::ptrdiff_t i, std::ptrdiff_t j, std::ptrdiff_t k) const { return data_[i + (j + k * dim2_) * dim1_]; }
+    /* the dim1 x dim2 elements of index k, in order */
+    std::span<T> plane(std::ptrdiff_t k) const { return {data_ + k * dim2_ * dim1_, size_product(dim1_, dim2_)}; }
 private:
     T *data_ = nullptr;
     std::ptrdiff_t dim1_ = 0, dim2_ = 0;

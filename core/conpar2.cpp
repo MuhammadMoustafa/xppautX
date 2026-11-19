@@ -138,83 +138,61 @@ void conpar_process(const conpar_parallel_arglist *arg)
   }
 }
 
-void
-conpar_default_wrapper(AutoxRun &run, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *ncb, double *b, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *d, std::ptrdiff_t *irf, std::ptrdiff_t *icf)
-
-{
-    conpar_parallel_arglist data;
-    data.scratch = &run.scratch;
-    data.nov = nov;
-    data.nra = nra;
-    data.nca = nca;
-    data.a = a;
-    data.ncb = ncb;
-    data.b = b;
-    data.nbc = nbc;
-    data.nrc = nrc;
-    data.c = c;
-    data.d = d;
-    data.irf = irf;
-    data.icf = icf;
-    data.loop_start = 0;
-    data.loop_end = *na;
-    if (!run.collocation || run.collocation->threads()==1) {
-      conpar_process(&data);
-      return;
-    }
-    auto &dlog = run.solve_boundary_work.dlog;
-    dlog.resize(*na);
-    const auto terms = xpp::size_product(*nra - *nov, *nrc - *nbc, *ncb);
-    for (auto &interval : dlog) {
-      interval.clear();
-      interval.reserve(terms);
-    }
-    data.dlog=&dlog;
-    run.collocation->intervals(*na,[&](long begin,long end,AutoxRun &worker) {
-      conpar_parallel_arglist mine=data;
-      mine.scratch=&worker.scratch;
-      mine.loop_start=begin;
-      mine.loop_end=end;
-      conpar_process(&mine);
-    });
-    // Replay every subtraction in interval/elimination/row/column order.
-    for (const auto &interval:dlog)
-      for (const auto &[at,term]:interval) d[at]-=term;
-}
 } // namespace
 
-/* conpar: XPPAUT's AUTO's CONPAR (solvebv.f90:777): condensation of the system by eliminating the local variables */
+/* conpar: XPPAUT's AUTO's CONPAR (solvebv.f90:777): condensation of the system by eliminating the local variables, of blocks
+   begin..end-1, on worker's scratch. A solve that shares its blocks among workers gives every one the log begin_condensation_log
+   made: the terms of d each block subtracts, replayed by the caller in block order; none, and d is updated directly. */
 int 
-condense_parameters(AutoxRun &run, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *ncb, double *b, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *d, std::ptrdiff_t *irf, std::ptrdiff_t *icf)
+condense_parameters(AutoxRun &worker, std::ptrdiff_t *nov, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *ncb, double *b, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *d, std::ptrdiff_t *irf, std::ptrdiff_t *icf, std::ptrdiff_t begin, std::ptrdiff_t end, std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> *log)
 {
-  /* Aliases for the dimensions of the arrays */
-  std::ptrdiff_t icf_dim1, irf_dim1;
-  
-  std::ptrdiff_t i,j;
-  std::ptrdiff_t nex;
-
-  /*<	      NEX=NCA-2*NOV >*/
-  irf_dim1 = *nra;
-  icf_dim1 = *nca;
-
-  /* Function Body */
-  nex = *nca - (*nov << 1);
-  if (nex == 0) {
+  if (*nca - (*nov << 1) == 0) {
     return 0;
   }
-  
-  /*     Initialization */
-  for (i = 0; i <*na; ++i) {
-    for (j = 0; j < *nra; ++j) {
-      irf[j + i * irf_dim1] = j+1;
-    }
-    for (j = 0; j < *nca; ++j) {
-      icf[j + i * icf_dim1] = j+1;
-    }
+  for (std::ptrdiff_t i = begin; i < end; ++i) {
+    for (std::ptrdiff_t j = 0; j < *nra; ++j) irf[j + i * *nra] = j + 1;
+    for (std::ptrdiff_t j = 0; j < *nca; ++j) icf[j + i * *nca] = j + 1;
   }
-
-  /* The same condensation loop runs serially or over disjoint intervals. */
-  conpar_default_wrapper(run,nov, na, nra, nca, a,
-			  ncb, b, nbc, nrc, c, d,irf, icf);
+  conpar_parallel_arglist data;
+  data.scratch = &worker.scratch;
+  data.nov = nov;
+  data.nra = nra;
+  data.nca = nca;
+  data.a = a;
+  data.ncb = ncb;
+  data.b = b;
+  data.nbc = nbc;
+  data.nrc = nrc;
+  data.c = c;
+  data.d = d;
+  data.irf = irf;
+  data.icf = icf;
+  data.dlog = log;
+  data.loop_start = begin;
+  data.loop_end = end;
+  conpar_process(&data);
   return 0;
-} 
+}
+
+std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> *
+begin_condensation_log(AutoxRun &run, std::ptrdiff_t nov, std::ptrdiff_t na, std::ptrdiff_t nra, std::ptrdiff_t nca, std::ptrdiff_t ncb, std::ptrdiff_t nbc, std::ptrdiff_t nrc)
+{
+  if (!run.collocation || run.collocation->threads() == 1 || nca - 2 * nov == 0) return nullptr;
+  std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> &log = run.solve_boundary_work.dlog;
+  log.resize(na);
+  const auto terms = xpp::size_product(nra - nov, nrc - nbc, ncb);
+  for (auto &interval : log) {
+    interval.clear();
+    interval.reserve(terms);
+  }
+  return &log;
+}
+
+void
+replay_condensation_log(const std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> *log, double *d)
+{
+  if (!log) return;
+  // Every subtraction in interval/elimination/row/column order.
+  for (const auto &interval : *log)
+    for (const auto &[at, term] : interval) d[at] -= term;
+}
