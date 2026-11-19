@@ -54,7 +54,7 @@ from scipy.optimize import brentq, minimize_scalar
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
-import autocompare  # noqa: E402
+import autoxcompare  # noqa: E402
 
 RTOL, ATOL = 1e-12, 1e-14  # of every integration here
 NEWTON_TOLERANCE = 1e-12  # of the Poincare map's fixed point
@@ -288,7 +288,7 @@ def distance_to_curve(condition, union, cycle, eps, b0):
 
 def stored(workload_dir, run):
     data = (workload_dir / 'pilot-xppautx' / 'diagram.csv').read_bytes()
-    rows = autocompare.stored_rows(data, json.loads((workload_dir / 'pilot-xppautx' / 'run-ranges.json').read_text()))
+    rows = autoxcompare.stored_rows(data, json.loads((workload_dir / 'pilot-xppautx' / 'run-ranges.json').read_text()))
     return rows[run]
 
 
@@ -393,7 +393,7 @@ def curves(workload_dir, run, stride=1):
     """{program: [(par, par2, ...), ...]} of a run: xppautX's stored rows, AUTO-07p's reference curve and XPPAUT's labelled points."""
     out = {}
     rows = stored(workload_dir, run)
-    out['xppautX'] = [(autocompare.quantity(r, 'par'), autocompare.quantity(r, 'par2')) for r in rows if 'continued_parameter2' in r]
+    out['xppautX'] = [(autoxcompare.quantity(r, 'par'), autoxcompare.quantity(r, 'par2')) for r in rows if 'continued_parameter2' in r]
     path = workload_dir / 'pilot-auto07p' / 'reference.json'
     if path.exists():
         ref = next(r for r in json.loads(path.read_text())['runs'] if r['name'] == run)
@@ -411,7 +411,7 @@ def special_value(workload_dir, run, kinds):
     out = {}
     for r in stored(workload_dir, run):
         if r['itp'] == kinds[0]:
-            out['xppautX'] = autocompare.quantity(r, 'par')
+            out['xppautX'] = autoxcompare.quantity(r, 'par')
             break
     for program, folder in (('XPPAUT', 'pilot-xppaut'), ('AUTO-07p', 'pilot-auto07p')):
         if not (workload_dir / folder / 'reference.json').exists():

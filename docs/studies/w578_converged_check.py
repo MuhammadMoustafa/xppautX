@@ -88,13 +88,25 @@ def henon_rot_th():
 PD_R2 = {'xppautX exact rows (EPS 1e-7)': (0.3723241839881814, 1.9489338553245652, 2.5702267114087602, complex(-0.9999998167725831, 6.92263450992909e-4)),
          'converged run (EPS 1e-10)': (0.37232418230156694, 1.94893385926055, 2.5702267181901246, complex(-0.9999999999195499, 1.4676149326991227e-05))}
 PD_STATE, PD_PHASE = (0.623130778725645, 0.045107399932300105), float(np.arctan2(0.4235735926338855, 0.43921474885789386))
+# the same for pd_down's R2 (W832, #913): xppautX before (master f4cc6bf2's baseline) and after the stacked Jacobian (its
+# pair is two real multipliers -1.0000683756 and -0.9999473858: shown as their mean and half-split), and AUTO-07p's
+# (tests/autox/forced_pp_pd.auto07p; its state is xppautX's, a cycle 1e-9 from the same point); m, eps, b0 as above
+PD_DOWN_R2 = {'xppautX before W832': (0.372324184184631, 0.5510216723673346, 0.34012850045638265, complex(-1.0000078481066563, 3.1612898854052965e-05)),
+              'xppautX after W832': (0.372324184184631, 0.5510216946955799, 0.3401284926487536, complex(-1.0000078815, 6.0535e-05)),
+              'AUTO-07p': (0.372324184184631, 0.55101678923, 0.3401302076, complex(-1.0, 4.90871e-05))}
+PD_DOWN_STATE, PD_DOWN_PHASE = (0.3333658873702664, 0.17233857195346444), float(np.arctan2(0.431916530359335, 0.4310131030340803))
 PERTURBATIONS = (1e-10, 1e-7)  # relative, of the true monodromy matrix
 
 
 def forced_pp_pd():
-    print('forced_pp_pd: pd_up R2')
-    for name, (m, eps, b0, pair) in PD_R2.items():
-        cycle = w557.Cycle(PD_STATE, m, PD_PHASE)
+    for run, table, state, phase in (('pd_up', PD_R2, PD_STATE, PD_PHASE), ('pd_down', PD_DOWN_R2, PD_DOWN_STATE, PD_DOWN_PHASE)):
+        r2_of(run, table, state, phase)
+
+
+def r2_of(run, table, state, phase):
+    print('forced_pp_pd: %s R2' % run)
+    for name, (m, eps, b0, pair) in table.items():
+        cycle = w557.Cycle(state, m, phase)
         near = cycle.multipliers(eps, b0)
         true = fsolve(lambda p: [np.trace(cycle.multipliers(*p)) + 2, np.linalg.det(cycle.multipliers(*p)) - 1], [eps, b0], xtol=1e-14)
         jordan = cycle.multipliers(*true)
