@@ -348,10 +348,10 @@ void state_values(const xpp::Model &m, double t, const double *y, int node, int 
    (W715: a fixed variable's own function is not compiled when p_rhs
    computes it, so this is the one way to evaluate them). */
 template <class Set, class Evaluate>
-void fixed_values(const xpp::Model &m, double *c, double *v, xpp::ParserState *s, Set &&set, Evaluate &&evaluate)
+void fixed_values(const xpp::Model &m, double *c, double *v, xpp::ParserState *s, std::uint64_t *native_work, Set &&set, Evaluate &&evaluate)
 {
   if (m.native_rhs) {
-    s->native_work+=m.native_rhs_nodes;
+    if (native_work) *native_work+=m.native_rhs_nodes;
     xpp::native::call(m.native_rhs,c,v,s,nullptr);
     return;
   }
@@ -365,7 +365,7 @@ void equation_values(const xpp::Model &m, double *ydot, Evaluate &&evaluate)
 }
 
 template <class Set, class Evaluate, class Between>
-void rhs_order(const xpp::Model &m, double t, const double *y, double *ydot, double *c, double *v, xpp::ParserState *s,
+void rhs_order(const xpp::Model &m, double t, const double *y, double *ydot, double *c, double *v, xpp::ParserState *s, std::uint64_t *native_work,
                Set &&set, Evaluate &&evaluate, Between &&between)
 {
   state_values(m,t,y,m.node,0,set);
@@ -374,11 +374,11 @@ void rhs_order(const xpp::Model &m, double t, const double *y, double *ydot, dou
      and writes nothing they do (do_daes only records that no DAE failed) */
   if (m.native_equations) {
     between();
-    s->native_work+=m.native_rhs_nodes;
+    if (native_work) *native_work+=m.native_rhs_nodes;
     xpp::native::call(m.native_rhs,c,v,s,ydot);
     return;
   }
-  fixed_values(m,c,v,s,set,evaluate);
+  fixed_values(m,c,v,s,native_work,set,evaluate);
   between();
   equation_values(m,ydot,evaluate);
 }
@@ -392,7 +392,7 @@ void extra(xpp::RunParts &s, double *y__y, double t, int nod, int neq)
   if(nod>=neq)return;
   const auto set=[&](int index,double value){setvar(s.parser,index,value);};
   state_values(m,t,y__y,nod,nmark,set);
-  fixed_values(m,s.parser.constants.data(),s.parser.variables.data(),&s.parser,set,
+  fixed_values(m,s.parser.constants.data(),s.parser.variables.data(),&s.parser,&s.parser.native_work,set,
                [&](const xpp::Program &p){return xpp::evaluate(s.parser,p);});
   /* I dont think this is generally needed  */
 
@@ -414,7 +414,7 @@ int my_rhs(xpp::RunParts &s, double t, double *y, double *ydot, int neq)
   /* a build due starts, finished code is taken: here, never mid-evaluation (W715); asked at every call, so first the cheap question */
   const auto attention=[&](const std::shared_ptr<xpp::NativeBuild> &b){return b && b->needs_attention(s.parser.interpreted_ops,s.parser.native_work);};
   if (attention(m.native_build) || attention(m.jacobian.build)) xpp::build_native(s.session_parts,false);
-  rhs_order(m,t,y,ydot,s.parser.constants.data(),s.parser.variables.data(),&s.parser,
+  rhs_order(m,t,y,ydot,s.parser.constants.data(),s.parser.variables.data(),&s.parser,&s.parser.native_work,
             [&](int i,double value){setvar(s.parser,i,value);},
             [&](const xpp::Program &p){return xpp::evaluate(s.parser,p);},
             [&]{xpp::eval_all_nets(s);xpp::do_daes(s);});
@@ -429,8 +429,9 @@ bool pure_rhs_ready(const xpp::RunParts &s)
 
 void pure_rhs(const xpp::RunParts &s, const double *y, double *ydot, double *c, double *v)
 {
-  /* the native code only reads s's tables (Model::rhs_impurity) */
-  rhs_order(s.model(),0.0,y,ydot,c,v,&s.parser,[&](int i,double value){v[i]=value;},
+  /* the native code only reads s's tables (Model::rhs_impurity); a collocation worker counts no native_work, which the
+     core thread's counter alone keeps (every worker writing one counter ping-ponged its cache line, 60% of pd_down's cache misses) */
+  rhs_order(s.model(),0.0,y,ydot,c,v,&s.parser,nullptr,[&](int i,double value){v[i]=value;},
             [&](const xpp::Program &p){return xpp::evaluate_pure(s.parser,p,c,v);},[]{});
 }
 
@@ -443,7 +444,7 @@ void update_based_on_current(xpp::RunParts &s)
 void fix_only(xpp::RunParts &s)
 {
   const xpp::Model &m=s.model();
-  fixed_values(m,s.parser.constants.data(),s.parser.variables.data(),&s.parser,
+  fixed_values(m,s.parser.constants.data(),s.parser.variables.data(),&s.parser,&s.parser.native_work,
                [&](int i,double value){setvar(s.parser,i,value);},
                [&](const xpp::Program &p){return xpp::evaluate(s.parser,p);});
 }
