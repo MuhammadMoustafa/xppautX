@@ -1273,12 +1273,21 @@ std::string subsystem_joined_by(const SessionParts &s)
 }
 
 /* The tiers (W821). TinyCC compiles a model's code at once, on the core thread (compile_programs, make_jacobian), and a run starts
-   on it: the work it does is counted in the IR nodes each call evaluates (ParserState::native_work). MIR's build follows
-   (pending_build): with a processor to spare it starts on its thread at once and takes over at the next right-hand side, as
-   before; with none, the thread and the run would share one CPU, so the build is due after the run has evaluated the whole
-   model NATIVE_EVALUATIONS_BEFORE_BUILD times with TinyCC's code: MIR's compile costs some 30-60 k instructions a node, and a
-   model's whole evaluation some few instructions a node, so the break-even is a count of whole evaluations, whatever the
-   model's size (measured on one pinned CPU, see the constant).
+   on it: the work it does is counted in the IR nodes each call evaluates (ParserState::native_work: the programs', the right-hand
+   side's and the exact Jacobian's, the module functions they call included). MIR's build follows (pending_build): with a processor to
+   spare it starts on its thread at once and takes over at the next right-hand side; with none, the thread and the run would share
+   one CPU, so the run pays for the compile, and the build is due once the work already done in TinyCC's code is worth the compile
+   (ski-rental: the cost of waiting is what the run has already spent, so a run that ends sooner never pays more than twice
+   what it would have, and one that does not end pays the compile once). The compile's cost is estimated from the module's size,
+   the nodes its code holds (IrSize::emitted) and MIR's set-up (MIR_SET_UP_NODES); the work done is counted in node evaluations,
+   so the due count is NATIVE_EVALUATIONS_PER_NODE of them for each node of the code.
+   Measured (W821, instructions on one pinned CPU, `taskset -c 2`, `TMPDIR` empty): MIR's compile costs 39-76 k instructions a node
+   of the code, set-up included (clustor 39 k of 18 k nodes, mu26 46 k of 1.5 k, kuramot100 76 k of 1.9 k, lecar 67 k of 104, izh
+   68 k of 44), and a node evaluation of TinyCC's code 6.6-12 (mu26 6.6, lecar 8, clustor 9.4, izh 12; the integrator's own work
+   included), so the break-even is some 45 k / 6.6 = 6800 evaluations a node; 10000 keeps mu26's run of 10 M evaluations, which
+   ends at 60% of the break-even, from starting a compile that would cost it 60% more than the whole run. What the ratio does
+   not see is the saving MIR's code makes a node, from 0.8 instructions (mu26) to 13 (lecdiff1600): the long runs that save
+   most start their compile after 3 M evaluations (lecdiff) or 17-21 M (mu26, kuramot100), 0.5% to 9% of their runs.
    Without TinyCC's code (the interpreter runs until MIR is ready) the rule before W821 holds (W717, W817): a processor to spare
    starts the build after INTERPRETED_OPS_BEFORE_BUILD interpreted instructions; none, after INTERPRETED_OPS_PER_NODE_BEFORE_BUILD
    ops a node (measured on one pinned CPU, instructions at once / 100 / 400 / 1500 ops a node: lecdiff1600 7.25 / 7.32 / 7.50 /
@@ -1286,61 +1295,97 @@ std::string subsystem_joined_by(const SessionParts &s)
    19.7 / 20.3 / 22.6 M). */
 constexpr std::uint64_t INTERPRETED_OPS_BEFORE_BUILD=1000000;
 constexpr std::uint64_t INTERPRETED_OPS_PER_NODE_BEFORE_BUILD=100;
-/* Measured (W821, instructions on one pinned CPU, `taskset -c 2`, the mean of 3 runs, in G; W617's binary, master, and this
-   build at the threshold 300 / 1000 / 2000 / 3000 evaluations; never = MIR never starts):
-     workload      W617   master   300    1000   2000   3000
-     clustor       0.845  1.454    1.507  1.497  1.500  1.501   (MIR starts at any of these: its 672 M compile is worth more than the run)
-     lecdiff200    0.402  0.479    0.350  0.381  0.397  0.395
-     mu26 euler    2.768  2.620    2.626  2.625  2.627  2.628
-     lecar         0.0268 0.0293   0.0308 0.0308 0.0310 0.0314 (never: 0.0237)
-     izh_2003_rs   0.0255 0.0246   0.0255 0.0257 0.0258 0.0260
-     lecdiff800    4.975  4.41     3.99   4.13   4.33   4.52
-     lecdiff1600   4.71   4.77     3.73   4.02   4.42   4.84
-     kuramot100    31.6   28.07    (never) 28.59 29.12  29.59
-     mu26 400      2.77   2.62     2.624  2.625  2.627  2.629
-   and on two pinned CPUs (`taskset -c 2,3`, the long workloads, 1000 evaluations): lecdiff800 W617 4.95 / master 5.03 / now 3.96 G,
-   lecdiff1600 4.67 / 6.05 / 3.65 G, kuramot100 31.6 / 28.2 / 28.1 G, mu26 400 2.77 / 2.68 / 2.64 G. The threshold is 1000: the
-   best of the four over the nine workloads; clustor and lecar are not met at any of them (see the report). A model's evaluation
-   is the native right-hand side's weight when it has one (ParserState::native_work counts it per call), else its programs'. */
-constexpr std::uint64_t NATIVE_EVALUATIONS_BEFORE_BUILD=1000;
+constexpr std::uint64_t NATIVE_EVALUATIONS_PER_NODE=10000;
+/* MIR's context, generator and code region, as the compile of this many nodes (measured: izh's compile of 44 nodes costs 3 M, lecdiff's of 158 costs 9 M) */
+constexpr std::uint64_t MIR_SET_UP_NODES=150;
 constexpr std::uint64_t NO_WORK_DUE=std::numeric_limits<std::uint64_t>::max();
-/* the IR nodes one run through a function evaluates, counted by their trees (a shared node counts at each use, as the work
-   is done): what one native call of the function costs in ParserState::native_work. A Repeat's body counts once per pass
-   (its count), a loop's once per pass when both bounds are numbers (the count they make; one for a computed bound), a
-   conditional's both arms (an upper bound): the array equations of one line are one loop, so the count is theirs. */
-std::uint64_t ir_size(const IrModule &ir, const IrFunction &f)
-{
-    const auto tree = [&](int root) {
-        std::uint64_t size = 0;
-        std::vector<int> pending{root};
-        while (!pending.empty()) {
-            const IrNode &n = ir.nodes[static_cast<size_t>(pending.back())];
-            pending.pop_back();
-            ++size;
-            if (n.op == IrOp::Call) {
-                for (int a : ir.arguments(n)) pending.push_back(a);
-            } else {
-                for (int a : n.args)
-                    if (a >= 0) pending.push_back(a);
-            }
-        }
-        return size;
+/* A function's size in IR nodes, counted by their trees (a shared node counts at each use): `evaluated` is what one run through it
+   evaluates, the work of one native call (ParserState::native_work), the bodies of the module functions it calls included;
+   `emitted` is what its own code holds, the work of compiling it. A Repeat's body is evaluated once per pass (its count), a loop's
+   once per pass when both bounds are numbers (the count they make; one for a computed bound), a conditional's both arms (an upper
+   bound): the array equations of one line are one loop, so the count is theirs. */
+struct IrSize {
+    std::uint64_t evaluated = 0, emitted = 0;
+};
+class IrSizes {
+public:
+    explicit IrSizes(const IrModule &ir) : ir_(ir), memo_(ir.functions.size()), state_(ir.functions.size(), 0)
+    {
+        for (size_t k = 0; k < ir.functions.size(); ++k) index_.emplace(ir.functions[k].name, k);
+    }
+    IrSize of(const IrFunction &f) const { return of(static_cast<size_t>(&f - ir_.functions.data())); }
+    IrSize of(std::string_view name) const { return of(index_.at(std::string(name))); }
+    /* what the code of every function holds */
+    std::uint64_t emitted() const
+    {
+        std::uint64_t total = 0;
+        for (const IrFunction &f : ir_.functions) total += of(f).emitted;
+        return total;
+    }
+
+private:
+    const IrModule &ir_;
+    mutable std::vector<IrSize> memo_;
+    mutable std::vector<char> state_; /* by function: 0 not yet, 1 being measured (a call cycle adds nothing), 2 done */
+    std::unordered_map<std::string, size_t> index_;
+
+    IrSize of(size_t k) const;
+    /* the tree at `root` (the nodes it holds, and what the module functions it calls evaluate) */
+    struct Tree {
+        std::uint64_t nodes = 0, callees = 0;
     };
-    std::uint64_t size = 0, factor = 1;
+    Tree tree(int root) const;
+};
+
+IrSizes::Tree IrSizes::tree(int root) const
+{
+    Tree size;
+    std::vector<int> pending{root};
+    while (!pending.empty()) {
+        const IrNode &n = ir_.nodes[static_cast<size_t>(pending.back())];
+        pending.pop_back();
+        ++size.nodes;
+        if (n.op != IrOp::Call) {
+            for (int a : n.args)
+                if (a >= 0) pending.push_back(a);
+            continue;
+        }
+        for (int a : ir_.arguments(n)) pending.push_back(a);
+        const IrCallee &callee = ir_.callees[static_cast<size_t>(n.callee)];
+        if (callee.address != nullptr) continue;
+        if (const auto found = index_.find(callee.name); found != index_.end()) size.callees += of(found->second).evaluated;
+    }
+    return size;
+}
+
+IrSize IrSizes::of(size_t k) const
+{
+    if (state_[k] == 2) return memo_[k];
+    if (state_[k] == 1) return {};
+    state_[k] = 1;
+    const IrFunction &f = ir_.functions[k];
+    IrSize size;
+    std::uint64_t factor = 1;
     std::vector<std::uint64_t> outer; /* the factor outside each open Repeat or loop */
+    const auto add = [&](int root) {
+        if (root < 0) return;
+        const Tree t = tree(root);
+        size.evaluated += factor * (t.nodes + t.callees);
+        size.emitted += t.nodes;
+    };
     for (const IrStatement &s : f.statements) {
-        const int roots[2] = {s.value, s.other};
         switch (s.kind) {
         case IrStatement::Kind::RepeatBegin:
             outer.push_back(factor);
             factor *= static_cast<std::uint64_t>(std::max(1, s.index));
             break;
         case IrStatement::Kind::LoopBegin: {
-            size += factor * (roots[0] >= 0 ? tree(roots[0]) : 0) + factor * (roots[1] >= 0 ? tree(roots[1]) : 0);
+            add(s.value);
+            add(s.other);
             outer.push_back(factor);
             std::uint64_t count = 1;
-            if (roots[0] >= 0 && roots[1] >= 0 && ir.nodes[static_cast<size_t>(roots[0])].op == IrOp::Number && ir.nodes[static_cast<size_t>(roots[1])].op == IrOp::Number) {
-                const long long low = static_cast<long long>(ir.nodes[static_cast<size_t>(roots[0])].number), high = static_cast<long long>(ir.nodes[static_cast<size_t>(roots[1])].number);
+            if (s.value >= 0 && s.other >= 0 && ir_.nodes[static_cast<size_t>(s.value)].op == IrOp::Number && ir_.nodes[static_cast<size_t>(s.other)].op == IrOp::Number) {
+                const long long low = static_cast<long long>(ir_.nodes[static_cast<size_t>(s.value)].number), high = static_cast<long long>(ir_.nodes[static_cast<size_t>(s.other)].number);
                 count = high >= low ? static_cast<std::uint64_t>(high - low + 1) : 1;
             }
             factor *= count;
@@ -1348,22 +1393,24 @@ std::uint64_t ir_size(const IrModule &ir, const IrFunction &f)
         }
         case IrStatement::Kind::RepeatEnd:
         case IrStatement::Kind::LoopEnd:
-            if (roots[0] >= 0) size += factor * tree(roots[0]);
+            add(s.value);
             factor = outer.back();
             outer.pop_back();
             break;
         default:
-            for (int r : roots)
-                if (r >= 0) size += factor * tree(r);
+            add(s.value);
+            add(s.other);
             break;
         }
     }
-    if (f.result >= 0) size += tree(f.result);
-    return size;
+    factor = 1;
+    add(f.result);
+    state_[k] = 2;
+    return memo_[k] = size;
 }
 
 bool spare_processor() { return program.physical_threads()>1; }
-std::shared_ptr<NativeBuild> pending_build(const SessionParts &s, IrModule ir, Place place, bool tier_one, std::uint64_t evaluation, size_t repeat_nodes = 0)
+std::shared_ptr<NativeBuild> pending_build(const SessionParts &s, IrModule ir, Place place, bool tier_one, std::uint64_t code_nodes, size_t repeat_nodes = 0)
 {
     auto build=std::make_shared<NativeBuild>();
     build->ir=std::move(ir);
@@ -1371,13 +1418,8 @@ std::shared_ptr<NativeBuild> pending_build(const SessionParts &s, IrModule ir, P
     /* the count the interpreter's trigger is due by: the IR nodes, and those the copies of a Repeat would have had (Generator::repeat_nodes) */
     const size_t nodes=build->ir.nodes.size()+repeat_nodes;
     build->due=s.parser.interpreted_ops+(spare_processor()?INTERPRETED_OPS_BEFORE_BUILD:INTERPRETED_OPS_PER_NODE_BEFORE_BUILD*nodes);
-    build->due_work=!tier_one?NO_WORK_DUE:s.parser.native_work+(spare_processor()?0:NATIVE_EVALUATIONS_BEFORE_BUILD*evaluation);
+    build->due_work=!tier_one?NO_WORK_DUE:s.parser.native_work+(spare_processor()?0:NATIVE_EVALUATIONS_PER_NODE*(code_nodes+MIR_SET_UP_NODES));
     return build;
-}
-/* whether a pending build is due: the interpreter's work or TinyCC's calls have reached its count */
-bool due_now(const SessionParts &s, const NativeBuild &build)
-{
-    return s.parser.interpreted_ops>=build.due || s.parser.native_work>=build.due_work;
 }
 
 /* The programs' code placed in the model: each program's function and the right-hand side's, every address found before any is
@@ -1440,7 +1482,6 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
         entry.code->array_pure=entry.user_index<0 && g.array_pure;
         if (entry.user_index<0) entry.code->native_reads.assign(g.variable_reads.begin(),g.variable_reads.end());
         if (g.loops>0 && entry.user_index<0) g.called.emplace(entry.code,entry.symbol);
-        entry.code->native_nodes=ir_size(g.ir,g.ir.functions.back());
         emitted.push_back(&entry);
         function_of.push_back(g.ir.functions.size()-1);
     }
@@ -1464,7 +1505,6 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
         const std::span<const Program> equation_programs=equations?std::span<const Program>{m.programs.data(),static_cast<size_t>(m.node)}:std::span<const Program>{};
         auto r=g.rhs({m.programs.data()+m.node,static_cast<size_t>(m.fix_var)},m.node+1,equation_programs,rhs_symbol);
         if (r) {
-            m.native_rhs_nodes=ir_size(g.ir,*r);
             g.ir.functions.push_back(std::move(*r));
         } else {
             warnings.push_back(r.error());
@@ -1500,6 +1540,11 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
         emitted=std::move(still);
     }
     if (emitted.empty() && !rhs) return warnings;
+    /* what one call of each function evaluates, for the work a run has done (ParserState::native_work) */
+    const IrSizes sizes(g.ir);
+    const std::uint64_t code_nodes=sizes.emitted();
+    for (const auto *entry:emitted) entry->code->native_nodes=sizes.of(entry->symbol).evaluated;
+    if (rhs) m.native_rhs_nodes=sizes.of(rhs_symbol).evaluated;
     for (const auto *entry:emitted) entry->code->compiled=true;
     for (Program *code:in_rhs) code->in_rhs=true;
     const Place place=entries.front().place;
@@ -1510,11 +1555,7 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
         if (auto placed=place_programs(m,*tiny,placed_rhs,equations)) tier_one=true;
         else log(XPP_LOG_WARN,"{}; MIR compiles instead\n",placed.error().text());
     } else log(XPP_LOG_WARN,"{}; MIR compiles instead\n",tiny.error().text());
-    /* one evaluation of the model: the right-hand side when it is one native function, else the programs that run each time */
-    std::uint64_t evaluation=0;
-    if (rhs) evaluation=m.native_rhs_nodes;
-    else for (const auto *entry:emitted) evaluation+=entry->code->native_nodes;
-    m.native_build=pending_build(s,std::move(g.ir),place,tier_one,evaluation);
+    m.native_build=pending_build(s,std::move(g.ir),place,tier_one,code_nodes);
     if (rhs) m.native_build->rhs_symbol=rhs_symbol;
     m.native_build->equations=equations;
     log(XPP_LOG_INFO,"Compiled {} of {} programs ({} nodes{})\n",compiled_count,entries.size(),m.native_build->ir.nodes.size(),tier_one?", TinyCC's code in use":"");
@@ -1546,7 +1587,7 @@ std::shared_ptr<NativeBuild> taken(const SessionParts &s, std::shared_ptr<Native
 {
     if (!pending) return nullptr;
     if (!pending->started) {
-        if (!wait && !due_now(s,*pending)) return nullptr;
+        if (!wait && !pending->needs_attention(s.parser.interpreted_ops,s.parser.native_work)) return nullptr;
         start_build(s,pending);
         wait=wait||!spare_processor(); /* with no processor to spare the run waits for its compile */
     }
@@ -1689,6 +1730,11 @@ ExactJacobian make_jacobian(const SessionParts &s, const std::vector<ModelProgra
         j.by_constant.emplace_back(k, JacobianProgram{nullptr, std::move(column.second), {}});
         program(j.by_constant.back().second, std::move(column.first), xpp::format("j_c{}", k));
     }
+    const IrSizes sizes(g.ir);
+    j.states.native_nodes = sizes.of("j_states").evaluated;
+    j.time.native_nodes = sizes.of("j_time").evaluated;
+    for (auto &[k, column] : j.by_constant) column.native_nodes = sizes.of(xpp::format("j_c{}", k)).evaluated;
+    const std::uint64_t code_nodes = sizes.emitted();
     const Place place = entries.empty() ? Place{} : entries.front().place;
     /* TinyCC's code first (W821): the Jacobian runs on it from its first step; MIR's build follows */
     bool tier_one = false;
@@ -1696,9 +1742,7 @@ ExactJacobian make_jacobian(const SessionParts &s, const std::vector<ModelProgra
         if (auto placed = place_jacobian(j, *tiny); placed) tier_one = true;
         else log(XPP_LOG_WARN, "{}; MIR compiles instead\n", placed.error().text());
     } else log(XPP_LOG_WARN, "{}; MIR compiles instead\n", tiny.error().text());
-    std::uint64_t evaluation=0; /* the derivatives' functions once: the Jacobian's whole evaluation */
-    for (const IrFunction &f:g.ir.functions) evaluation+=ir_size(g.ir,f);
-    j.build = pending_build(s, std::move(g.ir), place, tier_one, evaluation, g.repeat_nodes);
+    j.build = pending_build(s, std::move(g.ir), place, tier_one, code_nodes, g.repeat_nodes);
     j.graph = std::make_shared<expr::Symbolic>(std::move(derived->graph));
     log(XPP_LOG_INFO, "Made the exact Jacobian: {} values, {} derivatives ({} nodes to compile)\n", j.graph->size(), derived->entries.size(), j.build->ir.nodes.size());
     return j;

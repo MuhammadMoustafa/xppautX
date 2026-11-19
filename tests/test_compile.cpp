@@ -323,6 +323,8 @@ TEST_CASE("test_compile")
     CHECK(!pure_rhs_ready(s));
     xpp::build_native(s,false); /* not due: nothing starts */
     CHECK(m.native_build && !m.native_build->started);
+    CHECK(!m.native_build->needs_attention(s.parser.interpreted_ops,s.parser.native_work) && m.native_build->due_work>s.parser.native_work);
+    CHECK(m.native_build->needs_attention(s.parser.interpreted_ops,m.native_build->due_work));
     s.parser.native_work=m.native_build->due_work;
     /* due, with no processor to spare: the thread starts and the run waits for its code at once (W817), taken here */
     xpp::build_native(s,false);
@@ -384,6 +386,8 @@ TEST_CASE("test_compile")
         xpp::build_native(**loaded,true); /* the load translates; every program's code is checked here */
         xpp::Session &t=xpp::client_session();
         CHECK(t.model().native_program!=nullptr);
+        /* a right-hand side's work counts the sums of the equations it calls (W821): kuramot100's 100 sums of 100 terms */
+        if (file.ends_with("kuramot100.odex")) CHECK(t.model().native_rhs_nodes>10000);
         for (int round=0;round<2;++round) {
             for (size_t i=0;i<t.parser.variables.size();++i) t.parser.variables[i]+=0.01*static_cast<double>(round*(i%5));
             for (const auto &entry:xpp::model_programs(t.model())) {

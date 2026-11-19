@@ -239,6 +239,14 @@ void Lowering::statement(const IrStatement &s)
 void Lowering::assign(const std::string &target, int node)
 {
     const Lowered value = operand(node, 0);
+    /* a call's result is used once, by this statement: the call's own statement stores it where it goes (a local less to copy) */
+    if (ir_.nodes[static_cast<size_t>(node)].op == IrOp::Call && !value.computed) {
+        const size_t line = body_.rfind('\n', body_.size() - 2) + 1; /* npos + 1 is 0: the first line */
+        if (body_.compare(line, value.text.size() + 3, value.text + " = ") == 0) {
+            body_.replace(line, value.text.size(), target);
+            return;
+        }
+    }
     body_ += target + " = " + value.text + ";\n";
 }
 
@@ -376,8 +384,13 @@ Lowered Lowering::call(const IrNode &n, int depth)
     const ir::CallShape shape = ir::call_shape(ir_.callees[callee], callee_module_[callee]);
     std::vector<std::string> arguments;
     for (ir::Hidden h : shape.before) arguments.push_back(hidden_value(h));
-    for (int a : ir_.arguments(n)) {
+    const std::span<const int> given = ir_.arguments(n);
+    for (int a : given) {
         const Lowered value = operand(a, depth + 1);
+        if (given.size() == 1) { /* nothing runs between the argument's value and the call: no local to hold it */
+            arguments.push_back(value.text);
+            break;
+        }
         const std::string local = next_local();
         body_ += local + " = " + value.text + ";\n";
         arguments.push_back(local);

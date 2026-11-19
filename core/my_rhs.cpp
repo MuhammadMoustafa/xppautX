@@ -411,7 +411,9 @@ void set_fix_rhs(xpp::RunParts &s, double t, double *y)
 int my_rhs(xpp::RunParts &s, double t, double *y, double *ydot, int neq)
 {
   const xpp::Model &m=s.model();
-  if (m.native_build || m.jacobian.build) xpp::build_native(s.session_parts,false); /* a build due starts, finished code is taken: here, never mid-evaluation (W715) */
+  /* a build due starts, finished code is taken: here, never mid-evaluation (W715); asked at every call, so first the cheap question */
+  const auto attention=[&](const std::shared_ptr<xpp::NativeBuild> &b){return b && b->needs_attention(s.parser.interpreted_ops,s.parser.native_work);};
+  if (attention(m.native_build) || attention(m.jacobian.build)) xpp::build_native(s.session_parts,false);
   rhs_order(m,t,y,ydot,s.parser.constants.data(),s.parser.variables.data(),&s.parser,
             [&](int i,double value){setvar(s.parser,i,value);},
             [&](const xpp::Program &p){return xpp::evaluate(s.parser,p);},

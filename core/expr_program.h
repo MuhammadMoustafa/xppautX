@@ -188,6 +188,12 @@ struct NativeBuild {
     bool started = false;
     std::atomic<bool> finished{false}; /* set by the thread once `result` is written; waited on with atomic wait */
     Result<std::unique_ptr<native::Code>> result;
+    /* whether the core thread has something to do with it (build_native, without waiting): start it, as the work done has reached
+       its count, or take it, as the thread has finished; the run asks at every right-hand side, so it is a few loads */
+    bool needs_attention(std::uint64_t interpreted_ops, std::uint64_t native_work) const
+    {
+        return started ? finished.load(std::memory_order_acquire) : interpreted_ops >= due || native_work >= due_work;
+    }
 };
 
 /* Derivatives of the exact Jacobian (W260, expr_derivative.h): entry k is
@@ -204,6 +210,7 @@ struct JacobianProgram {
     std::vector<int> rows, columns;
     std::vector<expr::Term> terms;
     std::vector<int> nodes;
+    std::uint64_t native_nodes = 0; /* the IR nodes of `function`: what one call evaluates (ParserState::native_work) */
 };
 
 /* The model's exact Jacobian (W260): with respect to the state, the time
