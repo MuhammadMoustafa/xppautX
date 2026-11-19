@@ -27,14 +27,14 @@ def main():
             running = [u for u in units if u not in done and u not in failed and newest(u)]
             print('  %-12s %d units: %d done, %d failed%s' % (study, len(units), len(done), len(failed), ', running ' + running[-1].name if running else ''))
             # W818: each finished unit's verdict against its reference (run.log has the ratios), and pass 1's where pass 2 is not done
-            judged = {u.name: json.loads((u / DONE).read_text()).get('verdict', 'not judged') for u in done}
-            if judged:
-                print('     verdicts: ' + ', '.join('%d %s' % (n, v) for v, n in sorted(Counter(judged.values()).items())))
-            for name in sorted(n for n, v in judged.items() if v == 'slower'):
-                print('     SLOWER %s (run.log has its ratios)' % name)
-            behind = {u.name: json.loads((u / DONE).read_text()).get('behind', 0) for u in done}  # W830: reported, not a stop
-            for name in sorted(n for n, b in behind.items() if b):
-                print('     BEHIND another program %s: %d row(s) (run.log has the ratios)' % (name, behind[name]))
+            records = {u.name: json.loads((u / DONE).read_text()) for u in done}
+            if records:
+                print('     verdicts: ' + ', '.join('%d %s' % (n, v) for v, n in sorted(Counter(r.get('verdict', 'not judged') for r in records.values()).items())))
+            for name, r in sorted(records.items()):
+                if r.get('verdict') == 'slower':
+                    print('     SLOWER %s (run.log has its ratios)' % name)
+                if r.get('behind'):  # W830: reported, not a stop
+                    print('     BEHIND another program %s: %d row(s) (run.log has the ratios)' % (name, r['behind']))
             for u in units:
                 if u not in done and (u / PASS1).exists():
                     print('     pass 1 %s: %s' % (u.name, json.loads((u / PASS1).read_text())['verdict']))
