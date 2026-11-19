@@ -16,7 +16,7 @@ only); from a worktree the default finds it through git's common directory.
 Counts: the C files its Makefile's SOURCES lists (the program), the extern lines
 that declare data (no '(' on the line), in every .c and .h of the top folder.
 """
-import argparse, importlib.util, re, subprocess, sys
+import argparse, importlib.util, re, subprocess, sys, textwrap
 from pathlib import Path
 
 import matplotlib
@@ -102,29 +102,30 @@ def box(ax, x, y, w, h, text, fc=FILL, ec=MUTED, lw=0.8, fs=7, color=INK, bold=F
 
 
 def architecture(xp, d, sizes):
-    fig = plt.figure(figsize=(6.6, 8.8))
+    H = 7.4
+    fig = plt.figure(figsize=(6.6, H))
     # ---- (a) XPPAUT 8.0: one layer of C files, the globals every one of them shares
-    a = fig.add_axes([0.0, 0.64, 1.0, 0.33]); a.set_xlim(0, 100); a.set_ylim(0, 42); a.axis('off')
-    a.text(0, 42, '(a) XPPAUT 8.0: %d C files, %s lines, one layer' % (xp['c_files'], f"{xp['c_lines']:,}"),
+    a = fig.add_axes([0.0, 1 - 1.7 / H, 1.0, 1.7 / H])
+    a.set_xlim(0, 100); a.set_ylim(-5, 30); a.axis('off')
+    a.text(0, 30, '(a) XPPAUT 8.0: %d C files, %s lines, one layer' % (xp['c_files'], f"{xp['c_lines']:,}"),
            fontsize=8.5, fontweight='bold', va='top')
-    a.text(0, 37.5, 'numerics, interface and X11 calls in the same files; no seam between them', fontsize=7,
-           color=INK2, va='top')
-    cols, pitch, cw = 20, 4.8, 3.9
+    a.add_patch(Rectangle((0, 23.4), 2.4, 2.4, fc=ORANGE, ec=MUTED, lw=0.3))
+    a.text(3.4, 24.6, 'includes X11 headers (%d files)' % xp['x11'], fontsize=7, va='center', color=INK2)
+    a.add_patch(Rectangle((44, 23.4), 2.4, 2.4, fc=FILL2, ec=MUTED, lw=0.3))
+    a.text(47.4, 24.6, 'no X11 include (%d files)' % (xp['c_files'] - xp['x11']), fontsize=7, va='center',
+           color=INK2)
+    cols, pitch_x, pitch_y, cw = 20, 4.8, 4.2, 3.6
     for i, f in enumerate(xp['files']):
         r, c = divmod(i, cols)
-        a.add_patch(Rectangle((c * pitch, 34.0 - r * pitch - cw), cw, cw,
+        a.add_patch(Rectangle((c * pitch_x, 21.0 - r * pitch_y - cw), cw, cw,
                               fc=ORANGE if f.name in xp['x11_names'] else FILL2, ec=MUTED, lw=0.3))
-    a.add_patch(Rectangle((0, 5.5), 3.0, 3.0, fc=ORANGE, ec=MUTED, lw=0.3))
-    a.text(4.2, 7.0, 'includes X11 headers (%d files)' % xp['x11'], fontsize=7, va='center', color=INK2)
-    a.add_patch(Rectangle((44, 5.5), 3.0, 3.0, fc=FILL2, ec=MUTED, lw=0.3))
-    a.text(48.2, 7.0, 'no X11 include (%d files)' % (xp['c_files'] - xp['x11']), fontsize=7, va='center', color=INK2)
-    a.add_patch(Rectangle((0, 0.0), 100, 3.4, fc=FILL, ec=INK2, lw=0.8, hatch="////"))
-    a.text(50, 1.7, '%d global data declarations (extern) in the sources and headers, shared by every file'
+    a.add_patch(Rectangle((0, -4.2), 100, 3.4, fc=FILL, ec=INK2, lw=0.8, hatch='////'))
+    a.text(50, -2.5, '%d global data declarations (extern) in the sources and headers, shared by every file'
            % xp['extern_data'], ha='center', va='center', fontsize=7, color=INK,
            bbox=dict(fc='white', ec='none', pad=1.5))
 
     # ---- (b) xppautX: the rings of depgraph's LEVELS, each module with its file count
-    b = fig.add_axes([0.0, 0.0, 1.0, 0.60]); b.set_xlim(0, 100); b.set_ylim(0, 100); b.axis('off')
+    b = fig.add_axes([0.0, 0.0, 1.0, 5.5 / H]); b.set_xlim(0, 100); b.set_ylim(0, 100); b.axis('off')
     b.text(0, 100, '(b) xppautX: five rings of %d core modules' % len(d.MODULES), fontsize=8.5,
            fontweight='bold', va='top')
     by_ring = {}
@@ -132,48 +133,53 @@ def architecture(xp, d, sizes):
         by_ring.setdefault(ring, []).append(mod)
     rings = ['outside', 'application', 'domain services', 'domain model', 'kernel']
     band_h, band_gap = 14.4, 2.0
-    x0, x1 = 21.0, 77.0
+    x0, x1 = 18.5, 77.0
     fx, fw = 81.0, 19.0
     b.text(fx + fw / 2, 96.5, 'front ends', ha='center', va='top', fontsize=7.5, fontweight='bold', color=INK2)
     y = 92.0
     seam_box = None
     for name in rings:
         mods = by_ring.get(name, [])
-        b.add_patch(FancyBboxPatch((1.0, y - band_h), x1 - 1.0, band_h,
+        b.add_patch(FancyBboxPatch((0.5, y - band_h), x1 - 0.5, band_h,
                                    boxstyle='round,pad=0.0,rounding_size=1.2', fc='#fbfbfa', ec=GRID, lw=0.8))
-        b.text(2.5, y - band_h / 2, name, fontsize=7.5, fontweight='bold', color=INK2, va='center', ha='left')
+        b.text(1.8, y - band_h / 2, name.replace(' ', '\n'), fontsize=7.5, fontweight='bold', color=INK2,
+               va='center', ha='left')
         n = len(mods)
         bw = (x1 - x0 - 1.0 * (n - 1) - 1.0) / n
         for i, m in enumerate(mods):
             hot = m == 'ui seam'
             bx = x0 + 0.5 + i * (bw + 1.0)
-            label = m.replace(' ', '\n') if len(m) > 9 else m
+            label = textwrap.fill(m, 11)
             box(b, bx, y - band_h + 2.2, bw, band_h - 4.4, '%s\n%d files' % (label, sizes.get(m, 0)),
-                fc='#fde3d6' if hot else FILL2, ec=ORANGE if hot else MUTED, lw=1.8 if hot else 0.6, fs=6.8,
+                fc='#fde3d6' if hot else FILL2, ec=ORANGE if hot else MUTED, lw=1.8 if hot else 0.6, fs=7.5,
                 bold=hot)
             if hot:
                 seam_box = (bx + bw, y - band_h / 2)
         y -= band_h + band_gap
-    fe = [('desktop window', 'platform: xpp_window'), ('browser', 'platform: xpp_http, page'),
-          ('--server', 'protocol front end'), ('--silent', 'protocol front end')]
+    # front ends: each one goes through the seam, drawn as one bus from the column to the seam
+    fe = ['desktop window', 'browser', '--server', '--silent']
     fy = 92.0
-    last = None
-    for name, sub in fe:
-        box(b, fx, fy - 11.0, fw, 10.0, name + '\n' + sub, fc='white', ec=AQUA, lw=0.9, fs=6.3)
-        last = fy - 11.0
+    centers = []
+    for name in fe:
+        box(b, fx, fy - 10.0, fw, 10.0, name, fc='white', ec=AQUA, lw=0.9, fs=7.5)
+        centers.append(fy - 5.0)
         fy -= 12.6
-    b.plot([fx + fw / 2, fx + fw / 2, seam_box[0]], [last, seam_box[1], seam_box[1]], color=ORANGE, lw=0.9, ls=(0, (3, 2)))
-    b.text(fx, 5.0, 'XppUi seam\n(core/xpp_ui.h): every\ncall from the core to\na front end goes through it',
+    bus_x = (x1 + fx) / 2
+    for yc in centers:
+        b.plot([bus_x, fx], [yc, yc], color=ORANGE, lw=0.9)
+    b.plot([bus_x, bus_x, seam_box[0]], [centers[0], seam_box[1], seam_box[1]], color=ORANGE, lw=0.9,
+           ls=(0, (3, 2)))
+    b.text(fx, 1.0, 'XppUi seam\n(core/xpp_ui.h): every\ncall from the core to\na front end goes through it',
            ha='left', fontsize=6.5, color=INK2, va='bottom')
     save(fig, 'architecture')
     plt.close(fig)
 
 
 def native_code():
-    fig = plt.figure(figsize=(6.6, 7.6))
+    fig = plt.figure(figsize=(6.6, 4.8))
     # ---- the pipeline: model -> parser -> programs -> Generator -> one IR -> three back ends
-    a = fig.add_axes([0, 0.50, 1, 0.50]); a.set_xlim(0, 100); a.set_ylim(0, 100); a.axis('off')
-    a.text(0, 100, 'From a model to native code: one Generator, one IR, three back ends', fontsize=8.5,
+    a = fig.add_axes([0, 0.521, 1, 0.479]); a.set_xlim(0, 100); a.set_ylim(0, 104); a.axis("off")
+    a.text(0, 104, 'From a model to native code: one Generator, one IR, three back ends', fontsize=8.5,
            fontweight='bold', va='top')
     top = (84, 12)
     xs = [0, 26, 52, 78]
@@ -193,36 +199,39 @@ def native_code():
              (34, 'TinyCC\nxpp_tcc.cpp, xpp_tcc_lower.cpp\nlowers to C, compiled in memory at load', FILL2, BLUE),
              (68, 'MIR\nxpp_mir.cpp\ncompiled on a spare processor, or once\nTinyCC\'s work pays for it', FILL2, BLUE)]
     for x, text, fc, ec in backs:
-        box(a, x, 34, 31, 17, text, fc=fc, ec=ec, lw=1.0, fs=6.8)
+        box(a, x, 31, 31, 21, text, fc=fc, ec=ec, lw=1.0, fs=6.8)
         cx = x + 15.5
-        a.annotate('', xy=(cx, 51), xytext=(cx, 58.5), arrowprops=dict(arrowstyle='-|>', color=MUTED, lw=0.8))
+        a.annotate('', xy=(cx, 52), xytext=(cx, 58.5), arrowprops=dict(arrowstyle='-|>', color=MUTED, lw=0.8))
     a.text(0, 28, 'The Generator writes no text: every name is an index and every number a double, so the three back\n'
            'ends differ only in how they lower the same IR. TinyCC and MIR are compiled into the program.',
            fontsize=6.8, color=INK2, va='top')
 
     # ---- one run's tiers, schematic
-    t = fig.add_axes([0.21, 0.11, 0.76, 0.25]); t.set_xlim(0, 100); t.set_ylim(0, 10.5); t.set_yticks([])
+    fig.text(0.0, 0.531, 'One run: which code runs when', fontsize=8.5, fontweight='bold')
+    t = fig.add_axes([0.21, 0.104, 0.76, 0.396]); t.set_xlim(0, 100); t.set_ylim(0, 10.5); t.set_yticks([])
     t.set_xticks([]); [t.spines[s].set_visible(False) for s in ('top', 'right', 'left')]
     t.set_xlabel('time of one run, from load to the end (schematic, not to scale)', fontsize=7, color=INK2)
-    fig.text(0.0, 0.41, 'One run: which code runs when', fontsize=8.5, fontweight='bold')
     for label, y in [('interpreter', 7.2), ('TinyCC', 4.4), ('MIR', 1.6)]:
         t.text(-1.5, y, label, ha='right', va='center', fontsize=7, color=INK2)
-    t.plot([0, 100], [7.2, 7.2], color=MUTED, lw=0.8, ls=(0, (1, 2)))
+    # interpreter: a short bar, then dotted: the label sits right beside the bar
     t.add_patch(Rectangle((0, 6.6), 3, 1.2, fc=MUTED, ec='none'))
-    t.text(5, 8.2, 'before TinyCC\'s code is ready; then only the fallback', fontsize=6.5, color=MUTED,
+    t.plot([3, 100], [7.2, 7.2], color=MUTED, lw=0.8, ls=(0, (1, 2)))
+    t.text(4.5, 7.9, 'before TinyCC\'s code is ready; then only the fallback', fontsize=6.5, color=MUTED,
            va='bottom')
+    # TinyCC: compiles at load (dark), then runs from the end of its compile
     t.add_patch(Rectangle((0, 3.8), 3, 1.2, fc=BLUE, ec='none'))
+    t.text(0, 5.2, 'TinyCC compiles', fontsize=6.5, color=INK2, va='bottom')
     t.add_patch(Rectangle((3, 3.8), 57, 1.2, fc=BLUE, alpha=0.45, ec='none'))
-    t.text(31.5, 4.4, 'the run on TinyCC\'s code (from load)', ha='center', va='center', fontsize=6.8, color=INK)
+    t.text(31.5, 4.4, 'the run on TinyCC\'s code (from its compile\'s end)', ha='center', va='center',
+           fontsize=6.8, color=INK)
+    # MIR: its compile starts where TinyCC's compile ends, then it takes over at the switch
     t.add_patch(Rectangle((3, 1.0), 57, 1.2, fc=AQUA, alpha=0.35, ec='none'))
-    t.text(31.5, 1.6, 'MIR compiles on a spare processor', ha='center', va='center', fontsize=6.8, color=INK)
+    t.text(31.5, 1.6, 'MIR compiles, starting once TinyCC\'s code is placed', ha='center', va='center',
+           fontsize=6.8, color=INK)
     t.add_patch(Rectangle((60, 1.0), 40, 1.2, fc=AQUA, ec='none'))
     t.text(80, 1.6, 'the run on MIR\'s code', ha='center', va='center', fontsize=6.8, color='white')
     t.plot([60, 60], [0.6, 9.6], color=INK, lw=0.9, ls='--')
     t.text(61, 9.6, 'switch: the next right-hand side\nuses MIR\'s code', fontsize=6.5, color=INK2, va='top')
-    t.text(-1.5, -2.6, 'With no spare processor, MIR compiles on the run\'s own thread once TinyCC\'s work equals its compile\n'
-           'cost (the ski-rental rule, core/model_native.cpp): a run that ends early pays at most twice what it would have.',
-           fontsize=6.5, color=INK2, va='top', transform=t.transData, clip_on=False)
     save(fig, 'native-code')
     plt.close(fig)
 
