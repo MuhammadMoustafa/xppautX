@@ -731,7 +731,7 @@ solve_bordered_block_diagonal(AutoxRun &run, double *fa, double *fc, double *p0,
   }
 
   if (*nllv == 0) {
-    condense_right_hand_side(nov, na, nra, nca, a, nbc, nrc, c, fa, fc, irf, icf);
+    condense_right_hand_side(run, nov, na, nra, nca, a, nbc, nrc, c, fa, fc, irf, icf);
   } else {
     zero_right_hand_side(fa, fc, na, nra, nrc);
   }
@@ -782,12 +782,11 @@ zero_right_hand_side(double *fa, double *fc, std::ptrdiff_t *na, std::ptrdiff_t 
 
 /* conrhs: AUTO-07p solvebv.f90:931 CONRHS: condensation of the right-hand side */
 int 
-condense_right_hand_side(std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *fa, double *fc, std::ptrdiff_t *irf, std::ptrdiff_t *icf)
+condense_right_hand_side(AutoxRun &run, std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t *nra, std::ptrdiff_t *nca, double *a, std::ptrdiff_t *nbc, std::ptrdiff_t *nrc, double *c, double *fa, double *fc, std::ptrdiff_t *irf, std::ptrdiff_t *icf)
 {
   std::ptrdiff_t icf_dim1, irf_dim1, a_dim1, a_dim2, c_dim1, c_dim2, fa_dim1;
 
-  std::ptrdiff_t i, icfic, irfir, m2, ic, ir, irfirp, ir1, nex,
-    irp;
+  std::ptrdiff_t m2, nex;
 
   irf_dim1 = *nra;
   fa_dim1 = *nra;
@@ -802,26 +801,35 @@ condense_right_hand_side(std::ptrdiff_t *nov, std::ptrdiff_t *na, std::ptrdiff_t
     return 0;
   }
 
-  /* Condensation of right hand side. */
+  /* Condensation of right hand side. Each interval's fa is its own, so the intervals share the workers; fc
+     is every interval's in turn, summed serially in the order the serial loop used (the same bits). A pivot
+     row's fa is final before its fc terms are taken: later pivots change only the rows below it. */
 
   m2 = *nov + nex;
 
-  for (i = 0; i < *na; ++i) {
-    for (ic = *nov; ic < m2; ++ic) {
-      ir1 = ic - *nov + 1;
-      irp = ir1 - 1;
-      irfirp = ARRAY2D(irf, irp, i);
-      icfic = ARRAY2D(icf, ic, i);
-      for (ir = ir1; ir < *nra; ++ir) {
-	irfir = ARRAY2D(irf, ir, i);
-	if (ARRAY3D(a, (icfic - 1), (irfir - 1), i) != 0.) {
-	  ARRAY2D(fa, (irfir - 1), i) -= ARRAY3D(a, (icfic - 1), (irfir - 1), i) * ARRAY2D(fa, (irfirp - 1), i);
-	}
+  for_blocks(run, *na, [&](std::ptrdiff_t begin, std::ptrdiff_t end) {
+    for (std::ptrdiff_t i = begin; i < end; ++i) {
+      for (std::ptrdiff_t ic = *nov; ic < m2; ++ic) {
+        const std::ptrdiff_t irp = ic - *nov;
+        const std::ptrdiff_t irfirp = ARRAY2D(irf, irp, i);
+        const std::ptrdiff_t icfic = ARRAY2D(icf, ic, i);
+        for (std::ptrdiff_t ir = irp + 1; ir < *nra; ++ir) {
+          const std::ptrdiff_t irfir = ARRAY2D(irf, ir, i);
+          if (ARRAY3D(a, (icfic - 1), (irfir - 1), i) != 0.) {
+            ARRAY2D(fa, (irfir - 1), i) -= ARRAY3D(a, (icfic - 1), (irfir - 1), i) * ARRAY2D(fa, (irfirp - 1), i);
+          }
+        }
       }
-      for (ir = *nbc; ir < *nrc; ++ir) {
-	if (ARRAY3D(c, (icfic - 1), ir, i) != 0.) {
-	  fc[ir] -= ARRAY3D(c, (icfic - 1), ir, i) * ARRAY2D(fa, (irfirp - 1), i);
-	}
+    }
+  });
+  for (std::ptrdiff_t i = 0; i < *na; ++i) {
+    for (std::ptrdiff_t ic = *nov; ic < m2; ++ic) {
+      const std::ptrdiff_t irfirp = ARRAY2D(irf, ic - *nov, i);
+      const std::ptrdiff_t icfic = ARRAY2D(icf, ic, i);
+      for (std::ptrdiff_t ir = *nbc; ir < *nrc; ++ir) {
+        if (ARRAY3D(c, (icfic - 1), ir, i) != 0.) {
+          fc[ir] -= ARRAY3D(c, (icfic - 1), ir, i) * ARRAY2D(fa, (irfirp - 1), i);
+        }
       }
     }
   }
