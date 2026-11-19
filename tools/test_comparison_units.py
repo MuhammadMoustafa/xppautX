@@ -60,8 +60,9 @@ def fake_machine(path, timed):
 
 
 class Sampler:
-    # run.py's /proc snapshots as a stub (W829: no real load, no sleep). Each timed run reads one table before and one after; the
-    # other process ('gradle', not in the series' tree) used seconds[k] of CPU between the two of run k, and none past the list.
+    # run.py's machine snapshots as a stub (W829: no real load, no sleep). Each timed run reads one snapshot before and one after. Between
+    # them the machine used seconds[k] of CPU in a process the process table never shows (a short-lived one, seen only in /proc/stat's
+    # busy total), in run k; none past the list. The series itself is the one process of the table, using no CPU.
     def __init__(self, seconds=()):
         self.seconds, self.snapshots = list(seconds), 0
 
@@ -69,7 +70,7 @@ class Sampler:
         run_index, after = divmod(self.snapshots, 2)
         self.snapshots += 1
         used = self.seconds[run_index] if run_index < len(self.seconds) else 0
-        return {os.getpid(): (1, 1, 0, 'python'), 9999: (1, 2, int(used * common.CLOCK_TICKS) if after else 0, 'gradle')}
+        return dict(busy=1000 + (int(used * common.CLOCK_TICKS) if after else 0), table={os.getpid(): (1, 1, 0, 0, 'python')})
 
 
 class Units(unittest.TestCase):
@@ -99,7 +100,7 @@ class Units(unittest.TestCase):
         # the machine record of a timed run comes from the setup script on the Ubuntu machine: the fake records its own
         with mock.patch.object(sys, 'argv', argv), mock.patch.object(run, 'HERE', self.root / 'drivers'), \
                 mock.patch.object(run, 'machine_record', side_effect=fake_machine), \
-                mock.patch.object(run, 'process_table', Sampler(competing)), \
+                mock.patch.object(run, 'machine_snapshot', Sampler(competing)), \
                 mock.patch.dict(os.environ, FAKE_CONTROL=str(self.control)):
             try:
                 run.main()
@@ -655,6 +656,15 @@ class Disturbance(unittest.TestCase):
         self.assertEqual(self.record('b', 'attempt-002.competing.json')['verdict'], 'quiet')
         self.assertEqual(run.earlier_attempt(self.out / 'screen/b', None, 'screen').name, 'attempt-002')  # attempt-001 never ended
 
+    def test_a_short_lived_process_seen_only_in_the_machine_total_disturbs_its_unit(self):
+        # A build step that starts and exits inside the unit never shows in the process table: only /proc/stat's busy total has its CPU.
+        self.make_reference()
+        ran, message = self.series(self.ALL, competing=[0, 5, 5])
+        self.assertIn('screen/b', message)
+        self.assertEqual(self.record('b')['processes'], [])  # named by no process: the total is all there is
+        self.assertGreater(self.record('b')['competing_cpu_seconds'], 4.0)
+        self.assertIn('none named', (self.out / 'run.log').read_text())
+
     def test_a_quiet_unit_is_judged_as_before_and_records_its_competing_cpu(self):
         self.make_reference()
         ran, message = self.series(self.ALL)
@@ -670,45 +680,70 @@ class Disturbance(unittest.TestCase):
 
 
 class CompetingCpu(unittest.TestCase):
-    # W829: the one /proc measure (common.py) on snapshots written out by hand: nothing is read from the machine but this process.
-    def tables(self):
-        me, ticks = os.getpid(), common.CLOCK_TICKS
-        before = {me: (1, 100, 0, 'run.py'), 40: (me, 400, 1 * ticks, 'driver'), 20: (1, 200, 5 * ticks, 'gradle')}
-        after = {me: (1, 100, 0, 'run.py'), 40: (me, 400, 2 * ticks, 'driver'), 41: (40, 450, 3 * ticks, 'xppautx'),
-                 20: (1, 200, 15 * ticks, 'gradle'), 30: (20, 300, 4 * ticks, 'javac'), 50: (1, 500, 1 * ticks, 'ssh')}
+    # W829: the machine's busy CPU minus the series' own, on readings written out by hand: nothing is read from the machine but this process.
+    def readings(self):
+        # Ticks: the series is run.py (pid me) and its live driver (40) and that driver's child (41), which started inside the unit.
+        # Visible competing work: gradle (20, own CPU 1000 ticks), its javac (30, new) and ssh (50, new). Invisible: 200 ticks in the busy
+        # total only (a short-lived process). The series' own CPU moves by 320 ticks: run.py's reaped children (9 - 5), the driver's
+        # (34 - 20) and the new child's 300.
+        me = os.getpid()
+        before = dict(busy=10000, table={me: (1, 100, 10, 5, 'run.py'), 40: (me, 400, 20, 0, 'driver'), 20: (1, 200, 500, 0, 'gradle')})
+        after = dict(busy=10000 + 320 + 1000 + 400 + 100 + 200,
+                     table={me: (1, 100, 12, 9, 'run.py'), 40: (me, 400, 30, 4, 'driver'), 41: (40, 450, 300, 0, 'xppautx'),
+                            20: (1, 200, 1500, 0, 'gradle'), 30: (20, 300, 400, 0, 'javac'), 50: (1, 500, 100, 0, 'ssh')})
         return me, before, after
 
-    def test_the_series_tree_is_not_competing_and_a_new_process_counts_all_its_cpu(self):
-        me, before, after = self.tables()
-        self.assertEqual(common.process_tree(after, me), {me, 40, 41})
-        used = common.competing_cpu(before, after, common.process_tree(after, me))
-        self.assertEqual(sorted(used), [20, 30, 50])  # gradle, its javac (new), ssh (new); run.py, driver and xppautx are the series
-        self.assertAlmostEqual(used[20][0], 10.0)  # 15 - 5 ticks at 100 per second
-        self.assertAlmostEqual(used[30][0], 4.0)  # all of javac's 4 s: it started after the first snapshot
-        self.assertEqual(used[50][1], 'ssh')
+    def test_the_series_tree_is_the_series_and_gradle_is_not(self):
+        me, before, after = self.readings()
+        self.assertEqual(common.process_tree(after['table'], me), {me, 40, 41})
+        used = common.competing_cpu(before['table'], after['table'], {me, 40, 41})
+        self.assertEqual(sorted(used), [20, 30, 50])  # gradle, its javac and ssh: the series' own three pids are not competing
+
+    def test_the_machine_total_less_the_series_is_competing_and_the_largest_users_are_named(self):
+        me, before, after = self.readings()
+        t = common.CLOCK_TICKS
+        record = common.competing_record(before, after, wall=10.0)
+        self.assertAlmostEqual(record['busy_cpu_seconds'], 2020 / t)
+        self.assertAlmostEqual(record['series_cpu_seconds'], 320 / t)
+        self.assertAlmostEqual(record['competing_cpu_seconds'], 1700 / t)  # visible 1500 and invisible 200 ticks
+        self.assertAlmostEqual(record['competing_fraction'], 1700 / t / 10.0)
+        self.assertEqual(record['verdict'], 'disturbed')
+        self.assertEqual([p['name'] for p in record['processes']], ['gradle', 'javac', 'ssh'])  # best effort: the series is never named
+
+    def test_the_series_own_work_is_not_competing(self):
+        # Only the series used the CPU: the busy total moved by exactly the series' own ticks, reaped ones included.
+        me, before, after = self.readings()
+        only_series = dict(busy=before['busy'] + 320, table={me: after['table'][me], 40: after['table'][40], 41: after['table'][41]})
+        record = common.competing_record(dict(busy=before['busy'], table={me: before['table'][me], 40: before['table'][40]}), only_series, wall=10.0)
+        self.assertEqual((record['competing_cpu_seconds'], record['verdict'], record['processes']), (0, 'quiet', []))
+
+    def test_a_skew_between_the_two_reads_is_clamped_not_negative(self):
+        me, before, after = self.readings()
+        skewed = dict(busy=before['busy'] + 300, table=after['table'])  # the total read a tick or two before the series' ticks
+        record = common.competing_record(before, skewed, wall=10.0)
+        self.assertEqual((record['competing_cpu_seconds'], record['verdict']), (0, 'quiet'))
+
+    def test_the_bound_is_half_a_cpu_and_only_passing_it_disturbs(self):
+        t, me = common.CLOCK_TICKS, os.getpid()
+        at = int(common.DISTURBED_CPU_FRACTION * 10 * t)  # ten seconds of wall at the bound
+        before = dict(busy=0, table={me: (1, 100, 0, 0, 'run.py')})
+        self.assertEqual(common.competing_record(before, dict(busy=at, table=before['table']), wall=10.0)['verdict'], 'quiet')
+        self.assertEqual(common.competing_record(before, dict(busy=at + 1, table=before['table']), wall=10.0)['verdict'], 'disturbed')
+        self.assertEqual(common.DISTURBED_CPU_FRACTION, 0.5)
 
     def test_a_reused_pid_with_another_start_time_is_a_new_process(self):
-        me, before, after = self.tables()
-        after[20] = (1, 999, 3 * common.CLOCK_TICKS, 'bash')  # pid 20 was reused: its ticks are all new
-        self.assertAlmostEqual(common.competing_cpu(before, after, {me})[20][0], 3.0)
+        me, before, after = self.readings()
+        after['table'][20] = (1, 999, 3 * common.CLOCK_TICKS, 0, 'bash')  # pid 20 was reused: its ticks are all new
+        self.assertAlmostEqual(common.competing_cpu(before['table'], after['table'], {me})[20][0], 3.0)
 
-    def test_the_record_is_disturbed_only_above_its_bound_and_names_the_largest_users(self):
-        me, before, after = self.tables()
-        record = common.competing_record(before, after, wall=10.0)  # gradle 10 s, javac 4 s, ssh 1 s over 10 s of wall
-        self.assertEqual(record['verdict'], 'disturbed')
-        self.assertAlmostEqual(record['competing_cpu_seconds'], 15.0)
-        self.assertAlmostEqual(record['competing_fraction'], 1.5)
-        self.assertEqual([p['name'] for p in record['processes']], ['gradle', 'javac', 'ssh'])
-        self.assertEqual(common.competing_record(before, after, wall=1000.0)['verdict'], 'quiet')  # 0.015 of a CPU
-        # exactly at the bound is quiet: the bound is passed, not reached
-        at_bound = {me: (1, 100, 0, 'run.py'), 20: (1, 200, 0, 'gradle')}
-        later = {me: (1, 100, 0, 'run.py'), 20: (1, 200, int(common.DISTURBED_CPU_FRACTION * 10 * common.CLOCK_TICKS), 'gradle')}
-        self.assertEqual(common.competing_record(at_bound, later, wall=10.0)['verdict'], 'quiet')
-
-    def test_the_machine_table_reads_this_process(self):
+    def test_the_machine_reads_of_this_process(self):
+        self.assertGreaterEqual(common.busy_ticks(), 0)
         table = common.process_table()
-        self.assertEqual(table[os.getpid()][0], os.getppid())  # the parent of this test is not changed by it
-        self.assertIn(os.getpid(), common.process_tree(table, os.getppid()))
+        me = os.getpid()
+        self.assertEqual(table[me][0], os.getppid())  # the parent of this test is not changed by it
+        self.assertIsInstance(table[me][4], str)  # the command name
+        self.assertIn(me, common.process_tree(table, os.getppid()))
+        self.assertEqual(common.machine_snapshot()['table'][me][0], os.getppid())
 
 
 if __name__ == '__main__':

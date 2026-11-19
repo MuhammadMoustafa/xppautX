@@ -296,7 +296,7 @@ do_ready() {
   # W439: recent load includes our just-completed series. Observe current
   # process CPU instead, so serial series can follow one another without a
   # minute-long cool-down. Lifetime ps %CPU cannot identify current activity.
-  # W829: the measure is common.py's (process_table, competing_cpu), the one /proc measure the unit records use too.
+  # W829: the per-process CPU is common.py's (process_table, competing_cpu); a unit's record reads the machine's total the same way.
   uv run --locked python - "$REPO/paper/benchmarks/comparison" <<'PY' || die "another process is using the CPU (above): leave the machine idle and retry"
 import os, sys, time
 sys.path.insert(0, sys.argv[1])
@@ -308,6 +308,8 @@ time.sleep(SAMPLE_SECONDS)  # lower bound: the interval each process's CPU rate 
 after, end = process_table(), time.monotonic()
 busy = []
 for pid, (seconds, name) in competing_cpu(before, after, {os.getpid()}).items():
+    if pid not in before:
+        continue  # as before W829: a process that started inside the window is not checked (a unit's record counts it in the machine total)
     fraction = seconds / (end - start)
     if fraction > MAX_CPU_FRACTION:
         busy.append((pid, fraction, name))

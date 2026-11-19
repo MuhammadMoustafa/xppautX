@@ -30,7 +30,7 @@ import sys
 import tempfile
 import time
 
-from common import BENCH, DONE, FOREIGN_ENTRY, FROM_SCRATCH, HERE, PASS1, PLAN, REPO, SHA_CACHE, STOPPED, STUDIES, TOOLS, competing_record, done_attempts, judge, module, physical_cores, process_table, save, sha, timed_rows, wait_until_ready
+from common import BENCH, DONE, FOREIGN_ENTRY, FROM_SCRATCH, HERE, PASS1, PLAN, REPO, SHA_CACHE, STOPPED, STUDIES, TOOLS, competing_record, done_attempts, judge, machine_snapshot, module, physical_cores, save, sha, timed_rows, wait_until_ready
 
 LOG_TAIL = 40  # lines of a failed attempt's log kept in its failure.json
 DISTURBED_RUNS = 2  # W829: a disturbed run is run again once --ready passes; this many disturbed runs in a row stop the series (never a loop)
@@ -296,12 +296,12 @@ class Run:
 def run_unit(argv, log, timed):
     # The unit's driver, foreground, its log kept. A timed unit also measures the CPU other processes used while it ran (W829):
     # two process snapshots around the run. Returns (exit code, competing record or None).
-    before = process_table() if timed else None
+    before = machine_snapshot() if timed else None
     start = time.monotonic()
     with log.open('w') as stream:
         code = subprocess.run(argv, cwd=REPO, stdout=stream, stderr=subprocess.STDOUT).returncode
     wall = time.monotonic() - start
-    return code, (competing_record(before, process_table(), wall) if timed else None)
+    return code, (competing_record(before, machine_snapshot(), wall) if timed else None)
 
 
 def disturbed_line(label, study, unit, competing):

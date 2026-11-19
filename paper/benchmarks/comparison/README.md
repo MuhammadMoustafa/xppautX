@@ -102,14 +102,16 @@ Drivers take `--only UNIT` (a unit's name, or its model's), `--list` and `--plan
   each timed unit. Large-stiff's drift calibration brackets all of `measure`'s cases, so `measure` stays one unit (isolating its
   cases would change what the drift covers); `pilot` and `measure` are separate, so a measurement fix never repeats the pilot.
 - **A disturbed unit runs again** (W829, #910): `--ready` looks at the machine only at a unit's start, so while a timed unit runs,
-  run.py takes two `/proc` snapshots of every process's CPU ticks (`common.process_table`, `common.competing_record`: the series'
-  own process tree is not competing; no polling) and writes the CPU other processes used to the attempt's `.competing.json`. A unit
-  whose competing CPU is above `DISTURBED_CPU_FRACTION` (a tenth of one CPU over the whole unit) is disturbed: it gets no verdict,
-  writes no done or pass-1 record, and runs again once `--ready` passes. Disturbed again, the series stops and names the unit
-  (`DISTURBED_RUNS` bounds the reruns); a disturbed unit never writes `stopped.json`. run.log names each disturbed run with its
-  numbers and its largest users and ends with the folder's count of disturbed runs; the report reads done.json only, and a judged
-  unit's done record now carries its `competing` figures. A process that starts and exits inside one unit is not seen (two
-  snapshots), and `--ready` uses the same measure, so the two cannot disagree.
+  run.py reads the machine's busy CPU (`/proc/stat`'s first line) and the process table (`common.machine_snapshot`), and
+  `common.competing_record` gives the CPU other processes used: the busy total over the unit minus the series' own CPU (run.py, the
+  children it reaped and the live processes below it, so a process that starts and exits inside the unit is counted). No polling.
+  It is written to the attempt's `.competing.json`. A unit whose competing CPU is above `DISTURBED_CPU_FRACTION` (half a CPU over
+  the whole unit: a quiet desktop uses about 0.15, a build several) is disturbed: it gets no verdict, writes no done or pass-1
+  record, and runs again once `--ready` passes. Disturbed again, the series stops and names the unit (`DISTURBED_RUNS` bounds the
+  reruns); a disturbed unit never writes `stopped.json`. run.log names each disturbed run with its numbers and, best effort, the
+  largest users the process table shows, and ends with the folder's count of disturbed runs; the report reads done.json only, and
+  a judged unit's done record now carries its `competing` figures. `--ready` keeps its per-process check, which skips a process that
+  starts inside its half second, as before.
 - **No row of XPPAUT, AUTO-07p or Python is ever run again** (maintainer, 2026-11-17; W802, #883): their programs ran in W617. After
   the plans, a plan whose `would_run` holds any entry of another program than xppautX (an entry names its program first: `row
   auto07p-fd-1: ...`, `xppaut repetition 2: ...`, `python dop853 reference: ...`), or a unit with no earlier attempt, stops run.py

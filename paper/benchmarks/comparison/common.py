@@ -147,17 +147,26 @@ def wait_until_ready():
         waited += READY_POLL_SECONDS
 
 
-# W829 (#910): the CPU other processes used while a timed unit ran, from /proc. This is the one measure of the comparison: --ready
-# (comparison-setup.sh) and run.py's record of each timed unit both take two snapshots of every process's CPU ticks and subtract.
-# No polling thread: a unit's record is its snapshots at its start and end.
+# W829 (#910): the CPU other processes used while a timed unit ran. This is the one measure of the comparison: --ready's per-process
+# check and each timed unit's record both read /proc. The unit's record is the machine's busy CPU over the unit (/proc/stat's first
+# line) minus the series' own CPU (run.py, the children it reaped and the live processes below it), so a process that starts and
+# exits inside the unit is in the total. No polling thread: a unit's record is its readings at its start and end.
 CLOCK_TICKS = os.sysconf('SC_CLK_TCK')  # /proc's CPU ticks per second
-DISTURBED_CPU_FRACTION = 0.10  # the --ready bar (ten percent of one CPU) over a whole unit: all other processes together, so a burst --ready's half second can miss still counts
-COMPETING_TOP = 3  # the processes a record and a run.log line name, the largest CPU users first
+DISTURBED_CPU_FRACTION = 0.5  # CPUs of other processes over a whole unit: a quiet desktop (Chrome, the desktop app, gnome-shell, the idle Claude sessions) uses about 0.15 CPU, a build several
+COMPETING_TOP = 3  # the processes a record and a run.log line name, the largest CPU users first (best effort: the ones the process table shows)
+
+
+def busy_ticks():
+    # The machine's busy CPU ticks over every CPU: /proc/stat's first line, user, nice, system, irq, softirq and steal (idle, iowait and
+    # guest are left out: guest is already in user).
+    user, nice, system, _idle, _iowait, irq, softirq, steal = (int(v) for v in Path('/proc/stat').read_text().split('\n', 1)[0].split()[1:9])
+    return user + nice + system + irq + softirq + steal
 
 
 def process_table():
-    # {pid: (parent pid, start time, CPU ticks, command name)} of every process /proc lists now. A process that exits while it is read
-    # is left out: it cannot compete with the series any more.
+    # {pid: (parent pid, start time, own CPU ticks, reaped CPU ticks, command name)} of every process /proc lists now. Own ticks are
+    # utime + stime; reaped ticks are cutime + cstime, what the process's waited-for children used. A process that exits while it is
+    # read is left out: it cannot compete with the series any more.
     table = {}
     for path in Path('/proc').glob('[0-9]*/stat'):
         try:
@@ -167,14 +176,19 @@ def process_table():
         # The command name may hold spaces and parentheses: the fields after its last ')' start at field 3 (the state), so field N is index N-3.
         fields = text.rsplit(')', 1)[1].split()
         name = text.split('(', 1)[1].rsplit(')', 1)[0]
-        table[int(path.parent.name)] = (int(fields[1]), int(fields[19]), int(fields[11]) + int(fields[12]), name)
+        table[int(path.parent.name)] = (int(fields[1]), int(fields[19]), int(fields[11]) + int(fields[12]), int(fields[13]) + int(fields[14]), name)
     return table
+
+
+def machine_snapshot():
+    # One reading for a timed unit's record (W829): the busy CPU ticks, then the process table.
+    return dict(busy=busy_ticks(), table=process_table())
 
 
 def process_tree(table, root):
     # The pids of root and of every process below it in table (its children, their children, ...), root included when it is there.
     children = {}
-    for pid, (parent, _, _, _) in table.items():
+    for pid, (parent, _, _, _, _) in table.items():
         children.setdefault(parent, []).append(pid)
     tree, todo = set(), [root]
     while todo:
@@ -185,29 +199,37 @@ def process_tree(table, root):
     return tree
 
 
+def series_ticks(table):
+    # The series' own CPU ticks in a reading: run.py and every live process below it, each with what it reaped. A child reaped by a
+    # process of the series moves into that process's reaped ticks, so the total does not drop when a child is waited for.
+    return sum(table[pid][2] + table[pid][3] for pid in process_tree(table, os.getpid()) if pid in table)
+
+
 def competing_cpu(before, after, exclude):
-    # {pid: (CPU seconds, name)} of the processes of `after` that are not in `exclude`: the CPU each used between the two snapshots. A
-    # process `before` did not hold (or a reused pid with another start time) started since, so all its CPU is the interval's.
+    # {pid: (own CPU seconds, name)} of the processes of `after` that are not in `exclude`: the own CPU each used between the two
+    # readings. A process `before` did not hold (or a reused pid with another start time) started since, so all its CPU is the interval's.
     used = {}
-    for pid, (_, start, ticks, name) in after.items():
+    for pid, (_, start, own, _, name) in after.items():
         if pid in exclude:
             continue
         earlier = before.get(pid)
         base = earlier[2] if earlier and earlier[1] == start else 0
-        used[pid] = ((ticks - base) / CLOCK_TICKS, name)
+        used[pid] = ((own - base) / CLOCK_TICKS, name)
     return used
 
 
 def competing_record(before, after, wall):
-    # A timed unit's record of the CPU other processes used while it ran (W829): the series' own process tree (run.py and every process
-    # below it) is not competing. A process that starts and exits inside the interval is not seen (a limit of two snapshots); one that
-    # outlives the unit counts, a false alarm at worst: the unit runs again, never a wrong verdict.
-    used = competing_cpu(before, after, process_tree(after, os.getpid()))
-    seconds = sum(s for s, _ in used.values())
+    # A timed unit's record of the CPU other processes used while it ran (W829): the machine's busy CPU over the interval minus the
+    # series' own. The two reads are not the same instant, so a tick may come out negative: it is clamped to zero.
+    busy = after['busy'] - before['busy']
+    own = series_ticks(after['table']) - series_ticks(before['table'])
+    competing = max(0, busy - own) / CLOCK_TICKS
+    fraction = competing / wall
+    used = competing_cpu(before['table'], after['table'], process_tree(after['table'], os.getpid()))  # best effort: the names
     largest = sorted(used.items(), key=lambda item: item[1][0], reverse=True)[:COMPETING_TOP]
-    fraction = seconds / wall
-    return dict(wall_seconds=wall, competing_cpu_seconds=seconds, competing_fraction=fraction, bound=DISTURBED_CPU_FRACTION,
+    return dict(wall_seconds=wall, competing_cpu_seconds=competing, competing_fraction=fraction, bound=DISTURBED_CPU_FRACTION,
                 verdict='disturbed' if fraction > DISTURBED_CPU_FRACTION else 'quiet',
+                busy_cpu_seconds=busy / CLOCK_TICKS, series_cpu_seconds=own / CLOCK_TICKS,
                 processes=[dict(pid=pid, name=name, cpu_seconds=s) for pid, (s, name) in largest if s > 0])
 
 
