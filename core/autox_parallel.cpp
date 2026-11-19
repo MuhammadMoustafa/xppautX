@@ -11,6 +11,8 @@
 #include "xpp_error.h"
 #include "xpp_text.h"
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <exception>
 #include <mutex>
@@ -28,9 +30,16 @@ struct AutoxParallel::State {
     std::vector<std::unique_ptr<AutoxRun>> runs;
     std::vector<std::exception_ptr> failures;
     std::function<void(unsigned)> job;
-    unsigned generation = 0, pending = 0;
-    bool stopping = false;
+    std::atomic<unsigned> generation{0}, pending{0};
+    bool stopping = false; // under mutex
     unsigned last = 0;
+    // Spins (up to spin_time) until ready(), true when it became so: the next dispatch of a Newton step comes
+    // within microseconds, and a sleeping thread wakes in tens of them.
+    template <class Ready> static bool spin(Ready &&ready) {
+        const auto end = std::chrono::steady_clock::now() + spin_time;
+        do { if (ready()) return true; } while (std::chrono::steady_clock::now() < end);
+        return false;
+    }
 
     void execute(unsigned k) noexcept {
         try { job(k); }
@@ -47,15 +56,17 @@ struct AutoxParallel::State {
             for (unsigned k = 1; k < count; ++k) workers.emplace_back([this, k] {
                 unsigned seen = 0;
                 for (;;) {
-                    {
+                    if (!spin([&] { return generation.load(std::memory_order_acquire) != seen; })) {
                         std::unique_lock lock(mutex);
-                        wake.wait(lock, [&] { return stopping || generation != seen; });
+                        wake.wait(lock, [&] { return stopping || generation.load(std::memory_order_acquire) != seen; });
                         if (stopping) return;
-                        seen = generation;
                     }
+                    seen = generation.load(std::memory_order_acquire);
                     execute(k);
-                    std::lock_guard lock(mutex);
-                    if (--pending == 0) done.notify_one();
+                    if (pending.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                        { std::lock_guard lock(mutex); } // the caller is either before its check or in wait
+                        done.notify_one();
+                    }
                 }
             });
         } catch (...) { stop(); throw; }
@@ -141,15 +152,15 @@ void AutoxParallel::intervals(std::ptrdiff_t n, const std::function<void(std::pt
     };
     if (count == 1) state_->execute(0);
     else {
-        {
-            std::lock_guard lock(state_->mutex);
-            state_->pending = threads_ - 1;
-            ++state_->generation;
-        }
+        state_->pending.store(threads_ - 1, std::memory_order_relaxed);
+        state_->generation.fetch_add(1, std::memory_order_release);
+        { std::lock_guard lock(state_->mutex); } // a sleeper is either before its check or in wait
         state_->wake.notify_all();
         state_->execute(0);
-        std::unique_lock lock(state_->mutex);
-        state_->done.wait(lock, [&] { return state_->pending == 0; });
+        if (!State::spin([&] { return state_->pending.load(std::memory_order_acquire) == 0; })) {
+            std::unique_lock lock(state_->mutex);
+            state_->done.wait(lock, [&] { return state_->pending.load(std::memory_order_acquire) == 0; });
+        }
     }
     state_->job = {};
     // An exact Jacobian a worker found not finite (autox_pp.cpp): its failure is
