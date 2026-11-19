@@ -352,7 +352,8 @@ int main(int argc, char **argv)
     /* issue #32: the folders of runs that ended without their atexit (a
        kill, Ctrl+C, the watchdog's _exit) go at the next start, --silent
        included: cleaning up in a signal handler or from another thread is
-       neither safe nor needed (W573: --silent used to skip this) */
+       neither safe nor needed (W573: --silent used to skip this). The
+       system's temp folder waits for the next scratch folder made there (W831) */
     xpp::files::cleanup_stale_temp_dirs(model_folder);
     /* the program an update swapped out at the last run, which Windows could not remove while it ran */
     xpp::update::remove_replaced_program();

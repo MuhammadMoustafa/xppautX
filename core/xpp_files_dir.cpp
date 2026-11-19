@@ -205,7 +205,9 @@ Result<std::string> make_temp_dir(std::string_view model_folder)
     try {
         std::string base;
         if (model_folder.empty() || is_scratch(model_folder, true)) {  /* a scratch folder (a replay's) holds no .xppautx of its own */
+            /* the system's temp folder is swept here, when a folder is needed, not at every start: it can hold thousands of entries */
             base = temp_base();
+            sweep_stale(base, SCRATCH_PREFIX, true);
         } else {
             const Result<std::string> state = model_state_dir(model_folder);
             if (!state) return std::unexpected(state.error());
@@ -321,7 +323,6 @@ void remove_temp_dir(std::string_view dir_view)
 void cleanup_stale_temp_dirs(std::string_view model_folder)
 {
     try {
-        if (const std::string base = temp_base(); !base.empty()) sweep_stale(base, SCRATCH_PREFIX, true);
         if (!model_folder.empty())
             if (const std::string tmp = existing_model_tmp(model_folder); !tmp.empty()) sweep_stale(tmp, SCRATCH_PREFIX, true);
     } catch (const std::bad_alloc &) {

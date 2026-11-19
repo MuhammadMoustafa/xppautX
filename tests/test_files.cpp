@@ -671,7 +671,7 @@ TEST_CASE("test_files")
         CHECK(xpp::files::exists((outside + "/keep.txt").c_str()));
         CHECK(unlink((outside + "/keep.txt").c_str()) == 0 && rmdir(outside.c_str()) == 0);
     }
-    /* a killed run's folder is swept, a live one's is kept (issue #32) */
+    /* a killed run's folder in the system's temp folder is swept when a scratch folder is made there, a live one's is kept (issue #32, W831) */
     const char *old_tmpdir = std::getenv("TMPDIR");
     std::string saved = old_tmpdir ? old_tmpdir : "";
     CHECK(setenv("TMPDIR", dir, 1) == 0);
@@ -680,7 +680,9 @@ TEST_CASE("test_files")
     CHECK(mkdir(dead.c_str(), 0700) == 0 && mkdir(live.c_str(), 0700) == 0);
     std::FILE *df = std::fopen((dead + "/fort.9").c_str(), "w");
     if (df) std::fclose(df);
-    xpp::files::cleanup_stale_temp_dirs();
+    const auto swept = xpp::files::make_temp_dir();
+    CHECK(swept.has_value());
+    if (swept) xpp::files::remove_temp_dir(*swept);
     CHECK(!xpp::files::exists(dead.c_str()));
     CHECK(xpp::files::exists(live.c_str()));
     CHECK(rmdir(live.c_str()) == 0);

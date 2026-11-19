@@ -269,8 +269,9 @@ int open_download(std::string_view name, FILE *&fp, unsigned long long &size);
 void download_done();
 /* issue #32: removes the scratch folders of runs that were killed before
    they could remove their own (make_temp_dir's naming, whose pid names no
-   running process), in the system's temp folder and in the model folder's `.xppautx/tmp` when it has one;
-   called once at start */
+   running process) from the model folder's `.xppautx/tmp` when it has one;
+   called once at start. The system's temp folder is swept by make_temp_dir
+   when it makes a folder there (W831: a start must not read every entry of /tmp) */
 void cleanup_stale_temp_dirs(std::string_view model_folder = {});
 
 /* a folder's entry: its name, and whether it is a folder itself (a link
