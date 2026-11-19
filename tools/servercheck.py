@@ -8565,7 +8565,9 @@ def check_settings_during_run():
         dones = [e for e in evs if e.get('ev') == 'done']  # the state's own, answered at once (session.get_state)
         check('W106: options sent during a run get no done or error while it runs; state still shows the '
               'values it runs with', prog is not None and not during and len(dones) == 1 and dones[0].get('status') == 'ok'
-              and iapp(evs) == 0.05, str([e.get('ev') for e in evs]))
+              and iapp(evs) == 0.05,
+              'progress %s, iapp %s, during %s, dones %s, events %s' % (prog is not None, iapp(evs), during,
+                                                                       [d.get('status') for d in dones], [e.get('ev') for e in evs]))
         snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         stopped = [e for e in evs if e.get('ev') == 'job.stopped']
