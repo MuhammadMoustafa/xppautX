@@ -59,6 +59,19 @@ def fake_machine(path, timed):
     return path
 
 
+class Sampler:
+    # run.py's /proc snapshots as a stub (W829: no real load, no sleep). Each timed run reads one table before and one after; the
+    # other process ('gradle', not in the series' tree) used seconds[k] of CPU between the two of run k, and none past the list.
+    def __init__(self, seconds=()):
+        self.seconds, self.snapshots = list(seconds), 0
+
+    def __call__(self):
+        run_index, after = divmod(self.snapshots, 2)
+        self.snapshots += 1
+        used = self.seconds[run_index] if run_index < len(self.seconds) else 0
+        return {os.getpid(): (1, 1, 0, 'python'), 9999: (1, 2, int(used * common.CLOCK_TICKS) if after else 0, 'gradle')}
+
+
 class Units(unittest.TestCase):
     def setUp(self):
         self.scratch = tempfile.TemporaryDirectory(prefix='w699-test-')
@@ -73,8 +86,9 @@ class Units(unittest.TestCase):
     def tearDown(self):
         self.scratch.cleanup()
 
-    def drive(self, *flags, fail=(), keys=None, plan_crash=False, entries=None, check=True, times=None, out=None):
-        # run.py's main against the fake driver; returns (units the driver ran, the exit message or None).
+    def drive(self, *flags, fail=(), keys=None, plan_crash=False, entries=None, check=True, times=None, out=None, competing=()):
+        # run.py's main against the fake driver; returns (units the driver ran, the exit message or None). competing: the CPU a
+        # stub of the process snapshots gives another process during each timed run (Sampler; none by default, so nothing is disturbed).
         log = self.root / 'ran.log'
         log.unlink(missing_ok=True)
         self.control.write_text(json.dumps(dict(fail=list(fail), keys=keys or {}, log=str(log), plan_crash=plan_crash, entries=entries or {},
@@ -85,6 +99,7 @@ class Units(unittest.TestCase):
         # the machine record of a timed run comes from the setup script on the Ubuntu machine: the fake records its own
         with mock.patch.object(sys, 'argv', argv), mock.patch.object(run, 'HERE', self.root / 'drivers'), \
                 mock.patch.object(run, 'machine_record', side_effect=fake_machine), \
+                mock.patch.object(run, 'process_table', Sampler(competing)), \
                 mock.patch.dict(os.environ, FAKE_CONTROL=str(self.control)):
             try:
                 run.main()
@@ -572,6 +587,128 @@ class Verdicts(unittest.TestCase):
         self.assertFalse((self.out / 'stopped.json').exists())
         self.assertIn('restart: the series stopped at a slower unit', (self.out / 'run.log').read_text())
         self.assertEqual([self.verdict(u) for u in 'abc'], ['same'] * 3)
+
+
+class Disturbance(unittest.TestCase):
+    # W829 (#910): a timed unit during which other processes used the CPU is disturbed: not judged, run again once --ready passes,
+    # and the series stops with its reason when a rerun is disturbed too. The snapshots are stubs (Sampler), so nothing is timed.
+    setUp, tearDown, drive, done = Units.setUp, Units.tearDown, Units.drive, Units.done
+    make_reference, verdict, SAME, ALL = Verdicts.make_reference, Verdicts.verdict, Verdicts.SAME, Verdicts.ALL
+
+    def series(self, times, *flags, competing=()):
+        return self.drive('--reuse', str(self.reference_dir), *flags, times=times, competing=competing, check=False)
+
+    def record(self, unit, name='pass1.competing.json'):
+        return json.loads((self.out / 'screen' / unit / name).read_text())
+
+    def test_a_disturbed_unit_runs_again_once_and_is_judged_only_on_the_quiet_run(self):
+        # Timed runs in order: a, b (disturbed: 5 s of other CPU), b again (quiet), c; then pass 2 quiet.
+        self.make_reference()
+        ran, message = self.series(self.ALL, competing=[0, 5])
+        self.assertIsNone(message)
+        b = 'b reuse=attempt-001'
+        self.assertEqual(ran, ['a reuse=attempt-001', b, b, 'c reuse=attempt-001'] + ['a reuse=attempt-001', b, 'c reuse=attempt-001'])
+        log = (self.out / 'run.log').read_text().splitlines()
+        self.assertEqual(len([line for line in log if line.startswith('pass 1 screen/b: disturbed: other processes used')]), 1)
+        self.assertIn('runs again once --ready passes', '\n'.join(log))
+        self.assertEqual([line for line in log if line.startswith('pass 1 screen/b: same')], ['pass 1 screen/b: same'])  # judged once
+        self.assertEqual(self.record('b')['verdict'], 'quiet')  # the rerun's own record
+        self.assertEqual([self.verdict(u) for u in 'abc'], ['same'] * 3)
+        self.assertFalse((self.out / 'stopped.json').exists())  # a disturbed unit never writes the slower stop
+
+    def test_a_unit_disturbed_twice_stops_the_series_with_its_reason(self):
+        self.make_reference()
+        ran, message = self.series(self.ALL, competing=[0, 5, 5])
+        self.assertEqual(ran, ['a reuse=attempt-001', 'b reuse=attempt-001', 'b reuse=attempt-001'])  # no c, no pass 2
+        self.assertIn('screen/b', message)
+        self.assertIn('other processes used the CPU during a unit twice', message)
+        self.assertFalse((self.out / 'stopped.json').exists())
+        self.assertEqual(self.done(), [])  # a was judged in pass 1 (pass1.json), nothing reached done.json
+        self.assertTrue((self.out / 'screen/a/pass1.json').exists())
+        self.assertFalse((self.out / 'screen/b/pass1.json').exists())
+        self.assertEqual(self.record('b')['verdict'], 'disturbed')
+        self.assertGreater(self.record('b')['competing_fraction'], self.record('b')['bound'])
+        log = (self.out / 'run.log').read_text()
+        self.assertIn('pass 1 screen/b: disturbed: other processes used', log)
+        self.assertIn('disturbed again, the series stops here', log)
+        self.assertIn('disturbed: 1 timed run(s) in this folder', log)
+
+    def test_a_unit_disturbed_again_in_pass_2_stops_the_series_and_keeps_what_was_done(self):
+        self.make_reference()
+        ran, message = self.series(self.ALL, competing=[0, 0, 0, 0, 5, 5])  # pass 1 quiet; pass 2: a quiet, b disturbed twice
+        self.assertEqual(ran, ['a reuse=attempt-001', 'b reuse=attempt-001', 'c reuse=attempt-001'] + ['a reuse=attempt-001', 'b reuse=attempt-001',
+                                                                                                      'b reuse=attempt-001'])
+        self.assertIn('screen/b', message)
+        self.assertEqual(self.done(), ['a'])  # pass 2's a is done; b and c are not
+        self.assertEqual(sorted(p.name for p in (self.out / 'screen/b').glob('attempt-*') if p.is_dir()), ['attempt-001', 'attempt-002'])
+        self.assertEqual(self.record('b', 'attempt-002.competing.json')['verdict'], 'disturbed')
+        self.assertFalse((self.out / 'stopped.json').exists())
+
+    def test_a_disturbed_attempt_is_kept_as_history_and_never_imported(self):
+        # pass 2: b's first attempt is disturbed, its rerun (attempt-002) is quiet and is the unit's result.
+        self.make_reference()
+        ran, message = self.series(self.ALL, competing=[0, 0, 0, 0, 5])
+        self.assertIsNone(message)
+        self.assertEqual(json.loads((self.out / 'screen/b/done.json').read_text())['attempt'], 'attempt-002')
+        self.assertEqual(sorted(p.name for p in (self.out / 'screen/b').glob('attempt-*') if p.is_dir()), ['attempt-001', 'attempt-002'])
+        self.assertEqual(self.record('b', 'attempt-001.competing.json')['verdict'], 'disturbed')
+        self.assertEqual(self.record('b', 'attempt-002.competing.json')['verdict'], 'quiet')
+        self.assertEqual(run.earlier_attempt(self.out / 'screen/b', None, 'screen').name, 'attempt-002')  # attempt-001 never ended
+
+    def test_a_quiet_unit_is_judged_as_before_and_records_its_competing_cpu(self):
+        self.make_reference()
+        ran, message = self.series(self.ALL)
+        self.assertIsNone(message)
+        done = json.loads((self.out / 'screen/a/done.json').read_text())
+        self.assertEqual((done['verdict'], done['competing']['verdict'], done['competing']['competing_fraction']), ('same', 'quiet', 0))
+        self.assertEqual(self.record('a', 'attempt-001.competing.json')['verdict'], 'quiet')
+
+    def test_a_check_times_nothing_and_is_never_disturbed(self):
+        ran, message = self.drive(competing=[5, 5, 5])  # a check: no timed run, so no snapshot and no record
+        self.assertIsNone(message)
+        self.assertEqual(list((self.out / 'screen').glob('*/*.competing.json')), [])
+
+
+class CompetingCpu(unittest.TestCase):
+    # W829: the one /proc measure (common.py) on snapshots written out by hand: nothing is read from the machine but this process.
+    def tables(self):
+        me, ticks = os.getpid(), common.CLOCK_TICKS
+        before = {me: (1, 100, 0, 'run.py'), 40: (me, 400, 1 * ticks, 'driver'), 20: (1, 200, 5 * ticks, 'gradle')}
+        after = {me: (1, 100, 0, 'run.py'), 40: (me, 400, 2 * ticks, 'driver'), 41: (40, 450, 3 * ticks, 'xppautx'),
+                 20: (1, 200, 15 * ticks, 'gradle'), 30: (20, 300, 4 * ticks, 'javac'), 50: (1, 500, 1 * ticks, 'ssh')}
+        return me, before, after
+
+    def test_the_series_tree_is_not_competing_and_a_new_process_counts_all_its_cpu(self):
+        me, before, after = self.tables()
+        self.assertEqual(common.process_tree(after, me), {me, 40, 41})
+        used = common.competing_cpu(before, after, common.process_tree(after, me))
+        self.assertEqual(sorted(used), [20, 30, 50])  # gradle, its javac (new), ssh (new); run.py, driver and xppautx are the series
+        self.assertAlmostEqual(used[20][0], 10.0)  # 15 - 5 ticks at 100 per second
+        self.assertAlmostEqual(used[30][0], 4.0)  # all of javac's 4 s: it started after the first snapshot
+        self.assertEqual(used[50][1], 'ssh')
+
+    def test_a_reused_pid_with_another_start_time_is_a_new_process(self):
+        me, before, after = self.tables()
+        after[20] = (1, 999, 3 * common.CLOCK_TICKS, 'bash')  # pid 20 was reused: its ticks are all new
+        self.assertAlmostEqual(common.competing_cpu(before, after, {me})[20][0], 3.0)
+
+    def test_the_record_is_disturbed_only_above_its_bound_and_names_the_largest_users(self):
+        me, before, after = self.tables()
+        record = common.competing_record(before, after, wall=10.0)  # gradle 10 s, javac 4 s, ssh 1 s over 10 s of wall
+        self.assertEqual(record['verdict'], 'disturbed')
+        self.assertAlmostEqual(record['competing_cpu_seconds'], 15.0)
+        self.assertAlmostEqual(record['competing_fraction'], 1.5)
+        self.assertEqual([p['name'] for p in record['processes']], ['gradle', 'javac', 'ssh'])
+        self.assertEqual(common.competing_record(before, after, wall=1000.0)['verdict'], 'quiet')  # 0.015 of a CPU
+        # exactly at the bound is quiet: the bound is passed, not reached
+        at_bound = {me: (1, 100, 0, 'run.py'), 20: (1, 200, 0, 'gradle')}
+        later = {me: (1, 100, 0, 'run.py'), 20: (1, 200, int(common.DISTURBED_CPU_FRACTION * 10 * common.CLOCK_TICKS), 'gradle')}
+        self.assertEqual(common.competing_record(at_bound, later, wall=10.0)['verdict'], 'quiet')
+
+    def test_the_machine_table_reads_this_process(self):
+        table = common.process_table()
+        self.assertEqual(table[os.getpid()][0], os.getppid())  # the parent of this test is not changed by it
+        self.assertIn(os.getpid(), common.process_tree(table, os.getppid()))
 
 
 if __name__ == '__main__':

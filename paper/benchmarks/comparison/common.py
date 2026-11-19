@@ -147,6 +147,70 @@ def wait_until_ready():
         waited += READY_POLL_SECONDS
 
 
+# W829 (#910): the CPU other processes used while a timed unit ran, from /proc. This is the one measure of the comparison: --ready
+# (comparison-setup.sh) and run.py's record of each timed unit both take two snapshots of every process's CPU ticks and subtract.
+# No polling thread: a unit's record is its snapshots at its start and end.
+CLOCK_TICKS = os.sysconf('SC_CLK_TCK')  # /proc's CPU ticks per second
+DISTURBED_CPU_FRACTION = 0.10  # the --ready bar (ten percent of one CPU) over a whole unit: all other processes together, so a burst --ready's half second can miss still counts
+COMPETING_TOP = 3  # the processes a record and a run.log line name, the largest CPU users first
+
+
+def process_table():
+    # {pid: (parent pid, start time, CPU ticks, command name)} of every process /proc lists now. A process that exits while it is read
+    # is left out: it cannot compete with the series any more.
+    table = {}
+    for path in Path('/proc').glob('[0-9]*/stat'):
+        try:
+            text = path.read_text()
+        except (FileNotFoundError, ProcessLookupError, PermissionError):
+            continue
+        # The command name may hold spaces and parentheses: the fields after its last ')' start at field 3 (the state), so field N is index N-3.
+        fields = text.rsplit(')', 1)[1].split()
+        name = text.split('(', 1)[1].rsplit(')', 1)[0]
+        table[int(path.parent.name)] = (int(fields[1]), int(fields[19]), int(fields[11]) + int(fields[12]), name)
+    return table
+
+
+def process_tree(table, root):
+    # The pids of root and of every process below it in table (its children, their children, ...), root included when it is there.
+    children = {}
+    for pid, (parent, _, _, _) in table.items():
+        children.setdefault(parent, []).append(pid)
+    tree, todo = set(), [root]
+    while todo:
+        pid = todo.pop()
+        if pid not in tree:
+            tree.add(pid)
+            todo += children.get(pid, [])
+    return tree
+
+
+def competing_cpu(before, after, exclude):
+    # {pid: (CPU seconds, name)} of the processes of `after` that are not in `exclude`: the CPU each used between the two snapshots. A
+    # process `before` did not hold (or a reused pid with another start time) started since, so all its CPU is the interval's.
+    used = {}
+    for pid, (_, start, ticks, name) in after.items():
+        if pid in exclude:
+            continue
+        earlier = before.get(pid)
+        base = earlier[2] if earlier and earlier[1] == start else 0
+        used[pid] = ((ticks - base) / CLOCK_TICKS, name)
+    return used
+
+
+def competing_record(before, after, wall):
+    # A timed unit's record of the CPU other processes used while it ran (W829): the series' own process tree (run.py and every process
+    # below it) is not competing. A process that starts and exits inside the interval is not seen (a limit of two snapshots); one that
+    # outlives the unit counts, a false alarm at worst: the unit runs again, never a wrong verdict.
+    used = competing_cpu(before, after, process_tree(after, os.getpid()))
+    seconds = sum(s for s, _ in used.values())
+    largest = sorted(used.items(), key=lambda item: item[1][0], reverse=True)[:COMPETING_TOP]
+    fraction = seconds / wall
+    return dict(wall_seconds=wall, competing_cpu_seconds=seconds, competing_fraction=fraction, bound=DISTURBED_CPU_FRACTION,
+                verdict='disturbed' if fraction > DISTURBED_CPU_FRACTION else 'quiet',
+                processes=[dict(pid=pid, name=name, cpu_seconds=s) for pid, (s, name) in largest if s > 0])
+
+
 def before_series(a):
     if a.timed:
         wait_until_ready()

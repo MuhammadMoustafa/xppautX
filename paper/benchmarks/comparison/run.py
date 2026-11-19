@@ -14,6 +14,10 @@ past it, to the end of pass 1); the next run of the folder starts again from its
 
 W826: pass 1 runs each unit's set-up units (needs) before the unit, and they take part in pass 1 as well: a set-up unit with no
 timed rows to judge has no verdict of its own, so it stops nothing. The set-up's pass-1 folder is what the unit reads in pass 1.
+
+W829 (#910): while a timed unit runs, the CPU other processes used is measured from /proc (common.competing_record) and kept in
+the attempt's `.competing.json`. A unit whose competing CPU passes DISTURBED_CPU_FRACTION is disturbed: no verdict, no done or
+pass-1 record, run again once --ready passes; disturbed again, the series stops with the reason (DISTURBED_RUNS).
 """
 import argparse
 import functools
@@ -24,10 +28,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
-from common import BENCH, DONE, FOREIGN_ENTRY, FROM_SCRATCH, HERE, PASS1, PLAN, REPO, SHA_CACHE, STOPPED, STUDIES, TOOLS, done_attempts, judge, module, physical_cores, save, sha, timed_rows, wait_until_ready
+from common import BENCH, DONE, FOREIGN_ENTRY, FROM_SCRATCH, HERE, PASS1, PLAN, REPO, SHA_CACHE, STOPPED, STUDIES, TOOLS, competing_record, done_attempts, judge, module, physical_cores, process_table, save, sha, timed_rows, wait_until_ready
 
 LOG_TAIL = 40  # lines of a failed attempt's log kept in its failure.json
+DISTURBED_RUNS = 2  # W829: a disturbed run is run again once --ready passes; this many disturbed runs in a row stop the series (never a loop)
 
 
 def machine_record(path, timed):
@@ -216,22 +222,34 @@ class Run:
         return plan['would_run']
 
     def execute(self, study, unit, quick=False):
-        # One run of the unit, foreground: pass 1's quick check (one counted repetition, in unit/pass1: never a result, never
-        # counted) or the next attempt, which is the unit's result. Returns (True when it finished, its verdict or None).
+        # One unit's run, foreground: pass 1's quick check (one counted repetition, in unit/pass1: never a result, never counted) or
+        # the next attempt, which is the unit's result. Returns (status, verdict, competing): 'done' with its verdict, 'failed', or
+        # 'disturbed' (W829) when other processes used the CPU while it ran, DISTURBED_RUNS times in a row (the last record is kept).
         a = self.a
         unit_dir = a.out / study / unit
         source = earlier_attempt(unit_dir, a.reuse, study)  # before done.json goes: a rerun imports from the attempt it replaces (W827)
+        if not quick:
+            (unit_dir / DONE).unlink(missing_ok=True)
+        for tries in range(1, DISTURBED_RUNS + 1):
+            status, verdict, competing = self.run_once(study, unit, source, quick)
+            if status != 'disturbed' or tries == DISTURBED_RUNS:
+                return status, verdict, competing
+            note(a, disturbed_line('pass 1' if quick else 'pass 2', study, unit, competing) + ': runs again once --ready passes')
+
+    def run_once(self, study, unit, source, quick):
+        # One run of the unit in its own attempt folder (pass 1's, for quick). Returns (status, verdict, competing), see execute.
+        a = self.a
+        unit_dir = a.out / study / unit
         if quick:
             attempt = unit_dir / 'pass1'
             shutil.rmtree(attempt, ignore_errors=True)
         else:
-            (unit_dir / DONE).unlink(missing_ok=True)
             attempt = unit_dir / ('attempt-%03d' % (len(attempts(unit_dir)) + 1))
         attempt.parent.mkdir(parents=True, exist_ok=True)
         flag, why = self.setup_flag(study, unit, 'quick' if quick else 'run')
         if why:
             save(attempt.with_suffix('.failure.json'), dict(unit=unit, error='not run: ' + why))
-            return False, None
+            return 'failed', None, None
         machine = machine_record(attempt.with_suffix('.machine.json'), not a.check)
         if study == 'large-stiff':
             argv = self.stiff_argv(unit, attempt, machine, flag)
@@ -242,21 +260,25 @@ class Run:
                 argv += ['--stop-on-failure']
         # Foreground, serial, with the log kept even if the unit raises.
         log = attempt.with_suffix('.log')
-        with log.open('w') as stream:
-            code = subprocess.run(argv, cwd=REPO, stdout=stream, stderr=subprocess.STDOUT).returncode
+        code, competing = run_unit(argv, log, not a.check)
+        if competing is not None:
+            save(attempt.with_suffix('.competing.json'), competing)
         if code:
             tail = log.read_text(errors='replace').splitlines()[-LOG_TAIL:]
             save(attempt.with_suffix('.failure.json'), dict(unit=unit, exit_code=code, command=argv, log_tail=tail))
-            return False, None
+            return 'failed', None, competing
+        if competing is not None and competing['verdict'] == 'disturbed':
+            return 'disturbed', None, competing  # W829: not judged, no record that a later run would read
         verdict = judge(attempt, self.reference(study, unit))  # W818: each unit against the same unit of the reference run
         if quick:
-            save(unit_dir / PASS1, dict(verdict, binaries=self.binaries()))
+            save(unit_dir / PASS1, dict(verdict, binaries=self.binaries(), competing=competing))
         else:
-            save(unit_dir / DONE, self.done_record(study, unit, attempt, code, verdict))
-        return True, verdict
+            save(unit_dir / DONE, self.done_record(study, unit, attempt, code, verdict, competing))
+        return 'done', verdict, competing
 
-    def done_record(self, study, unit, attempt, code, verdict):
-        # The result and what it ran with: the binaries, the commit and the keys the rows recorded (W452, W575), and the verdict (W818).
+    def done_record(self, study, unit, attempt, code, verdict, competing):
+        # The result and what it ran with: the binaries, the commit and the keys the rows recorded (W452, W575), the verdict (W818) and
+        # the CPU other processes used while it ran (W829).
         a = self.a
         keys = []
         if (attempt / 'runs.json').exists():
@@ -265,10 +287,28 @@ class Run:
                     keys.append(r['reuse_key'])
         record = dict(attempt=attempt.name, exit_code=code, check=a.check, keys=keys, verdict=verdict['verdict'], rows=verdict['rows'],
                       commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPO, text=True).strip(),
-                      binaries=self.binaries())
+                      binaries=self.binaries(), competing=competing)
         if study == 'large-stiff':
             record['identity'] = self.stiff_identity(unit)
         return record
+
+
+def run_unit(argv, log, timed):
+    # The unit's driver, foreground, its log kept. A timed unit also measures the CPU other processes used while it ran (W829):
+    # two process snapshots around the run. Returns (exit code, competing record or None).
+    before = process_table() if timed else None
+    start = time.monotonic()
+    with log.open('w') as stream:
+        code = subprocess.run(argv, cwd=REPO, stdout=stream, stderr=subprocess.STDOUT).returncode
+    wall = time.monotonic() - start
+    return code, (competing_record(before, process_table(), wall) if timed else None)
+
+
+def disturbed_line(label, study, unit, competing):
+    # A disturbed unit's line: the competing CPU it met, the bound, and the processes that used it (W829).
+    named = ', '.join('%s %.1f s' % (p['name'], p['cpu_seconds']) for p in competing['processes']) or 'none named'
+    return ('%s %s/%s: disturbed: other processes used %.2f CPUs over %.1f s (bound %.2f CPUs): %s'
+            % (label, study, unit, competing['competing_fraction'], competing['wall_seconds'], competing['bound'], named))
 
 
 def rows_to_run(todo):
@@ -309,9 +349,10 @@ def restart_after_stop(a):
     note(a, 'restart: the series stopped at a slower unit; every unit runs again from its first')
 
 
-def run_pass(run, units, quick, slower, failed):
+def run_pass(run, units, quick, slower, failed, disturbed):
     # One pass over (study, unit) in order, each unit once, its verdict noted as it comes. A slower unit ends the pass unless
-    # --keep-going; a failed unit goes on to the next unless --stop-on-failure. quick: pass 1, one repetition, reused when judged.
+    # --keep-going; a failed unit goes on to the next unless --stop-on-failure; a disturbed unit (W829, disturbed again after its
+    # rerun) always ends the pass. quick: pass 1, one repetition, reused when judged.
     a = run.a
     label = 'pass 1' if quick else 'pass 2'
     for study, unit in units:
@@ -320,13 +361,17 @@ def run_pass(run, units, quick, slower, failed):
             verdict = kept
             note(a, 'pass 1 kept: %s/%s was judged for these binaries' % (study, unit))
         else:
-            ok, verdict = run.execute(study, unit, quick=quick)
-            if not ok:
+            status, verdict, competing = run.execute(study, unit, quick=quick)
+            if status == 'failed':
                 failed.append('%s/%s' % (study, unit))
                 note(a, '%s %s/%s FAILED' % (label, study, unit))
                 if a.stop_on_failure:
                     break
                 continue
+            if status == 'disturbed':
+                disturbed.append('%s/%s' % (study, unit))
+                note(a, disturbed_line(label, study, unit, competing) + ': disturbed again, the series stops here')
+                break
         for line in verdict_lines(label, study, unit, verdict):
             note(a, line)
         if verdict['verdict'] == 'slower':
@@ -354,7 +399,7 @@ def main():
     a.out = a.out.resolve()
     a.out.mkdir(parents=True, exist_ok=True)
     run = Run(a)
-    failed, slower = [], []
+    failed, slower, disturbed = [], [], []
     try:
         if not a.plan:
             restart_after_stop(a)  # before the plan: a restarted series plans against no done record
@@ -379,17 +424,24 @@ def main():
                 pending.append((study, unit))
         # W818: pass 1, one repetition of each unit that has a reference to judge against; pass 2, every pending unit's rest,
         # only when pass 1 has no slower unit. Pass 1's runs are a check: the report never counts them.
-        run_pass(run, run.pass1_units(pending), True, slower, failed)
-        if not slower:
-            run_pass(run, pending, False, slower, failed)
+        run_pass(run, run.pass1_units(pending), True, slower, failed, disturbed)
+        if not slower and not disturbed:
+            run_pass(run, pending, False, slower, failed, disturbed)
         if slower:
             save(a.out / STOPPED, dict(slower=slower, binaries=run.binaries()))
     finally:
         os.environ.pop(SHA_CACHE, None)
         shutil.rmtree(run.scratch, ignore_errors=True)
+    # W829: the timed runs this folder holds that other processes disturbed, each one's own record (the report reads done.json only).
+    count = sum(1 for f in a.out.glob('*/*/*.competing.json') if json.loads(f.read_text())['verdict'] == 'disturbed')
+    if count:
+        note(a, 'disturbed: %d timed run(s) in this folder met other processes on the CPU (their .competing.json says disturbed)' % count)
     if slower:
         sys.exit('Slower than the reference (ratios in run.log): ' + ', '.join(slower) + '. Fix it, then run the same command again: '
                  'the series starts from its first unit.')
+    if disturbed:
+        sys.exit('Stopped: other processes used the CPU during a unit twice (numbers in run.log): ' + ', '.join(disturbed) + '. Leave the '
+                 'machine idle, then run the same command again: the units done stay.')
     if failed:
         sys.exit('Failed units (results retained, the rest were run; rerun the same command to resume): ' + ', '.join(failed))
 

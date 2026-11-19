@@ -296,29 +296,19 @@ do_ready() {
   # W439: recent load includes our just-completed series. Observe current
   # process CPU instead, so serial series can follow one another without a
   # minute-long cool-down. Lifetime ps %CPU cannot identify current activity.
-  uv run --locked python - <<'PY' || die "another process is using the CPU (above): leave the machine idle and retry"
-from pathlib import Path
-import os, time
+  # W829: the measure is common.py's (process_table, competing_cpu), the one /proc measure the unit records use too.
+  uv run --locked python - "$REPO/paper/benchmarks/comparison" <<'PY' || die "another process is using the CPU (above): leave the machine idle and retry"
+import os, sys, time
+sys.path.insert(0, sys.argv[1])
+from common import competing_cpu, process_table
 SAMPLE_SECONDS = 0.5  # one bounded observation interval for a CPU rate, not a readiness polling loop
 MAX_CPU_FRACTION = 0.10  # reject visible competing work above ten percent of one CPU
-def sample():
-    result = {}
-    for path in Path('/proc').glob('[0-9]*/stat'):
-        try:
-            text = path.read_text()
-            fields = text.rsplit(')', 1)[1].split()
-            result[int(path.parent.name)] = (int(fields[11]) + int(fields[12]), text.split('(', 1)[1].rsplit(')', 1)[0])
-        except (FileNotFoundError, ProcessLookupError, PermissionError):
-            pass  # a process that exited during the snapshot cannot compete with the series
-    return result
-before, start = sample(), time.monotonic()
+before, start = process_table(), time.monotonic()
 time.sleep(SAMPLE_SECONDS)  # lower bound: the interval each process's CPU rate is measured over, not a wait for a condition
-after, end = sample(), time.monotonic()
+after, end = process_table(), time.monotonic()
 busy = []
-for pid, (ticks, name) in after.items():
-    if pid == os.getpid() or pid not in before:
-        continue
-    fraction = (ticks - before[pid][0]) / os.sysconf('SC_CLK_TCK') / (end-start)
+for pid, (seconds, name) in competing_cpu(before, after, {os.getpid()}).items():
+    fraction = seconds / (end - start)
     if fraction > MAX_CPU_FRACTION:
         busy.append((pid, fraction, name))
 for pid, fraction, name in busy:
