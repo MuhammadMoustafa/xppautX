@@ -26,7 +26,7 @@ import time
 import traceback
 from importlib import metadata
 
-from common import (HERE, LONG_RUN_REASON, REPO, TOOLS, before_series, command, environment, initialize, is_long, measure_sha, parser, progress,
+from common import (HERE, LONG_RUN_REASON, REPO, TOOLS, before_series, command, environment, initialize, inputs_sha, is_long, measure_sha, parser, progress,
                     repetitions, reuse_key, rotation, save, sha, summarize, tree_sha, write_plan)
 from integration import import_rows, importable
 sys.path.insert(0, str(TOOLS))
@@ -104,7 +104,7 @@ def program_sha(a, arm):
 def sweep_key(a, arm, folder, n, settings):
     # what a sweep's wall time depended on: the arm's program, the measurement code and the study's settings, the input files, the CPUs
     measure = tree_sha([('code', measure_sha(sweep).encode()), ('settings', json.dumps(settings, sort_keys=True).encode())])
-    return reuse_key(a, arm, folder, measure, a.cpu_order[:n])
+    return reuse_key(a, arm, measure, a.cpu_order[:n], inputs_sha(folder))  # the server's arms read their whole folder (not a model's program_inputs)
 
 
 def key_of(folder, n, settings):

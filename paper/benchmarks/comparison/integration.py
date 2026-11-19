@@ -14,7 +14,7 @@ import sys
 import traceback
 
 from common import (BENCH, INPUT_SUFFIXES, HERE, LONG_RUN_REASON, LONG_RUN_SECONDS, REPO, TOOLS, before_series, progress, command, derived_key, earlier_context, earlier_program, environment,
-                    initialize, inputs_sha, is_long, link_tree, mark_reused, measure_sha, module, parser, repetitions, required_repetitions,
+                    initialize, is_long, link_tree, mark_reused, measure_sha, module, parser, program_inputs, repetitions, required_repetitions,
                     reuse_key, rotation, save, selected, sha, short_home, summarize, wanted, write_plan)
 
 screen = module('screen', BENCH / 'five-model-screen/screen.py')
@@ -274,7 +274,8 @@ def diverged_horizon(agreement):
 
 
 def current_key(a, engine, model):
-    return reuse_key(a, engine, model.parent, measure_sha(engine_argv), a.cores[:1])
+    # The row key a run of `model` (its .ode) records and an import checks: the same function for the plan and the run (W827).
+    return reuse_key(a, engine, measure_sha(engine_argv), a.cores[:1], program_inputs(engine, model))
 
 
 def earlier_rows(a):
@@ -313,18 +314,19 @@ def recorded_key(rec):
 
 
 def earlier_key(a, rec, key, source_name, folder=None):
-    # The earlier row's reuse key as recorded, or, for a row of a series before W452, derived from what is on disk
-    # (common.derived_key). None when its command line is not the one built now. `folder`: the row's run folder when it is
-    # not a headline row's (a ladder rung's, W803: W617's rungs kept no key).
+    # The earlier row's reuse key: its recorded program, measurement code, CPUs and interpreter (recorded_key), its inputs as its
+    # program reads them now from the row's own copy of the model (program_inputs, W827: the files it kept, not the ones it
+    # recorded), or, for a row of a series before W452, all of it derived from what is on disk (common.derived_key). None when the
+    # folder is gone or its command line is not the one built now. `folder`: the row's run folder when it is not a headline row's
+    # (a ladder rung's, W803: W617's rungs kept no key).
     folder = folder or earlier_folder(a, rec)
-    if not folder.is_dir():
+    if not folder.is_dir() or not argv_unchanged(a, rec['engine'], folder, source_name):
         return None
+    model = folder / source_name
     if rec.get('reuse_key'):
-        return recorded_key(rec)
-    if not argv_unchanged(a, rec['engine'], folder, source_name):
-        return None
+        return dict(recorded_key(rec), inputs=program_inputs(rec['engine'], model))
     cpus = [int(c) for c in json.loads((folder / 'command.json').read_text())[2].split(',')]
-    return derived_key(a, rec, folder, key['measure'], cpus)
+    return derived_key(a, rec, model, key['measure'], cpus)
 
 
 def same_key(have, key, *, inputs=True):
@@ -367,25 +369,20 @@ def import_rows(a, found, name, engine, rep):
 
 
 def whole_reusable(a, name, model, ready):
-    # (marker, None) when an earlier attempt finished this workload (done/) with every program unchanged, else (None, why).
-    # Programs unchanged: each engine's program hash and measurement hash equal, the model and ready inputs equal (the ladder's
-    # and sweeps' inputs derive from them), the command line equal.
+    # (marker, None) when an earlier attempt finished this workload (done/) and every row it kept is equal work now: each row's key
+    # (its program, measurement code, what that program reads of the model or the ready input, the command line) is the same as
+    # this run's key for it (current_key, the same function an import checks), else (None, why). No folder-wide signature (W827).
     marker = a.reuse / 'done' / (name + '.json')
     if not marker.exists():
         return None, 'no earlier finished run'
     marker = json.loads(marker.read_text())
-    for label, built in ((name, model), (name + '-ready', ready)):
-        earlier = a.reuse / 'inputs' / label
-        if not earlier.is_dir() or inputs_sha(earlier) != inputs_sha(built.parent):
-            return None, 'the input %s differs' % label
-    sample = {}
     for r in marker['records']:
-        sample.setdefault(r['engine'], r)
-    for engine, rec in sample.items():
-        key = current_key(a, engine, model)
-        have = earlier_key(a, rec, key, model.name)
-        if not same_key(have, key, inputs=False):
-            return None, '%s differs in %s' % (engine, ', '.join(k for k in key if k != 'inputs' and (have is None or have.get(k) != key[k])) or 'its command line')
+        built = ready if r['row'] == 'ready' else model
+        key = current_key(a, r['engine'], built)
+        have = earlier_key(a, r, key, built.name)
+        if not same_key(have, key):
+            changed = [k for k in key if have is None or have.get(k) != key[k]]
+            return None, '%s %s differs in %s' % (r['engine'], r['row'], ', '.join(changed) or 'its command line')
     return marker, None
 
 
@@ -401,10 +398,9 @@ def reuse_whole(a, name, model, ready, records):
     workloads = {r['workload'] for r in marker['records']}
     imported = []
     for r in marker['records']:
+        built = ready if r['row'] == 'ready' else model
         folder = earlier_folder(a, r)
-        have = recorded_key(r) if r.get('reuse_key') else derived_key(a, r, folder, current_key(a, r['engine'], model)['measure'],
-                                                  [int(c) for c in json.loads((folder / 'command.json').read_text())[2].split(',')])
-        imported.append(dict(mark_reused(a, r), reuse_key=have))
+        imported.append(dict(mark_reused(a, r), reuse_key=earlier_key(a, r, current_key(a, r['engine'], built), built.name)))
         dest = a.out / 'runs' / r['workload'] / str(r['repetition']) / r['engine'] / r['row']
         dest.parent.mkdir(parents=True, exist_ok=True)
         link_tree(folder, dest)
@@ -470,13 +466,14 @@ def reference_reused(a, folder, model):
         return False
     earlier = a.reuse / folder.relative_to(a.out)
     if (earlier / REFERENCE_KEY).exists():
-        return recorded_key(dict(engine='python', reuse_key=json.loads((earlier / REFERENCE_KEY).read_text()))) == reference_key(a, model)
+        stored = dict(json.loads((earlier / REFERENCE_KEY).read_text()), inputs=program_inputs('python', earlier / model.name))
+        return recorded_key(dict(engine='python', reuse_key=stored)) == reference_key(a, model)
     if not (earlier / 'result.json').exists() or not json.loads((earlier / 'result.json').read_text())['valid']:
         return False
     if not argv_unchanged(a, 'reference', earlier, model.name):
         return False
     cpus = [int(c) for c in json.loads((earlier / 'command.json').read_text())[2].split(',')]
-    have = derived_key(a, dict(engine='python'), earlier, measure_sha(engine_argv), cpus)
+    have = derived_key(a, dict(engine='python'), earlier / model.name, measure_sha(engine_argv), cpus)
     return same_key(have, reference_key(a, model))
 
 
@@ -830,7 +827,9 @@ def plan_ladder(a, name, build, model, ready, engines):
     inputs = tolerance_inputs(build, name, model, ready, chosen, timed)
     for engine in timed:
         imported += plan_timed(a, name, engine, dict(zip(('run', 'ready'), inputs[engine])), would_run)
-    if climbed:
+    if timed and len(climbed) == len(engines):
+        # The sweeps are the run's when some program reached the reference and every climb is imported: a run whose climbs all
+        # stop short of it returns before any sweep (_series), and a climb that would run decides the sweeps itself (W827).
         points = {'wp': work_points(a, name, [], rungs, chosen, climbed)[0],
                   'dt': dt_points(a, name, build, [], rungs, chosen, climbed)[0]}
         for kind, kind_points in points.items():

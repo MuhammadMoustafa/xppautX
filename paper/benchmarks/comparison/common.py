@@ -33,6 +33,7 @@ LONG_RUN_SECONDS = 600
 LONG_RUN_REASON = 'warm-up run longer than %d s: one counted repetition' % LONG_RUN_SECONDS
 PYTHON_DIR = TOOLS / 'python-integration'
 INPUT_SUFFIXES = ('.ode', '.odex', '.inc', '.set')  # the files a launch copies beside the program's run
+XPPAUT_READS = ('.ode', '.inc', '.set')  # what XPPAUT reads of its input: the model, its included files and its SET (-setfile)
 
 
 def save(path, value):
@@ -366,6 +367,58 @@ def inputs_sha(folder, suffixes=INPUT_SUFFIXES):
     return tree_sha((f.name, input_bytes(f)) for f in Path(folder).iterdir() if f.suffix in suffixes)
 
 
+# .odex options that change no number, only the picture the array plot draws: each is the text of one of its titles
+# (core/commands_array_plot.cpp). A Python program's model key leaves exactly these out, each one named with its reason (W806).
+DISPLAY_OPTIONS = {
+    'array_plot.top_label': 'the text above the picture (its x title)',
+    'array_plot.side_label': 'the text beside it, up its side (its y title)',
+    'array_plot.bottom_label': 'the text under it (its bottom title)',
+}
+
+
+def at_default(path):
+    # The numeric options the schema gives a default (core/model_options.cpp, W804), {.odex name: default}: an option written at
+    # its default and an option not written are one model to every program, so a converter that starts writing one (W804's
+    # global.min_step_fraction) changes no key.
+    sys.path.insert(0, str(PYTHON_DIR))
+    from numerics import option_rows
+    return {name: float(prop['default']) for name, _, prop in option_rows()
+            if prop.get('type') in ('number', 'integer') and 'default' in prop}
+
+
+def model_key(path):
+    # The .odex's digest without its DISPLAY_OPTIONS items and without any numeric option written at its default (at_default).
+    # The generated .odex writes a comma after each item of a group, so an item is taken out with the comma before it: a
+    # label-only change keeps the key, a number's change does not. An item first in its group is not taken out, so its change
+    # changes the key (the safe side).
+    path = Path(path)
+    text = odex_before_w809(path.read_text(encoding='utf-8'))
+    for key in DISPLAY_OPTIONS:
+        text = re.sub(r',\s*%s\s*:\s*(?:"[^"]*"|[^,}\n]*)' % re.escape(key), '', text)
+    for key, default in at_default(path).items():
+        text = re.sub(r',\s*%s\s*:\s*([-+.\deE]+)(?=\s*[,}\n])' % re.escape(key),
+                      lambda m: '' if float(m.group(1)) == default else m.group(0), text)
+    text = re.sub(r',\s+', ', ', text)  # the converter wraps an options group's items at its width: an item taken out reflows the lines
+    return tree_sha([(path.name, text.encode('utf-8'))])
+
+
+# W827 (#908): a row is keyed by what its program reads of its input, never by every file a launch copies beside it. XPPAUT reads
+# the model, its included files and its SET (XPPAUT_READS); xppautX reads the .odex it is given; the Python programs read the
+# .odex's numbers (model_key). The .odex is xppautX's own conversion: a converter change that writes a new option reruns
+# neither XPPAUT's rows nor any Python row whose numbers it does not change. The plan and the run both key rows here.
+PYTHON_ENGINES = ('python', 'reference')
+
+
+def program_inputs(engine, model):
+    # The digest of what `engine` reads of the input `model` (its .ode path; the .odex and the rest of its folder beside it).
+    model = Path(model)
+    if engine == 'xppaut':
+        return inputs_sha(model.parent, XPPAUT_READS)
+    if engine in PYTHON_ENGINES:
+        return model_key(model.with_suffix('.odex'))
+    return inputs_sha(model.parent, ('.odex',))
+
+
 AUTO_DIRS = ('bin', 'lib', 'python', 'src', 'cmds')  # the parts of an AUTO-07p build that run
 
 
@@ -387,8 +440,9 @@ def executable_sha(a, engine):
     return cache[engine]
 
 
-def reuse_key(a, engine, folder, measure, cpus):
-    return dict(program=executable_sha(a, engine), measure=measure, inputs=inputs_sha(folder), cpus=list(cpus),
+def reuse_key(a, engine, measure, cpus, inputs):
+    # A row's key: its program, measurement code, input digest (program_inputs, or a study's own), CPUs and interpreter.
+    return dict(program=executable_sha(a, engine), measure=measure, inputs=inputs, cpus=list(cpus),
                 interpreter=sys.version if engine == 'python' else None)
 
 
@@ -421,10 +475,11 @@ def derived_program_sha(a, engine):
     return list(provenance['binaries'].values())[('xppautx', 'xppaut').index(engine)]
 
 
-def derived_key(a, rec, folder, measure, cpus):
-    # An earlier row with no reuse_key (a series before W452): its key from what is on disk, never guessed.
+def derived_key(a, rec, model, measure, cpus):
+    # An earlier row with no reuse_key (a series before W452): its key from what is on disk, never guessed. `model`: the row's own
+    # copy of the input model (its folder holds the files the launch copied).
     #  program: provenance.json's recorded hashes (derived_program_sha);
-    #  inputs: the row's own folder, which holds the files the launch copied;
+    #  inputs: program_inputs of that copy (what the row's program reads, W827);
     #  cpus and argv: the row's command.json, which must equal what the current argv builder would give (checked by the caller
     #   through `argv_equal`, since only it knows the builder);
     #  measure: the current measurement code's hash when tools/comparison_measure.py at the earlier commit is byte-identical
@@ -435,7 +490,7 @@ def derived_key(a, rec, folder, measure, cpus):
         same_clock = git_text(provenance['commit'], 'tools/comparison_measure.py') == (TOOLS / 'comparison_measure.py').read_bytes()
     except subprocess.CalledProcessError:
         same_clock = False
-    return dict(program=derived_program_sha(a, rec['engine']), measure=measure if same_clock else None, inputs=inputs_sha(folder),
+    return dict(program=derived_program_sha(a, rec['engine']), measure=measure if same_clock else None, inputs=program_inputs(rec['engine'], model),
                 cpus=list(cpus), interpreter=provenance['python'] if rec['engine'] == 'python' else None, derived=True)
 
 

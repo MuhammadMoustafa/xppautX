@@ -48,10 +48,19 @@ def attempts(unit_dir):
     return sorted(unit_dir.glob('attempt-[0-9][0-9][0-9]'))
 
 
+def ended(unit_dir, attempt):
+    # An attempt a run may import rows from: it began (provenance.json) and ended with a result the driver kept, done.json naming
+    # it or its failure record beside it. An interrupted attempt has neither (the W718 run stopped at XPPAUT repetition 4): its rows
+    # are partial, so they are never imported (W827).
+    done = unit_dir / DONE
+    named = done.exists() and json.loads(done.read_text())['attempt'] == attempt.name
+    return (attempt / 'provenance.json').exists() and (named or attempt.with_suffix('.failure.json').exists())
+
+
 def earlier_attempt(unit_dir, reuse_root, study):
-    # The unit's newest attempt that began a run (its provenance.json), else the same unit of --reuse's folder: what a run imports from.
+    # The unit's newest attempt that ended (see ended), else the same unit of --reuse's folder: what a run imports from.
     for root in (unit_dir, reuse_root / study / unit_dir.name if reuse_root else None):
-        found = [f for f in reversed(attempts(root)) if (f / 'provenance.json').exists()] if root else []
+        found = [f for f in reversed(attempts(root)) if ended(root, f)] if root else []
         if found:
             return found[0]
     return None
@@ -137,8 +146,9 @@ class Run:
 
     def setup_flag(self, study, unit, mode='run'):
         # The set-up unit's attempt as the flag's value, or why there is none. The set-up's done attempt when it has one. Otherwise,
-        # by mode: 'quick' (pass 1, W826) the set-up's pass-1 folder, which pass 1 ran just before the unit;
-        # 'run' the failure of a set-up that has not run.
+        # by mode: 'quick' (pass 1, W826) the set-up's pass-1 folder, which pass 1 ran just before the unit; 'plan' (--plan) its
+        # earlier attempt in --reuse, so the unit's rows are planned against the same set-up the run will use until it is done
+        # (a set-up that is not done is no reason to plan nothing, W827); 'run' the failure of a set-up that has not run.
         need = self.needs(study, unit)
         if not need:
             return [], None
@@ -148,6 +158,10 @@ class Run:
             return [flag, str(folder / json.loads((folder / DONE).read_text())['attempt'])], None
         if mode == 'quick' and (folder / 'pass1').is_dir():
             return [flag, str(folder / 'pass1')], None
+        if mode == 'plan' and self.a.reuse:
+            earlier = done_attempts(self.a.reuse, set_study).get(set_unit)
+            if earlier:
+                return [flag, str(earlier)], None
         return [], 'its set-up unit %s/%s is not done' % (set_study, set_unit)
 
     def stiff_identity(self, unit):
@@ -189,7 +203,7 @@ class Run:
             return [] if same else ['the worker, its sources or its pilot changed since the unit finished']
         if source is None:
             return None
-        flag, why = self.setup_flag(study, unit)
+        flag, why = self.setup_flag(study, unit, 'plan')
         if why:
             return [why]
         out = self.scratch / ('plan-%s-%s' % (study, unit))
@@ -206,6 +220,7 @@ class Run:
         # counted) or the next attempt, which is the unit's result. Returns (True when it finished, its verdict or None).
         a = self.a
         unit_dir = a.out / study / unit
+        source = earlier_attempt(unit_dir, a.reuse, study)  # before done.json goes: a rerun imports from the attempt it replaces (W827)
         if quick:
             attempt = unit_dir / 'pass1'
             shutil.rmtree(attempt, ignore_errors=True)
@@ -221,7 +236,6 @@ class Run:
         if study == 'large-stiff':
             argv = self.stiff_argv(unit, attempt, machine, flag)
         else:
-            source = earlier_attempt(unit_dir, a.reuse, study)
             argv = self.argv(study, attempt, machine, '--only', unit, *flag, *(['--reuse', str(source)] if source else []),
                              repeats=1 if quick else None)
             if a.stop_on_failure:
@@ -331,7 +345,7 @@ def main():
     p.add_argument('--study', choices=STUDIES, action='append', help='run only these studies, in settled order')
     p.add_argument('--stop-on-failure', action='store_true', help='stop at the first failed unit')
     p.add_argument('--keep-going', action='store_true', help='go on past a unit slower than its reference (W818; a slower unit still ends pass 1, so pass 2 does not run)')
-    p.add_argument('--reuse', type=Path, help='an earlier results folder (it may be unfinished): a unit of it that has no attempt here supplies its rows whose program, measurement code and inputs are unchanged, so they are imported, not run again')
+    p.add_argument('--reuse', type=Path, help='an earlier results folder (it may be unfinished: a failed attempt supplies its rows, an interrupted one none, W827): a unit of it that has no attempt here supplies its rows whose program, measurement code and inputs are unchanged, so they are imported, not run again')
     p.add_argument('--plan', action='store_true', help='only plan: for every unit, what its earlier attempt supplies and what would run; no timing, nothing run (W802: a plan that would run a row of XPPAUT, AUTO-07p or Python also stops, listing it)')
     p.add_argument('--check', action='store_true')
     p.add_argument('--repeats', type=int, help='counted repetitions per row (W460); the drivers default to five')

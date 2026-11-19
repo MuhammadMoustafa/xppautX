@@ -176,6 +176,116 @@ class Units(unittest.TestCase):
         self.assertEqual([line for line in log if line.startswith('pass 1 ')], ['pass 1 screen/a: no reference', 'pass 1 screen/b: same'])
         self.assertEqual(self.done(), ['a', 'b', 'c'])
 
+    def test_a_plan_of_a_unit_whose_set_up_is_not_done_plans_its_rows_against_the_set_ups_earlier_attempt(self):
+        # W827: a plan that found the set-up not done named that as its one would-run reason, so its rows were never planned, while the
+        # run imported them. The plan takes the set-up's earlier attempt in --reuse, the attempt the run imports from until it is done.
+        ref, patch = self.series_with_a_set_up()
+        with patch:
+            _, message = self.drive('--plan', '--reuse', str(ref), check=False, times={'b': [1.0, 0.0]})
+        self.assertIsNone(message)
+        self.assertEqual(json.loads((self.out / 'screen/b/plan.json').read_text())['would_run'], [])
+
+
+class EarlierAttempt(unittest.TestCase):
+    # W827: a run imports rows only from an attempt that ended (its done.json names it, or its failure record is beside it). An
+    # interrupted attempt (the W718 run stopped at XPPAUT repetition 4: provenance, no done, no failure) is partial and never imported.
+    def setUp(self):
+        self.scratch = tempfile.TemporaryDirectory(prefix='w827-attempt-')
+        self.unit = Path(self.scratch.name) / 'screen/episodic'
+        for name in ('attempt-001', 'attempt-002'):
+            (self.unit / name).mkdir(parents=True)
+            common.save(self.unit / name / 'provenance.json', {})
+
+    def tearDown(self):
+        self.scratch.cleanup()
+
+    def test_an_interrupted_attempt_is_never_imported(self):
+        self.assertIsNone(run.earlier_attempt(self.unit, None, 'screen'))
+        common.save(self.unit / 'done.json', dict(attempt='attempt-001'))  # the unit's done record names the first attempt
+        self.assertEqual(run.earlier_attempt(self.unit, None, 'screen').name, 'attempt-001')  # attempt-002 has neither: skipped
+
+    def test_a_failed_attempt_still_supplies_its_rows_to_a_resume(self):
+        common.save(self.unit / 'attempt-002.failure.json', dict(unit='episodic'))
+        self.assertEqual(run.earlier_attempt(self.unit, None, 'screen').name, 'attempt-002')
+
+
+class ProgramKeys(unittest.TestCase):
+    # W827 (#908): a row is keyed by what its program reads (XPPAUT: the .ode, its includes and SET; xppautX: the .odex; Python: the
+    # .odex's numbers), its command line and its program. The plan and the run key rows by the same function (integration.current_key).
+    ODEX = 'options: { step.max: 1 }\n'
+
+    def setUp(self):
+        import integration
+        self.integration = integration
+        self.scratch = tempfile.TemporaryDirectory(prefix='w827-test-')
+        self.root = Path(self.scratch.name)
+        for name in ('xppautx', 'xppaut'):
+            (self.root / name).write_text(name)
+        self.a = argparse.Namespace(xppautx=self.root / 'xppautx', xppaut=self.root / 'xppaut', cores=[0], check=False, study='screen',
+                                    reuse=self.root / 'earlier')
+        self.folder = self.root / 'inputs/episodic'
+        self.folder.mkdir(parents=True)
+        self.model = self.folder / 'episodic.ode'
+        self.model.write_text('dif(x)=-x\n')
+        (self.folder / 'episodic.ode.set').write_text('# Old ICs\n1.0 x\n')
+        self.odex(self.ODEX)
+
+    def tearDown(self):
+        self.scratch.cleanup()
+
+    def odex(self, text):
+        # what xppautX's conversion writes beside the model: the .odex it reads, and the log and hashes it writes too
+        (self.folder / 'episodic.odex').write_text(text)
+        (self.folder / 'episodic.conversion.log').write_text('converted %s\n' % len(text))
+        (self.folder / 'hashes.json').write_text('{"n": %d}\n' % len(text))
+
+    def key(self, engine):
+        return self.integration.current_key(self.a, engine, self.model)
+
+    def test_a_converter_change_reruns_no_xppaut_row(self):
+        xppaut, xppautx = self.key('xppaut'), self.key('xppautx')
+        self.odex(self.ODEX + '# a new option the converter writes\n')
+        self.assertEqual(self.key('xppaut'), xppaut)  # XPPAUT never reads the .odex
+        self.assertNotEqual(self.key('xppautx')['inputs'], xppautx['inputs'])  # xppautX reads it
+
+    def test_a_change_of_the_model_or_its_set_reruns_xppaut(self):
+        xppaut = self.key('xppaut')
+        self.model.write_text('dif(x)=-2*x\n')
+        self.assertNotEqual(self.key('xppaut')['inputs'], xppaut['inputs'])
+        self.model.write_text('dif(x)=-x\n')
+        (self.folder / 'episodic.ode.set').write_text('# Old ICs\n2.0 x\n')
+        self.assertNotEqual(self.key('xppaut')['inputs'], xppaut['inputs'])
+
+    def test_a_python_row_ignores_a_default_option_and_a_label_but_not_a_number(self):
+        python = self.key('python')['inputs']
+        self.odex('options: { step.max: 1, global.min_step_fraction: 1e-10 }\n')  # written at its default (W804)
+        self.assertEqual(self.key('python')['inputs'], python)
+        self.odex('options: { step.max: 1, array_plot.top_label: "a title" }\n')  # a label changes no number (W806)
+        self.assertEqual(self.key('python')['inputs'], python)
+        self.odex('options: { step.max: 2 }\n')
+        self.assertNotEqual(self.key('python')['inputs'], python)
+
+    def test_an_earlier_xppaut_row_recorded_under_other_inputs_is_imported_when_xppaut_reads_the_same(self):
+        # The plan and the run both import through importable: a row kept under the old keys (its recorded inputs are a digest of
+        # every copied file) is imported when the files XPPAUT reads are the same, whatever the .odex is.
+        key = self.key('xppaut')
+        earlier = self.a.reuse / 'runs/episodic/0/xppaut'
+        for row in ('run', 'ready'):
+            folder = earlier / row
+            folder.mkdir(parents=True)
+            for f in self.folder.iterdir():
+                if f.suffix in ('.ode', '.set', '.inc', '.odex'):
+                    (folder / f.name).write_text(f.read_text())
+            common.save(folder / 'command.json', ['taskset', '-c', '0', *self.integration.engine_argv(self.a, folder / 'episodic.ode', 'xppaut', folder / 'episodic.ode.set')])
+        records = [dict(workload='episodic', engine='xppaut', row=row, repetition=0, valid=True,
+                        reuse_key=dict(key, inputs='a digest of every copied file, as recorded before W827')) for row in ('run', 'ready')]
+        common.save(self.a.reuse / 'provenance.json', {})
+        common.save(self.a.reuse / 'runs.json', records)
+        self.odex(self.ODEX + '# a converter change XPPAUT does not read\n')
+        found, why = self.integration.importable(self.a, 'episodic', 'xppaut', 0, {'run': self.model, 'ready': self.model})
+        self.assertIsNone(why)
+        self.assertEqual(sorted(found), ['ready', 'run'])
+
 
 class LadderReuse(unittest.TestCase):
     # W805: a program's climb (its rungs, the tolerance it reached, its timed rows) is taken from an earlier ladder when its program,
@@ -275,8 +385,8 @@ class ReferenceModelKey(unittest.TestCase):
         self.assertNotEqual(key(self.odex(before)), key(self.odex(before.replace('colormap: jet', 'colormap: hot'))))
 
     def test_every_display_option_is_named_with_its_reason(self):
-        self.assertTrue(all(reason.strip() for reason in self.terman.DISPLAY_OPTIONS.values()))
-        self.assertEqual(sorted(self.terman.DISPLAY_OPTIONS), ['array_plot.bottom_label', 'array_plot.side_label', 'array_plot.top_label'])
+        self.assertTrue(all(reason.strip() for reason in common.DISPLAY_OPTIONS.values()))
+        self.assertEqual(sorted(common.DISPLAY_OPTIONS), ['array_plot.bottom_label', 'array_plot.side_label', 'array_plot.top_label'])
 
 
 class OdexBeforeW809(unittest.TestCase):

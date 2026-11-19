@@ -3,14 +3,13 @@
 import gzip
 import json
 from pathlib import Path
-import re
 import sys
 
 import math
 import statistics
 
-from common import (BENCH, HERE, PYTHON_DIR, odex_before_w809, derived_program_sha, executable_sha, initialize, inputs_sha, link_tree, parser, progress, save, sha,
-                    tree_sha, write_plan)
+from common import (BENCH, HERE, derived_program_sha, executable_sha, initialize, link_tree, model_key, parser, program_inputs, progress, save, sha,
+                    write_plan)
 from integration import PYTHON, argv_unchanged, convert, launch, setfile_patch, stage, variant
 from odex_model import Odex
 
@@ -133,11 +132,9 @@ def configured(a, source, label, values, method, perturb):
 
 
 # W802: XPPAUT's and Python's rows of an earlier attempt are never run again. The convergence runs are untimed, so a row's key is
-# the program, the files XPPAUT reads (the .ode and its SET) and its command line; an earlier attempt keeps no key (W617 predates
-# them), so it is derived from what the attempt kept (common.derived_program_sha), as for the other studies' earlier rows.
-XPPAUT_FILES = ('.ode', '.set')
-
-
+# the program, what the program reads of its input (common.program_inputs, W827: XPPAUT's .ode and SET, Python's .odex numbers) and
+# its command line; an earlier attempt keeps no key (W617 predates them), so it is derived from what the attempt kept
+# (common.derived_program_sha), as for the other studies' earlier rows.
 def reusable_xppaut(a, label, model):
     # (the earlier attempt's folder of this XPPAUT run, None) when it is valid and the same work, else (None, why).
     folder = a.reuse / 'convergence' / label / 'xppaut'
@@ -147,46 +144,11 @@ def reusable_xppaut(a, label, model):
     if not json.loads(result.read_text()).get('valid'):
         return None, 'the earlier run was not valid'
     changed = [name for name, now, then in (('program', executable_sha(a, 'xppaut'), derived_program_sha(a, 'xppaut')),
-                                            ('inputs', inputs_sha(model.parent, XPPAUT_FILES), inputs_sha(folder, XPPAUT_FILES)))
+                                            ('inputs', program_inputs('xppaut', model), program_inputs('xppaut', folder / model.name)))
                if now != then]
     if not changed and not argv_unchanged(a, 'xppaut', folder, model.name):
         changed = ['command line']
     return (None, 'differs in ' + ', '.join(changed)) if changed else (folder, None)
-
-
-# .odex options that change no number, only the picture the array plot draws: each is the text of one of its titles
-# (core/commands_array_plot.cpp). A reference's model key leaves exactly these out, each one named with its reason (W806).
-DISPLAY_OPTIONS = {
-    'array_plot.top_label': 'the text above the picture (its x title)',
-    'array_plot.side_label': 'the text beside it, up its side (its y title)',
-    'array_plot.bottom_label': 'the text under it (its bottom title)',
-}
-
-
-def at_default(path):
-    # The numeric options the schema gives a default (core/model_options.cpp, W804), {.odex name: default}: an option written at
-    # its default and an option not written are one model to every program, so a converter that starts writing one (W804's
-    # global.min_step_fraction) changes no key.
-    sys.path.insert(0, str(PYTHON_DIR))
-    from numerics import option_rows
-    return {name: float(prop['default']) for name, _, prop in option_rows()
-            if prop.get('type') in ('number', 'integer') and 'default' in prop}
-
-
-def model_key(path):
-    # The .odex's digest without its DISPLAY_OPTIONS items and without any numeric option written at its default (at_default).
-    # The generated .odex writes a comma after each item of a group, so an item is taken out with the comma before it: a
-    # label-only change keeps the key, a number's change does not. An item first in its group is not taken out, so its change
-    # changes the key (the safe side).
-    path = Path(path)
-    text = odex_before_w809(path.read_text(encoding='utf-8'))
-    for key in DISPLAY_OPTIONS:
-        text = re.sub(r',\s*%s\s*:\s*(?:"[^"]*"|[^,}\n]*)' % re.escape(key), '', text)
-    for key, default in at_default(path).items():
-        text = re.sub(r',\s*%s\s*:\s*([-+.\deE]+)(?=\s*[,}\n])' % re.escape(key),
-                      lambda m: '' if float(m.group(1)) == default else m.group(0), text)
-    text = re.sub(r',\s+', ', ', text)  # the converter wraps an options group's items at its width: an item taken out reflows the lines
-    return tree_sha([(path.name, text.encode('utf-8'))])
 
 
 def reusable_reference(a, source):

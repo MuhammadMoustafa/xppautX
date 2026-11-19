@@ -90,7 +90,9 @@ Drivers take `--only UNIT` (a unit's name, or its model's), `--list` and `--plan
 
 - **Plan first.** Before any timed unit run.py plans every unit: the driver's `--plan --reuse <the unit's newest attempt, else the
   same unit of --reuse's folder>` writes `plan.json` (what is imported, what would run, by the rows' own keys of W452 and W575),
-  nothing timed. A plan that raises stops the run, so a reuse-path bug shows in minutes; `--plan` alone does only this.
+  nothing timed. A plan that raises stops the run, so a reuse-path bug shows in minutes; `--plan` alone does only this. A unit whose
+  set-up unit (`needs`) is not done yet is planned against the set-up's earlier attempt in `--reuse`, the one the run imports from
+  until the set-up is done, so its rows are planned and not named as one reason (W827).
 - **Resume.** The same command again: a unit with a done record and a plan that runs nothing is skipped; a unit a driver fix
   changed runs again in the same folder (a new attempt importing its unchanged rows). No folder-wide signature: the keys decide.
 - **A failure is a unit's.** Its attempt keeps `attempt-NNN.failure.json`; the run goes on; the end lists every failed unit and
@@ -125,8 +127,13 @@ Drivers take `--only UNIT` (a unit's name, or its model's), `--list` and `--plan
   AUTO-07p or xppautX goes through it. W617's data and records are never rewritten.
 - **Imports are references.** An imported row's folder is linked into the new attempt (`common.link_tree`: hard links, so no space and
   no second copy; another file system is an error, not a silent copy), and the `--reuse` folder is `~/xppautx-comparison/results` (every file a real hard link, W807). Terman's XPPAUT
-  convergence runs and its Python dop853 reference are imported the same way, by the keys of the files XPPAUT reads (`.ode`, `.set`),
-  its command line and its program, derived from what the earlier attempt kept. The dop853 reference's model is compared without the
+  convergence runs and its Python dop853 reference are imported the same way, by the same keys.
+  **Each row's key is what its program reads (W827, #908):** `common.program_inputs`: XPPAUT's `.ode`, its `.inc` files and its `.set`;
+  xppautX's `.odex`; the Python programs' `.odex` by its numbers (`model_key`: no display label, no option written at its default).
+  The `.odex` xppautX writes beside the model is not XPPAUT's input, so a converter change reruns no XPPAUT row. A plan and a run key a
+  row through the one function (`integration.current_key`, `importable`); an earlier row's recorded key has its inputs read again from
+  the row's own copy of the model, and its command line is checked for every earlier row (`argv_unchanged`). A row derived from what
+  an earlier attempt kept (a series before W452) is keyed the same way. The dop853 reference's model is compared without the
   array plot's three labels (`terman.DISPLAY_OPTIONS`, each named with its reason; W806): a label-only change of `episodic.odex` keeps
   the key, and any other change of the model changes it.
 - T1's and E1's repetition windows come from the earlier attempt's `window.json`; T2's sized mode (`adaptive-sized`) is planned as
