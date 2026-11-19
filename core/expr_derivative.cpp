@@ -2,6 +2,7 @@
 #include "expr_derivative.h"
 #include "expr_decode.h"
 #include "xpp_text.h"
+#include "xpp_util.h"
 
 #include <bit>
 #include <map>
@@ -19,7 +20,7 @@ namespace xpp::expr {
 std::size_t Symbolic::Hash::operator()(const Node &n) const noexcept
 {
     std::uint64_t h = static_cast<std::uint64_t>(n.op) * 0x9E3779B97F4A7C15ULL;
-    auto mix = [&h](std::uint64_t x) { h ^= x + 0x9E3779B97F4A7C15ULL + (h << 6) + (h >> 2); };
+    auto mix = [&h](std::uint64_t x) { h = hash_mix(h, x); };
     mix(static_cast<std::uint64_t>(static_cast<std::uint32_t>(n.index)));
     for (int a : n.args) mix(static_cast<std::uint64_t>(static_cast<std::uint32_t>(a)));
     mix(std::bit_cast<std::uint64_t>(n.number));

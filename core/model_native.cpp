@@ -157,7 +157,7 @@ constexpr int TREE_SIZE_CAP = 1 << 20;
 std::uint64_t node_hash(const IrNode &n, std::span<const int> arguments)
 {
     std::uint64_t h = std::bit_cast<std::uint64_t>(n.number);
-    const auto mix = [&h](std::uint64_t x) { h = (h ^ x) * 0x9E3779B97F4A7C15ULL; };
+    const auto mix = [&h](std::uint64_t x) { h = hash_mix(h, x); };
     const auto word = [](int lo, int hi) { return static_cast<std::uint64_t>(static_cast<std::uint32_t>(hi)) << 32 | static_cast<std::uint32_t>(lo); };
     mix(word(static_cast<int>(n.op), n.index));
     mix(word(n.callee, n.stride));
@@ -853,13 +853,12 @@ struct Generator {
        two rows to be copies, so repeated_terms compares these before it builds any block. */
     static std::vector<std::uint64_t> node_signatures(const expr::Symbolic &g)
     {
-        const auto mix = [](std::uint64_t h, std::uint64_t x) { return h ^ (x + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2)); };
         std::vector<std::uint64_t> sig(g.size());
         for (size_t id = 0; id < g.size(); ++id) {
             const expr::Symbolic::Node &n = g.node({static_cast<int>(id)});
-            std::uint64_t h = mix(static_cast<std::uint64_t>(n.op), std::bit_cast<std::uint64_t>(n.number));
-            if (!is_leaf_op(n.op)) h = mix(h, static_cast<std::uint64_t>(n.index));
-            for (const int a : n.args) h = mix(h, a < 0 ? ~0ULL : sig[static_cast<size_t>(a)]);
+            std::uint64_t h = hash_mix(static_cast<std::uint64_t>(n.op), std::bit_cast<std::uint64_t>(n.number));
+            if (!is_leaf_op(n.op)) h = hash_mix(h, static_cast<std::uint64_t>(n.index));
+            for (const int a : n.args) h = hash_mix(h, a < 0 ? ~0ULL : sig[static_cast<size_t>(a)]);
             sig[id] = h;
         }
         return sig;

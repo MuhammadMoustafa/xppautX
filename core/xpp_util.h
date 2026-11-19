@@ -78,4 +78,8 @@ private:
     std::uint64_t h_ = 14695981039346656037ULL; /* the FNV 64-bit offset basis */
 };
 
+/* One step of a hash over several values: h with x mixed in (hash_combine's golden-ratio constant and shifts); the hashes of the
+   expression graph and of the native code's nodes are built from it */
+constexpr std::uint64_t hash_mix(std::uint64_t h, std::uint64_t x) { return h ^ (x + 0x9E3779B97F4A7C15ULL + (h << 6) + (h >> 2)); }
+
 } // namespace xpp
