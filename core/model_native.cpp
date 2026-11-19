@@ -1618,7 +1618,10 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
 
 /* the build's thread, detached (a run with no processor to spare waits for it in `taken`): it reads the module the build holds and writes only the build's result, then
    says so; an allocation it cannot make ends the program as one on the core thread would, since no exception
-   may leave a thread. A run that ends first leaves it to end with the process (xpp_mir.cpp `compiling`). */
+   may leave a thread. A run that ends first leaves it to end with the process, so the rule for it, and for any thread the core
+   leaves running at exit() (xpp_http's, the stdin reader), is that it touches only what it owns through its own
+   reference or what is never destroyed (xpp_mir.cpp `compiling`, NativeBuild::finish): no static object of a library, and no std::atomic wait or
+   notify, whose waiter pool is one (W837). */
 void start_build(const SessionParts &s, std::shared_ptr<NativeBuild> build)
 {
     build->started=true;
@@ -1629,8 +1632,7 @@ void start_build(const SessionParts &s, std::shared_ptr<NativeBuild> build)
         } catch (const std::bad_alloc &) {
             out_of_memory("the model's native code");
         }
-        build->finished.store(true,std::memory_order_release);
-        build->finished.notify_all();
+        build->finish();
         build.reset(); /* the compiled code goes here when the Model went first */
     }).detach();
 }
@@ -1647,7 +1649,7 @@ std::shared_ptr<NativeBuild> taken(const SessionParts &s, std::shared_ptr<Native
     }
     if (!wait && !pending->finished.load(std::memory_order_acquire)) return nullptr;
     const std::shared_ptr<NativeBuild> build=std::move(pending);
-    build->finished.wait(false,std::memory_order_acquire); /* blocks until the thread notifies; no busy wait */
+    build->wait_finished(); /* blocks until the thread says it is done; no busy wait */
     return build;
 }
 

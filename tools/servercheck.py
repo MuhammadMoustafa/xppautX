@@ -8386,6 +8386,51 @@ def check_jacobian_failure():
 check_jacobian_failure()
 
 
+def check_exit_during_native_build():
+    """W837: the program exits while MIR's build threads still compile (a short run starts them at once, W717, and the
+    process does not wait for them): the exit status is the run's, and in --silent nothing else reaches stderr (the
+    exact Jacobian's failure, exit 1; a run that goes through, exit 0); in --server a quit right after a run exits 0.
+    A thread that touched an object exit() had destroyed ended Windows' process with std::system_error (CI run
+    44589021460); where the race is not met, or the platform has no such object (Linux), the check passes, so it
+    counts a hundred exits and fails on any that is not clean."""
+    model_dir = tempfile.mkdtemp(prefix='xppexitbuild')
+    try:
+        failing = os.path.join(model_dir, 'failing.odex')
+        with open(failing, 'w') as f:
+            f.write(versioned("x' = sqrt(x) + 1\ninit x = 0\noptions { integration: { method: stiff, total_time: 4, jacobian.kind: exact } }\n"))
+        going = os.path.join(model_dir, 'going.odex')
+        with open(going, 'w') as f:
+            f.write(versioned("x' = sqrt(x + 1)\ninit x = 1\noptions { integration: { method: stiff, total_time: 4, jacobian.kind: exact } }\n"))
+        silent = [(failing, 1)] * 40 + [(going, 0)] * 40
+        bad = []
+        for model, status in silent:
+            run = subprocess.run([os.path.abspath(args.server), os.path.basename(model), '--silent'], capture_output=True, text=True,
+                                 cwd=model_dir, timeout=60 * SLOW)
+            lines = [l for l in run.stderr.splitlines() if l.strip() and 'dX\'/dX is inf at t=0' not in l]
+            if run.returncode != status or lines:
+                bad.append((os.path.basename(model), run.returncode, run.stderr[-200:]))
+        check('W837: --silent exits with the run\'s status and a clean stderr while MIR builds (80 exits, the Jacobian\'s '
+              'failure among them)', not bad, bad[:2])
+        bad = []
+        for _ in range(20):
+            p, r, snd, col, _ = launch_server(ode=going)
+            try:
+                col(is_done)
+                snd(cmd='run.initial')
+                col(is_done)
+                snd(cmd='session.quit', save=False)
+                if p.wait(timeout=60 * SLOW) != 0:
+                    bad.append(p.returncode)
+            finally:
+                shutil.rmtree(r, ignore_errors=True)
+        check('W837: --server quits right after a run with status 0 while MIR builds (20 exits)', not bad, bad[:2])
+    finally:
+        shutil.rmtree(model_dir, ignore_errors=True)
+
+
+check_exit_during_native_build()
+
+
 def check_autox_jacobian_failure():
     """W275: an exact derivative that is not finite during an autoX run (the
     sqrt term is present below a = 0.5, on the branch x = 0, where its slope

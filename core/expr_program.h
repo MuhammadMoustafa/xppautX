@@ -64,8 +64,10 @@
 #include <array>
 #include <atomic>
 #include <bit>
+#include <condition_variable>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
@@ -186,14 +188,34 @@ struct NativeBuild {
     std::uint64_t due = 0;       /* the interpreted_ops count the thread starts at */
     std::uint64_t due_work = 0;  /* the native_work count the thread starts at */
     bool started = false;
-    std::atomic<bool> finished{false}; /* set by the thread once `result` is written; waited on with atomic wait */
+    std::atomic<bool> finished{false}; /* set by the thread (finish) once `result` is written */
     Result<std::unique_ptr<native::Code>> result;
+    /* The thread says it is done, and the core thread waits for it, through the build's own mutex and condition variable and not
+       through std::atomic's wait and notify: where the platform has no futex (Windows) libstdc++ keeps those in static objects it
+       destroys at exit(), and the thread, which runs on past it, would lock a destroyed mutex (std::system_error from a noexcept
+       function: terminate). The build is the thread's own shared_ptr, so these outlive it. */
+    void finish()
+    {
+        {
+            const std::lock_guard guard(mutex_);
+            finished.store(true, std::memory_order_release);
+        }
+        done_.notify_all();
+    }
+    void wait_finished()
+    {
+        std::unique_lock guard(mutex_);
+        done_.wait(guard, [this] { return finished.load(std::memory_order_acquire); });
+    }
     /* whether the core thread has something to do with it (build_native, without waiting): start it, as the work done has reached
        its count, or take it, as the thread has finished; the run asks at every right-hand side, so it is a few loads */
     bool needs_attention(std::uint64_t interpreted_ops, std::uint64_t native_work) const
     {
         return started ? finished.load(std::memory_order_acquire) : interpreted_ops >= due || native_work >= due_work;
     }
+private:
+    std::mutex mutex_;
+    std::condition_variable done_;
 };
 
 /* Derivatives of the exact Jacobian (W260, expr_derivative.h): entry k is
