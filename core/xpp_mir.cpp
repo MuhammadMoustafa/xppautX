@@ -303,16 +303,21 @@ struct Lowering {
     void emit(MIR_insn_code_t code, MIR_op_t a, MIR_op_t b) { emit(MIR_new_insn(ctx, code, a, b)); }
     void emit(MIR_insn_code_t code, MIR_op_t a, MIR_op_t b, MIR_op_t d) { emit(MIR_new_insn(ctx, code, a, b, d)); }
     void jump(MIR_insn_code_t code, MIR_insn_t label, MIR_op_t a, MIR_op_t b) { emit(MIR_new_insn(ctx, code, MIR_new_label_op(ctx, label), a, b)); }
-    /* element `index` of the array at `base`, or in a Repeat with a stride of 1 the element `index` + the counter */
+    /* element `index` of the array at `base`, or in a Repeat with a stride the element `index` + stride * the counter
+       (the counter itself for a stride of 1; any other stride multiplies it, at the use, so a branch inside the Repeat
+       never leaves a register unset) */
     MIR_op_t slot(MIR_reg_t base, int index, int stride = 0)
     {
         const MIR_disp_t disp = static_cast<MIR_disp_t>(index) * DOUBLE_BYTES;
         if (stride == 0) return MIR_new_mem_op(ctx, MIR_T_D, disp, base, 0, 1);
-        if (stride != 1 || !repeating) {
-            failure = "an element stride outside a repeat or other than 1";
+        if (stride < 0 || !repeating) {
+            failure = "an element stride outside a repeat or negative";
             return MIR_new_mem_op(ctx, MIR_T_D, disp, base, 0, 1);
         }
-        return MIR_new_mem_op(ctx, MIR_T_D, disp, base, repeat_counter, DOUBLE_BYTES);
+        if (stride == 1) return MIR_new_mem_op(ctx, MIR_T_D, disp, base, repeat_counter, DOUBLE_BYTES);
+        const MIR_reg_t scaled = fresh(MIR_T_I64);
+        emit(MIR_MUL, reg(scaled), reg(repeat_counter), MIR_new_int_op(ctx, stride));
+        return MIR_new_mem_op(ctx, MIR_T_D, disp, base, scaled, DOUBLE_BYTES);
     }
 
     /* a double operand in a register: an immediate or a memory operand is moved into a new one */

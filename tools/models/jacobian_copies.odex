@@ -1,0 +1,18 @@
+version 4
+# W822: eleven copies of one equation at consecutive states, x_j' = a x_j - x_(j+1)^2, and a last one that is not a copy;
+# the exact Jacobian of the copies is one Repeat (the native code agrees with the interpreter, bit for bit)
+par a = 0.5
+options { integration: { method: backward_euler, jacobian.kind: exact, total_time: 1, dt: 0.1 } }
+x1' = a*x1-x2^2
+x2' = a*x2-x3^2
+x3' = a*x3-x4^2
+x4' = a*x4-x5^2
+x5' = a*x5-x6^2
+x6' = a*x6-x7^2
+x7' = a*x7-x8^2
+x8' = a*x8-x9^2
+x9' = a*x9-x10^2
+x10' = a*x10-x11^2
+x11' = a*x11-x12^2
+x12' = a*x12
+init x1 = 0.1, x2 = -0.2, x3 = 0.3, x4 = 0.05, x5 = -0.1, x6 = 0.2, x7 = 0.4, x8 = -0.3, x9 = 0.15, x10 = 0.25, x11 = -0.05, x12 = 0.1

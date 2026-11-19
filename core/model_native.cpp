@@ -193,6 +193,10 @@ struct Generator {
     /* while the copies of an array equation are written as one body (rhs): by instruction place, the step of its variable or
        constant operand from one copy to the next, which its node carries (IrNode::stride); else empty */
     std::vector<int> strides;
+    /* the IR nodes that the copies of a derivative's Repeats would add beyond their bodies: one per copy of each node that
+       reads a stepping operand (varying_nodes). The build's trigger counts them, so a Jacobian compiles when it did before
+       the Repeat (pending_build); its code is the Repeat's, so the compile is cheaper, not later. */
+    size_t repeat_nodes = 0;
     std::vector<char> allowed; /* user functions with a fully compiled dependency graph */
 
     explicit Generator(const SessionParts &session) : s(session) { ir.zero_divisor = expr::ZERO_DIVISOR; }
@@ -232,6 +236,15 @@ struct Generator {
         n.op = o;
         n.index = index;
         n.args = {a, b, c};
+        return node(n);
+    }
+    /* a constant or variable at `index`, stepping `stride` a pass of the Repeat it is in (0 outside one) */
+    int leaf(IrOp o, int index, int stride)
+    {
+        IrNode n;
+        n.op = o;
+        n.index = index;
+        n.stride = stride;
         return node(n);
     }
     int number(double x)
@@ -754,6 +767,178 @@ struct Generator {
         return copies;
     }
 
+    /* One term's graph as derivatives writes it (repeated_terms): an entry per leaf occurrence and per node, in the order
+       written, a node's operands as entries (-1 for none); the terms' values are roots. A leaf names its graph node, so the
+       step its index takes from one copy to the next is the same at each of its occurrences. */
+    struct TermEntry {
+        expr::Symbolic::Op op = expr::Symbolic::Op::Number;
+        int index = 0;
+        std::uint64_t bits = 0; /* a number's bits */
+        std::array<int, 3> args{-1, -1, -1};
+        int graph = -1; /* a leaf's node; -1 for a node */
+    };
+    struct TermBlock {
+        std::vector<TermEntry> entries;
+        std::vector<int> roots; /* each term's value: its entry */
+    };
+    /* A run of copies of derivative rows written as one Repeat: `copies` runs of `period` terms each, one formula at indices
+       a step apart; `strides` gives each leaf's graph node its index's step per copy (0 or 1). */
+    struct RepeatedTerms {
+        size_t period = 0, copies = 0;
+        std::unordered_map<int, int> strides;
+    };
+
+    static bool is_leaf_op(expr::Symbolic::Op op)
+    {
+        return op == expr::Symbolic::Op::Number || op == expr::Symbolic::Op::Constant || op == expr::Symbolic::Op::Variable;
+    }
+
+    /* Each graph node's signature, a hash of its operator, its number and its operands' signatures (args are numbered before
+       their node); a leaf's index is left out, since the copies of an array differ by it. Equal signatures are necessary for
+       two rows to be copies, so repeated_terms compares these before it builds any block. */
+    static std::vector<std::uint64_t> node_signatures(const expr::Symbolic &g)
+    {
+        const auto mix = [](std::uint64_t h, std::uint64_t x) { return h ^ (x + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2)); };
+        std::vector<std::uint64_t> sig(g.size());
+        for (size_t id = 0; id < g.size(); ++id) {
+            const expr::Symbolic::Node &n = g.node({static_cast<int>(id)});
+            std::uint64_t h = mix(static_cast<std::uint64_t>(n.op), std::bit_cast<std::uint64_t>(n.number));
+            if (!is_leaf_op(n.op)) h = mix(h, static_cast<std::uint64_t>(n.index));
+            for (const int a : n.args) h = mix(h, a < 0 ? ~0ULL : sig[static_cast<size_t>(a)]);
+            sig[id] = h;
+        }
+        return sig;
+    }
+
+    /* A node-indexed workspace for term_block: `at` is a node's entry in the block being made (-1 for none), and `touched`
+       the nodes set, so the next block clears just those */
+    struct BlockScratch {
+        std::vector<int> at;
+        std::vector<int> touched;
+    };
+
+    /* The block of `count` terms from `first` as derivatives writes them: one memo over the block, so a node the terms
+       share is one entry, and each leaf occurrence is an entry of its own */
+    static TermBlock term_block(const expr::Symbolic &g, std::span<const expr::Term> terms, size_t first, size_t count, BlockScratch &scratch)
+    {
+        TermBlock block;
+        std::vector<int> &at = scratch.at;
+        const auto ref = [&](int id) {
+            if (!is_leaf_op(g.node({id}).op)) return at[static_cast<size_t>(id)];
+            const expr::Symbolic::Node &n = g.node({id});
+            TermEntry leaf;
+            leaf.op = n.op;
+            leaf.index = n.index;
+            leaf.bits = std::bit_cast<std::uint64_t>(n.number);
+            leaf.graph = id;
+            block.entries.push_back(leaf);
+            return static_cast<int>(block.entries.size()) - 1;
+        };
+        for (size_t j = first; j < first + count; ++j) {
+            const int root = terms[j].id;
+            std::vector<std::pair<int, bool>> pending{{root, false}};
+            while (!pending.empty()) {
+                const auto [id, arguments_done] = pending.back();
+                pending.pop_back();
+                if (is_leaf_op(g.node({id}).op) || at[static_cast<size_t>(id)] >= 0) continue;
+                const expr::Symbolic::Node &n = g.node({id});
+                if (arguments_done) {
+                    TermEntry entry;
+                    entry.op = n.op;
+                    entry.index = n.index;
+                    entry.bits = std::bit_cast<std::uint64_t>(n.number);
+                    for (size_t a = 0; a < n.args.size(); ++a)
+                        if (n.args[a] >= 0) entry.args[a] = ref(n.args[a]);
+                    block.entries.push_back(entry);
+                    at[static_cast<size_t>(id)] = static_cast<int>(block.entries.size()) - 1;
+                    scratch.touched.push_back(id);
+                    continue;
+                }
+                pending.push_back({id, true});
+                for (auto it = n.args.rbegin(); it != n.args.rend(); ++it)
+                    if (*it >= 0 && !is_leaf_op(g.node({*it}).op) && at[static_cast<size_t>(*it)] < 0) pending.push_back({*it, false});
+            }
+            block.roots.push_back(ref(root));
+        }
+        for (const int id : scratch.touched) at[static_cast<size_t>(id)] = -1;
+        scratch.touched.clear();
+        return block;
+    }
+
+    /* whether entry b is entry a `n` copies on, a leaf's index stepping `step` per copy (a node is the same as its own) */
+    static bool advanced(const TermEntry &a, const TermEntry &b, int step, int n)
+    {
+        if (a.op != b.op || a.bits != b.bits || a.args != b.args) return false;
+        if (a.op == expr::Symbolic::Op::Variable || a.op == expr::Symbolic::Op::Constant) return b.index == a.index + step * n;
+        return a.index == b.index;
+    }
+
+    /* The copies of derivative rows that begin at term `first`: runs of `period` terms (a row's terms), at most `available`
+       of them in a row (the runs of the same size from `first` on). Each copy is the first one's formula at indices a step
+       apart (0 or 1 a copy: an array's element or a constant beside it), compared entry by entry (term_block), so its
+       operations and operands are the first copy's and its values are the same bit for bit. None (copies 0) when fewer than
+       MIN_REPEAT_COPIES rows are such copies. */
+    static RepeatedTerms repeated_terms(const expr::Symbolic &g, std::span<const expr::Term> terms, std::span<const std::uint64_t> term_sig,
+                                        size_t first, size_t period, size_t available, BlockScratch &scratch)
+    {
+        if (available < MIN_REPEAT_COPIES || !std::ranges::equal(term_sig.subspan(first, period), term_sig.subspan(first + period, period))) return {};
+        const TermBlock head = term_block(g, terms, first, period, scratch), second = term_block(g, terms, first + period, period, scratch);
+        if (head.entries.size() != second.entries.size() || head.roots != second.roots) return {};
+        std::vector<int> step(head.entries.size(), 0);
+        bool same = true;
+        for (size_t p = 0; p < head.entries.size() && same; ++p) {
+            const TermEntry &a = head.entries[p], &b = second.entries[p];
+            if (a.op == expr::Symbolic::Op::Variable || a.op == expr::Symbolic::Op::Constant) step[p] = b.index - a.index;
+            same = (step[p] == 0 || step[p] == 1) && advanced(a, b, step[p], 1);
+        }
+        /* a leaf the head reads at two steps is no copy; refused before the copies are compared */
+        RepeatedTerms found{period, 0, {}};
+        for (size_t p = 0; p < head.entries.size() && same; ++p) {
+            const TermEntry &a = head.entries[p];
+            if (a.graph < 0 || !(a.op == expr::Symbolic::Op::Variable || a.op == expr::Symbolic::Op::Constant)) continue;
+            const auto [where, added] = found.strides.emplace(a.graph, step[p]);
+            same = added || where->second == step[p];
+        }
+        if (!same) return {};
+        /* the copies run on while each block is the head's formula; the first that is not ends them (a row of the boundary,
+           say), and the copies before it are the run */
+        size_t copies = 2;
+        while (copies < available) {
+            const TermBlock next = term_block(g, terms, first + copies * period, period, scratch);
+            bool matched = next.roots == head.roots && next.entries.size() == head.entries.size();
+            for (size_t p = 0; p < head.entries.size() && matched; ++p) matched = advanced(head.entries[p], next.entries[p], step[p], static_cast<int>(copies));
+            if (!matched) break;
+            ++copies;
+        }
+        if (copies < MIN_REPEAT_COPIES) return {};
+        found.copies = copies;
+        return found;
+    }
+
+    /* How many of the IR nodes a Repeat's body wrote (from node `first_node` on, its statements from `first_statement` on in
+       `out`) differ from one copy to the next: one that reads a stepping operand, or a temporary whose value does. */
+    size_t varying_nodes(size_t first_node, size_t first_statement) const
+    {
+        std::unordered_map<int, int> value_of; /* a temporary's slot: its value's node */
+        for (size_t i = first_statement; i < out.size(); ++i)
+            if (out[i].kind == IrStatement::Kind::Temporary) value_of[out[i].index] = out[i].value;
+        std::vector<char> varies(ir.nodes.size() - first_node, 0);
+        const auto flag = [&](int id) { return id >= static_cast<int>(first_node) && varies[static_cast<size_t>(id) - first_node] != 0; };
+        size_t count = 0;
+        for (size_t id = first_node; id < ir.nodes.size(); ++id) {
+            const IrNode &n = ir.nodes[id];
+            bool differs = (n.op == IrOp::Variable || n.op == IrOp::Constant) && n.stride != 0;
+            if (n.op == IrOp::Temporary) {
+                const auto found = value_of.find(n.index);
+                differs = found != value_of.end() && flag(found->second);
+            } else
+                for (const int a : n.args) differs = differs || flag(a);
+            varies[id - first_node] = differs;
+            count += differs ? 1 : 0;
+        }
+        return count;
+    }
+
     /* One function, name, writing the value of terms[k] into o[k]
        (W260): each node the terms need once, each a temporary (W715: in a
        register, which halves the instructions MIR compiles against a
@@ -765,19 +950,35 @@ struct Generator {
        21001 values live at once, and MIR's register allocation (its spill
        slots and the live ranges it sums) grows with that count; the
        operations and their order within each value are the same, so every
-       value is the same bit for bit. */
-    void derivatives(const expr::Symbolic &g, std::span<const expr::Term> terms, std::string_view name)
+       value is the same bit for bit. The terms of one row (one equation's
+       derivatives, `rows` gives each term's) are a run, and a run of copies
+       (an array's equations, repeated_terms) is one Repeat (W822): the first
+       copy written once, its leaves stepping with the counter and its outputs
+       one run apart, each copy's nodes its own, so the values are the same
+       bit for bit too. */
+    void derivatives(const expr::Symbolic &g, std::span<const expr::Term> terms, std::span<const int> rows, std::string_view name)
     {
         begin();
-        std::unordered_map<int, int> slot;
+        /* the nodes written so far in the function (main), or in a Repeat's first copy (body): a node's temporary,
+           and the step of each leaf of the body */
+        struct Memo {
+            std::unordered_map<int, int> slot;
+            std::unordered_map<int, int> steps;
+        };
+        Memo main_memo;
+        Memo *memo = &main_memo;
         /* a graph node's value as an operand: a leaf as itself, any other as the temporary it was written to */
         auto operand = [&](int id) {
             const expr::Symbolic::Node &n = g.node({id});
+            const auto step = [&]() {
+                const auto found = memo->steps.find(id);
+                return found == memo->steps.end() ? 0 : found->second;
+            };
             switch (n.op) {
             case expr::Symbolic::Op::Number: return number(n.number);
-            case expr::Symbolic::Op::Constant: return op(IrOp::Constant, -1, -1, -1, n.index);
-            case expr::Symbolic::Op::Variable: return op(IrOp::Variable, -1, -1, -1, n.index);
-            default: return op(IrOp::Temporary, -1, -1, -1, slot.at(id));
+            case expr::Symbolic::Op::Constant: return leaf(IrOp::Constant, n.index, step());
+            case expr::Symbolic::Op::Variable: return leaf(IrOp::Variable, n.index, step());
+            default: return op(IrOp::Temporary, -1, -1, -1, memo->slot.at(id));
             }
         };
         /* node id's temporary, written after its arguments' (the caller has written them) */
@@ -824,37 +1025,70 @@ struct Generator {
                 break;
             }
             const int k = temps++;
-            slot.emplace(id, k);
+            memo->slot.emplace(id, k);
             out.push_back({IrStatement::Kind::Temporary, k, value});
         };
-        const auto is_leaf = [&](int id) {
-            const expr::Symbolic::Op op_of = g.node({id}).op;
-            return op_of == expr::Symbolic::Op::Number || op_of == expr::Symbolic::Op::Constant || op_of == expr::Symbolic::Op::Variable;
-        };
-        /* the nodes a term reads, written in post order (each argument before its node), iteratively: a graph
+        /* the nodes term j reads, written in post order (each argument before its node), iteratively: a graph
            deep as a model's expression must not take the host's stack */
-        std::vector<char> written(g.size(), 0);
-        std::vector<std::pair<int, bool>> pending; /* a node, and whether its arguments are already on their way */
-        for (size_t k = 0; k < terms.size(); ++k) {
-            pending.push_back({terms[k].id, false});
+        const auto write_term = [&](size_t j) {
+            std::vector<std::pair<int, bool>> pending{{terms[j].id, false}}; /* a node, and whether its arguments are already on their way */
             while (!pending.empty()) {
                 const auto [id, arguments_done] = pending.back();
                 pending.pop_back();
-                if (is_leaf(id) || written[static_cast<size_t>(id)]) continue;
+                if (is_leaf_op(g.node({id}).op) || memo->slot.contains(id)) continue;
                 if (arguments_done) {
                     write(id);
-                    written[static_cast<size_t>(id)] = 1;
                     continue;
                 }
                 pending.push_back({id, true});
                 const auto &args = g.node({id}).args;
                 for (auto it = args.rbegin(); it != args.rend(); ++it)
-                    if (*it >= 0 && !is_leaf(*it) && !written[static_cast<size_t>(*it)]) pending.push_back({*it, false});
+                    if (*it >= 0 && !is_leaf_op(g.node({*it}).op) && !memo->slot.contains(*it)) pending.push_back({*it, false});
             }
-            out.push_back({IrStatement::Kind::Output, static_cast<int>(k), operand(terms[k].id)});
+        };
+        /* the rows: runs of terms of one row, and for each run how many runs from it on have its size (the copies it may start) */
+        std::vector<std::pair<size_t, size_t>> runs; /* a run's first term and its count of terms */
+        for (size_t j = 0; j < terms.size();) {
+            size_t end = j + 1;
+            while (end < terms.size() && rows[end] == rows[j]) ++end;
+            runs.emplace_back(j, end - j);
+            j = end;
+        }
+        std::vector<size_t> same_size(runs.size(), 1);
+        for (size_t r = runs.size(); r-- > 0;)
+            if (r + 1 < runs.size() && runs[r + 1].second == runs[r].second) same_size[r] = same_size[r + 1] + 1;
+        BlockScratch scratch{std::vector<int>(g.size(), -1), {}};
+        std::vector<std::uint64_t> term_sig(terms.size()), node_sig = node_signatures(g);
+        for (size_t j = 0; j < terms.size(); ++j) term_sig[j] = node_sig[static_cast<size_t>(terms[j].id)];
+        for (size_t r = 0; r < runs.size();) {
+            const auto [first, count] = runs[r];
+            const RepeatedTerms repeated = repeated_terms(g, terms, term_sig, first, count, same_size[r], scratch);
+            if (repeated.copies == 0) {
+                for (size_t j = first; j < first + count; ++j) {
+                    write_term(j);
+                    out.push_back({IrStatement::Kind::Output, static_cast<int>(j), operand(terms[j].id)});
+                }
+                ++r;
+                continue;
+            }
+            /* the first copy, written once with its own nodes: its leaves step with the Repeat's counter, its outputs by the run's size */
+            Memo body;
+            body.steps = repeated.strides;
+            memo = &body;
+            const size_t body_nodes = ir.nodes.size(), body_statements = out.size();
+            out.push_back({IrStatement::Kind::RepeatBegin, static_cast<int>(repeated.copies)});
+            for (size_t j = first; j < first + count; ++j) {
+                write_term(j);
+                out.push_back({IrStatement::Kind::Output, static_cast<int>(j), operand(terms[j].id), -1, -1, static_cast<int>(count)});
+            }
+            out.push_back({IrStatement::Kind::RepeatEnd});
+            repeat_nodes += (repeated.copies - 1) * varying_nodes(body_nodes, body_statements);
+            memo = &main_memo;
+            r += repeated.copies;
         }
         ir.functions.push_back(finish(IrFunction::Kind::Jacobian, std::string(name), -1));
     }
+
 
     /* Every user function written alone, then those whose whole dependency graph compiled kept (`allowed`): their
        bodies are the first of ir.functions, in the functions' order; a refused one is a warning. */
@@ -1130,12 +1364,14 @@ std::uint64_t ir_size(const IrModule &ir, const IrFunction &f)
 }
 
 bool spare_processor() { return program.physical_threads()>1; }
-std::shared_ptr<NativeBuild> pending_build(const SessionParts &s, IrModule ir, Place place, bool tier_one, std::uint64_t evaluation)
+std::shared_ptr<NativeBuild> pending_build(const SessionParts &s, IrModule ir, Place place, bool tier_one, std::uint64_t evaluation, size_t repeat_nodes = 0)
 {
     auto build=std::make_shared<NativeBuild>();
     build->ir=std::move(ir);
     build->place=std::move(place);
-    build->due=s.parser.interpreted_ops+(spare_processor()?INTERPRETED_OPS_BEFORE_BUILD:INTERPRETED_OPS_PER_NODE_BEFORE_BUILD*build->ir.nodes.size());
+    /* the count the interpreter's trigger is due by: the IR nodes, and those the copies of a Repeat would have had (Generator::repeat_nodes) */
+    const size_t nodes=build->ir.nodes.size()+repeat_nodes;
+    build->due=s.parser.interpreted_ops+(spare_processor()?INTERPRETED_OPS_BEFORE_BUILD:INTERPRETED_OPS_PER_NODE_BEFORE_BUILD*nodes);
     build->due_work=!tier_one?NO_WORK_DUE:s.parser.native_work+(spare_processor()?0:NATIVE_EVALUATIONS_BEFORE_BUILD*evaluation);
     return build;
 }
@@ -1446,7 +1682,7 @@ ExactJacobian make_jacobian(const SessionParts &s, const std::vector<ModelProgra
     const auto program = [&](JacobianProgram &p, std::vector<expr::Term> terms, std::string_view name) {
         p.terms = std::move(terms);
         p.nodes = expr::needed_nodes(graph, p.terms);
-        g.derivatives(graph, p.terms, name);
+        g.derivatives(graph, p.terms, p.rows, name);
     };
     program(j.states, std::move(states), "j_states");
     program(j.time, std::move(time), "j_time");
@@ -1463,7 +1699,7 @@ ExactJacobian make_jacobian(const SessionParts &s, const std::vector<ModelProgra
     } else log(XPP_LOG_WARN, "{}; MIR compiles instead\n", tiny.error().text());
     std::uint64_t evaluation=0; /* the derivatives' functions once: the Jacobian's whole evaluation */
     for (const IrFunction &f:g.ir.functions) evaluation+=ir_size(g.ir,f);
-    j.build = pending_build(s, std::move(g.ir), place, tier_one, evaluation);
+    j.build = pending_build(s, std::move(g.ir), place, tier_one, evaluation, g.repeat_nodes);
     j.graph = std::make_shared<expr::Symbolic>(std::move(derived->graph));
     log(XPP_LOG_INFO, "Made the exact Jacobian: {} values, {} derivatives ({} nodes to compile)\n", j.graph->size(), derived->entries.size(), j.build->ir.nodes.size());
     return j;

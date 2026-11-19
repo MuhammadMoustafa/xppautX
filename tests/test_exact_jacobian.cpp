@@ -12,6 +12,7 @@
 #include "model_derivatives.h"
 #include "model_native.h"
 #include "expr_program.h"
+#include "expr_ir.h"
 #include "jacobian.h"
 #include "model.h"
 #include "session.h"
@@ -365,6 +366,27 @@ void check_autox_func(const char *path, double u0, double u1, int store_every = 
 
 } // namespace
 
+/* the exact Jacobian of an array's copies is one Repeat (W822): tools/models/jacobian_copies.odex's eleven copies of one
+   equation at consecutive states make a Repeat in the build's j_states, and the values are the interpreter's bit for bit (check_model) */
+void check_copies()
+{
+    std::string file = "tools/models/jacobian_copies.odex";
+    char name[] = "test_exact_jacobian";
+    char *argv[] = {name, file.data(), nullptr};
+    CHECK(load_args(2, argv, 1).has_value());
+    xpp::Session &s = xpp::client_session();
+    CHECK(xpp::ensure_exact_jacobian(s));
+    const std::shared_ptr<xpp::NativeBuild> &build = s.model().jacobian.build;
+    CHECK(build);
+    bool repeated = false;
+    if (build)
+        for (const xpp::IrFunction &f : build->ir.functions)
+            if (f.name == "j_states")
+                for (const xpp::IrStatement &st : f.statements) repeated = repeated || st.kind == xpp::IrStatement::Kind::RepeatBegin;
+    CHECK(repeated);
+    check_model("tools/models/jacobian_copies.odex", false);
+}
+
 TEST_CASE("test_exact_jacobian")
 {
     check_operations();
@@ -373,6 +395,7 @@ TEST_CASE("test_exact_jacobian")
     check_model("examples/ode/cobweb2.odex", true);   /* a map, its time in mod and an if */
     check_model("tools/models/compile_derived.odex", false); /* a derived parameter */
     check_model("tools/models/exact_jacobian.odex", false);  /* derived, a user function, a fixed variable */
+    check_copies();                                          /* W822: an array's copies as one Repeat */
     check_model("examples/ode/mu26.odex", false, false);          /* W455: 15 states, gates near zero; the T1 model */
     check_model("examples/ode/motoneuron6c.odex", false, false);  /* W455: 25 states, concentrations near zero; the P2/E2 model */
     check_autox_func("tools/models/exact_jacobian.odex", 0.3, -0.2);

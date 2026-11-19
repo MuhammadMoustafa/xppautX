@@ -251,6 +251,73 @@ void tinycc_agrees()
     f.statements.push_back({IrStatement::Kind::Output, 9, op(m, IrOp::GuardedDivide, op(m, IrOp::Constant, -1, -1, -1, 0), op(m, IrOp::Variable, -1, -1, -1, 3))});
     same_as_tinycc(m, place);
 }
+/* the strides of a derivative's Repeat (W822) through both lowerings: an Output two apart a copy and a variable stepping by two,
+   each element computed as MIR's code and TinyCC's text compute it, bit for bit (the harness's arrays hold 8 variables and 16
+   outputs, which this module stays inside) */
+void tinycc_repeat_strides()
+{
+    const xpp::Place place{"model.ode", 1, 0, "x[j]' = x[j-1] * a[j] for j in 2..4"};
+    constexpr int copies = 3, period = 2;
+    IrModule m;
+    const auto element = [&](IrOp kind, int index, int stride) {
+        IrNode n;
+        n.op = kind;
+        n.index = index;
+        n.stride = stride;
+        return add(m, n);
+    };
+    IrFunction f;
+    f.kind = IrFunction::Kind::Jacobian;
+    f.name = "j_states";
+    f.temporaries = 1;
+    f.statements.push_back({IrStatement::Kind::RepeatBegin, copies});
+    f.statements.push_back({IrStatement::Kind::Temporary, 0, op(m, IrOp::Multiply, element(IrOp::Variable, 1, 1), element(IrOp::Constant, 0, 0))});
+    f.statements.push_back({IrStatement::Kind::Output, 0, op(m, IrOp::Temporary, -1, -1, -1, 0), -1, -1, period});
+    f.statements.push_back({IrStatement::Kind::Output, 1, op(m, IrOp::Subtract, element(IrOp::Variable, 3, 2), element(IrOp::Constant, 2, 0)), -1, -1, period});
+    f.statements.push_back({IrStatement::Kind::RepeatEnd});
+    m.functions.push_back(f);
+    same_as_tinycc(m, place);
+}
+/* the copies of a derivative as one Repeat with two outputs a period apart (W822): o[2n] = v[1 + n] * c[0] and o[2n + 1] =
+   v[3 + 2n] - c[2] for n in 0..3, the second's variable stepping by 2 a copy (a stride other than 1 is multiplied out at its
+   use), each element the one the unrolled copy reads */
+void repeat_period()
+{
+    const xpp::Place place{"model.ode", 1, 0, "x[j]' = x[j-1] * a[j] for j in 2..5"};
+    constexpr int copies = 4, period = 2;
+    double c[3] = {1.5, -2.0, 0.25}, v[10] = {9.0, 0.5, -1.0, 3.0, 2.0, -0.75, 6.0, 1.0, 4.5, -3.0}, o[2 * copies] = {};
+    IrModule m;
+    const auto element = [&](IrOp kind, int index, int stride) {
+        IrNode n;
+        n.op = kind;
+        n.index = index;
+        n.stride = stride;
+        return add(m, n);
+    };
+    IrFunction f;
+    f.kind = IrFunction::Kind::Jacobian;
+    f.name = "j_states";
+    f.temporaries = 1;
+    f.statements.push_back({IrStatement::Kind::RepeatBegin, copies});
+    f.statements.push_back({IrStatement::Kind::Temporary, 0, op(m, IrOp::Multiply, element(IrOp::Variable, 1, 1), element(IrOp::Constant, 0, 0))});
+    f.statements.push_back({IrStatement::Kind::Output, 0, op(m, IrOp::Temporary, -1, -1, -1, 0), -1, -1, period});
+    f.statements.push_back({IrStatement::Kind::Output, 1, op(m, IrOp::Subtract, element(IrOp::Variable, 3, 2), element(IrOp::Constant, 2, 0)), -1, -1, period});
+    f.statements.push_back({IrStatement::Kind::RepeatEnd});
+    m.functions.push_back(f);
+    auto program = xpp::mir::Program::compile(m, place);
+    CHECK(program.has_value());
+    if (!program) return;
+    auto address = (*program)->function("j_states");
+    CHECK(address.has_value());
+    if (!address) return;
+    xpp::native::call(reinterpret_cast<void (*)(double *, double *, void *, double *)>(*address), c, v, nullptr, o);
+    bool all = true;
+    for (int n = 0; n < copies; ++n) {
+        all = all && same(o[period * n], v[1 + n] * c[0]);
+        all = all && same(o[period * n + 1], v[3 + 2 * n] - c[2]);
+    }
+    CHECK(all);
+}
 } // namespace
 
 TEST_CASE("test_mir")
@@ -388,5 +455,7 @@ TEST_CASE("test_mir")
     chunks();
     repeat_loop();
     tinycc_agrees();
+    repeat_period();
+    tinycc_repeat_strides();
     TEST_REPORT("MIR");
 }

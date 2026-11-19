@@ -263,17 +263,18 @@ int Lowering::number_index(double x)
     return static_cast<int>(source_.numbers.size()) - 1;
 }
 
-/* element `index` of the array `base`: in a Repeat, a stride of 1 steps it with the counter, as MIR's lowering does (a stride of
-   any other value, or outside a Repeat, is refused) */
+/* element `index` of the array `base`: in a Repeat, the element `index` + stride * the counter, as MIR's lowering computes it (a
+   negative stride, or one outside a Repeat, is refused) */
 std::string Lowering::element(const char *base, int index, int stride)
 {
     const std::string text = std::string(base) + "[" + std::to_string(index);
     if (stride == 0) return text + "]";
-    if (stride != 1 || !repeating_) {
-        failure_ = "an element stride outside a repeat or other than 1";
+    if (stride < 0 || !repeating_) {
+        failure_ = "an element stride outside a repeat or negative";
         return text + "]";
     }
-    return text + " + rp]";
+    if (stride == 1) return text + " + rp]";
+    return text + " + rp * " + std::to_string(stride) + "]";
 }
 
 /* a pass of the Repeat: its counter starts at 0 and steps to its count (at least 1), the body running that many times */
