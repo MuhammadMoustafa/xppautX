@@ -426,8 +426,8 @@ double evaluate_pure(const ParserState &p, const Program &code, double *constant
 void evaluate_derivatives(const std::vector<TABULAR> &tables, const expr::Symbolic &graph, const JacobianProgram &p, const double *c, const double *v,
                           std::vector<double> &values, std::span<double> out)
 {
-  /* each node the entries need, in the graph's order, as the Generator's derivatives writes it (model_native.cpp):
-     the same operations in the same order, a Select's both values computed */
+  /* each node the entries need, in the graph's order: the same operations on the same arguments as the Generator's
+     derivatives writes them (model_native.cpp; its order differs, the values do not), a Select's both values computed */
   if(values.size()<graph.size())values.resize(graph.size());
   for(const int id:p.nodes){
     const expr::Symbolic::Node &n=graph.node({id});

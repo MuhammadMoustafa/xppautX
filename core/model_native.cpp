@@ -700,11 +700,18 @@ struct Generator {
     }
 
     /* One function, name, writing the value of terms[k] into o[k]
-       (W260): each node of the graph they need (nodes, in the graph's
-       order, a node's arguments first) once, each a temporary (W715: in a
+       (W260): each node the terms need once, each a temporary (W715: in a
        register, which halves the instructions MIR compiles against a
-       workspace array it loaded and stored). */
-    void derivatives(const expr::Symbolic &g, std::span<const int> nodes, std::span<const expr::Term> terms, std::string_view name)
+       workspace array it loaded and stored). The nodes are written term by
+       term (W816): a term's nodes after the nodes they read, each written
+       just before its first use, and a term's value to o right after its
+       own nodes. In the graph's order (the order made, which differentiates
+       one state after another) a 1000-state ring's j_states held 4170 of its
+       21001 values live at once, and MIR's register allocation (its spill
+       slots and the live ranges it sums) grows with that count; the
+       operations and their order within each value are the same, so every
+       value is the same bit for bit. */
+    void derivatives(const expr::Symbolic &g, std::span<const expr::Term> terms, std::string_view name)
     {
         begin();
         std::unordered_map<int, int> slot;
@@ -718,14 +725,15 @@ struct Generator {
             default: return op(IrOp::Temporary, -1, -1, -1, slot.at(id));
             }
         };
-        for (const int id : nodes) {
+        /* node id's temporary, written after its arguments' (the caller has written them) */
+        auto write = [&](int id) {
             const expr::Symbolic::Node &n = g.node({id});
             int value = -1;
             switch (n.op) {
             case expr::Symbolic::Op::Number:
             case expr::Symbolic::Op::Constant:
             case expr::Symbolic::Op::Variable:
-                continue;
+                return;
             case expr::Symbolic::Op::Fun1:
                 value = math_call(false, n.index, {operand(n.args[0])});
                 break;
@@ -763,8 +771,33 @@ struct Generator {
             const int k = temps++;
             slot.emplace(id, k);
             out.push_back({IrStatement::Kind::Temporary, k, value});
+        };
+        const auto is_leaf = [&](int id) {
+            const expr::Symbolic::Op op_of = g.node({id}).op;
+            return op_of == expr::Symbolic::Op::Number || op_of == expr::Symbolic::Op::Constant || op_of == expr::Symbolic::Op::Variable;
+        };
+        /* the nodes a term reads, written in post order (each argument before its node), iteratively: a graph
+           deep as a model's expression must not take the host's stack */
+        std::vector<char> written(g.size(), 0);
+        std::vector<std::pair<int, bool>> pending; /* a node, and whether its arguments are already on their way */
+        for (size_t k = 0; k < terms.size(); ++k) {
+            pending.push_back({terms[k].id, false});
+            while (!pending.empty()) {
+                const auto [id, arguments_done] = pending.back();
+                pending.pop_back();
+                if (is_leaf(id) || written[static_cast<size_t>(id)]) continue;
+                if (arguments_done) {
+                    write(id);
+                    written[static_cast<size_t>(id)] = 1;
+                    continue;
+                }
+                pending.push_back({id, true});
+                const auto &args = g.node({id}).args;
+                for (auto it = args.rbegin(); it != args.rend(); ++it)
+                    if (*it >= 0 && !is_leaf(*it) && !written[static_cast<size_t>(*it)]) pending.push_back({*it, false});
+            }
+            out.push_back({IrStatement::Kind::Output, static_cast<int>(k), operand(terms[k].id)});
         }
-        for (size_t k = 0; k < terms.size(); ++k) out.push_back({IrStatement::Kind::Output, static_cast<int>(k), operand(terms[k].id)});
         ir.functions.push_back(finish(IrFunction::Kind::Jacobian, std::string(name), -1));
     }
 
@@ -1220,7 +1253,7 @@ ExactJacobian make_jacobian(const SessionParts &s, const std::vector<ModelProgra
     const auto program = [&](JacobianProgram &p, std::vector<expr::Term> terms, std::string_view name) {
         p.terms = std::move(terms);
         p.nodes = expr::needed_nodes(graph, p.terms);
-        g.derivatives(graph, p.nodes, p.terms, name);
+        g.derivatives(graph, p.terms, name);
     };
     program(j.states, std::move(states), "j_states");
     program(j.time, std::move(time), "j_time");
