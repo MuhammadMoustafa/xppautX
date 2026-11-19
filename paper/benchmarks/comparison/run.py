@@ -11,6 +11,9 @@ W818: each unit with a reference (the --reuse folder's counted xppautX rows) get
 written to run.log and the unit's done record. Pass 1 runs one repetition of those units (its pass1/ folder, never counted); pass 2
 runs the rest of every pending unit, and only when pass 1 has no slower unit. A slower unit ends the series (--keep-going goes on
 past it, to the end of pass 1); the next run of the folder starts again from its first unit.
+
+W826: pass 1 runs each unit's set-up units (needs) before the unit, and they take part in pass 1 as well: a set-up unit with no
+timed rows to judge has no verdict of its own, so it stops nothing. The set-up's pass-1 folder is what the unit reads in pass 1.
 """
 import argparse
 import functools
@@ -91,12 +94,26 @@ class Run:
         return found if timed_rows(found) else None
 
     def pass1_current(self, study, unit):
-        # The unit's pass-1 verdict, when it was judged for the binaries this run uses (else it runs again).
+        # The unit's pass-1 verdict, when it was judged for the binaries this run uses and its pass-1 folder is there (else it runs again).
         record = self.a.out / study / unit / PASS1
-        if not record.exists():
+        if not record.exists() or not (self.a.out / study / unit / 'pass1').is_dir():
             return None
         value = json.loads(record.read_text())
         return value if value['binaries'] == self.binaries() else None
+
+    def pass1_units(self, pending):
+        # W826: the units pass 1 runs, in order: each unit with a reference to judge against, preceded by its set-up unit when that
+        # one is pending (a unit reads the set-up's attempt, so the set-up runs first; it is judged like any unit, or not at all).
+        order = []
+        for study, unit in pending:
+            if not self.reference(study, unit):
+                continue
+            need = self.needs(study, unit)
+            if need and (need[0], need[1]) in pending and (need[0], need[1]) not in order:
+                order.append((need[0], need[1]))
+            if (study, unit) not in order:
+                order.append((study, unit))
+        return order
 
     def units(self, study):
         if study == 'large-stiff':
@@ -118,16 +135,20 @@ class Run:
             return 'large-stiff', self.stiff.pilot_of(unit), '--pilot'  # a measure or cache unit reads its size's pilot (W815)
         return None
 
-    def setup_flag(self, study, unit):
-        # The set-up unit's attempt as the flag's value, or why there is none (the set-up failed or has not run).
+    def setup_flag(self, study, unit, mode='run'):
+        # The set-up unit's attempt as the flag's value, or why there is none. The set-up's done attempt when it has one. Otherwise,
+        # by mode: 'quick' (pass 1, W826) the set-up's pass-1 folder, which pass 1 ran just before the unit;
+        # 'run' the failure of a set-up that has not run.
         need = self.needs(study, unit)
         if not need:
             return [], None
-        done = self.a.out / need[0] / need[1] / DONE
-        if not done.exists():
-            return [], 'its set-up unit %s/%s is not done' % need[:2]
-        attempt = done.parent / json.loads(done.read_text())['attempt']
-        return [need[2], str(attempt)], None
+        set_study, set_unit, flag = need
+        folder = self.a.out / set_study / set_unit
+        if (folder / DONE).exists():
+            return [flag, str(folder / json.loads((folder / DONE).read_text())['attempt'])], None
+        if mode == 'quick' and (folder / 'pass1').is_dir():
+            return [flag, str(folder / 'pass1')], None
+        return [], 'its set-up unit %s/%s is not done' % (set_study, set_unit)
 
     def stiff_identity(self, unit):
         # A large-stiff unit's identity: the worker, the kit and the pilot it reads (never the commit, W815).
@@ -192,7 +213,7 @@ class Run:
             (unit_dir / DONE).unlink(missing_ok=True)
             attempt = unit_dir / ('attempt-%03d' % (len(attempts(unit_dir)) + 1))
         attempt.parent.mkdir(parents=True, exist_ok=True)
-        flag, why = self.setup_flag(study, unit)
+        flag, why = self.setup_flag(study, unit, 'quick' if quick else 'run')
         if why:
             save(attempt.with_suffix('.failure.json'), dict(unit=unit, error='not run: ' + why))
             return False, None
@@ -344,7 +365,7 @@ def main():
                 pending.append((study, unit))
         # W818: pass 1, one repetition of each unit that has a reference to judge against; pass 2, every pending unit's rest,
         # only when pass 1 has no slower unit. Pass 1's runs are a check: the report never counts them.
-        run_pass(run, [u for u in pending if run.reference(*u)], True, slower, failed)
+        run_pass(run, run.pass1_units(pending), True, slower, failed)
         if not slower:
             run_pass(run, pending, False, slower, failed)
         if slower:

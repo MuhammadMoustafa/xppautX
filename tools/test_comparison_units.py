@@ -156,6 +156,27 @@ class Units(unittest.TestCase):
         self.assertEqual((earlier / 'output.dat').stat().st_ino, (self.root / 'new/one.dat').stat().st_ino)
 
 
+    def series_with_a_set_up(self):
+        # An earlier series (a check's folder, so nothing is blocked): b has a counted xppautX row, a none; and b reads a as its set-up.
+        ref = self.root / 'ref'
+        self.drive(out=ref, times={'b': [1.0, 0.0]})
+        needs = lambda run_self, study, unit: ('screen', 'a', '--setup') if (study, unit) == ('screen', 'b') else None
+        return ref, mock.patch.object(run.Run, 'needs', needs)
+
+    def test_pass_1_runs_a_units_set_up_before_the_unit_that_reads_it(self):
+        # W826: a unit reads its set-up unit's attempt (needs), so pass 1 runs the set-up first; the set-up has no reference to judge
+        # against, so it gives no verdict of its own and stops nothing. Before the fix pass 1 ran b before a: "not run: its set-up unit
+        # screen/a is not done", and pass 2 ran both.
+        ref, patch = self.series_with_a_set_up()
+        with patch:
+            _, message = self.drive('--reuse', str(ref), check=False, times={'b': [1.0, 0.0]})
+        self.assertIsNone(message)
+        log = (self.out / 'run.log').read_text().splitlines()
+        self.assertNotIn('FAILED', '\n'.join(log))
+        self.assertEqual([line for line in log if line.startswith('pass 1 ')], ['pass 1 screen/a: no reference', 'pass 1 screen/b: same'])
+        self.assertEqual(self.done(), ['a', 'b', 'c'])
+
+
 class LadderReuse(unittest.TestCase):
     # W805: a program's climb (its rungs, the tolerance it reached, its timed rows) is taken from an earlier ladder when its program,
     # measurement and inputs are unchanged and the reference is; a changed program's climb is not, and the others' still are.
@@ -166,6 +187,7 @@ class LadderReuse(unittest.TestCase):
         self.root = Path(self.scratch.name)
         self.hashes = {'xppautx': 'x1', 'xppaut': 'p1', 'python': 'y1'}
         self.a = argparse.Namespace(out=self.root / 'out', reuse=self.root / 'earlier', cores=[0], check=False, study='python',
+                                    xppautx=self.root / 'xppautx', xppaut=self.root / 'xppaut',
                                     program_sha={e: (lambda e=e: self.hashes[e]) for e in self.hashes})
         self.rungs = []
         for tolerance in (1e-4, 1e-6):
@@ -186,6 +208,10 @@ class LadderReuse(unittest.TestCase):
             for tolerance, model in self.rungs:
                 folder = earlier / 'episodic' / ('%g' % tolerance) / engine
                 folder.mkdir(parents=True)
+                # a rung's folder as launch() leaves it: the copied input and the command line it ran
+                (folder / 'episodic.odex').write_text(model.with_suffix('.odex').read_text())
+                argv = ['taskset', '-c', '0', *self.integration.engine_argv(self.a, folder / 'episodic.ode', engine, folder / 'episodic.ode.set')]
+                common.save(folder / 'command.json', argv)
                 reached = tolerance == reached_at
                 rows.append(dict(engine=engine, tolerance=tolerance, valid=True, reached=reached,
                                  reuse_key=self.integration.current_key(self.a, engine, model)))
