@@ -153,6 +153,7 @@
 !/modeldb-267710/models/6cModel/stim.inc
 !/modeldb-267710/provenance.json
 !/plots.py
+!/make_arch_figures.py
 !/rerun-plan.md
 !/rhs-ceiling/README.md
 !/rhs-ceiling/apply_patch.py
