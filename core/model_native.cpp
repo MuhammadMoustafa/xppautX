@@ -1089,7 +1089,6 @@ struct Generator {
         ir.functions.push_back(finish(IrFunction::Kind::Jacobian, std::string(name), -1));
     }
 
-
     /* Every user function written alone, then those whose whole dependency graph compiled kept (`allowed`): their
        bodies are the first of ir.functions, in the functions' order; a refused one is a warning. */
     Result<> user_functions(std::vector<Error> &warnings)
