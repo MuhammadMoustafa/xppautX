@@ -14,6 +14,7 @@
 
 #include <cstddef>
 #include <expected>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -45,5 +46,15 @@ struct Instr {
 std::expected<std::vector<Instr>, std::string> decode(const ParserState &parser, std::span<const int> p, int arguments,
                                                    std::size_t *maximum_depth = nullptr);
 
-}
+/* What makes programs `first` and `second` (decoded, as an array equation's copies are) one formula at two indices: the
+   same instructions in the same order, every variable and constant operand of `second` the one of `first` plus
+   stride[k] (0 or 1: a name that is the same for every copy, or the next element of an array), k the instruction's place
+   in `first`. Nothing else may differ (a number, a function, a table, the name a shift or delay takes: all the same).
+   The strides, or none when the two are not so related. */
+std::optional<std::vector<int>> index_strides(std::span<const Instr> first, std::span<const Instr> second);
 
+/* whether `copy` is `first` advanced `n` copies by `stride` (index_strides'): its every operand exactly the one a copy
+   at that index would have, so a loop over the copies addresses each element the program itself names */
+bool is_indexed_copy(std::span<const Instr> first, std::span<const int> stride, std::span<const Instr> copy, int n);
+
+}

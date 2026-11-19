@@ -16,6 +16,7 @@
 #include <bit>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <set>
 #include <span>
 #include <unordered_map>
@@ -144,6 +145,9 @@ const void *helper_address(Helper h)
    stays a call, so nested expansions stay small: 64 is about the 512
    characters of text the limit was when the code was C. */
 constexpr int MAX_INLINE_NODES = 64;
+/* the fewest copies of an array equation written as a loop: fewer are written out, each as its own equation, since the loop's
+   counter and addressing cost a short run more than the copies' instructions do */
+constexpr size_t MIN_REPEAT_COPIES = 4;
 /* a node's tree size is counted up to this, no further */
 constexpr int TREE_SIZE_CAP = 1 << 20;
 
@@ -185,6 +189,9 @@ struct Generator {
     std::set<int> variable_reads;
     std::vector<std::set<int>> function_reads;
     bool dynamic = false; /* a network updates its first two variable operands */
+    /* while the copies of an array equation are written as one body (rhs): by instruction place, the step of its variable or
+       constant operand from one copy to the next, which its node carries (IrNode::stride); else empty */
+    std::vector<int> strides;
     std::vector<char> allowed; /* user functions with a fully compiled dependency graph */
 
     explicit Generator(const SessionParts &session) : s(session) { ir.zero_divisor = expr::ZERO_DIVISOR; }
@@ -198,6 +205,7 @@ struct Generator {
         put(key, n.op);
         put(key, n.index);
         put(key, n.callee);
+        put(key, n.stride);
         put(key, std::bit_cast<std::uint64_t>(n.number));
         for (const int a : n.args) put(key, a);
         for (const int a : arguments) put(key, a);
@@ -470,7 +478,11 @@ struct Generator {
                 } else {
                     if (type == VARTYPE) variable_reads.insert(in);
                     if (type == CONTYPE && in == expr::SUM_INDEX && depth == 0) array_pure = false;
-                    stack.push_back({op(type == CONTYPE ? IrOp::Constant : IrOp::Variable, -1, -1, -1, in), type == VARTYPE || in == expr::SUM_INDEX, 0});
+                    IrNode operand;
+                    operand.op = type == CONTYPE ? IrOp::Constant : IrOp::Variable;
+                    operand.index = in;
+                    if (!strides.empty()) operand.stride = strides[k - 1];
+                    stack.push_back({node(operand), type == VARTYPE || in == expr::SUM_INDEX, 0});
                 }
             } else if (type == USTACKTYPE) {
                 stack.push_back({op(IrOp::Argument, -1, -1, -1, in), false, 0});
@@ -692,12 +704,53 @@ struct Generator {
             forget_calls_reading(variable);
         }
         if (!equations.empty()) out.push_back({IrStatement::Kind::ReturnWithoutOutput});
-        for (size_t i = 0; i < equations.size(); ++i) {
-            const auto result = rhs_value(equations[i]);
+        for (size_t i = 0; i < equations.size();) {
+            const size_t copies = repeated_copies(equations, i);
+            if (copies == 0) {
+                const auto result = rhs_value(equations[i]);
+                if (!result) return std::unexpected(result.error());
+                out.push_back({IrStatement::Kind::Output, static_cast<int>(i), result->ir});
+                ++i;
+                continue;
+            }
+            /* equation i written once, its element operands and its output stepping with the Repeat's counter; the calls it
+               made are of one pass, so they are forgotten after it */
+            out.push_back({IrStatement::Kind::RepeatBegin, static_cast<int>(copies)});
+            const auto result = value(equations[i].rpn, 0, false);
+            strides.clear();
             if (!result) return std::unexpected(result.error());
-            out.push_back({IrStatement::Kind::Output, static_cast<int>(i), result->ir});
+            out.push_back({IrStatement::Kind::Output, static_cast<int>(i), result->ir, -1, -1, 1});
+            out.push_back({IrStatement::Kind::RepeatEnd});
+            forget_calls();
+            i += copies;
         }
         return finish(IrFunction::Kind::Rhs, std::string(name), -1);
+    }
+
+    /* How many equations from `first` on are one array equation's copies, to be written as one Repeat (0 for a single
+       equation): at least MIN_REPEAT_COPIES consecutive programs that are one formula at consecutive indices
+       (expr::index_strides). Sets `strides` for the body when it finds them. A program that is a call of its own function
+       (rhs_value: a sum) or does not decode is no copy; its error is the one rhs_value gives. */
+    size_t repeated_copies(std::span<const Program> equations, size_t first)
+    {
+        const auto decoded = [&](size_t i) -> std::optional<std::vector<expr::Instr>> {
+            if (i >= equations.size() || called.contains(&equations[i])) return std::nullopt;
+            auto code = expr::decode(s.parser, equations[i].rpn, -1);
+            if (!code) return std::nullopt;
+            return std::move(*code);
+        };
+        const auto code = decoded(first), second = decoded(first + 1);
+        if (!code || !second) return 0;
+        const auto found = expr::index_strides(*code, *second);
+        if (!found) return 0;
+        size_t copies = 2;
+        while (const auto next = decoded(first + copies)) {
+            if (!expr::is_indexed_copy(*code, *found, *next, static_cast<int>(copies))) break;
+            ++copies;
+        }
+        if (copies < MIN_REPEAT_COPIES) return 0;
+        strides = *found;
+        return copies;
     }
 
     /* One function, name, writing the value of terms[k] into o[k]

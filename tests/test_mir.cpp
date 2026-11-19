@@ -95,6 +95,53 @@ void chunks()
         if (std::string(name) == "whole") CHECK(same(o[equations], 1.25));
     }
 }
+/* the copies of an array equation as one Repeat (W820): o[2 + n] = v[1 + n] * c[0 + n] - c[4] for n in 0..4, the constant a single
+   one (stride 0) and a conditional value kept in a temporary of the body, each element the one the unrolled copy reads */
+void repeat_loop()
+{
+    const xpp::Place place{"model.ode", 1, 0, "x[j]' = x[j-1] * a[j] - b for j in 2..6"};
+    constexpr int copies = 5;
+    double c[5] = {1.5, -2.0, 0.25, 4.0, 0.125}, v[8] = {9.0, 0.5, -1.0, 3.0, 2.0, -0.75, 6.0, 1.0}, o[8] = {};
+    IrModule m;
+    const auto element = [&](IrOp kind, int index, int stride) {
+        IrNode n;
+        n.op = kind;
+        n.index = index;
+        n.stride = stride;
+        return add(m, n);
+    };
+    IrFunction f;
+    f.kind = IrFunction::Kind::Rhs;
+    f.name = "p_rhs";
+    f.temporaries = 1;
+    f.statements.push_back({IrStatement::Kind::ReturnWithoutOutput});
+    f.statements.push_back({IrStatement::Kind::RepeatBegin, copies});
+    f.statements.push_back({IrStatement::Kind::Temporary, 0, op(m, IrOp::Multiply, element(IrOp::Variable, 1, 1), element(IrOp::Constant, 0, 1))});
+    f.statements.push_back({IrStatement::Kind::Output, 2, op(m, IrOp::Subtract, op(m, IrOp::Temporary, -1, -1, -1, 0), element(IrOp::Constant, 4, 0)), -1, -1, 1});
+    f.statements.push_back({IrStatement::Kind::RepeatEnd});
+    m.functions.push_back(f);
+    auto program = xpp::mir::Program::compile(m, place);
+    CHECK(program.has_value());
+    if (!program) return;
+    auto address = (*program)->function("p_rhs");
+    CHECK(address.has_value());
+    if (!address) return;
+    xpp::mir::call(reinterpret_cast<void (*)(double *, double *, void *, double *)>(*address), c, v, nullptr, o);
+    bool all = o[0] == 0.0 && o[1] == 0.0 && o[2 + copies] == 0.0;
+    for (int n = 0; n < copies; ++n) all = all && same(o[2 + n], v[1 + n] * c[n] - c[4]);
+    CHECK(all);
+    /* a stride outside a repeat, and a repeat of no pass, are refused */
+    IrModule outside;
+    outside.nodes = m.nodes;
+    IrFunction g = f;
+    g.statements.erase(g.statements.begin() + 1);
+    g.statements.erase(g.statements.begin() + 3);
+    outside.functions.push_back(g);
+    CHECK(!xpp::mir::Program::compile(outside, place));
+    IrModule empty = m;
+    empty.functions[0].statements[1].index = 0;
+    CHECK(!xpp::mir::Program::compile(empty, place));
+}
 } // namespace
 
 TEST_CASE("test_mir")
@@ -229,5 +276,6 @@ TEST_CASE("test_mir")
         if (address) CHECK(xpp::mir::call(reinterpret_cast<double (*)(void *, void *, void *)>(*address), nullptr, nullptr, nullptr) == 7.0);
     }
     chunks();
+    repeat_loop();
     TEST_REPORT("MIR");
 }

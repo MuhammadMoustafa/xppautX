@@ -29,8 +29,8 @@ struct IrCallee {
 
 enum class IrOp : unsigned char {
     Number,        /* number */
-    Constant,      /* c[index] */
-    Variable,      /* v[index] */
+    Constant,      /* c[index + stride * the counter of the Repeat the node is in] */
+    Variable,      /* v[index + stride * the counter], likewise */
     Temporary,     /* the value a statement stored in temporary `index` */
     Argument,      /* a user function's double argument `index` */
     LoopCounter,   /* the integer counter of loop `index`, as a double */
@@ -49,6 +49,7 @@ struct IrNode {
     IrOp op = IrOp::Number;
     int index = 0;  /* a variable, constant, temporary, argument or operand; a call's int argument */
     int callee = 0; /* a call's callee */
+    int stride = 0; /* a Constant's or Variable's step from one pass of a Repeat to the next (0 outside one) */
     double number = 0;
     std::array<int, 3> args{-1, -1, -1}; /* nodes; a call's first argument position and count */
 };
@@ -58,10 +59,14 @@ struct IrStatement {
         Temporary,            /* t[index] = value */
         Variable,             /* v[index] = value */
         Constant,             /* c[index] = value */
-        Output,               /* o[index] = value */
+        Output,               /* o[index + stride * the counter of the Repeat it is in] = value */
         ReturnWithoutOutput,  /* the equations are written only when the caller gives an output array */
         LoopBegin,            /* loop `index` opens: slot = 0, its counter runs from value to other (integers, the bounds truncated) */
         LoopEnd,              /* loop `index` closes: slot = slot + value, then the next counter or the end */
+        RepeatBegin,          /* the statements to RepeatEnd run `index` times (at least 1), a counter from 0 to index - 1 that
+                                 the stride of an Output and of the Constant and Variable nodes steps: the copies of one array
+                                 equation, whose operands and outputs are consecutive elements; one at a time, no Repeat inside a Repeat or a loop */
+        RepeatEnd,
         IfBegin,              /* the statements to IfElse run when value is 0 */
         IfElse,               /* the statements to IfEnd run when it is not (a NaN is not 0) */
         IfEnd                 /* the conditional ends */
@@ -70,6 +75,7 @@ struct IrStatement {
     int value = -1; /* a node */
     int other = -1; /* a node: LoopBegin's high bound */
     int slot = -1;  /* a temporary: LoopBegin's and LoopEnd's total */
+    int stride = 0; /* an Output's step through a Repeat's counter */
 };
 
 struct IrFunction {

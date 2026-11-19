@@ -371,7 +371,7 @@ TEST_CASE("test_compile")
          "examples/ode/angela.odex", "examples/ode/gausvolt.odex", "examples/ode/kuramot100.odex",
          "examples/ode/waterwheel.odex", "examples/canonical/mackey.odex", "examples/ode/kohox.odex",
          "examples/ode/dae.odex", "examples/canonical/huygens.odex", "examples/canonical/qif-noise.odex",
-         "examples/ode/amari2.odex", "examples/ode/kepler.odex", "examples/ode/lamvolt.odex", "examples/ode/junk2.odex", "examples/ode/mu26.odex"}) {
+         "examples/ode/amari2.odex", "examples/ode/wave.odex", "examples/ode/chemotax.odex", "examples/ode/lecdiff200.odex", "examples/ode/kepler.odex", "examples/ode/lamvolt.odex", "examples/ode/junk2.odex", "examples/ode/mu26.odex"}) {
         std::string file=path;
         char name[]="test_compile";
         char *argv[]={name,file.data(),nullptr};

@@ -1,5 +1,7 @@
 /* The decoder of a program's instructions (expr_decode.h, W276). */
 #include <array>
+#include <bit>
+#include <cstdint>
 #include "expr_decode.h"
 #include "expr.h"
 #include "expr_tables.h"
@@ -144,6 +146,42 @@ std::expected<std::vector<Instr>, std::string> decode(const ParserState &parser,
         out.push_back(i);
         pc = next;
     }
+}
+
+namespace {
+/* an instruction whose operand is an index into the variables or the constants, which an array's copies step */
+bool is_indexed_operand(const Instr &i) { return i.type == VARTYPE || i.type == CONTYPE; }
+
+/* b is a advanced `n` copies by `stride`: the same everywhere but an indexed operand's place */
+bool advanced(const Instr &a, const Instr &b, int stride, int n)
+{
+    if (is_indexed_operand(a)) return a.type == b.type && b.in == a.in + stride * n;
+    return a.op == b.op && a.type == b.type && a.in == b.in && a.count == b.count
+        && std::bit_cast<std::uint64_t>(a.number) == std::bit_cast<std::uint64_t>(b.number);
+}
+}
+
+std::optional<std::vector<int>> index_strides(std::span<const Instr> first, std::span<const Instr> second)
+{
+    if (first.size() != second.size()) return std::nullopt;
+    std::vector<int> stride(first.size(), 0);
+    for (std::size_t k = 0; k < first.size(); ++k) {
+        if (is_indexed_operand(first[k])) {
+            /* the sum's own index is the loop's, never an array's */
+            stride[k] = (first[k].type == CONTYPE && first[k].in == SUM_INDEX) ? 0 : second[k].in - first[k].in;
+            if (stride[k] != 0 && stride[k] != 1) return std::nullopt;
+        }
+        if (!advanced(first[k], second[k], stride[k], 1)) return std::nullopt;
+    }
+    return stride;
+}
+
+bool is_indexed_copy(std::span<const Instr> first, std::span<const int> stride, std::span<const Instr> copy, int n)
+{
+    if (first.size() != copy.size() || first.size() != stride.size()) return false;
+    for (std::size_t k = 0; k < first.size(); ++k)
+        if (!advanced(first[k], copy[k], stride[k], n)) return false;
+    return true;
 }
 
 }

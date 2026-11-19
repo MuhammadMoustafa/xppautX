@@ -252,6 +252,11 @@ struct Lowering {
         MIR_insn_t top = nullptr, done = nullptr;
     };
     std::vector<Loop> loops;
+    /* the Repeat the function is in: its counter (an int register), the instruction its pass starts at, and its count; none outside one */
+    MIR_reg_t repeat_counter = 0;
+    MIR_insn_t repeat_top = nullptr;
+    int repeat_count = 0;
+    bool repeating = false;
     struct Branch {
         MIR_insn_t otherwise = nullptr, done = nullptr;
     };
@@ -302,7 +307,17 @@ struct Lowering {
     void emit(MIR_insn_code_t code, MIR_op_t a, MIR_op_t b) { emit(MIR_new_insn(ctx, code, a, b)); }
     void emit(MIR_insn_code_t code, MIR_op_t a, MIR_op_t b, MIR_op_t d) { emit(MIR_new_insn(ctx, code, a, b, d)); }
     void jump(MIR_insn_code_t code, MIR_insn_t label, MIR_op_t a, MIR_op_t b) { emit(MIR_new_insn(ctx, code, MIR_new_label_op(ctx, label), a, b)); }
-    MIR_op_t slot(MIR_reg_t base, int index) { return MIR_new_mem_op(ctx, MIR_T_D, static_cast<MIR_disp_t>(index) * DOUBLE_BYTES, base, 0, 1); }
+    /* element `index` of the array at `base`, or in a Repeat with a stride of 1 the element `index` + the counter */
+    MIR_op_t slot(MIR_reg_t base, int index, int stride = 0)
+    {
+        const MIR_disp_t disp = static_cast<MIR_disp_t>(index) * DOUBLE_BYTES;
+        if (stride == 0) return MIR_new_mem_op(ctx, MIR_T_D, disp, base, 0, 1);
+        if (stride != 1 || !repeating) {
+            failure = "an element stride outside a repeat or other than 1";
+            return MIR_new_mem_op(ctx, MIR_T_D, disp, base, 0, 1);
+        }
+        return MIR_new_mem_op(ctx, MIR_T_D, disp, base, repeat_counter, DOUBLE_BYTES);
+    }
 
     /* a double operand in a register: an immediate or a memory operand is moved into a new one */
     MIR_op_t in_register(MIR_op_t operand)
@@ -379,8 +394,8 @@ struct Lowering {
         const IrNode &n = ir.nodes[static_cast<size_t>(node)];
         switch (n.op) {
         case IrOp::Number: return number(n.number);
-        case IrOp::Constant: return slot(c, n.index);
-        case IrOp::Variable: return slot(v, n.index);
+        case IrOp::Constant: return slot(c, n.index, n.stride);
+        case IrOp::Variable: return slot(v, n.index, n.stride);
         case IrOp::Temporary: return reg(temporary(n.index));
         case IrOp::Argument: return reg(arguments[static_cast<size_t>(n.index)]);
         case IrOp::LoopCounter: {
@@ -493,7 +508,7 @@ struct Lowering {
         }
         case IrStatement::Kind::Variable: store(slot(v, s.index), operand(s.value, 0)); break;
         case IrStatement::Kind::Constant: store(slot(c, s.index), operand(s.value, 0)); break;
-        case IrStatement::Kind::Output: store(slot(output, s.index), operand(s.value, 0)); break;
+        case IrStatement::Kind::Output: store(slot(output, s.index, s.stride), operand(s.value, 0)); break;
         case IrStatement::Kind::ReturnWithoutOutput: jump(MIR_BEQ, finish, reg(output), MIR_new_int_op(ctx, 0)); break;
         case IrStatement::Kind::LoopBegin: {
             /* the bounds are ints, as the interpreter's casts make them; the loop runs from low to high
@@ -530,6 +545,27 @@ struct Lowering {
             emit(loop.done);
             break;
         }
+        case IrStatement::Kind::RepeatBegin:
+            if (repeating || s.index < 1) {
+                failure = "a repeat inside a repeat or of no pass";
+                break;
+            }
+            repeating = true;
+            repeat_count = s.index;
+            repeat_counter = fresh(MIR_T_I64);
+            repeat_top = MIR_new_label(ctx);
+            emit(MIR_MOV, reg(repeat_counter), MIR_new_int_op(ctx, 0));
+            emit(repeat_top);
+            break;
+        case IrStatement::Kind::RepeatEnd:
+            if (!repeating) {
+                failure = "the end of a repeat that did not begin";
+                break;
+            }
+            repeating = false;
+            emit(MIR_ADD, reg(repeat_counter), reg(repeat_counter), MIR_new_int_op(ctx, 1));
+            jump(MIR_BLT, repeat_top, reg(repeat_counter), MIR_new_int_op(ctx, repeat_count));
+            break;
         case IrStatement::Kind::IfBegin: {
             /* the then arm runs when the condition is 0; a NaN is not 0 */
             const MIR_op_t cond = in_register(operand(s.value, 0));
@@ -619,8 +655,8 @@ struct Lowering {
                 start = i + 1;
                 continue;
             }
-            if (kind == IrStatement::Kind::LoopBegin || kind == IrStatement::Kind::IfBegin) ++depth;
-            if (kind == IrStatement::Kind::LoopEnd || kind == IrStatement::Kind::IfEnd) --depth;
+            if (kind == IrStatement::Kind::LoopBegin || kind == IrStatement::Kind::IfBegin || kind == IrStatement::Kind::RepeatBegin) ++depth;
+            if (kind == IrStatement::Kind::LoopEnd || kind == IrStatement::Kind::IfEnd || kind == IrStatement::Kind::RepeatEnd) --depth;
             if (depth == 0 && i + 1 - start >= CHUNK_STATEMENTS && !blocked[i + 1]) {
                 chunks.emplace_back(start, i + 1);
                 start = i + 1;
@@ -668,6 +704,7 @@ struct Lowering {
         temporaries.assign(static_cast<size_t>(f.temporaries), 0);
         loops.assign(static_cast<size_t>(f.loops), Loop{});
         branches.clear();
+        repeating = false;
         const MIR_insn_t finish = MIR_new_label(ctx);
         size_t next_chunk = 0;
         for (size_t i = first_statement; i < last_statement;) {
