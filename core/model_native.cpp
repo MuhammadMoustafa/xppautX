@@ -1340,10 +1340,14 @@ std::string subsystem_joined_by(const SessionParts &s)
    Measured (W821, instructions on one pinned CPU, `taskset -c 2`, `TMPDIR` empty): MIR's compile costs 39-76 k instructions a node
    of the code, set-up included (clustor 39 k of 18 k nodes, mu26 46 k of 1.5 k, kuramot100 76 k of 1.9 k, lecar 67 k of 104, izh
    68 k of 44), and a node evaluation of TinyCC's code 6.6-12 (mu26 6.6, lecar 8, clustor 9.4, izh 12; the integrator's own work
-   included), so the break-even is some 45 k / 6.6 = 6800 evaluations a node; 10000 keeps mu26's run of 10 M evaluations, which
+   included), so the break-even is some 45 k / 6.6 = 6800 evaluations a node; 20000 keeps mu26's run of 10 M evaluations, which
    ends at 60% of the break-even, from starting a compile that would cost it 60% more than the whole run. What the ratio does
    not see is the saving MIR's code makes a node, from 0.8 instructions (mu26) to 13 (lecdiff1600): the long runs that save
    most start their compile after 3 M evaluations (lecdiff) or 17-21 M (mu26, kuramot100), 0.5% to 9% of their runs.
+   A model whose evaluations are mostly outside its nodes (clustor's networks: MIR saves 0.4 M of 3.9 M instructions per time unit of
+   500) never repays a compile of 0.64 G: at 10000 a node it started 6% before the end of python/clustor-dopri8's run (2.76 G
+   instructions, 2.13 G without; W841, #922), so 20000 (2.13 G; the other models of the batch move 0-2%: lecdiff200 316 to 321 M,
+   mu26 2605 to 2614 M, kuramot100 27.96 to 27.99 G, lecar, amari and screen/clustor none).
    Without TinyCC's code (the interpreter runs until MIR is ready) the rule before W821 holds (W717, W817): a processor to spare
    starts the build after INTERPRETED_OPS_BEFORE_BUILD interpreted instructions; none, after INTERPRETED_OPS_PER_NODE_BEFORE_BUILD
    ops a node (measured on one pinned CPU, instructions at once / 100 / 400 / 1500 ops a node: lecdiff1600 7.25 / 7.32 / 7.50 /
@@ -1351,7 +1355,7 @@ std::string subsystem_joined_by(const SessionParts &s)
    19.7 / 20.3 / 22.6 M). */
 constexpr std::uint64_t INTERPRETED_OPS_BEFORE_BUILD=1000000;
 constexpr std::uint64_t INTERPRETED_OPS_PER_NODE_BEFORE_BUILD=100;
-constexpr std::uint64_t NATIVE_EVALUATIONS_PER_NODE=10000;
+constexpr std::uint64_t NATIVE_EVALUATIONS_PER_NODE=20000;
 /* MIR's context, generator and code region, as the compile of this many nodes (measured: izh's compile of 44 nodes costs 3 M, lecdiff's of 158 costs 9 M) */
 constexpr std::uint64_t MIR_SET_UP_NODES=150;
 constexpr std::uint64_t NO_WORK_DUE=std::numeric_limits<std::uint64_t>::max();
