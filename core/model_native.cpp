@@ -1340,10 +1340,11 @@ std::string subsystem_joined_by(const SessionParts &s)
    Measured (W821, instructions on one pinned CPU, `taskset -c 2`, `TMPDIR` empty): MIR's compile costs 39-76 k instructions a node
    of the code, set-up included (clustor 39 k of 18 k nodes, mu26 46 k of 1.5 k, kuramot100 76 k of 1.9 k, lecar 67 k of 104, izh
    68 k of 44), and a node evaluation of TinyCC's code 6.6-12 (mu26 6.6, lecar 8, clustor 9.4, izh 12; the integrator's own work
-   included), so the break-even is some 45 k / 6.6 = 6800 evaluations a node; 20000 keeps mu26's run of 10 M evaluations, which
+   included), so the break-even is some 45 k / 6.6 = 6800 evaluations a node; W821's 10000 kept mu26's run of 10 M evaluations, which
    ends at 60% of the break-even, from starting a compile that would cost it 60% more than the whole run. What the ratio does
-   not see is the saving MIR's code makes a node, from 0.8 instructions (mu26) to 13 (lecdiff1600): the long runs that save
-   most start their compile after 3 M evaluations (lecdiff) or 17-21 M (mu26, kuramot100), 0.5% to 9% of their runs.
+   not see is the saving MIR's code makes a node, from 0.8 instructions (mu26) to 13 (lecdiff1600): at 10000 the long runs that
+   save most started their compile after 3 M evaluations (lecdiff) or 17-21 M (mu26, kuramot100), 0.5% to 9% of their runs, and
+   20000 doubles both.
    A model whose evaluations are mostly outside its nodes (clustor's networks: MIR saves 0.4 M of 3.9 M instructions per time unit of
    500) never repays a compile of 0.64 G: at 10000 a node it started 6% before the end of python/clustor-dopri8's run (2.76 G
    instructions, 2.13 G without; W841, #922), so 20000 (2.13 G; the other models of the batch move 0-2%: lecdiff200 316 to 321 M,
