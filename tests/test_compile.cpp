@@ -187,6 +187,9 @@ TEST_CASE("test_compile")
          "2*if(x)then(3)else(4)+1", "if(x)then(3)else(if(par)then(4)else(5))"}) expression(text);
     m.compiler.ieee_division=true;
     expression("1/0"); expression("0/0"); expression("1/(-0.0)");
+    /* the back ends write NEGATE_FUNCTION as a sign flip: it must be the table's neg */
+    CHECK(xpp::expr::fun1[xpp::expr::NEGATE_FUNCTION](2.5)==-2.5);
+    CHECK(std::signbit(xpp::expr::fun1[xpp::expr::NEGATE_FUNCTION](0.0)));
     /* Every pure built-in table entry, including noncommutative functions. */
     for (size_t i=0;i<xpp::expr::fun1.size();++i) {
         if (!xpp::expr::fun1[i]) continue;

@@ -415,6 +415,12 @@ bool Lowering::select(const IrNode &n, int depth, std::string &text)
 /* the call with its arguments taken in order, each before the next (the callee and its doubles as the call shape gives them) */
 bool Lowering::call(const IrNode &n, int depth, std::string &text)
 {
+    if (ir_.callees[static_cast<size_t>(n.callee)].negation) {
+        std::string value;
+        operand(ir_.arguments(n)[0], depth + 1, value);
+        text += "(-" + value + ")";
+        return true;
+    }
     if (!declare(static_cast<size_t>(n.callee))) {
         text += "0.0";
         return false;

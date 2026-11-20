@@ -25,6 +25,9 @@ struct IrCallee {
        expression compiler's COM(FUN1TYPE or FUN2TYPE, index), -1 for any other callee), and what a helper does in words */
     int symbol = -1;
     std::string what;
+    /* the math table's neg: a back end writes the sign flip in the code, not a call (a call is an indirect branch the CPU
+       mispredicts when thousands of equations each make one, W838) */
+    bool negation = false;
 };
 
 enum class IrOp : unsigned char {

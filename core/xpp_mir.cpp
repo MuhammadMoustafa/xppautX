@@ -478,8 +478,15 @@ struct Lowering {
     }
     MIR_op_t call(const IrNode &n, int depth)
     {
-        if (!declare(n.callee)) return number(0.0);
         const IrCallee &target = ir.callees[static_cast<size_t>(n.callee)];
+        if (target.negation) {
+            const MIR_op_t value = operand(ir.arguments(n)[0], depth + 1);
+            const MIR_reg_t negated = fresh(MIR_T_D);
+            emit(MIR_DNEG, reg(negated), value);
+            done_with(value);
+            return reg(negated);
+        }
+        if (!declare(n.callee)) return number(0.0);
         const size_t k = static_cast<size_t>(n.callee);
         const MIR_reg_t r = fresh(MIR_T_D);
         const size_t base = operands.size();

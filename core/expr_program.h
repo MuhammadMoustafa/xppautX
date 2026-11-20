@@ -336,6 +336,9 @@ constexpr int random_com(int instruction)
                                      : instruction;
 }
 
+/* the FUN1TYPE index of neg, the unary minus (fun1[NEGATE_FUNCTION] is `-z`) */
+constexpr int NEGATE_FUNCTION = 14;
+
 /* the FUN2TYPE index of an .odex model's division, which the compiler
    writes for / when the Model's ieee_division is set */
 constexpr int IEEE_DIVIDE = 22;

@@ -333,7 +333,9 @@ struct Generator {
     int math_call(bool binary, int i, std::initializer_list<int> args)
     {
         const void *address = binary ? xpp::math::resolve(expr::fun2[static_cast<size_t>(i)]) : xpp::math::resolve(expr::fun1[static_cast<size_t>(i)]);
-        return call(callee({xpp::format("f{}_{}", binary ? 2 : 1, i), address, false, binary ? 2 : 1, false, COM(binary ? FUN2TYPE : FUN1TYPE, i), {}}), std::span<const int>(args.begin(), args.size()));
+        IrCallee target{xpp::format("f{}_{}", binary ? 2 : 1, i), address, false, binary ? 2 : 1, false, COM(binary ? FUN2TYPE : FUN1TYPE, i), {}};
+        target.negation = !binary && i == expr::NEGATE_FUNCTION;
+        return call(callee(std::move(target)), std::span<const int>(args.begin(), args.size()));
     }
     int user_call(int function, std::span<const int> args)
     {
