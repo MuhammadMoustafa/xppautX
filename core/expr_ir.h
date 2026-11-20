@@ -25,8 +25,9 @@ struct IrCallee {
        expression compiler's COM(FUN1TYPE or FUN2TYPE, index), -1 for any other callee), and what a helper does in words */
     int symbol = -1;
     std::string what;
-    /* the math table's neg: a back end writes the sign flip in the code, not a call (a call is an indirect branch the CPU
-       mispredicts when thousands of equations each make one, W838) */
+    /* the math table's neg: MIR writes the sign flip in its code, not a call (a call is an indirect branch the CPU
+       mispredicts when thousands of equations each make one, W838); TinyCC calls it, since its `-x` stores the double,
+       flips one byte of it and loads the 8 bytes back, a store-forwarding stall of about 12 cycles in each (W840) */
     bool negation = false;
 };
 
