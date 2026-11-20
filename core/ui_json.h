@@ -30,10 +30,14 @@ class FileSystem; /* xpp_fs.h */
 #define JSON_UI_STR(x) JSON_UI_STR_(x)
 /* What hello (and a recording's header) carries that only the program's start knows: the front end owns this
    shape and the program fills it before it installs the front end. */
+/* how a newer release is installed over this program, and which release file fits (xpp_install.h) */
+struct UpdateHow {
+    std::string install, asset_suffix, why;
+};
 struct HelloInfo {
     std::vector<AboutLine> about;        /* Help > About's text (xpp_about.h) */
     std::string version;                 /* the release tag, or "dev" (xpp_version_string) */
-    std::string update_install, update_asset_suffix, update_why; /* how a newer release is installed over this program, and which release file fits (xpp_install.h) */
+    std::function<UpdateHow()> update;   /* asked when hello is written: it probes the program's folder, which a run with no page never needs */
     std::function<std::string()> start;  /* a session with no model: hello's `start` object, the recent models and the examples (xpp_recent.h, xpp_examples.h) */
     /* the page the program serves (browser mode, the window), which the platform implements and the program's start wires in (xpp_http.h,
        xpp_window.h): whether one is up (the events then go to it, not to stdout), the one line it is sent, and the model's title for the window */

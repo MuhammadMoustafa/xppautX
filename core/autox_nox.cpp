@@ -1111,7 +1111,6 @@ void init_autox_win(AutoxParts s)
   s.autox_state->grabpt.flag=0;  /*  no point in buffer  */
   s.autox_state->bifur.exist=0;
  s.autox_state->blrtn.torper=s.numerics->torus_period;
- create_autox_file_name(s);
  
 /*  Control -- done automatically   */
   s.autox_state->bifur.irs=0;
@@ -1866,11 +1865,12 @@ void cleanup_autox_dir(xpp::FileSystem &fs, AutoxParts s)
 xpp::Result<> ensure_autox_dir(AutoxParts s)
 {
   std::string &dir=s.autox_state->dir;
-  if (!dir.empty()) return {};
-  xpp::Result<std::string> made=s.model().fs->make_temp_dir(xpp::model_folder(s.model()));
-  if (!made) return std::unexpected(made.error());
-  dir=std::move(*made);
-  create_autox_file_name(s); /* the files are the folder's from now on */
+  if (dir.empty()) {
+    xpp::Result<std::string> made=s.model().fs->make_temp_dir(xpp::model_folder(s.model()));
+    if (!made) return std::unexpected(made.error());
+    dir=std::move(*made);
+  }
+  create_autox_file_name(s); /* the files are the folder's, a folder a load handed on included (the name is not made at a load: it would probe HOME) */
   return {};
 }
 

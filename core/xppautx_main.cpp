@@ -166,8 +166,11 @@ static std::string start_model_folder(const xpp::CommandLine &cl)
 /* what the front end's hello carries that only the program's start knows (ui_json.h) */
 static xpp::HelloInfo hello_info()
 {
-    const xpp::update::Plan plan = xpp::update::running_plan();
-    xpp::HelloInfo info{xpp_about_lines(), xpp_version_string(), std::string(xpp::update::install_name(plan.install)), plan.asset_suffix, plan.why,
+    xpp::HelloInfo info{xpp_about_lines(), xpp_version_string(),
+            [] {
+                const xpp::update::Plan plan = xpp::update::running_plan();
+                return xpp::UpdateHow{std::string(xpp::update::install_name(plan.install)), plan.asset_suffix, plan.why};
+            },
             [] { return xpp::recent::start_json(startup.files, xpp::recent::load_recent(startup.files), ",\"examples\":" + xpp::examples::json()); }};
     info.quit = [](xpp::Session &s, bool saving, bool download) { return xpp_quit(s, saving, download); };
     info.model_may_leave = [](xpp::Session &s, const std::string &file) { return xpp_model_may_leave(s, file); };

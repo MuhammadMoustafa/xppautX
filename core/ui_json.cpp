@@ -1207,12 +1207,13 @@ void send_hello(xpp::Session &s)
     }
     BUF_LIT(b, "]");
     /* how a newer release is installed over this program, and which release file fits (xpp_install.h) */
+    const UpdateHow update = session.hello.update();
     BUF_LIT(b, ",\"update\":{\"install\":");
-    buf_str(b, session.hello.update_install);
+    buf_str(b, update.install);
     BUF_LIT(b, ",\"asset_suffix\":");
-    buf_str(b, session.hello.update_asset_suffix);
+    buf_str(b, update.asset_suffix);
     BUF_LIT(b, ",\"why\":");
-    buf_str(b, session.hello.update_why);
+    buf_str(b, update.why);
     BUF_LIT(b, "}");
     /* File > Quit's question, as the core asks it (model_switch.h): the
        page asks the same itself while a computation runs (W110) */
