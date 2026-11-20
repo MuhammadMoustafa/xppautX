@@ -61,7 +61,7 @@ constexpr Builtin builtins[]=
    {"/",1,COM(FUN2TYPE,3),0,6},
    {"^",1,COM(FUN2TYPE,5),0,7},
    {"**",2,COM(FUN2TYPE,5),0,7},
-   {"~",1,COM(FUN1TYPE,14),0,6},
+   {"~",1,COM(FUN1TYPE,xpp::expr::NEGATE_FUNCTION),0,6},
    {"START",5,-1,0,0},  /* 10  */
    {"END",3,999,0,-1},
    {"ATAN2",5,COM(FUN2TYPE,4),2,PRIMARY_PRIORITY},

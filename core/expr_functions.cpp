@@ -145,7 +145,7 @@ const std::array<Fun1,FUN1_COUNT> fun1={
   xpp::math::log,
   xpp::math::log10,
   ::sqrt,
-  ::neg,
+  ::neg,     /* NEGATE_FUNCTION */
   ::recip,   /* 15 */
   ::heaviside,
   ::signum,
