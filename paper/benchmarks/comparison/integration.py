@@ -483,6 +483,7 @@ def reference_run(a, model, folder):
     if reference_reused(a, folder, model):
         progress(a, 'reference %s REUSED from %s: Python tree and inputs unchanged' % (folder.relative_to(a.out), a.reuse))
         link_tree(a.reuse / folder.relative_to(a.out), folder)
+        save(folder / REFERENCE_KEY, reference_key(a, model))  # it is this run's own now: a later run reads its key here, never derives it (W842)
         return json.loads((folder / 'result.json').read_text()), True
     result = launch(a, model, 'reference', folder, False)
     if result['valid']:
@@ -530,6 +531,12 @@ def ladder_import(a, name, engine, rungs, reference_unchanged):
     return rows, reached
 
 
+def imported_rung_row(a, row, models):
+    # An imported rung's row with the key it was matched on, as an imported sweep row has (imported_sweep): a row whose earlier run kept
+    # none (W617's) would otherwise be derived from this attempt's provenance by a later run, which is not the earlier run's (W842).
+    return dict(row, reuse_key=current_key(a, row['engine'], models[row['tolerance']]))
+
+
 def ladder(a, name, build, engines):
     # Untimed pilots: each program's loosest tolerance, the study's own then LADDER_TOLERANCES, whose full run reaches the
     # reference within the screen tolerance (the judge of the other comparisons). A program stops climbing at its first pass.
@@ -541,7 +548,7 @@ def ladder(a, name, build, engines):
     reference, reference_same = reference_run(a, own, folder / 'reference')
     if not reference['valid']:
         raise RuntimeError('%s: the reference run failed, so no program can be placed on the ladder' % name)
-    chosen, tried, decided = {}, [], set()
+    chosen, tried, decided, models = {}, [], set(), dict(rungs)
     for engine in engines:
         rows, reached = ladder_import(a, name, engine, rungs, reference_same)
         if rows is None:
@@ -550,7 +557,7 @@ def ladder(a, name, build, engines):
             continue
         for row in rows:
             link_tree(a.reuse / 'ladder' / name / ('%g' % row['tolerance']) / engine, folder / ('%g' % row['tolerance']) / engine)
-            tried.append(mark_reused(a, row))
+            tried.append(imported_rung_row(a, mark_reused(a, row), models))
         decided.add(engine)
         if reached is not None:
             chosen[engine] = reached

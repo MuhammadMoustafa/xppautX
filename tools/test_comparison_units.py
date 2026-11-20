@@ -371,6 +371,33 @@ class LadderReuse(unittest.TestCase):
         rows, reason = self.integration.ladder_import(self.a, 'episodic', 'python', self.rungs, True)
         self.assertEqual((rows, reason), (None, 'rung 1e-06 differs in inputs'))
 
+    def test_a_reused_reference_and_rung_keep_this_runs_own_keys_for_a_later_run(self):
+        # W842: a reference (and a rung whose earlier row kept no key) imported from --reuse is linked, so the next run reuses from this
+        # attempt. Its key is saved at the import: derived from this attempt's provenance it never matched (the provenance is not that
+        # of the run it was linked from), and the unit was planned to run its ladder again.
+        model = self.rungs[0][1]
+        key = self.integration.reference_key(self.a, model)
+        earlier = self.a.reuse / 'ladder' / 'episodic' / 'reference'
+        earlier.mkdir(parents=True)
+        (earlier / 'episodic.odex').write_text(model.with_suffix('.odex').read_text())
+        (earlier / 'result.json').write_text(json.dumps(dict(valid=True)))
+        folder = self.a.out / 'ladder' / 'episodic' / 'reference'
+        self.a.out.mkdir()
+        # W617's reference kept no key: it is reused by the derived key, which reference_reused is made to answer here
+        with mock.patch.object(self.integration, 'progress'), mock.patch.object(self.integration, 'reference_reused', return_value=True):
+            _, reused = self.integration.reference_run(self.a, model, folder)
+        self.assertTrue(reused)
+        self.assertEqual(json.loads((folder / self.integration.REFERENCE_KEY).read_text()), key)
+        later = argparse.Namespace(**dict(vars(self.a), out=self.root / 'next', reuse=self.a.out))
+        self.assertTrue(self.integration.reference_reused(later, later.out / 'ladder' / 'episodic' / 'reference', model))
+        # a rung's row, imported when the earlier row kept no key, carries the key it was matched on
+        rows = json.loads((self.a.reuse / 'ladder' / 'episodic.json').read_text())['rungs']
+        for row in rows:
+            row.pop('reuse_key')
+        (self.a.reuse / 'ladder' / 'episodic.json').write_text(json.dumps(dict(rungs=rows)))
+        self.assertEqual(self.integration.imported_rung_row(self.a, rows[0], dict(self.rungs))['reuse_key'],
+                         self.integration.current_key(self.a, rows[0]['engine'], dict(self.rungs)[rows[0]['tolerance']]))
+
 
 class ReferenceModelKey(unittest.TestCase):
     # W806: a reference's model key leaves out the array plot's labels (DISPLAY_OPTIONS, each named with its reason) and nothing else.
