@@ -381,7 +381,7 @@ def restart_after_stop(a, binaries):
         for record in (DONE, PASS1):
             (a.out / name / record).unlink(missing_ok=True)
     for record in a.out.glob('*/*/' + DONE):
-        if json.loads(record.read_text())['binaries'] != binaries:
+        if json.loads(record.read_text()).get('binaries') != binaries:  # a record without them cannot show its binaries are these
             record.unlink()
     marker.unlink()
     note(a, 'restart: the series stopped at a slower unit (%s); it runs again, and so does any unit whose binaries changed' % ', '.join(slower))
