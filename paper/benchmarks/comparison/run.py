@@ -20,6 +20,8 @@ the attempt's `.competing.json`. A unit whose competing CPU passes DISTURBED_CPU
 pass-1 record, run again once --ready passes; disturbed again, the series stops with the reason (DISTURBED_RUNS).
 W845 (#926): so is a unit with a stalled row (common.stalled_rows: a one-CPU xppautX row waiting off the CPU for more than STALL_SECONDS),
 which a few ms of competing CPU at a time leave under the unit-wide fraction.
+W849 (#930): so is a unit whose pinned CPUs (or their package) were thermally throttled for more than THROTTLE_SECONDS while it ran
+(common.throttle_ms, Linux's thermal_throttle counters read at the unit's start and end); a machine without them judges as before.
 
 W830: a unit's verdict also compares each xppautX row with the same row of every other program in its attempt (XPPAUT, AUTO-07p,
 Python: W617's own times, never rerun). A row behind another program is reported (run.log, done.json's `against` and `behind`,
@@ -267,7 +269,7 @@ class Run:
                 argv += ['--stop-on-failure']
         # Foreground, serial, with the log kept even if the unit raises.
         log = attempt.with_suffix('.log')
-        code, competing = run_unit(argv, log, not a.check)
+        code, competing = run_unit(argv, log, not a.check, physical_cores(json.loads(machine.read_text())) if not a.check else ())  # W849: the CPUs the driver pins (common.initialize's a.cores)
         if competing is not None:
             save(attempt.with_suffix('.competing.json'), competing)
         if code:
@@ -306,15 +308,15 @@ class Run:
         return record
 
 
-def run_unit(argv, log, timed):
+def run_unit(argv, log, timed, cpus):
     # The unit's driver, foreground, its log kept. A timed unit also measures the CPU other processes used while it ran (W829):
     # two process snapshots around the run. Returns (exit code, competing record or None).
-    before = machine_snapshot() if timed else None
+    before = machine_snapshot(cpus) if timed else None
     start = time.monotonic()
     with log.open('w') as stream:
         code = subprocess.run(argv, cwd=REPO, stdout=stream, stderr=subprocess.STDOUT).returncode
     wall = time.monotonic() - start
-    return code, (competing_record(before, machine_snapshot(), wall) if timed else None)
+    return code, (competing_record(before, machine_snapshot(cpus), wall) if timed else None)
 
 
 def disturbed_line(label, study, unit, competing):
@@ -322,6 +324,8 @@ def disturbed_line(label, study, unit, competing):
     named = ', '.join('%s %.1f s' % (p['name'], p['cpu_seconds']) for p in competing['processes']) or 'none named'
     line = ('%s %s/%s: disturbed: other processes used %.2f CPUs over %.1f s (bound %.2f CPUs): %s'
             % (label, study, unit, competing['competing_fraction'], competing['wall_seconds'], competing['bound'], named))
+    if competing.get('throttle_seconds', 0) > competing.get('throttle_bound', float('inf')):  # W849: the clock fell, whoever used the CPU
+        line += '; thermally throttled %.1f s (bound %.1f s): %s' % (competing['throttle_seconds'], competing['throttle_bound'], ', '.join(competing['throttled']))
     stalled = competing.get('stalled')
     return line + ('; %d row(s) stalled, the first %s repetition %s waited %.2f s off the CPU (bound %.2f s)'
                    % (len(stalled), stalled[0]['engine'], stalled[0]['repetition'], stalled[0]['gap_seconds'], STALL_SECONDS) if stalled else '')

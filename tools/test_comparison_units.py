@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -58,7 +59,7 @@ if times is not None:
 
 
 def fake_machine(path, timed):
-    common.save(path, dict(check_only=True))
+    common.save(path, dict(check_only=True, lscpu_extended=subprocess.check_output(['lscpu', '-e'], text=True)))
     return path
 
 
@@ -66,14 +67,17 @@ class Sampler:
     # run.py's machine snapshots as a stub (W829: no real load, no sleep). Each timed run reads one snapshot before and one after. Between
     # them the machine used seconds[k] of CPU in a process the process table never shows (a short-lived one, seen only in /proc/stat's
     # busy total), in run k; none past the list. The series itself is the one process of the table, using no CPU.
-    def __init__(self, seconds=()):
-        self.seconds, self.snapshots = list(seconds), 0
+    # throttle[k] (W849) is the seconds the pinned CPU's core was thermally throttled during run k (a counter read at both ends).
+    def __init__(self, seconds=(), throttle=()):
+        self.seconds, self.throttle, self.snapshots = list(seconds), list(throttle), 0
 
-    def __call__(self):
+    def __call__(self, cpus=()):
         run_index, after = divmod(self.snapshots, 2)
         self.snapshots += 1
         used = self.seconds[run_index] if run_index < len(self.seconds) else 0
-        return dict(busy=1000 + (int(used * common.CLOCK_TICKS) if after else 0), table={os.getpid(): (1, 1, 0, 0, 'python')})
+        slow = self.throttle[run_index] if run_index < len(self.throttle) else 0
+        return dict(busy=1000 + (int(used * common.CLOCK_TICKS) if after else 0), table={os.getpid(): (1, 1, 0, 0, 'python')},
+                    throttle={'core of cpu0': 5000 + (int(slow * 1000) if after else 0)} if self.throttle else {})
 
 
 class Units(unittest.TestCase):
@@ -90,7 +94,7 @@ class Units(unittest.TestCase):
     def tearDown(self):
         self.scratch.cleanup()
 
-    def drive(self, *flags, fail=(), keys=None, plan_crash=False, entries=None, check=True, times=None, out=None, competing=(), stalled=None):
+    def drive(self, *flags, fail=(), keys=None, plan_crash=False, entries=None, check=True, times=None, out=None, competing=(), stalled=None, throttle=()):
         # run.py's main against the fake driver; returns (units the driver ran, the exit message or None). competing: the CPU a
         # stub of the process snapshots gives another process during each timed run (Sampler; none by default, so nothing is disturbed).
         log = self.root / 'ran.log'
@@ -103,7 +107,7 @@ class Units(unittest.TestCase):
         # the machine record of a timed run comes from the setup script on the Ubuntu machine: the fake records its own
         with mock.patch.object(sys, 'argv', argv), mock.patch.object(run, 'HERE', self.root / 'drivers'), \
                 mock.patch.object(run, 'machine_record', side_effect=fake_machine), \
-                mock.patch.object(run, 'machine_snapshot', Sampler(competing)), \
+                mock.patch.object(run, 'machine_snapshot', Sampler(competing, throttle)), \
                 mock.patch.dict(os.environ, FAKE_CONTROL=str(self.control)):
             try:
                 run.main()
@@ -712,8 +716,8 @@ class Disturbance(unittest.TestCase):
     setUp, tearDown, drive, done = Units.setUp, Units.tearDown, Units.drive, Units.done
     make_reference, verdict, SAME, ALL = Verdicts.make_reference, Verdicts.verdict, Verdicts.SAME, Verdicts.ALL
 
-    def series(self, times, *flags, competing=(), stalled=None):
-        return self.drive('--reuse', str(self.reference_dir), *flags, times=times, competing=competing, stalled=stalled, check=False)
+    def series(self, times, *flags, competing=(), stalled=None, throttle=()):
+        return self.drive('--reuse', str(self.reference_dir), *flags, times=times, competing=competing, stalled=stalled, throttle=throttle, check=False)
 
     def record(self, unit, name='pass1.competing.json'):
         return json.loads((self.out / 'screen' / unit / name).read_text())
@@ -732,6 +736,28 @@ class Disturbance(unittest.TestCase):
         self.assertEqual(self.record('b')['verdict'], 'quiet')  # the rerun's own record
         self.assertEqual([self.verdict(u) for u in 'abc'], ['same'] * 3)
         self.assertFalse((self.out / 'stopped.json').exists())  # a disturbed unit never writes the slower stop
+
+    def test_a_thermally_throttled_unit_is_disturbed_and_runs_again(self):
+        # W849 (#930): b's first run saw 4 s of throttling on a pinned core (no other process used the CPU): disturbed, rerun, judged on the quiet one.
+        self.make_reference()
+        ran, message = self.series(self.ALL, throttle=[0, 4])
+        self.assertIsNone(message)
+        b = 'b reuse=attempt-001'
+        self.assertEqual(ran[:4], ['a reuse=attempt-001', b, b, 'c reuse=attempt-001'])
+        line = [x for x in (self.out / 'run.log').read_text().splitlines() if x.startswith('pass 1 screen/b: disturbed')]
+        self.assertEqual(len(line), 1)
+        self.assertIn('thermally throttled 4.0 s (bound 1.0 s): core of cpu0', line[0])
+        self.assertEqual(self.record('b')['verdict'], 'quiet')
+
+    def test_a_throttle_under_the_bound_or_no_counters_is_judged_as_before(self):
+        self.make_reference()
+        ran, message = self.series(self.ALL, throttle=[0.5, 0.5, 0.5])  # under THROTTLE_SECONDS
+        self.assertIsNone(message)
+        self.assertEqual(ran, ['a reuse=attempt-001', 'b reuse=attempt-001', 'c reuse=attempt-001'] * 2)
+        self.assertEqual(self.record('b')['throttled'], {'core of cpu0': 0.5})  # recorded, not disturbing
+        self.assertEqual(common.throttle_ms([9999]), {})  # no such CPU: no files, no readings
+        before = dict(busy=0, table={}, throttle={'core of cpu0': 5})
+        self.assertEqual(common.competing_record(before, dict(busy=0, table={}), wall=10.0)['verdict'], 'quiet')  # a snapshot with no counters
 
     def test_a_unit_disturbed_twice_stops_the_series_with_its_reason(self):
         self.make_reference()

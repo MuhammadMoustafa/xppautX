@@ -154,6 +154,8 @@ def wait_until_ready():
 CLOCK_TICKS = os.sysconf('SC_CLK_TCK')  # /proc's CPU ticks per second
 DISTURBED_CPU_FRACTION = 0.5  # CPUs of other processes over a whole unit: a quiet desktop (Chrome, the desktop app, gnome-shell, the idle Claude sessions) uses about 0.15 CPU, a build several
 STALL_SECONDS = 0.5  # W845: a one-CPU xppautX row whose wall time passes its own CPU time by more than this stalled (waited off the CPU): the 1483 level one-CPU xppautX rows of results/ and w718-20261120f gap at most 0.19 s (wall/cpu 1.004 on 43 s rows); the stalled E1 row gapped 0.94 s
+THROTTLE_SECONDS = 1.0  # W849 (#930): thermal throttling of a pinned CPU's core or package during a unit (Linux's thermal_throttle counters, in ms) passes this: the CPU clock fell to 800 MHz, the rows of that moment ran 1.6-5.5x their time. The events seen (2026-11-21, twice) lasted 3-5 s; a quiet machine's counters did not move in two minutes (cpu0 core 149876 ms, package 340870 ms, both unchanged), so one second is under the events and far over the 1 ms the counters count in
+THROTTLE_DIR = '/sys/devices/system/cpu/cpu%d/thermal_throttle/%s_throttle_total_time_ms'  # a machine without these files (macOS, a VM) reads no counters: its units are judged by the competing CPU and the stalled rows alone
 COMPETING_TOP = 3  # the processes a record and a run.log line name, the largest CPU users first (best effort: the ones the process table shows)
 
 
@@ -181,9 +183,21 @@ def process_table():
     return table
 
 
-def machine_snapshot():
-    # One reading for a timed unit's record (W829): the busy CPU ticks, then the process table.
-    return dict(busy=busy_ticks(), table=process_table())
+def throttle_ms(cpus):
+    # W849: {label: total ms the core of each CPU in cpus, and its package, were thermally throttled}; a counter the machine lacks is left out.
+    readings = {}
+    for cpu in cpus:
+        for kind in ('core', 'package'):
+            try:
+                readings['%s of cpu%d' % (kind, cpu)] = int(Path(THROTTLE_DIR % (cpu, kind)).read_text())
+            except (OSError, ValueError):
+                pass
+    return readings
+
+
+def machine_snapshot(cpus=()):
+    # One reading for a timed unit's record (W829): the busy CPU ticks, the process table and (W849) the throttle time of the CPUs the series pins.
+    return dict(busy=busy_ticks(), table=process_table(), throttle=throttle_ms(cpus))
 
 
 def process_tree(table, root):
@@ -227,9 +241,13 @@ def competing_record(before, after, wall):
     competing = max(0, busy - own) / CLOCK_TICKS
     fraction = competing / wall
     used = competing_cpu(before['table'], after['table'], process_tree(after['table'], os.getpid()))  # best effort: the names
+    # W849: the growth of each throttle counter both readings hold, the largest one decides
+    throttled = {k: (after.get('throttle', {})[k] - v) / 1000 for k, v in before.get('throttle', {}).items() if k in after.get('throttle', {})}
+    throttle_seconds = max(throttled.values(), default=0.0)
     largest = sorted(used.items(), key=lambda item: item[1][0], reverse=True)[:COMPETING_TOP]
     return dict(wall_seconds=wall, competing_cpu_seconds=competing, competing_fraction=fraction, bound=DISTURBED_CPU_FRACTION,
-                verdict='disturbed' if fraction > DISTURBED_CPU_FRACTION else 'quiet',
+                verdict='disturbed' if fraction > DISTURBED_CPU_FRACTION or throttle_seconds > THROTTLE_SECONDS else 'quiet',
+                throttle_seconds=throttle_seconds, throttle_bound=THROTTLE_SECONDS, throttled={k: v for k, v in throttled.items() if v > 0},
                 busy_cpu_seconds=busy / CLOCK_TICKS, series_cpu_seconds=own / CLOCK_TICKS,
                 processes=[dict(pid=pid, name=name, cpu_seconds=s) for pid, (s, name) in largest if s > 0])
 
