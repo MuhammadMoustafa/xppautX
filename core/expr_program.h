@@ -184,6 +184,7 @@ struct NativeBuild {
     IrModule ir;            /* the thread's alone once started */
     Place place;            /* where MIR's error is reported */
     std::string rhs_symbol; /* the programs' build: the right-hand side's function (native_rhs), "" when there is none */
+    std::string derived_symbol; /* likewise the derived quantities' one function, "" when there is none */
     bool equations = false; /* the programs' build: native_equations once built */
     std::uint64_t due = 0;       /* the interpreted_ops count the thread starts at */
     std::uint64_t due_work = 0;  /* the native_work count the thread starts at */

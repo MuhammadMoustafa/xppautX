@@ -100,6 +100,12 @@ struct CompilerTables {
     Place where; /* its line, for an error */
   };
   std::vector<DerivedQuantity> derived;
+  /* one native function that works all `native_derived_count` of them out in order, writing each into its constant (the Generator's
+     derived; null while they are interpreted), and the IR nodes one call evaluates (ParserState::native_work). A fit's or a
+     parameter change's work is one call, not one a formula (W846); used only while derived.size() is that count. */
+  void (*native_derived)(double *c, double *v, ParserState *S, const double *unused) = nullptr;
+  std::uint64_t native_derived_nodes = 0;
+  std::size_t native_derived_count = 0;
 
   /* the model's name index (the Model sets it to its record) */
   NameIndex *names = nullptr;

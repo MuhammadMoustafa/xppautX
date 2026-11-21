@@ -673,6 +673,23 @@ struct Generator {
         return f;
     }
 
+    /* One function, name, that works the derived quantities out in order (W846): each formula's value written into its constant
+       as evaluate_derived does, so the next formula reads it; the calls made are forgotten after each, since the constant a
+       later formula reads has changed. */
+    Result<IrFunction> derived(std::span<const CompilerTables::DerivedQuantity> list, std::string_view name)
+    {
+        begin();
+        for (const auto &d : list) {
+            place = d.where;
+            dynamic = false;
+            const auto result = value(d.form.rpn, 0, false);
+            if (!result) return std::unexpected(result.error());
+            out.push_back({IrStatement::Kind::Constant, d.index, result->ir});
+            forget_calls();
+        }
+        return finish(IrFunction::Kind::Rhs, std::string(name), -1);
+    }
+
     /* The bridge the interpreter calls for a user function: it has already pushed the arguments in reverse
        order, and the bridge drops them as ENDFUN does; equations call the function directly. */
     IrFunction bridge(int index, std::string name)
@@ -1315,7 +1332,7 @@ std::string rhs_impurity(const SessionParts &s)
             return "a fixed variable that reads one after it";
     }
     for (const auto &d:m.compiler.derived)
-        if (!d.form.compiled || !d.form.array_pure || !d.form.native_reads.empty()) return "a derived parameter that is not compiled or reads variables";
+        if ((!d.form.compiled && !d.form.in_rhs) || !d.form.array_pure || !d.form.native_reads.empty()) return "a derived parameter that is not compiled or reads variables";
     return "";
 }
 
@@ -1486,7 +1503,7 @@ std::shared_ptr<NativeBuild> pending_build(const SessionParts &s, IrModule ir, P
 /* The programs' code placed in the model: each program's function and the right-hand side's, every address found before any is
    set, so code that lacks one changes nothing; the code in use before (TinyCC's, when MIR's comes) is released by the
    assignment, which no call runs across (the core thread, at the start of a right-hand side, or before the threads start) */
-Result<> place_programs(Model &m, std::unique_ptr<native::Code> &code, const std::string &rhs_symbol, bool equations)
+Result<> place_programs(Model &m, std::unique_ptr<native::Code> &code, const std::string &rhs_symbol, const std::string &derived_symbol, bool equations)
 {
     const auto entries=model_programs(m);
     std::vector<std::pair<Program *,void *>> functions;
@@ -1502,8 +1519,15 @@ Result<> place_programs(Model &m, std::unique_ptr<native::Code> &code, const std
         if (!address) return std::unexpected(address.error());
         rhs=*address;
     }
+    void *derived=nullptr;
+    if (!derived_symbol.empty()) {
+        auto address=code->function(derived_symbol);
+        if (!address) return std::unexpected(address.error());
+        derived=*address;
+    }
     for (const auto &[program,address]:functions) program->native=reinterpret_cast<decltype(Program::native)>(address);
     if (!rhs_symbol.empty()) m.native_rhs=reinterpret_cast<decltype(Model::native_rhs)>(rhs);
+    if (!derived_symbol.empty()) m.compiler.native_derived=reinterpret_cast<decltype(CompilerTables::native_derived)>(derived);
     m.native_equations=equations;
     m.native_program=std::move(code);
     return {};
@@ -1517,6 +1541,9 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
     m.native_rhs=nullptr;
     m.native_rhs_nodes=0;
     m.native_equations=false;
+    m.compiler.native_derived=nullptr;
+    m.compiler.native_derived_nodes=0;
+    m.compiler.native_derived_count=0;
     m.native_program.reset();
     m.native_build.reset();
     if (!s.numerics->compile || entries.empty()) return {};
@@ -1572,6 +1599,17 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
             rhs=equations=false;
         }
     }
+    /* W846: the derived quantities as one function when each compiled alone and none has a sum (a sum's function is called, not
+       written, as p_rhs does it): a fit or an autoX run works them all out at each evaluation, so one call a formula was most of
+       a short run's time. Their own functions are then not compiled. */
+    const std::string derived_symbol="p_derived";
+    bool fused=!m.compiler.derived.empty() && std::all_of(m.compiler.derived.begin(),m.compiler.derived.end(),
+        [&](const auto &d){return compiled_alone(d.form) && !g.called.contains(&d.form);});
+    if (fused) {
+        auto r=g.derived(m.compiler.derived,derived_symbol);
+        if (r) g.ir.functions.push_back(std::move(*r));
+        else {warnings.push_back(r.error());fused=false;}
+    }
     /* W708: when p_rhs writes the equations, an equation's own function is
        not compiled: nothing calls it in a run with p_rhs but a Markov
        variable's or an integral equation's evaluation (they keep theirs),
@@ -1583,13 +1621,14 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
     std::vector<Program *> in_rhs;
     const Program *const first_equation=m.programs.data(),*const first_fixed=first_equation+m.node,*const fixed_end=first_fixed+m.fix_var;
     const bool equations_in_rhs=equations && m.nmarkov==0 && m.compiler.nkernel==0;
-    if (equations_in_rhs || rhs) {
+    if (equations_in_rhs || rhs || fused) {
         /* one pass, in order: erasing each moved the rest of the functions and of the list every time */
         std::vector<char> dropped(g.ir.functions.size(),0);
         std::vector<const ModelProgram *> still;
         for (size_t k=0;k<emitted.size();++k) {
             Program *code=emitted[k]->code;
-            const bool in_p_rhs=(equations_in_rhs && code>=first_equation && code<first_fixed) || (rhs && code>=first_fixed && code<fixed_end);
+            const bool in_p_rhs=(equations_in_rhs && code>=first_equation && code<first_fixed) || (rhs && code>=first_fixed && code<fixed_end)
+                || (fused && std::any_of(m.compiler.derived.begin(),m.compiler.derived.end(),[&](const auto &d){return &d.form==code;}));
             if (!in_p_rhs || g.called.contains(code)) {still.push_back(emitted[k]);continue;}
             dropped[function_of[k]]=1;
             in_rhs.push_back(code);
@@ -1600,24 +1639,30 @@ Result<std::vector<Error>> compile_programs(const SessionParts &s, const std::ve
         g.ir.functions.resize(kept);
         emitted=std::move(still);
     }
-    if (emitted.empty() && !rhs) return warnings;
+    if (emitted.empty() && !rhs && !fused) return warnings;
     /* what one call of each function evaluates, for the work a run has done (ParserState::native_work) */
     const IrSizes sizes(g.ir);
     const std::uint64_t code_nodes=sizes.emitted();
     for (const auto *entry:emitted) entry->code->native_nodes=sizes.of(entry->symbol).evaluated;
     if (rhs) m.native_rhs_nodes=sizes.of(rhs_symbol).evaluated;
+    if (fused) {
+        m.compiler.native_derived_nodes=sizes.of(derived_symbol).evaluated;
+        m.compiler.native_derived_count=m.compiler.derived.size();
+    }
     for (const auto *entry:emitted) entry->code->compiled=true;
     for (Program *code:in_rhs) code->in_rhs=true;
     const Place place=entries.front().place;
     const std::string placed_rhs=rhs?rhs_symbol:std::string();
+    const std::string placed_derived=fused?derived_symbol:std::string();
     /* TinyCC's code first (W821): the run starts on it at once; MIR's build follows */
     bool tier_one=false;
     if (auto tiny=native::Code::compile(g.ir,native::Compiler::TinyCC,place)) {
-        if (auto placed=place_programs(m,*tiny,placed_rhs,equations)) tier_one=true;
+        if (auto placed=place_programs(m,*tiny,placed_rhs,placed_derived,equations)) tier_one=true;
         else log(XPP_LOG_WARN,"{}; MIR compiles instead\n",placed.error().text());
     } else log(XPP_LOG_WARN,"{}; MIR compiles instead\n",tiny.error().text());
     m.native_build=pending_build(s,std::move(g.ir),place,tier_one,code_nodes);
     if (rhs) m.native_build->rhs_symbol=rhs_symbol;
+    m.native_build->derived_symbol=placed_derived;
     m.native_build->equations=equations;
     log(XPP_LOG_INFO,"Compiled {} of {} programs ({} nodes{})\n",compiled_count,entries.size(),m.native_build->ir.nodes.size(),tier_one?", TinyCC's code in use":"");
     return warnings;
@@ -1681,7 +1726,7 @@ void take_programs(const SessionParts &s, bool wait)
        grown (a derived parameter added, the browser's column), and a program edited since (dae_fun.cpp's guess)
        is no longer compiled */
     if (!build->result) return compile_failed(s,build->result.error());
-    if (auto placed=place_programs(m,*build->result,build->rhs_symbol,build->equations); !placed) return compile_failed(s,placed.error());
+    if (auto placed=place_programs(m,*build->result,build->rhs_symbol,build->derived_symbol,build->equations); !placed) return compile_failed(s,placed.error());
     log(XPP_LOG_INFO,"The native code is in use (MIR, {})\n",wait?"waited for":"built while the run went on");
 }
 

@@ -8,6 +8,7 @@
 #include "model_failed.h"
 #include "xpp_log.h"
 #include "expr_program.h"
+#include "native_code.h"
 #include "xpp_error.h"
 #include "xpp_text.h"
 
@@ -36,12 +37,21 @@ and after changing parameters and constants
 */
 void evaluate_derived(ParserState &p)
 {
+  if (p.compiler->native_derived && p.compiler->native_derived_count==p.compiler->derived.size()) {
+    p.native_work+=p.compiler->native_derived_nodes;
+    native::call(p.compiler->native_derived,p.constants.data(),p.variables.data(),&p,nullptr);
+    return;
+  }
   for (const auto &d : p.compiler->derived)
     p.constants[d.index] = evaluate(p,d.form);
 }
 
 void evaluate_derived_pure(const ParserState &p, double *constants, double *variables)
 {
+  if (p.compiler->native_derived && p.compiler->native_derived_count==p.compiler->derived.size()) {
+    native::call(p.compiler->native_derived,constants,variables,const_cast<ParserState *>(&p),nullptr);
+    return;
+  }
   for (const auto &d : p.compiler->derived)
     constants[d.index] = evaluate_pure(p,d.form,constants,variables);
 }
