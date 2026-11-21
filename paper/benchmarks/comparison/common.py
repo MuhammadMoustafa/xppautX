@@ -239,8 +239,8 @@ def stalled_rows(rows):
     # STALL_SECONDS. A competing process of a few ms of CPU a time does not move W829's unit-wide fraction, yet delays one row. Only
     # xppautX's rows are judged: its cpu_seconds is the whole program's, while XPPAUT's and AUTO-07p's wall time includes work their CPU
     # time leaves out (X driving, a compile step: a gap of 4 s and 1.4 s in level rows); a row on several threads waits on its own
-    # threads (an unequal split of the work), so it is not judged either. Returns [(workload, engine, repetition, gap seconds)].
-    return [(r.get('workload'), r['engine'], r.get('repetition'), r['wall_seconds'] - r['cpu_seconds']) for r in rows
+    # threads (an unequal split of the work), so it is not judged either.
+    return [dict(workload=r.get('workload'), engine=r['engine'], repetition=r.get('repetition'), gap_seconds=r['wall_seconds'] - r['cpu_seconds']) for r in rows
             if str(r.get('engine')).startswith('xppautx') and len(r.get('pinned_cpus') or ()) == 1
             and isinstance(r.get('wall_seconds'), (int, float)) and isinstance(r.get('cpu_seconds'), (int, float))
             and r['wall_seconds'] - r['cpu_seconds'] > STALL_SECONDS]

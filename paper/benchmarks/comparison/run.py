@@ -277,7 +277,7 @@ class Run:
         if competing is not None:
             stalled = stalled_rows(json.loads((attempt / 'runs.json').read_text())) if (attempt / 'runs.json').exists() else []
             if stalled:  # W845: a stall inside the unit that W829's unit-wide fraction did not see disturbs it too
-                competing = dict(competing, verdict='disturbed', stalled=[dict(workload=w, engine=e, repetition=n, gap_seconds=g) for w, e, n, g in stalled])
+                competing = dict(competing, verdict='disturbed', stalled=stalled)
                 save(attempt.with_suffix('.competing.json'), competing)
         if competing is not None and competing['verdict'] == 'disturbed':
             return 'disturbed', None, competing  # W829: not judged, no record that a later run would read
