@@ -217,12 +217,12 @@ def native(a, d, folder, threads, events, jacobian, measured):
                 digests[run['name']] = hashlib.sha256(json.dumps(old_events.points(emitted)).encode()).hexdigest()
 
     with short_home() as home:
-        data, _, threads_auto, ranges = comparison.compute(str(a.xppautx), d, threads,
+        data, _, _, ranges = comparison.compute(str(a.xppautx), d, threads,
             env=environment(home), run=str(folder), diagram_data=events, jacobian=jacobian, observer=Observer())
     (folder / 'diagram.csv').write_bytes(data)
     save(folder / 'run-ranges.json', ranges)
     save(folder / 'w269-event-digests.json', digests)
-    return dict(data=data, ranges=ranges, ready=ready, runs=records, digests=digests, threads_auto=threads_auto)
+    return dict(data=data, ranges=ranges, ready=ready, runs=records, digests=digests)
 
 
 def foreign(a, d, program, inputs, folder, measured, exact=None):
@@ -781,7 +781,7 @@ def reusable_pilot(a, name, mode, program, key):
     return (folder, None) if same_key(have, key) else (None, 'differs in ' + ', '.join(key_differences(have, key)))
 
 
-def plan_reuse(a, name, mode, d, targets, timed, initial, start, phase, pilots_only=False):
+def plan_reuse(a, name, mode, d, targets, timed, threads_auto, start, phase, pilots_only=False):
     # --plan (a dry run): what an earlier attempt would supply of this workload and what would run, decided by the same
     # keys and checks the series uses. Nothing but xppautX's pilot has run. The plan (common.write_plan) lists what would run.
     imported, would_run, unsupported = 0, [], set()
@@ -805,7 +805,7 @@ def plan_reuse(a, name, mode, d, targets, timed, initial, start, phase, pilots_o
     for label, program, threads, events, jac in variants(name, timed, False):
         if program in unsupported:
             continue
-        cpus = a.cores[:initial['threads_auto'] if threads == 'auto' else threads]
+        cpus = a.cores[:threads_auto if threads == 'auto' else threads]
         row = dict(label=label, threads=threads, jacobian=jac, events=events, measured=True)
         key = row_key(a, program, run_d, start, row, cpus, exact if jac == 'exact' else None)
         reasons, eligible, counted = set(), True, 0
@@ -843,6 +843,18 @@ def sized_t2(d, targets, fastest):
     return larger, old
 
 
+def auto_threads(a, model):
+    """xppautX's count for "auto" with its process allowed the comparison's cores (a.cores), which is where the auto rows run:
+    the pilot is pinned to one core, so its own count is 1 (W843). An untimed query, read from the program, not computed here."""
+    pinned = os.sched_getaffinity(0)
+    os.sched_setaffinity(0, a.cores)
+    try:
+        with short_home() as home:
+            return comparison.automatic_threads(str(a.xppautx), model, env=environment(home))
+    finally:
+        os.sched_setaffinity(0, pinned)
+
+
 def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repetitions=1):
     out = a.out / name / mode
     out.mkdir(parents=True)
@@ -865,6 +877,7 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
         phase('our pilot starts')
         initial = native(a, d, out / 'pilot-xppautx', 1, True, 'difference', measured=not a.check and timed)
         phase('our pilot finished')
+        threads_auto = auto_threads(a, d['model'])
         odex = Odex(REPO / d['model'])
         eqs = reference.Equations(odex, d.get('parameters', {}))
         start = start_values(initial['data'])
@@ -873,7 +886,7 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
             # a plan times nothing: T2 is sized as the earlier attempt's pilot was (as a run's own pilot decides), then planned in its sized mode
             sizing = earlier_mode_file(a, name, mode, 'pilot-sizing.json') if name == 'T2' and a.reuse else None
             larger = sized_t2(d, targets, sizing['pilot_wall'])[0] if sizing else None
-            plan_reuse(a, name, mode, d, targets, timed, initial, start, phase, pilots_only=bool(larger))  # a sized T2's own mode has the rows
+            plan_reuse(a, name, mode, d, targets, timed, threads_auto, start, phase, pilots_only=bool(larger))  # a sized T2's own mode has the rows
             return workload(a, name, larger, targets, timed, records, mode + '-sized') if larger else True
         rhs = reference.check_rhs(a.xppautx, eqs, start, out / 'rhs')
         phase('RHS check %s' % ('passed' if rhs['passed'] else 'FAILED'))
@@ -987,7 +1000,7 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
             for label, program, threads, events, jac in rotation(engines, rep):
                 if rep > 0 and not eligibility[label]:
                     continue
-                cpus = a.cores[:initial['threads_auto'] if threads == 'auto' else threads]
+                cpus = a.cores[:threads_auto if threads == 'auto' else threads]
                 os.sched_setaffinity(0, cpus)
                 folder = out / 'runs' / str(rep) / label
                 progress(a, '%s/%s: repetition %d of %d, row %s' % (name, mode, rep, a.repeats, label))

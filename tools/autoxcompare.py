@@ -490,6 +490,18 @@ CODE_OF_NAME = {
 GLOBAL_ENDS = ('SNIC', 'HOC', 'HEC', 'HBE', 'CL')
 
 
+def automatic_threads(binary, model, *, env=None):
+    """The count autoX gives "auto" (autox.options' threads_auto) for the CPUs this process may run on (W817): a server
+    loads the model and runs nothing, so the caller's affinity is what it reads (W843)."""
+    s = Server(binary, ROOT / model, env=env)
+    try:
+        completed(s)
+        events = completed(s, dict(cmd='events.subscribe', events=['autox.options'], diagram=False))
+        return next(e for e in reversed(events) if e.get('ev') == 'autox.options')['threads_auto']
+    finally:
+        s.close()
+
+
 def code_of(name):
     """the two-letter code of a point type's name (xppautX's files and protocol); the code itself passes (a description built in Python may hold either); a name it does not know is an error"""
     if name in CODE_OF_CODE:

@@ -846,5 +846,26 @@ class CompetingCpu(unittest.TestCase):
         self.assertEqual(common.machine_snapshot()['table'][me][0], os.getppid())
 
 
+class AutoThreads(unittest.TestCase):
+    # W843 (#924): the auto rows' count is xppautX's own, read with its process allowed the comparison's cores. The stub
+    # program reports the size of its affinity, as W817's xppautX counts it, so no build is needed; the count read under
+    # the pilot's one core would be 1 and the rows would run on core 0 alone.
+    STUB = '#!%s\nimport json, os, sys\nprint(json.dumps(dict(ev="done")), flush=True)\nfor _ in sys.stdin:\n' \
+           '    print(json.dumps(dict(ev="autox.options", threads_auto=len(os.sched_getaffinity(0)))), flush=True)\n' \
+           '    print(json.dumps(dict(ev="done")), flush=True)\n'
+
+    def test_the_count_is_read_with_the_comparison_cores_allowed(self):
+        import continuation
+        allowed = sorted(os.sched_getaffinity(0))
+        cores = allowed[:4]
+        with tempfile.TemporaryDirectory() as tmp:
+            stub = Path(tmp) / 'xppautX'
+            stub.write_text(self.STUB % sys.executable)
+            stub.chmod(0o755)
+            a = argparse.Namespace(xppautx=stub, cores=cores)
+            self.assertEqual(continuation.auto_threads(a, 'examples/ode/lecar.odex'), len(cores))
+        self.assertEqual(sorted(os.sched_getaffinity(0)), allowed)  # the caller's affinity is put back
+
+
 if __name__ == '__main__':
     unittest.main()
