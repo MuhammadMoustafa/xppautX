@@ -37,7 +37,7 @@ and after changing parameters and constants
 */
 void evaluate_derived(ParserState &p)
 {
-  if (p.compiler->native_derived && p.compiler->native_derived_count==p.compiler->derived.size()) {
+  if (p.compiler->derived_native()) {
     p.native_work+=p.compiler->native_derived_nodes;
     native::call(p.compiler->native_derived,p.constants.data(),p.variables.data(),&p,nullptr);
     return;
@@ -48,7 +48,7 @@ void evaluate_derived(ParserState &p)
 
 void evaluate_derived_pure(const ParserState &p, double *constants, double *variables)
 {
-  if (p.compiler->native_derived && p.compiler->native_derived_count==p.compiler->derived.size()) {
+  if (p.compiler->derived_native()) {
     native::call(p.compiler->native_derived,constants,variables,const_cast<ParserState *>(&p),nullptr);
     return;
   }

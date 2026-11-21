@@ -106,6 +106,7 @@ struct CompilerTables {
   void (*native_derived)(double *c, double *v, ParserState *S, const double *unused) = nullptr;
   std::uint64_t native_derived_nodes = 0;
   std::size_t native_derived_count = 0;
+  bool derived_native() const { return native_derived && native_derived_count==derived.size(); }
 
   /* the model's name index (the Model sets it to its record) */
   NameIndex *names = nullptr;

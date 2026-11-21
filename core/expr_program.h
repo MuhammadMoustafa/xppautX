@@ -165,7 +165,7 @@ struct Program {
     double (*native)(double *, double *, ParserState *, const int *) = nullptr;
     std::uint64_t native_nodes = 0; /* the IR nodes of `native`'s function: what one call evaluates (ParserState::native_work) */
     bool compiled = false; /* translate_model made native code for it (W715): `native` once build_native built the model's code */
-    bool in_rhs = false; /* compiled only inside the model's one right-hand side function (W708): no native of its own */
+    bool in_rhs = false; /* compiled only inside the model's one right-hand side function (W708) or its derived quantities' (W846): no native of its own */
     /* the RPN was rewritten at run time (a user function redefined, a DAE guess edited): neither the native code
        nor the interpreter's form holds any more */
     void forget_code() { native = nullptr; native_nodes = 0; compiled = false; ops.clear(); }
