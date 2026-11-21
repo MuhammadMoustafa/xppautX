@@ -45,7 +45,10 @@ with open(control['log'], 'a') as log:
     log.write('%s reuse=%s\\n' % (unit, Path(a.reuse).name if a.reuse else None))
 if unit in control['fail']:
     sys.exit('the unit raised')
-(out / 'runs.json').write_text(json.dumps([dict(workload=unit, reuse_key=dict(v=key))]))
+calls = sum(1 for line in open(control['log']) if line.split()[0] == unit)  # this unit's runs so far, this one included
+stalled = calls in control.get('stalled', {}).get(unit, [])  # W845's rows: the evidence's E1 numbers, a stalled and a level one-CPU row
+(out / 'runs.json').write_text(json.dumps([dict(workload=unit, reuse_key=dict(v=key), engine='xppautx-fd-1-diagram', row='run', repetition=1,
+                                                wall_seconds=2.982 if stalled else 2.085, cpu_seconds=2.04, pinned_cpus=[0])]))
 times = control.get('times', {}).get(unit)  # [mean, sd], or {repetitions: [mean, sd]} for a unit whose pass 1 and rest differ
 if times is not None:
     times = times[str(a.repeats or 5)] if isinstance(times, dict) else times
@@ -87,13 +90,13 @@ class Units(unittest.TestCase):
     def tearDown(self):
         self.scratch.cleanup()
 
-    def drive(self, *flags, fail=(), keys=None, plan_crash=False, entries=None, check=True, times=None, out=None, competing=()):
+    def drive(self, *flags, fail=(), keys=None, plan_crash=False, entries=None, check=True, times=None, out=None, competing=(), stalled=None):
         # run.py's main against the fake driver; returns (units the driver ran, the exit message or None). competing: the CPU a
         # stub of the process snapshots gives another process during each timed run (Sampler; none by default, so nothing is disturbed).
         log = self.root / 'ran.log'
         log.unlink(missing_ok=True)
         self.control.write_text(json.dumps(dict(fail=list(fail), keys=keys or {}, log=str(log), plan_crash=plan_crash, entries=entries or {},
-                                                times=times or {})))
+                                                times=times or {}, stalled=stalled or {})))
         argv = ['run.py', '--out', str(out or self.out), '--xppautx', str(self.root / 'xppautx'), '--xppaut', str(self.root / 'xppaut'),
                 '--auto-dir', str(self.root), '--study', 'screen', *(['--check'] if check else []), *flags]
         message = None
@@ -696,8 +699,8 @@ class Disturbance(unittest.TestCase):
     setUp, tearDown, drive, done = Units.setUp, Units.tearDown, Units.drive, Units.done
     make_reference, verdict, SAME, ALL = Verdicts.make_reference, Verdicts.verdict, Verdicts.SAME, Verdicts.ALL
 
-    def series(self, times, *flags, competing=()):
-        return self.drive('--reuse', str(self.reference_dir), *flags, times=times, competing=competing, check=False)
+    def series(self, times, *flags, competing=(), stalled=None):
+        return self.drive('--reuse', str(self.reference_dir), *flags, times=times, competing=competing, stalled=stalled, check=False)
 
     def record(self, unit, name='pass1.competing.json'):
         return json.loads((self.out / 'screen' / unit / name).read_text())
@@ -755,6 +758,34 @@ class Disturbance(unittest.TestCase):
         self.assertEqual(self.record('b', 'attempt-001.competing.json')['verdict'], 'disturbed')
         self.assertEqual(self.record('b', 'attempt-002.competing.json')['verdict'], 'quiet')
         self.assertEqual(run.earlier_attempt(self.out / 'screen/b', None, 'screen').name, 'attempt-002')  # attempt-001 never ended
+
+    def test_a_stalled_row_inside_a_unit_disturbs_it_though_the_unit_wide_check_is_quiet(self):
+        # W845 (#926): w718-20261120f's E1 pass 1: a one-CPU row of wall 2.982 s and cpu 2.04 s (level rows: 2.085 and 2.01) in a unit
+        # whose competing CPU was 8% of one CPU. b's first run has that row: disturbed, run again, judged only on the second.
+        self.make_reference()
+        ran, message = self.series(self.ALL, stalled={'b': [1]})
+        self.assertIsNone(message)
+        b = 'b reuse=attempt-001'
+        self.assertEqual(ran[:4], ['a reuse=attempt-001', b, b, 'c reuse=attempt-001'])
+        log = (self.out / 'run.log').read_text()
+        self.assertIn('pass 1 screen/b: disturbed: other processes used', log)
+        self.assertIn('1 row(s) stalled, the first xppautx-fd-1-diagram repetition 1 waited 0.94 s off the CPU', log)
+        self.assertEqual(self.record('b')['verdict'], 'quiet')
+
+    def test_a_unit_with_a_stalled_row_twice_stops_the_series(self):
+        self.make_reference()
+        ran, message = self.series(self.ALL, stalled={'b': [1, 2]})
+        self.assertEqual(ran, ['a reuse=attempt-001', 'b reuse=attempt-001', 'b reuse=attempt-001'])
+        self.assertIn('other processes used the CPU during a unit twice', message)
+        self.assertEqual(self.record('b')['stalled'][0]['engine'], 'xppautx-fd-1-diagram')
+        self.assertFalse((self.out / 'screen/b/pass1.json').exists())
+
+    def test_a_row_on_several_threads_or_of_another_program_is_not_judged_by_its_gap(self):
+        gap = dict(workload='m', wall_seconds=3.0, cpu_seconds=2.0)
+        rows = [dict(gap, engine='xppautx-fd-2-none', pinned_cpus=[0, 1]), dict(gap, engine='xppaut-fd', pinned_cpus=[0]),
+                dict(gap, engine='auto07p-fd-1', pinned_cpus=[0]), dict(gap, engine='xppautx-fd-1-none'),
+                dict(gap, engine='xppautx-fd-1-none', pinned_cpus=[0], wall_seconds=2.49)]
+        self.assertEqual(common.stalled_rows(rows), [])
 
     def test_a_short_lived_process_seen_only_in_the_machine_total_disturbs_its_unit(self):
         # A build step that starts and exits inside the unit never shows in the process table: only /proc/stat's busy total has its CPU.

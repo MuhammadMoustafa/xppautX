@@ -153,6 +153,7 @@ def wait_until_ready():
 # exits inside the unit is in the total. No polling thread: a unit's record is its readings at its start and end.
 CLOCK_TICKS = os.sysconf('SC_CLK_TCK')  # /proc's CPU ticks per second
 DISTURBED_CPU_FRACTION = 0.5  # CPUs of other processes over a whole unit: a quiet desktop (Chrome, the desktop app, gnome-shell, the idle Claude sessions) uses about 0.15 CPU, a build several
+STALL_SECONDS = 0.5  # W845: a one-CPU xppautX row whose wall time passes its own CPU time by more than this stalled (waited off the CPU): the 1483 level one-CPU xppautX rows of results/ and w718-20261120f gap at most 0.19 s (wall/cpu 1.004 on 43 s rows); the stalled E1 row gapped 0.94 s
 COMPETING_TOP = 3  # the processes a record and a run.log line name, the largest CPU users first (best effort: the ones the process table shows)
 
 
@@ -231,6 +232,18 @@ def competing_record(before, after, wall):
                 verdict='disturbed' if fraction > DISTURBED_CPU_FRACTION else 'quiet',
                 busy_cpu_seconds=busy / CLOCK_TICKS, series_cpu_seconds=own / CLOCK_TICKS,
                 processes=[dict(pid=pid, name=name, cpu_seconds=s) for pid, (s, name) in largest if s > 0])
+
+
+def stalled_rows(rows):
+    # W845: the rows of a runs.json that stalled: xppautX on one CPU (pinned_cpus of length 1) with wall_seconds - cpu_seconds above
+    # STALL_SECONDS. A competing process of a few ms of CPU a time does not move W829's unit-wide fraction, yet delays one row. Only
+    # xppautX's rows are judged: its cpu_seconds is the whole program's, while XPPAUT's and AUTO-07p's wall time includes work their CPU
+    # time leaves out (X driving, a compile step: a gap of 4 s and 1.4 s in level rows); a row on several threads waits on its own
+    # threads (an unequal split of the work), so it is not judged either. Returns [(workload, engine, repetition, gap seconds)].
+    return [(r.get('workload'), r['engine'], r.get('repetition'), r['wall_seconds'] - r['cpu_seconds']) for r in rows
+            if str(r.get('engine')).startswith('xppautx') and len(r.get('pinned_cpus') or ()) == 1
+            and isinstance(r.get('wall_seconds'), (int, float)) and isinstance(r.get('cpu_seconds'), (int, float))
+            and r['wall_seconds'] - r['cpu_seconds'] > STALL_SECONDS]
 
 
 def before_series(a):

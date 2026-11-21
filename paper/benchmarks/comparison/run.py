@@ -18,6 +18,8 @@ timed rows to judge has no verdict of its own, so it stops nothing. The set-up's
 W829 (#910): while a timed unit runs, the CPU other processes used is measured from /proc (common.competing_record) and kept in
 the attempt's `.competing.json`. A unit whose competing CPU passes DISTURBED_CPU_FRACTION is disturbed: no verdict, no done or
 pass-1 record, run again once --ready passes; disturbed again, the series stops with the reason (DISTURBED_RUNS).
+W845 (#926): so is a unit with a stalled row (common.stalled_rows: a one-CPU xppautX row waiting off the CPU for more than STALL_SECONDS),
+which a few ms of competing CPU at a time leave under the unit-wide fraction.
 
 W830: a unit's verdict also compares each xppautX row with the same row of every other program in its attempt (XPPAUT, AUTO-07p,
 Python: W617's own times, never rerun). A row behind another program is reported (run.log, done.json's `against` and `behind`,
@@ -34,7 +36,7 @@ import sys
 import tempfile
 import time
 
-from common import BENCH, DONE, FOREIGN_ENTRY, FROM_SCRATCH, HERE, PASS1, PLAN, REPO, SHA_CACHE, STOPPED, STUDIES, TOOLS, competing_record, done_attempts, judge, machine_snapshot, module, physical_cores, save, sha, timed_rows, wait_until_ready
+from common import BENCH, DONE, FOREIGN_ENTRY, FROM_SCRATCH, HERE, PASS1, PLAN, REPO, SHA_CACHE, STOPPED, STALL_SECONDS, STUDIES, TOOLS, competing_record, done_attempts, judge, machine_snapshot, module, physical_cores, save, sha, stalled_rows, timed_rows, wait_until_ready
 
 LOG_TAIL = 40  # lines of a failed attempt's log kept in its failure.json
 DISTURBED_RUNS = 2  # W829: a disturbed run is run again once --ready passes; this many disturbed runs in a row stop the series (never a loop)
@@ -272,6 +274,11 @@ class Run:
             tail = log.read_text(errors='replace').splitlines()[-LOG_TAIL:]
             save(attempt.with_suffix('.failure.json'), dict(unit=unit, exit_code=code, command=argv, log_tail=tail))
             return 'failed', None, competing
+        if competing is not None:
+            stalled = stalled_rows(json.loads((attempt / 'runs.json').read_text())) if (attempt / 'runs.json').exists() else []
+            if stalled:  # W845: a stall inside the unit that W829's unit-wide fraction did not see disturbs it too
+                competing = dict(competing, verdict='disturbed', stalled=[dict(workload=w, engine=e, repetition=n, gap_seconds=g) for w, e, n, g in stalled])
+                save(attempt.with_suffix('.competing.json'), competing)
         if competing is not None and competing['verdict'] == 'disturbed':
             return 'disturbed', None, competing  # W829: not judged, no record that a later run would read
         verdict = judge(attempt, self.reference(study, unit))  # W818: each unit against the same unit of the reference run
@@ -313,8 +320,11 @@ def run_unit(argv, log, timed):
 def disturbed_line(label, study, unit, competing):
     # A disturbed unit's line: the competing CPU it met, the bound, and the processes that used it (W829).
     named = ', '.join('%s %.1f s' % (p['name'], p['cpu_seconds']) for p in competing['processes']) or 'none named'
-    return ('%s %s/%s: disturbed: other processes used %.2f CPUs over %.1f s (bound %.2f CPUs): %s'
+    line = ('%s %s/%s: disturbed: other processes used %.2f CPUs over %.1f s (bound %.2f CPUs): %s'
             % (label, study, unit, competing['competing_fraction'], competing['wall_seconds'], competing['bound'], named))
+    stalled = competing.get('stalled')
+    return line + ('; %d row(s) stalled, the first %s repetition %s waited %.2f s off the CPU (bound %.2f s)'
+                   % (len(stalled), stalled[0]['engine'], stalled[0]['repetition'], stalled[0]['gap_seconds'], STALL_SECONDS) if stalled else '')
 
 
 def rows_to_run(todo):
