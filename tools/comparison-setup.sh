@@ -20,14 +20,16 @@
 #   --record    writes the machine record (CPU, governor, turbo, compilers, source hashes)
 #               to ROOT/provenance/machine-<UTC time>.json: copy it beside the results.
 #   --ready     run before each timed series: refuses unless the CPU governor is
-#               "performance" and no other process uses the CPU (the series needs the
-#               machine to itself); changing the governor is the maintainer's (root).
+#               "performance", the CPU package is cool (W850) and no other process uses
+#               the CPU (the series needs the machine to itself); changing the governor
+#               is the maintainer's (root).
 #   --hashes    prints the tree hash of reference/'s three trees (to update the pins).
 #
 # ROOT (default ~/xppautx-comparison) holds the builds and records, on the machine's own
 # disk; the sources are reference/ in this checkout. Nothing outside the checkout and
 # ROOT is written, and nothing is deleted.
 set -u
+COOL_PACKAGE_CELSIUS=50  # W850: --ready waits below this package temperature; the i7-11700F idles at 44-47 C (2026-11-21) and throttles to 800 MHz under the four-core autoX rows
 cd "$(dirname "$0")/.." || exit 1
 REPO=$(pwd)
 ROOT=$HOME/xppautx-comparison
@@ -293,6 +295,14 @@ do_ready() {
   local gov
   gov=$(cpu_files scaling_governor)
   [ "$gov" = performance ] || die "the CPU governor is '$gov', not performance. Set it (yours, root): sudo cpupower frequency-set -g performance   (or: echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor)"
+  # W850 (#931): a unit started on a warm CPU package throttles sooner (continuation/ode_mu26_blocked ran 4 s at 800 MHz twice, 2026-11-21):
+  # wait until the package is cool. A machine without x86_pkg_temp (macOS, a VM, another CPU) is not checked.
+  local zone temp
+  for zone in /sys/class/thermal/thermal_zone*; do
+    [ "$(cat "$zone/type" 2>/dev/null)" = x86_pkg_temp ] || continue
+    temp=$(( $(cat "$zone/temp") / 1000 ))
+    [ "$temp" -le "$COOL_PACKAGE_CELSIUS" ] || die "the CPU package is at ${temp} C, above ${COOL_PACKAGE_CELSIUS} C: let it cool and retry"
+  done
   # W439: recent load includes our just-completed series. Observe current
   # process CPU instead, so serial series can follow one another without a
   # minute-long cool-down. Lifetime ps %CPU cannot identify current activity.
@@ -317,7 +327,7 @@ for pid, fraction, name in busy:
     print('busy: PID %d %.1f%% %s' % (pid, 100*fraction, name))
 raise SystemExit(bool(busy))
 PY
-  echo "ready: governor performance, turbo $(turbo_state), no other process above 10% CPU"
+  echo "ready: governor performance, turbo $(turbo_state), CPU package at or below ${COOL_PACKAGE_CELSIUS} C, no other process above 10% CPU"
 }
 
 do_hashes() {
