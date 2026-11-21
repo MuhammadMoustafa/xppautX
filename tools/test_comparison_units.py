@@ -620,6 +620,19 @@ class Verdicts(unittest.TestCase):
         self.assertEqual([self.verdict(u) for u in 'abc'], ['same'] * 3)
 
 
+    def test_a_restart_with_the_same_binaries_runs_only_the_stopped_unit(self):
+        # W848 (#929): a and b were judged in pass 1 and a is done; b stopped the series in pass 2. The same binaries keep a's
+        # pass-1 and done records and every pass-1 verdict: only b runs again (both passes), then c (never done).
+        self.make_reference()
+        self.series(dict(a=self.SAME, b={'1': self.SAME, '5': [2.0, 0.02]}, c=self.SAME))
+        ran, message = self.series(self.ALL)
+        self.assertIsNone(message)
+        self.assertEqual([r.split()[0] for r in ran], ['b', 'b', 'c'])  # b's pass 1 and pass 2, then c's
+        self.assertEqual(json.loads((self.out / 'screen/a/done.json').read_text())['attempt'], 'attempt-001')
+        self.assertEqual([self.verdict(u) for u in 'abc'], ['same'] * 3)
+        self.assertIn('restart: the series stopped at a slower unit (screen/b)', (self.out / 'run.log').read_text())
+
+
 class AgainstPrograms(unittest.TestCase):
     # W830: judge also compares xppautX's fastest row with each other program's fastest row of the same attempt (W617's own
     # times, never rerun). Behind is reported in `against` and `behind`; the unit's verdict stays slower, faster, same or no reference.

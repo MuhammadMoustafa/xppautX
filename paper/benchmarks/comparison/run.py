@@ -10,7 +10,7 @@ earlier attempt as its --reuse, and goes on after a failure. Resuming a folder s
 W818: each unit with a reference (the --reuse folder's counted xppautX rows) gets a verdict, faster, same or slower, against it,
 written to run.log and the unit's done record. Pass 1 runs one repetition of those units (its pass1/ folder, never counted); pass 2
 runs the rest of every pending unit, and only when pass 1 has no slower unit. A slower unit ends the series (--keep-going goes on
-past it, to the end of pass 1); the next run of the folder starts again from its first unit.
+past it, to the end of pass 1); the next run of the folder runs the slower unit again, and every unit whose binaries changed (W848).
 
 W826: pass 1 runs each unit's set-up units (needs) before the unit, and they take part in pass 1 as well: a set-up unit with no
 timed rows to judge has no verdict of its own, so it stops nothing. The set-up's pass-1 folder is what the unit reads in pass 1.
@@ -362,16 +362,25 @@ def verdict_lines(label, study, unit, verdict):
     return lines
 
 
-def restart_after_stop(a):
+def restart_after_stop(a, binaries):
     # W818 (the maintainer, 2026-11-18): a series that stopped at a slower unit starts again from its first unit once the fix is in.
-    # The units done before the stop are not kept: their done and pass-1 records go (their attempts stay as history).
+    # W848 (#929): the stop names its slower units (stopped.json); their done and pass-1 records go (their attempts stay as history).
+    # Every other unit keeps its records and the binaries decide: pass1_current keeps a pass-1 verdict only for the binaries this run
+    # uses; a done record (pass 2 only runs after a clean pass 1, so a stop in pass 2 leaves the units before it done) is kept only for
+    # the same binaries too (it holds them), besides the plan's own check of the reuse keys. A fix that changes xppautX therefore
+    # runs every unit again from its first; a restart with the same binaries runs the stopped unit only.
     marker = a.out / STOPPED
     if not marker.exists():
         return
-    for record in list(a.out.glob('*/*/' + DONE)) + list(a.out.glob('*/*/' + PASS1)):
-        record.unlink()
+    slower = json.loads(marker.read_text())['slower']
+    for name in slower:
+        for record in (DONE, PASS1):
+            (a.out / name / record).unlink(missing_ok=True)
+    for record in a.out.glob('*/*/' + DONE):
+        if json.loads(record.read_text())['binaries'] != binaries:
+            record.unlink()
     marker.unlink()
-    note(a, 'restart: the series stopped at a slower unit; every unit runs again from its first')
+    note(a, 'restart: the series stopped at a slower unit (%s); it runs again, and so does any unit whose binaries changed' % ', '.join(slower))
 
 
 def run_pass(run, units, quick, slower, behind, failed, disturbed):
@@ -430,7 +439,7 @@ def main():
     failed, slower, behind, disturbed = [], [], [], []
     try:
         if not a.plan:
-            restart_after_stop(a)  # before the plan: a restarted series plans against no done record
+            restart_after_stop(a, run.binaries())  # before the plan: a restarted series plans against no done record
         studies = [s for s in STUDIES if not a.study or s in a.study]
         todo = {}
         for study in studies:

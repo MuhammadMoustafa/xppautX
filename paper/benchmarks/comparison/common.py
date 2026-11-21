@@ -668,7 +668,7 @@ STUDIES = ('terman', 'screen', 'modeldb', 'research', 'izhikevich', 'python', 'c
 DONE = 'done.json'
 PLAN = 'plan.json'
 PASS1 = 'pass1.json'  # W818: a unit's pass-1 verdict, kept with the binaries it was judged for (its pass1/ folder is never counted)
-STOPPED = 'stopped.json'  # W818: written when a series ends with a slower unit; the next run of the folder starts again from its first unit
+STOPPED = 'stopped.json'  # W818: written when a series ends with a slower unit; the next run runs the slower unit again, and every unit whose binaries changed (W848)
 
 
 def done_attempts(root, study):
