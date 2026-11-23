@@ -4857,11 +4857,14 @@ control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp,
   istop = 0;
   iap->istop = istop;
   (*pvli)(iap, rap, icp, dtm.data(), &ntst_plus_one, ups.data(), &ndim, p0.data(), p1.data(), par);
-  /* W858 (#939): the restart point's Floquet multipliers, computed from the pencil at the point as the tests compute them
-     at any point, and its stable count, before it is stored. The point's direction, determinant, stability (but its own)
-     and projection state are kept. */
+  /* W858 (#939): the restart point's Floquet multipliers and its stable count, before it is stored. A run restarting from a
+     stored point of the same orbit (a PD, TR or NS point, a Hopf start's exp(lambda T)) takes that point's values, which are
+     the same solution's; otherwise they are computed from the pencil at the point, as the tests compute them at any point. The
+     count and sign follow the one rule (orbit_stable_count). The point's direction, determinant, stability (but its own) and
+     projection state are kept. */
   const std::ptrdiff_t nins_at_restart = iap->nins;
-  if (xpp::problem_has_orbit_multipliers(iap->ips) && iap->isp != 0) {
+  if (xpp::problem_has_orbit_multipliers(iap->ips) && iap->isp != 0 &&
+      !xpp::autox_stability_first_applies(iap->run->stability, iap->ibr, 1)) {
     std::vector<double> saved_rldot(rldot.begin(), rldot.end()), saved_udotps(udotps.begin(), udotps.end());
     const double saved_det = rap->det;
     const auto homcont = iap->run->homcont;
@@ -4869,8 +4872,8 @@ control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp,
     const auto saved_failure = iap->run->jacobian_failure;
     std::ptrdiff_t refactor = 1, tangent = -1;
     double no_step = 0.;
-    // A start whose Newton matrix is singular at zero step (a homoclinic or forced start that is no solution) has
-    // no multipliers to take: that failure is not the run's, the run goes on and the point keeps its zeros.
+    // A start whose Newton matrix is singular at zero step has no pencil to take multipliers from: that failure is not
+    // the run's, the run goes on and the point keeps no values (the sign is then not known from its pencil).
     bool singular_start = false;
     // The factorization the run's next chord steps reuse is kept as it was: this solve's is for the multipliers only.
     const auto saved_work = iap->run->solve_boundary_work;
@@ -4890,14 +4893,19 @@ control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp,
       const std::ptrdiff_t orbit_ndim = orbit_floquet_multipliers(iap, p0.data(), p1.data(), ev.data());
       xpp::autox_stability_computed(iap->run->stability, iap->ibr, 1, {&ev[0].r, 2 * static_cast<std::size_t>(orbit_ndim)},
                                     xpp::AUTOX_STABILITY_PERIODIC);
-      xpp::autox_stability_first_takes_label(iap->run->stability, iap->ibr, 1);
-      iap->nins = orbit_stable_count(ev.data(), orbit_ndim);
     }
     rldot.assign(saved_rldot.begin(), saved_rldot.end());
     udotps.assign(saved_udotps.begin(), saved_udotps.end());
     rap->det = saved_det;
     iap->run->homcont = homcont;
     iap->isp = saved_isp;
+  }
+  if (xpp::problem_has_orbit_multipliers(iap->ips)) {
+    std::vector<double> re(iap->ndm), im(iap->ndm);
+    if (xpp::autox_stability_for(iap->run->stability, iap->ibr, 1, re, im)) {
+      for (std::ptrdiff_t i = 0; i < iap->ndm; ++i) ev[i].r = re[i], ev[i].i = im[i];
+      iap->nins = orbit_stable_count(ev.data(), iap->ndm);
+    }
   }
   store_diagram_boundary(iap, rap, par, icp, rldot.data(), &ntst_plus_one, ups.data(), udotps.data(),
 	 tm.data(), dtm.data(), thl, thu);

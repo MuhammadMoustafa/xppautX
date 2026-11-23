@@ -218,10 +218,40 @@ int autox_stability_run_start(AutoxStability &st, AutoxStabilityKind run, int is
     return has_first ? 1 : 0;
 }
 
+bool autox_stability_first_applies(const AutoxStability &st, int br, int pt)
+{
+    return st.has_first && std::abs(pt) == st.first.pt && (st.first.br == 0 || st.first.br == std::abs(br));
+}
+
 void autox_stability_first_takes_label(AutoxStability &st, int br, int pt)
 {
-    if (st.has_first && std::abs(pt) == st.first.pt && (st.first.br == 0 || st.first.br == std::abs(br)))
+    if (autox_stability_first_applies(st, br, pt))
         forget(st.computed);
+}
+
+void autox_stability_run_start_zero_amplitude(AutoxStability &st, double period, std::span<const double> evr, std::span<const double> evi)
+{
+    if (evr.empty() || evr.size() != evi.size() || !(period > 0)) return;
+    AutoxStability::Values &first = st.first;
+    try {
+        first.re.assign(evr.size(), 0.0);
+        first.im.assign(evr.size(), 0.0);
+        for (std::size_t i = 0; i < evr.size(); i++) {
+            const double modulus = xpp::math::hypot(evr[i], evi[i]);
+            if (!(modulus > 0)) { forget(first); return; }
+            // exp(T lambda) with lambda = log(e^lambda) = ln|z| + i arg z
+            const double growth = xpp::math::exp(period * xpp::math::log(modulus));
+            const double angle = period * xpp::math::atan2(evi[i], evr[i]);
+            first.re[i] = growth * xpp::math::cos(angle);
+            first.im[i] = growth * xpp::math::sin(angle);
+        }
+        first.pt = 1;
+        first.br = 0;
+        st.has_first = true;
+    } catch (...) {
+        forget(first);
+        st.has_first = false;
+    }
 }
 
 int autox_stability_for(const AutoxStability &st, int br, int pt, std::span<double> evr, std::span<double> evi)

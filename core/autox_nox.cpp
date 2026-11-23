@@ -367,8 +367,9 @@ xpp::Result<> open_autox(AutoxParts s, AutoxRun &run, int flg) /* compatible wit
 /* what a run continues, for autox_stability.h */
 static AutoxStabilityKind run_stability_kind(const AutoxParts &s, xpp::AutoxProblem ips, int isw)
 {
-  if(s.autox_state->two_param!=no_calculation||isw==2)return AUTOX_STABILITY_OTHER;
+  /* a two-parameter curve of periodic orbits (a PD, TR or NS curve) has the orbit's multipliers too */
   if(ips==xpp::AutoxProblem::Periodic)return AUTOX_STABILITY_PERIODIC;
+  if(s.autox_state->two_param!=no_calculation||isw==2)return AUTOX_STABILITY_OTHER;
   if(xpp::problem_is_steady_or_map(ips))return AUTOX_STABILITY_STEADY;
   return AUTOX_STABILITY_OTHER;
 }
@@ -391,6 +392,9 @@ static void stability_run_start(const AutoxParts &s, AutoxRun &run, xpp::AutoxPr
     return;
   }
   autox_stability_run_start(run.stability,run_stability_kind(s,ips,isw),isw,point_stability_kind(d),d->itp,d->evr,d->evi);
+  /* a periodic run from a Hopf point starts from the zero-amplitude orbit (autox_stability.h), over the Hopf point's period */
+  if(run_stability_kind(s,ips,isw)==AUTOX_STABILITY_PERIODIC&&point_stability_kind(d)==AUTOX_STABILITY_STEADY&&d->itp.kind==xpp::AutoxPointKind::Hopf)
+    autox_stability_run_start_zero_amplitude(run.stability,d->per,d->evr,d->evi);
 }
 
 static std::string autox_solution_key(long branch, long point, long type, long label)

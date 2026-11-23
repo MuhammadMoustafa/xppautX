@@ -11,12 +11,13 @@
    is stored (autox_evd.cpp addbif) autox_stability_for() gives its values only
    if they are that point's; otherwise the point was "not computed". autoX
    computes a run's first point when it stores it, a steady state's (a run's or a
-   branch's, store_first_point_algebraic) and a periodic orbit's
-   (control_boundary's restart, W858, #939), unless the first point is a start
-   whose Newton matrix is singular at zero step (no solution to take them from).
-   A run restarting from a stored label of the same kind (steady state to steady
-   state, periodic orbit to periodic orbit, one parameter both) keeps the label's
-   values for its first point (autox_stability_first_takes_label()).
+   branch's, store_first_point_algebraic) and a periodic orbit's (control_boundary's
+   restart, W858, #939): the same orbit's values where a stored point gives them (a
+   run restarting from a stored label of the same kind: steady to steady, periodic
+   to periodic, a two-parameter curve of orbits from its PD, TR or NS point), the
+   Floquet multipliers of a Hopf start's zero-amplitude orbit, exp(lambda T) of the
+   Hopf point's eigenvalues (autox_stability_run_start_zero_amplitude), and otherwise
+   the pencil's (its own).
 
    A failed step restores its predictor's old solution, and the MX endpoint
    takes that solution's retained stability (W341, #402).
@@ -83,6 +84,12 @@ int autox_stability_run_start(AutoxStability &st, AutoxStabilityKind run, int is
    ones just computed for it (store_first_point_algebraic): drops what was computed for point pt of branch br when
    the first point takes the label's values. */
 void autox_stability_first_takes_label(AutoxStability &st, int br, int pt);
+/* whether point pt of branch br takes the first point's record (autox_stability_run_start) */
+bool autox_stability_first_applies(const AutoxStability &st, int br, int pt);
+/* A periodic run from a Hopf point starts from a zero-amplitude orbit, the equilibrium itself over its period T: its
+   first point's Floquet multipliers are exp(lambda_i T) of the equilibrium's eigenvalues, which the Hopf point stores as
+   e^lambda (AUTOX_STABILITY_STEADY). Recorded as the run's first point (after autox_stability_run_start). */
+void autox_stability_run_start_zero_amplitude(AutoxStability &st, double period, std::span<const double> evr, std::span<const double> evi);
 
 /* the values of point pt of branch br (either sign) into evr/evi (equally long, filling n = their size):
    1 if they are that point's (computed for it, or the first point of a

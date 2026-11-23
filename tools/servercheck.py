@@ -1552,6 +1552,24 @@ def check_autox_first_point_stability():
         s.close()
 
 
+def check_autox_orbit_first_points():
+    """W858 (#939): a two-parameter curve of period doublings starts at the one-parameter cycle branch's PD point, the same
+    orbit: its first point takes that point's Floquet multipliers, as stored (not zeros, not a second computation)."""
+    d = autoxcompare.read_description(autoxcompare.BASE / 'hill_cycles_pd.json')
+    data = autoxcompare.compute(args.server, d, 1)[0]
+    rows = autoxcompare.diagram_rows(data)
+    label = [r for r in rows if r['calc'] == 'periodic' and r['itp'] == 'period_doubling']
+    curve = [r for r in rows if r['calc'] == 'period_doubling' and abs(int(r['ntot'])) == 1]
+    keys = sorted(k for k in rows[0] if k.startswith('evr'))
+    values = lambda r: [complex(float(r[k]), float(r['evi' + k[3:]])) for k in keys]
+    check('W858: a PD curve\'s first point has the multipliers of the PD point it starts at (the same orbit, not zeros)',
+          len(label) >= 1 and len(curve) >= 1 and any(z != 0 for z in values(curve[0]))
+          and all(abs(a - b) <= 1e-9 for a, b in zip(values(curve[0]), values(label[0]))),
+          '%s vs %s' % (str(values(label[0]) if label else None)[:160], str(values(curve[0]) if curve else None)[:160]))
+    check('W858: the PD curve\'s first point is stable exactly when its multipliers are inside the circle',
+          len(curve) >= 1 and (int(curve[0]['ntot']) < 0) == all(abs(z) <= 1 + 1e-5 for z in values(curve[0])), str(curve[:1])[:200])
+
+
 def check_autox_singular_pivot():
     s = Server(args.server, os.path.join(STOPS_DIR, 'autox_singular.odex'))
     try:
@@ -3551,7 +3569,7 @@ def check_options_panels():
 
 
 
-INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': check_autox_first_point_stability, 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -13749,6 +13767,7 @@ check_autox_restart_file_stops()
 check_autox_multiplier_note()
 check_autox_singular_pivot()
 check_autox_first_point_stability()
+check_autox_orbit_first_points()
 
 print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)
