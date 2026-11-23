@@ -82,3 +82,33 @@ gain: the 0.13 ms of the bisect's first step.
 - callgrind on the whole process shows MIR's code generator (about 12.6 M
   self instructions) in f1515877 and none in W617, but this includes startup and
   is not split from the run; its share of the steady row is unmeasured.
+
+## After W865
+
+W865 (#946) makes an overwriting keep a rename again (`install_run_file` calls
+`move_file`; the streamed copy stays for an append, and as the fallback when a
+rename fails). Same method as above: `autox.run` to `done` (RunClock) of the
+steady run, `taskset -c 0`, one thread, exact Jacobian, diagram events on; the
+package kept under 60 C between runs. Binaries: master `c8299dde` (the parent)
+and the W865 commit, built in the same worktree.
+
+Server syscalls of one steady run (`strace -f -c`, the server only, from start
+to exit):
+
+| Call | master | W865 |
+|---|---|---|
+| openat | 49 | 40 |
+| rename | 9 | 9 |
+| unlink | 8 | 5 |
+| read | 61 | 46 |
+
+Steady row, 20 alternating runs each, pinned:
+
+| Binary | Median | Min | Max |
+|---|---|---|---|
+| master | 1.72 ms | 1.66 ms | 1.84 ms |
+| W865 | 1.57 ms | 1.50 ms | 1.62 ms |
+
+About 0.15 ms per run, the 0.13 ms the bisect predicted. The rename count is
+unchanged: the move is the one rename the copy's commit made, so the saving is
+the temp file's create, the scratch file's reads and the extra unlinks.

@@ -11,6 +11,7 @@
 #include "model_load.h"
 #include "set_load.h"
 #include "xpp_fs.h"
+#include "autox_nox.h"
 #include <expected>
 #include <map>
 #include <memory>
@@ -27,6 +28,8 @@ class MemoryFileSystem final : public xpp::FileSystem {
 public:
     std::map<std::string, std::string> files;
     int sinks_committed = 0;
+    int moves = 0;
+    bool moves_refused = false; /* a rename that fails (across devices, say) */
 
     xpp::Result<std::string> read_range(std::string where, std::string_view path, std::size_t offset, std::size_t length) override
     {
@@ -64,6 +67,15 @@ public:
     }
     bool dir_writable(std::string_view) override { return true; }
     int remove_file(std::string_view path) override { return files.erase(std::string(path)) ? 0 : 1; }
+    xpp::Result<> move_file(std::string_view from, std::string_view to, const xpp::Place &) override
+    {
+        const auto it = files.find(std::string(from));
+        if (it == files.end() || moves_refused) return std::unexpected(xpp::Error{"save", "cannot be moved", xpp::Place{std::string(to)}});
+        files[std::string(to)] = std::move(it->second);
+        files.erase(it);
+        moves++;
+        return {};
+    }
     xpp::Result<std::string> make_temp_dir(std::string_view) override { return std::string("memory-temp"); }
     xpp::Result<std::optional<std::string>> read_model_state(std::string_view, std::string_view model_folder, std::string_view name, std::size_t) override
     {
@@ -154,5 +166,25 @@ TEST_CASE("test_fs")
     CHECK((*sink)->write("after").has_value());
     CHECK(memory.files["out.txt"] == "before");
     CHECK((*sink)->commit().has_value() && memory.files["out.txt"] == "after");
+
+    /* autoX's kept run file (W865): an overwrite is one move, so the scratch file is gone and no sink is committed */
+    memory.files["run.b"] = "new\n";
+    memory.files["session.b"] = "old\n";
+    CHECK(xpp::install_run_file(memory, "run.b", "session.b", false).has_value());
+    CHECK(memory.files["session.b"] == "new\n" && !memory.files.contains("run.b"));
+    CHECK(memory.moves == 1 && memory.sinks_committed == 1);
+
+    /* an append puts the run's bytes first, the older ones after them: streamed, no move, the run's file stays */
+    memory.files["run.b"] = "newer\n";
+    memory.files["session.b"] = "older\n";
+    CHECK(xpp::install_run_file(memory, "run.b", "session.b", true).has_value());
+    CHECK(memory.files["session.b"] == "newer\nolder\n" && memory.files.contains("run.b"));
+    CHECK(memory.moves == 1 && memory.sinks_committed == 2);
+
+    /* a move that fails (another device, say) falls back to the streamed copy: the file is in place all the same */
+    memory.files["run.b"] = "cross\n";
+    memory.moves_refused = true;
+    CHECK(xpp::install_run_file(memory, "run.b", "session.b", false).has_value());
+    CHECK(memory.files["session.b"] == "cross\n" && memory.moves == 1 && memory.sinks_committed == 3);
     TEST_REPORT("filesystem");
 }

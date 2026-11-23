@@ -97,6 +97,11 @@ Result<unsigned long long> LocalFileSystem::size_of(std::string_view path)
 
 bool LocalFileSystem::dir_writable(std::string_view dir) { return files::dir_writable(dir); }
 int LocalFileSystem::remove_file(std::string_view path) { return files::remove(path); }
+Result<> LocalFileSystem::move_file(std::string_view from, std::string_view to, const Place &at)
+{
+    if (files::replace_file(from, to) == 0) return {};
+    return std::unexpected(placed_at(files::write_error("save", to), at));
+}
 Result<std::string> LocalFileSystem::make_temp_dir(std::string_view model_folder) { return files::make_temp_dir(model_folder); }
 void LocalFileSystem::remove_temp_dir(std::string_view dir) { files::remove_temp_dir(dir); }
 bool LocalFileSystem::is_download(std::string_view path) { return files::is_download(path); }

@@ -13,7 +13,7 @@
    load_model; a Model keeps the reference it was loaded with (Model::fs) for the commands that read
    or write later. Never a global. Only what a caller needs is here: the inner rings read whole files
    (text or bytes), write through a Sink, and ask the questions a loader asks of the folders.
-   autoX's run files are streamed through Sinks as a run goes and copied into place in pieces when it ends (W739); the writers and exporters stream through it too (W740). */
+   autoX's run files are streamed through Sinks as a run goes and put in place when it ends: renamed over the session's file, or, when older bytes go behind them, streamed in front of them (W739, W865); the writers and exporters stream through it too (W740). */
 
 #include <cstddef>
 #include <functional>
@@ -110,6 +110,8 @@ public:
     virtual bool dir_writable(std::string_view dir) = 0;
     /* deletes the file path: 0 on success */
     virtual int remove_file(std::string_view path) = 0;
+    /* renames the file from to to, replacing to: one step, or the error naming the file (at as its place when it names one) */
+    virtual Result<> move_file(std::string_view from, std::string_view to, const Place &at) = 0;
     /* a scratch folder of its own, and removing it with what it holds. It is made in the model folder's
        `.xppautx/tmp` (the folder made when it is not there; the system's temp folder when model_folder is ""),
        and the error names the folder that cannot hold it, a read-only model folder included (W791) */

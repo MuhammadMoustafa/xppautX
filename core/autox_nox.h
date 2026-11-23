@@ -193,6 +193,9 @@ void close_autox(AutoxParts s, AutoxRun &run, int flag);
 void autox_flush(AutoxRun &run);
 /* the run's files complete: flushed and committed, so another run or the join can read them */
 Result<> autox_finish_files(AutoxRun &run);
+/* the run's file from put in place of dest (in_front false: an overwrite, renamed when it can be) or in front of dest's bytes (in_front
+   true: an append), through the file system, as a whole or not at all (close_autox's keep; tests/test_fs.cpp) */
+Result<> install_run_file(xpp::FileSystem &fs, const std::string &from, const std::string &dest, bool in_front);
 /* the run's start: the folder of the .b/.d/.s files must be writable, and the run gets a scratch folder whose files (fort.7, .8, .9)
    its numerics open as sinks they write through; flag OPEN_3 makes the session's .s file the run's restart data (fort.3,
    read by range, one solution at a time). An error when the folder is not writable or a file cannot be opened */

@@ -264,9 +264,13 @@ xpp::Result<> autox_finish_files(AutoxRun &run)
 }
 
 /* the file from (a run's, complete) put in place of the file dest (OVERWRITE), or in front of the bytes dest holds (APPEND: the new
-   run's lines first, the older runs' after them), as a whole or not at all; both are streamed, never held */
-static xpp::Result<> install_run_file(xpp::FileSystem &fs, const std::string &from, const std::string &dest, bool in_front)
+   run's lines first, the older runs' after them), as a whole or not at all. An overwrite is a rename (W865); when the rename
+   fails (the scratch folder and the session's files can be on two devices), and for an append, the file is streamed through a
+   sink, never held */
+xpp::Result<> install_run_file(xpp::FileSystem &fs, const std::string &from, const std::string &dest, bool in_front)
 {
+  if(!in_front||!fs.exists(dest))
+    if(auto moved=fs.move_file(from,dest,{});moved)return moved;
   auto sink=fs.open_sink(dest,true,{});
   if(!sink)return std::unexpected(sink.error());
   if(auto put=xpp::copy_into(fs,**sink,from);!put)return put;
