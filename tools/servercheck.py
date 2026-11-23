@@ -949,8 +949,33 @@ def check_autox_live_jobs():
         s.close()
 
 
+def check_autox_repeated_branches():
+    """W862 (#943): a cycle branch's end at a SNIC starts no equilibria already in the diagram. XPPAUT's demo lecar at Rinzel and
+    Ermentrout's class-I values (tests/autox/ml_follow_all_snic.json): the cycles from the equilibria's Hopf point end on the SNIC at
+    the equilibria's fold, which at newton.special_point_tolerance 1e-6 the same-point rule no longer calls the fold; the end lies on the
+    equilibria's branch, so the diagram keeps three branches (the equilibria's two directions, the cycles), each once, and a note says why."""
+    d = autoxcompare.read_description(autoxcompare.BASE / 'ml_follow_all_snic.json')
+    options = {k: v for k, v in d['runs'][0]['autox'].items()}
+    start = [dict(kind=kind, name=k, value=v) for group, kind in (('parameters', 'par'), ('initial_conditions', 'ic')) for k, v in d[group].items()]
+    for threads in (1, 'auto'):
+        s = jobs_session(d['model'], start, threads=None if threads == 'auto' else threads)
+        try:
+            autoxcompare.settle(s, d['runs'][0]['start']['settle'])
+            s.send(cmd='autox.run', kind='equilibrium', replace_diagram=False, **options)
+            evs, end = s.collect(jobs_done, timeout=300 * SLOW)
+            pts = jobs_diagram(evs)
+            notes = [n for n in jobs_notes(evs) if 'are not followed' in n]
+            check('W862: the equilibria through a SNIC end already on the diagram\'s equilibrium branch are not run again: three branches, each once (threads %s)' % threads,
+                  end.get('status') == 'ok' and sorted({abs(p[0]) for p in pts}) == [1, 2, 3] and len(pts) == 285, '%s, %d points' % (sorted({abs(p[0]) for p in pts}), len(pts)))
+            check('W862: one note says why no job follows the end (threads %s)' % threads,
+                  len(notes) == 1 and 'end of branch 3' in notes[0] and 'already holds' in notes[0], str(notes))
+        finally:
+            s.close()
+
+
 def check_autox_branch_jobs():
     check_autox_live_jobs()
+    check_autox_repeated_branches()
     s = jobs_session(LORENZ, LORENZ_START, env={'XPP_AUTOX_FAIL_CHILD_AT': '80'})
     try:  # the branch points' two branches fail at their 80th point, after their Hopf point (the 74th)
         s.send(cmd='autox.run', **LORENZ_RUN)

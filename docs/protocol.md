@@ -2101,7 +2101,10 @@ A run of branch jobs (W606) ends each job on its own. A job that fails (no conve
 solution, a job that cannot be set up) ends alone: its points are kept and still start the jobs they found, the others go on, and
 a `session.message` error says at once which job (the kind of its branches, the point it started from, the direction), how many
 points it had and why, with the option where there is one; the run ends ok and `autox.info`'s `notes` end with "autoX: K of M jobs
-ended early (the messages above say why)", counting only those. An error of the whole run (the diagram's limit, memory) stops every
+ended early (the messages above say why)", counting only those. A cycle branch's end at a SNIC or a Hopf point whose equilibria already lie on an equilibrium branch of the diagram starts no job (W862,
+[#943](https://github.com/MuhammadMoustafa/xppautX/issues/943)): `notes` then holds, before the counts, one line per end, "autoX: the equilibria
+through the end of branch N where the parameter is P are not followed: they are on an equilibrium branch the diagram already holds (within 8 times
+newton.special_point_tolerance = E of it)". An error of the whole run (the diagram's limit, memory) stops every
 job as Stop does, finished jobs and the points so far kept, the jobs joined, the error shown once (the command's own, as
 for one run). Stop (`run.stop`) keeps the finished jobs, lets the running ones keep their points, drops the queued ones and joins
 the rest; the `notes` then say "autoX stopped: F of M jobs finished, S stopped, N never started". The `autox.jobs` event

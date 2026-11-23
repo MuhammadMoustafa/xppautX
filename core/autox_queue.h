@@ -75,6 +75,11 @@ std::vector<AutoxJobStart> autox_end_claims(AutoxProblem ips, std::span<const Au
    none, and the same point by the rule of autox_ends.h at special_point_tolerance epss */
 bool autox_start_made(const AutoxJobStart &made, const AutoxJobStart &wanted, double epss);
 
+/* whether an equilibrium start (one a cycle branch's end gives: its equilibrium and parameter) lies on the branch of the
+   equilibria a finished job stored: within the same-point rule's tolerance of one of its segments, so a point between two
+   stored points, or off the fold the job found by the accuracy the end was located to, is on it too */
+bool autox_on_branch(std::span<const AutoxBufferedPoint> points, const AutoxJobStart &start, double epss);
+
 /* whether `wanted` runs the branch of `made` the other way round: the same problem, branch switch and point (as
    autox_start_made) in the opposite direction, both directions given. When made's branch closed on itself, wanted's
    is the same loop, so it is made too (a point that two branches found, each from its own, is one point) */

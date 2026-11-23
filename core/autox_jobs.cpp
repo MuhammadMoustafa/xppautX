@@ -315,6 +315,7 @@ bool made_by(const std::vector<const QueuedJob *> &kept, const AutoxJobStart &st
     if(autox_start_made(other->start,start,epss))return true;
     for(const AutoxJobStart &claim:other->made)
       if(autox_start_made(claim,start,epss))return true;
+    if(other->start.ips==AutoxProblem::SteadyState&&autox_on_branch(other->run->points,start,epss))return true;
   }
   return false;
 }
@@ -652,6 +653,18 @@ void make_found_jobs(Queue &q, QueuedJob &job)
   }
 }
 
+/* why no job follows the equilibria through a cycle branch's end the diagram already holds, one note per end, said at the join (a job that
+   was dropped and one never made are the same repeat, and the join's view does not depend on which finished first). `branch` is the
+   cycle branch's number in the diagram; the mutex is not needed, every job has ended */
+void note_repeated_ends(Queue &q, const QueuedJob &job, int branch, std::vector<std::string> &notes)
+{
+  for(const AutoxJobStart &start:autox_found_starts(job.start.ips,job.run->points,job.run->stop)){
+    if(start.equilibrium.empty()||start.sign.value_or(1)<0||!repeats(q.jobs,autox_child_key(job.key,start.point,false),start,nullptr,q.epss))continue;
+    notes.push_back(xpp::format("autoX: the equilibria through the end of branch {} where the parameter is {} are not followed: they are on an equilibrium branch the diagram already holds (within {} times newton.special_point_tolerance = {} of it)",
+                                branch,autox_number_text(start.id->parameters[0]),autox_number_text(autox_same_point_factor),autox_number_text(q.epss)));
+  }
+}
+
 /* a job that ended: its jobs are made, and the jobs after it in the join's order no longer wait on it (settled) */
 void expand(Queue &q, QueuedJob &job)
 {
@@ -872,6 +885,7 @@ Result<> autox_run_jobs(AutoxParts s, int iold, int isave)
   const std::string limit_text=autox_diagram_limit_message();
   bool diagram_full=false,wide_shown=false;
   int job_number=0; /* the jobs that keep their points, in the join's order: what the diagram's points name */
+  std::vector<std::string> repeated_notes; /* the repeated ends' notes (note_repeated_ends), in the join's order */
   std::vector<XppJoinedJob> joined; /* the same jobs with the branch their points carry: the autox.joined event */
   std::optional<std::pair<int,int>> last_stored; /* the last point of the diagram, which a stopped run reports */
   for(QueuedJob *queued:order){
@@ -927,7 +941,10 @@ Result<> autox_run_jobs(AutoxParts s, int iold, int isave)
     for(const auto &[path,kind,present]:{std::tuple{&run.outputs.branches,RunFile::branches,true},std::tuple{&run.outputs.solutions,RunFile::solutions,run.outputs.solutions_written},std::tuple{&run.outputs.diagnostics,RunFile::diagnostics,true}})
       if(present)
         if(auto numbered=renumber_file(*s.model().fs,run,*path,kind,mine,kind==RunFile::diagnostics||!cut?nullptr:&stored);!numbered&&!reported)reported=numbered.error();
-    if(!stored.empty())joined.push_back({job.key.path,stored.begin()->first}); /* one run, one branch: every point stored has it */
+    if(!stored.empty()){
+      joined.push_back({job.key.path,stored.begin()->first}); /* one run, one branch: every point stored has it */
+      note_repeated_ends(q,job,stored.begin()->first,repeated_notes);
+    }
     /* the next job numbers after this one's */
     moved.branch_offset=branches-moved.base_branch;
     moved.label_offset=labels-moved.base_label;
@@ -955,7 +972,7 @@ Result<> autox_run_jobs(AutoxParts s, int iold, int isave)
       case xpp::job::JobState::never_started: never_started++; break;
     }
   }
-  std::vector<std::string> notes; /* the jobs' counts, in autoX's output and the info strip's notes */
+  std::vector<std::string> notes=std::move(repeated_notes); /* the repeated ends, then the jobs' counts, in autoX's output and the info strip's notes */
   if(stopped)notes.push_back(xpp::format("autoX stopped: {} of {} jobs finished, {} stopped, {} never started",finished,ends.size(),stopped_jobs,never_started));
   if(early)notes.push_back(xpp::format("autoX: {} of {} jobs ended early (the messages above say why)",early,ends.size()));
   for(std::string &note:notes){

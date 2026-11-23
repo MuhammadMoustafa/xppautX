@@ -1,5 +1,7 @@
 /* The queue of found points (autox_queue.h, W605). */
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstdlib>
 #include <utility>
 #include <vector>
@@ -59,7 +61,45 @@ bool same_start(const AutoxJobStart &a, const AutoxJobStart &b, double epss)
     return a.id && b.id && a.ips == b.ips && a.isw == b.isw && autox_same_point(*a.id, *b.id, epss);
 }
 
+/* the largest ratio of |start - on the segment| to epss * (1 + |start|) over the parameters then the states, at the point of the
+   segment a to b nearest to the start in the (1 + |start|)-scaled coordinates */
+double segment_gap(const AutoxPointId &start, const DIAGRAM &a, const DIAGRAM &b, double epss)
+{
+    const std::size_t n = start.parameters.size(), count = n + start.states.size();
+    const auto coordinate = [&](std::size_t i) { /* the start's, a's and b's value of coordinate i: the parameters, then the states */
+        return i < n ? std::array<double, 3>{start.parameters[i], a.par[i], b.par[i]}
+                     : std::array<double, 3>{start.states[i - n], a.u0[i - n], b.u0[i - n]};
+    };
+    double along = 0, length = 0;
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto [at, from, to] = coordinate(i);
+        const double unit = 1 + std::abs(at);
+        along += (at - from) * (to - from) / (unit * unit);
+        length += (to - from) * (to - from) / (unit * unit);
+    }
+    const double t = length > 0 ? std::clamp(along / length, 0.0, 1.0) : 0;
+    double gap = 0;
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto [at, from, to] = coordinate(i);
+        gap = std::max(gap, std::abs(at - (from + t * (to - from))) / (epss * (1 + std::abs(at))));
+    }
+    return gap;
+}
+
 } // namespace
+
+bool autox_on_branch(std::span<const AutoxBufferedPoint> points, const AutoxJobStart &start, double epss)
+{
+    if (!start.id || start.ips != AutoxProblem::SteadyState || start.equilibrium.empty()) return false;
+    const AutoxPointId &at = *start.id;
+    const auto fits = [&](const DIAGRAM &p) { return p.ibr > 0 && p.par.size() == at.parameters.size() && p.u0.size() == at.states.size(); };
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        const DIAGRAM &a = points[i].point, &b = points[std::min(i + 1, points.size() - 1)].point; /* the last point is a segment of its own */
+        if (!fits(a) || !fits(b) || a.ibr != b.ibr) continue;
+        if (segment_gap(at, a, b, epss) <= autox_same_point_factor) return true;
+    }
+    return false;
+}
 
 std::vector<AutoxJobStart> autox_found_starts(AutoxProblem ips, std::span<const AutoxBufferedPoint> points, const AutoxStop &stop)
 {

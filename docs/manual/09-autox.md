@@ -451,6 +451,9 @@ While the jobs run, each job's points are drawn as they are stored, each job its
 A job that fails ends alone. Its points are kept, what it found before failing still starts its jobs, the other jobs go
 on, and a message says at once which job it was (the kind of its branches, the point it started from and the direction),
 how many points it had and why it ended; the run is not an error, and its notes end with "K of M jobs ended early".
+A start is not run when the diagram already holds it: the cycles of a branch that ends at a SNIC or at a Hopf point start the equilibria
+through that end, but when the end lies on an equilibrium branch the diagram holds (within the same-point tolerance of one of its segments),
+the run says so in a note, "the equilibria through the end of branch N ... are not followed", and each branch appears once.
 An error of the whole run (the diagram holds as many points as a session keeps, or memory runs out) ends every job as Stop
 does, keeps the finished jobs and the points so far, and is shown once. The diagram's points name the job that computed them,
 and a client shows how many jobs run, wait and have ended (the `autox.jobs` event).
