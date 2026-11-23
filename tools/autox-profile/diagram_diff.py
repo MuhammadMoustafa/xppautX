@@ -13,7 +13,7 @@ diagram the BINARY stores is compared with
 Prints one markdown table row per description and a total line. The default build gives all zeros
 (the baseline is its own output). Run it through tools/heavy.sh.
 """
-import argparse, csv, io, os, sys
+import argparse, csv, io, math, os, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -44,8 +44,9 @@ def points(data):
 
 
 def largest(a, b):
-    """the largest |x-y| / (1+|x|) of two lists of numbers"""
-    return max((abs(x - y) / (1 + abs(x)) for x, y in zip(a, b)), default=0.0)
+    """the largest |x-y| / (1+|x|) of two lists of numbers; two nan (an equilibrium's period, W858) agree, one nan is the worst"""
+    return max((0.0 if math.isnan(x) and math.isnan(y) else math.inf if math.isnan(x) or math.isnan(y) else abs(x - y) / (1 + abs(x))
+                for x, y in zip(a, b)), default=0.0)
 
 
 def against_baseline(name, data):
