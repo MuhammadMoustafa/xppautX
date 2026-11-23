@@ -50,6 +50,14 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
   responsive rules, light and dark) before a UI design is settled, and a card that changes
   what the page looks like is reviewed the same way, judged for UI and UX, not only by its
   checks (maintainer, 2026-11-07: "No blind acceptance without seeing the UI itself").
+- Mockups and what is kept of them (maintainer, 2026-11-23): a design that changes the page is shown on the real
+  page (CSS and a script injected through the DevTools protocol, real data and fonts, as
+  docs/studies/ui-review-2026-11-07 did); one the page has nothing of yet is drawn on a claude.ai design canvas (an
+  Artifact), where the maintainer looks and comments from any device. The repo keeps the record, in
+  docs/studies/ui-review-<date>/: JPEG pictures of the chosen design at each width, light and dark (one picture of
+  today against the chosen one may stay), and a README naming each decision and its card. A picture of a rejected
+  option is deleted once the decision is made, the sources (scripts, CSS, `.dc.html`) once the decision's cards
+  merge, and the canvas once its pictures are in the repo; the decision's Discussion links the folder.
 - A tiny edit (a few lines, a flag, a constant, a docs line, a driver tweak) is the
   coordinator's own: done and committed directly, gated by what it touches, with no
   card, issue or agent (maintainer, 2026-10-21). Cards are for real work.

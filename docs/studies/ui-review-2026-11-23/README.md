@@ -19,3 +19,6 @@ the Hopf point at 1.63, the fold of cycles at 9.06 and the SNIC at 0.27. It is n
 canvas, `view.html?f=AutoxView.dc.html`, from a local server or from Chrome started with `--allow-file-access-from-files`. The
 pictures were shot that way, in headless Chrome at a 2662 px wide window, then cropped. These files are not code to copy: each
 card builds its part in its owner (web2/src/ui, web2/src/plot).
+
+What stays follows AGENTS.md's mockup rule. Once a design is decided, the pictures here are replaced by pictures of the chosen
+design only. `mockup-sources/` and the canvas are deleted once W855, W859 and W863 merge.
