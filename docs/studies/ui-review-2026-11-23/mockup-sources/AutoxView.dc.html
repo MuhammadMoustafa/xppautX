@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>W859 autoX view after a run</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2563d6}a:hover{color:#1a56c8}
+</style>
+</helmet>
+<div style="width: 2662px; box-sizing: border-box; padding: 48px; background: #e4e4e4; font-family: Inter, system-ui, sans-serif; color: #232323; display: flex; flex-direction: column; gap: 40px">
+  <div style="display: flex; flex-direction: column; gap: 10px; max-width: 1560px">
+    <h1 style="margin: 0; font-size: 40px; font-weight: 700">W859 · The autoX view after a run: the diagram in view, the result said</h1>
+    <p style="margin: 0; font-size: 18px; line-height: 1.5; color: #444">pvn_slowfast_hcn after its three-run script (h up, h down, cycles), with the curve drawn schematically. Changes from today's view:
+    <br>• The plot keeps most of the height.
+    <br>• The run's end fits the axes to the new branches, and the note on the plot offers Undo.
+    <br>• The legend becomes one key line plus a branch list: one row per branch, named by its run, with its range, what it found (click a chip to grab that point) and why it stopped.
+    <br>• Output points are faint dots with no number. Special points carry their mark and code (W863's marks).
+    <br>The pointer is on the "cycles" row, so its branch is drawn thicker.</p>
+  </div>
+  <sc-for list="{{rows}}" as="row" hint-placeholder-count="2">
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <div style="font-size: 22px; font-weight: 600">{{row.name}}</div>
+    <div style="display: flex; gap: 64px; align-items: flex-start">
+      <sc-for list="{{row.frames}}" as="f" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="font-size: 15px; font-weight: 600; color: #555">{{f.label}}</div>
+        <div style="position: relative; width: {{f.w}}px; height: {{f.h}}px; overflow: hidden; border-radius: 10px; border: 1px solid #b8b8b8; background: {{f.t.bg}}; color: {{f.t.fg}}; font-size: 14px; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column">
+
+          <!-- title bar -->
+          <div style="height: 44px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: {{f.t.surface}}; border-bottom: 1px solid {{f.t.border}}">
+            <sc-if value="{{f.phone}}" hint-placeholder-val="{{false}}"><button style="height: 32px; padding: 0 10px; border: 1px solid {{f.t.border}}; border-radius: 6px; background: {{f.t.surface}}; color: {{f.t.fg}}; font: inherit">Menu</button></sc-if>
+            <span style="font-weight: 700">xppautX</span>
+            <span style="color: {{f.t.muted}}">pvn_slowfast_hcn</span>
+            <span style="flex: 1"></span>
+            <sc-if value="{{f.notPhone}}" hint-placeholder-val="{{true}}"><span style="color: {{f.t.muted}}">Table   Model   Help</span></sc-if>
+            <sc-if value="{{f.phone}}" hint-placeholder-val="{{false}}"><span style="color: {{f.t.muted}}">Tools</span></sc-if>
+          </div>
+          <sc-if value="{{f.notPhone}}" hint-placeholder-val="{{true}}">
+          <div style="height: 36px; flex: none; display: flex; align-items: center; gap: 18px; padding: 0 14px; background: {{f.t.surface}}; border-bottom: 1px solid {{f.t.border}}">
+            <span>File</span><span>Run</span><span>Analysis</span><span>Plot</span><span>Data</span><span>autoX</span><span>Windows</span><span>Help</span>
+          </div>
+          </sc-if>
+          <!-- view tabs -->
+          <div style="height: 36px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 14px; border-bottom: 1px solid {{f.t.border}}">
+            <span style="color: {{f.t.muted}}">main</span>
+            <span style="font-weight: 600; border-bottom: 2px solid {{f.t.accent}}; padding: 8px 0">diagram_1  ×</span>
+            <span style="color: {{f.t.muted}}">+</span>
+          </div>
+          <!-- autoX toolbar + key -->
+          <div style="flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 6px 12px; border-bottom: 1px solid {{f.t.border}}; background: {{f.t.surface}}">
+            <button style="height: 30px; padding: 0 12px; border-radius: 6px; border: none; background: {{f.t.accent}}; color: {{f.t.accentFg}}; font: inherit; font-weight: 600">Run…</button>
+            <button style="height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid {{f.t.border}}; background: {{f.t.surface}}; color: {{f.t.fg}}; font: inherit">Grab</button>
+            <button style="height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid {{f.t.border}}; background: {{f.t.surface}}; color: {{f.t.fg}}; font: inherit">Script</button>
+            <span style="flex: 1"></span>
+            <button style="height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid {{f.t.border}}; background: {{f.t.surface}}; color: {{f.t.fg}}; font: inherit">Fit</button>
+            <button aria-label="More" style="height: 30px; width: 34px; border-radius: 6px; border: 1px solid {{f.t.border}}; background: {{f.t.surface}}; color: {{f.t.fg}}; font: inherit">⋯</button>
+          </div>
+          <div style="flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 6px 12px; font-size: 12.5px; color: {{f.t.muted}}; border-bottom: 1px solid {{f.t.border}}">
+            <span style="display: inline-flex; align-items: center; gap: 5px"><svg width="22" height="8" aria-hidden="true"><line x1="0" y1="4" x2="22" y2="4" stroke="{{f.t.fg}}" stroke-width="2"></line></svg>stable</span>
+            <span style="display: inline-flex; align-items: center; gap: 5px"><svg width="22" height="8" aria-hidden="true"><line x1="0" y1="4" x2="22" y2="4" stroke="{{f.t.fg}}" stroke-width="2" stroke-dasharray="5 4"></line></svg>unstable</span>
+            <span style="display: inline-flex; align-items: center; gap: 5px"><svg width="12" height="12" aria-hidden="true"><rect width="12" height="12" rx="2" fill="{{f.t.steady}}"></rect></svg>steady</span>
+            <span style="display: inline-flex; align-items: center; gap: 5px"><svg width="12" height="12" aria-hidden="true"><rect width="12" height="12" rx="2" fill="{{f.t.periodic}}"></rect></svg>periodic</span>
+            <sc-for list="{{f.keyMarks}}" as="k" hint-placeholder-count="5">
+            <span style="display: inline-flex; align-items: center; gap: 4px"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="{{k.d}}" fill="{{k.fill}}" stroke="{{k.stroke}}" stroke-width="1.4"></path></svg><b style="color: {{f.t.fg}}; font-weight: 600">{{k.code}}</b> {{k.name}}</span>
+            </sc-for>
+          </div>
+
+          <!-- plot and branches -->
+          <div style="flex: 1; min-height: 0; display: flex; flex-direction: {{f.dir}}">
+            <div style="position: relative; flex: none; width: {{f.plotW}}px; height: {{f.plotH}}px; background: {{f.t.surface}}">
+              <div style="position: absolute; left: 46px; right: 14px; top: 14px; bottom: 30px">
+                <svg viewBox="0 0 1000 600" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible" role="img" aria-label="Bifurcation diagram of vs against hfix, schematic">
+                  <line x1="0" y1="560" x2="1000" y2="560" stroke="{{f.t.grid}}" vector-effect="non-scaling-stroke"></line>
+                  <line x1="0" y1="367" x2="1000" y2="367" stroke="{{f.t.grid}}" vector-effect="non-scaling-stroke"></line>
+                  <line x1="0" y1="174" x2="1000" y2="174" stroke="{{f.t.grid}}" vector-effect="non-scaling-stroke"></line>
+                  <line x1="299" y1="0" x2="299" y2="600" stroke="{{f.t.grid}}" vector-effect="non-scaling-stroke"></line>
+                  <line x1="639" y1="0" x2="639" y2="600" stroke="{{f.t.grid}}" vector-effect="non-scaling-stroke"></line>
+                  <line x1="980" y1="0" x2="980" y2="600" stroke="{{f.t.grid}}" vector-effect="non-scaling-stroke"></line>
+                  <path d="M300,473 L299,475" fill="none" stroke="{{f.t.steady}}" stroke-width="{{f.wSteady}}" vector-effect="non-scaling-stroke"></path>
+                  <path d="M300,473 C305,460 312,445 317,429" fill="none" stroke="{{f.t.steady}}" stroke-width="{{f.wSteady}}" vector-effect="non-scaling-stroke"></path>
+                  <path d="M317,429 C270,400 160,375 112,367" fill="none" stroke="{{f.t.steady}}" stroke-width="{{f.wSteady}}" stroke-dasharray="7 5" vector-effect="non-scaling-stroke"></path>
+                  <path d="M112,367 C200,350 330,325 410,313" fill="none" stroke="{{f.t.steady}}" stroke-width="{{f.wSteady}}" vector-effect="non-scaling-stroke"></path>
+                  <path d="M410,313 C600,290 850,268 980,259" fill="none" stroke="{{f.t.steady}}" stroke-width="{{f.wSteady}}" stroke-dasharray="7 5" vector-effect="non-scaling-stroke"></path>
+                  <path d="M410,313 C560,230 800,160 916,143" fill="none" stroke="{{f.t.periodic}}" stroke-width="{{f.wPeriodic}}" stroke-dasharray="7 5" vector-effect="non-scaling-stroke"></path>
+                  <path d="M916,143 C780,110 520,92 317,89" fill="none" stroke="{{f.t.periodic}}" stroke-width="{{f.wPeriodic}}" vector-effect="non-scaling-stroke"></path>
+                  <path d="M410,313 C590,350 790,385 916,398" fill="none" stroke="{{f.t.periodic}}" stroke-width="{{f.wPeriodic}}" stroke-dasharray="7 5" vector-effect="non-scaling-stroke"></path>
+                  <path d="M916,398 C740,410 480,425 317,429" fill="none" stroke="{{f.t.periodic}}" stroke-width="{{f.wPeriodic}}" vector-effect="non-scaling-stroke"></path>
+                </svg>
+                <sc-for list="{{outputDots}}" as="o" hint-placeholder-count="8">
+                <span style="position: absolute; left: {{o.x}}%; top: {{o.y}}%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: {{f.t.faint}}"></span>
+                </sc-for>
+                <sc-for list="{{f.marks}}" as="m" hint-placeholder-count="7">
+                <span style="position: absolute; left: {{m.x}}%; top: {{m.y}}%; width: 0; height: 0">
+                  <svg width="14" height="14" viewBox="0 0 12 12" style="position: absolute; left: -7px; top: -7px; overflow: visible" aria-hidden="true"><path d="{{m.d}}" fill="{{m.fill}}" stroke="{{m.stroke}}" stroke-width="1.4"></path></svg>
+                  <span style="position: absolute; left: {{m.dx}}px; top: {{m.dy}}px; font-size: 11.5px; font-weight: 600; white-space: nowrap; color: {{f.t.fg}}; text-shadow: 0 0 3px {{f.t.surface}}, 0 0 3px {{f.t.surface}}">{{m.code}}</span>
+                </span>
+                </sc-for>
+                <span style="position: absolute; left: 29.9%; top: 100%; margin: 6px 0 0 -4px; font-size: 11px; color: {{f.t.muted}}">0</span>
+                <span style="position: absolute; left: 63.9%; top: 100%; margin: 6px 0 0 -4px; font-size: 11px; color: {{f.t.muted}}">5</span>
+                <span style="position: absolute; left: 98%; top: 100%; margin: 6px 0 0 -8px; font-size: 11px; color: {{f.t.muted}}">10</span>
+                <span style="position: absolute; right: 0; top: 100%; margin: 18px 0 0; font-size: 11px; color: {{f.t.muted}}">hfix</span>
+                <span style="position: absolute; right: 100%; top: 93.3%; margin: -7px 6px 0 0; font-size: 11px; color: {{f.t.muted}}">−100</span>
+                <span style="position: absolute; right: 100%; top: 61.2%; margin: -7px 6px 0 0; font-size: 11px; color: {{f.t.muted}}">−50</span>
+                <span style="position: absolute; right: 100%; top: 29%; margin: -7px 6px 0 0; font-size: 11px; color: {{f.t.muted}}">0</span>
+                <span style="position: absolute; right: 100%; top: 0; margin: -4px 6px 0 0; font-size: 11px; color: {{f.t.muted}}">vs</span>
+              </div>
+              <div role="status" style="position: absolute; left: 56px; top: 10px; display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; border-radius: 999px; border: 1px solid {{f.t.border}}; background: {{f.t.surface}}; box-shadow: 0 1px 4px rgba(0,0,0,0.12); font-size: 12.5px">
+                <span>{{f.fitText}}</span>
+                <button style="height: 24px; padding: 0 8px; border-radius: 999px; border: none; background: {{f.t.s2}}; color: {{f.t.fg}}; font: inherit; font-weight: 600">Undo</button>
+              </div>
+            </div>
+
+            <div style="flex: 1; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; background: {{f.t.surface}}; border-left: {{f.panelBorderL}}; border-top: {{f.panelBorderT}}">
+              <div style="flex: none; display: flex; align-items: baseline; gap: 8px; padding: 10px 12px 8px; border-bottom: 1px solid {{f.t.border}}">
+                <h2 style="margin: 0; font-size: 14px; font-weight: 600">Branches</h2>
+                <span style="color: {{f.t.muted}}; font-size: 12.5px">3, from the script's 3 runs</span>
+                <span style="flex: 1"></span>
+                <span style="color: {{f.t.ok}}; font-size: 12.5px; font-weight: 600">Script done</span>
+              </div>
+              <sc-for list="{{f.branches}}" as="b" hint-placeholder-count="3">
+              <div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-bottom: 1px solid {{f.t.border}}; background: {{b.bg}}; box-shadow: inset 3px 0 0 {{b.edge}}">
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <button aria-label="Hide {{b.name}}" aria-pressed="true" style="width: 26px; height: 26px; padding: 0; display: grid; place-items: center; border: none; border-radius: 4px; background: transparent; color: {{f.t.muted}}">
+                    <svg width="16" height="12" viewBox="0 0 16 12" aria-hidden="true"><path d="M1 6 C3.5 1.5 12.5 1.5 15 6 C12.5 10.5 3.5 10.5 1 6 Z" fill="none" stroke="currentColor" stroke-width="1.4"></path><circle cx="8" cy="6" r="2" fill="currentColor"></circle></svg>
+                  </button>
+                  <svg width="20" height="8" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" stroke="{{b.color}}" stroke-width="3"></line></svg>
+                  <span style="font-weight: 600">{{b.name}}</span>
+                  <span style="color: {{f.t.muted}}; font-size: 12.5px">{{b.kind}}</span>
+                  <span style="flex: 1"></span>
+                  <span style="font-size: 12.5px; font-variant-numeric: tabular-nums; color: {{f.t.muted}}; white-space: nowrap">{{b.range}}</span>
+                </div>
+                <sc-if value="{{b.hasChips}}" hint-placeholder-val="{{true}}">
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; padding-left: 34px">
+                  <sc-for list="{{b.chips}}" as="c" hint-placeholder-count="2">
+                  <button style="display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 999px; border: 1px solid {{f.t.border}}; background: {{f.t.s2}}; color: {{f.t.fg}}; font: inherit; font-size: 12.5px; font-variant-numeric: tabular-nums">
+                    <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="{{c.d}}" fill="{{c.fill}}" stroke="{{f.t.fg}}" stroke-width="1.4"></path></svg>
+                    <b style="font-weight: 600">{{c.code}}</b> {{c.at}}
+                  </button>
+                  </sc-for>
+                </div>
+                </sc-if>
+                <div style="padding-left: 34px; font-size: 12.5px; line-height: 1.45; color: {{f.t.muted}}">{{b.stop}}</div>
+              </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- status strip -->
+          <div style="height: 30px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-top: 1px solid {{f.t.border}}; background: {{f.t.surface}}; font-size: 12.5px; color: {{f.t.muted}}; white-space: nowrap; overflow: hidden">
+            <span style="color: {{f.t.ok}}; font-weight: 600">Done</span>
+            <span style="overflow: hidden; text-overflow: ellipsis">{{f.statusText}}</span>
+            <span style="flex: 1"></span>
+            <sc-if value="{{f.notPhone}}" hint-placeholder-val="{{true}}"><span>Output (52)</span></sc-if>
+          </div>
+        </div>
+      </div>
+      </sc-for>
+    </div>
+  </div>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2662,"height":2590}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = { bg: '#f7f7f7', surface: '#ffffff', s2: '#f0f0f0', border: '#d9d9d9', field: '#838383', fg: '#232323', muted: '#5b5b5b',
+      grid: '#e9e9e9', faint: '#b9b9b9', accent: '#2563d6', accentFg: '#ffffff', ok: '#2b8a3e', hover: '#f2f6fd',
+      steady: '#c92a2a', periodic: '#2b8a3e' };
+    const dark = { bg: '#121212', surface: '#1b1b1b', s2: '#282828', border: '#3a3a3a', field: '#747474', fg: '#ebebeb', muted: '#acacac',
+      grid: '#2c2c2c', faint: '#5e5e5e', accent: '#6aa5ff', accentFg: '#0b1220', ok: '#69db7c', hover: '#1f2633',
+      steady: '#ff6b6b', periodic: '#69db7c' };
+    const SH = {
+      triangle: 'M6 1.2 L11 10.4 L1 10.4 Z',
+      circle: 'M6 1.5 A4.5 4.5 0 1 1 5.99 1.5 Z',
+      bar: 'M4.8 0 H7.2 V12 H4.8 Z',
+    };
+    const sizes = [
+      { key: 'phone', w: 390, h: 844, label: '390 × 844 · phone: plot, then the branch list' },
+      { key: 'mid', w: 768, h: 1024, label: '768 × 1024 · tablet: the branch list under the plot' },
+      { key: 'wide', w: 1280, h: 800, label: '1280 × 800 · desktop: the branch list beside the plot' },
+    ];
+    const frame = (s, t) => {
+      const phone = s.key === 'phone', wide = s.key === 'wide';
+      const hollow = t.surface;
+      const marks = [
+        { x: 29.9, y: 79.2, d: SH.bar, fill: t.fg, stroke: t.fg, code: 'EP', dx: -24, dy: -2 },
+        { x: 31.7, y: 71.5, d: SH.triangle, fill: t.fg, stroke: t.fg, code: 'LP', dx: 9, dy: -2 },
+        { x: 11.2, y: 61.2, d: SH.triangle, fill: t.fg, stroke: t.fg, code: 'LP', dx: -8, dy: 9 },
+        { x: 41, y: 52.2, d: SH.circle, fill: t.fg, stroke: t.fg, code: 'AH', dx: -6, dy: 9 },
+        { x: 98, y: 43.2, d: SH.bar, fill: t.fg, stroke: t.fg, code: 'EP', dx: -22, dy: -18 },
+        { x: 91.6, y: 23.9, d: SH.triangle, fill: hollow, stroke: t.fg, code: 'LPC', dx: -30, dy: -18 },
+        { x: 91.6, y: 66.3, d: SH.triangle, fill: hollow, stroke: t.fg, code: 'LPC', dx: -30, dy: 8 },
+        { x: 31.7, y: 14.9, d: SH.bar, fill: t.fg, stroke: t.fg, code: 'SNIC', dx: 8, dy: -18 },
+      ];
+      const keyMarks = [
+        { d: SH.triangle, fill: t.fg, stroke: t.fg, code: 'LP', name: 'fold' },
+        { d: SH.circle, fill: t.fg, stroke: t.fg, code: 'AH', name: 'Hopf' },
+        { d: SH.triangle, fill: hollow, stroke: t.fg, code: 'LPC', name: 'fold of cycles' },
+        { d: SH.bar, fill: t.fg, stroke: t.fg, code: 'SNIC', name: '' },
+        { d: SH.bar, fill: t.fg, stroke: t.fg, code: 'EP', name: 'end' },
+      ];
+      const branches = [
+        { name: 'h up', kind: 'equilibria', range: 'hfix −2.73 … 10', color: t.steady, hover: false,
+          chips: [{ d: SH.triangle, fill: t.fg, code: 'LP', at: '0.2701' }, { d: SH.triangle, fill: t.fg, code: 'LP', at: '−2.731' }, { d: SH.circle, fill: t.fg, code: 'AH', at: '1.630' }],
+          stop: 'Stopped at hfix = 10, the highest limit you set. The AH point starts periodic orbits: run "cycles", or Run… from AH.' },
+        { name: 'h down', kind: 'equilibria', range: 'hfix 0 … 0.024', color: t.steady, hover: false, chips: [],
+          stop: 'Stopped at hfix = 0, the lowest limit you set. Nothing found on the way.' },
+        { name: 'cycles', kind: 'periodic, from AH 1.630', range: 'hfix 0.27 … 9.06', color: t.periodic, hover: true,
+          chips: [{ d: SH.triangle, fill: hollow, code: 'LPC', at: '9.060' }, { d: SH.bar, fill: t.fg, code: 'SNIC', at: '0.27' }],
+          stop: 'Stopped at a SNIC, hfix = 0.27: the period grew without bound at the fold LP.' },
+      ].map(b => ({ ...b, hasChips: b.chips.length > 0, bg: b.hover ? t.hover : 'transparent', edge: b.hover ? t.periodic : 'transparent' }));
+      const topH = phone ? 44 + 36 + 42 + 50 : 44 + 36 + 36 + 42 + 28;
+      const mainH = s.h - topH - 30 - 2;
+      const plotW = wide ? 900 : s.w - 2;
+      const plotH = wide ? mainH : phone ? 330 : 520;
+      return {
+        key: s.key, w: s.w, h: s.h, label: s.label, t, phone, notPhone: !phone,
+        dir: wide ? 'row' : 'column', plotW, plotH,
+        panelBorderL: wide ? '1px solid ' + t.border : 'none',
+        panelBorderT: wide ? 'none' : '1px solid ' + t.border,
+        wSteady: 2.5, wPeriodic: 4.5,
+        marks, keyMarks, branches,
+        fitText: phone ? 'Fitted to the new branches' : 'Fitted to the 3 new branches (hfix −3 … 10)',
+        statusText: phone ? 'Script: 3 runs, 3 branches' : 'Script: 3 runs, 3 branches, 1921 points. cycles stopped at a SNIC (hfix = 0.27)',
+      };
+    };
+    return {
+      rows: [
+        { name: 'Light', frames: sizes.map(s => frame(s, light)) },
+        { name: 'Dark', frames: sizes.map(s => frame(s, dark)) },
+      ],
+      outputDots: [
+        { x: 20, y: 59.6 }, { x: 56, y: 49.3 }, { x: 76, y: 46.2 }, { x: 64, y: 32 }, { x: 70, y: 19.8 },
+        { x: 48, y: 16 }, { x: 64, y: 62 }, { x: 60, y: 69.8 }, { x: 26, y: 64.5 }, { x: 88, y: 44.8 },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

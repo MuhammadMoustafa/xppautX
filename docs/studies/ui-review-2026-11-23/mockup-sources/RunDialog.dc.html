@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>W855 autoX Run dialog</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2563d6}a:hover{color:#1a56c8}
+</style>
+</helmet>
+<div style="width: 2662px; box-sizing: border-box; padding: 48px; background: #e4e4e4; font-family: Inter, system-ui, sans-serif; color: #232323; display: flex; flex-direction: column; gap: 40px">
+  <div style="display: flex; flex-direction: column; gap: 10px; max-width: 1500px">
+    <h1 style="margin: 0; font-size: 40px; font-weight: 700">W855 · autoX Run: a dialog for a user, not the registry's form</h1>
+    <p style="margin: 0; font-size: 18px; line-height: 1.5; color: #444">The dialog asks in the order a user thinks. First where to start, then what to compute, then the parameter and its range. The kinds offered are the ones the chosen start allows. The numerics are one collapsed group, prefilled with the values in force. Fields that apply to one kind only show for that kind. This frame starts from AH 3 (Hopf, hfix = 1.63) in pvn_slowfast_hcn. At 1280 px the numerics are shown open, so you can see what the group holds.</p>
+  </div>
+  <sc-for list="{{rows}}" as="row" hint-placeholder-count="2">
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <div style="font-size: 22px; font-weight: 600">{{row.name}}</div>
+    <div style="display: flex; gap: 64px; align-items: flex-start">
+      <sc-for list="{{row.frames}}" as="f" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="font-size: 15px; font-weight: 600; color: #555">{{f.label}}</div>
+        <div style="position: relative; width: {{f.w}}px; height: {{f.h}}px; overflow: hidden; border-radius: 10px; border: 1px solid #b8b8b8; background: {{f.t.bg}}; color: {{f.t.fg}}; color-scheme: {{f.t.scheme}}; font-size: 14px; font-family: Inter, system-ui, sans-serif">
+
+          <!-- the page behind, dimmed -->
+          <div style="position: absolute; inset: 0; display: flex; flex-direction: column">
+            <div style="height: 44px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: {{f.t.surface}}; border-bottom: 1px solid {{f.t.border}}">
+              <sc-if value="{{f.phone}}" hint-placeholder-val="{{false}}"><span style="font-weight: 600">Menu</span></sc-if>
+              <span style="font-weight: 700">xppautX</span>
+              <span style="color: {{f.t.muted}}">pvn_slowfast_hcn</span>
+              <span style="flex: 1"></span>
+              <span style="color: {{f.t.muted}}">Tools</span>
+            </div>
+            <sc-if value="{{f.notPhone}}" hint-placeholder-val="{{true}}">
+            <div style="height: 36px; flex: none; display: flex; align-items: center; gap: 18px; padding: 0 14px; background: {{f.t.surface}}; border-bottom: 1px solid {{f.t.border}}; color: {{f.t.fg}}">
+              <span>File</span><span>Run</span><span>Analysis</span><span>Plot</span><span>Data</span><span>autoX</span><span>Windows</span><span>Help</span>
+            </div>
+            </sc-if>
+            <div style="height: 36px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 14px; border-bottom: 1px solid {{f.t.border}}">
+              <span style="color: {{f.t.muted}}">main</span>
+              <span style="font-weight: 600; border-bottom: 2px solid {{f.t.accent}}; padding: 8px 0">diagram_1</span>
+              <span style="color: {{f.t.muted}}">+</span>
+            </div>
+            <div style="flex: 1; position: relative; background: {{f.t.surface}}">
+              <svg viewBox="0 0 1000 600" preserveAspectRatio="none" style="position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px)" aria-hidden="true">
+                <path d="M60,541 C200,520 330,490 383,429" fill="none" stroke="{{f.t.steady}}" stroke-width="3"></path>
+                <path d="M383,429 C330,395 250,375 199,367" fill="none" stroke="{{f.t.steady}}" stroke-width="3" stroke-dasharray="10 8"></path>
+                <path d="M199,367 C280,350 400,325 467,313" fill="none" stroke="{{f.t.steady}}" stroke-width="3"></path>
+                <path d="M467,313 C650,290 850,268 980,259" fill="none" stroke="{{f.t.steady}}" stroke-width="3" stroke-dasharray="10 8"></path>
+                <path d="M467,313 C600,230 820,160 922,143" fill="none" stroke="{{f.t.periodic}}" stroke-width="3" stroke-dasharray="10 8"></path>
+                <path d="M922,143 C800,110 560,92 383,89" fill="none" stroke="{{f.t.periodic}}" stroke-width="3"></path>
+                <path d="M467,313 C620,350 800,385 922,398" fill="none" stroke="{{f.t.periodic}}" stroke-width="3" stroke-dasharray="10 8"></path>
+                <path d="M922,398 C760,410 520,425 383,429" fill="none" stroke="{{f.t.periodic}}" stroke-width="3"></path>
+                <circle cx="467" cy="313" r="9" fill="{{f.t.fg}}"></circle>
+              </svg>
+            </div>
+          </div>
+          <div style="position: absolute; inset: 0; background: {{f.t.scrim}}"></div>
+
+          <!-- the dialog -->
+          <div role="dialog" aria-label="Run continuation" style="position: absolute; left: {{f.dlgLeft}}px; top: {{f.dlgTop}}px; width: {{f.dlgW}}px; height: {{f.dlgH}}px; display: flex; flex-direction: column; background: {{f.t.surface}}; border-radius: {{f.radius}}px; box-shadow: {{f.t.shadow}}; overflow: hidden">
+            <div style="flex: none; display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid {{f.t.border}}">
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 600">Run continuation</h2>
+                <p style="margin: 0; color: {{f.t.muted}}; line-height: 1.45">Follow a branch of solutions while a parameter changes.</p>
+              </div>
+              <button aria-label="Close" style="width: 32px; height: 32px; border: none; background: transparent; color: {{f.t.muted}}; font: inherit; font-size: 20px; cursor: pointer">×</button>
+            </div>
+
+            <div style="flex: 1; min-height: 0; overflow: hidden; padding: 16px 20px; display: grid; grid-template-columns: {{f.bodyCols}}; gap: 20px 28px; align-content: start">
+             <div style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+
+              <!-- 1 start -->
+              <section style="display: flex; flex-direction: column; gap: 10px">
+                <h3 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: {{f.t.muted}}">1 · Start from</h3>
+                <label style="display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; border: 1px solid {{f.t.accent}}; background: {{f.t.accentSoft}}">
+                  <input type="radio" name="start-{{f.key}}"checked style="margin: 3px 0 0; accent-color: {{f.t.accent}}">
+                  <span style="flex: 1; display: flex; flex-direction: column; gap: 8px">
+                    <span style="font-weight: 600">A labelled point in the diagram</span>
+                    <select style="width: 100%; height: 34px; padding: 0 8px; border-radius: 6px; border: 1px solid {{f.t.field}}; background: {{f.t.surface}}; color: {{f.t.fg}}; font: inherit">
+                      <option>AH 3 · Andronov–Hopf · hfix = 1.630 · branch 1 (h up)</option>
+                    </select>
+                    <span style="color: {{f.t.muted}}; font-size: 13px">The grabbed point is chosen for you. Click any label on the plot to choose another.</span>
+                  </span>
+                </label>
+                <label style="display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; border: 1px solid {{f.t.border}}">
+                  <input type="radio" name="start-{{f.key}}"style="margin: 3px 0 0">
+                  <span style="display: flex; flex-direction: column; gap: 2px">
+                    <span style="font-weight: 600">The current state</span>
+                    <span style="color: {{f.t.muted}}; font-size: 13px">The Values' initial conditions and parameters, as a steady state</span>
+                  </span>
+                </label>
+              </section>
+
+              <!-- 2 compute -->
+              <section style="display: flex; flex-direction: column; gap: 10px">
+                <h3 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: {{f.t.muted}}">2 · Compute</h3>
+                <div style="display: grid; grid-template-columns: {{f.kindCols}}; gap: 8px">
+                  <label style="display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; border: 1px solid {{f.t.accent}}; background: {{f.t.accentSoft}}">
+                    <input type="radio" name="kind-{{f.key}}"checked style="margin: 3px 0 0; accent-color: {{f.t.accent}}">
+                    <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">Periodic orbits</span><span style="color: {{f.t.muted}}; font-size: 13px">The cycles born at this Hopf point</span></span>
+                  </label>
+                  <label style="display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; border: 1px solid {{f.t.border}}">
+                    <input type="radio" name="kind-{{f.key}}"style="margin: 3px 0 0">
+                    <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">Equilibria</span><span style="color: {{f.t.muted}}; font-size: 13px">The steady states through this point</span></span>
+                  </label>
+                  <label style="display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; border: 1px solid {{f.t.border}}">
+                    <input type="radio" name="kind-{{f.key}}"style="margin: 3px 0 0">
+                    <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">Hopf curve</span><span style="color: {{f.t.muted}}; font-size: 13px">How the Hopf point moves with a second parameter</span></span>
+                  </label>
+                </div>
+                <p style="margin: 0; color: {{f.t.muted}}; font-size: 13px; line-height: 1.45">Only the kinds a Hopf point can start are offered. Homoclinic orbits start from a long-period orbit, and torus curves from a TR label.</p>
+              </section>
+
+             </div>
+             <div style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+              <!-- 3 parameter -->
+              <section style="display: flex; flex-direction: column; gap: 10px">
+                <h3 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: {{f.t.muted}}">3 · Parameter</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center">
+                  <label for="p-{{f.key}}" style="flex: 0 0 {{f.labelW}}; font-weight: 500">Parameter</label>
+                  <select id="p-{{f.key}}" style="flex: 1 1 10rem; height: 34px; padding: 0 8px; border-radius: 6px; border: 1px solid {{f.t.field}}; background: {{f.t.surface}}; color: {{f.t.fg}}; font: inherit"><option>hfix</option></select>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center">
+                  <span style="flex: 0 0 {{f.labelW}}; font-weight: 500">Direction</span>
+                  <div role="radiogroup" aria-label="Direction" style="flex: 1 1 14rem; display: flex; border: 1px solid {{f.t.field}}; border-radius: 6px; overflow: hidden">
+                    <button style="flex: 1; height: 34px; border: none; background: {{f.t.accent}}; color: {{f.t.accentFg}}; font: inherit; font-weight: 600">Increase</button>
+                    <button style="flex: 1; height: 34px; border: none; border-left: 1px solid {{f.t.field}}; background: {{f.t.surface}}; color: {{f.t.fg}}; font: inherit">Decrease</button>
+                    <button style="flex: 1; height: 34px; border: none; border-left: 1px solid {{f.t.field}}; background: {{f.t.surface}}; color: {{f.t.fg}}; font: inherit">Both</button>
+                  </div>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center">
+                  <span style="flex: 0 0 {{f.labelW}}; font-weight: 500">Stop outside</span>
+                  <div style="flex: 1 1 14rem; display: flex; gap: 8px; align-items: center">
+                    <input aria-label="Lowest hfix" value="-5" style="width: 0; flex: 1; height: 34px; padding: 0 8px; border-radius: 6px; border: 1px solid {{f.t.field}}; background: {{f.t.surface}}; color: {{f.t.fg}}; font: inherit; font-variant-numeric: tabular-nums">
+                    <span style="color: {{f.t.muted}}">≤ hfix ≤</span>
+                    <input aria-label="Highest hfix" value="10" style="width: 0; flex: 1; height: 34px; padding: 0 8px; border-radius: 6px; border: 1px solid {{f.t.field}}; background: {{f.t.surface}}; color: {{f.t.fg}}; font: inherit; font-variant-numeric: tabular-nums">
+                  </div>
+                </div>
+              </section>
+
+              <!-- 4 branches -->
+              <section style="display: flex; flex-direction: column; gap: 10px">
+                <h3 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: {{f.t.muted}}">4 · Branches</h3>
+                <label style="display: flex; gap: 10px; align-items: flex-start">
+                  <input type="checkbox" checked style="margin: 3px 0 0; accent-color: {{f.t.accent}}">
+                  <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 500">Also follow the branches this run finds</span><span style="color: {{f.t.muted}}; font-size: 13px; line-height: 1.45">A Hopf point starts its periodic orbits, and a branch point starts the other branch. Each becomes a branch of its own.</span></span>
+                </label>
+                <label style="display: flex; gap: 10px; align-items: flex-start">
+                  <input type="checkbox" style="margin: 3px 0 0">
+                  <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 500">Clear the diagram first</span><span style="color: {{f.t.muted}}; font-size: 13px">Start a new diagram instead of adding to this one</span></span>
+                </label>
+              </section>
+
+              <!-- 5 numerics -->
+              <section style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid {{f.t.border}}; padding-top: 14px">
+                <button aria-expanded="{{f.wide}}" style="display: flex; align-items: center; gap: 8px; padding: 0; border: none; background: transparent; color: {{f.t.fg}}; font: inherit; text-align: left; cursor: pointer">
+                  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" style="transform: rotate({{f.chevron}}deg)"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  <span style="font-weight: 600">Numerics</span>
+                  <span style="color: {{f.t.muted}}; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{f.numSummary}}</span>
+                </button>
+                <sc-if value="{{f.wide}}" hint-placeholder-val="{{false}}">
+                <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px">
+                  <sc-for list="{{numGroups}}" as="g" hint-placeholder-count="5">
+                  <fieldset style="margin: 0; padding: 0; border: none; display: flex; flex-direction: column; gap: 6px">
+                    <legend style="padding: 0 0 4px; font-weight: 600; font-size: 13px; color: {{f.t.muted}}">{{g.name}}</legend>
+                    <sc-for list="{{g.fields}}" as="fld" hint-placeholder-count="2">
+                    <label style="display: flex; align-items: center; gap: 10px">
+                      <span style="flex: 1">{{fld.label}}</span>
+                      <input value="{{fld.value}}" style="width: 6rem; height: 30px; padding: 0 8px; border-radius: 6px; border: 1px solid {{f.t.field}}; background: {{f.t.surface}}; color: {{f.t.fg}}; font: inherit; font-variant-numeric: tabular-nums">
+                    </label>
+                    </sc-for>
+                  </fieldset>
+                  </sc-for>
+                </div>
+                <div style="color: {{f.t.muted}}; font-size: 13px">Values in force: the model's @ lines, then this session's changes. <a href="#">Restore the model's</a></div>
+                </sc-if>
+              </section>
+             </div>
+            </div>
+
+            <div style="flex: none; display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px; border-top: 1px solid {{f.t.border}}; background: {{f.t.surface}}">
+              <button style="height: 36px; padding: 0 16px; border-radius: 6px; border: 1px solid {{f.t.field}}; background: {{f.t.surface}}; color: {{f.t.fg}}; font: inherit; font-weight: 500">Cancel</button>
+              <button style="height: 36px; padding: 0 20px; border-radius: 6px; border: none; background: {{f.t.accent}}; color: {{f.t.accentFg}}; font: inherit; font-weight: 600">Run</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-for>
+    </div>
+  </div>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2662,"height":2510}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = { bg: '#f7f7f7', surface: '#ffffff', s2: '#f0f0f0', border: '#d9d9d9', field: '#838383', fg: '#232323', muted: '#5b5b5b',
+      accent: '#2563d6', accentFg: '#ffffff', accentSoft: '#eaf1fd', scrim: 'rgba(0,0,0,0.38)', shadow: '0 0.5rem 1.75rem rgba(0,0,0,0.18)',
+      steady: '#c92a2a', periodic: '#2b8a3e', scheme: 'light' };
+    const dark = { bg: '#121212', surface: '#1b1b1b', s2: '#282828', border: '#3a3a3a', field: '#747474', fg: '#ebebeb', muted: '#acacac',
+      accent: '#6aa5ff', accentFg: '#0b1220', accentSoft: '#1a2740', scrim: 'rgba(0,0,0,0.6)', shadow: '0 0.5rem 1.75rem rgba(0,0,0,0.55)',
+      steady: '#ff6b6b', periodic: '#69db7c', scheme: 'dark' };
+    const sizes = [
+      { key: 'phone', w: 390, h: 844, label: '390 × 844 · phone: a full-screen sheet, labels over fields' },
+      { key: 'mid', w: 768, h: 1024, label: '768 × 1024 · tablet: a dialog 40 rem wide' },
+      { key: 'wide', w: 1280, h: 800, label: '1280 × 800 · desktop: two columns, numerics opened to show the group' },
+    ];
+    const frame = (s, t, theme) => {
+      const phone = s.key === 'phone', wide = s.key === 'wide';
+      const dlgW = phone ? 390 : wide ? 1040 : 640;
+      const dlgH = phone ? 844 : s.h - 32;
+      return {
+        key: s.key + theme, w: s.w, h: s.h, label: s.label, t,
+        phone, notPhone: !phone, wide,
+        dlgW, dlgH, dlgLeft: phone ? 0 : Math.round((s.w - dlgW) / 2), dlgTop: phone ? 0 : 16, radius: phone ? 0 : 12,
+        kindCols: phone || wide ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
+        bodyCols: wide ? 'repeat(2, minmax(0, 1fr))' : 'minmax(0, 1fr)',
+        labelW: phone ? '100%' : '7.5rem',
+        chevron: wide ? 90 : 0,
+        numSummary: phone ? 'step 0.01 · 16000 points · mesh 50' : 'step 0.01 (1e-6 to 0.1) · at most 16000 points · mesh 50 × 4 · label every 20',
+      };
+    };
+    return {
+      rows: [
+        { name: 'Light', frames: sizes.map(s => frame(s, light, 'l')) },
+        { name: 'Dark', frames: sizes.map(s => frame(s, dark, 'd')) },
+      ],
+      numGroups: [
+        { name: 'Step', fields: [{ label: 'First step', value: '0.01' }, { label: 'Smallest step', value: '1e-6' }, { label: 'Largest step', value: '0.1' }] },
+        { name: 'Limits', fields: [{ label: 'Most points', value: '16000' }, { label: 'Largest norm', value: '100000' }] },
+        { name: 'Mesh', fields: [{ label: 'Intervals', value: '50' }, { label: 'Collocation points', value: '4' }] },
+        { name: 'Newton', fields: [{ label: 'Solution tolerance', value: '1e-6' }, { label: 'Special point tolerance', value: '1e-5' }, { label: 'Most iterations', value: '8' }] },
+        { name: 'Output', fields: [{ label: 'Label every', value: '20' }] },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

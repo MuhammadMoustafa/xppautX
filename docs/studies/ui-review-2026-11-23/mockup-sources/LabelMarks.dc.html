@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>W863 label marks</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2563d6}a:hover{color:#1a56c8}
+</style>
+</helmet>
+<div style="width: 2662px; box-sizing: border-box; padding: 48px; background: #e4e4e4; font-family: Inter, system-ui, sans-serif; color: #232323; display: flex; flex-direction: column; gap: 32px">
+  <div style="display: flex; flex-direction: column; gap: 10px; max-width: 1600px">
+    <h1 style="margin: 0; font-size: 40px; font-weight: 700">W863 · Every label type has its own mark</h1>
+    <p style="margin: 0; font-size: 18px; line-height: 1.5; color: #444">Today 27 types share 8 shapes. A triangle is LP, LPC, CP, LPNS or R2, and a bar is six different ends. Twenty-seven shapes nobody could remember would not help either. The proposal is one rule: the shape gives the kind of point, the fill says what it lies on, and the code is drawn beside every special point.
+    <br>• Filled means an equilibrium label and hollow means a cycle label: LP ▲ against LPC △, BP ◆ against BPC ◇.
+    <br>• A small square is a two-parameter (codimension-two) point, and its code names it.
+    <br>• A bar is where a branch ended, and its code says how (EP, SNIC, HOC, …).
+    <br>• Output points keep a faint dot with no number. The number shows on hover or Grab.
+    <br>The key lists only the types the diagram has. Marks and codes are the same at every width, so this sheet shows them once, in light and dark.</p>
+  </div>
+  <div style="display: flex; gap: 48px; align-items: flex-start">
+    <sc-for list="{{panels}}" as="p" hint-placeholder-count="2">
+    <div style="width: 1259px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px; padding: 24px; border-radius: 12px; border: 1px solid #b8b8b8; background: {{p.t.bg}}; color: {{p.t.fg}}">
+      <div style="font-size: 22px; font-weight: 600">{{p.name}}</div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+        <sc-for list="{{p.crops}}" as="c" hint-placeholder-count="2">
+        <figure style="margin: 0; display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 8px; border: 1px solid {{p.t.border}}; background: {{p.t.surface}}">
+          <figcaption style="font-weight: 600">{{c.title}} <span style="font-weight: 400; color: {{p.t.muted}}">{{c.sub}}</span></figcaption>
+          <svg viewBox="250 60 760 420" style="width: 100%; height: auto" role="img" aria-label="{{c.title}}: the HCN diagram's fold and fold of cycles">
+            <path d="M300,473 C305,460 312,445 317,429" fill="none" stroke="{{p.t.steady}}" stroke-width="3.5"></path>
+            <path d="M317,429 C270,400 160,375 112,367" fill="none" stroke="{{p.t.steady}}" stroke-width="3.5" stroke-dasharray="9 7"></path>
+            <path d="M112,367 C200,350 330,325 410,313" fill="none" stroke="{{p.t.steady}}" stroke-width="3.5"></path>
+            <path d="M410,313 C600,290 850,268 980,259" fill="none" stroke="{{p.t.steady}}" stroke-width="3.5" stroke-dasharray="9 7"></path>
+            <path d="M410,313 C560,230 800,160 916,143" fill="none" stroke="{{p.t.periodic}}" stroke-width="3.5" stroke-dasharray="9 7"></path>
+            <path d="M916,143 C780,110 520,92 317,89" fill="none" stroke="{{p.t.periodic}}" stroke-width="3.5"></path>
+            <path d="M410,313 C590,350 790,385 916,398" fill="none" stroke="{{p.t.periodic}}" stroke-width="3.5" stroke-dasharray="9 7"></path>
+            <path d="M916,398 C740,410 480,425 317,429" fill="none" stroke="{{p.t.periodic}}" stroke-width="3.5"></path>
+            <sc-for list="{{c.dots}}" as="o" hint-placeholder-count="6">
+              <circle cx="{{o.x}}" cy="{{o.y}}" r="{{c.dotR}}" fill="{{c.dotFill}}"></circle>
+              <text x="{{o.tx}}" y="{{o.ty}}" font-size="17" fill="{{p.t.muted}}" font-family="Inter, sans-serif">{{o.n}}</text>
+            </sc-for>
+            <sc-for list="{{c.marks}}" as="m" hint-placeholder-count="6">
+              <path d="{{m.d}}" transform="{{m.tf}}" fill="{{m.fill}}" stroke="{{p.t.fg}}" stroke-width="1.4"></path>
+              <text x="{{m.tx}}" y="{{m.ty}}" font-size="19" font-weight="600" fill="{{p.t.fg}}" font-family="Inter, sans-serif" paint-order="stroke" stroke="{{p.t.surface}}" stroke-width="5">{{m.code}}</text>
+            </sc-for>
+          </svg>
+        </figure>
+        </sc-for>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: {{p.t.surface}}; border-radius: 8px; overflow: hidden">
+        <thead>
+          <tr style="text-align: left; color: {{p.t.muted}}; font-size: 12.5px">
+            <th style="padding: 8px 12px; font-weight: 600; border-bottom: 1px solid {{p.t.border}}">Code</th>
+            <th style="padding: 8px 12px; font-weight: 600; border-bottom: 1px solid {{p.t.border}}">Type</th>
+            <th style="padding: 8px 12px; font-weight: 600; border-bottom: 1px solid {{p.t.border}}">Today</th>
+            <th style="padding: 8px 12px; font-weight: 600; border-bottom: 1px solid {{p.t.border}}">Today the same mark as</th>
+            <th style="padding: 8px 12px; font-weight: 600; border-bottom: 1px solid {{p.t.border}}">Proposed (on the plot)</th>
+            <th style="padding: 8px 12px; font-weight: 600; border-bottom: 1px solid {{p.t.border}}">Rule</th>
+          </tr>
+        </thead>
+        <tbody>
+          <sc-for list="{{p.rows}}" as="r" hint-placeholder-count="27">
+          <tr style="background: {{r.band}}">
+            <td style="padding: 4px 12px; font-weight: 700; font-variant-numeric: tabular-nums">{{r.code}}</td>
+            <td style="padding: 4px 12px">{{r.name}}</td>
+            <td style="padding: 4px 12px"><svg width="14" height="14" viewBox="0 0 12 12" aria-label="today: {{r.oldShape}}" role="img"><path d="{{r.oldD}}" fill="{{r.oldFill}}" stroke="{{p.t.fg}}" stroke-width="1.4"></path></svg></td>
+            <td style="padding: 4px 12px; color: {{r.shareColor}}">{{r.shares}}</td>
+            <td style="padding: 4px 12px"><span style="display: inline-flex; align-items: center; gap: 6px"><svg width="14" height="14" viewBox="0 0 12 12" aria-hidden="true"><path d="{{r.newD}}" fill="{{r.newFill}}" stroke="{{p.t.fg}}" stroke-width="1.4"></path></svg><b style="font-size: 12.5px">{{r.tag}}</b></span></td>
+            <td style="padding: 4px 12px; color: {{p.t.muted}}">{{r.family}}</td>
+          </tr>
+          </sc-for>
+        </tbody>
+      </table>
+    </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2662,"height":1580}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = { bg: '#f7f7f7', surface: '#ffffff', border: '#d9d9d9', fg: '#232323', muted: '#5b5b5b', faint: '#b9b9b9', band: '#f7f7f7',
+      warn: '#b26b00', steady: '#c92a2a', periodic: '#2b8a3e' };
+    const dark = { bg: '#121212', surface: '#1b1b1b', border: '#3a3a3a', fg: '#ebebeb', muted: '#acacac', faint: '#5e5e5e', band: '#222222',
+      warn: '#ffc14d', steady: '#ff6b6b', periodic: '#69db7c' };
+    const D = {
+      triangle: 'M6 1.2 L11 10.4 L1 10.4 Z',
+      circle: 'M6 1.5 A4.5 4.5 0 1 1 5.99 1.5 Z',
+      diamond: 'M6 0.8 L11.2 6 L6 11.2 L0.8 6 Z',
+      square: 'M1.8 1.8 H10.2 V10.2 H1.8 Z',
+      small: 'M3 3 H9 V9 H3 Z',
+      star: 'M6 0.8 L7.5 4.4 L11.4 4.6 L8.4 7.1 L9.4 11 L6 8.8 L2.6 11 L3.6 7.1 L0.6 4.6 L4.5 4.4 Z',
+      invTriangle: 'M1 1.6 L11 1.6 L6 10.8 Z',
+      cross: 'M2 2 L10 10 M10 2 L2 10',
+      bar: 'M4.8 0 H7.2 V12 H4.8 Z',
+    };
+    // code, type, today's shape (web2/src/plot/diagramModel.ts LABEL_SHAPES), proposed shape, filled, rule
+    const types = [
+      ['LP', 'Fold', 'triangle', 'triangle', true, 'equilibrium: filled'],
+      ['AH', 'Andronov–Hopf', 'circle', 'circle', true, 'equilibrium: filled'],
+      ['BP', 'Branch point', 'diamond', 'diamond', true, 'equilibrium: filled'],
+      ['UZ', 'User point', 'invTriangle', 'invTriangle', true, 'a value you marked'],
+      ['LPC', 'Fold of cycles', 'triangle', 'triangle', false, 'cycle: hollow, same shape as LP'],
+      ['BPC', 'Branch point of cycles', 'diamond', 'diamond', false, 'cycle: hollow, same shape as BP'],
+      ['PD', 'Period doubling (flip)', 'square', 'square', false, 'cycle: hollow'],
+      ['NS', 'Neimark–Sacker (torus)', 'star', 'star', false, 'cycle: hollow'],
+      ['BT', 'Bogdanov–Takens', 'diamond', 'small', true, 'two-parameter: small square, code names it'],
+      ['CP', 'Cusp', 'triangle', 'small', true, 'two-parameter'],
+      ['ZH', 'Zero-Hopf (fold–Hopf)', 'star', 'small', true, 'two-parameter'],
+      ['GH', 'Generalized Hopf (Bautin)', 'circle', 'small', true, 'two-parameter'],
+      ['R1', 'Resonance 1:1', 'diamond', 'small', true, 'two-parameter'],
+      ['R2', 'Resonance 1:2', 'triangle', 'small', true, 'two-parameter'],
+      ['R3', 'Resonance 1:3', 'star', 'small', true, 'two-parameter'],
+      ['R4', 'Resonance 1:4', 'circle', 'small', true, 'two-parameter'],
+      ['LPPD', 'Fold–flip', 'square', 'small', true, 'two-parameter'],
+      ['LPNS', 'Fold–Neimark–Sacker', 'triangle', 'small', true, 'two-parameter'],
+      ['PDNS', 'Flip–Neimark–Sacker', 'star', 'small', true, 'two-parameter'],
+      ['NSNS', 'Double Neimark–Sacker', 'diamond', 'small', true, 'two-parameter'],
+      ['EP', 'End of branch', 'bar', 'bar', true, 'branch ended: bar, code says how'],
+      ['SNIC', 'SNIC (saddle-node on invariant circle)', 'bar', 'bar', true, 'branch ended'],
+      ['HOC', 'Homoclinic', 'bar', 'bar', true, 'branch ended'],
+      ['HEC', 'Heteroclinic', 'bar', 'bar', true, 'branch ended'],
+      ['HBE', 'End at a Hopf point', 'bar', 'bar', true, 'branch ended'],
+      ['CL', 'Branch closed', 'bar', 'bar', true, 'branch ended'],
+      ['MX', 'No convergence', 'cross', 'cross', false, 'failed: a cross'],
+    ];
+    const oldFilled = s => s === 'circle' || s === 'bar';
+    const panel = (name, t) => {
+      const rows = types.map(([code, tname, old, nw, filled, family], i) => {
+        const shares = types.filter(o => o[2] === old && o[0] !== code).map(o => o[0]);
+        return {
+          code, name: tname, oldShape: old, oldD: D[old], oldFill: oldFilled(old) ? t.fg : 'none',
+          shares: shares.length ? shares.join(', ') : 'none', shareColor: shares.length ? t.warn : t.muted,
+          newD: D[nw], newFill: nw === 'cross' ? 'none' : filled ? t.fg : t.surface, tag: code, family,
+          band: i % 2 ? t.band : t.surface,
+        };
+      });
+      const mk = (shape, x, y, filled, code, dx, dy) => ({
+        d: D[shape], tf: 'translate(' + (x - 10.5) + ' ' + (y - 10.5) + ') scale(1.75)', fill: filled ? t.fg : t.surface,
+        code, tx: x + dx, ty: y + dy,
+      });
+      const today = {
+        title: 'Today', sub: 'LP and LPC are the same triangle, and output points carry numbers',
+        dotR: 4, dotFill: t.muted,
+        dots: [{ x: 560, y: 295, n: '7' }, { x: 760, y: 277, n: '12' }, { x: 650, y: 190, n: '21' }, { x: 700, y: 118, n: '28' }, { x: 480, y: 96, n: '35' }, { x: 650, y: 372, n: '17' }, { x: 600, y: 418, n: '41' }]
+          .map(o => ({ ...o, tx: o.x + 7, ty: o.y - 7 })),
+        marks: [mk('triangle', 317, 429, false, '', 0, 0), mk('circle', 410, 313, true, '', 0, 0), mk('triangle', 916, 143, false, '', 0, 0),
+          mk('triangle', 916, 398, false, '', 0, 0), mk('bar', 317, 89, true, '', 0, 0), mk('bar', 980, 259, true, '', 0, 0)],
+      };
+      const proposed = {
+        title: 'Proposed', sub: 'filled LP, hollow LPC, a code at every special point',
+        dotR: 3, dotFill: t.faint,
+        dots: today.dots.map(o => ({ ...o, n: '' })),
+        marks: [mk('triangle', 317, 429, true, 'LP', 14, 6), mk('circle', 410, 313, true, 'AH', -10, 30), mk('triangle', 916, 143, false, 'LPC', -52, -12),
+          mk('triangle', 916, 398, false, 'LPC', -52, 30), mk('bar', 317, 89, true, 'SNIC', 12, -6), mk('bar', 980, 259, true, 'EP', -14, -16)],
+      };
+      return { name, t, rows, crops: [today, proposed] };
+    };
+    return { panels: [panel('Light', light), panel('Dark', dark)] };
+  }
+}
+</script>
+</body>
+</html>

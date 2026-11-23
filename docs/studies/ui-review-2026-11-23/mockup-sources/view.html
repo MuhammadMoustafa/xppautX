@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mockup viewer</title>
+<!-- Renders one of this folder's .dc.html mockups without the claude.ai canvas: view.html?f=RunDialog.dc.html.
+     It understands the little the mockups use: {{path}} holes in text and attributes, <sc-for list as>, <sc-if value>,
+     and the component's renderVals(). Open it through a local server, or in Chrome with --allow-file-access-from-files. -->
+<style>body{margin:0}</style>
+</head>
+<body>
+<script>
+const file = new URLSearchParams(location.search).get('f') || 'RunDialog.dc.html';
+const xhr = new XMLHttpRequest();
+xhr.open('GET', file, false);
+xhr.send();
+// <sc-for>/<sc-if> become <template>s, which the HTML parser keeps in place inside tables
+const text = xhr.responseText
+  .replace(/<sc-(for|if)\b/g, '<template data-sc="$1"').replace(/<\/sc-(for|if)>/g, '</template>');
+const doc = new DOMParser().parseFromString(text, 'text/html');
+const xdc = doc.querySelector('x-dc');
+const helmet = xdc.querySelector('helmet');
+for (const el of [...helmet.children]) document.head.appendChild(document.importNode(el, true));
+helmet.remove();
+
+class DCLogic { constructor() { this.props = {}; this.state = {}; } setState() {} }
+const Component = new Function('DCLogic', doc.querySelector('script[data-dc-script]').textContent + '\nreturn Component;')(DCLogic);
+const vals = new Component().renderVals();
+
+const lookup = (path, scope) => {
+  path = path.trim();
+  if (path === 'true') return true;
+  if (path === 'false') return false;
+  if (/^-?\d+(\.\d+)?$/.test(path)) return Number(path);
+  return path.split('.').reduce((v, k) => (v == null ? v : v[k]), scope);
+};
+const fill = (s, scope) => s.replace(/\{\{([^}]*)\}\}/g, (_, p) => { const v = lookup(p, scope); return v == null ? '' : String(v); });
+const kids = el => [...(el.content ? el.content.childNodes : el.childNodes)];
+
+function render(node, scope) {
+  if (node.nodeType === Node.TEXT_NODE) return [document.createTextNode(fill(node.textContent, scope))];
+  if (node.nodeType !== Node.ELEMENT_NODE) return [];
+  const sc = node.localName === 'template' && node.getAttribute('data-sc');
+  if (sc === 'if') {
+    return lookup(node.getAttribute('value').replace(/[{}]/g, ''), scope) ? kids(node).flatMap(c => render(c, scope)) : [];
+  }
+  if (sc === 'for') {
+    const list = lookup(node.getAttribute('list').replace(/[{}]/g, ''), scope) || [];
+    const as = node.getAttribute('as');
+    return list.flatMap((item, i) => kids(node).flatMap(c => render(c, {...scope, [as]: item, $index: i})));
+  }
+  const el = document.importNode(node, false);
+  for (const a of [...el.attributes]) {
+    if (a.name.startsWith('hint-')) el.removeAttribute(a.name);
+    else if (a.value.includes('{{')) el.setAttribute(a.name, fill(a.value, scope));
+  }
+  for (const c of kids(node)) for (const r of render(c, scope)) el.appendChild(r);
+  return [el];
+}
+for (const c of [...xdc.childNodes]) for (const r of render(c, vals)) document.body.appendChild(r);
+</script>
+</body>
+</html>
