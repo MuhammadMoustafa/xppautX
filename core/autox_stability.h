@@ -10,12 +10,13 @@
    store, and hands them here with autox_stability_computed(). When the point
    is stored (autox_evd.cpp addbif) autox_stability_for() gives its values only
    if they are that point's; otherwise the point was "not computed". autoX
-   computes a steady state's first point, a run's or a branch's, when it stores
-   it (store_first_point_algebraic, W858, #939). It does not check a periodic
-   run's first point, so that one is "not computed" unless the run restarts
-   from a stored label of the same kind (steady state to steady state, periodic
-   orbit to periodic orbit, one parameter both): its first point is exactly the
-   label's solution, and takes the label's values (autox_stability_run_start()).
+   computes a run's first point when it stores it, a steady state's (a run's or a
+   branch's, store_first_point_algebraic) and a periodic orbit's
+   (control_boundary's restart, W858, #939), unless the first point is a start
+   whose Newton matrix is singular at zero step (no solution to take them from).
+   A run restarting from a stored label of the same kind (steady state to steady
+   state, periodic orbit to periodic orbit, one parameter both) keeps the label's
+   values for its first point (autox_stability_first_takes_label()).
 
    A failed step restores its predictor's old solution, and the MX endpoint
    takes that solution's retained stability (W341, #402).

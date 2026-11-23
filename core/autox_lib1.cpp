@@ -4649,6 +4649,30 @@ scale_direction(iap_type *iap, std::ptrdiff_t *icp, std::ptrdiff_t *ndxloc, doub
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* The Floquet multipliers of the orbit whose monodromy pencil is p0/p1 (the one routine the special-point test and a run's
+   first point both use, W858 #939): ev gets them, deflated; returns how many (autoX's ndim). */
+std::ptrdiff_t orbit_floquet_multipliers(iap_type *iap, double *p0, double *p1, xpp::ComplexPair *ev)
+{
+  std::vector<double> wrk(xpp::size_product(iap->ndim, iap->ndim));
+  std::ptrdiff_t ndim = iap->ndim, iid = iap->iid;
+  if (iap->isw == 2) {
+    xpp::autox_cycle_multipliers(*iap, p0, p1, ev, true);
+    ndim = iap->ndm;
+  } else xpp::floquet_multipliers(iap->run->diagnostics_text, &ndim, p0, p1, &iid, wrk.data(), ev, true);
+  return ndim;
+}
+
+/* The number of Floquet multipliers inside the unit circle: the multiplier at 1 always counts, the others within AUTO-07p's
+   tolerance (periodic.f90:2031: neutral multipliers have finite numerical error). The one count of an orbit's stability. */
+std::ptrdiff_t orbit_stable_count(const xpp::ComplexPair *ev, std::ptrdiff_t ndim)
+{
+  constexpr double multiplier_stability_tolerance = 1e-5;
+  std::ptrdiff_t nins1 = 1;
+  for (std::ptrdiff_t i = 1; i < ndim; ++i)
+    if (complex_magnitude_of(&ev[i]) <= 1 + multiplier_stability_tolerance) ++nins1;
+  return nins1;
+}
+
 /* cnrlbv: AUTO-07p bvp.f90:79: controls the computation of solution branches */
 int 
 control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, BoundaryFunction boundary_function, IntegralFunction integral_function, UserStartBoundary user_start, OutputParametersBoundary pvli, double *thl, double *thu, std::span<const AutoxMark> marks)
@@ -4833,8 +4857,51 @@ control_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp,
   istop = 0;
   iap->istop = istop;
   (*pvli)(iap, rap, icp, dtm.data(), &ntst_plus_one, ups.data(), &ndim, p0.data(), p1.data(), par);
+  /* W858 (#939): the restart point's Floquet multipliers, computed from the pencil at the point as the tests compute them
+     at any point, and its stable count, before it is stored. The point's direction, determinant, stability (but its own)
+     and projection state are kept. */
+  const std::ptrdiff_t nins_at_restart = iap->nins;
+  if (xpp::problem_has_orbit_multipliers(iap->ips) && iap->isp != 0) {
+    std::vector<double> saved_rldot(rldot.begin(), rldot.end()), saved_udotps(udotps.begin(), udotps.end());
+    const double saved_det = rap->det;
+    const auto homcont = iap->run->homcont;
+    const std::ptrdiff_t saved_isp = iap->isp;
+    const auto saved_failure = iap->run->jacobian_failure;
+    std::ptrdiff_t refactor = 1, tangent = -1;
+    double no_step = 0.;
+    // A start whose Newton matrix is singular at zero step (a homoclinic or forced start that is no solution) has
+    // no multipliers to take: that failure is not the run's, the run goes on and the point keeps its zeros.
+    bool singular_start = false;
+    // The factorization the run's next chord steps reuse is kept as it was: this solve's is for the multipliers only.
+    const auto saved_work = iap->run->solve_boundary_work;
+    const auto saved_refactor = iap->run->refactor;
+    try {
+      solve_boundary(&refactor, iap, rap, par, icp, problem_function, boundary_function, integral_function, &no_step, &tangent,
+             rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), dups.data(), uoldps.data(), udotps.data(),
+             upoldp.data(), dtm.data(), fa.data(), fc.data(), p0.data(), p1.data(), thl, thu);
+    } catch (const xpp::AutoxFailed &) {
+      singular_start = true;
+    }
+    singular_start = singular_start || jacobian_failed(iap);
+    iap->run->jacobian_failure = saved_failure;
+    iap->run->solve_boundary_work = saved_work;
+    iap->run->refactor = saved_refactor;
+    if (!singular_start) {
+      const std::ptrdiff_t orbit_ndim = orbit_floquet_multipliers(iap, p0.data(), p1.data(), ev.data());
+      xpp::autox_stability_computed(iap->run->stability, iap->ibr, 1, {&ev[0].r, 2 * static_cast<std::size_t>(orbit_ndim)},
+                                    xpp::AUTOX_STABILITY_PERIODIC);
+      xpp::autox_stability_first_takes_label(iap->run->stability, iap->ibr, 1);
+      iap->nins = orbit_stable_count(ev.data(), orbit_ndim);
+    }
+    rldot.assign(saved_rldot.begin(), saved_rldot.end());
+    udotps.assign(saved_udotps.begin(), saved_udotps.end());
+    rap->det = saved_det;
+    iap->run->homcont = homcont;
+    iap->isp = saved_isp;
+  }
   store_diagram_boundary(iap, rap, par, icp, rldot.data(), &ntst_plus_one, ups.data(), udotps.data(),
 	 tm.data(), dtm.data(), thl, thu);
+  iap->nins = nins_at_restart;
   istop = iap->istop;
   if (istop == 1) {
     return 0;
@@ -5996,7 +6063,6 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, s
   std::ptrdiff_t iid,ibr,loc=0,isp,isw;
   double azm1;
 
-  std::vector<double> wrk(xpp::size_product(iap->ndim, iap->ndim));
 
   /* This function returns a quantity that changes sign when a complex */
   /* pair of eigenvalues of the linearized Poincare map moves in or out */
@@ -6018,10 +6084,7 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, s
 
 /*  Compute the Floquet multipliers */
 
-  if (isw==2) {
-    xpp::autox_cycle_multipliers(*iap,p0,p1,ev,true);
-    ndim=iap->ndm;
-  } else xpp::floquet_multipliers(iap->run->diagnostics_text, &ndim, p0, p1, &iid, wrk.data(), ev, true);
+  ndim = orbit_floquet_multipliers(iap, p0, p1, ev);
   /* Find the multiplier closest to z=1. */
   /* xppautX: the orbit's Floquet multipliers (autox_stability.h) */
   xpp::autox_stability_computed(iap->run->stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndim)},xpp::AUTOX_STABILITY_PERIODIC);
@@ -6111,10 +6174,7 @@ secondary_bifurcation_test_boundary(iap_type *iap, rap_type *rap, double *par, s
   /* Count the number of Floquet multipliers inside the unit circle. */
 
   // AUTO-07p periodic.f90:2031: neutral multipliers have finite numerical error.
-  constexpr double multiplier_stability_tolerance = 1e-5;
-  nins1 = 1;
-  for (i = 1; i < ndim; ++i)
-    if (complex_magnitude_of(&ev[i]) <= 1 + multiplier_stability_tolerance) ++nins1;
+  nins1 = orbit_stable_count(ev, ndim);
 
   // TPSPBV periodic.f90:2136-2140: no PD/TR in planar flows.
   if (iap->ndm <= 2) {

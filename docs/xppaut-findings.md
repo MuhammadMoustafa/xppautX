@@ -2312,7 +2312,7 @@ Evidence: from the source; XPPAUT itself was not run on such a model.
 
 Evidence: from the source; XPPAUT itself was not run on this model. xppautX's own reproduction on tests/autox/ode_lecar.json: the first point (EP 1) had zero eigenvalues and sign +, which the page reads as unstable, while its eigenvalues are stable.
 
-**xppautX** (W858 / [#939](https://github.com/MuhammadMoustafa/xppautX/issues/939)): fixed: a steady run's or branch's first point is stored with the eigenvalues of its own Jacobian and the sign those give (core/autox_lib1.cpp `store_first_point_algebraic`).
+**xppautX** (W858 / [#939](https://github.com/MuhammadMoustafa/xppautX/issues/939)): fixed: a steady run's or branch's first point is stored with the eigenvalues of its own Jacobian and the sign those give (core/autox_lib1.cpp `store_first_point_algebraic`). A periodic run's first point gets its own Floquet multipliers the same way (core/autox_lib1.cpp, `orbit_floquet_multipliers` in the restart);
 
 ## 111. A steady state's period column holds the Hopf test's leftover
 

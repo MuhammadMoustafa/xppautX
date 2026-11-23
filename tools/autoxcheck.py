@@ -25,7 +25,7 @@ autoX's saved diagram of lecar with a reference; csv checks File/eXport CSV
 (core/csv_export.cpp, W26, issue #42): the diagram and eigenvalues CSVs have
 a header of names, the right row counts, and the eigenvalues file's keys
 join the diagram file's; stability checks that a point's
-eigenvalues are its own (a run's first point is not computed unless it
+eigenvalues are its own (a run's first point is its own too, computed at its start, unless it
 restarts from a label of the same kind: autox_stability.h); sessions checks that concurrent servers
 keep their autoX files apart; session is the "cmd":"session" save/load of
 docs/protocol.md (issue #11, W57): one session file, name.snapx, a long
@@ -863,8 +863,9 @@ def section_stability():
     r2 = run('p')
     end2 = len(dg.pts) - 1
     a, b = grab_point(s, r2), grab_point(s, r2 + 1)
-    check('stability: a periodic run from a Hopf point starts not computed',
-          a is not None and a['stab']['periodic'] == 1 and zeros(circle(a)), str(a)[:300])
+    # its first point's multipliers are its own, computed from its pencil (W858, #939)
+    check('stability: a periodic run from a Hopf point starts with its own multipliers (computed, W858)',
+          a is not None and a['stab']['periodic'] == 1 and circle(a) and not zeros(circle(a)), str(a)[:300])
     check('stability: its second point has its own multipliers',
           b is not None and b['stab']['periodic'] == 1 and circle(b) and not zeros(circle(b)), str(b)[:300])
 

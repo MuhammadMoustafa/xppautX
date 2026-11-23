@@ -1532,6 +1532,20 @@ def check_autox_first_point_stability():
         first_csv = [r for r in csv_rows if r['branch'] == '1' and r['point'] == '1']
         check('W858: the CSV first point reads stable exactly when its eigenvalues are inside the unit circle',
               len(first_csv) == 1 and first_csv[0]['stability'] == ('stable' if stable else 'unstable'), str(first_csv))
+        # a periodic run's first point (a Hopf start of ode_lecar's cycles): its own Floquet multipliers, and the stability
+        # they give, the multiplier 1 counted as AUTO-07p counts it (periodic.f90:2031: the tolerance 1e-5 of the circle)
+        autoxcompare.restore_start(s, d['runs'][1], [], {})
+        autoxcompare.execute_run(s, d['runs'][1], diagram, {})
+        autoxcompare.completed(s, dict(cmd='session.get_state'))
+        rows = autoxcompare.diagram_rows(autoxcompare.session_diagram(s))
+        orbit = [r for r in rows if r['calc'] == 'periodic' and abs(int(r['ntot'])) == 1]
+        check('W858: a periodic run\'s first point has its own Floquet multipliers (not zeros)', len(orbit) == 1
+              and any(float(r[k]) != 0 for r in orbit for k in r if k.startswith('evr')), str(orbit)[:200])
+        if len(orbit) == 1:
+            mults = [complex(float(orbit[0][k]), float(orbit[0]['evi' + k[3:]])) for k in orbit[0] if k.startswith('evr')]
+            orbit_stable = all(abs(z) <= 1 + 1e-5 for z in mults)
+            check('W858: the periodic first point is stable exactly when its multipliers are inside the circle (sign of point 1)',
+                  (int(orbit[0]['ntot']) < 0) == orbit_stable, '%s %s' % (orbit[0]['ntot'], mults))
         check('W858: the CSV writes an equilibrium period as nan (not applicable)',
               csv_rows and all(r['period'] == 'nan' for r in csv_rows if r['type'] not in HOPF_TYPES), str([r['period'] for r in csv_rows][:5]))
     finally:
