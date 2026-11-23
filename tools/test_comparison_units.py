@@ -737,24 +737,61 @@ class Disturbance(unittest.TestCase):
         self.assertEqual([self.verdict(u) for u in 'abc'], ['same'] * 3)
         self.assertFalse((self.out / 'stopped.json').exists())  # a disturbed unit never writes the slower stop
 
-    def test_a_thermally_throttled_unit_is_disturbed_and_runs_again(self):
-        # W849 (#930): b's first run saw 4 s of throttling on a pinned core (no other process used the CPU): disturbed, rerun, judged on the quiet one.
-        self.make_reference()
-        ran, message = self.series(self.ALL, throttle=[0, 4])
-        self.assertIsNone(message)
-        b = 'b reuse=attempt-001'
-        self.assertEqual(ran[:4], ['a reuse=attempt-001', b, b, 'c reuse=attempt-001'])
-        line = [x for x in (self.out / 'run.log').read_text().splitlines() if x.startswith('pass 1 screen/b: disturbed')]
-        self.assertEqual(len(line), 1)
-        self.assertIn('thermally throttled 4.0 s (bound 1.0 s): core of cpu0', line[0])
-        self.assertEqual(self.record('b')['verdict'], 'quiet')
+    SLOW_B = dict(a=Verdicts.SAME, b={'1': Verdicts.SAME, '5': [2.0, 0.02]}, c=Verdicts.SAME)  # b is the same in pass 1 and slower in pass 2 (repeats 5)
+    ORDER = ['a reuse=attempt-001', 'b reuse=attempt-001', 'c reuse=attempt-001']
 
-    def test_a_throttle_under_the_bound_or_no_counters_is_judged_as_before(self):
+    def test_a_thermally_throttled_unit_that_is_not_slower_passes_and_keeps_its_throttle(self):
+        # W851 (#932): b's pass 1 run was throttled (0.001 s of growth: any growth counts) and comes out the same: it passes, no rerun.
         self.make_reference()
-        ran, message = self.series(self.ALL, throttle=[0.5, 0.5, 0.5])  # under THROTTLE_SECONDS
+        ran, message = self.series(self.ALL, throttle=[0, 0.001])
         self.assertIsNone(message)
-        self.assertEqual(ran, ['a reuse=attempt-001', 'b reuse=attempt-001', 'c reuse=attempt-001'] * 2)
-        self.assertEqual(self.record('b')['throttled'], {'core of cpu0': 0.5})  # recorded, not disturbing
+        self.assertEqual(ran, self.ORDER * 2)
+        self.assertEqual(self.record('b')['throttled'], {'core of cpu0': 0.001})
+        self.assertEqual(self.verdict('b'), 'same')
+        log = (self.out / 'run.log').read_text()
+        self.assertIn('pass 1 screen/b: thermally throttled 0.0 s, passed anyway (same)', log)
+        self.assertNotIn('disturbed', log)
+
+    def test_a_thermally_throttled_unit_that_comes_out_slower_is_rerun_and_judged_on_the_rerun(self):
+        # W851: b's pass 2 run is throttled and slower: disturbed, run again once --ready passes; the rerun (no throttle) is judged.
+        self.make_reference()
+        ran, message = self.series(self.SLOW_B, throttle=[0, 0, 0, 0, 0.5])
+        self.assertEqual(ran, self.ORDER + ['a reuse=attempt-001', 'b reuse=attempt-001', 'b reuse=attempt-001'])
+        self.assertIn('screen/b', message)
+        self.assertEqual(self.verdict('b'), 'slower')
+        self.assertEqual(json.loads((self.out / 'screen/b/done.json').read_text())['attempt'], 'attempt-002')
+        log = (self.out / 'run.log').read_text()
+        self.assertIn('pass 2 screen/b: disturbed: other processes used', log)
+        self.assertIn('thermally throttled 0.5 s: core of cpu0', log)
+        self.assertIn('runs again once --ready passes', log)
+
+    def test_a_thermally_throttled_unit_slower_twice_stops_the_series_with_both_readings(self):
+        self.make_reference()
+        ran, message = self.series(self.SLOW_B, throttle=[0, 0, 0, 0, 0.5, 0.5])
+        self.assertEqual(ran, self.ORDER + ['a reuse=attempt-001', 'b reuse=attempt-001', 'b reuse=attempt-001'])  # the series stops: no c, no pass 2
+        self.assertIn('other processes used the CPU during a unit twice', message)
+        self.assertIn('screen/b', message)
+        log = (self.out / 'run.log').read_text()
+        self.assertEqual(log.count('pass 2 screen/b: disturbed: other processes used'), 2)
+        self.assertEqual(log.count('thermally throttled 0.5 s: core of cpu0'), 2)  # both runs' readings
+        self.assertIn('disturbed again, the series stops here', log)
+        self.assertFalse((self.out / 'screen/b/done.json').exists())
+        self.assertFalse((self.out / 'stopped.json').exists())
+
+    def test_an_unthrottled_unit_that_comes_out_slower_stops_at_once_as_before(self):
+        # counters read, no growth: a slower unit stops the series with no rerun, as it did before W849.
+        self.make_reference()
+        ran, message = self.series(self.SLOW_B, throttle=[0, 0, 0, 0, 0])
+        self.assertEqual(ran, self.ORDER + ['a reuse=attempt-001', 'b reuse=attempt-001'])
+        self.assertIn('screen/b', message)
+        self.assertEqual(self.verdict('b'), 'slower')
+        self.assertNotIn('disturbed', (self.out / 'run.log').read_text())
+
+    def test_a_machine_without_throttle_counters_judges_as_before(self):
+        self.make_reference()
+        ran, message = self.series(self.ALL)  # no throttle list: the snapshots hold no counters
+        self.assertIsNone(message)
+        self.assertEqual(self.record('b')['throttled'], {})
         self.assertEqual(common.throttle_ms([9999]), {})  # no such CPU: no files, no readings
         before = dict(busy=0, table={}, throttle={'core of cpu0': 5})
         self.assertEqual(common.competing_record(before, dict(busy=0, table={}), wall=10.0)['verdict'], 'quiet')  # a snapshot with no counters

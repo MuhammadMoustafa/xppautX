@@ -20,8 +20,11 @@ the attempt's `.competing.json`. A unit whose competing CPU passes DISTURBED_CPU
 pass-1 record, run again once --ready passes; disturbed again, the series stops with the reason (DISTURBED_RUNS).
 W845 (#926): so is a unit with a stalled row (common.stalled_rows: a one-CPU xppautX row waiting off the CPU for more than STALL_SECONDS),
 which a few ms of competing CPU at a time leave under the unit-wide fraction.
-W849 (#930): so is a unit whose pinned CPUs (or their package) were thermally throttled for more than THROTTLE_SECONDS while it ran
-(common.throttle_ms, Linux's thermal_throttle counters read at the unit's start and end); a machine without them judges as before.
+W849 (#930): a unit whose pinned CPUs (or their package) were thermally throttled while it ran (common.throttle_ms, Linux's
+thermal_throttle counters read at the unit's start and end) has the throttle kept in its .competing.json.
+W851 (#932): throttling only lengthens times, so a throttled unit is judged like any other: same or faster passes, with a run.log line
+naming its throttle; slower is disturbed (run again once --ready passes, DISTURBED_RUNS). Any growth of a counter counts, with no bound;
+a machine without the counters judges as before.
 
 W830: a unit's verdict also compares each xppautX row with the same row of every other program in its attempt (XPPAUT, AUTO-07p,
 Python: W617's own times, never rerun). A row behind another program is reported (run.log, done.json's `against` and `behind`,
@@ -284,6 +287,10 @@ class Run:
         if competing is not None and competing['verdict'] == 'disturbed':
             return 'disturbed', None, competing  # W829: not judged, no record that a later run would read
         verdict = judge(attempt, self.reference(study, unit))  # W818: each unit against the same unit of the reference run
+        if competing is not None and competing['throttled']:  # W851: a throttled unit passes unless it comes out slower
+            if verdict['verdict'] == 'slower':
+                return 'disturbed', None, competing  # W851: disturbed like W829's, run again once --ready passes
+            note(a, '%s %s/%s: thermally throttled %.1f s, passed anyway (%s)' % ('pass 1' if quick else 'pass 2', study, unit, competing['throttle_seconds'], verdict['verdict']))
         if quick:
             save(unit_dir / PASS1, dict(verdict, binaries=self.binaries(), competing=competing))
         else:
@@ -324,8 +331,8 @@ def disturbed_line(label, study, unit, competing):
     named = ', '.join('%s %.1f s' % (p['name'], p['cpu_seconds']) for p in competing['processes']) or 'none named'
     line = ('%s %s/%s: disturbed: other processes used %.2f CPUs over %.1f s (bound %.2f CPUs): %s'
             % (label, study, unit, competing['competing_fraction'], competing['wall_seconds'], competing['bound'], named))
-    if competing.get('throttle_seconds', 0) > competing.get('throttle_bound', float('inf')):  # W849: the clock fell, whoever used the CPU
-        line += '; thermally throttled %.1f s (bound %.1f s): %s' % (competing['throttle_seconds'], competing['throttle_bound'], ', '.join(competing['throttled']))
+    if competing.get('throttled'):  # W849, W851: the clock fell, whoever used the CPU
+        line += '; thermally throttled %.1f s: %s' % (competing['throttle_seconds'], ', '.join(competing['throttled']))
     stalled = competing.get('stalled')
     return line + ('; %d row(s) stalled, the first %s repetition %s waited %.2f s off the CPU (bound %.2f s)'
                    % (len(stalled), stalled[0]['engine'], stalled[0]['repetition'], stalled[0]['gap_seconds'], STALL_SECONDS) if stalled else '')
