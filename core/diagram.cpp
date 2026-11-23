@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <cmath>
+#include <cstdlib>
 #include <cstddef>
 #include <memory>
 #include <utility>
@@ -186,7 +187,7 @@ void redraw_diagram(xpp::AutoxParts s)
     xpp::DIAGRAM *d=&point;
     type=xpp::get_bif_type(d->ibr,d->ntot);
  
-    if(d->ntot==1)flag=0;
+    if(std::abs(d->ntot)==1)flag=0; /* a stable first point is signed -1 (W858, #939) */
     else flag=1;
     add_point(s,*d,type,flag);
   }

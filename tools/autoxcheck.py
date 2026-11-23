@@ -654,7 +654,8 @@ def section_jacobian():
         if not all(diagrams.values()):
             return
         d, e = labelled_points(diagrams['difference']), labelled_points(diagrams['exact'])
-        same = len(d) == len(e) and all(a[:3] == b[:3] and all(abs(x - y) <= 1e-5 * max(1, abs(x)) for x, y in zip(a[3:], b[3:]))
+        # a steady state's period is nan (not applicable, W858): nan agrees with nan
+        same = len(d) == len(e) and all(a[:3] == b[:3] and all((math.isnan(x) and math.isnan(y)) or abs(x - y) <= 1e-5 * max(1, abs(x)) for x, y in zip(a[3:], b[3:]))
                                         for a, b in zip(d, e))
         check('jacobian: the exact Jacobian finds the same labelled points (branch, type, label; parameter and period to 1e-5)',
               same and len(d) > 3, '%s\n%s' % (d, e))
@@ -838,11 +839,11 @@ def section_stability():
         return next((i for i in range(lo, hi) if syms.get(dg.pts[i]['lab']) == sym), None)
 
     # 1: a steady state from initial data: the circle the page gets for a
-    # stored point is not computed at the first point, the next one's own
+    # stored point is the point's own, the first one's included (W858, #939)
     r1 = run('s')
     first, second = grab_point(s, r1), grab_point(s, r1 + 1)
-    check('stability: a steady run\'s first point is not computed (autoxinfo circle all zeros)',
-          first is not None and first['info']['pt'] == 1 and zeros(circle(first)), str(first)[:300])
+    check('stability: a steady run\'s first point has its own values (autoxinfo circle not zeros, W858)',
+          first is not None and first['info']['pt'] == 1 and circle(first) and not zeros(circle(first)), str(first)[:300])
     check('stability: its second point has its own values',
           second is not None and second['info']['pt'] == 2 and circle(second) and not zeros(circle(second)),
           str(second)[:300])
@@ -890,8 +891,8 @@ def section_stability():
     grab_point(s, hb, take=True)
     r5 = run('t')
     a = grab_point(s, r5)
-    check('stability: a two-parameter run from a Hopf point starts not computed',
-          a is not None and r5 < len(dg.pts) and a['info'].get('f2') and zeros(circle(a)), str(a)[:300])
+    check('stability: a two-parameter run from a Hopf point starts with its own values (computed, W858)',
+          a is not None and r5 < len(dg.pts) and a['info'].get('f2') and circle(a) and not zeros(circle(a)), str(a)[:300])
     s.close()
     shutil.rmtree(home, ignore_errors=True)
 

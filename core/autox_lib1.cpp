@@ -1412,6 +1412,22 @@ switch_branch_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_
   rldot[0] = sign * du[ndim];
 }
 
+/* The first point a run or a branch stores (its ntot is 0 before the store): autoX computes its stability at u
+   as it does at any point, so the point is stored with its eigenvalues and its own stable count, not as "not
+   computed" with a sign that reads unstable (autox_stability.h, W858, #939). A run restarting from a label keeps
+   the label's values for its first point (autox_stability_first_takes_label). */
+void store_first_point_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function,
+    double *rlcur, double *u, double *uold, const double *udot, const double *rldot, double *f, double *dfdu, double *dfdp)
+{
+    const std::ptrdiff_t saved_nins = iap->nins;
+    if (xpp::problem_is_steady_or_map(iap->ips)) {
+        iap->nins = xpp::autox_stability_equilibrium_at(*iap, *rap, par, icp, problem_function, u, uold, f, dfdu, dfdp);
+        xpp::autox_stability_first_takes_label(iap->run->stability, iap->ibr, iap->ntot + 1);
+    }
+    store_diagram_algebraic(iap, rap, par, icp, rlcur, u, udot, rldot);
+    iap->nins = saved_nins;
+}
+
 /* cnrlae: AUTO-07p ae.f90:41: controls the bifurcation analysis of algebraic problems */
 int 
 control_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, ProblemFunction problem_function, UserStartAlgebraic user_start, OutputParametersAlgebraic pvli, double *thl, double *thu, std::span<const AutoxMark> marks)
@@ -1631,7 +1647,7 @@ control_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp
   }
   iap->itp = itp;
   rlcur[0] = par[icp[0]];
-  store_diagram_algebraic(iap, rap, par, icp, rlcur.data(), u.data(), udot.data(), rldot.data());
+  store_first_point_algebraic(iap, rap, par, icp, problem_function, rlcur.data(), u.data(), uold.data(), udot.data(), rldot.data(), f.data(), dfdu.data(), dfdp.data());
   istop = iap->istop;
   if (istop == 1) {
     goto L6;
@@ -1711,7 +1727,7 @@ control_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp
 
 /* Store plotting data for first point on the bifurcating branch */
 
-  store_diagram_algebraic(iap, rap, par, icp, rlcur.data(), u.data(), udot.data(), rldot.data());
+  store_first_point_algebraic(iap, rap, par, icp, problem_function, rlcur.data(), u.data(), uold.data(), udot.data(), rldot.data(), f.data(), dfdu.data(), dfdp.data());
   istop = iap->istop;
   if (istop == 1) {
     goto L6;
@@ -2203,7 +2219,7 @@ solve_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t *icp, 
     xpp::autox_nonfinite(*iap, iap->ntot + 1);
   if (!retained && xpp::problem_is_steady_or_map(iap->ips) &&
       !stop_asked(iap))
-    xpp::autox_stability_equilibrium_restored(*iap, *rap, par, icp, problem_function, u, uold, f, dfdu, dfdp);
+    xpp::autox_stability_equilibrium_at(*iap, *rap, par, icp, problem_function, u, uold, f, dfdu, dfdp);
   return 0;
 } /* solvae_ */
 
@@ -2899,7 +2915,7 @@ failed_step:
   // retrieve_branching_data can return to an earlier branch point whose spectrum is no
   // longer the owner's last record. Recompute at the restored solution.
   if (!retained && xpp::problem_is_steady_or_map(iap->ips) && !stop_asked(iap)) {
-    xpp::autox_stability_equilibrium_restored(*iap, *rap, par, icp, problem_function, u, uold, f, dfdu, dfdp);
+    xpp::autox_stability_equilibrium_at(*iap, *rap, par, icp, problem_function, u, uold, f, dfdu, dfdp);
   }
   return 0;
 	
@@ -3244,9 +3260,10 @@ store_diagram_algebraic(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_
 
   /* Determine stability and print output on units 6 and 7. */
 
+  /* the first point's count is its own: store_first_point_algebraic computes it before this store (W858, #939) */
   ntots = ntot;
   nins = iap->nins;
-  if (xpp::problem_is_steady_or_map(context.ips) && f2c::abs(context.isw) != 2 && ntot > 1) {
+  if (xpp::problem_is_steady_or_map(context.ips) && f2c::abs(context.isw) != 2) {
     if (nins == context.ndim) {
       ntots = -ntot;
     }

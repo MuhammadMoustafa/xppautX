@@ -11,6 +11,7 @@
 #include <cmath>
 #include <deque>
 #include <format>
+#include <limits>
 #include <functional>
 #include <memory>
 #include <string_view>
@@ -276,7 +277,6 @@ void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t i
       p.par.push_back(par[icp[k]]);
     }
   }
-  p.per=per;
   p.icp1=s.autox_state->parameter_layout.axis(icp1);
   p.icp2=s.autox_state->parameter_layout.axis(icp2);
   p.icp3=s.autox_state->parameter_layout.axis(icp3);
@@ -284,6 +284,14 @@ void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t i
   p.flag2=s.autox_state->two_param;
   if (iap->itpst == AutoxPointKind::Hopf && iap->ndim == 2 * iap->ndm + 2)
     p.flag2=autox_hopf_curve_kind(u0[2 * iap->ndm]);
+  /* a steady state has no period: the solver's leftover (2 pi over the frequency of the pair the Hopf test found) is
+     kept where the point is a Hopf point or lies on a curve of them (a Hopf curve, a neutral saddle curve, whose period
+     is AUTO-07p's, docs/protocol.md), since the orbit that starts there has that period (W858, #939); elsewhere the
+     period is nan, the diagram's "not applicable" (the CSV writes it as nan) */
+  const bool hopf_point = iap->itp.kind == xpp::AutoxPointKind::Hopf || iap->itp.kind == xpp::AutoxPointKind::ZeroHopf ||
+      iap->itp.kind == xpp::AutoxPointKind::GeneralizedHopf || p.flag2 == autox_hopf_curve ||
+      p.flag2 == autox_neutral_saddle_curve;
+  p.per = iap->ips == xpp::AutoxProblem::SteadyState && !hopf_point ? std::numeric_limits<double>::quiet_NaN() : per;
   p.jacobian=s.numerics->jacobian;
   ++run.points_held;
   if(run.job){

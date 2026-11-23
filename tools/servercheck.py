@@ -7,7 +7,7 @@ Plays a fixed session (integrate, change a parameter, answer a menu, a
 string prompt and a form, find an equilibrium, open a second plot window)
 and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
-import argparse, base64, cmath, copy, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
+import argparse, base64, cmath, copy, csv, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from xppclient import wait_until, scratch_dirs, FollowOneBranch, versioned, versioned_anix, copy_model, staged_model_names, CONFIG_ROOT, Server, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, file_bytes, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission, ALL_EVENTS
 import autoxcompare
@@ -1485,6 +1485,55 @@ def check_autox_multiplier_note():
         check('stops autoX A8: inaccurate Floquet multipliers name the point and mesh fix',
               any(re.search(r'Br \d+ Pt \d+: the Floquet multipliers are inaccurate', n)
                   and 'mesh.intervals or mesh.collocation_points' in n and 'detection are off' in n for n in notes), str(notes))
+    finally:
+        s.close()
+
+
+# the point types whose steady state starts a periodic orbit, so keep the period (autox_evd.cpp addbif)
+HOPF_TYPES = ('hopf', 'zero_hopf', 'generalized_hopf')
+
+
+def check_autox_first_point_stability():
+    """W858 (#939): a fresh steady run's first point is stored with the eigenvalues of its own Jacobian and the stability
+    they give (never the zeros of "not computed" read as unstable), and a steady state has no period: nan in the
+    session file and in the diagram CSV that autox.export_data writes."""
+    d = autoxcompare.read_description(autoxcompare.BASE / 'ode_lecar.json')
+    s = Server(args.server, autoxcompare.ROOT / d['model'])
+    try:
+        autoxcompare.completed(s)
+        diagram = autoxcompare.Diagram().apply(autoxcompare.open_autox(s))
+        autoxcompare.restore_start(s, d['runs'][0], [], {})
+        autoxcompare.execute_run(s, d['runs'][0], diagram, {})
+        rows = autoxcompare.diagram_rows(autoxcompare.session_diagram(s))
+        steady = [r for r in rows if r['calc'] == 'equilibrium']
+        first = [r for r in steady if abs(int(r['ibr'])) == 1 and abs(int(r['ntot'])) == 1]
+        check('W858: a fresh steady run has its first point and it is the only one at point 1', len(first) == 1, str(first))
+        if len(first) != 1:
+            return
+        row = first[0]
+        eigen = [complex(float(row[k]), float(row['evi' + k[3:]])) for k in row if k.startswith('evr')]
+        check('W858: the first point has its eigenvalues (not zeros)', any(abs(z) > 0 for z in eigen), str(eigen))
+        stable = all(abs(z) < 1 for z in eigen)
+        check('W858: the first point is stable exactly when its eigenvalues are inside the unit circle (sign of point 1)',
+              (int(row['ntot']) < 0) == stable, '%s %s' % (row['ntot'], eigen))
+        # a Hopf point keeps the period of the orbit it starts (autox_evd.cpp addbif)
+        check('W858: a steady state has no period: nan for every equilibrium point that is not a Hopf point',
+              all(r['per'] == 'nan' for r in steady if r['itp'] not in HOPF_TYPES), str([r['per'] for r in steady][:5]))
+        s.send(cmd='autox.export_data', target='diagram', file='w858_first.csv')
+        _, done = s.collect(lambda e: e.get('ev') == 'done')
+        check('W858: autox.export_data writes the diagram CSV', done is not None and done.get('status') == 'ok', str(done))
+        if done is None or done.get('status') != 'ok':
+            return
+        path = done['result']['file']
+        if not os.path.isabs(path):
+            path = os.path.join(autoxcompare.ROOT / d['model'], '..', path)
+        with open(path, newline='') as f:
+            csv_rows = list(csv.DictReader(f))
+        first_csv = [r for r in csv_rows if r['branch'] == '1' and r['point'] == '1']
+        check('W858: the CSV first point reads stable exactly when its eigenvalues are inside the unit circle',
+              len(first_csv) == 1 and first_csv[0]['stability'] == ('stable' if stable else 'unstable'), str(first_csv))
+        check('W858: the CSV writes an equilibrium period as nan (not applicable)',
+              csv_rows and all(r['period'] == 'nan' for r in csv_rows if r['type'] not in HOPF_TYPES), str([r['period'] for r in csv_rows][:5]))
     finally:
         s.close()
 
@@ -3488,7 +3537,7 @@ def check_options_panels():
 
 
 
-INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': check_autox_first_point_stability, 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -13685,6 +13734,7 @@ check_event_count_note()
 check_autox_restart_file_stops()
 check_autox_multiplier_note()
 check_autox_singular_pivot()
+check_autox_first_point_stability()
 
 print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

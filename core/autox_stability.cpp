@@ -116,7 +116,7 @@ bool autox_stability_step_failed(AutoxStability &st, int br, int pt)
     return st.computed.pt != 0;
 }
 
-void autox_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *par, std::ptrdiff_t *icp,
+std::ptrdiff_t autox_stability_equilibrium_at(iap_type &iap, rap_type &rap, double *par, std::ptrdiff_t *icp,
     ProblemFunction problem_function, double *u, double *uold, double *f, double *dfdu, double *dfdp)
 {
     (*problem_function)(&iap, &rap, iap.ndim, u, uold, icp, par, BOTH_JACOBIANS, f, dfdu, dfdp);
@@ -128,8 +128,10 @@ void autox_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *
     hopf_test_algebraic(&iap, &rap, par, nullptr, &chng, nullptr, nullptr, nullptr,
            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
            dfdu, nullptr, {});
+    const std::ptrdiff_t stable = iap.nins;
     iap.nins = saved_nins;
     par[xpp::autox_unknown::period] = saved_period;
+    return stable;
 }
 
 void autox_cycle_multipliers(const iap_type &iap, const double *p0, const double *p1, xpp::ComplexPair *ev, bool deflate)
@@ -214,6 +216,12 @@ int autox_stability_run_start(AutoxStability &st, AutoxStabilityKind run, int is
         forget(first);
     }
     return has_first ? 1 : 0;
+}
+
+void autox_stability_first_takes_label(AutoxStability &st, int br, int pt)
+{
+    if (st.has_first && std::abs(pt) == st.first.pt && (st.first.br == 0 || st.first.br == std::abs(br)))
+        forget(st.computed);
 }
 
 int autox_stability_for(const AutoxStability &st, int br, int pt, std::span<double> evr, std::span<double> evi)

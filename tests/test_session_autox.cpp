@@ -2,6 +2,7 @@
 #include "load_args.h"
 #include "xpp_globals.h"
 #include "autox_unknowns.h"
+#include <cmath>
 /* The session's autoX members (xpp_session_autox.h, W92, W103): its options, diagram and
    views (W50) read back bit for bit, a file of another shape is refused,
    and in a session the whole file (the model, options, diagram,
@@ -529,7 +530,9 @@ void check_directions()
         bool same=both.points.size()==in_turn.points.size();
         for(std::size_t i=0;same&&i<both.points.size();i++){
             const xpp::DIAGRAM &a=both.points[i],&b=in_turn.points[i];
-            same=a.ibr==b.ibr&&a.ntot==b.ntot&&a.lab==b.lab&&a.itp.kind==b.itp.kind&&a.itp.start==b.itp.start&&a.par==b.par&&a.u0==b.u0&&a.per==b.per&&a.evr==b.evr;
+            /* a steady state's period is nan (not applicable): equal when both are, which == never says */
+            const bool period_same=a.per==b.per||(std::isnan(a.per)&&std::isnan(b.per));
+            same=a.ibr==b.ibr&&a.ntot==b.ntot&&a.lab==b.lab&&a.itp.kind==b.itp.kind&&a.itp.start==b.itp.start&&a.par==b.par&&a.u0==b.u0&&period_same&&a.evr==b.evr;
         }
         CHECK(same);
         CHECK(both.branches==in_turn.branches);

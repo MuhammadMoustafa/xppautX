@@ -412,6 +412,9 @@ def session_diagram(s):
             # Calculation, curve and point type metadata are names; the core reader checks their vocabulary.
             if key in ('calc', 'flag2', 'itp'):
                 continue
+            # A steady state has no period: nan, the diagram's "not applicable" (W858, #939).
+            if key == 'per' and value == 'nan':
+                continue
             for item in value.split(';') if key in ('continued','values') else [value]:
                 finite(float(item), 'diagram point %d %s' % (point,key))
     return data

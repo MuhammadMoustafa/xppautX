@@ -18,9 +18,11 @@ double autox_hopf_axis_tolerance(Matrix<const double> jacobian, size_t dimension
 std::optional<xpp::ComplexPair> autox_hopf_pair(std::span<const xpp::ComplexPair> spectrum,
                                           double axis_tolerance);
 
-/* No retained record for a restored equilibrium: refresh its Jacobian and
-   reuse autoX's eigenvalue calculation, without changing point parameters. */
-void autox_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *par, std::ptrdiff_t *icp,
+/* The stability of the equilibrium at u, as autoX's special-point tests compute it: refresh its Jacobian and
+   reuse the eigenvalue calculation (the point's eigenvalues are stored for it, autox_stability.h). Returns its
+   number of stable eigenvalues; nins and the period stay as they were. Used for a restored solution (no
+   retained record) and for a run's or a branch's first point (W858, #939). */
+std::ptrdiff_t autox_stability_equilibrium_at(iap_type &iap, rap_type &rap, double *par, std::ptrdiff_t *icp,
     ProblemFunction problem_function, double *u, double *uold, double *f, double *dfdu, double *dfdp);
 
 /* Original orbit pencil extracted from an augmented cycle-curve system.

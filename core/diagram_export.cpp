@@ -9,6 +9,7 @@
 #include "picture.h"
 #include "session.h"
 #include "xpp_ui.h"
+#include <cstdlib>
 #include <span>
 #include <string>
 
@@ -107,7 +108,7 @@ Result<> export_autox_picture(Session &s, int fmt, const std::optional<std::stri
   draw_export_axes(s);
   for(DIAGRAM &point:s.diagram->points){
     const DiagramPointType type=get_bif_type(point.ibr,point.ntot);
-    add_ps_point(s,point,type,point.ntot==1?0:1);
+    add_ps_point(s,point,type,std::abs(point.ntot)==1?0:1); /* a stable first point is signed -1 (W858, #939) */
   }
   ok_or_show(end_picture(s));
   set_normal_scale(s);

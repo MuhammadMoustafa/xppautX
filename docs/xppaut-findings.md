@@ -140,6 +140,8 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [107](#107-rosenbrock-scales-and-refactors-its-already-factored-matrix-after-a-failed-step) | Integrators | after a failed step `rosen` scales `dfdy`, which `sgefa` (or `bandfac`) has overwritten with its LU factors, again by -h*d and factors that: the retried step is solved with a meaningless matrix (the Jacobian is made again only for the next step) | [W433 / #495](https://github.com/MuhammadMoustafa/xppautX/issues/495) |
 | [108](#108-a-nullcline-of-a-plot-against-time-writes-before-its-state-array) | Nullclines | `fnull` writes the plot's axes into the state at index `xv[0]`, which is 0 (time) for a plot of t against v, so `y1[-1]` is written; the guard tests `TimeFlag`, which a window whose axes change without `check_flags` keeps 0 | [W670 / #745](https://github.com/MuhammadMoustafa/xppautX/issues/745) |
 | [109](#109-a-run-longer-than-an-int-can-count-overflows-its-step-count) | Integration | `integrate` counts a run's steps in an `int`: a run of more than 2^31 steps (a total of 3e9 at dt 1) gets a negative count and stops after its first step, with no word | [W678](https://github.com/MuhammadMoustafa/xppautX/issues/753) |
+| [110](#110-a-steady-states-first-point-is-written-unstable-with-no-eigenvalues) | AUTO | the first point of a steady run or branch is written with sign +, which reads as unstable, and no eigenvalues, because the stability sign is set only from the second point on | [W858 / #939](https://github.com/MuhammadMoustafa/xppautX/issues/939) |
+| [111](#111-a-steady-states-period-column-holds-the-hopf-tests-leftover) | AUTO | every steady point stores the period 2 pi over the frequency of the last complex pair the Hopf test saw, so an equilibrium (a fold, an end point) has a period it does not have | [W858 / #939](https://github.com/MuhammadMoustafa/xppautX/issues/939) |
 
 ## 1. Model options
 
@@ -2303,3 +2305,19 @@ Evidence: from the source and from xppautX, where the same write is the crash of
 
 Evidence: from the source; XPPAUT itself was not run on such a model.
 **xppautX** (W678 / [#753](https://github.com/MuhammadMoustafa/xppautX/issues/753)): fixed: the counts are 64-bit (`MAX_RUN_STEPS` in core/solver.h), a count past that limit is refused before the run with its settings and values, and a run that stores more rows than the data store keeps stops with an error naming the store.
+
+## 110. A steady state's first point is written unstable with no eigenvalues
+
+`stplae` sets a steady point's stability sign only from its second point on: `if (abs(ips) == 1 && abs(isw) != 2 && ntot > 1)` ([autlib1.c:2852](../reference/xppaut-8.0/autlib1.c#L2852)), so the first point keeps the sign of its `ntot`, which the source's own legend reads as "+ = unstable, unknown, or not relevant" ([autlib1.c:2741](../reference/xppaut-8.0/autlib1.c#L2741)). The first point's eigenvalues are not its own: XPPAUT keeps the last values it computed with every point, so its first points carry those of another point (docs/protocol.md, the `stab.circle` note; xppautX's copy of the same rule).
+
+Evidence: from the source; XPPAUT itself was not run on this model. xppautX's own reproduction on tests/autox/ode_lecar.json: the first point (EP 1) had zero eigenvalues and sign +, which the page reads as unstable, while its eigenvalues are stable.
+
+**xppautX** (W858 / [#939](https://github.com/MuhammadMoustafa/xppautX/issues/939)): fixed: a steady run's or branch's first point is stored with the eigenvalues of its own Jacobian and the sign those give (core/autox_lib1.cpp `store_first_point_algebraic`).
+
+## 111. A steady state's period column holds the Hopf test's leftover
+
+The Hopf test writes the period `par[10] = pi(2.0) / rimhb` ([autlib1.c:1946](../reference/xppaut-8.0/autlib1.c#L1946), in `fnhbae`, which runs at every point of a steady run), the frequency of the last complex pair it saw, and `addbif` stores that slot as the point's period for every point ([autevd.c:174](../reference/xppaut-8.0/autevd.c#L174): `double per=par[10];`). A steady state has no period, so its period column keeps a number left over from some other eigenvalue pair: at a fold, a value such as 4603.7, or 4.2e18 at a branch end.
+
+Evidence: from the source; XPPAUT itself was not run on this model. xppautX's comparison baseline before W858 (tests/autox/ode_lecar.diagram.csv) shows the same kind of leftover at steady points: period 6.283 at regular points of the steady branch.
+
+**xppautX** (W858 / [#939](https://github.com/MuhammadMoustafa/xppautX/issues/939)): fixed: a steady state's period is not applicable (`nan`: the diagram CSV and the session file write `nan`, the info's `per` is `null`), except at a Hopf point or on a Hopf or neutral-saddle curve, where the orbit it starts has that period (core/autox_evd.cpp `addbif`).

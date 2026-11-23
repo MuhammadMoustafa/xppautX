@@ -44,7 +44,7 @@ function StabilityCircle() {
         ) : (
           <>
             <span class="muted">{stab.periodic ? 'Multipliers' : 'Eigenvalues'}</span>
-            <p class="muted autox-stab-none">Not computed at this point: autoX computes them from the second point of a branch on.</p>
+            <p class="muted autox-stab-none">Not computed at this point.</p>
           </>
         )}
       </figcaption>

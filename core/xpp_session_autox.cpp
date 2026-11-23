@@ -317,7 +317,11 @@ Result<std::deque<DIAGRAM>> parse_diagram_csv(std::string_view text, int n, int 
                 if (!xpp::parse_number(f[c], v) || !std::isfinite(v)) bad(c, "a number");
                 c++;
             };
-            for (double *v : {&d.norm, &d.per, &d.torper}) real(*v);
+            real(d.norm);
+            /* a steady state's period is not applicable: written as nan (autox_evd.cpp addbif) */
+            if (!xpp::parse_number(f[c], d.per) || std::isinf(d.per)) bad(c, "a number");
+            c++;
+            real(d.torper);
             int branch;
             if(!parse_int(f[c++],branch) || branch<0 || static_cast<std::size_t>(branch)>=branches.size())l.fail("unknown branch id");
             d.branch=branches[branch];

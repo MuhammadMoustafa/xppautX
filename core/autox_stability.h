@@ -10,11 +10,12 @@
    store, and hands them here with autox_stability_computed(). When the point
    is stored (autox_evd.cpp addbif) autox_stability_for() gives its values only
    if they are that point's; otherwise the point was "not computed". autoX
-   does not check stability at a run's first point, so that one is "not
-   computed" unless the run restarts from a stored label of the same kind
-   (steady state to steady state, periodic orbit to periodic orbit, one
-   parameter both): its first point is exactly the label's solution, and
-   takes the label's values (autox_stability_run_start()).
+   computes a steady state's first point, a run's or a branch's, when it stores
+   it (store_first_point_algebraic, W858, #939). It does not check a periodic
+   run's first point, so that one is "not computed" unless the run restarts
+   from a stored label of the same kind (steady state to steady state, periodic
+   orbit to periodic orbit, one parameter both): its first point is exactly the
+   label's solution, and takes the label's values (autox_stability_run_start()).
 
    A failed step restores its predictor's old solution, and the MX endpoint
    takes that solution's retained stability (W341, #402).
@@ -76,6 +77,11 @@ void autox_stability_computed(AutoxStability &st, int br, int pt, std::span<cons
    doubled orbit's multipliers are not the label's). Returns 1 if it does. */
 int autox_stability_run_start(AutoxStability &st, AutoxStabilityKind run, int isw, AutoxStabilityKind label, AutoxPointCode label_itp,
                              std::span<const double> evr, std::span<const double> evi);
+
+/* A run's first point that restarts from a stored label takes the label's values (autox_stability_run_start), not the
+   ones just computed for it (store_first_point_algebraic): drops what was computed for point pt of branch br when
+   the first point takes the label's values. */
+void autox_stability_first_takes_label(AutoxStability &st, int br, int pt);
 
 /* the values of point pt of branch br (either sign) into evr/evi (equally long, filling n = their size):
    1 if they are that point's (computed for it, or the first point of a
