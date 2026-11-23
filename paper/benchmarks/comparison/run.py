@@ -288,8 +288,10 @@ class Run:
             return 'disturbed', None, competing  # W829: not judged, no record that a later run would read
         verdict = judge(attempt, self.reference(study, unit))  # W818: each unit against the same unit of the reference run
         if competing is not None and competing['throttled']:  # W851: a throttled unit passes unless it comes out slower
-            if verdict['verdict'] == 'slower':
-                return 'disturbed', None, competing  # W851: disturbed like W829's, run again once --ready passes
+            if verdict['verdict'] == 'slower':  # W851: disturbed like W829's, run again once --ready passes; its record says so
+                competing = dict(competing, verdict='disturbed')
+                save(attempt.with_suffix('.competing.json'), competing)
+                return 'disturbed', None, competing
             note(a, '%s %s/%s: thermally throttled %.1f s, passed anyway (%s)' % ('pass 1' if quick else 'pass 2', study, unit, competing['throttle_seconds'], verdict['verdict']))
         if quick:
             save(unit_dir / PASS1, dict(verdict, binaries=self.binaries(), competing=competing))
