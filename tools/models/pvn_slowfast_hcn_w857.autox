@@ -1,0 +1,17 @@
+# pvn_slowfast_hcn_w857.autox: W857 (#938), the script as the maintainer ran it on 2026-11-23 (build 21125d3), with the
+# parameter window [0, 1] that the model's first export had. Equilibria of pvn_slowfast_hcn.odex (the PVN model with its
+# HCN gate frozen as the parameter hfix) from the hold value up, then down. Build 21125d3 wrote three branches for these
+# two runs: 2979 points, 202 points and a single point, and refused "h down" (its start, hfix = -7.03e-05, is outside the
+# window). A script runs only what it names, so W857's fix gives one branch per run that runs and says why one does not.
+# Headless: xppautX pvn_slowfast_hcn_w857.autox --silent
+version: 4,
+model: "pvn_slowfast_hcn.odex",
+diagram: "pvn_slowfast_hcn_w857_branches.csv",
+runs: [
+  { name: "h up", kind: equilibrium, replace_diagram: true, parameters: ["hfix"],
+    options: { step.initial: 0.001, step.min: 1e-7, step.max: 0.01, limits.steps: 5000,
+               limits.parameter_min: 0, limits.parameter_max: 1 } },
+  { name: "h down", kind: equilibrium, replace_diagram: false, parameters: ["hfix"],
+    options: { step.initial: -0.001, step.min: 1e-7, step.max: 0.01, limits.steps: 5000,
+               limits.parameter_min: 0, limits.parameter_max: 1 } },
+]

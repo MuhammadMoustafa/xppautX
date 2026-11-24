@@ -1,0 +1,215 @@
+# pvn_bif_current.odex: converted from pvn_bif_current.ode by xppautX --convert (docs/odex.md)
+# Source: the PVN parvocellular model of github.com/MuhammadMoustafa/pvn-hcn-marmoset-model (MIT, commit a9eeb3fd): helpers/solver.py's equations, parameters.json's values.
+version 4
+
+# pvn_bif_current.ode: fitted two-compartment PVN parvocellular model, for autoX: no t anywhere, at rest (-70.32 mV).
+# Written by analysis/xpp/export_ode.py from helpers/solver.py and parameters.json; do not edit by hand.
+# Units: mV, ms, pA, nS, pF (pA/pF = mV/ms). Calcium in mM.
+#
+# For autoX / AUTO: the equations never use t (autoX refuses a model that does).
+# Applied current: ihold on the soma (first parameter, the one AUTO continues in), idend on the
+#   dendrite. -7.1234 pA holds the soma at -84.40 mV.
+# ZD7288 (I_h blocked): set ghs = 0 and ghd = 0.
+# The script pvn_bif_current.autox runs the equilibrium branch and the cycles from the Hopf point.
+par ihold = 0, idend = 0
+# soma conductances (nS)
+par gnas = 198.14954931395775
+par gkvs = 167.01953348698314
+par gkas = 36.9624387684721
+par ghs = 0.05196355494318059
+par gcats = 11.351241094833505
+par gms = 0.014338088173579995
+par gnaps = 3.6999666957095134
+par gcas = 1.115843318068089
+par gsks = 0.023246510281984687
+par gls = 0.3138009611869426
+# dendrite conductances (nS)
+par gnad = 77.06960192740492
+par gkvd = 7.7547576141421555
+par gkad = 0.045947816906855406
+par ghd = 0.6435532020105316
+par gcatd = 0.05177130574233889
+par gmd = 0.003885907080465941
+par gnapd = 0.908869777427959
+par gcad = 0.3957806105894815
+par gskd = 0.826523609500647
+par gld = 0.3529474144727299
+# soma-dendrite coupling (nS), capacitances (pF)
+par gc = 7.1735455920451106
+par cms = 6.000252726646881
+par cmd = 23.468947740228423
+# reversal potentials (mV)
+par ena = 50
+par ek = -90
+par eca = 130
+par eh = -30.00101633900962
+par els = -74.95956122187438
+par eld = -74.98253651896596
+# calcium: rest (mM), decay (ms), influx factor; SK: half (mM), Hill power, tau (ms)
+par carest = 1e-04
+par cadecay = 60
+par alphaca = 5e-06
+par skhalf = 5e-04
+par skpow = 4
+par sktau = 80
+# Na: m half, slope, tau max, min; h half, slope, tau max, min
+par navm = -31.44604351429657
+par nasm = 8
+par natmx = 2.1769583734293523
+par natmn = 0.04393162842633106
+par navh = -61.69466044426515
+par nash = -10
+par nathx = 4.181310858513235
+par nathn = 4.181310858513235
+# Kv: n half, slope, tau max, min
+par kvvm = -44.96293688708168
+par kvsm = 15
+par kvtmx = 20.455011461378216
+par kvtmn = 0.11405852365424707
+# Ka (A-type K): m, then h
+par kavm = -18
+par kasm = 7.5
+par katmx = 10
+par katmn = 1.2
+par kavh = -75
+par kash = -8.4
+par kathx = 43
+par kathn = 4.7
+# CaT (T-type Ca): m, then h
+par catvm = -55.00085449837652
+par catsm = 5
+par cattmx = 10
+par cattmn = 4
+par catvh = -79.84352870331242
+par catsh = -7.5
+par catthx = 33
+par catthn = 22
+# HCN (I_h): h half, slope, tau max, min
+par hvh = -104.84975721176068
+par hsh = -5.668366239802406
+par hthx = 533.1550400074672
+par hthn = 112.54825666076601
+# M (Kv7): m half, slope, tau max, min
+par mvm = -31.43560709380166
+par msm = 10
+par mtmx = 145
+par mtmn = 15
+# NaP (persistent Na): m half, slope, tau max, min
+par napvm = -50.81358245476913
+par napsm = 4
+par naptmx = 4.8
+par naptmn = 1
+# Ca (high threshold): m half, slope (tau: Roper et al.)
+par cavm = -28.5
+par casm = 5
+# steady state and time constant of every gate (helpers/kinetics.py); the time constant is a bell
+# centred on the gate's own half-activation voltage, floored at 1e-5 ms
+fun xinf(v, vh, s) = 0.5+0.5*tanh((v-vh)/ode_divisor(2*s+1e-09))
+fun taux(v, tx, tn, vh, s) = max((tx-tn)*(1-tanh((v-vh)/ode_divisor(2*s+1e-09))^2)+tn, 1e-05)
+# high-threshold Ca activation time constant (Roper et al.), floored at 0.01 ms
+fun rop(v) = if abs((19.88-v)/10)<1e-05 then 1.9*(1-0.5*(19.88-v)/10) else 0.19*(19.88-v)/ode_divisor(exp((19.88-v)/10)-1)
+fun tauca(v) = max(1/ode_divisor(rop(v)+0.046*exp(-v/20.73)+1e-20), 0.01)
+fun skinf(c) = (c/ode_divisor(skhalf))^skpow/ode_divisor(1+(c/ode_divisor(skhalf))^skpow)
+# soma
+vs' = (ihold-iions-gc*(vs-vd))/ode_divisor(cms)
+nam' = (xinf(vs, navm, nasm)-nam)/ode_divisor(taux(vs, natmx, natmn, navm, nasm))
+nah' = (xinf(vs, navh, nash)-nah)/ode_divisor(taux(vs, nathx, nathn, navh, nash))
+kvn' = (xinf(vs, kvvm, kvsm)-kvn)/ode_divisor(taux(vs, kvtmx, kvtmn, kvvm, kvsm))
+kam' = (xinf(vs, kavm, kasm)-kam)/ode_divisor(taux(vs, katmx, katmn, kavm, kasm))
+kah' = (xinf(vs, kavh, kash)-kah)/ode_divisor(taux(vs, kathx, kathn, kavh, kash))
+catm' = (xinf(vs, catvm, catsm)-catm)/ode_divisor(taux(vs, cattmx, cattmn, catvm, catsm))
+cath' = (xinf(vs, catvh, catsh)-cath)/ode_divisor(taux(vs, catthx, catthn, catvh, catsh))
+hh' = (xinf(vs, hvh, hsh)-hh)/ode_divisor(taux(vs, hthx, hthn, hvh, hsh))
+mm' = (xinf(vs, mvm, msm)-mm)/ode_divisor(taux(vs, mtmx, mtmn, mvm, msm))
+napm' = (xinf(vs, napvm, napsm)-napm)/ode_divisor(taux(vs, naptmx, naptmn, napvm, napsm))
+cam' = (xinf(vs, cavm, casm)-cam)/ode_divisor(tauca(vs))
+skn' = (skinf(cas)-skn)/ode_divisor(sktau)
+cas' = -alphaca*(icas+icats)-(cas-carest)/ode_divisor(cadecay)
+inas = gnas*nam^3*nah*(vs-ena)
+ikvs = gkvs*kvn^4*(vs-ek)
+ikas = gkas*kam^3*kah*(vs-ek)
+icats = gcats*catm^2*cath*(vs-eca)
+ihs = ghs*hh*(vs-eh)
+ims = gms*mm*(vs-ek)
+inaps = gnaps*napm*(vs-ena)
+icas = gcas*cam^2*(vs-eca)
+isks = gsks*skn*(vs-ek)
+ils = gls*(vs-els)
+iions = inas+ikvs+ikas+icats+ihs+ims+inaps+icas+isks+ils
+# dendrite
+vd' = (idend+gc*(vs-vd)-iiond)/ode_divisor(cmd)
+dnam' = (xinf(vd, navm, nasm)-dnam)/ode_divisor(taux(vd, natmx, natmn, navm, nasm))
+dnah' = (xinf(vd, navh, nash)-dnah)/ode_divisor(taux(vd, nathx, nathn, navh, nash))
+dkvn' = (xinf(vd, kvvm, kvsm)-dkvn)/ode_divisor(taux(vd, kvtmx, kvtmn, kvvm, kvsm))
+dkam' = (xinf(vd, kavm, kasm)-dkam)/ode_divisor(taux(vd, katmx, katmn, kavm, kasm))
+dkah' = (xinf(vd, kavh, kash)-dkah)/ode_divisor(taux(vd, kathx, kathn, kavh, kash))
+dcatm' = (xinf(vd, catvm, catsm)-dcatm)/ode_divisor(taux(vd, cattmx, cattmn, catvm, catsm))
+dcath' = (xinf(vd, catvh, catsh)-dcath)/ode_divisor(taux(vd, catthx, catthn, catvh, catsh))
+dhh' = (xinf(vd, hvh, hsh)-dhh)/ode_divisor(taux(vd, hthx, hthn, hvh, hsh))
+dmm' = (xinf(vd, mvm, msm)-dmm)/ode_divisor(taux(vd, mtmx, mtmn, mvm, msm))
+dnapm' = (xinf(vd, napvm, napsm)-dnapm)/ode_divisor(taux(vd, naptmx, naptmn, napvm, napsm))
+dcam' = (xinf(vd, cavm, casm)-dcam)/ode_divisor(tauca(vd))
+dskn' = (skinf(dcad)-dskn)/ode_divisor(sktau)
+dcad' = -alphaca*(icad+icatd)-(dcad-carest)/ode_divisor(cadecay)
+inad = gnad*dnam^3*dnah*(vd-ena)
+ikvd = gkvd*dkvn^4*(vd-ek)
+ikad = gkad*dkam^3*dkah*(vd-ek)
+icatd = gcatd*dcatm^2*dcath*(vd-eca)
+ihd = ghd*dhh*(vd-eh)
+imd = gmd*dmm*(vd-ek)
+inapd = gnapd*dnapm*(vd-ena)
+icad = gcad*dcam^2*(vd-eca)
+iskd = gskd*dskn*(vd-ek)
+ild = gld*(vd-eld)
+iiond = inad+ikvd+ikad+icatd+ihd+imd+inapd+icad+iskd+ild
+aux i_h_s = ihs
+aux i_h_d = ihd
+aux i_cat_s = icats
+aux i_cat_d = icatd
+# initial state: the steady state at the start voltage
+init vs = -70.31804722752585
+init nam = 0.0076985078227380654
+init nah = 0.7031490395839273
+init kvn = 0.15573104141992022
+init kam = 0.0009334030388250536
+init kah = 0.364154974919205
+init catm = 0.04464082605088526
+init cath = 0.21924626284278742
+init hh = 0.0022557734905744864
+init mm = 0.020070215643192724
+init napm = 0.007568852304886353
+init cam = 0.00023314671637159057
+init skn = 0.28656231787898145
+init cas = 0.00039804829102251985
+init vd = -70.43632433536736
+init dnam = 0.007586382555371363
+init dnah = 0.7056118967525107
+init dkvn = 0.15469712398131197
+init dkam = 0.0009188118911641063
+init dkah = 0.3674214793530062
+init dcatm = 0.04364276644744558
+init dcath = 0.22195772657635904
+init dhh = 0.0023032278111758675
+init dmm = 0.019838910990043257
+init dnapm = 0.007349944199713354
+init dcam = 0.00022769749422962837
+init dskn = 0.001683150760176908
+init dcad = 0.00010131731182504246
+options {
+  integration: {
+    total_time: 2000, dt: 0.025, store_every: 4, method: cvode, step.relative_tolerance: 1e-9,
+    step.absolute_tolerance: 1e-9, state_limit: 100000,
+  },
+  equilibria: { newton.search_limit: 100000 },
+  continuation: {
+    mesh.intervals: 100, limits.steps: 2000, output.every: 100, step.min: 1e-6, step.max: 0.5,
+    step.initial: 0.01, limits.parameter_min: -100, limits.parameter_max: 60,
+  },
+  diagram: { x_min: -100, x_max: 60, y_min: -100, y_max: 50, variable: vs },
+  plot: {
+    axes.x_min: 0, axes.x_max: 2000, axes.y_min: -100, axes.y_max: 50, curves: [ { x: t, y: vs } ],
+    colormap: jet,
+  },
+}
+
+fun ode_divisor(value) = if value then value else 2.23e-15
