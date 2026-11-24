@@ -1542,10 +1542,12 @@ def check_autox_first_point_stability():
         check('W858: a periodic run\'s first point has its own Floquet multipliers (not zeros)', len(orbit) == 1
               and any(float(r[k]) != 0 for r in orbit for k in r if k.startswith('evr')), str(orbit)[:200])
         if len(orbit) == 1:
-            mults = [complex(float(orbit[0][k]), float(orbit[0]['evi' + k[3:]])) for k in orbit[0] if k.startswith('evr')]
-            orbit_stable = all(abs(z) <= 1 + 1e-5 for z in mults)
-            check('W858: the periodic first point is stable exactly when its multipliers are inside the circle (sign of point 1)',
-                  (int(orbit[0]['ntot']) < 0) == orbit_stable, '%s %s' % (orbit[0]['ntot'], mults))
+            # a Hopf start is critical (W858, #939): its multipliers sit on the circle, so its sign is the next point's, the
+            # stability of its cycles as the amplitude goes to zero; the multipliers themselves stay the computed ones
+            after = [r for r in rows if r['calc'] == 'periodic' and abs(int(r['ntot'])) == 2 and r['ibr'] == orbit[0]['ibr']]
+            check('W858: a Hopf start\'s first point has the sign of the branch\'s next point (the limit of its cycles\' stability)',
+                  len(after) == 1 and (int(orbit[0]['ntot']) < 0) == (int(after[0]['ntot']) < 0),
+                  '%s %s' % (orbit[0]['ntot'], [r['ntot'] for r in after]))
         check('W858: the CSV writes an equilibrium period as nan (not applicable)',
               csv_rows and all(r['period'] == 'nan' for r in csv_rows if r['type'] not in HOPF_TYPES), str([r['period'] for r in csv_rows][:5]))
     finally:

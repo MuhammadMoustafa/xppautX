@@ -203,6 +203,7 @@ int autox_stability_run_start(AutoxStability &st, AutoxStabilityKind run, int is
     forget(st.previous);
     forget(first);
     has_first = false;
+    st.first_hopf_start = false;
     bool same = label != AUTOX_STABILITY_NONE && label == run &&
                 (run == AUTOX_STABILITY_STEADY || run == AUTOX_STABILITY_PERIODIC) &&
                 !(run == AUTOX_STABILITY_PERIODIC && isw == -1 && label_itp.kind == AutoxPointKind::PeriodDoubling);
@@ -229,6 +230,17 @@ void autox_stability_first_takes_label(AutoxStability &st, int br, int pt)
         forget(st.computed);
 }
 
+bool autox_stability_is_hopf_start_first(const AutoxStability &st, int br, int pt)
+{
+    return st.first_hopf_start && autox_stability_first_applies(st, br, pt);
+}
+
+std::ptrdiff_t autox_stability_critical_first_ntot(std::ptrdiff_t first_ntot, std::ptrdiff_t next_ntot)
+{
+    const std::ptrdiff_t magnitude = std::abs(first_ntot);
+    return next_ntot < 0 ? -magnitude : magnitude;
+}
+
 void autox_stability_run_start_zero_amplitude(AutoxStability &st, double period, std::span<const double> evr, std::span<const double> evi)
 {
     if (evr.empty() || evr.size() != evi.size() || !(period > 0)) return;
@@ -238,7 +250,7 @@ void autox_stability_run_start_zero_amplitude(AutoxStability &st, double period,
         first.im.assign(evr.size(), 0.0);
         for (std::size_t i = 0; i < evr.size(); i++) {
             const double modulus = xpp::math::hypot(evr[i], evi[i]);
-            if (!(modulus > 0)) { forget(first); return; }
+            if (!(modulus > 0)) { forget(first); st.first_hopf_start = false; return; }
             // exp(T lambda) with lambda = log(e^lambda) = ln|z| + i arg z
             const double growth = xpp::math::exp(period * xpp::math::log(modulus));
             const double angle = period * xpp::math::atan2(evi[i], evr[i]);
@@ -248,9 +260,11 @@ void autox_stability_run_start_zero_amplitude(AutoxStability &st, double period,
         first.pt = 1;
         first.br = 0;
         st.has_first = true;
+        st.first_hopf_start = true;
     } catch (...) {
         forget(first);
         st.has_first = false;
+        st.first_hopf_start = false;
     }
 }
 

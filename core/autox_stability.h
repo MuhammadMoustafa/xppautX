@@ -17,7 +17,9 @@
    to periodic, a two-parameter curve of orbits from its PD, TR or NS point), the
    Floquet multipliers of a Hopf start's zero-amplitude orbit, exp(lambda T) of the
    Hopf point's eigenvalues (autox_stability_run_start_zero_amplitude), and otherwise
-   the pencil's (its own).
+   the pencil's (its own). A Hopf start's first point is critical: its values are
+   those multipliers, but its sign is the next point's, set when that point is stored
+   (autox_stability_critical_first_ntot, W858, #939).
 
    A failed step restores its predictor's old solution, and the MX endpoint
    takes that solution's retained stability (W341, #402).
@@ -59,6 +61,7 @@ struct AutoxStability {
     Values previous; /* the solution saved by the current predictor, before any trials */
     Values first;    /* the running restart's first point (pt 1), when it has one */
     bool has_first = false;
+    bool first_hopf_start = false; /* that first point is a Hopf start's zero-amplitude orbit (autox_stability_run_start_zero_amplitude) */
 };
 
 /* Before a predictor copies solution pt into uold/uoldps, retain its spectrum.
@@ -90,6 +93,12 @@ bool autox_stability_first_applies(const AutoxStability &st, int br, int pt);
    first point's Floquet multipliers are exp(lambda_i T) of the equilibrium's eigenvalues, which the Hopf point stores as
    e^lambda (AUTOX_STABILITY_STEADY). Recorded as the run's first point (after autox_stability_run_start). */
 void autox_stability_run_start_zero_amplitude(AutoxStability &st, double period, std::span<const double> evr, std::span<const double> evi);
+/* whether point pt of branch br is the first point of such a Hopf start: it is critical (W858, #939), its stability the
+   limit of its cycles' as the amplitude goes to zero, which is the stability of the branch's next point */
+bool autox_stability_is_hopf_start_first(const AutoxStability &st, int br, int pt);
+/* the ntot a Hopf start's first point takes once the next point is stored: first_ntot's magnitude, negative (stable) when
+   the next point's ntot is negative. A branch with only its first point keeps its own computed count. */
+std::ptrdiff_t autox_stability_critical_first_ntot(std::ptrdiff_t first_ntot, std::ptrdiff_t next_ntot);
 
 /* the values of point pt of branch br (either sign) into evr/evi (equally long, filling n = their size):
    1 if they are that point's (computed for it, or the first point of a

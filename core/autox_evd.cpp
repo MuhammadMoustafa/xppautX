@@ -236,6 +236,29 @@ bool autox_start_points_away(double value, double rl0, double rl1, double ds)
   return (value<=rl0 && ds<0) || (value>=rl1 && ds>0);
 }
 
+/* W858 (#939): a Hopf start's first point, of branch ibr, takes the stability of the point after it (autox_stability.h). The
+   first point is still held in the job's points while the jobs run (run.job), else it is in the diagram: the last one of
+   the branch, since an earlier run may have continued the same branch with its own first point. Returns whether a point
+   already in the diagram changed (the page drew it with the old sign, so the diagram is drawn again). */
+bool settle_hopf_start_first(AutoxParts s, AutoxRun &run, int ibr, int next_ntot)
+{
+  if (run.job) {
+    if (!run.points.empty()) {
+      xpp::DIAGRAM &first = run.points.front().point;
+      first.ntot = static_cast<int>(xpp::autox_stability_critical_first_ntot(first.ntot, next_ntot));
+    }
+    return false;
+  }
+  for (auto it = s.diagram->points.rbegin(); it != s.diagram->points.rend(); ++it) {
+    xpp::DIAGRAM &p = *it;
+    if (std::abs(p.ibr) == std::abs(ibr) && std::abs(p.ntot) == 1) {
+      p.ntot = static_cast<int>(xpp::autox_stability_critical_first_ntot(p.ntot, next_ntot));
+      return true;
+    }
+  }
+  return false;
+}
+
 void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t ibrs, double *par,std::ptrdiff_t *icp,int lab, double *a, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> u0, std::span<const double> ubar)
 {
   AutoxParts &s=*iap->run->parts;
@@ -262,6 +285,9 @@ void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t i
   int from=autox_run_from_take(*iap->run);/* the run's first point says which label it started from */
   p.ibr=static_cast<int>(ibrs);
   p.ntot=static_cast<int>(ntots);
+  bool first_changed=false;
+  if (std::abs(ntots) == 2 && xpp::autox_stability_is_hopf_start_first(iap->run->stability, static_cast<int>(ibrs), 1))
+    first_changed=settle_hopf_start_first(s, *iap->run, static_cast<int>(ibrs), p.ntot);
   p.itp=iap->itp;
   p.lab=lab;
   p.nfpar=static_cast<int>(iap->nfpr);
@@ -308,6 +334,7 @@ void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t i
   diagram_record_branch(s.model(),s.parser.constants,last_diagram(*s.diagram),p);
   p.from=from;
   autox_store_point(s,p,iap->ntot==1);
+  if(first_changed)redraw_diagram(s); /* the page drew the Hopf start's first point with its old sign (W858, #939) */
   xpp::job::report_point(static_cast<int>(std::abs(ibrs)),static_cast<int>(std::abs(ntots))); /* xppautX: where it got to (xpp_job.h) */
 }
 
