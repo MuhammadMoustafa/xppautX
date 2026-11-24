@@ -340,8 +340,10 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
         # once, at its end.
         stored = (stops[-1]['pt'] if stops and numbered_points(r) else saved_count(s) - lo)
         diagram.unread += stored
-    if stored <= 0:
+    if stored <= 0 and 'expected_error' not in r:  # a run refused before its first step (W857, #938) stores none
         raise RuntimeError('autoX stored no points for ' + r['name'])
+    if stored < 0:
+        raise RuntimeError('autoX stored fewer points than before for ' + r['name'])
     ranges[r['name']] = lo, lo + stored
     diagram.runs[r['name']] = [dict(p) for p in diagram.points[lo:]] if not diagram.unread else None
     return events

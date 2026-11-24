@@ -260,6 +260,11 @@ bool settle_hopf_start_first(AutoxParts s, AutoxRun &run, int ibr, int next_ntot
   return false;
 }
 
+bool autox_start_outside_window(double value, double rl0, double rl1)
+{
+  return value<rl0 || value>rl1;
+}
+
 void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t ibrs, double *par,std::ptrdiff_t *icp,int lab, double *a, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> u0, std::span<const double> ubar)
 {
   AutoxParts &s=*iap->run->parts;

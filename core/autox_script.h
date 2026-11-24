@@ -71,6 +71,8 @@ struct AutoxScriptState {
     std::optional<AutoxScript> script;
     /* by run: the points it stored, none for a run not yet done or whose points a new diagram dropped */
     std::vector<std::optional<AutoxScriptPoints>> points;
+    /* by run: why its last attempt was refused or stopped in an error ("" none: not tried, or it ran), which the Script panel shows on its row (W857, #938) */
+    std::vector<std::string> errors;
 };
 
 /* run i has run, and its points are still the diagram's: what autox.script and autox.script_runs say alike */

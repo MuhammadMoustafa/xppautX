@@ -335,6 +335,8 @@ Result<std::string> run_script(Session &s, const Command &command, const Argumen
             if (ran) return {};
             Error error = ran.error();
             error.what = xpp::format("run \"{}\" of {}: {}", run.name, script.file, error.what);
+            s.autox_state->script.errors.resize(script.runs.size());
+            s.autox_state->script.errors[i] = error.what;
             return std::unexpected<Error>(std::move(error));
         };
         if (const std::string axes = autox_script_axes_command(run); !axes.empty())
@@ -346,6 +348,8 @@ Result<std::string> run_script(Session &s, const Command &command, const Argumen
         const int begins = run.replaces && !run.from ? 0 : before;
         s.autox_state->script.points.resize(script.runs.size());
         s.autox_state->script.points[i] = AutoxScriptPoints{begins, after};
+        s.autox_state->script.errors.resize(script.runs.size());
+        s.autox_state->script.errors[i].clear();
         computed += std::max(0, after - begins);
         ++completed;
     }

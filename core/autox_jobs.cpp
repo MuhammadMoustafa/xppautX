@@ -834,6 +834,11 @@ Result<> autox_run_jobs(AutoxParts s, int iold, int isave)
      run, which is refused as a single run is, once */
   const int principal=state.axes().icp1;
   const double start=q.constants[s.model().upar_con[principal]];
+  if(autox_start_outside_window(start,state.bifur.rl0,state.bifur.rl1)){ /* refused before its first step: no job, no branch, no point */
+    q.restore_constants();
+    return std::unexpected(Error{"autox",xpp::format("Start parameter \"{}\" = {} is outside [limits.parameter_min = {}, limits.parameter_max = {}], where a run that follows all branches cannot begin; change the start or the bounds",
+        s.model().upar_names[principal],xpp::number(start),xpp::number(state.bifur.rl0),xpp::number(state.bifur.rl1)),command_place()});
+  }
   if(autox_start_points_away(start,state.bifur.rl0,state.bifur.rl1,q.ds)&&autox_start_points_away(start,state.bifur.rl0,state.bifur.rl1,-q.ds))
     q.jobs[1].skipped=true;
   else for(QueuedJob &root:q.jobs)skip_if_away(q,root,start);

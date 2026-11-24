@@ -1,0 +1,48 @@
+{
+  "model": "tools/models/pvn_slowfast_hcn.odex",
+  "reason": "W857 (#938): the equilibria of the PVN parvocellular model (github.com/MuhammadMoustafa/pvn-hcn-marmoset-model, its HCN gate frozen as the parameter hfix) from its hold value up through the fold at 0.2701 and back to hfix = 0, where the run ends just below the window (one branch, 2979 points). The second run, \"h down\", follows all branches from that end, which is outside [0, 1]: it is refused before its first step, an error naming the start and the bounds, and it adds no branch and no point, so the diagram holds one branch per run that ran. The lab's script tools/models/pvn_slowfast_hcn_w857.autox names these runs; servercheck runs it.",
+  "auto07p_skip": "W857 (#938): the baseline guards what a named run stores in xppautX, one branch per run; the model is not an AUTO-07p demo and no AUTO-07p run of it was made.",
+  "xppaut_skip": "W857 (#938): the baseline guards what a named run stores in xppautX, one branch per run; the model was not run in XPPAUT.",
+  "runs": [
+    {
+      "name": "h up",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "hfix",
+      "autox": {
+        "step.initial": 0.001,
+        "step.min": 1e-07,
+        "step.max": 0.01,
+        "limits.steps": 5000,
+        "output.every": 100,
+        "limits.parameter_min": 0,
+        "limits.parameter_max": 1,
+        "mesh.intervals": 15,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "h down",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "hfix",
+      "autox": {
+        "step.initial": -0.001,
+        "step.min": 1e-07,
+        "step.max": 0.01,
+        "limits.steps": 5000,
+        "output.every": 100,
+        "limits.parameter_min": 0,
+        "limits.parameter_max": 1,
+        "mesh.intervals": 15,
+        "max_branch_switches": 0,
+        "follow_all_branches": true
+      },
+      "expected_error": "Start parameter \"hfix\" = -0.00018743473725687463 is outside [limits.parameter_min = 0, limits.parameter_max = 1], where a run that follows all branches cannot begin; change the start or the bounds"
+    }
+  ]
+}

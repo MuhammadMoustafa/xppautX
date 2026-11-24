@@ -11,6 +11,8 @@ export interface AutoxScriptRun {
   from: AutoxScriptStart | null;
   /** whether it has run (its points are still the diagram's) */
   done: boolean;
+  /** why its last attempt was refused or ended in an error (the run's own message), else null (W857) */
+  error: string | null;
 }
 
 /** the open script; `open` false when none is (then the other fields are empty) */

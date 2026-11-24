@@ -1817,7 +1817,7 @@ sections below.
 | `autox.jobs` | `running`, `queued`, `done`, `jobs` | always | A run of branch jobs (follow_all_branches) changed: how many jobs run, wait to start and have ended, and each running job's points so far; the last one is the run's end. |
 | `autox.joined` | `jobs` | always | A run of branch jobs (follow_all_branches) was joined: each job that kept its points, with its key and the branch its joined points carry. |
 | `autox.options` | `numerics`, `pars`, `axes`, `marks` | `autox.options` | autoX's options as data. |
-| `autox.script_runs` | `open`, `file`, `model`, `runs` | `autox.script_runs` | The open .autox script's runs in order: each one's name, what it starts from and whether it has run. |
+| `autox.script_runs` | `open`, `file`, `model`, `runs` | `autox.script_runs` | The open .autox script's runs in order: each one's name, what it starts from, whether it has run and the error that refused its last attempt (null when none). |
 | `autox.view` | `earlier`, `show`, `active`, `views` | always | autoX's hidden branches, the active view and each view's zoom. |
 | `array_plot.shown` | `title`, `nx`, `ny`, `values`, `enc`, `colormap`, `ramp`, `zmin`, `zmax`, `tlo`, `thi`, `first_row`, `tag` | always | The array plot's cells and colors. |
 | `animation.state` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed`, `loaded`, `open` | always | The animation's state for its slider and toggles. |

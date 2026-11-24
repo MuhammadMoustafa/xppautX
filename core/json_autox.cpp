@@ -495,7 +495,11 @@ std::string autox_script_event_line(const xpp::Session &s)
             xpp::json_append_string(o, run.from->type);
             o += ",\"index\":" + std::to_string(run.from->index) + "}";
         } else o += "null";
-        o += xpp::autox_script_run_done(state, i) ? ",\"done\":true}" : ",\"done\":false}";
+        o += xpp::autox_script_run_done(state, i) ? ",\"done\":true" : ",\"done\":false";
+        o += ",\"error\":";
+        if (i < state.errors.size() && !state.errors[i].empty()) xpp::json_append_string(o, state.errors[i]);
+        else o += "null";
+        o += '}';
     }
     o += "]}";
     return o;
