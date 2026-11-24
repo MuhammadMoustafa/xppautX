@@ -9,6 +9,10 @@ names the translator, with XPPAUT's own glue in `auto_nox.c`, `autevd.c` and `au
 is part of `tools/autoxcompare.py` and runs on every push from committed files: neither program is
 installed in CI, nor vendored.
 
+## A Hopf start's sign: our outputs against AUTO's files (W858, [#939](https://github.com/MuhammadMoustafa/xppautX/issues/939))
+
+A periodic branch started at a Hopf point has its first point's sign set to the next point's (the limit of its cycles' stability as the amplitude goes to zero). Our outputs (the diagram, its CSV, the session's diagram rows, the page) carry that critical sign; AUTO-format files (`.b`, `.s`, fort.7 and fort.8) keep AUTO's computed count. A session reloads its diagram from its own rows, never from `.b`.
+
 ## Steady-state starts refined by Newton (W495, [#559](https://github.com/MuhammadMoustafa/xppautX/issues/559))
 
 A steady-state start from initial conditions whose largest residual is above
