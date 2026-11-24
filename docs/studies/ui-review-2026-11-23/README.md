@@ -3,7 +3,8 @@
 The maintainer found these problems while using xppautX on a lab model (the pvn_slowfast_hcn script, build 21125d3). The cards
 W853-W863 came from that session. Three of them are design-first (AGENTS.md: a UI decision is made by looking at it). These are their
 mockups, at docs/ui-v2.md's widths (390, 768 and 1280 px), light and dark, drawn with the page's own tokens
-(web2/src/css/tokens.css). They are proposals: none is settled yet.
+(web2/src/css/tokens.css). The maintainer approved all three as drawn on 2026-11-24: each picture is the chosen design,
+and each card builds what its picture shows.
 
 | Picture | Proposal | Card |
 |---|---|---|
@@ -20,5 +21,6 @@ canvas, `view.html?f=AutoxView.dc.html`, from a local server or from Chrome star
 pictures were shot that way, in headless Chrome at a 2662 px wide window, then cropped. These files are not code to copy: each
 card builds its part in its owner (web2/src/ui, web2/src/plot).
 
-What stays follows AGENTS.md's mockup rule. Once a design is decided, the pictures here are replaced by pictures of the chosen
-design only. `mockup-sources/` and the canvas are deleted once W855, W859 and W863 merge.
+What stays follows AGENTS.md's mockup rule. The pictures stay: they show only the chosen designs (W863's table shows today's
+marks beside the chosen ones). `mockup-sources/` is deleted once W855, W859 and W863 merge, and the canvas now that its
+pictures are here.
