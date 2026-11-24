@@ -1,0 +1,17 @@
+# pvn_slowfast_cat_w857.autox: W857 (#938), the script as the maintainer first ran it on 2026-11-23 (build 21125d3),
+# follow_all_branches at its default. pvn_slowfast_cat.odex (the PVN model with CaT inactivation frozen as the
+# parameter cathfix, the HCN gate fixed at hfixs, hfixd): equilibria at the holding current as cathfix goes from its
+# hold value up and down. With HCN at its hold value the resting branch exists for every CaT h, so the runs stay on
+# it. W857's comparison runs it with follow_all off and on.
+# Headless: xppautX pvn_slowfast_cat_w857.autox --silent
+version: 4,
+model: "pvn_slowfast_cat.odex",
+diagram: "pvn_slowfast_cat_w857_branches.csv",
+runs: [
+  { name: "cat up", kind: equilibrium, replace_diagram: true, parameters: ["cathfix"],
+    options: { step.initial: 0.001, step.min: 1e-7, step.max: 0.01, limits.steps: 5000,
+               limits.parameter_min: 0, limits.parameter_max: 1 } },
+  { name: "cat down", kind: equilibrium, replace_diagram: false, parameters: ["cathfix"],
+    options: { step.initial: -0.001, step.min: 1e-7, step.max: 0.01, limits.steps: 5000,
+               limits.parameter_min: 0, limits.parameter_max: 1 } },
+]

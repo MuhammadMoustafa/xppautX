@@ -1,0 +1,20 @@
+# pvn_bif_current_w857.autox: W857 (#938), the script as the maintainer first ran it on 2026-11-23 (build 21125d3),
+# follow_all_branches at its default. pvn_bif_current.odex (the PVN model, no t, at rest): the equilibrium branch in
+# ihold (soma current, pA) from rest, both ways, then the cycles from its Hopf point, which go up in current, turn,
+# and come back down to the SNIC at the rheobase fold. W857's comparison runs it with follow_all off and on.
+# Headless: xppautX pvn_bif_current_w857.autox --silent
+version: 4,
+model: "pvn_bif_current.odex",
+diagram: "pvn_bif_current_w857_branches.csv",
+runs: [
+  { name: "rest up", kind: equilibrium, replace_diagram: true, parameters: ["ihold"],
+    options: { step.initial: 0.01, step.min: 1e-6, step.max: 0.5, limits.steps: 3000,
+               limits.parameter_min: -100, limits.parameter_max: 2000 } },
+  { name: "rest down", kind: equilibrium, replace_diagram: false, parameters: ["ihold"],
+    options: { step.initial: -0.01, step.min: 1e-6, step.max: 0.5, limits.steps: 3000,
+               limits.parameter_min: -100, limits.parameter_max: 2000 } },
+  { name: "cycles", kind: periodic, replace_diagram: false, start: { run: "rest up", type: hopf, index: 1 },
+    parameters: ["ihold"],
+    options: { step.initial: 0.01, step.max: 0.5, limits.steps: 16000, mesh.intervals: 50, output.every: 20,
+               limits.parameter_min: -100, limits.parameter_max: 2000 } },
+]
