@@ -1011,6 +1011,20 @@ export class Session {
     this.send(cmd);
   }
 
+  /** the autoX Run dialog's runs (W855): one autox.run, or several run one after another through the batch runner (Both runs the start
+      each way: a step for each, its failure ends the rest, the status bar shows the step). Each step is the same autox.run a script sends */
+  autoxRunSteps(steps: {label: string; args: Record<string, unknown>}[]): void {
+    const commands = steps.map(step => ({cmd: 'autox.run', ...step.args}) as Command);
+    if (commands.length === 1) {
+      this.send(commands[0]);
+      return;
+    }
+    if (this.store.getState().batch.phase !== 'idle' || !commands.every(cmd => this.may(cmd))) return;
+    this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'start', at: Date.now()}});
+    const plan = steps.map((step, i) => ({step: {label: step.label, command: commands[i] as BatchStep['command'], file: null}, name: ''}));
+    void this.batchStart('autoX run', plan, async () => plan.map(() => false), {report: false, stopOnFailure: true});
+  }
+
   /* after every done: the run's clock stops, a plan ends, a grabbed periodic orbit is imported */
   private afterAutox(): void {
     if (this.store.getState().diagram.run?.active)

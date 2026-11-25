@@ -14,9 +14,13 @@ import {useOpenOptions, useOptionRows} from './OptionsPanel';
 import {argumentFieldSpec, argumentMessage, argumentValue, currentArguments, formValues, groupProblems, argumentControl, blankArgument} from './argumentFields';
 import {Dialog} from './Dialog';
 import {SETS_OF_FORM, SetsRow} from './SetsRow';
+import {AutoxRunDialog} from './AutoxRunDialog';
 
 export function CommandForm() {
   const form = useStore(s => s.commandForm);
+  const session = useSession();
+  /* autoX > Run is its own dialog (W855): the same command, its fields drawn for a person */
+  if (form?.id === 'autox.run') return <AutoxRunDialog onClose={() => session.store.dispatch({type: 'commandForm', form: null})} />;
   return form ? <Form key={form.id} id={form.id} initial={form.values} fixed={form.fixed ?? []} /> : null;
 }
 

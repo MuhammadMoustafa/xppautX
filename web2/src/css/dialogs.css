@@ -190,7 +190,7 @@
 /* the controls: one height, one radius */
 /* one rule for a text box and a dropdown: the same height, type, border, fill and focus ring in light and dark */
 .dialog .input-box, .dialog select { box-sizing: border-box; min-height: 2.375rem; padding: 0 0.625rem; border: 1px solid var(--field-border); border-radius: 0.5rem; background-color: var(--bg); color: var(--fg); font: inherit; }
-.dialog .input-box:focus-within, .dialog select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dialog .input-box:focus-within, .dialog select:focus-visible, .dialog .run-number:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .dialog .input-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; color: inherit; padding: 0; min-height: 0; font-variant-numeric: tabular-nums; }
 .dialog .input-box.mono input { font-family: var(--mono); }
 .input-box .unit { flex: 0 1 auto; min-width: 0; max-width: 50%; overflow: hidden; text-overflow: ellipsis; color: var(--fg-muted); font-size: var(--text-sm); white-space: nowrap; }
@@ -342,3 +342,23 @@
   .export-row { grid-template-columns: minmax(0, 1fr); }
   .export-files, .export-why { grid-column: 1; }
 }
+
+/* autoX > Run (W855): a dialog of five steps, one column, two from 80 rem (the picture's 1280 px); a card per start and per kind */
+.dialog.run-form { width: min(40rem, 100%); }
+@media (min-width: 80rem) { .dialog.run-form { width: min(65rem, 100%); } }
+.run-columns { display: grid; gap: var(--space-2); min-width: 0; }
+@media (min-width: 80rem) { .run-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--space-4); } }
+.run-column { display: grid; gap: var(--space-2); min-width: 0; align-content: start; }
+.run-step > legend { text-transform: uppercase; }
+.run-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-2); align-items: start; padding: var(--space-2); margin-top: var(--space-2); border: 1px solid var(--border); border-radius: 0.5rem; cursor: pointer; }
+.run-card.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.run-card-text { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.run-card-text > strong { font-weight: 600; }
+.run-card .value-hint { margin: 0; }
+.run-card select { width: 100%; margin-top: var(--space-1); }
+.run-kinds { display: grid; gap: 0; }
+.run-numerics { border: 1px solid var(--border); border-radius: 0.5rem; padding: var(--space-1) var(--space-3); }
+.run-numerics > summary { cursor: pointer; font-weight: 600; font-size: var(--text-sm); padding: var(--space-1) 0; }
+.run-numerics > summary .value-hint { margin-left: var(--space-2); font-weight: 400; }
+.run-number { width: 100%; box-sizing: border-box; min-height: 2.375rem; padding: 0 0.625rem; border: 1px solid var(--field-border); border-radius: 0.5rem; background-color: var(--bg); color: var(--fg); font: inherit; font-variant-numeric: tabular-nums; }
+.run-homoclinic { display: grid; gap: var(--space-1); margin-top: var(--space-2); }

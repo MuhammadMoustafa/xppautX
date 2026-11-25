@@ -1785,7 +1785,10 @@ const DS = expr => cdp.eval(`(() => { const s = __xpp.state(), d = Object.assign
 /* Run: its dialog (opened by the R button or key) takes the kind, and OK sends autox.run (the kinds are the core's, hello.autox_run and the grabbed point's) */
 const okRunDialog = async kind => {
   await requireUntil(`s.commandForm?.id === 'autox.run' && document.activeElement.closest('.registry-form')`, 'Run form focus');
-  await formValues({kind, follow_all_branches: false}); // W596: the checks follow the one branch they ask for
+  await cdp.eval(`document.querySelector('.run-form .run-kinds [data-choice="${kind}"]').click()`); // W855: the kind's card
+  /* W855: Increase and Decrease are the sign of the first step; the checks keep the direction the values in force give */
+  await cdp.eval(`document.querySelector('.run-form [data-choice="' + (__xpp.state().autoxSettings.core.numerics["step.initial"] < 0 ? 'decrease' : 'increase') + '"]').click()`);
+  await cdp.eval(`(() => { const box = document.querySelector('.run-form [data-argument="follow_all_branches"] input'); if (box.checked) box.click(); })()`); // W596: the checks follow the one branch they ask for
   await submitCommand();
 };
 const runPeriodicFromDialog = () => okRunDialog('periodic');
@@ -1906,6 +1909,39 @@ async function autoxView(dir) {
   await closeSettings();
   await autoxRun('equilibrium');
   check('Run sends autox.run equilibrium', await cdp.eval(`__xpp.sent().some(c => c.cmd === 'autox.run' && c.kind === 'equilibrium')`));
+  /* W855: autoX > Run is the dialog of five steps (web2/src/ui/AutoxRunDialog.tsx): the values in force, only the kinds the start allows,
+     the homoclinic fields for their kind alone, Decrease's sign on the first step, Both as two runs (one each way) and a changed parameter
+     sent as autox.configure_axes before the run */
+  await clickRegistry('autox.run');
+  check('W855: the dialog opens with the values in force', await until(`s.commandForm?.id === 'autox.run' && document.querySelector('.run-form [data-argument="step.initial"] .run-number')?.value === String(s.autoxSettings.core.numerics["step.initial"])`, 'run dialog values'));
+  check('W855: the kinds shown are the ones the start allows (the current state\'s when nothing is grabbed)',
+    await cdp.eval(`(() => { const st = __xpp.state(); const want = st.diagram.start ? st.diagram.start.kinds : st.hello.autox_run.current;
+      return JSON.stringify([...document.querySelectorAll('.run-kinds [data-choice]')].map(b => b.dataset.choice)) === JSON.stringify(want); })()`));
+  await cdp.eval(`document.querySelector('.run-form .run-kinds [data-choice="periodic"]')?.click()`);
+  check('W855: the homoclinic fields show only for a homoclinic run', await cdp.eval(`!document.querySelector('.run-form [data-homoclinic]')`));
+  await cdp.eval(`document.querySelector('.run-form [data-choice="decrease"]').click()`);
+  const before = await cdp.eval(`__xpp.sent().length`);
+  await submitCommand();
+  check('W855: Decrease sends a negative step.initial, in the same autox.run a script sends',
+    await until(`__xpp.sent().slice(${before}).some(c => c.cmd === 'autox.run' && c.kind === 'periodic' && c["step.initial"] < 0)`, 'decrease run sent'));
+  check('W855: the run dialog closes on Run', await until(`!s.commandForm`, 'run dialog closed'));
+  await clickRegistry('autox.run');
+  await cdp.eval(`document.querySelector('.run-form .run-kinds [data-choice="equilibrium"]').click()`);
+  await cdp.eval(`document.querySelector('.run-form [data-choice="both"]').click()`);
+  const beforeBoth = await cdp.eval(`__xpp.sent().length`);
+  await submitCommand();
+  const bothRuns = `__xpp.sent().slice(${beforeBoth}).filter(c => c.cmd === 'autox.run').map(c => [c.kind, c["step.initial"], c.label])`;
+  check('W855: Both sends two autox.run with opposite first steps, one after the other',
+    await until(`(() => { const runs = __xpp.sent().slice(${beforeBoth}).filter(c => c.cmd === 'autox.run'); return runs.length === 2 && runs[0]["step.initial"] === -runs[1]["step.initial"] && runs[0]["step.initial"] !== 0; })()`, 'both runs sent', 120000), JSON.stringify(await cdp.eval(bothRuns)));
+  check('W855: the Both runs finish as one batch', await until(`!s.busy && s.batch.phase === 'idle'`, 'both runs ended', 120000));
+  await clickRegistry('autox.run');
+  const parameterSelect = `document.querySelector('.run-form select[aria-label="Parameter"]')`;
+  await cdp.eval(`(() => { const sel = ${parameterSelect}; const other = [...sel.options].find(o => o.value !== sel.value); sel.value = other.value; sel.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  const beforeParameter = await cdp.eval(`__xpp.sent().length`);
+  await cdp.eval(`document.querySelector('.run-form .run-kinds [data-choice="equilibrium"]').click()`);
+  await submitCommand();
+  check('W855: a changed parameter is sent as autox.configure_axes before the autox.run',
+    await until(`(() => { const sent = __xpp.sent().slice(${beforeParameter}); const axes = sent.findIndex(c => c.cmd === 'autox.configure_axes' && c.parameter1); const run = sent.findIndex(c => c.cmd === 'autox.run'); return axes >= 0 && run > axes; })()`, 'axes before run'));
   check('the steady-state branch arrives', await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000));
   const nSteady = await DS('d.points.x.length');
   const stop = await DS('d.stop');
@@ -1985,8 +2021,8 @@ async function autoxView(dir) {
   await requireUntil('!s.busy && s.autoxSettings.core.numerics["output.every"] === 50', 'periodic numerics');
   await cdp.eval(`document.querySelector('.autox-host').focus()`);
   await clickRegistry('autox.run');
-  check('W517: the common autoX form offers Periodic and retains the grabbed label', await until(`s.commandForm?.id === 'autox.run' && document.querySelector('[data-argument=kind] option[value=periodic]') && document.querySelector('[data-argument=label] input:not([type=checkbox])').value !== ''`, 'periodic start'));
-  await formValues({kind:'periodic'}); await submitCommand();
+  check('W517: the common autoX form offers Periodic and retains the grabbed label', await until(`s.commandForm?.id === 'autox.run' && document.querySelector('.run-form .run-kinds [data-choice=periodic]') && document.querySelector('.run-form [data-argument=label]').value !== ''`, 'periodic start'));
+  await okRunDialog('periodic');
   check('the periodic branch arrives', await until('!s.busy && dv.points.br.includes(2)', 'periodic', 120000));
   check('its first point says it started from the Hopf label; the circle holds Floquet multipliers',
     await DS(`d.points.fr[d.points.br.indexOf(2)] === ${hbLab}`) && await DS('d.stab.periodic === 1 && d.stab.circle.length === 2'),
