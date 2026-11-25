@@ -4358,12 +4358,15 @@ async function popOut(selector, key) {
   if (!await untilOn(page, '!!s.hello && s.connected', 'the pop-out connected')) throw new Error(`the pop-out of ${key} never connected`);
   return page;
 }
-/* pops a view out from its tab's context menu (Rename, Move left, Move right, Pop out: the order W685's and W719's checks hold), as the page offers it */
+/* pops a view out from its tab's context menu (Rename, Move left, Move right, then Split right and Split down for a grouped tab, then Pop out: the
+   order W685's, W719's and W720's checks hold), as the page offers it; the item is found by its label, since its place differs per tab */
 async function popOutTab(tab, key) {
   await cdp.eval(`(() => { const t = document.querySelector(${JSON.stringify(tab)}); const b = t.getBoundingClientRect();
     t.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: b.left + 4, clientY: b.bottom})); })()`);
   await requireUntil(`!!document.querySelector('.quick-menu[role=menu]')`, 'the tab\'s menu');
-  return popOut('.quick-menu[role=menu] [role=menuitem]:nth-child(4)', key);
+  const index = await cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].findIndex(i => i.textContent === 'Pop out') + 1`);
+  if (!index) throw new Error(`no Pop out in the menu of ${tab}`);
+  return popOut(`.quick-menu[role=menu] [role=menuitem]:nth-child(${index})`, key);
 }
 
 async function popOutCheck() {
