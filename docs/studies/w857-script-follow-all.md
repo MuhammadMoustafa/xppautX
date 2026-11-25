@@ -3,7 +3,7 @@
 A script run is one named analysis with an explicit step sign ("both directions are two runs", docs/manual/09-autox.md), yet
 `follow_all_branches` defaults to on and follows both directions of a run's start and every branch it finds. The lab's three scripts
 (tools/models/pvn_slowfast_hcn_w857.autox, pvn_slowfast_cat_w857.autox, pvn_bif_current_w857.autox, written under that default) stored
-stray and repeated branches. The maintainer asked for both answers to be built and compared; this page is the comparison, not a choice.
+stray and repeated branches. The maintainer asked for both answers to be built and compared; this page is the comparison and the choice (Decision, below).
 
 Common to every variant but master (commit A): a run refused before its first step adds no branch and no point, shows as that run's error
 in the Script panel (never Done), and `--silent` exits non-zero. Concretely: a run that follows all branches from a start strictly outside
@@ -70,7 +70,9 @@ it does not remove is what one run repeats inside itself (the cycles' 476-point 
 repeated) or the second direction a run was never asked for ("h up" still stores the 202-point branch going down). A user who wrote two
 runs gets an explicit message for the repeat but still gets branches no run named.
 
-## Not decided here
+## Decision
 
-The choice is the maintainer's. The three scripts are the evidence: (a) is the only variant in which "one branch per named run that ran" holds
-on hcn, and it needs bif_current's author to write per-run starts; (b) leaves hcn and cat as under A and bif_current with one 476 repeat.
+The maintainer chose (b), 2026-11-24 (the recommendation): follow all branches stays on in scripts, and a script run whose start lies
+on a branch the diagram already holds is not made. Old scripts keep their meaning; bif_current no longer traces "rest down" again. The
+repeat (b) leaves inside one run, a Hopf point's cycles traced in both directions (bif_current's 476-point branch twice), is W868 (#950).
+The second direction a run was never asked for ("h up" going down) is what follow all branches means, and stays.

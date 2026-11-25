@@ -335,10 +335,14 @@ Result<std::string> run_script(Session &s, const Command &command, const Argumen
             if (ran) return {};
             Error error = ran.error();
             error.what = xpp::format("run \"{}\" of {}: {}", run.name, script.file, error.what);
-            s.autox_state->script.errors.resize(script.runs.size());
             s.autox_state->script.errors[i] = error.what;
             return std::unexpected<Error>(std::move(error));
         };
+        /* this run's last error and skip are only this attempt's */
+        s.autox_state->script.errors.resize(script.runs.size());
+        s.autox_state->script.skipped.resize(script.runs.size());
+        s.autox_state->script.errors[i].clear();
+        s.autox_state->script.skipped[i].clear();
         if (const std::string axes = autox_script_axes_command(run); !axes.empty())
             if (const Result<> set = go(axes); !set) return std::unexpected<Error>(set.error());
         const int before = static_cast<int>(diagram_stored_points(xpp::autox_parts(s)));
@@ -347,11 +351,8 @@ Result<std::string> run_script(Session &s, const Command &command, const Argumen
         const Result<> ran = go(autox_script_command(run, start.first, start.second));
         s.autox_state->skip_run_on_branch = false;
         if (!ran) return std::unexpected<Error>(ran.error());
-        s.autox_state->script.skipped.resize(script.runs.size());
-        s.autox_state->script.skipped[i] = s.autox_state->run_skipped;
         if (!s.autox_state->run_skipped.empty()) { /* not made: stores nothing, and is not done (the runs after it go on) */
-            s.autox_state->script.errors.resize(script.runs.size());
-            s.autox_state->script.errors[i].clear();
+            s.autox_state->script.skipped[i] = s.autox_state->run_skipped;
             continue;
         }
         const int after = static_cast<int>(diagram_stored_points(xpp::autox_parts(s)));
@@ -359,8 +360,6 @@ Result<std::string> run_script(Session &s, const Command &command, const Argumen
         const int begins = run.replaces && !run.from ? 0 : before;
         s.autox_state->script.points.resize(script.runs.size());
         s.autox_state->script.points[i] = AutoxScriptPoints{begins, after};
-        s.autox_state->script.errors.resize(script.runs.size());
-        s.autox_state->script.errors[i].clear();
         computed += std::max(0, after - begins);
         ++completed;
     }
