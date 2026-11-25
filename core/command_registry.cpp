@@ -466,6 +466,25 @@ Result<> check_shape(const char *line, const Place &place, Session *session)
 /* the choices of `command` left out that its file's extension settles (Argument::from_extension), added to `args`: the file is known now
    (given, or picked). One choice's extension names exactly one value; none or several is an error listing them */
 namespace {
+/* the extension of `arg`'s choice i: its own, else the choice's name after a dot */
+std::string choice_extension(const Argument &arg, std::size_t i)
+{
+    return arg.extensions.empty() ? xpp::format(".{}", arg.choices[i]) : std::string(arg.extensions[i]);
+}
+
+/* the picker of a command whose choice its extension settles, that choice left out (W873): it filters by every choice's extension and
+   offers the name with the first's, the choice the command lists first, so a save taken as offered (a browser's download) still names one */
+void offer_by_extension(const Session &s, const Command &command, const Arguments &args, std::string &wild, std::string &file)
+{
+    for (const Argument &arg : command.arguments) {
+        if (!arg.from_extension || args.has(arg.name) || arg.choices.empty()) continue;
+        wild.clear();
+        for (std::size_t i = 0; i < arg.choices.size(); ++i) wild += xpp::format("{}*{}", wild.empty() ? "" : " ", choice_extension(arg, i));
+        file = files::output_name(s.model().this_file, choice_extension(arg, 0));
+        return;
+    }
+}
+
 Result<> settle_from_extension(const Command &command, Arguments &args, const Place &place)
 {
     const Argument *file_arg = picker_argument(command);
@@ -476,7 +495,7 @@ Result<> settle_from_extension(const Command &command, Arguments &args, const Pl
         std::vector<std::string_view> named;
         std::string listing;
         for (std::size_t i = 0; i < arg.choices.size(); ++i) {
-            const std::string extension = arg.extensions.empty() ? xpp::format(".{}", arg.choices[i]) : std::string(arg.extensions[i]);
+            const std::string extension = choice_extension(arg, i);
             if (files::has_extension(file, extension)) named.push_back(arg.choices[i]);
             listing += xpp::format("{}{} for {}", listing.empty() ? "" : ", ", extension, arg.choices[i]);
         }
@@ -502,12 +521,13 @@ Result<std::string> run(Session &s, const char *line, const Place &place, bool p
     if (args->has(FILE_PICKER_KEY)) {
         const Argument *file_arg = picker_argument(*command);
         std::string file = args->get<std::string>(file_arg->name);
+        std::string wild(command->file_wild);
         if (file == PICKER_FILE) {
-            const std::string_view wild = command->file_wild;
-            file = wild.starts_with("*.") && wild.find(' ') == std::string_view::npos
-                ? files::output_name(s.model().this_file, wild.substr(1)) : std::string{};
+            file = wild.starts_with("*.") && wild.find(' ') == std::string::npos
+                ? files::output_name(s.model().this_file, std::string_view(wild).substr(1)) : std::string{};
+            if (wild == ANY_FILE) offer_by_extension(s, *command, *args, wild, file);
         }
-        if (!file_selector(full_name(*command), file, command->file_wild, command->file_mode)) return std::string("{\"cancelled\":true}");
+        if (!file_selector(full_name(*command), file, wild, command->file_mode)) return std::string("{\"cancelled\":true}");
         args->add(file_arg->name, Scalar{std::move(file)});
     }
     if (const Result<> settled = settle_from_extension(*command, *args, place); !settled) return std::unexpected<Error>(settled.error());

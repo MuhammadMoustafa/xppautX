@@ -81,6 +81,9 @@ constexpr Bound session_quantity(const char *name, double (*of)(const Session &)
     return Bound{std::nullopt, name, of};
 }
 
+/* the file filter that takes any file: a command's file_wild unless it names its own */
+inline constexpr std::string_view ANY_FILE = "*";
+
 struct Argument {
     const char *name;
     Type type;
@@ -244,7 +247,7 @@ struct Command {
     std::span<const char *const> default_keys = {};
     /* File dialogs are presentation of the row; write dialogs use the existing single-use native save grant. */
     const char *file_mode = "read";
-    const char *file_wild = "*";
+    const char *file_wild = ANY_FILE.data();
     /* the option group whose generated panel (options_panels.h) the page opens in place of this command's own form: the command stays
        the one scripts and recordings send; "" for a command with a form of its own */
     const char *panel = "";

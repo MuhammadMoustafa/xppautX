@@ -3323,7 +3323,9 @@ A choice argument a row marks `from_extension` (hello's argument member; `plot.e
 `file_picker`: it is then the choice the file's extension names, once the file is known (the choice's name after a dot: `.pdf` for `pdf`;
 `.gif` and `.ppm` for the animation's `animated_gif` and `frames`; `.par` and `.ic` for the value file kinds). An extension that names no
 choice or two is an error naming the file and listing every extension with its choice, and nothing is written; without a file the choice
-is a missing argument as before, and a choice that is given is never replaced. `recording.open`'s `play` is optional (left out: false).
+is a missing argument as before, and a choice that is given is never replaced. Asked with `file_picker` and left out, the `file` ask
+filters by every choice's extension (its `wild`) and offers the name with the first choice's (`lecar.pdf`), so an answer taken as offered
+(a browser's download) names one. `recording.open`'s `play` is optional (left out: false).
 The page sends no form before the picker for a command whose other arguments are all optional or `from_extension` (web2's `fileOnly`).
 
 For a row with one `file` argument (or a required `path`), `file_picker: true`

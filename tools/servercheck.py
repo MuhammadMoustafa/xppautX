@@ -2362,6 +2362,21 @@ def check_registry():
             check('W873: plot.export of %s with no format names the extensions and the choices' % odd,
                   done.get('status') == 'error' and '.pdf for pdf, .svg for svg' in done.get('error', '') and odd in done.get('error', ''), str(done))
             check('W873: ... and writes nothing', not os.path.exists(os.path.join(folder, odd)))
+        # W873: a picker with the format left out (a key, the palette) filters by every format's extension and offers the name with the first's,
+        # so a save taken as offered (a browser's download) still names one
+        snd(cmd='plot.export', file_picker=True)
+        _, ask = col(lambda e: e.get('ev') == 'ask' or e.get('ev') == 'done')
+        offered = os.path.basename(ask.get('file', '')) if ask and ask.get('ev') == 'ask' else ''
+        check('W873: plot.export by the picker with no format filters by every picture format and offers a .pdf name',
+              offered.endswith('.pdf') and all('*.' + f in ask.get('wild', '') for f in ('pdf', 'svg')), str(ask)[:300])
+        if not offered and ask and ask.get('ev') == 'ask':
+            snd(cmd='answer', id=ask['id'], ok=0)
+            col(lambda e: e.get('ev') == 'done')
+        if offered:
+            snd(cmd='answer', id=ask['id'], file=offered, replace=1)
+            _, done = col(lambda e: e.get('ev') == 'done')
+            check('W873: ... and the offered name, taken as it is, writes a PDF', done.get('status') == 'ok' and
+                  open(os.path.join(folder, offered), 'rb').read(4) == b'%PDF', str(done)[:300])
         for refused in [{'cmd': 'plot.export', 'format': 'svg'}, {'cmd': 'plot.export'}, {'cmd': 'plot.export', 'format': 'svg', 'file': '../plot.svg'}, {'cmd': 'plot.export', 'format': 'pdf', 'file': 'plot.pdf', 'axes_font_size': 12},
                         {'cmd': 'plot.export', 'format': 'pdf', 'file': 'plot.pdf', 'color': True}, {'cmd': 'plot.export', 'format': 'svg', 'file': 'plot.svg', 'color': False},
                         {'cmd': 'data.export', 'target': 'plot_curves', 'file': 'plot.zip', 'format': 'zip'}]:
