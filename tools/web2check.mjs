@@ -5223,7 +5223,7 @@ async function navigationCheck() {
   await cdp.eval(`document.querySelector('.dock-close').click()`);
   await until('!s.help.open', 'help closed');
   // Every command with arguments renders the same form, using every declared argument.
-  for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list' && c.cmd !== 'settings.configure' && !c.menu_choice)) { /* W792: the Settings window is its form */
+  for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list' && c.cmd !== 'settings.configure' && !c.menu_choice && !c.pick)) { /* W878: a row that picks on the diagram (pickOnly) has no form; its own check covers it */ /* W792: the Settings window is its form */
     const sentMark = await cdp.eval('__xpp.sentCount()');
     await clickRegistry(row.cmd);
     if (row.cmd === 'set.load_file') {
