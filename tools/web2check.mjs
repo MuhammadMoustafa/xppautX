@@ -2450,7 +2450,9 @@ async function autoxLiveJobs() {
   /* W676: Stop is clicked when a counted number of points has arrived, never after a time: the page once fell behind the core
      (a draw per event) and the join took up to a minute at about 400 000 points. The core's run, held up by the page's reading,
      cannot reach the diagram's 1 000 000 points before this. */
-  const reached = await until(`dv.points.x.length >= ${STOP_AT_POINTS}`, `${STOP_AT_POINTS} live points`, 120000 * SLOW);
+  /* W883 (#965): the count is the core's own, announced in autox.jobs (each running job's points), not the page's drawn points: the page
+     can lag the core by hundreds of thousands of points, so a count of drawn points lets the run fill the diagram before Stop lands */
+  const reached = await until(`s.diagram.jobs && s.diagram.jobs.jobs.reduce((n, j) => n + j.points, 0) >= ${STOP_AT_POINTS}`, `${STOP_AT_POINTS} live points`, 120000 * SLOW);
   const adds = await cdp.eval(`__xpp.diagramEvents().filter(e => e.op === 'add').length`), draws = await cdp.eval('__xpp.diagram().draws');
   const stoppedAt = Date.now();
   await cdp.eval(`document.querySelector('.autox-status .autox-stop').click()`);
