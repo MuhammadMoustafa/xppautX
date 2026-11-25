@@ -131,6 +131,7 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 - **Suppress branch points** (`suppress_branch_points`): Whether branch points are left out of the diagram.
 - **Follow all branches** (`follow_all_branches`): Whether a run follows every branch it finds, not only the one it started on.
 - **Special points** (`special_points`): The codimension-two points a run detects.
+- **Frozen time** (`frozen_time`): The value t is held at for a model whose equations use t; empty (the default) refuses such a run.
 
 ### Limits
 
