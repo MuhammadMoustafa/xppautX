@@ -3,6 +3,11 @@ import type {HelloEvent, NumericsField, StateEvent} from '../protocol/types';
 /** the `key`s of the `numerics` event's fields the page reads (docs/protocol.md "numerics"): the one place
     the page spells a key; tools/optioncheck.py fails when the core's option table has none of them */
 export const NUM_TOTAL = 'total_time', NUM_DT = 'dt', NUM_METHOD = 'method', NUM_STORE_EVERY = 'store_every';
+/** the autoX numerics the Run dialog places in its own steps (the first step's sign is the direction, the parameter's range, the
+    branches step's switch) and the ones its Numerics summary line names */
+export const NUM_FIRST_STEP = 'step.initial', NUM_STEP_MIN = 'step.min', NUM_STEP_MAX = 'step.max', NUM_STEPS = 'limits.steps',
+  NUM_PARAMETER_MIN = 'limits.parameter_min', NUM_PARAMETER_MAX = 'limits.parameter_max', NUM_FOLLOW_ALL = 'follow_all_branches',
+  NUM_MESH_INTERVALS = 'mesh.intervals', NUM_MESH_POINTS = 'mesh.collocation_points', NUM_OUTPUT_EVERY = 'output.every';
 /** the solver the core names for difference equations (core/solver.cpp's method table, the one entry
     listed in the method field's `choices`); a map advances one step per iteration, so its interval is
     one whatever Dt holds */

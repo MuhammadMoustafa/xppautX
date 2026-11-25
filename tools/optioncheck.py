@@ -78,7 +78,7 @@ def sites():
 # word that is also a key by chance. Nothing else in web2/src names an option.
 PAGE_ALLOWED = {
     "web2/src/store/autoxOptions.ts": "`special_points` is the autoxoptions event's member and autox.configure_numerics's argument (a map of booleans), not a row's text",
-    "web2/src/store/steady.ts": "the one place the page spells a numerics key it reads and sends (the run toolbar's Total and Dt, steady state); PAGE_KEYS",
+    "web2/src/store/steady.ts": "the one place the page spells a numerics key it reads and sends (the run toolbar's Total and Dt, steady state, autoX's Run dialog); PAGE_KEYS",
 }
 
 
@@ -117,12 +117,13 @@ def baseline():
 
 def page_problems():
     _, keys = table_words()
+    keys |= set(re.findall(r'\.odex = "([a-z_0-9.]+)"', cstrip.strip_comments(read(TABLE))))  # an option's key (autoX's numerics)
     text = cstrip.strip_comments(read(PAGE_KEYS))
     bad = []
     for m in re.finditer(r"export const ([^;]*);", text):
-        for name, key in re.findall(r"(NUM_[A-Z_]+) = '([a-z_0-9]+)'", m.group(1)):
+        for name, key in re.findall(r"(NUM_[A-Z_]+) = '([a-z_0-9.]+)'", m.group(1)):
             if key not in keys:
-                bad.append(f"{PAGE_KEYS}: {name} = '{key}' is no numerics key of {TABLE}")
+                bad.append(f"{PAGE_KEYS}: {name} = '{key}' is no numerics or option key of {TABLE}")
     return bad
 
 

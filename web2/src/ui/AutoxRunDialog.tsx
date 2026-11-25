@@ -12,6 +12,7 @@ import {autoxSettingsCommands, shownSettings, type AutoxSettingsPatch} from '../
 import {activeView, type AutoxRunStart} from '../store/diagram';
 import {pointLabel, pointMark} from '../store/pointTypes';
 import {choiceLabel} from '../store/fieldKinds';
+import {NUM_FIRST_STEP, NUM_FOLLOW_ALL, NUM_MESH_INTERVALS, NUM_MESH_POINTS, NUM_OUTPUT_EVERY, NUM_PARAMETER_MAX, NUM_PARAMETER_MIN, NUM_STEP_MAX, NUM_STEP_MIN, NUM_STEPS} from '../store/steady';
 import {useSession, useStore} from './context';
 import {argumentNames} from './argumentFields';
 import {FormRow, useFeedback} from './FormFields';
@@ -30,8 +31,7 @@ const KIND_WORDS: Record<string, {label: string; help: string}> = {
 
 /** the numerics that another step of the dialog shows: the first step (step.initial) takes the direction's sign, the limits are the
     parameter's range, and follow_all_branches is the branches step's switch */
-const NUMERIC_ELSEWHERE = ['limits.parameter_min', 'limits.parameter_max', 'follow_all_branches'];
-const PARAMETER_MIN = 'limits.parameter_min', PARAMETER_MAX = 'limits.parameter_max', FOLLOW = 'follow_all_branches', FIRST_STEP = 'step.initial';
+const NUMERIC_ELSEWHERE = [NUM_PARAMETER_MIN, NUM_PARAMETER_MAX, NUM_FOLLOW_ALL];
 /** the kinds that take the homoclinic fields (dimensions and the two equilibria), shown for that kind only */
 const HOMOCLINIC = 'homoclinic';
 /** a two-parameter run's name from the point it starts at, as a person says it (the point's own name is hello's: pointLabel) */
@@ -45,7 +45,7 @@ type Direction = (typeof DIRECTIONS)[number];
 const FIRST_KIND: Record<string, string> = {hopf: 'periodic', fold: 'equilibrium', branch_point: 'equilibrium', neimark_sacker: 'two_parameter',
   period_doubling: 'two_parameter'};
 /** the numerics the group's summary line shows when nothing changed: the key values in force, in the order a person reads them */
-const SUMMARY_KEYS = ['step.initial', 'step.min', 'step.max', 'limits.steps', 'mesh.intervals', 'mesh.collocation_points', 'output.every'];
+const SUMMARY_KEYS = [NUM_FIRST_STEP, NUM_STEP_MIN, NUM_STEP_MAX, NUM_STEPS, NUM_MESH_INTERVALS, NUM_MESH_POINTS, NUM_OUTPUT_EVERY];
 
 /** a number a field's text holds, or null when it is not one */
 function numberOf(text: string): number | null {
@@ -105,7 +105,7 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
   const sections = [...new Set(numericRows.map(row => row.section_label))];
   const changed = Object.keys(edits).length;
   const summary = SUMMARY_KEYS.every(k => k in numerics)
-    ? `step ${inForce('step.initial')} (${inForce('step.min')} to ${inForce('step.max')}) · at most ${inForce('limits.steps')} points · mesh ${inForce('mesh.intervals')} × ${inForce('mesh.collocation_points')} · label every ${inForce('output.every')}` : '';
+    ? `step ${inForce(NUM_FIRST_STEP)} (${inForce(NUM_STEP_MIN)} to ${inForce(NUM_STEP_MAX)}) · at most ${inForce(NUM_STEPS)} points · mesh ${inForce(NUM_MESH_INTERVALS)} × ${inForce(NUM_MESH_POINTS)} · label every ${inForce(NUM_OUTPUT_EVERY)}` : '';
 
   /* what is sent: the kind, the start, the clear answer, every value the person changed, the first step with the direction's sign */
   const problems: string[] = [];
@@ -114,13 +114,13 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
     if (fromLabel) args.label = label;
     args.replace_diagram = first && clear; // the core asks for it whenever the diagram holds points: the second way of Both adds to the first's
     for (const key of Object.keys(edits)) {
-      if (key === FIRST_STEP) continue;
+      if (key === NUM_FIRST_STEP) continue;
       const row = rows.find(r => r.key === key);
       if (row?.boolean) args[key] = edits[key] === 'true';
       else if (edits[key] !== undefined) args[key] = numberOf(edits[key]) ?? edits[key];
     }
-    const step = numberOf(inForce(FIRST_STEP));
-    if (step !== null) args[FIRST_STEP] = sign * Math.abs(step);
+    const step = numberOf(inForce(NUM_FIRST_STEP));
+    if (step !== null) args[NUM_FIRST_STEP] = sign * Math.abs(step);
     if (kindNow === HOMOCLINIC) {
       const unstable = dimensionOf(dimensions.unstable), stable = dimensionOf(dimensions.stable);
       const left = realsOf(equilibria.left), right = realsOf(equilibria.right);
@@ -136,7 +136,7 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
     if (row && !row.boolean && edits[key] !== undefined && numberOf(edits[key]) === null) problems.push(`${row.label} must be a number`);
   }
   if (!kindNow) problems.push('Choose what to compute');
-  if (numberOf(inForce(FIRST_STEP)) === 0) problems.push('The first step must not be 0');
+  if (numberOf(inForce(NUM_FIRST_STEP)) === 0) problems.push('The first step must not be 0');
   if (kindNow === HOMOCLINIC) for (const [name, text] of [['Unstable', dimensions.unstable], ['Stable', dimensions.stable]]) {
     if (text.trim() !== '' && dimensionOf(text) === null) problems.push(`${name} dimension must be a whole number, 0 or more`);
   }
@@ -250,17 +250,17 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
             </select>
           </FormRow>
           <FormRow name="direction" label="Direction">{seg('Direction', direction, v => setDirection(v as Direction), DIRECTIONS)}</FormRow>
-          <FormRow name={PARAMETER_MIN} label="Stop outside">
+          <FormRow name={NUM_PARAMETER_MIN} label="Stop outside">
             <span class="range-pair" title="The run stops when the parameter leaves this range">
-              <input class="run-number" aria-label="Lowest parameter" value={inForce(PARAMETER_MIN)} onInput={e => edit(PARAMETER_MIN, e.currentTarget.value)} />
+              <input class="run-number" aria-label="Lowest parameter" value={inForce(NUM_PARAMETER_MIN)} onInput={e => edit(NUM_PARAMETER_MIN, e.currentTarget.value)} />
               <span class="range-word">≤ {parameter} ≤</span>
-              <input class="run-number" aria-label="Highest parameter" value={inForce(PARAMETER_MAX)} onInput={e => edit(PARAMETER_MAX, e.currentTarget.value)} />
+              <input class="run-number" aria-label="Highest parameter" value={inForce(NUM_PARAMETER_MAX)} onInput={e => edit(NUM_PARAMETER_MAX, e.currentTarget.value)} />
             </span>
           </FormRow>
         </fieldset>
         <fieldset class="form-group run-step" data-run-step="branches">
           <legend>4 · Branches</legend>
-          {checkRow(FOLLOW, 'Also follow the branches this run finds', inForce(FOLLOW) === 'true', on => edit(FOLLOW, String(on)),
+          {checkRow(NUM_FOLLOW_ALL, 'Also follow the branches this run finds', inForce(NUM_FOLLOW_ALL) === 'true', on => edit(NUM_FOLLOW_ALL, String(on)),
             'A Hopf point starts its periodic orbits, and a branch point starts the other branch. Each becomes a branch of its own.')}
           {checkRow('replace_diagram', 'Clear the diagram first', clear, setClear, 'Start a new diagram instead of adding to this one')}
         </fieldset>
