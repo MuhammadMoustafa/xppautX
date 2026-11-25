@@ -1,0 +1,13 @@
+# hodgkin_huxley_w857.autox: W857 (#938), a published model whose script asks for follow_all_branches: the Hodgkin-Huxley equations
+# (Hodgkin and Huxley 1952, tools/models/hodgkin_huxley.odex), the same run as tests/autox/hodgkin_huxley_follow_all.json (the equilibria in the
+# applied current I, the Hopf points they find and the cycles joining them). The one run names follow_all_branches itself, so every variant
+# of W857 must give the same diagram.
+# Headless: xppautX hodgkin_huxley_w857.autox --silent
+version: 4,
+model: "hodgkin_huxley.odex",
+diagram: "hodgkin_huxley_w857_branches.csv",
+runs: [
+  { name: "all", kind: equilibrium, replace_diagram: true, parameters: ["I"],
+    options: { step.initial: 1, step.min: 1e-7, step.max: 4, limits.steps: 600, output.every: 100, mesh.intervals: 30,
+               limits.parameter_min: -10, limits.parameter_max: 200, follow_all_branches: true } },
+]
