@@ -874,15 +874,25 @@ export class Session {
     return ev;
   }
 
+  /** an autoX view whose diagram is closed: the closed diagram keeps a placeholder view, named as the first view is (diagram_1), so
+      the name alone does not say the view is there. Nothing is shown for it, so nothing is sent for it (W886, #968) */
+  private closedView(win: string): boolean {
+    const d = this.store.getState().diagram;
+    return !d.open && d.views.some(v => v.name === win);
+  }
+
   private display(win: string, patch: DisplayPatch): void {
+    if (this.closedView(win)) return;
     this.displayGuard.add(win);
     this.displayHeld.set(win, {...this.displayHeld.get(win), ...patch});
     this.flushDisplay();
   }
 
-  /** the oldest held change goes out when the core is not busy, else at its done */
+  /** the oldest held change goes out when the core is not busy, else at its done. A change held for a view the close
+      has since taken away is dropped here (W886): the close's own command goes out before it */
   private flushDisplay(): void {
     if (this.store.getState().busy) return;
+    for (const win of this.displayHeld.keys()) if (this.closedView(win)) this.displayHeld.delete(win);
     const first = this.displayHeld.entries().next();
     if (first.done) return;
     const [win, patch] = first.value;
@@ -920,7 +930,9 @@ export class Session {
 
   /** a view of the autoX diagram closed (the last one stays: the core refuses it) */
   closeView(view: number): void {
-    this.send({cmd:'window.close',window:this.store.getState().diagram.views[view].name});
+    const name = this.store.getState().diagram.views[view].name;
+    this.displayHeld.delete(name); /* a change held for the view goes with it (W886) */
+    this.send({cmd:'window.close',window:name});
   }
 
   /** the legend's "previous runs" toggle of window `win` */
@@ -1085,6 +1097,7 @@ export class Session {
     const {busy, stopping, diagram} = this.store.getState();
     const closing = view === null || diagram.views.length === 1 ? diagram.views : [diagram.views[view]];
     const commands = closing.map(v => ({cmd: 'window.close', window: v.name}));
+    for (const v of closing) this.displayHeld.delete(v.name); /* what the page holds for the views goes with them (W886) */
     if (!busy) {
       for (const command of commands) this.send(command);
       return;

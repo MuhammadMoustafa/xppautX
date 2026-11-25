@@ -106,6 +106,14 @@ export function installTestHook(session: Session): void {
     /** view `view` of the autoX diagram's chart (the active view's by default): its curves, label
         marks and ranges (null while autoX is not shown) */
     diagram: (view?: number) => diagramChart(view ?? session.store.getState().diagram.active)?.info() ?? null,
+    /** view `view`'s chart reports the zoom [x, y] it is at, as its own scale change does (W886): {reported, busy} once it has
+        (busy: whether the page was busy with a command then) */
+    diagramReport: (view: number, x: [number, number], y: [number, number]) => {
+      const chart = diagramChart(view);
+      if (!chart) return {reported: false, busy: session.store.getState().busy};
+      chart.setView({x: {min: x[0], max: x[1]}, y: {min: y[0], max: y[1]}});
+      return {reported: true, busy: session.store.getState().busy};
+    },
     /** the WCAG contrast of two `#rrggbb` colors, the page's own (plot/colors.ts): a check of a drawn curve's color against the background */
     contrast: contrastRatio,
     /** every `diagram` event received, oldest first */

@@ -39,6 +39,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Fixed
 
+- After autoX's Close, the page sends no command for the closed view: a zoom its chart reported while the close was in flight was held and sent at the close's own done as `autox.set_display`, which the core refused with `Unknown window "diagram_1"` (W886, [#968](https://github.com/MuhammadMoustafa/xppautX/issues/968)). The page drops that change, and any it holds for a view it closes.
 - A follow-all branch job whose points repeat another branch says so in autoX's Output and the summary, once: "Job [1, 10] repeats branch 4 of job [0, 46]: its points are not kept". Before, the join dropped it silently, and a run that followed a point with no kept job said "No branch point or Hopf point to follow" (W882, [#964](https://github.com/MuhammadMoustafa/xppautX/issues/964)).
 - autoX's Grab goes straight to picking on the diagram: its form, empty, no longer opens first (the row's arguments are all optional and it has a pick mode, `pick` in the registry row; W878, [#960](https://github.com/MuhammadMoustafa/xppautX/issues/960)).
 - The autoX script panel's runs fit at 375 px: each run's Run stays on its row, and the run list scrolls above the status bar, Run all below it (W879, [#961](https://github.com/MuhammadMoustafa/xppautX/issues/961)).

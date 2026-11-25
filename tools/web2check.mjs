@@ -2396,9 +2396,19 @@ async function autoxStopRace() {
   check('T22: the run after uses it: its periodic branch stops at Nmax, 15 points',
     ran && nNew === 15, JSON.stringify([ran, nNew]));
 
-  await cdp.eval(`document.querySelector('[data-view-kind=autox] .view-tab-close').click()`);
+  /* W886 (#968): the view's chart reports its zoom while the close is in flight (window.close sent, its done not yet), as a chart does
+     when its scales change while the page holds a command. Click and report run in one task, so the report comes before the core's
+     answer, whatever the speed of the page: the page must not send that zoom for the view it has closed, and the close is answered
+     with no command naming the view after it */
+  const closeMark = await cdp.eval('__xpp.sentCount()');
+  const reported = await cdp.eval(`(() => { document.querySelector('[data-view-kind=autox] .view-tab-close').click();
+    return __xpp.diagramReport(0, [0.2, 1.2], [0.2, 1.2]); })()`);
   check("autoX Stop race: Close closes autoX's window and the view",
     await until('!s.diagram.open && !s.busy', 'auto close') && !(await cdp.eval(`!!document.querySelector('.autox-panel, [data-view-kind=autox]')`)));
+  check('W886: a zoom reported while Close is in flight is not sent after it: no command after the close\'s names the closed view',
+    reported.reported && reported.busy && await until('!s.busy', 'close answered')
+      && (await cdp.eval(`__xpp.sentFrom(${closeMark})`)).filter(c => c.cmd !== 'window.close' && JSON.stringify(c).includes('diagram_1')).length === 0,
+    JSON.stringify([reported, await cdp.eval(`__xpp.sentFrom(${closeMark})`)]));
 }
 
 /* ---- W620: the points of branch jobs drawn as they come ----------------------------------- */
