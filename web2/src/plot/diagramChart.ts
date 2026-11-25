@@ -21,7 +21,8 @@ export interface DiagramChartInfo {
   labels: {point: number; lab: number; sym: string; x: number; y: number; y2: number | null}[];
   /** labels whose name is written beside the cross (all of them when few are in view) */
   named: number;
-  nameTops: number[];
+  /** each written name's box (its left, top, width and height, CSS pixels of the canvas), for the test hook */
+  nameBoxes: {x: number; y: number; w: number; h: number}[];
   x: Range;
   y: Range;
   width: number;
@@ -31,6 +32,10 @@ export interface DiagramChartInfo {
 
 /** labels in view up to which each one's name is written (more only get their cross) */
 const NAMED_MAX = 40;
+/** the clear space, CSS pixels, kept between two names side by side (so "EP 1" and "AH 2" do not run together) */
+const NAME_GAP = 2;
+/** a name's height, CSS pixels: its 11 px font on a line */
+const NAME_LINE = 13;
 const DASH = [6, 4];
 
 
@@ -119,8 +124,8 @@ export class DiagramChart {
   private base: Ranges = {x: {min: 0, max: 1}, y: {min: 0, max: 1}};
   private draws = 0;
   private named = 0;
-  /** where the names were written (their tops, CSS pixels of the canvas), for the test hook */
-  private nameTops: number[] = [];
+  /** where the names were written (CSS pixels of the canvas), for the test hook */
+  private nameBoxes: {x: number; y: number; w: number; h: number}[] = [];
   private styleKey = '';
   onArea: (area: HTMLElement) => void = () => {};
 
@@ -236,14 +241,15 @@ export class DiagramChart {
     const allNamed = shown.length <= NAMED_MAX;
     const named = shown.map(s => allNamed || labelCoded(s.l.sym));
     const names = shown.map(s => [s.l.sym ? pointMark(s.l.sym) : '', s.l.lab || ''].filter(Boolean).join(' '));
-    /* two names at one spot are written a line apart (plot/labelPlace.ts) */
+    /* two names at one spot, or side by side with no clear space, are written a line apart (plot/labelPlace.ts) */
     const written = shown.map((_, i) => i).filter(i => named[i]);
-    const laid = placeLabels(written.map(i => ({x: shown[i].px + 5 * r, y: shown[i].py + 3 * r,
-      w: ctx.measureText(names[i]).width, h: 13 * r})));
+    const boxes = written.map(i => ({x: shown[i].px + 5 * r, y: shown[i].py + 3 * r,
+      w: ctx.measureText(names[i]).width, h: NAME_LINE * r}));
+    const laid = placeLabels(boxes, NAME_GAP * r);
     const tops = shown.map(() => 0);
     written.forEach((i, k) => { tops[i] = laid[k]; });
     this.named = written.length;
-    this.nameTops = tops.map(t => t / r);
+    this.nameBoxes = boxes.map((b, k) => ({x: b.x / r, y: laid[k] / r, w: b.w / r, h: NAME_LINE}));
     shown.forEach((s, i) => {
       const mark = labelMark(s.l.sym), light = mark.shape === 'tick';
       ctx.strokeStyle = light ? fgMuted : fg;
@@ -361,7 +367,7 @@ export class DiagramChart {
         first: [c.xs[0], c.ys[0], c.idx[0]]})),
       labels: m.labels.map(l => ({point: l.point, lab: l.lab, sym: l.sym, x: l.x, y: l.y, y2: l.y2})),
       named: this.named,
-      nameTops: this.nameTops,
+      nameBoxes: this.nameBoxes,
       ...this.ranges(),
       width: u.over.clientWidth,
       height: u.over.clientHeight,

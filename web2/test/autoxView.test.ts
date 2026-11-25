@@ -171,6 +171,15 @@ test('two names at one spot are written a line apart', () => {
   assert.equal(tops[2], 10);
 });
 
+test('two names side by side that would touch are written a line apart: EP 1 and AH 2 ran together', () => {
+  /* "EP 1" ends at x 344, "AH 2" starts at 345: one pixel apart, so the gap of 2 moves the second name down a line (13 + 2) */
+  const tops = placeLabels([{x: 317, y: 424, w: 27, h: 13}, {x: 345, y: 424, w: 21, h: 13}], 2);
+  assert.equal(tops[0], 424);
+  assert.equal(tops[1], 439);
+  /* a gap of 0 keeps them on one line, as before */
+  assert.equal(placeLabels([{x: 317, y: 424, w: 27, h: 13}, {x: 345, y: 424, w: 21, h: 13}])[1], 424);
+});
+
 
 test('where a key goes: letters on a button are hotkeys, nothing typed in a field is', () => {
   const el = (matches: string[]) => ({closest: (sel: string) => (matches.some(m => sel.split(', ').includes(m)) ? {} : null)}) as

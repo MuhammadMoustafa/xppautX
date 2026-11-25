@@ -3777,12 +3777,20 @@ async function autoxLabelMarks(dir) {
   const coded = shown.filter(l => l.sym).length;
   check('W863: every special point in view carries its code beside it (the names drawn cover the labels)',
     coded >= 3 && dg.named >= coded, `named ${dg.named} of ${coded} special labels in view (${dg.labels.length} in all)`);
+  /* W871: the codes drawn beside the points keep clear of one another: each pair of name boxes (CSS pixels, from the
+     chart's own layout) is apart by at least 2 px, the clear space labelPlace.ts's gap keeps, horizontally or vertically */
+  const apart = (a, b) => a.x + a.w + 2 <= b.x || b.x + b.w + 2 <= a.x || a.y + a.h + 2 <= b.y || b.y + b.h + 2 <= a.y;
   const out = process.env.XPP_SHOTS;
-  if (!out) return;
-  fs.mkdirSync(out, {recursive: true});
+  if (out) fs.mkdirSync(out, {recursive: true});
   for (const [size, width, height, mobile] of [['375', 375, 812, true], ['768', 768, 1024, false], ['1280', 1280, 860, false]]) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile});
+    await rendered();
+    const boxes = (await cdp.eval('__xpp.diagram()')).nameBoxes;
+    const clash = boxes.flatMap((a, i) => boxes.slice(i + 1).filter(b => !apart(a, b)).map(b => [a, b]))[0];
+    check(`W871: at ${size} px the codes drawn in the diagram do not overlap (EP 1 and AH 2 stacked, not run together)`,
+      !clash, clash ? JSON.stringify(clash) : `${boxes.length} names, all apart`);
+    if (!out) continue;
     for (const scheme of ['light', 'dark']) {
-      await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile});
       await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
       await rendered();
       await cdp.eval(`document.querySelector('.autox-view').scrollIntoView({block: 'start'})`);

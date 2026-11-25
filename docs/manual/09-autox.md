@@ -110,7 +110,8 @@ it back. It has:
   for an equilibrium's label, hollow for a cycle's: a filled triangle LP, a hollow triangle LPC, a filled diamond BP,
   a hollow diamond BPC), a **small filled square** is a two-parameter (codimension-two) point (BT, CP, ZH, GH, R1-R4,
   LPPD, LPNS, PDNS, NSNS), and a **bar** is where a branch ended, its code saying how (EP, SNIC, HOC, HEC, HBE, CL).
-  The code is drawn beside every special point, so the bars and the squares are told apart by their code. Other
+  The code is drawn beside every special point, so the bars and the squares are told apart by their code; two codes
+  that would touch (EP 1 and AH 2 on one spot) are written a line apart, never run together (W871). Other
   shapes: a hollow square at a period doubling (PD), a hollow star at a torus (NS), a filled circle at a Hopf point
   (AH), a filled inverted triangle at a user point (UZ), a bold cross where autoX could not converge (MX), and a
   small, lighter dot at a plain numbered point, so a long run's regular output no longer reads as a row of crosses;
