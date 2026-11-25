@@ -429,10 +429,21 @@ def check_autox_stops():
     refused = [n for n in observed.notes if 'was not accepted' in n]
     check('stops autoX refused zero: the fold of pp2 at NTST 15 that is a jump of the mesh, not a crossing, is a note naming it, its points, its parameter and the slopes; the branch goes on to its end',
           len(refused) == 1
-          and all(re.search(r'^Br 3 Pt \d+: a fold \(LP\) between points \d+ and \d+ was not accepted at parameter 0\.70[0-9]+: '
+          and all(re.search(r'^Br \d+ Pt \d+: a fold \(LP\) between points \d+ and \d+ was not accepted at parameter 0\.70[0-9]+: '
                             r'its test is not a smooth crossing: across the last [0-9.e-]+ of the search its slope is [0-9.]+ times its slope across the step, more than 3 either way; '
                             r'it is missing from the diagram$', n) for n in refused)
           and isinstance(observed.stop, dict) and observed.stop.get('why') == 'heteroclinic', '%s %s' % (refused, observed.stop))
+    # W869 (#951): a branch started at a label takes the next free number, so one number never names two branches of
+    # different kinds in one diagram: ode_motoneuron6c's cycles from its Hopf label 10 used to share 10 with the Hopf curve
+    d_mot = autoxcompare.read_description(autoxcompare.BASE / 'ode_motoneuron6c.json')
+    data_mot, _, _, _ = autoxcompare.compute(args.server, d_mot, 1)
+    kinds_of = {}
+    for row in csv.reader(io.StringIO(data_mot.decode().replace('\r', ''))):
+        if row and row[0] not in ('calc', 'branch') and len(row) > 1 and row[1].lstrip('-').isdigit():
+            kinds_of.setdefault(abs(int(row[1])), set()).add(row[0])
+    shared = {b: sorted(k) for b, k in kinds_of.items() if len(k) > 1}
+    check('branch numbers W869: no branch number names two branches of different kinds in ode_motoneuron6c',
+          kinds_of and not shared, '%s' % shared)
     # W547: a cycle's branch-point test out of scale is refused for every bracket, AUTO-07p's own included: the two
     # branch points AUTO-07p labels on global_heteroclinic's cycles, where the cycles' second multiplier is far from 1
     observed = Notes()

@@ -4299,12 +4299,12 @@ new_restart_label(iap_type *iap, rap_type *rap)
   iap->lab = lab;
   iap->run->base_branch = mbr;
   iap->run->base_label = mlab;
-  if (isw < 0 || irs == 0 || iap->run->job) { /* a job's branch is the next number in its own numbering, never a label of the job it restarts from */
+  /* A new branch takes the next free number, never its restart label's: AUTO-07p numbers each run from its own files, but here
+     every run shares one diagram, so a label's number may be taken (W869, #951). The label it started from is the point's `from`. */
+  const bool branch_switch = (itp.start == xpp::AutoxPointKind::Regular && f2c::abs(isw) == 2) || (ips == xpp::AutoxProblem::Periodic && itp.is(xpp::AutoxPointKind::Hopf)) ||
+	     (ips == xpp::AutoxProblem::BoundaryValue && isw == 2 && itp.start == xpp::AutoxPointKind::Regular) || (ips == xpp::AutoxProblem::AlgebraicOptimization && itp.kind == xpp::AutoxPointKind::Fold);
+  if (isw < 0 || irs == 0 || iap->run->job || branch_switch) { /* a job's branch is the next number in its own numbering, never a label of the job it restarts from */
     ibr = mbr + 1;
-    iap->ibr = ibr;
-  } else if ((itp.start == xpp::AutoxPointKind::Regular && f2c::abs(isw) == 2) || (ips == xpp::AutoxProblem::Periodic && itp.is(xpp::AutoxPointKind::Hopf)) || 
-	     (ips == xpp::AutoxProblem::BoundaryValue && isw == 2 && itp.start == xpp::AutoxPointKind::Regular) || (ips == xpp::AutoxProblem::AlgebraicOptimization && itp.kind == xpp::AutoxPointKind::Fold)) {
-    ibr = irs;
     iap->ibr = ibr;
   }
 
