@@ -769,23 +769,6 @@ xpp::Result<std::string> state_text(xpp::Session &s, const xpp::snapx::Manifest 
     return *head + *body;
 }
 
-/* the members the session file holds beside its model's files, the state text first: autoX's orbits and the frozen curves
-   follow it; the error when the state text cannot be written (the data table is session_bytes') */
-xpp::Result<std::vector<xpp::zip::Entry>> session_members(xpp::Session &s, const xpp::snapx::Manifest &man)
-{
-    xpp::Result<std::string> state = state_text(s, man);
-    if (!state) {
-        state.error().place.file = xpp::snapx::state_member;
-        return std::unexpected(state.error());
-    }
-    std::vector<xpp::zip::Entry> entries{{xpp::snapx::state_member, std::move(*state)}};
-    /* a diagram exists: without its orbits, the save is refused */
-    if (const xpp::Result<> added = xpp::snapx::autox_members::add_members(s, entries, xpp::snapx::autox_folder); !added)
-        return std::unexpected(added.error());
-    if (std::optional<std::string> frozen = frozen_npz(s)) entries.push_back({xpp::snapx::frozen_member, std::move(*frozen)});
-    return entries;
-}
-
 /* the session file of s, as its bytes: the data table in when data;
    the error when it cannot be made */
 xpp::Result<std::string> session_bytes(xpp::Session &s, bool data)
@@ -795,11 +778,16 @@ xpp::Result<std::string> session_bytes(xpp::Session &s, bool data)
     xpp::Result<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(s, man);
     if (!entries) return std::unexpected(entries.error());
     xpp::redraw_params(); /* the values panel up to date, before the options are taken */
-    xpp::Result<std::vector<xpp::zip::Entry>> members = session_members(s, man);
-    if (!members) return std::unexpected(members.error());
-    /* the state text takes the manifest's entry's place at the front; the rest follow the model's files */
-    entries->front() = std::move(members->front());
-    for (std::size_t i = 1; i < members->size(); i++) entries->push_back(std::move((*members)[i]));
+    xpp::Result<std::string> state = state_text(s, man);
+    if (!state) {
+        state.error().place.file = xpp::snapx::state_member;
+        return std::unexpected(state.error());
+    }
+    entries->front().bytes = std::move(*state);
+    /* a diagram exists: without its orbits, the save is refused */
+    if (const xpp::Result<> added = xpp::snapx::autox_members::add_members(s, *entries, xpp::snapx::autox_folder); !added)
+        return std::unexpected(added.error());
+    if (std::optional<std::string> frozen = frozen_npz(s)) entries->push_back({xpp::snapx::frozen_member, std::move(*frozen)});
     if (man.data) entries->push_back({xpp::snapx::data_member, xpp::npz_bytes(stored_data_table(s))});
     return xpp::zip::make_zip(*entries);
 }
@@ -808,43 +796,22 @@ xpp::Result<std::string> session_bytes(xpp::Session &s, bool data)
 
 namespace {
 
-/* the values the changed flag compares (xpp_session.h) */
-std::uint64_t values_fingerprint(const xpp::Session &s)
-{
-    const xpp::Model &m = s.model();
-    xpp::Fingerprint f;
-    for (int i = 0; i < m.nupar; i++) f.value(s.parser.constants[m.upar_con[i]]);
-    for (int i = 0; i < m.node + m.nmarkov; i++) f.value(s.last_ic[i]);
-    /* the numerics the session file keeps, whatever the table holds */
-    for (const xpp::OptionRow *row : xpp::saved_settings()) {
-        if (row->real) f.value(row->real(s));
-        else if (row->whole) f.value(row->whole(s));
-        else if (row->boolean) f.value(row->boolean(s) ? 1 : 0);
-        else if (row->index) f.value(row->index.read(s));
-    }
-    f.value(s.data_store->rows);
-    f.value(s.data_store->current_time);
-    f.value(diagram_count(*s.diagram)); /* the autoX diagram the file keeps: a run's new points change the session (W880) */
-    return f.result();
-}
-
-/* the session file's members as the next save writes them, hashed (W884): session_members, with the model named as the file
-   names it and the data flag left false on both sides (the data table's rows are in values_fingerprint). The model's own files
-   are not hashed: the load read them and no command changes them. An error (the state text cannot be written) is returned as
-   one, which counts as unsaved. Nothing is written and no panel is redrawn. */
-xpp::Result<std::uint64_t> members_fingerprint(xpp::Session &s)
+/* what the changed flag compares (xpp_session.h): the session file's state text as the next save writes it (the values,
+   options, views, windows, marks, frozen curves' names: everything the file keeps but its arrays; W884), and what stands for
+   those arrays, the data's rows and where the run ended, and the autoX diagram's points (its orbits change only with them,
+   W880). No orbit or data is read, so the state event can afford it. Nothing when the state text cannot be written, which
+   counts as changed */
+std::optional<std::uint64_t> session_fingerprint(xpp::Session &s)
 {
     xpp::snapx::Manifest man;
     man.model_name = s.model().this_file;
-    xpp::Result<std::vector<xpp::zip::Entry>> members = session_members(s, man);
-    if (!members) return std::unexpected(members.error());
+    const xpp::Result<std::string> text = state_text(s, man);
+    if (!text) return std::nullopt;
     xpp::Fingerprint f;
-    for (const xpp::zip::Entry &e : *members) {
-        f.value(e.name.size());
-        f.bytes(e.name.data(), e.name.size());
-        f.value(e.bytes.size());
-        f.bytes(e.bytes.data(), e.bytes.size());
-    }
+    f.bytes(text->data(), text->size());
+    f.value(s.data_store->rows);
+    f.value(s.data_store->current_time);
+    f.value(diagram_count(*s.diagram));
     return f.result();
 }
 
@@ -936,23 +903,21 @@ xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file
     return true;
 }
 
-bool xpp_session_changed(const xpp::Session &s)
+bool xpp_session_changed(xpp::Session &s)
 {
-    return values_fingerprint(s) != s.saved_session->clean;
+    const std::optional<std::uint64_t> now = session_fingerprint(s);
+    return !now || !s.saved_session->clean || *now != *s.saved_session->clean;
 }
 
 bool xpp_session_has_unsaved(xpp::Session &s)
 {
-    if (s.saved_session->file.empty() || xpp_session_changed(s)) return true;
-    const xpp::Result<std::uint64_t> now = members_fingerprint(s);
-    return !now || !s.saved_session->clean_file || *now != *s.saved_session->clean_file;
+    if (s.saved_session->file.empty()) return true;
+    return xpp_session_changed(s);
 }
 
 void xpp_session_mark_clean(xpp::Session &s)
 {
-    s.saved_session->clean = values_fingerprint(s);
-    const xpp::Result<std::uint64_t> file = members_fingerprint(s);
-    s.saved_session->clean_file = file ? std::optional<std::uint64_t>(*file) : std::nullopt;
+    s.saved_session->clean = session_fingerprint(s);
 }
 
 std::optional<std::string> xpp_session_snapshot(xpp::Session &s)

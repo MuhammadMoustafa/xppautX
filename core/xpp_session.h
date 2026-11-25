@@ -54,20 +54,15 @@ int xpp_session_save_here(xpp::Session &s, int data = -1);
    offered as the pending download (xpp::files::offer_download) under the saved file's name, else the default one; the path, or ""
    when nothing was written (not ready, a question cancelled, an error shown) */
 std::string xpp_session_save_download(xpp::Session &s);
-/* The unsaved-changes dot's definition, once (state's `changed`): the
-   session's values differ from those it was last saved, opened or loaded
-   with. A value is a parameter's, an initial condition's, a numerics
-   option of the time span, method, tolerances and bounds, or the run's
-   data (the rows stored and where the run ended). A view, a window or an
-   autoX diagram alone is not a change. */
-bool xpp_session_changed(const xpp::Session &s);
-/* what the leave question asks about (File > Open, Reload, Quit): the session has no file yet, its values changed since (above), or
-   the session file it would write now differs from the one last saved, opened or loaded (the state text and the autoX orbits and
-   frozen curves, as the file holds them; W884). A session saved or opened with nothing new since is not asked. Takes the Session
-   for the state text's reads; it changes nothing */
+/* The unsaved-changes dot's definition, once (state's `changed`), and the leave question's: the session file the next save
+   writes differs from the one last saved, opened or loaded, in its state text (the values, options, views, windows, marks),
+   its data's rows and where the run ended, or its autoX diagram's points (W884; W880). Takes the Session for the state
+   text's reads; it changes nothing */
+bool xpp_session_changed(xpp::Session &s);
+/* what the leave question asks about (File > Open, Reload, Quit): the session has no file yet, or it changed since (above). A
+   session saved or opened with nothing new since is not asked */
 bool xpp_session_has_unsaved(xpp::Session &s);
-/* the session's values and its session file's members as they are now are the saved ones: a save, an
-   open of a session file and the end of every load call it (xpp_session_has_unsaved, W884) */
+/* the session as it is now is the saved one: a save, an open of a session file and the end of every load call it */
 void xpp_session_mark_clean(xpp::Session &s);
 /* the session file of s as it would be saved without the data table, as
    its bytes: a recording's snapshot (W59d, recx.h), made asking nothing;

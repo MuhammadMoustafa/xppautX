@@ -31,10 +31,9 @@ struct Manifest {
 /* the session file last saved or opened; a Session's (session.h) */
 struct SavedSession {
     std::string file;           /* the .snapx */
-    std::uint64_t clean = 0;    /* the values' fingerprint when it was saved, opened or loaded */
-    /* the fingerprint of the session file's members (the state text and the autoX orbits and frozen curves, data left out) then;
-       nothing when they could not be made, which counts as unsaved (W884) */
-    std::optional<std::uint64_t> clean_file;
+    /* the session's fingerprint when it was saved, opened or loaded (xpp_session_changed); nothing when it could not be made,
+       which counts as changed */
+    std::optional<std::uint64_t> clean;
 };
 
 /* A session archive carries its saved model and all session members.
