@@ -2238,7 +2238,7 @@ async function autoxView(dir) {
      to autoxStopRace() below, on tools/models/heavy.odex: see that
      function's own comment for why they no longer live here. */
 
-  if (process.env.XPP_SHOTS) await cdp.eval(`__xpp.send({cmd: 'autox.grab', label: ${hbLab}})`); // the pictures start from the Hopf label
+  await cdp.eval(`__xpp.send({cmd: 'autox.grab', label: ${hbLab}})`); // the dialog's checks and pictures start from the Hopf label
   await requireUntil('!s.busy', 'grabbed');
   /* W855: autoX > Run is the dialog of five steps (web2/src/ui/AutoxRunDialog.tsx): the values in force, only the kinds the start allows,
      the homoclinic fields for their kind alone, Decrease's sign on the first step, Both as two runs (one each way) and a changed parameter
@@ -5073,6 +5073,12 @@ async function navigationCheck() {
       await until("!s.busy && !(s.ask && s.ask.kind === 'file')", 'the picker closed');
       continue;
     }
+    if (row.cmd === 'autox.run') {
+      /* W855: autoX > Run is its designed dialog of five steps, not the registry's flat form (the autox section checks it) */
+      check('W855: autox.run opens the Run continuation dialog', await until(`s.commandForm?.id === 'autox.run' && !!document.querySelector('.run-form [data-autox-run-columns]')`, 'run dialog'));
+      await key('Escape');
+      continue;
+    }
     if (row.panel) {
       /* W616: a group's generated panel in place of its form, or inside it when the command has more than options (the options section checks the fields against the table) */
       const inForm = row.panel.endsWith('+') || row.arguments.some(a => a.option);
@@ -7576,7 +7582,7 @@ async function jacobianOfferCheck(dir) {
   await until('!s.busy', 'autoX numerics');
   await cdp.eval(`__xpp.send({cmd: 'autox.configure_axes', plot_type: 'norm', variable: 'x', parameter1: 'a'})`);
   await until('!s.busy', 'autoX axes');
-  await menuRun('autox.run', {kind:'equilibrium', follow_all_branches:false});
+  await autoxRun('equilibrium'); // W855: the Run dialog, its direction the sign of step.initial, one branch
   check('W275: the error of a failed exact Jacobian in an autoX run offers Switch to differences and continue',
     await until(`!s.busy && !!${offer}`, 'the offer on the autoX error', 60000) && await cdp.eval(`${offer}.textContent`) === 'Switch to differences and continue',
     JSON.stringify(await S('s.toasts')));
