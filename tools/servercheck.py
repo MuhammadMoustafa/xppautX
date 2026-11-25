@@ -8873,7 +8873,9 @@ def check_settings_during_run():
               m and m.get('method') == 'cvode' and (taken or {}).get('method') == 'runge_kutta'
               and len(errs) == 1 and '`3` is not a method' in errs[0] and num(refused) is None, str((m, taken, errs)))
         snd(cmd='run.initial')
-        evs, prog = col(is_prog, timeout=30 * SLOW)
+        # a step taken, so a row past t = 0 is stored before the Stop below (the first progress may come at step 0:
+        # Windows' clang ASan build stopped there, CI 45534065753)
+        evs, prog = col(lambda e: is_prog(e) and e.get('n', 0) >= 1, timeout=30 * SLOW)
         snd(cmd='value.set_parameters', values={'iapp': 0.3})
         snd(cmd='run.configure', total_time=50)
         snd(cmd='run.configure', store_every=0)  # bad: its error comes after the run
