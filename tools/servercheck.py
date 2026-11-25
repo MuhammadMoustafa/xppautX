@@ -7794,7 +7794,7 @@ def check_autox_stop():
             ({**wide, 'limits.parameter_min': -0.3, 'step.initial': -0.01}, 'limits.parameter_min', 'parameter a reached limits.parameter_min (-0.3)', False),
             ({**wide, 'limits.norm_max': 0.3}, 'limits.norm_max', 'the norm reached limits.norm_max (0.3)', False),
             ({**wide, 'limits.steps': 5}, 'limits.steps', 'the branch reached limits.steps (5)', False),
-            ({**wide, 'limits.parameter_max': 10}, 'noconv-min', 'no convergence even at the smallest step (step.min 0.001; newton.max_iterations 7, newton.parameter_tolerance 0.0001, newton.state_tolerance 0.0001)', False),
+            ({**wide, 'limits.parameter_max': 10}, 'noconv-min', 'no convergence even at the smallest step (step.min 0.001; newton.max_iterations 7, newton.parameter_tolerance 0.0001, newton.state_tolerance 0.0001); a periodic orbit may need a larger mesh.intervals (now 15)', False),
             ({**wide, 'limits.parameter_max': 10, 'step.adapt_every': 0}, 'noconv-fixed', 'no convergence with a fixed step size (step.adapt_every 0; newton.max_iterations 7, newton.parameter_tolerance 0.0001, newton.state_tolerance 0.0001)', False),
             ({**wide, 'limits.steps': 1000000, 'step.initial': 1e-7, 'step.min': 1e-8, 'step.max': 1e-7}, 'user', 'by the user (Stop)', True)):
         stop, n = autox_stop_run(numerics, abort)
