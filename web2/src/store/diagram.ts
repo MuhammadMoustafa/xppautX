@@ -80,6 +80,35 @@ export interface AutoxJobs {
   jobs: {live: number; key: number[]; points: number}[];
 }
 
+/** `autox.summary` (W860, docs/protocol.md): a run's end, per branch what it found and why it stopped */
+export interface AutoxSummaryEvent {
+  branches?: {br: number; found?: {sym: string; lab: number; name: string; par: string | null; x: number | null}[];
+    stop?: {why: string; pt: number; text: string} | null}[];
+  follow?: {sym: string; lab: number; kinds: string[]}[];
+  lines?: string[];
+}
+
+/** one branch of the run's summary: its found special points and where it stopped (null: it did not end) */
+export interface AutoxSummaryBranch {
+  br: number;
+  found: {sym: string; lab: number; name: string; par: string | null; x: number | null}[];
+  stop: {why: string; pt: number; text: string} | null;
+}
+
+/** the last run's summary (W860): its branches, and the Output lines (the same text) */
+export interface AutoxSummary {
+  branches: AutoxSummaryBranch[];
+  lines: string[];
+}
+
+/** the summary event as held: a missing list is empty, so a render never reads an absent field */
+function summaryOf(ev: AutoxSummaryEvent): AutoxSummary {
+  return {
+    branches: (ev.branches ?? []).map(b => ({br: b.br, found: b.found ?? [], stop: b.stop ?? null})),
+    lines: ev.lines ?? [],
+  };
+}
+
 /** `autox.joined` (W631): the jobs of a run of branch jobs that kept their points in the join, in the join's order, each with the
     branch its joined points carry (one branch per job) */
 export interface AutoxJoined {
@@ -267,6 +296,11 @@ export interface DiagramState {
   run: AutoxRun | null;
   /** the last `autox.jobs` of a run (W597), null before one and when a run starts */
   jobs: AutoxJobs | null;
+  /** the last run's `autox.summary` (W860), null before one: what each branch found and why it stopped */
+  summary: AutoxSummary | null;
+  /** what every branch of the diagram found and why it stopped, by branch number: each run's summary adds its branches (the branch
+      list shows all of them, not only the last run's); a reset drops the branches that went with the points it cut */
+  branchNotes: Record<number, AutoxSummaryBranch>;
   /** the last `autox.joined` (W631), null before one and when a run starts: the legend's options follow each job to its branch */
   joined: AutoxJoined | null;
   /** each running job's key by its live id (`autox.jobs`, W620), kept from the event that lists it, so the
@@ -335,7 +369,7 @@ export const EMPTY_VIEW: DiagramView = emptyView();
 export const initialDiagram: DiagramState = {
   open: false, shown: false, views: [emptyView()], active: 0, events: 0, outOfStep: false,
   hover: null, info: null, stab: null, start: null, stop: null, infoEvents: 0, grabbing: false, stored: null,
-  run: null, jobs: null, joined: null, liveKeys: {}, earlier: 0, showEarlier: false,
+  run: null, jobs: null, joined: null, summary: null, branchNotes: {}, liveKeys: {}, earlier: 0, showEarlier: false,
 };
 
 export type DiagramAction =
@@ -357,6 +391,8 @@ export type DiagramAction =
   | {type: 'jobs'; ev: AutoxJobs}
   /** `autox.joined` (W631) */
   | {type: 'joined'; ev: AutoxJoined}
+  /** `autox.summary` (W860): a run's end, what each branch found and why it stopped */
+  | {type: 'summary'; ev: AutoxSummaryEvent}
   /** Clear: what is drawn now becomes the earlier branches (until the core's `autoxview` says) */
   | {type: 'clear'}
   /** the core's display of the diagram (W65): the branches Clear hid, whether they are shown, the
@@ -496,7 +532,9 @@ function onEvent(s: DiagramState, ev: DiagramEvent): DiagramState {
       }));
       const hover = s.hover && (s.hover.view !== k || s.hover.point < keep) ? s.hover : null;
       const liveKeys = views.some(v => hasLivePoints(v.points)) ? s.liveKeys : {};
-      return {...s, views, hover, liveKeys, outOfStep: false, events};
+      const kept = new Set(Array.from(views[k].points.br, Math.abs));
+      const branchNotes = Object.fromEntries(Object.entries(s.branchNotes).filter(([br]) => kept.has(Number(br))));
+      return {...s, views, hover, liveKeys, branchNotes, outOfStep: false, events};
     }
     case 'add': {
       if (ev.from > (held ? pointCount(held) : 0)) return {...s, outOfStep: true, events};
@@ -556,6 +594,11 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
     }
     case 'joined':
       return {...s, joined: a.ev};
+    case 'summary': {
+      const summary = summaryOf(a.ev), branchNotes = {...s.branchNotes};
+      for (const b of summary.branches) branchNotes[b.br] = b;
+      return {...s, summary, branchNotes};
+    }
     case 'runStopped':
       return s.run?.active ? {...s, run: {...s.run, stopped: true}} : s;
     case 'clear':
@@ -580,7 +623,7 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
 }
 
 function onRun(s: DiagramState, op: 'start' | 'clock' | 'end', at: number): DiagramState {
-  if (op === 'start') return {...s, jobs: null, joined: null, liveKeys: {}, run: {active: true, started: at, ended: null, first: pointCount(activeView(s).points), stopped: false}};
+  if (op === 'start') return {...s, jobs: null, joined: null, summary: null, liveKeys: {}, run: {active: true, started: at, ended: null, first: pointCount(activeView(s).points), stopped: false}};
   if (!s.run?.active) return s;
   if (op === 'clock') return {...s, run: {...s.run, started: at}};
   return {...s, run: {...s.run, active: false, ended: at}};

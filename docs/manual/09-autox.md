@@ -48,20 +48,33 @@ it back. It has:
   it zooms (wheel) and pans (Shift+drag or the middle button) in the
   page, the core holding the zoom shown (`autoxview`), with no history (Reset zoom goes back to autoX's own axes), and
   a tooltip or the readout names the point under the mouse or cursor; a
-  **Fit** button in the diagram's own top-right corner (also in the tools
-  row, alongside Reset zoom) fits the view to the branches currently
+  **Fit** button in the diagram's own top-right corner (also in the toolbar; Reset zoom is in its ⋯ menu) fits the view to the branches currently
   shown, client-side — earlier branches stay out of it unless "Earlier
   branches" is on;
-- the diagram's **legend**, one entry per branch, stability and kind: a
+- the **toolbar**: **Run** (the start of a continuation), **Grab** and **Script** (shows or hides the open .autox script's runs; off while none is
+  open) at the left, **Fit** and the **⋯** menu at the right. The ⋯ menu holds the rest, each with its own tip: **Axes**, **Numerics**,
+  **Mark values**, **Hide earlier branches** (the old Clear), **Reset zoom**, the sets row (Sets, Save, List file contents, Restore defaults, for
+  autoX's options) and Help;
+- a **key**, one line above the plot of what the diagram has: stable and unstable as a solid and a dashed line, steady and periodic as a box of their
+  color, then each special point's mark, code and name (a phone keeps the marks and codes, the names are in their tips). It replaces the per-branch
+  legend entries;
+- the diagram's **branch list**, beside the plot from 80 rem and under it below that (the plot keeps most of the height, the view scrolls on a
+  phone). Its header says how many branches there are and how the run stands ("Running", or "Script done" once an open script's runs have all run).
+  A row per branch or running job: its **eye** shows or hides it (a double click on the row renames it and changes its color), its swatch, its name
+  ("Branch 3": the protocol gives no run names), its kind (a periodic branch says where it started, "periodic, from AH 0.262") and the parameter's
+  range on it; under it the special points it found as **chips** (the plot's own mark, the code and the value: a click grabs the point) and why it
+  stopped, from the run's `autox.summary` (two lines, the whole in its tip). The rows of every run stay, not only the last one's. The row under the
+  pointer has an accent bar and a tint, and its branch is drawn thicker. A run's end fits the axes to the branches it made, once, with a note
+  in the plot's top-left corner and an **Undo** that puts the axes back as they were. Output points (a plain numbered one, every `output.every`
+  points) are faint dots with no number: the special points carry their mark and code. The legend entries that the branch list replaced were: a
   branch's stable and unstable segments, and a periodic branch's maximum
   and minimum, are one entry (`Branch 3 · unstable periodic`). While branch
   jobs run (see "Following all the branches"), each job's curves are named
-  by its key as the status strip names it (`Job 0.5 · unstable periodic`),
+  by its key as the status strip names it (`Job 0.5`),
   and become branch entries when the jobs are joined: a job's name, color
   and visibility move to the branch its points carry, and the entries of a
-  job the join dropped as a repeat go with their curves. A click shows or hides
-  all of an entry's curves, a double click renames it and changes its
-  color, and hovering over it highlights all of them;
+  job the join dropped as a repeat go with their curves. Hovering over a row
+  highlights its curves;
 - a **stability circle** below it, and a **status
   strip** along the window's bottom edge, in place of
   the small square and info windows of XPPAUT's autoX window, from the
@@ -120,7 +133,7 @@ it back. It has:
   (AH), a filled inverted triangle at a user point (UZ), a bold cross where autoX could not converge (MX), and a
   small, lighter dot at a plain numbered point, so a long run's regular output no longer reads as a row of crosses;
   hovering a labelled point names its type; the point where the last run ended also says why;
-- an **Output** panel with autoX's printed table (`xpp_log_autox()`, always
+- an **Output** panel (the last item of the status strip, "Output (52)", opens it above the strip) with autoX's printed table (`xpp_log_autox()`, always
   written in the window and in browser mode): the header, a row for every
   labelled point (the special ones and the plain ones Numerics' `output.every`
   prints every `output.every` points) and why the branch stopped, one line each;

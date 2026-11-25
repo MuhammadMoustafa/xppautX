@@ -23,7 +23,8 @@ import {hasLivePoints, KIND_CALCS, type DiagramAxes, type DiagramLabel, type Dia
 import type {Range} from '../store/state';
 import type {CoreColor} from '../protocol/types';
 import type {Ranges} from './viewmath';
-import {pointLabel} from '../store/pointTypes';
+import {pointLabel, pointMark} from '../store/pointTypes';
+import {sixSig} from '../store/values';
 import {choiceLabel} from '../store/fieldKinds';
 import {jobKeyText} from './autoxStatus';
 
@@ -560,4 +561,62 @@ export function describePoint(p: DiagramPoints, labels: DiagramLabel[], axes: Di
     label: l ? [pointLabel(l.sym), l.lab ? `label ${l.lab}` : '', why ? `(${why})` : ''].filter(Boolean).join(' ') : '',
     values,
   };
+}
+
+/** one row of the branch list (W859): a branch of the diagram, or a running job, with the legend entries it draws (its stable
+    and unstable parts, a periodic branch's max and min), its parameter's range over its points and its kind in words */
+export interface BranchRow {
+  /** the row's owner, the entries' key up to the second colon (`branch:3`, `job:0.5`, `live:7`) */
+  id: string;
+  /** the diagram's branch number, null for a running job's or live row */
+  branch: number | null;
+  name: string;
+  kind: string;
+  /** the range of the continuation parameter over the row's points, null when it has none */
+  lo: number | null;
+  hi: number | null;
+  entries: string[];
+  color: CoreColor;
+  /** the first point of the row's curves, for its chips and its grab (-1 when none) */
+  first: number;
+  /** the label the run that computed the row's first point started from, 0 for none (a run from the current state) */
+  from: number;
+}
+
+/** the branch list's rows, one per branch or running job, in the entries' order (the legend's entries are kept as they are:
+    each row lists its entries, so the show/hide of a row sets them all). Pure. */
+export function branchRows(entries: LegendEntry[], curves: DiagramCurve[], p: DiagramPoints): BranchRow[] {
+  const rows = new Map<string, BranchRow>();
+  entries.forEach(e => {
+    const id = e.key.split(':').slice(0, 2).join(':');
+    let row = rows.get(id);
+    if (!row) {
+      const branch = /^branch:(\d+)$/.exec(id);
+      row = {id, branch: branch ? Number(branch[1]) : null, name: e.name.split(' · ')[0], kind: '', lo: null, hi: null,
+        entries: [], color: e.color, first: -1, from: 0};
+      rows.set(id, row);
+    }
+    row.entries.push(e.key);
+    for (const ci of e.curves) {
+      const c = curves[ci];
+      if (!c) continue;
+      if (!row.kind) row.kind = c.calc ? nameWords(c.calc) : c.kind === 'periodic' ? 'periodic' : 'equilibria';
+      for (const pt of c.idx) {
+        if (pt < 0 || pt >= p.x.length) continue;
+        if (row.first < 0) row.first = pt;
+        if (!row.from && p.fr[pt]) row.from = p.fr[pt];
+        const v = p.x[pt];
+        if (row.lo === null || v < row.lo) row.lo = v;
+        if (row.hi === null || v > row.hi) row.hi = v;
+      }
+    }
+  });
+  return [...rows.values()];
+}
+
+/** where a branch started, in words: "AH 1.630" for a run from the Hopf point labelled `from`, '' when it started from the
+    current state or its start label is not in the diagram */
+export function startedFrom(from: number, labels: DiagramLabel[], p: DiagramPoints): string {
+  const l = from ? labels.find(x => x.lab === from) : undefined;
+  return l ? [pointMark(l.sym), sixSig(p.x[l.point])].filter(Boolean).join(' ') : '';
 }

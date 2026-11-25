@@ -21,7 +21,7 @@ import {initialAni, reduceAni, type AniAction, type AniState} from './ani';
 import {initialKinescope, reduceKinescope, snapshotWindow, type KinescopeAction, type KinescopeState} from './kinescope';
 import {initialFiles, onSent, reduceFiles, type FilesAction, type FilesState, type RunRecord} from './files';
 import {
-  diagramSettled, initialDiagram, reduceDiagram, type AutoxInfoEvent, type AutoxJobs, type AutoxJoined, type DiagramAction, type DiagramEvent, type DiagramState,
+  diagramSettled, initialDiagram, reduceDiagram, type AutoxInfoEvent, type AutoxJobs, type AutoxJoined, type AutoxSummaryEvent, type DiagramAction, type DiagramEvent, type DiagramState,
 } from './diagram';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
 import {appendLog, emptyLog, lastEntry, type Log, type LogEntry} from './log';
@@ -616,6 +616,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'jobs', ev: ev as unknown as AutoxJobs})};
     case 'autox.joined':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'joined', ev: ev as unknown as AutoxJoined})};
+    case 'autox.summary':
+      return {...state, diagram: reduceDiagram(state.diagram, {type: 'summary', ev: ev as unknown as AutoxSummaryEvent})};
     case 'autox.options':
       return {...state, autoxSettings: reduceAutoxSettings(state.autoxSettings, {type: 'event', ev: ev as unknown as AutoxSettings})};
     case 'autox.script_runs':

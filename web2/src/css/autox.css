@@ -12,8 +12,6 @@
   min-height: 0;
   background: var(--surface);
 }
-.autox-header h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.autox-what { font-weight: 400; font-size: var(--text-sm); margin-left: var(--space-1); }
 .autox-view {
   container-type: inline-size;
   flex: 1 0 22rem;
@@ -29,7 +27,6 @@
 .autox-panel.in-group .autox-views { overflow: hidden; }
 .autox-panel.in-group .autox-pane { min-height: 0; }
 .autox-panel.in-group .autox-host { min-height: 8rem; }
-.autox-panel.in-group .autox-pane-bar .legend { flex: 1 1 12rem; order: 0; }
 .autox-panel.in-group .legend-item { max-width: 9rem; padding-inline: var(--space-1); }
 .autox-panel.in-group .plot-tools { width: auto; margin-left: auto; }
 .autox-panel.in-group .plot-tools button { flex: none; }
@@ -53,7 +50,7 @@
   display: flex;
   flex-direction: column;
   min-width: min(100%, 18rem);
-  min-height: 26rem;
+  min-height: 18rem;
 }
 .autox-views:not([data-views="1"]) { padding: var(--space-2); }
 .autox-views:not([data-views="1"]) .autox-pane { border: 1px solid var(--border); border-radius: var(--radius); }
@@ -80,9 +77,11 @@
   padding: 0 var(--space-1);
   list-style: none;
   font-size: var(--text-xs);
+  color: var(--fg-muted);
 }
+.autox-legend b { color: var(--fg); }
+.autox-key-box { width: 0.75rem; height: 0.75rem; border-radius: 0.125rem; }
 .autox-legend li { display: inline-flex; align-items: center; gap: var(--space-2); }
-.autox-pane-bar .legend { flex-basis: 100%; order: 3; }
 .autox-swatch { width: 1.25rem; height: 0; border-top: 2px solid; }
 .autox-swatch.dashed { border-top-style: dashed; }
 .autox-legend-label { cursor: help; }
@@ -94,9 +93,6 @@
 @container (max-width: 34rem) {
   .autox-view .plot-tools { width: 100%; }
   .autox-view .plot-tools button { flex: 1; }
-}
-@media (pointer: coarse) {
-  .autox-tools button { flex: 1 0 auto; }
 }
 /* T11b: the grab's cursor, the stored point of a two-parameter diagram, the
    info strip and the stability circle (ui/AutoxInfo.tsx) */
@@ -151,7 +147,6 @@
 .autox-status {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: var(--space-2);
   padding: var(--space-1) var(--space-3);
   border-top: 1px solid var(--border);
@@ -162,9 +157,9 @@
   font-size: var(--text-xs);
   min-width: 0;
 }
-.autox-status-text { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+.autox-status-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; } /* one line, the whole text its tip (W859) */
 /* T26: the core's last message, as StatusBar.tsx's own .status-message */
-.autox-message { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.autox-message, .autox-branch-head .autox-branch-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* the script panel under the info strip (W684, ui/AutoxScript.tsx): each run in order with its start, Done and Run */
 .autox-script-runs { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); }
 .autox-script-run { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-height: var(--target); }
@@ -177,8 +172,12 @@
 .autox-script-error { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; color: var(--danger); }
 .autox-script-skipped { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; }
 .autox-script-tools { margin-top: var(--space-1); }
-.autox-output, .autox-script { border-top: 1px solid var(--border); padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
+.autox-script { border-top: 1px solid var(--border); padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
+/* W859: Output is the status strip's last item ("Output (52)"); open, its table is a panel over the view, over the strip */
+.autox-output { position: relative; flex: none; font-size: var(--text-xs); }
 .autox-output summary, .autox-script summary { cursor: pointer; min-height: var(--target); display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.autox-output-panel { position: absolute; z-index: var(--z-dropdown); right: 0; bottom: 100%; width: min(60rem, 100vw); margin-bottom: var(--space-2); padding: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.autox-output-panel > p { margin: 0; }
 .autox-output-text {
   margin: 0;
   max-height: 12rem;
@@ -245,3 +244,65 @@
 .autox-tools button.autox-pending { border-style: dashed; }
 .autox-axis-head { display: flex; align-items: flex-start; gap: var(--space-2); }
 .autox-axis-head .dialog-close { margin-left: auto; }
+/* W859: the toolbar (Run, Grab, Script at the left, Fit and the ⋯ menu at the right) and the key's line under it */
+.autox-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); flex: none; padding: var(--space-1) var(--space-3); border-bottom: 1px solid var(--border); background: var(--surface); }
+.autox-tools-gap { flex: 1 1 0; }
+.autox-pane-bar { gap: var(--space-1) var(--space-3); }
+/* W859: the branch list (BranchList in ui/AutoxView.tsx): a header (how many, from where, how the run stands), then one row per branch
+   or running job: its eye, swatch, name, kind and parameter range on a line, the special points it found as chips under it, and why it
+   stopped (two lines, the whole in its tip). The row under the pointer has the accent bar and a tint, its branch drawn thicker. */
+.autox-branches { display: flex; flex-direction: column; flex: none; min-width: 0; border-top: 1px solid var(--border); background: var(--surface); }
+.autox-branches-head { display: flex; align-items: baseline; gap: var(--space-2); flex: none; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); font-size: var(--text-xs); }
+.autox-branches-head h3 { margin: 0; font-size: var(--text-sm); }
+.autox-branches-state { margin-left: auto; color: var(--ok); font-weight: 600; }
+.autox-branches-state[data-running] { color: var(--fg-muted); }
+.autox-branch-rows { min-width: 0; }
+.autox-branch { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+.autox-branch:hover, .autox-branch:focus-within { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); box-shadow: inset 3px 0 0 var(--accent); }
+.autox-branch.off { opacity: 0.55; }
+.autox-branch-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-width: 0; }
+.autox-eye-button { flex: none; display: grid; place-items: center; min-width: var(--target); min-height: var(--target); padding: 0; border: 0; background: none; color: var(--fg-muted); }
+.autox-eye { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.4; }
+.autox-branch-name { flex: none; max-width: 100%; font-weight: 600; }
+.autox-branch-head .autox-branch-range { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.autox-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); padding-left: 2.5rem; }
+.autox-chip { display: inline-flex; align-items: center; gap: 0.25rem; min-height: 1.5rem; padding: 0 var(--space-2); border-radius: 999px; background: var(--surface-2); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.autox-branch-stop { margin: 0; padding-left: 2.5rem; font-size: var(--text-xs); line-height: 1.45; color: var(--fg-muted); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+/* W859: the note a run's end leaves on the plot (its fit, and Undo): in the plotting area's top-left corner (the view sets its place) */
+.autox-fit-note {
+  position: absolute;
+  z-index: var(--z-plot-control);
+  left: var(--space-3);
+  top: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: calc(100% - 2 * var(--space-3));
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  font-size: var(--text-xs);
+}
+/* W859: the plot takes the height and the branch list is under it (a phone, a tablet: the view scrolls, the status strip stays); at 80rem
+   (docs/ui-v2.md) the list is a column beside the plot, its rows scrolling inside it */
+.autox-body { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.autox-body .autox-host { flex: 1 1 auto; min-height: 16rem; }
+.autox-panel.in-group .autox-branches { max-height: 10rem; }
+.autox-panel.in-group .autox-branch-rows { overflow: auto; min-height: 0; }
+@media (max-width: 47.99rem) {
+  .autox-key-name, .autox-fit-range { display: none; }
+}
+@media (max-width: 79.99rem) {
+  .autox-panel:not(.in-group) .autox-view { flex: 0 0 auto; }
+  .autox-panel:not(.in-group) .autox-views { overflow: visible; }
+  .autox-panel:not(.in-group) .autox-pane { min-height: 0; }
+  .autox-panel:not(.in-group) .autox-body .autox-host { flex: none; height: clamp(16rem, 48vh, 40rem); }
+}
+@media (min-width: 80rem) {
+  .autox-body { flex-direction: row; }
+  .autox-body .autox-host { flex: 1 1 0; min-width: 0; }
+  .autox-body .autox-branches { flex: 0 0 24rem; border-top: 0; border-left: 1px solid var(--border); min-height: 0; }
+  .autox-body .autox-branch-rows { overflow: auto; flex: 1 1 0; min-height: 0; }
+}

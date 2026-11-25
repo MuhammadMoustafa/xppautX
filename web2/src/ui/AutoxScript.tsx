@@ -8,7 +8,8 @@ import {ShownName} from './CutText';
 import {startText, unfinishedStart} from '../store/autoxScript';
 import {choiceLabel} from '../store/fieldKinds';
 
-export function AutoxScript() {
+/** `shown` and `onToggle` are the view's Script button's: the panel opens and closes with it too */
+export function AutoxScript({shown, onToggle}: {shown: boolean; onToggle: (open: boolean) => void}) {
   const session = useSession();
   const may = useMay();
   const script = useStore(s => s.autoxScript);
@@ -18,7 +19,7 @@ export function AutoxScript() {
   const done = script.runs.filter(r => r.done).length;
   const file = script.file.split(/[\\/]/).pop() ?? script.file;
   return (
-    <details class="autox-script" open>
+    <details class="autox-script" open={shown} onToggle={e => onToggle((e.target as HTMLDetailsElement).open)}>
       <summary>Script {file} <span class="muted">{done} of {script.runs.length} runs done</span></summary>
       <ol class="autox-script-runs" aria-label="Runs of the script">
         {script.runs.map((run, i) => {

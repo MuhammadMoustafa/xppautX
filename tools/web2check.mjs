@@ -2156,7 +2156,7 @@ async function autoxView(dir) {
   for (let st = 0; st < 15; st++) await key('ArrowLeft');
   await until('dv.viewport.x', 'panned away 2');
   await DG(); /* every arrow key's pan landed before the Fit */
-  await cdp.eval(`[...document.querySelectorAll('.autox-panel .plot-tools button')].find(b => b.textContent === 'Fit').click()`);
+  await cdp.eval(`[...document.querySelectorAll('.autox-panel .autox-tools > button')].find(b => b.textContent === 'Fit').click()`);
   check("the autoX tools' own Fit does the same as the corner button",
     await until(fitCondition(dataExtent), 'fit2 applied'), JSON.stringify([await DG(), dataExtent]));
   const reset3 = await displays();
@@ -2394,7 +2394,7 @@ async function autoxStopRace() {
     JSON.stringify([running, dlg, await DS('d.viewport'), await S('s.busy')]));
   await key('Escape');
   await until('!document.querySelector(".autox-axis-dialog")', 'axis closed');
-  await cdp.eval(`document.querySelector('.autox-panel .plot-tools button:nth-child(2)').click()`);
+  await cdp.eval(`[...document.querySelectorAll('.autox-tools .plot-more-menu button')].find(b => b.textContent === 'Reset zoom').click()`);
   await until('dv.viewport.y === null', 'view reset');
 
   /* T22, W106: an edit made mid-run is an option: sent at once, the core applies it once the run ends */
@@ -2482,12 +2482,12 @@ async function autoxLiveJobs() {
   await until(`dv.points.x.length > ${first.n}`, 'more live points');
   check('W620: the live points keep coming while the jobs run (the page is not waiting for the join)',
     await S('s.busy && s.diagram.jobs.running === 2'));
-  /* W630: the legend names each running job by its key, one entry per job and stability, each name distinct */
-  const liveNames = await cdp.eval(`[...document.querySelectorAll('.autox-pane .legend-item')].map(b => b.textContent.trim())`);
-  check('W630: while two jobs run, the legend names each by its key ("Job 0 · ...", "Job 1 · ..."): the names are distinct, each job has its entries',
+  /* W630: the branch list names each running job by its key, one row per job (its stabilities' entries in it), each name distinct (W859: the row's name) */
+  const liveNames = await cdp.eval(`[...document.querySelectorAll('.autox-pane .autox-branch-name')].map(b => b.textContent.trim())`);
+  check('W630: while two jobs run, the branch list names each by its key ("Job 0", "Job 1"): the names are distinct, each job has its row',
     new Set(liveNames).size === liveNames.length
-      && (await S('s.diagram.jobs.jobs')).every(j => liveNames.some(t => t.startsWith(`Job ${j.key.join('.')} · `)))
-      && liveNames.every(t => /^Job \d+(\.\d+)* · (stable|unstable) (steady|periodic|two-parameter)$/.test(t)),
+      && (await S('s.diagram.jobs.jobs')).every(j => liveNames.includes(`Job ${j.key.join('.')}`))
+      && liveNames.every(t => /^Job \d+(\.\d+)*$/.test(t)),
     JSON.stringify(liveNames));
   /* W631: a name set on job 0's legend entry (double click, the trace dialog's Apply) follows the job to its branch at the join */
   const jobEntry = await cdp.eval(`(() => { const b = document.querySelector('[data-auto-trace^="job:0:"]'); return b ? b.dataset.autoTrace : null; })()`);
@@ -2514,16 +2514,93 @@ async function autoxLiveJobs() {
     draws < adds && await until(`__xpp.diagram().curves.reduce((n, c) => n + c.points, 0) >= dv.points.x.length`, 'every point drawn'),
     JSON.stringify({adds, draws, drawn: await cdp.eval('__xpp.diagram().curves.reduce((n, c) => n + c.points, 0)'), n: await DS('d.points.x.length')}));
   /* W630: after the join no two entries share a name, and none is named for a job */
-  const joinedNames = await cdp.eval(`[...document.querySelectorAll('.autox-pane .legend-item')].map(b => b.textContent.trim())`);
-  check('W630: after the join no two legend entries share a name, and none is named for a job',
+  const joinedNames = await cdp.eval(`[...document.querySelectorAll('.autox-pane .autox-branch-name')].map(b => b.textContent.trim())`);
+  check('W630: after the join no two branch rows share a name, and none is named for a job',
     joinedNames.length > 0 && new Set(joinedNames).size === joinedNames.length && joinedNames.every(t => !t.startsWith('Job ')),
     JSON.stringify(joinedNames));
   const joinedJobs = await S('s.diagram.joined ? s.diagram.joined.jobs : null');
   const branch = joinedJobs && joinedJobs.find(j => j.key.join('.') === '0')?.branch;
-  const entries = await cdp.eval(`[...document.querySelectorAll('.autox-pane .legend-item')].map(b => [b.dataset.autoTrace, b.textContent.trim()])`);
-  check('W631: after the join job 0\'s name is on its branch\'s legend entry (the job moved to the branch its points carry)',
+  const entries = await cdp.eval(`[...document.querySelectorAll('.autox-pane .autox-branch')].map(b => [b.querySelector('[data-auto-trace]').dataset.autoTrace, b.querySelector('.autox-branch-name').textContent.trim()])`);
+  check('W631: after the join job 0\'s name is on its branch\'s row (the job moved to the branch its points carry)',
     branch !== undefined && entries.some(([k, t]) => t === 'kept job' && k.startsWith(`branch:${branch}:`)),
     JSON.stringify({branch, joinedJobs, entries}));
+}
+
+/* ---- the view after a run (W859): the branch list, the fit at the run's end with Undo, the chips and the eye ----------- */
+async function autoxBranchList(dir) {
+  await desktopMetrics();
+  check('W859: the page connects', await until('s.hello && !s.busy', 'hello'));
+  await openAutoxAtFixedPoint();
+  const before = await S('s.diagram.views[s.diagram.active].viewport');
+  await autoxRun('equilibrium');
+  check('W859: the run ends with its summary (autox.summary) and the page holds it', await until('!s.busy && s.diagram.summary && s.diagram.summary.branches.length > 0', 'summary', 60000),
+    JSON.stringify(await S('s.diagram.summary')));
+  const rows = await cdp.eval(`[...document.querySelectorAll('.autox-pane .autox-branch')].map(b => b.dataset.branch)`);
+  const nBranches = await S('s.diagram.summary.branches.length');
+  check('W859: one row per branch of the run, named by its branch', rows.length > 0 && rows.every(r => /^(branch|job|live):/.test(r)) && rows.length === new Set(rows).size && nBranches > 0,
+    JSON.stringify({rows, nBranches}));
+  const stops = await cdp.eval(`document.querySelectorAll('.autox-pane .autox-branch-stop').length`);
+  const nStops = await S('s.diagram.summary.branches.filter(b => b.stop).length');
+  check('W859: a branch that stopped says why, from the run\'s summary (autox.summary), one line each', stops === nStops && nStops > 0 && (await cdp.eval(`[...document.querySelectorAll('.autox-branch-stop')].every(p => p.textContent.startsWith('Stopped: '))`)),
+    JSON.stringify({stops, nStops}));
+  const fitted = await until(`!!document.querySelector('.autox-fit-note button')`, 'fit note', 20000);
+  check('W859: a run\'s end fits the axes to its new branches and says so, with Undo', fitted && await S('!!s.diagram.views[s.diagram.active].viewport'),
+    JSON.stringify(await S('s.diagram.views[s.diagram.active].viewport')));
+  const chip = await cdp.eval(`(() => { const c = document.querySelector('.autox-pane .autox-chip'); return c ? c.textContent.trim() : null; })()`);
+  if (chip !== null) {
+    await cdp.eval(`document.querySelector('.autox-pane .autox-chip').click()`);
+    const grabbed = await until(`__xpp.sent().some(c => c.cmd === 'autox.grab' && typeof c.label === 'number')`, 'grab by label', 20000);
+    check('W859: a click on a chip grabs that point (autox.grab by its label)', grabbed, JSON.stringify(await cdp.eval('__xpp.sent().filter(c => c.cmd === "autox.grab")')));
+  }
+  await cdp.eval(`document.querySelector('.autox-fit-note button').click()`);
+  check('W859: Undo puts the axes back as they were before the run\'s fit', await until(`!document.querySelector('.autox-fit-note')`, 'undo'),
+    JSON.stringify({before, now: await S('s.diagram.views[s.diagram.active].viewport')}));
+  const toggle = await cdp.eval(`(() => { const h = document.querySelector('.autox-pane .autox-eye-button'); return h ? h.dataset.autoTrace : null; })()`);
+  if (toggle !== null) {
+    await cdp.eval(`document.querySelector('.autox-pane .autox-eye-button').click()`);
+    const hidden = await until(`document.querySelectorAll('.autox-pane .autox-branch.off').length === 1`, 'row hidden', 20000);
+    await cdp.eval(`document.querySelector('.autox-pane .autox-eye-button').click()`);
+    const shown = await until(`document.querySelectorAll('.autox-pane .autox-branch.off').length === 0`, 'row shown', 20000);
+    check('W859: a row\'s eye hides and shows its branch', hidden && shown);
+  }
+  const hostH = await cdp.eval(`document.querySelector('.autox-host').getBoundingClientRect().height`);
+  check('W859: the plot keeps most of the height after a run (taller than half the view at 1280x860)', hostH > 430, String(hostH));
+  /* W859: the toolbar is Run, Grab and Script at the left, Fit and the ⋯ menu at the right; the rest of autoX's buttons are in the menu, still reachable */
+  const bar = await cdp.eval(`(() => { const t = document.querySelector('.autox-tools');
+    return {direct: [...t.querySelectorAll(':scope > button')].map(b => b.dataset.op || b.textContent.trim()),
+      more: !!t.querySelector(':scope > details.plot-more > summary'),
+      inMenu: [...t.querySelectorAll('.plot-more-menu button[data-op]')].map(b => b.dataset.op),
+      sets: !!t.querySelector('.plot-more-menu [data-sets-row=continuation] [data-command="set.restore_defaults"]'),
+      height: t.getBoundingClientRect().height}; })()`);
+  check('W859: the toolbar holds Run, Grab, Script and Fit, and ⋯ holds Axes, Numerics, Mark values, Hide earlier branches and the sets row',
+    JSON.stringify(bar.direct) === JSON.stringify(['run', 'grab', 'Script', 'Fit']) && bar.more && JSON.stringify(bar.inMenu) === JSON.stringify(['axes', 'numerics', 'usr', 'clear'])
+      && bar.sets && bar.height < 60, JSON.stringify(bar));
+  /* the key is one line of what the diagram has: stable and unstable as lines, steady and periodic as boxes, then its marks */
+  const key = await cdp.eval(`(() => { const k = document.querySelector('.autox-legend'); return {text: [...k.children].map(l => l.textContent.trim().replace(/\\s+/g, ' ')), height: k.getBoundingClientRect().height}; })()`);
+  check('W859: the key is one compact line (stable, unstable, steady, then the marks the diagram has)',
+    key.text[0] === 'stable' && key.text.includes('steady') && key.height < 30 && key.text.length >= 5, JSON.stringify(key));
+  /* each chip carries the plot's own mark glyph, its code and its value; the header says how many branches */
+  const chips = await cdp.eval(`[...document.querySelectorAll('.autox-chip')].map(c => [c.querySelector('.autox-label-mark')?.textContent, c.querySelector('b')?.textContent, c.textContent.trim()])`);
+  check('W859: a chip is the mark, the code and the value ("● AH 0.262")', chips.length > 0 && chips.every(([g, code, t]) => g && code && t.startsWith(g) && /\d/.test(t)), JSON.stringify(chips));
+  check('W859: the list\'s header says how many branches there are',
+    await cdp.eval(`/^Branches\\s*${rows.length}/.test(document.querySelector('.autox-branches-head').textContent.trim())`));
+  /* the status is one line, the whole text in its tip, and Output is its last item */
+  const st = await cdp.eval(`(() => { const t = document.querySelector('.autox-status-text'), b = document.querySelector('.autox-status').getBoundingClientRect();
+    return {tip: t.title, text: t.textContent, height: b.height, output: !!document.querySelector('.autox-status > .autox-output > summary')}; })()`);
+  check('W859: the status line is one line with its whole text as its tip, Output at its end',
+    st.tip.length > 0 && st.tip.replace(/ · /g, '') === st.text.replace(/ · /g, '') && st.height < 45 && st.output, JSON.stringify(st));
+  /* a second run adds its branches: the first run's rows keep what they found and why they stopped, and the periodic row says where it started */
+  const nRows = rows.length;
+  await cdp.eval(`__xpp.send({cmd: 'autox.run', kind: 'periodic', type: 'hopf', index: 1, 'output.every': 5})`);
+  await until(`!s.busy && !s.ask && document.querySelectorAll('.autox-branch').length > ${nRows}`, 'second run', 60000 * SLOW);
+  const after = await cdp.eval(`(() => ({stops: document.querySelectorAll('.autox-branch-stop').length, kinds: [...document.querySelectorAll('.autox-branch-kind')].map(k => k.textContent)}))()`);
+  check('W859: after a second run the first run\'s branches keep their stop text and the periodic row says where it started ("periodic, from AH 0.262")',
+    after.stops > nStops && after.kinds.some(k => /^periodic, from \S+ [-\d.]+$/.test(k)), JSON.stringify(after));
+  /* the run's Output points (every 5th point, plain numbered labels) are faint dots with no number: the chart writes names only for special points */
+  const dots = await cdp.eval(`(() => { const d = __xpp.diagram(), coded = new Set([...document.querySelectorAll('.autox-legend-label')].map(l => l.dataset.sym));
+    return {named: d.named, labels: d.labels.length, coded: d.labels.filter(l => coded.has(l.sym)).length, plain: d.labels.filter(l => !coded.has(l.sym)).length}; })()`);
+  check('W859: Output points are drawn with no number: no more names are written than special points, and the diagram has Output points',
+    dots.plain > 0 && dots.named <= dots.coded, JSON.stringify(dots));
 }
 
 /* ---- views of the autoX diagram (W50, docs/protocol.md "Views of the diagram") ------------ */
@@ -3889,7 +3966,9 @@ async function autoxLabelMarks(dir) {
   /* a label is in view when its point, or its second value, is inside the axes: only those are drawn (and named) */
   const inside = (v, r) => v !== null && v >= Math.min(r.min, r.max) && v <= Math.max(r.min, r.max);
   const shown = dg.labels.filter(l => inside(l.x, dg.x) && (inside(l.y, dg.y) || inside(l.y2, dg.y)));
-  const coded = shown.filter(l => l.sym).length;
+  /* W859: a plain numbered Output point has a type but no code, and is drawn as a faint dot with no number: special are the types the key spells out */
+  const keyed = new Set(key.map(k => k[0]));
+  const coded = shown.filter(l => keyed.has(l.sym)).length;
   check('W863: every special point in view carries its code beside it (the names drawn cover the labels)',
     coded >= 3 && dg.named >= coded, `named ${dg.named} of ${coded} special labels in view (${dg.labels.length} in all)`);
   /* W871: the codes drawn beside the points keep clear of one another: each pair of name boxes (CSS pixels, from the
@@ -7645,7 +7724,7 @@ async function jacobianOfferCheck(dir) {
     JSON.stringify(await S('s.toasts')));
   const autoxSent = await S('__xpp.sentCount()');
   await cdp.eval(`${offer}.click()`);
-  const autoxCommands = (await S(`__xpp.sentFrom(${autoxSent})`)).filter(c => c.cmd !== 'options.get'); /* the Values section's refetch is the page's own */
+  const autoxCommands = (await S(`__xpp.sentFrom(${autoxSent})`)).filter(c => c.cmd !== 'options.get' && c.cmd !== 'autox.set_display'); /* the Values section's refetch and the run's end fitting the axes (W859) are the page's own */
   check('W275: the button sends set num jacobian difference, then autox.run from an end point label, and the branch goes on past a = 0.4',
     await until(`!s.busy && !document.querySelector('[data-error-dialog]') && Math.min(...dv.points.x) < 0.4`, 'the run continued', 60000)
     && autoxCommands.length === 2 && autoxCommands[0].cmd === 'set' && autoxCommands[1].cmd === 'autox.run'
@@ -8945,6 +9024,7 @@ async function main() {
     if (run('phase')) await session(ODE, phasePlane);
     if (run('autoxmarks')) await session(ODE, autoxMarks);
     if (run('autox')) await session(ODE, autoxView);
+    if (run('autox')) await session(ODE, autoxBranchList);
     if (run('autox')) await session(HEAVY_ODE, autoxStopRace);
     if (run('autox')) await session(AB_ODE, autoxLiveJobs);
     if (run('autoxviews')) await session(ODE, autoxViews);

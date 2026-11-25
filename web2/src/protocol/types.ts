@@ -844,6 +844,8 @@ export type XppEvent =
   | {ev: 'autox.jobs'; [k: string]: unknown}
   /* the jobs a join kept, each with its branch (store/diagram.ts AutoxJoined) */
   | {ev: 'autox.joined'; [k: string]: unknown}
+  /* a run's end: per branch what it found and why it stopped (store/diagram.ts AutoxSummaryEvent, W860) */
+  | {ev: 'autox.summary'; [k: string]: unknown}
   /* autoX's options (store/autoxOptions.ts AutoxSettings) */
   | {ev: 'autox.options'; [k: string]: unknown}
   /* the open .autox script's runs (store/autoxScript.ts AutoxScript) */

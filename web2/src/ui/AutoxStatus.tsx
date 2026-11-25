@@ -26,6 +26,7 @@ export function AutoxStatus() {
   const points = useStore(s => activeView(s.diagram).points);
   const labels = useStore(s => activeView(s.diagram).labels);
   const stop = useStore(s => s.diagram.stop);
+  const summary = useStore(s => s.diagram.summary);
   const jobs = useStore(s => jobsText(s.diagram.jobs));
   const asking = useStore(s => !!s.ask);
   const stopping = useStore(s => s.stopping);
@@ -45,17 +46,22 @@ export function AutoxStatus() {
   const st = runStatus(run, points, labels, now, {asking, stopping}, stop);
   const conn = connectionText(connected, exited);
   const dot = exited !== null ? 'down' : !connected ? '' : st.phase === 'running' || st.phase === 'stopping' ? 'busy' : 'up';
+  /* what follows the phase's words, one part each (a test hook of its own where a check reads it); the strip is one line and its whole text is its tip */
+  const parts: {text: string; id?: string}[] = [];
+  if (st.detail) parts.push({text: st.detail});
+  if (st.branch !== null) parts.push({text: `branch ${st.branch}, point ${st.point}`});
+  if (run) parts.push({text: `${st.points} point${st.points === 1 ? '' : 's'}`});
+  if (active && jobs) parts.push({text: jobs, id: 'autox-jobs'});
+  if (st.label) parts.push({text: `last label ${st.label}`});
+  if (!active && summary && summary.branches.length > 0) parts.push({text: `${summary.branches.length} branch${summary.branches.length === 1 ? '' : 'es'}`, id: 'autox-summary'});
+  if (st.elapsed !== null) parts.push({text: formatElapsed(st.elapsed)});
   return (
     <div class="autox-status" data-phase={st.phase}>
       <span class={`status-dot ${dot}`} aria-hidden="true" />
-      <span class="autox-status-text" role="status" data-testid="autox-status" data-why={st.why ?? undefined}>
+      <span class="autox-status-text" role="status" data-testid="autox-status" data-why={st.why ?? undefined}
+        title={[st.text, ...parts.map(x => x.text)].join(' · ')}>
         <b>{st.text}</b>
-        {st.detail && <span> · {st.detail}</span>}
-        {st.branch !== null && <span> · branch {st.branch}, point {st.point}</span>}
-        {run && <span> · {st.points} point{st.points === 1 ? '' : 's'}</span>}
-        {active && jobs && <span data-testid="autox-jobs"> · {jobs}</span>}
-        {st.label && <span> · last label {st.label}</span>}
-        {st.elapsed !== null && <span> · {formatElapsed(st.elapsed)}</span>}
+        {parts.map(x => <span key={x.text} data-testid={x.id}> · {x.text}</span>)}
       </span>
       {conn && <span class="autox-conn" role="status" data-testid="autox-conn">{conn}</span>}
       {bottom && <span class="autox-message muted">{bottom}</span>}
@@ -65,6 +71,7 @@ export function AutoxStatus() {
           {stopping ? 'Stopping…' : <CommandLabel command="run.stop" />}
         </button>
       )}
+      <AutoxOutput />
     </div>
   );
 }
@@ -85,11 +92,13 @@ export function AutoxOutput() {
   return (
     <details class="autox-output" open={open} onToggle={e => setOpen((e.target as HTMLDetailsElement).open)}>
       <summary>Output ({count})</summary>
-      {count ? (
-        <pre ref={list} class="autox-output-text" tabIndex={0} aria-label="autoX's output">
-          {text}
-        </pre>
-      ) : <p class="muted">autoX has printed nothing yet: its table appears here while it runs.</p>}
+      <div class="autox-output-panel">
+        {count ? (
+          <pre ref={list} class="autox-output-text" tabIndex={0} aria-label="autoX's output">
+            {text}
+          </pre>
+        ) : <p class="muted">autoX has printed nothing yet: its table appears here while it runs.</p>}
+      </div>
     </details>
   );
 }

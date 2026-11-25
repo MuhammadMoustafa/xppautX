@@ -30,8 +30,6 @@ export interface DiagramChartInfo {
   draws: number;
 }
 
-/** labels in view up to which each one's name is written (more only get their cross) */
-const NAMED_MAX = 40;
 /** the clear space, CSS pixels, kept between two names side by side (so "EP 1" and "AH 2" do not run together) */
 const NAME_GAP = 2;
 /** a name's height, CSS pixels: its 11 px font on a line */
@@ -236,10 +234,8 @@ export class DiagramChart {
     ctx.lineWidth = 1.25 * r;
     ctx.font = `${Math.round(11 * r)}px Inter, system-ui, sans-serif`;
     ctx.textBaseline = 'top';
-    /* a live point of a running job has its type but no number until the join (lab 0); a special
-       point always carries its code (W863), a plain numbered point only in a sparse diagram */
-    const allNamed = shown.length <= NAMED_MAX;
-    const named = shown.map(s => allNamed || labelCoded(s.l.sym));
+    /* a special point is named with its code (W863); a plain output point is a faint dot with no number (W859) */
+    const named = shown.map(s => labelCoded(s.l.sym));
     const names = shown.map(s => [s.l.sym ? pointMark(s.l.sym) : '', s.l.lab || ''].filter(Boolean).join(' '));
     /* two names at one spot, or side by side with no clear space, are written a line apart (plot/labelPlace.ts) */
     const written = shown.map((_, i) => i).filter(i => named[i]);

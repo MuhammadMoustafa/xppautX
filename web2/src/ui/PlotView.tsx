@@ -34,11 +34,11 @@ import {ShownName, ShownNumber} from './CutText';
 import {BUSY_TITLE, useMayMain, useSession, useStore} from './context';
 
 /** the plot's ⋯: a pop-up holding the tools the plot's header has no room for (a pick, or a click outside, closes it) */
-export function PlotMore({children}: {children: ComponentChildren}) {
+export function PlotMore({children, label = 'More plot tools', title = 'Reset zoom, use this view, export and sets'}: {children: ComponentChildren; label?: string; title?: string}) {
   const box = useDropDown();
   return (
     <details class="plot-more" ref={box}>
-      <summary aria-label="More plot tools" title="Reset zoom, use this view, export and sets">⋯</summary>
+      <summary aria-label={label} title={title}>⋯</summary>
       <div class="plot-more-menu" onClick={e => { if ((e.target as Element).closest('button') && box.current) box.current.open = false; }}>{children}</div>
     </details>
   );

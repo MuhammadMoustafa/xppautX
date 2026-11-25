@@ -53,14 +53,15 @@ import {openPanel} from './hotkeys';
 import {TraceDialog} from './TraceDialog';
 import {ShownName, ShownNumber} from './CutText';
 import {sixSig} from '../store/values';
-import {choiceLabel} from '../store/fieldKinds';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'preact/hooks';
-import {DiagramChart, setDiagramChart} from '../plot/diagramChart';
+import {DiagramChart, diagramChart, setDiagramChart} from '../plot/diagramChart';
 import {pointLabel, pointMark} from '../store/pointTypes';
+import type {AutoxScript as AutoxScriptState} from '../store/autoxScript';
 import {cssColor} from '../plot/colors';
 import {stopPoint} from '../plot/autoxStatus';
 import {
-  buildDiagramModel, carryAppearance, describePoint, grabStep, kindLabel, labelGlyph, labelMark, labelTypes, legendEntries, stepLabel,
+  branchRows, buildDiagramModel, carryAppearance, describePoint, grabStep, kindLabel, labelGlyph, labelMark, labelTypes, legendEntries, startedFrom, stepLabel,
+  type BranchRow, type LegendEntry,
   symbolHelp, vertexOf, type DiagramModel,
 } from '../plot/diagramModel';
 import {attachGestures, type PickSink} from '../plot/interactions';
@@ -70,14 +71,14 @@ import type {Ranges} from '../plot/viewmath';
 import {HELP} from '../help/links';
 import type {AutoxOp, Session} from '../session';
 import {pendingFields} from '../store/autoxOptions';
-import {activeView, autoxWindow, EMPTY_VIEW, pointCount, type DiagramHover, type DiagramView} from '../store/diagram';
+import {activeView, autoxWindow, EMPTY_VIEW, pointCount, type AutoxSummary, type AutoxSummaryBranch, type DiagramAxes, type DiagramHover, type DiagramLabel, type DiagramPoints, type DiagramView} from '../store/diagram';
 import {branchesBefore} from '../store/diagram';
 import type {AppState} from '../store/state';
 import {AutoxAxisDialog, type AxisName} from './AutoxAxes';
 type AutoxSettingsDialogKind = 'numerics' | 'marks';
 import {AutoxInfo} from './AutoxInfo';
 import {AutoxScript} from './AutoxScript';
-import {AutoxOutput, AutoxStatus} from './AutoxStatus';
+import {AutoxStatus} from './AutoxStatus';
 import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
 import {PoppedOut} from './PoppedOut';
@@ -87,6 +88,7 @@ import {SetsRow} from './SetsRow';
 import {useSplitView} from './split';
 import {AxisTitle, FitButton, PickBar, PickOverlay, PlotMore, pickSink} from './PlotView';
 import {PlotOptions} from './PlotOptions';
+import type {Viewport} from '../store/plots';
 
 /** the ops (the registry command, its label and description, are navigation.ts toolbarCommand's), in the X11 window's order; no
     reDraw (T21): the diagram is always the current one */
@@ -173,17 +175,126 @@ function GrabBar() {
   );
 }
 
-/** the kinds of curve the diagram has, for its key (color is not the only carrier, A7) */
-function legendOf(m: DiagramModel): {text: string; color: string; dashed: boolean}[] {
-  const seen = new Map<string, {text: string; color: string; dashed: boolean}>();
-  for (const c of m.curves) {
-    const text = c.kind === 'two-parameter' ? 'Two-parameter curve'
-      : c.calc ? kindLabel(c.calc, true)
-      : `${choiceLabel(c.stability)} ${c.kind === 'periodic' ? 'periodic orbits (max, min)' : 'steady states'}`;
-    const key = `${text}/${c.color}`;
-    if (!seen.has(key)) seen.set(key, {text, color: c.color, dashed: c.dashed});
+/** the branch list (W859): a header (how many, from where, how the run stands), then one row per branch or running job:
+    its eye (show or hide: the legend's own entries, set together), swatch, name, kind (and the point it started from) and
+    parameter range; under it the special points the run found on it as chips (the plot's mark, its code and value; a click
+    grabs the point, as the plot's label click does) and why the branch stopped (autox.summary, two lines, the whole in its tip) */
+interface BranchListProps {
+  entries: LegendEntry[];
+  appearance: Record<string, {label?: string; color?: string; visible?: boolean}>;
+  rows: BranchRow[];
+  labels: DiagramLabel[];
+  points: DiagramPoints;
+  notes: Record<number, AutoxSummaryBranch>;
+  script: AutoxScriptState;
+  running: boolean;
+  axes: DiagramAxes | null;
+  chart: {current: DiagramChart | null};
+  setVisible: (keys: string[], on: boolean) => void;
+  edit: (key: string, label: string, color: string) => void;
+  grab: (label: number) => void;
+}
+
+/** a point's mark as the key and the plot draw it */
+function MarkGlyph({sym}: {sym: string}) {
+  const mark = labelMark(sym);
+  return <span class={`autox-label-mark autox-label-mark-${mark.shape}${mark.filled ? '' : ' hollow'}`} aria-hidden="true">{labelGlyph(mark)}</span>;
+}
+
+/** how the run stands, at the header's right: while it goes, and once it ended how many of the open script's runs are done */
+function runState(script: AutoxScriptState, running: boolean): string {
+  if (running) return 'Running';
+  if (!script.open) return '';
+  const done = script.runs.filter(r => r.done).length;
+  return done === script.runs.length ? 'Script done' : `Script: ${done} of ${script.runs.length} runs done`;
+}
+
+function BranchList({entries, appearance, rows, labels, points, notes, script, running, axes, chart, setVisible, edit, grab}: BranchListProps) {
+  const byKey = new Map(entries.map(e => [e.key, e]));
+  const state = runState(script, running);
+  return (
+    <section class="autox-branches" aria-label="Branches" data-count={rows.length}>
+      <header class="autox-branches-head">
+        <h3>Branches</h3>
+        <span class="muted">{rows.length}{script.open ? `, from the script's ${script.runs.length} run${script.runs.length === 1 ? '' : 's'}` : ''}</span>
+        {state && <span class="autox-branches-state" data-running={running ? 'true' : undefined}>{state}</span>}
+      </header>
+      <div class="autox-branch-rows">
+      {rows.map(row => {
+        const first = appearance[row.entries[0]];
+        const off = row.entries.every(k => appearance[k]?.visible === false);
+        const curves = row.entries.flatMap(k => byKey.get(k)?.curves ?? []);
+        const color = first?.color ?? cssColor(row.color);
+        const name = first?.label ?? row.name;
+        const b = row.branch === null ? null : notes[row.branch] ?? null;
+        const range = row.lo !== null && row.hi !== null && axes ? `${axes.xlabel} ${sixSig(row.lo)} … ${sixSig(row.hi)}` : '';
+        const from = startedFrom(row.from, labels, points);
+        const stop = b?.stop ? `Stopped: ${b.stop.text}` : '';
+        return (
+          <div key={row.id} class={'autox-branch' + (off ? ' off' : '')} data-branch={row.id}
+            onMouseEnter={() => chart.current?.highlight(curves)} onMouseLeave={() => chart.current?.highlight(null)}>
+            <div class="autox-branch-head" title="Double click to edit its name and color" onDblClick={() => edit(row.entries[0], name, color)}>
+              <button data-auto-trace={row.entries[0]} class={'autox-eye-button' + (off ? ' off' : '')} aria-pressed={!off}
+                aria-label={`${off ? 'Show' : 'Hide'} ${name}`} title={off ? 'Show this branch' : 'Hide this branch'}
+                onClick={() => setVisible(row.entries, off)}>
+                <svg class="autox-eye" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8z" />
+                  <circle cx="8" cy="8" r="2" />
+                  {off && <path d="M2 14L14 2" />}
+                </svg>
+              </button>
+              <span class="swatch" style={{background: color}} aria-hidden="true" />
+              <span class="autox-branch-name"><ShownName name={name} copy={false} /></span>
+              <span class="autox-branch-kind">{row.kind}{from && `, from ${from}`}</span>
+              <span class="autox-branch-range">{range}</span>
+            </div>
+            {b && b.found.length > 0 && (
+              <div class="autox-chips">
+                {b.found.map(f => {
+                  const sym = labels.find(l => l.lab === f.lab)?.sym ?? f.name;
+                  return (
+                    <button key={`${f.sym}:${f.lab}`} class="autox-chip" data-sym={f.name}
+                      title={`${f.name} point ${f.lab}: click to grab it`} onClick={() => grab(f.lab)}>
+                      <MarkGlyph sym={sym} /> <b>{f.sym}</b>{f.x === null ? '' : ` ${sixSig(f.x)}`}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {stop && <p class="autox-branch-stop" title={stop}>{stop}</p>}
+          </div>
+        );
+      })}
+      </div>
+    </section>
+  );
+}
+
+/** one entry of the key's line sample part: a line (solid or dashed, `color` unset: the text's own) or a box of a kind's color */
+interface KeyItem {text: string; color?: string; dashed?: boolean; box?: boolean}
+
+/** the kinds of curve the diagram has, for its key (color is not the only carrier, A7): stable and unstable as a solid and a
+    dashed line, steady and periodic as a box of their color (W859's one line), and a two-parameter or boundary value curve by its own line */
+function legendOf(m: DiagramModel): KeyItem[] {
+  const plain = (c: DiagramModel['curves'][number]) => c.kind !== 'two-parameter' && !c.calc;
+  const items: KeyItem[] = [];
+  if (m.curves.some(c => plain(c) && c.stable)) items.push({text: 'stable'});
+  if (m.curves.some(c => plain(c) && !c.stable)) items.push({text: 'unstable', dashed: true});
+  for (const periodic of [false, true]) {
+    const of = m.curves.filter(c => plain(c) && (c.kind === 'periodic') === periodic);
+    const c = of.find(x => x.stable) ?? of[0];
+    if (c) items.push({text: periodic ? 'periodic' : 'steady', color: c.color, box: true});
   }
-  return [...seen.values()];
+  const seen = new Set<string>();
+  for (const c of m.curves) {
+    if (plain(c)) continue;
+    const text = c.kind === 'two-parameter' ? 'Two-parameter curve' : kindLabel(c.calc, true);
+    if (!seen.has(text)) {
+      seen.add(text);
+      items.push({text, color: c.color, dashed: c.dashed});
+    }
+  }
+  return items;
 }
 
 /** what a view plots, in words */
@@ -201,6 +312,12 @@ function PointDisclosure({open}: {open: boolean}) {
       <AutoxInfo />
     </details>
   );
+}
+
+/** the point's info in the whole view (W859): under a "Point" disclosure, open while a point is grabbed, so the plot keeps the height */
+function WholeInfo() {
+  const grabbing = useStore(s => s.diagram.grabbing);
+  return <PointDisclosure open={grabbing} />;
 }
 
 /** one view of the diagram: its bar, plot and axis dialogs; `compact` (a group of the split view, W720) lays it out as a graph in a group: the
@@ -224,6 +341,10 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
   const showEarlier = useStore(s => s.diagram.showEarlier);
   const liveKeys = useStore(s => s.diagram.liveKeys);
   const joined = useStore(s => s.diagram.joined);
+  const summary = useStore(s => s.diagram.summary);
+  const notes = useStore(s => s.diagram.branchNotes);
+  const runActive = useStore(s => !!s.diagram.run?.active);
+  const script = useStore(s => s.autoxScript);
   const [appearance, setAppearance] = useState<Record<string, {label?: string; color?: string; visible?: boolean}>>({});
   /* the join (W631): a job's legend options follow it to its branch, the dropped jobs' and the live entries' go */
   useEffect(() => {
@@ -319,6 +440,21 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
   useEffect(() => {
     chart.current!.applyViewport(viewport);
   }, [viewport]);
+
+  /* W859: a run's end fits the axes to its new branches, once, and says so on the plot with Undo (the axes as they were).
+     It waits for the run's summary (autox.summary, sent when the run ends) and is not repeated while points arrive. */
+  const [fitNote, setFitNote] = useState<{n: number; text: string; before: Viewport} | null>(null);
+  const fittedFor = useRef<AutoxSummary | null>(null);
+  useEffect(() => {
+    const c = chart.current;
+    if (!summary || !active || !c || runActive || fittedFor.current === summary || summary.branches.length === 0) return;
+    fittedFor.current = summary;
+    const before = c.ranges();
+    c.fit();
+    const f = c.ranges().x;
+    const text = axes && f.max > f.min ? ` (${axes.xlabel} ${sixSig(f.min)} … ${sixSig(f.max)})` : '';
+    setFitNote({n: summary.branches.length, text, before: {x: before.x, y: before.y}});
+  }, [summary, runActive, active]);
 
   /* the focus moves into the active view when the panel appears, so autoX's keys work at once */
   useEffect(() => {
@@ -448,9 +584,11 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
   const key = (
     <ul class="autox-legend" aria-label="Key">
           {legendOf(model).map(l => (
-            <li key={`${l.text}/${l.color}`}>
-              <span class={'autox-swatch' + (l.dashed ? ' dashed' : '')} aria-hidden="true"
-                style={{borderColor: cssColor(l.color)}} />
+            <li key={l.text}>
+              {l.box
+                ? <span class="autox-key-box" aria-hidden="true" style={{background: cssColor(l.color!)}} />
+                : <span class={'autox-swatch' + (l.dashed ? ' dashed' : '')} aria-hidden="true"
+                  style={l.color ? {borderColor: cssColor(l.color)} : undefined} />}
               {l.text}
             </li>
           ))}
@@ -460,7 +598,7 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
               <li key={sym} class="autox-legend-label" data-sym={sym} data-shape={mark.shape} data-filled={String(mark.filled)}
                 title={symbolHelp(sym)}>
                 <span class={`autox-label-mark autox-label-mark-${mark.shape}${mark.filled ? '' : ' hollow'}`} aria-hidden="true">{labelGlyph(mark)}</span>
-                <b>{pointMark(sym)}</b> {pointLabel(sym)}
+                <b>{pointMark(sym)}</b> <span class="autox-key-name">{pointLabel(sym)}</span>
               </li>
             );
           })}
@@ -486,21 +624,7 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
           </h3>
         )}
         {!compact && key}
-        <div class="legend" role="group" aria-label="Branches">
-          {entries.map(e => {
-            const a = appearance[e.key], off = a?.visible === false, color = a?.color ?? cssColor(e.color);
-            return (
-              <button key={e.key} data-auto-trace={e.key}
-                class={'legend-item' + (off ? ' off' : '')} aria-pressed={!off}
-                title="Click to show or hide; double click to edit name and color"
-                onMouseEnter={() => chart.current?.highlight(e.curves)} onMouseLeave={() => chart.current?.highlight(null)}
-                onClick={() => setAppearance(p => ({...p, [e.key]: {...p[e.key], visible: off}}))}
-                onDblClick={() => setEditing({key: e.key, label: a?.label ?? e.name, color})}>
-                <span class="swatch" style={{background: color}} aria-hidden="true" /><ShownName name={a?.label ?? e.name} copy={false} />
-              </button>
-            );
-          })}
-        </div>
+
         {compact ? (
           <>
             <div class="plot-tools">
@@ -514,24 +638,16 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
             </div>
             <PlotOptions label="autoX options">{key}<AutoxControls /></PlotOptions>
           </>
-        ) : (        <div class="plot-tools">
-          <button disabled={!zoomed} onClick={() => chart.current!.reset()}
-            title="Back to autoX's axes (double click, or 0 on the diagram)">Reset zoom</button>
-          <button disabled={empty} onClick={() => chart.current!.fit()}
-            title="Fit the view to the branches shown (client-side; earlier branches only if Earlier branches is on)">
-            Fit
-          </button>
-          {views > 1 && (
-            <button class="autox-pane-close" aria-label={`Close ${session.store.getState().diagram.views[view].name}`}
-              title="Close this view of the diagram (the diagram stays, and so do the other views)"
-              onClick={() => session.closeView(view)}>×</button>
-          )}
-        </div>
+        ) : views > 1 && (
+          <button class="autox-pane-close" aria-label={`Close ${session.store.getState().diagram.views[view].name}`}
+            title="Close this view of the diagram (the diagram stays, and so do the other views)"
+            onClick={() => session.closeView(view)}>×</button>
         )}
       </header>
       {editing && <TraceDialog label={editing.label} color={editing.color} close={() => setEditing(null)}
         apply={(label, color) => { setAppearance(a => ({...a, [editing.key]: {...a[editing.key], label, color}})); setEditing(null); }} />}
       {compact && (grabbing && active ? <GrabBar /> : pick ? <PickBar pick={pick} /> : null)}
+      <div class="autox-body">
       <div class={'plot-host autox-host' + (grabbing ? ' picking pick-grab' : pick ? ` picking pick-${pick.mode}` : '')}
         ref={host} tabIndex={0} role="application" aria-roledescription="diagram"
         aria-label={label} onKeyDown={onHostKey} aria-describedby={grabbing ? 'grab-instruction grab-keys-help'
@@ -541,7 +657,14 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
           <FitButton onClick={() => chart.current!.fit()}
             title="Fit the view to the branches shown (client-side; earlier branches only if Earlier branches is on)" />
         )}
-        {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}
+        {fitNote && (
+          <div class="autox-fit-note" role="status" style={area ? {left: `${area.left + 8}px`, top: `${area.top + 8}px`} : undefined}>
+            <span>Fitted to the {fitNote.n} new {fitNote.n === 1 ? 'branch' : 'branches'}<span class="autox-fit-range">{fitNote.text}</span></span>
+            <button class="small" title="Put the axes back as they were before the run's fit"
+              onClick={() => { session.setDiagramViewport(view, fitNote.before); setFitNote(null); }}>Undo</button>
+          </div>
+        )}
+        {marker &&<span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}
         {cursor && <span class="autox-cursor" aria-hidden="true" style={{left: `${cursor.left}px`, top: `${cursor.top}px`}} />}
         {storedAt && (
           <span class="autox-cursor autox-stored" style={{left: `${storedAt.left}px`, top: `${storedAt.top}px`}}
@@ -555,6 +678,16 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
             <p>{busy ? 'autoX is running…' : 'No branches yet: Run starts a continuation from the current point.'}</p>
           </div>
         )}
+      </div>
+          <BranchList entries={entries} appearance={appearance} rows={branchRows(entries, model.curves, points)}
+            labels={labels} points={points} notes={notes} script={script} running={runActive} axes={axes} chart={chart}
+            setVisible={(keys, on) => setAppearance(p => {
+              const next = {...p};
+              for (const k of keys) next[k] = {...p[k], visible: on};
+              return next;
+            })}
+            edit={(key, label, color) => setEditing({key, label, color})}
+            grab={lab => session.send({cmd: 'autox.grab', label: lab})} />
       </div>
       {compact && active && <PointDisclosure open={grabbing} />}
       {axisOpen && <AutoxAxisDialog key={axisOpen} axis={axisOpen} view={view} onClose={closeAxis} />}
@@ -598,33 +731,65 @@ function DiagramPaneOrNote({view, dark, compact = false}: {view: number; dark: b
   return out ? <PoppedOut view={{kind: 'autox', name}} /> : <DiagramPane view={view} dark={dark} compact={compact} />;
 }
 
-/** autoX's buttons (the run, grab, axes ... ones), Sets, Save, List file contents and Restore defaults: the panel's toolbar, and in a group of the
+/** one of autoX's buttons (the registry command's label and description, the view's own words over them): a button that opens the
+    page's own form works during a run too (its edits wait); the others by the kind of the key they send (W95: Axes and Clear are views,
+    Run, Grab and File wait) */
+function OpButton({op, primary = false}: {op: AutoxOp; primary?: boolean}) {
+  const session = useSession();
+  const mayKey = useMayKey();
+  const off = !SETTINGS_DIALOG[op] && !mayKey('autox', op);
+  const pending = pendingFields(useStore(s => s.autoxSettings));
+  const row = toolbarRow(useStore(s => s.hello), 'autox', op);
+  const kind = SETTINGS_DIALOG[op];
+  const waits = !!kind && [...pending].some(PENDING_OF[kind]);
+  return (
+    <button disabled={off} class={[primary && 'primary', waits && 'autox-pending'].filter(Boolean).join(' ') || undefined}
+      data-op={op} data-button={`autox:${op}`}
+      title={off ? BUSY_TITLE : (TITLES[op] ?? row?.description ?? '') + (waits ? ' (changes wait for the run to end)' : '')}
+      onClick={() => session.autoxOp(op)}>{row?.label}</button>
+  );
+}
+
+/** autoX's buttons (the run, grab, axes ... ones), Sets, Save, List file contents and Restore defaults: in a group of the
     split view the contents of the plot bar's "autoX options" */
 function AutoxControls() {
-  const session = useSession();
-  /* a button that opens the page's own form works during a run too (its edits wait); the others
-     by the kind of the key they send (W95: Axes and Clear are views, Run, Grab and File wait) */
-  const mayKey = useMayKey();
-  const off = (op: AutoxOp) => !SETTINGS_DIALOG[op] && !mayKey('autox', op);
-  const pending = pendingFields(useStore(s => s.autoxSettings));
-  const hello = useStore(s => s.hello);
   return (
     <>
-      {BUTTONS.map(op => {
-          const row = toolbarRow(hello, 'autox', op);
-          const k = '';
-          const kind = SETTINGS_DIALOG[op];
-          const waits = !!kind && [...pending].some(PENDING_OF[kind]);
-          return (
-            <button key={op} disabled={off(op)} aria-keyshortcuts={k.toUpperCase()}
-              class={waits ? 'autox-pending' : undefined} data-op={op} data-button={`autox:${op}`}
-              title={off(op) ? BUSY_TITLE
-                : (TITLES[op] ?? row?.description ?? '') + (waits ? ' (changes wait for the run to end)' : '')}
-              onClick={() => session.autoxOp(op)}>{row?.label}</button>
-          );
-        })}
-        <SetsRow scope="continuation" />
+      {BUTTONS.map(op => <OpButton key={op} op={op} />)}
+      <SetsRow scope="continuation" />
     </>
+  );
+}
+
+/** the whole view's toolbar (W859): Run, Grab and the Script panel's toggle at the left, Fit and ⋯ at the right; the rest of autoX's
+    buttons (Axes, Numerics, Mark values, Hide earlier branches), Reset zoom, the sets row and Help are in the ⋯ menu. Fit and Reset
+    zoom act on the active view. */
+function AutoxToolbar({scriptShown, toggleScript}: {scriptShown: boolean; toggleScript: () => void}) {
+  const view = useStore(s => s.diagram.active);
+  const empty = useStore(s => pointCount(viewOf(s, s.diagram.active).points) === 0);
+  const zoomed = useStore(s => { const v = viewOf(s, s.diagram.active).viewport; return v.x !== null || v.y !== null; });
+  const scriptOpen = useStore(s => s.autoxScript.open);
+  return (
+    <div class="autox-tools" role="toolbar" aria-label="autoX">
+      <OpButton op="run" primary />
+      <OpButton op="grab" />
+      <button disabled={!scriptOpen} aria-pressed={scriptShown} data-script-toggle
+        title={scriptOpen ? 'Show or hide the open .autox script: its runs, each with its own Run' : 'No .autox script is open (File opens one)'}
+        onClick={toggleScript}>Script</button>
+      <span class="autox-tools-gap" />
+      <button disabled={empty} onClick={() => diagramChart(view)?.fit()}
+        title="Fit the view to the branches shown (client-side; earlier branches only if Earlier branches is on)">Fit</button>
+      <PlotMore label="More autoX tools" title="Axes, Numerics, Mark values, Hide earlier branches, Reset zoom, sets and Help">
+        <OpButton op="axes" />
+        <OpButton op="numerics" />
+        <OpButton op="usr" />
+        <OpButton op="clear" />
+        <button disabled={!zoomed} onClick={() => diagramChart(view)?.reset()}
+          title="Back to autoX's axes (double click, or 0 on the diagram)">Reset zoom</button>
+        <SetsRow scope="continuation" />
+        <HelpButton target={HELP.autoxView} label="autoX" />
+      </PlotMore>
+    </div>
   );
 }
 
@@ -638,7 +803,7 @@ function AutoxPanel({dark, view, group, focused = false}: {dark: boolean; view?:
   const stored = useStore(s => s.diagram.stored);
   const pick = useStore(s => (s.pick?.win === autoxWindow(s) && !s.pick.waiting ? s.pick : null));
   const views = useStore(s => s.diagram.views.length);
-  const what = useStore(s => whatOf(activeView(s.diagram)));
+  const [scriptShown, setScriptShown] = useState(false);
 
   const panel = useRef<HTMLElement>(null);
 
@@ -651,11 +816,7 @@ function AutoxPanel({dark, view, group, focused = false}: {dark: boolean; view?:
     <section id={whole ? 'autox-panel' : undefined} ref={panel} class={'autox-panel' + (whole ? '' : ' in-group') + (focused ? ' focused' : '')} data-group={group}
       aria-label="autoX"
       onPointerDown={() => { if (!whole && !focused) session.selectAutoxView(view); /* a press in the other group focuses it */ }}>
-      {whole && <div class="panel-header autox-header">
-        <h2>autoX <span class="muted autox-what">{views > 1 ? `${views} views, the active one ${what}` : what}</span></h2>
-        <HelpButton target={HELP.autoxView} label="autoX" />
-      </div>}
-      {whole && <div class="autox-tools" role="toolbar" aria-label="autoX"><AutoxControls /></div>}
+      {whole && <AutoxToolbar scriptShown={scriptShown} toggleScript={() => setScriptShown(v => !v)} />}
       <div class="autox-view">
         {whole && grabbing && <GrabBar />}
         {whole && pick && <PickBar pick={pick} />}
@@ -664,9 +825,8 @@ function AutoxPanel({dark, view, group, focused = false}: {dark: boolean; view?:
         </div>
         <Readout />
       </div>
-      {whole && <AutoxInfo />}
-      {whole && <AutoxScript />}
-      {whole && <AutoxOutput />}
+      {whole && <WholeInfo />}
+      {whole && <AutoxScript shown={scriptShown} onToggle={setScriptShown} />}
       {whole && stored && (
         <p class="autox-stored-text muted">Stored point for File/sElect 2par pt: <ShownNumber value={stored.x} />, <ShownNumber value={stored.y} /></p>
       )}

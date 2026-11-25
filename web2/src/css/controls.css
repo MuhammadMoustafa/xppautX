@@ -142,7 +142,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 }
 
 /* ---- shapes several owners share: one rule each (csscheck) ---- */
-.shortcut-instruction, .text-hint, .help-result-heading, .player-keys-label {
+.shortcut-instruction, .text-hint, .help-result-heading, .player-keys-label, .autox-branch-kind, .autox-branch-range {
   font-size: var(--text-xs);
   color: var(--fg-muted);
 }
@@ -165,7 +165,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   align-items: center;
   gap: var(--space-1);
 }
-.text-tabs, .autox-tools {
+.text-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
