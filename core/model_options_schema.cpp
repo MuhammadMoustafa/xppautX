@@ -56,6 +56,7 @@ std::optional<std::string> default_json(const SessionParts &fresh, const OptionR
     if (!row.text) return std::nullopt;
     return json_quoted(setting_text(fresh, row));
   case OptionKind::name:
+  case OptionKind::choice_set:
   case OptionKind::sliders:
   case OptionKind::curves:
   case OptionKind::buttons: break;
@@ -139,7 +140,8 @@ std::string option_value_schema(const OptionRow &row, const SessionParts *fresh)
     out += "\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, "
            "\"properties\": {\"x\": {\"type\": \"string\"}, \"y\": {\"type\": \"string\"}, \"z\": {\"type\": \"string\"}}}";
     break;
-  case OptionKind::text: out += "\"type\": \"string\""; break;
+  case OptionKind::text:
+  case OptionKind::choice_set: out += "\"type\": \"string\""; break;
   case OptionKind::choice: {
     if (row.boolean) {
       out += "\"type\": \"boolean\"";

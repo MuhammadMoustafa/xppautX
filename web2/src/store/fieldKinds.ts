@@ -34,6 +34,7 @@ export type FieldSpec =
   | {kind: 'boolean'}
   | {kind: 'choice'; choices: readonly string[]}
   | {kind: 'selection'; choices: readonly string[]}
+  | {kind: 'choiceSet'; choices: readonly string[]}
   | {kind: 'color'}
   | {kind: 'text'};
 
@@ -134,6 +135,14 @@ const KINDS: {[K in FieldKind]: KindEntry<K>} = {
     check: (text, spec) => {
       const wrong = text.split('\n').find(name => name !== '' && !spec.choices.includes(name));
       return wrong === undefined ? null : `names of the model's sets, not "${wrong}"`;
+    },
+    inputMode: () => 'text',
+  },
+  choiceSet: {
+    /* the names a comma-separated text holds, each one of the choices (an empty text: none chosen) */
+    check: (text, spec) => {
+      const wrong = text.split(',').map(name => name.trim()).find(name => name !== '' && !spec.choices.includes(name));
+      return wrong === undefined ? null : `names of the choices, not "${wrong}"`;
     },
     inputMode: () => 'text',
   },
@@ -318,6 +327,7 @@ export function specOfOption(row: OptionRow, names: readonly string[], sets: rea
     case 'name': return names.length ? {kind: 'name', names} : {kind: 'text'};
     case 'choice': return row.boolean ? {kind: 'boolean'} : {kind: 'choice', choices: row.choices ?? []};
     case 'sets': return {kind: 'selection', choices: sets};
+    case 'choice_set': return {kind: 'choiceSet', choices: row.choices ?? []};
     case 'path': case 'text': return {kind: 'text'};
   }
 }
@@ -340,6 +350,7 @@ export function controlOf(spec: FieldSpec): ControlKind {
     case 'expression': return 'mono';
     case 'file': return 'file';
     case 'selection': return 'checklist';
+    case 'choiceSet': return 'checklist';
     case 'color': return 'color';
     case 'text': return 'text';
   }

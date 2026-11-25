@@ -1007,7 +1007,7 @@ file name and line; recompute that curve before saving it in the new format.
 
 ### Maps
 
-For a discrete model, autoX continues fixed points and labels a flip (multiplier -1) **PD** and a Neimark-Sacker bifurcation (a complex pair crossing the unit circle) **TR**. Continue their two-parameter curves, or a fold curve, with the same Run choices as for other labelled points. Map curves detect **R1?R4**, **LPD** (fold-flip), **LTR** (fold-torus), **PTR** (flip-torus) and **TTR** (torus-torus). Each codimension-two label is enabled by default and can be disabled individually in Special points. Session files retain these labels.
+For a discrete model, autoX continues fixed points and labels a flip (multiplier -1) **PD** and a Neimark-Sacker bifurcation (a complex pair crossing the unit circle) **TR**. Continue their two-parameter curves, or a fold curve, with the same Run choices as for other labelled points. Map curves detect **R1?R4**, **LPD** (fold-flip), **LTR** (fold-torus), **PTR** (flip-torus) and **TTR** (torus-torus). Each codimension-two label is enabled by default and can be unticked individually in Special points (a set of check boxes). Session files retain these labels.
 
 A periodic autoX run that fails to converge reports a singular reduced
 linear system with its smallest pivot and the threshold, as a steady-state

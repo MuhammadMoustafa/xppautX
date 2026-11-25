@@ -1692,6 +1692,7 @@ private:
     case OptionKind::curves:
     case OptionKind::buttons: return value;
     case OptionKind::path:
+    case OptionKind::choice_set:
     case OptionKind::text: {
       std::string text = value;
       if (row.foreign) {

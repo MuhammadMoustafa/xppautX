@@ -228,8 +228,9 @@ inline constexpr std::array<std::string_view, 2> model_groups{option_group::diag
 /* what a .odex writes as an option's value: a number, a whole number, a
    bare word (a variable's, a parameter's, a name), one of the row's
    choices (option_choices), a path or a text, both in double quotes, a color
-   (always in double quotes) */
-enum class OptionKind { number, whole, name, choice, path, text, sliders, curves, buttons };
+   (always in double quotes), a set of choices (choice_set: its text, the names
+   of the chosen ones separated by commas, in double quotes) */
+enum class OptionKind { number, whole, name, choice, choice_set, path, text, sliders, curves, buttons };
 
 /* which of a curve's options an XPPAUT row (xp, yp, zp, nplot and their numbered ones) is: the converter writes them as the `curves` list */
 enum class CurveField { none, x, y, z, count };

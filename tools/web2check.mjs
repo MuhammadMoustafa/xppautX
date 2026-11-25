@@ -3430,7 +3430,7 @@ async function optionsCheck() {
         choices: rows.map(r => radios(r).length ? radios(r).map(o => o.dataset.choice) : [...r.querySelectorAll('select option')].map(o => o.value).filter(Boolean)),
         checkbox: rows.map(r => !!r.querySelector('.switch input[type=checkbox]')),
         color: rows.map(r => !!r.querySelector('[data-color-field]')),
-        values: rows.map(r => r.querySelector('.checklist') ? [...r.querySelectorAll('.checklist input:checked')].map(i => i.dataset.choice).join('\\n')
+        values: rows.map(r => r.querySelector('.checklist') ? [...r.querySelectorAll('.checklist input:checked')].map(i => i.dataset.choice).join(r.querySelector('.checklist').dataset.separator === 'comma' ? ',' : '\\n')
           : radios(r).length ? radios(r).find(o => o.getAttribute('aria-checked') === 'true')?.dataset.choice : r.querySelector('select')?.value ?? (r.querySelector('.switch input') ? String(r.querySelector('.switch input').checked)
           : r.querySelector('[data-color-text]')?.value ?? r.querySelector('input:not([type=checkbox])')?.value))};
     })()`);
@@ -3451,7 +3451,8 @@ async function optionsCheck() {
     const at = part => plainIdx.map(i => shown[part][i]);
     const want = {
       labels: plain.map(r => r.label),
-      defaults: plain.map(r => { const d = r.boolean ? (r.default === 'true' ? 'on' : 'off') : r.kind === 'choice' ? label(r.default) : r.default; return d || undefined; }),
+      defaults: plain.map(r => { const d = r.boolean ? (r.default === 'true' ? 'on' : 'off') : r.kind === 'choice' ? label(r.default)
+        : r.kind === 'choice_set' ? r.default.split(',').filter(Boolean).map(label).join(', ') || 'none' : r.default; return d || undefined; }),
       choices: plain.map(r => r.kind === 'choice' && !r.boolean ? r.choices : r.kind === 'name' ? (!held[r.key] || names.includes(held[r.key]) ? names : [held[r.key], ...names]) : []),
       checkbox: plain.map(r => !!r.boolean), color: plain.map(r => r.kind === 'color'), inline: plain.map(r => !!r.boolean),
     };
@@ -3562,6 +3563,61 @@ async function optionsCheck() {
 /* W644: the dock (Values, Table, Model, Help as the right column's tabs) and the views as tabs above the plot, by data: boxes that do not overlap,
    one dock tab open at a time, the header's buttons selecting a tab, one x that hides the dock, the sheet below 48 rem with the same x and no Back,
    the view tabs and their ＋ and ×, and the title bar naming the view in front. */
+/* W870: special_points is a set of choices, one checkbox per codimension-two kind labelled as a choice is (no text box of raw names); unticking
+   one and applying sends the rest in the table's order, and the core's autoX settings follow */
+async function specialPointsCheck() {
+  await until('s.hello && !s.busy', 'hello');
+  const row = await S(`s.hello.options.find(g => g.group === 'continuation').rows.find(r => r.key === 'special_points')`);
+  check('W870: special_points is a choice_set row whose choices are the codimension-two kinds', row?.kind === 'choice_set' && row.choices.length === 12 && row.choices[0] === 'bogdanov_takens',
+    JSON.stringify(row?.choices));
+  await cdp.eval(`__xpp.openOptions('continuation')`);
+  await requireUntil(`s.optionsPanel?.group === 'continuation' && s.optionValues.continuation`, 'the continuation panel');
+  await rendered();
+  const shown = await cdp.eval(`(() => {
+    const field = document.querySelector('[data-argument=special_points]');
+    if (!field) return null;
+    return {boxes: field.querySelectorAll('.checklist input[type=checkbox]').length, labels: [...field.querySelectorAll('.checklist label > span')].map(s => s.textContent),
+      checked: [...field.querySelectorAll('.checklist input:checked')].map(i => i.dataset.choice), others: field.querySelectorAll('input:not([type=checkbox]), select').length};
+  })()`);
+  check('W870: special_points is one checkbox per codimension-two kind, labelled as a choice is, and no text box',
+    shown?.boxes === 12 && shown.labels[0] === 'Bogdanov takens' && shown.labels[1] === 'Cusp' && shown.others === 0, JSON.stringify(shown));
+  if (!shown?.checked.includes('cusp')) throw new Error('W870: cusp is not on at the start, so the check cannot untick it');
+  const expected = shown.checked.filter(name => name !== 'cusp').join(',');
+  const mark = await S('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector('[data-argument=special_points] input[data-choice=cusp]').click()`);
+  await rendered();
+  check('W870: ticking a box applies nothing until Apply', (await S('__xpp.sentCount()')) === mark);
+  await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
+  check('W870: Apply sends special_points without the unticked kind', await until(`!s.busy && !s.optionsPanel`, 'applied')
+    && await S(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'options.configure' && c.values?.special_points === ${JSON.stringify(expected)})`),
+    JSON.stringify(await S(`__xpp.sentFrom(${mark})`)));
+  check('W870: the core\'s autoX settings follow: cusp is off, the others as sent', await until(
+    `s.autoxSettings.core?.special_points?.cusp === false && s.autoxSettings.core.special_points.bogdanov_takens === ${shown.checked.includes('bogdanov_takens')}`, 'the core\'s special points'));
+}
+
+/* W870 (#952): the continuation options panel with Special points as check boxes, at 375, 768 and 1280 wide, light and dark (with
+   XPP_SHOTS=folder and --only specialshots; XPP_SHOT_PREFIX names the run). Pictures only, never a check. */
+async function specialPointsShots(dir) {
+  const out = process.env.XPP_SHOTS;
+  if (!out) throw new Error('specialshots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(out, {recursive: true});
+  const prefix = process.env.XPP_SHOT_PREFIX || 'after';
+  await until('s.hello && !s.busy', 'hello');
+  await cdp.eval(`__xpp.openOptions('continuation')`);
+  await requireUntil(`s.optionsPanel?.group === 'continuation' && s.optionValues.continuation`, 'the continuation panel');
+  await rendered();
+  for (const [size, width, height] of [['375', 375, 812], ['768', 768, 1024], ['1280', 1280, 860]])
+    for (const scheme of ['light', 'dark']) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+      await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+      await cdp.eval(`document.querySelector('[data-argument=special_points]')?.scrollIntoView({block: 'center'})`);
+      await rendered();
+      fs.writeFileSync(path.join(out, `${prefix}-options-continuation-${size}-${scheme}.jpg`),
+        Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'jpeg', quality: 85})).data, 'base64'));
+    }
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
 async function dockCheck() {
   await desktopMetrics();
   await until('s.hello && !s.busy', 'hello');
@@ -8861,7 +8917,7 @@ async function main() {
       await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     }
     /* every section name run() is asked about: an --only that names none of them ran nothing, which is a failure, never "all passed" */
-    const asked = new Set(['shots', 'popoutshots', 'splitshots', 'settingsshots', 'pinshots', 'exportshots']);
+    const asked = new Set(['shots', 'popoutshots', 'splitshots', 'settingsshots', 'pinshots', 'exportshots', 'specialshots']);
     const run = name => { asked.add(name); return !opt.only || opt.only.split(',').includes(name); };
     if (run('desktop')) await session(ODE, async (dir) => {
       await desktop(want);
@@ -8899,6 +8955,7 @@ async function main() {
     if (run('navigation')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), () => featuresCheck(['parameters', 'boundary_conditions'], ['formula_tables', 'delays', 'integral_terms']));
     if (run('navigation')) await session(path.join(top, 'examples/ode/clustor.odex'), () => featuresCheck(['parameters', 'formula_tables'], ['boundary_conditions', 'delays', 'integral_terms']));
     if (run('options')) await session(ODE, optionsCheck);
+    if (run('options')) await session(ODE, specialPointsCheck);
     if (run('fieldhelp')) await session(ODE, fieldHelp);
     if (run('dock')) await session(ODE, dockCheck);
     if (run('viewtabs')) await session(ODE, viewTabsCheck);
@@ -8917,6 +8974,7 @@ async function main() {
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'splitshots')) { await session(ODE, splitViewShots); await session(ODE, splitViewAutoxShots); }
     if (opt.only && opt.only.split(',').includes('shots')) await session(AB_ODE, autoxScriptShots);
     if (opt.only && opt.only.split(',').includes('exportshots')) await session(ODE, exportShots, ['command:1: No direction field is shown', 'command:1: Nothing to save']); /* the pictures show a field that is not computed yet */
+    if (opt.only && opt.only.split(',').includes('specialshots')) await session(ODE, specialPointsShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'popoutshots')) await session(ODE, popOutShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'settingsshots')) await session(ODE, settingsWindowShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'pinshots')) await session(ODE, pinsShots, [/Pin "Figures"|needs an array plot|Invalid choice/]);

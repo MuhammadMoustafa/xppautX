@@ -117,7 +117,7 @@ export interface OptionRow {
   label: string;
   /** the model feature the row is for (a ModelFeature's name): the page leaves it out for a model without it */
   needs?: string;
-  kind: 'number' | 'whole' | 'name' | 'choice' | 'path' | 'text' | 'sets';
+  kind: 'number' | 'whole' | 'name' | 'choice' | 'choice_set' | 'path' | 'text' | 'sets';
   help: string;
   /** the value a fresh session of the model holds, as text */
   default: string;

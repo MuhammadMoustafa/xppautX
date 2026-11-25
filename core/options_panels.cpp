@@ -26,6 +26,7 @@ std::string_view kind_word(OptionKind kind)
     case OptionKind::whole: return "whole";
     case OptionKind::name: return "name";
     case OptionKind::choice: return "choice";
+    case OptionKind::choice_set: return "choice_set";
     case OptionKind::path: return "path";
     case OptionKind::text: return "text";
     case OptionKind::sliders: return "sliders";
@@ -76,7 +77,7 @@ std::string row_json(const SessionParts &fresh, bool model_loaded, const OptionR
     if (row.needs != Feature::none) add_string(out, "needs", feature_info(row.needs).name);
     add_string(out, "default", model_loaded ? setting_text(fresh, row) : std::string());
     if (row.boolean) out += ",\"boolean\":true";
-    else if (row.kind == OptionKind::choice) {
+    else if (row.kind == OptionKind::choice || row.kind == OptionKind::choice_set) {
         out += ",\"choices\":[";
         const std::vector<std::string> words = option_choices(row);
         for (std::size_t i = 0; i < words.size(); ++i) {

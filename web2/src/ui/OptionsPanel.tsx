@@ -56,7 +56,7 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
   const used = (row: OptionRow) => values !== null && row.key in values;
   const changed = rows.filter(row => row.key in drafts && drafts[row.key] !== values?.[row.key]);
   /* an empty box is wrong for every row but a text or a path, which may be empty (nothing: the default) */
-  const message = (row: OptionRow) => shown(row).trim() === '' ? (row.kind === 'text' || row.kind === 'path' || row.kind === 'sets' ? null : 'Required') : ruleMessage(specOfOption(row, names, sets), shown(row));
+  const message = (row: OptionRow) => shown(row).trim() === '' ? (row.kind === 'text' || row.kind === 'path' || row.kind === 'sets' || row.kind === 'choice_set' ? null : 'Required') : ruleMessage(specOfOption(row, names, sets), shown(row));
   const invalid = changed.some(message);
   const shownProblems = changed.filter(row => feedback.shows(row.key) && message(row)).length;
   const command = (keys: OptionRow[], texts: Record<string, string>) => ({cmd: configureCommand(group.group), ...(group.group === OUTPUT_GROUP ? {} : {group: group.group}),
@@ -73,7 +73,8 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
     };
     const error = changed.includes(row) && feedback.shows(row.key) ? message(row) : null;
     /* the default as the control shows it (on/off for a switch, a choice's words), left out when it is empty */
-    const shownDefault = row.boolean ? (row.default === 'true' ? 'on' : 'off') : row.kind === 'choice' ? choiceLabel(row.default) : row.default;
+    const shownDefault = row.boolean ? (row.default === 'true' ? 'on' : 'off') : row.kind === 'choice' ? choiceLabel(row.default)
+      : row.kind === 'choice_set' ? row.default.split(',').filter(Boolean).map(choiceLabel).join(', ') || 'none' : row.default;
     const help = <>{row.help}{shownDefault ? ` Default: ${shownDefault}.` : ''}{used(row) || values === null ? '' : ' Not used by this method or model.'}</>;
     const notes = Object.entries(unavailable[row.key] ?? {}).map(([name, why]) => <span key={name} class="unavailable-note" data-unavailable={name}>{choiceLabel(name)} is not available: {why}</span>);
     const control = (prefix?: string) => <Control spec={spec} prefix={prefix} value={value} label={row.label} disabled={disabled} unavailable={unavailable[row.key]} verbatim={row.kind === 'name'} invalid={!!error}

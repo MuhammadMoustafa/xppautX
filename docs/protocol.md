@@ -2235,8 +2235,10 @@ order; a group with only lists, `interface`, has no panel), each `{group, label,
 options in the table's order, each `{key, section, label, kind, help, default}` with, as the row has them, `choices` (a choice row's
 names), `boolean` (a yes/no), `nonzero`, `minimum`, `maximum` and `exclusiveMinimum` (the limits the JSON Schema of the options block gives it).
 `key` is the row's `.odex` key inside its group (`step.min`), `section` the key's part before its last dot (the titled section of the
-panel, `""` for none), `label` its last part as words, `kind` one of `number`, `whole`, `name`, `choice`, `path`, `text`, `sets` and `color`, and
-`default` the value a fresh session of the model holds, as text. A page writes none of these. A `sets` row (the output group's `run_set`) names some of
+panel, `""` for none), `label` its last part as words, `kind` one of `number`, `whole`, `name`, `choice`, `choice_set`, `path`, `text`, `sets` and `color`, and
+`default` the value a fresh session of the model holds, as text. A page writes none of these. A `choice_set` row (the continuation group's
+`special_points`, the codimension-two points a run detects) has its `choices` (the names); its value, in `options.get` and `options.configure`, is the
+chosen names separated by commas, in the choices' order, `""` for none, and the page shows one check box per choice, labelled as a choice is. A `sets` row (the output group's `run_set`) names some of
 the model's sets: its value, in `options.get` and `options.configure`, is the checked names, one per line in the model's order, `""` for none, and a
 value given replaces the whole list (the `.odex` repeats the key, one name each); the page shows the model's sets as a check list.
 
