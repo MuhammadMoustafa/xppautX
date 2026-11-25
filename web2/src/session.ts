@@ -90,7 +90,7 @@ export type AplotOp = 'redraw' | 'edit' | 'fit' | 'range';
 const DIAGRAM_HOLD_MS = 200;
 
 /** a diagram `add` that carries a running branch job's live points (W620): what the join's diagram replaces (W885) */
-function isLiveAdd(ev: XppEvent): boolean {
+export function isLiveAdd(ev: XppEvent): boolean {
   return ev.ev === 'autox.diagram' && ev.op === 'add' && Array.isArray(ev.runs) && (ev.runs as {live?: number}[]).some(r => r.live !== undefined);
 }
 

@@ -11,7 +11,7 @@ import {diagramChart} from './plot/diagramChart';
 import {contrastRatio} from './plot/colors';
 import {aniDrawInfo} from './ani/render';
 import {chartOf} from './plot/registry';
-import type {Session} from './session';
+import {isLiveAdd, type Session} from './session';
 import type {Action} from './store/state';
 import {logEntries} from './store/log';
 import {options} from 'preact';
@@ -63,8 +63,7 @@ export function installTestHook(session: Session): void {
     if (actions.length > KEEP) actions.shift();
     if (a.type === 'aborting') stopping = true;
     if (a.type === 'event' && a.ev.ev === 'done') stopping = false;
-    if (stopping && a.type === 'event' && a.ev.ev === 'autox.diagram' && a.ev.op === 'add'
-      && (a.ev.runs as {live?: number}[]).some(r => r.live !== undefined)) livePastStop++;
+    if (stopping && a.type === 'event' && isLiveAdd(a.ev)) livePastStop++;
     if (a.type === 'event' && a.ev.ev === 'autox.diagram') {
       if (a.ev.op === 'reset' && !a.ev.keep && a.ev.view === session.store.getState().diagram.views[0]?.name) diagramEvents = [];
       diagramEvents.push(a.ev);
