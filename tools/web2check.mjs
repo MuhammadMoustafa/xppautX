@@ -2459,6 +2459,10 @@ async function autoxLiveJobs() {
   const joined = await until(`!s.busy && dv.points.x.length >= 2 && [...dv.points.lv].every(v => v === 0) && s.diagram.jobs && s.diagram.jobs.running === 0
       && !document.querySelector('[data-testid=autox-jobs]')`, 'joined', 60000 * SLOW); /* a safety ceiling for a hang: the join's time is a perf: line */
   if (joined) perf('W676 Stop to the join', ms(Date.now() - stoppedAt));
+  /* W885 (#967): after Stop the page draws none of the run's live points: the join's diagram replaces them, so the ones the core had
+     sent (the page's backlog) are skipped, and the count of live points drawn between the Stop and the run's done is 0 */
+  check('W885: after Stop the page draws none of the run\'s live points before the join: the points the core had sent are skipped',
+    joined && await cdp.eval('__xpp.livePastStop()') === 0, `livePastStop ${await cdp.eval('__xpp.livePastStop()')}`);
   check('W620: Stop ends the jobs; the join\'s points replace the live ones: none is a job\'s any more, each has its branch, and no progress line is left',
     reached && joined, JSON.stringify(await DS('({n: d.points.x.length, live: [...d.points.lv].filter(v => v).length, jobs: d.jobs})')));
   check('W676: the live points were drawn in batches (fewer draws than point events), and the join\'s diagram is drawn whole: every point is a vertex of a curve',

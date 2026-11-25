@@ -47,6 +47,10 @@ export function installTestHook(session: Session): void {
      own: from the last that started it over (a reset to no points), for autoX's
      window as it is now */
   let diagramEvents: unknown[] = [];
+  /* W885: the live points (diagram adds of a running branch job) the page drew between Stop and the run's done, and whether a run
+     is being stopped (from the page's abort to its done) */
+  let stopping = false;
+  let livePastStop = 0;
   /* every kinescope frame the page showed, in order (null: none), so a test
      sees a playback's steps however fast they pass (W94: a poll can miss one) */
   const kinescopeShown: (number | null)[] = [];
@@ -57,6 +61,10 @@ export function installTestHook(session: Session): void {
   session.store.dispatch = (a: Action) => {
     actions.push(a.type === 'event' ? `event:${a.ev.ev}` : a.type);
     if (actions.length > KEEP) actions.shift();
+    if (a.type === 'aborting') stopping = true;
+    if (a.type === 'event' && a.ev.ev === 'done') stopping = false;
+    if (stopping && a.type === 'event' && a.ev.ev === 'autox.diagram' && a.ev.op === 'add'
+      && (a.ev.runs as {live?: number}[]).some(r => r.live !== undefined)) livePastStop++;
     if (a.type === 'event' && a.ev.ev === 'autox.diagram') {
       if (a.ev.op === 'reset' && !a.ev.keep && a.ev.view === session.store.getState().diagram.views[0]?.name) diagramEvents = [];
       diagramEvents.push(a.ev);
@@ -103,6 +111,8 @@ export function installTestHook(session: Session): void {
     contrast: contrastRatio,
     /** every `diagram` event received, oldest first */
     diagramEvents: () => diagramEvents.slice(),
+    /** the live points drawn after the page's Stop and before the run's done (W885) */
+    livePastStop: () => livePastStop,
     send: (cmd: {cmd: string}) => session.send(cmd),
     /** the animation's last drawing: the frame, its primitive count, the canvas and the box on it */
     ani: () => aniDrawInfo(),

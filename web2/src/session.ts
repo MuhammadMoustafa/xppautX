@@ -89,6 +89,17 @@ export type AplotOp = 'redraw' | 'edit' | 'fit' | 'range';
 /** how long the diagram's live points wait for more to arrive before one draw shows them all: five draws a second keep a live diagram moving */
 const DIAGRAM_HOLD_MS = 200;
 
+/** a diagram `add` that carries a running branch job's live points (W620): what the join's diagram replaces (W885) */
+function isLiveAdd(ev: XppEvent): boolean {
+  return ev.ev === 'autox.diagram' && ev.op === 'add' && Array.isArray(ev.runs) && (ev.runs as {live?: number}[]).some(r => r.live !== undefined);
+}
+
+/** the same test on an event's text, before it is parsed: the core writes a diagram add as `{"ev":"autox.diagram","op":"add",...}`
+    and a live point's run with a `"live"` field (json_autox.cpp), so a skip costs a string search, not a JSON parse (W885) */
+function isLiveAddText(raw: string): boolean {
+  return raw.startsWith('{"ev":"autox.diagram","op":"add"') && raw.includes('"live":');
+}
+
 /** the commands of the player's Play, Pause and Step buttons */
 const PLAYER_CONTROLS = {start: 'recording.play', pause: 'recording.pause', step: 'recording.step'} as const;
 
@@ -207,6 +218,9 @@ export class Session {
       behind it. Any other event goes in after them, so the order stays the core's. */
   private diagramHeld: XppEvent[] = [];
   private diagramTimer: ReturnType<typeof setTimeout> | null = null;
+  /** after Stop (W885, #967) the live points of the stopped run are not drawn: the join's diagram replaces them. Set by abort(),
+      cleared by the run's `done` (which comes after the join) or the diagram's reset (the join takes the live points away) */
+  private skippingLive = false;
 
   /** files: the model's folder over HTTP (none in unit tests) */
   constructor(private readonly transport: Transport, private readonly files: FilesApi | null = null) {
@@ -218,7 +232,8 @@ export class Session {
     /* a command the server refused or that never reached it is an error
        as the core's own are (Messages, the error dialog): never lost (W116) */
     this.transport.open(ev => this.receive(ev), open => this.store.dispatch({type: 'connection', open}),
-      error => this.store.dispatch({type: 'event', ev: {ev: 'session.message', error}}));
+      error => this.store.dispatch({type: 'event', ev: {ev: 'session.message', error}}),
+      raw => this.skippingLive && isLiveAddText(raw));
   }
 
   private holdDiagram(ev: XppEvent): void {
@@ -247,7 +262,9 @@ export class Session {
       setLineGeometry(ev.line_styles); /* before any plot is built */
       setAnnotationGlyphs(ev.annotation_glyphs);
     }
+    if (ev.ev === 'done' || (ev.ev === 'autox.diagram' && ev.op === 'reset')) this.skippingLive = false;
     if (ev.ev === 'autox.jobs' || (ev.ev === 'autox.diagram' && ev.op === 'add')) {
+      if (this.skippingLive && isLiveAdd(ev)) return;
       this.holdDiagram(ev);
       return;
     }
@@ -994,6 +1011,8 @@ export class Session {
   /** stops the running command; it still ends with its done */
   abort(): void {
     this.batchStopped = true;
+    this.skippingLive = true; /* W885: the live points still to come, and those held, are the stopped run's: the join replaces them */
+    this.diagramHeld = this.diagramHeld.filter(ev => !isLiveAdd(ev));
     this.store.dispatch({type: 'aborting'});
     this.transport.send({cmd: 'run.stop'});
   }

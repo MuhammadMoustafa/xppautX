@@ -8,6 +8,7 @@ XPPAUT 8.0, area by area, is [docs/xppautx-vs-xppaut.md](docs/xppautx-vs-xppaut.
 the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-findings.md).
 
 ## [Unreleased]
+- After Stop the page stops drawing the live points of the stopped autoX run it has not drawn yet: the join's diagram replaces them, so the window is ready sooner (W885 After Stop the page skips the live points the join replaces, [#967](https://github.com/MuhammadMoustafa/xppautX/issues/967))
 - A session saved or opened with nothing changed since is not asked to be saved again when another model opens, is reloaded or quit (W880 A session just saved is not asked to be saved again, [#962](https://github.com/MuhammadMoustafa/xppautX/issues/962)); a change, or an autoX run, after the save is still asked about
 - "Save first?" and the unsaved-changes dot follow one rule: the session file the next save writes differs from the last one saved or opened, so a closed autoX view, a graph's labels or any other change the file keeps counts, not only the values (W884, [#966](https://github.com/MuhammadMoustafa/xppautX/issues/966)); before, leaving after such a change discarded it without asking.
 - The start screen follows the theme and has the title bar's theme button (W875 The start screen follows the dark theme, [#957](https://github.com/MuhammadMoustafa/xppautX/issues/957)): it drew light whatever the page's theme was (the dark theme came only from the first render), now the theme in force, the page's own choice included, with the same toggle as the title bar.

@@ -7,7 +7,8 @@ export interface Transport {
   send(cmd: Command): void;
   /** starts the event stream; `onEvent` gets every event, `onStatus` the connection's state,
       `onFailed` what went wrong with a command that did not reach the core (refused, or never sent) */
-  open(onEvent: (ev: XppEvent) => void, onStatus: (open: boolean) => void, onFailed: (text: string) => void): void;
+  open(onEvent: (ev: XppEvent) => void, onStatus: (open: boolean) => void, onFailed: (text: string) => void,
+    skip?: (raw: string) => boolean): void;
   close(): void;
 }
 
@@ -95,12 +96,14 @@ export class HttpTransport implements Transport {
     });
   }
 
-  open(onEvent: (ev: XppEvent) => void, onStatus: (open: boolean) => void, onFailed: (text: string) => void): void {
+  open(onEvent: (ev: XppEvent) => void, onStatus: (open: boolean) => void, onFailed: (text: string) => void,
+    skip: (raw: string) => boolean = () => false): void {
     this.failed = onFailed;
     const source = new EventSource(`${this.base}events${this.token}`);
     source.onopen = () => onStatus(true);
     source.onerror = () => onStatus(false); /* EventSource reconnects by itself */
     source.onmessage = m => {
+      if (skip(m.data)) return; /* a whole event the page has no use for: not parsed (W885) */
       onEvent(JSON.parse(m.data) as XppEvent);
     };
     this.source = source;
