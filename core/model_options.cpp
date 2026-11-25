@@ -1496,7 +1496,7 @@ bool xppaut_slider_option(const OptionRow &row)
 
 bool option_written_quoted(const OptionRow &row)
 {
-  return row.kind == OptionKind::path || row.kind == OptionKind::text;
+  return row.kind == OptionKind::path || row.kind == OptionKind::text || row.kind == OptionKind::choice_set;
 }
 
 std::vector<std::string> option_item_lines(const OptionRow &row, std::string_view text)

@@ -909,7 +909,7 @@ private:
       o.tree = value;
       return o;
     }
-    const bool quoted = row->kind == OptionKind::path || row->kind == OptionKind::text || row->kind == OptionKind::choice_set;
+    const bool quoted = option_written_quoted(*row);
     o.value_pos = peek().pos;
     if (peek().kind == Token::Kind::String) {
       if (!quoted) fail(o.value_pos, xpp::format("the option {} takes a bare word or number, not a string", o.name));
