@@ -1901,10 +1901,11 @@ async function autoxView(dir) {
 
   /* Grab from the keyboard only (T11b): G on the diagram, a step, Tab to the Hopf point, Enter */
   await cdp.eval(`document.querySelector('.autox-host').focus()`);
-  await menuRun('autox.grab');
-  check('G grabs in the view: a grab mode on the diagram, no dialog, the cursor on the first point',
+  /* W878: Grab goes straight to picking, no empty form first (the row's arguments are all optional, core Command::pick) */
+  await clickRegistry('autox.grab');
+  check('G grabs in the view: a grab mode on the diagram, no form, no dialog, the cursor on the first point',
     await until("s.ask && s.ask.kind === 'grab' && s.diagram.grabbing && s.diagram.info && s.diagram.info.point === 0", 'grab')
-    && await cdp.eval(`!document.querySelector('[role=dialog]') && !!document.querySelector('.pick-bar[data-pick=grab]')
+    && await S('!s.commandForm') && await cdp.eval(`!document.querySelector('[role=dialog]') && !!document.querySelector('.pick-bar[data-pick=grab]')
       && !!document.activeElement.closest('.autox-host')`), JSON.stringify(await DS('[d.grabbing, d.info]')));
   const nInfo = await DS('d.infoEvents');
   await key(']');
@@ -3889,6 +3890,12 @@ async function autoxScriptShots(dir) {
   await cdp.eval(`document.querySelector('[data-script-run-button="steady"]').click()`);
   await requireUntil(`!s.busy && s.autoxScript.runs[0].done`, 'steady done');
   await frames('autox-script-done');
+  /* W878: Grab picks on the diagram at once (no form): the pick bar and the grab's cursor, at each width (the pictures of docs/studies/w878) */
+  await clickRegistry('autox.grab');
+  await requireUntil(`!!(s.ask && s.ask.kind === 'grab') && !s.commandForm`, 'the grab pick, no form');
+  await frames('grab');
+  await key('Escape');
+  await requireUntil(`!(s.ask && s.ask.kind === 'grab')`, 'the grab cancelled');
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 

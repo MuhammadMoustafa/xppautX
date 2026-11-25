@@ -33,6 +33,11 @@ export function fileOnly(row: CommandRow, given: Record<string, unknown> = {}): 
   if (!file || row.panel || row.kind === 'x') return false;
   return args.every(a => a === file || !a.required || a.from_extension || a.name in given);
 }
+/** whether a row goes straight to picking on the diagram (core Command::pick: autoX's Grab): it picks when run with none of its
+    arguments, and every argument is optional, so its form would ask nothing the user must give. Such a row is sent at once. */
+export function pickOnly(row: CommandRow): boolean {
+  return !!row.pick && (row.arguments ?? []).every(a => !a.required);
+}
 /** the registry row of command `id`: its label, description and menu place are what every control for it shows */
 export function commandRow(hello: HelloEvent | null, id: string): CommandRow | undefined {
   return registryRows(hello).find(row => row.id === id);

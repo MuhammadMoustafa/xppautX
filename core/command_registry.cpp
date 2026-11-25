@@ -269,6 +269,7 @@ void append_command(std::string &out, const Command &command)
         json_append_string(out, command.menu_fixed_value);
         out += '}';
     }
+    if (command.pick) out += ",\"pick\":true";
     if (*command.panel) {
         out += ",\"panel\":";
         json_append_string(out, command.panel);

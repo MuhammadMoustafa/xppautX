@@ -48,6 +48,8 @@ export interface CommandKind {
   menu_choice?: string;
   /** one other argument every item of that submenu sends (core Command::menu_fixed_argument): the table of File > Export > Data as */
   menu_fixed?: {argument: string; value: string};
+  /** the command run with none of its arguments picks a point on the diagram (core Command::pick, autoX's Grab) */
+  pick?: boolean;
   /** the model feature it is for (hello.model_features) */
   needs?: string;
   /** the option group whose generated panel opens in place of this command's own form (core Command::panel) */
@@ -74,6 +76,8 @@ export interface CommandRow {
   menu_choice?: string;
   /** one other argument every item of that submenu sends (core Command::menu_fixed_argument): the table of File > Export > Data as */
   menu_fixed?: {argument: string; value: string};
+  /** the command run with none of its arguments picks a point on the diagram (core Command::pick, autoX's Grab) */
+  pick?: boolean;
   /** an item of that submenu (navigation.ts choiceItems, the one builder of them): the command run with these arguments (the value
       of the choice and the fixed ones), `value` being the choice's, for the label; never a row of hello */
   choice?: {value: string; arguments: Record<string, string | boolean>};

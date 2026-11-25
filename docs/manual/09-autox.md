@@ -142,7 +142,7 @@ it back. It has:
   help in the tooltip, and a message beside it when its value is not one
   autoX takes, worded as the core refuses it (OK waits until every value
   is);
-- **Grab** as a mode of the diagram: arrows, `[` `]`, Tab to the labelled
+- **Grab** as a mode of the diagram, at once (no form first): arrows, `[` `]`, Tab to the labelled
   points, Enter takes the point, Escape cancels, a click or tap takes the
   nearest point (see "Points and labels" below for what grabbing does);
 - **Clear** hides the branches computed so far behind a key entry

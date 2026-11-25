@@ -1,6 +1,6 @@
 import {splitDrawn} from './store/splitView';
 import {panelSpec, toolbarCommand} from './ui/navigation';
-import {fileOnly, registryRows} from './ui/navigation';
+import {fileOnly, pickOnly, registryRows} from './ui/navigation';
 /* The session: connects a transport to the store and is the one place that
    sends commands. Components call its methods, never the transport. */
 import {nativeFileDialog, nativeFileRequest, offerDownload, pickStem, releaseFolder} from './pickers';
@@ -431,6 +431,7 @@ export class Session {
     else if (id === 'keymap.edit') this.openSettings('keymap'); else if (row.panel && !row.arguments?.some(a => a.option) && !row.panel.endsWith('+')) this.openOptions(panelSpec(row.panel)!.group);
     /* File > Sets > Load a named part of a file: the picker first, then the picked file's parts listed to choose from (ValuesFileDialog), whose choice sends set.load_file */
     else if (id === 'set.load_file') this.chooseFile('set.list_file_contents', {scope: 'all'});
+    else if (pickOnly(row)) { const cmd: Command = {cmd: id, ...values}; if (this.may(cmd)) this.send(cmd); }
     else if (fileOnly(row, values)) this.chooseFile(id, values);
     else if (row.arguments?.length) this.store.dispatch({type: 'commandForm', form: {id, values, fixed}});
     else this.send({cmd: id});

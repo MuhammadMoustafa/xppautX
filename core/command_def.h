@@ -267,6 +267,9 @@ struct Command {
     /* one other argument an item of that submenu sends with it, as its name and value ("target", "table": File > Export > Data as holds
        the table's formats, and the table is not asked); "" for none. Scripts, recordings and clients still send the argument themselves */
     const char *menu_fixed_argument = "", *menu_fixed_value = "";
+    /* the command run with none of its arguments picks a point on the diagram (autoX's Grab): the page sends such a row at once, its form
+       left out, the arguments staying the ones scripts send; false for every other row */
+    bool pick = false;
 };
 
 /* The one file picked for a command; optional paths (Open model) have their own startup picker. */

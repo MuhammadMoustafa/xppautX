@@ -855,7 +855,7 @@ const std::array ROWS = {
             "The open .autox script: its file, its model, its runs' names in order and which of them have run.",
             RESULT_SCRIPT, EVENTS_BROWSER, true, script_runs},
     Command{"autox.grab", GRAB_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Grab", "autoX",
-            "Grab a stored point by label or type and index; omit both to pick it on the diagram.", RESULT_GRAB, EVENTS_GRAB, true, grab_point, GRAB_GROUPS, {}},
+            "Grab a stored point by label or type and index; omit both to pick it on the diagram.", RESULT_GRAB, EVENTS_GRAB, true, grab_point, GRAB_GROUPS, {}, "read", "*", "", "", Feature::none, {}, "", "", "", true},
     Command{"autox.configure_numerics", CONFIGURE_NUMERICS_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Analysis, "Numerics", "autoX",
             "Set autoX's Numerics by their names (mesh.intervals, step.initial, ...) and the codimension-two points it detects (special_points), all or nothing.",
             RESULT_SETTINGS, EVENTS_OPTIONS, true, configure_numerics, {}, {}, "read", "*", "continuation"},
