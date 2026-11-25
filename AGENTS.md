@@ -94,6 +94,7 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
   merges.
 - Before any merge, push or report to the maintainer: the background-task
   register holds no finished work.
+- Before each release, and after a card that changes a flow (tools/walkthrough.mjs names them): run `node tools/walkthrough.mjs` from the repo root after `make -j4 xppautx`; the maintainer reviews its pages (build/walkthrough/index.html, one per flow), and its findings become cards (W861).
 
 
 ## Code quality

@@ -93,6 +93,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {createDriver, ACTIVE, DV} from './pagedriver.mjs';
 import {devtoolsPages, findBrowser, installPerfObserver, navigatePage, popupPage, waitFor, waitForAppPage, waitForExit, startBrowser, startServer, startWebView2, stopServer} from './cdp.mjs';
 
 const top = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -174,12 +175,10 @@ function outputDat(ode = ODE) {
 let cdp;
 let downloads; /* shared downloads folder for all sections (set by main) */
 let browserPort; /* the browser's DevTools port, for the pages it opens by itself (a pop-out) */
+/* the page driver the walkthrough shares (tools/pagedriver.mjs): the waits, keys, menu, file answer and theme are its code */
+const {S, until, requireUntil, rendered, key, exists, clickRegistry, paletteRegistry, answerAsk, setPageTheme} = createDriver(() => cdp, {verbose: !!opt.v});
 /* in page expressions: `s` is the store's state, `w` its active plot window
    (store/plots.ts: series, viewport) */
-const ACTIVE = 's.plots.windows.find(x => x.win === s.plots.active) || {}';
-/* the autoX diagram's active view (W50: the diagram has views, each its own axes and points) */
-const DV = 's && s.diagram.views[s.diagram.active]';
-const S = expr => cdp.eval(`(() => { const s = __xpp.state(), w = ${ACTIVE}; return ${expr}; })()`);
 /* a command's name as the page shows it: the row's label from hello (W636), never a copy written here */
 const labelsOf = ids => S(`${JSON.stringify(ids)}.map(id => s.hello.commands.find(c => c.cmd === id).label)`);
 const labelOf = async id => (await labelsOf([id]))[0];
@@ -189,18 +188,6 @@ const nameOf = id => S(`s.hello.commands.find(c => c.cmd === ${JSON.stringify(id
    ResizeObserver delivery before measuring geometry or drawing data. */
 const rawP = () => cdp.eval('__xpp.plot()');
 const P = () => settled(rawP);
-async function rendered() {
-  if (!await until('window.__xpp && __xpp.rendered()', 'component renders and effects'))
-    throw new Error('component renders and effects did not complete');
-  await cdp.eval(`Promise.all(document.getAnimations().filter(a => a instanceof CSSTransition)
-    .map(a => a.finished.catch(() => {})))`);
-  await cdp.eval(`new Promise(resolve => {
-    const observer = new ResizeObserver(() => { observer.disconnect(); resolve(true); });
-    observer.observe(document.documentElement);
-  })`);
-  if (!await until('__xpp.rendered()', 'renders after resize'))
-    throw new Error('component renders after resize did not complete');
-}
 async function settled(read) {
   await rendered();
   if (!await until('!__xpp.plot()?.tracing', 'plot tracing complete'))
@@ -223,25 +210,7 @@ async function openRecording(file) {
   await answerAsk({file});
 }
 
-async function until(expr, what, ms) {
-  const ready = await waitFor(async () => {
-    let v = null;
-    try {
-      v = await cdp.eval(`(() => { try { const s = window.__xpp && __xpp.state(), w = ${ACTIVE}, dv = ${DV}; return !!(${expr}); } catch (e) { return false; } })()`);
-    } catch { /* page not there yet */ }
-    if (v) return true;
-    await cdp.eval(`(() => { const a = window.__xpp && __xpp.state().ask;
-      if (a && a.kind === 'choice' && a.keys === 'yn' && a.question.endsWith(' exists. Replace it?'))
-        __xpp.send({cmd: 'answer', id: a.id, key: 'y'}); })()`).catch(() => {});
-    return false;
-  }, ms);
-  if (!ready && opt.v) console.log(`  (timed out waiting for ${what})`);
-  return !!ready;
-}
 
-async function requireUntil(expr, what, ms) {
-  if (!await until(expr, what, ms)) throw new Error(`Timed out waiting for ${what}`);
-}
 
 /* a menu ask is open and has the focus, so the next key answers it */
 
@@ -262,35 +231,6 @@ async function metrics(value) {
   await rendered();
 }
 
-const NAMED = {Escape: 27, Enter: 13, Tab: 9, Home: 36, End: 35, PageUp: 33, PageDown: 34,
-  ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, F1: 112, F2: 113, F6: 117, F9: 120, Backspace: 8};
-/** select all in the focused field the way the platform's own shortcut does: CDP key events carry no
-    editing command, and macOS's Ctrl+A is "line start", so the command itself is sent (not a chord) */
-async function selectAll() {
-  await cdp.send('Input.dispatchKeyEvent', {type: 'rawKeyDown', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2, commands: ['selectAll']});
-  await cdp.send('Input.dispatchKeyEvent', {type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2});
-}
-
-/* Run from initial: the registry command the page's button and key send (W521) */
-async function runInitial() {
-  await cdp.eval(`__xpp.send({cmd: 'run.initial'})`);
-}
-
-async function key(k, modifiers = 0) {
-  if (NAMED[k]) {
-    const code = NAMED[k];
-    await cdp.send('Input.dispatchKeyEvent', {type: 'rawKeyDown', key: k, code: k, windowsVirtualKeyCode: code, modifiers});
-    await cdp.send('Input.dispatchKeyEvent', {type: 'keyUp', key: k, code: k, windowsVirtualKeyCode: code, modifiers});
-  } else if (modifiers) {
-    const code = k.toUpperCase().charCodeAt(0);
-    await cdp.send('Input.dispatchKeyEvent', {type: 'rawKeyDown', key: k, code: `Key${k.toUpperCase()}`, windowsVirtualKeyCode: code, modifiers});
-    await cdp.send('Input.dispatchKeyEvent', {type: 'keyUp', key: k, code: `Key${k.toUpperCase()}`, windowsVirtualKeyCode: code, modifiers});
-  } else {
-    await cdp.send('Input.dispatchKeyEvent', {type: 'keyDown', key: k, text: k, unmodifiedText: k});
-    await cdp.send('Input.dispatchKeyEvent', {type: 'keyUp', key: k});
-  }
-  await rendered();
-}
 /* an error's dialog (ErrorDialog.tsx) covers the page until OK: close it so a later click reaches its control */
 async function closeErrors() {
   await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
@@ -1806,7 +1746,6 @@ async function autoxScreen(x, y) {
   return {x: a.x + (x - d.x.min) / (d.x.max - d.x.min) * a.w, y: a.y + (d.y.max - y) / (d.y.max - d.y.min) * a.h};
 }
 const readout = () => cdp.eval(`document.querySelector('.autox-readout').textContent`);
-const answerAsk = fields => cdp.eval(`__xpp.send(Object.assign({cmd: 'answer', id: __xpp.state().ask.id}, ${JSON.stringify(fields)}))`);
 /* a menu's key, once its dialog is up (it takes its keys from then on) */
 
 const center = sel => cdp.eval(`(() => { const r = document.querySelector('${sel}').getBoundingClientRect();
@@ -2527,13 +2466,6 @@ async function autoxLiveJobs() {
 }
 
 /* ---- the view after a run (W859): the branch list, the fit at the run's end with Undo, the chips and the eye ----------- */
-/* W874 (#956): on the dark theme a curve too dark to read on the page is drawn lighter (web2/src/plot/colors.ts, the hue kept); the
-   light theme draws the core's own color, and a theme switch redraws the diagram. Read from __xpp.diagram() (the colors and the draw
-   count), never pixels. The unstable periodic orbits are the core's #0000ff, which is too dark for the dark background. */
-async function setPageTheme(want) {
-  for (let i = 0; i < 3 && (await S('s.theme')) !== want; i++) await cdp.eval(`document.querySelector('.theme-toggle').click()`);
-  return (await S('s.theme')) === want;
-}
 /* the fixed point's equilibrium run, then the periodic branch from its Hopf point: the diagram holds unstable periodic curves (type 4) */
 async function autoxUnstablePeriodic() {
   await openAutoxAtFixedPoint();
@@ -3399,23 +3331,7 @@ async function leaveSaveCheck(dir) {
 }
 
 
-const exists = selector => cdp.eval(`!!document.querySelector(${JSON.stringify(selector)})`);
 
-/** W517: choose a real menu item; the registry supplies the entire path and command. The menu is
-    built from hello, so the item is waited for (a page just loaded may not have it yet). */
-async function clickRegistry(id) {
-  const selector = `.app-menu [data-command=${JSON.stringify(id)}]`;
-  /* W637: a command with no menu place (a view's own control, the palette's) is run from the command palette */
-  if (!(await exists(selector)) && id !== 'command_palette.open') return paletteRegistry(id);
-  await requireUntil(`document.querySelector(${JSON.stringify(selector)})`, 'menu item ' + id);
-  await cdp.eval(`(() => {
-    const item = [...document.querySelectorAll('.app-menu [data-command]')].find(b => b.dataset.command === ${JSON.stringify(id)});
-    if (!item) throw new Error('No menu item ' + ${JSON.stringify(id)});
-    for (let p = item.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true;
-    item.click();
-  })()`);
-  await rendered();
-}
 /* W792: the Settings window open on `group`, both files' values loaded */
 async function openSettings(group = 'general') {
   await clickRegistry('settings.open');
@@ -3478,13 +3394,6 @@ async function formValues(values) {
 
 async function submitCommand() {
   await cdp.eval(`(() => { const b = document.querySelector('.registry-form button[type=submit]'); if (!b || b.disabled) throw new Error('Command form is invalid: ' + document.querySelector('.registry-form')?.textContent); b.click(); })()`);
-  await rendered();
-}
-/** W637: a command with no menu place, run from the command palette (Help > Command palette) */
-async function paletteRegistry(id) {
-  await clickRegistry('command_palette.open');
-  await until('s.drawerOpen', 'command palette open');
-  await cdp.eval(`document.querySelector(${JSON.stringify(`.command-palette [data-command="${id}"]`)}).click()`);
   await rendered();
 }
 async function menuRun(id, values = {}) {
