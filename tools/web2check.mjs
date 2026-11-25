@@ -4962,6 +4962,14 @@ async function panelMenusInsideCheck() {
   await desktopMetrics();
 }
 
+/* a registry row whose form would ask only its file: the page's rule (web2/src/ui/navigation.ts fileOnly), restated as the check's oracle */
+function fileOnlyRow(row) {
+  const args = row.arguments ?? [], file = args.find(a => a.type === 'file' || a.type === 'path');
+  if (!file || row.panel) return false;
+  const others = args.filter(a => a !== file).map(a => a.name);
+  return others.length === 0 || (row.groups ?? []).some(g => g.rule === 'at_most_one' && g.arguments.includes(file.name) && others.every(n => g.arguments.includes(n)));
+}
+
 async function navigationCheck() {
   await desktopMetrics();
   /* W649: a command for a feature the model lacks has no menu entry (featuresCheck looks at those) */
@@ -4996,7 +5004,17 @@ async function navigationCheck() {
   await until('!s.help.open', 'help closed');
   // Every command with arguments renders the same form, using every declared argument.
   for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list' && c.cmd !== 'settings.configure' && !c.menu_choice)) { /* W792: the Settings window is its form */
+    const sentMark = await cdp.eval('__xpp.sentCount()');
     await clickRegistry(row.cmd);
+    if (fileOnlyRow(row)) {
+      /* W853: a command whose form would ask only its file goes to the picker with no form (navigation.ts fileOnly); one that needs a
+         state first (Stop recording, a direction field's export) is refused by the core, which this section expects */
+      check(`W853: ${row.cmd} sends its command with no form in front`,
+        await until(`!s.commandForm && __xpp.sentFrom(${sentMark}).some(c => c.cmd === ${JSON.stringify(row.cmd)}${row.file_mode ? ' && c.file_picker === true' : ''})`, 'sent ' + row.cmd));
+      await key('Escape');
+      await until("!s.busy && !(s.ask && s.ask.kind === 'file')", 'the picker closed');
+      continue;
+    }
     if (row.panel) {
       /* W616: a group's generated panel in place of its form, or inside it when the command has more than options (the options section checks the fields against the table) */
       const inForm = row.panel.endsWith('+') || row.arguments.some(a => a.option);
@@ -5290,8 +5308,9 @@ async function keymapCheck() {
   await key('r', 2);
   check('W517: Ctrl+R runs directly through the registry', await until(`s.core.rows === 601 && !s.busy`, 'logical run') && await cdp.eval(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'run.initial')`));
   await key('o',2);
-  check('W517: Ctrl+O opens the common model form', await until(`s.commandForm?.id === 'session.open_model'`, 'open form'));
+  check('W853: Ctrl+O opens the file picker with no form', await until(`s.ask?.kind === 'file' && !s.commandForm`, 'open picker'));
   await key('Escape');
+  await until("!(s.ask && s.ask.kind === 'file')", 'the picker closed');
   await key('P',10);
   check('W517: Ctrl+Shift+P opens palette', await until('s.drawerOpen', 'palette key'));
   await key('Escape');
@@ -8808,7 +8827,7 @@ async function main() {
     if (run('autox')) await session(AB_ODE, autoxLiveJobs);
     if (run('autoxviews')) await session(ODE, autoxViews);
     /* W786: an export item's file question is answered at once, so the command runs: the exports with nothing to write here say so */
-    if (run('navigation')) await session(ODE, navigationCheck, [/is not a graph/, /The array plot shows no columns yet/, /The client gave no picture of frame/]);
+    if (run('navigation')) await session(ODE, navigationCheck, [/is not a graph/, /The array plot shows no columns yet/, /The client gave no picture of frame/, /Not recording/, /No direction field is shown/]);
     if (run('navigation')) await session(ODE, menusByTaskCheck);
     if (run('navigation')) await session(ODE, panelMenusInsideCheck);
     if (run('navigation')) await session(ODE, () => featuresCheck(['parameters'], ['boundary_conditions', 'formula_tables', 'delays', 'integral_terms']));
