@@ -34,6 +34,9 @@ const NUMERIC_ELSEWHERE = ['limits.parameter_min', 'limits.parameter_max', 'foll
 const PARAMETER_MIN = 'limits.parameter_min', PARAMETER_MAX = 'limits.parameter_max', FOLLOW = 'follow_all_branches', FIRST_STEP = 'step.initial';
 /** the kinds that take the homoclinic fields (dimensions and the two equilibria), shown for that kind only */
 const HOMOCLINIC = 'homoclinic';
+/** a two-parameter run's name from the point it starts at, as a person says it (the point's own name is hello's: pointLabel) */
+const CURVE_NAMES: Record<string, string> = {hopf: 'Hopf curve', fold: 'Fold curve', cycle_fold: 'Fold-of-cycles curve',
+  period_doubling: 'Period-doubling curve', neimark_sacker: 'Torus curve'};
 const DIRECTIONS = ['increase', 'decrease', 'both'] as const;
 type Direction = (typeof DIRECTIONS)[number];
 
@@ -90,7 +93,7 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
   const runArguments = (sign: 1 | -1, first: boolean): Record<string, unknown> => {
     const args: Record<string, unknown> = {kind: kindNow};
     if (fromLabel) args.label = label;
-    if (first && clear) args.replace_diagram = true;
+    args.replace_diagram = first && clear; // the core asks for it whenever the diagram holds points: the second way of Both adds to the first's
     for (const key of Object.keys(edits)) {
       if (key === FIRST_STEP) continue;
       const row = rows.find(r => r.key === key);
@@ -135,10 +138,11 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
     onClose();
   };
 
-  /* a labelled point's name in the list: the grabbed one with its type, the others by their symbol and label */
-  const labelName = (lab: number, sym: string): string => {
-    if (start && start.label === lab) return `${pointMark(start.type) || sym} ${lab} · ${pointLabel(start.type)}`;
-    return `${sym || 'point'} ${lab}`;
+  /* a labelled point's name in the list, as the key names it: its mark, label and type, the parameter's value and its branch */
+  const view = activeView(state.diagram);
+  const labelName = (l: {lab: number; sym: string; point: number}): string => {
+    const x = view.points.x[l.point], where = Number.isFinite(x) ? ` · ${view.axes?.xlabel ?? parameter} = ${Number(x.toPrecision(4))}` : '';
+    return `${pointMark(l.sym) || l.sym || 'point'} ${l.lab} · ${pointLabel(l.sym) || 'Point'}${where} · branch ${view.points.br[l.point]}`;
   };
   const pick = (lab: number) => {
     setLabel(lab);
@@ -162,10 +166,9 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
       <input class="run-number" aria-label={row.label} value={inForce(row.key)} onInput={e => edit(row.key, e.currentTarget.value)} />
     </FormRow>;
   };
-  const kindCards = kinds.map(name => card(kindNow === name, () => setKind(name), KIND_WORDS[name]?.label ?? choiceLabel(name),
+  const kindCards = kinds.map(name => card(kindNow === name, () => setKind(name), name === 'two_parameter' && fromLabel && start ? CURVE_NAMES[start.type] ?? KIND_WORDS[name].label : KIND_WORDS[name]?.label ?? choiceLabel(name),
     KIND_WORDS[name]?.help ?? '', undefined, {'data-choice': name}));
   const homoclinic = kindNow === HOMOCLINIC;
-  const pointWord = start ? pointLabel(start.type) : '';
 
   return <Dialog title="Run continuation" name="Run continuation" description="Follow a branch of solutions while a parameter changes."
     onClose={onClose} onSubmit={submit} problems={fixes} action={{label: 'Run', attrs: {'data-autox-run': ''}}} className="registry-form run-form"
@@ -177,14 +180,14 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
           {card(fromLabel, () => setFromLabel(true), 'A labelled point in the diagram', 'The grabbed point is chosen for you. Click any label on the plot to choose another.',
             labels.length ? <select aria-label="Labelled point" data-argument="label" value={String(label)} disabled={!fromLabel}
               onChange={e => pick(Number(e.currentTarget.value))}>
-              {labels.map(l => <option key={`${l.point}-${l.lab}`} value={String(l.lab)}>{labelName(l.lab, l.sym)}</option>)}
+              {labels.map(l => <option key={`${l.point}-${l.lab}`} value={String(l.lab)}>{labelName(l)}</option>)}
             </select> : null, {'data-argument-start': 'label'})}
           {card(!fromLabel, () => setFromLabel(false), 'The current state', "The Values' initial conditions and parameters, as a steady state")}
         </fieldset>
         <fieldset class="form-group run-step" data-run-step="compute">
           <legend>2 · Compute</legend>
           <div class="run-kinds" role="radiogroup" aria-label="Compute" data-argument="kind">{kindCards.length ? kindCards : <span class="value-hint">Looking up what this point starts</span>}</div>
-          <p class="value-hint">{start && fromLabel ? `Only the kinds a ${pointWord} point can start are offered.` : 'Only the kinds the current state can start are offered.'} Homoclinic orbits start from a long-period orbit, and torus curves from a TR label.</p>
+          <p class="value-hint">{start && fromLabel ? `Only the kinds this point can start are offered.` : 'Only the kinds the current state can start are offered.'} Homoclinic orbits start from a long-period orbit, and torus curves from a TR label.</p>
           {homoclinic && <div class="run-homoclinic" data-homoclinic>
             <FormRow name="unstable_dimension" label="Unstable dimension" help="How many unstable directions the equilibrium has">
               <input aria-label="Unstable dimension" value={dimensions.unstable} onInput={e => setDimensions({...dimensions, unstable: e.currentTarget.value})} />

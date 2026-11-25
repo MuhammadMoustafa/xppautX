@@ -362,3 +362,7 @@
 .run-numerics > summary .value-hint { margin-left: var(--space-2); font-weight: 400; }
 .run-number { width: 100%; box-sizing: border-box; min-height: 2.375rem; padding: 0 0.625rem; border: 1px solid var(--field-border); border-radius: 0.5rem; background-color: var(--bg); color: var(--fg); font: inherit; font-variant-numeric: tabular-nums; }
 .run-homoclinic { display: grid; gap: var(--space-1); margin-top: var(--space-2); }
+.run-form .range-pair { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; }
+.run-numerics .form-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label label" "control help"; }
+.run-numerics .form-row.inline { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "label control help"; }
+.run-numerics .run-number { max-width: 10rem; }

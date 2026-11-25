@@ -1909,39 +1909,6 @@ async function autoxView(dir) {
   await closeSettings();
   await autoxRun('equilibrium');
   check('Run sends autox.run equilibrium', await cdp.eval(`__xpp.sent().some(c => c.cmd === 'autox.run' && c.kind === 'equilibrium')`));
-  /* W855: autoX > Run is the dialog of five steps (web2/src/ui/AutoxRunDialog.tsx): the values in force, only the kinds the start allows,
-     the homoclinic fields for their kind alone, Decrease's sign on the first step, Both as two runs (one each way) and a changed parameter
-     sent as autox.configure_axes before the run */
-  await clickRegistry('autox.run');
-  check('W855: the dialog opens with the values in force', await until(`s.commandForm?.id === 'autox.run' && document.querySelector('.run-form [data-argument="step.initial"] .run-number')?.value === String(s.autoxSettings.core.numerics["step.initial"])`, 'run dialog values'));
-  check('W855: the kinds shown are the ones the start allows (the current state\'s when nothing is grabbed)',
-    await cdp.eval(`(() => { const st = __xpp.state(); const want = st.diagram.start ? st.diagram.start.kinds : st.hello.autox_run.current;
-      return JSON.stringify([...document.querySelectorAll('.run-kinds [data-choice]')].map(b => b.dataset.choice)) === JSON.stringify(want); })()`));
-  await cdp.eval(`document.querySelector('.run-form .run-kinds [data-choice="periodic"]')?.click()`);
-  check('W855: the homoclinic fields show only for a homoclinic run', await cdp.eval(`!document.querySelector('.run-form [data-homoclinic]')`));
-  await cdp.eval(`document.querySelector('.run-form [data-choice="decrease"]').click()`);
-  const before = await cdp.eval(`__xpp.sent().length`);
-  await submitCommand();
-  check('W855: Decrease sends a negative step.initial, in the same autox.run a script sends',
-    await until(`__xpp.sent().slice(${before}).some(c => c.cmd === 'autox.run' && c.kind === 'periodic' && c["step.initial"] < 0)`, 'decrease run sent'));
-  check('W855: the run dialog closes on Run', await until(`!s.commandForm`, 'run dialog closed'));
-  await clickRegistry('autox.run');
-  await cdp.eval(`document.querySelector('.run-form .run-kinds [data-choice="equilibrium"]').click()`);
-  await cdp.eval(`document.querySelector('.run-form [data-choice="both"]').click()`);
-  const beforeBoth = await cdp.eval(`__xpp.sent().length`);
-  await submitCommand();
-  const bothRuns = `__xpp.sent().slice(${beforeBoth}).filter(c => c.cmd === 'autox.run').map(c => [c.kind, c["step.initial"], c.label])`;
-  check('W855: Both sends two autox.run with opposite first steps, one after the other',
-    await until(`(() => { const runs = __xpp.sent().slice(${beforeBoth}).filter(c => c.cmd === 'autox.run'); return runs.length === 2 && runs[0]["step.initial"] === -runs[1]["step.initial"] && runs[0]["step.initial"] !== 0; })()`, 'both runs sent', 120000), JSON.stringify(await cdp.eval(bothRuns)));
-  check('W855: the Both runs finish as one batch', await until(`!s.busy && s.batch.phase === 'idle'`, 'both runs ended', 120000));
-  await clickRegistry('autox.run');
-  const parameterSelect = `document.querySelector('.run-form select[aria-label="Parameter"]')`;
-  await cdp.eval(`(() => { const sel = ${parameterSelect}; const other = [...sel.options].find(o => o.value !== sel.value); sel.value = other.value; sel.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  const beforeParameter = await cdp.eval(`__xpp.sent().length`);
-  await cdp.eval(`document.querySelector('.run-form .run-kinds [data-choice="equilibrium"]').click()`);
-  await submitCommand();
-  check('W855: a changed parameter is sent as autox.configure_axes before the autox.run',
-    await until(`(() => { const sent = __xpp.sent().slice(${beforeParameter}); const axes = sent.findIndex(c => c.cmd === 'autox.configure_axes' && c.parameter1); const run = sent.findIndex(c => c.cmd === 'autox.run'); return axes >= 0 && run > axes; })()`, 'axes before run'));
   check('the steady-state branch arrives', await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000));
   const nSteady = await DS('d.points.x.length');
   const stop = await DS('d.stop');
@@ -2270,6 +2237,57 @@ async function autoxView(dir) {
   /* T22/T23/T25 (Numerics edited during a run, Stop, the run after) moved
      to autoxStopRace() below, on tools/models/heavy.odex: see that
      function's own comment for why they no longer live here. */
+
+  if (process.env.XPP_SHOTS) await cdp.eval(`__xpp.send({cmd: 'autox.grab', label: ${hbLab}})`); // the pictures start from the Hopf label
+  await requireUntil('!s.busy', 'grabbed');
+  /* W855: autoX > Run is the dialog of five steps (web2/src/ui/AutoxRunDialog.tsx): the values in force, only the kinds the start allows,
+     the homoclinic fields for their kind alone, Decrease's sign on the first step, Both as two runs (one each way) and a changed parameter
+     sent as autox.configure_axes before the run */
+  await clickRegistry('autox.run');
+  check('W855: the dialog opens with the values in force', await until(`s.commandForm?.id === 'autox.run' && document.querySelector('.run-form [data-argument="step.initial"] .run-number')?.value === String(s.autoxSettings.core.numerics["step.initial"])`, 'run dialog values'));
+  check('W855: the kinds shown are the ones the start allows (the current state\'s when nothing is grabbed)',
+    await cdp.eval(`(() => { const st = __xpp.state(); const want = st.diagram.start ? st.diagram.start.kinds : st.hello.autox_run.current;
+      return JSON.stringify([...document.querySelectorAll('.run-kinds [data-choice]')].map(b => b.dataset.choice)) === JSON.stringify(want); })()`));
+  /* the dialog's pictures for the UI review (XPP_SHOTS=folder): three widths, light and dark; never a check */
+  if (process.env.XPP_SHOTS) {
+    fs.mkdirSync(process.env.XPP_SHOTS, {recursive: true});
+    for (const [width, height] of [[375, 812], [768, 1024], [1280, 800]]) {
+      for (const scheme of ['light', 'dark']) {
+        await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+        await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+        await rendered();
+        const shot = await cdp.send('Page.captureScreenshot', {format: 'jpeg', quality: 85});
+        fs.writeFileSync(path.join(process.env.XPP_SHOTS, `run-dialog-${width}-${scheme}.jpg`), Buffer.from(shot.data, 'base64'));
+      }
+    }
+    await desktopMetrics();
+  }
+  await cdp.eval(`document.querySelector('.run-form .run-kinds [data-choice]')?.click()`);
+  check('W855: the homoclinic fields show only for a homoclinic run', await cdp.eval(`!document.querySelector('.run-form [data-homoclinic]')`));
+  await cdp.eval(`document.querySelector('.run-form [data-choice="decrease"]').click()`);
+  const before = await cdp.eval(`__xpp.sent().length`);
+  await submitCommand();
+  check('W855: Decrease sends a negative step.initial, in the same autox.run a script sends',
+    await until(`__xpp.sent().slice(${before}).some(c => c.cmd === 'autox.run' && c["step.initial"] < 0)`, 'decrease run sent'));
+  check('W855: the run dialog closes on Run', await until(`!s.commandForm`, 'run dialog closed'));
+  await clickRegistry('autox.run');
+  await cdp.eval(`document.querySelector('.run-form .run-kinds [data-choice]').click()`);
+  await cdp.eval(`document.querySelector('.run-form [data-choice="both"]').click()`);
+  const beforeBoth = await cdp.eval(`__xpp.sent().length`);
+  await submitCommand();
+  const bothRuns = `__xpp.sent().slice(${beforeBoth}).filter(c => c.cmd === 'autox.run').map(c => [c.kind, c["step.initial"], c.label])`;
+  check('W855: Both sends two autox.run with opposite first steps, one after the other',
+    await until(`(() => { const runs = __xpp.sent().slice(${beforeBoth}).filter(c => c.cmd === 'autox.run'); return runs.length === 2 && runs[0]["step.initial"] === -runs[1]["step.initial"] && runs[0]["step.initial"] !== 0; })()`, 'both runs sent', 120000), JSON.stringify([await cdp.eval(bothRuns), await cdp.eval(`JSON.stringify([__xpp.state().batch, __xpp.state().log.chunks.flat().slice(-8).map(e => e.text)])`)]));
+  check('W855: the Both runs finish as one batch', await until(`!s.busy && s.batch.phase === 'idle'`, 'both runs ended', 120000));
+  await clickRegistry('autox.run');
+  const parameterSelect = `document.querySelector('.run-form select[aria-label="Parameter"]')`;
+  await cdp.eval(`(() => { const sel = ${parameterSelect}; const other = [...sel.options].find(o => o.value !== sel.value); sel.value = other.value; sel.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  const beforeParameter = await cdp.eval(`__xpp.sent().length`);
+  await cdp.eval(`document.querySelector('.run-form .run-kinds [data-choice]').click()`);
+  await submitCommand();
+  check('W855: a changed parameter is sent as autox.configure_axes before the autox.run',
+    await until(`(() => { const sent = __xpp.sent().slice(${beforeParameter}); const axes = sent.findIndex(c => c.cmd === 'autox.configure_axes' && c.parameter1); const run = sent.findIndex(c => c.cmd === 'autox.run'); return axes >= 0 && run > axes; })()`, 'axes before run'));
+  check('W855: the runs end', await until("!s.busy && s.batch.phase === 'idle'", 'w855 runs ended', 120000));
 
   /* Close: done with autoX */
   /* W610 (#678): clicked only once the reload check saw it; a missing Close is that check's FAIL, never a throw here */
