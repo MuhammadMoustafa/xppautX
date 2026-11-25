@@ -342,7 +342,18 @@ Result<std::string> run_script(Session &s, const Command &command, const Argumen
         if (const std::string axes = autox_script_axes_command(run); !axes.empty())
             if (const Result<> set = go(axes); !set) return std::unexpected<Error>(set.error());
         const int before = static_cast<int>(diagram_stored_points(xpp::autox_parts(s)));
-        if (const Result<> ran = go(autox_script_command(run, start.first, start.second)); !ran) return std::unexpected<Error>(ran.error());
+        s.autox_state->run_skipped.clear();
+        s.autox_state->skip_run_on_branch = true;
+        const Result<> ran = go(autox_script_command(run, start.first, start.second));
+        s.autox_state->skip_run_on_branch = false;
+        if (!ran) return std::unexpected<Error>(ran.error());
+        s.autox_state->script.skipped.resize(script.runs.size());
+        s.autox_state->script.skipped[i] = s.autox_state->run_skipped;
+        if (!s.autox_state->run_skipped.empty()) { /* not made: stores nothing, and is not done (the runs after it go on) */
+            s.autox_state->script.errors.resize(script.runs.size());
+            s.autox_state->script.errors[i].clear();
+            continue;
+        }
         const int after = static_cast<int>(diagram_stored_points(xpp::autox_parts(s)));
         /* a new diagram (start_diagram) dropped every earlier run's points: points is sized again, none done but this run */
         const int begins = run.replaces && !run.from ? 0 : before;

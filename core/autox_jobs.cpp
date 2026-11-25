@@ -839,6 +839,23 @@ Result<> autox_run_jobs(AutoxParts s, int iold, int isave)
     return std::unexpected(Error{"autox",xpp::format("Start parameter \"{}\" = {} is outside [limits.parameter_min = {}, limits.parameter_max = {}], where a run that follows all branches cannot begin; change the start or the bounds",
         s.model().upar_names[principal],xpp::number(start),xpp::number(state.bifur.rl0),xpp::number(state.bifur.rl1)),command_place()});
   }
+  if(state.skip_run_on_branch&&state.bifur.ips==AutoxProblem::SteadyState){ /* a start on a branch the diagram holds: its run would trace it again */
+    AutoxJobStart at;
+    at.ips=AutoxProblem::SteadyState;
+    at.id=AutoxPointId{};
+    at.id->parameters={start};
+    at.id->states=refined?*refined:std::vector<double>(s.last_ic.begin(),s.last_ic.begin()+static_cast<std::ptrdiff_t>(s.model().node));
+    at.equilibrium=at.id->states;
+    if(autox_on_branch(s.diagram->points,at,q.epss)){
+      q.restore_constants();
+      const std::string why=xpp::format("the run is not made: its start {} = {} lies on a branch the diagram already holds, which it would trace again",
+                                        s.model().upar_names[principal],xpp::number(start));
+      s.autox_state->run_skipped=why;
+      xpp::log(XPP_LOG_WARN,"autoX: {}",why);
+      s.autox_state->stop.notes.push_back(why);
+      return {};
+    }
+  }
   if(autox_start_points_away(start,state.bifur.rl0,state.bifur.rl1,q.ds)&&autox_start_points_away(start,state.bifur.rl0,state.bifur.rl1,-q.ds))
     q.jobs[1].skipped=true;
   else for(QueuedJob &root:q.jobs)skip_if_away(q,root,start);

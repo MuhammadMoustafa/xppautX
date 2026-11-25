@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <cstdlib>
+#include <deque>
 #include <utility>
 #include <vector>
 
@@ -86,19 +87,31 @@ double segment_gap(const AutoxPointId &start, const DIAGRAM &a, const DIAGRAM &b
     return gap;
 }
 
+/* the walk of autox_on_branch over `count` points, the i-th being at(i) */
+template <typename At>
+bool on_branch(std::size_t count, At at, const AutoxJobStart &start, double epss)
+{
+    if (!start.id || start.ips != AutoxProblem::SteadyState || start.equilibrium.empty()) return false;
+    const AutoxPointId &id = *start.id;
+    const auto fits = [&](const DIAGRAM &p) { return p.ibr > 0 && p.par.size() == id.parameters.size() && p.u0.size() == id.states.size(); };
+    for (std::size_t i = 0; i < count; ++i) {
+        const DIAGRAM &a = at(i), &b = at(std::min(i + 1, count - 1)); /* the last point is a segment of its own */
+        if (!fits(a) || !fits(b) || a.ibr != b.ibr) continue;
+        if (segment_gap(id, a, b, epss) <= autox_same_point_factor) return true;
+    }
+    return false;
+}
+
 } // namespace
 
 bool autox_on_branch(std::span<const AutoxBufferedPoint> points, const AutoxJobStart &start, double epss)
 {
-    if (!start.id || start.ips != AutoxProblem::SteadyState || start.equilibrium.empty()) return false;
-    const AutoxPointId &at = *start.id;
-    const auto fits = [&](const DIAGRAM &p) { return p.ibr > 0 && p.par.size() == at.parameters.size() && p.u0.size() == at.states.size(); };
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        const DIAGRAM &a = points[i].point, &b = points[std::min(i + 1, points.size() - 1)].point; /* the last point is a segment of its own */
-        if (!fits(a) || !fits(b) || a.ibr != b.ibr) continue;
-        if (segment_gap(at, a, b, epss) <= autox_same_point_factor) return true;
-    }
-    return false;
+    return on_branch(points.size(), [&](std::size_t i) -> const DIAGRAM & { return points[i].point; }, start, epss);
+}
+
+bool autox_on_branch(const std::deque<DIAGRAM> &points, const AutoxJobStart &start, double epss)
+{
+    return on_branch(points.size(), [&](std::size_t i) -> const DIAGRAM & { return points[i]; }, start, epss);
 }
 
 std::vector<AutoxJobStart> autox_found_starts(AutoxProblem ips, std::span<const AutoxBufferedPoint> points, const AutoxStop &stop)

@@ -13,6 +13,8 @@ export interface AutoxScriptRun {
   done: boolean;
   /** why its last attempt was refused or ended in an error (the run's own message), else null (W857) */
   error: string | null;
+  /** why it was not made though it was asked: its start lies on a branch the diagram already holds (W857), else null */
+  skipped: string | null;
 }
 
 /** the open script; `open` false when none is (then the other fields are empty) */

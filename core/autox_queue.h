@@ -24,6 +24,7 @@
 
    autox_queue.cpp. */
 
+#include <deque>
 #include <optional>
 #include <span>
 #include <vector>
@@ -79,6 +80,8 @@ bool autox_start_made(const AutoxJobStart &made, const AutoxJobStart &wanted, do
    equilibria a finished job stored: within the same-point rule's tolerance of one of its segments, so a point between two
    stored points, or off the fold the job found by the accuracy the end was located to, is on it too */
 bool autox_on_branch(std::span<const AutoxBufferedPoint> points, const AutoxJobStart &start, double epss);
+/* the same over the points the diagram holds (W857: a script's run that starts on a branch of an earlier run is not made) */
+bool autox_on_branch(const std::deque<DIAGRAM> &points, const AutoxJobStart &start, double epss);
 
 /* whether `wanted` runs the branch of `made` the other way round: the same problem, branch switch and point (as
    autox_start_made) in the opposite direction, both directions given. When made's branch closed on itself, wanted's

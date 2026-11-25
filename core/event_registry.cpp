@@ -49,7 +49,7 @@ constexpr std::array EVENTS = {
           "A run of branch jobs (follow_all_branches) changed: how many jobs run, wait to start and have ended, and each running job's points so far; the last one is the run's end."},
     Event{AUTOX_JOINED, "jobs", "A run of branch jobs (follow_all_branches) was joined: each job that kept its points, with its key and the branch its joined points carry."},
     Event{AUTOX_OPTIONS, "numerics, pars, axes, marks", "autoX's options as data.", AUTOX_OPTIONS},
-    Event{AUTOX_SCRIPT_RUNS, "open, file, model, runs", "The open .autox script's runs in order: each one's name, what it starts from, whether it has run and the error that refused its last attempt (null when none).", AUTOX_SCRIPT_RUNS},
+    Event{AUTOX_SCRIPT_RUNS, "open, file, model, runs", "The open .autox script's runs in order: each one's name, what it starts from, whether it has run and the error that refused its last attempt and why it was not made when its start lay on a branch the diagram holds (each null when none).", AUTOX_SCRIPT_RUNS},
     Event{AUTOX_VIEW, "earlier, show, active, views", "autoX's hidden branches, the active view and each view's zoom."},
     Event{ARRAY_PLOT_SHOWN, "title, nx, ny, values, enc, colormap, ramp, zmin, zmax, tlo, thi, first_row, tag", "The array plot's cells and colors."},
     Event{ANIMATION_STATE, "pos, rows, fly, grab, skip, speed, loaded, open", "The animation's state for its slider and toggles."},

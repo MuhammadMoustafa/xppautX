@@ -1,5 +1,5 @@
 /* The autoX window's script panel (W684, docs/protocol.md "autoX scripts"): the open .autox script's runs in order, each
-   with what it starts from, a Done mark once it has run (the error of a run that was refused, in place of it), and its own Run; Run all runs them in order. Its list is the
+   with what it starts from, a Done mark once it has run (the error of a run that was refused, or why it was not made, in place of it), and its own Run; Run all runs them in order. Its list is the
    `autox.script_runs` event (store/autoxScript.ts). A run whose start has not run waits, its Run off and the reason in
    its tip. No script open, no panel. */
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
@@ -28,8 +28,9 @@ export function AutoxScript() {
               <span class="autox-script-number">{i + 1}</span>
               <span class="autox-script-name"><ShownName name={run.name} copy={false} /></span>
               <span class="autox-script-from muted">{startText(run.from)}</span>
-              <span class="autox-script-state">{run.done ? 'Done' : run.error ? 'Error' : ''}</span>
+              <span class="autox-script-state">{run.done ? 'Done' : run.error ? 'Error' : run.skipped ? 'Skipped' : ''}</span>
               {run.error && <span class="autox-script-error" role="alert">{run.error}</span>}
+              {run.skipped && <span class="autox-script-skipped muted">{run.skipped}</span>}
               <button class="small" disabled={runOff} aria-label={`Run ${run.name}`} data-script-run-button={run.name}
                 title={waiting !== null ? `Waits for run "${waiting}" to be done` : off ? BUSY_TITLE : undefined}
                 onClick={() => session.send({cmd: 'autox.run_script', run: run.name})}>Run</button>

@@ -645,6 +645,42 @@ def check_script_refused_run():
         shutil.rmtree(folder, ignore_errors=True)
 
 
+def check_script_repeated_run():
+    """W857 variant (b): follow_all_branches stays on in a script, and a run whose start lies on a branch the diagram already holds is not
+    made: no branch and no point, no error, the Script panel's row says why (autox.script_runs' skipped), the log says it once, and the
+    runs after it go on. The lab's "h up" stopped after 200 steps, then the same run again from where it ended"""
+    source = autoxcompare.ROOT / 'tools/models'
+    folder = tempfile.mkdtemp(prefix='xppw857b')
+    try:
+        shutil.copy(source / 'pvn_slowfast_hcn.odex', folder)
+        run = '{ name: "%s", kind: equilibrium, replace_diagram: %s, parameters: ["hfix"], options: { step.initial: 0.001, step.min: 1e-7, step.max: 0.01, limits.steps: 200, limits.parameter_min: 0, limits.parameter_max: 1 } },\n'
+        with open(os.path.join(folder, 'again.autox'), 'w', encoding='utf-8') as f:
+            f.write('version: 4,\nmodel: "pvn_slowfast_hcn.odex",\ndiagram: "again.csv",\nruns: [\n' + run % ('first', 'true') + run % ('again', 'false') + ']\n')
+        s = Server(args.server, os.path.join(folder, 'again.autox'), run=folder)
+        try:
+            autoxcompare.completed(s)
+            autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.script_runs']))
+            s.send(cmd='autox.run_script')
+            evs, end = s.collect(autoxcompare.is_done, timeout=300 * SLOW)
+            held = [e for e in evs if e.get('ev') == 'autox.script_runs']
+            runs = {r['name']: r for r in held[-1]['runs']} if held else {}
+            check('W857 (b): a run that starts on a branch the diagram holds is not made, with no error, and the Script panel says why; the first run is done',
+                  end is not None and end.get('status') == 'ok' and runs.get('first', {}).get('done') is True and not runs.get('again', {}).get('done')
+                  and 'lies on a branch the diagram already holds' in (runs.get('again', {}).get('skipped') or '') and runs['again'].get('error') is None, str(held)[-500:])
+        finally:
+            s.close()
+        proc = subprocess.run([os.path.abspath(args.server), 'again.autox', '--silent'], cwd=folder, capture_output=True, text=True, timeout=300 * SLOW)
+        rows = list(csv.DictReader(open(os.path.join(folder, 'again.csv'), encoding='utf-8')))
+        sizes = {}
+        for row in rows:
+            sizes[row['branch']] = sizes.get(row['branch'], 0) + 1
+        check('W857 (b): --silent exits zero, the log says once why the run was not made, and the diagram holds only the first run\'s branches',
+              proc.returncode == 0 and proc.stderr.count('the run is not made') == 1 and len(sizes) == 2 and max(sizes.values()) <= 201,
+              '%s %s %s' % (proc.returncode, sizes, proc.stderr[:300]))
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
 def check_autox_two_parameter_starts():
     d = autoxcompare.read_description(autoxcompare.BASE / 'tstauto_ab_fold.json')
     s = Server(args.server, autoxcompare.ROOT / d['model'])
@@ -3654,7 +3690,7 @@ def check_options_panels():
 
 
 
-INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable(), check_script_refused_run()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_script_refused_run(), check_script_repeated_run(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -13842,6 +13878,7 @@ check_autox_closed_branch()
 check_autox_range_branch()
 check_autox_starts()
 check_script_refused_run()
+check_script_repeated_run()
 check_autox_two_parameter_starts()
 check_autox_periodic_start_kind()
 check_autox_directions()

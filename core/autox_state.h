@@ -147,6 +147,10 @@ struct AutoxState : AutoxSettings {
   xpp::AutoxCalculation type_of_calc=xpp::no_calculation;
   /* the torus period a two-parameter torus run starts from */
   xpp::ROTCHK blrtn{};
+  /* a script's run is not made when it follows all branches and its start lies on a branch the diagram already holds (W857): the
+     script runner sets skip_run_on_branch for the run, and the run says in run_skipped why it was not made (empty: it ran) */
+  bool skip_run_on_branch=false;
+  std::string run_skipped;
   /* the .autox script the model was opened with, and how far it has run (W306) */
   xpp::AutoxScriptState script;
   /* the equilibria of the homoclinic start a run copies (autox_evd.cpp init_autox) */

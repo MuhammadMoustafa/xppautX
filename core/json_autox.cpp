@@ -499,6 +499,9 @@ std::string autox_script_event_line(const xpp::Session &s)
         o += ",\"error\":";
         if (i < state.errors.size() && !state.errors[i].empty()) xpp::json_append_string(o, state.errors[i]);
         else o += "null";
+        o += ",\"skipped\":";
+        if (i < state.skipped.size() && !state.skipped[i].empty()) xpp::json_append_string(o, state.skipped[i]);
+        else o += "null";
         o += '}';
     }
     o += "]}";
